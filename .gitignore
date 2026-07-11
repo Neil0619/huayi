@@ -4,8 +4,8 @@ coverage/
 playwright-report/
 test-results/
 .DS_Store
+.idea/
 .env
 .env.*
 *.log
 AGENTS.override.md
-
