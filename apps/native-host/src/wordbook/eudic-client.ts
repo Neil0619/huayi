@@ -101,6 +101,9 @@ function queryWords(value: unknown): string[] {
 }
 
 function throwForStatus(status: number): never {
+  if (status >= 300 && status < 400) {
+    throw eudicError("INVALID_RESPONSE");
+  }
   if (status === 401) {
     throw eudicError("EUDIC_AUTH_FAILED");
   }

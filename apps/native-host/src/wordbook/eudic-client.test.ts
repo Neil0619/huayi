@@ -138,6 +138,31 @@ describe("EudicClient", () => {
     ).rejects.toMatchObject({ code: "INVALID_RESPONSE" });
   });
 
+  it.each([301, 302, 307, 308])(
+    "treats a returned HTTP %i query redirect as invalid",
+    async (status) => {
+      const client = new EudicClient({ fetch: async () => jsonResponse({}, status) });
+
+      await expect(
+        client.addWord("NIS secret", request, new AbortController().signal),
+      ).rejects.toMatchObject({ code: "INVALID_RESPONSE" });
+    },
+  );
+
+  it("treats a returned create redirect as invalid", async () => {
+    let callCount = 0;
+    const client = new EudicClient({
+      fetch: async () => {
+        callCount += 1;
+        return callCount === 1 ? jsonResponse({ data: [] }) : jsonResponse({}, 302);
+      },
+    });
+
+    await expect(
+      client.addWord("NIS secret", request, new AbortController().signal),
+    ).rejects.toMatchObject({ code: "INVALID_RESPONSE" });
+  });
+
   it("maps a response-stream network failure without exposing diagnostics", async () => {
     const response = new Response("ignored", { status: 200 });
     Object.defineProperty(response, "body", {
