@@ -22,7 +22,7 @@ class HealthDispatcher implements RequestDispatcher {
   dispatch(_message: unknown, emit: (event: HostEvent) => void): void {
     emit({
       codexVersion: "codex-cli 0.144.1",
-      hostVersion: "0.1.0",
+      hostVersion: "0.2.0",
       ready: true,
       requestId: "health-1",
       schemaVersion: 1,
@@ -54,7 +54,7 @@ describe("runNativeHost", () => {
     expect(decoder.push(Buffer.concat(outputChunks))).toEqual([
       {
         codexVersion: "codex-cli 0.144.1",
-        hostVersion: "0.1.0",
+        hostVersion: "0.2.0",
         ready: true,
         requestId: "health-1",
         schemaVersion: 1,
