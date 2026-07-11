@@ -16,7 +16,7 @@
 
 `add-word` 的 `language` 固定为 `en`；`word` 只能是由英文字母及内部连字符或撇号构成的
 单词。`context` 必须包含英文、不能包含汉字，长度为 1–2,000 字符。它不包含 URL、页面标题
-或模型输出。
+或模型输出；两个字段均来自网页原始选区和预先提取的句子。
 
 ## 事件
 
@@ -64,7 +64,13 @@ INTERNAL_ERROR
 所有对象拒绝未知字段，Native Messaging 单帧上限为 1 MiB。版本 1 只允许新增可选字段；
 删除字段、重命名或改变语义时必须提升 `schemaVersion`，同时在本节增加迁移说明。
 
+v0.2.0 在不改变已有消息语义的前提下，为 `schemaVersion: 1` 增加 `add-word` 和
+`word-added` 联合分支，因此没有提升协议版本。扩展与 Native Host 应同步升级；旧 Host 在
+加词请求时断开会被扩展提示为“未安装或版本过旧”，原有翻译协议不受影响。
+
 本机 stdin/stdout 每条消息使用 4 字节本机字节序无符号长度前缀，后接 UTF-8 JSON。长度为
 0、超过 1 MiB、JSON 无效或协议 Schema 无效时 Host 立即停止读取；stdout 不输出日志、换行
-或其他非帧字节。`analyze` 进入全局最多并行 2 个任务的队列，`cancel` 对排队任务直接移除，
-对运行任务触发 `AbortSignal`。
+或其他非帧字节。`analyze` 和 `add-word` 都进入全局最多并行 2 个任务的队列，欧路操作在此
+基础上额外串行。`cancel` 同时适用于分析和加词：对排队任务直接移除，对运行任务触发
+`AbortSignal`。分析请求只能以 `result` 成功，加词请求只能以 `word-added` 成功；不匹配的
+终态按 `INVALID_RESPONSE` 失败关闭。

@@ -17,12 +17,41 @@
 
 `manifest.json` 不声明 `host_permissions`、`storage`、`tabs`、`activeTab`、`scripting` 或网络
 请求权限；`http/https` 范围只出现在静态 Content Script 的 `matches`。Content Script 不能
-调用 Native Messaging，只能发送经过严格解析的内部命令给 Service Worker。
+调用 Native Messaging，只能发送经过严格解析的内部命令给 Service Worker。v0.2.0 也不增加
+设置页或远程托管扩展代码。
 
 欧路网络访问只发生在 Native Host。请求固定为 `api.frdic.com` 的单词查询和新增路径，禁止
 网页、协议消息或环境变量覆盖 URL；拒绝重定向、Cookie 和自动重试。单次 HTTP 操作最长
 10 秒，响应体最多 64 KiB。状态码、JSON 和响应流均视为不可信；远端响应正文、诊断信息和
 授权值不会返回扩展或写入日志。
+
+欧路官方限额为每分钟 30 次、每 30 分钟 500 次，并用 403 表示访问过频。Host 不自动重试，
+避免放大写入和限流风险；用户修复网络或授权后可在结果页显式重试，当前结果一旦限流则禁用
+继续点击。
+
+## 欧路授权与钥匙串
+
+授权固定存入以下 macOS 钥匙串项：
+
+```text
+service: com.huayi.codex_bridge.eudic
+account: authorization
+label: Huayi Eudic OpenAPI Authorization
+```
+
+Host 每次显式加词都重新读取，不在内存中长期缓存。读取使用固定 `/usr/bin/security`、参数
+数组和 `shell: false`，最长 5 秒，stdout/stderr 各最多 8 KiB；只接受 1–4,096 字符且不含
+首尾空白、换行、NUL 或控制字符的完整 Authorization Header 值。
+
+`host:eudic:configure` 使用 `add-generic-password -U`，把无参数的 `-w` 放在最后，让系统在
+终端隐藏读取完整授权。命令不使用 `-A`，也不通过命令参数、环境变量、配置文件或扩展消息
+接收授权；配置本身不调用欧路 API，有效性在第一次显式加词时验证。Token 只短暂存在于
+`security`/Host 进程内存和 HTTPS Authorization Header，不进入 Native Messaging、日志、
+错误信息、快照或测试输出。
+
+钥匙串保护的是静态存储，不能防御以同一 macOS 登录用户权限运行的恶意进程，也不能替代
+终端和用户账户本身的安全。自动测试只使用 fake process runner、fake authorization reader
+和 fake fetch，不能读取真实钥匙串项。
 
 ## 本机进程边界
 
@@ -49,7 +78,7 @@ JSON 数据中的待翻译或解释文本。所有请求与结果必须经过严
 
 `--ephemeral` 的边界是“不保存可恢复的 session rollout”，不是“Codex 进程绝不写任何
 文件”；例如 CLI 自身可能维护认证状态。冒烟测试只比较 session 目录，不读取认证文件。
-v0.1.0 的四类真实请求运行前后没有出现新的 session 文件。
+最近一次真实 Codex 证据来自 v0.1.0：四类请求运行前后没有出现新的 session 文件。
 
 当前 Codex CLI 没有一个可验证的全局 `--no-tools` 开关；`read-only` 本身允许读取而不是禁止
 读取。关闭三类 shell 能显著缩小网页提示注入的本机读取面，但不能证明未来或其他独立工具
@@ -60,6 +89,10 @@ v0.1.0 的四类真实请求运行前后没有出现新的 session 文件。
 安装器只有在显式执行后才写入 `~/Library/Application Support/Huayi/native-host/` 和 Chrome
 用户级 Native Messaging 清单目录。dry-run 完成全部只读验证，不创建目录。安装前会拒绝
 没有 Huayi 所有权标记的既有目录和非本项目清单；升级只替换固定 bundle、Schema、workdir
-和 launcher，并拒绝可逃逸安装根目录的 provider 符号链接。launcher 使用受控 `PATH`，只
-持久化认证目录的路径，不存储 Token。卸载器先验证标记与清单所有权，再只删除这两个精确
-目标，不删除父目录。
+和 launcher，并拒绝可逃逸安装根目录的 provider 符号链接。安装与升级只检查
+`/usr/bin/security` 可执行，不要求已经配置欧路，也不读取或覆盖已有钥匙串项。launcher
+使用受控 `PATH`，只持久化认证目录的路径，不存储 Token。
+
+卸载器先删除上述精确 service/account，再验证标记与清单所有权并只删除两个 Huayi 文件
+目标；钥匙串删除失败时保留 Host 文件以便重试，项目缺失该钥匙串项时保持幂等。独立的
+`host:eudic:remove` 也只操作这一项，不删除其他凭据或父目录。

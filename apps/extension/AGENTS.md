@@ -3,7 +3,7 @@
 - Build only a Manifest V3 extension.
 - Content scripts own DOM selection and overlay rendering. Only the service worker may use
   Native Messaging.
-- Version 0.1 permissions are limited to `nativeMessaging` and content-script matches for normal
+- Version 0.2 permissions are limited to `nativeMessaging` and content-script matches for normal
   `http` and `https` pages. Any new permission requires `docs/security.md` and regression-test
   updates.
 - Use native DOM and Shadow DOM. Do not add React or another UI framework.
