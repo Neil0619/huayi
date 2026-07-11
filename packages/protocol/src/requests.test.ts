@@ -122,6 +122,7 @@ describe("addWordRequestSchema", () => {
     expect(addWordRequestSchema.safeParse({ ...validRequest, word: "early stages" }).success).toBe(
       false,
     );
+    expect(addWordRequestSchema.safeParse({ ...validRequest, word: "调查" }).success).toBe(false);
     expect(
       addWordRequestSchema.safeParse({ ...validRequest, context: "调查 ongoing" }).success,
     ).toBe(false);

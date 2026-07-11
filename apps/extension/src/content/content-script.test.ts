@@ -62,6 +62,30 @@ function createInstance(runtime: FakeRuntime): ContentScriptInstance {
   return instance;
 }
 
+function resolveWordTranslation(runtime: FakeRuntime, requestId: string, sourceText: string): void {
+  runtime.emit({
+    requestId,
+    result: {
+      collocations: [
+        { meaningZh: "测试搭配一", text: "sample collocation" },
+        { meaningZh: "测试搭配二", text: "common collocation" },
+      ],
+      contextualMeaningZh: "测试词义",
+      partOfSpeech: "noun",
+      selectionKind: "word",
+      similarTerms: [
+        { meaningZh: "相似项一", partOfSpeech: "noun", text: "alternative" },
+        { meaningZh: "相似项二", partOfSpeech: "noun", text: "equivalent" },
+        { meaningZh: "相似项三", partOfSpeech: "noun", text: "counterpart" },
+      ],
+      sourceText,
+      type: "translate-lexical",
+    },
+    schemaVersion: 1,
+    type: "result",
+  });
+}
+
 afterEach(() => {
   for (const instance of instances.splice(0)) {
     instance.destroy();
@@ -234,6 +258,68 @@ describe("initializeContentScript", () => {
       selection: { selection: "sustained heatwave" },
       status: "actions",
     });
+  });
+
+  it("cancels a pending wordbook request on a new selection and ignores its late success", () => {
+    const runtime = new FakeRuntime();
+    const instance = createInstance(runtime);
+    const first = document.createElement("p");
+    first.textContent = "investigation";
+    const second = document.createElement("p");
+    second.textContent = "replacement";
+    document.body.append(first, second);
+
+    selectContents(first);
+    document.dispatchEvent(new MouseEvent("mouseup"));
+    instance.controller.shadowRoot
+      .querySelector<HTMLButtonElement>("[data-action='translate']")
+      ?.click();
+    resolveWordTranslation(runtime, "request-1", "investigation");
+    instance.controller.shadowRoot
+      .querySelector<HTMLButtonElement>("[data-action='add-word']")
+      ?.click();
+
+    selectContents(second);
+    document.dispatchEvent(new MouseEvent("mouseup"));
+
+    expect(runtime.sent.at(-1)).toEqual({ requestId: "request-2", type: "CANCEL_REQUEST" });
+    expect(instance.controller.state).toMatchObject({
+      selection: { selection: "replacement" },
+      status: "actions",
+    });
+    runtime.emit({
+      outcome: "added",
+      requestId: "request-2",
+      schemaVersion: 1,
+      type: "word-added",
+    });
+    expect(instance.controller.state).toMatchObject({
+      selection: { selection: "replacement" },
+      status: "actions",
+    });
+  });
+
+  it("cancels a pending wordbook request when Escape closes the result", () => {
+    const runtime = new FakeRuntime();
+    const instance = createInstance(runtime);
+    const paragraph = document.createElement("p");
+    paragraph.textContent = "investigation";
+    document.body.append(paragraph);
+    selectContents(paragraph);
+    document.dispatchEvent(new MouseEvent("mouseup"));
+    instance.controller.shadowRoot
+      .querySelector<HTMLButtonElement>("[data-action='translate']")
+      ?.click();
+    resolveWordTranslation(runtime, "request-1", "investigation");
+    instance.controller.shadowRoot
+      .querySelector<HTMLButtonElement>("[data-action='add-word']")
+      ?.click();
+
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    document.dispatchEvent(new KeyboardEvent("keyup", { key: "Escape" }));
+
+    expect(instance.controller.state.status).toBe("closed");
+    expect(runtime.sent.at(-1)).toEqual({ requestId: "request-2", type: "CANCEL_REQUEST" });
   });
 
   it("does not reopen the selected text when Escape keyup follows closing", () => {

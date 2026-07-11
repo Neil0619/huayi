@@ -14,8 +14,20 @@ function panel(page: Page): Locator {
   return overlayHost(page).locator(".huayi-panel");
 }
 
-function nativeRequests(page: Page, type: "analyze" | "cancel"): Locator {
+function nativeRequests(page: Page, type: "add-word" | "analyze" | "cancel"): Locator {
   return page.locator(`[data-native-request="${type}"]`);
+}
+
+async function openWordResult(
+  page: Page,
+  testId: string,
+  action: "explain" | "translate" = "translate",
+): Promise<Locator> {
+  await page.getByTestId(testId).dblclick();
+  await toolbar(page).locator(`[data-action="${action}"]`).click();
+  const resultPanel = panel(page);
+  await expect(resultPanel).toContainText(action === "translate" ? "词汇翻译结果" : "词汇解释结果");
+  return resultPanel;
 }
 
 async function dragSelect(page: Page, target: Locator): Promise<void> {
@@ -86,6 +98,81 @@ test("drag selection classifies a phrase and renders lexical explanation", async
   await expect(panel(page)).toContainText("词汇解释结果");
   await expect(panel(page)).toContainText("同义词");
   await expectAnalyzeRequest(page, "phrase", "explain");
+});
+
+test("a translated word can be added with its exact English sentence", async ({ page }) => {
+  const resultPanel = await openWordResult(page, "word-selection");
+  const button = resultPanel.locator('[data-action="add-word"]');
+
+  await expect(button).toHaveText("加入欧路生词本");
+  await button.dblclick();
+
+  await expect(button).toHaveText("已加入生词本");
+  await expect(button).toBeDisabled();
+  const addRequest = nativeRequests(page, "add-word");
+  await expect(addRequest).toHaveCount(1);
+  await expect(addRequest).toHaveAttribute("data-word", "investigation");
+  await expect(addRequest).toHaveAttribute(
+    "data-wordbook-context",
+    "He said the investigation was still in its early stages.",
+  );
+});
+
+test("an explained word can be added and an existing word is not overwritten", async ({ page }) => {
+  const explainedPanel = await openWordResult(page, "word-selection", "explain");
+  await explainedPanel.locator('[data-action="add-word"]').click();
+  await expect(explainedPanel.locator('[data-action="add-word"]')).toHaveText("已加入生词本");
+
+  await page.getByTestId("existing-word-selection").dblclick();
+  await toolbar(page).locator('[data-action="translate"]').click();
+  await panel(page).locator('[data-action="add-word"]').click();
+  await expect(panel(page).locator('[data-action="add-word"]')).toHaveText("已在生词本");
+});
+
+for (const [testId, message] of [
+  ["unconfigured-word-selection", "尚未配置欧路授权"],
+  ["unauthorized-word-selection", "欧路授权无效或已过期"],
+  ["network-word-selection", "无法连接欧路服务"],
+] as const) {
+  test(`a recoverable Eudic error can be retried for ${testId}`, async ({ page }) => {
+    const resultPanel = await openWordResult(page, testId);
+    const button = resultPanel.locator('[data-action="add-word"]');
+
+    await button.click();
+    await expect(resultPanel.locator(".huayi-wordbook-error")).toContainText(message);
+    await expect(button).toBeEnabled();
+    await button.click();
+
+    await expect(button).toHaveText("已加入生词本");
+  });
+}
+
+test("rate limiting disables wordbook retry on the current result", async ({ page }) => {
+  const resultPanel = await openWordResult(page, "rate-limited-word-selection");
+  const button = resultPanel.locator('[data-action="add-word"]');
+
+  await button.click();
+
+  await expect(resultPanel.locator(".huayi-wordbook-error")).toContainText("欧路请求过于频繁");
+  await expect(button).toBeDisabled();
+});
+
+test("closing a pending wordbook write sends a targeted cancel", async ({ page }) => {
+  const resultPanel = await openWordResult(page, "pending-word-selection");
+  await resultPanel.locator('[data-action="add-word"]').click();
+
+  const addRequest = nativeRequests(page, "add-word");
+  await expect(addRequest).toHaveCount(1);
+  const requestId = await addRequest.getAttribute("data-request-id");
+  expect(requestId).not.toBeNull();
+  await expect(resultPanel.locator('[data-action="add-word"]')).toHaveText("正在添加…");
+  await resultPanel.locator('[data-action="close"]').click();
+
+  await expect(overlayHost(page)).toHaveCount(0);
+  await expect(nativeRequests(page, "cancel")).toHaveAttribute(
+    "data-target-request-id",
+    requestId ?? "",
+  );
 });
 
 test("drag selection classifies a sentence and renders sentence explanation", async ({ page }) => {

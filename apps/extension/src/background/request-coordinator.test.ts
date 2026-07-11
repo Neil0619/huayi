@@ -198,6 +198,32 @@ describe("RequestCoordinator", () => {
     coordinator.dispose();
   });
 
+  it("times out and targets an unresponsive wordbook request", () => {
+    vi.useFakeTimers();
+    const { coordinator, delivered, transport } = createHarness(1_000);
+    coordinator.start(7, addWordRequest("word-1"));
+
+    vi.advanceTimersByTime(1_000);
+
+    expect(delivered[0]?.event).toMatchObject({
+      error: { code: "TIMEOUT", retryable: true },
+      requestId: "word-1",
+      type: "error",
+    });
+    expect(transport.sent[1]).toMatchObject({
+      targetRequestId: "word-1",
+      type: "cancel",
+    });
+    transport.emitEvent({
+      outcome: "added",
+      requestId: "word-1",
+      schemaVersion: 1,
+      type: "word-added",
+    });
+    expect(delivered).toHaveLength(1);
+    coordinator.dispose();
+  });
+
   it("fails pending work when the host disconnects", () => {
     const { coordinator, delivered, transport } = createHarness();
     coordinator.start(7, analyzeRequest("request-1"));

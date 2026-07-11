@@ -1,5 +1,13 @@
 import { SCHEMA_VERSION } from "@huayi/protocol";
-import type { AnalysisResult, AnalyzeRequest, HostEvent, HostRequest } from "@huayi/protocol";
+import type {
+  AddWordRequest,
+  AnalysisError,
+  AnalysisResult,
+  AnalyzeRequest,
+  HostEvent,
+  HostRequest,
+  WordbookAddOutcome,
+} from "@huayi/protocol";
 
 import { RequestCoordinator } from "../../src/background/request-coordinator.js";
 import {
@@ -15,6 +23,7 @@ const DEFAULT_REQUEST_TIMEOUT_MS = 65_000;
 const PENDING_SELECTION = "pending request";
 const RETRY_SELECTION = "temporary failure";
 const TIMEOUT_SELECTION = "timeout request";
+const PENDING_WORDBOOK_WORD = "pendingword";
 
 const configuredRequestTimeoutMs = new URLSearchParams(window.location.search).get(
   "request-timeout-ms",
@@ -158,9 +167,64 @@ function appendRequestLog(log: HTMLOListElement, request: HostRequest): void {
     entry.dataset.selectionText = request.selection;
   } else if (request.type === "cancel") {
     entry.dataset.targetRequestId = request.targetRequestId;
+  } else if (request.type === "add-word") {
+    entry.dataset.word = request.word;
+    entry.dataset.wordbookContext = request.context;
   }
 
   log.append(entry);
+}
+
+function wordbookResponse(
+  request: AddWordRequest,
+  attempt: number,
+): { error: AnalysisError } | { outcome: WordbookAddOutcome } | null {
+  switch (request.word) {
+    case PENDING_WORDBOOK_WORD:
+      return null;
+    case "established":
+      return { outcome: "already-exists" };
+    case "unconfigured":
+      return attempt === 1
+        ? {
+            error: {
+              code: "EUDIC_NOT_CONFIGURED",
+              message: "尚未配置欧路授权，请先运行配置命令。",
+              retryable: false,
+            },
+          }
+        : { outcome: "added" };
+    case "unauthorized":
+      return attempt === 1
+        ? {
+            error: {
+              code: "EUDIC_AUTH_FAILED",
+              message: "欧路授权无效或已过期，请重新配置。",
+              retryable: false,
+            },
+          }
+        : { outcome: "added" };
+    case "resilient":
+      return attempt === 1
+        ? {
+            error: {
+              code: "NETWORK_ERROR",
+              message: "无法连接欧路服务，请检查网络后重试。",
+              retryable: true,
+            },
+          }
+        : { outcome: "added" };
+    case "throttled":
+      return {
+        error: {
+          code: "RATE_LIMITED",
+          message: "欧路请求过于频繁，请稍后再试。",
+          retryable: false,
+        },
+      };
+    default:
+      return { outcome: "added" };
+  }
 }
 
 function createResultEvent(request: AnalyzeRequest): HostEvent {
@@ -197,6 +261,33 @@ runtime.connectBackground(createRuntimeMessageListener(coordinator));
 
 transport.onRequest((request) => {
   appendRequestLog(requestLog, request);
+  if (request.type === "add-word") {
+    const attemptKey = `add-word\u0000${request.word}`;
+    const attempt = (attempts.get(attemptKey) ?? 0) + 1;
+    attempts.set(attemptKey, attempt);
+    const response = wordbookResponse(request, attempt);
+    if (response === null) {
+      return;
+    }
+    queueMicrotask(() => {
+      transport.emit(
+        "error" in response
+          ? {
+              error: response.error,
+              requestId: request.requestId,
+              schemaVersion: SCHEMA_VERSION,
+              type: "error",
+            }
+          : {
+              outcome: response.outcome,
+              requestId: request.requestId,
+              schemaVersion: SCHEMA_VERSION,
+              type: "word-added",
+            },
+      );
+    });
+    return;
+  }
   if (
     request.type !== "analyze" ||
     request.selection === PENDING_SELECTION ||
