@@ -12,6 +12,9 @@
 
 默认测试使用 fake process runner 和 mock transport，不访问 OpenAI。
 
+Host 测试将 stdout 作为原始字节重新解帧，确保正常路径只有合法事件帧；无效长度、超大
+消息、无效 JSON 和无效 Schema 必须只在 stderr 留下诊断且停止读取。
+
 ## 浏览器测试
 
 Playwright 覆盖双击、拖选、工具条动作、各结果类型、窄屏、视口边缘、取消、超时和错误。

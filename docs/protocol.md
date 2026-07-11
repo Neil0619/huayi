@@ -55,3 +55,8 @@ INTERNAL_ERROR
 
 所有对象拒绝未知字段，Native Messaging 单帧上限为 1 MiB。版本 1 只允许新增可选字段；
 删除字段、重命名或改变语义时必须提升 `schemaVersion`，同时在本节增加迁移说明。
+
+本机 stdin/stdout 每条消息使用 4 字节本机字节序无符号长度前缀，后接 UTF-8 JSON。长度为
+0、超过 1 MiB、JSON 无效或协议 Schema 无效时 Host 立即停止读取；stdout 不输出日志、换行
+或其他非帧字节。`analyze` 进入全局最多并行 2 个任务的队列，`cancel` 对排队任务直接移除，
+对运行任务触发 `AbortSignal`。
