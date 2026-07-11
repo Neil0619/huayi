@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { AnalyzeRequest } from "@huayi/protocol";
+import type { AddWordRequest, AnalyzeRequest, HostWorkRequest } from "@huayi/protocol";
 
 import {
   createRuntimeMessageListener,
@@ -19,29 +19,44 @@ const request: AnalyzeRequest = {
   type: "analyze",
 };
 
+const wordRequest: AddWordRequest = {
+  context: "The investigation was in its early stages.",
+  language: "en",
+  requestId: "word-1",
+  schemaVersion: 1,
+  type: "add-word",
+  word: "investigation",
+};
+
 class FakeCoordinator implements RequestCoordinatorLike {
   readonly cancellations: { requestId: string; tabId: number }[] = [];
-  readonly starts: { request: AnalyzeRequest; tabId: number }[] = [];
+  readonly starts: { request: HostWorkRequest; tabId: number }[] = [];
 
   cancel(tabId: number, requestId: string): boolean {
     this.cancellations.push({ requestId, tabId });
     return true;
   }
 
-  start(tabId: number, analyzeRequest: AnalyzeRequest): void {
-    this.starts.push({ request: analyzeRequest, tabId });
+  start(tabId: number, workRequest: HostWorkRequest): void {
+    this.starts.push({ request: workRequest, tabId });
   }
 }
 
 describe("handleContentMessage", () => {
-  it("routes valid analyze and cancel commands for a sender tab", () => {
+  it("routes valid analyze, add-word, and cancel commands for a sender tab", () => {
     const coordinator = new FakeCoordinator();
 
     expect(handleContentMessage({ request, type: "ANALYZE_SELECTION" }, 7, coordinator)).toBe(true);
     expect(
-      handleContentMessage({ requestId: "request-1", type: "CANCEL_ANALYSIS" }, 7, coordinator),
+      handleContentMessage({ request: wordRequest, type: "ADD_WORD_TO_EUDIC" }, 7, coordinator),
     ).toBe(true);
-    expect(coordinator.starts).toEqual([{ request, tabId: 7 }]);
+    expect(
+      handleContentMessage({ requestId: "request-1", type: "CANCEL_REQUEST" }, 7, coordinator),
+    ).toBe(true);
+    expect(coordinator.starts).toEqual([
+      { request, tabId: 7 },
+      { request: wordRequest, tabId: 7 },
+    ]);
     expect(coordinator.cancellations).toEqual([{ requestId: "request-1", tabId: 7 }]);
   });
 

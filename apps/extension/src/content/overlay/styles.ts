@@ -240,6 +240,40 @@ export const overlayStyles = `
     color: #ffffff;
   }
 
+  .huayi-wordbook {
+    display: grid;
+    gap: 7px;
+    margin-top: 18px;
+    padding-top: 14px;
+    border-top: 1px solid var(--huayi-border);
+  }
+
+  .huayi-wordbook-button {
+    justify-self: start;
+    min-height: 34px;
+    padding: 6px 12px;
+    border: 1px solid #cbd5ea;
+    border-radius: 9px;
+    background: #ffffff;
+    color: var(--huayi-accent);
+    font-weight: 650;
+  }
+
+  .huayi-wordbook-button:hover:not(:disabled) {
+    background: #edf3ff;
+  }
+
+  .huayi-wordbook-button:disabled {
+    color: var(--huayi-muted);
+    cursor: default;
+  }
+
+  .huayi-wordbook-error {
+    margin: 0;
+    color: ${overlayDesignTokens.danger};
+    font-size: 12px;
+  }
+
   @keyframes huayi-spin {
     to { transform: rotate(360deg); }
   }

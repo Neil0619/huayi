@@ -1,4 +1,4 @@
-import type { AnalyzeRequest } from "@huayi/protocol";
+import type { HostWorkRequest } from "@huayi/protocol";
 
 import { parseContentCommand } from "../shared/extension-messages.js";
 import { ChromeNativeTransport } from "./native-transport.js";
@@ -6,7 +6,7 @@ import { RequestCoordinator } from "./request-coordinator.js";
 
 export interface RequestCoordinatorLike {
   cancel(tabId: number, requestId: string): boolean;
-  start(tabId: number, request: AnalyzeRequest): void;
+  start(tabId: number, request: HostWorkRequest): void;
 }
 
 export interface RuntimeMessageSender {
@@ -33,10 +33,10 @@ export function handleContentMessage(
     return false;
   }
 
-  if (command.type === "ANALYZE_SELECTION") {
-    coordinator.start(tabId, command.request);
-  } else {
+  if (command.type === "CANCEL_REQUEST") {
     coordinator.cancel(tabId, command.requestId);
+  } else {
+    coordinator.start(tabId, command.request);
   }
   return true;
 }

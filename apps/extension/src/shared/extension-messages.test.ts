@@ -13,15 +13,28 @@ const request = {
   type: "analyze",
 } as const;
 
+const addWordRequest = {
+  context: "The investigation was in its early stages.",
+  language: "en",
+  requestId: "word-1",
+  schemaVersion: 1,
+  type: "add-word",
+  word: "investigation",
+} as const;
+
 describe("parseContentCommand", () => {
-  it("parses analyze and cancel commands", () => {
+  it("parses analyze, add-word, and cancel commands", () => {
     expect(parseContentCommand({ request, type: "ANALYZE_SELECTION" })).toEqual({
       request,
       type: "ANALYZE_SELECTION",
     });
-    expect(parseContentCommand({ requestId: "request-1", type: "CANCEL_ANALYSIS" })).toEqual({
+    expect(parseContentCommand({ request: addWordRequest, type: "ADD_WORD_TO_EUDIC" })).toEqual({
+      request: addWordRequest,
+      type: "ADD_WORD_TO_EUDIC",
+    });
+    expect(parseContentCommand({ requestId: "request-1", type: "CANCEL_REQUEST" })).toEqual({
       requestId: "request-1",
-      type: "CANCEL_ANALYSIS",
+      type: "CANCEL_REQUEST",
     });
   });
 
@@ -36,7 +49,8 @@ describe("parseContentCommand", () => {
       }),
     ).toBeNull();
     expect(
-      parseContentCommand({ debug: true, requestId: "request-1", type: "CANCEL_ANALYSIS" }),
+      parseContentCommand({ debug: true, requestId: "request-1", type: "CANCEL_REQUEST" }),
     ).toBeNull();
+    expect(parseContentCommand({ requestId: "request-1", type: "CANCEL_ANALYSIS" })).toBeNull();
   });
 });

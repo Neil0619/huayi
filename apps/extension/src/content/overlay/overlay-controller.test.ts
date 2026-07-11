@@ -22,8 +22,13 @@ const selection = {
 
 const controllers: OverlayController[] = [];
 
-function createController(actions: AnalyzeAction[], cancellations: number[]) {
+function createController(
+  actions: AnalyzeAction[],
+  cancellations: number[],
+  wordbookSelections: string[] = [],
+) {
   const controller = new OverlayController({
+    onAddWord: (selected) => wordbookSelections.push(selected.selection),
     onAnalyze: (action) => actions.push(action),
     onCancel: () => cancellations.push(1),
   });
@@ -116,5 +121,61 @@ describe("OverlayController", () => {
     handle?.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight" }));
 
     expect(controller.state).toMatchObject({ position: { left: 90, top: 128 } });
+  });
+
+  it("adds a word once, preserves the result on error, and cancels saving on close", () => {
+    const cancellations: number[] = [];
+    const additions: string[] = [];
+    const controller = createController([], cancellations, additions);
+    controller.show(selection, anchorRect);
+    controller.start("translate");
+    controller.resolve({
+      collocations: [
+        { meaningZh: "刑事调查", text: "criminal investigation" },
+        { meaningZh: "展开调查", text: "launch an investigation" },
+      ],
+      contextualMeaningZh: "调查",
+      partOfSpeech: "noun",
+      selectionKind: "word",
+      similarTerms: [
+        { meaningZh: "询问", partOfSpeech: "noun", text: "inquiry" },
+        { meaningZh: "审查", partOfSpeech: "noun", text: "examination" },
+        { meaningZh: "研究", partOfSpeech: "noun", text: "research" },
+      ],
+      sourceText: "investigation",
+      type: "translate-lexical",
+    });
+
+    const button = controller.shadowRoot.querySelector<HTMLButtonElement>(
+      "[data-action='add-word']",
+    );
+    const body = controller.shadowRoot.querySelector<HTMLElement>(".huayi-body");
+    if (body !== null) {
+      body.scrollTop = 42;
+    }
+    button?.focus();
+    button?.click();
+    controller.shadowRoot.querySelector<HTMLButtonElement>("[data-action='add-word']")?.click();
+    expect(additions).toEqual(["investigation"]);
+    expect(controller.shadowRoot.textContent).toContain("正在添加");
+    expect(controller.shadowRoot.querySelector<HTMLElement>(".huayi-body")?.scrollTop).toBe(42);
+    expect((controller.shadowRoot.activeElement as HTMLElement | null)?.className).toBe(
+      "huayi-wordbook",
+    );
+
+    controller.rejectWordbook({
+      code: "NETWORK_ERROR",
+      message: "网络连接失败，请重试。",
+      retryable: true,
+    });
+    expect(controller.shadowRoot.textContent).toContain("语境义");
+    expect(controller.shadowRoot.textContent).toContain("网络连接失败");
+    expect((controller.shadowRoot.activeElement as HTMLElement | null)?.dataset.action).toBe(
+      "add-word",
+    );
+
+    controller.addWord();
+    controller.close();
+    expect(cancellations).toHaveLength(1);
   });
 });

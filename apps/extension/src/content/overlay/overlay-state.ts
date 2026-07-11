@@ -1,4 +1,9 @@
-import type { AnalysisError, AnalysisResult, AnalyzeAction } from "@huayi/protocol";
+import type {
+  AnalysisError,
+  AnalysisResult,
+  AnalyzeAction,
+  WordbookAddOutcome,
+} from "@huayi/protocol";
 
 import type { SelectionRequestInput } from "../selection/read-selection.js";
 
@@ -41,7 +46,14 @@ export interface ResultOverlayState extends OverlaySession {
   result: AnalysisResult;
   startedAt: number;
   status: "result";
+  wordbook: WordbookUiState;
 }
+
+export type WordbookUiState =
+  | { status: "idle" }
+  | { status: "saving" }
+  | { outcome: WordbookAddOutcome; status: "success" }
+  | { error: AnalysisError; status: "error" };
 
 export interface ErrorOverlayState extends OverlaySession {
   action: AnalyzeAction;
@@ -63,6 +75,9 @@ export type OverlayEvent =
   | { action: AnalyzeAction; startedAt: number; type: "START" }
   | { result: AnalysisResult; type: "RESOLVE" }
   | { error: AnalysisError; type: "REJECT" }
+  | { type: "START_WORDBOOK" }
+  | { outcome: WordbookAddOutcome; type: "RESOLVE_WORDBOOK" }
+  | { error: AnalysisError; type: "REJECT_WORDBOOK" }
   | { startedAt: number; type: "RETRY" }
   | { position: OverlayPoint; type: "MOVE" }
   | { type: "CLOSE" };
@@ -98,7 +113,7 @@ export function reduceOverlayState(state: OverlayState, event: OverlayEvent): Ov
   }
 
   if (state.status === "loading" && event.type === "RESOLVE") {
-    return { ...state, result: event.result, status: "result" };
+    return { ...state, result: event.result, status: "result", wordbook: { status: "idle" } };
   }
 
   if (state.status === "loading" && event.type === "REJECT") {
@@ -116,6 +131,37 @@ export function reduceOverlayState(state: OverlayState, event: OverlayEvent): Ov
     return state.position === undefined
       ? loadingState
       : { ...loadingState, position: state.position };
+  }
+
+  if (state.status === "result" && event.type === "START_WORDBOOK") {
+    const isLexicalResult = ["explain-lexical", "translate-lexical"].includes(state.result.type);
+    const mayStart =
+      state.selection.selectionKind === "word" &&
+      state.selection.wordbookContext !== null &&
+      isLexicalResult &&
+      state.wordbook.status !== "saving" &&
+      state.wordbook.status !== "success" &&
+      !(state.wordbook.status === "error" && state.wordbook.error.code === "RATE_LIMITED");
+    return mayStart ? { ...state, wordbook: { status: "saving" } } : state;
+  }
+
+  if (
+    state.status === "result" &&
+    state.wordbook.status === "saving" &&
+    event.type === "RESOLVE_WORDBOOK"
+  ) {
+    return {
+      ...state,
+      wordbook: { outcome: event.outcome, status: "success" },
+    };
+  }
+
+  if (
+    state.status === "result" &&
+    state.wordbook.status === "saving" &&
+    event.type === "REJECT_WORDBOOK"
+  ) {
+    return { ...state, wordbook: { error: event.error, status: "error" } };
   }
 
   return state;

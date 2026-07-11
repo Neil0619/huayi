@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import type { ContentCommand } from "../shared/extension-messages.js";
 import {
+  createAddWordRequest,
   createAnalyzeRequest,
   initializeContentScript,
   type ContentRuntime,
@@ -110,6 +111,43 @@ describe("createAnalyzeRequest", () => {
   });
 });
 
+describe("createAddWordRequest", () => {
+  it("uses only the original selected word and extracted sentence", () => {
+    expect(
+      createAddWordRequest(
+        {
+          context: "A wider paragraph that is not sent.",
+          selection: "investigation",
+          selectionKind: "word",
+          wordbookContext: "The investigation was in its early stages.",
+        },
+        "word-1",
+      ),
+    ).toEqual({
+      context: "The investigation was in its early stages.",
+      language: "en",
+      requestId: "word-1",
+      schemaVersion: 1,
+      type: "add-word",
+      word: "investigation",
+    });
+  });
+
+  it("rejects non-word selections", () => {
+    expect(() =>
+      createAddWordRequest(
+        {
+          context: "sustained heatwave",
+          selection: "sustained heatwave",
+          selectionKind: "phrase",
+          wordbookContext: null,
+        },
+        "word-2",
+      ),
+    ).toThrow();
+  });
+});
+
 describe("initializeContentScript", () => {
   it("opens actions on mouse selection and renders the matching result", () => {
     const runtime = new FakeRuntime();
@@ -132,15 +170,45 @@ describe("initializeContentScript", () => {
     runtime.emit({
       requestId: "request-1",
       result: {
-        selectionKind: "sentence",
-        sourceText: "It is ready.",
-        translationZh: "它已准备就绪。",
-        type: "translate-passage",
+        collocations: [
+          { meaningZh: "刑事调查", text: "criminal investigation" },
+          { meaningZh: "展开调查", text: "launch an investigation" },
+        ],
+        contextualMeaningZh: "调查",
+        partOfSpeech: "noun",
+        selectionKind: "word",
+        similarTerms: [
+          { meaningZh: "询问", partOfSpeech: "noun", text: "inquiry" },
+          { meaningZh: "审查", partOfSpeech: "noun", text: "examination" },
+          { meaningZh: "研究", partOfSpeech: "noun", text: "research" },
+        ],
+        sourceText: "investigation",
+        type: "translate-lexical",
       },
       schemaVersion: 1,
       type: "result",
     });
-    expect(instance.controller.shadowRoot.textContent).toContain("它已准备就绪");
+    instance.controller.shadowRoot
+      .querySelector<HTMLButtonElement>("[data-action='add-word']")
+      ?.click();
+    expect(runtime.sent[1]).toEqual({
+      request: {
+        context: "investigation",
+        language: "en",
+        requestId: "request-2",
+        schemaVersion: 1,
+        type: "add-word",
+        word: "investigation",
+      },
+      type: "ADD_WORD_TO_EUDIC",
+    });
+    runtime.emit({
+      outcome: "added",
+      requestId: "request-2",
+      schemaVersion: 1,
+      type: "word-added",
+    });
+    expect(instance.controller.shadowRoot.textContent).toContain("已加入生词本");
   });
 
   it("cancels the active request when a new selection replaces it", () => {
@@ -161,7 +229,7 @@ describe("initializeContentScript", () => {
     selectContents(second);
     document.dispatchEvent(new MouseEvent("mouseup"));
 
-    expect(runtime.sent[1]).toEqual({ requestId: "request-1", type: "CANCEL_ANALYSIS" });
+    expect(runtime.sent[1]).toEqual({ requestId: "request-1", type: "CANCEL_REQUEST" });
     expect(instance.controller.state).toMatchObject({
       selection: { selection: "sustained heatwave" },
       status: "actions",
@@ -184,6 +252,6 @@ describe("initializeContentScript", () => {
     document.dispatchEvent(new KeyboardEvent("keyup", { key: "Escape" }));
 
     expect(instance.controller.state.status).toBe("closed");
-    expect(runtime.sent.at(-1)).toEqual({ requestId: "request-1", type: "CANCEL_ANALYSIS" });
+    expect(runtime.sent.at(-1)).toEqual({ requestId: "request-1", type: "CANCEL_REQUEST" });
   });
 });

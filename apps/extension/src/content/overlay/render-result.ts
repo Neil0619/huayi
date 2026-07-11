@@ -5,8 +5,10 @@ import type {
   LoadingOverlayState,
   ResultOverlayState,
 } from "./overlay-state.js";
+import { renderWordbookAction } from "./render-wordbook-action.js";
 
 export interface PanelHandlers {
+  onAddWord: () => void;
   onClose: () => void;
   onRetry: () => void;
 }
@@ -270,6 +272,10 @@ export function renderOverlayPanel(
     body.append(error);
   } else {
     renderResultBody(body, state.result);
+    const wordbook = renderWordbookAction(state, handlers.onAddWord);
+    if (wordbook !== null) {
+      body.append(wordbook);
+    }
   }
 
   panel.append(body);

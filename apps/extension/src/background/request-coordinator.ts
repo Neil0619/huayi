@@ -1,5 +1,5 @@
-import { SCHEMA_VERSION, analyzeRequestSchema, hostEventSchema } from "@huayi/protocol";
-import type { AnalysisError, AnalyzeRequest, HostEvent } from "@huayi/protocol";
+import { SCHEMA_VERSION, hostEventSchema, hostWorkRequestSchema } from "@huayi/protocol";
+import type { AnalysisError, HostEvent, HostWorkRequest } from "@huayi/protocol";
 
 import type {
   NativeDisconnect,
@@ -10,7 +10,7 @@ import type {
 export type { NativeDisconnect, NativeTransport } from "./native-transport.js";
 
 interface PendingRequest {
-  request: AnalyzeRequest;
+  request: HostWorkRequest;
   tabId: number;
   timeoutId: ReturnType<typeof setTimeout>;
 }
@@ -24,7 +24,17 @@ export interface RequestCoordinatorOptions {
 
 const DEFAULT_REQUEST_TIMEOUT_MS = 65_000;
 
-function errorForDisconnect(reason: NativeDisconnectReason): AnalysisError {
+function errorForDisconnect(
+  reason: NativeDisconnectReason,
+  request: HostWorkRequest,
+): AnalysisError {
+  if (request.type === "add-word" && reason !== "invalid-message") {
+    return {
+      code: "HOST_NOT_INSTALLED",
+      message: "本机服务未安装或版本过旧，请重新安装。",
+      retryable: true,
+    };
+  }
   switch (reason) {
     case "host-unavailable":
       return {
@@ -72,8 +82,8 @@ export class RequestCoordinator {
     return this.pendingByRequestId.size;
   }
 
-  start(tabId: number, request: AnalyzeRequest): void {
-    const validatedRequest = analyzeRequestSchema.parse(request);
+  start(tabId: number, request: HostWorkRequest): void {
+    const validatedRequest = hostWorkRequestSchema.parse(request);
     this.cancel(tabId);
 
     const timeoutId = setTimeout(
@@ -132,17 +142,36 @@ export class RequestCoordinator {
       return;
     }
 
-    if (event.type === "result" || event.type === "error") {
-      this.finish(pending);
+    if (event.type === "progress") {
+      this.deliver(pending.tabId, event);
+      return;
     }
-    this.deliver(pending.tabId, event);
+
+    if (event.type === "error") {
+      this.finish(pending);
+      this.deliver(pending.tabId, event);
+      return;
+    }
+
+    const isExpectedResult =
+      (pending.request.type === "analyze" && event.type === "result") ||
+      (pending.request.type === "add-word" && event.type === "word-added");
+    this.finish(pending);
+    if (isExpectedResult) {
+      this.deliver(pending.tabId, event);
+      return;
+    }
+    this.deliverError(pending, {
+      code: "INVALID_RESPONSE",
+      message: "本机服务返回了与请求不匹配的数据。",
+      retryable: false,
+    });
   }
 
   private handleDisconnect(disconnect: NativeDisconnect): void {
-    const error = errorForDisconnect(disconnect.reason);
     for (const pending of [...this.pendingByRequestId.values()]) {
       this.finish(pending);
-      this.deliverError(pending, error);
+      this.deliverError(pending, errorForDisconnect(disconnect.reason, pending.request));
     }
   }
 

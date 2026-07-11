@@ -37,7 +37,7 @@ describe("OverlayStateMachine", () => {
       },
       type: "RESOLVE",
     });
-    expect(machine.state.status).toBe("result");
+    expect(machine.state).toMatchObject({ status: "result", wordbook: { status: "idle" } });
     machine.dispatch({ type: "CLOSE" });
     expect(machine.state.status).toBe("closed");
   });
@@ -76,5 +76,47 @@ describe("OverlayStateMachine", () => {
     machine.dispatch({ ...session, type: "SHOW_ACTIONS" });
     machine.dispatch({ position: { left: 10, top: 20 }, type: "MOVE" });
     expect(machine.state).toMatchObject({ position: { left: 10, top: 20 } });
+  });
+
+  it("keeps wordbook saving, errors, retries, and success inside the result state", () => {
+    const machine = new OverlayStateMachine();
+    machine.dispatch({ ...session, type: "SHOW_ACTIONS" });
+    machine.dispatch({ action: "translate", startedAt: 1_000, type: "START" });
+    machine.dispatch({
+      result: {
+        collocations: [
+          { meaningZh: "刑事调查", text: "criminal investigation" },
+          { meaningZh: "展开调查", text: "launch an investigation" },
+        ],
+        contextualMeaningZh: "调查",
+        partOfSpeech: "noun",
+        selectionKind: "word",
+        similarTerms: [
+          { meaningZh: "询问", partOfSpeech: "noun", text: "inquiry" },
+          { meaningZh: "审查", partOfSpeech: "noun", text: "examination" },
+          { meaningZh: "研究", partOfSpeech: "noun", text: "research" },
+        ],
+        sourceText: "investigation",
+        type: "translate-lexical",
+      },
+      type: "RESOLVE",
+    });
+
+    machine.dispatch({ type: "START_WORDBOOK" });
+    expect(machine.state).toMatchObject({ status: "result", wordbook: { status: "saving" } });
+    machine.dispatch({
+      error: { code: "NETWORK_ERROR", message: "网络连接失败。", retryable: true },
+      type: "REJECT_WORDBOOK",
+    });
+    expect(machine.state).toMatchObject({
+      status: "result",
+      wordbook: { error: { code: "NETWORK_ERROR" }, status: "error" },
+    });
+    machine.dispatch({ type: "START_WORDBOOK" });
+    machine.dispatch({ outcome: "already-exists", type: "RESOLVE_WORDBOOK" });
+    expect(machine.state).toMatchObject({
+      status: "result",
+      wordbook: { outcome: "already-exists", status: "success" },
+    });
   });
 });

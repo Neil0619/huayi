@@ -1,4 +1,9 @@
-import type { AnalysisError, AnalysisResult, AnalyzeAction } from "@huayi/protocol";
+import type {
+  AnalysisError,
+  AnalysisResult,
+  AnalyzeAction,
+  WordbookAddOutcome,
+} from "@huayi/protocol";
 
 import type { SelectionRequestInput } from "../selection/read-selection.js";
 import {
@@ -20,6 +25,7 @@ import { overlayStyles } from "./styles.js";
 
 export interface OverlayControllerOptions {
   document?: Document;
+  onAddWord: (selection: SelectionRequestInput) => void;
   onAnalyze: (action: AnalyzeAction, selection: SelectionRequestInput) => void;
   onCancel: () => void;
 }
@@ -66,7 +72,7 @@ export class OverlayController {
   }
 
   show(selection: SelectionRequestInput, anchorRect: OverlayAnchorRect): void {
-    if (this.machine.state.status === "loading") {
+    if (this.hasPendingRequest()) {
       this.options.onCancel();
     }
     this.clearSlowTimer();
@@ -98,6 +104,33 @@ export class OverlayController {
     this.render();
   }
 
+  addWord(): void {
+    const current = this.machine.state;
+    if (current.status !== "result") {
+      return;
+    }
+    const previousState = current;
+    this.machine.dispatch({ type: "START_WORDBOOK" });
+    if (this.machine.state === previousState) {
+      return;
+    }
+    this.render();
+    this.focusWordbookStatus();
+    this.options.onAddWord(current.selection);
+  }
+
+  resolveWordbook(outcome: WordbookAddOutcome): void {
+    this.machine.dispatch({ outcome, type: "RESOLVE_WORDBOOK" });
+    this.render();
+    this.focusWordbookStatus();
+  }
+
+  rejectWordbook(error: AnalysisError): void {
+    this.machine.dispatch({ error, type: "REJECT_WORDBOOK" });
+    this.render();
+    this.focusWordbookStatus();
+  }
+
   retry(): void {
     const current = this.machine.state;
     if (current.status !== "error" || !current.error.retryable) {
@@ -112,7 +145,7 @@ export class OverlayController {
   }
 
   close(): void {
-    if (this.machine.state.status === "loading") {
+    if (this.hasPendingRequest()) {
       this.options.onCancel();
     }
     this.clearSlowTimer();
@@ -170,16 +203,33 @@ export class OverlayController {
       return;
     }
 
+    const previousBody = this.shadowRoot.querySelector<HTMLElement>(".huayi-body");
+    const previousScrollTop = previousBody?.scrollTop ?? 0;
+    const focusedAction =
+      this.shadowRoot.activeElement instanceof HTMLElement
+        ? this.shadowRoot.activeElement.dataset.action
+        : undefined;
     const style = this.documentRef.createElement("style");
     style.textContent = overlayStyles;
     const root =
       state.status === "actions"
         ? renderToolbar(state, { onAction: (action) => this.start(action) })
         : renderOverlayPanel(state, {
+            onAddWord: () => this.addWord(),
             onClose: () => this.close(),
             onRetry: () => this.retry(),
           });
     this.shadowRoot.replaceChildren(style, root);
+    const nextBody = root.querySelector<HTMLElement>(".huayi-body");
+    if (nextBody !== null) {
+      nextBody.scrollTop = previousScrollTop;
+    }
+    if (focusedAction !== undefined) {
+      const nextFocused = Array.from(root.querySelectorAll<HTMLButtonElement>("button")).find(
+        (button) => button.dataset.action === focusedAction,
+      );
+      nextFocused?.focus();
+    }
 
     if (!this.host.isConnected) {
       this.documentRef.documentElement.append(this.host);
@@ -295,6 +345,25 @@ export class OverlayController {
     if (this.slowTimer !== null) {
       clearTimeout(this.slowTimer);
       this.slowTimer = null;
+    }
+  }
+
+  private hasPendingRequest(): boolean {
+    const state = this.machine.state;
+    return (
+      state.status === "loading" ||
+      (state.status === "result" && state.wordbook.status === "saving")
+    );
+  }
+
+  private focusWordbookStatus(): void {
+    const wordbookButton = this.shadowRoot.querySelector<HTMLButtonElement>(
+      "[data-action='add-word']",
+    );
+    if (wordbookButton?.disabled === false) {
+      wordbookButton.focus();
+    } else {
+      this.shadowRoot.querySelector<HTMLElement>(".huayi-wordbook")?.focus();
     }
   }
 }

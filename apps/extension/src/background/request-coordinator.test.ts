@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { AnalyzeRequest, HostEvent, HostRequest } from "@huayi/protocol";
+import type { AddWordRequest, AnalyzeRequest, HostEvent, HostRequest } from "@huayi/protocol";
 
 import {
   RequestCoordinator,
@@ -53,6 +53,17 @@ function analyzeRequest(requestId: string): AnalyzeRequest {
   };
 }
 
+function addWordRequest(requestId: string): AddWordRequest {
+  return {
+    context: "The investigation was in its early stages.",
+    language: "en",
+    requestId,
+    schemaVersion: 1,
+    type: "add-word",
+    word: "investigation",
+  };
+}
+
 function createHarness(timeoutMs = 65_000) {
   const transport = new FakeTransport();
   const delivered: { event: HostEvent; tabId: number }[] = [];
@@ -99,6 +110,40 @@ describe("RequestCoordinator", () => {
       [7, "progress"],
       [7, "result"],
     ]);
+    expect(coordinator.pendingCount).toBe(0);
+    coordinator.dispose();
+  });
+
+  it("routes wordbook success and rejects a mismatched terminal event", () => {
+    const { coordinator, delivered, transport } = createHarness();
+    coordinator.start(7, addWordRequest("word-1"));
+    transport.emitEvent({
+      outcome: "added",
+      requestId: "word-1",
+      schemaVersion: 1,
+      type: "word-added",
+    });
+
+    expect(delivered.at(-1)?.event).toMatchObject({ outcome: "added", type: "word-added" });
+    expect(coordinator.pendingCount).toBe(0);
+
+    coordinator.start(7, addWordRequest("word-2"));
+    transport.emitEvent({
+      requestId: "word-2",
+      result: {
+        selectionKind: "sentence",
+        sourceText: "Wrong event.",
+        translationZh: "错误事件。",
+        type: "translate-passage",
+      },
+      schemaVersion: 1,
+      type: "result",
+    });
+    expect(delivered.at(-1)?.event).toMatchObject({
+      error: { code: "INVALID_RESPONSE" },
+      requestId: "word-2",
+      type: "error",
+    });
     expect(coordinator.pendingCount).toBe(0);
     coordinator.dispose();
   });
@@ -163,6 +208,21 @@ describe("RequestCoordinator", () => {
       type: "error",
     });
     expect(coordinator.pendingCount).toBe(0);
+    coordinator.dispose();
+  });
+
+  it("explains that a disconnected wordbook host may require an upgrade", () => {
+    const { coordinator, delivered, transport } = createHarness();
+    coordinator.start(7, addWordRequest("word-1"));
+    transport.emitDisconnect({ message: "Host exited.", reason: "disconnected" });
+
+    expect(delivered[0]?.event).toMatchObject({
+      error: {
+        code: "HOST_NOT_INSTALLED",
+        message: expect.stringContaining("版本过旧"),
+      },
+      type: "error",
+    });
     coordinator.dispose();
   });
 });
