@@ -19,6 +19,7 @@ const session = {
     context: "Context",
     selection: "Selection",
     selectionKind: "word",
+    wordbookContext: "Selection context.",
   },
   startedAt: 1_000,
 } as const;

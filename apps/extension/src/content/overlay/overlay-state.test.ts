@@ -15,6 +15,7 @@ const session = {
     context: "The investigation was in its early stages.",
     selection: "investigation",
     selectionKind: "word",
+    wordbookContext: "The investigation was in its early stages.",
   },
 } as const;
 

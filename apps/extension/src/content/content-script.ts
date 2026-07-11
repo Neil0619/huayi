@@ -142,6 +142,7 @@ export function initializeContentScript(options: ContentScriptOptions = {}): Con
         context: reading.context,
         selection: reading.selection,
         selectionKind: reading.selectionKind,
+        wordbookContext: reading.wordbookContext,
       },
       getAnchorRect(reading.range),
     );
