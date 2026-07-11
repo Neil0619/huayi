@@ -11,6 +11,10 @@
 模型输出只能使用 `textContent` 渲染，不能作为 HTML 执行。Native Messaging 清单只允许
 安装时提供的扩展 ID。
 
+`manifest.json` 不声明 `host_permissions`、`storage`、`tabs`、`activeTab`、`scripting` 或网络
+请求权限；`http/https` 范围只出现在静态 Content Script 的 `matches`。Content Script 不能
+调用 Native Messaging，只能发送经过严格解析的内部命令给 Service Worker。
+
 ## 本机进程边界
 
 Native Host 通过参数数组和 stdin 启动 Codex，禁止 shell。子进程使用专用空目录、只读

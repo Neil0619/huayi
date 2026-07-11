@@ -22,6 +22,10 @@ Codex；未来的云端模型、其他浏览器和其他操作系统通过各自
 - Codex Provider：构建不可信数据提示、选择输出 Schema、解析结构化结果。
 - Protocol：提供请求、结果、错误、wire event 的唯一公共定义。
 
+Service Worker 以 `requestId` 维护请求路由，并为每个标签页只保留一个活动请求。新请求先发
+`cancel` 再发 `analyze`；结果或错误到达后立即删除内存状态。Native Port 断开时所有等待请求
+都会收到可展示的协议错误，下一次请求再惰性创建新连接。扩展不把这些状态写入 storage。
+
 ## 选区领域规则
 
 Content Script 将 CRLF 统一为换行、压缩行内空白并保留最多两个连续换行。选区必须包含

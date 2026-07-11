@@ -6,5 +6,5 @@
     "types": ["chrome"]
   },
   "exclude": ["src/**/*.test.ts", "e2e/**/*.ts"],
-  "include": ["src/**/*.ts", "vite.config.ts"]
+  "include": ["src/**/*.ts"]
 }

@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc --noEmit --project tsconfig.json",
-    "typecheck": "tsc --noEmit --project tsconfig.json && tsc --noEmit --project tsconfig.test.json"
+    "build": "vite build --mode content && vite build --mode background",
+    "typecheck": "tsc --noEmit --project tsconfig.json && tsc --noEmit --project tsconfig.test.json && tsc --noEmit --project tsconfig.config.json"
   },
   "dependencies": {
     "@huayi/protocol": "workspace:*"
