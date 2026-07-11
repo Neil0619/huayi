@@ -27,3 +27,10 @@ Codex；未来的云端模型、其他浏览器和其他操作系统通过各自
 - 新 provider 实现 `AnalysisProvider`，不得修改扩展 UI 的公共数据结构。
 - 新浏览器创建新的 app 并复用 `@huayi/protocol`。
 - 新操作系统只增加 installer，实现相同 Native Messaging host 接口。
+
+## 生产依赖决策
+
+`@huayi/protocol` 使用 Zod 对来自网页、扩展、Native Messaging 和模型的对象执行运行时
+校验。备选方案是手写类型守卫或仅依赖 TypeScript 静态类型；前者容易在四类结果中产生规则
+漂移，后者无法保护运行时边界，因此不采用。Zod 会增加少量打包体积，但其严格对象 Schema
+可以拒绝未知字段并缩小不可信数据进入系统的范围；升级时必须审查其变更和依赖树。

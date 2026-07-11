@@ -62,9 +62,7 @@ for (const modulePath of moduleInstructions) {
   checkMaximum(modulePath, module.size, 6 * 1024);
 
   if (root.size + module.size > 32 * 1024) {
-    errors.push(
-      `${rootInstructions} plus ${modulePath} exceeds the 32 KiB instruction limit.`,
-    );
+    errors.push(`${rootInstructions} plus ${modulePath} exceeds the 32 KiB instruction limit.`);
   }
 
   instructionChains.push([rootInstructions, modulePath]);
