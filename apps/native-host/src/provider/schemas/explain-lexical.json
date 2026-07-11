@@ -1,0 +1,153 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "baseForm": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120,
+      "pattern": "^(?=[\\s\\S]*[A-Za-z])(?![\\s\\S]*[\\u3400-\\u9fff])[\\s\\S]+$"
+    },
+    "collocations": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "meaningZh": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300,
+            "pattern": "\\S"
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "^(?=[\\s\\S]*[A-Za-z])(?![\\s\\S]*[\\u3400-\\u9fff])[\\s\\S]+$"
+          }
+        },
+        "required": ["meaningZh", "text"]
+      }
+    },
+    "contextualMeaningZh": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4000,
+      "pattern": "\\S"
+    },
+    "coreMeanings": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "meaningZh": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300,
+            "pattern": "\\S"
+          },
+          "partOfSpeech": {
+            "type": "string",
+            "enum": [
+              "noun",
+              "verb",
+              "adjective",
+              "adverb",
+              "pronoun",
+              "preposition",
+              "conjunction",
+              "interjection",
+              "determiner",
+              "modal",
+              "number",
+              "particle",
+              "phrase",
+              "other"
+            ]
+          }
+        },
+        "required": ["meaningZh", "partOfSpeech"]
+      }
+    },
+    "selectionKind": {
+      "type": "string",
+      "enum": ["word", "phrase"]
+    },
+    "sourceText": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000,
+      "pattern": "\\S"
+    },
+    "synonyms": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 5,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "meaningZh": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "\\S"
+          },
+          "partOfSpeech": {
+            "type": "string",
+            "enum": [
+              "noun",
+              "verb",
+              "adjective",
+              "adverb",
+              "pronoun",
+              "preposition",
+              "conjunction",
+              "interjection",
+              "determiner",
+              "modal",
+              "number",
+              "particle",
+              "phrase",
+              "other"
+            ]
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120,
+            "pattern": "^(?=[\\s\\S]*[A-Za-z])(?![\\s\\S]*[\\u3400-\\u9fff])[\\s\\S]+$"
+          }
+        },
+        "required": ["meaningZh", "partOfSpeech", "text"]
+      }
+    },
+    "type": {
+      "type": "string",
+      "const": "explain-lexical"
+    },
+    "wordFormation": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300,
+      "pattern": "\\S"
+    }
+  },
+  "required": [
+    "baseForm",
+    "collocations",
+    "contextualMeaningZh",
+    "coreMeanings",
+    "selectionKind",
+    "sourceText",
+    "synonyms",
+    "type",
+    "wordFormation"
+  ]
+}

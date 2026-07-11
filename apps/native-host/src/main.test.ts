@@ -4,8 +4,18 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { HostEvent } from "@huayi/protocol";
 
-import { runNativeHost, type RequestDispatcher } from "./main.js";
+import {
+  createNativeHostDispatcher,
+  readNativeHostConfiguration,
+  runNativeHost,
+  type RequestDispatcher,
+} from "./main.js";
 import { NativeMessageDecoder, encodeNativeMessage } from "./protocol/framing.js";
+import type {
+  ProcessRunRequest,
+  ProcessRunResult,
+  ProcessRunner,
+} from "./runtime/codex-process.js";
 
 class HealthDispatcher implements RequestDispatcher {
   dispatch(_message: unknown, emit: (event: HostEvent) => void): void {
@@ -74,5 +84,97 @@ describe("runNativeHost", () => {
 
     expect(outputChunks).toEqual([]);
     expect(Buffer.concat(errorChunks).toString("utf8")).toContain("Native host protocol error");
+  });
+});
+
+describe("native host bootstrap", () => {
+  it("requires absolute installer-owned runtime paths", () => {
+    expect(() => readNativeHostConfiguration({ HUAYI_CODEX_PATH: "/opt/codex" })).toThrow(
+      /HUAYI_WORK_DIR/,
+    );
+    expect(() =>
+      readNativeHostConfiguration({
+        HUAYI_CODEX_PATH: "codex",
+        HUAYI_SCHEMA_DIR: "/tmp/schemas",
+        HUAYI_WORK_DIR: "/tmp/work",
+      }),
+    ).toThrow(/absolute/);
+  });
+
+  it("wires health checks to capability detection without invoking an analysis", async () => {
+    const results: ProcessRunResult[] = [
+      { exitCode: 0, signal: null, stderr: "", stdout: "codex-cli 0.144.1" },
+      {
+        exitCode: 0,
+        signal: null,
+        stderr: "",
+        stdout: [
+          "--ephemeral",
+          "--ignore-user-config",
+          "--ignore-rules",
+          "--strict-config",
+          "--disable",
+          "--sandbox",
+          "--skip-git-repo-check",
+          "--output-schema",
+          "--color",
+          "--cd",
+          "--config",
+        ].join("\n"),
+      },
+      {
+        exitCode: 0,
+        signal: null,
+        stderr: "",
+        stdout: [
+          "shell_tool stable false",
+          "unified_exec stable false",
+          "shell_snapshot stable false",
+        ].join("\n"),
+      },
+      { exitCode: 0, signal: null, stderr: "", stdout: "Logged in using ChatGPT" },
+    ];
+    const requests: ProcessRunRequest[] = [];
+    const processRunner: ProcessRunner = {
+      run: async (request) => {
+        requests.push(request);
+        const result = results.shift();
+        if (result === undefined) {
+          throw new Error("Missing fake result.");
+        }
+        return result;
+      },
+    };
+    const dispatcher = createNativeHostDispatcher({
+      codexExecutable: "/opt/codex",
+      environment: { HOME: "/Users/tester" },
+      processRunner,
+      schemaDirectory: "/tmp/schemas",
+      workingDirectory: "/tmp/work",
+    });
+    const events: HostEvent[] = [];
+
+    dispatcher.dispatch({ requestId: "health-2", schemaVersion: 1, type: "health" }, (event) =>
+      events.push(event),
+    );
+    await vi.waitFor(() => expect(events).toHaveLength(1));
+
+    expect(events[0]).toMatchObject({ codexVersion: "codex-cli 0.144.1", ready: true });
+    expect(requests.map((request) => request.arguments)).toEqual([
+      ["--version"],
+      ["exec", "--help"],
+      [
+        "features",
+        "list",
+        "--disable",
+        "shell_tool",
+        "--disable",
+        "unified_exec",
+        "--disable",
+        "shell_snapshot",
+      ],
+      ["login", "status"],
+    ]);
+    dispatcher.dispose();
   });
 });

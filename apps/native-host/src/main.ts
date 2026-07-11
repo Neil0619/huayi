@@ -1,9 +1,16 @@
+import { isAbsolute, resolve } from "node:path";
 import type { Readable, Writable } from "node:stream";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { hostEventSchema } from "@huayi/protocol";
 import type { HostEvent } from "@huayi/protocol";
 
+import { NativeMessageDispatcher } from "./protocol/dispatcher.js";
 import { NativeMessageDecoder, encodeNativeMessage } from "./protocol/framing.js";
+import { CodexCliProvider } from "./provider/codex-cli-provider.js";
+import { checkCodexCapabilities } from "./runtime/codex-capabilities.js";
+import { NodeProcessRunner, type ProcessRunner } from "./runtime/codex-process.js";
+import { mapCodexError } from "./runtime/error-mapper.js";
 
 export interface RequestDispatcher {
   dispatch(message: unknown, emit: (event: HostEvent) => void): void;
@@ -15,6 +22,17 @@ export interface NativeHostStreams {
   errorOutput: Writable;
   input: Readable;
   output: Writable;
+}
+
+export interface NativeHostConfiguration {
+  codexExecutable: string;
+  environment: NodeJS.ProcessEnv;
+  schemaDirectory: string;
+  workingDirectory: string;
+}
+
+export interface NativeHostDispatcherOptions extends NativeHostConfiguration {
+  processRunner: ProcessRunner;
 }
 
 function errorMessage(error: unknown): string {
@@ -71,4 +89,78 @@ export function runNativeHost(streams: NativeHostStreams): () => void {
 
   streams.input.on("data", handleData);
   return stop;
+}
+
+function requiredEnvironmentPath(
+  environment: NodeJS.ProcessEnv,
+  variableName: "HUAYI_CODEX_PATH" | "HUAYI_WORK_DIR",
+): string {
+  const value = environment[variableName];
+  if (value === undefined || value.trim().length === 0) {
+    throw new Error(`${variableName} is required.`);
+  }
+  if (!isAbsolute(value)) {
+    throw new Error(`${variableName} must be an absolute path.`);
+  }
+  return value;
+}
+
+export function readNativeHostConfiguration(
+  environment: NodeJS.ProcessEnv,
+  moduleUrl = import.meta.url,
+): NativeHostConfiguration {
+  const codexExecutable = requiredEnvironmentPath(environment, "HUAYI_CODEX_PATH");
+  const workingDirectory = requiredEnvironmentPath(environment, "HUAYI_WORK_DIR");
+  const defaultSchemaDirectory = resolve(
+    fileURLToPath(new URL(".", moduleUrl)),
+    "provider/schemas",
+  );
+  const schemaDirectory = environment.HUAYI_SCHEMA_DIR ?? defaultSchemaDirectory;
+  if (!isAbsolute(schemaDirectory)) {
+    throw new Error("HUAYI_SCHEMA_DIR must be an absolute path.");
+  }
+
+  return {
+    codexExecutable,
+    environment,
+    schemaDirectory,
+    workingDirectory,
+  };
+}
+
+export function createNativeHostDispatcher(
+  options: NativeHostDispatcherOptions,
+): NativeMessageDispatcher {
+  const provider = new CodexCliProvider(options);
+  return new NativeMessageDispatcher({
+    healthCheck: () => checkCodexCapabilities(options),
+    mapError: mapCodexError,
+    maximumConcurrency: 2,
+    provider,
+  });
+}
+
+export function startConfiguredNativeHost(environment = process.env): () => void {
+  const processRunner = new NodeProcessRunner();
+  const configuration = readNativeHostConfiguration(environment);
+  return runNativeHost({
+    dispatcher: createNativeHostDispatcher({ ...configuration, processRunner }),
+    errorOutput: process.stderr,
+    input: process.stdin,
+    output: process.stdout,
+  });
+}
+
+function isDirectExecution(): boolean {
+  const entrypoint = process.argv[1];
+  return entrypoint !== undefined && pathToFileURL(entrypoint).href === import.meta.url;
+}
+
+if (isDirectExecution()) {
+  try {
+    startConfiguredNativeHost();
+  } catch (error) {
+    process.stderr.write(`Native host startup error: ${errorMessage(error)}\n`);
+    process.exitCode = 1;
+  }
 }

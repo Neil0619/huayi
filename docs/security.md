@@ -17,12 +17,33 @@
 
 ## 本机进程边界
 
-Native Host 通过参数数组和 stdin 启动 Codex，禁止 shell。子进程使用专用空目录、只读
+Native Host 通过参数数组和 stdin 启动 Codex，禁止 `shell: true`。子进程使用专用空目录、只读
 沙箱、禁用 Web Search、禁止审批、忽略用户配置和规则，并使用 `--ephemeral`。Host 不读取
 Codex 认证文件，只调用 `codex login status` 检查状态。
 
+当前已验证的 CLI 基线还显式关闭 `shell_tool`、`unified_exec` 和 `shell_snapshot`，避免模型
+通过默认命令工具读取本机文件或抓取 shell 环境。能力探测要求 CLI 支持 `--disable`，缺失时
+安装失败，不能静默回退到带 shell 的运行方式。
+
+启动参数还启用严格配置解析、关闭历史持久化并禁止 Codex 子命令继承 Host 环境。Host 自身
+只向 Codex 传递 `PATH`、`HOME`、`CODEX_HOME`、locale、临时目录、证书和代理相关允许列表；
+`OPENAI_API_KEY`、`NODE_OPTIONS` 及其他任意变量不会传入。`HOME`/`CODEX_HOME` 仅用于让
+Codex CLI 自行使用现有登录，Host 不读取、复制或解析其中的认证文件。
+
+每次模型进程最长运行 60 秒，取消和超时都会终止子进程；stdout 与 stderr 各自最多接收
+1 MiB。可执行文件、Schema 目录和空工作目录使用安装器提供的绝对路径，缺失能力或非法路径
+不做降级。
+
 网页文字被明确标记为不可信数据。即使选区包含“忽略规则”“执行命令”等提示，也只能作为
-待翻译或解释的文本。所有请求与结果必须经过严格 Schema 校验。
+JSON 数据中的待翻译或解释文本。所有请求与结果必须经过严格 Schema 校验，模型返回的原文
+和选区类型还必须与请求完全一致。日志、CLI stderr 和本机路径不发送给扩展。
+
+`--ephemeral` 的边界是“不保存可恢复的 session rollout”，不是“Codex 进程绝不写任何
+文件”；例如 CLI 自身可能维护认证状态。冒烟测试只比较 session 目录，不读取认证文件。
+
+当前 Codex CLI 没有一个可验证的全局 `--no-tools` 开关；`read-only` 本身允许读取而不是禁止
+读取。关闭三类 shell 能显著缩小网页提示注入的本机读取面，但不能证明未来或其他独立工具
+永远无法读取文件。因此版本升级必须重新审查可用工具和配置，不能把本方案描述成绝对隔离。
 
 ## 外部写入
 

@@ -1,0 +1,191 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "collocations": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "meaningZh": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300,
+            "pattern": "\\S"
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "^(?=[\\s\\S]*[A-Za-z])(?![\\s\\S]*[\\u3400-\\u9fff])[\\s\\S]+$"
+          }
+        },
+        "required": ["meaningZh", "text"]
+      }
+    },
+    "contextExample": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "english": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "^(?=[\\s\\S]*[A-Za-z])(?![\\s\\S]*[\\u3400-\\u9fff])[\\s\\S]+$"
+        },
+        "translationZh": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000,
+          "pattern": "\\S"
+        }
+      },
+      "required": ["english", "translationZh"]
+    },
+    "contextualMeaningZh": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4000,
+      "pattern": "\\S"
+    },
+    "partOfSpeech": {
+      "type": "string",
+      "enum": [
+        "noun",
+        "verb",
+        "adjective",
+        "adverb",
+        "pronoun",
+        "preposition",
+        "conjunction",
+        "interjection",
+        "determiner",
+        "modal",
+        "number",
+        "particle",
+        "phrase",
+        "other"
+      ]
+    },
+    "pronunciation": {
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "uk": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120,
+              "pattern": "\\S"
+            }
+          },
+          "required": ["uk"]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "us": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120,
+              "pattern": "\\S"
+            }
+          },
+          "required": ["us"]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "uk": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120,
+              "pattern": "\\S"
+            },
+            "us": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120,
+              "pattern": "\\S"
+            }
+          },
+          "required": ["uk", "us"]
+        }
+      ]
+    },
+    "selectionKind": {
+      "type": "string",
+      "enum": ["word", "phrase"]
+    },
+    "similarTerms": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 5,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "meaningZh": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "\\S"
+          },
+          "partOfSpeech": {
+            "type": "string",
+            "enum": [
+              "noun",
+              "verb",
+              "adjective",
+              "adverb",
+              "pronoun",
+              "preposition",
+              "conjunction",
+              "interjection",
+              "determiner",
+              "modal",
+              "number",
+              "particle",
+              "phrase",
+              "other"
+            ]
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120,
+            "pattern": "^(?=[\\s\\S]*[A-Za-z])(?![\\s\\S]*[\\u3400-\\u9fff])[\\s\\S]+$"
+          }
+        },
+        "required": ["meaningZh", "partOfSpeech", "text"]
+      }
+    },
+    "sourceText": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000,
+      "pattern": "\\S"
+    },
+    "type": {
+      "type": "string",
+      "const": "translate-lexical"
+    }
+  },
+  "required": [
+    "collocations",
+    "contextExample",
+    "contextualMeaningZh",
+    "partOfSpeech",
+    "pronunciation",
+    "selectionKind",
+    "similarTerms",
+    "sourceText",
+    "type"
+  ]
+}

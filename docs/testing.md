@@ -12,6 +12,10 @@
 
 默认测试使用 fake process runner 和 mock transport，不访问 OpenAI。
 
+Codex Provider 的默认测试会把 `OPENAI_API_KEY` 和恶意网页提示放入 fake 输入，断言密钥不
+进入子进程环境、网页文本只出现在不可执行的 JSON 数据区。测试同时覆盖 60 秒超时、取消、
+1 MiB 输出上限、CLI 能力检查、非零退出、stdout 污染和请求/结果不匹配。
+
 Host 测试将 stdout 作为原始字节重新解帧，确保正常路径只有合法事件帧；无效长度、超大
 消息、无效 JSON 和无效 Schema 必须只在 stderr 留下诊断且停止读取。
 
