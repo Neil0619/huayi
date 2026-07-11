@@ -5,6 +5,10 @@
 扩展只发送选区和所在段落中围绕选区的最多 2,000 个字符，不发送 URL、标题、整页内容、
 浏览历史或用户身份数据。扩展不持久化查询和结果，也不采集分析数据。
 
+用户在单词结果页显式点击“加入欧路生词本”时，扩展只向 Native Host 发送原始选中词形和
+包含它的完整英文句子；不发送 URL、标题、段落、模型输出或其他页面信息。Native Host 随后
+将这两个字段发送到固定的欧路 HTTPS 生词本接口，除此之外不进行欧路写入。
+
 ## 浏览器边界
 
 第一版权限仅包含 `nativeMessaging` 以及普通 `http/https` 页面上的 Content Script。
@@ -14,6 +18,11 @@
 `manifest.json` 不声明 `host_permissions`、`storage`、`tabs`、`activeTab`、`scripting` 或网络
 请求权限；`http/https` 范围只出现在静态 Content Script 的 `matches`。Content Script 不能
 调用 Native Messaging，只能发送经过严格解析的内部命令给 Service Worker。
+
+欧路网络访问只发生在 Native Host。请求固定为 `api.frdic.com` 的单词查询和新增路径，禁止
+网页、协议消息或环境变量覆盖 URL；拒绝重定向、Cookie 和自动重试。单次 HTTP 操作最长
+10 秒，响应体最多 64 KiB。状态码、JSON 和响应流均视为不可信；远端响应正文、诊断信息和
+授权值不会返回扩展或写入日志。
 
 ## 本机进程边界
 

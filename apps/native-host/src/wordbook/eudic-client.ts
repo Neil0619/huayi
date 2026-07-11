@@ -1,0 +1,205 @@
+import type { AddWordRequest, WordbookAddOutcome } from "@huayi/protocol";
+
+import { EudicProviderError, eudicError } from "./eudic-errors.js";
+
+export const EUDIC_WORD_ENDPOINT = "https://api.frdic.com/api/open/v1/studylist/word";
+export const MAXIMUM_EUDIC_RESPONSE_BYTES = 64 * 1024;
+
+export type EudicResponse = Pick<Response, "body" | "status">;
+
+export interface EudicFetchInit {
+  body?: string;
+  credentials: "omit";
+  headers: Readonly<Record<string, string>>;
+  method: "GET" | "POST";
+  redirect: "error";
+  signal: AbortSignal;
+}
+
+export type EudicFetch = (url: string, init: EudicFetchInit) => Promise<EudicResponse>;
+
+export interface EudicClientOptions {
+  fetch?: EudicFetch;
+}
+
+function defaultFetch(url: string, init: EudicFetchInit): Promise<EudicResponse> {
+  return fetch(url, init);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+async function readJson(response: EudicResponse, signal: AbortSignal): Promise<unknown> {
+  if (response.body === null) {
+    throw eudicError("INVALID_RESPONSE");
+  }
+  const reader = response.body.getReader();
+  const chunks: Buffer[] = [];
+  let totalBytes = 0;
+  try {
+    while (true) {
+      const chunk = await reader.read();
+      if (chunk.done) {
+        break;
+      }
+      if (chunk.value === undefined) {
+        throw eudicError("INVALID_RESPONSE");
+      }
+      totalBytes += chunk.value.byteLength;
+      if (totalBytes > MAXIMUM_EUDIC_RESPONSE_BYTES) {
+        await reader.cancel().catch(() => undefined);
+        throw eudicError("INVALID_RESPONSE");
+      }
+      chunks.push(Buffer.from(chunk.value));
+    }
+  } catch (error) {
+    if (error instanceof EudicProviderError) {
+      throw error;
+    }
+    throw signal.aborted ? eudicError("CANCELLED", error) : eudicError("NETWORK_ERROR", error);
+  }
+
+  try {
+    return JSON.parse(Buffer.concat(chunks).toString("utf8")) as unknown;
+  } catch (error) {
+    throw eudicError("INVALID_RESPONSE", error);
+  }
+}
+
+function normalizeWordIdentity(value: string): string {
+  return value.toLocaleLowerCase("en-US").replaceAll("’", "'");
+}
+
+function wordFromRecord(value: unknown): string | null {
+  return isRecord(value) && typeof value.word === "string" ? value.word : null;
+}
+
+function queryWords(value: unknown): string[] {
+  const directWord = wordFromRecord(value);
+  if (directWord !== null) {
+    return [directWord];
+  }
+  if (!isRecord(value) || !("data" in value)) {
+    throw eudicError("INVALID_RESPONSE");
+  }
+  if (value.data === null) {
+    return [];
+  }
+  if (Array.isArray(value.data)) {
+    const words = value.data.map(wordFromRecord);
+    if (words.some((word) => word === null)) {
+      throw eudicError("INVALID_RESPONSE");
+    }
+    return words as string[];
+  }
+  const nestedWord = wordFromRecord(value.data);
+  if (nestedWord === null) {
+    throw eudicError("INVALID_RESPONSE");
+  }
+  return [nestedWord];
+}
+
+function throwForStatus(status: number): never {
+  if (status === 401) {
+    throw eudicError("EUDIC_AUTH_FAILED");
+  }
+  if (status === 403 || status === 429) {
+    throw eudicError("RATE_LIMITED");
+  }
+  if ([502, 503, 504].includes(status)) {
+    throw eudicError("NETWORK_ERROR");
+  }
+  if (status === 400) {
+    throw eudicError("INVALID_RESPONSE");
+  }
+  throw eudicError("INTERNAL_ERROR");
+}
+
+function diagnosticText(error: unknown): string {
+  if (!(error instanceof Error)) {
+    return "";
+  }
+  const cause = error.cause instanceof Error ? error.cause.message : "";
+  return `${error.message} ${cause}`.toLowerCase();
+}
+
+export class EudicClient {
+  private readonly fetch: EudicFetch;
+
+  constructor(options: EudicClientOptions = {}) {
+    this.fetch = options.fetch ?? defaultFetch;
+  }
+
+  async addWord(
+    authorization: string,
+    request: AddWordRequest,
+    signal: AbortSignal,
+  ): Promise<WordbookAddOutcome> {
+    const headers = {
+      Accept: "application/json",
+      Authorization: authorization,
+      "User-Agent": "Huayi/0.2.0",
+    };
+    const query = new URL(EUDIC_WORD_ENDPOINT);
+    query.searchParams.set("language", request.language);
+    query.searchParams.set("word", request.word);
+    const queryResponse = await this.request(query.toString(), {
+      credentials: "omit",
+      headers,
+      method: "GET",
+      redirect: "error",
+      signal,
+    });
+    if (queryResponse.status !== 404) {
+      if (queryResponse.status !== 200) {
+        throwForStatus(queryResponse.status);
+      }
+      const words = queryWords(await readJson(queryResponse, signal));
+      if (words.length > 0) {
+        const requestedWord = normalizeWordIdentity(request.word);
+        if (!words.some((word) => normalizeWordIdentity(word) === requestedWord)) {
+          throw eudicError("INVALID_RESPONSE");
+        }
+        return "already-exists";
+      }
+    }
+
+    const addResponse = await this.request(EUDIC_WORD_ENDPOINT, {
+      body: JSON.stringify({
+        context_line: request.context,
+        language: request.language,
+        word: request.word,
+      }),
+      credentials: "omit",
+      headers: { ...headers, "Content-Type": "application/json" },
+      method: "POST",
+      redirect: "error",
+      signal,
+    });
+    if (addResponse.status !== 201) {
+      throwForStatus(addResponse.status);
+    }
+    const body = await readJson(addResponse, signal);
+    if (!isRecord(body) || typeof body.message !== "string" || body.message.trim().length === 0) {
+      throw eudicError("INVALID_RESPONSE");
+    }
+    return "added";
+  }
+
+  private async request(url: string, init: EudicFetchInit): Promise<EudicResponse> {
+    try {
+      return await this.fetch(url, init);
+    } catch (error) {
+      if (error instanceof EudicProviderError) {
+        throw error;
+      }
+      if (init.signal.aborted) {
+        throw eudicError("CANCELLED", error);
+      }
+      throw /redirect/u.test(diagnosticText(error))
+        ? eudicError("INVALID_RESPONSE", error)
+        : eudicError("NETWORK_ERROR", error);
+    }
+  }
+}

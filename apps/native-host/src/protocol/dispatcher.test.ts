@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { AnalysisResult, AnalyzeRequest, HostEvent } from "@huayi/protocol";
+import type { AddWordRequest, AnalysisResult, AnalyzeRequest, HostEvent } from "@huayi/protocol";
 
 import type { AnalysisProvider } from "../provider/analysis-provider.js";
+import type { WordbookProvider } from "../wordbook/wordbook-provider.js";
 import { NativeMessageDispatcher } from "./dispatcher.js";
 
 const request: AnalyzeRequest = {
@@ -31,6 +32,15 @@ const validResult: AnalysisResult = {
   ],
   sourceText: "investigation",
   type: "translate-lexical",
+};
+
+const wordRequest: AddWordRequest = {
+  context: "The investigation was in its early stages.",
+  language: "en",
+  requestId: "word-1",
+  schemaVersion: 1,
+  type: "add-word",
+  word: "investigation",
 };
 
 describe("NativeMessageDispatcher", () => {
@@ -128,6 +138,60 @@ describe("NativeMessageDispatcher", () => {
     expect(() =>
       dispatcher.dispatch({ schemaVersion: 1, type: "analyze" }, () => undefined),
     ).toThrow(/invalid host request/i);
+    dispatcher.dispose();
+  });
+
+  it("queues add-word work, emits its outcome, and propagates cancellation", async () => {
+    const events: HostEvent[] = [];
+    let aborted = false;
+    const wordbookProvider: WordbookProvider = {
+      addWord: (currentRequest, signal) => {
+        if (currentRequest.requestId === "word-1") {
+          return Promise.resolve("added");
+        }
+        return new Promise((_resolve, reject) => {
+          signal.addEventListener(
+            "abort",
+            () => {
+              aborted = true;
+              reject(new Error("aborted"));
+            },
+            { once: true },
+          );
+        });
+      },
+    };
+    const dispatcher = new NativeMessageDispatcher({
+      healthCheck: async () => ({ codexVersion: "codex-cli 0.144.1" }),
+      provider: { analyze: async () => validResult },
+      wordbookProvider,
+    });
+
+    dispatcher.dispatch(wordRequest, (event) => events.push(event));
+    await vi.waitFor(() => expect(events.some((event) => event.type === "word-added")).toBe(true));
+    expect(events.at(-1)).toEqual({
+      outcome: "added",
+      requestId: "word-1",
+      schemaVersion: 1,
+      type: "word-added",
+    });
+
+    dispatcher.dispatch({ ...wordRequest, requestId: "word-2" }, (event) => events.push(event));
+    dispatcher.dispatch(
+      {
+        requestId: "cancel-2",
+        schemaVersion: 1,
+        targetRequestId: "word-2",
+        type: "cancel",
+      },
+      (event) => events.push(event),
+    );
+    await vi.waitFor(() => expect(aborted).toBe(true));
+    expect(events.at(-1)).toMatchObject({
+      error: { code: "CANCELLED" },
+      requestId: "word-2",
+      type: "error",
+    });
     dispatcher.dispose();
   });
 });

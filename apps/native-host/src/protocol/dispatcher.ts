@@ -3,11 +3,19 @@ import {
   analysisResultSchema,
   hostEventSchema,
   hostRequestSchema,
+  wordbookAddOutcomeSchema,
 } from "@huayi/protocol";
-import type { AnalysisError, AnalyzeRequest, HealthRequest, HostEvent } from "@huayi/protocol";
+import type {
+  AddWordRequest,
+  AnalysisError,
+  AnalyzeRequest,
+  HealthRequest,
+  HostEvent,
+} from "@huayi/protocol";
 
 import type { AnalysisProvider } from "../provider/analysis-provider.js";
 import { RequestQueue } from "../runtime/request-queue.js";
+import type { WordbookProvider } from "../wordbook/wordbook-provider.js";
 
 const HOST_VERSION = "0.1.0";
 
@@ -20,8 +28,10 @@ export interface HealthCheckResult {
 export interface NativeMessageDispatcherOptions {
   healthCheck: () => Promise<HealthCheckResult>;
   mapError?: (error: unknown) => AnalysisError;
+  mapWordbookError?: (error: unknown) => AnalysisError;
   maximumConcurrency?: number;
   provider: AnalysisProvider;
+  wordbookProvider?: WordbookProvider;
 }
 
 export class InvalidHostRequestError extends Error {
@@ -42,13 +52,17 @@ function defaultError(): AnalysisError {
 export class NativeMessageDispatcher {
   private readonly healthCheck: NativeMessageDispatcherOptions["healthCheck"];
   private readonly mapError: (error: unknown) => AnalysisError;
+  private readonly mapWordbookError: (error: unknown) => AnalysisError;
   private readonly provider: AnalysisProvider;
   private readonly queue: RequestQueue;
+  private readonly wordbookProvider: WordbookProvider | undefined;
 
   constructor(options: NativeMessageDispatcherOptions) {
     this.provider = options.provider;
     this.healthCheck = options.healthCheck;
     this.mapError = options.mapError ?? defaultError;
+    this.mapWordbookError = options.mapWordbookError ?? defaultError;
+    this.wordbookProvider = options.wordbookProvider;
     this.queue = new RequestQueue(options.maximumConcurrency ?? 2);
   }
 
@@ -64,6 +78,9 @@ export class NativeMessageDispatcher {
         break;
       case "analyze":
         this.dispatchAnalyze(parsed.data, emit);
+        break;
+      case "add-word":
+        this.dispatchAddWord(parsed.data, emit);
         break;
       case "cancel":
         this.dispatchCancel(parsed.data.targetRequestId, emit);
@@ -152,6 +169,62 @@ export class NativeMessageDispatcher {
       message: "请求已取消。",
       retryable: false,
     });
+  }
+
+  private dispatchAddWord(request: AddWordRequest, emit: HostEventEmitter): void {
+    const provider = this.wordbookProvider;
+    if (provider === undefined) {
+      this.emitError(emit, request.requestId, {
+        code: "EUDIC_NOT_CONFIGURED",
+        message: "尚未配置欧路授权，请先运行配置命令。",
+        retryable: false,
+      });
+      return;
+    }
+    this.emitValidated(emit, {
+      requestId: request.requestId,
+      schemaVersion: SCHEMA_VERSION,
+      stage: "queued",
+      type: "progress",
+    });
+
+    try {
+      this.queue.enqueue(request.requestId, async (signal) => {
+        this.emitValidated(emit, {
+          requestId: request.requestId,
+          schemaVersion: SCHEMA_VERSION,
+          stage: "running",
+          type: "progress",
+        });
+        try {
+          const rawOutcome = await provider.addWord(request, signal);
+          if (signal.aborted) {
+            return;
+          }
+          const outcome = wordbookAddOutcomeSchema.safeParse(rawOutcome);
+          if (!outcome.success) {
+            this.emitError(emit, request.requestId, {
+              code: "INVALID_RESPONSE",
+              message: "生词本服务返回了无效结果。",
+              retryable: false,
+            });
+            return;
+          }
+          this.emitValidated(emit, {
+            outcome: outcome.data,
+            requestId: request.requestId,
+            schemaVersion: SCHEMA_VERSION,
+            type: "word-added",
+          });
+        } catch (error) {
+          if (!signal.aborted) {
+            this.emitError(emit, request.requestId, this.mapWordbookError(error));
+          }
+        }
+      });
+    } catch (error) {
+      this.emitError(emit, request.requestId, this.mapWordbookError(error));
+    }
   }
 
   private emitError(emit: HostEventEmitter, requestId: string, error: AnalysisError): void {
