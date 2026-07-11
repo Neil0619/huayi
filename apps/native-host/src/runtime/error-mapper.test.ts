@@ -8,6 +8,7 @@ describe("Codex error mapping", () => {
     ["429 too many requests", "RATE_LIMITED", true],
     ["usage limit reached", "QUOTA_EXCEEDED", false],
     ["network connection reset", "NETWORK_ERROR", true],
+    ["invalid_json_schema: regex lookaround is not supported", "CODEX_CAPABILITY_MISSING", false],
   ] as const)("maps stderr %s", (stderr, code, retryable) => {
     expect(mapCodexProcessFailure({ exitCode: 1, stderr })).toMatchObject({ code, retryable });
   });

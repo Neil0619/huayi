@@ -78,6 +78,9 @@ export function mapCodexProcessFailure(failure: CodexProcessFailure): CodexProvi
   }
 
   const diagnostics = failure.stderr.toLowerCase();
+  if (/invalid[_ ]json[_ ]schema|unsupported value.*reasoning(?:\.|_)effort/.test(diagnostics)) {
+    return providerError(ERROR_DEFINITIONS.CODEX_CAPABILITY_MISSING);
+  }
   if (
     /not (?:logged|signed) in|authentication required|unauthorized|login required/.test(diagnostics)
   ) {

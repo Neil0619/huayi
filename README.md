@@ -3,6 +3,17 @@
 “划译”是一款面向 macOS Google Chrome 的个人划词翻译与英文解析扩展。它通过 Chrome
 Native Messaging 调用本机已登录的 Codex CLI，不在扩展中保存 OpenAI API Key。
 
+## ChatGPT Plus / Codex 使用边界
+
+第一版可以复用本机 Codex CLI 的现有 ChatGPT 登录：Native Host 调用
+`codex exec --ephemeral`，因此不需要另购 OpenAI API Key，但会受到当前 ChatGPT/Codex
+账户的可用额度、频率和网络限制。这不是“用 Plus 抵扣 API 费用”；ChatGPT 订阅与 OpenAI
+API 计费彼此独立。若未来发布商店版或改成云端 provider，必须另外实现服务端鉴权、密钥
+管理、限流与成本控制。
+
+参考：[Codex 非交互模式](https://developers.openai.com/codex/noninteractive)、
+[ChatGPT Plus 说明](https://help.openai.com/en/articles/6950777-what-is-chatgpt-plus)。
+
 ## MVP 能力
 
 - 双击或拖选英文后显示“解释”和“翻译”工具条。

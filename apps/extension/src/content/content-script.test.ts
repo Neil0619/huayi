@@ -165,4 +165,23 @@ describe("initializeContentScript", () => {
       status: "actions",
     });
   });
+
+  it("does not reopen the selected text when Escape keyup follows closing", () => {
+    const runtime = new FakeRuntime();
+    const instance = createInstance(runtime);
+    const paragraph = document.createElement("p");
+    paragraph.textContent = "investigation";
+    document.body.append(paragraph);
+    selectContents(paragraph);
+    document.dispatchEvent(new MouseEvent("mouseup"));
+    instance.controller.shadowRoot
+      .querySelector<HTMLButtonElement>("[data-action='translate']")
+      ?.click();
+
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    document.dispatchEvent(new KeyboardEvent("keyup", { key: "Escape" }));
+
+    expect(instance.controller.state.status).toBe("closed");
+    expect(runtime.sent.at(-1)).toEqual({ requestId: "request-1", type: "CANCEL_ANALYSIS" });
+  });
 });

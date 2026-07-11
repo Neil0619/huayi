@@ -20,7 +20,7 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 200,
-            "pattern": "^(?=[\\s\\S]*[A-Za-z])(?![\\s\\S]*[\\u3400-\\u9fff])[\\s\\S]+$"
+            "pattern": "^[^\\u3400-\\u9fff]*[A-Za-z][^\\u3400-\\u9fff]*$"
           }
         },
         "required": ["meaningZh", "text"]
@@ -34,7 +34,7 @@
           "type": "string",
           "minLength": 1,
           "maxLength": 2000,
-          "pattern": "^(?=[\\s\\S]*[A-Za-z])(?![\\s\\S]*[\\u3400-\\u9fff])[\\s\\S]+$"
+          "pattern": "^[^\\u3400-\\u9fff]*[A-Za-z][^\\u3400-\\u9fff]*$"
         },
         "translationZh": {
           "type": "string",
@@ -160,7 +160,7 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 120,
-            "pattern": "^(?=[\\s\\S]*[A-Za-z])(?![\\s\\S]*[\\u3400-\\u9fff])[\\s\\S]+$"
+            "pattern": "^[^\\u3400-\\u9fff]*[A-Za-z][^\\u3400-\\u9fff]*$"
           }
         },
         "required": ["meaningZh", "partOfSpeech", "text"]

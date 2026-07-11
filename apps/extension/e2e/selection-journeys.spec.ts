@@ -1,0 +1,231 @@
+import { expect, type Locator, type Page, test } from "@playwright/test";
+
+const fixturePath = "/apps/extension/e2e/fixtures/selection-journeys.html";
+
+function overlayHost(page: Page): Locator {
+  return page.locator("[data-huayi-overlay-host]");
+}
+
+function toolbar(page: Page): Locator {
+  return overlayHost(page).locator(".huayi-toolbar");
+}
+
+function panel(page: Page): Locator {
+  return overlayHost(page).locator(".huayi-panel");
+}
+
+function nativeRequests(page: Page, type: "analyze" | "cancel"): Locator {
+  return page.locator(`[data-native-request="${type}"]`);
+}
+
+async function dragSelect(page: Page, target: Locator): Promise<void> {
+  await target.scrollIntoViewIfNeeded();
+  const bounds = await target.boundingBox();
+  expect(bounds).not.toBeNull();
+  if (bounds === null) {
+    throw new Error("Selection target has no layout box.");
+  }
+
+  const centerY = bounds.y + bounds.height / 2;
+  await page.mouse.move(bounds.x + 1, centerY);
+  await page.mouse.down();
+  await page.mouse.move(bounds.x + bounds.width - 1, centerY, { steps: 12 });
+  await page.mouse.up();
+}
+
+async function expectAnalyzeRequest(
+  page: Page,
+  selectionKind: "word" | "phrase" | "sentence" | "paragraph",
+  action: "translate" | "explain",
+): Promise<Locator> {
+  const request = page.locator(
+    `[data-native-request="analyze"][data-selection-kind="${selectionKind}"]` +
+      `[data-analysis-action="${action}"]`,
+  );
+  await expect(request).toHaveCount(1);
+  return request;
+}
+
+async function expectInsideViewport(locator: Locator, page: Page): Promise<void> {
+  const subpixelTolerance = 0.5;
+  const bounds = await locator.boundingBox();
+  const viewport = page.viewportSize();
+  expect(bounds).not.toBeNull();
+  expect(viewport).not.toBeNull();
+  if (bounds === null || viewport === null) {
+    throw new Error("The overlay and viewport must both have measurable bounds.");
+  }
+
+  expect(bounds.x).toBeGreaterThanOrEqual(8);
+  expect(bounds.y).toBeGreaterThanOrEqual(8);
+  expect(bounds.x + bounds.width).toBeLessThanOrEqual(viewport.width - 8 + subpixelTolerance);
+  expect(bounds.y + bounds.height).toBeLessThanOrEqual(viewport.height - 8 + subpixelTolerance);
+}
+
+test.beforeEach(async ({ page }) => {
+  await page.goto(fixturePath);
+});
+
+test("double-click classifies a word and renders lexical translation", async ({ page }) => {
+  await page.getByTestId("word-selection").dblclick();
+
+  await expect(toolbar(page)).toBeVisible();
+  await toolbar(page).locator('[data-action="translate"]').click();
+
+  await expect(panel(page)).toContainText("词汇翻译结果");
+  await expect(panel(page)).toContainText("相似词");
+  await expectAnalyzeRequest(page, "word", "translate");
+});
+
+test("drag selection classifies a phrase and renders lexical explanation", async ({ page }) => {
+  await dragSelect(page, page.getByTestId("phrase-selection"));
+
+  await expect(toolbar(page)).toBeVisible();
+  await toolbar(page).locator('[data-action="explain"]').click();
+
+  await expect(panel(page)).toContainText("词汇解释结果");
+  await expect(panel(page)).toContainText("同义词");
+  await expectAnalyzeRequest(page, "phrase", "explain");
+});
+
+test("drag selection classifies a sentence and renders sentence explanation", async ({ page }) => {
+  await dragSelect(page, page.getByTestId("sentence-selection"));
+
+  await expect(toolbar(page)).toBeVisible();
+  await toolbar(page).locator('[data-action="explain"]').click();
+
+  await expect(panel(page)).toContainText("句子解释主干");
+  await expect(panel(page)).toContainText("语境作用");
+  await expectAnalyzeRequest(page, "sentence", "explain");
+});
+
+test("paragraph selection offers translation only and renders passage translation", async ({
+  page,
+}) => {
+  await dragSelect(page, page.getByTestId("paragraph-selection"));
+
+  await expect(toolbar(page)).toBeVisible();
+  await expect(toolbar(page).locator('[data-action="explain"]')).toHaveCount(0);
+  await expect(toolbar(page).locator('[data-action="translate"]')).toHaveCount(1);
+  await toolbar(page).locator('[data-action="translate"]').click();
+
+  await expect(panel(page)).toContainText("段落翻译结果");
+  await expectAnalyzeRequest(page, "paragraph", "translate");
+});
+
+test("a retryable native error can be retried successfully", async ({ page }) => {
+  await dragSelect(page, page.getByTestId("retry-selection"));
+  await toolbar(page).locator('[data-action="translate"]').click();
+
+  await expect(panel(page)).toContainText("模拟网络暂时不可用，请重试。");
+  await expect(panel(page).locator('[data-action="retry"]')).toBeVisible();
+  await panel(page).locator('[data-action="retry"]').click();
+
+  await expect(panel(page)).toContainText("词汇翻译结果");
+  await expect(nativeRequests(page, "analyze")).toHaveCount(2);
+});
+
+test("an unresponsive native request times out and sends a targeted cancel", async ({ page }) => {
+  await page.goto(`${fixturePath}?request-timeout-ms=1000`);
+  await dragSelect(page, page.getByTestId("timeout-selection"));
+  await toolbar(page).locator('[data-action="translate"]').click();
+
+  const analyzeRequest = nativeRequests(page, "analyze");
+  await expect(analyzeRequest).toHaveCount(1);
+  const analyzeRequestId = await analyzeRequest.getAttribute("data-request-id");
+  expect(analyzeRequestId).not.toBeNull();
+
+  await expect(panel(page)).toContainText("处理超时，请重试。");
+  await expect(nativeRequests(page, "cancel")).toHaveAttribute(
+    "data-target-request-id",
+    analyzeRequestId ?? "",
+  );
+});
+
+test("a new selection cancels the active native request", async ({ page }) => {
+  await dragSelect(page, page.getByTestId("pending-selection"));
+  await toolbar(page).locator('[data-action="translate"]').click();
+  await expect(panel(page)).toContainText("正在翻译");
+
+  const firstRequest = nativeRequests(page, "analyze");
+  await expect(firstRequest).toHaveCount(1);
+  const firstRequestId = await firstRequest.getAttribute("data-request-id");
+  expect(firstRequestId).not.toBeNull();
+
+  const cancel = nativeRequests(page, "cancel");
+  await page.waitForTimeout(1_100);
+  await expect(cancel).toHaveCount(0);
+  await page.getByTestId("replacement-selection").dblclick();
+
+  await expect(cancel).toHaveCount(1);
+  await expect(cancel).toHaveAttribute("data-target-request-id", firstRequestId ?? "");
+  await expect(toolbar(page)).toBeVisible();
+  await toolbar(page).locator('[data-action="translate"]').click();
+  await expect(panel(page)).toContainText("词汇翻译结果");
+  await expectAnalyzeRequest(page, "word", "translate");
+});
+
+test("the close button cancels the active native request", async ({ page }) => {
+  await dragSelect(page, page.getByTestId("pending-selection"));
+  await toolbar(page).locator('[data-action="translate"]').click();
+  await expect(panel(page)).toContainText("正在翻译");
+
+  const firstRequest = nativeRequests(page, "analyze");
+  const firstRequestId = await firstRequest.getAttribute("data-request-id");
+  expect(firstRequestId).not.toBeNull();
+  const cancel = nativeRequests(page, "cancel");
+  await expect(cancel).toHaveCount(0);
+  await panel(page).locator('[data-action="close"]').click();
+
+  await expect(overlayHost(page)).toHaveCount(0);
+  await expect(cancel).toHaveAttribute("data-target-request-id", firstRequestId ?? "");
+});
+
+test("Escape closes the selection toolbar", async ({ page }) => {
+  await page.getByTestId("word-selection").dblclick();
+  await expect(toolbar(page)).toBeVisible();
+
+  await page.keyboard.press("Escape");
+
+  await expect(overlayHost(page)).toHaveCount(0);
+  await expect(nativeRequests(page, "analyze")).toHaveCount(0);
+});
+
+test("a narrow viewport keeps the toolbar and draggable result panel constrained", async ({
+  page,
+}) => {
+  await page.setViewportSize({ height: 480, width: 320 });
+  await page.reload();
+
+  await page.getByTestId("edge-selection").dblclick();
+  await expect(toolbar(page)).toBeVisible();
+  await expectInsideViewport(toolbar(page), page);
+  await toolbar(page).locator('[data-action="translate"]').click();
+
+  const resultPanel = panel(page);
+  await expect(resultPanel).toContainText("词汇翻译结果");
+  await expectInsideViewport(resultPanel, page);
+  const resultBounds = await resultPanel.boundingBox();
+  expect(resultBounds?.width).toBeLessThanOrEqual(304);
+  await expect
+    .poll(() =>
+      resultPanel.locator(".huayi-body").evaluate((body) => body.scrollHeight > body.clientHeight),
+    )
+    .toBe(true);
+
+  const dragHandle = resultPanel.locator("[data-drag-handle]");
+  const handleBounds = await dragHandle.boundingBox();
+  expect(handleBounds).not.toBeNull();
+  if (handleBounds === null) {
+    throw new Error("The overlay drag handle must have measurable bounds.");
+  }
+  await page.mouse.move(
+    handleBounds.x + handleBounds.width / 2,
+    handleBounds.y + handleBounds.height / 2,
+  );
+  await page.mouse.down();
+  await page.mouse.move(1_000, 1_000, { steps: 5 });
+  await page.mouse.up();
+
+  await expectInsideViewport(resultPanel, page);
+});

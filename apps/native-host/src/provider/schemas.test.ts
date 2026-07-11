@@ -106,6 +106,18 @@ function collectObjectSchemas(value: unknown): JsonObject[] {
   return value.type === "object" ? [value, ...nested] : nested;
 }
 
+function collectPatterns(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => collectPatterns(item));
+  }
+  if (!isJsonObject(value)) {
+    return [];
+  }
+
+  const current = typeof value.pattern === "string" ? [value.pattern] : [];
+  return [...current, ...Object.values(value).flatMap((item) => collectPatterns(item))];
+}
+
 function validateSubset(schemaValue: unknown, value: unknown, path = "$"): string[] {
   if (!isJsonObject(schemaValue)) {
     return [`${path}: schema is not an object`];
@@ -278,6 +290,14 @@ describe("Codex output schemas", () => {
     for (const name of outputSchemaNames) {
       for (const objectSchema of collectObjectSchemas(readOutputSchema(name))) {
         expect(objectSchema.additionalProperties).toBe(false);
+      }
+    }
+  });
+
+  it("avoids regex lookaround unsupported by Codex Structured Outputs", () => {
+    for (const name of outputSchemaNames) {
+      for (const pattern of collectPatterns(readOutputSchema(name))) {
+        expect(pattern).not.toMatch(/\(\?[=!<]/u);
       }
     }
   });

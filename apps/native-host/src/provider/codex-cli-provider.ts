@@ -138,7 +138,7 @@ export class CodexCliProvider implements AnalysisProvider {
           "--config",
           'web_search="disabled"',
           "--config",
-          'model_reasoning_effort="minimal"',
+          'model_reasoning_effort="low"',
           "--config",
           'history.persistence="none"',
           "--config",

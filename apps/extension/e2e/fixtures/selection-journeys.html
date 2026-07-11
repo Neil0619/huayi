@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Huayi selection journeys</title>
+    <style>
+      body {
+        min-height: 900px;
+        margin: 0;
+        background: #ffffff;
+        color: #202124;
+        font:
+          18px/1.55 Arial,
+          sans-serif;
+      }
+
+      article {
+        width: 720px;
+        max-width: calc(100vw - 32px);
+        margin: 32px auto;
+      }
+
+      section {
+        margin: 22px 0;
+      }
+
+      .selection-target {
+        display: inline-block;
+        padding: 2px 4px;
+        border-radius: 4px;
+        user-select: text;
+        white-space: nowrap;
+      }
+
+      .edge-target {
+        position: fixed;
+        right: 0;
+        bottom: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <article>
+      <section>
+        He said the
+        <span class="selection-target" data-testid="word-selection">investigation</span>
+        was still in its early stages.
+      </section>
+
+      <section>
+        The region endured a
+        <span class="selection-target" data-testid="phrase-selection">sustained heatwave</span>
+        throughout the month.
+      </section>
+
+      <section>
+        <span class="selection-target" data-testid="sentence-selection">
+          He said the investigation was still in its early stages.
+        </span>
+      </section>
+
+      <section>
+        <span class="selection-target" data-testid="paragraph-selection">
+          First sentence describes the city. Second sentence explains the change.
+        </span>
+      </section>
+
+      <section>
+        The harness exposes a
+        <span class="selection-target" data-testid="retry-selection">temporary failure</span>
+        before returning a result.
+      </section>
+
+      <section>
+        The harness leaves a
+        <span class="selection-target" data-testid="timeout-selection">timeout request</span>
+        unanswered so the coordinator owns the timeout.
+      </section>
+
+      <section>
+        Start a
+        <span class="selection-target" data-testid="pending-selection">pending request</span>
+        and then choose a new
+        <span class="selection-target" data-testid="replacement-selection">investigation</span>.
+      </section>
+    </article>
+
+    <span class="selection-target edge-target" data-testid="edge-selection">investigation</span>
+    <ol data-native-request-log hidden></ol>
+
+    <script type="module" src="../support/harness.ts"></script>
+  </body>
+</html>

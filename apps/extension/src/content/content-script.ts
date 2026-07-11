@@ -125,6 +125,9 @@ export function initializeContentScript(options: ContentScriptOptions = {}): Con
   });
 
   const handleSelection = (event: Event): void => {
+    if (event instanceof KeyboardEvent && event.key === "Escape") {
+      return;
+    }
     if (cameFromOverlay(event)) {
       return;
     }

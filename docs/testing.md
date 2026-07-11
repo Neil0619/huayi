@@ -16,6 +16,11 @@
 可执行位、Chrome 清单、升级替换、所有权冲突和幂等卸载。仓库级验证只运行一次真实 dry-run，
 它可以检查 Codex 登录与能力，但不会调用模型或写入用户安装目录。
 
+浏览器 E2E 通过 Vite fixture 串起真实 Content Script、Service Worker 消息处理、请求协调器和
+Mock NativeTransport，覆盖双击、拖选、四类结果、错误重试、新选区/关闭取消、Escape 与
+320px 窄屏拖动约束。Escape 用例曾复现 `keyup` 重新打开工具条的问题，并保留了单元与浏览器
+双重回归测试。
+
 Codex Provider 的默认测试会把 `OPENAI_API_KEY` 和恶意网页提示放入 fake 输入，断言密钥不
 进入子进程环境、网页文本只出现在不可执行的 JSON 数据区。测试同时覆盖 60 秒超时、取消、
 1 MiB 输出上限、CLI 能力检查、非零退出、stdout 污染和请求/结果不匹配。
@@ -31,4 +36,6 @@ Playwright 覆盖双击、拖选、工具条动作、各结果类型、窄屏、
 ## 真实冒烟
 
 `pnpm smoke:codex` 显式验证 `investigation`、`sustained heatwave`、单句和多句段落。运行前后
-比较 `~/.codex/sessions`，确认 ephemeral 调用未创建新的会话文件。
+只比较 `~/.codex/sessions` 的相对文件名，不读取 session 或认证内容。脚本经二进制 Native
+Messaging 接口调用构建后的真实 Host，四类结果再次通过公共协议校验；v0.1.0 验证未创建新
+的会话文件，段落译文也实际保留了输入换行。
