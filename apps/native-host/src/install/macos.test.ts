@@ -58,6 +58,7 @@ interface InstallerFixture {
   codexExecutable: string;
   homeDirectory: string;
   rootDirectory: string;
+  securityExecutable: string;
   sourceBundlePath: string;
   sourceSchemaDirectory: string;
 }
@@ -101,11 +102,14 @@ async function createFixture(): Promise<InstallerFixture> {
   const sourceBundlePath = join(sourceDirectory, "main.js");
   const sourceSchemaDirectory = join(sourceDirectory, "provider", "schemas");
   const codexExecutable = join(sourceDirectory, "codex");
+  const securityExecutable = join(sourceDirectory, "security");
   await mkdir(homeDirectory, { recursive: true });
   await mkdir(sourceSchemaDirectory, { recursive: true });
   await writeFile(sourceBundlePath, "// host bundle v1\n", "utf8");
   await writeFile(codexExecutable, "#!/bin/sh\nexit 0\n", "utf8");
+  await writeFile(securityExecutable, "#!/bin/sh\nexit 0\n", "utf8");
   await chmod(codexExecutable, 0o755);
+  await chmod(securityExecutable, 0o755);
   await Promise.all(
     SCHEMA_NAMES.map((name) =>
       writeFile(join(sourceSchemaDirectory, name), `${JSON.stringify({ [name]: 1 })}\n`),
@@ -115,6 +119,7 @@ async function createFixture(): Promise<InstallerFixture> {
     codexExecutable,
     homeDirectory,
     rootDirectory,
+    securityExecutable,
     sourceBundlePath,
     sourceSchemaDirectory,
   };
@@ -138,6 +143,7 @@ function createOptions(
     nodeExecutable: process.execPath,
     nodeVersion: "20.19.0",
     processRunner,
+    securityExecutable: fixture.securityExecutable,
     sourceBundlePath: fixture.sourceBundlePath,
     sourceSchemaDirectory: fixture.sourceSchemaDirectory,
     ...overrides,
@@ -283,6 +289,21 @@ describe("installMacosNativeHost", () => {
     await expect(
       installMacosNativeHost(createOptions(fixture, new CapabilityRunner(1))),
     ).rejects.toMatchObject({ code: "CODEX_NOT_AUTHENTICATED" });
+    expect(await exists(paths.applicationDirectory)).toBe(false);
+    expect(await exists(paths.nativeManifestPath)).toBe(false);
+  });
+
+  it("requires the fixed macOS Keychain command without reading credentials", async () => {
+    const fixture = await createFixture();
+    const paths = createMacosInstallationPaths(fixture.homeDirectory);
+
+    await expect(
+      installMacosNativeHost(
+        createOptions(fixture, new CapabilityRunner(), {
+          securityExecutable: join(fixture.rootDirectory, "missing-security"),
+        }),
+      ),
+    ).rejects.toThrow(/security|accessible/i);
     expect(await exists(paths.applicationDirectory)).toBe(false);
     expect(await exists(paths.nativeManifestPath)).toBe(false);
   });

@@ -16,6 +16,7 @@ import type {
   ProcessRunResult,
   ProcessRunner,
 } from "./runtime/codex-process.js";
+import type { EudicFetch } from "./wordbook/eudic-client.js";
 
 class HealthDispatcher implements RequestDispatcher {
   dispatch(_message: unknown, emit: (event: HostEvent) => void): void {
@@ -175,6 +176,71 @@ describe("native host bootstrap", () => {
       ],
       ["login", "status"],
     ]);
+    dispatcher.dispose();
+  });
+
+  it("wires add-word requests through Keychain authorization and the fixed Eudic client", async () => {
+    const processRequests: ProcessRunRequest[] = [];
+    const processRunner: ProcessRunner = {
+      run: async (request) => {
+        processRequests.push(request);
+        return {
+          exitCode: 0,
+          signal: null,
+          stderr: "",
+          stdout: "Bearer configured-secret\n",
+        };
+      },
+    };
+    const fetchRequests: Parameters<EudicFetch>[] = [];
+    const eudicFetch: EudicFetch = async (...arguments_) => {
+      fetchRequests.push(arguments_);
+      return new Response(JSON.stringify({ data: [{ word: "investigation" }] }), {
+        headers: { "Content-Type": "application/json" },
+        status: 200,
+      });
+    };
+    const dispatcher = createNativeHostDispatcher({
+      codexExecutable: "/opt/codex",
+      environment: { HOME: "/Users/tester" },
+      eudicFetch,
+      processRunner,
+      schemaDirectory: "/tmp/schemas",
+      securityExecutable: "/usr/bin/security",
+      workingDirectory: "/tmp/work",
+    });
+    const events: HostEvent[] = [];
+
+    dispatcher.dispatch(
+      {
+        context: "The investigation is still in its early stages.",
+        language: "en",
+        requestId: "word-1",
+        schemaVersion: 1,
+        type: "add-word",
+        word: "investigation",
+      },
+      (event) => events.push(event),
+    );
+    await vi.waitFor(() => expect(events.some((event) => event.type === "word-added")).toBe(true));
+
+    expect(events.at(-1)).toEqual({
+      outcome: "already-exists",
+      requestId: "word-1",
+      schemaVersion: 1,
+      type: "word-added",
+    });
+    expect(processRequests).toHaveLength(1);
+    expect(processRequests[0]?.arguments).toEqual([
+      "find-generic-password",
+      "-s",
+      "com.huayi.codex_bridge.eudic",
+      "-a",
+      "authorization",
+      "-w",
+    ]);
+    expect(fetchRequests).toHaveLength(1);
+    expect(fetchRequests[0]?.[1].headers.Authorization).toBe("Bearer configured-secret");
     dispatcher.dispose();
   });
 });

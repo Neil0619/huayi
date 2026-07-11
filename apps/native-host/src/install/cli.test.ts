@@ -31,7 +31,7 @@ afterEach(async () => {
 });
 
 describe("parseInstallerArguments", () => {
-  it("parses install, uninstall, dry-run, and an explicit Codex path", () => {
+  it("parses install, uninstall, Eudic commands, dry-run, and an explicit Codex path", () => {
     expect(
       parseInstallerArguments([
         "install",
@@ -51,6 +51,14 @@ describe("parseInstallerArguments", () => {
     expect(parseInstallerArguments(["uninstall", "--dry-run"])).toEqual({
       dryRun: true,
       type: "uninstall",
+    });
+    expect(parseInstallerArguments(["eudic-configure", "--", "--dry-run"])).toEqual({
+      dryRun: true,
+      type: "eudic-configure",
+    });
+    expect(parseInstallerArguments(["eudic-remove"])).toEqual({
+      dryRun: false,
+      type: "eudic-remove",
     });
     expect(parseInstallerArguments(["--help"])).toEqual({ type: "help" });
   });
@@ -100,6 +108,8 @@ function createRuntime(
     processRunner,
     sourceBundlePath: "/build/main.js",
     sourceSchemaDirectory: "/build/provider/schemas",
+    securityExecutable: "/usr/bin/security",
+    interactiveProcessRunner: { run: vi.fn() },
     writeOutput: (message) => output.push(message),
     ...overrides,
   };
@@ -114,7 +124,9 @@ describe("executeInstallerCommand", () => {
       paths: {},
     });
     const operations: InstallerCliOperations = {
+      configureEudic: vi.fn(),
       install,
+      removeEudic: vi.fn(),
       uninstall: vi.fn(),
     };
     const runtime = createRuntime(operations, output);
@@ -134,6 +146,7 @@ describe("executeInstallerCommand", () => {
         codexExecutable: "/opt/codex",
         dryRun: true,
         extensionId: EXTENSION_ID,
+        securityExecutable: "/usr/bin/security",
       }),
     );
     expect(output.join("\n")).toContain("[dry-run] Validate Codex");
@@ -143,19 +156,83 @@ describe("executeInstallerCommand", () => {
   it("dispatches idempotent uninstall without looking up Codex", async () => {
     const output: string[] = [];
     const uninstall = vi.fn().mockResolvedValue({ actions: [], dryRun: false, paths: {} });
-    const operations: InstallerCliOperations = { install: vi.fn(), uninstall };
+    const removeEudic = vi.fn().mockResolvedValue({ actions: [], dryRun: false });
+    const operations: InstallerCliOperations = {
+      configureEudic: vi.fn(),
+      install: vi.fn(),
+      removeEudic,
+      uninstall,
+    };
 
     await executeInstallerCommand(
       { dryRun: false, type: "uninstall" },
       createRuntime(operations, output, { environment: { PATH: "" } }),
     );
 
+    expect(removeEudic).toHaveBeenCalledBefore(uninstall);
     expect(uninstall).toHaveBeenCalledWith({ dryRun: false, homeDirectory: "/Users/tester" });
     expect(output).toEqual(["No installed Huayi files were found."]);
   });
 
+  it("dispatches standalone Eudic configure and remove commands", async () => {
+    const output: string[] = [];
+    const configureEudic = vi
+      .fn()
+      .mockResolvedValue({ actions: ["Configure credentials"], dryRun: true });
+    const removeEudic = vi
+      .fn()
+      .mockResolvedValue({ actions: ["Remove credentials"], dryRun: false });
+    const operations: InstallerCliOperations = {
+      configureEudic,
+      install: vi.fn(),
+      removeEudic,
+      uninstall: vi.fn(),
+    };
+    const runtime = createRuntime(operations, output);
+
+    await executeInstallerCommand({ dryRun: true, type: "eudic-configure" }, runtime);
+    await executeInstallerCommand({ dryRun: false, type: "eudic-remove" }, runtime);
+
+    expect(configureEudic).toHaveBeenCalledWith(
+      expect.objectContaining({
+        dryRun: true,
+        securityExecutable: "/usr/bin/security",
+      }),
+    );
+    expect(removeEudic).toHaveBeenCalledWith(
+      expect.objectContaining({
+        dryRun: false,
+        securityExecutable: "/usr/bin/security",
+      }),
+    );
+    expect(output).toEqual(["[dry-run] Configure credentials", "Remove credentials"]);
+  });
+
+  it("preserves host files when Keychain deletion fails during uninstall", async () => {
+    const failure = new Error("Keychain deletion failed");
+    const removeEudic = vi.fn().mockRejectedValue(failure);
+    const uninstall = vi.fn();
+    const operations: InstallerCliOperations = {
+      configureEudic: vi.fn(),
+      install: vi.fn(),
+      removeEudic,
+      uninstall,
+    };
+
+    await expect(
+      executeInstallerCommand({ dryRun: false, type: "uninstall" }, createRuntime(operations, [])),
+    ).rejects.toBe(failure);
+
+    expect(uninstall).not.toHaveBeenCalled();
+  });
+
   it("rejects non-macOS execution before any operation", async () => {
-    const operations: InstallerCliOperations = { install: vi.fn(), uninstall: vi.fn() };
+    const operations: InstallerCliOperations = {
+      configureEudic: vi.fn(),
+      install: vi.fn(),
+      removeEudic: vi.fn(),
+      uninstall: vi.fn(),
+    };
 
     await expect(
       executeInstallerCommand(

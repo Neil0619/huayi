@@ -5,12 +5,19 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { hostEventSchema } from "@huayi/protocol";
 import type { HostEvent } from "@huayi/protocol";
 
+import {
+  EUDIC_SECURITY_EXECUTABLE,
+  MacosEudicAuthorizationReader,
+} from "./credentials/eudic-keychain.js";
 import { NativeMessageDispatcher } from "./protocol/dispatcher.js";
 import { NativeMessageDecoder, encodeNativeMessage } from "./protocol/framing.js";
 import { CodexCliProvider } from "./provider/codex-cli-provider.js";
 import { checkCodexCapabilities } from "./runtime/codex-capabilities.js";
 import { NodeProcessRunner, type ProcessRunner } from "./runtime/codex-process.js";
 import { mapCodexError } from "./runtime/error-mapper.js";
+import { EudicClient, type EudicFetch } from "./wordbook/eudic-client.js";
+import { mapEudicError } from "./wordbook/eudic-errors.js";
+import { EudicWordbookProvider } from "./wordbook/eudic-wordbook-provider.js";
 
 export interface RequestDispatcher {
   dispatch(message: unknown, emit: (event: HostEvent) => void): void;
@@ -32,7 +39,9 @@ export interface NativeHostConfiguration {
 }
 
 export interface NativeHostDispatcherOptions extends NativeHostConfiguration {
+  eudicFetch?: EudicFetch;
   processRunner: ProcessRunner;
+  securityExecutable?: string;
 }
 
 function errorMessage(error: unknown): string {
@@ -132,11 +141,23 @@ export function createNativeHostDispatcher(
   options: NativeHostDispatcherOptions,
 ): NativeMessageDispatcher {
   const provider = new CodexCliProvider(options);
+  const authorizationReader = new MacosEudicAuthorizationReader({
+    environment: options.environment,
+    processRunner: options.processRunner,
+    securityExecutable: options.securityExecutable ?? EUDIC_SECURITY_EXECUTABLE,
+    workingDirectory: options.workingDirectory,
+  });
+  const client = new EudicClient(
+    options.eudicFetch === undefined ? {} : { fetch: options.eudicFetch },
+  );
+  const wordbookProvider = new EudicWordbookProvider({ authorizationReader, client });
   return new NativeMessageDispatcher({
     healthCheck: () => checkCodexCapabilities(options),
     mapError: mapCodexError,
+    mapWordbookError: mapEudicError,
     maximumConcurrency: 2,
     provider,
+    wordbookProvider,
   });
 }
 

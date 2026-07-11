@@ -13,6 +13,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "host:install": "node apps/native-host/dist/install/cli.js install",
+    "host:eudic:configure": "node apps/native-host/dist/install/cli.js eudic-configure",
+    "host:eudic:remove": "node apps/native-host/dist/install/cli.js eudic-remove",
     "host:uninstall": "node apps/native-host/dist/install/cli.js uninstall",
     "lint": "eslint .",
     "smoke:codex": "node scripts/verify-ephemeral-session.mjs",

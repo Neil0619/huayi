@@ -4,7 +4,17 @@ import { homedir } from "node:os";
 import { delimiter, isAbsolute, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
+import { EUDIC_SECURITY_EXECUTABLE } from "../credentials/eudic-keychain.js";
 import { NodeProcessRunner, type ProcessRunner } from "../runtime/codex-process.js";
+import {
+  configureEudicAuthorization,
+  NodeInteractiveProcessRunner,
+  removeEudicAuthorization,
+  type ConfigureEudicAuthorizationOptions,
+  type CredentialOperationResult,
+  type InteractiveProcessRunner,
+  type RemoveEudicAuthorizationOptions,
+} from "./eudic-keychain.js";
 import {
   installMacosNativeHost,
   uninstallMacosNativeHost,
@@ -18,26 +28,34 @@ const USAGE = [
   "Usage:",
   "  huayi-installer install --extension-id <ID> [--codex-path <PATH>] [--dry-run]",
   "  huayi-installer uninstall [--dry-run]",
+  "  huayi-installer eudic-configure [--dry-run]",
+  "  huayi-installer eudic-remove [--dry-run]",
 ].join("\n");
 
 export type InstallerCommand =
   | { type: "help" }
   | { codexPath?: string; dryRun: boolean; extensionId: string; type: "install" }
+  | { dryRun: boolean; type: "eudic-configure" }
+  | { dryRun: boolean; type: "eudic-remove" }
   | { dryRun: boolean; type: "uninstall" };
 
 export interface InstallerCliOperations {
+  configureEudic(options: ConfigureEudicAuthorizationOptions): Promise<CredentialOperationResult>;
   install(options: InstallMacosNativeHostOptions): Promise<InstallerResult>;
+  removeEudic(options: RemoveEudicAuthorizationOptions): Promise<CredentialOperationResult>;
   uninstall(options: UninstallMacosNativeHostOptions): Promise<InstallerResult>;
 }
 
 export interface InstallerCliRuntime {
   environment: NodeJS.ProcessEnv;
   homeDirectory: string;
+  interactiveProcessRunner: InteractiveProcessRunner;
   nodeExecutable: string;
   nodeVersion: string;
   operations: InstallerCliOperations;
   platform: NodeJS.Platform;
   processRunner: ProcessRunner;
+  securityExecutable: string;
   sourceBundlePath: string;
   sourceSchemaDirectory: string;
   writeOutput(message: string): void;
@@ -60,7 +78,12 @@ export function parseInstallerArguments(arguments_: readonly string[]): Installe
   }
 
   const command = arguments_[0];
-  if (command !== "install" && command !== "uninstall") {
+  if (
+    command !== "install" &&
+    command !== "uninstall" &&
+    command !== "eudic-configure" &&
+    command !== "eudic-remove"
+  ) {
     throw new Error(USAGE);
   }
 
@@ -88,11 +111,11 @@ export function parseInstallerArguments(arguments_: readonly string[]): Installe
     }
   }
 
-  if (command === "uninstall") {
+  if (command !== "install") {
     if (extensionId !== undefined || codexPath !== undefined) {
-      throw new Error(`Uninstall does not accept install-only arguments.\n${USAGE}`);
+      throw new Error(`${command} does not accept install-only arguments.\n${USAGE}`);
     }
-    return { dryRun, type: "uninstall" };
+    return { dryRun, type: command };
   }
   if (extensionId === undefined) {
     throw new Error(`Install requires --extension-id.\n${USAGE}`);
@@ -139,7 +162,7 @@ export async function resolveCodexExecutable(
   throw new Error("Codex CLI executable was not found in PATH.");
 }
 
-function reportResult(result: InstallerResult, runtime: InstallerCliRuntime): void {
+function reportResult(result: CredentialOperationResult, runtime: InstallerCliRuntime): void {
   if (result.actions.length === 0) {
     runtime.writeOutput("No installed Huayi files were found.");
     return;
@@ -162,12 +185,44 @@ export async function executeInstallerCommand(
     throw new Error("Huayi Native Host installation currently supports macOS only.");
   }
 
+  const keychainOptions = {
+    dryRun: command.dryRun,
+    environment: runtime.environment,
+    homeDirectory: runtime.homeDirectory,
+    securityExecutable: runtime.securityExecutable,
+  };
+  if (command.type === "eudic-configure") {
+    const result = await runtime.operations.configureEudic({
+      ...keychainOptions,
+      interactiveProcessRunner: runtime.interactiveProcessRunner,
+    });
+    reportResult(result, runtime);
+    return;
+  }
+  if (command.type === "eudic-remove") {
+    const result = await runtime.operations.removeEudic({
+      ...keychainOptions,
+      processRunner: runtime.processRunner,
+    });
+    reportResult(result, runtime);
+    return;
+  }
   if (command.type === "uninstall") {
-    const result = await runtime.operations.uninstall({
+    const credentials = await runtime.operations.removeEudic({
+      ...keychainOptions,
+      processRunner: runtime.processRunner,
+    });
+    const files = await runtime.operations.uninstall({
       dryRun: command.dryRun,
       homeDirectory: runtime.homeDirectory,
     });
-    reportResult(result, runtime);
+    reportResult(
+      {
+        actions: [...credentials.actions, ...files.actions],
+        dryRun: command.dryRun,
+      },
+      runtime,
+    );
     return;
   }
 
@@ -182,6 +237,7 @@ export async function executeInstallerCommand(
     nodeExecutable: runtime.nodeExecutable,
     nodeVersion: runtime.nodeVersion,
     processRunner: runtime.processRunner,
+    securityExecutable: runtime.securityExecutable,
     sourceBundlePath: runtime.sourceBundlePath,
     sourceSchemaDirectory: runtime.sourceSchemaDirectory,
   });
@@ -192,14 +248,18 @@ export function createDefaultInstallerRuntime(moduleUrl = import.meta.url): Inst
   return {
     environment: process.env,
     homeDirectory: homedir(),
+    interactiveProcessRunner: new NodeInteractiveProcessRunner(),
     nodeExecutable: process.execPath,
     nodeVersion: process.versions.node,
     operations: {
+      configureEudic: configureEudicAuthorization,
       install: installMacosNativeHost,
+      removeEudic: removeEudicAuthorization,
       uninstall: uninstallMacosNativeHost,
     },
     platform: process.platform,
     processRunner: new NodeProcessRunner(),
+    securityExecutable: EUDIC_SECURITY_EXECUTABLE,
     sourceBundlePath: fileURLToPath(new URL("../main.js", moduleUrl)),
     sourceSchemaDirectory: fileURLToPath(new URL("../provider/schemas/", moduleUrl)),
     writeOutput: (message) => process.stdout.write(`${message}\n`),
