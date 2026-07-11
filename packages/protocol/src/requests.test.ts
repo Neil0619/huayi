@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   MAX_CONTEXT_LENGTH,
   MAX_SELECTION_LENGTH,
+  addWordRequestSchema,
   analyzeRequestSchema,
   hostRequestSchema,
 } from "./index.js";
@@ -57,7 +58,7 @@ describe("analyzeRequestSchema", () => {
 });
 
 describe("hostRequestSchema", () => {
-  it("accepts health, analyze, and cancel requests", () => {
+  it("accepts health, analyze, add-word, and cancel requests", () => {
     expect(
       hostRequestSchema.parse({
         requestId: "health-1",
@@ -66,6 +67,16 @@ describe("hostRequestSchema", () => {
       }).type,
     ).toBe("health");
     expect(hostRequestSchema.parse(validAnalyzeRequest).type).toBe("analyze");
+    expect(
+      hostRequestSchema.parse({
+        context: "The investigation was in its early stages.",
+        language: "en",
+        requestId: "word-1",
+        schemaVersion: 1,
+        type: "add-word",
+        word: "investigation",
+      }).type,
+    ).toBe("add-word");
     expect(
       hostRequestSchema.parse({
         requestId: "cancel-1",
@@ -85,6 +96,49 @@ describe("hostRequestSchema", () => {
       }).success,
     ).toBe(false);
     expect(hostRequestSchema.safeParse({ ...validAnalyzeRequest, schemaVersion: 2 }).success).toBe(
+      false,
+    );
+  });
+});
+
+describe("addWordRequestSchema", () => {
+  const validRequest = {
+    context: "The investigation was in its early stages.",
+    language: "en",
+    requestId: "word-1",
+    schemaVersion: 1,
+    type: "add-word",
+    word: "investigation",
+  } as const;
+
+  it.each(["investigation", "state-of-the-art", "don't", "writer’s"])(
+    "accepts the English word %s",
+    (word) => {
+      expect(addWordRequestSchema.parse({ ...validRequest, word }).word).toBe(word);
+    },
+  );
+
+  it("rejects phrases, Han text, empty and oversized context", () => {
+    expect(addWordRequestSchema.safeParse({ ...validRequest, word: "early stages" }).success).toBe(
+      false,
+    );
+    expect(
+      addWordRequestSchema.safeParse({ ...validRequest, context: "调查 ongoing" }).success,
+    ).toBe(false);
+    expect(addWordRequestSchema.safeParse({ ...validRequest, context: "" }).success).toBe(false);
+    expect(
+      addWordRequestSchema.safeParse({
+        ...validRequest,
+        context: "a".repeat(MAX_CONTEXT_LENGTH + 1),
+      }).success,
+    ).toBe(false);
+  });
+
+  it("rejects unknown fields and schema version 2", () => {
+    expect(
+      addWordRequestSchema.safeParse({ ...validRequest, url: "https://example.com" }).success,
+    ).toBe(false);
+    expect(addWordRequestSchema.safeParse({ ...validRequest, schemaVersion: 2 }).success).toBe(
       false,
     );
   });

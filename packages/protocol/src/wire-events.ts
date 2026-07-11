@@ -34,6 +34,17 @@ export const resultEventSchema = z.strictObject({
 });
 export type ResultEvent = z.infer<typeof resultEventSchema>;
 
+export const wordbookAddOutcomeSchema = z.enum(["added", "already-exists"]);
+export type WordbookAddOutcome = z.infer<typeof wordbookAddOutcomeSchema>;
+
+export const wordAddedEventSchema = z.strictObject({
+  outcome: wordbookAddOutcomeSchema,
+  requestId: requestIdSchema,
+  schemaVersion: schemaVersionSchema,
+  type: z.literal("word-added"),
+});
+export type WordAddedEvent = z.infer<typeof wordAddedEventSchema>;
+
 export const errorEventSchema = z.strictObject({
   error: analysisErrorSchema,
   requestId: requestIdSchema,
@@ -46,6 +57,7 @@ export const hostEventSchema = z.discriminatedUnion("type", [
   healthResultEventSchema,
   progressEventSchema,
   resultEventSchema,
+  wordAddedEventSchema,
   errorEventSchema,
 ]);
 export type HostEvent = z.infer<typeof hostEventSchema>;

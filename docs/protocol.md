@@ -6,6 +6,7 @@
 
 - `health`：检查 native host 和 Codex 登录/能力状态。
 - `analyze`：包含请求 ID、动作、选区类型、英文选区、所在段落上下文和 `zh-CN` 目标语言。
+- `add-word`：包含请求 ID、英语单词和所在完整英文句子，用于加入本机配置的生词本。
 - `cancel`：按请求 ID 终止排队或运行中的任务。
 
 `analyze` 的 `action` 只能是 `translate | explain`，`selectionKind` 只能是
@@ -13,10 +14,15 @@
 `explain` 的组合会被协议直接拒绝。`requestId` 最多 64 字符，且只能包含字母、数字、点、
 下划线、冒号和连字符。
 
+`add-word` 的 `language` 固定为 `en`；`word` 只能是由英文字母及内部连字符或撇号构成的
+单词。`context` 必须包含英文、不能包含汉字，长度为 1–2,000 字符。它不包含 URL、页面标题
+或模型输出。
+
 ## 事件
 
 - `progress`：`queued` 或 `running`。
 - `result`：返回经过 Schema 校验的分析结果。
+- `word-added`：返回 `added | already-exists`，分别表示新建成功或原记录已存在。
 - `error`：返回固定错误码、中文用户提示和是否允许重试。
 
 ## 结果类型
@@ -43,6 +49,8 @@
 HOST_NOT_INSTALLED
 CODEX_NOT_AUTHENTICATED
 CODEX_CAPABILITY_MISSING
+EUDIC_NOT_CONFIGURED
+EUDIC_AUTH_FAILED
 RATE_LIMITED
 QUOTA_EXCEEDED
 NETWORK_ERROR

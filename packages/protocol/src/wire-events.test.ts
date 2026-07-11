@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { hostEventSchema } from "./index.js";
+import { hostEventSchema, wordAddedEventSchema } from "./index.js";
 
 describe("hostEventSchema", () => {
-  it("accepts health, progress, result, and error events", () => {
+  it("accepts health, progress, result, word-added, and error events", () => {
     const events = [
       {
         codexVersion: "codex-cli 0.144.1",
@@ -31,6 +31,12 @@ describe("hostEventSchema", () => {
         type: "result",
       },
       {
+        outcome: "added",
+        requestId: "word-1",
+        schemaVersion: 1,
+        type: "word-added",
+      },
+      {
         error: {
           code: "TIMEOUT",
           message: "处理超时，请重试。",
@@ -46,6 +52,7 @@ describe("hostEventSchema", () => {
       "health-result",
       "progress",
       "result",
+      "word-added",
       "error",
     ]);
   });
@@ -74,6 +81,31 @@ describe("hostEventSchema", () => {
         stage: "queued",
         type: "progress",
         url: "https://example.com",
+      }).success,
+    ).toBe(false);
+  });
+});
+
+describe("wordAddedEventSchema", () => {
+  it.each(["added", "already-exists"] as const)("accepts the %s outcome", (outcome) => {
+    expect(
+      wordAddedEventSchema.parse({
+        outcome,
+        requestId: "word-1",
+        schemaVersion: 1,
+        type: "word-added",
+      }).outcome,
+    ).toBe(outcome);
+  });
+
+  it("rejects unknown fields", () => {
+    expect(
+      wordAddedEventSchema.safeParse({
+        outcome: "added",
+        requestId: "word-1",
+        schemaVersion: 1,
+        type: "word-added",
+        word: "investigation",
       }).success,
     ).toBe(false);
   });
