@@ -12,6 +12,10 @@
 
 默认测试使用 fake process runner 和 mock transport，不访问 OpenAI。
 
+安装器测试只在系统临时目录构造带空格和单引号的 fake HOME，验证 launcher 的 POSIX 引号、
+可执行位、Chrome 清单、升级替换、所有权冲突和幂等卸载。仓库级验证只运行一次真实 dry-run，
+它可以检查 Codex 登录与能力，但不会调用模型或写入用户安装目录。
+
 Codex Provider 的默认测试会把 `OPENAI_API_KEY` 和恶意网页提示放入 fake 输入，断言密钥不
 进入子进程环境、网页文本只出现在不可执行的 JSON 数据区。测试同时覆盖 60 秒超时、取消、
 1 MiB 输出上限、CLI 能力检查、非零退出、stdout 污染和请求/结果不匹配。

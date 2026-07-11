@@ -24,6 +24,7 @@ Native Messaging 调用本机已登录的 Codex CLI，不在扩展中保存 Open
 pnpm install
 pnpm build
 pnpm test
+pnpm host:install -- --extension-id <ID> --dry-run
 ```
 
 完整安装与验证步骤见 [macOS 安装说明](docs/setup-macos.md)，工程边界见

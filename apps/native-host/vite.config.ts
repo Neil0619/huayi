@@ -3,7 +3,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { defineConfig } from "vite";
-import type { Plugin } from "vite";
+import type { Plugin, UserConfig } from "vite";
 
 const hostRoot = dirname(fileURLToPath(import.meta.url));
 const outputDirectory = resolve(hostRoot, "dist");
@@ -19,16 +19,17 @@ function copyProviderSchemas(): Plugin {
   };
 }
 
-export function createNativeHostConfig() {
+export function createNativeHostConfig(mode: string): UserConfig {
+  const isInstallerBuild = mode === "installer";
   return {
     build: {
-      emptyOutDir: true,
+      emptyOutDir: !isInstallerBuild,
       minify: false,
       outDir: outputDirectory,
       rollupOptions: {
-        input: resolve(hostRoot, "src/main.ts"),
+        input: resolve(hostRoot, isInstallerBuild ? "src/install/cli.ts" : "src/main.ts"),
         output: {
-          entryFileNames: "main.js",
+          entryFileNames: isInstallerBuild ? "install/cli.js" : "main.js",
           format: "es" as const,
           inlineDynamicImports: true,
         },
@@ -37,11 +38,11 @@ export function createNativeHostConfig() {
       ssr: true,
       target: "node18",
     },
-    plugins: [copyProviderSchemas()],
+    plugins: isInstallerBuild ? [] : [copyProviderSchemas()],
     ssr: {
       noExternal: true,
     },
   };
 }
 
-export default defineConfig(createNativeHostConfig());
+export default defineConfig(({ mode }) => createNativeHostConfig(mode));

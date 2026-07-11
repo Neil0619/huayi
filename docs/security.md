@@ -48,4 +48,8 @@ JSON 数据中的待翻译或解释文本。所有请求与结果必须经过严
 ## 外部写入
 
 安装器只有在显式执行后才写入 `~/Library/Application Support/Huayi/native-host/` 和 Chrome
-用户级 Native Messaging 清单目录。卸载器只删除这些精确路径。
+用户级 Native Messaging 清单目录。dry-run 完成全部只读验证，不创建目录。安装前会拒绝
+没有 Huayi 所有权标记的既有目录和非本项目清单；升级只替换固定 bundle、Schema、workdir
+和 launcher，并拒绝可逃逸安装根目录的 provider 符号链接。launcher 使用受控 `PATH`，只
+持久化认证目录的路径，不存储 Token。卸载器先验证标记与清单所有权，再只删除这两个精确
+目标，不删除父目录。
