@@ -5,5 +5,6 @@
     "noEmit": true,
     "types": ["chrome"]
   },
+  "exclude": ["src/**/*.test.ts", "e2e/**/*.ts"],
   "include": ["src/**/*.ts", "vite.config.ts"]
 }

@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "skipLibCheck": true,
+    "types": ["chrome", "vitest"]
+  },
+  "exclude": ["e2e/**/*.ts"],
+  "include": ["src/**/*.ts"]
+}
