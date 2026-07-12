@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { analysisErrorSchema } from "./errors.js";
-import { SCHEMA_VERSION } from "./limits.js";
+import { MAX_STREAM_DELTA_LENGTH, SCHEMA_VERSION } from "./limits.js";
 import { requestIdSchema } from "./requests.js";
 import { analysisResultSchema } from "./results.js";
 
@@ -34,6 +34,35 @@ export const resultEventSchema = z.strictObject({
 });
 export type ResultEvent = z.infer<typeof resultEventSchema>;
 
+export const analysisDeltaSectionSchema = z.enum([
+  "contextual-meaning",
+  "translation",
+  "main-structure",
+  "context-role",
+]);
+export type AnalysisDeltaSection = z.infer<typeof analysisDeltaSectionSchema>;
+
+export const analysisDeltaEventSchema = z.strictObject({
+  delta: z.string().min(1).max(MAX_STREAM_DELTA_LENGTH),
+  requestId: requestIdSchema,
+  schemaVersion: schemaVersionSchema,
+  section: analysisDeltaSectionSchema,
+  sequence: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
+  type: z.literal("analysis-delta"),
+});
+export type AnalysisDeltaEvent = z.infer<typeof analysisDeltaEventSchema>;
+
+export const wordbookPresenceSchema = z.enum(["present", "absent"]);
+export type WordbookPresence = z.infer<typeof wordbookPresenceSchema>;
+
+export const wordStatusEventSchema = z.strictObject({
+  presence: wordbookPresenceSchema,
+  requestId: requestIdSchema,
+  schemaVersion: schemaVersionSchema,
+  type: z.literal("word-status"),
+});
+export type WordStatusEvent = z.infer<typeof wordStatusEventSchema>;
+
 export const wordbookAddOutcomeSchema = z.enum(["added", "already-exists"]);
 export type WordbookAddOutcome = z.infer<typeof wordbookAddOutcomeSchema>;
 
@@ -56,7 +85,9 @@ export type ErrorEvent = z.infer<typeof errorEventSchema>;
 export const hostEventSchema = z.discriminatedUnion("type", [
   healthResultEventSchema,
   progressEventSchema,
+  analysisDeltaEventSchema,
   resultEventSchema,
+  wordStatusEventSchema,
   wordAddedEventSchema,
   errorEventSchema,
 ]);

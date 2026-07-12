@@ -78,8 +78,21 @@ export const addWordRequestSchema = z.strictObject({
 });
 export type AddWordRequest = z.infer<typeof addWordRequestSchema>;
 
+export const checkWordRequestSchema = z.strictObject({
+  language: z.literal("en"),
+  requestId: requestIdSchema,
+  schemaVersion: schemaVersionSchema,
+  type: z.literal("check-word"),
+  word: englishWordSchema,
+});
+export type CheckWordRequest = z.infer<typeof checkWordRequestSchema>;
+
 export const hostWorkRequestSchema = z
-  .discriminatedUnion("type", [analyzeRequestObjectSchema, addWordRequestSchema])
+  .discriminatedUnion("type", [
+    analyzeRequestObjectSchema,
+    checkWordRequestSchema,
+    addWordRequestSchema,
+  ])
   .superRefine((request, context) => {
     if (request.type === "analyze") {
       rejectParagraphExplanation(request, context);
@@ -106,6 +119,7 @@ export const hostRequestSchema = z
   .discriminatedUnion("type", [
     healthRequestSchema,
     analyzeRequestObjectSchema,
+    checkWordRequestSchema,
     addWordRequestSchema,
     cancelRequestSchema,
   ])

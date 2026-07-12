@@ -5,7 +5,9 @@ import {
   MAX_SELECTION_LENGTH,
   addWordRequestSchema,
   analyzeRequestSchema,
+  checkWordRequestSchema,
   hostRequestSchema,
+  hostWorkRequestSchema,
 } from "./index.js";
 
 const validAnalyzeRequest = {
@@ -145,5 +147,52 @@ describe("addWordRequestSchema", () => {
     expect(addWordRequestSchema.safeParse({ ...validRequest, schemaVersion: 2 }).success).toBe(
       false,
     );
+  });
+});
+
+describe("checkWordRequestSchema", () => {
+  const checkWord = {
+    language: "en",
+    requestId: "check-1",
+    schemaVersion: 1,
+    type: "check-word",
+    word: "mother-in-law",
+  } as const;
+
+  it("accepts a strict read-only word lookup request in both host request unions", () => {
+    expect(checkWordRequestSchema.parse(checkWord)).toEqual(checkWord);
+    expect(hostWorkRequestSchema.parse(checkWord)).toEqual(checkWord);
+    expect(hostRequestSchema.parse(checkWord)).toEqual(checkWord);
+  });
+
+  it.each(["mother-in-law", "don't", "writer’s"])("accepts the English word %s", (word) => {
+    expect(checkWordRequestSchema.parse({ ...checkWord, word }).word).toBe(word);
+  });
+
+  it("rejects phrases and Han text", () => {
+    expect(() => checkWordRequestSchema.parse({ ...checkWord, word: "two words" })).toThrow();
+    expect(() => checkWordRequestSchema.parse({ ...checkWord, word: "调查" })).toThrow();
+    expect(() => checkWordRequestSchema.parse({ ...checkWord, word: "𠀀" })).toThrow();
+  });
+
+  it("rejects context, other unknown fields, and schema version 2", () => {
+    expect(() => checkWordRequestSchema.parse({ ...checkWord, context: "not allowed" })).toThrow();
+    expect(() =>
+      checkWordRequestSchema.parse({ ...checkWord, url: "https://example.com" }),
+    ).toThrow();
+    expect(() => checkWordRequestSchema.parse({ ...checkWord, schemaVersion: 2 })).toThrow();
+  });
+
+  it("does not accept another host-work union member", () => {
+    expect(
+      checkWordRequestSchema.safeParse({
+        context: "The investigation was in its early stages.",
+        language: "en",
+        requestId: "word-1",
+        schemaVersion: 1,
+        type: "add-word",
+        word: "investigation",
+      }).success,
+    ).toBe(false);
   });
 });
