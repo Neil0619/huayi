@@ -23,7 +23,7 @@ class HealthDispatcher implements RequestDispatcher {
   dispatch(_message: unknown, emit: (event: HostEvent) => void): void {
     emit({
       codexVersion: "codex-cli 0.144.1",
-      hostVersion: "0.2.0",
+      hostVersion: "0.3.0",
       ready: true,
       requestId: "health-1",
       schemaVersion: 1,
@@ -55,7 +55,7 @@ describe("runNativeHost", () => {
     expect(decoder.push(Buffer.concat(outputChunks))).toEqual([
       {
         codexVersion: "codex-cli 0.144.1",
-        hostVersion: "0.2.0",
+        hostVersion: "0.3.0",
         ready: true,
         requestId: "health-1",
         schemaVersion: 1,
@@ -145,7 +145,11 @@ describe("native host bootstrap", () => {
     );
     await vi.waitFor(() => expect(events).toHaveLength(1));
 
-    expect(events[0]).toMatchObject({ codexVersion: "codex-cli 0.144.1", ready: true });
+    expect(events[0]).toMatchObject({
+      codexVersion: "codex-cli 0.144.1",
+      hostVersion: "0.3.0",
+      ready: true,
+    });
     expect(requests.map((request) => request.arguments)).toEqual([
       ["--version"],
       ["app-server", "--help"],
@@ -221,6 +225,62 @@ describe("native host bootstrap", () => {
     ]);
     expect(fetchRequests).toHaveLength(1);
     expect(fetchRequests[0]?.[1].headers.Authorization).toBe("Bearer configured-secret");
+    dispatcher.dispose();
+  });
+
+  it("wires check-word requests through Keychain authorization and the fixed Eudic client", async () => {
+    const processRequests: ProcessRunRequest[] = [];
+    const processRunner: ProcessRunner = {
+      run: async (request) => {
+        processRequests.push(request);
+        return {
+          exitCode: 0,
+          signal: null,
+          stderr: "",
+          stdout: "Bearer configured-secret\n",
+        };
+      },
+    };
+    const fetchRequests: Parameters<EudicFetch>[] = [];
+    const eudicFetch: EudicFetch = async (...arguments_) => {
+      fetchRequests.push(arguments_);
+      return new Response(JSON.stringify({ data: [{ word: "investigation" }] }), {
+        headers: { "Content-Type": "application/json" },
+        status: 200,
+      });
+    };
+    const dispatcher = createNativeHostDispatcher({
+      codexExecutable: "/opt/codex",
+      environment: { HOME: "/Users/tester" },
+      eudicFetch,
+      processRunner,
+      schemaDirectory: "/tmp/schemas",
+      securityExecutable: "/usr/bin/security",
+      workingDirectory: "/tmp/work",
+    });
+    const events: HostEvent[] = [];
+
+    dispatcher.dispatch(
+      {
+        language: "en",
+        requestId: "check-1",
+        schemaVersion: 1,
+        type: "check-word",
+        word: "investigation",
+      },
+      (event) => events.push(event),
+    );
+    await vi.waitFor(() => expect(events.some((event) => event.type === "word-status")).toBe(true));
+
+    expect(events.at(-1)).toEqual({
+      presence: "present",
+      requestId: "check-1",
+      schemaVersion: 1,
+      type: "word-status",
+    });
+    expect(processRequests).toHaveLength(1);
+    expect(fetchRequests).toHaveLength(1);
+    expect(fetchRequests[0]?.[1].method).toBe("GET");
     dispatcher.dispose();
   });
 });

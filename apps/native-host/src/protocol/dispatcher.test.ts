@@ -1,123 +1,107 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { AddWordRequest, AnalysisResult, AnalyzeRequest, HostEvent } from "@huayi/protocol";
+import type { AnalysisResult, HostEvent } from "@huayi/protocol";
 
 import type { AnalysisProvider } from "../provider/analysis-provider.js";
-import type { WordbookProvider } from "../wordbook/wordbook-provider.js";
+import { eventsFor, request, validResult } from "./dispatcher-test-helpers.js";
 import { NativeMessageDispatcher } from "./dispatcher.js";
 
-const request: AnalyzeRequest = {
-  action: "translate",
-  context: "The investigation was in its early stages.",
-  requestId: "request-1",
-  schemaVersion: 1,
-  selection: "investigation",
-  selectionKind: "word",
-  targetLanguage: "zh-CN",
-  type: "analyze",
-};
+function createDispatcher(
+  provider: AnalysisProvider = { analyze: async () => validResult },
+): NativeMessageDispatcher {
+  return new NativeMessageDispatcher({
+    healthCheck: async () => ({ codexVersion: "codex-cli 0.144.1" }),
+    provider,
+  });
+}
 
-const validResult: AnalysisResult = {
-  collocations: [
-    { meaningZh: "刑事调查", text: "criminal investigation" },
-    { meaningZh: "展开调查", text: "launch an investigation" },
-  ],
-  contextualMeaningZh: "调查",
-  partOfSpeech: "noun",
-  selectionKind: "word",
-  similarTerms: [
-    { meaningZh: "询问", partOfSpeech: "noun", text: "inquiry" },
-    { meaningZh: "审查", partOfSpeech: "noun", text: "examination" },
-    { meaningZh: "研究", partOfSpeech: "noun", text: "research" },
-  ],
-  sourceText: "investigation",
-  type: "translate-lexical",
-};
-
-const wordRequest: AddWordRequest = {
-  context: "The investigation was in its early stages.",
-  language: "en",
-  requestId: "word-1",
-  schemaVersion: 1,
-  type: "add-word",
-  word: "investigation",
-};
-
-describe("NativeMessageDispatcher", () => {
-  it("reports health and validates provider results", async () => {
+describe("NativeMessageDispatcher analysis routing", () => {
+  it("reports host version 0.3.0", async () => {
     const events: HostEvent[] = [];
-    const provider: AnalysisProvider = {
-      analyze: async () => validResult,
-    };
-    const dispatcher = new NativeMessageDispatcher({
-      healthCheck: async () => ({ codexVersion: "codex-cli 0.144.1" }),
-      provider,
-    });
+    const dispatcher = createDispatcher();
 
     dispatcher.dispatch({ requestId: "health-1", schemaVersion: 1, type: "health" }, (event) =>
       events.push(event),
     );
+
+    await vi.waitFor(() => expect(events).toHaveLength(1));
+    expect(events[0]).toMatchObject({ hostVersion: "0.3.0", type: "health-result" });
+    dispatcher.dispose();
+  });
+
+  it("emits queued, running, sequenced deltas, then the validated result", async () => {
+    const events: HostEvent[] = [];
+    const provider: AnalysisProvider = {
+      analyze: async (_currentRequest, _signal, onDelta) => {
+        onDelta?.({ delta: "调", section: "translation" });
+        onDelta?.({ delta: "查", section: "translation" });
+        return validResult;
+      },
+    };
+    const dispatcher = createDispatcher(provider);
+
     dispatcher.dispatch(request, (event) => events.push(event));
 
     await vi.waitFor(() => expect(events.some((event) => event.type === "result")).toBe(true));
     expect(events.map((event) => event.type)).toEqual([
       "progress",
       "progress",
-      "health-result",
+      "analysis-delta",
+      "analysis-delta",
       "result",
+    ]);
+    expect(events.filter((event) => event.type === "analysis-delta")).toEqual([
+      expect.objectContaining({ sequence: 0, section: "translation" }),
+      expect.objectContaining({ sequence: 1, section: "translation" }),
     ]);
     dispatcher.dispose();
   });
 
-  it("aborts an active analysis and emits one cancellation error", async () => {
+  it("ignores a late analysis delta and result after running cancellation", async () => {
     const events: HostEvent[] = [];
     let aborted = false;
     const provider: AnalysisProvider = {
-      analyze: (_request, signal) =>
-        new Promise((_resolve, reject) => {
-          signal.addEventListener("abort", () => {
-            aborted = true;
-            reject(new Error("aborted"));
-          });
+      analyze: (_currentRequest, signal, onDelta) =>
+        new Promise((resolve) => {
+          signal.addEventListener(
+            "abort",
+            () => {
+              aborted = true;
+              onDelta?.({ delta: "late", section: "translation" });
+              resolve(validResult);
+            },
+            { once: true },
+          );
         }),
     };
-    const dispatcher = new NativeMessageDispatcher({
-      healthCheck: async () => ({ codexVersion: "codex-cli 0.144.1" }),
-      provider,
-    });
+    const dispatcher = createDispatcher(provider);
 
     dispatcher.dispatch(request, (event) => events.push(event));
     dispatcher.dispatch(
       {
         requestId: "cancel-1",
         schemaVersion: 1,
-        targetRequestId: "request-1",
+        targetRequestId: request.requestId,
         type: "cancel",
       },
       (event) => events.push(event),
     );
 
     await vi.waitFor(() => expect(aborted).toBe(true));
-    expect(events.filter((event) => event.type === "error")).toEqual([
-      {
-        error: { code: "CANCELLED", message: "请求已取消。", retryable: false },
-        requestId: "request-1",
-        schemaVersion: 1,
-        type: "error",
-      },
+    expect(eventsFor(events, request.requestId).map((event) => event.type)).toEqual([
+      "progress",
+      "progress",
+      "error",
     ]);
     dispatcher.dispose();
   });
 
-  it("maps an invalid provider result to INVALID_RESPONSE", async () => {
+  it("maps an invalid analysis result to INVALID_RESPONSE", async () => {
     const events: HostEvent[] = [];
     const provider: AnalysisProvider = {
       analyze: async () => ({ type: "unsafe" }) as unknown as AnalysisResult,
     };
-    const dispatcher = new NativeMessageDispatcher({
-      healthCheck: async () => ({ codexVersion: "codex-cli 0.144.1" }),
-      provider,
-    });
+    const dispatcher = createDispatcher(provider);
 
     dispatcher.dispatch(request, (event) => events.push(event));
 
@@ -130,69 +114,11 @@ describe("NativeMessageDispatcher", () => {
   });
 
   it("throws on an invalid inbound protocol object", () => {
-    const dispatcher = new NativeMessageDispatcher({
-      healthCheck: async () => ({ codexVersion: "codex-cli 0.144.1" }),
-      provider: { analyze: async () => validResult },
-    });
+    const dispatcher = createDispatcher();
 
     expect(() =>
       dispatcher.dispatch({ schemaVersion: 1, type: "analyze" }, () => undefined),
     ).toThrow(/invalid host request/i);
-    dispatcher.dispose();
-  });
-
-  it("queues add-word work, emits its outcome, and propagates cancellation", async () => {
-    const events: HostEvent[] = [];
-    let aborted = false;
-    const wordbookProvider: WordbookProvider = {
-      addWord: (currentRequest, signal) => {
-        if (currentRequest.requestId === "word-1") {
-          return Promise.resolve("added");
-        }
-        return new Promise((_resolve, reject) => {
-          signal.addEventListener(
-            "abort",
-            () => {
-              aborted = true;
-              reject(new Error("aborted"));
-            },
-            { once: true },
-          );
-        });
-      },
-      checkWord: async () => "absent",
-    };
-    const dispatcher = new NativeMessageDispatcher({
-      healthCheck: async () => ({ codexVersion: "codex-cli 0.144.1" }),
-      provider: { analyze: async () => validResult },
-      wordbookProvider,
-    });
-
-    dispatcher.dispatch(wordRequest, (event) => events.push(event));
-    await vi.waitFor(() => expect(events.some((event) => event.type === "word-added")).toBe(true));
-    expect(events.at(-1)).toEqual({
-      outcome: "added",
-      requestId: "word-1",
-      schemaVersion: 1,
-      type: "word-added",
-    });
-
-    dispatcher.dispatch({ ...wordRequest, requestId: "word-2" }, (event) => events.push(event));
-    dispatcher.dispatch(
-      {
-        requestId: "cancel-2",
-        schemaVersion: 1,
-        targetRequestId: "word-2",
-        type: "cancel",
-      },
-      (event) => events.push(event),
-    );
-    await vi.waitFor(() => expect(aborted).toBe(true));
-    expect(events.at(-1)).toMatchObject({
-      error: { code: "CANCELLED" },
-      requestId: "word-2",
-      type: "error",
-    });
     dispatcher.dispose();
   });
 });

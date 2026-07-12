@@ -4,11 +4,13 @@ import {
   hostEventSchema,
   hostRequestSchema,
   wordbookAddOutcomeSchema,
+  wordbookPresenceSchema,
 } from "@huayi/protocol";
 import type {
   AddWordRequest,
   AnalysisError,
   AnalyzeRequest,
+  CheckWordRequest,
   HealthRequest,
   HostEvent,
 } from "@huayi/protocol";
@@ -17,7 +19,7 @@ import type { AnalysisProvider } from "../provider/analysis-provider.js";
 import { RequestQueue } from "../runtime/request-queue.js";
 import type { WordbookProvider } from "../wordbook/wordbook-provider.js";
 
-const HOST_VERSION = "0.2.0";
+const HOST_VERSION = "0.3.0";
 
 export type HostEventEmitter = (event: HostEvent) => void;
 
@@ -56,6 +58,7 @@ export class NativeMessageDispatcher {
   private readonly provider: AnalysisProvider;
   private readonly queue: RequestQueue;
   private readonly wordbookProvider: WordbookProvider | undefined;
+  private disposed = false;
 
   constructor(options: NativeMessageDispatcherOptions) {
     this.provider = options.provider;
@@ -79,17 +82,29 @@ export class NativeMessageDispatcher {
       case "analyze":
         this.dispatchAnalyze(parsed.data, emit);
         break;
+      case "check-word":
+        this.dispatchCheckWord(parsed.data, emit);
+        break;
       case "add-word":
         this.dispatchAddWord(parsed.data, emit);
         break;
       case "cancel":
         this.dispatchCancel(parsed.data.targetRequestId, emit);
         break;
+      default: {
+        const exhaustiveRequest: never = parsed.data;
+        return exhaustiveRequest;
+      }
     }
   }
 
   dispose(): void {
+    if (this.disposed) {
+      return;
+    }
+    this.disposed = true;
     this.queue.dispose();
+    this.provider.dispose?.();
   }
 
   private dispatchHealth(request: HealthRequest, emit: HostEventEmitter): void {
@@ -127,7 +142,20 @@ export class NativeMessageDispatcher {
         });
 
         try {
-          const rawResult = await this.provider.analyze(request, signal);
+          let sequence = 0;
+          const rawResult = await this.provider.analyze(request, signal, (chunk) => {
+            if (signal.aborted) {
+              return;
+            }
+            this.emitValidated(emit, {
+              ...chunk,
+              requestId: request.requestId,
+              schemaVersion: SCHEMA_VERSION,
+              sequence,
+              type: "analysis-delta",
+            });
+            sequence += 1;
+          });
           if (signal.aborted) {
             return;
           }
@@ -156,6 +184,62 @@ export class NativeMessageDispatcher {
       });
     } catch (error) {
       this.emitError(emit, request.requestId, this.mapError(error));
+    }
+  }
+
+  private dispatchCheckWord(request: CheckWordRequest, emit: HostEventEmitter): void {
+    const provider = this.wordbookProvider;
+    if (provider === undefined) {
+      this.emitError(emit, request.requestId, {
+        code: "EUDIC_NOT_CONFIGURED",
+        message: "尚未配置欧路授权，请先运行配置命令。",
+        retryable: false,
+      });
+      return;
+    }
+    this.emitValidated(emit, {
+      requestId: request.requestId,
+      schemaVersion: SCHEMA_VERSION,
+      stage: "queued",
+      type: "progress",
+    });
+
+    try {
+      this.queue.enqueue(request.requestId, async (signal) => {
+        this.emitValidated(emit, {
+          requestId: request.requestId,
+          schemaVersion: SCHEMA_VERSION,
+          stage: "running",
+          type: "progress",
+        });
+        try {
+          const rawPresence = await provider.checkWord(request, signal);
+          if (signal.aborted) {
+            return;
+          }
+          const presence = wordbookPresenceSchema.safeParse(rawPresence);
+          if (!presence.success) {
+            this.emitError(emit, request.requestId, {
+              code: "INVALID_RESPONSE",
+              message: "生词本服务返回了无效结果。",
+              retryable: false,
+            });
+            return;
+          }
+          this.emitValidated(emit, {
+            presence: presence.data,
+            requestId: request.requestId,
+            schemaVersion: SCHEMA_VERSION,
+            type: "word-status",
+          });
+        } catch (error) {
+          if (!signal.aborted) {
+            this.emitError(emit, request.requestId, this.mapWordbookError(error));
+          }
+        }
+      });
+    } catch (error) {
+      this.emitError(emit, request.requestId, this.mapWordbookError(error));
     }
   }
 
