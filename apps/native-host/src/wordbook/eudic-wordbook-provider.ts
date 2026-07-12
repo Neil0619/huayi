@@ -1,4 +1,9 @@
-import type { AddWordRequest, WordbookAddOutcome } from "@huayi/protocol";
+import type {
+  AddWordRequest,
+  CheckWordRequest,
+  WordbookAddOutcome,
+  WordbookPresence,
+} from "@huayi/protocol";
 
 import { EudicProviderError, eudicError } from "./eudic-errors.js";
 import type { WordbookProvider } from "./wordbook-provider.js";
@@ -13,6 +18,11 @@ export interface EudicWordbookClient {
     request: AddWordRequest,
     signal: AbortSignal,
   ): Promise<WordbookAddOutcome>;
+  checkWord(
+    authorization: string,
+    request: CheckWordRequest,
+    signal: AbortSignal,
+  ): Promise<WordbookPresence>;
 }
 
 export interface EudicWordbookProviderOptions {
@@ -70,10 +80,33 @@ export class EudicWordbookProvider implements WordbookProvider {
   }
 
   addWord(request: AddWordRequest, signal: AbortSignal): Promise<WordbookAddOutcome> {
-    return this.queue.run(() => this.execute(request, signal), signal);
+    return this.queue.run(
+      () =>
+        this.execute(
+          (authorization, operationSignal) =>
+            this.client.addWord(authorization, request, operationSignal),
+          signal,
+        ),
+      signal,
+    );
   }
 
-  private async execute(request: AddWordRequest, signal: AbortSignal): Promise<WordbookAddOutcome> {
+  checkWord(request: CheckWordRequest, signal: AbortSignal): Promise<WordbookPresence> {
+    return this.queue.run(
+      () =>
+        this.execute(
+          (authorization, operationSignal) =>
+            this.client.checkWord(authorization, request, operationSignal),
+          signal,
+        ),
+      signal,
+    );
+  }
+
+  private async execute<T>(
+    operation: (authorization: string, signal: AbortSignal) => Promise<T>,
+    signal: AbortSignal,
+  ): Promise<T> {
     if (signal.aborted) {
       throw eudicError("CANCELLED");
     }
@@ -98,7 +131,7 @@ export class EudicWordbookProvider implements WordbookProvider {
     timeout.unref();
 
     try {
-      return await this.client.addWord(authorization, request, controller.signal);
+      return await operation(authorization, controller.signal);
     } catch (error) {
       if (signal.aborted) {
         throw eudicError("CANCELLED", error);

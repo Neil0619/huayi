@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { AddWordRequest } from "@huayi/protocol";
+import type { AddWordRequest, CheckWordRequest } from "@huayi/protocol";
 
 import {
   EudicClient,
@@ -19,6 +19,16 @@ const request: AddWordRequest = {
   word: "investigation",
 };
 
+function checkRequest(word = "investigation"): CheckWordRequest {
+  return {
+    language: "en",
+    requestId: "check-word-1",
+    schemaVersion: 1,
+    type: "check-word",
+    word,
+  };
+}
+
 function jsonResponse(value: unknown, status = 200): Response {
   return new Response(JSON.stringify(value), {
     headers: { "content-type": "application/json" },
@@ -36,6 +46,108 @@ function unusedBodyResponse(status: number): {
 }
 
 describe("EudicClient", () => {
+  it.each([
+    { word: "Investigation" },
+    { data: { word: "investigation" } },
+    { data: [{ word: "other" }, { word: "investigation" }] },
+  ])("reports present for documented lookup shape %#", async (queryBody) => {
+    const fetch = vi.fn<EudicFetch>().mockResolvedValue(jsonResponse(queryBody));
+    const client = new EudicClient({ fetch });
+    const signal = new AbortController().signal;
+
+    await expect(client.checkWord("NIS fake", checkRequest(), signal)).resolves.toBe("present");
+    expect(fetch).toHaveBeenCalledWith(
+      `${EUDIC_WORD_ENDPOINT}?language=en&word=investigation`,
+      expect.objectContaining({ method: "GET", redirect: "error", signal }),
+    );
+    expect(fetch.mock.calls[0]?.[1]?.body).toBeUndefined();
+  });
+
+  it.each([{ data: null }, { data: [] }])("reports absent for empty data %#", async (queryBody) => {
+    const client = new EudicClient({ fetch: async () => jsonResponse(queryBody) });
+
+    await expect(
+      client.checkWord("NIS fake", checkRequest(), new AbortController().signal),
+    ).resolves.toBe("absent");
+  });
+
+  it("reports absent for 404 and cancels its unused body", async () => {
+    const missing = unusedBodyResponse(404);
+    const client = new EudicClient({ fetch: async () => missing.response });
+
+    await expect(
+      client.checkWord("NIS fake", checkRequest(), new AbortController().signal),
+    ).resolves.toBe("absent");
+    expect(missing.cancel).toHaveBeenCalledOnce();
+  });
+
+  it("fails closed when a lookup returns only mismatched words", async () => {
+    const client = new EudicClient({
+      fetch: async () => jsonResponse({ data: [{ word: "different" }] }),
+    });
+
+    await expect(
+      client.checkWord("NIS fake", checkRequest(), new AbortController().signal),
+    ).rejects.toMatchObject({ code: "INVALID_RESPONSE" });
+  });
+
+  it.each([
+    [401, "EUDIC_AUTH_FAILED"],
+    [403, "RATE_LIMITED"],
+    [429, "RATE_LIMITED"],
+    [502, "NETWORK_ERROR"],
+  ] as const)("maps lookup HTTP %i to %s", async (status, code) => {
+    const client = new EudicClient({ fetch: async () => jsonResponse({}, status) });
+
+    await expect(
+      client.checkWord("NIS fake", checkRequest(), new AbortController().signal),
+    ).rejects.toMatchObject({ code });
+  });
+
+  it("maps a rejected lookup redirect to INVALID_RESPONSE", async () => {
+    const client = new EudicClient({
+      fetch: async () => {
+        throw new TypeError("fetch failed", { cause: new Error("unexpected redirect") });
+      },
+    });
+
+    await expect(
+      client.checkWord("NIS fake", checkRequest(), new AbortController().signal),
+    ).rejects.toMatchObject({ code: "INVALID_RESPONSE" });
+  });
+
+  it("rejects a lookup response larger than 64 KiB", async () => {
+    const client = new EudicClient({
+      fetch: async () =>
+        jsonResponse({ data: [{ padding: "x".repeat(65 * 1024), word: "investigation" }] }),
+    });
+
+    await expect(
+      client.checkWord("NIS fake", checkRequest(), new AbortController().signal),
+    ).rejects.toMatchObject({ code: "INVALID_RESPONSE" });
+  });
+
+  it("maps cancellation of an in-flight lookup to CANCELLED", async () => {
+    const fetch = vi.fn<EudicFetch>(
+      async (_url, init) =>
+        new Promise((_resolve, reject) => {
+          const abort = () => reject(new TypeError("aborted"));
+          init.signal.addEventListener("abort", abort, { once: true });
+          if (init.signal.aborted) {
+            abort();
+          }
+        }),
+    );
+    const client = new EudicClient({ fetch });
+    const controller = new AbortController();
+
+    const result = client.checkWord("NIS fake", checkRequest(), controller.signal);
+    const assertion = expect(result).rejects.toMatchObject({ code: "CANCELLED" });
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalledOnce());
+    controller.abort();
+    await assertion;
+  });
+
   it.each([
     { word: "Investigation" },
     { data: { word: "investigation" } },

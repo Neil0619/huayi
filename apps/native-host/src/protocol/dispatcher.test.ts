@@ -160,6 +160,7 @@ describe("NativeMessageDispatcher", () => {
           );
         });
       },
+      checkWord: async () => "absent",
     };
     const dispatcher = new NativeMessageDispatcher({
       healthCheck: async () => ({ codexVersion: "codex-cli 0.144.1" }),

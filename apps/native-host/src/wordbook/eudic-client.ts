@@ -1,4 +1,9 @@
-import type { AddWordRequest, WordbookAddOutcome } from "@huayi/protocol";
+import type {
+  AddWordRequest,
+  CheckWordRequest,
+  WordbookAddOutcome,
+  WordbookPresence,
+} from "@huayi/protocol";
 
 import { EudicProviderError, eudicError } from "./eudic-errors.js";
 
@@ -111,6 +116,31 @@ function normalizeWordIdentity(value: string): string {
   return value.toLocaleLowerCase("en-US").replaceAll("’", "'");
 }
 
+function buildHeaders(authorization: string): Readonly<Record<string, string>> {
+  return {
+    Accept: "application/json",
+    Authorization: authorization,
+    "User-Agent": "Huayi/0.2.0",
+  };
+}
+
+function buildQuery(request: Pick<CheckWordRequest, "language" | "word">): string {
+  const query = new URL(EUDIC_WORD_ENDPOINT);
+  query.searchParams.set("language", request.language);
+  query.searchParams.set("word", request.word);
+  return query.toString();
+}
+
+function buildGetInit(authorization: string, signal: AbortSignal): EudicFetchInit {
+  return {
+    credentials: "omit",
+    headers: buildHeaders(authorization),
+    method: "GET",
+    redirect: "error",
+    signal,
+  };
+}
+
 function wordFromRecord(value: unknown): string | null {
   return isRecord(value) && typeof value.word === "string" ? value.word : null;
 }
@@ -179,38 +209,11 @@ export class EudicClient {
     request: AddWordRequest,
     signal: AbortSignal,
   ): Promise<WordbookAddOutcome> {
-    const headers = {
-      Accept: "application/json",
-      Authorization: authorization,
-      "User-Agent": "Huayi/0.2.0",
-    };
-    const query = new URL(EUDIC_WORD_ENDPOINT);
-    query.searchParams.set("language", request.language);
-    query.searchParams.set("word", request.word);
-    const queryResponse = await this.request(query.toString(), {
-      credentials: "omit",
-      headers,
-      method: "GET",
-      redirect: "error",
-      signal,
-    });
-    if (queryResponse.status === 404) {
-      await discardResponseBody(queryResponse, signal);
-    } else {
-      if (queryResponse.status !== 200) {
-        await discardResponseBody(queryResponse, signal);
-        throwForStatus(queryResponse.status);
-      }
-      const words = queryWords(await readJson(queryResponse, signal));
-      if (words.length > 0) {
-        const requestedWord = normalizeWordIdentity(request.word);
-        if (!words.some((word) => normalizeWordIdentity(word) === requestedWord)) {
-          throw eudicError("INVALID_RESPONSE");
-        }
-        return "already-exists";
-      }
+    if ((await this.lookupWord(authorization, request, signal)) === "present") {
+      return "already-exists";
     }
 
+    const headers = buildHeaders(authorization);
     const addResponse = await this.request(EUDIC_WORD_ENDPOINT, {
       body: JSON.stringify({
         context_line: request.context,
@@ -232,6 +235,39 @@ export class EudicClient {
       throw eudicError("INVALID_RESPONSE");
     }
     return "added";
+  }
+
+  checkWord(
+    authorization: string,
+    request: CheckWordRequest,
+    signal: AbortSignal,
+  ): Promise<WordbookPresence> {
+    return this.lookupWord(authorization, request, signal);
+  }
+
+  private async lookupWord(
+    authorization: string,
+    request: Pick<CheckWordRequest, "language" | "word">,
+    signal: AbortSignal,
+  ): Promise<WordbookPresence> {
+    const response = await this.request(buildQuery(request), buildGetInit(authorization, signal));
+    if (response.status === 404) {
+      await discardResponseBody(response, signal);
+      return "absent";
+    }
+    if (response.status !== 200) {
+      await discardResponseBody(response, signal);
+      throwForStatus(response.status);
+    }
+    const words = queryWords(await readJson(response, signal));
+    if (words.length === 0) {
+      return "absent";
+    }
+    const requested = normalizeWordIdentity(request.word);
+    if (!words.some((word) => normalizeWordIdentity(word) === requested)) {
+      throw eudicError("INVALID_RESPONSE");
+    }
+    return "present";
   }
 
   private async request(url: string, init: EudicFetchInit): Promise<EudicResponse> {
