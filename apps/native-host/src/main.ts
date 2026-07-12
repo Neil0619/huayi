@@ -11,7 +11,8 @@ import {
 } from "./credentials/eudic-keychain.js";
 import { NativeMessageDispatcher } from "./protocol/dispatcher.js";
 import { NativeMessageDecoder, encodeNativeMessage } from "./protocol/framing.js";
-import { CodexCliProvider } from "./provider/codex-cli-provider.js";
+import { CodexAppServerProvider } from "./provider/codex-app-server-provider.js";
+import { CodexAppServerClient } from "./runtime/codex-app-server.js";
 import { checkCodexCapabilities } from "./runtime/codex-capabilities.js";
 import { NodeProcessRunner, type ProcessRunner } from "./runtime/codex-process.js";
 import { mapCodexError } from "./runtime/error-mapper.js";
@@ -140,7 +141,15 @@ export function readNativeHostConfiguration(
 export function createNativeHostDispatcher(
   options: NativeHostDispatcherOptions,
 ): NativeMessageDispatcher {
-  const provider = new CodexCliProvider(options);
+  const appServer = new CodexAppServerClient({
+    codexExecutable: options.codexExecutable,
+    environment: options.environment,
+    workingDirectory: options.workingDirectory,
+  });
+  const provider = new CodexAppServerProvider({
+    appServer,
+    schemaDirectory: options.schemaDirectory,
+  });
   const authorizationReader = new MacosEudicAuthorizationReader({
     environment: options.environment,
     processRunner: options.processRunner,

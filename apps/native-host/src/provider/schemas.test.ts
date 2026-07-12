@@ -53,6 +53,13 @@ const expectedRequiredProperties = {
   "translate-passage": ["selectionKind", "sourceText", "translationZh", "type"],
 } as const;
 
+const expectedStreamPropertyPrefixes = {
+  "explain-lexical": ["contextualMeaningZh"],
+  "explain-sentence": ["mainStructure", "translationZh", "contextRole"],
+  "translate-lexical": ["contextualMeaningZh"],
+  "translate-passage": ["translationZh"],
+} as const;
+
 const partOfSpeechValues = [
   "noun",
   "verb",
@@ -273,6 +280,19 @@ const contractCases = [
 ] as const;
 
 describe("Codex output schemas", () => {
+  it("places streamable fields before model-only result fields", () => {
+    for (const name of outputSchemaNames) {
+      const properties = readOutputSchema(name).properties;
+      if (!isJsonObject(properties)) {
+        throw new Error(`${name}.json must define object properties.`);
+      }
+
+      expect(Object.keys(properties).slice(0, expectedStreamPropertyPrefixes[name].length)).toEqual(
+        expectedStreamPropertyPrefixes[name],
+      );
+    }
+  });
+
   it("defines one strict root object for every protocol result variant", () => {
     for (const name of outputSchemaNames) {
       const schema = readOutputSchema(name);

@@ -2,6 +2,18 @@
   "type": "object",
   "additionalProperties": false,
   "properties": {
+    "mainStructure": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4000,
+      "pattern": "\\S"
+    },
+    "translationZh": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4000,
+      "pattern": "\\S"
+    },
     "contextRole": {
       "type": "string",
       "minLength": 1,
@@ -32,12 +44,6 @@
         "required": ["meaningZh", "text"]
       }
     },
-    "mainStructure": {
-      "type": "string",
-      "minLength": 1,
-      "maxLength": 4000,
-      "pattern": "\\S"
-    },
     "selectionKind": {
       "type": "string",
       "const": "sentence"
@@ -46,12 +52,6 @@
       "type": "string",
       "minLength": 1,
       "maxLength": 2000,
-      "pattern": "\\S"
-    },
-    "translationZh": {
-      "type": "string",
-      "minLength": 1,
-      "maxLength": 4000,
       "pattern": "\\S"
     },
     "type": {

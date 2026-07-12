@@ -2,6 +2,12 @@
   "type": "object",
   "additionalProperties": false,
   "properties": {
+    "contextualMeaningZh": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4000,
+      "pattern": "\\S"
+    },
     "baseForm": {
       "type": "string",
       "minLength": 1,
@@ -31,12 +37,6 @@
         },
         "required": ["meaningZh", "text"]
       }
-    },
-    "contextualMeaningZh": {
-      "type": "string",
-      "minLength": 1,
-      "maxLength": 4000,
-      "pattern": "\\S"
     },
     "coreMeanings": {
       "type": "array",

@@ -2,6 +2,12 @@
   "type": "object",
   "additionalProperties": false,
   "properties": {
+    "contextualMeaningZh": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4000,
+      "pattern": "\\S"
+    },
     "collocations": {
       "type": "array",
       "minItems": 2,
@@ -44,12 +50,6 @@
         }
       },
       "required": ["english", "translationZh"]
-    },
-    "contextualMeaningZh": {
-      "type": "string",
-      "minLength": 1,
-      "maxLength": 4000,
-      "pattern": "\\S"
     },
     "partOfSpeech": {
       "type": "string",
