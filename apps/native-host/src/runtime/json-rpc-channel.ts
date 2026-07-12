@@ -28,6 +28,8 @@ interface PendingRequest {
 
 type JsonObject = Record<string, unknown>;
 
+const MAXIMUM_STDERR_BYTES = 1_048_576;
+
 const hasOwn = (value: JsonObject, property: string): boolean =>
   Object.prototype.hasOwnProperty.call(value, property);
 
@@ -240,7 +242,7 @@ export class JsonRpcChannel {
     }
 
     this.#stderrBytes += bytes.byteLength;
-    if (this.#stderrBytes > this.#maximumLineBytes) {
+    if (this.#stderrBytes > MAXIMUM_STDERR_BYTES) {
       this.#fail(new Error("JSON-RPC stderr exceeds configured byte limit"));
     }
   }

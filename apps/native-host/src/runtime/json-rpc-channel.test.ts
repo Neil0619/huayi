@@ -10,6 +10,7 @@ import {
 } from "./json-rpc-channel.js";
 
 const MAXIMUM_LINE_BYTES = 1_048_576;
+const MAXIMUM_STDERR_BYTES = 1_048_576;
 const FAKE_STDERR_SECRET = "FAKE_STDERR_SECRET_DO_NOT_EXPOSE";
 
 class FakeJsonRpcProcess extends EventEmitter implements JsonRpcProcess {
@@ -231,6 +232,29 @@ describe("JsonRpcChannel", () => {
     expect(rejection.message).toMatch(/stderr.*limit/i);
     expect(rejection.message.includes(FAKE_STDERR_SECRET)).toBe(false);
     expect(process.killCallCount).toBe(1);
+  });
+
+  it("accepts one MiB of stderr when the stdout line limit is smaller", () => {
+    const { channel, process } = createChannel(64);
+
+    process.stderr.write(Buffer.alloc(MAXIMUM_STDERR_BYTES, 0x78));
+
+    expect(process.killCallCount).toBe(0);
+    channel.dispose();
+    expect(process.killCallCount).toBe(1);
+  });
+
+  it("rejects the byte after one MiB of stderr when the stdout line limit is larger", async () => {
+    const { channel, process } = createChannel(MAXIMUM_STDERR_BYTES * 2);
+    const pending = channel.request("pending", {});
+
+    process.stderr.write(Buffer.alloc(MAXIMUM_STDERR_BYTES, 0x78));
+    expect(process.killCallCount).toBe(0);
+
+    process.stderr.write(Buffer.from([0x78]));
+
+    expect(process.killCallCount).toBe(1);
+    await expect(pending).rejects.toThrow(/stderr.*limit/i);
   });
 
   it("sanitizes process errors and rejects every pending request", async () => {
