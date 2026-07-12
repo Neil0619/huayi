@@ -22,7 +22,7 @@ export const requestIdSchema = z
 
 const schemaVersionSchema = z.literal(SCHEMA_VERSION);
 const englishWordPattern = /^[A-Za-z]+(?:[-'’][A-Za-z]+)*$/u;
-const hanCharacterPattern = /[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/u;
+const hanCharacterPattern = /\p{Script=Han}/u;
 
 export const englishWordSchema = z
   .string()

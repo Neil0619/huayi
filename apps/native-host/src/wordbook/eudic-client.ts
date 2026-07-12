@@ -67,6 +67,46 @@ async function readJson(response: EudicResponse, signal: AbortSignal): Promise<u
   }
 }
 
+async function discardResponseBody(response: EudicResponse, signal: AbortSignal): Promise<void> {
+  const body = response.body;
+  if (body === null) {
+    return;
+  }
+  if (signal.aborted) {
+    throw eudicError("CANCELLED");
+  }
+
+  await new Promise<void>((resolve, reject) => {
+    let settled = false;
+    const finish = (): void => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      signal.removeEventListener("abort", abort);
+      resolve();
+    };
+    const abort = (): void => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      signal.removeEventListener("abort", abort);
+      reject(eudicError("CANCELLED"));
+    };
+    signal.addEventListener("abort", abort, { once: true });
+    if (signal.aborted) {
+      abort();
+      return;
+    }
+    try {
+      void body.cancel().then(finish, finish);
+    } catch {
+      finish();
+    }
+  });
+}
+
 function normalizeWordIdentity(value: string): string {
   return value.toLocaleLowerCase("en-US").replaceAll("’", "'");
 }
@@ -154,8 +194,11 @@ export class EudicClient {
       redirect: "error",
       signal,
     });
-    if (queryResponse.status !== 404) {
+    if (queryResponse.status === 404) {
+      await discardResponseBody(queryResponse, signal);
+    } else {
       if (queryResponse.status !== 200) {
+        await discardResponseBody(queryResponse, signal);
         throwForStatus(queryResponse.status);
       }
       const words = queryWords(await readJson(queryResponse, signal));
@@ -181,10 +224,11 @@ export class EudicClient {
       signal,
     });
     if (addResponse.status !== 201) {
+      await discardResponseBody(addResponse, signal);
       throwForStatus(addResponse.status);
     }
     const body = await readJson(addResponse, signal);
-    if (!isRecord(body) || typeof body.message !== "string" || body.message.trim().length === 0) {
+    if (!isRecord(body) || typeof body.message !== "string") {
       throw eudicError("INVALID_RESPONSE");
     }
     return "added";

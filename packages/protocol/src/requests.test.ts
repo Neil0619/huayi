@@ -126,6 +126,9 @@ describe("addWordRequestSchema", () => {
     expect(
       addWordRequestSchema.safeParse({ ...validRequest, context: "调查 ongoing" }).success,
     ).toBe(false);
+    expect(addWordRequestSchema.safeParse({ ...validRequest, context: "𠀀 ongoing" }).success).toBe(
+      false,
+    );
     expect(addWordRequestSchema.safeParse({ ...validRequest, context: "" }).success).toBe(false);
     expect(
       addWordRequestSchema.safeParse({

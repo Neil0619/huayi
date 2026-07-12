@@ -23,5 +23,6 @@ describe("isEnglishText", () => {
     expect(isEnglishText("   ")).toBe(false);
     expect(isEnglishText("123 -- ?")).toBe(false);
     expect(isEnglishText("investigation 调查")).toBe(false);
+    expect(isEnglishText("investigation 𠀀")).toBe(false);
   });
 });

@@ -1,4 +1,4 @@
-const HAN_CHARACTER_PATTERN = /[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/;
+const HAN_CHARACTER_PATTERN = /\p{Script=Han}/u;
 const LATIN_LETTER_PATTERN = /[A-Za-z]/;
 
 export function normalizeSelectionText(value: string): string {

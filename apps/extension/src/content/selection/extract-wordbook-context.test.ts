@@ -42,6 +42,23 @@ describe("extractWordbookContext", () => {
     );
   });
 
+  it("folds a br element into sentence whitespace without losing Range offsets", () => {
+    const paragraph = document.createElement("p");
+    paragraph.append("The ");
+    const strong = document.createElement("strong");
+    strong.textContent = "investigation";
+    paragraph.append(strong, document.createElement("br"), "continued carefully.");
+    document.body.append(paragraph);
+    const text = strong.firstChild;
+    if (!(text instanceof Text)) {
+      throw new Error("Expected nested text fixture.");
+    }
+
+    expect(extractWordbookContext(rangeForText(text, "investigation"), "investigation")).toBe(
+      "The investigation continued carefully.",
+    );
+  });
+
   it("uses the selected occurrence when a word appears in multiple sentences", () => {
     const paragraph = document.createElement("p");
     paragraph.textContent = "The investigation began. Later, the investigation ended.";
@@ -68,6 +85,29 @@ describe("extractWordbookContext", () => {
     expect(extractWordbookContext(rangeForText(text, "investigation"), "investigation")).toBe(
       'Dr. Smith called it "an investigation."',
     );
+  });
+
+  it("keeps abbreviations when Intl.Segmenter is unavailable", () => {
+    const descriptor = Object.getOwnPropertyDescriptor(Intl, "Segmenter");
+    if (descriptor === undefined) {
+      throw new Error("Intl.Segmenter descriptor is unavailable.");
+    }
+    const paragraph = document.createElement("p");
+    paragraph.textContent = "Dr. Smith began the investigation. Then he left.";
+    document.body.append(paragraph);
+    const text = paragraph.firstChild;
+    if (!(text instanceof Text)) {
+      throw new Error("Expected text fixture.");
+    }
+
+    Object.defineProperty(Intl, "Segmenter", { configurable: true, value: undefined });
+    try {
+      expect(extractWordbookContext(rangeForText(text, "investigation"), "investigation")).toBe(
+        "Dr. Smith began the investigation.",
+      );
+    } finally {
+      Object.defineProperty(Intl, "Segmenter", descriptor);
+    }
   });
 
   it("uses the whole normalized block when it has no terminal punctuation", () => {

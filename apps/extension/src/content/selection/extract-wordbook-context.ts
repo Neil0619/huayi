@@ -11,33 +11,7 @@ interface SentenceSpan {
 const abbreviationPattern =
   /(?:\b(?:Dr|Jr|Mr|Mrs|Ms|Prof|Sr|St|etc|vs)\.|\b(?:e\.g|i\.e)\.|\b[A-Z]\.)\s*$/u;
 
-function fallbackSentenceSpans(value: string): SentenceSpan[] {
-  const spans: SentenceSpan[] = [];
-  const boundaryPattern = /[.!?]+["'’”\])}]*(?=\s|$)/gu;
-  let start = 0;
-
-  for (const match of value.matchAll(boundaryPattern)) {
-    const end = (match.index ?? 0) + match[0].length;
-    spans.push({ end, start });
-    start = end;
-  }
-
-  if (start < value.length || spans.length === 0) {
-    spans.push({ end: value.length, start });
-  }
-  return spans;
-}
-
-function sentenceSpans(value: string): SentenceSpan[] {
-  if (typeof Intl.Segmenter !== "function") {
-    return fallbackSentenceSpans(value);
-  }
-
-  const segmenter = new Intl.Segmenter("en", { granularity: "sentence" });
-  const spans = Array.from(segmenter.segment(value), ({ index, segment }) => ({
-    end: index + segment.length,
-    start: index,
-  }));
+function mergeAbbreviationSpans(value: string, spans: readonly SentenceSpan[]): SentenceSpan[] {
   const merged: SentenceSpan[] = [];
   for (const span of spans) {
     const previous = merged.at(-1);
@@ -53,12 +27,52 @@ function sentenceSpans(value: string): SentenceSpan[] {
   return merged;
 }
 
-function rangeOffset(block: Element, range: Range): number | null {
+function fallbackSentenceSpans(value: string): SentenceSpan[] {
+  const spans: SentenceSpan[] = [];
+  const boundaryPattern = /[.!?]+["'’”\])}]*(?=\s|$)/gu;
+  let start = 0;
+
+  for (const match of value.matchAll(boundaryPattern)) {
+    const end = (match.index ?? 0) + match[0].length;
+    spans.push({ end, start });
+    start = end;
+  }
+
+  if (start < value.length || spans.length === 0) {
+    spans.push({ end: value.length, start });
+  }
+  return mergeAbbreviationSpans(value, spans);
+}
+
+function sentenceSpans(value: string): SentenceSpan[] {
+  if (typeof Intl.Segmenter !== "function") {
+    return fallbackSentenceSpans(value);
+  }
+
+  const segmenter = new Intl.Segmenter("en", { granularity: "sentence" });
+  const spans = Array.from(segmenter.segment(value), ({ index, segment }) => ({
+    end: index + segment.length,
+    start: index,
+  }));
+  return mergeAbbreviationSpans(value, spans);
+}
+
+function textWithLineBreaks(node: Node): string {
+  if (node instanceof Text) {
+    return node.data;
+  }
+  if (node instanceof Element && node.tagName === "BR") {
+    return " ";
+  }
+  return Array.from(node.childNodes, (child) => textWithLineBreaks(child)).join("");
+}
+
+function rangeOffset(block: Element, container: Node, offset: number): number | null {
   try {
-    const prefix = range.cloneRange();
+    const prefix = block.ownerDocument.createRange();
     prefix.selectNodeContents(block);
-    prefix.setEnd(range.startContainer, range.startOffset);
-    return prefix.toString().length;
+    prefix.setEnd(container, offset);
+    return textWithLineBreaks(prefix.cloneContents()).length;
   } catch {
     return null;
   }
@@ -112,13 +126,13 @@ export function extractWordbookContext(range: Range, selection: string): string 
     return normalizedSelection;
   }
 
-  const rawContext = block.textContent ?? "";
+  const rawContext = textWithLineBreaks(block);
   const segmentationContext = rawContext.replace(/[\s\u00a0]/gu, " ");
-  const selectionStart = rangeOffset(block, range);
-  if (selectionStart === null) {
+  const selectionStart = rangeOffset(block, range.startContainer, range.startOffset);
+  const selectionEnd = rangeOffset(block, range.endContainer, range.endOffset);
+  if (selectionStart === null || selectionEnd === null) {
     return normalizedSelection;
   }
-  const selectionEnd = selectionStart + range.toString().length;
   const span = sentenceSpans(segmentationContext).find(
     (candidate) => candidate.start <= selectionStart && candidate.end >= selectionEnd,
   );

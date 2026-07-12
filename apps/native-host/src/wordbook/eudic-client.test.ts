@@ -2,7 +2,12 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { AddWordRequest } from "@huayi/protocol";
 
-import { EudicClient, EUDIC_WORD_ENDPOINT, type EudicFetch } from "./eudic-client.js";
+import {
+  EudicClient,
+  EUDIC_WORD_ENDPOINT,
+  type EudicFetch,
+  type EudicResponse,
+} from "./eudic-client.js";
 import { EudicProviderError } from "./eudic-errors.js";
 
 const request: AddWordRequest = {
@@ -19,6 +24,15 @@ function jsonResponse(value: unknown, status = 200): Response {
     headers: { "content-type": "application/json" },
     status,
   });
+}
+
+function unusedBodyResponse(status: number): {
+  cancel: ReturnType<typeof vi.fn>;
+  response: EudicResponse;
+} {
+  const cancel = vi.fn(async () => undefined);
+  const body = { cancel } as unknown as NonNullable<Response["body"]>;
+  return { cancel, response: { body, status } };
 }
 
 describe("EudicClient", () => {
@@ -116,6 +130,44 @@ describe("EudicClient", () => {
     expect(fetch).toHaveBeenCalledOnce();
   });
 
+  it("cancels unused 404 and error bodies before continuing or failing", async () => {
+    const missing = unusedBodyResponse(404);
+    let missingCalls = 0;
+    const missingClient = new EudicClient({
+      fetch: async () => {
+        missingCalls += 1;
+        if (missingCalls === 1) {
+          return missing.response;
+        }
+        expect(missing.cancel).toHaveBeenCalledOnce();
+        return jsonResponse({ message: "" }, 201);
+      },
+    });
+    await expect(
+      missingClient.addWord("NIS secret", request, new AbortController().signal),
+    ).resolves.toBe("added");
+
+    const queryError = unusedBodyResponse(401);
+    const queryErrorClient = new EudicClient({ fetch: async () => queryError.response });
+    await expect(
+      queryErrorClient.addWord("NIS secret", request, new AbortController().signal),
+    ).rejects.toMatchObject({ code: "EUDIC_AUTH_FAILED" });
+    expect(queryError.cancel).toHaveBeenCalledOnce();
+
+    const createError = unusedBodyResponse(503);
+    let createCalls = 0;
+    const createErrorClient = new EudicClient({
+      fetch: async () => {
+        createCalls += 1;
+        return createCalls === 1 ? jsonResponse({ data: [] }) : createError.response;
+      },
+    });
+    await expect(
+      createErrorClient.addWord("NIS secret", request, new AbortController().signal),
+    ).rejects.toMatchObject({ code: "NETWORK_ERROR" });
+    expect(createError.cancel).toHaveBeenCalledOnce();
+  });
+
   it("treats a rejected redirect and malformed create response as invalid", async () => {
     const redirecting = new EudicClient({
       fetch: async () => {
@@ -130,12 +182,26 @@ describe("EudicClient", () => {
     const malformedCreate = new EudicClient({
       fetch: async () => {
         callCount += 1;
-        return callCount === 1 ? jsonResponse({ data: [] }) : jsonResponse({ message: "" }, 201);
+        return callCount === 1 ? jsonResponse({ data: [] }) : jsonResponse({ message: 42 }, 201);
       },
     });
     await expect(
       malformedCreate.addWord("NIS secret", request, new AbortController().signal),
     ).rejects.toMatchObject({ code: "INVALID_RESPONSE" });
+  });
+
+  it("accepts a documented 201 response with an empty message", async () => {
+    let callCount = 0;
+    const client = new EudicClient({
+      fetch: async () => {
+        callCount += 1;
+        return callCount === 1 ? jsonResponse({ data: [] }) : jsonResponse({ message: "" }, 201);
+      },
+    });
+
+    await expect(client.addWord("NIS secret", request, new AbortController().signal)).resolves.toBe(
+      "added",
+    );
   });
 
   it.each([301, 302, 307, 308])(
