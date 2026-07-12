@@ -22,8 +22,16 @@ const addWordRequest = {
   word: "investigation",
 } as const;
 
+const checkWordRequest = {
+  language: "en",
+  requestId: "check-1",
+  schemaVersion: 1,
+  type: "check-word",
+  word: "investigation",
+} as const;
+
 describe("parseContentCommand", () => {
-  it("parses analyze, add-word, and cancel commands", () => {
+  it("parses analyze, check-word, add-word, and cancel commands", () => {
     expect(parseContentCommand({ request, type: "ANALYZE_SELECTION" })).toEqual({
       request,
       type: "ANALYZE_SELECTION",
@@ -32,6 +40,12 @@ describe("parseContentCommand", () => {
       request: addWordRequest,
       type: "ADD_WORD_TO_EUDIC",
     });
+    expect(parseContentCommand({ request: checkWordRequest, type: "CHECK_WORD_IN_EUDIC" })).toEqual(
+      {
+        request: checkWordRequest,
+        type: "CHECK_WORD_IN_EUDIC",
+      },
+    );
     expect(parseContentCommand({ requestId: "request-1", type: "CANCEL_REQUEST" })).toEqual({
       requestId: "request-1",
       type: "CANCEL_REQUEST",
@@ -50,6 +64,19 @@ describe("parseContentCommand", () => {
     ).toBeNull();
     expect(
       parseContentCommand({ debug: true, requestId: "request-1", type: "CANCEL_REQUEST" }),
+    ).toBeNull();
+    expect(
+      parseContentCommand({
+        request: checkWordRequest,
+        source: "overlay",
+        type: "CHECK_WORD_IN_EUDIC",
+      }),
+    ).toBeNull();
+    expect(
+      parseContentCommand({
+        request: { ...checkWordRequest, context: "unexpected" },
+        type: "CHECK_WORD_IN_EUDIC",
+      }),
     ).toBeNull();
     expect(parseContentCommand({ requestId: "request-1", type: "CANCEL_ANALYSIS" })).toBeNull();
   });

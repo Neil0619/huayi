@@ -1,254 +1,314 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { AddWordRequest, AnalyzeRequest, HostEvent, HostRequest } from "@huayi/protocol";
+import type { HostEvent, HostWorkRequest } from "@huayi/protocol";
 
 import {
-  RequestCoordinator,
-  type NativeDisconnect,
-  type NativeTransport,
-} from "./request-coordinator.js";
-
-class FakeTransport implements NativeTransport {
-  readonly sent: HostRequest[] = [];
-  private disconnectListener: ((disconnect: NativeDisconnect) => void) | null = null;
-  private eventListener: ((event: HostEvent) => void) | null = null;
-
-  onDisconnect(listener: (disconnect: NativeDisconnect) => void): () => void {
-    this.disconnectListener = listener;
-    return () => {
-      this.disconnectListener = null;
-    };
-  }
-
-  onEvent(listener: (event: HostEvent) => void): () => void {
-    this.eventListener = listener;
-    return () => {
-      this.eventListener = null;
-    };
-  }
-
-  send(request: HostRequest): void {
-    this.sent.push(request);
-  }
-
-  emitEvent(event: HostEvent): void {
-    this.eventListener?.(event);
-  }
-
-  emitDisconnect(disconnect: NativeDisconnect): void {
-    this.disconnectListener?.(disconnect);
-  }
-}
-
-function analyzeRequest(requestId: string): AnalyzeRequest {
-  return {
-    action: "translate",
-    context: "The investigation was in its early stages.",
-    requestId,
-    schemaVersion: 1,
-    selection: "investigation",
-    selectionKind: "word",
-    targetLanguage: "zh-CN",
-    type: "analyze",
-  };
-}
-
-function addWordRequest(requestId: string): AddWordRequest {
-  return {
-    context: "The investigation was in its early stages.",
-    language: "en",
-    requestId,
-    schemaVersion: 1,
-    type: "add-word",
-    word: "investigation",
-  };
-}
-
-function createHarness(timeoutMs = 65_000) {
-  const transport = new FakeTransport();
-  const delivered: { event: HostEvent; tabId: number }[] = [];
-  let nextId = 0;
-  const coordinator = new RequestCoordinator({
-    createRequestId: () => `control-${(nextId += 1)}`,
-    sendToTab: (tabId, event) => {
-      delivered.push({ event, tabId });
-    },
-    timeoutMs,
-    transport,
-  });
-  return { coordinator, delivered, transport };
-}
+  addWordRequest,
+  analysisDeltaEvent,
+  analyzeRequest,
+  cancelTargets,
+  checkWordRequest,
+  createHarness,
+  resultEvent,
+} from "./request-coordinator-test-helpers.js";
 
 afterEach(() => {
   vi.useRealTimers();
 });
 
-describe("RequestCoordinator", () => {
-  it("routes progress and results back to the originating tab", () => {
+describe("RequestCoordinator lanes", () => {
+  it("runs analysis and wordbook checks concurrently in one tab", () => {
     const { coordinator, delivered, transport } = createHarness();
-    coordinator.start(7, analyzeRequest("request-1"));
+
+    coordinator.start(7, analyzeRequest("analysis-1"));
+    coordinator.start(7, checkWordRequest("check-1"));
+
+    expect(transport.sent).toEqual([analyzeRequest("analysis-1"), checkWordRequest("check-1")]);
+    expect(cancelTargets(transport)).toEqual([]);
+    expect(coordinator.pendingCount).toBe(2);
+
     transport.emitEvent({
-      requestId: "request-1",
+      requestId: "analysis-1",
       schemaVersion: 1,
       stage: "running",
       type: "progress",
     });
     transport.emitEvent({
-      requestId: "request-1",
-      result: {
-        selectionKind: "sentence",
-        sourceText: "It is ready.",
-        translationZh: "它已准备就绪。",
-        type: "translate-passage",
-      },
+      requestId: "check-1",
       schemaVersion: 1,
-      type: "result",
+      stage: "queued",
+      type: "progress",
     });
+    transport.emitEvent({
+      presence: "absent",
+      requestId: "check-1",
+      schemaVersion: 1,
+      type: "word-status",
+    });
+    transport.emitEvent(resultEvent("analysis-1"));
 
-    expect(transport.sent).toEqual([analyzeRequest("request-1")]);
-    expect(delivered.map(({ event, tabId }) => [tabId, event.type])).toEqual([
-      [7, "progress"],
-      [7, "result"],
+    expect(delivered.map(({ event }) => event.type)).toEqual([
+      "progress",
+      "progress",
+      "word-status",
+      "result",
     ]);
     expect(coordinator.pendingCount).toBe(0);
     coordinator.dispose();
   });
 
-  it("routes wordbook success and rejects a mismatched terminal event", () => {
+  it("cancels every prior lane before starting a new analysis", () => {
+    const { coordinator, transport } = createHarness();
+    coordinator.start(7, analyzeRequest("analysis-1"));
+    coordinator.start(7, addWordRequest("add-1"));
+    coordinator.start(7, checkWordRequest("check-1"));
+
+    coordinator.start(7, analyzeRequest("analysis-2"));
+
+    expect(cancelTargets(transport).sort()).toEqual(["add-1", "analysis-1", "check-1"]);
+    expect(transport.sent.at(-1)).toEqual(analyzeRequest("analysis-2"));
+    expect(coordinator.pendingCount).toBe(1);
+    coordinator.dispose();
+  });
+
+  it("replaces only the prior wordbook check", () => {
+    const { coordinator, transport } = createHarness();
+    coordinator.start(7, analyzeRequest("analysis-1"));
+    coordinator.start(7, addWordRequest("add-1"));
+    coordinator.start(7, checkWordRequest("check-1"));
+
+    coordinator.start(7, checkWordRequest("check-2"));
+
+    expect(cancelTargets(transport)).toEqual(["check-1"]);
+    expect(transport.sent.at(-1)).toEqual(checkWordRequest("check-2"));
+    expect(coordinator.pendingCount).toBe(3);
+    coordinator.dispose();
+  });
+
+  it("cancels the check lane and replaces only the prior add lane", () => {
+    const { coordinator, transport } = createHarness();
+    coordinator.start(7, analyzeRequest("analysis-1"));
+    coordinator.start(7, addWordRequest("add-1"));
+    coordinator.start(7, checkWordRequest("check-1"));
+
+    coordinator.start(7, addWordRequest("add-2"));
+
+    expect(cancelTargets(transport)).toEqual(["check-1", "add-1"]);
+    expect(transport.sent.at(-1)).toEqual(addWordRequest("add-2"));
+    expect(coordinator.pendingCount).toBe(2);
+    coordinator.dispose();
+  });
+
+  it("keeps targeted cancellation exact and ignores the cancelled request's late events", () => {
     const { coordinator, delivered, transport } = createHarness();
-    coordinator.start(7, addWordRequest("word-1"));
+    coordinator.start(7, analyzeRequest("analysis-1"));
+    coordinator.start(7, addWordRequest("add-1"));
+    coordinator.start(7, checkWordRequest("check-1"));
+
+    expect(coordinator.cancel(7, "missing")).toBe(false);
+    expect(coordinator.cancel(7, "check-1")).toBe(true);
     transport.emitEvent({
-      outcome: "added",
-      requestId: "word-1",
+      presence: "present",
+      requestId: "check-1",
       schemaVersion: 1,
-      type: "word-added",
+      type: "word-status",
     });
 
-    expect(delivered.at(-1)?.event).toMatchObject({ outcome: "added", type: "word-added" });
+    expect(cancelTargets(transport)).toEqual(["check-1"]);
+    expect(delivered).toEqual([]);
+    expect(coordinator.pendingCount).toBe(2);
+    coordinator.dispose();
+  });
+});
+
+describe("RequestCoordinator events", () => {
+  it("forwards progress and exact analysis deltas without finishing analysis", () => {
+    const { coordinator, delivered, transport } = createHarness();
+    coordinator.start(7, analyzeRequest("analysis-1"));
+
+    transport.emitEvent({
+      requestId: "analysis-1",
+      schemaVersion: 1,
+      stage: "running",
+      type: "progress",
+    });
+    transport.emitEvent(analysisDeltaEvent("analysis-1", 0));
+    transport.emitEvent(analysisDeltaEvent("analysis-1", 1));
+
+    expect(delivered.map(({ event }) => event.type)).toEqual([
+      "progress",
+      "analysis-delta",
+      "analysis-delta",
+    ]);
+    expect(coordinator.pendingCount).toBe(1);
+
+    transport.emitEvent(resultEvent("analysis-1"));
+    expect(delivered.at(-1)?.event.type).toBe("result");
     expect(coordinator.pendingCount).toBe(0);
+    coordinator.dispose();
+  });
 
-    coordinator.start(7, addWordRequest("word-2"));
-    transport.emitEvent({
-      requestId: "word-2",
-      result: {
-        selectionKind: "sentence",
-        sourceText: "Wrong event.",
-        translationZh: "错误事件。",
-        type: "translate-passage",
-      },
-      schemaVersion: 1,
-      type: "result",
-    });
+  it.each([
+    ["duplicate", [0, 0]],
+    ["skipped", [1]],
+    ["decreasing", [0, 1, 0]],
+  ])("fails a %s analysis delta sequence and targets only that request", (_name, sequences) => {
+    const { coordinator, delivered, transport } = createHarness();
+    coordinator.start(7, analyzeRequest("analysis-1"));
+    coordinator.start(7, checkWordRequest("check-1"));
+
+    for (const sequence of sequences) {
+      transport.emitEvent(analysisDeltaEvent("analysis-1", sequence));
+    }
+
     expect(delivered.at(-1)?.event).toMatchObject({
       error: { code: "INVALID_RESPONSE" },
-      requestId: "word-2",
+      requestId: "analysis-1",
       type: "error",
     });
-    expect(coordinator.pendingCount).toBe(0);
+    expect(cancelTargets(transport)).toEqual(["analysis-1"]);
+    expect(coordinator.pendingCount).toBe(1);
     coordinator.dispose();
   });
 
-  it("cancels the old request before starting a new request in the same tab", () => {
-    const { coordinator, delivered, transport } = createHarness();
-    coordinator.start(7, analyzeRequest("request-1"));
-    coordinator.start(7, analyzeRequest("request-2"));
+  it.each([checkWordRequest("check-1"), addWordRequest("add-1")])(
+    "rejects analysis deltas for $type requests",
+    (request) => {
+      const { coordinator, delivered, transport } = createHarness();
+      coordinator.start(7, request);
 
-    expect(transport.sent).toEqual([
-      analyzeRequest("request-1"),
-      {
-        requestId: "control-1",
-        schemaVersion: 1,
-        targetRequestId: "request-1",
-        type: "cancel",
-      },
-      analyzeRequest("request-2"),
-    ]);
+      transport.emitEvent(analysisDeltaEvent(request.requestId, 0));
+
+      expect(delivered).toHaveLength(1);
+      expect(delivered[0]?.event).toMatchObject({
+        error: { code: "INVALID_RESPONSE" },
+        requestId: request.requestId,
+        type: "error",
+      });
+      expect(cancelTargets(transport)).toEqual([request.requestId]);
+      expect(coordinator.pendingCount).toBe(0);
+      coordinator.dispose();
+    },
+  );
+
+  it("accepts word-added only for add-word requests", () => {
+    const { coordinator, delivered, transport } = createHarness();
+    coordinator.start(7, addWordRequest("add-1"));
 
     transport.emitEvent({
-      requestId: "request-1",
-      result: {
-        selectionKind: "sentence",
-        sourceText: "Late.",
-        translationZh: "迟到的结果。",
-        type: "translate-passage",
-      },
+      requestId: "add-1",
       schemaVersion: 1,
-      type: "result",
-    });
-    expect(delivered).toEqual([]);
-    coordinator.dispose();
-  });
-
-  it("times out and cancels an unresponsive native request", () => {
-    vi.useFakeTimers();
-    const { coordinator, delivered, transport } = createHarness(1_000);
-    coordinator.start(7, analyzeRequest("request-1"));
-
-    vi.advanceTimersByTime(1_000);
-
-    expect(delivered[0]?.event).toMatchObject({
-      error: { code: "TIMEOUT", retryable: true },
-      requestId: "request-1",
-      type: "error",
-    });
-    expect(transport.sent[1]).toMatchObject({
-      targetRequestId: "request-1",
-      type: "cancel",
-    });
-    coordinator.dispose();
-  });
-
-  it("times out and targets an unresponsive wordbook request", () => {
-    vi.useFakeTimers();
-    const { coordinator, delivered, transport } = createHarness(1_000);
-    coordinator.start(7, addWordRequest("word-1"));
-
-    vi.advanceTimersByTime(1_000);
-
-    expect(delivered[0]?.event).toMatchObject({
-      error: { code: "TIMEOUT", retryable: true },
-      requestId: "word-1",
-      type: "error",
-    });
-    expect(transport.sent[1]).toMatchObject({
-      targetRequestId: "word-1",
-      type: "cancel",
+      stage: "running",
+      type: "progress",
     });
     transport.emitEvent({
       outcome: "added",
-      requestId: "word-1",
+      requestId: "add-1",
       schemaVersion: 1,
       type: "word-added",
     });
-    expect(delivered).toHaveLength(1);
-    coordinator.dispose();
-  });
 
-  it("fails pending work when the host disconnects", () => {
-    const { coordinator, delivered, transport } = createHarness();
-    coordinator.start(7, analyzeRequest("request-1"));
-    transport.emitDisconnect({ message: "Host not found.", reason: "host-unavailable" });
-
-    expect(delivered[0]?.event).toMatchObject({
-      error: { code: "HOST_NOT_INSTALLED", retryable: true },
-      type: "error",
-    });
+    expect(delivered.map(({ event }) => event.type)).toEqual(["progress", "word-added"]);
+    expect(delivered.at(-1)?.event).toMatchObject({ outcome: "added", type: "word-added" });
     expect(coordinator.pendingCount).toBe(0);
     coordinator.dispose();
   });
 
-  it("explains that a disconnected wordbook host may require an upgrade", () => {
+  it("fails closed when a success terminal does not match its request type", () => {
+    const cases: { event: HostEvent; request: HostWorkRequest }[] = [
+      {
+        event: {
+          presence: "present",
+          requestId: "analysis-1",
+          schemaVersion: 1,
+          type: "word-status",
+        },
+        request: analyzeRequest("analysis-1"),
+      },
+      {
+        event: {
+          outcome: "already-exists",
+          requestId: "check-1",
+          schemaVersion: 1,
+          type: "word-added",
+        },
+        request: checkWordRequest("check-1"),
+      },
+      { event: resultEvent("add-1"), request: addWordRequest("add-1") },
+    ];
+
+    for (const { event, request } of cases) {
+      const { coordinator, delivered, transport } = createHarness();
+      coordinator.start(7, request);
+      transport.emitEvent(event);
+
+      expect(delivered).toHaveLength(1);
+      expect(delivered[0]?.event).toMatchObject({
+        error: { code: "INVALID_RESPONSE" },
+        requestId: request.requestId,
+        type: "error",
+      });
+      expect(coordinator.pendingCount).toBe(0);
+      coordinator.dispose();
+    }
+  });
+});
+
+describe("RequestCoordinator failures", () => {
+  it("times out every concurrent request once and ignores late events", () => {
+    vi.useFakeTimers();
+    const { coordinator, delivered, transport } = createHarness(1_000);
+    coordinator.start(7, analyzeRequest("analysis-1"));
+    coordinator.start(7, addWordRequest("add-1"));
+    coordinator.start(7, checkWordRequest("check-1"));
+
+    vi.advanceTimersByTime(1_000);
+
+    expect(delivered).toHaveLength(3);
+    expect(delivered.every(({ event }) => event.type === "error")).toBe(true);
+    expect(delivered.map(({ event }) => event.requestId).sort()).toEqual([
+      "add-1",
+      "analysis-1",
+      "check-1",
+    ]);
+    expect(cancelTargets(transport).sort()).toEqual(["add-1", "analysis-1", "check-1"]);
+    expect(coordinator.pendingCount).toBe(0);
+
+    vi.advanceTimersByTime(1_000);
+    transport.emitEvent(resultEvent("analysis-1"));
+    transport.emitEvent({
+      presence: "absent",
+      requestId: "check-1",
+      schemaVersion: 1,
+      type: "word-status",
+    });
+    expect(delivered).toHaveLength(3);
+    coordinator.dispose();
+  });
+
+  it("settles concurrent requests once and explains old hosts for both Eudic request types", () => {
     const { coordinator, delivered, transport } = createHarness();
-    coordinator.start(7, addWordRequest("word-1"));
+    coordinator.start(7, analyzeRequest("analysis-1"));
+    coordinator.start(7, addWordRequest("add-1"));
+    coordinator.start(7, checkWordRequest("check-1"));
+
     transport.emitDisconnect({ message: "Host exited.", reason: "disconnected" });
 
-    expect(delivered[0]?.event).toMatchObject({
-      error: {
-        code: "HOST_NOT_INSTALLED",
-        message: expect.stringContaining("版本过旧"),
-      },
-      type: "error",
-    });
+    expect(delivered).toHaveLength(3);
+    for (const requestId of ["add-1", "check-1"]) {
+      expect(delivered.find(({ event }) => event.requestId === requestId)?.event).toMatchObject({
+        error: {
+          code: "HOST_NOT_INSTALLED",
+          message: expect.stringContaining("版本过旧"),
+        },
+        type: "error",
+      });
+    }
+    expect(coordinator.pendingCount).toBe(0);
+
+    transport.emitDisconnect({ message: "Host exited again.", reason: "disconnected" });
+    transport.emitEvent(resultEvent("analysis-1"));
+    expect(delivered).toHaveLength(3);
     coordinator.dispose();
   });
 });

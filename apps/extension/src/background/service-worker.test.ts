@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import type { AddWordRequest, AnalyzeRequest, HostWorkRequest } from "@huayi/protocol";
+import type {
+  AddWordRequest,
+  AnalyzeRequest,
+  CheckWordRequest,
+  HostWorkRequest,
+} from "@huayi/protocol";
 
 import {
   createRuntimeMessageListener,
@@ -28,6 +33,14 @@ const wordRequest: AddWordRequest = {
   word: "investigation",
 };
 
+const checkRequest: CheckWordRequest = {
+  language: "en",
+  requestId: "check-1",
+  schemaVersion: 1,
+  type: "check-word",
+  word: "investigation",
+};
+
 class FakeCoordinator implements RequestCoordinatorLike {
   readonly cancellations: { requestId: string; tabId: number }[] = [];
   readonly starts: { request: HostWorkRequest; tabId: number }[] = [];
@@ -43,7 +56,7 @@ class FakeCoordinator implements RequestCoordinatorLike {
 }
 
 describe("handleContentMessage", () => {
-  it("routes valid analyze, add-word, and cancel commands for a sender tab", () => {
+  it("routes valid analyze, check-word, add-word, and cancel commands for a sender tab", () => {
     const coordinator = new FakeCoordinator();
 
     expect(handleContentMessage({ request, type: "ANALYZE_SELECTION" }, 7, coordinator)).toBe(true);
@@ -51,11 +64,15 @@ describe("handleContentMessage", () => {
       handleContentMessage({ request: wordRequest, type: "ADD_WORD_TO_EUDIC" }, 7, coordinator),
     ).toBe(true);
     expect(
+      handleContentMessage({ request: checkRequest, type: "CHECK_WORD_IN_EUDIC" }, 7, coordinator),
+    ).toBe(true);
+    expect(
       handleContentMessage({ requestId: "request-1", type: "CANCEL_REQUEST" }, 7, coordinator),
     ).toBe(true);
     expect(coordinator.starts).toEqual([
       { request, tabId: 7 },
       { request: wordRequest, tabId: 7 },
+      { request: checkRequest, tabId: 7 },
     ]);
     expect(coordinator.cancellations).toEqual([{ requestId: "request-1", tabId: 7 }]);
   });

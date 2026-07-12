@@ -10,10 +10,13 @@ import type {
 export type { NativeDisconnect, NativeTransport } from "./native-transport.js";
 
 interface PendingRequest {
+  nextSequence: number;
   request: HostWorkRequest;
   tabId: number;
   timeoutId: ReturnType<typeof setTimeout>;
 }
+
+type RequestLane = "analysis" | "wordbook-add" | "wordbook-check";
 
 export interface RequestCoordinatorOptions {
   createRequestId?: () => string;
@@ -24,11 +27,23 @@ export interface RequestCoordinatorOptions {
 
 const DEFAULT_REQUEST_TIMEOUT_MS = 65_000;
 
+function laneFor(request: HostWorkRequest): RequestLane {
+  switch (request.type) {
+    case "analyze":
+      return "analysis";
+    case "add-word":
+      return "wordbook-add";
+    case "check-word":
+      return "wordbook-check";
+  }
+}
+
 function errorForDisconnect(
   reason: NativeDisconnectReason,
   request: HostWorkRequest,
 ): AnalysisError {
-  if (request.type === "add-word" && reason !== "invalid-message") {
+  const isEudicRequest = request.type === "add-word" || request.type === "check-word";
+  if (isEudicRequest && reason !== "invalid-message") {
     return {
       code: "HOST_NOT_INSTALLED",
       message: "本机服务未安装或版本过旧，请重新安装。",
@@ -58,7 +73,7 @@ function errorForDisconnect(
 }
 
 export class RequestCoordinator {
-  private readonly activeRequestByTab = new Map<number, string>();
+  private readonly activeByTab = new Map<number, Map<RequestLane, string>>();
   private readonly createRequestId: () => string;
   private readonly pendingByRequestId = new Map<string, PendingRequest>();
   private readonly removeDisconnectListener: () => void;
@@ -84,15 +99,29 @@ export class RequestCoordinator {
 
   start(tabId: number, request: HostWorkRequest): void {
     const validatedRequest = hostWorkRequestSchema.parse(request);
-    this.cancel(tabId);
+    const lane = laneFor(validatedRequest);
+    switch (lane) {
+      case "analysis":
+        this.cancelAll(tabId);
+        break;
+      case "wordbook-check":
+        this.cancelLane(tabId, lane);
+        break;
+      case "wordbook-add":
+        this.cancelLane(tabId, "wordbook-check");
+        this.cancelLane(tabId, lane);
+        break;
+    }
 
     const timeoutId = setTimeout(
       () => this.handleTimeout(validatedRequest.requestId),
       this.timeoutMs,
     );
-    const pending = { request: validatedRequest, tabId, timeoutId };
+    const pending = { nextSequence: 0, request: validatedRequest, tabId, timeoutId };
     this.pendingByRequestId.set(validatedRequest.requestId, pending);
-    this.activeRequestByTab.set(tabId, validatedRequest.requestId);
+    const activeByLane = this.activeByTab.get(tabId) ?? new Map<RequestLane, string>();
+    activeByLane.set(lane, validatedRequest.requestId);
+    this.activeByTab.set(tabId, activeByLane);
 
     try {
       this.transport.send(validatedRequest);
@@ -106,24 +135,18 @@ export class RequestCoordinator {
     }
   }
 
-  cancel(tabId: number, expectedRequestId?: string): boolean {
-    const requestId = this.activeRequestByTab.get(tabId);
-    if (
-      requestId === undefined ||
-      (expectedRequestId !== undefined && requestId !== expectedRequestId)
-    ) {
+  cancel(tabId: number, expectedRequestId: string): boolean {
+    const activeByLane = this.activeByTab.get(tabId);
+    if (activeByLane === undefined) {
       return false;
     }
 
-    const pending = this.pendingByRequestId.get(requestId);
-    if (pending === undefined) {
-      this.activeRequestByTab.delete(tabId);
-      return false;
+    for (const [lane, requestId] of activeByLane) {
+      if (requestId === expectedRequestId) {
+        return this.cancelLane(tabId, lane);
+      }
     }
-
-    this.sendCancel(pending);
-    this.finish(pending);
-    return true;
+    return false;
   }
 
   dispose(): void {
@@ -133,7 +156,7 @@ export class RequestCoordinator {
       clearTimeout(pending.timeoutId);
     }
     this.pendingByRequestId.clear();
-    this.activeRequestByTab.clear();
+    this.activeByTab.clear();
   }
 
   private handleEvent(event: HostEvent): void {
@@ -153,19 +176,29 @@ export class RequestCoordinator {
       return;
     }
 
+    if (event.type === "analysis-delta") {
+      if (pending.request.type === "analyze" && event.sequence === pending.nextSequence) {
+        pending.nextSequence += 1;
+        this.deliver(pending.tabId, event);
+        return;
+      }
+
+      this.sendCancel(pending);
+      this.finish(pending);
+      this.deliverInvalidResponse(pending);
+      return;
+    }
+
     const isExpectedResult =
       (pending.request.type === "analyze" && event.type === "result") ||
+      (pending.request.type === "check-word" && event.type === "word-status") ||
       (pending.request.type === "add-word" && event.type === "word-added");
     this.finish(pending);
     if (isExpectedResult) {
       this.deliver(pending.tabId, event);
       return;
     }
-    this.deliverError(pending, {
-      code: "INVALID_RESPONSE",
-      message: "本机服务返回了与请求不匹配的数据。",
-      retryable: false,
-    });
+    this.deliverInvalidResponse(pending);
   }
 
   private handleDisconnect(disconnect: NativeDisconnect): void {
@@ -203,12 +236,61 @@ export class RequestCoordinator {
     }
   }
 
+  private cancelAll(tabId: number): void {
+    const activeByLane = this.activeByTab.get(tabId);
+    if (activeByLane === undefined) {
+      return;
+    }
+
+    for (const lane of [...activeByLane.keys()]) {
+      this.cancelLane(tabId, lane);
+    }
+  }
+
+  private cancelLane(tabId: number, lane: RequestLane): boolean {
+    const activeByLane = this.activeByTab.get(tabId);
+    if (activeByLane === undefined) {
+      return false;
+    }
+
+    const requestId = activeByLane.get(lane);
+    if (requestId === undefined) {
+      return false;
+    }
+
+    const pending = this.pendingByRequestId.get(requestId);
+    if (pending === undefined) {
+      activeByLane.delete(lane);
+      if (activeByLane.size === 0) {
+        this.activeByTab.delete(tabId);
+      }
+      return false;
+    }
+
+    this.sendCancel(pending);
+    this.finish(pending);
+    return true;
+  }
+
   private finish(pending: PendingRequest): void {
     clearTimeout(pending.timeoutId);
     this.pendingByRequestId.delete(pending.request.requestId);
-    if (this.activeRequestByTab.get(pending.tabId) === pending.request.requestId) {
-      this.activeRequestByTab.delete(pending.tabId);
+    const activeByLane = this.activeByTab.get(pending.tabId);
+    const lane = laneFor(pending.request);
+    if (activeByLane?.get(lane) === pending.request.requestId) {
+      activeByLane.delete(lane);
+      if (activeByLane.size === 0) {
+        this.activeByTab.delete(pending.tabId);
+      }
     }
+  }
+
+  private deliverInvalidResponse(pending: PendingRequest): void {
+    this.deliverError(pending, {
+      code: "INVALID_RESPONSE",
+      message: "本机服务返回了与请求不匹配的数据。",
+      retryable: false,
+    });
   }
 
   private deliverError(pending: PendingRequest, error: AnalysisError): void {

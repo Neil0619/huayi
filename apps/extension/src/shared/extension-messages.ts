@@ -1,5 +1,10 @@
-import { addWordRequestSchema, analyzeRequestSchema, requestIdSchema } from "@huayi/protocol";
-import type { AddWordRequest, AnalyzeRequest } from "@huayi/protocol";
+import {
+  addWordRequestSchema,
+  analyzeRequestSchema,
+  checkWordRequestSchema,
+  requestIdSchema,
+} from "@huayi/protocol";
+import type { AddWordRequest, AnalyzeRequest, CheckWordRequest } from "@huayi/protocol";
 
 export interface AnalyzeSelectionCommand {
   request: AnalyzeRequest;
@@ -11,12 +16,18 @@ export interface AddWordToEudicCommand {
   type: "ADD_WORD_TO_EUDIC";
 }
 
+export interface CheckWordInEudicCommand {
+  request: CheckWordRequest;
+  type: "CHECK_WORD_IN_EUDIC";
+}
+
 export interface CancelRequestCommand {
   requestId: string;
   type: "CANCEL_REQUEST";
 }
 
-export type ContentCommand = AnalyzeSelectionCommand | AddWordToEudicCommand | CancelRequestCommand;
+export type ContentCommand =
+  AnalyzeSelectionCommand | AddWordToEudicCommand | CheckWordInEudicCommand | CancelRequestCommand;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -43,6 +54,11 @@ export function parseContentCommand(value: unknown): ContentCommand | null {
   if (value.type === "ADD_WORD_TO_EUDIC" && hasExactKeys(value, ["request", "type"])) {
     const parsed = addWordRequestSchema.safeParse(value.request);
     return parsed.success ? { request: parsed.data, type: "ADD_WORD_TO_EUDIC" } : null;
+  }
+
+  if (value.type === "CHECK_WORD_IN_EUDIC" && hasExactKeys(value, ["request", "type"])) {
+    const parsed = checkWordRequestSchema.safeParse(value.request);
+    return parsed.success ? { request: parsed.data, type: "CHECK_WORD_IN_EUDIC" } : null;
   }
 
   if (value.type === "CANCEL_REQUEST" && hasExactKeys(value, ["requestId", "type"])) {
