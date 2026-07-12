@@ -11,6 +11,7 @@ import {
   type RequestDispatcher,
 } from "./main.js";
 import { NativeMessageDecoder, encodeNativeMessage } from "./protocol/framing.js";
+import { APP_SERVER_DISABLED_FEATURES } from "./runtime/codex-app-server-config.js";
 import type {
   ProcessRunRequest,
   ProcessRunResult,
@@ -109,29 +110,13 @@ describe("native host bootstrap", () => {
         exitCode: 0,
         signal: null,
         stderr: "",
-        stdout: [
-          "--ephemeral",
-          "--ignore-user-config",
-          "--ignore-rules",
-          "--strict-config",
-          "--disable",
-          "--sandbox",
-          "--skip-git-repo-check",
-          "--output-schema",
-          "--color",
-          "--cd",
-          "--config",
-        ].join("\n"),
+        stdout: ["--stdio", "--strict-config", "--disable", "--config"].join("\n"),
       },
       {
         exitCode: 0,
         signal: null,
         stderr: "",
-        stdout: [
-          "shell_tool stable false",
-          "unified_exec stable false",
-          "shell_snapshot stable false",
-        ].join("\n"),
+        stdout: APP_SERVER_DISABLED_FEATURES.map((feature) => `${feature} stable false`).join("\n"),
       },
       { exitCode: 0, signal: null, stderr: "", stdout: "Logged in using ChatGPT" },
     ];
@@ -163,16 +148,11 @@ describe("native host bootstrap", () => {
     expect(events[0]).toMatchObject({ codexVersion: "codex-cli 0.144.1", ready: true });
     expect(requests.map((request) => request.arguments)).toEqual([
       ["--version"],
-      ["exec", "--help"],
+      ["app-server", "--help"],
       [
         "features",
         "list",
-        "--disable",
-        "shell_tool",
-        "--disable",
-        "unified_exec",
-        "--disable",
-        "shell_snapshot",
+        ...APP_SERVER_DISABLED_FEATURES.flatMap((feature) => ["--disable", feature]),
       ],
       ["login", "status"],
     ]);

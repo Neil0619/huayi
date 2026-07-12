@@ -15,6 +15,7 @@ import { dirname, join } from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
+import { APP_SERVER_DISABLED_FEATURES } from "../runtime/codex-app-server-config.js";
 import type {
   ProcessRunRequest,
   ProcessRunResult,
@@ -29,24 +30,10 @@ import {
 } from "./macos.js";
 
 const EXTENSION_ID = "abcdefghijklmnopabcdefghijklmnop";
-const REQUIRED_HELP = [
-  "--ephemeral",
-  "--ignore-user-config",
-  "--ignore-rules",
-  "--strict-config",
-  "--disable",
-  "--sandbox",
-  "--skip-git-repo-check",
-  "--output-schema",
-  "--color",
-  "--cd",
-  "--config",
-].join("\n");
-const DISABLED_FEATURES = [
-  "shell_tool stable false",
-  "unified_exec stable false",
-  "shell_snapshot stable false",
-].join("\n");
+const REQUIRED_HELP = ["--stdio", "--strict-config", "--disable", "--config"].join("\n");
+const DISABLED_FEATURES = APP_SERVER_DISABLED_FEATURES.map(
+  (feature) => `${feature} stable false`,
+).join("\n");
 const SCHEMA_NAMES = [
   "explain-lexical.json",
   "explain-sentence.json",
@@ -179,16 +166,11 @@ describe("installMacosNativeHost", () => {
     expect(result.actions.length).toBeGreaterThan(0);
     expect(runner.requests.map((request) => request.arguments)).toEqual([
       ["--version"],
-      ["exec", "--help"],
+      ["app-server", "--help"],
       [
         "features",
         "list",
-        "--disable",
-        "shell_tool",
-        "--disable",
-        "unified_exec",
-        "--disable",
-        "shell_snapshot",
+        ...APP_SERVER_DISABLED_FEATURES.flatMap((feature) => ["--disable", feature]),
       ],
       ["login", "status"],
     ]);

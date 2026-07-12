@@ -3,25 +3,24 @@ import { describe, expect, it, vi } from "vitest";
 import type { ProcessRunRequest, ProcessRunResult, ProcessRunner } from "./codex-process.js";
 import { checkCodexCapabilities } from "./codex-capabilities.js";
 
-const REQUIRED_HELP = [
-  "--ephemeral",
-  "--ignore-user-config",
-  "--ignore-rules",
-  "--strict-config",
-  "--disable",
-  "--sandbox",
-  "--skip-git-repo-check",
-  "--output-schema",
-  "--color",
-  "--cd",
-  "--config",
-].join("\n");
-
-const DISABLED_FEATURES = [
-  "shell_tool stable false",
-  "unified_exec stable false",
-  "shell_snapshot stable false",
-].join("\n");
+const REQUIRED_HELP = ["--stdio", "--strict-config", "--disable", "--config"].join("\n");
+const DISABLED_FEATURE_NAMES = [
+  "apps",
+  "hooks",
+  "image_generation",
+  "in_app_browser",
+  "memories",
+  "multi_agent",
+  "plugins",
+  "remote_plugin",
+  "shell_tool",
+  "unified_exec",
+  "shell_snapshot",
+  "tool_suggest",
+] as const;
+const DISABLED_FEATURES = DISABLED_FEATURE_NAMES.map((feature) => `${feature} stable false`).join(
+  "\n",
+);
 
 class FakeProcessRunner implements ProcessRunner {
   readonly requests: ProcessRunRequest[] = [];
@@ -46,7 +45,7 @@ function result(stdout: string, exitCode = 0, stderr = ""): ProcessRunResult {
 }
 
 describe("checkCodexCapabilities", () => {
-  it("checks version, required exec flags, and ChatGPT login without a model request", async () => {
+  it("checks App Server flags, every disabled feature, and ChatGPT login", async () => {
     const runner = new FakeProcessRunner([
       result("codex-cli 0.144.1\n"),
       result(REQUIRED_HELP),
@@ -65,27 +64,18 @@ describe("checkCodexCapabilities", () => {
 
     expect(runner.requests.map((request) => request.arguments)).toEqual([
       ["--version"],
-      ["exec", "--help"],
-      [
-        "features",
-        "list",
-        "--disable",
-        "shell_tool",
-        "--disable",
-        "unified_exec",
-        "--disable",
-        "shell_snapshot",
-      ],
+      ["app-server", "--help"],
+      ["features", "list", ...DISABLED_FEATURE_NAMES.flatMap((feature) => ["--disable", feature])],
       ["login", "status"],
     ]);
     expect(runner.requests.every((request) => request.input === "")).toBe(true);
     expect(runner.requests.every((request) => request.timeoutMs === 10_000)).toBe(true);
   });
 
-  it("fails closed when a required exec capability is absent", async () => {
+  it("fails closed when a required App Server capability is absent", async () => {
     const runner = new FakeProcessRunner([
       result("codex-cli 0.144.1"),
-      result(REQUIRED_HELP.replace("--ephemeral", "")),
+      result(REQUIRED_HELP.replace("--strict-config", "")),
     ]);
 
     await expect(
@@ -119,11 +109,57 @@ describe("checkCodexCapabilities", () => {
     });
   });
 
-  it("fails closed when shell-related features cannot all be disabled", async () => {
+  it.each(["Not logged in", "Logged in using API key"])(
+    "rejects a non-ChatGPT login status reported with exit zero: %s",
+    async (loginStatus) => {
+      const runner = new FakeProcessRunner([
+        result("codex-cli 0.144.1"),
+        result(REQUIRED_HELP),
+        result(DISABLED_FEATURES),
+        result(loginStatus),
+      ]);
+
+      await expect(
+        checkCodexCapabilities({
+          codexExecutable: "codex",
+          environment: {},
+          processRunner: runner,
+          workingDirectory: "/tmp/huayi-empty",
+        }),
+      ).rejects.toMatchObject({ code: "CODEX_NOT_AUTHENTICATED" });
+    },
+  );
+
+  it.each(["apps", "hooks", "image_generation", "mcp-placeholder", "shell_tool"])(
+    "fails closed when the disabled feature %s is true or absent",
+    async (feature) => {
+      const output =
+        feature === "mcp-placeholder"
+          ? DISABLED_FEATURES.replace("tool_suggest stable false", "")
+          : DISABLED_FEATURES.replace(`${feature} stable false`, `${feature} stable true`);
+      const runner = new FakeProcessRunner([
+        result("codex-cli 0.144.1"),
+        result(REQUIRED_HELP),
+        result(output),
+      ]);
+
+      await expect(
+        checkCodexCapabilities({
+          codexExecutable: "codex",
+          environment: {},
+          processRunner: runner,
+          workingDirectory: "/tmp/huayi-empty",
+        }),
+      ).rejects.toMatchObject({ code: "CODEX_CAPABILITY_MISSING" });
+    },
+  );
+
+  it("does not require exec-only flags", async () => {
     const runner = new FakeProcessRunner([
       result("codex-cli 0.144.1"),
       result(REQUIRED_HELP),
-      result(DISABLED_FEATURES.replace("shell_tool stable false", "shell_tool stable true")),
+      result(DISABLED_FEATURES),
+      result("Logged in using ChatGPT"),
     ]);
 
     await expect(
@@ -133,7 +169,7 @@ describe("checkCodexCapabilities", () => {
         processRunner: runner,
         workingDirectory: "/tmp/huayi-empty",
       }),
-    ).rejects.toMatchObject({ code: "CODEX_CAPABILITY_MISSING" });
+    ).resolves.toEqual({ codexVersion: "codex-cli 0.144.1" });
   });
 
   it("maps runner launch failures to a missing capability", async () => {

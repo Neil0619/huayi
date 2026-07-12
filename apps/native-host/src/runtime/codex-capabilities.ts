@@ -3,23 +3,11 @@ import {
   type ProcessRunResult,
   type ProcessRunner,
 } from "./codex-process.js";
+import { APP_SERVER_DISABLED_FEATURES } from "./codex-app-server-config.js";
 import { capabilityMissingError, notAuthenticatedError } from "./error-mapper.js";
 
 const CAPABILITY_TIMEOUT_MS = 10_000;
-const REQUIRED_EXEC_FLAGS = [
-  "--ephemeral",
-  "--ignore-user-config",
-  "--ignore-rules",
-  "--strict-config",
-  "--disable",
-  "--sandbox",
-  "--skip-git-repo-check",
-  "--output-schema",
-  "--color",
-  "--cd",
-  "--config",
-] as const;
-const DISABLED_SHELL_FEATURES = ["shell_tool", "unified_exec", "shell_snapshot"] as const;
+const REQUIRED_APP_SERVER_FLAGS = ["--stdio", "--strict-config", "--disable", "--config"] as const;
 
 export interface CodexCapabilities {
   codexVersion: string;
@@ -46,7 +34,7 @@ async function runCheck(
   });
 }
 
-function hasDisabledShellFeatures(output: string): boolean {
+function hasDisabledAppServerFeatures(output: string): boolean {
   const featureStates = new Map<string, string>();
   for (const line of output.split(/\r?\n/u)) {
     const columns = line.trim().split(/\s+/u);
@@ -56,7 +44,7 @@ function hasDisabledShellFeatures(output: string): boolean {
       featureStates.set(name, state);
     }
   }
-  return DISABLED_SHELL_FEATURES.every((feature) => featureStates.get(feature) === "false");
+  return APP_SERVER_DISABLED_FEATURES.every((feature) => featureStates.get(feature) === "false");
 }
 
 export async function checkCodexCapabilities(
@@ -67,11 +55,11 @@ export async function checkCodexCapabilities(
   let featureResult: ProcessRunResult;
   try {
     versionResult = await runCheck(options, ["--version"]);
-    helpResult = await runCheck(options, ["exec", "--help"]);
+    helpResult = await runCheck(options, ["app-server", "--help"]);
     featureResult = await runCheck(options, [
       "features",
       "list",
-      ...DISABLED_SHELL_FEATURES.flatMap((feature) => ["--disable", feature]),
+      ...APP_SERVER_DISABLED_FEATURES.flatMap((feature) => ["--disable", feature]),
     ]);
   } catch (error) {
     throw capabilityMissingError(error);
@@ -83,8 +71,8 @@ export async function checkCodexCapabilities(
     helpResult.exitCode !== 0 ||
     featureResult.exitCode !== 0 ||
     codexVersion.length === 0 ||
-    REQUIRED_EXEC_FLAGS.some((flag) => !helpResult.stdout.includes(flag)) ||
-    !hasDisabledShellFeatures(featureResult.stdout)
+    REQUIRED_APP_SERVER_FLAGS.some((flag) => !helpResult.stdout.includes(flag)) ||
+    !hasDisabledAppServerFeatures(featureResult.stdout)
   ) {
     throw capabilityMissingError();
   }
@@ -97,7 +85,7 @@ export async function checkCodexCapabilities(
   }
 
   const loginOutput = `${loginResult.stdout}\n${loginResult.stderr}`;
-  if (loginResult.exitCode !== 0 || !/logged in/i.test(loginOutput)) {
+  if (loginResult.exitCode !== 0 || !/^\s*logged in using chatgpt\b/im.test(loginOutput)) {
     throw notAuthenticatedError();
   }
 

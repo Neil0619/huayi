@@ -98,6 +98,32 @@ export function mapCodexProcessFailure(failure: CodexProcessFailure): CodexProvi
   return providerError(ERROR_DEFINITIONS.INTERNAL_ERROR);
 }
 
+function turnFailureDiagnostics(failure: unknown, depth = 0): string {
+  if (typeof failure === "string") {
+    return failure.slice(0, 8_192);
+  }
+  if (failure instanceof Error) {
+    return failure.message.slice(0, 8_192);
+  }
+  if (depth >= 3 || typeof failure !== "object" || failure === null || Array.isArray(failure)) {
+    return "";
+  }
+
+  const record = failure as Record<string, unknown>;
+  return ["code", "details", "error", "message"]
+    .map((key) => turnFailureDiagnostics(record[key], depth + 1))
+    .filter((value) => value.length > 0)
+    .join(" ")
+    .slice(0, 8_192);
+}
+
+export function mapCodexTurnFailure(failure: unknown): CodexProviderError {
+  return mapCodexProcessFailure({
+    exitCode: null,
+    stderr: turnFailureDiagnostics(failure),
+  });
+}
+
 export function mapCodexError(error: unknown): AnalysisError {
   if (error instanceof CodexProviderError) {
     return { code: error.code, message: error.message, retryable: error.retryable };

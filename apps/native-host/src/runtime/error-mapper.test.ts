@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { CodexProviderError, mapCodexError, mapCodexProcessFailure } from "./error-mapper.js";
+import {
+  CodexProviderError,
+  mapCodexError,
+  mapCodexProcessFailure,
+  mapCodexTurnFailure,
+} from "./error-mapper.js";
 
 describe("Codex error mapping", () => {
   it.each([
@@ -19,6 +24,24 @@ describe("Codex error mapping", () => {
     );
     expect(mapCodexProcessFailure({ exitCode: null, stderr: "secret", timedOut: true })).toEqual(
       expect.objectContaining({ code: "TIMEOUT", retryable: true }),
+    );
+  });
+
+  it.each([
+    [{ message: "429 too many requests" }, "RATE_LIMITED", true],
+    [{ error: { message: "usage limit reached" } }, "QUOTA_EXCEEDED", false],
+    [{ details: "network connection reset" }, "NETWORK_ERROR", true],
+  ] as const)("maps App Server turn failures", (failure, code, retryable) => {
+    expect(mapCodexTurnFailure(failure)).toMatchObject({ code, retryable });
+  });
+
+  it("fails unknown App Server failures closed without exposing their text", () => {
+    expect(mapCodexTurnFailure({ message: "/Users/me/.codex/auth.json prompt secret" })).toEqual(
+      expect.objectContaining({
+        code: "INTERNAL_ERROR",
+        message: expect.not.stringContaining("auth.json"),
+        retryable: true,
+      }),
     );
   });
 
