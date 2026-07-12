@@ -7,7 +7,6 @@ import {
 import {
   AppServerInvariantError,
   SAFE_APP_SERVER_ITEM_TYPES,
-  createTurnDeferred,
   parseAppServerNotification,
   initializeAppServerChannel,
   startAppServerThread,
@@ -15,18 +14,23 @@ import {
   type AppServerEvent,
   type ItemEvent,
 } from "./codex-app-server-protocol.js";
+import {
+  cancelledError,
+  createActiveTurn,
+  timeoutError,
+  type ActiveTurn,
+  type CodexAppServer,
+  type CodexAppServerClientOptions,
+  type AppServerSession as Session,
+  type CodexTurnRequest,
+} from "./codex-app-server-lifecycle.js";
 import { MonitoredJsonRpcProcess } from "./codex-app-server-process-monitor.js";
 import {
   DEFAULT_MAXIMUM_OUTPUT_BYTES,
   DEFAULT_PROCESS_TIMEOUT_MS,
   buildAllowedEnvironment,
 } from "./codex-process.js";
-import {
-  CodexProviderError,
-  capabilityMissingError,
-  mapCodexProcessFailure,
-  mapCodexTurnFailure,
-} from "./error-mapper.js";
+import { CodexProviderError, capabilityMissingError, mapCodexTurnFailure } from "./error-mapper.js";
 import {
   JsonRpcChannel,
   type JsonRpcNotification,
@@ -35,63 +39,13 @@ import {
 
 export { APP_SERVER_ARGUMENTS, createNodeAppServerProcess } from "./codex-app-server-config.js";
 export type { NodeAppServerProcessOptions } from "./codex-app-server-config.js";
+export type {
+  CodexAppServer,
+  CodexAppServerClientOptions,
+  CodexTurnRequest,
+} from "./codex-app-server-lifecycle.js";
 
 const INTERRUPT_GRACE_MS = 1_000;
-
-export interface CodexTurnRequest {
-  outputSchema: unknown;
-  prompt: string;
-  requestId: string;
-  signal: AbortSignal;
-  onAssistantDelta(delta: string): void;
-}
-
-export interface CodexAppServer {
-  runTurn(request: CodexTurnRequest): Promise<string>;
-  interrupt(requestId: string): Promise<void>;
-  dispose(): void;
-}
-
-export interface CodexAppServerClientOptions {
-  codexExecutable: string;
-  environment: Readonly<NodeJS.ProcessEnv>;
-  processFactory?: (options: NodeAppServerProcessOptions) => JsonRpcProcess;
-  timeoutMs?: number;
-  workingDirectory: string;
-}
-
-interface Session {
-  channel: JsonRpcChannel;
-  closed: boolean;
-  failure?: CodexProviderError;
-  ready: boolean;
-}
-
-interface ActiveTurn {
-  abort(): void;
-  agentItemId?: string;
-  cancellation?: CodexProviderError;
-  completedAgentItems: number;
-  finalText?: string;
-  graceTimer?: NodeJS.Timeout;
-  interruptStarted: boolean;
-  notifications: AppServerEvent[];
-  reject(reason: CodexProviderError): void;
-  request: CodexTurnRequest;
-  resolve(text: string): void;
-  session: Session;
-  threadId: string;
-  timeoutTimer?: NodeJS.Timeout;
-  turnId?: string;
-}
-
-function cancelledError(): CodexProviderError {
-  return mapCodexProcessFailure({ aborted: true, exitCode: null, stderr: "" });
-}
-
-function timeoutError(): CodexProviderError {
-  return mapCodexProcessFailure({ exitCode: null, stderr: "", timedOut: true });
-}
 
 export class CodexAppServerClient implements CodexAppServer {
   readonly #activeTurns = new Map<string, ActiveTurn>();
@@ -122,48 +76,51 @@ export class CodexAppServerClient implements CodexAppServer {
   async runTurn(request: CodexTurnRequest): Promise<string> {
     if (this.#disposed || request.signal.aborted) throw cancelledError();
     if (this.#activeTurns.has(request.requestId)) throw mapCodexTurnFailure(undefined);
-    const session = await this.#ensureSession();
-    const thread = await this.#startThread(session);
-    if (request.signal.aborted) throw cancelledError();
-
-    const deferred = createTurnDeferred();
-    const active: ActiveTurn = {
-      abort: () => this.#cancel(active, cancelledError()),
-      completedAgentItems: 0,
-      interruptStarted: false,
-      notifications: [],
-      reject: deferred.reject,
-      request,
-      resolve: deferred.resolve,
-      session,
-      threadId: thread.thread.id,
-    };
+    const active = createActiveTurn(request, (candidate) =>
+      this.#cancel(candidate, cancelledError()),
+    );
     this.#activeTurns.set(request.requestId, active);
     request.signal.addEventListener("abort", active.abort, { once: true });
+    active.timeoutTimer = setTimeout(() => this.#cancel(active, timeoutError()), this.#timeoutMs);
+    active.timeoutTimer.unref();
+    void this.#runReservedTurn(active);
+    return await active.promise;
+  }
 
+  async #runReservedTurn(active: ActiveTurn): Promise<void> {
     try {
+      const pendingSession = this.#ensureSession();
+      if (this.#session !== undefined) active.session = this.#session;
+      const session = await pendingSession;
+      if (!this.#isActive(active)) return;
+      active.session = session;
+      const thread = await this.#startThread(session);
+      if (!this.#isActive(active)) return;
+      active.threadId = thread.thread.id;
       const turn = await startAppServerTurn(
         session.channel,
         this.#workingDirectory,
         active.threadId,
-        request,
+        active.request,
       );
       active.turnId = turn.turn.id;
-    } catch (error) {
-      if (error instanceof AppServerInvariantError) {
-        this.#failSession(session, capabilityMissingError());
-      } else {
-        this.#reject(active, mapCodexTurnFailure(error));
+      if (active.cancellation !== undefined) this.#interruptActive(active);
+      for (const notification of active.notifications.splice(0)) {
+        this.#routeEvent(session, notification);
       }
-      return await deferred.promise;
+    } catch (error) {
+      if (!this.#isActive(active)) return;
+      if (error instanceof AppServerInvariantError) {
+        const reason = capabilityMissingError();
+        if (active.session === undefined) this.#reject(active, reason);
+        else this.#failSession(active.session, reason);
+      } else {
+        this.#reject(
+          active,
+          error instanceof CodexProviderError ? error : mapCodexTurnFailure(error),
+        );
+      }
     }
-    active.timeoutTimer = setTimeout(() => this.#cancel(active, timeoutError()), this.#timeoutMs);
-    active.timeoutTimer.unref();
-    for (const notification of active.notifications.splice(0)) {
-      this.#routeEvent(session, notification);
-    }
-    if (request.signal.aborted) this.#cancel(active, cancelledError());
-    return await deferred.promise;
   }
 
   async interrupt(requestId: string): Promise<void> {
@@ -175,12 +132,19 @@ export class CodexAppServerClient implements CodexAppServer {
     if (this.#disposed) return;
     this.#disposed = true;
     const reason = cancelledError();
-    for (const active of this.#activeTurns.values()) {
-      if (active.turnId !== undefined) {
+    for (const active of [...this.#activeTurns.values()]) {
+      if (
+        !active.interruptStarted &&
+        active.session !== undefined &&
+        active.threadId !== undefined &&
+        active.turnId !== undefined
+      ) {
+        active.interruptStarted = true;
         void active.session.channel
           .request("turn/interrupt", { threadId: active.threadId, turnId: active.turnId })
           .catch(() => undefined);
       }
+      this.#reject(active, reason);
     }
     if (this.#session !== undefined) this.#failSession(this.#session, reason);
   }
@@ -282,17 +246,17 @@ export class CodexAppServerClient implements CodexAppServer {
       return;
     }
     if (event.kind === "agentDelta") {
-      this.#agentDelta(active, event.itemId, event.delta);
+      this.#agentDelta(active, session, event.itemId, event.delta);
     } else if (event.kind === "item") {
-      this.#itemEvent(active, event);
+      this.#itemEvent(active, session, event);
     } else {
-      this.#turnCompleted(active, event.status, event.error);
+      this.#turnCompleted(active, session, event.status, event.error);
     }
   }
 
-  #agentDelta(active: ActiveTurn, itemId: string, delta: string): void {
+  #agentDelta(active: ActiveTurn, session: Session, itemId: string, delta: string): void {
     if (active.agentItemId !== undefined && active.agentItemId !== itemId) {
-      this.#failSession(active.session, capabilityMissingError());
+      this.#failSession(session, capabilityMissingError());
       return;
     }
     active.agentItemId = itemId;
@@ -304,28 +268,28 @@ export class CodexAppServerClient implements CodexAppServer {
     }
   }
 
-  #itemEvent(active: ActiveTurn, event: ItemEvent): void {
+  #itemEvent(active: ActiveTurn, session: Session, event: ItemEvent): void {
     if (!SAFE_APP_SERVER_ITEM_TYPES.has(event.item.type)) {
-      this.#failSession(active.session, capabilityMissingError());
+      this.#failSession(session, capabilityMissingError());
       return;
     }
     if (event.item.type !== "agentMessage") return;
     if (active.agentItemId !== undefined && active.agentItemId !== event.item.id) {
-      this.#failSession(active.session, capabilityMissingError());
+      this.#failSession(session, capabilityMissingError());
       return;
     }
     active.agentItemId = event.item.id;
     if (event.lifecycle === "completed") {
       active.completedAgentItems += 1;
       if (active.completedAgentItems !== 1 || typeof event.item.text !== "string") {
-        this.#failSession(active.session, capabilityMissingError());
+        this.#failSession(session, capabilityMissingError());
         return;
       }
       active.finalText = event.item.text;
     }
   }
 
-  #turnCompleted(active: ActiveTurn, status: string, error: unknown): void {
+  #turnCompleted(active: ActiveTurn, session: Session, status: string, error: unknown): void {
     if (active.cancellation !== undefined) {
       this.#reject(active, active.cancellation);
     } else if (status === "failed") {
@@ -337,26 +301,60 @@ export class CodexAppServerClient implements CodexAppServer {
       active.completedAgentItems === 1 &&
       active.finalText !== undefined
     ) {
-      this.#resolve(active, active.finalText);
+      if (this.#cleanup(active)) active.resolve(active.finalText);
     } else {
-      this.#failSession(active.session, capabilityMissingError());
+      this.#failSession(session, capabilityMissingError());
     }
   }
 
   #cancel(active: ActiveTurn, reason: CodexProviderError): void {
-    if (this.#activeTurns.get(active.request.requestId) !== active) return;
+    if (!this.#isActive(active)) return;
     active.cancellation ??= reason;
     if (active.timeoutTimer !== undefined) clearTimeout(active.timeoutTimer);
-    if (active.turnId === undefined || active.interruptStarted) return;
+    if (active.turnId !== undefined) {
+      this.#interruptActive(active);
+    } else if (active.threadId !== undefined) {
+      this.#armCancellationGrace(active);
+    } else {
+      this.#failUnidentifiedStartup(active);
+    }
+  }
+
+  #interruptActive(active: ActiveTurn): void {
+    if (
+      !this.#isActive(active) ||
+      active.interruptStarted ||
+      active.session === undefined ||
+      active.threadId === undefined ||
+      active.turnId === undefined
+    ) {
+      return;
+    }
     active.interruptStarted = true;
-    active.graceTimer = setTimeout(
-      () => this.#reject(active, active.cancellation ?? reason),
-      INTERRUPT_GRACE_MS,
-    );
-    active.graceTimer.unref();
+    this.#armCancellationGrace(active);
     void active.session.channel
       .request("turn/interrupt", { threadId: active.threadId, turnId: active.turnId })
       .catch(() => undefined);
+  }
+
+  #armCancellationGrace(active: ActiveTurn): void {
+    if (active.graceTimer !== undefined) return;
+    active.graceTimer = setTimeout(() => {
+      if (!this.#isActive(active)) return;
+      if (active.turnId === undefined) this.#failUnidentifiedStartup(active);
+      else this.#reject(active, active.cancellation ?? cancelledError());
+    }, INTERRUPT_GRACE_MS);
+    active.graceTimer.unref();
+  }
+
+  #failUnidentifiedStartup(active: ActiveTurn): void {
+    const session = active.session;
+    const reason = active.cancellation ?? cancelledError();
+    if (!this.#cleanup(active)) return;
+    if (session !== undefined && !session.closed) {
+      this.#failSession(session, mapCodexTurnFailure(undefined));
+    }
+    active.reject(reason);
   }
 
   #processFailed(session: Session): void {
@@ -370,23 +368,26 @@ export class CodexAppServerClient implements CodexAppServer {
     if (session.closed) return;
     session.closed = true;
     session.failure = reason;
-    if (this.#session === session) this.#session = undefined;
+    if (this.#session === session) {
+      this.#session = undefined;
+      this.#sessionPromise = undefined;
+    }
     for (const active of [...this.#activeTurns.values()]) {
       if (active.session === session) this.#reject(active, reason);
     }
     session.channel.dispose(reason);
   }
 
-  #resolve(active: ActiveTurn, text: string): void {
-    if (this.#cleanup(active)) active.resolve(text);
-  }
-
   #reject(active: ActiveTurn, reason: CodexProviderError): void {
     if (this.#cleanup(active)) active.reject(reason);
   }
 
+  #isActive(active: ActiveTurn): boolean {
+    return this.#activeTurns.get(active.request.requestId) === active;
+  }
+
   #cleanup(active: ActiveTurn): boolean {
-    if (this.#activeTurns.get(active.request.requestId) !== active) return false;
+    if (!this.#isActive(active)) return false;
     this.#activeTurns.delete(active.request.requestId);
     active.request.signal.removeEventListener("abort", active.abort);
     if (active.timeoutTimer !== undefined) clearTimeout(active.timeoutTimer);
