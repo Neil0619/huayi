@@ -4,6 +4,7 @@ import type {
   ErrorOverlayState,
   LoadingOverlayState,
   ResultOverlayState,
+  StreamingOverlayState,
 } from "./overlay-state.js";
 import { renderWordbookAction } from "./render-wordbook-action.js";
 
@@ -13,7 +14,8 @@ export interface PanelHandlers {
   onRetry: () => void;
 }
 
-type PanelState = LoadingOverlayState | ResultOverlayState | ErrorOverlayState;
+type PanelState =
+  LoadingOverlayState | StreamingOverlayState | ResultOverlayState | ErrorOverlayState;
 
 const partOfSpeechLabels: Record<PartOfSpeech, string> = {
   adjective: "adj.",
@@ -234,7 +236,7 @@ export function renderOverlayPanel(
   const body = document.createElement("div");
   body.className = "huayi-body";
 
-  if (state.status === "loading") {
+  if (state.status === "loading" || state.status === "streaming") {
     const loading = document.createElement("div");
     loading.className = "huayi-loading";
     const spinner = document.createElement("span");

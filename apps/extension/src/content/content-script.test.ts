@@ -4,6 +4,7 @@ import type { ContentCommand } from "../shared/extension-messages.js";
 import {
   createAddWordRequest,
   createAnalyzeRequest,
+  createCheckWordRequest,
   initializeContentScript,
   type ContentRuntime,
   type ContentScriptInstance,
@@ -169,6 +170,28 @@ describe("createAddWordRequest", () => {
         "word-2",
       ),
     ).toThrow();
+  });
+});
+
+describe("createCheckWordRequest", () => {
+  it("uses only the original word and omits context and model text", () => {
+    expect(
+      createCheckWordRequest(
+        {
+          context: "A wider paragraph that must not be sent.",
+          selection: "investigation",
+          selectionKind: "word",
+          wordbookContext: "The investigation continues.",
+        },
+        "check-1",
+      ),
+    ).toEqual({
+      language: "en",
+      requestId: "check-1",
+      schemaVersion: 1,
+      type: "check-word",
+      word: "investigation",
+    });
   });
 });
 

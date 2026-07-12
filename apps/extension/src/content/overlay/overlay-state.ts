@@ -1,8 +1,10 @@
 import type {
+  AnalysisDeltaSection,
   AnalysisError,
   AnalysisResult,
   AnalyzeAction,
   WordbookAddOutcome,
+  WordbookPresence,
 } from "@huayi/protocol";
 
 import type { SelectionRequestInput } from "../selection/read-selection.js";
@@ -27,6 +29,26 @@ interface OverlaySession {
   selection: SelectionRequestInput;
 }
 
+interface AnalysisOverlaySession extends OverlaySession {
+  action: AnalyzeAction;
+  startedAt: number;
+  wordbook: WordbookUiState;
+}
+
+export interface AnalysisPreview {
+  lastSequence: number;
+  sections: Partial<Record<AnalysisDeltaSection, string>>;
+}
+
+export interface WordbookUiState {
+  availability: "not-applicable" | "checking" | "absent" | "present" | "unknown";
+  mutation:
+    | { status: "idle" }
+    | { status: "saving" }
+    | { status: "success" }
+    | { error: AnalysisError; status: "error" };
+}
+
 export interface IdleOverlayState {
   status: "idle";
 }
@@ -35,30 +57,23 @@ export interface ActionsOverlayState extends OverlaySession {
   status: "actions";
 }
 
-export interface LoadingOverlayState extends OverlaySession {
-  action: AnalyzeAction;
-  startedAt: number;
+export interface LoadingOverlayState extends AnalysisOverlaySession {
   status: "loading";
 }
 
-export interface ResultOverlayState extends OverlaySession {
-  action: AnalyzeAction;
-  result: AnalysisResult;
-  startedAt: number;
-  status: "result";
-  wordbook: WordbookUiState;
+export interface StreamingOverlayState extends AnalysisOverlaySession {
+  preview: AnalysisPreview;
+  status: "streaming";
 }
 
-export type WordbookUiState =
-  | { status: "idle" }
-  | { status: "saving" }
-  | { outcome: WordbookAddOutcome; status: "success" }
-  | { error: AnalysisError; status: "error" };
+export interface ResultOverlayState extends AnalysisOverlaySession {
+  result: AnalysisResult;
+  status: "result";
+}
 
-export interface ErrorOverlayState extends OverlaySession {
-  action: AnalyzeAction;
+export interface ErrorOverlayState extends AnalysisOverlaySession {
   error: AnalysisError;
-  startedAt: number;
+  preview: AnalysisPreview;
   status: "error";
 }
 
@@ -66,15 +81,24 @@ export interface ClosedOverlayState {
   status: "closed";
 }
 
-export type VisibleOverlayState =
-  ActionsOverlayState | LoadingOverlayState | ResultOverlayState | ErrorOverlayState;
+type AnalysisOverlayState =
+  LoadingOverlayState | StreamingOverlayState | ResultOverlayState | ErrorOverlayState;
+export type VisibleOverlayState = ActionsOverlayState | AnalysisOverlayState;
 export type OverlayState = VisibleOverlayState | IdleOverlayState | ClosedOverlayState;
 
 export type OverlayEvent =
   | ({ type: "SHOW_ACTIONS" } & Omit<OverlaySession, "position">)
   | { action: AnalyzeAction; startedAt: number; type: "START" }
+  | {
+      delta: string;
+      section: AnalysisDeltaSection;
+      sequence: number;
+      type: "APPEND_DELTA";
+    }
   | { result: AnalysisResult; type: "RESOLVE" }
   | { error: AnalysisError; type: "REJECT" }
+  | { presence: WordbookPresence; type: "RESOLVE_WORDBOOK_CHECK" }
+  | { type: "REJECT_WORDBOOK_CHECK" }
   | { type: "START_WORDBOOK" }
   | { outcome: WordbookAddOutcome; type: "RESOLVE_WORDBOOK" }
   | { error: AnalysisError; type: "REJECT_WORDBOOK" }
@@ -82,8 +106,64 @@ export type OverlayEvent =
   | { position: OverlayPoint; type: "MOVE" }
   | { type: "CLOSE" };
 
-function isVisible(state: OverlayState): state is VisibleOverlayState {
+export function isVisibleOverlayState(state: OverlayState): state is VisibleOverlayState {
   return !["idle", "closed"].includes(state.status);
+}
+
+function hasAnalysis(state: OverlayState): state is AnalysisOverlayState {
+  return ["loading", "streaming", "result", "error"].includes(state.status);
+}
+
+function initialWordbook(selection: SelectionRequestInput): WordbookUiState {
+  return {
+    availability: selection.selectionKind === "word" ? "checking" : "not-applicable",
+    mutation: { status: "idle" },
+  };
+}
+
+function emptyPreview(): AnalysisPreview {
+  return { lastSequence: -1, sections: {} };
+}
+
+function toResultState(
+  state: LoadingOverlayState | StreamingOverlayState,
+  result: AnalysisResult,
+): ResultOverlayState {
+  const next: ResultOverlayState = {
+    action: state.action,
+    anchorRect: state.anchorRect,
+    result,
+    selection: state.selection,
+    startedAt: state.startedAt,
+    status: "result",
+    wordbook: state.wordbook,
+  };
+  return state.position === undefined ? next : { ...next, position: state.position };
+}
+
+function toErrorState(
+  state: LoadingOverlayState | StreamingOverlayState,
+  error: AnalysisError,
+): ErrorOverlayState {
+  const next: ErrorOverlayState = {
+    action: state.action,
+    anchorRect: state.anchorRect,
+    error,
+    preview: state.status === "streaming" ? state.preview : emptyPreview(),
+    selection: state.selection,
+    startedAt: state.startedAt,
+    status: "error",
+    wordbook: state.wordbook,
+  };
+  return state.position === undefined ? next : { ...next, position: state.position };
+}
+
+function mayUpdateAvailability(state: AnalysisOverlayState): boolean {
+  return (
+    state.wordbook.availability !== "not-applicable" &&
+    state.wordbook.mutation.status !== "saving" &&
+    state.wordbook.mutation.status !== "success"
+  );
 }
 
 export function reduceOverlayState(state: OverlayState, event: OverlayEvent): OverlayState {
@@ -100,7 +180,7 @@ export function reduceOverlayState(state: OverlayState, event: OverlayEvent): Ov
   }
 
   if (event.type === "MOVE") {
-    return isVisible(state) ? { ...state, position: event.position } : state;
+    return isVisibleOverlayState(state) ? { ...state, position: event.position } : state;
   }
 
   if (state.status === "actions" && event.type === "START") {
@@ -109,15 +189,37 @@ export function reduceOverlayState(state: OverlayState, event: OverlayEvent): Ov
       action: event.action,
       startedAt: event.startedAt,
       status: "loading",
+      wordbook: initialWordbook(state.selection),
     };
   }
 
-  if (state.status === "loading" && event.type === "RESOLVE") {
-    return { ...state, result: event.result, status: "result", wordbook: { status: "idle" } };
+  if (
+    (state.status === "loading" || state.status === "streaming") &&
+    event.type === "APPEND_DELTA"
+  ) {
+    const preview = state.status === "streaming" ? state.preview : emptyPreview();
+    if (event.sequence !== preview.lastSequence + 1) {
+      return state;
+    }
+    return {
+      ...state,
+      preview: {
+        lastSequence: event.sequence,
+        sections: {
+          ...preview.sections,
+          [event.section]: `${preview.sections[event.section] ?? ""}${event.delta}`,
+        },
+      },
+      status: "streaming",
+    };
   }
 
-  if (state.status === "loading" && event.type === "REJECT") {
-    return { ...state, error: event.error, status: "error" };
+  if ((state.status === "loading" || state.status === "streaming") && event.type === "RESOLVE") {
+    return toResultState(state, event.result);
+  }
+
+  if ((state.status === "loading" || state.status === "streaming") && event.type === "REJECT") {
+    return toErrorState(state, event.error);
   }
 
   if (state.status === "error" && state.error.retryable && event.type === "RETRY") {
@@ -127,41 +229,62 @@ export function reduceOverlayState(state: OverlayState, event: OverlayEvent): Ov
       selection: state.selection,
       startedAt: event.startedAt,
       status: "loading",
+      wordbook: initialWordbook(state.selection),
     };
     return state.position === undefined
       ? loadingState
       : { ...loadingState, position: state.position };
   }
 
+  if (
+    hasAnalysis(state) &&
+    mayUpdateAvailability(state) &&
+    event.type === "RESOLVE_WORDBOOK_CHECK"
+  ) {
+    return { ...state, wordbook: { ...state.wordbook, availability: event.presence } };
+  }
+
+  if (
+    hasAnalysis(state) &&
+    mayUpdateAvailability(state) &&
+    event.type === "REJECT_WORDBOOK_CHECK"
+  ) {
+    return { ...state, wordbook: { ...state.wordbook, availability: "unknown" } };
+  }
+
   if (state.status === "result" && event.type === "START_WORDBOOK") {
     const isLexicalResult = ["explain-lexical", "translate-lexical"].includes(state.result.type);
+    const mutation = state.wordbook.mutation;
     const mayStart =
       state.selection.selectionKind === "word" &&
       state.selection.wordbookContext !== null &&
+      state.wordbook.availability !== "present" &&
       isLexicalResult &&
-      state.wordbook.status !== "saving" &&
-      state.wordbook.status !== "success" &&
-      !(state.wordbook.status === "error" && state.wordbook.error.code === "RATE_LIMITED");
-    return mayStart ? { ...state, wordbook: { status: "saving" } } : state;
+      mutation.status !== "saving" &&
+      mutation.status !== "success" &&
+      !(mutation.status === "error" && mutation.error.code === "RATE_LIMITED");
+    return mayStart
+      ? { ...state, wordbook: { ...state.wordbook, mutation: { status: "saving" } } }
+      : state;
   }
 
   if (
     state.status === "result" &&
-    state.wordbook.status === "saving" &&
+    state.wordbook.mutation.status === "saving" &&
     event.type === "RESOLVE_WORDBOOK"
+  ) {
+    return { ...state, wordbook: { ...state.wordbook, mutation: { status: "success" } } };
+  }
+
+  if (
+    state.status === "result" &&
+    state.wordbook.mutation.status === "saving" &&
+    event.type === "REJECT_WORDBOOK"
   ) {
     return {
       ...state,
-      wordbook: { outcome: event.outcome, status: "success" },
+      wordbook: { ...state.wordbook, mutation: { error: event.error, status: "error" } },
     };
-  }
-
-  if (
-    state.status === "result" &&
-    state.wordbook.status === "saving" &&
-    event.type === "REJECT_WORDBOOK"
-  ) {
-    return { ...state, wordbook: { error: event.error, status: "error" } };
   }
 
   return state;

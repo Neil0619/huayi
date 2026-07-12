@@ -1,6 +1,6 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { AnalyzeAction } from "@huayi/protocol";
+import type { AnalysisResult, AnalyzeAction } from "@huayi/protocol";
 
 import { OverlayController } from "./overlay-controller.js";
 
@@ -19,6 +19,23 @@ const selection = {
   selectionKind: "word",
   wordbookContext: "The investigation was in its early stages.",
 } as const;
+
+const lexicalResult: AnalysisResult = {
+  collocations: [
+    { meaningZh: "刑事调查", text: "criminal investigation" },
+    { meaningZh: "展开调查", text: "launch an investigation" },
+  ],
+  contextualMeaningZh: "调查",
+  partOfSpeech: "noun",
+  selectionKind: "word",
+  similarTerms: [
+    { meaningZh: "询问", partOfSpeech: "noun", text: "inquiry" },
+    { meaningZh: "审查", partOfSpeech: "noun", text: "examination" },
+    { meaningZh: "研究", partOfSpeech: "noun", text: "research" },
+  ],
+  sourceText: "investigation",
+  type: "translate-lexical",
+};
 
 const controllers: OverlayController[] = [];
 
@@ -41,6 +58,7 @@ afterEach(() => {
     controller.destroy();
   }
   document.body.textContent = "";
+  vi.useRealTimers();
 });
 
 describe("OverlayController", () => {
@@ -129,22 +147,7 @@ describe("OverlayController", () => {
     const controller = createController([], cancellations, additions);
     controller.show(selection, anchorRect);
     controller.start("translate");
-    controller.resolve({
-      collocations: [
-        { meaningZh: "刑事调查", text: "criminal investigation" },
-        { meaningZh: "展开调查", text: "launch an investigation" },
-      ],
-      contextualMeaningZh: "调查",
-      partOfSpeech: "noun",
-      selectionKind: "word",
-      similarTerms: [
-        { meaningZh: "询问", partOfSpeech: "noun", text: "inquiry" },
-        { meaningZh: "审查", partOfSpeech: "noun", text: "examination" },
-        { meaningZh: "研究", partOfSpeech: "noun", text: "research" },
-      ],
-      sourceText: "investigation",
-      type: "translate-lexical",
-    });
+    controller.resolve(lexicalResult);
 
     const button = controller.shadowRoot.querySelector<HTMLButtonElement>(
       "[data-action='add-word']",
@@ -177,5 +180,112 @@ describe("OverlayController", () => {
     controller.addWord();
     controller.close();
     expect(cancellations).toHaveLength(1);
+  });
+
+  it("batches ten rapid deltas into one render after 40 milliseconds", () => {
+    vi.useFakeTimers();
+    const controller = createController([], []);
+    controller.show(selection, anchorRect);
+    controller.start("translate");
+    const renderSpy = vi.spyOn(controller.shadowRoot, "replaceChildren");
+
+    for (let sequence = 0; sequence < 10; sequence += 1) {
+      controller.appendDelta({
+        delta: `${sequence}`,
+        requestId: "analysis-1",
+        schemaVersion: 1,
+        section: "contextual-meaning",
+        sequence,
+        type: "analysis-delta",
+      });
+    }
+
+    expect(controller.state.status).toBe("loading");
+    expect(renderSpy).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(39);
+    expect(renderSpy).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1);
+    expect(controller.state).toMatchObject({
+      preview: {
+        lastSequence: 9,
+        sections: { "contextual-meaning": "0123456789" },
+      },
+      status: "streaming",
+    });
+    expect(renderSpy).toHaveBeenCalledOnce();
+  });
+
+  it("flushes pending deltas before a terminal error", () => {
+    vi.useFakeTimers();
+    const controller = createController([], []);
+    controller.show(selection, anchorRect);
+    controller.start("translate");
+    controller.appendDelta({
+      delta: "部分译文",
+      requestId: "analysis-1",
+      schemaVersion: 1,
+      section: "translation",
+      sequence: 0,
+      type: "analysis-delta",
+    });
+
+    controller.reject({ code: "TIMEOUT", message: "处理超时，请重试。", retryable: true });
+
+    expect(controller.state).toMatchObject({
+      preview: { lastSequence: 0, sections: { translation: "部分译文" } },
+      status: "error",
+    });
+  });
+
+  it("flushes before final replacement and preserves valid scroll and focused header action", () => {
+    vi.useFakeTimers();
+    const controller = createController([], []);
+    controller.show(selection, anchorRect);
+    controller.start("translate");
+    controller.appendDelta({
+      delta: "调",
+      requestId: "analysis-1",
+      schemaVersion: 1,
+      section: "contextual-meaning",
+      sequence: 0,
+      type: "analysis-delta",
+    });
+    const body = controller.shadowRoot.querySelector<HTMLElement>(".huayi-body");
+    if (body !== null) {
+      body.scrollTop = 42;
+    }
+    controller.shadowRoot.querySelector<HTMLButtonElement>("[data-action='close']")?.focus();
+    const renderSpy = vi.spyOn(controller.shadowRoot, "replaceChildren");
+
+    controller.resolve(lexicalResult);
+
+    expect(renderSpy).toHaveBeenCalledTimes(2);
+    expect(controller.state.status).toBe("result");
+    expect(controller.shadowRoot.querySelector<HTMLElement>(".huayi-body")?.scrollTop).toBe(42);
+    expect((controller.shadowRoot.activeElement as HTMLElement | null)?.dataset.action).toBe(
+      "close",
+    );
+  });
+
+  it("clears a stale delta batch timer when closed", () => {
+    vi.useFakeTimers();
+    const controller = createController([], []);
+    controller.show(selection, anchorRect);
+    controller.start("translate");
+    controller.appendDelta({
+      delta: "late",
+      requestId: "analysis-1",
+      schemaVersion: 1,
+      section: "translation",
+      sequence: 0,
+      type: "analysis-delta",
+    });
+    const renderSpy = vi.spyOn(controller.shadowRoot, "replaceChildren");
+
+    controller.close();
+    vi.advanceTimersByTime(40);
+
+    expect(controller.state.status).toBe("closed");
+    expect(renderSpy).not.toHaveBeenCalled();
   });
 });

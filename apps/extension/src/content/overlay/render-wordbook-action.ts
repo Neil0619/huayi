@@ -9,11 +9,11 @@ export function canAddResultToWordbook(state: ResultOverlayState): boolean {
 }
 
 function buttonLabel(state: ResultOverlayState): string {
-  switch (state.wordbook.status) {
+  switch (state.wordbook.mutation.status) {
     case "saving":
       return "正在添加…";
     case "success":
-      return state.wordbook.outcome === "added" ? "已加入生词本" : "已在生词本";
+      return "已加入生词本";
     case "error":
     case "idle":
       return "加入欧路生词本";
@@ -36,19 +36,20 @@ export function renderWordbookAction(
   button.className = "huayi-wordbook-button";
   button.dataset.action = "add-word";
   button.disabled =
-    state.wordbook.status === "saving" ||
-    state.wordbook.status === "success" ||
-    (state.wordbook.status === "error" && state.wordbook.error.code === "RATE_LIMITED");
+    state.wordbook.mutation.status === "saving" ||
+    state.wordbook.mutation.status === "success" ||
+    (state.wordbook.mutation.status === "error" &&
+      state.wordbook.mutation.error.code === "RATE_LIMITED");
   button.textContent = buttonLabel(state);
   button.type = "button";
   button.addEventListener("click", onAddWord);
   container.append(button);
 
-  if (state.wordbook.status === "error") {
+  if (state.wordbook.mutation.status === "error") {
     const error = document.createElement("p");
     error.className = "huayi-wordbook-error";
     error.setAttribute("aria-live", "polite");
-    error.textContent = state.wordbook.error.message;
+    error.textContent = state.wordbook.mutation.error.message;
     container.append(error);
   }
 

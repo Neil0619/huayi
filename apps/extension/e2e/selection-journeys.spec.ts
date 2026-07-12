@@ -126,7 +126,7 @@ test("an explained word can be added and an existing word is not overwritten", a
   await page.getByTestId("existing-word-selection").dblclick();
   await toolbar(page).locator('[data-action="translate"]').click();
   await panel(page).locator('[data-action="add-word"]').click();
-  await expect(panel(page).locator('[data-action="add-word"]')).toHaveText("已在生词本");
+  await expect(panel(page).locator('[data-action="add-word"]')).toHaveText("已加入生词本");
 });
 
 for (const [testId, message] of [

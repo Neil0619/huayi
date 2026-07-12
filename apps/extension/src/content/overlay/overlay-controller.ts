@@ -1,17 +1,21 @@
 import type {
+  AnalysisDeltaEvent,
   AnalysisError,
   AnalysisResult,
   AnalyzeAction,
   WordbookAddOutcome,
+  WordbookPresence,
 } from "@huayi/protocol";
 
 import type { SelectionRequestInput } from "../selection/read-selection.js";
+import { focusWordbookStatus } from "./focus-wordbook-status.js";
+import { OverlayDeltaBatch } from "./overlay-delta-batch.js";
 import {
+  isVisibleOverlayState,
   OverlayStateMachine,
   type OverlayAnchorRect,
   type OverlayPoint,
   type OverlayState,
-  type VisibleOverlayState,
 } from "./overlay-state.js";
 import {
   calculateOverlayPosition,
@@ -21,6 +25,7 @@ import {
 } from "./position-overlay.js";
 import { renderOverlayPanel } from "./render-result.js";
 import { renderToolbar } from "./render-toolbar.js";
+import { SlowRenderTimer } from "./slow-render-timer.js";
 import { overlayStyles } from "./styles.js";
 
 export interface OverlayControllerOptions {
@@ -39,17 +44,14 @@ const FALLBACK_PANEL_SIZE: OverlaySize = { height: 320, width: 420 };
 const FALLBACK_TOOLBAR_SIZE: OverlaySize = { height: 44, width: 180 };
 const KEYBOARD_DRAG_STEP = 10;
 
-function isVisibleState(state: OverlayState): state is VisibleOverlayState {
-  return !["idle", "closed"].includes(state.status);
-}
-
 export class OverlayController {
   private readonly documentRef: Document;
+  private readonly deltaBatch: OverlayDeltaBatch;
   private readonly host: HTMLDivElement;
   private readonly machine = new OverlayStateMachine();
   private readonly options: OverlayControllerOptions;
+  private readonly slowRender: SlowRenderTimer;
   private dragSession: DragSession | null = null;
-  private slowTimer: ReturnType<typeof setTimeout> | null = null;
 
   readonly shadowRoot: ShadowRoot;
 
@@ -59,6 +61,20 @@ export class OverlayController {
     this.host = this.documentRef.createElement("div");
     this.host.dataset.huayiOverlayHost = "";
     this.shadowRoot = this.host.attachShadow({ mode: "open" });
+    this.deltaBatch = new OverlayDeltaBatch((events) => {
+      const previousState = this.machine.state;
+      for (const event of events) {
+        this.machine.dispatch({ ...event, type: "APPEND_DELTA" });
+      }
+      if (this.machine.state !== previousState) {
+        this.render();
+      }
+    });
+    this.slowRender = new SlowRenderTimer(() => {
+      if (this.machine.state.status === "loading" || this.machine.state.status === "streaming") {
+        this.render();
+      }
+    });
 
     this.documentRef.addEventListener("keydown", this.handleKeydown, true);
     this.documentRef.addEventListener("pointerdown", this.handleOutsidePointerDown, true);
@@ -75,7 +91,8 @@ export class OverlayController {
     if (this.hasPendingRequest()) {
       this.options.onCancel();
     }
-    this.clearSlowTimer();
+    this.deltaBatch.clear();
+    this.slowRender.clear();
     this.machine.dispatch({ anchorRect, selection, type: "SHOW_ACTIONS" });
     this.render();
   }
@@ -88,20 +105,45 @@ export class OverlayController {
 
     this.machine.dispatch({ action, startedAt: Date.now(), type: "START" });
     this.render();
-    this.scheduleSlowRender();
+    this.slowRender.schedule();
     this.options.onAnalyze(action, current.selection);
   }
 
   resolve(result: AnalysisResult): void {
-    this.clearSlowTimer();
+    this.deltaBatch.flush();
+    this.slowRender.clear();
     this.machine.dispatch({ result, type: "RESOLVE" });
     this.render();
   }
 
   reject(error: AnalysisError): void {
-    this.clearSlowTimer();
+    this.deltaBatch.flush();
+    this.slowRender.clear();
     this.machine.dispatch({ error, type: "REJECT" });
     this.render();
+  }
+
+  appendDelta(event: AnalysisDeltaEvent): void {
+    const status = this.machine.state.status;
+    if (status === "loading" || status === "streaming") {
+      this.deltaBatch.append(event);
+    }
+  }
+
+  resolveWordbookCheck(presence: WordbookPresence): void {
+    const previousState = this.machine.state;
+    this.machine.dispatch({ presence, type: "RESOLVE_WORDBOOK_CHECK" });
+    if (this.machine.state !== previousState) {
+      this.render();
+    }
+  }
+
+  rejectWordbookCheck(): void {
+    const previousState = this.machine.state;
+    this.machine.dispatch({ type: "REJECT_WORDBOOK_CHECK" });
+    if (this.machine.state !== previousState) {
+      this.render();
+    }
   }
 
   addWord(): void {
@@ -115,20 +157,20 @@ export class OverlayController {
       return;
     }
     this.render();
-    this.focusWordbookStatus();
+    focusWordbookStatus(this.shadowRoot);
     this.options.onAddWord(current.selection);
   }
 
   resolveWordbook(outcome: WordbookAddOutcome): void {
     this.machine.dispatch({ outcome, type: "RESOLVE_WORDBOOK" });
     this.render();
-    this.focusWordbookStatus();
+    focusWordbookStatus(this.shadowRoot);
   }
 
   rejectWordbook(error: AnalysisError): void {
     this.machine.dispatch({ error, type: "REJECT_WORDBOOK" });
     this.render();
-    this.focusWordbookStatus();
+    focusWordbookStatus(this.shadowRoot);
   }
 
   retry(): void {
@@ -138,9 +180,10 @@ export class OverlayController {
     }
 
     const { action, selection } = current;
+    this.deltaBatch.clear();
     this.machine.dispatch({ startedAt: Date.now(), type: "RETRY" });
     this.render();
-    this.scheduleSlowRender();
+    this.slowRender.schedule();
     this.options.onAnalyze(action, selection);
   }
 
@@ -148,7 +191,8 @@ export class OverlayController {
     if (this.hasPendingRequest()) {
       this.options.onCancel();
     }
-    this.clearSlowTimer();
+    this.deltaBatch.clear();
+    this.slowRender.clear();
     this.dragSession = null;
     this.machine.dispatch({ type: "CLOSE" });
     this.host.remove();
@@ -164,14 +208,14 @@ export class OverlayController {
   }
 
   private readonly handleKeydown = (event: KeyboardEvent): void => {
-    if (event.key === "Escape" && isVisibleState(this.machine.state)) {
+    if (event.key === "Escape" && isVisibleOverlayState(this.machine.state)) {
       event.preventDefault();
       this.close();
     }
   };
 
   private readonly handleOutsidePointerDown = (event: PointerEvent): void => {
-    if (isVisibleState(this.machine.state) && !event.composedPath().includes(this.host)) {
+    if (isVisibleOverlayState(this.machine.state) && !event.composedPath().includes(this.host)) {
       this.close();
     }
   };
@@ -198,7 +242,7 @@ export class OverlayController {
 
   private render(): void {
     const state = this.machine.state;
-    if (!isVisibleState(state)) {
+    if (!isVisibleOverlayState(state)) {
       this.host.remove();
       return;
     }
@@ -287,7 +331,7 @@ export class OverlayController {
   private positionCurrentRoot(): void {
     const state = this.machine.state;
     const root = this.getCurrentRoot();
-    if (!isVisibleState(state) || root === null) {
+    if (!isVisibleOverlayState(state) || root === null) {
       return;
     }
 
@@ -332,38 +376,14 @@ export class OverlayController {
     root.style.top = `${Math.round(position.top)}px`;
   }
 
-  private scheduleSlowRender(): void {
-    this.clearSlowTimer();
-    this.slowTimer = setTimeout(() => {
-      if (this.machine.state.status === "loading") {
-        this.render();
-      }
-    }, 8_000);
-  }
-
-  private clearSlowTimer(): void {
-    if (this.slowTimer !== null) {
-      clearTimeout(this.slowTimer);
-      this.slowTimer = null;
-    }
-  }
-
   private hasPendingRequest(): boolean {
     const state = this.machine.state;
-    return (
-      state.status === "loading" ||
-      (state.status === "result" && state.wordbook.status === "saving")
-    );
-  }
-
-  private focusWordbookStatus(): void {
-    const wordbookButton = this.shadowRoot.querySelector<HTMLButtonElement>(
-      "[data-action='add-word']",
-    );
-    if (wordbookButton?.disabled === false) {
-      wordbookButton.focus();
-    } else {
-      this.shadowRoot.querySelector<HTMLElement>(".huayi-wordbook")?.focus();
+    if (state.status === "loading" || state.status === "streaming") {
+      return true;
     }
+    return (
+      (state.status === "result" || state.status === "error") &&
+      (state.wordbook.availability === "checking" || state.wordbook.mutation.status === "saving")
+    );
   }
 }

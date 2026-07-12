@@ -2,9 +2,16 @@ import {
   SCHEMA_VERSION,
   addWordRequestSchema,
   analyzeRequestSchema,
+  checkWordRequestSchema,
   hostEventSchema,
 } from "@huayi/protocol";
-import type { AddWordRequest, AnalysisError, AnalyzeAction, AnalyzeRequest } from "@huayi/protocol";
+import type {
+  AddWordRequest,
+  AnalysisError,
+  AnalyzeAction,
+  AnalyzeRequest,
+  CheckWordRequest,
+} from "@huayi/protocol";
 
 import type { ContentCommand } from "../shared/extension-messages.js";
 import { OverlayController } from "./overlay/overlay-controller.js";
@@ -39,6 +46,17 @@ const RUNTIME_ERROR: AnalysisError = {
   message: "扩展通信失败，请刷新页面后重试。",
   retryable: true,
 };
+
+type ActiveOperation = "analysis" | "wordbook-add" | "wordbook-check";
+
+function wasHandled(response: unknown): boolean {
+  return (
+    typeof response === "object" &&
+    response !== null &&
+    "handled" in response &&
+    response.handled === true
+  );
+}
 
 function createChromeRuntime(): ContentRuntime {
   return {
@@ -97,36 +115,84 @@ export function createAddWordRequest(
   });
 }
 
+export function createCheckWordRequest(
+  selection: SelectionRequestInput,
+  requestId: string,
+): CheckWordRequest {
+  return checkWordRequestSchema.parse({
+    language: "en",
+    requestId,
+    schemaVersion: SCHEMA_VERSION,
+    type: "check-word",
+    word: selection.selection,
+  });
+}
+
 export function initializeContentScript(options: ContentScriptOptions = {}): ContentScriptInstance {
   const documentRef = options.document ?? document;
   const runtime = options.runtime ?? createChromeRuntime();
   const createRequestId = options.createRequestId ?? (() => crypto.randomUUID());
   const getAnchorRect = options.getAnchorRect ?? getRangeAnchorRect;
-  let activeRequest: { id: string; operation: "analysis" | "wordbook" } | null = null;
+  const activeRequests = new Map<string, ActiveOperation>();
 
-  const rejectActiveRequest = (error: AnalysisError): void => {
-    const operation = activeRequest?.operation;
-    activeRequest = null;
-    if (operation === "wordbook") {
+  const rejectActiveRequest = (requestId: string, error: AnalysisError): void => {
+    const operation = activeRequests.get(requestId);
+    if (operation === undefined) {
+      return;
+    }
+    activeRequests.delete(requestId);
+    if (operation === "wordbook-add") {
       controller.rejectWordbook(error);
-    } else if (operation === "analysis") {
+    } else if (operation === "wordbook-check") {
+      controller.rejectWordbookCheck();
+    } else {
       controller.reject(error);
     }
   };
 
-  const sendCommand = (command: ContentCommand, requestId?: string): void => {
+  const sendCommand = (
+    command: ContentCommand,
+    requestId?: string,
+  ): Promise<boolean> | undefined => {
     try {
       const delivery = runtime.sendMessage(command);
-      if (delivery !== undefined) {
-        void delivery.catch(() => {
-          if (requestId !== undefined && activeRequest?.id === requestId) {
-            rejectActiveRequest(RUNTIME_ERROR);
-          }
-        });
+      if (delivery === undefined) {
+        return undefined;
       }
+      return delivery.then(
+        (response) => {
+          const handled = wasHandled(response);
+          if (!handled && requestId !== undefined) {
+            rejectActiveRequest(requestId, RUNTIME_ERROR);
+          }
+          return handled;
+        },
+        () => {
+          if (requestId !== undefined) {
+            rejectActiveRequest(requestId, RUNTIME_ERROR);
+          }
+          return false;
+        },
+      );
     } catch {
-      if (requestId !== undefined && activeRequest?.id === requestId) {
-        rejectActiveRequest(RUNTIME_ERROR);
+      if (requestId !== undefined) {
+        rejectActiveRequest(requestId, RUNTIME_ERROR);
+      }
+      return undefined;
+    }
+  };
+
+  const cancelRequest = (requestId: string): void => {
+    if (!activeRequests.delete(requestId)) {
+      return;
+    }
+    sendCommand({ requestId, type: "CANCEL_REQUEST" });
+  };
+
+  const cancelOperations = (operation?: ActiveOperation): void => {
+    for (const [requestId, activeOperation] of [...activeRequests]) {
+      if (operation === undefined || activeOperation === operation) {
+        cancelRequest(requestId);
       }
     }
   };
@@ -134,29 +200,45 @@ export function initializeContentScript(options: ContentScriptOptions = {}): Con
   const controller = new OverlayController({
     document: documentRef,
     onAddWord: (selection) => {
+      cancelOperations("wordbook-check");
       const requestId = createRequestId();
-      activeRequest = { id: requestId, operation: "wordbook" };
+      activeRequests.set(requestId, "wordbook-add");
       sendCommand(
         { request: createAddWordRequest(selection, requestId), type: "ADD_WORD_TO_EUDIC" },
         requestId,
       );
     },
     onAnalyze: (action, selection) => {
+      cancelOperations();
       const requestId = createRequestId();
-      activeRequest = { id: requestId, operation: "analysis" };
-      sendCommand(
+      activeRequests.set(requestId, "analysis");
+      const acknowledgement = sendCommand(
         { request: createAnalyzeRequest(selection, action, requestId), type: "ANALYZE_SELECTION" },
         requestId,
       );
-    },
-    onCancel: () => {
-      if (activeRequest === null) {
+      if (selection.selectionKind !== "word" || acknowledgement === undefined) {
         return;
       }
-      const requestId = activeRequest.id;
-      activeRequest = null;
-      sendCommand({ requestId, type: "CANCEL_REQUEST" });
+      void acknowledgement.then((handled) => {
+        if (!handled) {
+          controller.rejectWordbookCheck();
+          return;
+        }
+        if (activeRequests.get(requestId) !== "analysis") {
+          return;
+        }
+        const checkRequestId = createRequestId();
+        activeRequests.set(checkRequestId, "wordbook-check");
+        sendCommand(
+          {
+            request: createCheckWordRequest(selection, checkRequestId),
+            type: "CHECK_WORD_IN_EUDIC",
+          },
+          checkRequestId,
+        );
+      });
     },
+    onCancel: () => cancelOperations(),
   });
 
   const handleSelection = (event: Event): void => {
@@ -185,18 +267,28 @@ export function initializeContentScript(options: ContentScriptOptions = {}): Con
 
   const handleRuntimeMessage = (message: unknown): void => {
     const parsed = hostEventSchema.safeParse(message);
-    if (!parsed.success || parsed.data.requestId !== activeRequest?.id) {
+    if (!parsed.success) {
+      return;
+    }
+    const event = parsed.data;
+    const operation = activeRequests.get(event.requestId);
+    if (operation === undefined) {
       return;
     }
 
-    if (parsed.data.type === "result" && activeRequest.operation === "analysis") {
-      activeRequest = null;
-      controller.resolve(parsed.data.result);
-    } else if (parsed.data.type === "word-added" && activeRequest.operation === "wordbook") {
-      activeRequest = null;
-      controller.resolveWordbook(parsed.data.outcome);
-    } else if (parsed.data.type === "error") {
-      rejectActiveRequest(parsed.data.error);
+    if (event.type === "analysis-delta" && operation === "analysis") {
+      controller.appendDelta(event);
+    } else if (event.type === "result" && operation === "analysis") {
+      activeRequests.delete(event.requestId);
+      controller.resolve(event.result);
+    } else if (event.type === "word-status" && operation === "wordbook-check") {
+      activeRequests.delete(event.requestId);
+      controller.resolveWordbookCheck(event.presence);
+    } else if (event.type === "word-added" && operation === "wordbook-add") {
+      activeRequests.delete(event.requestId);
+      controller.resolveWordbook(event.outcome);
+    } else if (event.type === "error") {
+      rejectActiveRequest(event.requestId, event.error);
     }
   };
 

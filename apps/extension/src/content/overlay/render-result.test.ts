@@ -22,10 +22,11 @@ const session = {
     wordbookContext: "Selection context.",
   },
   startedAt: 1_000,
+  wordbook: { availability: "checking", mutation: { status: "idle" } },
 } as const;
 
 function resultState(result: AnalysisResult): ResultOverlayState {
-  return { ...session, result, status: "result", wordbook: { status: "idle" } };
+  return { ...session, result, status: "result" };
 }
 
 const handlers = {
@@ -112,6 +113,7 @@ describe("renderOverlayPanel", () => {
       {
         ...session,
         error: { code: "TIMEOUT", message: "处理超时，请重试。", retryable: true },
+        preview: { lastSequence: -1, sections: {} },
         status: "error",
       },
       handlers,
@@ -123,6 +125,7 @@ describe("renderOverlayPanel", () => {
       {
         ...session,
         error: { code: "INTERNAL_ERROR", message: "处理失败。", retryable: false },
+        preview: { lastSequence: -1, sections: {} },
         status: "error",
       },
       handlers,
@@ -202,24 +205,34 @@ describe("renderOverlayPanel", () => {
       sourceText: "investigation",
       type: "translate-lexical",
     });
-    const saving = renderOverlayPanel({ ...base, wordbook: { status: "saving" } }, handlers);
+    const saving = renderOverlayPanel(
+      { ...base, wordbook: { ...base.wordbook, mutation: { status: "saving" } } },
+      handlers,
+    );
     expect(saving.textContent).toContain("正在添加…");
     expect(saving.querySelector<HTMLButtonElement>("[data-action='add-word']")?.disabled).toBe(
       true,
     );
 
     const success = renderOverlayPanel(
-      { ...base, wordbook: { outcome: "already-exists", status: "success" } },
+      { ...base, wordbook: { ...base.wordbook, mutation: { status: "success" } } },
       handlers,
     );
-    expect(success.textContent).toContain("已在生词本");
+    expect(success.textContent).toContain("已加入生词本");
 
     const error = renderOverlayPanel(
       {
         ...base,
         wordbook: {
-          error: { code: "EUDIC_NOT_CONFIGURED", message: "请先配置欧路授权。", retryable: false },
-          status: "error",
+          ...base.wordbook,
+          mutation: {
+            error: {
+              code: "EUDIC_NOT_CONFIGURED",
+              message: "请先配置欧路授权。",
+              retryable: false,
+            },
+            status: "error",
+          },
         },
       },
       handlers,
@@ -234,8 +247,11 @@ describe("renderOverlayPanel", () => {
       {
         ...base,
         wordbook: {
-          error: { code: "RATE_LIMITED", message: "请求过于频繁。", retryable: false },
-          status: "error",
+          ...base.wordbook,
+          mutation: {
+            error: { code: "RATE_LIMITED", message: "请求过于频繁。", retryable: false },
+            status: "error",
+          },
         },
       },
       handlers,
