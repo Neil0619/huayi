@@ -25,16 +25,114 @@ const englishTextSchema = z
   .max(MAX_CONTEXT_LENGTH)
   .refine((value) => /[A-Za-z]/.test(value), "Expected English text.")
   .refine((value) => !/[\u3400-\u9fff]/.test(value), "Expected English text.");
-const nullablePronunciationSchema = z
-  .strictObject({
-    uk: z.string().trim().min(1).max(120).nullable(),
-    us: z.string().trim().min(1).max(120).nullable(),
-  })
-  .nullable();
+const pronunciationObjectSchema = z.strictObject({
+  uk: z.string().trim().min(1).max(120).nullable(),
+  us: z.string().trim().min(1).max(120).nullable(),
+});
+const nullablePronunciationSchema = pronunciationObjectSchema.nullable();
 const keyExpressionSchema = z.strictObject({
   meaningZh: chineseTextSchema.max(500),
   text: englishTextSchema.max(300),
 });
+
+type RawOwnKeyShape =
+  | { item: RawOwnKeyShape; kind: "array" }
+  | { kind: "leaf" }
+  | { kind: "nullable"; value: RawOwnKeyShape }
+  | RawOwnKeyObjectShape;
+
+interface RawOwnKeyObjectShape {
+  fields: ReadonlyMap<string, RawOwnKeyShape>;
+  kind: "object";
+}
+
+const RAW_OWN_KEY_LEAF = { kind: "leaf" } as const satisfies RawOwnKeyShape;
+
+function rawOwnKeyArray(item: RawOwnKeyShape): RawOwnKeyShape {
+  return { item, kind: "array" };
+}
+
+function rawOwnKeyNullable(value: RawOwnKeyShape): RawOwnKeyShape {
+  return { kind: "nullable", value };
+}
+
+function rawOwnKeyObjectFor(
+  schema: { readonly shape: object },
+  nestedFields: ReadonlyMap<string, RawOwnKeyShape> = new Map(),
+): RawOwnKeyObjectShape {
+  return {
+    fields: new Map(
+      Object.keys(schema.shape).map((field) => [
+        field,
+        nestedFields.get(field) ?? RAW_OWN_KEY_LEAF,
+      ]),
+    ),
+    kind: "object",
+  };
+}
+
+function isObjectRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function validateRawOwnKeys(
+  value: unknown,
+  shape: RawOwnKeyShape,
+  context: z.RefinementCtx,
+  path: (number | string)[] = [],
+): void {
+  if (shape.kind === "leaf") return;
+  if (shape.kind === "nullable") {
+    if (value !== null) validateRawOwnKeys(value, shape.value, context, path);
+    return;
+  }
+  if (shape.kind === "array") {
+    if (Array.isArray(value)) {
+      value.forEach((item, index) =>
+        validateRawOwnKeys(item, shape.item, context, [...path, index]),
+      );
+    }
+    return;
+  }
+  if (!isObjectRecord(value)) return;
+
+  for (const field of Object.keys(value)) {
+    const fieldShape = shape.fields.get(field);
+    if (fieldShape === undefined) {
+      context.addIssue({
+        code: "custom",
+        message: "Unrecognized model field.",
+        path: [...path, field],
+      });
+      continue;
+    }
+    validateRawOwnKeys(value[field], fieldShape, context, [...path, field]);
+  }
+}
+
+function withRawOwnKeyValidation<Output>(
+  schema: z.ZodType<Output>,
+  shape: RawOwnKeyShape,
+): z.ZodType<Output> {
+  return z.preprocess((value, context) => {
+    validateRawOwnKeys(value, shape, context);
+    return value;
+  }, schema);
+}
+
+function guardedFieldSchemasFor(
+  schema: { readonly shape: Readonly<Record<string, z.ZodType>> },
+  shape: RawOwnKeyObjectShape,
+): ReadonlyMap<string, z.ZodType> {
+  const fields = new Map<string, z.ZodType>();
+  for (const [field, fieldSchema] of Object.entries(schema.shape)) {
+    fields.set(
+      field,
+      withRawOwnKeyValidation(fieldSchema, shape.fields.get(field) ?? RAW_OWN_KEY_LEAF),
+    );
+  }
+  return fields;
+}
 
 export interface ModelLexicalTranslation {
   contextualMeaningZh: string;
@@ -73,34 +171,82 @@ export type ModelAnalysisResult =
 
 export type ModelResultType = AnalysisResult["type"];
 
-export const modelLexicalTranslationSchema = z.strictObject({
+const modelLexicalTranslationObjectSchema = z.strictObject({
   contextualMeaningZh: chineseTextSchema,
   partOfSpeech: partOfSpeechSchema,
   pronunciation: nullablePronunciationSchema,
   collocations: z.array(collocationSchema).max(MAX_COLLOCATIONS),
   contextExampleTranslationZh: chineseTextSchema.nullable(),
   similarTerms: z.array(relatedTermSchema).max(MAX_RELATED_TERMS),
-}) satisfies z.ZodType<ModelLexicalTranslation>;
+});
 
-export const modelPassageTranslationSchema = z.strictObject({
+const modelPassageTranslationObjectSchema = z.strictObject({
   translationZh: chineseTextSchema,
-}) satisfies z.ZodType<ModelPassageTranslation>;
+});
 
-export const modelLexicalExplanationSchema = z.strictObject({
+const modelLexicalExplanationObjectSchema = z.strictObject({
   contextualMeaningZh: chineseTextSchema,
   baseForm: englishTextSchema.max(120).nullable(),
   wordFormation: z.string().trim().min(1).max(300).nullable(),
   coreMeanings: z.array(coreMeaningSchema).min(1).max(MAX_CORE_MEANINGS),
   collocations: z.array(collocationSchema).max(MAX_COLLOCATIONS),
   synonyms: z.array(relatedTermSchema).max(MAX_RELATED_TERMS),
-}) satisfies z.ZodType<ModelLexicalExplanation>;
+});
 
-export const modelSentenceExplanationSchema = z.strictObject({
+const modelSentenceExplanationObjectSchema = z.strictObject({
   mainStructure: z.string().trim().min(1).max(MAX_MODEL_TEXT_LENGTH),
   keyExpressions: z.array(keyExpressionSchema).min(1).max(6),
   translationZh: chineseTextSchema,
   contextRole: chineseTextSchema,
-}) satisfies z.ZodType<ModelSentenceExplanation>;
+});
+
+const collocationOwnKeys = rawOwnKeyObjectFor(collocationSchema);
+const coreMeaningOwnKeys = rawOwnKeyObjectFor(coreMeaningSchema);
+const relatedTermOwnKeys = rawOwnKeyObjectFor(relatedTermSchema);
+const pronunciationOwnKeys = rawOwnKeyNullable(rawOwnKeyObjectFor(pronunciationObjectSchema));
+const keyExpressionOwnKeys = rawOwnKeyObjectFor(keyExpressionSchema);
+
+const modelLexicalTranslationOwnKeys = rawOwnKeyObjectFor(
+  modelLexicalTranslationObjectSchema,
+  new Map<string, RawOwnKeyShape>([
+    ["collocations", rawOwnKeyArray(collocationOwnKeys)],
+    ["pronunciation", pronunciationOwnKeys],
+    ["similarTerms", rawOwnKeyArray(relatedTermOwnKeys)],
+  ]),
+);
+const modelPassageTranslationOwnKeys = rawOwnKeyObjectFor(modelPassageTranslationObjectSchema);
+const modelLexicalExplanationOwnKeys = rawOwnKeyObjectFor(
+  modelLexicalExplanationObjectSchema,
+  new Map<string, RawOwnKeyShape>([
+    ["collocations", rawOwnKeyArray(collocationOwnKeys)],
+    ["coreMeanings", rawOwnKeyArray(coreMeaningOwnKeys)],
+    ["synonyms", rawOwnKeyArray(relatedTermOwnKeys)],
+  ]),
+);
+const modelSentenceExplanationOwnKeys = rawOwnKeyObjectFor(
+  modelSentenceExplanationObjectSchema,
+  new Map<string, RawOwnKeyShape>([["keyExpressions", rawOwnKeyArray(keyExpressionOwnKeys)]]),
+);
+
+export const modelLexicalTranslationSchema = withRawOwnKeyValidation(
+  modelLexicalTranslationObjectSchema,
+  modelLexicalTranslationOwnKeys,
+) satisfies z.ZodType<ModelLexicalTranslation>;
+
+export const modelPassageTranslationSchema = withRawOwnKeyValidation(
+  modelPassageTranslationObjectSchema,
+  modelPassageTranslationOwnKeys,
+) satisfies z.ZodType<ModelPassageTranslation>;
+
+export const modelLexicalExplanationSchema = withRawOwnKeyValidation(
+  modelLexicalExplanationObjectSchema,
+  modelLexicalExplanationOwnKeys,
+) satisfies z.ZodType<ModelLexicalExplanation>;
+
+export const modelSentenceExplanationSchema = withRawOwnKeyValidation(
+  modelSentenceExplanationObjectSchema,
+  modelSentenceExplanationOwnKeys,
+) satisfies z.ZodType<ModelSentenceExplanation>;
 
 const MODEL_ANALYSIS_RESULT_SCHEMAS = {
   "explain-lexical": modelLexicalExplanationSchema,
@@ -110,10 +256,22 @@ const MODEL_ANALYSIS_RESULT_SCHEMAS = {
 } satisfies Record<ModelResultType, z.ZodType<ModelAnalysisResult>>;
 
 const MODEL_ANALYSIS_FIELD_SCHEMAS: Record<ModelResultType, ReadonlyMap<string, z.ZodType>> = {
-  "explain-lexical": new Map(Object.entries(modelLexicalExplanationSchema.shape)),
-  "explain-sentence": new Map(Object.entries(modelSentenceExplanationSchema.shape)),
-  "translate-lexical": new Map(Object.entries(modelLexicalTranslationSchema.shape)),
-  "translate-passage": new Map(Object.entries(modelPassageTranslationSchema.shape)),
+  "explain-lexical": guardedFieldSchemasFor(
+    modelLexicalExplanationObjectSchema,
+    modelLexicalExplanationOwnKeys,
+  ),
+  "explain-sentence": guardedFieldSchemasFor(
+    modelSentenceExplanationObjectSchema,
+    modelSentenceExplanationOwnKeys,
+  ),
+  "translate-lexical": guardedFieldSchemasFor(
+    modelLexicalTranslationObjectSchema,
+    modelLexicalTranslationOwnKeys,
+  ),
+  "translate-passage": guardedFieldSchemasFor(
+    modelPassageTranslationObjectSchema,
+    modelPassageTranslationOwnKeys,
+  ),
 };
 
 export function resultTypeFor(

@@ -74,9 +74,31 @@ function readOutputSchema(name: OutputSchemaName): JsonObject {
   return parsed;
 }
 
+function jsonObjectWithOwnProperty(
+  value: object,
+  property: string,
+  propertyValue: unknown,
+): unknown {
+  const source = JSON.stringify({ ...value, [property]: propertyValue });
+  if (source === undefined) throw new Error("Expected JSON-serializable test object.");
+  const parsed: unknown = JSON.parse(source);
+  return parsed;
+}
+
+function jsonRoundTrip(value: unknown): unknown {
+  const source = JSON.stringify(value);
+  if (source === undefined) throw new Error("Expected JSON-serializable test value.");
+  const parsed: unknown = JSON.parse(source);
+  return parsed;
+}
+
 function objectProperty(schema: JsonObject, name: string): JsonObject {
   const properties = schema.properties;
-  if (!isJsonObject(properties) || !isJsonObject(properties[name])) {
+  if (
+    !isJsonObject(properties) ||
+    !Object.hasOwn(properties, name) ||
+    !isJsonObject(properties[name])
+  ) {
     throw new Error(`Expected object property schema: ${name}.`);
   }
   return properties[name];
@@ -117,7 +139,7 @@ function validateSubset(schemaValue: unknown, value: unknown, path = "$"): strin
   }
   if (Array.isArray(schemaValue.required) && isJsonObject(value)) {
     for (const requiredName of schemaValue.required) {
-      if (typeof requiredName === "string" && !(requiredName in value)) {
+      if (typeof requiredName === "string" && !Object.hasOwn(value, requiredName)) {
         errors.push(`${path}: missing ${requiredName}`);
       }
     }
@@ -157,11 +179,11 @@ function validateSubset(schemaValue: unknown, value: unknown, path = "$"): strin
     const properties = isJsonObject(schemaValue.properties) ? schemaValue.properties : {};
     if (schemaValue.additionalProperties === false) {
       for (const name of Object.keys(value)) {
-        if (!(name in properties)) errors.push(`${path}: unknown property ${name}`);
+        if (!Object.hasOwn(properties, name)) errors.push(`${path}: unknown property ${name}`);
       }
     }
     for (const [name, propertyValue] of Object.entries(value)) {
-      if (name in properties) {
+      if (Object.hasOwn(properties, name)) {
         errors.push(...validateSubset(properties[name], propertyValue, `${path}.${name}`));
       }
     }
@@ -336,5 +358,28 @@ describe("Codex output schemas", () => {
       },
       false,
     );
+  });
+
+  it("agrees on JSON-parsed prototype-like unknown fields at root and nested boundaries", () => {
+    const translation = contractCases[0].value;
+
+    for (const field of ["__proto__", "constructor", "toString"]) {
+      expectSchemaAgreement(
+        "translate-lexical",
+        jsonObjectWithOwnProperty(translation, field, { unsafe: true }),
+        false,
+      );
+
+      const collocation = jsonObjectWithOwnProperty(
+        { meaningZh: "数字四", text: "number four" },
+        field,
+        { unsafe: true },
+      );
+      expectSchemaAgreement(
+        "translate-lexical",
+        jsonRoundTrip({ ...translation, collocations: [collocation] }),
+        false,
+      );
+    }
   });
 });

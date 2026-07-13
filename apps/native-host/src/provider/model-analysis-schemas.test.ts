@@ -34,6 +34,24 @@ const fourTranslation = {
   similarTerms: [],
 } as const;
 
+function jsonObjectWithOwnProperty(
+  value: object,
+  property: string,
+  propertyValue: unknown,
+): unknown {
+  const source = JSON.stringify({ ...value, [property]: propertyValue });
+  if (source === undefined) throw new Error("Expected JSON-serializable test object.");
+  const parsed: unknown = JSON.parse(source);
+  return parsed;
+}
+
+function jsonRoundTrip(value: unknown): unknown {
+  const source = JSON.stringify(value);
+  if (source === undefined) throw new Error("Expected JSON-serializable test value.");
+  const parsed: unknown = JSON.parse(source);
+  return parsed;
+}
+
 describe("private model analysis schemas", () => {
   it("accepts lexical content whose naturally absent fields use null and empty arrays", () => {
     expect(modelLexicalExplanationSchema.safeParse(fourExplanation).success).toBe(true);
@@ -69,6 +87,33 @@ describe("private model analysis schemas", () => {
       }).success,
     ).toBe(false);
   });
+
+  it.each(["__proto__", "constructor", "toString"])(
+    "rejects JSON-parsed own prototype-like field %s at the root",
+    (field) => {
+      const value = jsonObjectWithOwnProperty(fourTranslation, field, { unsafe: true });
+
+      expect(modelLexicalTranslationSchema.safeParse(value).success).toBe(false);
+    },
+  );
+
+  it.each(["__proto__", "constructor", "toString"])(
+    "rejects JSON-parsed own prototype-like field %s in a reused child schema",
+    (field) => {
+      const collocation = jsonObjectWithOwnProperty(
+        { meaningZh: "数字四", text: "number four" },
+        field,
+        { unsafe: true },
+      );
+      const value = jsonRoundTrip({ ...fourTranslation, collocations: [collocation] });
+
+      expect(modelLexicalTranslationSchema.safeParse(value).success).toBe(false);
+      expect(
+        modelAnalysisFieldSchemaFor("translate-lexical", "collocations")?.safeParse([collocation])
+          .success,
+      ).toBe(false);
+    },
+  );
 
   it("enforces lexical collection limits without fabricating minimum counts", () => {
     expect(
