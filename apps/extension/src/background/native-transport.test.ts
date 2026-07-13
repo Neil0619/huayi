@@ -44,7 +44,7 @@ class FakeNativePort implements NativePortLike {
 
 const healthRequest: HostRequest = {
   requestId: "health-1",
-  schemaVersion: 1,
+  schemaVersion: 2,
   type: "health",
 };
 
@@ -68,7 +68,7 @@ describe("ChromeNativeTransport", () => {
       hostVersion: "0.1.0",
       ready: true,
       requestId: "health-1",
-      schemaVersion: 1,
+      schemaVersion: 2,
       type: "health-result",
     });
 

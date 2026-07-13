@@ -19,9 +19,10 @@ const request: AnalyzeRequest = {
   action: "translate",
   context: "The investigation was in its early stages.",
   requestId: "request-1",
-  schemaVersion: 1,
+  schemaVersion: 2,
   selection: "investigation",
   selectionKind: "word",
+  sentenceContext: null,
   targetLanguage: "zh-CN",
   type: "analyze",
 };
@@ -30,7 +31,7 @@ const wordRequest: AddWordRequest = {
   context: "The investigation was in its early stages.",
   language: "en",
   requestId: "word-1",
-  schemaVersion: 1,
+  schemaVersion: 2,
   type: "add-word",
   word: "investigation",
 };
@@ -38,7 +39,7 @@ const wordRequest: AddWordRequest = {
 const checkRequest: CheckWordRequest = {
   language: "en",
   requestId: "check-1",
-  schemaVersion: 1,
+  schemaVersion: 2,
   type: "check-word",
   word: "investigation",
 };

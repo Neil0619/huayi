@@ -70,7 +70,7 @@ describe("NativeMessageDispatcher wordbook routing", () => {
     expect(events.at(-1)).toEqual({
       outcome: "added",
       requestId: wordRequest.requestId,
-      schemaVersion: 1,
+      schemaVersion: 2,
       type: "word-added",
     });
 
@@ -78,7 +78,7 @@ describe("NativeMessageDispatcher wordbook routing", () => {
     dispatcher.dispatch(
       {
         requestId: "cancel-add",
-        schemaVersion: 1,
+        schemaVersion: 2,
         targetRequestId: "word-2",
         type: "cancel",
       },
@@ -116,7 +116,7 @@ describe("NativeMessageDispatcher wordbook routing", () => {
       expect(events.at(-1)).toEqual({
         presence,
         requestId: checkRequest.requestId,
-        schemaVersion: 1,
+        schemaVersion: 2,
         type: "word-status",
       });
       dispatcher.dispose();
@@ -206,7 +206,7 @@ describe("NativeMessageDispatcher wordbook routing", () => {
     dispatcher.dispatch(
       {
         requestId: "cancel-2",
-        schemaVersion: 1,
+        schemaVersion: 2,
         targetRequestId: checkRequest.requestId,
         type: "cancel",
       },
@@ -243,7 +243,7 @@ describe("NativeMessageDispatcher wordbook routing", () => {
     dispatcher.dispatch(
       {
         requestId: "cancel-3",
-        schemaVersion: 1,
+        schemaVersion: 2,
         targetRequestId: checkRequest.requestId,
         type: "cancel",
       },

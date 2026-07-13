@@ -46,6 +46,7 @@ const analyzeRequestObjectSchema = z.strictObject({
   schemaVersion: schemaVersionSchema,
   selection: z.string().trim().min(1).max(MAX_SELECTION_LENGTH),
   selectionKind: selectionKindSchema,
+  sentenceContext: englishContextSchema.nullable(),
   targetLanguage: z.literal("zh-CN"),
   type: z.literal("analyze"),
 });
@@ -63,9 +64,31 @@ function rejectParagraphExplanation(
   }
 }
 
-export const analyzeRequestSchema = analyzeRequestObjectSchema.superRefine(
-  rejectParagraphExplanation,
-);
+function rejectPassageSentenceContext(
+  request: z.infer<typeof analyzeRequestObjectSchema>,
+  context: z.core.$RefinementCtx,
+) {
+  if (
+    (request.selectionKind === "sentence" || request.selectionKind === "paragraph") &&
+    request.sentenceContext !== null
+  ) {
+    context.addIssue({
+      code: "custom",
+      message: "Sentence and paragraph selections require a null sentence context.",
+      path: ["sentenceContext"],
+    });
+  }
+}
+
+function refineAnalyzeRequest(
+  request: z.infer<typeof analyzeRequestObjectSchema>,
+  context: z.core.$RefinementCtx,
+) {
+  rejectParagraphExplanation(request, context);
+  rejectPassageSentenceContext(request, context);
+}
+
+export const analyzeRequestSchema = analyzeRequestObjectSchema.superRefine(refineAnalyzeRequest);
 export type AnalyzeRequest = z.infer<typeof analyzeRequestSchema>;
 
 export const addWordRequestSchema = z.strictObject({
@@ -95,7 +118,7 @@ export const hostWorkRequestSchema = z
   ])
   .superRefine((request, context) => {
     if (request.type === "analyze") {
-      rejectParagraphExplanation(request, context);
+      refineAnalyzeRequest(request, context);
     }
   });
 export type HostWorkRequest = z.infer<typeof hostWorkRequestSchema>;
@@ -106,6 +129,13 @@ export const healthRequestSchema = z.strictObject({
   type: z.literal("health"),
 });
 export type HealthRequest = z.infer<typeof healthRequestSchema>;
+
+export const warmupRequestSchema = z.strictObject({
+  requestId: requestIdSchema,
+  schemaVersion: schemaVersionSchema,
+  type: z.literal("warmup"),
+});
+export type WarmupRequest = z.infer<typeof warmupRequestSchema>;
 
 export const cancelRequestSchema = z.strictObject({
   requestId: requestIdSchema,
@@ -118,6 +148,7 @@ export type CancelRequest = z.infer<typeof cancelRequestSchema>;
 export const hostRequestSchema = z
   .discriminatedUnion("type", [
     healthRequestSchema,
+    warmupRequestSchema,
     analyzeRequestObjectSchema,
     checkWordRequestSchema,
     addWordRequestSchema,
@@ -125,7 +156,7 @@ export const hostRequestSchema = z
   ])
   .superRefine((request, context) => {
     if (request.type === "analyze") {
-      rejectParagraphExplanation(request, context);
+      refineAnalyzeRequest(request, context);
     }
   });
 export type HostRequest = z.infer<typeof hostRequestSchema>;

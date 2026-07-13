@@ -10,39 +10,57 @@ import {
   hostWorkRequestSchema,
 } from "./index.js";
 
-const validAnalyzeRequest = {
+const PREVIOUS_SCHEMA_VERSION = 1;
+
+const lexicalRequest = {
   action: "translate",
-  context: "The investigation was in its early stages.",
-  requestId: "request-1",
-  schemaVersion: 1,
-  selection: "investigation",
+  context: "The victims were taken to safety.",
+  requestId: "analysis-v2",
+  schemaVersion: 2,
+  selection: "victims",
   selectionKind: "word",
+  sentenceContext: "The victims were taken to safety.",
   targetLanguage: "zh-CN",
   type: "analyze",
 } as const;
 
 describe("analyzeRequestSchema", () => {
-  it("accepts a valid analysis request", () => {
-    expect(analyzeRequestSchema.parse(validAnalyzeRequest)).toEqual(validAnalyzeRequest);
+  it("accepts a v2 lexical request with an exact English sentence context", () => {
+    expect(analyzeRequestSchema.parse(lexicalRequest)).toEqual(lexicalRequest);
+    expect(() =>
+      analyzeRequestSchema.parse({ ...lexicalRequest, sentenceContext: "受害者 were safe." }),
+    ).toThrow();
+    expect(() =>
+      analyzeRequestSchema.parse({
+        ...lexicalRequest,
+        selectionKind: "sentence",
+        sentenceContext: lexicalRequest.sentenceContext,
+      }),
+    ).toThrow();
+    expect(() =>
+      analyzeRequestSchema.parse({
+        ...lexicalRequest,
+        schemaVersion: PREVIOUS_SCHEMA_VERSION,
+      }),
+    ).toThrow();
   });
 
   it("rejects unknown fields", () => {
     expect(
-      analyzeRequestSchema.safeParse({ ...validAnalyzeRequest, url: "https://example.com" })
-        .success,
+      analyzeRequestSchema.safeParse({ ...lexicalRequest, url: "https://example.com" }).success,
     ).toBe(false);
   });
 
   it("enforces selection and context limits", () => {
     expect(
       analyzeRequestSchema.safeParse({
-        ...validAnalyzeRequest,
+        ...lexicalRequest,
         selection: "a".repeat(MAX_SELECTION_LENGTH + 1),
       }).success,
     ).toBe(false);
     expect(
       analyzeRequestSchema.safeParse({
-        ...validAnalyzeRequest,
+        ...lexicalRequest,
         context: "a".repeat(MAX_CONTEXT_LENGTH + 1),
       }).success,
     ).toBe(false);
@@ -51,9 +69,10 @@ describe("analyzeRequestSchema", () => {
   it("rejects paragraph explanation", () => {
     expect(
       analyzeRequestSchema.safeParse({
-        ...validAnalyzeRequest,
+        ...lexicalRequest,
         action: "explain",
         selectionKind: "paragraph",
+        sentenceContext: null,
       }).success,
     ).toBe(false);
   });
@@ -64,17 +83,17 @@ describe("hostRequestSchema", () => {
     expect(
       hostRequestSchema.parse({
         requestId: "health-1",
-        schemaVersion: 1,
+        schemaVersion: 2,
         type: "health",
       }).type,
     ).toBe("health");
-    expect(hostRequestSchema.parse(validAnalyzeRequest).type).toBe("analyze");
+    expect(hostRequestSchema.parse(lexicalRequest).type).toBe("analyze");
     expect(
       hostRequestSchema.parse({
         context: "The investigation was in its early stages.",
         language: "en",
         requestId: "word-1",
-        schemaVersion: 1,
+        schemaVersion: 2,
         type: "add-word",
         word: "investigation",
       }).type,
@@ -82,24 +101,39 @@ describe("hostRequestSchema", () => {
     expect(
       hostRequestSchema.parse({
         requestId: "cancel-1",
-        schemaVersion: 1,
-        targetRequestId: "request-1",
+        schemaVersion: 2,
+        targetRequestId: lexicalRequest.requestId,
         type: "cancel",
       }).type,
     ).toBe("cancel");
+  });
+
+  it("accepts only a strict warmup request outside the host work union", () => {
+    const warmup = {
+      requestId: "warmup-1",
+      schemaVersion: 2,
+      type: "warmup",
+    } as const;
+
+    expect(hostRequestSchema.parse(warmup)).toEqual(warmup);
+    expect(() => hostRequestSchema.parse({ ...warmup, selection: "secret" })).toThrow();
+    expect(hostWorkRequestSchema.safeParse(warmup).success).toBe(false);
   });
 
   it("rejects unsupported message types and schema versions", () => {
     expect(
       hostRequestSchema.safeParse({
         requestId: "request-1",
-        schemaVersion: 1,
+        schemaVersion: 2,
         type: "unknown",
       }).success,
     ).toBe(false);
-    expect(hostRequestSchema.safeParse({ ...validAnalyzeRequest, schemaVersion: 2 }).success).toBe(
-      false,
-    );
+    expect(
+      hostRequestSchema.safeParse({
+        ...lexicalRequest,
+        schemaVersion: PREVIOUS_SCHEMA_VERSION,
+      }).success,
+    ).toBe(false);
   });
 });
 
@@ -108,7 +142,7 @@ describe("addWordRequestSchema", () => {
     context: "The investigation was in its early stages.",
     language: "en",
     requestId: "word-1",
-    schemaVersion: 1,
+    schemaVersion: 2,
     type: "add-word",
     word: "investigation",
   } as const;
@@ -140,13 +174,16 @@ describe("addWordRequestSchema", () => {
     ).toBe(false);
   });
 
-  it("rejects unknown fields and schema version 2", () => {
+  it("rejects unknown fields and the previous schema version", () => {
     expect(
       addWordRequestSchema.safeParse({ ...validRequest, url: "https://example.com" }).success,
     ).toBe(false);
-    expect(addWordRequestSchema.safeParse({ ...validRequest, schemaVersion: 2 }).success).toBe(
-      false,
-    );
+    expect(
+      addWordRequestSchema.safeParse({
+        ...validRequest,
+        schemaVersion: PREVIOUS_SCHEMA_VERSION,
+      }).success,
+    ).toBe(false);
   });
 });
 
@@ -154,7 +191,7 @@ describe("checkWordRequestSchema", () => {
   const checkWord = {
     language: "en",
     requestId: "check-1",
-    schemaVersion: 1,
+    schemaVersion: 2,
     type: "check-word",
     word: "mother-in-law",
   } as const;
@@ -175,12 +212,17 @@ describe("checkWordRequestSchema", () => {
     expect(() => checkWordRequestSchema.parse({ ...checkWord, word: "𠀀" })).toThrow();
   });
 
-  it("rejects context, other unknown fields, and schema version 2", () => {
+  it("rejects context, other unknown fields, and the previous schema version", () => {
     expect(() => checkWordRequestSchema.parse({ ...checkWord, context: "not allowed" })).toThrow();
     expect(() =>
       checkWordRequestSchema.parse({ ...checkWord, url: "https://example.com" }),
     ).toThrow();
-    expect(() => checkWordRequestSchema.parse({ ...checkWord, schemaVersion: 2 })).toThrow();
+    expect(() =>
+      checkWordRequestSchema.parse({
+        ...checkWord,
+        schemaVersion: PREVIOUS_SCHEMA_VERSION,
+      }),
+    ).toThrow();
   });
 
   it("does not accept another host-work union member", () => {
@@ -189,7 +231,7 @@ describe("checkWordRequestSchema", () => {
         context: "The investigation was in its early stages.",
         language: "en",
         requestId: "word-1",
-        schemaVersion: 1,
+        schemaVersion: 2,
         type: "add-word",
         word: "investigation",
       }).success,

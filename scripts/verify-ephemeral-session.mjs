@@ -106,6 +106,7 @@ export function createSmokeRequests(schemaVersion) {
       schemaVersion,
       selection: "investigation",
       selectionKind: "word",
+      sentenceContext: null,
       targetLanguage: "zh-CN",
       type: "analyze",
     },
@@ -116,6 +117,7 @@ export function createSmokeRequests(schemaVersion) {
       schemaVersion,
       selection: "sustained heatwave",
       selectionKind: "phrase",
+      sentenceContext: null,
       targetLanguage: "zh-CN",
       type: "analyze",
     },
@@ -128,6 +130,7 @@ export function createSmokeRequests(schemaVersion) {
       selection:
         "He said the investigation was in the early stages and urged anyone with information to come forward.",
       selectionKind: "sentence",
+      sentenceContext: null,
       targetLanguage: "zh-CN",
       type: "analyze",
     },
@@ -140,6 +143,7 @@ export function createSmokeRequests(schemaVersion) {
       selection:
         "The investigation remains in its early stages.\nOfficials asked witnesses to come forward with information.",
       selectionKind: "paragraph",
+      sentenceContext: null,
       targetLanguage: "zh-CN",
       type: "analyze",
     },

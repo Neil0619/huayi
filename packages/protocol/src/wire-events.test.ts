@@ -8,6 +8,86 @@ import {
   wordStatusEventSchema,
 } from "./index.js";
 
+const PREVIOUS_SCHEMA_VERSION = 1;
+
+const sectionEvents = [
+  {
+    requestId: "analysis-v2",
+    schemaVersion: 2,
+    section: "part-of-speech",
+    sequence: 1,
+    type: "analysis-section",
+    value: "number",
+  },
+  {
+    requestId: "analysis-v2",
+    schemaVersion: 2,
+    section: "pronunciation",
+    sequence: 2,
+    type: "analysis-section",
+    value: { uk: "/ˈvɪktɪm/" },
+  },
+  {
+    requestId: "analysis-v2",
+    schemaVersion: 2,
+    section: "base-form",
+    sequence: 3,
+    type: "analysis-section",
+    value: "victim",
+  },
+  {
+    requestId: "analysis-v2",
+    schemaVersion: 2,
+    section: "word-formation",
+    sequence: 4,
+    type: "analysis-section",
+    value: "victim + -s",
+  },
+  {
+    requestId: "analysis-v2",
+    schemaVersion: 2,
+    section: "core-meanings",
+    sequence: 5,
+    type: "analysis-section",
+    value: [{ meaningZh: "受害者", partOfSpeech: "noun" }],
+  },
+  {
+    requestId: "analysis-v2",
+    schemaVersion: 2,
+    section: "collocations",
+    sequence: 6,
+    type: "analysis-section",
+    value: [{ meaningZh: "无辜的受害者", text: "innocent victims" }],
+  },
+  {
+    requestId: "analysis-v2",
+    schemaVersion: 2,
+    section: "context-example",
+    sequence: 7,
+    type: "analysis-section",
+    value: {
+      english: "The victims were taken to safety.",
+      translationZh: "受害者已被转移到安全地点。",
+    },
+  },
+  {
+    requestId: "analysis-v2",
+    schemaVersion: 2,
+    section: "similar-terms",
+    sequence: 8,
+    type: "analysis-section",
+    value: [{ meaningZh: "伤亡者", partOfSpeech: "noun", text: "casualty" }],
+  },
+  {
+    requestId: "analysis-v2",
+    schemaVersion: 2,
+    section: "synonyms",
+    sequence: 9,
+    type: "analysis-section",
+    value: [{ meaningZh: "受害者", partOfSpeech: "noun", text: "sufferer" }],
+  },
+] as const;
+
 describe("hostEventSchema", () => {
   it("accepts health, progress, result, word-added, and error events", () => {
     const events = [
@@ -16,12 +96,12 @@ describe("hostEventSchema", () => {
         hostVersion: "0.1.0",
         ready: true,
         requestId: "health-1",
-        schemaVersion: 1,
+        schemaVersion: 2,
         type: "health-result",
       },
       {
         requestId: "request-1",
-        schemaVersion: 1,
+        schemaVersion: 2,
         stage: "queued",
         type: "progress",
       },
@@ -33,13 +113,13 @@ describe("hostEventSchema", () => {
           translationZh: "它已准备就绪。",
           type: "translate-passage",
         },
-        schemaVersion: 1,
+        schemaVersion: 2,
         type: "result",
       },
       {
         outcome: "added",
         requestId: "word-1",
-        schemaVersion: 1,
+        schemaVersion: 2,
         type: "word-added",
       },
       {
@@ -49,7 +129,7 @@ describe("hostEventSchema", () => {
           retryable: true,
         },
         requestId: "request-1",
-        schemaVersion: 1,
+        schemaVersion: 2,
         type: "error",
       },
     ] as const;
@@ -68,8 +148,16 @@ describe("hostEventSchema", () => {
       hostEventSchema.safeParse({
         requestId: "request-1",
         result: { type: "unvalidated" },
-        schemaVersion: 1,
+        schemaVersion: 2,
         type: "result",
+      }).success,
+    ).toBe(false);
+    expect(
+      hostEventSchema.safeParse({
+        requestId: "request-1",
+        schemaVersion: PREVIOUS_SCHEMA_VERSION,
+        stage: "queued",
+        type: "progress",
       }).success,
     ).toBe(false);
     expect(
@@ -78,17 +166,34 @@ describe("hostEventSchema", () => {
         schemaVersion: 2,
         stage: "queued",
         type: "progress",
-      }).success,
-    ).toBe(false);
-    expect(
-      hostEventSchema.safeParse({
-        requestId: "request-1",
-        schemaVersion: 1,
-        stage: "queued",
-        type: "progress",
         url: "https://example.com",
       }).success,
     ).toBe(false);
+  });
+
+  it("accepts only a strict warmup-ready event", () => {
+    const warmupReady = {
+      requestId: "warmup-1",
+      schemaVersion: 2,
+      type: "warmup-ready",
+    } as const;
+
+    expect(hostEventSchema.parse(warmupReady)).toMatchObject({ type: "warmup-ready" });
+    expect(() => hostEventSchema.parse({ ...warmupReady, selection: "secret" })).toThrow();
+    expect(() =>
+      hostEventSchema.parse({
+        ...warmupReady,
+        schemaVersion: PREVIOUS_SCHEMA_VERSION,
+      }),
+    ).toThrow();
+  });
+
+  it.each(sectionEvents)("accepts the $section structured section", (event) => {
+    expect(hostEventSchema.parse(event)).toEqual(event);
+  });
+
+  it.each(sectionEvents)("keeps the $section structured section strict", (event) => {
+    expect(() => hostEventSchema.parse({ ...event, rawJson: "{}" })).toThrow();
   });
 });
 
@@ -98,7 +203,7 @@ describe("wordAddedEventSchema", () => {
       wordAddedEventSchema.parse({
         outcome,
         requestId: "word-1",
-        schemaVersion: 1,
+        schemaVersion: 2,
         type: "word-added",
       }).outcome,
     ).toBe(outcome);
@@ -109,7 +214,7 @@ describe("wordAddedEventSchema", () => {
       wordAddedEventSchema.safeParse({
         outcome: "added",
         requestId: "word-1",
-        schemaVersion: 1,
+        schemaVersion: 2,
         type: "word-added",
         word: "investigation",
       }).success,
@@ -121,7 +226,7 @@ describe("analysisDeltaEventSchema", () => {
   const delta = {
     delta: "调查",
     requestId: "analysis-1",
-    schemaVersion: 1,
+    schemaVersion: 2,
     section: "contextual-meaning",
     sequence: 0,
     type: "analysis-delta",
@@ -158,14 +263,19 @@ describe("analysisDeltaEventSchema", () => {
     ).toThrow();
   });
 
-  it("rejects unknown fields, schema version 2, and another event union member", () => {
+  it("rejects unknown fields, the previous schema version, and another event union member", () => {
     expect(() => analysisDeltaEventSchema.parse({ ...delta, rawJson: "{}" })).toThrow();
-    expect(() => analysisDeltaEventSchema.parse({ ...delta, schemaVersion: 2 })).toThrow();
+    expect(() =>
+      analysisDeltaEventSchema.parse({
+        ...delta,
+        schemaVersion: PREVIOUS_SCHEMA_VERSION,
+      }),
+    ).toThrow();
     expect(
       analysisDeltaEventSchema.safeParse({
         presence: "present",
         requestId: "check-1",
-        schemaVersion: 1,
+        schemaVersion: 2,
         type: "word-status",
       }).success,
     ).toBe(false);
@@ -176,7 +286,7 @@ describe("wordStatusEventSchema", () => {
   const wordStatus = {
     presence: "present",
     requestId: "check-1",
-    schemaVersion: 1,
+    schemaVersion: 2,
     type: "word-status",
   } as const;
 
@@ -194,12 +304,17 @@ describe("wordStatusEventSchema", () => {
   it("rejects unknown fields, values, schema versions, and another event union member", () => {
     expect(() => wordStatusEventSchema.parse({ ...wordStatus, word: "investigation" })).toThrow();
     expect(() => wordStatusEventSchema.parse({ ...wordStatus, presence: "unknown" })).toThrow();
-    expect(() => wordStatusEventSchema.parse({ ...wordStatus, schemaVersion: 2 })).toThrow();
+    expect(() =>
+      wordStatusEventSchema.parse({
+        ...wordStatus,
+        schemaVersion: PREVIOUS_SCHEMA_VERSION,
+      }),
+    ).toThrow();
     expect(
       wordStatusEventSchema.safeParse({
         outcome: "added",
         requestId: "word-1",
-        schemaVersion: 1,
+        schemaVersion: 2,
         type: "word-added",
       }).success,
     ).toBe(false);

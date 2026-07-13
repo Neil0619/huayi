@@ -20,7 +20,7 @@ describe("NativeMessageDispatcher analysis routing", () => {
     const events: HostEvent[] = [];
     const dispatcher = createDispatcher();
 
-    dispatcher.dispatch({ requestId: "health-1", schemaVersion: 1, type: "health" }, (event) =>
+    dispatcher.dispatch({ requestId: "health-1", schemaVersion: 2, type: "health" }, (event) =>
       events.push(event),
     );
 
@@ -80,7 +80,7 @@ describe("NativeMessageDispatcher analysis routing", () => {
     dispatcher.dispatch(
       {
         requestId: "cancel-1",
-        schemaVersion: 1,
+        schemaVersion: 2,
         targetRequestId: request.requestId,
         type: "cancel",
       },
@@ -113,11 +113,35 @@ describe("NativeMessageDispatcher analysis routing", () => {
     dispatcher.dispose();
   });
 
+  it("fails warmup closed until native host warmup is implemented", () => {
+    const events: HostEvent[] = [];
+    const analyze = vi.fn(async () => validResult);
+    const dispatcher = createDispatcher({ analyze });
+
+    dispatcher.dispatch({ requestId: "warmup-1", schemaVersion: 2, type: "warmup" }, (event) =>
+      events.push(event),
+    );
+
+    expect(events).toEqual([
+      expect.objectContaining({
+        error: {
+          code: "CODEX_CAPABILITY_MISSING",
+          message: "当前 Codex CLI 缺少划译所需能力，请升级后重试。",
+          retryable: false,
+        },
+        requestId: "warmup-1",
+        type: "error",
+      }),
+    ]);
+    expect(analyze).not.toHaveBeenCalled();
+    dispatcher.dispose();
+  });
+
   it("throws on an invalid inbound protocol object", () => {
     const dispatcher = createDispatcher();
 
     expect(() =>
-      dispatcher.dispatch({ schemaVersion: 1, type: "analyze" }, () => undefined),
+      dispatcher.dispatch({ schemaVersion: 2, type: "analyze" }, () => undefined),
     ).toThrow(/invalid host request/i);
     dispatcher.dispose();
   });

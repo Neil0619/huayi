@@ -1,9 +1,30 @@
 import { z } from "zod";
 
 import { analysisErrorSchema } from "./errors.js";
-import { MAX_STREAM_DELTA_LENGTH, SCHEMA_VERSION } from "./limits.js";
+import {
+  MAX_COLLOCATIONS,
+  MAX_CORE_MEANINGS,
+  MAX_RELATED_TERMS,
+  MAX_STREAM_DELTA_LENGTH,
+  SCHEMA_VERSION,
+} from "./limits.js";
 import { requestIdSchema } from "./requests.js";
-import { analysisResultSchema } from "./results.js";
+import {
+  analysisResultSchema,
+  collocationSchema,
+  contextExampleSchema,
+  coreMeaningSchema,
+  lexicalExplanationResultSchema,
+  partOfSpeechSchema,
+  pronunciationSchema,
+  relatedTermSchema,
+  type Collocation,
+  type ContextExample,
+  type CoreMeaning,
+  type PartOfSpeech,
+  type Pronunciation,
+  type RelatedTerm,
+} from "./results.js";
 
 const schemaVersionSchema = z.literal(SCHEMA_VERSION);
 
@@ -16,6 +37,13 @@ export const healthResultEventSchema = z.strictObject({
   type: z.literal("health-result"),
 });
 export type HealthResultEvent = z.infer<typeof healthResultEventSchema>;
+
+export const warmupReadyEventSchema = z.strictObject({
+  requestId: requestIdSchema,
+  schemaVersion: schemaVersionSchema,
+  type: z.literal("warmup-ready"),
+});
+export type WarmupReadyEvent = z.infer<typeof warmupReadyEventSchema>;
 
 export const progressEventSchema = z.strictObject({
   elapsedMs: z.number().int().nonnegative().optional(),
@@ -42,15 +70,96 @@ export const analysisDeltaSectionSchema = z.enum([
 ]);
 export type AnalysisDeltaSection = z.infer<typeof analysisDeltaSectionSchema>;
 
+const analysisSequenceSchema = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
+
 export const analysisDeltaEventSchema = z.strictObject({
   delta: z.string().min(1).max(MAX_STREAM_DELTA_LENGTH),
   requestId: requestIdSchema,
   schemaVersion: schemaVersionSchema,
   section: analysisDeltaSectionSchema,
-  sequence: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
+  sequence: analysisSequenceSchema,
   type: z.literal("analysis-delta"),
 });
 export type AnalysisDeltaEvent = z.infer<typeof analysisDeltaEventSchema>;
+
+export type AnalysisSectionPayload =
+  | { section: "part-of-speech"; value: PartOfSpeech }
+  | { section: "pronunciation"; value: Pronunciation }
+  | { section: "base-form"; value: string }
+  | { section: "word-formation"; value: string }
+  | { section: "core-meanings"; value: CoreMeaning[] }
+  | { section: "collocations"; value: Collocation[] }
+  | { section: "context-example"; value: ContextExample }
+  | { section: "similar-terms"; value: RelatedTerm[] }
+  | { section: "synonyms"; value: RelatedTerm[] };
+
+const analysisSectionCommonShape = {
+  requestId: requestIdSchema,
+  schemaVersion: schemaVersionSchema,
+  sequence: analysisSequenceSchema,
+  type: z.literal("analysis-section"),
+};
+const baseFormSchema = lexicalExplanationResultSchema.shape.baseForm.unwrap();
+const wordFormationSchema = lexicalExplanationResultSchema.shape.wordFormation.unwrap();
+
+const partOfSpeechSectionEventSchema = z.strictObject({
+  ...analysisSectionCommonShape,
+  section: z.literal("part-of-speech"),
+  value: partOfSpeechSchema,
+});
+const pronunciationSectionEventSchema = z.strictObject({
+  ...analysisSectionCommonShape,
+  section: z.literal("pronunciation"),
+  value: pronunciationSchema,
+});
+const baseFormSectionEventSchema = z.strictObject({
+  ...analysisSectionCommonShape,
+  section: z.literal("base-form"),
+  value: baseFormSchema,
+});
+const wordFormationSectionEventSchema = z.strictObject({
+  ...analysisSectionCommonShape,
+  section: z.literal("word-formation"),
+  value: wordFormationSchema,
+});
+const coreMeaningsSectionEventSchema = z.strictObject({
+  ...analysisSectionCommonShape,
+  section: z.literal("core-meanings"),
+  value: z.array(coreMeaningSchema).min(1).max(MAX_CORE_MEANINGS),
+});
+const collocationsSectionEventSchema = z.strictObject({
+  ...analysisSectionCommonShape,
+  section: z.literal("collocations"),
+  value: z.array(collocationSchema).min(1).max(MAX_COLLOCATIONS),
+});
+const contextExampleSectionEventSchema = z.strictObject({
+  ...analysisSectionCommonShape,
+  section: z.literal("context-example"),
+  value: contextExampleSchema,
+});
+const similarTermsSectionEventSchema = z.strictObject({
+  ...analysisSectionCommonShape,
+  section: z.literal("similar-terms"),
+  value: z.array(relatedTermSchema).min(1).max(MAX_RELATED_TERMS),
+});
+const synonymsSectionEventSchema = z.strictObject({
+  ...analysisSectionCommonShape,
+  section: z.literal("synonyms"),
+  value: z.array(relatedTermSchema).min(1).max(MAX_RELATED_TERMS),
+});
+
+export const analysisSectionEventSchema = z.discriminatedUnion("section", [
+  partOfSpeechSectionEventSchema,
+  pronunciationSectionEventSchema,
+  baseFormSectionEventSchema,
+  wordFormationSectionEventSchema,
+  coreMeaningsSectionEventSchema,
+  collocationsSectionEventSchema,
+  contextExampleSectionEventSchema,
+  similarTermsSectionEventSchema,
+  synonymsSectionEventSchema,
+]);
+export type AnalysisSectionEvent = z.infer<typeof analysisSectionEventSchema>;
 
 export const wordbookPresenceSchema = z.enum(["present", "absent"]);
 export type WordbookPresence = z.infer<typeof wordbookPresenceSchema>;
@@ -84,8 +193,10 @@ export type ErrorEvent = z.infer<typeof errorEventSchema>;
 
 export const hostEventSchema = z.discriminatedUnion("type", [
   healthResultEventSchema,
+  warmupReadyEventSchema,
   progressEventSchema,
   analysisDeltaEventSchema,
+  analysisSectionEventSchema,
   resultEventSchema,
   wordStatusEventSchema,
   wordAddedEventSchema,

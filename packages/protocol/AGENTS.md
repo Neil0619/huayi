@@ -2,7 +2,7 @@
 
 - Depend only on Zod and platform-neutral TypeScript.
 - Use strict schemas and reject unknown keys.
-- The initial `schemaVersion` is `1`.
+- The current `schemaVersion` is `2`.
 - Backward-compatible fields must be optional. Removing, renaming, or changing field semantics
   requires a schema-version increment and migration documentation.
 - Every wire message is a discriminated union using `type`.

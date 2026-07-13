@@ -79,6 +79,13 @@ export class NativeMessageDispatcher {
       case "health":
         this.dispatchHealth(parsed.data, emit);
         break;
+      case "warmup":
+        this.emitError(emit, parsed.data.requestId, {
+          code: "CODEX_CAPABILITY_MISSING",
+          message: "当前 Codex CLI 缺少划译所需能力，请升级后重试。",
+          retryable: false,
+        });
+        break;
       case "analyze":
         this.dispatchAnalyze(parsed.data, emit);
         break;

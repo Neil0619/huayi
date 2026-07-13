@@ -3,11 +3,10 @@ import { z } from "zod";
 import {
   MAX_COLLOCATIONS,
   MAX_CONTEXT_LENGTH,
+  MAX_CORE_MEANINGS,
   MAX_MODEL_TEXT_LENGTH,
   MAX_RELATED_TERMS,
   MAX_SELECTION_LENGTH,
-  MIN_COLLOCATIONS,
-  MIN_RELATED_TERMS,
 } from "./limits.js";
 
 const chineseTextSchema = z.string().trim().min(1).max(MAX_MODEL_TEXT_LENGTH);
@@ -54,7 +53,7 @@ export type Collocation = z.infer<typeof collocationSchema>;
 const lexicalKindSchema = z.enum(["word", "phrase"]);
 const passageKindSchema = z.enum(["sentence", "paragraph"]);
 
-const pronunciationSchema = z
+export const pronunciationSchema = z
   .strictObject({
     uk: z.string().trim().min(1).max(120).optional(),
     us: z.string().trim().min(1).max(120).optional(),
@@ -62,20 +61,22 @@ const pronunciationSchema = z
   .refine((value) => value.uk !== undefined || value.us !== undefined, {
     message: "At least one pronunciation is required.",
   });
+export type Pronunciation = z.infer<typeof pronunciationSchema>;
 
-const contextExampleSchema = z.strictObject({
+export const contextExampleSchema = z.strictObject({
   english: englishTextSchema,
   translationZh: chineseTextSchema,
 });
+export type ContextExample = z.infer<typeof contextExampleSchema>;
 
 export const lexicalTranslationResultSchema = z.strictObject({
-  collocations: z.array(collocationSchema).min(MIN_COLLOCATIONS).max(MAX_COLLOCATIONS),
+  collocations: z.array(collocationSchema).max(MAX_COLLOCATIONS),
   contextExample: contextExampleSchema.optional(),
   contextualMeaningZh: chineseTextSchema,
   partOfSpeech: partOfSpeechSchema,
   pronunciation: pronunciationSchema.optional(),
   selectionKind: lexicalKindSchema,
-  similarTerms: z.array(relatedTermSchema).min(MIN_RELATED_TERMS).max(MAX_RELATED_TERMS),
+  similarTerms: z.array(relatedTermSchema).max(MAX_RELATED_TERMS),
   sourceText: sourceTextSchema,
   type: z.literal("translate-lexical"),
 });
@@ -89,19 +90,20 @@ export const passageTranslationResultSchema = z.strictObject({
 });
 export type PassageTranslationResult = z.infer<typeof passageTranslationResultSchema>;
 
-const coreMeaningSchema = z.strictObject({
+export const coreMeaningSchema = z.strictObject({
   meaningZh: chineseTextSchema.max(300),
   partOfSpeech: partOfSpeechSchema,
 });
+export type CoreMeaning = z.infer<typeof coreMeaningSchema>;
 
 export const lexicalExplanationResultSchema = z.strictObject({
   baseForm: englishTextSchema.max(120).optional(),
-  collocations: z.array(collocationSchema).min(MIN_COLLOCATIONS).max(MAX_COLLOCATIONS),
+  collocations: z.array(collocationSchema).max(MAX_COLLOCATIONS),
   contextualMeaningZh: chineseTextSchema,
-  coreMeanings: z.array(coreMeaningSchema).min(1).max(4),
+  coreMeanings: z.array(coreMeaningSchema).min(1).max(MAX_CORE_MEANINGS),
   selectionKind: lexicalKindSchema,
   sourceText: sourceTextSchema,
-  synonyms: z.array(relatedTermSchema).min(MIN_RELATED_TERMS).max(MAX_RELATED_TERMS),
+  synonyms: z.array(relatedTermSchema).max(MAX_RELATED_TERMS),
   type: z.literal("explain-lexical"),
   wordFormation: z.string().trim().min(1).max(300).optional(),
 });

@@ -8,7 +8,7 @@ import { NativeMessageDecoder, encodeNativeMessage } from "./framing.js";
 
 describe("encodeNativeMessage", () => {
   it("writes a native-endian 32-bit length followed by UTF-8 JSON", () => {
-    const message = { requestId: "health-1", schemaVersion: 1, type: "health" };
+    const message = { requestId: "health-1", schemaVersion: 2, type: "health" };
     const frame = encodeNativeMessage(message);
     const payloadLength = endianness() === "LE" ? frame.readUInt32LE(0) : frame.readUInt32BE(0);
 

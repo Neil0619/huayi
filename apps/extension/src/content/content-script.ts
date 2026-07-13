@@ -96,6 +96,7 @@ export function createAnalyzeRequest(
     schemaVersion: SCHEMA_VERSION,
     selection: selection.selection,
     selectionKind: selection.selectionKind,
+    sentenceContext: null,
     targetLanguage: "zh-CN",
     type: "analyze",
   });

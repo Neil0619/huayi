@@ -9,7 +9,8 @@
 5. 默认测试不得访问 OpenAI、真实 Codex、真实欧路 API 或真实 macOS 钥匙串；注入 fake App
    Server、process runner、authorization reader 和 fetch。
 6. 根包、三个 workspace 包、扩展 Manifest、Host 版本和 User-Agent 必须同步。
-7. 保持 `schemaVersion: 1`，除非出现删除、重命名或语义不兼容变化并附迁移说明。
+7. 当前协议为 `schemaVersion: 2`；删除、重命名或语义不兼容变化必须再次提升版本并附迁移
+   说明。
 8. 手写文件在超过 400 行前拆分；不要新增权限、存储、秘密或无说明的生产依赖。
 
 ## 提交前检查

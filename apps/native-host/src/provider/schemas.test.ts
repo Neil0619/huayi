@@ -356,7 +356,7 @@ describe("Codex output schemas", () => {
     }
   });
 
-  it("rejects unknown fields, undersized term lists, and empty pronunciation objects", () => {
+  it("keeps strict objects while the model schema retains its current term minimum", () => {
     const schema = readOutputSchema("translate-lexical");
     const valid = contractCases[0].value;
 
@@ -364,9 +364,11 @@ describe("Codex output schemas", () => {
     const tooFewTerms = { ...valid, similarTerms: terms.slice(0, 2) };
     const emptyPronunciation = { ...valid, pronunciation: {} };
 
-    for (const value of [unknownField, tooFewTerms, emptyPronunciation]) {
+    for (const value of [unknownField, emptyPronunciation]) {
       expect(lexicalTranslationResultSchema.safeParse(value).success).toBe(false);
       expect(validateSubset(schema, value)).not.toEqual([]);
     }
+    expect(lexicalTranslationResultSchema.safeParse(tooFewTerms).success).toBe(true);
+    expect(validateSubset(schema, tooFewTerms)).not.toEqual([]);
   });
 });
