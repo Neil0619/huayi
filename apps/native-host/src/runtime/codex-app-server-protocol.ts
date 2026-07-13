@@ -86,6 +86,21 @@ function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.length > 0;
 }
 
+function hasExactKeys(value: JsonObject, expectedKeys: readonly string[]): boolean {
+  const keys = Object.keys(value);
+  return (
+    keys.length === expectedKeys.length && keys.every((key) => expectedKeys.includes(key))
+  );
+}
+
+function isEmptyArray(value: unknown): value is [] {
+  return Array.isArray(value) && value.length === 0;
+}
+
+function isEmptyObject(value: unknown): value is Record<string, never> {
+  return isObject(value) && Object.keys(value).length === 0;
+}
+
 function isUnsafeMethod(method: string): boolean {
   return (
     /configWarning|approval|elicitation|requestUserInput|hook/i.test(method) ||
@@ -106,15 +121,46 @@ export function isInitializeResponse(value: unknown): boolean {
   );
 }
 
-export function isEmptyHooksResponse(value: unknown): boolean {
-  return isObject(value) && Array.isArray(value.data) && value.data.length === 0;
-}
-
-export function isEmptyMcpResponse(value: unknown): boolean {
+export function isSafeHooksResponse(value: unknown, workingDirectory: string): boolean {
   return (
     isObject(value) &&
+    hasExactKeys(value, ["data"]) &&
     Array.isArray(value.data) &&
-    value.data.length === 0 &&
+    value.data.every(
+      (record) =>
+        isObject(record) &&
+        hasExactKeys(record, ["cwd", "errors", "hooks", "warnings"]) &&
+        record.cwd === workingDirectory &&
+        isEmptyArray(record.errors) &&
+        isEmptyArray(record.hooks) &&
+        isEmptyArray(record.warnings),
+    )
+  );
+}
+
+export function isInertMcpResponse(value: unknown): boolean {
+  return (
+    isObject(value) &&
+    hasExactKeys(value, ["data", "nextCursor"]) &&
+    Array.isArray(value.data) &&
+    value.data.every(
+      (record) =>
+        isObject(record) &&
+        hasExactKeys(record, [
+          "authStatus",
+          "name",
+          "resourceTemplates",
+          "resources",
+          "serverInfo",
+          "tools",
+        ]) &&
+        typeof record.authStatus === "string" &&
+        isNonEmptyString(record.name) &&
+        isEmptyArray(record.resourceTemplates) &&
+        isEmptyArray(record.resources) &&
+        record.serverInfo === null &&
+        isEmptyObject(record.tools),
+    ) &&
     value.nextCursor === null
   );
 }
@@ -219,9 +265,9 @@ export async function initializeAppServerChannel(
   const hooks = await channel.request("hooks/list", { cwds: [workingDirectory] });
   const mcpServers = await channel.request("mcpServerStatus/list", {
     detail: "toolsAndAuthOnly",
-    limit: 1,
+    limit: 128,
   });
-  if (!isEmptyHooksResponse(hooks) || !isEmptyMcpResponse(mcpServers)) {
+  if (!isSafeHooksResponse(hooks, workingDirectory) || !isInertMcpResponse(mcpServers)) {
     throw new AppServerInvariantError();
   }
 }

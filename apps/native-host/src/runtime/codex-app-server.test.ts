@@ -119,7 +119,7 @@ async function initialize(
   expect(hooksRequest.params).toEqual({ cwds: ["/tmp/huayi-empty"] });
   process.respond(hooksRequest, { data: hooks });
   const mcpRequest = await process.takeRequest("mcpServerStatus/list");
-  expect(mcpRequest.params).toEqual({ detail: "toolsAndAuthOnly", limit: 1 });
+  expect(mcpRequest.params).toEqual({ detail: "toolsAndAuthOnly", limit: 128 });
   process.respond(mcpRequest, { data: mcpServers, nextCursor: null });
 }
 

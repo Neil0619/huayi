@@ -79,6 +79,22 @@ const safeThread = (id: string) => ({
   thread: { ephemeral: true, id },
 });
 
+const safeHook = {
+  cwd: "/tmp/huayi-empty",
+  errors: [],
+  hooks: [],
+  warnings: [],
+};
+
+const inertMcp = {
+  authStatus: "unsupported",
+  name: "node_repl",
+  resourceTemplates: [],
+  resources: [],
+  serverInfo: null,
+  tools: {},
+};
+
 function createClient(process: FakeAppServerProcess): CodexAppServerClient {
   return new CodexAppServerClient({
     codexExecutable: "codex",
@@ -107,7 +123,12 @@ async function initialize(
   });
 }
 
-async function startTurn(process: FakeAppServerProcess, requestId: string) {
+async function startTurn(
+  process: FakeAppServerProcess,
+  requestId: string,
+  hooks: unknown[] = [],
+  mcpServers: unknown[] = [],
+) {
   const promise = createClient(process).runTurn({
     onAssistantDelta: () => undefined,
     outputSchema: {},
@@ -115,7 +136,7 @@ async function startTurn(process: FakeAppServerProcess, requestId: string) {
     requestId,
     signal: new AbortController().signal,
   });
-  await initialize(process);
+  await initialize(process, hooks, mcpServers);
   const threadId = `thread-${requestId}`;
   process.respond(await process.takeRequest("thread/start"), safeThread(threadId));
   const turnId = `turn-${requestId}`;
@@ -127,6 +148,22 @@ async function startTurn(process: FakeAppServerProcess, requestId: string) {
 }
 
 describe("CodexAppServerClient security invariants", () => {
+  it("accepts safe Hook and inert MCP records before starting a thread", async () => {
+    const process = new FakeAppServerProcess();
+    const active = await startTurn(process, "safe-records", [safeHook], [inertMcp]);
+    process.notify("item/completed", {
+      item: { id: "safe-records", text: "safe", type: "agentMessage" },
+      threadId: active.threadId,
+      turnId: active.turnId,
+    });
+    process.notify("turn/completed", {
+      threadId: active.threadId,
+      turn: { id: active.turnId, status: "completed" },
+    });
+
+    await expect(active.promise).resolves.toBe("safe");
+  });
+
   it.each([
     ["instruction sources", { ...safeThread("unsafe"), instructionSources: ["AGENTS.md"] }],
     [
@@ -151,9 +188,9 @@ describe("CodexAppServerClient security invariants", () => {
   });
 
   it.each([
-    ["hooks", [{}], []],
-    ["MCP servers", [], [{}]],
-  ])("rejects non-empty %s before starting a thread", async (_name, hooks, mcpServers) => {
+    ["an active Hook record", [{ ...safeHook, hooks: [{}] }], []],
+    ["an MCP record with tools", [], [{ ...inertMcp, tools: { run: {} } }]],
+  ])("rejects %s before starting a thread", async (_name, hooks, mcpServers) => {
     const process = new FakeAppServerProcess();
     const run = createClient(process).runTurn({
       onAssistantDelta: () => undefined,
