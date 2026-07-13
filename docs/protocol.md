@@ -117,6 +117,11 @@ v0.3.0 继续在 `schemaVersion: 1` 中兼容增加 `check-word`、`analysis-del
 `word-status` 联合分支，不改变已有 `analyze`、`add-word`、`HostRequest` 或 `HostEvent` 分支
 语义。扩展与 Native Host 仍须同步升级。
 
+扩展为同一浮层分别维护分析、自动查词和显式加词通道。分析与自动查词可以并行；显式加词
+开始时只替代未完成的查词，不取消已完成或仍在进行的分析。关闭、新选区、Escape 和标签页
+销毁会向所有未完成通道发送各自的 `cancel`。每个通道只接受自身 request ID 的事件，终态后
+到达的 delta、status 或重复终态必须被丢弃或失败关闭，不能改变后续浮层。
+
 本机 stdin/stdout 每条消息使用 4 字节本机字节序无符号长度前缀，后接 UTF-8 JSON。长度为
 0、超过 1 MiB、JSON 无效或协议 Schema 无效时 Host 立即停止读取；stdout 不输出日志、换行
 或其他非帧字节。`analyze`、`check-word` 和 `add-word` 都进入全局最多并行 2 个任务的队列，

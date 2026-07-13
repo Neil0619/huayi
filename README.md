@@ -5,45 +5,53 @@ Native Messaging 调用本机已登录的 Codex CLI，不在扩展中保存 Open
 
 ## ChatGPT Plus / Codex 使用边界
 
-第一版可以复用本机 Codex CLI 的现有 ChatGPT 登录：Native Host 调用
-`codex exec --ephemeral`，因此不需要另购 OpenAI API Key，但会受到当前 ChatGPT/Codex
-账户的可用额度、频率和网络限制。这不是“用 Plus 抵扣 API 费用”；ChatGPT 订阅与 OpenAI
-API 计费彼此独立。若未来发布商店版或改成云端 provider，必须另外实现服务端鉴权、密钥
-管理、限流与成本控制。
+Native Host 通过 Codex App Server 复用本机现有的 ChatGPT 登录，因此不需要另购 OpenAI
+API Key，但仍受当前 ChatGPT/Codex 账户额度、频率和网络限制。这不是“用 Plus 抵扣 API
+费用”；ChatGPT 订阅与 OpenAI API 计费彼此独立。若未来发布商店版或增加云端 provider，
+必须另外实现服务端鉴权、密钥管理、限流与成本控制。
 
-参考：[Codex 非交互模式](https://developers.openai.com/codex/noninteractive)、
-[ChatGPT Plus 说明](https://help.openai.com/en/articles/6950777-what-is-chatgpt-plus)。
-
-## v0.2.0 能力
+## v0.3.0 能力
 
 - 双击或拖选英文后显示“解释”和“翻译”工具条。
-- 单词/短语翻译包含语境义、词性、音标、搭配、原文例句和相似词。
-- 单词/短语解释包含原形、核心词义、同义词和语境搭配。
-- 单句支持翻译和中文解析；多句段落仅支持翻译。
-- 单词翻译或解释完成后，可将原始选中词形和所在英文句子加入欧路词典生词本。
-- 已存在的单词显示“已在生词本”，不会再次写入或覆盖原分组、星级和语境。
-- 每次请求使用 `codex exec --ephemeral`，不创建可恢复的 Codex 会话。
+- 单词/短语翻译和解释、单句翻译和解析、多句段落翻译继续返回严格结构化结果。
+- 核心中文字段由 App Server 实时增量展示，完整结果仍须通过 JSON Schema 和公共协议校验。
+- 单词分析期间并行查询欧路生词本；已存在的单词在加载或结果阶段显示“已加入生词本”。
+- 查询不存在或被动查询失败时，完整结果仍可显式加入；写入继续先 GET 防重复，再按需 POST。
+- 自动查询只向欧路发送原始单词；只有用户点击添加时才发送原始词形和所在英文句子。
+- App Server 按需启动并复用进程，但每次分析使用独立的 ephemeral thread；模型固定为
+  `gpt-5.4-mini`，推理强度固定为 `low`。
 
-欧路功能是可选能力。只有用户点击“加入欧路生词本”时才会向欧路发送单词和所在句子；授权
-保存在 macOS 钥匙串，不进入扩展配置、仓库或日志。授权获取及接口说明见
-[欧路 OpenAPI 开发指南](https://my.eudic.net/OpenAPI/Doc_Index)。
+欧路授权保存在 macOS 钥匙串，不进入扩展配置、仓库、Native Messaging 或日志。授权获取及
+接口说明见[欧路 OpenAPI 开发指南](https://my.eudic.net/OpenAPI/Doc_Index)。
+
+## App Server 安全边界
+
+App Server 不提供 `codex exec` 的 ignore-user-config / ignore-rules 参数。划译不会伪造这些
+开关，而是使用严格配置、显式禁用功能、专用空工作目录、固定模型/provider、只读无网络
+沙箱、`never` 审批、空 Hook/MCP 配置和返回不变量校验。任何审批、Shell、文件修改、Web、
+应用、Hook、MCP 或其他工具事件都会失败关闭。
 
 ## 当前范围
 
-第一版只支持 macOS、Google Chrome 和普通 `http/https` 顶层网页，不支持 PDF、Chrome
-内部页面、iframe、编辑器区域、其他操作系统或云端 API。
+v0.3.0 只支持 macOS、Google Chrome 和普通 `http/https` 顶层网页，不支持 PDF、Chrome
+内部页面、iframe、编辑器区域、其他操作系统、云端 API、历史记录、同步或后续对话。
+Manifest 权限严格保持为 `nativeMessaging`。
 
 ## 开发入口
 
-环境要求：Node.js 18+、pnpm、已通过 ChatGPT 登录的 Codex CLI。
+环境要求：Node.js 18+、pnpm、已通过 ChatGPT 登录且支持 App Server 的 Codex CLI。
 
 ```bash
 pnpm install
+pnpm check:instructions
 pnpm build
 pnpm test
+pnpm test:e2e
 pnpm host:install -- --extension-id <ID> --dry-run
-pnpm host:eudic:configure -- --dry-run
 ```
 
-完整安装与验证步骤见 [macOS 安装说明](docs/setup-macos.md)，工程边界见
+默认测试全部使用 fake App Server、fake Keychain 和 fake fetch，不访问 OpenAI 或欧路。只有
+显式执行 `pnpm smoke:codex` 才会调用真实模型并消耗订阅额度。
+
+完整安装与升级步骤见 [macOS 安装说明](docs/setup-macos.md)，工程边界见
 [架构文档](docs/architecture.md)。

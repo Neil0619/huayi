@@ -4,88 +4,98 @@
 
 ```text
 网页选区
-  -> Content Script（选区、段落/句子上下文、Shadow DOM 浮层）
-  -> MV3 Service Worker（请求路由、取消、Native Messaging）
-  -> 本机 Node Host（协议校验、并发与超时）
-       |-> AnalysisProvider -> codex exec --ephemeral
+  -> Content Script（选区、上下文、Shadow DOM 浮层）
+  -> MV3 Service Worker（分析/查词/加词三通道、取消、Native Messaging）
+  -> 本机 Node Host（严格协议、全局并发与超时）
+       |-> AnalysisProvider -> Codex App Server -> ephemeral thread/turn
        `-> WordbookProvider -> macOS Keychain -> 欧路 OpenAPI
 ```
 
-依赖方向固定为 `extension -> protocol <- native-host`。共享协议不感知 Chrome、Node 或
-Codex；未来的云端模型、其他浏览器和其他操作系统通过各自边界扩展。
+依赖方向固定为 `extension -> protocol <- native-host`。共享协议不感知 Chrome、Node、Codex
+或欧路；新的模型、新浏览器、新生词本和新操作系统必须分别位于现有边界后面。
 
-## 组件职责
+## 扩展与请求协调
 
-- Content Script：读取英文选区与所在语义块；单词另按真实 `Range` 提取所在英文句子；分类
-  文本并展示、关闭浮层。
-- Service Worker：路由 `analyze`、`add-word` 和 `cancel`，持有请求 ID 与 Native Messaging
-  连接，不保存页面或模型数据。
-- Native Host：读取/写入二进制帧，校验协议，管理全局最多两个任务。
-- Codex Provider：构建不可信数据提示、选择输出 Schema、解析结构化结果。
-- Wordbook Provider：每次请求从固定 macOS 钥匙串项读取授权，先查询欧路，确认不存在后再
-  添加；欧路操作额外串行，最多并发一个。
-- Protocol：提供请求、结果、错误、wire event 的唯一公共定义。
+Content Script 读取英文选区、最多 2,000 字符的模型上下文，以及单词所在的完整英文句子。
+它只通过 `textContent` 渲染模型增量和最终结果，不保存 URL、标题、查询或结果。
 
-Provider 根据动作和选区类型选择四份独立 JSON Schema，再通过 stdin 调用 `codex exec`。
-普通模式的 stdout 只接收最终 JSON，Codex 进度保留在 stderr；Host 不会把 stderr 透传给
-扩展。输出必须先通过 JSON 解析和公共协议 Zod Schema，并同时匹配原请求的结果类型、选区
-类型和原文，任何额外 stdout 字节或字段都会失败关闭。
+单个浮层会话分别追踪分析、自动查词和显式加词三个请求通道。单词分析先提交 `analyze`，
+随后并行提交只含原始单词的 `check-word`；短语、句子和段落不查词。用户显式添加时只取消
+尚未完成的查词并发送 `add-word`，分析结果不受影响。新选区、关闭、Escape 和标签页销毁会
+取消该会话中所有未完成请求。
 
-Host 不指定模型，使用当前 Codex CLI 的内置默认模型；它只依赖现有 ChatGPT 登录状态，不在
-扩展或 Host 中管理 API Key。这条 provider 边界不是 OpenAI API，未来若增加云端 API 必须
-实现新的 `AnalysisProvider` 并单独设计密钥、鉴权、限流和成本控制。
+Service Worker 按 `requestId` 和通道匹配事件：分析只接受有序 `analysis-delta` 和最终
+`result`，查词只接受 `word-status`，加词只接受 `word-added`。成功终态、序号或请求 ID 不
+匹配时失败关闭；已取消或已结束请求的迟到事件被丢弃。请求状态只存在内存，不写入 storage。
 
-Service Worker 以 `requestId` 维护请求路由，并为每个标签页只保留一个活动请求。新工作请求
-先取消旧请求，再发送 `analyze` 或 `add-word`；结果或错误到达后立即删除内存状态。分析请求
-只能接受 `result`，加词请求只能接受 `word-added`，终态不匹配时按 `INVALID_RESPONSE`
-失败关闭。Native Port 断开时所有等待请求都会收到可展示的协议错误，下一次请求再惰性创建
-新连接。扩展不把这些状态写入 storage。
+## Native Host 与并发
 
-## 选区领域规则
+Native Host 解码 Native Messaging 帧并通过 `@huayi/protocol` 校验所有输入和输出。全局最多
+运行两个任务，因此分析与自动查词可以并行；所有欧路请求在此基础上额外串行、最多一个。
+分析超时为 60 秒，欧路操作超时为 10 秒。Host stdout 只允许长度前缀协议帧，诊断只写
+stderr。
 
-Content Script 将 CRLF 统一为换行、压缩行内空白并保留最多两个连续换行。选区必须包含
-拉丁字母且不能包含汉字，归一化后超过 2,000 字符时直接忽略。`input`、`textarea`、
-`select`、`contenteditable` 和 `role=textbox` 区域不参与处理。
+## Codex App Server 生命周期
 
-单个英文词（含撇号或连字符）归为 `word`；多行或包含两个句末标记的文本归为
-`paragraph`；包含一个句末标记或至少八个词的文本归为 `sentence`；其余归为 `phrase`。
-上下文优先取最近的段落、列表项、引用、表格单元等语义块，并围绕选区裁剪到 2,000 字符。
+第一次分析时，Host 以 stdio 启动一个 App Server 并完成 `initialize`。后续分析复用进程，
+但每次都创建新的 ephemeral thread 和独立 turn；Host 不恢复或复用分析 thread。Host 退出、
+输入结束或协议污染时关闭进程；App Server 意外退出会终止当前活动分析，下一请求再惰性
+启动，不自动重试模型调用。
 
-生词本语境与模型段落上下文相互独立。单词通过 `Intl.Segmenter` 定位实际选中位置所在句子，
-并用确定性标点规则回退；重复单词不会按第一次文本匹配误取句子。混入汉字、无法提取或超过
-限制时退化为选中词本身。远端写入始终使用网页中的原始词形和预先提取的句子，不使用模型
-返回的原形、翻译或解释。
+每个 thread/turn 固定使用 Codex 内置 `openai` provider、`gpt-5.4-mini`、`low` effort、专用
+空工作目录、只读且无网络的 sandbox、`approvalPolicy: "never"` 和对应结果类型的 JSON
+Schema。`thread/start` 返回后，Host 验证 cwd、空 `instructionSources`、模型/provider/effort、
+ephemeral、审批及 sandbox 不变量；任一不匹配都映射为能力缺失，禁止宽松降级。
 
-## 扩展方式
+App Server 不提供 `codex exec` 的 ignore-user-config / ignore-rules 参数。划译改用
+`--strict-config`、显式配置覆盖和功能禁用：关闭历史、Web Search、环境继承、通知、遥测、
+应用、Hook、MCP、图片、Shell、插件、记忆、多代理和相关工具入口。初始化后还主动验证 Hook
+与 MCP 列表为空。任何审批、交互输入、应用、Hook、MCP、命令执行、文件修改、动态工具、
+协作工具、Web Search 或图片事件都会使 App Server 失败关闭。
 
-- 新 provider 实现 `AnalysisProvider`，不得修改扩展 UI 的公共数据结构。
-- 新生词本实现 `WordbookProvider`，不得把欧路概念泄漏到 `AnalysisProvider`。
-- 新浏览器创建新的 app 并复用 `@huayi/protocol`。
-- 新操作系统只增加 installer，实现相同 Native Messaging host 接口。
+Host 只向 App Server 传递既有环境允许列表。`HOME` 和 `CODEX_HOME` 仅供 Codex 自行使用
+ChatGPT 登录；Host 不读取、复制或解析认证文件，也不把仓库目录作为 cwd。
 
-macOS 安装器把自包含 Host 和 Schema 放入 Huayi 专用用户目录，通过带绝对 Node/Codex 路径
-的可执行 launcher 接收 Chrome 传入的来源参数，再用 `exec` 启动 Host。Chrome 清单的
-`allowed_origins` 只包含安装时提供的一个扩展 ID。安装和卸载都先校验 Huayi 所有权标记，
-不会认领或删除同路径下的未知内容。
+## 增量与最终结果
 
-欧路授权使用固定钥匙串 service `com.huayi.codex_bridge.eudic` 和 account `authorization`。
-安装与升级只验证 `/usr/bin/security` 可执行，不读取、创建或覆盖授权；卸载先删除这个精确
-钥匙串项，失败时保留 Host 文件以便重试。
+Provider 为四类结果选择独立 JSON Schema，并将 Schema 传给 `turn/start.outputSchema`。
+`item/agentMessage/delta` 的 assistant JSON 先经过有界增量解析器，仅提取以下顶层字符串：
 
-launcher 会转发 Chrome 附加的来源参数，固定 `HOME`、可选 `CODEX_HOME` 和只含已验证 Node
-目录及 macOS 系统目录的 `PATH`。这样即使 Chrome 从 GUI 启动且没有终端环境，NVM 的
-`#!/usr/bin/env node` Codex wrapper 仍会使用安装时验证过的 Node。
+- 词汇翻译/解释：`contextualMeaningZh`；
+- 句子/段落翻译：`translationZh`；
+- 句子解释：`mainStructure`、`translationZh`、`contextRole`。
+
+Host 为提取出的文本生成从 0 开始的 `analysis-delta.sequence`。原始 JSON、推理内容、未知字段
+和数组半成品不会发送给扩展。`turn/completed` 后仍解析完整 assistant 文本，并依次校验 JSON
+Schema、公共 `analysisResultSchema`、结果类型、`selectionKind` 和 `sourceText`；只有全部匹配
+才发送最终 `result`。因此流式预览是中间状态，不能替代完整成功态。
+
+## 欧路生词本
+
+自动 `check-word` 每次从固定 macOS 钥匙串项读取授权，只向固定 HTTPS 端点发送原始单词，
+不发送句子、段落、URL、标题或模型输出。查询失败是被动状态：分析继续，完整结果保留可用的
+添加按钮。
+
+显式 `add-word` 才携带原始单词和预先提取的英文句子。Provider 写入前始终重新 GET；已存在
+则返回 `already-exists`，不存在才 POST，不能用自动查询结果跳过防重复检查。安装与升级不会
+读取、创建、覆盖或删除欧路钥匙串项。
+
+## 安装与扩展方式
+
+macOS 安装器把自包含 Host、四份 Schema、空工作目录和 launcher 放入 Huayi 专用用户目录。
+Chrome 清单只允许安装时提供的扩展 ID。重复安装只升级带合法 Huayi 所有权标记的文件；
+未知内容不会被认领或覆盖。
+
+- 新模型 provider 实现 `AnalysisProvider`。
+- 新生词本实现 `WordbookProvider`。
+- 新浏览器创建新的 `apps/<browser>` 并复用公共协议。
+- 新操作系统增加 `apps/native-host/src/install/` 下的 installer。
 
 ## 生产依赖决策
 
-`@huayi/protocol` 使用 Zod 对来自网页、扩展、Native Messaging 和模型的对象执行运行时
-校验。备选方案是手写类型守卫或仅依赖 TypeScript 静态类型；前者容易在四类结果中产生规则
-漂移，后者无法保护运行时边界，因此不采用。Zod 会增加少量打包体积，但其严格对象 Schema
-可以拒绝未知字段并缩小不可信数据进入系统的范围；升级时必须审查其变更和依赖树。
+`@huayi/protocol` 使用 Zod 保护网页、扩展、Native Messaging 和模型边界。手写守卫容易在四类
+结果和多种事件间漂移，仅依赖 TypeScript 又无法保护运行时，因此保留 Zod 严格 Schema。
 
-Native Host 构建使用现有开发依赖 Vite，把 Host、`@huayi/protocol` 和 Zod 打成一个可搬移
-的 Node ESM 文件，同时复制四份输出 Schema。这样安装目录不依赖仓库中的 `node_modules`；
-代价是构建产物更大，因此安装前仍需通过完整构建和启动检查。
-
-欧路客户端使用 Node.js 18 内置 `fetch`，没有增加生产依赖。固定端点、禁用重定向与自动
-重试、限制响应体和串行请求可以缩小网络边界；代价是临时失败需要用户显式重试。
+Native Host 使用现有 Vite 开发依赖打包 Host、协议和 Zod，并复制输出 Schema，使安装目录
+不依赖仓库 `node_modules`。欧路客户端使用 Node.js 18 内置 `fetch`；固定端点、拒绝重定向、
+限制响应体且不自动重试，因此没有新增生产依赖。

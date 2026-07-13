@@ -4,7 +4,7 @@
 
 Huayi is a personal macOS Google Chrome extension for English selection translation and
 analysis. The extension communicates with a local Native Messaging host, which invokes an
-already authenticated Codex CLI. Version 0.2.x is not a Chrome Web Store release and does not
+already authenticated Codex CLI. Version 0.3.x is not a Chrome Web Store release and does not
 support Windows, Linux, other browsers, cloud API keys, history, synchronization, or follow-up
 chat.
 
@@ -12,10 +12,13 @@ chat.
 
 - Product behavior: `docs/superpowers/specs/2026-07-11-huayi-design.md`.
 - Eudic wordbook behavior: `docs/superpowers/specs/2026-07-12-eudic-wordbook-design.md`.
+- Streaming and word-status behavior:
+  `docs/superpowers/specs/2026-07-12-streaming-analysis-design.md`.
 - Wire contracts: `packages/protocol/src/` and `docs/protocol.md`.
 - Security boundaries: `docs/security.md`.
 - Execution order: `docs/superpowers/plans/2026-07-11-huayi-mvp.md`.
 - Eudic execution order: `docs/superpowers/plans/2026-07-12-eudic-wordbook.md`.
+- Streaming execution order: `docs/superpowers/plans/2026-07-12-streaming-analysis.md`.
 - Keep temporary task status out of AGENTS.md files.
 
 ## Architecture boundaries
@@ -45,10 +48,9 @@ chat.
   - `pnpm host:eudic:configure`
   - `pnpm host:eudic:remove`
   - `pnpm host:uninstall`
-- Default tests must never call real Codex or consume subscription quota. Only the explicit
-  smoke command may do so.
-- Default tests must never access a real Keychain item or Eudic API. Use fake process runners,
-  authorization readers, and fetch implementations.
+- Default tests must never call OpenAI, real Codex, a real Keychain item, or the Eudic API. Use
+  fake App Servers, process runners, authorization readers, and fetch implementations. Only
+  `pnpm smoke:codex` may run a real model and consume subscription quota.
 
 ## Code style
 

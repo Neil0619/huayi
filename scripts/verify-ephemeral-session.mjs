@@ -56,6 +56,22 @@ export function findNewFiles(before, after) {
   return [...after].filter((path) => !previous.has(path)).sort();
 }
 
+export function formatSmokeTimings({ firstDeltaAt, fullResultAt, startedAt }) {
+  if (
+    !Number.isFinite(firstDeltaAt) ||
+    !Number.isFinite(fullResultAt) ||
+    !Number.isFinite(startedAt) ||
+    firstDeltaAt < startedAt ||
+    fullResultAt < firstDeltaAt
+  ) {
+    throw new Error("Smoke analysis did not provide valid streaming timings.");
+  }
+  return (
+    `  first delta: ${Math.round(firstDeltaAt - startedAt)} ms; ` +
+    `full result: ${Math.round(fullResultAt - startedAt)} ms\n`
+  );
+}
+
 async function canonicalExecutable(path) {
   await access(path);
   return realpath(path);
@@ -200,10 +216,17 @@ async function runSmoke() {
       process.stdout.write(
         `[${index + 1}/${requests.length}] ${request.selectionKind} ${request.action}...\n`,
       );
+      const startedAt = Date.now();
       const event = await client.request(request, "result", 70_000);
       const result = protocol.analysisResultSchema.parse(event.result);
       validateSmokeResult(request, result);
-      process.stdout.write(`  received ${result.type}\n`);
+      process.stdout.write(
+        formatSmokeTimings({
+          firstDeltaAt: event.firstDeltaAt,
+          fullResultAt: event.fullResultAt,
+          startedAt,
+        }),
+      );
     }
   } catch (error) {
     requestError = error;

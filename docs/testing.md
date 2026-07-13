@@ -1,52 +1,62 @@
 # 测试策略
 
-## 自动测试
+## 默认自动测试
 
-- 协议：严格字段、`add-word`/`word-added` 联合类型、数量和长度限制、错误码。
-- 选区：英文检测、四类分类、语义块提取、2,000 字符裁剪、编辑区排除；生词句子另覆盖
-  嵌套节点、重复单词、缩写、引号、无句末标点、超长句和中英混合回退。
-- 浮层：状态机、定位、拖动、关闭、加载、结果和错误视图；欧路按钮覆盖双击去重、成功/
-  已存在/内联错误、限流禁用及滚动和焦点保持。
-- Service Worker：分析与加词请求路由、同标签页取消、终态匹配、迟到响应、断线与超时。
-- Native Host：二进制帧、分发、并发队列、取消和 fail-closed。
-- Codex Provider：固定参数、环境允许列表、stdin、Schema、错误映射和提示注入。
-- 欧路 Provider：查询后新增、已存在不写入、固定 URL/Header/Body、串行、取消、超时、拒绝
-  重定向、64 KiB 响应上限和 HTTP 状态映射。
-- 安装器与钥匙串：dry-run、重复安装、allowed origin、精确参数、隐藏输入、无 `-A`、轮换、
-  缺失/锁定/超时、凭据不泄漏、卸载顺序和幂等清理。
-- Manifest：权限数组严格等于 `["nativeMessaging"]`，不存在 `host_permissions`。
+`pnpm test`、`pnpm test:e2e` 及其他默认门禁不得访问 OpenAI、真实 Codex、欧路 API 或
+macOS 钥匙串。测试分别注入 fake App Server/JSON-RPC process、fake process runner、fake
+authorization reader、fake fetch 和 Mock NativeTransport；只有显式 `pnpm smoke:codex`
+可以调用真实模型。
 
-默认测试使用 fake process runner、fake Keychain/authorization reader、fake fetch 和 mock
-transport，不访问 OpenAI、真实钥匙串或欧路 API。
+自动测试覆盖：
 
-安装器测试只在系统临时目录构造带空格和单引号的 fake HOME，验证 launcher 的 POSIX 引号、
-可执行位、Chrome 清单、升级替换、所有权冲突和幂等卸载。仓库级验证只运行一次真实 dry-run，
-它可以检查 Codex 登录与能力，但不会调用模型或写入用户安装目录。
+- 协议：严格请求/事件联合、`analysis-delta` 序号/长度/section、`check-word` /
+  `word-status`、错误码和 1 MiB 帧上限。
+- 选区：四类分类、2,000 字符裁剪、编辑区排除，以及单词所在英文句子的确定性提取。
+- 浮层：loading/streaming/result/error 状态、增量批处理、安全文本渲染、独立生词状态、
+  右上角按钮、焦点、拖动、滚动、窄屏和迟到事件。
+- Service Worker：分析、查词、加词三通道，并发、定向取消、有序增量、严格终态、断线和超时。
+- App Server：JSON-RPC 拆包/合包、握手、按需重启、并发 turn、中断、ephemeral thread、固定
+  `openai` / `gpt-5.4-mini` / `low`、空指令来源、空 Hook/MCP 和安全返回不变量。
+- Provider：有界 JSON 字段增量、转义/Unicode/chunk 边界、最终 JSON Schema、公共 Schema、
+  请求/结果一致性、提示注入和错误映射。
+- 欧路：自动 GET 查词、显式 GET-before-POST、固定 URL/Header/Body、授权逐次读取、串行、
+  取消、10 秒超时、重定向拒绝、64 KiB 上限和状态码映射。
+- 安装器：dry-run、升级、allowed origin、所有权、绝对路径、受控 launcher、钥匙串命令和
+  幂等清理。
+- Manifest：`permissions` 严格等于 `["nativeMessaging"]`，不存在 `host_permissions`。
 
-浏览器 E2E 通过 Vite fixture 串起真实 Content Script、Service Worker 消息处理、请求协调器和
-Mock NativeTransport，覆盖双击、拖选、四类结果、错误重试、新选区/关闭取消、Escape 与
-320px 窄屏拖动约束。欧路旅程覆盖单词翻译和解释成功、已存在、未配置、授权失效、网络
-重试、限流和关闭取消。Escape 用例曾复现 `keyup` 重新打开工具条的问题，并保留了单元与
-浏览器双重回归测试。
+## 浏览器 E2E
 
-Codex Provider 的默认测试会把 `OPENAI_API_KEY` 和恶意网页提示放入 fake 输入，断言密钥不
-进入子进程环境、网页文本只出现在不可执行的 JSON 数据区。测试同时覆盖 60 秒超时、取消、
-1 MiB 输出上限、CLI 能力检查、非零退出、stdout 污染和请求/结果不匹配。
+Vite fixture 串起真实 Content Script、Service Worker 消息处理、请求协调器和 fake Native
+Host。Playwright 覆盖：
 
-Host 测试将 stdout 作为原始字节重新解帧，确保正常路径只有合法事件帧；无效长度、超大
-消息、无效 JSON 和无效 Schema 必须只在 stderr 留下诊断且停止读取。
+- 单词翻译/解释在最终卡片前显示至少两个独立增量；
+- 已存在查询先返回、结果先返回、查询不存在和被动查询失败；
+- 自动查询只记录单词，短语、句子和段落从不发 `check-word`；
+- 查词未完成时显式添加只取消查词，并保留原始英文句子；
+- 关闭、新选区和 Escape 同时取消分析/查词请求；
+- 迟到 delta/status 不能重开或改写替代浮层；
+- 320px 窄屏下生词按钮、拖动手柄和关闭按钮均可见且不重叠。
 
-## 浏览器测试
+稳定的词汇结果卡使用 macOS Chrome 元素截图基线。更新快照后必须人工查看实际 PNG，确认
+只有预期头部 UI 变化，不存在溢出、遮挡或意外内容变化。
 
-Playwright 覆盖双击、拖选、工具条动作、各结果类型、窄屏、视口边缘、取消、超时和错误。
-稳定的核心结果卡使用 macOS Chrome 元素截图基线，避免布局、溢出和意外功能回归。
+## Smoke 客户端单元测试
 
-## 真实冒烟
+Node 测试通过二进制 Native Messaging 帧驱动 fake child。分析请求只允许从 0 开始严格有序
+的 `analysis-delta`，并继续等待匹配 `result`；跳号、健康/生词通道中的 delta、终态后的
+delta 或额外终态都会锁存为 fatal。测试还覆盖无效 Schema/JSON/帧、stdout EOF、stderr/stdin
+错误、子进程退出和有界 SIGTERM/SIGKILL 清理。
 
-`pnpm smoke:codex` 显式验证 `investigation`、`sustained heatwave`、单句和多句段落。运行前后
-只比较 `~/.codex/sessions` 的相对文件名，不读取 session 或认证内容。脚本经二进制 Native
-Messaging 接口调用构建后的真实 Host，四类结果再次通过公共协议校验；最近一次 v0.1.0
-证据未创建新的会话文件，段落译文也实际保留了输入换行。
+## 真实 Codex 冒烟
 
-真实欧路验收不属于自动门禁。只有用户显式配置钥匙串后，才手动新增一个未收藏单词并核对
-语境；第二次添加应返回“已在生词本”，且不得覆盖原分组、星级或语境。
+`pnpm smoke:codex` 显式验证 `investigation`、`sustained heatwave`、单句和多句段落。每个
+案例只输出首个 delta 和完整 result 的耗时毫秒数，不打印模型文本。最终结果仍通过公共协议
+校验，段落必须保留换行。
+
+运行前后脚本只比较 `CODEX_HOME/sessions` 中的相对文件名，不读取 session 内容或认证文件；
+新增任何 session 文件都会使测试失败。该命令会消耗真实 ChatGPT/Codex 额度，因此不属于
+默认门禁，不能在自动测试中运行。
+
+真实欧路验收也不属于自动门禁。只有用户显式配置钥匙串后，才手动验证未收藏、已存在和语境
+写入路径。

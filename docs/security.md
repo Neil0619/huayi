@@ -2,36 +2,27 @@
 
 ## 数据最小化
 
-扩展只发送选区和所在段落中围绕选区的最多 2,000 个字符，不发送 URL、标题、整页内容、
-浏览历史或用户身份数据。扩展不持久化查询和结果，也不采集分析数据。
+扩展只发送英文选区和所在语义块中围绕选区的最多 2,000 个字符，不发送 URL、标题、整页
+内容、浏览历史或用户身份数据，也不持久化查询、结果或分析数据。
 
-用户在单词结果页显式点击“加入欧路生词本”时，扩展只向 Native Host 发送原始选中词形和
-包含它的完整英文句子；不发送 URL、标题、段落、模型输出或其他页面信息。Native Host 随后
-将这两个字段发送到固定的欧路 HTTPS 生词本接口，除此之外不进行欧路写入。
+单词分析会自动发送 `check-word`，其中只有原始单词和固定语言 `en`。只有用户在完整结果上
+点击“加入欧路生词本”时，扩展才发送 `add-word`，其中包含原始单词和预先提取的完整英文
+句子。两条路径都不发送 URL、标题、段落上下文或模型输出。
 
 ## 浏览器边界
 
-第一版权限仅包含 `nativeMessaging` 以及普通 `http/https` 页面上的 Content Script。
-模型输出只能使用 `textContent` 渲染，不能作为 HTML 执行。Native Messaging 清单只允许
-安装时提供的扩展 ID。
+Manifest 权限严格为 `["nativeMessaging"]`；普通 `http/https` 范围只存在于静态 Content
+Script 的 `matches`。扩展不声明 `host_permissions`、`storage`、`tabs`、`activeTab` 或
+`scripting`。Content Script 不能直接调用 Native Messaging，只能向 Service Worker 发送
+经过严格解析的内部命令。
 
-`manifest.json` 不声明 `host_permissions`、`storage`、`tabs`、`activeTab`、`scripting` 或网络
-请求权限；`http/https` 范围只出现在静态 Content Script 的 `matches`。Content Script 不能
-调用 Native Messaging，只能发送经过严格解析的内部命令给 Service Worker。v0.2.0 也不增加
-设置页或远程托管扩展代码。
+网页输入、模型增量和最终结果都视为不可信。流式预览与最终卡片只用 `textContent`，禁止
+`innerHTML` 和远程托管代码。关闭、新选区和 Escape 会按请求 ID 取消活动通道；迟到事件
+不能重新打开或改写新浮层。
 
-欧路网络访问只发生在 Native Host。请求固定为 `api.frdic.com` 的单词查询和新增路径，禁止
-网页、协议消息或环境变量覆盖 URL；拒绝重定向、Cookie 和自动重试。单次 HTTP 操作最长
-10 秒，响应体最多 64 KiB。状态码、JSON 和响应流均视为不可信；远端响应正文、诊断信息和
-授权值不会返回扩展或写入日志。
+## 欧路授权与网络
 
-欧路官方限额为每分钟 30 次、每 30 分钟 500 次，并用 403 表示访问过频。Host 不自动重试，
-避免放大写入和限流风险；用户修复网络或授权后可在结果页显式重试，当前结果一旦限流则禁用
-继续点击。
-
-## 欧路授权与钥匙串
-
-授权固定存入以下 macOS 钥匙串项：
+授权固定存入 macOS 钥匙串：
 
 ```text
 service: com.huayi.codex_bridge.eudic
@@ -39,60 +30,71 @@ account: authorization
 label: Huayi Eudic OpenAPI Authorization
 ```
 
-Host 每次显式加词都重新读取，不在内存中长期缓存。读取使用固定 `/usr/bin/security`、参数
-数组和 `shell: false`，最长 5 秒，stdout/stderr 各最多 8 KiB；只接受 1–4,096 字符且不含
-首尾空白、换行、NUL 或控制字符的完整 Authorization Header 值。
+Host 每次欧路请求都重新读取授权，不长期缓存。读取使用固定 `/usr/bin/security`、参数数组和
+`shell: false`，最长 5 秒；只接受 1–4,096 字符且无首尾空白、换行、NUL 或控制字符的完整
+Authorization Header 值。
 
-`host:eudic:configure` 使用 `add-generic-password -U`，把无参数的 `-w` 放在最后，让系统在
-终端隐藏读取完整授权。命令不使用 `-A`，也不通过命令参数、环境变量、配置文件或扩展消息
-接收授权；配置本身不调用欧路 API，有效性在第一次显式加词时验证。Token 只短暂存在于
-`security`/Host 进程内存和 HTTPS Authorization Header，不进入 Native Messaging、日志、
-错误信息、快照或测试输出。
+`host:eudic:configure` 使用 `add-generic-password -U`，把无参数的 `-w` 放在最后，由
+`security` 隐藏读取。命令不使用 `-A`，也不通过参数、环境变量、文件、扩展消息或日志接收
+授权。Token 不进入 Native Messaging、错误、快照或测试输出。
 
-钥匙串保护的是静态存储，不能防御以同一 macOS 登录用户权限运行的恶意进程，也不能替代
-终端和用户账户本身的安全。自动测试只使用 fake process runner、fake authorization reader
-和 fake fetch，不能读取真实钥匙串项。
+欧路访问固定为 `https://api.frdic.com/api/open/v1/studylist/word` 的 GET/POST，禁止网页、
+协议或环境覆盖 URL；拒绝重定向、Cookie 和自动重试。每次操作最长 10 秒，响应体最多
+64 KiB，所有状态码、JSON 和响应流都经过限制和校验。自动查询失败不会覆盖分析结果；显式
+写入失败只影响生词按钮。
 
-## 本机进程边界
+默认测试只用 fake authorization reader、fake fetch 和 fake process runner，不读取真实
+钥匙串或访问欧路。重新构建和重复安装 Host 会保留上述钥匙串项；只有显式
+`host:eudic:remove` 或完整卸载删除它。
 
-Native Host 通过参数数组和 stdin 启动 Codex，禁止 `shell: true`。子进程使用专用空目录、只读
-沙箱、禁用 Web Search、禁止审批、忽略用户配置和规则，并使用 `--ephemeral`。Host 不读取
-Codex 认证文件，只调用 `codex login status` 检查状态。
+## Codex App Server 进程边界
 
-当前已验证的 CLI 基线还显式关闭 `shell_tool`、`unified_exec` 和 `shell_snapshot`，避免模型
-通过默认命令工具读取本机文件或抓取 shell 环境。能力探测要求 CLI 支持 `--disable`，缺失时
-安装失败，不能静默回退到带 shell 的运行方式。
+Native Host 使用参数数组、stdin/stdout 和 `shell: false` 启动 Codex App Server。App Server
+按需启动并复用，但每次分析创建新的 ephemeral thread，使用专用空目录而非仓库。Host 不读、
+复制、解析或显示 `~/.codex/auth.json`；`codex login status` 只确认登录类型为 ChatGPT。
 
-启动参数还启用严格配置解析、关闭历史持久化并禁止 Codex 子命令继承 Host 环境。Host 自身
-只向 Codex 传递 `PATH`、`HOME`、`CODEX_HOME`、locale、临时目录、证书和代理相关允许列表；
-`OPENAI_API_KEY`、`NODE_OPTIONS` 及其他任意变量不会传入。`HOME`/`CODEX_HOME` 仅用于让
-Codex CLI 自行使用现有登录，Host 不读取、复制或解析其中的认证文件。
+App Server 当前没有 ignore-user-config / ignore-rules 参数。划译不声称或伪造这些开关，而是
+组合以下约束：
 
-每次模型进程最长运行 60 秒，取消和超时都会终止子进程；stdout 与 stderr 各自最多接收
-1 MiB。可执行文件、Schema 目录和空工作目录使用安装器提供的绝对路径，缺失能力或非法路径
-不做降级。
+- `app-server --stdio --strict-config`，仅继承既有环境允许列表；
+- 固定内置 `openai`、`gpt-5.4-mini`、`low` effort 和 60 秒分析超时；
+- 专用空 cwd、`ephemeral: true`、空 `instructionSources`、只读无网络 sandbox、`never` 审批；
+- 显式关闭历史、Web Search、环境继承、通知、遥测、应用默认项、Hook/MCP 表和图片查看；
+- 禁用 `apps`、`hooks`、`image_generation`、`in_app_browser`、`memories`、`multi_agent`、
+  `plugins`、`remote_plugin`、`shell_tool`、`unified_exec`、`shell_snapshot`、`tool_suggest`。
 
-网页文字被明确标记为不可信数据。即使选区包含“忽略规则”“执行命令”等提示，也只能作为
-JSON 数据中的待翻译或解释文本。所有请求与结果必须经过严格 Schema 校验，模型返回的原文
-和选区类型还必须与请求完全一致。日志、CLI stderr 和本机路径不发送给扩展。
+能力探测要求 App Server 支持 `--stdio`、`--strict-config`、`--disable` 和 `--config`，并确认
+所有禁用功能实际为 false。初始化后 Host 验证 Hook/MCP 列表为空；`thread/start` 返回的 cwd、
+指令来源、模型/provider/effort、ephemeral、审批和 sandbox 也必须精确匹配。无法证明约束
+生效时返回 `CODEX_CAPABILITY_MISSING`，不降级到更宽权限。
 
-`--ephemeral` 的边界是“不保存可恢复的 session rollout”，不是“Codex 进程绝不写任何
-文件”；例如 CLI 自身可能维护认证状态。冒烟测试只比较 session 目录，不读取认证文件。
-最近一次真实 Codex 证据来自 v0.1.0：四类请求运行前后没有出现新的 session 文件。
+Host 不注册动态工具。任何 config warning、审批、用户输入、应用、Hook、MCP、命令执行、
+文件修改、MCP/dynamic/collab tool、Web Search 或图片 item 都按不安全事件失败关闭。App Server
+输出由内部有界 JSON-RPC 解析器消费，不能直接进入 Native Messaging stdout。
 
-当前 Codex CLI 没有一个可验证的全局 `--no-tools` 开关；`read-only` 本身允许读取而不是禁止
-读取。关闭三类 shell 能显著缩小网页提示注入的本机读取面，但不能证明未来或其他独立工具
-永远无法读取文件。因此版本升级必须重新审查可用工具和配置，不能把本方案描述成绝对隔离。
+## 模型输入、增量与最终校验
+
+网页文字只作为固定提示中的待分析数据。即使其中包含“忽略规则”“执行命令”等内容，也不能
+改变 App Server 配置。assistant JSON 增量经过有界字段提取器，只允许核心字符串字段进入
+`analysis-delta`；原始 JSON、未知字段、推理内容和数组半成品不会发送给扩展。
+
+最终 assistant 文本必须通过结果类型对应的 JSON Schema、公共 `analysisResultSchema`，并
+匹配原请求的结果类型、`selectionKind` 与 `sourceText`。任何无效 JSON、未知字段、越界输出、
+工具事件或请求不匹配都失败关闭。部分预览不能冒充完整成功结果。
+
+## Ephemeral 边界与真实冒烟
+
+ephemeral 的含义是分析 thread 不进入可恢复会话历史，不代表 Codex 进程绝不维护自身认证等
+状态。`pnpm smoke:codex` 在运行前后只列举 `CODEX_HOME/sessions` 下的相对文件名，不读取
+session 内容，更不会读取认证文件。它是唯一允许调用真实模型的仓库命令；默认测试全部使用
+fake App Server。
 
 ## 外部写入
 
-安装器只有在显式执行后才写入 `~/Library/Application Support/Huayi/native-host/` 和 Chrome
-用户级 Native Messaging 清单目录。dry-run 完成全部只读验证，不创建目录。安装前会拒绝
-没有 Huayi 所有权标记的既有目录和非本项目清单；升级只替换固定 bundle、Schema、workdir
-和 launcher，并拒绝可逃逸安装根目录的 provider 符号链接。安装与升级只检查
-`/usr/bin/security` 可执行，不要求已经配置欧路，也不读取或覆盖已有钥匙串项。launcher
-使用受控 `PATH`，只持久化认证目录的路径，不存储 Token。
+安装器只有在显式执行后才写入 Huayi 的用户级 Host 目录和 Chrome Native Messaging 清单。
+dry-run 只读验证 Node、构建产物、App Server 能力、禁用功能、ChatGPT 登录和
+`/usr/bin/security`，不调用模型、不读取欧路授权、不创建目录。
 
-卸载器先删除上述精确 service/account，再验证标记与清单所有权并只删除两个 Huayi 文件
-目标；钥匙串删除失败时保留 Host 文件以便重试，项目缺失该钥匙串项时保持幂等。独立的
-`host:eudic:remove` 也只操作这一项，不删除其他凭据或父目录。
+升级只替换带合法 Huayi 所有权标记的 bundle、Schema、空工作目录和 launcher，并保留欧路
+钥匙串。完整卸载先删除精确钥匙串项，再删除经过所有权验证的 Huayi 文件；它不会删除 Chrome
+父目录、其他 Native Messaging 清单或其他凭据。

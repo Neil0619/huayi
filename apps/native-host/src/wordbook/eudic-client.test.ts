@@ -184,7 +184,10 @@ describe("EudicClient", () => {
     expect(calls[0]).toMatchObject({
       init: {
         credentials: "omit",
-        headers: expect.objectContaining({ Authorization: "NIS secret" }),
+        headers: expect.objectContaining({
+          Authorization: "NIS secret",
+          "User-Agent": "Huayi/0.3.0",
+        }),
         method: "GET",
         redirect: "error",
       },

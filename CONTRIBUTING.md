@@ -2,18 +2,20 @@
 
 ## 工作方式
 
-1. 先阅读根目录及目标模块的 `AGENTS.md`。
+1. 先阅读根目录及目标模块的 `AGENTS.md` 和对应设计/实施计划。
 2. 行为修改先写失败测试，确认失败原因正确后再实现。
-3. 只通过公共协议连接 extension 与 native host。
-4. 协议、权限、安全或安装行为变化必须同步更新对应文档。
-5. 默认测试不得调用真实 Codex、真实欧路 API 或真实 macOS 钥匙串；欧路测试必须注入 fake
-   authorization reader、fake fetch 和 fake process runner。
-6. 根包、三个 workspace 包和扩展 Manifest 的发布版本必须同步；版本一致性由仓库测试校验。
-7. 欧路协议、安全边界或安装生命周期变化时，同步更新对应中文文档。
+3. 只通过 `@huayi/protocol` 公共导出连接 extension 与 native host，禁止跨包深层导入。
+4. 协议、权限、安全或安装行为变化必须同步更新对应中文文档。
+5. 默认测试不得访问 OpenAI、真实 Codex、真实欧路 API 或真实 macOS 钥匙串；注入 fake App
+   Server、process runner、authorization reader 和 fetch。
+6. 根包、三个 workspace 包、扩展 Manifest、Host 版本和 User-Agent 必须同步。
+7. 保持 `schemaVersion: 1`，除非出现删除、重命名或语义不兼容变化并附迁移说明。
+8. 手写文件在超过 400 行前拆分；不要新增权限、存储、秘密或无说明的生产依赖。
 
 ## 提交前检查
 
 ```bash
+pnpm check:instructions
 pnpm format:check
 pnpm lint
 pnpm typecheck
@@ -23,7 +25,8 @@ pnpm build
 git diff --check
 ```
 
-本机欧路配置和清理由显式命令完成，不应在自动测试中调用：
+`pnpm smoke:codex` 是唯一允许调用真实模型的命令，不属于默认门禁，也不要在自动测试中调用。
+本机欧路配置、移除和真实欧路验收同样必须由用户显式执行。
 
 ```bash
 pnpm host:eudic:configure -- --dry-run

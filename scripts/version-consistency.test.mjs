@@ -13,6 +13,7 @@ async function readJson(path) {
 
 test("workspace packages and Chrome manifest share the release version", async () => {
   const rootPackage = await readJson("package.json");
+  const extensionManifest = await readJson("apps/extension/manifest.json");
   const releaseFiles = [
     "apps/extension/package.json",
     "apps/extension/manifest.json",
@@ -23,7 +24,8 @@ test("workspace packages and Chrome manifest share the release version", async (
     releaseFiles.map(async (path) => ({ path, version: (await readJson(path)).version })),
   );
 
-  assert.equal(rootPackage.version, "0.2.0");
+  assert.equal(rootPackage.version, "0.3.0");
+  assert.equal(extensionManifest.version, "0.3.0");
   for (const release of versions) {
     assert.equal(release.version, rootPackage.version, `${release.path} version must match root`);
   }

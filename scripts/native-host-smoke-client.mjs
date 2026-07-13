@@ -102,6 +102,9 @@ export class NativeHostClient {
         this.#latchFatal(new Error(`Timed out waiting for ${message.requestId}.`));
       }, timeoutMs);
       this.#pending.set(message.requestId, {
+        ...(message.type === "analyze" && expectedType === "result"
+          ? { deltaCount: 0, firstDeltaAt: null, nextSequence: 0 }
+          : {}),
         expectedType,
         reject: rejectRequest,
         resolve: resolveRequest,
@@ -248,6 +251,26 @@ export class NativeHostClient {
       if (event.type === "progress") {
         continue;
       }
+      if (event.type === "analysis-delta") {
+        if (pending.nextSequence === undefined) {
+          this.#latchFatal(
+            new Error(`Analysis delta is invalid for ${pending.expectedType} requests.`),
+          );
+          return;
+        }
+        if (event.sequence !== pending.nextSequence) {
+          this.#latchFatal(
+            new Error(
+              `Expected analysis delta sequence ${pending.nextSequence}, received ${event.sequence}.`,
+            ),
+          );
+          return;
+        }
+        pending.firstDeltaAt ??= Date.now();
+        pending.deltaCount += 1;
+        pending.nextSequence += 1;
+        continue;
+      }
       if (event.type === "error") {
         this.#settle(
           event.requestId,
@@ -255,7 +278,18 @@ export class NativeHostClient {
           new Error(`${event.error.code}: ${event.error.message}`),
         );
       } else if (event.type === pending.expectedType) {
-        this.#settle(event.requestId, event, undefined);
+        this.#settle(
+          event.requestId,
+          pending.nextSequence === undefined
+            ? event
+            : {
+                ...event,
+                deltaCount: pending.deltaCount,
+                firstDeltaAt: pending.firstDeltaAt,
+                fullResultAt: Date.now(),
+              },
+          undefined,
+        );
       } else {
         this.#latchFatal(new Error(`Unexpected terminal event type: ${event.type}`));
         return;

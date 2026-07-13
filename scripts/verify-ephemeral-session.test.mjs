@@ -8,6 +8,7 @@ import * as verifierModule from "./verify-ephemeral-session.mjs";
 import {
   createSmokeRequests,
   findNewFiles,
+  formatSmokeTimings,
   listRelativeFiles,
   resolveExecutable,
 } from "./verify-ephemeral-session.mjs";
@@ -105,4 +106,15 @@ test("smoke requests cover the four MVP cases", () => {
       ],
     ],
   );
+});
+
+test("smoke timing output contains elapsed milliseconds without model text", () => {
+  const output = formatSmokeTimings({
+    firstDeltaAt: 1_150,
+    fullResultAt: 1_700,
+    startedAt: 1_000,
+  });
+
+  assert.equal(output, "  first delta: 150 ms; full result: 700 ms\n");
+  assert.equal(output.includes("secret model output"), false);
 });

@@ -2,8 +2,8 @@ import { SCHEMA_VERSION } from "@huayi/protocol";
 import type {
   AddWordRequest,
   AnalysisError,
-  AnalysisResult,
   AnalyzeRequest,
+  CheckWordRequest,
   HostEvent,
   HostRequest,
   WordbookAddOutcome,
@@ -16,6 +16,7 @@ import {
 } from "../../src/background/service-worker.js";
 import { initializeContentScript, type ContentRuntime } from "../../src/content/content-script.js";
 import type { ContentCommand } from "../../src/shared/extension-messages.js";
+import { createResultEvent } from "./harness-results.js";
 import { MockNativeTransport } from "./mock-native-transport.js";
 
 const TAB_ID = 1;
@@ -24,6 +25,15 @@ const PENDING_SELECTION = "pending request";
 const RETRY_SELECTION = "temporary failure";
 const TIMEOUT_SELECTION = "timeout request";
 const PENDING_WORDBOOK_WORD = "pendingword";
+const PENDING_ANALYSIS_WORD = "holdingword";
+const STALE_EVENT_WORD = "staleevent";
+
+const wordPresence: Record<string, "present" | "absent" | "late-present" | "error"> = {
+  established: "present",
+  investigation: "absent",
+  lateexisting: "late-present",
+  unconfigured: "error",
+};
 
 const configuredRequestTimeoutMs = new URLSearchParams(window.location.search).get(
   "request-timeout-ms",
@@ -65,97 +75,6 @@ class MockExtensionRuntime implements ContentRuntime {
   }
 }
 
-function lexicalTranslation(request: AnalyzeRequest): AnalysisResult {
-  if (request.selectionKind !== "word" && request.selectionKind !== "phrase") {
-    throw new Error("Lexical translation requires a word or phrase.");
-  }
-
-  return {
-    collocations: [
-      { meaningZh: "测试搭配一", text: "sample collocation" },
-      { meaningZh: "测试搭配二", text: "common collocation" },
-      { meaningZh: "测试搭配三", text: "useful collocation" },
-    ],
-    contextualMeaningZh: "词汇翻译结果",
-    partOfSpeech: request.selectionKind === "word" ? "noun" : "phrase",
-    pronunciation: { uk: "/mock/", us: "/mock/" },
-    selectionKind: request.selectionKind,
-    similarTerms: [
-      { meaningZh: "相近表达一", partOfSpeech: "noun", text: "alternative" },
-      { meaningZh: "相近表达二", partOfSpeech: "noun", text: "equivalent" },
-      { meaningZh: "相近表达三", partOfSpeech: "noun", text: "counterpart" },
-    ],
-    sourceText: request.selection,
-    type: "translate-lexical",
-  };
-}
-
-function passageTranslation(request: AnalyzeRequest): AnalysisResult {
-  if (request.selectionKind !== "sentence" && request.selectionKind !== "paragraph") {
-    throw new Error("Passage translation requires a sentence or paragraph.");
-  }
-
-  return {
-    selectionKind: request.selectionKind,
-    sourceText: request.selection,
-    translationZh: "段落翻译结果",
-    type: "translate-passage",
-  };
-}
-
-function lexicalExplanation(request: AnalyzeRequest): AnalysisResult {
-  if (request.selectionKind !== "word" && request.selectionKind !== "phrase") {
-    throw new Error("Lexical explanation requires a word or phrase.");
-  }
-
-  return {
-    baseForm: "sustain",
-    collocations: [
-      { meaningZh: "测试搭配一", text: "sample collocation" },
-      { meaningZh: "测试搭配二", text: "common collocation" },
-    ],
-    contextualMeaningZh: "词汇解释结果",
-    coreMeanings: [{ meaningZh: "核心词义", partOfSpeech: "verb" }],
-    selectionKind: request.selectionKind,
-    sourceText: request.selection,
-    synonyms: [
-      { meaningZh: "同义表达一", partOfSpeech: "adjective", text: "continuous" },
-      { meaningZh: "同义表达二", partOfSpeech: "adjective", text: "prolonged" },
-      { meaningZh: "同义表达三", partOfSpeech: "adjective", text: "uninterrupted" },
-    ],
-    type: "explain-lexical",
-    wordFormation: "模拟构词说明",
-  };
-}
-
-function sentenceExplanation(request: AnalyzeRequest): AnalysisResult {
-  if (request.selectionKind !== "sentence") {
-    throw new Error("Sentence explanation requires a sentence.");
-  }
-
-  return {
-    contextRole: "说明这句话在上下文中的语境作用。",
-    keyExpressions: [{ meaningZh: "关键表达含义", text: "in its early stages" }],
-    mainStructure: "句子解释主干",
-    selectionKind: "sentence",
-    sourceText: request.selection,
-    translationZh: "句子解释译文",
-    type: "explain-sentence",
-  };
-}
-
-function resultFor(request: AnalyzeRequest): AnalysisResult {
-  if (request.action === "translate") {
-    return request.selectionKind === "word" || request.selectionKind === "phrase"
-      ? lexicalTranslation(request)
-      : passageTranslation(request);
-  }
-
-  return request.selectionKind === "sentence"
-    ? sentenceExplanation(request)
-    : lexicalExplanation(request);
-}
-
 function appendRequestLog(log: HTMLOListElement, request: HostRequest): void {
   const entry = document.createElement("li");
   entry.dataset.nativeRequest = request.type;
@@ -170,6 +89,8 @@ function appendRequestLog(log: HTMLOListElement, request: HostRequest): void {
   } else if (request.type === "add-word") {
     entry.dataset.word = request.word;
     entry.dataset.wordbookContext = request.context;
+  } else if (request.type === "check-word") {
+    entry.dataset.word = request.word;
   }
 
   log.append(entry);
@@ -227,13 +148,86 @@ function wordbookResponse(
   }
 }
 
-function createResultEvent(request: AnalyzeRequest): HostEvent {
+function createDeltaEvent(request: AnalyzeRequest, sequence: number, delta: string): HostEvent {
+  const section =
+    request.selectionKind === "word" || request.selectionKind === "phrase"
+      ? "contextual-meaning"
+      : request.action === "explain" && sequence === 0
+        ? "main-structure"
+        : "translation";
   return {
+    delta,
     requestId: request.requestId,
-    result: resultFor(request),
     schemaVersion: SCHEMA_VERSION,
-    type: "result",
+    section,
+    sequence,
+    type: "analysis-delta",
   };
+}
+
+function emitWordStatus(request: CheckWordRequest, presence: "present" | "absent"): void {
+  transport.emit({
+    presence,
+    requestId: request.requestId,
+    schemaVersion: SCHEMA_VERSION,
+    type: "word-status",
+  });
+}
+
+function handleWordCheck(request: CheckWordRequest): void {
+  if (request.word === PENDING_ANALYSIS_WORD) {
+    return;
+  }
+  if (request.word === STALE_EVENT_WORD) {
+    setTimeout(() => emitWordStatus(request, "present"), 1_550);
+    return;
+  }
+
+  const scenario = wordPresence[request.word] ?? "absent";
+  if (scenario === "late-present") {
+    setTimeout(() => emitWordStatus(request, "present"), 50);
+    return;
+  }
+  queueMicrotask(() => {
+    if (scenario === "error") {
+      transport.emit({
+        error: {
+          code: "EUDIC_NOT_CONFIGURED",
+          message: "尚未配置欧路授权，请先运行配置命令。",
+          retryable: false,
+        },
+        requestId: request.requestId,
+        schemaVersion: SCHEMA_VERSION,
+        type: "error",
+      });
+      return;
+    }
+    emitWordStatus(request, scenario);
+  });
+}
+
+function emitAnalyzeResponse(request: AnalyzeRequest): void {
+  if (request.selection === PENDING_ANALYSIS_WORD) {
+    return;
+  }
+  if (request.selection === STALE_EVENT_WORD) {
+    queueMicrotask(() => transport.emit(createDeltaEvent(request, 0, "正在逐步显示")));
+    setTimeout(() => transport.emit(createDeltaEvent(request, 1, "迟到文本")), 1_500);
+    setTimeout(() => transport.emit(createResultEvent(request)), 1_600);
+    return;
+  }
+
+  queueMicrotask(() => {
+    transport.emit(createDeltaEvent(request, 0, "正在逐步"));
+    queueMicrotask(() => {
+      transport.emit(createDeltaEvent(request, 1, "显示"));
+      if (request.selection === "lateexisting") {
+        queueMicrotask(() => transport.emit(createResultEvent(request)));
+      } else {
+        setTimeout(() => transport.emit(createResultEvent(request)), 500);
+      }
+    });
+  });
 }
 
 const requestLog = document.querySelector<HTMLOListElement>("[data-native-request-log]");
@@ -261,6 +255,10 @@ runtime.connectBackground(createRuntimeMessageListener(coordinator));
 
 transport.onRequest((request) => {
   appendRequestLog(requestLog, request);
+  if (request.type === "check-word") {
+    handleWordCheck(request);
+    return;
+  }
   if (request.type === "add-word") {
     const attemptKey = `add-word\u0000${request.word}`;
     const attempt = (attempts.get(attemptKey) ?? 0) + 1;
@@ -300,8 +298,8 @@ transport.onRequest((request) => {
   const attempt = (attempts.get(attemptKey) ?? 0) + 1;
   attempts.set(attemptKey, attempt);
 
-  queueMicrotask(() => {
-    if (request.selection === RETRY_SELECTION && attempt === 1) {
+  if (request.selection === RETRY_SELECTION && attempt === 1) {
+    queueMicrotask(() => {
       transport.emit({
         error: {
           code: "NETWORK_ERROR",
@@ -312,11 +310,11 @@ transport.onRequest((request) => {
         schemaVersion: SCHEMA_VERSION,
         type: "error",
       });
-      return;
-    }
+    });
+    return;
+  }
 
-    transport.emit(createResultEvent(request));
-  });
+  emitAnalyzeResponse(request);
 });
 
 initializeContentScript({

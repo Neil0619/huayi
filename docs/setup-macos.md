@@ -5,23 +5,29 @@
 - Google Chrome。
 - Node.js 18 或更高版本。
 - pnpm。
-- Codex CLI 0.144.1 或兼容版本，并已通过 `codex login` 使用 ChatGPT 登录。安装器会实际
-  检查所需参数和 `shell_tool`、`unified_exec`、`shell_snapshot` 三项禁用状态，不只比较
-  版本号。
-- macOS 自带的 `/usr/bin/security`。欧路功能可选，安装扩展和 Host 时不要求已经配置授权。
+- 已通过 `codex login` 使用 ChatGPT 登录、且支持 App Server 的 Codex CLI。
+- macOS 自带 `/usr/bin/security`。欧路功能可选，安装扩展和 Host 时无需已有授权。
 
-## 构建扩展
+安装器不只比较 Codex 版本号；dry-run 会检查 `app-server --stdio --strict-config`、
+`--disable` / `--config`，并确认以下功能可以被禁用：
+
+```text
+apps hooks image_generation in_app_browser memories multi_agent plugins remote_plugin
+shell_tool unified_exec shell_snapshot tool_suggest
+```
+
+缺失任一能力或 ChatGPT 登录时失败关闭，不使用权限更宽的降级配置。
+
+## 构建扩展和 Host
 
 ```bash
 pnpm install
 pnpm build
 ```
 
-在 `chrome://extensions` 开启开发者模式，加载 `apps/extension/dist`，并复制扩展 ID。
-扩展 ID 必须是 Chrome 展示的 32 位小写 `a-p` 字符串；不要使用文档中的示例值。
-
-未在 Manifest 中固定 `key` 时，开发版扩展 ID 与加载目录有关。移动仓库或改用另一份构建
-目录后，应重新复制 ID 并重装 Native Host。
+在 `chrome://extensions` 开启开发者模式，加载 `apps/extension/dist`，并复制 Chrome 展示的
+32 位小写 `a-p` 扩展 ID。Manifest 未固定 `key` 时，开发版 ID 与加载目录有关；移动仓库或
+构建目录后必须重新复制 ID 并重装 Host。
 
 ## 安装 Native Host
 
@@ -30,9 +36,9 @@ pnpm host:install -- --extension-id <ID> --dry-run
 pnpm host:install -- --extension-id <ID>
 ```
 
-建议先执行 dry-run。它会验证 Node、构建产物、Codex 参数、shell 能力关闭状态、ChatGPT
-登录和 `/usr/bin/security` 可执行，但不会写入文件、读取欧路授权或调用模型。若 Codex 不在
-当前 `PATH`，可显式指定绝对路径：
+建议先运行 dry-run。它只读验证 Node、构建产物、App Server 参数和禁用功能、ChatGPT 登录及
+`/usr/bin/security`；不会调用模型、访问欧路、读取钥匙串授权或写入用户目录。Codex 不在
+`PATH` 时可提供绝对路径：
 
 ```bash
 pnpm host:install -- --extension-id <ID> --codex-path /absolute/path/to/codex
@@ -40,59 +46,59 @@ pnpm host:install -- --extension-id <ID> --codex-path /absolute/path/to/codex
 
 正式安装写入：
 
-- `~/Library/Application Support/Huayi/native-host/`：自包含 Host、四份 Schema、空工作目录、
-  可执行 launcher 和所有权标记。
+- `~/Library/Application Support/Huayi/native-host/`：自包含 Host、四份 Schema、专用空工作
+  目录、launcher 和所有权标记；
 - `~/Library/Application Support/Google/Chrome/NativeMessagingHosts/com.huayi.codex_bridge.json`：
-  只允许当前扩展 ID 的 Chrome 用户级清单。
+  只允许当前扩展 ID。
 
-重复执行会升级已带合法所有权标记的安装。目标目录已存在但没有划译标记、或 Chrome 清单被
-其他程序占用时，安装器会失败关闭，不覆盖现有内容。安装后在 `chrome://extensions` 刷新
-扩展；Chrome 从 GUI 启动 Host 时使用 launcher 中记录的绝对 Node、Codex、`HOME` 和可选
-`CODEX_HOME`，并把 Node 目录放入受控 `PATH`，因此不依赖终端 shell 初始化文件。
+目标目录或清单缺少合法 Huayi 所有权时安装失败，不覆盖未知内容。launcher 记录绝对 Node、
+Codex、`HOME` 和可选 `CODEX_HOME`，使用受控 `PATH`，因此 Chrome 从 GUI 启动时不依赖终端
+shell 初始化文件。
 
 ## 配置欧路授权（可选）
 
-登录[欧路 OpenAPI 开发指南](https://my.eudic.net/OpenAPI/Doc_Index)，获取个人授权信息。
-配置时输入的是将来放入 HTTP `Authorization` Header 的完整值（官方示例形如 `NIS xxxx`），
-不要只输入后半段，也不要把值写入命令参数、环境变量或配置文件。
+登录[欧路 OpenAPI 开发指南](https://my.eudic.net/OpenAPI/Doc_Index)，获取将来放入 HTTP
+`Authorization` Header 的完整值（官方示例形如 `NIS xxxx`）。不要只输入后半段，也不要将
+它写入参数、环境变量或文件。
 
 ```bash
 pnpm host:eudic:configure -- --dry-run
 pnpm host:eudic:configure
 ```
 
-dry-run 只验证固定 `/usr/bin/security` 可执行，不提示输入、不读取钥匙串，也不调用欧路 API。
-正式命令由 macOS `security` 在终端隐藏读取授权，写入固定的 Huayi 钥匙串项。配置命令不会
-验证授权；第一次在单词结果页点击“加入欧路生词本”时才会查询欧路。重复运行正式命令会使用
-`-U` 轮换同一项。
+dry-run 只验证 `/usr/bin/security`，不提示输入、不读钥匙串、不访问欧路。正式命令让
+`security` 在终端隐藏读取授权，并使用 `-U` 更新固定的 Huayi 钥匙串项；配置本身不验证
+授权，第一次自动查词或显式加词时才访问欧路。
 
-也可以只移除欧路授权而保留扩展和 Host：
+只移除欧路授权而保留扩展和 Host：
 
 ```bash
 pnpm host:eudic:remove -- --dry-run
 pnpm host:eudic:remove
 ```
 
-该命令只删除 service `com.huayi.codex_bridge.eudic`、account `authorization` 的精确项；缺失
-时保持幂等。
+该命令只删除 service `com.huayi.codex_bridge.eudic`、account `authorization` 的精确项。
 
-## 从 v0.1.x 升级到 v0.2.0
+## 从 v0.2.x 升级到 v0.3.0
 
-升级顺序固定为：
+v0.3.0 同时改变扩展、Native Host、App Server provider 和 wire 事件，升级顺序固定为：
 
 1. 运行 `pnpm install && pnpm build`，重新生成扩展和 Host。
-2. 在 `chrome://extensions` 找到划译并点击刷新。
-3. 使用当前扩展 ID 重新运行 `pnpm host:install -- --extension-id <ID>`。
-4. 如需启用或轮换欧路功能，最后运行 `pnpm host:eudic:configure`。
+2. 在 `chrome://extensions` 找到“划译”并点击刷新。
+3. 复制当前扩展 ID，重新运行 `pnpm host:install -- --extension-id <ID>`。
+4. 用单词验证流式文本和生词状态；需要真实模型证据时再显式运行 `pnpm smoke:codex`。
 
-安装和升级不会读取、覆盖或删除现有欧路钥匙串项；扩展与 Host 应同步升级，否则加词会提示
-“本机服务未安装或版本过旧”。
+重复安装只替换 Huayi 自有 Host 文件，不读取、覆盖或删除现有欧路钥匙串授权，无需重新配置。
+扩展和 Host 必须同步为 `0.3.0`；公共 `schemaVersion` 仍为 `1`。
 
-## 人工验收欧路功能
+## 人工验收
 
-完成钥匙串配置后，选择一个尚未收藏的英文单词，先翻译或解释，再点击“加入欧路生词本”。
-在欧路中确认单词及目标英文句子已经写入。再次选择同一单词应显示“已在生词本”，并且不
-覆盖原分组、星级或已有语境。真实验收会访问欧路，只能由用户显式执行，自动测试不会执行。
+普通验收选择一个单词、短语、单句和多句段落，确认先显示核心增量、后显示完整卡片。单词
+分别验证“已加入生词本”和可添加两种状态；自动查询不得上传句子，只有点击添加才发送原始
+单词和所在英文句子。
+
+真实欧路验收需要用户已配置钥匙串：添加未收藏单词后检查语境，再次选择同词应显示已存在，
+且不得覆盖原分组、星级或已有语境。自动测试不会访问真实欧路。
 
 ## 卸载
 
@@ -101,6 +107,6 @@ pnpm host:uninstall -- --dry-run
 pnpm host:uninstall
 ```
 
-卸载会先删除上述精确欧路钥匙串项，再验证所有权标记和清单中的 host 名称、launcher 绝对
-路径并删除 Huayi 文件。钥匙串删除失败时保留 Host 文件以便重试；缺失钥匙串项和重复卸载
-均保持幂等，也不会删除 Chrome 的父目录、其他 Native Messaging 清单或其他凭据。
+完整卸载会先删除精确欧路钥匙串项，再删除经过所有权验证的 Huayi Host 与清单；不会删除
+Chrome 父目录、其他 Native Messaging 清单或其他凭据。若只想升级或重装，请重复执行安装
+命令，不要先卸载，这样欧路钥匙串会保留。
