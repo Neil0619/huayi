@@ -83,6 +83,25 @@ describe("extractSentenceContext", () => {
     );
   });
 
+  it("returns null when a Range crosses sibling semantic blocks", () => {
+    const article = document.createElement("article");
+    const firstParagraph = document.createElement("p");
+    firstParagraph.textContent = "sustained ";
+    const secondParagraph = document.createElement("p");
+    secondParagraph.textContent = "heatwave";
+    article.append(firstParagraph, secondParagraph);
+    document.body.append(article);
+
+    const startNode = textNode(firstParagraph);
+    const endNode = textNode(secondParagraph);
+    const range = document.createRange();
+    range.setStart(startNode, 0);
+    range.setEnd(endNode, endNode.length);
+
+    expect(range.toString()).toBe("sustained heatwave");
+    expect(extractSentenceContext(range, "sustained heatwave")).toBeNull();
+  });
+
   it("keeps an abbreviation attached to its sentence", () => {
     const paragraph = document.createElement("p");
     paragraph.textContent = "Dr. Smith helped the victims. Then he left.";

@@ -138,10 +138,12 @@ export function extractSentenceContext(range: Range, selection: string): string 
     return null;
   }
 
-  const block =
-    findSemanticBlock(range.commonAncestorContainer) ?? findSemanticBlock(range.startContainer);
+  const block = findSemanticBlock(range.startContainer);
+  const endBlock = findSemanticBlock(range.endContainer);
   if (
     block === null ||
+    endBlock === null ||
+    block !== endBlock ||
     !block.contains(range.startContainer) ||
     !block.contains(range.endContainer)
   ) {
