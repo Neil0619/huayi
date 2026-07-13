@@ -6,7 +6,8 @@ import type {
   ResultOverlayState,
   StreamingOverlayState,
 } from "./overlay-state.js";
-import { renderWordbookAction } from "./render-wordbook-action.js";
+import { renderStreamingPreview } from "./render-streaming-preview.js";
+import { renderWordbookAction, renderWordbookError } from "./render-wordbook-action.js";
 
 export interface PanelHandlers {
   onAddWord: () => void;
@@ -219,8 +220,41 @@ function createHeader(state: PanelState, handlers: PanelHandlers): HTMLElement {
   close.type = "button";
   close.addEventListener("click", handlers.onClose);
 
-  header.append(title, dragHandle, close);
+  const actions = document.createElement("div");
+  actions.className = "huayi-header-actions";
+  const wordbook = renderWordbookAction(state, handlers.onAddWord);
+  if (wordbook !== null) {
+    actions.append(wordbook);
+  }
+  actions.append(close);
+
+  header.append(title, dragHandle, actions);
   return header;
+}
+
+function renderAnalysisError(
+  state: ErrorOverlayState,
+  compact: boolean,
+  onRetry: () => void,
+): HTMLElement {
+  const error = document.createElement("div");
+  error.className = compact ? "huayi-error huayi-error-inline" : "huayi-error";
+
+  const message = document.createElement("p");
+  message.className = "huayi-copy";
+  message.textContent = state.error.message;
+  error.append(message);
+
+  if (state.error.retryable) {
+    const retry = document.createElement("button");
+    retry.className = "huayi-retry";
+    retry.dataset.action = "retry";
+    retry.textContent = "重试";
+    retry.type = "button";
+    retry.addEventListener("click", onRetry);
+    error.append(retry);
+  }
+  return error;
 }
 
 export function renderOverlayPanel(
@@ -232,11 +266,15 @@ export function renderOverlayPanel(
   panel.className = "huayi-root huayi-panel";
   panel.setAttribute("aria-live", "polite");
   panel.append(createHeader(state, handlers));
+  const wordbookError = renderWordbookError(state);
+  if (wordbookError !== null) {
+    panel.append(wordbookError);
+  }
 
   const body = document.createElement("div");
   body.className = "huayi-body";
 
-  if (state.status === "loading" || state.status === "streaming") {
+  if (state.status === "loading") {
     const loading = document.createElement("div");
     loading.className = "huayi-loading";
     const spinner = document.createElement("span");
@@ -254,30 +292,16 @@ export function renderOverlayPanel(
       loading.append(hint);
     }
     body.append(loading);
+  } else if (state.status === "streaming") {
+    body.append(renderStreamingPreview(state));
   } else if (state.status === "error") {
-    const error = document.createElement("div");
-    error.className = "huayi-error";
-    const message = document.createElement("p");
-    message.className = "huayi-copy";
-    message.textContent = state.error.message;
-    error.append(message);
-
-    if (state.error.retryable) {
-      const retry = document.createElement("button");
-      retry.className = "huayi-retry";
-      retry.dataset.action = "retry";
-      retry.textContent = "重试";
-      retry.type = "button";
-      retry.addEventListener("click", handlers.onRetry);
-      error.append(retry);
+    const hasPreview = state.preview.lastSequence >= 0;
+    if (hasPreview) {
+      body.append(renderStreamingPreview(state));
     }
-    body.append(error);
+    body.append(renderAnalysisError(state, hasPreview, handlers.onRetry));
   } else {
     renderResultBody(body, state.result);
-    const wordbook = renderWordbookAction(state, handlers.onAddWord);
-    if (wordbook !== null) {
-      body.append(wordbook);
-    }
   }
 
   panel.append(body);

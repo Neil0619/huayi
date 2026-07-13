@@ -83,6 +83,8 @@ export const overlayStyles = `
   }
 
   .huayi-panel {
+    display: flex;
+    flex-direction: column;
     width: min(${overlayDesignTokens.panelWidth}, calc(100vw - 16px));
     max-height: 70vh;
     overflow: hidden;
@@ -95,13 +97,15 @@ export const overlayStyles = `
   .huayi-header {
     position: relative;
     display: grid;
-    grid-template-columns: 1fr auto;
+    grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
+    flex: 0 0 auto;
     min-height: 44px;
     padding: 7px 10px 5px 16px;
   }
 
   .huayi-title {
+    min-width: 0;
     margin: 0;
     font-size: 16px;
     font-weight: 700;
@@ -148,8 +152,16 @@ export const overlayStyles = `
     background: #e7e9ed;
   }
 
+  .huayi-header-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+    min-height: 34px;
+  }
+
   .huayi-body {
-    max-height: calc(70vh - 44px);
+    min-height: 0;
     overflow: auto;
     padding: 2px 16px 18px;
     overscroll-behavior: contain;
@@ -241,22 +253,22 @@ export const overlayStyles = `
   }
 
   .huayi-wordbook {
-    display: grid;
-    gap: 7px;
-    margin-top: 18px;
-    padding-top: 14px;
-    border-top: 1px solid var(--huayi-border);
+    display: flex;
+    align-items: center;
+    min-height: 34px;
   }
 
   .huayi-wordbook-button {
-    justify-self: start;
-    min-height: 34px;
-    padding: 6px 12px;
+    min-height: 30px;
+    padding: 4px 9px;
     border: 1px solid #cbd5ea;
     border-radius: 9px;
     background: #ffffff;
     color: var(--huayi-accent);
+    font-size: 12px;
     font-weight: 650;
+    line-height: 1.2;
+    white-space: nowrap;
   }
 
   .huayi-wordbook-button:hover:not(:disabled) {
@@ -269,9 +281,27 @@ export const overlayStyles = `
   }
 
   .huayi-wordbook-error {
-    margin: 0;
+    flex: 0 0 auto;
+    margin: 0 16px 6px;
+    padding: 6px 9px;
+    border-radius: 8px;
+    background: #fff1f0;
     color: ${overlayDesignTokens.danger};
     font-size: 12px;
+  }
+
+  .huayi-preview-incomplete {
+    margin: 14px 0 0;
+    color: ${overlayDesignTokens.danger};
+    font-size: 12px;
+    font-weight: 650;
+  }
+
+  .huayi-error-inline {
+    min-height: 0;
+    margin-top: 12px;
+    padding: 10px 8px 2px;
+    border-top: 1px solid var(--huayi-border);
   }
 
   @keyframes huayi-spin {
@@ -286,6 +316,20 @@ export const overlayStyles = `
     .huayi-body {
       padding-right: 13px;
       padding-left: 13px;
+    }
+
+    .huayi-header {
+      padding-left: 12px;
+    }
+
+    .huayi-title {
+      font-size: 14px;
+    }
+
+    .huayi-wordbook-button {
+      padding-right: 7px;
+      padding-left: 7px;
+      font-size: 11px;
     }
   }
 `;

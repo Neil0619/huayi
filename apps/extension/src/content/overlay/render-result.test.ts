@@ -2,71 +2,44 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { AnalysisResult } from "@huayi/protocol";
 
+import type {
+  LoadingOverlayState,
+  ResultOverlayState,
+  StreamingOverlayState,
+  WordbookUiState,
+} from "./overlay-state.js";
+import {
+  handlers,
+  lexicalExplanationResult,
+  lexicalTranslationResult,
+  passageTranslationResult,
+  resultState,
+  sentenceExplanationResult,
+  session,
+} from "./render-result.test-fixtures.js";
 import { renderOverlayPanel } from "./render-result.js";
-import type { ResultOverlayState } from "./overlay-state.js";
 
-const session = {
-  action: "translate",
-  anchorRect: {
-    bottom: 120,
-    height: 20,
-    left: 80,
-    right: 180,
-    top: 100,
-    width: 100,
-  },
-  selection: {
-    context: "Context",
-    selection: "Selection",
-    selectionKind: "word",
-    wordbookContext: "Selection context.",
-  },
-  startedAt: 1_000,
-  wordbook: { availability: "checking", mutation: { status: "idle" } },
-} as const;
-
-function resultState(result: AnalysisResult): ResultOverlayState {
-  return { ...session, result, status: "result" };
+function wordbookButton(panel: HTMLElement): HTMLButtonElement | null {
+  return panel.querySelector<HTMLButtonElement>("[data-action='add-word']");
 }
 
-const handlers = {
-  onAddWord: () => undefined,
-  onClose: () => undefined,
-  onRetry: () => undefined,
-};
+function withAvailability<
+  T extends LoadingOverlayState | StreamingOverlayState | ResultOverlayState,
+>(
+  state: T,
+  availability: WordbookUiState["availability"],
+): Omit<T, "wordbook"> & { wordbook: WordbookUiState } {
+  const wordbook: WordbookUiState = { availability, mutation: { status: "idle" } };
+  return { ...state, wordbook };
+}
 
 describe("renderOverlayPanel", () => {
   it.each<readonly [AnalysisResult, string]>([
+    [lexicalTranslationResult, "相似词"],
+    [passageTranslationResult, "第一句。\n第二句。"],
     [
       {
-        collocations: [
-          { meaningZh: "刑事调查", text: "criminal investigation" },
-          { meaningZh: "展开调查", text: "launch an investigation" },
-        ],
-        contextualMeaningZh: "调查",
-        partOfSpeech: "noun",
-        selectionKind: "word",
-        similarTerms: [
-          { meaningZh: "询问", partOfSpeech: "noun", text: "inquiry" },
-          { meaningZh: "审查", partOfSpeech: "noun", text: "examination" },
-          { meaningZh: "研究", partOfSpeech: "noun", text: "research" },
-        ],
-        sourceText: "investigation",
-        type: "translate-lexical",
-      },
-      "相似词",
-    ],
-    [
-      {
-        selectionKind: "paragraph",
-        sourceText: "First.\nSecond.",
-        translationZh: "第一句。\n第二句。",
-        type: "translate-passage",
-      },
-      "第一句。\n第二句。",
-    ],
-    [
-      {
+        ...lexicalExplanationResult,
         collocations: [
           { meaningZh: "持续高温", text: "sustained heat" },
           { meaningZh: "持续努力", text: "sustained effort" },
@@ -80,26 +53,12 @@ describe("renderOverlayPanel", () => {
           { meaningZh: "持久的", partOfSpeech: "adjective", text: "prolonged" },
           { meaningZh: "不间断的", partOfSpeech: "adjective", text: "uninterrupted" },
         ],
-        type: "explain-lexical",
       },
       "同义词",
     ],
-    [
-      {
-        contextRole: "说明调查所处阶段。",
-        keyExpressions: [{ meaningZh: "处于早期阶段", text: "in its early stages" }],
-        mainStructure: "He said + 宾语从句",
-        selectionKind: "sentence",
-        sourceText: "He said it was in its early stages.",
-        translationZh: "他说事情仍处于早期阶段。",
-        type: "explain-sentence",
-      },
-      "语境作用",
-    ],
+    [sentenceExplanationResult, "语境作用"],
   ])("renders %s", (result, expectedText) => {
-    const panel = renderOverlayPanel(resultState(result), handlers);
-
-    expect(panel.textContent).toContain(expectedText);
+    expect(renderOverlayPanel(resultState(result), handlers).textContent).toContain(expectedText);
   });
 
   it("shows a slow-processing hint after eight seconds", () => {
@@ -109,7 +68,7 @@ describe("renderOverlayPanel", () => {
   });
 
   it("renders retry only for retryable errors", () => {
-    const panel = renderOverlayPanel(
+    const retryable = renderOverlayPanel(
       {
         ...session,
         error: { code: "TIMEOUT", message: "处理超时，请重试。", retryable: true },
@@ -118,10 +77,9 @@ describe("renderOverlayPanel", () => {
       },
       handlers,
     );
+    expect(retryable.querySelector("[data-action='retry']")).not.toBeNull();
 
-    expect(panel.querySelector("[data-action='retry']")).not.toBeNull();
-
-    const terminalPanel = renderOverlayPanel(
+    const terminal = renderOverlayPanel(
       {
         ...session,
         error: { code: "INTERNAL_ERROR", message: "处理失败。", retryable: false },
@@ -130,120 +88,176 @@ describe("renderOverlayPanel", () => {
       },
       handlers,
     );
-    expect(terminalPanel.querySelector("[data-action='retry']")).toBeNull();
+    expect(terminal.querySelector("[data-action='retry']")).toBeNull();
   });
 
-  it("shows the wordbook action only for word lexical results", () => {
-    const translation = resultState({
-      collocations: [
-        { meaningZh: "刑事调查", text: "criminal investigation" },
-        { meaningZh: "展开调查", text: "launch an investigation" },
-      ],
-      contextualMeaningZh: "调查",
-      partOfSpeech: "noun",
-      selectionKind: "word",
-      similarTerms: [
-        { meaningZh: "询问", partOfSpeech: "noun", text: "inquiry" },
-        { meaningZh: "审查", partOfSpeech: "noun", text: "examination" },
-        { meaningZh: "研究", partOfSpeech: "noun", text: "research" },
-      ],
-      sourceText: "investigation",
-      type: "translate-lexical",
-    });
-    const onAddWord = vi.fn();
-    const panel = renderOverlayPanel(translation, { ...handlers, onAddWord });
-    const button = panel.querySelector<HTMLButtonElement>("[data-action='add-word']");
-    button?.click();
-    expect(button?.textContent).toBe("加入欧路生词本");
-    expect(onAddWord).toHaveBeenCalledOnce();
-
-    const phrasePanel = renderOverlayPanel(
+  it("renders deltas without a spinner and retains an incomplete preview after analysis error", () => {
+    const streaming = renderOverlayPanel(
       {
-        ...translation,
-        selection: { ...translation.selection, selectionKind: "phrase", wordbookContext: null },
+        ...session,
+        preview: { lastSequence: 0, sections: { translation: "正在逐步显示译文" } },
+        status: "streaming",
       },
       handlers,
     );
-    expect(phrasePanel.querySelector("[data-action='add-word']")).toBeNull();
+    expect(streaming.textContent).toContain("正在逐步显示译文");
+    expect(streaming.querySelector(".huayi-spinner")).toBeNull();
 
-    const explanationPanel = renderOverlayPanel(
-      resultState({
-        collocations: [
-          { meaningZh: "调查案件", text: "investigate a case" },
-          { meaningZh: "开展调查", text: "conduct an investigation" },
-        ],
-        contextualMeaningZh: "调查",
-        coreMeanings: [{ meaningZh: "调查", partOfSpeech: "noun" }],
-        selectionKind: "word",
-        sourceText: "investigation",
-        synonyms: [
-          { meaningZh: "询问", partOfSpeech: "noun", text: "inquiry" },
-          { meaningZh: "审查", partOfSpeech: "noun", text: "examination" },
-          { meaningZh: "研究", partOfSpeech: "noun", text: "research" },
-        ],
-        type: "explain-lexical",
-      }),
+    const failed = renderOverlayPanel(
+      {
+        ...session,
+        error: { code: "TIMEOUT", message: "处理超时，请重试。", retryable: true },
+        preview: { lastSequence: 0, sections: { translation: "部分译文" } },
+        status: "error",
+      },
       handlers,
     );
-    expect(explanationPanel.querySelector("[data-action='add-word']")).not.toBeNull();
+    expect(failed.textContent).toContain("部分译文");
+    expect(failed.textContent).toContain("内容未完整生成");
+    expect(failed.querySelector("[data-action='retry']")).not.toBeNull();
   });
 
-  it("renders pending, success, and inline wordbook error states without hiding the result", () => {
-    const base = resultState({
-      collocations: [
-        { meaningZh: "刑事调查", text: "criminal investigation" },
-        { meaningZh: "展开调查", text: "launch an investigation" },
-      ],
-      contextualMeaningZh: "调查",
-      partOfSpeech: "noun",
-      selectionKind: "word",
-      similarTerms: [
-        { meaningZh: "询问", partOfSpeech: "noun", text: "inquiry" },
-        { meaningZh: "审查", partOfSpeech: "noun", text: "examination" },
-        { meaningZh: "研究", partOfSpeech: "noun", text: "research" },
-      ],
-      sourceText: "investigation",
-      type: "translate-lexical",
-    });
-    const saving = renderOverlayPanel(
-      { ...base, wordbook: { ...base.wordbook, mutation: { status: "saving" } } },
-      handlers,
-    );
-    expect(saving.textContent).toContain("正在添加…");
-    expect(saving.querySelector<HTMLButtonElement>("[data-action='add-word']")?.disabled).toBe(
+  it("places the wordbook action immediately left of close in the header action group", () => {
+    const panel = renderOverlayPanel(resultState(lexicalTranslationResult), handlers);
+    const group = panel.querySelector(".huayi-header-actions");
+    const button = wordbookButton(panel);
+    const close = panel.querySelector("[data-action='close']");
+
+    expect(button?.disabled).toBe(false);
+    expect(button?.textContent).toBe("加入欧路生词本");
+    expect(button?.closest(".huayi-header-actions")).toBe(group);
+    expect(close?.parentElement).toBe(group);
+    expect(button?.closest(".huayi-wordbook")?.nextElementSibling).toBe(close);
+  });
+
+  it.each<
+    readonly [string, LoadingOverlayState | StreamingOverlayState, boolean, string | undefined]
+  >([
+    ["loading/checking", { ...session, status: "loading" }, false, undefined],
+    [
+      "loading/present",
+      withAvailability({ ...session, status: "loading" }, "present"),
       true,
-    );
+      "已加入生词本",
+    ],
+    [
+      "streaming/present",
+      withAvailability(
+        {
+          ...session,
+          preview: { lastSequence: 0, sections: { translation: "部分" } },
+          status: "streaming",
+        },
+        "present",
+      ),
+      true,
+      "已加入生词本",
+    ],
+  ])("renders header action policy for %s", (_label, state, visible, label) => {
+    const button = wordbookButton(renderOverlayPanel(state, handlers));
 
-    const success = renderOverlayPanel(
-      { ...base, wordbook: { ...base.wordbook, mutation: { status: "success" } } },
+    expect(button !== null).toBe(visible);
+    expect(button?.textContent).toBe(label);
+    if (button !== null) {
+      expect(button.disabled).toBe(true);
+    }
+  });
+
+  it.each(["checking", "absent", "unknown"] as const)(
+    "enables add immediately for a complete result while availability is %s",
+    (availability) => {
+      const state = withAvailability(resultState(lexicalTranslationResult), availability);
+      const onAddWord = vi.fn();
+      const button = wordbookButton(renderOverlayPanel(state, { ...handlers, onAddWord }));
+      button?.click();
+
+      expect(button?.textContent).toBe("加入欧路生词本");
+      expect(button?.disabled).toBe(false);
+      expect(onAddWord).toHaveBeenCalledOnce();
+    },
+  );
+
+  it("replaces add with disabled success when a late presence check completes", () => {
+    const checking = renderOverlayPanel(resultState(lexicalTranslationResult), handlers);
+    const present = renderOverlayPanel(
+      withAvailability(resultState(lexicalTranslationResult), "present"),
       handlers,
     );
-    expect(success.textContent).toContain("已加入生词本");
 
-    const error = renderOverlayPanel(
-      {
-        ...base,
-        wordbook: {
-          ...base.wordbook,
-          mutation: {
-            error: {
-              code: "EUDIC_NOT_CONFIGURED",
-              message: "请先配置欧路授权。",
-              retryable: false,
-            },
-            status: "error",
-          },
+    expect(wordbookButton(checking)?.textContent).toBe("加入欧路生词本");
+    expect(wordbookButton(present)?.textContent).toBe("已加入生词本");
+    expect(wordbookButton(present)?.disabled).toBe(true);
+    expect(wordbookButton(present)?.closest(".huayi-header-actions")).not.toBeNull();
+  });
+
+  it.each(["absent", "unknown"] as const)(
+    "waits for a complete result before offering add when availability is %s",
+    (availability) => {
+      const loading = withAvailability({ ...session, status: "loading" }, availability);
+      const streaming = withAvailability(
+        {
+          ...session,
+          preview: { lastSequence: 0, sections: { translation: "部分" } },
+          status: "streaming",
+        },
+        availability,
+      );
+
+      expect(wordbookButton(renderOverlayPanel(loading, handlers))).toBeNull();
+      expect(wordbookButton(renderOverlayPanel(streaming, handlers))).toBeNull();
+      expect(
+        wordbookButton(
+          renderOverlayPanel(
+            withAvailability(resultState(lexicalTranslationResult), availability),
+            handlers,
+          ),
+        )?.disabled,
+      ).toBe(false);
+    },
+  );
+
+  it.each([
+    [{ status: "saving" } as const, "正在添加…"],
+    [{ status: "success" } as const, "已加入生词本"],
+  ])("disables the action while mutation is $0", (mutation, label) => {
+    const base = resultState(lexicalTranslationResult);
+    const panel = renderOverlayPanel(
+      { ...base, wordbook: { ...base.wordbook, mutation } },
+      handlers,
+    );
+
+    expect(wordbookButton(panel)?.textContent).toBe(label);
+    expect(wordbookButton(panel)?.disabled).toBe(true);
+  });
+
+  it("keeps the result visible and puts add errors in an aria-live row below the header", () => {
+    const base = resultState(lexicalTranslationResult);
+    const malicious = '<img src=x onerror="globalThis.pwned=true">';
+    const state: ResultOverlayState = {
+      ...base,
+      result: { ...lexicalTranslationResult, contextualMeaningZh: malicious },
+      wordbook: {
+        ...base.wordbook,
+        mutation: {
+          error: { code: "NETWORK_ERROR", message: malicious, retryable: true },
+          status: "error",
         },
       },
-      handlers,
-    );
-    expect(error.textContent).toContain("语境义");
-    expect(error.textContent).toContain("请先配置欧路授权");
-    expect(error.querySelector<HTMLButtonElement>("[data-action='add-word']")?.disabled).toBe(
-      false,
-    );
+    };
+    const panel = renderOverlayPanel(state, handlers);
+    const feedback = panel.querySelector(".huayi-wordbook-error");
 
-    const limited = renderOverlayPanel(
+    expect(panel.textContent).toContain(malicious);
+    expect(panel.querySelector("img")).toBeNull();
+    expect(panel.textContent).toContain("相似词");
+    expect(feedback?.getAttribute("aria-live")).toBe("polite");
+    expect(panel.querySelector(".huayi-header")?.nextElementSibling).toBe(feedback);
+    expect(wordbookButton(panel)?.disabled).toBe(false);
+  });
+
+  it("disables retry after a rate-limited add error", () => {
+    const base = resultState(lexicalTranslationResult);
+    const panel = renderOverlayPanel(
       {
         ...base,
         wordbook: {
@@ -256,8 +270,41 @@ describe("renderOverlayPanel", () => {
       },
       handlers,
     );
-    expect(limited.querySelector<HTMLButtonElement>("[data-action='add-word']")?.disabled).toBe(
-      true,
-    );
+    expect(wordbookButton(panel)?.disabled).toBe(true);
+  });
+
+  it.each([
+    [
+      "phrase",
+      resultState(
+        { ...lexicalExplanationResult, selectionKind: "phrase" },
+        {
+          selection: {
+            ...session.selection,
+            selectionKind: "phrase",
+            wordbookContext: null,
+          },
+        },
+      ),
+    ],
+    ["sentence", resultState(sentenceExplanationResult)],
+    ["paragraph", resultState(passageTranslationResult)],
+    [
+      "phrase while loading",
+      {
+        ...session,
+        selection: { ...session.selection, selectionKind: "phrase", wordbookContext: null },
+        status: "loading",
+        wordbook: { availability: "present", mutation: { status: "idle" } },
+      },
+    ],
+  ] as const)("never shows the action for %s", (_label, state) => {
+    expect(wordbookButton(renderOverlayPanel(state, handlers))).toBeNull();
+  });
+
+  it("does not enable add when the completed lexical result itself is not a word", () => {
+    const mismatched = resultState({ ...lexicalTranslationResult, selectionKind: "phrase" });
+
+    expect(wordbookButton(renderOverlayPanel(mismatched, handlers))).toBeNull();
   });
 });
