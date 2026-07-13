@@ -61,6 +61,66 @@ describe("renderOverlayPanel", () => {
     expect(renderOverlayPanel(resultState(result), handlers).textContent).toContain(expectedText);
   });
 
+  it.each([
+    [
+      "translation",
+      lexicalTranslationResult,
+      ["语境义", "词性", "音标", "语境搭配", "原文例句", "相似词"],
+    ],
+    [
+      "explanation",
+      lexicalExplanationResult,
+      ["语境义", "原形", "构词", "核心词义", "语境搭配", "同义词"],
+    ],
+  ] as const)("uses the fixed lexical section order for %s", (_label, result, expectedHeadings) => {
+    const panel = renderOverlayPanel(resultState(result), handlers);
+
+    expect(
+      Array.from(panel.querySelectorAll(".huayi-section-title"), (heading) => heading.textContent),
+    ).toEqual(expectedHeadings);
+  });
+
+  it("renders Four without headings for empty or absent lexical sections", () => {
+    const translation = renderOverlayPanel(
+      resultState({
+        collocations: [],
+        contextualMeaningZh: "四",
+        partOfSpeech: "number",
+        selectionKind: "word",
+        similarTerms: [],
+        sourceText: "Four",
+        type: "translate-lexical",
+      }),
+      handlers,
+    );
+    const explanation = renderOverlayPanel(
+      resultState({
+        collocations: [],
+        contextualMeaningZh: "四",
+        coreMeanings: [{ meaningZh: "四", partOfSpeech: "number" }],
+        selectionKind: "word",
+        sourceText: "Four",
+        synonyms: [],
+        type: "explain-lexical",
+      }),
+      handlers,
+    );
+
+    for (const panel of [translation, explanation]) {
+      expect(panel.textContent).toContain("Four");
+      expect(panel.textContent).toContain("四");
+      expect(panel.textContent).toContain("num.");
+      const headings = Array.from(
+        panel.querySelectorAll(".huayi-section-title"),
+        (heading) => heading.textContent,
+      );
+      expect(headings).not.toContain("构词");
+      expect(headings).not.toContain("语境搭配");
+      expect(headings).not.toContain("同义词");
+      expect(headings).not.toContain("相似词");
+    }
+  });
+
   it("shows a slow-processing hint after eight seconds", () => {
     const panel = renderOverlayPanel({ ...session, status: "loading" }, handlers, 9_001);
 
@@ -72,7 +132,7 @@ describe("renderOverlayPanel", () => {
       {
         ...session,
         error: { code: "TIMEOUT", message: "处理超时，请重试。", retryable: true },
-        preview: { lastSequence: -1, sections: {} },
+        preview: { lastSequence: -1, sections: {}, text: {} },
         status: "error",
       },
       handlers,
@@ -83,7 +143,7 @@ describe("renderOverlayPanel", () => {
       {
         ...session,
         error: { code: "INTERNAL_ERROR", message: "处理失败。", retryable: false },
-        preview: { lastSequence: -1, sections: {} },
+        preview: { lastSequence: -1, sections: {}, text: {} },
         status: "error",
       },
       handlers,
@@ -95,7 +155,11 @@ describe("renderOverlayPanel", () => {
     const streaming = renderOverlayPanel(
       {
         ...session,
-        preview: { lastSequence: 0, sections: { translation: "正在逐步显示译文" } },
+        preview: {
+          lastSequence: 0,
+          sections: {},
+          text: { translation: "正在逐步显示译文" },
+        },
         status: "streaming",
       },
       handlers,
@@ -107,7 +171,7 @@ describe("renderOverlayPanel", () => {
       {
         ...session,
         error: { code: "TIMEOUT", message: "处理超时，请重试。", retryable: true },
-        preview: { lastSequence: 0, sections: { translation: "部分译文" } },
+        preview: { lastSequence: 0, sections: {}, text: { translation: "部分译文" } },
         status: "error",
       },
       handlers,
@@ -145,7 +209,7 @@ describe("renderOverlayPanel", () => {
       withAvailability(
         {
           ...session,
-          preview: { lastSequence: 0, sections: { translation: "部分" } },
+          preview: { lastSequence: 0, sections: {}, text: { translation: "部分" } },
           status: "streaming",
         },
         "present",
@@ -197,7 +261,7 @@ describe("renderOverlayPanel", () => {
       const streaming = withAvailability(
         {
           ...session,
-          preview: { lastSequence: 0, sections: { translation: "部分" } },
+          preview: { lastSequence: 0, sections: {}, text: { translation: "部分" } },
           status: "streaming",
         },
         availability,

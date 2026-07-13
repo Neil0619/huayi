@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { AnalysisResult } from "@huayi/protocol";
+import type { AnalysisDeltaEvent, AnalysisResult, AnalysisSectionEvent } from "@huayi/protocol";
 
 import {
   OverlayStateMachine,
@@ -46,8 +46,36 @@ function startWordAnalysis(): OverlayState {
   });
 }
 
+function delta(
+  sequence: number,
+  value: string,
+  section: AnalysisDeltaEvent["section"] = "contextual-meaning",
+): AnalysisDeltaEvent {
+  return {
+    delta: value,
+    requestId: "analysis-1",
+    schemaVersion: 2,
+    section,
+    sequence,
+    type: "analysis-delta",
+  };
+}
+
+function section(
+  sequence: number,
+  payload: Pick<AnalysisSectionEvent, "section" | "value">,
+): AnalysisSectionEvent {
+  return {
+    ...payload,
+    requestId: "analysis-1",
+    schemaVersion: 2,
+    sequence,
+    type: "analysis-section",
+  } as AnalysisSectionEvent;
+}
+
 describe("reduceOverlayState", () => {
-  it("starts wordbook checking independently and enters streaming on the first delta", () => {
+  it("starts wordbook checking independently and enters streaming on the first update", () => {
     let state = startWordAnalysis();
 
     expect(state).toMatchObject({
@@ -56,13 +84,11 @@ describe("reduceOverlayState", () => {
     });
 
     state = reduceOverlayState(state, {
-      delta: "调",
-      section: "contextual-meaning",
-      sequence: 0,
-      type: "APPEND_DELTA",
+      type: "APPEND_ANALYSIS_UPDATE",
+      update: delta(0, "调"),
     });
     expect(state).toMatchObject({
-      preview: { lastSequence: 0, sections: { "contextual-meaning": "调" } },
+      preview: { lastSequence: 0, sections: {}, text: { "contextual-meaning": "调" } },
       status: "streaming",
     });
 
@@ -73,39 +99,64 @@ describe("reduceOverlayState", () => {
     expect(state).toMatchObject({ wordbook: { availability: "present" } });
   });
 
-  it("accepts only the next delta sequence and appends sections independently", () => {
+  it("shares one contiguous sequence across text and typed sections", () => {
     let state = reduceOverlayState(startWordAnalysis(), {
-      delta: "调",
-      section: "contextual-meaning",
-      sequence: 0,
-      type: "APPEND_DELTA",
+      type: "APPEND_ANALYSIS_UPDATE",
+      update: delta(0, "调"),
     });
     const afterFirst = state;
 
     state = reduceOverlayState(state, {
-      delta: "重复",
-      section: "contextual-meaning",
-      sequence: 0,
-      type: "APPEND_DELTA",
+      type: "APPEND_ANALYSIS_UPDATE",
+      update: section(0, { section: "part-of-speech", value: "noun" }),
     });
     expect(state).toBe(afterFirst);
 
     state = reduceOverlayState(state, {
-      delta: "跳号",
-      section: "translation",
-      sequence: 2,
-      type: "APPEND_DELTA",
+      type: "APPEND_ANALYSIS_UPDATE",
+      update: section(2, {
+        section: "collocations",
+        value: [{ meaningZh: "刑事调查", text: "criminal investigation" }],
+      }),
     });
     expect(state).toBe(afterFirst);
 
     state = reduceOverlayState(state, {
-      delta: "查",
-      section: "contextual-meaning",
-      sequence: 1,
-      type: "APPEND_DELTA",
+      type: "APPEND_ANALYSIS_UPDATE",
+      update: section(1, { section: "part-of-speech", value: "noun" }),
     });
     expect(state).toMatchObject({
-      preview: { lastSequence: 1, sections: { "contextual-meaning": "调查" } },
+      preview: {
+        lastSequence: 1,
+        sections: { partOfSpeech: "noun" },
+        text: { "contextual-meaning": "调" },
+      },
+    });
+
+    state = reduceOverlayState(state, {
+      type: "APPEND_ANALYSIS_UPDATE",
+      update: section(2, {
+        section: "collocations",
+        value: [{ meaningZh: "刑事调查", text: "criminal investigation" }],
+      }),
+    });
+    state = reduceOverlayState(state, {
+      type: "APPEND_ANALYSIS_UPDATE",
+      update: delta(3, "查"),
+    });
+    state = reduceOverlayState(state, {
+      type: "APPEND_ANALYSIS_UPDATE",
+      update: section(4, { section: "part-of-speech", value: "verb" }),
+    });
+    expect(state).toMatchObject({
+      preview: {
+        lastSequence: 4,
+        sections: {
+          collocations: [{ meaningZh: "刑事调查", text: "criminal investigation" }],
+          partOfSpeech: "verb",
+        },
+        text: { "contextual-meaning": "调查" },
+      },
     });
   });
 
@@ -186,17 +237,23 @@ describe("reduceOverlayState", () => {
 
   it("preserves a partial preview on error and resets it with a fresh wordbook check on retry", () => {
     let state = reduceOverlayState(startWordAnalysis(), {
-      delta: "部分译文",
-      section: "translation",
-      sequence: 0,
-      type: "APPEND_DELTA",
+      type: "APPEND_ANALYSIS_UPDATE",
+      update: delta(0, "部分译文", "translation"),
+    });
+    state = reduceOverlayState(state, {
+      type: "APPEND_ANALYSIS_UPDATE",
+      update: section(1, { section: "part-of-speech", value: "number" }),
     });
     state = reduceOverlayState(state, {
       error: { code: "TIMEOUT", message: "处理超时，请重试。", retryable: true },
       type: "REJECT",
     });
     expect(state).toMatchObject({
-      preview: { lastSequence: 0, sections: { translation: "部分译文" } },
+      preview: {
+        lastSequence: 1,
+        sections: { partOfSpeech: "number" },
+        text: { translation: "部分译文" },
+      },
       status: "error",
     });
 

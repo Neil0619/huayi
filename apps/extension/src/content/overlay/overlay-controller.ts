@@ -10,7 +10,6 @@ import type {
 
 import type { SelectionRequestInput } from "../selection/read-selection.js";
 import { focusWordbookStatus } from "./focus-wordbook-status.js";
-import { OverlayDeltaBatch } from "./overlay-delta-batch.js";
 import {
   isVisibleOverlayState,
   OverlayStateMachine,
@@ -18,6 +17,7 @@ import {
   type OverlayPoint,
   type OverlayState,
 } from "./overlay-state.js";
+import { OverlayUpdateBatch, type OverlayAnalysisUpdate } from "./overlay-update-batch.js";
 import {
   calculateOverlayPosition,
   clampOverlayPosition,
@@ -47,11 +47,11 @@ const KEYBOARD_DRAG_STEP = 10;
 
 export class OverlayController {
   private readonly documentRef: Document;
-  private readonly deltaBatch: OverlayDeltaBatch;
   private readonly host: HTMLDivElement;
   private readonly machine = new OverlayStateMachine();
   private readonly options: OverlayControllerOptions;
   private readonly slowRender: SlowRenderTimer;
+  private readonly updateBatch: OverlayUpdateBatch;
   private dragSession: DragSession | null = null;
 
   readonly shadowRoot: ShadowRoot;
@@ -62,15 +62,7 @@ export class OverlayController {
     this.host = this.documentRef.createElement("div");
     this.host.dataset.huayiOverlayHost = "";
     this.shadowRoot = this.host.attachShadow({ mode: "open" });
-    this.deltaBatch = new OverlayDeltaBatch((events) => {
-      const previousState = this.machine.state;
-      for (const event of events) {
-        this.machine.dispatch({ ...event, type: "APPEND_DELTA" });
-      }
-      if (this.machine.state !== previousState) {
-        this.render();
-      }
-    });
+    this.updateBatch = new OverlayUpdateBatch((events) => this.applyAnalysisUpdates(events, true));
     this.slowRender = new SlowRenderTimer(() => {
       if (this.machine.state.status === "loading" || this.machine.state.status === "streaming") {
         this.render();
@@ -92,7 +84,7 @@ export class OverlayController {
     if (this.hasPendingRequest()) {
       this.options.onCancel();
     }
-    this.deltaBatch.clear();
+    this.updateBatch.clear();
     this.slowRender.clear();
     this.machine.dispatch({ anchorRect, selection, type: "SHOW_ACTIONS" });
     this.render();
@@ -111,31 +103,24 @@ export class OverlayController {
   }
 
   resolve(result: AnalysisResult): void {
-    this.deltaBatch.flush();
+    this.applyAnalysisUpdates(this.updateBatch.drain(), false);
     this.slowRender.clear();
     this.machine.dispatch({ result, type: "RESOLVE" });
     this.render();
   }
 
   reject(error: AnalysisError): void {
-    this.deltaBatch.flush();
+    this.applyAnalysisUpdates(this.updateBatch.drain(), false);
     this.slowRender.clear();
     this.machine.dispatch({ error, type: "REJECT" });
     this.render();
   }
 
-  appendDelta(event: AnalysisDeltaEvent): void {
+  appendUpdate(event: AnalysisDeltaEvent | AnalysisSectionEvent): void {
     const status = this.machine.state.status;
     if (status === "loading" || status === "streaming") {
-      this.deltaBatch.append(event);
+      this.updateBatch.append(event);
     }
-  }
-
-  appendUpdate(event: AnalysisDeltaEvent | AnalysisSectionEvent): void {
-    if (event.type === "analysis-delta") {
-      this.appendDelta(event);
-    }
-    // Task 8 adds typed section accumulation and rendering behind this shared route.
   }
 
   resolveWordbookCheck(presence: WordbookPresence): void {
@@ -188,7 +173,7 @@ export class OverlayController {
     }
 
     const { action, selection } = current;
-    this.deltaBatch.clear();
+    this.updateBatch.clear();
     this.machine.dispatch({ startedAt: Date.now(), type: "RETRY" });
     this.render();
     this.slowRender.schedule();
@@ -199,7 +184,7 @@ export class OverlayController {
     if (this.hasPendingRequest()) {
       this.options.onCancel();
     }
-    this.deltaBatch.clear();
+    this.updateBatch.clear();
     this.slowRender.clear();
     this.dragSession = null;
     this.machine.dispatch({ type: "CLOSE" });
@@ -247,6 +232,16 @@ export class OverlayController {
   private readonly handleResize = (): void => {
     this.positionCurrentRoot();
   };
+
+  private applyAnalysisUpdates(updates: OverlayAnalysisUpdate[], shouldRender: boolean): void {
+    const previousState = this.machine.state;
+    for (const update of updates) {
+      this.machine.dispatch({ type: "APPEND_ANALYSIS_UPDATE", update });
+    }
+    if (shouldRender && this.machine.state !== previousState) {
+      this.render();
+    }
+  }
 
   private render(): void {
     const state = this.machine.state;

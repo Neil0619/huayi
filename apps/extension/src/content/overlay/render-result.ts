@@ -1,4 +1,4 @@
-import type { AnalysisResult, Collocation, PartOfSpeech, RelatedTerm } from "@huayi/protocol";
+import type { AnalysisResult } from "@huayi/protocol";
 
 import type {
   ErrorOverlayState,
@@ -6,6 +6,17 @@ import type {
   ResultOverlayState,
   StreamingOverlayState,
 } from "./overlay-state.js";
+import {
+  appendCollocations,
+  appendContextExample,
+  appendCoreMeanings,
+  appendPartOfSpeech,
+  appendPronunciation,
+  appendRelatedTerms,
+  appendSource,
+  appendStringListSection,
+  appendTextSection,
+} from "./render-analysis-sections.js";
 import { renderStreamingPreview } from "./render-streaming-preview.js";
 import { renderWordbookAction, renderWordbookError } from "./render-wordbook-action.js";
 
@@ -18,115 +29,16 @@ export interface PanelHandlers {
 type PanelState =
   LoadingOverlayState | StreamingOverlayState | ResultOverlayState | ErrorOverlayState;
 
-const partOfSpeechLabels: Record<PartOfSpeech, string> = {
-  adjective: "adj.",
-  adverb: "adv.",
-  conjunction: "conj.",
-  determiner: "det.",
-  interjection: "interj.",
-  modal: "modal",
-  noun: "n.",
-  number: "num.",
-  other: "other",
-  particle: "particle",
-  phrase: "phrase",
-  preposition: "prep.",
-  pronoun: "pron.",
-  verb: "v.",
-};
-
-function createSection(title: string, value?: string): HTMLElement {
-  const section = document.createElement("section");
-  section.className = "huayi-section";
-
-  const heading = document.createElement("h3");
-  heading.className = "huayi-section-title";
-  heading.textContent = title;
-  section.append(heading);
-
-  if (value !== undefined) {
-    const copy = document.createElement("p");
-    copy.className = "huayi-copy";
-    copy.textContent = value;
-    section.append(copy);
-  }
-
-  return section;
-}
-
-function appendSource(body: HTMLElement, sourceText: string): void {
-  const source = document.createElement("p");
-  source.className = "huayi-source";
-  source.textContent = sourceText;
-  body.append(source);
-}
-
-function appendStringList(section: HTMLElement, values: string[]): void {
-  const list = document.createElement("ul");
-  list.className = "huayi-list";
-
-  for (const value of values) {
-    const item = document.createElement("li");
-    item.textContent = value;
-    list.append(item);
-  }
-
-  section.append(list);
-}
-
-function appendCollocations(body: HTMLElement, collocations: Collocation[]): void {
-  const section = createSection("语境搭配");
-  appendStringList(
-    section,
-    collocations.map((item) => `${item.text}（${item.meaningZh}）`),
-  );
-  body.append(section);
-}
-
-function appendRelatedTerms(body: HTMLElement, title: string, terms: RelatedTerm[]): void {
-  const section = createSection(title);
-  const list = document.createElement("ul");
-  list.className = "huayi-term-list";
-
-  for (const term of terms) {
-    const item = document.createElement("li");
-    item.className = "huayi-term";
-    item.dataset.relatedTerm = "";
-    item.textContent = `${term.text} · ${partOfSpeechLabels[term.partOfSpeech]} · ${term.meaningZh}`;
-    list.append(item);
-  }
-
-  section.append(list);
-  body.append(section);
-}
-
 function renderLexicalTranslation(
   body: HTMLElement,
   result: Extract<AnalysisResult, { type: "translate-lexical" }>,
 ): void {
   appendSource(body, result.sourceText);
-  body.append(createSection("语境义", result.contextualMeaningZh));
-  body.append(createSection("词性", partOfSpeechLabels[result.partOfSpeech]));
-
-  if (result.pronunciation !== undefined) {
-    const pronunciations = [
-      result.pronunciation.uk === undefined ? undefined : `英 ${result.pronunciation.uk}`,
-      result.pronunciation.us === undefined ? undefined : `美 ${result.pronunciation.us}`,
-    ].filter((value): value is string => value !== undefined);
-    body.append(createSection("音标", pronunciations.join("　")));
-  }
-
+  appendTextSection(body, "语境义", result.contextualMeaningZh);
+  appendPartOfSpeech(body, result.partOfSpeech);
+  appendPronunciation(body, result.pronunciation);
   appendCollocations(body, result.collocations);
-
-  if (result.contextExample !== undefined) {
-    body.append(
-      createSection(
-        "原文例句",
-        `${result.contextExample.english}\n${result.contextExample.translationZh}`,
-      ),
-    );
-  }
-
+  appendContextExample(body, result.contextExample);
   appendRelatedTerms(body, "相似词", result.similarTerms);
 }
 
@@ -135,7 +47,7 @@ function renderPassageTranslation(
   result: Extract<AnalysisResult, { type: "translate-passage" }>,
 ): void {
   appendSource(body, result.sourceText);
-  body.append(createSection("译文", result.translationZh));
+  appendTextSection(body, "译文", result.translationZh);
 }
 
 function renderLexicalExplanation(
@@ -143,23 +55,10 @@ function renderLexicalExplanation(
   result: Extract<AnalysisResult, { type: "explain-lexical" }>,
 ): void {
   appendSource(body, result.sourceText);
-  body.append(createSection("语境义", result.contextualMeaningZh));
-
-  if (result.baseForm !== undefined) {
-    body.append(createSection("原形", result.baseForm));
-  }
-  if (result.wordFormation !== undefined) {
-    body.append(createSection("构词", result.wordFormation));
-  }
-
-  const meanings = createSection("核心词义");
-  appendStringList(
-    meanings,
-    result.coreMeanings.map(
-      (meaning) => `${partOfSpeechLabels[meaning.partOfSpeech]} ${meaning.meaningZh}`,
-    ),
-  );
-  body.append(meanings);
+  appendTextSection(body, "语境义", result.contextualMeaningZh);
+  appendTextSection(body, "原形", result.baseForm);
+  appendTextSection(body, "构词", result.wordFormation);
+  appendCoreMeanings(body, result.coreMeanings);
   appendCollocations(body, result.collocations);
   appendRelatedTerms(body, "同义词", result.synonyms);
 }
@@ -169,16 +68,14 @@ function renderSentenceExplanation(
   result: Extract<AnalysisResult, { type: "explain-sentence" }>,
 ): void {
   appendSource(body, result.sourceText);
-  body.append(createSection("句子主干", result.mainStructure));
-
-  const expressions = createSection("关键表达");
-  appendStringList(
-    expressions,
+  appendTextSection(body, "句子主干", result.mainStructure);
+  appendStringListSection(
+    body,
+    "关键表达",
     result.keyExpressions.map((expression) => `${expression.text}：${expression.meaningZh}`),
   );
-  body.append(expressions);
-  body.append(createSection("句意翻译", result.translationZh));
-  body.append(createSection("语境作用", result.contextRole));
+  appendTextSection(body, "句意翻译", result.translationZh);
+  appendTextSection(body, "语境作用", result.contextRole);
 }
 
 function renderResultBody(body: HTMLElement, result: AnalysisResult): void {

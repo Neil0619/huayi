@@ -1,20 +1,14 @@
-import type { AnalysisDeltaSection } from "@huayi/protocol";
-
 import type { ErrorOverlayState, StreamingOverlayState } from "./overlay-state.js";
-
-const previewTitles: Record<AnalysisDeltaSection, string> = {
-  "context-role": "语境作用",
-  "contextual-meaning": "语境义",
-  "main-structure": "句子主干",
-  translation: "译文",
-};
-
-const previewSectionOrder: AnalysisDeltaSection[] = [
-  "contextual-meaning",
-  "translation",
-  "main-structure",
-  "context-role",
-];
+import {
+  appendCollocations,
+  appendContextExample,
+  appendCoreMeanings,
+  appendPartOfSpeech,
+  appendPronunciation,
+  appendRelatedTerms,
+  appendSource,
+  appendTextSection,
+} from "./render-analysis-sections.js";
 
 function createWaiting(state: StreamingOverlayState | ErrorOverlayState): HTMLElement {
   const loading = document.createElement("div");
@@ -31,19 +25,49 @@ function createWaiting(state: StreamingOverlayState | ErrorOverlayState): HTMLEl
   return loading;
 }
 
-function createPreviewSection(title: string, value: string): HTMLElement {
-  const section = document.createElement("section");
-  section.className = "huayi-section";
+function appendAvailableSections(
+  body: HTMLElement,
+  state: StreamingOverlayState | ErrorOverlayState,
+): void {
+  const { sections, text } = state.preview;
+  const isLexical =
+    state.selection.selectionKind === "word" || state.selection.selectionKind === "phrase";
+  if (state.action === "translate" && isLexical) {
+    appendTextSection(body, "语境义", text["contextual-meaning"]);
+    appendPartOfSpeech(body, sections.partOfSpeech);
+    appendPronunciation(body, sections.pronunciation);
+    appendCollocations(body, sections.collocations);
+    appendContextExample(body, sections.contextExample);
+    appendRelatedTerms(body, "相似词", sections.similarTerms);
+    appendUnexpectedLexicalText(body, text);
+    return;
+  }
+  if (state.action === "explain" && isLexical) {
+    appendTextSection(body, "语境义", text["contextual-meaning"]);
+    appendTextSection(body, "原形", sections.baseForm);
+    appendTextSection(body, "构词", sections.wordFormation);
+    appendCoreMeanings(body, sections.coreMeanings);
+    appendCollocations(body, sections.collocations);
+    appendRelatedTerms(body, "同义词", sections.synonyms);
+    appendUnexpectedLexicalText(body, text);
+    return;
+  }
+  if (state.action === "translate") {
+    appendTextSection(body, "译文", text.translation);
+    return;
+  }
+  appendTextSection(body, "句子主干", text["main-structure"]);
+  appendTextSection(body, "句意翻译", text.translation);
+  appendTextSection(body, "语境作用", text["context-role"]);
+}
 
-  const heading = document.createElement("h3");
-  heading.className = "huayi-section-title";
-  heading.textContent = title;
-
-  const copy = document.createElement("p");
-  copy.className = "huayi-copy";
-  copy.textContent = value;
-  section.append(heading, copy);
-  return section;
+function appendUnexpectedLexicalText(
+  body: HTMLElement,
+  text: StreamingOverlayState["preview"]["text"],
+): void {
+  appendTextSection(body, "译文", text.translation);
+  appendTextSection(body, "句子主干", text["main-structure"]);
+  appendTextSection(body, "语境作用", text["context-role"]);
 }
 
 export function renderStreamingPreview(
@@ -52,20 +76,12 @@ export function renderStreamingPreview(
   const preview = document.createElement("div");
   preview.className = "huayi-preview";
 
-  const source = document.createElement("p");
-  source.className = "huayi-source";
-  source.textContent = state.selection.selection;
-  preview.append(source);
+  appendSource(preview, state.selection.selection);
 
   if (state.preview.lastSequence < 0) {
     preview.append(createWaiting(state));
   } else {
-    for (const sectionName of previewSectionOrder) {
-      const value = state.preview.sections[sectionName];
-      if (value !== undefined) {
-        preview.append(createPreviewSection(previewTitles[sectionName], value));
-      }
-    }
+    appendAvailableSections(preview, state);
   }
 
   if (state.status === "error" && state.preview.lastSequence >= 0) {

@@ -14,8 +14,13 @@ export const lexicalTranslationResult = {
     { meaningZh: "刑事调查", text: "criminal investigation" },
     { meaningZh: "展开调查", text: "launch an investigation" },
   ],
+  contextExample: {
+    english: "The investigation continues.",
+    translationZh: "调查仍在继续。",
+  },
   contextualMeaningZh: "调查",
   partOfSpeech: "noun",
+  pronunciation: { uk: "/ɪnˌvestɪˈɡeɪʃn/", us: "/ɪnˌvestɪˈɡeɪʃən/" },
   selectionKind: "word",
   similarTerms: [
     { meaningZh: "询问", partOfSpeech: "noun", text: "inquiry" },
@@ -27,6 +32,7 @@ export const lexicalTranslationResult = {
 } as const satisfies AnalysisResult;
 
 export const lexicalExplanationResult = {
+  baseForm: "investigate",
   collocations: [
     { meaningZh: "调查案件", text: "investigate a case" },
     { meaningZh: "开展调查", text: "conduct an investigation" },
@@ -41,6 +47,7 @@ export const lexicalExplanationResult = {
     { meaningZh: "研究", partOfSpeech: "noun", text: "research" },
   ],
   type: "explain-lexical",
+  wordFormation: "investigate + -ion",
 } as const satisfies AnalysisResult;
 
 export const passageTranslationResult = {

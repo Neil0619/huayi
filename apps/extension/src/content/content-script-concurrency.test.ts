@@ -316,7 +316,7 @@ describe("content-script concurrent operations", () => {
     });
     expect(instance.controller.state).toMatchObject({
       error: { code: "TIMEOUT" },
-      preview: { sections: { translation: "部分" } },
+      preview: { text: { translation: "部分" } },
       status: "error",
       wordbook: { availability: "unknown" },
     });

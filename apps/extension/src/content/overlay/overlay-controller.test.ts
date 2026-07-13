@@ -59,6 +59,7 @@ afterEach(() => {
     controller.destroy();
   }
   document.body.textContent = "";
+  vi.restoreAllMocks();
   vi.useRealTimers();
 });
 
@@ -184,37 +185,63 @@ describe("OverlayController", () => {
     expect(cancellations).toHaveLength(1);
   });
 
-  it("batches ten rapid deltas into one render after 40 milliseconds", () => {
+  it("batches text and typed updates with one 40 millisecond timer", () => {
     vi.useFakeTimers();
     const controller = createController([], []);
     controller.show(selection, anchorRect);
     controller.start("translate");
     const renderSpy = vi.spyOn(controller.shadowRoot, "replaceChildren");
+    const timeoutSpy = vi.spyOn(globalThis, "setTimeout");
 
-    for (let sequence = 0; sequence < 10; sequence += 1) {
-      controller.appendDelta({
-        delta: `${sequence}`,
-        requestId: "analysis-1",
-        schemaVersion: 2,
-        section: "contextual-meaning",
-        sequence,
-        type: "analysis-delta",
-      });
-    }
+    controller.appendUpdate({
+      delta: "调查",
+      requestId: "analysis-1",
+      schemaVersion: 2,
+      section: "contextual-meaning",
+      sequence: 0,
+      type: "analysis-delta",
+    });
+    controller.appendUpdate({
+      requestId: "analysis-1",
+      schemaVersion: 2,
+      section: "collocations",
+      sequence: 1,
+      type: "analysis-section",
+      value: [{ meaningZh: "刑事调查", text: "criminal investigation" }],
+    });
+    controller.appendUpdate({
+      requestId: "analysis-1",
+      schemaVersion: 2,
+      section: "part-of-speech",
+      sequence: 2,
+      type: "analysis-section",
+      value: "noun",
+    });
 
     expect(controller.state.status).toBe("loading");
     expect(renderSpy).not.toHaveBeenCalled();
+    expect(timeoutSpy.mock.calls.filter(([, wait]) => wait === 40)).toHaveLength(1);
     vi.advanceTimersByTime(39);
     expect(renderSpy).not.toHaveBeenCalled();
     vi.advanceTimersByTime(1);
     expect(controller.state).toMatchObject({
       preview: {
-        lastSequence: 9,
-        sections: { "contextual-meaning": "0123456789" },
+        lastSequence: 2,
+        sections: {
+          collocations: [{ meaningZh: "刑事调查", text: "criminal investigation" }],
+          partOfSpeech: "noun",
+        },
+        text: { "contextual-meaning": "调查" },
       },
       status: "streaming",
     });
     expect(renderSpy).toHaveBeenCalledOnce();
+    expect(
+      Array.from(
+        controller.shadowRoot.querySelectorAll(".huayi-section-title"),
+        (heading) => heading.textContent,
+      ),
+    ).toEqual(["语境义", "词性", "语境搭配"]);
   });
 
   it("flushes pending deltas before a terminal error", () => {
@@ -222,7 +249,7 @@ describe("OverlayController", () => {
     const controller = createController([], []);
     controller.show(selection, anchorRect);
     controller.start("translate");
-    controller.appendDelta({
+    controller.appendUpdate({
       delta: "部分译文",
       requestId: "analysis-1",
       schemaVersion: 2,
@@ -234,9 +261,56 @@ describe("OverlayController", () => {
     controller.reject({ code: "TIMEOUT", message: "处理超时，请重试。", retryable: true });
 
     expect(controller.state).toMatchObject({
-      preview: { lastSequence: 0, sections: { translation: "部分译文" } },
+      preview: { lastSequence: 0, sections: {}, text: { translation: "部分译文" } },
       status: "error",
     });
+  });
+
+  it("retains ordered typed preview and retry after an invalid terminal", () => {
+    vi.useFakeTimers();
+    const controller = createController([], []);
+    controller.show(selection, anchorRect);
+    controller.start("translate");
+    controller.appendUpdate({
+      delta: "调查",
+      requestId: "analysis-1",
+      schemaVersion: 2,
+      section: "contextual-meaning",
+      sequence: 0,
+      type: "analysis-delta",
+    });
+    controller.appendUpdate({
+      requestId: "analysis-1",
+      schemaVersion: 2,
+      section: "collocations",
+      sequence: 1,
+      type: "analysis-section",
+      value: [{ meaningZh: "刑事调查", text: "criminal investigation" }],
+    });
+    controller.appendUpdate({
+      requestId: "analysis-1",
+      schemaVersion: 2,
+      section: "part-of-speech",
+      sequence: 2,
+      type: "analysis-section",
+      value: "noun",
+    });
+
+    controller.reject({
+      code: "INVALID_RESPONSE",
+      message: "模型返回了无效结果。",
+      retryable: true,
+    });
+
+    expect(controller.state.status).toBe("error");
+    expect(
+      Array.from(
+        controller.shadowRoot.querySelectorAll(".huayi-section-title"),
+        (heading) => heading.textContent,
+      ),
+    ).toEqual(["语境义", "词性", "语境搭配"]);
+    expect(controller.shadowRoot.textContent).toContain("内容未完整生成");
+    expect(controller.shadowRoot.querySelector("[data-action='retry']")).not.toBeNull();
   });
 
   it("flushes before final replacement and preserves valid scroll and focused header action", () => {
@@ -244,7 +318,7 @@ describe("OverlayController", () => {
     const controller = createController([], []);
     controller.show(selection, anchorRect);
     controller.start("translate");
-    controller.appendDelta({
+    controller.appendUpdate({
       delta: "调",
       requestId: "analysis-1",
       schemaVersion: 2,
@@ -261,7 +335,7 @@ describe("OverlayController", () => {
 
     controller.resolve(lexicalResult);
 
-    expect(renderSpy).toHaveBeenCalledTimes(2);
+    expect(renderSpy).toHaveBeenCalledOnce();
     expect(controller.state.status).toBe("result");
     expect(controller.shadowRoot.querySelector<HTMLElement>(".huayi-body")?.scrollTop).toBe(42);
     expect((controller.shadowRoot.activeElement as HTMLElement | null)?.dataset.action).toBe(
@@ -274,7 +348,7 @@ describe("OverlayController", () => {
     const controller = createController([], []);
     controller.show(selection, anchorRect);
     controller.start("translate");
-    controller.appendDelta({
+    controller.appendUpdate({
       delta: "late",
       requestId: "analysis-1",
       schemaVersion: 2,

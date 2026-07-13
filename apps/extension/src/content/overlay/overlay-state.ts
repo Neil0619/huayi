@@ -1,8 +1,16 @@
 import type {
+  AnalysisDeltaEvent,
   AnalysisDeltaSection,
   AnalysisError,
   AnalysisResult,
+  AnalysisSectionEvent,
   AnalyzeAction,
+  Collocation,
+  ContextExample,
+  CoreMeaning,
+  PartOfSpeech,
+  Pronunciation,
+  RelatedTerm,
   WordbookAddOutcome,
   WordbookPresence,
 } from "@huayi/protocol";
@@ -37,7 +45,20 @@ interface AnalysisOverlaySession extends OverlaySession {
 
 export interface AnalysisPreview {
   lastSequence: number;
-  sections: Partial<Record<AnalysisDeltaSection, string>>;
+  sections: AnalysisPreviewSections;
+  text: Partial<Record<AnalysisDeltaSection, string>>;
+}
+
+export interface AnalysisPreviewSections {
+  baseForm?: string;
+  collocations?: Collocation[];
+  contextExample?: ContextExample;
+  coreMeanings?: CoreMeaning[];
+  partOfSpeech?: PartOfSpeech;
+  pronunciation?: Pronunciation;
+  similarTerms?: RelatedTerm[];
+  synonyms?: RelatedTerm[];
+  wordFormation?: string;
 }
 
 export interface WordbookUiState {
@@ -90,10 +111,8 @@ export type OverlayEvent =
   | ({ type: "SHOW_ACTIONS" } & Omit<OverlaySession, "position">)
   | { action: AnalyzeAction; startedAt: number; type: "START" }
   | {
-      delta: string;
-      section: AnalysisDeltaSection;
-      sequence: number;
-      type: "APPEND_DELTA";
+      type: "APPEND_ANALYSIS_UPDATE";
+      update: AnalysisDeltaEvent | AnalysisSectionEvent;
     }
   | { result: AnalysisResult; type: "RESOLVE" }
   | { error: AnalysisError; type: "REJECT" }
@@ -122,7 +141,33 @@ function initialWordbook(selection: SelectionRequestInput): WordbookUiState {
 }
 
 function emptyPreview(): AnalysisPreview {
-  return { lastSequence: -1, sections: {} };
+  return { lastSequence: -1, sections: {}, text: {} };
+}
+
+function replacePreviewSection(
+  sections: AnalysisPreviewSections,
+  update: AnalysisSectionEvent,
+): AnalysisPreviewSections {
+  switch (update.section) {
+    case "part-of-speech":
+      return { ...sections, partOfSpeech: update.value };
+    case "pronunciation":
+      return { ...sections, pronunciation: update.value };
+    case "base-form":
+      return { ...sections, baseForm: update.value };
+    case "word-formation":
+      return { ...sections, wordFormation: update.value };
+    case "core-meanings":
+      return { ...sections, coreMeanings: update.value };
+    case "collocations":
+      return { ...sections, collocations: update.value };
+    case "context-example":
+      return { ...sections, contextExample: update.value };
+    case "similar-terms":
+      return { ...sections, similarTerms: update.value };
+    case "synonyms":
+      return { ...sections, synonyms: update.value };
+  }
 }
 
 function toResultState(
@@ -195,21 +240,31 @@ export function reduceOverlayState(state: OverlayState, event: OverlayEvent): Ov
 
   if (
     (state.status === "loading" || state.status === "streaming") &&
-    event.type === "APPEND_DELTA"
+    event.type === "APPEND_ANALYSIS_UPDATE"
   ) {
     const preview = state.status === "streaming" ? state.preview : emptyPreview();
-    if (event.sequence !== preview.lastSequence + 1) {
+    if (event.update.sequence !== preview.lastSequence + 1) {
       return state;
     }
+    const nextPreview: AnalysisPreview =
+      event.update.type === "analysis-delta"
+        ? {
+            lastSequence: event.update.sequence,
+            sections: preview.sections,
+            text: {
+              ...preview.text,
+              [event.update.section]:
+                `${preview.text[event.update.section] ?? ""}${event.update.delta}`,
+            },
+          }
+        : {
+            lastSequence: event.update.sequence,
+            sections: replacePreviewSection(preview.sections, event.update),
+            text: preview.text,
+          };
     return {
       ...state,
-      preview: {
-        lastSequence: event.sequence,
-        sections: {
-          ...preview.sections,
-          [event.section]: `${preview.sections[event.section] ?? ""}${event.delta}`,
-        },
-      },
+      preview: nextPreview,
       status: "streaming",
     };
   }
