@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type {
   AddWordRequest,
@@ -10,7 +10,9 @@ import type {
 import {
   createRuntimeMessageListener,
   handleContentMessage,
+  registerServiceWorker,
   type RequestCoordinatorLike,
+  type RuntimeMessageListener,
 } from "./service-worker.js";
 
 const request: AnalyzeRequest = {
@@ -50,10 +52,18 @@ class FakeCoordinator implements RequestCoordinatorLike {
     return true;
   }
 
+  cancelTab(tabId: number): void {
+    this.cancellations.push({ requestId: "*", tabId });
+  }
+
   start(tabId: number, workRequest: HostWorkRequest): void {
     this.starts.push({ request: workRequest, tabId });
   }
 }
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 describe("handleContentMessage", () => {
   it("routes valid analyze, check-word, add-word, and cancel commands for a sender tab", () => {
@@ -98,5 +108,71 @@ describe("handleContentMessage", () => {
       ),
     ).toBe(false);
     expect(responses).toEqual([{ handled: true }]);
+  });
+
+  it("cancels every request lane when Chrome removes the sender tab", () => {
+    type TabRemovedListener = (
+      tabId: number,
+      removeInfo: { isWindowClosing: boolean; windowId: number },
+    ) => void;
+    const runtimeListeners: RuntimeMessageListener[] = [];
+    const tabRemovedListeners: TabRemovedListener[] = [];
+    const postedMessages: unknown[] = [];
+    vi.stubGlobal("chrome", {
+      runtime: {
+        connectNative: () => ({
+          disconnect: () => undefined,
+          onDisconnect: { addListener: () => undefined },
+          onMessage: { addListener: () => undefined },
+          postMessage: (message: unknown) => postedMessages.push(message),
+        }),
+        id: "extension-id",
+        onMessage: {
+          addListener: (listener: RuntimeMessageListener) => runtimeListeners.push(listener),
+          removeListener: (listener: RuntimeMessageListener) =>
+            runtimeListeners.splice(runtimeListeners.indexOf(listener), 1),
+        },
+      },
+      tabs: {
+        onRemoved: {
+          addListener: (listener: TabRemovedListener) => tabRemovedListeners.push(listener),
+          removeListener: (listener: TabRemovedListener) =>
+            tabRemovedListeners.splice(tabRemovedListeners.indexOf(listener), 1),
+        },
+        sendMessage: () => Promise.resolve(),
+      },
+    });
+
+    const dispose = registerServiceWorker();
+    expect(runtimeListeners).toHaveLength(1);
+    expect(tabRemovedListeners).toHaveLength(1);
+
+    const send = runtimeListeners[0];
+    const removeTab = tabRemovedListeners[0];
+    if (send === undefined || removeTab === undefined) {
+      throw new Error("Expected registered Chrome listeners.");
+    }
+    send({ request, type: "ANALYZE_SELECTION" }, { tab: { id: 7 } }, () => undefined);
+    send(
+      { request: checkRequest, type: "CHECK_WORD_IN_EUDIC" },
+      { tab: { id: 7 } },
+      () => undefined,
+    );
+    removeTab(7, { isWindowClosing: false, windowId: 1 });
+
+    expect(postedMessages).toHaveLength(4);
+    expect(
+      postedMessages
+        .slice(2)
+        .map((message) =>
+          typeof message === "object" && message !== null && "targetRequestId" in message
+            ? message.targetRequestId
+            : null,
+        ),
+    ).toEqual(["request-1", "check-1"]);
+
+    dispose();
+    expect(runtimeListeners).toHaveLength(0);
+    expect(tabRemovedListeners).toHaveLength(0);
   });
 });

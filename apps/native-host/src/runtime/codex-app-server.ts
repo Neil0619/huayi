@@ -350,8 +350,13 @@ export class CodexAppServerClient implements CodexAppServer {
   #failUnidentifiedStartup(active: ActiveTurn): void {
     const session = active.session;
     const reason = active.cancellation ?? cancelledError();
+    const hasUnrelatedWork =
+      session !== undefined &&
+      [...this.#activeTurns.values()].some(
+        (candidate) => candidate !== active && candidate.session === session,
+      );
     if (!this.#cleanup(active)) return;
-    if (session !== undefined && !session.closed) {
+    if (session !== undefined && !session.closed && !hasUnrelatedWork) {
       this.#failSession(session, mapCodexTurnFailure(undefined));
     }
     active.reject(reason);

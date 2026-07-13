@@ -293,7 +293,7 @@ describe("CodexAppServerClient startup lifecycle", () => {
     );
   });
 
-  it("fails the shared session closed when cancelled startup has no turn identity", async () => {
+  it("keeps an unrelated active turn alive when thread/start is cancelled", async () => {
     vi.useFakeTimers();
     const process = new FakeAppServerProcess();
     const client = createClient([process], 10_000);
@@ -306,13 +306,37 @@ describe("CodexAppServerClient startup lifecycle", () => {
     await vi.advanceTimersByTimeAsync(0);
 
     const startup = observe(run(client, "startup", new AbortController()));
-    await process.takeRequest("thread/start");
+    const pendingThread = await process.takeRequest("thread/start");
     await client.interrupt("startup");
     await vi.advanceTimersByTimeAsync(0);
 
     expect(startup.rejection).toEqual(expect.objectContaining({ code: "CANCELLED" }));
-    expect(active.rejection).toEqual(expect.objectContaining({ code: "INTERNAL_ERROR" }));
-    expect(process.killCallCount).toBe(1);
+    expect(active).toEqual({ rejection: undefined, resolution: undefined });
+    expect(process.killCallCount).toBe(0);
+
+    process.respond(pendingThread, safeThread("thread-cancelled"));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(
+      process.messages.filter(
+        (message) =>
+          message.method === "turn/start" &&
+          (message.params as { threadId?: unknown }).threadId === "thread-cancelled",
+      ),
+    ).toEqual([]);
+
+    process.notify("item/completed", {
+      item: { id: "item-active", text: "active-final", type: "agentMessage" },
+      threadId: "thread-active",
+      turnId: "turn-active",
+    });
+    process.notify("turn/completed", {
+      threadId: "thread-active",
+      turn: { id: "turn-active", status: "completed" },
+    });
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(active).toMatchObject({ resolution: "active-final" });
+    expect(process.killCallCount).toBe(0);
   });
 
   it("keeps an unrelated active turn alive when cancellation has a target", async () => {

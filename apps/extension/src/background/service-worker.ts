@@ -6,6 +6,7 @@ import { RequestCoordinator } from "./request-coordinator.js";
 
 export interface RequestCoordinatorLike {
   cancel(tabId: number, requestId: string): boolean;
+  cancelTab(tabId: number): void;
   start(tabId: number, request: HostWorkRequest): void;
 }
 
@@ -60,10 +61,13 @@ export function registerServiceWorker(): () => void {
     transport,
   });
   const listener = createRuntimeMessageListener(coordinator);
+  const tabRemovedListener = (tabId: number) => coordinator.cancelTab(tabId);
 
   chrome.runtime.onMessage.addListener(listener);
+  chrome.tabs.onRemoved.addListener(tabRemovedListener);
   return () => {
     chrome.runtime.onMessage.removeListener(listener);
+    chrome.tabs.onRemoved.removeListener(tabRemovedListener);
     coordinator.dispose();
     transport.dispose();
   };

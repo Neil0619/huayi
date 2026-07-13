@@ -10,7 +10,9 @@ import {
   runNativeHost,
   type RequestDispatcher,
 } from "./main.js";
+import { NativeMessageDispatcher } from "./protocol/dispatcher.js";
 import { NativeMessageDecoder, encodeNativeMessage } from "./protocol/framing.js";
+import type { AnalysisProvider } from "./provider/analysis-provider.js";
 import { APP_SERVER_DISABLED_FEATURES } from "./runtime/codex-app-server-config.js";
 import type {
   ProcessRunRequest,
@@ -86,6 +88,73 @@ describe("runNativeHost", () => {
 
     expect(outputChunks).toEqual([]);
     expect(Buffer.concat(errorChunks).toString("utf8")).toContain("Native host protocol error");
+  });
+
+  it.each([
+    ["ends", (input: PassThrough) => input.end()],
+    ["closes", (input: PassThrough) => input.destroy()],
+  ])("aborts active work and disposes the provider when stdin %s", async (_event, closeInput) => {
+    const input = new PassThrough();
+    const output = new PassThrough();
+    const errorOutput = new PassThrough();
+    const outputChunks: Buffer[] = [];
+    const errorChunks: Buffer[] = [];
+    let activeWorkStarted = false;
+    let aborted = 0;
+    let providerDisposeCalls = 0;
+    output.on("data", (chunk: Buffer) => outputChunks.push(chunk));
+    errorOutput.on("data", (chunk: Buffer) => errorChunks.push(chunk));
+    const provider: AnalysisProvider = {
+      analyze: (_request, signal) => {
+        activeWorkStarted = true;
+        return new Promise((_resolve, reject) => {
+          signal.addEventListener(
+            "abort",
+            () => {
+              aborted += 1;
+              reject(new Error("aborted"));
+            },
+            { once: true },
+          );
+        });
+      },
+      dispose: () => {
+        providerDisposeCalls += 1;
+      },
+    };
+    const dispatcher = new NativeMessageDispatcher({
+      healthCheck: async () => ({ codexVersion: "codex-cli 0.144.1" }),
+      provider,
+    });
+    const stop = runNativeHost({ dispatcher, errorOutput, input, output });
+
+    try {
+      input.write(
+        encodeNativeMessage({
+          action: "translate",
+          context: "The investigation was in its early stages.",
+          requestId: "analysis-stdin-close",
+          schemaVersion: 1,
+          selection: "investigation",
+          selectionKind: "word",
+          targetLanguage: "zh-CN",
+          type: "analyze",
+        }),
+      );
+      await vi.waitFor(() => expect(activeWorkStarted).toBe(true));
+      const outputLengthBeforeClose = Buffer.concat(outputChunks).length;
+
+      closeInput(input);
+      await vi.waitFor(() => expect(aborted).toBe(1));
+      await Promise.resolve();
+
+      stop();
+      expect(providerDisposeCalls).toBe(1);
+      expect(Buffer.concat(outputChunks)).toHaveLength(outputLengthBeforeClose);
+      expect(Buffer.concat(errorChunks).toString("utf8")).toBe("");
+    } finally {
+      stop();
+    }
   });
 });
 

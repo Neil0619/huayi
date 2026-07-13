@@ -59,6 +59,8 @@ export function runNativeHost(streams: NativeHostStreams): () => void {
     }
     stopped = true;
     streams.input.removeListener("data", handleData);
+    streams.input.removeListener("end", stop);
+    streams.input.removeListener("close", stop);
     streams.dispatcher.dispose?.();
   };
 
@@ -98,6 +100,8 @@ export function runNativeHost(streams: NativeHostStreams): () => void {
   }
 
   streams.input.on("data", handleData);
+  streams.input.once("end", stop);
+  streams.input.once("close", stop);
   return stop;
 }
 

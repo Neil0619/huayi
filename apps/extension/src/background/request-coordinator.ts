@@ -149,6 +149,10 @@ export class RequestCoordinator {
     return false;
   }
 
+  cancelTab(tabId: number): void {
+    this.cancelAll(tabId);
+  }
+
   dispose(): void {
     this.removeEventListener();
     this.removeDisconnectListener();
