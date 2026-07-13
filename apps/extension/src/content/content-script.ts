@@ -135,10 +135,10 @@ export function initializeContentScript(options: ContentScriptOptions = {}): Con
   const getAnchorRect = options.getAnchorRect ?? getRangeAnchorRect;
   const activeRequests = new Map<string, ActiveOperation>();
 
-  const rejectActiveRequest = (requestId: string, error: AnalysisError): void => {
+  const rejectActiveRequest = (requestId: string, error: AnalysisError): boolean => {
     const operation = activeRequests.get(requestId);
     if (operation === undefined) {
-      return;
+      return false;
     }
     activeRequests.delete(requestId);
     if (operation === "wordbook-add") {
@@ -147,14 +147,20 @@ export function initializeContentScript(options: ContentScriptOptions = {}): Con
       controller.rejectWordbookCheck();
     } else {
       controller.reject(error);
-      controller.rejectWordbookCheck();
     }
+    return true;
   };
 
   const sendCommand = (
     command: ContentCommand,
     requestId?: string,
+    onRejectActiveRequest?: () => void,
   ): Promise<boolean> | undefined => {
+    const rejectCommand = (): void => {
+      if (requestId !== undefined && rejectActiveRequest(requestId, RUNTIME_ERROR)) {
+        onRejectActiveRequest?.();
+      }
+    };
     try {
       const delivery = runtime.sendMessage(command);
       if (delivery === undefined) {
@@ -163,22 +169,18 @@ export function initializeContentScript(options: ContentScriptOptions = {}): Con
       return delivery.then(
         (response) => {
           const handled = wasHandled(response);
-          if (!handled && requestId !== undefined) {
-            rejectActiveRequest(requestId, RUNTIME_ERROR);
+          if (!handled) {
+            rejectCommand();
           }
           return handled;
         },
         () => {
-          if (requestId !== undefined) {
-            rejectActiveRequest(requestId, RUNTIME_ERROR);
-          }
+          rejectCommand();
           return false;
         },
       );
     } catch {
-      if (requestId !== undefined) {
-        rejectActiveRequest(requestId, RUNTIME_ERROR);
-      }
+      rejectCommand();
       return undefined;
     }
   };
@@ -216,6 +218,7 @@ export function initializeContentScript(options: ContentScriptOptions = {}): Con
       const acknowledgement = sendCommand(
         { request: createAnalyzeRequest(selection, action, requestId), type: "ANALYZE_SELECTION" },
         requestId,
+        () => controller.rejectWordbookCheck(),
       );
       if (selection.selectionKind !== "word" || acknowledgement === undefined) {
         return;

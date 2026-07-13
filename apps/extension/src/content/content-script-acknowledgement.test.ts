@@ -64,7 +64,7 @@ function createInstance(runtime: FakeRuntime): ContentScriptInstance {
   return instance;
 }
 
-function selectAndTranslate(text: string): void {
+function selectText(text: string): void {
   const element = document.createElement("p");
   element.textContent = text;
   document.body.append(element);
@@ -77,6 +77,10 @@ function selectAndTranslate(text: string): void {
   selection.removeAllRanges();
   selection.addRange(range);
   document.dispatchEvent(new MouseEvent("mouseup"));
+}
+
+function selectAndTranslate(text: string): void {
+  selectText(text);
   document
     .querySelector<HTMLElement>("[data-huayi-overlay-host]")
     ?.shadowRoot?.querySelector<HTMLButtonElement>("[data-action='translate']")
@@ -158,4 +162,76 @@ describe("content-script analysis acknowledgements", () => {
     });
     expect(runtime.sent.map((command) => command.type)).toEqual(["ANALYZE_SELECTION"]);
   });
+
+  it("preserves a resolved word status when the analysis host request fails", async () => {
+    const runtime = new FakeRuntime();
+    const instance = createInstance(runtime);
+    selectAndTranslate("investigation");
+    await flushAcknowledgements();
+    runtime.emit({
+      presence: "present",
+      requestId: "request-2",
+      schemaVersion: 1,
+      type: "word-status",
+    });
+
+    runtime.emit({
+      error: { code: "NETWORK_ERROR", message: "分析失败。", retryable: true },
+      requestId: "request-1",
+      schemaVersion: 1,
+      type: "error",
+    });
+
+    expect(instance.controller.state).toMatchObject({
+      error: { code: "NETWORK_ERROR" },
+      status: "error",
+      wordbook: { availability: "present" },
+    });
+  });
+
+  it.each(["close", "Escape", "new selection"] as const)(
+    "cancels a pending word check after an analysis host error on %s",
+    async (trigger) => {
+      const runtime = new FakeRuntime();
+      const instance = createInstance(runtime);
+      selectAndTranslate("investigation");
+      await flushAcknowledgements();
+      runtime.emit({
+        error: { code: "NETWORK_ERROR", message: "分析失败。", retryable: true },
+        requestId: "request-1",
+        schemaVersion: 1,
+        type: "error",
+      });
+
+      if (trigger === "close") {
+        instance.controller.close();
+      } else if (trigger === "Escape") {
+        document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+        document.dispatchEvent(new KeyboardEvent("keyup", { key: "Escape" }));
+      } else {
+        selectText("replacement");
+      }
+
+      expect(runtime.sent.filter((command) => command.type === "CANCEL_REQUEST")).toEqual([
+        { requestId: "request-2", type: "CANCEL_REQUEST" },
+      ]);
+      const stateAfterCancellation = instance.controller.state;
+      if (trigger === "new selection") {
+        expect(stateAfterCancellation).toMatchObject({
+          selection: { selection: "replacement" },
+          status: "actions",
+        });
+      } else {
+        expect(stateAfterCancellation.status).toBe("closed");
+      }
+
+      runtime.emit({
+        presence: "present",
+        requestId: "request-2",
+        schemaVersion: 1,
+        type: "word-status",
+      });
+      expect(instance.controller.state).toEqual(stateAfterCancellation);
+    },
+  );
 });
