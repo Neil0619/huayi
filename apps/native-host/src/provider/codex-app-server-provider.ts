@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { isAbsolute, join } from "node:path";
 
-import type { AnalysisDeltaSection, AnalysisResult, AnalyzeRequest } from "@huayi/protocol";
+import type { AnalysisResult, AnalyzeRequest } from "@huayi/protocol";
 
 import type { CodexAppServer } from "../runtime/codex-app-server-lifecycle.js";
 import {
@@ -21,21 +21,6 @@ import {
   type ProviderValidationDiagnosticSink,
 } from "./provider-validation.js";
 import { StreamingJsonFieldExtractor } from "./streaming-json-fields.js";
-
-const STREAM_FIELDS = {
-  "explain-lexical": new Map<string, AnalysisDeltaSection>([
-    ["contextualMeaningZh", "contextual-meaning"],
-  ]),
-  "explain-sentence": new Map<string, AnalysisDeltaSection>([
-    ["mainStructure", "main-structure"],
-    ["translationZh", "translation"],
-    ["contextRole", "context-role"],
-  ]),
-  "translate-lexical": new Map<string, AnalysisDeltaSection>([
-    ["contextualMeaningZh", "contextual-meaning"],
-  ]),
-  "translate-passage": new Map<string, AnalysisDeltaSection>([["translationZh", "translation"]]),
-} satisfies Record<AnalysisResult["type"], Map<string, AnalysisDeltaSection>>;
 
 export interface CodexAppServerProviderOptions {
   appServer: CodexAppServer;
@@ -93,21 +78,40 @@ export class CodexAppServerProvider implements AnalysisProvider {
     const outputSchema = await this.#loadSchema(`${resultType}.json`);
     if (signal.aborted) throw cancelledError();
 
-    const extractor = new StreamingJsonFieldExtractor(STREAM_FIELDS[resultType]);
+    const extractor = new StreamingJsonFieldExtractor({
+      resultType,
+      sentenceContext: request.sentenceContext,
+    });
     let extractionFailure: ProviderValidationError | undefined;
+    let interruptStarted = false;
+    const recordExtractionFailure = (failure: ProviderValidationError): void => {
+      if (extractionFailure !== undefined) return;
+      extractionFailure = failure;
+      if (interruptStarted) return;
+      interruptStarted = true;
+      try {
+        void this.#appServer.interrupt(request.requestId).catch(() => undefined);
+      } catch {
+        // A failed best-effort interrupt must not replace the validation failure.
+      }
+    };
     let finalText: string;
     try {
       finalText = await this.#appServer.runTurn({
         onAssistantDelta: (delta) => {
           if (extractionFailure !== undefined) return;
-          let chunks;
+          let updates;
           try {
-            chunks = extractor.push(delta);
+            updates = extractor.push(delta);
           } catch (error) {
-            extractionFailure = new ProviderValidationError("stream-parse", { cause: error });
+            recordExtractionFailure(
+              error instanceof ProviderValidationError
+                ? error
+                : new ProviderValidationError("stream-parse", { cause: error }),
+            );
             return;
           }
-          for (const chunk of chunks) onDelta?.(chunk);
+          for (const update of updates) onDelta?.(update);
         },
         outputSchema,
         prompt: buildAnalysisPrompt(request),
@@ -115,6 +119,7 @@ export class CodexAppServerProvider implements AnalysisProvider {
         signal,
       });
     } catch (error) {
+      if (extractionFailure !== undefined) this.#failValidation(extractionFailure);
       if (signal.aborted) throw cancelledError();
       if (error instanceof CodexProviderError) throw error;
       throw mapCodexTurnFailure(error);
@@ -124,7 +129,12 @@ export class CodexAppServerProvider implements AnalysisProvider {
     try {
       extractor.finish();
     } catch (error) {
-      this.#failValidation(new ProviderValidationError("stream-parse", { cause: error }));
+      const failure =
+        error instanceof ProviderValidationError
+          ? error
+          : new ProviderValidationError("stream-parse", { cause: error });
+      recordExtractionFailure(failure);
+      this.#failValidation(failure);
     }
     try {
       return parseAndAssembleModelResult(finalText, request);

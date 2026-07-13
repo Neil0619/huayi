@@ -1,11 +1,19 @@
-import type { AnalysisDeltaSection, AnalysisResult, AnalyzeRequest } from "@huayi/protocol";
+import type {
+  AnalysisDeltaSection,
+  AnalysisResult,
+  AnalysisSectionPayload,
+  AnalyzeRequest,
+} from "@huayi/protocol";
 
-export interface AnalysisStreamChunk {
-  delta: string;
-  section: AnalysisDeltaSection;
-}
+export type AnalysisStreamUpdate =
+  | {
+      delta: string;
+      section: AnalysisDeltaSection;
+      type: "analysis-delta";
+    }
+  | (AnalysisSectionPayload & { type: "analysis-section" });
 
-export type AnalysisStreamListener = (chunk: AnalysisStreamChunk) => void;
+export type AnalysisStreamListener = (update: AnalysisStreamUpdate) => void;
 
 export interface AnalysisProvider {
   analyze(

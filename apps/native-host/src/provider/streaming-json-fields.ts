@@ -1,380 +1,278 @@
 import { Buffer } from "node:buffer";
 
 import { MAX_STREAM_DELTA_LENGTH, MAX_WIRE_MESSAGE_BYTES } from "@huayi/protocol";
-import type { AnalysisDeltaSection } from "@huayi/protocol";
+import type {
+  AnalysisDeltaSection,
+  AnalysisSectionPayload,
+  Collocation,
+  CoreMeaning,
+  PartOfSpeech,
+  RelatedTerm,
+} from "@huayi/protocol";
 
-import type { AnalysisStreamChunk } from "./analysis-provider.js";
+import type { AnalysisStreamUpdate } from "./analysis-provider.js";
+import {
+  modelAnalysisFieldSchemaFor,
+  type ModelLexicalExplanation,
+  type ModelLexicalTranslation,
+  type ModelResultType,
+} from "./model-analysis-schemas.js";
+import { ProviderValidationError } from "./provider-validation.js";
+import { StreamingJsonTokenizer, type TopLevelJsonUpdate } from "./streaming-json-tokenizer.js";
 
-type Container = "array" | "object";
-type RootState =
-  | "after-value"
-  | "before-root"
-  | "colon"
-  | "complete"
-  | "in-nested-value"
-  | "in-primitive"
-  | "key-or-end"
-  | "value";
-type StringRole = "ignored-nested" | "ignored-root-value" | "root-key" | "stream-value";
-type EscapeState = "none" | "simple" | "unicode";
+const TEXT_FIELDS = {
+  "explain-lexical": new Map<string, AnalysisDeltaSection>([
+    ["contextualMeaningZh", "contextual-meaning"],
+  ]),
+  "explain-sentence": new Map<string, AnalysisDeltaSection>([
+    ["mainStructure", "main-structure"],
+    ["translationZh", "translation"],
+    ["contextRole", "context-role"],
+  ]),
+  "translate-lexical": new Map<string, AnalysisDeltaSection>([
+    ["contextualMeaningZh", "contextual-meaning"],
+  ]),
+  "translate-passage": new Map<string, AnalysisDeltaSection>([["translationZh", "translation"]]),
+} satisfies Record<ModelResultType, ReadonlyMap<string, AnalysisDeltaSection>>;
 
-function isJsonWhitespace(character: string): boolean {
-  return character === " " || character === "\t" || character === "\n" || character === "\r";
+export interface StreamingJsonFieldExtractorOptions {
+  resultType: ModelResultType;
+  sentenceContext: string | null;
 }
 
-function isPrimitiveStart(character: string): boolean {
-  const code = character.charCodeAt(0);
-  return (
-    character === "-" ||
-    character === "f" ||
-    character === "n" ||
-    character === "t" ||
-    (code >= 0x30 && code <= 0x39)
-  );
+function splitTextDelta(section: AnalysisDeltaSection, value: string): AnalysisStreamUpdate[] {
+  const updates: AnalysisStreamUpdate[] = [];
+  let offset = 0;
+  while (offset < value.length) {
+    let end = Math.min(offset + MAX_STREAM_DELTA_LENGTH, value.length);
+    const lastCode = value.charCodeAt(end - 1);
+    const nextCode = value.charCodeAt(end);
+    if (
+      end < value.length &&
+      lastCode >= 0xd800 &&
+      lastCode <= 0xdbff &&
+      nextCode >= 0xdc00 &&
+      nextCode <= 0xdfff
+    ) {
+      end -= 1;
+    }
+    updates.push({
+      delta: value.slice(offset, end),
+      section,
+      type: "analysis-delta",
+    });
+    offset = end;
+  }
+  return updates;
 }
 
-function isHexDigit(character: string): boolean {
-  const code = character.charCodeAt(0);
-  return (
-    (code >= 0x30 && code <= 0x39) ||
-    (code >= 0x41 && code <= 0x46) ||
-    (code >= 0x61 && code <= 0x66)
-  );
+function nonEmptyArraySection(
+  section: "collocations",
+  value: Collocation[],
+): AnalysisSectionPayload | undefined;
+function nonEmptyArraySection(
+  section: "core-meanings",
+  value: CoreMeaning[],
+): AnalysisSectionPayload | undefined;
+function nonEmptyArraySection(
+  section: "similar-terms" | "synonyms",
+  value: RelatedTerm[],
+): AnalysisSectionPayload | undefined;
+function nonEmptyArraySection(
+  section: "collocations" | "core-meanings" | "similar-terms" | "synonyms",
+  value: Collocation[] | CoreMeaning[] | RelatedTerm[],
+): AnalysisSectionPayload | undefined {
+  if (value.length === 0) return undefined;
+  switch (section) {
+    case "collocations":
+      return { section, value: value as Collocation[] };
+    case "core-meanings":
+      return { section, value: value as CoreMeaning[] };
+    case "similar-terms":
+    case "synonyms":
+      return { section, value: value as RelatedTerm[] };
+  }
 }
 
-function isHighSurrogate(character: string): boolean {
-  const code = character.charCodeAt(0);
-  return code >= 0xd800 && code <= 0xdbff;
+function normalizePronunciation(
+  value: ModelLexicalTranslation["pronunciation"],
+): AnalysisSectionPayload | undefined {
+  if (value === null || (value.uk === null && value.us === null)) return undefined;
+  return {
+    section: "pronunciation",
+    value: {
+      ...(value.uk === null ? {} : { uk: value.uk }),
+      ...(value.us === null ? {} : { us: value.us }),
+    },
+  };
 }
 
-function isLowSurrogate(character: string): boolean {
-  const code = character.charCodeAt(0);
-  return code >= 0xdc00 && code <= 0xdfff;
-}
-
-function simpleEscape(character: string): string | undefined {
-  switch (character) {
-    case '"':
-    case "\\":
-    case "/":
-      return character;
-    case "b":
-      return "\b";
-    case "f":
-      return "\f";
-    case "n":
-      return "\n";
-    case "r":
-      return "\r";
-    case "t":
-      return "\t";
+function lexicalTranslationSection(
+  field: string,
+  value: unknown,
+  sentenceContext: string | null,
+): AnalysisSectionPayload | undefined {
+  switch (field) {
+    case "partOfSpeech":
+      return { section: "part-of-speech", value: value as PartOfSpeech };
+    case "pronunciation":
+      return normalizePronunciation(value as ModelLexicalTranslation["pronunciation"]);
+    case "collocations":
+      return nonEmptyArraySection("collocations", value as Collocation[]);
+    case "contextExampleTranslationZh": {
+      const translationZh = value as string | null;
+      if (translationZh === null) return undefined;
+      if (sentenceContext === null) {
+        throw new ProviderValidationError("result-assembly", { field });
+      }
+      return {
+        section: "context-example",
+        value: { english: sentenceContext, translationZh },
+      };
+    }
+    case "similarTerms":
+      return nonEmptyArraySection("similar-terms", value as RelatedTerm[]);
     default:
       return undefined;
   }
 }
 
-export class StreamingJsonFieldExtractor {
-  readonly #configuredFields: ReadonlyMap<string, AnalysisDeltaSection>;
-  readonly #containers: Container[] = [];
-  readonly #seenConfiguredFields = new Set<string>();
-  #accumulatedBytes = 0;
-  #decodedHighSurrogate: string | undefined;
-  #escapeState: EscapeState = "none";
-  #failure: Error | undefined;
-  #finished = false;
-  #key = "";
-  #pendingKey = "";
-  #rootState: RootState = "before-root";
-  #source = "";
-  #streamSection: AnalysisDeltaSection | undefined;
-  #stringRole: StringRole | undefined;
-  #trailingInputHighSurrogate = false;
-  #unicodeEscape = "";
+function lexicalExplanationSection(
+  field: string,
+  value: unknown,
+): AnalysisSectionPayload | undefined {
+  switch (field) {
+    case "baseForm":
+      return value === null
+        ? undefined
+        : { section: "base-form", value: value as ModelLexicalExplanation["baseForm"] & string };
+    case "wordFormation":
+      return value === null
+        ? undefined
+        : {
+            section: "word-formation",
+            value: value as ModelLexicalExplanation["wordFormation"] & string,
+          };
+    case "coreMeanings":
+      return nonEmptyArraySection("core-meanings", value as CoreMeaning[]);
+    case "collocations":
+      return nonEmptyArraySection("collocations", value as Collocation[]);
+    case "synonyms":
+      return nonEmptyArraySection("synonyms", value as RelatedTerm[]);
+    default:
+      return undefined;
+  }
+}
 
-  constructor(configuredFields: ReadonlyMap<string, AnalysisDeltaSection>) {
-    this.#configuredFields = new Map(configuredFields);
+function structuredSectionFor(
+  resultType: ModelResultType,
+  field: string,
+  value: unknown,
+  sentenceContext: string | null,
+): AnalysisSectionPayload | undefined {
+  switch (resultType) {
+    case "translate-lexical":
+      return lexicalTranslationSection(field, value, sentenceContext);
+    case "explain-lexical":
+      return lexicalExplanationSection(field, value);
+    case "explain-sentence":
+    case "translate-passage":
+      return undefined;
+  }
+}
+
+export class StreamingJsonFieldExtractor {
+  readonly #resultType: ModelResultType;
+  readonly #sentenceContext: string | null;
+  readonly #textFields: ReadonlyMap<string, AnalysisDeltaSection>;
+  readonly #tokenizer = new StreamingJsonTokenizer();
+  #accumulatedBytes = 0;
+  #failure: ProviderValidationError | undefined;
+  #trailingInputHighSurrogate = false;
+
+  constructor(options: StreamingJsonFieldExtractorOptions) {
+    this.#resultType = options.resultType;
+    this.#sentenceContext = options.sentenceContext;
+    this.#textFields = TEXT_FIELDS[options.resultType];
   }
 
-  push(sourceChunk: string): AnalysisStreamChunk[] {
+  push(sourceChunk: string): AnalysisStreamUpdate[] {
     if (this.#failure !== undefined) throw this.#failure;
-    if (this.#finished) return this.#fail(new SyntaxError("JSON input is already complete."));
-
     this.#appendBoundedInput(sourceChunk);
-    const chunks: AnalysisStreamChunk[] = [];
-    let delta = "";
-    let section: AnalysisDeltaSection | undefined;
 
-    const flush = (): void => {
-      if (section !== undefined && delta.length > 0) chunks.push({ delta, section });
-      delta = "";
-      section = undefined;
-    };
-    const emit = (text: string, nextSection: AnalysisDeltaSection): void => {
-      if (section !== undefined && section !== nextSection) flush();
-      section = nextSection;
-      if (delta.length + text.length > MAX_STREAM_DELTA_LENGTH) flush();
-      section = nextSection;
-      delta += text;
-    };
-
-    let index = 0;
-    while (index < sourceChunk.length) {
-      this.#processCharacter(sourceChunk.charAt(index), emit);
-      index += 1;
+    let tokenizerUpdates: TopLevelJsonUpdate[];
+    try {
+      tokenizerUpdates = this.#tokenizer.push(sourceChunk);
+    } catch (cause) {
+      return this.#fail(new ProviderValidationError("stream-parse", { cause }));
     }
-    flush();
-    return chunks;
+
+    const streamUpdates: AnalysisStreamUpdate[] = [];
+    for (const update of tokenizerUpdates) {
+      if (update.kind === "string-delta") {
+        const section = this.#textFields.get(update.field);
+        if (section !== undefined) streamUpdates.push(...splitTextDelta(section, update.value));
+        continue;
+      }
+      const section = this.#validateAndMapCompleteValue(update.field, update.value);
+      if (section !== undefined) streamUpdates.push({ ...section, type: "analysis-section" });
+    }
+    return streamUpdates;
   }
 
   finish(): void {
     if (this.#failure !== undefined) throw this.#failure;
-    if (this.#finished) return;
-    if (
-      this.#rootState !== "complete" ||
-      this.#stringRole !== undefined ||
-      this.#escapeState !== "none" ||
-      this.#decodedHighSurrogate !== undefined ||
-      this.#containers.length !== 0
-    ) {
-      return this.#fail(new SyntaxError("Incomplete JSON input."));
-    }
     try {
-      JSON.parse(this.#source);
-    } catch (error) {
-      return this.#fail(new SyntaxError("Invalid JSON input.", { cause: error }));
+      this.#tokenizer.finish();
+    } catch (cause) {
+      return this.#fail(new ProviderValidationError("stream-parse", { cause }));
     }
-    this.#finished = true;
   }
 
   #appendBoundedInput(sourceChunk: string): void {
     let addedBytes = Buffer.byteLength(sourceChunk, "utf8");
+    const firstCode = sourceChunk.charCodeAt(0);
     if (
       this.#trailingInputHighSurrogate &&
       sourceChunk.length > 0 &&
-      isLowSurrogate(sourceChunk[0] ?? "")
+      firstCode >= 0xdc00 &&
+      firstCode <= 0xdfff
     ) {
       addedBytes -= 2;
     }
-    const nextBytes = this.#accumulatedBytes + addedBytes;
-    if (nextBytes > MAX_WIRE_MESSAGE_BYTES) {
-      return this.#fail(new RangeError("JSON input exceeds the one-MiB UTF-8 limit."));
+    if (this.#accumulatedBytes + addedBytes > MAX_WIRE_MESSAGE_BYTES) {
+      return this.#fail(
+        new ProviderValidationError("stream-parse", {
+          cause: new RangeError("Assistant JSON exceeds the one-MiB UTF-8 limit."),
+        }),
+      );
     }
-    this.#accumulatedBytes = nextBytes;
+    this.#accumulatedBytes += addedBytes;
     if (sourceChunk.length > 0) {
-      this.#trailingInputHighSurrogate = isHighSurrogate(sourceChunk[sourceChunk.length - 1] ?? "");
-    }
-    this.#source += sourceChunk;
-  }
-
-  #processCharacter(
-    character: string,
-    emit: (text: string, section: AnalysisDeltaSection) => void,
-  ): void {
-    if (this.#stringRole !== undefined) {
-      this.#processStringCharacter(character, emit);
-      return;
-    }
-    if (this.#rootState === "in-nested-value") {
-      this.#processNestedCharacter(character);
-      return;
-    }
-    if (this.#rootState === "in-primitive") {
-      if (isJsonWhitespace(character)) {
-        this.#rootState = "after-value";
-        return;
-      }
-      if (character === "," || character === "}") {
-        this.#rootState = "after-value";
-        this.#processCharacter(character, emit);
-      }
-      return;
-    }
-    if (isJsonWhitespace(character)) return;
-
-    switch (this.#rootState) {
-      case "before-root":
-        if (character !== "{") return this.#fail(new SyntaxError("Expected a JSON object."));
-        this.#containers.push("object");
-        this.#rootState = "key-or-end";
-        return;
-      case "key-or-end":
-        if (character === "}") {
-          this.#containers.pop();
-          this.#rootState = "complete";
-          return;
-        }
-        if (character !== '"') return this.#fail(new SyntaxError("Expected an object key."));
-        this.#beginString("root-key");
-        return;
-      case "colon":
-        if (character !== ":") return this.#fail(new SyntaxError("Expected a colon."));
-        this.#rootState = "value";
-        return;
-      case "value":
-        this.#beginRootValue(character);
-        return;
-      case "after-value":
-        if (character === ",") {
-          this.#rootState = "key-or-end";
-          return;
-        }
-        if (character === "}") {
-          this.#containers.pop();
-          this.#rootState = "complete";
-          return;
-        }
-        return this.#fail(new SyntaxError("Expected a comma or object end."));
-      case "complete":
-        return this.#fail(new SyntaxError("Unexpected trailing JSON input."));
-      default:
-        return this.#fail(new SyntaxError("Invalid JSON parser state."));
+      const lastCode = sourceChunk.charCodeAt(sourceChunk.length - 1);
+      this.#trailingInputHighSurrogate = lastCode >= 0xd800 && lastCode <= 0xdbff;
     }
   }
 
-  #beginRootValue(character: string): void {
-    const streamSection = this.#configuredFields.get(this.#pendingKey);
-    if (streamSection !== undefined) {
-      if (character !== '"') {
-        return this.#fail(new SyntaxError("Configured streaming fields must be strings."));
-      }
-      this.#streamSection = streamSection;
-      this.#beginString("stream-value");
-      return;
+  #validateAndMapCompleteValue(field: string, value: unknown): AnalysisSectionPayload | undefined {
+    const schema = modelAnalysisFieldSchemaFor(this.#resultType, field);
+    if (schema === undefined) return undefined;
+    const parsed = schema.safeParse(value);
+    if (!parsed.success) {
+      return this.#fail(
+        new ProviderValidationError("model-schema", { cause: parsed.error, field }),
+      );
     }
-    if (character === '"') {
-      this.#beginString("ignored-root-value");
-      return;
-    }
-    if (character === "{" || character === "[") {
-      this.#containers.push(character === "{" ? "object" : "array");
-      this.#rootState = "in-nested-value";
-      return;
-    }
-    if (isPrimitiveStart(character)) {
-      this.#rootState = "in-primitive";
-      return;
-    }
-    return this.#fail(new SyntaxError("Expected a JSON value."));
-  }
-
-  #processNestedCharacter(character: string): void {
-    if (character === '"') {
-      this.#beginString("ignored-nested");
-      return;
-    }
-    if (character === "{" || character === "[") {
-      this.#containers.push(character === "{" ? "object" : "array");
-      return;
-    }
-    if (character !== "}" && character !== "]") return;
-    const expected = character === "}" ? "object" : "array";
-    if (this.#containers[this.#containers.length - 1] !== expected) {
-      return this.#fail(new SyntaxError("Mismatched JSON container."));
-    }
-    this.#containers.pop();
-    if (this.#containers.length === 1) this.#rootState = "after-value";
-  }
-
-  #beginString(role: StringRole): void {
-    this.#stringRole = role;
-    this.#escapeState = "none";
-    this.#unicodeEscape = "";
-    this.#decodedHighSurrogate = undefined;
-    if (role === "root-key") this.#key = "";
-  }
-
-  #processStringCharacter(
-    character: string,
-    emit: (text: string, section: AnalysisDeltaSection) => void,
-  ): void {
-    if (this.#escapeState === "simple") {
-      if (character === "u") {
-        this.#escapeState = "unicode";
-        this.#unicodeEscape = "";
-        return;
-      }
-      const decoded = simpleEscape(character);
-      if (decoded === undefined) return this.#fail(new SyntaxError("Invalid JSON escape."));
-      this.#escapeState = "none";
-      this.#acceptDecodedCharacter(decoded, emit);
-      return;
-    }
-    if (this.#escapeState === "unicode") {
-      if (!isHexDigit(character)) {
-        return this.#fail(new SyntaxError("Invalid JSON Unicode escape."));
-      }
-      this.#unicodeEscape += character;
-      if (this.#unicodeEscape.length === 4) {
-        const decoded = String.fromCharCode(Number.parseInt(this.#unicodeEscape, 16));
-        this.#escapeState = "none";
-        this.#unicodeEscape = "";
-        this.#acceptDecodedCharacter(decoded, emit);
-      }
-      return;
-    }
-    if (character === "\\") {
-      this.#escapeState = "simple";
-      return;
-    }
-    if (character === '"') {
-      this.#finishString();
-      return;
-    }
-    if (character.charCodeAt(0) < 0x20) {
-      return this.#fail(new SyntaxError("Unescaped control character in JSON string."));
-    }
-    this.#acceptDecodedCharacter(character, emit);
-  }
-
-  #acceptDecodedCharacter(
-    character: string,
-    emit: (text: string, section: AnalysisDeltaSection) => void,
-  ): void {
-    if (this.#stringRole === "ignored-nested" || this.#stringRole === "ignored-root-value") return;
-    let decoded = character;
-    if (this.#decodedHighSurrogate !== undefined) {
-      if (!isLowSurrogate(character)) {
-        return this.#fail(new SyntaxError("Unpaired high surrogate in JSON string."));
-      }
-      decoded = this.#decodedHighSurrogate + character;
-      this.#decodedHighSurrogate = undefined;
-    } else if (isHighSurrogate(character)) {
-      this.#decodedHighSurrogate = character;
-      return;
-    } else if (isLowSurrogate(character)) {
-      return this.#fail(new SyntaxError("Unpaired low surrogate in JSON string."));
-    }
-
-    if (this.#stringRole === "root-key") {
-      this.#key += decoded;
-    } else if (this.#stringRole === "stream-value" && this.#streamSection !== undefined) {
-      emit(decoded, this.#streamSection);
+    try {
+      return structuredSectionFor(this.#resultType, field, parsed.data, this.#sentenceContext);
+    } catch (error) {
+      if (error instanceof ProviderValidationError) return this.#fail(error);
+      return this.#fail(new ProviderValidationError("result-assembly", { cause: error, field }));
     }
   }
 
-  #finishString(): void {
-    if (this.#decodedHighSurrogate !== undefined) {
-      return this.#fail(new SyntaxError("Unpaired high surrogate in JSON string."));
-    }
-    const role = this.#stringRole;
-    this.#stringRole = undefined;
-    if (role === "root-key") {
-      if (this.#configuredFields.has(this.#key)) {
-        if (this.#seenConfiguredFields.has(this.#key)) {
-          return this.#fail(new SyntaxError("Duplicate configured streaming field."));
-        }
-        this.#seenConfiguredFields.add(this.#key);
-      }
-      this.#pendingKey = this.#key;
-      this.#rootState = "colon";
-    } else if (role === "ignored-root-value" || role === "stream-value") {
-      this.#streamSection = undefined;
-      this.#rootState = "after-value";
-    }
-  }
-
-  #fail(error: Error): never {
-    this.#failure = error;
-    throw error;
+  #fail(failure: ProviderValidationError): never {
+    this.#failure ??= failure;
+    throw this.#failure;
   }
 }

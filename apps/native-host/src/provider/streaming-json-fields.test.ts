@@ -1,148 +1,271 @@
 import { Buffer } from "node:buffer";
 
+import { MAX_STREAM_DELTA_LENGTH, MAX_WIRE_MESSAGE_BYTES } from "@huayi/protocol";
 import { describe, expect, it } from "vitest";
 
+import type { AnalysisStreamUpdate } from "./analysis-provider.js";
+import type { ModelResultType } from "./model-analysis-schemas.js";
+import { ProviderValidationError } from "./provider-validation.js";
 import { StreamingJsonFieldExtractor } from "./streaming-json-fields.js";
 
-const contextualField = new Map([["contextualMeaningZh", "contextual-meaning"]] as const);
+function createExtractor(
+  resultType: ModelResultType = "translate-lexical",
+  sentenceContext: string | null = "The investigation continued.",
+): StreamingJsonFieldExtractor {
+  return new StreamingJsonFieldExtractor({ resultType, sentenceContext });
+}
+
+function captureValidationError(run: () => unknown): ProviderValidationError {
+  try {
+    run();
+  } catch (error) {
+    if (error instanceof ProviderValidationError) return error;
+    throw error;
+  }
+  throw new Error("Expected a ProviderValidationError.");
+}
 
 describe("StreamingJsonFieldExtractor", () => {
-  it("emits decoded text from a configured top-level field across source chunks", () => {
-    const extractor = new StreamingJsonFieldExtractor(contextualField);
+  it("keeps designated prose fields on the decoded text-delta path", () => {
+    const lexical = createExtractor();
 
-    expect(extractor.push('{"contextualMeaningZh":"调')).toEqual([
-      { delta: "调", section: "contextual-meaning" },
+    expect(lexical.push('{"contextualMeaningZh":"调')).toEqual([
+      { delta: "调", section: "contextual-meaning", type: "analysis-delta" },
     ]);
-    expect(extractor.push('查\\n结\\u679c","other":"ignored"}')).toEqual([
-      { delta: "查\n结果", section: "contextual-meaning" },
+    expect(lexical.push('查\\n结\\u679c"}')).toEqual([
+      { delta: "查\n结果", section: "contextual-meaning", type: "analysis-delta" },
+    ]);
+    expect(() => lexical.finish()).not.toThrow();
+
+    const sentence = createExtractor("explain-sentence", null);
+    expect(
+      sentence.push(
+        '{"mainStructure":"主干","translationZh":"翻译","contextRole":"语境作用",' +
+          '"keyExpressions":[{"meaningZh":"结束","text":"ended"}]}',
+      ),
+    ).toEqual([
+      { delta: "主干", section: "main-structure", type: "analysis-delta" },
+      { delta: "翻译", section: "translation", type: "analysis-delta" },
+      { delta: "语境作用", section: "context-role", type: "analysis-delta" },
+    ]);
+    expect(() => sentence.finish()).not.toThrow();
+  });
+
+  it("emits lexical translation sections only after each complete validated value", () => {
+    const extractor = createExtractor();
+    const updates: AnalysisStreamUpdate[] = [];
+
+    updates.push(...extractor.push('{"partOfSpeech":"nou'));
+    expect(updates).toEqual([]);
+    updates.push(...extractor.push('n","pronunciation":{"uk":"/ɪn/","us":null'));
+    expect(updates).toEqual([
+      { section: "part-of-speech", type: "analysis-section", value: "noun" },
+    ]);
+    updates.push(...extractor.push('},"collocations":[{"meaningZh":"刑事调查",'));
+    expect(updates).toEqual([
+      { section: "part-of-speech", type: "analysis-section", value: "noun" },
+      { section: "pronunciation", type: "analysis-section", value: { uk: "/ɪn/" } },
+    ]);
+    updates.push(...extractor.push('"text":"criminal investigation"}'));
+    expect(updates).toHaveLength(2);
+    updates.push(
+      ...extractor.push(
+        '],"contextExampleTranslationZh":"调查仍在继续。",' +
+          '"similarTerms":[{"meaningZh":"询问","partOfSpeech":"noun","text":"inquiry"}]}',
+      ),
+    );
+
+    expect(updates).toEqual([
+      { section: "part-of-speech", type: "analysis-section", value: "noun" },
+      { section: "pronunciation", type: "analysis-section", value: { uk: "/ɪn/" } },
+      {
+        section: "collocations",
+        type: "analysis-section",
+        value: [{ meaningZh: "刑事调查", text: "criminal investigation" }],
+      },
+      {
+        section: "context-example",
+        type: "analysis-section",
+        value: {
+          english: "The investigation continued.",
+          translationZh: "调查仍在继续。",
+        },
+      },
+      {
+        section: "similar-terms",
+        type: "analysis-section",
+        value: [{ meaningZh: "询问", partOfSpeech: "noun", text: "inquiry" }],
+      },
     ]);
     expect(() => extractor.finish()).not.toThrow();
   });
 
-  it("decodes escaped quotes, backslashes, split Unicode escapes, and surrogate pairs", () => {
-    const extractor = new StreamingJsonFieldExtractor(contextualField);
-
-    expect(extractor.push('{"contextualMeaningZh":"引\\"号\\\\路径\\n\\u8c')).toEqual([
-      { delta: '引"号\\路径\n', section: "contextual-meaning" },
-    ]);
-    expect(extractor.push("03\\uD83D")).toEqual([{ delta: "调", section: "contextual-meaning" }]);
-    expect(extractor.push('\\uDE00"}')).toEqual([{ delta: "😀", section: "contextual-meaning" }]);
-    expect(() => extractor.finish()).not.toThrow();
-  });
-
-  it("holds a literal surrogate pair split across source chunks", () => {
-    const extractor = new StreamingJsonFieldExtractor(contextualField);
-    const emoji = "😀";
-
-    expect(extractor.push(`{"contextualMeaningZh":"${emoji[0]}`)).toEqual([]);
-    expect(extractor.push(`${emoji[1]}"}`)).toEqual([
-      { delta: emoji, section: "contextual-meaning" },
-    ]);
-    expect(() => extractor.finish()).not.toThrow();
-  });
-
-  it("ignores unknown and nested fields even when a nested key is configured", () => {
-    const extractor = new StreamingJsonFieldExtractor(contextualField);
+  it("maps complete lexical explanation values to their public sections", () => {
+    const extractor = createExtractor("explain-lexical");
 
     expect(
       extractor.push(
-        '{"unknown":"ignored","nested":{"contextualMeaningZh":"nested"},' +
-          '"contextualMeaningZh":"kept","unknown":"also ignored"}',
+        '{"baseForm":"sustain","wordFormation":"sustain + -ed",' +
+          '"coreMeanings":[{"meaningZh":"维持","partOfSpeech":"verb"}],' +
+          '"collocations":[{"meaningZh":"持续努力","text":"sustained effort"}],' +
+          '"synonyms":[{"meaningZh":"持久的","partOfSpeech":"adjective",' +
+          '"text":"enduring"}]}',
       ),
-    ).toEqual([{ delta: "kept", section: "contextual-meaning" }]);
-    expect(() => extractor.finish()).not.toThrow();
-  });
-
-  it("emits multiple configured top-level fields with their own sections", () => {
-    const extractor = new StreamingJsonFieldExtractor(
-      new Map([
-        ["mainStructure", "main-structure"],
-        ["translationZh", "translation"],
-        ["contextRole", "context-role"],
-      ] as const),
-    );
-
-    expect(
-      extractor.push('{"mainStructure":"主干","translationZh":"翻译","contextRole":"作用"}'),
     ).toEqual([
-      { delta: "主干", section: "main-structure" },
-      { delta: "翻译", section: "translation" },
-      { delta: "作用", section: "context-role" },
+      { section: "base-form", type: "analysis-section", value: "sustain" },
+      { section: "word-formation", type: "analysis-section", value: "sustain + -ed" },
+      {
+        section: "core-meanings",
+        type: "analysis-section",
+        value: [{ meaningZh: "维持", partOfSpeech: "verb" }],
+      },
+      {
+        section: "collocations",
+        type: "analysis-section",
+        value: [{ meaningZh: "持续努力", text: "sustained effort" }],
+      },
+      {
+        section: "synonyms",
+        type: "analysis-section",
+        value: [{ meaningZh: "持久的", partOfSpeech: "adjective", text: "enduring" }],
+      },
     ]);
     expect(() => extractor.finish()).not.toThrow();
   });
 
-  it("rejects duplicate configured top-level keys", () => {
-    const extractor = new StreamingJsonFieldExtractor(contextualField);
+  it("emits no section for nulls, empty arrays, or all-null pronunciation", () => {
+    const translation = createExtractor();
+    expect(
+      translation.push(
+        '{"pronunciation":null,"collocations":[],"contextExampleTranslationZh":null,' +
+          '"similarTerms":[]}',
+      ),
+    ).toEqual([]);
+    translation.finish();
 
-    expect(() =>
-      extractor.push('{"contextualMeaningZh":"first","contextualMeaningZh":"second"}'),
-    ).toThrow(SyntaxError);
+    const allNullPronunciation = createExtractor();
+    expect(allNullPronunciation.push('{"pronunciation":{"uk":null,"us":null}}')).toEqual([]);
+    allNullPronunciation.finish();
+
+    const explanation = createExtractor("explain-lexical");
+    expect(
+      explanation.push('{"baseForm":null,"wordFormation":null,"collocations":[],"synonyms":[]}'),
+    ).toEqual([]);
+    explanation.finish();
   });
 
-  it.each(["null", "false", "42", "[]", "{}"])(
-    "rejects a non-string configured field value: %s",
-    (value) => {
-      const extractor = new StreamingJsonFieldExtractor(contextualField);
+  it("never accepts model-owned English for the context example", () => {
+    const extractor = createExtractor(
+      "translate-lexical",
+      "Trusted sentence from the AnalyzeRequest.",
+    );
 
-      expect(() => extractor.push(`{"contextualMeaningZh":${value}}`)).toThrow(SyntaxError);
-    },
-  );
-
-  it("accepts trailing whitespace and rejects a trailing JSON value", () => {
-    const extractor = new StreamingJsonFieldExtractor(contextualField);
-
-    extractor.push('{"contextualMeaningZh":"done"} \n\t');
-    expect(() => extractor.finish()).not.toThrow();
-    expect(() => extractor.push("{}")).toThrow(SyntaxError);
+    expect(extractor.push('{"contextExampleTranslationZh":"可信请求句子的翻译。"}')).toEqual([
+      {
+        section: "context-example",
+        type: "analysis-section",
+        value: {
+          english: "Trusted sentence from the AnalyzeRequest.",
+          translationZh: "可信请求句子的翻译。",
+        },
+      },
+    ]);
   });
 
   it.each([
-    "",
-    "{",
-    '{"contextualMeaningZh"',
-    '{"contextualMeaningZh":"unfinished',
-    '{"contextualMeaningZh":"\\u67',
-    '{"contextualMeaningZh":"value"',
-  ])("rejects incomplete JSON at finish: %s", (input) => {
-    const extractor = new StreamingJsonFieldExtractor(contextualField);
+    ["partOfSpeech", '"secret"'],
+    ["pronunciation", '{"uk":"/x/"}'],
+    ["collocations", '[{"meaningZh":"调查","text":"investigation","unsafe":true}]'],
+    ["contextExampleTranslationZh", "42"],
+    ["similarTerms", '[{"meaningZh":"调查","partOfSpeech":"secret","text":"inquiry"}]'],
+  ])("rejects a complete invalid private field %s as model-schema", (field, value) => {
+    const extractor = createExtractor();
 
-    extractor.push(input);
-    expect(() => extractor.finish()).toThrow(SyntaxError);
+    const error = captureValidationError(() => extractor.push(`{"${field}":${value}}`));
+    expect(error).toMatchObject({ field, stage: "model-schema" });
   });
 
-  it("splits long output into protocol-safe pieces without splitting surrogate pairs", () => {
-    const extractor = new StreamingJsonFieldExtractor(contextualField);
-    const value = `${"a".repeat(4_095)}😀${"b".repeat(4_903)}`;
+  it("validates complete final-only fields even though it does not preview them", () => {
+    const valid = createExtractor("explain-sentence", null);
+    expect(valid.push('{"keyExpressions":[{"meaningZh":"结束","text":"ended"}]}')).toEqual([]);
+    valid.finish();
 
-    const chunks = extractor.push(JSON.stringify({ contextualMeaningZh: value }));
+    const invalid = createExtractor("explain-sentence", null);
+    expect(captureValidationError(() => invalid.push('{"keyExpressions":[]}'))).toMatchObject({
+      field: "keyExpressions",
+      stage: "model-schema",
+    });
+  });
 
-    expect(chunks.map((chunk) => chunk.delta).join("")).toBe(value);
-    expect(chunks.length).toBeGreaterThan(2);
-    for (const chunk of chunks) {
-      expect(chunk.delta.length).toBeGreaterThanOrEqual(1);
-      expect(chunk.delta.length).toBeLessThanOrEqual(4_096);
-      expect(chunk.delta).not.toMatch(/[\uD800-\uDBFF]$/u);
-      expect(chunk.delta).not.toMatch(/^[\uDC00-\uDFFF]/u);
-    }
+  it("ignores unknown fields for preview while accepting their JSON syntax", () => {
+    const extractor = createExtractor();
+
+    expect(
+      extractor.push(
+        '{"unknown":"ignored","nested":{"contextualMeaningZh":"nested"},' + '"other":["ignored"]}',
+      ),
+    ).toEqual([]);
     expect(() => extractor.finish()).not.toThrow();
   });
 
-  it("enforces a one-MiB accumulated UTF-8 input limit", () => {
-    const maximumBytes = 1_024 * 1_024;
-    const prefix = '{"ignored":"';
+  it.each([
+    '{"contextualMeaningZh":"first","contextualMeaningZh":"second"}',
+    '{"unknown":1,"unknown":2}',
+    '{"collocations":[1,2}',
+  ])("classifies tokenizer failures as stream-parse: %s", (source) => {
+    const extractor = createExtractor();
+
+    expect(captureValidationError(() => extractor.push(source))).toMatchObject({
+      stage: "stream-parse",
+    });
+  });
+
+  it("classifies an unfinished container as stream-parse at finish", () => {
+    const extractor = createExtractor();
+    extractor.push('{"collocations":[');
+
+    expect(captureValidationError(() => extractor.finish())).toMatchObject({
+      stage: "stream-parse",
+    });
+  });
+
+  it("splits long prose into protocol-safe deltas without splitting surrogate pairs", () => {
+    const extractor = createExtractor();
+    const value = `${"a".repeat(MAX_STREAM_DELTA_LENGTH - 1)}😀${"b".repeat(4_903)}`;
+
+    const updates = extractor.push(`{"contextualMeaningZh":"${value}`);
+    const deltas = updates.filter((update) => update.type === "analysis-delta");
+
+    expect(deltas.map((update) => update.delta).join("")).toBe(value);
+    expect(deltas.length).toBeGreaterThan(2);
+    for (const update of deltas) {
+      expect(update.delta.length).toBeGreaterThanOrEqual(1);
+      expect(update.delta.length).toBeLessThanOrEqual(MAX_STREAM_DELTA_LENGTH);
+      expect(update.delta).not.toMatch(/[\uD800-\uDBFF]$/u);
+      expect(update.delta).not.toMatch(/^[\uDC00-\uDFFF]/u);
+    }
+    expect(captureValidationError(() => extractor.finish())).toMatchObject({
+      stage: "stream-parse",
+    });
+  });
+
+  it("enforces the one-MiB accumulated UTF-8 assistant JSON limit", () => {
+    const prefix = '{"unknown":"';
     const suffix = '"}';
-    const contentBudget = maximumBytes - Buffer.byteLength(prefix) - Buffer.byteLength(suffix);
+    const contentBudget =
+      MAX_WIRE_MESSAGE_BYTES - Buffer.byteLength(prefix) - Buffer.byteLength(suffix);
     const multibyteCount = Math.floor(contentBudget / Buffer.byteLength("界"));
     const remainder = contentBudget - multibyteCount * Buffer.byteLength("界");
     const maximumInput = `${prefix}${"界".repeat(multibyteCount)}${"a".repeat(remainder)}${suffix}`;
 
-    const atLimit = new StreamingJsonFieldExtractor(contextualField);
-    expect(Buffer.byteLength(maximumInput)).toBe(maximumBytes);
+    const atLimit = createExtractor();
+    expect(Buffer.byteLength(maximumInput)).toBe(MAX_WIRE_MESSAGE_BYTES);
     expect(() => atLimit.push(maximumInput)).not.toThrow();
     expect(() => atLimit.finish()).not.toThrow();
 
-    const overLimit = new StreamingJsonFieldExtractor(contextualField);
-    expect(() => overLimit.push(`${maximumInput} `)).toThrow(RangeError);
+    const overLimit = createExtractor();
+    expect(captureValidationError(() => overLimit.push(`${maximumInput} `))).toMatchObject({
+      stage: "stream-parse",
+    });
   });
 });

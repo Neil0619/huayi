@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { AnalysisResult, HostEvent } from "@huayi/protocol";
 
 import type { AnalysisProvider } from "../provider/analysis-provider.js";
+import type { AnalysisStreamUpdate } from "../provider/analysis-provider.js";
 import { eventsFor, request, validResult } from "./dispatcher-test-helpers.js";
 import { NativeMessageDispatcher } from "./dispatcher.js";
 
@@ -29,12 +30,13 @@ describe("NativeMessageDispatcher analysis routing", () => {
     dispatcher.dispose();
   });
 
-  it("emits queued, running, sequenced deltas, then the validated result", async () => {
+  it("emits deltas and structured sections with one shared sequence", async () => {
     const events: HostEvent[] = [];
     const provider: AnalysisProvider = {
       analyze: async (_currentRequest, _signal, onDelta) => {
-        onDelta?.({ delta: "调", section: "translation" });
-        onDelta?.({ delta: "查", section: "translation" });
+        onDelta?.({ delta: "调", section: "translation", type: "analysis-delta" });
+        onDelta?.({ section: "part-of-speech", type: "analysis-section", value: "noun" });
+        onDelta?.({ delta: "查", section: "translation", type: "analysis-delta" });
         return validResult;
       },
     };
@@ -47,12 +49,23 @@ describe("NativeMessageDispatcher analysis routing", () => {
       "progress",
       "progress",
       "analysis-delta",
+      "analysis-section",
       "analysis-delta",
       "result",
     ]);
-    expect(events.filter((event) => event.type === "analysis-delta")).toEqual([
-      expect.objectContaining({ sequence: 0, section: "translation" }),
-      expect.objectContaining({ sequence: 1, section: "translation" }),
+    expect(
+      events.filter(
+        (event) => event.type === "analysis-delta" || event.type === "analysis-section",
+      ),
+    ).toEqual([
+      expect.objectContaining({ sequence: 0, section: "translation", type: "analysis-delta" }),
+      expect.objectContaining({
+        sequence: 1,
+        section: "part-of-speech",
+        type: "analysis-section",
+        value: "noun",
+      }),
+      expect.objectContaining({ sequence: 2, section: "translation", type: "analysis-delta" }),
     ]);
     dispatcher.dispose();
   });
@@ -67,7 +80,12 @@ describe("NativeMessageDispatcher analysis routing", () => {
             "abort",
             () => {
               aborted = true;
-              onDelta?.({ delta: "late", section: "translation" });
+              onDelta?.({ delta: "late", section: "translation", type: "analysis-delta" });
+              onDelta?.({
+                section: "part-of-speech",
+                type: "analysis-section",
+                value: "noun",
+              });
               resolve(validResult);
             },
             { once: true },
@@ -110,6 +128,28 @@ describe("NativeMessageDispatcher analysis routing", () => {
       error: { code: "INVALID_RESPONSE", retryable: true },
       type: "error",
     });
+    dispatcher.dispose();
+  });
+
+  it("validates each progressive Host event before transport", async () => {
+    const events: HostEvent[] = [];
+    const provider: AnalysisProvider = {
+      analyze: async (_currentRequest, _signal, onUpdate) => {
+        onUpdate?.({
+          section: "collocations",
+          type: "analysis-section",
+          value: [],
+        } as AnalysisStreamUpdate);
+        return validResult;
+      },
+    };
+    const dispatcher = createDispatcher(provider);
+
+    dispatcher.dispatch(request, (event) => events.push(event));
+
+    await vi.waitFor(() => expect(events.some((event) => event.type === "error")).toBe(true));
+    expect(events.map((event) => event.type)).toEqual(["progress", "progress", "error"]);
+    expect(events.at(-1)).toMatchObject({ error: { code: "INTERNAL_ERROR" }, type: "error" });
     dispatcher.dispose();
   });
 

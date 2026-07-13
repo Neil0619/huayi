@@ -270,7 +270,7 @@ describe("NativeMessageDispatcher wordbook routing", () => {
             "abort",
             () => {
               aborted += 1;
-              onDelta?.({ delta: "late", section: "translation" });
+              onDelta?.({ delta: "late", section: "translation", type: "analysis-delta" });
               resolve(validResult);
             },
             { once: true },

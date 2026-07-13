@@ -150,16 +150,15 @@ export class NativeMessageDispatcher {
 
         try {
           let sequence = 0;
-          const rawResult = await this.provider.analyze(request, signal, (chunk) => {
+          const rawResult = await this.provider.analyze(request, signal, (update) => {
             if (signal.aborted) {
               return;
             }
             this.emitValidated(emit, {
-              ...chunk,
+              ...update,
               requestId: request.requestId,
               schemaVersion: SCHEMA_VERSION,
               sequence,
-              type: "analysis-delta",
             });
             sequence += 1;
           });
