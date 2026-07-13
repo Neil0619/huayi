@@ -6,13 +6,11 @@ import {
 } from "./codex-app-server-config.js";
 import {
   AppServerInvariantError,
-  SAFE_APP_SERVER_ITEM_TYPES,
   parseAppServerNotification,
   initializeAppServerChannel,
   startAppServerThread,
   startAppServerTurn,
   type AppServerEvent,
-  type ItemEvent,
 } from "./codex-app-server-protocol.js";
 import {
   cancelledError,
@@ -24,6 +22,8 @@ import {
   type AppServerSession as Session,
   type CodexTurnRequest,
   type McpServerDiscovery,
+  recordItemEvent,
+  WarmupDemandTracker,
 } from "./codex-app-server-lifecycle.js";
 import { createAppServerSession } from "./codex-app-server-session.js";
 import { DEFAULT_PROCESS_TIMEOUT_MS, buildAllowedEnvironment } from "./codex-process.js";
@@ -49,6 +49,7 @@ export class CodexAppServerClient implements CodexAppServer {
   readonly #processFactory: (options: NodeAppServerProcessOptions) => JsonRpcProcess;
   readonly #timeoutMs: number;
   readonly #workingDirectory: string;
+  readonly #warmupDemands = new WarmupDemandTracker(() => this.#cancelUndemandedStartup());
   #disposed = false;
   #session: Session | undefined;
   #sessionPromise: Promise<Session> | undefined;
@@ -67,6 +68,16 @@ export class CodexAppServerClient implements CodexAppServer {
     this.#processFactory = options.processFactory ?? createNodeAppServerProcess;
     this.#timeoutMs = timeoutMs;
     this.#workingDirectory = options.workingDirectory;
+  }
+
+  async warmup(signal: AbortSignal): Promise<void> {
+    if (this.#disposed || signal.aborted) throw cancelledError();
+    const demand = this.#warmupDemands.create(signal, this.#timeoutMs);
+    try {
+      await Promise.race([this.#ensureSession(), demand.cancellation]);
+    } finally {
+      demand.release();
+    }
   }
 
   async runTurn(request: CodexTurnRequest): Promise<string> {
@@ -128,6 +139,7 @@ export class CodexAppServerClient implements CodexAppServer {
     if (this.#disposed) return;
     this.#disposed = true;
     const reason = cancelledError();
+    this.#warmupDemands.cancelAll();
     for (const active of [...this.#activeTurns.values()]) {
       if (
         !active.interruptStarted &&
@@ -162,7 +174,7 @@ export class CodexAppServerClient implements CodexAppServer {
     let process: JsonRpcProcess;
     try {
       const mcpServerNamesToDisable = await this.#mcpServerDiscovery();
-      if (this.#disposed || this.#activeTurns.size === 0) throw cancelledError();
+      if (this.#disposed || !this.#hasSessionDemand()) throw cancelledError();
       process = this.#processFactory({
         codexExecutable: this.#codexExecutable,
         environment: this.#environment,
@@ -235,7 +247,7 @@ export class CodexAppServerClient implements CodexAppServer {
     if (event.kind === "agentDelta") {
       this.#agentDelta(active, session, event.itemId, event.delta);
     } else if (event.kind === "item") {
-      this.#itemEvent(active, session, event);
+      if (!recordItemEvent(active, event)) this.#failSession(session, capabilityMissingError());
     } else {
       this.#turnCompleted(active, session, event.status, event.error);
     }
@@ -252,27 +264,6 @@ export class CodexAppServerClient implements CodexAppServer {
     } catch {
       this.#cancel(active, cancelledError());
       this.#reject(active, mapCodexTurnFailure(undefined));
-    }
-  }
-
-  #itemEvent(active: ActiveTurn, session: Session, event: ItemEvent): void {
-    if (!SAFE_APP_SERVER_ITEM_TYPES.has(event.item.type)) {
-      this.#failSession(session, capabilityMissingError());
-      return;
-    }
-    if (event.item.type !== "agentMessage") return;
-    if (active.agentItemId !== undefined && active.agentItemId !== event.item.id) {
-      this.#failSession(session, capabilityMissingError());
-      return;
-    }
-    active.agentItemId = event.item.id;
-    if (event.lifecycle === "completed") {
-      active.completedAgentItems += 1;
-      if (active.completedAgentItems !== 1 || typeof event.item.text !== "string") {
-        this.#failSession(session, capabilityMissingError());
-        return;
-      }
-      active.finalText = event.item.text;
     }
   }
 
@@ -342,11 +333,23 @@ export class CodexAppServerClient implements CodexAppServer {
       [...this.#activeTurns.values()].some(
         (candidate) => candidate !== active && candidate.session === session,
       );
+    const warmupNeedsSession = session !== undefined && this.#warmupDemands.size > 0;
     if (!this.#cleanup(active)) return;
-    if (session !== undefined && !session.closed && !hasUnrelatedWork) {
+    if (session !== undefined && !session.closed && !hasUnrelatedWork && !warmupNeedsSession) {
       this.#failSession(session, mapCodexTurnFailure(undefined));
     }
     active.reject(reason);
+  }
+
+  #cancelUndemandedStartup(): void {
+    const session = this.#session;
+    if (session !== undefined && !session.ready && !this.#hasSessionDemand()) {
+      this.#failSession(session, cancelledError());
+    }
+  }
+
+  #hasSessionDemand(): boolean {
+    return this.#activeTurns.size > 0 || this.#warmupDemands.size > 0;
   }
 
   #processFailed(session: Session): void {

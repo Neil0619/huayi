@@ -131,6 +131,7 @@ describe("runNativeHost", () => {
     output.on("data", (chunk: Buffer) => outputChunks.push(chunk));
     errorOutput.on("data", (chunk: Buffer) => errorChunks.push(chunk));
     const provider: AnalysisProvider = {
+      warmup: async () => undefined,
       analyze: (_request, signal) => {
         activeWorkStarted = true;
         return new Promise((_resolve, reject) => {

@@ -13,6 +13,7 @@ import type {
   CheckWordRequest,
   HealthRequest,
   HostEvent,
+  WarmupRequest,
 } from "@huayi/protocol";
 
 import type { AnalysisProvider } from "../provider/analysis-provider.js";
@@ -80,11 +81,7 @@ export class NativeMessageDispatcher {
         this.dispatchHealth(parsed.data, emit);
         break;
       case "warmup":
-        this.emitError(emit, parsed.data.requestId, {
-          code: "CODEX_CAPABILITY_MISSING",
-          message: "当前 Codex CLI 缺少划译所需能力，请升级后重试。",
-          retryable: false,
-        });
+        this.dispatchWarmup(parsed.data, emit);
         break;
       case "analyze":
         this.dispatchAnalyze(parsed.data, emit);
@@ -184,6 +181,29 @@ export class NativeMessageDispatcher {
           });
         } catch (error) {
           if (!signal.aborted) {
+            this.emitError(emit, request.requestId, this.mapError(error));
+          }
+        }
+      });
+    } catch (error) {
+      this.emitError(emit, request.requestId, this.mapError(error));
+    }
+  }
+
+  private dispatchWarmup(request: WarmupRequest, emit: HostEventEmitter): void {
+    try {
+      this.queue.enqueue(request.requestId, async (signal) => {
+        try {
+          await this.provider.warmup(signal);
+          if (signal.aborted) return;
+          if (!this.queue.markTerminal(request.requestId)) return;
+          this.emitValidated(emit, {
+            requestId: request.requestId,
+            schemaVersion: SCHEMA_VERSION,
+            type: "warmup-ready",
+          });
+        } catch (error) {
+          if (!signal.aborted && this.queue.markTerminal(request.requestId)) {
             this.emitError(emit, request.requestId, this.mapError(error));
           }
         }

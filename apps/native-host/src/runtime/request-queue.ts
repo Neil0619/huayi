@@ -5,6 +5,7 @@ interface QueueItem {
   controller: AbortController;
   requestId: string;
   task: QueueTask;
+  terminal: boolean;
 }
 
 export class RequestQueue {
@@ -32,8 +33,15 @@ export class RequestQueue {
       throw new Error(`Duplicate request ID: ${requestId}`);
     }
 
-    this.pending.push({ controller: new AbortController(), requestId, task });
+    this.pending.push({ controller: new AbortController(), requestId, task, terminal: false });
     this.pump();
+  }
+
+  markTerminal(requestId: string): boolean {
+    const item = this.active.get(requestId);
+    if (item === undefined || item.controller.signal.aborted || item.terminal) return false;
+    item.terminal = true;
+    return true;
   }
 
   cancel(requestId: string): CancellationState | null {
@@ -45,7 +53,7 @@ export class RequestQueue {
     }
 
     const activeItem = this.active.get(requestId);
-    if (activeItem === undefined) {
+    if (activeItem === undefined || activeItem.terminal) {
       return null;
     }
     if (activeItem.controller.signal.aborted) {

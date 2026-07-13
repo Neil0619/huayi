@@ -178,6 +178,26 @@ afterEach(() => {
 });
 
 describe("CodexAppServerClient", () => {
+  it("warms an initialized session without starting a model thread or turn", async () => {
+    const process = new FakeAppServerProcess();
+    const client = createClient([process]);
+    const warming = client.warmup(new AbortController().signal);
+
+    await initialize(process);
+    await expect(warming).resolves.toBeUndefined();
+
+    expect(process.messages.filter((message) => message.method === "initialize")).toHaveLength(1);
+    expect(process.messages.filter((message) => message.method === "thread/start")).toEqual([]);
+    expect(process.messages.filter((message) => message.method === "turn/start")).toEqual([]);
+
+    const active = await startTurn(client, process, "after-warmup");
+    complete(process, active, "fresh-turn");
+    await expect(active.promise).resolves.toBe("fresh-turn");
+    expect(process.messages.filter((message) => message.method === "thread/start")).toHaveLength(1);
+    expect(process.messages.filter((message) => message.method === "turn/start")).toHaveLength(1);
+    client.dispose();
+  });
+
   it("starts isolated turns and emits only matching assistant text deltas", async () => {
     const process = new FakeAppServerProcess();
     const client = createClient([process]);

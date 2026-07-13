@@ -24,7 +24,10 @@ interface DispatcherOverrides {
 function createDispatcher(overrides: DispatcherOverrides = {}): NativeMessageDispatcher {
   const options = {
     healthCheck: async () => ({ codexVersion: "codex-cli 0.144.1" }),
-    provider: overrides.provider ?? { analyze: async () => validResult },
+    provider: overrides.provider ?? {
+      analyze: async () => validResult,
+      warmup: async () => undefined,
+    },
   };
   return new NativeMessageDispatcher({
     ...options,
@@ -226,6 +229,7 @@ describe("NativeMessageDispatcher wordbook routing", () => {
     const events: HostEvent[] = [];
     let checkCalls = 0;
     const provider: AnalysisProvider = {
+      warmup: async () => undefined,
       analyze: (_currentRequest, signal) => waitForAbort(signal),
     };
     const wordbookProvider: WordbookProvider = {
@@ -264,6 +268,7 @@ describe("NativeMessageDispatcher wordbook routing", () => {
     let checkCalls = 0;
     let disposeCalls = 0;
     const provider: AnalysisProvider = {
+      warmup: async () => undefined,
       analyze: (_currentRequest, signal, onDelta) =>
         new Promise((resolve) => {
           signal.addEventListener(

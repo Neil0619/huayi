@@ -38,6 +38,10 @@ class FakeAppServer implements CodexAppServer {
     return Promise.resolve();
   }
 
+  warmup(): Promise<void> {
+    return Promise.resolve();
+  }
+
   dispose(): void {
     this.disposeCalls += 1;
   }

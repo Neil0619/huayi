@@ -68,6 +68,10 @@ export class CodexAppServerProvider implements AnalysisProvider {
     this.#schemaDirectory = options.schemaDirectory;
   }
 
+  warmup(signal: AbortSignal): Promise<void> {
+    return this.#appServer.warmup(signal);
+  }
+
   async analyze(
     request: AnalyzeRequest,
     signal: AbortSignal,

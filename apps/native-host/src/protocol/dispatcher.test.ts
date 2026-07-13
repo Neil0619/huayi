@@ -4,11 +4,14 @@ import type { AnalysisResult, HostEvent } from "@huayi/protocol";
 
 import type { AnalysisProvider } from "../provider/analysis-provider.js";
 import type { AnalysisStreamUpdate } from "../provider/analysis-provider.js";
-import { eventsFor, request, validResult } from "./dispatcher-test-helpers.js";
+import { eventsFor, request, validResult, warmupRequest } from "./dispatcher-test-helpers.js";
 import { NativeMessageDispatcher } from "./dispatcher.js";
 
 function createDispatcher(
-  provider: AnalysisProvider = { analyze: async () => validResult },
+  provider: AnalysisProvider = {
+    analyze: async () => validResult,
+    warmup: async () => undefined,
+  },
 ): NativeMessageDispatcher {
   return new NativeMessageDispatcher({
     healthCheck: async () => ({ codexVersion: "codex-cli 0.144.1" }),
@@ -33,6 +36,7 @@ describe("NativeMessageDispatcher analysis routing", () => {
   it("emits deltas and structured sections with one shared sequence", async () => {
     const events: HostEvent[] = [];
     const provider: AnalysisProvider = {
+      warmup: async () => undefined,
       analyze: async (_currentRequest, _signal, onDelta) => {
         onDelta?.({ delta: "调", section: "translation", type: "analysis-delta" });
         onDelta?.({ section: "part-of-speech", type: "analysis-section", value: "noun" });
@@ -74,6 +78,7 @@ describe("NativeMessageDispatcher analysis routing", () => {
     const events: HostEvent[] = [];
     let aborted = false;
     const provider: AnalysisProvider = {
+      warmup: async () => undefined,
       analyze: (_currentRequest, signal, onDelta) =>
         new Promise((resolve) => {
           signal.addEventListener(
@@ -117,6 +122,7 @@ describe("NativeMessageDispatcher analysis routing", () => {
   it("maps an invalid analysis result to INVALID_RESPONSE", async () => {
     const events: HostEvent[] = [];
     const provider: AnalysisProvider = {
+      warmup: async () => undefined,
       analyze: async () => ({ type: "unsafe" }) as unknown as AnalysisResult,
     };
     const dispatcher = createDispatcher(provider);
@@ -134,6 +140,7 @@ describe("NativeMessageDispatcher analysis routing", () => {
   it("validates each progressive Host event before transport", async () => {
     const events: HostEvent[] = [];
     const provider: AnalysisProvider = {
+      warmup: async () => undefined,
       analyze: async (_currentRequest, _signal, onUpdate) => {
         onUpdate?.({
           section: "collocations",
@@ -153,27 +160,89 @@ describe("NativeMessageDispatcher analysis routing", () => {
     dispatcher.dispose();
   });
 
-  it("fails warmup closed until native host warmup is implemented", () => {
+  it("queues warmup and emits only one validated warmup-ready terminal event", async () => {
     const events: HostEvent[] = [];
     const analyze = vi.fn(async () => validResult);
-    const dispatcher = createDispatcher({ analyze });
+    const warmup = vi.fn((signal: AbortSignal) => {
+      void signal;
+      return Promise.resolve();
+    });
+    const dispatcher = createDispatcher({ analyze, warmup });
 
-    dispatcher.dispatch({ requestId: "warmup-1", schemaVersion: 2, type: "warmup" }, (event) =>
-      events.push(event),
+    dispatcher.dispatch(warmupRequest, (event) => events.push(event));
+
+    await vi.waitFor(() => expect(events).toHaveLength(1));
+    expect(events).toEqual([{ ...warmupRequest, type: "warmup-ready" }]);
+    expect(warmup).toHaveBeenCalledTimes(1);
+    expect(warmup.mock.calls[0]?.[0]).toBeInstanceOf(AbortSignal);
+    expect(analyze).not.toHaveBeenCalled();
+    dispatcher.dispose();
+  });
+
+  it("cancels a running warmup through the shared request queue with one error", async () => {
+    const events: HostEvent[] = [];
+    let aborted = false;
+    const provider: AnalysisProvider = {
+      analyze: async () => validResult,
+      warmup: (signal) =>
+        new Promise((_resolve, reject) => {
+          signal.addEventListener(
+            "abort",
+            () => {
+              aborted = true;
+              reject(new Error("aborted"));
+            },
+            { once: true },
+          );
+        }),
+    };
+    const dispatcher = createDispatcher(provider);
+
+    dispatcher.dispatch(warmupRequest, (event) => events.push(event));
+    dispatcher.dispatch(
+      {
+        requestId: "cancel-warmup",
+        schemaVersion: 2,
+        targetRequestId: warmupRequest.requestId,
+        type: "cancel",
+      },
+      (event) => events.push(event),
     );
 
+    await vi.waitFor(() => expect(aborted).toBe(true));
     expect(events).toEqual([
       expect.objectContaining({
-        error: {
-          code: "CODEX_CAPABILITY_MISSING",
-          message: "当前 Codex CLI 缺少划译所需能力，请升级后重试。",
-          retryable: false,
-        },
-        requestId: "warmup-1",
+        error: expect.objectContaining({ code: "CANCELLED", retryable: false }),
+        requestId: warmupRequest.requestId,
         type: "error",
       }),
     ]);
-    expect(analyze).not.toHaveBeenCalled();
+    dispatcher.dispose();
+  });
+
+  it("does not emit a second terminal when ready handling reentrantly cancels warmup", async () => {
+    const events: HostEvent[] = [];
+    const dispatcher = createDispatcher();
+
+    dispatcher.dispatch(warmupRequest, (event) => {
+      events.push(event);
+      if (event.type === "warmup-ready") {
+        dispatcher.dispatch(
+          {
+            requestId: "cancel-after-ready",
+            schemaVersion: 2,
+            targetRequestId: warmupRequest.requestId,
+            type: "cancel",
+          },
+          (cancelEvent) => events.push(cancelEvent),
+        );
+      }
+    });
+
+    await vi.waitFor(() =>
+      expect(events.some((event) => event.type === "warmup-ready")).toBe(true),
+    );
+    expect(events).toEqual([{ ...warmupRequest, type: "warmup-ready" }]);
     dispatcher.dispose();
   });
 

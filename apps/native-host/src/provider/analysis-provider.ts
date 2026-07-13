@@ -16,6 +16,7 @@ export type AnalysisStreamUpdate =
 export type AnalysisStreamListener = (update: AnalysisStreamUpdate) => void;
 
 export interface AnalysisProvider {
+  warmup(signal: AbortSignal): Promise<void>;
   analyze(
     request: AnalyzeRequest,
     signal: AbortSignal,

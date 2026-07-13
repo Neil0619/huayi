@@ -4,6 +4,7 @@ import type {
   AnalyzeRequest,
   CheckWordRequest,
   HostEvent,
+  WarmupRequest,
 } from "@huayi/protocol";
 
 export const request: AnalyzeRequest = {
@@ -41,6 +42,12 @@ export const checkRequest: CheckWordRequest = {
   schemaVersion: 2,
   type: "check-word",
   word: "investigation",
+};
+
+export const warmupRequest: WarmupRequest = {
+  requestId: "warmup-1",
+  schemaVersion: 2,
+  type: "warmup",
 };
 
 export const wordRequest: AddWordRequest = {
