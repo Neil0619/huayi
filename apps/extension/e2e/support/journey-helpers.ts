@@ -16,7 +16,7 @@ export function panel(page: Page): Locator {
 
 export function nativeRequests(
   page: Page,
-  type: "add-word" | "analyze" | "cancel" | "check-word",
+  type: "add-word" | "analyze" | "cancel" | "check-word" | "warmup",
 ): Locator {
   return page.locator(`[data-native-request="${type}"]`);
 }
@@ -46,6 +46,65 @@ export async function dragSelect(page: Page, target: Locator): Promise<void> {
   await page.mouse.down();
   await page.mouse.move(bounds.x + bounds.width - 1, centerY, { steps: 12 });
   await page.mouse.up();
+}
+
+export async function dispatchFixtureSelection(page: Page, testId: string): Promise<void> {
+  await page.getByTestId(testId).evaluate((target) => {
+    target.getBoundingClientRect();
+    const selection = target.ownerDocument.defaultView?.getSelection();
+    if (selection === null || selection === undefined) {
+      throw new Error("Fixture window must expose a Selection.");
+    }
+    const range = target.ownerDocument.createRange();
+    range.selectNodeContents(target);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    const requestLog = target.ownerDocument.querySelector<HTMLElement>("[data-native-request-log]");
+    if (requestLog === null) {
+      throw new Error("Fixture must expose its native request log.");
+    }
+    delete requestLog.dataset.toolbarCheckpoint;
+    delete requestLog.dataset.toolbarClock;
+    delete requestLog.dataset.toolbarLatencyMs;
+
+    const recordAtVisibleLayoutCheckpoint = (): void => {
+      window.requestAnimationFrame(() => {
+        const host = target.ownerDocument.querySelector<HTMLElement>("[data-huayi-overlay-host]");
+        const toolbarElement = host?.shadowRoot?.querySelector<HTMLElement>(".huayi-toolbar");
+        if (host !== null && host !== undefined && toolbarElement !== null) {
+          const style = target.ownerDocument.defaultView?.getComputedStyle(toolbarElement);
+          const bounds = toolbarElement.getBoundingClientRect();
+          const isVisible =
+            host.isConnected &&
+            toolbarElement.isConnected &&
+            style !== undefined &&
+            style.display !== "none" &&
+            style.visibility === "visible" &&
+            style.opacity !== "0" &&
+            bounds.width > 0 &&
+            bounds.height > 0;
+          if (isVisible) {
+            requestLog.dataset.toolbarCheckpoint = "connected-visible-layout";
+            requestLog.dataset.toolbarClock = "playwright-clock-to-rendered-toolbar";
+            requestLog.dataset.toolbarLatencyMs = String(
+              Math.max(0, performance.now() - Number(requestLog.dataset.fixtureSelectionAt)),
+            );
+            return;
+          }
+        }
+        recordAtVisibleLayoutCheckpoint();
+      });
+    };
+
+    const selectionEvent = new MouseEvent("mouseup", {
+      bubbles: true,
+      composed: true,
+      view: window,
+    });
+    requestLog.dataset.fixtureSelectionAt = String(performance.now());
+    recordAtVisibleLayoutCheckpoint();
+    target.dispatchEvent(selectionEvent);
+  });
 }
 
 export async function expectAnalyzeRequest(

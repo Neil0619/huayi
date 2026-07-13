@@ -84,7 +84,7 @@ export class NativeHostClient {
     return this.#exitObserved && this.#stdoutFinalized && this.#processGroupQuiescent;
   }
 
-  async request(message, expectedType, timeoutMs) {
+  async request(message, expectedType, timeoutMs, options = {}) {
     if (this.#fatalError !== undefined) {
       throw this.#fatalError;
     }
@@ -103,12 +103,13 @@ export class NativeHostClient {
       }, timeoutMs);
       this.#pending.set(message.requestId, {
         ...(message.type === "analyze" && expectedType === "result"
-          ? { deltaCount: 0, firstDeltaAt: null, nextSequence: 0 }
+          ? { firstUpdateAt: null, nextSequence: 0, updateCount: 0 }
           : {}),
         expectedType,
         reject: rejectRequest,
         resolve: resolveRequest,
         timeout,
+        validateTerminal: options.validateTerminal,
       });
       try {
         this.#child.stdin.write(encodeNativeMessage(message), (error) => {
@@ -251,23 +252,23 @@ export class NativeHostClient {
       if (event.type === "progress") {
         continue;
       }
-      if (event.type === "analysis-delta") {
+      if (event.type === "analysis-delta" || event.type === "analysis-section") {
         if (pending.nextSequence === undefined) {
           this.#latchFatal(
-            new Error(`Analysis delta is invalid for ${pending.expectedType} requests.`),
+            new Error(`Analysis update is invalid for ${pending.expectedType} requests.`),
           );
           return;
         }
         if (event.sequence !== pending.nextSequence) {
           this.#latchFatal(
             new Error(
-              `Expected analysis delta sequence ${pending.nextSequence}, received ${event.sequence}.`,
+              `Expected analysis update sequence ${pending.nextSequence}, received ${event.sequence}.`,
             ),
           );
           return;
         }
-        pending.firstDeltaAt ??= Date.now();
-        pending.deltaCount += 1;
+        pending.firstUpdateAt ??= Date.now();
+        pending.updateCount += 1;
         pending.nextSequence += 1;
         continue;
       }
@@ -278,15 +279,22 @@ export class NativeHostClient {
           new Error(`${event.error.code}: ${event.error.message}`),
         );
       } else if (event.type === pending.expectedType) {
+        try {
+          pending.validateTerminal?.(event);
+        } catch (error) {
+          this.#latchFatal(error);
+          return;
+        }
         this.#settle(
           event.requestId,
           pending.nextSequence === undefined
             ? event
             : {
-                ...event,
-                deltaCount: pending.deltaCount,
-                firstDeltaAt: pending.firstDeltaAt,
+                firstUpdateAt: pending.firstUpdateAt,
                 fullResultAt: Date.now(),
+                requestId: event.requestId,
+                type: event.type,
+                updateCount: pending.updateCount,
               },
           undefined,
         );

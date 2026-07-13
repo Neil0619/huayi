@@ -87,34 +87,203 @@ test("Codex resolution scans PATH without a shell", async () => {
   }
 });
 
-test("smoke requests cover the four MVP cases", () => {
-  const requests = createSmokeRequests(1);
-  assert.deepEqual(
-    requests.map((request) => [request.selection, request.action, request.selectionKind]),
-    [
-      ["investigation", "translate", "word"],
-      ["sustained heatwave", "explain", "phrase"],
-      [
+test("smoke requests cover the exact lexical regression and passage matrix", () => {
+  const requests = createSmokeRequests(2);
+  assert.deepEqual(requests, [
+    {
+      action: "translate",
+      context: "He said the investigation was in its early stages.",
+      requestId: "smoke-investigation",
+      schemaVersion: 2,
+      selection: "investigation",
+      selectionKind: "word",
+      sentenceContext: "He said the investigation was in its early stages.",
+      targetLanguage: "zh-CN",
+      type: "analyze",
+    },
+    {
+      action: "translate",
+      context: "The recovery remained sustained throughout the difficult winter.",
+      requestId: "smoke-sustained",
+      schemaVersion: 2,
+      selection: "sustained",
+      selectionKind: "word",
+      sentenceContext: "The recovery remained sustained throughout the difficult winter.",
+      targetLanguage: "zh-CN",
+      type: "analyze",
+    },
+    {
+      action: "explain",
+      context: "The victims received immediate support from local volunteers.",
+      requestId: "smoke-victims",
+      schemaVersion: 2,
+      selection: "victims",
+      selectionKind: "word",
+      sentenceContext: "The victims received immediate support from local volunteers.",
+      targetLanguage: "zh-CN",
+      type: "analyze",
+    },
+    {
+      action: "explain",
+      context: "Managers are accountable for the safety of their teams.",
+      requestId: "smoke-accountable",
+      schemaVersion: 2,
+      selection: "accountable",
+      selectionKind: "word",
+      sentenceContext: "Managers are accountable for the safety of their teams.",
+      targetLanguage: "zh-CN",
+      type: "analyze",
+    },
+    {
+      action: "translate",
+      context: "Four students presented their findings to the class.",
+      requestId: "smoke-four",
+      schemaVersion: 2,
+      selection: "Four",
+      selectionKind: "word",
+      sentenceContext: "Four students presented their findings to the class.",
+      targetLanguage: "zh-CN",
+      type: "analyze",
+    },
+    {
+      action: "explain",
+      context: "The region experienced a sustained heatwave throughout July.",
+      requestId: "smoke-sustained-heatwave",
+      schemaVersion: 2,
+      selection: "sustained heatwave",
+      selectionKind: "phrase",
+      sentenceContext: "The region experienced a sustained heatwave throughout July.",
+      targetLanguage: "zh-CN",
+      type: "analyze",
+    },
+    {
+      action: "explain",
+      context:
         "He said the investigation was in the early stages and urged anyone with information to come forward.",
-        "explain",
-        "sentence",
-      ],
-      [
+      requestId: "smoke-sentence",
+      schemaVersion: 2,
+      selection:
+        "He said the investigation was in the early stages and urged anyone with information to come forward.",
+      selectionKind: "sentence",
+      sentenceContext: null,
+      targetLanguage: "zh-CN",
+      type: "analyze",
+    },
+    {
+      action: "translate",
+      context:
         "The investigation remains in its early stages.\nOfficials asked witnesses to come forward with information.",
-        "translate",
-        "paragraph",
-      ],
-    ],
-  );
+      requestId: "smoke-paragraph",
+      schemaVersion: 2,
+      selection:
+        "The investigation remains in its early stages.\nOfficials asked witnesses to come forward with information.",
+      selectionKind: "paragraph",
+      sentenceContext: null,
+      targetLanguage: "zh-CN",
+      type: "analyze",
+    },
+  ]);
 });
 
-test("smoke timing output contains elapsed milliseconds without model text", () => {
+test("smoke timing output uses only exact integer timing labels", () => {
   const output = formatSmokeTimings({
-    firstDeltaAt: 1_150,
+    firstUpdateAt: 1_150,
     fullResultAt: 1_700,
     startedAt: 1_000,
   });
 
-  assert.equal(output, "  first delta: 150 ms; full result: 700 ms\n");
+  assert.equal(output, "click-to-first-delta: 150 ms\nclick-to-full-result: 700 ms\n");
+  assert.equal(output.includes("secret model output"), false);
+});
+
+test("smoke sequence sends payload-free warmup first and emits only safe timings", async () => {
+  assert.equal(typeof verifierModule.runSmokeSequence, "function");
+  assert.equal(typeof verifierModule.formatWarmupTiming, "function");
+  if (
+    typeof verifierModule.runSmokeSequence !== "function" ||
+    typeof verifierModule.formatWarmupTiming !== "function"
+  ) {
+    return;
+  }
+
+  const requests = createSmokeRequests(2).slice(0, 1);
+  const sent = [];
+  let output = "";
+  const result = {
+    collocations: [],
+    contextualMeaningZh: "secret model output",
+    partOfSpeech: "noun",
+    selectionKind: "word",
+    similarTerms: [],
+    sourceText: "investigation",
+    type: "translate-lexical",
+  };
+  const client = {
+    async request(request, expectedType, _timeoutMs, options) {
+      sent.push([request, expectedType]);
+      if (request.type === "analyze") {
+        options?.validateTerminal({ requestId: request.requestId, result, type: "result" });
+        return {
+          firstUpdateAt: 1_250,
+          fullResultAt: 1_300,
+          requestId: request.requestId,
+          type: "result",
+          updateCount: 2,
+        };
+      }
+      return { requestId: request.requestId, type: expectedType };
+    },
+  };
+  const identitySchema = { parse: (value) => value };
+  const protocol = {
+    SCHEMA_VERSION: 2,
+    analysisResultSchema: identitySchema,
+    analyzeRequestSchema: identitySchema,
+    healthRequestSchema: identitySchema,
+    warmupRequestSchema: identitySchema,
+  };
+  const clock = [1_150, 1_200];
+
+  await verifierModule.runSmokeSequence({
+    client,
+    now: () => clock.shift() ?? 1_200,
+    protocol,
+    requests,
+    warmupStartedAt: 1_000,
+    writeOutput: (value) => {
+      output += value;
+    },
+  });
+
+  assert.deepEqual(
+    sent.map(([request, expectedType]) => [
+      request.type,
+      expectedType,
+      Object.keys(request).sort(),
+    ]),
+    [
+      ["warmup", "warmup-ready", ["requestId", "schemaVersion", "type"]],
+      ["health", "health-result", ["requestId", "schemaVersion", "type"]],
+      [
+        "analyze",
+        "result",
+        [
+          "action",
+          "context",
+          "requestId",
+          "schemaVersion",
+          "selection",
+          "selectionKind",
+          "sentenceContext",
+          "targetLanguage",
+          "type",
+        ],
+      ],
+    ],
+  );
+  assert.equal(
+    output,
+    "cold warmup: 150 ms\n" + "click-to-first-delta: 50 ms\n" + "click-to-full-result: 100 ms\n",
+  );
   assert.equal(output.includes("secret model output"), false);
 });

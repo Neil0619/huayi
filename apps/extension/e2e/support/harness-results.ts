@@ -1,9 +1,29 @@
 import { SCHEMA_VERSION } from "@huayi/protocol";
-import type { AnalysisResult, AnalyzeRequest, HostEvent } from "@huayi/protocol";
+import type { AnalysisResult, AnalyzeRequest, HostEvent, PartOfSpeech } from "@huayi/protocol";
+
+const sparseReportedWords: Readonly<Record<string, PartOfSpeech>> = {
+  Four: "number",
+  accountable: "adjective",
+  sustained: "adjective",
+  victims: "noun",
+};
 
 function lexicalTranslation(request: AnalyzeRequest): AnalysisResult {
   if (request.selectionKind !== "word" && request.selectionKind !== "phrase") {
     throw new Error("Lexical translation requires a word or phrase.");
+  }
+
+  const reportedPartOfSpeech = sparseReportedWords[request.selection];
+  if (reportedPartOfSpeech !== undefined) {
+    return {
+      collocations: [],
+      contextualMeaningZh: "词汇翻译结果",
+      partOfSpeech: reportedPartOfSpeech,
+      selectionKind: request.selectionKind,
+      similarTerms: [],
+      sourceText: request.selection,
+      type: "translate-lexical",
+    };
   }
 
   return {
@@ -42,6 +62,19 @@ function passageTranslation(request: AnalyzeRequest): AnalysisResult {
 function lexicalExplanation(request: AnalyzeRequest): AnalysisResult {
   if (request.selectionKind !== "word" && request.selectionKind !== "phrase") {
     throw new Error("Lexical explanation requires a word or phrase.");
+  }
+
+  const reportedPartOfSpeech = sparseReportedWords[request.selection];
+  if (reportedPartOfSpeech !== undefined) {
+    return {
+      collocations: [],
+      contextualMeaningZh: "词汇解释结果",
+      coreMeanings: [{ meaningZh: "核心词义", partOfSpeech: reportedPartOfSpeech }],
+      selectionKind: request.selectionKind,
+      sourceText: request.selection,
+      synonyms: [],
+      type: "explain-lexical",
+    };
   }
 
   return {
@@ -99,4 +132,29 @@ export function createResultEvent(request: AnalyzeRequest): HostEvent {
     schemaVersion: SCHEMA_VERSION,
     type: "result",
   };
+}
+
+export function createSectionEvent(request: AnalyzeRequest, sequence: number): HostEvent | null {
+  const result = resultFor(request);
+  if (result.type === "translate-lexical") {
+    return {
+      requestId: request.requestId,
+      schemaVersion: SCHEMA_VERSION,
+      section: "part-of-speech",
+      sequence,
+      type: "analysis-section",
+      value: result.partOfSpeech,
+    };
+  }
+  if (result.type === "explain-lexical") {
+    return {
+      requestId: request.requestId,
+      schemaVersion: SCHEMA_VERSION,
+      section: "core-meanings",
+      sequence,
+      type: "analysis-section",
+      value: result.coreMeanings,
+    };
+  }
+  return null;
 }

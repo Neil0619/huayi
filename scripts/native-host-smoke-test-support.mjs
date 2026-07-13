@@ -14,10 +14,12 @@ const validHostEventSchema = {
       !("type" in value) ||
       ![
         "analysis-delta",
+        "analysis-section",
         "error",
         "health-result",
         "progress",
         "result",
+        "warmup-ready",
         "word-added",
         "word-status",
       ].includes(value.type)

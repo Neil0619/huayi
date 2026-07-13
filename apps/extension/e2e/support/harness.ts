@@ -16,7 +16,7 @@ import {
 } from "../../src/background/service-worker.js";
 import { initializeContentScript, type ContentRuntime } from "../../src/content/content-script.js";
 import type { ContentCommand } from "../../src/shared/extension-messages.js";
-import { createResultEvent } from "./harness-results.js";
+import { createResultEvent, createSectionEvent } from "./harness-results.js";
 import { MockNativeTransport } from "./mock-native-transport.js";
 
 const TAB_ID = 1;
@@ -42,6 +42,11 @@ const requestTimeoutMs =
   configuredRequestTimeoutMs === null
     ? DEFAULT_REQUEST_TIMEOUT_MS
     : Number(configuredRequestTimeoutMs);
+const configuredToolbarVisibilityDelayMs = new URLSearchParams(window.location.search).get(
+  "toolbar-visibility-delay-ms",
+);
+const toolbarVisibilityDelayMs =
+  configuredToolbarVisibilityDelayMs === null ? 0 : Number(configuredToolbarVisibilityDelayMs);
 
 class MockExtensionRuntime implements ContentRuntime {
   private readonly contentListeners = new Set<(message: unknown) => void>();
@@ -79,11 +84,14 @@ function appendRequestLog(log: HTMLOListElement, request: HostRequest): void {
   const entry = document.createElement("li");
   entry.dataset.nativeRequest = request.type;
   entry.dataset.requestId = request.requestId;
+  entry.dataset.requestKeys = Object.keys(request).sort().join(",");
+  entry.dataset.schemaVersion = String(request.schemaVersion);
 
   if (request.type === "analyze") {
     entry.dataset.analysisAction = request.action;
     entry.dataset.selectionKind = request.selectionKind;
     entry.dataset.selectionText = request.selection;
+    entry.dataset.sentenceContext = request.sentenceContext ?? "";
   } else if (request.type === "cancel") {
     entry.dataset.targetRequestId = request.targetRequestId;
   } else if (request.type === "add-word") {
@@ -221,6 +229,10 @@ function emitAnalyzeResponse(request: AnalyzeRequest): void {
     transport.emit(createDeltaEvent(request, 0, "正在逐步"));
     queueMicrotask(() => {
       transport.emit(createDeltaEvent(request, 1, "显示"));
+      const sectionEvent = createSectionEvent(request, 2);
+      if (sectionEvent !== null) {
+        transport.emit(sectionEvent);
+      }
       if (request.selection === "lateexisting") {
         queueMicrotask(() => transport.emit(createResultEvent(request)));
       } else {
@@ -234,6 +246,27 @@ const requestLog = document.querySelector<HTMLOListElement>("[data-native-reques
 if (requestLog === null) {
   throw new Error("The E2E fixture must provide a native request log.");
 }
+
+function installDelayedToolbarVisibilityFixture(delayMs: number): void {
+  if (!Number.isFinite(delayMs) || delayMs <= 0) {
+    return;
+  }
+  const observer = new MutationObserver(() => {
+    const host = document.querySelector<HTMLElement>("[data-huayi-overlay-host]");
+    const toolbarElement = host?.shadowRoot?.querySelector<HTMLElement>(".huayi-toolbar");
+    if (toolbarElement === null || toolbarElement === undefined) {
+      return;
+    }
+    observer.disconnect();
+    toolbarElement.style.visibility = "hidden";
+    window.setTimeout(() => {
+      toolbarElement.style.removeProperty("visibility");
+    }, delayMs);
+  });
+  observer.observe(document.documentElement, { childList: true, subtree: true });
+}
+
+installDelayedToolbarVisibilityFixture(toolbarVisibilityDelayMs);
 
 const runtime = new MockExtensionRuntime();
 const transport = new MockNativeTransport();
@@ -255,6 +288,16 @@ runtime.connectBackground(createRuntimeMessageListener(coordinator));
 
 transport.onRequest((request) => {
   appendRequestLog(requestLog, request);
+  if (request.type === "warmup") {
+    queueMicrotask(() => {
+      transport.emit({
+        requestId: request.requestId,
+        schemaVersion: SCHEMA_VERSION,
+        type: "warmup-ready",
+      });
+    });
+    return;
+  }
   if (request.type === "check-word") {
     handleWordCheck(request);
     return;

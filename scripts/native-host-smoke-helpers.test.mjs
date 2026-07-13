@@ -13,9 +13,34 @@ import {
 
 function createParagraphRequest() {
   return {
+    action: "translate",
     requestId: "smoke-paragraph",
     selection: "First line.\nSecond line.",
     selectionKind: "paragraph",
+    sentenceContext: null,
+  };
+}
+
+function createLexicalRequest(action = "translate") {
+  return {
+    action,
+    requestId: `smoke-word-${action}`,
+    selection: "investigation",
+    selectionKind: "word",
+    sentenceContext: "The investigation remains open.",
+  };
+}
+
+function createLexicalTranslationResult(overrides = {}) {
+  return {
+    collocations: [],
+    contextualMeaningZh: "调查",
+    partOfSpeech: "noun",
+    selectionKind: "word",
+    similarTerms: [],
+    sourceText: "investigation",
+    type: "translate-lexical",
+    ...overrides,
   };
 }
 
@@ -100,18 +125,62 @@ test("paragraph smoke validation accepts and preserves a translated newline", ()
 });
 
 test("smoke validation rejects a result for a different request", () => {
-  const request = {
-    requestId: "smoke-word",
-    selection: "investigation",
-    selectionKind: "word",
-  };
+  const request = createLexicalRequest();
   assert.throws(
     () =>
-      validateSmokeResult(request, {
-        selectionKind: request.selectionKind,
-        sourceText: "different source",
-        type: "translate-lexical",
-      }),
+      validateSmokeResult(
+        request,
+        createLexicalTranslationResult({ sourceText: "different source" }),
+      ),
     /did not match request/i,
   );
+});
+
+test("smoke validation accepts lexical lists with zero or three items", () => {
+  const request = createLexicalRequest();
+  const relatedTerms = [
+    { meaningZh: "一", partOfSpeech: "noun", text: "first" },
+    { meaningZh: "二", partOfSpeech: "noun", text: "second" },
+    { meaningZh: "三", partOfSpeech: "noun", text: "third" },
+  ];
+  const result = createLexicalTranslationResult({
+    collocations: [],
+    similarTerms: relatedTerms,
+  });
+
+  assert.equal(validateSmokeResult(request, result), result);
+});
+
+test("smoke validation rejects a lexical list above three items", () => {
+  const request = createLexicalRequest();
+  const collocations = Array.from({ length: 4 }, (_, index) => ({
+    meaningZh: `搭配${index}`,
+    text: `collocation ${index}`,
+  }));
+
+  assert.throws(
+    () => validateSmokeResult(request, createLexicalTranslationResult({ collocations })),
+    /collocations.*0 to 3/i,
+  );
+});
+
+test("smoke validation rejects a result type not owned by the request", () => {
+  const request = createLexicalRequest("explain");
+
+  assert.throws(
+    () => validateSmokeResult(request, createLexicalTranslationResult()),
+    /result type did not match/i,
+  );
+});
+
+test("smoke validation requires an example to reuse the exact sentence context", () => {
+  const request = createLexicalRequest();
+  const result = createLexicalTranslationResult({
+    contextExample: {
+      english: "A different sentence was invented.",
+      translationZh: "虚构了另一个句子。",
+    },
+  });
+
+  assert.throws(() => validateSmokeResult(request, result), /sentence context/i);
 });

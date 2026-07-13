@@ -1,6 +1,7 @@
 import { expect, type Page, test } from "@playwright/test";
 
 import {
+  dispatchFixtureSelection,
   dragSelect,
   nativeRequests,
   overlayHost,
@@ -80,6 +81,66 @@ async function expectCancelled(page: Page, requestIdsToCancel: string[]): Promis
 
 test.beforeEach(async ({ page }) => {
   await page.goto(selectionFixturePath);
+});
+
+test("selection exposes the toolbar within 100 ms and sends a payload-free warmup first", async ({
+  page,
+}) => {
+  const pausedAt = new Date("2026-07-13T12:00:00Z");
+  await page.clock.install({ time: pausedAt });
+  await page.clock.pauseAt(pausedAt);
+  await dispatchFixtureSelection(page, "sustained-word-selection");
+  await page.clock.runFor(100);
+
+  const requestLog = page.locator("[data-native-request-log]");
+  await expect(requestLog).toHaveAttribute("data-toolbar-checkpoint", "connected-visible-layout");
+  await expect(requestLog).toHaveAttribute(
+    "data-toolbar-clock",
+    "playwright-clock-to-rendered-toolbar",
+  );
+  const rawLatency = await requestLog.getAttribute("data-toolbar-latency-ms");
+  const toolbarLatencyMs = rawLatency === null ? Number.NaN : Number(rawLatency);
+  expect(toolbarLatencyMs).toBeGreaterThan(0);
+  expect(toolbarLatencyMs).toBeLessThanOrEqual(100);
+  expect(await toolbar(page).isVisible()).toBe(true);
+
+  const firstRequest = page.locator("[data-native-request]").first();
+  await expect(firstRequest).toHaveAttribute("data-native-request", "warmup");
+  await expect(firstRequest).toHaveAttribute("data-request-keys", "requestId,schemaVersion,type");
+  await expect(firstRequest).not.toHaveAttribute("data-selection-text", /.+/u);
+  await expect(nativeRequests(page, "analyze")).toHaveCount(0);
+});
+
+test("the toolbar timing measurement rejects an intentionally delayed visible render", async ({
+  page,
+}) => {
+  await page.goto(`${selectionFixturePath}?toolbar-visibility-delay-ms=120`);
+  const pausedAt = new Date("2026-07-13T12:00:00Z");
+  await page.clock.install({ time: pausedAt });
+  await page.clock.pauseAt(pausedAt);
+  await dispatchFixtureSelection(page, "sustained-word-selection");
+
+  await page.clock.runFor(100);
+  const requestLog = page.locator("[data-native-request-log]");
+  expect(await toolbar(page).isVisible()).toBe(false);
+  expect(await requestLog.getAttribute("data-toolbar-latency-ms")).toBeNull();
+
+  await page.clock.runFor(50);
+  expect(await toolbar(page).isVisible()).toBe(true);
+  const rawLatency = await requestLog.getAttribute("data-toolbar-latency-ms");
+  const toolbarLatencyMs = rawLatency === null ? Number.NaN : Number(rawLatency);
+  expect(toolbarLatencyMs).toBeGreaterThan(100);
+});
+
+test("a validated analysis section is visible before the final result", async ({ page }) => {
+  await page.getByTestId("sustained-word-selection").dblclick();
+  await activateToolbarAction(page);
+
+  const preview = panel(page).locator(".huayi-preview");
+  await expect(preview.locator(".huayi-section-title", { hasText: "词性" })).toBeVisible();
+  await expect(preview).toBeVisible();
+  await expect(panel(page).locator(".huayi-preview")).toHaveCount(0);
+  await expect(panel(page).locator(".huayi-source")).toHaveText("sustained");
 });
 
 for (const [action, finalText] of [

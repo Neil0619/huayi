@@ -27,6 +27,58 @@ test("double-click classifies a word and renders lexical translation", async ({ 
   await expectAnalyzeRequest(page, "word", "translate");
 });
 
+const reportedWordCases = [
+  {
+    sentence: "The recovery remained sustained throughout the difficult winter.",
+    source: "sustained",
+    testId: "sustained-word-selection",
+  },
+  {
+    sentence: "The victims received immediate support from local volunteers.",
+    source: "victims",
+    testId: "victims-word-selection",
+  },
+  {
+    sentence: "Managers are accountable for the safety of their teams.",
+    source: "accountable",
+    testId: "accountable-word-selection",
+  },
+  {
+    sentence: "Four students presented their findings to the class.",
+    source: "Four",
+    testId: "four-word-selection",
+  },
+] as const;
+
+for (const wordCase of reportedWordCases) {
+  for (const action of ["translate", "explain"] as const) {
+    test(`${wordCase.source} ${action} reaches a strict sparse final result`, async ({ page }) => {
+      await page.getByTestId(wordCase.testId).dblclick();
+      await toolbar(page).locator(`[data-action="${action}"]`).click();
+
+      const resultPanel = panel(page);
+      await expect(resultPanel).toContainText(
+        action === "translate" ? "词汇翻译结果" : "词汇解释结果",
+      );
+      await expect(resultPanel.locator(".huayi-preview")).toHaveCount(0);
+      await expect(resultPanel.locator(".huayi-source")).toHaveText(wordCase.source);
+      const request = await expectAnalyzeRequest(page, "word", action);
+      await expect(request).toHaveAttribute("data-selection-text", wordCase.source);
+      await expect(request).toHaveAttribute("data-sentence-context", wordCase.sentence);
+
+      const emptyHeadings =
+        action === "translate"
+          ? ["音标", "语境搭配", "原文例句", "相似词"]
+          : ["原形", "构词", "语境搭配", "同义词"];
+      for (const heading of emptyHeadings) {
+        await expect(resultPanel.locator(".huayi-section-title", { hasText: heading })).toHaveCount(
+          0,
+        );
+      }
+    });
+  }
+}
+
 test("drag selection classifies a phrase and renders lexical explanation", async ({ page }) => {
   await dragSelect(page, page.getByTestId("phrase-selection"));
 

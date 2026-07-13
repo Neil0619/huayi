@@ -11,6 +11,7 @@ import {
   resolveCodexHome,
   validateSmokeResult,
 } from "./native-host-smoke-client.mjs";
+import { createSmokeRequests } from "./native-host-smoke-requests.mjs";
 
 export {
   HEALTH_TIMEOUT_MS,
@@ -21,6 +22,7 @@ export {
   resolveCodexHome,
   validateSmokeResult,
 } from "./native-host-smoke-client.mjs";
+export { createSmokeRequests } from "./native-host-smoke-requests.mjs";
 
 const repositoryRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
 
@@ -56,19 +58,30 @@ export function findNewFiles(before, after) {
   return [...after].filter((path) => !previous.has(path)).sort();
 }
 
-export function formatSmokeTimings({ firstDeltaAt, fullResultAt, startedAt }) {
+function validateTiming(startedAt, completedAt) {
+  if (!Number.isFinite(startedAt) || !Number.isFinite(completedAt) || completedAt < startedAt) {
+    throw new Error("Smoke request did not provide valid timings.");
+  }
+  return Math.round(completedAt - startedAt);
+}
+
+export function formatWarmupTiming({ readyAt, startedAt }) {
+  return `cold warmup: ${validateTiming(startedAt, readyAt)} ms\n`;
+}
+
+export function formatSmokeTimings({ firstUpdateAt, fullResultAt, startedAt }) {
   if (
-    !Number.isFinite(firstDeltaAt) ||
+    !Number.isFinite(firstUpdateAt) ||
     !Number.isFinite(fullResultAt) ||
     !Number.isFinite(startedAt) ||
-    firstDeltaAt < startedAt ||
-    fullResultAt < firstDeltaAt
+    firstUpdateAt < startedAt ||
+    fullResultAt < firstUpdateAt
   ) {
     throw new Error("Smoke analysis did not provide valid streaming timings.");
   }
   return (
-    `  first delta: ${Math.round(firstDeltaAt - startedAt)} ms; ` +
-    `full result: ${Math.round(fullResultAt - startedAt)} ms\n`
+    `click-to-first-delta: ${Math.round(firstUpdateAt - startedAt)} ms\n` +
+    `click-to-full-result: ${Math.round(fullResultAt - startedAt)} ms\n`
   );
 }
 
@@ -97,59 +110,6 @@ export async function resolveExecutable(explicitPath, pathEnvironment = "") {
   throw new Error("Codex CLI was not found in PATH.");
 }
 
-export function createSmokeRequests(schemaVersion) {
-  return [
-    {
-      action: "translate",
-      context: "He said the investigation was in its early stages.",
-      requestId: "smoke-investigation",
-      schemaVersion,
-      selection: "investigation",
-      selectionKind: "word",
-      sentenceContext: null,
-      targetLanguage: "zh-CN",
-      type: "analyze",
-    },
-    {
-      action: "explain",
-      context: "The region experienced a sustained heatwave throughout July.",
-      requestId: "smoke-sustained-heatwave",
-      schemaVersion,
-      selection: "sustained heatwave",
-      selectionKind: "phrase",
-      sentenceContext: null,
-      targetLanguage: "zh-CN",
-      type: "analyze",
-    },
-    {
-      action: "explain",
-      context:
-        "He said the investigation was in the early stages and urged anyone with information to come forward.",
-      requestId: "smoke-sentence",
-      schemaVersion,
-      selection:
-        "He said the investigation was in the early stages and urged anyone with information to come forward.",
-      selectionKind: "sentence",
-      sentenceContext: null,
-      targetLanguage: "zh-CN",
-      type: "analyze",
-    },
-    {
-      action: "translate",
-      context:
-        "The investigation remains in its early stages.\nOfficials asked witnesses to come forward with information.",
-      requestId: "smoke-paragraph",
-      schemaVersion,
-      selection:
-        "The investigation remains in its early stages.\nOfficials asked witnesses to come forward with information.",
-      selectionKind: "paragraph",
-      sentenceContext: null,
-      targetLanguage: "zh-CN",
-      type: "analyze",
-    },
-  ];
-}
-
 export async function closeHostAndSnapshotSessions({
   client,
   removeWorkingDirectory,
@@ -171,6 +131,42 @@ export async function closeHostAndSnapshotSessions({
     afterSessions: await snapshotSessions(),
     closeError,
   };
+}
+
+export async function runSmokeSequence({
+  client,
+  now = Date.now,
+  protocol,
+  requests,
+  warmupStartedAt = now(),
+  writeOutput,
+}) {
+  const warmupRequest = protocol.warmupRequestSchema.parse({
+    requestId: "smoke-warmup",
+    schemaVersion: protocol.SCHEMA_VERSION,
+    type: "warmup",
+  });
+  await client.request(warmupRequest, "warmup-ready", HEALTH_TIMEOUT_MS);
+  writeOutput(formatWarmupTiming({ readyAt: now(), startedAt: warmupStartedAt }));
+
+  const healthRequest = protocol.healthRequestSchema.parse({
+    requestId: "smoke-health",
+    schemaVersion: protocol.SCHEMA_VERSION,
+    type: "health",
+  });
+  await client.request(healthRequest, "health-result", HEALTH_TIMEOUT_MS);
+
+  for (const rawRequest of requests) {
+    const request = protocol.analyzeRequestSchema.parse(rawRequest);
+    const startedAt = now();
+    const timing = await client.request(request, "result", 70_000, {
+      validateTerminal: (event) => {
+        const result = protocol.analysisResultSchema.parse(event.result);
+        validateSmokeResult(request, result);
+      },
+    });
+    writeOutput(formatSmokeTimings({ ...timing, startedAt }));
+  }
 }
 
 async function runSmoke() {
@@ -198,40 +194,23 @@ async function runSmoke() {
     schemaDirectory,
     workingDirectory,
   });
+  const warmupStartedAt = Date.now();
   const child = spawn(process.execPath, [hostBundle], spawnOptions);
   const client = new NativeHostClient(child, protocol.hostEventSchema, {
     detachedProcessGroup: spawnOptions.detached,
   });
   let requestError;
   let shutdownOutcome;
+  const requests = createSmokeRequests(protocol.SCHEMA_VERSION);
 
   try {
-    process.stdout.write("Checking Codex capability and ChatGPT login...\n");
-    const healthRequest = protocol.healthRequestSchema.parse({
-      requestId: "smoke-health",
-      schemaVersion: protocol.SCHEMA_VERSION,
-      type: "health",
+    await runSmokeSequence({
+      client,
+      protocol,
+      requests,
+      warmupStartedAt,
+      writeOutput: (value) => process.stdout.write(value),
     });
-    await client.request(healthRequest, "health-result", HEALTH_TIMEOUT_MS);
-
-    const requests = createSmokeRequests(protocol.SCHEMA_VERSION);
-    for (const [index, rawRequest] of requests.entries()) {
-      const request = protocol.analyzeRequestSchema.parse(rawRequest);
-      process.stdout.write(
-        `[${index + 1}/${requests.length}] ${request.selectionKind} ${request.action}...\n`,
-      );
-      const startedAt = Date.now();
-      const event = await client.request(request, "result", 70_000);
-      const result = protocol.analysisResultSchema.parse(event.result);
-      validateSmokeResult(request, result);
-      process.stdout.write(
-        formatSmokeTimings({
-          firstDeltaAt: event.firstDeltaAt,
-          fullResultAt: event.fullResultAt,
-          startedAt,
-        }),
-      );
-    }
   } catch (error) {
     requestError = error;
   } finally {
@@ -255,9 +234,6 @@ async function runSmoke() {
   if (requestError !== undefined) {
     throw requestError;
   }
-  process.stdout.write(
-    "Smoke passed: 4 results validated and no new Codex session file appeared.\n",
-  );
 }
 
 function isDirectExecution() {
@@ -266,10 +242,8 @@ function isDirectExecution() {
 }
 
 if (isDirectExecution()) {
-  void runSmoke().catch((error) => {
-    process.stderr.write(
-      `Codex smoke failed: ${error instanceof Error ? error.message : "Unknown error."}\n`,
-    );
+  void runSmoke().catch(() => {
+    process.stderr.write("Codex smoke failed.\n");
     process.exitCode = 1;
   });
 }

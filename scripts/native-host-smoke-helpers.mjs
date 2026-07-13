@@ -100,9 +100,44 @@ export function createNativeHostSpawnOptions({
   };
 }
 
+function expectedResultType(request) {
+  if (request.action === "translate") {
+    return request.selectionKind === "word" || request.selectionKind === "phrase"
+      ? "translate-lexical"
+      : "translate-passage";
+  }
+  return request.selectionKind === "sentence" ? "explain-sentence" : "explain-lexical";
+}
+
+function validateListCardinality(result, key, minimum) {
+  const value = result[key];
+  if (!Array.isArray(value) || value.length < minimum || value.length > 3) {
+    throw new Error(`${key} must contain ${minimum} to 3 items.`);
+  }
+}
+
 export function validateSmokeResult(request, result) {
   if (result.sourceText !== request.selection || result.selectionKind !== request.selectionKind) {
     throw new Error(`Smoke result did not match request ${request.requestId}.`);
+  }
+  if (result.type !== expectedResultType(request)) {
+    throw new Error(`Smoke result type did not match request ${request.requestId}.`);
+  }
+  if (result.type === "translate-lexical") {
+    validateListCardinality(result, "collocations", 0);
+    validateListCardinality(result, "similarTerms", 0);
+    if (
+      result.contextExample !== undefined &&
+      (request.sentenceContext === null ||
+        result.contextExample.english !== request.sentenceContext)
+    ) {
+      throw new Error("Smoke context example did not preserve the exact sentence context.");
+    }
+  }
+  if (result.type === "explain-lexical") {
+    validateListCardinality(result, "collocations", 0);
+    validateListCardinality(result, "coreMeanings", 1);
+    validateListCardinality(result, "synonyms", 0);
   }
   if (
     request.selectionKind === "paragraph" &&
