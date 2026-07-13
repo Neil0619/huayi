@@ -245,7 +245,7 @@ describe("native host bootstrap", () => {
 
     expect(events[0]).toMatchObject({
       codexVersion: "codex-cli 0.144.1",
-      hostVersion: "0.3.1",
+      hostVersion: "0.4.0",
       ready: true,
     });
     expect(requests.map((request) => request.arguments)).toEqual([

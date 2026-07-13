@@ -256,7 +256,7 @@ export async function initializeAppServerChannel(
 ): Promise<void> {
   const initialized = await channel.request("initialize", {
     capabilities: { experimentalApi: true, requestAttestation: false },
-    clientInfo: { name: "huayi", title: "Huayi Native Host", version: "0.3.1" },
+    clientInfo: { name: "huayi", title: "Huayi Native Host", version: "0.4.0" },
   });
   if (!isInitializeResponse(initialized)) throw new AppServerInvariantError();
   channel.notify("initialized");

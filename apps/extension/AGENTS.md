@@ -3,9 +3,13 @@
 - Build only a Manifest V3 extension.
 - Content scripts own DOM selection and overlay rendering. Only the service worker may use
   Native Messaging.
-- Version 0.3 permissions are limited to `nativeMessaging` and content-script matches for normal
-  `http` and `https` pages. Any new permission requires `docs/security.md` and regression-test
-  updates.
+- Version 0.4 permissions are limited to exactly `nativeMessaging` and content-script matches for
+  normal `http` and `https` pages. Any new permission requires `docs/security.md` and
+  regression-test updates.
+- The Extension uses wire v2 only and must be refreshed together with a v0.4.0 Native Host; v1
+  messages are incompatible and must be rejected.
+- Warmup requests contain only type, schema version, and request ID. Never add selection,
+  context, sentence, URL, or other page data to warmup.
 - Use native DOM and Shadow DOM. Do not add React or another UI framework.
 - Render model content with `textContent`; never insert it with `innerHTML`.
 - Do not collect or persist page URLs, titles, query history, or analytics.
@@ -14,6 +18,9 @@
   translate.
 - Track analysis, automatic word-status lookup, and explicit add as separate request lanes. A new
   selection closes all lanes; explicit add replaces only the lookup lane.
+- Treat deltas and typed sections as non-terminal previews. Only `result` is complete success;
+  preserve a safe preview on terminal failure and hide absent or empty lexical sections without
+  placeholders or fabricated values.
 - All overlay transitions go through `overlay-state.ts`; do not add scattered state flags.
 - Extend visual values through tokens in `styles.ts`.
 - The overlay must support Escape-to-close, visible keyboard focus, viewport clamping, narrow

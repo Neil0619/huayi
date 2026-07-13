@@ -4,7 +4,7 @@
 
 Huayi is a personal macOS Google Chrome extension for English selection translation and
 analysis. The extension communicates with a local Native Messaging host, which invokes an
-already authenticated Codex CLI. Version 0.3.x is not a Chrome Web Store release and does not
+already authenticated Codex CLI. Version 0.4.x is not a Chrome Web Store release and does not
 support Windows, Linux, other browsers, cloud API keys, history, synchronization, or follow-up
 chat.
 
@@ -24,6 +24,26 @@ chat.
 - Codex capability compatibility execution order:
   `docs/superpowers/plans/2026-07-13-codex-capability-compatibility.md`.
 - Keep temporary task status out of AGENTS.md files.
+
+## Current release invariants
+
+- All app, package, Manifest, Host, App Server client, and Eudic User-Agent identities are
+  `0.4.0`; the Native Messaging `schemaVersion` remains `2`.
+- Wire v1 is incompatible with v2 and is rejected. Upgrade or roll back the Extension and Native
+  Host synchronously; do not add a translation shim.
+- Provider schemas describe private model content only. The trusted Host owns `sourceText`,
+  `selectionKind`, and public result `type`, then validates the assembled public result.
+- Warmup carries no selection, context, sentence, URL, or other page data and must not create a
+  thread, turn, or model output. Typed deltas and sections are previews; only `result` is a
+  complete success. Omit empty lexical sections instead of fabricating values.
+- Provider-validation stderr diagnostics may contain only bounded allowlisted stages and field
+  names. Other startup and protocol diagnostics use fixed safe messages. No stderr path may
+  include page, model, credential, raw JSON, or environment contents.
+- Default gates are offline. Run `pnpm smoke:codex` only after explicit approval for real model
+  and quota use; installation and Chrome verification require a separate explicit approval.
+- The personal Extension ID is `kfkamoejomjdihipgdkmfjcdenlhgnpd`. Synchronous reinstall uses
+  `pnpm host:install -- --extension-id kfkamoejomjdihipgdkmfjcdenlhgnpd` and preserves the
+  `com.huayi.codex_bridge.eudic` / `authorization` Keychain item and documented macOS paths.
 
 ## Architecture boundaries
 

@@ -1,13 +1,14 @@
 # 协议说明
 
 当前协议版本为 `schemaVersion: 2`，所有消息均为严格的带 `type` 联合类型。v2 运行时直接
-拒绝 v1 消息，不提供 v1/v2 转换层。
+拒绝 v1 消息，不提供 v1/v2 转换层；Extension 与 Native Host 必须同步升级、重装或回滚。
 
 ## 请求
 
 - `health`：检查 native host 和 Codex 登录/能力状态。
 - `warmup`：只包含请求 ID，不包含网页数据或模型输入，用于预先完成 Codex 能力发现和 App
-  Server 安全初始化；它不属于 `HostWorkRequest`，不得创建 thread/turn。
+  Server 安全初始化；它不属于 `HostWorkRequest`，不得创建 thread/turn、产生模型输出或消费
+  模型输出额度。
 - `analyze`：包含请求 ID、动作、选区类型、英文选区、所在段落上下文、精确句子上下文和
   `zh-CN` 目标语言。
 - `check-word`：只包含请求 ID、英语原始单词和固定语言 `en`，用于只读查询生词本状态。
@@ -56,7 +57,7 @@
 - `analysis-delta`：分析核心字段的增量文本；它是中间事件，不是成功终态。
 - `analysis-section`：返回一个已经完整解析并严格校验的结构化分析板块；它是中间事件，
   不是成功终态。
-- `result`：返回经过 Schema 校验的分析结果。
+- `result`：返回经过 Schema 校验的分析结果；它是分析唯一的完整成功终态。
 - `word-status`：返回 `present | absent`，表示只读查询到单词已存在或不存在。
 - `word-added`：返回 `added | already-exists`，分别表示新建成功或原记录已存在。
 - `error`：返回固定错误码、中文用户提示和是否允许重试。
@@ -110,6 +111,20 @@ word-formation | core-meanings | collocations | context-example | similar-terms 
   "value": "number"
 }
 ```
+
+## 模型私有内容与 Host 组装
+
+传给模型的四类 JSON Schema 是 Native Host provider 的私有内容契约，不属于 wire 协议，也不
+通过 `@huayi/protocol` 导出。它们不得定义公共 `sourceText`、`selectionKind` 或结果 `type`。
+模型只能提供翻译、解释、词性、音标、原形、构词、搭配、例句中译和相关词等内容。
+
+Host 完整校验私有内容后，从可信 `analyze` 请求注入原始 `sourceText`、`selectionKind`，并按
+请求动作映射公共结果 `type`；组装对象必须再次通过 `analysisResultSchema` 才能发送
+`result`。模型无法改写大小写、复数、选区类型或结果类型。`null` 与空数组是合法“不适用”
+值，只是不产生对应 `analysis-section`；不得用虚构值回填。
+
+如果终态模型内容或公共组装校验失败，Host 发送 `error` 而不是 `result`。Extension 可以保留
+已通过校验的只读预览并显示“内容未完整生成”，但预览不得被标记为成功或用于写入生词本。
 
 生词状态示例：
 
@@ -165,7 +180,8 @@ INTERNAL_ERROR
 v1 到 v2 是同步升级且不兼容的迁移：所有请求和事件改用 `schemaVersion: 2`；`analyze`
 必须增加 `sentenceContext`；新增不含页面数据的 `warmup -> warmup-ready`；新增与文本增量共享
 序号的 `analysis-section`；词汇结果数组基数改为搭配/相似项/同义词 0–3、核心词义 1–3。
-Extension 与 Native Host 必须一起升级，任一端不得接受另一版本的消息。
+Extension 与 Native Host 必须一起升级，任一端不得接受另一版本的消息。v0.4.0 重装使用扩展
+ID `kfkamoejomjdihipgdkmfjcdenlhgnpd`；精确命令与回滚步骤见 `docs/setup-macos.md`。
 
 v0.2.0 在不改变已有消息语义的前提下，为 `schemaVersion: 1` 增加 `add-word` 和
 `word-added` 联合分支，因此没有提升协议版本。扩展与 Native Host 应同步升级；旧 Host 在

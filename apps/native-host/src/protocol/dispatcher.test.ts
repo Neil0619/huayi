@@ -20,7 +20,7 @@ function createDispatcher(
 }
 
 describe("NativeMessageDispatcher analysis routing", () => {
-  it("reports host version 0.3.1", async () => {
+  it("reports host version 0.4.0", async () => {
     const events: HostEvent[] = [];
     const dispatcher = createDispatcher();
 
@@ -29,7 +29,7 @@ describe("NativeMessageDispatcher analysis routing", () => {
     );
 
     await vi.waitFor(() => expect(events).toHaveLength(1));
-    expect(events[0]).toMatchObject({ hostVersion: "0.3.1", type: "health-result" });
+    expect(events[0]).toMatchObject({ hostVersion: "0.4.0", type: "health-result" });
     dispatcher.dispose();
   });
 
