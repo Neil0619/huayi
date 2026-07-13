@@ -1,0 +1,172 @@
+import { describe, expect, it } from "vitest";
+
+import {
+  modelAnalysisFieldSchemaFor,
+  modelAnalysisResultSchemaFor,
+  modelLexicalExplanationSchema,
+  modelLexicalTranslationSchema,
+  modelPassageTranslationSchema,
+  modelSentenceExplanationSchema,
+  resultTypeFor,
+} from "./model-analysis-schemas.js";
+
+const relatedTerms = [
+  { meaningZh: "数字四", partOfSpeech: "number", text: "four" },
+  { meaningZh: "四个一组", partOfSpeech: "noun", text: "quartet" },
+  { meaningZh: "第四", partOfSpeech: "number", text: "fourth" },
+] as const;
+
+const fourExplanation = {
+  baseForm: null,
+  collocations: [],
+  contextualMeaningZh: "在这里表示数字四。",
+  coreMeanings: [{ meaningZh: "数字四", partOfSpeech: "number" }],
+  synonyms: [],
+  wordFormation: null,
+} as const;
+
+const fourTranslation = {
+  collocations: [],
+  contextExampleTranslationZh: null,
+  contextualMeaningZh: "在这里表示数字四。",
+  partOfSpeech: "number",
+  pronunciation: null,
+  similarTerms: [],
+} as const;
+
+describe("private model analysis schemas", () => {
+  it("accepts lexical content whose naturally absent fields use null and empty arrays", () => {
+    expect(modelLexicalExplanationSchema.safeParse(fourExplanation).success).toBe(true);
+    expect(modelLexicalTranslationSchema.safeParse(fourTranslation).success).toBe(true);
+    expect(
+      modelLexicalTranslationSchema.safeParse({
+        ...fourTranslation,
+        pronunciation: { uk: null, us: null },
+      }).success,
+    ).toBe(true);
+  });
+
+  it.each(["sourceText", "selectionKind", "type"])("rejects public metadata field %s", (field) => {
+    expect(
+      modelLexicalExplanationSchema.safeParse({ ...fourExplanation, [field]: "untrusted" }).success,
+    ).toBe(false);
+  });
+
+  it("rejects unknown fields at root and nested object boundaries", () => {
+    expect(
+      modelLexicalTranslationSchema.safeParse({ ...fourTranslation, unsafeHtml: "<img>" }).success,
+    ).toBe(false);
+    expect(
+      modelLexicalTranslationSchema.safeParse({
+        ...fourTranslation,
+        collocations: [{ meaningZh: "数字四", text: "number four", unsafe: true }],
+      }).success,
+    ).toBe(false);
+    expect(
+      modelLexicalExplanationSchema.safeParse({
+        ...fourExplanation,
+        coreMeanings: [{ meaningZh: "数字四", partOfSpeech: "number", unsafe: true }],
+      }).success,
+    ).toBe(false);
+  });
+
+  it("enforces lexical collection limits without fabricating minimum counts", () => {
+    expect(
+      modelLexicalExplanationSchema.safeParse({
+        ...fourExplanation,
+        synonyms: relatedTerms,
+      }).success,
+    ).toBe(true);
+    expect(
+      modelLexicalExplanationSchema.safeParse({
+        ...fourExplanation,
+        synonyms: [...relatedTerms, relatedTerms[0]],
+      }).success,
+    ).toBe(false);
+    expect(
+      modelLexicalExplanationSchema.safeParse({ ...fourExplanation, coreMeanings: [] }).success,
+    ).toBe(false);
+  });
+
+  it("requires both nullable pronunciation keys whenever pronunciation is non-null", () => {
+    expect(
+      modelLexicalTranslationSchema.safeParse({
+        ...fourTranslation,
+        pronunciation: { uk: null },
+      }).success,
+    ).toBe(false);
+    expect(
+      modelLexicalTranslationSchema.safeParse({
+        ...fourTranslation,
+        pronunciation: { uk: null, us: null, ipa: null },
+      }).success,
+    ).toBe(false);
+  });
+
+  it("accepts only a Chinese translation string or null for the trusted context example", () => {
+    expect(
+      modelLexicalTranslationSchema.safeParse({
+        ...fourTranslation,
+        contextExampleTranslationZh: "四名受害者接受了采访。",
+      }).success,
+    ).toBe(true);
+    expect(
+      modelLexicalTranslationSchema.safeParse({
+        ...fourTranslation,
+        contextExampleTranslationZh: {
+          english: "Four victims were interviewed.",
+          translationZh: "四名受害者接受了采访。",
+        },
+      }).success,
+    ).toBe(false);
+  });
+
+  it("keeps passage and sentence model content free of public metadata", () => {
+    expect(modelPassageTranslationSchema.parse({ translationZh: "第一段。" })).toEqual({
+      translationZh: "第一段。",
+    });
+    expect(
+      modelSentenceExplanationSchema.safeParse({
+        contextRole: "说明人数。",
+        keyExpressions: [{ meaningZh: "四名受害者", text: "Four victims" }],
+        mainStructure: "主语 + 谓语",
+        translationZh: "四名受害者接受了采访。",
+      }).success,
+    ).toBe(true);
+    expect(
+      modelSentenceExplanationSchema.safeParse({
+        contextRole: "说明人数。",
+        keyExpressions: [{ meaningZh: "四名受害者", text: "Four victims" }],
+        mainStructure: "主语 + 谓语",
+        sourceText: "Four victims were interviewed.",
+        translationZh: "四名受害者接受了采访。",
+      }).success,
+    ).toBe(false);
+  });
+
+  it("looks up result and field schemas without exposing them through the protocol", () => {
+    expect(resultTypeFor({ action: "translate", selectionKind: "word" })).toBe("translate-lexical");
+    expect(resultTypeFor({ action: "translate", selectionKind: "paragraph" })).toBe(
+      "translate-passage",
+    );
+    expect(resultTypeFor({ action: "explain", selectionKind: "phrase" })).toBe("explain-lexical");
+    expect(resultTypeFor({ action: "explain", selectionKind: "sentence" })).toBe(
+      "explain-sentence",
+    );
+    expect(() => resultTypeFor({ action: "explain", selectionKind: "paragraph" })).toThrow();
+
+    expect(modelAnalysisResultSchemaFor("explain-lexical")).toBe(modelLexicalExplanationSchema);
+    expect(
+      modelAnalysisFieldSchemaFor("translate-lexical", "collocations")?.safeParse([]).success,
+    ).toBe(true);
+    expect(modelAnalysisFieldSchemaFor("translate-lexical", "sourceText")).toBeUndefined();
+    expect(modelAnalysisFieldSchemaFor("translate-passage", "translationZh")).toBeDefined();
+  });
+
+  it.each(["__proto__", "constructor", "toString"])(
+    "does not expose inherited field schema %s",
+    (field) => {
+      expect(modelAnalysisFieldSchemaFor("translate-lexical", field)).toBeUndefined();
+    },
+  );
+});

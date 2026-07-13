@@ -8,49 +8,6 @@
       "maxLength": 4000,
       "pattern": "\\S"
     },
-    "collocations": {
-      "type": "array",
-      "minItems": 2,
-      "maxItems": 4,
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "meaningZh": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 300,
-            "pattern": "\\S"
-          },
-          "text": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 200,
-            "pattern": "^[^\\u3400-\\u9fff]*[A-Za-z][^\\u3400-\\u9fff]*$"
-          }
-        },
-        "required": ["meaningZh", "text"]
-      }
-    },
-    "contextExample": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "english": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 2000,
-          "pattern": "^[^\\u3400-\\u9fff]*[A-Za-z][^\\u3400-\\u9fff]*$"
-        },
-        "translationZh": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 4000,
-          "pattern": "\\S"
-        }
-      },
-      "required": ["english", "translationZh"]
-    },
     "partOfSpeech": {
       "type": "string",
       "enum": [
@@ -77,56 +34,72 @@
           "additionalProperties": false,
           "properties": {
             "uk": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 120,
-              "pattern": "\\S"
-            }
-          },
-          "required": ["uk"]
-        },
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "us": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 120,
-              "pattern": "\\S"
-            }
-          },
-          "required": ["us"]
-        },
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "uk": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 120,
-              "pattern": "\\S"
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 120,
+                  "pattern": "\\S"
+                },
+                { "type": "null" }
+              ]
             },
             "us": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 120,
-              "pattern": "\\S"
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 120,
+                  "pattern": "\\S"
+                },
+                { "type": "null" }
+              ]
             }
           },
           "required": ["uk", "us"]
-        }
+        },
+        { "type": "null" }
       ]
     },
-    "selectionKind": {
-      "type": "string",
-      "enum": ["word", "phrase"]
+    "collocations": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "meaningZh": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300,
+            "pattern": "\\S"
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "^[^\\u3400-\\u9fff]*[A-Za-z][^\\u3400-\\u9fff]*$"
+          }
+        },
+        "required": ["meaningZh", "text"]
+      }
+    },
+    "contextExampleTranslationZh": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000,
+          "pattern": "\\S"
+        },
+        { "type": "null" }
+      ]
     },
     "similarTerms": {
       "type": "array",
-      "minItems": 3,
-      "maxItems": 5,
+      "minItems": 0,
+      "maxItems": 3,
       "items": {
         "type": "object",
         "additionalProperties": false,
@@ -165,27 +138,14 @@
         },
         "required": ["meaningZh", "partOfSpeech", "text"]
       }
-    },
-    "sourceText": {
-      "type": "string",
-      "minLength": 1,
-      "maxLength": 2000,
-      "pattern": "\\S"
-    },
-    "type": {
-      "type": "string",
-      "const": "translate-lexical"
     }
   },
   "required": [
-    "collocations",
-    "contextExample",
     "contextualMeaningZh",
     "partOfSpeech",
     "pronunciation",
-    "selectionKind",
-    "similarTerms",
-    "sourceText",
-    "type"
+    "collocations",
+    "contextExampleTranslationZh",
+    "similarTerms"
   ]
 }

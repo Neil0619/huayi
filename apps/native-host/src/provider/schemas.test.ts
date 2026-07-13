@@ -1,13 +1,15 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
-import {
-  lexicalExplanationResultSchema,
-  lexicalTranslationResultSchema,
-  passageTranslationResultSchema,
-  sentenceExplanationResultSchema,
-} from "@huayi/protocol";
 import { describe, expect, it } from "vitest";
+
+import {
+  modelAnalysisResultSchemaFor,
+  modelLexicalExplanationSchema,
+  modelLexicalTranslationSchema,
+  modelPassageTranslationSchema,
+  modelSentenceExplanationSchema,
+} from "./model-analysis-schemas.js";
 
 type JsonObject = Record<string, unknown>;
 
@@ -17,46 +19,26 @@ const outputSchemaNames = [
   "explain-lexical",
   "explain-sentence",
 ] as const;
+type OutputSchemaName = (typeof outputSchemaNames)[number];
 
-const expectedRequiredProperties = {
+const expectedPropertyOrder = {
   "explain-lexical": [
-    "baseForm",
-    "collocations",
     "contextualMeaningZh",
-    "coreMeanings",
-    "selectionKind",
-    "sourceText",
-    "synonyms",
-    "type",
+    "baseForm",
     "wordFormation",
-  ],
-  "explain-sentence": [
-    "contextRole",
-    "keyExpressions",
-    "mainStructure",
-    "selectionKind",
-    "sourceText",
-    "translationZh",
-    "type",
-  ],
-  "translate-lexical": [
+    "coreMeanings",
     "collocations",
-    "contextExample",
+    "synonyms",
+  ],
+  "explain-sentence": ["mainStructure", "keyExpressions", "translationZh", "contextRole"],
+  "translate-lexical": [
     "contextualMeaningZh",
     "partOfSpeech",
     "pronunciation",
-    "selectionKind",
+    "collocations",
+    "contextExampleTranslationZh",
     "similarTerms",
-    "sourceText",
-    "type",
   ],
-  "translate-passage": ["selectionKind", "sourceText", "translationZh", "type"],
-} as const;
-
-const expectedStreamPropertyPrefixes = {
-  "explain-lexical": ["contextualMeaningZh"],
-  "explain-sentence": ["mainStructure", "translationZh", "contextRole"],
-  "translate-lexical": ["contextualMeaningZh"],
   "translate-passage": ["translationZh"],
 } as const;
 
@@ -81,14 +63,14 @@ function isJsonObject(value: unknown): value is JsonObject {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function readOutputSchema(name: (typeof outputSchemaNames)[number]): JsonObject {
+function readOutputSchemaSource(name: OutputSchemaName): string {
   const path = fileURLToPath(new URL(`./schemas/${name}.json`, import.meta.url));
-  const parsed: unknown = JSON.parse(readFileSync(path, "utf8"));
+  return readFileSync(path, "utf8");
+}
 
-  if (!isJsonObject(parsed)) {
-    throw new Error(`${name}.json must contain a JSON object.`);
-  }
-
+function readOutputSchema(name: OutputSchemaName): JsonObject {
+  const parsed: unknown = JSON.parse(readOutputSchemaSource(name));
+  if (!isJsonObject(parsed)) throw new Error(`${name}.json must contain a JSON object.`);
   return parsed;
 }
 
@@ -97,38 +79,25 @@ function objectProperty(schema: JsonObject, name: string): JsonObject {
   if (!isJsonObject(properties) || !isJsonObject(properties[name])) {
     throw new Error(`Expected object property schema: ${name}.`);
   }
-
   return properties[name];
 }
 
 function collectObjectSchemas(value: unknown): JsonObject[] {
-  if (Array.isArray(value)) {
-    return value.flatMap((item) => collectObjectSchemas(item));
-  }
-  if (!isJsonObject(value)) {
-    return [];
-  }
-
+  if (Array.isArray(value)) return value.flatMap((item) => collectObjectSchemas(item));
+  if (!isJsonObject(value)) return [];
   const nested = Object.values(value).flatMap((item) => collectObjectSchemas(item));
   return value.type === "object" ? [value, ...nested] : nested;
 }
 
 function collectPatterns(value: unknown): string[] {
-  if (Array.isArray(value)) {
-    return value.flatMap((item) => collectPatterns(item));
-  }
-  if (!isJsonObject(value)) {
-    return [];
-  }
-
+  if (Array.isArray(value)) return value.flatMap((item) => collectPatterns(item));
+  if (!isJsonObject(value)) return [];
   const current = typeof value.pattern === "string" ? [value.pattern] : [];
   return [...current, ...Object.values(value).flatMap((item) => collectPatterns(item))];
 }
 
 function validateSubset(schemaValue: unknown, value: unknown, path = "$"): string[] {
-  if (!isJsonObject(schemaValue)) {
-    return [`${path}: schema is not an object`];
-  }
+  if (!isJsonObject(schemaValue)) return [`${path}: schema is not an object`];
 
   const errors: string[] = [];
   if (schemaValue.const !== undefined && value !== schemaValue.const) {
@@ -141,9 +110,10 @@ function validateSubset(schemaValue: unknown, value: unknown, path = "$"): strin
     const matches = schemaValue.anyOf.some(
       (candidate) => validateSubset(candidate, value, path).length === 0,
     );
-    if (!matches) {
-      errors.push(`${path}: value does not match anyOf`);
-    }
+    return matches ? errors : [...errors, `${path}: value does not match anyOf`];
+  }
+  if (schemaValue.type === "null") {
+    return value === null ? errors : [...errors, `${path}: expected null`];
   }
   if (Array.isArray(schemaValue.required) && isJsonObject(value)) {
     for (const requiredName of schemaValue.required) {
@@ -154,9 +124,7 @@ function validateSubset(schemaValue: unknown, value: unknown, path = "$"): strin
   }
 
   if (schemaValue.type === "string") {
-    if (typeof value !== "string") {
-      return [...errors, `${path}: expected string`];
-    }
+    if (typeof value !== "string") return [...errors, `${path}: expected string`];
     if (typeof schemaValue.minLength === "number" && value.length < schemaValue.minLength) {
       errors.push(`${path}: string is shorter than minLength`);
     }
@@ -172,9 +140,7 @@ function validateSubset(schemaValue: unknown, value: unknown, path = "$"): strin
   }
 
   if (schemaValue.type === "array") {
-    if (!Array.isArray(value)) {
-      return [...errors, `${path}: expected array`];
-    }
+    if (!Array.isArray(value)) return [...errors, `${path}: expected array`];
     if (typeof schemaValue.minItems === "number" && value.length < schemaValue.minItems) {
       errors.push(`${path}: array is shorter than minItems`);
     }
@@ -187,16 +153,11 @@ function validateSubset(schemaValue: unknown, value: unknown, path = "$"): strin
   }
 
   if (schemaValue.type === "object") {
-    if (!isJsonObject(value)) {
-      return [...errors, `${path}: expected object`];
-    }
-
+    if (!isJsonObject(value)) return [...errors, `${path}: expected object`];
     const properties = isJsonObject(schemaValue.properties) ? schemaValue.properties : {};
     if (schemaValue.additionalProperties === false) {
       for (const name of Object.keys(value)) {
-        if (!(name in properties)) {
-          errors.push(`${path}: unknown property ${name}`);
-        }
+        if (!(name in properties)) errors.push(`${path}: unknown property ${name}`);
       }
     }
     for (const [name, propertyValue] of Object.entries(value)) {
@@ -223,92 +184,70 @@ const collocations = [
 const contractCases = [
   {
     name: "translate-lexical",
-    resultSchema: lexicalTranslationResultSchema,
+    resultSchema: modelLexicalTranslationSchema,
     value: {
-      collocations,
-      contextExample: {
-        english: "The investigation was in its early stages.",
-        translationZh: "调查仍处于早期阶段。",
-      },
-      contextualMeaningZh: "对案件进行系统查证的调查",
-      partOfSpeech: "noun",
-      pronunciation: { uk: "/ɪnˌvestɪˈɡeɪʃn/" },
-      selectionKind: "word",
-      similarTerms: terms,
-      sourceText: "investigation",
-      type: "translate-lexical",
+      collocations: [],
+      contextExampleTranslationZh: null,
+      contextualMeaningZh: "在这里表示数字四。",
+      partOfSpeech: "number",
+      pronunciation: { uk: null, us: null },
+      similarTerms: [],
     },
   },
   {
     name: "translate-passage",
-    resultSchema: passageTranslationResultSchema,
-    value: {
-      selectionKind: "paragraph",
-      sourceText: "First sentence.\nSecond sentence.",
-      translationZh: "第一句。\n第二句。",
-      type: "translate-passage",
-    },
+    resultSchema: modelPassageTranslationSchema,
+    value: { translationZh: "第一句。\n第二句。" },
   },
   {
     name: "explain-lexical",
-    resultSchema: lexicalExplanationResultSchema,
+    resultSchema: modelLexicalExplanationSchema,
     value: {
-      baseForm: "sustain",
-      collocations,
-      contextualMeaningZh: "持续的、长时间延续的",
-      coreMeanings: [{ meaningZh: "维持；使持续", partOfSpeech: "verb" }],
-      selectionKind: "phrase",
-      sourceText: "sustained heatwave",
-      synonyms: terms,
-      type: "explain-lexical",
-      wordFormation: "sustain + -ed",
+      baseForm: null,
+      collocations: [],
+      contextualMeaningZh: "在这里表示数字四。",
+      coreMeanings: [{ meaningZh: "数字四", partOfSpeech: "number" }],
+      synonyms: [],
+      wordFormation: null,
     },
   },
   {
     name: "explain-sentence",
-    resultSchema: sentenceExplanationResultSchema,
+    resultSchema: modelSentenceExplanationSchema,
     value: {
-      contextRole: "说明调查阶段并发出征集线索的呼吁。",
+      contextRole: "说明调查阶段。",
       keyExpressions: [{ meaningZh: "处于早期阶段", text: "in its early stages" }],
-      mainStructure: "He said ... and urged anyone ...",
-      selectionKind: "sentence",
-      sourceText: "He said the investigation was in its early stages.",
+      mainStructure: "He said ...",
       translationZh: "他说调查仍处于早期阶段。",
-      type: "explain-sentence",
     },
   },
 ] as const;
 
+function expectSchemaAgreement(name: OutputSchemaName, value: unknown, expected: boolean): void {
+  expect(modelAnalysisResultSchemaFor(name).safeParse(value).success).toBe(expected);
+  expect(validateSubset(readOutputSchema(name), value).length === 0).toBe(expected);
+}
+
 describe("Codex output schemas", () => {
-  it("places streamable fields before model-only result fields", () => {
-    for (const name of outputSchemaNames) {
-      const properties = readOutputSchema(name).properties;
-      if (!isJsonObject(properties)) {
-        throw new Error(`${name}.json must define object properties.`);
-      }
-
-      expect(Object.keys(properties).slice(0, expectedStreamPropertyPrefixes[name].length)).toEqual(
-        expectedStreamPropertyPrefixes[name],
-      );
-    }
-  });
-
-  it("defines one strict root object for every protocol result variant", () => {
+  it("orders model-only content by visual priority with the streamable core string first", () => {
     for (const name of outputSchemaNames) {
       const schema = readOutputSchema(name);
-
-      expect(schema).toMatchObject({
-        additionalProperties: false,
-        required: expectedRequiredProperties[name],
-        type: "object",
-      });
-      expect(objectProperty(schema, "type")).toEqual({ const: name, type: "string" });
+      if (!isJsonObject(schema.properties)) throw new Error(`${name}.json must define properties.`);
+      expect(Object.keys(schema.properties)).toEqual(expectedPropertyOrder[name]);
+      expect(schema.required).toEqual(expectedPropertyOrder[name]);
     }
   });
 
-  it("closes every nested object against model-added fields", () => {
+  it("defines only strict required model content and omits all public metadata", () => {
     for (const name of outputSchemaNames) {
-      for (const objectSchema of collectObjectSchemas(readOutputSchema(name))) {
+      const schema = readOutputSchema(name);
+      expect(schema).toMatchObject({ additionalProperties: false, type: "object" });
+      if (!isJsonObject(schema.properties)) throw new Error(`${name}.json must define properties.`);
+      for (const metadataField of ["sourceText", "selectionKind", "type"]) {
+        expect(Object.keys(schema.properties)).not.toContain(metadataField);
+      }
+      expect(readOutputSchemaSource(name)).not.toMatch(/"(?:sourceText|selectionKind)"\s*:/u);
+      for (const objectSchema of collectObjectSchemas(schema)) {
         expect(objectSchema.additionalProperties).toBe(false);
       }
     }
@@ -322,7 +261,7 @@ describe("Codex output schemas", () => {
     }
   });
 
-  it("uses the protocol enums and collection limits for lexical results", () => {
+  it("uses public child contracts and the exact lexical collection limits", () => {
     for (const name of ["translate-lexical", "explain-lexical"] as const) {
       const schema = readOutputSchema(name);
       const relatedTerms = objectProperty(
@@ -331,7 +270,7 @@ describe("Codex output schemas", () => {
       );
       const relatedTerm = relatedTerms.items;
 
-      expect(relatedTerms).toMatchObject({ maxItems: 5, minItems: 3, type: "array" });
+      expect(relatedTerms).toMatchObject({ maxItems: 3, minItems: 0, type: "array" });
       expect(relatedTerm).toMatchObject({
         additionalProperties: false,
         required: ["meaningZh", "partOfSpeech", "text"],
@@ -342,33 +281,60 @@ describe("Codex output schemas", () => {
         type: "string",
       });
       expect(objectProperty(schema, "collocations")).toMatchObject({
-        maxItems: 4,
-        minItems: 2,
+        maxItems: 3,
+        minItems: 0,
         type: "array",
       });
     }
+    expect(objectProperty(readOutputSchema("explain-lexical"), "coreMeanings")).toMatchObject({
+      maxItems: 3,
+      minItems: 1,
+      type: "array",
+    });
   });
 
-  it("accepts the same representative values as the protocol Zod schemas", () => {
+  it("accepts the same representative values as the private Zod schemas", () => {
     for (const contractCase of contractCases) {
       expect(contractCase.resultSchema.safeParse(contractCase.value).success).toBe(true);
       expect(validateSubset(readOutputSchema(contractCase.name), contractCase.value)).toEqual([]);
     }
   });
 
-  it("keeps strict objects while the model schema retains its current term minimum", () => {
-    const schema = readOutputSchema("translate-lexical");
-    const valid = contractCases[0].value;
+  it("keeps JSON Schema and private Zod acceptance aligned for lexical edge cases", () => {
+    const translation = contractCases[0].value;
+    const explanation = contractCases[2].value;
 
-    const unknownField = { ...valid, unsafeHtml: "<img src=x onerror=alert(1)>" };
-    const tooFewTerms = { ...valid, similarTerms: terms.slice(0, 2) };
-    const emptyPronunciation = { ...valid, pronunciation: {} };
-
-    for (const value of [unknownField, emptyPronunciation]) {
-      expect(lexicalTranslationResultSchema.safeParse(value).success).toBe(false);
-      expect(validateSubset(schema, value)).not.toEqual([]);
-    }
-    expect(lexicalTranslationResultSchema.safeParse(tooFewTerms).success).toBe(true);
-    expect(validateSubset(schema, tooFewTerms)).not.toEqual([]);
+    expectSchemaAgreement("translate-lexical", { ...translation, collocations }, true);
+    expectSchemaAgreement("translate-lexical", { ...translation, similarTerms: terms }, true);
+    expectSchemaAgreement(
+      "translate-lexical",
+      { ...translation, similarTerms: [...terms, terms[0]] },
+      false,
+    );
+    expectSchemaAgreement(
+      "translate-lexical",
+      { ...translation, pronunciation: { uk: null } },
+      false,
+    );
+    expectSchemaAgreement(
+      "translate-lexical",
+      { ...translation, contextExampleTranslationZh: { translationZh: "错误形状" } },
+      false,
+    );
+    expectSchemaAgreement("translate-lexical", { ...translation, sourceText: "Four" }, false);
+    expectSchemaAgreement("explain-lexical", { ...explanation, coreMeanings: [] }, false);
+    expectSchemaAgreement(
+      "explain-lexical",
+      {
+        ...explanation,
+        coreMeanings: [
+          ...explanation.coreMeanings,
+          ...explanation.coreMeanings,
+          ...explanation.coreMeanings,
+          ...explanation.coreMeanings,
+        ],
+      },
+      false,
+    );
   });
 });

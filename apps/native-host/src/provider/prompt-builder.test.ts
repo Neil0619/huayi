@@ -36,18 +36,49 @@ describe("buildAnalysisPrompt", () => {
     expect(prompt).not.toContain(`<selection>${maliciousSelection}</selection>`);
     expect(prompt).toContain('"action":"translate"');
     expect(prompt).toContain('"selectionKind":"sentence"');
+    expect(prompt).toContain('"sentenceContext":null');
   });
 
-  it("requests only the fields needed for a lexical explanation", () => {
+  it("requests nullable model-only lexical translation content without invented examples", () => {
+    const sentenceContext = "Four victims were interviewed.";
+    const prompt = buildAnalysisPrompt(createRequest({ selection: "Four", sentenceContext }));
+    const requirements = prompt.split("UNTRUSTED_WEBPAGE_DATA")[0] ?? "";
+
+    expect(prompt).toContain(JSON.stringify(sentenceContext));
+    expect(requirements).toMatch(/0[-–]3 contextual collocations/u);
+    expect(requirements).toMatch(/0[-–]3 similar terms/u);
+    expect(requirements).toMatch(/return null.*return \[\]/isu);
+    expect(requirements).toMatch(/Chinese translation.*contextExampleTranslationZh/isu);
+    expect(requirements).toMatch(/never repeat the English sentence/iu);
+    expect(requirements).toMatch(/do not invent example sentences/iu);
+    expect(requirements).not.toMatch(/[23][-–]5/u);
+    expect(requirements).not.toMatch(/2[-–]4/u);
+    for (const metadataField of ["sourceText", "selectionKind", "type"]) {
+      expect(requirements).not.toMatch(new RegExp(`\\b${metadataField}\\b`, "u"));
+    }
+  });
+
+  it("requests only nullable model content needed for a lexical explanation", () => {
     const prompt = buildAnalysisPrompt(
       createRequest({ action: "explain", selection: "sustained", selectionKind: "word" }),
     );
+    const requirements = prompt.split("UNTRUSTED_WEBPAGE_DATA")[0] ?? "";
 
-    expect(prompt).toContain("English lexical explanation");
-    expect(prompt).toContain("synonyms");
-    expect(prompt).toContain("Chinese meanings");
-    expect(prompt).toContain("Return only one JSON object matching the supplied output schema");
-    expect(prompt).toContain("Do not invent example sentences for synonyms");
+    expect(requirements).toContain("English lexical explanation");
+    expect(requirements).toMatch(/0[-–]3 contextual collocations/u);
+    expect(requirements).toMatch(/0[-–]3 synonyms/u);
+    expect(requirements).toMatch(/return null.*return \[\]/isu);
+    expect(requirements).toMatch(/base form.*different.*learning value/isu);
+    expect(requirements).toMatch(/word formation.*reliable/isu);
+    expect(requirements).toContain(
+      "Return only one JSON object matching the supplied output schema",
+    );
+    expect(requirements).toContain("Do not invent example sentences for synonyms");
+    expect(requirements).not.toMatch(/[23][-–]5/u);
+    expect(requirements).not.toMatch(/2[-–]4/u);
+    for (const metadataField of ["sourceText", "selectionKind", "type"]) {
+      expect(requirements).not.toMatch(new RegExp(`\\b${metadataField}\\b`, "u"));
+    }
   });
 
   it("requires passage translation to preserve paragraph line breaks", () => {

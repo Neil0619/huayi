@@ -8,6 +8,7 @@
     "typecheck": "tsc --noEmit --project tsconfig.json && tsc --noEmit --project tsconfig.test.json"
   },
   "dependencies": {
-    "@huayi/protocol": "workspace:*"
+    "@huayi/protocol": "workspace:*",
+    "zod": "^4.0.5"
   }
 }

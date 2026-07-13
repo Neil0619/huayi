@@ -8,18 +8,6 @@
       "maxLength": 4000,
       "pattern": "\\S"
     },
-    "translationZh": {
-      "type": "string",
-      "minLength": 1,
-      "maxLength": 4000,
-      "pattern": "\\S"
-    },
-    "contextRole": {
-      "type": "string",
-      "minLength": 1,
-      "maxLength": 4000,
-      "pattern": "\\S"
-    },
     "keyExpressions": {
       "type": "array",
       "minItems": 1,
@@ -44,28 +32,18 @@
         "required": ["meaningZh", "text"]
       }
     },
-    "selectionKind": {
-      "type": "string",
-      "const": "sentence"
-    },
-    "sourceText": {
+    "translationZh": {
       "type": "string",
       "minLength": 1,
-      "maxLength": 2000,
+      "maxLength": 4000,
       "pattern": "\\S"
     },
-    "type": {
+    "contextRole": {
       "type": "string",
-      "const": "explain-sentence"
+      "minLength": 1,
+      "maxLength": 4000,
+      "pattern": "\\S"
     }
   },
-  "required": [
-    "contextRole",
-    "keyExpressions",
-    "mainStructure",
-    "selectionKind",
-    "sourceText",
-    "translationZh",
-    "type"
-  ]
+  "required": ["mainStructure", "keyExpressions", "translationZh", "contextRole"]
 }

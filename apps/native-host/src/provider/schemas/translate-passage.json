@@ -7,21 +7,7 @@
       "minLength": 1,
       "maxLength": 4000,
       "pattern": "\\S"
-    },
-    "selectionKind": {
-      "type": "string",
-      "enum": ["sentence", "paragraph"]
-    },
-    "sourceText": {
-      "type": "string",
-      "minLength": 1,
-      "maxLength": 2000,
-      "pattern": "\\S"
-    },
-    "type": {
-      "type": "string",
-      "const": "translate-passage"
     }
   },
-  "required": ["selectionKind", "sourceText", "translationZh", "type"]
+  "required": ["translationZh"]
 }

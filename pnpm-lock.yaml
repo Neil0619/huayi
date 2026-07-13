@@ -55,6 +55,9 @@ importers:
       "@huayi/protocol":
         specifier: workspace:*
         version: link:../../packages/protocol
+      zod:
+        specifier: ^4.0.5
+        version: 4.4.3
 
   packages/protocol:
     dependencies:

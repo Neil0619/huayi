@@ -45,3 +45,9 @@
   by Huayi.
 - Invalid frames, oversized messages, stdout contamination, unknown requests, and invalid model
   results fail closed.
+- Keep `zod` as a direct production dependency for provider-private strict schemas, field-level
+  progressive validation, and final model-content validation. Handwritten guards are rejected
+  because they can drift from the JSON and protocol schemas; exporting provider-private shapes
+  from `@huayi/protocol` is rejected because it would leak provider details. This reuses the
+  workspace's existing Zod version, introduces no new library or remote code, and preserves the
+  self-contained Host bundle.
