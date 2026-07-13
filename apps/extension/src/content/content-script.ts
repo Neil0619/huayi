@@ -147,6 +147,7 @@ export function initializeContentScript(options: ContentScriptOptions = {}): Con
       controller.rejectWordbookCheck();
     } else {
       controller.reject(error);
+      controller.rejectWordbookCheck();
     }
   };
 
@@ -220,11 +221,7 @@ export function initializeContentScript(options: ContentScriptOptions = {}): Con
         return;
       }
       void acknowledgement.then((handled) => {
-        if (!handled) {
-          controller.rejectWordbookCheck();
-          return;
-        }
-        if (activeRequests.get(requestId) !== "analysis") {
+        if (!handled || activeRequests.get(requestId) !== "analysis") {
           return;
         }
         const checkRequestId = createRequestId();
