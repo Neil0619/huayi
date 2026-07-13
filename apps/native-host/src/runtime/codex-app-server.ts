@@ -25,18 +25,10 @@ import {
   type CodexTurnRequest,
   type McpServerDiscovery,
 } from "./codex-app-server-lifecycle.js";
-import { MonitoredJsonRpcProcess } from "./codex-app-server-process-monitor.js";
-import {
-  DEFAULT_MAXIMUM_OUTPUT_BYTES,
-  DEFAULT_PROCESS_TIMEOUT_MS,
-  buildAllowedEnvironment,
-} from "./codex-process.js";
+import { createAppServerSession } from "./codex-app-server-session.js";
+import { DEFAULT_PROCESS_TIMEOUT_MS, buildAllowedEnvironment } from "./codex-process.js";
 import { CodexProviderError, capabilityMissingError, mapCodexTurnFailure } from "./error-mapper.js";
-import {
-  JsonRpcChannel,
-  type JsonRpcNotification,
-  type JsonRpcProcess,
-} from "./json-rpc-channel.js";
+import type { JsonRpcNotification, JsonRpcProcess } from "./json-rpc-channel.js";
 
 export { APP_SERVER_ARGUMENTS, createNodeAppServerProcess } from "./codex-app-server-config.js";
 export type { NodeAppServerProcessOptions } from "./codex-app-server-config.js";
@@ -170,7 +162,7 @@ export class CodexAppServerClient implements CodexAppServer {
     let process: JsonRpcProcess;
     try {
       const mcpServerNamesToDisable = await this.#mcpServerDiscovery();
-      if (this.#disposed) throw cancelledError();
+      if (this.#disposed || this.#activeTurns.size === 0) throw cancelledError();
       process = this.#processFactory({
         codexExecutable: this.#codexExecutable,
         environment: this.#environment,
@@ -181,28 +173,12 @@ export class CodexAppServerClient implements CodexAppServer {
       if (error instanceof CodexProviderError && error.code === "CANCELLED") throw error;
       throw capabilityMissingError(error);
     }
-    const sessionHolder: { current?: Session } = {};
-    const monitoredProcess = new MonitoredJsonRpcProcess({
-      isClosing: () => sessionHolder.current?.closed ?? true,
-      onProcessFailure: () => {
-        if (sessionHolder.current !== undefined) this.#processFailed(sessionHolder.current);
-      },
-      onProtocolFailure: () => {
-        if (sessionHolder.current !== undefined) {
-          this.#failSession(sessionHolder.current, capabilityMissingError());
-        }
-      },
+    const session = createAppServerSession({
+      onProcessFailure: (failedSession) => this.#processFailed(failedSession),
+      onProtocolFailure: (failedSession) =>
+        this.#failSession(failedSession, capabilityMissingError()),
       process,
     });
-    const session: Session = {
-      channel: new JsonRpcChannel({
-        maximumLineBytes: DEFAULT_MAXIMUM_OUTPUT_BYTES,
-        process: monitoredProcess,
-      }),
-      closed: false,
-      ready: false,
-    };
-    sessionHolder.current = session;
     this.#session = session;
     for (const active of this.#activeTurns.values()) {
       if (active.session === undefined) active.session = session;
