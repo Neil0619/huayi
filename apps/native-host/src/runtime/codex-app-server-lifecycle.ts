@@ -18,9 +18,12 @@ export interface CodexAppServer {
   dispose(): void;
 }
 
+export type McpServerDiscovery = () => Promise<readonly string[]>;
+
 export interface CodexAppServerClientOptions {
   codexExecutable: string;
   environment: Readonly<NodeJS.ProcessEnv>;
+  mcpServerDiscovery: McpServerDiscovery;
   processFactory?: (options: NodeAppServerProcessOptions) => JsonRpcProcess;
   timeoutMs?: number;
   workingDirectory: string;

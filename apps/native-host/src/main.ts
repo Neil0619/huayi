@@ -14,6 +14,7 @@ import { NativeMessageDecoder, encodeNativeMessage } from "./protocol/framing.js
 import { CodexAppServerProvider } from "./provider/codex-app-server-provider.js";
 import { CodexAppServerClient } from "./runtime/codex-app-server.js";
 import { checkCodexCapabilities } from "./runtime/codex-capabilities.js";
+import { discoverEnabledMcpServerNames } from "./runtime/codex-mcp-discovery.js";
 import { NodeProcessRunner, type ProcessRunner } from "./runtime/codex-process.js";
 import { mapCodexError } from "./runtime/error-mapper.js";
 import { EudicClient, type EudicFetch } from "./wordbook/eudic-client.js";
@@ -148,6 +149,13 @@ export function createNativeHostDispatcher(
   const appServer = new CodexAppServerClient({
     codexExecutable: options.codexExecutable,
     environment: options.environment,
+    mcpServerDiscovery: () =>
+      discoverEnabledMcpServerNames({
+        codexExecutable: options.codexExecutable,
+        environment: options.environment,
+        processRunner: options.processRunner,
+        workingDirectory: options.workingDirectory,
+      }),
     workingDirectory: options.workingDirectory,
   });
   const provider = new CodexAppServerProvider({

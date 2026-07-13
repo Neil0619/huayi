@@ -89,6 +89,7 @@ function createClient(processes: FakeAppServerProcess[], timeoutMs = 100): Codex
   const client = new CodexAppServerClient({
     codexExecutable: "codex",
     environment: { OPENAI_API_KEY: "must-not-leak" },
+    mcpServerDiscovery: async () => [],
     processFactory: () => {
       const process = processes[index];
       index += 1;
@@ -176,6 +177,122 @@ afterEach(() => {
 });
 
 describe("CodexAppServerClient startup lifecycle", () => {
+  it("discovers MCP servers before creating App Server", async () => {
+    let resolveDiscovery: (names: readonly string[]) => void = () => undefined;
+    const discovery = new Promise<readonly string[]>((resolve) => {
+      resolveDiscovery = resolve;
+    });
+    const process = new FakeAppServerProcess();
+    const processFactory = vi.fn(() => process);
+    const client = new CodexAppServerClient({
+      codexExecutable: "codex",
+      environment: {},
+      mcpServerDiscovery: () => discovery,
+      processFactory,
+      workingDirectory: "/tmp/huayi-empty",
+    });
+    clients.add(client);
+    const observation = observe(run(client, "discovery-order", new AbortController()));
+
+    await Promise.resolve();
+    expect(processFactory).not.toHaveBeenCalled();
+    resolveDiscovery(["node_repl"]);
+    await process.takeRequest("initialize");
+    expect(processFactory).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mcpServerNamesToDisable: ["node_repl"],
+      }),
+    );
+    client.dispose();
+    await vi.waitFor(() =>
+      expect(observation.rejection).toEqual(expect.objectContaining({ code: "CANCELLED" })),
+    );
+  });
+
+  it("maps MCP discovery rejection to a capability failure before process creation", async () => {
+    const processFactory = vi.fn(() => {
+      throw new Error("process creation must stay unreachable");
+    });
+    const client = new CodexAppServerClient({
+      codexExecutable: "codex",
+      environment: {},
+      mcpServerDiscovery: async () => {
+        throw new Error("untrusted discovery diagnostics");
+      },
+      processFactory,
+      workingDirectory: "/tmp/huayi-empty",
+    });
+    clients.add(client);
+
+    await expect(run(client, "discovery-failure", new AbortController())).rejects.toMatchObject({
+      code: "CODEX_CAPABILITY_MISSING",
+      retryable: false,
+    });
+    expect(processFactory).not.toHaveBeenCalled();
+  });
+
+  it("shares one MCP discovery across concurrent turns during startup", async () => {
+    let resolveDiscovery: (names: readonly string[]) => void = () => undefined;
+    const discoveryResult = new Promise<readonly string[]>((resolve) => {
+      resolveDiscovery = resolve;
+    });
+    const mcpServerDiscovery = vi.fn(() => discoveryResult);
+    const process = new FakeAppServerProcess();
+    const client = new CodexAppServerClient({
+      codexExecutable: "codex",
+      environment: {},
+      mcpServerDiscovery,
+      processFactory: () => process,
+      workingDirectory: "/tmp/huayi-empty",
+    });
+    clients.add(client);
+    const first = observe(run(client, "discovery-first", new AbortController()));
+    const second = observe(run(client, "discovery-second", new AbortController()));
+
+    await Promise.resolve();
+    expect(mcpServerDiscovery).toHaveBeenCalledTimes(1);
+    resolveDiscovery([]);
+    await process.takeRequest("initialize");
+    client.dispose();
+    await vi.waitFor(() => {
+      expect(first.rejection).toEqual(expect.objectContaining({ code: "CANCELLED" }));
+      expect(second.rejection).toEqual(expect.objectContaining({ code: "CANCELLED" }));
+    });
+  });
+
+  it("discovers MCP servers again after an App Server process failure", async () => {
+    const firstProcess = new FakeAppServerProcess();
+    const secondProcess = new FakeAppServerProcess();
+    const processes = [firstProcess, secondProcess];
+    let processIndex = 0;
+    const mcpServerDiscovery = vi.fn(async (): Promise<readonly string[]> => []);
+    const client = new CodexAppServerClient({
+      codexExecutable: "codex",
+      environment: {},
+      mcpServerDiscovery,
+      processFactory: () => {
+        const process = processes[processIndex];
+        processIndex += 1;
+        if (process === undefined) throw new Error("Missing fake App Server process.");
+        return process;
+      },
+      workingDirectory: "/tmp/huayi-empty",
+    });
+    clients.add(client);
+    const first = run(client, "discovery-crash", new AbortController());
+    await firstProcess.takeRequest("initialize");
+    firstProcess.emit("exit", 17, null);
+    await expect(first).rejects.toMatchObject({ code: "CODEX_CAPABILITY_MISSING" });
+
+    const second = observe(run(client, "discovery-restart", new AbortController()));
+    await secondProcess.takeRequest("initialize");
+    expect(mcpServerDiscovery).toHaveBeenCalledTimes(2);
+    client.dispose();
+    await vi.waitFor(() =>
+      expect(second.rejection).toEqual(expect.objectContaining({ code: "CANCELLED" })),
+    );
+  });
+
   it.each(startupPhases)("applies the total deadline while %s stalls", async (phase) => {
     vi.useFakeTimers();
     const process = new FakeAppServerProcess();

@@ -89,6 +89,7 @@ function createClient(processes: FakeAppServerProcess[], timeoutMs?: number): Co
   return new CodexAppServerClient({
     codexExecutable: "/opt/homebrew/bin/codex",
     environment: { HOME: "/Users/tester", OPENAI_API_KEY: "must-not-leak", PATH: "/usr/bin" },
+    mcpServerDiscovery: async () => [],
     processFactory: () => {
       const process = processes[processIndex];
       processIndex += 1;

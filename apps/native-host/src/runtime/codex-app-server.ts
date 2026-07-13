@@ -23,6 +23,7 @@ import {
   type CodexAppServerClientOptions,
   type AppServerSession as Session,
   type CodexTurnRequest,
+  type McpServerDiscovery,
 } from "./codex-app-server-lifecycle.js";
 import { MonitoredJsonRpcProcess } from "./codex-app-server-process-monitor.js";
 import {
@@ -43,6 +44,7 @@ export type {
   CodexAppServer,
   CodexAppServerClientOptions,
   CodexTurnRequest,
+  McpServerDiscovery,
 } from "./codex-app-server-lifecycle.js";
 
 const INTERRUPT_GRACE_MS = 1_000;
@@ -51,6 +53,7 @@ export class CodexAppServerClient implements CodexAppServer {
   readonly #activeTurns = new Map<string, ActiveTurn>();
   readonly #codexExecutable: string;
   readonly #environment: Readonly<NodeJS.ProcessEnv>;
+  readonly #mcpServerDiscovery: McpServerDiscovery;
   readonly #processFactory: (options: NodeAppServerProcessOptions) => JsonRpcProcess;
   readonly #timeoutMs: number;
   readonly #workingDirectory: string;
@@ -68,6 +71,7 @@ export class CodexAppServerClient implements CodexAppServer {
     }
     this.#codexExecutable = options.codexExecutable;
     this.#environment = buildAllowedEnvironment(options.environment);
+    this.#mcpServerDiscovery = options.mcpServerDiscovery;
     this.#processFactory = options.processFactory ?? createNodeAppServerProcess;
     this.#timeoutMs = timeoutMs;
     this.#workingDirectory = options.workingDirectory;
@@ -165,14 +169,17 @@ export class CodexAppServerClient implements CodexAppServer {
   async #startSession(): Promise<Session> {
     let process: JsonRpcProcess;
     try {
+      const mcpServerNamesToDisable = await this.#mcpServerDiscovery();
+      if (this.#disposed) throw cancelledError();
       process = this.#processFactory({
         codexExecutable: this.#codexExecutable,
         environment: this.#environment,
-        mcpServerNamesToDisable: [],
+        mcpServerNamesToDisable,
         workingDirectory: this.#workingDirectory,
       });
-    } catch {
-      throw capabilityMissingError();
+    } catch (error) {
+      if (error instanceof CodexProviderError && error.code === "CANCELLED") throw error;
+      throw capabilityMissingError(error);
     }
     const sessionHolder: { current?: Session } = {};
     const monitoredProcess = new MonitoredJsonRpcProcess({
@@ -197,6 +204,9 @@ export class CodexAppServerClient implements CodexAppServer {
     };
     sessionHolder.current = session;
     this.#session = session;
+    for (const active of this.#activeTurns.values()) {
+      if (active.session === undefined) active.session = session;
+    }
     session.channel.onNotification((notification) =>
       this.#handleNotification(session, notification),
     );

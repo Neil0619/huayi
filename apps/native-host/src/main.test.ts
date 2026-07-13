@@ -229,6 +229,7 @@ describe("native host bootstrap", () => {
       ],
       ["login", "status"],
     ]);
+    expect(requests.some((request) => request.arguments[0] === "mcp")).toBe(false);
     dispatcher.dispose();
   });
 
@@ -292,6 +293,7 @@ describe("native host bootstrap", () => {
       "authorization",
       "-w",
     ]);
+    expect(processRequests.some((request) => request.arguments[0] === "mcp")).toBe(false);
     expect(fetchRequests).toHaveLength(1);
     expect(fetchRequests[0]?.[1].headers.Authorization).toBe("Bearer configured-secret");
     dispatcher.dispose();
@@ -348,6 +350,7 @@ describe("native host bootstrap", () => {
       type: "word-status",
     });
     expect(processRequests).toHaveLength(1);
+    expect(processRequests.some((request) => request.arguments[0] === "mcp")).toBe(false);
     expect(fetchRequests).toHaveLength(1);
     expect(fetchRequests[0]?.[1].method).toBe("GET");
     dispatcher.dispose();

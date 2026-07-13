@@ -83,6 +83,7 @@ function createClient(process: FakeAppServerProcess): CodexAppServerClient {
   return new CodexAppServerClient({
     codexExecutable: "codex",
     environment: { OPENAI_API_KEY: "must-not-leak" },
+    mcpServerDiscovery: async () => [],
     processFactory: () => process,
     workingDirectory: "/tmp/huayi-empty",
   });
