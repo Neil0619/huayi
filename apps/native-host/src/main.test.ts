@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { HostEvent } from "@huayi/protocol";
 
 import {
+  createProviderValidationDiagnosticSink,
   createNativeHostDispatcher,
   readNativeHostConfiguration,
   runNativeHost,
@@ -35,6 +36,31 @@ class HealthDispatcher implements RequestDispatcher {
 }
 
 describe("runNativeHost", () => {
+  it("writes only bounded allowlisted provider diagnostics to the injected stderr sink", () => {
+    const errorOutput = new PassThrough();
+    const chunks: Buffer[] = [];
+    const fakeSecret = "fake-secret-token";
+    errorOutput.on("data", (chunk: Buffer) => chunks.push(chunk));
+    const writeDiagnostic = createProviderValidationDiagnosticSink(errorOutput);
+
+    writeDiagnostic({
+      field: "partOfSpeech",
+      stage: "model-schema",
+      modelJson: JSON.stringify({ value: fakeSecret }),
+      context: `Context ${fakeSecret}`,
+      token: fakeSecret,
+    } as never);
+    writeDiagnostic({ field: fakeSecret, stage: "model-json" } as never);
+
+    const diagnostics = Buffer.concat(chunks).toString("utf8");
+    expect(diagnostics).toBe(
+      "Native host provider validation: stage=model-schema field=partOfSpeech\n" +
+        "Native host provider validation: stage=model-json\n",
+    );
+    expect(diagnostics).not.toContain(fakeSecret);
+    expect(diagnostics.split("\n").every((line) => line.length <= 160)).toBe(true);
+  });
+
   it("writes only framed protocol data to stdout", async () => {
     const input = new PassThrough();
     const output = new PassThrough();
@@ -204,6 +230,7 @@ describe("native host bootstrap", () => {
     const dispatcher = createNativeHostDispatcher({
       codexExecutable: "/opt/codex",
       environment: { HOME: "/Users/tester" },
+      errorOutput: new PassThrough(),
       processRunner,
       schemaDirectory: "/tmp/schemas",
       workingDirectory: "/tmp/work",
@@ -259,6 +286,7 @@ describe("native host bootstrap", () => {
       codexExecutable: "/opt/codex",
       environment: { HOME: "/Users/tester" },
       eudicFetch,
+      errorOutput: new PassThrough(),
       processRunner,
       schemaDirectory: "/tmp/schemas",
       securityExecutable: "/usr/bin/security",
@@ -325,6 +353,7 @@ describe("native host bootstrap", () => {
       codexExecutable: "/opt/codex",
       environment: { HOME: "/Users/tester" },
       eudicFetch,
+      errorOutput: new PassThrough(),
       processRunner,
       schemaDirectory: "/tmp/schemas",
       securityExecutable: "/usr/bin/security",

@@ -1,5 +1,7 @@
 import type { AnalysisError, ErrorCode } from "@huayi/protocol";
 
+import type { ProviderValidationError } from "../provider/provider-validation.js";
+
 interface CodexProcessFailure {
   aborted?: boolean;
   exitCode: number | null;
@@ -122,6 +124,18 @@ export function mapCodexTurnFailure(failure: unknown): CodexProviderError {
     exitCode: null,
     stderr: turnFailureDiagnostics(failure),
   });
+}
+
+export function mapProviderValidationFailure(failure: ProviderValidationError): CodexProviderError {
+  switch (failure.stage) {
+    case "stream-parse":
+    case "model-json":
+    case "model-schema":
+      return providerError(ERROR_DEFINITIONS.INVALID_RESPONSE, { cause: failure });
+    case "result-assembly":
+    case "protocol-validation":
+      return providerError(ERROR_DEFINITIONS.INTERNAL_ERROR, { cause: failure });
+  }
 }
 
 export function mapCodexError(error: unknown): AnalysisError {

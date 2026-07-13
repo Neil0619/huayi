@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 
+import { ProviderValidationError } from "../provider/provider-validation.js";
 import {
   CodexProviderError,
   mapCodexError,
   mapCodexProcessFailure,
   mapCodexTurnFailure,
+  mapProviderValidationFailure,
 } from "./error-mapper.js";
 
 describe("Codex error mapping", () => {
@@ -61,5 +63,23 @@ describe("Codex error mapping", () => {
       message: "本机模型服务处理失败，请重试。",
       retryable: true,
     });
+  });
+
+  it.each([
+    ["stream-parse", "INVALID_RESPONSE"],
+    ["model-json", "INVALID_RESPONSE"],
+    ["model-schema", "INVALID_RESPONSE"],
+    ["result-assembly", "INTERNAL_ERROR"],
+    ["protocol-validation", "INTERNAL_ERROR"],
+  ] as const)("maps %s to retryable %s", (stage, code) => {
+    const error = mapProviderValidationFailure(
+      new ProviderValidationError(stage, {
+        cause: new Error("/Users/me/.codex/auth.json fake-secret-token"),
+      }),
+    );
+
+    expect(error).toMatchObject({ code, retryable: true });
+    expect(error.message).not.toContain("auth.json");
+    expect(mapCodexError(error).message).not.toContain("fake-secret-token");
   });
 });

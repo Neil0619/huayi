@@ -1,19 +1,25 @@
 import { readFile } from "node:fs/promises";
 import { isAbsolute, join } from "node:path";
 
-import { analysisResultSchema } from "@huayi/protocol";
 import type { AnalysisDeltaSection, AnalysisResult, AnalyzeRequest } from "@huayi/protocol";
 
 import type { CodexAppServer } from "../runtime/codex-app-server-lifecycle.js";
 import {
   CodexProviderError,
   capabilityMissingError,
-  invalidResponseError,
   mapCodexProcessFailure,
   mapCodexTurnFailure,
+  mapProviderValidationFailure,
 } from "../runtime/error-mapper.js";
 import type { AnalysisProvider, AnalysisStreamListener } from "./analysis-provider.js";
 import { buildAnalysisPrompt } from "./prompt-builder.js";
+import { resultTypeFor } from "./model-analysis-schemas.js";
+import { parseAndAssembleModelResult } from "./model-result-assembler.js";
+import {
+  ProviderValidationError,
+  providerValidationDiagnostic,
+  type ProviderValidationDiagnosticSink,
+} from "./provider-validation.js";
 import { StreamingJsonFieldExtractor } from "./streaming-json-fields.js";
 
 const STREAM_FIELDS = {
@@ -33,6 +39,7 @@ const STREAM_FIELDS = {
 
 export interface CodexAppServerProviderOptions {
   appServer: CodexAppServer;
+  onValidationDiagnostic?: ProviderValidationDiagnosticSink;
   schemaDirectory: string;
 }
 
@@ -40,41 +47,20 @@ function cancelledError(): CodexProviderError {
   return mapCodexProcessFailure({ aborted: true, exitCode: null, stderr: "" });
 }
 
-function resultTypeFor(
+function providerResultTypeFor(
   request: Pick<AnalyzeRequest, "action" | "selectionKind">,
 ): AnalysisResult["type"] {
-  const lexical = request.selectionKind === "word" || request.selectionKind === "phrase";
-  if (request.action === "translate") {
-    return lexical ? "translate-lexical" : "translate-passage";
+  try {
+    return resultTypeFor(request);
+  } catch {
+    throw new CodexProviderError("UNSUPPORTED_SELECTION", "当前选区不支持该操作。", false);
   }
-  if (lexical) return "explain-lexical";
-  if (request.selectionKind === "sentence") return "explain-sentence";
-  throw new CodexProviderError("UNSUPPORTED_SELECTION", "当前选区不支持该操作。", false);
 }
 
 export function outputSchemaFilenameFor(
   request: Pick<AnalyzeRequest, "action" | "selectionKind">,
 ): string {
-  return `${resultTypeFor(request)}.json`;
-}
-
-function parseResult(finalText: string, request: AnalyzeRequest): AnalysisResult {
-  let rawResult: unknown;
-  try {
-    rawResult = JSON.parse(finalText);
-  } catch (error) {
-    throw invalidResponseError(error);
-  }
-  const parsed = analysisResultSchema.safeParse(rawResult);
-  if (!parsed.success) throw invalidResponseError(parsed.error);
-  if (
-    parsed.data.type !== resultTypeFor(request) ||
-    parsed.data.selectionKind !== request.selectionKind ||
-    parsed.data.sourceText !== request.selection
-  ) {
-    throw invalidResponseError();
-  }
-  return parsed.data;
+  return `${providerResultTypeFor(request)}.json`;
 }
 
 function isJsonObject(value: unknown): value is Record<string, unknown> {
@@ -83,6 +69,7 @@ function isJsonObject(value: unknown): value is Record<string, unknown> {
 
 export class CodexAppServerProvider implements AnalysisProvider {
   readonly #appServer: CodexAppServer;
+  readonly #onValidationDiagnostic: ProviderValidationDiagnosticSink | undefined;
   readonly #schemaDirectory: string;
   readonly #schemas = new Map<string, Promise<Record<string, unknown>>>();
   #disposed = false;
@@ -92,6 +79,7 @@ export class CodexAppServerProvider implements AnalysisProvider {
       throw new TypeError("Codex schema directory must be an absolute path.");
     }
     this.#appServer = options.appServer;
+    this.#onValidationDiagnostic = options.onValidationDiagnostic;
     this.#schemaDirectory = options.schemaDirectory;
   }
 
@@ -101,12 +89,12 @@ export class CodexAppServerProvider implements AnalysisProvider {
     onDelta?: AnalysisStreamListener,
   ): Promise<AnalysisResult> {
     if (signal.aborted) throw cancelledError();
-    const resultType = resultTypeFor(request);
+    const resultType = providerResultTypeFor(request);
     const outputSchema = await this.#loadSchema(`${resultType}.json`);
     if (signal.aborted) throw cancelledError();
 
     const extractor = new StreamingJsonFieldExtractor(STREAM_FIELDS[resultType]);
-    let extractionFailure: unknown;
+    let extractionFailure: ProviderValidationError | undefined;
     let finalText: string;
     try {
       finalText = await this.#appServer.runTurn({
@@ -116,7 +104,7 @@ export class CodexAppServerProvider implements AnalysisProvider {
           try {
             chunks = extractor.push(delta);
           } catch (error) {
-            extractionFailure = error;
+            extractionFailure = new ProviderValidationError("stream-parse", { cause: error });
             return;
           }
           for (const chunk of chunks) onDelta?.(chunk);
@@ -132,19 +120,33 @@ export class CodexAppServerProvider implements AnalysisProvider {
       throw mapCodexTurnFailure(error);
     }
 
-    if (extractionFailure !== undefined) throw invalidResponseError(extractionFailure);
+    if (extractionFailure !== undefined) this.#failValidation(extractionFailure);
     try {
       extractor.finish();
     } catch (error) {
-      throw invalidResponseError(error);
+      this.#failValidation(new ProviderValidationError("stream-parse", { cause: error }));
     }
-    return parseResult(finalText, request);
+    try {
+      return parseAndAssembleModelResult(finalText, request);
+    } catch (error) {
+      if (error instanceof ProviderValidationError) this.#failValidation(error);
+      throw error;
+    }
   }
 
   dispose(): void {
     if (this.#disposed) return;
     this.#disposed = true;
     this.#appServer.dispose();
+  }
+
+  #failValidation(failure: ProviderValidationError): never {
+    try {
+      this.#onValidationDiagnostic?.(providerValidationDiagnostic(failure));
+    } catch {
+      // Diagnostics must never replace the fixed public validation error.
+    }
+    throw mapProviderValidationFailure(failure);
   }
 
   #loadSchema(filename: string): Promise<Record<string, unknown>> {

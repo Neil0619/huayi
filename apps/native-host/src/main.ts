@@ -12,6 +12,10 @@ import {
 import { NativeMessageDispatcher } from "./protocol/dispatcher.js";
 import { NativeMessageDecoder, encodeNativeMessage } from "./protocol/framing.js";
 import { CodexAppServerProvider } from "./provider/codex-app-server-provider.js";
+import {
+  formatProviderValidationDiagnostic,
+  type ProviderValidationDiagnosticSink,
+} from "./provider/provider-validation.js";
 import { CodexAppServerClient } from "./runtime/codex-app-server.js";
 import { checkCodexCapabilities } from "./runtime/codex-capabilities.js";
 import { discoverEnabledMcpServerNames } from "./runtime/codex-mcp-discovery.js";
@@ -42,8 +46,18 @@ export interface NativeHostConfiguration {
 
 export interface NativeHostDispatcherOptions extends NativeHostConfiguration {
   eudicFetch?: EudicFetch;
+  errorOutput: Writable;
   processRunner: ProcessRunner;
   securityExecutable?: string;
+}
+
+export function createProviderValidationDiagnosticSink(
+  errorOutput: Writable,
+): ProviderValidationDiagnosticSink {
+  return (diagnostic) => {
+    const line = formatProviderValidationDiagnostic(diagnostic);
+    if (line !== undefined) errorOutput.write(line);
+  };
 }
 
 function errorMessage(error: unknown): string {
@@ -160,6 +174,7 @@ export function createNativeHostDispatcher(
   });
   const provider = new CodexAppServerProvider({
     appServer,
+    onValidationDiagnostic: createProviderValidationDiagnosticSink(options.errorOutput),
     schemaDirectory: options.schemaDirectory,
   });
   const authorizationReader = new MacosEudicAuthorizationReader({
@@ -186,7 +201,11 @@ export function startConfiguredNativeHost(environment = process.env): () => void
   const processRunner = new NodeProcessRunner();
   const configuration = readNativeHostConfiguration(environment);
   return runNativeHost({
-    dispatcher: createNativeHostDispatcher({ ...configuration, processRunner }),
+    dispatcher: createNativeHostDispatcher({
+      ...configuration,
+      errorOutput: process.stderr,
+      processRunner,
+    }),
     errorOutput: process.stderr,
     input: process.stdin,
     output: process.stdout,
