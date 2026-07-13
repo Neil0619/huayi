@@ -79,12 +79,21 @@ function createInstance(runtime: FakeRuntime): ContentScriptInstance {
   return instance;
 }
 
-function selectText(text: string): HTMLElement {
+function selectText(text: string, selectedText = text): HTMLElement {
   const element = document.createElement("p");
   element.textContent = text;
   document.body.append(element);
+  const node = element.firstChild;
+  if (!(node instanceof Text)) {
+    throw new Error("Expected text fixture.");
+  }
+  const start = node.data.indexOf(selectedText);
+  if (start < 0) {
+    throw new Error("Selected text was not found in the fixture.");
+  }
   const range = document.createRange();
-  range.selectNodeContents(element);
+  range.setStart(node, start);
+  range.setEnd(node, start + selectedText.length);
   const selection = window.getSelection();
   if (selection === null) {
     throw new Error("Selection API is unavailable.");
@@ -144,15 +153,38 @@ describe("content-script concurrent operations", () => {
     ]);
   });
 
-  it("does not query wordbook status for a phrase", async () => {
+  it("sends sentence context for a phrase without exposing a wordbook action", async () => {
     const runtime = new FakeRuntime();
     createInstance(runtime);
-    selectText("sustained heatwave");
+    selectText("A sustained heatwave affected the region.", "sustained heatwave");
 
     chooseTranslation();
+    expect(runtime.sent[0]).toMatchObject({
+      request: {
+        selection: "sustained heatwave",
+        sentenceContext: "A sustained heatwave affected the region.",
+      },
+      type: "ANALYZE_SELECTION",
+    });
     await acknowledgeAnalysis();
 
+    runtime.emit({
+      requestId: "request-1",
+      result: {
+        ...lexicalResult,
+        selectionKind: "phrase",
+        sourceText: "sustained heatwave",
+      },
+      schemaVersion: 2,
+      type: "result",
+    });
+
     expect(runtime.sent.map((command) => command.type)).toEqual(["ANALYZE_SELECTION"]);
+    expect(
+      document
+        .querySelector<HTMLElement>("[data-huayi-overlay-host]")
+        ?.shadowRoot?.querySelector("[data-action='add-word']"),
+    ).toBeNull();
   });
 
   it.each([

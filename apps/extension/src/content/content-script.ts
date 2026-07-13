@@ -96,7 +96,7 @@ export function createAnalyzeRequest(
     schemaVersion: SCHEMA_VERSION,
     selection: selection.selection,
     selectionKind: selection.selectionKind,
-    sentenceContext: null,
+    sentenceContext: selection.sentenceContext,
     targetLanguage: "zh-CN",
     type: "analyze",
   });
@@ -260,6 +260,7 @@ export function initializeContentScript(options: ContentScriptOptions = {}): Con
         context: reading.context,
         selection: reading.selection,
         selectionKind: reading.selectionKind,
+        sentenceContext: reading.sentenceContext,
         wordbookContext: reading.wordbookContext,
       },
       getAnchorRect(reading.range),

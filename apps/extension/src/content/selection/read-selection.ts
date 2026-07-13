@@ -4,7 +4,7 @@ import type { SelectionKind } from "@huayi/protocol";
 import { classifySelection } from "./classify-selection.js";
 import { isEnglishText, normalizeSelectionText } from "./detect-english.js";
 import { extractContext } from "./extract-context.js";
-import { extractWordbookContext } from "./extract-wordbook-context.js";
+import { extractSentenceContext } from "./extract-sentence-context.js";
 
 const EDITABLE_SELECTOR =
   'input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"]';
@@ -13,6 +13,7 @@ export interface SelectionRequestInput {
   context: string;
   selection: string;
   selectionKind: SelectionKind;
+  sentenceContext: string | null;
   wordbookContext: string | null;
 }
 
@@ -58,12 +59,14 @@ export function readSelection(
   }
 
   const selectionKind = classifySelection(normalizedSelection);
+  const lexical = selectionKind === "word" || selectionKind === "phrase";
+  const sentenceContext = lexical ? extractSentenceContext(range, normalizedSelection) : null;
   return {
     context: extractContext(range, normalizedSelection),
     range: range.cloneRange(),
     selection: normalizedSelection,
     selectionKind,
-    wordbookContext:
-      selectionKind === "word" ? extractWordbookContext(range, normalizedSelection) : null,
+    sentenceContext,
+    wordbookContext: selectionKind === "word" ? sentenceContext : null,
   };
 }

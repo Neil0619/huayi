@@ -6,14 +6,22 @@ import {
   trimContextAroundSelection,
 } from "./extract-context.js";
 
-function createRangeFor(element: Element, selectedText: string) {
+function createRangeFor(element: Element, selectedText: string, occurrence = 0) {
   const textNode = element.firstChild;
 
   if (!(textNode instanceof Text)) {
     throw new Error("Expected a text node fixture.");
   }
 
-  const start = textNode.data.indexOf(selectedText);
+  let start = -1;
+  let from = 0;
+  for (let index = 0; index <= occurrence; index += 1) {
+    start = textNode.data.indexOf(selectedText, from);
+    if (start < 0) {
+      throw new Error("Selected text was not found in the fixture.");
+    }
+    from = start + selectedText.length;
+  }
   const range = document.createRange();
   range.setStart(textNode, start);
   range.setEnd(textNode, start + selectedText.length);
@@ -75,5 +83,21 @@ describe("extractContext", () => {
 
     expect(context).toHaveLength(2_000);
     expect(context).toContain("investigation");
+  });
+
+  it("centers a long repeated context on the occurrence selected by the Range", () => {
+    const paragraph = document.createElement("p");
+    paragraph.textContent =
+      `victims ${"alpha ".repeat(500)}` + `selected victims marker ${"omega ".repeat(500)}`;
+    document.body.append(paragraph);
+    const range = createRangeFor(paragraph, "victims", 1);
+
+    const context = extractContext(range, "victims");
+
+    expect(context).toHaveLength(2_000);
+    expect(context).toContain("selected victims marker");
+    const selectedIndex = context.indexOf("selected victims marker");
+    expect(selectedIndex).toBeGreaterThan(900);
+    expect(selectedIndex).toBeLessThan(1_100);
   });
 });

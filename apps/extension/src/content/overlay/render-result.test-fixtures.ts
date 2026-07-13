@@ -74,6 +74,7 @@ export const session = {
     context: "Context",
     selection: "Selection",
     selectionKind: "word",
+    sentenceContext: "Selection context.",
     wordbookContext: "Selection context.",
   },
   startedAt: 1_000,

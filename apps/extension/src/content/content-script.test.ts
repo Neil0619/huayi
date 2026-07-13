@@ -103,6 +103,7 @@ describe("createAnalyzeRequest", () => {
           context: "The investigation was in its early stages.",
           selection: "investigation",
           selectionKind: "word",
+          sentenceContext: "The investigation was in its early stages.",
           wordbookContext: "The investigation was in its early stages.",
         },
         "translate",
@@ -115,7 +116,7 @@ describe("createAnalyzeRequest", () => {
       schemaVersion: 2,
       selection: "investigation",
       selectionKind: "word",
-      sentenceContext: null,
+      sentenceContext: "The investigation was in its early stages.",
       targetLanguage: "zh-CN",
       type: "analyze",
     });
@@ -128,6 +129,7 @@ describe("createAnalyzeRequest", () => {
           context: "First sentence. Second sentence.",
           selection: "First sentence. Second sentence.",
           selectionKind: "paragraph",
+          sentenceContext: null,
           wordbookContext: null,
         },
         "explain",
@@ -145,6 +147,7 @@ describe("createAddWordRequest", () => {
           context: "A wider paragraph that is not sent.",
           selection: "investigation",
           selectionKind: "word",
+          sentenceContext: "The investigation was in its early stages.",
           wordbookContext: "The investigation was in its early stages.",
         },
         "word-1",
@@ -166,6 +169,7 @@ describe("createAddWordRequest", () => {
           context: "sustained heatwave",
           selection: "sustained heatwave",
           selectionKind: "phrase",
+          sentenceContext: "A sustained heatwave affected the region.",
           wordbookContext: null,
         },
         "word-2",
@@ -182,6 +186,7 @@ describe("createCheckWordRequest", () => {
           context: "A wider paragraph that must not be sent.",
           selection: "investigation",
           selectionKind: "word",
+          sentenceContext: "The investigation continues.",
           wordbookContext: "The investigation continues.",
         },
         "check-1",
@@ -201,9 +206,19 @@ describe("initializeContentScript", () => {
     const runtime = new FakeRuntime();
     const instance = createInstance(runtime);
     const paragraph = document.createElement("p");
-    paragraph.textContent = "investigation";
+    paragraph.textContent = "The investigation was in its early stages.";
     document.body.append(paragraph);
-    selectContents(paragraph);
+    const text = paragraph.firstChild;
+    if (!(text instanceof Text)) {
+      throw new Error("Expected text fixture.");
+    }
+    const range = document.createRange();
+    const start = text.data.indexOf("investigation");
+    range.setStart(text, start);
+    range.setEnd(text, start + "investigation".length);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
 
     document.dispatchEvent(new MouseEvent("mouseup"));
     instance.controller.shadowRoot
@@ -211,7 +226,11 @@ describe("initializeContentScript", () => {
       ?.click();
 
     expect(runtime.sent[0]).toMatchObject({
-      request: { requestId: "request-1", selection: "investigation" },
+      request: {
+        requestId: "request-1",
+        selection: "investigation",
+        sentenceContext: "The investigation was in its early stages.",
+      },
       type: "ANALYZE_SELECTION",
     });
 
@@ -241,7 +260,7 @@ describe("initializeContentScript", () => {
       ?.click();
     expect(runtime.sent[1]).toEqual({
       request: {
-        context: "investigation",
+        context: "The investigation was in its early stages.",
         language: "en",
         requestId: "request-2",
         schemaVersion: 2,

@@ -3,6 +3,11 @@ import { MAX_CONTEXT_LENGTH } from "@huayi/protocol";
 import { isEnglishText, normalizeSelectionText } from "./detect-english.js";
 import { findSemanticBlock } from "./extract-context.js";
 
+interface CroppedSentence {
+  start: number;
+  value: string;
+}
+
 interface SentenceSpan {
   end: number;
   start: number;
@@ -78,16 +83,17 @@ function rangeOffset(block: Element, container: Node, offset: number): number | 
   }
 }
 
+function normalizeSentenceText(value: string): string {
+  return normalizeSelectionText(value).replace(/\s+/gu, " ");
+}
+
 function normalizedSelectionOffset(
   rawSentence: string,
   rawOffset: number,
   selection: string,
-): number {
-  const normalizedSentence = normalizeSelectionText(rawSentence).replace(/\s+/gu, " ");
-  const approximateOffset = normalizeSelectionText(rawSentence.slice(0, rawOffset)).replace(
-    /\s+/gu,
-    " ",
-  ).length;
+): number | null {
+  const normalizedSentence = normalizeSentenceText(rawSentence);
+  const approximateOffset = normalizeSentenceText(rawSentence.slice(0, rawOffset)).length;
   const matches: number[] = [];
   let from = 0;
   while (from <= normalizedSentence.length) {
@@ -98,52 +104,75 @@ function normalizedSelectionOffset(
     matches.push(match);
     from = match + Math.max(1, selection.length);
   }
-  return matches.reduce(
-    (closest, candidate) =>
-      Math.abs(candidate - approximateOffset) < Math.abs(closest - approximateOffset)
-        ? candidate
-        : closest,
-    matches[0] ?? Math.min(approximateOffset, normalizedSentence.length),
+  if (matches.length === 0) {
+    return null;
+  }
+  return matches.reduce((closest, candidate) =>
+    Math.abs(candidate - approximateOffset) < Math.abs(closest - approximateOffset)
+      ? candidate
+      : closest,
   );
 }
 
-function cropAroundOffset(value: string, selectionStart: number, selectionLength: number): string {
+function cropAroundOffset(
+  value: string,
+  selectionStart: number,
+  selectionLength: number,
+): CroppedSentence {
   if (value.length <= MAX_CONTEXT_LENGTH) {
-    return value;
+    return { start: 0, value };
   }
   const safeSelectionLength = Math.min(selectionLength, MAX_CONTEXT_LENGTH);
   const surroundingLength = MAX_CONTEXT_LENGTH - safeSelectionLength;
   const preferredStart = selectionStart - Math.floor(surroundingLength / 2);
-  const windowStart = Math.min(Math.max(0, preferredStart), value.length - MAX_CONTEXT_LENGTH);
-  return value.slice(windowStart, windowStart + MAX_CONTEXT_LENGTH);
+  const start = Math.min(Math.max(0, preferredStart), value.length - MAX_CONTEXT_LENGTH);
+  return { start, value: value.slice(start, start + MAX_CONTEXT_LENGTH) };
 }
 
-export function extractWordbookContext(range: Range, selection: string): string {
-  const normalizedSelection = normalizeSelectionText(selection);
+export function extractSentenceContext(range: Range, selection: string): string | null {
+  const normalizedSelection = normalizeSentenceText(selection);
+  if (
+    !isEnglishText(normalizedSelection) ||
+    normalizeSentenceText(range.toString()) !== normalizedSelection
+  ) {
+    return null;
+  }
+
   const block =
     findSemanticBlock(range.commonAncestorContainer) ?? findSemanticBlock(range.startContainer);
-  if (block === null) {
-    return normalizedSelection;
+  if (
+    block === null ||
+    !block.contains(range.startContainer) ||
+    !block.contains(range.endContainer)
+  ) {
+    return null;
   }
 
   const rawContext = textWithLineBreaks(block);
   const segmentationContext = rawContext.replace(/[\s\u00a0]/gu, " ");
   const selectionStart = rangeOffset(block, range.startContainer, range.startOffset);
   const selectionEnd = rangeOffset(block, range.endContainer, range.endOffset);
-  if (selectionStart === null || selectionEnd === null) {
-    return normalizedSelection;
+  if (
+    selectionStart === null ||
+    selectionEnd === null ||
+    selectionStart < 0 ||
+    selectionEnd < selectionStart ||
+    selectionEnd > rawContext.length
+  ) {
+    return null;
   }
+
   const span = sentenceSpans(segmentationContext).find(
     (candidate) => candidate.start <= selectionStart && candidate.end >= selectionEnd,
   );
   if (span === undefined) {
-    return normalizedSelection;
+    return null;
   }
 
   const rawSentence = rawContext.slice(span.start, span.end);
-  const normalizedSentence = normalizeSelectionText(rawSentence).replace(/\s+/gu, " ");
+  const normalizedSentence = normalizeSentenceText(rawSentence);
   if (!isEnglishText(normalizedSentence)) {
-    return normalizedSelection;
+    return null;
   }
 
   const selectedOffset = normalizedSelectionOffset(
@@ -151,6 +180,16 @@ export function extractWordbookContext(range: Range, selection: string): string 
     selectionStart - span.start,
     normalizedSelection,
   );
+  if (selectedOffset === null) {
+    return null;
+  }
+
   const cropped = cropAroundOffset(normalizedSentence, selectedOffset, normalizedSelection.length);
-  return cropped.includes(normalizedSelection) ? cropped : normalizedSelection;
+  const selectedOffsetInCrop = selectedOffset - cropped.start;
+  return cropped.value.slice(
+    selectedOffsetInCrop,
+    selectedOffsetInCrop + normalizedSelection.length,
+  ) === normalizedSelection
+    ? cropped.value
+    : null;
 }

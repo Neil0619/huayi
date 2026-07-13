@@ -15,6 +15,7 @@ const actionsForWord: ActionsOverlayState = {
     context: "The investigation continues.",
     selection: "investigation",
     selectionKind: "word",
+    sentenceContext: "The investigation continues.",
     wordbookContext: "The investigation continues.",
   },
   status: "actions",

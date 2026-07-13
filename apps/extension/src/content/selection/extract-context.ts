@@ -37,10 +37,11 @@ export function findSemanticBlock(node: Node | null): Element | null {
   return null;
 }
 
-export function trimContextAroundSelection(
+function trimContextAroundOffset(
   context: string,
   selection: string,
-  maximumLength = MAX_CONTEXT_LENGTH,
+  selectionStart: number,
+  maximumLength: number,
 ): string {
   if (maximumLength <= 0) {
     return "";
@@ -54,7 +55,6 @@ export function trimContextAroundSelection(
     return selection.slice(0, maximumLength);
   }
 
-  const selectionStart = context.indexOf(selection);
   if (selectionStart < 0) {
     return context.slice(0, maximumLength);
   }
@@ -67,10 +67,41 @@ export function trimContextAroundSelection(
   return context.slice(windowStart, windowStart + maximumLength);
 }
 
+export function trimContextAroundSelection(
+  context: string,
+  selection: string,
+  maximumLength = MAX_CONTEXT_LENGTH,
+): string {
+  return trimContextAroundOffset(context, selection, context.indexOf(selection), maximumLength);
+}
+
+function normalizedRangeStart(block: Element, range: Range): number | null {
+  if (!block.contains(range.startContainer)) {
+    return null;
+  }
+
+  try {
+    const prefix = block.ownerDocument.createRange();
+    prefix.selectNodeContents(block);
+    prefix.setEnd(range.startContainer, range.startOffset);
+    const marker = "x";
+    return normalizeSelectionText(`${prefix.toString()}${marker}`).length - marker.length;
+  } catch {
+    return null;
+  }
+}
+
 export function extractContext(range: Range, selection: string): string {
   const semanticBlock =
     findSemanticBlock(range.commonAncestorContainer) ?? findSemanticBlock(range.startContainer);
   const normalizedContext = normalizeSelectionText(semanticBlock?.textContent ?? selection);
+  const context = normalizedContext || selection;
+  const selectionStart =
+    semanticBlock === null
+      ? context.indexOf(selection)
+      : normalizedRangeStart(semanticBlock, range);
 
-  return trimContextAroundSelection(normalizedContext || selection, selection);
+  return selectionStart === null
+    ? trimContextAroundSelection(context, selection)
+    : trimContextAroundOffset(context, selection, selectionStart, MAX_CONTEXT_LENGTH);
 }

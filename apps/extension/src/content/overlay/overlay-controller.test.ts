@@ -17,6 +17,7 @@ const selection = {
   context: "The investigation was in its early stages.",
   selection: "investigation",
   selectionKind: "word",
+  sentenceContext: "The investigation was in its early stages.",
   wordbookContext: "The investigation was in its early stages.",
 } as const;
 
@@ -88,6 +89,7 @@ describe("OverlayController", () => {
         context: "First sentence. Second sentence.",
         selection: "First sentence. Second sentence.",
         selectionKind: "paragraph",
+        sentenceContext: null,
         wordbookContext: null,
       },
       anchorRect,

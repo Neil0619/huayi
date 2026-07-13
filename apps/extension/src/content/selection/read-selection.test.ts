@@ -34,11 +34,12 @@ describe("readSelection", () => {
     expect(reading?.selection).toBe("sustained heatwave");
     expect(reading?.context).toBe("sustained heatwave");
     expect(reading?.selectionKind).toBe("phrase");
+    expect(reading?.sentenceContext).toBe("sustained heatwave");
     expect(reading?.wordbookContext).toBeNull();
     expect(reading?.range).toBeInstanceOf(Range);
   });
 
-  it("captures the selected word's sentence for the wordbook", () => {
+  it("uses the exact word sentence for analysis and as the wordbook alias", () => {
     const paragraph = document.createElement("p");
     paragraph.textContent = "The investigation began. Later work continued.";
     document.body.append(paragraph);
@@ -54,7 +55,44 @@ describe("readSelection", () => {
     selection?.removeAllRanges();
     selection?.addRange(range);
 
-    expect(readSelection(selection)?.wordbookContext).toBe("The investigation began.");
+    expect(readSelection(selection)).toMatchObject({
+      sentenceContext: "The investigation began.",
+      wordbookContext: "The investigation began.",
+    });
+  });
+
+  it("returns null lexical context instead of the selected token for mixed Han text", () => {
+    const paragraph = document.createElement("p");
+    paragraph.textContent = "这是 investigation 的语境。";
+    document.body.append(paragraph);
+    const text = paragraph.firstChild;
+    if (!(text instanceof Text)) {
+      throw new Error("Expected text fixture.");
+    }
+    const range = document.createRange();
+    const start = text.data.indexOf("investigation");
+    range.setStart(text, start);
+    range.setEnd(text, start + "investigation".length);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+
+    expect(readSelection(selection)).toMatchObject({
+      sentenceContext: null,
+      wordbookContext: null,
+    });
+  });
+
+  it("does not extract lexical sentence context for sentence selections", () => {
+    const paragraph = document.createElement("p");
+    paragraph.textContent = "The investigation began.";
+    document.body.append(paragraph);
+
+    expect(readSelection(selectContents(paragraph))).toMatchObject({
+      selectionKind: "sentence",
+      sentenceContext: null,
+      wordbookContext: null,
+    });
   });
 
   it("ignores empty, Chinese, and oversized selections", () => {
