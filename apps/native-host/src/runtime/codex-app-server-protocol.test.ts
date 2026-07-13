@@ -88,9 +88,9 @@ describe("isInertMcpResponse", () => {
   it.each(["authStatus", "name", "resourceTemplates", "resources", "serverInfo", "tools"])(
     "rejects an MCP record missing %s",
     (field) => {
-      expect(
-        isInertMcpResponse({ data: [withoutField(inertMcp, field)], nextCursor: null }),
-      ).toBe(false);
+      expect(isInertMcpResponse({ data: [withoutField(inertMcp, field)], nextCursor: null })).toBe(
+        false,
+      );
     },
   );
 

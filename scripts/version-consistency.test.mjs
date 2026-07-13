@@ -24,8 +24,8 @@ test("workspace packages and Chrome manifest share the release version", async (
     releaseFiles.map(async (path) => ({ path, version: (await readJson(path)).version })),
   );
 
-  assert.equal(rootPackage.version, "0.3.0");
-  assert.equal(extensionManifest.version, "0.3.0");
+  assert.equal(rootPackage.version, "0.3.1");
+  assert.equal(extensionManifest.version, "0.3.1");
   for (const release of versions) {
     assert.equal(release.version, rootPackage.version, `${release.path} version must match root`);
   }

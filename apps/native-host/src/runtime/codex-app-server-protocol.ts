@@ -88,9 +88,7 @@ function isNonEmptyString(value: unknown): value is string {
 
 function hasExactKeys(value: JsonObject, expectedKeys: readonly string[]): boolean {
   const keys = Object.keys(value);
-  return (
-    keys.length === expectedKeys.length && keys.every((key) => expectedKeys.includes(key))
-  );
+  return keys.length === expectedKeys.length && keys.every((key) => expectedKeys.includes(key));
 }
 
 function isEmptyArray(value: unknown): value is [] {
@@ -258,7 +256,7 @@ export async function initializeAppServerChannel(
 ): Promise<void> {
   const initialized = await channel.request("initialize", {
     capabilities: { experimentalApi: true, requestAttestation: false },
-    clientInfo: { name: "huayi", title: "Huayi Native Host", version: "0.3.0" },
+    clientInfo: { name: "huayi", title: "Huayi Native Host", version: "0.3.1" },
   });
   if (!isInitializeResponse(initialized)) throw new AppServerInvariantError();
   channel.notify("initialized");

@@ -14,11 +14,15 @@ chat.
 - Eudic wordbook behavior: `docs/superpowers/specs/2026-07-12-eudic-wordbook-design.md`.
 - Streaming and word-status behavior:
   `docs/superpowers/specs/2026-07-12-streaming-analysis-design.md`.
+- Codex capability compatibility behavior:
+  `docs/superpowers/specs/2026-07-13-codex-capability-compatibility-design.md`.
 - Wire contracts: `packages/protocol/src/` and `docs/protocol.md`.
 - Security boundaries: `docs/security.md`.
 - Execution order: `docs/superpowers/plans/2026-07-11-huayi-mvp.md`.
 - Eudic execution order: `docs/superpowers/plans/2026-07-12-eudic-wordbook.md`.
 - Streaming execution order: `docs/superpowers/plans/2026-07-12-streaming-analysis.md`.
+- Codex capability compatibility execution order:
+  `docs/superpowers/plans/2026-07-13-codex-capability-compatibility.md`.
 - Keep temporary task status out of AGENTS.md files.
 
 ## Architecture boundaries

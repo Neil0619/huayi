@@ -7,13 +7,23 @@
 - Codex App Server has no ignore-user-config or ignore-rules flags; never invent or require them.
 - Start App Server with the verified environment allowlist, strict config, and explicit overrides
   for read-only/no-network sandboxing, never approval, disabled web search, no history, empty
-  Hook/MCP tables, no inherited shell environment, and no image viewer.
-- Disable `apps`, `hooks`, `image_generation`, `in_app_browser`, `memories`, `multi_agent`,
-  `plugins`, `remote_plugin`, `shell_tool`, `unified_exec`, `shell_snapshot`, and `tool_suggest`.
+  Hook configuration, and no inherited shell environment.
+- Disable `apps`, `auth_elicitation`, `browser_use`, `browser_use_external`,
+  `browser_use_full_cdp_access`, `computer_use`, `enable_mcp_apps`, `hooks`, `image_generation`,
+  `in_app_browser`, `memories`, `multi_agent`, `plugins`, `remote_plugin`, `shell_snapshot`,
+  `shell_tool`, `skill_mcp_dependency_install`, `tool_call_mcp_elicitation`, `tool_suggest`,
+  `unified_exec`, and `workspace_dependencies`.
+- Discover directly configured MCP servers with the no-model `codex mcp list --json` command
+  before each App Server process start; validate names and disable every enabled server with an
+  individual config override.
+- Never use unsupported config keys or `mcp_servers={}` as a substitute for verified isolation.
+- Accept Hook records only for the dedicated cwd with empty hooks/warnings/errors, and MCP status
+  records only when disconnected and without tools, resources or templates.
+- Any discovery failure, unsafe name, active capability or unknown response shape fails closed.
 - Every analysis uses the dedicated empty cwd and a new ephemeral thread with empty instruction
   sources, built-in `openai`, `gpt-5.4-mini`, and `low` effort. Validate all returned invariants.
-- Require empty Hook/MCP discovery. Approval, input, app, Hook, MCP, shell, file-change, web,
-  image, dynamic-tool, and collaboration-tool items fail closed.
+- Approval, input, app, Hook, MCP, shell, file-change, web, image, dynamic-tool, and
+  collaboration-tool items fail closed.
 - Never read, copy, parse, or display `~/.codex/auth.json`.
 - Pass only the documented environment allowlist to Codex.
 - Use a dedicated empty working directory outside the repository.

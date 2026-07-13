@@ -12,8 +12,27 @@
 `--disable` / `--config`，并确认以下功能可以被禁用：
 
 ```text
-apps hooks image_generation in_app_browser memories multi_agent plugins remote_plugin
-shell_tool unified_exec shell_snapshot tool_suggest
+apps
+auth_elicitation
+browser_use
+browser_use_external
+browser_use_full_cdp_access
+computer_use
+enable_mcp_apps
+hooks
+image_generation
+in_app_browser
+memories
+multi_agent
+plugins
+remote_plugin
+shell_snapshot
+shell_tool
+skill_mcp_dependency_install
+tool_call_mcp_elicitation
+tool_suggest
+unified_exec
+workspace_dependencies
 ```
 
 缺失任一能力或 ChatGPT 登录时失败关闭，不使用权限更宽的降级配置。
@@ -90,6 +109,23 @@ v0.3.0 同时改变扩展、Native Host、App Server provider 和 wire 事件，
 
 重复安装只替换 Huayi 自有 Host 文件，不读取、覆盖或删除现有欧路钥匙串授权，无需重新配置。
 扩展和 Host 必须同步为 `0.3.0`；公共 `schemaVersion` 仍为 `1`。
+
+## 从 v0.3.0 升级到 v0.3.1
+
+v0.3.1 修复 Codex App Server 能力兼容性：每次进程启动前发现用户直接配置的 MCP Server，
+逐个禁用已启用项，并在初始化后只接受安全 Hook 和无活动能力的 MCP 状态。公共 wire 协议未
+改变，`schemaVersion` 仍为 `1`，但扩展和 Host 版本必须同步。
+
+1. 在 v0.3.1 源码目录运行 `pnpm install && pnpm build`，重新生成扩展和 Host。
+2. 确认 Chrome 当前加载的扩展目录。若它不是本次构建的 `apps/extension/dist`，把新构建内容
+   完整同步到 Chrome 当前加载的原目录，保持加载路径和扩展 ID 不变。
+3. 在 `chrome://extensions` 找到“划译”并点击刷新，使 Chrome 载入 v0.3.1 Manifest。
+4. 使用同一个扩展 ID 重新运行 `pnpm host:install -- --extension-id <ID>`，安装 v0.3.1 Host。
+5. 用一个单词确认流式解释和生词状态正常；真实模型验证只在明确需要时运行
+   `pnpm smoke:codex`。
+
+重复安装不会读取、覆盖或删除 service `com.huayi.codex_bridge.eudic`、account
+`authorization` 的现有欧路钥匙串项；升级时不要先卸载，也不需要重新配置授权。
 
 ## 人工验收
 

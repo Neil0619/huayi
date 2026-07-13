@@ -19,7 +19,7 @@ import type { AnalysisProvider } from "../provider/analysis-provider.js";
 import { RequestQueue } from "../runtime/request-queue.js";
 import type { WordbookProvider } from "../wordbook/wordbook-provider.js";
 
-const HOST_VERSION = "0.3.0";
+const HOST_VERSION = "0.3.1";
 
 export type HostEventEmitter = (event: HostEvent) => void;
 

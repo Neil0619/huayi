@@ -15,8 +15,13 @@ authorization reader、fake fetch 和 Mock NativeTransport；只有显式 `pnpm 
 - 浮层：loading/streaming/result/error 状态、增量批处理、安全文本渲染、独立生词状态、
   右上角按钮、焦点、拖动、滚动、窄屏和迟到事件。
 - Service Worker：分析、查词、加词三通道，并发、定向取消、有序增量、严格终态、断线和超时。
-- App Server：JSON-RPC 拆包/合包、握手、按需重启、并发 turn、中断、ephemeral thread、固定
-  `openai` / `gpt-5.4-mini` / `low`、空指令来源、空 Hook/MCP 和安全返回不变量。
+- MCP 发现：fake process runner 覆盖已启用/已禁用过滤、命令参数和环境允许列表，以及进程
+  失败、超时、输出超限、无效 JSON、重复/不安全名称和 128 条记录上限。
+- App Server 参数：回归确认不传 `tools.view_image=false` 或 `mcp_servers={}`，只为经过校验的
+  已启用直接 MCP 生成逐项禁用覆盖。
+- App Server：JSON-RPC 拆包/合包、握手、按需重启并重新发现 MCP、并发 turn、中断、
+  ephemeral thread、固定 `openai` / `gpt-5.4-mini` / `low` 和空指令来源；接受目标 cwd 的
+  安全空 Hook 记录和无连接、无工具/资源/模板的 MCP 状态，拒绝活动记录和未知响应形状。
 - Provider：有界 JSON 字段增量、转义/Unicode/chunk 边界、最终 JSON Schema、公共 Schema、
   请求/结果一致性、提示注入和错误映射。
 - 欧路：自动 GET 查词、显式 GET-before-POST、固定 URL/Header/Body、授权逐次读取、串行、
