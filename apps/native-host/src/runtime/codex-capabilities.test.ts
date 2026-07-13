@@ -1,26 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { APP_SERVER_DISABLED_FEATURES } from "./codex-app-server-config.js";
 import type { ProcessRunRequest, ProcessRunResult, ProcessRunner } from "./codex-process.js";
 import { checkCodexCapabilities } from "./codex-capabilities.js";
 
 const REQUIRED_HELP = ["--stdio", "--strict-config", "--disable", "--config"].join("\n");
-const DISABLED_FEATURE_NAMES = [
-  "apps",
-  "hooks",
-  "image_generation",
-  "in_app_browser",
-  "memories",
-  "multi_agent",
-  "plugins",
-  "remote_plugin",
-  "shell_tool",
-  "unified_exec",
-  "shell_snapshot",
-  "tool_suggest",
-] as const;
-const DISABLED_FEATURES = DISABLED_FEATURE_NAMES.map((feature) => `${feature} stable false`).join(
-  "\n",
-);
+const DISABLED_FEATURES = APP_SERVER_DISABLED_FEATURES.map(
+  (feature) => `${feature} stable false`,
+).join("\n");
 
 class FakeProcessRunner implements ProcessRunner {
   readonly requests: ProcessRunRequest[] = [];
@@ -44,6 +31,34 @@ function result(stdout: string, exitCode = 0, stderr = ""): ProcessRunResult {
   return { exitCode, signal: null, stderr, stdout };
 }
 
+describe("APP_SERVER_DISABLED_FEATURES", () => {
+  it("locks every supported execution surface off", () => {
+    expect(APP_SERVER_DISABLED_FEATURES).toEqual([
+      "apps",
+      "auth_elicitation",
+      "browser_use",
+      "browser_use_external",
+      "browser_use_full_cdp_access",
+      "computer_use",
+      "enable_mcp_apps",
+      "hooks",
+      "image_generation",
+      "in_app_browser",
+      "memories",
+      "multi_agent",
+      "plugins",
+      "remote_plugin",
+      "shell_snapshot",
+      "shell_tool",
+      "skill_mcp_dependency_install",
+      "tool_call_mcp_elicitation",
+      "tool_suggest",
+      "unified_exec",
+      "workspace_dependencies",
+    ]);
+  });
+});
+
 describe("checkCodexCapabilities", () => {
   it("checks App Server flags, every disabled feature, and ChatGPT login", async () => {
     const runner = new FakeProcessRunner([
@@ -65,7 +80,11 @@ describe("checkCodexCapabilities", () => {
     expect(runner.requests.map((request) => request.arguments)).toEqual([
       ["--version"],
       ["app-server", "--help"],
-      ["features", "list", ...DISABLED_FEATURE_NAMES.flatMap((feature) => ["--disable", feature])],
+      [
+        "features",
+        "list",
+        ...APP_SERVER_DISABLED_FEATURES.flatMap((feature) => ["--disable", feature]),
+      ],
       ["login", "status"],
     ]);
     expect(runner.requests.every((request) => request.input === "")).toBe(true);

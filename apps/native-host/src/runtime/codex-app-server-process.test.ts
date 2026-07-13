@@ -4,7 +4,11 @@ import { PassThrough } from "node:stream";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { APP_SERVER_ARGUMENTS, createNodeAppServerProcess } from "./codex-app-server.js";
+import {
+  buildAppServerArguments,
+  createNodeAppServerProcess,
+  HUAYI_THREAD_CONFIG,
+} from "./codex-app-server-config.js";
 import type { JsonRpcProcess } from "./json-rpc-channel.js";
 
 vi.mock("node:child_process", () => ({ spawn: vi.fn() }));
@@ -24,79 +28,46 @@ afterEach(() => vi.clearAllMocks());
 describe("Codex App Server process", () => {
   it("spawns the exact locked-down stdio server with only allowed environment variables", () => {
     const process = new FakeAppServerProcess();
+    const mcpServerNamesToDisable = ["confluence-wiki-mcp", "node_repl"];
+    const appServerArguments = buildAppServerArguments(mcpServerNamesToDisable);
     vi.mocked(spawn).mockReturnValue(process as unknown as ReturnType<typeof spawn>);
 
     expect(
       createNodeAppServerProcess({
         codexExecutable: "/opt/homebrew/bin/codex",
         environment: { HOME: "/Users/tester", OPENAI_API_KEY: "secret", PATH: "/usr/bin" },
+        mcpServerNamesToDisable,
         workingDirectory: "/tmp/huayi-empty",
       }),
     ).toBe(process);
-    expect(spawn).toHaveBeenCalledWith("/opt/homebrew/bin/codex", [...APP_SERVER_ARGUMENTS], {
+    expect(appServerArguments).not.toContain("tools.view_image=false");
+    expect(appServerArguments).not.toContain("mcp_servers={}");
+    expect(appServerArguments).toEqual(
+      expect.arrayContaining([
+        "--config",
+        "mcp_servers.confluence-wiki-mcp.enabled=false",
+        "--config",
+        "mcp_servers.node_repl.enabled=false",
+      ]),
+    );
+    expect(spawn).toHaveBeenCalledWith("/opt/homebrew/bin/codex", [...appServerArguments], {
       cwd: "/tmp/huayi-empty",
       env: { HOME: "/Users/tester", PATH: "/usr/bin" },
       shell: false,
       stdio: ["pipe", "pipe", "pipe"],
     });
-    expect(APP_SERVER_ARGUMENTS).toEqual([
-      "app-server",
-      "--stdio",
-      "--strict-config",
-      "--disable",
-      "apps",
-      "--disable",
-      "hooks",
-      "--disable",
-      "image_generation",
-      "--disable",
-      "in_app_browser",
-      "--disable",
-      "memories",
-      "--disable",
-      "multi_agent",
-      "--disable",
-      "plugins",
-      "--disable",
-      "remote_plugin",
-      "--disable",
-      "shell_tool",
-      "--disable",
-      "unified_exec",
-      "--disable",
-      "shell_snapshot",
-      "--disable",
-      "tool_suggest",
-      "--config",
-      "analytics.enabled=false",
-      "--config",
-      'approval_policy="never"',
-      "--config",
-      'sandbox_mode="read-only"',
-      "--config",
-      'web_search="disabled"',
-      "--config",
-      'model_reasoning_effort="low"',
-      "--config",
-      'history.persistence="none"',
-      "--config",
-      "hooks={}",
-      "--config",
-      'shell_environment_policy.inherit="none"',
-      "--config",
-      "tools.view_image=false",
-      "--config",
-      "mcp_servers={}",
-      "--config",
-      "notify=[]",
-      "--config",
-      'otel.metrics_exporter="none"',
-      "--config",
-      'otel.trace_exporter="none"',
-      "--config",
-      "otel.log_user_prompt=false",
-      "--config",
-      "apps._default.enabled=false",
-    ]);
+  });
+
+  it("rejects unsafe, duplicate, and over-limit MCP server names", () => {
+    expect(() => buildAppServerArguments(["bad.name"])).toThrow(/MCP server name/u);
+    expect(() => buildAppServerArguments(["same", "same"])).toThrow(/MCP server name/u);
+    expect(() =>
+      buildAppServerArguments(Array.from({ length: 129 }, (_, index) => `server-${index}`)),
+    ).toThrow(/Too many MCP server names/u);
+  });
+
+  it("does not send the incompatible overrides in thread configuration", () => {
+    expect(HUAYI_THREAD_CONFIG).not.toHaveProperty("tools.view_image");
+    expect(HUAYI_THREAD_CONFIG).not.toHaveProperty("mcp_servers");
   });
 });

@@ -168,6 +168,7 @@ export class CodexAppServerClient implements CodexAppServer {
       process = this.#processFactory({
         codexExecutable: this.#codexExecutable,
         environment: this.#environment,
+        mcpServerNamesToDisable: [],
         workingDirectory: this.#workingDirectory,
       });
     } catch {

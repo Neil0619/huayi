@@ -5,6 +5,12 @@ import type { JsonRpcProcess } from "./json-rpc-channel.js";
 
 export const APP_SERVER_DISABLED_FEATURES = [
   "apps",
+  "auth_elicitation",
+  "browser_use",
+  "browser_use_external",
+  "browser_use_full_cdp_access",
+  "computer_use",
+  "enable_mcp_apps",
   "hooks",
   "image_generation",
   "in_app_browser",
@@ -12,10 +18,13 @@ export const APP_SERVER_DISABLED_FEATURES = [
   "multi_agent",
   "plugins",
   "remote_plugin",
-  "shell_tool",
-  "unified_exec",
   "shell_snapshot",
+  "shell_tool",
+  "skill_mcp_dependency_install",
+  "tool_call_mcp_elicitation",
   "tool_suggest",
+  "unified_exec",
+  "workspace_dependencies",
 ] as const;
 
 const APP_SERVER_CONFIG_OVERRIDES = [
@@ -27,8 +36,6 @@ const APP_SERVER_CONFIG_OVERRIDES = [
   'history.persistence="none"',
   "hooks={}",
   'shell_environment_policy.inherit="none"',
-  "tools.view_image=false",
-  "mcp_servers={}",
   "notify=[]",
   'otel.metrics_exporter="none"',
   'otel.trace_exporter="none"',
@@ -36,13 +43,37 @@ const APP_SERVER_CONFIG_OVERRIDES = [
   "apps._default.enabled=false",
 ] as const;
 
-export const APP_SERVER_ARGUMENTS = [
-  "app-server",
-  "--stdio",
-  "--strict-config",
-  ...APP_SERVER_DISABLED_FEATURES.flatMap((feature) => ["--disable", feature]),
-  ...APP_SERVER_CONFIG_OVERRIDES.flatMap((config) => ["--config", config]),
-] as const;
+const MCP_SERVER_NAME_PATTERN = /^[A-Za-z0-9_-]{1,128}$/u;
+
+export function isSafeMcpServerName(name: string): boolean {
+  return MCP_SERVER_NAME_PATTERN.test(name);
+}
+
+export function buildAppServerArguments(
+  mcpServerNamesToDisable: readonly string[],
+): readonly string[] {
+  if (mcpServerNamesToDisable.length > 128) {
+    throw new TypeError("Too many MCP server names.");
+  }
+  const seen = new Set<string>();
+  const overrides = mcpServerNamesToDisable.flatMap((name) => {
+    if (!isSafeMcpServerName(name) || seen.has(name)) {
+      throw new TypeError("Invalid MCP server name.");
+    }
+    seen.add(name);
+    return ["--config", `mcp_servers.${name}.enabled=false`];
+  });
+  return [
+    "app-server",
+    "--stdio",
+    "--strict-config",
+    ...APP_SERVER_DISABLED_FEATURES.flatMap((feature) => ["--disable", feature]),
+    ...APP_SERVER_CONFIG_OVERRIDES.flatMap((config) => ["--config", config]),
+    ...overrides,
+  ];
+}
+
+export const APP_SERVER_ARGUMENTS = buildAppServerArguments([]);
 
 export const HUAYI_BASE_INSTRUCTIONS =
   "Return only the JSON object required by the provided output schema.";
@@ -55,7 +86,6 @@ export const HUAYI_THREAD_CONFIG = {
   approval_policy: "never",
   "history.persistence": "none",
   hooks: {},
-  mcp_servers: {},
   model_provider: "openai",
   model_reasoning_effort: "low",
   notify: [],
@@ -64,21 +94,25 @@ export const HUAYI_THREAD_CONFIG = {
   "otel.trace_exporter": "none",
   sandbox_mode: "read-only",
   "shell_environment_policy.inherit": "none",
-  "tools.view_image": false,
   web_search: "disabled",
 } as const;
 
 export interface NodeAppServerProcessOptions {
   codexExecutable: string;
   environment: Readonly<NodeJS.ProcessEnv>;
+  mcpServerNamesToDisable: readonly string[];
   workingDirectory: string;
 }
 
 export function createNodeAppServerProcess(options: NodeAppServerProcessOptions): JsonRpcProcess {
-  return spawn(options.codexExecutable, [...APP_SERVER_ARGUMENTS], {
-    cwd: options.workingDirectory,
-    env: buildAllowedEnvironment(options.environment),
-    shell: false,
-    stdio: ["pipe", "pipe", "pipe"],
-  });
+  return spawn(
+    options.codexExecutable,
+    [...buildAppServerArguments(options.mcpServerNamesToDisable)],
+    {
+      cwd: options.workingDirectory,
+      env: buildAllowedEnvironment(options.environment),
+      shell: false,
+      stdio: ["pipe", "pipe", "pipe"],
+    },
+  );
 }
