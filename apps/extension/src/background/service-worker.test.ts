@@ -47,6 +47,7 @@ const checkRequest: CheckWordRequest = {
 class FakeCoordinator implements RequestCoordinatorLike {
   readonly cancellations: { requestId: string; tabId: number }[] = [];
   readonly starts: { request: HostWorkRequest; tabId: number }[] = [];
+  warmups = 0;
 
   cancel(tabId: number, requestId: string): boolean {
     this.cancellations.push({ requestId, tabId });
@@ -60,6 +61,10 @@ class FakeCoordinator implements RequestCoordinatorLike {
   start(tabId: number, workRequest: HostWorkRequest): void {
     this.starts.push({ request: workRequest, tabId });
   }
+
+  warmup(): void {
+    this.warmups += 1;
+  }
 }
 
 afterEach(() => {
@@ -67,9 +72,10 @@ afterEach(() => {
 });
 
 describe("handleContentMessage", () => {
-  it("routes valid analyze, check-word, add-word, and cancel commands for a sender tab", () => {
+  it("routes valid warmup, analyze, check-word, add-word, and cancel commands for a sender tab", () => {
     const coordinator = new FakeCoordinator();
 
+    expect(handleContentMessage({ type: "WARMUP_HOST" }, 7, coordinator)).toBe(true);
     expect(handleContentMessage({ request, type: "ANALYZE_SELECTION" }, 7, coordinator)).toBe(true);
     expect(
       handleContentMessage({ request: wordRequest, type: "ADD_WORD_TO_EUDIC" }, 7, coordinator),
@@ -86,6 +92,7 @@ describe("handleContentMessage", () => {
       { request: checkRequest, tabId: 7 },
     ]);
     expect(coordinator.cancellations).toEqual([{ requestId: "request-1", tabId: 7 }]);
+    expect(coordinator.warmups).toBe(1);
   });
 
   it("ignores malformed messages and messages without a tab", () => {
@@ -95,7 +102,12 @@ describe("handleContentMessage", () => {
     expect(
       handleContentMessage({ request, type: "ANALYZE_SELECTION" }, undefined, coordinator),
     ).toBe(false);
+    expect(handleContentMessage({ type: "WARMUP_HOST" }, undefined, coordinator)).toBe(false);
+    expect(
+      handleContentMessage({ selection: "investigation", type: "WARMUP_HOST" }, 7, coordinator),
+    ).toBe(false);
     expect(coordinator.starts).toEqual([]);
+    expect(coordinator.warmups).toBe(0);
   });
 
   it("responds synchronously without leaving the Chrome message channel open", () => {
@@ -147,12 +159,14 @@ describe("handleContentMessage", () => {
     const dispose = registerServiceWorker();
     expect(runtimeListeners).toHaveLength(1);
     expect(tabRemovedListeners).toHaveLength(1);
+    expect(postedMessages).toEqual([]);
 
     const send = runtimeListeners[0];
     const removeTab = tabRemovedListeners[0];
     if (send === undefined || removeTab === undefined) {
       throw new Error("Expected registered Chrome listeners.");
     }
+    send({ type: "WARMUP_HOST" }, { tab: { id: 7 } }, () => undefined);
     send({ request, type: "ANALYZE_SELECTION" }, { tab: { id: 7 } }, () => undefined);
     send(
       { request: checkRequest, type: "CHECK_WORD_IN_EUDIC" },
@@ -161,10 +175,16 @@ describe("handleContentMessage", () => {
     );
     removeTab(7, { isWindowClosing: false, windowId: 1 });
 
-    expect(postedMessages).toHaveLength(4);
+    expect(postedMessages).toHaveLength(5);
+    expect(postedMessages[0]).toMatchObject({ schemaVersion: 2, type: "warmup" });
+    expect(Object.keys(postedMessages[0] as object).sort()).toEqual([
+      "requestId",
+      "schemaVersion",
+      "type",
+    ]);
     expect(
       postedMessages
-        .slice(2)
+        .slice(3)
         .map((message) =>
           typeof message === "object" && message !== null && "targetRequestId" in message
             ? message.targetRequestId

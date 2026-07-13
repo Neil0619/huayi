@@ -2,6 +2,7 @@ import type {
   AnalysisDeltaEvent,
   AnalysisError,
   AnalysisResult,
+  AnalysisSectionEvent,
   AnalyzeAction,
   WordbookAddOutcome,
   WordbookPresence,
@@ -128,6 +129,13 @@ export class OverlayController {
     if (status === "loading" || status === "streaming") {
       this.deltaBatch.append(event);
     }
+  }
+
+  appendUpdate(event: AnalysisDeltaEvent | AnalysisSectionEvent): void {
+    if (event.type === "analysis-delta") {
+      this.appendDelta(event);
+    }
+    // Task 8 adds typed section accumulation and rendering behind this shared route.
   }
 
   resolveWordbookCheck(presence: WordbookPresence): void {

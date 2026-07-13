@@ -1,6 +1,7 @@
 import type {
   AddWordRequest,
   AnalysisDeltaEvent,
+  AnalysisSectionEvent,
   AnalyzeRequest,
   CheckWordRequest,
   HostEvent,
@@ -89,6 +90,17 @@ export function analysisDeltaEvent(requestId: string, sequence: number): Analysi
     section: "translation",
     sequence,
     type: "analysis-delta",
+  };
+}
+
+export function analysisSectionEvent(requestId: string, sequence: number): AnalysisSectionEvent {
+  return {
+    requestId,
+    schemaVersion: 2,
+    section: "part-of-speech",
+    sequence,
+    type: "analysis-section",
+    value: "noun",
   };
 }
 

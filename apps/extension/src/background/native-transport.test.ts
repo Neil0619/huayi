@@ -48,7 +48,34 @@ const healthRequest: HostRequest = {
   type: "health",
 };
 
+const warmupRequest: HostRequest = {
+  requestId: "warmup-1",
+  schemaVersion: 2,
+  type: "warmup",
+};
+
 describe("ChromeNativeTransport", () => {
+  it("sends a page-data-free warmup and accepts its ready terminal", () => {
+    const port = new FakeNativePort();
+    const received: string[] = [];
+    const transport = new ChromeNativeTransport({
+      connectNative: () => port,
+      readLastError: () => undefined,
+    });
+    transport.onEvent((event) => received.push(event.type));
+
+    transport.send(warmupRequest);
+    port.onMessage.emit({ ...warmupRequest, type: "warmup-ready" });
+
+    expect(port.messages).toEqual([warmupRequest]);
+    expect(Object.keys(port.messages[0] as object).sort()).toEqual([
+      "requestId",
+      "schemaVersion",
+      "type",
+    ]);
+    expect(received).toEqual(["warmup-ready"]);
+  });
+
   it("connects lazily to the fixed host and validates received events", () => {
     const port = new FakeNativePort();
     const hostNames: string[] = [];

@@ -5,6 +5,7 @@ import type { HostEvent, HostWorkRequest } from "@huayi/protocol";
 import {
   addWordRequest,
   analysisDeltaEvent,
+  analysisSectionEvent,
   analyzeRequest,
   cancelTargets,
   checkWordRequest,
@@ -17,6 +18,22 @@ afterEach(() => {
 });
 
 describe("RequestCoordinator lanes", () => {
+  it("keeps warmup outside tab lanes and never cancels it with a tab", () => {
+    const { coordinator, transport } = createHarness();
+
+    coordinator.warmup();
+    coordinator.start(7, analyzeRequest("analysis-1"));
+    coordinator.cancelTab(7);
+
+    expect(transport.sent[0]).toEqual({
+      requestId: "control-1",
+      schemaVersion: 2,
+      type: "warmup",
+    });
+    expect(cancelTargets(transport)).toEqual(["analysis-1"]);
+    coordinator.dispose();
+  });
+
   it("runs analysis and wordbook checks concurrently in one tab", () => {
     const { coordinator, delivered, transport } = createHarness();
 
@@ -122,7 +139,7 @@ describe("RequestCoordinator lanes", () => {
 });
 
 describe("RequestCoordinator events", () => {
-  it("forwards progress and exact analysis deltas without finishing analysis", () => {
+  it("forwards mixed exact analysis updates without finishing analysis", () => {
     const { coordinator, delivered, transport } = createHarness();
     coordinator.start(7, analyzeRequest("analysis-1"));
 
@@ -133,11 +150,13 @@ describe("RequestCoordinator events", () => {
       type: "progress",
     });
     transport.emitEvent(analysisDeltaEvent("analysis-1", 0));
-    transport.emitEvent(analysisDeltaEvent("analysis-1", 1));
+    transport.emitEvent(analysisSectionEvent("analysis-1", 1));
+    transport.emitEvent(analysisDeltaEvent("analysis-1", 2));
 
     expect(delivered.map(({ event }) => event.type)).toEqual([
       "progress",
       "analysis-delta",
+      "analysis-section",
       "analysis-delta",
     ]);
     expect(coordinator.pendingCount).toBe(1);
@@ -149,16 +168,23 @@ describe("RequestCoordinator events", () => {
   });
 
   it.each([
-    ["duplicate", [0, 0]],
-    ["skipped", [1]],
-    ["decreasing", [0, 1, 0]],
-  ])("fails a %s analysis delta sequence and targets only that request", (_name, sequences) => {
+    ["duplicate", [analysisDeltaEvent("analysis-1", 0), analysisSectionEvent("analysis-1", 0)]],
+    ["skipped", [analysisSectionEvent("analysis-1", 1)]],
+    [
+      "decreasing",
+      [
+        analysisSectionEvent("analysis-1", 0),
+        analysisDeltaEvent("analysis-1", 1),
+        analysisSectionEvent("analysis-1", 0),
+      ],
+    ],
+  ])("fails a %s mixed analysis sequence and targets only that request", (_name, events) => {
     const { coordinator, delivered, transport } = createHarness();
     coordinator.start(7, analyzeRequest("analysis-1"));
     coordinator.start(7, checkWordRequest("check-1"));
 
-    for (const sequence of sequences) {
-      transport.emitEvent(analysisDeltaEvent("analysis-1", sequence));
+    for (const event of events) {
+      transport.emitEvent(event);
     }
 
     expect(delivered.at(-1)?.event).toMatchObject({
@@ -171,25 +197,71 @@ describe("RequestCoordinator events", () => {
     coordinator.dispose();
   });
 
-  it.each([checkWordRequest("check-1"), addWordRequest("add-1")])(
-    "rejects analysis deltas for $type requests",
-    (request) => {
-      const { coordinator, delivered, transport } = createHarness();
-      coordinator.start(7, request);
+  it.each([
+    [
+      "analysis-delta for check-word",
+      checkWordRequest("check-1"),
+      analysisDeltaEvent("check-1", 0),
+    ],
+    [
+      "analysis-section for check-word",
+      checkWordRequest("check-1"),
+      analysisSectionEvent("check-1", 0),
+    ],
+    ["analysis-delta for add-word", addWordRequest("add-1"), analysisDeltaEvent("add-1", 0)],
+    ["analysis-section for add-word", addWordRequest("add-1"), analysisSectionEvent("add-1", 0)],
+  ] as const)("rejects %s", (_name, request, update) => {
+    const { coordinator, delivered, transport } = createHarness();
+    coordinator.start(7, request);
 
-      transport.emitEvent(analysisDeltaEvent(request.requestId, 0));
+    transport.emitEvent(update);
 
-      expect(delivered).toHaveLength(1);
-      expect(delivered[0]?.event).toMatchObject({
-        error: { code: "INVALID_RESPONSE" },
-        requestId: request.requestId,
-        type: "error",
-      });
-      expect(cancelTargets(transport)).toEqual([request.requestId]);
-      expect(coordinator.pendingCount).toBe(0);
-      coordinator.dispose();
-    },
-  );
+    expect(delivered).toHaveLength(1);
+    expect(delivered[0]?.event).toMatchObject({
+      error: { code: "INVALID_RESPONSE" },
+      requestId: request.requestId,
+      type: "error",
+    });
+    expect(cancelTargets(transport)).toEqual([request.requestId]);
+    expect(coordinator.pendingCount).toBe(0);
+    coordinator.dispose();
+  });
+
+  it("targets a wrong success terminal once and ignores later events", () => {
+    const { coordinator, delivered, transport } = createHarness();
+    coordinator.start(7, analyzeRequest("analysis-1"));
+
+    transport.emitEvent({
+      presence: "present",
+      requestId: "analysis-1",
+      schemaVersion: 2,
+      type: "word-status",
+    });
+    transport.emitEvent(analysisSectionEvent("analysis-1", 0));
+
+    expect(cancelTargets(transport)).toEqual(["analysis-1"]);
+    expect(delivered).toHaveLength(1);
+    expect(delivered[0]?.event).toMatchObject({
+      error: { code: "INVALID_RESPONSE" },
+      requestId: "analysis-1",
+      type: "error",
+    });
+    coordinator.dispose();
+  });
+
+  it("finishes on the expected terminal and ignores late analysis updates locally", () => {
+    const { coordinator, delivered, transport } = createHarness();
+    coordinator.start(7, analyzeRequest("analysis-1"));
+    transport.emitEvent(resultEvent("analysis-1"));
+
+    transport.emitEvent(analysisDeltaEvent("analysis-1", 0));
+    transport.emitEvent(analysisSectionEvent("analysis-1", 1));
+
+    expect(delivered.map(({ event }) => event.type)).toEqual(["result"]);
+    expect(cancelTargets(transport)).toEqual([]);
+    expect(coordinator.pendingCount).toBe(0);
+    coordinator.dispose();
+  });
 
   it("accepts word-added only for add-word requests", () => {
     const { coordinator, delivered, transport } = createHarness();
@@ -248,6 +320,7 @@ describe("RequestCoordinator events", () => {
         requestId: request.requestId,
         type: "error",
       });
+      expect(cancelTargets(transport)).toEqual([request.requestId]);
       expect(coordinator.pendingCount).toBe(0);
       coordinator.dispose();
     }

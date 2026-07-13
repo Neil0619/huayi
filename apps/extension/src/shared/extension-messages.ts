@@ -26,8 +26,16 @@ export interface CancelRequestCommand {
   type: "CANCEL_REQUEST";
 }
 
+export interface WarmupHostCommand {
+  type: "WARMUP_HOST";
+}
+
 export type ContentCommand =
-  AnalyzeSelectionCommand | AddWordToEudicCommand | CheckWordInEudicCommand | CancelRequestCommand;
+  | AnalyzeSelectionCommand
+  | AddWordToEudicCommand
+  | CheckWordInEudicCommand
+  | CancelRequestCommand
+  | WarmupHostCommand;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -44,6 +52,10 @@ function hasExactKeys(value: Record<string, unknown>, expectedKeys: string[]): b
 export function parseContentCommand(value: unknown): ContentCommand | null {
   if (!isRecord(value) || typeof value.type !== "string") {
     return null;
+  }
+
+  if (value.type === "WARMUP_HOST" && hasExactKeys(value, ["type"])) {
+    return { type: "WARMUP_HOST" };
   }
 
   if (value.type === "ANALYZE_SELECTION" && hasExactKeys(value, ["request", "type"])) {

@@ -47,7 +47,18 @@ const RUNTIME_ERROR: AnalysisError = {
   retryable: true,
 };
 
+const INVALID_RESPONSE_ERROR: AnalysisError = {
+  code: "INVALID_RESPONSE",
+  message: "本机服务返回了与请求不匹配的数据。",
+  retryable: false,
+};
+
 type ActiveOperation = "analysis" | "wordbook-add" | "wordbook-check";
+
+interface ActiveRequest {
+  nextSequence: number;
+  operation: ActiveOperation;
+}
 
 function wasHandled(response: unknown): boolean {
   return (
@@ -134,14 +145,9 @@ export function initializeContentScript(options: ContentScriptOptions = {}): Con
   const runtime = options.runtime ?? createChromeRuntime();
   const createRequestId = options.createRequestId ?? (() => crypto.randomUUID());
   const getAnchorRect = options.getAnchorRect ?? getRangeAnchorRect;
-  const activeRequests = new Map<string, ActiveOperation>();
+  const activeRequests = new Map<string, ActiveRequest>();
 
-  const rejectActiveRequest = (requestId: string, error: AnalysisError): boolean => {
-    const operation = activeRequests.get(requestId);
-    if (operation === undefined) {
-      return false;
-    }
-    activeRequests.delete(requestId);
+  const rejectOperation = (operation: ActiveOperation, error: AnalysisError): void => {
     if (operation === "wordbook-add") {
       controller.rejectWordbook(error);
     } else if (operation === "wordbook-check") {
@@ -149,6 +155,15 @@ export function initializeContentScript(options: ContentScriptOptions = {}): Con
     } else {
       controller.reject(error);
     }
+  };
+
+  const rejectActiveRequest = (requestId: string, error: AnalysisError): boolean => {
+    const activeRequest = activeRequests.get(requestId);
+    if (activeRequest === undefined) {
+      return false;
+    }
+    activeRequests.delete(requestId);
+    rejectOperation(activeRequest.operation, error);
     return true;
   };
 
@@ -194,11 +209,20 @@ export function initializeContentScript(options: ContentScriptOptions = {}): Con
   };
 
   const cancelOperations = (operation?: ActiveOperation): void => {
-    for (const [requestId, activeOperation] of [...activeRequests]) {
-      if (operation === undefined || activeOperation === operation) {
+    for (const [requestId, activeRequest] of [...activeRequests]) {
+      if (operation === undefined || activeRequest.operation === operation) {
         cancelRequest(requestId);
       }
     }
+  };
+
+  const failActiveRequest = (requestId: string): void => {
+    const activeRequest = activeRequests.get(requestId);
+    if (activeRequest === undefined) {
+      return;
+    }
+    cancelRequest(requestId);
+    rejectOperation(activeRequest.operation, INVALID_RESPONSE_ERROR);
   };
 
   const controller = new OverlayController({
@@ -206,7 +230,7 @@ export function initializeContentScript(options: ContentScriptOptions = {}): Con
     onAddWord: (selection) => {
       cancelOperations("wordbook-check");
       const requestId = createRequestId();
-      activeRequests.set(requestId, "wordbook-add");
+      activeRequests.set(requestId, { nextSequence: 0, operation: "wordbook-add" });
       sendCommand(
         { request: createAddWordRequest(selection, requestId), type: "ADD_WORD_TO_EUDIC" },
         requestId,
@@ -215,7 +239,7 @@ export function initializeContentScript(options: ContentScriptOptions = {}): Con
     onAnalyze: (action, selection) => {
       cancelOperations();
       const requestId = createRequestId();
-      activeRequests.set(requestId, "analysis");
+      activeRequests.set(requestId, { nextSequence: 0, operation: "analysis" });
       const acknowledgement = sendCommand(
         { request: createAnalyzeRequest(selection, action, requestId), type: "ANALYZE_SELECTION" },
         requestId,
@@ -225,11 +249,11 @@ export function initializeContentScript(options: ContentScriptOptions = {}): Con
         return;
       }
       void acknowledgement.then((handled) => {
-        if (!handled || activeRequests.get(requestId) !== "analysis") {
+        if (!handled || activeRequests.get(requestId)?.operation !== "analysis") {
           return;
         }
         const checkRequestId = createRequestId();
-        activeRequests.set(checkRequestId, "wordbook-check");
+        activeRequests.set(checkRequestId, { nextSequence: 0, operation: "wordbook-check" });
         sendCommand(
           {
             request: createCheckWordRequest(selection, checkRequestId),
@@ -265,6 +289,7 @@ export function initializeContentScript(options: ContentScriptOptions = {}): Con
       },
       getAnchorRect(reading.range),
     );
+    void sendCommand({ type: "WARMUP_HOST" });
   };
 
   const handleRuntimeMessage = (message: unknown): void => {
@@ -273,24 +298,32 @@ export function initializeContentScript(options: ContentScriptOptions = {}): Con
       return;
     }
     const event = parsed.data;
-    const operation = activeRequests.get(event.requestId);
-    if (operation === undefined) {
+    const activeRequest = activeRequests.get(event.requestId);
+    if (activeRequest === undefined) {
       return;
     }
 
-    if (event.type === "analysis-delta" && operation === "analysis") {
-      controller.appendDelta(event);
-    } else if (event.type === "result" && operation === "analysis") {
+    const isAnalysisUpdate = event.type === "analysis-delta" || event.type === "analysis-section";
+    if (isAnalysisUpdate) {
+      if (activeRequest.operation !== "analysis" || event.sequence !== activeRequest.nextSequence) {
+        failActiveRequest(event.requestId);
+        return;
+      }
+      activeRequest.nextSequence += 1;
+      controller.appendUpdate(event);
+    } else if (event.type === "result" && activeRequest.operation === "analysis") {
       activeRequests.delete(event.requestId);
       controller.resolve(event.result);
-    } else if (event.type === "word-status" && operation === "wordbook-check") {
+    } else if (event.type === "word-status" && activeRequest.operation === "wordbook-check") {
       activeRequests.delete(event.requestId);
       controller.resolveWordbookCheck(event.presence);
-    } else if (event.type === "word-added" && operation === "wordbook-add") {
+    } else if (event.type === "word-added" && activeRequest.operation === "wordbook-add") {
       activeRequests.delete(event.requestId);
       controller.resolveWordbook(event.outcome);
     } else if (event.type === "error") {
       rejectActiveRequest(event.requestId, event.error);
+    } else if (event.type !== "progress") {
+      failActiveRequest(event.requestId);
     }
   };
 

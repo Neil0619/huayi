@@ -1,5 +1,10 @@
-import { SCHEMA_VERSION, hostEventSchema, hostWorkRequestSchema } from "@huayi/protocol";
-import type { AnalysisError, HostEvent, HostWorkRequest } from "@huayi/protocol";
+import {
+  SCHEMA_VERSION,
+  hostEventSchema,
+  hostWorkRequestSchema,
+  warmupRequestSchema,
+} from "@huayi/protocol";
+import type { AnalysisError, HostEvent, HostWorkRequest, WarmupRequest } from "@huayi/protocol";
 
 import type {
   NativeDisconnect,
@@ -17,6 +22,8 @@ interface PendingRequest {
 }
 
 type RequestLane = "analysis" | "wordbook-add" | "wordbook-check";
+type WarmupState =
+  { status: "idle" } | { requestId: string; status: "pending" } | { status: "ready" };
 
 export interface RequestCoordinatorOptions {
   createRequestId?: () => string;
@@ -81,6 +88,7 @@ export class RequestCoordinator {
   private readonly sendToTab: RequestCoordinatorOptions["sendToTab"];
   private readonly timeoutMs: number;
   private readonly transport: NativeTransport;
+  private warmupState: WarmupState = { status: "idle" };
 
   constructor(options: RequestCoordinatorOptions) {
     this.transport = options.transport;
@@ -95,6 +103,24 @@ export class RequestCoordinator {
 
   get pendingCount(): number {
     return this.pendingByRequestId.size;
+  }
+
+  warmup(): void {
+    if (this.warmupState.status !== "idle") {
+      return;
+    }
+
+    const request: WarmupRequest = warmupRequestSchema.parse({
+      requestId: this.createRequestId(),
+      schemaVersion: SCHEMA_VERSION,
+      type: "warmup",
+    });
+    this.warmupState = { requestId: request.requestId, status: "pending" };
+    try {
+      this.transport.send(request);
+    } catch {
+      this.warmupState = { status: "idle" };
+    }
   }
 
   start(tabId: number, request: HostWorkRequest): void {
@@ -161,9 +187,15 @@ export class RequestCoordinator {
     }
     this.pendingByRequestId.clear();
     this.activeByTab.clear();
+    this.warmupState = { status: "idle" };
   }
 
   private handleEvent(event: HostEvent): void {
+    if (this.warmupState.status === "pending" && event.requestId === this.warmupState.requestId) {
+      this.handleWarmupEvent(event);
+      return;
+    }
+
     const pending = this.pendingByRequestId.get(event.requestId);
     if (pending === undefined) {
       return;
@@ -180,7 +212,8 @@ export class RequestCoordinator {
       return;
     }
 
-    if (event.type === "analysis-delta") {
+    const isAnalysisUpdate = event.type === "analysis-delta" || event.type === "analysis-section";
+    if (isAnalysisUpdate) {
       if (pending.request.type === "analyze" && event.sequence === pending.nextSequence) {
         pending.nextSequence += 1;
         this.deliver(pending.tabId, event);
@@ -197,19 +230,33 @@ export class RequestCoordinator {
       (pending.request.type === "analyze" && event.type === "result") ||
       (pending.request.type === "check-word" && event.type === "word-status") ||
       (pending.request.type === "add-word" && event.type === "word-added");
-    this.finish(pending);
     if (isExpectedResult) {
+      this.finish(pending);
       this.deliver(pending.tabId, event);
       return;
     }
+    this.sendCancel(pending);
+    this.finish(pending);
     this.deliverInvalidResponse(pending);
   }
 
   private handleDisconnect(disconnect: NativeDisconnect): void {
+    this.warmupState = { status: "idle" };
     for (const pending of [...this.pendingByRequestId.values()]) {
       this.finish(pending);
       this.deliverError(pending, errorForDisconnect(disconnect.reason, pending.request));
     }
+  }
+
+  private handleWarmupEvent(event: HostEvent): void {
+    if (event.type === "warmup-ready") {
+      this.warmupState = { status: "ready" };
+      return;
+    }
+    if (event.type !== "error") {
+      this.sendCancelRequest(event.requestId);
+    }
+    this.warmupState = { status: "idle" };
   }
 
   private handleTimeout(requestId: string): void {
@@ -228,11 +275,15 @@ export class RequestCoordinator {
   }
 
   private sendCancel(pending: PendingRequest): void {
+    this.sendCancelRequest(pending.request.requestId);
+  }
+
+  private sendCancelRequest(targetRequestId: string): void {
     try {
       this.transport.send({
         requestId: this.createRequestId(),
         schemaVersion: SCHEMA_VERSION,
-        targetRequestId: pending.request.requestId,
+        targetRequestId,
         type: "cancel",
       });
     } catch {

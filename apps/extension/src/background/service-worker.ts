@@ -8,6 +8,7 @@ export interface RequestCoordinatorLike {
   cancel(tabId: number, requestId: string): boolean;
   cancelTab(tabId: number): void;
   start(tabId: number, request: HostWorkRequest): void;
+  warmup(): void;
 }
 
 export interface RuntimeMessageSender {
@@ -34,7 +35,9 @@ export function handleContentMessage(
     return false;
   }
 
-  if (command.type === "CANCEL_REQUEST") {
+  if (command.type === "WARMUP_HOST") {
+    coordinator.warmup();
+  } else if (command.type === "CANCEL_REQUEST") {
     coordinator.cancel(tabId, command.requestId);
   } else {
     coordinator.start(tabId, command.request);

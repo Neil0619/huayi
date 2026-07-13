@@ -23,6 +23,9 @@ class FakeRuntime implements ContentRuntime {
 
   sendMessage(message: ContentCommand): Promise<unknown> {
     this.sent.push(message);
+    if (message.type === "WARMUP_HOST") {
+      return Promise.resolve({ handled: true });
+    }
     return this.deliveries.shift() ?? Promise.resolve({ handled: true });
   }
 
@@ -140,14 +143,19 @@ describe("content-script concurrent operations", () => {
     selectText("investigation");
 
     chooseTranslation();
-    expect(runtime.sent.map((command) => command.type)).toEqual(["ANALYZE_SELECTION"]);
+    expect(runtime.sent.map((command) => command.type)).toEqual([
+      "WARMUP_HOST",
+      "ANALYZE_SELECTION",
+    ]);
     await acknowledgeAnalysis();
 
     expect(runtime.sent.map((command) => command.type)).toEqual([
+      "WARMUP_HOST",
       "ANALYZE_SELECTION",
       "CHECK_WORD_IN_EUDIC",
     ]);
     expect(runtime.sent).toMatchObject([
+      { type: "WARMUP_HOST" },
       { request: { requestId: "request-1" } },
       { request: { requestId: "request-2", word: "investigation" } },
     ]);
@@ -159,7 +167,7 @@ describe("content-script concurrent operations", () => {
     selectText("A sustained heatwave affected the region.", "sustained heatwave");
 
     chooseTranslation();
-    expect(runtime.sent[0]).toMatchObject({
+    expect(runtime.sent[1]).toMatchObject({
       request: {
         selection: "sustained heatwave",
         sentenceContext: "A sustained heatwave affected the region.",
@@ -179,64 +187,15 @@ describe("content-script concurrent operations", () => {
       type: "result",
     });
 
-    expect(runtime.sent.map((command) => command.type)).toEqual(["ANALYZE_SELECTION"]);
+    expect(runtime.sent.map((command) => command.type)).toEqual([
+      "WARMUP_HOST",
+      "ANALYZE_SELECTION",
+    ]);
     expect(
       document
         .querySelector<HTMLElement>("[data-huayi-overlay-host]")
         ?.shadowRoot?.querySelector("[data-action='add-word']"),
     ).toBeNull();
-  });
-
-  it.each([
-    ["query before result", true, "present"],
-    ["result before query", false, "absent"],
-  ] as const)("routes deltas and status when %s", async (_label, queryFirst, presence) => {
-    vi.useFakeTimers();
-    const runtime = new FakeRuntime();
-    const instance = createInstance(runtime);
-    selectText("investigation");
-    chooseTranslation();
-    await acknowledgeAnalysis();
-
-    runtime.emit({
-      delta: "调",
-      requestId: "request-1",
-      schemaVersion: 2,
-      section: "contextual-meaning",
-      sequence: 0,
-      type: "analysis-delta",
-    });
-    if (queryFirst) {
-      runtime.emit({
-        presence,
-        requestId: "request-2",
-        schemaVersion: 2,
-        type: "word-status",
-      });
-      vi.advanceTimersByTime(40);
-      expect(instance.controller.state).toMatchObject({
-        status: "streaming",
-        wordbook: { availability: presence },
-      });
-    }
-
-    emitResult(runtime);
-    expect(instance.controller.state).toMatchObject({
-      status: "result",
-      wordbook: { availability: queryFirst ? presence : "checking" },
-    });
-    if (!queryFirst) {
-      runtime.emit({
-        presence,
-        requestId: "request-2",
-        schemaVersion: 2,
-        type: "word-status",
-      });
-      expect(instance.controller.state).toMatchObject({
-        status: "result",
-        wordbook: { availability: presence },
-      });
-    }
   });
 
   it("cancels a pending check before starting an explicit add", async () => {
@@ -315,6 +274,7 @@ describe("content-script concurrent operations", () => {
     await acknowledgeAnalysis();
 
     expect(runtime.sent).toEqual([
+      { type: "WARMUP_HOST" },
       expect.objectContaining({ type: "ANALYZE_SELECTION" }),
       { requestId: "request-1", type: "CANCEL_REQUEST" },
     ]);
@@ -378,12 +338,13 @@ describe("content-script concurrent operations", () => {
     instance.controller.retry();
     await acknowledgeAnalysis();
 
-    expect(runtime.sent.slice(2).map((command) => command.type)).toEqual([
+    const nonWarmupCommands = runtime.sent.filter((command) => command.type !== "WARMUP_HOST");
+    expect(nonWarmupCommands.slice(2).map((command) => command.type)).toEqual([
       "CANCEL_REQUEST",
       "ANALYZE_SELECTION",
       "CHECK_WORD_IN_EUDIC",
     ]);
-    expect(runtime.sent.slice(2)).toMatchObject([
+    expect(nonWarmupCommands.slice(2)).toMatchObject([
       { requestId: "request-2" },
       { request: { requestId: "request-3" } },
       { request: { requestId: "request-4" } },

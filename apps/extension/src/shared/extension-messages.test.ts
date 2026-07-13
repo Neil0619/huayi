@@ -32,7 +32,8 @@ const checkWordRequest = {
 } as const;
 
 describe("parseContentCommand", () => {
-  it("parses analyze, check-word, add-word, and cancel commands", () => {
+  it("parses warmup, analyze, check-word, add-word, and cancel commands", () => {
+    expect(parseContentCommand({ type: "WARMUP_HOST" })).toEqual({ type: "WARMUP_HOST" });
     expect(parseContentCommand({ request, type: "ANALYZE_SELECTION" })).toEqual({
       request,
       type: "ANALYZE_SELECTION",
@@ -54,6 +55,14 @@ describe("parseContentCommand", () => {
   });
 
   it("rejects unknown fields and malformed nested requests", () => {
+    for (const extra of [
+      { context: "page context" },
+      { request },
+      { selection: "investigation" },
+      { source: "overlay" },
+    ]) {
+      expect(parseContentCommand({ ...extra, type: "WARMUP_HOST" })).toBeNull();
+    }
     expect(
       parseContentCommand({ request, type: "ANALYZE_SELECTION", url: "https://example.com" }),
     ).toBeNull();

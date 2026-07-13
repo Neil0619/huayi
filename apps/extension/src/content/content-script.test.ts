@@ -221,11 +221,12 @@ describe("initializeContentScript", () => {
     selection?.addRange(range);
 
     document.dispatchEvent(new MouseEvent("mouseup"));
+    expect(runtime.sent).toEqual([{ type: "WARMUP_HOST" }]);
     instance.controller.shadowRoot
       .querySelector<HTMLButtonElement>("[data-action='translate']")
       ?.click();
 
-    expect(runtime.sent[0]).toMatchObject({
+    expect(runtime.sent[1]).toMatchObject({
       request: {
         requestId: "request-1",
         selection: "investigation",
@@ -258,7 +259,7 @@ describe("initializeContentScript", () => {
     instance.controller.shadowRoot
       .querySelector<HTMLButtonElement>("[data-action='add-word']")
       ?.click();
-    expect(runtime.sent[1]).toEqual({
+    expect(runtime.sent[2]).toEqual({
       request: {
         context: "The investigation was in its early stages.",
         language: "en",
@@ -296,7 +297,9 @@ describe("initializeContentScript", () => {
     selectContents(second);
     document.dispatchEvent(new MouseEvent("mouseup"));
 
-    expect(runtime.sent[1]).toEqual({ requestId: "request-1", type: "CANCEL_REQUEST" });
+    expect(runtime.sent.filter((command) => command.type === "CANCEL_REQUEST")).toEqual([
+      { requestId: "request-1", type: "CANCEL_REQUEST" },
+    ]);
     expect(instance.controller.state).toMatchObject({
       selection: { selection: "sustained heatwave" },
       status: "actions",
@@ -325,7 +328,9 @@ describe("initializeContentScript", () => {
     selectContents(second);
     document.dispatchEvent(new MouseEvent("mouseup"));
 
-    expect(runtime.sent.at(-1)).toEqual({ requestId: "request-2", type: "CANCEL_REQUEST" });
+    expect(runtime.sent.filter((command) => command.type === "CANCEL_REQUEST")).toEqual([
+      { requestId: "request-2", type: "CANCEL_REQUEST" },
+    ]);
     expect(instance.controller.state).toMatchObject({
       selection: { selection: "replacement" },
       status: "actions",

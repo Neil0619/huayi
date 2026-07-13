@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { ContentCommand } from "../shared/extension-messages.js";
 import {
@@ -11,6 +11,7 @@ class FakeRuntime implements ContentRuntime {
   readonly sent: ContentCommand[] = [];
   private readonly deliveries: Promise<unknown>[] = [];
   private readonly listeners = new Set<(message: unknown) => void>();
+  private readonly warmupDeliveries: Promise<unknown>[] = [];
 
   readonly onMessage = {
     addListener: (listener: (message: unknown) => void) => this.listeners.add(listener),
@@ -21,8 +22,15 @@ class FakeRuntime implements ContentRuntime {
     this.deliveries.push(delivery);
   }
 
+  enqueueWarmupDelivery(delivery: Promise<unknown>): void {
+    this.warmupDeliveries.push(delivery);
+  }
+
   sendMessage(message: ContentCommand): Promise<unknown> {
     this.sent.push(message);
+    if (message.type === "WARMUP_HOST") {
+      return this.warmupDeliveries.shift() ?? Promise.resolve({ handled: true });
+    }
     return this.deliveries.shift() ?? Promise.resolve({ handled: true });
   }
 
@@ -101,6 +109,56 @@ afterEach(() => {
 });
 
 describe("content-script analysis acknowledgements", () => {
+  it("shows actions synchronously before sending one page-data-free warmup command", () => {
+    const runtime = new FakeRuntime();
+    const instance = createInstance(runtime);
+    const show = vi.spyOn(instance.controller, "show");
+    const sendMessage = vi.spyOn(runtime, "sendMessage");
+
+    selectText("investigation");
+
+    expect(instance.controller.state.status).toBe("actions");
+    expect(runtime.sent).toEqual([{ type: "WARMUP_HOST" }]);
+    expect(show).toHaveBeenCalledOnce();
+    expect(sendMessage).toHaveBeenCalledOnce();
+    const showOrder = show.mock.invocationCallOrder[0];
+    const sendOrder = sendMessage.mock.invocationCallOrder[0];
+    if (showOrder === undefined || sendOrder === undefined) {
+      throw new Error("Expected recorded show and send invocations.");
+    }
+    expect(showOrder).toBeLessThan(sendOrder);
+  });
+
+  it("ignores warmup acknowledgement failure but still surfaces a real analysis error", async () => {
+    const runtime = new FakeRuntime();
+    const warmupAcknowledgement = deferred<{ handled: boolean }>();
+    void warmupAcknowledgement.promise.catch(() => undefined);
+    runtime.enqueueWarmupDelivery(warmupAcknowledgement.promise);
+    const instance = createInstance(runtime);
+
+    selectText("investigation");
+    warmupAcknowledgement.reject(new Error("Warmup transport failed."));
+    await flushAcknowledgements();
+    expect(instance.controller.state.status).toBe("actions");
+
+    instance.controller.start("translate");
+    runtime.emit({
+      error: { code: "NETWORK_ERROR", message: "分析失败。", retryable: true },
+      requestId: "request-1",
+      schemaVersion: 2,
+      type: "error",
+    });
+
+    expect(instance.controller.state).toMatchObject({
+      error: { code: "NETWORK_ERROR" },
+      status: "error",
+    });
+    expect(runtime.sent.map((command) => command.type)).toEqual([
+      "WARMUP_HOST",
+      "ANALYZE_SELECTION",
+    ]);
+  });
+
   it.each(["handled false", "rejected"] as const)(
     "ignores a stale %s acknowledgement after the replacement word check resolves",
     async (completion) => {
@@ -160,7 +218,10 @@ describe("content-script analysis acknowledgements", () => {
       status: "error",
       wordbook: { availability: "unknown" },
     });
-    expect(runtime.sent.map((command) => command.type)).toEqual(["ANALYZE_SELECTION"]);
+    expect(runtime.sent.map((command) => command.type)).toEqual([
+      "WARMUP_HOST",
+      "ANALYZE_SELECTION",
+    ]);
   });
 
   it("preserves a resolved word status when the analysis host request fails", async () => {
