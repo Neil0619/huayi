@@ -103,27 +103,20 @@ export function parseInstallerArguments(arguments_: readonly string[]): Installe
     return { type: "provider-status" };
   }
   if (command === "provider-set") {
-    let dryRun = false;
-    let providerAlias: string | undefined;
-    for (const argument of arguments_.slice(1)) {
-      if (argument === "--") {
-        continue;
-      }
-      if (argument === "--dry-run") {
-        dryRun = true;
-        continue;
-      }
-      if (argument.startsWith("--") || providerAlias !== undefined) {
-        throw new Error(`Unknown installer argument: ${argument}.\n${USAGE}`);
-      }
-      providerAlias = argument;
-    }
+    const providerAlias = arguments_[1];
     if (providerAlias === undefined) {
       throw new Error(`provider-set requires api or codex.\n${USAGE}`);
     }
+    const provider = parseProviderAlias(providerAlias);
+    if (
+      arguments_.length > 3 ||
+      (arguments_.length === 3 && arguments_[2] !== "--dry-run")
+    ) {
+      throw new Error(`provider-set accepts only a provider followed by --dry-run.\n${USAGE}`);
+    }
     return {
-      dryRun,
-      provider: parseProviderAlias(providerAlias),
+      dryRun: arguments_[2] === "--dry-run",
+      provider,
       type: "provider-set",
     };
   }

@@ -82,6 +82,10 @@ describe("parseInstallerArguments", () => {
     [["install", "--extension-id", EXTENSION_ID, "--unknown"]],
     [["provider-set"]],
     [["provider-set", "openai-responses"]],
+    [["provider-set", "--dry-run", "api"]],
+    [["provider-set", "api", "--dry-run", "--dry-run"]],
+    [["provider-set", "api", "--"]],
+    [["provider-set", "api", "extra"]],
     [["provider-status", "--dry-run"]],
   ])("rejects invalid arguments %j", (arguments_) => {
     expect(() => parseInstallerArguments(arguments_)).toThrow(/usage|argument|extension|provider/i);

@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { lstat, open, readFile, rename, rm } from "node:fs/promises";
+import { constants } from "node:fs";
+import { open, rename, rm } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 
 import type { ModelProvider } from "@huayi/protocol";
@@ -14,6 +15,21 @@ const MAX_PROVIDER_CONFIGURATION_BYTES = 4 * 1024;
 export interface ProviderConfigurationResult {
   readonly dryRun: boolean;
   readonly provider: ModelProvider;
+}
+
+export interface ProviderConfigurationReadHandle {
+  close(): Promise<void>;
+  read(
+    buffer: Buffer,
+    offset: number,
+    length: number,
+    position: number,
+  ): Promise<{ readonly bytesRead: number }>;
+  stat(): Promise<{ isFile(): boolean; readonly size: number }>;
+}
+
+export interface ProviderConfigurationReadOperations {
+  open(path: string, flags: number): Promise<ProviderConfigurationReadHandle>;
 }
 
 export interface ProviderConfigurationWriteHandle {
@@ -54,6 +70,12 @@ const nodeWriteOperations: ProviderConfigurationWriteOperations = {
   },
 };
 
+const nodeReadOperations: ProviderConfigurationReadOperations = {
+  async open(path, flags) {
+    return open(path, flags);
+  },
+};
+
 function isMissingFileError(error: unknown): boolean {
   return (error as NodeJS.ErrnoException).code === "ENOENT";
 }
@@ -67,13 +89,17 @@ export class ProviderConfigurationStore {
   constructor(
     private readonly configurationPath: string,
     private readonly writeOperations: ProviderConfigurationWriteOperations = nodeWriteOperations,
+    private readonly readOperations: ProviderConfigurationReadOperations = nodeReadOperations,
   ) {}
 
   async read(signal?: AbortSignal): Promise<ModelProvider> {
     signal?.throwIfAborted();
-    let stats;
+    let handle: ProviderConfigurationReadHandle;
     try {
-      stats = await lstat(this.configurationPath);
+      handle = await this.readOperations.open(
+        this.configurationPath,
+        constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK,
+      );
     } catch (error) {
       if (isMissingFileError(error)) {
         signal?.throwIfAborted();
@@ -81,37 +107,51 @@ export class ProviderConfigurationStore {
       }
       throw error;
     }
-    signal?.throwIfAborted();
-
-    if (stats.isSymbolicLink()) {
-      throw new Error("Provider configuration must not be a symbolic link.");
-    }
-    if (!stats.isFile()) {
-      throw new Error("Provider configuration must be a regular file.");
-    }
-    if (stats.size > MAX_PROVIDER_CONFIGURATION_BYTES) {
-      throw new Error("Provider configuration must not exceed 4 KiB.");
-    }
-
-    const contents = await readFile(
-      this.configurationPath,
-      signal === undefined ? { encoding: "utf8" } : { encoding: "utf8", signal },
-    );
-    if (Buffer.byteLength(contents, "utf8") > MAX_PROVIDER_CONFIGURATION_BYTES) {
-      throw new Error("Provider configuration must not exceed 4 KiB.");
-    }
-
-    let value: unknown;
     try {
-      value = JSON.parse(contents);
-    } catch (error) {
-      throw new Error("Provider configuration is invalid JSON.", { cause: error });
+      signal?.throwIfAborted();
+      const stats = await handle.stat();
+      signal?.throwIfAborted();
+      if (!stats.isFile()) {
+        throw new Error("Provider configuration must be a regular file.");
+      }
+      if (stats.size > MAX_PROVIDER_CONFIGURATION_BYTES) {
+        throw new Error("Provider configuration must not exceed 4 KiB.");
+      }
+
+      const buffer = Buffer.alloc(MAX_PROVIDER_CONFIGURATION_BYTES + 1);
+      let bytesRead = 0;
+      while (bytesRead < buffer.length) {
+        signal?.throwIfAborted();
+        const result = await handle.read(
+          buffer,
+          bytesRead,
+          buffer.length - bytesRead,
+          bytesRead,
+        );
+        if (result.bytesRead === 0) {
+          break;
+        }
+        bytesRead += result.bytesRead;
+      }
+      signal?.throwIfAborted();
+      if (bytesRead > MAX_PROVIDER_CONFIGURATION_BYTES) {
+        throw new Error("Provider configuration must not exceed 4 KiB.");
+      }
+
+      let value: unknown;
+      try {
+        value = JSON.parse(buffer.subarray(0, bytesRead).toString("utf8"));
+      } catch (error) {
+        throw new Error("Provider configuration is invalid JSON.", { cause: error });
+      }
+      const result = providerConfigurationSchema.safeParse(value);
+      if (!result.success) {
+        throw new Error("Provider configuration has an invalid shape.", { cause: result.error });
+      }
+      return result.data.provider;
+    } finally {
+      await handle.close();
     }
-    const result = providerConfigurationSchema.safeParse(value);
-    if (!result.success) {
-      throw new Error("Provider configuration has an invalid shape.", { cause: result.error });
-    }
-    return result.data.provider;
   }
 
   async write(provider: ModelProvider, dryRun: boolean): Promise<ProviderConfigurationResult> {

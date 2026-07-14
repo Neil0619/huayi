@@ -1,3 +1,4 @@
+import { constants } from "node:fs";
 import {
   lstat,
   mkdir,
@@ -18,6 +19,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import {
   ProviderConfigurationStore,
+  type ProviderConfigurationReadOperations,
   type ProviderConfigurationWriteOperations,
 } from "./provider-configuration-store.js";
 
@@ -117,6 +119,57 @@ describe("ProviderConfigurationStore", () => {
     await expect(new ProviderConfigurationStore(configurationPath).read()).rejects.toThrow(
       /4 KiB/i,
     );
+  });
+
+  it("reads and validates one no-follow file handle even if its path is replaced", async () => {
+    const { applicationDirectory, configurationPath } = await createFixture();
+    const openedPath = join(applicationDirectory, "opened-provider.json");
+    const replacementPath = join(applicationDirectory, "replacement-provider.json");
+    await writeFile(
+      configurationPath,
+      `${JSON.stringify({ provider: "openai-responses", schemaVersion: 1 })}\n`,
+      "utf8",
+    );
+    await writeFile(
+      replacementPath,
+      `${JSON.stringify({ provider: "codex", schemaVersion: 1 })}\n`,
+      "utf8",
+    );
+    const events: string[] = [];
+    const operations: ProviderConfigurationReadOperations = {
+      async open(path, flags) {
+        events.push("open");
+        expect(flags & constants.O_NOFOLLOW).toBe(constants.O_NOFOLLOW);
+        const handle = await openFile(path, flags);
+        await rename(path, openedPath);
+        await symlink(replacementPath, path);
+        return {
+          async close() {
+            events.push("close");
+            await handle.close();
+          },
+          async read(buffer, offset, length, position) {
+            events.push("read");
+            return handle.read(buffer, offset, length, position);
+          },
+          async stat() {
+            events.push("fstat");
+            return handle.stat();
+          },
+        };
+      },
+    };
+
+    await expect(
+      new ProviderConfigurationStore(configurationPath, undefined, operations).read(),
+    ).resolves.toBe("openai-responses");
+
+    expect(events[0]).toBe("open");
+    expect(events[1]).toBe("fstat");
+    expect(events).toContain("read");
+    expect(events.at(-1)).toBe("close");
+    expect(events.filter((event) => event === "open")).toHaveLength(1);
+    expect((await lstat(configurationPath)).isSymbolicLink()).toBe(true);
   });
 
   it("orders atomic writes through file and directory fsync", async () => {
