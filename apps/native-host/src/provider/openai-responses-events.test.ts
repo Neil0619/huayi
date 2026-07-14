@@ -36,6 +36,11 @@ describe("parseOpenAIResponseEvent", () => {
       itemId,
       type: "response.output_item.added",
     });
+    expect(parseOpenAIResponseEvent(message("response.output_item.done"))).toEqual({
+      itemId,
+      text: outputTextPart.text,
+      type: "response.output_item.done",
+    });
     expect(parseOpenAIResponseEvent(message("response.content_part.done"))).toEqual({
       itemId,
       text: outputTextPart.text,
@@ -112,7 +117,7 @@ describe("parseOpenAIResponseEvent", () => {
           },
         }),
       ),
-    ).toEqual({ itemId, type: "response.output_item.done" });
+    ).toEqual({ itemId, text: outputTextPart.text, type: "response.output_item.done" });
   });
 
   it("rejects unknown events and event/data type mismatches", () => {

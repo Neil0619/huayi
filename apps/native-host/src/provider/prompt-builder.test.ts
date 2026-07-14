@@ -37,6 +37,9 @@ describe("buildAnalysisPrompt", () => {
     expect(prompt).toContain('"action":"translate"');
     expect(prompt).toContain('"selectionKind":"sentence"');
     expect(prompt).toContain('"sentenceContext":null');
+    expect(prompt).not.toContain('"url":');
+    expect(prompt).not.toContain('"title":');
+    expect(prompt.toLowerCase()).not.toContain("eudic");
   });
 
   it("requests nullable model-only lexical translation content without invented examples", () => {

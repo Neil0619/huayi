@@ -7,6 +7,7 @@ import type { CodexAppServer, CodexTurnRequest } from "../runtime/codex-app-serv
 import { CodexProviderError } from "../runtime/error-mapper.js";
 import type { AnalysisStreamUpdate } from "./analysis-provider.js";
 import { CodexAppServerProvider } from "./codex-app-server-provider.js";
+import { ModelSchemaRepository } from "./model-schema-repository.js";
 import type { ProviderValidationDiagnostic } from "./provider-validation.js";
 
 const { readFileMock } = vi.hoisted(() => ({ readFileMock: vi.fn() }));
@@ -101,7 +102,9 @@ function createProvider(
   return new CodexAppServerProvider({
     appServer,
     ...(onValidationDiagnostic === undefined ? {} : { onValidationDiagnostic }),
-    schemaDirectory: "/Applications/Huayi/provider/schemas",
+    schemaRepository: new ModelSchemaRepository({
+      schemaDirectory: "/Applications/Huayi/provider/schemas",
+    }),
   });
 }
 

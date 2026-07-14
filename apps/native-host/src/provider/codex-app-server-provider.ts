@@ -1,6 +1,3 @@
-import { readFile } from "node:fs/promises";
-import { isAbsolute, join } from "node:path";
-
 import type { AnalysisResult, AnalyzeRequest } from "@huayi/protocol";
 
 import type { CodexAppServer } from "../runtime/codex-app-server-lifecycle.js";
@@ -13,6 +10,7 @@ import {
 } from "../runtime/error-mapper.js";
 import type { AnalysisProvider, AnalysisStreamListener } from "./analysis-provider.js";
 import { buildAnalysisPrompt } from "./prompt-builder.js";
+import { ModelSchemaRepository } from "./model-schema-repository.js";
 import { resultTypeFor } from "./model-analysis-schemas.js";
 import { parseAndAssembleModelResult } from "./model-result-assembler.js";
 import {
@@ -22,11 +20,16 @@ import {
 } from "./provider-validation.js";
 import { StreamingJsonFieldExtractor } from "./streaming-json-fields.js";
 
-export interface CodexAppServerProviderOptions {
+interface CodexAppServerProviderBaseOptions {
   appServer: CodexAppServer;
   onValidationDiagnostic?: ProviderValidationDiagnosticSink;
-  schemaDirectory: string;
 }
+
+export type CodexAppServerProviderOptions = CodexAppServerProviderBaseOptions &
+  (
+    | { schemaDirectory: string; schemaRepository?: never }
+    | { schemaDirectory?: never; schemaRepository: ModelSchemaRepository }
+  );
 
 function cancelledError(): CodexProviderError {
   return mapCodexProcessFailure({ aborted: true, exitCode: null, stderr: "" });
@@ -48,24 +51,21 @@ export function outputSchemaFilenameFor(
   return `${providerResultTypeFor(request)}.json`;
 }
 
-function isJsonObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 export class CodexAppServerProvider implements AnalysisProvider {
   readonly #appServer: CodexAppServer;
   readonly #onValidationDiagnostic: ProviderValidationDiagnosticSink | undefined;
-  readonly #schemaDirectory: string;
-  readonly #schemas = new Map<string, Promise<Record<string, unknown>>>();
+  readonly #schemaRepository: ModelSchemaRepository;
   #disposed = false;
 
   constructor(options: CodexAppServerProviderOptions) {
-    if (!isAbsolute(options.schemaDirectory)) {
-      throw new TypeError("Codex schema directory must be an absolute path.");
+    if ((options.schemaDirectory === undefined) === (options.schemaRepository === undefined)) {
+      throw new TypeError("Codex Provider requires exactly one model schema source.");
     }
     this.#appServer = options.appServer;
     this.#onValidationDiagnostic = options.onValidationDiagnostic;
-    this.#schemaDirectory = options.schemaDirectory;
+    this.#schemaRepository =
+      options.schemaRepository ??
+      new ModelSchemaRepository({ schemaDirectory: options.schemaDirectory });
   }
 
   warmup(signal: AbortSignal): Promise<void> {
@@ -79,7 +79,12 @@ export class CodexAppServerProvider implements AnalysisProvider {
   ): Promise<AnalysisResult> {
     if (signal.aborted) throw cancelledError();
     const resultType = providerResultTypeFor(request);
-    const outputSchema = await this.#loadSchema(`${resultType}.json`);
+    let outputSchema: Record<string, unknown>;
+    try {
+      outputSchema = await this.#schemaRepository.load(`${resultType}.json`);
+    } catch (error) {
+      throw capabilityMissingError(error);
+    }
     if (signal.aborted) throw cancelledError();
 
     const extractor = new StreamingJsonFieldExtractor({
@@ -161,21 +166,5 @@ export class CodexAppServerProvider implements AnalysisProvider {
       // Diagnostics must never replace the fixed public validation error.
     }
     throw mapProviderValidationFailure(failure);
-  }
-
-  #loadSchema(filename: string): Promise<Record<string, unknown>> {
-    const cached = this.#schemas.get(filename);
-    if (cached !== undefined) return cached;
-    const pending = readFile(join(this.#schemaDirectory, filename), "utf8")
-      .then((source) => {
-        const schema: unknown = JSON.parse(source);
-        if (!isJsonObject(schema)) throw new SyntaxError("Output schema must be a JSON object.");
-        return schema;
-      })
-      .catch((error: unknown) => {
-        throw capabilityMissingError(error);
-      });
-    this.#schemas.set(filename, pending);
-    return pending;
   }
 }

@@ -164,7 +164,7 @@ export type OpenAIResponseEvent =
   | { responseId: string; status: "in_progress"; type: "response.in_progress" }
   | { responseId: string; status: "incomplete"; type: "response.incomplete" }
   | { itemId: string; type: "response.output_item.added" }
-  | { itemId: string; type: "response.output_item.done" }
+  | { itemId: string; text: string; type: "response.output_item.done" }
   | { delta: string; itemId: string; type: "response.output_text.delta" }
   | { itemId: string; text: string; type: "response.output_text.done" };
 
@@ -193,8 +193,9 @@ export function parseOpenAIResponseEvent(message: SseMessage): OpenAIResponseEve
 
   switch (event.type) {
     case "response.output_item.added":
-    case "response.output_item.done":
       return { itemId: event.item.id, type: event.type };
+    case "response.output_item.done":
+      return { itemId: event.item.id, text: event.item.content[0].text, type: event.type };
     case "response.content_part.added":
     case "response.content_part.done":
       return { itemId: event.item_id, text: event.part.text, type: event.type };
