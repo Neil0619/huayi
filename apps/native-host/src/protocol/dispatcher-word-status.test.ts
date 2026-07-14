@@ -23,7 +23,11 @@ interface DispatcherOverrides {
 
 function createDispatcher(overrides: DispatcherOverrides = {}): NativeMessageDispatcher {
   const options = {
-    healthCheck: async () => ({ codexVersion: "codex-cli 0.144.1" }),
+    healthCheck: async () => ({
+      codexVersion: "codex-cli 0.144.1",
+      model: "gpt-5.4-mini",
+      provider: "codex" as const,
+    }),
     provider: overrides.provider ?? {
       analyze: async () => validResult,
       warmup: async () => undefined,

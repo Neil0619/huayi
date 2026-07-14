@@ -13,6 +13,7 @@ import type {
   CheckWordRequest,
   HealthRequest,
   HostEvent,
+  ModelProvider,
   WarmupRequest,
 } from "@huayi/protocol";
 
@@ -20,12 +21,14 @@ import type { AnalysisProvider } from "../provider/analysis-provider.js";
 import { RequestQueue } from "../runtime/request-queue.js";
 import type { WordbookProvider } from "../wordbook/wordbook-provider.js";
 
-const HOST_VERSION = "0.4.0";
+const HOST_VERSION = "0.5.0";
 
 export type HostEventEmitter = (event: HostEvent) => void;
 
 export interface HealthCheckResult {
-  codexVersion: string;
+  codexVersion: string | null;
+  model: string;
+  provider: ModelProvider;
 }
 
 export interface NativeMessageDispatcherOptions {
@@ -117,8 +120,8 @@ export class NativeMessageDispatcher {
         this.emitValidated(emit, {
           codexVersion: health.codexVersion,
           hostVersion: HOST_VERSION,
-          model: "gpt-5.4-mini",
-          provider: "codex",
+          model: health.model,
+          provider: health.provider,
           ready: true,
           requestId: request.requestId,
           schemaVersion: SCHEMA_VERSION,

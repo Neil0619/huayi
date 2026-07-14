@@ -5,13 +5,16 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { hostEventSchema } from "@huayi/protocol";
 import type { HostEvent } from "@huayi/protocol";
 
+import { ProviderConfigurationStore } from "./config/provider-configuration-store.js";
 import {
   EUDIC_SECURITY_EXECUTABLE,
   MacosEudicAuthorizationReader,
 } from "./credentials/eudic-keychain.js";
+import { OpenAIApiKeyReader } from "./credentials/openai-keychain.js";
 import { NativeMessageDispatcher } from "./protocol/dispatcher.js";
 import { NativeMessageDecoder, encodeNativeMessage } from "./protocol/framing.js";
-import { CodexAppServerProvider } from "./provider/codex-app-server-provider.js";
+import { createAnalysisProviderFactory } from "./provider/analysis-provider-factory.js";
+import type { OpenAIFetch } from "./provider/openai-responses-client.js";
 import {
   formatProviderValidationDiagnostic,
   type ProviderValidationDiagnosticSink,
@@ -20,10 +23,9 @@ import { CodexAppServerClient } from "./runtime/codex-app-server.js";
 import { checkCodexCapabilities } from "./runtime/codex-capabilities.js";
 import { discoverEnabledMcpServerNames } from "./runtime/codex-mcp-discovery.js";
 import { NodeProcessRunner, type ProcessRunner } from "./runtime/codex-process.js";
-import { mapCodexError } from "./runtime/error-mapper.js";
-import { EudicClient, type EudicFetch } from "./wordbook/eudic-client.js";
+import { mapAnalysisProviderError } from "./runtime/error-mapper.js";
+import type { EudicFetch } from "./wordbook/eudic-client.js";
 import { mapEudicError } from "./wordbook/eudic-errors.js";
-import { EudicWordbookProvider } from "./wordbook/eudic-wordbook-provider.js";
 
 export interface RequestDispatcher {
   dispatch(message: unknown, emit: (event: HostEvent) => void): void;
@@ -40,14 +42,21 @@ export interface NativeHostStreams {
 export interface NativeHostConfiguration {
   codexExecutable: string;
   environment: NodeJS.ProcessEnv;
+  providerConfigurationPath: string;
   schemaDirectory: string;
   workingDirectory: string;
 }
 
-export interface NativeHostDispatcherOptions extends NativeHostConfiguration {
+export interface NativeHostDispatcherOptions extends Omit<
+  NativeHostConfiguration,
+  "providerConfigurationPath"
+> {
   eudicFetch?: EudicFetch;
   errorOutput: Writable;
+  openAIApiKeyReader?: OpenAIApiKeyReader;
+  openAIFetch?: OpenAIFetch;
   processRunner: ProcessRunner;
+  providerConfigurationPath?: string;
   securityExecutable?: string;
 }
 
@@ -152,6 +161,7 @@ export function readNativeHostConfiguration(
   return {
     codexExecutable,
     environment,
+    providerConfigurationPath: resolve(workingDirectory, "..", "provider.json"),
     schemaDirectory,
     workingDirectory,
   };
@@ -160,6 +170,9 @@ export function readNativeHostConfiguration(
 export function createNativeHostDispatcher(
   options: NativeHostDispatcherOptions,
 ): NativeMessageDispatcher {
+  const configurationStore = new ProviderConfigurationStore(
+    options.providerConfigurationPath ?? resolve(options.workingDirectory, "..", "provider.json"),
+  );
   const appServer = new CodexAppServerClient({
     codexExecutable: options.codexExecutable,
     environment: options.environment,
@@ -172,28 +185,37 @@ export function createNativeHostDispatcher(
       }),
     workingDirectory: options.workingDirectory,
   });
-  const provider = new CodexAppServerProvider({
-    appServer,
-    onValidationDiagnostic: createProviderValidationDiagnosticSink(options.errorOutput),
-    schemaDirectory: options.schemaDirectory,
-  });
   const authorizationReader = new MacosEudicAuthorizationReader({
     environment: options.environment,
     processRunner: options.processRunner,
     securityExecutable: options.securityExecutable ?? EUDIC_SECURITY_EXECUTABLE,
     workingDirectory: options.workingDirectory,
   });
-  const client = new EudicClient(
-    options.eudicFetch === undefined ? {} : { fetch: options.eudicFetch },
-  );
-  const wordbookProvider = new EudicWordbookProvider({ authorizationReader, client });
+  const apiKeyReader =
+    options.openAIApiKeyReader ??
+    new OpenAIApiKeyReader({
+      environment: options.environment,
+      processRunner: options.processRunner,
+      workingDirectory: options.workingDirectory,
+    });
+  const providers = createAnalysisProviderFactory({
+    apiKeyReader,
+    appServer,
+    codexHealthCheck: () => checkCodexCapabilities(options),
+    configurationStore,
+    eudicAuthorizationReader: authorizationReader,
+    onValidationDiagnostic: createProviderValidationDiagnosticSink(options.errorOutput),
+    schemaDirectory: options.schemaDirectory,
+    ...(options.eudicFetch === undefined ? {} : { eudicFetch: options.eudicFetch }),
+    ...(options.openAIFetch === undefined ? {} : { openAIFetch: options.openAIFetch }),
+  });
   return new NativeMessageDispatcher({
-    healthCheck: () => checkCodexCapabilities(options),
-    mapError: mapCodexError,
+    healthCheck: providers.healthCheck,
+    mapError: mapAnalysisProviderError,
     mapWordbookError: mapEudicError,
     maximumConcurrency: 2,
-    provider,
-    wordbookProvider,
+    provider: providers.analysisProvider,
+    wordbookProvider: providers.wordbookProvider,
   });
 }
 

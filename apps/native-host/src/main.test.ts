@@ -154,7 +154,11 @@ describe("runNativeHost", () => {
       },
     };
     const dispatcher = new NativeMessageDispatcher({
-      healthCheck: async () => ({ codexVersion: "codex-cli 0.144.1" }),
+      healthCheck: async () => ({
+        codexVersion: "codex-cli 0.144.1",
+        model: "gpt-5.4-mini",
+        provider: "codex",
+      }),
       provider,
     });
     const stop = runNativeHost({ dispatcher, errorOutput, input, output });
@@ -237,6 +241,7 @@ describe("native host bootstrap", () => {
       environment: { HOME: "/Users/tester" },
       errorOutput: new PassThrough(),
       processRunner,
+      providerConfigurationPath: "/nonexistent/huayi-provider.json",
       schemaDirectory: "/tmp/schemas",
       workingDirectory: "/tmp/work",
     });
@@ -249,7 +254,9 @@ describe("native host bootstrap", () => {
 
     expect(events[0]).toMatchObject({
       codexVersion: "codex-cli 0.144.1",
-      hostVersion: "0.4.0",
+      hostVersion: "0.5.0",
+      model: "gpt-5.4-mini",
+      provider: "codex",
       ready: true,
     });
     expect(requests.map((request) => request.arguments)).toEqual([

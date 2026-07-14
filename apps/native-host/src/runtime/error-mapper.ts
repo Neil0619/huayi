@@ -1,5 +1,7 @@
 import type { AnalysisError, ErrorCode } from "@huayi/protocol";
 
+import { OpenAICredentialError } from "../credentials/openai-keychain.js";
+import { OpenAIProviderError, mapOpenAIProviderError } from "../provider/openai-provider-errors.js";
 import type { ProviderValidationError } from "../provider/provider-validation.js";
 
 interface CodexProcessFailure {
@@ -143,6 +145,13 @@ export function mapCodexError(error: unknown): AnalysisError {
     return { code: error.code, message: error.message, retryable: error.retryable };
   }
   return { ...ERROR_DEFINITIONS.INTERNAL_ERROR };
+}
+
+export function mapAnalysisProviderError(error: unknown): AnalysisError {
+  if (error instanceof OpenAIProviderError || error instanceof OpenAICredentialError) {
+    return mapOpenAIProviderError(error);
+  }
+  return mapCodexError(error);
 }
 
 export function capabilityMissingError(cause?: unknown): CodexProviderError {

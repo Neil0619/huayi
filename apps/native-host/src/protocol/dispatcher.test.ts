@@ -14,13 +14,17 @@ function createDispatcher(
   },
 ): NativeMessageDispatcher {
   return new NativeMessageDispatcher({
-    healthCheck: async () => ({ codexVersion: "codex-cli 0.144.1" }),
+    healthCheck: async () => ({
+      codexVersion: "codex-cli 0.144.1",
+      model: "gpt-5.4-mini",
+      provider: "codex",
+    }),
     provider,
   });
 }
 
 describe("NativeMessageDispatcher analysis routing", () => {
-  it("reports host version 0.4.0", async () => {
+  it("reports host version 0.5.0 and the active Codex health fields", async () => {
     const events: HostEvent[] = [];
     const dispatcher = createDispatcher();
 
@@ -31,9 +35,41 @@ describe("NativeMessageDispatcher analysis routing", () => {
     await vi.waitFor(() => expect(events).toHaveLength(1));
     expect(events[0]).toMatchObject({
       codexVersion: "codex-cli 0.144.1",
-      hostVersion: "0.4.0",
+      hostVersion: "0.5.0",
       model: "gpt-5.4-mini",
       provider: "codex",
+      type: "health-result",
+    });
+    dispatcher.dispose();
+  });
+
+  it("reports API health without a Codex version", async () => {
+    const events: HostEvent[] = [];
+    const dispatcher = new NativeMessageDispatcher({
+      healthCheck: async () => ({
+        codexVersion: null,
+        model: "gpt-5.6-luna",
+        provider: "openai-responses",
+      }),
+      provider: {
+        analyze: async () => validResult,
+        warmup: async () => undefined,
+      },
+    });
+
+    dispatcher.dispatch({ requestId: "health-api", schemaVersion: 3, type: "health" }, (event) =>
+      events.push(event),
+    );
+
+    await vi.waitFor(() => expect(events).toHaveLength(1));
+    expect(events[0]).toEqual({
+      codexVersion: null,
+      hostVersion: "0.5.0",
+      model: "gpt-5.6-luna",
+      provider: "openai-responses",
+      ready: true,
+      requestId: "health-api",
+      schemaVersion: 3,
       type: "health-result",
     });
     dispatcher.dispose();

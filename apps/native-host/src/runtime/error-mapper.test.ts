@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 
+import { OpenAICredentialError } from "../credentials/openai-keychain.js";
+import { openAIHttpError, openAIProviderError } from "../provider/openai-provider-errors.js";
 import { ProviderValidationError } from "../provider/provider-validation.js";
 import {
   CodexProviderError,
+  mapAnalysisProviderError,
   mapCodexError,
   mapCodexProcessFailure,
   mapCodexTurnFailure,
@@ -81,5 +84,44 @@ describe("Codex error mapping", () => {
     expect(error).toMatchObject({ code, retryable: true });
     expect(error.message).not.toContain("auth.json");
     expect(mapCodexError(error).message).not.toContain("fake-secret-token");
+  });
+});
+
+describe("combined analysis Provider error mapping", () => {
+  it("preserves Codex Provider errors", () => {
+    const error = new CodexProviderError("RATE_LIMITED", "Codex fixed message.", true, {
+      cause: new Error("private Codex cause"),
+    });
+
+    expect(mapAnalysisProviderError(error)).toEqual({
+      code: "RATE_LIMITED",
+      message: "Codex fixed message.",
+      retryable: true,
+    });
+  });
+
+  it.each([
+    [new OpenAICredentialError("MODEL_PROVIDER_NOT_CONFIGURED"), "MODEL_PROVIDER_NOT_CONFIGURED"],
+    [new OpenAICredentialError("MODEL_PROVIDER_AUTH_FAILED"), "MODEL_PROVIDER_AUTH_FAILED"],
+    [openAIHttpError(429), "RATE_LIMITED"],
+    [openAIProviderError("INVALID_RESPONSE", new Error("private SSE body")), "INVALID_RESPONSE"],
+  ] as const)("maps OpenAI private error %# exactly once", (error, code) => {
+    const mapped = mapAnalysisProviderError(error);
+
+    expect(mapped).toMatchObject({ code });
+    expect(mapped.message).not.toContain("private");
+    expect(mapped).not.toHaveProperty("cause");
+  });
+
+  it("fails unknown configuration errors closed without exposing file contents", () => {
+    const mapped = mapAnalysisProviderError(
+      new Error("Provider configuration contains fake-provider-file-secret"),
+    );
+
+    expect(mapped).toEqual({
+      code: "INTERNAL_ERROR",
+      message: "本机模型服务处理失败，请重试。",
+      retryable: true,
+    });
   });
 });
