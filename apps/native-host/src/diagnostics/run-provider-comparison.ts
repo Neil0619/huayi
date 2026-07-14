@@ -1,5 +1,5 @@
 import { OpenAIApiKeyReader } from "../credentials/openai-keychain.js";
-import { readNativeHostConfiguration } from "../main.js";
+import { readNativeHostConfiguration } from "../native-host-configuration.js";
 import type { OpenAIFetch } from "../provider/openai-responses-client.js";
 import { CodexAppServerClient } from "../runtime/codex-app-server.js";
 import { discoverEnabledMcpServerNames } from "../runtime/codex-mcp-discovery.js";
@@ -9,7 +9,10 @@ import {
   runProviderComparison,
   serializeComparisonReport,
 } from "./compare-providers.js";
-import { createComparisonProviders } from "./comparison-provider-runtime.js";
+import {
+  createComparisonMilestoneRouter,
+  createComparisonProviders,
+} from "./comparison-provider-runtime.js";
 
 interface ComparisonOutput {
   error(line: string): void;
@@ -26,6 +29,7 @@ export async function runConfiguredProviderComparison(
   const processRunner = new NodeProcessRunner();
   const nativeHostModuleUrl = new URL("../main.js", import.meta.url).href;
   const configuration = readNativeHostConfiguration(environment, nativeHostModuleUrl);
+  const milestoneRouter = createComparisonMilestoneRouter();
   const appServer = new CodexAppServerClient({
     codexExecutable: configuration.codexExecutable,
     environment: configuration.environment,
@@ -36,6 +40,7 @@ export async function runConfiguredProviderComparison(
         processRunner,
         workingDirectory: configuration.workingDirectory,
       }),
+    onTurnStartSent: milestoneRouter.upstreamSent,
     workingDirectory: configuration.workingDirectory,
   });
   const apiKeyReader = new OpenAIApiKeyReader({
@@ -47,6 +52,7 @@ export async function runConfiguredProviderComparison(
     const providers = createComparisonProviders({
       apiKeyReader,
       appServer,
+      milestoneRouter,
       openAIFetch: defaultOpenAIFetch,
       schemaDirectory: configuration.schemaDirectory,
     });

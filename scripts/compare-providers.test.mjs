@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import test from "node:test";
+
+import { build } from "vite";
 
 import { runComparisonWrapper } from "./compare-providers.mjs";
 
@@ -69,4 +72,26 @@ test("comparison wrapper forbids arbitrary profile and prompt arguments", () => 
   assert.equal(spawned, false);
   assert.match(lines.join(""), /does not accept arguments/i);
   assert.doesNotMatch(lines.join(""), /arbitrary|private/);
+});
+
+test("built comparison argument rejection cannot enter Native Messaging startup", async () => {
+  await build({
+    configFile: new URL("../apps/native-host/vite.config.ts", import.meta.url).pathname,
+    logLevel: "silent",
+    mode: "diagnostics",
+  });
+  const entrypoint = new URL(
+    "../apps/native-host/dist/diagnostics/compare-providers.js",
+    import.meta.url,
+  ).pathname;
+  const result = spawnSync(process.execPath, [entrypoint, "--probe"], {
+    encoding: "utf8",
+    env: { PATH: process.env.PATH },
+  });
+
+  assert.equal(result.status, 1);
+  assert.equal(result.stdout, "");
+  assert.deepEqual(result.stderr.trim().split("\n"), [
+    "Provider comparison does not accept arguments; it uses fixed profiles and cases.",
+  ]);
 });

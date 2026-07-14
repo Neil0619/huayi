@@ -46,6 +46,7 @@ export class CodexAppServerClient implements CodexAppServer {
   readonly #codexExecutable: string;
   readonly #environment: Readonly<NodeJS.ProcessEnv>;
   readonly #mcpServerDiscovery: McpServerDiscovery;
+  readonly #onTurnStartSent: (() => void) | undefined;
   readonly #processFactory: (options: NodeAppServerProcessOptions) => JsonRpcProcess;
   readonly #timeoutMs: number;
   readonly #workingDirectory: string;
@@ -65,6 +66,7 @@ export class CodexAppServerClient implements CodexAppServer {
     this.#codexExecutable = options.codexExecutable;
     this.#environment = buildAllowedEnvironment(options.environment);
     this.#mcpServerDiscovery = options.mcpServerDiscovery;
+    this.#onTurnStartSent = options.onTurnStartSent;
     this.#processFactory = options.processFactory ?? createNodeAppServerProcess;
     this.#timeoutMs = timeoutMs;
     this.#workingDirectory = options.workingDirectory;
@@ -109,6 +111,7 @@ export class CodexAppServerClient implements CodexAppServer {
         this.#workingDirectory,
         active.threadId,
         active.request,
+        this.#onTurnStartSent,
       );
       active.turnId = turn.turn.id;
       if (active.cancellation !== undefined) this.#interruptActive(active);

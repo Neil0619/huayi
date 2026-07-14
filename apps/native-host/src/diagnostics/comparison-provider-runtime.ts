@@ -26,6 +26,7 @@ interface ComparisonProviderOptions {
   apiKeyReader: OpenAIApiKeyReader;
   appServer: CodexAppServer;
   createFactory?: FactoryBuilder;
+  milestoneRouter?: ComparisonMilestoneRouter;
   openAIFetch: OpenAIFetch;
   schemaDirectory: string;
 }
@@ -34,6 +35,25 @@ const inactiveMilestones: ComparisonMilestoneRecorder = {
   rawDelta: () => undefined,
   upstreamSent: () => undefined,
 };
+
+export interface ComparisonMilestoneRouter extends ComparisonMilestoneRecorder {
+  activate(milestones: ComparisonMilestoneRecorder): void;
+}
+
+export function createComparisonMilestoneRouter(): ComparisonMilestoneRouter {
+  let activeMilestones = inactiveMilestones;
+  return {
+    activate(milestones) {
+      activeMilestones = milestones;
+    },
+    rawDelta() {
+      activeMilestones.rawDelta();
+    },
+    upstreamSent() {
+      activeMilestones.upstreamSent();
+    },
+  };
+}
 
 function fixedConfiguration(provider: ModelProvider) {
   return {
@@ -51,7 +71,6 @@ function instrumentAppServer(
     dispose: () => appServer.dispose(),
     interrupt: (requestId) => appServer.interrupt(requestId),
     runTurn: (request) => {
-      milestones().upstreamSent();
       return appServer.runTurn({
         ...request,
         onAssistantDelta: (delta) => {
@@ -122,8 +141,8 @@ export function createComparisonProviders(
   options: ComparisonProviderOptions,
 ): Record<ComparisonProfileId, ComparisonProviderFactory> {
   const createFactory = options.createFactory ?? createAnalysisProviderFactory;
-  let activeMilestones = inactiveMilestones;
-  const readMilestones = () => activeMilestones;
+  const milestoneRouter = options.milestoneRouter ?? createComparisonMilestoneRouter();
+  const readMilestones = () => milestoneRouter;
   const sharedOptions = {
     apiKeyReader: options.apiKeyReader,
     appServer: instrumentAppServer(options.appServer, readMilestones),
@@ -154,7 +173,7 @@ export function createComparisonProviders(
     Object.entries(providers).map(([profile, provider]) => [
       profile,
       (milestones: ComparisonMilestoneRecorder) => {
-        activeMilestones = milestones;
+        milestoneRouter.activate(milestones);
         return provider;
       },
     ]),

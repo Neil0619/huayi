@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { analysisResultSchema } from "@huayi/protocol";
 import type { OpenAIApiKeyReader } from "../credentials/openai-keychain.js";
@@ -257,7 +257,8 @@ describe("Provider comparison diagnostics", () => {
       async interrupt(requestId) {
         void requestId;
       },
-      async runTurn() {
+      async runTurn(request) {
+        request.onAssistantDelta("private raw delta");
         return "";
       },
       async warmup(signal) {
@@ -295,5 +296,17 @@ describe("Provider comparison diagnostics", () => {
     expect(
       captured.every(({ schemaDirectory }) => schemaDirectory === "/fixed/schema/directory"),
     ).toBe(true);
+
+    const milestones = { rawDelta: vi.fn(), upstreamSent: vi.fn() };
+    providers["codex-gpt-5.4-mini-low"](milestones);
+    await captured[0]?.appServer.runTurn({
+      onAssistantDelta: () => undefined,
+      outputSchema: {},
+      prompt: SENTINEL_PROMPT,
+      requestId: "runtime-order",
+      signal: new AbortController().signal,
+    });
+    expect(milestones.rawDelta).toHaveBeenCalledOnce();
+    expect(milestones.upstreamSent).not.toHaveBeenCalled();
   });
 });

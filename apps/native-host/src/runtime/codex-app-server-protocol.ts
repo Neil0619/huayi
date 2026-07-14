@@ -295,8 +295,9 @@ export async function startAppServerTurn(
   workingDirectory: string,
   threadId: string,
   request: { outputSchema: unknown; prompt: string },
+  onTurnStartSent?: () => void,
 ): Promise<TurnStartResponse> {
-  const response = await channel.request("turn/start", {
+  const pendingResponse = channel.request("turn/start", {
     approvalPolicy: "never",
     cwd: workingDirectory,
     effort: "low",
@@ -306,6 +307,12 @@ export async function startAppServerTurn(
     sandboxPolicy: { networkAccess: false, type: "readOnly" },
     threadId,
   });
+  try {
+    onTurnStartSent?.();
+  } catch {
+    // A diagnostic timing hook must not affect the App Server request lifecycle.
+  }
+  const response = await pendingResponse;
   if (!isTurnStartResponse(response)) throw new AppServerInvariantError();
   return response;
 }

@@ -84,12 +84,17 @@ const safeThread = (id: string) => ({
   thread: { ephemeral: true, id },
 });
 
-function createClient(processes: FakeAppServerProcess[], timeoutMs?: number): CodexAppServerClient {
+function createClient(
+  processes: FakeAppServerProcess[],
+  timeoutMs?: number,
+  onTurnStartSent?: () => void,
+): CodexAppServerClient {
   let processIndex = 0;
   return new CodexAppServerClient({
     codexExecutable: "/opt/homebrew/bin/codex",
     environment: { HOME: "/Users/tester", OPENAI_API_KEY: "must-not-leak", PATH: "/usr/bin" },
     mcpServerDiscovery: async () => [],
+    ...(onTurnStartSent === undefined ? {} : { onTurnStartSent }),
     processFactory: () => {
       const process = processes[processIndex];
       processIndex += 1;
@@ -178,6 +183,20 @@ afterEach(() => {
 });
 
 describe("CodexAppServerClient", () => {
+  it("reports upstream send only after the exact turn/start request is written", async () => {
+    const process = new FakeAppServerProcess();
+    const onTurnStartSent = vi.fn(() => {
+      expect(process.messages.filter((message) => message.method === "turn/start")).toHaveLength(1);
+    });
+    const client = createClient([process], undefined, onTurnStartSent);
+    const active = await startTurn(client, process, "diagnostic-order", true);
+
+    expect(onTurnStartSent).toHaveBeenCalledOnce();
+    complete(process, active, "{}");
+    await expect(active.promise).resolves.toBe("{}");
+    client.dispose();
+  });
+
   it("warms an initialized session without starting a model thread or turn", async () => {
     const process = new FakeAppServerProcess();
     const client = createClient([process]);

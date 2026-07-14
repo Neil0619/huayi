@@ -29,6 +29,7 @@ export interface CodexAppServerClientOptions {
   codexExecutable: string;
   environment: Readonly<NodeJS.ProcessEnv>;
   mcpServerDiscovery: McpServerDiscovery;
+  onTurnStartSent?: () => void;
   processFactory?: (options: NodeAppServerProcessOptions) => JsonRpcProcess;
   timeoutMs?: number;
   workingDirectory: string;
