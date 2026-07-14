@@ -4,6 +4,13 @@ import { homedir } from "node:os";
 import { delimiter, isAbsolute, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
+import type { ModelProvider } from "@huayi/protocol";
+
+import { parseProviderAlias } from "../config/provider-configuration.js";
+import {
+  ProviderConfigurationStore,
+  type ProviderConfigurationResult,
+} from "../config/provider-configuration-store.js";
 import { EUDIC_SECURITY_EXECUTABLE } from "../credentials/eudic-keychain.js";
 import { NodeProcessRunner, type ProcessRunner } from "../runtime/codex-process.js";
 import {
@@ -23,6 +30,7 @@ import {
   type UninstallMacosNativeHostOptions,
 } from "./macos.js";
 import { validateExtensionId } from "./native-manifest.js";
+import { createMacosInstallationPaths } from "./paths.js";
 
 const USAGE = [
   "Usage:",
@@ -30,6 +38,8 @@ const USAGE = [
   "  huayi-installer uninstall [--dry-run]",
   "  huayi-installer eudic-configure [--dry-run]",
   "  huayi-installer eudic-remove [--dry-run]",
+  "  huayi-installer provider-set <api|codex> [--dry-run]",
+  "  huayi-installer provider-status",
 ].join("\n");
 
 export type InstallerCommand =
@@ -37,7 +47,14 @@ export type InstallerCommand =
   | { codexPath?: string; dryRun: boolean; extensionId: string; type: "install" }
   | { dryRun: boolean; type: "eudic-configure" }
   | { dryRun: boolean; type: "eudic-remove" }
+  | { dryRun: boolean; provider: ModelProvider; type: "provider-set" }
+  | { type: "provider-status" }
   | { dryRun: boolean; type: "uninstall" };
+
+export interface ProviderConfigurationAccess {
+  read(signal?: AbortSignal): Promise<ModelProvider>;
+  write(provider: ModelProvider, dryRun: boolean): Promise<ProviderConfigurationResult>;
+}
 
 export interface InstallerCliOperations {
   configureEudic(options: ConfigureEudicAuthorizationOptions): Promise<CredentialOperationResult>;
@@ -55,6 +72,7 @@ export interface InstallerCliRuntime {
   operations: InstallerCliOperations;
   platform: NodeJS.Platform;
   processRunner: ProcessRunner;
+  providerConfigurationStore: ProviderConfigurationAccess;
   securityExecutable: string;
   sourceBundlePath: string;
   sourceSchemaDirectory: string;
@@ -78,6 +96,37 @@ export function parseInstallerArguments(arguments_: readonly string[]): Installe
   }
 
   const command = arguments_[0];
+  if (command === "provider-status") {
+    if (arguments_.length !== 1) {
+      throw new Error(`provider-status does not accept arguments.\n${USAGE}`);
+    }
+    return { type: "provider-status" };
+  }
+  if (command === "provider-set") {
+    let dryRun = false;
+    let providerAlias: string | undefined;
+    for (const argument of arguments_.slice(1)) {
+      if (argument === "--") {
+        continue;
+      }
+      if (argument === "--dry-run") {
+        dryRun = true;
+        continue;
+      }
+      if (argument.startsWith("--") || providerAlias !== undefined) {
+        throw new Error(`Unknown installer argument: ${argument}.\n${USAGE}`);
+      }
+      providerAlias = argument;
+    }
+    if (providerAlias === undefined) {
+      throw new Error(`provider-set requires api or codex.\n${USAGE}`);
+    }
+    return {
+      dryRun,
+      provider: parseProviderAlias(providerAlias),
+      type: "provider-set",
+    };
+  }
   if (
     command !== "install" &&
     command !== "uninstall" &&
@@ -185,6 +234,16 @@ export async function executeInstallerCommand(
     throw new Error("Huayi Native Host installation currently supports macOS only.");
   }
 
+  if (command.type === "provider-status") {
+    runtime.writeOutput(await runtime.providerConfigurationStore.read());
+    return;
+  }
+  if (command.type === "provider-set") {
+    const result = await runtime.providerConfigurationStore.write(command.provider, command.dryRun);
+    runtime.writeOutput(`${result.dryRun ? "[dry-run] " : ""}Set provider to ${result.provider}.`);
+    return;
+  }
+
   const keychainOptions = {
     dryRun: command.dryRun,
     environment: runtime.environment,
@@ -245,9 +304,10 @@ export async function executeInstallerCommand(
 }
 
 export function createDefaultInstallerRuntime(moduleUrl = import.meta.url): InstallerCliRuntime {
+  const homeDirectory = homedir();
   return {
     environment: process.env,
-    homeDirectory: homedir(),
+    homeDirectory,
     interactiveProcessRunner: new NodeInteractiveProcessRunner(),
     nodeExecutable: process.execPath,
     nodeVersion: process.versions.node,
@@ -259,6 +319,9 @@ export function createDefaultInstallerRuntime(moduleUrl = import.meta.url): Inst
     },
     platform: process.platform,
     processRunner: new NodeProcessRunner(),
+    providerConfigurationStore: new ProviderConfigurationStore(
+      createMacosInstallationPaths(homeDirectory).providerConfigurationPath,
+    ),
     securityExecutable: EUDIC_SECURITY_EXECUTABLE,
     sourceBundlePath: fileURLToPath(new URL("../main.js", moduleUrl)),
     sourceSchemaDirectory: fileURLToPath(new URL("../provider/schemas/", moduleUrl)),

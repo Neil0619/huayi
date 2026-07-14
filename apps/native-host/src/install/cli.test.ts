@@ -31,7 +31,7 @@ afterEach(async () => {
 });
 
 describe("parseInstallerArguments", () => {
-  it("parses install, uninstall, Eudic commands, dry-run, and an explicit Codex path", () => {
+  it("parses install, uninstall, Eudic, and provider commands", () => {
     expect(
       parseInstallerArguments([
         "install",
@@ -60,6 +60,17 @@ describe("parseInstallerArguments", () => {
       dryRun: false,
       type: "eudic-remove",
     });
+    expect(parseInstallerArguments(["provider-set", "api", "--dry-run"])).toEqual({
+      dryRun: true,
+      provider: "openai-responses",
+      type: "provider-set",
+    });
+    expect(parseInstallerArguments(["provider-set", "codex"])).toEqual({
+      dryRun: false,
+      provider: "codex",
+      type: "provider-set",
+    });
+    expect(parseInstallerArguments(["provider-status"])).toEqual({ type: "provider-status" });
     expect(parseInstallerArguments(["--help"])).toEqual({ type: "help" });
   });
 
@@ -69,8 +80,11 @@ describe("parseInstallerArguments", () => {
     [["install", "--extension-id"]],
     [["uninstall", "--extension-id", EXTENSION_ID]],
     [["install", "--extension-id", EXTENSION_ID, "--unknown"]],
+    [["provider-set"]],
+    [["provider-set", "openai-responses"]],
+    [["provider-status", "--dry-run"]],
   ])("rejects invalid arguments %j", (arguments_) => {
-    expect(() => parseInstallerArguments(arguments_)).toThrow(/usage|argument|extension/i);
+    expect(() => parseInstallerArguments(arguments_)).toThrow(/usage|argument|extension|provider/i);
   });
 });
 
@@ -106,6 +120,10 @@ function createRuntime(
     operations,
     platform: "darwin",
     processRunner,
+    providerConfigurationStore: {
+      read: vi.fn().mockResolvedValue("codex"),
+      write: vi.fn().mockImplementation(async (provider, dryRun) => ({ dryRun, provider })),
+    },
     sourceBundlePath: "/build/main.js",
     sourceSchemaDirectory: "/build/provider/schemas",
     securityExecutable: "/usr/bin/security",
@@ -116,6 +134,61 @@ function createRuntime(
 }
 
 describe("executeInstallerCommand", () => {
+  it("sets and reports providers without invoking installer, Keychain, or Codex operations", async () => {
+    const output: string[] = [];
+    const operations: InstallerCliOperations = {
+      configureEudic: vi.fn(),
+      install: vi.fn(),
+      removeEudic: vi.fn(),
+      uninstall: vi.fn(),
+    };
+    const write = vi.fn().mockResolvedValue({ dryRun: true, provider: "openai-responses" });
+    const runtime = createRuntime(operations, output, {
+      environment: { PATH: "" },
+      providerConfigurationStore: { read: vi.fn(), write },
+    });
+
+    await executeInstallerCommand(
+      { dryRun: true, provider: "openai-responses", type: "provider-set" },
+      runtime,
+    );
+
+    expect(write).toHaveBeenCalledWith("openai-responses", true);
+    expect(output).toEqual(["[dry-run] Set provider to openai-responses."]);
+    expect(operations.configureEudic).not.toHaveBeenCalled();
+    expect(operations.install).not.toHaveBeenCalled();
+    expect(operations.removeEudic).not.toHaveBeenCalled();
+    expect(operations.uninstall).not.toHaveBeenCalled();
+    expect(runtime.processRunner.run).not.toHaveBeenCalled();
+    expect(runtime.interactiveProcessRunner.run).not.toHaveBeenCalled();
+  });
+
+  it("prints only the configured provider for provider status", async () => {
+    const output: string[] = [];
+    const operations: InstallerCliOperations = {
+      configureEudic: vi.fn(),
+      install: vi.fn(),
+      removeEudic: vi.fn(),
+      uninstall: vi.fn(),
+    };
+    const read = vi.fn().mockResolvedValue("openai-responses");
+    const runtime = createRuntime(operations, output, {
+      environment: { PATH: "" },
+      providerConfigurationStore: { read, write: vi.fn() },
+    });
+
+    await executeInstallerCommand({ type: "provider-status" }, runtime);
+
+    expect(read).toHaveBeenCalledOnce();
+    expect(output).toEqual(["openai-responses"]);
+    expect(operations.configureEudic).not.toHaveBeenCalled();
+    expect(operations.install).not.toHaveBeenCalled();
+    expect(operations.removeEudic).not.toHaveBeenCalled();
+    expect(operations.uninstall).not.toHaveBeenCalled();
+    expect(runtime.processRunner.run).not.toHaveBeenCalled();
+    expect(runtime.interactiveProcessRunner.run).not.toHaveBeenCalled();
+  });
+
   it("dispatches install and reports the returned action plan", async () => {
     const output: string[] = [];
     const install = vi.fn().mockResolvedValue({

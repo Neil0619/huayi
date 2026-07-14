@@ -12,6 +12,8 @@ describe("createMacosInstallationPaths", () => {
         "/Users/tester/Library/Application Support/Google/Chrome/NativeMessagingHosts/com.huayi.codex_bridge.json",
       ownershipMarkerPath:
         "/Users/tester/Library/Application Support/Huayi/native-host/.huayi-owned",
+      providerConfigurationPath:
+        "/Users/tester/Library/Application Support/Huayi/native-host/provider.json",
       schemaDirectory:
         "/Users/tester/Library/Application Support/Huayi/native-host/provider/schemas",
       workingDirectory: "/Users/tester/Library/Application Support/Huayi/native-host/workdir",

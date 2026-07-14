@@ -15,6 +15,7 @@ import { dirname, join } from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
+import { ProviderConfigurationStore } from "../config/provider-configuration-store.js";
 import { APP_SERVER_DISABLED_FEATURES } from "../runtime/codex-app-server-config.js";
 import type {
   ProcessRunRequest,
@@ -187,6 +188,10 @@ describe("installMacosNativeHost", () => {
     expect(await readFile(paths.bundlePath, "utf8")).toBe("// host bundle v1\n");
     expect(await readdir(paths.schemaDirectory)).toEqual([...SCHEMA_NAMES].sort());
     expect(await readdir(paths.workingDirectory)).toEqual([]);
+    expect(await exists(paths.providerConfigurationPath)).toBe(false);
+    await expect(
+      new ProviderConfigurationStore(paths.providerConfigurationPath).read(),
+    ).resolves.toBe("codex");
     expect((await stat(paths.launcherPath)).mode & 0o111).not.toBe(0);
     expect(await readFile(paths.ownershipMarkerPath, "utf8")).toContain("com.huayi.codex_bridge");
 
@@ -218,6 +223,8 @@ describe("installMacosNativeHost", () => {
     const fixture = await createFixture();
     const paths = createMacosInstallationPaths(fixture.homeDirectory);
     await installMacosNativeHost(createOptions(fixture, new CapabilityRunner()));
+    const providerStore = new ProviderConfigurationStore(paths.providerConfigurationPath);
+    await providerStore.write("openai-responses", false);
     await writeFile(join(paths.schemaDirectory, "obsolete.json"), "{}\n", "utf8");
     await writeFile(fixture.sourceBundlePath, "// host bundle v2\n", "utf8");
 
@@ -225,6 +232,7 @@ describe("installMacosNativeHost", () => {
 
     expect(await readFile(paths.bundlePath, "utf8")).toBe("// host bundle v2\n");
     expect(await readdir(paths.schemaDirectory)).toEqual([...SCHEMA_NAMES].sort());
+    await expect(providerStore.read()).resolves.toBe("openai-responses");
   });
 
   it("refuses a symlinked provider directory instead of writing outside the owned root", async () => {
@@ -314,11 +322,16 @@ describe("uninstallMacosNativeHost", () => {
     const fixture = await createFixture();
     const paths = createMacosInstallationPaths(fixture.homeDirectory);
     await installMacosNativeHost(createOptions(fixture, new CapabilityRunner()));
+    await new ProviderConfigurationStore(paths.providerConfigurationPath).write(
+      "openai-responses",
+      false,
+    );
 
     await uninstallMacosNativeHost({ dryRun: false, homeDirectory: fixture.homeDirectory });
     await uninstallMacosNativeHost({ dryRun: false, homeDirectory: fixture.homeDirectory });
 
     expect(await exists(paths.applicationDirectory)).toBe(false);
+    expect(await exists(paths.providerConfigurationPath)).toBe(false);
     expect(await exists(paths.nativeManifestPath)).toBe(false);
   });
 

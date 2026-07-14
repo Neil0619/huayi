@@ -8,6 +8,7 @@ export interface MacosInstallationPaths {
   readonly launcherPath: string;
   readonly nativeManifestPath: string;
   readonly ownershipMarkerPath: string;
+  readonly providerConfigurationPath: string;
   readonly schemaDirectory: string;
   readonly workingDirectory: string;
 }
@@ -29,6 +30,7 @@ export function createMacosInstallationPaths(homeDirectory: string): MacosInstal
       `${NATIVE_HOST_NAME}.json`,
     ),
     ownershipMarkerPath: join(applicationDirectory, ".huayi-owned"),
+    providerConfigurationPath: join(applicationDirectory, "provider.json"),
     schemaDirectory: join(applicationDirectory, "provider/schemas"),
     workingDirectory: join(applicationDirectory, "workdir"),
   };
