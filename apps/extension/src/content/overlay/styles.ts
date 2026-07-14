@@ -3,6 +3,8 @@ export const overlayDesignTokens = {
   background: "#f4f5f7",
   border: "#dde0e5",
   danger: "#b42318",
+  enterAnimationDuration: "120ms",
+  enterTranslateOffset: "3px",
   mutedText: "#737780",
   panelWidth: "420px",
   radius: "14px",
@@ -184,7 +186,7 @@ export const overlayStyles = `
   }
 
   .huayi-enter {
-    animation: huayi-enter 120ms ease-out;
+    animation: huayi-enter ${overlayDesignTokens.enterAnimationDuration} ease-out;
   }
 
   .huayi-section-title {
@@ -315,7 +317,7 @@ export const overlayStyles = `
   @keyframes huayi-enter {
     from {
       opacity: 0;
-      transform: translateY(3px);
+      transform: translateY(${overlayDesignTokens.enterTranslateOffset});
     }
 
     to {
