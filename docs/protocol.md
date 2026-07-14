@@ -6,10 +6,11 @@
 
 ## 请求
 
-- `health`：检查 native host 和 Codex 登录/能力状态。
-- `warmup`：只包含请求 ID，不包含网页数据或模型输入，用于预先完成 Codex 能力发现和 App
-  Server 安全初始化；它不属于 `HostWorkRequest`，不得创建 thread/turn、产生模型输出或消费
-  模型输出额度。
+- `health`：检查 Native Host 和当前显式 Provider 的就绪状态，不读取 API Key 或发送模型请求。
+- `warmup`：只包含请求 ID，不包含网页数据或模型输入，用于预先完成当前 Provider 的本地
+  初始化；Codex 模式执行能力发现和 App Server 安全初始化，API 模式只验证本地 Provider
+  配置读取。它不属于 `HostWorkRequest`，
+  不得读取 API Key、发送 HTTP、创建 thread/turn、产生模型输出或消费模型额度。
 - `analyze`：包含请求 ID、动作、选区类型、英文选区、所在段落上下文、精确句子上下文和
   `zh-CN` 目标语言。
 - `check-word`：只包含请求 ID、英语原始单词和固定语言 `en`，用于只读查询生词本状态。
@@ -75,6 +76,21 @@ Codex 健康检查成功示例：
   "provider": "codex",
   "ready": true,
   "requestId": "health-codex",
+  "schemaVersion": 3,
+  "type": "health-result"
+}
+```
+
+API Provider 健康检查成功示例：
+
+```json
+{
+  "codexVersion": null,
+  "hostVersion": "0.5.0",
+  "model": "gpt-5.6-luna",
+  "provider": "openai-responses",
+  "ready": true,
+  "requestId": "health-api",
   "schemaVersion": 3,
   "type": "health-result"
 }
@@ -197,17 +213,19 @@ INTERNAL_ERROR
 单帧上限为 1 MiB。当前版本只允许新增可选字段；删除字段、重命名或改变语义时必须再次提升
 `schemaVersion`，同时在本节增加迁移说明。
 
-v2 到 v3 是同步升级且不兼容的迁移：所有请求和事件改用 `schemaVersion: 3`；
+v0.5.0 的 v2 到 v3 是同步升级且不兼容的迁移：所有请求和事件改用 `schemaVersion: 3`；
 `health-result` 必须增加 `provider` 和 `model`，并将 `codexVersion` 改为可空且与 Provider
 语义绑定；新增 Provider 通用错误码 `MODEL_PROVIDER_NOT_CONFIGURED` 和
 `MODEL_PROVIDER_AUTH_FAILED`。分析增量、结构化板块、最终结果形状和共享序号语义保持不变。
-Extension 与 Native Host 必须一起升级，任一端不得接受 v2 消息。
+Extension 与 Native Host 必须一起升级，任一端不得接受 v2 消息。Provider 配置与凭据是 Host
+私有状态，不进入 `analyze`；配置缺失默认 Codex，其他无效状态失败关闭。
 
 v1 到 v2 是同步升级且不兼容的迁移：所有请求和事件改用 `schemaVersion: 2`；`analyze`
 必须增加 `sentenceContext`；新增不含页面数据的 `warmup -> warmup-ready`；新增与文本增量共享
 序号的 `analysis-section`；词汇结果数组基数改为搭配/相似项/同义词 0–3、核心词义 1–3。
-Extension 与 Native Host 必须一起升级，任一端不得接受另一版本的消息。v0.4.0 重装使用扩展
-ID `kfkamoejomjdihipgdkmfjcdenlhgnpd`；精确命令与回滚步骤见 `docs/setup-macos.md`。
+Extension 与 Native Host 必须一起升级，任一端不得接受另一版本的消息。v0.5.0 重装使用扩展
+ID `kfkamoejomjdihipgdkmfjcdenlhgnpd`；精确命令与 Provider 回滚步骤见
+`docs/setup-macos.md`。
 
 v0.2.0 在不改变已有消息语义的前提下，为 `schemaVersion: 1` 增加 `add-word` 和
 `word-added` 联合分支，因此没有提升协议版本。扩展与 Native Host 应同步升级；旧 Host 在

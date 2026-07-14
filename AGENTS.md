@@ -3,10 +3,10 @@
 ## Project scope
 
 Huayi is a personal macOS Google Chrome extension for English selection translation and
-analysis. The extension communicates with a local Native Messaging host, which invokes an
-already authenticated Codex CLI. Version 0.4.x is not a Chrome Web Store release and does not
-support Windows, Linux, other browsers, cloud API keys, history, synchronization, or follow-up
-chat.
+analysis. The extension communicates with a local Native Messaging host, which uses an already
+authenticated Codex CLI by default or an explicitly enabled OpenAI Responses API provider.
+Version 0.5.x is not a Chrome Web Store release and does not support Windows, Linux, other
+browsers, history, synchronization, follow-up chat, or browser-based provider configuration.
 
 ## Sources of truth
 
@@ -23,14 +23,21 @@ chat.
 - Streaming execution order: `docs/superpowers/plans/2026-07-12-streaming-analysis.md`.
 - Codex capability compatibility execution order:
   `docs/superpowers/plans/2026-07-13-codex-capability-compatibility.md`.
+- OpenAI provider and smooth streaming behavior:
+  `docs/superpowers/specs/2026-07-14-openai-responses-provider-design.md`.
+- OpenAI provider execution order:
+  `docs/superpowers/plans/2026-07-14-openai-responses-provider.md`.
 - Keep temporary task status out of AGENTS.md files.
 
 ## Current release invariants
 
 - All app, package, Manifest, Host, App Server client, and Eudic User-Agent identities are
-  `0.4.0`; the Native Messaging `schemaVersion` remains `2`.
-- Wire v1 is incompatible with v2 and is rejected. Upgrade or roll back the Extension and Native
+  `0.5.0`; the Native Messaging `schemaVersion` is `3`.
+- Wire v2 is incompatible with v3 and is rejected. Upgrade or roll back the Extension and Native
   Host synchronously; do not add a translation shim.
+- Missing provider configuration defaults to Codex. Every other invalid configuration state
+  fails closed. Each analysis request reads and pins one provider; never migrate an active
+  request or automatically fall back after a provider failure.
 - Provider schemas describe private model content only. The trusted Host owns `sourceText`,
   `selectionKind`, and public result `type`, then validates the assembled public result.
 - Warmup carries no selection, context, sentence, URL, or other page data and must not create a
@@ -39,8 +46,9 @@ chat.
 - Provider-validation stderr diagnostics may contain only bounded allowlisted stages and field
   names. Other startup and protocol diagnostics use fixed safe messages. No stderr path may
   include page, model, credential, raw JSON, or environment contents.
-- Default gates are offline. Run `pnpm smoke:codex` only after explicit approval for real model
-  and quota use; installation and Chrome verification require a separate explicit approval.
+- Default gates are offline. Run `pnpm smoke:codex` or `pnpm smoke:compare` only after explicit
+  approval for real model, quota, and API billing; installation and Chrome verification require
+  a separate explicit approval.
 - The personal Extension ID is `kfkamoejomjdihipgdkmfjcdenlhgnpd`. Synchronous reinstall uses
   `pnpm host:install -- --extension-id kfkamoejomjdihipgdkmfjcdenlhgnpd` and preserves the
   `com.huayi.codex_bridge.eudic` / `authorization` Keychain item and documented macOS paths.
@@ -68,13 +76,18 @@ chat.
   - `pnpm test:e2e`
   - `pnpm build`
   - `pnpm smoke:codex`
+  - `pnpm smoke:compare`
   - `pnpm host:install -- --extension-id <ID>`
   - `pnpm host:eudic:configure`
   - `pnpm host:eudic:remove`
+  - `pnpm host:openai:configure`
+  - `pnpm host:openai:remove`
+  - `pnpm host:provider:set -- api|codex`
+  - `pnpm host:provider:status`
   - `pnpm host:uninstall`
 - Default tests must never call OpenAI, real Codex, a real Keychain item, or the Eudic API. Use
-  fake App Servers, process runners, authorization readers, and fetch implementations. Only
-  `pnpm smoke:codex` may run a real model and consume subscription quota.
+  fake App Servers, process runners, authorization readers, and fetch implementations. Only the
+  explicitly approved smoke commands may run real models or consume subscription/API quota.
 
 ## Code style
 

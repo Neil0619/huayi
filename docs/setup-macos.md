@@ -123,6 +123,35 @@ pnpm host:openai:remove
 该命令只查询并删除 service `com.huayi.codex_bridge.openai`、account `api-key` 的精确项；项
 不存在时幂等。
 
+## 选择模型 Provider
+
+Provider 配置固定写入
+`~/Library/Application Support/Huayi/native-host/provider.json`。文件缺失时默认使用 Codex；
+API Key 的存在不会自动启用 API。切换命令只接受 `api` 或 `codex`，并以 `0600` 普通文件原子
+更新；符号链接、未知字段或无效文件失败关闭。
+
+```bash
+pnpm host:provider:set -- api
+pnpm host:provider:status
+```
+
+API 模式固定使用 OpenAI Responses endpoint、`gpt-5.6-luna` 和 `none` effort。ChatGPT
+Plus/Codex 额度与 OpenAI Platform API 计费彼此独立；启用 API 后会产生单独 API 费用。若要
+立即停止 API 请求并回到默认链路：
+
+```bash
+pnpm host:provider:set -- codex
+pnpm host:provider:status
+```
+
+Provider 切换只影响下一次分析，不迁移活动请求，也不会在 API 失败时自动回退。只有明确不再
+保留 Key 时才执行 `pnpm host:openai:remove`。未来设置页可调用同一严格 Host 配置边界，但
+v0.5.0 没有浏览器端配置 UI，也不会把 Key、endpoint 或模型写入扩展消息。
+
+API 模式只发送当前英文选区、最多 2,000 字符上下文、可用英文句子和固定分析指令；不发送
+URL、标题、历史记录、欧路授权或模型历史。钥匙串保护静态存储，但不能防御以同一 macOS
+登录用户权限运行的恶意进程。
+
 ## 从 v0.2.x 升级到 v0.3.0
 
 v0.3.0 同时改变扩展、Native Host、App Server provider 和 wire 事件，升级顺序固定为：
@@ -214,6 +243,37 @@ pnpm host:install -- --extension-id kfkamoejomjdihipgdkmfjcdenlhgnpd
 ```
 
 随后再次在 `chrome://extensions` 刷新并确认版本 `0.4.0`。
+
+## 从 v0.4.0 升级到 v0.5.0
+
+v0.5.0 将 Native Messaging 协议提升为 `schemaVersion: 3` 并拒绝 v2。升级期间暂停使用扩展，
+同步替换 Extension 和 Host；Chrome 权限仍严格为 `nativeMessaging`，没有
+`host_permissions`。在 v0.5.0 源码根目录依次运行：
+
+```bash
+pnpm build
+pnpm host:install -- --extension-id kfkamoejomjdihipgdkmfjcdenlhgnpd
+pnpm host:openai:configure
+pnpm host:provider:set -- api
+pnpm host:provider:status
+```
+
+构建完成后打开 `chrome://extensions`，确认加载目录是当前
+`apps/extension/dist`，点击刷新并确认版本 `0.5.0`。最后两条配置命令必须由用户在终端明确
+执行：Key 通过隐藏提示写入钥匙串，`status` 应输出 `openai-responses`。安装和升级本身不读取
+或覆盖现有 OpenAI/欧路钥匙串项，也不自动改变有效 Provider 配置。
+
+只有用户另行批准真实调用和费用后，才运行 `pnpm smoke:codex` 或
+`pnpm smoke:compare`。若 API 速度、质量或费用不可接受，无需重装，立即回滚 Provider：
+
+```bash
+pnpm host:provider:set -- codex
+pnpm host:provider:status
+```
+
+回滚输出应为 `codex`。该操作保留 OpenAI Key，便于以后再次测试；只有用户明确要求删除时才
+运行 `pnpm host:openai:remove`。若要回滚整个 v0.5.0 发布，则必须把 v0.4.0 Extension 与 Host
+一起构建、安装并刷新，不能把 wire v2 与 v3 端点混用。
 
 ## 人工验收
 

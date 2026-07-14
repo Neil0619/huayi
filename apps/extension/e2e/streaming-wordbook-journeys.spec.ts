@@ -158,17 +158,22 @@ for (const [action, finalText] of [
 test("streaming sections append in place and survive the corrected final result", async ({
   page,
 }) => {
-  await startWordAnalysis(page, "word-selection");
+  await startWordAnalysis(page, "controlled-stream-word-selection");
   const resultPanel = panel(page);
   const body = resultPanel.locator(".huayi-body");
   const meaning = resultPanel.locator('[data-huayi-section="contextual-meaning"]');
   const items = resultPanel.locator('[data-huayi-section="collocations"] li');
+
+  await expect(meaning).toBeVisible();
+  await page.evaluate(() => document.dispatchEvent(new CustomEvent("huayi-e2e-stream-first")));
   await expect(items).toHaveCount(1);
   const bodyHandle = await body.elementHandle();
   const meaningHandle = await meaning.elementHandle();
   const firstItemHandle = await items.first().elementHandle();
 
+  await page.evaluate(() => document.dispatchEvent(new CustomEvent("huayi-e2e-stream-second")));
   await expect(items).toHaveCount(2);
+  await page.evaluate(() => document.dispatchEvent(new CustomEvent("huayi-e2e-stream-final")));
   await expect(resultPanel).toContainText("词汇翻译结果");
   await expect(items).toHaveCount(3);
 
@@ -189,6 +194,19 @@ test("streaming sections append in place and survive the corrected final result"
     "sample collocation",
   );
 });
+
+for (const [testId, message, retryable] of [
+  ["api-unconfigured-word-selection", "尚未配置 OpenAI API Key，请先运行配置命令。", false],
+  ["api-auth-failed-word-selection", "OpenAI API Key 无效或无权限，请重新配置。", true],
+] as const) {
+  test(`API Provider error copy is safe for ${testId}`, async ({ page }) => {
+    await startWordAnalysis(page, testId);
+
+    await expect(panel(page)).toContainText(message);
+    await expect(panel(page).locator('[data-action="retry"]')).toHaveCount(retryable ? 1 : 0);
+    await expect(panel(page)).not.toContainText("fake-secret");
+  });
+}
 
 test("a present query updates streaming UI and logs only the checked word", async ({ page }) => {
   await startWordAnalysis(page, "existing-word-selection");
@@ -303,6 +321,23 @@ test("late delta and status cannot mutate a replacement overlay", async ({ page 
 
   await expect(panel(page)).not.toContainText("迟到文本");
   await expect(panel(page).locator('[data-action="add-word"]')).toHaveText("加入欧路生词本");
+});
+
+test("close cancellation prevents a late stream event from reopening the overlay", async ({
+  page,
+}) => {
+  await startWordAnalysis(page, "stale-event-word-selection");
+  await expect(panel(page)).toContainText("正在逐步显示");
+  const pendingIds = await requestIds(
+    page.locator('[data-native-request="analyze"], [data-native-request="check-word"]'),
+  );
+  expect(pendingIds).toHaveLength(2);
+
+  await panel(page).locator('[data-action="close"]').click();
+
+  await expectCancelled(page, pendingIds);
+  await page.waitForTimeout(1_800);
+  await expect(overlayHost(page)).toHaveCount(0);
 });
 
 test("a narrow result keeps the header action, drag handle, and close control separate", async ({

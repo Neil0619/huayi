@@ -21,7 +21,9 @@ import {
   createResultEvent,
   createSectionEvent,
 } from "./harness-results.js";
+import { installControlledStreamHarness } from "./controlled-stream-harness.js";
 import { MockNativeTransport } from "./mock-native-transport.js";
+import { createProviderErrorEvent } from "./provider-error-harness.js";
 
 const TAB_ID = 1;
 const DEFAULT_REQUEST_TIMEOUT_MS = 65_000;
@@ -245,6 +247,9 @@ function emitAnalyzeResponse(request: AnalyzeRequest): void {
           setTimeout(() => transport.emit(secondCollocation), 250);
         }
       }
+      if (captureControlledStream(request)) {
+        return;
+      }
       if (request.selection === "lateexisting") {
         queueMicrotask(() => transport.emit(createResultEvent(request)));
       } else {
@@ -285,6 +290,9 @@ const transport = new MockNativeTransport();
 const attempts = new Map<string, number>();
 let contentRequestSequence = 0;
 let coordinatorRequestSequence = 0;
+const captureControlledStream = installControlledStreamHarness(document, (event) =>
+  transport.emit(event),
+);
 
 const coordinator = new RequestCoordinator({
   createRequestId: () => `e2e-coordinator-${(coordinatorRequestSequence += 1)}`,
@@ -366,6 +374,12 @@ transport.onRequest((request) => {
         type: "error",
       });
     });
+    return;
+  }
+
+  const providerError = createProviderErrorEvent(request);
+  if (providerError !== null) {
+    queueMicrotask(() => transport.emit(providerError));
     return;
   }
 

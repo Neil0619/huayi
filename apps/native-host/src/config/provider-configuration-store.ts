@@ -122,12 +122,7 @@ export class ProviderConfigurationStore {
       let bytesRead = 0;
       while (bytesRead < buffer.length) {
         signal?.throwIfAborted();
-        const result = await handle.read(
-          buffer,
-          bytesRead,
-          buffer.length - bytesRead,
-          bytesRead,
-        );
+        const result = await handle.read(buffer, bytesRead, buffer.length - bytesRead, bytesRead);
         if (result.bytesRead === 0) {
           break;
         }

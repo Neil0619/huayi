@@ -7,10 +7,11 @@
 3. 只通过 `@huayi/protocol` 公共导出连接 extension 与 native host，禁止跨包深层导入。
 4. 协议、权限、安全或安装行为变化必须同步更新对应中文文档。
 5. 默认测试不得访问 OpenAI、真实 Codex、真实欧路 API 或真实 macOS 钥匙串；注入 fake App
-   Server、process runner、authorization reader 和 fetch。
+   Server、process runner、Keychain reader 和 fetch。真实 `smoke:codex` / `smoke:compare` 均需
+   用户单独授权。
 6. 根包、三个 workspace 包、扩展 Manifest、Host health、App Server `clientInfo.version` 和
    欧路 `User-Agent` 必须同步；版本一致性测试必须直接覆盖每个运行时身份源。
-7. 当前协议为 `schemaVersion: 2`，运行时拒绝 v1；Extension 与 Host 必须同步升级或回滚。
+7. 当前协议为 `schemaVersion: 3`，运行时拒绝 v2；Extension 与 Host 必须同步升级或回滚。
    删除、重命名或语义不兼容变化必须再次提升版本并附迁移说明。
 8. 手写文件在超过 400 行前拆分；不要新增权限、存储、秘密或无说明的生产依赖。
 9. Provider 私有 JSON Schema 只描述模型内容，不得包含 `sourceText`、`selectionKind` 或公共
@@ -19,6 +20,12 @@
     只有 `result` 是完整成功；空词汇板块必须隐藏，禁止用虚构内容补齐。
 11. Provider 校验的 stderr 只允许有界安全阶段和字段名；启动与协议诊断使用固定安全消息。
     任何 stderr 都不得记录网页、模型、原始 JSON、凭据或环境内容。
+12. Provider 配置缺失时默认 Codex，其余无效状态失败关闭；请求开始时只读取一次配置并固定
+    路由，API 失败不得自动回退 Codex。
+13. OpenAI 生产配置固定为 Responses endpoint、`gpt-5.6-luna`、`none` effort、严格 SSE 与
+    Schema；Key 只从固定 macOS 钥匙串项读取。自动测试必须使用 fake fetch/Keychain。
+14. 扩展流式 DOM 更新按帧批处理，并复用 `data-huayi-section` 键控节点；测试应观察稳定行为，
+    不依赖恰好在某个毫秒捕获瞬时帧。
 
 ## 提交前检查
 
@@ -33,9 +40,9 @@ pnpm build
 git diff --check
 ```
 
-上述门禁必须保持离线。`pnpm smoke:codex` 是唯一允许调用真实模型的命令，不属于默认门禁，
-只能在用户明确批准真实模型与额度使用后单独执行。本机安装、Chrome 操作、欧路配置、移除和
-真实欧路验收同样必须由用户显式批准或执行。
+上述门禁必须保持离线。`pnpm smoke:codex` 与 `pnpm smoke:compare` 不属于默认门禁，只能在
+用户明确批准真实模型、ChatGPT/Codex 额度和 OpenAI API 费用后单独执行。本机安装、Provider
+切换、Chrome 操作、钥匙串配置/移除和真实欧路验收同样必须由用户显式批准或执行。
 
 ```bash
 pnpm host:eudic:configure -- --dry-run
@@ -44,6 +51,6 @@ pnpm host:eudic:remove -- --dry-run
 
 提交信息使用 Conventional Commits，例如 `feat(extension): add selection overlay`。
 
-v0.4.0 的同步升级和回滚使用扩展 ID `kfkamoejomjdihipgdkmfjcdenlhgnpd`，并保留钥匙串
-service `com.huayi.codex_bridge.eudic`、account `authorization` 与既有 Huayi 安装路径；具体
-命令只以 [macOS 安装说明](docs/setup-macos.md) 为准。
+v0.5.0 的同步升级和回滚使用扩展 ID `kfkamoejomjdihipgdkmfjcdenlhgnpd`，并保留欧路与 OpenAI
+两个精确钥匙串项、Provider 配置和既有 Huayi 安装路径；具体命令只以
+[macOS 安装说明](docs/setup-macos.md) 为准。

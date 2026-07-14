@@ -2,7 +2,7 @@
 
 - stdout is exclusively the Native Messaging binary protocol. Write diagnostics only to stderr.
 - Keep the Host health version, App Server `clientInfo.version`, and Eudic `User-Agent` at the
-  current release identity `0.4.0`; wire `schemaVersion` remains `2` and rejects v1.
+  current release identity `0.5.0`; wire `schemaVersion` is `3` and rejects v2.
 - Validate every inbound and outbound value through `@huayi/protocol`.
 - The native host name is `com.huayi.codex_bridge`.
 - Spawn Codex with an argument array and stdin. Never use `shell: true`.
@@ -24,6 +24,18 @@
 - Any discovery failure, unsafe name, active capability or unknown response shape fails closed.
 - Every analysis uses the dedicated empty cwd and a new ephemeral thread with empty instruction
   sources, built-in `openai`, `gpt-5.4-mini`, and `low` effort. Validate all returned invariants.
+- Provider configuration is the strict owned file
+  `~/Library/Application Support/Huayi/native-host/provider.json`. A missing file means Codex;
+  every other invalid state fails closed. Read once per request, pin the route, and never fall
+  back automatically.
+- Fix Responses to `https://api.openai.com/v1/responses`, `gpt-5.6-luna`, `none` effort, streaming,
+  strict JSON Schema, `store: false`, and no tools or caller overrides.
+- Read each API request's Key from `com.huayi.codex_bridge.openai` / `api-key` through fixed
+  `/usr/bin/security`; never cache it or accept it through arguments, environment, files, wire,
+  logs, or tests.
+- Use `redirect: "error"`, bounded bodies, strict SSE event/data matching, one text lifecycle,
+  and no retry. Refusals, tools/reasoning, duplicate/late events, unknown terminals, or unsafe
+  diagnostics fail closed. Tests use fake Keychain readers/fetch and never real OpenAI.
 - Warmup may discover MCP and initialize one shared App Server session, but it contains no page
   data and must never call `thread/start`, `turn/start`, or consume model output.
 - Approval, input, app, Hook, MCP, shell, file-change, web, image, dynamic-tool, and
@@ -52,17 +64,13 @@
   command after explicit approval; default tests must stay offline.
 - Installation supports dry-run before external writes. Uninstall removes only exact paths owned
   by Huayi.
-- v0.4.0 upgrade and rollback must reinstall Extension and Host synchronously with Extension ID
+- v0.5.0 upgrade and rollback must reinstall Extension and Host synchronously with Extension ID
   `kfkamoejomjdihipgdkmfjcdenlhgnpd`. Reinstall preserves the Keychain service/account and the
   documented Host and Native Messaging manifest paths.
 - Invalid frames, oversized messages, stdout contamination, unknown requests, and invalid model
   results fail closed.
-- Keep `zod` as a direct production dependency for provider-private strict schemas, field-level
-  progressive validation, and final model-content validation. Handwritten guards are rejected
-  because they can drift from the JSON and protocol schemas; exporting provider-private shapes
-  from `@huayi/protocol` is rejected because it would leak provider details. This reuses the
-  workspace's existing Zod version, introduces no new library or remote code, and preserves the
-  self-contained Host bundle.
+- Keep `zod` for provider-private progressive/final validation. Do not replace strict schemas with
+  drifting handwritten guards or leak private shapes through `@huayi/protocol`.
 - stderr provider validation diagnostics are limited to the bounded allowlist `stream-parse`,
   `model-json`, `model-schema`, `result-assembly`, and `protocol-validation`, plus safe field
   names. Never log page/model text, raw JSON, credentials, tokens, or environment values.

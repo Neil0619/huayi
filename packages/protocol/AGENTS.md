@@ -5,6 +5,9 @@
 - The current `schemaVersion` is `3`.
 - Runtime v3 rejects v2. Extension and Host upgrades or rollbacks must be synchronous; do not add
   an implicit compatibility layer.
+- v0.5.0 health results identify exactly one `codex | openai-responses` provider and its fixed
+  model; `codexVersion` is non-null only for Codex. Provider selection and credentials remain
+  private Host concerns and must not enter analyze requests.
 - Backward-compatible fields must be optional. Removing, renaming, or changing field semantics
   requires a schema-version increment and migration documentation.
 - Every wire message is a discriminated union using `type`.
