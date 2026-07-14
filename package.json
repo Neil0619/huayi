@@ -22,6 +22,7 @@
     "host:uninstall": "node apps/native-host/dist/install/cli.js uninstall",
     "lint": "eslint .",
     "smoke:codex": "node scripts/verify-ephemeral-session.mjs",
+    "smoke:compare": "node scripts/compare-providers.mjs",
     "test": "node --test scripts/*.test.mjs && vitest run --workspace vitest.workspace.ts --passWithNoTests",
     "test:e2e": "playwright test --pass-with-no-tests",
     "typecheck": "pnpm --recursive --if-present typecheck"

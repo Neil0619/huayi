@@ -21,15 +21,26 @@ function copyProviderSchemas(): Plugin {
 
 export function createNativeHostConfig(mode: string): UserConfig {
   const isInstallerBuild = mode === "installer";
+  const isDiagnosticsBuild = mode === "diagnostics";
+  const input = isInstallerBuild
+    ? "src/install/cli.ts"
+    : isDiagnosticsBuild
+      ? "src/diagnostics/compare-providers.ts"
+      : "src/main.ts";
+  const entryFileNames = isInstallerBuild
+    ? "install/cli.js"
+    : isDiagnosticsBuild
+      ? "diagnostics/compare-providers.js"
+      : "main.js";
   return {
     build: {
-      emptyOutDir: !isInstallerBuild,
+      emptyOutDir: !isInstallerBuild && !isDiagnosticsBuild,
       minify: false,
       outDir: outputDirectory,
       rollupOptions: {
-        input: resolve(hostRoot, isInstallerBuild ? "src/install/cli.ts" : "src/main.ts"),
+        input: resolve(hostRoot, input),
         output: {
-          entryFileNames: isInstallerBuild ? "install/cli.js" : "main.js",
+          entryFileNames,
           format: "es" as const,
           inlineDynamicImports: true,
         },
@@ -38,7 +49,7 @@ export function createNativeHostConfig(mode: string): UserConfig {
       ssr: true,
       target: "node18",
     },
-    plugins: isInstallerBuild ? [] : [copyProviderSchemas()],
+    plugins: isInstallerBuild || isDiagnosticsBuild ? [] : [copyProviderSchemas()],
     ssr: {
       noExternal: true,
     },

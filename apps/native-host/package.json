@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "vite build --config vite.config.ts --mode host && vite build --config vite.config.ts --mode installer",
+    "build": "vite build --config vite.config.ts --mode host && vite build --config vite.config.ts --mode installer && vite build --config vite.config.ts --mode diagnostics",
     "typecheck": "tsc --noEmit --project tsconfig.json && tsc --noEmit --project tsconfig.test.json"
   },
   "dependencies": {

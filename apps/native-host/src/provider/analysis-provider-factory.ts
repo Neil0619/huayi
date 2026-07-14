@@ -12,7 +12,11 @@ import type { WordbookProvider } from "../wordbook/wordbook-provider.js";
 import type { AnalysisProvider } from "./analysis-provider.js";
 import { CodexAppServerProvider } from "./codex-app-server-provider.js";
 import { ModelSchemaRepository } from "./model-schema-repository.js";
-import { OpenAIResponsesClient, type OpenAIFetch } from "./openai-responses-client.js";
+import {
+  OpenAIResponsesClient,
+  type OpenAIFetch,
+  type OpenAIModelConfiguration,
+} from "./openai-responses-client.js";
 import { OpenAIResponsesProvider } from "./openai-responses-provider.js";
 import type { ProviderValidationDiagnosticSink } from "./provider-validation.js";
 import {
@@ -41,6 +45,7 @@ export interface AnalysisProviderFactoryOptions {
   eudicFetch?: EudicFetch;
   onValidationDiagnostic?: ProviderValidationDiagnosticSink;
   openAIFetch?: OpenAIFetch;
+  openAIModelConfiguration?: Readonly<OpenAIModelConfiguration>;
   schemaDirectory: string;
 }
 
@@ -91,6 +96,9 @@ export function createAnalysisProviderFactory(
   const openAI = new OpenAIResponsesProvider({
     apiKeyReader: options.apiKeyReader,
     client: openAIClient,
+    ...(options.openAIModelConfiguration === undefined
+      ? {}
+      : { modelConfiguration: options.openAIModelConfiguration }),
     schemaRepository,
     ...(options.onValidationDiagnostic === undefined
       ? {}
