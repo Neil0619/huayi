@@ -31,7 +31,7 @@ afterEach(async () => {
 });
 
 describe("parseInstallerArguments", () => {
-  it("parses install, uninstall, Eudic, and provider commands", () => {
+  it("parses install, uninstall, credential, and provider commands", () => {
     expect(
       parseInstallerArguments([
         "install",
@@ -59,6 +59,14 @@ describe("parseInstallerArguments", () => {
     expect(parseInstallerArguments(["eudic-remove"])).toEqual({
       dryRun: false,
       type: "eudic-remove",
+    });
+    expect(parseInstallerArguments(["openai-configure", "--", "--dry-run"])).toEqual({
+      dryRun: true,
+      type: "openai-configure",
+    });
+    expect(parseInstallerArguments(["openai-remove"])).toEqual({
+      dryRun: false,
+      type: "openai-remove",
     });
     expect(parseInstallerArguments(["provider-set", "api", "--dry-run"])).toEqual({
       dryRun: true,
@@ -142,8 +150,10 @@ describe("executeInstallerCommand", () => {
     const output: string[] = [];
     const operations: InstallerCliOperations = {
       configureEudic: vi.fn(),
+      configureOpenAI: vi.fn(),
       install: vi.fn(),
       removeEudic: vi.fn(),
+      removeOpenAI: vi.fn(),
       uninstall: vi.fn(),
     };
     const write = vi.fn().mockResolvedValue({ dryRun: true, provider: "openai-responses" });
@@ -160,8 +170,10 @@ describe("executeInstallerCommand", () => {
     expect(write).toHaveBeenCalledWith("openai-responses", true);
     expect(output).toEqual(["[dry-run] Set provider to openai-responses."]);
     expect(operations.configureEudic).not.toHaveBeenCalled();
+    expect(operations.configureOpenAI).not.toHaveBeenCalled();
     expect(operations.install).not.toHaveBeenCalled();
     expect(operations.removeEudic).not.toHaveBeenCalled();
+    expect(operations.removeOpenAI).not.toHaveBeenCalled();
     expect(operations.uninstall).not.toHaveBeenCalled();
     expect(runtime.processRunner.run).not.toHaveBeenCalled();
     expect(runtime.interactiveProcessRunner.run).not.toHaveBeenCalled();
@@ -171,8 +183,10 @@ describe("executeInstallerCommand", () => {
     const output: string[] = [];
     const operations: InstallerCliOperations = {
       configureEudic: vi.fn(),
+      configureOpenAI: vi.fn(),
       install: vi.fn(),
       removeEudic: vi.fn(),
+      removeOpenAI: vi.fn(),
       uninstall: vi.fn(),
     };
     const read = vi.fn().mockResolvedValue("openai-responses");
@@ -186,8 +200,10 @@ describe("executeInstallerCommand", () => {
     expect(read).toHaveBeenCalledOnce();
     expect(output).toEqual(["openai-responses"]);
     expect(operations.configureEudic).not.toHaveBeenCalled();
+    expect(operations.configureOpenAI).not.toHaveBeenCalled();
     expect(operations.install).not.toHaveBeenCalled();
     expect(operations.removeEudic).not.toHaveBeenCalled();
+    expect(operations.removeOpenAI).not.toHaveBeenCalled();
     expect(operations.uninstall).not.toHaveBeenCalled();
     expect(runtime.processRunner.run).not.toHaveBeenCalled();
     expect(runtime.interactiveProcessRunner.run).not.toHaveBeenCalled();
@@ -202,8 +218,10 @@ describe("executeInstallerCommand", () => {
     });
     const operations: InstallerCliOperations = {
       configureEudic: vi.fn(),
+      configureOpenAI: vi.fn(),
       install,
       removeEudic: vi.fn(),
+      removeOpenAI: vi.fn(),
       uninstall: vi.fn(),
     };
     const runtime = createRuntime(operations, output);
@@ -234,10 +252,13 @@ describe("executeInstallerCommand", () => {
     const output: string[] = [];
     const uninstall = vi.fn().mockResolvedValue({ actions: [], dryRun: false, paths: {} });
     const removeEudic = vi.fn().mockResolvedValue({ actions: [], dryRun: false });
+    const removeOpenAI = vi.fn().mockResolvedValue({ actions: [], dryRun: false });
     const operations: InstallerCliOperations = {
       configureEudic: vi.fn(),
+      configureOpenAI: vi.fn(),
       install: vi.fn(),
       removeEudic,
+      removeOpenAI,
       uninstall,
     };
 
@@ -247,11 +268,13 @@ describe("executeInstallerCommand", () => {
     );
 
     expect(removeEudic).toHaveBeenCalledBefore(uninstall);
+    expect(removeEudic).toHaveBeenCalledBefore(removeOpenAI);
+    expect(removeOpenAI).toHaveBeenCalledBefore(uninstall);
     expect(uninstall).toHaveBeenCalledWith({ dryRun: false, homeDirectory: "/Users/tester" });
     expect(output).toEqual(["No installed Huayi files were found."]);
   });
 
-  it("dispatches standalone Eudic configure and remove commands", async () => {
+  it("dispatches standalone Eudic and OpenAI configure and remove commands", async () => {
     const output: string[] = [];
     const configureEudic = vi
       .fn()
@@ -259,16 +282,26 @@ describe("executeInstallerCommand", () => {
     const removeEudic = vi
       .fn()
       .mockResolvedValue({ actions: ["Remove credentials"], dryRun: false });
+    const configureOpenAI = vi
+      .fn()
+      .mockResolvedValue({ actions: ["Configure OpenAI credentials"], dryRun: true });
+    const removeOpenAI = vi
+      .fn()
+      .mockResolvedValue({ actions: ["Remove OpenAI credentials"], dryRun: false });
     const operations: InstallerCliOperations = {
       configureEudic,
+      configureOpenAI,
       install: vi.fn(),
       removeEudic,
+      removeOpenAI,
       uninstall: vi.fn(),
     };
     const runtime = createRuntime(operations, output);
 
     await executeInstallerCommand({ dryRun: true, type: "eudic-configure" }, runtime);
     await executeInstallerCommand({ dryRun: false, type: "eudic-remove" }, runtime);
+    await executeInstallerCommand({ dryRun: true, type: "openai-configure" }, runtime);
+    await executeInstallerCommand({ dryRun: false, type: "openai-remove" }, runtime);
 
     expect(configureEudic).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -282,7 +315,24 @@ describe("executeInstallerCommand", () => {
         securityExecutable: "/usr/bin/security",
       }),
     );
-    expect(output).toEqual(["[dry-run] Configure credentials", "Remove credentials"]);
+    expect(configureOpenAI).toHaveBeenCalledWith(
+      expect.objectContaining({
+        dryRun: true,
+        securityExecutable: "/usr/bin/security",
+      }),
+    );
+    expect(removeOpenAI).toHaveBeenCalledWith(
+      expect.objectContaining({
+        dryRun: false,
+        securityExecutable: "/usr/bin/security",
+      }),
+    );
+    expect(output).toEqual([
+      "[dry-run] Configure credentials",
+      "Remove credentials",
+      "[dry-run] Configure OpenAI credentials",
+      "Remove OpenAI credentials",
+    ]);
   });
 
   it("preserves host files when Keychain deletion fails during uninstall", async () => {
@@ -291,8 +341,10 @@ describe("executeInstallerCommand", () => {
     const uninstall = vi.fn();
     const operations: InstallerCliOperations = {
       configureEudic: vi.fn(),
+      configureOpenAI: vi.fn(),
       install: vi.fn(),
       removeEudic,
+      removeOpenAI: vi.fn(),
       uninstall,
     };
 
@@ -301,13 +353,38 @@ describe("executeInstallerCommand", () => {
     ).rejects.toBe(failure);
 
     expect(uninstall).not.toHaveBeenCalled();
+    expect(operations.removeOpenAI).not.toHaveBeenCalled();
+  });
+
+  it("preserves host files when OpenAI Keychain deletion fails during uninstall", async () => {
+    const failure = new Error("OpenAI Keychain deletion failed");
+    const removeEudic = vi.fn().mockResolvedValue({ actions: [], dryRun: false });
+    const removeOpenAI = vi.fn().mockRejectedValue(failure);
+    const uninstall = vi.fn();
+    const operations: InstallerCliOperations = {
+      configureEudic: vi.fn(),
+      configureOpenAI: vi.fn(),
+      install: vi.fn(),
+      removeEudic,
+      removeOpenAI,
+      uninstall,
+    };
+
+    await expect(
+      executeInstallerCommand({ dryRun: false, type: "uninstall" }, createRuntime(operations, [])),
+    ).rejects.toBe(failure);
+
+    expect(removeEudic).toHaveBeenCalledBefore(removeOpenAI);
+    expect(uninstall).not.toHaveBeenCalled();
   });
 
   it("rejects non-macOS execution before any operation", async () => {
     const operations: InstallerCliOperations = {
       configureEudic: vi.fn(),
+      configureOpenAI: vi.fn(),
       install: vi.fn(),
       removeEudic: vi.fn(),
+      removeOpenAI: vi.fn(),
       uninstall: vi.fn(),
     };
 

@@ -116,10 +116,14 @@ async function requireRegularSourceFile(path: string, name: string): Promise<voi
   await access(path, constants.R_OK);
 }
 
+async function validateSecurityExecutable(path: string): Promise<void> {
+  assertAbsolutePath(path, "macOS security executable");
+  await access(path, constants.X_OK);
+}
+
 async function validateSources(options: InstallMacosNativeHostOptions): Promise<void> {
   assertAbsolutePath(options.codexExecutable, "Codex executable");
   assertAbsolutePath(options.nodeExecutable, "Node executable");
-  assertAbsolutePath(options.securityExecutable, "macOS security executable");
   assertAbsolutePath(options.sourceBundlePath, "Host bundle");
   assertAbsolutePath(options.sourceSchemaDirectory, "Schema directory");
   if (options.environment.CODEX_HOME !== undefined) {
@@ -127,7 +131,7 @@ async function validateSources(options: InstallMacosNativeHostOptions): Promise<
   }
   await access(options.codexExecutable, constants.X_OK);
   await access(options.nodeExecutable, constants.X_OK);
-  await access(options.securityExecutable, constants.X_OK);
+  await validateSecurityExecutable(options.securityExecutable);
   await requireRegularSourceFile(options.sourceBundlePath, "Host bundle");
 
   const schemaStats = await readStats(options.sourceSchemaDirectory);

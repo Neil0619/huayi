@@ -15,6 +15,8 @@
     "host:install": "node apps/native-host/dist/install/cli.js install",
     "host:eudic:configure": "node apps/native-host/dist/install/cli.js eudic-configure",
     "host:eudic:remove": "node apps/native-host/dist/install/cli.js eudic-remove",
+    "host:openai:configure": "node apps/native-host/dist/install/cli.js openai-configure",
+    "host:openai:remove": "node apps/native-host/dist/install/cli.js openai-remove",
     "host:provider:set": "node apps/native-host/dist/install/cli.js provider-set",
     "host:provider:status": "node apps/native-host/dist/install/cli.js provider-status",
     "host:uninstall": "node apps/native-host/dist/install/cli.js uninstall",

@@ -5,26 +5,36 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
-  EUDIC_KEYCHAIN_ACCOUNT,
-  EUDIC_KEYCHAIN_LABEL,
-  EUDIC_KEYCHAIN_SERVICE,
-} from "../credentials/eudic-keychain.js";
+  OPENAI_KEYCHAIN_ACCOUNT,
+  OPENAI_KEYCHAIN_LABEL,
+  OPENAI_KEYCHAIN_SERVICE,
+} from "../credentials/openai-keychain.js";
 import type {
   ProcessRunRequest,
   ProcessRunResult,
   ProcessRunner,
 } from "../runtime/codex-process.js";
 import {
-  configureEudicAuthorization,
-  removeEudicAuthorization,
+  configureOpenAIApiKey,
+  removeOpenAIApiKey,
   type InteractiveProcessRequest,
   type InteractiveProcessRunner,
-} from "./eudic-keychain.js";
+} from "./openai-keychain.js";
 
+const SENTINEL_PREFIX = "test-openai-key-prefix";
+const SENTINEL_API_KEY = `${SENTINEL_PREFIX}-sentinel`;
 const temporaryDirectories: string[] = [];
 
+function expectNoSentinel(value: unknown): void {
+  const text = String(value);
+  expect({
+    containsKey: text.includes(SENTINEL_API_KEY),
+    containsPrefix: text.includes(SENTINEL_PREFIX),
+  }).toEqual({ containsKey: false, containsPrefix: false });
+}
+
 async function createSecurityExecutable(): Promise<string> {
-  const directory = await mkdtemp(join(tmpdir(), "huayi-security-test-"));
+  const directory = await mkdtemp(join(tmpdir(), "huayi-openai-security-test-"));
   temporaryDirectories.push(directory);
   const executable = join(directory, "security");
   await writeFile(executable, "#!/bin/sh\nexit 0\n", "utf8");
@@ -44,12 +54,12 @@ function processResult(overrides: Partial<ProcessRunResult> = {}): ProcessRunRes
   return { exitCode: 0, signal: null, stderr: "", stdout: "", ...overrides };
 }
 
-describe("configureEudicAuthorization", () => {
-  it("supports dry-run without prompting for or receiving a credential", async () => {
+describe("configureOpenAIApiKey", () => {
+  it("supports dry-run without spawning or receiving a credential", async () => {
     const securityExecutable = await createSecurityExecutable();
     const interactiveProcessRunner: InteractiveProcessRunner = { run: vi.fn() };
 
-    const result = await configureEudicAuthorization({
+    const result = await configureOpenAIApiKey({
       dryRun: true,
       environment: { HOME: "/Users/tester" },
       homeDirectory: "/Users/tester",
@@ -62,7 +72,7 @@ describe("configureEudicAuthorization", () => {
     expect(interactiveProcessRunner.run).not.toHaveBeenCalled();
   });
 
-  it("uses hidden interactive input, exact identifiers, -U, no -A, and a final -w", async () => {
+  it("uses the exact item, hidden input, shell false, -U, no -A, and a final -w", async () => {
     const securityExecutable = await createSecurityExecutable();
     const requests: InteractiveProcessRequest[] = [];
     const interactiveProcessRunner: InteractiveProcessRunner = {
@@ -72,7 +82,7 @@ describe("configureEudicAuthorization", () => {
       },
     };
 
-    await configureEudicAuthorization({
+    await configureOpenAIApiKey({
       dryRun: false,
       environment: { HOME: "/Users/tester", SECRET: "must-not-leak" },
       homeDirectory: "/Users/tester",
@@ -86,11 +96,11 @@ describe("configureEudicAuthorization", () => {
           "add-generic-password",
           "-U",
           "-s",
-          EUDIC_KEYCHAIN_SERVICE,
+          OPENAI_KEYCHAIN_SERVICE,
           "-a",
-          EUDIC_KEYCHAIN_ACCOUNT,
+          OPENAI_KEYCHAIN_ACCOUNT,
           "-l",
-          EUDIC_KEYCHAIN_LABEL,
+          OPENAI_KEYCHAIN_LABEL,
           "-w",
         ],
         cwd: "/Users/tester",
@@ -101,7 +111,7 @@ describe("configureEudicAuthorization", () => {
     ]);
     expect(requests[0]?.arguments.at(-1)).toBe("-w");
     expect(requests[0]?.arguments).not.toContain("-A");
-    expect(JSON.stringify(requests)).not.toContain("Bearer secret-value");
+    expectNoSentinel(requests[0]?.arguments.join(" "));
   });
 
   it("fails safely when the Keychain update does not succeed", async () => {
@@ -110,20 +120,39 @@ describe("configureEudicAuthorization", () => {
       run: async () => ({ exitCode: 1, signal: null }),
     };
 
-    await expect(
-      configureEudicAuthorization({
-        dryRun: false,
-        environment: {},
-        homeDirectory: "/Users/tester",
-        interactiveProcessRunner,
-        securityExecutable,
-      }),
-    ).rejects.toThrow(/Keychain/i);
+    const error = await configureOpenAIApiKey({
+      dryRun: false,
+      environment: {},
+      homeDirectory: "/Users/tester",
+      interactiveProcessRunner,
+      securityExecutable,
+    }).catch((caught) => caught);
+
+    expect(String(error)).toMatch(/Keychain/i);
+    expectNoSentinel(error);
+  });
+
+  it("sanitizes interactive runner errors", async () => {
+    const securityExecutable = await createSecurityExecutable();
+    const interactiveProcessRunner: InteractiveProcessRunner = {
+      run: vi.fn().mockRejectedValue(new Error(`interactive failure ${SENTINEL_API_KEY}`)),
+    };
+
+    const error = await configureOpenAIApiKey({
+      dryRun: false,
+      environment: {},
+      homeDirectory: "/Users/tester",
+      interactiveProcessRunner,
+      securityExecutable,
+    }).catch((caught) => caught);
+
+    expectNoSentinel(error);
+    expect(String(error)).toMatch(/Keychain/i);
   });
 });
 
-describe("removeEudicAuthorization", () => {
-  it("dry-run queries the exact item without reading or deleting its password", async () => {
+describe("removeOpenAIApiKey", () => {
+  it("dry-run queries the exact item without reading or deleting its value", async () => {
     const securityExecutable = await createSecurityExecutable();
     const requests: ProcessRunRequest[] = [];
     const processRunner: ProcessRunner = {
@@ -133,7 +162,7 @@ describe("removeEudicAuthorization", () => {
       },
     };
 
-    const result = await removeEudicAuthorization({
+    const result = await removeOpenAIApiKey({
       dryRun: true,
       environment: { HOME: "/Users/tester" },
       homeDirectory: "/Users/tester",
@@ -146,14 +175,14 @@ describe("removeEudicAuthorization", () => {
     expect(requests[0]?.arguments).toEqual([
       "find-generic-password",
       "-s",
-      EUDIC_KEYCHAIN_SERVICE,
+      OPENAI_KEYCHAIN_SERVICE,
       "-a",
-      EUDIC_KEYCHAIN_ACCOUNT,
+      OPENAI_KEYCHAIN_ACCOUNT,
     ]);
     expect(requests[0]?.arguments).not.toContain("-w");
   });
 
-  it("deletes only the exact item after confirming that it exists", async () => {
+  it("queries and deletes only the exact service and account", async () => {
     const securityExecutable = await createSecurityExecutable();
     const requests: ProcessRunRequest[] = [];
     const processRunner: ProcessRunner = {
@@ -163,7 +192,7 @@ describe("removeEudicAuthorization", () => {
       },
     };
 
-    await removeEudicAuthorization({
+    await removeOpenAIApiKey({
       dryRun: false,
       environment: { HOME: "/Users/tester" },
       homeDirectory: "/Users/tester",
@@ -172,36 +201,25 @@ describe("removeEudicAuthorization", () => {
     });
 
     expect(requests.map((request) => request.arguments)).toEqual([
-      ["find-generic-password", "-s", EUDIC_KEYCHAIN_SERVICE, "-a", EUDIC_KEYCHAIN_ACCOUNT],
-      ["delete-generic-password", "-s", EUDIC_KEYCHAIN_SERVICE, "-a", EUDIC_KEYCHAIN_ACCOUNT],
+      ["find-generic-password", "-s", OPENAI_KEYCHAIN_SERVICE, "-a", OPENAI_KEYCHAIN_ACCOUNT],
+      ["delete-generic-password", "-s", OPENAI_KEYCHAIN_SERVICE, "-a", OPENAI_KEYCHAIN_ACCOUNT],
     ]);
   });
 
-  it("is idempotent when the exact Keychain item is missing", async () => {
+  it("is idempotent when the item is missing before or during deletion", async () => {
     const securityExecutable = await createSecurityExecutable();
-    const processRunner: ProcessRunner = {
-      run: async () => processResult({ exitCode: 44 }),
-    };
-
-    const result = await removeEudicAuthorization({
+    const initiallyMissing = await removeOpenAIApiKey({
       dryRun: false,
       environment: {},
       homeDirectory: "/Users/tester",
-      processRunner,
+      processRunner: { run: async () => processResult({ exitCode: 44 }) },
       securityExecutable,
     });
-
-    expect(result.actions).toEqual([]);
-  });
-
-  it("remains idempotent if the item disappears between query and deletion", async () => {
-    const securityExecutable = await createSecurityExecutable();
     const run = vi
       .fn<ProcessRunner["run"]>()
       .mockResolvedValueOnce(processResult())
       .mockResolvedValueOnce(processResult({ exitCode: 44 }));
-
-    const result = await removeEudicAuthorization({
+    const removedDuringDeletion = await removeOpenAIApiKey({
       dryRun: false,
       environment: {},
       homeDirectory: "/Users/tester",
@@ -209,24 +227,59 @@ describe("removeEudicAuthorization", () => {
       securityExecutable,
     });
 
-    expect(result.actions).toEqual([]);
+    expect(initiallyMissing.actions).toEqual([]);
+    expect(removedDuringDeletion.actions).toEqual([]);
   });
 
-  it("fails without claiming success when query or deletion fails", async () => {
+  it("does not expose captured process diagnostics when removal fails", async () => {
     const securityExecutable = await createSecurityExecutable();
+    const processRunner: ProcessRunner = {
+      run: async () =>
+        processResult({
+          exitCode: 1,
+          stderr: `locked ${SENTINEL_API_KEY}`,
+          stdout: SENTINEL_API_KEY,
+        }),
+    };
+
+    const error = await removeOpenAIApiKey({
+      dryRun: false,
+      environment: {},
+      homeDirectory: "/Users/tester",
+      processRunner,
+      securityExecutable,
+    }).catch((caught) => caught);
+
+    expect(String(error)).toMatch(/Keychain/i);
+    expectNoSentinel(error);
+  });
+
+  it("sanitizes captured runner errors during query and deletion", async () => {
+    const securityExecutable = await createSecurityExecutable();
+    const queryError = await removeOpenAIApiKey({
+      dryRun: false,
+      environment: {},
+      homeDirectory: "/Users/tester",
+      processRunner: {
+        run: vi.fn().mockRejectedValue(new Error(`query failure ${SENTINEL_API_KEY}`)),
+      },
+      securityExecutable,
+    }).catch((caught) => caught);
     const run = vi
       .fn<ProcessRunner["run"]>()
       .mockResolvedValueOnce(processResult())
-      .mockResolvedValueOnce(processResult({ exitCode: 1, stderr: "secret diagnostics" }));
+      .mockRejectedValueOnce(new Error(`deletion failure ${SENTINEL_API_KEY}`));
+    const deletionError = await removeOpenAIApiKey({
+      dryRun: false,
+      environment: {},
+      homeDirectory: "/Users/tester",
+      processRunner: { run },
+      securityExecutable,
+    }).catch((caught) => caught);
 
-    await expect(
-      removeEudicAuthorization({
-        dryRun: false,
-        environment: {},
-        homeDirectory: "/Users/tester",
-        processRunner: { run },
-        securityExecutable,
-      }),
-    ).rejects.toThrow(/Keychain/i);
+    for (const error of [queryError, deletionError]) {
+      expectNoSentinel(error);
+      expect(String(error)).toMatch(/Keychain/i);
+    }
   });
 });

@@ -23,6 +23,7 @@ export interface InteractiveProcessRequest {
   cwd: string;
   env: Readonly<NodeJS.ProcessEnv>;
   executable: string;
+  shell: false;
 }
 
 export interface InteractiveProcessResult {
@@ -99,6 +100,7 @@ export async function configureEudicAuthorization(
     cwd: options.homeDirectory,
     env: options.environment,
     executable: options.securityExecutable,
+    shell: false,
   });
   if (result.exitCode !== 0 || result.signal !== null) {
     throw new Error("Unable to configure the Huayi Eudic Keychain item.");

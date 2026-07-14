@@ -46,6 +46,7 @@ interface InstallerFixture {
   codexExecutable: string;
   homeDirectory: string;
   rootDirectory: string;
+  securityExecutionMarkerPath: string;
   securityExecutable: string;
   sourceBundlePath: string;
   sourceSchemaDirectory: string;
@@ -91,11 +92,16 @@ async function createFixture(): Promise<InstallerFixture> {
   const sourceSchemaDirectory = join(sourceDirectory, "provider", "schemas");
   const codexExecutable = join(sourceDirectory, "codex");
   const securityExecutable = join(sourceDirectory, "security");
+  const securityExecutionMarkerPath = join(rootDirectory, "security-was-executed");
   await mkdir(homeDirectory, { recursive: true });
   await mkdir(sourceSchemaDirectory, { recursive: true });
   await writeFile(sourceBundlePath, "// host bundle v1\n", "utf8");
   await writeFile(codexExecutable, "#!/bin/sh\nexit 0\n", "utf8");
-  await writeFile(securityExecutable, "#!/bin/sh\nexit 0\n", "utf8");
+  await writeFile(
+    securityExecutable,
+    `#!/bin/sh\n: > '${securityExecutionMarkerPath}'\nexit 0\n`,
+    "utf8",
+  );
   await chmod(codexExecutable, 0o755);
   await chmod(securityExecutable, 0o755);
   await Promise.all(
@@ -107,6 +113,7 @@ async function createFixture(): Promise<InstallerFixture> {
     codexExecutable,
     homeDirectory,
     rootDirectory,
+    securityExecutionMarkerPath,
     securityExecutable,
     sourceBundlePath,
     sourceSchemaDirectory,
@@ -283,7 +290,24 @@ describe("installMacosNativeHost", () => {
     expect(await exists(paths.nativeManifestPath)).toBe(false);
   });
 
-  it("requires the fixed macOS Keychain command without reading credentials", async () => {
+  it("only checks the security executable without reading or creating an OpenAI item", async () => {
+    const fixture = await createFixture();
+    const paths = createMacosInstallationPaths(fixture.homeDirectory);
+    const runner = new CapabilityRunner();
+
+    await installMacosNativeHost(createOptions(fixture, runner));
+
+    expect(await exists(fixture.securityExecutionMarkerPath)).toBe(false);
+    expect(await exists(paths.applicationDirectory)).toBe(true);
+    expect(runner.requests.every((request) => request.executable === fixture.codexExecutable)).toBe(
+      true,
+    );
+    expect(runner.requests.flatMap((request) => request.arguments)).not.toContain(
+      "com.huayi.codex_bridge.openai",
+    );
+  });
+
+  it("requires an accessible macOS security executable without writing Host files", async () => {
     const fixture = await createFixture();
     const paths = createMacosInstallationPaths(fixture.homeDirectory);
 

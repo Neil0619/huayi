@@ -11,7 +11,7 @@ import {
   ProviderConfigurationStore,
   type ProviderConfigurationResult,
 } from "../config/provider-configuration-store.js";
-import { EUDIC_SECURITY_EXECUTABLE } from "../credentials/eudic-keychain.js";
+import { OPENAI_SECURITY_EXECUTABLE } from "../credentials/openai-keychain.js";
 import { NodeProcessRunner, type ProcessRunner } from "../runtime/codex-process.js";
 import {
   configureEudicAuthorization,
@@ -22,6 +22,12 @@ import {
   type InteractiveProcessRunner,
   type RemoveEudicAuthorizationOptions,
 } from "./eudic-keychain.js";
+import {
+  configureOpenAIApiKey,
+  removeOpenAIApiKey,
+  type ConfigureOpenAIApiKeyOptions,
+  type RemoveOpenAIApiKeyOptions,
+} from "./openai-keychain.js";
 import {
   installMacosNativeHost,
   uninstallMacosNativeHost,
@@ -38,6 +44,8 @@ const USAGE = [
   "  huayi-installer uninstall [--dry-run]",
   "  huayi-installer eudic-configure [--dry-run]",
   "  huayi-installer eudic-remove [--dry-run]",
+  "  huayi-installer openai-configure [--dry-run]",
+  "  huayi-installer openai-remove [--dry-run]",
   "  huayi-installer provider-set <api|codex> [--dry-run]",
   "  huayi-installer provider-status",
 ].join("\n");
@@ -47,6 +55,8 @@ export type InstallerCommand =
   | { codexPath?: string; dryRun: boolean; extensionId: string; type: "install" }
   | { dryRun: boolean; type: "eudic-configure" }
   | { dryRun: boolean; type: "eudic-remove" }
+  | { dryRun: boolean; type: "openai-configure" }
+  | { dryRun: boolean; type: "openai-remove" }
   | { dryRun: boolean; provider: ModelProvider; type: "provider-set" }
   | { type: "provider-status" }
   | { dryRun: boolean; type: "uninstall" };
@@ -58,8 +68,10 @@ export interface ProviderConfigurationAccess {
 
 export interface InstallerCliOperations {
   configureEudic(options: ConfigureEudicAuthorizationOptions): Promise<CredentialOperationResult>;
+  configureOpenAI(options: ConfigureOpenAIApiKeyOptions): Promise<CredentialOperationResult>;
   install(options: InstallMacosNativeHostOptions): Promise<InstallerResult>;
   removeEudic(options: RemoveEudicAuthorizationOptions): Promise<CredentialOperationResult>;
+  removeOpenAI(options: RemoveOpenAIApiKeyOptions): Promise<CredentialOperationResult>;
   uninstall(options: UninstallMacosNativeHostOptions): Promise<InstallerResult>;
 }
 
@@ -108,10 +120,7 @@ export function parseInstallerArguments(arguments_: readonly string[]): Installe
       throw new Error(`provider-set requires api or codex.\n${USAGE}`);
     }
     const provider = parseProviderAlias(providerAlias);
-    if (
-      arguments_.length > 3 ||
-      (arguments_.length === 3 && arguments_[2] !== "--dry-run")
-    ) {
+    if (arguments_.length > 3 || (arguments_.length === 3 && arguments_[2] !== "--dry-run")) {
       throw new Error(`provider-set accepts only a provider followed by --dry-run.\n${USAGE}`);
     }
     return {
@@ -124,7 +133,9 @@ export function parseInstallerArguments(arguments_: readonly string[]): Installe
     command !== "install" &&
     command !== "uninstall" &&
     command !== "eudic-configure" &&
-    command !== "eudic-remove"
+    command !== "eudic-remove" &&
+    command !== "openai-configure" &&
+    command !== "openai-remove"
   ) {
     throw new Error(USAGE);
   }
@@ -259,8 +270,28 @@ export async function executeInstallerCommand(
     reportResult(result, runtime);
     return;
   }
+  if (command.type === "openai-configure") {
+    const result = await runtime.operations.configureOpenAI({
+      ...keychainOptions,
+      interactiveProcessRunner: runtime.interactiveProcessRunner,
+    });
+    reportResult(result, runtime);
+    return;
+  }
+  if (command.type === "openai-remove") {
+    const result = await runtime.operations.removeOpenAI({
+      ...keychainOptions,
+      processRunner: runtime.processRunner,
+    });
+    reportResult(result, runtime);
+    return;
+  }
   if (command.type === "uninstall") {
-    const credentials = await runtime.operations.removeEudic({
+    const eudicCredentials = await runtime.operations.removeEudic({
+      ...keychainOptions,
+      processRunner: runtime.processRunner,
+    });
+    const openAICredentials = await runtime.operations.removeOpenAI({
       ...keychainOptions,
       processRunner: runtime.processRunner,
     });
@@ -270,7 +301,7 @@ export async function executeInstallerCommand(
     });
     reportResult(
       {
-        actions: [...credentials.actions, ...files.actions],
+        actions: [...eudicCredentials.actions, ...openAICredentials.actions, ...files.actions],
         dryRun: command.dryRun,
       },
       runtime,
@@ -306,8 +337,10 @@ export function createDefaultInstallerRuntime(moduleUrl = import.meta.url): Inst
     nodeVersion: process.versions.node,
     operations: {
       configureEudic: configureEudicAuthorization,
+      configureOpenAI: configureOpenAIApiKey,
       install: installMacosNativeHost,
       removeEudic: removeEudicAuthorization,
+      removeOpenAI: removeOpenAIApiKey,
       uninstall: uninstallMacosNativeHost,
     },
     platform: process.platform,
@@ -315,7 +348,7 @@ export function createDefaultInstallerRuntime(moduleUrl = import.meta.url): Inst
     providerConfigurationStore: new ProviderConfigurationStore(
       createMacosInstallationPaths(homeDirectory).providerConfigurationPath,
     ),
-    securityExecutable: EUDIC_SECURITY_EXECUTABLE,
+    securityExecutable: OPENAI_SECURITY_EXECUTABLE,
     sourceBundlePath: fileURLToPath(new URL("../main.js", moduleUrl)),
     sourceSchemaDirectory: fileURLToPath(new URL("../provider/schemas/", moduleUrl)),
     writeOutput: (message) => process.stdout.write(`${message}\n`),
