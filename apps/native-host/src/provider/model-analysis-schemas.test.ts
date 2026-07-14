@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  modelAnalysisArrayItemSchemaFor,
   modelAnalysisFieldSchemaFor,
   modelAnalysisResultSchemaFor,
   modelLexicalExplanationSchema,
@@ -206,6 +207,27 @@ describe("private model analysis schemas", () => {
     ).toBe(true);
     expect(modelAnalysisFieldSchemaFor("translate-lexical", "sourceText")).toBeUndefined();
     expect(modelAnalysisFieldSchemaFor("translate-passage", "translationZh")).toBeDefined();
+  });
+
+  it.each([
+    ["explain-lexical", "collocations", { meaningZh: "持续努力", text: "sustained effort" }],
+    ["explain-lexical", "coreMeanings", { meaningZh: "维持", partOfSpeech: "verb" }],
+    ["explain-lexical", "synonyms", relatedTerms[0]],
+    ["translate-lexical", "collocations", { meaningZh: "刑事调查", text: "investigation" }],
+    ["translate-lexical", "similarTerms", relatedTerms[1]],
+  ] as const)("looks up the %s %s item schema", (resultType, field, item) => {
+    const schema = modelAnalysisArrayItemSchemaFor(resultType, field);
+
+    expect(schema?.safeParse(item).success).toBe(true);
+    expect(schema?.safeParse({ ...item, unsafe: true }).success).toBe(false);
+  });
+
+  it("does not expose array item schemas for final-only or non-array fields", () => {
+    expect(modelAnalysisArrayItemSchemaFor("explain-sentence", "keyExpressions")).toBeUndefined();
+    expect(
+      modelAnalysisArrayItemSchemaFor("translate-lexical", "contextualMeaningZh"),
+    ).toBeUndefined();
+    expect(modelAnalysisArrayItemSchemaFor("translate-passage", "translationZh")).toBeUndefined();
   });
 
   it.each(["__proto__", "constructor", "toString"])(

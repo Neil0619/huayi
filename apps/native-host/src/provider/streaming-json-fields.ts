@@ -1,4 +1,5 @@
 import { Buffer } from "node:buffer";
+import { isDeepStrictEqual } from "node:util";
 
 import { MAX_STREAM_DELTA_LENGTH, MAX_WIRE_MESSAGE_BYTES } from "@huayi/protocol";
 import type {
@@ -12,6 +13,7 @@ import type {
 
 import type { AnalysisStreamUpdate } from "./analysis-provider.js";
 import {
+  modelAnalysisArrayItemSchemaFor,
   modelAnalysisFieldSchemaFor,
   type ModelLexicalExplanation,
   type ModelLexicalTranslation,
@@ -186,6 +188,7 @@ export class StreamingJsonFieldExtractor {
   readonly #sentenceContext: string | null;
   readonly #textFields: ReadonlyMap<string, AnalysisDeltaSection>;
   readonly #tokenizer = new StreamingJsonTokenizer();
+  readonly #arrayItems = new Map<string, unknown[]>();
   #accumulatedBytes = 0;
   #failure: ProviderValidationError | undefined;
   #trailingInputHighSurrogate = false;
@@ -212,6 +215,11 @@ export class StreamingJsonFieldExtractor {
       if (update.kind === "string-delta") {
         const section = this.#textFields.get(update.field);
         if (section !== undefined) streamUpdates.push(...splitTextDelta(section, update.value));
+        continue;
+      }
+      if (update.kind === "array-item") {
+        const section = this.#validateAndMapArrayItem(update.field, update.index, update.value);
+        if (section !== undefined) streamUpdates.push({ ...section, type: "analysis-section" });
         continue;
       }
       const section = this.#validateAndMapCompleteValue(update.field, update.value);
@@ -263,8 +271,54 @@ export class StreamingJsonFieldExtractor {
         new ProviderValidationError("model-schema", { cause: parsed.error, field }),
       );
     }
+    const arrayItems = this.#arrayItems.get(field);
+    if (arrayItems !== undefined) {
+      if (!Array.isArray(parsed.data) || !isDeepStrictEqual(parsed.data, arrayItems)) {
+        return this.#fail(new ProviderValidationError("stream-parse", { field }));
+      }
+      this.#arrayItems.delete(field);
+      return undefined;
+    }
     try {
       return structuredSectionFor(this.#resultType, field, parsed.data, this.#sentenceContext);
+    } catch (error) {
+      if (error instanceof ProviderValidationError) return this.#fail(error);
+      return this.#fail(new ProviderValidationError("result-assembly", { cause: error, field }));
+    }
+  }
+
+  #validateAndMapArrayItem(
+    field: string,
+    index: number,
+    value: unknown,
+  ): AnalysisSectionPayload | undefined {
+    const itemSchema = modelAnalysisArrayItemSchemaFor(this.#resultType, field);
+    if (itemSchema === undefined) return undefined;
+    const accumulated = this.#arrayItems.get(field) ?? [];
+    if (index !== accumulated.length) {
+      return this.#fail(new ProviderValidationError("stream-parse", { field }));
+    }
+    const parsedItem = itemSchema.safeParse(value);
+    if (!parsedItem.success) {
+      return this.#fail(
+        new ProviderValidationError("model-schema", { cause: parsedItem.error, field }),
+      );
+    }
+    const candidate = [...accumulated, parsedItem.data];
+    const fieldSchema = modelAnalysisFieldSchemaFor(this.#resultType, field);
+    const parsedCandidate = fieldSchema?.safeParse(candidate);
+    if (parsedCandidate === undefined || !parsedCandidate.success) {
+      return this.#fail(
+        new ProviderValidationError("model-schema", {
+          ...(parsedCandidate?.success === false ? { cause: parsedCandidate.error } : {}),
+          field,
+        }),
+      );
+    }
+    const items = parsedCandidate.data as unknown[];
+    this.#arrayItems.set(field, items);
+    try {
+      return structuredSectionFor(this.#resultType, field, items, this.#sentenceContext);
     } catch (error) {
       if (error instanceof ProviderValidationError) return this.#fail(error);
       return this.#fail(new ProviderValidationError("result-assembly", { cause: error, field }));

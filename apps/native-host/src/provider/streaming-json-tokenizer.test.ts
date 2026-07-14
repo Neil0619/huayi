@@ -16,6 +16,13 @@ function completeValues(updates: TopLevelJsonUpdate[]): TopLevelJsonUpdate[] {
   return updates.filter((update) => update.kind === "complete-value");
 }
 
+function tokenizeOneCharacterAtATime(source: string): TopLevelJsonUpdate[] {
+  const tokenizer = new StreamingJsonTokenizer();
+  const updates = [...source].flatMap((character) => tokenizer.push(character));
+  tokenizer.finish();
+  return updates;
+}
+
 function streamedString(updates: TopLevelJsonUpdate[], field: string): string {
   return updates
     .filter((update) => update.kind === "string-delta" && update.field === field)
@@ -24,6 +31,70 @@ function streamedString(updates: TopLevelJsonUpdate[], field: string): string {
 }
 
 describe("StreamingJsonTokenizer", () => {
+  it("streams direct array items before the final value at every source boundary", () => {
+    const first = { meaningZh: "甲", text: "a]b" };
+    const second = { meaningZh: "乙", text: "c" };
+    const source = JSON.stringify({ collocations: [first, second] });
+    const expected: TopLevelJsonUpdate[] = [
+      { field: "collocations", index: 0, kind: "array-item", value: first },
+      { field: "collocations", index: 1, kind: "array-item", value: second },
+      { field: "collocations", kind: "complete-value", value: [first, second] },
+    ];
+
+    expect(tokenizeOneCharacterAtATime(source)).toEqual(expected);
+    for (let boundary = 0; boundary <= source.length; boundary += 1) {
+      expect(tokenizeAtBoundary(source, boundary)).toEqual(expected);
+    }
+  });
+
+  it("streams nested, escaped, Unicode, string, number, boolean, and null array items", () => {
+    const value = [
+      { nested: [[{ text: 'quoted " value' }]], unicode: "调😀" },
+      "a,b]c",
+      -12.5,
+      true,
+      null,
+    ];
+    const source = JSON.stringify({ items: value })
+      .replace("调", "\\u8c03")
+      .replace("😀", "\\ud83d\\ude00");
+
+    expect(tokenizeOneCharacterAtATime(source)).toEqual([
+      ...value.map((item, index) => ({
+        field: "items",
+        index,
+        kind: "array-item" as const,
+        value: item,
+      })),
+      { field: "items", kind: "complete-value", value },
+    ]);
+  });
+
+  it("emits only the final complete value for an empty array", () => {
+    expect(tokenizeOneCharacterAtATime('{"items":[]}')).toEqual([
+      { field: "items", kind: "complete-value", value: [] },
+    ]);
+  });
+
+  it("rejects a trailing array comma after emitting prior complete items", () => {
+    const tokenizer = new StreamingJsonTokenizer();
+
+    expect(tokenizer.push('{"items":[{"value":1},')).toEqual([
+      { field: "items", index: 0, kind: "array-item", value: { value: 1 } },
+    ]);
+    expect(() => tokenizer.push("]}")).toThrow(/array|json|value|comma/i);
+  });
+
+  it("retains completed array items when a later item is incomplete", () => {
+    const tokenizer = new StreamingJsonTokenizer();
+
+    expect(tokenizer.push('{"items":[{"value":1},')).toEqual([
+      { field: "items", index: 0, kind: "array-item", value: { value: 1 } },
+    ]);
+    tokenizer.push('{"value":"unfinished');
+    expect(() => tokenizer.finish()).toThrow(/incomplete/i);
+  });
+
   it("captures arrays and objects correctly at every source chunk boundary", () => {
     const source =
       '{"items":[{"text":"quoted } ] { [ value","nested":[1,true,null]}],' +

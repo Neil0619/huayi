@@ -274,6 +274,20 @@ const MODEL_ANALYSIS_FIELD_SCHEMAS: Record<ModelResultType, ReadonlyMap<string, 
   ),
 };
 
+const MODEL_ARRAY_ITEM_SCHEMAS = {
+  "explain-lexical": new Map<string, z.ZodType>([
+    ["collocations", collocationSchema],
+    ["coreMeanings", coreMeaningSchema],
+    ["synonyms", relatedTermSchema],
+  ]),
+  "explain-sentence": new Map<string, z.ZodType>(),
+  "translate-lexical": new Map<string, z.ZodType>([
+    ["collocations", collocationSchema],
+    ["similarTerms", relatedTermSchema],
+  ]),
+  "translate-passage": new Map<string, z.ZodType>(),
+} satisfies Record<ModelResultType, ReadonlyMap<string, z.ZodType>>;
+
 export function resultTypeFor(
   request: Pick<AnalyzeRequest, "action" | "selectionKind">,
 ): ModelResultType {
@@ -295,4 +309,11 @@ export function modelAnalysisFieldSchemaFor(
   field: string,
 ): z.ZodType | undefined {
   return MODEL_ANALYSIS_FIELD_SCHEMAS[resultType].get(field);
+}
+
+export function modelAnalysisArrayItemSchemaFor(
+  resultType: ModelResultType,
+  field: string,
+): z.ZodType | undefined {
+  return MODEL_ARRAY_ITEM_SCHEMAS[resultType].get(field);
 }

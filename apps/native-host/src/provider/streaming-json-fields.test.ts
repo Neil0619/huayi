@@ -1,12 +1,13 @@
 import { Buffer } from "node:buffer";
 
 import { MAX_STREAM_DELTA_LENGTH, MAX_WIRE_MESSAGE_BYTES } from "@huayi/protocol";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { AnalysisStreamUpdate } from "./analysis-provider.js";
 import type { ModelResultType } from "./model-analysis-schemas.js";
 import { ProviderValidationError } from "./provider-validation.js";
 import { StreamingJsonFieldExtractor } from "./streaming-json-fields.js";
+import { StreamingJsonTokenizer, type TopLevelJsonUpdate } from "./streaming-json-tokenizer.js";
 
 function createExtractor(
   resultType: ModelResultType = "translate-lexical",
@@ -26,6 +27,134 @@ function captureValidationError(run: () => unknown): ProviderValidationError {
 }
 
 describe("StreamingJsonFieldExtractor", () => {
+  it.each([
+    [
+      "translate-lexical",
+      "collocations",
+      "collocations",
+      { meaningZh: "刑事调查", text: "criminal investigation" },
+      { meaningZh: "深入调查", text: "thorough investigation" },
+    ],
+    [
+      "translate-lexical",
+      "similarTerms",
+      "similar-terms",
+      { meaningZh: "询问", partOfSpeech: "noun", text: "inquiry" },
+      { meaningZh: "审查", partOfSpeech: "noun", text: "examination" },
+    ],
+    [
+      "explain-lexical",
+      "coreMeanings",
+      "core-meanings",
+      { meaningZh: "维持", partOfSpeech: "verb" },
+      { meaningZh: "支撑", partOfSpeech: "verb" },
+    ],
+    [
+      "explain-lexical",
+      "synonyms",
+      "synonyms",
+      { meaningZh: "持久的", partOfSpeech: "adjective", text: "enduring" },
+      { meaningZh: "连续的", partOfSpeech: "adjective", text: "continuous" },
+    ],
+  ] as const)(
+    "emits cumulative %s %s sections item by item",
+    (resultType, field, section, first, second) => {
+      const extractor = createExtractor(resultType);
+
+      expect(extractor.push(`{"${field}":[${JSON.stringify(first)},`)).toEqual([
+        { section, type: "analysis-section", value: [first] },
+      ]);
+      expect(extractor.push(`${JSON.stringify(second)}]}`)).toEqual([
+        { section, type: "analysis-section", value: [first, second] },
+      ]);
+      expect(() => extractor.finish()).not.toThrow();
+    },
+  );
+
+  it("rejects an invalid array item before publishing it", () => {
+    const first = createExtractor();
+    expect(
+      captureValidationError(() => first.push('{"collocations":[{"meaningZh":"调查","text":42},')),
+    ).toMatchObject({ field: "collocations", stage: "model-schema" });
+
+    const second = createExtractor();
+    expect(
+      second.push('{"collocations":[{"meaningZh":"调查","text":"investigation"},'),
+    ).toHaveLength(1);
+    expect(
+      captureValidationError(() =>
+        second.push('{"meaningZh":"审查","text":"examination","unsafe":true}]}'),
+      ),
+    ).toMatchObject({ field: "collocations", stage: "model-schema" });
+  });
+
+  it("fails closed on skipped or repeated item indexes", () => {
+    for (const updates of [
+      [
+        {
+          field: "collocations",
+          index: 1,
+          kind: "array-item",
+          value: { meaningZh: "调查", text: "investigation" },
+        },
+      ],
+      [
+        {
+          field: "collocations",
+          index: 0,
+          kind: "array-item",
+          value: { meaningZh: "调查", text: "investigation" },
+        },
+        {
+          field: "collocations",
+          index: 0,
+          kind: "array-item",
+          value: { meaningZh: "审查", text: "examination" },
+        },
+      ],
+    ] satisfies TopLevelJsonUpdate[][]) {
+      const tokenizer = vi
+        .spyOn(StreamingJsonTokenizer.prototype, "push")
+        .mockReturnValueOnce(updates);
+      try {
+        expect(captureValidationError(() => createExtractor().push("x"))).toMatchObject({
+          field: "collocations",
+          stage: "stream-parse",
+        });
+      } finally {
+        tokenizer.mockRestore();
+      }
+    }
+  });
+
+  it("rejects a fourth item and a final array inconsistent with streamed items", () => {
+    const extractor = createExtractor();
+    const items = ["one", "two", "three", "four"].map((text) => ({ meaningZh: "含义", text }));
+    const prefixItems = items
+      .slice(0, 3)
+      .map((item) => JSON.stringify(item))
+      .join(",");
+    expect(extractor.push(`{"collocations":[${prefixItems},`)).toHaveLength(3);
+    expect(
+      captureValidationError(() => extractor.push(`${JSON.stringify(items[3])}]}`)),
+    ).toMatchObject({ field: "collocations", stage: "model-schema" });
+
+    const streamed = { meaningZh: "调查", text: "investigation" };
+    const final = [{ meaningZh: "审查", text: "examination" }];
+    const tokenizer = vi.spyOn(StreamingJsonTokenizer.prototype, "push").mockReturnValueOnce([
+      { field: "collocations", index: 0, kind: "array-item", value: streamed },
+      { field: "collocations", kind: "complete-value", value: final },
+    ]);
+    try {
+      expect(captureValidationError(() => createExtractor().push("x"))).toMatchObject({
+        field: "collocations",
+        stage: "stream-parse",
+      });
+    } finally {
+      tokenizer.mockRestore();
+    }
+  });
+
   it("keeps designated prose fields on the decoded text-delta path", () => {
     const lexical = createExtractor();
 

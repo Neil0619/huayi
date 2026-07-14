@@ -1,5 +1,6 @@
 export type TopLevelJsonUpdate =
   | { field: string; kind: "string-delta"; value: string }
+  | { field: string; index: number; kind: "array-item"; value: unknown }
   | { field: string; kind: "complete-value"; value: unknown };
 
 type Container = "array" | "object";
@@ -8,6 +9,13 @@ type RootState =
   "after-value" | "before-root" | "colon" | "complete" | "key" | "key-or-end" | "value";
 type StringRole = "nested" | "root-key" | "root-value";
 type ValueMode = "container" | "primitive";
+
+interface RootArrayState {
+  expecting: "item-or-end" | "comma-or-end";
+  index: number;
+  itemDepth: number;
+  itemSource: string;
+}
 
 function isJsonWhitespace(character: string): boolean {
   return character === " " || character === "\t" || character === "\n" || character === "\r";
@@ -74,6 +82,7 @@ export class StreamingJsonTokenizer {
   #field = "";
   #finished = false;
   #rootState: RootState = "before-root";
+  #rootArray: RootArrayState | undefined;
   #stringRole: StringRole | undefined;
   #unicodeEscape = "";
   #valueMode: ValueMode | undefined;
@@ -169,6 +178,14 @@ export class StreamingJsonTokenizer {
     if (character === "{" || character === "[") {
       this.#valueMode = "container";
       this.#containers.push(character === "{" ? "object" : "array");
+      if (character === "[") {
+        this.#rootArray = {
+          expecting: "item-or-end",
+          index: 0,
+          itemDepth: 0,
+          itemSource: "",
+        };
+      }
       return;
     }
     if (isPrimitiveStart(character)) {
@@ -180,6 +197,7 @@ export class StreamingJsonTokenizer {
 
   #processContainerCharacter(character: string, updates: TopLevelJsonUpdate[]): void {
     this.#valueSource += character;
+    if (this.#processRootArrayCharacter(character, updates)) return;
     if (character === '"') {
       this.#beginString("nested");
       return;
@@ -196,6 +214,58 @@ export class StreamingJsonTokenizer {
     }
     this.#containers.pop();
     if (this.#containers.length === 0) this.#completeValue(updates);
+  }
+
+  #processRootArrayCharacter(character: string, updates: TopLevelJsonUpdate[]): boolean {
+    const rootArray = this.#rootArray;
+    if (rootArray === undefined) return false;
+
+    if (rootArray.expecting === "item-or-end") {
+      if (isJsonWhitespace(character)) return true;
+      if (character === "]") {
+        if (rootArray.index !== 0) {
+          return this.#fail(new SyntaxError("Expected an array item after comma."));
+        }
+        return false;
+      }
+      if (character === ",") {
+        return this.#fail(new SyntaxError("Invalid JSON value: expected an array item."));
+      }
+      rootArray.expecting = "comma-or-end";
+      rootArray.itemSource = character;
+      rootArray.itemDepth = character === "{" || character === "[" ? 1 : 0;
+      return false;
+    }
+
+    if (rootArray.itemDepth === 0 && (character === "," || character === "]")) {
+      this.#completeArrayItem(updates);
+      if (character === ",") {
+        rootArray.expecting = "item-or-end";
+        return true;
+      }
+      return false;
+    }
+
+    rootArray.itemSource += character;
+    if (character === "{" || character === "[") rootArray.itemDepth += 1;
+    if (character === "}" || character === "]") rootArray.itemDepth -= 1;
+    return false;
+  }
+
+  #completeArrayItem(updates: TopLevelJsonUpdate[]): void {
+    const rootArray = this.#rootArray;
+    if (rootArray === undefined) return;
+
+    let value: unknown;
+    try {
+      value = JSON.parse(rootArray.itemSource);
+    } catch (cause) {
+      return this.#fail(new SyntaxError("Invalid JSON array item.", { cause }));
+    }
+    updates.push({ field: this.#field, index: rootArray.index, kind: "array-item", value });
+    rootArray.index += 1;
+    rootArray.itemDepth = 0;
+    rootArray.itemSource = "";
   }
 
   #processPrimitiveCharacter(character: string, updates: TopLevelJsonUpdate[]): void {
@@ -217,6 +287,9 @@ export class StreamingJsonTokenizer {
 
   #processStringCharacter(character: string, updates: TopLevelJsonUpdate[]): void {
     if (this.#stringRole !== "root-key") this.#valueSource += character;
+    if (this.#stringRole === "nested" && this.#rootArray?.expecting === "comma-or-end") {
+      this.#rootArray.itemSource += character;
+    }
     if (this.#escapeState === "simple") {
       if (character === "u") {
         this.#escapeState = "unicode";
@@ -314,6 +387,7 @@ export class StreamingJsonTokenizer {
     }
     updates.push({ field: this.#field, kind: "complete-value", value });
     this.#containers.length = 0;
+    this.#rootArray = undefined;
     this.#valueMode = undefined;
     this.#valueSource = "";
     this.#rootState = "after-value";
