@@ -259,9 +259,12 @@ pnpm host:provider:status
 ```
 
 构建完成后打开 `chrome://extensions`，确认加载目录是当前
-`apps/extension/dist`，点击刷新并确认版本 `0.5.0`。最后两条配置命令必须由用户在终端明确
-执行：Key 通过隐藏提示写入钥匙串，`status` 应输出 `openai-responses`。安装和升级本身不读取
-或覆盖现有 OpenAI/欧路钥匙串项，也不自动改变有效 Provider 配置。
+`apps/extension/dist`，点击刷新并确认版本 `0.5.0`。只有
+`pnpm host:openai:configure` 会调用 `/usr/bin/security` 并打开系统隐藏输入提示，把 Key 写入
+钥匙串；`pnpm host:provider:set -- api` 只写入 Provider 配置，
+`pnpm host:provider:status` 只读取 Provider 配置并应输出 `openai-responses`，后两条命令都不会
+读取钥匙串或 API Key。安装和升级本身也不读取或覆盖现有 OpenAI/欧路钥匙串项，不自动改变
+有效 Provider 配置。
 
 只有用户另行批准真实调用和费用后，才运行 `pnpm smoke:codex` 或
 `pnpm smoke:compare`。若 API 速度、质量或费用不可接受，无需重装，立即回滚 Provider：
