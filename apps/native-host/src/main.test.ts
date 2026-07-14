@@ -27,9 +27,11 @@ class HealthDispatcher implements RequestDispatcher {
     emit({
       codexVersion: "codex-cli 0.144.1",
       hostVersion: "0.3.0",
+      model: "gpt-5.4-mini",
+      provider: "codex",
       ready: true,
       requestId: "health-1",
-      schemaVersion: 2,
+      schemaVersion: 3,
       type: "health-result",
     });
   }
@@ -76,7 +78,7 @@ describe("runNativeHost", () => {
       output,
     });
 
-    input.write(encodeNativeMessage({ requestId: "health-1", schemaVersion: 2, type: "health" }));
+    input.write(encodeNativeMessage({ requestId: "health-1", schemaVersion: 3, type: "health" }));
     await vi.waitFor(() => expect(outputChunks.length).toBe(1));
 
     const decoder = new NativeMessageDecoder();
@@ -84,9 +86,11 @@ describe("runNativeHost", () => {
       {
         codexVersion: "codex-cli 0.144.1",
         hostVersion: "0.3.0",
+        model: "gpt-5.4-mini",
+        provider: "codex",
         ready: true,
         requestId: "health-1",
-        schemaVersion: 2,
+        schemaVersion: 3,
         type: "health-result",
       },
     ]);
@@ -161,7 +165,7 @@ describe("runNativeHost", () => {
           action: "translate",
           context: "The investigation was in its early stages.",
           requestId: "analysis-stdin-close",
-          schemaVersion: 2,
+          schemaVersion: 3,
           selection: "investigation",
           selectionKind: "word",
           sentenceContext: null,
@@ -238,7 +242,7 @@ describe("native host bootstrap", () => {
     });
     const events: HostEvent[] = [];
 
-    dispatcher.dispatch({ requestId: "health-2", schemaVersion: 2, type: "health" }, (event) =>
+    dispatcher.dispatch({ requestId: "health-2", schemaVersion: 3, type: "health" }, (event) =>
       events.push(event),
     );
     await vi.waitFor(() => expect(events).toHaveLength(1));
@@ -300,7 +304,7 @@ describe("native host bootstrap", () => {
         context: "The investigation is still in its early stages.",
         language: "en",
         requestId: "word-1",
-        schemaVersion: 2,
+        schemaVersion: 3,
         type: "add-word",
         word: "investigation",
       },
@@ -311,7 +315,7 @@ describe("native host bootstrap", () => {
     expect(events.at(-1)).toEqual({
       outcome: "already-exists",
       requestId: "word-1",
-      schemaVersion: 2,
+      schemaVersion: 3,
       type: "word-added",
     });
     expect(processRequests).toHaveLength(1);
@@ -366,7 +370,7 @@ describe("native host bootstrap", () => {
       {
         language: "en",
         requestId: "check-1",
-        schemaVersion: 2,
+        schemaVersion: 3,
         type: "check-word",
         word: "investigation",
       },
@@ -377,7 +381,7 @@ describe("native host bootstrap", () => {
     expect(events.at(-1)).toEqual({
       presence: "present",
       requestId: "check-1",
-      schemaVersion: 2,
+      schemaVersion: 3,
       type: "word-status",
     });
     expect(processRequests).toHaveLength(1);

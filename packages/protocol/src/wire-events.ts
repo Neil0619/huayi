@@ -28,14 +28,28 @@ import {
 
 const schemaVersionSchema = z.literal(SCHEMA_VERSION);
 
-export const healthResultEventSchema = z.strictObject({
-  codexVersion: z.string().trim().min(1).max(120),
-  hostVersion: z.string().trim().min(1).max(40),
-  ready: z.literal(true),
-  requestId: requestIdSchema,
-  schemaVersion: schemaVersionSchema,
-  type: z.literal("health-result"),
-});
+export const modelProviderSchema = z.enum(["codex", "openai-responses"]);
+export type ModelProvider = z.infer<typeof modelProviderSchema>;
+
+export const healthResultEventSchema = z
+  .strictObject({
+    codexVersion: z.string().trim().min(1).max(120).nullable(),
+    hostVersion: z.string().trim().min(1).max(40),
+    model: z.string().trim().min(1).max(120),
+    provider: modelProviderSchema,
+    ready: z.literal(true),
+    requestId: requestIdSchema,
+    schemaVersion: z.literal(SCHEMA_VERSION),
+    type: z.literal("health-result"),
+  })
+  .superRefine((value, context) => {
+    if (value.provider === "codex" && value.codexVersion === null) {
+      context.addIssue({ code: "custom", message: "Codex health requires a version." });
+    }
+    if (value.provider === "openai-responses" && value.codexVersion !== null) {
+      context.addIssue({ code: "custom", message: "API health must not report Codex." });
+    }
+  });
 export type HealthResultEvent = z.infer<typeof healthResultEventSchema>;
 
 export const warmupReadyEventSchema = z.strictObject({

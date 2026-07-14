@@ -145,7 +145,7 @@ describe("content-script analysis acknowledgements", () => {
     runtime.emit({
       error: { code: "NETWORK_ERROR", message: "分析失败。", retryable: true },
       requestId: "request-1",
-      schemaVersion: 2,
+      schemaVersion: 3,
       type: "error",
     });
 
@@ -173,7 +173,7 @@ describe("content-script analysis acknowledgements", () => {
       runtime.emit({
         presence: "present",
         requestId: "request-3",
-        schemaVersion: 2,
+        schemaVersion: 3,
         type: "word-status",
       });
       const commandsBeforeStaleAcknowledgement = [...runtime.sent];
@@ -232,14 +232,14 @@ describe("content-script analysis acknowledgements", () => {
     runtime.emit({
       presence: "present",
       requestId: "request-2",
-      schemaVersion: 2,
+      schemaVersion: 3,
       type: "word-status",
     });
 
     runtime.emit({
       error: { code: "NETWORK_ERROR", message: "分析失败。", retryable: true },
       requestId: "request-1",
-      schemaVersion: 2,
+      schemaVersion: 3,
       type: "error",
     });
 
@@ -260,7 +260,7 @@ describe("content-script analysis acknowledgements", () => {
       runtime.emit({
         error: { code: "NETWORK_ERROR", message: "分析失败。", retryable: true },
         requestId: "request-1",
-        schemaVersion: 2,
+        schemaVersion: 3,
         type: "error",
       });
 
@@ -289,7 +289,7 @@ describe("content-script analysis acknowledgements", () => {
       runtime.emit({
         presence: "present",
         requestId: "request-2",
-        schemaVersion: 2,
+        schemaVersion: 3,
         type: "word-status",
       });
       expect(instance.controller.state).toEqual(stateAfterCancellation);

@@ -27,7 +27,7 @@ describe("RequestCoordinator lanes", () => {
 
     expect(transport.sent[0]).toEqual({
       requestId: "control-1",
-      schemaVersion: 2,
+      schemaVersion: 3,
       type: "warmup",
     });
     expect(cancelTargets(transport)).toEqual(["analysis-1"]);
@@ -46,20 +46,20 @@ describe("RequestCoordinator lanes", () => {
 
     transport.emitEvent({
       requestId: "analysis-1",
-      schemaVersion: 2,
+      schemaVersion: 3,
       stage: "running",
       type: "progress",
     });
     transport.emitEvent({
       requestId: "check-1",
-      schemaVersion: 2,
+      schemaVersion: 3,
       stage: "queued",
       type: "progress",
     });
     transport.emitEvent({
       presence: "absent",
       requestId: "check-1",
-      schemaVersion: 2,
+      schemaVersion: 3,
       type: "word-status",
     });
     transport.emitEvent(resultEvent("analysis-1"));
@@ -127,7 +127,7 @@ describe("RequestCoordinator lanes", () => {
     transport.emitEvent({
       presence: "present",
       requestId: "check-1",
-      schemaVersion: 2,
+      schemaVersion: 3,
       type: "word-status",
     });
 
@@ -145,7 +145,7 @@ describe("RequestCoordinator events", () => {
 
     transport.emitEvent({
       requestId: "analysis-1",
-      schemaVersion: 2,
+      schemaVersion: 3,
       stage: "running",
       type: "progress",
     });
@@ -234,7 +234,7 @@ describe("RequestCoordinator events", () => {
     transport.emitEvent({
       presence: "present",
       requestId: "analysis-1",
-      schemaVersion: 2,
+      schemaVersion: 3,
       type: "word-status",
     });
     transport.emitEvent(analysisSectionEvent("analysis-1", 0));
@@ -269,14 +269,14 @@ describe("RequestCoordinator events", () => {
 
     transport.emitEvent({
       requestId: "add-1",
-      schemaVersion: 2,
+      schemaVersion: 3,
       stage: "running",
       type: "progress",
     });
     transport.emitEvent({
       outcome: "added",
       requestId: "add-1",
-      schemaVersion: 2,
+      schemaVersion: 3,
       type: "word-added",
     });
 
@@ -292,7 +292,7 @@ describe("RequestCoordinator events", () => {
         event: {
           presence: "present",
           requestId: "analysis-1",
-          schemaVersion: 2,
+          schemaVersion: 3,
           type: "word-status",
         },
         request: analyzeRequest("analysis-1"),
@@ -301,7 +301,7 @@ describe("RequestCoordinator events", () => {
         event: {
           outcome: "already-exists",
           requestId: "check-1",
-          schemaVersion: 2,
+          schemaVersion: 3,
           type: "word-added",
         },
         request: checkWordRequest("check-1"),
@@ -352,7 +352,7 @@ describe("RequestCoordinator failures", () => {
     transport.emitEvent({
       presence: "absent",
       requestId: "check-1",
-      schemaVersion: 2,
+      schemaVersion: 3,
       type: "word-status",
     });
     expect(delivered).toHaveLength(3);

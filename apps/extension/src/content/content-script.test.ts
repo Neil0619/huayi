@@ -82,7 +82,7 @@ function resolveWordTranslation(runtime: FakeRuntime, requestId: string, sourceT
       sourceText,
       type: "translate-lexical",
     },
-    schemaVersion: 2,
+    schemaVersion: 3,
     type: "result",
   });
 }
@@ -113,7 +113,7 @@ describe("createAnalyzeRequest", () => {
       action: "translate",
       context: "The investigation was in its early stages.",
       requestId: "request-1",
-      schemaVersion: 2,
+      schemaVersion: 3,
       selection: "investigation",
       selectionKind: "word",
       sentenceContext: "The investigation was in its early stages.",
@@ -156,7 +156,7 @@ describe("createAddWordRequest", () => {
       context: "The investigation was in its early stages.",
       language: "en",
       requestId: "word-1",
-      schemaVersion: 2,
+      schemaVersion: 3,
       type: "add-word",
       word: "investigation",
     });
@@ -194,7 +194,7 @@ describe("createCheckWordRequest", () => {
     ).toEqual({
       language: "en",
       requestId: "check-1",
-      schemaVersion: 2,
+      schemaVersion: 3,
       type: "check-word",
       word: "investigation",
     });
@@ -253,7 +253,7 @@ describe("initializeContentScript", () => {
         sourceText: "investigation",
         type: "translate-lexical",
       },
-      schemaVersion: 2,
+      schemaVersion: 3,
       type: "result",
     });
     instance.controller.shadowRoot
@@ -264,7 +264,7 @@ describe("initializeContentScript", () => {
         context: "The investigation was in its early stages.",
         language: "en",
         requestId: "request-2",
-        schemaVersion: 2,
+        schemaVersion: 3,
         type: "add-word",
         word: "investigation",
       },
@@ -273,7 +273,7 @@ describe("initializeContentScript", () => {
     runtime.emit({
       outcome: "added",
       requestId: "request-2",
-      schemaVersion: 2,
+      schemaVersion: 3,
       type: "word-added",
     });
     expect(instance.controller.shadowRoot.textContent).toContain("已加入生词本");
@@ -338,7 +338,7 @@ describe("initializeContentScript", () => {
     runtime.emit({
       outcome: "added",
       requestId: "request-2",
-      schemaVersion: 2,
+      schemaVersion: 3,
       type: "word-added",
     });
     expect(instance.controller.state).toMatchObject({

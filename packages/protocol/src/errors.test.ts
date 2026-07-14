@@ -6,6 +6,8 @@ const expectedCodes = [
   "HOST_NOT_INSTALLED",
   "CODEX_NOT_AUTHENTICATED",
   "CODEX_CAPABILITY_MISSING",
+  "MODEL_PROVIDER_NOT_CONFIGURED",
+  "MODEL_PROVIDER_AUTH_FAILED",
   "EUDIC_NOT_CONFIGURED",
   "EUDIC_AUTH_FAILED",
   "RATE_LIMITED",
@@ -20,6 +22,11 @@ const expectedCodes = [
 
 describe("errorCodeSchema", () => {
   it("accepts exactly the public error codes", () => {
+    expect(errorCodeSchema.parse("MODEL_PROVIDER_NOT_CONFIGURED")).toBe(
+      "MODEL_PROVIDER_NOT_CONFIGURED",
+    );
+    expect(errorCodeSchema.parse("MODEL_PROVIDER_AUTH_FAILED")).toBe("MODEL_PROVIDER_AUTH_FAILED");
+
     for (const code of expectedCodes) {
       expect(errorCodeSchema.parse(code)).toBe(code);
     }

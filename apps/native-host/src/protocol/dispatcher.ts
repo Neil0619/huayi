@@ -117,6 +117,8 @@ export class NativeMessageDispatcher {
         this.emitValidated(emit, {
           codexVersion: health.codexVersion,
           hostVersion: HOST_VERSION,
+          model: "gpt-5.4-mini",
+          provider: "codex",
           ready: true,
           requestId: request.requestId,
           schemaVersion: SCHEMA_VERSION,

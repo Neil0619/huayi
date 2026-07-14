@@ -19,7 +19,7 @@ const request: AnalyzeRequest = {
   action: "translate",
   context: "The investigation was in its early stages.",
   requestId: "request-1",
-  schemaVersion: 2,
+  schemaVersion: 3,
   selection: "investigation",
   selectionKind: "word",
   sentenceContext: null,
@@ -31,7 +31,7 @@ const wordRequest: AddWordRequest = {
   context: "The investigation was in its early stages.",
   language: "en",
   requestId: "word-1",
-  schemaVersion: 2,
+  schemaVersion: 3,
   type: "add-word",
   word: "investigation",
 };
@@ -39,7 +39,7 @@ const wordRequest: AddWordRequest = {
 const checkRequest: CheckWordRequest = {
   language: "en",
   requestId: "check-1",
-  schemaVersion: 2,
+  schemaVersion: 3,
   type: "check-word",
   word: "investigation",
 };
@@ -176,7 +176,7 @@ describe("handleContentMessage", () => {
     removeTab(7, { isWindowClosing: false, windowId: 1 });
 
     expect(postedMessages).toHaveLength(5);
-    expect(postedMessages[0]).toMatchObject({ schemaVersion: 2, type: "warmup" });
+    expect(postedMessages[0]).toMatchObject({ schemaVersion: 3, type: "warmup" });
     expect(Object.keys(postedMessages[0] as object).sort()).toEqual([
       "requestId",
       "schemaVersion",

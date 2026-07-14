@@ -2,8 +2,8 @@
 
 - Depend only on Zod and platform-neutral TypeScript.
 - Use strict schemas and reject unknown keys.
-- The current `schemaVersion` is `2`.
-- Runtime v2 rejects v1. Extension and Host upgrades or rollbacks must be synchronous; do not add
+- The current `schemaVersion` is `3`.
+- Runtime v3 rejects v2. Extension and Host upgrades or rollbacks must be synchronous; do not add
   an implicit compatibility layer.
 - Backward-compatible fields must be optional. Removing, renaming, or changing field semantics
   requires a schema-version increment and migration documentation.

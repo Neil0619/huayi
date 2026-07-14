@@ -24,12 +24,18 @@ describe("NativeMessageDispatcher analysis routing", () => {
     const events: HostEvent[] = [];
     const dispatcher = createDispatcher();
 
-    dispatcher.dispatch({ requestId: "health-1", schemaVersion: 2, type: "health" }, (event) =>
+    dispatcher.dispatch({ requestId: "health-1", schemaVersion: 3, type: "health" }, (event) =>
       events.push(event),
     );
 
     await vi.waitFor(() => expect(events).toHaveLength(1));
-    expect(events[0]).toMatchObject({ hostVersion: "0.4.0", type: "health-result" });
+    expect(events[0]).toMatchObject({
+      codexVersion: "codex-cli 0.144.1",
+      hostVersion: "0.4.0",
+      model: "gpt-5.4-mini",
+      provider: "codex",
+      type: "health-result",
+    });
     dispatcher.dispose();
   });
 
@@ -103,7 +109,7 @@ describe("NativeMessageDispatcher analysis routing", () => {
     dispatcher.dispatch(
       {
         requestId: "cancel-1",
-        schemaVersion: 2,
+        schemaVersion: 3,
         targetRequestId: request.requestId,
         type: "cancel",
       },
@@ -202,7 +208,7 @@ describe("NativeMessageDispatcher analysis routing", () => {
     dispatcher.dispatch(
       {
         requestId: "cancel-warmup",
-        schemaVersion: 2,
+        schemaVersion: 3,
         targetRequestId: warmupRequest.requestId,
         type: "cancel",
       },
@@ -230,7 +236,7 @@ describe("NativeMessageDispatcher analysis routing", () => {
         dispatcher.dispatch(
           {
             requestId: "cancel-after-ready",
-            schemaVersion: 2,
+            schemaVersion: 3,
             targetRequestId: warmupRequest.requestId,
             type: "cancel",
           },
@@ -250,7 +256,7 @@ describe("NativeMessageDispatcher analysis routing", () => {
     const dispatcher = createDispatcher();
 
     expect(() =>
-      dispatcher.dispatch({ schemaVersion: 2, type: "analyze" }, () => undefined),
+      dispatcher.dispatch({ schemaVersion: 3, type: "analyze" }, () => undefined),
     ).toThrow(/invalid host request/i);
     dispatcher.dispose();
   });

@@ -1,7 +1,8 @@
 # 协议说明
 
-当前协议版本为 `schemaVersion: 2`，所有消息均为严格的带 `type` 联合类型。v2 运行时直接
-拒绝 v1 消息，不提供 v1/v2 转换层；Extension 与 Native Host 必须同步升级、重装或回滚。
+当前协议版本为 `schemaVersion: 3`，所有消息均为严格的带 `type` 联合类型。v3 运行时直接
+拒绝 v2 及更早消息，不提供跨版本转换层；Extension 与 Native Host 必须同步升级、重装或
+回滚。
 
 ## 请求
 
@@ -27,7 +28,7 @@
 ```json
 {
   "requestId": "warmup-1",
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "type": "warmup"
 }
 ```
@@ -43,7 +44,7 @@
 {
   "language": "en",
   "requestId": "check-1",
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "type": "check-word",
   "word": "mother-in-law"
 }
@@ -51,7 +52,9 @@
 
 ## 事件
 
-- `health-result`：返回 Host/Codex 版本和就绪状态。
+- `health-result`：返回 Host 版本、模型 Provider、模型、Codex 版本和就绪状态。`provider` 只
+  允许 `codex | openai-responses`；Codex 必须返回非空 `codexVersion`，API Provider 必须返回
+  `codexVersion: null`。
 - `warmup-ready`：确认无页面数据的预热已安全完成；它是 `warmup` 的唯一成功终态。
 - `progress`：`queued` 或 `running`。
 - `analysis-delta`：分析核心字段的增量文本；它是中间事件，不是成功终态。
@@ -62,12 +65,27 @@
 - `word-added`：返回 `added | already-exists`，分别表示新建成功或原记录已存在。
 - `error`：返回固定错误码、中文用户提示和是否允许重试。
 
+Codex 健康检查成功示例：
+
+```json
+{
+  "codexVersion": "codex-cli 0.144.1",
+  "hostVersion": "0.5.0",
+  "model": "gpt-5.4-mini",
+  "provider": "codex",
+  "ready": true,
+  "requestId": "health-codex",
+  "schemaVersion": 3,
+  "type": "health-result"
+}
+```
+
 预热成功示例：
 
 ```json
 {
   "requestId": "warmup-1",
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "type": "warmup-ready"
 }
 ```
@@ -78,7 +96,7 @@
 {
   "delta": "调查",
   "requestId": "analysis-1",
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "section": "contextual-meaning",
   "sequence": 0,
   "type": "analysis-delta"
@@ -103,8 +121,8 @@ word-formation | core-meanings | collocations | context-example | similar-terms 
 
 ```json
 {
-  "requestId": "analysis-v2",
-  "schemaVersion": 2,
+  "requestId": "analysis-v3",
+  "schemaVersion": 3,
   "section": "part-of-speech",
   "sequence": 1,
   "type": "analysis-section",
@@ -132,7 +150,7 @@ Host 完整校验私有内容后，从可信 `analyze` 请求注入原始 `sourc
 {
   "presence": "present",
   "requestId": "check-1",
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "type": "word-status"
 }
 ```
@@ -161,6 +179,8 @@ Host 完整校验私有内容后，从可信 `analyze` 请求注入原始 `sourc
 HOST_NOT_INSTALLED
 CODEX_NOT_AUTHENTICATED
 CODEX_CAPABILITY_MISSING
+MODEL_PROVIDER_NOT_CONFIGURED
+MODEL_PROVIDER_AUTH_FAILED
 EUDIC_NOT_CONFIGURED
 EUDIC_AUTH_FAILED
 RATE_LIMITED
@@ -176,6 +196,12 @@ INTERNAL_ERROR
 所有对象（包括每个 `analysis-section` 变体及其嵌套对象）拒绝未知字段，Native Messaging
 单帧上限为 1 MiB。当前版本只允许新增可选字段；删除字段、重命名或改变语义时必须再次提升
 `schemaVersion`，同时在本节增加迁移说明。
+
+v2 到 v3 是同步升级且不兼容的迁移：所有请求和事件改用 `schemaVersion: 3`；
+`health-result` 必须增加 `provider` 和 `model`，并将 `codexVersion` 改为可空且与 Provider
+语义绑定；新增 Provider 通用错误码 `MODEL_PROVIDER_NOT_CONFIGURED` 和
+`MODEL_PROVIDER_AUTH_FAILED`。分析增量、结构化板块、最终结果形状和共享序号语义保持不变。
+Extension 与 Native Host 必须一起升级，任一端不得接受 v2 消息。
 
 v1 到 v2 是同步升级且不兼容的迁移：所有请求和事件改用 `schemaVersion: 2`；`analyze`
 必须增加 `sentenceContext`；新增不含页面数据的 `warmup -> warmup-ready`；新增与文本增量共享
