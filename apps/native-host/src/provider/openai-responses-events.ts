@@ -7,10 +7,6 @@ const identifierSchema = z.string().min(1).max(512);
 const sequenceNumberSchema = z.number().int().nonnegative();
 const zeroIndexSchema = z.literal(0);
 
-function responseSchema(status: "completed" | "failed" | "in_progress" | "incomplete") {
-  return z.object({ id: identifierSchema, status: z.literal(status) });
-}
-
 const outputTextPartSchema = z.strictObject({
   annotations: z.array(z.never()),
   logprobs: z.array(z.unknown()).optional(),
@@ -34,6 +30,41 @@ const messageDoneSchema = z.strictObject({
   type: z.literal("message"),
 });
 
+const inProgressResponseSchema = z.object({
+  error: z.null(),
+  id: identifierSchema,
+  incomplete_details: z.null(),
+  output: z.tuple([]),
+  status: z.literal("in_progress"),
+});
+
+const completedResponseSchema = z.object({
+  error: z.null(),
+  id: identifierSchema,
+  incomplete_details: z.null(),
+  output: z.tuple([messageDoneSchema]),
+  status: z.literal("completed"),
+});
+
+const failedResponseSchema = z.object({
+  error: z.strictObject({
+    code: z.string().min(1).max(128),
+    message: z.string().min(1).max(4_096),
+  }),
+  id: identifierSchema,
+  incomplete_details: z.null(),
+  output: z.tuple([]),
+  status: z.literal("failed"),
+});
+
+const incompleteResponseSchema = z.object({
+  error: z.null(),
+  id: identifierSchema,
+  incomplete_details: z.strictObject({ reason: z.string().min(1).max(128) }),
+  output: z.tuple([]),
+  status: z.literal("incomplete"),
+});
+
 const schemas = {
   error: z.strictObject({
     code: z.string().min(1),
@@ -43,7 +74,7 @@ const schemas = {
     type: z.literal("error"),
   }),
   "response.completed": z.strictObject({
-    response: responseSchema("completed"),
+    response: completedResponseSchema,
     sequence_number: sequenceNumberSchema,
     type: z.literal("response.completed"),
   }),
@@ -64,22 +95,22 @@ const schemas = {
     type: z.literal("response.content_part.done"),
   }),
   "response.created": z.strictObject({
-    response: responseSchema("in_progress"),
+    response: inProgressResponseSchema,
     sequence_number: sequenceNumberSchema,
     type: z.literal("response.created"),
   }),
   "response.failed": z.strictObject({
-    response: responseSchema("failed"),
+    response: failedResponseSchema,
     sequence_number: sequenceNumberSchema,
     type: z.literal("response.failed"),
   }),
   "response.in_progress": z.strictObject({
-    response: responseSchema("in_progress"),
+    response: inProgressResponseSchema,
     sequence_number: sequenceNumberSchema,
     type: z.literal("response.in_progress"),
   }),
   "response.incomplete": z.strictObject({
-    response: responseSchema("incomplete"),
+    response: incompleteResponseSchema,
     sequence_number: sequenceNumberSchema,
     type: z.literal("response.incomplete"),
   }),
@@ -119,13 +150,19 @@ type EventName = keyof typeof schemas;
 
 export type OpenAIResponseEvent =
   | { type: "error" }
-  | { type: "response.completed" }
+  | {
+      itemId: string;
+      responseId: string;
+      status: "completed";
+      text: string;
+      type: "response.completed";
+    }
   | { itemId: string; text: string; type: "response.content_part.added" }
   | { itemId: string; text: string; type: "response.content_part.done" }
-  | { type: "response.created" }
-  | { type: "response.failed" }
-  | { type: "response.in_progress" }
-  | { type: "response.incomplete" }
+  | { responseId: string; status: "in_progress"; type: "response.created" }
+  | { responseId: string; status: "failed"; type: "response.failed" }
+  | { responseId: string; status: "in_progress"; type: "response.in_progress" }
+  | { responseId: string; status: "incomplete"; type: "response.incomplete" }
   | { itemId: string; type: "response.output_item.added" }
   | { itemId: string; type: "response.output_item.done" }
   | { delta: string; itemId: string; type: "response.output_text.delta" }
@@ -165,12 +202,41 @@ export function parseOpenAIResponseEvent(message: SseMessage): OpenAIResponseEve
       return { delta: event.delta, itemId: event.item_id, type: event.type };
     case "response.output_text.done":
       return { itemId: event.item_id, text: event.text, type: event.type };
-    case "error":
-    case "response.completed":
+    case "response.completed": {
+      const item = event.response.output[0];
+      return {
+        itemId: item.id,
+        responseId: event.response.id,
+        status: event.response.status,
+        text: item.content[0].text,
+        type: event.type,
+      };
+    }
     case "response.created":
+      return {
+        responseId: event.response.id,
+        status: event.response.status,
+        type: event.type,
+      };
     case "response.failed":
+      return {
+        responseId: event.response.id,
+        status: event.response.status,
+        type: event.type,
+      };
     case "response.in_progress":
+      return {
+        responseId: event.response.id,
+        status: event.response.status,
+        type: event.type,
+      };
     case "response.incomplete":
+      return {
+        responseId: event.response.id,
+        status: event.response.status,
+        type: event.type,
+      };
+    case "error":
       return { type: event.type };
   }
 }

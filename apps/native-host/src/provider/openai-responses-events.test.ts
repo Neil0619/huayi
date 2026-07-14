@@ -1,135 +1,36 @@
 import { describe, expect, it } from "vitest";
 
-import type { SseMessage } from "./sse-decoder.js";
+import {
+  completedMessage,
+  type EventName,
+  fixtures,
+  itemId,
+  message,
+  outputTextPart,
+  responseId,
+} from "./openai-responses-events-test-fixtures.js";
 import { parseOpenAIResponseEvent } from "./openai-responses-events.js";
-
-const responseId = "resp_test";
-const itemId = "msg_test";
-
-const outputTextPart = {
-  annotations: [],
-  text: '{"translation":"调查"}',
-  type: "output_text",
-} as const;
-
-const fixtures = {
-  "response.completed": {
-    response: { id: responseId, status: "completed", usage: { output_tokens: 12 } },
-    sequence_number: 10,
-    type: "response.completed",
-  },
-  "response.content_part.added": {
-    content_index: 0,
-    item_id: itemId,
-    output_index: 0,
-    part: { annotations: [], text: "", type: "output_text" },
-    sequence_number: 4,
-    type: "response.content_part.added",
-  },
-  "response.content_part.done": {
-    content_index: 0,
-    item_id: itemId,
-    output_index: 0,
-    part: outputTextPart,
-    sequence_number: 8,
-    type: "response.content_part.done",
-  },
-  "response.created": {
-    response: { created_at: 1_700_000_000, id: responseId, status: "in_progress" },
-    sequence_number: 0,
-    type: "response.created",
-  },
-  "response.failed": {
-    response: {
-      error: { code: "server_error", message: "generation failed" },
-      id: responseId,
-      status: "failed",
-    },
-    sequence_number: 10,
-    type: "response.failed",
-  },
-  "response.in_progress": {
-    response: { id: responseId, model: "test-model", status: "in_progress" },
-    sequence_number: 1,
-    type: "response.in_progress",
-  },
-  "response.incomplete": {
-    response: {
-      id: responseId,
-      incomplete_details: { reason: "max_output_tokens" },
-      status: "incomplete",
-    },
-    sequence_number: 10,
-    type: "response.incomplete",
-  },
-  "response.output_item.added": {
-    item: {
-      content: [],
-      id: itemId,
-      role: "assistant",
-      status: "in_progress",
-      type: "message",
-    },
-    output_index: 0,
-    sequence_number: 3,
-    type: "response.output_item.added",
-  },
-  "response.output_item.done": {
-    item: {
-      content: [outputTextPart],
-      id: itemId,
-      role: "assistant",
-      status: "completed",
-      type: "message",
-    },
-    output_index: 0,
-    sequence_number: 9,
-    type: "response.output_item.done",
-  },
-  "response.output_text.delta": {
-    content_index: 0,
-    delta: '{"translation":',
-    item_id: itemId,
-    logprobs: [],
-    output_index: 0,
-    sequence_number: 5,
-    type: "response.output_text.delta",
-  },
-  "response.output_text.done": {
-    content_index: 0,
-    item_id: itemId,
-    output_index: 0,
-    sequence_number: 7,
-    text: outputTextPart.text,
-    type: "response.output_text.done",
-  },
-  error: {
-    code: "server_error",
-    message: "stream failed",
-    param: null,
-    sequence_number: 11,
-    type: "error",
-  },
-} as const;
-
-type EventName = keyof typeof fixtures;
-
-function message(event: EventName, data: unknown = fixtures[event]): SseMessage {
-  return { data: JSON.stringify(data), event };
-}
 
 describe("parseOpenAIResponseEvent", () => {
   it.each(Object.keys(fixtures) as EventName[])("accepts and narrows %s", (eventName) => {
     const parsed = parseOpenAIResponseEvent(message(eventName));
 
     expect(parsed.type).toBe(eventName);
-    expect(JSON.stringify(parsed)).not.toContain(responseId);
     expect(JSON.stringify(parsed)).not.toContain("output_tokens");
   });
 
   it("preserves only lifecycle fields consumed by the provider", () => {
     expect(parseOpenAIResponseEvent(message("response.created"))).toEqual({
+      responseId,
+      status: "in_progress",
       type: "response.created",
+    });
+    expect(parseOpenAIResponseEvent(message("response.completed"))).toEqual({
+      itemId,
+      responseId,
+      status: "completed",
+      text: outputTextPart.text,
+      type: "response.completed",
     });
     expect(parseOpenAIResponseEvent(message("response.output_item.added"))).toEqual({
       itemId,
@@ -172,11 +73,16 @@ describe("parseOpenAIResponseEvent", () => {
             created_at: 1_700_000_000,
             metadata: { trace: "safe-to-ignore" },
             model: "test-model",
-            output: [],
           },
         }),
       ),
-    ).toEqual({ type: "response.completed" });
+    ).toEqual({
+      itemId,
+      responseId,
+      status: "completed",
+      text: outputTextPart.text,
+      type: "response.completed",
+    });
   });
 
   it("accepts documented optional logprobs without retaining them", () => {
@@ -308,5 +214,101 @@ describe("parseOpenAIResponseEvent", () => {
         }),
       ),
     ).toThrowError(expect.objectContaining({ code: "INVALID_RESPONSE" }));
+  });
+
+  it.each(["response.created", "response.in_progress"] as const)(
+    "rejects contradictory fields on %s",
+    (eventName) => {
+      const source = fixtures[eventName];
+      for (const responsePatch of [
+        { error: { code: "server_error", message: "failed" } },
+        { incomplete_details: { reason: "max_output_tokens" } },
+        { output: [completedMessage] },
+      ]) {
+        expect(() =>
+          parseOpenAIResponseEvent(
+            message(eventName, {
+              ...source,
+              response: { ...source.response, ...responsePatch },
+            }),
+          ),
+        ).toThrowError(expect.objectContaining({ code: "INVALID_RESPONSE" }));
+      }
+    },
+  );
+
+  it("rejects unsafe or contradictory completed response output", () => {
+    const source = fixtures["response.completed"];
+    const invalidResponses = [
+      { ...source.response, error: { code: "server_error", message: "failed" } },
+      { ...source.response, incomplete_details: { reason: "max_output_tokens" } },
+      { ...source.response, status: "failed" },
+      { ...source.response, output: [completedMessage, completedMessage] },
+      {
+        ...source.response,
+        output: [{ ...completedMessage, content: [outputTextPart, outputTextPart] }],
+      },
+      { ...source.response, output: [{ ...completedMessage, role: "user" }] },
+      { ...source.response, output: [{ ...completedMessage, status: "in_progress" }] },
+      {
+        ...source.response,
+        output: [{ ...completedMessage, content: [{ refusal: "no", type: "refusal" }] }],
+      },
+      { ...source.response, output: [{ id: "reasoning", summary: [], type: "reasoning" }] },
+      {
+        ...source.response,
+        output: [{ arguments: "{}", call_id: "call", name: "x", type: "function_call" }],
+      },
+      {
+        ...source.response,
+        output: [{ id: "tool", status: "completed", type: "web_search_call" }],
+      },
+    ];
+    for (const response of invalidResponses) {
+      expect(() =>
+        parseOpenAIResponseEvent(message("response.completed", { ...source, response })),
+      ).toThrowError(expect.objectContaining({ code: "INVALID_RESPONSE" }));
+    }
+  });
+
+  it("requires bounded failure and incomplete details without success output", () => {
+    const failed = fixtures["response.failed"];
+    for (const responsePatch of [
+      { error: null },
+      { error: { code: "x".repeat(129), message: "failed" } },
+      { output: [completedMessage] },
+    ]) {
+      expect(() =>
+        parseOpenAIResponseEvent(
+          message("response.failed", {
+            ...failed,
+            response: { ...failed.response, ...responsePatch },
+          }),
+        ),
+      ).toThrowError(expect.objectContaining({ code: "INVALID_RESPONSE" }));
+    }
+
+    const incomplete = fixtures["response.incomplete"];
+    for (const responsePatch of [
+      { incomplete_details: null },
+      { incomplete_details: { reason: "x".repeat(129) } },
+      { output: [completedMessage] },
+    ]) {
+      expect(() =>
+        parseOpenAIResponseEvent(
+          message("response.incomplete", {
+            ...incomplete,
+            response: { ...incomplete.response, ...responsePatch },
+          }),
+        ),
+      ).toThrowError(expect.objectContaining({ code: "INVALID_RESPONSE" }));
+    }
+  });
+
+  it("does not retain top-level error diagnostics", () => {
+    expect(parseOpenAIResponseEvent(message("error"))).toEqual({ type: "error" });
+    expect(JSON.stringify(parseOpenAIResponseEvent(message("error")))).not.toContain(
+      "stream failed",
+    );
   });
 });
