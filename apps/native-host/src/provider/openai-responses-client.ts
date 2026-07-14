@@ -107,6 +107,7 @@ interface LinkedAbort {
 function linkedAbort(externalSignal: AbortSignal): LinkedAbort {
   const controller = new AbortController();
   let abortSource: OpenAIFetchAbortSource = "none";
+  let cleaned = false;
   const abort = (source: Exclude<OpenAIFetchAbortSource, "none">): void => {
     if (abortSource !== "none") return;
     abortSource = source;
@@ -119,6 +120,8 @@ function linkedAbort(externalSignal: AbortSignal): LinkedAbort {
 
   return {
     cleanup: () => {
+      if (cleaned) return;
+      cleaned = true;
       clearTimeout(timeout);
       externalSignal.removeEventListener("abort", onExternalAbort);
     },
@@ -127,12 +130,42 @@ function linkedAbort(externalSignal: AbortSignal): LinkedAbort {
   };
 }
 
-async function readErrorBody(response: OpenAIFetchResponse): Promise<unknown> {
+function ignoreCancellation(cancel: () => Promise<void>, releaseLock?: () => void): void {
+  try {
+    void cancel().catch(() => undefined);
+  } catch {
+    // Stream cleanup is best effort and must not replace the intended result.
+  }
+  try {
+    releaseLock?.();
+  } catch {
+    // A locked or pending reader cannot always be released synchronously.
+  }
+}
+
+function cancelReader(reader: ReadableStreamDefaultReader<Uint8Array>): void {
+  ignoreCancellation(
+    () => reader.cancel(),
+    () => reader.releaseLock(),
+  );
+}
+
+function cancelBody(body: ReadableStream<Uint8Array>): void {
+  try {
+    cancelReader(body.getReader());
+  } catch {
+    ignoreCancellation(() => body.cancel());
+  }
+}
+
+async function readErrorBody(
+  response: OpenAIFetchResponse,
+  beforeCancel: () => void,
+): Promise<unknown> {
   if (response.body === null) return undefined;
   const reader = response.body.getReader();
   const chunks: Buffer[] = [];
   let totalBytes = 0;
-  let cancelled = false;
   try {
     while (true) {
       const chunk = await reader.read();
@@ -140,14 +173,13 @@ async function readErrorBody(response: OpenAIFetchResponse): Promise<unknown> {
       if (chunk.value === undefined) throw openAIProviderError("INVALID_RESPONSE");
       totalBytes += chunk.value.byteLength;
       if (totalBytes > MAXIMUM_OPENAI_ERROR_BODY_BYTES) {
-        cancelled = true;
-        await reader.cancel().catch(() => undefined);
         throw openAIProviderError("INVALID_RESPONSE");
       }
       chunks.push(Buffer.from(chunk.value));
     }
   } finally {
-    if (!cancelled) await reader.cancel().catch(() => undefined);
+    beforeCancel();
+    cancelReader(reader);
   }
   try {
     return JSON.parse(Buffer.concat(chunks).toString("utf8")) as unknown;
@@ -184,7 +216,7 @@ export class OpenAIResponsesClient {
       );
       if (abort.signal.aborted) throw openAIFetchError(new Error("aborted"), abort.source());
       if (response.status !== 200) {
-        const errorBody = await readErrorBody(response);
+        const errorBody = await readErrorBody(response, abort.cleanup);
         if (abort.signal.aborted) throw openAIFetchError(new Error("aborted"), abort.source());
         throw openAIHttpError(response.status, errorBody);
       }
@@ -192,7 +224,8 @@ export class OpenAIResponsesClient {
         throw openAIProviderError("INVALID_RESPONSE");
       }
       if (!isEventStream(response.headers)) {
-        await response.body.cancel().catch(() => undefined);
+        abort.cleanup();
+        cancelBody(response.body);
         throw openAIProviderError("INVALID_RESPONSE");
       }
 
@@ -221,8 +254,8 @@ export class OpenAIResponsesClient {
       if (error instanceof OpenAIProviderError) throw error;
       throw openAIFetchError(error, abort.source());
     } finally {
-      if (reader !== undefined) await reader.cancel().catch(() => undefined);
       abort.cleanup();
+      if (reader !== undefined) cancelReader(reader);
     }
   }
 }

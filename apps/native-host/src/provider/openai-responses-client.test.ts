@@ -65,6 +65,27 @@ async function collect(client: OpenAIResponsesClient, request = createRequest())
   return events;
 }
 
+type PromptSettlement =
+  | { status: "pending" }
+  | { status: "rejected"; value: unknown }
+  | { status: "resolved"; value: unknown };
+
+async function settlementAfterOneMillisecond(promise: Promise<unknown>): Promise<PromptSettlement> {
+  const settlement = Promise.race<PromptSettlement>([
+    promise.then(
+      (value) => ({ status: "resolved", value }),
+      (value: unknown) => ({ status: "rejected", value }),
+    ),
+    new Promise((resolve) => setTimeout(() => resolve({ status: "pending" }), 1)),
+  ]);
+  await vi.advanceTimersByTimeAsync(1);
+  return settlement;
+}
+
+function neverSettles(): Promise<void> {
+  return new Promise(() => undefined);
+}
+
 describe("OpenAIResponsesClient", () => {
   it("posts only the fixed official streaming request shape", async () => {
     const fetch = vi.fn<OpenAIFetch>().mockResolvedValue(eventStreamResponse());
@@ -156,10 +177,13 @@ describe("OpenAIResponsesClient", () => {
   });
 
   it("bounds non-success bodies before classifying their contents", async () => {
-    const cancel = vi.fn(async () => undefined);
+    vi.useFakeTimers();
+    const cancel = vi.fn(neverSettles);
+    const releaseLock = vi.fn();
     const body = {
       getReader: () => ({
         cancel,
+        releaseLock,
         read: vi
           .fn()
           .mockResolvedValueOnce({
@@ -176,8 +200,18 @@ describe("OpenAIResponsesClient", () => {
     };
     const client = new OpenAIResponsesClient({ fetch: async () => response });
 
-    await expect(collect(client)).rejects.toMatchObject({ code: "INVALID_RESPONSE" });
-    expect(cancel).toHaveBeenCalledOnce();
+    try {
+      const settlement = await settlementAfterOneMillisecond(collect(client));
+      expect(settlement).toMatchObject({
+        status: "rejected",
+        value: { code: "INVALID_RESPONSE" },
+      });
+      expect(cancel).toHaveBeenCalledOnce();
+      expect(releaseLock).toHaveBeenCalledOnce();
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it.each([
@@ -198,16 +232,59 @@ describe("OpenAIResponsesClient", () => {
   });
 
   it("cancels a response body rejected for the wrong content type", async () => {
-    const cancel = vi.fn(async () => undefined);
+    vi.useFakeTimers();
+    const cancel = vi.fn(neverSettles);
+    const releaseLock = vi.fn();
     const response: OpenAIFetchResponse = {
-      body: { cancel } as unknown as NonNullable<Response["body"]>,
+      body: {
+        cancel,
+        getReader: () => ({ cancel, releaseLock }),
+      } as unknown as NonNullable<Response["body"]>,
       headers: new Headers({ "content-type": "application/json" }),
       status: 200,
     };
     const client = new OpenAIResponsesClient({ fetch: async () => response });
 
-    await expect(collect(client)).rejects.toMatchObject({ code: "INVALID_RESPONSE" });
-    expect(cancel).toHaveBeenCalledOnce();
+    try {
+      const settlement = await settlementAfterOneMillisecond(collect(client));
+      expect(settlement).toMatchObject({
+        status: "rejected",
+        value: { code: "INVALID_RESPONSE" },
+      });
+      expect(cancel).toHaveBeenCalledOnce();
+      expect(releaseLock).toHaveBeenCalledOnce();
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("settles normal cleanup before a never-settling reader cancellation", async () => {
+    vi.useFakeTimers();
+    const cancel = vi.fn(neverSettles);
+    const releaseLock = vi.fn();
+    const controller = new AbortController();
+    const remove = vi.spyOn(controller.signal, "removeEventListener");
+    const response: OpenAIFetchResponse = {
+      body: {
+        getReader: () => ({ cancel, read: async () => ({ done: true }), releaseLock }),
+      } as unknown as NonNullable<Response["body"]>,
+      headers: new Headers({ "content-type": "text/event-stream" }),
+      status: 200,
+    };
+    const client = new OpenAIResponsesClient({ fetch: async () => response });
+
+    try {
+      await expect(
+        settlementAfterOneMillisecond(collectWithSignal(client, controller.signal)),
+      ).resolves.toEqual({ status: "resolved", value: [] });
+      expect(remove).toHaveBeenCalledOnce();
+      expect(cancel).toHaveBeenCalledOnce();
+      expect(releaseLock).toHaveBeenCalledOnce();
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("does not retry rejected network or redirect fetches", async () => {
@@ -247,67 +324,51 @@ describe("OpenAIResponsesClient", () => {
     await expect(pending).rejects.toMatchObject({ code: "CANCELLED" });
   });
 
-  it("maps its internal 60-second deadline and clears the timer", async () => {
-    vi.useFakeTimers();
-    try {
-      const fetch = vi.fn<OpenAIFetch>(
-        async (_url, init) =>
-          new Promise((_resolve, reject) => {
-            init.signal.addEventListener("abort", () => reject(new TypeError("aborted")), {
-              once: true,
-            });
+  it.each([
+    ["external abort", "CANCELLED"],
+    ["internal timeout", "TIMEOUT"],
+  ] as const)(
+    "rejects a late chunk after %s despite pending cancellation",
+    async (source, code) => {
+      vi.useFakeTimers();
+      let resolveRead: ((result: ReadableStreamReadResult<Uint8Array>) => void) | undefined;
+      const cancel = vi.fn(neverSettles);
+      const releaseLock = vi.fn();
+      const reader = {
+        cancel,
+        releaseLock,
+        read: () =>
+          new Promise<ReadableStreamReadResult<Uint8Array>>((resolve) => {
+            resolveRead = resolve;
           }),
-      );
-      const client = new OpenAIResponsesClient({ fetch });
-      const pending = collect(client);
-      const assertion = expect(pending).rejects.toMatchObject({ code: "TIMEOUT" });
+      };
+      const response: OpenAIFetchResponse = {
+        body: { getReader: () => reader } as unknown as NonNullable<Response["body"]>,
+        headers: new Headers({ "content-type": "text/event-stream" }),
+        status: 200,
+      };
+      const controller = new AbortController();
+      const remove = vi.spyOn(controller.signal, "removeEventListener");
+      const client = new OpenAIResponsesClient({ fetch: async () => response });
+      const pending = collectWithSignal(client, controller.signal);
+      try {
+        await vi.waitFor(() => expect(resolveRead).toBeTypeOf("function"));
 
-      await vi.advanceTimersByTimeAsync(60_000);
+        if (source === "external abort") controller.abort();
+        else await vi.advanceTimersByTimeAsync(60_000);
+        resolveRead?.({ done: false, value: encoder.encode(sseMessage("response.created")) });
 
-      await assertion;
-      expect(vi.getTimerCount()).toBe(0);
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it("rejects a late chunk returned after external abort and cancels the reader", async () => {
-    let resolveRead: ((result: ReadableStreamReadResult<Uint8Array>) => void) | undefined;
-    const cancel = vi.fn(async () => undefined);
-    const reader = {
-      cancel,
-      read: () =>
-        new Promise<ReadableStreamReadResult<Uint8Array>>((resolve) => {
-          resolveRead = resolve;
-        }),
-    };
-    const response: OpenAIFetchResponse = {
-      body: { getReader: () => reader } as unknown as NonNullable<Response["body"]>,
-      headers: new Headers({ "content-type": "text/event-stream" }),
-      status: 200,
-    };
-    const controller = new AbortController();
-    const client = new OpenAIResponsesClient({ fetch: async () => response });
-    const pending = collectWithSignal(client, controller.signal);
-    await vi.waitFor(() => expect(resolveRead).toBeTypeOf("function"));
-
-    controller.abort();
-    resolveRead?.({ done: false, value: encoder.encode(sseMessage("response.created")) });
-
-    await expect(pending).rejects.toMatchObject({ code: "CANCELLED" });
-    expect(cancel).toHaveBeenCalledOnce();
-  });
-
-  it("removes its timeout after a completed response stream", async () => {
-    vi.useFakeTimers();
-    try {
-      const client = new OpenAIResponsesClient({ fetch: async () => eventStreamResponse() });
-      await collect(client);
-      expect(vi.getTimerCount()).toBe(0);
-    } finally {
-      vi.useRealTimers();
-    }
-  });
+        const settlement = await settlementAfterOneMillisecond(pending);
+        expect(settlement).toMatchObject({ status: "rejected", value: { code } });
+        expect(remove).toHaveBeenCalledOnce();
+        expect(cancel).toHaveBeenCalledOnce();
+        expect(releaseLock).toHaveBeenCalledOnce();
+        expect(vi.getTimerCount()).toBe(0);
+      } finally {
+        vi.useRealTimers();
+      }
+    },
+  );
 });
 
 async function collectWithSignal(client: OpenAIResponsesClient, signal: AbortSignal) {
