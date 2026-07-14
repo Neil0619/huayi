@@ -10,6 +10,7 @@ import type {
 
 import type { SelectionRequestInput } from "../selection/read-selection.js";
 import { focusWordbookStatus } from "./focus-wordbook-status.js";
+import { createFrameScheduler, type FrameScheduler } from "./frame-scheduler.js";
 import {
   isVisibleOverlayState,
   OverlayStateMachine,
@@ -24,13 +25,14 @@ import {
   type OverlaySize,
   type ViewportSize,
 } from "./position-overlay.js";
-import { renderOverlayPanel } from "./render-result.js";
+import { patchOverlayPanel, renderOverlayPanel } from "./render-result.js";
 import { renderToolbar } from "./render-toolbar.js";
 import { SlowRenderTimer } from "./slow-render-timer.js";
 import { overlayStyles } from "./styles.js";
 
 export interface OverlayControllerOptions {
   document?: Document;
+  frameScheduler?: FrameScheduler;
   onAddWord: (selection: SelectionRequestInput) => void;
   onAnalyze: (action: AnalyzeAction, selection: SelectionRequestInput) => void;
   onCancel: () => void;
@@ -62,7 +64,10 @@ export class OverlayController {
     this.host = this.documentRef.createElement("div");
     this.host.dataset.huayiOverlayHost = "";
     this.shadowRoot = this.host.attachShadow({ mode: "open" });
-    this.updateBatch = new OverlayUpdateBatch((events) => this.applyAnalysisUpdates(events, true));
+    this.updateBatch = new OverlayUpdateBatch(
+      (events) => this.applyAnalysisUpdates(events, true),
+      options.frameScheduler ?? createFrameScheduler(this.documentRef.defaultView),
+    );
     this.slowRender = new SlowRenderTimer(() => {
       if (this.machine.state.status === "loading" || this.machine.state.status === "streaming") {
         this.render();
@@ -250,12 +255,19 @@ export class OverlayController {
       return;
     }
 
-    const previousBody = this.shadowRoot.querySelector<HTMLElement>(".huayi-body");
-    const previousScrollTop = previousBody?.scrollTop ?? 0;
-    const focusedAction =
-      this.shadowRoot.activeElement instanceof HTMLElement
-        ? this.shadowRoot.activeElement.dataset.action
-        : undefined;
+    const currentPanel = this.shadowRoot.querySelector<HTMLElement>(".huayi-panel");
+    if (state.status !== "actions" && currentPanel !== null) {
+      patchOverlayPanel(currentPanel, state, {
+        onAddWord: () => this.addWord(),
+        onClose: () => this.close(),
+        onRetry: () => this.retry(),
+      });
+      if (!this.host.isConnected) {
+        this.documentRef.documentElement.append(this.host);
+      }
+      this.positionCurrentRoot();
+      return;
+    }
     const style = this.documentRef.createElement("style");
     style.textContent = overlayStyles;
     const root =
@@ -267,17 +279,6 @@ export class OverlayController {
             onRetry: () => this.retry(),
           });
     this.shadowRoot.replaceChildren(style, root);
-    const nextBody = root.querySelector<HTMLElement>(".huayi-body");
-    if (nextBody !== null) {
-      nextBody.scrollTop = previousScrollTop;
-    }
-    if (focusedAction !== undefined) {
-      const nextFocused = Array.from(root.querySelectorAll<HTMLButtonElement>("button")).find(
-        (button) => button.dataset.action === focusedAction,
-      );
-      nextFocused?.focus();
-    }
-
     if (!this.host.isConnected) {
       this.documentRef.documentElement.append(this.host);
     }

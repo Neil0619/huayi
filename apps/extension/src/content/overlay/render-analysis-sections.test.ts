@@ -52,6 +52,23 @@ describe("analysis section DOM helpers", () => {
     expect(body.querySelector("img")).toBeNull();
     expect(body.textContent).toContain(hostile);
     expect(body.textContent).toContain("num.");
+    expect(
+      Array.from(body.querySelectorAll("[data-huayi-section]"), (section) =>
+        section.getAttribute("data-huayi-section"),
+      ),
+    ).toEqual([
+      "source",
+      "contextual-meaning",
+      "part-of-speech",
+      "pronunciation",
+      "collocations",
+      "context-example",
+      "core-meanings",
+      "similar-terms",
+    ]);
+    expect(
+      body.querySelector('[data-huayi-section="contextual-meaning"] [data-huayi-value]'),
+    ).not.toBeNull();
     expect(headings(body)).toEqual([
       "语境义",
       "词性",

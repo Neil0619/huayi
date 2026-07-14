@@ -16,7 +16,11 @@ import {
 } from "../../src/background/service-worker.js";
 import { initializeContentScript, type ContentRuntime } from "../../src/content/content-script.js";
 import type { ContentCommand } from "../../src/shared/extension-messages.js";
-import { createResultEvent, createSectionEvent } from "./harness-results.js";
+import {
+  createCollocationsEvent,
+  createResultEvent,
+  createSectionEvent,
+} from "./harness-results.js";
 import { MockNativeTransport } from "./mock-native-transport.js";
 
 const TAB_ID = 1;
@@ -232,6 +236,14 @@ function emitAnalyzeResponse(request: AnalyzeRequest): void {
       const sectionEvent = createSectionEvent(request, 2);
       if (sectionEvent !== null) {
         transport.emit(sectionEvent);
+      }
+      if (request.selection === "investigation") {
+        const firstCollocation = createCollocationsEvent(request, 3, 1);
+        const secondCollocation = createCollocationsEvent(request, 4, 2);
+        if (firstCollocation !== null && secondCollocation !== null) {
+          setTimeout(() => transport.emit(firstCollocation), 50);
+          setTimeout(() => transport.emit(secondCollocation), 250);
+        }
       }
       if (request.selection === "lateexisting") {
         queueMicrotask(() => transport.emit(createResultEvent(request)));

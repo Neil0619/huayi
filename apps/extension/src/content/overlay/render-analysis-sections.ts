@@ -27,6 +27,7 @@ export const partOfSpeechLabels: Record<PartOfSpeech, string> = {
 function createSection(body: HTMLElement, title: string): HTMLElement {
   const section = body.ownerDocument.createElement("section");
   section.className = "huayi-section";
+  section.dataset.huayiSection = sectionKeys[title] ?? title;
 
   const heading = body.ownerDocument.createElement("h3");
   heading.className = "huayi-section-title";
@@ -36,9 +37,29 @@ function createSection(body: HTMLElement, title: string): HTMLElement {
   return section;
 }
 
+const sectionKeys: Record<string, string> = {
+  原形: "base-form",
+  原文例句: "context-example",
+  句子主干: "main-structure",
+  句意翻译: "translation",
+  同义词: "synonyms",
+  核心词义: "core-meanings",
+  构词: "word-formation",
+  相似词: "similar-terms",
+  语境义: "contextual-meaning",
+  语境作用: "context-role",
+  语境搭配: "collocations",
+  译文: "translation",
+  关键表达: "key-expressions",
+  词性: "part-of-speech",
+  音标: "pronunciation",
+};
+
 export function appendSource(body: HTMLElement, sourceText: string): void {
   const source = body.ownerDocument.createElement("p");
   source.className = "huayi-source";
+  source.dataset.huayiSection = "source";
+  source.dataset.huayiValue = "";
   source.textContent = sourceText;
   body.append(source);
 }
@@ -54,6 +75,7 @@ export function appendTextSection(
   const section = createSection(body, title);
   const copy = body.ownerDocument.createElement("p");
   copy.className = "huayi-copy";
+  copy.dataset.huayiValue = "";
   copy.textContent = value;
   section.append(copy);
 }
@@ -69,8 +91,9 @@ export function appendStringListSection(
   const section = createSection(body, title);
   const list = body.ownerDocument.createElement("ul");
   list.className = "huayi-list";
-  for (const value of values) {
+  for (const [index, value] of values.entries()) {
     const item = body.ownerDocument.createElement("li");
+    item.dataset.huayiItem = String(index);
     item.textContent = value;
     list.append(item);
   }
@@ -139,10 +162,11 @@ export function appendRelatedTerms(
   const section = createSection(body, title);
   const list = body.ownerDocument.createElement("ul");
   list.className = "huayi-term-list";
-  for (const term of values) {
+  for (const [index, term] of values.entries()) {
     const item = body.ownerDocument.createElement("li");
     item.className = "huayi-term";
     item.dataset.relatedTerm = "";
+    item.dataset.huayiItem = String(index);
     item.textContent = `${term.text} · ${partOfSpeechLabels[term.partOfSpeech]} · ${term.meaningZh}`;
     list.append(item);
   }

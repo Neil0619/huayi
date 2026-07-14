@@ -158,3 +158,22 @@ export function createSectionEvent(request: AnalyzeRequest, sequence: number): H
   }
   return null;
 }
+
+export function createCollocationsEvent(
+  request: AnalyzeRequest,
+  sequence: number,
+  count: number,
+): HostEvent | null {
+  const result = resultFor(request);
+  if (result.type !== "translate-lexical" && result.type !== "explain-lexical") {
+    return null;
+  }
+  return {
+    requestId: request.requestId,
+    schemaVersion: SCHEMA_VERSION,
+    section: "collocations",
+    sequence,
+    type: "analysis-section",
+    value: result.collocations.slice(0, count),
+  };
+}

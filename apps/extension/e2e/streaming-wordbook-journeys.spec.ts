@@ -155,6 +155,41 @@ for (const [action, finalText] of [
   });
 }
 
+test("streaming sections append in place and survive the corrected final result", async ({
+  page,
+}) => {
+  await startWordAnalysis(page, "word-selection");
+  const resultPanel = panel(page);
+  const body = resultPanel.locator(".huayi-body");
+  const meaning = resultPanel.locator('[data-huayi-section="contextual-meaning"]');
+  const items = resultPanel.locator('[data-huayi-section="collocations"] li');
+  await expect(items).toHaveCount(1);
+  const bodyHandle = await body.elementHandle();
+  const meaningHandle = await meaning.elementHandle();
+  const firstItemHandle = await items.first().elementHandle();
+
+  await expect(items).toHaveCount(2);
+  await expect(resultPanel).toContainText("词汇翻译结果");
+  await expect(items).toHaveCount(3);
+
+  for (const handle of [bodyHandle, meaningHandle, firstItemHandle]) {
+    expect(handle).not.toBeNull();
+    expect(await handle?.evaluate((node) => node.isConnected)).toBe(true);
+  }
+  expect(
+    await meaningHandle?.evaluate(
+      (node) =>
+        node ===
+        (node.getRootNode() as ShadowRoot).querySelector(
+          '[data-huayi-section="contextual-meaning"]',
+        ),
+    ),
+  ).toBe(true);
+  expect(await firstItemHandle?.evaluate((node) => node.textContent)).toContain(
+    "sample collocation",
+  );
+});
+
 test("a present query updates streaming UI and logs only the checked word", async ({ page }) => {
   await startWordAnalysis(page, "existing-word-selection");
 

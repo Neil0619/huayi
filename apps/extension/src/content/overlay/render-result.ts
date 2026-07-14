@@ -1,23 +1,10 @@
-import type { AnalysisResult } from "@huayi/protocol";
-
 import type {
   ErrorOverlayState,
   LoadingOverlayState,
   ResultOverlayState,
   StreamingOverlayState,
 } from "./overlay-state.js";
-import {
-  appendCollocations,
-  appendContextExample,
-  appendCoreMeanings,
-  appendPartOfSpeech,
-  appendPronunciation,
-  appendRelatedTerms,
-  appendSource,
-  appendStringListSection,
-  appendTextSection,
-} from "./render-analysis-sections.js";
-import { renderStreamingPreview } from "./render-streaming-preview.js";
+import { patchAnalysisBody } from "./patch-analysis-body.js";
 import { renderWordbookAction, renderWordbookError } from "./render-wordbook-action.js";
 
 export interface PanelHandlers {
@@ -26,74 +13,8 @@ export interface PanelHandlers {
   onRetry: () => void;
 }
 
-type PanelState =
+export type PanelState =
   LoadingOverlayState | StreamingOverlayState | ResultOverlayState | ErrorOverlayState;
-
-function renderLexicalTranslation(
-  body: HTMLElement,
-  result: Extract<AnalysisResult, { type: "translate-lexical" }>,
-): void {
-  appendSource(body, result.sourceText);
-  appendTextSection(body, "语境义", result.contextualMeaningZh);
-  appendPartOfSpeech(body, result.partOfSpeech);
-  appendPronunciation(body, result.pronunciation);
-  appendCollocations(body, result.collocations);
-  appendContextExample(body, result.contextExample);
-  appendRelatedTerms(body, "相似词", result.similarTerms);
-}
-
-function renderPassageTranslation(
-  body: HTMLElement,
-  result: Extract<AnalysisResult, { type: "translate-passage" }>,
-): void {
-  appendSource(body, result.sourceText);
-  appendTextSection(body, "译文", result.translationZh);
-}
-
-function renderLexicalExplanation(
-  body: HTMLElement,
-  result: Extract<AnalysisResult, { type: "explain-lexical" }>,
-): void {
-  appendSource(body, result.sourceText);
-  appendTextSection(body, "语境义", result.contextualMeaningZh);
-  appendTextSection(body, "原形", result.baseForm);
-  appendTextSection(body, "构词", result.wordFormation);
-  appendCoreMeanings(body, result.coreMeanings);
-  appendCollocations(body, result.collocations);
-  appendRelatedTerms(body, "同义词", result.synonyms);
-}
-
-function renderSentenceExplanation(
-  body: HTMLElement,
-  result: Extract<AnalysisResult, { type: "explain-sentence" }>,
-): void {
-  appendSource(body, result.sourceText);
-  appendTextSection(body, "句子主干", result.mainStructure);
-  appendStringListSection(
-    body,
-    "关键表达",
-    result.keyExpressions.map((expression) => `${expression.text}：${expression.meaningZh}`),
-  );
-  appendTextSection(body, "句意翻译", result.translationZh);
-  appendTextSection(body, "语境作用", result.contextRole);
-}
-
-function renderResultBody(body: HTMLElement, result: AnalysisResult): void {
-  switch (result.type) {
-    case "translate-lexical":
-      renderLexicalTranslation(body, result);
-      break;
-    case "translate-passage":
-      renderPassageTranslation(body, result);
-      break;
-    case "explain-lexical":
-      renderLexicalExplanation(body, result);
-      break;
-    case "explain-sentence":
-      renderSentenceExplanation(body, result);
-      break;
-  }
-}
 
 function createHeader(state: PanelState, handlers: PanelHandlers): HTMLElement {
   const header = document.createElement("header");
@@ -154,6 +75,103 @@ function renderAnalysisError(
   return error;
 }
 
+function patchWordbookAction(panel: HTMLElement, state: PanelState, onAddWord: () => void): void {
+  const actions = panel.querySelector<HTMLElement>(".huayi-header-actions");
+  const close = actions?.querySelector<HTMLElement>("[data-action='close']") ?? null;
+  const current = actions?.querySelector<HTMLElement>(":scope > .huayi-wordbook") ?? null;
+  const desired = renderWordbookAction(state, onAddWord);
+  if (desired === null) {
+    current?.remove();
+    return;
+  }
+  if (current === null) {
+    actions?.insertBefore(desired, close);
+    return;
+  }
+  const currentButton = current.querySelector<HTMLButtonElement>("[data-action='add-word']");
+  const desiredButton = desired.querySelector<HTMLButtonElement>("[data-action='add-word']");
+  if (currentButton !== null && desiredButton !== null) {
+    currentButton.disabled = desiredButton.disabled;
+    if (currentButton.textContent !== desiredButton.textContent) {
+      currentButton.textContent = desiredButton.textContent;
+    }
+  }
+}
+
+function patchWordbookError(panel: HTMLElement, state: PanelState): void {
+  const current = panel.querySelector<HTMLElement>(":scope > .huayi-wordbook-error");
+  const desired = renderWordbookError(state);
+  if (desired === null) {
+    current?.remove();
+    return;
+  }
+  if (current === null) {
+    panel.querySelector(":scope > .huayi-header")?.after(desired);
+    return;
+  }
+  if (current.textContent !== desired.textContent) {
+    current.textContent = desired.textContent;
+  }
+}
+
+function patchAnalysisError(body: HTMLElement, state: PanelState, onRetry: () => void): void {
+  const current = body.querySelector<HTMLElement>(":scope > .huayi-error");
+  if (state.status !== "error") {
+    current?.remove();
+    return;
+  }
+  const hasPreview = state.preview.lastSequence >= 0;
+  const desired = renderAnalysisError(state, hasPreview, onRetry);
+  if (current === null) {
+    body.append(desired);
+    return;
+  }
+  current.className = desired.className;
+  const currentMessage = current.querySelector<HTMLElement>(".huayi-copy");
+  if (currentMessage !== null && currentMessage.textContent !== state.error.message) {
+    currentMessage.textContent = state.error.message;
+  }
+  const currentRetry = current.querySelector<HTMLElement>("[data-action='retry']");
+  const desiredRetry = desired.querySelector<HTMLElement>("[data-action='retry']");
+  if (desiredRetry === null) {
+    currentRetry?.remove();
+  } else if (currentRetry === null) {
+    current.append(desiredRetry);
+  }
+}
+
+function patchSlowHint(body: HTMLElement, state: PanelState, now: number): void {
+  const loading = body.querySelector<HTMLElement>(".huayi-loading");
+  const current = loading?.querySelector<HTMLElement>(":scope > .huayi-slow-hint") ?? null;
+  if (state.status !== "loading" || now - state.startedAt < 8_000) {
+    current?.remove();
+    return;
+  }
+  if (current === null && loading !== null) {
+    const hint = body.ownerDocument.createElement("p");
+    hint.className = "huayi-slow-hint";
+    hint.textContent = "仍在处理，请稍候…";
+    loading.append(hint);
+  }
+}
+
+export function patchOverlayPanel(
+  panel: HTMLElement,
+  state: PanelState,
+  handlers: PanelHandlers,
+  now = Date.now(),
+): void {
+  patchWordbookAction(panel, state, handlers.onAddWord);
+  patchWordbookError(panel, state);
+  const body = panel.querySelector<HTMLElement>(":scope > .huayi-body");
+  if (body === null) {
+    return;
+  }
+  patchAnalysisBody(body, state);
+  patchAnalysisError(body, state, handlers.onRetry);
+  patchSlowHint(body, state, now);
+}
+
 export function renderOverlayPanel(
   state: PanelState,
   handlers: PanelHandlers,
@@ -170,37 +188,7 @@ export function renderOverlayPanel(
 
   const body = document.createElement("div");
   body.className = "huayi-body";
-
-  if (state.status === "loading") {
-    const loading = document.createElement("div");
-    loading.className = "huayi-loading";
-    const spinner = document.createElement("span");
-    spinner.className = "huayi-spinner";
-    spinner.setAttribute("aria-hidden", "true");
-    const message = document.createElement("p");
-    message.className = "huayi-copy";
-    message.textContent = state.action === "translate" ? "正在翻译…" : "正在解释…";
-    loading.append(spinner, message);
-
-    if (now - state.startedAt >= 8_000) {
-      const hint = document.createElement("p");
-      hint.className = "huayi-slow-hint";
-      hint.textContent = "仍在处理，请稍候…";
-      loading.append(hint);
-    }
-    body.append(loading);
-  } else if (state.status === "streaming") {
-    body.append(renderStreamingPreview(state));
-  } else if (state.status === "error") {
-    const hasPreview = state.preview.lastSequence >= 0;
-    if (hasPreview) {
-      body.append(renderStreamingPreview(state));
-    }
-    body.append(renderAnalysisError(state, hasPreview, handlers.onRetry));
-  } else {
-    renderResultBody(body, state.result);
-  }
-
   panel.append(body);
+  patchOverlayPanel(panel, state, handlers, now);
   return panel;
 }

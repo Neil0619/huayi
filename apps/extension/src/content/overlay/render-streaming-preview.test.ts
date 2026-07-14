@@ -35,6 +35,18 @@ describe("renderStreamingPreview", () => {
       "原文例句",
       "相似词",
     ]);
+    expect(
+      Array.from(preview.querySelectorAll(".huayi-section"), (section) =>
+        section.getAttribute("data-huayi-section"),
+      ),
+    ).toEqual([
+      "contextual-meaning",
+      "part-of-speech",
+      "pronunciation",
+      "collocations",
+      "context-example",
+      "similar-terms",
+    ]);
     const firstHeading = headings[0];
     if (source === null || firstHeading === undefined) {
       throw new Error("Expected the source and at least one preview heading.");

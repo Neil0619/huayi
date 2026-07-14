@@ -1,0 +1,149 @@
+import { describe, expect, it } from "vitest";
+
+import type { AnalysisResult } from "@huayi/protocol";
+
+import type { ResultOverlayState, StreamingOverlayState } from "./overlay-state.js";
+import { patchAnalysisBody } from "./patch-analysis-body.js";
+import { lexicalTranslationResult, session } from "./render-result.test-fixtures.js";
+
+function streamingState(
+  overrides: Partial<StreamingOverlayState["preview"]> = {},
+): StreamingOverlayState {
+  return {
+    ...session,
+    preview: {
+      lastSequence: 1,
+      sections: {
+        collocations: [{ meaningZh: "刑事调查", text: "criminal investigation" }],
+      },
+      text: { "contextual-meaning": "调" },
+      ...overrides,
+    },
+    status: "streaming",
+  };
+}
+
+function resultState(result: AnalysisResult): ResultOverlayState {
+  return { ...session, result, status: "result" };
+}
+
+describe("patchAnalysisBody", () => {
+  it("retains keyed sections and items while text grows and arrays append", () => {
+    const body = document.createElement("div");
+    patchAnalysisBody(body, streamingState());
+    const meaning = body.querySelector<HTMLElement>('[data-huayi-section="contextual-meaning"]');
+    const meaningValue = meaning?.querySelector<HTMLElement>("[data-huayi-value]");
+    const firstItem = body.querySelector<HTMLLIElement>('[data-huayi-section="collocations"] li');
+    meaning?.classList.remove("huayi-enter");
+    firstItem?.classList.remove("huayi-enter");
+
+    patchAnalysisBody(
+      body,
+      streamingState({
+        lastSequence: 3,
+        sections: {
+          collocations: [
+            { meaningZh: "刑事调查", text: "criminal investigation" },
+            { meaningZh: "展开调查", text: "launch an investigation" },
+          ],
+        },
+        text: { "contextual-meaning": "调查" },
+      }),
+    );
+
+    expect(body.querySelector('[data-huayi-section="contextual-meaning"]')).toBe(meaning);
+    expect(meaning?.querySelector("[data-huayi-value]")).toBe(meaningValue);
+    expect(meaningValue?.textContent).toBe("调查");
+    const items = body.querySelectorAll('[data-huayi-section="collocations"] li');
+    expect(items).toHaveLength(2);
+    expect(items[0]).toBe(firstItem);
+    expect(items[0]?.classList.contains("huayi-enter")).toBe(false);
+    expect(items[1]?.classList.contains("huayi-enter")).toBe(true);
+    items[1]?.dispatchEvent(new Event("animationend"));
+    expect(items[1]?.classList.contains("huayi-enter")).toBe(false);
+    expect(body.querySelector('[data-huayi-section="pronunciation"]')).toBeNull();
+  });
+
+  it("renders hostile values as text and removes no preview section until the final result", () => {
+    const hostile = '<img src=x onerror="alert(1)">';
+    const body = document.createElement("div");
+    patchAnalysisBody(
+      body,
+      streamingState({
+        sections: {
+          collocations: [{ meaningZh: hostile, text: hostile }],
+          partOfSpeech: "noun",
+          pronunciation: { uk: "/test/" },
+        },
+        text: { "contextual-meaning": hostile },
+      }),
+    );
+
+    expect(body.querySelector("img")).toBeNull();
+    expect(body.textContent).toContain(hostile);
+    expect(body.querySelector('[data-huayi-section="pronunciation"]')).not.toBeNull();
+
+    patchAnalysisBody(
+      body,
+      streamingState({
+        lastSequence: 2,
+        sections: {},
+        text: { "contextual-meaning": "safe" },
+      }),
+    );
+    expect(body.querySelector('[data-huayi-section="pronunciation"]')).not.toBeNull();
+
+    patchAnalysisBody(
+      body,
+      resultState({
+        collocations: [],
+        contextualMeaningZh: "最终修正",
+        partOfSpeech: "noun",
+        selectionKind: "word",
+        similarTerms: [],
+        sourceText: lexicalTranslationResult.sourceText,
+        type: "translate-lexical",
+      }),
+    );
+    expect(body.querySelector('[data-huayi-section="pronunciation"]')).toBeNull();
+    expect(body.querySelector('[data-huayi-section="collocations"]')).toBeNull();
+    expect(
+      body.querySelector('[data-huayi-section="contextual-meaning"] [data-huayi-value]')
+        ?.textContent,
+    ).toBe("最终修正");
+  });
+
+  it("corrects final text and list nodes without replacing the body or equal nodes", () => {
+    const body = document.createElement("div");
+    patchAnalysisBody(
+      body,
+      streamingState({
+        sections: {
+          collocations: [
+            { meaningZh: "旧一", text: "old one" },
+            { meaningZh: "旧二", text: "old two" },
+          ],
+        },
+        text: { "contextual-meaning": "旧义" },
+      }),
+    );
+    const meaning = body.querySelector('[data-huayi-section="contextual-meaning"]');
+    const items = body.querySelectorAll('[data-huayi-section="collocations"] li');
+
+    patchAnalysisBody(
+      body,
+      resultState({
+        ...lexicalTranslationResult,
+        collocations: [{ meaningZh: "新一", text: "new one" }],
+        contextualMeaningZh: "新义",
+        similarTerms: [],
+      }),
+    );
+
+    expect(body.querySelector('[data-huayi-section="contextual-meaning"]')).toBe(meaning);
+    const correctedItems = body.querySelectorAll('[data-huayi-section="collocations"] li');
+    expect(correctedItems).toHaveLength(1);
+    expect(correctedItems[0]).toBe(items[0]);
+    expect(correctedItems[0]?.textContent).toBe("new one（新一）");
+  });
+});

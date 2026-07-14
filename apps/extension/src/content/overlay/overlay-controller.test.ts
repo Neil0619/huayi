@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { AnalysisResult, AnalyzeAction } from "@huayi/protocol";
 
+import { FakeFrameScheduler } from "./fake-frame-scheduler.test-support.js";
+import type { FrameScheduler } from "./frame-scheduler.js";
 import { OverlayController } from "./overlay-controller.js";
 
 const anchorRect = {
@@ -44,8 +46,10 @@ function createController(
   actions: AnalyzeAction[],
   cancellations: number[],
   wordbookSelections: string[] = [],
+  frameScheduler?: FrameScheduler,
 ) {
   const controller = new OverlayController({
+    ...(frameScheduler === undefined ? {} : { frameScheduler }),
     onAddWord: (selected) => wordbookSelections.push(selected.selection),
     onAnalyze: (action) => actions.push(action),
     onCancel: () => cancellations.push(1),
@@ -185,13 +189,12 @@ describe("OverlayController", () => {
     expect(cancellations).toHaveLength(1);
   });
 
-  it("batches text and typed updates with one 40 millisecond timer", () => {
-    vi.useFakeTimers();
-    const controller = createController([], []);
+  it("batches text and typed updates with one animation frame", () => {
+    const scheduler = new FakeFrameScheduler();
+    const controller = createController([], [], [], scheduler);
     controller.show(selection, anchorRect);
     controller.start("translate");
     const renderSpy = vi.spyOn(controller.shadowRoot, "replaceChildren");
-    const timeoutSpy = vi.spyOn(globalThis, "setTimeout");
 
     controller.appendUpdate({
       delta: "调查",
@@ -220,10 +223,9 @@ describe("OverlayController", () => {
 
     expect(controller.state.status).toBe("loading");
     expect(renderSpy).not.toHaveBeenCalled();
-    expect(timeoutSpy.mock.calls.filter(([, wait]) => wait === 40)).toHaveLength(1);
-    vi.advanceTimersByTime(39);
+    expect(scheduler.pendingCount).toBe(1);
     expect(renderSpy).not.toHaveBeenCalled();
-    vi.advanceTimersByTime(1);
+    scheduler.runFrame();
     expect(controller.state).toMatchObject({
       preview: {
         lastSequence: 2,
@@ -235,7 +237,7 @@ describe("OverlayController", () => {
       },
       status: "streaming",
     });
-    expect(renderSpy).toHaveBeenCalledOnce();
+    expect(renderSpy).not.toHaveBeenCalled();
     expect(
       Array.from(
         controller.shadowRoot.querySelectorAll(".huayi-section-title"),
@@ -314,8 +316,8 @@ describe("OverlayController", () => {
   });
 
   it("flushes before final replacement and preserves valid scroll and focused header action", () => {
-    vi.useFakeTimers();
-    const controller = createController([], []);
+    const scheduler = new FakeFrameScheduler();
+    const controller = createController([], [], [], scheduler);
     controller.show(selection, anchorRect);
     controller.start("translate");
     controller.appendUpdate({
@@ -335,7 +337,7 @@ describe("OverlayController", () => {
 
     controller.resolve(lexicalResult);
 
-    expect(renderSpy).toHaveBeenCalledOnce();
+    expect(renderSpy).not.toHaveBeenCalled();
     expect(controller.state.status).toBe("result");
     expect(controller.shadowRoot.querySelector<HTMLElement>(".huayi-body")?.scrollTop).toBe(42);
     expect((controller.shadowRoot.activeElement as HTMLElement | null)?.dataset.action).toBe(
@@ -343,9 +345,9 @@ describe("OverlayController", () => {
     );
   });
 
-  it("clears a stale delta batch timer when closed", () => {
-    vi.useFakeTimers();
-    const controller = createController([], []);
+  it("clears a stale frame when closed or replaced by a new selection", () => {
+    const scheduler = new FakeFrameScheduler();
+    const controller = createController([], [], [], scheduler);
     controller.show(selection, anchorRect);
     controller.start("translate");
     controller.appendUpdate({
@@ -359,9 +361,26 @@ describe("OverlayController", () => {
     const renderSpy = vi.spyOn(controller.shadowRoot, "replaceChildren");
 
     controller.close();
-    vi.advanceTimersByTime(40);
+    scheduler.runFrame();
 
     expect(controller.state.status).toBe("closed");
     expect(renderSpy).not.toHaveBeenCalled();
+
+    controller.show(selection, anchorRect);
+    controller.start("translate");
+    controller.appendUpdate({
+      delta: "stale",
+      requestId: "analysis-2",
+      schemaVersion: 3,
+      section: "translation",
+      sequence: 0,
+      type: "analysis-delta",
+    });
+    controller.show({ ...selection, selection: "replacement" }, anchorRect);
+    scheduler.runFrame();
+    expect(controller.state).toMatchObject({
+      selection: { selection: "replacement" },
+      status: "actions",
+    });
   });
 });

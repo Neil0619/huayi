@@ -58,7 +58,10 @@ describe("renderOverlayPanel", () => {
     ],
     [sentenceExplanationResult, "语境作用"],
   ])("renders %s", (result, expectedText) => {
-    expect(renderOverlayPanel(resultState(result), handlers).textContent).toContain(expectedText);
+    const panel = renderOverlayPanel(resultState(result), handlers);
+    expect(panel.textContent).toContain(expectedText);
+    expect(panel.querySelector(".huayi-preview")).toBeNull();
+    expect(panel.querySelector('[data-huayi-section="source"]')).not.toBeNull();
   });
 
   it.each([

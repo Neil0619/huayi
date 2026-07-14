@@ -183,6 +183,10 @@ export const overlayStyles = `
     margin-top: 0;
   }
 
+  .huayi-enter {
+    animation: huayi-enter 120ms ease-out;
+  }
+
   .huayi-section-title {
     margin: 0 0 5px;
     font-size: 14px;
@@ -306,6 +310,24 @@ export const overlayStyles = `
 
   @keyframes huayi-spin {
     to { transform: rotate(360deg); }
+  }
+
+  @keyframes huayi-enter {
+    from {
+      opacity: 0;
+      transform: translateY(3px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .huayi-enter {
+      animation: none;
+    }
   }
 
   @media (max-width: 460px) {
