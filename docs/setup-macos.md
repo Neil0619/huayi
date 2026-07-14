@@ -6,7 +6,8 @@
 - Node.js 18 或更高版本。
 - pnpm。
 - 已通过 `codex login` 使用 ChatGPT 登录、且支持 App Server 的 Codex CLI。
-- macOS 自带 `/usr/bin/security`。欧路功能可选，安装扩展和 Host 时无需已有授权。
+- macOS 自带 `/usr/bin/security`。欧路和 OpenAI API 功能均可选，安装扩展和 Host 时无需
+  已有授权或 API Key。
 
 安装器不只比较 Codex 版本号；dry-run 会检查 `app-server --stdio --strict-config`、
 `--disable` / `--config`，并确认以下功能可以被禁用：
@@ -56,8 +57,9 @@ pnpm host:install -- --extension-id <ID>
 ```
 
 建议先运行 dry-run。它只读验证 Node、构建产物、App Server 参数和禁用功能、ChatGPT 登录及
-`/usr/bin/security`；不会调用模型、访问欧路、读取钥匙串授权或写入用户目录。Codex 不在
-`PATH` 时可提供绝对路径：
+`/usr/bin/security`；不会调用模型、访问欧路、读取欧路授权或 OpenAI API Key，也不会写入
+用户目录。正式安装同样不会读取或创建 OpenAI 钥匙串项。Codex 不在 `PATH` 时可提供绝对
+路径：
 
 ```bash
 pnpm host:install -- --extension-id <ID> --codex-path /absolute/path/to/codex
@@ -97,6 +99,29 @@ pnpm host:eudic:remove
 ```
 
 该命令只删除 service `com.huayi.codex_bridge.eudic`、account `authorization` 的精确项。
+
+## 配置 OpenAI API Key（可选）
+
+不要把 API Key 写入命令参数、环境变量、普通文件、扩展消息或聊天内容。使用以下命令让
+macOS `security` 在终端隐藏读取，并以 `-U` 更新固定钥匙串项：
+
+```bash
+pnpm host:openai:configure -- --dry-run
+pnpm host:openai:configure
+```
+
+dry-run 只验证 `/usr/bin/security`，不提示输入、不读取钥匙串，也不访问 OpenAI。正式配置
+不会调用 OpenAI；第一次显式 API 分析才验证授权。重复安装 Host 不读取、覆盖或删除该 Key。
+
+只移除 OpenAI API Key 而保留扩展、Host 和欧路授权：
+
+```bash
+pnpm host:openai:remove -- --dry-run
+pnpm host:openai:remove
+```
+
+该命令只查询并删除 service `com.huayi.codex_bridge.openai`、account `api-key` 的精确项；项
+不存在时幂等。
 
 ## 从 v0.2.x 升级到 v0.3.0
 
@@ -206,6 +231,8 @@ pnpm host:uninstall -- --dry-run
 pnpm host:uninstall
 ```
 
-完整卸载会先删除精确欧路钥匙串项，再删除经过所有权验证的 Huayi Host 与清单；不会删除
-Chrome 父目录、其他 Native Messaging 清单或其他凭据。若只想升级或重装，请重复执行安装
-命令，不要先卸载，这样欧路钥匙串会保留。
+完整卸载严格先删除 service `com.huayi.codex_bridge.eudic` / account `authorization` 的精确
+欧路项，再删除 service `com.huayi.codex_bridge.openai` / account `api-key` 的精确 OpenAI 项，
+最后删除经过所有权验证的 Huayi Host 与清单。任一凭据删除失败时 Host 文件都会保留以便重试。
+卸载不会删除 Chrome 父目录、其他 Native Messaging 清单或上述两个精确项之外的钥匙串项。
+若只想升级或重装，请重复执行安装命令，不要先卸载，这样两个钥匙串项都会保留。

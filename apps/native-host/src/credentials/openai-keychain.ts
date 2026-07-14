@@ -33,7 +33,6 @@ export class OpenAICredentialError extends Error {
 export interface OpenAIApiKeyReaderOptions {
   environment: NodeJS.ProcessEnv;
   processRunner: ProcessRunner;
-  securityExecutable?: string;
   workingDirectory: string;
 }
 
@@ -59,13 +58,11 @@ function validateApiKey(stdout: string): string {
 export class OpenAIApiKeyReader {
   private readonly environment: NodeJS.ProcessEnv;
   private readonly processRunner: ProcessRunner;
-  private readonly securityExecutable: string;
   private readonly workingDirectory: string;
 
   constructor(options: OpenAIApiKeyReaderOptions) {
     this.environment = buildAllowedEnvironment(options.environment);
     this.processRunner = options.processRunner;
-    this.securityExecutable = options.securityExecutable ?? OPENAI_SECURITY_EXECUTABLE;
     this.workingDirectory = options.workingDirectory;
   }
 
@@ -86,7 +83,7 @@ export class OpenAIApiKeyReader {
         ],
         cwd: this.workingDirectory,
         env: this.environment,
-        executable: this.securityExecutable,
+        executable: OPENAI_SECURITY_EXECUTABLE,
         input: "",
         maximumOutputBytes: MAXIMUM_OPENAI_API_KEY_BYTES,
         signal,

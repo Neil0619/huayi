@@ -92,6 +92,26 @@ describe("OpenAIApiKeyReader", () => {
     expect(requests[0]?.arguments).toContain(OPENAI_KEYCHAIN_ACCOUNT);
   });
 
+  it("always uses the fixed macOS security executable", async () => {
+    const requests: ProcessRunRequest[] = [];
+    const options = {
+      environment: { HOME: "/Users/tester" },
+      processRunner: {
+        run: async (request: ProcessRunRequest) => {
+          requests.push(request);
+          return result();
+        },
+      },
+      securityExecutable: "/tmp/untrusted-security",
+      workingDirectory: "/tmp/huayi",
+    };
+    const reader = new OpenAIApiKeyReader(options);
+
+    await reader.read(new AbortController().signal);
+
+    expect(requests[0]?.executable).toBe(OPENAI_SECURITY_EXECUTABLE);
+  });
+
   it("re-reads the Keychain item for every call so rotated keys take effect", async () => {
     const run = vi
       .fn<ProcessRunner["run"]>()
