@@ -1,9 +1,10 @@
-import { chmod, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { ProviderConfigurationStore } from "../config/provider-configuration-store.js";
 import type { ProcessRunner } from "../runtime/codex-process.js";
 import {
   executeInstallerCommand,
@@ -177,6 +178,33 @@ describe("executeInstallerCommand", () => {
     expect(operations.uninstall).not.toHaveBeenCalled();
     expect(runtime.processRunner.run).not.toHaveBeenCalled();
     expect(runtime.interactiveProcessRunner.run).not.toHaveBeenCalled();
+  });
+
+  it("rejects provider-set dry-runs when the existing target is invalid and leaves it untouched", async () => {
+    const directory = await createTemporaryDirectory();
+    const configurationPath = join(directory, "provider.json");
+    const invalidContents = "{invalid-provider-secret\n";
+    await writeFile(configurationPath, invalidContents, { encoding: "utf8", mode: 0o600 });
+    const runtime = createRuntime(
+      {
+        configureEudic: vi.fn(),
+        configureOpenAI: vi.fn(),
+        install: vi.fn(),
+        removeEudic: vi.fn(),
+        removeOpenAI: vi.fn(),
+        uninstall: vi.fn(),
+      },
+      [],
+      { providerConfigurationStore: new ProviderConfigurationStore(configurationPath) },
+    );
+
+    await expect(
+      executeInstallerCommand(
+        { dryRun: true, provider: "openai-responses", type: "provider-set" },
+        runtime,
+      ),
+    ).rejects.toThrow();
+    expect(await readFile(configurationPath, "utf8")).toBe(invalidContents);
   });
 
   it("prints only the configured provider for provider status", async () => {

@@ -1,5 +1,6 @@
 import { constants } from "node:fs";
 import {
+  chmod,
   lstat,
   mkdir,
   mkdtemp,
@@ -24,6 +25,13 @@ import {
 } from "./provider-configuration-store.js";
 
 const temporaryDirectories: string[] = [];
+
+function currentUserId(): number {
+  if (typeof process.getuid !== "function") {
+    throw new Error("This test requires POSIX user IDs.");
+  }
+  return process.getuid();
+}
 
 async function createFixture(): Promise<{
   applicationDirectory: string;
@@ -73,9 +81,87 @@ describe("ProviderConfigurationStore", () => {
     await expect(lstat(configurationPath)).rejects.toMatchObject({ code: "ENOENT" });
   });
 
+  it("requires an existing provider file to be owned by the current user", async () => {
+    const contents = Buffer.from(
+      `${JSON.stringify({ provider: "openai-responses", schemaVersion: 1 })}\n`,
+      "utf8",
+    );
+    const operations = {
+      currentUserId: () => 501,
+      async open() {
+        return {
+          close: () => Promise.resolve(),
+          async read(buffer: Buffer, offset: number, length: number, position: number) {
+            const bytesRead = Math.min(length, Math.max(0, contents.length - position));
+            contents.copy(buffer, offset, position, position + bytesRead);
+            return { bytesRead };
+          },
+          async stat() {
+            return {
+              isFile: () => true,
+              mode: 0o100600,
+              size: contents.length,
+              uid: 502,
+            };
+          },
+        };
+      },
+    } as unknown as ProviderConfigurationReadOperations;
+
+    const store = new ProviderConfigurationStore("/provider.json", undefined, operations);
+    await expect(store.read()).rejects.toThrow(/owned/i);
+    await expect(store.write("codex", false)).rejects.toThrow(/owned/i);
+  });
+
+  it("accepts regular-file type bits but rejects any permission bits beyond 0600", async () => {
+    const valid = await createFixture();
+    await writeFile(
+      valid.configurationPath,
+      `${JSON.stringify({ provider: "codex", schemaVersion: 1 })}\n`,
+      { encoding: "utf8", mode: 0o600 },
+    );
+    await expect(new ProviderConfigurationStore(valid.configurationPath).read()).resolves.toBe(
+      "codex",
+    );
+
+    const invalid = await createFixture();
+    await writeFile(
+      invalid.configurationPath,
+      `${JSON.stringify({ provider: "codex", schemaVersion: 1 })}\n`,
+      { encoding: "utf8", mode: 0o600 },
+    );
+    await chmod(invalid.configurationPath, 0o640);
+    const store = new ProviderConfigurationStore(invalid.configurationPath);
+    await expect(store.read()).rejects.toThrow(/0600/i);
+    await expect(store.write("openai-responses", false)).rejects.toThrow(/0600/i);
+  });
+
+  it("validates and preserves an invalid existing target before set and dry-run", async () => {
+    const invalidConfigurations = [
+      "{invalid-provider-secret\n",
+      `${JSON.stringify({ provider: "codex", schemaVersion: 2 })}\n`,
+      `${JSON.stringify({ extra: true, provider: "codex", schemaVersion: 1 })}\n`,
+    ];
+    for (const invalidContents of invalidConfigurations) {
+      for (const dryRun of [false, true]) {
+        const { applicationDirectory, configurationPath } = await createFixture();
+        await writeFile(configurationPath, invalidContents, { encoding: "utf8", mode: 0o600 });
+        const store = new ProviderConfigurationStore(configurationPath);
+
+        await expect(store.write("openai-responses", dryRun)).rejects.toThrow();
+
+        expect(await readFile(configurationPath, "utf8")).toBe(invalidContents);
+        expect(await readdir(applicationDirectory)).toEqual(["provider.json"]);
+      }
+    }
+  });
+
   it("fails closed on invalid JSON, unknown fields, directories, and symbolic links", async () => {
     const invalidJson = await createFixture();
-    await writeFile(invalidJson.configurationPath, "{invalid\n", "utf8");
+    await writeFile(invalidJson.configurationPath, "{invalid\n", {
+      encoding: "utf8",
+      mode: 0o600,
+    });
     await expect(
       new ProviderConfigurationStore(invalidJson.configurationPath).read(),
     ).rejects.toThrow();
@@ -87,7 +173,10 @@ describe("ProviderConfigurationStore", () => {
       provider: "codex",
       schemaVersion: 1,
     })}\n`;
-    await writeFile(unknownField.configurationPath, unknownFieldContents, "utf8");
+    await writeFile(unknownField.configurationPath, unknownFieldContents, {
+      encoding: "utf8",
+      mode: 0o600,
+    });
     await expect(
       new ProviderConfigurationStore(unknownField.configurationPath).read(),
     ).rejects.toThrow();
@@ -97,6 +186,9 @@ describe("ProviderConfigurationStore", () => {
     await mkdir(directory.configurationPath);
     await expect(
       new ProviderConfigurationStore(directory.configurationPath).read(),
+    ).rejects.toThrow(/regular file/i);
+    await expect(
+      new ProviderConfigurationStore(directory.configurationPath).write("codex", false),
     ).rejects.toThrow(/regular file/i);
     expect((await lstat(directory.configurationPath)).isDirectory()).toBe(true);
 
@@ -108,17 +200,26 @@ describe("ProviderConfigurationStore", () => {
     await expect(
       new ProviderConfigurationStore(symbolicLink.configurationPath).read(),
     ).rejects.toThrow(/symbolic link/i);
+    await expect(
+      new ProviderConfigurationStore(symbolicLink.configurationPath).write("codex", false),
+    ).rejects.toThrow(/symbolic link/i);
     expect((await lstat(symbolicLink.configurationPath)).isSymbolicLink()).toBe(true);
     expect(await readFile(targetPath, "utf8")).toBe(targetContents);
   });
 
   it("rejects a provider file larger than 4 KiB", async () => {
     const { configurationPath } = await createFixture();
-    await writeFile(configurationPath, "x".repeat(4 * 1024 + 1), "utf8");
+    await writeFile(configurationPath, "x".repeat(4 * 1024 + 1), {
+      encoding: "utf8",
+      mode: 0o600,
+    });
 
     await expect(new ProviderConfigurationStore(configurationPath).read()).rejects.toThrow(
       /4 KiB/i,
     );
+    await expect(
+      new ProviderConfigurationStore(configurationPath).write("codex", false),
+    ).rejects.toThrow(/4 KiB/i);
   });
 
   it("reads and validates one no-follow file handle even if its path is replaced", async () => {
@@ -128,15 +229,16 @@ describe("ProviderConfigurationStore", () => {
     await writeFile(
       configurationPath,
       `${JSON.stringify({ provider: "openai-responses", schemaVersion: 1 })}\n`,
-      "utf8",
+      { encoding: "utf8", mode: 0o600 },
     );
     await writeFile(
       replacementPath,
       `${JSON.stringify({ provider: "codex", schemaVersion: 1 })}\n`,
-      "utf8",
+      { encoding: "utf8", mode: 0o600 },
     );
     const events: string[] = [];
     const operations: ProviderConfigurationReadOperations = {
+      currentUserId,
       async open(path, flags) {
         events.push("open");
         expect(flags & constants.O_NOFOLLOW).toBe(constants.O_NOFOLLOW);

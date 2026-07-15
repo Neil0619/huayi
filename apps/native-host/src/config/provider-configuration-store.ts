@@ -25,10 +25,16 @@ export interface ProviderConfigurationReadHandle {
     length: number,
     position: number,
   ): Promise<{ readonly bytesRead: number }>;
-  stat(): Promise<{ isFile(): boolean; readonly size: number }>;
+  stat(): Promise<{
+    isFile(): boolean;
+    readonly mode: number;
+    readonly size: number;
+    readonly uid: number;
+  }>;
 }
 
 export interface ProviderConfigurationReadOperations {
+  currentUserId(): number;
   open(path: string, flags: number): Promise<ProviderConfigurationReadHandle>;
 }
 
@@ -71,6 +77,12 @@ const nodeWriteOperations: ProviderConfigurationWriteOperations = {
 };
 
 const nodeReadOperations: ProviderConfigurationReadOperations = {
+  currentUserId() {
+    if (typeof process.getuid !== "function") {
+      throw new Error("Provider configuration ownership cannot be verified.");
+    }
+    return process.getuid();
+  },
   async open(path, flags) {
     return open(path, flags);
   },
@@ -114,6 +126,12 @@ export class ProviderConfigurationStore {
       if (!stats.isFile()) {
         throw new Error("Provider configuration must be a regular file.");
       }
+      if (stats.uid !== this.readOperations.currentUserId()) {
+        throw new Error("Provider configuration must be owned by the current user.");
+      }
+      if ((stats.mode & 0o7777) !== 0o600) {
+        throw new Error("Provider configuration permissions must be exactly 0600.");
+      }
       if (stats.size > MAX_PROVIDER_CONFIGURATION_BYTES) {
         throw new Error("Provider configuration must not exceed 4 KiB.");
       }
@@ -151,6 +169,7 @@ export class ProviderConfigurationStore {
 
   async write(provider: ModelProvider, dryRun: boolean): Promise<ProviderConfigurationResult> {
     const result = { dryRun, provider } as const;
+    await this.read();
     if (dryRun) {
       return result;
     }

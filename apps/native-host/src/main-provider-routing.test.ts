@@ -18,7 +18,7 @@ async function providerConfigurationPath(contents: string): Promise<string> {
   const directory = await mkdtemp(join(tmpdir(), "huayi-main-provider-test-"));
   temporaryDirectories.push(directory);
   const path = join(directory, "provider.json");
-  await writeFile(path, contents, "utf8");
+  await writeFile(path, contents, { encoding: "utf8", mode: 0o600 });
   return path;
 }
 
