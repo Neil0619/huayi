@@ -13,6 +13,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "host:install": "node apps/native-host/dist/install/cli.js install",
+    "host:compatible:key:configure": "node apps/native-host/dist/install/cli.js compatible-key-configure",
+    "host:compatible:key:remove": "node apps/native-host/dist/install/cli.js compatible-key-remove",
     "host:eudic:configure": "node apps/native-host/dist/install/cli.js eudic-configure",
     "host:eudic:remove": "node apps/native-host/dist/install/cli.js eudic-remove",
     "host:openai:configure": "node apps/native-host/dist/install/cli.js openai-configure",

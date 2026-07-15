@@ -40,6 +40,10 @@ describe("compatible Provider selection before configuration CLI support", () =>
     };
     const processRunner: ProcessRunner = { run: vi.fn() };
     const runtime: InstallerCliRuntime = {
+      compatibleCredentialOperations: {
+        configureCompatible: vi.fn(),
+        removeCompatible: vi.fn(),
+      },
       environment: { PATH: "" },
       homeDirectory: "/Users/tester",
       interactiveProcessRunner: { run: vi.fn() },

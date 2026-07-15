@@ -126,6 +126,10 @@ function createRuntime(
 ): InstallerCliRuntime {
   const processRunner: ProcessRunner = { run: vi.fn() };
   return {
+    compatibleCredentialOperations: {
+      configureCompatible: vi.fn(),
+      removeCompatible: vi.fn(),
+    },
     environment: { HOME: "/Users/tester", PATH: "/usr/bin" },
     homeDirectory: "/Users/tester",
     nodeExecutable: "/opt/node",

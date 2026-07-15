@@ -14,6 +14,14 @@ import {
 import { OPENAI_SECURITY_EXECUTABLE } from "../credentials/openai-keychain.js";
 import { NodeProcessRunner, type ProcessRunner } from "../runtime/codex-process.js";
 import {
+  compatibleCredentialCliOperations,
+  executeCompatibleCredentialCommand,
+  isCompatibleCredentialCommand,
+  parseCompatibleCredentialCommand,
+  type CompatibleCredentialCliOperations,
+  type CompatibleCredentialInstallerCommand,
+} from "./compatible-http-credential-cli.js";
+import {
   configureEudicAuthorization,
   NodeInteractiveProcessRunner,
   removeEudicAuthorization,
@@ -46,12 +54,15 @@ const USAGE = [
   "  huayi-installer eudic-remove [--dry-run]",
   "  huayi-installer openai-configure [--dry-run]",
   "  huayi-installer openai-remove [--dry-run]",
+  "  huayi-installer compatible-key-configure [--dry-run]",
+  "  huayi-installer compatible-key-remove [--dry-run]",
   "  huayi-installer provider-set <api|codex> [--dry-run]",
   "  huayi-installer provider-status",
 ].join("\n");
 
 export type InstallerCommand =
   | { type: "help" }
+  | CompatibleCredentialInstallerCommand
   | { codexPath?: string; dryRun: boolean; extensionId: string; type: "install" }
   | { dryRun: boolean; type: "eudic-configure" }
   | { dryRun: boolean; type: "eudic-remove" }
@@ -76,6 +87,7 @@ export interface InstallerCliOperations {
 }
 
 export interface InstallerCliRuntime {
+  compatibleCredentialOperations: CompatibleCredentialCliOperations;
   environment: NodeJS.ProcessEnv;
   homeDirectory: string;
   interactiveProcessRunner: InteractiveProcessRunner;
@@ -106,7 +118,8 @@ export function parseInstallerArguments(arguments_: readonly string[]): Installe
   ) {
     return { type: "help" };
   }
-
+  const compatibleCredentialCommand = parseCompatibleCredentialCommand(arguments_);
+  if (compatibleCredentialCommand !== undefined) return compatibleCredentialCommand;
   const command = arguments_[0];
   if (command === "provider-status") {
     if (arguments_.length !== 1) {
@@ -237,7 +250,10 @@ export async function executeInstallerCommand(
   if (runtime.platform !== "darwin") {
     throw new Error("Huayi Native Host installation currently supports macOS only.");
   }
-
+  if (isCompatibleCredentialCommand(command)) {
+    reportResult(await executeCompatibleCredentialCommand(command, runtime), runtime);
+    return;
+  }
   if (command.type === "provider-status") {
     runtime.writeOutput(await runtime.providerConfigurationStore.read());
     return;
@@ -335,6 +351,7 @@ export async function executeInstallerCommand(
 export function createDefaultInstallerRuntime(moduleUrl = import.meta.url): InstallerCliRuntime {
   const homeDirectory = homedir();
   return {
+    compatibleCredentialOperations: compatibleCredentialCliOperations,
     environment: process.env,
     homeDirectory,
     interactiveProcessRunner: new NodeInteractiveProcessRunner(),
