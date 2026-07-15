@@ -1,7 +1,5 @@
 import { Buffer } from "node:buffer";
 
-import type { AnalyzeRequest } from "@huayi/protocol";
-
 import {
   OpenAIProviderError,
   openAIFetchError,
@@ -10,25 +8,19 @@ import {
   type OpenAIFetchAbortSource,
 } from "./openai-provider-errors.js";
 import { parseOpenAIResponseEvent, type OpenAIResponseEvent } from "./openai-responses-events.js";
-import type { ModelOutputSchema } from "./model-schema-repository.js";
-import { buildAnalysisPrompt } from "./prompt-builder.js";
+import {
+  buildResponsesRequestBody,
+  type ResponsesModelConfiguration,
+  type ResponsesRequest,
+} from "./responses-request-body.js";
 import { SseDecoder } from "./sse-decoder.js";
 
 const OPENAI_RESPONSES_ENDPOINT = "https://api.openai.com/v1/responses";
 const OPENAI_RESPONSES_TIMEOUT_MS = 60_000;
 const MAXIMUM_OPENAI_ERROR_BODY_BYTES = 64 * 1024;
 
-export interface OpenAIModelConfiguration {
-  effort: "none" | "low";
-  model: "gpt-5.4-mini" | "gpt-5.6-luna";
-}
-
-export interface OpenAIResponsesRequest {
-  analysisRequest: AnalyzeRequest;
-  modelConfiguration: Readonly<OpenAIModelConfiguration>;
-  outputSchema: ModelOutputSchema;
-  outputSchemaName: string;
-}
+export type OpenAIModelConfiguration = ResponsesModelConfiguration;
+export type OpenAIResponsesRequest = ResponsesRequest;
 
 export type OpenAIFetchResponse = Pick<Response, "body" | "headers" | "status">;
 
@@ -61,31 +53,13 @@ function defaultFetch(url: string, init: OpenAIFetchInit): Promise<OpenAIFetchRe
   return fetch(url, init);
 }
 
-function requestBody(request: OpenAIResponsesRequest): string {
-  return JSON.stringify({
-    input: buildAnalysisPrompt(request.analysisRequest),
-    model: request.modelConfiguration.model,
-    reasoning: { effort: request.modelConfiguration.effort },
-    store: false,
-    stream: true,
-    text: {
-      format: {
-        name: request.outputSchemaName,
-        schema: request.outputSchema,
-        strict: true,
-        type: "json_schema",
-      },
-    },
-  });
-}
-
 function requestInit(
   request: OpenAIResponsesRequest,
   key: string,
   signal: AbortSignal,
 ): OpenAIFetchInit {
   return {
-    body: requestBody(request),
+    body: buildResponsesRequestBody(request),
     credentials: "omit",
     headers: {
       Accept: "text/event-stream",
