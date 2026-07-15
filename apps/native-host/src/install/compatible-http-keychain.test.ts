@@ -1,8 +1,4 @@
-import { chmod, mkdtemp, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   COMPATIBLE_HTTP_KEYCHAIN_ACCOUNT,
@@ -23,7 +19,6 @@ import {
 
 const SENTINEL_PREFIX = "test-compatible-key-prefix";
 const SENTINEL_API_KEY = `${SENTINEL_PREFIX}-sentinel`;
-const temporaryDirectories: string[] = [];
 
 function expectNoSentinel(value: unknown): void {
   const text = String(value);
@@ -33,30 +28,12 @@ function expectNoSentinel(value: unknown): void {
   }).toEqual({ containsKey: false, containsPrefix: false });
 }
 
-async function createSecurityExecutable(): Promise<string> {
-  const directory = await mkdtemp(join(tmpdir(), "huayi-compatible-security-test-"));
-  temporaryDirectories.push(directory);
-  const executable = join(directory, "security");
-  await writeFile(executable, "#!/bin/sh\nexit 0\n", "utf8");
-  await chmod(executable, 0o755);
-  return executable;
-}
-
-afterEach(async () => {
-  await Promise.all(
-    temporaryDirectories
-      .splice(0)
-      .map((directory) => rm(directory, { force: true, recursive: true })),
-  );
-});
-
 function processResult(overrides: Partial<ProcessRunResult> = {}): ProcessRunResult {
   return { exitCode: 0, signal: null, stderr: "", stdout: "", ...overrides };
 }
 
 describe("configureCompatibleHttpApiKey", () => {
   it("supports dry-run without prompting for or receiving a key", async () => {
-    const securityExecutable = await createSecurityExecutable();
     const interactiveProcessRunner: InteractiveProcessRunner = { run: vi.fn() };
 
     const result = await configureCompatibleHttpApiKey({
@@ -64,7 +41,6 @@ describe("configureCompatibleHttpApiKey", () => {
       environment: { HOME: "/Users/tester" },
       homeDirectory: "/Users/tester",
       interactiveProcessRunner,
-      securityExecutable,
     });
 
     expect(result.dryRun).toBe(true);
@@ -75,7 +51,6 @@ describe("configureCompatibleHttpApiKey", () => {
   });
 
   it("uses the exact dedicated item, hidden input, shell false, -U, no -A, and final -w", async () => {
-    const securityExecutable = await createSecurityExecutable();
     const requests: InteractiveProcessRequest[] = [];
     const interactiveProcessRunner: InteractiveProcessRunner = {
       run: async (request) => {
@@ -89,7 +64,6 @@ describe("configureCompatibleHttpApiKey", () => {
       environment: { HOME: "/Users/tester", SECRET: "must-not-leak" },
       homeDirectory: "/Users/tester",
       interactiveProcessRunner,
-      securityExecutable,
     });
 
     expect(requests).toEqual([
@@ -107,7 +81,7 @@ describe("configureCompatibleHttpApiKey", () => {
         ],
         cwd: "/Users/tester",
         env: { HOME: "/Users/tester", SECRET: "must-not-leak" },
-        executable: securityExecutable,
+        executable: "/usr/bin/security",
         shell: false,
       },
     ]);
@@ -120,7 +94,6 @@ describe("configureCompatibleHttpApiKey", () => {
   });
 
   it("maps interactive failures to a fixed safe error", async () => {
-    const securityExecutable = await createSecurityExecutable();
     const interactiveProcessRunner: InteractiveProcessRunner = {
       run: vi.fn().mockRejectedValue(new Error(`runner failure ${SENTINEL_API_KEY}`)),
     };
@@ -130,7 +103,6 @@ describe("configureCompatibleHttpApiKey", () => {
       environment: {},
       homeDirectory: "/Users/tester",
       interactiveProcessRunner,
-      securityExecutable,
     }).catch((caught) => caught);
 
     expect(String(error)).toMatch(/compatible.*Keychain/i);
@@ -140,7 +112,6 @@ describe("configureCompatibleHttpApiKey", () => {
 
 describe("removeCompatibleHttpApiKey", () => {
   it("dry-run queries only the exact item without reading or deleting its value", async () => {
-    const securityExecutable = await createSecurityExecutable();
     const requests: ProcessRunRequest[] = [];
     const processRunner: ProcessRunner = {
       run: async (request) => {
@@ -154,7 +125,6 @@ describe("removeCompatibleHttpApiKey", () => {
       environment: { HOME: "/Users/tester" },
       homeDirectory: "/Users/tester",
       processRunner,
-      securityExecutable,
     });
 
     expect(result.actions).toEqual([
@@ -170,6 +140,7 @@ describe("removeCompatibleHttpApiKey", () => {
         COMPATIBLE_HTTP_KEYCHAIN_ACCOUNT,
       ],
       input: "",
+      executable: "/usr/bin/security",
       maximumOutputBytes: 8 * 1024,
       timeoutMs: 5_000,
     });
@@ -177,7 +148,6 @@ describe("removeCompatibleHttpApiKey", () => {
   });
 
   it("queries and deletes only the dedicated compatible item", async () => {
-    const securityExecutable = await createSecurityExecutable();
     const requests: ProcessRunRequest[] = [];
     const processRunner: ProcessRunner = {
       run: async (request) => {
@@ -191,25 +161,26 @@ describe("removeCompatibleHttpApiKey", () => {
       environment: {},
       homeDirectory: "/Users/tester",
       processRunner,
-      securityExecutable,
     });
 
     expect(requests.map((request) => request.arguments)).toEqual([
       ["find-generic-password", "-s", "com.huayi.codex_bridge.compatible_http", "-a", "api-key"],
       ["delete-generic-password", "-s", "com.huayi.codex_bridge.compatible_http", "-a", "api-key"],
     ]);
+    expect(requests.map((request) => request.executable)).toEqual([
+      "/usr/bin/security",
+      "/usr/bin/security",
+    ]);
     expect(JSON.stringify(requests)).not.toContain("com.huayi.codex_bridge.openai");
     expect(JSON.stringify(requests)).not.toContain("com.huayi.codex_bridge.eudic");
   });
 
   it("is idempotent when the item is missing before or during deletion", async () => {
-    const securityExecutable = await createSecurityExecutable();
     const initiallyMissing = await removeCompatibleHttpApiKey({
       dryRun: false,
       environment: {},
       homeDirectory: "/Users/tester",
       processRunner: { run: async () => processResult({ exitCode: 44 }) },
-      securityExecutable,
     });
     const run = vi
       .fn<ProcessRunner["run"]>()
@@ -220,7 +191,6 @@ describe("removeCompatibleHttpApiKey", () => {
       environment: {},
       homeDirectory: "/Users/tester",
       processRunner: { run },
-      securityExecutable,
     });
 
     expect(initiallyMissing.actions).toEqual([]);
@@ -228,7 +198,6 @@ describe("removeCompatibleHttpApiKey", () => {
   });
 
   it("maps captured process failures to fixed safe errors", async () => {
-    const securityExecutable = await createSecurityExecutable();
     const failures: ProcessRunner["run"][] = [
       async () =>
         processResult({
@@ -245,7 +214,6 @@ describe("removeCompatibleHttpApiKey", () => {
         environment: {},
         homeDirectory: "/Users/tester",
         processRunner: { run },
-        securityExecutable,
       }).catch((caught) => caught);
 
       expect(String(error)).toMatch(/compatible.*Keychain/i);

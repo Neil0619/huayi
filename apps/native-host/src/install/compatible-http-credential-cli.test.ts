@@ -39,7 +39,7 @@ function createRuntime(): InstallerCliRuntime {
     platform: "darwin",
     processRunner: { run: vi.fn() },
     providerConfigurationStore: { read: vi.fn(), write: vi.fn() },
-    securityExecutable: "/usr/bin/security",
+    securityExecutable: "/tmp/legacy-security-must-not-reach-compatible-operations",
     sourceBundlePath: "/build/main.js",
     sourceSchemaDirectory: "/build/provider/schemas",
     writeOutput: vi.fn(),
@@ -104,20 +104,18 @@ describe("compatible credential installer CLI", () => {
       runtimeWithUnrelatedDependencies,
     );
 
-    expect(runtime.compatibleCredentialOperations.configureCompatible).toHaveBeenCalledWith(
-      expect.objectContaining({
-        dryRun: true,
-        interactiveProcessRunner: runtime.interactiveProcessRunner,
-        securityExecutable: "/usr/bin/security",
-      }),
-    );
-    expect(runtime.compatibleCredentialOperations.removeCompatible).toHaveBeenCalledWith(
-      expect.objectContaining({
-        dryRun: false,
-        processRunner: runtime.processRunner,
-        securityExecutable: "/usr/bin/security",
-      }),
-    );
+    expect(runtime.compatibleCredentialOperations.configureCompatible).toHaveBeenCalledWith({
+      dryRun: true,
+      environment: runtime.environment,
+      homeDirectory: runtime.homeDirectory,
+      interactiveProcessRunner: runtime.interactiveProcessRunner,
+    });
+    expect(runtime.compatibleCredentialOperations.removeCompatible).toHaveBeenCalledWith({
+      dryRun: false,
+      environment: runtime.environment,
+      homeDirectory: runtime.homeDirectory,
+      processRunner: runtime.processRunner,
+    });
     expect(
       Object.values(runtime.operations).every(
         (operation) => !vi.mocked(operation).mock.calls.length,

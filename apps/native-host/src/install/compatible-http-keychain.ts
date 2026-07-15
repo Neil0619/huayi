@@ -6,6 +6,7 @@ import {
   COMPATIBLE_HTTP_KEYCHAIN_LABEL,
   COMPATIBLE_HTTP_KEYCHAIN_SERVICE,
   COMPATIBLE_HTTP_KEYCHAIN_TIMEOUT_MS,
+  COMPATIBLE_HTTP_SECURITY_EXECUTABLE,
   MAXIMUM_COMPATIBLE_HTTP_API_KEY_BYTES,
 } from "../credentials/compatible-http-keychain.js";
 import type { ProcessRunner, ProcessRunResult } from "../runtime/codex-process.js";
@@ -26,7 +27,6 @@ export interface ConfigureCompatibleHttpApiKeyOptions {
   environment: NodeJS.ProcessEnv;
   homeDirectory: string;
   interactiveProcessRunner: InteractiveProcessRunner;
-  securityExecutable: string;
 }
 
 export interface RemoveCompatibleHttpApiKeyOptions {
@@ -34,12 +34,11 @@ export interface RemoveCompatibleHttpApiKeyOptions {
   environment: NodeJS.ProcessEnv;
   homeDirectory: string;
   processRunner: ProcessRunner;
-  securityExecutable: string;
 }
 
-async function validateSecurityExecutable(path: string): Promise<void> {
+async function validateSecurityExecutable(): Promise<void> {
   try {
-    await access(path, constants.X_OK);
+    await access(COMPATIBLE_HTTP_SECURITY_EXECUTABLE, constants.X_OK);
   } catch (error) {
     throw new Error("macOS Keychain security command is not accessible.", { cause: error });
   }
@@ -48,7 +47,7 @@ async function validateSecurityExecutable(path: string): Promise<void> {
 export async function configureCompatibleHttpApiKey(
   options: ConfigureCompatibleHttpApiKeyOptions,
 ): Promise<CredentialOperationResult> {
-  await validateSecurityExecutable(options.securityExecutable);
+  await validateSecurityExecutable();
   if (options.dryRun) {
     return { actions: [CONFIGURE_ACTION], dryRun: true };
   }
@@ -69,7 +68,7 @@ export async function configureCompatibleHttpApiKey(
       ],
       cwd: options.homeDirectory,
       env: options.environment,
-      executable: options.securityExecutable,
+      executable: COMPATIBLE_HTTP_SECURITY_EXECUTABLE,
       shell: false,
     });
   } catch {
@@ -89,7 +88,7 @@ async function runCapturedSecurityCommand(
     arguments: arguments_,
     cwd: options.homeDirectory,
     env: options.environment,
-    executable: options.securityExecutable,
+    executable: COMPATIBLE_HTTP_SECURITY_EXECUTABLE,
     input: "",
     maximumOutputBytes: MAXIMUM_COMPATIBLE_HTTP_API_KEY_BYTES,
     timeoutMs: COMPATIBLE_HTTP_KEYCHAIN_TIMEOUT_MS,
@@ -99,7 +98,7 @@ async function runCapturedSecurityCommand(
 export async function removeCompatibleHttpApiKey(
   options: RemoveCompatibleHttpApiKeyOptions,
 ): Promise<CredentialOperationResult> {
-  await validateSecurityExecutable(options.securityExecutable);
+  await validateSecurityExecutable();
   let query: ProcessRunResult;
   try {
     query = await runCapturedSecurityCommand(options, [

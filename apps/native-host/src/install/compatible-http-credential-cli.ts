@@ -24,7 +24,6 @@ interface CompatibleCredentialCliRuntime {
   homeDirectory: string;
   interactiveProcessRunner: InteractiveProcessRunner;
   processRunner: ProcessRunner;
-  securityExecutable: string;
 }
 
 export const compatibleCredentialCliOperations: CompatibleCredentialCliOperations = {
@@ -62,7 +61,6 @@ export async function executeCompatibleCredentialCommand(
     dryRun: command.dryRun,
     environment: runtime.environment,
     homeDirectory: runtime.homeDirectory,
-    securityExecutable: runtime.securityExecutable,
   };
   if (command.type === "compatible-key-configure") {
     return runtime.compatibleCredentialOperations.configureCompatible({
