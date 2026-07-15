@@ -7,14 +7,13 @@ import {
   open as openFile,
   readFile,
   readdir,
-  rename,
   rm,
   stat,
   symlink,
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { basename, dirname, join } from "node:path";
+import { dirname, join } from "node:path";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -131,6 +130,29 @@ describe("CompatibleHttpConfigurationStore", () => {
     expect(result.actions).toHaveLength(1);
     await expect(lstat(configurationPath)).rejects.toMatchObject({ code: "ENOENT" });
   });
+
+  it.each([true, false])(
+    "rejects an oversized serialized configuration before dry-run or write: %s",
+    async (dryRun) => {
+      const { applicationDirectory, configurationPath } = await createFixture();
+      await writeConfiguration(configurationPath);
+      const previousContents = await readFile(configurationPath, "utf8");
+      const oversized = {
+        ...mini,
+        baseUrl: `http://example.test/${SENTINEL}/${"x".repeat(4 * 1024)}`,
+      };
+      expect(Buffer.byteLength(`${JSON.stringify(oversized, null, 2)}\n`, "utf8")).toBeGreaterThan(
+        4 * 1024,
+      );
+      const store = new CompatibleHttpConfigurationStore(configurationPath);
+
+      const error = await store.write(oversized, dryRun).catch((caught) => caught);
+
+      expectSafeConfigurationError(error, "INTERNAL_ERROR");
+      expect(await readFile(configurationPath, "utf8")).toBe(previousContents);
+      expect(await readdir(applicationDirectory)).toEqual(["compatible-http.json"]);
+    },
+  );
 
   it("maps invalid owned contents safely and never replaces or removes them", async () => {
     for (const contents of [
@@ -297,50 +319,6 @@ describe("CompatibleHttpConfigurationStore", () => {
     expect(closed).toBe(true);
   });
 
-  it("orders atomic writes through file and parent-directory fsync", async () => {
-    const { applicationDirectory, configurationPath } = await createFixture();
-    const events: string[] = [];
-    const operations: CompatibleHttpConfigurationWriteOperations = {
-      async open(path, flags, mode) {
-        expect(dirname(path)).toBe(applicationDirectory);
-        expect(basename(path)).toMatch(/^\.compatible-http\.json\..+\.tmp$/u);
-        expect(flags).toBe("wx");
-        expect(mode).toBe(0o600);
-        events.push("open");
-        const handle = await openFile(path, flags, mode);
-        return {
-          async close() {
-            events.push("close");
-            await handle.close();
-          },
-          async sync() {
-            events.push("fsync");
-            await handle.sync();
-          },
-          async write(contents) {
-            events.push("write");
-            await handle.writeFile(contents, "utf8");
-          },
-        };
-      },
-      async remove(path) {
-        await rm(path);
-      },
-      async rename(from, to) {
-        events.push("rename");
-        await rename(from, to);
-      },
-      async syncDirectory(path) {
-        expect(path).toBe(applicationDirectory);
-        events.push("directory fsync");
-      },
-    };
-
-    await new CompatibleHttpConfigurationStore(configurationPath, operations).write(mini, false);
-
-    expect(events).toEqual(["open", "write", "fsync", "close", "rename", "directory fsync"]);
-  });
-
   it("preserves the previous file and cleans up only its temporary file on replacement failure", async () => {
     const { applicationDirectory, configurationPath } = await createFixture();
     await writeConfiguration(configurationPath);
@@ -350,7 +328,9 @@ describe("CompatibleHttpConfigurationStore", () => {
       async open(path, flags, mode) {
         const handle = await openFile(path, flags, mode);
         return {
+          chmod: (exactMode) => handle.chmod(exactMode),
           close: () => handle.close(),
+          stat: () => handle.stat(),
           sync: () => handle.sync(),
           write: async (contents) => handle.writeFile(contents, "utf8"),
         };

@@ -48,7 +48,12 @@ export interface CompatibleHttpConfigurationReadOperations {
 }
 
 export interface CompatibleHttpConfigurationWriteHandle {
+  chmod(mode: 0o600): Promise<void>;
   close(): Promise<void>;
+  stat(): Promise<{
+    isFile(): boolean;
+    readonly mode: number;
+  }>;
   sync(): Promise<void>;
   write(contents: string): Promise<void>;
 }
@@ -76,7 +81,9 @@ const nodeWriteOperations: CompatibleHttpConfigurationWriteOperations = {
   async open(path, flags, mode) {
     const handle = await open(path, flags, mode);
     return {
+      chmod: () => handle.chmod(0o600),
       close: () => handle.close(),
+      stat: () => handle.stat(),
       sync: () => handle.sync(),
       write: async (contents) => {
         await handle.writeFile(contents, "utf8");
@@ -148,6 +155,10 @@ export class CompatibleHttpConfigurationStore {
     if (!parsed.success) {
       throw internalConfigurationError();
     }
+    const contents = renderConfiguration(parsed.data);
+    if (Buffer.byteLength(contents, "utf8") > MAX_COMPATIBLE_HTTP_CONFIGURATION_BYTES) {
+      throw internalConfigurationError();
+    }
     const result = {
       actions: [`Write compatible HTTP configuration ${this.configurationPath}`],
       dryRun,
@@ -166,7 +177,12 @@ export class CompatibleHttpConfigurationStore {
     try {
       handle = await this.writeOperations.open(temporaryPath, "wx", 0o600);
       temporaryFileCreated = true;
-      await handle.write(renderConfiguration(parsed.data));
+      await handle.chmod(0o600);
+      const stats = await handle.stat();
+      if (!stats.isFile() || (stats.mode & 0o7777) !== 0o600) {
+        throw new Error("Compatible HTTP temporary configuration has unsafe permissions.");
+      }
+      await handle.write(contents);
       await handle.sync();
       await handle.close();
       handle = undefined;

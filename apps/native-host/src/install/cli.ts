@@ -243,6 +243,11 @@ export async function executeInstallerCommand(
     return;
   }
   if (command.type === "provider-set") {
+    if (command.provider === "openai-compatible-http") {
+      throw new Error(
+        "Compatible HTTP provider selection requires local configuration validation.",
+      );
+    }
     const result = await runtime.providerConfigurationStore.write(command.provider, command.dryRun);
     runtime.writeOutput(`${result.dryRun ? "[dry-run] " : ""}Set provider to ${result.provider}.`);
     return;
