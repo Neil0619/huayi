@@ -200,6 +200,10 @@ function previewSections(state: StreamingOverlayState | ErrorOverlayState): Sect
 }
 
 function markEntering(element: HTMLElement): void {
+  const view = element.ownerDocument.defaultView;
+  if (view?.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true) {
+    return;
+  }
   element.classList.add("huayi-enter");
   const finish = (event: AnimationEvent): void => {
     if (event.target === element) {

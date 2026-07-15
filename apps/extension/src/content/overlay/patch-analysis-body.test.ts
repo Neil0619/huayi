@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { AnalysisResult } from "@huayi/protocol";
 
@@ -28,6 +28,24 @@ function resultState(result: AnalysisResult): ResultOverlayState {
 }
 
 describe("patchAnalysisBody", () => {
+  it("does not retain enter classes when the document prefers reduced motion", () => {
+    const originalMatchMedia = window.matchMedia;
+    const matchMedia = vi.fn().mockReturnValue({ matches: true });
+    Object.defineProperty(window, "matchMedia", { configurable: true, value: matchMedia });
+    try {
+      const body = document.createElement("div");
+      patchAnalysisBody(body, streamingState());
+
+      expect(matchMedia).toHaveBeenCalledWith("(prefers-reduced-motion: reduce)");
+      expect(body.querySelector(".huayi-enter")).toBeNull();
+    } finally {
+      Object.defineProperty(window, "matchMedia", {
+        configurable: true,
+        value: originalMatchMedia,
+      });
+    }
+  });
+
   it("retains keyed sections and items while text grows and arrays append", () => {
     const body = document.createElement("div");
     patchAnalysisBody(body, streamingState());
