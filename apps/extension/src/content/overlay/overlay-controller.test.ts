@@ -199,14 +199,14 @@ describe("OverlayController", () => {
     controller.appendUpdate({
       delta: "调查",
       requestId: "analysis-1",
-      schemaVersion: 3,
+      schemaVersion: 4,
       section: "contextual-meaning",
       sequence: 0,
       type: "analysis-delta",
     });
     controller.appendUpdate({
       requestId: "analysis-1",
-      schemaVersion: 3,
+      schemaVersion: 4,
       section: "collocations",
       sequence: 1,
       type: "analysis-section",
@@ -214,7 +214,7 @@ describe("OverlayController", () => {
     });
     controller.appendUpdate({
       requestId: "analysis-1",
-      schemaVersion: 3,
+      schemaVersion: 4,
       section: "part-of-speech",
       sequence: 2,
       type: "analysis-section",
@@ -254,7 +254,7 @@ describe("OverlayController", () => {
     controller.appendUpdate({
       delta: "部分译文",
       requestId: "analysis-1",
-      schemaVersion: 3,
+      schemaVersion: 4,
       section: "translation",
       sequence: 0,
       type: "analysis-delta",
@@ -276,14 +276,14 @@ describe("OverlayController", () => {
     controller.appendUpdate({
       delta: "调查",
       requestId: "analysis-1",
-      schemaVersion: 3,
+      schemaVersion: 4,
       section: "contextual-meaning",
       sequence: 0,
       type: "analysis-delta",
     });
     controller.appendUpdate({
       requestId: "analysis-1",
-      schemaVersion: 3,
+      schemaVersion: 4,
       section: "collocations",
       sequence: 1,
       type: "analysis-section",
@@ -291,7 +291,7 @@ describe("OverlayController", () => {
     });
     controller.appendUpdate({
       requestId: "analysis-1",
-      schemaVersion: 3,
+      schemaVersion: 4,
       section: "part-of-speech",
       sequence: 2,
       type: "analysis-section",
@@ -323,7 +323,7 @@ describe("OverlayController", () => {
     controller.appendUpdate({
       delta: "调",
       requestId: "analysis-1",
-      schemaVersion: 3,
+      schemaVersion: 4,
       section: "contextual-meaning",
       sequence: 0,
       type: "analysis-delta",
@@ -353,7 +353,7 @@ describe("OverlayController", () => {
     controller.appendUpdate({
       delta: "late",
       requestId: "analysis-1",
-      schemaVersion: 3,
+      schemaVersion: 4,
       section: "translation",
       sequence: 0,
       type: "analysis-delta",
@@ -371,7 +371,7 @@ describe("OverlayController", () => {
     controller.appendUpdate({
       delta: "stale",
       requestId: "analysis-2",
-      schemaVersion: 3,
+      schemaVersion: 4,
       section: "translation",
       sequence: 0,
       type: "analysis-delta",

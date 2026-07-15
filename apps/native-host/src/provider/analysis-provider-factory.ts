@@ -61,6 +61,9 @@ function createHealthCheck(
 ): () => Promise<ActiveProviderHealth> {
   return async () => {
     const provider: ModelProvider = await configurationStore.read();
+    if (provider === "openai-compatible-http") {
+      throw new Error("Compatible HTTP provider is not available.");
+    }
     if (provider === "openai-responses") {
       return {
         codexVersion: null,

@@ -1,4 +1,4 @@
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 export const MAX_SELECTION_LENGTH = 2_000;
 export const MAX_CONTEXT_LENGTH = 2_000;

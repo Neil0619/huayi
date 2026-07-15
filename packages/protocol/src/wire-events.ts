@@ -28,7 +28,7 @@ import {
 
 const schemaVersionSchema = z.literal(SCHEMA_VERSION);
 
-export const modelProviderSchema = z.enum(["codex", "openai-responses"]);
+export const modelProviderSchema = z.enum(["codex", "openai-responses", "openai-compatible-http"]);
 export type ModelProvider = z.infer<typeof modelProviderSchema>;
 
 export const healthResultEventSchema = z
@@ -46,8 +46,8 @@ export const healthResultEventSchema = z
     if (value.provider === "codex" && value.codexVersion === null) {
       context.addIssue({ code: "custom", message: "Codex health requires a version." });
     }
-    if (value.provider === "openai-responses" && value.codexVersion !== null) {
-      context.addIssue({ code: "custom", message: "API health must not report Codex." });
+    if (value.provider !== "codex" && value.codexVersion !== null) {
+      context.addIssue({ code: "custom", message: "HTTP health must not report Codex." });
     }
   });
 export type HealthResultEvent = z.infer<typeof healthResultEventSchema>;

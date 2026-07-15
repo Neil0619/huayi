@@ -21,7 +21,7 @@ function createAnalysisRequest(overrides: Partial<AnalyzeRequest> = {}): Analyze
     action: "translate",
     context: "The investigation was in its early stages.",
     requestId: "analysis-1",
-    schemaVersion: 3,
+    schemaVersion: 4,
     selection: "investigation",
     selectionKind: "word",
     sentenceContext: "The investigation was in its early stages.",

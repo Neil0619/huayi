@@ -9,7 +9,7 @@ const request: AnalyzeRequest = {
   action: "translate",
   context: "The investigation was in its early stages.",
   requestId: "analysis-1",
-  schemaVersion: 3,
+  schemaVersion: 4,
   selection: "investigation",
   selectionKind: "word",
   sentenceContext: null,
@@ -63,6 +63,38 @@ function fakeProvider(
 }
 
 describe("RoutingAnalysisProvider", () => {
+  it("fails compatible analysis closed until its dedicated Provider is wired", async () => {
+    const store = new MutableConfigurationStore();
+    store.provider = "openai-compatible-http";
+    const codex = fakeProvider();
+    const openAI = fakeProvider();
+    const router = new RoutingAnalysisProvider({ configurationStore: store, codex, openAI });
+
+    await expect(router.analyze(request, new AbortController().signal)).rejects.toThrow(
+      "Compatible HTTP provider is not available.",
+    );
+
+    expect(store.read).toHaveBeenCalledOnce();
+    expect(codex.analyze).not.toHaveBeenCalled();
+    expect(openAI.analyze).not.toHaveBeenCalled();
+  });
+
+  it("fails compatible warmup closed until its dedicated Provider is wired", async () => {
+    const store = new MutableConfigurationStore();
+    store.provider = "openai-compatible-http";
+    const codex = fakeProvider();
+    const openAI = fakeProvider();
+    const router = new RoutingAnalysisProvider({ configurationStore: store, codex, openAI });
+
+    await expect(router.warmup(new AbortController().signal)).rejects.toThrow(
+      "Compatible HTTP provider is not available.",
+    );
+
+    expect(store.read).toHaveBeenCalledOnce();
+    expect(codex.warmup).not.toHaveBeenCalled();
+    expect(openAI.warmup).not.toHaveBeenCalled();
+  });
+
   it("pins an active request to the provider selected by its single configuration read", async () => {
     const store = new MutableConfigurationStore();
     const pendingApi = deferred<AnalysisResult>();

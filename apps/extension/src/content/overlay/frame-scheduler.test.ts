@@ -37,7 +37,7 @@ function delta(sequence: number): AnalysisDeltaEvent {
   return {
     delta: String(sequence),
     requestId: "analysis-1",
-    schemaVersion: 3,
+    schemaVersion: 4,
     section: "translation",
     sequence,
     type: "analysis-delta",

@@ -28,7 +28,7 @@ describe("NativeMessageDispatcher analysis routing", () => {
     const events: HostEvent[] = [];
     const dispatcher = createDispatcher();
 
-    dispatcher.dispatch({ requestId: "health-1", schemaVersion: 3, type: "health" }, (event) =>
+    dispatcher.dispatch({ requestId: "health-1", schemaVersion: 4, type: "health" }, (event) =>
       events.push(event),
     );
 
@@ -57,7 +57,7 @@ describe("NativeMessageDispatcher analysis routing", () => {
       },
     });
 
-    dispatcher.dispatch({ requestId: "health-api", schemaVersion: 3, type: "health" }, (event) =>
+    dispatcher.dispatch({ requestId: "health-api", schemaVersion: 4, type: "health" }, (event) =>
       events.push(event),
     );
 
@@ -69,7 +69,7 @@ describe("NativeMessageDispatcher analysis routing", () => {
       provider: "openai-responses",
       ready: true,
       requestId: "health-api",
-      schemaVersion: 3,
+      schemaVersion: 4,
       type: "health-result",
     });
     dispatcher.dispose();
@@ -145,7 +145,7 @@ describe("NativeMessageDispatcher analysis routing", () => {
     dispatcher.dispatch(
       {
         requestId: "cancel-1",
-        schemaVersion: 3,
+        schemaVersion: 4,
         targetRequestId: request.requestId,
         type: "cancel",
       },
@@ -244,7 +244,7 @@ describe("NativeMessageDispatcher analysis routing", () => {
     dispatcher.dispatch(
       {
         requestId: "cancel-warmup",
-        schemaVersion: 3,
+        schemaVersion: 4,
         targetRequestId: warmupRequest.requestId,
         type: "cancel",
       },
@@ -272,7 +272,7 @@ describe("NativeMessageDispatcher analysis routing", () => {
         dispatcher.dispatch(
           {
             requestId: "cancel-after-ready",
-            schemaVersion: 3,
+            schemaVersion: 4,
             targetRequestId: warmupRequest.requestId,
             type: "cancel",
           },
@@ -292,7 +292,7 @@ describe("NativeMessageDispatcher analysis routing", () => {
     const dispatcher = createDispatcher();
 
     expect(() =>
-      dispatcher.dispatch({ schemaVersion: 3, type: "analyze" }, () => undefined),
+      dispatcher.dispatch({ schemaVersion: 4, type: "analyze" }, () => undefined),
     ).toThrow(/invalid host request/i);
     dispatcher.dispose();
   });

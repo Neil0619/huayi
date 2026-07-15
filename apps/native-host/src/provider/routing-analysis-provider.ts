@@ -26,6 +26,9 @@ export class RoutingAnalysisProvider implements AnalysisProvider {
 
   async warmup(signal: AbortSignal): Promise<void> {
     const provider = await this.#configurationStore.read(signal);
+    if (provider === "openai-compatible-http") {
+      throw new Error("Compatible HTTP provider is not available.");
+    }
     if (provider === "codex") {
       await this.#codex.warmup(signal);
     }
@@ -37,6 +40,9 @@ export class RoutingAnalysisProvider implements AnalysisProvider {
     onDelta?: AnalysisStreamListener,
   ): Promise<AnalysisResult> {
     const provider = await this.#configurationStore.read(signal);
+    if (provider === "openai-compatible-http") {
+      throw new Error("Compatible HTTP provider is not available.");
+    }
     return provider === "codex"
       ? this.#codex.analyze(request, signal, onDelta)
       : this.#openAI.analyze(request, signal, onDelta);

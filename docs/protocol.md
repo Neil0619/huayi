@@ -1,7 +1,7 @@
 # 协议说明
 
-当前协议版本为 `schemaVersion: 3`，所有消息均为严格的带 `type` 联合类型。v3 运行时直接
-拒绝 v2 及更早消息，不提供跨版本转换层；Extension 与 Native Host 必须同步升级、重装或
+当前协议版本为 `schemaVersion: 4`，所有消息均为严格的带 `type` 联合类型。v4 运行时直接
+拒绝 v3 及更早消息，不提供跨版本转换层；Extension 与 Native Host 必须同步升级、重装或
 回滚。
 
 ## 请求
@@ -29,7 +29,7 @@
 ```json
 {
   "requestId": "warmup-1",
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "type": "warmup"
 }
 ```
@@ -45,7 +45,7 @@
 {
   "language": "en",
   "requestId": "check-1",
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "type": "check-word",
   "word": "mother-in-law"
 }
@@ -54,8 +54,8 @@
 ## 事件
 
 - `health-result`：返回 Host 版本、模型 Provider、模型、Codex 版本和就绪状态。`provider` 只
-  允许 `codex | openai-responses`；Codex 必须返回非空 `codexVersion`，API Provider 必须返回
-  `codexVersion: null`。
+  允许 `codex | openai-responses | openai-compatible-http`；Codex 必须返回非空
+  `codexVersion`，两个 HTTP Provider 必须返回 `codexVersion: null`。
 - `warmup-ready`：确认无页面数据的预热已安全完成；它是 `warmup` 的唯一成功终态。
 - `progress`：`queued` 或 `running`。
 - `analysis-delta`：分析核心字段的增量文本；它是中间事件，不是成功终态。
@@ -76,7 +76,7 @@ Codex 健康检查成功示例：
   "provider": "codex",
   "ready": true,
   "requestId": "health-codex",
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "type": "health-result"
 }
 ```
@@ -91,7 +91,7 @@ API Provider 健康检查成功示例：
   "provider": "openai-responses",
   "ready": true,
   "requestId": "health-api",
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "type": "health-result"
 }
 ```
@@ -101,7 +101,7 @@ API Provider 健康检查成功示例：
 ```json
 {
   "requestId": "warmup-1",
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "type": "warmup-ready"
 }
 ```
@@ -112,7 +112,7 @@ API Provider 健康检查成功示例：
 {
   "delta": "调查",
   "requestId": "analysis-1",
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "section": "contextual-meaning",
   "sequence": 0,
   "type": "analysis-delta"
@@ -137,8 +137,8 @@ word-formation | core-meanings | collocations | context-example | similar-terms 
 
 ```json
 {
-  "requestId": "analysis-v3",
-  "schemaVersion": 3,
+  "requestId": "analysis-v4",
+  "schemaVersion": 4,
   "section": "part-of-speech",
   "sequence": 1,
   "type": "analysis-section",
@@ -166,7 +166,7 @@ Host 完整校验私有内容后，从可信 `analyze` 请求注入原始 `sourc
 {
   "presence": "present",
   "requestId": "check-1",
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "type": "word-status"
 }
 ```
@@ -212,6 +212,13 @@ INTERNAL_ERROR
 所有对象（包括每个 `analysis-section` 变体及其嵌套对象）拒绝未知字段，Native Messaging
 单帧上限为 1 MiB。当前版本只允许新增可选字段；删除字段、重命名或改变语义时必须再次提升
 `schemaVersion`，同时在本节增加迁移说明。
+
+v0.6.0 的 v3 到 v4 是同步升级且不兼容的迁移：所有请求和事件改用 `schemaVersion: 4`；
+`health-result.provider` 新增 `openai-compatible-http`。只有 `codex` 返回非空
+`codexVersion`，`openai-responses` 与 `openai-compatible-http` 均必须返回
+`codexVersion: null`。`analyze`、分析中间事件、生词本和错误消息形状保持不变；Endpoint、
+effort、Key 状态和 Provider 配置不进入公共健康事件。Extension 与 Native Host 必须一起升级，
+任一端不得接受 v3 消息。
 
 v0.5.0 的 v2 到 v3 是同步升级且不兼容的迁移：所有请求和事件改用 `schemaVersion: 3`；
 `health-result` 必须增加 `provider` 和 `model`，并将 `codexVersion` 改为可空且与 Provider

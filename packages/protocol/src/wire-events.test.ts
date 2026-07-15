@@ -4,16 +4,17 @@ import {
   MAX_STREAM_DELTA_LENGTH,
   analysisDeltaEventSchema,
   hostEventSchema,
+  modelProviderSchema,
   wordAddedEventSchema,
   wordStatusEventSchema,
 } from "./index.js";
 
-const PREVIOUS_SCHEMA_VERSION = 2;
+const PREVIOUS_SCHEMA_VERSION = 3;
 
 const sectionEvents = [
   {
     requestId: "analysis-v2",
-    schemaVersion: 3,
+    schemaVersion: 4,
     section: "part-of-speech",
     sequence: 1,
     type: "analysis-section",
@@ -21,7 +22,7 @@ const sectionEvents = [
   },
   {
     requestId: "analysis-v2",
-    schemaVersion: 3,
+    schemaVersion: 4,
     section: "pronunciation",
     sequence: 2,
     type: "analysis-section",
@@ -29,7 +30,7 @@ const sectionEvents = [
   },
   {
     requestId: "analysis-v2",
-    schemaVersion: 3,
+    schemaVersion: 4,
     section: "base-form",
     sequence: 3,
     type: "analysis-section",
@@ -37,7 +38,7 @@ const sectionEvents = [
   },
   {
     requestId: "analysis-v2",
-    schemaVersion: 3,
+    schemaVersion: 4,
     section: "word-formation",
     sequence: 4,
     type: "analysis-section",
@@ -45,7 +46,7 @@ const sectionEvents = [
   },
   {
     requestId: "analysis-v2",
-    schemaVersion: 3,
+    schemaVersion: 4,
     section: "core-meanings",
     sequence: 5,
     type: "analysis-section",
@@ -53,7 +54,7 @@ const sectionEvents = [
   },
   {
     requestId: "analysis-v2",
-    schemaVersion: 3,
+    schemaVersion: 4,
     section: "collocations",
     sequence: 6,
     type: "analysis-section",
@@ -61,7 +62,7 @@ const sectionEvents = [
   },
   {
     requestId: "analysis-v2",
-    schemaVersion: 3,
+    schemaVersion: 4,
     section: "context-example",
     sequence: 7,
     type: "analysis-section",
@@ -72,7 +73,7 @@ const sectionEvents = [
   },
   {
     requestId: "analysis-v2",
-    schemaVersion: 3,
+    schemaVersion: 4,
     section: "similar-terms",
     sequence: 8,
     type: "analysis-section",
@@ -80,7 +81,7 @@ const sectionEvents = [
   },
   {
     requestId: "analysis-v2",
-    schemaVersion: 3,
+    schemaVersion: 4,
     section: "synonyms",
     sequence: 9,
     type: "analysis-section",
@@ -89,6 +90,29 @@ const sectionEvents = [
 ] as const;
 
 describe("hostEventSchema", () => {
+  it("accepts strict compatible HTTP health on wire v4", () => {
+    const compatibleHealth = {
+      codexVersion: null,
+      hostVersion: "0.6.0",
+      model: "gpt-5.4-mini",
+      provider: "openai-compatible-http",
+      ready: true,
+      requestId: "health-compatible",
+      schemaVersion: 4,
+      type: "health-result",
+    } as const;
+
+    expect(modelProviderSchema.parse("openai-compatible-http")).toBe("openai-compatible-http");
+    expect(hostEventSchema.parse(compatibleHealth)).toEqual(compatibleHealth);
+    expect(() =>
+      hostEventSchema.parse({ ...compatibleHealth, schemaVersion: PREVIOUS_SCHEMA_VERSION }),
+    ).toThrow();
+    expect(() => hostEventSchema.parse({ ...compatibleHealth, codexVersion: "0.144.2" })).toThrow();
+    expect(() =>
+      hostEventSchema.parse({ ...compatibleHealth, endpoint: "http://example" }),
+    ).toThrow();
+  });
+
   it("accepts strict provider-aware API health", () => {
     const apiHealth = {
       codexVersion: null,
@@ -97,12 +121,14 @@ describe("hostEventSchema", () => {
       provider: "openai-responses",
       ready: true,
       requestId: "health-api",
-      schemaVersion: 3,
+      schemaVersion: 4,
       type: "health-result",
     } as const;
 
     expect(hostEventSchema.parse(apiHealth)).toEqual(apiHealth);
-    expect(() => hostEventSchema.parse({ ...apiHealth, schemaVersion: 2 })).toThrow();
+    expect(() =>
+      hostEventSchema.parse({ ...apiHealth, schemaVersion: PREVIOUS_SCHEMA_VERSION }),
+    ).toThrow();
     expect(() =>
       hostEventSchema.parse({ ...apiHealth, endpoint: "https://evil.invalid" }),
     ).toThrow();
@@ -119,7 +145,7 @@ describe("hostEventSchema", () => {
       provider: "codex",
       ready: true,
       requestId: "health-codex",
-      schemaVersion: 3,
+      schemaVersion: 4,
       type: "health-result",
     } as const;
 
@@ -136,12 +162,12 @@ describe("hostEventSchema", () => {
         provider: "codex",
         ready: true,
         requestId: "health-1",
-        schemaVersion: 3,
+        schemaVersion: 4,
         type: "health-result",
       },
       {
         requestId: "request-1",
-        schemaVersion: 3,
+        schemaVersion: 4,
         stage: "queued",
         type: "progress",
       },
@@ -153,13 +179,13 @@ describe("hostEventSchema", () => {
           translationZh: "它已准备就绪。",
           type: "translate-passage",
         },
-        schemaVersion: 3,
+        schemaVersion: 4,
         type: "result",
       },
       {
         outcome: "added",
         requestId: "word-1",
-        schemaVersion: 3,
+        schemaVersion: 4,
         type: "word-added",
       },
       {
@@ -169,7 +195,7 @@ describe("hostEventSchema", () => {
           retryable: true,
         },
         requestId: "request-1",
-        schemaVersion: 3,
+        schemaVersion: 4,
         type: "error",
       },
     ] as const;
@@ -188,7 +214,7 @@ describe("hostEventSchema", () => {
       hostEventSchema.safeParse({
         requestId: "request-1",
         result: { type: "unvalidated" },
-        schemaVersion: 3,
+        schemaVersion: 4,
         type: "result",
       }).success,
     ).toBe(false);
@@ -203,7 +229,7 @@ describe("hostEventSchema", () => {
     expect(
       hostEventSchema.safeParse({
         requestId: "request-1",
-        schemaVersion: 3,
+        schemaVersion: 4,
         stage: "queued",
         type: "progress",
         url: "https://example.com",
@@ -214,7 +240,7 @@ describe("hostEventSchema", () => {
   it("accepts only a strict warmup-ready event", () => {
     const warmupReady = {
       requestId: "warmup-1",
-      schemaVersion: 3,
+      schemaVersion: 4,
       type: "warmup-ready",
     } as const;
 
@@ -243,7 +269,7 @@ describe("wordAddedEventSchema", () => {
       wordAddedEventSchema.parse({
         outcome,
         requestId: "word-1",
-        schemaVersion: 3,
+        schemaVersion: 4,
         type: "word-added",
       }).outcome,
     ).toBe(outcome);
@@ -254,7 +280,7 @@ describe("wordAddedEventSchema", () => {
       wordAddedEventSchema.safeParse({
         outcome: "added",
         requestId: "word-1",
-        schemaVersion: 3,
+        schemaVersion: 4,
         type: "word-added",
         word: "investigation",
       }).success,
@@ -266,7 +292,7 @@ describe("analysisDeltaEventSchema", () => {
   const delta = {
     delta: "调查",
     requestId: "analysis-1",
-    schemaVersion: 3,
+    schemaVersion: 4,
     section: "contextual-meaning",
     sequence: 0,
     type: "analysis-delta",
@@ -315,7 +341,7 @@ describe("analysisDeltaEventSchema", () => {
       analysisDeltaEventSchema.safeParse({
         presence: "present",
         requestId: "check-1",
-        schemaVersion: 3,
+        schemaVersion: 4,
         type: "word-status",
       }).success,
     ).toBe(false);
@@ -326,7 +352,7 @@ describe("wordStatusEventSchema", () => {
   const wordStatus = {
     presence: "present",
     requestId: "check-1",
-    schemaVersion: 3,
+    schemaVersion: 4,
     type: "word-status",
   } as const;
 
@@ -354,7 +380,7 @@ describe("wordStatusEventSchema", () => {
       wordStatusEventSchema.safeParse({
         outcome: "added",
         requestId: "word-1",
-        schemaVersion: 3,
+        schemaVersion: 4,
         type: "word-added",
       }).success,
     ).toBe(false);

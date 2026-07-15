@@ -11,7 +11,7 @@ export const request: AnalyzeRequest = {
   action: "translate",
   context: "The investigation was in its early stages.",
   requestId: "request-1",
-  schemaVersion: 3,
+  schemaVersion: 4,
   selection: "investigation",
   selectionKind: "word",
   sentenceContext: null,
@@ -39,14 +39,14 @@ export const validResult: AnalysisResult = {
 export const checkRequest: CheckWordRequest = {
   language: "en",
   requestId: "check-1",
-  schemaVersion: 3,
+  schemaVersion: 4,
   type: "check-word",
   word: "investigation",
 };
 
 export const warmupRequest: WarmupRequest = {
   requestId: "warmup-1",
-  schemaVersion: 3,
+  schemaVersion: 4,
   type: "warmup",
 };
 
@@ -54,7 +54,7 @@ export const wordRequest: AddWordRequest = {
   context: "The investigation was in its early stages.",
   language: "en",
   requestId: "word-1",
-  schemaVersion: 3,
+  schemaVersion: 4,
   type: "add-word",
   word: "investigation",
 };

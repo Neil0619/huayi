@@ -59,7 +59,7 @@ describe("native host provider routing", () => {
     });
     const events: HostEvent[] = [];
 
-    dispatcher.dispatch({ requestId: "health-api", schemaVersion: 3, type: "health" }, (event) =>
+    dispatcher.dispatch({ requestId: "health-api", schemaVersion: 4, type: "health" }, (event) =>
       events.push(event),
     );
     await vi.waitFor(() => expect(events).toHaveLength(1));
@@ -72,7 +72,7 @@ describe("native host provider routing", () => {
         provider: "openai-responses",
         ready: true,
         requestId: "health-api",
-        schemaVersion: 3,
+        schemaVersion: 4,
         type: "health-result",
       },
     ]);
@@ -98,7 +98,7 @@ describe("native host provider routing", () => {
     const events: HostEvent[] = [];
 
     dispatcher.dispatch(
-      { requestId: "health-invalid-provider", schemaVersion: 3, type: "health" },
+      { requestId: "health-invalid-provider", schemaVersion: 4, type: "health" },
       (event) => events.push(event),
     );
     await vi.waitFor(() => expect(events).toHaveLength(1));

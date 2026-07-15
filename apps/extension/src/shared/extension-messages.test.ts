@@ -6,7 +6,7 @@ const request = {
   action: "translate",
   context: "The investigation was in its early stages.",
   requestId: "request-1",
-  schemaVersion: 3,
+  schemaVersion: 4,
   selection: "investigation",
   selectionKind: "word",
   sentenceContext: null,
@@ -18,7 +18,7 @@ const addWordRequest = {
   context: "The investigation was in its early stages.",
   language: "en",
   requestId: "word-1",
-  schemaVersion: 3,
+  schemaVersion: 4,
   type: "add-word",
   word: "investigation",
 } as const;
@@ -26,7 +26,7 @@ const addWordRequest = {
 const checkWordRequest = {
   language: "en",
   requestId: "check-1",
-  schemaVersion: 3,
+  schemaVersion: 4,
   type: "check-word",
   word: "investigation",
 } as const;

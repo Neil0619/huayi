@@ -46,14 +46,14 @@ describe("OverlayController streaming patching", () => {
     controller.appendUpdate({
       delta: "调",
       requestId: "analysis-1",
-      schemaVersion: 3,
+      schemaVersion: 4,
       section: "contextual-meaning",
       sequence: 0,
       type: "analysis-delta",
     });
     controller.appendUpdate({
       requestId: "analysis-1",
-      schemaVersion: 3,
+      schemaVersion: 4,
       section: "collocations",
       sequence: 1,
       type: "analysis-section",

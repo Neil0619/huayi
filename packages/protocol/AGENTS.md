@@ -2,12 +2,13 @@
 
 - Depend only on Zod and platform-neutral TypeScript.
 - Use strict schemas and reject unknown keys.
-- The current `schemaVersion` is `3`.
-- Runtime v3 rejects v2. Extension and Host upgrades or rollbacks must be synchronous; do not add
+- The current `schemaVersion` is `4`.
+- Runtime v4 rejects v3. Extension and Host upgrades or rollbacks must be synchronous; do not add
   an implicit compatibility layer.
-- v0.5.0 health results identify exactly one `codex | openai-responses` provider and its fixed
-  model; `codexVersion` is non-null only for Codex. Provider selection and credentials remain
-  private Host concerns and must not enter analyze requests.
+- Wire v4 health results identify exactly one
+  `codex | openai-responses | openai-compatible-http` provider and its fixed model;
+  `codexVersion` is non-null only for Codex. Provider selection and credentials remain private
+  Host concerns and must not enter analyze requests.
 - Backward-compatible fields must be optional. Removing, renaming, or changing field semantics
   requires a schema-version increment and migration documentation.
 - Every wire message is a discriminated union using `type`.

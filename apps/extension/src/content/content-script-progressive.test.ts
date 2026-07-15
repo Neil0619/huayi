@@ -80,7 +80,7 @@ function emitResult(runtime: FakeRuntime): void {
       sourceText: "investigation",
       type: "translate-lexical",
     },
-    schemaVersion: 3,
+    schemaVersion: 4,
     type: "result",
   });
 }
@@ -113,7 +113,7 @@ describe("content-script progressive event routing", () => {
     runtime.emit({
       delta: "调",
       requestId: "request-1",
-      schemaVersion: 3,
+      schemaVersion: 4,
       section: "contextual-meaning",
       sequence: 0,
       type: "analysis-delta",
@@ -122,7 +122,7 @@ describe("content-script progressive event routing", () => {
       runtime.emit({
         presence,
         requestId: "request-2",
-        schemaVersion: 3,
+        schemaVersion: 4,
         type: "word-status",
       });
       vi.advanceTimersByTime(40);
@@ -134,7 +134,7 @@ describe("content-script progressive event routing", () => {
 
     runtime.emit({
       requestId: "request-1",
-      schemaVersion: 3,
+      schemaVersion: 4,
       section: "part-of-speech",
       sequence: 1,
       type: "analysis-section",
@@ -154,7 +154,7 @@ describe("content-script progressive event routing", () => {
       runtime.emit({
         presence,
         requestId: "request-2",
-        schemaVersion: 3,
+        schemaVersion: 4,
         type: "word-status",
       });
       expect(instance.controller.state).toMatchObject({
@@ -172,7 +172,7 @@ describe("content-script progressive event routing", () => {
 
     runtime.emit({
       requestId: "request-1",
-      schemaVersion: 3,
+      schemaVersion: 4,
       section: "part-of-speech",
       sequence: 1,
       type: "analysis-section",
@@ -191,7 +191,7 @@ describe("content-script progressive event routing", () => {
     runtime.emit({
       delta: "late",
       requestId: "request-1",
-      schemaVersion: 3,
+      schemaVersion: 4,
       section: "contextual-meaning",
       sequence: 0,
       type: "analysis-delta",

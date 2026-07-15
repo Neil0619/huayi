@@ -62,6 +62,22 @@ function createFactory(provider: ModelProvider) {
 }
 
 describe("createAnalysisProviderFactory", () => {
+  it("fails compatible health closed until its dedicated Provider is wired", async () => {
+    const fixture = createFactory("openai-compatible-http");
+
+    await expect(fixture.factory.healthCheck()).rejects.toThrow(
+      "Compatible HTTP provider is not available.",
+    );
+
+    expect(fixture.configurationStore.read).toHaveBeenCalledOnce();
+    expect(fixture.codexHealthCheck).not.toHaveBeenCalled();
+    expect(fixture.appServer.warmup).not.toHaveBeenCalled();
+    expect(fixture.apiKeyRead).not.toHaveBeenCalled();
+    expect(fixture.openAIFetch).not.toHaveBeenCalled();
+    expect(fixture.eudicAuthorizationRead).not.toHaveBeenCalled();
+    expect(fixture.eudicFetch).not.toHaveBeenCalled();
+  });
+
   it("reports API health from the current configuration without Codex, Keychain, or fetch", async () => {
     const fixture = createFactory("openai-responses");
 
