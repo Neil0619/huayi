@@ -5,6 +5,7 @@ import type { AnalyzeRequest } from "@huayi/protocol";
 import {
   compatibleMessage,
   createdFixture,
+  firstDeltaFixture,
   inProgressFixture,
 } from "./compatible-http-responses-events-test-fixtures.js";
 import {
@@ -90,7 +91,9 @@ describe("CompatibleHttpResponsesClient", () => {
 
   it("decodes UTF-8 and SSE boundaries split across chunks", async () => {
     const source = encoder.encode(
-      sse("response.created", createdFixture) + sse("response.in_progress", inProgressFixture),
+      sse("response.created", createdFixture) +
+        sse("response.in_progress", inProgressFixture) +
+        sse("response.output_text.delta", { ...firstDeltaFixture, delta: "测试" }),
     );
     const body = new ReadableStream<Uint8Array>({
       start(controller) {
@@ -106,7 +109,45 @@ describe("CompatibleHttpResponsesClient", () => {
     await expect(collect(client)).resolves.toEqual([
       { responseId: "resp_compatible_test", sequence: 0, type: "response.created" },
       { responseId: "resp_compatible_test", sequence: 1, type: "response.in_progress" },
+      {
+        delta: "测试",
+        itemId: "msg_compatible_test",
+        sequence: 6,
+        type: "response.output_text.delta",
+      },
     ]);
+  });
+
+  it("maps an oversized SSE event to the compatible invalid-response error", async () => {
+    const source = `event: response.created\ndata: ${"x".repeat(70 * 1024)}\n\n`;
+    const client = new CompatibleHttpResponsesClient({ fetch: async () => eventStream(source) });
+
+    await expect(collect(client)).rejects.toMatchObject({ code: "INVALID_RESPONSE" });
+  });
+
+  it.each([
+    ["response.content_part.done", { type: "response.content_part.done" }],
+    [
+      "response.output_item.done",
+      {
+        item: {
+          content: [],
+          id: "msg_compatible_test",
+          role: "assistant",
+          status: "completed",
+          type: "message",
+        },
+        output_index: 0,
+        sequence_number: 7,
+        type: "response.output_item.done",
+      },
+    ],
+  ])("rejects unsupported assistant terminal event %s", async (event, value) => {
+    const client = new CompatibleHttpResponsesClient({
+      fetch: async () => eventStream(sse(event, value)),
+    });
+
+    await expect(collect(client)).rejects.toMatchObject({ code: "INVALID_RESPONSE" });
   });
 
   it.each([

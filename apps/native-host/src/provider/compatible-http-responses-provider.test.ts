@@ -9,6 +9,7 @@ import type { CompatibleHttpResponsesClient } from "./compatible-http-responses-
 import type { CompatibleHttpResponseEvent } from "./compatible-http-responses-events.js";
 import { CompatibleHttpResponsesProvider } from "./compatible-http-responses-provider.js";
 import { ModelSchemaRepository } from "./model-schema-repository.js";
+import type { ProviderValidationDiagnostic } from "./provider-validation.js";
 import type { ResponsesRequest } from "./responses-request-body.js";
 
 const lexicalContent = {
@@ -116,16 +117,26 @@ class FakeClient {
     signal: AbortSignal;
   }[] = [];
 
-  constructor(private readonly events: CompatibleHttpResponseEvent[]) {}
+  constructor(
+    private readonly events: CompatibleHttpResponseEvent[],
+    private readonly onYield?: () => void,
+  ) {}
 
   async *stream(request: ResponsesRequest, key: string, baseUrl: string, signal: AbortSignal) {
     this.calls.push({ baseUrl, key, request, signal });
-    for (const event of this.events) yield event;
+    for (const event of this.events) {
+      yield event;
+      this.onYield?.();
+    }
   }
 }
 
-function createProvider(events: CompatibleHttpResponseEvent[]) {
-  const client = new FakeClient(events);
+function createProvider(
+  events: CompatibleHttpResponseEvent[],
+  onValidationDiagnostic?: (diagnostic: ProviderValidationDiagnostic) => void,
+  onYield?: () => void,
+) {
+  const client = new FakeClient(events, onYield);
   const configurationRead = vi.fn(async () => ({
     allowInsecureHttp: true as const,
     baseUrl: "http://101.133.153.118:9090/v1",
@@ -138,6 +149,7 @@ function createProvider(events: CompatibleHttpResponseEvent[]) {
     apiKeyReader: { read: keyRead } as unknown as CompatibleHttpApiKeyReader,
     client: client as unknown as CompatibleHttpResponsesClient,
     configurationStore: { read: configurationRead } as unknown as CompatibleHttpConfigurationStore,
+    ...(onValidationDiagnostic === undefined ? {} : { onValidationDiagnostic }),
     schemaRepository: new ModelSchemaRepository({
       readSchema: async () => ({ additionalProperties: false, properties: {}, type: "object" }),
       schemaDirectory: "/Applications/Huayi/provider/schemas",
@@ -229,6 +241,37 @@ describe("CompatibleHttpResponsesProvider", () => {
       },
     ],
     [
+      "reasoning added without done",
+      () =>
+        successfulEvents(undefined, { reasoning: true }).filter(
+          (event) => event.type !== "response.output_item.done",
+        ),
+    ],
+    [
+      "reasoning done without added",
+      (events: CompatibleHttpResponseEvent[]) => [
+        ...events.slice(0, 2),
+        {
+          itemId: "reasoning-1",
+          itemType: "reasoning" as const,
+          sequence: 2,
+          type: "response.output_item.done" as const,
+        },
+        ...events
+          .slice(2)
+          .map((event) =>
+            event.sequence === null ? event : { ...event, sequence: event.sequence + 1 },
+          ),
+      ],
+    ],
+    [
+      "duplicate reasoning",
+      () => {
+        const events = successfulEvents(undefined, { reasoning: true });
+        return [...events.slice(0, 3), eventAt(events, 2), ...events.slice(3)];
+      },
+    ],
+    [
       "duplicate assistant",
       (events: CompatibleHttpResponseEvent[]) => [
         ...events.slice(0, 3),
@@ -290,6 +333,56 @@ describe("CompatibleHttpResponsesProvider", () => {
     await expect(
       cancelled.provider.analyze(analysisRequest(), controller.signal),
     ).rejects.toMatchObject({
+      code: "CANCELLED",
+    });
+  });
+
+  it("reports only bounded diagnostics for private-schema and result-assembly failures", async () => {
+    const diagnostics: ProviderValidationDiagnostic[] = [];
+    const privateSchemaText = JSON.stringify({
+      ...lexicalContent,
+      partOfSpeech: "secret-invalid-value",
+    });
+    const privateSchema = createProvider(successfulEvents(privateSchemaText), (diagnostic) =>
+      diagnostics.push(diagnostic),
+    );
+    await expect(
+      privateSchema.provider.analyze(analysisRequest(), new AbortController().signal),
+    ).rejects.toMatchObject({ code: "INVALID_RESPONSE" });
+
+    const assembly = createProvider(successfulEvents(), (diagnostic) =>
+      diagnostics.push(diagnostic),
+    );
+    await expect(
+      assembly.provider.analyze(
+        { ...analysisRequest(), sentenceContext: null },
+        new AbortController().signal,
+      ),
+    ).rejects.toMatchObject({ code: "INVALID_RESPONSE" });
+
+    const publicResult = createProvider(successfulEvents(), (diagnostic) =>
+      diagnostics.push(diagnostic),
+    );
+    await expect(
+      publicResult.provider.analyze(
+        { ...analysisRequest(), selection: "" },
+        new AbortController().signal,
+      ),
+    ).rejects.toMatchObject({ code: "INVALID_RESPONSE" });
+
+    expect(diagnostics).toEqual([
+      { field: "partOfSpeech", stage: "model-schema" },
+      { field: "contextExampleTranslationZh", stage: "result-assembly" },
+      { stage: "protocol-validation" },
+    ]);
+    expect(JSON.stringify(diagnostics)).not.toContain("secret-invalid-value");
+  });
+
+  it("cancels during lifecycle iteration before a late event is consumed", async () => {
+    const controller = new AbortController();
+    const { provider } = createProvider(successfulEvents(), undefined, () => controller.abort());
+
+    await expect(provider.analyze(analysisRequest(), controller.signal)).rejects.toMatchObject({
       code: "CANCELLED",
     });
   });
