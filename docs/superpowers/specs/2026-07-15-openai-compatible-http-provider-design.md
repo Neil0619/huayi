@@ -296,7 +296,9 @@ response.completed
 - 60 秒超时 → `TIMEOUT`；
 - 非法事件、Schema 或终止文本不一致 → `INVALID_RESPONSE`；
 - 用户取消 → `CANCELLED`；
-- 本机第三方 Key 未配置 → `OPENAI_NOT_CONFIGURED`，但文案明确是 compatible Provider。
+- 本机第三方 Key 或 compatible 配置未配置 → `MODEL_PROVIDER_NOT_CONFIGURED`；
+- 第三方返回 401 或 Key 形状无效 → `MODEL_PROVIDER_AUTH_FAILED`；
+- 两个通用 Provider 错误的用户文案必须明确指向 compatible Provider，不得误称官方 OpenAI。
 
 不返回第三方错误正文、端点响应内容或 Key。第三方失败不遮挡已经验证并展示的流式内容，但以现有
 内联错误结束，允许用户切回 Codex。
