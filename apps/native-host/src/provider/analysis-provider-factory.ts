@@ -1,5 +1,6 @@
 import type { ModelProvider } from "@huayi/protocol";
 
+import type { CompatibleHttpConfiguration } from "../config/compatible-http-configuration.js";
 import type { OpenAIApiKeyReader } from "../credentials/openai-keychain.js";
 import type { CodexAppServer } from "../runtime/codex-app-server-lifecycle.js";
 import type { CodexCapabilities } from "../runtime/codex-capabilities.js";
@@ -11,6 +12,15 @@ import {
 import type { WordbookProvider } from "../wordbook/wordbook-provider.js";
 import type { AnalysisProvider } from "./analysis-provider.js";
 import { CodexAppServerProvider } from "./codex-app-server-provider.js";
+import {
+  CompatibleHttpResponsesClient,
+  type CompatibleHttpFetch,
+} from "./compatible-http-responses-client.js";
+import {
+  CompatibleHttpResponsesProvider,
+  type CompatibleHttpConfigurationReader,
+  type CompatibleHttpKeyReader,
+} from "./compatible-http-responses-provider.js";
 import { ModelSchemaRepository } from "./model-schema-repository.js";
 import {
   OpenAIResponsesClient,
@@ -34,12 +44,20 @@ export type ActiveProviderHealth =
       codexVersion: null;
       model: "gpt-5.6-luna";
       provider: "openai-responses";
+    }
+  | {
+      codexVersion: null;
+      model: CompatibleHttpConfiguration["model"];
+      provider: "openai-compatible-http";
     };
 
 export interface AnalysisProviderFactoryOptions {
   apiKeyReader: OpenAIApiKeyReader;
   appServer: CodexAppServer;
   codexHealthCheck: () => Promise<CodexCapabilities>;
+  compatibleHttpApiKeyReader: CompatibleHttpKeyReader;
+  compatibleHttpConfigurationStore: CompatibleHttpConfigurationReader;
+  compatibleHttpFetch?: CompatibleHttpFetch;
   configurationStore: ProviderConfigurationReader;
   eudicAuthorizationReader: EudicAuthorizationReader;
   eudicFetch?: EudicFetch;
@@ -57,12 +75,16 @@ export interface AnalysisProviderFactory {
 
 function createHealthCheck(
   configurationStore: ProviderConfigurationReader,
+  compatibleHttpConfigurationStore: CompatibleHttpConfigurationReader,
   codexHealthCheck: () => Promise<CodexCapabilities>,
 ): () => Promise<ActiveProviderHealth> {
   return async () => {
     const provider: ModelProvider = await configurationStore.read();
     if (provider === "openai-compatible-http") {
-      throw new Error("Compatible HTTP provider is not available.");
+      const configuration = await compatibleHttpConfigurationStore.read(
+        new AbortController().signal,
+      );
+      return { codexVersion: null, model: configuration.model, provider };
     }
     if (provider === "openai-responses") {
       return {
@@ -107,8 +129,21 @@ export function createAnalysisProviderFactory(
       ? {}
       : { onValidationDiagnostic: options.onValidationDiagnostic }),
   });
+  const compatibleHttpClient = new CompatibleHttpResponsesClient(
+    options.compatibleHttpFetch === undefined ? {} : { fetch: options.compatibleHttpFetch },
+  );
+  const compatibleHttp = new CompatibleHttpResponsesProvider({
+    apiKeyReader: options.compatibleHttpApiKeyReader,
+    client: compatibleHttpClient,
+    configurationStore: options.compatibleHttpConfigurationStore,
+    schemaRepository,
+    ...(options.onValidationDiagnostic === undefined
+      ? {}
+      : { onValidationDiagnostic: options.onValidationDiagnostic }),
+  });
   const analysisProvider = new RoutingAnalysisProvider({
     codex,
+    compatibleHttp,
     configurationStore: options.configurationStore,
     openAI,
   });
@@ -122,7 +157,11 @@ export function createAnalysisProviderFactory(
 
   return {
     analysisProvider,
-    healthCheck: createHealthCheck(options.configurationStore, options.codexHealthCheck),
+    healthCheck: createHealthCheck(
+      options.configurationStore,
+      options.compatibleHttpConfigurationStore,
+      options.codexHealthCheck,
+    ),
     wordbookProvider,
   };
 }

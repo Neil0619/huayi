@@ -149,6 +149,16 @@ export function createComparisonProviders(
     codexHealthCheck: async () => {
       throw new Error("Health checks are not part of Provider comparison.");
     },
+    compatibleHttpApiKeyReader: {
+      async read(): Promise<never> {
+        throw new Error("Compatible credentials are not part of Provider comparison.");
+      },
+    },
+    compatibleHttpConfigurationStore: {
+      async read(): Promise<never> {
+        throw new Error("Compatible configuration is not part of Provider comparison.");
+      },
+    },
     eudicAuthorizationReader: {
       async read(): Promise<never> {
         throw new Error("Wordbook credentials are not part of Provider comparison.");

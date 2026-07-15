@@ -8,27 +8,27 @@ export interface ProviderConfigurationReader {
 
 export interface RoutingAnalysisProviderOptions {
   codex: AnalysisProvider;
+  compatibleHttp: AnalysisProvider;
   configurationStore: ProviderConfigurationReader;
   openAI: AnalysisProvider;
 }
 
 export class RoutingAnalysisProvider implements AnalysisProvider {
   readonly #codex: AnalysisProvider;
+  readonly #compatibleHttp: AnalysisProvider;
   readonly #configurationStore: ProviderConfigurationReader;
   readonly #openAI: AnalysisProvider;
   #disposed = false;
 
   constructor(options: RoutingAnalysisProviderOptions) {
     this.#codex = options.codex;
+    this.#compatibleHttp = options.compatibleHttp;
     this.#configurationStore = options.configurationStore;
     this.#openAI = options.openAI;
   }
 
   async warmup(signal: AbortSignal): Promise<void> {
     const provider = await this.#configurationStore.read(signal);
-    if (provider === "openai-compatible-http") {
-      throw new Error("Compatible HTTP provider is not available.");
-    }
     if (provider === "codex") {
       await this.#codex.warmup(signal);
     }
@@ -40,18 +40,21 @@ export class RoutingAnalysisProvider implements AnalysisProvider {
     onDelta?: AnalysisStreamListener,
   ): Promise<AnalysisResult> {
     const provider = await this.#configurationStore.read(signal);
-    if (provider === "openai-compatible-http") {
-      throw new Error("Compatible HTTP provider is not available.");
+    switch (provider) {
+      case "codex":
+        return this.#codex.analyze(request, signal, onDelta);
+      case "openai-responses":
+        return this.#openAI.analyze(request, signal, onDelta);
+      case "openai-compatible-http":
+        return this.#compatibleHttp.analyze(request, signal, onDelta);
     }
-    return provider === "codex"
-      ? this.#codex.analyze(request, signal, onDelta)
-      : this.#openAI.analyze(request, signal, onDelta);
   }
 
   dispose(): void {
     if (this.#disposed) return;
     this.#disposed = true;
     this.#codex.dispose?.();
+    this.#compatibleHttp.dispose?.();
     this.#openAI.dispose?.();
   }
 }

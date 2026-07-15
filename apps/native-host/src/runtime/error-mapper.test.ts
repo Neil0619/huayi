@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
+import { CompatibleHttpConfigurationError } from "../config/compatible-http-configuration-store.js";
+import { CompatibleHttpCredentialError } from "../credentials/compatible-http-keychain.js";
 import { OpenAICredentialError } from "../credentials/openai-keychain.js";
+import { compatibleHttpProviderError } from "../provider/compatible-http-provider-errors.js";
 import { openAIHttpError, openAIProviderError } from "../provider/openai-provider-errors.js";
 import { ProviderValidationError } from "../provider/provider-validation.js";
 import {
@@ -123,5 +126,52 @@ describe("combined analysis Provider error mapping", () => {
       message: "本机模型服务处理失败，请重试。",
       retryable: true,
     });
+  });
+
+  it.each([
+    [
+      new CompatibleHttpConfigurationError("MODEL_PROVIDER_NOT_CONFIGURED"),
+      "MODEL_PROVIDER_NOT_CONFIGURED",
+      "第三方兼容模型服务尚未配置，请先完成本机配置。",
+    ],
+    [
+      new CompatibleHttpCredentialError("MODEL_PROVIDER_NOT_CONFIGURED"),
+      "MODEL_PROVIDER_NOT_CONFIGURED",
+      "第三方兼容模型服务尚未配置，请先完成本机配置。",
+    ],
+    [
+      new CompatibleHttpCredentialError("MODEL_PROVIDER_AUTH_FAILED"),
+      "MODEL_PROVIDER_AUTH_FAILED",
+      "第三方兼容模型服务授权无效，请更新专用 API Key。",
+    ],
+    [
+      compatibleHttpProviderError("MODEL_PROVIDER_AUTH_FAILED"),
+      "MODEL_PROVIDER_AUTH_FAILED",
+      "第三方兼容模型服务授权无效，请更新专用 API Key。",
+    ],
+    [compatibleHttpProviderError("RATE_LIMITED"), "RATE_LIMITED", "请求过于频繁，请稍后重试。"],
+    [
+      compatibleHttpProviderError("NETWORK_ERROR"),
+      "NETWORK_ERROR",
+      "网络连接失败，请检查网络后重试。",
+    ],
+    [compatibleHttpProviderError("TIMEOUT"), "TIMEOUT", "模型响应超时，请重试。"],
+    [compatibleHttpProviderError("CANCELLED"), "CANCELLED", "请求已取消。"],
+    [
+      compatibleHttpProviderError("INVALID_RESPONSE"),
+      "INVALID_RESPONSE",
+      "模型返回了无效结果，请重试。",
+    ],
+    [
+      compatibleHttpProviderError("INTERNAL_ERROR"),
+      "INTERNAL_ERROR",
+      "本机模型服务处理失败，请重试。",
+    ],
+  ] as const)("maps compatible private error %# safely", (error, code, message) => {
+    const mapped = mapAnalysisProviderError(error);
+
+    expect(mapped).toMatchObject({ code, message });
+    expect(mapped).not.toHaveProperty("cause");
+    expect(JSON.stringify(mapped)).not.toContain("compatible-http.json");
   });
 });

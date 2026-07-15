@@ -1,4 +1,4 @@
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 import type { Readable, Writable } from "node:stream";
 import { pathToFileURL } from "node:url";
 
@@ -6,6 +6,8 @@ import { hostEventSchema } from "@huayi/protocol";
 import type { HostEvent } from "@huayi/protocol";
 
 import { ProviderConfigurationStore } from "./config/provider-configuration-store.js";
+import { CompatibleHttpConfigurationStore } from "./config/compatible-http-configuration-store.js";
+import { CompatibleHttpApiKeyReader } from "./credentials/compatible-http-keychain.js";
 import {
   EUDIC_SECURITY_EXECUTABLE,
   MacosEudicAuthorizationReader,
@@ -18,6 +20,7 @@ import {
 import { NativeMessageDispatcher } from "./protocol/dispatcher.js";
 import { NativeMessageDecoder, encodeNativeMessage } from "./protocol/framing.js";
 import { createAnalysisProviderFactory } from "./provider/analysis-provider-factory.js";
+import type { CompatibleHttpFetch } from "./provider/compatible-http-responses-client.js";
 import type { OpenAIFetch } from "./provider/openai-responses-client.js";
 import {
   formatProviderValidationDiagnostic,
@@ -48,8 +51,10 @@ export type { NativeHostConfiguration } from "./native-host-configuration.js";
 
 export interface NativeHostDispatcherOptions extends Omit<
   NativeHostConfiguration,
-  "providerConfigurationPath"
+  "compatibleHttpConfigurationPath" | "providerConfigurationPath"
 > {
+  compatibleHttpApiKeyReader?: CompatibleHttpApiKeyReader;
+  compatibleHttpFetch?: CompatibleHttpFetch;
   eudicFetch?: EudicFetch;
   errorOutput: Writable;
   openAIApiKeyReader?: OpenAIApiKeyReader;
@@ -131,8 +136,11 @@ export function runNativeHost(streams: NativeHostStreams): () => void {
 export function createNativeHostDispatcher(
   options: NativeHostDispatcherOptions,
 ): NativeMessageDispatcher {
-  const configurationStore = new ProviderConfigurationStore(
-    options.providerConfigurationPath ?? resolve(options.workingDirectory, "..", "provider.json"),
+  const providerConfigurationPath =
+    options.providerConfigurationPath ?? resolve(options.workingDirectory, "..", "provider.json");
+  const configurationStore = new ProviderConfigurationStore(providerConfigurationPath);
+  const compatibleHttpConfigurationStore = new CompatibleHttpConfigurationStore(
+    resolve(dirname(providerConfigurationPath), "compatible-http.json"),
   );
   const appServer = new CodexAppServerClient({
     codexExecutable: options.codexExecutable,
@@ -159,15 +167,27 @@ export function createNativeHostDispatcher(
       processRunner: options.processRunner,
       workingDirectory: options.workingDirectory,
     });
+  const compatibleHttpApiKeyReader =
+    options.compatibleHttpApiKeyReader ??
+    new CompatibleHttpApiKeyReader({
+      environment: options.environment,
+      processRunner: options.processRunner,
+      workingDirectory: options.workingDirectory,
+    });
   const providers = createAnalysisProviderFactory({
     apiKeyReader,
     appServer,
     codexHealthCheck: () => checkCodexCapabilities(options),
+    compatibleHttpApiKeyReader,
+    compatibleHttpConfigurationStore,
     configurationStore,
     eudicAuthorizationReader: authorizationReader,
     onValidationDiagnostic: createProviderValidationDiagnosticSink(options.errorOutput),
     schemaDirectory: options.schemaDirectory,
     ...(options.eudicFetch === undefined ? {} : { eudicFetch: options.eudicFetch }),
+    ...(options.compatibleHttpFetch === undefined
+      ? {}
+      : { compatibleHttpFetch: options.compatibleHttpFetch }),
     ...(options.openAIFetch === undefined ? {} : { openAIFetch: options.openAIFetch }),
   });
   return new NativeMessageDispatcher({

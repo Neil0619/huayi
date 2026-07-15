@@ -2,10 +2,13 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { ModelProvider } from "@huayi/protocol";
 
+import type { CompatibleHttpConfigurationStore } from "../config/compatible-http-configuration-store.js";
+import type { CompatibleHttpApiKeyReader } from "../credentials/compatible-http-keychain.js";
 import type { OpenAIApiKeyReader } from "../credentials/openai-keychain.js";
 import type { CodexAppServer } from "../runtime/codex-app-server-lifecycle.js";
 import type { EudicFetch } from "../wordbook/eudic-client.js";
 import { createAnalysisProviderFactory } from "./analysis-provider-factory.js";
+import type { CompatibleHttpFetch } from "./compatible-http-responses-client.js";
 import type { OpenAIFetch } from "./openai-responses-client.js";
 
 function createAppServer(): CodexAppServer & {
@@ -31,6 +34,17 @@ function createFactory(provider: ModelProvider) {
   };
   const appServer = createAppServer();
   const apiKeyRead = vi.fn(async () => "fake-key");
+  const compatibleConfigurationRead = vi.fn(async () => ({
+    allowInsecureHttp: true as const,
+    baseUrl: "http://101.133.153.118:9090/v1",
+    effort: "low" as const,
+    model: "gpt-5.4-mini" as const,
+    schemaVersion: 1 as const,
+  }));
+  const compatibleKeyRead = vi.fn(async () => "fake-compatible-key");
+  const compatibleHttpFetch = vi.fn<CompatibleHttpFetch>(async () => {
+    throw new Error("Compatible HTTP fetch must not run.");
+  });
   const openAIFetch = vi.fn<OpenAIFetch>(async () => {
     throw new Error("OpenAI fetch must not run.");
   });
@@ -43,6 +57,13 @@ function createFactory(provider: ModelProvider) {
     apiKeyReader: { read: apiKeyRead } as unknown as OpenAIApiKeyReader,
     appServer,
     codexHealthCheck,
+    compatibleHttpApiKeyReader: {
+      read: compatibleKeyRead,
+    } as unknown as CompatibleHttpApiKeyReader,
+    compatibleHttpConfigurationStore: {
+      read: compatibleConfigurationRead,
+    } as unknown as CompatibleHttpConfigurationStore,
+    compatibleHttpFetch,
     configurationStore,
     eudicAuthorizationReader: { read: eudicAuthorizationRead },
     eudicFetch,
@@ -53,6 +74,9 @@ function createFactory(provider: ModelProvider) {
     apiKeyRead,
     appServer,
     codexHealthCheck,
+    compatibleConfigurationRead,
+    compatibleHttpFetch,
+    compatibleKeyRead,
     configurationStore,
     eudicAuthorizationRead,
     eudicFetch,
@@ -62,17 +86,22 @@ function createFactory(provider: ModelProvider) {
 }
 
 describe("createAnalysisProviderFactory", () => {
-  it("fails compatible health closed until its dedicated Provider is wired", async () => {
+  it("reports compatible health locally without Keychain, fetch, or Codex", async () => {
     const fixture = createFactory("openai-compatible-http");
 
-    await expect(fixture.factory.healthCheck()).rejects.toThrow(
-      "Compatible HTTP provider is not available.",
-    );
+    await expect(fixture.factory.healthCheck()).resolves.toEqual({
+      codexVersion: null,
+      model: "gpt-5.4-mini",
+      provider: "openai-compatible-http",
+    });
 
     expect(fixture.configurationStore.read).toHaveBeenCalledOnce();
     expect(fixture.codexHealthCheck).not.toHaveBeenCalled();
     expect(fixture.appServer.warmup).not.toHaveBeenCalled();
     expect(fixture.apiKeyRead).not.toHaveBeenCalled();
+    expect(fixture.compatibleConfigurationRead).toHaveBeenCalledOnce();
+    expect(fixture.compatibleKeyRead).not.toHaveBeenCalled();
+    expect(fixture.compatibleHttpFetch).not.toHaveBeenCalled();
     expect(fixture.openAIFetch).not.toHaveBeenCalled();
     expect(fixture.eudicAuthorizationRead).not.toHaveBeenCalled();
     expect(fixture.eudicFetch).not.toHaveBeenCalled();
@@ -116,14 +145,18 @@ describe("createAnalysisProviderFactory", () => {
     const signal = new AbortController().signal;
 
     await fixture.factory.analysisProvider.warmup(signal);
+    fixture.configurationStore.provider = "openai-compatible-http";
+    await fixture.factory.analysisProvider.warmup(signal);
     fixture.configurationStore.provider = "codex";
     await fixture.factory.analysisProvider.warmup(signal);
     await fixture.factory.healthCheck();
 
-    expect(fixture.configurationStore.read).toHaveBeenCalledTimes(3);
+    expect(fixture.configurationStore.read).toHaveBeenCalledTimes(4);
     expect(fixture.appServer.warmup).toHaveBeenCalledOnce();
     expect(fixture.apiKeyRead).not.toHaveBeenCalled();
     expect(fixture.openAIFetch).not.toHaveBeenCalled();
+    expect(fixture.compatibleKeyRead).not.toHaveBeenCalled();
+    expect(fixture.compatibleHttpFetch).not.toHaveBeenCalled();
     expect(fixture.codexHealthCheck).toHaveBeenCalledOnce();
     expect(fixture.factory.wordbookProvider).toBeDefined();
   });

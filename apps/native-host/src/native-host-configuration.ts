@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 
 export interface NativeHostConfiguration {
   codexExecutable: string;
+  compatibleHttpConfigurationPath: string;
   environment: NodeJS.ProcessEnv;
   providerConfigurationPath: string;
   schemaDirectory: string;
@@ -40,6 +41,7 @@ export function readNativeHostConfiguration(
 
   return {
     codexExecutable,
+    compatibleHttpConfigurationPath: resolve(workingDirectory, "..", "compatible-http.json"),
     environment,
     providerConfigurationPath: resolve(workingDirectory, "..", "provider.json"),
     schemaDirectory,

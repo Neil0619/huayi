@@ -1,6 +1,8 @@
 import type { AnalysisError, ErrorCode } from "@huayi/protocol";
 
+import { CompatibleHttpCredentialError } from "../credentials/compatible-http-keychain.js";
 import { OpenAICredentialError } from "../credentials/openai-keychain.js";
+import { CompatibleHttpProviderError } from "../provider/compatible-http-provider-errors.js";
 import { OpenAIProviderError, mapOpenAIProviderError } from "../provider/openai-provider-errors.js";
 import type { ProviderValidationError } from "../provider/provider-validation.js";
 
@@ -56,6 +58,26 @@ const ERROR_DEFINITIONS = {
   },
   TIMEOUT: { code: "TIMEOUT", message: "模型响应超时，请重试。", retryable: true },
 } as const satisfies Partial<Record<ErrorCode, ErrorDefinition>>;
+
+const COMPATIBLE_CONFIGURATION_ERROR: ErrorDefinition = {
+  code: "MODEL_PROVIDER_NOT_CONFIGURED",
+  message: "第三方兼容模型服务尚未配置，请先完成本机配置。",
+  retryable: false,
+};
+
+const COMPATIBLE_AUTH_ERROR: ErrorDefinition = {
+  code: "MODEL_PROVIDER_AUTH_FAILED",
+  message: "第三方兼容模型服务授权无效，请更新专用 API Key。",
+  retryable: true,
+};
+
+function isCompatibleHttpConfigurationError(
+  error: unknown,
+): error is Error & { code: "INTERNAL_ERROR" | "MODEL_PROVIDER_NOT_CONFIGURED" } {
+  if (!(error instanceof Error) || error.name !== "CompatibleHttpConfigurationError") return false;
+  const code = (error as Error & { code?: unknown }).code;
+  return code === "INTERNAL_ERROR" || code === "MODEL_PROVIDER_NOT_CONFIGURED";
+}
 
 export class CodexProviderError extends Error {
   readonly code: ErrorCode;
@@ -148,6 +170,22 @@ export function mapCodexError(error: unknown): AnalysisError {
 }
 
 export function mapAnalysisProviderError(error: unknown): AnalysisError {
+  if (isCompatibleHttpConfigurationError(error)) {
+    return error.code === "MODEL_PROVIDER_NOT_CONFIGURED"
+      ? { ...COMPATIBLE_CONFIGURATION_ERROR }
+      : { ...ERROR_DEFINITIONS.INTERNAL_ERROR };
+  }
+  if (error instanceof CompatibleHttpCredentialError) {
+    if (error.code === "MODEL_PROVIDER_NOT_CONFIGURED") {
+      return { ...COMPATIBLE_CONFIGURATION_ERROR };
+    }
+    if (error.code === "MODEL_PROVIDER_AUTH_FAILED") return { ...COMPATIBLE_AUTH_ERROR };
+    return { ...ERROR_DEFINITIONS[error.code] };
+  }
+  if (error instanceof CompatibleHttpProviderError) {
+    if (error.code === "MODEL_PROVIDER_AUTH_FAILED") return { ...COMPATIBLE_AUTH_ERROR };
+    return { ...ERROR_DEFINITIONS[error.code] };
+  }
   if (error instanceof OpenAIProviderError || error instanceof OpenAICredentialError) {
     return mapOpenAIProviderError(error);
   }

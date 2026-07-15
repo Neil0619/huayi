@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { AnalysisResult, AnalyzeRequest, ModelProvider } from "@huayi/protocol";
 
 import type { AnalysisProvider, AnalysisStreamListener } from "./analysis-provider.js";
+import { compatibleHttpProviderError } from "./compatible-http-provider-errors.js";
 import { RoutingAnalysisProvider } from "./routing-analysis-provider.js";
 
 const request: AnalyzeRequest = {
@@ -63,36 +64,47 @@ function fakeProvider(
 }
 
 describe("RoutingAnalysisProvider", () => {
-  it("fails compatible analysis closed until its dedicated Provider is wired", async () => {
+  it("routes compatible analysis with one pinned configuration read", async () => {
     const store = new MutableConfigurationStore();
     store.provider = "openai-compatible-http";
     const codex = fakeProvider();
     const openAI = fakeProvider();
-    const router = new RoutingAnalysisProvider({ configurationStore: store, codex, openAI });
+    const compatibleHttp = fakeProvider();
+    const router = new RoutingAnalysisProvider({
+      codex,
+      compatibleHttp,
+      configurationStore: store,
+      openAI,
+    });
+    const signal = new AbortController().signal;
 
-    await expect(router.analyze(request, new AbortController().signal)).rejects.toThrow(
-      "Compatible HTTP provider is not available.",
-    );
+    await expect(router.analyze(request, signal)).resolves.toEqual(apiResult);
 
     expect(store.read).toHaveBeenCalledOnce();
     expect(codex.analyze).not.toHaveBeenCalled();
     expect(openAI.analyze).not.toHaveBeenCalled();
+    expect(compatibleHttp.analyze).toHaveBeenCalledWith(request, signal, undefined);
   });
 
-  it("fails compatible warmup closed until its dedicated Provider is wired", async () => {
+  it("keeps compatible warmup local without calling any Provider", async () => {
     const store = new MutableConfigurationStore();
     store.provider = "openai-compatible-http";
     const codex = fakeProvider();
     const openAI = fakeProvider();
-    const router = new RoutingAnalysisProvider({ configurationStore: store, codex, openAI });
+    const compatibleHttp = fakeProvider();
+    const router = new RoutingAnalysisProvider({
+      codex,
+      compatibleHttp,
+      configurationStore: store,
+      openAI,
+    });
 
-    await expect(router.warmup(new AbortController().signal)).rejects.toThrow(
-      "Compatible HTTP provider is not available.",
-    );
+    await expect(router.warmup(new AbortController().signal)).resolves.toBeUndefined();
 
     expect(store.read).toHaveBeenCalledOnce();
     expect(codex.warmup).not.toHaveBeenCalled();
     expect(openAI.warmup).not.toHaveBeenCalled();
+    expect(compatibleHttp.warmup).not.toHaveBeenCalled();
   });
 
   it("pins an active request to the provider selected by its single configuration read", async () => {
@@ -100,7 +112,13 @@ describe("RoutingAnalysisProvider", () => {
     const pendingApi = deferred<AnalysisResult>();
     const codex = fakeProvider();
     const openAI = fakeProvider(async () => pendingApi.promise);
-    const router = new RoutingAnalysisProvider({ configurationStore: store, codex, openAI });
+    const compatibleHttp = fakeProvider();
+    const router = new RoutingAnalysisProvider({
+      codex,
+      compatibleHttp,
+      configurationStore: store,
+      openAI,
+    });
     const listener: AnalysisStreamListener = () => undefined;
     const signal = new AbortController().signal;
 
@@ -119,44 +137,69 @@ describe("RoutingAnalysisProvider", () => {
   });
 
   it.each([
-    ["openai-responses", "api failure", "openAI", "codex"],
-    ["codex", "codex failure", "codex", "openAI"],
-  ] as const)("does not fall back after a %s failure", async (provider, message, used, unused) => {
+    ["openai-responses", new Error("api failure"), "openAI"],
+    ["codex", new Error("codex failure"), "codex"],
+    [
+      "openai-compatible-http",
+      compatibleHttpProviderError("MODEL_PROVIDER_AUTH_FAILED"),
+      "compatibleHttp",
+    ],
+    ["openai-compatible-http", compatibleHttpProviderError("NETWORK_ERROR"), "compatibleHttp"],
+    ["openai-compatible-http", compatibleHttpProviderError("INVALID_RESPONSE"), "compatibleHttp"],
+  ] as const)("does not fall back after a %s failure", async (provider, failure, used) => {
     const store = new MutableConfigurationStore();
     store.provider = provider;
-    const failure = new Error(message);
     const codex = fakeProvider(
       provider === "codex" ? async () => Promise.reject(failure) : undefined,
     );
     const openAI = fakeProvider(
       provider === "openai-responses" ? async () => Promise.reject(failure) : undefined,
     );
-    const providers = { codex, openAI };
-    const router = new RoutingAnalysisProvider({ configurationStore: store, codex, openAI });
+    const compatibleHttp = fakeProvider(
+      provider === "openai-compatible-http" ? async () => Promise.reject(failure) : undefined,
+    );
+    const providers = { codex, compatibleHttp, openAI };
+    const router = new RoutingAnalysisProvider({
+      codex,
+      compatibleHttp,
+      configurationStore: store,
+      openAI,
+    });
 
     await expect(router.analyze(request, new AbortController().signal)).rejects.toBe(failure);
 
     expect(store.read).toHaveBeenCalledTimes(1);
     expect(providers[used].analyze).toHaveBeenCalledTimes(1);
-    expect(providers[unused].analyze).not.toHaveBeenCalled();
+    for (const [name, candidate] of Object.entries(providers)) {
+      if (name !== used) expect(candidate.analyze).not.toHaveBeenCalled();
+    }
   });
 
   it("warms Codex only in Codex mode and performs only the local read in API mode", async () => {
     const store = new MutableConfigurationStore();
     const codex = fakeProvider();
     const openAI = fakeProvider();
-    const router = new RoutingAnalysisProvider({ configurationStore: store, codex, openAI });
+    const compatibleHttp = fakeProvider();
+    const router = new RoutingAnalysisProvider({
+      codex,
+      compatibleHttp,
+      configurationStore: store,
+      openAI,
+    });
     const signal = new AbortController().signal;
 
     store.provider = "codex";
     await router.warmup(signal);
     store.provider = "openai-responses";
     await router.warmup(signal);
+    store.provider = "openai-compatible-http";
+    await router.warmup(signal);
 
-    expect(store.read).toHaveBeenCalledTimes(2);
+    expect(store.read).toHaveBeenCalledTimes(3);
     expect(codex.warmup).toHaveBeenCalledOnce();
     expect(codex.warmup).toHaveBeenCalledWith(signal);
     expect(openAI.warmup).not.toHaveBeenCalled();
+    expect(compatibleHttp.warmup).not.toHaveBeenCalled();
     expect(codex.analyze).not.toHaveBeenCalled();
     expect(openAI.analyze).not.toHaveBeenCalled();
   });
@@ -165,12 +208,19 @@ describe("RoutingAnalysisProvider", () => {
     const store = new MutableConfigurationStore();
     const codex = fakeProvider();
     const openAI = fakeProvider();
-    const router = new RoutingAnalysisProvider({ configurationStore: store, codex, openAI });
+    const compatibleHttp = fakeProvider();
+    const router = new RoutingAnalysisProvider({
+      codex,
+      compatibleHttp,
+      configurationStore: store,
+      openAI,
+    });
 
     router.dispose();
     router.dispose();
 
     expect(codex.dispose).toHaveBeenCalledOnce();
     expect(openAI.dispose).toHaveBeenCalledOnce();
+    expect(compatibleHttp.dispose).toHaveBeenCalledOnce();
   });
 });
