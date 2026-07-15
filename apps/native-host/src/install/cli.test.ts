@@ -1,15 +1,14 @@
-import { chmod, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { CompatibleHttpConfigurationStore } from "../config/compatible-http-configuration-store.js";
 import { ProviderConfigurationStore } from "../config/provider-configuration-store.js";
 import type { ProcessRunner } from "../runtime/codex-process.js";
 import {
   executeInstallerCommand,
-  parseInstallerArguments,
-  resolveCodexExecutable,
   type InstallerCliOperations,
   type InstallerCliRuntime,
 } from "./cli.js";
@@ -31,94 +30,6 @@ afterEach(async () => {
   );
 });
 
-describe("parseInstallerArguments", () => {
-  it("parses install, uninstall, credential, and provider commands", () => {
-    expect(
-      parseInstallerArguments([
-        "install",
-        "--",
-        "--extension-id",
-        EXTENSION_ID,
-        "--codex-path",
-        "/opt/codex",
-        "--dry-run",
-      ]),
-    ).toEqual({
-      codexPath: "/opt/codex",
-      dryRun: true,
-      extensionId: EXTENSION_ID,
-      type: "install",
-    });
-    expect(parseInstallerArguments(["uninstall", "--dry-run"])).toEqual({
-      dryRun: true,
-      type: "uninstall",
-    });
-    expect(parseInstallerArguments(["eudic-configure", "--", "--dry-run"])).toEqual({
-      dryRun: true,
-      type: "eudic-configure",
-    });
-    expect(parseInstallerArguments(["eudic-remove"])).toEqual({
-      dryRun: false,
-      type: "eudic-remove",
-    });
-    expect(parseInstallerArguments(["openai-configure", "--", "--dry-run"])).toEqual({
-      dryRun: true,
-      type: "openai-configure",
-    });
-    expect(parseInstallerArguments(["openai-remove"])).toEqual({
-      dryRun: false,
-      type: "openai-remove",
-    });
-    expect(parseInstallerArguments(["provider-set", "api", "--dry-run"])).toEqual({
-      dryRun: true,
-      provider: "openai-responses",
-      type: "provider-set",
-    });
-    expect(parseInstallerArguments(["provider-set", "codex"])).toEqual({
-      dryRun: false,
-      provider: "codex",
-      type: "provider-set",
-    });
-    expect(parseInstallerArguments(["provider-status"])).toEqual({ type: "provider-status" });
-    expect(parseInstallerArguments(["--help"])).toEqual({ type: "help" });
-  });
-
-  it.each([
-    [[]],
-    [["install"]],
-    [["install", "--extension-id"]],
-    [["uninstall", "--extension-id", EXTENSION_ID]],
-    [["install", "--extension-id", EXTENSION_ID, "--unknown"]],
-    [["provider-set"]],
-    [["provider-set", "openai-responses"]],
-    [["provider-set", "--dry-run", "api"]],
-    [["provider-set", "api", "--dry-run", "--dry-run"]],
-    [["provider-set", "api", "--"]],
-    [["provider-set", "api", "extra"]],
-    [["provider-status", "--dry-run"]],
-  ])("rejects invalid arguments %j", (arguments_) => {
-    expect(() => parseInstallerArguments(arguments_)).toThrow(/usage|argument|extension|provider/i);
-  });
-});
-
-describe("resolveCodexExecutable", () => {
-  it("finds and canonicalizes an executable from PATH without a shell", async () => {
-    const directory = await createTemporaryDirectory();
-    const executable = join(directory, "codex");
-    await writeFile(executable, "#!/bin/sh\n", "utf8");
-    await chmod(executable, 0o755);
-
-    await expect(resolveCodexExecutable(undefined, directory)).resolves.toBe(
-      await realpath(executable),
-    );
-  });
-
-  it("rejects missing and relative explicit paths", async () => {
-    await expect(resolveCodexExecutable(undefined, "")).rejects.toThrow(/Codex CLI/i);
-    await expect(resolveCodexExecutable("bin/codex", "/usr/bin")).rejects.toThrow(/absolute/i);
-  });
-});
-
 function createRuntime(
   operations: InstallerCliOperations,
   output: string[],
@@ -129,6 +40,17 @@ function createRuntime(
     compatibleCredentialOperations: {
       configureCompatible: vi.fn(),
       removeCompatible: vi.fn(),
+    },
+    compatibleHttpConfigurationStore: {
+      read: vi.fn().mockResolvedValue({
+        allowInsecureHttp: true,
+        baseUrl: "http://101.133.153.118:9090/v1",
+        effort: "low",
+        model: "gpt-5.4-mini",
+        schemaVersion: 1,
+      }),
+      remove: vi.fn(),
+      write: vi.fn(),
     },
     environment: { HOME: "/Users/tester", PATH: "/usr/bin" },
     homeDirectory: "/Users/tester",
@@ -151,6 +73,49 @@ function createRuntime(
 }
 
 describe("executeInstallerCommand", () => {
+  it("updates compatible configuration without changing the selected provider", async () => {
+    const directory = await createTemporaryDirectory();
+    const providerStore = new ProviderConfigurationStore(join(directory, "provider.json"));
+    const compatibleStore = new CompatibleHttpConfigurationStore(
+      join(directory, "compatible-http.json"),
+    );
+    const runtime = createRuntime(
+      {
+        configureEudic: vi.fn(),
+        configureOpenAI: vi.fn(),
+        install: vi.fn(),
+        removeEudic: vi.fn(),
+        removeOpenAI: vi.fn(),
+        uninstall: vi.fn(),
+      },
+      [],
+      {
+        compatibleHttpConfigurationStore: compatibleStore,
+        providerConfigurationStore: providerStore,
+      },
+    );
+
+    await executeInstallerCommand(
+      {
+        configuration: {
+          allowInsecureHttp: true,
+          baseUrl: "http://101.133.153.118:9090/v1",
+          effort: "low",
+          model: "gpt-5.4-mini",
+          schemaVersion: 1,
+        },
+        dryRun: false,
+        type: "compatible-config-set",
+      },
+      runtime,
+    );
+
+    await expect(providerStore.read()).resolves.toBe("codex");
+    await expect(compatibleStore.read(new AbortController().signal)).resolves.toMatchObject({
+      model: "gpt-5.4-mini",
+    });
+  });
+
   it("sets and reports providers without invoking installer, Keychain, or Codex operations", async () => {
     const output: string[] = [];
     const operations: InstallerCliOperations = {

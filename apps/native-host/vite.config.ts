@@ -22,19 +22,25 @@ function copyProviderSchemas(): Plugin {
 export function createNativeHostConfig(mode: string): UserConfig {
   const isInstallerBuild = mode === "installer";
   const isDiagnosticsBuild = mode === "diagnostics";
+  const isCompatibleSmokeBuild = mode === "compatible-smoke";
   const input = isInstallerBuild
     ? "src/install/cli.ts"
     : isDiagnosticsBuild
       ? "src/diagnostics/compare-providers.ts"
-      : "src/main.ts";
+      : isCompatibleSmokeBuild
+        ? "src/diagnostics/run-compatible-smoke.ts"
+        : "src/main.ts";
   const entryFileNames = isInstallerBuild
     ? "install/cli.js"
     : isDiagnosticsBuild
       ? "diagnostics/compare-providers.js"
-      : "main.js";
+      : isCompatibleSmokeBuild
+        ? "diagnostics/run-compatible-smoke.js"
+        : "main.js";
+  const isSecondaryBuild = isInstallerBuild || isDiagnosticsBuild || isCompatibleSmokeBuild;
   return {
     build: {
-      emptyOutDir: !isInstallerBuild && !isDiagnosticsBuild,
+      emptyOutDir: !isSecondaryBuild,
       minify: false,
       outDir: outputDirectory,
       rollupOptions: {
@@ -49,7 +55,7 @@ export function createNativeHostConfig(mode: string): UserConfig {
       ssr: true,
       target: "node18",
     },
-    plugins: isInstallerBuild || isDiagnosticsBuild ? [] : [copyProviderSchemas()],
+    plugins: isSecondaryBuild ? [] : [copyProviderSchemas()],
     ssr: {
       noExternal: true,
     },

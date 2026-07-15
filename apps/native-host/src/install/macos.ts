@@ -3,6 +3,11 @@ import { access, chmod, copyFile, lstat, mkdir, readFile, rm, writeFile } from "
 import { tmpdir } from "node:os";
 import { dirname, isAbsolute, join } from "node:path";
 
+import {
+  CompatibleHttpConfigurationError,
+  CompatibleHttpConfigurationStore,
+} from "../config/compatible-http-configuration-store.js";
+import { ProviderConfigurationStore } from "../config/provider-configuration-store.js";
 import { checkCodexCapabilities } from "../runtime/codex-capabilities.js";
 import type { ProcessRunner } from "../runtime/codex-process.js";
 import { createNativeHostManifest, NATIVE_HOST_NAME } from "./native-manifest.js";
@@ -200,6 +205,23 @@ async function validateOwnedManifest(paths: MacosInstallationPaths): Promise<boo
   return true;
 }
 
+async function validatePreservedConfigurations(paths: MacosInstallationPaths): Promise<void> {
+  await new ProviderConfigurationStore(paths.providerConfigurationPath).read();
+  try {
+    await new CompatibleHttpConfigurationStore(paths.compatibleHttpConfigurationPath).read(
+      new AbortController().signal,
+    );
+  } catch (error) {
+    if (
+      error instanceof CompatibleHttpConfigurationError &&
+      error.code === "MODEL_PROVIDER_NOT_CONFIGURED"
+    ) {
+      return;
+    }
+    throw error;
+  }
+}
+
 function installActions(paths: MacosInstallationPaths): string[] {
   return [
     "Validate Node.js and Codex capabilities/login",
@@ -217,6 +239,7 @@ export async function installMacosNativeHost(
   await validateSources(options);
   await validateOwnedApplication(paths);
   await validateOwnedManifest(paths);
+  await validatePreservedConfigurations(paths);
   await checkCodexCapabilities({
     codexExecutable: options.codexExecutable,
     environment: options.environment,

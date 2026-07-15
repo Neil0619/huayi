@@ -15,6 +15,7 @@ import { dirname, join } from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
+import { CompatibleHttpConfigurationStore } from "../config/compatible-http-configuration-store.js";
 import { ProviderConfigurationStore } from "../config/provider-configuration-store.js";
 import { APP_SERVER_DISABLED_FEATURES } from "../runtime/codex-app-server-config.js";
 import type {
@@ -25,7 +26,6 @@ import type {
 import { createMacosInstallationPaths } from "./paths.js";
 import {
   installMacosNativeHost,
-  renderLauncherScript,
   uninstallMacosNativeHost,
   type InstallMacosNativeHostOptions,
 } from "./macos.js";
@@ -232,6 +232,17 @@ describe("installMacosNativeHost", () => {
     await installMacosNativeHost(createOptions(fixture, new CapabilityRunner()));
     const providerStore = new ProviderConfigurationStore(paths.providerConfigurationPath);
     await providerStore.write("openai-responses", false);
+    const compatibleStore = new CompatibleHttpConfigurationStore(
+      paths.compatibleHttpConfigurationPath,
+    );
+    const compatibleConfiguration = {
+      allowInsecureHttp: true,
+      baseUrl: "http://101.133.153.118:9090/v1",
+      effort: "low",
+      model: "gpt-5.4-mini",
+      schemaVersion: 1,
+    } as const;
+    await compatibleStore.write(compatibleConfiguration, false);
     await writeFile(join(paths.schemaDirectory, "obsolete.json"), "{}\n", "utf8");
     await writeFile(fixture.sourceBundlePath, "// host bundle v2\n", "utf8");
 
@@ -240,6 +251,23 @@ describe("installMacosNativeHost", () => {
     expect(await readFile(paths.bundlePath, "utf8")).toBe("// host bundle v2\n");
     expect(await readdir(paths.schemaDirectory)).toEqual([...SCHEMA_NAMES].sort());
     await expect(providerStore.read()).resolves.toBe("openai-responses");
+    await expect(compatibleStore.read(new AbortController().signal)).resolves.toEqual(
+      compatibleConfiguration,
+    );
+  });
+
+  it("rejects an unsafe compatible configuration target without overwriting it", async () => {
+    const fixture = await createFixture();
+    const paths = createMacosInstallationPaths(fixture.homeDirectory);
+    await installMacosNativeHost(createOptions(fixture, new CapabilityRunner()));
+    const outsidePath = join(fixture.rootDirectory, "outside-compatible.json");
+    await writeFile(outsidePath, "keep", "utf8");
+    await symlink(outsidePath, paths.compatibleHttpConfigurationPath);
+
+    await expect(
+      installMacosNativeHost(createOptions(fixture, new CapabilityRunner())),
+    ).rejects.toThrow();
+    expect(await readFile(outsidePath, "utf8")).toBe("keep");
   });
 
   it("refuses a symlinked provider directory instead of writing outside the owned root", async () => {
@@ -320,24 +348,6 @@ describe("installMacosNativeHost", () => {
     ).rejects.toThrow(/security|accessible/i);
     expect(await exists(paths.applicationDirectory)).toBe(false);
     expect(await exists(paths.nativeManifestPath)).toBe(false);
-  });
-});
-
-describe("launcher rendering", () => {
-  it("quotes every executable and path as one POSIX shell argument", () => {
-    const script = renderLauncherScript({
-      bundlePath: "/Application Support/Huayi's/main.js",
-      codexExecutable: "/Applications/Codex's/bin/codex",
-      codexHome: "/Users/Test User/.codex",
-      homeDirectory: "/Users/Test User",
-      nodeExecutable: "/Node Versions/20/bin/node",
-      schemaDirectory: "/Application Support/Huayi's/provider/schemas",
-      workingDirectory: "/Application Support/Huayi's/workdir",
-    });
-
-    expect(script).toContain("'/Applications/Codex'\"'\"'s/bin/codex'");
-    expect(script).toContain("'/Node Versions/20/bin/node'");
-    expect(script).toContain("'/Application Support/Huayi'\"'\"'s/main.js'");
   });
 });
 

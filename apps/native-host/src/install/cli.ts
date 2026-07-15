@@ -1,12 +1,17 @@
-import { constants } from "node:fs";
-import { access, realpath } from "node:fs/promises";
 import { homedir } from "node:os";
-import { delimiter, isAbsolute, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import type { ModelProvider } from "@huayi/protocol";
 
+import { CompatibleHttpConfigurationStore } from "../config/compatible-http-configuration-store.js";
 import { parseProviderAlias } from "../config/provider-configuration.js";
+import {
+  executeCompatibleConfigurationCommand,
+  isCompatibleConfigurationCommand,
+  parseCompatibleConfigurationCommand,
+  type CompatibleConfigurationInstallerCommand,
+  type CompatibleConfigurationStoreAccess,
+} from "./compatible-http-configuration-cli.js";
 import {
   ProviderConfigurationStore,
   type ProviderConfigurationResult,
@@ -21,6 +26,7 @@ import {
   type CompatibleCredentialCliOperations,
   type CompatibleCredentialInstallerCommand,
 } from "./compatible-http-credential-cli.js";
+import { resolveCodexExecutable } from "./codex-executable.js";
 import {
   configureEudicAuthorization,
   NodeInteractiveProcessRunner,
@@ -56,12 +62,16 @@ const USAGE = [
   "  huayi-installer openai-remove [--dry-run]",
   "  huayi-installer compatible-key-configure [--dry-run]",
   "  huayi-installer compatible-key-remove [--dry-run]",
-  "  huayi-installer provider-set <api|codex> [--dry-run]",
+  "  huayi-installer compatible-config-set --base-url <URL> --model <MODEL> --effort <EFFORT> --allow-insecure-http [--dry-run]",
+  "  huayi-installer compatible-config-status",
+  "  huayi-installer compatible-config-remove [--dry-run]",
+  "  huayi-installer provider-set <api|codex|compatible-http> [--dry-run]",
   "  huayi-installer provider-status",
 ].join("\n");
 
 export type InstallerCommand =
   | { type: "help" }
+  | CompatibleConfigurationInstallerCommand
   | CompatibleCredentialInstallerCommand
   | { codexPath?: string; dryRun: boolean; extensionId: string; type: "install" }
   | { dryRun: boolean; type: "eudic-configure" }
@@ -88,6 +98,7 @@ export interface InstallerCliOperations {
 
 export interface InstallerCliRuntime {
   compatibleCredentialOperations: CompatibleCredentialCliOperations;
+  compatibleHttpConfigurationStore: CompatibleConfigurationStoreAccess;
   environment: NodeJS.ProcessEnv;
   homeDirectory: string;
   interactiveProcessRunner: InteractiveProcessRunner;
@@ -120,6 +131,8 @@ export function parseInstallerArguments(arguments_: readonly string[]): Installe
   }
   const compatibleCredentialCommand = parseCompatibleCredentialCommand(arguments_);
   if (compatibleCredentialCommand !== undefined) return compatibleCredentialCommand;
+  const compatibleConfigurationCommand = parseCompatibleConfigurationCommand(arguments_);
+  if (compatibleConfigurationCommand !== undefined) return compatibleConfigurationCommand;
   const command = arguments_[0];
   if (command === "provider-status") {
     if (arguments_.length !== 1) {
@@ -130,7 +143,7 @@ export function parseInstallerArguments(arguments_: readonly string[]): Installe
   if (command === "provider-set") {
     const providerAlias = arguments_[1];
     if (providerAlias === undefined) {
-      throw new Error(`provider-set requires api or codex.\n${USAGE}`);
+      throw new Error(`provider-set requires api, codex, or compatible-http.\n${USAGE}`);
     }
     const provider = parseProviderAlias(providerAlias);
     if (arguments_.length > 3 || (arguments_.length === 3 && arguments_[2] !== "--dry-run")) {
@@ -195,38 +208,7 @@ export function parseInstallerArguments(arguments_: readonly string[]): Installe
   };
 }
 
-async function canonicalExecutable(path: string): Promise<string> {
-  await access(path, constants.X_OK);
-  return realpath(path);
-}
-
-export async function resolveCodexExecutable(
-  explicitPath: string | undefined,
-  pathEnvironment: string | undefined,
-): Promise<string> {
-  if (explicitPath !== undefined) {
-    if (!isAbsolute(explicitPath)) {
-      throw new TypeError("Explicit Codex path must be absolute.");
-    }
-    try {
-      return await canonicalExecutable(explicitPath);
-    } catch (error) {
-      throw new Error("Codex CLI executable is not accessible.", { cause: error });
-    }
-  }
-
-  for (const directory of pathEnvironment?.split(delimiter) ?? []) {
-    if (!isAbsolute(directory)) {
-      continue;
-    }
-    try {
-      return await canonicalExecutable(join(directory, "codex"));
-    } catch {
-      // Continue through the explicit PATH allowlist without invoking a shell.
-    }
-  }
-  throw new Error("Codex CLI executable was not found in PATH.");
-}
+export { resolveCodexExecutable } from "./codex-executable.js";
 
 function reportResult(result: CredentialOperationResult, runtime: InstallerCliRuntime): void {
   if (result.actions.length === 0) {
@@ -254,15 +236,17 @@ export async function executeInstallerCommand(
     reportResult(await executeCompatibleCredentialCommand(command, runtime), runtime);
     return;
   }
+  if (isCompatibleConfigurationCommand(command)) {
+    await executeCompatibleConfigurationCommand(command, runtime);
+    return;
+  }
   if (command.type === "provider-status") {
     runtime.writeOutput(await runtime.providerConfigurationStore.read());
     return;
   }
   if (command.type === "provider-set") {
     if (command.provider === "openai-compatible-http") {
-      throw new Error(
-        "Compatible HTTP provider selection requires local configuration validation.",
-      );
+      await runtime.compatibleHttpConfigurationStore.read(new AbortController().signal);
     }
     const result = await runtime.providerConfigurationStore.write(command.provider, command.dryRun);
     runtime.writeOutput(`${result.dryRun ? "[dry-run] " : ""}Set provider to ${result.provider}.`);
@@ -352,6 +336,9 @@ export function createDefaultInstallerRuntime(moduleUrl = import.meta.url): Inst
   const homeDirectory = homedir();
   return {
     compatibleCredentialOperations: compatibleCredentialCliOperations,
+    compatibleHttpConfigurationStore: new CompatibleHttpConfigurationStore(
+      createMacosInstallationPaths(homeDirectory).compatibleHttpConfigurationPath,
+    ),
     environment: process.env,
     homeDirectory,
     interactiveProcessRunner: new NodeInteractiveProcessRunner(),

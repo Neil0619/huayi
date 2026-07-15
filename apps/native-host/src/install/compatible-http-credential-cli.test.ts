@@ -30,6 +30,11 @@ function createRuntime(): InstallerCliRuntime {
         dryRun: false,
       }),
     },
+    compatibleHttpConfigurationStore: {
+      read: vi.fn(),
+      remove: vi.fn(),
+      write: vi.fn(),
+    },
     environment: { HOME: "/Users/tester", PATH: "/usr/bin" },
     homeDirectory: "/Users/tester",
     interactiveProcessRunner: { run: vi.fn() },
