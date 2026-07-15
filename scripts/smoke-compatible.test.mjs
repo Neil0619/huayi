@@ -87,3 +87,22 @@ test("workspace exposes compatible configuration and smoke lifecycle commands", 
   assert.equal(rootPackage.scripts["smoke:compatible"], "node scripts/smoke-compatible.mjs");
   assert.match(hostPackage.scripts.build, /--mode compatible-smoke/);
 });
+
+test("compatible lifecycle documentation does not pass a literal pnpm separator", async () => {
+  const documentedFiles = [
+    "../AGENTS.md",
+    "../README.md",
+    "../docs/setup-macos.md",
+    "../docs/superpowers/specs/2026-07-15-openai-compatible-http-provider-design.md",
+    "../docs/superpowers/plans/2026-07-15-openai-compatible-http-provider.md",
+  ];
+
+  for (const path of documentedFiles) {
+    const contents = await readFile(new URL(path, import.meta.url), "utf8");
+    assert.doesNotMatch(
+      contents,
+      /pnpm host:compatible:[^\n]+ --(?: | \\\n)/u,
+      `${path} must pass compatible CLI options directly`,
+    );
+  }
+});

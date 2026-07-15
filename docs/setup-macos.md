@@ -140,7 +140,7 @@ pnpm host:compatible:key:configure
 钥匙串项；官方与第三方两项必须始终分离。随后写入独立配置并检查明文风险状态：
 
 ```bash
-pnpm host:compatible:config:set -- \
+pnpm host:compatible:config:set \
   --base-url http://101.133.153.118:9090/v1 \
   --model gpt-5.4-mini \
   --effort low \
@@ -177,9 +177,9 @@ pnpm host:provider:set -- codex
 只在明确清理 Compatible 状态时分别执行：
 
 ```bash
-pnpm host:compatible:config:remove -- --dry-run
+pnpm host:compatible:config:remove --dry-run
 pnpm host:compatible:config:remove
-pnpm host:compatible:key:remove -- --dry-run
+pnpm host:compatible:key:remove --dry-run
 pnpm host:compatible:key:remove
 ```
 
@@ -351,7 +351,7 @@ pnpm build
 pnpm host:install -- --extension-id kfkamoejomjdihipgdkmfjcdenlhgnpd \
   --codex-path /Applications/ChatGPT.app/Contents/Resources/codex
 pnpm host:compatible:key:configure
-pnpm host:compatible:config:set -- \
+pnpm host:compatible:config:set \
   --base-url http://101.133.153.118:9090/v1 \
   --model gpt-5.4-mini \
   --effort low \

@@ -175,16 +175,16 @@ smoke 成功后才修改 `provider.json`。
 
 ```text
 pnpm host:compatible:key:configure
-pnpm host:compatible:key:remove -- --dry-run
+pnpm host:compatible:key:remove --dry-run
 pnpm host:compatible:key:remove
 
-pnpm host:compatible:config:set -- \
+pnpm host:compatible:config:set \
   --base-url http://101.133.153.118:9090/v1 \
   --model gpt-5.4-mini \
   --effort low \
   --allow-insecure-http
 pnpm host:compatible:config:status
-pnpm host:compatible:config:remove -- --dry-run
+pnpm host:compatible:config:remove --dry-run
 pnpm host:compatible:config:remove
 ```
 

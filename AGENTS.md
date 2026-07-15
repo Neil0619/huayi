@@ -91,7 +91,7 @@ browsers, history, synchronization, follow-up chat, or browser-based provider co
   - `pnpm host:openai:remove`
   - `pnpm host:compatible:key:configure`
   - `pnpm host:compatible:key:remove`
-  - `pnpm host:compatible:config:set -- --base-url <URL> --model <MODEL> --effort <EFFORT> --allow-insecure-http`
+  - `pnpm host:compatible:config:set --base-url <URL> --model <MODEL> --effort <EFFORT> --allow-insecure-http`
   - `pnpm host:compatible:config:status`
   - `pnpm host:compatible:config:remove`
   - `pnpm host:provider:set -- api|compatible-http|codex`

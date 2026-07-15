@@ -65,7 +65,7 @@ pnpm build
 pnpm host:install -- --extension-id kfkamoejomjdihipgdkmfjcdenlhgnpd \
   --codex-path /Applications/ChatGPT.app/Contents/Resources/codex
 pnpm host:compatible:key:configure
-pnpm host:compatible:config:set -- \
+pnpm host:compatible:config:set \
   --base-url http://101.133.153.118:9090/v1 \
   --model gpt-5.4-mini \
   --effort low \
