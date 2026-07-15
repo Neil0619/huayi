@@ -116,7 +116,7 @@ describe("hostEventSchema", () => {
   it("accepts strict provider-aware API health", () => {
     const apiHealth = {
       codexVersion: null,
-      hostVersion: "0.5.0",
+      hostVersion: "0.6.0",
       model: "gpt-5.6-luna",
       provider: "openai-responses",
       ready: true,
@@ -140,7 +140,7 @@ describe("hostEventSchema", () => {
   it("accepts Codex health only with a Codex version", () => {
     const codexHealth = {
       codexVersion: "codex-cli 0.144.1",
-      hostVersion: "0.5.0",
+      hostVersion: "0.6.0",
       model: "gpt-5.4-mini",
       provider: "codex",
       ready: true,

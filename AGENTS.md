@@ -5,7 +5,8 @@
 Huayi is a personal macOS Google Chrome extension for English selection translation and
 analysis. The extension communicates with a local Native Messaging host, which uses an already
 authenticated Codex CLI by default or an explicitly enabled OpenAI Responses API provider.
-Version 0.5.x is not a Chrome Web Store release and does not support Windows, Linux, other
+Version 0.6.x also supports an explicitly configured OpenAI-compatible HTTP provider. It is not
+a Chrome Web Store release and does not support Windows, Linux, other
 browsers, history, synchronization, follow-up chat, or browser-based provider configuration.
 
 ## Sources of truth
@@ -27,13 +28,17 @@ browsers, history, synchronization, follow-up chat, or browser-based provider co
   `docs/superpowers/specs/2026-07-14-openai-responses-provider-design.md`.
 - OpenAI provider execution order:
   `docs/superpowers/plans/2026-07-14-openai-responses-provider.md`.
+- OpenAI-compatible HTTP provider behavior:
+  `docs/superpowers/specs/2026-07-15-openai-compatible-http-provider-design.md`.
+- OpenAI-compatible HTTP provider execution order:
+  `docs/superpowers/plans/2026-07-15-openai-compatible-http-provider.md`.
 - Keep temporary task status out of AGENTS.md files.
 
 ## Current release invariants
 
 - All app, package, Manifest, Host, App Server client, and Eudic User-Agent identities are
-  `0.5.0`; the Native Messaging `schemaVersion` is `3`.
-- Wire v2 is incompatible with v3 and is rejected. Upgrade or roll back the Extension and Native
+  `0.6.0`; the Native Messaging `schemaVersion` is `4`.
+- Wire v3 is incompatible with v4 and is rejected. Upgrade or roll back the Extension and Native
   Host synchronously; do not add a translation shim.
 - Missing provider configuration defaults to Codex. Every other invalid configuration state
   fails closed. Each analysis request reads and pins one provider; never migrate an active
@@ -46,9 +51,10 @@ browsers, history, synchronization, follow-up chat, or browser-based provider co
 - Provider-validation stderr diagnostics may contain only bounded allowlisted stages and field
   names. Other startup and protocol diagnostics use fixed safe messages. No stderr path may
   include page, model, credential, raw JSON, or environment contents.
-- Default gates are offline. Run `pnpm smoke:codex` or `pnpm smoke:compare` only after explicit
-  approval for real model, quota, and API billing; installation and Chrome verification require
-  a separate explicit approval.
+- Default gates are offline. Run `pnpm smoke:codex`, `pnpm smoke:compare`, or
+  `pnpm smoke:compatible` only after separate informed approval. Compatible approval must cover
+  plaintext credential/page-data transmission and third-party billing; other smoke approval must
+  cover real-model quota/API billing. Installation and Chrome verification need separate approval.
 - The personal Extension ID is `kfkamoejomjdihipgdkmfjcdenlhgnpd`. Synchronous reinstall uses
   `pnpm host:install -- --extension-id kfkamoejomjdihipgdkmfjcdenlhgnpd` and preserves the
   `com.huayi.codex_bridge.eudic` / `authorization` Keychain item and documented macOS paths.
@@ -76,16 +82,23 @@ browsers, history, synchronization, follow-up chat, or browser-based provider co
   - `pnpm test:e2e`
   - `pnpm build`
   - `pnpm smoke:codex`
+  - `pnpm smoke:compatible`
   - `pnpm smoke:compare`
   - `pnpm host:install -- --extension-id <ID>`
   - `pnpm host:eudic:configure`
   - `pnpm host:eudic:remove`
   - `pnpm host:openai:configure`
   - `pnpm host:openai:remove`
-  - `pnpm host:provider:set -- api|codex`
+  - `pnpm host:compatible:key:configure`
+  - `pnpm host:compatible:key:remove`
+  - `pnpm host:compatible:config:set -- --base-url <URL> --model <MODEL> --effort <EFFORT> --allow-insecure-http`
+  - `pnpm host:compatible:config:status`
+  - `pnpm host:compatible:config:remove`
+  - `pnpm host:provider:set -- api|compatible-http|codex`
   - `pnpm host:provider:status`
   - `pnpm host:uninstall`
-- Default tests must never call OpenAI, real Codex, a real Keychain item, or the Eudic API. Use
+- Default tests must never call OpenAI, a third-party HTTP service, real Codex, a real Keychain
+  item, or the Eudic API. Use
   fake App Servers, process runners, authorization readers, and fetch implementations. Only the
   explicitly approved smoke commands may run real models or consume subscription/API quota.
 

@@ -79,7 +79,7 @@ describe("ChromeNativeTransport", () => {
   it("connects lazily to the fixed host and validates received events", () => {
     const port = new FakeNativePort();
     const hostNames: string[] = [];
-    const received: string[] = [];
+    const received: unknown[] = [];
     const transport = new ChromeNativeTransport({
       connectNative: (hostName) => {
         hostNames.push(hostName);
@@ -87,23 +87,95 @@ describe("ChromeNativeTransport", () => {
       },
       readLastError: () => undefined,
     });
-    transport.onEvent((event) => received.push(event.type));
+    transport.onEvent((event) => received.push(event));
 
     transport.send(healthRequest);
-    port.onMessage.emit({
+    const healthResult = {
       codexVersion: "codex-cli 0.144.1",
-      hostVersion: "0.1.0",
+      hostVersion: "0.6.0",
       model: "gpt-5.4-mini",
       provider: "codex",
       ready: true,
       requestId: "health-1",
       schemaVersion: 4,
       type: "health-result",
-    });
+    } as const;
+    port.onMessage.emit(healthResult);
 
     expect(hostNames).toEqual([NATIVE_HOST_NAME]);
     expect(port.messages).toEqual([healthRequest]);
-    expect(received).toEqual(["health-result"]);
+    expect(received).toEqual([healthResult]);
+  });
+
+  it.each([
+    ["official OpenAI", "openai-responses", "gpt-5.6-luna"],
+    ["compatible HTTP", "openai-compatible-http", "gpt-5.4-mini"],
+  ] as const)(
+    "accepts %s health without endpoint or credential fields",
+    (_name, provider, model) => {
+      const port = new FakeNativePort();
+      const received: unknown[] = [];
+      const transport = new ChromeNativeTransport({
+        connectNative: () => port,
+        readLastError: () => undefined,
+      });
+      transport.onEvent((event) => received.push(event));
+
+      transport.send(healthRequest);
+      port.onMessage.emit({
+        codexVersion: null,
+        hostVersion: "0.6.0",
+        model,
+        provider,
+        ready: true,
+        requestId: "health-1",
+        schemaVersion: 4,
+        type: "health-result",
+      });
+
+      expect(received).toEqual([
+        {
+          codexVersion: null,
+          hostVersion: "0.6.0",
+          model,
+          provider,
+          ready: true,
+          requestId: "health-1",
+          schemaVersion: 4,
+          type: "health-result",
+        },
+      ]);
+    },
+  );
+
+  it.each([
+    ["an unknown Provider", { provider: "unknown-provider", schemaVersion: 4 }],
+    ["wire v3", { schemaVersion: 3 }],
+    ["an endpoint", { endpoint: "http://third-party.example/v1", schemaVersion: 4 }],
+    ["a credential", { credential: "must-stay-host-private", schemaVersion: 4 }],
+  ])("rejects compatible HTTP health with %s", (_name, overrides) => {
+    const port = new FakeNativePort();
+    const reasons: string[] = [];
+    const transport = new ChromeNativeTransport({
+      connectNative: () => port,
+      readLastError: () => undefined,
+    });
+    transport.onDisconnect((disconnect) => reasons.push(disconnect.reason));
+
+    transport.send(healthRequest);
+    port.onMessage.emit({
+      codexVersion: null,
+      hostVersion: "0.6.0",
+      model: "gpt-5.4-mini",
+      provider: "openai-compatible-http",
+      ready: true,
+      requestId: "health-1",
+      type: "health-result",
+      ...overrides,
+    });
+
+    expect(port.disconnected).toBe(true);
+    expect(reasons).toEqual(["invalid-message"]);
   });
 
   it("fails closed on invalid host messages", () => {

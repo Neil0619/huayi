@@ -57,6 +57,9 @@ describe("parseContentCommand", () => {
   it("rejects unknown fields and malformed nested requests", () => {
     for (const extra of [
       { context: "page context" },
+      { credential: "must-stay-host-private" },
+      { endpoint: "http://third-party.example/v1" },
+      { provider: "openai-compatible-http" },
       { request },
       { selection: "investigation" },
       { source: "overlay" },

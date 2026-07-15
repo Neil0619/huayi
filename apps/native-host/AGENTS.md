@@ -1,11 +1,10 @@
 # Native Host Instructions
 
-- stdout is exclusively the Native Messaging binary protocol. Write diagnostics only to stderr.
+- stdout is only the Native Messaging protocol; diagnostics go only to stderr.
 - Keep the Host health version, App Server `clientInfo.version`, and Eudic `User-Agent` at the
-  current release identity `0.5.0`; wire `schemaVersion` is `3` and rejects v2.
-- Validate every inbound and outbound value through `@huayi/protocol`.
-- The native host name is `com.huayi.codex_bridge`.
-- Spawn Codex with an argument array and stdin. Never use `shell: true`.
+  current release identity `0.6.0`; wire `schemaVersion` is `4` and rejects v3.
+- Validate all wire values with `@huayi/protocol`; the Host name is `com.huayi.codex_bridge`.
+- Spawn Codex with argument arrays and stdin, never `shell: true`.
 - Codex App Server has no ignore-user-config or ignore-rules flags; never invent or require them.
 - Start App Server with the verified environment allowlist, strict config, and explicit overrides
   for read-only/no-network sandboxing, never approval, disabled web search, no history, empty
@@ -15,34 +14,33 @@
   `in_app_browser`, `memories`, `multi_agent`, `plugins`, `remote_plugin`, `shell_snapshot`,
   `shell_tool`, `skill_mcp_dependency_install`, `tool_call_mcp_elicitation`, `tool_suggest`,
   `unified_exec`, and `workspace_dependencies`.
-- Discover directly configured MCP servers with the no-model `codex mcp list --json` command
-  before each App Server process start; validate names and disable every enabled server with an
-  individual config override.
-- Never use unsupported config keys or `mcp_servers={}` as a substitute for verified isolation.
+- Before each App Server start, use no-model `codex mcp list --json`; validate names and disable
+  each enabled server individually. Never use unsupported keys or `mcp_servers={}`.
 - Accept Hook records only for the dedicated cwd with empty hooks/warnings/errors, and MCP status
   records only when disconnected and without tools, resources or templates.
 - Any discovery failure, unsafe name, active capability or unknown response shape fails closed.
-- Every analysis uses the dedicated empty cwd and a new ephemeral thread with empty instruction
-  sources, built-in `openai`, `gpt-5.4-mini`, and `low` effort. Validate all returned invariants.
+- Every analysis uses the empty dedicated cwd and a new ephemeral thread with empty instructions,
+  built-in `openai`, `gpt-5.4-mini`, and `low`; validate every returned invariant.
 - Provider configuration is the strict owned file
   `~/Library/Application Support/Huayi/native-host/provider.json`. A missing file means Codex;
   every other invalid state fails closed. Read once per request, pin the route, and never fall
   back automatically.
-- Fix Responses to `https://api.openai.com/v1/responses`, `gpt-5.6-luna`, `none` effort, streaming,
-  strict JSON Schema, `store: false`, and no tools or caller overrides.
-- Read each API request's Key from `com.huayi.codex_bridge.openai` / `api-key` through fixed
-  `/usr/bin/security`; never cache it or accept it through arguments, environment, files, wire,
-  logs, or tests.
-- Use `redirect: "error"`, bounded bodies, strict SSE event/data matching, one text lifecycle,
-  and no retry. Refusals, tools/reasoning, duplicate/late events, unknown terminals, or unsafe
-  diagnostics fail closed. Tests use fake Keychain readers/fetch and never real OpenAI.
+- Official Responses is fixed to HTTPS, `gpt-5.6-luna + none`, streaming strict Schema,
+  `store:false`, no tools/retry, and strict SSE. Read its Key per request from
+  `com.huayi.codex_bridge.openai` / `api-key`; never cache, inject, or log it.
+- Keep compatible selection, strict `compatible-http.json`, and
+  `com.huayi.codex_bridge.compatible_http` / `api-key` separate. Require literal HTTP consent,
+  credential/query/fragment-free base URL, and only `gpt-5.4-mini + low` or
+  `gpt-5.6-luna + none`.
+- Compatible code never reads/modifies Codex config/auth/session/providers, shell/env credentials,
+  or the official Key. Key/config, smoke, and selection are separate actions; smoke never switches.
+- Compatible POST uses `redirect:error`, `credentials:omit`, no Cookie/retry/fallback, and only the
+  documented strict dialect. Unknown/duplicate/late/tool/refusal/mismatched events fail closed.
 - Warmup may discover MCP and initialize one shared App Server session, but it contains no page
   data and must never call `thread/start`, `turn/start`, or consume model output.
 - Approval, input, app, Hook, MCP, shell, file-change, web, image, dynamic-tool, and
   collaboration-tool items fail closed.
-- Never read, copy, parse, or display `~/.codex/auth.json`.
-- Pass only the documented environment allowlist to Codex.
-- Use a dedicated empty working directory outside the repository.
+- Never access `~/.codex/auth.json`; pass only the Codex environment allowlist and dedicated cwd.
 - Enforce a 60-second request timeout and at most two concurrent requests.
 - Providers implement `AnalysisProvider`; do not leak Codex-specific fields into wire contracts.
 - Provider JSON schemas contain private model content only. The Host injects trusted
@@ -50,21 +48,14 @@
   and never accepts those metadata fields from model output.
 - Progressive deltas and typed sections are previews, not success terminals. Send no section for
   `null` or empty lexical content; only a validated `result` completes analysis successfully.
-- Eudic wordbook support remains separate from `AnalysisProvider` and uses only
-  `https://api.frdic.com/api/open/v1/studylist/word`.
-- Read Eudic authorization for every `check-word` and `add-word` request from the exact macOS
-  Keychain item `com.huayi.codex_bridge.eudic` / `authorization`; never cache it.
-- Never accept Eudic authorization through arguments, environment variables, files, extension
-  messages, logs, snapshots, or test output. Never expose it in errors or Native Messaging.
-- Keychain commands use the fixed `/usr/bin/security` executable with argument arrays and
-  `shell: false`. Configuration must keep `-w` last and must never use `-A`.
-- Eudic HTTP tests inject fake authorization readers and fake fetch implementations. Automated
-  tests must never access the real Keychain or Eudic API.
-- Automated tests inject a fake process runner. Real Codex runs only through the explicit smoke
-  command after explicit approval; default tests must stay offline.
+- Eudic stays outside `AnalysisProvider`, fixed to its HTTPS URL and
+  `com.huayi.codex_bridge.eudic` / `authorization`, read per request and never injected or logged.
+- Keychain commands use fixed `/usr/bin/security`, arrays, `shell:false`, final `-w`, and no `-A`.
+- Default tests use fake process/Keychain/fetch only: no real Codex, HTTP service, Keychain, smoke,
+  Provider switch, or Eudic API.
 - Installation supports dry-run before external writes. Uninstall removes only exact paths owned
   by Huayi.
-- v0.5.0 upgrade and rollback must reinstall Extension and Host synchronously with Extension ID
+- v0.6.0 upgrade and rollback must reinstall Extension and Host synchronously with Extension ID
   `kfkamoejomjdihipgdkmfjcdenlhgnpd`. Reinstall preserves the Keychain service/account and the
   documented Host and Native Messaging manifest paths.
 - Invalid frames, oversized messages, stdout contamination, unknown requests, and invalid model

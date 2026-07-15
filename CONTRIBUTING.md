@@ -7,11 +7,12 @@
 3. 只通过 `@huayi/protocol` 公共导出连接 extension 与 native host，禁止跨包深层导入。
 4. 协议、权限、安全或安装行为变化必须同步更新对应中文文档。
 5. 默认测试不得访问 OpenAI、真实 Codex、真实欧路 API 或真实 macOS 钥匙串；注入 fake App
-   Server、process runner、Keychain reader 和 fetch。真实 `smoke:codex` / `smoke:compare` 均需
-   用户单独授权。
+   Server、process runner、Keychain reader 和 fetch。真实 `smoke:codex` /
+   `smoke:compatible` / `smoke:compare` 均需用户单独知情授权；Compatible 授权必须明确覆盖凭据
+   与页面数据的明文传输和第三方费用。
 6. 根包、三个 workspace 包、扩展 Manifest、Host health、App Server `clientInfo.version` 和
    欧路 `User-Agent` 必须同步；版本一致性测试必须直接覆盖每个运行时身份源。
-7. 当前协议为 `schemaVersion: 3`，运行时拒绝 v2；Extension 与 Host 必须同步升级或回滚。
+7. 当前协议为 `schemaVersion: 4`，运行时拒绝 v3；Extension 与 Host 必须同步升级或回滚。
    删除、重命名或语义不兼容变化必须再次提升版本并附迁移说明。
 8. 手写文件在超过 400 行前拆分；不要新增权限、存储、秘密或无说明的生产依赖。
 9. Provider 私有 JSON Schema 只描述模型内容，不得包含 `sourceText`、`selectionKind` 或公共
@@ -26,6 +27,10 @@
     Schema；Key 只从固定 macOS 钥匙串项读取。自动测试必须使用 fake fetch/Keychain。
 14. 扩展流式 DOM 更新按帧批处理，并复用 `data-huayi-section` 键控节点；测试应观察稳定行为，
     不依赖恰好在某个毫秒捕获瞬时帧。
+15. Compatible Provider 使用独立 `compatible-http.json` 和专用钥匙串项；HTTP 必须显式确认，
+    不得读取 Codex 配置或官方 OpenAI Key。配置、真实 smoke 和 Provider 切换是三个独立动作。
+16. Compatible 默认测试只使用 fake fetch/Keychain，专用 SSE 方言之外的未知、重复、迟到、
+    tool、refusal 或生命周期不匹配事件全部失败关闭。
 
 ## 提交前检查
 
@@ -40,9 +45,11 @@ pnpm build
 git diff --check
 ```
 
-上述门禁必须保持离线。`pnpm smoke:codex` 与 `pnpm smoke:compare` 不属于默认门禁，只能在
-用户明确批准真实模型、ChatGPT/Codex 额度和 OpenAI API 费用后单独执行。本机安装、Provider
-切换、Chrome 操作、钥匙串配置/移除和真实欧路验收同样必须由用户显式批准或执行。
+上述门禁必须保持离线。`pnpm smoke:codex`、`pnpm smoke:compatible` 与
+`pnpm smoke:compare` 不属于默认门禁，只能在
+用户明确批准真实模型、ChatGPT/Codex 额度和对应 API 费用后单独执行；Compatible 还必须单独
+批准凭据/页面数据的明文传输和第三方计费。本机安装、Provider 切换、Chrome 操作、钥匙串
+配置/移除和真实欧路验收同样必须由用户显式批准或执行。
 
 ```bash
 pnpm host:eudic:configure -- --dry-run
@@ -51,6 +58,6 @@ pnpm host:eudic:remove -- --dry-run
 
 提交信息使用 Conventional Commits，例如 `feat(extension): add selection overlay`。
 
-v0.5.0 的同步升级和回滚使用扩展 ID `kfkamoejomjdihipgdkmfjcdenlhgnpd`，并保留欧路与 OpenAI
-两个精确钥匙串项、Provider 配置和既有 Huayi 安装路径；具体命令只以
+v0.6.0 的同步升级和回滚使用扩展 ID `kfkamoejomjdihipgdkmfjcdenlhgnpd`，并保留欧路、官方
+OpenAI 与 Compatible 三个精确钥匙串项、两份 Provider 配置和既有 Huayi 安装路径；具体命令只以
 [macOS 安装说明](docs/setup-macos.md) 为准。

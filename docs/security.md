@@ -5,9 +5,10 @@
 扩展只发送英文选区和所在语义块中围绕选区的最多 2,000 个字符，不发送 URL、标题、整页
 内容、浏览历史或用户身份数据，也不持久化查询、结果或分析数据。
 
-`warmup` 只包含类型、`schemaVersion: 3` 和随机请求 ID，不包含选区、上下文、句子、URL、标题
-或其他页面数据。Codex 模式只完成 MCP 发现和 App Server 安全初始化；API 模式只读取本地
-Provider 配置，不读取 Key、不发送 HTTP。两种模式都不创建模型输出或消费模型额度。
+`warmup` 只包含类型、`schemaVersion: 4` 和随机请求 ID，不包含选区、上下文、句子、URL、标题
+或其他页面数据。Codex 模式只完成 MCP 发现和 App Server 安全初始化；两个 HTTP Provider
+只读取本地 Provider 配置，不读取 Key、不发送 HTTP。三种模式都不创建模型输出或消费模型
+额度。
 
 API 模式只向 OpenAI 发送当前英文选区、最多 2,000 字符上下文、可用的英文句子语境和固定
 分析指令，不发送 URL、标题、浏览/查询历史、欧路授权、Codex 认证或模型输出历史。Provider
@@ -103,6 +104,38 @@ Provider 选择固定保存在
 复用这一受控 Host 接口，不能直接读写文件、Key 或远程配置。
 `provider-set`（包括 dry-run）会先验证任何已有目标；无效目标不会被自动修复或覆盖。
 
+## OpenAI-compatible HTTP 边界
+
+Compatible Provider 的第三方 Key 固定存入独立的 macOS 钥匙串项：
+
+```text
+service: com.huayi.codex_bridge.compatible_http
+account: api-key
+label: Huayi OpenAI-Compatible HTTP API Key
+```
+
+配置、读取和移除固定使用 `/usr/bin/security` 和参数数组，并遵守与官方 OpenAI Key 相同的
+`shell: false`、末尾 `-w`、逐请求读取、不缓存和不泄漏约束。它不会读取官方
+`com.huayi.codex_bridge.openai` / `api-key`；官方 Key 绝不会发送给第三方，第三方 Key 也不会
+发送给官方 OpenAI。本次发布不会读取、复制或删除既有官方 OpenAI 钥匙串项，任何删除都必须
+由用户另行显式执行。
+
+`provider.json` 只保存选择；第三方 endpoint、模型、effort 和风险确认只保存在独立的
+`compatible-http.json`。网页、Content Script、Extension 消息、模型输出和环境变量都不能
+配置或覆盖 endpoint、Key、模型、effort 或 `allowInsecureHttp`。Host 禁止为此路径读取、修改
+或推断 Codex 配置、认证、session、`model_providers` 或 shell 环境。
+
+该 Provider 只允许显式配置的明文 HTTP。API Key、当前英文选区、最多 2,000 字符上下文和
+可用英文句子均会以明文经过网络；它们可能被同一路径上的网络设备或第三方截获、读取、修改
+或替换。`allowInsecureHttp: true` 只记录用户已明确接受风险，不提供 TLS 或完整性保护。
+Compatible 客户端使用 POST、`redirect: "error"`、`credentials: "omit"`，不发送 Cookie、
+不自动重试或 fallback；专用严格 SSE 状态机之外的任何事件和顺序都失败关闭。
+
+配置专用 Key、写入/检查独立配置、运行 `pnpm smoke:compatible` 和执行
+`pnpm host:provider:set -- compatible-http` 必须分别由用户明确触发。Smoke 不修改 Provider，
+一条 `pnpm host:provider:set -- codex` 即可停止后续第三方分析请求。默认测试只使用 fake
+Keychain reader、fake fetch 和脱敏 fixture，不访问第三方、真实钥匙串或 Provider 配置。
+
 ## Codex App Server 进程边界
 
 Native Host 使用参数数组、stdin/stdout 和 `shell: false` 启动 Codex App Server。App Server
@@ -170,8 +203,9 @@ Messaging 帧。
 ephemeral 的含义是分析 thread 不进入可恢复会话历史，不代表 Codex 进程绝不维护自身认证等
 状态。`pnpm smoke:codex` 在运行前后只列举 `CODEX_HOME/sessions` 下的相对文件名，不读取
 session 内容，更不会读取认证文件。默认测试全部使用 fake App Server/fetch。
-`pnpm smoke:compare` 会同时产生 Codex 用量和 OpenAI API 费用；两个真实命令都只能在用户
-分别明确批准真实模型、额度和账单影响后单独执行。
+`pnpm smoke:compatible` 会把固定无敏感用例发送到本机配置的第三方端点；
+`pnpm smoke:compare` 会同时产生 Codex 用量和 OpenAI API 费用。所有真实命令都只能在用户
+分别明确批准真实模型、明文传输、额度和账单影响后单独执行。
 
 ## 外部写入
 
@@ -180,12 +214,14 @@ dry-run 只读验证 Node、构建产物、App Server 能力、禁用功能、Ch
 `/usr/bin/security`，不调用模型、不读取欧路授权或 OpenAI API Key、不创建目录。正式安装
 同样只验证 `security` 可执行，不读取或创建 OpenAI 钥匙串项。
 
-v0.5.0 使用 `schemaVersion: 3` 并拒绝 v2，Extension 与 Host 必须使用扩展 ID
+v0.6.0 使用 `schemaVersion: 4` 并拒绝 v3，Extension 与 Host 必须使用扩展 ID
 `kfkamoejomjdihipgdkmfjcdenlhgnpd` 同步重装或回滚。升级只替换带合法 Huayi 所有权标记的
 bundle、Schema、空工作目录和 launcher，保持
 `~/Library/Application Support/Huayi/native-host/`、Chrome Native Messaging 清单路径，以及
-欧路 `com.huayi.codex_bridge.eudic` / `authorization` 和 OpenAI
-`com.huayi.codex_bridge.openai` / `api-key` 两个钥匙串项不变。完整卸载严格先删除精确欧路项，
-再删除精确 OpenAI 项，最后删除经过所有权验证的 Huayi 文件；任一凭据删除失败都会保留 Host
-文件以便重试。它不会删除 Chrome 父目录、其他 Native Messaging 清单或这两个精确项之外的
-钥匙串项。
+欧路 `com.huayi.codex_bridge.eudic` / `authorization`、官方 OpenAI
+`com.huayi.codex_bridge.openai` / `api-key`、Compatible
+`com.huayi.codex_bridge.compatible_http` / `api-key` 三个钥匙串项和两份配置文件不变。普通完整
+卸载按既有行为删除精确欧路与官方 OpenAI 凭据及经过所有权验证的 Huayi 文件，但不会自动
+删除 Compatible 专用 Key；该项只能由用户显式执行 `host:compatible:key:remove` 删除。任一
+自动凭据删除失败都会保留 Host 文件以便重试。卸载不会删除 Chrome 父目录、其他 Native
+Messaging 清单或这些精确项之外的钥匙串项，也不会触碰任何 Codex 文件。

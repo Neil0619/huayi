@@ -6,8 +6,8 @@
 - Node.js 18 或更高版本。
 - pnpm。
 - 已通过 `codex login` 使用 ChatGPT 登录、且支持 App Server 的 Codex CLI。
-- macOS 自带 `/usr/bin/security`。欧路和 OpenAI API 功能均可选，安装扩展和 Host 时无需
-  已有授权或 API Key。
+- macOS 自带 `/usr/bin/security`。欧路、官方 OpenAI API 和 Compatible HTTP 功能均可选，
+  安装扩展和 Host 时无需已有授权、API Key 或第三方配置。
 
 安装器不只比较 Codex 版本号；dry-run 会检查 `app-server --stdio --strict-config`、
 `--disable` / `--config`，并确认以下功能可以被禁用：
@@ -58,7 +58,7 @@ pnpm host:install -- --extension-id <ID>
 
 建议先运行 dry-run。它只读验证 Node、构建产物、App Server 参数和禁用功能、ChatGPT 登录及
 `/usr/bin/security`；不会调用模型、访问欧路、读取欧路授权或 OpenAI API Key，也不会写入
-用户目录。正式安装同样不会读取或创建 OpenAI 钥匙串项。Codex 不在 `PATH` 时可提供绝对
+用户目录。正式安装同样不会读取或创建任何 API 钥匙串项。Codex 不在 `PATH` 时可提供绝对
 路径：
 
 ```bash
@@ -123,12 +123,75 @@ pnpm host:openai:remove
 该命令只查询并删除 service `com.huayi.codex_bridge.openai`、account `api-key` 的精确项；项
 不存在时幂等。
 
+## 配置 Compatible HTTP Provider（可选、高风险）
+
+该 Provider 会通过明文 HTTP 发送第三方 API Key、当前英文选区、最多 2,000 字符上下文和可用
+英文句子。这些数据可能被同一路径上的网络设备或第三方截获、读取或篡改；
+`--allow-insecure-http` 只表示你明确接受风险，不会提供 TLS 或完整性保护。
+
+第三方 Key 使用独立钥匙串项 `com.huayi.codex_bridge.compatible_http` / `api-key`。不要把 Key
+放入参数、环境变量、普通文件、扩展消息或聊天；用隐藏提示配置：
+
+```bash
+pnpm host:compatible:key:configure
+```
+
+官方 OpenAI Key 不会发送给第三方。v0.6.0 不会读取、复制或删除既有官方 OpenAI Key 或其
+钥匙串项；官方与第三方两项必须始终分离。随后写入独立配置并检查明文风险状态：
+
+```bash
+pnpm host:compatible:config:set -- \
+  --base-url http://101.133.153.118:9090/v1 \
+  --model gpt-5.4-mini \
+  --effort low \
+  --allow-insecure-http
+pnpm host:compatible:config:status
+```
+
+配置文件固定为 `~/Library/Application Support/Huayi/native-host/compatible-http.json`，与只
+保存选择的 `provider.json` 分离。base URL 必须是不带凭据、query、fragment、尾随斜杠或
+`/responses` 的绝对 HTTP URL；Host 只追加固定 `/responses`。模型/effort 只接受
+`gpt-5.4-mini + low` 或 `gpt-5.6-luna + none`，风险确认必须为字面量 true。网页、Extension、
+环境变量和 Codex 配置都不能覆盖这些值。
+
+在仍使用 Codex 时先显式运行真实 smoke；它读取本机 Compatible 配置和专用钥匙串，但不会
+切换 Provider：
+
+```bash
+pnpm smoke:compatible
+```
+
+只有查看 smoke 结果并再次明确决定后，才单独切换：
+
+```bash
+pnpm host:provider:set -- compatible-http
+```
+
+配置、smoke 和切换是三个独立动作。第三方路径不会读取或修改 Codex config/auth/session、
+官方 OpenAI Key 或 Provider 环境变量，也不会在失败时自动回退。回滚后续请求只需：
+
+```bash
+pnpm host:provider:set -- codex
+```
+
+只在明确清理 Compatible 状态时分别执行：
+
+```bash
+pnpm host:compatible:config:remove -- --dry-run
+pnpm host:compatible:config:remove
+pnpm host:compatible:key:remove -- --dry-run
+pnpm host:compatible:key:remove
+```
+
+专用 Key 的移除只删除 Compatible service/account。普通 `host:uninstall` 不自动删除该专用
+钥匙串项；要完整清理时必须先显式运行上述 key remove。
+
 ## 选择模型 Provider
 
 Provider 配置固定写入
 `~/Library/Application Support/Huayi/native-host/provider.json`。文件缺失时默认使用 Codex；
-API Key 的存在不会自动启用 API。切换命令只接受 `api` 或 `codex`，并以 `0600` 普通文件原子
-更新；符号链接、未知字段或无效文件失败关闭。
+API Key 的存在不会自动启用 API。切换命令只接受 `api`、`compatible-http` 或 `codex`，并以
+`0600` 普通文件原子更新；符号链接、未知字段或无效文件失败关闭。
 
 ```bash
 pnpm host:provider:set -- api
@@ -146,7 +209,7 @@ pnpm host:provider:status
 
 Provider 切换只影响下一次分析，不迁移活动请求，也不会在 API 失败时自动回退。只有明确不再
 保留 Key 时才执行 `pnpm host:openai:remove`。未来设置页可调用同一严格 Host 配置边界，但
-v0.5.0 没有浏览器端配置 UI，也不会把 Key、endpoint 或模型写入扩展消息。
+v0.6.0 没有浏览器端配置 UI，也不会把 Key、endpoint 或模型写入扩展消息。
 
 API 模式只发送当前英文选区、最多 2,000 字符上下文、可用英文句子和固定分析指令；不发送
 URL、标题、历史记录、欧路授权或模型历史。钥匙串保护静态存储，但不能防御以同一 macOS
@@ -278,6 +341,42 @@ pnpm host:provider:status
 运行 `pnpm host:openai:remove`。若要回滚整个 v0.5.0 发布，则必须把 v0.4.0 Extension 与 Host
 一起构建、安装并刷新，不能把 wire v2 与 v3 端点混用。
 
+## 从 v0.5.0 升级到 v0.6.0 并启用 Compatible Provider
+
+v0.6.0 将 Native Messaging 协议提升为 `schemaVersion: 4` 并拒绝 v3。Extension 与 Host 必须
+同步升级；Chrome 权限仍严格为 `nativeMessaging` 且没有 `host_permissions`。使用以下精确顺序：
+
+```bash
+pnpm build
+pnpm host:install -- --extension-id kfkamoejomjdihipgdkmfjcdenlhgnpd \
+  --codex-path /Applications/ChatGPT.app/Contents/Resources/codex
+pnpm host:compatible:key:configure
+pnpm host:compatible:config:set -- \
+  --base-url http://101.133.153.118:9090/v1 \
+  --model gpt-5.4-mini \
+  --effort low \
+  --allow-insecure-http
+pnpm host:compatible:config:status
+pnpm smoke:compatible
+pnpm host:provider:set -- compatible-http
+```
+
+构建完成后打开 `chrome://extensions`，确认加载目录是当前 `apps/extension/dist`，点击刷新并确认
+版本 `0.6.0`。`pnpm smoke:compatible` 和最后的 Provider 切换必须分别由用户明确执行；smoke
+不会修改当前 Provider，也不会自动切换。只有 smoke 通过且用户再次接受明文 HTTP 风险时才
+切换。
+
+若第三方速度、质量、安全性或稳定性不可接受，一条命令回滚后续请求到 Codex：
+
+```bash
+pnpm host:provider:set -- codex
+```
+
+回滚不删除第三方 Key、Compatible 配置或官方 OpenAI Key。v0.6.0 的安装、配置、smoke 和切换
+不会读取、复制、删除或修改 `~/.codex`、Codex 登录/session、官方 OpenAI 钥匙串项或欧路
+钥匙串项。若要回滚整个发布，必须同步构建、安装并刷新 v0.5.0 Extension 与 Host，不能混用
+wire v3 与 v4。
+
 ## 人工验收
 
 普通验收选择一个单词、短语、单句和多句段落，确认先显示经过校验的预览、后显示完整卡片；
@@ -295,7 +394,10 @@ pnpm host:uninstall
 ```
 
 完整卸载严格先删除 service `com.huayi.codex_bridge.eudic` / account `authorization` 的精确
-欧路项，再删除 service `com.huayi.codex_bridge.openai` / account `api-key` 的精确 OpenAI 项，
-最后删除经过所有权验证的 Huayi Host 与清单。任一凭据删除失败时 Host 文件都会保留以便重试。
-卸载不会删除 Chrome 父目录、其他 Native Messaging 清单或上述两个精确项之外的钥匙串项。
-若只想升级或重装，请重复执行安装命令，不要先卸载，这样两个钥匙串项都会保留。
+欧路项，再删除 service `com.huayi.codex_bridge.openai` / account `api-key` 的精确官方 OpenAI
+项，最后删除经过所有权验证的 Huayi Host、Compatible 配置与清单。任一自动凭据删除失败时
+Host 文件都会保留以便重试。卸载不会自动删除
+`com.huayi.codex_bridge.compatible_http` / `api-key`；完整清理前先显式运行
+`pnpm host:compatible:key:remove`。卸载不会删除 Chrome 父目录、其他 Native Messaging 清单或
+上述精确项之外的钥匙串项。若只想升级或重装，请重复执行安装命令，不要先卸载，这样所有
+钥匙串项都会保留。

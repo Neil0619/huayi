@@ -2,7 +2,7 @@
 
 - Depend only on Zod and platform-neutral TypeScript.
 - Use strict schemas and reject unknown keys.
-- The current `schemaVersion` is `4`.
+- The current release identity is `0.6.0`; `schemaVersion` is `4`.
 - Runtime v4 rejects v3. Extension and Host upgrades or rollbacks must be synchronous; do not add
   an implicit compatibility layer.
 - Wire v4 health results identify exactly one
