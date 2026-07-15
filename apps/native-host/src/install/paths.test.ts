@@ -7,6 +7,8 @@ describe("createMacosInstallationPaths", () => {
     expect(createMacosInstallationPaths("/Users/tester")).toEqual({
       applicationDirectory: "/Users/tester/Library/Application Support/Huayi/native-host",
       bundlePath: "/Users/tester/Library/Application Support/Huayi/native-host/main.js",
+      compatibleHttpConfigurationPath:
+        "/Users/tester/Library/Application Support/Huayi/native-host/compatible-http.json",
       launcherPath: "/Users/tester/Library/Application Support/Huayi/native-host/huayi-native-host",
       nativeManifestPath:
         "/Users/tester/Library/Application Support/Google/Chrome/NativeMessagingHosts/com.huayi.codex_bridge.json",

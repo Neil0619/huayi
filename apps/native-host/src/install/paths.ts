@@ -5,6 +5,7 @@ import { NATIVE_HOST_NAME } from "./native-manifest.js";
 export interface MacosInstallationPaths {
   readonly applicationDirectory: string;
   readonly bundlePath: string;
+  readonly compatibleHttpConfigurationPath: string;
   readonly launcherPath: string;
   readonly nativeManifestPath: string;
   readonly ownershipMarkerPath: string;
@@ -23,6 +24,7 @@ export function createMacosInstallationPaths(homeDirectory: string): MacosInstal
   return {
     applicationDirectory,
     bundlePath: join(applicationDirectory, "main.js"),
+    compatibleHttpConfigurationPath: join(applicationDirectory, "compatible-http.json"),
     launcherPath: join(applicationDirectory, "huayi-native-host"),
     nativeManifestPath: join(
       homeDirectory,

@@ -14,9 +14,10 @@ describe("providerConfigurationSchema", () => {
 });
 
 describe("parseProviderAlias", () => {
-  it("maps only the public api and codex CLI aliases", () => {
+  it("maps only the public provider CLI aliases", () => {
     expect(parseProviderAlias("api")).toBe("openai-responses");
     expect(parseProviderAlias("codex")).toBe("codex");
-    expect(() => parseProviderAlias("openai-responses")).toThrow("Provider must be api or codex.");
+    expect(parseProviderAlias("compatible-http")).toBe("openai-compatible-http");
+    expect(() => parseProviderAlias("openai-responses")).toThrow();
   });
 });

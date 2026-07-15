@@ -11,5 +11,6 @@ export type ProviderConfiguration = z.infer<typeof providerConfigurationSchema>;
 export function parseProviderAlias(value: string): ModelProvider {
   if (value === "api") return "openai-responses";
   if (value === "codex") return "codex";
-  throw new TypeError("Provider must be api or codex.");
+  if (value === "compatible-http") return "openai-compatible-http";
+  throw new TypeError("Provider must be api, codex, or compatible-http.");
 }

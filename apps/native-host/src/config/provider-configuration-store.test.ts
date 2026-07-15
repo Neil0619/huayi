@@ -18,6 +18,7 @@ import { basename, dirname, join } from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
+import { CompatibleHttpConfigurationStore } from "./compatible-http-configuration-store.js";
 import {
   ProviderConfigurationStore,
   type ProviderConfigurationReadOperations,
@@ -54,6 +55,30 @@ afterEach(async () => {
 });
 
 describe("ProviderConfigurationStore", () => {
+  it("keeps provider selection separate from compatible endpoint settings", async () => {
+    const { applicationDirectory, configurationPath: providerPath } = await createFixture();
+    const compatiblePath = join(applicationDirectory, "compatible-http.json");
+    const providerStore = new ProviderConfigurationStore(providerPath);
+    const compatibleStore = new CompatibleHttpConfigurationStore(compatiblePath);
+    const configuration = {
+      allowInsecureHttp: true,
+      baseUrl: "http://101.133.153.118:9090/v1",
+      effort: "low",
+      model: "gpt-5.4-mini",
+      schemaVersion: 1,
+    } as const;
+
+    await providerStore.write("codex", false);
+    await compatibleStore.write(configuration, false);
+
+    await expect(providerStore.read()).resolves.toBe("codex");
+    await expect(compatibleStore.read(new AbortController().signal)).resolves.toEqual(
+      configuration,
+    );
+    expect(await readFile(providerPath, "utf8")).not.toContain("baseUrl");
+    expect(await readFile(compatiblePath, "utf8")).not.toContain("provider");
+  });
+
   it("defaults a missing file to Codex and persists a private provider file", async () => {
     const { configurationPath } = await createFixture();
     const store = new ProviderConfigurationStore(configurationPath);
