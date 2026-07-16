@@ -72,21 +72,21 @@ pnpm host:compatible:config:set \
   --allow-insecure-http
 pnpm host:compatible:config:status
 pnpm smoke:compatible
-pnpm host:provider:set -- compatible-http
+pnpm host:provider:set compatible-http
 ```
 
 `pnpm smoke:compatible` 和随后的切换必须是两个独立、明确的动作；smoke 只验证当前本机配置，
 不会修改 Provider。切换后需要回滚时只执行：
 
 ```bash
-pnpm host:provider:set -- codex
+pnpm host:provider:set codex
 ```
 
 Compatible Provider 会通过明文 HTTP 发送第三方 Key、当前英文选区、上下文和可用英文句子；
 这些数据可能被同一路径上的设备或第三方截获、读取或篡改。官方 OpenAI Key 不会发送给第三方，
 本次发布不会复制或删除既有官方钥匙串项。网页和 Extension 都不能配置 endpoint、读取凭据或
 切换 Provider。官方 OpenAI Responses 模式仍使用 `pnpm host:openai:configure` 和
-`pnpm host:provider:set -- api` 显式启用。
+`pnpm host:provider:set api` 显式启用。
 
 API 模式只向 OpenAI 发送当前英文选区、最多 2,000 字符上下文、可用的英文句子和固定分析
 指令，不发送 URL、标题、历史记录、欧路授权或模型历史。钥匙串保护静态存储，但不能防御以

@@ -131,9 +131,16 @@ label: Huayi OpenAI-Compatible HTTP API Key
 Compatible 客户端使用 POST、`redirect: "error"`、`credentials: "omit"`，不发送 Cookie、
 不自动重试或 fallback；专用严格 SSE 状态机之外的任何事件和顺序都失败关闭。
 
+实测端点会在完整 Responses envelope 中回显 Prompt、JSON Schema、usage 和服务配置，并在
+reasoning / assistant item 中携带加密 reasoning、`turn_id` 与 `phase`。Host 只允许已实测的
+严格字段集合、`output_index` 对应关系和成对终止事件，随后只保留响应 ID、assistant item ID、
+顺序和最终文本。回显 Prompt、usage、缓存字段、加密 reasoning、内部元数据、`turn_id`、
+`phase`、`logprobs` 与 `obfuscation` 均不会进入 Native Messaging、Extension 或 stderr。未知
+字段、非空 reasoning 内容/摘要、错误索引或半套终止事件继续失败关闭。
+
 配置专用 Key、写入/检查独立配置、运行 `pnpm smoke:compatible` 和执行
-`pnpm host:provider:set -- compatible-http` 必须分别由用户明确触发。Smoke 不修改 Provider，
-一条 `pnpm host:provider:set -- codex` 即可停止后续第三方分析请求。默认测试只使用 fake
+`pnpm host:provider:set compatible-http` 必须分别由用户明确触发。Smoke 不修改 Provider，
+一条 `pnpm host:provider:set codex` 即可停止后续第三方分析请求。默认测试只使用 fake
 Keychain reader、fake fetch 和脱敏 fixture，不访问第三方、真实钥匙串或 Provider 配置。
 
 ## Codex App Server 进程边界

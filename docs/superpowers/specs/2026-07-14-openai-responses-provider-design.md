@@ -35,8 +35,8 @@ API 失败也不会自动回退 Codex。
 Provider 模式通过本机 CLI 管理：
 
 ```text
-pnpm host:provider:set -- api
-pnpm host:provider:set -- codex
+pnpm host:provider:set api
+pnpm host:provider:set codex
 pnpm host:provider:status
 ```
 
@@ -351,8 +351,8 @@ pnpm host:openai:configure -- --dry-run
 pnpm host:openai:configure
 pnpm host:openai:remove -- --dry-run
 pnpm host:openai:remove
-pnpm host:provider:set -- api
-pnpm host:provider:set -- codex
+pnpm host:provider:set api
+pnpm host:provider:set codex
 pnpm host:provider:status
 pnpm smoke:compare
 ```

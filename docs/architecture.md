@@ -89,9 +89,17 @@ Compatible 路径禁止读取或修改 `~/.codex/config.toml`、`~/.codex/auth.j
 
 Compatible 客户端只使用 POST、`redirect: "error"`、`credentials: "omit"`，不发送 Cookie、
 不重试、不 fallback。它使用独立严格状态机，只接受实测的有界 `codex.rate_limits`、可选成对
-reasoning、单 assistant message / output_text 和一致的 delta/done/completed 生命周期；未知、
-重复、迟到、tool、refusal 或不一致事件全部失败关闭。Extension 只看到 wire v4 的统一预览和
-结果，不接触第三方 SSE、endpoint 或 Key。
+reasoning、单 assistant message / output_text 和一致的 delta/done/completed 生命周期。实测
+reasoning 固定占 `output_index=0`，assistant 固定占 `output_index=1`；无 reasoning 时 assistant
+只能占 `0`。较完整的 `content_part.done` / assistant `output_item.done` 必须成对出现，早期省略
+二者的方言仍可兼容，但不能只出现一个。
+
+第三方会在 Responses envelope 中回显 Prompt、Schema、usage、缓存/服务配置，并在 reasoning
+与 assistant item 中携带加密内容、`turn_id` 和 `phase`。Host 只接受实测字段、类型和安全值，
+随后归一化为 ID、顺序和文本；这些私有字段不会进入日志、wire 或 Extension。请求模型仍固定
+为 `gpt-5.4-mini`，当前端点在响应中自报 `gpt-5.4`，专用 parser 仅把它作为该实测方言的允许
+别名。未知、重复、迟到、tool、refusal 或不一致事件全部失败关闭。Extension 只看到 wire v4
+的统一预览和结果，不接触第三方 SSE、endpoint 或 Key。
 
 ## Codex App Server 生命周期
 

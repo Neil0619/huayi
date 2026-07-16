@@ -1170,11 +1170,11 @@ Document these exact user flows:
 pnpm build
 pnpm host:install -- --extension-id kfkamoejomjdihipgdkmfjcdenlhgnpd
 pnpm host:openai:configure
-pnpm host:provider:set -- api
+pnpm host:provider:set api
 pnpm host:provider:status
 ```
 
-Rollback is `pnpm host:provider:set -- codex`; removal is
+Rollback is `pnpm host:provider:set codex`; removal is
 `pnpm host:openai:remove`. State that ChatGPT Plus/Codex quota and OpenAI Platform API billing are
 separate. State that API mode sends only current English selection/context/sentence to OpenAI, not
 URL, title, history, Eudic authorization or model history. State that Keychain protects storage at
@@ -1238,13 +1238,13 @@ ID, ask the user to refresh the unpacked Extension in `chrome://extensions`, the
 
 ```bash
 pnpm host:openai:configure
-pnpm host:provider:set -- api
+pnpm host:provider:set api
 pnpm host:provider:status
 ```
 
 Expected status: `openai-responses`. Perform one small manual word translation, one explanation and
 one sentence request. If API quality or speed is unacceptable, immediately switch back with
-`pnpm host:provider:set -- codex`; do not delete the Key unless the user requests removal.
+`pnpm host:provider:set codex`; do not delete the Key unless the user requests removal.
 
 ---
 

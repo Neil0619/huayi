@@ -35,7 +35,9 @@
 - Compatible code never reads/modifies Codex config/auth/session/providers, shell/env credentials,
   or the official Key. Key/config, smoke, and selection are separate actions; smoke never switches.
 - Compatible POST uses `redirect:error`, `credentials:omit`, no Cookie/retry/fallback, and only the
-  documented strict dialect. Unknown/duplicate/late/tool/refusal/mismatched events fail closed.
+  documented strict dialect. Strictly validate then discard full-envelope metadata, protected
+  reasoning, turn IDs, phases, logprobs, and obfuscation; unknown/duplicate/late/tool/refusal or
+  mismatched events fail closed.
 - Warmup may discover MCP and initialize one shared App Server session, but it contains no page
   data and must never call `thread/start`, `turn/start`, or consume model output.
 - Approval, input, app, Hook, MCP, shell, file-change, web, image, dynamic-tool, and

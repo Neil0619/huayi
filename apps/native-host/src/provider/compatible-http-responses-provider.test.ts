@@ -8,6 +8,7 @@ import type { AnalysisStreamUpdate } from "./analysis-provider.js";
 import type { CompatibleHttpResponsesClient } from "./compatible-http-responses-client.js";
 import type { CompatibleHttpResponseEvent } from "./compatible-http-responses-events.js";
 import { CompatibleHttpResponsesProvider } from "./compatible-http-responses-provider.js";
+import { successfulCompatibleEvents } from "./compatible-http-responses-provider-test-support.js";
 import { ModelSchemaRepository } from "./model-schema-repository.js";
 import type { ProviderValidationDiagnostic } from "./provider-validation.js";
 import type { ResponsesRequest } from "./responses-request-body.js";
@@ -37,67 +38,9 @@ function analysisRequest(): AnalyzeRequest {
 
 function successfulEvents(
   text = JSON.stringify(lexicalContent),
-  options: { reasoning?: boolean; rateLimits?: boolean; terminalSequence?: number | null } = {},
+  options: Parameters<typeof successfulCompatibleEvents>[1] = {},
 ): CompatibleHttpResponseEvent[] {
-  let sequence = 0;
-  const next = () => sequence++;
-  const events: CompatibleHttpResponseEvent[] = [];
-  if (options.rateLimits) events.push({ sequence: null, type: "codex.rate_limits" });
-  events.push(
-    { responseId: "resp-1", sequence: next(), type: "response.created" },
-    { responseId: "resp-1", sequence: next(), type: "response.in_progress" },
-  );
-  if (options.reasoning) {
-    events.push(
-      {
-        itemId: "reasoning-1",
-        itemType: "reasoning",
-        sequence: next(),
-        type: "response.output_item.added",
-      },
-      {
-        itemId: "reasoning-1",
-        itemType: "reasoning",
-        sequence: next(),
-        type: "response.output_item.done",
-      },
-    );
-  }
-  events.push(
-    {
-      itemId: "message-1",
-      itemType: "message",
-      sequence: next(),
-      type: "response.output_item.added",
-    },
-    { itemId: "message-1", sequence: next(), text: "", type: "response.content_part.added" },
-    {
-      delta: text.slice(0, 30),
-      itemId: "message-1",
-      sequence: next(),
-      type: "response.output_text.delta",
-    },
-    {
-      delta: text.slice(30),
-      itemId: "message-1",
-      sequence: next(),
-      type: "response.output_text.delta",
-    },
-    {
-      itemId: "message-1",
-      sequence: next(),
-      text,
-      type: "response.output_text.done",
-    },
-    {
-      itemId: "message-1",
-      responseId: "resp-1",
-      sequence: options.terminalSequence === undefined ? next() : options.terminalSequence,
-      text,
-      type: "response.completed",
-    },
-  );
-  return events;
+  return successfulCompatibleEvents(text, options);
 }
 
 function eventAt(
@@ -164,6 +107,10 @@ describe("CompatibleHttpResponsesProvider", () => {
     [
       "opening rate limits and reasoning",
       successfulEvents(undefined, { rateLimits: true, reasoning: true }),
+    ],
+    [
+      "measured gateway terminal lifecycle",
+      successfulEvents(undefined, { detailedTerminal: true, reasoning: true }),
     ],
     ["omitted terminal sequence", successfulEvents(undefined, { terminalSequence: null })],
   ])("accepts %s and assembles the public result", async (_label, events) => {
@@ -254,7 +201,9 @@ describe("CompatibleHttpResponsesProvider", () => {
         {
           itemId: "reasoning-1",
           itemType: "reasoning" as const,
+          outputIndex: 0 as const,
           sequence: 2,
+          text: null,
           type: "response.output_item.done" as const,
         },
         ...events
@@ -285,12 +234,36 @@ describe("CompatibleHttpResponsesProvider", () => {
         events.filter((event) => event.type !== "response.output_text.done"),
     ],
     [
+      "assistant output index without reasoning",
+      (events: CompatibleHttpResponseEvent[]) =>
+        events.map((event) =>
+          event.type === "response.output_item.added" && event.itemType === "message"
+            ? { ...event, outputIndex: 1 as const }
+            : event,
+        ),
+    ],
+    [
+      "content part done without assistant item done",
+      () =>
+        successfulEvents(undefined, { detailedTerminal: true, reasoning: true }).filter(
+          (event) => !(event.type === "response.output_item.done" && event.itemType === "message"),
+        ),
+    ],
+    [
+      "assistant item done without content part done",
+      () =>
+        successfulEvents(undefined, { detailedTerminal: true, reasoning: true }).filter(
+          (event) => event.type !== "response.content_part.done",
+        ),
+    ],
+    [
       "late event",
       (events: CompatibleHttpResponseEvent[]) => [
         ...events,
         {
           delta: "late",
           itemId: "message-1",
+          outputIndex: 0 as const,
           sequence: 8,
           type: "response.output_text.delta" as const,
         },

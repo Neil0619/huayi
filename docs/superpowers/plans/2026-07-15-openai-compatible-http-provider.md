@@ -1061,14 +1061,14 @@ pnpm host:compatible:config:set \
   --allow-insecure-http
 pnpm host:compatible:config:status
 pnpm smoke:compatible
-pnpm host:provider:set -- compatible-http
+pnpm host:provider:set compatible-http
 ```
 
 State explicitly that the last two commands require separate deliberate actions, smoke does not switch,
 and rollback is:
 
 ```bash
-pnpm host:provider:set -- codex
+pnpm host:provider:set codex
 ```
 
 Security docs must state the Key, selection and context can be intercepted or modified over plaintext
@@ -1166,7 +1166,7 @@ timings, and Provider status remains unchanged. If any case fails, stop; do not 
 ```bash
 pnpm host:install -- --extension-id kfkamoejomjdihipgdkmfjcdenlhgnpd \
   --codex-path /Applications/ChatGPT.app/Contents/Resources/codex
-pnpm host:provider:set -- compatible-http
+pnpm host:provider:set compatible-http
 pnpm host:provider:status
 ```
 
@@ -1177,7 +1177,7 @@ Record first-visible and complete timings without recording selected/model text.
 - [ ] **Step 7: Roll back on any quality, privacy or reliability problem**
 
 ```bash
-pnpm host:provider:set -- codex
+pnpm host:provider:set codex
 pnpm host:provider:status
 ```
 

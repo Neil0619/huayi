@@ -27,23 +27,28 @@ const expectedLifecycle = [
   {
     itemId: compatibleReasoningItemId,
     itemType: "reasoning",
+    outputIndex: 0,
     sequence: 2,
     type: "response.output_item.added",
   },
   {
     itemId: compatibleReasoningItemId,
     itemType: "reasoning",
+    outputIndex: 0,
     sequence: 3,
+    text: null,
     type: "response.output_item.done",
   },
   {
     itemId: compatibleAssistantItemId,
     itemType: "message",
+    outputIndex: 0,
     sequence: 4,
     type: "response.output_item.added",
   },
   {
     itemId: compatibleAssistantItemId,
+    outputIndex: 0,
     sequence: 5,
     text: "",
     type: "response.content_part.added",
@@ -51,17 +56,20 @@ const expectedLifecycle = [
   {
     delta: '{"translation":',
     itemId: compatibleAssistantItemId,
+    outputIndex: 0,
     sequence: 6,
     type: "response.output_text.delta",
   },
   {
     delta: '"测试"}',
     itemId: compatibleAssistantItemId,
+    outputIndex: 0,
     sequence: 7,
     type: "response.output_text.delta",
   },
   {
     itemId: compatibleAssistantItemId,
+    outputIndex: 0,
     sequence: 8,
     text: compatibleOutputText,
     type: "response.output_text.done",
@@ -219,7 +227,8 @@ describe("parseCompatibleHttpResponseEvent", () => {
     for (const itemPatch of [
       { summary: [{ text: "hidden", type: "summary_text" }] },
       { content: [{ text: "hidden", type: "reasoning_text" }] },
-      { encrypted_content: "opaque" },
+      { encrypted_content: 42 },
+      { content: [{ text: "hidden", type: "reasoning_text" }] },
     ]) {
       expect(() =>
         parseCompatibleHttpResponseEvent(
@@ -267,11 +276,11 @@ describe("parseCompatibleHttpResponseEvent", () => {
     }
   });
 
-  it("rejects nonzero indexes, empty deltas, wrong statuses and explicit null sequences", () => {
+  it("rejects out-of-range indexes, empty deltas, wrong statuses and null sequences", () => {
     const invalidMessages = [
       compatibleMessage("response.output_item.added", {
         ...assistantAddedFixture,
-        output_index: 1,
+        output_index: 2,
       }),
       compatibleMessage("response.content_part.added", { ...partAddedFixture, content_index: 1 }),
       compatibleMessage("response.output_text.delta", { ...firstDeltaFixture, delta: "" }),

@@ -60,11 +60,17 @@ http://101.133.153.118:9090/v1
 
 第三方服务能接受 0.5.0 的请求体和严格 JSON Schema，但事件流不是官方 OpenAI 的严格子集：
 
-- 在标准生命周期前增加 `codex.rate_limits`；
+- 部分响应在标准生命周期前增加 `codex.rate_limits`；
 - 在 assistant message 前增加一组 reasoning item added/done；
 - assistant message 有 `response.content_part.added`、delta 和 `response.output_text.done`；
-- 未发送 assistant message 的 `response.content_part.done` 与 `response.output_item.done`；
-- `response.completed` 与官方事件存在字段差异。
+- 当前响应发送 assistant message 的 `response.content_part.done` 与
+  `response.output_item.done`，早期实测响应省略二者；
+- reasoning 使用 `output_index=0`、assistant 使用 `1`，无 reasoning 时 assistant 使用 `0`；
+- created / in-progress / completed 使用完整 Responses envelope，并回显 Prompt、Schema、usage
+  和服务配置；item 还可能携带加密 reasoning、`turn_id`、`phase` 等私有元数据；
+- 请求模型为 `gpt-5.4-mini` 时，当前端点的响应模型字段自报 `gpt-5.4`；
+- `response.completed` 的 output 可能包含 reasoning + 带 ID 的 assistant，也可能只有不带 ID
+  的 assistant。
 
 因此不能通过“忽略所有未知事件”接入，也不能放宽现有官方解析器。
 
@@ -191,13 +197,13 @@ pnpm host:compatible:config:remove
 Provider 设置命令只负责选择已经配置并验证过的 Provider：
 
 ```text
-pnpm host:provider:set -- compatible-http
+pnpm host:provider:set compatible-http
 ```
 
 回滚保持：
 
 ```text
-pnpm host:provider:set -- codex
+pnpm host:provider:set codex
 ```
 
 `provider-status` 只输出当前 Provider。`host:compatible:config:status` 输出端点、模型和固定的明文
@@ -257,6 +263,8 @@ assistant message output_item.added
 response.content_part.added(output_text, empty text)
 one or more response.output_text.delta
 response.output_text.done
+optional paired response.content_part.done
+optional paired assistant message output_item.done
 response.completed
 ```
 
@@ -264,12 +272,18 @@ response.completed
 
 - `codex.rate_limits` 最多一个，只能位于开头，使用严格有界 Schema 校验后丢弃；
 - reasoning 必须完整成对、位于 assistant message 前，最多一个，不渲染、不记录内容；
+- reasoning 的 `content` 与 `summary` 必须为空；加密内容和两个严格 `turn_id` 元数据对象只在
+  存在时校验并丢弃；
 - reasoning item 不能是 tool、function call、web search 或 refusal；
 - 恰好一个 assistant message、一个 output_text part；
+- reasoning 存在时 output index 必须为 `0` / `1`，不存在时 assistant index 必须为 `0`；
 - delta 必须非空、按顺序累计并受 1 MiB 限制；
 - `response.output_text.done.text` 必须等于累计 delta；
-- compatible 流允许省略 assistant 的 `content_part.done` 与 `output_item.done`；
+- compatible 流允许同时省略 assistant 的 `content_part.done` 与 `output_item.done`，但出现时必须
+  完整成对且文本一致；
 - `response.completed` 中最终 assistant 文本必须等于累计 delta；
+- 完整 envelope 与 item 私有字段只按实测 Schema 校验，归一化结果不得携带 Prompt、Schema、
+  usage、加密 reasoning、`turn_id`、`phase`、logprobs 或 obfuscation；
 - 序号存在时必须连续；仅对实测确实缺失序号的 compatible 终止事件允许缺失；
 - 终止事件后任何额外事件都拒绝；
 - 未知事件、第二个消息、额外 content part、tool、refusal、failed、incomplete 或错误结构全部
@@ -351,11 +365,11 @@ pnpm smoke:compatible
 2. 使用隐藏提示写入第三方专用 Key；
 3. 写入独立 compatible 配置并检查 `host:compatible:config:status` 风险警告；
 4. 保持 `provider.json` 和当前请求路径不变，先运行 `pnpm smoke:compatible`；
-5. smoke 全部通过后才执行 `pnpm host:provider:set -- compatible-http`；
+5. smoke 全部通过后才执行 `pnpm host:provider:set compatible-http`；
 6. 重新安装 0.6.0 Host；
 7. 在 Chrome 刷新 unpacked Extension；
 8. 手测单词翻译、单词解释、句子解释、取消和欧路生词本；
-9. 若质量、速度或稳定性不满意，立即执行 `pnpm host:provider:set -- codex`。
+9. 若质量、速度或稳定性不满意，立即执行 `pnpm host:provider:set codex`。
 
 不得在未通过 compatible smoke 时自动切换。不得自动删除官方 OpenAI 或第三方钥匙串项。
 

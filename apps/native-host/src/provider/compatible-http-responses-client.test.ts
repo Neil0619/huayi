@@ -112,6 +112,7 @@ describe("CompatibleHttpResponsesClient", () => {
       {
         delta: "测试",
         itemId: "msg_compatible_test",
+        outputIndex: 0,
         sequence: 6,
         type: "response.output_text.delta",
       },
@@ -142,7 +143,7 @@ describe("CompatibleHttpResponsesClient", () => {
         type: "response.output_item.done",
       },
     ],
-  ])("rejects unsupported assistant terminal event %s", async (event, value) => {
+  ])("rejects malformed assistant terminal event %s", async (event, value) => {
     const client = new CompatibleHttpResponsesClient({
       fetch: async () => eventStream(sse(event, value)),
     });

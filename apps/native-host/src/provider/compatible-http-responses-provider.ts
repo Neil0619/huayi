@@ -44,12 +44,15 @@ interface CompatibleLifecycleState {
   accumulatedBytes: number;
   accumulatedText: string;
   assistantItemId?: string;
+  assistantOutputIndex?: 0 | 1;
   created: boolean;
   finalResult?: AnalysisResult;
   inProgress: boolean;
   lastSequence?: number;
   messageAdded: boolean;
+  messageDone: boolean;
   partAdded: boolean;
+  partDone: boolean;
   rateLimitsSeen: boolean;
   reasoningAdded: boolean;
   reasoningDone: boolean;
@@ -66,7 +69,9 @@ function initialState(): CompatibleLifecycleState {
     created: false,
     inProgress: false,
     messageAdded: false,
+    messageDone: false,
     partAdded: false,
+    partDone: false,
     rateLimitsSeen: false,
     reasoningAdded: false,
     reasoningDone: false,
@@ -236,26 +241,24 @@ export class CompatibleHttpResponsesProvider implements AnalysisProvider {
         this.#consumeOutputItemAdded(event, state);
         return;
       case "response.output_item.done":
-        requireLifecycle(
-          state.reasoningAdded &&
-            !state.reasoningDone &&
-            !state.messageAdded &&
-            event.itemId === state.reasoningItemId,
-        );
-        state.reasoningDone = true;
+        this.#consumeOutputItemDone(event, state);
         return;
       case "response.content_part.added":
         requireLifecycle(
           state.messageAdded &&
             !state.partAdded &&
             event.itemId === state.assistantItemId &&
+            event.outputIndex === state.assistantOutputIndex &&
             event.text === "",
         );
         state.partAdded = true;
         return;
       case "response.output_text.delta":
         requireLifecycle(
-          state.partAdded && !state.textDone && event.itemId === state.assistantItemId,
+          state.partAdded &&
+            !state.textDone &&
+            event.itemId === state.assistantItemId &&
+            event.outputIndex === state.assistantOutputIndex,
         );
         state.accumulatedBytes += Buffer.byteLength(event.delta, "utf8");
         if (state.accumulatedBytes > MAX_WIRE_MESSAGE_BYTES) invalidResponse();
@@ -267,16 +270,29 @@ export class CompatibleHttpResponsesProvider implements AnalysisProvider {
           state.partAdded &&
             !state.textDone &&
             event.itemId === state.assistantItemId &&
+            event.outputIndex === state.assistantOutputIndex &&
             event.text === state.accumulatedText,
         );
         state.textDone = true;
         return;
+      case "response.content_part.done":
+        requireLifecycle(
+          state.textDone &&
+            !state.partDone &&
+            !state.messageDone &&
+            event.itemId === state.assistantItemId &&
+            event.outputIndex === state.assistantOutputIndex &&
+            event.text === state.accumulatedText,
+        );
+        state.partDone = true;
+        return;
       case "response.completed":
         requireLifecycle(
           state.textDone &&
+            state.partDone === state.messageDone &&
             !state.terminal &&
             event.responseId === state.responseId &&
-            event.itemId === state.assistantItemId &&
+            (event.itemId === null || event.itemId === state.assistantItemId) &&
             event.text === state.accumulatedText,
         );
         extractor.finish();
@@ -292,14 +308,43 @@ export class CompatibleHttpResponsesProvider implements AnalysisProvider {
   ): void {
     requireLifecycle(state.inProgress && !state.messageAdded);
     if (event.itemType === "reasoning") {
-      requireLifecycle(!state.reasoningAdded && !state.reasoningDone);
+      requireLifecycle(!state.reasoningAdded && !state.reasoningDone && event.outputIndex === 0);
       state.reasoningAdded = true;
       state.reasoningItemId = event.itemId;
       return;
     }
     requireLifecycle(!state.reasoningAdded || state.reasoningDone);
+    const expectedOutputIndex = state.reasoningAdded ? 1 : 0;
+    requireLifecycle(event.outputIndex === expectedOutputIndex);
     state.messageAdded = true;
     state.assistantItemId = event.itemId;
+    state.assistantOutputIndex = event.outputIndex;
+  }
+
+  #consumeOutputItemDone(
+    event: Extract<CompatibleHttpResponseEvent, { type: "response.output_item.done" }>,
+    state: CompatibleLifecycleState,
+  ): void {
+    if (event.itemType === "reasoning") {
+      requireLifecycle(
+        state.reasoningAdded &&
+          !state.reasoningDone &&
+          !state.messageAdded &&
+          event.itemId === state.reasoningItemId &&
+          event.outputIndex === 0 &&
+          event.text === null,
+      );
+      state.reasoningDone = true;
+      return;
+    }
+    requireLifecycle(
+      state.partDone &&
+        !state.messageDone &&
+        event.itemId === state.assistantItemId &&
+        event.outputIndex === state.assistantOutputIndex &&
+        event.text === state.accumulatedText,
+    );
+    state.messageDone = true;
   }
 
   #failValidation(failure: ProviderValidationError): never {

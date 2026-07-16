@@ -94,7 +94,7 @@ browsers, history, synchronization, follow-up chat, or browser-based provider co
   - `pnpm host:compatible:config:set --base-url <URL> --model <MODEL> --effort <EFFORT> --allow-insecure-http`
   - `pnpm host:compatible:config:status`
   - `pnpm host:compatible:config:remove`
-  - `pnpm host:provider:set -- api|compatible-http|codex`
+  - `pnpm host:provider:set api|compatible-http|codex`
   - `pnpm host:provider:status`
   - `pnpm host:uninstall`
 - Default tests must never call OpenAI, a third-party HTTP service, real Codex, a real Keychain
