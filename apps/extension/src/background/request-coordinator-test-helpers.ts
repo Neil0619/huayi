@@ -52,7 +52,7 @@ export function analyzeRequest(requestId: string): AnalyzeRequest {
     action: "translate",
     context: "The investigation was in its early stages.",
     requestId,
-    schemaVersion: 4,
+    schemaVersion: 5,
     selection: "investigation",
     selectionKind: "word",
     sentenceContext: null,
@@ -65,7 +65,7 @@ export function checkWordRequest(requestId: string): CheckWordRequest {
   return {
     language: "en",
     requestId,
-    schemaVersion: 4,
+    schemaVersion: 5,
     type: "check-word",
     word: "investigation",
   };
@@ -76,7 +76,7 @@ export function addWordRequest(requestId: string): AddWordRequest {
     context: "The investigation was in its early stages.",
     language: "en",
     requestId,
-    schemaVersion: 4,
+    schemaVersion: 5,
     type: "add-word",
     word: "investigation",
   };
@@ -86,7 +86,7 @@ export function analysisDeltaEvent(requestId: string, sequence: number): Analysi
   return {
     delta: `delta-${sequence}`,
     requestId,
-    schemaVersion: 4,
+    schemaVersion: 5,
     section: "translation",
     sequence,
     type: "analysis-delta",
@@ -96,7 +96,7 @@ export function analysisDeltaEvent(requestId: string, sequence: number): Analysi
 export function analysisSectionEvent(requestId: string, sequence: number): AnalysisSectionEvent {
   return {
     requestId,
-    schemaVersion: 4,
+    schemaVersion: 5,
     section: "part-of-speech",
     sequence,
     type: "analysis-section",
@@ -113,7 +113,7 @@ export function resultEvent(requestId: string): ResultEvent {
       translationZh: "它已准备就绪。",
       type: "translate-passage",
     },
-    schemaVersion: 4,
+    schemaVersion: 5,
     type: "result",
   };
 }

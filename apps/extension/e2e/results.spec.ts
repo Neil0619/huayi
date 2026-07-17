@@ -9,7 +9,8 @@ test("renders the lexical translation card inside the viewport", async ({ page }
   const panel = host.locator(".huayi-panel");
   await expect(panel).toBeVisible();
   await expect(panel).toContainText("对案件、事故等进行系统查证的调查");
-  await expect(panel.locator("[data-related-term]")).toHaveCount(3);
+  await expect(panel.locator('[data-huayi-section="common-phrases"] li')).toHaveCount(2);
+  await expect(panel.locator("[data-related-term]")).toHaveCount(0);
   await expect(panel.locator("input")).toHaveCount(0);
 
   const bounds = await panel.boundingBox();

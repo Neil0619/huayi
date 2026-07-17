@@ -1,0 +1,81 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "contextualAnalysisZh": { "type": "string", "minLength": 1, "maxLength": 4000 },
+    "wordForm": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "baseForm": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120,
+          "pattern": "^[^\\u3400-\\u9fff]*[A-Za-z][^\\u3400-\\u9fff]*$"
+        },
+        "formTypeZh": { "type": "string", "minLength": 1, "maxLength": 300 },
+        "sentenceRoleZh": {
+          "anyOf": [{ "type": "string", "minLength": 1, "maxLength": 500 }, { "type": "null" }]
+        }
+      },
+      "required": ["baseForm", "formTypeZh", "sentenceRoleZh"]
+    },
+    "wordFormationZh": {
+      "anyOf": [{ "type": "string", "minLength": 1, "maxLength": 500 }, { "type": "null" }]
+    },
+    "usageNotes": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "descriptionZh": { "type": "string", "minLength": 1, "maxLength": 500 },
+          "titleZh": { "type": "string", "minLength": 1, "maxLength": 120 }
+        },
+        "required": ["descriptionZh", "titleZh"]
+      }
+    },
+    "synonyms": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "distinctionZh": { "type": "string", "minLength": 1, "maxLength": 500 },
+          "meaningZh": { "type": "string", "minLength": 1, "maxLength": 200 },
+          "partOfSpeech": {
+            "type": "string",
+            "enum": [
+              "noun",
+              "verb",
+              "adjective",
+              "adverb",
+              "pronoun",
+              "preposition",
+              "conjunction",
+              "interjection",
+              "determiner",
+              "modal",
+              "number",
+              "particle",
+              "phrase",
+              "other"
+            ]
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120,
+            "pattern": "^[^\\u3400-\\u9fff]*[A-Za-z][^\\u3400-\\u9fff]*$"
+          }
+        },
+        "required": ["distinctionZh", "meaningZh", "partOfSpeech", "text"]
+      }
+    }
+  },
+  "required": ["contextualAnalysisZh", "wordForm", "wordFormationZh", "usageNotes", "synonyms"]
+}

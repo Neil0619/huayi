@@ -13,7 +13,7 @@ export function canAddResultToWordbook(state: ResultOverlayState): boolean {
     state.selection.selectionKind === "word" &&
     state.selection.wordbookContext !== null &&
     state.result.selectionKind === "word" &&
-    (state.result.type === "translate-lexical" || state.result.type === "explain-lexical")
+    (state.result.type === "translate-word" || state.result.type === "explain-word")
   );
 }
 

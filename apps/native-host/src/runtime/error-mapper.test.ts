@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import { CompatibleHttpConfigurationError } from "../config/compatible-http-configuration-store.js";
 import { CompatibleHttpCredentialError } from "../credentials/compatible-http-keychain.js";
+import { DeepSeekCredentialError } from "../credentials/deepseek-keychain.js";
 import { OpenAICredentialError } from "../credentials/openai-keychain.js";
 import { compatibleHttpProviderError } from "../provider/compatible-http-provider-errors.js";
+import { deepSeekProviderError } from "../provider/deepseek-provider-errors.js";
 import { openAIHttpError, openAIProviderError } from "../provider/openai-provider-errors.js";
 import { ProviderValidationError } from "../provider/provider-validation.js";
 import {
@@ -114,6 +116,21 @@ describe("combined analysis Provider error mapping", () => {
     expect(mapped).toMatchObject({ code });
     expect(mapped.message).not.toContain("private");
     expect(mapped).not.toHaveProperty("cause");
+  });
+
+  it.each([
+    [new DeepSeekCredentialError("MODEL_PROVIDER_NOT_CONFIGURED"), "MODEL_PROVIDER_NOT_CONFIGURED"],
+    [new DeepSeekCredentialError("MODEL_PROVIDER_AUTH_FAILED"), "MODEL_PROVIDER_AUTH_FAILED"],
+    [deepSeekProviderError("QUOTA_EXCEEDED"), "QUOTA_EXCEEDED"],
+    [deepSeekProviderError("RATE_LIMITED"), "RATE_LIMITED"],
+    [deepSeekProviderError("NETWORK_ERROR"), "NETWORK_ERROR"],
+    [deepSeekProviderError("INVALID_RESPONSE"), "INVALID_RESPONSE"],
+  ] as const)("maps DeepSeek private error %# safely", (error, code) => {
+    const mapped = mapAnalysisProviderError(error);
+
+    expect(mapped).toMatchObject({ code });
+    expect(mapped).not.toHaveProperty("cause");
+    expect(JSON.stringify(mapped)).not.toContain("deepseek-secret");
   });
 
   it("fails unknown configuration errors closed without exposing file contents", () => {

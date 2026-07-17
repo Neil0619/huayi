@@ -16,8 +16,10 @@ import { createMacosInstallationPaths, type MacosInstallationPaths } from "./pat
 const OUTPUT_SCHEMA_NAMES = [
   "explain-lexical.json",
   "explain-sentence.json",
+  "explain-word.json",
   "translate-lexical.json",
   "translate-passage.json",
+  "translate-word.json",
 ] as const;
 const OWNERSHIP_MARKER = `${JSON.stringify({ name: NATIVE_HOST_NAME, version: 1 })}\n`;
 
@@ -205,8 +207,8 @@ async function validateOwnedManifest(paths: MacosInstallationPaths): Promise<boo
   return true;
 }
 
-async function validatePreservedConfigurations(paths: MacosInstallationPaths): Promise<void> {
-  await new ProviderConfigurationStore(paths.providerConfigurationPath).read();
+async function validatePreservedConfigurations(paths: MacosInstallationPaths): Promise<boolean> {
+  const provider = await new ProviderConfigurationStore(paths.providerConfigurationPath).read();
   try {
     await new CompatibleHttpConfigurationStore(paths.compatibleHttpConfigurationPath).read(
       new AbortController().signal,
@@ -216,15 +218,16 @@ async function validatePreservedConfigurations(paths: MacosInstallationPaths): P
       error instanceof CompatibleHttpConfigurationError &&
       error.code === "MODEL_PROVIDER_NOT_CONFIGURED"
     ) {
-      return;
+      return provider === "codex";
     }
     throw error;
   }
+  return provider === "codex";
 }
 
-function installActions(paths: MacosInstallationPaths): string[] {
+function installActions(paths: MacosInstallationPaths, validatesCodex: boolean): string[] {
   return [
-    "Validate Node.js and Codex capabilities/login",
+    validatesCodex ? "Validate Node.js and Codex capabilities/login" : "Validate Node.js",
     `Install native host files in ${paths.applicationDirectory}`,
     `Write Chrome Native Messaging manifest ${paths.nativeManifestPath}`,
   ];
@@ -239,15 +242,17 @@ export async function installMacosNativeHost(
   await validateSources(options);
   await validateOwnedApplication(paths);
   await validateOwnedManifest(paths);
-  await validatePreservedConfigurations(paths);
-  await checkCodexCapabilities({
-    codexExecutable: options.codexExecutable,
-    environment: options.environment,
-    processRunner: options.processRunner,
-    workingDirectory: tmpdir(),
-  });
+  const validatesCodex = await validatePreservedConfigurations(paths);
+  if (validatesCodex) {
+    await checkCodexCapabilities({
+      codexExecutable: options.codexExecutable,
+      environment: options.environment,
+      processRunner: options.processRunner,
+      workingDirectory: tmpdir(),
+    });
+  }
 
-  const actions = installActions(paths);
+  const actions = installActions(paths, validatesCodex);
   if (options.dryRun) {
     return { actions, dryRun: true, paths };
   }

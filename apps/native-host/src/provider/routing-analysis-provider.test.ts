@@ -10,7 +10,7 @@ const request: AnalyzeRequest = {
   action: "translate",
   context: "The investigation was in its early stages.",
   requestId: "analysis-1",
-  schemaVersion: 4,
+  schemaVersion: 5,
   selection: "investigation",
   selectionKind: "word",
   sentenceContext: null,
@@ -19,13 +19,14 @@ const request: AnalyzeRequest = {
 };
 
 const apiResult: AnalysisResult = {
-  collocations: [],
-  contextualMeaningZh: "调查",
-  partOfSpeech: "noun",
+  commonMeanings: [{ meaningsZh: ["调查"], partOfSpeech: "noun" }],
+  commonPhrases: [],
+  confusableWords: [],
+  contextualSense: { meaningZh: "调查", partOfSpeech: "noun" },
+  dictionaryForm: "investigation",
   selectionKind: "word",
-  similarTerms: [],
   sourceText: "investigation",
-  type: "translate-lexical",
+  type: "translate-word",
 };
 
 class MutableConfigurationStore {
@@ -70,10 +71,12 @@ describe("RoutingAnalysisProvider", () => {
     const codex = fakeProvider();
     const openAI = fakeProvider();
     const compatibleHttp = fakeProvider();
+    const deepSeek = fakeProvider();
     const router = new RoutingAnalysisProvider({
       codex,
       compatibleHttp,
       configurationStore: store,
+      deepSeek,
       openAI,
     });
     const signal = new AbortController().signal;
@@ -92,10 +95,12 @@ describe("RoutingAnalysisProvider", () => {
     const codex = fakeProvider();
     const openAI = fakeProvider();
     const compatibleHttp = fakeProvider();
+    const deepSeek = fakeProvider();
     const router = new RoutingAnalysisProvider({
       codex,
       compatibleHttp,
       configurationStore: store,
+      deepSeek,
       openAI,
     });
 
@@ -113,10 +118,12 @@ describe("RoutingAnalysisProvider", () => {
     const codex = fakeProvider();
     const openAI = fakeProvider(async () => pendingApi.promise);
     const compatibleHttp = fakeProvider();
+    const deepSeek = fakeProvider();
     const router = new RoutingAnalysisProvider({
       codex,
       compatibleHttp,
       configurationStore: store,
+      deepSeek,
       openAI,
     });
     const listener: AnalysisStreamListener = () => undefined;
@@ -146,6 +153,7 @@ describe("RoutingAnalysisProvider", () => {
     ],
     ["openai-compatible-http", compatibleHttpProviderError("NETWORK_ERROR"), "compatibleHttp"],
     ["openai-compatible-http", compatibleHttpProviderError("INVALID_RESPONSE"), "compatibleHttp"],
+    ["deepseek-chat-completions", new Error("deepseek failure"), "deepSeek"],
   ] as const)("does not fall back after a %s failure", async (provider, failure, used) => {
     const store = new MutableConfigurationStore();
     store.provider = provider;
@@ -158,11 +166,15 @@ describe("RoutingAnalysisProvider", () => {
     const compatibleHttp = fakeProvider(
       provider === "openai-compatible-http" ? async () => Promise.reject(failure) : undefined,
     );
-    const providers = { codex, compatibleHttp, openAI };
+    const deepSeek = fakeProvider(
+      provider === "deepseek-chat-completions" ? async () => Promise.reject(failure) : undefined,
+    );
+    const providers = { codex, compatibleHttp, deepSeek, openAI };
     const router = new RoutingAnalysisProvider({
       codex,
       compatibleHttp,
       configurationStore: store,
+      deepSeek,
       openAI,
     });
 
@@ -180,10 +192,12 @@ describe("RoutingAnalysisProvider", () => {
     const codex = fakeProvider();
     const openAI = fakeProvider();
     const compatibleHttp = fakeProvider();
+    const deepSeek = fakeProvider();
     const router = new RoutingAnalysisProvider({
       codex,
       compatibleHttp,
       configurationStore: store,
+      deepSeek,
       openAI,
     });
     const signal = new AbortController().signal;
@@ -194,12 +208,15 @@ describe("RoutingAnalysisProvider", () => {
     await router.warmup(signal);
     store.provider = "openai-compatible-http";
     await router.warmup(signal);
+    store.provider = "deepseek-chat-completions";
+    await router.warmup(signal);
 
-    expect(store.read).toHaveBeenCalledTimes(3);
+    expect(store.read).toHaveBeenCalledTimes(4);
     expect(codex.warmup).toHaveBeenCalledOnce();
     expect(codex.warmup).toHaveBeenCalledWith(signal);
     expect(openAI.warmup).not.toHaveBeenCalled();
     expect(compatibleHttp.warmup).not.toHaveBeenCalled();
+    expect(deepSeek.warmup).not.toHaveBeenCalled();
     expect(codex.analyze).not.toHaveBeenCalled();
     expect(openAI.analyze).not.toHaveBeenCalled();
   });
@@ -209,10 +226,12 @@ describe("RoutingAnalysisProvider", () => {
     const codex = fakeProvider();
     const openAI = fakeProvider();
     const compatibleHttp = fakeProvider();
+    const deepSeek = fakeProvider();
     const router = new RoutingAnalysisProvider({
       codex,
       compatibleHttp,
       configurationStore: store,
+      deepSeek,
       openAI,
     });
 
@@ -222,5 +241,6 @@ describe("RoutingAnalysisProvider", () => {
     expect(codex.dispose).toHaveBeenCalledOnce();
     expect(openAI.dispose).toHaveBeenCalledOnce();
     expect(compatibleHttp.dispose).toHaveBeenCalledOnce();
+    expect(deepSeek.dispose).toHaveBeenCalledOnce();
   });
 });

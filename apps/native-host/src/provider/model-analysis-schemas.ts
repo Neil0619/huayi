@@ -1,19 +1,36 @@
 import {
   MAX_COLLOCATIONS,
+  MAX_COMMON_PHRASES,
+  MAX_CONFUSABLE_WORDS,
   MAX_CONTEXT_LENGTH,
   MAX_CORE_MEANINGS,
+  MAX_DICTIONARY_MEANING_GROUPS,
   MAX_MODEL_TEXT_LENGTH,
   MAX_RELATED_TERMS,
+  MAX_SYNONYM_COMPARISONS,
+  MAX_USAGE_NOTES,
   collocationSchema,
+  commonPhraseSchema,
+  confusableWordSchema,
+  contextualSenseSchema,
   coreMeaningSchema,
+  dictionaryMeaningGroupSchema,
   partOfSpeechSchema,
   relatedTermSchema,
+  synonymComparisonSchema,
+  usageNoteSchema,
   type AnalysisResult,
   type AnalyzeRequest,
   type Collocation,
+  type CommonPhrase,
+  type ConfusableWord,
+  type ContextualSense,
   type CoreMeaning,
+  type DictionaryMeaningGroup,
   type PartOfSpeech,
   type RelatedTerm,
+  type SynonymComparison,
+  type UsageNote,
 } from "@huayi/protocol";
 import { z } from "zod";
 
@@ -143,6 +160,15 @@ export interface ModelLexicalTranslation {
   similarTerms: RelatedTerm[];
 }
 
+export interface ModelWordTranslation {
+  pronunciation: { uk: string | null; us: string | null } | null;
+  contextualSense: ContextualSense;
+  dictionaryForm: string;
+  commonMeanings: DictionaryMeaningGroup[];
+  commonPhrases: CommonPhrase[];
+  confusableWords: ConfusableWord[];
+}
+
 export interface ModelPassageTranslation {
   translationZh: string;
 }
@@ -156,6 +182,18 @@ export interface ModelLexicalExplanation {
   synonyms: RelatedTerm[];
 }
 
+export interface ModelWordExplanation {
+  contextualAnalysisZh: string;
+  wordForm: {
+    baseForm: string;
+    formTypeZh: string;
+    sentenceRoleZh: string | null;
+  };
+  wordFormationZh: string | null;
+  usageNotes: UsageNote[];
+  synonyms: SynonymComparison[];
+}
+
 export interface ModelSentenceExplanation {
   mainStructure: string;
   keyExpressions: { meaningZh: string; text: string }[];
@@ -164,6 +202,8 @@ export interface ModelSentenceExplanation {
 }
 
 export type ModelAnalysisResult =
+  | ModelWordTranslation
+  | ModelWordExplanation
   | ModelLexicalTranslation
   | ModelPassageTranslation
   | ModelLexicalExplanation
@@ -180,6 +220,15 @@ const modelLexicalTranslationObjectSchema = z.strictObject({
   similarTerms: z.array(relatedTermSchema).max(MAX_RELATED_TERMS),
 });
 
+const modelWordTranslationObjectSchema = z.strictObject({
+  pronunciation: nullablePronunciationSchema,
+  contextualSense: contextualSenseSchema,
+  dictionaryForm: englishTextSchema.max(120),
+  commonMeanings: z.array(dictionaryMeaningGroupSchema).min(1).max(MAX_DICTIONARY_MEANING_GROUPS),
+  commonPhrases: z.array(commonPhraseSchema).max(MAX_COMMON_PHRASES),
+  confusableWords: z.array(confusableWordSchema).max(MAX_CONFUSABLE_WORDS),
+});
+
 const modelPassageTranslationObjectSchema = z.strictObject({
   translationZh: chineseTextSchema,
 });
@@ -193,6 +242,20 @@ const modelLexicalExplanationObjectSchema = z.strictObject({
   synonyms: z.array(relatedTermSchema).max(MAX_RELATED_TERMS),
 });
 
+const modelWordFormSchema = z.strictObject({
+  baseForm: englishTextSchema.max(120),
+  formTypeZh: chineseTextSchema.max(300),
+  sentenceRoleZh: chineseTextSchema.max(500).nullable(),
+});
+
+const modelWordExplanationObjectSchema = z.strictObject({
+  contextualAnalysisZh: chineseTextSchema,
+  wordForm: modelWordFormSchema,
+  wordFormationZh: chineseTextSchema.max(500).nullable(),
+  usageNotes: z.array(usageNoteSchema).max(MAX_USAGE_NOTES),
+  synonyms: z.array(synonymComparisonSchema).max(MAX_SYNONYM_COMPARISONS),
+});
+
 const modelSentenceExplanationObjectSchema = z.strictObject({
   mainStructure: z.string().trim().min(1).max(MAX_MODEL_TEXT_LENGTH),
   keyExpressions: z.array(keyExpressionSchema).min(1).max(6),
@@ -203,6 +266,12 @@ const modelSentenceExplanationObjectSchema = z.strictObject({
 const collocationOwnKeys = rawOwnKeyObjectFor(collocationSchema);
 const coreMeaningOwnKeys = rawOwnKeyObjectFor(coreMeaningSchema);
 const relatedTermOwnKeys = rawOwnKeyObjectFor(relatedTermSchema);
+const contextualSenseOwnKeys = rawOwnKeyObjectFor(contextualSenseSchema);
+const dictionaryMeaningGroupOwnKeys = rawOwnKeyObjectFor(dictionaryMeaningGroupSchema);
+const commonPhraseOwnKeys = rawOwnKeyObjectFor(commonPhraseSchema);
+const confusableWordOwnKeys = rawOwnKeyObjectFor(confusableWordSchema);
+const usageNoteOwnKeys = rawOwnKeyObjectFor(usageNoteSchema);
+const synonymComparisonOwnKeys = rawOwnKeyObjectFor(synonymComparisonSchema);
 const pronunciationOwnKeys = rawOwnKeyNullable(rawOwnKeyObjectFor(pronunciationObjectSchema));
 const keyExpressionOwnKeys = rawOwnKeyObjectFor(keyExpressionSchema);
 
@@ -214,6 +283,16 @@ const modelLexicalTranslationOwnKeys = rawOwnKeyObjectFor(
     ["similarTerms", rawOwnKeyArray(relatedTermOwnKeys)],
   ]),
 );
+const modelWordTranslationOwnKeys = rawOwnKeyObjectFor(
+  modelWordTranslationObjectSchema,
+  new Map<string, RawOwnKeyShape>([
+    ["pronunciation", pronunciationOwnKeys],
+    ["contextualSense", contextualSenseOwnKeys],
+    ["commonMeanings", rawOwnKeyArray(dictionaryMeaningGroupOwnKeys)],
+    ["commonPhrases", rawOwnKeyArray(commonPhraseOwnKeys)],
+    ["confusableWords", rawOwnKeyArray(confusableWordOwnKeys)],
+  ]),
+);
 const modelPassageTranslationOwnKeys = rawOwnKeyObjectFor(modelPassageTranslationObjectSchema);
 const modelLexicalExplanationOwnKeys = rawOwnKeyObjectFor(
   modelLexicalExplanationObjectSchema,
@@ -221,6 +300,14 @@ const modelLexicalExplanationOwnKeys = rawOwnKeyObjectFor(
     ["collocations", rawOwnKeyArray(collocationOwnKeys)],
     ["coreMeanings", rawOwnKeyArray(coreMeaningOwnKeys)],
     ["synonyms", rawOwnKeyArray(relatedTermOwnKeys)],
+  ]),
+);
+const modelWordExplanationOwnKeys = rawOwnKeyObjectFor(
+  modelWordExplanationObjectSchema,
+  new Map<string, RawOwnKeyShape>([
+    ["wordForm", rawOwnKeyObjectFor(modelWordFormSchema)],
+    ["usageNotes", rawOwnKeyArray(usageNoteOwnKeys)],
+    ["synonyms", rawOwnKeyArray(synonymComparisonOwnKeys)],
   ]),
 );
 const modelSentenceExplanationOwnKeys = rawOwnKeyObjectFor(
@@ -233,6 +320,11 @@ export const modelLexicalTranslationSchema = withRawOwnKeyValidation(
   modelLexicalTranslationOwnKeys,
 ) satisfies z.ZodType<ModelLexicalTranslation>;
 
+export const modelWordTranslationSchema = withRawOwnKeyValidation(
+  modelWordTranslationObjectSchema,
+  modelWordTranslationOwnKeys,
+) satisfies z.ZodType<ModelWordTranslation>;
+
 export const modelPassageTranslationSchema = withRawOwnKeyValidation(
   modelPassageTranslationObjectSchema,
   modelPassageTranslationOwnKeys,
@@ -243,19 +335,30 @@ export const modelLexicalExplanationSchema = withRawOwnKeyValidation(
   modelLexicalExplanationOwnKeys,
 ) satisfies z.ZodType<ModelLexicalExplanation>;
 
+export const modelWordExplanationSchema = withRawOwnKeyValidation(
+  modelWordExplanationObjectSchema,
+  modelWordExplanationOwnKeys,
+) satisfies z.ZodType<ModelWordExplanation>;
+
 export const modelSentenceExplanationSchema = withRawOwnKeyValidation(
   modelSentenceExplanationObjectSchema,
   modelSentenceExplanationOwnKeys,
 ) satisfies z.ZodType<ModelSentenceExplanation>;
 
 const MODEL_ANALYSIS_RESULT_SCHEMAS = {
+  "explain-word": modelWordExplanationSchema,
   "explain-lexical": modelLexicalExplanationSchema,
   "explain-sentence": modelSentenceExplanationSchema,
   "translate-lexical": modelLexicalTranslationSchema,
   "translate-passage": modelPassageTranslationSchema,
+  "translate-word": modelWordTranslationSchema,
 } satisfies Record<ModelResultType, z.ZodType<ModelAnalysisResult>>;
 
 const MODEL_ANALYSIS_FIELD_SCHEMAS: Record<ModelResultType, ReadonlyMap<string, z.ZodType>> = {
+  "explain-word": guardedFieldSchemasFor(
+    modelWordExplanationObjectSchema,
+    modelWordExplanationOwnKeys,
+  ),
   "explain-lexical": guardedFieldSchemasFor(
     modelLexicalExplanationObjectSchema,
     modelLexicalExplanationOwnKeys,
@@ -272,9 +375,17 @@ const MODEL_ANALYSIS_FIELD_SCHEMAS: Record<ModelResultType, ReadonlyMap<string, 
     modelPassageTranslationObjectSchema,
     modelPassageTranslationOwnKeys,
   ),
+  "translate-word": guardedFieldSchemasFor(
+    modelWordTranslationObjectSchema,
+    modelWordTranslationOwnKeys,
+  ),
 };
 
 const MODEL_ARRAY_ITEM_SCHEMAS = {
+  "explain-word": new Map<string, z.ZodType>([
+    ["usageNotes", usageNoteSchema],
+    ["synonyms", synonymComparisonSchema],
+  ]),
   "explain-lexical": new Map<string, z.ZodType>([
     ["collocations", collocationSchema],
     ["coreMeanings", coreMeaningSchema],
@@ -286,14 +397,23 @@ const MODEL_ARRAY_ITEM_SCHEMAS = {
     ["similarTerms", relatedTermSchema],
   ]),
   "translate-passage": new Map<string, z.ZodType>(),
+  "translate-word": new Map<string, z.ZodType>([
+    ["commonMeanings", dictionaryMeaningGroupSchema],
+    ["commonPhrases", commonPhraseSchema],
+    ["confusableWords", confusableWordSchema],
+  ]),
 } satisfies Record<ModelResultType, ReadonlyMap<string, z.ZodType>>;
 
 export function resultTypeFor(
   request: Pick<AnalyzeRequest, "action" | "selectionKind">,
 ): ModelResultType {
-  const lexical = request.selectionKind === "word" || request.selectionKind === "phrase";
-  if (request.action === "translate") return lexical ? "translate-lexical" : "translate-passage";
-  if (lexical) return "explain-lexical";
+  if (request.selectionKind === "word") {
+    return request.action === "translate" ? "translate-word" : "explain-word";
+  }
+  if (request.selectionKind === "phrase") {
+    return request.action === "translate" ? "translate-lexical" : "explain-lexical";
+  }
+  if (request.action === "translate") return "translate-passage";
   if (request.selectionKind === "sentence") return "explain-sentence";
   throw new RangeError("Paragraph explanation is unsupported.");
 }

@@ -8,9 +8,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { HostEvent } from "@huayi/protocol";
 
 import type { CompatibleHttpApiKeyReader } from "./credentials/compatible-http-keychain.js";
+import type { DeepSeekApiKeyReader } from "./credentials/deepseek-keychain.js";
 import type { OpenAIApiKeyReader } from "./credentials/openai-keychain.js";
 import { createNativeHostDispatcher } from "./main.js";
 import type { CompatibleHttpFetch } from "./provider/compatible-http-responses-client.js";
+import type { DeepSeekFetch } from "./provider/deepseek-chat-client.js";
 import type { OpenAIFetch } from "./provider/openai-responses-client.js";
 import type { ProcessRunner } from "./runtime/codex-process.js";
 
@@ -39,6 +41,45 @@ function neverProcessRunner(): ProcessRunner & { run: ReturnType<typeof vi.fn> }
 }
 
 describe("native host provider routing", () => {
+  it("reports DeepSeek health without reading credentials, fetching, or starting Codex", async () => {
+    const configurationPath = await providerConfigurationPath(
+      `${JSON.stringify({ provider: "deepseek-chat-completions", schemaVersion: 1 })}\n`,
+    );
+    const processRunner = neverProcessRunner();
+    const deepSeekKeyRead = vi.fn(async () => "fake-deepseek-key");
+    const deepSeekFetch = vi.fn<DeepSeekFetch>(async () => {
+      throw new Error("DeepSeek fetch must not run.");
+    });
+    const dispatcher = createNativeHostDispatcher({
+      codexExecutable: "/opt/codex",
+      deepSeekApiKeyReader: { read: deepSeekKeyRead } as unknown as DeepSeekApiKeyReader,
+      deepSeekFetch,
+      environment: { HOME: "/Users/tester" },
+      errorOutput: new PassThrough(),
+      processRunner,
+      providerConfigurationPath: configurationPath,
+      schemaDirectory: "/tmp/schemas",
+      workingDirectory: "/tmp/work",
+    });
+    const events: HostEvent[] = [];
+
+    dispatcher.dispatch(
+      { requestId: "health-deepseek", schemaVersion: 5, type: "health" },
+      (event) => events.push(event),
+    );
+    await vi.waitFor(() => expect(events).toHaveLength(1));
+
+    expect(events[0]).toMatchObject({
+      codexVersion: null,
+      model: "deepseek-v4-flash",
+      provider: "deepseek-chat-completions",
+      type: "health-result",
+    });
+    expect(deepSeekKeyRead).not.toHaveBeenCalled();
+    expect(deepSeekFetch).not.toHaveBeenCalled();
+    expect(processRunner.run).not.toHaveBeenCalled();
+  });
+
   it("reports compatible health from the sibling configuration without external work", async () => {
     const configurationPath = await providerConfigurationPath(
       `${JSON.stringify({ provider: "openai-compatible-http", schemaVersion: 1 })}\n`,
@@ -75,7 +116,7 @@ describe("native host provider routing", () => {
     const events: HostEvent[] = [];
 
     dispatcher.dispatch(
-      { requestId: "health-compatible", schemaVersion: 4, type: "health" },
+      { requestId: "health-compatible", schemaVersion: 5, type: "health" },
       (event) => events.push(event),
     );
     await vi.waitFor(() => expect(events).toHaveLength(1));
@@ -115,7 +156,7 @@ describe("native host provider routing", () => {
     });
     const events: HostEvent[] = [];
 
-    dispatcher.dispatch({ requestId: "health-api", schemaVersion: 4, type: "health" }, (event) =>
+    dispatcher.dispatch({ requestId: "health-api", schemaVersion: 5, type: "health" }, (event) =>
       events.push(event),
     );
     await vi.waitFor(() => expect(events).toHaveLength(1));
@@ -123,12 +164,12 @@ describe("native host provider routing", () => {
     expect(events).toEqual([
       {
         codexVersion: null,
-        hostVersion: "0.6.0",
+        hostVersion: "0.8.0",
         model: "gpt-5.6-luna",
         provider: "openai-responses",
         ready: true,
         requestId: "health-api",
-        schemaVersion: 4,
+        schemaVersion: 5,
         type: "health-result",
       },
     ]);
@@ -154,7 +195,7 @@ describe("native host provider routing", () => {
     const events: HostEvent[] = [];
 
     dispatcher.dispatch(
-      { requestId: "health-invalid-provider", schemaVersion: 4, type: "health" },
+      { requestId: "health-invalid-provider", schemaVersion: 5, type: "health" },
       (event) => events.push(event),
     );
     await vi.waitFor(() => expect(events).toHaveLength(1));

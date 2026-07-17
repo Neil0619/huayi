@@ -3,11 +3,13 @@
 ## 数据最小化
 
 扩展只发送英文选区和所在语义块中围绕选区的最多 2,000 个字符，不发送 URL、标题、整页
-内容、浏览历史或用户身份数据，也不持久化查询、结果或分析数据。
+内容、浏览历史或用户身份数据，也不持久化查询、结果或分析数据。单词或短语位于中英混合
+语义块且无法提取纯英文句子时，分析上下文安全退化为选区本身，不向模型发送包含汉字的
+语义块。
 
-`warmup` 只包含类型、`schemaVersion: 4` 和随机请求 ID，不包含选区、上下文、句子、URL、标题
-或其他页面数据。Codex 模式只完成 MCP 发现和 App Server 安全初始化；两个 HTTP Provider
-只读取本地 Provider 配置，不读取 Key、不发送 HTTP。三种模式都不创建模型输出或消费模型
+`warmup` 只包含类型、`schemaVersion: 5` 和随机请求 ID，不包含选区、上下文、句子、URL、标题
+或其他页面数据。Codex 模式只完成 MCP 发现和 App Server 安全初始化；三个 HTTP API Provider
+只读取本地 Provider 路由，不读取 Key、不发送 HTTP。四种模式都不创建模型输出或消费模型
 额度。
 
 API 模式只向 OpenAI 发送当前英文选区、最多 2,000 字符上下文、可用的英文句子语境和固定
@@ -143,6 +145,32 @@ reasoning / assistant item 中携带加密 reasoning、`turn_id` 与 `phase`。H
 一条 `pnpm host:provider:set codex` 即可停止后续第三方分析请求。默认测试只使用 fake
 Keychain reader、fake fetch 和脱敏 fixture，不访问第三方、真实钥匙串或 Provider 配置。
 
+## DeepSeek Key 与网络边界
+
+DeepSeek API Key 固定存入独立钥匙串项：
+
+```text
+service: com.huayi.codex_bridge.deepseek
+account: api-key
+label: Huayi DeepSeek API Key
+```
+
+配置、读取和移除使用固定 `/usr/bin/security`、参数数组、`shell: false` 和末尾无参数 `-w`；
+每个请求重新读取，不通过聊天、参数、环境变量、普通文件、Extension 消息、日志或 wire 接收
+Key，也不跨请求缓存。该项与欧路、官方 OpenAI 和 Compatible Key 相互独立，DeepSeek 路径不
+读取、复制或修改 `~/.codex` 的配置、认证或 session。
+
+网络端点固定为 `https://api.deepseek.com/chat/completions`，网页、Extension、配置文件、环境
+变量和命令行均不能覆盖。只有用户点击翻译或解释时才发送英文选区、最多 2,000 字符上下文、
+可用英文句子和固定分析指令；不发送 URL、标题、历史、欧路数据或既有模型输出。请求固定
+禁用思考并使用 JSON Output，客户端拒绝重定向、Cookie、自动重试和 fallback。
+
+data-only SSE 只接受有界 UTF-8、keep-alive、单 choice、固定响应生命周期、正常 `stop` 和最终
+`[DONE]`。非空 reasoning、截断、内容过滤、缺失终态、未知结构、超限、无效 JSON 或 Schema
+不匹配均失败关闭。配置 Key、运行 `pnpm smoke:deepseek` 和执行
+`pnpm host:provider:set deepseek` 是三个独立动作；配置与 smoke 都不会切换当前 Provider。
+默认测试只使用 fake Keychain 与 fake fetch，不访问 DeepSeek。
+
 ## Codex App Server 进程边界
 
 Native Host 使用参数数组、stdin/stdout 和 `shell: false` 启动 Codex App Server。App Server
@@ -205,30 +233,39 @@ Provider 内部诊断阶段固定为 `stream-parse`、`model-json`、`model-sche
 JSON、欧路授权、OpenAI API Key、Codex 认证、token 或环境数据；stdout 只写 Native
 Messaging 帧。
 
+v0.8.0 的单词结果仍只发送原有选区、最多 2,000 字符上下文和可用英文句子，不新增请求次数、
+Chrome 权限、凭据或外部词典。易混词、同义词和所有中文说明都作为不可信模型内容经过私有
+Schema 与公共协议两次严格校验，并继续仅用 `textContent` 渲染。
+
 ## Ephemeral 边界与真实冒烟
 
 ephemeral 的含义是分析 thread 不进入可恢复会话历史，不代表 Codex 进程绝不维护自身认证等
 状态。`pnpm smoke:codex` 在运行前后只列举 `CODEX_HOME/sessions` 下的相对文件名，不读取
 session 内容，更不会读取认证文件。默认测试全部使用 fake App Server/fetch。
 `pnpm smoke:compatible` 会把固定无敏感用例发送到本机配置的第三方端点；
-`pnpm smoke:compare` 会同时产生 Codex 用量和 OpenAI API 费用。所有真实命令都只能在用户
+`pnpm smoke:compare` 会同时产生 Codex 用量和 OpenAI API 费用；`pnpm smoke:deepseek` 会把
+固定英文用例发送到官方 DeepSeek 并产生 API 费用。所有真实命令都只能在用户
 分别明确批准真实模型、明文传输、额度和账单影响后单独执行。
 
 ## 外部写入
 
 安装器只有在显式执行后才写入 Huayi 的用户级 Host 目录和 Chrome Native Messaging 清单。
-dry-run 只读验证 Node、构建产物、App Server 能力、禁用功能、ChatGPT 登录和
-`/usr/bin/security`，不调用模型、不读取欧路授权或 OpenAI API Key、不创建目录。正式安装
-同样只验证 `security` 可执行，不读取或创建 OpenAI 钥匙串项。
+dry-run 只读验证 Node、构建产物、当前 Provider 配置和 `/usr/bin/security`；只有当前
+Provider 为 Codex 时才探测 App Server 能力、禁用功能和 ChatGPT 登录。API Provider 安装路径
+不会启动或探测 Codex，也不会因此放宽其自身固定端点、Keychain 和响应校验边界。dry-run 不
+调用模型、不读取欧路授权或任何模型 API Key、不创建目录；正式安装同样不读取或创建模型
+钥匙串项。
 
-v0.6.0 使用 `schemaVersion: 4` 并拒绝 v3，Extension 与 Host 必须使用扩展 ID
+v0.8.0 使用 `schemaVersion: 5` 并拒绝 v4，Extension 与 Host 必须使用扩展 ID
 `kfkamoejomjdihipgdkmfjcdenlhgnpd` 同步重装或回滚。升级只替换带合法 Huayi 所有权标记的
 bundle、Schema、空工作目录和 launcher，保持
 `~/Library/Application Support/Huayi/native-host/`、Chrome Native Messaging 清单路径，以及
 欧路 `com.huayi.codex_bridge.eudic` / `authorization`、官方 OpenAI
 `com.huayi.codex_bridge.openai` / `api-key`、Compatible
-`com.huayi.codex_bridge.compatible_http` / `api-key` 三个钥匙串项和两份配置文件不变。普通完整
+`com.huayi.codex_bridge.compatible_http` / `api-key`、DeepSeek
+`com.huayi.codex_bridge.deepseek` / `api-key` 四个钥匙串项和两份配置文件不变。普通完整
 卸载按既有行为删除精确欧路与官方 OpenAI 凭据及经过所有权验证的 Huayi 文件，但不会自动
-删除 Compatible 专用 Key；该项只能由用户显式执行 `host:compatible:key:remove` 删除。任一
+删除 Compatible 专用 Key；DeepSeek 项由完整卸载自动删除，也可单独执行
+`host:deepseek:remove`。Compatible 项只能由用户显式执行 `host:compatible:key:remove` 删除。任一
 自动凭据删除失败都会保留 Host 文件以便重试。卸载不会删除 Chrome 父目录、其他 Native
 Messaging 清单或这些精确项之外的钥匙串项，也不会触碰任何 Codex 文件。

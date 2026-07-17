@@ -8,6 +8,8 @@ import {
   modelLexicalTranslationSchema,
   modelPassageTranslationSchema,
   modelSentenceExplanationSchema,
+  modelWordExplanationSchema,
+  modelWordTranslationSchema,
   resultTypeFor,
 } from "./model-analysis-schemas.js";
 
@@ -191,7 +193,7 @@ describe("private model analysis schemas", () => {
   });
 
   it("looks up result and field schemas without exposing them through the protocol", () => {
-    expect(resultTypeFor({ action: "translate", selectionKind: "word" })).toBe("translate-lexical");
+    expect(resultTypeFor({ action: "translate", selectionKind: "word" })).toBe("translate-word");
     expect(resultTypeFor({ action: "translate", selectionKind: "paragraph" })).toBe(
       "translate-passage",
     );
@@ -202,6 +204,8 @@ describe("private model analysis schemas", () => {
     expect(() => resultTypeFor({ action: "explain", selectionKind: "paragraph" })).toThrow();
 
     expect(modelAnalysisResultSchemaFor("explain-lexical")).toBe(modelLexicalExplanationSchema);
+    expect(modelAnalysisResultSchemaFor("translate-word")).toBe(modelWordTranslationSchema);
+    expect(modelAnalysisResultSchemaFor("explain-word")).toBe(modelWordExplanationSchema);
     expect(
       modelAnalysisFieldSchemaFor("translate-lexical", "collocations")?.safeParse([]).success,
     ).toBe(true);

@@ -35,11 +35,10 @@ function withAvailability<
 
 describe("renderOverlayPanel", () => {
   it.each<readonly [AnalysisResult, string]>([
-    [lexicalTranslationResult, "相似词"],
+    [lexicalTranslationResult, "常见释义"],
     [passageTranslationResult, "第一句。\n第二句。"],
     [
       {
-        ...lexicalExplanationResult,
         collocations: [
           { meaningZh: "持续高温", text: "sustained heat" },
           { meaningZh: "持续努力", text: "sustained effort" },
@@ -53,6 +52,8 @@ describe("renderOverlayPanel", () => {
           { meaningZh: "持久的", partOfSpeech: "adjective", text: "prolonged" },
           { meaningZh: "不间断的", partOfSpeech: "adjective", text: "uninterrupted" },
         ],
+        type: "explain-lexical",
+        wordFormation: "sustain + -ed",
       },
       "同义词",
     ],
@@ -65,15 +66,11 @@ describe("renderOverlayPanel", () => {
   });
 
   it.each([
-    [
-      "translation",
-      lexicalTranslationResult,
-      ["语境义", "词性", "音标", "语境搭配", "原文例句", "相似词"],
-    ],
+    ["translation", lexicalTranslationResult, ["音标", "语境义", "常见释义", "常用短语"]],
     [
       "explanation",
       lexicalExplanationResult,
-      ["语境义", "原形", "构词", "核心词义", "语境搭配", "同义词"],
+      ["语境解析", "词形解析", "构词解析", "用法要点", "同义词辨析"],
     ],
   ] as const)("uses the fixed lexical section order for %s", (_label, result, expectedHeadings) => {
     const panel = renderOverlayPanel(resultState(result), handlers);
@@ -86,41 +83,42 @@ describe("renderOverlayPanel", () => {
   it("renders Four without headings for empty or absent lexical sections", () => {
     const translation = renderOverlayPanel(
       resultState({
-        collocations: [],
-        contextualMeaningZh: "四",
-        partOfSpeech: "number",
+        commonMeanings: [{ meaningsZh: ["四"], partOfSpeech: "number" }],
+        commonPhrases: [],
+        confusableWords: [],
+        contextualSense: { meaningZh: "四", partOfSpeech: "number" },
+        dictionaryForm: "four",
         selectionKind: "word",
-        similarTerms: [],
         sourceText: "Four",
-        type: "translate-lexical",
+        type: "translate-word",
       }),
       handlers,
     );
     const explanation = renderOverlayPanel(
       resultState({
-        collocations: [],
-        contextualMeaningZh: "四",
-        coreMeanings: [{ meaningZh: "四", partOfSpeech: "number" }],
+        contextualAnalysisZh: "这里表示数量四。",
         selectionKind: "word",
         sourceText: "Four",
         synonyms: [],
-        type: "explain-lexical",
+        type: "explain-word",
+        usageNotes: [],
+        wordForm: { baseForm: "four", formTypeZh: "基数词", sentenceRoleZh: "定语" },
       }),
       handlers,
     );
 
+    expect(translation.textContent).toContain("num.");
     for (const panel of [translation, explanation]) {
       expect(panel.textContent).toContain("Four");
       expect(panel.textContent).toContain("四");
-      expect(panel.textContent).toContain("num.");
       const headings = Array.from(
         panel.querySelectorAll(".huayi-section-title"),
         (heading) => heading.textContent,
       );
-      expect(headings).not.toContain("构词");
-      expect(headings).not.toContain("语境搭配");
-      expect(headings).not.toContain("同义词");
-      expect(headings).not.toContain("相似词");
+      expect(headings).not.toContain("构词解析");
+      expect(headings).not.toContain("常用短语");
+      expect(headings).not.toContain("同义词辨析");
+      expect(headings).not.toContain("易混词");
     }
   });
 
@@ -160,8 +158,10 @@ describe("renderOverlayPanel", () => {
         ...session,
         preview: {
           lastSequence: 0,
-          sections: {},
-          text: { translation: "正在逐步显示译文" },
+          sections: {
+            contextualSense: { meaningZh: "正在逐步显示译文", partOfSpeech: "noun" },
+          },
+          text: {},
         },
         status: "streaming",
       },
@@ -174,7 +174,11 @@ describe("renderOverlayPanel", () => {
       {
         ...session,
         error: { code: "TIMEOUT", message: "处理超时，请重试。", retryable: true },
-        preview: { lastSequence: 0, sections: {}, text: { translation: "部分译文" } },
+        preview: {
+          lastSequence: 0,
+          sections: { contextualSense: { meaningZh: "部分译文", partOfSpeech: "noun" } },
+          text: {},
+        },
         status: "error",
       },
       handlers,
@@ -302,7 +306,10 @@ describe("renderOverlayPanel", () => {
     const malicious = '<img src=x onerror="globalThis.pwned=true">';
     const state: ResultOverlayState = {
       ...base,
-      result: { ...lexicalTranslationResult, contextualMeaningZh: malicious },
+      result: {
+        ...lexicalTranslationResult,
+        contextualSense: { meaningZh: malicious, partOfSpeech: "noun" },
+      },
       wordbook: {
         ...base.wordbook,
         mutation: {
@@ -316,7 +323,7 @@ describe("renderOverlayPanel", () => {
 
     expect(panel.textContent).toContain(malicious);
     expect(panel.querySelector("img")).toBeNull();
-    expect(panel.textContent).toContain("相似词");
+    expect(panel.textContent).toContain("常见释义");
     expect(feedback?.getAttribute("aria-live")).toBe("polite");
     expect(panel.querySelector(".huayi-header")?.nextElementSibling).toBe(feedback);
     expect(wordbookButton(panel)?.disabled).toBe(false);
@@ -344,7 +351,15 @@ describe("renderOverlayPanel", () => {
     [
       "phrase",
       resultState(
-        { ...lexicalExplanationResult, selectionKind: "phrase" },
+        {
+          collocations: [],
+          contextualMeaningZh: "持续高温",
+          coreMeanings: [{ meaningZh: "持续", partOfSpeech: "verb" }],
+          selectionKind: "phrase",
+          sourceText: "sustained heatwave",
+          synonyms: [],
+          type: "explain-lexical",
+        },
         {
           selection: {
             ...session.selection,
@@ -369,8 +384,16 @@ describe("renderOverlayPanel", () => {
     expect(wordbookButton(renderOverlayPanel(state, handlers))).toBeNull();
   });
 
-  it("does not enable add when the completed lexical result itself is not a word", () => {
-    const mismatched = resultState({ ...lexicalTranslationResult, selectionKind: "phrase" });
+  it("does not enable add for a completed phrase result", () => {
+    const mismatched = resultState({
+      collocations: [],
+      contextualMeaningZh: "持续高温",
+      partOfSpeech: "phrase",
+      selectionKind: "phrase",
+      similarTerms: [],
+      sourceText: "sustained heatwave",
+      type: "translate-lexical",
+    });
 
     expect(wordbookButton(renderOverlayPanel(mismatched, handlers))).toBeNull();
   });

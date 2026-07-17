@@ -39,20 +39,17 @@ class FakeRuntime implements ContentRuntime {
 const instances: ContentScriptInstance[] = [];
 
 const lexicalResult = {
-  collocations: [
+  commonMeanings: [{ meaningsZh: ["调查"], partOfSpeech: "noun" }],
+  commonPhrases: [
     { meaningZh: "刑事调查", text: "criminal investigation" },
     { meaningZh: "展开调查", text: "launch an investigation" },
   ],
-  contextualMeaningZh: "调查",
-  partOfSpeech: "noun",
+  confusableWords: [],
+  contextualSense: { meaningZh: "调查", partOfSpeech: "noun" },
+  dictionaryForm: "investigation",
   selectionKind: "word",
-  similarTerms: [
-    { meaningZh: "询问", partOfSpeech: "noun", text: "inquiry" },
-    { meaningZh: "审查", partOfSpeech: "noun", text: "examination" },
-    { meaningZh: "研究", partOfSpeech: "noun", text: "research" },
-  ],
   sourceText: "investigation",
-  type: "translate-lexical",
+  type: "translate-word",
 } as const;
 
 function deferred<T>() {
@@ -118,7 +115,7 @@ function emitResult(runtime: FakeRuntime, requestId = "request-1"): void {
   runtime.emit({
     requestId,
     result: lexicalResult,
-    schemaVersion: 4,
+    schemaVersion: 5,
     type: "result",
   });
 }
@@ -183,7 +180,7 @@ describe("content-script concurrent operations", () => {
         selectionKind: "phrase",
         sourceText: "sustained heatwave",
       },
-      schemaVersion: 4,
+      schemaVersion: 5,
       type: "result",
     });
 
@@ -215,7 +212,7 @@ describe("content-script concurrent operations", () => {
           context: "investigation",
           language: "en",
           requestId: "request-3",
-          schemaVersion: 4,
+          schemaVersion: 5,
           type: "add-word",
           word: "investigation",
         },
@@ -225,7 +222,7 @@ describe("content-script concurrent operations", () => {
     runtime.emit({
       error: { code: "NETWORK_ERROR", message: "添加失败。", retryable: true },
       requestId: "request-3",
-      schemaVersion: 4,
+      schemaVersion: 5,
       type: "error",
     });
     expect(instance.controller.state).toMatchObject({
@@ -290,7 +287,7 @@ describe("content-script concurrent operations", () => {
     runtime.emit({
       delta: "部分",
       requestId: "request-1",
-      schemaVersion: 4,
+      schemaVersion: 5,
       section: "translation",
       sequence: 0,
       type: "analysis-delta",
@@ -300,7 +297,7 @@ describe("content-script concurrent operations", () => {
     runtime.emit({
       error: { code: "NETWORK_ERROR", message: "欧路查询失败。", retryable: true },
       requestId: "request-2",
-      schemaVersion: 4,
+      schemaVersion: 5,
       type: "error",
     });
     expect(instance.controller.state).toMatchObject({
@@ -311,7 +308,7 @@ describe("content-script concurrent operations", () => {
     runtime.emit({
       error: { code: "TIMEOUT", message: "分析超时。", retryable: true },
       requestId: "request-1",
-      schemaVersion: 4,
+      schemaVersion: 5,
       type: "error",
     });
     expect(instance.controller.state).toMatchObject({
@@ -331,7 +328,7 @@ describe("content-script concurrent operations", () => {
     runtime.emit({
       error: { code: "TIMEOUT", message: "分析超时。", retryable: true },
       requestId: "request-1",
-      schemaVersion: 4,
+      schemaVersion: 5,
       type: "error",
     });
 

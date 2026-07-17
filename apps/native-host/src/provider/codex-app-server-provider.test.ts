@@ -57,16 +57,21 @@ class FakeAppServer implements CodexAppServer {
   }
 }
 
-const terms = [{ meaningZh: "调查", partOfSpeech: "noun", text: "inquiry" }] as const;
-const collocations = [{ meaningZh: "刑事调查", text: "criminal investigation" }] as const;
-
 const lexicalTranslationContent = {
-  contextualMeaningZh: "调查行为",
-  collocations: [...collocations],
-  contextExampleTranslationZh: "调查仍处于早期阶段。",
-  partOfSpeech: "noun",
   pronunciation: { uk: "/ɪnˌvestɪˈɡeɪʃn/", us: null },
-  similarTerms: [...terms],
+  contextualSense: { meaningZh: "调查行为", partOfSpeech: "noun" },
+  dictionaryForm: "investigation",
+  commonMeanings: [{ meaningsZh: ["调查", "侦查"], partOfSpeech: "noun" }],
+  commonPhrases: [{ meaningZh: "刑事调查", text: "criminal investigation" }],
+  confusableWords: [],
+};
+
+const wordExplanationContent = {
+  contextualAnalysisZh: "此处指正式调查，因为它作宾语从句的主语。",
+  wordForm: { baseForm: "investigation", formTypeZh: "名词单数", sentenceRoleZh: "主语" },
+  wordFormationZh: "investigate 加后缀 -ion 构成名词。",
+  usageNotes: [],
+  synonyms: [],
 };
 
 const passageTranslationContent = {
@@ -85,7 +90,7 @@ function createRequest(overrides: Partial<AnalyzeRequest> = {}): AnalyzeRequest 
     action: "translate",
     context: "The investigation was in its early stages.",
     requestId: "analysis-1",
-    schemaVersion: 4,
+    schemaVersion: 5,
     selection: "investigation",
     selectionKind: "word",
     sentenceContext: "The investigation was in its early stages.",
@@ -120,7 +125,7 @@ async function expectInvalidResponse(text: string): Promise<void> {
   ).rejects.toMatchObject({ code: "INVALID_RESPONSE", retryable: true });
 }
 
-function emptyLexicalContent(
+function emptyWordContent(
   action: AnalyzeRequest["action"],
   contextualMeaningZh: string,
   partOfSpeech: string,
@@ -128,20 +133,23 @@ function emptyLexicalContent(
 ) {
   return action === "translate"
     ? {
-        collocations: [],
-        contextExampleTranslationZh: null,
-        contextualMeaningZh,
-        partOfSpeech,
         pronunciation: null,
-        similarTerms: [],
+        contextualSense: { meaningZh: contextualMeaningZh, partOfSpeech },
+        dictionaryForm: baseForm ?? "test",
+        commonMeanings: [{ meaningsZh: [contextualMeaningZh], partOfSpeech }],
+        commonPhrases: [],
+        confusableWords: [],
       }
     : {
-        baseForm,
-        collocations: [],
-        contextualMeaningZh,
-        coreMeanings: [{ meaningZh: contextualMeaningZh, partOfSpeech }],
+        contextualAnalysisZh: contextualMeaningZh,
+        wordForm: {
+          baseForm: baseForm ?? "test",
+          formTypeZh: "测试词形",
+          sentenceRoleZh: null,
+        },
+        wordFormationZh: null,
+        usageNotes: [],
         synonyms: [],
-        wordFormation: null,
       };
 }
 
@@ -212,12 +220,12 @@ describe("CodexAppServerProvider", () => {
   });
 
   it("emits a configured field incrementally without request metadata", async () => {
-    const finalText = JSON.stringify(lexicalTranslationContent);
+    const finalText = JSON.stringify(wordExplanationContent);
     const appServer = new FakeAppServer([
       {
         deltas: [
-          '{"contextualMeaningZh":"调查',
-          finalText.slice('{"contextualMeaningZh":"调查'.length),
+          '{"contextualAnalysisZh":"此处指正式',
+          finalText.slice('{"contextualAnalysisZh":"此处指正式'.length),
         ],
         finalText,
       },
@@ -225,15 +233,19 @@ describe("CodexAppServerProvider", () => {
     const chunks: AnalysisStreamUpdate[] = [];
 
     await createProvider(appServer).analyze(
-      createRequest(),
+      createRequest({ action: "explain" }),
       new AbortController().signal,
       (chunk) => chunks.push(chunk),
     );
 
     const deltas = chunks.filter((update) => update.type === "analysis-delta");
     expect(deltas).toEqual([
-      { delta: "调查", section: "contextual-meaning", type: "analysis-delta" },
-      { delta: "行为", section: "contextual-meaning", type: "analysis-delta" },
+      { delta: "此处指正式", section: "contextual-analysis", type: "analysis-delta" },
+      {
+        delta: "调查，因为它作宾语从句的主语。",
+        section: "contextual-analysis",
+        type: "analysis-delta",
+      },
     ]);
     expect(deltas.every((chunk) => Object.keys(chunk).length === 3)).toBe(true);
   });
@@ -249,33 +261,28 @@ describe("CodexAppServerProvider", () => {
     );
 
     expect(updates).toEqual([
-      { delta: "调查行为", section: "contextual-meaning", type: "analysis-delta" },
-      {
-        section: "collocations",
-        type: "analysis-section",
-        value: [{ meaningZh: "刑事调查", text: "criminal investigation" }],
-      },
-      {
-        section: "context-example",
-        type: "analysis-section",
-        value: {
-          english: "The investigation was in its early stages.",
-          translationZh: "调查仍处于早期阶段。",
-        },
-      },
-      { section: "part-of-speech", type: "analysis-section", value: "noun" },
       {
         section: "pronunciation",
         type: "analysis-section",
         value: { uk: "/ɪnˌvestɪˈɡeɪʃn/" },
       },
       {
-        section: "similar-terms",
+        section: "contextual-sense",
         type: "analysis-section",
-        value: [{ meaningZh: "调查", partOfSpeech: "noun", text: "inquiry" }],
+        value: { meaningZh: "调查行为", partOfSpeech: "noun" },
+      },
+      {
+        section: "common-meanings",
+        type: "analysis-section",
+        value: [{ meaningsZh: ["调查", "侦查"], partOfSpeech: "noun" }],
+      },
+      {
+        section: "common-phrases",
+        type: "analysis-section",
+        value: [{ meaningZh: "刑事调查", text: "criminal investigation" }],
       },
     ]);
-    expect(result).toMatchObject({ sourceText: "investigation", type: "translate-lexical" });
+    expect(result).toMatchObject({ sourceText: "investigation", type: "translate-word" });
   });
 
   it("interrupts once at the first invalid complete field and suppresses every late update", async () => {
@@ -283,27 +290,27 @@ describe("CodexAppServerProvider", () => {
     const appServer = new FakeAppServer([
       {
         deltas: [
-          '{"contextualMeaningZh":"safe preview",',
-          '"partOfSpeech":"secret"',
-          ',"collocations":[{"meaningZh":"late","text":"late value"}]}',
+          '{"contextualAnalysisZh":"safe preview",',
+          '"wordForm":{"baseForm":"investigation","formTypeZh":"测试","sentenceRoleZh":42}',
+          ',"usageNotes":[]}',
         ],
-        finalText: JSON.stringify(lexicalTranslationContent),
+        finalText: JSON.stringify(wordExplanationContent),
       },
     ]);
     const updates: AnalysisStreamUpdate[] = [];
 
     await expect(
       createProvider(appServer, (diagnostic) => diagnostics.push(diagnostic)).analyze(
-        createRequest(),
+        createRequest({ action: "explain" }),
         new AbortController().signal,
         (update) => updates.push(update),
       ),
     ).rejects.toMatchObject({ code: "INVALID_RESPONSE", retryable: true });
 
     expect(updates).toEqual([
-      { delta: "safe preview", section: "contextual-meaning", type: "analysis-delta" },
+      { delta: "safe preview", section: "contextual-analysis", type: "analysis-delta" },
     ]);
-    expect(diagnostics).toEqual([{ field: "partOfSpeech", stage: "model-schema" }]);
+    expect(diagnostics).toEqual([{ field: "wordForm", stage: "model-schema" }]);
     expect(appServer.interruptCalls).toEqual(["analysis-1"]);
     expect(appServer.interruptCountsAfterDelta).toEqual([0, 1, 1]);
   });
@@ -311,7 +318,7 @@ describe("CodexAppServerProvider", () => {
   it("prefers a recorded INVALID_RESPONSE when interruption rejects the turn as cancelled", async () => {
     const appServer = new FakeAppServer([
       {
-        deltas: ['{"partOfSpeech":"secret"'],
+        deltas: ['{"contextualSense":{"meaningZh":"调查","partOfSpeech":"secret"}'],
         error: new CodexProviderError("CANCELLED", "cancelled", false),
         finalText: "",
       },
@@ -350,7 +357,7 @@ describe("CodexAppServerProvider", () => {
   it("rejects a malformed streamed object even when the final response is valid", async () => {
     const appServer = new FakeAppServer([
       {
-        deltas: ['{"contextualMeaningZh":"one","contextualMeaningZh":"two"}'],
+        deltas: ['{"dictionaryForm":"one","dictionaryForm":"two"}'],
         finalText: JSON.stringify(lexicalTranslationContent),
       },
     ]);
@@ -373,24 +380,22 @@ describe("CodexAppServerProvider", () => {
   ] as const)(
     "assembles reliable %s %s results from private model JSON",
     async (selection, action, partOfSpeech, baseForm) => {
-      const content = emptyLexicalContent(action, `语境中的 ${selection}`, partOfSpeech, baseForm);
+      const content = emptyWordContent(action, `语境中的 ${selection}`, partOfSpeech, baseForm);
       const appServer = new FakeAppServer([successfulRun(content)]);
       const request = createRequest({ action, selection, sentenceContext: null });
 
       const result = await createProvider(appServer).analyze(request, new AbortController().signal);
 
       expect(result).toMatchObject({
-        collocations: [],
         selectionKind: request.selectionKind,
         sourceText: request.selection,
-        type: `${action}-lexical`,
+        type: `${action}-word`,
       });
       if (action === "translate") {
-        expect(result).toMatchObject({ partOfSpeech, similarTerms: [] });
+        expect(result).toMatchObject({ commonPhrases: [], confusableWords: [] });
       } else {
-        expect(result).toMatchObject({ synonyms: [] });
-        if (baseForm === null) expect(result).not.toHaveProperty("baseForm");
-        else expect(result).toHaveProperty("baseForm", baseForm);
+        expect(result).toMatchObject({ synonyms: [], usageNotes: [] });
+        expect(result).toHaveProperty("wordForm.baseForm", baseForm ?? "test");
       }
     },
   );

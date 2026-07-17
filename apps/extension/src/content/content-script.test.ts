@@ -67,22 +67,19 @@ function resolveWordTranslation(runtime: FakeRuntime, requestId: string, sourceT
   runtime.emit({
     requestId,
     result: {
-      collocations: [
+      commonMeanings: [{ meaningsZh: ["测试词义"], partOfSpeech: "noun" }],
+      commonPhrases: [
         { meaningZh: "测试搭配一", text: "sample collocation" },
         { meaningZh: "测试搭配二", text: "common collocation" },
       ],
-      contextualMeaningZh: "测试词义",
-      partOfSpeech: "noun",
+      confusableWords: [],
+      contextualSense: { meaningZh: "测试词义", partOfSpeech: "noun" },
+      dictionaryForm: sourceText,
       selectionKind: "word",
-      similarTerms: [
-        { meaningZh: "相似项一", partOfSpeech: "noun", text: "alternative" },
-        { meaningZh: "相似项二", partOfSpeech: "noun", text: "equivalent" },
-        { meaningZh: "相似项三", partOfSpeech: "noun", text: "counterpart" },
-      ],
       sourceText,
-      type: "translate-lexical",
+      type: "translate-word",
     },
-    schemaVersion: 4,
+    schemaVersion: 5,
     type: "result",
   });
 }
@@ -113,7 +110,7 @@ describe("createAnalyzeRequest", () => {
       action: "translate",
       context: "The investigation was in its early stages.",
       requestId: "request-1",
-      schemaVersion: 4,
+      schemaVersion: 5,
       selection: "investigation",
       selectionKind: "word",
       sentenceContext: "The investigation was in its early stages.",
@@ -156,7 +153,7 @@ describe("createAddWordRequest", () => {
       context: "The investigation was in its early stages.",
       language: "en",
       requestId: "word-1",
-      schemaVersion: 4,
+      schemaVersion: 5,
       type: "add-word",
       word: "investigation",
     });
@@ -194,7 +191,7 @@ describe("createCheckWordRequest", () => {
     ).toEqual({
       language: "en",
       requestId: "check-1",
-      schemaVersion: 4,
+      schemaVersion: 5,
       type: "check-word",
       word: "investigation",
     });
@@ -238,22 +235,19 @@ describe("initializeContentScript", () => {
     runtime.emit({
       requestId: "request-1",
       result: {
-        collocations: [
+        commonMeanings: [{ meaningsZh: ["调查"], partOfSpeech: "noun" }],
+        commonPhrases: [
           { meaningZh: "刑事调查", text: "criminal investigation" },
           { meaningZh: "展开调查", text: "launch an investigation" },
         ],
-        contextualMeaningZh: "调查",
-        partOfSpeech: "noun",
+        confusableWords: [],
+        contextualSense: { meaningZh: "调查", partOfSpeech: "noun" },
+        dictionaryForm: "investigation",
         selectionKind: "word",
-        similarTerms: [
-          { meaningZh: "询问", partOfSpeech: "noun", text: "inquiry" },
-          { meaningZh: "审查", partOfSpeech: "noun", text: "examination" },
-          { meaningZh: "研究", partOfSpeech: "noun", text: "research" },
-        ],
         sourceText: "investigation",
-        type: "translate-lexical",
+        type: "translate-word",
       },
-      schemaVersion: 4,
+      schemaVersion: 5,
       type: "result",
     });
     instance.controller.shadowRoot
@@ -264,7 +258,7 @@ describe("initializeContentScript", () => {
         context: "The investigation was in its early stages.",
         language: "en",
         requestId: "request-2",
-        schemaVersion: 4,
+        schemaVersion: 5,
         type: "add-word",
         word: "investigation",
       },
@@ -273,7 +267,7 @@ describe("initializeContentScript", () => {
     runtime.emit({
       outcome: "added",
       requestId: "request-2",
-      schemaVersion: 4,
+      schemaVersion: 5,
       type: "word-added",
     });
     expect(instance.controller.shadowRoot.textContent).toContain("已加入生词本");
@@ -338,7 +332,7 @@ describe("initializeContentScript", () => {
     runtime.emit({
       outcome: "added",
       requestId: "request-2",
-      schemaVersion: 4,
+      schemaVersion: 5,
       type: "word-added",
     });
     expect(instance.controller.state).toMatchObject({

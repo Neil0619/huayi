@@ -13,15 +13,13 @@ import { OpenAIResponsesProvider } from "./openai-responses-provider.js";
 import type { ProviderValidationDiagnostic } from "./provider-validation.js";
 
 const lexicalSchema = { additionalProperties: false, properties: {}, type: "object" };
-const collocations = [{ meaningZh: "刑事调查", text: "criminal investigation" }] as const;
-const similarTerms = [{ meaningZh: "调查", partOfSpeech: "noun", text: "inquiry" }] as const;
 const lexicalContent = {
-  collocations: [...collocations],
-  contextExampleTranslationZh: "调查仍处于早期阶段。",
-  contextualMeaningZh: "调查行为",
-  partOfSpeech: "noun",
   pronunciation: null,
-  similarTerms: [...similarTerms],
+  contextualSense: { meaningZh: "调查行为", partOfSpeech: "noun" },
+  dictionaryForm: "investigation",
+  commonMeanings: [{ meaningsZh: ["调查", "侦查"], partOfSpeech: "noun" }],
+  commonPhrases: [{ meaningZh: "刑事调查", text: "criminal investigation" }],
+  confusableWords: [],
 };
 
 function createAnalysisRequest(overrides: Partial<AnalyzeRequest> = {}): AnalyzeRequest {
@@ -29,7 +27,7 @@ function createAnalysisRequest(overrides: Partial<AnalyzeRequest> = {}): Analyze
     action: "translate",
     context: "The investigation was in its early stages.",
     requestId: "analysis-1",
-    schemaVersion: 4,
+    schemaVersion: 5,
     selection: "investigation",
     selectionKind: "word",
     sentenceContext: "The investigation was in its early stages.",
@@ -189,7 +187,7 @@ describe("OpenAIResponsesProvider", () => {
     expect(client.requests[0]).toMatchObject({
       modelConfiguration: { effort: "none", model: "gpt-5.6-luna" },
       outputSchema: lexicalSchema,
-      outputSchemaName: "translate_lexical",
+      outputSchemaName: "translate_word",
     });
   });
 
@@ -205,24 +203,19 @@ describe("OpenAIResponsesProvider", () => {
     );
 
     expect(updates).toContainEqual({
-      delta: "调查行为",
-      section: "contextual-meaning",
-      type: "analysis-delta",
+      section: "contextual-sense",
+      type: "analysis-section",
+      value: { meaningZh: "调查行为", partOfSpeech: "noun" },
     });
     expect(updates).toContainEqual({
-      section: "collocations",
+      section: "common-phrases",
       type: "analysis-section",
-      value: [...collocations],
-    });
-    expect(updates).toContainEqual({
-      section: "similar-terms",
-      type: "analysis-section",
-      value: [...similarTerms],
+      value: [{ meaningZh: "刑事调查", text: "criminal investigation" }],
     });
     expect(result).toMatchObject({
       selectionKind: "word",
       sourceText: "investigation",
-      type: "translate-lexical",
+      type: "translate-word",
     });
   });
 
@@ -290,7 +283,10 @@ describe("OpenAIResponsesProvider", () => {
 
   it("rejects a valid preview followed by invalid final JSON with safe diagnostics", async () => {
     const diagnostics: ProviderValidationDiagnostic[] = [];
-    const text = JSON.stringify({ ...lexicalContent, partOfSpeech: "secret-invalid-value" });
+    const text = JSON.stringify({
+      ...lexicalContent,
+      contextualSense: { meaningZh: "调查", partOfSpeech: "secret-invalid-value" },
+    });
     const client = new FakeClient([successfulEvents(text)]);
     const { provider } = createProvider(client, ["secret-key"], (diagnostic) =>
       diagnostics.push(diagnostic),
@@ -299,7 +295,7 @@ describe("OpenAIResponsesProvider", () => {
     await expect(
       provider.analyze(createAnalysisRequest(), new AbortController().signal),
     ).rejects.toMatchObject({ code: "INVALID_RESPONSE" });
-    expect(diagnostics).toEqual([{ field: "partOfSpeech", stage: "model-schema" }]);
+    expect(diagnostics).toEqual([{ field: "contextualSense", stage: "model-schema" }]);
     expect(JSON.stringify(diagnostics)).not.toContain("secret");
   });
 

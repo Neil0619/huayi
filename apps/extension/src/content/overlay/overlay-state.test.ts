@@ -22,20 +22,17 @@ const actionsForWord: ActionsOverlayState = {
 };
 
 const lexicalResult: AnalysisResult = {
-  collocations: [
+  commonMeanings: [{ meaningsZh: ["调查"], partOfSpeech: "noun" }],
+  commonPhrases: [
     { meaningZh: "刑事调查", text: "criminal investigation" },
     { meaningZh: "展开调查", text: "launch an investigation" },
   ],
-  contextualMeaningZh: "调查",
-  partOfSpeech: "noun",
+  confusableWords: [],
+  contextualSense: { meaningZh: "调查", partOfSpeech: "noun" },
+  dictionaryForm: "investigation",
   selectionKind: "word",
-  similarTerms: [
-    { meaningZh: "询问", partOfSpeech: "noun", text: "inquiry" },
-    { meaningZh: "审查", partOfSpeech: "noun", text: "examination" },
-    { meaningZh: "研究", partOfSpeech: "noun", text: "research" },
-  ],
   sourceText: "investigation",
-  type: "translate-lexical",
+  type: "translate-word",
 };
 
 function startWordAnalysis(): OverlayState {
@@ -54,7 +51,7 @@ function delta(
   return {
     delta: value,
     requestId: "analysis-1",
-    schemaVersion: 4,
+    schemaVersion: 5,
     section,
     sequence,
     type: "analysis-delta",
@@ -68,7 +65,7 @@ function section(
   return {
     ...payload,
     requestId: "analysis-1",
-    schemaVersion: 4,
+    schemaVersion: 5,
     sequence,
     type: "analysis-section",
   } as AnalysisSectionEvent;

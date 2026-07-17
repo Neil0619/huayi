@@ -4,11 +4,13 @@ import type { ModelProvider } from "@huayi/protocol";
 
 import type { CompatibleHttpConfigurationStore } from "../config/compatible-http-configuration-store.js";
 import type { CompatibleHttpApiKeyReader } from "../credentials/compatible-http-keychain.js";
+import type { DeepSeekApiKeyReader } from "../credentials/deepseek-keychain.js";
 import type { OpenAIApiKeyReader } from "../credentials/openai-keychain.js";
 import type { CodexAppServer } from "../runtime/codex-app-server-lifecycle.js";
 import type { EudicFetch } from "../wordbook/eudic-client.js";
 import { createAnalysisProviderFactory } from "./analysis-provider-factory.js";
 import type { CompatibleHttpFetch } from "./compatible-http-responses-client.js";
+import type { DeepSeekFetch } from "./deepseek-chat-client.js";
 import type { OpenAIFetch } from "./openai-responses-client.js";
 
 function createAppServer(): CodexAppServer & {
@@ -45,6 +47,10 @@ function createFactory(provider: ModelProvider) {
   const compatibleHttpFetch = vi.fn<CompatibleHttpFetch>(async () => {
     throw new Error("Compatible HTTP fetch must not run.");
   });
+  const deepSeekKeyRead = vi.fn(async () => "fake-deepseek-key");
+  const deepSeekFetch = vi.fn<DeepSeekFetch>(async () => {
+    throw new Error("DeepSeek fetch must not run.");
+  });
   const openAIFetch = vi.fn<OpenAIFetch>(async () => {
     throw new Error("OpenAI fetch must not run.");
   });
@@ -65,6 +71,8 @@ function createFactory(provider: ModelProvider) {
     } as unknown as CompatibleHttpConfigurationStore,
     compatibleHttpFetch,
     configurationStore,
+    deepSeekApiKeyReader: { read: deepSeekKeyRead } as unknown as DeepSeekApiKeyReader,
+    deepSeekFetch,
     eudicAuthorizationReader: { read: eudicAuthorizationRead },
     eudicFetch,
     openAIFetch,
@@ -78,6 +86,8 @@ function createFactory(provider: ModelProvider) {
     compatibleHttpFetch,
     compatibleKeyRead,
     configurationStore,
+    deepSeekFetch,
+    deepSeekKeyRead,
     eudicAuthorizationRead,
     eudicFetch,
     factory,
@@ -123,6 +133,20 @@ describe("createAnalysisProviderFactory", () => {
     expect(fixture.openAIFetch).not.toHaveBeenCalled();
     expect(fixture.eudicAuthorizationRead).not.toHaveBeenCalled();
     expect(fixture.eudicFetch).not.toHaveBeenCalled();
+  });
+
+  it("reports DeepSeek health locally without reading its Keychain item or fetching", async () => {
+    const fixture = createFactory("deepseek-chat-completions");
+
+    await expect(fixture.factory.healthCheck()).resolves.toEqual({
+      codexVersion: null,
+      model: "deepseek-v4-flash",
+      provider: "deepseek-chat-completions",
+    });
+
+    expect(fixture.deepSeekKeyRead).not.toHaveBeenCalled();
+    expect(fixture.deepSeekFetch).not.toHaveBeenCalled();
+    expect(fixture.codexHealthCheck).not.toHaveBeenCalled();
   });
 
   it("validates Codex capabilities and reports the fixed Codex model", async () => {

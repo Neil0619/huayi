@@ -12,6 +12,8 @@ import {
 import type { WordbookProvider } from "../wordbook/wordbook-provider.js";
 import type { AnalysisProvider } from "./analysis-provider.js";
 import { CodexAppServerProvider } from "./codex-app-server-provider.js";
+import { DeepSeekChatClient, type DeepSeekFetch } from "./deepseek-chat-client.js";
+import { DeepSeekChatProvider, type DeepSeekCredentialReader } from "./deepseek-chat-provider.js";
 import {
   CompatibleHttpResponsesClient,
   type CompatibleHttpFetch,
@@ -49,6 +51,11 @@ export type ActiveProviderHealth =
       codexVersion: null;
       model: CompatibleHttpConfiguration["model"];
       provider: "openai-compatible-http";
+    }
+  | {
+      codexVersion: null;
+      model: "deepseek-v4-flash";
+      provider: "deepseek-chat-completions";
     };
 
 export interface AnalysisProviderFactoryOptions {
@@ -59,6 +66,8 @@ export interface AnalysisProviderFactoryOptions {
   compatibleHttpConfigurationStore: CompatibleHttpConfigurationReader;
   compatibleHttpFetch?: CompatibleHttpFetch;
   configurationStore: ProviderConfigurationReader;
+  deepSeekApiKeyReader: DeepSeekCredentialReader;
+  deepSeekFetch?: DeepSeekFetch;
   eudicAuthorizationReader: EudicAuthorizationReader;
   eudicFetch?: EudicFetch;
   onValidationDiagnostic?: ProviderValidationDiagnosticSink;
@@ -85,6 +94,9 @@ function createHealthCheck(
         new AbortController().signal,
       );
       return { codexVersion: null, model: configuration.model, provider };
+    }
+    if (provider === "deepseek-chat-completions") {
+      return { codexVersion: null, model: "deepseek-v4-flash", provider };
     }
     if (provider === "openai-responses") {
       return {
@@ -141,10 +153,22 @@ export function createAnalysisProviderFactory(
       ? {}
       : { onValidationDiagnostic: options.onValidationDiagnostic }),
   });
+  const deepSeekClient = new DeepSeekChatClient(
+    options.deepSeekFetch === undefined ? {} : { fetch: options.deepSeekFetch },
+  );
+  const deepSeek = new DeepSeekChatProvider({
+    apiKeyReader: options.deepSeekApiKeyReader,
+    client: deepSeekClient,
+    schemaRepository,
+    ...(options.onValidationDiagnostic === undefined
+      ? {}
+      : { onValidationDiagnostic: options.onValidationDiagnostic }),
+  });
   const analysisProvider = new RoutingAnalysisProvider({
     codex,
     compatibleHttp,
     configurationStore: options.configurationStore,
+    deepSeek,
     openAI,
   });
   const eudicClient = new EudicClient(

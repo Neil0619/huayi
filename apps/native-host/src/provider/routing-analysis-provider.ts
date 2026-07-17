@@ -10,6 +10,7 @@ export interface RoutingAnalysisProviderOptions {
   codex: AnalysisProvider;
   compatibleHttp: AnalysisProvider;
   configurationStore: ProviderConfigurationReader;
+  deepSeek: AnalysisProvider;
   openAI: AnalysisProvider;
 }
 
@@ -17,6 +18,7 @@ export class RoutingAnalysisProvider implements AnalysisProvider {
   readonly #codex: AnalysisProvider;
   readonly #compatibleHttp: AnalysisProvider;
   readonly #configurationStore: ProviderConfigurationReader;
+  readonly #deepSeek: AnalysisProvider;
   readonly #openAI: AnalysisProvider;
   #disposed = false;
 
@@ -24,6 +26,7 @@ export class RoutingAnalysisProvider implements AnalysisProvider {
     this.#codex = options.codex;
     this.#compatibleHttp = options.compatibleHttp;
     this.#configurationStore = options.configurationStore;
+    this.#deepSeek = options.deepSeek;
     this.#openAI = options.openAI;
   }
 
@@ -47,6 +50,8 @@ export class RoutingAnalysisProvider implements AnalysisProvider {
         return this.#openAI.analyze(request, signal, onDelta);
       case "openai-compatible-http":
         return this.#compatibleHttp.analyze(request, signal, onDelta);
+      case "deepseek-chat-completions":
+        return this.#deepSeek.analyze(request, signal, onDelta);
     }
   }
 
@@ -55,6 +60,7 @@ export class RoutingAnalysisProvider implements AnalysisProvider {
     this.#disposed = true;
     this.#codex.dispose?.();
     this.#compatibleHttp.dispose?.();
+    this.#deepSeek.dispose?.();
     this.#openAI.dispose?.();
   }
 }

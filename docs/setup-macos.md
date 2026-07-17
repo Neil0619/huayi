@@ -5,12 +5,13 @@
 - Google Chrome。
 - Node.js 18 或更高版本。
 - pnpm。
-- 已通过 `codex login` 使用 ChatGPT 登录、且支持 App Server 的 Codex CLI。
+- 可执行的 Codex CLI；只有当前 Provider 为 Codex 时，才要求已通过 `codex login` 使用
+  ChatGPT 登录并支持 App Server。
 - macOS 自带 `/usr/bin/security`。欧路、官方 OpenAI API 和 Compatible HTTP 功能均可选，
   安装扩展和 Host 时无需已有授权、API Key 或第三方配置。
 
-安装器不只比较 Codex 版本号；dry-run 会检查 `app-server --stdio --strict-config`、
-`--disable` / `--config`，并确认以下功能可以被禁用：
+当前 Provider 为 Codex 时，安装器不只比较版本号；dry-run 会检查
+`app-server --stdio --strict-config`、`--disable` / `--config`，并确认以下功能可以被禁用：
 
 ```text
 apps
@@ -36,7 +37,9 @@ unified_exec
 workspace_dependencies
 ```
 
-缺失任一能力或 ChatGPT 登录时失败关闭，不使用权限更宽的降级配置。
+Codex 路径缺失任一能力或 ChatGPT 登录时失败关闭，不使用权限更宽的降级配置。当前 Provider
+为 OpenAI、Compatible HTTP 或 DeepSeek 时，安装器保留并校验 Provider 配置，但不会启动或
+探测 Codex App Server。
 
 ## 构建扩展和 Host
 
@@ -56,10 +59,10 @@ pnpm host:install -- --extension-id <ID> --dry-run
 pnpm host:install -- --extension-id <ID>
 ```
 
-建议先运行 dry-run。它只读验证 Node、构建产物、App Server 参数和禁用功能、ChatGPT 登录及
-`/usr/bin/security`；不会调用模型、访问欧路、读取欧路授权或 OpenAI API Key，也不会写入
-用户目录。正式安装同样不会读取或创建任何 API 钥匙串项。Codex 不在 `PATH` 时可提供绝对
-路径：
+建议先运行 dry-run。它只读验证 Node、构建产物、当前 Provider 配置及
+`/usr/bin/security`；仅当当前 Provider 为 Codex 时验证 App Server 参数、禁用功能和 ChatGPT
+登录。它不会调用模型、访问欧路、读取欧路授权或任何模型 API Key，也不会写入用户目录。
+正式安装同样不会读取或创建任何 API 钥匙串项。Codex 不在 `PATH` 时可提供绝对路径：
 
 ```bash
 pnpm host:install -- --extension-id <ID> --codex-path /absolute/path/to/codex
@@ -67,7 +70,7 @@ pnpm host:install -- --extension-id <ID> --codex-path /absolute/path/to/codex
 
 正式安装写入：
 
-- `~/Library/Application Support/Huayi/native-host/`：自包含 Host、四份 Schema、专用空工作
+- `~/Library/Application Support/Huayi/native-host/`：自包含 Host、六份 Schema、专用空工作
   目录、launcher 和所有权标记；
 - `~/Library/Application Support/Google/Chrome/NativeMessagingHosts/com.huayi.codex_bridge.json`：
   只允许当前扩展 ID。
@@ -123,6 +126,29 @@ pnpm host:openai:remove
 该命令只查询并删除 service `com.huayi.codex_bridge.openai`、account `api-key` 的精确项；项
 不存在时幂等。
 
+## 配置 DeepSeek API Key（可选）
+
+不要把 DeepSeek Key 写入聊天、命令参数、环境变量、普通文件或扩展消息。以下命令调用固定
+`/usr/bin/security` 并在终端隐藏读取，写入 service `com.huayi.codex_bridge.deepseek`、account
+`api-key` 的独立钥匙串项：
+
+```bash
+pnpm host:deepseek:configure -- --dry-run
+pnpm host:deepseek:configure
+```
+
+dry-run 只验证系统命令，不提示输入、不读取钥匙串、不访问 DeepSeek。正式配置也不调用 API，
+不修改 `provider.json`，不读取或修改 `~/.codex`；授权有效性只在随后显式真实请求时验证。
+
+只移除 DeepSeek Key 而保留其他 Provider、Host 与欧路授权：
+
+```bash
+pnpm host:deepseek:remove -- --dry-run
+pnpm host:deepseek:remove
+```
+
+该命令只删除上述精确 service/account，项不存在时幂等。
+
 ## 配置 Compatible HTTP Provider（可选、高风险）
 
 该 Provider 会通过明文 HTTP 发送第三方 API Key、当前英文选区、最多 2,000 字符上下文和可用
@@ -136,7 +162,7 @@ pnpm host:openai:remove
 pnpm host:compatible:key:configure
 ```
 
-官方 OpenAI Key 不会发送给第三方。v0.6.0 不会读取、复制或删除既有官方 OpenAI Key 或其
+官方 OpenAI Key 不会发送给第三方。v0.7.0 不会读取、复制或删除既有官方 OpenAI Key 或其
 钥匙串项；官方与第三方两项必须始终分离。随后写入独立配置并检查明文风险状态：
 
 ```bash
@@ -190,7 +216,8 @@ pnpm host:compatible:key:remove
 
 Provider 配置固定写入
 `~/Library/Application Support/Huayi/native-host/provider.json`。文件缺失时默认使用 Codex；
-API Key 的存在不会自动启用 API。切换命令只接受 `api`、`compatible-http` 或 `codex`，并以
+API Key 的存在不会自动启用 API。切换命令只接受 `api`、`compatible-http`、`deepseek` 或
+`codex`，并以
 `0600` 普通文件原子更新；符号链接、未知字段或无效文件失败关闭。
 
 ```bash
@@ -209,7 +236,20 @@ pnpm host:provider:status
 
 Provider 切换只影响下一次分析，不迁移活动请求，也不会在 API 失败时自动回退。只有明确不再
 保留 Key 时才执行 `pnpm host:openai:remove`。未来设置页可调用同一严格 Host 配置边界，但
-v0.6.0 没有浏览器端配置 UI，也不会把 Key、endpoint 或模型写入扩展消息。
+v0.7.0 没有浏览器端配置 UI，也不会把 Key、endpoint 或模型写入扩展消息。
+
+DeepSeek 固定使用官方 Chat Completions endpoint、`deepseek-v4-flash` 和非思考模式。配置 Key
+后仍先保持当前 Provider；只有用户另行授权真实费用并确认 smoke 通过后才切换：
+
+```bash
+pnpm smoke:deepseek
+pnpm host:provider:set deepseek
+pnpm host:provider:status
+```
+
+`smoke:deepseek` 使用固定用例、输出匿名耗时且不切换 Provider。切换后 health 应报告
+`deepseek-chat-completions` / `deepseek-v4-flash` / `codexVersion: null`。任何错误都不会自动
+回退 Codex；需要回滚时显式执行 `pnpm host:provider:set codex`。
 
 API 模式只发送当前英文选区、最多 2,000 字符上下文、可用英文句子和固定分析指令；不发送
 URL、标题、历史记录、欧路授权或模型历史。钥匙串保护静态存储，但不能防御以同一 macOS
@@ -377,6 +417,57 @@ pnpm host:provider:set codex
 钥匙串项。若要回滚整个发布，必须同步构建、安装并刷新 v0.5.0 Extension 与 Host，不能混用
 wire v3 与 v4。
 
+## 从 v0.6.0 升级到 v0.7.0 并启用 DeepSeek
+
+v0.7.0 保持 `schemaVersion: 4`，但 health 增加 DeepSeek Provider 分支，因此 Extension 与 Host
+仍必须同步升级。Chrome 权限继续严格为 `nativeMessaging`，不增加设置页或
+`host_permissions`。固定顺序为：
+
+```bash
+pnpm build
+pnpm host:install -- --extension-id kfkamoejomjdihipgdkmfjcdenlhgnpd \
+  --codex-path /Applications/ChatGPT.app/Contents/Resources/codex
+```
+
+随后在 `chrome://extensions` 确认加载目录仍是本工作树的 `apps/extension/dist`，刷新并确认
+版本 `0.7.0`。构建、刷新和重装 Host 不读取、覆盖或删除现有 Provider 配置及任何钥匙串项，
+也不会自动改变当前 Provider。
+
+需要启用 DeepSeek 时，再分别执行三个明确动作：
+
+```bash
+pnpm host:deepseek:configure
+pnpm smoke:deepseek
+pnpm host:provider:set deepseek
+pnpm host:provider:status
+```
+
+配置命令隐藏读取 Key 但不访问网络；smoke 会访问官方 DeepSeek、发送固定英文用例并产生费用，
+只有用户另行授权后才运行；smoke 不切换 Provider。四类结果与 `hatch` 用例均通过严格 Schema
+后才切换，状态应输出 `deepseek-chat-completions`。速度、质量、费用或稳定性不可接受时执行
+`pnpm host:provider:set codex`，无需重装，也不会删除 DeepSeek Key。若回滚整个发布，则同步
+构建、安装并刷新 v0.6.0 Extension 与 Host，不能只替换一端。
+
+## 从 v0.7.0 升级到 v0.8.0
+
+v0.8.0 将 Native Messaging 协议提升为 `schemaVersion: 5` 并拒绝 v4。必须先完成离线门禁，
+再同步构建 Extension 与 Host；不能只替换其中一端。固定顺序为：
+
+```bash
+pnpm build
+pnpm host:install -- --extension-id kfkamoejomjdihipgdkmfjcdenlhgnpd \
+  --codex-path /Applications/ChatGPT.app/Contents/Resources/codex
+```
+
+构建后先读取 Chrome 当前登记的稳定加载目录中的 `manifest.json`，确认版本为 `0.8.0`，再在
+`chrome://extensions` 点击刷新并再次确认版本。升级保留现有 Provider 选择、Compatible 配置
+及全部钥匙串项，不调用真实模型，也不自动切换 Provider。需要 DeepSeek 真实质量/延迟验收时，
+仍须另行授权 `pnpm smoke:deepseek`；通过后才显式切换或保留当前 Provider。
+
+人工检查单词翻译的音标、语境义、分词性常见义、常用短语和易混词，并确认没有原文例句或
+独立词性板块；检查单词解释的语境解析、词形、构词、用法和同义词辨析。短语、句子和段落应
+与 v0.7.0 行为一致。
+
 ## 人工验收
 
 普通验收选择一个单词、短语、单句和多句段落，确认先显示经过校验的预览、后显示完整卡片；
@@ -394,8 +485,8 @@ pnpm host:uninstall
 ```
 
 完整卸载严格先删除 service `com.huayi.codex_bridge.eudic` / account `authorization` 的精确
-欧路项，再删除 service `com.huayi.codex_bridge.openai` / account `api-key` 的精确官方 OpenAI
-项，最后删除经过所有权验证的 Huayi Host、Compatible 配置与清单。任一自动凭据删除失败时
+欧路项，再删除官方 OpenAI 与 `com.huayi.codex_bridge.deepseek` / `api-key` 的精确项，最后删除
+经过所有权验证的 Huayi Host、Compatible 配置与清单。任一自动凭据删除失败时
 Host 文件都会保留以便重试。卸载不会自动删除
 `com.huayi.codex_bridge.compatible_http` / `api-key`；完整清理前先显式运行
 `pnpm host:compatible:key:remove`。卸载不会删除 Chrome 父目录、其他 Native Messaging 清单或

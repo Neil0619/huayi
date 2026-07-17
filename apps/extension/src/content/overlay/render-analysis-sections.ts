@@ -38,6 +38,13 @@ function createSection(body: HTMLElement, title: string): HTMLElement {
 }
 
 const sectionKeys: Record<string, string> = {
+  常用短语: "common-phrases",
+  常见释义: "common-meanings",
+  词形解析: "word-form",
+  同义词辨析: "synonym-comparisons",
+  易混词: "confusable-words",
+  用法要点: "usage-notes",
+  语境解析: "contextual-analysis",
   原形: "base-form",
   原文例句: "context-example",
   句子主干: "main-structure",

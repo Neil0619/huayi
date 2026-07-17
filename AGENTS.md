@@ -5,7 +5,8 @@
 Huayi is a personal macOS Google Chrome extension for English selection translation and
 analysis. The extension communicates with a local Native Messaging host, which uses an already
 authenticated Codex CLI by default or an explicitly enabled OpenAI Responses API provider.
-Version 0.6.x also supports an explicitly configured OpenAI-compatible HTTP provider. It is not
+Version 0.8.x also supports explicitly configured OpenAI-compatible HTTP and official DeepSeek
+Chat Completions providers. It is not
 a Chrome Web Store release and does not support Windows, Linux, other
 browsers, history, synchronization, follow-up chat, or browser-based provider configuration.
 
@@ -32,27 +33,38 @@ browsers, history, synchronization, follow-up chat, or browser-based provider co
   `docs/superpowers/specs/2026-07-15-openai-compatible-http-provider-design.md`.
 - OpenAI-compatible HTTP provider execution order:
   `docs/superpowers/plans/2026-07-15-openai-compatible-http-provider.md`.
+- DeepSeek provider behavior:
+  `docs/superpowers/specs/2026-07-16-deepseek-v4-flash-provider-design.md`.
+- DeepSeek provider execution order:
+  `docs/superpowers/plans/2026-07-16-deepseek-v4-flash-provider.md`.
+- Word translation and explanation separation:
+  `docs/superpowers/specs/2026-07-16-word-results-design.md`.
+- Word result implementation order:
+  `docs/superpowers/plans/2026-07-16-word-results.md`.
 - Keep temporary task status out of AGENTS.md files.
 
 ## Current release invariants
 
 - All app, package, Manifest, Host, App Server client, and Eudic User-Agent identities are
-  `0.6.0`; the Native Messaging `schemaVersion` is `4`.
-- Wire v3 is incompatible with v4 and is rejected. Upgrade or roll back the Extension and Native
+  `0.8.0`; the Native Messaging `schemaVersion` is `5`.
+- Wire v5 is incompatible with v4 and rejects it. Upgrade or roll back the Extension and Native
   Host synchronously; do not add a translation shim.
 - Missing provider configuration defaults to Codex. Every other invalid configuration state
   fails closed. Each analysis request reads and pins one provider; never migrate an active
   request or automatically fall back after a provider failure.
 - Provider schemas describe private model content only. The trusted Host owns `sourceText`,
   `selectionKind`, and public result `type`, then validates the assembled public result.
+- Word translation is dictionary-focused (`translate-word`); word explanation is contextual
+  usage-focused (`explain-word`). Keep phrase behavior in the lexical result types.
 - Warmup carries no selection, context, sentence, URL, or other page data and must not create a
   thread, turn, or model output. Typed deltas and sections are previews; only `result` is a
   complete success. Omit empty lexical sections instead of fabricating values.
 - Provider-validation stderr diagnostics may contain only bounded allowlisted stages and field
   names. Other startup and protocol diagnostics use fixed safe messages. No stderr path may
   include page, model, credential, raw JSON, or environment contents.
-- Default gates are offline. Run `pnpm smoke:codex`, `pnpm smoke:compare`, or
-  `pnpm smoke:compatible` only after separate informed approval. Compatible approval must cover
+- Default gates are offline. Run `pnpm smoke:codex`, `pnpm smoke:compare`,
+  `pnpm smoke:compatible`, or `pnpm smoke:deepseek` only after separate informed approval.
+  Compatible approval must cover
   plaintext credential/page-data transmission and third-party billing; other smoke approval must
   cover real-model quota/API billing. Installation and Chrome verification need separate approval.
 - The personal Extension ID is `kfkamoejomjdihipgdkmfjcdenlhgnpd`. Synchronous reinstall uses
@@ -83,18 +95,21 @@ browsers, history, synchronization, follow-up chat, or browser-based provider co
   - `pnpm build`
   - `pnpm smoke:codex`
   - `pnpm smoke:compatible`
+  - `pnpm smoke:deepseek`
   - `pnpm smoke:compare`
   - `pnpm host:install -- --extension-id <ID>`
   - `pnpm host:eudic:configure`
   - `pnpm host:eudic:remove`
   - `pnpm host:openai:configure`
   - `pnpm host:openai:remove`
+  - `pnpm host:deepseek:configure`
+  - `pnpm host:deepseek:remove`
   - `pnpm host:compatible:key:configure`
   - `pnpm host:compatible:key:remove`
   - `pnpm host:compatible:config:set --base-url <URL> --model <MODEL> --effort <EFFORT> --allow-insecure-http`
   - `pnpm host:compatible:config:status`
   - `pnpm host:compatible:config:remove`
-  - `pnpm host:provider:set api|compatible-http|codex`
+  - `pnpm host:provider:set api|compatible-http|codex|deepseek`
   - `pnpm host:provider:status`
   - `pnpm host:uninstall`
 - Default tests must never call OpenAI, a third-party HTTP service, real Codex, a real Keychain

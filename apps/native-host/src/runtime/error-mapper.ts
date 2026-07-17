@@ -1,8 +1,13 @@
 import type { AnalysisError, ErrorCode } from "@huayi/protocol";
 
 import { CompatibleHttpCredentialError } from "../credentials/compatible-http-keychain.js";
+import { DeepSeekCredentialError } from "../credentials/deepseek-keychain.js";
 import { OpenAICredentialError } from "../credentials/openai-keychain.js";
 import { CompatibleHttpProviderError } from "../provider/compatible-http-provider-errors.js";
+import {
+  DeepSeekProviderError,
+  mapDeepSeekProviderError,
+} from "../provider/deepseek-provider-errors.js";
 import { OpenAIProviderError, mapOpenAIProviderError } from "../provider/openai-provider-errors.js";
 import type { ProviderValidationError } from "../provider/provider-validation.js";
 
@@ -170,6 +175,9 @@ export function mapCodexError(error: unknown): AnalysisError {
 }
 
 export function mapAnalysisProviderError(error: unknown): AnalysisError {
+  if (error instanceof DeepSeekProviderError || error instanceof DeepSeekCredentialError) {
+    return mapDeepSeekProviderError(error);
+  }
   if (isCompatibleHttpConfigurationError(error)) {
     return error.code === "MODEL_PROVIDER_NOT_CONFIGURED"
       ? { ...COMPATIBLE_CONFIGURATION_ERROR }

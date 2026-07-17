@@ -23,10 +23,10 @@ const coreMeanings = [
 const lexicalTranslation = {
   collocations,
   contextualMeaningZh: "受害者",
-  partOfSpeech: "noun",
-  selectionKind: "word",
+  partOfSpeech: "phrase",
+  selectionKind: "phrase",
   similarTerms: terms,
-  sourceText: "victims",
+  sourceText: "early stages",
   type: "translate-lexical",
 } as const;
 
@@ -34,14 +34,14 @@ const lexicalExplanation = {
   collocations,
   contextualMeaningZh: "受到伤害的人",
   coreMeanings,
-  selectionKind: "word",
-  sourceText: "victims",
+  selectionKind: "phrase",
+  sourceText: "sustained effort",
   synonyms: terms,
   type: "explain-lexical",
 } as const;
 
 describe("analysisResultSchema", () => {
-  it("accepts a lexical translation", () => {
+  it("accepts a phrase lexical translation", () => {
     const result = {
       collocations,
       contextExample: {
@@ -49,15 +49,133 @@ describe("analysisResultSchema", () => {
         translationZh: "调查仍处于早期阶段。",
       },
       contextualMeaningZh: "对案件进行系统查证的调查",
-      partOfSpeech: "noun",
+      partOfSpeech: "phrase",
       pronunciation: { uk: "/ɪnˌvestɪˈɡeɪʃn/", us: "/ɪnˌvestɪˈɡeɪʃn/" },
-      selectionKind: "word",
+      selectionKind: "phrase",
       similarTerms: terms,
       sourceText: "investigation",
       type: "translate-lexical",
     } as const;
 
     expect(analysisResultSchema.parse(result)).toEqual(result);
+  });
+
+  it("accepts a word dictionary translation", () => {
+    const result = {
+      commonMeanings: [
+        { meaningsZh: ["影响", "作用"], partOfSpeech: "noun" },
+        { meaningsZh: ["产生影响"], partOfSpeech: "verb" },
+      ],
+      commonPhrases: [{ meaningZh: "产生影响", text: "have an effect" }],
+      confusableWords: [
+        {
+          distinctionZh: "affect 通常作动词，effect 通常作名词。",
+          meaningZh: "影响",
+          partOfSpeech: "verb",
+          text: "affect",
+        },
+      ],
+      contextualSense: { meaningZh: "影响", partOfSpeech: "noun" },
+      dictionaryForm: "effect",
+      pronunciation: { uk: "/ɪˈfekt/", us: "/ɪˈfekt/" },
+      selectionKind: "word",
+      sourceText: "effect",
+      type: "translate-word",
+    } as const;
+
+    expect(analysisResultSchema.parse(result)).toEqual(result);
+  });
+
+  it("accepts a word usage explanation", () => {
+    const result = {
+      contextualAnalysisZh: "此处表示持续维持某种状态，作谓语。",
+      selectionKind: "word",
+      sourceText: "sustained",
+      synonyms: [
+        {
+          distinctionZh: "maintain 更强调保持既有状态。",
+          meaningZh: "维持",
+          partOfSpeech: "verb",
+          text: "maintain",
+        },
+      ],
+      type: "explain-word",
+      usageNotes: [{ descriptionZh: "后接名词作宾语。", titleZh: "及物用法" }],
+      wordForm: {
+        baseForm: "sustain",
+        formTypeZh: "过去式",
+        sentenceRoleZh: "句中作谓语",
+      },
+      wordFormationZh: "源自拉丁语 sustinere。",
+    } as const;
+
+    expect(analysisResultSchema.parse(result)).toEqual(result);
+  });
+
+  it("rejects duplicate groups, duplicate entries, and self comparisons", () => {
+    const base = {
+      commonMeanings: [{ meaningsZh: ["原则"], partOfSpeech: "noun" }],
+      commonPhrases: [],
+      confusableWords: [],
+      contextualSense: { meaningZh: "原则", partOfSpeech: "noun" },
+      dictionaryForm: "principle",
+      selectionKind: "word",
+      sourceText: "principle",
+      type: "translate-word",
+    } as const;
+
+    expect(
+      analysisResultSchema.safeParse({
+        ...base,
+        commonMeanings: [...base.commonMeanings, { meaningsZh: ["准则"], partOfSpeech: "noun" }],
+      }).success,
+    ).toBe(false);
+    expect(
+      analysisResultSchema.safeParse({
+        ...base,
+        confusableWords: [
+          {
+            distinctionZh: "不能返回源词自身。",
+            meaningZh: "原则",
+            partOfSpeech: "noun",
+            text: "principle",
+          },
+        ],
+      }).success,
+    ).toBe(false);
+  });
+
+  it("rejects English-only Chinese fields and a source word in synonym comparisons", () => {
+    expect(
+      analysisResultSchema.safeParse({
+        commonMeanings: [{ meaningsZh: ["principle"], partOfSpeech: "noun" }],
+        commonPhrases: [],
+        confusableWords: [],
+        contextualSense: { meaningZh: "principle", partOfSpeech: "noun" },
+        dictionaryForm: "principle",
+        selectionKind: "word",
+        sourceText: "principle",
+        type: "translate-word",
+      }).success,
+    ).toBe(false);
+    expect(
+      analysisResultSchema.safeParse({
+        contextualAnalysisZh: "此处表示原则。",
+        selectionKind: "word",
+        sourceText: "principle",
+        synonyms: [
+          {
+            distinctionZh: "不能返回源词自身。",
+            meaningZh: "原则",
+            partOfSpeech: "noun",
+            text: "principle",
+          },
+        ],
+        type: "explain-word",
+        usageNotes: [],
+        wordForm: { baseForm: "principle", formTypeZh: "名词单数" },
+      }).success,
+    ).toBe(false);
   });
 
   it("accepts a sentence or paragraph translation and preserves line breaks", () => {

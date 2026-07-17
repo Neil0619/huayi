@@ -24,18 +24,18 @@ function createDispatcher(
 }
 
 describe("NativeMessageDispatcher analysis routing", () => {
-  it("reports host version 0.6.0 and the active Codex health fields", async () => {
+  it("reports host version 0.8.0 and the active Codex health fields", async () => {
     const events: HostEvent[] = [];
     const dispatcher = createDispatcher();
 
-    dispatcher.dispatch({ requestId: "health-1", schemaVersion: 4, type: "health" }, (event) =>
+    dispatcher.dispatch({ requestId: "health-1", schemaVersion: 5, type: "health" }, (event) =>
       events.push(event),
     );
 
     await vi.waitFor(() => expect(events).toHaveLength(1));
     expect(events[0]).toMatchObject({
       codexVersion: "codex-cli 0.144.1",
-      hostVersion: "0.6.0",
+      hostVersion: "0.8.0",
       model: "gpt-5.4-mini",
       provider: "codex",
       type: "health-result",
@@ -57,19 +57,19 @@ describe("NativeMessageDispatcher analysis routing", () => {
       },
     });
 
-    dispatcher.dispatch({ requestId: "health-api", schemaVersion: 4, type: "health" }, (event) =>
+    dispatcher.dispatch({ requestId: "health-api", schemaVersion: 5, type: "health" }, (event) =>
       events.push(event),
     );
 
     await vi.waitFor(() => expect(events).toHaveLength(1));
     expect(events[0]).toEqual({
       codexVersion: null,
-      hostVersion: "0.6.0",
+      hostVersion: "0.8.0",
       model: "gpt-5.6-luna",
       provider: "openai-responses",
       ready: true,
       requestId: "health-api",
-      schemaVersion: 4,
+      schemaVersion: 5,
       type: "health-result",
     });
     dispatcher.dispose();
@@ -145,7 +145,7 @@ describe("NativeMessageDispatcher analysis routing", () => {
     dispatcher.dispatch(
       {
         requestId: "cancel-1",
-        schemaVersion: 4,
+        schemaVersion: 5,
         targetRequestId: request.requestId,
         type: "cancel",
       },
@@ -244,7 +244,7 @@ describe("NativeMessageDispatcher analysis routing", () => {
     dispatcher.dispatch(
       {
         requestId: "cancel-warmup",
-        schemaVersion: 4,
+        schemaVersion: 5,
         targetRequestId: warmupRequest.requestId,
         type: "cancel",
       },
@@ -272,7 +272,7 @@ describe("NativeMessageDispatcher analysis routing", () => {
         dispatcher.dispatch(
           {
             requestId: "cancel-after-ready",
-            schemaVersion: 4,
+            schemaVersion: 5,
             targetRequestId: warmupRequest.requestId,
             type: "cancel",
           },
@@ -292,7 +292,7 @@ describe("NativeMessageDispatcher analysis routing", () => {
     const dispatcher = createDispatcher();
 
     expect(() =>
-      dispatcher.dispatch({ schemaVersion: 4, type: "analyze" }, () => undefined),
+      dispatcher.dispatch({ schemaVersion: 5, type: "analyze" }, () => undefined),
     ).toThrow(/invalid host request/i);
     dispatcher.dispose();
   });

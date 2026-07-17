@@ -14,13 +14,20 @@ describe("renderStreamingPreview", () => {
       streamingState({
         lastSequence: 6,
         sections: {
-          collocations: [{ meaningZh: "数字四", text: "number four" }],
-          contextExample: { english: "Four remain.", translationZh: "还剩四个。" },
-          partOfSpeech: "number",
+          commonMeanings: [{ meaningsZh: ["四"], partOfSpeech: "number" }],
+          commonPhrases: [{ meaningZh: "四号", text: "number four" }],
+          confusableWords: [
+            {
+              distinctionZh: "for 是介词。",
+              meaningZh: "为了",
+              partOfSpeech: "preposition",
+              text: "for",
+            },
+          ],
+          contextualSense: { meaningZh: "四", partOfSpeech: "number" },
           pronunciation: { uk: "/fɔː/" },
-          similarTerms: [{ meaningZh: "四个", partOfSpeech: "number", text: "four" }],
         },
-        text: { "contextual-meaning": "四" },
+        text: {},
       }),
     );
     const source = preview.querySelector(".huayi-source");
@@ -28,24 +35,22 @@ describe("renderStreamingPreview", () => {
 
     expect(source?.textContent).toBe("Selection");
     expect(headings.map((heading) => heading.textContent)).toEqual([
-      "语境义",
-      "词性",
       "音标",
-      "语境搭配",
-      "原文例句",
-      "相似词",
+      "语境义",
+      "常见释义",
+      "常用短语",
+      "易混词",
     ]);
     expect(
       Array.from(preview.querySelectorAll(".huayi-section"), (section) =>
         section.getAttribute("data-huayi-section"),
       ),
     ).toEqual([
-      "contextual-meaning",
-      "part-of-speech",
       "pronunciation",
-      "collocations",
-      "context-example",
-      "similar-terms",
+      "contextual-sense",
+      "common-meanings",
+      "common-phrases",
+      "confusable-words",
     ]);
     const firstHeading = headings[0];
     if (source === null || firstHeading === undefined) {
@@ -61,13 +66,19 @@ describe("renderStreamingPreview", () => {
       ...streamingState({
         lastSequence: 6,
         sections: {
-          collocations: [{ meaningZh: "四个项目", text: "four items" }],
-          synonyms: [{ meaningZh: "四个", partOfSpeech: "number", text: "four" }],
+          synonymComparisons: [
+            {
+              distinctionZh: "quadruple 更强调四倍。",
+              meaningZh: "四倍的",
+              partOfSpeech: "adjective",
+              text: "quadruple",
+            },
+          ],
+          usageNotes: [{ descriptionZh: "可作限定词。", titleZh: "用法" }],
+          wordForm: { baseForm: "four", formTypeZh: "基数词", sentenceRoleZh: "定语" },
           wordFormation: "来自古英语",
-          coreMeanings: [{ meaningZh: "四", partOfSpeech: "number" }],
-          baseForm: "four",
         },
-        text: { "contextual-meaning": "四" },
+        text: { "contextual-analysis": "此处表示数量四。" },
       }),
       action: "explain",
     });
@@ -77,7 +88,7 @@ describe("renderStreamingPreview", () => {
         preview.querySelectorAll(".huayi-section-title"),
         (heading) => heading.textContent,
       ),
-    ).toEqual(["语境义", "原形", "构词", "核心词义", "语境搭配", "同义词"]);
+    ).toEqual(["语境解析", "词形解析", "构词解析", "用法要点", "同义词辨析"]);
   });
 
   it("shows the spinner only before the first analysis update", () => {
@@ -102,8 +113,8 @@ describe("renderStreamingPreview", () => {
       error: { code: "TIMEOUT", message: "处理超时，请重试。", retryable: true },
       preview: {
         lastSequence: 1,
-        sections: { partOfSpeech: "noun" },
-        text: { translation: "部分译文" },
+        sections: { contextualSense: { meaningZh: "部分译文", partOfSpeech: "noun" } },
+        text: {},
       },
       status: "error",
     };
@@ -122,9 +133,10 @@ describe("renderStreamingPreview", () => {
       ...streamingState({
         lastSequence: 1,
         sections: {
-          collocations: [{ meaningZh: malicious, text: malicious }],
+          commonPhrases: [{ meaningZh: malicious, text: malicious }],
+          contextualSense: { meaningZh: malicious, partOfSpeech: "noun" },
         },
-        text: { "contextual-meaning": malicious },
+        text: {},
       }),
       selection: { ...session.selection, selection: malicious },
     });

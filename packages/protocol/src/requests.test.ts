@@ -16,7 +16,7 @@ const lexicalRequest = {
   action: "translate",
   context: "The victims were taken to safety.",
   requestId: "analysis-v2",
-  schemaVersion: 4,
+  schemaVersion: 5,
   selection: "victims",
   selectionKind: "word",
   sentenceContext: "The victims were taken to safety.",
@@ -83,7 +83,7 @@ describe("hostRequestSchema", () => {
     expect(
       hostRequestSchema.parse({
         requestId: "health-1",
-        schemaVersion: 4,
+        schemaVersion: 5,
         type: "health",
       }).type,
     ).toBe("health");
@@ -93,7 +93,7 @@ describe("hostRequestSchema", () => {
         context: "The investigation was in its early stages.",
         language: "en",
         requestId: "word-1",
-        schemaVersion: 4,
+        schemaVersion: 5,
         type: "add-word",
         word: "investigation",
       }).type,
@@ -101,7 +101,7 @@ describe("hostRequestSchema", () => {
     expect(
       hostRequestSchema.parse({
         requestId: "cancel-1",
-        schemaVersion: 4,
+        schemaVersion: 5,
         targetRequestId: lexicalRequest.requestId,
         type: "cancel",
       }).type,
@@ -111,7 +111,7 @@ describe("hostRequestSchema", () => {
   it("accepts only a strict warmup request outside the host work union", () => {
     const warmup = {
       requestId: "warmup-1",
-      schemaVersion: 4,
+      schemaVersion: 5,
       type: "warmup",
     } as const;
 
@@ -124,7 +124,7 @@ describe("hostRequestSchema", () => {
     expect(
       hostRequestSchema.safeParse({
         requestId: "request-1",
-        schemaVersion: 4,
+        schemaVersion: 5,
         type: "unknown",
       }).success,
     ).toBe(false);
@@ -142,7 +142,7 @@ describe("addWordRequestSchema", () => {
     context: "The investigation was in its early stages.",
     language: "en",
     requestId: "word-1",
-    schemaVersion: 4,
+    schemaVersion: 5,
     type: "add-word",
     word: "investigation",
   } as const;
@@ -191,7 +191,7 @@ describe("checkWordRequestSchema", () => {
   const checkWord = {
     language: "en",
     requestId: "check-1",
-    schemaVersion: 4,
+    schemaVersion: 5,
     type: "check-word",
     word: "mother-in-law",
   } as const;
@@ -231,7 +231,7 @@ describe("checkWordRequestSchema", () => {
         context: "The investigation was in its early stages.",
         language: "en",
         requestId: "word-1",
-        schemaVersion: 4,
+        schemaVersion: 5,
         type: "add-word",
         word: "investigation",
       }).success,

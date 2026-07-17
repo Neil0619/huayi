@@ -78,6 +78,33 @@ describe("readSelection", () => {
     selection?.addRange(range);
 
     expect(readSelection(selection)).toMatchObject({
+      context: "investigation",
+      sentenceContext: null,
+      wordbookContext: null,
+    });
+  });
+
+  it("does not send a mixed Han technical block when selecting hatch inside hatch-pet", () => {
+    const paragraph = document.createElement("p");
+    const code = document.createElement("code");
+    code.textContent = "hatch-pet";
+    paragraph.append(code, " skill 负责迁移 schema");
+    document.body.append(paragraph);
+    const text = code.firstChild;
+    if (!(text instanceof Text)) {
+      throw new Error("Expected text fixture.");
+    }
+    const range = document.createRange();
+    range.setStart(text, 0);
+    range.setEnd(text, "hatch".length);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+
+    expect(readSelection(selection)).toMatchObject({
+      context: "hatch",
+      selection: "hatch",
+      selectionKind: "word",
       sentenceContext: null,
       wordbookContext: null,
     });

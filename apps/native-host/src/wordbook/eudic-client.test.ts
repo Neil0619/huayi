@@ -14,7 +14,7 @@ const request: AddWordRequest = {
   context: "The investigation was in its early stages.",
   language: "en",
   requestId: "word-1",
-  schemaVersion: 4,
+  schemaVersion: 5,
   type: "add-word",
   word: "investigation",
 };
@@ -23,7 +23,7 @@ function checkRequest(word = "investigation"): CheckWordRequest {
   return {
     language: "en",
     requestId: "check-word-1",
-    schemaVersion: 4,
+    schemaVersion: 5,
     type: "check-word",
     word,
   };
@@ -186,7 +186,7 @@ describe("EudicClient", () => {
         credentials: "omit",
         headers: expect.objectContaining({
           Authorization: "NIS secret",
-          "User-Agent": "Huayi/0.6.0",
+          "User-Agent": "Huayi/0.8.0",
         }),
         method: "GET",
         redirect: "error",

@@ -9,6 +9,8 @@ import {
   modelLexicalTranslationSchema,
   modelPassageTranslationSchema,
   modelSentenceExplanationSchema,
+  modelWordExplanationSchema,
+  modelWordTranslationSchema,
 } from "./model-analysis-schemas.js";
 
 type JsonObject = Record<string, unknown>;
@@ -18,6 +20,8 @@ const outputSchemaNames = [
   "translate-passage",
   "explain-lexical",
   "explain-sentence",
+  "translate-word",
+  "explain-word",
 ] as const;
 type OutputSchemaName = (typeof outputSchemaNames)[number];
 
@@ -40,6 +44,15 @@ const expectedPropertyOrder = {
     "similarTerms",
   ],
   "translate-passage": ["translationZh"],
+  "translate-word": [
+    "pronunciation",
+    "contextualSense",
+    "dictionaryForm",
+    "commonMeanings",
+    "commonPhrases",
+    "confusableWords",
+  ],
+  "explain-word": ["contextualAnalysisZh", "wordForm", "wordFormationZh", "usageNotes", "synonyms"],
 } as const;
 
 const partOfSpeechValues = [
@@ -241,6 +254,43 @@ const contractCases = [
       keyExpressions: [{ meaningZh: "处于早期阶段", text: "in its early stages" }],
       mainStructure: "He said ...",
       translationZh: "他说调查仍处于早期阶段。",
+    },
+  },
+  {
+    name: "translate-word",
+    resultSchema: modelWordTranslationSchema,
+    value: {
+      pronunciation: { uk: "/ɪˈfekt/", us: "/ɪˈfekt/" },
+      contextualSense: { meaningZh: "影响", partOfSpeech: "noun" },
+      dictionaryForm: "effect",
+      commonMeanings: [{ meaningsZh: ["影响", "结果"], partOfSpeech: "noun" }],
+      commonPhrases: [{ meaningZh: "产生影响", text: "have an effect" }],
+      confusableWords: [
+        {
+          distinctionZh: "affect 通常作动词，effect 通常作名词。",
+          meaningZh: "影响",
+          partOfSpeech: "verb",
+          text: "affect",
+        },
+      ],
+    },
+  },
+  {
+    name: "explain-word",
+    resultSchema: modelWordExplanationSchema,
+    value: {
+      contextualAnalysisZh: "此处表示持续维持某种状态。",
+      wordForm: { baseForm: "sustain", formTypeZh: "过去式", sentenceRoleZh: "作谓语" },
+      wordFormationZh: null,
+      usageNotes: [{ descriptionZh: "后接名词作宾语。", titleZh: "及物用法" }],
+      synonyms: [
+        {
+          distinctionZh: "maintain 更强调保持既有状态。",
+          meaningZh: "维持",
+          partOfSpeech: "verb",
+          text: "maintain",
+        },
+      ],
     },
   },
 ] as const;

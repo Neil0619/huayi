@@ -26,6 +26,13 @@ import {
   type CompatibleCredentialCliOperations,
   type CompatibleCredentialInstallerCommand,
 } from "./compatible-http-credential-cli.js";
+import {
+  deepSeekCredentialCliOperations,
+  executeDeepSeekCredentialCommand,
+  isDeepSeekCredentialCommand,
+  type DeepSeekCredentialCliOperations,
+  type DeepSeekCredentialInstallerCommand,
+} from "./deepseek-credential-cli.js";
 import { resolveCodexExecutable } from "./codex-executable.js";
 import {
   configureEudicAuthorization,
@@ -60,12 +67,14 @@ const USAGE = [
   "  huayi-installer eudic-remove [--dry-run]",
   "  huayi-installer openai-configure [--dry-run]",
   "  huayi-installer openai-remove [--dry-run]",
+  "  huayi-installer deepseek-configure [--dry-run]",
+  "  huayi-installer deepseek-remove [--dry-run]",
   "  huayi-installer compatible-key-configure [--dry-run]",
   "  huayi-installer compatible-key-remove [--dry-run]",
   "  huayi-installer compatible-config-set --base-url <URL> --model <MODEL> --effort <EFFORT> --allow-insecure-http [--dry-run]",
   "  huayi-installer compatible-config-status",
   "  huayi-installer compatible-config-remove [--dry-run]",
-  "  huayi-installer provider-set <api|codex|compatible-http> [--dry-run]",
+  "  huayi-installer provider-set <api|codex|compatible-http|deepseek> [--dry-run]",
   "  huayi-installer provider-status",
 ].join("\n");
 
@@ -78,6 +87,7 @@ export type InstallerCommand =
   | { dryRun: boolean; type: "eudic-remove" }
   | { dryRun: boolean; type: "openai-configure" }
   | { dryRun: boolean; type: "openai-remove" }
+  | DeepSeekCredentialInstallerCommand
   | { dryRun: boolean; provider: ModelProvider; type: "provider-set" }
   | { type: "provider-status" }
   | { dryRun: boolean; type: "uninstall" };
@@ -99,6 +109,7 @@ export interface InstallerCliOperations {
 export interface InstallerCliRuntime {
   compatibleCredentialOperations: CompatibleCredentialCliOperations;
   compatibleHttpConfigurationStore: CompatibleConfigurationStoreAccess;
+  deepSeekCredentialOperations?: DeepSeekCredentialCliOperations;
   environment: NodeJS.ProcessEnv;
   homeDirectory: string;
   interactiveProcessRunner: InteractiveProcessRunner;
@@ -143,7 +154,7 @@ export function parseInstallerArguments(arguments_: readonly string[]): Installe
   if (command === "provider-set") {
     const providerAlias = arguments_[1];
     if (providerAlias === undefined) {
-      throw new Error(`provider-set requires api, codex, or compatible-http.\n${USAGE}`);
+      throw new Error(`provider-set requires api, codex, compatible-http, or deepseek.\n${USAGE}`);
     }
     const provider = parseProviderAlias(providerAlias);
     if (arguments_.length > 3 || (arguments_.length === 3 && arguments_[2] !== "--dry-run")) {
@@ -161,7 +172,9 @@ export function parseInstallerArguments(arguments_: readonly string[]): Installe
     command !== "eudic-configure" &&
     command !== "eudic-remove" &&
     command !== "openai-configure" &&
-    command !== "openai-remove"
+    command !== "openai-remove" &&
+    command !== "deepseek-configure" &&
+    command !== "deepseek-remove"
   ) {
     throw new Error(USAGE);
   }
@@ -253,6 +266,11 @@ export async function executeInstallerCommand(
     return;
   }
 
+  if (isDeepSeekCredentialCommand(command)) {
+    reportResult(await executeDeepSeekCredentialCommand(command, runtime), runtime);
+    return;
+  }
+
   const keychainOptions = {
     dryRun: command.dryRun,
     environment: runtime.environment,
@@ -300,13 +318,25 @@ export async function executeInstallerCommand(
       ...keychainOptions,
       processRunner: runtime.processRunner,
     });
+    const deepSeekCredentials =
+      runtime.deepSeekCredentialOperations === undefined
+        ? { actions: [], dryRun: command.dryRun }
+        : await runtime.deepSeekCredentialOperations.removeDeepSeek({
+            ...keychainOptions,
+            processRunner: runtime.processRunner,
+          });
     const files = await runtime.operations.uninstall({
       dryRun: command.dryRun,
       homeDirectory: runtime.homeDirectory,
     });
     reportResult(
       {
-        actions: [...eudicCredentials.actions, ...openAICredentials.actions, ...files.actions],
+        actions: [
+          ...eudicCredentials.actions,
+          ...openAICredentials.actions,
+          ...deepSeekCredentials.actions,
+          ...files.actions,
+        ],
         dryRun: command.dryRun,
       },
       runtime,
@@ -339,6 +369,7 @@ export function createDefaultInstallerRuntime(moduleUrl = import.meta.url): Inst
     compatibleHttpConfigurationStore: new CompatibleHttpConfigurationStore(
       createMacosInstallationPaths(homeDirectory).compatibleHttpConfigurationPath,
     ),
+    deepSeekCredentialOperations: deepSeekCredentialCliOperations,
     environment: process.env,
     homeDirectory,
     interactiveProcessRunner: new NodeInteractiveProcessRunner(),

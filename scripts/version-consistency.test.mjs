@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import assert from "node:assert/strict";
 
 const rootDirectory = fileURLToPath(new URL("../", import.meta.url));
-const releaseVersion = "0.6.0";
+const releaseVersion = "0.8.0";
 
 async function readJson(path) {
   return JSON.parse(await readFile(resolve(rootDirectory, path), "utf8"));
@@ -57,5 +57,5 @@ test("packages, Manifest, and runtime identities share the release version", asy
   }
 
   const protocolLimits = await readText("packages/protocol/src/limits.ts");
-  assert.match(protocolLimits, /export const SCHEMA_VERSION = 4;/u);
+  assert.match(protocolLimits, /export const SCHEMA_VERSION = 5;/u);
 });

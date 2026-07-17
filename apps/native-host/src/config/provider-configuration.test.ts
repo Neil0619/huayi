@@ -18,6 +18,7 @@ describe("parseProviderAlias", () => {
     expect(parseProviderAlias("api")).toBe("openai-responses");
     expect(parseProviderAlias("codex")).toBe("codex");
     expect(parseProviderAlias("compatible-http")).toBe("openai-compatible-http");
+    expect(parseProviderAlias("deepseek")).toBe("deepseek-chat-completions");
     expect(() => parseProviderAlias("openai-responses")).toThrow();
   });
 });

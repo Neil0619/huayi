@@ -3,32 +3,56 @@ import { z } from "zod";
 import { analysisErrorSchema } from "./errors.js";
 import {
   MAX_COLLOCATIONS,
+  MAX_COMMON_PHRASES,
+  MAX_CONFUSABLE_WORDS,
   MAX_CORE_MEANINGS,
+  MAX_DICTIONARY_MEANING_GROUPS,
   MAX_RELATED_TERMS,
   MAX_STREAM_DELTA_LENGTH,
+  MAX_SYNONYM_COMPARISONS,
+  MAX_USAGE_NOTES,
   SCHEMA_VERSION,
 } from "./limits.js";
 import { requestIdSchema } from "./requests.js";
 import {
   analysisResultSchema,
   collocationSchema,
+  commonPhraseSchema,
+  confusableWordSchema,
   contextExampleSchema,
+  contextualSenseSchema,
   coreMeaningSchema,
+  dictionaryMeaningGroupSchema,
   lexicalExplanationResultSchema,
   partOfSpeechSchema,
   pronunciationSchema,
   relatedTermSchema,
+  synonymComparisonSchema,
+  usageNoteSchema,
+  wordFormAnalysisSchema,
   type Collocation,
+  type CommonPhrase,
+  type ConfusableWord,
   type ContextExample,
+  type ContextualSense,
   type CoreMeaning,
+  type DictionaryMeaningGroup,
   type PartOfSpeech,
   type Pronunciation,
   type RelatedTerm,
+  type SynonymComparison,
+  type UsageNote,
+  type WordFormAnalysis,
 } from "./results.js";
 
 const schemaVersionSchema = z.literal(SCHEMA_VERSION);
 
-export const modelProviderSchema = z.enum(["codex", "openai-responses", "openai-compatible-http"]);
+export const modelProviderSchema = z.enum([
+  "codex",
+  "openai-responses",
+  "openai-compatible-http",
+  "deepseek-chat-completions",
+]);
 export type ModelProvider = z.infer<typeof modelProviderSchema>;
 
 export const healthResultEventSchema = z
@@ -48,6 +72,9 @@ export const healthResultEventSchema = z
     }
     if (value.provider !== "codex" && value.codexVersion !== null) {
       context.addIssue({ code: "custom", message: "HTTP health must not report Codex." });
+    }
+    if (value.provider === "deepseek-chat-completions" && value.model !== "deepseek-v4-flash") {
+      context.addIssue({ code: "custom", message: "DeepSeek health requires its fixed model." });
     }
   });
 export type HealthResultEvent = z.infer<typeof healthResultEventSchema>;
@@ -78,6 +105,7 @@ export type ResultEvent = z.infer<typeof resultEventSchema>;
 
 export const analysisDeltaSectionSchema = z.enum([
   "contextual-meaning",
+  "contextual-analysis",
   "translation",
   "main-structure",
   "context-role",
@@ -105,7 +133,14 @@ export type AnalysisSectionPayload =
   | { section: "collocations"; value: Collocation[] }
   | { section: "context-example"; value: ContextExample }
   | { section: "similar-terms"; value: RelatedTerm[] }
-  | { section: "synonyms"; value: RelatedTerm[] };
+  | { section: "synonyms"; value: RelatedTerm[] }
+  | { section: "contextual-sense"; value: ContextualSense }
+  | { section: "common-meanings"; value: DictionaryMeaningGroup[] }
+  | { section: "common-phrases"; value: CommonPhrase[] }
+  | { section: "confusable-words"; value: ConfusableWord[] }
+  | { section: "word-form"; value: WordFormAnalysis }
+  | { section: "usage-notes"; value: UsageNote[] }
+  | { section: "synonym-comparisons"; value: SynonymComparison[] };
 
 const analysisSectionCommonShape = {
   requestId: requestIdSchema,
@@ -161,6 +196,41 @@ const synonymsSectionEventSchema = z.strictObject({
   section: z.literal("synonyms"),
   value: z.array(relatedTermSchema).min(1).max(MAX_RELATED_TERMS),
 });
+const contextualSenseSectionEventSchema = z.strictObject({
+  ...analysisSectionCommonShape,
+  section: z.literal("contextual-sense"),
+  value: contextualSenseSchema,
+});
+const commonMeaningsSectionEventSchema = z.strictObject({
+  ...analysisSectionCommonShape,
+  section: z.literal("common-meanings"),
+  value: z.array(dictionaryMeaningGroupSchema).min(1).max(MAX_DICTIONARY_MEANING_GROUPS),
+});
+const commonPhrasesSectionEventSchema = z.strictObject({
+  ...analysisSectionCommonShape,
+  section: z.literal("common-phrases"),
+  value: z.array(commonPhraseSchema).min(1).max(MAX_COMMON_PHRASES),
+});
+const confusableWordsSectionEventSchema = z.strictObject({
+  ...analysisSectionCommonShape,
+  section: z.literal("confusable-words"),
+  value: z.array(confusableWordSchema).min(1).max(MAX_CONFUSABLE_WORDS),
+});
+const wordFormSectionEventSchema = z.strictObject({
+  ...analysisSectionCommonShape,
+  section: z.literal("word-form"),
+  value: wordFormAnalysisSchema,
+});
+const usageNotesSectionEventSchema = z.strictObject({
+  ...analysisSectionCommonShape,
+  section: z.literal("usage-notes"),
+  value: z.array(usageNoteSchema).min(1).max(MAX_USAGE_NOTES),
+});
+const synonymComparisonsSectionEventSchema = z.strictObject({
+  ...analysisSectionCommonShape,
+  section: z.literal("synonym-comparisons"),
+  value: z.array(synonymComparisonSchema).min(1).max(MAX_SYNONYM_COMPARISONS),
+});
 
 export const analysisSectionEventSchema = z.discriminatedUnion("section", [
   partOfSpeechSectionEventSchema,
@@ -172,6 +242,13 @@ export const analysisSectionEventSchema = z.discriminatedUnion("section", [
   contextExampleSectionEventSchema,
   similarTermsSectionEventSchema,
   synonymsSectionEventSchema,
+  contextualSenseSectionEventSchema,
+  commonMeaningsSectionEventSchema,
+  commonPhrasesSectionEventSchema,
+  confusableWordsSectionEventSchema,
+  wordFormSectionEventSchema,
+  usageNotesSectionEventSchema,
+  synonymComparisonsSectionEventSchema,
 ]);
 export type AnalysisSectionEvent = z.infer<typeof analysisSectionEventSchema>;
 

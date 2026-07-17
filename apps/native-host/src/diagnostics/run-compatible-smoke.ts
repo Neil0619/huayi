@@ -65,10 +65,10 @@ function requestAt(index: number): AnalyzeRequest {
 
 function expectedResultType(request: AnalyzeRequest): AnalysisResult["type"] {
   if (request.action === "translate") {
-    return request.selectionKind === "word" || request.selectionKind === "phrase"
-      ? "translate-lexical"
-      : "translate-passage";
+    if (request.selectionKind === "word") return "translate-word";
+    return request.selectionKind === "phrase" ? "translate-lexical" : "translate-passage";
   }
+  if (request.selectionKind === "word") return "explain-word";
   return request.selectionKind === "sentence" ? "explain-sentence" : "explain-lexical";
 }
 

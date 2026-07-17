@@ -23,21 +23,27 @@ export function createNativeHostConfig(mode: string): UserConfig {
   const isInstallerBuild = mode === "installer";
   const isDiagnosticsBuild = mode === "diagnostics";
   const isCompatibleSmokeBuild = mode === "compatible-smoke";
+  const isDeepSeekSmokeBuild = mode === "deepseek-smoke";
   const input = isInstallerBuild
     ? "src/install/cli.ts"
     : isDiagnosticsBuild
       ? "src/diagnostics/compare-providers.ts"
       : isCompatibleSmokeBuild
         ? "src/diagnostics/run-compatible-smoke.ts"
-        : "src/main.ts";
+        : isDeepSeekSmokeBuild
+          ? "src/diagnostics/run-deepseek-smoke.ts"
+          : "src/main.ts";
   const entryFileNames = isInstallerBuild
     ? "install/cli.js"
     : isDiagnosticsBuild
       ? "diagnostics/compare-providers.js"
       : isCompatibleSmokeBuild
         ? "diagnostics/run-compatible-smoke.js"
-        : "main.js";
-  const isSecondaryBuild = isInstallerBuild || isDiagnosticsBuild || isCompatibleSmokeBuild;
+        : isDeepSeekSmokeBuild
+          ? "diagnostics/run-deepseek-smoke.js"
+          : "main.js";
+  const isSecondaryBuild =
+    isInstallerBuild || isDiagnosticsBuild || isCompatibleSmokeBuild || isDeepSeekSmokeBuild;
   return {
     build: {
       emptyOutDir: !isSecondaryBuild,

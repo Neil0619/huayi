@@ -23,7 +23,7 @@ test("double-click classifies a word and renders lexical translation", async ({ 
   await toolbar(page).locator('[data-action="translate"]').click();
 
   await expect(panel(page)).toContainText("词汇翻译结果");
-  await expect(panel(page)).toContainText("相似词");
+  await expect(panel(page)).toContainText("常见释义");
   await expectAnalyzeRequest(page, "word", "translate");
 });
 
@@ -68,8 +68,8 @@ for (const wordCase of reportedWordCases) {
 
       const emptyHeadings =
         action === "translate"
-          ? ["音标", "语境搭配", "原文例句", "相似词"]
-          : ["原形", "构词", "语境搭配", "同义词"];
+          ? ["音标", "常用短语", "易混词", "原文例句", "词性"]
+          : ["构词解析", "用法要点", "同义词辨析"];
       for (const heading of emptyHeadings) {
         await expect(resultPanel.locator(".huayi-section-title", { hasText: heading })).toHaveCount(
           0,

@@ -23,7 +23,7 @@ function request(): ResponsesRequest {
     action: "translate",
     context: "The investigation was in its early stages.",
     requestId: "analysis-1",
-    schemaVersion: 4,
+    schemaVersion: 5,
     selection: "investigation",
     selectionKind: "word",
     sentenceContext: "The investigation was in its early stages.",

@@ -8,11 +8,11 @@ describe("RequestCoordinator warmup", () => {
 
     coordinator.warmup();
     coordinator.warmup();
-    expect(transport.sent).toEqual([{ requestId: "control-1", schemaVersion: 4, type: "warmup" }]);
+    expect(transport.sent).toEqual([{ requestId: "control-1", schemaVersion: 5, type: "warmup" }]);
 
     transport.emitEvent({
       requestId: "control-1",
-      schemaVersion: 4,
+      schemaVersion: 5,
       type: "warmup-ready",
     });
     coordinator.warmup();
@@ -23,7 +23,7 @@ describe("RequestCoordinator warmup", () => {
     coordinator.warmup();
     expect(transport.sent.at(-1)).toEqual({
       requestId: "control-2",
-      schemaVersion: 4,
+      schemaVersion: 5,
       type: "warmup",
     });
     expect(delivered).toEqual([]);
@@ -36,15 +36,15 @@ describe("RequestCoordinator warmup", () => {
     transport.emitEvent({
       error: { code: "INTERNAL_ERROR", message: "Warmup failed.", retryable: true },
       requestId: "control-1",
-      schemaVersion: 4,
+      schemaVersion: 5,
       type: "error",
     });
 
     coordinator.warmup();
 
     expect(transport.sent).toEqual([
-      { requestId: "control-1", schemaVersion: 4, type: "warmup" },
-      { requestId: "control-2", schemaVersion: 4, type: "warmup" },
+      { requestId: "control-1", schemaVersion: 5, type: "warmup" },
+      { requestId: "control-2", schemaVersion: 5, type: "warmup" },
     ]);
     expect(delivered).toEqual([]);
     coordinator.dispose();

@@ -9,9 +9,9 @@ function createRequest(overrides: Partial<AnalyzeRequest> = {}): AnalyzeRequest 
     action: "translate",
     context: "Four victims were interviewed.",
     requestId: "analysis-assembly-1",
-    schemaVersion: 4,
+    schemaVersion: 5,
     selection: "Four",
-    selectionKind: "word",
+    selectionKind: "phrase",
     sentenceContext: "Four victims were interviewed.",
     targetLanguage: "zh-CN",
     type: "analyze",
@@ -43,6 +43,29 @@ function lexicalExplanation(overrides: Record<string, unknown> = {}): Record<str
   };
 }
 
+function wordTranslation(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    commonMeanings: [{ meaningsZh: ["调查"], partOfSpeech: "noun" }],
+    commonPhrases: [],
+    confusableWords: [],
+    contextualSense: { meaningZh: "调查", partOfSpeech: "noun" },
+    dictionaryForm: "investigation",
+    pronunciation: null,
+    ...overrides,
+  };
+}
+
+function wordExplanation(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    contextualAnalysisZh: "此处表示正式调查，因为它作句子的主语。",
+    synonyms: [],
+    usageNotes: [],
+    wordForm: { baseForm: "investigation", formTypeZh: "名词单数", sentenceRoleZh: "主语" },
+    wordFormationZh: null,
+    ...overrides,
+  };
+}
+
 function captureValidationError(run: () => unknown): ProviderValidationError {
   try {
     run();
@@ -54,6 +77,25 @@ function captureValidationError(run: () => unknown): ProviderValidationError {
 }
 
 describe("parseAndAssembleModelResult", () => {
+  it("assembles the dedicated word translation and explanation contracts", () => {
+    expect(
+      parseAndAssembleModelResult(
+        JSON.stringify(wordTranslation()),
+        createRequest({ selection: "investigation", selectionKind: "word" }),
+      ),
+    ).toMatchObject({ dictionaryForm: "investigation", type: "translate-word" });
+
+    expect(
+      parseAndAssembleModelResult(
+        JSON.stringify(wordExplanation()),
+        createRequest({ action: "explain", selection: "investigation", selectionKind: "word" }),
+      ),
+    ).toMatchObject({
+      contextualAnalysisZh: "此处表示正式调查，因为它作句子的主语。",
+      type: "explain-word",
+    });
+  });
+
   it.each([
     {
       content: lexicalTranslation({

@@ -6,11 +6,18 @@ import type {
   AnalysisSectionEvent,
   AnalyzeAction,
   Collocation,
+  CommonPhrase,
+  ConfusableWord,
   ContextExample,
+  ContextualSense,
   CoreMeaning,
+  DictionaryMeaningGroup,
   PartOfSpeech,
   Pronunciation,
   RelatedTerm,
+  SynonymComparison,
+  UsageNote,
+  WordFormAnalysis,
   WordbookAddOutcome,
   WordbookPresence,
 } from "@huayi/protocol";
@@ -52,12 +59,19 @@ export interface AnalysisPreview {
 export interface AnalysisPreviewSections {
   baseForm?: string;
   collocations?: Collocation[];
+  commonMeanings?: DictionaryMeaningGroup[];
+  commonPhrases?: CommonPhrase[];
+  confusableWords?: ConfusableWord[];
   contextExample?: ContextExample;
+  contextualSense?: ContextualSense;
   coreMeanings?: CoreMeaning[];
   partOfSpeech?: PartOfSpeech;
   pronunciation?: Pronunciation;
   similarTerms?: RelatedTerm[];
   synonyms?: RelatedTerm[];
+  synonymComparisons?: SynonymComparison[];
+  usageNotes?: UsageNote[];
+  wordForm?: WordFormAnalysis;
   wordFormation?: string;
 }
 
@@ -167,6 +181,20 @@ function replacePreviewSection(
       return { ...sections, similarTerms: update.value };
     case "synonyms":
       return { ...sections, synonyms: update.value };
+    case "contextual-sense":
+      return { ...sections, contextualSense: update.value };
+    case "common-meanings":
+      return { ...sections, commonMeanings: update.value };
+    case "common-phrases":
+      return { ...sections, commonPhrases: update.value };
+    case "confusable-words":
+      return { ...sections, confusableWords: update.value };
+    case "word-form":
+      return { ...sections, wordForm: update.value };
+    case "usage-notes":
+      return { ...sections, usageNotes: update.value };
+    case "synonym-comparisons":
+      return { ...sections, synonymComparisons: update.value };
   }
 }
 
@@ -308,13 +336,13 @@ export function reduceOverlayState(state: OverlayState, event: OverlayEvent): Ov
   }
 
   if (state.status === "result" && event.type === "START_WORDBOOK") {
-    const isLexicalResult = ["explain-lexical", "translate-lexical"].includes(state.result.type);
+    const isWordResult = ["explain-word", "translate-word"].includes(state.result.type);
     const mutation = state.wordbook.mutation;
     const mayStart =
       state.selection.selectionKind === "word" &&
       state.selection.wordbookContext !== null &&
       state.wordbook.availability !== "present" &&
-      isLexicalResult &&
+      isWordResult &&
       mutation.status !== "saving" &&
       mutation.status !== "success" &&
       !(mutation.status === "error" && mutation.error.code === "RATE_LIMITED");

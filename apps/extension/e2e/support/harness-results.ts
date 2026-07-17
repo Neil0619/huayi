@@ -14,12 +14,35 @@ function lexicalTranslation(request: AnalyzeRequest): AnalysisResult {
   }
 
   const reportedPartOfSpeech = sparseReportedWords[request.selection];
+  if (request.selectionKind === "word") {
+    const partOfSpeech = reportedPartOfSpeech ?? "noun";
+    return {
+      commonMeanings: [{ meaningsZh: ["常见词义"], partOfSpeech }],
+      commonPhrases:
+        reportedPartOfSpeech === undefined
+          ? [
+              { meaningZh: "测试短语一", text: "sample phrase" },
+              { meaningZh: "测试短语二", text: "common phrase" },
+              { meaningZh: "测试短语三", text: "useful phrase" },
+            ]
+          : [],
+      confusableWords: [],
+      contextualSense: { meaningZh: "词汇翻译结果", partOfSpeech },
+      dictionaryForm: request.selection.toLocaleLowerCase(),
+      ...(reportedPartOfSpeech === undefined
+        ? { pronunciation: { uk: "/mock/", us: "/mock/" } }
+        : {}),
+      selectionKind: "word",
+      sourceText: request.selection,
+      type: "translate-word",
+    };
+  }
   if (reportedPartOfSpeech !== undefined) {
     return {
       collocations: [],
       contextualMeaningZh: "词汇翻译结果",
       partOfSpeech: reportedPartOfSpeech,
-      selectionKind: request.selectionKind,
+      selectionKind: "phrase",
       similarTerms: [],
       sourceText: request.selection,
       type: "translate-lexical",
@@ -33,9 +56,9 @@ function lexicalTranslation(request: AnalyzeRequest): AnalysisResult {
       { meaningZh: "测试搭配三", text: "useful collocation" },
     ],
     contextualMeaningZh: "词汇翻译结果",
-    partOfSpeech: request.selectionKind === "word" ? "noun" : "phrase",
+    partOfSpeech: "phrase",
     pronunciation: { uk: "/mock/", us: "/mock/" },
-    selectionKind: request.selectionKind,
+    selectionKind: "phrase",
     similarTerms: [
       { meaningZh: "相近表达一", partOfSpeech: "noun", text: "alternative" },
       { meaningZh: "相近表达二", partOfSpeech: "noun", text: "equivalent" },
@@ -65,12 +88,39 @@ function lexicalExplanation(request: AnalyzeRequest): AnalysisResult {
   }
 
   const reportedPartOfSpeech = sparseReportedWords[request.selection];
+  if (request.selectionKind === "word") {
+    return {
+      contextualAnalysisZh: "词汇解释结果，并说明此处为什么取该义。",
+      selectionKind: "word",
+      sourceText: request.selection,
+      synonyms:
+        reportedPartOfSpeech === undefined
+          ? [
+              {
+                distinctionZh: "语气和搭配不同。",
+                meaningZh: "同义表达",
+                partOfSpeech: "adjective",
+                text: "continuous",
+              },
+            ]
+          : [],
+      type: "explain-word",
+      usageNotes:
+        reportedPartOfSpeech === undefined
+          ? [{ descriptionZh: "展示最相关的用法。", titleZh: "常见用法" }]
+          : [],
+      wordForm: {
+        baseForm: request.selection.toLocaleLowerCase(),
+        formTypeZh: "当前词形",
+      },
+    };
+  }
   if (reportedPartOfSpeech !== undefined) {
     return {
       collocations: [],
       contextualMeaningZh: "词汇解释结果",
       coreMeanings: [{ meaningZh: "核心词义", partOfSpeech: reportedPartOfSpeech }],
-      selectionKind: request.selectionKind,
+      selectionKind: "phrase",
       sourceText: request.selection,
       synonyms: [],
       type: "explain-lexical",
@@ -85,7 +135,7 @@ function lexicalExplanation(request: AnalyzeRequest): AnalysisResult {
     ],
     contextualMeaningZh: "词汇解释结果",
     coreMeanings: [{ meaningZh: "核心词义", partOfSpeech: "verb" }],
-    selectionKind: request.selectionKind,
+    selectionKind: "phrase",
     sourceText: request.selection,
     synonyms: [
       { meaningZh: "同义表达一", partOfSpeech: "adjective", text: "continuous" },
@@ -136,6 +186,26 @@ export function createResultEvent(request: AnalyzeRequest): HostEvent {
 
 export function createSectionEvent(request: AnalyzeRequest, sequence: number): HostEvent | null {
   const result = resultFor(request);
+  if (result.type === "translate-word") {
+    return {
+      requestId: request.requestId,
+      schemaVersion: SCHEMA_VERSION,
+      section: "contextual-sense",
+      sequence,
+      type: "analysis-section",
+      value: result.contextualSense,
+    };
+  }
+  if (result.type === "explain-word") {
+    return {
+      requestId: request.requestId,
+      schemaVersion: SCHEMA_VERSION,
+      section: "word-form",
+      sequence,
+      type: "analysis-section",
+      value: result.wordForm,
+    };
+  }
   if (result.type === "translate-lexical") {
     return {
       requestId: request.requestId,
@@ -165,6 +235,26 @@ export function createCollocationsEvent(
   count: number,
 ): HostEvent | null {
   const result = resultFor(request);
+  if (result.type === "translate-word") {
+    return {
+      requestId: request.requestId,
+      schemaVersion: SCHEMA_VERSION,
+      section: "common-phrases",
+      sequence,
+      type: "analysis-section",
+      value: result.commonPhrases.slice(0, count),
+    };
+  }
+  if (result.type === "explain-word") {
+    return {
+      requestId: request.requestId,
+      schemaVersion: SCHEMA_VERSION,
+      section: "usage-notes",
+      sequence,
+      type: "analysis-section",
+      value: result.usageNotes.slice(0, count),
+    };
+  }
   if (result.type !== "translate-lexical" && result.type !== "explain-lexical") {
     return null;
   }

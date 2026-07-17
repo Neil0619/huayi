@@ -9,7 +9,7 @@ function createRequest(overrides: Partial<AnalyzeRequest> = {}): AnalyzeRequest 
     action: "translate",
     context: "The investigation was in its early stages.",
     requestId: "prompt-1",
-    schemaVersion: 4,
+    schemaVersion: 5,
     selection: "investigation",
     selectionKind: "word",
     sentenceContext: null,
@@ -42,44 +42,48 @@ describe("buildAnalysisPrompt", () => {
     expect(prompt.toLowerCase()).not.toContain("eudic");
   });
 
-  it("requests nullable model-only lexical translation content without invented examples", () => {
+  it("requests dictionary-focused word translation content without invented entries", () => {
     const sentenceContext = "Four victims were interviewed.";
     const prompt = buildAnalysisPrompt(createRequest({ selection: "Four", sentenceContext }));
     const requirements = prompt.split("UNTRUSTED_WEBPAGE_DATA")[0] ?? "";
 
     expect(prompt).toContain(JSON.stringify(sentenceContext));
-    expect(requirements).toMatch(/0[-–]3 contextual collocations/u);
-    expect(requirements).toMatch(/0[-–]3 similar terms/u);
-    expect(requirements).toMatch(/return null.*return \[\]/isu);
-    expect(requirements).toMatch(/Chinese translation.*contextExampleTranslationZh/isu);
-    expect(requirements).toMatch(/never repeat the English sentence/iu);
-    expect(requirements).toMatch(/do not invent example sentences/iu);
-    expect(requirements).not.toMatch(/[23][-–]5/u);
-    expect(requirements).not.toMatch(/2[-–]4/u);
-    for (const metadataField of ["sourceText", "selectionKind", "type"]) {
+    expect(requirements).toMatch(/1-4 unique part-of-speech groups/iu);
+    expect(requirements).toMatch(/merge.*same part of speech.*one group/iu);
+    expect(requirements).toMatch(/never repeat.*partOfSpeech/iu);
+    expect(requirements).toMatch(/1-3 deduplicated modern high-frequency Chinese meanings/iu);
+    expect(requirements).toMatch(/0-4 established high-frequency phrases/iu);
+    expect(requirements).toMatch(/0-4 words conventionally confused/iu);
+    expect(requirements).toMatch(/exclude ordinary synonyms/iu);
+    expect(requirements).toContain("principal/principle");
+    expect(requirements).toContain("stationary/stationery");
+    expect(requirements).toContain("advise/advice");
+    expect(requirements).toContain("affect/effect");
+    expect(requirements).toMatch(/inquiry.*synonym.*investigation.*not.*confusable/iu);
+    expect(requirements).toMatch(/never fabricate content/iu);
+    for (const metadataField of ["sourceText", "selectionKind"]) {
       expect(requirements).not.toMatch(new RegExp(`\\b${metadataField}\\b`, "u"));
     }
   });
 
-  it("requests only nullable model content needed for a lexical explanation", () => {
+  it("requests contextual word usage analysis with differentiated synonyms", () => {
     const prompt = buildAnalysisPrompt(
       createRequest({ action: "explain", selection: "sustained", selectionKind: "word" }),
     );
     const requirements = prompt.split("UNTRUSTED_WEBPAGE_DATA")[0] ?? "";
 
-    expect(requirements).toContain("English lexical explanation");
-    expect(requirements).toMatch(/0[-–]3 contextual collocations/u);
-    expect(requirements).toMatch(/0[-–]3 synonyms/u);
-    expect(requirements).toMatch(/return null.*return \[\]/isu);
-    expect(requirements).toMatch(/base form.*different.*learning value/isu);
-    expect(requirements).toMatch(/word formation.*reliable/isu);
+    expect(requirements).toContain("selected English word works in the supplied context");
+    expect(requirements).toMatch(/contextual meaning.*why that sense fits/isu);
+    expect(requirements).toMatch(/base form.*selected form type.*sentence role/isu);
+    expect(requirements).toMatch(/0-3 context-relevant points/iu);
+    expect(requirements).toMatch(/0-3 words genuinely close to the contextual sense/iu);
+    expect(requirements).toMatch(/exclude spelling-only confusables/iu);
+    expect(requirements).toMatch(/principal\/principle.*not synonym/iu);
     expect(requirements).toContain(
       "Return only one JSON object matching the supplied output schema",
     );
-    expect(requirements).toContain("Do not invent example sentences for synonyms");
-    expect(requirements).not.toMatch(/[23][-–]5/u);
-    expect(requirements).not.toMatch(/2[-–]4/u);
-    for (const metadataField of ["sourceText", "selectionKind", "type"]) {
+    expect(requirements).toMatch(/never fabricate content/iu);
+    for (const metadataField of ["sourceText", "selectionKind"]) {
       expect(requirements).not.toMatch(new RegExp(`\\b${metadataField}\\b`, "u"));
     }
   });

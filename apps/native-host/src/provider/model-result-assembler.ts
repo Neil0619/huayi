@@ -7,12 +7,16 @@ import {
   modelLexicalTranslationSchema,
   modelPassageTranslationSchema,
   modelSentenceExplanationSchema,
+  modelWordExplanationSchema,
+  modelWordTranslationSchema,
   resultTypeFor,
   type ModelLexicalExplanation,
   type ModelLexicalTranslation,
   type ModelPassageTranslation,
   type ModelResultType,
   type ModelSentenceExplanation,
+  type ModelWordExplanation,
+  type ModelWordTranslation,
 } from "./model-analysis-schemas.js";
 import { ProviderValidationError, providerDiagnosticField } from "./provider-validation.js";
 
@@ -40,7 +44,7 @@ function parseModelContent<Content>(schema: ZodType<Content>, rawResult: unknown
 }
 
 function normalizePronunciation(
-  pronunciation: ModelLexicalTranslation["pronunciation"],
+  pronunciation: ModelLexicalTranslation["pronunciation"] | ModelWordTranslation["pronunciation"],
 ): Pronunciation | undefined {
   if (pronunciation === null) return undefined;
   const normalized: Pronunciation = {
@@ -48,6 +52,21 @@ function normalizePronunciation(
     ...(pronunciation.us === null ? {} : { us: pronunciation.us }),
   };
   return normalized.uk === undefined && normalized.us === undefined ? undefined : normalized;
+}
+
+function assembleWordTranslation(content: ModelWordTranslation, request: AnalyzeRequest): unknown {
+  const pronunciation = normalizePronunciation(content.pronunciation);
+  return {
+    commonMeanings: content.commonMeanings,
+    commonPhrases: content.commonPhrases,
+    confusableWords: content.confusableWords,
+    contextualSense: content.contextualSense,
+    dictionaryForm: content.dictionaryForm,
+    ...(pronunciation === undefined ? {} : { pronunciation }),
+    selectionKind: "word",
+    sourceText: request.selection,
+    type: "translate-word",
+  };
 }
 
 function assembleLexicalTranslation(
@@ -98,6 +117,25 @@ function assembleLexicalExplanation(
   };
 }
 
+function assembleWordExplanation(content: ModelWordExplanation, request: AnalyzeRequest): unknown {
+  return {
+    contextualAnalysisZh: content.contextualAnalysisZh,
+    selectionKind: "word",
+    sourceText: request.selection,
+    synonyms: content.synonyms,
+    type: "explain-word",
+    usageNotes: content.usageNotes,
+    wordForm: {
+      baseForm: content.wordForm.baseForm,
+      formTypeZh: content.wordForm.formTypeZh,
+      ...(content.wordForm.sentenceRoleZh === null
+        ? {}
+        : { sentenceRoleZh: content.wordForm.sentenceRoleZh }),
+    },
+    ...(content.wordFormationZh === null ? {} : { wordFormationZh: content.wordFormationZh }),
+  };
+}
+
 function assemblePassageTranslation(
   content: ModelPassageTranslation,
   request: AnalyzeRequest,
@@ -139,6 +177,11 @@ function assembleModelContent(
   request: AnalyzeRequest,
 ): unknown {
   switch (resultType) {
+    case "translate-word":
+      return assembleWordTranslation(
+        parseModelContent(modelWordTranslationSchema, rawResult),
+        request,
+      );
     case "translate-lexical":
       return assembleLexicalTranslation(
         parseModelContent(modelLexicalTranslationSchema, rawResult),
@@ -152,6 +195,11 @@ function assembleModelContent(
     case "explain-lexical":
       return assembleLexicalExplanation(
         parseModelContent(modelLexicalExplanationSchema, rawResult),
+        request,
+      );
+    case "explain-word":
+      return assembleWordExplanation(
+        parseModelContent(modelWordExplanationSchema, rawResult),
         request,
       );
     case "explain-sentence":

@@ -137,7 +137,7 @@ test("a validated analysis section is visible before the final result", async ({
   await activateToolbarAction(page);
 
   const preview = panel(page).locator(".huayi-preview");
-  await expect(preview.locator(".huayi-section-title", { hasText: "词性" })).toBeVisible();
+  await expect(preview.locator(".huayi-section-title", { hasText: "语境义" })).toBeVisible();
   await expect(preview).toBeVisible();
   await expect(panel(page).locator(".huayi-preview")).toHaveCount(0);
   await expect(panel(page).locator(".huayi-source")).toHaveText("sustained");
@@ -150,7 +150,7 @@ for (const [action, finalText] of [
   test(`word ${action} streams before its final card`, async ({ page }) => {
     await startWordAnalysis(page, "word-selection", action);
 
-    await expect(panel(page)).toContainText("正在逐步显示");
+    await expect(panel(page)).toContainText(action === "translate" ? "语境义" : "正在逐步显示");
     await expect(panel(page)).toContainText(finalText);
   });
 }
@@ -161,8 +161,8 @@ test("streaming sections append in place and survive the corrected final result"
   await startWordAnalysis(page, "controlled-stream-word-selection");
   const resultPanel = panel(page);
   const body = resultPanel.locator(".huayi-body");
-  const meaning = resultPanel.locator('[data-huayi-section="contextual-meaning"]');
-  const items = resultPanel.locator('[data-huayi-section="collocations"] li');
+  const meaning = resultPanel.locator('[data-huayi-section="contextual-sense"]');
+  const items = resultPanel.locator('[data-huayi-section="common-phrases"] li');
 
   await expect(meaning).toBeVisible();
   await page.evaluate(() => document.dispatchEvent(new CustomEvent("huayi-e2e-stream-first")));
@@ -185,14 +185,10 @@ test("streaming sections append in place and survive the corrected final result"
     await meaningHandle?.evaluate(
       (node) =>
         node ===
-        (node.getRootNode() as ShadowRoot).querySelector(
-          '[data-huayi-section="contextual-meaning"]',
-        ),
+        (node.getRootNode() as ShadowRoot).querySelector('[data-huayi-section="contextual-sense"]'),
     ),
   ).toBe(true);
-  expect(await firstItemHandle?.evaluate((node) => node.textContent)).toContain(
-    "sample collocation",
-  );
+  expect(await firstItemHandle?.evaluate((node) => node.textContent)).toContain("sample phrase");
 });
 
 for (const [testId, message, retryable] of [
@@ -211,7 +207,7 @@ for (const [testId, message, retryable] of [
 test("a present query updates streaming UI and logs only the checked word", async ({ page }) => {
   await startWordAnalysis(page, "existing-word-selection");
 
-  await expect(panel(page)).toContainText("正在逐步显示");
+  await expect(panel(page)).toContainText("语境义");
   await expect(panel(page).locator('[data-action="add-word"]')).toHaveText("已加入生词本");
   await expect(nativeRequests(page, "check-word")).toHaveAttribute("data-word", "established");
   await expect(nativeRequests(page, "check-word")).not.toHaveAttribute(
@@ -312,7 +308,7 @@ test("Escape cancels both pending request lanes", async ({ page }) => {
 
 test("late delta and status cannot mutate a replacement overlay", async ({ page }) => {
   await startWordAnalysis(page, "stale-event-word-selection");
-  await expect(panel(page)).toContainText("正在逐步显示");
+  await expect(panel(page)).toContainText("语境义");
 
   await page.getByTestId("replacement-selection").dblclick();
   await toolbar(page).locator('[data-action="translate"]').click();
@@ -327,7 +323,7 @@ test("close cancellation prevents a late stream event from reopening the overlay
   page,
 }) => {
   await startWordAnalysis(page, "stale-event-word-selection");
-  await expect(panel(page)).toContainText("正在逐步显示");
+  await expect(panel(page)).toContainText("语境义");
   const pendingIds = await requestIds(
     page.locator('[data-native-request="analyze"], [data-native-request="check-word"]'),
   );

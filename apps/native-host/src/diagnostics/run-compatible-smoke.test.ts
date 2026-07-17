@@ -20,7 +20,19 @@ const configuration = {
 
 function validResult(request: AnalyzeRequest): AnalysisResult {
   if (request.action === "translate") {
-    if (request.selectionKind === "word" || request.selectionKind === "phrase") {
+    if (request.selectionKind === "word") {
+      return {
+        commonMeanings: [{ meaningsZh: ["测试义"], partOfSpeech: "noun" }],
+        commonPhrases: [],
+        confusableWords: [],
+        contextualSense: { meaningZh: "测试义", partOfSpeech: "noun" },
+        dictionaryForm: request.selection,
+        selectionKind: "word",
+        sourceText: request.selection,
+        type: "translate-word",
+      };
+    }
+    if (request.selectionKind === "phrase") {
       return {
         collocations: [],
         contextualMeaningZh: "测试义",
@@ -51,6 +63,17 @@ function validResult(request: AnalyzeRequest): AnalysisResult {
   }
   if (request.selectionKind === "paragraph") {
     throw new Error("The fixed smoke corpus does not explain paragraphs.");
+  }
+  if (request.selectionKind === "word") {
+    return {
+      contextualAnalysisZh: "测试语境解析",
+      selectionKind: "word",
+      sourceText: request.selection,
+      synonyms: [],
+      type: "explain-word",
+      usageNotes: [],
+      wordForm: { baseForm: request.selection, formTypeZh: "原形" },
+    };
   }
   return {
     collocations: [],

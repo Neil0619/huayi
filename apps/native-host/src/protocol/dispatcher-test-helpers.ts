@@ -11,7 +11,7 @@ export const request: AnalyzeRequest = {
   action: "translate",
   context: "The investigation was in its early stages.",
   requestId: "request-1",
-  schemaVersion: 4,
+  schemaVersion: 5,
   selection: "investigation",
   selectionKind: "word",
   sentenceContext: null,
@@ -20,33 +20,30 @@ export const request: AnalyzeRequest = {
 };
 
 export const validResult: AnalysisResult = {
-  collocations: [
+  commonMeanings: [{ meaningsZh: ["调查", "侦查"], partOfSpeech: "noun" }],
+  commonPhrases: [
     { meaningZh: "刑事调查", text: "criminal investigation" },
     { meaningZh: "展开调查", text: "launch an investigation" },
   ],
-  contextualMeaningZh: "调查",
-  partOfSpeech: "noun",
+  confusableWords: [],
+  contextualSense: { meaningZh: "调查", partOfSpeech: "noun" },
+  dictionaryForm: "investigation",
   selectionKind: "word",
-  similarTerms: [
-    { meaningZh: "询问", partOfSpeech: "noun", text: "inquiry" },
-    { meaningZh: "审查", partOfSpeech: "noun", text: "examination" },
-    { meaningZh: "研究", partOfSpeech: "noun", text: "research" },
-  ],
   sourceText: "investigation",
-  type: "translate-lexical",
+  type: "translate-word",
 };
 
 export const checkRequest: CheckWordRequest = {
   language: "en",
   requestId: "check-1",
-  schemaVersion: 4,
+  schemaVersion: 5,
   type: "check-word",
   word: "investigation",
 };
 
 export const warmupRequest: WarmupRequest = {
   requestId: "warmup-1",
-  schemaVersion: 4,
+  schemaVersion: 5,
   type: "warmup",
 };
 
@@ -54,7 +51,7 @@ export const wordRequest: AddWordRequest = {
   context: "The investigation was in its early stages.",
   language: "en",
   requestId: "word-1",
-  schemaVersion: 4,
+  schemaVersion: 5,
   type: "add-word",
   word: "investigation",
 };

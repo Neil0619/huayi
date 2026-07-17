@@ -3,10 +3,10 @@
 - Build only a Manifest V3 extension.
 - Content scripts own DOM selection and overlay rendering. Only the service worker may use
   Native Messaging.
-- Version 0.6 permissions are limited to exactly `nativeMessaging` and content-script matches for
+- Version 0.8 permissions are limited to exactly `nativeMessaging` and content-script matches for
   normal `http` and `https` pages. Any new permission requires `docs/security.md` and
   regression-test updates.
-- The Extension uses wire v4 only and must be refreshed together with a v0.6.0 Native Host; v3
+- The Extension uses wire v5 only and must be refreshed together with a v0.8.0 Native Host; v4
   messages are incompatible and must be rejected.
 - Warmup requests contain only type, schema version, and request ID. Never add selection,
   context, sentence, URL, or other page data to warmup.
@@ -21,6 +21,10 @@
 - Treat deltas and typed sections as non-terminal previews. Only `result` is complete success;
   preserve a safe preview on terminal failure and hide absent or empty lexical sections without
   placeholders or fabricated values.
+- Render word translation as pronunciation, contextual sense, grouped common meanings, common
+  phrases, and confusable words. Render word explanation as contextual analysis, word form,
+  reliable formation, usage notes, and synonym comparisons. Do not restore word examples or a
+  separate part-of-speech row.
 - Batch streaming updates with `requestAnimationFrame` and render at most once per frame. Drain
   pending updates before terminal result/error handling, and clear stale batches on close or a
   new selection.

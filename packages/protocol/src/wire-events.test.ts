@@ -1,20 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  MAX_STREAM_DELTA_LENGTH,
-  analysisDeltaEventSchema,
-  hostEventSchema,
-  modelProviderSchema,
-  wordAddedEventSchema,
-  wordStatusEventSchema,
-} from "./index.js";
+import { hostEventSchema, modelProviderSchema, wordAddedEventSchema } from "./index.js";
 
-const PREVIOUS_SCHEMA_VERSION = 3;
+const PREVIOUS_SCHEMA_VERSION = 4;
 
 const sectionEvents = [
   {
     requestId: "analysis-v2",
-    schemaVersion: 4,
+    schemaVersion: 5,
     section: "part-of-speech",
     sequence: 1,
     type: "analysis-section",
@@ -22,7 +15,7 @@ const sectionEvents = [
   },
   {
     requestId: "analysis-v2",
-    schemaVersion: 4,
+    schemaVersion: 5,
     section: "pronunciation",
     sequence: 2,
     type: "analysis-section",
@@ -30,7 +23,7 @@ const sectionEvents = [
   },
   {
     requestId: "analysis-v2",
-    schemaVersion: 4,
+    schemaVersion: 5,
     section: "base-form",
     sequence: 3,
     type: "analysis-section",
@@ -38,7 +31,7 @@ const sectionEvents = [
   },
   {
     requestId: "analysis-v2",
-    schemaVersion: 4,
+    schemaVersion: 5,
     section: "word-formation",
     sequence: 4,
     type: "analysis-section",
@@ -46,7 +39,7 @@ const sectionEvents = [
   },
   {
     requestId: "analysis-v2",
-    schemaVersion: 4,
+    schemaVersion: 5,
     section: "core-meanings",
     sequence: 5,
     type: "analysis-section",
@@ -54,7 +47,7 @@ const sectionEvents = [
   },
   {
     requestId: "analysis-v2",
-    schemaVersion: 4,
+    schemaVersion: 5,
     section: "collocations",
     sequence: 6,
     type: "analysis-section",
@@ -62,7 +55,7 @@ const sectionEvents = [
   },
   {
     requestId: "analysis-v2",
-    schemaVersion: 4,
+    schemaVersion: 5,
     section: "context-example",
     sequence: 7,
     type: "analysis-section",
@@ -73,7 +66,7 @@ const sectionEvents = [
   },
   {
     requestId: "analysis-v2",
-    schemaVersion: 4,
+    schemaVersion: 5,
     section: "similar-terms",
     sequence: 8,
     type: "analysis-section",
@@ -81,24 +74,94 @@ const sectionEvents = [
   },
   {
     requestId: "analysis-v2",
-    schemaVersion: 4,
+    schemaVersion: 5,
     section: "synonyms",
     sequence: 9,
     type: "analysis-section",
     value: [{ meaningZh: "受害者", partOfSpeech: "noun", text: "sufferer" }],
   },
+  {
+    requestId: "analysis-v5",
+    schemaVersion: 5,
+    section: "contextual-sense",
+    sequence: 10,
+    type: "analysis-section",
+    value: { meaningZh: "主要的", partOfSpeech: "adjective" },
+  },
+  {
+    requestId: "analysis-v5",
+    schemaVersion: 5,
+    section: "common-meanings",
+    sequence: 11,
+    type: "analysis-section",
+    value: [{ meaningsZh: ["主要的"], partOfSpeech: "adjective" }],
+  },
+  {
+    requestId: "analysis-v5",
+    schemaVersion: 5,
+    section: "common-phrases",
+    sequence: 12,
+    type: "analysis-section",
+    value: [{ meaningZh: "校长", text: "school principal" }],
+  },
+  {
+    requestId: "analysis-v5",
+    schemaVersion: 5,
+    section: "confusable-words",
+    sequence: 13,
+    type: "analysis-section",
+    value: [
+      {
+        distinctionZh: "principle 表示原则。",
+        meaningZh: "原则",
+        partOfSpeech: "noun",
+        text: "principle",
+      },
+    ],
+  },
+  {
+    requestId: "analysis-v5",
+    schemaVersion: 5,
+    section: "word-form",
+    sequence: 14,
+    type: "analysis-section",
+    value: { baseForm: "sustain", formTypeZh: "过去式", sentenceRoleZh: "谓语" },
+  },
+  {
+    requestId: "analysis-v5",
+    schemaVersion: 5,
+    section: "usage-notes",
+    sequence: 15,
+    type: "analysis-section",
+    value: [{ descriptionZh: "后接名词。", titleZh: "及物用法" }],
+  },
+  {
+    requestId: "analysis-v5",
+    schemaVersion: 5,
+    section: "synonym-comparisons",
+    sequence: 16,
+    type: "analysis-section",
+    value: [
+      {
+        distinctionZh: "maintain 更强调保持。",
+        meaningZh: "维持",
+        partOfSpeech: "verb",
+        text: "maintain",
+      },
+    ],
+  },
 ] as const;
 
 describe("hostEventSchema", () => {
-  it("accepts strict compatible HTTP health on wire v4", () => {
+  it("accepts strict compatible HTTP health on wire v5", () => {
     const compatibleHealth = {
       codexVersion: null,
-      hostVersion: "0.6.0",
+      hostVersion: "0.8.0",
       model: "gpt-5.4-mini",
       provider: "openai-compatible-http",
       ready: true,
       requestId: "health-compatible",
-      schemaVersion: 4,
+      schemaVersion: 5,
       type: "health-result",
     } as const;
 
@@ -113,15 +176,38 @@ describe("hostEventSchema", () => {
     ).toThrow();
   });
 
+  it("accepts strict DeepSeek health only for the fixed model", () => {
+    const deepSeekHealth = {
+      codexVersion: null,
+      hostVersion: "0.8.0",
+      model: "deepseek-v4-flash",
+      provider: "deepseek-chat-completions",
+      ready: true,
+      requestId: "health-deepseek",
+      schemaVersion: 5,
+      type: "health-result",
+    } as const;
+
+    expect(modelProviderSchema.parse("deepseek-chat-completions")).toBe(
+      "deepseek-chat-completions",
+    );
+    expect(hostEventSchema.parse(deepSeekHealth)).toEqual(deepSeekHealth);
+    expect(() => hostEventSchema.parse({ ...deepSeekHealth, model: "deepseek-chat" })).toThrow();
+    expect(() => hostEventSchema.parse({ ...deepSeekHealth, codexVersion: "0.144.2" })).toThrow();
+    expect(() =>
+      hostEventSchema.parse({ ...deepSeekHealth, endpoint: "https://evil.invalid" }),
+    ).toThrow();
+  });
+
   it("accepts strict provider-aware API health", () => {
     const apiHealth = {
       codexVersion: null,
-      hostVersion: "0.6.0",
+      hostVersion: "0.8.0",
       model: "gpt-5.6-luna",
       provider: "openai-responses",
       ready: true,
       requestId: "health-api",
-      schemaVersion: 4,
+      schemaVersion: 5,
       type: "health-result",
     } as const;
 
@@ -140,12 +226,12 @@ describe("hostEventSchema", () => {
   it("accepts Codex health only with a Codex version", () => {
     const codexHealth = {
       codexVersion: "codex-cli 0.144.1",
-      hostVersion: "0.6.0",
+      hostVersion: "0.8.0",
       model: "gpt-5.4-mini",
       provider: "codex",
       ready: true,
       requestId: "health-codex",
-      schemaVersion: 4,
+      schemaVersion: 5,
       type: "health-result",
     } as const;
 
@@ -162,12 +248,12 @@ describe("hostEventSchema", () => {
         provider: "codex",
         ready: true,
         requestId: "health-1",
-        schemaVersion: 4,
+        schemaVersion: 5,
         type: "health-result",
       },
       {
         requestId: "request-1",
-        schemaVersion: 4,
+        schemaVersion: 5,
         stage: "queued",
         type: "progress",
       },
@@ -179,13 +265,13 @@ describe("hostEventSchema", () => {
           translationZh: "它已准备就绪。",
           type: "translate-passage",
         },
-        schemaVersion: 4,
+        schemaVersion: 5,
         type: "result",
       },
       {
         outcome: "added",
         requestId: "word-1",
-        schemaVersion: 4,
+        schemaVersion: 5,
         type: "word-added",
       },
       {
@@ -195,7 +281,7 @@ describe("hostEventSchema", () => {
           retryable: true,
         },
         requestId: "request-1",
-        schemaVersion: 4,
+        schemaVersion: 5,
         type: "error",
       },
     ] as const;
@@ -214,7 +300,7 @@ describe("hostEventSchema", () => {
       hostEventSchema.safeParse({
         requestId: "request-1",
         result: { type: "unvalidated" },
-        schemaVersion: 4,
+        schemaVersion: 5,
         type: "result",
       }).success,
     ).toBe(false);
@@ -229,7 +315,7 @@ describe("hostEventSchema", () => {
     expect(
       hostEventSchema.safeParse({
         requestId: "request-1",
-        schemaVersion: 4,
+        schemaVersion: 5,
         stage: "queued",
         type: "progress",
         url: "https://example.com",
@@ -240,7 +326,7 @@ describe("hostEventSchema", () => {
   it("accepts only a strict warmup-ready event", () => {
     const warmupReady = {
       requestId: "warmup-1",
-      schemaVersion: 4,
+      schemaVersion: 5,
       type: "warmup-ready",
     } as const;
 
@@ -269,7 +355,7 @@ describe("wordAddedEventSchema", () => {
       wordAddedEventSchema.parse({
         outcome,
         requestId: "word-1",
-        schemaVersion: 4,
+        schemaVersion: 5,
         type: "word-added",
       }).outcome,
     ).toBe(outcome);
@@ -280,108 +366,9 @@ describe("wordAddedEventSchema", () => {
       wordAddedEventSchema.safeParse({
         outcome: "added",
         requestId: "word-1",
-        schemaVersion: 4,
+        schemaVersion: 5,
         type: "word-added",
         word: "investigation",
-      }).success,
-    ).toBe(false);
-  });
-});
-
-describe("analysisDeltaEventSchema", () => {
-  const delta = {
-    delta: "调查",
-    requestId: "analysis-1",
-    schemaVersion: 4,
-    section: "contextual-meaning",
-    sequence: 0,
-    type: "analysis-delta",
-  } as const;
-
-  it("accepts an analysis delta as a host event", () => {
-    expect(analysisDeltaEventSchema.parse(delta)).toEqual(delta);
-    expect(hostEventSchema.parse(delta)).toEqual(delta);
-  });
-
-  it.each(["contextual-meaning", "translation", "main-structure", "context-role"] as const)(
-    "accepts the %s section",
-    (section) => {
-      expect(analysisDeltaEventSchema.parse({ ...delta, section }).section).toBe(section);
-    },
-  );
-
-  it("enforces delta and safe sequence limits", () => {
-    expect(
-      analysisDeltaEventSchema.safeParse({
-        ...delta,
-        delta: "x".repeat(MAX_STREAM_DELTA_LENGTH),
-        sequence: Number.MAX_SAFE_INTEGER,
-      }).success,
-    ).toBe(true);
-    expect(() => hostEventSchema.parse({ ...delta, sequence: -1 })).toThrow();
-    expect(() => hostEventSchema.parse({ ...delta, sequence: 0.5 })).toThrow();
-    expect(() =>
-      hostEventSchema.parse({ ...delta, sequence: Number.MAX_SAFE_INTEGER + 1 }),
-    ).toThrow();
-    expect(() => hostEventSchema.parse({ ...delta, delta: "" })).toThrow();
-    expect(() =>
-      hostEventSchema.parse({ ...delta, delta: "x".repeat(MAX_STREAM_DELTA_LENGTH + 1) }),
-    ).toThrow();
-  });
-
-  it("rejects unknown fields, the previous schema version, and another event union member", () => {
-    expect(() => analysisDeltaEventSchema.parse({ ...delta, rawJson: "{}" })).toThrow();
-    expect(() =>
-      analysisDeltaEventSchema.parse({
-        ...delta,
-        schemaVersion: PREVIOUS_SCHEMA_VERSION,
-      }),
-    ).toThrow();
-    expect(
-      analysisDeltaEventSchema.safeParse({
-        presence: "present",
-        requestId: "check-1",
-        schemaVersion: 4,
-        type: "word-status",
-      }).success,
-    ).toBe(false);
-  });
-});
-
-describe("wordStatusEventSchema", () => {
-  const wordStatus = {
-    presence: "present",
-    requestId: "check-1",
-    schemaVersion: 4,
-    type: "word-status",
-  } as const;
-
-  it("accepts present as a host event", () => {
-    expect(hostEventSchema.parse(wordStatus)).toMatchObject({
-      presence: "present",
-      type: "word-status",
-    });
-  });
-
-  it.each(["present", "absent"] as const)("accepts the %s presence", (presence) => {
-    expect(wordStatusEventSchema.parse({ ...wordStatus, presence }).presence).toBe(presence);
-  });
-
-  it("rejects unknown fields, values, schema versions, and another event union member", () => {
-    expect(() => wordStatusEventSchema.parse({ ...wordStatus, word: "investigation" })).toThrow();
-    expect(() => wordStatusEventSchema.parse({ ...wordStatus, presence: "unknown" })).toThrow();
-    expect(() =>
-      wordStatusEventSchema.parse({
-        ...wordStatus,
-        schemaVersion: PREVIOUS_SCHEMA_VERSION,
-      }),
-    ).toThrow();
-    expect(
-      wordStatusEventSchema.safeParse({
-        outcome: "added",
-        requestId: "word-1",
-        schemaVersion: 4,
-        type: "word-added",
       }).success,
     ).toBe(false);
   });

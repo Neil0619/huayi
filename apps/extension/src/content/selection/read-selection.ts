@@ -61,8 +61,13 @@ export function readSelection(
   const selectionKind = classifySelection(normalizedSelection);
   const lexical = selectionKind === "word" || selectionKind === "phrase";
   const sentenceContext = lexical ? extractSentenceContext(range, normalizedSelection) : null;
+  const extractedContext = extractContext(range, normalizedSelection);
+  const context =
+    lexical && sentenceContext === null && !isEnglishText(extractedContext)
+      ? normalizedSelection
+      : extractedContext;
   return {
-    context: extractContext(range, normalizedSelection),
+    context,
     range: range.cloneRange(),
     selection: normalizedSelection,
     selectionKind,

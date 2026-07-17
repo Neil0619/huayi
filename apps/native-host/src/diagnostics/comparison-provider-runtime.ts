@@ -159,6 +159,11 @@ export function createComparisonProviders(
         throw new Error("Compatible configuration is not part of Provider comparison.");
       },
     },
+    deepSeekApiKeyReader: {
+      async read(): Promise<never> {
+        throw new Error("DeepSeek credentials are not part of Provider comparison.");
+      },
+    },
     eudicAuthorizationReader: {
       async read(): Promise<never> {
         throw new Error("Wordbook credentials are not part of Provider comparison.");

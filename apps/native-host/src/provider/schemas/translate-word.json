@@ -1,0 +1,161 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "pronunciation": {
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "uk": {
+              "anyOf": [{ "type": "string", "minLength": 1, "maxLength": 120 }, { "type": "null" }]
+            },
+            "us": {
+              "anyOf": [{ "type": "string", "minLength": 1, "maxLength": 120 }, { "type": "null" }]
+            }
+          },
+          "required": ["uk", "us"]
+        },
+        { "type": "null" }
+      ]
+    },
+    "contextualSense": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "meaningZh": { "type": "string", "minLength": 1, "maxLength": 300 },
+        "partOfSpeech": {
+          "type": "string",
+          "enum": [
+            "noun",
+            "verb",
+            "adjective",
+            "adverb",
+            "pronoun",
+            "preposition",
+            "conjunction",
+            "interjection",
+            "determiner",
+            "modal",
+            "number",
+            "particle",
+            "phrase",
+            "other"
+          ]
+        }
+      },
+      "required": ["meaningZh", "partOfSpeech"]
+    },
+    "dictionaryForm": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120,
+      "pattern": "^[^\\u3400-\\u9fff]*[A-Za-z][^\\u3400-\\u9fff]*$"
+    },
+    "commonMeanings": {
+      "type": "array",
+      "description": "Use one group per partOfSpeech. Merge all meanings that share the same partOfSpeech into that single group and never repeat a partOfSpeech value.",
+      "minItems": 1,
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "meaningsZh": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 3,
+            "items": { "type": "string", "minLength": 1, "maxLength": 300 }
+          },
+          "partOfSpeech": {
+            "type": "string",
+            "enum": [
+              "noun",
+              "verb",
+              "adjective",
+              "adverb",
+              "pronoun",
+              "preposition",
+              "conjunction",
+              "interjection",
+              "determiner",
+              "modal",
+              "number",
+              "particle",
+              "phrase",
+              "other"
+            ]
+          }
+        },
+        "required": ["meaningsZh", "partOfSpeech"]
+      }
+    },
+    "commonPhrases": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "meaningZh": { "type": "string", "minLength": 1, "maxLength": 300 },
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "^[^\\u3400-\\u9fff]*[A-Za-z][^\\u3400-\\u9fff]*$"
+          }
+        },
+        "required": ["meaningZh", "text"]
+      }
+    },
+    "confusableWords": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "distinctionZh": { "type": "string", "minLength": 1, "maxLength": 500 },
+          "meaningZh": { "type": "string", "minLength": 1, "maxLength": 200 },
+          "partOfSpeech": {
+            "type": "string",
+            "enum": [
+              "noun",
+              "verb",
+              "adjective",
+              "adverb",
+              "pronoun",
+              "preposition",
+              "conjunction",
+              "interjection",
+              "determiner",
+              "modal",
+              "number",
+              "particle",
+              "phrase",
+              "other"
+            ]
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120,
+            "pattern": "^[^\\u3400-\\u9fff]*[A-Za-z][^\\u3400-\\u9fff]*$"
+          }
+        },
+        "required": ["distinctionZh", "meaningZh", "partOfSpeech", "text"]
+      }
+    }
+  },
+  "required": [
+    "pronunciation",
+    "contextualSense",
+    "dictionaryForm",
+    "commonMeanings",
+    "commonPhrases",
+    "confusableWords"
+  ]
+}

@@ -24,20 +24,17 @@ const selection = {
 } as const;
 
 const lexicalResult: AnalysisResult = {
-  collocations: [
+  commonMeanings: [{ meaningsZh: ["调查"], partOfSpeech: "noun" }],
+  commonPhrases: [
     { meaningZh: "刑事调查", text: "criminal investigation" },
     { meaningZh: "展开调查", text: "launch an investigation" },
   ],
-  contextualMeaningZh: "调查",
-  partOfSpeech: "noun",
+  confusableWords: [],
+  contextualSense: { meaningZh: "调查", partOfSpeech: "noun" },
+  dictionaryForm: "investigation",
   selectionKind: "word",
-  similarTerms: [
-    { meaningZh: "询问", partOfSpeech: "noun", text: "inquiry" },
-    { meaningZh: "审查", partOfSpeech: "noun", text: "examination" },
-    { meaningZh: "研究", partOfSpeech: "noun", text: "research" },
-  ],
   sourceText: "investigation",
-  type: "translate-lexical",
+  type: "translate-word",
 };
 
 const controllers: OverlayController[] = [];
@@ -197,28 +194,28 @@ describe("OverlayController", () => {
     const renderSpy = vi.spyOn(controller.shadowRoot, "replaceChildren");
 
     controller.appendUpdate({
-      delta: "调查",
       requestId: "analysis-1",
-      schemaVersion: 4,
-      section: "contextual-meaning",
+      schemaVersion: 5,
+      section: "contextual-sense",
       sequence: 0,
-      type: "analysis-delta",
+      type: "analysis-section",
+      value: { meaningZh: "调查", partOfSpeech: "noun" },
     });
     controller.appendUpdate({
       requestId: "analysis-1",
-      schemaVersion: 4,
-      section: "collocations",
+      schemaVersion: 5,
+      section: "common-phrases",
       sequence: 1,
       type: "analysis-section",
       value: [{ meaningZh: "刑事调查", text: "criminal investigation" }],
     });
     controller.appendUpdate({
       requestId: "analysis-1",
-      schemaVersion: 4,
-      section: "part-of-speech",
+      schemaVersion: 5,
+      section: "common-meanings",
       sequence: 2,
       type: "analysis-section",
-      value: "noun",
+      value: [{ meaningsZh: ["调查"], partOfSpeech: "noun" }],
     });
 
     expect(controller.state.status).toBe("loading");
@@ -230,10 +227,11 @@ describe("OverlayController", () => {
       preview: {
         lastSequence: 2,
         sections: {
-          collocations: [{ meaningZh: "刑事调查", text: "criminal investigation" }],
-          partOfSpeech: "noun",
+          commonMeanings: [{ meaningsZh: ["调查"], partOfSpeech: "noun" }],
+          commonPhrases: [{ meaningZh: "刑事调查", text: "criminal investigation" }],
+          contextualSense: { meaningZh: "调查", partOfSpeech: "noun" },
         },
-        text: { "contextual-meaning": "调查" },
+        text: {},
       },
       status: "streaming",
     });
@@ -243,7 +241,7 @@ describe("OverlayController", () => {
         controller.shadowRoot.querySelectorAll(".huayi-section-title"),
         (heading) => heading.textContent,
       ),
-    ).toEqual(["语境义", "词性", "语境搭配"]);
+    ).toEqual(["语境义", "常见释义", "常用短语"]);
   });
 
   it("flushes pending deltas before a terminal error", () => {
@@ -254,7 +252,7 @@ describe("OverlayController", () => {
     controller.appendUpdate({
       delta: "部分译文",
       requestId: "analysis-1",
-      schemaVersion: 4,
+      schemaVersion: 5,
       section: "translation",
       sequence: 0,
       type: "analysis-delta",
@@ -274,28 +272,28 @@ describe("OverlayController", () => {
     controller.show(selection, anchorRect);
     controller.start("translate");
     controller.appendUpdate({
-      delta: "调查",
       requestId: "analysis-1",
-      schemaVersion: 4,
-      section: "contextual-meaning",
+      schemaVersion: 5,
+      section: "contextual-sense",
       sequence: 0,
-      type: "analysis-delta",
+      type: "analysis-section",
+      value: { meaningZh: "调查", partOfSpeech: "noun" },
     });
     controller.appendUpdate({
       requestId: "analysis-1",
-      schemaVersion: 4,
-      section: "collocations",
+      schemaVersion: 5,
+      section: "common-phrases",
       sequence: 1,
       type: "analysis-section",
       value: [{ meaningZh: "刑事调查", text: "criminal investigation" }],
     });
     controller.appendUpdate({
       requestId: "analysis-1",
-      schemaVersion: 4,
-      section: "part-of-speech",
+      schemaVersion: 5,
+      section: "common-meanings",
       sequence: 2,
       type: "analysis-section",
-      value: "noun",
+      value: [{ meaningsZh: ["调查"], partOfSpeech: "noun" }],
     });
 
     controller.reject({
@@ -310,7 +308,7 @@ describe("OverlayController", () => {
         controller.shadowRoot.querySelectorAll(".huayi-section-title"),
         (heading) => heading.textContent,
       ),
-    ).toEqual(["语境义", "词性", "语境搭配"]);
+    ).toEqual(["语境义", "常见释义", "常用短语"]);
     expect(controller.shadowRoot.textContent).toContain("内容未完整生成");
     expect(controller.shadowRoot.querySelector("[data-action='retry']")).not.toBeNull();
   });
@@ -323,7 +321,7 @@ describe("OverlayController", () => {
     controller.appendUpdate({
       delta: "调",
       requestId: "analysis-1",
-      schemaVersion: 4,
+      schemaVersion: 5,
       section: "contextual-meaning",
       sequence: 0,
       type: "analysis-delta",
@@ -353,7 +351,7 @@ describe("OverlayController", () => {
     controller.appendUpdate({
       delta: "late",
       requestId: "analysis-1",
-      schemaVersion: 4,
+      schemaVersion: 5,
       section: "translation",
       sequence: 0,
       type: "analysis-delta",
@@ -371,7 +369,7 @@ describe("OverlayController", () => {
     controller.appendUpdate({
       delta: "stale",
       requestId: "analysis-2",
-      schemaVersion: 4,
+      schemaVersion: 5,
       section: "translation",
       sequence: 0,
       type: "analysis-delta",

@@ -12,7 +12,7 @@ const request: AddWordRequest = {
   context: "The investigation was in its early stages.",
   language: "en",
   requestId: "word-1",
-  schemaVersion: 4,
+  schemaVersion: 5,
   type: "add-word",
   word: "investigation",
 };
@@ -20,7 +20,7 @@ const request: AddWordRequest = {
 const checkRequest: CheckWordRequest = {
   language: "en",
   requestId: "check-word-1",
-  schemaVersion: 4,
+  schemaVersion: 5,
   type: "check-word",
   word: "investigation",
 };

@@ -14,9 +14,10 @@ function streamingState(
     preview: {
       lastSequence: 1,
       sections: {
-        collocations: [{ meaningZh: "刑事调查", text: "criminal investigation" }],
+        commonPhrases: [{ meaningZh: "刑事调查", text: "criminal investigation" }],
+        contextualSense: { meaningZh: "调", partOfSpeech: "noun" },
       },
-      text: { "contextual-meaning": "调" },
+      text: {},
       ...overrides,
     },
     status: "streaming",
@@ -49,9 +50,9 @@ describe("patchAnalysisBody", () => {
   it("retains keyed sections and items while text grows and arrays append", () => {
     const body = document.createElement("div");
     patchAnalysisBody(body, streamingState());
-    const meaning = body.querySelector<HTMLElement>('[data-huayi-section="contextual-meaning"]');
+    const meaning = body.querySelector<HTMLElement>('[data-huayi-section="contextual-sense"]');
     const meaningValue = meaning?.querySelector<HTMLElement>("[data-huayi-value]");
-    const firstItem = body.querySelector<HTMLLIElement>('[data-huayi-section="collocations"] li');
+    const firstItem = body.querySelector<HTMLLIElement>('[data-huayi-section="common-phrases"] li');
     meaning?.classList.remove("huayi-enter");
     firstItem?.classList.remove("huayi-enter");
 
@@ -60,19 +61,20 @@ describe("patchAnalysisBody", () => {
       streamingState({
         lastSequence: 3,
         sections: {
-          collocations: [
+          commonPhrases: [
             { meaningZh: "刑事调查", text: "criminal investigation" },
             { meaningZh: "展开调查", text: "launch an investigation" },
           ],
+          contextualSense: { meaningZh: "调查", partOfSpeech: "noun" },
         },
-        text: { "contextual-meaning": "调查" },
+        text: {},
       }),
     );
 
-    expect(body.querySelector('[data-huayi-section="contextual-meaning"]')).toBe(meaning);
+    expect(body.querySelector('[data-huayi-section="contextual-sense"]')).toBe(meaning);
     expect(meaning?.querySelector("[data-huayi-value]")).toBe(meaningValue);
-    expect(meaningValue?.textContent).toBe("调查");
-    const items = body.querySelectorAll('[data-huayi-section="collocations"] li');
+    expect(meaningValue?.textContent).toBe("n. 调查");
+    const items = body.querySelectorAll('[data-huayi-section="common-phrases"] li');
     expect(items).toHaveLength(2);
     expect(items[0]).toBe(firstItem);
     expect(items[0]?.classList.contains("huayi-enter")).toBe(false);
@@ -89,11 +91,11 @@ describe("patchAnalysisBody", () => {
       body,
       streamingState({
         sections: {
-          collocations: [{ meaningZh: hostile, text: hostile }],
-          partOfSpeech: "noun",
+          commonPhrases: [{ meaningZh: hostile, text: hostile }],
+          contextualSense: { meaningZh: hostile, partOfSpeech: "noun" },
           pronunciation: { uk: "/test/" },
         },
-        text: { "contextual-meaning": hostile },
+        text: {},
       }),
     );
 
@@ -106,7 +108,7 @@ describe("patchAnalysisBody", () => {
       streamingState({
         lastSequence: 2,
         sections: {},
-        text: { "contextual-meaning": "safe" },
+        text: {},
       }),
     );
     expect(body.querySelector('[data-huayi-section="pronunciation"]')).not.toBeNull();
@@ -114,21 +116,21 @@ describe("patchAnalysisBody", () => {
     patchAnalysisBody(
       body,
       resultState({
-        collocations: [],
-        contextualMeaningZh: "最终修正",
-        partOfSpeech: "noun",
+        commonMeanings: [{ meaningsZh: ["最终修正"], partOfSpeech: "noun" }],
+        commonPhrases: [],
+        confusableWords: [],
+        contextualSense: { meaningZh: "最终修正", partOfSpeech: "noun" },
+        dictionaryForm: "investigation",
         selectionKind: "word",
-        similarTerms: [],
         sourceText: lexicalTranslationResult.sourceText,
-        type: "translate-lexical",
+        type: "translate-word",
       }),
     );
     expect(body.querySelector('[data-huayi-section="pronunciation"]')).toBeNull();
-    expect(body.querySelector('[data-huayi-section="collocations"]')).toBeNull();
+    expect(body.querySelector('[data-huayi-section="common-phrases"]')).toBeNull();
     expect(
-      body.querySelector('[data-huayi-section="contextual-meaning"] [data-huayi-value]')
-        ?.textContent,
-    ).toBe("最终修正");
+      body.querySelector('[data-huayi-section="contextual-sense"] [data-huayi-value]')?.textContent,
+    ).toBe("n. 最终修正");
   });
 
   it("corrects final text and list nodes without replacing the body or equal nodes", () => {
@@ -137,29 +139,29 @@ describe("patchAnalysisBody", () => {
       body,
       streamingState({
         sections: {
-          collocations: [
+          commonPhrases: [
             { meaningZh: "旧一", text: "old one" },
             { meaningZh: "旧二", text: "old two" },
           ],
+          contextualSense: { meaningZh: "旧义", partOfSpeech: "noun" },
         },
-        text: { "contextual-meaning": "旧义" },
+        text: {},
       }),
     );
-    const meaning = body.querySelector('[data-huayi-section="contextual-meaning"]');
-    const items = body.querySelectorAll('[data-huayi-section="collocations"] li');
+    const meaning = body.querySelector('[data-huayi-section="contextual-sense"]');
+    const items = body.querySelectorAll('[data-huayi-section="common-phrases"] li');
 
     patchAnalysisBody(
       body,
       resultState({
         ...lexicalTranslationResult,
-        collocations: [{ meaningZh: "新一", text: "new one" }],
-        contextualMeaningZh: "新义",
-        similarTerms: [],
+        commonPhrases: [{ meaningZh: "新一", text: "new one" }],
+        contextualSense: { meaningZh: "新义", partOfSpeech: "noun" },
       }),
     );
 
-    expect(body.querySelector('[data-huayi-section="contextual-meaning"]')).toBe(meaning);
-    const correctedItems = body.querySelectorAll('[data-huayi-section="collocations"] li');
+    expect(body.querySelector('[data-huayi-section="contextual-sense"]')).toBe(meaning);
+    const correctedItems = body.querySelectorAll('[data-huayi-section="common-phrases"] li');
     expect(correctedItems).toHaveLength(1);
     expect(correctedItems[0]).toBe(items[0]);
     expect(correctedItems[0]?.textContent).toBe("new one（新一）");

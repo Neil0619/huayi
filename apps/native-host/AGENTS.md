@@ -2,7 +2,7 @@
 
 - stdout is only the Native Messaging protocol; diagnostics go only to stderr.
 - Keep the Host health version, App Server `clientInfo.version`, and Eudic `User-Agent` at the
-  current release identity `0.6.0`; wire `schemaVersion` is `4` and rejects v3.
+  current release identity `0.8.0`; wire `schemaVersion` is `5` and rejects v4.
 - Validate all wire values with `@huayi/protocol`; the Host name is `com.huayi.codex_bridge`.
 - Spawn Codex with argument arrays and stdin, never `shell: true`.
 - Codex App Server has no ignore-user-config or ignore-rules flags; never invent or require them.
@@ -34,6 +34,13 @@
   `gpt-5.6-luna + none`.
 - Compatible code never reads/modifies Codex config/auth/session/providers, shell/env credentials,
   or the official Key. Key/config, smoke, and selection are separate actions; smoke never switches.
+- DeepSeek is fixed to `https://api.deepseek.com/chat/completions`, `deepseek-v4-flash`, disabled
+  thinking, JSON Output, `temperature: 0`, and streaming. Read its Key per request from
+  `com.huayi.codex_bridge.deepseek` / `api-key`; never cache, inject, log, or accept another URL.
+- DeepSeek uses strict data-only SSE and no retry, fallback, tools, cookies, redirects, or Codex
+  configuration. Non-empty reasoning, missing `[DONE]`, truncation, unknown structures, and
+  mismatched lifecycle metadata fail closed. Its configure, smoke, and Provider switch remain
+  separate explicit actions.
 - Compatible POST uses `redirect:error`, `credentials:omit`, no Cookie/retry/fallback, and only the
   documented strict dialect. Strictly validate then discard full-envelope metadata, protected
   reasoning, turn IDs, phases, logprobs, and obfuscation; unknown/duplicate/late/tool/refusal or
@@ -44,20 +51,21 @@
   collaboration-tool items fail closed.
 - Never access `~/.codex/auth.json`; pass only the Codex environment allowlist and dedicated cwd.
 - Enforce a 60-second request timeout and at most two concurrent requests.
-- Providers implement `AnalysisProvider`; do not leak Codex-specific fields into wire contracts.
-- Provider JSON schemas contain private model content only. The Host injects trusted
-  `sourceText`, `selectionKind`, and public result `type`, validates the assembled public result,
-  and never accepts those metadata fields from model output.
+- Providers implement `AnalysisProvider`; keep provider fields out of wire contracts.
+- Provider schemas contain private model content only. The Host injects trusted metadata,
+  validates the public result, and never accepts metadata from model output.
+- Word requests use the dedicated `translate-word` and `explain-word` private schemas. Keep
+  confusable words separate from synonyms, omit unreliable content, and preserve the documented
+  field order for progressive display across every provider.
 - Progressive deltas and typed sections are previews, not success terminals. Send no section for
   `null` or empty lexical content; only a validated `result` completes analysis successfully.
-- Eudic stays outside `AnalysisProvider`, fixed to its HTTPS URL and
-  `com.huayi.codex_bridge.eudic` / `authorization`, read per request and never injected or logged.
+- Eudic stays outside `AnalysisProvider`, uses its fixed HTTPS URL and Keychain item, and is never
+  injected or logged.
 - Keychain commands use fixed `/usr/bin/security`, arrays, `shell:false`, final `-w`, and no `-A`.
 - Default tests use fake process/Keychain/fetch only: no real Codex, HTTP service, Keychain, smoke,
   Provider switch, or Eudic API.
-- Installation supports dry-run before external writes. Uninstall removes only exact paths owned
-  by Huayi.
-- v0.6.0 upgrade and rollback must reinstall Extension and Host synchronously with Extension ID
+- Installation supports dry-run; uninstall removes only Huayi-owned paths.
+- v0.8.0 upgrade and rollback must reinstall Extension and Host synchronously with Extension ID
   `kfkamoejomjdihipgdkmfjcdenlhgnpd`. Reinstall preserves the Keychain service/account and the
   documented Host and Native Messaging manifest paths.
 - Invalid frames, oversized messages, stdout contamination, unknown requests, and invalid model

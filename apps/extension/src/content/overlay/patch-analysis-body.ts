@@ -1,203 +1,18 @@
-import type { AnalysisResult, PartOfSpeech, Pronunciation } from "@huayi/protocol";
-
 import type {
   ErrorOverlayState,
   LoadingOverlayState,
   ResultOverlayState,
   StreamingOverlayState,
 } from "./overlay-state.js";
-import { partOfSpeechLabels } from "./render-analysis-sections.js";
+import {
+  previewSections,
+  resultSections,
+  type ListSectionSpec,
+  type SectionSpec,
+} from "./analysis-section-specs.js";
 
 export type AnalysisPanelState =
   LoadingOverlayState | StreamingOverlayState | ResultOverlayState | ErrorOverlayState;
-
-interface TextSectionSpec {
-  key: string;
-  kind: "text";
-  title: string;
-  value: string | null | undefined;
-}
-
-interface ListSectionSpec {
-  key: string;
-  kind: "list";
-  termList?: boolean;
-  title: string;
-  values: readonly string[] | null | undefined;
-}
-
-type SectionSpec = TextSectionSpec | ListSectionSpec;
-
-function text(key: string, title: string, value: string | null | undefined): TextSectionSpec {
-  return { key, kind: "text", title, value };
-}
-
-function list(
-  key: string,
-  title: string,
-  values: readonly string[] | null | undefined,
-  termList = false,
-): ListSectionSpec {
-  return { key, kind: "list", termList, title, values };
-}
-
-function pronunciationText(value: Pronunciation | null | undefined): string | undefined {
-  if (value === null || value === undefined) {
-    return undefined;
-  }
-  return [
-    value.uk === undefined ? undefined : `英 ${value.uk}`,
-    value.us === undefined ? undefined : `美 ${value.us}`,
-  ]
-    .filter((item): item is string => item !== undefined)
-    .join("　");
-}
-
-function partOfSpeechText(value: PartOfSpeech | undefined): string | undefined {
-  return value === undefined ? undefined : partOfSpeechLabels[value];
-}
-
-function resultSections(result: AnalysisResult): SectionSpec[] {
-  switch (result.type) {
-    case "translate-lexical":
-      return [
-        text("contextual-meaning", "语境义", result.contextualMeaningZh),
-        text("part-of-speech", "词性", partOfSpeechText(result.partOfSpeech)),
-        text("pronunciation", "音标", pronunciationText(result.pronunciation)),
-        list(
-          "collocations",
-          "语境搭配",
-          result.collocations.map((item) => `${item.text}（${item.meaningZh}）`),
-        ),
-        text(
-          "context-example",
-          "原文例句",
-          result.contextExample === undefined
-            ? undefined
-            : `${result.contextExample.english}\n${result.contextExample.translationZh}`,
-        ),
-        list(
-          "similar-terms",
-          "相似词",
-          result.similarTerms.map(
-            (item) => `${item.text} · ${partOfSpeechLabels[item.partOfSpeech]} · ${item.meaningZh}`,
-          ),
-          true,
-        ),
-      ];
-    case "translate-passage":
-      return [text("translation", "译文", result.translationZh)];
-    case "explain-lexical":
-      return [
-        text("contextual-meaning", "语境义", result.contextualMeaningZh),
-        text("base-form", "原形", result.baseForm),
-        text("word-formation", "构词", result.wordFormation),
-        list(
-          "core-meanings",
-          "核心词义",
-          result.coreMeanings.map(
-            (item) => `${partOfSpeechLabels[item.partOfSpeech]} ${item.meaningZh}`,
-          ),
-        ),
-        list(
-          "collocations",
-          "语境搭配",
-          result.collocations.map((item) => `${item.text}（${item.meaningZh}）`),
-        ),
-        list(
-          "synonyms",
-          "同义词",
-          result.synonyms.map(
-            (item) => `${item.text} · ${partOfSpeechLabels[item.partOfSpeech]} · ${item.meaningZh}`,
-          ),
-          true,
-        ),
-      ];
-    case "explain-sentence":
-      return [
-        text("main-structure", "句子主干", result.mainStructure),
-        list(
-          "key-expressions",
-          "关键表达",
-          result.keyExpressions.map((item) => `${item.text}：${item.meaningZh}`),
-        ),
-        text("translation", "句意翻译", result.translationZh),
-        text("context-role", "语境作用", result.contextRole),
-      ];
-  }
-}
-
-function previewSections(state: StreamingOverlayState | ErrorOverlayState): SectionSpec[] {
-  const { sections, text: deltas } = state.preview;
-  const lexical = ["word", "phrase"].includes(state.selection.selectionKind);
-  if (state.action === "translate" && lexical) {
-    return [
-      text("contextual-meaning", "语境义", deltas["contextual-meaning"]),
-      text("part-of-speech", "词性", partOfSpeechText(sections.partOfSpeech)),
-      text("pronunciation", "音标", pronunciationText(sections.pronunciation)),
-      list(
-        "collocations",
-        "语境搭配",
-        sections.collocations?.map((item) => `${item.text}（${item.meaningZh}）`),
-      ),
-      text(
-        "context-example",
-        "原文例句",
-        sections.contextExample === undefined
-          ? undefined
-          : `${sections.contextExample.english}\n${sections.contextExample.translationZh}`,
-      ),
-      list(
-        "similar-terms",
-        "相似词",
-        sections.similarTerms?.map(
-          (item) => `${item.text} · ${partOfSpeechLabels[item.partOfSpeech]} · ${item.meaningZh}`,
-        ),
-        true,
-      ),
-      text("translation", "译文", deltas.translation),
-      text("main-structure", "句子主干", deltas["main-structure"]),
-      text("context-role", "语境作用", deltas["context-role"]),
-    ];
-  }
-  if (state.action === "explain" && lexical) {
-    return [
-      text("contextual-meaning", "语境义", deltas["contextual-meaning"]),
-      text("base-form", "原形", sections.baseForm),
-      text("word-formation", "构词", sections.wordFormation),
-      list(
-        "core-meanings",
-        "核心词义",
-        sections.coreMeanings?.map(
-          (item) => `${partOfSpeechLabels[item.partOfSpeech]} ${item.meaningZh}`,
-        ),
-      ),
-      list(
-        "collocations",
-        "语境搭配",
-        sections.collocations?.map((item) => `${item.text}（${item.meaningZh}）`),
-      ),
-      list(
-        "synonyms",
-        "同义词",
-        sections.synonyms?.map(
-          (item) => `${item.text} · ${partOfSpeechLabels[item.partOfSpeech]} · ${item.meaningZh}`,
-        ),
-        true,
-      ),
-      text("translation", "译文", deltas.translation),
-      text("main-structure", "句子主干", deltas["main-structure"]),
-      text("context-role", "语境作用", deltas["context-role"]),
-    ];
-  }
-  return state.action === "translate"
-    ? [text("translation", "译文", deltas.translation)]
-    : [
-        text("main-structure", "句子主干", deltas["main-structure"]),
-        text("translation", "句意翻译", deltas.translation),
-        text("context-role", "语境作用", deltas["context-role"]),
-      ];
-}
 
 function markEntering(element: HTMLElement): void {
   const view = element.ownerDocument.defaultView;
@@ -365,7 +180,14 @@ export function patchAnalysisBody(body: HTMLElement, state: AnalysisPanelState):
   const content = ensurePreview(body);
   content.classList.toggle("huayi-preview", state.status !== "result");
   const sourceText =
-    state.status === "result" ? state.result.sourceText : state.selection.selection;
+    state.status === "result" && state.result.type === "translate-word"
+      ? state.result.dictionaryForm.toLocaleLowerCase() ===
+        state.result.sourceText.toLocaleLowerCase()
+        ? state.result.sourceText
+        : `${state.result.sourceText} · ${state.result.dictionaryForm}`
+      : state.status === "result"
+        ? state.result.sourceText
+        : state.selection.selection;
   patchSource(content, sourceText);
   if (state.status === "streaming" && state.preview.lastSequence < 0) {
     renderWaiting(content, waitingMessage);

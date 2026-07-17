@@ -55,7 +55,7 @@ function createLoaderSource() {
     `,
     "mock:protocol": `
       const identitySchema = { parse: (value) => value };
-      export const SCHEMA_VERSION = 4;
+      export const SCHEMA_VERSION = 5;
       export const analysisResultSchema = identitySchema;
       export const analyzeRequestSchema = identitySchema;
       export const healthRequestSchema = identitySchema;

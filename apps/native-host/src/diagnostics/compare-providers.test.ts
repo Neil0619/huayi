@@ -24,7 +24,7 @@ import { createComparisonProviders } from "./comparison-provider-runtime.js";
 const SENTINEL_KEY = "sk-sentinel-secret";
 const SENTINEL_CONTEXT = "sentinel private context";
 const SENTINEL_PROMPT = "sentinel private prompt";
-const SENTINEL_ASSISTANT_RESULT = "sentinel private assistant result";
+const SENTINEL_ASSISTANT_RESULT = "私密模型结果 sentinel private assistant result";
 const SENTINEL_AUTHORIZATION = `Bearer ${SENTINEL_KEY}`;
 
 function validResult(request: Parameters<AnalysisProvider["analyze"]>[0]) {
@@ -45,6 +45,29 @@ function validResult(request: Parameters<AnalysisProvider["analyze"]>[0]) {
       sourceText: request.selection,
       translationZh: SENTINEL_ASSISTANT_RESULT,
       type: "translate-passage",
+    });
+  }
+  if (request.selectionKind === "word" && request.action === "explain") {
+    return analysisResultSchema.parse({
+      contextualAnalysisZh: SENTINEL_ASSISTANT_RESULT,
+      selectionKind: "word",
+      sourceText: request.selection,
+      synonyms: [],
+      type: "explain-word",
+      usageNotes: [],
+      wordForm: { baseForm: request.selection, formTypeZh: "测试词形" },
+    });
+  }
+  if (request.selectionKind === "word") {
+    return analysisResultSchema.parse({
+      commonMeanings: [{ meaningsZh: ["含义"], partOfSpeech: "noun" }],
+      commonPhrases: [],
+      confusableWords: [],
+      contextualSense: { meaningZh: SENTINEL_ASSISTANT_RESULT, partOfSpeech: "noun" },
+      dictionaryForm: request.selection,
+      selectionKind: "word",
+      sourceText: request.selection,
+      type: "translate-word",
     });
   }
   if (request.action === "explain") {

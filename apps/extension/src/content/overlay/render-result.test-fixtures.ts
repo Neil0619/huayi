@@ -10,44 +10,39 @@ export const handlers: PanelHandlers = {
 };
 
 export const lexicalTranslationResult = {
-  collocations: [
+  commonMeanings: [
+    { meaningsZh: ["调查", "侦查"], partOfSpeech: "noun" },
+    { meaningsZh: ["研究"], partOfSpeech: "noun" },
+  ],
+  commonPhrases: [
     { meaningZh: "刑事调查", text: "criminal investigation" },
     { meaningZh: "展开调查", text: "launch an investigation" },
   ],
-  contextExample: {
-    english: "The investigation continues.",
-    translationZh: "调查仍在继续。",
-  },
-  contextualMeaningZh: "调查",
-  partOfSpeech: "noun",
+  confusableWords: [],
+  contextualSense: { meaningZh: "调查", partOfSpeech: "noun" },
+  dictionaryForm: "investigation",
   pronunciation: { uk: "/ɪnˌvestɪˈɡeɪʃn/", us: "/ɪnˌvestɪˈɡeɪʃən/" },
   selectionKind: "word",
-  similarTerms: [
-    { meaningZh: "询问", partOfSpeech: "noun", text: "inquiry" },
-    { meaningZh: "审查", partOfSpeech: "noun", text: "examination" },
-    { meaningZh: "研究", partOfSpeech: "noun", text: "research" },
-  ],
   sourceText: "investigation",
-  type: "translate-lexical",
+  type: "translate-word",
 } as const satisfies AnalysisResult;
 
 export const lexicalExplanationResult = {
-  baseForm: "investigate",
-  collocations: [
-    { meaningZh: "调查案件", text: "investigate a case" },
-    { meaningZh: "开展调查", text: "conduct an investigation" },
-  ],
-  contextualMeaningZh: "调查",
-  coreMeanings: [{ meaningZh: "调查", partOfSpeech: "noun" }],
+  contextualAnalysisZh: "此处指正在进行的正式调查，因为它作句子的主语。",
   selectionKind: "word",
   sourceText: "investigation",
   synonyms: [
-    { meaningZh: "询问", partOfSpeech: "noun", text: "inquiry" },
-    { meaningZh: "审查", partOfSpeech: "noun", text: "examination" },
-    { meaningZh: "研究", partOfSpeech: "noun", text: "research" },
+    {
+      distinctionZh: "更强调询问或查问。",
+      meaningZh: "询问；调查",
+      partOfSpeech: "noun",
+      text: "inquiry",
+    },
   ],
-  type: "explain-lexical",
-  wordFormation: "investigate + -ion",
+  type: "explain-word",
+  usageNotes: [{ descriptionZh: "常与 into 连用。", titleZh: "搭配" }],
+  wordForm: { baseForm: "investigation", formTypeZh: "名词单数", sentenceRoleZh: "主语" },
+  wordFormationZh: "investigate + -ion",
 } as const satisfies AnalysisResult;
 
 export const passageTranslationResult = {

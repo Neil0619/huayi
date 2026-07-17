@@ -1,186 +1,26 @@
 import { Buffer } from "node:buffer";
 import { isDeepStrictEqual } from "node:util";
 
-import { MAX_STREAM_DELTA_LENGTH, MAX_WIRE_MESSAGE_BYTES } from "@huayi/protocol";
-import type {
-  AnalysisDeltaSection,
-  AnalysisSectionPayload,
-  Collocation,
-  CoreMeaning,
-  PartOfSpeech,
-  RelatedTerm,
-} from "@huayi/protocol";
+import { MAX_WIRE_MESSAGE_BYTES } from "@huayi/protocol";
+import type { AnalysisDeltaSection, AnalysisSectionPayload } from "@huayi/protocol";
 
 import type { AnalysisStreamUpdate } from "./analysis-provider.js";
 import {
   modelAnalysisArrayItemSchemaFor,
   modelAnalysisFieldSchemaFor,
-  type ModelLexicalExplanation,
-  type ModelLexicalTranslation,
   type ModelResultType,
 } from "./model-analysis-schemas.js";
 import { ProviderValidationError } from "./provider-validation.js";
+import {
+  splitTextDelta,
+  streamingTextFieldsFor,
+  structuredSectionFor,
+} from "./streaming-analysis-sections.js";
 import { StreamingJsonTokenizer, type TopLevelJsonUpdate } from "./streaming-json-tokenizer.js";
-
-const TEXT_FIELDS = {
-  "explain-lexical": new Map<string, AnalysisDeltaSection>([
-    ["contextualMeaningZh", "contextual-meaning"],
-  ]),
-  "explain-sentence": new Map<string, AnalysisDeltaSection>([
-    ["mainStructure", "main-structure"],
-    ["translationZh", "translation"],
-    ["contextRole", "context-role"],
-  ]),
-  "translate-lexical": new Map<string, AnalysisDeltaSection>([
-    ["contextualMeaningZh", "contextual-meaning"],
-  ]),
-  "translate-passage": new Map<string, AnalysisDeltaSection>([["translationZh", "translation"]]),
-} satisfies Record<ModelResultType, ReadonlyMap<string, AnalysisDeltaSection>>;
 
 export interface StreamingJsonFieldExtractorOptions {
   resultType: ModelResultType;
   sentenceContext: string | null;
-}
-
-function splitTextDelta(section: AnalysisDeltaSection, value: string): AnalysisStreamUpdate[] {
-  const updates: AnalysisStreamUpdate[] = [];
-  let offset = 0;
-  while (offset < value.length) {
-    let end = Math.min(offset + MAX_STREAM_DELTA_LENGTH, value.length);
-    const lastCode = value.charCodeAt(end - 1);
-    const nextCode = value.charCodeAt(end);
-    if (
-      end < value.length &&
-      lastCode >= 0xd800 &&
-      lastCode <= 0xdbff &&
-      nextCode >= 0xdc00 &&
-      nextCode <= 0xdfff
-    ) {
-      end -= 1;
-    }
-    updates.push({
-      delta: value.slice(offset, end),
-      section,
-      type: "analysis-delta",
-    });
-    offset = end;
-  }
-  return updates;
-}
-
-function nonEmptyArraySection(
-  section: "collocations",
-  value: Collocation[],
-): AnalysisSectionPayload | undefined;
-function nonEmptyArraySection(
-  section: "core-meanings",
-  value: CoreMeaning[],
-): AnalysisSectionPayload | undefined;
-function nonEmptyArraySection(
-  section: "similar-terms" | "synonyms",
-  value: RelatedTerm[],
-): AnalysisSectionPayload | undefined;
-function nonEmptyArraySection(
-  section: "collocations" | "core-meanings" | "similar-terms" | "synonyms",
-  value: Collocation[] | CoreMeaning[] | RelatedTerm[],
-): AnalysisSectionPayload | undefined {
-  if (value.length === 0) return undefined;
-  switch (section) {
-    case "collocations":
-      return { section, value: value as Collocation[] };
-    case "core-meanings":
-      return { section, value: value as CoreMeaning[] };
-    case "similar-terms":
-    case "synonyms":
-      return { section, value: value as RelatedTerm[] };
-  }
-}
-
-function normalizePronunciation(
-  value: ModelLexicalTranslation["pronunciation"],
-): AnalysisSectionPayload | undefined {
-  if (value === null || (value.uk === null && value.us === null)) return undefined;
-  return {
-    section: "pronunciation",
-    value: {
-      ...(value.uk === null ? {} : { uk: value.uk }),
-      ...(value.us === null ? {} : { us: value.us }),
-    },
-  };
-}
-
-function lexicalTranslationSection(
-  field: string,
-  value: unknown,
-  sentenceContext: string | null,
-): AnalysisSectionPayload | undefined {
-  switch (field) {
-    case "partOfSpeech":
-      return { section: "part-of-speech", value: value as PartOfSpeech };
-    case "pronunciation":
-      return normalizePronunciation(value as ModelLexicalTranslation["pronunciation"]);
-    case "collocations":
-      return nonEmptyArraySection("collocations", value as Collocation[]);
-    case "contextExampleTranslationZh": {
-      const translationZh = value as string | null;
-      if (translationZh === null) return undefined;
-      if (sentenceContext === null) {
-        throw new ProviderValidationError("result-assembly", { field });
-      }
-      return {
-        section: "context-example",
-        value: { english: sentenceContext, translationZh },
-      };
-    }
-    case "similarTerms":
-      return nonEmptyArraySection("similar-terms", value as RelatedTerm[]);
-    default:
-      return undefined;
-  }
-}
-
-function lexicalExplanationSection(
-  field: string,
-  value: unknown,
-): AnalysisSectionPayload | undefined {
-  switch (field) {
-    case "baseForm":
-      return value === null
-        ? undefined
-        : { section: "base-form", value: value as ModelLexicalExplanation["baseForm"] & string };
-    case "wordFormation":
-      return value === null
-        ? undefined
-        : {
-            section: "word-formation",
-            value: value as ModelLexicalExplanation["wordFormation"] & string,
-          };
-    case "coreMeanings":
-      return nonEmptyArraySection("core-meanings", value as CoreMeaning[]);
-    case "collocations":
-      return nonEmptyArraySection("collocations", value as Collocation[]);
-    case "synonyms":
-      return nonEmptyArraySection("synonyms", value as RelatedTerm[]);
-    default:
-      return undefined;
-  }
-}
-
-function structuredSectionFor(
-  resultType: ModelResultType,
-  field: string,
-  value: unknown,
-  sentenceContext: string | null,
-): AnalysisSectionPayload | undefined {
-  switch (resultType) {
-    case "translate-lexical":
-      return lexicalTranslationSection(field, value, sentenceContext);
-    case "explain-lexical":
-      return lexicalExplanationSection(field, value);
-    case "explain-sentence":
-    case "translate-passage":
-      return undefined;
-  }
 }
 
 export class StreamingJsonFieldExtractor {
@@ -196,7 +36,7 @@ export class StreamingJsonFieldExtractor {
   constructor(options: StreamingJsonFieldExtractorOptions) {
     this.#resultType = options.resultType;
     this.#sentenceContext = options.sentenceContext;
-    this.#textFields = TEXT_FIELDS[options.resultType];
+    this.#textFields = streamingTextFieldsFor(options.resultType);
   }
 
   push(sourceChunk: string): AnalysisStreamUpdate[] {

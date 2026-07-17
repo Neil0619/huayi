@@ -20,7 +20,7 @@ afterEach(async () => {
 describe("parseInstallerArguments", () => {
   it("lists every supported provider when provider-set is incomplete", () => {
     expect(() => parseInstallerArguments(["provider-set"])).toThrow(
-      /api, codex, or compatible-http/u,
+      /api, codex, compatible-http, or deepseek/u,
     );
   });
 

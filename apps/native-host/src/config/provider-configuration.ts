@@ -12,5 +12,6 @@ export function parseProviderAlias(value: string): ModelProvider {
   if (value === "api") return "openai-responses";
   if (value === "codex") return "codex";
   if (value === "compatible-http") return "openai-compatible-http";
-  throw new TypeError("Provider must be api, codex, or compatible-http.");
+  if (value === "deepseek") return "deepseek-chat-completions";
+  throw new TypeError("Provider must be api, codex, compatible-http, or deepseek.");
 }

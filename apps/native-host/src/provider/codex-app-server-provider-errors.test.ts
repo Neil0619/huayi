@@ -48,12 +48,12 @@ class FakeAppServer implements CodexAppServer {
 }
 
 const lexicalTranslationContent = {
-  collocations: [],
-  contextExampleTranslationZh: null,
-  contextualMeaningZh: "调查行为",
-  partOfSpeech: "noun",
   pronunciation: null,
-  similarTerms: [],
+  contextualSense: { meaningZh: "调查行为", partOfSpeech: "noun" },
+  dictionaryForm: "investigation",
+  commonMeanings: [{ meaningsZh: ["调查"], partOfSpeech: "noun" }],
+  commonPhrases: [],
+  confusableWords: [],
 };
 
 const passageTranslationContent = { translationZh: "第一句。" };
@@ -63,7 +63,7 @@ function createRequest(overrides: Partial<AnalyzeRequest> = {}): AnalyzeRequest 
     action: "translate",
     context: "The investigation was in its early stages.",
     requestId: "analysis-1",
-    schemaVersion: 4,
+    schemaVersion: 5,
     selection: "investigation",
     selectionKind: "word",
     sentenceContext: "The investigation was in its early stages.",
@@ -100,8 +100,7 @@ describe("CodexAppServerProvider safety and lifecycle", () => {
     const diagnostics: ProviderValidationDiagnostic[] = [];
     const content = {
       ...lexicalTranslationContent,
-      contextualMeaningZh: fakeSecret.repeat(5_000),
-      partOfSpeech: fakeSecret,
+      contextualSense: { meaningZh: fakeSecret.repeat(5_000), partOfSpeech: fakeSecret },
     };
     const appServer = new FakeAppServer([successfulRun(content)]);
 
@@ -112,7 +111,7 @@ describe("CodexAppServerProvider safety and lifecycle", () => {
       ),
     ).rejects.toMatchObject({ code: "INVALID_RESPONSE", retryable: true });
 
-    expect(diagnostics).toEqual([{ field: "contextualMeaningZh", stage: "model-schema" }]);
+    expect(diagnostics).toEqual([{ field: "contextualSense", stage: "model-schema" }]);
     expect(JSON.stringify(diagnostics)).not.toContain(fakeSecret);
   });
 

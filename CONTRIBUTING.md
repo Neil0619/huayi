@@ -8,11 +8,12 @@
 4. 协议、权限、安全或安装行为变化必须同步更新对应中文文档。
 5. 默认测试不得访问 OpenAI、真实 Codex、真实欧路 API 或真实 macOS 钥匙串；注入 fake App
    Server、process runner、Keychain reader 和 fetch。真实 `smoke:codex` /
-   `smoke:compatible` / `smoke:compare` 均需用户单独知情授权；Compatible 授权必须明确覆盖凭据
+   `smoke:compatible` / `smoke:compare` / `smoke:deepseek` 均需用户单独知情授权；Compatible
+   授权必须明确覆盖凭据
    与页面数据的明文传输和第三方费用。
 6. 根包、三个 workspace 包、扩展 Manifest、Host health、App Server `clientInfo.version` 和
    欧路 `User-Agent` 必须同步；版本一致性测试必须直接覆盖每个运行时身份源。
-7. 当前协议为 `schemaVersion: 4`，运行时拒绝 v3；Extension 与 Host 必须同步升级或回滚。
+7. 当前协议为 `schemaVersion: 5`，运行时拒绝 v4；Extension 与 Host 必须同步升级或回滚。
    删除、重命名或语义不兼容变化必须再次提升版本并附迁移说明。
 8. 手写文件在超过 400 行前拆分；不要新增权限、存储、秘密或无说明的生产依赖。
 9. Provider 私有 JSON Schema 只描述模型内容，不得包含 `sourceText`、`selectionKind` 或公共
@@ -31,6 +32,9 @@
     不得读取 Codex 配置或官方 OpenAI Key。配置、真实 smoke 和 Provider 切换是三个独立动作。
 16. Compatible 默认测试只使用 fake fetch/Keychain，专用 SSE 方言之外的未知、重复、迟到、
     tool、refusal 或生命周期不匹配事件全部失败关闭。
+17. DeepSeek 固定使用官方 HTTPS Chat Completions、`deepseek-v4-flash`、非思考 JSON Output 和
+    独立钥匙串项；默认测试只使用 fake fetch/Keychain。配置、真实 smoke 与 Provider 切换是
+    三个独立动作，禁止自动重试或回退。
 
 ## 提交前检查
 
@@ -45,8 +49,8 @@ pnpm build
 git diff --check
 ```
 
-上述门禁必须保持离线。`pnpm smoke:codex`、`pnpm smoke:compatible` 与
-`pnpm smoke:compare` 不属于默认门禁，只能在
+上述门禁必须保持离线。`pnpm smoke:codex`、`pnpm smoke:compatible`、
+`pnpm smoke:compare` 与 `pnpm smoke:deepseek` 不属于默认门禁，只能在
 用户明确批准真实模型、ChatGPT/Codex 额度和对应 API 费用后单独执行；Compatible 还必须单独
 批准凭据/页面数据的明文传输和第三方计费。本机安装、Provider 切换、Chrome 操作、钥匙串
 配置/移除和真实欧路验收同样必须由用户显式批准或执行。
@@ -58,6 +62,7 @@ pnpm host:eudic:remove -- --dry-run
 
 提交信息使用 Conventional Commits，例如 `feat(extension): add selection overlay`。
 
-v0.6.0 的同步升级和回滚使用扩展 ID `kfkamoejomjdihipgdkmfjcdenlhgnpd`，并保留欧路、官方
-OpenAI 与 Compatible 三个精确钥匙串项、两份 Provider 配置和既有 Huayi 安装路径；具体命令只以
+v0.8.0 的同步升级和回滚使用扩展 ID `kfkamoejomjdihipgdkmfjcdenlhgnpd`，并保留欧路、官方
+OpenAI、Compatible 与 DeepSeek 四个精确钥匙串项、两份 Provider 配置和既有 Huayi 安装路径；
+具体命令只以
 [macOS 安装说明](docs/setup-macos.md) 为准。

@@ -8,6 +8,7 @@ import type { HostEvent } from "@huayi/protocol";
 import { ProviderConfigurationStore } from "./config/provider-configuration-store.js";
 import { CompatibleHttpConfigurationStore } from "./config/compatible-http-configuration-store.js";
 import { CompatibleHttpApiKeyReader } from "./credentials/compatible-http-keychain.js";
+import { DeepSeekApiKeyReader } from "./credentials/deepseek-keychain.js";
 import {
   EUDIC_SECURITY_EXECUTABLE,
   MacosEudicAuthorizationReader,
@@ -21,6 +22,7 @@ import { NativeMessageDispatcher } from "./protocol/dispatcher.js";
 import { NativeMessageDecoder, encodeNativeMessage } from "./protocol/framing.js";
 import { createAnalysisProviderFactory } from "./provider/analysis-provider-factory.js";
 import type { CompatibleHttpFetch } from "./provider/compatible-http-responses-client.js";
+import type { DeepSeekFetch } from "./provider/deepseek-chat-client.js";
 import type { OpenAIFetch } from "./provider/openai-responses-client.js";
 import {
   formatProviderValidationDiagnostic,
@@ -55,6 +57,8 @@ export interface NativeHostDispatcherOptions extends Omit<
 > {
   compatibleHttpApiKeyReader?: CompatibleHttpApiKeyReader;
   compatibleHttpFetch?: CompatibleHttpFetch;
+  deepSeekApiKeyReader?: DeepSeekApiKeyReader;
+  deepSeekFetch?: DeepSeekFetch;
   eudicFetch?: EudicFetch;
   errorOutput: Writable;
   openAIApiKeyReader?: OpenAIApiKeyReader;
@@ -174,6 +178,13 @@ export function createNativeHostDispatcher(
       processRunner: options.processRunner,
       workingDirectory: options.workingDirectory,
     });
+  const deepSeekApiKeyReader =
+    options.deepSeekApiKeyReader ??
+    new DeepSeekApiKeyReader({
+      environment: options.environment,
+      processRunner: options.processRunner,
+      workingDirectory: options.workingDirectory,
+    });
   const providers = createAnalysisProviderFactory({
     apiKeyReader,
     appServer,
@@ -181,6 +192,7 @@ export function createNativeHostDispatcher(
     compatibleHttpApiKeyReader,
     compatibleHttpConfigurationStore,
     configurationStore,
+    deepSeekApiKeyReader,
     eudicAuthorizationReader: authorizationReader,
     onValidationDiagnostic: createProviderValidationDiagnosticSink(options.errorOutput),
     schemaDirectory: options.schemaDirectory,
@@ -189,6 +201,7 @@ export function createNativeHostDispatcher(
       ? {}
       : { compatibleHttpFetch: options.compatibleHttpFetch }),
     ...(options.openAIFetch === undefined ? {} : { openAIFetch: options.openAIFetch }),
+    ...(options.deepSeekFetch === undefined ? {} : { deepSeekFetch: options.deepSeekFetch }),
   });
   return new NativeMessageDispatcher({
     healthCheck: providers.healthCheck,

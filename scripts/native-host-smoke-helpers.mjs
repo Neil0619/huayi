@@ -102,17 +102,23 @@ export function createNativeHostSpawnOptions({
 
 function expectedResultType(request) {
   if (request.action === "translate") {
-    return request.selectionKind === "word" || request.selectionKind === "phrase"
-      ? "translate-lexical"
-      : "translate-passage";
+    return request.selectionKind === "word"
+      ? "translate-word"
+      : request.selectionKind === "phrase"
+        ? "translate-lexical"
+        : "translate-passage";
   }
-  return request.selectionKind === "sentence" ? "explain-sentence" : "explain-lexical";
+  return request.selectionKind === "word"
+    ? "explain-word"
+    : request.selectionKind === "sentence"
+      ? "explain-sentence"
+      : "explain-lexical";
 }
 
-function validateListCardinality(result, key, minimum) {
+function validateListCardinality(result, key, minimum, maximum = 3) {
   const value = result[key];
-  if (!Array.isArray(value) || value.length < minimum || value.length > 3) {
-    throw new Error(`${key} must contain ${minimum} to 3 items.`);
+  if (!Array.isArray(value) || value.length < minimum || value.length > maximum) {
+    throw new Error(`${key} must contain ${minimum} to ${maximum} items.`);
   }
 }
 
@@ -134,9 +140,27 @@ export function validateSmokeResult(request, result) {
       throw new Error("Smoke context example did not preserve the exact sentence context.");
     }
   }
+  if (result.type === "translate-word") {
+    validateListCardinality(result, "commonMeanings", 1, 4);
+    validateListCardinality(result, "commonPhrases", 0, 4);
+    validateListCardinality(result, "confusableWords", 0, 4);
+    for (const group of result.commonMeanings) {
+      if (
+        !Array.isArray(group.meaningsZh) ||
+        group.meaningsZh.length < 1 ||
+        group.meaningsZh.length > 3
+      ) {
+        throw new Error("Each common meaning group must contain 1 to 3 meanings.");
+      }
+    }
+  }
   if (result.type === "explain-lexical") {
     validateListCardinality(result, "collocations", 0);
     validateListCardinality(result, "coreMeanings", 1);
+    validateListCardinality(result, "synonyms", 0);
+  }
+  if (result.type === "explain-word") {
+    validateListCardinality(result, "usageNotes", 0);
     validateListCardinality(result, "synonyms", 0);
   }
   if (

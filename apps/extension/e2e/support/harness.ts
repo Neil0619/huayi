@@ -164,11 +164,13 @@ function wordbookResponse(
 
 function createDeltaEvent(request: AnalyzeRequest, sequence: number, delta: string): HostEvent {
   const section =
-    request.selectionKind === "word" || request.selectionKind === "phrase"
-      ? "contextual-meaning"
-      : request.action === "explain" && sequence === 0
-        ? "main-structure"
-        : "translation";
+    request.selectionKind === "word"
+      ? "contextual-analysis"
+      : request.selectionKind === "phrase"
+        ? "contextual-meaning"
+        : request.action === "explain" && sequence === 0
+          ? "main-structure"
+          : "translation";
   return {
     delta,
     requestId: request.requestId,
@@ -225,7 +227,10 @@ function emitAnalyzeResponse(request: AnalyzeRequest): void {
     return;
   }
   if (request.selection === STALE_EVENT_WORD) {
-    queueMicrotask(() => transport.emit(createDeltaEvent(request, 0, "正在逐步显示")));
+    queueMicrotask(() => {
+      const sectionEvent = createSectionEvent(request, 0);
+      if (sectionEvent !== null) transport.emit(sectionEvent);
+    });
     setTimeout(() => transport.emit(createDeltaEvent(request, 1, "迟到文本")), 1_500);
     setTimeout(() => transport.emit(createResultEvent(request)), 1_600);
     return;

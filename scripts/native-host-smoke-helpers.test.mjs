@@ -33,13 +33,14 @@ function createLexicalRequest(action = "translate") {
 
 function createLexicalTranslationResult(overrides = {}) {
   return {
-    collocations: [],
-    contextualMeaningZh: "调查",
-    partOfSpeech: "noun",
+    commonMeanings: [{ meaningsZh: ["调查"], partOfSpeech: "noun" }],
+    commonPhrases: [],
+    confusableWords: [],
+    contextualSense: { meaningZh: "调查", partOfSpeech: "noun" },
+    dictionaryForm: "investigation",
     selectionKind: "word",
-    similarTerms: [],
     sourceText: "investigation",
-    type: "translate-lexical",
+    type: "translate-word",
     ...overrides,
   };
 }
@@ -136,31 +137,31 @@ test("smoke validation rejects a result for a different request", () => {
   );
 });
 
-test("smoke validation accepts lexical lists with zero or three items", () => {
+test("smoke validation accepts word lists with zero or three items", () => {
   const request = createLexicalRequest();
-  const relatedTerms = [
-    { meaningZh: "一", partOfSpeech: "noun", text: "first" },
-    { meaningZh: "二", partOfSpeech: "noun", text: "second" },
-    { meaningZh: "三", partOfSpeech: "noun", text: "third" },
+  const commonPhrases = [
+    { meaningZh: "短语一", text: "first phrase" },
+    { meaningZh: "短语二", text: "second phrase" },
+    { meaningZh: "短语三", text: "third phrase" },
   ];
   const result = createLexicalTranslationResult({
-    collocations: [],
-    similarTerms: relatedTerms,
+    commonPhrases,
+    confusableWords: [],
   });
 
   assert.equal(validateSmokeResult(request, result), result);
 });
 
-test("smoke validation rejects a lexical list above three items", () => {
+test("smoke validation rejects a word list above four items", () => {
   const request = createLexicalRequest();
-  const collocations = Array.from({ length: 4 }, (_, index) => ({
+  const commonPhrases = Array.from({ length: 5 }, (_, index) => ({
     meaningZh: `搭配${index}`,
-    text: `collocation ${index}`,
+    text: `phrase ${index}`,
   }));
 
   assert.throws(
-    () => validateSmokeResult(request, createLexicalTranslationResult({ collocations })),
-    /collocations.*0 to 3/i,
+    () => validateSmokeResult(request, createLexicalTranslationResult({ commonPhrases })),
+    /commonPhrases.*0 to 4/i,
   );
 });
 
@@ -174,13 +175,24 @@ test("smoke validation rejects a result type not owned by the request", () => {
 });
 
 test("smoke validation requires an example to reuse the exact sentence context", () => {
-  const request = createLexicalRequest();
-  const result = createLexicalTranslationResult({
+  const request = {
+    ...createLexicalRequest(),
+    selection: "open investigation",
+    selectionKind: "phrase",
+  };
+  const result = {
+    collocations: [],
     contextExample: {
       english: "A different sentence was invented.",
       translationZh: "虚构了另一个句子。",
     },
-  });
+    contextualMeaningZh: "调查仍在进行",
+    partOfSpeech: "phrase",
+    selectionKind: "phrase",
+    similarTerms: [],
+    sourceText: "open investigation",
+    type: "translate-lexical",
+  };
 
   assert.throws(() => validateSmokeResult(request, result), /sentence context/i);
 });

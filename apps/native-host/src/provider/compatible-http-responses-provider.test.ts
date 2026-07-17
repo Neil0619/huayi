@@ -14,12 +14,12 @@ import type { ProviderValidationDiagnostic } from "./provider-validation.js";
 import type { ResponsesRequest } from "./responses-request-body.js";
 
 const lexicalContent = {
-  collocations: [{ meaningZh: "刑事调查", text: "criminal investigation" }],
-  contextExampleTranslationZh: "调查仍处于早期阶段。",
-  contextualMeaningZh: "调查行为",
-  partOfSpeech: "noun",
   pronunciation: null,
-  similarTerms: [{ meaningZh: "调查", partOfSpeech: "noun", text: "inquiry" }],
+  contextualSense: { meaningZh: "调查行为", partOfSpeech: "noun" },
+  dictionaryForm: "investigation",
+  commonMeanings: [{ meaningsZh: ["调查", "侦查"], partOfSpeech: "noun" }],
+  commonPhrases: [{ meaningZh: "刑事调查", text: "criminal investigation" }],
+  confusableWords: [],
 };
 
 function analysisRequest(): AnalyzeRequest {
@@ -27,7 +27,7 @@ function analysisRequest(): AnalyzeRequest {
     action: "translate",
     context: "The investigation was in its early stages.",
     requestId: "analysis-1",
-    schemaVersion: 4,
+    schemaVersion: 5,
     selection: "investigation",
     selectionKind: "word",
     sentenceContext: "The investigation was in its early stages.",
@@ -131,14 +131,14 @@ describe("CompatibleHttpResponsesProvider", () => {
       signal,
     });
     expect(updates).toContainEqual({
-      delta: "调查行为",
-      section: "contextual-meaning",
-      type: "analysis-delta",
+      section: "contextual-sense",
+      type: "analysis-section",
+      value: { meaningZh: "调查行为", partOfSpeech: "noun" },
     });
     expect(result).toMatchObject({
       selectionKind: "word",
       sourceText: "investigation",
-      type: "translate-lexical",
+      type: "translate-word",
     });
   });
 
@@ -314,23 +314,13 @@ describe("CompatibleHttpResponsesProvider", () => {
     const diagnostics: ProviderValidationDiagnostic[] = [];
     const privateSchemaText = JSON.stringify({
       ...lexicalContent,
-      partOfSpeech: "secret-invalid-value",
+      contextualSense: { meaningZh: "调查", partOfSpeech: "secret-invalid-value" },
     });
     const privateSchema = createProvider(successfulEvents(privateSchemaText), (diagnostic) =>
       diagnostics.push(diagnostic),
     );
     await expect(
       privateSchema.provider.analyze(analysisRequest(), new AbortController().signal),
-    ).rejects.toMatchObject({ code: "INVALID_RESPONSE" });
-
-    const assembly = createProvider(successfulEvents(), (diagnostic) =>
-      diagnostics.push(diagnostic),
-    );
-    await expect(
-      assembly.provider.analyze(
-        { ...analysisRequest(), sentenceContext: null },
-        new AbortController().signal,
-      ),
     ).rejects.toMatchObject({ code: "INVALID_RESPONSE" });
 
     const publicResult = createProvider(successfulEvents(), (diagnostic) =>
@@ -344,8 +334,7 @@ describe("CompatibleHttpResponsesProvider", () => {
     ).rejects.toMatchObject({ code: "INVALID_RESPONSE" });
 
     expect(diagnostics).toEqual([
-      { field: "partOfSpeech", stage: "model-schema" },
-      { field: "contextExampleTranslationZh", stage: "result-assembly" },
+      { field: "contextualSense", stage: "model-schema" },
       { stage: "protocol-validation" },
     ]);
     expect(JSON.stringify(diagnostics)).not.toContain("secret-invalid-value");

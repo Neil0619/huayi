@@ -57,27 +57,21 @@
       );
       controller.start("translate");
       controller.resolve({
-        collocations: [
+        commonMeanings: [{ meaningsZh: ["调查", "侦查"], partOfSpeech: "noun" }],
+        commonPhrases: [
           { meaningZh: "刑事调查", text: "criminal investigation" },
           { meaningZh: "展开调查", text: "launch an investigation" },
-          { meaningZh: "调查初期", text: "early stages of an investigation" },
         ],
-        contextExample: {
-          english:
-            "He said the investigation was in its early stages and urged anyone with information to come forward.",
-          translationZh: "他说调查仍处于早期阶段，并呼吁知情者主动提供线索。",
+        confusableWords: [],
+        contextualSense: {
+          meaningZh: "对案件、事故等进行系统查证的调查",
+          partOfSpeech: "noun",
         },
-        contextualMeaningZh: "对案件、事故等进行系统查证的调查",
-        partOfSpeech: "noun",
+        dictionaryForm: "investigation",
         pronunciation: { uk: "/ɪnˌvestɪˈɡeɪʃn/", us: "/ɪnˌvestɪˈɡeɪʃn/" },
         selectionKind: "word",
-        similarTerms: [
-          { meaningZh: "询问；调查", partOfSpeech: "noun", text: "inquiry" },
-          { meaningZh: "检查；审查", partOfSpeech: "noun", text: "examination" },
-          { meaningZh: "研究；调查", partOfSpeech: "noun", text: "research" },
-        ],
         sourceText: "investigation",
-        type: "translate-lexical",
+        type: "translate-word",
       });
     </script>
   </body>

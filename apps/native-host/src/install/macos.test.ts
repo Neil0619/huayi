@@ -38,8 +38,10 @@ const DISABLED_FEATURES = APP_SERVER_DISABLED_FEATURES.map(
 const SCHEMA_NAMES = [
   "explain-lexical.json",
   "explain-sentence.json",
+  "explain-word.json",
   "translate-lexical.json",
   "translate-passage.json",
+  "translate-word.json",
 ] as const;
 
 interface InstallerFixture {
@@ -246,7 +248,8 @@ describe("installMacosNativeHost", () => {
     await writeFile(join(paths.schemaDirectory, "obsolete.json"), "{}\n", "utf8");
     await writeFile(fixture.sourceBundlePath, "// host bundle v2\n", "utf8");
 
-    await installMacosNativeHost(createOptions(fixture, new CapabilityRunner()));
+    const upgradeRunner = new CapabilityRunner();
+    await installMacosNativeHost(createOptions(fixture, upgradeRunner));
 
     expect(await readFile(paths.bundlePath, "utf8")).toBe("// host bundle v2\n");
     expect(await readdir(paths.schemaDirectory)).toEqual([...SCHEMA_NAMES].sort());
@@ -254,6 +257,7 @@ describe("installMacosNativeHost", () => {
     await expect(compatibleStore.read(new AbortController().signal)).resolves.toEqual(
       compatibleConfiguration,
     );
+    expect(upgradeRunner.requests).toEqual([]);
   });
 
   it("rejects an unsafe compatible configuration target without overwriting it", async () => {
