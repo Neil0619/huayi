@@ -221,7 +221,7 @@ describe("installMacosNativeHost", () => {
     const manifest: unknown = JSON.parse(await readFile(paths.nativeManifestPath, "utf8"));
     expect(manifest).toEqual({
       allowed_origins: [`chrome-extension://${EXTENSION_ID}/`],
-      description: "Huayi Codex Native Messaging bridge",
+      description: "Huayi Native Messaging bridge",
       name: "com.huayi.codex_bridge",
       path: paths.launcherPath,
       type: "stdio",

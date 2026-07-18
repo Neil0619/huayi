@@ -6,17 +6,28 @@
 网页选区
   -> Content Script（选区、上下文、Shadow DOM 浮层）
   -> MV3 Service Worker（无页面数据预热、分析/查词/加词三通道、取消、Native Messaging）
-  -> 本机 Node Host（严格协议、全局并发与超时）
+  -> 本机 Native Host（严格协议、全局并发与超时）
        |-> RoutingAnalysisProvider
        |     |-> Codex App Server -> ephemeral thread/turn
        |     |-> OpenAI Responses API -> strict official SSE
        |     |-> OpenAI-compatible HTTP -> strict measured-dialect SSE
        |     `-> DeepSeek Chat Completions -> strict data-only SSE
-       `-> WordbookProvider -> macOS Keychain -> 欧路 OpenAPI
+       `-> WordbookProvider -> macOS Keychain -> 欧路 OpenAPI（仅 macOS）
 ```
 
 依赖方向固定为 `extension -> protocol <- native-host`。共享协议不感知 Chrome、Node、Codex
 或欧路；新的模型、新浏览器、新生词本和新操作系统必须分别位于现有边界后面。
+
+## 平台边界
+
+macOS 保留完整 Provider 路由和欧路生词本。Windows 复用相同 Extension、协议、DeepSeek
+客户端和模型 Schema，但启动时进入 `windows-deepseek` 模式：不创建 Codex App Server、
+Provider 配置存储或 WordbookProvider，health 固定报告 DeepSeek。
+
+Windows Host 通过 Node Single Executable Application 打包为 `.exe`，运行目录固定在
+`%LOCALAPPDATA%\Huayi\native-host`。安装器将 Native Messaging manifest 路径写入当前用户的
+Chrome 注册表键；macOS 继续使用用户级 manifest 目录和启动脚本。两端都只允许安装时提供的
+精确扩展 ID，Extension 和 Host 仍需同步升级。
 
 ## 扩展与请求协调
 
@@ -200,13 +211,17 @@ Provider 内部失败阶段固定为 `stream-parse`、`model-json`、`model-sche
 
 macOS 安装器把自包含 Host、六份 Schema、空工作目录和 launcher 放入 Huayi 专用用户目录。
 Chrome 清单只允许安装时提供的扩展 ID。重复安装只升级带合法 Huayi 所有权标记的文件；
-未知内容不会被认领或覆盖。v0.9.0 继续使用 wire v5 并拒绝 v4，因此 Extension 和 Host 必须使用
+未知内容不会被认领或覆盖。v0.10.0 继续使用 wire v5 并拒绝 v4，因此 Extension 和 Host 必须使用
 扩展 ID `kfkamoejomjdihipgdkmfjcdenlhgnpd` 同步升级或回滚。重复安装保持
 `~/Library/Application Support/Huayi/native-host/`、Chrome Native Messaging 清单路径及
 钥匙串 `com.huayi.codex_bridge.eudic` / `authorization`、
 `com.huayi.codex_bridge.openai` / `api-key`、
 `com.huayi.codex_bridge.compatible_http` / `api-key`、
 `com.huayi.codex_bridge.deepseek` / `api-key` 及有效的 Provider/Compatible 配置不变。
+
+Windows 安装器改为复制 SEA `.exe`、六份 Schema 和固定 PowerShell helper，注册当前用户的
+Chrome Native Messaging 键。Windows 不创建 Provider 配置文件，路由固定为 DeepSeek；凭据
+由 `%LOCALAPPDATA%` 下的 DPAPI 保护文件承载。
 
 - 新模型 provider 实现 `AnalysisProvider`。
 - 新生词本实现 `WordbookProvider`。

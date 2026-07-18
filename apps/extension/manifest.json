@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "划译",
-  "version": "0.9.0",
-  "description": "使用本机 Codex 翻译和解释英文划词，并可将单词加入欧路生词本。",
+  "version": "0.10.0",
+  "description": "使用本机服务翻译和解释英文划词，并在支持的平台管理生词本。",
   "permissions": ["nativeMessaging"],
   "background": {
     "service_worker": "service-worker.js",

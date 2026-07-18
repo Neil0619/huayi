@@ -2,13 +2,11 @@
 
 ## Project scope
 
-Huayi is a personal macOS Google Chrome extension for English selection translation and
-analysis. The extension communicates with a local Native Messaging host, which uses an already
-authenticated Codex CLI by default or an explicitly enabled OpenAI Responses API provider.
-Version 0.9.x also supports explicitly configured OpenAI-compatible HTTP and official DeepSeek
-Chat Completions providers. It is not
-a Chrome Web Store release and does not support Windows, Linux, other
-browsers, history, synchronization, follow-up chat, or browser-based provider configuration.
+Huayi is a personal Google Chrome extension for English selection translation and analysis. The
+extension communicates with a local Native Messaging host. macOS supports Codex, OpenAI,
+OpenAI-compatible HTTP, DeepSeek, and Eudic. Windows is intentionally DeepSeek-only and does not
+support Codex, Eudic, or alternate providers. Huayi is not a Chrome Web Store release and does not
+support Linux, other browsers, history, synchronization, follow-up chat, or browser settings.
 
 ## Sources of truth
 
@@ -43,12 +41,14 @@ browsers, history, synchronization, follow-up chat, or browser-based provider co
   `docs/superpowers/plans/2026-07-16-word-results.md`.
 - Overlay visual behavior:
   `docs/superpowers/specs/2026-07-17-ui-refresh-design.md`.
+- Current release status and roadmap: `docs/project-status.md`.
+- Windows source installation: `docs/setup-windows.md`.
 - Keep temporary task status out of AGENTS.md files.
 
 ## Current release invariants
 
 - All app, package, Manifest, Host, App Server client, and Eudic User-Agent identities are
-  `0.9.0`; the Native Messaging `schemaVersion` is `5`.
+  `0.10.0`; the Native Messaging `schemaVersion` is `5`.
 - Wire v5 is incompatible with v4 and rejects it. Upgrade or roll back the Extension and Native
   Host synchronously; do not add a translation shim.
 - Missing provider configuration defaults to Codex. Every other invalid configuration state
@@ -72,6 +72,9 @@ browsers, history, synchronization, follow-up chat, or browser-based provider co
 - The personal Extension ID is `kfkamoejomjdihipgdkmfjcdenlhgnpd`. Synchronous reinstall uses
   `pnpm host:install -- --extension-id kfkamoejomjdihipgdkmfjcdenlhgnpd` and preserves the
   `com.huayi.codex_bridge.eudic` / `authorization` Keychain item and documented macOS paths.
+- Windows always pins `deepseek-chat-completions`, stores its API Key in a per-user DPAPI-protected
+  credential below `%LOCALAPPDATA%`, and registers only the exact HKCU Chrome Native Messaging
+  key. Windows packaging produces a standalone Node SEA executable.
 
 ## Architecture boundaries
 
@@ -114,6 +117,7 @@ browsers, history, synchronization, follow-up chat, or browser-based provider co
   - `pnpm host:provider:set api|compatible-http|codex|deepseek`
   - `pnpm host:provider:status`
   - `pnpm host:uninstall`
+  - `pnpm host:windows:package` (Windows with Node.js 26+ only)
 - Default tests must never call OpenAI, a third-party HTTP service, real Codex, a real Keychain
   item, or the Eudic API. Use
   fake App Servers, process runners, authorization readers, and fetch implementations. Only the

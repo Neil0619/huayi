@@ -3,7 +3,7 @@ import { isAbsolute } from "node:path";
 export const NATIVE_HOST_NAME = "com.huayi.codex_bridge";
 
 const EXTENSION_ID_PATTERN = /^[a-p]{32}$/u;
-const NATIVE_HOST_DESCRIPTION = "Huayi Codex Native Messaging bridge";
+const NATIVE_HOST_DESCRIPTION = "Huayi Native Messaging bridge";
 
 export interface NativeHostManifest {
   readonly allowed_origins: readonly [string];

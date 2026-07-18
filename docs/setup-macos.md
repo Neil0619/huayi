@@ -1,5 +1,8 @@
 # macOS 安装说明
 
+本文只描述 macOS 源码开发版和个人安装流程。Windows DeepSeek-only 安装见
+[Windows 安装说明](setup-windows.md)。
+
 ## 前置条件
 
 - Google Chrome。
@@ -483,6 +486,20 @@ pnpm host:install -- --extension-id kfkamoejomjdihipgdkmfjcdenlhgnpd \
 再在 `chrome://extensions` 刷新。升级不读取或修改 Provider 配置与钥匙串，也不需要执行真实
 模型 smoke。人工检查白色单层卡片、源词与音标头部、语境强调区、结构化短语/辨析行、右上角
 “生词/添加中/已加入”状态、内部滚动和 320px 单列布局。
+
+## 从 v0.9.0 升级到 v0.10.0
+
+v0.10.0 新增 Windows DeepSeek-only 安装路径；macOS 功能和凭据位置不变，但发布身份统一升级，
+因此 Extension 与 Host 仍需同步重建和安装：
+
+```bash
+pnpm build
+pnpm host:install -- --extension-id kfkamoejomjdihipgdkmfjcdenlhgnpd \
+  --codex-path /Applications/ChatGPT.app/Contents/Resources/codex
+```
+
+在 `chrome://extensions` 确认扩展版本为 `0.10.0`。升级不会读取、迁移或删除现有钥匙串和
+Provider 配置，也不会启用 Windows 模式。
 
 ## 人工验收
 

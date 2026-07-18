@@ -1,9 +1,7 @@
-import { homedir } from "node:os";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { pathToFileURL } from "node:url";
 
 import type { ModelProvider } from "@huayi/protocol";
 
-import { CompatibleHttpConfigurationStore } from "../config/compatible-http-configuration-store.js";
 import { parseProviderAlias } from "../config/provider-configuration.js";
 import {
   executeCompatibleConfigurationCommand,
@@ -12,14 +10,9 @@ import {
   type CompatibleConfigurationInstallerCommand,
   type CompatibleConfigurationStoreAccess,
 } from "./compatible-http-configuration-cli.js";
+import type { ProviderConfigurationResult } from "../config/provider-configuration-store.js";
+import type { ProcessRunner } from "../runtime/codex-process.js";
 import {
-  ProviderConfigurationStore,
-  type ProviderConfigurationResult,
-} from "../config/provider-configuration-store.js";
-import { OPENAI_SECURITY_EXECUTABLE } from "../credentials/openai-keychain.js";
-import { NodeProcessRunner, type ProcessRunner } from "../runtime/codex-process.js";
-import {
-  compatibleCredentialCliOperations,
   executeCompatibleCredentialCommand,
   isCompatibleCredentialCommand,
   parseCompatibleCredentialCommand,
@@ -27,7 +20,6 @@ import {
   type CompatibleCredentialInstallerCommand,
 } from "./compatible-http-credential-cli.js";
 import {
-  deepSeekCredentialCliOperations,
   executeDeepSeekCredentialCommand,
   isDeepSeekCredentialCommand,
   type DeepSeekCredentialCliOperations,
@@ -35,29 +27,23 @@ import {
 } from "./deepseek-credential-cli.js";
 import { resolveCodexExecutable } from "./codex-executable.js";
 import {
-  configureEudicAuthorization,
-  NodeInteractiveProcessRunner,
-  removeEudicAuthorization,
   type ConfigureEudicAuthorizationOptions,
   type CredentialOperationResult,
   type InteractiveProcessRunner,
   type RemoveEudicAuthorizationOptions,
 } from "./eudic-keychain.js";
 import {
-  configureOpenAIApiKey,
-  removeOpenAIApiKey,
   type ConfigureOpenAIApiKeyOptions,
   type RemoveOpenAIApiKeyOptions,
 } from "./openai-keychain.js";
 import {
-  installMacosNativeHost,
-  uninstallMacosNativeHost,
   type InstallMacosNativeHostOptions,
   type InstallerResult,
   type UninstallMacosNativeHostOptions,
 } from "./macos.js";
 import { validateExtensionId } from "./native-manifest.js";
-import { createMacosInstallationPaths } from "./paths.js";
+import { createDefaultInstallerRuntime } from "./default-installer-runtime.js";
+import { executeWindowsInstallerCommand } from "./windows-cli.js";
 
 const USAGE = [
   "Usage:",
@@ -117,11 +103,16 @@ export interface InstallerCliRuntime {
   nodeVersion: string;
   operations: InstallerCliOperations;
   platform: NodeJS.Platform;
+  localAppDataDirectory?: string;
+  powershellExecutable?: string;
   processRunner: ProcessRunner;
   providerConfigurationStore: ProviderConfigurationAccess;
+  registryExecutable?: string;
   securityExecutable: string;
   sourceBundlePath: string;
   sourceSchemaDirectory: string;
+  sourceWindowsCredentialHelperPath?: string;
+  sourceWindowsExecutablePath?: string;
   writeOutput(message: string): void;
 }
 
@@ -242,8 +233,12 @@ export async function executeInstallerCommand(
     runtime.writeOutput(USAGE);
     return;
   }
+  if (runtime.platform === "win32") {
+    await executeWindowsInstallerCommand(command, runtime);
+    return;
+  }
   if (runtime.platform !== "darwin") {
-    throw new Error("Huayi Native Host installation currently supports macOS only.");
+    throw new Error("Huayi Native Host installation supports macOS and Windows only.");
   }
   if (isCompatibleCredentialCommand(command)) {
     reportResult(await executeCompatibleCredentialCommand(command, runtime), runtime);
@@ -362,39 +357,6 @@ export async function executeInstallerCommand(
   reportResult(result, runtime);
 }
 
-export function createDefaultInstallerRuntime(moduleUrl = import.meta.url): InstallerCliRuntime {
-  const homeDirectory = homedir();
-  return {
-    compatibleCredentialOperations: compatibleCredentialCliOperations,
-    compatibleHttpConfigurationStore: new CompatibleHttpConfigurationStore(
-      createMacosInstallationPaths(homeDirectory).compatibleHttpConfigurationPath,
-    ),
-    deepSeekCredentialOperations: deepSeekCredentialCliOperations,
-    environment: process.env,
-    homeDirectory,
-    interactiveProcessRunner: new NodeInteractiveProcessRunner(),
-    nodeExecutable: process.execPath,
-    nodeVersion: process.versions.node,
-    operations: {
-      configureEudic: configureEudicAuthorization,
-      configureOpenAI: configureOpenAIApiKey,
-      install: installMacosNativeHost,
-      removeEudic: removeEudicAuthorization,
-      removeOpenAI: removeOpenAIApiKey,
-      uninstall: uninstallMacosNativeHost,
-    },
-    platform: process.platform,
-    processRunner: new NodeProcessRunner(),
-    providerConfigurationStore: new ProviderConfigurationStore(
-      createMacosInstallationPaths(homeDirectory).providerConfigurationPath,
-    ),
-    securityExecutable: OPENAI_SECURITY_EXECUTABLE,
-    sourceBundlePath: fileURLToPath(new URL("../main.js", moduleUrl)),
-    sourceSchemaDirectory: fileURLToPath(new URL("../provider/schemas/", moduleUrl)),
-    writeOutput: (message) => process.stdout.write(`${message}\n`),
-  };
-}
-
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Unknown installer error.";
 }
@@ -406,7 +368,7 @@ function isDirectExecution(): boolean {
 
 async function runDefaultInstaller(): Promise<void> {
   const command = parseInstallerArguments(process.argv.slice(2));
-  await executeInstallerCommand(command, createDefaultInstallerRuntime());
+  await executeInstallerCommand(command, createDefaultInstallerRuntime(import.meta.url));
 }
 
 if (isDirectExecution()) {

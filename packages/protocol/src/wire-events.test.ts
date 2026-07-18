@@ -156,7 +156,7 @@ describe("hostEventSchema", () => {
   it("accepts strict compatible HTTP health on wire v5", () => {
     const compatibleHealth = {
       codexVersion: null,
-      hostVersion: "0.9.0",
+      hostVersion: "0.10.0",
       model: "gpt-5.4-mini",
       provider: "openai-compatible-http",
       ready: true,
@@ -179,7 +179,7 @@ describe("hostEventSchema", () => {
   it("accepts strict DeepSeek health only for the fixed model", () => {
     const deepSeekHealth = {
       codexVersion: null,
-      hostVersion: "0.9.0",
+      hostVersion: "0.10.0",
       model: "deepseek-v4-flash",
       provider: "deepseek-chat-completions",
       ready: true,
@@ -202,7 +202,7 @@ describe("hostEventSchema", () => {
   it("accepts strict provider-aware API health", () => {
     const apiHealth = {
       codexVersion: null,
-      hostVersion: "0.9.0",
+      hostVersion: "0.10.0",
       model: "gpt-5.6-luna",
       provider: "openai-responses",
       ready: true,
@@ -226,7 +226,7 @@ describe("hostEventSchema", () => {
   it("accepts Codex health only with a Codex version", () => {
     const codexHealth = {
       codexVersion: "codex-cli 0.144.1",
-      hostVersion: "0.9.0",
+      hostVersion: "0.10.0",
       model: "gpt-5.4-mini",
       provider: "codex",
       ready: true,

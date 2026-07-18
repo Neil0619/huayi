@@ -32,7 +32,7 @@ describe("createNativeHostManifest", () => {
 
     expect(createNativeHostManifest(validExtensionId, launcherPath)).toEqual({
       allowed_origins: [`chrome-extension://${validExtensionId}/`],
-      description: "Huayi Codex Native Messaging bridge",
+      description: "Huayi Native Messaging bridge",
       name: NATIVE_HOST_NAME,
       path: launcherPath,
       type: "stdio",

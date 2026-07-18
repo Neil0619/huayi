@@ -1,6 +1,6 @@
 {
   "name": "huayi",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@10.12.4",
@@ -27,6 +27,7 @@
     "host:provider:set": "node apps/native-host/dist/install/cli.js provider-set",
     "host:provider:status": "node apps/native-host/dist/install/cli.js provider-status",
     "host:uninstall": "node apps/native-host/dist/install/cli.js uninstall",
+    "host:windows:package": "pnpm --filter @huayi/native-host build && node scripts/build-windows-host.mjs",
     "lint": "eslint .",
     "smoke:codex": "node scripts/verify-ephemeral-session.mjs",
     "smoke:compatible": "node scripts/smoke-compatible.mjs",

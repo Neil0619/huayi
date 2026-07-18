@@ -19,11 +19,23 @@ function copyProviderSchemas(): Plugin {
   };
 }
 
+function copyWindowsCredentialHelper(): Plugin {
+  return {
+    name: "copy-windows-credential-helper",
+    async closeBundle() {
+      const destination = resolve(outputDirectory, "windows/deepseek-credential.ps1");
+      await mkdir(dirname(destination), { recursive: true });
+      await cp(resolve(hostRoot, "src/install/windows-deepseek-credential.ps1"), destination);
+    },
+  };
+}
+
 export function createNativeHostConfig(mode: string): UserConfig {
   const isInstallerBuild = mode === "installer";
   const isDiagnosticsBuild = mode === "diagnostics";
   const isCompatibleSmokeBuild = mode === "compatible-smoke";
   const isDeepSeekSmokeBuild = mode === "deepseek-smoke";
+  const isWindowsSeaBuild = mode === "windows-sea";
   const input = isInstallerBuild
     ? "src/install/cli.ts"
     : isDiagnosticsBuild
@@ -32,7 +44,9 @@ export function createNativeHostConfig(mode: string): UserConfig {
         ? "src/diagnostics/run-compatible-smoke.ts"
         : isDeepSeekSmokeBuild
           ? "src/diagnostics/run-deepseek-smoke.ts"
-          : "src/main.ts";
+          : isWindowsSeaBuild
+            ? "src/windows-entrypoint.ts"
+            : "src/main-entrypoint.ts";
   const entryFileNames = isInstallerBuild
     ? "install/cli.js"
     : isDiagnosticsBuild
@@ -41,9 +55,15 @@ export function createNativeHostConfig(mode: string): UserConfig {
         ? "diagnostics/run-compatible-smoke.js"
         : isDeepSeekSmokeBuild
           ? "diagnostics/run-deepseek-smoke.js"
-          : "main.js";
+          : isWindowsSeaBuild
+            ? "windows/sea-main.cjs"
+            : "main.js";
   const isSecondaryBuild =
-    isInstallerBuild || isDiagnosticsBuild || isCompatibleSmokeBuild || isDeepSeekSmokeBuild;
+    isInstallerBuild ||
+    isDiagnosticsBuild ||
+    isCompatibleSmokeBuild ||
+    isDeepSeekSmokeBuild ||
+    isWindowsSeaBuild;
   return {
     build: {
       emptyOutDir: !isSecondaryBuild,
@@ -53,7 +73,7 @@ export function createNativeHostConfig(mode: string): UserConfig {
         input: resolve(hostRoot, input),
         output: {
           entryFileNames,
-          format: "es" as const,
+          format: isWindowsSeaBuild ? ("cjs" as const) : ("es" as const),
           inlineDynamicImports: true,
         },
       },
@@ -61,7 +81,11 @@ export function createNativeHostConfig(mode: string): UserConfig {
       ssr: true,
       target: "node18",
     },
-    plugins: isSecondaryBuild ? [] : [copyProviderSchemas()],
+    plugins: isWindowsSeaBuild
+      ? [copyWindowsCredentialHelper()]
+      : isSecondaryBuild
+        ? []
+        : [copyProviderSchemas()],
     ssr: {
       noExternal: true,
     },

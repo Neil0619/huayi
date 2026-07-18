@@ -1,6 +1,5 @@
 import { dirname, resolve } from "node:path";
 import type { Readable, Writable } from "node:stream";
-import { pathToFileURL } from "node:url";
 
 import { hostEventSchema } from "@huayi/protocol";
 import type { HostEvent } from "@huayi/protocol";
@@ -9,18 +8,22 @@ import { ProviderConfigurationStore } from "./config/provider-configuration-stor
 import { CompatibleHttpConfigurationStore } from "./config/compatible-http-configuration-store.js";
 import { CompatibleHttpApiKeyReader } from "./credentials/compatible-http-keychain.js";
 import { DeepSeekApiKeyReader } from "./credentials/deepseek-keychain.js";
+import { WindowsDeepSeekApiKeyReader } from "./credentials/windows-deepseek-credential.js";
 import {
   EUDIC_SECURITY_EXECUTABLE,
   MacosEudicAuthorizationReader,
 } from "./credentials/eudic-keychain.js";
 import { OpenAIApiKeyReader } from "./credentials/openai-keychain.js";
-import {
-  readNativeHostConfiguration,
-  type NativeHostConfiguration,
-} from "./native-host-configuration.js";
+import { readNativeHostConfiguration } from "./native-host-configuration.js";
 import { NativeMessageDispatcher } from "./protocol/dispatcher.js";
 import { NativeMessageDecoder, encodeNativeMessage } from "./protocol/framing.js";
 import { createAnalysisProviderFactory } from "./provider/analysis-provider-factory.js";
+import { DeepSeekChatClient } from "./provider/deepseek-chat-client.js";
+import {
+  DeepSeekChatProvider,
+  type DeepSeekCredentialReader,
+} from "./provider/deepseek-chat-provider.js";
+import { ModelSchemaRepository } from "./provider/model-schema-repository.js";
 import type { CompatibleHttpFetch } from "./provider/compatible-http-responses-client.js";
 import type { DeepSeekFetch } from "./provider/deepseek-chat-client.js";
 import type { OpenAIFetch } from "./provider/openai-responses-client.js";
@@ -51,21 +54,26 @@ export interface NativeHostStreams {
 export { readNativeHostConfiguration } from "./native-host-configuration.js";
 export type { NativeHostConfiguration } from "./native-host-configuration.js";
 
-export interface NativeHostDispatcherOptions extends Omit<
-  NativeHostConfiguration,
-  "compatibleHttpConfigurationPath" | "providerConfigurationPath"
-> {
+export interface NativeHostDispatcherOptions {
+  codexExecutable?: string;
   compatibleHttpApiKeyReader?: CompatibleHttpApiKeyReader;
   compatibleHttpFetch?: CompatibleHttpFetch;
-  deepSeekApiKeyReader?: DeepSeekApiKeyReader;
+  deepSeekApiKeyReader?: DeepSeekCredentialReader;
   deepSeekFetch?: DeepSeekFetch;
+  deepSeekCredentialHelperPath?: string;
+  deepSeekCredentialPath?: string;
   eudicFetch?: EudicFetch;
+  environment: NodeJS.ProcessEnv;
   errorOutput: Writable;
   openAIApiKeyReader?: OpenAIApiKeyReader;
   openAIFetch?: OpenAIFetch;
+  platformMode?: "default" | "windows-deepseek";
+  powershellExecutable?: string;
   processRunner: ProcessRunner;
   providerConfigurationPath?: string;
   securityExecutable?: string;
+  schemaDirectory: string;
+  workingDirectory: string;
 }
 
 export function createProviderValidationDiagnosticSink(
@@ -140,6 +148,50 @@ export function runNativeHost(streams: NativeHostStreams): () => void {
 export function createNativeHostDispatcher(
   options: NativeHostDispatcherOptions,
 ): NativeMessageDispatcher {
+  if (options.platformMode === "windows-deepseek") {
+    const required = (value: string | undefined, name: string): string => {
+      if (value === undefined) throw new Error(`${name} is required for Windows DeepSeek mode.`);
+      return value;
+    };
+    const deepSeekApiKeyReader =
+      options.deepSeekApiKeyReader ??
+      new WindowsDeepSeekApiKeyReader({
+        credentialHelperPath: required(
+          options.deepSeekCredentialHelperPath,
+          "deepSeekCredentialHelperPath",
+        ),
+        credentialPath: required(options.deepSeekCredentialPath, "deepSeekCredentialPath"),
+        environment: options.environment,
+        powershellExecutable: required(options.powershellExecutable, "powershellExecutable"),
+        processRunner: options.processRunner,
+        workingDirectory: options.workingDirectory,
+      });
+    const schemaRepository = new ModelSchemaRepository({
+      schemaDirectory: options.schemaDirectory,
+    });
+    const client = new DeepSeekChatClient(
+      options.deepSeekFetch === undefined ? {} : { fetch: options.deepSeekFetch },
+    );
+    const provider = new DeepSeekChatProvider({
+      apiKeyReader: deepSeekApiKeyReader,
+      client,
+      onValidationDiagnostic: createProviderValidationDiagnosticSink(options.errorOutput),
+      schemaRepository,
+    });
+    return new NativeMessageDispatcher({
+      healthCheck: async () => ({
+        codexVersion: null,
+        model: "deepseek-v4-flash",
+        provider: "deepseek-chat-completions",
+      }),
+      mapError: mapAnalysisProviderError,
+      maximumConcurrency: 2,
+      provider,
+    });
+  }
+
+  const codexExecutable = options.codexExecutable;
+  if (codexExecutable === undefined) throw new Error("codexExecutable is required.");
   const providerConfigurationPath =
     options.providerConfigurationPath ?? resolve(options.workingDirectory, "..", "provider.json");
   const configurationStore = new ProviderConfigurationStore(providerConfigurationPath);
@@ -147,11 +199,11 @@ export function createNativeHostDispatcher(
     resolve(dirname(providerConfigurationPath), "compatible-http.json"),
   );
   const appServer = new CodexAppServerClient({
-    codexExecutable: options.codexExecutable,
+    codexExecutable,
     environment: options.environment,
     mcpServerDiscovery: () =>
       discoverEnabledMcpServerNames({
-        codexExecutable: options.codexExecutable,
+        codexExecutable,
         environment: options.environment,
         processRunner: options.processRunner,
         workingDirectory: options.workingDirectory,
@@ -188,7 +240,7 @@ export function createNativeHostDispatcher(
   const providers = createAnalysisProviderFactory({
     apiKeyReader,
     appServer,
-    codexHealthCheck: () => checkCodexCapabilities(options),
+    codexHealthCheck: () => checkCodexCapabilities({ ...options, codexExecutable }),
     compatibleHttpApiKeyReader,
     compatibleHttpConfigurationStore,
     configurationStore,
@@ -216,28 +268,32 @@ export function createNativeHostDispatcher(
 export function startConfiguredNativeHost(environment = process.env): () => void {
   const processRunner = new NodeProcessRunner();
   const configuration = readNativeHostConfiguration(environment);
+  const dispatcherOptions: NativeHostDispatcherOptions =
+    configuration.platformMode === "windows-deepseek"
+      ? {
+          deepSeekCredentialHelperPath: configuration.deepSeekCredentialHelperPath,
+          deepSeekCredentialPath: configuration.deepSeekCredentialPath,
+          environment: configuration.environment,
+          errorOutput: process.stderr,
+          platformMode: "windows-deepseek",
+          powershellExecutable: configuration.powershellExecutable,
+          processRunner,
+          schemaDirectory: configuration.schemaDirectory,
+          workingDirectory: configuration.workingDirectory,
+        }
+      : {
+          codexExecutable: configuration.codexExecutable,
+          environment: configuration.environment,
+          errorOutput: process.stderr,
+          processRunner,
+          providerConfigurationPath: configuration.providerConfigurationPath,
+          schemaDirectory: configuration.schemaDirectory,
+          workingDirectory: configuration.workingDirectory,
+        };
   return runNativeHost({
-    dispatcher: createNativeHostDispatcher({
-      ...configuration,
-      errorOutput: process.stderr,
-      processRunner,
-    }),
+    dispatcher: createNativeHostDispatcher(dispatcherOptions),
     errorOutput: process.stderr,
     input: process.stdin,
     output: process.stdout,
   });
-}
-
-function isDirectExecution(): boolean {
-  const entrypoint = process.argv[1];
-  return entrypoint !== undefined && pathToFileURL(entrypoint).href === import.meta.url;
-}
-
-if (isDirectExecution()) {
-  try {
-    startConfiguredNativeHost();
-  } catch (error) {
-    process.stderr.write(`Native host startup error: ${errorMessage(error)}\n`);
-    process.exitCode = 1;
-  }
 }

@@ -116,7 +116,7 @@ async function initialize(
   const request = await process.takeRequest("initialize");
   expect(request.params).toEqual({
     capabilities: { experimentalApi: true, requestAttestation: false },
-    clientInfo: { name: "huayi", title: "Huayi Native Host", version: "0.9.0" },
+    clientInfo: { name: "huayi", title: "Huayi Native Host", version: "0.10.0" },
   });
   process.respond(request, { platformFamily: "unix", platformOs: "macos", userAgent: "codex" });
   await vi.waitFor(() => expect(process.messages).toContainEqual({ method: "initialized" }));

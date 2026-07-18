@@ -35,7 +35,7 @@ export interface DeepSeekApiKeyReaderOptions {
   readonly workingDirectory: string;
 }
 
-function validateApiKey(stdout: string): string {
+export function validateDeepSeekApiKey(stdout: string): string {
   const apiKey = stdout.endsWith("\n") ? stdout.slice(0, -1) : stdout;
   const hasControlCharacter = [...apiKey].some((character) => {
     const codePoint = character.codePointAt(0);
@@ -91,7 +91,7 @@ export class DeepSeekApiKeyReader {
       if (result.exitCode !== 0 || result.signal !== null) {
         throw new DeepSeekCredentialError("INTERNAL_ERROR");
       }
-      return validateApiKey(result.stdout);
+      return validateDeepSeekApiKey(result.stdout);
     } catch (error) {
       if (signal.aborted || error instanceof ProcessAbortedError) {
         throw new DeepSeekCredentialError("CANCELLED");

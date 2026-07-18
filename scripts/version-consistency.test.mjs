@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import assert from "node:assert/strict";
 
 const rootDirectory = fileURLToPath(new URL("../", import.meta.url));
-const releaseVersion = "0.9.0";
+const releaseVersion = "0.10.0";
 
 async function readJson(path) {
   return JSON.parse(await readFile(resolve(rootDirectory, path), "utf8"));

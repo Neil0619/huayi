@@ -35,6 +35,9 @@
 17. DeepSeek 固定使用官方 HTTPS Chat Completions、`deepseek-v4-flash`、非思考 JSON Output 和
     独立钥匙串项；默认测试只使用 fake fetch/Keychain。配置、真实 smoke 与 Provider 切换是
     三个独立动作，禁止自动重试或回退。
+18. Windows 运行时固定为 DeepSeek-only，不得解析 Codex 或启用欧路、OpenAI、Compatible；
+    DeepSeek Key 只保存在当前用户和当前机器可解密的 DPAPI 凭据文件中。Windows 安装、卸载、
+    注册表或凭据行为变化必须同步更新 `docs/setup-windows.md` 和安全文档。
 
 ## 提交前检查
 
@@ -62,7 +65,8 @@ pnpm host:eudic:remove -- --dry-run
 
 提交信息使用 Conventional Commits，例如 `feat(extension): add selection overlay`。
 
-v0.9.0 的同步升级和回滚使用扩展 ID `kfkamoejomjdihipgdkmfjcdenlhgnpd`，并保留欧路、官方
+v0.10.0 的同步升级和回滚使用扩展 ID `kfkamoejomjdihipgdkmfjcdenlhgnpd`。macOS 保留欧路、官方
 OpenAI、Compatible 与 DeepSeek 四个精确钥匙串项、两份 Provider 配置和既有 Huayi 安装路径；
 具体命令只以
-[macOS 安装说明](docs/setup-macos.md) 为准。
+[macOS 安装说明](docs/setup-macos.md) 为准；Windows 从源码安装以
+[Windows 安装说明](docs/setup-windows.md) 为准。

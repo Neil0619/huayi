@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import { isAbsolute, join } from "node:path";
+import { isAbsolute, join, win32 } from "node:path";
 
 export type ModelOutputSchema = Record<string, unknown>;
 
@@ -22,7 +22,7 @@ export class ModelSchemaRepository {
   readonly #schemas = new Map<string, Promise<ModelOutputSchema>>();
 
   constructor(options: ModelSchemaRepositoryOptions) {
-    if (!isAbsolute(options.schemaDirectory)) {
+    if (!isAbsolute(options.schemaDirectory) && !win32.isAbsolute(options.schemaDirectory)) {
       throw new TypeError("Model schema directory must be an absolute path.");
     }
     this.#readSchema = options.readSchema ?? readJsonSchema;

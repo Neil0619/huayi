@@ -1,19 +1,15 @@
 # Native Host Instructions
 
-- stdout is only the Native Messaging protocol; diagnostics go only to stderr.
+- stdout is protocol-only; diagnostics go to stderr.
 - Keep the Host health version, App Server `clientInfo.version`, and Eudic `User-Agent` at the
-  current release identity `0.9.0`; wire `schemaVersion` is `5` and rejects v4.
+  current release identity `0.10.0`; wire `schemaVersion` is `5` and rejects v4.
 - Validate all wire values with `@huayi/protocol`; the Host name is `com.huayi.codex_bridge`.
 - Spawn Codex with argument arrays and stdin, never `shell: true`.
 - Codex App Server has no ignore-user-config or ignore-rules flags; never invent or require them.
 - Start App Server with the verified environment allowlist, strict config, and explicit overrides
   for read-only/no-network sandboxing, never approval, disabled web search, no history, empty
   Hook configuration, and no inherited shell environment.
-- Disable `apps`, `auth_elicitation`, `browser_use`, `browser_use_external`,
-  `browser_use_full_cdp_access`, `computer_use`, `enable_mcp_apps`, `hooks`, `image_generation`,
-  `in_app_browser`, `memories`, `multi_agent`, `plugins`, `remote_plugin`, `shell_snapshot`,
-  `shell_tool`, `skill_mcp_dependency_install`, `tool_call_mcp_elicitation`, `tool_suggest`,
-  `unified_exec`, and `workspace_dependencies`.
+- Disable every capability in `APP_SERVER_DISABLED_FEATURES`; changes require security tests.
 - Before each App Server start, use no-model `codex mcp list --json`; validate names and disable
   each enabled server individually. Never use unsupported keys or `mcp_servers={}`.
 - Accept Hook records only for the dedicated cwd with empty hooks/warnings/errors, and MCP status
@@ -41,14 +37,19 @@
   configuration. Non-empty reasoning, missing `[DONE]`, truncation, unknown structures, and
   mismatched lifecycle metadata fail closed. Its configure, smoke, and Provider switch remain
   separate explicit actions.
-- Compatible POST uses `redirect:error`, `credentials:omit`, no Cookie/retry/fallback, and only the
-  documented strict dialect. Strictly validate then discard full-envelope metadata, protected
-  reasoning, turn IDs, phases, logprobs, and obfuscation; unknown/duplicate/late/tool/refusal or
-  mismatched events fail closed.
+- Windows is DeepSeek-only. It must not resolve, start, or configure Codex, Eudic, OpenAI, or the
+  compatible provider. Health always reports `deepseek-chat-completions` and no Codex version.
+- Windows reads the DeepSeek Key per request through the installed fixed PowerShell helper. The
+  credential is a `PSCredential` serialized with `Export-Clixml` and DPAPI for the current Windows
+  user and machine. Never accept the Key by argument, environment, repository file, or wire data.
+- Windows installation owns only `%LOCALAPPDATA%\Huayi\native-host` and the exact per-user registry
+  key `HKCU\Software\Google\Chrome\NativeMessagingHosts\com.huayi.codex_bridge`. Package the Host
+  as a Node SEA `.exe`; use fixed `reg.exe` arguments and `shell:false`.
+- Compatible POST uses `redirect:error`, `credentials:omit`, no Cookie/retry/fallback, and only its
+  documented strict dialect; unknown, duplicate, late, tool, refusal, or mismatched events fail.
 - Warmup may discover MCP and initialize one shared App Server session, but it contains no page
   data and must never call `thread/start`, `turn/start`, or consume model output.
-- Approval, input, app, Hook, MCP, shell, file-change, web, image, dynamic-tool, and
-  collaboration-tool items fail closed.
+- Approval, tool, app, Hook, MCP, shell, file, web, image, or collaboration items fail closed.
 - Never access `~/.codex/auth.json`; pass only the Codex environment allowlist and dedicated cwd.
 - Enforce a 60-second request timeout and at most two concurrent requests.
 - Providers implement `AnalysisProvider`; keep provider fields out of wire contracts.
@@ -64,14 +65,11 @@
 - Keychain commands use fixed `/usr/bin/security`, arrays, `shell:false`, final `-w`, and no `-A`.
 - Default tests use fake process/Keychain/fetch only: no real Codex, HTTP service, Keychain, smoke,
   Provider switch, or Eudic API.
-- Installation supports dry-run; uninstall removes only Huayi-owned paths.
-- v0.9.0 upgrade and rollback must reinstall Extension and Host synchronously with Extension ID
-  `kfkamoejomjdihipgdkmfjcdenlhgnpd`. Reinstall preserves the Keychain service/account and the
-  documented Host and Native Messaging manifest paths.
+- Support dry-run; uninstall only Huayi-owned paths.
+- v0.10.0 upgrades reinstall Extension and Host synchronously; preserve owned credentials/config.
 - Invalid frames, oversized messages, stdout contamination, unknown requests, and invalid model
   results fail closed.
-- Keep `zod` for provider-private progressive/final validation. Do not replace strict schemas with
-  drifting handwritten guards or leak private shapes through `@huayi/protocol`.
+- Keep Zod for private validation; never leak provider shapes through `@huayi/protocol`.
 - stderr provider validation diagnostics are limited to the bounded allowlist `stream-parse`,
   `model-json`, `model-schema`, `result-assembly`, and `protocol-validation`, plus safe field
   names. Never log page/model text, raw JSON, credentials, tokens, or environment values.

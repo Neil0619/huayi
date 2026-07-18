@@ -29,6 +29,9 @@ export async function runConfiguredProviderComparison(
   const processRunner = new NodeProcessRunner();
   const nativeHostModuleUrl = new URL("../main.js", import.meta.url).href;
   const configuration = readNativeHostConfiguration(environment, nativeHostModuleUrl);
+  if (configuration.platformMode !== "default") {
+    throw new Error("Provider comparison is unavailable in Windows DeepSeek-only mode.");
+  }
   const milestoneRouter = createComparisonMilestoneRouter();
   const appServer = new CodexAppServerClient({
     codexExecutable: configuration.codexExecutable,
