@@ -5,7 +5,7 @@
 Huayi is a personal macOS Google Chrome extension for English selection translation and
 analysis. The extension communicates with a local Native Messaging host, which uses an already
 authenticated Codex CLI by default or an explicitly enabled OpenAI Responses API provider.
-Version 0.8.x also supports explicitly configured OpenAI-compatible HTTP and official DeepSeek
+Version 0.9.x also supports explicitly configured OpenAI-compatible HTTP and official DeepSeek
 Chat Completions providers. It is not
 a Chrome Web Store release and does not support Windows, Linux, other
 browsers, history, synchronization, follow-up chat, or browser-based provider configuration.
@@ -41,12 +41,14 @@ browsers, history, synchronization, follow-up chat, or browser-based provider co
   `docs/superpowers/specs/2026-07-16-word-results-design.md`.
 - Word result implementation order:
   `docs/superpowers/plans/2026-07-16-word-results.md`.
+- Overlay visual behavior:
+  `docs/superpowers/specs/2026-07-17-ui-refresh-design.md`.
 - Keep temporary task status out of AGENTS.md files.
 
 ## Current release invariants
 
 - All app, package, Manifest, Host, App Server client, and Eudic User-Agent identities are
-  `0.8.0`; the Native Messaging `schemaVersion` is `5`.
+  `0.9.0`; the Native Messaging `schemaVersion` is `5`.
 - Wire v5 is incompatible with v4 and rejects it. Upgrade or roll back the Extension and Native
   Host synchronously; do not add a translation shim.
 - Missing provider configuration defaults to Codex. Every other invalid configuration state

@@ -2,26 +2,32 @@ import type { AnalysisResult, PartOfSpeech, Pronunciation } from "@huayi/protoco
 
 import type { ErrorOverlayState, StreamingOverlayState } from "./overlay-state.js";
 import { partOfSpeechLabels } from "./render-analysis-sections.js";
-
-export interface TextSectionSpec {
-  key: string;
-  kind: "text";
-  title: string;
-  value: string | null | undefined;
-}
-
-export interface ListSectionSpec {
-  key: string;
-  kind: "list";
-  termList?: boolean;
-  title: string;
-  values: readonly string[] | null | undefined;
-}
-
-export type SectionSpec = TextSectionSpec | ListSectionSpec;
+import type {
+  ContextSectionSpec,
+  EntryLayout,
+  EntrySectionSpec,
+  ListSectionSpec,
+  PronunciationSectionSpec,
+  SectionEntry,
+  SectionSpec,
+  TextSectionSpec,
+} from "./analysis-section-types.js";
 
 function text(key: string, title: string, value: string | null | undefined): TextSectionSpec {
   return { key, kind: "text", title, value };
+}
+
+function context(
+  key: string,
+  title: string,
+  value: string | null | undefined,
+  badge?: string,
+): ContextSectionSpec {
+  return { badge, key, kind: "context", title, value };
+}
+
+function pronunciation(value: Pronunciation | null | undefined): PronunciationSectionSpec {
+  return { key: "pronunciation", kind: "pronunciation", value: pronunciationText(value) };
 }
 
 function list(
@@ -31,6 +37,15 @@ function list(
   termList = false,
 ): ListSectionSpec {
   return { key, kind: "list", termList, title, values };
+}
+
+function entries(
+  key: string,
+  title: string,
+  layout: EntryLayout,
+  values: readonly SectionEntry[] | null | undefined,
+): EntrySectionSpec {
+  return { key, kind: "entries", layout, title, values };
 }
 
 function pronunciationText(value: Pronunciation | null | undefined): string | undefined {
@@ -47,53 +62,99 @@ function partOfSpeechText(value: PartOfSpeech | undefined): string | undefined {
   return value === undefined ? undefined : partOfSpeechLabels[value];
 }
 
-function comparisonText(value: {
+function comparisonEntry(value: {
   distinctionZh: string;
   meaningZh: string;
   partOfSpeech: PartOfSpeech;
   text: string;
-}): string {
-  return `${value.text} · ${partOfSpeechLabels[value.partOfSpeech]} · ${value.meaningZh}\n区别：${value.distinctionZh}`;
+}): SectionEntry {
+  return {
+    badge: partOfSpeechLabels[value.partOfSpeech],
+    detail: value.distinctionZh,
+    primary: value.text,
+    secondary: value.meaningZh,
+  };
 }
 
-function wordFormText(value: {
+function wordFormEntries(value: {
   baseForm: string;
   formTypeZh: string;
   sentenceRoleZh?: string | undefined;
-}): string {
+}): SectionEntry[] {
+  const values: SectionEntry[] = [
+    { primary: "原形", secondary: value.baseForm },
+    { primary: "当前形式", secondary: value.formTypeZh },
+  ];
+  if (value.sentenceRoleZh !== undefined) {
+    values.push({ primary: "句法作用", secondary: value.sentenceRoleZh });
+  }
+  return values;
+}
+
+function wordTranslationSections(
+  result: Extract<AnalysisResult, { type: "translate-word" }>,
+): SectionSpec[] {
   return [
-    `原形：${value.baseForm}`,
-    `当前形式：${value.formTypeZh}`,
-    value.sentenceRoleZh === undefined ? undefined : `句法作用：${value.sentenceRoleZh}`,
-  ]
-    .filter((item): item is string => item !== undefined)
-    .join("\n");
+    pronunciation(result.pronunciation),
+    context(
+      "contextual-sense",
+      "语境义",
+      result.contextualSense.meaningZh,
+      partOfSpeechLabels[result.contextualSense.partOfSpeech],
+    ),
+    entries(
+      "common-meanings",
+      "常见释义",
+      "definitions",
+      result.commonMeanings.map((group) => ({
+        badge: partOfSpeechLabels[group.partOfSpeech],
+        primary: group.meaningsZh.join("；"),
+      })),
+    ),
+    entries(
+      "common-phrases",
+      "常用短语",
+      "pairs",
+      result.commonPhrases.map((item) => ({ primary: item.text, secondary: item.meaningZh })),
+    ),
+    entries(
+      "confusable-words",
+      "易混词",
+      "comparisons",
+      result.confusableWords.map(comparisonEntry),
+    ),
+  ];
+}
+
+function wordExplanationSections(
+  result: Extract<AnalysisResult, { type: "explain-word" }>,
+): SectionSpec[] {
+  return [
+    context("contextual-analysis", "语境解析", result.contextualAnalysisZh),
+    entries("word-form", "词形解析", "details", wordFormEntries(result.wordForm)),
+    text("word-formation", "构词解析", result.wordFormationZh),
+    entries(
+      "usage-notes",
+      "用法要点",
+      "details",
+      result.usageNotes.map((item) => ({
+        primary: item.titleZh,
+        secondary: item.descriptionZh,
+      })),
+    ),
+    entries(
+      "synonym-comparisons",
+      "同义词辨析",
+      "comparisons",
+      result.synonyms.map(comparisonEntry),
+    ),
+  ];
 }
 
 export function resultSections(result: AnalysisResult): SectionSpec[] {
   switch (result.type) {
     case "translate-word":
-      return [
-        text("pronunciation", "音标", pronunciationText(result.pronunciation)),
-        text(
-          "contextual-sense",
-          "语境义",
-          `${partOfSpeechLabels[result.contextualSense.partOfSpeech]} ${result.contextualSense.meaningZh}`,
-        ),
-        list(
-          "common-meanings",
-          "常见释义",
-          result.commonMeanings.map(
-            (group) => `${partOfSpeechLabels[group.partOfSpeech]} ${group.meaningsZh.join("；")}`,
-          ),
-        ),
-        list(
-          "common-phrases",
-          "常用短语",
-          result.commonPhrases.map((item) => `${item.text}（${item.meaningZh}）`),
-        ),
-        list("confusable-words", "易混词", result.confusableWords.map(comparisonText), true),
-      ];
+      return wordTranslationSections(result);
     case "translate-lexical":
       return [
         text("contextual-meaning", "语境义", result.contextualMeaningZh),
@@ -149,17 +210,7 @@ export function resultSections(result: AnalysisResult): SectionSpec[] {
         ),
       ];
     case "explain-word":
-      return [
-        text("contextual-analysis", "语境解析", result.contextualAnalysisZh),
-        text("word-form", "词形解析", wordFormText(result.wordForm)),
-        text("word-formation", "构词解析", result.wordFormationZh),
-        list(
-          "usage-notes",
-          "用法要点",
-          result.usageNotes.map((item) => `${item.titleZh}：${item.descriptionZh}`),
-        ),
-        list("synonym-comparisons", "同义词辨析", result.synonyms.map(comparisonText), true),
-      ];
+      return wordExplanationSections(result);
     case "explain-sentence":
       return [
         text("main-structure", "句子主干", result.mainStructure),
@@ -174,54 +225,78 @@ export function resultSections(result: AnalysisResult): SectionSpec[] {
   }
 }
 
+function wordTranslationPreview(state: StreamingOverlayState | ErrorOverlayState): SectionSpec[] {
+  const { sections } = state.preview;
+  return [
+    pronunciation(sections.pronunciation),
+    context(
+      "contextual-sense",
+      "语境义",
+      sections.contextualSense?.meaningZh,
+      sections.contextualSense === undefined
+        ? undefined
+        : partOfSpeechLabels[sections.contextualSense.partOfSpeech],
+    ),
+    entries(
+      "common-meanings",
+      "常见释义",
+      "definitions",
+      sections.commonMeanings?.map((group) => ({
+        badge: partOfSpeechLabels[group.partOfSpeech],
+        primary: group.meaningsZh.join("；"),
+      })),
+    ),
+    entries(
+      "common-phrases",
+      "常用短语",
+      "pairs",
+      sections.commonPhrases?.map((item) => ({ primary: item.text, secondary: item.meaningZh })),
+    ),
+    entries(
+      "confusable-words",
+      "易混词",
+      "comparisons",
+      sections.confusableWords?.map(comparisonEntry),
+    ),
+  ];
+}
+
+function wordExplanationPreview(state: StreamingOverlayState | ErrorOverlayState): SectionSpec[] {
+  const { sections, text: deltas } = state.preview;
+  return [
+    context("contextual-analysis", "语境解析", deltas["contextual-analysis"]),
+    entries(
+      "word-form",
+      "词形解析",
+      "details",
+      sections.wordForm === undefined ? undefined : wordFormEntries(sections.wordForm),
+    ),
+    text("word-formation", "构词解析", sections.wordFormation),
+    entries(
+      "usage-notes",
+      "用法要点",
+      "details",
+      sections.usageNotes?.map((item) => ({
+        primary: item.titleZh,
+        secondary: item.descriptionZh,
+      })),
+    ),
+    entries(
+      "synonym-comparisons",
+      "同义词辨析",
+      "comparisons",
+      sections.synonymComparisons?.map(comparisonEntry),
+    ),
+  ];
+}
+
 export function previewSections(state: StreamingOverlayState | ErrorOverlayState): SectionSpec[] {
   const { sections, text: deltas } = state.preview;
   if (state.action === "translate" && state.selection.selectionKind === "word") {
-    return [
-      text("pronunciation", "音标", pronunciationText(sections.pronunciation)),
-      text(
-        "contextual-sense",
-        "语境义",
-        sections.contextualSense === undefined
-          ? undefined
-          : `${partOfSpeechLabels[sections.contextualSense.partOfSpeech]} ${sections.contextualSense.meaningZh}`,
-      ),
-      list(
-        "common-meanings",
-        "常见释义",
-        sections.commonMeanings?.map(
-          (group) => `${partOfSpeechLabels[group.partOfSpeech]} ${group.meaningsZh.join("；")}`,
-        ),
-      ),
-      list(
-        "common-phrases",
-        "常用短语",
-        sections.commonPhrases?.map((item) => `${item.text}（${item.meaningZh}）`),
-      ),
-      list("confusable-words", "易混词", sections.confusableWords?.map(comparisonText), true),
-    ];
+    return wordTranslationPreview(state);
   }
   if (state.action === "explain" && state.selection.selectionKind === "word") {
-    return [
-      text("contextual-analysis", "语境解析", deltas["contextual-analysis"]),
-      text(
-        "word-form",
-        "词形解析",
-        sections.wordForm === undefined ? undefined : wordFormText(sections.wordForm),
-      ),
-      text("word-formation", "构词解析", sections.wordFormation),
-      list(
-        "usage-notes",
-        "用法要点",
-        sections.usageNotes?.map((item) => `${item.titleZh}：${item.descriptionZh}`),
-      ),
-      list(
-        "synonym-comparisons",
-        "同义词辨析",
-        sections.synonymComparisons?.map(comparisonText),
-        true,
-      ),
-    ];
+    return wordExplanationPreview(state);
   }
   if (state.action === "translate" && state.selection.selectionKind === "phrase") {
     return [

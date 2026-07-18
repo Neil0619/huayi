@@ -16,6 +16,12 @@ export interface PanelHandlers {
 export type PanelState =
   LoadingOverlayState | StreamingOverlayState | ResultOverlayState | ErrorOverlayState;
 
+function patchPanelMetadata(panel: HTMLElement, state: PanelState): void {
+  panel.dataset.action = state.action;
+  panel.dataset.selectionKind = state.selection.selectionKind;
+  panel.dataset.status = state.status;
+}
+
 function createHeader(state: PanelState, handlers: PanelHandlers): HTMLElement {
   const header = document.createElement("header");
   header.className = "huayi-header";
@@ -92,8 +98,14 @@ function patchWordbookAction(panel: HTMLElement, state: PanelState, onAddWord: (
   const desiredButton = desired.querySelector<HTMLButtonElement>("[data-action='add-word']");
   if (currentButton !== null && desiredButton !== null) {
     currentButton.disabled = desiredButton.disabled;
-    if (currentButton.textContent !== desiredButton.textContent) {
-      currentButton.textContent = desiredButton.textContent;
+    currentButton.setAttribute(
+      "aria-label",
+      desiredButton.getAttribute("aria-label") ?? "欧路生词本",
+    );
+    const currentLabel = currentButton.querySelector<HTMLElement>(":scope > span");
+    const desiredLabel = desiredButton.querySelector<HTMLElement>(":scope > span");
+    if (currentLabel !== null && currentLabel.textContent !== desiredLabel?.textContent) {
+      currentLabel.textContent = desiredLabel?.textContent ?? "";
     }
   }
 }
@@ -161,6 +173,7 @@ export function patchOverlayPanel(
   handlers: PanelHandlers,
   now = Date.now(),
 ): void {
+  patchPanelMetadata(panel, state);
   patchWordbookAction(panel, state, handlers.onAddWord);
   patchWordbookError(panel, state);
   const body = panel.querySelector<HTMLElement>(":scope > .huayi-body");
@@ -180,6 +193,7 @@ export function renderOverlayPanel(
   const panel = document.createElement("section");
   panel.className = "huayi-root huayi-panel";
   panel.setAttribute("aria-live", "polite");
+  patchPanelMetadata(panel, state);
   panel.append(createHeader(state, handlers));
   const wordbookError = renderWordbookError(state);
   if (wordbookError !== null) {

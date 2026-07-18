@@ -21,7 +21,7 @@ import type { AnalysisProvider } from "../provider/analysis-provider.js";
 import { RequestQueue } from "../runtime/request-queue.js";
 import type { WordbookProvider } from "../wordbook/wordbook-provider.js";
 
-const HOST_VERSION = "0.8.0";
+const HOST_VERSION = "0.9.0";
 
 export type HostEventEmitter = (event: HostEvent) => void;
 

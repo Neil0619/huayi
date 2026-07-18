@@ -39,6 +39,10 @@
         onAnalyze: () => undefined,
         onCancel: () => undefined,
       });
+      const action =
+        new URLSearchParams(window.location.search).get("action") === "explain"
+          ? "explain"
+          : "translate";
       controller.show(
         {
           context:
@@ -55,24 +59,58 @@
           width: 114,
         },
       );
-      controller.start("translate");
-      controller.resolve({
-        commonMeanings: [{ meaningsZh: ["调查", "侦查"], partOfSpeech: "noun" }],
-        commonPhrases: [
-          { meaningZh: "刑事调查", text: "criminal investigation" },
-          { meaningZh: "展开调查", text: "launch an investigation" },
-        ],
-        confusableWords: [],
-        contextualSense: {
-          meaningZh: "对案件、事故等进行系统查证的调查",
-          partOfSpeech: "noun",
-        },
-        dictionaryForm: "investigation",
-        pronunciation: { uk: "/ɪnˌvestɪˈɡeɪʃn/", us: "/ɪnˌvestɪˈɡeɪʃn/" },
-        selectionKind: "word",
-        sourceText: "investigation",
-        type: "translate-word",
-      });
+      controller.start(action);
+      controller.resolve(
+        action === "explain"
+          ? {
+              contextualAnalysisZh:
+                "此处指正在进行的正式调查，因为它是句子的主语，也是后文讨论的核心事件。",
+              selectionKind: "word",
+              sourceText: "investigation",
+              synonyms: [
+                {
+                  distinctionZh: "更强调询问、查问或初步了解。",
+                  meaningZh: "询问；调查",
+                  partOfSpeech: "noun",
+                  text: "inquiry",
+                },
+                {
+                  distinctionZh: "更强调系统研究事实或证据。",
+                  meaningZh: "检查；审查",
+                  partOfSpeech: "noun",
+                  text: "examination",
+                },
+              ],
+              type: "explain-word",
+              usageNotes: [
+                { descriptionZh: "常与 into 连用，引出调查对象。", titleZh: "搭配" },
+                { descriptionZh: "通常指为查明事实而进行的正式过程。", titleZh: "语体" },
+              ],
+              wordForm: {
+                baseForm: "investigation",
+                formTypeZh: "名词单数",
+                sentenceRoleZh: "作宾语从句的主语",
+              },
+              wordFormationZh: "investigate + -ion，由动词构成表示过程或结果的名词。",
+            }
+          : {
+              commonMeanings: [{ meaningsZh: ["调查", "侦查"], partOfSpeech: "noun" }],
+              commonPhrases: [
+                { meaningZh: "刑事调查", text: "criminal investigation" },
+                { meaningZh: "展开调查", text: "launch an investigation" },
+              ],
+              confusableWords: [],
+              contextualSense: {
+                meaningZh: "对案件、事故等进行系统查证的调查",
+                partOfSpeech: "noun",
+              },
+              dictionaryForm: "investigation",
+              pronunciation: { uk: "/ɪnˌvestɪˈɡeɪʃn/", us: "/ɪnˌvestɪˈɡeɪʃn/" },
+              selectionKind: "word",
+              sourceText: "investigation",
+              type: "translate-word",
+            },
+      );
     </script>
   </body>
 </html>

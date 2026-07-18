@@ -23,3 +23,18 @@ test("renders the lexical translation card inside the viewport", async ({ page }
     animations: "disabled",
   });
 });
+
+test("renders the lexical explanation card with structured sections", async ({ page }) => {
+  await page.goto("/apps/extension/e2e/fixtures/article.html?action=explain");
+
+  const panel = page.locator("[data-huayi-overlay-host]").locator(".huayi-panel");
+  await expect(panel).toBeVisible();
+  await expect(panel.locator('[data-huayi-section="word-form"] .huayi-entry')).toHaveCount(3);
+  await expect(panel.locator('[data-huayi-section="usage-notes"] .huayi-entry')).toHaveCount(2);
+  await expect(
+    panel.locator('[data-huayi-section="synonym-comparisons"] .huayi-entry'),
+  ).toHaveCount(2);
+  await expect(panel).toHaveScreenshot("lexical-explanation.png", {
+    animations: "disabled",
+  });
+});

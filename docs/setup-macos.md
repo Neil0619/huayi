@@ -468,10 +468,26 @@ pnpm host:install -- --extension-id kfkamoejomjdihipgdkmfjcdenlhgnpd \
 独立词性板块；检查单词解释的语境解析、词形、构词、用法和同义词辨析。短语、句子和段落应
 与 v0.7.0 行为一致。
 
+## 从 v0.8.0 升级到 v0.9.0
+
+v0.9.0 只改造 Extension 浮层结构与样式，继续使用 `schemaVersion: 5`，不增加 Chrome 权限、
+Provider、凭据或远端请求。为保持版本身份一致，Extension 与 Native Host 仍需同步构建和安装：
+
+```bash
+pnpm build
+pnpm host:install -- --extension-id kfkamoejomjdihipgdkmfjcdenlhgnpd \
+  --codex-path /Applications/ChatGPT.app/Contents/Resources/codex
+```
+
+安装完成后必须读取 Chrome 实际登记的稳定加载目录中的 `manifest.json`，确认版本为 `0.9.0`，
+再在 `chrome://extensions` 刷新。升级不读取或修改 Provider 配置与钥匙串，也不需要执行真实
+模型 smoke。人工检查白色单层卡片、源词与音标头部、语境强调区、结构化短语/辨析行、右上角
+“生词/添加中/已加入”状态、内部滚动和 320px 单列布局。
+
 ## 人工验收
 
 普通验收选择一个单词、短语、单句和多句段落，确认先显示经过校验的预览、后显示完整卡片；
-最终校验失败时预览必须标记“内容未完整生成”。单词分别验证“已加入生词本”和可添加两种
+最终校验失败时预览必须标记“内容未完整生成”。单词分别验证“已加入”和“生词”两种
 状态；自动查询不得上传句子，只有点击添加才发送原始单词和所在英文句子。
 
 真实欧路验收需要用户已配置钥匙串：添加未收藏单词后检查语境，再次选择同词应显示已存在，

@@ -164,7 +164,7 @@ describe("native host provider routing", () => {
     expect(events).toEqual([
       {
         codexVersion: null,
-        hostVersion: "0.8.0",
+        hostVersion: "0.9.0",
         model: "gpt-5.6-luna",
         provider: "openai-responses",
         ready: true,

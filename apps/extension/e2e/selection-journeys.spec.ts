@@ -94,10 +94,10 @@ test("a translated word can be added with its exact English sentence", async ({ 
   const resultPanel = await openWordResult(page, "word-selection");
   const button = resultPanel.locator('[data-action="add-word"]');
 
-  await expect(button).toHaveText("加入欧路生词本");
+  await expect(button).toHaveText("生词");
   await button.dblclick();
 
-  await expect(button).toHaveText("已加入生词本");
+  await expect(button).toHaveText("已加入");
   await expect(button).toBeDisabled();
   const addRequest = nativeRequests(page, "add-word");
   await expect(addRequest).toHaveCount(1);
@@ -111,12 +111,12 @@ test("a translated word can be added with its exact English sentence", async ({ 
 test("an explained word can be added and an existing word is not overwritten", async ({ page }) => {
   const explainedPanel = await openWordResult(page, "word-selection", "explain");
   await explainedPanel.locator('[data-action="add-word"]').click();
-  await expect(explainedPanel.locator('[data-action="add-word"]')).toHaveText("已加入生词本");
+  await expect(explainedPanel.locator('[data-action="add-word"]')).toHaveText("已加入");
 
   await page.getByTestId("existing-word-selection").dblclick();
   await toolbar(page).locator('[data-action="translate"]').click();
   const existingButton = panel(page).locator('[data-action="add-word"]');
-  await expect(existingButton).toHaveText("已加入生词本");
+  await expect(existingButton).toHaveText("已加入");
   await expect(existingButton).toBeDisabled();
 });
 
@@ -134,7 +134,7 @@ for (const [testId, message] of [
     await expect(button).toBeEnabled();
     await button.click();
 
-    await expect(button).toHaveText("已加入生词本");
+    await expect(button).toHaveText("已加入");
   });
 }
 
@@ -156,7 +156,7 @@ test("closing a pending wordbook write sends a targeted cancel", async ({ page }
   await expect(addRequest).toHaveCount(1);
   const requestId = await addRequest.getAttribute("data-request-id");
   expect(requestId).not.toBeNull();
-  await expect(resultPanel.locator('[data-action="add-word"]')).toHaveText("正在添加…");
+  await expect(resultPanel.locator('[data-action="add-word"]')).toHaveText("添加中");
   await resultPanel.locator('[data-action="close"]').click();
 
   await expect(overlayHost(page)).toHaveCount(0);

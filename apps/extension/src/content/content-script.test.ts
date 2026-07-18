@@ -270,7 +270,7 @@ describe("initializeContentScript", () => {
       schemaVersion: 5,
       type: "word-added",
     });
-    expect(instance.controller.shadowRoot.textContent).toContain("已加入生词本");
+    expect(instance.controller.shadowRoot.textContent).toContain("已加入");
   });
 
   it("cancels the active request when a new selection replaces it", () => {

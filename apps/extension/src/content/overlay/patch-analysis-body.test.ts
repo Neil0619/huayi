@@ -73,7 +73,8 @@ describe("patchAnalysisBody", () => {
 
     expect(body.querySelector('[data-huayi-section="contextual-sense"]')).toBe(meaning);
     expect(meaning?.querySelector("[data-huayi-value]")).toBe(meaningValue);
-    expect(meaningValue?.textContent).toBe("n. 调查");
+    expect(meaningValue?.textContent).toBe("调查");
+    expect(meaning?.querySelector(".huayi-pos-badge")?.textContent).toBe("n.");
     const items = body.querySelectorAll('[data-huayi-section="common-phrases"] li');
     expect(items).toHaveLength(2);
     expect(items[0]).toBe(firstItem);
@@ -82,6 +83,39 @@ describe("patchAnalysisBody", () => {
     items[1]?.dispatchEvent(new Event("animationend"));
     expect(items[1]?.classList.contains("huayi-enter")).toBe(false);
     expect(body.querySelector('[data-huayi-section="pronunciation"]')).toBeNull();
+  });
+
+  it("keeps pronunciation inside the stable lexical header while streaming", () => {
+    const body = document.createElement("div");
+    patchAnalysisBody(
+      body,
+      streamingState({
+        sections: {
+          contextualSense: { meaningZh: "调查", partOfSpeech: "noun" },
+          pronunciation: { uk: "/first/" },
+        },
+        text: {},
+      }),
+    );
+    const header = body.querySelector('[data-huayi-section="source"]');
+    const pronunciation = header?.querySelector('[data-huayi-section="pronunciation"]');
+
+    patchAnalysisBody(
+      body,
+      streamingState({
+        lastSequence: 2,
+        sections: {
+          contextualSense: { meaningZh: "调查", partOfSpeech: "noun" },
+          pronunciation: { uk: "/final/", us: "/final-us/" },
+        },
+        text: {},
+      }),
+    );
+
+    expect(body.querySelector('[data-huayi-section="source"]')).toBe(header);
+    expect(header?.querySelector('[data-huayi-section="pronunciation"]')).toBe(pronunciation);
+    expect(pronunciation?.textContent).toBe("英 /final/　美 /final-us/");
+    expect(header?.nextElementSibling?.getAttribute("data-huayi-section")).toBe("contextual-sense");
   });
 
   it("renders hostile values as text and removes no preview section until the final result", () => {
@@ -130,7 +164,10 @@ describe("patchAnalysisBody", () => {
     expect(body.querySelector('[data-huayi-section="common-phrases"]')).toBeNull();
     expect(
       body.querySelector('[data-huayi-section="contextual-sense"] [data-huayi-value]')?.textContent,
-    ).toBe("n. 最终修正");
+    ).toBe("最终修正");
+    expect(
+      body.querySelector('[data-huayi-section="contextual-sense"] .huayi-pos-badge')?.textContent,
+    ).toBe("n.");
   });
 
   it("corrects final text and list nodes without replacing the body or equal nodes", () => {
@@ -164,6 +201,7 @@ describe("patchAnalysisBody", () => {
     const correctedItems = body.querySelectorAll('[data-huayi-section="common-phrases"] li');
     expect(correctedItems).toHaveLength(1);
     expect(correctedItems[0]).toBe(items[0]);
-    expect(correctedItems[0]?.textContent).toBe("new one（新一）");
+    expect(correctedItems[0]?.querySelector(".huayi-entry-primary")?.textContent).toBe("new one");
+    expect(correctedItems[0]?.querySelector(".huayi-entry-secondary")?.textContent).toBe("新一");
   });
 });

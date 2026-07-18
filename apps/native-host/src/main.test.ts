@@ -254,7 +254,7 @@ describe("native host bootstrap", () => {
 
     expect(events[0]).toMatchObject({
       codexVersion: "codex-cli 0.144.1",
-      hostVersion: "0.8.0",
+      hostVersion: "0.9.0",
       model: "gpt-5.4-mini",
       provider: "codex",
       ready: true,

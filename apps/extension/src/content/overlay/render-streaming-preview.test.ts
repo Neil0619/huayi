@@ -35,23 +35,19 @@ describe("renderStreamingPreview", () => {
 
     expect(source?.textContent).toBe("Selection");
     expect(headings.map((heading) => heading.textContent)).toEqual([
-      "音标",
       "语境义",
       "常见释义",
       "常用短语",
       "易混词",
     ]);
     expect(
+      preview.querySelector('[data-huayi-section="source"] .huayi-pronunciation')?.textContent,
+    ).toContain("/fɔː/");
+    expect(
       Array.from(preview.querySelectorAll(".huayi-section"), (section) =>
         section.getAttribute("data-huayi-section"),
       ),
-    ).toEqual([
-      "pronunciation",
-      "contextual-sense",
-      "common-meanings",
-      "common-phrases",
-      "confusable-words",
-    ]);
+    ).toEqual(["contextual-sense", "common-meanings", "common-phrases", "confusable-words"]);
     const firstHeading = headings[0];
     if (source === null || firstHeading === undefined) {
       throw new Error("Expected the source and at least one preview heading.");

@@ -92,7 +92,7 @@ describe("ChromeNativeTransport", () => {
     transport.send(healthRequest);
     const healthResult = {
       codexVersion: "codex-cli 0.144.1",
-      hostVersion: "0.8.0",
+      hostVersion: "0.9.0",
       model: "gpt-5.4-mini",
       provider: "codex",
       ready: true,
@@ -124,7 +124,7 @@ describe("ChromeNativeTransport", () => {
       transport.send(healthRequest);
       port.onMessage.emit({
         codexVersion: null,
-        hostVersion: "0.8.0",
+        hostVersion: "0.9.0",
         model,
         provider,
         ready: true,
@@ -136,7 +136,7 @@ describe("ChromeNativeTransport", () => {
       expect(received).toEqual([
         {
           codexVersion: null,
-          hostVersion: "0.8.0",
+          hostVersion: "0.9.0",
           model,
           provider,
           ready: true,
@@ -165,7 +165,7 @@ describe("ChromeNativeTransport", () => {
     transport.send(healthRequest);
     port.onMessage.emit({
       codexVersion: null,
-      hostVersion: "0.8.0",
+      hostVersion: "0.9.0",
       model: "gpt-5.4-mini",
       provider: "openai-compatible-http",
       ready: true,

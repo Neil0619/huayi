@@ -43,7 +43,7 @@ async function observeWordbookLabels(page: Page, clickWhenEnabled = false): Prom
         labels.push(label);
         host.setAttribute("data-observed-wordbook-labels", JSON.stringify(labels));
       }
-      if (shouldClick && button?.disabled === false && label === "加入欧路生词本") {
+      if (shouldClick && button?.disabled === false && label === "生词") {
         observer.disconnect();
         button.click();
       }
@@ -208,7 +208,7 @@ test("a present query updates streaming UI and logs only the checked word", asyn
   await startWordAnalysis(page, "existing-word-selection");
 
   await expect(panel(page)).toContainText("语境义");
-  await expect(panel(page).locator('[data-action="add-word"]')).toHaveText("已加入生词本");
+  await expect(panel(page).locator('[data-action="add-word"]')).toHaveText("已加入");
   await expect(nativeRequests(page, "check-word")).toHaveAttribute("data-word", "established");
   await expect(nativeRequests(page, "check-word")).not.toHaveAttribute(
     "data-wordbook-context",
@@ -223,8 +223,8 @@ test("a late present query replaces the enabled result action in place", async (
   await activateToolbarAction(page);
   const button = panel(page).locator('[data-action="add-word"]');
 
-  await expect.poll(() => observedWordbookLabels(page)).toEqual(["加入欧路生词本", "已加入生词本"]);
-  await expect(button).toHaveText("已加入生词本");
+  await expect.poll(() => observedWordbookLabels(page)).toEqual(["生词", "已加入"]);
+  await expect(button).toHaveText("已加入");
   await expect(button).toBeDisabled();
 });
 
@@ -237,7 +237,7 @@ for (const [testId, word] of [
     const button = panel(page).locator('[data-action="add-word"]');
 
     await expect(panel(page)).toContainText("词汇翻译结果");
-    await expect(button).toHaveText("加入欧路生词本");
+    await expect(button).toHaveText("生词");
     await expect(button).toBeEnabled();
     await expect(nativeRequests(page, "check-word")).toHaveAttribute("data-word", word);
   });
@@ -276,7 +276,7 @@ test("explicit add cancels only a pending check and keeps the original sentence"
     "data-wordbook-context",
     "The lateexisting term reports its existing status after the analysis result.",
   );
-  await expect(button).toHaveText("已加入生词本");
+  await expect(button).toHaveText("已加入");
 });
 
 test("close cancels both pending request lanes", async ({ page }) => {
@@ -316,7 +316,7 @@ test("late delta and status cannot mutate a replacement overlay", async ({ page 
   await page.waitForTimeout(1_800);
 
   await expect(panel(page)).not.toContainText("迟到文本");
-  await expect(panel(page).locator('[data-action="add-word"]')).toHaveText("加入欧路生词本");
+  await expect(panel(page).locator('[data-action="add-word"]')).toHaveText("生词");
 });
 
 test("close cancellation prevents a late stream event from reopening the overlay", async ({

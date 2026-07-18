@@ -66,7 +66,7 @@ describe("renderOverlayPanel", () => {
   });
 
   it.each([
-    ["translation", lexicalTranslationResult, ["音标", "语境义", "常见释义", "常用短语"]],
+    ["translation", lexicalTranslationResult, ["语境义", "常见释义", "常用短语"]],
     [
       "explanation",
       lexicalExplanationResult,
@@ -195,7 +195,9 @@ describe("renderOverlayPanel", () => {
     const close = panel.querySelector("[data-action='close']");
 
     expect(button?.disabled).toBe(false);
-    expect(button?.textContent).toBe("加入欧路生词本");
+    expect(button?.textContent).toContain("生词");
+    expect(button?.getAttribute("aria-label")).toBe("加入欧路生词本");
+    expect(button?.querySelector('[data-huayi-icon="wordbook"]')).not.toBeNull();
     expect(button?.closest(".huayi-header-actions")).toBe(group);
     expect(close?.parentElement).toBe(group);
     expect(button?.closest(".huayi-wordbook")?.nextElementSibling).toBe(close);
@@ -209,7 +211,7 @@ describe("renderOverlayPanel", () => {
       "loading/present",
       withAvailability({ ...session, status: "loading" }, "present"),
       true,
-      "已加入生词本",
+      "已加入",
     ],
     [
       "streaming/present",
@@ -222,7 +224,7 @@ describe("renderOverlayPanel", () => {
         "present",
       ),
       true,
-      "已加入生词本",
+      "已加入",
     ],
   ])("renders header action policy for %s", (_label, state, visible, label) => {
     const button = wordbookButton(renderOverlayPanel(state, handlers));
@@ -242,7 +244,8 @@ describe("renderOverlayPanel", () => {
       const button = wordbookButton(renderOverlayPanel(state, { ...handlers, onAddWord }));
       button?.click();
 
-      expect(button?.textContent).toBe("加入欧路生词本");
+      expect(button?.textContent).toBe("生词");
+      expect(button?.getAttribute("aria-label")).toBe("加入欧路生词本");
       expect(button?.disabled).toBe(false);
       expect(onAddWord).toHaveBeenCalledOnce();
     },
@@ -255,8 +258,9 @@ describe("renderOverlayPanel", () => {
       handlers,
     );
 
-    expect(wordbookButton(checking)?.textContent).toBe("加入欧路生词本");
-    expect(wordbookButton(present)?.textContent).toBe("已加入生词本");
+    expect(wordbookButton(checking)?.textContent).toBe("生词");
+    expect(wordbookButton(present)?.textContent).toBe("已加入");
+    expect(wordbookButton(present)?.getAttribute("aria-label")).toBe("已加入生词本");
     expect(wordbookButton(present)?.disabled).toBe(true);
     expect(wordbookButton(present)?.closest(".huayi-header-actions")).not.toBeNull();
   });
@@ -288,8 +292,8 @@ describe("renderOverlayPanel", () => {
   );
 
   it.each([
-    [{ status: "saving" } as const, "正在添加…"],
-    [{ status: "success" } as const, "已加入生词本"],
+    [{ status: "saving" } as const, "添加中"],
+    [{ status: "success" } as const, "已加入"],
   ])("disables the action while mutation is $0", (mutation, label) => {
     const base = resultState(lexicalTranslationResult);
     const panel = renderOverlayPanel(

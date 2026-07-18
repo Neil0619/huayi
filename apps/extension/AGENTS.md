@@ -3,10 +3,10 @@
 - Build only a Manifest V3 extension.
 - Content scripts own DOM selection and overlay rendering. Only the service worker may use
   Native Messaging.
-- Version 0.8 permissions are limited to exactly `nativeMessaging` and content-script matches for
+- Version 0.9 permissions are limited to exactly `nativeMessaging` and content-script matches for
   normal `http` and `https` pages. Any new permission requires `docs/security.md` and
   regression-test updates.
-- The Extension uses wire v5 only and must be refreshed together with a v0.8.0 Native Host; v4
+- The Extension uses wire v5 only and must be refreshed together with a v0.9.0 Native Host; v4
   messages are incompatible and must be rejected.
 - Warmup requests contain only type, schema version, and request ID. Never add selection,
   context, sentence, URL, or other page data to warmup.
@@ -33,6 +33,10 @@
   `prefers-reduced-motion`.
 - All overlay transitions go through `overlay-state.ts`; do not add scattered state flags.
 - Extend visual values through tokens in `styles.ts`.
+- Keep result cards as one white surface: word source and pronunciation form the lexical header,
+  contextual meaning uses the only emphasized fill, and repeated meanings use unboxed rows.
+- Keep visible wordbook labels compact (`生词`, `添加中`, `已加入`) while preserving complete
+  accessible labels. Loading and word streaming reserve stable body height to limit layout jumps.
 - The overlay must support Escape-to-close, visible keyboard focus, viewport clamping, narrow
   layouts, and internal scrolling.
 - Extension code may import only `@huayi/protocol`, browser APIs, and files inside this package.

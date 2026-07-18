@@ -2,7 +2,7 @@
 
 - stdout is only the Native Messaging protocol; diagnostics go only to stderr.
 - Keep the Host health version, App Server `clientInfo.version`, and Eudic `User-Agent` at the
-  current release identity `0.8.0`; wire `schemaVersion` is `5` and rejects v4.
+  current release identity `0.9.0`; wire `schemaVersion` is `5` and rejects v4.
 - Validate all wire values with `@huayi/protocol`; the Host name is `com.huayi.codex_bridge`.
 - Spawn Codex with argument arrays and stdin, never `shell: true`.
 - Codex App Server has no ignore-user-config or ignore-rules flags; never invent or require them.
@@ -65,7 +65,7 @@
 - Default tests use fake process/Keychain/fetch only: no real Codex, HTTP service, Keychain, smoke,
   Provider switch, or Eudic API.
 - Installation supports dry-run; uninstall removes only Huayi-owned paths.
-- v0.8.0 upgrade and rollback must reinstall Extension and Host synchronously with Extension ID
+- v0.9.0 upgrade and rollback must reinstall Extension and Host synchronously with Extension ID
   `kfkamoejomjdihipgdkmfjcdenlhgnpd`. Reinstall preserves the Keychain service/account and the
   documented Host and Native Messaging manifest paths.
 - Invalid frames, oversized messages, stdout contamination, unknown requests, and invalid model

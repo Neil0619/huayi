@@ -24,7 +24,7 @@ function createDispatcher(
 }
 
 describe("NativeMessageDispatcher analysis routing", () => {
-  it("reports host version 0.8.0 and the active Codex health fields", async () => {
+  it("reports host version 0.9.0 and the active Codex health fields", async () => {
     const events: HostEvent[] = [];
     const dispatcher = createDispatcher();
 
@@ -35,7 +35,7 @@ describe("NativeMessageDispatcher analysis routing", () => {
     await vi.waitFor(() => expect(events).toHaveLength(1));
     expect(events[0]).toMatchObject({
       codexVersion: "codex-cli 0.144.1",
-      hostVersion: "0.8.0",
+      hostVersion: "0.9.0",
       model: "gpt-5.4-mini",
       provider: "codex",
       type: "health-result",
@@ -64,7 +64,7 @@ describe("NativeMessageDispatcher analysis routing", () => {
     await vi.waitFor(() => expect(events).toHaveLength(1));
     expect(events[0]).toEqual({
       codexVersion: null,
-      hostVersion: "0.8.0",
+      hostVersion: "0.9.0",
       model: "gpt-5.6-luna",
       provider: "openai-responses",
       ready: true,

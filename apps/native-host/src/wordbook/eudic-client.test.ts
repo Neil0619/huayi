@@ -186,7 +186,7 @@ describe("EudicClient", () => {
         credentials: "omit",
         headers: expect.objectContaining({
           Authorization: "NIS secret",
-          "User-Agent": "Huayi/0.8.0",
+          "User-Agent": "Huayi/0.9.0",
         }),
         method: "GET",
         redirect: "error",

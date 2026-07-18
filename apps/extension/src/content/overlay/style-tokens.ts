@@ -1,0 +1,15 @@
+export const overlayDesignTokens = {
+  accent: "#2563eb",
+  accentSoft: "#eef4ff",
+  background: "#ffffff",
+  border: "#e5e7eb",
+  danger: "#b42318",
+  enterAnimationDuration: "120ms",
+  enterTranslateOffset: "3px",
+  mutedText: "#6b7280",
+  panelWidth: "420px",
+  radius: "16px",
+  shadow: "0 18px 52px rgba(15, 23, 42, 0.16), 0 2px 8px rgba(15, 23, 42, 0.08)",
+  subtleBackground: "#f7f8fa",
+  text: "#17191f",
+} as const;

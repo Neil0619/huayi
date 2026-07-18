@@ -164,7 +164,7 @@ describe("OverlayController", () => {
     button?.click();
     controller.shadowRoot.querySelector<HTMLButtonElement>("[data-action='add-word']")?.click();
     expect(additions).toEqual(["investigation"]);
-    expect(controller.shadowRoot.textContent).toContain("正在添加");
+    expect(controller.shadowRoot.textContent).toContain("添加中");
     expect(controller.shadowRoot.querySelector<HTMLElement>(".huayi-body")?.scrollTop).toBe(42);
     expect((controller.shadowRoot.activeElement as HTMLElement | null)?.className).toBe(
       "huayi-wordbook",
