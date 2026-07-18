@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en" data-huayi-youtube-fixture="true">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Huayi YouTube caption journeys</title>
+    <style>
+      body {
+        min-height: 900px;
+        margin: 0;
+        overflow-x: hidden;
+        background: #111827;
+        color: #ffffff;
+        font-family: Arial, sans-serif;
+      }
+
+      .html5-video-player {
+        position: relative;
+        width: min(960px, calc(100vw - 40px));
+        height: 640px;
+        margin: 24px auto;
+        overflow: hidden;
+        background:
+          radial-gradient(circle at 30% 20%, rgba(59, 130, 246, 0.35), transparent 34%),
+          linear-gradient(145deg, #1f2937, #020617);
+      }
+
+      video {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+      }
+
+      .ytp-caption-window-container {
+        position: absolute;
+        right: 10%;
+        bottom: 96px;
+        left: 10%;
+        text-align: center;
+      }
+
+      .ytp-caption-segment {
+        display: inline;
+        padding: 4px 8px;
+        background: rgba(0, 0, 0, 0.78);
+        color: #ffffff;
+        font-size: 24px;
+        line-height: 1.45;
+      }
+
+      .ytp-right-controls {
+        position: absolute;
+        right: 0;
+        bottom: 0;
+        display: flex;
+        align-items: stretch;
+        height: 48px;
+      }
+
+      .ytp-subtitles-button {
+        width: 48px;
+        border: 0;
+        background: transparent;
+        color: #ffffff;
+        font-weight: 700;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="html5-video-player" data-testid="youtube-player">
+      <video data-testid="youtube-video"></video>
+      <div class="ytp-caption-window-container">
+        <span class="ytp-caption-segment"> The investigation was still in its early stages. </span>
+      </div>
+      <div class="ytp-right-controls">
+        <button class="ytp-subtitles-button" type="button" aria-label="Subtitles">CC</button>
+      </div>
+    </div>
+
+    <ol data-native-request-log hidden></ol>
+    <script type="module" src="../support/harness.ts"></script>
+  </body>
+</html>

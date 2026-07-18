@@ -18,6 +18,8 @@ import { OverlayController } from "./overlay/overlay-controller.js";
 import { rectToOverlayAnchor } from "./overlay/position-overlay.js";
 import type { OverlayAnchorRect } from "./overlay/overlay-state.js";
 import { readSelection, type SelectionRequestInput } from "./selection/read-selection.js";
+import { isYouTubeHost } from "./youtube/caption-reader.js";
+import { YouTubeCaptionController } from "./youtube/youtube-caption-controller.js";
 
 interface RuntimeMessageEvent {
   addListener(listener: (message: unknown) => void): void;
@@ -33,6 +35,7 @@ export interface ContentScriptOptions {
   createRequestId?: () => string;
   document?: Document;
   getAnchorRect?: (range: Range) => OverlayAnchorRect;
+  isYouTubeWatchPage?: () => boolean;
   runtime?: ContentRuntime;
 }
 
@@ -85,6 +88,21 @@ function getRangeAnchorRect(range: Range): OverlayAnchorRect {
     .reverse()
     .find((rect: DOMRect) => rect.width > 0 || rect.height > 0);
   return rectToOverlayAnchor(visibleRect ?? range.getBoundingClientRect());
+}
+
+function getSelectionAnchorRect(event: Event, rangeAnchor: OverlayAnchorRect): OverlayAnchorRect {
+  if (
+    !(event instanceof MouseEvent) ||
+    (event.clientX === 0 && event.clientY === 0 && event.detail === 0)
+  ) {
+    return rangeAnchor;
+  }
+  return {
+    ...rangeAnchor,
+    left: event.clientX,
+    right: event.clientX,
+    width: 0,
+  };
 }
 
 function cameFromOverlay(event: Event): boolean {
@@ -266,6 +284,24 @@ export function initializeContentScript(options: ContentScriptOptions = {}): Con
     onCancel: () => cancelOperations(),
   });
 
+  const youtubeController =
+    options.isYouTubeWatchPage !== undefined || isYouTubeHost(documentRef.location)
+      ? new YouTubeCaptionController({
+          document: documentRef,
+          ...(options.isYouTubeWatchPage === undefined
+            ? {}
+            : { isWatchPage: options.isYouTubeWatchPage }),
+          onPresentationChange: () => controller.refreshPresentation(),
+          onSelection: ({ anchorRect, input, presentation }) => {
+            controller.show(input, anchorRect, presentation);
+          },
+          onSessionClose: () => controller.close(),
+          onWarmup: () => {
+            void sendCommand({ type: "WARMUP_HOST" });
+          },
+        })
+      : null;
+
   const handleSelection = (event: Event): void => {
     if (event instanceof KeyboardEvent && event.key === "Escape") {
       return;
@@ -279,6 +315,7 @@ export function initializeContentScript(options: ContentScriptOptions = {}): Con
       return;
     }
 
+    const anchorRect = getSelectionAnchorRect(event, getAnchorRect(reading.range));
     controller.show(
       {
         context: reading.context,
@@ -287,7 +324,7 @@ export function initializeContentScript(options: ContentScriptOptions = {}): Con
         sentenceContext: reading.sentenceContext,
         wordbookContext: reading.wordbookContext,
       },
-      getAnchorRect(reading.range),
+      anchorRect,
     );
     void sendCommand({ type: "WARMUP_HOST" });
   };
@@ -337,6 +374,7 @@ export function initializeContentScript(options: ContentScriptOptions = {}): Con
       documentRef.removeEventListener("mouseup", handleSelection);
       documentRef.removeEventListener("keyup", handleSelection);
       runtime.onMessage.removeListener(handleRuntimeMessage);
+      youtubeController?.destroy();
       controller.destroy();
     },
   };

@@ -28,6 +28,49 @@ describe("calculateOverlayPosition", () => {
     ).toEqual({ left: 100, top: 532 });
   });
 
+  it("prefers the space above a YouTube caption when requested", () => {
+    expect(
+      calculateOverlayPosition(
+        { ...anchor, bottom: 370, top: 350 },
+        { height: 200, width: 420 },
+        { height: 800, width: 900 },
+        "above",
+      ),
+    ).toEqual({ left: 100, top: 142 });
+  });
+
+  it("centers a YouTube overlay horizontally above its pointer anchor", () => {
+    expect(
+      calculateOverlayPosition(
+        { bottom: 566, height: 0, left: 412, right: 412, top: 566, width: 0 },
+        { height: 200, width: 420 },
+        { height: 800, width: 900 },
+        "above",
+      ),
+    ).toEqual({ left: 202, top: 358 });
+  });
+
+  it("centers an ordinary selection overlay on its horizontal mouse anchor", () => {
+    expect(
+      calculateOverlayPosition(
+        { ...anchor, left: 412, right: 412, width: 0 },
+        { height: 44, width: 180 },
+        { height: 800, width: 900 },
+      ),
+    ).toEqual({ left: 322, top: 128 });
+  });
+
+  it("falls back below when the preferred space above is unavailable", () => {
+    expect(
+      calculateOverlayPosition(
+        { ...anchor, bottom: 60, top: 40 },
+        { height: 200, width: 420 },
+        { height: 800, width: 900 },
+        "above",
+      ),
+    ).toEqual({ left: 100, top: 68 });
+  });
+
   it("clamps the overlay inside narrow viewports", () => {
     expect(
       calculateOverlayPosition(

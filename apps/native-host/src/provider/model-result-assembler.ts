@@ -1,5 +1,10 @@
-import { analysisResultSchema } from "@huayi/protocol";
-import type { AnalysisResult, AnalyzeRequest, Pronunciation } from "@huayi/protocol";
+import { MAX_MEANINGS_PER_GROUP, analysisResultSchema } from "@huayi/protocol";
+import type {
+  AnalysisResult,
+  AnalyzeRequest,
+  DictionaryMeaningGroup,
+  Pronunciation,
+} from "@huayi/protocol";
 import type { ZodError, ZodType } from "zod";
 
 import {
@@ -54,10 +59,45 @@ function normalizePronunciation(
   return normalized.uk === undefined && normalized.us === undefined ? undefined : normalized;
 }
 
+function mergeDictionaryMeaningGroups(
+  groups: ModelWordTranslation["commonMeanings"],
+): DictionaryMeaningGroup[] {
+  const merged: DictionaryMeaningGroup[] = [];
+  const indexesByPartOfSpeech = new Map<DictionaryMeaningGroup["partOfSpeech"], number>();
+
+  for (const group of groups) {
+    const existingIndex = indexesByPartOfSpeech.get(group.partOfSpeech);
+    if (existingIndex === undefined) {
+      indexesByPartOfSpeech.set(group.partOfSpeech, merged.length);
+      merged.push({ meaningsZh: [...group.meaningsZh], partOfSpeech: group.partOfSpeech });
+      continue;
+    }
+
+    const existing = merged[existingIndex];
+    if (existing === undefined) {
+      continue;
+    }
+    const meanings = [...existing.meaningsZh];
+    const seen = new Set(meanings);
+    for (const meaning of group.meaningsZh) {
+      if (meanings.length >= MAX_MEANINGS_PER_GROUP) {
+        break;
+      }
+      if (!seen.has(meaning)) {
+        seen.add(meaning);
+        meanings.push(meaning);
+      }
+    }
+    merged[existingIndex] = { meaningsZh: meanings, partOfSpeech: existing.partOfSpeech };
+  }
+
+  return merged;
+}
+
 function assembleWordTranslation(content: ModelWordTranslation, request: AnalyzeRequest): unknown {
   const pronunciation = normalizePronunciation(content.pronunciation);
   return {
-    commonMeanings: content.commonMeanings,
+    commonMeanings: mergeDictionaryMeaningGroups(content.commonMeanings),
     commonPhrases: content.commonPhrases,
     confusableWords: content.confusableWords,
     contextualSense: content.contextualSense,

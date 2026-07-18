@@ -84,6 +84,33 @@ describe("OverlayController", () => {
     expect(controller.shadowRoot.textContent).toContain("正在翻译");
   });
 
+  it("mounts and repositions a caption overlay through a dynamic presentation", () => {
+    const controller = createController([], []);
+    const firstMount = document.createElement("div");
+    const secondMount = document.createElement("div");
+    document.body.append(firstMount, secondMount);
+    let mountTarget = firstMount;
+    let top = 350;
+
+    controller.show(selection, anchorRect, {
+      preferredSide: "above",
+      resolveAnchorRect: () => ({ ...anchorRect, bottom: top + 20, top }),
+      resolveMountTarget: () => mountTarget,
+    });
+
+    const host = firstMount.querySelector<HTMLElement>("[data-huayi-overlay-host]");
+    const root = controller.shadowRoot.querySelector<HTMLElement>(".huayi-root");
+    expect(host).not.toBeNull();
+    expect(root?.style.top).toBe("298px");
+
+    mountTarget = secondMount;
+    top = 500;
+    controller.refreshPresentation();
+
+    expect(secondMount.querySelector("[data-huayi-overlay-host]")).toBe(host);
+    expect(root?.style.top).toBe("448px");
+  });
+
   it("offers only translation for a paragraph", () => {
     const controller = createController([], []);
     controller.show(

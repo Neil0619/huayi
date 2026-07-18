@@ -22,6 +22,7 @@ import { OverlayUpdateBatch, type OverlayAnalysisUpdate } from "./overlay-update
 import {
   calculateOverlayPosition,
   clampOverlayPosition,
+  type OverlayPreferredSide,
   type OverlaySize,
   type ViewportSize,
 } from "./position-overlay.js";
@@ -36,6 +37,12 @@ export interface OverlayControllerOptions {
   onAddWord: (selection: SelectionRequestInput) => void;
   onAnalyze: (action: AnalyzeAction, selection: SelectionRequestInput) => void;
   onCancel: () => void;
+}
+
+export interface OverlayPresentation {
+  preferredSide?: OverlayPreferredSide;
+  resolveAnchorRect?: () => OverlayAnchorRect;
+  resolveMountTarget?: () => Element;
 }
 
 interface DragSession {
@@ -55,6 +62,7 @@ export class OverlayController {
   private readonly slowRender: SlowRenderTimer;
   private readonly updateBatch: OverlayUpdateBatch;
   private dragSession: DragSession | null = null;
+  private presentation: OverlayPresentation = {};
 
   readonly shadowRoot: ShadowRoot;
 
@@ -85,14 +93,27 @@ export class OverlayController {
     return this.machine.state;
   }
 
-  show(selection: SelectionRequestInput, anchorRect: OverlayAnchorRect): void {
+  show(
+    selection: SelectionRequestInput,
+    anchorRect: OverlayAnchorRect,
+    presentation: OverlayPresentation = {},
+  ): void {
     if (this.hasPendingRequest()) {
       this.options.onCancel();
     }
     this.updateBatch.clear();
     this.slowRender.clear();
+    this.presentation = presentation;
     this.machine.dispatch({ anchorRect, selection, type: "SHOW_ACTIONS" });
     this.render();
+  }
+
+  refreshPresentation(): void {
+    if (!isVisibleOverlayState(this.machine.state)) {
+      return;
+    }
+    this.mountHost();
+    this.positionCurrentRoot();
   }
 
   start(action: AnalyzeAction): void {
@@ -194,6 +215,7 @@ export class OverlayController {
     this.dragSession = null;
     this.machine.dispatch({ type: "CLOSE" });
     this.host.remove();
+    this.presentation = {};
   }
 
   destroy(): void {
@@ -235,7 +257,7 @@ export class OverlayController {
   };
 
   private readonly handleResize = (): void => {
-    this.positionCurrentRoot();
+    this.refreshPresentation();
   };
 
   private applyAnalysisUpdates(updates: OverlayAnalysisUpdate[], shouldRender: boolean): void {
@@ -262,9 +284,7 @@ export class OverlayController {
         onClose: () => this.close(),
         onRetry: () => this.retry(),
       });
-      if (!this.host.isConnected) {
-        this.documentRef.documentElement.append(this.host);
-      }
+      this.mountHost();
       this.positionCurrentRoot();
       return;
     }
@@ -279,12 +299,19 @@ export class OverlayController {
             onRetry: () => this.retry(),
           });
     this.shadowRoot.replaceChildren(style, root);
-    if (!this.host.isConnected) {
-      this.documentRef.documentElement.append(this.host);
-    }
+    this.mountHost();
 
     this.bindDrag(root);
     this.positionCurrentRoot();
+  }
+
+  private mountHost(): void {
+    const requestedTarget = this.presentation.resolveMountTarget?.();
+    const mountTarget =
+      requestedTarget?.isConnected === true ? requestedTarget : this.documentRef.documentElement;
+    if (this.host.parentElement !== mountTarget) {
+      mountTarget.append(this.host);
+    }
   }
 
   private bindDrag(root: HTMLElement): void {
@@ -343,7 +370,12 @@ export class OverlayController {
     const viewport = this.readViewport();
     const position =
       state.position === undefined
-        ? calculateOverlayPosition(state.anchorRect, size, viewport)
+        ? calculateOverlayPosition(
+            this.presentation.resolveAnchorRect?.() ?? state.anchorRect,
+            size,
+            viewport,
+            this.presentation.preferredSide,
+          )
         : clampOverlayPosition(state.position, size, viewport);
     this.applyPosition(root, position);
   }

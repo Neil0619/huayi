@@ -17,13 +17,32 @@ test.beforeEach(async ({ page }) => {
 });
 
 test("double-click classifies a word and renders lexical translation", async ({ page }) => {
-  await page.getByTestId("word-selection").dblclick();
+  const word = page.getByTestId("word-selection");
+  await word.dblclick();
+  const wordBounds = await word.boundingBox();
+  expect(wordBounds).not.toBeNull();
+  if (wordBounds === null) {
+    throw new Error("The selected word must have measurable bounds.");
+  }
+  const pointerX = wordBounds.x + wordBounds.width / 2;
 
-  await expect(toolbar(page)).toBeVisible();
-  await toolbar(page).locator('[data-action="translate"]').click();
+  const actionToolbar = toolbar(page);
+  await expect(actionToolbar).toBeVisible();
+  const toolbarBounds = await actionToolbar.boundingBox();
+  expect(toolbarBounds).not.toBeNull();
+  if (toolbarBounds !== null) {
+    expect(Math.abs(toolbarBounds.x + toolbarBounds.width / 2 - pointerX)).toBeLessThanOrEqual(12);
+  }
+  await actionToolbar.locator('[data-action="translate"]').click();
 
-  await expect(panel(page)).toContainText("词汇翻译结果");
-  await expect(panel(page)).toContainText("常见释义");
+  const resultPanel = panel(page);
+  await expect(resultPanel).toContainText("词汇翻译结果");
+  await expect(resultPanel).toContainText("常见释义");
+  const panelBounds = await resultPanel.boundingBox();
+  expect(panelBounds).not.toBeNull();
+  if (panelBounds !== null) {
+    expect(Math.abs(panelBounds.x + panelBounds.width / 2 - pointerX)).toBeLessThanOrEqual(12);
+  }
   await expectAnalyzeRequest(page, "word", "translate");
 });
 

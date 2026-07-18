@@ -95,6 +95,7 @@ function appendRequestLog(log: HTMLOListElement, request: HostRequest): void {
 
   if (request.type === "analyze") {
     entry.dataset.analysisAction = request.action;
+    entry.dataset.analysisContext = request.context;
     entry.dataset.selectionKind = request.selectionKind;
     entry.dataset.selectionText = request.selection;
     entry.dataset.sentenceContext = request.sentenceContext ?? "";
@@ -393,5 +394,8 @@ transport.onRequest((request) => {
 
 initializeContentScript({
   createRequestId: () => `e2e-content-${(contentRequestSequence += 1)}`,
+  ...(document.documentElement.dataset.huayiYoutubeFixture === "true"
+    ? { isYouTubeWatchPage: () => true }
+    : {}),
   runtime,
 });

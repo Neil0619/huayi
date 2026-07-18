@@ -199,6 +199,32 @@ describe("createCheckWordRequest", () => {
 });
 
 describe("initializeContentScript", () => {
+  it("centers a mouse selection overlay on the release position", () => {
+    const runtime = new FakeRuntime();
+    const instance = createInstance(runtime);
+    const paragraph = document.createElement("p");
+    paragraph.textContent = "investigation";
+    document.body.append(paragraph);
+    selectContents(paragraph);
+
+    document.dispatchEvent(new MouseEvent("mouseup", { clientX: 320, clientY: 110, detail: 1 }));
+
+    expect(instance.controller.state).toMatchObject({
+      anchorRect: {
+        bottom: 120,
+        height: 20,
+        left: 320,
+        right: 320,
+        top: 100,
+        width: 0,
+      },
+      status: "actions",
+    });
+    expect(
+      instance.controller.shadowRoot.querySelector<HTMLElement>(".huayi-root")?.style.left,
+    ).toBe("230px");
+  });
+
   it("opens actions on mouse selection and renders the matching result", () => {
     const runtime = new FakeRuntime();
     const instance = createInstance(runtime);

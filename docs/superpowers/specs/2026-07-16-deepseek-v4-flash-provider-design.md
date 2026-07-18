@@ -25,6 +25,10 @@
 `reasoning_content`、截断、内容过滤、缺失 `[DONE]`、未知结构、空 JSON、事件超过 64 KiB 或
 流超过 2 MiB 均失败关闭。
 
+模型偶尔会把单词的多个常见义按相同 `partOfSpeech` 拆成多组。可信 Host 在公共校验前按首次
+出现顺序合并这些组，只保留模型已经返回且去重后的中文义项，并遵守每组数量上限；不补写、
+改写或猜测释义。其他私有 Schema 或公共 Schema 违规继续失败关闭。
+
 官方终止 chunk 可以携带 usage 对象；Host 仅接受有界、严格的官方 token 计数字段，包括
 `prompt_tokens_details.cached_tokens` 与可选的
 `completion_tokens_details.reasoning_tokens`，校验后立即丢弃，不得将 usage 写入日志、

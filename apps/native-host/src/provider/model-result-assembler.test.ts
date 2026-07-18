@@ -96,6 +96,37 @@ describe("parseAndAssembleModelResult", () => {
     });
   });
 
+  it("merges repeated word meaning groups before public result validation", () => {
+    const result = parseAndAssembleModelResult(
+      JSON.stringify(
+        wordTranslation({
+          commonMeanings: [
+            { meaningsZh: ["身体"], partOfSpeech: "noun" },
+            { meaningsZh: ["主体", "团体"], partOfSpeech: "noun" },
+            { meaningsZh: ["赋予形体"], partOfSpeech: "verb" },
+          ],
+          contextualSense: { meaningZh: "身体（复数）", partOfSpeech: "noun" },
+          dictionaryForm: "body",
+        }),
+      ),
+      createRequest({
+        context: "The bodies were discovered near the paper mill.",
+        selection: "bodies",
+        selectionKind: "word",
+        sentenceContext: "The bodies were discovered near the paper mill.",
+      }),
+    );
+
+    expect(result).toMatchObject({
+      commonMeanings: [
+        { meaningsZh: ["身体", "主体", "团体"], partOfSpeech: "noun" },
+        { meaningsZh: ["赋予形体"], partOfSpeech: "verb" },
+      ],
+      dictionaryForm: "body",
+      type: "translate-word",
+    });
+  });
+
   it.each([
     {
       content: lexicalTranslation({
