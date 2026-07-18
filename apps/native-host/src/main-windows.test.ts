@@ -6,12 +6,21 @@ import type { HostEvent } from "@huayi/protocol";
 
 import { createNativeHostDispatcher } from "./main.js";
 
-describe("Windows DeepSeek-only native host", () => {
-  it("reports DeepSeek health and disables wordbook work", async () => {
+describe("Windows DeepSeek native host", () => {
+  it("reports DeepSeek health and supports the Eudic wordbook", async () => {
+    const eudicAuthorizationReader = {
+      read: vi.fn(async () => "Bearer test-authorization"),
+    };
+    const eudicFetch = vi.fn(async () => ({
+      body: new Response(JSON.stringify({ data: [] })).body,
+      status: 200,
+    }));
     const dispatcher = createNativeHostDispatcher({
       deepSeekApiKeyReader: { read: async () => "unused-test-key" },
       environment: { SystemRoot: "C:\\Windows" },
       errorOutput: new PassThrough(),
+      eudicAuthorizationReader,
+      eudicFetch,
       platformMode: "windows-deepseek",
       processRunner: { run: vi.fn() },
       schemaDirectory: "C:\\Huayi\\provider\\schemas",
@@ -34,7 +43,9 @@ describe("Windows DeepSeek-only native host", () => {
       (event) => wordbookEvents.push(event),
     );
     await vi.waitFor(() => expect(healthEvents).toHaveLength(1));
-    await vi.waitFor(() => expect(wordbookEvents).toHaveLength(1));
+    await vi.waitFor(() =>
+      expect(wordbookEvents.some((event) => event.type === "word-status")).toBe(true),
+    );
 
     expect(healthEvents[0]).toMatchObject({
       codexVersion: null,
@@ -42,10 +53,12 @@ describe("Windows DeepSeek-only native host", () => {
       provider: "deepseek-chat-completions",
       ready: true,
     });
-    expect(wordbookEvents[0]).toMatchObject({
-      error: { code: "EUDIC_NOT_CONFIGURED" },
-      type: "error",
+    expect(wordbookEvents.find((event) => event.type === "word-status")).toMatchObject({
+      presence: "absent",
+      type: "word-status",
     });
+    expect(eudicAuthorizationReader.read).toHaveBeenCalledOnce();
+    expect(eudicFetch).toHaveBeenCalledOnce();
     dispatcher.dispose();
   });
 });

@@ -63,8 +63,11 @@ export function createDefaultInstallerRuntime(moduleUrl: string): InstallerCliRu
     securityExecutable: OPENAI_SECURITY_EXECUTABLE,
     sourceBundlePath: fileURLToPath(new URL("../main.js", moduleUrl)),
     sourceSchemaDirectory: fileURLToPath(new URL("../provider/schemas/", moduleUrl)),
-    sourceWindowsCredentialHelperPath: fileURLToPath(
+    sourceWindowsDeepSeekCredentialHelperPath: fileURLToPath(
       new URL("../windows/deepseek-credential.ps1", moduleUrl),
+    ),
+    sourceWindowsEudicCredentialHelperPath: fileURLToPath(
+      new URL("../windows/eudic-credential.ps1", moduleUrl),
     ),
     sourceWindowsExecutablePath: fileURLToPath(
       new URL("../windows/huayi-native-host.exe", moduleUrl),

@@ -37,11 +37,13 @@
   configuration. Non-empty reasoning, missing `[DONE]`, truncation, unknown structures, and
   mismatched lifecycle metadata fail closed. Its configure, smoke, and Provider switch remain
   separate explicit actions.
-- Windows is DeepSeek-only. It must not resolve, start, or configure Codex, Eudic, OpenAI, or the
-  compatible provider. Health always reports `deepseek-chat-completions` and no Codex version.
-- Windows reads the DeepSeek Key per request through the installed fixed PowerShell helper. The
-  credential is a `PSCredential` serialized with `Export-Clixml` and DPAPI for the current Windows
-  user and machine. Never accept the Key by argument, environment, repository file, or wire data.
+- Windows is DeepSeek-only for model analysis. It must not resolve, start, or configure Codex,
+  OpenAI, or the compatible provider. Health always reports `deepseek-chat-completions` and no
+  Codex version; Eudic remains a separate `WordbookProvider`.
+- Windows reads the DeepSeek Key and Eudic authorization per operation through separate installed
+  fixed PowerShell helpers. Each credential is a `PSCredential` serialized with `Export-Clixml`
+  and DPAPI for the current Windows user and machine. Never accept either secret by argument,
+  environment, repository file, or wire data.
 - Windows installation owns only `%LOCALAPPDATA%\Huayi\native-host` and the exact per-user registry
   key `HKCU\Software\Google\Chrome\NativeMessagingHosts\com.huayi.codex_bridge`. Package the Host
   as a Node SEA `.exe`; use fixed `reg.exe` arguments and `shell:false`.
@@ -60,8 +62,8 @@
   field order for progressive display across every provider.
 - Progressive deltas and typed sections are previews, not success terminals. Send no section for
   `null` or empty lexical content; only a validated `result` completes analysis successfully.
-- Eudic stays outside `AnalysisProvider`, uses its fixed HTTPS URL and Keychain item, and is never
-  injected or logged.
+- Eudic stays outside `AnalysisProvider`, uses its fixed HTTPS URL and a platform-owned credential
+  (macOS Keychain or Windows DPAPI), and is never injected or logged.
 - Keychain commands use fixed `/usr/bin/security`, arrays, `shell:false`, final `-w`, and no `-A`.
 - Default tests use fake process/Keychain/fetch only: no real Codex, HTTP service, Keychain, smoke,
   Provider switch, or Eudic API.

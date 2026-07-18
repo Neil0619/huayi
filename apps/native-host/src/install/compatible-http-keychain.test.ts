@@ -32,7 +32,7 @@ function processResult(overrides: Partial<ProcessRunResult> = {}): ProcessRunRes
   return { exitCode: 0, signal: null, stderr: "", stdout: "", ...overrides };
 }
 
-describe("configureCompatibleHttpApiKey", () => {
+describe.skipIf(process.platform === "win32")("configureCompatibleHttpApiKey", () => {
   it("supports dry-run without prompting for or receiving a key", async () => {
     const interactiveProcessRunner: InteractiveProcessRunner = { run: vi.fn() };
 
@@ -110,7 +110,7 @@ describe("configureCompatibleHttpApiKey", () => {
   });
 });
 
-describe("removeCompatibleHttpApiKey", () => {
+describe.skipIf(process.platform === "win32")("removeCompatibleHttpApiKey", () => {
   it("dry-run queries only the exact item without reading or deleting its value", async () => {
     const requests: ProcessRunRequest[] = [];
     const processRunner: ProcessRunner = {

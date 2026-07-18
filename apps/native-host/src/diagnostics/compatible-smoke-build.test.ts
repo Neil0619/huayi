@@ -15,7 +15,7 @@ describe("compatible smoke build", () => {
 
     expect(build).toMatchObject({ emptyOutDir: false });
     expect(rollupOptions).toMatchObject({
-      input: expect.stringMatching(/src\/diagnostics\/run-compatible-smoke\.ts$/),
+      input: expect.stringMatching(/src[\\/]diagnostics[\\/]run-compatible-smoke\.ts$/),
     });
     expect(singleOutput).toMatchObject({
       entryFileNames: "diagnostics/run-compatible-smoke.js",

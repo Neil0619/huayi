@@ -4,6 +4,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
@@ -116,7 +117,12 @@ test("direct smoke entrypoint writes only the three timing lines", async () => {
   try {
     const { stdout } = await execFileAsync(
       process.execPath,
-      ["--no-warnings", "--experimental-loader", loader, entrypoint.pathname],
+      [
+        "--no-warnings",
+        "--experimental-loader",
+        pathToFileURL(loader).href,
+        fileURLToPath(entrypoint),
+      ],
       {
         env: {
           ...process.env,

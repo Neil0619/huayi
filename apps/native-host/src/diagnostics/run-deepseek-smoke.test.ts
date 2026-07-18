@@ -3,7 +3,9 @@ import { describe, expect, it } from "vitest";
 import type { AnalysisResult, AnalyzeRequest } from "@huayi/protocol";
 
 import type { AnalysisProvider } from "../provider/analysis-provider.js";
+import type { ProcessRunRequest } from "../runtime/codex-process.js";
 import {
+  createDeepSeekSmokeCredentialReader,
   createDefaultDeepSeekSmokeRuntime,
   runDeepSeekSmoke,
   type DeepSeekSmokeReport,
@@ -100,9 +102,53 @@ describe("runDeepSeekSmoke", () => {
       createDefaultDeepSeekSmokeRuntime(
         {},
         "/Users/tester",
-        "file:///build/diagnostics/run-deepseek-smoke.js",
+        new URL("./fixtures/run-deepseek-smoke.js", import.meta.url).href,
+        undefined,
+        "darwin",
       ),
     ).not.toThrow();
+  });
+
+  it("reads the installed Windows DPAPI credential without using macOS Keychain", async () => {
+    const requests: ProcessRunRequest[] = [];
+    const reader = createDeepSeekSmokeCredentialReader({
+      environment: {
+        LOCALAPPDATA: "C:\\Users\\tester\\AppData\\Local",
+        SystemRoot: "C:\\Windows",
+      },
+      homeDirectory: "C:\\Users\\tester",
+      platform: "win32",
+      processRunner: {
+        run: async (request) => {
+          requests.push(request);
+          return {
+            exitCode: 0,
+            signal: null,
+            stderr: "",
+            stdout: "configured-key",
+          };
+        },
+      },
+    });
+
+    await expect(reader.read(new AbortController().signal)).resolves.toBe("configured-key");
+    expect(requests).toEqual([
+      expect.objectContaining({
+        arguments: [
+          "-NoLogo",
+          "-NoProfile",
+          "-NonInteractive",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          "C:\\Users\\tester\\AppData\\Local\\Huayi\\native-host\\deepseek-credential.ps1",
+          "read",
+          "C:\\Users\\tester\\AppData\\Local\\Huayi\\native-host\\deepseek-credential.xml",
+        ],
+        cwd: "C:\\Users\\tester\\AppData\\Local\\Huayi\\native-host\\workdir",
+        executable: "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+      }),
+    ]);
   });
 
   it("runs only the fixed corpus and reports anonymous timings", async () => {

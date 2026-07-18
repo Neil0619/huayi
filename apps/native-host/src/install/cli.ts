@@ -111,7 +111,8 @@ export interface InstallerCliRuntime {
   securityExecutable: string;
   sourceBundlePath: string;
   sourceSchemaDirectory: string;
-  sourceWindowsCredentialHelperPath?: string;
+  sourceWindowsDeepSeekCredentialHelperPath?: string;
+  sourceWindowsEudicCredentialHelperPath?: string;
   sourceWindowsExecutablePath?: string;
   writeOutput(message: string): void;
 }

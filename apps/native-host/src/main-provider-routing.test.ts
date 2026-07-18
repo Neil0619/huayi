@@ -40,7 +40,7 @@ function neverProcessRunner(): ProcessRunner & { run: ReturnType<typeof vi.fn> }
   };
 }
 
-describe("native host provider routing", () => {
+describe.skipIf(process.platform === "win32")("native host macOS provider routing", () => {
   it("reports DeepSeek health without reading credentials, fetching, or starting Codex", async () => {
     const configurationPath = await providerConfigurationPath(
       `${JSON.stringify({ provider: "deepseek-chat-completions", schemaVersion: 1 })}\n`,

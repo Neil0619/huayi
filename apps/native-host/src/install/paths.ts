@@ -1,4 +1,4 @@
-import { isAbsolute, join } from "node:path";
+import { posix } from "node:path";
 
 import { NATIVE_HOST_NAME } from "./native-manifest.js";
 
@@ -15,25 +15,28 @@ export interface MacosInstallationPaths {
 }
 
 export function createMacosInstallationPaths(homeDirectory: string): MacosInstallationPaths {
-  if (!isAbsolute(homeDirectory)) {
+  if (!posix.isAbsolute(homeDirectory)) {
     throw new TypeError("macOS home directory must be an absolute path.");
   }
 
-  const applicationDirectory = join(homeDirectory, "Library/Application Support/Huayi/native-host");
+  const applicationDirectory = posix.join(
+    homeDirectory,
+    "Library/Application Support/Huayi/native-host",
+  );
 
   return {
     applicationDirectory,
-    bundlePath: join(applicationDirectory, "main.js"),
-    compatibleHttpConfigurationPath: join(applicationDirectory, "compatible-http.json"),
-    launcherPath: join(applicationDirectory, "huayi-native-host"),
-    nativeManifestPath: join(
+    bundlePath: posix.join(applicationDirectory, "main.js"),
+    compatibleHttpConfigurationPath: posix.join(applicationDirectory, "compatible-http.json"),
+    launcherPath: posix.join(applicationDirectory, "huayi-native-host"),
+    nativeManifestPath: posix.join(
       homeDirectory,
       "Library/Application Support/Google/Chrome/NativeMessagingHosts",
       `${NATIVE_HOST_NAME}.json`,
     ),
-    ownershipMarkerPath: join(applicationDirectory, ".huayi-owned"),
-    providerConfigurationPath: join(applicationDirectory, "provider.json"),
-    schemaDirectory: join(applicationDirectory, "provider/schemas"),
-    workingDirectory: join(applicationDirectory, "workdir"),
+    ownershipMarkerPath: posix.join(applicationDirectory, ".huayi-owned"),
+    providerConfigurationPath: posix.join(applicationDirectory, "provider.json"),
+    schemaDirectory: posix.join(applicationDirectory, "provider/schemas"),
+    workingDirectory: posix.join(applicationDirectory, "workdir"),
   };
 }

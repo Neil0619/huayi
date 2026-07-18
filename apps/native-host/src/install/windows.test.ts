@@ -19,15 +19,17 @@ afterEach(async () => {
 });
 
 describe("Windows Native Host installation", () => {
-  it("validates a DeepSeek-only package without writing or invoking the registry", async () => {
+  it("validates a DeepSeek and Eudic package without writing or invoking the registry", async () => {
     const source = await mkdtemp(join(tmpdir(), "huayi-windows-source-"));
     temporaryDirectories.push(source);
     const executable = join(source, "huayi-native-host.exe");
-    const helper = join(source, "deepseek-credential.ps1");
+    const deepSeekHelper = join(source, "deepseek-credential.ps1");
+    const eudicHelper = join(source, "eudic-credential.ps1");
     const schemas = join(source, "schemas");
     await mkdir(schemas);
     await writeFile(executable, "fake executable", "utf8");
-    await writeFile(helper, "# helper", "utf8");
+    await writeFile(deepSeekHelper, "# DeepSeek helper", "utf8");
+    await writeFile(eudicHelper, "# Eudic helper", "utf8");
     await writeFile(join(schemas, "translate-word.json"), "{}", "utf8");
     await chmod(executable, 0o755);
     const run = vi.fn();
@@ -39,13 +41,14 @@ describe("Windows Native Host installation", () => {
       localAppDataDirectory: "C:\\Users\\Tester\\AppData\\Local",
       processRunner: { run },
       registryExecutable: "C:\\Windows\\System32\\reg.exe",
-      sourceCredentialHelperPath: helper,
+      sourceDeepSeekCredentialHelperPath: deepSeekHelper,
+      sourceEudicCredentialHelperPath: eudicHelper,
       sourceExecutablePath: executable,
       sourceSchemaDirectory: schemas,
     });
 
     expect(result.dryRun).toBe(true);
-    expect(result.actions.join(" ")).toContain("DeepSeek-only");
+    expect(result.actions.join(" ")).toContain("DeepSeek and Eudic");
     expect(run).not.toHaveBeenCalled();
   });
 

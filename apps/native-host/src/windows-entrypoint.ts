@@ -13,6 +13,8 @@ function runWindowsHost(): void {
     ...process.env,
     HUAYI_DEEPSEEK_CREDENTIAL_HELPER_PATH: join(applicationDirectory, "deepseek-credential.ps1"),
     HUAYI_DEEPSEEK_CREDENTIAL_PATH: join(applicationDirectory, "deepseek-credential.xml"),
+    HUAYI_EUDIC_CREDENTIAL_HELPER_PATH: join(applicationDirectory, "eudic-credential.ps1"),
+    HUAYI_EUDIC_CREDENTIAL_PATH: join(applicationDirectory, "eudic-credential.xml"),
     HUAYI_PLATFORM_MODE: "windows-deepseek",
     HUAYI_POWERSHELL_PATH: join(
       systemRoot,

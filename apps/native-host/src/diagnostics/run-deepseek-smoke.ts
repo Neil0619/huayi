@@ -1,17 +1,23 @@
 import { homedir } from "node:os";
+import { win32 } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { analysisResultSchema, SCHEMA_VERSION } from "@huayi/protocol";
 import type { AnalysisResult, AnalyzeRequest } from "@huayi/protocol";
 
 import { DeepSeekApiKeyReader } from "../credentials/deepseek-keychain.js";
+import { WindowsDeepSeekApiKeyReader } from "../credentials/windows-deepseek-credential.js";
 import { createMacosInstallationPaths } from "../install/paths.js";
+import { createWindowsInstallationPaths } from "../install/windows-paths.js";
 import type { AnalysisProvider } from "../provider/analysis-provider.js";
 import { DeepSeekChatClient } from "../provider/deepseek-chat-client.js";
-import { DeepSeekChatProvider } from "../provider/deepseek-chat-provider.js";
+import {
+  DeepSeekChatProvider,
+  type DeepSeekCredentialReader,
+} from "../provider/deepseek-chat-provider.js";
 import { ModelSchemaRepository } from "../provider/model-schema-repository.js";
 import type { ProviderValidationDiagnosticSink } from "../provider/provider-validation.js";
-import { NodeProcessRunner } from "../runtime/codex-process.js";
+import { NodeProcessRunner, type ProcessRunner } from "../runtime/codex-process.js";
 import { COMPARISON_CASES } from "./comparison-corpus.js";
 
 const DEEPSEEK_CASES = [
@@ -45,6 +51,54 @@ export interface DeepSeekSmokeRuntime {
   createProvider(): AnalysisProvider;
   now?: () => number;
   writeReport(report: DeepSeekSmokeReport): void;
+}
+
+export interface DeepSeekSmokeCredentialReaderOptions {
+  readonly environment: NodeJS.ProcessEnv;
+  readonly homeDirectory: string;
+  readonly platform: NodeJS.Platform;
+  readonly processRunner: ProcessRunner;
+}
+
+export function createDeepSeekSmokeCredentialReader(
+  options: DeepSeekSmokeCredentialReaderOptions,
+): DeepSeekCredentialReader {
+  if (options.platform === "win32") {
+    const localAppDataDirectory = options.environment.LOCALAPPDATA;
+    const systemRoot = options.environment.SystemRoot;
+    if (
+      localAppDataDirectory === undefined ||
+      localAppDataDirectory.trim().length === 0 ||
+      systemRoot === undefined ||
+      systemRoot.trim().length === 0
+    ) {
+      throw new Error("Windows DeepSeek smoke configuration is unavailable.");
+    }
+    const paths = createWindowsInstallationPaths(localAppDataDirectory);
+    return new WindowsDeepSeekApiKeyReader({
+      credentialHelperPath: paths.deepSeekCredentialHelperPath,
+      credentialPath: paths.deepSeekCredentialPath,
+      environment: options.environment,
+      powershellExecutable: win32.join(
+        systemRoot,
+        "System32",
+        "WindowsPowerShell",
+        "v1.0",
+        "powershell.exe",
+      ),
+      processRunner: options.processRunner,
+      workingDirectory: paths.workingDirectory,
+    });
+  }
+  if (options.platform !== "darwin") {
+    throw new Error("DeepSeek smoke requires macOS or Windows.");
+  }
+  const paths = createMacosInstallationPaths(options.homeDirectory);
+  return new DeepSeekApiKeyReader({
+    environment: options.environment,
+    processRunner: options.processRunner,
+    workingDirectory: paths.workingDirectory,
+  });
 }
 
 function requestAt(index: number): AnalyzeRequest {
@@ -145,13 +199,14 @@ export function createDefaultDeepSeekSmokeRuntime(
   homeDirectory: string,
   moduleUrl = import.meta.url,
   onValidationDiagnostic?: ProviderValidationDiagnosticSink,
+  platform: NodeJS.Platform = process.platform,
 ): DeepSeekSmokeRuntime {
-  const paths = createMacosInstallationPaths(homeDirectory);
   const processRunner = new NodeProcessRunner();
-  const apiKeyReader = new DeepSeekApiKeyReader({
+  const apiKeyReader = createDeepSeekSmokeCredentialReader({
     environment,
+    homeDirectory,
+    platform,
     processRunner,
-    workingDirectory: paths.workingDirectory,
   });
   const schemaRepository = new ModelSchemaRepository({
     schemaDirectory: fileURLToPath(new URL("../provider/schemas/", moduleUrl)),

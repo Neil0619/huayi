@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 
 import { runCompatibleSmokeWrapper } from "./smoke-compatible.mjs";
 
@@ -55,8 +56,9 @@ test("compatible smoke warns before inheriting stdio for the fixed entrypoint", 
   assert.match(events[0]?.line, /charges/i);
   assert.deepEqual(events[1], {
     arguments: [
-      new URL("../apps/native-host/dist/diagnostics/run-compatible-smoke.js", import.meta.url)
-        .pathname,
+      fileURLToPath(
+        new URL("../apps/native-host/dist/diagnostics/run-compatible-smoke.js", import.meta.url),
+      ),
     ],
     executable: process.execPath,
     options: { stdio: "inherit" },

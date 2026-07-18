@@ -10,13 +10,13 @@ const configFiles = [
   "**/vite.config.ts",
 ];
 
-const filenamePlugin = {
+export const filenamePlugin = {
   rules: {
     "kebab-case": {
       create(context) {
         return {
           Program(node) {
-            const filename = context.filename.split("/").at(-1) ?? "";
+            const filename = context.filename.replaceAll("\\", "/").split("/").at(-1) ?? "";
             const stem = filename.replace(/\.(?:mjs|ts)$/, "");
             const isKebabCase = stem
               .split(".")

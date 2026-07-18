@@ -1,4 +1,5 @@
 const prettierConfig = {
+  endOfLine: "auto",
   printWidth: 100,
   semi: true,
   singleQuote: false,

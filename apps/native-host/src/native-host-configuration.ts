@@ -1,4 +1,4 @@
-import { isAbsolute, resolve, win32 } from "node:path";
+import { isAbsolute, posix, resolve, win32 } from "node:path";
 import { fileURLToPath } from "node:url";
 
 interface BaseNativeHostConfiguration {
@@ -13,6 +13,8 @@ export type NativeHostConfiguration =
       compatibleHttpConfigurationPath: string;
       deepSeekCredentialHelperPath: null;
       deepSeekCredentialPath: null;
+      eudicCredentialHelperPath: null;
+      eudicCredentialPath: null;
       platformMode: "default";
       powershellExecutable: null;
       providerConfigurationPath: string;
@@ -22,6 +24,8 @@ export type NativeHostConfiguration =
       compatibleHttpConfigurationPath: null;
       deepSeekCredentialHelperPath: string;
       deepSeekCredentialPath: string;
+      eudicCredentialHelperPath: string;
+      eudicCredentialPath: string;
       platformMode: "windows-deepseek";
       powershellExecutable: string;
       providerConfigurationPath: null;
@@ -93,6 +97,14 @@ export function readNativeHostConfiguration(
         environment,
         "HUAYI_DEEPSEEK_CREDENTIAL_PATH",
       ),
+      eudicCredentialHelperPath: requiredWindowsEnvironmentPath(
+        environment,
+        "HUAYI_EUDIC_CREDENTIAL_HELPER_PATH",
+      ),
+      eudicCredentialPath: requiredWindowsEnvironmentPath(
+        environment,
+        "HUAYI_EUDIC_CREDENTIAL_PATH",
+      ),
       environment,
       platformMode: "windows-deepseek",
       powershellExecutable: requiredWindowsEnvironmentPath(environment, "HUAYI_POWERSHELL_PATH"),
@@ -104,13 +116,15 @@ export function readNativeHostConfiguration(
   if (codexExecutable === null) throw new Error("HUAYI_CODEX_PATH is required.");
   return {
     codexExecutable,
-    compatibleHttpConfigurationPath: resolve(workingDirectory, "..", "compatible-http.json"),
+    compatibleHttpConfigurationPath: posix.resolve(workingDirectory, "..", "compatible-http.json"),
     deepSeekCredentialHelperPath: null,
     deepSeekCredentialPath: null,
+    eudicCredentialHelperPath: null,
+    eudicCredentialPath: null,
     environment,
     platformMode: "default",
     powershellExecutable: null,
-    providerConfigurationPath: resolve(workingDirectory, "..", "provider.json"),
+    providerConfigurationPath: posix.resolve(workingDirectory, "..", "provider.json"),
     schemaDirectory,
     workingDirectory,
   };

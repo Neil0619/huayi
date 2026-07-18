@@ -16,7 +16,8 @@ export interface InstallWindowsNativeHostOptions {
   readonly localAppDataDirectory: string;
   readonly processRunner: ProcessRunner;
   readonly registryExecutable: string;
-  readonly sourceCredentialHelperPath: string;
+  readonly sourceDeepSeekCredentialHelperPath: string;
+  readonly sourceEudicCredentialHelperPath: string;
   readonly sourceExecutablePath: string;
   readonly sourceSchemaDirectory: string;
 }
@@ -94,12 +95,16 @@ export async function installWindowsNativeHost(
   const paths = createWindowsInstallationPaths(options.localAppDataDirectory);
   await Promise.all([
     requireReadable(options.sourceExecutablePath, "Windows Host executable"),
-    requireReadable(options.sourceCredentialHelperPath, "Windows credential helper"),
+    requireReadable(
+      options.sourceDeepSeekCredentialHelperPath,
+      "Windows DeepSeek credential helper",
+    ),
+    requireReadable(options.sourceEudicCredentialHelperPath, "Windows Eudic credential helper"),
     requireReadable(options.sourceSchemaDirectory, "Provider schema directory"),
   ]);
   await assertOwnedDirectory(paths);
   const actions = [
-    `Install Windows DeepSeek-only Host at ${paths.executablePath}`,
+    `Install Windows DeepSeek and Eudic Host at ${paths.executablePath}`,
     `Register ${WINDOWS_NATIVE_HOST_REGISTRY_KEY}`,
   ];
   if (options.dryRun) return { actions, dryRun: true, paths };
@@ -107,7 +112,12 @@ export async function installWindowsNativeHost(
   await mkdir(paths.applicationDirectory, { recursive: true });
   await writeFile(paths.ownershipMarkerPath, OWNERSHIP_MARKER, "utf8");
   await cp(options.sourceExecutablePath, paths.executablePath, { force: true });
-  await cp(options.sourceCredentialHelperPath, paths.credentialHelperPath, { force: true });
+  await cp(options.sourceDeepSeekCredentialHelperPath, paths.deepSeekCredentialHelperPath, {
+    force: true,
+  });
+  await cp(options.sourceEudicCredentialHelperPath, paths.eudicCredentialHelperPath, {
+    force: true,
+  });
   await rm(paths.schemaDirectory, { force: true, recursive: true });
   await mkdir(dirname(paths.schemaDirectory), { recursive: true });
   await cp(options.sourceSchemaDirectory, paths.schemaDirectory, { recursive: true });

@@ -4,9 +4,10 @@
 
 Huayi is a personal Google Chrome extension for English selection translation and analysis. The
 extension communicates with a local Native Messaging host. macOS supports Codex, OpenAI,
-OpenAI-compatible HTTP, DeepSeek, and Eudic. Windows is intentionally DeepSeek-only and does not
-support Codex, Eudic, or alternate providers. Huayi is not a Chrome Web Store release and does not
-support Linux, other browsers, history, synchronization, follow-up chat, or browser settings.
+OpenAI-compatible HTTP, DeepSeek, and Eudic. Windows is intentionally DeepSeek-only for model
+analysis, supports Eudic, and does not support Codex or alternate model providers. Huayi is not a
+Chrome Web Store release and does not support Linux, other browsers, history, synchronization,
+follow-up chat, or browser settings.
 
 ## Sources of truth
 
@@ -72,9 +73,10 @@ support Linux, other browsers, history, synchronization, follow-up chat, or brow
 - The personal Extension ID is `kfkamoejomjdihipgdkmfjcdenlhgnpd`. Synchronous reinstall uses
   `pnpm host:install -- --extension-id kfkamoejomjdihipgdkmfjcdenlhgnpd` and preserves the
   `com.huayi.codex_bridge.eudic` / `authorization` Keychain item and documented macOS paths.
-- Windows always pins `deepseek-chat-completions`, stores its API Key in a per-user DPAPI-protected
-  credential below `%LOCALAPPDATA%`, and registers only the exact HKCU Chrome Native Messaging
-  key. Windows packaging produces a standalone Node SEA executable.
+- Windows always pins `deepseek-chat-completions`, stores its DeepSeek API Key and Eudic
+  authorization in separate per-user DPAPI-protected credentials below `%LOCALAPPDATA%`, and
+  registers only the exact HKCU Chrome Native Messaging key. Windows packaging produces a
+  standalone Node SEA executable.
 
 ## Architecture boundaries
 

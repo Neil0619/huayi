@@ -54,7 +54,7 @@ afterEach(async () => {
   );
 });
 
-describe("ProviderConfigurationStore", () => {
+describe.skipIf(process.platform === "win32")("ProviderConfigurationStore", () => {
   it("keeps provider selection separate from compatible endpoint settings", async () => {
     const { applicationDirectory, configurationPath: providerPath } = await createFixture();
     const compatiblePath = join(applicationDirectory, "compatible-http.json");

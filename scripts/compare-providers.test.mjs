@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 
 import { build } from "vite";
 
@@ -45,8 +46,9 @@ test("comparison wrapper warns about both quota systems before the exact fixed e
   assert.match(events[0]?.line, /OpenAI API charges/);
   assert.deepEqual(events[1], {
     arguments: [
-      new URL("../apps/native-host/dist/diagnostics/compare-providers.js", import.meta.url)
-        .pathname,
+      fileURLToPath(
+        new URL("../apps/native-host/dist/diagnostics/compare-providers.js", import.meta.url),
+      ),
     ],
     executable: process.execPath,
     options: { stdio: "inherit" },
@@ -76,14 +78,13 @@ test("comparison wrapper forbids arbitrary profile and prompt arguments", () => 
 
 test("built comparison argument rejection cannot enter Native Messaging startup", async () => {
   await build({
-    configFile: new URL("../apps/native-host/vite.config.ts", import.meta.url).pathname,
+    configFile: fileURLToPath(new URL("../apps/native-host/vite.config.ts", import.meta.url)),
     logLevel: "silent",
     mode: "diagnostics",
   });
-  const entrypoint = new URL(
-    "../apps/native-host/dist/diagnostics/compare-providers.js",
-    import.meta.url,
-  ).pathname;
+  const entrypoint = fileURLToPath(
+    new URL("../apps/native-host/dist/diagnostics/compare-providers.js", import.meta.url),
+  );
   const result = spawnSync(process.execPath, [entrypoint, "--probe"], {
     encoding: "utf8",
     env: { PATH: process.env.PATH },

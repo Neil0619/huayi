@@ -8,10 +8,14 @@ describe("createWindowsInstallationPaths", () => {
 
     expect(paths).toEqual({
       applicationDirectory: "C:\\Users\\Tester\\AppData\\Local\\Huayi\\native-host",
-      credentialHelperPath:
+      deepSeekCredentialHelperPath:
         "C:\\Users\\Tester\\AppData\\Local\\Huayi\\native-host\\deepseek-credential.ps1",
-      credentialPath:
+      deepSeekCredentialPath:
         "C:\\Users\\Tester\\AppData\\Local\\Huayi\\native-host\\deepseek-credential.xml",
+      eudicCredentialHelperPath:
+        "C:\\Users\\Tester\\AppData\\Local\\Huayi\\native-host\\eudic-credential.ps1",
+      eudicCredentialPath:
+        "C:\\Users\\Tester\\AppData\\Local\\Huayi\\native-host\\eudic-credential.xml",
       executablePath:
         "C:\\Users\\Tester\\AppData\\Local\\Huayi\\native-host\\huayi-native-host.exe",
       nativeManifestPath:

@@ -3,6 +3,10 @@ import {
   configureWindowsDeepSeekCredential,
   removeWindowsDeepSeekCredential,
 } from "./windows-deepseek-credential.js";
+import {
+  configureWindowsEudicCredential,
+  removeWindowsEudicCredential,
+} from "./windows-eudic-credential.js";
 import { createWindowsInstallationPaths } from "./windows-paths.js";
 import {
   installWindowsNativeHost,
@@ -41,8 +45,6 @@ export async function executeWindowsInstallerCommand(
     "compatible-config-status",
     "compatible-key-configure",
     "compatible-key-remove",
-    "eudic-configure",
-    "eudic-remove",
     "openai-configure",
     "openai-remove",
   ]);
@@ -66,8 +68,8 @@ export async function executeWindowsInstallerCommand(
   const powershellExecutable = runtime.powershellExecutable ?? "";
   if (command.type === "deepseek-configure") {
     const result = await configureWindowsDeepSeekCredential({
-      credentialHelperPath: paths.credentialHelperPath,
-      credentialPath: paths.credentialPath,
+      credentialHelperPath: paths.deepSeekCredentialHelperPath,
+      credentialPath: paths.deepSeekCredentialPath,
       dryRun: command.dryRun,
       environment: runtime.environment,
       interactiveProcessRunner: runtime.interactiveProcessRunner,
@@ -79,8 +81,34 @@ export async function executeWindowsInstallerCommand(
   }
   if (command.type === "deepseek-remove") {
     const result = await removeWindowsDeepSeekCredential({
-      credentialHelperPath: paths.credentialHelperPath,
-      credentialPath: paths.credentialPath,
+      credentialHelperPath: paths.deepSeekCredentialHelperPath,
+      credentialPath: paths.deepSeekCredentialPath,
+      dryRun: command.dryRun,
+      environment: runtime.environment,
+      powershellExecutable,
+      processRunner: runtime.processRunner,
+      workingDirectory: paths.applicationDirectory,
+    });
+    report(result.actions, result.dryRun, runtime);
+    return;
+  }
+  if (command.type === "eudic-configure") {
+    const result = await configureWindowsEudicCredential({
+      credentialHelperPath: paths.eudicCredentialHelperPath,
+      credentialPath: paths.eudicCredentialPath,
+      dryRun: command.dryRun,
+      environment: runtime.environment,
+      interactiveProcessRunner: runtime.interactiveProcessRunner,
+      powershellExecutable,
+      workingDirectory: paths.applicationDirectory,
+    });
+    report(result.actions, result.dryRun, runtime);
+    return;
+  }
+  if (command.type === "eudic-remove") {
+    const result = await removeWindowsEudicCredential({
+      credentialHelperPath: paths.eudicCredentialHelperPath,
+      credentialPath: paths.eudicCredentialPath,
       dryRun: command.dryRun,
       environment: runtime.environment,
       powershellExecutable,
@@ -103,7 +131,7 @@ export async function executeWindowsInstallerCommand(
     return;
   }
   if (command.type !== "install") {
-    throw new Error(`${command.type} is unavailable in Windows DeepSeek-only mode.`);
+    throw new Error(`${command.type} is unavailable in Windows DeepSeek model mode.`);
   }
   if (command.codexPath !== undefined) {
     throw new Error("--codex-path is not accepted in Windows DeepSeek-only mode.");
@@ -115,7 +143,8 @@ export async function executeWindowsInstallerCommand(
     localAppDataDirectory,
     processRunner: runtime.processRunner,
     registryExecutable,
-    sourceCredentialHelperPath: runtime.sourceWindowsCredentialHelperPath ?? "",
+    sourceDeepSeekCredentialHelperPath: runtime.sourceWindowsDeepSeekCredentialHelperPath ?? "",
+    sourceEudicCredentialHelperPath: runtime.sourceWindowsEudicCredentialHelperPath ?? "",
     sourceExecutablePath: runtime.sourceWindowsExecutablePath ?? "",
     sourceSchemaDirectory: runtime.sourceSchemaDirectory,
   });

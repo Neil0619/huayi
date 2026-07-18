@@ -10,7 +10,7 @@
 | 平台    | 模型 Provider                                         | 欧路生词本 | 凭据存储                  |
 | ------- | ----------------------------------------------------- | ---------- | ------------------------- |
 | macOS   | Codex、OpenAI、OpenAI-compatible HTTP、DeepSeek       | 支持       | macOS Keychain            |
-| Windows | 仅官方 DeepSeek `deepseek-v4-flash`，不连接本机 Codex | 不支持     | 当前用户/机器绑定的 DPAPI |
+| Windows | 仅官方 DeepSeek `deepseek-v4-flash`，不连接本机 Codex | 支持       | 当前用户/机器绑定的 DPAPI |
 
 扩展端代码和 wire 协议完全共用；平台差异只在 Native Host、凭据和安装器中。Windows Host
 打包为单文件 `.exe`，日常运行不依赖 Node.js。

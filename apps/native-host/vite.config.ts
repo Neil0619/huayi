@@ -19,13 +19,22 @@ function copyProviderSchemas(): Plugin {
   };
 }
 
-function copyWindowsCredentialHelper(): Plugin {
+function copyWindowsCredentialHelpers(): Plugin {
   return {
-    name: "copy-windows-credential-helper",
+    name: "copy-windows-credential-helpers",
     async closeBundle() {
-      const destination = resolve(outputDirectory, "windows/deepseek-credential.ps1");
-      await mkdir(dirname(destination), { recursive: true });
-      await cp(resolve(hostRoot, "src/install/windows-deepseek-credential.ps1"), destination);
+      const destination = resolve(outputDirectory, "windows");
+      await mkdir(destination, { recursive: true });
+      await Promise.all([
+        cp(
+          resolve(hostRoot, "src/install/windows-deepseek-credential.ps1"),
+          resolve(destination, "deepseek-credential.ps1"),
+        ),
+        cp(
+          resolve(hostRoot, "src/install/windows-eudic-credential.ps1"),
+          resolve(destination, "eudic-credential.ps1"),
+        ),
+      ]);
     },
   };
 }
@@ -82,7 +91,7 @@ export function createNativeHostConfig(mode: string): UserConfig {
       target: "node18",
     },
     plugins: isWindowsSeaBuild
-      ? [copyWindowsCredentialHelper()]
+      ? [copyWindowsCredentialHelpers()]
       : isSecondaryBuild
         ? []
         : [copyProviderSchemas()],

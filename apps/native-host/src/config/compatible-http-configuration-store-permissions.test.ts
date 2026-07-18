@@ -27,7 +27,9 @@ afterEach(async () => {
   );
 });
 
-describe("CompatibleHttpConfigurationStore write permissions", () => {
+const describePosix = process.platform === "win32" ? describe.skip : describe;
+
+describePosix("CompatibleHttpConfigurationStore write permissions", () => {
   it("orders permission correction and atomic writes before parent-directory fsync", async () => {
     const applicationDirectory = await mkdtemp(join(tmpdir(), "huayi-compatible-mode-test-"));
     temporaryDirectories.push(applicationDirectory);

@@ -164,7 +164,7 @@ afterEach(async () => {
   );
 });
 
-describe("installMacosNativeHost", () => {
+describe.skipIf(process.platform === "win32")("installMacosNativeHost", () => {
   it("performs all validation in dry-run mode without writing external files", async () => {
     const fixture = await createFixture();
     const runner = new CapabilityRunner();
@@ -355,7 +355,7 @@ describe("installMacosNativeHost", () => {
   });
 });
 
-describe("uninstallMacosNativeHost", () => {
+describe.skipIf(process.platform === "win32")("uninstallMacosNativeHost", () => {
   it("removes only the owned application directory and exact manifest, idempotently", async () => {
     const fixture = await createFixture();
     const paths = createMacosInstallationPaths(fixture.homeDirectory);

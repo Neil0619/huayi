@@ -21,7 +21,7 @@ export interface MacosEudicAuthorizationReaderOptions {
   workingDirectory: string;
 }
 
-function validateAuthorization(stdout: string): string {
+export function validateEudicAuthorization(stdout: string): string {
   const authorization = stdout.endsWith("\n") ? stdout.slice(0, -1) : stdout;
   const hasControlCharacter = [...authorization].some((character) => {
     const codePoint = character.codePointAt(0);
@@ -80,7 +80,7 @@ export class MacosEudicAuthorizationReader implements EudicAuthorizationReader {
       if (result.exitCode !== 0 || result.signal !== null) {
         throw eudicError("INTERNAL_ERROR");
       }
-      return validateAuthorization(result.stdout);
+      return validateEudicAuthorization(result.stdout);
     } catch (error) {
       if (signal.aborted || error instanceof ProcessAbortedError) {
         throw eudicError("CANCELLED");

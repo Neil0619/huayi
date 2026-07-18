@@ -13,6 +13,7 @@ import {
   EUDIC_SECURITY_EXECUTABLE,
   MacosEudicAuthorizationReader,
 } from "./credentials/eudic-keychain.js";
+import { WindowsEudicAuthorizationReader } from "./credentials/windows-eudic-credential.js";
 import { OpenAIApiKeyReader } from "./credentials/openai-keychain.js";
 import { readNativeHostConfiguration } from "./native-host-configuration.js";
 import { NativeMessageDispatcher } from "./protocol/dispatcher.js";
@@ -37,7 +38,12 @@ import { discoverEnabledMcpServerNames } from "./runtime/codex-mcp-discovery.js"
 import { NodeProcessRunner, type ProcessRunner } from "./runtime/codex-process.js";
 import { mapAnalysisProviderError } from "./runtime/error-mapper.js";
 import type { EudicFetch } from "./wordbook/eudic-client.js";
+import { EudicClient } from "./wordbook/eudic-client.js";
 import { mapEudicError } from "./wordbook/eudic-errors.js";
+import {
+  EudicWordbookProvider,
+  type EudicAuthorizationReader,
+} from "./wordbook/eudic-wordbook-provider.js";
 
 export interface RequestDispatcher {
   dispatch(message: unknown, emit: (event: HostEvent) => void): void;
@@ -62,6 +68,9 @@ export interface NativeHostDispatcherOptions {
   deepSeekFetch?: DeepSeekFetch;
   deepSeekCredentialHelperPath?: string;
   deepSeekCredentialPath?: string;
+  eudicAuthorizationReader?: EudicAuthorizationReader;
+  eudicCredentialHelperPath?: string;
+  eudicCredentialPath?: string;
   eudicFetch?: EudicFetch;
   environment: NodeJS.ProcessEnv;
   errorOutput: Writable;
@@ -178,6 +187,25 @@ export function createNativeHostDispatcher(
       onValidationDiagnostic: createProviderValidationDiagnosticSink(options.errorOutput),
       schemaRepository,
     });
+    const eudicAuthorizationReader =
+      options.eudicAuthorizationReader ??
+      new WindowsEudicAuthorizationReader({
+        credentialHelperPath: required(
+          options.eudicCredentialHelperPath,
+          "eudicCredentialHelperPath",
+        ),
+        credentialPath: required(options.eudicCredentialPath, "eudicCredentialPath"),
+        environment: options.environment,
+        powershellExecutable: required(options.powershellExecutable, "powershellExecutable"),
+        processRunner: options.processRunner,
+        workingDirectory: options.workingDirectory,
+      });
+    const wordbookProvider = new EudicWordbookProvider({
+      authorizationReader: eudicAuthorizationReader,
+      client: new EudicClient(
+        options.eudicFetch === undefined ? {} : { fetch: options.eudicFetch },
+      ),
+    });
     return new NativeMessageDispatcher({
       healthCheck: async () => ({
         codexVersion: null,
@@ -187,6 +215,8 @@ export function createNativeHostDispatcher(
       mapError: mapAnalysisProviderError,
       maximumConcurrency: 2,
       provider,
+      mapWordbookError: mapEudicError,
+      wordbookProvider,
     });
   }
 
@@ -275,6 +305,8 @@ export function startConfiguredNativeHost(environment = process.env): () => void
           deepSeekCredentialPath: configuration.deepSeekCredentialPath,
           environment: configuration.environment,
           errorOutput: process.stderr,
+          eudicCredentialHelperPath: configuration.eudicCredentialHelperPath,
+          eudicCredentialPath: configuration.eudicCredentialPath,
           platformMode: "windows-deepseek",
           powershellExecutable: configuration.powershellExecutable,
           processRunner,

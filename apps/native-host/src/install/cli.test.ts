@@ -72,7 +72,7 @@ function createRuntime(
   };
 }
 
-describe("executeInstallerCommand", () => {
+describe.skipIf(process.platform === "win32")("executeInstallerCommand macOS mode", () => {
   it("updates compatible configuration without changing the selected provider", async () => {
     const directory = await createTemporaryDirectory();
     const providerStore = new ProviderConfigurationStore(join(directory, "provider.json"));

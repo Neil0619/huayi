@@ -24,7 +24,7 @@ afterEach(async () => {
   );
 });
 
-describe("compatible Provider selection", () => {
+describe.skipIf(process.platform === "win32")("compatible Provider selection", () => {
   it("validates only local compatible configuration before writing provider.json", async () => {
     const directory = await mkdtemp(join(tmpdir(), "huayi-compatible-cli-test-"));
     temporaryDirectories.push(directory);

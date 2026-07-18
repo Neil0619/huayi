@@ -1,14 +1,16 @@
-# Windows 安装说明（DeepSeek-only）
+# Windows 安装说明（DeepSeek + 欧路生词本）
 
 Windows 版复用同一套 Chrome Extension 和 wire v5，但 Native Host 固定只调用官方 DeepSeek。
-它不会查找或启动 Windows 上的 Codex，也不支持欧路、OpenAI 或 Compatible Provider。
+它不会查找或启动 Windows 上的 Codex，也不支持 OpenAI 或 Compatible 模型 Provider；欧路
+作为独立生词本能力提供，不参与模型分析。
 
 ## 前置条件
 
 - Windows 10/11、Google Chrome、Git。
 - Node.js 26 或更高版本。Node 26 只用于从源码构建单文件 Host；安装后日常运行不需要 Node。
 - Corepack/pnpm。
-- 后续由你在隐藏输入框中配置的 DeepSeek API Key；不要把 Key 写进命令、聊天或仓库。
+- 后续由你在两个隐藏输入框中分别配置的 DeepSeek API Key 和欧路 OpenAPI Authorization；
+  不要把任何 Key 或 Authorization 写进命令、聊天或仓库。
 
 ## 1. 下载与构建
 
@@ -57,28 +59,40 @@ HKCU\Software\Google\Chrome\NativeMessagingHosts\com.huayi.codex_bridge
 注册表默认值指向 `%LOCALAPPDATA%` 下的 Native Messaging manifest；manifest 的
 `allowed_origins` 只包含你的扩展 ID。
 
-## 4. 配置 DeepSeek Key
+## 4. 配置 DeepSeek 与欧路凭据
 
 先安装，再执行：
 
 ```powershell
 pnpm host:deepseek:configure
+pnpm host:eudic:configure
 pnpm host:provider:status
 ```
 
-PowerShell 会显示隐藏输入。Key 被保存为 `%LOCALAPPDATA%\Huayi\native-host` 下的
-`PSCredential` XML；Windows 上 `Export-Clixml` 使用 DPAPI 加密密码字段，只能由同一台机器
-上的同一 Windows 用户解密。Host 每次分析重新读取，不缓存，不写入扩展或日志。
+两条配置命令都会显示隐藏输入。欧路命令需要输入欧路 OpenAPI 要求的完整 Authorization
+值。两份秘密分别保存为：
+
+```text
+%LOCALAPPDATA%\Huayi\native-host\deepseek-credential.xml
+%LOCALAPPDATA%\Huayi\native-host\eudic-credential.xml
+```
+
+它们是相互独立的 `PSCredential` XML；Windows 上 `Export-Clixml` 使用 DPAPI 加密密码字段，
+只能由同一台机器上的同一 Windows 用户解密。Host 每次模型分析重新读取 DeepSeek Key，每次
+查词或加词重新读取欧路 Authorization；都不缓存，也不写入扩展或日志。
 
 `host:provider:status` 在 Windows 固定输出 `deepseek-chat-completions`，不能切换到 Codex。
+配置欧路不会改变模型 Provider；暂不配置欧路也不会阻止 DeepSeek 翻译。
+
+需要真实验证模型时，可在另行确认固定测试文本会发送给官方 DeepSeek 且可能产生 API 费用后
+运行 `pnpm smoke:deepseek`。Windows smoke 读取上述 DPAPI 凭据，不读取 macOS Keychain。
 
 ## 5. 刷新与验证
 
 1. 返回 `chrome://extensions`，确认版本为 `0.10.0` 并点击刷新。
 2. 完全关闭并重新打开 Chrome。
 3. 在普通 HTTPS 页面选中英文，分别测试单词和句子翻译/解释。
-
-Windows 不支持欧路，因此单词结果中的生词状态不会成功；这不会影响 DeepSeek 分析。
+4. 选中一个英文单词，确认生词状态可查询，并测试“加入欧路生词本”。
 
 ## 升级
 
@@ -91,16 +105,18 @@ pnpm host:install -- --extension-id <ID>
 ```
 
 然后在 Chrome 刷新扩展。Extension 和 Host 必须同步为 `0.10.0`；wire v5 不接受旧版 Host。
-重复安装会替换 Huayi 自有运行文件，保留现有 DPAPI 凭据。
+重复安装会替换 Huayi 自有运行文件，保留现有的 DeepSeek 与欧路 DPAPI 凭据。
 
 ## 卸载
 
 ```powershell
+pnpm host:eudic:remove
 pnpm host:deepseek:remove
 pnpm host:uninstall
 ```
 
-卸载只删除 Huayi 自有目录和精确 HKCU 注册表键，不触碰其他 Native Messaging Host。
+前两条命令可分别删除精确凭据；完整卸载会删除 Huayi 自有目录（包括仍存在的两份凭据）和
+精确 HKCU 注册表键，不触碰其他 Native Messaging Host。
 
 ## 新 Codex 接手
 
@@ -113,3 +129,4 @@ pnpm host:uninstall
 - [Chrome Native Messaging](https://developer.chrome.com/docs/extensions/develop/concepts/native-messaging)
 - [PowerShell Export-Clixml 与 DPAPI](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.utility/export-clixml)
 - [Node.js Single Executable Applications](https://nodejs.org/api/single-executable-applications.html)
+- [欧路生词本 API](https://my.eudic.net/OpenAPI/doc_api_study)

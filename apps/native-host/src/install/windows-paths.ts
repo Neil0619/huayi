@@ -4,8 +4,10 @@ import { NATIVE_HOST_NAME } from "./native-manifest.js";
 
 export interface WindowsInstallationPaths {
   readonly applicationDirectory: string;
-  readonly credentialHelperPath: string;
-  readonly credentialPath: string;
+  readonly deepSeekCredentialHelperPath: string;
+  readonly deepSeekCredentialPath: string;
+  readonly eudicCredentialHelperPath: string;
+  readonly eudicCredentialPath: string;
   readonly executablePath: string;
   readonly nativeManifestPath: string;
   readonly ownershipMarkerPath: string;
@@ -26,8 +28,10 @@ export function createWindowsInstallationPaths(
   const applicationDirectory = win32.join(localAppDataDirectory, "Huayi", "native-host");
   return {
     applicationDirectory,
-    credentialHelperPath: win32.join(applicationDirectory, "deepseek-credential.ps1"),
-    credentialPath: win32.join(applicationDirectory, "deepseek-credential.xml"),
+    deepSeekCredentialHelperPath: win32.join(applicationDirectory, "deepseek-credential.ps1"),
+    deepSeekCredentialPath: win32.join(applicationDirectory, "deepseek-credential.xml"),
+    eudicCredentialHelperPath: win32.join(applicationDirectory, "eudic-credential.ps1"),
+    eudicCredentialPath: win32.join(applicationDirectory, "eudic-credential.xml"),
     executablePath: win32.join(applicationDirectory, "huayi-native-host.exe"),
     nativeManifestPath: win32.join(applicationDirectory, `${NATIVE_HOST_NAME}.json`),
     ownershipMarkerPath: win32.join(applicationDirectory, ".huayi-owned"),

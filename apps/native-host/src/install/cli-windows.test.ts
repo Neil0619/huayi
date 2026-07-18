@@ -50,14 +50,14 @@ describe("Windows installer CLI", () => {
     expect(runtime.providerConfigurationStore.read).not.toHaveBeenCalled();
   });
 
-  it("rejects Codex and Eudic configuration in Windows mode", async () => {
+  it("rejects Codex and alternate model provider configuration in Windows mode", async () => {
     const runtime = createRuntime([]);
 
     await expect(
       executeInstallerCommand({ dryRun: false, provider: "codex", type: "provider-set" }, runtime),
     ).rejects.toThrow(/only.*DeepSeek/i);
     await expect(
-      executeInstallerCommand({ dryRun: true, type: "eudic-configure" }, runtime),
+      executeInstallerCommand({ dryRun: true, type: "openai-configure" }, runtime),
     ).rejects.toThrow(/unavailable/i);
   });
 });

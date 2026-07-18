@@ -489,8 +489,8 @@ pnpm host:install -- --extension-id kfkamoejomjdihipgdkmfjcdenlhgnpd \
 
 ## 从 v0.9.0 升级到 v0.10.0
 
-v0.10.0 新增 Windows DeepSeek-only 安装路径；macOS 功能和凭据位置不变，但发布身份统一升级，
-因此 Extension 与 Host 仍需同步重建和安装：
+v0.10.0 新增 Windows DeepSeek 模型、欧路生词本和 DPAPI 安装路径；macOS 功能和凭据位置
+不变，但发布身份统一升级，因此 Extension 与 Host 仍需同步重建和安装：
 
 ```bash
 pnpm build

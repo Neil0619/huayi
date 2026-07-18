@@ -104,7 +104,7 @@ describe("runConfiguredCompatibleSmoke", () => {
       createDefaultCompatibleSmokeRuntime({
         environment: {},
         homeDirectory: "/Users/tester",
-        moduleUrl: "file:///build/diagnostics/run-compatible-smoke.js",
+        moduleUrl: new URL("./fixtures/run-compatible-smoke.js", import.meta.url).href,
       }),
     ).not.toThrow();
   });

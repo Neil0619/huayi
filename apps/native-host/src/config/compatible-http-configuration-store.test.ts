@@ -78,7 +78,7 @@ afterEach(async () => {
   );
 });
 
-describe("CompatibleHttpConfigurationStore", () => {
+describe.skipIf(process.platform === "win32")("CompatibleHttpConfigurationStore", () => {
   it("maps only an open-time missing file to the safe provider-not-configured error", async () => {
     const { configurationPath } = await createFixture();
     const store = new CompatibleHttpConfigurationStore(configurationPath);
