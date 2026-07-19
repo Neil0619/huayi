@@ -61,6 +61,33 @@ describe("readSelection", () => {
     });
   });
 
+  it("uses a YouTube-style heading as the exact word and wordbook context", () => {
+    const heading = document.createElement("h1");
+    const formattedTitle = document.createElement("yt-formatted-string");
+    formattedTitle.textContent = "Why American Houses Are So Flimsy";
+    heading.append(formattedTitle);
+    document.body.append(heading);
+    const text = formattedTitle.firstChild;
+    if (!(text instanceof Text)) {
+      throw new Error("Expected YouTube title text fixture.");
+    }
+    const range = document.createRange();
+    const start = text.data.indexOf("Flimsy");
+    range.setStart(text, start);
+    range.setEnd(text, start + "Flimsy".length);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+
+    expect(readSelection(selection)).toMatchObject({
+      context: "Why American Houses Are So Flimsy",
+      selection: "Flimsy",
+      selectionKind: "word",
+      sentenceContext: "Why American Houses Are So Flimsy",
+      wordbookContext: "Why American Houses Are So Flimsy",
+    });
+  });
+
   it("returns null lexical context instead of the selected token for mixed Han text", () => {
     const paragraph = document.createElement("p");
     paragraph.textContent = "这是 investigation 的语境。";
