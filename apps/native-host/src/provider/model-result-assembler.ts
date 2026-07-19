@@ -94,12 +94,39 @@ function mergeDictionaryMeaningGroups(
   return merged;
 }
 
+function normalizeEnglishText(value: string): string {
+  return value.trim().toLocaleLowerCase("en-US");
+}
+
+function deduplicateByEnglishText<Item extends { text: string }>(
+  items: readonly Item[],
+  excluded: ReadonlySet<string> = new Set<string>(),
+): Item[] {
+  const deduplicated: Item[] = [];
+  const seen = new Set<string>();
+
+  for (const item of items) {
+    const normalizedText = normalizeEnglishText(item.text);
+    if (excluded.has(normalizedText) || seen.has(normalizedText)) {
+      continue;
+    }
+    seen.add(normalizedText);
+    deduplicated.push(item);
+  }
+
+  return deduplicated;
+}
+
 function assembleWordTranslation(content: ModelWordTranslation, request: AnalyzeRequest): unknown {
   const pronunciation = normalizePronunciation(content.pronunciation);
+  const forbiddenConfusableWords = new Set([
+    normalizeEnglishText(request.selection),
+    normalizeEnglishText(content.dictionaryForm),
+  ]);
   return {
     commonMeanings: mergeDictionaryMeaningGroups(content.commonMeanings),
-    commonPhrases: content.commonPhrases,
-    confusableWords: content.confusableWords,
+    commonPhrases: deduplicateByEnglishText(content.commonPhrases),
+    confusableWords: deduplicateByEnglishText(content.confusableWords, forbiddenConfusableWords),
     contextualSense: content.contextualSense,
     dictionaryForm: content.dictionaryForm,
     ...(pronunciation === undefined ? {} : { pronunciation }),

@@ -88,6 +88,23 @@ describe("buildAnalysisPrompt", () => {
     }
   });
 
+  it("treats a YouTube caption sentenceContext as the concrete sentence for explanation", () => {
+    const sentenceContext = "Why American Houses Are So Flimsy";
+    const prompt = buildAnalysisPrompt(
+      createRequest({
+        action: "explain",
+        context: sentenceContext,
+        selection: "Flimsy",
+        sentenceContext,
+      }),
+    );
+    const requirements = prompt.split("UNTRUSTED_WEBPAGE_DATA")[0] ?? "";
+
+    expect(prompt).toContain(JSON.stringify(sentenceContext));
+    expect(requirements).toMatch(/sentenceContext.*exact.*sentence.*caption/iu);
+    expect(requirements).toMatch(/sentenceContext.*non-null.*never.*no.*context.*provided/isu);
+  });
+
   it("requires passage translation to preserve paragraph line breaks", () => {
     const prompt = buildAnalysisPrompt(
       createRequest({

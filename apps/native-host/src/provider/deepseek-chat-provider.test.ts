@@ -182,6 +182,54 @@ describe("DeepSeekChatProvider", () => {
     });
   });
 
+  it("finishes a Flimsy translation after previewing redundant confusable words", async () => {
+    const content = {
+      pronunciation: null,
+      contextualSense: { meaningZh: "结构单薄、不牢固的", partOfSpeech: "adjective" },
+      dictionaryForm: "flimsy",
+      commonMeanings: [{ meaningsZh: ["不牢固的"], partOfSpeech: "adjective" }],
+      commonPhrases: [],
+      confusableWords: [
+        {
+          distinctionZh: "这是所查单词本身。",
+          meaningZh: "不牢固的",
+          partOfSpeech: "adjective",
+          text: "flimsy",
+        },
+        {
+          distinctionZh: "fragile 更强调易碎。",
+          meaningZh: "易碎的",
+          partOfSpeech: "adjective",
+          text: "fragile",
+        },
+      ],
+    };
+    const caption = "Why American Houses Are So Flimsy";
+    const runtime = provider([events(JSON.stringify(content))]);
+    const updates: AnalysisStreamUpdate[] = [];
+
+    const result = await runtime.provider.analyze(
+      request({
+        context: caption,
+        selection: "Flimsy",
+        sentenceContext: caption,
+      }),
+      new AbortController().signal,
+      (update) => updates.push(update),
+    );
+
+    expect(updates).toContainEqual({
+      section: "confusable-words",
+      type: "analysis-section",
+      value: content.confusableWords,
+    });
+    expect(result).toMatchObject({
+      confusableWords: [content.confusableWords[1]],
+      sourceText: "Flimsy",
+      type: "translate-word",
+    });
+  });
+
   it.each([
     [
       "non-empty reasoning",

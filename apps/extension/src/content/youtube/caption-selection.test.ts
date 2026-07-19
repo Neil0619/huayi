@@ -37,6 +37,18 @@ describe("createCaptionSelection", () => {
     });
   });
 
+  it("keeps the full frozen caption when selecting a capitalized final word", () => {
+    const titleCaption = "Why American Houses Are So Flimsy";
+
+    expect(createCaptionSelection("Flimsy", titleCaption)).toEqual({
+      context: titleCaption,
+      selection: "Flimsy",
+      selectionKind: "word",
+      sentenceContext: titleCaption,
+      wordbookContext: titleCaption,
+    });
+  });
+
   it("uses the frozen caption as sentence context for a phrase", () => {
     expect(createCaptionSelection("early stages", caption)).toEqual({
       context: caption,

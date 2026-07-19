@@ -54,6 +54,8 @@ function taskInstructions(request: AnalyzeRequest): string[] {
   if (request.selectionKind === "word") {
     return [
       "Explain how the selected English word works in the supplied context; do not produce a dictionary entry.",
+      "When sentenceContext is non-null, it is the exact concrete sentence or caption containing the selected word; use it as the specific usage context.",
+      "When sentenceContext is non-null, never claim that no specific sentence or context was provided.",
       "ContextualAnalysisZh states the contextual meaning and explains why that sense fits and what the word contributes.",
       "WordForm identifies the English base form, the selected form type in Chinese, and the sentence role when reliably inferable; otherwise sentenceRoleZh is null.",
       "WordFormationZh gives a concise reliable root, prefix, suffix, or derivation analysis; otherwise return null.",

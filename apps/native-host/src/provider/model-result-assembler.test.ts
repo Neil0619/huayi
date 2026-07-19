@@ -127,6 +127,63 @@ describe("parseAndAssembleModelResult", () => {
     });
   });
 
+  it("removes repeated and self-referential Flimsy lists before public validation", () => {
+    const result = parseAndAssembleModelResult(
+      JSON.stringify(
+        wordTranslation({
+          commonMeanings: [{ meaningsZh: ["不牢固的", "单薄的"], partOfSpeech: "adjective" }],
+          commonPhrases: [
+            { meaningZh: "结构单薄", text: "flimsy construction" },
+            { meaningZh: "结构不牢", text: "Flimsy Construction" },
+          ],
+          confusableWords: [
+            {
+              distinctionZh: "这是所查单词本身，不应列作易混词。",
+              meaningZh: "不牢固的",
+              partOfSpeech: "adjective",
+              text: "flimsy",
+            },
+            {
+              distinctionZh: "fragile 更强调易碎，flimsy 更强调结构或材料不牢固。",
+              meaningZh: "易碎的",
+              partOfSpeech: "adjective",
+              text: "fragile",
+            },
+            {
+              distinctionZh: "与上一项仅大小写不同。",
+              meaningZh: "脆弱的",
+              partOfSpeech: "adjective",
+              text: "Fragile",
+            },
+          ],
+          contextualSense: { meaningZh: "结构单薄、不牢固的", partOfSpeech: "adjective" },
+          dictionaryForm: "flimsy",
+        }),
+      ),
+      createRequest({
+        context: "Why American Houses Are So Flimsy",
+        selection: "Flimsy",
+        selectionKind: "word",
+        sentenceContext: "Why American Houses Are So Flimsy",
+      }),
+    );
+
+    expect(result).toMatchObject({
+      commonPhrases: [{ meaningZh: "结构单薄", text: "flimsy construction" }],
+      confusableWords: [
+        {
+          distinctionZh: "fragile 更强调易碎，flimsy 更强调结构或材料不牢固。",
+          meaningZh: "易碎的",
+          partOfSpeech: "adjective",
+          text: "fragile",
+        },
+      ],
+      dictionaryForm: "flimsy",
+      sourceText: "Flimsy",
+      type: "translate-word",
+    });
+  });
+
   it.each([
     {
       content: lexicalTranslation({
