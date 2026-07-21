@@ -16,7 +16,8 @@ const playwrightConfig = defineConfig({
     trace: "retain-on-failure",
   },
   webServer: {
-    command: "pnpm exec vite --host 127.0.0.1 --port 4173",
+    command:
+      "pnpm exec vite --config apps/extension/e2e/vite.config.ts --host 127.0.0.1 --port 4173",
     reuseExistingServer: !process.env.CI,
     timeout: 30_000,
     url: "http://127.0.0.1:4173/apps/extension/e2e/fixtures/article.html",
