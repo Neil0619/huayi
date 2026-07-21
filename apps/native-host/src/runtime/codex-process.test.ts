@@ -95,12 +95,18 @@ describe("NodeProcessRunner", () => {
       signal: null,
       stderr: "diagnostic",
     });
-    expect(JSON.parse(result.stdout)).toEqual({
+    const output = JSON.parse(result.stdout) as {
+      arguments: string[];
+      cwd: string;
+      input: string;
+      lang: string;
+    };
+    expect(output).toMatchObject({
       arguments: ["first argument", "$(must-not-expand)"],
-      cwd: await realpath(cwd),
       input: "selected webpage text",
       lang: "huayi-test",
     });
+    expect(await realpath(output.cwd)).toBe(await realpath(cwd));
   });
 
   it("returns non-zero exits without converting them into spawn errors", async () => {

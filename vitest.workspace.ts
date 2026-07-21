@@ -1,4 +1,8 @@
 import { defineWorkspace } from "vitest/config";
+import { fileURLToPath } from "node:url";
+
+const protocolSource = fileURLToPath(new URL("./packages/protocol/src/index.ts", import.meta.url));
+const protocolAlias = { "@huayi/protocol": protocolSource };
 
 const workspace = defineWorkspace([
   {
@@ -10,6 +14,9 @@ const workspace = defineWorkspace([
     },
   },
   {
+    resolve: {
+      alias: protocolAlias,
+    },
     test: {
       environment: "node",
       include: ["apps/native-host/src/**/*.test.ts"],
@@ -18,6 +25,9 @@ const workspace = defineWorkspace([
     },
   },
   {
+    resolve: {
+      alias: protocolAlias,
+    },
     test: {
       environment: "jsdom",
       include: ["apps/extension/src/**/*.test.ts"],
