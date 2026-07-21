@@ -51,6 +51,20 @@ describe("extractSentenceContext", () => {
     );
   });
 
+  it.each(["intrusion", "infrastructure"])(
+    "extracts %s from a sentence rendered in a generic text container",
+    (selectedText) => {
+      const container = document.createElement("div");
+      container.textContent =
+        "Earlier this week, we detected and responded to an intrusion into part of our production infrastructure.";
+      document.body.append(container);
+
+      expect(
+        extractSentenceContext(rangeForText(textNode(container), selectedText), selectedText),
+      ).toBe(container.textContent);
+    },
+  );
+
   it("uses the selected occurrence when a word appears in multiple sentences", () => {
     const paragraph = document.createElement("p");
     paragraph.textContent = "The victims were identified. Later, the victims were taken to safety.";

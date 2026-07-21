@@ -72,6 +72,23 @@ function textWithLineBreaks(node: Node): string {
   return Array.from(node.childNodes, (child) => textWithLineBreaks(child)).join("");
 }
 
+function findGenericTextContainer(node: Node): Element | null {
+  let current = node instanceof Element ? node : node.parentElement;
+
+  while (current !== null && current.tagName !== "BODY" && current.tagName !== "HTML") {
+    if (current.tagName === "DIV") {
+      return current;
+    }
+    current = current.parentElement;
+  }
+
+  return null;
+}
+
+function findSentenceBlock(node: Node): Element | null {
+  return findSemanticBlock(node) ?? findGenericTextContainer(node);
+}
+
 function rangeOffset(block: Element, container: Node, offset: number): number | null {
   try {
     const prefix = block.ownerDocument.createRange();
@@ -138,8 +155,8 @@ export function extractSentenceContext(range: Range, selection: string): string 
     return null;
   }
 
-  const block = findSemanticBlock(range.startContainer);
-  const endBlock = findSemanticBlock(range.endContainer);
+  const block = findSentenceBlock(range.startContainer);
+  const endBlock = findSentenceBlock(range.endContainer);
   if (
     block === null ||
     endBlock === null ||

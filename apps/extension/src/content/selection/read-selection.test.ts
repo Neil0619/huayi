@@ -88,6 +88,33 @@ describe("readSelection", () => {
     });
   });
 
+  it.each(["intrusion", "infrastructure"])(
+    "keeps the full generic-container sentence as wordbook context for %s",
+    (selectedText) => {
+      const container = document.createElement("div");
+      container.textContent =
+        "Earlier this week, we detected and responded to an intrusion into part of our production infrastructure.";
+      document.body.append(container);
+      const text = container.firstChild;
+      if (!(text instanceof Text)) {
+        throw new Error("Expected generic container text fixture.");
+      }
+      const range = document.createRange();
+      const start = text.data.indexOf(selectedText);
+      range.setStart(text, start);
+      range.setEnd(text, start + selectedText.length);
+      const selection = window.getSelection();
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+
+      expect(readSelection(selection)).toMatchObject({
+        selection: selectedText,
+        selectionKind: "word",
+        wordbookContext: container.textContent,
+      });
+    },
+  );
+
   it("returns null lexical context instead of the selected token for mixed Han text", () => {
     const paragraph = document.createElement("p");
     paragraph.textContent = "这是 investigation 的语境。";
