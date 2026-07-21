@@ -4,8 +4,23 @@ import test from "node:test";
 
 const workflowUrl = new URL("../.github/workflows/cross-platform-quality.yml", import.meta.url);
 
+export function normalizeLineEndings(value) {
+  return value.replaceAll("\r\n", "\n");
+}
+
+async function readWorkflow() {
+  return normalizeLineEndings(await readFile(workflowUrl, "utf8"));
+}
+
+test("workflow assertions normalize Windows checkout line endings", () => {
+  assert.equal(
+    normalizeLineEndings("permissions:\r\n  contents: read\r\n"),
+    "permissions:\n  contents: read\n",
+  );
+});
+
 test("cross-platform workflow runs both offline platform gates with pinned runtimes", async () => {
-  const workflow = await readFile(workflowUrl, "utf8");
+  const workflow = await readWorkflow();
 
   assert.match(workflow, /^permissions:\n\s{2}contents: read$/m);
   assert.match(workflow, /^\s{2}macos-quality:$/m);
@@ -22,7 +37,7 @@ test("cross-platform workflow runs both offline platform gates with pinned runti
 });
 
 test("cross-platform workflow never performs privileged or paid runtime operations", async () => {
-  const workflow = await readFile(workflowUrl, "utf8");
+  const workflow = await readWorkflow();
 
   assert.doesNotMatch(workflow, /smoke:/);
   assert.doesNotMatch(workflow, /host:install/);

@@ -81,6 +81,13 @@ test("built comparison argument rejection cannot enter Native Messaging startup"
     configFile: fileURLToPath(new URL("../apps/native-host/vite.config.ts", import.meta.url)),
     logLevel: "silent",
     mode: "diagnostics",
+    resolve: {
+      alias: {
+        "@huayi/protocol": fileURLToPath(
+          new URL("../packages/protocol/src/index.ts", import.meta.url),
+        ),
+      },
+    },
   });
   const entrypoint = fileURLToPath(
     new URL("../apps/native-host/dist/diagnostics/compare-providers.js", import.meta.url),
