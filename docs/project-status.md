@@ -8,6 +8,8 @@
 - macOS：完整功能，默认 Provider 为已登录 Codex
 - Windows：模型固定为 DeepSeek，不连接本机 Codex；支持欧路生词本
 - 发布方式：从 GitHub 源码构建并加载，尚未发布 Chrome Web Store
+- 验证方式：macOS/Windows 双平台 GitHub Actions 先以告警方式运行，稳定后再设为 `main`
+  必需检查；系统原语仍需对应平台人工验收
 
 ## 已完成阶段
 
@@ -32,7 +34,7 @@
 
 1. 根目录与目标模块的 `AGENTS.md`；
 2. 本文件和 `README.md`；
-3. 对应平台的 `setup-macos.md` 或 `setup-windows.md`；
+3. `cross-platform-development.md` 和对应平台的 `setup-macos.md` 或 `setup-windows.md`；
 4. `architecture.md`、`protocol.md`、`security.md` 和 `testing.md`；
 5. 需要追溯设计决策时，再读取 `docs/superpowers/specs/` 与 `plans/`。
 

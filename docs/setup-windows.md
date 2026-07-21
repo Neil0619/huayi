@@ -2,13 +2,15 @@
 
 Windows 版复用同一套 Chrome Extension 和 wire v5，但 Native Host 固定只调用官方 DeepSeek。
 它不会查找或启动 Windows 上的 Codex，也不支持 OpenAI 或 Compatible 模型 Provider；欧路
-作为独立生词本能力提供，不参与模型分析。
+作为独立生词本能力提供，不参与模型分析。跨平台改动的完成判定和交接格式见
+[跨平台开发规则](cross-platform-development.md)。
 
 ## 前置条件
 
 - Windows 10/11、Google Chrome、Git。
 - Node.js 26 或更高版本。Node 26 只用于从源码构建单文件 Host；安装后日常运行不需要 Node。
-- Corepack/pnpm。
+- pnpm 10.12.4。Node.js 26 不再内置 Corepack；若系统没有 pnpm，请按 pnpm 官方方式单独安装，
+  不要假设 `corepack enable` 可用。
 - 后续由你在两个隐藏输入框中分别配置的 DeepSeek API Key 和欧路 OpenAPI Authorization；
   不要把任何 Key 或 Authorization 写进命令、聊天或仓库。
 
@@ -19,15 +21,14 @@ Windows 版复用同一套 Chrome Extension 和 wire v5，但 Native Host 固定
 ```powershell
 git clone https://github.com/Neil0619/huayi.git
 Set-Location huayi
-corepack enable
 pnpm install
-pnpm build
-pnpm host:windows:package
+pnpm verify:windows
 ```
 
-`host:windows:package` 使用 Node 的 Single Executable Application 构建
-`apps/native-host/dist/windows/huayi-native-host.exe`。该步骤必须在 Windows 上执行；macOS
-不能替你产出可验收的 Windows `.exe`。
+`verify:windows` 运行离线指令检查、格式、Lint、类型、单测和构建，再使用 Node Single
+Executable Application 构建 `apps/native-host/dist/windows/huayi-native-host.exe`，向真实
+`.exe` 发送 Native Messaging `health` 帧并检查退出、帧及 stderr 污染。该步骤必须在 Windows
+上执行；macOS 的 fake 测试不能替你产出或验收 Windows `.exe`。
 
 ## 2. 在 Chrome 加载扩展
 

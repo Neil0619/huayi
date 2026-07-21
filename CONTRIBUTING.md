@@ -35,22 +35,20 @@
 17. DeepSeek 固定使用官方 HTTPS Chat Completions、`deepseek-v4-flash`、非思考 JSON Output 和
     独立钥匙串项；默认测试只使用 fake fetch/Keychain。配置、真实 smoke 与 Provider 切换是
     三个独立动作，禁止自动重试或回退。
-18. Windows 运行时固定为 DeepSeek-only，不得解析 Codex 或启用欧路、OpenAI、Compatible；
-    DeepSeek Key 只保存在当前用户和当前机器可解密的 DPAPI 凭据文件中。Windows 安装、卸载、
-    注册表或凭据行为变化必须同步更新 `docs/setup-windows.md` 和安全文档。
+18. Windows 模型运行时固定为 DeepSeek-only，不得解析 Codex 或启用 OpenAI、Compatible；欧路
+    作为独立生词本能力受支持。DeepSeek Key 与欧路授权分别保存在当前用户、当前机器可解密的
+    DPAPI 凭据文件中。Windows 安装、卸载、注册表或凭据行为变化必须同步更新
+    `docs/setup-windows.md` 和安全文档。
+19. 每项任务先按 `shared | macOS | Windows` 声明影响范围，并按
+    [跨平台开发规则](docs/cross-platform-development.md) 选择自动门禁和目标平台人工验收。fake
+    测试不能替代真实 Keychain、DPAPI、注册表、SEA 或 Chrome Native Messaging 验证。
 
 ## 提交前检查
 
-```bash
-pnpm check:instructions
-pnpm format:check
-pnpm lint
-pnpm typecheck
-pnpm test
-pnpm test:e2e
-pnpm build
-git diff --check
-```
+在 macOS 执行 `pnpm verify:macos`；在 Windows Node.js 26 环境执行
+`pnpm verify:windows`。共享改动必须等待 GitHub Actions 的 `macos-quality` 和
+`windows-quality` 都通过。目标平台不可用时，状态只能写成
+“implemented; target-platform validation pending”，并给出交接命令、预期结果和剩余风险。
 
 上述门禁必须保持离线。`pnpm smoke:codex`、`pnpm smoke:compatible`、
 `pnpm smoke:compare` 与 `pnpm smoke:deepseek` 不属于默认门禁，只能在

@@ -37,16 +37,13 @@
   configuration. Non-empty reasoning, missing `[DONE]`, truncation, unknown structures, and
   mismatched lifecycle metadata fail closed. Its configure, smoke, and Provider switch remain
   separate explicit actions.
-- Windows is DeepSeek-only for model analysis. It must not resolve, start, or configure Codex,
-  OpenAI, or the compatible provider. Health always reports `deepseek-chat-completions` and no
-  Codex version; Eudic remains a separate `WordbookProvider`.
-- Windows reads the DeepSeek Key and Eudic authorization per operation through separate installed
-  fixed PowerShell helpers. Each credential is a `PSCredential` serialized with `Export-Clixml`
-  and DPAPI for the current Windows user and machine. Never accept either secret by argument,
-  environment, repository file, or wire data.
-- Windows installation owns only `%LOCALAPPDATA%\Huayi\native-host` and the exact per-user registry
-  key `HKCU\Software\Google\Chrome\NativeMessagingHosts\com.huayi.codex_bridge`. Package the Host
-  as a Node SEA `.exe`; use fixed `reg.exe` arguments and `shell:false`.
+- Follow the root cross-platform completion rules. Windows is DeepSeek-only, reports no Codex
+  version, and keeps Eudic as a separate `WordbookProvider`; never resolve or configure another
+  model provider there.
+- Windows reads separate DeepSeek and Eudic DPAPI `PSCredential` files through fixed installed
+  PowerShell helpers. Never accept either secret by argument, environment, repository, or wire.
+- Windows owns only `%LOCALAPPDATA%\Huayi\native-host` and the exact per-user Chrome Native
+  Messaging registry key. Package a Node SEA `.exe`; use fixed `reg.exe` arrays and `shell:false`.
 - Compatible POST uses `redirect:error`, `credentials:omit`, no Cookie/retry/fallback, and only its
   documented strict dialect; unknown, duplicate, late, tool, refusal, or mismatched events fail.
 - Warmup may discover MCP and initialize one shared App Server session, but it contains no page

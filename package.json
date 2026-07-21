@@ -35,7 +35,9 @@
     "smoke:compare": "node scripts/compare-providers.mjs",
     "test": "node --test scripts/*.test.mjs && vitest run --workspace vitest.workspace.ts --passWithNoTests",
     "test:e2e": "playwright test --pass-with-no-tests",
-    "typecheck": "pnpm --recursive --if-present typecheck"
+    "typecheck": "pnpm --recursive --if-present typecheck",
+    "verify:macos": "node scripts/run-platform-verification.mjs darwin",
+    "verify:windows": "node scripts/run-platform-verification.mjs win32"
   },
   "devDependencies": {
     "@eslint/js": "^9.30.1",

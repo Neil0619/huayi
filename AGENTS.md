@@ -43,6 +43,7 @@ follow-up chat, or browser settings.
 - Overlay visual behavior:
   `docs/superpowers/specs/2026-07-17-ui-refresh-design.md`.
 - Current release status and roadmap: `docs/project-status.md`.
+- Cross-platform development and completion rules: `docs/cross-platform-development.md`.
 - Windows source installation: `docs/setup-windows.md`.
 - Keep temporary task status out of AGENTS.md files.
 
@@ -89,17 +90,44 @@ follow-up chat, or browser settings.
 - Add a new wordbook behind `WordbookProvider`; do not put wordbook concerns in
   `AnalysisProvider`.
 
+## Cross-platform development
+
+- At task start, declare the affected platform set as `shared`, `macOS`, `Windows`, or a
+  combination. Do not infer completion for an unverified target platform.
+- Protocol, Schema, Prompt, HTTP, Extension UI, and pure domain changes may be implemented on
+  either OS, but the macOS and Windows CI jobs must both pass.
+- Fake process, filesystem, credential, registry, and Keychain tests prove contracts only. They
+  never replace target-platform validation of OS integration.
+- Changes to Keychain, Codex process control, macOS launchers, or macOS installation require
+  macOS validation. Changes to DPAPI, PowerShell, registry, SEA, or Windows installation require
+  Windows validation with Node.js 26 or newer.
+- Native Messaging, Host/Extension version, framing, or shared transport changes require both
+  platform CI jobs and manual Chrome verification on both supported platforms before release.
+- Real Chrome, credentials, provider smoke, install, upgrade, and uninstall are manual target-OS
+  checks requiring separate user approval. CI must remain offline and secret-free.
+- If the target OS is unavailable, report `implemented; target-platform validation pending`, give
+  exact handoff commands and expected results, and do not claim the task or release complete.
+- Inject platform, path, permission, newline, case-sensitivity, process, and environment behavior.
+  Use `node:path` platform variants where needed, argument arrays, and `shell: false`.
+- Do not skip a test merely because the development host differs. Skip only unavoidable real OS
+  primitives, document why, and cover the behavior in the matching target-platform CI job.
+- Platform integration changes must update `docs/cross-platform-development.md`, `docs/testing.md`,
+  the affected setup document, and `docs/security.md` when the security boundary changes.
+
 ## Toolchain and commands
 
 - Use pnpm workspaces, Node.js 18 or newer, strict TypeScript, and ESM.
 - Use these root commands:
   - `pnpm install`
+  - `pnpm check:instructions`
   - `pnpm format:check`
   - `pnpm lint`
   - `pnpm typecheck`
   - `pnpm test`
   - `pnpm test:e2e`
   - `pnpm build`
+  - `pnpm verify:macos`
+  - `pnpm verify:windows`
   - `pnpm smoke:codex`
   - `pnpm smoke:compatible`
   - `pnpm smoke:deepseek`

@@ -11,15 +11,24 @@ const moduleInstructions = [
 ];
 const requiredCommands = [
   "pnpm install",
+  "pnpm check:instructions",
   "pnpm format:check",
   "pnpm lint",
   "pnpm typecheck",
   "pnpm test",
   "pnpm test:e2e",
   "pnpm build",
+  "pnpm verify:macos",
+  "pnpm verify:windows",
   "pnpm smoke:codex",
   "pnpm host:install -- --extension-id <ID>",
   "pnpm host:uninstall",
+  "pnpm host:windows:package",
+];
+const requiredRootFragments = [
+  "## Cross-platform development",
+  "docs/cross-platform-development.md",
+  "implemented; target-platform validation pending",
 ];
 
 const errors = [];
@@ -52,6 +61,12 @@ checkMaximum(rootInstructions, root.size, 12 * 1024);
 for (const command of requiredCommands) {
   if (!root.content.includes(`\`${command}\``)) {
     errors.push(`${rootInstructions} is missing required command: ${command}`);
+  }
+}
+
+for (const fragment of requiredRootFragments) {
+  if (!root.content.includes(fragment)) {
+    errors.push(`${rootInstructions} is missing cross-platform rule: ${fragment}`);
   }
 }
 

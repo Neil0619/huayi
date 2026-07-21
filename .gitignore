@@ -4,7 +4,9 @@ coverage/
 playwright-report/
 test-results/
 .DS_Store
+.codex-pet-runs/
 .idea/
+.worktrees/
 .env
 .env.*
 *.log

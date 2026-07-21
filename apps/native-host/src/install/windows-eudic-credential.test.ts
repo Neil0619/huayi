@@ -1,4 +1,4 @@
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -29,6 +29,7 @@ async function fixturePaths(): Promise<{
   const powershellExecutable = join(workingDirectory, "powershell.exe");
   await writeFile(credentialHelperPath, "# helper", "utf8");
   await writeFile(powershellExecutable, "fake powershell", "utf8");
+  if (process.platform !== "win32") await chmod(powershellExecutable, 0o755);
   return {
     credentialHelperPath,
     credentialPath: join(workingDirectory, "eudic-credential.xml"),
