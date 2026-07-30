@@ -1,4 +1,4 @@
-export const SCHEMA_VERSION = 5;
+export const SCHEMA_VERSION = 6;
 
 export const MAX_SELECTION_LENGTH = 2_000;
 export const MAX_CONTEXT_LENGTH = 2_000;
@@ -7,6 +7,8 @@ export const MAX_MODEL_TEXT_LENGTH = 4_000;
 export const MAX_STREAM_DELTA_LENGTH = 4_096;
 export const MAX_ERROR_MESSAGE_LENGTH = 300;
 export const MAX_WIRE_MESSAGE_BYTES = 1_048_576;
+export const MAX_WORD_SYNC_BATCH_SIZE = 100;
+export const MAX_WORD_SYNC_TOTAL_WORDS = 5_100;
 
 export const MAX_COLLOCATIONS = 3;
 export const MAX_RELATED_TERMS = 3;

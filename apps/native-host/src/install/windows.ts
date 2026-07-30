@@ -135,31 +135,34 @@ export async function uninstallWindowsNativeHost(
   options: UninstallWindowsNativeHostOptions,
 ): Promise<WindowsInstallerResult> {
   const paths = createWindowsInstallationPaths(options.localAppDataDirectory);
-  if (!(await pathExists(paths.applicationDirectory))) {
-    return { actions: [], dryRun: options.dryRun, paths };
-  }
-  await assertOwnedDirectory(paths);
-  const actions = [
-    `Remove ${WINDOWS_NATIVE_HOST_REGISTRY_KEY}`,
-    `Remove Windows Huayi directory ${paths.applicationDirectory}`,
-  ];
+  const applicationDirectoryExists = await pathExists(paths.applicationDirectory);
+  if (applicationDirectoryExists) await assertOwnedDirectory(paths);
+  const actions = applicationDirectoryExists
+    ? [
+        `Remove ${WINDOWS_NATIVE_HOST_REGISTRY_KEY}`,
+        `Remove Windows Huayi directory ${paths.applicationDirectory}`,
+      ]
+    : [];
   if (options.dryRun) return { actions, dryRun: true, paths };
+  const registryWorkingDirectory = applicationDirectoryExists
+    ? paths.applicationDirectory
+    : options.localAppDataDirectory;
   const query = await options.processRunner.run({
     arguments: ["QUERY", WINDOWS_NATIVE_HOST_REGISTRY_KEY, "/ve"],
-    cwd: paths.applicationDirectory,
+    cwd: registryWorkingDirectory,
     env: options.environment,
     executable: options.registryExecutable,
     input: "",
     maximumOutputBytes: 8 * 1024,
     timeoutMs: 5_000,
   });
-  if (query.exitCode !== 0 && query.exitCode !== 1) {
+  if (query.signal !== null || (query.exitCode !== 0 && query.exitCode !== 1)) {
     throw new Error("Unable to inspect the Huayi Chrome Native Messaging registration.");
   }
   if (query.exitCode === 0) {
     const deletion = await options.processRunner.run({
       arguments: ["DELETE", WINDOWS_NATIVE_HOST_REGISTRY_KEY, "/f"],
-      cwd: paths.applicationDirectory,
+      cwd: registryWorkingDirectory,
       env: options.environment,
       executable: options.registryExecutable,
       input: "",
@@ -169,7 +172,8 @@ export async function uninstallWindowsNativeHost(
     if (deletion.exitCode !== 0 || deletion.signal !== null) {
       throw new Error("Unable to remove the Huayi Chrome Native Messaging registration.");
     }
+    if (!applicationDirectoryExists) actions.push(`Remove ${WINDOWS_NATIVE_HOST_REGISTRY_KEY}`);
   }
-  await rm(paths.applicationDirectory, { recursive: true });
+  if (applicationDirectoryExists) await rm(paths.applicationDirectory, { recursive: true });
   return { actions, dryRun: false, paths };
 }

@@ -8,15 +8,19 @@ import {
   checkWordRequestSchema,
   hostRequestSchema,
   hostWorkRequestSchema,
+  wordSyncListUnresolvedRequestSchema,
+  wordSyncRequeueUnresolvedRequestSchema,
+  wordSyncResolveBatchRequestSchema,
+  wordSyncRequestSchema,
 } from "./index.js";
 
-const PREVIOUS_SCHEMA_VERSION = 3;
+const PREVIOUS_SCHEMA_VERSION = 5;
 
 const lexicalRequest = {
   action: "translate",
   context: "The victims were taken to safety.",
   requestId: "analysis-v2",
-  schemaVersion: 5,
+  schemaVersion: 6,
   selection: "victims",
   selectionKind: "word",
   sentenceContext: "The victims were taken to safety.",
@@ -83,7 +87,7 @@ describe("hostRequestSchema", () => {
     expect(
       hostRequestSchema.parse({
         requestId: "health-1",
-        schemaVersion: 5,
+        schemaVersion: 6,
         type: "health",
       }).type,
     ).toBe("health");
@@ -93,7 +97,7 @@ describe("hostRequestSchema", () => {
         context: "The investigation was in its early stages.",
         language: "en",
         requestId: "word-1",
-        schemaVersion: 5,
+        schemaVersion: 6,
         type: "add-word",
         word: "investigation",
       }).type,
@@ -101,17 +105,88 @@ describe("hostRequestSchema", () => {
     expect(
       hostRequestSchema.parse({
         requestId: "cancel-1",
-        schemaVersion: 5,
+        schemaVersion: 6,
         targetRequestId: lexicalRequest.requestId,
         type: "cancel",
       }).type,
     ).toBe("cancel");
   });
 
+  it("accepts strict word-sync requests", () => {
+    for (const type of ["word-sync-status", "word-sync-poll", "word-sync-prepare-batch"] as const) {
+      expect(
+        wordSyncRequestSchema.parse({ requestId: `sync-${type}`, schemaVersion: 6, type }).type,
+      ).toBe(type);
+    }
+    const resolve = {
+      batchId: "batch-1",
+      rejectedTargets: ["orbiting"],
+      requestId: "sync-resolve-1",
+      schemaVersion: 6,
+      type: "word-sync-resolve-batch",
+    } as const;
+    expect(wordSyncResolveBatchRequestSchema.parse(resolve)).toEqual(resolve);
+    expect(hostRequestSchema.parse(resolve)).toEqual(resolve);
+    expect(hostWorkRequestSchema.safeParse(resolve).success).toBe(false);
+    expect(() =>
+      wordSyncResolveBatchRequestSchema.parse({ ...resolve, words: ["secret"] }),
+    ).toThrow();
+    expect(() =>
+      wordSyncResolveBatchRequestSchema.parse({
+        ...resolve,
+        rejectedTargets: ["Orbiting", "orbiting"],
+      }),
+    ).toThrow();
+
+    const list = {
+      limit: 100,
+      offset: 0,
+      requestId: "sync-list-1",
+      schemaVersion: 6,
+      type: "word-sync-list-unresolved",
+    } as const;
+    expect(wordSyncListUnresolvedRequestSchema.parse(list)).toEqual(list);
+
+    const requeue = {
+      items: [{ sourceWord: "splendidly", targetWord: "splendid" }],
+      requestId: "sync-requeue-1",
+      schemaVersion: 6,
+      type: "word-sync-requeue-unresolved",
+    } as const;
+    expect(wordSyncRequeueUnresolvedRequestSchema.parse(requeue)).toEqual(requeue);
+    expect(() =>
+      wordSyncRequeueUnresolvedRequestSchema.parse({
+        ...requeue,
+        items: [...requeue.items, { sourceWord: "Splendidly", targetWord: "splendid" }],
+      }),
+    ).toThrow();
+
+    const discard = {
+      requestId: "sync-discard-1",
+      schemaVersion: 6,
+      sourceWords: ["splendidly"],
+      type: "word-sync-discard-unresolved",
+    } as const;
+    expect(hostRequestSchema.parse(discard)).toEqual(discard);
+    expect(() =>
+      hostRequestSchema.parse({ ...discard, sourceWords: ["Splendidly", "splendidly"] }),
+    ).toThrow();
+    expect(() => hostRequestSchema.parse({ ...discard, extra: true })).toThrow();
+
+    const discardAll = {
+      confirm: true,
+      requestId: "sync-discard-all-1",
+      schemaVersion: 6,
+      type: "word-sync-discard-all-unresolved",
+    } as const;
+    expect(hostRequestSchema.parse(discardAll)).toEqual(discardAll);
+    expect(() => hostRequestSchema.parse({ ...discardAll, confirm: false })).toThrow();
+  });
+
   it("accepts only a strict warmup request outside the host work union", () => {
     const warmup = {
       requestId: "warmup-1",
-      schemaVersion: 5,
+      schemaVersion: 6,
       type: "warmup",
     } as const;
 
@@ -124,7 +199,7 @@ describe("hostRequestSchema", () => {
     expect(
       hostRequestSchema.safeParse({
         requestId: "request-1",
-        schemaVersion: 5,
+        schemaVersion: 6,
         type: "unknown",
       }).success,
     ).toBe(false);
@@ -142,7 +217,7 @@ describe("addWordRequestSchema", () => {
     context: "The investigation was in its early stages.",
     language: "en",
     requestId: "word-1",
-    schemaVersion: 5,
+    schemaVersion: 6,
     type: "add-word",
     word: "investigation",
   } as const;
@@ -191,7 +266,7 @@ describe("checkWordRequestSchema", () => {
   const checkWord = {
     language: "en",
     requestId: "check-1",
-    schemaVersion: 5,
+    schemaVersion: 6,
     type: "check-word",
     word: "mother-in-law",
   } as const;
@@ -231,7 +306,7 @@ describe("checkWordRequestSchema", () => {
         context: "The investigation was in its early stages.",
         language: "en",
         requestId: "word-1",
-        schemaVersion: 5,
+        schemaVersion: 6,
         type: "add-word",
         word: "investigation",
       }).success,

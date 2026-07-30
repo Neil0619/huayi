@@ -71,7 +71,7 @@ export function deepSeekHttpError(status: number): DeepSeekProviderError {
   if (status === 401 || status === 403) return deepSeekProviderError("MODEL_PROVIDER_AUTH_FAILED");
   if (status === 402) return deepSeekProviderError("QUOTA_EXCEEDED");
   if (status === 429) return deepSeekProviderError("RATE_LIMITED");
-  if ([500, 502, 503, 504].includes(status)) return deepSeekProviderError("NETWORK_ERROR");
+  if (status >= 500 && status < 600) return deepSeekProviderError("INTERNAL_ERROR");
   if (status >= 300 && status < 500) return deepSeekProviderError("INVALID_RESPONSE");
   return deepSeekProviderError("INTERNAL_ERROR");
 }

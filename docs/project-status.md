@@ -2,8 +2,8 @@
 
 ## 当前基线
 
-- 产品版本：`0.10.0`
-- Native Messaging：`schemaVersion: 5`
+- 产品版本：`0.12.0`
+- Native Messaging：`schemaVersion: 6`
 - 浏览器：Google Chrome 普通 `http/https` 顶层网页及 YouTube `/watch` 英文字幕
 - macOS：完整功能，默认 Provider 为已登录 Codex
 - Windows：模型固定为 DeepSeek，不连接本机 Codex；支持欧路生词本
@@ -20,13 +20,15 @@
 | 0.8     | 单词翻译与解释职责分离，wire 升至 v5                              |
 | 0.9     | 词典式浮层、稳定 DOM 更新和窄屏体验                               |
 | 0.10    | Windows DeepSeek/DPAPI/SEA、欧路生词本，以及 YouTube 英文字幕取词 |
+| 0.11    | 欧路全部英语收藏到扇贝的每日持久同步、角标和双平台断点批次        |
+| 0.12    | 扇贝部分确认、离线词形还原、未解决词放弃/重排队及旧批次再审计     |
 
 ## 仍然不支持
 
 - Windows 上的 Codex、OpenAI 和 Compatible HTTP。
 - Linux、Firefox、Edge、PDF、Chrome 内部页面、iframe 和编辑器区域。
 - YouTube 直播、Shorts、OCR、字幕历史和跨字幕片段自动拼句。
-- 历史记录、同步、后续对话、浏览器内 Provider 设置和 Chrome Web Store 自动安装。
+- 分析历史记录、跨设备同步、后续对话、浏览器内 Provider 设置和 Chrome Web Store 自动安装。
 
 ## 文档接手顺序
 

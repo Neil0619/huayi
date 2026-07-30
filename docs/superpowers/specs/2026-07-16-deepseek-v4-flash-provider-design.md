@@ -42,8 +42,9 @@ Key 存于 `com.huayi.codex_bridge.deepseek` / `api-key`，每次请求通过固
 64 KiB 错误体上限，不发送 Cookie、不重试。
 
 HTTP 401/403 映射 `MODEL_PROVIDER_AUTH_FAILED`，402 映射 `QUOTA_EXCEEDED`，429 映射
-`RATE_LIMITED`，500/502/503/504 映射 `NETWORK_ERROR`，400/422、重定向和协议错误映射
-`INVALID_RESPONSE`；本地取消和超时分别映射 `CANCELLED` 与 `TIMEOUT`。
+`RATE_LIMITED`，5xx 映射 `INTERNAL_ERROR`，400/422、重定向和协议错误映射
+`INVALID_RESPONSE`；只有本地传输失败映射 `NETWORK_ERROR`，本地取消和超时分别映射
+`CANCELLED` 与 `TIMEOUT`。
 
 ## 发布与验证
 

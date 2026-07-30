@@ -80,6 +80,25 @@ describe("parseInstallerArguments", () => {
     expect(parseInstallerArguments(["--help"])).toEqual({ type: "help" });
   });
 
+  it("parses guarded legacy word-sync re-audit commands", () => {
+    expect(parseInstallerArguments(["word-sync-reaudit"])).toEqual({
+      confirm: false,
+      type: "word-sync-reaudit",
+    });
+    expect(
+      parseInstallerArguments([
+        "word-sync-reaudit",
+        "--probe",
+        "investigation",
+        "--confirm-requeue-legacy",
+      ]),
+    ).toEqual({
+      confirm: true,
+      probe: "investigation",
+      type: "word-sync-reaudit",
+    });
+  });
+
   it.each([
     [[]],
     [["install"]],
@@ -93,6 +112,8 @@ describe("parseInstallerArguments", () => {
     [["provider-set", "api", "--"]],
     [["provider-set", "api", "extra"]],
     [["provider-status", "--dry-run"]],
+    [["word-sync-reaudit", "--probe", "two words"]],
+    [["word-sync-reaudit", "--unknown"]],
   ])("rejects invalid arguments %j", (arguments_) => {
     expect(() => parseInstallerArguments(arguments_)).toThrow(/usage|argument|extension|provider/i);
   });

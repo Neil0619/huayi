@@ -1,6 +1,9 @@
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { PassThrough } from "node:stream";
 
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { HostEvent } from "@huayi/protocol";
 
@@ -21,6 +24,23 @@ import type {
   ProcessRunner,
 } from "./runtime/codex-process.js";
 import type { EudicFetch } from "./wordbook/eudic-client.js";
+import { EudicOperationExecutor } from "./wordbook/eudic-operation-executor.js";
+
+const temporaryDirectories: string[] = [];
+
+afterEach(async () => {
+  await Promise.all(
+    temporaryDirectories
+      .splice(0)
+      .map((directory) => rm(directory, { force: true, recursive: true })),
+  );
+});
+
+async function createTemporaryWordSyncStatePath(): Promise<string> {
+  const directory = await mkdtemp(join(tmpdir(), "huayi-main-word-sync-"));
+  temporaryDirectories.push(directory);
+  return join(directory, "word-sync-state.json");
+}
 
 class HealthDispatcher implements RequestDispatcher {
   dispatch(_message: unknown, emit: (event: HostEvent) => void): void {
@@ -31,7 +51,7 @@ class HealthDispatcher implements RequestDispatcher {
       provider: "codex",
       ready: true,
       requestId: "health-1",
-      schemaVersion: 5,
+      schemaVersion: 6,
       type: "health-result",
     });
   }
@@ -78,7 +98,7 @@ describe("runNativeHost", () => {
       output,
     });
 
-    input.write(encodeNativeMessage({ requestId: "health-1", schemaVersion: 5, type: "health" }));
+    input.write(encodeNativeMessage({ requestId: "health-1", schemaVersion: 6, type: "health" }));
     await vi.waitFor(() => expect(outputChunks.length).toBe(1));
 
     const decoder = new NativeMessageDecoder();
@@ -90,7 +110,7 @@ describe("runNativeHost", () => {
         provider: "codex",
         ready: true,
         requestId: "health-1",
-        schemaVersion: 5,
+        schemaVersion: 6,
         type: "health-result",
       },
     ]);
@@ -169,7 +189,7 @@ describe("runNativeHost", () => {
           action: "translate",
           context: "The investigation was in its early stages.",
           requestId: "analysis-stdin-close",
-          schemaVersion: 5,
+          schemaVersion: 6,
           selection: "investigation",
           selectionKind: "word",
           sentenceContext: null,
@@ -247,14 +267,14 @@ describe("native host bootstrap", () => {
     });
     const events: HostEvent[] = [];
 
-    dispatcher.dispatch({ requestId: "health-2", schemaVersion: 5, type: "health" }, (event) =>
+    dispatcher.dispatch({ requestId: "health-2", schemaVersion: 6, type: "health" }, (event) =>
       events.push(event),
     );
     await vi.waitFor(() => expect(events).toHaveLength(1));
 
     expect(events[0]).toMatchObject({
       codexVersion: "codex-cli 0.144.1",
-      hostVersion: "0.10.0",
+      hostVersion: "0.12.0",
       model: "gpt-5.4-mini",
       provider: "codex",
       ready: true,
@@ -273,128 +293,68 @@ describe("native host bootstrap", () => {
     dispatcher.dispose();
   });
 
-  it("wires add-word requests through Keychain authorization and the fixed Eudic client", async () => {
-    const processRequests: ProcessRunRequest[] = [];
-    const processRunner: ProcessRunner = {
-      run: async (request) => {
-        processRequests.push(request);
-        return {
-          exitCode: 0,
-          signal: null,
-          stderr: "",
-          stdout: "Bearer configured-secret\n",
-        };
-      },
+  it("injects one Eudic operation executor into macOS wordbook and word-sync services", async () => {
+    const eudicAuthorizationReader = {
+      read: vi.fn(async () => "Bearer fixture"),
     };
-    const fetchRequests: Parameters<EudicFetch>[] = [];
-    const eudicFetch: EudicFetch = async (...arguments_) => {
-      fetchRequests.push(arguments_);
-      return new Response(JSON.stringify({ data: [{ word: "investigation" }] }), {
+    const eudicOperationExecutor = new EudicOperationExecutor({
+      authorizationReader: eudicAuthorizationReader,
+    });
+    const executeEudicOperation = vi.spyOn(eudicOperationExecutor, "execute");
+    const eudicFetch = vi.fn<EudicFetch>(async (url) => {
+      const body =
+        url.includes("/vocab_entries") || url.includes("/words?")
+          ? { data: [], message: "" }
+          : { data: [] };
+      return new Response(JSON.stringify(body), {
         headers: { "Content-Type": "application/json" },
         status: 200,
       });
-    };
+    });
+    const wordSyncStatePath = await createTemporaryWordSyncStatePath();
     const dispatcher = createNativeHostDispatcher({
       codexExecutable: "/opt/codex",
       environment: { HOME: "/Users/tester" },
-      eudicFetch,
       errorOutput: new PassThrough(),
-      processRunner,
-      schemaDirectory: "/tmp/schemas",
-      securityExecutable: "/usr/bin/security",
-      workingDirectory: "/tmp/work",
-    });
-    const events: HostEvent[] = [];
-
-    dispatcher.dispatch(
-      {
-        context: "The investigation is still in its early stages.",
-        language: "en",
-        requestId: "word-1",
-        schemaVersion: 5,
-        type: "add-word",
-        word: "investigation",
-      },
-      (event) => events.push(event),
-    );
-    await vi.waitFor(() => expect(events.some((event) => event.type === "word-added")).toBe(true));
-
-    expect(events.at(-1)).toEqual({
-      outcome: "already-exists",
-      requestId: "word-1",
-      schemaVersion: 5,
-      type: "word-added",
-    });
-    expect(processRequests).toHaveLength(1);
-    expect(processRequests[0]?.arguments).toEqual([
-      "find-generic-password",
-      "-s",
-      "com.huayi.codex_bridge.eudic",
-      "-a",
-      "authorization",
-      "-w",
-    ]);
-    expect(processRequests.some((request) => request.arguments[0] === "mcp")).toBe(false);
-    expect(fetchRequests).toHaveLength(1);
-    expect(fetchRequests[0]?.[1].headers.Authorization).toBe("Bearer configured-secret");
-    dispatcher.dispose();
-  });
-
-  it("wires check-word requests through Keychain authorization and the fixed Eudic client", async () => {
-    const processRequests: ProcessRunRequest[] = [];
-    const processRunner: ProcessRunner = {
-      run: async (request) => {
-        processRequests.push(request);
-        return {
-          exitCode: 0,
-          signal: null,
-          stderr: "",
-          stdout: "Bearer configured-secret\n",
-        };
-      },
-    };
-    const fetchRequests: Parameters<EudicFetch>[] = [];
-    const eudicFetch: EudicFetch = async (...arguments_) => {
-      fetchRequests.push(arguments_);
-      return new Response(JSON.stringify({ data: [{ word: "investigation" }] }), {
-        headers: { "Content-Type": "application/json" },
-        status: 200,
-      });
-    };
-    const dispatcher = createNativeHostDispatcher({
-      codexExecutable: "/opt/codex",
-      environment: { HOME: "/Users/tester" },
+      eudicAuthorizationReader,
       eudicFetch,
-      errorOutput: new PassThrough(),
-      processRunner,
+      eudicOperationExecutor,
+      processRunner: {
+        run: vi.fn(async () => {
+          throw new Error("Process runner must not run.");
+        }),
+      },
       schemaDirectory: "/tmp/schemas",
-      securityExecutable: "/usr/bin/security",
       workingDirectory: "/tmp/work",
+      wordSyncStatePath,
     });
     const events: HostEvent[] = [];
 
     dispatcher.dispatch(
       {
         language: "en",
-        requestId: "check-1",
-        schemaVersion: 5,
+        requestId: "check-shared-macos",
+        schemaVersion: 6,
         type: "check-word",
         word: "investigation",
       },
       (event) => events.push(event),
     );
     await vi.waitFor(() => expect(events.some((event) => event.type === "word-status")).toBe(true));
+    dispatcher.dispatch(
+      { requestId: "sync-shared-macos", schemaVersion: 6, type: "word-sync-poll" },
+      (event) => events.push(event),
+    );
+    await vi.waitFor(() =>
+      expect(
+        events.some(
+          (event) => event.type === "word-sync-status" && event.requestId === "sync-shared-macos",
+        ),
+      ).toBe(true),
+    );
 
-    expect(events.at(-1)).toEqual({
-      presence: "present",
-      requestId: "check-1",
-      schemaVersion: 5,
-      type: "word-status",
-    });
-    expect(processRequests).toHaveLength(1);
-    expect(processRequests.some((request) => request.arguments[0] === "mcp")).toBe(false);
-    expect(fetchRequests).toHaveLength(1);
-    expect(fetchRequests[0]?.[1].method).toBe("GET");
+    expect(executeEudicOperation).toHaveBeenCalledTimes(2);
+    expect(eudicAuthorizationReader.read).toHaveBeenCalledTimes(2);
     dispatcher.dispose();
   });
 });

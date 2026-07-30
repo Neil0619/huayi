@@ -4,11 +4,15 @@ import type {
   WordbookAddOutcome,
   WordbookPresence,
 } from "@huayi/protocol";
+import { z } from "zod";
 
 import { EudicProviderError, eudicError } from "./eudic-errors.js";
 
 export const EUDIC_WORD_ENDPOINT = "https://api.frdic.com/api/open/v1/studylist/word";
+export const EUDIC_WORDS_ENDPOINT = "https://api.frdic.com/api/open/v1/studylist/words";
 export const MAXIMUM_EUDIC_RESPONSE_BYTES = 64 * 1024;
+export const MAXIMUM_EUDIC_LIST_RESPONSE_BYTES = 1024 * 1024;
+export const EUDIC_LIST_PAGE_SIZE = 100;
 
 export type EudicResponse = Pick<Response, "body" | "status">;
 
@@ -27,6 +31,11 @@ export interface EudicClientOptions {
   fetch?: EudicFetch;
 }
 
+export interface EudicVocabEntry {
+  addTime: string;
+  word: string;
+}
+
 function defaultFetch(url: string, init: EudicFetchInit): Promise<EudicResponse> {
   return fetch(url, init);
 }
@@ -35,7 +44,11 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-async function readJson(response: EudicResponse, signal: AbortSignal): Promise<unknown> {
+async function readJson(
+  response: EudicResponse,
+  signal: AbortSignal,
+  maximumBytes = MAXIMUM_EUDIC_RESPONSE_BYTES,
+): Promise<unknown> {
   if (response.body === null) {
     throw eudicError("INVALID_RESPONSE");
   }
@@ -52,7 +65,7 @@ async function readJson(response: EudicResponse, signal: AbortSignal): Promise<u
         throw eudicError("INVALID_RESPONSE");
       }
       totalBytes += chunk.value.byteLength;
-      if (totalBytes > MAXIMUM_EUDIC_RESPONSE_BYTES) {
+      if (totalBytes > maximumBytes) {
         await reader.cancel().catch(() => undefined);
         throw eudicError("INVALID_RESPONSE");
       }
@@ -120,7 +133,7 @@ function buildHeaders(authorization: string): Readonly<Record<string, string>> {
   return {
     Accept: "application/json",
     Authorization: authorization,
-    "User-Agent": "Huayi/0.10.0",
+    "User-Agent": "Huayi/0.12.0",
   };
 }
 
@@ -140,6 +153,20 @@ function buildGetInit(authorization: string, signal: AbortSignal): EudicFetchIni
     signal,
   };
 }
+
+const eudicWordbookEntrySchema = z.strictObject({
+  add_time: z.string().datetime({ offset: true }),
+  context_line: z.string().optional(),
+  exp: z.string(),
+  phon: z.string().optional(),
+  star: z.number().int(),
+  word: z.string().trim().min(1).max(2_000),
+});
+
+const eudicWordbookEntriesResponseSchema = z.strictObject({
+  data: z.array(eudicWordbookEntrySchema).max(EUDIC_LIST_PAGE_SIZE),
+  message: z.string(),
+});
 
 function wordFromRecord(value: unknown): string | null {
   return isRecord(value) && typeof value.word === "string" ? value.word : null;
@@ -243,6 +270,36 @@ export class EudicClient {
     signal: AbortSignal,
   ): Promise<WordbookPresence> {
     return this.lookupWord(authorization, request, signal);
+  }
+
+  async listFavoritedWords(
+    authorization: string,
+    page: number,
+    recentDays: number,
+    signal: AbortSignal,
+  ): Promise<EudicVocabEntry[]> {
+    if (!Number.isSafeInteger(page) || page < 0 || page > 50) {
+      throw new RangeError("Eudic page must be an integer from 0 through 50.");
+    }
+    if (!Number.isSafeInteger(recentDays) || recentDays < 0) {
+      throw new RangeError("Eudic recentDays must be a non-negative integer.");
+    }
+    const url = new URL(EUDIC_WORDS_ENDPOINT);
+    url.searchParams.set("language", "en");
+    url.searchParams.set("category_id", "0");
+    url.searchParams.set("page", String(page));
+    url.searchParams.set("page_size", String(EUDIC_LIST_PAGE_SIZE));
+    const response = await this.request(url.toString(), buildGetInit(authorization, signal));
+    if (response.status !== 200) {
+      await discardResponseBody(response, signal);
+      throwForStatus(response.status);
+    }
+    const body = await readJson(response, signal, MAXIMUM_EUDIC_LIST_RESPONSE_BYTES);
+    const parsed = eudicWordbookEntriesResponseSchema.safeParse(body);
+    if (!parsed.success) {
+      throw eudicError("INVALID_RESPONSE");
+    }
+    return parsed.data.data.map((entry) => ({ addTime: entry.add_time, word: entry.word }));
   }
 
   private async lookupWord(

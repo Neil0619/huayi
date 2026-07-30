@@ -5,6 +5,7 @@ import type { OpenAIApiKeyReader } from "../credentials/openai-keychain.js";
 import type { CodexAppServer } from "../runtime/codex-app-server-lifecycle.js";
 import type { CodexCapabilities } from "../runtime/codex-capabilities.js";
 import { EudicClient, type EudicFetch } from "../wordbook/eudic-client.js";
+import type { EudicOperationExecutorLike } from "../wordbook/eudic-operation-executor.js";
 import {
   EudicWordbookProvider,
   type EudicAuthorizationReader,
@@ -70,6 +71,7 @@ export interface AnalysisProviderFactoryOptions {
   deepSeekFetch?: DeepSeekFetch;
   eudicAuthorizationReader: EudicAuthorizationReader;
   eudicFetch?: EudicFetch;
+  eudicOperationExecutor?: EudicOperationExecutorLike;
   onValidationDiagnostic?: ProviderValidationDiagnosticSink;
   openAIFetch?: OpenAIFetch;
   openAIModelConfiguration?: Readonly<OpenAIModelConfiguration>;
@@ -177,6 +179,9 @@ export function createAnalysisProviderFactory(
   const wordbookProvider = new EudicWordbookProvider({
     authorizationReader: options.eudicAuthorizationReader,
     client: eudicClient,
+    ...(options.eudicOperationExecutor === undefined
+      ? {}
+      : { operationExecutor: options.eudicOperationExecutor }),
   });
 
   return {

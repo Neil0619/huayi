@@ -44,6 +44,11 @@ import {
 import { validateExtensionId } from "./native-manifest.js";
 import { createDefaultInstallerRuntime } from "./default-installer-runtime.js";
 import { executeWindowsInstallerCommand } from "./windows-cli.js";
+import {
+  executeWordSyncReauditCommand,
+  parseWordSyncReauditCommand,
+  type WordSyncReauditCommand,
+} from "./word-sync-reaudit-cli.js";
 
 const USAGE = [
   "Usage:",
@@ -62,6 +67,7 @@ const USAGE = [
   "  huayi-installer compatible-config-remove [--dry-run]",
   "  huayi-installer provider-set <api|codex|compatible-http|deepseek> [--dry-run]",
   "  huayi-installer provider-status",
+  "  huayi-installer word-sync-reaudit [--probe <WORD>] [--confirm-requeue-legacy]",
 ].join("\n");
 
 export type InstallerCommand =
@@ -76,6 +82,7 @@ export type InstallerCommand =
   | DeepSeekCredentialInstallerCommand
   | { dryRun: boolean; provider: ModelProvider; type: "provider-set" }
   | { type: "provider-status" }
+  | WordSyncReauditCommand
   | { dryRun: boolean; type: "uninstall" };
 
 export interface ProviderConfigurationAccess {
@@ -136,6 +143,13 @@ export function parseInstallerArguments(arguments_: readonly string[]): Installe
   if (compatibleCredentialCommand !== undefined) return compatibleCredentialCommand;
   const compatibleConfigurationCommand = parseCompatibleConfigurationCommand(arguments_);
   if (compatibleConfigurationCommand !== undefined) return compatibleConfigurationCommand;
+  try {
+    const wordSyncReauditCommand = parseWordSyncReauditCommand(arguments_);
+    if (wordSyncReauditCommand !== undefined) return wordSyncReauditCommand;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Invalid word-sync re-audit command.";
+    throw new Error(`${message}\n${USAGE}`);
+  }
   const command = arguments_[0];
   if (command === "provider-status") {
     if (arguments_.length !== 1) {
@@ -232,6 +246,10 @@ export async function executeInstallerCommand(
 ): Promise<void> {
   if (command.type === "help") {
     runtime.writeOutput(USAGE);
+    return;
+  }
+  if (command.type === "word-sync-reaudit") {
+    await executeWordSyncReauditCommand(command, runtime);
     return;
   }
   if (runtime.platform === "win32") {

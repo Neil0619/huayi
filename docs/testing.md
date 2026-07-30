@@ -15,8 +15,8 @@ POSIX 权限、目录 `fsync`、符号链接或 macOS Keychain 的专属测试�
 自动测试覆盖：
 
 - 发布版本：根包、三个 workspace 包、Manifest、Host health、App Server clientInfo 和欧路
-  User-Agent 全部直接断言为 `0.10.0`，wire 版本为 5。
-- 协议：严格 v4 请求/事件联合、v3 拒绝、四种 Provider health、warmup、`analysis-delta` /
+  User-Agent 全部直接断言为 `0.12.0`，wire 版本为 6。
+- 协议：严格 v6 请求/事件联合、v5 拒绝、四种 Provider health、warmup、`analysis-delta` /
   `analysis-section` 共享
   序号、`check-word` / `word-status`、错误码和 1 MiB 帧上限。
 - 选区：四类分类、2,000 字符裁剪、编辑区排除、单词所在英文句子的确定性提取，以及中英混合
@@ -31,6 +31,13 @@ POSIX 权限、目录 `fsync`、符号链接或 macOS Keychain 的专属测试�
   测试验证旧节点复用、数组累计追加、最终校正、一次性 120ms 动画及 reduced-motion。
 - Service Worker：无页面数据 warmup、分析/查词/加词三通道、并发、定向取消、共享连续序号、
   严格终态、断线和超时。
+- 生词同步：欧路默认生词本首次与每日完整扫描、跨日去重、三页断点、状态 v1/v2→v3 原子
+  迁移/独立快照/备份恢复、数据源升级后立即重扫、100 来源词幂等批次、角标与 alarm、扇贝来源校验、预填不覆盖、
+  全部成功、严格部分失败、通信失败和 10 秒人工确认兜底；Windows fixture 另验证 re-audit
+  dry-run 不迁移或写回状态，以及目标文件被锁定时保留主文件并清理失败的原子替换临时文件。
+- 词形与未解决词：`wink-lemmatizer` 的规则/不规则唯一候选、无变化/歧义/副词拒绝、两个来源
+  合并同一目标、一次词元重试、人工替代词、分页面板、逐条放弃、二次确认全部放弃、放弃后
+  轮询不再入队、崩溃恢复，以及历史再审计 dry-run、单词探针和全量确认保护。
 - MCP 发现：fake process runner 覆盖已启用/已禁用过滤、命令参数和环境允许列表，以及进程
   失败、超时、输出超限、无效 JSON、重复/不安全名称和 128 条记录上限。
 - App Server 参数：回归确认不传 `tools.view_image=false` 或 `mcp_servers={}`，只为经过校验的
@@ -69,8 +76,9 @@ POSIX 权限、目录 `fsync`、符号链接或 macOS Keychain 的专属测试�
 - 欧路：自动 GET 查词、显式 GET-before-POST、固定 URL/Header/Body、macOS Keychain 与
   Windows DPAPI 授权逐次读取、串行、取消、10 秒超时、重定向拒绝、64 KiB 上限和状态码映射。
 - 安装器：dry-run、升级、allowed origin、所有权、绝对路径、受控 launcher、钥匙串命令和
-  幂等清理。
-- Manifest：`permissions` 严格等于 `["nativeMessaging"]`，不存在 `host_permissions`。
+  幂等清理；Windows fixture 覆盖真实文件复制、manifest、精确 HKCU 参数、升级保留两份
+  DPAPI 凭据和同步状态、ownership marker 拒绝、注册表存在/不存在/失败及孤立键清理。
+- Manifest：`permissions` 严格等于 `["alarms", "nativeMessaging"]`，不存在 `host_permissions`。
 
 ## 浏览器 E2E
 
@@ -160,9 +168,11 @@ pnpm verify:windows
 ```
 
 两条命令都依次执行指令、格式、Lint、类型、单测、构建和 diff 检查。macOS 另运行 Chrome
-Playwright；Windows 另构建真实 SEA `.exe`，用 Native Messaging `health` 帧验证 v0.10.0、
+Playwright；Windows 另构建真实 SEA `.exe`，用 Native Messaging `health` 帧验证 v0.12.0、
 DeepSeek 固定 Provider、`deepseek-v4-flash` 和 `codexVersion: null`，并拒绝 stderr 或额外
-stdout。GitHub Actions 的 `macos-quality` 使用 Node 24，`windows-quality` 使用 Node 26。
+stdout。SEA health 从仓库外临时目录运行，清除 `NODE_PATH` 并使用临时 `LOCALAPPDATA`，确保
+运行时不依赖仓库 `node_modules`。GitHub Actions 的 `macos-quality` 使用 Node 24，
+`windows-quality` 使用 Node 26。
 
 该门禁不包含真实 smoke、Host 安装、Chrome 操作、真实钥匙串、DPAPI、注册表或欧路访问。
 纯逻辑和共享契约要求双平台 CI；系统原语还必须按
@@ -176,7 +186,7 @@ fail-closed 行为。Windows CI 会实际产出并运行 SEA `.exe` 的 health �
 
 - Node 26 的 `pnpm host:windows:package` 产出可独立启动的 SEA `.exe`；
 - 安装器只写 `%LOCALAPPDATA%\Huayi\native-host` 和精确 HKCU Chrome 注册表键；
-- Chrome health 显示 v0.10.0、DeepSeek 和 `codexVersion: null`；
+- Chrome health 显示 v0.12.0、DeepSeek 和 `codexVersion: null`；
 - DeepSeek 与欧路两份 DPAPI 凭据可由当前用户分别读取，换用户或复制到另一台机器后不能
   解密；
 - 单词、短语、句子和段落成功，欧路查词/加词成功，Codex/其他模型 Provider 命令明确拒绝；

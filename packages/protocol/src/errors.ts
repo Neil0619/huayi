@@ -17,6 +17,11 @@ export const errorCodeSchema = z.enum([
   "INVALID_RESPONSE",
   "CANCELLED",
   "UNSUPPORTED_SELECTION",
+  "WORD_SYNC_STATE_INVALID",
+  "WORD_SYNC_HISTORY_LIMIT",
+  "WORD_SYNC_BATCH_MISMATCH",
+  "WORD_SYNC_BATCH_RESULT_INVALID",
+  "WORD_SYNC_UNRESOLVED_MISMATCH",
   "INTERNAL_ERROR",
 ]);
 export type ErrorCode = z.infer<typeof errorCodeSchema>;

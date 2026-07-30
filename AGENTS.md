@@ -50,8 +50,8 @@ follow-up chat, or browser settings.
 ## Current release invariants
 
 - All app, package, Manifest, Host, App Server client, and Eudic User-Agent identities are
-  `0.10.0`; the Native Messaging `schemaVersion` is `5`.
-- Wire v5 is incompatible with v4 and rejects it. Upgrade or roll back the Extension and Native
+  `0.12.0`; the Native Messaging `schemaVersion` is `6`.
+- Wire v6 is incompatible with v5 and rejects it. Upgrade or roll back the Extension and Native
   Host synchronously; do not add a translation shim.
 - Missing provider configuration defaults to Codex. Every other invalid configuration state
   fails closed. Each analysis request reads and pins one provider; never migrate an active

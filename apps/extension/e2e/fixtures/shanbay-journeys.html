@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Shanbay synchronization fixture</title>
+    <style>
+      body {
+        font-family: sans-serif;
+      }
+      [role="dialog"] {
+        width: 420px;
+        padding: 20px;
+        border: 1px solid #aaa;
+      }
+      textarea {
+        display: block;
+        width: 380px;
+        height: 160px;
+      }
+      #messages {
+        white-space: pre-wrap;
+      }
+    </style>
+  </head>
+  <body>
+    <main id="app"></main>
+    <pre id="messages" data-testid="messages"></pre>
+    <script type="module">
+      import { ShanbaySyncController } from "../../src/content/shanbay/shanbay-sync-controller.ts";
+
+      const scenario = new URL(location.href).searchParams.get("scenario") ?? "success";
+      const app = document.querySelector("#app");
+      const messages = document.querySelector("#messages");
+      const commands = [];
+
+      function appendCommand(command) {
+        commands.push(command);
+        messages.textContent = commands.map((item) => JSON.stringify(item)).join("\n");
+      }
+
+      function addDialog(initialValue = "") {
+        const dialog = document.createElement("div");
+        dialog.setAttribute("role", "dialog");
+        dialog.innerHTML = `
+          <h2>批量添加到生词本</h2>
+          <textarea placeholder="在这里输入需要添加的单词"></textarea>
+          <button type="button">批量添加</button>
+          <div id="result"></div>
+        `;
+        const textarea = dialog.querySelector("textarea");
+        textarea.value = initialValue;
+        dialog.querySelector("button").addEventListener("click", () => {
+          const result = dialog.querySelector("#result");
+          if (scenario === "partial" || scenario === "all-failed") {
+            const rejected = scenario === "all-failed" ? "accepted\norbiting" : "orbiting";
+            textarea.value = rejected;
+            textarea.dispatchEvent(new Event("input", { bubbles: true }));
+            result.setAttribute("role", "alert");
+            result.textContent =
+              scenario === "all-failed" ? "有2个单词未能成功添加" : "有1个单词未能成功添加";
+          } else {
+            textarea.value = "";
+            textarea.dispatchEvent(new Event("input", { bubbles: true }));
+            result.textContent = "添加完成（2/2）";
+          }
+        });
+        app.replaceChildren(dialog);
+      }
+
+      if (scenario === "login") {
+        app.textContent = "请登录后使用生词本";
+      } else if (scenario === "changed") {
+        app.textContent = "新版生词页面";
+      } else if (scenario === "unresolved") {
+        app.textContent = "生词本";
+      } else if (scenario === "existing") {
+        addDialog("user content");
+      } else {
+        const upload = document.createElement("div");
+        upload.setAttribute("role", "button");
+        upload.textContent = "批量上传";
+        upload.addEventListener("click", () => addDialog());
+        app.append(upload);
+      }
+
+      const controller = new ShanbaySyncController({
+        document,
+        sendMessage: async (command) => {
+          appendCommand(command);
+          return { handled: true };
+        },
+        setTimeout: (handler, timeout) => window.setTimeout(handler, Math.min(timeout, 50)),
+      });
+
+      function batchMessage(
+        items = [
+          { attempt: "original", sourceWords: ["accepted"], targetWord: "accepted" },
+          { attempt: "original", sourceWords: ["orbiting"], targetWord: "orbiting" },
+        ],
+        batchId = "fixture-batch-1",
+      ) {
+        return {
+          event: {
+            batchId,
+            items,
+            pendingAfterBatch: 0,
+            requestId: `request-${batchId}`,
+            schemaVersion: 6,
+            type: "word-sync-batch",
+          },
+          type: "SHANBAY_SYNC_BATCH",
+        };
+      }
+
+      if (scenario === "unresolved") {
+        controller.handleMessage({
+          event: {
+            items: [
+              {
+                candidates: [],
+                lastTargetWord: "splendidly",
+                reason: "no-lemma",
+                sourceWord: "splendidly",
+              },
+              {
+                candidates: [],
+                lastTargetWord: "msg",
+                reason: "no-lemma",
+                sourceWord: "msg",
+              },
+            ],
+            offset: 0,
+            requestId: "request-unresolved",
+            schemaVersion: 6,
+            totalCount: 11,
+            type: "word-sync-unresolved-list",
+          },
+          type: "SHANBAY_SYNC_UNRESOLVED",
+        });
+      } else {
+        controller.handleMessage(batchMessage());
+      }
+      globalThis.huayiShanbayFixture = {
+        commands,
+        deliverLemmaBatch() {
+          controller.handleMessage(
+            batchMessage(
+              [{ attempt: "lemma", sourceWords: ["orbiting"], targetWord: "orbit" }],
+              "fixture-batch-2",
+            ),
+          );
+        },
+        deliverResolved() {
+          controller.handleMessage({
+            event: {
+              batchId: "fixture-batch-1",
+              pendingCount: 1,
+              requestId: "request-resolved",
+              resolvedCount: 1,
+              retryCount: 1,
+              schemaVersion: 6,
+              type: "word-sync-batch-resolved",
+              unresolved: [],
+              unresolvedCount: 0,
+            },
+            type: "SHANBAY_SYNC_RESOLVED",
+          });
+        },
+      };
+    </script>
+  </body>
+</html>

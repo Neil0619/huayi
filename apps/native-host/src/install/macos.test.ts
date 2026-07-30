@@ -245,6 +245,8 @@ describe.skipIf(process.platform === "win32")("installMacosNativeHost", () => {
       schemaVersion: 1,
     } as const;
     await compatibleStore.write(compatibleConfiguration, false);
+    const wordSyncState = '{"stateVersion":1,"pendingWords":["durable"]}\n';
+    await writeFile(paths.wordSyncStatePath, wordSyncState, "utf8");
     await writeFile(join(paths.schemaDirectory, "obsolete.json"), "{}\n", "utf8");
     await writeFile(fixture.sourceBundlePath, "// host bundle v2\n", "utf8");
 
@@ -257,6 +259,7 @@ describe.skipIf(process.platform === "win32")("installMacosNativeHost", () => {
     await expect(compatibleStore.read(new AbortController().signal)).resolves.toEqual(
       compatibleConfiguration,
     );
+    await expect(readFile(paths.wordSyncStatePath, "utf8")).resolves.toBe(wordSyncState);
     expect(upgradeRunner.requests).toEqual([]);
   });
 

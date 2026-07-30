@@ -115,7 +115,7 @@ describe("readSelection", () => {
     },
   );
 
-  it("returns null lexical context instead of the selected token for mixed Han text", () => {
+  it("falls back to the selected word as wordbook context for mixed Han text", () => {
     const paragraph = document.createElement("p");
     paragraph.textContent = "这是 investigation 的语境。";
     document.body.append(paragraph);
@@ -134,11 +134,11 @@ describe("readSelection", () => {
     expect(readSelection(selection)).toMatchObject({
       context: "investigation",
       sentenceContext: null,
-      wordbookContext: null,
+      wordbookContext: "investigation",
     });
   });
 
-  it("does not send a mixed Han technical block when selecting hatch inside hatch-pet", () => {
+  it("uses only the selected word for wordbook context inside a mixed Han technical block", () => {
     const paragraph = document.createElement("p");
     const code = document.createElement("code");
     code.textContent = "hatch-pet";
@@ -160,7 +160,7 @@ describe("readSelection", () => {
       selection: "hatch",
       selectionKind: "word",
       sentenceContext: null,
-      wordbookContext: null,
+      wordbookContext: "hatch",
     });
   });
 

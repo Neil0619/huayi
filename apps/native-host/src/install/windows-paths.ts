@@ -13,6 +13,7 @@ export interface WindowsInstallationPaths {
   readonly ownershipMarkerPath: string;
   readonly schemaDirectory: string;
   readonly workingDirectory: string;
+  readonly wordSyncStatePath: string;
 }
 
 export function createWindowsInstallationPaths(
@@ -37,5 +38,6 @@ export function createWindowsInstallationPaths(
     ownershipMarkerPath: win32.join(applicationDirectory, ".huayi-owned"),
     schemaDirectory: win32.join(applicationDirectory, "provider", "schemas"),
     workingDirectory: win32.join(applicationDirectory, "workdir"),
+    wordSyncStatePath: win32.join(applicationDirectory, "word-sync-state.json"),
   };
 }

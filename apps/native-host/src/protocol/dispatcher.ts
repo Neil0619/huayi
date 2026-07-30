@@ -20,8 +20,11 @@ import type {
 import type { AnalysisProvider } from "../provider/analysis-provider.js";
 import { RequestQueue } from "../runtime/request-queue.js";
 import type { WordbookProvider } from "../wordbook/wordbook-provider.js";
+import { WordSyncRequestDispatcher, type WordSyncServiceLike } from "./word-sync-dispatcher.js";
 
-const HOST_VERSION = "0.10.0";
+export type { WordSyncServiceLike } from "./word-sync-dispatcher.js";
+
+const HOST_VERSION = "0.12.0";
 
 export type HostEventEmitter = (event: HostEvent) => void;
 
@@ -38,6 +41,7 @@ export interface NativeMessageDispatcherOptions {
   maximumConcurrency?: number;
   provider: AnalysisProvider;
   wordbookProvider?: WordbookProvider;
+  wordSyncService?: WordSyncServiceLike;
 }
 
 export class InvalidHostRequestError extends Error {
@@ -62,6 +66,7 @@ export class NativeMessageDispatcher {
   private readonly provider: AnalysisProvider;
   private readonly queue: RequestQueue;
   private readonly wordbookProvider: WordbookProvider | undefined;
+  private readonly wordSyncDispatcher: WordSyncRequestDispatcher;
   private disposed = false;
 
   constructor(options: NativeMessageDispatcherOptions) {
@@ -71,6 +76,11 @@ export class NativeMessageDispatcher {
     this.mapWordbookError = options.mapWordbookError ?? defaultError;
     this.wordbookProvider = options.wordbookProvider;
     this.queue = new RequestQueue(options.maximumConcurrency ?? 2);
+    this.wordSyncDispatcher = new WordSyncRequestDispatcher({
+      mapError: this.mapWordbookError,
+      queue: this.queue,
+      service: options.wordSyncService,
+    });
   }
 
   dispatch(message: unknown, emit: HostEventEmitter): void {
@@ -94,6 +104,30 @@ export class NativeMessageDispatcher {
         break;
       case "add-word":
         this.dispatchAddWord(parsed.data, emit);
+        break;
+      case "word-sync-status":
+        this.wordSyncDispatcher.status(parsed.data, emit);
+        break;
+      case "word-sync-poll":
+        this.wordSyncDispatcher.poll(parsed.data, emit);
+        break;
+      case "word-sync-prepare-batch":
+        this.wordSyncDispatcher.prepare(parsed.data, emit);
+        break;
+      case "word-sync-resolve-batch":
+        this.wordSyncDispatcher.resolve(parsed.data, emit);
+        break;
+      case "word-sync-list-unresolved":
+        this.wordSyncDispatcher.listUnresolved(parsed.data, emit);
+        break;
+      case "word-sync-requeue-unresolved":
+        this.wordSyncDispatcher.requeueUnresolved(parsed.data, emit);
+        break;
+      case "word-sync-discard-unresolved":
+        this.wordSyncDispatcher.discardUnresolved(parsed.data, emit);
+        break;
+      case "word-sync-discard-all-unresolved":
+        this.wordSyncDispatcher.discardAllUnresolved(parsed.data, emit);
         break;
       case "cancel":
         this.dispatchCancel(parsed.data.targetRequestId, emit);

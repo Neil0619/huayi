@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 interface BaseNativeHostConfiguration {
   environment: NodeJS.ProcessEnv;
   schemaDirectory: string;
+  wordSyncStatePath: string;
   workingDirectory: string;
 }
 
@@ -110,6 +111,7 @@ export function readNativeHostConfiguration(
       powershellExecutable: requiredWindowsEnvironmentPath(environment, "HUAYI_POWERSHELL_PATH"),
       providerConfigurationPath: null,
       schemaDirectory,
+      wordSyncStatePath: win32.resolve(workingDirectory, "..", "word-sync-state.json"),
       workingDirectory,
     };
   }
@@ -126,6 +128,7 @@ export function readNativeHostConfiguration(
     powershellExecutable: null,
     providerConfigurationPath: posix.resolve(workingDirectory, "..", "provider.json"),
     schemaDirectory,
+    wordSyncStatePath: posix.resolve(workingDirectory, "..", "word-sync-state.json"),
     workingDirectory,
   };
 }

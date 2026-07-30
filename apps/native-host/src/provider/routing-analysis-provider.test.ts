@@ -10,7 +10,7 @@ const request: AnalyzeRequest = {
   action: "translate",
   context: "The investigation was in its early stages.",
   requestId: "analysis-1",
-  schemaVersion: 5,
+  schemaVersion: 6,
   selection: "investigation",
   selectionKind: "word",
   sentenceContext: null,

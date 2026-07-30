@@ -4,6 +4,8 @@ import {
   MAX_CONTEXT_LENGTH,
   MAX_REQUEST_ID_LENGTH,
   MAX_SELECTION_LENGTH,
+  MAX_WORD_SYNC_BATCH_SIZE,
+  MAX_WORD_SYNC_TOTAL_WORDS,
   SCHEMA_VERSION,
 } from "./limits.js";
 
@@ -110,6 +112,120 @@ export const checkWordRequestSchema = z.strictObject({
 });
 export type CheckWordRequest = z.infer<typeof checkWordRequestSchema>;
 
+export const wordSyncBatchIdSchema = requestIdSchema;
+export type WordSyncBatchId = z.infer<typeof wordSyncBatchIdSchema>;
+
+function normalizedWord(value: string): string {
+  return value.toLocaleLowerCase("en-US").replaceAll("’", "'");
+}
+
+function hasUniqueWords(values: readonly string[]): boolean {
+  return new Set(values.map(normalizedWord)).size === values.length;
+}
+
+export const wordSyncStatusRequestSchema = z.strictObject({
+  requestId: requestIdSchema,
+  schemaVersion: schemaVersionSchema,
+  type: z.literal("word-sync-status"),
+});
+export type WordSyncStatusRequest = z.infer<typeof wordSyncStatusRequestSchema>;
+
+export const wordSyncPollRequestSchema = z.strictObject({
+  requestId: requestIdSchema,
+  schemaVersion: schemaVersionSchema,
+  type: z.literal("word-sync-poll"),
+});
+export type WordSyncPollRequest = z.infer<typeof wordSyncPollRequestSchema>;
+
+export const wordSyncPrepareBatchRequestSchema = z.strictObject({
+  requestId: requestIdSchema,
+  schemaVersion: schemaVersionSchema,
+  type: z.literal("word-sync-prepare-batch"),
+});
+export type WordSyncPrepareBatchRequest = z.infer<typeof wordSyncPrepareBatchRequestSchema>;
+
+export const wordSyncResolveBatchRequestSchema = z.strictObject({
+  batchId: wordSyncBatchIdSchema,
+  rejectedTargets: z
+    .array(englishWordSchema)
+    .max(MAX_WORD_SYNC_BATCH_SIZE)
+    .refine(hasUniqueWords, "Rejected targets must be unique."),
+  requestId: requestIdSchema,
+  schemaVersion: schemaVersionSchema,
+  type: z.literal("word-sync-resolve-batch"),
+});
+export type WordSyncResolveBatchRequest = z.infer<typeof wordSyncResolveBatchRequestSchema>;
+
+export const wordSyncListUnresolvedRequestSchema = z.strictObject({
+  limit: z.number().int().min(1).max(MAX_WORD_SYNC_BATCH_SIZE),
+  offset: z.number().int().nonnegative().max(MAX_WORD_SYNC_TOTAL_WORDS),
+  requestId: requestIdSchema,
+  schemaVersion: schemaVersionSchema,
+  type: z.literal("word-sync-list-unresolved"),
+});
+export type WordSyncListUnresolvedRequest = z.infer<typeof wordSyncListUnresolvedRequestSchema>;
+
+const wordSyncRequeueItemSchema = z.strictObject({
+  sourceWord: englishWordSchema,
+  targetWord: englishWordSchema,
+});
+
+export const wordSyncRequeueUnresolvedRequestSchema = z
+  .strictObject({
+    items: z.array(wordSyncRequeueItemSchema).min(1).max(MAX_WORD_SYNC_BATCH_SIZE),
+    requestId: requestIdSchema,
+    schemaVersion: schemaVersionSchema,
+    type: z.literal("word-sync-requeue-unresolved"),
+  })
+  .superRefine((request, context) => {
+    if (!hasUniqueWords(request.items.map((item) => item.sourceWord))) {
+      context.addIssue({
+        code: "custom",
+        message: "Requeued source words must be unique.",
+        path: ["items"],
+      });
+    }
+  });
+export type WordSyncRequeueUnresolvedRequest = z.infer<
+  typeof wordSyncRequeueUnresolvedRequestSchema
+>;
+
+export const wordSyncDiscardUnresolvedRequestSchema = z.strictObject({
+  requestId: requestIdSchema,
+  schemaVersion: schemaVersionSchema,
+  sourceWords: z
+    .array(englishWordSchema)
+    .min(1)
+    .max(MAX_WORD_SYNC_BATCH_SIZE)
+    .refine(hasUniqueWords, "Discarded source words must be unique."),
+  type: z.literal("word-sync-discard-unresolved"),
+});
+export type WordSyncDiscardUnresolvedRequest = z.infer<
+  typeof wordSyncDiscardUnresolvedRequestSchema
+>;
+
+export const wordSyncDiscardAllUnresolvedRequestSchema = z.strictObject({
+  confirm: z.literal(true),
+  requestId: requestIdSchema,
+  schemaVersion: schemaVersionSchema,
+  type: z.literal("word-sync-discard-all-unresolved"),
+});
+export type WordSyncDiscardAllUnresolvedRequest = z.infer<
+  typeof wordSyncDiscardAllUnresolvedRequestSchema
+>;
+
+export const wordSyncRequestSchema = z.discriminatedUnion("type", [
+  wordSyncStatusRequestSchema,
+  wordSyncPollRequestSchema,
+  wordSyncPrepareBatchRequestSchema,
+  wordSyncResolveBatchRequestSchema,
+  wordSyncListUnresolvedRequestSchema,
+  wordSyncRequeueUnresolvedRequestSchema,
+  wordSyncDiscardUnresolvedRequestSchema,
+  wordSyncDiscardAllUnresolvedRequestSchema,
+]);
+export type WordSyncRequest = z.infer<typeof wordSyncRequestSchema>;
+
 export const hostWorkRequestSchema = z
   .discriminatedUnion("type", [
     analyzeRequestObjectSchema,
@@ -152,6 +268,14 @@ export const hostRequestSchema = z
     analyzeRequestObjectSchema,
     checkWordRequestSchema,
     addWordRequestSchema,
+    wordSyncStatusRequestSchema,
+    wordSyncPollRequestSchema,
+    wordSyncPrepareBatchRequestSchema,
+    wordSyncResolveBatchRequestSchema,
+    wordSyncListUnresolvedRequestSchema,
+    wordSyncRequeueUnresolvedRequestSchema,
+    wordSyncDiscardUnresolvedRequestSchema,
+    wordSyncDiscardAllUnresolvedRequestSchema,
     cancelRequestSchema,
   ])
   .superRefine((request, context) => {

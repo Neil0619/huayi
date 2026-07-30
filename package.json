@@ -1,6 +1,6 @@
 {
   "name": "huayi",
-  "version": "0.10.0",
+  "version": "0.12.0",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@10.12.4",
@@ -8,7 +8,7 @@
     "node": ">=18"
   },
   "scripts": {
-    "build": "pnpm --recursive --if-present build",
+    "build": "node scripts/run-workspace-builds.mjs",
     "check:instructions": "node scripts/check-instructions.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -26,6 +26,7 @@
     "host:deepseek:remove": "node apps/native-host/dist/install/cli.js deepseek-remove",
     "host:provider:set": "node apps/native-host/dist/install/cli.js provider-set",
     "host:provider:status": "node apps/native-host/dist/install/cli.js provider-status",
+    "host:word-sync:reaudit": "node apps/native-host/dist/install/cli.js word-sync-reaudit",
     "host:uninstall": "node apps/native-host/dist/install/cli.js uninstall",
     "host:windows:package": "pnpm --filter @huayi/native-host build && node scripts/build-windows-host.mjs",
     "lint": "eslint .",
@@ -33,9 +34,11 @@
     "smoke:compatible": "node scripts/smoke-compatible.mjs",
     "smoke:deepseek": "node scripts/smoke-deepseek.mjs",
     "smoke:compare": "node scripts/compare-providers.mjs",
-    "test": "node --test scripts/*.test.mjs && vitest run --workspace vitest.workspace.ts --passWithNoTests",
+    "test": "node scripts/run-tests.mjs",
+    "test:scripts": "node scripts/run-tests.mjs --scripts-only",
+    "test:vitest": "node scripts/run-tests.mjs --vitest-only",
     "test:e2e": "playwright test --pass-with-no-tests",
-    "typecheck": "pnpm --recursive --if-present typecheck",
+    "typecheck": "node scripts/run-workspace-typechecks.mjs",
     "verify:macos": "node scripts/run-platform-verification.mjs darwin",
     "verify:windows": "node scripts/run-platform-verification.mjs win32"
   },

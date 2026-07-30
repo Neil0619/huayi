@@ -9,8 +9,18 @@ import type {
 } from "@huayi/protocol";
 
 import type { SelectionRequestInput } from "../selection/read-selection.js";
+import {
+  applyOverlayPosition,
+  KEYBOARD_DRAG_MOVEMENTS,
+  readOverlayRootPosition,
+  readOverlayRootSize,
+  readOverlayViewport,
+  type DragSession,
+  type OverlayControllerOptions,
+  type OverlayPresentation,
+} from "./overlay-controller-support.js";
 import { focusWordbookStatus } from "./focus-wordbook-status.js";
-import { createFrameScheduler, type FrameScheduler } from "./frame-scheduler.js";
+import { createFrameScheduler } from "./frame-scheduler.js";
 import {
   isVisibleOverlayState,
   OverlayStateMachine,
@@ -22,7 +32,6 @@ import { OverlayUpdateBatch, type OverlayAnalysisUpdate } from "./overlay-update
 import {
   calculateOverlayPosition,
   clampOverlayPosition,
-  type OverlayPreferredSide,
   type OverlaySize,
   type ViewportSize,
 } from "./position-overlay.js";
@@ -31,28 +40,10 @@ import { renderToolbar } from "./render-toolbar.js";
 import { SlowRenderTimer } from "./slow-render-timer.js";
 import { overlayStyles } from "./styles.js";
 
-export interface OverlayControllerOptions {
-  document?: Document;
-  frameScheduler?: FrameScheduler;
-  onAddWord: (selection: SelectionRequestInput) => void;
-  onAnalyze: (action: AnalyzeAction, selection: SelectionRequestInput) => void;
-  onCancel: () => void;
-}
-
-export interface OverlayPresentation {
-  preferredSide?: OverlayPreferredSide;
-  resolveAnchorRect?: () => OverlayAnchorRect;
-  resolveMountTarget?: () => Element;
-}
-
-interface DragSession {
-  origin: OverlayPoint;
-  pointer: OverlayPoint;
-}
-
-const FALLBACK_PANEL_SIZE: OverlaySize = { height: 320, width: 420 };
-const FALLBACK_TOOLBAR_SIZE: OverlaySize = { height: 44, width: 180 };
-const KEYBOARD_DRAG_STEP = 10;
+export type {
+  OverlayControllerOptions,
+  OverlayPresentation,
+} from "./overlay-controller-support.js";
 
 export class OverlayController {
   private readonly documentRef: Document;
@@ -235,7 +226,11 @@ export class OverlayController {
   };
 
   private readonly handleOutsidePointerDown = (event: PointerEvent): void => {
-    if (isVisibleOverlayState(this.machine.state) && !event.composedPath().includes(this.host)) {
+    if (
+      isVisibleOverlayState(this.machine.state) &&
+      !this.isSavingWordbook() &&
+      !event.composedPath().includes(this.host)
+    ) {
       this.close();
     }
   };
@@ -332,13 +327,7 @@ export class OverlayController {
     });
 
     handle.addEventListener("keydown", (event) => {
-      const movement: Record<string, OverlayPoint> = {
-        ArrowDown: { left: 0, top: KEYBOARD_DRAG_STEP },
-        ArrowLeft: { left: -KEYBOARD_DRAG_STEP, top: 0 },
-        ArrowRight: { left: KEYBOARD_DRAG_STEP, top: 0 },
-        ArrowUp: { left: 0, top: -KEYBOARD_DRAG_STEP },
-      };
-      const delta = movement[event.key];
+      const delta = KEYBOARD_DRAG_MOVEMENTS[event.key];
       if (delta === undefined) {
         return;
       }
@@ -385,31 +374,19 @@ export class OverlayController {
   }
 
   private readRootSize(root: HTMLElement): OverlaySize {
-    const rect = root.getBoundingClientRect();
-    if (rect.width > 0 && rect.height > 0) {
-      return { height: rect.height, width: rect.width };
-    }
-    return this.machine.state.status === "actions" ? FALLBACK_TOOLBAR_SIZE : FALLBACK_PANEL_SIZE;
+    return readOverlayRootSize(root, this.machine.state.status === "actions");
   }
 
   private readRootPosition(root: HTMLElement): OverlayPoint {
-    return {
-      left: Number.parseFloat(root.style.left) || 0,
-      top: Number.parseFloat(root.style.top) || 0,
-    };
+    return readOverlayRootPosition(root);
   }
 
   private readViewport(): ViewportSize {
-    const view = this.documentRef.defaultView;
-    return {
-      height: view?.innerHeight ?? this.documentRef.documentElement.clientHeight,
-      width: view?.innerWidth ?? this.documentRef.documentElement.clientWidth,
-    };
+    return readOverlayViewport(this.documentRef);
   }
 
   private applyPosition(root: HTMLElement, position: OverlayPoint): void {
-    root.style.left = `${Math.round(position.left)}px`;
-    root.style.top = `${Math.round(position.top)}px`;
+    applyOverlayPosition(root, position);
   }
 
   private hasPendingRequest(): boolean {
@@ -421,5 +398,10 @@ export class OverlayController {
       (state.status === "result" || state.status === "error") &&
       (state.wordbook.availability === "checking" || state.wordbook.mutation.status === "saving")
     );
+  }
+
+  private isSavingWordbook(): boolean {
+    const state = this.machine.state;
+    return state.status === "result" && state.wordbook.mutation.status === "saving";
   }
 }

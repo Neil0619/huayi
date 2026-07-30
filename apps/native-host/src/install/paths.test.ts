@@ -19,6 +19,8 @@ describe("createMacosInstallationPaths", () => {
       schemaDirectory:
         "/Users/tester/Library/Application Support/Huayi/native-host/provider/schemas",
       workingDirectory: "/Users/tester/Library/Application Support/Huayi/native-host/workdir",
+      wordSyncStatePath:
+        "/Users/tester/Library/Application Support/Huayi/native-host/word-sync-state.json",
     });
   });
 

@@ -1,6 +1,6 @@
 # Windows 安装说明（DeepSeek + 欧路生词本）
 
-Windows 版复用同一套 Chrome Extension 和 wire v5，但 Native Host 固定只调用官方 DeepSeek。
+Windows 版复用同一套 Chrome Extension 和 wire v6，但 Native Host 固定只调用官方 DeepSeek。
 它不会查找或启动 Windows 上的 Codex，也不支持 OpenAI 或 Compatible 模型 Provider；欧路
 作为独立生词本能力提供，不参与模型分析。跨平台改动的完成判定和交接格式见
 [跨平台开发规则](cross-platform-development.md)。
@@ -28,7 +28,8 @@ pnpm verify:windows
 `verify:windows` 运行离线指令检查、格式、Lint、类型、单测和构建，再使用 Node Single
 Executable Application 构建 `apps/native-host/dist/windows/huayi-native-host.exe`，向真实
 `.exe` 发送 Native Messaging `health` 帧并检查退出、帧及 stderr 污染。该步骤必须在 Windows
-上执行；macOS 的 fake 测试不能替你产出或验收 Windows `.exe`。
+上执行；验证器会从仓库外临时目录运行复制的 `.exe`，不使用仓库 `node_modules`，并把
+`LOCALAPPDATA` 指向临时 fixture。macOS 的 fake 测试不能替你产出或验收 Windows `.exe`。
 
 ## 2. 在 Chrome 加载扩展
 
@@ -80,7 +81,7 @@ pnpm host:provider:status
 
 它们是相互独立的 `PSCredential` XML；Windows 上 `Export-Clixml` 使用 DPAPI 加密密码字段，
 只能由同一台机器上的同一 Windows 用户解密。Host 每次模型分析重新读取 DeepSeek Key，每次
-查词或加词重新读取欧路 Authorization；都不缓存，也不写入扩展或日志。
+查词、加词或生词同步分页时重新读取欧路 Authorization；都不缓存，也不写入扩展或日志。
 
 `host:provider:status` 在 Windows 固定输出 `deepseek-chat-completions`，不能切换到 Codex。
 配置欧路不会改变模型 Provider；暂不配置欧路也不会阻止 DeepSeek 翻译。
@@ -90,7 +91,7 @@ pnpm host:provider:status
 
 ## 5. 刷新与验证
 
-1. 返回 `chrome://extensions`，确认版本为 `0.10.0` 并点击刷新。
+1. 返回 `chrome://extensions`，确认版本为 `0.12.0` 并点击刷新。
 2. 完全关闭并重新打开 Chrome。
 3. 在普通 HTTPS 页面选中英文，分别测试单词和句子翻译/解释。
 4. 选中一个英文单词，确认生词状态可查询，并测试“加入欧路生词本”。
@@ -105,8 +106,31 @@ pnpm host:windows:package
 pnpm host:install -- --extension-id <ID>
 ```
 
-然后在 Chrome 刷新扩展。Extension 和 Host 必须同步为 `0.10.0`；wire v5 不接受旧版 Host。
-重复安装会替换 Huayi 自有运行文件，保留现有的 DeepSeek 与欧路 DPAPI 凭据。
+然后在 Chrome 刷新扩展。Extension 和 Host 必须同步为 `0.12.0`；wire v6 不接受 v5 Host。
+重复安装会替换 Huayi 自有运行文件，保留现有的 DeepSeek、欧路 DPAPI 凭据和
+`%LOCALAPPDATA%\Huayi\native-host\word-sync-state.json`。
+
+Chrome 每天首次可用时完整扫描欧路默认英语生词本并在 Host 本地去重。角标显示待同步数量；点击后打开扇贝
+生词本并预填最多 100 个目标词。用户必须亲自点击扇贝“批量添加”。部分成功时 Host 只确认
+成功目标，并用随 SEA 打包的 `wink-lemmatizer` 离线尝试一次唯一名词/动词/形容词词元；无
+可靠候选或再次被拒绝的词进入 `!` 未解决面板。
+确认是错词时可逐条放弃，或经二次确认放弃全部未解决词；Host 保留放弃终态用于审计，并阻止
+这些来源在以后的欧路轮询中再次入队。
+
+v1/v2 状态首次读取时会原子迁移为 v3，并分别保留
+`%LOCALAPPDATA%\Huayi\native-host\word-sync-state.json.v1-snapshot` 或
+`%LOCALAPPDATA%\Huayi\native-host\word-sync-state.json.v2-snapshot`。v2→v3 保留全部处理进度，
+只失效旧数据源的拉取元数据以立即重扫默认生词本。旧完成词的再审计先运行
+只读 dry-run，再提交一个已确认存在于扇贝的探针，探针被接受后才允许全量重新入队：
+
+```powershell
+pnpm host:word-sync:reaudit
+pnpm host:word-sync:reaudit -- --probe investigation --confirm-requeue-legacy
+pnpm host:word-sync:reaudit -- --confirm-requeue-legacy
+```
+
+共享协议、状态迁移、路径注入、构建和 SEA 测试属于离线门禁；真实 Windows Chrome 的
+部分失败、词元重试和历史再审计仍必须在 Windows 目标机由用户单独授权验收。
 
 ## 卸载
 
@@ -117,7 +141,9 @@ pnpm host:uninstall
 ```
 
 前两条命令可分别删除精确凭据；完整卸载会删除 Huayi 自有目录（包括仍存在的两份凭据）和
-精确 HKCU 注册表键，不触碰其他 Native Messaging Host。
+精确 HKCU 注册表键，不触碰其他 Native Messaging Host。若 Huayi 目录已经缺失，完整卸载仍
+会查询并删除遗留的这一个精确注册表键；注册表查询失败时保留任何仍存在的 Huayi 文件以便
+重试。
 
 ## 新 Codex 接手
 

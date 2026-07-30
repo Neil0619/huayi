@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { dirname, resolve } from "node:path";
+import { copyFile, mkdir, mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const MAXIMUM_FRAME_BYTES = 1024 * 1024;
@@ -32,12 +34,12 @@ function validateHealthFrame(frame) {
   try {
     assert.deepEqual(event, {
       codexVersion: null,
-      hostVersion: "0.10.0",
+      hostVersion: "0.12.0",
       model: "deepseek-v4-flash",
       provider: "deepseek-chat-completions",
       ready: true,
       requestId: REQUEST_ID,
-      schemaVersion: 5,
+      schemaVersion: 6,
       type: "health-result",
     });
   } catch {
@@ -122,9 +124,35 @@ export async function verifyNativeHostExecutable({
     });
 
     child.stdin.write(
-      encodeNativeMessage({ requestId: REQUEST_ID, schemaVersion: 5, type: "health" }),
+      encodeNativeMessage({ requestId: REQUEST_ID, schemaVersion: 6, type: "health" }),
     );
   });
+}
+
+export async function verifyIsolatedNativeHostExecutable({
+  environment = process.env,
+  sourceExecutable,
+  verifyExecutable = verifyNativeHostExecutable,
+}) {
+  const directory = await mkdtemp(join(tmpdir(), "huayi-windows-sea-verify-"));
+  try {
+    const executable = join(directory, "huayi-native-host.exe");
+    const localAppDataDirectory = join(directory, "local-app-data");
+    const isolatedEnvironment = {
+      ...environment,
+      LOCALAPPDATA: localAppDataDirectory,
+    };
+    delete isolatedEnvironment.NODE_PATH;
+    await mkdir(localAppDataDirectory, { recursive: true });
+    await copyFile(sourceExecutable, executable);
+    await verifyExecutable({
+      cwd: directory,
+      env: isolatedEnvironment,
+      executable,
+    });
+  } finally {
+    await rm(directory, { force: true, recursive: true });
+  }
 }
 
 async function main() {
@@ -132,7 +160,7 @@ async function main() {
     throw new Error("Windows SEA health verification requires Windows.");
   }
   const executable = resolve(repositoryRoot, "apps/native-host/dist/windows/huayi-native-host.exe");
-  await verifyNativeHostExecutable({ cwd: dirname(executable), executable });
+  await verifyIsolatedNativeHostExecutable({ sourceExecutable: executable });
   process.stdout.write("Windows SEA health verified.\n");
 }
 

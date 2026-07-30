@@ -506,6 +506,75 @@ pnpm host:install -- --extension-id kfkamoejomjdihipgdkmfjcdenlhgnpd \
 在 `chrome://extensions` 确认扩展版本为 `0.10.0`。升级不会读取、迁移或删除现有钥匙串和
 Provider 配置，也不会启用 Windows 模式。
 
+## 从 v0.10.0 升级到 v0.11.0
+
+v0.11.0 增加欧路全部英语收藏到扇贝的每日持久同步。Extension 新增 `alarms` 权限和 action
+角标；Host 在 `~/Library/Application Support/Huayi/native-host/word-sync-state.json` 保存
+非凭据同步状态。重新运行现有构建与安装命令后，在 `chrome://extensions` 确认版本为
+`0.11.0`。升级保留全部钥匙串、Provider 配置和已有同步状态。
+
+Chrome 每天首次可用时检查欧路；点击角标会打开扇贝并预填最多 100 个词，最终“批量添加”
+仍必须由用户点击。扇贝未明确全部成功时，划译不会删除 Host 队列。
+角标叠加在 Chrome 工具栏的“划译”扩展图标上；图标位于拼图菜单内时，需要先固定到工具栏。
+待同步数量为零时不显示角标。
+
+首次迁移和每日检查都从欧路默认生词本读取英语词，避免遗漏未进入用户语料列表的新收藏；
+每日完整扫描由 Host 分三页一段持久续扫，并依靠本地状态去重。
+
+## 从 v0.11.0 升级到 v0.12.0
+
+v0.12.0 将协议同步升级为 wire v6，并把扇贝批次改为部分确认：成功目标立即完成，拒绝的原词
+只在 Host 内离线尝试一次唯一词元；无法可靠还原、存在多个候选或再次被拒绝的词进入未解决
+列表。生产依赖 `wink-lemmatizer` 随 Host bundle 本地打包，不访问网络。Extension 权限仍严格
+为 `alarms` 和 `nativeMessaging`。
+
+先完成离线门禁，再同步安装 Host 和刷新扩展；不能只升级一端：
+
+```bash
+pnpm verify:macos
+pnpm build
+pnpm host:install -- --extension-id kfkamoejomjdihipgdkmfjcdenlhgnpd \
+  --codex-path /Applications/ChatGPT.app/Contents/Resources/codex
+```
+
+在 `chrome://extensions` 重新加载并确认版本为 `0.12.0`。首次读取旧同步状态时，Host 把
+v1/v2 原子迁移为 v3，并在同目录分别保留不会被常规备份轮换覆盖的
+`word-sync-state.json.v1-snapshot` 或 `word-sync-state.json.v2-snapshot`。v2→v3 完整保留
+队列、活动批次和所有处理结果，只清除旧数据源的拉取时间、扫描游标和错误状态，使升级后立即
+从默认生词本重扫。普通升级继续保留所有钥匙串、Provider 配置和状态文件。
+
+旧版完成集合无法区分扇贝实际接受和此前被拒绝的词。先只读查看待再审计数量：
+
+```bash
+pnpm host:word-sync:reaudit
+```
+
+从输出的旧集合中选择一个已经确认存在于扇贝的词作为探针；确保当前没有活动同步批次后，
+明确重新入队这一个词：
+
+```bash
+pnpm host:word-sync:reaudit -- --probe investigation --confirm-requeue-legacy
+```
+
+点击扩展角标，在扇贝中提交探针。只有扇贝没有把它留在失败输入框中，Host 才记录探针已接受。
+探针被扇贝拒绝时，全量命令会继续失败关闭。探针通过后，才执行：
+
+```bash
+pnpm host:word-sync:reaudit -- --confirm-requeue-legacy
+```
+
+随后按每批最多 100 个目标人工点击扇贝“批量添加”。角标归零但仍有未解决词时显示 `!`；
+点击后可复制列表，或输入一个合法英语替代词重新入队。人工替代目标再次被拒绝后仍留在列表，
+不会自动循环。确认是错词时，可在替代词输入框旁点击“放弃”；“全部放弃”需要再次点击确认，
+并作用于全部未解决词而不只是当前页。放弃记录仍保留在 Host 来源结果中用于审计，且不会在
+以后欧路轮询时再次入队。
+
+若回滚到本次数据源修复前的 v2 Host，先完全退出 Chrome，再从同目录的
+`word-sync-state.json.v2-snapshot` 同时恢复 `word-sync-state.json` 和
+`word-sync-state.json.backup`，然后恢复旧 Host。若继续回滚到 v0.11.0，则改用
+`word-sync-state.json.v1-snapshot` 并同步回滚 Extension 与 Host。禁止让旧 Host 读取更高版本
+主状态，也禁止只回滚一端。
+
 ## 人工验收
 
 普通验收选择一个单词、短语、单句和多句段落，确认先显示经过校验的预览、后显示完整卡片；
@@ -514,6 +583,11 @@ Provider 配置，也不会启用 Windows 模式。
 
 真实欧路验收需要用户已配置钥匙串：添加未收藏单词后检查语境，再次选择同词应显示已存在，
 且不得覆盖原分组、星级或已有语境。自动测试不会访问真实欧路。
+
+扇贝验收需要单独授权真实 Chrome 操作：先完成再审计 dry-run，再验证一个已存在探针，随后
+分批提交历史词；检查 `orbiting → orbit` 等映射、部分失败后下一批顺序和 `!` 未解决词面板。
+逐条放弃一个确认错词，并检查列表和角标在 Host 回执后更新；再用二次确认测试“全部放弃”。
+最终待同步数应为零，未放弃的无法处理来源词必须准确保留在未解决列表。
 
 ## 卸载
 

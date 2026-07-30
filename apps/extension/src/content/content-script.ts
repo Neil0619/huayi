@@ -1,25 +1,28 @@
-import {
-  SCHEMA_VERSION,
-  addWordRequestSchema,
-  analyzeRequestSchema,
-  checkWordRequestSchema,
-  hostEventSchema,
-} from "@huayi/protocol";
-import type {
-  AddWordRequest,
-  AnalysisError,
-  AnalyzeAction,
-  AnalyzeRequest,
-  CheckWordRequest,
-} from "@huayi/protocol";
+import { hostEventSchema } from "@huayi/protocol";
+import type { AnalysisError } from "@huayi/protocol";
 
-import type { ContentCommand } from "../shared/extension-messages.js";
+import type { ContentCommand, ShanbayCommand } from "../shared/extension-messages.js";
+import {
+  createAddWordRequest,
+  createAnalyzeRequest,
+  createCheckWordRequest,
+} from "./content-request-factory.js";
 import { OverlayController } from "./overlay/overlay-controller.js";
 import { rectToOverlayAnchor } from "./overlay/position-overlay.js";
 import type { OverlayAnchorRect } from "./overlay/overlay-state.js";
-import { readSelection, type SelectionRequestInput } from "./selection/read-selection.js";
+import { readSelection } from "./selection/read-selection.js";
+import {
+  isShanbayCollectionPage,
+  ShanbaySyncController,
+} from "./shanbay/shanbay-sync-controller.js";
 import { isYouTubeHost } from "./youtube/caption-reader.js";
 import { YouTubeCaptionController } from "./youtube/youtube-caption-controller.js";
+
+export {
+  createAddWordRequest,
+  createAnalyzeRequest,
+  createCheckWordRequest,
+} from "./content-request-factory.js";
 
 interface RuntimeMessageEvent {
   addListener(listener: (message: unknown) => void): void;
@@ -28,7 +31,7 @@ interface RuntimeMessageEvent {
 
 export interface ContentRuntime {
   onMessage: RuntimeMessageEvent;
-  sendMessage(message: ContentCommand): Promise<unknown> | undefined;
+  sendMessage(message: ContentCommand | ShanbayCommand): Promise<unknown> | undefined;
 }
 
 export interface ContentScriptOptions {
@@ -111,51 +114,6 @@ function cameFromOverlay(event: Event): boolean {
     .some(
       (target) => target instanceof HTMLElement && target.dataset.huayiOverlayHost !== undefined,
     );
-}
-
-export function createAnalyzeRequest(
-  selection: SelectionRequestInput,
-  action: AnalyzeAction,
-  requestId: string,
-): AnalyzeRequest {
-  return analyzeRequestSchema.parse({
-    action,
-    context: selection.context,
-    requestId,
-    schemaVersion: SCHEMA_VERSION,
-    selection: selection.selection,
-    selectionKind: selection.selectionKind,
-    sentenceContext: selection.sentenceContext,
-    targetLanguage: "zh-CN",
-    type: "analyze",
-  });
-}
-
-export function createAddWordRequest(
-  selection: SelectionRequestInput,
-  requestId: string,
-): AddWordRequest {
-  return addWordRequestSchema.parse({
-    context: selection.wordbookContext,
-    language: "en",
-    requestId,
-    schemaVersion: SCHEMA_VERSION,
-    type: "add-word",
-    word: selection.selection,
-  });
-}
-
-export function createCheckWordRequest(
-  selection: SelectionRequestInput,
-  requestId: string,
-): CheckWordRequest {
-  return checkWordRequestSchema.parse({
-    language: "en",
-    requestId,
-    schemaVersion: SCHEMA_VERSION,
-    type: "check-word",
-    word: selection.selection,
-  });
 }
 
 export function initializeContentScript(options: ContentScriptOptions = {}): ContentScriptInstance {
@@ -302,6 +260,13 @@ export function initializeContentScript(options: ContentScriptOptions = {}): Con
         })
       : null;
 
+  const shanbayController = isShanbayCollectionPage(documentRef.location)
+    ? new ShanbaySyncController({
+        document: documentRef,
+        sendMessage: (message) => runtime.sendMessage(message),
+      })
+    : null;
+
   const handleSelection = (event: Event): void => {
     if (event instanceof KeyboardEvent && event.key === "Escape") {
       return;
@@ -330,6 +295,7 @@ export function initializeContentScript(options: ContentScriptOptions = {}): Con
   };
 
   const handleRuntimeMessage = (message: unknown): void => {
+    if (shanbayController?.handleMessage(message) === true) return;
     const parsed = hostEventSchema.safeParse(message);
     if (!parsed.success) {
       return;
@@ -375,6 +341,7 @@ export function initializeContentScript(options: ContentScriptOptions = {}): Con
       documentRef.removeEventListener("keyup", handleSelection);
       runtime.onMessage.removeListener(handleRuntimeMessage);
       youtubeController?.destroy();
+      shanbayController?.destroy();
       controller.destroy();
     },
   };

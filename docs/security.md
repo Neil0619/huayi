@@ -3,11 +3,12 @@
 ## 数据最小化
 
 扩展只发送英文选区和所在语义块中围绕选区的最多 2,000 个字符，不发送 URL、标题、整页
-内容、浏览历史或用户身份数据，也不持久化查询、结果或分析数据。没有语义块的网页可从
+内容、浏览历史或用户身份数据，也不持久化查询、结果或分析数据。欧路英语收藏仅由 Native
+Host 持久化为生词同步队列；Extension 不保存词表。没有语义块的网页可从
 最近的普通 `div` 正文容器提取当前英文句子；单词或短语位于中英混合容器且无法提取纯英文
 句子时，分析上下文安全退化为选区本身，不向模型发送包含汉字的容器内容。
 
-`warmup` 只包含类型、`schemaVersion: 5` 和随机请求 ID，不包含选区、上下文、句子、URL、标题
+`warmup` 只包含类型、`schemaVersion: 6` 和随机请求 ID，不包含选区、上下文、句子、URL、标题
 或其他页面数据。Codex 模式只完成 MCP 发现和 App Server 安全初始化；三个 HTTP API Provider
 只读取本地 Provider 路由，不读取 Key、不发送 HTTP。四种模式都不创建模型输出或消费模型
 额度。
@@ -18,7 +19,8 @@ API 模式只向 OpenAI 发送当前英文选区、最多 2,000 字符上下文�
 
 单词分析会自动发送 `check-word`，其中只有原始单词和固定语言 `en`。只有用户在完整结果上
 点击“加入欧路生词本”时，扩展才发送 `add-word`，其中包含原始单词和预先提取的完整英文
-句子。两条路径都不发送 URL、标题、段落上下文或模型输出。
+句子；若所在容器为中英混合内容且无法提取纯英文句子，语境只退化为原始单词。两条路径都
+不发送 URL、标题、段落上下文或模型输出。
 
 ## Windows DeepSeek 与欧路凭据
 
@@ -34,7 +36,7 @@ DeepSeek 与欧路各使用一份固定 PowerShell helper，通过隐藏的 `Rea
 两份文件的用户名分别固定为 `api-key` 和 `authorization`，不能互换。Windows 会用 DPAPI
 保护密码字段，因此只有同一台机器上的同一 Windows 用户能够解密。
 
-Host 每次分析导入 DeepSeek 凭据，每次查词或加词导入欧路凭据；都使用固定 PowerShell
+Host 每次分析导入 DeepSeek 凭据，每次查词、加词或同步分页导入欧路凭据；都使用固定 PowerShell
 路径、固定 helper 和参数数组，输出限制为 8 KiB、超时 5 秒。秘密仅短暂存在于子进程
 stdout、Host 内存和对应 HTTPS Authorization Header。stdout Native Messaging、stderr、
 错误、测试和快照不得包含秘密。DPAPI 保护静态存储，但不能防御以同一 Windows 用户权限运行
@@ -47,7 +49,7 @@ ownership marker 的目录。
 
 ## 浏览器边界
 
-Manifest 权限严格为 `["nativeMessaging"]`；普通 `http/https` 范围只存在于静态 Content
+Manifest 权限严格为 `["alarms", "nativeMessaging"]`；普通 `http/https` 范围只存在于静态 Content
 Script 的 `matches`。扩展不声明 `host_permissions`、`storage`、`tabs`、`activeTab` 或
 `scripting`。Content Script 不能直接调用 Native Messaging，只能向 Service Worker 发送
 经过严格解析的内部命令。
@@ -95,10 +97,11 @@ Windows 使用上一节的独立 DPAPI 凭据和固定 PowerShell helper，沿�
 1–4,096 字符、无首尾空白或控制字符以及不泄漏约束。DeepSeek helper/凭据不能读取欧路授权，
 欧路 helper/凭据也不能读取 DeepSeek Key。
 
-欧路访问固定为 `https://api.frdic.com/api/open/v1/studylist/word` 的 GET/POST，禁止网页、
-协议或环境覆盖 URL；拒绝重定向、Cookie 和自动重试。每次操作最长 10 秒，响应体最多
-64 KiB，所有状态码、JSON 和响应流都经过限制和校验。自动查询失败不会覆盖分析结果；显式
-写入失败只影响生词按钮。
+欧路查词/加词固定访问 `https://api.frdic.com/api/open/v1/studylist/word` 的 GET/POST；
+首次和每日同步只读访问同一官方域名下固定的默认生词本 `studylist/words`。网页、协议或环境
+均不能覆盖 URL；客户端拒绝重定向、Cookie 和
+自动重试。单词操作响应体最多 64 KiB，列表最多 1 MiB，所有状态码、JSON、分页和响应流都
+经过限制和校验。自动查询失败不会覆盖分析结果；显式写入失败只影响生词按钮。
 
 默认测试只用 fake authorization reader、fake fetch 和 fake process runner，不读取真实
 钥匙串或访问欧路。重新构建和重复安装 Host 会保留上述钥匙串项；只有显式
@@ -303,7 +306,7 @@ Provider 为 Codex 时才探测 App Server 能力、禁用功能和 ChatGPT 登�
 调用模型、不读取欧路授权或任何模型 API Key、不创建目录；正式安装同样不读取或创建模型
 钥匙串项。
 
-v0.10.0 继续使用 `schemaVersion: 5` 并拒绝 v4，Extension 与 Host 必须使用扩展 ID
+v0.12.0 使用 `schemaVersion: 6` 并拒绝 v5，Extension 与 Host 必须使用扩展 ID
 `kfkamoejomjdihipgdkmfjcdenlhgnpd` 同步重装或回滚。升级只替换带合法 Huayi 所有权标记的
 bundle、Schema、空工作目录和 launcher，保持
 `~/Library/Application Support/Huayi/native-host/`、Chrome Native Messaging 清单路径，以及
@@ -320,3 +323,40 @@ Messaging 清单或这些精确项之外的钥匙串项，也不会触碰任何 
 Windows 安装不探测 Codex 或 macOS Keychain，只校验 SEA `.exe`、两份 PowerShell helper、
 模型 Schema 和扩展 ID。安装器写入 `%LOCALAPPDATA%\Huayi\native-host` 与精确 HKCU Chrome
 键；重复安装保留两份 DPAPI 凭据，卸载只删除带合法 ownership marker 的目录和该注册表键。
+目录已缺失时仍只查询并删除该精确键；查询失败时失败关闭，不删除仍存在的自有目录。
+
+## 欧路到扇贝同步状态
+
+同步状态只由 Native Host 保存于用户级 Huayi 目录的 `word-sync-state.json`，Extension 不使用
+`chrome.storage` 或 IndexedDB。状态 v3 只包含固定数据源版本、规范化来源/目标词头、尝试记录、扫描游标、
+成功目标、来源结果、活动批次、未解决词和安全错误码；不包含欧路 Authorization、扇贝
+Cookie、页面 URL、例句、上下文或模型结果。
+用户放弃的未解决词只以来源词头、最后尝试目标和固定 `discarded` 结果保留；这不是成功记录，
+但会参与来源去重，避免同一错词在每日轮询后再次出现。
+macOS 文件固定为当前用户 `0600`，Windows 继承 `%LOCALAPPDATA%` 用户 ACL。每次更新使用同目录
+临时文件、文件同步和原子替换，并保留最后一份有效备份；两份文件均无效时失败关闭，不能静默
+丢弃队列。v1 和 v2 迁移分别保留只读语义的 `.v1-snapshot` 与 `.v2-snapshot` 升级前快照，
+常规备份轮换不会覆盖它们；任何快照写入失败都不会替换原主状态。v2→v3 仅失效旧数据源的
+成功时间、扫描游标和错误状态，以触发默认生词本重扫；升级保留状态，完整卸载随 Huayi Host
+目录删除。re-audit dry-run 只在内存中解释旧状态，不写迁移、备份或快照；Windows 独占锁阻止
+原子替换时保留原主文件并清理未提交的临时文件。
+
+首次历史迁移和后续每日检查都只读访问固定 HTTPS `studylist/words` 端点的默认英语生词本；
+响应经过严格字段、大小和分页校验，Host
+只持久化词头，不保存接口返回的释义、音标、语境或时间。
+
+扇贝内容脚本只在 `https://web.shanbay.com/wordsweb/#/collection` 接受同步命令，只打开批量
+上传并填入最多 100 个目标词，不点击最终提交。提交后只有新的失败提示、失败数量和输入框
+残留词严格一致时，才把拒绝目标交给 Host；其余目标原子确认为成功。提示残留、用户改写、
+数量不一致、页面结构变化、关闭标签页和超时均保留活动批次。
+逐条放弃必须携带仍存在于未解决列表的精确来源词；全部放弃必须携带固定 `confirm: true`。
+两种操作都由 Host 串行、原子保存，扩展只有收到终态回执后才刷新面板。
+
+拒绝原词只在 Host 内调用随包打包的 MIT 许可 `wink-lemmatizer`，分别计算名词、动词和形容词
+词元，不调用模型或第三方网络。只采用唯一、不同且符合英语词头 Schema 的候选，每个来源只
+自动重试一次；副词、歧义、无候选和再次失败进入未解决列表。选择该依赖是为了使用离线词法
+表和规则；通用后缀裁剪会误改正常词，远程词典或模型则扩大数据与网络边界，因此不采用。
+
+旧版完成词只迁移为 `legacy-completed`，不声称已经进入扇贝。历史全量再审计默认只读；确认
+探针命令只能重新排队一个由用户确认已存在于扇贝的词。只有该词没有出现在扇贝拒绝残留中，
+Host 才记录探针已接受并允许确认全量重新入队；否则保持其余旧状态不变。
