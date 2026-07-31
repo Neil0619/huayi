@@ -79,6 +79,41 @@
     </div>
 
     <ol data-native-request-log hidden></ol>
+    <script>
+      const fixtureParameters = new URLSearchParams(location.search);
+      const fixtureCaption = fixtureParameters.get("caption");
+      const fixtureVideo = document.querySelector("[data-testid='youtube-video']");
+      const fixtureCaptionElement = document.querySelector(".ytp-caption-segment");
+      if (fixtureCaption !== null && fixtureCaptionElement !== null) {
+        fixtureCaptionElement.textContent = fixtureCaption;
+      }
+      if (fixtureParameters.get("playing") === "true" && fixtureVideo !== null) {
+        fixtureVideo.dataset.fixturePaused = "false";
+        Object.defineProperties(fixtureVideo, {
+          duration: { configurable: true, get: () => 120 },
+          ended: { configurable: true, get: () => false },
+          paused: {
+            configurable: true,
+            get: () => fixtureVideo.dataset.fixturePaused === "true",
+          },
+        });
+        Object.defineProperty(fixtureVideo, "pause", {
+          configurable: true,
+          value: () => {
+            fixtureVideo.dataset.fixturePaused = "true";
+            fixtureVideo.dispatchEvent(new Event("pause"));
+          },
+        });
+        Object.defineProperty(fixtureVideo, "play", {
+          configurable: true,
+          value: () => {
+            fixtureVideo.dataset.fixturePaused = "false";
+            fixtureVideo.dispatchEvent(new Event("play"));
+            return Promise.resolve();
+          },
+        });
+      }
+    </script>
     <script type="module" src="../support/harness.ts"></script>
   </body>
 </html>

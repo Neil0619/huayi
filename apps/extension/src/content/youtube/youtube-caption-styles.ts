@@ -75,8 +75,13 @@ export const youtubePickerStyles = `
   }
 
   .huayi-caption-copy {
+    min-height: 52px;
     padding: 12px 44px 10px 16px;
     user-select: none;
+  }
+
+  .huayi-caption-picker[aria-busy="true"] .huayi-caption-copy {
+    color: ${overlayDesignTokens.mutedText};
   }
 
   .huayi-caption-word {
@@ -145,6 +150,13 @@ export const youtubePickerStyles = `
   .huayi-caption-action:hover {
     background: ${overlayDesignTokens.subtleBackground};
     color: ${overlayDesignTokens.text};
+  }
+
+  .huayi-caption-action:disabled {
+    background: transparent;
+    color: ${overlayDesignTokens.mutedText};
+    cursor: default;
+    opacity: 0.55;
   }
 
   .huayi-caption-action[data-primary="true"] {

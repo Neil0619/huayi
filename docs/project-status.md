@@ -27,7 +27,7 @@
 
 - Windows 上的 Codex、OpenAI 和 Compatible HTTP。
 - Linux、Firefox、Edge、PDF、Chrome 内部页面、iframe 和编辑器区域。
-- YouTube 直播、Shorts、OCR、字幕历史和跨字幕片段自动拼句。
+- YouTube 直播、Shorts、OCR、整段 transcript 和字幕历史。
 - 分析历史记录、跨设备同步、后续对话、浏览器内 Provider 设置和 Chrome Web Store 自动安装。
 
 ## 文档接手顺序

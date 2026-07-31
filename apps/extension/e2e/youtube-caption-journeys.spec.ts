@@ -73,7 +73,7 @@ test("places whole-caption actions at the pointer and toggles the picker closed"
   await control.click();
 
   const picker = player.locator("[data-huayi-youtube-picker-host]");
-  const selectCaption = picker.getByRole("button", { name: "整条字幕" });
+  const selectCaption = picker.getByRole("button", { name: "整句字幕" });
   const selectCaptionBounds = await selectCaption.boundingBox();
   expect(selectCaptionBounds).not.toBeNull();
   if (selectCaptionBounds === null) {
@@ -133,5 +133,67 @@ test("drags across stable caption words and sends one exact phrase", async ({ pa
   await expect(request).toHaveAttribute(
     "data-sentence-context",
     "The investigation was still in its early stages.",
+  );
+});
+
+test("shows a rolling sentence immediately and sends only the completed target", async ({
+  page,
+}) => {
+  await page.goto(`${youtubeFixturePath}?playing=true&caption=The%20investigation%20was%20still`);
+
+  const player = page.getByTestId("youtube-player");
+  await player
+    .locator("[data-huayi-youtube-control-host]")
+    .getByRole("button", { name: "Huayi 字幕取词" })
+    .click();
+
+  const picker = player.locator("[data-huayi-youtube-picker-host]");
+  await expect(picker.getByText("正在补全当前句…")).toBeVisible();
+  await expect(picker.getByRole("button", { name: "investigation" })).toHaveCount(0);
+
+  await page.evaluate(() => {
+    const caption = document.querySelector<HTMLElement>(".ytp-caption-segment");
+    if (caption !== null) {
+      caption.textContent = "was still in its early stages.";
+    }
+  });
+
+  await picker.getByRole("button", { name: "investigation" }).click();
+  await toolbar(page).locator('[data-action="translate"]').click();
+  const request = await expectAnalyzeRequest(page, "word", "translate");
+  await expect(request).toHaveAttribute(
+    "data-analysis-context",
+    "The investigation was still in its early stages.",
+  );
+  await expect(request).toHaveAttribute(
+    "data-sentence-context",
+    "The investigation was still in its early stages.",
+  );
+});
+
+test("falls back to the current caption when no sentence ending arrives", async ({ page }) => {
+  await page.goto(
+    `${youtubeFixturePath}?playing=true&caption=An%20automatic%20caption%20without%20punctuation`,
+  );
+  const player = page.getByTestId("youtube-player");
+  await player
+    .locator("[data-huayi-youtube-control-host]")
+    .getByRole("button", { name: "Huayi 字幕取词" })
+    .click();
+
+  const picker = player.locator("[data-huayi-youtube-picker-host]");
+  await expect(picker.getByText("正在补全当前句…")).toBeVisible();
+  await expect(picker.getByText("未检测到完整句尾，已使用当前片段")).toBeVisible();
+  await picker.getByRole("button", { exact: true, name: "automatic" }).click();
+  await toolbar(page).locator('[data-action="translate"]').click();
+
+  const request = await expectAnalyzeRequest(page, "word", "translate");
+  await expect(request).toHaveAttribute(
+    "data-analysis-context",
+    "An automatic caption without punctuation",
+  );
+  await expect(request).toHaveAttribute(
+    "data-sentence-context",
+    "An automatic caption without punctuation",
   );
 });

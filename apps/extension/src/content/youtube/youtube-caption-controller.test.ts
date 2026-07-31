@@ -2,131 +2,15 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { SelectionRequestInput } from "../selection/read-selection.js";
 import {
-  YouTubeCaptionController,
-  type YouTubeCaptionSelectionEvent,
-} from "./youtube-caption-controller.js";
-
-interface Fixture {
-  controller: YouTubeCaptionController;
-  onSelection: ReturnType<typeof vi.fn<(event: YouTubeCaptionSelectionEvent) => void>>;
-  onWarmup: ReturnType<typeof vi.fn<() => void>>;
-  player: HTMLElement;
-  play: ReturnType<typeof vi.fn<() => Promise<void>>>;
-  setPaused(value: boolean): void;
-  video: HTMLVideoElement;
-}
-
-const controllers: YouTubeCaptionController[] = [];
-
-function setRect(element: Element, rect: Partial<DOMRect> = {}): void {
-  const value = {
-    bottom: 640,
-    height: 32,
-    left: 180,
-    right: 620,
-    top: 608,
-    width: 440,
-    x: 180,
-    y: 608,
-    toJSON: () => ({}),
-    ...rect,
-  };
-  Object.defineProperty(element, "getBoundingClientRect", {
-    configurable: true,
-    value: () => value,
-  });
-  Object.defineProperty(element, "getClientRects", {
-    configurable: true,
-    value: () => [value],
-  });
-}
-
-function createFixture(initiallyPaused = false): Fixture {
-  document.body.textContent = "";
-  const player = document.createElement("div");
-  player.className = "html5-video-player";
-  setRect(player, { bottom: 720, height: 640, left: 80, right: 880, top: 80, width: 800 });
-
-  const controls = document.createElement("div");
-  controls.className = "ytp-right-controls";
-  const captionsButton = document.createElement("button");
-  captionsButton.className = "ytp-subtitles-button";
-  controls.append(captionsButton);
-
-  const video = document.createElement("video");
-  let paused = initiallyPaused;
-  Object.defineProperty(video, "paused", {
-    configurable: true,
-    get: () => paused,
-  });
-  Object.defineProperty(video, "duration", {
-    configurable: true,
-    get: () => 120,
-  });
-  const pause = vi.fn(() => {
-    paused = true;
-  });
-  const play = vi.fn(() => {
-    paused = false;
-    return Promise.resolve();
-  });
-  Object.defineProperty(video, "pause", { configurable: true, value: pause });
-  Object.defineProperty(video, "play", { configurable: true, value: play });
-
-  const caption = document.createElement("span");
-  caption.className = "ytp-caption-segment";
-  caption.textContent = "The investigation was still in its early stages.";
-  setRect(caption);
-
-  player.append(video, caption, controls);
-  document.body.append(player);
-
-  const onSelection = vi.fn<(event: YouTubeCaptionSelectionEvent) => void>();
-  const onWarmup = vi.fn<() => void>();
-  const controller = new YouTubeCaptionController({
-    document,
-    isWatchPage: () => true,
-    onPresentationChange: vi.fn(),
-    onSelection,
-    onSessionClose: vi.fn(),
-    onWarmup,
-  });
-  controllers.push(controller);
-
-  return {
-    controller,
-    onSelection,
-    onWarmup,
-    player,
-    play,
-    setPaused: (value) => {
-      paused = value;
-    },
-    video,
-  };
-}
-
-function controlButton(player: Element): HTMLButtonElement {
-  const host = player.querySelector<HTMLElement>("[data-huayi-youtube-control-host]");
-  const button = host?.shadowRoot?.querySelector<HTMLButtonElement>("button");
-  if (button === null || button === undefined) {
-    throw new Error("Expected a Huayi YouTube control.");
-  }
-  return button;
-}
-
-function pickerHost(player: Element): HTMLElement {
-  const host = player.querySelector<HTMLElement>("[data-huayi-youtube-picker-host]");
-  if (host === null) {
-    throw new Error("Expected a Huayi caption picker.");
-  }
-  return host;
-}
+  controlButton,
+  createControllerFixture as createFixture,
+  destroyControllerFixtures,
+  pickerHost,
+} from "../../../test-support/youtube-caption-controller.js";
 
 afterEach(() => {
-  for (const controller of controllers.splice(0)) {
-    controller.destroy();
-  }
+  destroyControllerFixtures();
+  vi.useRealTimers();
   document.body.textContent = "";
 });
 
@@ -294,5 +178,171 @@ describe("YouTubeCaptionController", () => {
     await Promise.resolve();
 
     expect(controlButton(fixture.player).disabled).toBe(true);
+  });
+
+  it("shows an incomplete sentence immediately and enables selection after a later cue", async () => {
+    vi.useFakeTimers();
+    const fixture = createFixture(false, "The investigation was still");
+    controlButton(fixture.player).click();
+
+    const picker = pickerHost(fixture.player);
+    expect(fixture.video.pause).not.toHaveBeenCalled();
+    expect(picker.shadowRoot?.querySelector("[role='dialog']")?.getAttribute("aria-busy")).toBe(
+      "true",
+    );
+    expect(picker.shadowRoot?.textContent).toContain("正在补全当前句");
+    expect(picker.shadowRoot?.querySelectorAll("[data-caption-word]")).toHaveLength(0);
+
+    const caption = fixture.player.querySelector<HTMLElement>(".ytp-caption-segment");
+    if (caption === null) {
+      throw new Error("Expected a caption segment.");
+    }
+    caption.textContent = "was still in its early stages.";
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(fixture.video.pause).toHaveBeenCalledOnce();
+    expect(picker.shadowRoot?.querySelector("[role='dialog']")?.getAttribute("aria-busy")).toBe(
+      "false",
+    );
+    expect(picker.shadowRoot?.textContent).toContain(
+      "The investigation was still in its early stages.",
+    );
+    expect(
+      [...(picker.shadowRoot?.querySelectorAll("[data-caption-word]") ?? [])].some(
+        (word) => word.textContent === "investigation",
+      ),
+    ).toBe(true);
+    expect(fixture.onWarmup).toHaveBeenCalledOnce();
+    await vi.advanceTimersByTimeAsync(2_500);
+    expect(fixture.video.pause).toHaveBeenCalledOnce();
+  });
+
+  it("freezes a best-effort caption after the completion timeout", async () => {
+    vi.useFakeTimers();
+    const fixture = createFixture(false, "An automatic caption without punctuation");
+    controlButton(fixture.player).click();
+
+    await vi.advanceTimersByTimeAsync(2_500);
+
+    const picker = pickerHost(fixture.player);
+    expect(fixture.video.pause).toHaveBeenCalledOnce();
+    expect(picker.shadowRoot?.textContent).toContain("未检测到完整句尾，已使用当前片段");
+    expect(picker.shadowRoot?.textContent).toContain("当前字幕");
+    expect(picker.shadowRoot?.querySelectorAll("[data-caption-word]").length).toBeGreaterThan(0);
+  });
+
+  it("does not auto-play an originally paused video to complete a sentence", () => {
+    const fixture = createFixture(true, "An unfinished paused caption");
+    controlButton(fixture.player).click();
+
+    const picker = pickerHost(fixture.player);
+    expect(fixture.video.pause).not.toHaveBeenCalled();
+    expect(fixture.play).not.toHaveBeenCalled();
+    expect(picker.shadowRoot?.querySelector("[role='dialog']")?.getAttribute("aria-busy")).toBe(
+      "false",
+    );
+    expect(picker.shadowRoot?.textContent).toContain("当前字幕");
+  });
+
+  it("cancels completion without taking playback ownership", () => {
+    vi.useFakeTimers();
+    const fixture = createFixture(false, "An unfinished playing caption");
+    const button = controlButton(fixture.player);
+    button.click();
+
+    button.click();
+
+    expect(fixture.player.querySelector("[data-huayi-youtube-picker-host]")).toBeNull();
+    expect(fixture.video.pause).not.toHaveBeenCalled();
+    expect(fixture.play).not.toHaveBeenCalled();
+  });
+
+  it("finalizes without playback ownership when the viewer pauses during completion", () => {
+    vi.useFakeTimers();
+    const fixture = createFixture(false, "An unfinished playing caption");
+    controlButton(fixture.player).click();
+
+    const caption = fixture.player.querySelector<HTMLElement>(".ytp-caption-segment");
+    if (caption === null) {
+      throw new Error("Expected a caption segment.");
+    }
+    caption.textContent = "playing caption that now finishes.";
+    fixture.setPaused(true);
+    fixture.video.dispatchEvent(new Event("pause"));
+
+    const picker = pickerHost(fixture.player);
+    expect(picker.shadowRoot?.textContent).toContain(
+      "An unfinished playing caption that now finishes.",
+    );
+    expect(picker.shadowRoot?.textContent).toContain("整句字幕");
+    picker.shadowRoot?.querySelector<HTMLButtonElement>("[data-action='continue']")?.click();
+    expect(fixture.play).not.toHaveBeenCalled();
+  });
+
+  it("cancels a pending completion on seeking and ignores the late timeout", async () => {
+    vi.useFakeTimers();
+    const fixture = createFixture(false, "An unfinished playing caption");
+    controlButton(fixture.player).click();
+
+    fixture.video.dispatchEvent(new Event("seeking"));
+    await vi.advanceTimersByTimeAsync(2_500);
+
+    expect(fixture.player.querySelector("[data-huayi-youtube-picker-host]")).toBeNull();
+    expect(fixture.video.pause).not.toHaveBeenCalled();
+    expect(fixture.play).not.toHaveBeenCalled();
+  });
+
+  it("clears a pending completion on same-page YouTube navigation", async () => {
+    vi.useFakeTimers();
+    const fixture = createFixture(false, "An unfinished playing caption");
+    controlButton(fixture.player).click();
+
+    document.dispatchEvent(new Event("yt-navigate-finish"));
+    await vi.advanceTimersByTimeAsync(2_500);
+
+    expect(fixture.player.querySelector("[data-huayi-youtube-picker-host]")).toBeNull();
+    expect(fixture.video.pause).not.toHaveBeenCalled();
+  });
+
+  it("cancels completion when the player enters an advertisement", async () => {
+    vi.useFakeTimers();
+    const fixture = createFixture(false, "An unfinished playing caption");
+    controlButton(fixture.player).click();
+
+    fixture.player.classList.add("ad-showing");
+    await Promise.resolve();
+    await Promise.resolve();
+    await vi.advanceTimersByTimeAsync(2_500);
+
+    expect(fixture.player.querySelector("[data-huayi-youtube-picker-host]")).toBeNull();
+    expect(fixture.video.pause).not.toHaveBeenCalled();
+  });
+
+  it("lets Escape cancel completion without pausing the video", async () => {
+    vi.useFakeTimers();
+    const fixture = createFixture(false, "An unfinished playing caption");
+    controlButton(fixture.player).click();
+
+    document.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Escape" }));
+    await vi.advanceTimersByTimeAsync(2_500);
+
+    expect(fixture.player.querySelector("[data-huayi-youtube-picker-host]")).toBeNull();
+    expect(fixture.video.pause).not.toHaveBeenCalled();
+  });
+
+  it("clears completion when YouTube replaces the player", async () => {
+    vi.useFakeTimers();
+    const fixture = createFixture(false, "An unfinished playing caption");
+    controlButton(fixture.player).click();
+
+    const replacement = fixture.player.cloneNode(true);
+    fixture.player.replaceWith(replacement);
+    await Promise.resolve();
+    await Promise.resolve();
+    await vi.advanceTimersByTimeAsync(2_500);
+
+    expect(fixture.player.querySelector("[data-huayi-youtube-picker-host]")).toBeNull();
+    expect(fixture.video.pause).not.toHaveBeenCalled();
   });
 });
