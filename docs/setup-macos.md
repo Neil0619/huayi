@@ -57,8 +57,11 @@ pnpm verify:macos
 `pnpm build`；发布或交接前仍需完整门禁。
 
 在 `chrome://extensions` 开启开发者模式，加载 `apps/extension/dist`，并复制 Chrome 展示的
-32 位小写 `a-p` 扩展 ID。Manifest 未固定 `key` 时，开发版 ID 与加载目录有关；移动仓库或
-构建目录后必须重新复制 ID 并重装 Host。
+32 位小写 `a-p` 扩展 ID。Manifest 未固定 `key` 时，开发版 ID 与加载目录有关。若 Chrome 已
+登记一个稳定加载目录，而仓库后来移动，不要直接从新路径重复“加载已解压的扩展程序”：先把
+当前 `apps/extension/dist/` 完整同步到原稳定目录，再点 Retry/刷新，可保留扩展 ID、扩展本地
+状态和 Native Messaging 配对。只有明确迁移扩展 ID 时，才从新路径重新加载、复制新 ID，并
+用该 ID 同步重装 Host。
 
 ## 安装 Native Host
 

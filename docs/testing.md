@@ -40,11 +40,12 @@ POSIX 权限、目录 `fsync`、符号链接或 macOS Keychain 的专属测试�
   轮询不再入队、崩溃恢复，以及历史再审计 dry-run、单词探针和全量确认保护。
 - MCP 发现：fake process runner 覆盖已启用/已禁用过滤、命令参数和环境允许列表，以及进程
   失败、超时、输出超限、无效 JSON、重复/不安全名称和 128 条记录上限。
-- App Server 参数：回归确认不传 `tools.view_image=false` 或 `mcp_servers={}`，只为经过校验的
-  已启用直接 MCP 生成逐项禁用覆盖。
+- App Server 参数：回归确认不传 `tools.view_image=false` 或 `mcp_servers={}`，固定
+  `project_doc_max_bytes=0`，只为经过校验的已启用直接 MCP 生成逐项禁用覆盖。
 - App Server：JSON-RPC 拆包/合包、握手、按需重启并重新发现 MCP、并发 turn、中断、
-  ephemeral thread、固定 `openai` / `gpt-5.4-mini` / `low` 和空指令来源；接受目标 cwd 的
-  安全空 Hook 记录和无连接、无工具/资源/模板的 MCP 状态，拒绝活动记录和未知响应形状。
+  ephemeral thread、固定 `openai` / `gpt-5.4-mini` / `low` 和零字节项目指令上限；接受 Codex
+  在内容被抑制后仍返回的指令来源路径、目标 cwd 的安全空 Hook 记录和无连接、无工具/资源/
+  模板的 MCP 状态，拒绝活动记录和未知响应形状。
 - Warmup：不含任何网页字段，不发送 `thread/start` / `turn/start`，不触发 fake model turn；
   与 analyze 竞态时只发现、启动和初始化一次 App Server。
 - Provider：私有模型内容 Schema 拒绝公共元数据，有界 JSON 字段增量与完整结构化值、
@@ -61,7 +62,8 @@ POSIX 权限、目录 `fsync`、符号链接或 macOS Keychain 的专属测试�
   filesystem、fake Keychain 和 fake fetch。
 - Compatible HTTP/SSE：固定 `/responses`、Bearer Header、无 Cookie/重定向/重试，接受实测
   rate-limit、可选成对 reasoning、`0/1` output index、完整 Responses envelope、可选但必须成对
-  的 content-part / assistant-item done 和单文本生命周期；验证回显 Prompt、usage、加密
+  的 content-part / assistant-item done、assistant added item 的 `in_progress` / 提前
+  `completed` 状态和单文本生命周期；验证回显 Prompt、usage、加密
   reasoning、`turn_id`、`phase`、logprobs 与 obfuscation 均在归一化时丢弃。拒绝未知、重复、
   迟到、tool、refusal、半套终止事件、delta/done/completed 不一致、超限、取消或超时后的事件。
 - DeepSeek Key/API：精确钥匙串 service/account、隐藏输入、逐请求读取、不泄漏；fake fetch

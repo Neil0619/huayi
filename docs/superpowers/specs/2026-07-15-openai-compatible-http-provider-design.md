@@ -62,6 +62,7 @@ http://101.133.153.118:9090/v1
 
 - 部分响应在标准生命周期前增加 `codex.rate_limits`；
 - 在 assistant message 前增加一组 reasoning item added/done；
+- assistant `output_item.added` 的 `status` 可能提前标为 `completed`，随后仍发送完整文本与终态；
 - assistant message 有 `response.content_part.added`、delta 和 `response.output_text.done`；
 - 当前响应发送 assistant message 的 `response.content_part.done` 与
   `response.output_item.done`，早期实测响应省略二者；
@@ -276,6 +277,8 @@ response.completed
   存在时校验并丢弃；
 - reasoning item 不能是 tool、function call、web search 或 refusal；
 - 恰好一个 assistant message、一个 output_text part；
+- assistant added item 的 `status` 只接受 `in_progress` 或实测的提前 `completed`；无论采用哪一
+  状态，后续 content part、delta、text done 和唯一完成终态仍必须全部满足同一生命周期校验；
 - reasoning 存在时 output index 必须为 `0` / `1`，不存在时 assistant index 必须为 `0`；
 - delta 必须非空、按顺序累计并受 1 MiB 限制；
 - `response.output_text.done.text` 必须等于累计 delta；

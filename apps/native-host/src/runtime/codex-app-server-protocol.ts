@@ -169,7 +169,7 @@ export function isThreadStartResponse(value: unknown, cwd: string): value is Thr
     value.approvalPolicy === "never" &&
     value.cwd === cwd &&
     Array.isArray(value.instructionSources) &&
-    value.instructionSources.length === 0 &&
+    value.instructionSources.every(isNonEmptyString) &&
     value.model === "gpt-5.4-mini" &&
     value.modelProvider === "openai" &&
     value.reasoningEffort === "low" &&

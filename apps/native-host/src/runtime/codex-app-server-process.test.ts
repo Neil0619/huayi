@@ -42,6 +42,7 @@ describe("Codex App Server process", () => {
     ).toBe(process);
     expect(appServerArguments).not.toContain("tools.view_image=false");
     expect(appServerArguments).not.toContain("mcp_servers={}");
+    expect(appServerArguments).toContain("project_doc_max_bytes=0");
     expect(appServerArguments).toEqual(
       expect.arrayContaining([
         "--config",
@@ -69,5 +70,6 @@ describe("Codex App Server process", () => {
   it("does not send the incompatible overrides in thread configuration", () => {
     expect(HUAYI_THREAD_CONFIG).not.toHaveProperty("tools.view_image");
     expect(HUAYI_THREAD_CONFIG).not.toHaveProperty("mcp_servers");
+    expect(HUAYI_THREAD_CONFIG).toHaveProperty("project_doc_max_bytes", 0);
   });
 });

@@ -183,7 +183,9 @@ Compatible 客户端使用 POST、`redirect: "error"`、`credentials: "omit"`，
 
 实测端点会在完整 Responses envelope 中回显 Prompt、JSON Schema、usage 和服务配置，并在
 reasoning / assistant item 中携带加密 reasoning、`turn_id` 与 `phase`。Host 只允许已实测的
-严格字段集合、`output_index` 对应关系和成对终止事件，随后只保留响应 ID、assistant item ID、
+严格字段集合、`output_index` 对应关系和成对终止事件。assistant added item 的 `status` 只接受
+`in_progress` 或实测网关提前发送的 `completed`；后者不跳过任何 delta、文本一致性或唯一终态
+校验。Host 随后只保留响应 ID、assistant item ID、
 顺序和最终文本。回显 Prompt、usage、缓存字段、加密 reasoning、内部元数据、`turn_id`、
 `phase`、`logprobs` 与 `obfuscation` 均不会进入 Native Messaging、Extension 或 stderr。未知
 字段、非空 reasoning 内容/摘要、错误索引或半套终止事件继续失败关闭。
@@ -234,7 +236,7 @@ App Server 当前没有 ignore-user-config / ignore-rules 参数。划译不声�
 
 - `app-server --stdio --strict-config`，仅继承既有环境允许列表；
 - 固定内置 `openai`、`gpt-5.4-mini`、`low` effort 和 60 秒分析超时；
-- 专用空 cwd、`ephemeral: true`、空 `instructionSources`、只读无网络 sandbox、`never` 审批；
+- 专用空 cwd、`ephemeral: true`、`project_doc_max_bytes=0`、只读无网络 sandbox、`never` 审批；
 - 显式关闭历史、Web Search、环境继承、通知、遥测、应用默认项和 Hook 配置；
 - 禁用 `apps`、`auth_elicitation`、`browser_use`、`browser_use_external`、
   `browser_use_full_cdp_access`、`computer_use`、`enable_mcp_apps`、`hooks`、
@@ -256,9 +258,14 @@ MCP 发现最多接受 128 条记录；每个名称必须唯一且匹配 `[A-Za-
 所有禁用功能实际为 false。初始化后，Hook 响应只能为空，或包含专用 cwd 且
 `hooks` / `warnings` / `errors` 全空的记录；MCP 状态只能是 `serverInfo: null`、空 `tools`、
 空 `resources` / `resourceTemplates` 且无分页游标的断开状态。任何活动能力、未知字段或未知
-响应形状都会在 `thread/start` 前拒绝。`thread/start` 返回的 cwd、指令来源、
+响应形状都会在 `thread/start` 前拒绝。`thread/start` 返回的 cwd、指令来源形状、
 模型/provider/effort、ephemeral、审批和 sandbox 也必须精确匹配。无法证明约束生效时返回
 `CODEX_CAPABILITY_MISSING`，不降级到更宽权限。
+
+Codex 会把全局或项目 `AGENTS.md` 的路径保留在 `instructionSources` 中，即使
+`project_doc_max_bytes=0` 已将可注入内容上限固定为零；因此 Host 接受字符串来源记录，但不再
+依赖来源数组为空来证明隔离。该配置同时固定在 App Server 启动覆盖和 thread 覆盖中，并由
+`--strict-config` 保证当前 CLI 识别；来源数组含非字符串值时仍失败关闭。
 
 Host 不注册动态工具。任何 config warning、审批、用户输入、应用、Hook、MCP、命令执行、
 文件修改、MCP/dynamic/collab tool、Web Search 或图片 item 都按不安全事件失败关闭。App Server
