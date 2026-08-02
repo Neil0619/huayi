@@ -56,12 +56,12 @@ pnpm verify:macos
 检查，不读取真实钥匙串、不安装 Host，也不调用模型或欧路。只需快速重建时可单独运行
 `pnpm build`；发布或交接前仍需完整门禁。
 
-在 `chrome://extensions` 开启开发者模式，加载 `apps/extension/dist`，并复制 Chrome 展示的
-32 位小写 `a-p` 扩展 ID。Manifest 未固定 `key` 时，开发版 ID 与加载目录有关。若 Chrome 已
-登记一个稳定加载目录，而仓库后来移动，不要直接从新路径重复“加载已解压的扩展程序”：先把
-当前 `apps/extension/dist/` 完整同步到原稳定目录，再点 Retry/刷新，可保留扩展 ID、扩展本地
-状态和 Native Messaging 配对。只有明确迁移扩展 ID 时，才从新路径重新加载、复制新 ID，并
-用该 ID 同步重装 Host。
+在 `chrome://extensions` 开启开发者模式，直接加载当前仓库的 `apps/extension/dist`，并复制
+Chrome 展示的 32 位小写 `a-p` 扩展 ID。Manifest 未固定 `key` 时，开发版 ID 与加载目录有关。
+仓库或构建目录移动后，从新路径重新“加载已解压的扩展程序”，复制 Chrome 生成的新 ID，
+再用该 ID 同步重装 Host；不要把新构建同步回旧目录来保留旧 ID。当前个人安装使用 ID
+`chanmjjealoeeheohofnljbbkkfgfnfm`，加载路径为
+`/Users/niuzhenya/Documents/huayi/apps/extension/dist`。
 
 ## 安装 Native Host
 
@@ -85,6 +85,9 @@ pnpm host:install -- --extension-id <ID> --codex-path /absolute/path/to/codex
   目录、launcher 和所有权标记；
 - `~/Library/Application Support/Google/Chrome/NativeMessagingHosts/com.huayi.codex_bridge.json`：
   只允许当前扩展 ID。
+
+Native Messaging 清单先在同目录写入排他的 `0600` 临时文件并同步，再通过 `rename` 原子替换
+目标并同步目录；替换前失败会清理临时文件并保留上一份有效清单。
 
 目标目录或清单缺少合法 Huayi 所有权时安装失败，不覆盖未知内容。launcher 记录绝对 Node、
 Codex、`HOME` 和可选 `CODEX_HOME`，使用受控 `PATH`，因此 Chrome 从 GUI 启动时不依赖终端
@@ -307,7 +310,7 @@ Google Chrome 普通 `http/https` 顶层页面。
 ```bash
 pnpm install
 pnpm build
-pnpm host:install -- --extension-id kfkamoejomjdihipgdkmfjcdenlhgnpd
+pnpm host:install -- --extension-id chanmjjealoeeheohofnljbbkkfgfnfm
 ```
 
 然后立即打开 `chrome://extensions`，确认“划译”当前加载路径仍是本次构建的
@@ -340,7 +343,7 @@ pnpm smoke:codex
 git switch --detach 3795c5d
 pnpm install
 pnpm build
-pnpm host:install -- --extension-id kfkamoejomjdihipgdkmfjcdenlhgnpd
+pnpm host:install -- --extension-id chanmjjealoeeheohofnljbbkkfgfnfm
 ```
 
 打开 `chrome://extensions`，确认加载路径仍为当前目录的 `apps/extension/dist`，点击刷新并确认
@@ -353,7 +356,7 @@ pnpm host:install -- --extension-id kfkamoejomjdihipgdkmfjcdenlhgnpd
 git switch -
 pnpm install
 pnpm build
-pnpm host:install -- --extension-id kfkamoejomjdihipgdkmfjcdenlhgnpd
+pnpm host:install -- --extension-id chanmjjealoeeheohofnljbbkkfgfnfm
 ```
 
 随后再次在 `chrome://extensions` 刷新并确认版本 `0.4.0`。
@@ -366,7 +369,7 @@ v0.5.0 将 Native Messaging 协议提升为 `schemaVersion: 3` 并拒绝 v2。�
 
 ```bash
 pnpm build
-pnpm host:install -- --extension-id kfkamoejomjdihipgdkmfjcdenlhgnpd
+pnpm host:install -- --extension-id chanmjjealoeeheohofnljbbkkfgfnfm
 pnpm host:openai:configure
 pnpm host:provider:set api
 pnpm host:provider:status
@@ -399,7 +402,7 @@ v0.6.0 将 Native Messaging 协议提升为 `schemaVersion: 4` 并拒绝 v3。Ex
 
 ```bash
 pnpm build
-pnpm host:install -- --extension-id kfkamoejomjdihipgdkmfjcdenlhgnpd \
+pnpm host:install -- --extension-id chanmjjealoeeheohofnljbbkkfgfnfm \
   --codex-path /Applications/ChatGPT.app/Contents/Resources/codex
 pnpm host:compatible:key:configure
 pnpm host:compatible:config:set \
@@ -436,7 +439,7 @@ v0.7.0 保持 `schemaVersion: 4`，但 health 增加 DeepSeek Provider 分支，
 
 ```bash
 pnpm build
-pnpm host:install -- --extension-id kfkamoejomjdihipgdkmfjcdenlhgnpd \
+pnpm host:install -- --extension-id chanmjjealoeeheohofnljbbkkfgfnfm \
   --codex-path /Applications/ChatGPT.app/Contents/Resources/codex
 ```
 
@@ -466,11 +469,11 @@ v0.8.0 将 Native Messaging 协议提升为 `schemaVersion: 5` 并拒绝 v4。�
 
 ```bash
 pnpm build
-pnpm host:install -- --extension-id kfkamoejomjdihipgdkmfjcdenlhgnpd \
+pnpm host:install -- --extension-id chanmjjealoeeheohofnljbbkkfgfnfm \
   --codex-path /Applications/ChatGPT.app/Contents/Resources/codex
 ```
 
-构建后先读取 Chrome 当前登记的稳定加载目录中的 `manifest.json`，确认版本为 `0.8.0`，再在
+构建后先读取 Chrome 当前仓库加载目录中的 `manifest.json`，确认版本为 `0.8.0`，再在
 `chrome://extensions` 点击刷新并再次确认版本。升级保留现有 Provider 选择、Compatible 配置
 及全部钥匙串项，不调用真实模型，也不自动切换 Provider。需要 DeepSeek 真实质量/延迟验收时，
 仍须另行授权 `pnpm smoke:deepseek`；通过后才显式切换或保留当前 Provider。
@@ -486,11 +489,12 @@ Provider、凭据或远端请求。为保持版本身份一致，Extension 与 N
 
 ```bash
 pnpm build
-pnpm host:install -- --extension-id kfkamoejomjdihipgdkmfjcdenlhgnpd \
+pnpm host:install -- --extension-id chanmjjealoeeheohofnljbbkkfgfnfm \
   --codex-path /Applications/ChatGPT.app/Contents/Resources/codex
 ```
 
-安装完成后必须读取 Chrome 实际登记的稳定加载目录中的 `manifest.json`，确认版本为 `0.9.0`，
+安装完成后必须读取 Chrome 实际登记的当前仓库加载目录中的 `manifest.json`，确认版本为
+`0.9.0`，
 再在 `chrome://extensions` 刷新。升级不读取或修改 Provider 配置与钥匙串，也不需要执行真实
 模型 smoke。人工检查白色单层卡片、源词与音标头部、语境强调区、结构化短语/辨析行、右上角
 “生词/添加中/已加入”状态、内部滚动和 320px 单列布局。
@@ -502,7 +506,7 @@ v0.10.0 新增 Windows DeepSeek 模型、欧路生词本和 DPAPI 安装路径�
 
 ```bash
 pnpm build
-pnpm host:install -- --extension-id kfkamoejomjdihipgdkmfjcdenlhgnpd \
+pnpm host:install -- --extension-id chanmjjealoeeheohofnljbbkkfgfnfm \
   --codex-path /Applications/ChatGPT.app/Contents/Resources/codex
 ```
 
@@ -536,7 +540,7 @@ v0.12.0 将协议同步升级为 wire v6，并把扇贝批次改为部分确认�
 ```bash
 pnpm verify:macos
 pnpm build
-pnpm host:install -- --extension-id kfkamoejomjdihipgdkmfjcdenlhgnpd \
+pnpm host:install -- --extension-id chanmjjealoeeheohofnljbbkkfgfnfm \
   --codex-path /Applications/ChatGPT.app/Contents/Resources/codex
 ```
 

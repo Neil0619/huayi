@@ -32,6 +32,8 @@ fake 只能证明输入、输出、错误映射和调用约束，不能证明 Ke
 - 生词状态 Schema、v1/v2→v3 迁移、分页、部分确认和词形规则必须完全共用。macOS 只负责
   `~/Library/Application Support` 路径与 `0600`，Windows 只负责 `%LOCALAPPDATA%` 路径及当前
   用户 ACL；离线词形依赖必须同时进入 macOS bundle 和 Windows SEA，不能在运行时下载。
+- macOS Native Messaging 清单必须通过同目录 `0600` 临时文件、文件同步、原子 `rename` 和
+  目录同步更新；替换前失败必须保留上一份有效清单并清理临时文件。
 - 子进程必须使用固定 executable、参数数组和 `shell: false`。测试 fixture 在 POSIX 需要执行
   权限时显式 `chmod`，在 Windows 不得依赖 POSIX mode。
 - 只有不可模拟的真实 OS 原语可以按平台跳过；跳过原因必须写在测试附近，并由目标平台 CI

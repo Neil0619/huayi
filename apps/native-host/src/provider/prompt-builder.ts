@@ -62,6 +62,9 @@ function taskInstructions(request: AnalyzeRequest): string[] {
       "UsageNotes contains only 0-3 context-relevant points such as transitivity, countability, complement pattern, register, or a common misuse.",
       "Synonyms contains 0-3 words genuinely close to the contextual sense, each with a concise Chinese distinction about tone, collocation, or usage.",
       "Synonyms must exclude spelling-only confusables, antonyms, the selected word, and the base form.",
+      "Synonym text must be an English word containing a letter; digits and symbols are representations, not synonyms.",
+      "Use only partOfSpeech labels allowed by the output schema; for a number word use number, never numeral, cardinal, or ordinal.",
+      "Return [] when no genuine word synonym remains after applying these rules.",
       "For example, principal/principle and advise/advice belong to confusable-word analysis, not synonym analysis.",
       "Use [] or null when a field is not reliable; never fabricate content to satisfy a count.",
     ];

@@ -83,4 +83,24 @@ describe("buildDeepSeekRequestBody", () => {
     expect(body.messages[0]?.content).toContain("EXAMPLE_JSON_OUTPUT");
     expect(body.messages[0]?.content).toContain(`"${expectedField}"`);
   });
+
+  it("rules out invalid synonym representations for a number word", () => {
+    const body = JSON.parse(
+      buildDeepSeekRequestBody({
+        analysisRequest: request({
+          action: "explain",
+          context: "Four witnesses came forward.",
+          selection: "Four",
+          sentenceContext: "Four witnesses came forward.",
+        }),
+        outputSchema,
+        resultType: "explain-word",
+      }),
+    ) as { messages: { content: string }[] };
+    const systemMessage = body.messages[0]?.content ?? "";
+
+    expect(systemMessage).toMatch(/digits? and symbols?.*not synonyms/iu);
+    expect(systemMessage).toMatch(/number.*never numeral/iu);
+    expect(systemMessage).toMatch(/return \[\].*no genuine word synonym/iu);
+  });
 });

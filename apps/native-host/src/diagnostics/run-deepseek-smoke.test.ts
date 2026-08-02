@@ -6,6 +6,7 @@ import type { AnalysisProvider } from "../provider/analysis-provider.js";
 import type { ProcessRunRequest } from "../runtime/codex-process.js";
 import {
   createDeepSeekSmokeCredentialReader,
+  createDeepSeekSmokeValidationDiagnosticSink,
   createDefaultDeepSeekSmokeRuntime,
   runDeepSeekSmoke,
   type DeepSeekSmokeReport,
@@ -97,6 +98,19 @@ function runtime(provider: AnalysisProvider): {
 }
 
 describe("runDeepSeekSmoke", () => {
+  it("formats validation failures with only allowlisted stage and field names", () => {
+    const lines: string[] = [];
+    const sink = createDeepSeekSmokeValidationDiagnosticSink((line) => lines.push(line));
+
+    sink({ field: "synonyms", stage: "model-schema" });
+    sink({ field: "unsafe-private-output" as "synonyms", stage: "model-schema" });
+
+    expect(lines).toEqual([
+      "Native host provider validation: stage=model-schema field=synonyms\n",
+      "Native host provider validation: stage=model-schema\n",
+    ]);
+  });
+
   it("constructs a dedicated runtime without Codex or API environment variables", () => {
     expect(() =>
       createDefaultDeepSeekSmokeRuntime(

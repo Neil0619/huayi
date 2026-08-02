@@ -71,8 +71,8 @@ follow-up chat, or browser settings.
   Compatible approval must cover
   plaintext credential/page-data transmission and third-party billing; other smoke approval must
   cover real-model quota/API billing. Installation and Chrome verification need separate approval.
-- The personal Extension ID is `kfkamoejomjdihipgdkmfjcdenlhgnpd`. Synchronous reinstall uses
-  `pnpm host:install -- --extension-id kfkamoejomjdihipgdkmfjcdenlhgnpd` and preserves the
+- The personal Extension ID is `chanmjjealoeeheohofnljbbkkfgfnfm`. Synchronous reinstall uses
+  `pnpm host:install -- --extension-id chanmjjealoeeheohofnljbbkkfgfnfm` and preserves the
   `com.huayi.codex_bridge.eudic` / `authorization` Keychain item and documented macOS paths.
 - Windows always pins `deepseek-chat-completions`, stores its DeepSeek API Key and Eudic
   authorization in separate per-user DPAPI-protected credentials below `%LOCALAPPDATA%`, and

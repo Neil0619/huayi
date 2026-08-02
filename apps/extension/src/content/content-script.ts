@@ -8,6 +8,7 @@ import {
   createCheckWordRequest,
 } from "./content-request-factory.js";
 import { OverlayController } from "./overlay/overlay-controller.js";
+import type { FrameScheduler } from "./overlay/frame-scheduler.js";
 import { rectToOverlayAnchor } from "./overlay/position-overlay.js";
 import type { OverlayAnchorRect } from "./overlay/overlay-state.js";
 import { readSelection } from "./selection/read-selection.js";
@@ -37,6 +38,7 @@ export interface ContentRuntime {
 export interface ContentScriptOptions {
   createRequestId?: () => string;
   document?: Document;
+  frameScheduler?: FrameScheduler;
   getAnchorRect?: (range: Range) => OverlayAnchorRect;
   isYouTubeWatchPage?: () => boolean;
   runtime?: ContentRuntime;
@@ -246,6 +248,9 @@ export function initializeContentScript(options: ContentScriptOptions = {}): Con
     options.isYouTubeWatchPage !== undefined || isYouTubeHost(documentRef.location)
       ? new YouTubeCaptionController({
           document: documentRef,
+          ...(options.frameScheduler === undefined
+            ? {}
+            : { frameScheduler: options.frameScheduler }),
           ...(options.isYouTubeWatchPage === undefined
             ? {}
             : { isWatchPage: options.isYouTubeWatchPage }),

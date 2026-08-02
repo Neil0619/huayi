@@ -5,6 +5,7 @@
 - 产品版本：`0.12.0`
 - Native Messaging：`schemaVersion: 6`
 - 浏览器：Google Chrome 普通 `http/https` 顶层网页及 YouTube `/watch` 英文字幕
+- YouTube：点击立即暂停；完整句优先使用已验证的字幕轨，失败时回退到 30 秒仅内存缓冲
 - macOS：完整功能，默认 Provider 为已登录 Codex
 - Windows：模型固定为 DeepSeek，不连接本机 Codex；支持欧路生词本
 - 发布方式：从 GitHub 源码构建并加载，尚未发布 Chrome Web Store
@@ -27,7 +28,8 @@
 
 - Windows 上的 Codex、OpenAI 和 Compatible HTTP。
 - Linux、Firefox、Edge、PDF、Chrome 内部页面、iframe 和编辑器区域。
-- YouTube 直播、Shorts、OCR、字幕历史和跨字幕片段自动拼句。
+- YouTube 直播、Shorts、OCR 和持久字幕历史。普通录播的完整句优先使用尽力预取的字幕轨，
+  失败时回退到最近 30 秒、最多 2,000 字符的仅内存字幕缓冲。
 - 分析历史记录、跨设备同步、后续对话、浏览器内 Provider 设置和 Chrome Web Store 自动安装。
 
 ## 文档接手顺序

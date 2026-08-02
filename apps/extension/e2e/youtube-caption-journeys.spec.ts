@@ -135,3 +135,48 @@ test("drags across stable caption words and sends one exact phrase", async ({ pa
     "The investigation was still in its early stages.",
   );
 });
+
+test("restores the observed first half without playing or waiting for a transcript", async ({
+  page,
+}) => {
+  await page.goto(`${youtubeFixturePath}?caption-scenario=rolling`);
+  await page.evaluate(() => document.dispatchEvent(new Event("huayi-test-next-caption")));
+  const player = page.getByTestId("youtube-player");
+  const control = player
+    .locator("[data-huayi-youtube-control-host]")
+    .getByRole("button", { name: "Huayi 字幕取词" });
+
+  await control.click();
+
+  await expect(page.getByTestId("youtube-video")).toHaveAttribute("data-pause-count", "1");
+  await expect(page.getByTestId("youtube-video")).not.toHaveAttribute("data-play-count", /.+/u);
+  const picker = player.locator("[data-huayi-youtube-picker-host]");
+  await expect(picker).toContainText("The investigation was still in its early stages.");
+  await picker.getByRole("button", { exact: true, name: "investigation" }).click();
+  await toolbar(page).locator('[data-action="translate"]').click();
+
+  const request = await expectAnalyzeRequest(page, "word", "translate");
+  await expect(request).toHaveAttribute(
+    "data-analysis-context",
+    "The investigation was still in its early stages.",
+  );
+});
+
+test("uses a validated prefetched track to freeze the complete current sentence", async ({
+  page,
+}) => {
+  await page.goto(`${youtubeFixturePath}?caption-scenario=transcript`);
+  await expect
+    .poll(() => page.locator("html").getAttribute("data-caption-fetch-complete"))
+    .toBe("true");
+  const player = page.getByTestId("youtube-player");
+
+  await player
+    .locator("[data-huayi-youtube-control-host]")
+    .getByRole("button", { name: "Huayi 字幕取词" })
+    .click();
+
+  await expect(player.locator("[data-huayi-youtube-picker-host]")).toContainText(
+    "The investigation was still in its early stages.",
+  );
+});

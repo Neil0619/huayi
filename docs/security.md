@@ -62,14 +62,28 @@ Script 的 `matches`。扩展不声明 `host_permissions`、`storage`、`tabs`�
 ### YouTube 字幕边界
 
 YouTube 字幕取词只在标准 `/watch` 录播页运行。Content Script 在本地观察当前播放器已经渲染
-且有可见布局框的英文字幕，不调用字幕 API、OCR 或整段 transcript，不保存之前或之后的字幕。
-普通非 YouTube 网页不创建字幕观察器。YouTube DOM 选择器变化、直播、Shorts、广告、非英文
-字幕或超长字幕都失败关闭，不影响普通网页选区。
+且有可见布局框的英文字幕，并把最近 30 秒、最多 2,000 字符的去重片段仅保存在当前脚本内存。
+首次发现英文字幕后，它可从当前文档文本中的内嵌播放器响应尽力解析字幕轨；若 SPA 导航后的
+现存 DOM 没有响应数据，则只允许匿名重新获取带非空 `v` 参数的当前 HTTPS YouTube `/watch`
+文档，响应上限 2 MiB。两种路径都不执行页面脚本、不读取页面 JavaScript 全局对象，也不调用
+要求 OAuth 的 YouTube Data API。普通非 YouTube 网页不创建字幕观察器或字幕轨请求。
 
-点击“译”只发送无页面数据 warmup；冻结字幕仍留在页面本地。只有用户随后点击解释或翻译时，
-当前选区和当前字幕上下文才进入既有分析通道。单词查词只发送单词；显式加入欧路时沿用当前
-字幕作为英文语境。该路径不发送 URL、标题、视频 ID、频道、播放时间、字幕历史或相邻字幕，
-也不新增 Manifest 权限。
+文档重新获取和字幕轨请求都固定 `credentials: "omit"` 并共享 3 秒超时；字幕轨 URL 只允许
+HTTPS YouTube 主机的精确 `/api/timedtext` 路径，响应上限 2 MiB、cue 上限 50,000。时间与文本字段严格
+解析；轨 URL 的 `v` 必须等于当前 `/watch` 视频，当前时间的候选 cue 还必须和可见字幕可靠重叠。
+SPA 残留的旧视频轨直接丢弃并重新获取当前文档。未公开 timedtext 格式不是稳定契约，
+任一 URL、页面格式、语言、网络、超限或匹配校验失败都静默回退到内存缓冲，再回退到当前
+可见字幕，不影响普通网页选区。
+
+点击“译”立即暂停视频，至多等待一个动画帧后同步冻结内容；不继续播放、不固定等待 2.5 秒、
+不等待预取，也只发送无页面数据 warmup。冻结后异步结果不能改写卡片。只有用户随后点击解释
+或翻译时，当前选区和最多 2,000 字符的冻结字幕上下文才进入既有分析通道。单词查词只发送
+单词；显式加入欧路时沿用冻结字幕作为英文语境。该路径不发送 URL、标题、视频 ID、频道、
+播放时间或字幕历史给 Native Host 或 Provider，也不修改 wire、Native Host、Provider 接口或
+Manifest 权限。
+
+整轨和滚动缓冲不会写入 Extension storage、Native Host 或磁盘。视频切换、播放器替换、
+字幕语言变化、广告、直播或销毁会清空全部字幕状态；seek 会清空滚动缓冲。
 
 冻结卡、单词按钮和结果继续使用原生 DOM、Shadow DOM 与 `textContent`。普通模式的结果挂载
 文档根节点，全屏时只重挂载到当前 `document.fullscreenElement`，不会读取或修改播放器媒体
@@ -313,8 +327,11 @@ Provider 为 Codex 时才探测 App Server 能力、禁用功能和 ChatGPT 登�
 调用模型、不读取欧路授权或任何模型 API Key、不创建目录；正式安装同样不读取或创建模型
 钥匙串项。
 
+macOS Chrome Native Messaging 清单使用目标目录内排他的 `0600` 临时文件，完成文件同步后
+再原子 `rename` 并同步目录；写入或替换前失败时清理临时文件并保持上一份有效清单不变。
+
 v0.12.0 使用 `schemaVersion: 6` 并拒绝 v5，Extension 与 Host 必须使用扩展 ID
-`kfkamoejomjdihipgdkmfjcdenlhgnpd` 同步重装或回滚。升级只替换带合法 Huayi 所有权标记的
+`chanmjjealoeeheohofnljbbkkfgfnfm` 同步重装或回滚。升级只替换带合法 Huayi 所有权标记的
 bundle、Schema、空工作目录和 launcher，保持
 `~/Library/Application Support/Huayi/native-host/`、Chrome Native Messaging 清单路径，以及
 欧路 `com.huayi.codex_bridge.eudic` / `authorization`、官方 OpenAI
