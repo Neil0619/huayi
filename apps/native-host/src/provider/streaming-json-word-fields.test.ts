@@ -3,6 +3,35 @@ import { describe, expect, it } from "vitest";
 import { StreamingJsonFieldExtractor } from "./streaming-json-fields.js";
 
 describe("StreamingJsonFieldExtractor word results", () => {
+  it("caps an overlong valid common-meaning group before streaming it", () => {
+    const extractor = new StreamingJsonFieldExtractor({
+      resultType: "translate-word",
+      sentenceContext: null,
+    });
+
+    expect(
+      extractor.push(
+        '{"pronunciation":null,' +
+          '"contextualSense":{"meaningZh":"前沿","partOfSpeech":"noun"},' +
+          '"dictionaryForm":"frontier",' +
+          '"commonMeanings":[{"meaningsZh":["边疆","边界","前沿","新领域"],' +
+          '"partOfSpeech":"noun"}],"commonPhrases":[],"confusableWords":[]}',
+      ),
+    ).toEqual([
+      {
+        section: "contextual-sense",
+        type: "analysis-section",
+        value: { meaningZh: "前沿", partOfSpeech: "noun" },
+      },
+      {
+        section: "common-meanings",
+        type: "analysis-section",
+        value: [{ meaningsZh: ["边疆", "边界", "前沿"], partOfSpeech: "noun" }],
+      },
+    ]);
+    expect(() => extractor.finish()).not.toThrow();
+  });
+
   it("streams word dictionary fields in the requested display order", () => {
     const extractor = new StreamingJsonFieldExtractor({
       resultType: "translate-word",

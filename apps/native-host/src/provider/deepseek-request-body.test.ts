@@ -103,4 +103,22 @@ describe("buildDeepSeekRequestBody", () => {
     expect(systemMessage).toMatch(/number.*never numeral/iu);
     expect(systemMessage).toMatch(/return \[\].*no genuine word synonym/iu);
   });
+
+  it("requires every word meaning group to emit partOfSpeech before meaningsZh", () => {
+    const body = JSON.parse(
+      buildDeepSeekRequestBody({
+        analysisRequest: request(),
+        outputSchema,
+        resultType: "translate-word",
+      }),
+    ) as { messages: { content: string }[] };
+    const systemMessage = body.messages[0]?.content ?? "";
+
+    expect(systemMessage).toMatch(
+      /every commonMeanings item contains exactly two keys in this order: partOfSpeech, meaningsZh; never omit either key/iu,
+    );
+    expect(systemMessage).toContain(
+      '"commonMeanings":[{"partOfSpeech":"noun","meaningsZh":["常用中文义"]}]',
+    );
+  });
 });

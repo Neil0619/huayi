@@ -5,6 +5,7 @@ import {
   MAX_CONTEXT_LENGTH,
   MAX_CORE_MEANINGS,
   MAX_DICTIONARY_MEANING_GROUPS,
+  MAX_MEANINGS_PER_GROUP,
   MAX_MODEL_TEXT_LENGTH,
   MAX_RELATED_TERMS,
   MAX_SYNONYM_COMPARISONS,
@@ -59,6 +60,23 @@ const nullablePronunciationSchema = pronunciationObjectSchema.nullable();
 const keyExpressionSchema = z.strictObject({
   meaningZh: chineseTextSchema.max(500),
   text: englishTextSchema.max(300),
+});
+
+const dictionaryMeaningSchema = dictionaryMeaningGroupSchema.shape.meaningsZh.element;
+
+function normalizeDictionaryMeanings(value: unknown): unknown {
+  if (!Array.isArray(value)) return value;
+  const parsed = z.array(dictionaryMeaningSchema).safeParse(value);
+  if (!parsed.success) return value;
+  return [...new Set(parsed.data)].slice(0, MAX_MEANINGS_PER_GROUP);
+}
+
+const modelDictionaryMeaningGroupObjectSchema = z.strictObject({
+  meaningsZh: z.preprocess(
+    normalizeDictionaryMeanings,
+    dictionaryMeaningGroupSchema.shape.meaningsZh,
+  ),
+  partOfSpeech: partOfSpeechSchema,
 });
 
 export interface ModelLexicalTranslation {
@@ -134,7 +152,10 @@ const modelWordTranslationObjectSchema = z.strictObject({
   pronunciation: nullablePronunciationSchema,
   contextualSense: contextualSenseSchema,
   dictionaryForm: englishTextSchema.max(120),
-  commonMeanings: z.array(dictionaryMeaningGroupSchema).min(1).max(MAX_DICTIONARY_MEANING_GROUPS),
+  commonMeanings: z
+    .array(modelDictionaryMeaningGroupObjectSchema)
+    .min(1)
+    .max(MAX_DICTIONARY_MEANING_GROUPS),
   commonPhrases: z.array(commonPhraseSchema).max(MAX_COMMON_PHRASES),
   confusableWords: z.array(confusableWordSchema).max(MAX_CONFUSABLE_WORDS),
 });
@@ -177,7 +198,7 @@ const collocationOwnKeys = rawOwnKeyObjectFor(collocationSchema);
 const coreMeaningOwnKeys = rawOwnKeyObjectFor(coreMeaningSchema);
 const relatedTermOwnKeys = rawOwnKeyObjectFor(relatedTermSchema);
 const contextualSenseOwnKeys = rawOwnKeyObjectFor(contextualSenseSchema);
-const dictionaryMeaningGroupOwnKeys = rawOwnKeyObjectFor(dictionaryMeaningGroupSchema);
+const dictionaryMeaningGroupOwnKeys = rawOwnKeyObjectFor(modelDictionaryMeaningGroupObjectSchema);
 const commonPhraseOwnKeys = rawOwnKeyObjectFor(commonPhraseSchema);
 const confusableWordOwnKeys = rawOwnKeyObjectFor(confusableWordSchema);
 const usageNoteOwnKeys = rawOwnKeyObjectFor(usageNoteSchema);
@@ -308,7 +329,7 @@ const MODEL_ARRAY_ITEM_SCHEMAS = {
   ]),
   "translate-passage": new Map<string, z.ZodType>(),
   "translate-word": new Map<string, z.ZodType>([
-    ["commonMeanings", dictionaryMeaningGroupSchema],
+    ["commonMeanings", modelDictionaryMeaningGroupObjectSchema],
     ["commonPhrases", commonPhraseSchema],
     ["confusableWords", confusableWordSchema],
   ]),

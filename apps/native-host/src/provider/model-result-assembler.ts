@@ -69,7 +69,8 @@ function mergeDictionaryMeaningGroups(
     const existingIndex = indexesByPartOfSpeech.get(group.partOfSpeech);
     if (existingIndex === undefined) {
       indexesByPartOfSpeech.set(group.partOfSpeech, merged.length);
-      merged.push({ meaningsZh: [...group.meaningsZh], partOfSpeech: group.partOfSpeech });
+      const meaningsZh = [...new Set(group.meaningsZh)].slice(0, MAX_MEANINGS_PER_GROUP);
+      merged.push({ meaningsZh, partOfSpeech: group.partOfSpeech });
       continue;
     }
 

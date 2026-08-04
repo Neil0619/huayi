@@ -51,7 +51,7 @@ const EXAMPLES = {
     pronunciation: null,
     contextualSense: { meaningZh: "语境中的中文义", partOfSpeech: "noun" },
     dictionaryForm: "example",
-    commonMeanings: [{ meaningsZh: ["常用中文义"], partOfSpeech: "noun" }],
+    commonMeanings: [{ partOfSpeech: "noun", meaningsZh: ["常用中文义"] }],
     commonPhrases: [],
     confusableWords: [],
   },

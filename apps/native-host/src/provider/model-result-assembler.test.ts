@@ -127,6 +127,33 @@ describe("parseAndAssembleModelResult", () => {
     });
   });
 
+  it("deduplicates the first word meaning group before capped merging", () => {
+    const result = parseAndAssembleModelResult(
+      JSON.stringify(
+        wordTranslation({
+          commonMeanings: [
+            { meaningsZh: ["前沿", "前沿", "边界"], partOfSpeech: "noun" },
+            { meaningsZh: ["尖端", "最前线"], partOfSpeech: "noun" },
+          ],
+          contextualSense: { meaningZh: "前沿", partOfSpeech: "noun" },
+          dictionaryForm: "frontier",
+        }),
+      ),
+      createRequest({
+        context: "This work is at the frontier of science.",
+        selection: "frontier",
+        selectionKind: "word",
+        sentenceContext: "This work is at the frontier of science.",
+      }),
+    );
+
+    expect(result).toMatchObject({
+      commonMeanings: [{ meaningsZh: ["前沿", "边界", "尖端"], partOfSpeech: "noun" }],
+      dictionaryForm: "frontier",
+      type: "translate-word",
+    });
+  });
+
   it("removes repeated and self-referential Flimsy lists before public validation", () => {
     const result = parseAndAssembleModelResult(
       JSON.stringify(
