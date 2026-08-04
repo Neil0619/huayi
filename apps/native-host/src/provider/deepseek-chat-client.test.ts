@@ -14,7 +14,7 @@ const request: AnalyzeRequest = {
   action: "translate",
   context: "The investigation remains open.",
   requestId: "deepseek-client-1",
-  schemaVersion: 5,
+  schemaVersion: 6,
   selection: "investigation",
   selectionKind: "word",
   sentenceContext: "The investigation remains open.",
@@ -127,10 +127,10 @@ describe("DeepSeekChatClient", () => {
     [403, "MODEL_PROVIDER_AUTH_FAILED"],
     [402, "QUOTA_EXCEEDED"],
     [429, "RATE_LIMITED"],
-    [500, "NETWORK_ERROR"],
-    [502, "NETWORK_ERROR"],
-    [503, "NETWORK_ERROR"],
-    [504, "NETWORK_ERROR"],
+    [500, "INTERNAL_ERROR"],
+    [502, "INTERNAL_ERROR"],
+    [503, "INTERNAL_ERROR"],
+    [504, "INTERNAL_ERROR"],
     [400, "INVALID_RESPONSE"],
     [422, "INVALID_RESPONSE"],
   ] as const)("maps HTTP %i to %s", async (status, code) => {
@@ -148,7 +148,10 @@ describe("DeepSeekChatClient", () => {
       }
     };
 
-    await expect(collect()).rejects.toMatchObject({ code });
+    await expect(collect()).rejects.toMatchObject({
+      code,
+      ...(code === "INTERNAL_ERROR" ? { message: "DeepSeek 模型服务处理失败，请重试。" } : {}),
+    });
   });
 
   it("rejects a successful non-SSE response", async () => {

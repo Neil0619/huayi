@@ -10,6 +10,10 @@ import {
 import { ProviderConfigurationStore } from "../config/provider-configuration-store.js";
 import { checkCodexCapabilities } from "../runtime/codex-capabilities.js";
 import type { ProcessRunner } from "../runtime/codex-process.js";
+import {
+  type MacosManifestWriteOperations,
+  writeMacosNativeManifest,
+} from "./macos-native-manifest.js";
 import { createNativeHostManifest, NATIVE_HOST_NAME } from "./native-manifest.js";
 import { createMacosInstallationPaths, type MacosInstallationPaths } from "./paths.js";
 
@@ -29,6 +33,7 @@ export interface InstallMacosNativeHostOptions {
   environment: NodeJS.ProcessEnv;
   extensionId: string;
   homeDirectory: string;
+  manifestWriteOperations?: MacosManifestWriteOperations;
   nodeExecutable: string;
   nodeVersion: string;
   processRunner: ProcessRunner;
@@ -292,10 +297,11 @@ export async function installMacosNativeHost(
   await chmod(paths.launcherPath, 0o755);
 
   await mkdir(dirname(paths.nativeManifestPath), { recursive: true });
-  await writeFile(paths.nativeManifestPath, `${JSON.stringify(manifest, null, 2)}\n`, {
-    encoding: "utf8",
-    mode: 0o600,
-  });
+  await writeMacosNativeManifest(
+    paths.nativeManifestPath,
+    `${JSON.stringify(manifest, null, 2)}\n`,
+    options.manifestWriteOperations,
+  );
   return { actions, dryRun: false, paths };
 }
 

@@ -12,6 +12,7 @@ export interface MacosInstallationPaths {
   readonly providerConfigurationPath: string;
   readonly schemaDirectory: string;
   readonly workingDirectory: string;
+  readonly wordSyncStatePath: string;
 }
 
 export function createMacosInstallationPaths(homeDirectory: string): MacosInstallationPaths {
@@ -38,5 +39,6 @@ export function createMacosInstallationPaths(homeDirectory: string): MacosInstal
     providerConfigurationPath: posix.join(applicationDirectory, "provider.json"),
     schemaDirectory: posix.join(applicationDirectory, "provider/schemas"),
     workingDirectory: posix.join(applicationDirectory, "workdir"),
+    wordSyncStatePath: posix.join(applicationDirectory, "word-sync-state.json"),
   };
 }

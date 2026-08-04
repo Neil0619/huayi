@@ -98,6 +98,23 @@ describe("parseCompatibleHttpResponseEvent", () => {
     ).toEqual({ ...expectedLifecycle.at(-1), sequence: 9 });
   });
 
+  it("accepts a gateway that marks an added assistant item completed", () => {
+    expect(
+      parseCompatibleHttpResponseEvent(
+        compatibleMessage("response.output_item.added", {
+          ...assistantAddedFixture,
+          item: { ...assistantAddedFixture.item, status: "completed" },
+        }),
+      ),
+    ).toEqual({
+      itemId: compatibleAssistantItemId,
+      itemType: "message",
+      outputIndex: 0,
+      sequence: 4,
+      type: "response.output_item.added",
+    });
+  });
+
   it.each(["not-json", "null", "[]", "42", '"[DONE]"'])(
     "rejects malformed or non-object JSON: %s",
     (data) => {

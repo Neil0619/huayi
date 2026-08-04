@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AnalysisResult } from "@huayi/protocol";
 
 import type { ContentCommand } from "../shared/extension-messages.js";
+import type { FrameScheduler } from "./overlay/frame-scheduler.js";
 import {
   initializeContentScript,
   type ContentRuntime,
@@ -92,9 +93,18 @@ describe("YouTube content script integration", () => {
     document.body.append(player);
 
     let nextId = 0;
+    const frameCallbacks: (() => void)[] = [];
+    const frameScheduler: FrameScheduler = {
+      cancel: vi.fn(),
+      request: vi.fn((callback) => {
+        frameCallbacks.push(callback);
+        return 1;
+      }),
+    };
     instance = initializeContentScript({
       createRequestId: () => `youtube-${(nextId += 1)}`,
       document,
+      frameScheduler,
       isYouTubeWatchPage: () => true,
       runtime,
     });
@@ -103,6 +113,9 @@ describe("YouTube content script integration", () => {
       .querySelector<HTMLElement>("[data-huayi-youtube-control-host]")
       ?.shadowRoot?.querySelector<HTMLButtonElement>("button")
       ?.click();
+    expect(video.pause).toHaveBeenCalledOnce();
+    expect(runtime.sent).toEqual([]);
+    frameCallbacks[0]?.();
     expect(runtime.sent).toEqual([{ type: "WARMUP_HOST" }]);
 
     const picker = player.querySelector<HTMLElement>("[data-huayi-youtube-picker-host]");

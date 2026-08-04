@@ -12,5 +12,6 @@ describe("readNativeHostConfiguration", () => {
 
     expect(configuration.compatibleHttpConfigurationPath).toBe("/tmp/huayi/compatible-http.json");
     expect(configuration.providerConfigurationPath).toBe("/tmp/huayi/provider.json");
+    expect(configuration.wordSyncStatePath).toBe("/tmp/huayi/word-sync-state.json");
   });
 });

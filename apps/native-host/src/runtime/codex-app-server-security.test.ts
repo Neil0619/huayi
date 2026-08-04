@@ -164,8 +164,38 @@ describe("CodexAppServerClient security invariants", () => {
     await expect(active.promise).resolves.toBe("safe");
   });
 
+  it("accepts instruction-source provenance when project docs are disabled", async () => {
+    const process = new FakeAppServerProcess();
+    const run = createClient(process).runTurn({
+      onAssistantDelta: () => undefined,
+      outputSchema: {},
+      prompt: "untrusted page text",
+      requestId: "disabled-project-docs",
+      signal: new AbortController().signal,
+    });
+    await initialize(process);
+    process.respond(await process.takeRequest("thread/start"), {
+      ...safeThread("disabled-project-docs"),
+      instructionSources: ["/Users/tester/.codex/AGENTS.md"],
+    });
+    process.respond(await process.takeRequest("turn/start"), {
+      turn: { id: "turn-disabled-project-docs", status: "inProgress" },
+    });
+    process.notify("item/completed", {
+      item: { id: "disabled-project-docs", text: "safe", type: "agentMessage" },
+      threadId: "disabled-project-docs",
+      turnId: "turn-disabled-project-docs",
+    });
+    process.notify("turn/completed", {
+      threadId: "disabled-project-docs",
+      turn: { id: "turn-disabled-project-docs", status: "completed" },
+    });
+
+    await expect(run).resolves.toBe("safe");
+  });
+
   it.each([
-    ["instruction sources", { ...safeThread("unsafe"), instructionSources: ["AGENTS.md"] }],
+    ["invalid instruction sources", { ...safeThread("unsafe"), instructionSources: [null] }],
     [
       "writable sandbox",
       { ...safeThread("unsafe"), sandbox: { networkAccess: true, type: "workspaceWrite" } },

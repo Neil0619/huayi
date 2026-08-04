@@ -2,12 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import { hostEventSchema, modelProviderSchema, wordAddedEventSchema } from "./index.js";
 
-const PREVIOUS_SCHEMA_VERSION = 4;
+const PREVIOUS_SCHEMA_VERSION = 5;
 
 const sectionEvents = [
   {
     requestId: "analysis-v2",
-    schemaVersion: 5,
+    schemaVersion: 6,
     section: "part-of-speech",
     sequence: 1,
     type: "analysis-section",
@@ -15,7 +15,7 @@ const sectionEvents = [
   },
   {
     requestId: "analysis-v2",
-    schemaVersion: 5,
+    schemaVersion: 6,
     section: "pronunciation",
     sequence: 2,
     type: "analysis-section",
@@ -23,7 +23,7 @@ const sectionEvents = [
   },
   {
     requestId: "analysis-v2",
-    schemaVersion: 5,
+    schemaVersion: 6,
     section: "base-form",
     sequence: 3,
     type: "analysis-section",
@@ -31,7 +31,7 @@ const sectionEvents = [
   },
   {
     requestId: "analysis-v2",
-    schemaVersion: 5,
+    schemaVersion: 6,
     section: "word-formation",
     sequence: 4,
     type: "analysis-section",
@@ -39,7 +39,7 @@ const sectionEvents = [
   },
   {
     requestId: "analysis-v2",
-    schemaVersion: 5,
+    schemaVersion: 6,
     section: "core-meanings",
     sequence: 5,
     type: "analysis-section",
@@ -47,7 +47,7 @@ const sectionEvents = [
   },
   {
     requestId: "analysis-v2",
-    schemaVersion: 5,
+    schemaVersion: 6,
     section: "collocations",
     sequence: 6,
     type: "analysis-section",
@@ -55,7 +55,7 @@ const sectionEvents = [
   },
   {
     requestId: "analysis-v2",
-    schemaVersion: 5,
+    schemaVersion: 6,
     section: "context-example",
     sequence: 7,
     type: "analysis-section",
@@ -66,7 +66,7 @@ const sectionEvents = [
   },
   {
     requestId: "analysis-v2",
-    schemaVersion: 5,
+    schemaVersion: 6,
     section: "similar-terms",
     sequence: 8,
     type: "analysis-section",
@@ -74,7 +74,7 @@ const sectionEvents = [
   },
   {
     requestId: "analysis-v2",
-    schemaVersion: 5,
+    schemaVersion: 6,
     section: "synonyms",
     sequence: 9,
     type: "analysis-section",
@@ -82,7 +82,7 @@ const sectionEvents = [
   },
   {
     requestId: "analysis-v5",
-    schemaVersion: 5,
+    schemaVersion: 6,
     section: "contextual-sense",
     sequence: 10,
     type: "analysis-section",
@@ -90,7 +90,7 @@ const sectionEvents = [
   },
   {
     requestId: "analysis-v5",
-    schemaVersion: 5,
+    schemaVersion: 6,
     section: "common-meanings",
     sequence: 11,
     type: "analysis-section",
@@ -98,7 +98,7 @@ const sectionEvents = [
   },
   {
     requestId: "analysis-v5",
-    schemaVersion: 5,
+    schemaVersion: 6,
     section: "common-phrases",
     sequence: 12,
     type: "analysis-section",
@@ -106,7 +106,7 @@ const sectionEvents = [
   },
   {
     requestId: "analysis-v5",
-    schemaVersion: 5,
+    schemaVersion: 6,
     section: "confusable-words",
     sequence: 13,
     type: "analysis-section",
@@ -121,7 +121,7 @@ const sectionEvents = [
   },
   {
     requestId: "analysis-v5",
-    schemaVersion: 5,
+    schemaVersion: 6,
     section: "word-form",
     sequence: 14,
     type: "analysis-section",
@@ -129,7 +129,7 @@ const sectionEvents = [
   },
   {
     requestId: "analysis-v5",
-    schemaVersion: 5,
+    schemaVersion: 6,
     section: "usage-notes",
     sequence: 15,
     type: "analysis-section",
@@ -137,7 +137,7 @@ const sectionEvents = [
   },
   {
     requestId: "analysis-v5",
-    schemaVersion: 5,
+    schemaVersion: 6,
     section: "synonym-comparisons",
     sequence: 16,
     type: "analysis-section",
@@ -153,15 +153,15 @@ const sectionEvents = [
 ] as const;
 
 describe("hostEventSchema", () => {
-  it("accepts strict compatible HTTP health on wire v5", () => {
+  it("accepts strict compatible HTTP health on wire v6", () => {
     const compatibleHealth = {
       codexVersion: null,
-      hostVersion: "0.10.0",
+      hostVersion: "0.12.0",
       model: "gpt-5.4-mini",
       provider: "openai-compatible-http",
       ready: true,
       requestId: "health-compatible",
-      schemaVersion: 5,
+      schemaVersion: 6,
       type: "health-result",
     } as const;
 
@@ -179,12 +179,12 @@ describe("hostEventSchema", () => {
   it("accepts strict DeepSeek health only for the fixed model", () => {
     const deepSeekHealth = {
       codexVersion: null,
-      hostVersion: "0.10.0",
+      hostVersion: "0.12.0",
       model: "deepseek-v4-flash",
       provider: "deepseek-chat-completions",
       ready: true,
       requestId: "health-deepseek",
-      schemaVersion: 5,
+      schemaVersion: 6,
       type: "health-result",
     } as const;
 
@@ -202,12 +202,12 @@ describe("hostEventSchema", () => {
   it("accepts strict provider-aware API health", () => {
     const apiHealth = {
       codexVersion: null,
-      hostVersion: "0.10.0",
+      hostVersion: "0.12.0",
       model: "gpt-5.6-luna",
       provider: "openai-responses",
       ready: true,
       requestId: "health-api",
-      schemaVersion: 5,
+      schemaVersion: 6,
       type: "health-result",
     } as const;
 
@@ -226,12 +226,12 @@ describe("hostEventSchema", () => {
   it("accepts Codex health only with a Codex version", () => {
     const codexHealth = {
       codexVersion: "codex-cli 0.144.1",
-      hostVersion: "0.10.0",
+      hostVersion: "0.12.0",
       model: "gpt-5.4-mini",
       provider: "codex",
       ready: true,
       requestId: "health-codex",
-      schemaVersion: 5,
+      schemaVersion: 6,
       type: "health-result",
     } as const;
 
@@ -248,12 +248,12 @@ describe("hostEventSchema", () => {
         provider: "codex",
         ready: true,
         requestId: "health-1",
-        schemaVersion: 5,
+        schemaVersion: 6,
         type: "health-result",
       },
       {
         requestId: "request-1",
-        schemaVersion: 5,
+        schemaVersion: 6,
         stage: "queued",
         type: "progress",
       },
@@ -265,13 +265,13 @@ describe("hostEventSchema", () => {
           translationZh: "它已准备就绪。",
           type: "translate-passage",
         },
-        schemaVersion: 5,
+        schemaVersion: 6,
         type: "result",
       },
       {
         outcome: "added",
         requestId: "word-1",
-        schemaVersion: 5,
+        schemaVersion: 6,
         type: "word-added",
       },
       {
@@ -281,7 +281,7 @@ describe("hostEventSchema", () => {
           retryable: true,
         },
         requestId: "request-1",
-        schemaVersion: 5,
+        schemaVersion: 6,
         type: "error",
       },
     ] as const;
@@ -300,7 +300,7 @@ describe("hostEventSchema", () => {
       hostEventSchema.safeParse({
         requestId: "request-1",
         result: { type: "unvalidated" },
-        schemaVersion: 5,
+        schemaVersion: 6,
         type: "result",
       }).success,
     ).toBe(false);
@@ -315,7 +315,7 @@ describe("hostEventSchema", () => {
     expect(
       hostEventSchema.safeParse({
         requestId: "request-1",
-        schemaVersion: 5,
+        schemaVersion: 6,
         stage: "queued",
         type: "progress",
         url: "https://example.com",
@@ -326,7 +326,7 @@ describe("hostEventSchema", () => {
   it("accepts only a strict warmup-ready event", () => {
     const warmupReady = {
       requestId: "warmup-1",
-      schemaVersion: 5,
+      schemaVersion: 6,
       type: "warmup-ready",
     } as const;
 
@@ -355,7 +355,7 @@ describe("wordAddedEventSchema", () => {
       wordAddedEventSchema.parse({
         outcome,
         requestId: "word-1",
-        schemaVersion: 5,
+        schemaVersion: 6,
         type: "word-added",
       }).outcome,
     ).toBe(outcome);
@@ -366,7 +366,7 @@ describe("wordAddedEventSchema", () => {
       wordAddedEventSchema.safeParse({
         outcome: "added",
         requestId: "word-1",
-        schemaVersion: 5,
+        schemaVersion: 6,
         type: "word-added",
         word: "investigation",
       }).success,

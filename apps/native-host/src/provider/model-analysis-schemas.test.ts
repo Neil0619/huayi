@@ -56,6 +56,60 @@ function jsonRoundTrip(value: unknown): unknown {
 }
 
 describe("private model analysis schemas", () => {
+  it("caps individually valid word meanings before collection validation", () => {
+    const parsed = modelWordTranslationSchema.safeParse({
+      commonMeanings: [
+        {
+          meaningsZh: ["边疆", "边界", "前沿", "新领域"],
+          partOfSpeech: "noun",
+        },
+      ],
+      commonPhrases: [],
+      confusableWords: [],
+      contextualSense: { meaningZh: "前沿", partOfSpeech: "noun" },
+      dictionaryForm: "frontier",
+      pronunciation: null,
+    });
+
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.commonMeanings).toEqual([
+        { meaningsZh: ["边疆", "边界", "前沿"], partOfSpeech: "noun" },
+      ]);
+    }
+  });
+
+  it("does not hide an invalid word meaning beyond the public collection limit", () => {
+    expect(
+      modelWordTranslationSchema.safeParse({
+        commonMeanings: [
+          {
+            meaningsZh: ["边疆", "边界", "前沿", "frontier"],
+            partOfSpeech: "noun",
+          },
+        ],
+        commonPhrases: [],
+        confusableWords: [],
+        contextualSense: { meaningZh: "前沿", partOfSpeech: "noun" },
+        dictionaryForm: "frontier",
+        pronunciation: null,
+      }).success,
+    ).toBe(false);
+  });
+
+  it("does not replace an explicitly invalid meaning-group part of speech", () => {
+    expect(
+      modelWordTranslationSchema.safeParse({
+        commonMeanings: [{ meaningsZh: ["前沿"], partOfSpeech: "invalid" }],
+        commonPhrases: [],
+        confusableWords: [],
+        contextualSense: { meaningZh: "前沿", partOfSpeech: "noun" },
+        dictionaryForm: "frontier",
+        pronunciation: null,
+      }).success,
+    ).toBe(false);
+  });
+
   it("accepts lexical content whose naturally absent fields use null and empty arrays", () => {
     expect(modelLexicalExplanationSchema.safeParse(fourExplanation).success).toBe(true);
     expect(modelLexicalTranslationSchema.safeParse(fourTranslation).success).toBe(true);

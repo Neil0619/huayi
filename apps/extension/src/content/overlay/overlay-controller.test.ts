@@ -213,6 +213,26 @@ describe("OverlayController", () => {
     expect(cancellations).toHaveLength(1);
   });
 
+  it("keeps a pending wordbook write open when the page receives an outside pointerdown", () => {
+    const cancellations: number[] = [];
+    const additions: string[] = [];
+    const controller = createController([], cancellations, additions);
+    controller.show(selection, anchorRect);
+    controller.start("translate");
+    controller.resolve(lexicalResult);
+    controller.addWord();
+
+    document.body.dispatchEvent(new Event("pointerdown", { bubbles: true, composed: true }));
+
+    expect(additions).toEqual(["investigation"]);
+    expect(cancellations).toEqual([]);
+    expect(controller.state).toMatchObject({
+      status: "result",
+      wordbook: { mutation: { status: "saving" } },
+    });
+    expect(controller.shadowRoot.textContent).toContain("添加中");
+  });
+
   it("batches text and typed updates with one animation frame", () => {
     const scheduler = new FakeFrameScheduler();
     const controller = createController([], [], [], scheduler);
@@ -222,7 +242,7 @@ describe("OverlayController", () => {
 
     controller.appendUpdate({
       requestId: "analysis-1",
-      schemaVersion: 5,
+      schemaVersion: 6,
       section: "contextual-sense",
       sequence: 0,
       type: "analysis-section",
@@ -230,7 +250,7 @@ describe("OverlayController", () => {
     });
     controller.appendUpdate({
       requestId: "analysis-1",
-      schemaVersion: 5,
+      schemaVersion: 6,
       section: "common-phrases",
       sequence: 1,
       type: "analysis-section",
@@ -238,7 +258,7 @@ describe("OverlayController", () => {
     });
     controller.appendUpdate({
       requestId: "analysis-1",
-      schemaVersion: 5,
+      schemaVersion: 6,
       section: "common-meanings",
       sequence: 2,
       type: "analysis-section",
@@ -279,7 +299,7 @@ describe("OverlayController", () => {
     controller.appendUpdate({
       delta: "部分译文",
       requestId: "analysis-1",
-      schemaVersion: 5,
+      schemaVersion: 6,
       section: "translation",
       sequence: 0,
       type: "analysis-delta",
@@ -300,7 +320,7 @@ describe("OverlayController", () => {
     controller.start("translate");
     controller.appendUpdate({
       requestId: "analysis-1",
-      schemaVersion: 5,
+      schemaVersion: 6,
       section: "contextual-sense",
       sequence: 0,
       type: "analysis-section",
@@ -308,7 +328,7 @@ describe("OverlayController", () => {
     });
     controller.appendUpdate({
       requestId: "analysis-1",
-      schemaVersion: 5,
+      schemaVersion: 6,
       section: "common-phrases",
       sequence: 1,
       type: "analysis-section",
@@ -316,7 +336,7 @@ describe("OverlayController", () => {
     });
     controller.appendUpdate({
       requestId: "analysis-1",
-      schemaVersion: 5,
+      schemaVersion: 6,
       section: "common-meanings",
       sequence: 2,
       type: "analysis-section",
@@ -348,7 +368,7 @@ describe("OverlayController", () => {
     controller.appendUpdate({
       delta: "调",
       requestId: "analysis-1",
-      schemaVersion: 5,
+      schemaVersion: 6,
       section: "contextual-meaning",
       sequence: 0,
       type: "analysis-delta",
@@ -378,7 +398,7 @@ describe("OverlayController", () => {
     controller.appendUpdate({
       delta: "late",
       requestId: "analysis-1",
-      schemaVersion: 5,
+      schemaVersion: 6,
       section: "translation",
       sequence: 0,
       type: "analysis-delta",
@@ -396,7 +416,7 @@ describe("OverlayController", () => {
     controller.appendUpdate({
       delta: "stale",
       requestId: "analysis-2",
-      schemaVersion: 5,
+      schemaVersion: 6,
       section: "translation",
       sequence: 0,
       type: "analysis-delta",

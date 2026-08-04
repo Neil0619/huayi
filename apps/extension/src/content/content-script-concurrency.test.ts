@@ -115,7 +115,7 @@ function emitResult(runtime: FakeRuntime, requestId = "request-1"): void {
   runtime.emit({
     requestId,
     result: lexicalResult,
-    schemaVersion: 5,
+    schemaVersion: 6,
     type: "result",
   });
 }
@@ -180,7 +180,7 @@ describe("content-script concurrent operations", () => {
         selectionKind: "phrase",
         sourceText: "sustained heatwave",
       },
-      schemaVersion: 5,
+      schemaVersion: 6,
       type: "result",
     });
 
@@ -212,7 +212,7 @@ describe("content-script concurrent operations", () => {
           context: "investigation",
           language: "en",
           requestId: "request-3",
-          schemaVersion: 5,
+          schemaVersion: 6,
           type: "add-word",
           word: "investigation",
         },
@@ -222,7 +222,7 @@ describe("content-script concurrent operations", () => {
     runtime.emit({
       error: { code: "NETWORK_ERROR", message: "添加失败。", retryable: true },
       requestId: "request-3",
-      schemaVersion: 5,
+      schemaVersion: 6,
       type: "error",
     });
     expect(instance.controller.state).toMatchObject({
@@ -287,7 +287,7 @@ describe("content-script concurrent operations", () => {
     runtime.emit({
       delta: "部分",
       requestId: "request-1",
-      schemaVersion: 5,
+      schemaVersion: 6,
       section: "translation",
       sequence: 0,
       type: "analysis-delta",
@@ -297,7 +297,7 @@ describe("content-script concurrent operations", () => {
     runtime.emit({
       error: { code: "NETWORK_ERROR", message: "欧路查询失败。", retryable: true },
       requestId: "request-2",
-      schemaVersion: 5,
+      schemaVersion: 6,
       type: "error",
     });
     expect(instance.controller.state).toMatchObject({
@@ -308,7 +308,7 @@ describe("content-script concurrent operations", () => {
     runtime.emit({
       error: { code: "TIMEOUT", message: "分析超时。", retryable: true },
       requestId: "request-1",
-      schemaVersion: 5,
+      schemaVersion: 6,
       type: "error",
     });
     expect(instance.controller.state).toMatchObject({
@@ -328,7 +328,7 @@ describe("content-script concurrent operations", () => {
     runtime.emit({
       error: { code: "TIMEOUT", message: "分析超时。", retryable: true },
       requestId: "request-1",
-      schemaVersion: 5,
+      schemaVersion: 6,
       type: "error",
     });
 

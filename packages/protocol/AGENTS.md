@@ -2,10 +2,10 @@
 
 - Depend only on Zod and platform-neutral TypeScript.
 - Use strict schemas and reject unknown keys.
-- The current release identity is `0.10.0`; `schemaVersion` is `5`.
-- Runtime v5 rejects v4. Extension and Host upgrades or rollbacks must be synchronous; do not add
+- The current release identity is `0.12.0`; `schemaVersion` is `6`.
+- Runtime v6 rejects v5. Extension and Host upgrades or rollbacks must be synchronous; do not add
   an implicit compatibility layer.
-- Wire v5 health results identify exactly one
+- Wire v6 health results identify exactly one
   `codex | openai-responses | openai-compatible-http | deepseek-chat-completions` provider and its
   fixed model;
   `codexVersion` is non-null only for Codex. Provider selection and credentials remain private

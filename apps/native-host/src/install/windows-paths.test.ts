@@ -23,6 +23,8 @@ describe("createWindowsInstallationPaths", () => {
       ownershipMarkerPath: "C:\\Users\\Tester\\AppData\\Local\\Huayi\\native-host\\.huayi-owned",
       schemaDirectory: "C:\\Users\\Tester\\AppData\\Local\\Huayi\\native-host\\provider\\schemas",
       workingDirectory: "C:\\Users\\Tester\\AppData\\Local\\Huayi\\native-host\\workdir",
+      wordSyncStatePath:
+        "C:\\Users\\Tester\\AppData\\Local\\Huayi\\native-host\\word-sync-state.json",
     });
   });
 

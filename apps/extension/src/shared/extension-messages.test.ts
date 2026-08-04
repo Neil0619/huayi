@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { parseContentCommand } from "./extension-messages.js";
+import { parseContentCommand, parseShanbayCommand } from "./extension-messages.js";
 
 const request = {
   action: "translate",
   context: "The investigation was in its early stages.",
   requestId: "request-1",
-  schemaVersion: 5,
+  schemaVersion: 6,
   selection: "investigation",
   selectionKind: "word",
   sentenceContext: null,
@@ -18,7 +18,7 @@ const addWordRequest = {
   context: "The investigation was in its early stages.",
   language: "en",
   requestId: "word-1",
-  schemaVersion: 5,
+  schemaVersion: 6,
   type: "add-word",
   word: "investigation",
 } as const;
@@ -26,7 +26,7 @@ const addWordRequest = {
 const checkWordRequest = {
   language: "en",
   requestId: "check-1",
-  schemaVersion: 5,
+  schemaVersion: 6,
   type: "check-word",
   word: "investigation",
 } as const;
@@ -92,5 +92,84 @@ describe("parseContentCommand", () => {
       }),
     ).toBeNull();
     expect(parseContentCommand({ requestId: "request-1", type: "CANCEL_ANALYSIS" })).toBeNull();
+  });
+});
+
+describe("parseShanbayCommand", () => {
+  it("accepts only strict page-ready, batch-resolution, unresolved, and discard commands", () => {
+    expect(parseShanbayCommand({ type: "SHANBAY_PAGE_READY" })).toEqual({
+      type: "SHANBAY_PAGE_READY",
+    });
+    expect(
+      parseShanbayCommand({
+        batchId: "batch-1",
+        rejectedTargets: ["orbiting"],
+        type: "RESOLVE_SHANBAY_BATCH",
+      }),
+    ).toEqual({
+      batchId: "batch-1",
+      rejectedTargets: ["orbiting"],
+      type: "RESOLVE_SHANBAY_BATCH",
+    });
+    expect(parseShanbayCommand({ offset: 100, type: "LIST_SHANBAY_UNRESOLVED" })).toEqual({
+      offset: 100,
+      type: "LIST_SHANBAY_UNRESOLVED",
+    });
+    expect(
+      parseShanbayCommand({
+        items: [{ sourceWord: "splendidly", targetWord: "splendid" }],
+        type: "REQUEUE_SHANBAY_UNRESOLVED",
+      }),
+    ).toEqual({
+      items: [{ sourceWord: "splendidly", targetWord: "splendid" }],
+      type: "REQUEUE_SHANBAY_UNRESOLVED",
+    });
+    expect(
+      parseShanbayCommand({
+        sourceWords: ["splendidly"],
+        type: "DISCARD_SHANBAY_UNRESOLVED",
+      }),
+    ).toEqual({
+      sourceWords: ["splendidly"],
+      type: "DISCARD_SHANBAY_UNRESOLVED",
+    });
+    expect(parseShanbayCommand({ type: "DISCARD_ALL_SHANBAY_UNRESOLVED" })).toEqual({
+      type: "DISCARD_ALL_SHANBAY_UNRESOLVED",
+    });
+    expect(
+      parseShanbayCommand({ type: "SHANBAY_PAGE_READY", url: "https://evil.invalid" }),
+    ).toBeNull();
+    expect(
+      parseShanbayCommand({
+        batchId: "bad batch",
+        rejectedTargets: [],
+        type: "RESOLVE_SHANBAY_BATCH",
+      }),
+    ).toBeNull();
+    expect(
+      parseShanbayCommand({
+        batchId: "batch-1",
+        rejectedTargets: ["Orbiting", "orbiting"],
+        type: "RESOLVE_SHANBAY_BATCH",
+      }),
+    ).toBeNull();
+    expect(
+      parseShanbayCommand({
+        sourceWords: [],
+        type: "DISCARD_SHANBAY_UNRESOLVED",
+      }),
+    ).toBeNull();
+    expect(
+      parseShanbayCommand({
+        sourceWords: ["splendidly"],
+        type: "DISCARD_ALL_SHANBAY_UNRESOLVED",
+      }),
+    ).toBeNull();
+    expect(
+      parseShanbayCommand({
+        confirm: true,
+        type: "DISCARD_ALL_SHANBAY_UNRESOLVED",
+      }),
+    ).toBeNull();
   });
 });

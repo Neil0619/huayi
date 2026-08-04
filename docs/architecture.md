@@ -117,7 +117,7 @@ reasoning 固定占 `output_index=0`，assistant 固定占 `output_index=1`；�
 与 assistant item 中携带加密内容、`turn_id` 和 `phase`。Host 只接受实测字段、类型和安全值，
 随后归一化为 ID、顺序和文本；这些私有字段不会进入日志、wire 或 Extension。请求模型仍固定
 为 `gpt-5.4-mini`，当前端点在响应中自报 `gpt-5.4`，专用 parser 仅把它作为该实测方言的允许
-别名。未知、重复、迟到、tool、refusal 或不一致事件全部失败关闭。Extension 只看到 wire v5
+别名。未知、重复、迟到、tool、refusal 或不一致事件全部失败关闭。Extension 只看到 wire v6
 的统一预览和结果，不接触第三方 SSE、endpoint 或 Key。
 
 ## DeepSeek Chat Completions Provider
@@ -134,7 +134,7 @@ DeepSeek Provider 每次分析从固定钥匙串 `com.huayi.codex_bridge.deepsee
 可信元数据组装；终止 chunk 中符合官方 Schema 的 usage（含缓存 token 统计及有界的
 `prompt_tokens_details.cached_tokens` / `completion_tokens_details.reasoning_tokens`）只校验后
 丢弃，不进入日志或 wire。
-因此 Extension 仍只接收统一 wire v5 预览与最终结果。DeepSeek 路径不读取、
+因此 Extension 仍只接收统一 wire v6 预览与最终结果。DeepSeek 路径不读取、
 修改或依赖 `~/.codex`，配置 Key、真实 smoke 与切换 Provider 是三个独立动作。
 
 ## Codex App Server 生命周期
@@ -208,12 +208,41 @@ HTTPS 端点发送原始单词，不发送句子、段落、URL、标题或模�
 则返回 `already-exists`，不存在才 POST，不能用自动查询结果跳过防重复检查。安装与升级不会
 读取、创建、覆盖或删除欧路钥匙串项。
 
+## 欧路到扇贝的持久同步
+
+Service Worker 的 `alarms` 只负责唤醒和展示角标，Host 的 `word-sync-state.json` 是唯一进度
+事实源。Host 首次和每日检查都通过欧路默认生词本 `studylist/words` 读取英语收藏，以免遗漏
+没有进入用户语料列表的新词；每日完整扫描依靠本地状态去重。每个 Native 请求最多读取三页
+并原子保存游标，完整扫描结束后才更新最后成功时间。`prepare` 固定活动批次；提交后，页面把经严格验证的拒绝
+目标交给 `resolve`，Host 原子确认其余成功词。因此 Service Worker 退出、Chrome 重启或标签页
+关闭都不会丢词，也不会重复整批。
+
+原始目标被拒绝时，Host 用随安装包本地打包的 `wink-lemmatizer` 分别尝试名词、动词和形容词
+词元。只有唯一、不同且仍符合英语词头 Schema 的候选才自动进入一次 `lemma` 重试；副词、
+无变化和多候选词进入持久化未解决列表。两个来源映射到同一目标时合并为一个扇贝目标。
+词元或人工替代目标再次失败后不自动循环。
+
+状态 v3 分开保存待尝试来源、已成功目标、来源最终结果、活动批次、未解决词、旧版
+`legacy-completed` 和固定数据源版本。v1/v2 首次读取时都会保留各自独立的升级前快照，再
+原子迁移；v2→v3 只清除旧数据源的拉取时间、扫描游标和错误状态，完整保留单词处理进度，
+使升级后立即从默认生词本重扫。历史再审计必须先让一个已知存在于扇贝的探针得到明确接受，
+才能重新排队其余旧完成词。
+用户放弃的未解决来源转为 `discarded` 最终结果，并保留最后尝试目标用于审计；它们不计入
+成功目标，但会参与来源去重，因此以后不会被欧路增量轮询重新加入队列。
+
+Extension 不保存词表，也不持有扇贝凭据。点击 action 后创建扇贝标签页；目标内容脚本重新向
+Host 取得活动批次、打开批量上传并预填，最终提交仍由用户完成。macOS 和 Windows 共用协议、
+状态 Schema 与欧路分页逻辑，只在安装路径、文件权限和凭据读取上分平台。待同步归零但仍有
+未解决词时角标显示 `!`；点击后显示可复制、编辑并人工重新入队的划译面板。
+面板也允许逐条放弃，或通过二次确认放弃全部未解决词；UI 必须等待 Host 持久化回执后刷新，
+不能先在页面中乐观删除。
+
 ## 安装与扩展方式
 
 macOS 安装器把自包含 Host、六份 Schema、空工作目录和 launcher 放入 Huayi 专用用户目录。
 Chrome 清单只允许安装时提供的扩展 ID。重复安装只升级带合法 Huayi 所有权标记的文件；
-未知内容不会被认领或覆盖。v0.10.0 继续使用 wire v5 并拒绝 v4，因此 Extension 和 Host 必须使用
-扩展 ID `kfkamoejomjdihipgdkmfjcdenlhgnpd` 同步升级或回滚。重复安装保持
+未知内容不会被认领或覆盖。v0.12.0 使用 wire v6 并拒绝 v5，因此 Extension 和 Host 必须使用
+扩展 ID `chanmjjealoeeheohofnljbbkkfgfnfm` 同步升级或回滚。重复安装保持
 `~/Library/Application Support/Huayi/native-host/`、Chrome Native Messaging 清单路径及
 钥匙串 `com.huayi.codex_bridge.eudic` / `authorization`、
 `com.huayi.codex_bridge.openai` / `api-key`、

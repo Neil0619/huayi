@@ -3,10 +3,11 @@ import { describe, expect, it } from "vitest";
 import manifest from "../manifest.json" with { type: "json" };
 
 describe("extension manifest", () => {
-  it("uses Manifest V3 with only nativeMessaging permission", () => {
+  it("uses Manifest V3 with only alarms and nativeMessaging permissions", () => {
     expect(manifest.manifest_version).toBe(3);
-    expect(manifest.permissions).toEqual(["nativeMessaging"]);
+    expect(manifest.permissions).toEqual(["alarms", "nativeMessaging"]);
     expect(manifest).not.toHaveProperty("host_permissions");
+    expect(manifest.action).toEqual({ default_title: "划译生词同步" });
   });
 
   it("injects only into normal HTTP and HTTPS pages", () => {

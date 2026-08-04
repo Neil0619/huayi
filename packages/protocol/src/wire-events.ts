@@ -44,6 +44,16 @@ import {
   type UsageNote,
   type WordFormAnalysis,
 } from "./results.js";
+import {
+  wordSyncBatchEventSchema,
+  wordSyncBatchResolvedEventSchema,
+  wordSyncStatusEventSchema,
+  wordSyncUnresolvedDiscardedEventSchema,
+  wordSyncUnresolvedListEventSchema,
+  wordSyncUnresolvedRequeuedEventSchema,
+} from "./word-sync-event-schemas.js";
+
+export * from "./word-sync-event-schemas.js";
 
 const schemaVersionSchema = z.literal(SCHEMA_VERSION);
 
@@ -291,6 +301,12 @@ export const hostEventSchema = z.discriminatedUnion("type", [
   resultEventSchema,
   wordStatusEventSchema,
   wordAddedEventSchema,
+  wordSyncStatusEventSchema,
+  wordSyncBatchEventSchema,
+  wordSyncBatchResolvedEventSchema,
+  wordSyncUnresolvedListEventSchema,
+  wordSyncUnresolvedRequeuedEventSchema,
+  wordSyncUnresolvedDiscardedEventSchema,
   errorEventSchema,
 ]);
 export type HostEvent = z.infer<typeof hostEventSchema>;

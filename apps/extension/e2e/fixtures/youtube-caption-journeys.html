@@ -71,7 +71,9 @@
     <div class="html5-video-player" data-testid="youtube-player">
       <video data-testid="youtube-video"></video>
       <div class="ytp-caption-window-container">
-        <span class="ytp-caption-segment"> The investigation was still in its early stages. </span>
+        <span class="ytp-caption-segment" data-testid="youtube-caption">
+          The investigation was still in its early stages.
+        </span>
       </div>
       <div class="ytp-right-controls">
         <button class="ytp-subtitles-button" type="button" aria-label="Subtitles">CC</button>
@@ -79,6 +81,77 @@
     </div>
 
     <ol data-native-request-log hidden></ol>
+    <script>
+      (() => {
+        const scenario = new URLSearchParams(window.location.search).get("caption-scenario");
+        const video = document.querySelector("[data-testid='youtube-video']");
+        const caption = document.querySelector("[data-testid='youtube-caption']");
+        let currentTime = scenario === "rolling" ? 1 : 5;
+        let paused = false;
+        Object.defineProperties(video, {
+          currentTime: {
+            configurable: true,
+            get: () => currentTime,
+            set: (value) => {
+              currentTime = Number(value);
+            },
+          },
+          duration: { configurable: true, get: () => 120 },
+          paused: { configurable: true, get: () => paused },
+        });
+        video.pause = () => {
+          paused = true;
+          video.dataset.pauseCount = String(Number(video.dataset.pauseCount ?? "0") + 1);
+        };
+        video.play = () => {
+          paused = false;
+          video.dataset.playCount = String(Number(video.dataset.playCount ?? "0") + 1);
+          return Promise.resolve();
+        };
+
+        if (scenario === "rolling") {
+          caption.textContent = "The investigation was";
+          document.addEventListener("huayi-test-next-caption", () => {
+            currentTime = 5;
+            caption.textContent = "still in its early stages.";
+          });
+        }
+
+        if (scenario === "transcript") {
+          currentTime = 4.5;
+          caption.textContent = "still in its";
+          const response = document.createElement("script");
+          response.type = "application/json";
+          response.textContent = `var ytInitialPlayerResponse = ${JSON.stringify({
+            captions: {
+              playerCaptionsTracklistRenderer: {
+                captionTracks: [
+                  {
+                    baseUrl: "https://www.youtube.com/api/timedtext?v=e2e&lang=en",
+                    languageCode: "en",
+                  },
+                ],
+              },
+            },
+          })};`;
+          document.head.append(response);
+          window.fetch = async () => {
+            document.documentElement.dataset.captionFetchComplete = "true";
+            return new Response(
+              JSON.stringify({
+                events: [
+                  { dDurationMs: 2000, segs: [{ utf8: "A previous sentence." }], tStartMs: 0 },
+                  { dDurationMs: 2000, segs: [{ utf8: "The investigation was" }], tStartMs: 2000 },
+                  { dDurationMs: 2000, segs: [{ utf8: "still in its" }], tStartMs: 4000 },
+                  { dDurationMs: 2000, segs: [{ utf8: "early stages." }], tStartMs: 6000 },
+                ],
+              }),
+              { status: 200 },
+            );
+          };
+        }
+      })();
+    </script>
     <script type="module" src="../support/harness.ts"></script>
   </body>
 </html>

@@ -1,15 +1,15 @@
 import { spawn } from "node:child_process";
-import { writeFile } from "node:fs/promises";
-import { resolve } from "node:path";
+import { rm, writeFile } from "node:fs/promises";
+import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 const MINIMUM_NODE_MAJOR = 26;
 
-export function createSeaConfiguration(rootDirectory) {
+export function createSeaConfiguration() {
   return {
     disableExperimentalSEAWarning: true,
-    main: resolve(rootDirectory, "apps/native-host/dist/windows/sea-main.cjs"),
-    output: resolve(rootDirectory, "apps/native-host/dist/windows/huayi-native-host.exe"),
+    main: join("apps", "native-host", "dist", "windows", "sea-main.cjs"),
+    output: join("apps", "native-host", "dist", "windows", "huayi-native-host.exe"),
     useCodeCache: false,
     useSnapshot: false,
   };
@@ -22,6 +22,10 @@ export function assertWindowsSeaRuntime(platform, nodeVersion) {
   if (!Number.isSafeInteger(major) || major < MINIMUM_NODE_MAJOR) {
     throw new Error("Windows Host packaging requires Node.js 26 or newer.");
   }
+}
+
+export async function removeExistingSeaOutput(outputPath) {
+  await rm(outputPath, { force: true });
 }
 
 async function run(executable, arguments_, cwd) {
@@ -38,8 +42,9 @@ async function run(executable, arguments_, cwd) {
 async function main() {
   assertWindowsSeaRuntime(process.platform, process.versions.node);
   const rootDirectory = process.cwd();
-  const configuration = createSeaConfiguration(rootDirectory);
+  const configuration = createSeaConfiguration();
   const configurationPath = resolve(rootDirectory, "apps/native-host/dist/windows/sea-config.json");
+  await removeExistingSeaOutput(resolve(rootDirectory, configuration.output));
   await writeFile(configurationPath, `${JSON.stringify(configuration, null, 2)}\n`, "utf8");
   await run(process.execPath, ["--build-sea", configurationPath], rootDirectory);
 }

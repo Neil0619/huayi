@@ -72,6 +72,6 @@ export function readSelection(
     selection: normalizedSelection,
     selectionKind,
     sentenceContext,
-    wordbookContext: selectionKind === "word" ? sentenceContext : null,
+    wordbookContext: selectionKind === "word" ? (sentenceContext ?? normalizedSelection) : null,
   };
 }

@@ -3,11 +3,12 @@
 ## 数据最小化
 
 扩展只发送英文选区和所在语义块中围绕选区的最多 2,000 个字符，不发送 URL、标题、整页
-内容、浏览历史或用户身份数据，也不持久化查询、结果或分析数据。没有语义块的网页可从
+内容、浏览历史或用户身份数据，也不持久化查询、结果或分析数据。欧路英语收藏仅由 Native
+Host 持久化为生词同步队列；Extension 不保存词表。没有语义块的网页可从
 最近的普通 `div` 正文容器提取当前英文句子；单词或短语位于中英混合容器且无法提取纯英文
 句子时，分析上下文安全退化为选区本身，不向模型发送包含汉字的容器内容。
 
-`warmup` 只包含类型、`schemaVersion: 5` 和随机请求 ID，不包含选区、上下文、句子、URL、标题
+`warmup` 只包含类型、`schemaVersion: 6` 和随机请求 ID，不包含选区、上下文、句子、URL、标题
 或其他页面数据。Codex 模式只完成 MCP 发现和 App Server 安全初始化；三个 HTTP API Provider
 只读取本地 Provider 路由，不读取 Key、不发送 HTTP。四种模式都不创建模型输出或消费模型
 额度。
@@ -18,7 +19,8 @@ API 模式只向 OpenAI 发送当前英文选区、最多 2,000 字符上下文�
 
 单词分析会自动发送 `check-word`，其中只有原始单词和固定语言 `en`。只有用户在完整结果上
 点击“加入欧路生词本”时，扩展才发送 `add-word`，其中包含原始单词和预先提取的完整英文
-句子。两条路径都不发送 URL、标题、段落上下文或模型输出。
+句子；若所在容器为中英混合内容且无法提取纯英文句子，语境只退化为原始单词。两条路径都
+不发送 URL、标题、段落上下文或模型输出。
 
 ## Windows DeepSeek 与欧路凭据
 
@@ -34,7 +36,7 @@ DeepSeek 与欧路各使用一份固定 PowerShell helper，通过隐藏的 `Rea
 两份文件的用户名分别固定为 `api-key` 和 `authorization`，不能互换。Windows 会用 DPAPI
 保护密码字段，因此只有同一台机器上的同一 Windows 用户能够解密。
 
-Host 每次分析导入 DeepSeek 凭据，每次查词或加词导入欧路凭据；都使用固定 PowerShell
+Host 每次分析导入 DeepSeek 凭据，每次查词、加词或同步分页导入欧路凭据；都使用固定 PowerShell
 路径、固定 helper 和参数数组，输出限制为 8 KiB、超时 5 秒。秘密仅短暂存在于子进程
 stdout、Host 内存和对应 HTTPS Authorization Header。stdout Native Messaging、stderr、
 错误、测试和快照不得包含秘密。DPAPI 保护静态存储，但不能防御以同一 Windows 用户权限运行
@@ -47,7 +49,7 @@ ownership marker 的目录。
 
 ## 浏览器边界
 
-Manifest 权限严格为 `["nativeMessaging"]`；普通 `http/https` 范围只存在于静态 Content
+Manifest 权限严格为 `["alarms", "nativeMessaging"]`；普通 `http/https` 范围只存在于静态 Content
 Script 的 `matches`。扩展不声明 `host_permissions`、`storage`、`tabs`、`activeTab` 或
 `scripting`。Content Script 不能直接调用 Native Messaging，只能向 Service Worker 发送
 经过严格解析的内部命令。
@@ -60,14 +62,28 @@ Script 的 `matches`。扩展不声明 `host_permissions`、`storage`、`tabs`�
 ### YouTube 字幕边界
 
 YouTube 字幕取词只在标准 `/watch` 录播页运行。Content Script 在本地观察当前播放器已经渲染
-且有可见布局框的英文字幕，不调用字幕 API、OCR 或整段 transcript，不保存之前或之后的字幕。
-普通非 YouTube 网页不创建字幕观察器。YouTube DOM 选择器变化、直播、Shorts、广告、非英文
-字幕或超长字幕都失败关闭，不影响普通网页选区。
+且有可见布局框的英文字幕，并把最近 30 秒、最多 2,000 字符的去重片段仅保存在当前脚本内存。
+首次发现英文字幕后，它可从当前文档文本中的内嵌播放器响应尽力解析字幕轨；若 SPA 导航后的
+现存 DOM 没有响应数据，则只允许匿名重新获取带非空 `v` 参数的当前 HTTPS YouTube `/watch`
+文档，响应上限 2 MiB。两种路径都不执行页面脚本、不读取页面 JavaScript 全局对象，也不调用
+要求 OAuth 的 YouTube Data API。普通非 YouTube 网页不创建字幕观察器或字幕轨请求。
 
-点击“译”只发送无页面数据 warmup；冻结字幕仍留在页面本地。只有用户随后点击解释或翻译时，
-当前选区和当前字幕上下文才进入既有分析通道。单词查词只发送单词；显式加入欧路时沿用当前
-字幕作为英文语境。该路径不发送 URL、标题、视频 ID、频道、播放时间、字幕历史或相邻字幕，
-也不新增 Manifest 权限。
+文档重新获取和字幕轨请求都固定 `credentials: "omit"` 并共享 3 秒超时；字幕轨 URL 只允许
+HTTPS YouTube 主机的精确 `/api/timedtext` 路径，响应上限 2 MiB、cue 上限 50,000。时间与文本字段严格
+解析；轨 URL 的 `v` 必须等于当前 `/watch` 视频，当前时间的候选 cue 还必须和可见字幕可靠重叠。
+SPA 残留的旧视频轨直接丢弃并重新获取当前文档。未公开 timedtext 格式不是稳定契约，
+任一 URL、页面格式、语言、网络、超限或匹配校验失败都静默回退到内存缓冲，再回退到当前
+可见字幕，不影响普通网页选区。
+
+点击“译”立即暂停视频，至多等待一个动画帧后同步冻结内容；不继续播放、不固定等待 2.5 秒、
+不等待预取，也只发送无页面数据 warmup。冻结后异步结果不能改写卡片。只有用户随后点击解释
+或翻译时，当前选区和最多 2,000 字符的冻结字幕上下文才进入既有分析通道。单词查词只发送
+单词；显式加入欧路时沿用冻结字幕作为英文语境。该路径不发送 URL、标题、视频 ID、频道、
+播放时间或字幕历史给 Native Host 或 Provider，也不修改 wire、Native Host、Provider 接口或
+Manifest 权限。
+
+整轨和滚动缓冲不会写入 Extension storage、Native Host 或磁盘。视频切换、播放器替换、
+字幕语言变化、广告、直播或销毁会清空全部字幕状态；seek 会清空滚动缓冲。
 
 冻结卡、单词按钮和结果继续使用原生 DOM、Shadow DOM 与 `textContent`。普通模式的结果挂载
 文档根节点，全屏时只重挂载到当前 `document.fullscreenElement`，不会读取或修改播放器媒体
@@ -95,10 +111,11 @@ Windows 使用上一节的独立 DPAPI 凭据和固定 PowerShell helper，沿�
 1–4,096 字符、无首尾空白或控制字符以及不泄漏约束。DeepSeek helper/凭据不能读取欧路授权，
 欧路 helper/凭据也不能读取 DeepSeek Key。
 
-欧路访问固定为 `https://api.frdic.com/api/open/v1/studylist/word` 的 GET/POST，禁止网页、
-协议或环境覆盖 URL；拒绝重定向、Cookie 和自动重试。每次操作最长 10 秒，响应体最多
-64 KiB，所有状态码、JSON 和响应流都经过限制和校验。自动查询失败不会覆盖分析结果；显式
-写入失败只影响生词按钮。
+欧路查词/加词固定访问 `https://api.frdic.com/api/open/v1/studylist/word` 的 GET/POST；
+首次和每日同步只读访问同一官方域名下固定的默认生词本 `studylist/words`。网页、协议或环境
+均不能覆盖 URL；客户端拒绝重定向、Cookie 和
+自动重试。单词操作响应体最多 64 KiB，列表最多 1 MiB，所有状态码、JSON、分页和响应流都
+经过限制和校验。自动查询失败不会覆盖分析结果；显式写入失败只影响生词按钮。
 
 默认测试只用 fake authorization reader、fake fetch 和 fake process runner，不读取真实
 钥匙串或访问欧路。重新构建和重复安装 Host 会保留上述钥匙串项；只有显式
@@ -180,7 +197,9 @@ Compatible 客户端使用 POST、`redirect: "error"`、`credentials: "omit"`，
 
 实测端点会在完整 Responses envelope 中回显 Prompt、JSON Schema、usage 和服务配置，并在
 reasoning / assistant item 中携带加密 reasoning、`turn_id` 与 `phase`。Host 只允许已实测的
-严格字段集合、`output_index` 对应关系和成对终止事件，随后只保留响应 ID、assistant item ID、
+严格字段集合、`output_index` 对应关系和成对终止事件。assistant added item 的 `status` 只接受
+`in_progress` 或实测网关提前发送的 `completed`；后者不跳过任何 delta、文本一致性或唯一终态
+校验。Host 随后只保留响应 ID、assistant item ID、
 顺序和最终文本。回显 Prompt、usage、缓存字段、加密 reasoning、内部元数据、`turn_id`、
 `phase`、`logprobs` 与 `obfuscation` 均不会进入 Native Messaging、Extension 或 stderr。未知
 字段、非空 reasoning 内容/摘要、错误索引或半套终止事件继续失败关闭。
@@ -231,7 +250,7 @@ App Server 当前没有 ignore-user-config / ignore-rules 参数。划译不声�
 
 - `app-server --stdio --strict-config`，仅继承既有环境允许列表；
 - 固定内置 `openai`、`gpt-5.4-mini`、`low` effort 和 60 秒分析超时；
-- 专用空 cwd、`ephemeral: true`、空 `instructionSources`、只读无网络 sandbox、`never` 审批；
+- 专用空 cwd、`ephemeral: true`、`project_doc_max_bytes=0`、只读无网络 sandbox、`never` 审批；
 - 显式关闭历史、Web Search、环境继承、通知、遥测、应用默认项和 Hook 配置；
 - 禁用 `apps`、`auth_elicitation`、`browser_use`、`browser_use_external`、
   `browser_use_full_cdp_access`、`computer_use`、`enable_mcp_apps`、`hooks`、
@@ -253,9 +272,14 @@ MCP 发现最多接受 128 条记录；每个名称必须唯一且匹配 `[A-Za-
 所有禁用功能实际为 false。初始化后，Hook 响应只能为空，或包含专用 cwd 且
 `hooks` / `warnings` / `errors` 全空的记录；MCP 状态只能是 `serverInfo: null`、空 `tools`、
 空 `resources` / `resourceTemplates` 且无分页游标的断开状态。任何活动能力、未知字段或未知
-响应形状都会在 `thread/start` 前拒绝。`thread/start` 返回的 cwd、指令来源、
+响应形状都会在 `thread/start` 前拒绝。`thread/start` 返回的 cwd、指令来源形状、
 模型/provider/effort、ephemeral、审批和 sandbox 也必须精确匹配。无法证明约束生效时返回
 `CODEX_CAPABILITY_MISSING`，不降级到更宽权限。
+
+Codex 会把全局或项目 `AGENTS.md` 的路径保留在 `instructionSources` 中，即使
+`project_doc_max_bytes=0` 已将可注入内容上限固定为零；因此 Host 接受字符串来源记录，但不再
+依赖来源数组为空来证明隔离。该配置同时固定在 App Server 启动覆盖和 thread 覆盖中，并由
+`--strict-config` 保证当前 CLI 识别；来源数组含非字符串值时仍失败关闭。
 
 Host 不注册动态工具。任何 config warning、审批、用户输入、应用、Hook、MCP、命令执行、
 文件修改、MCP/dynamic/collab tool、Web Search 或图片 item 都按不安全事件失败关闭。App Server
@@ -303,8 +327,11 @@ Provider 为 Codex 时才探测 App Server 能力、禁用功能和 ChatGPT 登�
 调用模型、不读取欧路授权或任何模型 API Key、不创建目录；正式安装同样不读取或创建模型
 钥匙串项。
 
-v0.10.0 继续使用 `schemaVersion: 5` 并拒绝 v4，Extension 与 Host 必须使用扩展 ID
-`kfkamoejomjdihipgdkmfjcdenlhgnpd` 同步重装或回滚。升级只替换带合法 Huayi 所有权标记的
+macOS Chrome Native Messaging 清单使用目标目录内排他的 `0600` 临时文件，完成文件同步后
+再原子 `rename` 并同步目录；写入或替换前失败时清理临时文件并保持上一份有效清单不变。
+
+v0.12.0 使用 `schemaVersion: 6` 并拒绝 v5，Extension 与 Host 必须使用扩展 ID
+`chanmjjealoeeheohofnljbbkkfgfnfm` 同步重装或回滚。升级只替换带合法 Huayi 所有权标记的
 bundle、Schema、空工作目录和 launcher，保持
 `~/Library/Application Support/Huayi/native-host/`、Chrome Native Messaging 清单路径，以及
 欧路 `com.huayi.codex_bridge.eudic` / `authorization`、官方 OpenAI
@@ -320,3 +347,40 @@ Messaging 清单或这些精确项之外的钥匙串项，也不会触碰任何 
 Windows 安装不探测 Codex 或 macOS Keychain，只校验 SEA `.exe`、两份 PowerShell helper、
 模型 Schema 和扩展 ID。安装器写入 `%LOCALAPPDATA%\Huayi\native-host` 与精确 HKCU Chrome
 键；重复安装保留两份 DPAPI 凭据，卸载只删除带合法 ownership marker 的目录和该注册表键。
+目录已缺失时仍只查询并删除该精确键；查询失败时失败关闭，不删除仍存在的自有目录。
+
+## 欧路到扇贝同步状态
+
+同步状态只由 Native Host 保存于用户级 Huayi 目录的 `word-sync-state.json`，Extension 不使用
+`chrome.storage` 或 IndexedDB。状态 v3 只包含固定数据源版本、规范化来源/目标词头、尝试记录、扫描游标、
+成功目标、来源结果、活动批次、未解决词和安全错误码；不包含欧路 Authorization、扇贝
+Cookie、页面 URL、例句、上下文或模型结果。
+用户放弃的未解决词只以来源词头、最后尝试目标和固定 `discarded` 结果保留；这不是成功记录，
+但会参与来源去重，避免同一错词在每日轮询后再次出现。
+macOS 文件固定为当前用户 `0600`，Windows 继承 `%LOCALAPPDATA%` 用户 ACL。每次更新使用同目录
+临时文件、文件同步和原子替换，并保留最后一份有效备份；两份文件均无效时失败关闭，不能静默
+丢弃队列。v1 和 v2 迁移分别保留只读语义的 `.v1-snapshot` 与 `.v2-snapshot` 升级前快照，
+常规备份轮换不会覆盖它们；任何快照写入失败都不会替换原主状态。v2→v3 仅失效旧数据源的
+成功时间、扫描游标和错误状态，以触发默认生词本重扫；升级保留状态，完整卸载随 Huayi Host
+目录删除。re-audit dry-run 只在内存中解释旧状态，不写迁移、备份或快照；Windows 独占锁阻止
+原子替换时保留原主文件并清理未提交的临时文件。
+
+首次历史迁移和后续每日检查都只读访问固定 HTTPS `studylist/words` 端点的默认英语生词本；
+响应经过严格字段、大小和分页校验，Host
+只持久化词头，不保存接口返回的释义、音标、语境或时间。
+
+扇贝内容脚本只在 `https://web.shanbay.com/wordsweb/#/collection` 接受同步命令，只打开批量
+上传并填入最多 100 个目标词，不点击最终提交。提交后只有新的失败提示、失败数量和输入框
+残留词严格一致时，才把拒绝目标交给 Host；其余目标原子确认为成功。提示残留、用户改写、
+数量不一致、页面结构变化、关闭标签页和超时均保留活动批次。
+逐条放弃必须携带仍存在于未解决列表的精确来源词；全部放弃必须携带固定 `confirm: true`。
+两种操作都由 Host 串行、原子保存，扩展只有收到终态回执后才刷新面板。
+
+拒绝原词只在 Host 内调用随包打包的 MIT 许可 `wink-lemmatizer`，分别计算名词、动词和形容词
+词元，不调用模型或第三方网络。只采用唯一、不同且符合英语词头 Schema 的候选，每个来源只
+自动重试一次；副词、歧义、无候选和再次失败进入未解决列表。选择该依赖是为了使用离线词法
+表和规则；通用后缀裁剪会误改正常词，远程词典或模型则扩大数据与网络边界，因此不采用。
+
+旧版完成词只迁移为 `legacy-completed`，不声称已经进入扇贝。历史全量再审计默认只读；确认
+探针命令只能重新排队一个由用户确认已存在于扇贝的词。只有该词没有出现在扇贝拒绝残留中，
+Host 才记录探针已接受并允许确认全量重新入队；否则保持其余旧状态不变。

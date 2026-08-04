@@ -15,15 +15,20 @@ POSIX 权限、目录 `fsync`、符号链接或 macOS Keychain 的专属测试�
 自动测试覆盖：
 
 - 发布版本：根包、三个 workspace 包、Manifest、Host health、App Server clientInfo 和欧路
-  User-Agent 全部直接断言为 `0.10.0`，wire 版本为 5。
-- 协议：严格 v4 请求/事件联合、v3 拒绝、四种 Provider health、warmup、`analysis-delta` /
+  User-Agent 全部直接断言为 `0.12.0`，wire 版本为 6。
+- 协议：严格 v6 请求/事件联合、v5 拒绝、四种 Provider health、warmup、`analysis-delta` /
   `analysis-section` 共享
   序号、`check-word` / `word-status`、错误码和 1 MiB 帧上限。
 - 选区：四类分类、2,000 字符裁剪、编辑区排除、单词所在英文句子的确定性提取，以及中英混合
   技术文本在无纯英文句子时退化为只发送选中英文。
-- YouTube 字幕：标准 `/watch` 判断、可见片段视觉排序、英文与长度过滤、撇号/连字符分词、
-  精确字幕上下文、鼠标位置锚定、智能暂停恢复、“译”按钮切换关闭、连续取词、SPA 清理和
-  全屏挂载。
+- YouTube 字幕：标准 `/watch` 判断、可见片段视觉排序、英文与长度过滤、撇号/连字符分词；
+  跨 DOM cue 的 30 秒滚动缓冲按重叠文本去重并限制为 2,000 字符；已验证整轨的前后完整句
+  优先于缓冲。测试覆盖 SPA 启动壳缺少播放器响应时匿名重新获取当前 `/watch` 文档，以及文档
+  中残留旧视频轨时按当前 `v` 重新获取；还覆盖文档和字幕预取 pending、3 秒超时、格式错误、
+  2 MiB/50,000 cue 超限、非 HTTPS YouTube URL、
+  非 `/watch`/`/api/timedtext` 路径或当前字幕不匹配时同步回退。测试还覆盖立即暂停、至多一个动画帧的
+  DOM 稳定期、无 `play()`/2.5 秒等待、鼠标锚定、智能恢复、连续取词、seek 缓冲清理，以及
+  SPA、播放器、语言、广告、直播和全屏生命周期清理。
 - 浮层：loading/streaming/result/error 状态、文本和类型化板块批处理、安全文本渲染、空词汇
   板块隐藏、词典头部、结构化释义/短语/辨析行、失败时保留非终态预览、独立生词状态、
   右上角紧凑按钮、焦点、拖动、滚动、窄屏和迟到事件。
@@ -31,13 +36,21 @@ POSIX 权限、目录 `fsync`、符号链接或 macOS Keychain 的专属测试�
   测试验证旧节点复用、数组累计追加、最终校正、一次性 120ms 动画及 reduced-motion。
 - Service Worker：无页面数据 warmup、分析/查词/加词三通道、并发、定向取消、共享连续序号、
   严格终态、断线和超时。
+- 生词同步：欧路默认生词本首次与每日完整扫描、跨日去重、三页断点、状态 v1/v2→v3 原子
+  迁移/独立快照/备份恢复、数据源升级后立即重扫、100 来源词幂等批次、角标与 alarm、扇贝来源校验、预填不覆盖、
+  全部成功、严格部分失败、通信失败和 10 秒人工确认兜底；Windows fixture 另验证 re-audit
+  dry-run 不迁移或写回状态，以及目标文件被锁定时保留主文件并清理失败的原子替换临时文件。
+- 词形与未解决词：`wink-lemmatizer` 的规则/不规则唯一候选、无变化/歧义/副词拒绝、两个来源
+  合并同一目标、一次词元重试、人工替代词、分页面板、逐条放弃、二次确认全部放弃、放弃后
+  轮询不再入队、崩溃恢复，以及历史再审计 dry-run、单词探针和全量确认保护。
 - MCP 发现：fake process runner 覆盖已启用/已禁用过滤、命令参数和环境允许列表，以及进程
   失败、超时、输出超限、无效 JSON、重复/不安全名称和 128 条记录上限。
-- App Server 参数：回归确认不传 `tools.view_image=false` 或 `mcp_servers={}`，只为经过校验的
-  已启用直接 MCP 生成逐项禁用覆盖。
+- App Server 参数：回归确认不传 `tools.view_image=false` 或 `mcp_servers={}`，固定
+  `project_doc_max_bytes=0`，只为经过校验的已启用直接 MCP 生成逐项禁用覆盖。
 - App Server：JSON-RPC 拆包/合包、握手、按需重启并重新发现 MCP、并发 turn、中断、
-  ephemeral thread、固定 `openai` / `gpt-5.4-mini` / `low` 和空指令来源；接受目标 cwd 的
-  安全空 Hook 记录和无连接、无工具/资源/模板的 MCP 状态，拒绝活动记录和未知响应形状。
+  ephemeral thread、固定 `openai` / `gpt-5.4-mini` / `low` 和零字节项目指令上限；接受 Codex
+  在内容被抑制后仍返回的指令来源路径、目标 cwd 的安全空 Hook 记录和无连接、无工具/资源/
+  模板的 MCP 状态，拒绝活动记录和未知响应形状。
 - Warmup：不含任何网页字段，不发送 `thread/start` / `turn/start`，不触发 fake model turn；
   与 analyze 竞态时只发现、启动和初始化一次 App Server。
 - Provider：私有模型内容 Schema 拒绝公共元数据，有界 JSON 字段增量与完整结构化值、
@@ -54,7 +67,8 @@ POSIX 权限、目录 `fsync`、符号链接或 macOS Keychain 的专属测试�
   filesystem、fake Keychain 和 fake fetch。
 - Compatible HTTP/SSE：固定 `/responses`、Bearer Header、无 Cookie/重定向/重试，接受实测
   rate-limit、可选成对 reasoning、`0/1` output index、完整 Responses envelope、可选但必须成对
-  的 content-part / assistant-item done 和单文本生命周期；验证回显 Prompt、usage、加密
+  的 content-part / assistant-item done、assistant added item 的 `in_progress` / 提前
+  `completed` 状态和单文本生命周期；验证回显 Prompt、usage、加密
   reasoning、`turn_id`、`phase`、logprobs 与 obfuscation 均在归一化时丢弃。拒绝未知、重复、
   迟到、tool、refusal、半套终止事件、delta/done/completed 不一致、超限、取消或超时后的事件。
 - DeepSeek Key/API：精确钥匙串 service/account、隐藏输入、逐请求读取、不泄漏；fake fetch
@@ -69,8 +83,10 @@ POSIX 权限、目录 `fsync`、符号链接或 macOS Keychain 的专属测试�
 - 欧路：自动 GET 查词、显式 GET-before-POST、固定 URL/Header/Body、macOS Keychain 与
   Windows DPAPI 授权逐次读取、串行、取消、10 秒超时、重定向拒绝、64 KiB 上限和状态码映射。
 - 安装器：dry-run、升级、allowed origin、所有权、绝对路径、受控 launcher、钥匙串命令和
-  幂等清理。
-- Manifest：`permissions` 严格等于 `["nativeMessaging"]`，不存在 `host_permissions`。
+  幂等清理，以及 macOS 清单同目录 `0600` 临时文件、文件/目录同步、原子替换和 rename 失败
+  时保留旧清单；Windows fixture 覆盖真实文件复制、manifest、精确 HKCU 参数、升级保留两份
+  DPAPI 凭据和同步状态、ownership marker 拒绝、注册表存在/不存在/失败及孤立键清理。
+- Manifest：`permissions` 严格等于 `["alarms", "nativeMessaging"]`，不存在 `host_permissions`。
 
 ## 浏览器 E2E
 
@@ -92,8 +108,9 @@ Host。Playwright 覆盖：
   毫秒窗口；
 - API Key 未配置和授权失败只显示固定安全中文提示，不暴露伪凭据；
 - 320px 窄屏下生词按钮、拖动手柄和关闭按钮均可见且不重叠。
-- 本地 YouTube DOM fixture 覆盖 CC 旁取词按钮、冻结字幕、精确点词、拖选短语、整条字幕按钮
-  与鼠标位置附近的操作浮层、“译”按钮二次点击关闭，以及 warmup 不携带字幕数据。
+- 本地 YouTube DOM fixture 动态切换上下半句并模拟整轨成功/失败，断言冻结卡和最终分析请求
+  使用预期完整句；同时覆盖 CC 旁取词按钮、精确点词、拖选短语、整条字幕、鼠标位置附近的
+  操作浮层、“译”按钮二次点击关闭，以及 warmup 不携带字幕数据。
 
 稳定的单词翻译和解释结果卡分别使用 macOS Chrome 元素截图基线。更新快照后必须人工查看
 实际 PNG，确认词典头部、语境强调、结构化行和内部滚动不存在溢出、遮挡或意外内容变化。
@@ -160,9 +177,11 @@ pnpm verify:windows
 ```
 
 两条命令都依次执行指令、格式、Lint、类型、单测、构建和 diff 检查。macOS 另运行 Chrome
-Playwright；Windows 另构建真实 SEA `.exe`，用 Native Messaging `health` 帧验证 v0.10.0、
+Playwright；Windows 另构建真实 SEA `.exe`，用 Native Messaging `health` 帧验证 v0.12.0、
 DeepSeek 固定 Provider、`deepseek-v4-flash` 和 `codexVersion: null`，并拒绝 stderr 或额外
-stdout。GitHub Actions 的 `macos-quality` 使用 Node 24，`windows-quality` 使用 Node 26。
+stdout。SEA health 从仓库外临时目录运行，清除 `NODE_PATH` 并使用临时 `LOCALAPPDATA`，确保
+运行时不依赖仓库 `node_modules`。GitHub Actions 的 `macos-quality` 使用 Node 24，
+`windows-quality` 使用 Node 26。
 
 该门禁不包含真实 smoke、Host 安装、Chrome 操作、真实钥匙串、DPAPI、注册表或欧路访问。
 纯逻辑和共享契约要求双平台 CI；系统原语还必须按
@@ -176,7 +195,7 @@ fail-closed 行为。Windows CI 会实际产出并运行 SEA `.exe` 的 health �
 
 - Node 26 的 `pnpm host:windows:package` 产出可独立启动的 SEA `.exe`；
 - 安装器只写 `%LOCALAPPDATA%\Huayi\native-host` 和精确 HKCU Chrome 注册表键；
-- Chrome health 显示 v0.10.0、DeepSeek 和 `codexVersion: null`；
+- Chrome health 显示 v0.12.0、DeepSeek 和 `codexVersion: null`；
 - DeepSeek 与欧路两份 DPAPI 凭据可由当前用户分别读取，换用户或复制到另一台机器后不能
   解密；
 - 单词、短语、句子和段落成功，欧路查词/加词成功，Codex/其他模型 Provider 命令明确拒绝；

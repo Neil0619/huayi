@@ -44,7 +44,7 @@ export const compatibleAssistantAddedItemSchema = z.strictObject({
   metadata: z.strictObject({ turn_id: compatibleIdentifierSchema }).optional(),
   phase: compatibleIdentifierSchema.optional(),
   role: z.literal("assistant"),
-  status: z.literal("in_progress"),
+  status: z.enum(["in_progress", "completed"]),
   type: z.literal("message"),
 });
 

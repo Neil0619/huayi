@@ -13,7 +13,7 @@
    与页面数据的明文传输和第三方费用。
 6. 根包、三个 workspace 包、扩展 Manifest、Host health、App Server `clientInfo.version` 和
    欧路 `User-Agent` 必须同步；版本一致性测试必须直接覆盖每个运行时身份源。
-7. 当前协议为 `schemaVersion: 5`，运行时拒绝 v4；Extension 与 Host 必须同步升级或回滚。
+7. 当前协议为 `schemaVersion: 6`，运行时拒绝 v5；Extension 与 Host 必须同步升级或回滚。
    删除、重命名或语义不兼容变化必须再次提升版本并附迁移说明。
 8. 手写文件在超过 400 行前拆分；不要新增权限、存储、秘密或无说明的生产依赖。
 9. Provider 私有 JSON Schema 只描述模型内容，不得包含 `sourceText`、`selectionKind` 或公共
@@ -63,7 +63,7 @@ pnpm host:eudic:remove -- --dry-run
 
 提交信息使用 Conventional Commits，例如 `feat(extension): add selection overlay`。
 
-v0.10.0 的同步升级和回滚使用扩展 ID `kfkamoejomjdihipgdkmfjcdenlhgnpd`。macOS 保留欧路、官方
+v0.12.0 的同步升级和回滚使用扩展 ID `chanmjjealoeeheohofnljbbkkfgfnfm`。macOS 保留欧路、官方
 OpenAI、Compatible 与 DeepSeek 四个精确钥匙串项、两份 Provider 配置和既有 Huayi 安装路径；
 具体命令只以
 [macOS 安装说明](docs/setup-macos.md) 为准；Windows 从源码安装以

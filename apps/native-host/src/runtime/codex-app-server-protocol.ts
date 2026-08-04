@@ -169,7 +169,7 @@ export function isThreadStartResponse(value: unknown, cwd: string): value is Thr
     value.approvalPolicy === "never" &&
     value.cwd === cwd &&
     Array.isArray(value.instructionSources) &&
-    value.instructionSources.length === 0 &&
+    value.instructionSources.every(isNonEmptyString) &&
     value.model === "gpt-5.4-mini" &&
     value.modelProvider === "openai" &&
     value.reasoningEffort === "low" &&
@@ -256,7 +256,7 @@ export async function initializeAppServerChannel(
 ): Promise<void> {
   const initialized = await channel.request("initialize", {
     capabilities: { experimentalApi: true, requestAttestation: false },
-    clientInfo: { name: "huayi", title: "Huayi Native Host", version: "0.10.0" },
+    clientInfo: { name: "huayi", title: "Huayi Native Host", version: "0.12.0" },
   });
   if (!isInitializeResponse(initialized)) throw new AppServerInvariantError();
   channel.notify("initialized");

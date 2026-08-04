@@ -41,9 +41,15 @@ import type { EudicFetch } from "./wordbook/eudic-client.js";
 import { EudicClient } from "./wordbook/eudic-client.js";
 import { mapEudicError } from "./wordbook/eudic-errors.js";
 import {
+  EudicOperationExecutor,
+  type EudicOperationExecutorLike,
+} from "./wordbook/eudic-operation-executor.js";
+import {
   EudicWordbookProvider,
   type EudicAuthorizationReader,
 } from "./wordbook/eudic-wordbook-provider.js";
+import { WordSyncService } from "./word-sync/word-sync-service.js";
+import { WordSyncStateStore } from "./word-sync/word-sync-state.js";
 
 export interface RequestDispatcher {
   dispatch(message: unknown, emit: (event: HostEvent) => void): void;
@@ -72,6 +78,7 @@ export interface NativeHostDispatcherOptions {
   eudicCredentialHelperPath?: string;
   eudicCredentialPath?: string;
   eudicFetch?: EudicFetch;
+  eudicOperationExecutor?: EudicOperationExecutorLike;
   environment: NodeJS.ProcessEnv;
   errorOutput: Writable;
   openAIApiKeyReader?: OpenAIApiKeyReader;
@@ -83,6 +90,7 @@ export interface NativeHostDispatcherOptions {
   securityExecutable?: string;
   schemaDirectory: string;
   workingDirectory: string;
+  wordSyncStatePath?: string;
 }
 
 export function createProviderValidationDiagnosticSink(
@@ -157,6 +165,8 @@ export function runNativeHost(streams: NativeHostStreams): () => void {
 export function createNativeHostDispatcher(
   options: NativeHostDispatcherOptions,
 ): NativeMessageDispatcher {
+  const wordSyncStatePath =
+    options.wordSyncStatePath ?? resolve(options.workingDirectory, "..", "word-sync-state.json");
   if (options.platformMode === "windows-deepseek") {
     const required = (value: string | undefined, name: string): string => {
       if (value === undefined) throw new Error(`${name} is required for Windows DeepSeek mode.`);
@@ -200,11 +210,20 @@ export function createNativeHostDispatcher(
         processRunner: options.processRunner,
         workingDirectory: options.workingDirectory,
       });
+    const eudicClient = new EudicClient(
+      options.eudicFetch === undefined ? {} : { fetch: options.eudicFetch },
+    );
+    const eudicOperationExecutor =
+      options.eudicOperationExecutor ??
+      new EudicOperationExecutor({ authorizationReader: eudicAuthorizationReader });
     const wordbookProvider = new EudicWordbookProvider({
-      authorizationReader: eudicAuthorizationReader,
-      client: new EudicClient(
-        options.eudicFetch === undefined ? {} : { fetch: options.eudicFetch },
-      ),
+      client: eudicClient,
+      operationExecutor: eudicOperationExecutor,
+    });
+    const wordSyncService = new WordSyncService({
+      client: eudicClient,
+      operationExecutor: eudicOperationExecutor,
+      stateStore: new WordSyncStateStore({ path: wordSyncStatePath }),
     });
     return new NativeMessageDispatcher({
       healthCheck: async () => ({
@@ -217,6 +236,7 @@ export function createNativeHostDispatcher(
       provider,
       mapWordbookError: mapEudicError,
       wordbookProvider,
+      wordSyncService,
     });
   }
 
@@ -240,12 +260,16 @@ export function createNativeHostDispatcher(
       }),
     workingDirectory: options.workingDirectory,
   });
-  const authorizationReader = new MacosEudicAuthorizationReader({
-    environment: options.environment,
-    processRunner: options.processRunner,
-    securityExecutable: options.securityExecutable ?? EUDIC_SECURITY_EXECUTABLE,
-    workingDirectory: options.workingDirectory,
-  });
+  const authorizationReader =
+    options.eudicAuthorizationReader ??
+    new MacosEudicAuthorizationReader({
+      environment: options.environment,
+      processRunner: options.processRunner,
+      securityExecutable: options.securityExecutable ?? EUDIC_SECURITY_EXECUTABLE,
+      workingDirectory: options.workingDirectory,
+    });
+  const eudicOperationExecutor =
+    options.eudicOperationExecutor ?? new EudicOperationExecutor({ authorizationReader });
   const apiKeyReader =
     options.openAIApiKeyReader ??
     new OpenAIApiKeyReader({
@@ -276,6 +300,7 @@ export function createNativeHostDispatcher(
     configurationStore,
     deepSeekApiKeyReader,
     eudicAuthorizationReader: authorizationReader,
+    eudicOperationExecutor,
     onValidationDiagnostic: createProviderValidationDiagnosticSink(options.errorOutput),
     schemaDirectory: options.schemaDirectory,
     ...(options.eudicFetch === undefined ? {} : { eudicFetch: options.eudicFetch }),
@@ -285,6 +310,11 @@ export function createNativeHostDispatcher(
     ...(options.openAIFetch === undefined ? {} : { openAIFetch: options.openAIFetch }),
     ...(options.deepSeekFetch === undefined ? {} : { deepSeekFetch: options.deepSeekFetch }),
   });
+  const wordSyncService = new WordSyncService({
+    client: new EudicClient(options.eudicFetch === undefined ? {} : { fetch: options.eudicFetch }),
+    operationExecutor: eudicOperationExecutor,
+    stateStore: new WordSyncStateStore({ path: wordSyncStatePath }),
+  });
   return new NativeMessageDispatcher({
     healthCheck: providers.healthCheck,
     mapError: mapAnalysisProviderError,
@@ -292,6 +322,7 @@ export function createNativeHostDispatcher(
     maximumConcurrency: 2,
     provider: providers.analysisProvider,
     wordbookProvider: providers.wordbookProvider,
+    wordSyncService,
   });
 }
 
@@ -312,6 +343,7 @@ export function startConfiguredNativeHost(environment = process.env): () => void
           processRunner,
           schemaDirectory: configuration.schemaDirectory,
           workingDirectory: configuration.workingDirectory,
+          wordSyncStatePath: configuration.wordSyncStatePath,
         }
       : {
           codexExecutable: configuration.codexExecutable,
@@ -321,6 +353,7 @@ export function startConfiguredNativeHost(environment = process.env): () => void
           providerConfigurationPath: configuration.providerConfigurationPath,
           schemaDirectory: configuration.schemaDirectory,
           workingDirectory: configuration.workingDirectory,
+          wordSyncStatePath: configuration.wordSyncStatePath,
         };
   return runNativeHost({
     dispatcher: createNativeHostDispatcher(dispatcherOptions),

@@ -1,6 +1,6 @@
 {
   "name": "@huayi/native-host",
-  "version": "0.10.0",
+  "version": "0.12.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@huayi/protocol": "workspace:*",
+    "wink-lemmatizer": "3.0.4",
     "zod": "^4.0.5"
   }
 }

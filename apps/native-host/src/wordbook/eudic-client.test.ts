@@ -5,6 +5,7 @@ import type { AddWordRequest, CheckWordRequest } from "@huayi/protocol";
 import {
   EudicClient,
   EUDIC_WORD_ENDPOINT,
+  EUDIC_WORDS_ENDPOINT,
   type EudicFetch,
   type EudicResponse,
 } from "./eudic-client.js";
@@ -14,7 +15,7 @@ const request: AddWordRequest = {
   context: "The investigation was in its early stages.",
   language: "en",
   requestId: "word-1",
-  schemaVersion: 5,
+  schemaVersion: 6,
   type: "add-word",
   word: "investigation",
 };
@@ -23,7 +24,7 @@ function checkRequest(word = "investigation"): CheckWordRequest {
   return {
     language: "en",
     requestId: "check-word-1",
-    schemaVersion: 5,
+    schemaVersion: 6,
     type: "check-word",
     word,
   };
@@ -46,6 +47,75 @@ function unusedBodyResponse(status: number): {
 }
 
 describe("EudicClient", () => {
+  it("uses the default wordbook as the source for a daily scan", async () => {
+    const fetch = vi.fn<EudicFetch>().mockResolvedValue(
+      jsonResponse({
+        data: [
+          {
+            add_time: "2026-07-21T10:20:30Z",
+            exp: "n. investigation",
+            star: 1,
+            word: "investigation",
+          },
+        ],
+        message: "",
+      }),
+    );
+    const client = new EudicClient({ fetch });
+    await expect(
+      client.listFavoritedWords("NIS fake", 2, 7, new AbortController().signal),
+    ).resolves.toEqual([{ addTime: "2026-07-21T10:20:30Z", word: "investigation" }]);
+    expect(fetch.mock.calls[0]?.[0]).toBe(
+      `${EUDIC_WORDS_ENDPOINT}?language=en&category_id=0&page=2&page_size=100`,
+    );
+  });
+
+  it("uses the traditional default wordbook for an unbounded history scan", async () => {
+    const fetch = vi.fn<EudicFetch>().mockResolvedValue(
+      jsonResponse({
+        data: [
+          {
+            add_time: "2020-10-29T18:23:29Z",
+            exp: "n. action",
+            phon: "/'ækʃn/",
+            star: 1,
+            word: "action",
+          },
+          {
+            add_time: "2020-10-30T18:23:29Z",
+            exp: "v. continue",
+            star: 1,
+            word: "continue",
+          },
+        ],
+        message: "",
+      }),
+    );
+    const client = new EudicClient({ fetch });
+
+    await expect(
+      client.listFavoritedWords("NIS fake", 2, 0, new AbortController().signal),
+    ).resolves.toEqual([
+      { addTime: "2020-10-29T18:23:29Z", word: "action" },
+      { addTime: "2020-10-30T18:23:29Z", word: "continue" },
+    ]);
+    expect(fetch.mock.calls[0]?.[0]).toBe(
+      `${EUDIC_WORDS_ENDPOINT}?language=en&category_id=0&page=2&page_size=100`,
+    );
+  });
+
+  it("fails closed on unknown vocabulary fields and invalid pagination", async () => {
+    const client = new EudicClient({
+      fetch: async () => jsonResponse({ data: [], message: "", secret: true }),
+    });
+    await expect(
+      client.listFavoritedWords("NIS fake", 0, 0, new AbortController().signal),
+    ).rejects.toMatchObject({ code: "INVALID_RESPONSE" });
+    await expect(
+      client.listFavoritedWords("NIS fake", 51, 0, new AbortController().signal),
+    ).rejects.toThrow(/page/);
+  });
+
   it.each([
     { word: "Investigation" },
     { data: { word: "investigation" } },
@@ -186,7 +256,7 @@ describe("EudicClient", () => {
         credentials: "omit",
         headers: expect.objectContaining({
           Authorization: "NIS secret",
-          "User-Agent": "Huayi/0.10.0",
+          "User-Agent": "Huayi/0.12.0",
         }),
         method: "GET",
         redirect: "error",

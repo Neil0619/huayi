@@ -185,6 +185,18 @@ test("closing a pending wordbook write sends a targeted cancel", async ({ page }
   );
 });
 
+test("an outside page click does not cancel a pending wordbook write", async ({ page }) => {
+  const resultPanel = await openWordResult(page, "pending-word-selection");
+  await resultPanel.locator('[data-action="add-word"]').click();
+
+  await expect(resultPanel.locator('[data-action="add-word"]')).toHaveText("添加中");
+  await page.locator("body").click({ position: { x: 5, y: 5 } });
+
+  await expect(resultPanel).toBeVisible();
+  await expect(resultPanel.locator('[data-action="add-word"]')).toHaveText("添加中");
+  await expect(nativeRequests(page, "cancel")).toHaveCount(0);
+});
+
 test("drag selection classifies a sentence and renders sentence explanation", async ({ page }) => {
   await dragSelect(page, page.getByTestId("sentence-selection"));
 

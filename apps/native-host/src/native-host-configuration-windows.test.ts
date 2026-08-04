@@ -21,6 +21,7 @@ describe("Windows DeepSeek native host configuration", () => {
       eudicCredentialPath: "C:\\Huayi\\eudic-credential.xml",
       platformMode: "windows-deepseek",
       providerConfigurationPath: null,
+      wordSyncStatePath: "C:\\Huayi\\word-sync-state.json",
     });
   });
 

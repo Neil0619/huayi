@@ -39,6 +39,31 @@ const ERROR_DEFINITIONS = {
     retryable: false,
   },
   TIMEOUT: { code: "TIMEOUT", message: "欧路请求超时，请重试。", retryable: true },
+  WORD_SYNC_BATCH_MISMATCH: {
+    code: "WORD_SYNC_BATCH_MISMATCH",
+    message: "扇贝同步批次已失效，请重新打开同步页面。",
+    retryable: false,
+  },
+  WORD_SYNC_BATCH_RESULT_INVALID: {
+    code: "WORD_SYNC_BATCH_RESULT_INVALID",
+    message: "扇贝返回的未添加词无法验证，本批已保留。",
+    retryable: false,
+  },
+  WORD_SYNC_HISTORY_LIMIT: {
+    code: "WORD_SYNC_HISTORY_LIMIT",
+    message: "欧路历史生词达到开放接口分页上限，无法确认已完整读取。",
+    retryable: false,
+  },
+  WORD_SYNC_STATE_INVALID: {
+    code: "WORD_SYNC_STATE_INVALID",
+    message: "生词同步状态文件无效，且无法从备份恢复。",
+    retryable: false,
+  },
+  WORD_SYNC_UNRESOLVED_MISMATCH: {
+    code: "WORD_SYNC_UNRESOLVED_MISMATCH",
+    message: "未解决词状态已变化，请刷新列表后重试。",
+    retryable: false,
+  },
 } as const satisfies Partial<Record<ErrorCode, ErrorDefinition>>;
 
 export class EudicProviderError extends Error {

@@ -1,20 +1,27 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
 import test from "node:test";
 
-import { encodeNativeMessage, verifyNativeHostExecutable } from "./verify-windows-sea.mjs";
+import {
+  encodeNativeMessage,
+  verifyIsolatedNativeHostExecutable,
+  verifyNativeHostExecutable,
+} from "./verify-windows-sea.mjs";
 
 const requestId = "verify-windows-sea-health";
 
 function fixtureScript({ delay = false, stderr = "", trailing = false } = {}) {
   const response = JSON.stringify({
     codexVersion: null,
-    hostVersion: "0.10.0",
+    hostVersion: "0.12.0",
     model: "deepseek-v4-flash",
     provider: "deepseek-chat-completions",
     ready: true,
     requestId,
-    schemaVersion: 5,
+    schemaVersion: 6,
     type: "health-result",
   });
   return `
@@ -42,17 +49,41 @@ function verifyFixture(options = {}) {
 }
 
 test("encodes the fixed health request as one native message", () => {
-  const frame = encodeNativeMessage({ requestId, schemaVersion: 5, type: "health" });
+  const frame = encodeNativeMessage({ requestId, schemaVersion: 6, type: "health" });
   assert.equal(frame.readUInt32LE(0), frame.length - 4);
   assert.deepEqual(JSON.parse(frame.subarray(4).toString("utf8")), {
     requestId,
-    schemaVersion: 5,
+    schemaVersion: 6,
     type: "health",
   });
 });
 
 test("accepts an exact Windows DeepSeek SEA health exchange", async () => {
   await assert.doesNotReject(verifyFixture());
+});
+
+test("copies the packaged SEA outside the repository and removes Node module lookup paths", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "huayi-sea-source-"));
+  const sourceExecutable = join(directory, "huayi-native-host.exe");
+  await writeFile(sourceExecutable, "fake SEA", "utf8");
+  let isolatedDirectory;
+  try {
+    await verifyIsolatedNativeHostExecutable({
+      environment: { LOCALAPPDATA: "C:\\real", NODE_PATH: "C:\\repo\\node_modules" },
+      sourceExecutable,
+      verifyExecutable: async ({ cwd, env, executable }) => {
+        isolatedDirectory = cwd;
+        assert.equal(dirname(executable), cwd);
+        assert.notEqual(resolve(cwd), resolve(directory));
+        assert.equal(await readFile(executable, "utf8"), "fake SEA");
+        assert.equal(env.NODE_PATH, undefined);
+        assert.equal(env.LOCALAPPDATA, join(cwd, "local-app-data"));
+      },
+    });
+    await assert.rejects(readFile(isolatedDirectory), (error) => error?.code === "ENOENT");
+  } finally {
+    await rm(directory, { force: true, recursive: true });
+  }
 });
 
 test("rejects stdout bytes after the health frame", async () => {

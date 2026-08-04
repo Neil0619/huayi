@@ -9,7 +9,7 @@ function createRequest(overrides: Partial<AnalyzeRequest> = {}): AnalyzeRequest 
     action: "translate",
     context: "Four victims were interviewed.",
     requestId: "analysis-assembly-1",
-    schemaVersion: 5,
+    schemaVersion: 6,
     selection: "Four",
     selectionKind: "phrase",
     sentenceContext: "Four victims were interviewed.",
@@ -123,6 +123,33 @@ describe("parseAndAssembleModelResult", () => {
         { meaningsZh: ["赋予形体"], partOfSpeech: "verb" },
       ],
       dictionaryForm: "body",
+      type: "translate-word",
+    });
+  });
+
+  it("deduplicates the first word meaning group before capped merging", () => {
+    const result = parseAndAssembleModelResult(
+      JSON.stringify(
+        wordTranslation({
+          commonMeanings: [
+            { meaningsZh: ["前沿", "前沿", "边界"], partOfSpeech: "noun" },
+            { meaningsZh: ["尖端", "最前线"], partOfSpeech: "noun" },
+          ],
+          contextualSense: { meaningZh: "前沿", partOfSpeech: "noun" },
+          dictionaryForm: "frontier",
+        }),
+      ),
+      createRequest({
+        context: "This work is at the frontier of science.",
+        selection: "frontier",
+        selectionKind: "word",
+        sentenceContext: "This work is at the frontier of science.",
+      }),
+    );
+
+    expect(result).toMatchObject({
+      commonMeanings: [{ meaningsZh: ["前沿", "边界", "尖端"], partOfSpeech: "noun" }],
+      dictionaryForm: "frontier",
       type: "translate-word",
     });
   });

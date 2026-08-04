@@ -16,7 +16,10 @@ import {
   type DeepSeekCredentialReader,
 } from "../provider/deepseek-chat-provider.js";
 import { ModelSchemaRepository } from "../provider/model-schema-repository.js";
-import type { ProviderValidationDiagnosticSink } from "../provider/provider-validation.js";
+import {
+  formatProviderValidationDiagnostic,
+  type ProviderValidationDiagnosticSink,
+} from "../provider/provider-validation.js";
 import { NodeProcessRunner, type ProcessRunner } from "../runtime/codex-process.js";
 import { COMPARISON_CASES } from "./comparison-corpus.js";
 
@@ -58,6 +61,15 @@ export interface DeepSeekSmokeCredentialReaderOptions {
   readonly homeDirectory: string;
   readonly platform: NodeJS.Platform;
   readonly processRunner: ProcessRunner;
+}
+
+export function createDeepSeekSmokeValidationDiagnosticSink(
+  writeLine: (line: string) => void,
+): ProviderValidationDiagnosticSink {
+  return (diagnostic) => {
+    const line = formatProviderValidationDiagnostic(diagnostic);
+    if (line !== undefined) writeLine(line);
+  };
 }
 
 export function createDeepSeekSmokeCredentialReader(
@@ -233,7 +245,17 @@ if (isDirectExecution()) {
     process.stderr.write("DeepSeek smoke does not accept arguments; it uses fixed cases.\n");
     process.exitCode = 1;
   } else {
-    void runDeepSeekSmoke(createDefaultDeepSeekSmokeRuntime(process.env, homedir())).then(
+    const validationDiagnosticSink = createDeepSeekSmokeValidationDiagnosticSink((line) =>
+      process.stderr.write(line),
+    );
+    void runDeepSeekSmoke(
+      createDefaultDeepSeekSmokeRuntime(
+        process.env,
+        homedir(),
+        import.meta.url,
+        validationDiagnosticSink,
+      ),
+    ).then(
       (exitCode) => {
         process.exitCode = exitCode;
       },

@@ -10,16 +10,18 @@ import type {
 import {
   createRuntimeMessageListener,
   handleContentMessage,
+  handleShanbayMessage,
   registerServiceWorker,
   type RequestCoordinatorLike,
   type RuntimeMessageListener,
+  type WordSyncCoordinatorLike,
 } from "./service-worker.js";
 
 const request: AnalyzeRequest = {
   action: "translate",
   context: "The investigation was in its early stages.",
   requestId: "request-1",
-  schemaVersion: 5,
+  schemaVersion: 6,
   selection: "investigation",
   selectionKind: "word",
   sentenceContext: null,
@@ -31,7 +33,7 @@ const wordRequest: AddWordRequest = {
   context: "The investigation was in its early stages.",
   language: "en",
   requestId: "word-1",
-  schemaVersion: 5,
+  schemaVersion: 6,
   type: "add-word",
   word: "investigation",
 };
@@ -39,7 +41,7 @@ const wordRequest: AddWordRequest = {
 const checkRequest: CheckWordRequest = {
   language: "en",
   requestId: "check-1",
-  schemaVersion: 5,
+  schemaVersion: 6,
   type: "check-word",
   word: "investigation",
 };
@@ -72,6 +74,89 @@ afterEach(() => {
 });
 
 describe("handleContentMessage", () => {
+  it("accepts sync commands only from the exact Shanbay collection page", () => {
+    const coordinator: WordSyncCoordinatorLike = {
+      discardAllUnresolved: vi.fn(),
+      discardUnresolved: vi.fn(),
+      handlePageReady: vi.fn(),
+      handleStartup: vi.fn(),
+      listUnresolved: vi.fn(),
+      requeueUnresolved: vi.fn(),
+      resolveBatch: vi.fn(),
+    };
+    expect(
+      handleShanbayMessage(
+        { type: "SHANBAY_PAGE_READY" },
+        { tab: { id: 9 }, url: "https://web.shanbay.com/wordsweb/#/collection" },
+        coordinator,
+      ),
+    ).toBe(true);
+    expect(coordinator.handlePageReady).toHaveBeenCalledWith(9);
+    expect(
+      handleShanbayMessage(
+        { type: "SHANBAY_PAGE_READY" },
+        { tab: { id: 9 }, url: "https://web.shanbay.com/wordsweb#/collection" },
+        coordinator,
+      ),
+    ).toBe(false);
+    expect(
+      handleShanbayMessage(
+        { type: "SHANBAY_PAGE_READY" },
+        { tab: { id: 9 }, url: "https://web.shanbay.com/other/#/collection" },
+        coordinator,
+      ),
+    ).toBe(false);
+    expect(
+      handleShanbayMessage(
+        { type: "SHANBAY_PAGE_READY" },
+        { tab: { id: 9 }, url: "https://web.shanbay.com/wordsweb/#/collection-evil" },
+        coordinator,
+      ),
+    ).toBe(false);
+    expect(
+      handleShanbayMessage(
+        { batchId: "batch-1", rejectedTargets: [], type: "RESOLVE_SHANBAY_BATCH" },
+        { tab: { id: 9 }, url: "https://evil.invalid/#/collection" },
+        coordinator,
+      ),
+    ).toBe(false);
+    expect(coordinator.resolveBatch).not.toHaveBeenCalled();
+
+    expect(
+      handleShanbayMessage(
+        {
+          batchId: "batch-1",
+          rejectedTargets: ["orbiting"],
+          type: "RESOLVE_SHANBAY_BATCH",
+        },
+        { tab: { id: 9 }, url: "https://web.shanbay.com/wordsweb/#/collection" },
+        coordinator,
+      ),
+    ).toBe(true);
+    expect(coordinator.resolveBatch).toHaveBeenCalledWith(9, "batch-1", ["orbiting"]);
+
+    expect(
+      handleShanbayMessage(
+        {
+          sourceWords: ["splendidly"],
+          type: "DISCARD_SHANBAY_UNRESOLVED",
+        },
+        { tab: { id: 9 }, url: "https://web.shanbay.com/wordsweb/#/collection" },
+        coordinator,
+      ),
+    ).toBe(true);
+    expect(coordinator.discardUnresolved).toHaveBeenCalledWith(9, ["splendidly"]);
+
+    expect(
+      handleShanbayMessage(
+        { type: "DISCARD_ALL_SHANBAY_UNRESOLVED" },
+        { tab: { id: 9 }, url: "https://web.shanbay.com/wordsweb/#/collection" },
+        coordinator,
+      ),
+    ).toBe(true);
+    expect(coordinator.discardAllUnresolved).toHaveBeenCalledWith(9);
+  });
+
   it("routes valid warmup, analyze, check-word, add-word, and cancel commands for a sender tab", () => {
     const coordinator = new FakeCoordinator();
 
@@ -131,7 +216,28 @@ describe("handleContentMessage", () => {
     const runtimeListeners: RuntimeMessageListener[] = [];
     const tabRemovedListeners: TabRemovedListener[] = [];
     const postedMessages: unknown[] = [];
+    const actionListeners: (() => void)[] = [];
+    const alarmListeners: ((alarm: { name: string }) => void)[] = [];
+    const startupListeners: (() => void)[] = [];
     vi.stubGlobal("chrome", {
+      action: {
+        onClicked: {
+          addListener: (listener: () => void) => actionListeners.push(listener),
+          removeListener: (listener: () => void) =>
+            actionListeners.splice(actionListeners.indexOf(listener), 1),
+        },
+        setBadgeText: () => Promise.resolve(),
+        setTitle: () => Promise.resolve(),
+      },
+      alarms: {
+        create: () => Promise.resolve(),
+        onAlarm: {
+          addListener: (listener: (alarm: { name: string }) => void) =>
+            alarmListeners.push(listener),
+          removeListener: (listener: (alarm: { name: string }) => void) =>
+            alarmListeners.splice(alarmListeners.indexOf(listener), 1),
+        },
+      },
       runtime: {
         connectNative: () => ({
           disconnect: () => undefined,
@@ -145,8 +251,14 @@ describe("handleContentMessage", () => {
           removeListener: (listener: RuntimeMessageListener) =>
             runtimeListeners.splice(runtimeListeners.indexOf(listener), 1),
         },
+        onStartup: {
+          addListener: (listener: () => void) => startupListeners.push(listener),
+          removeListener: (listener: () => void) =>
+            startupListeners.splice(startupListeners.indexOf(listener), 1),
+        },
       },
       tabs: {
+        create: () => Promise.resolve(),
         onRemoved: {
           addListener: (listener: TabRemovedListener) => tabRemovedListeners.push(listener),
           removeListener: (listener: TabRemovedListener) =>
@@ -159,7 +271,10 @@ describe("handleContentMessage", () => {
     const dispose = registerServiceWorker();
     expect(runtimeListeners).toHaveLength(1);
     expect(tabRemovedListeners).toHaveLength(1);
-    expect(postedMessages).toEqual([]);
+    expect(startupListeners).toHaveLength(1);
+    expect(postedMessages).toEqual([
+      expect.objectContaining({ schemaVersion: 6, type: "word-sync-status" }),
+    ]);
 
     const send = runtimeListeners[0];
     const removeTab = tabRemovedListeners[0];
@@ -175,16 +290,16 @@ describe("handleContentMessage", () => {
     );
     removeTab(7, { isWindowClosing: false, windowId: 1 });
 
-    expect(postedMessages).toHaveLength(5);
-    expect(postedMessages[0]).toMatchObject({ schemaVersion: 5, type: "warmup" });
-    expect(Object.keys(postedMessages[0] as object).sort()).toEqual([
+    expect(postedMessages).toHaveLength(6);
+    expect(postedMessages[1]).toMatchObject({ schemaVersion: 6, type: "warmup" });
+    expect(Object.keys(postedMessages[1] as object).sort()).toEqual([
       "requestId",
       "schemaVersion",
       "type",
     ]);
     expect(
       postedMessages
-        .slice(3)
+        .slice(4)
         .map((message) =>
           typeof message === "object" && message !== null && "targetRequestId" in message
             ? message.targetRequestId
@@ -195,5 +310,8 @@ describe("handleContentMessage", () => {
     dispose();
     expect(runtimeListeners).toHaveLength(0);
     expect(tabRemovedListeners).toHaveLength(0);
+    expect(actionListeners).toHaveLength(0);
+    expect(alarmListeners).toHaveLength(0);
+    expect(startupListeners).toHaveLength(0);
   });
 });

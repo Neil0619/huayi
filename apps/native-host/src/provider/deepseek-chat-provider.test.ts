@@ -16,7 +16,7 @@ function request(overrides: Partial<AnalyzeRequest> = {}): AnalyzeRequest {
     action: "translate",
     context: "The investigation remains open.",
     requestId: "deepseek-provider-1",
-    schemaVersion: 5,
+    schemaVersion: 6,
     selection: "investigation",
     selectionKind: "word",
     sentenceContext: "The investigation remains open.",

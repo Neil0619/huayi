@@ -1,10 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { SelectionRequestInput } from "../selection/read-selection.js";
+import type { FrameScheduler } from "../overlay/frame-scheduler.js";
 import {
   YouTubeCaptionController,
   type YouTubeCaptionSelectionEvent,
 } from "./youtube-caption-controller.js";
+import type { YouTubeCaptionContext } from "./youtube-caption-context-source.js";
 
 interface Fixture {
   controller: YouTubeCaptionController;
@@ -41,7 +43,19 @@ function setRect(element: Element, rect: Partial<DOMRect> = {}): void {
   });
 }
 
-function createFixture(initiallyPaused = false): Fixture {
+const immediateFrameScheduler: FrameScheduler = {
+  cancel: vi.fn(),
+  request: (callback) => {
+    callback();
+    return 1;
+  },
+};
+
+function createFixture(
+  initiallyPaused = false,
+  frameScheduler = immediateFrameScheduler,
+  captionContextSource?: YouTubeCaptionContext,
+): Fixture {
   document.body.textContent = "";
   const player = document.createElement("div");
   player.className = "html5-video-player";
@@ -84,7 +98,9 @@ function createFixture(initiallyPaused = false): Fixture {
   const onSelection = vi.fn<(event: YouTubeCaptionSelectionEvent) => void>();
   const onWarmup = vi.fn<() => void>();
   const controller = new YouTubeCaptionController({
+    ...(captionContextSource === undefined ? {} : { captionContextSource }),
     document,
+    frameScheduler,
     isWatchPage: () => true,
     onPresentationChange: vi.fn(),
     onSelection,
@@ -131,6 +147,64 @@ afterEach(() => {
 });
 
 describe("YouTubeCaptionController", () => {
+  it("pauses synchronously and waits no more than one animation frame before freezing", () => {
+    const callbacks: (() => void)[] = [];
+    const frameScheduler: FrameScheduler = {
+      cancel: vi.fn(),
+      request: vi.fn((next) => {
+        callbacks.push(next);
+        return 7;
+      }),
+    };
+    const fixture = createFixture(false, frameScheduler);
+
+    controlButton(fixture.player).click();
+
+    expect(fixture.video.pause).toHaveBeenCalledOnce();
+    expect(fixture.play).not.toHaveBeenCalled();
+    expect(fixture.player.querySelector("[data-huayi-youtube-picker-host]")).toBeNull();
+    expect(frameScheduler.request).toHaveBeenCalledOnce();
+
+    callbacks[0]?.();
+
+    expect(pickerHost(fixture.player)).toBeTruthy();
+    expect(fixture.onWarmup).toHaveBeenCalledOnce();
+    expect(fixture.play).not.toHaveBeenCalled();
+  });
+
+  it("pauses before scanning the caption to freeze", () => {
+    const order: string[] = [];
+    const callbacks: (() => void)[] = [];
+    const captionContextSource: YouTubeCaptionContext = {
+      attach: vi.fn(),
+      clear: vi.fn(),
+      freeze: vi.fn(() => {
+        order.push("freeze");
+        return { text: "The investigation was still in its early stages." };
+      }),
+    };
+    const frameScheduler: FrameScheduler = {
+      cancel: vi.fn(),
+      request: vi.fn((callback) => {
+        callbacks.push(callback);
+        return 1;
+      }),
+    };
+    const fixture = createFixture(false, frameScheduler, captionContextSource);
+    vi.mocked(captionContextSource.freeze).mockClear();
+    order.length = 0;
+    vi.mocked(fixture.video.pause).mockImplementation(() => {
+      fixture.setPaused(true);
+      order.push("pause");
+    });
+
+    controlButton(fixture.player).click();
+    expect(order).toEqual(["pause"]);
+    callbacks[0]?.();
+
+    expect(order).toEqual(["pause", "freeze"]);
+  });
+
   it("pauses, freezes the current caption, and emits an exact word selection", () => {
     const fixture = createFixture();
     const button = controlButton(fixture.player);
@@ -295,4 +369,52 @@ describe("YouTubeCaptionController", () => {
 
     expect(controlButton(fixture.player).disabled).toBe(true);
   });
+
+  it("clears caption memory on YouTube SPA navigation", async () => {
+    const captionContextSource: YouTubeCaptionContext = {
+      attach: vi.fn(),
+      clear: vi.fn(),
+      freeze: vi.fn(() => ({ text: "The investigation was still in its early stages." })),
+    };
+    createFixture(false, immediateFrameScheduler, captionContextSource);
+
+    document.dispatchEvent(new Event("yt-navigate-finish"));
+    await Promise.resolve();
+
+    expect(captionContextSource.clear).toHaveBeenCalledOnce();
+  });
+
+  it("clears caption memory when the controller is destroyed", () => {
+    const captionContextSource: YouTubeCaptionContext = {
+      attach: vi.fn(),
+      clear: vi.fn(),
+      freeze: vi.fn(() => ({ text: "The investigation was still in its early stages." })),
+    };
+    const fixture = createFixture(false, immediateFrameScheduler, captionContextSource);
+    vi.mocked(captionContextSource.clear).mockClear();
+
+    fixture.controller.destroy();
+
+    expect(captionContextSource.clear).toHaveBeenCalledOnce();
+    expect(fixture.player.querySelector("[data-huayi-youtube-control-host]")).toBeNull();
+  });
+
+  it.each(["ad-showing", "ytp-live"])(
+    "clears caption memory when the player enters %s state",
+    async (playerClass) => {
+      const captionContextSource: YouTubeCaptionContext = {
+        attach: vi.fn(),
+        clear: vi.fn(),
+        freeze: vi.fn(() => ({ text: "The investigation was still in its early stages." })),
+      };
+      const fixture = createFixture(false, immediateFrameScheduler, captionContextSource);
+
+      fixture.player.classList.add(playerClass);
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(captionContextSource.clear).toHaveBeenCalled();
+      expect(controlButton(fixture.player).disabled).toBe(true);
+    },
+  );
 });

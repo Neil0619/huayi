@@ -1,7 +1,7 @@
 # 协议说明
 
-当前协议版本为 `schemaVersion: 5`，所有消息均为严格的带 `type` 联合类型。v5 运行时直接
-拒绝 v4 及更早消息，不提供跨版本转换层；Extension 与 Native Host 必须同步升级、重装或
+当前协议版本为 `schemaVersion: 6`，所有消息均为严格的带 `type` 联合类型。v6 运行时直接
+拒绝 v5 及更早消息，不提供跨版本转换层；Extension 与 Native Host 必须同步升级、重装或
 回滚。
 
 ## 请求
@@ -15,6 +15,16 @@
   `zh-CN` 目标语言。
 - `check-word`：只包含请求 ID、英语原始单词和固定语言 `en`，用于只读查询生词本状态。
 - `add-word`：包含请求 ID、英语单词和所在完整英文句子，用于加入本机配置的生词本。
+- `word-sync-status`：读取 Host 持久化的待同步数量和扫描状态。
+- `word-sync-poll`：按 Host 记录的日期继续全量扫描或执行带一天重叠的欧路增量扫描。
+- `word-sync-prepare-batch`：创建或重复返回当前最多 100 词的幂等扇贝批次。
+- `word-sync-resolve-batch`：携带严格 `batchId` 和本次被扇贝拒绝的目标词；空列表表示整批
+  成功。未知、重复或不属于活动批次的目标词会保留原批次并失败关闭。
+- `word-sync-list-unresolved`：按 `offset` / `limit` 分页读取需要人工处理的词。
+- `word-sync-requeue-unresolved`：为未解决来源词提供一个经过英语词头 Schema 校验的新目标。
+- `word-sync-discard-unresolved`：携带 1–100 个唯一来源词，把仍在未解决列表中的精确项目
+  转为放弃终态；任一来源不匹配时整次失败且不修改状态。
+- `word-sync-discard-all-unresolved`：必须显式携带 `confirm: true`，原子放弃当前全部未解决词。
 - `cancel`：按请求 ID 终止排队或运行中的任务。
 
 `analyze` 的 `action` 只能是 `translate | explain`，`selectionKind` 只能是
@@ -29,7 +39,7 @@
 ```json
 {
   "requestId": "warmup-1",
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "type": "warmup"
 }
 ```
@@ -45,7 +55,7 @@
 {
   "language": "en",
   "requestId": "check-1",
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "type": "check-word",
   "word": "mother-in-law"
 }
@@ -64,6 +74,15 @@
 - `result`：返回经过 Schema 校验的分析结果；它是分析唯一的完整成功终态。
 - `word-status`：返回 `present | absent`，表示只读查询到单词已存在或不存在。
 - `word-added`：返回 `added | already-exists`，分别表示新建成功或原记录已存在。
+- `word-sync-status`：返回待同步/未解决/跳过数量、是否到期、是否扫描中、历史是否完整及
+  最近拉取状态。
+- `word-sync-batch`：返回批次 ID、本批之外的剩余来源词数量，以及 1–100 个唯一目标。
+  每个目标包含实际填入扇贝的 `targetWord`、对应 `sourceWords` 和
+  `attempt: original | lemma | manual`。
+- `word-sync-batch-resolved`：返回成功、再次排队、转入未解决列表的数量和当前总数。
+- `word-sync-unresolved-list`：返回一页未解决词、候选词、最后目标和固定失败原因。
+- `word-sync-unresolved-requeued`：返回人工替代词重新入队或被已有成功目标覆盖后的总数。
+- `word-sync-unresolved-discarded`：返回本次已放弃数量以及最新待同步、未解决总数。
 - `error`：返回固定错误码、中文用户提示和是否允许重试。
 
 Codex 健康检查成功示例：
@@ -71,12 +90,12 @@ Codex 健康检查成功示例：
 ```json
 {
   "codexVersion": "codex-cli 0.144.1",
-  "hostVersion": "0.10.0",
+  "hostVersion": "0.12.0",
   "model": "gpt-5.4-mini",
   "provider": "codex",
   "ready": true,
   "requestId": "health-codex",
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "type": "health-result"
 }
 ```
@@ -86,12 +105,12 @@ API Provider 健康检查成功示例：
 ```json
 {
   "codexVersion": null,
-  "hostVersion": "0.10.0",
+  "hostVersion": "0.12.0",
   "model": "gpt-5.6-luna",
   "provider": "openai-responses",
   "ready": true,
   "requestId": "health-api",
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "type": "health-result"
 }
 ```
@@ -101,12 +120,12 @@ Compatible Provider 健康检查成功示例：
 ```json
 {
   "codexVersion": null,
-  "hostVersion": "0.10.0",
+  "hostVersion": "0.12.0",
   "model": "gpt-5.4-mini",
   "provider": "openai-compatible-http",
   "ready": true,
   "requestId": "health-compatible",
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "type": "health-result"
 }
 ```
@@ -116,12 +135,12 @@ DeepSeek Provider 健康检查成功示例：
 ```json
 {
   "codexVersion": null,
-  "hostVersion": "0.10.0",
+  "hostVersion": "0.12.0",
   "model": "deepseek-v4-flash",
   "provider": "deepseek-chat-completions",
   "ready": true,
   "requestId": "health-deepseek",
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "type": "health-result"
 }
 ```
@@ -134,7 +153,7 @@ DeepSeek Provider 健康检查成功示例：
 ```json
 {
   "requestId": "warmup-1",
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "type": "warmup-ready"
 }
 ```
@@ -145,7 +164,7 @@ DeepSeek Provider 健康检查成功示例：
 {
   "delta": "调查",
   "requestId": "analysis-1",
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "section": "contextual-meaning",
   "sequence": 0,
   "type": "analysis-delta"
@@ -173,7 +192,7 @@ synonym-comparisons`；
 ```json
 {
   "requestId": "analysis-v5",
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "section": "part-of-speech",
   "sequence": 1,
   "type": "analysis-section",
@@ -202,8 +221,32 @@ Host 完整校验私有内容后，从可信 `analyze` 请求注入原始 `sourc
 {
   "presence": "present",
   "requestId": "check-1",
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "type": "word-status"
+}
+```
+
+扇贝同步批次示例：
+
+```json
+{
+  "batchId": "sync-550e8400-e29b-41d4-a716-446655440000",
+  "items": [
+    {
+      "attempt": "original",
+      "sourceWords": ["investigation"],
+      "targetWord": "investigation"
+    },
+    {
+      "attempt": "lemma",
+      "sourceWords": ["orbiting"],
+      "targetWord": "orbit"
+    }
+  ],
+  "pendingAfterBatch": 12,
+  "requestId": "sync-prepare-1",
+  "schemaVersion": 6,
+  "type": "word-sync-batch"
 }
 ```
 
@@ -247,12 +290,23 @@ TIMEOUT
 INVALID_RESPONSE
 CANCELLED
 UNSUPPORTED_SELECTION
+WORD_SYNC_STATE_INVALID
+WORD_SYNC_HISTORY_LIMIT
+WORD_SYNC_BATCH_MISMATCH
+WORD_SYNC_BATCH_RESULT_INVALID
+WORD_SYNC_UNRESOLVED_MISMATCH
 INTERNAL_ERROR
 ```
 
 所有对象（包括每个 `analysis-section` 变体及其嵌套对象）拒绝未知字段，Native Messaging
 单帧上限为 1 MiB。当前版本只允许新增可选字段；删除字段、重命名或改变语义时必须再次提升
 `schemaVersion`，同时在本节增加迁移说明。
+
+v0.12.0 从 wire v5 升至 v6，用 `word-sync-resolve-batch` 替代整批提交，并将批次词数组改为
+来源词、目标词与 `original | lemma | manual` 尝试类型。新增未解决词分页、人工重新入队、
+逐条/全部放弃请求及其终态事件，以及批次结果和未解决状态错误码。v6 明确拒绝 v5；
+Extension 与 Host 必须同步升级或回滚，不提供转换层。分析、Provider、词典查词和结果
+Schema 的语义保持不变。
 
 v0.8.0 从 wire v4 升至 v5，新增 `translate-word`、`explain-word` 及其八个渐进板块；
 `translate-lexical` 与 `explain-lexical` 收窄为仅接受 `selectionKind: phrase`。v5 明确拒绝
@@ -281,9 +335,8 @@ Extension 与 Native Host 必须一起升级，任一端不得接受 v2 消息�
 v1 到 v2 是同步升级且不兼容的迁移：所有请求和事件改用 `schemaVersion: 2`；`analyze`
 必须增加 `sentenceContext`；新增不含页面数据的 `warmup -> warmup-ready`；新增与文本增量共享
 序号的 `analysis-section`；词汇结果数组基数改为搭配/相似项/同义词 0–3、核心词义 1–3。
-Extension 与 Native Host 必须一起升级，任一端不得接受另一版本的消息。v0.10.0 仍使用
-wire v5；macOS 与 Windows 的精确同步安装命令分别见 `docs/setup-macos.md` 和
-`docs/setup-windows.md`。
+Extension 与 Native Host 必须一起升级，任一端不得接受另一版本的消息。当前同步安装命令
+分别见 `docs/setup-macos.md` 和 `docs/setup-windows.md`。
 
 v0.2.0 在不改变已有消息语义的前提下，为 `schemaVersion: 1` 增加 `add-word` 和
 `word-added` 联合分支，因此没有提升协议版本。扩展与 Native Host 应同步升级；旧 Host 在
@@ -304,6 +357,12 @@ v0.3.0 继续在 `schemaVersion: 1` 中兼容增加 `check-word`、`analysis-del
 欧路操作在此基础上额外串行。`cancel` 同时适用于分析、查词和加词：对排队任务直接移除，
 对运行任务触发 `AbortSignal`。成功终态必须与请求严格匹配：`health -> health-result`、
 `warmup -> warmup-ready`、`analyze -> result`、`check-word -> word-status`、
-`add-word -> word-added`。`analysis-delta` 和 `analysis-section` 只允许出现在仍等待 `result`
-的分析请求中且不会结束请求。任何不匹配的中间事件或成功终态均按 `INVALID_RESPONSE` 失败
-关闭。
+`add-word -> word-added`、`word-sync-status | word-sync-poll -> word-sync-status`、
+`word-sync-prepare-batch -> word-sync-batch | word-sync-status`、
+`word-sync-resolve-batch -> word-sync-batch-resolved`、
+`word-sync-list-unresolved -> word-sync-unresolved-list`、
+`word-sync-requeue-unresolved -> word-sync-unresolved-requeued`、
+`word-sync-discard-unresolved | word-sync-discard-all-unresolved ->
+word-sync-unresolved-discarded`。`analysis-delta` 和
+`analysis-section` 只允许出现在仍等待 `result` 的分析请求中且不会结束请求。任何不匹配的
+中间事件或成功终态均按 `INVALID_RESPONSE` 失败关闭。
