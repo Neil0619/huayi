@@ -128,6 +128,7 @@ export function registerServiceWorker(): () => void {
       createAlarm: (name, alarmInfo) => {
         void chrome.alarms.create(name, alarmInfo);
       },
+      getAlarm: async (name) => await chrome.alarms.get(name),
       createTab: async (url) => {
         await chrome.tabs.create({ url });
       },

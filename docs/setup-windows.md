@@ -110,7 +110,8 @@ pnpm host:install -- --extension-id <ID>
 重复安装会替换 Huayi 自有运行文件，保留现有的 DeepSeek、欧路 DPAPI 凭据和
 `%LOCALAPPDATA%\Huayi\native-host\word-sync-state.json`。
 
-Chrome 每天首次可用时完整扫描欧路默认英语生词本并在 Host 本地去重。角标显示待同步数量；点击后打开扇贝
+Chrome 每天本地时间 08:00 完整扫描欧路默认英语生词本并在 Host 本地去重；若该时刻 Chrome 或设备
+不可用，则恢复后尽快补扫，下一次仍固定在次日 08:00。角标显示待同步数量；点击后打开扇贝
 生词本并预填最多 100 个目标词。用户必须亲自点击扇贝“批量添加”。部分成功时 Host 只确认
 成功目标，并用随 SEA 打包的 `wink-lemmatizer` 离线尝试一次唯一名词/动词/形容词词元；无
 可靠候选或再次被拒绝的词进入 `!` 未解决面板。

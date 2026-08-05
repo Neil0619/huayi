@@ -12,7 +12,7 @@ const temporaryDirectories: string[] = [];
 
 async function createService(
   client: EudicWordSyncClient,
-  now: () => Date = () => new Date("2026-07-22T01:00:00.000Z"),
+  now: () => Date = () => new Date(2026, 6, 22, 9, 0, 0, 0),
 ) {
   const directory = await mkdtemp(join(tmpdir(), "huayi-word-sync-service-"));
   temporaryDirectories.push(directory);
@@ -103,7 +103,7 @@ describe("WordSyncService", () => {
   });
 
   it("uses the default wordbook source on the next local day", async () => {
-    let now = new Date("2026-07-22T01:00:00.000Z");
+    let now = new Date(2026, 6, 22, 9, 0, 0, 0);
     const client = {
       listFavoritedWords: vi.fn(
         async (authorization: string, page: number, recentDays: number, signal: AbortSignal) => {
@@ -117,13 +117,59 @@ describe("WordSyncService", () => {
     } satisfies EudicWordSyncClient;
     const service = await createService(client, () => now);
     await service.poll(new AbortController().signal);
-    now = new Date("2026-07-23T02:00:00.000Z");
+    now = new Date(2026, 6, 23, 9, 0, 0, 0);
     await service.poll(new AbortController().signal);
     expect(client.listFavoritedWords.mock.calls.map((call) => call[2])).toEqual([0, 0]);
   });
 
+  it("does not mark the daily scan due before local 08:00, then requires a success at or after 08:00", async () => {
+    let now = new Date(2026, 6, 22, 7, 59, 0, 0);
+    const client = {
+      listFavoritedWords: vi.fn(async () => []),
+    } satisfies EudicWordSyncClient;
+    const service = await createService(client, () => now);
+
+    await expect(service.status()).resolves.toMatchObject({ pollDue: false });
+    await expect(service.poll(new AbortController().signal)).resolves.toMatchObject({
+      pollDue: false,
+    });
+    expect(client.listFavoritedWords).not.toHaveBeenCalled();
+
+    now = new Date(2026, 6, 22, 8, 0, 0, 0);
+    await expect(service.status()).resolves.toMatchObject({ pollDue: true });
+    await service.poll(new AbortController().signal);
+    expect(client.listFavoritedWords).toHaveBeenCalledTimes(1);
+
+    now = new Date(2026, 6, 23, 7, 59, 0, 0);
+    await expect(service.status()).resolves.toMatchObject({ pollDue: false });
+    now = new Date(2026, 6, 23, 8, 0, 0, 0);
+    await expect(service.status()).resolves.toMatchObject({ pollDue: true });
+  });
+
+  it("does not let a 07:00 successful scan satisfy the 08:00 daily refresh", async () => {
+    const now = new Date(2026, 6, 22, 8, 0, 0, 0);
+    const stateStore = await createStateStore();
+    const state = await stateStore.load();
+    state.lastSuccessfulPollAt = new Date(2026, 6, 22, 7, 0, 0, 0).toISOString();
+    state.lastPollSucceeded = true;
+    await stateStore.save(state);
+    const client = {
+      listFavoritedWords: vi.fn(async () => []),
+    } satisfies EudicWordSyncClient;
+    const service = new WordSyncService({
+      authorizationReader: { read: async () => "NIS fake" },
+      client,
+      now: () => now,
+      stateStore,
+    });
+
+    await expect(service.status()).resolves.toMatchObject({ pollDue: true });
+    await service.poll(new AbortController().signal);
+    expect(client.listFavoritedWords).toHaveBeenCalledOnce();
+  });
+
   it("deduplicates old default-wordbook entries while adding a new daily word", async () => {
-    let now = new Date("2026-07-22T01:00:00.000Z");
+    let now = new Date(2026, 6, 22, 9, 0, 0, 0);
     let dailyScan = false;
     const client = {
       listFavoritedWords: vi.fn(async () =>
@@ -139,7 +185,7 @@ describe("WordSyncService", () => {
     await service.poll(new AbortController().signal);
 
     dailyScan = true;
-    now = new Date("2026-07-23T01:00:00.000Z");
+    now = new Date(2026, 6, 23, 9, 0, 0, 0);
     await expect(service.poll(new AbortController().signal)).resolves.toMatchObject({
       pendingCount: 2,
     });
@@ -152,7 +198,7 @@ describe("WordSyncService", () => {
   });
 
   it("keeps the previous success time until a multi-call daily scan completes", async () => {
-    let now = new Date("2026-07-22T01:00:00.000Z");
+    let now = new Date(2026, 6, 22, 9, 0, 0, 0);
     let dailyScan = false;
     const stateStore = await createStateStore();
     const client = {
@@ -171,7 +217,7 @@ describe("WordSyncService", () => {
     const previousSuccessTime = (await stateStore.load()).lastSuccessfulPollAt;
 
     dailyScan = true;
-    now = new Date("2026-07-23T02:00:00.000Z");
+    now = new Date(2026, 6, 23, 9, 0, 0, 0);
     await expect(service.poll(new AbortController().signal)).resolves.toMatchObject({
       pendingCount: 300,
       pollDue: true,
@@ -188,7 +234,7 @@ describe("WordSyncService", () => {
       scanInProgress: false,
     });
     await expect(stateStore.load()).resolves.toMatchObject({
-      lastSuccessfulPollAt: "2026-07-23T02:00:00.000Z",
+      lastSuccessfulPollAt: now.toISOString(),
       scan: null,
     });
   });

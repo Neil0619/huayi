@@ -78,6 +78,7 @@ describe("WordSyncService concurrency", () => {
       });
       const service = new WordSyncService({
         client: syncClient,
+        now: () => new Date(2026, 6, 22, 9, 0, 0, 0),
         operationExecutor,
         stateStore: await createStateStore(),
       });
@@ -130,6 +131,7 @@ describe("WordSyncService concurrency", () => {
             signal.addEventListener("abort", () => reject(new Error("aborted")), { once: true });
           }),
       },
+      now: () => new Date(2026, 6, 22, 9, 0, 0, 0),
       operationExecutor,
       stateStore,
     });
@@ -156,6 +158,7 @@ describe("WordSyncService concurrency", () => {
     );
     const service = new WordSyncService({
       client: { listFavoritedWords },
+      now: () => new Date(2026, 6, 22, 9, 0, 0, 0),
       operationExecutor,
       stateStore,
     });
@@ -176,7 +179,7 @@ describe("WordSyncService concurrency", () => {
   it("does not persist a cancelled mutation queued behind another service operation", async () => {
     const blockedPage = deferred<EudicVocabEntry[]>();
     const stateStore = await createStateStore();
-    let now = new Date("2026-07-22T01:00:00.000Z");
+    let now = new Date(2026, 6, 22, 9, 0, 0, 0);
     let pageCalls = 0;
     const listFavoritedWords = vi.fn<EudicWordSyncClient["listFavoritedWords"]>(async () => {
       pageCalls += 1;
@@ -191,7 +194,7 @@ describe("WordSyncService concurrency", () => {
     });
     await service.poll(new AbortController().signal);
     await service.prepareBatch();
-    now = new Date("2026-07-23T01:00:00.000Z");
+    now = new Date(2026, 6, 23, 9, 0, 0, 0);
     const blockingPoll = service.poll(new AbortController().signal);
     await vi.waitFor(() => expect(listFavoritedWords).toHaveBeenCalledTimes(2));
     const controller = new AbortController();
@@ -215,6 +218,7 @@ describe("WordSyncService concurrency", () => {
       authorizationReader: { read: async () => "NIS fake" },
       client: { listFavoritedWords: async () => entries(1) },
       createBatchId: () => "batch-running-cancel",
+      now: () => new Date(2026, 6, 22, 9, 0, 0, 0),
       stateStore,
     });
     await service.poll(new AbortController().signal);

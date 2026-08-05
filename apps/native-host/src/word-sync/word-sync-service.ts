@@ -99,17 +99,13 @@ function skippedIdentity(value: string): string {
   return `sha256:${createHash("sha256").update(value.trim(), "utf8").digest("hex")}`;
 }
 
-function sameLocalDate(left: Date, right: Date): boolean {
-  return (
-    left.getFullYear() === right.getFullYear() &&
-    left.getMonth() === right.getMonth() &&
-    left.getDate() === right.getDate()
-  );
-}
-
 function isPollDue(state: WordSyncState, now: Date): boolean {
-  if (state.scan !== null || state.lastSuccessfulPollAt === null) return true;
-  return !sameLocalDate(new Date(state.lastSuccessfulPollAt), now);
+  if (state.scan !== null) return true;
+  const todayAtEight = new Date(now);
+  todayAtEight.setHours(8, 0, 0, 0);
+  if (now.getTime() < todayAtEight.getTime()) return false;
+  if (state.lastSuccessfulPollAt === null) return true;
+  return new Date(state.lastSuccessfulPollAt).getTime() < todayAtEight.getTime();
 }
 
 function statusFromState(state: WordSyncState, now: Date): WordSyncStatus {

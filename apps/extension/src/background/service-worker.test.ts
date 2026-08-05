@@ -231,6 +231,7 @@ describe("handleContentMessage", () => {
       },
       alarms: {
         create: () => Promise.resolve(),
+        get: () => Promise.resolve(undefined),
         onAlarm: {
           addListener: (listener: (alarm: { name: string }) => void) =>
             alarmListeners.push(listener),

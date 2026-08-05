@@ -10,7 +10,10 @@ import { WordSyncStateStore } from "./word-sync-state.js";
 
 const temporaryDirectories: string[] = [];
 
-async function createService(client: EudicWordSyncClient, now: () => Date = () => new Date()) {
+async function createService(
+  client: EudicWordSyncClient,
+  now: () => Date = () => new Date(2026, 6, 22, 9, 0, 0, 0),
+) {
   const directory = await mkdtemp(join(tmpdir(), "huayi-word-sync-service-"));
   temporaryDirectories.push(directory);
   return new WordSyncService({
@@ -120,7 +123,7 @@ describe("WordSyncService unresolved words", () => {
   });
 
   it("atomically discards selected or all unresolved words without changing pending work", async () => {
-    let now = new Date("2026-07-22T01:00:00.000Z");
+    let now = new Date(2026, 6, 22, 9, 0, 0, 0);
     const service = await createService(
       {
         listFavoritedWords: async () => [
@@ -152,7 +155,7 @@ describe("WordSyncService unresolved words", () => {
       unresolvedCount: 0,
     });
     await expect(service.status()).resolves.toMatchObject({ pendingCount: 0, unresolvedCount: 0 });
-    now = new Date("2026-07-23T01:00:00.000Z");
+    now = new Date(2026, 6, 23, 9, 0, 0, 0);
     await service.poll(new AbortController().signal);
     await expect(service.status()).resolves.toMatchObject({ pendingCount: 0, unresolvedCount: 0 });
   });

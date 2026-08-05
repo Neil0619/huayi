@@ -5,6 +5,7 @@ import type { NativeDisconnect, NativeTransport } from "./native-transport.js";
 
 export interface WordSyncBrowserApi {
   createAlarm(name: string, alarmInfo: chrome.alarms.AlarmCreateInfo): void;
+  getAlarm(name: string): Promise<chrome.alarms.Alarm | undefined>;
   createTab(url: string): Promise<void> | void;
   sendToTab(tabId: number, message: ShanbayBackgroundMessage): Promise<void> | void;
   setBadgeText(text: string): Promise<void> | void;
@@ -14,6 +15,7 @@ export interface WordSyncBrowserApi {
 export interface WordSyncCoordinatorOptions {
   browser: WordSyncBrowserApi;
   createRequestId?: () => string;
+  now?: () => Date;
   timeoutMs?: number;
   transport: NativeTransport;
 }

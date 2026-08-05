@@ -42,6 +42,7 @@ function createFixture() {
   const transport = new FakeTransport();
   const browser: WordSyncBrowserApi = {
     createAlarm: vi.fn(),
+    getAlarm: vi.fn(async () => undefined),
     createTab: vi.fn(),
     sendToTab: vi.fn(),
     setBadgeText: vi.fn(),

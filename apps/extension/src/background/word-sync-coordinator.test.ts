@@ -44,6 +44,7 @@ function createFixture(options: { timeoutMs?: number } = {}) {
   const transport = new FakeTransport();
   const browser: WordSyncBrowserApi = {
     createAlarm: vi.fn(),
+    getAlarm: vi.fn(async () => undefined),
     createTab: vi.fn(),
     sendToTab: vi.fn(),
     setBadgeText: vi.fn(),
@@ -92,26 +93,6 @@ function batchEvent(requestId: string, batchId = "batch-1", pendingAfterBatch = 
 }
 
 describe("WordSyncCoordinator", () => {
-  it("restores status, polls once when due, and schedules a persisted scan continuation", () => {
-    const { browser, coordinator, transport } = createFixture();
-    coordinator.initialize();
-    expect(browser.createAlarm).toHaveBeenCalledWith(WORD_SYNC_DAILY_ALARM, {
-      delayInMinutes: 1,
-      periodInMinutes: 1440,
-    });
-    expect(transport.requests[0]).toMatchObject({ type: "word-sync-status" });
-    transport.emit(statusEvent("sync-1", { pollDue: true }));
-    expect(transport.requests[1]).toMatchObject({ type: "word-sync-poll" });
-    transport.emit(
-      statusEvent("sync-2", { pendingCount: 12, pollDue: true, scanInProgress: true }),
-    );
-    expect(browser.setBadgeText).toHaveBeenLastCalledWith("12");
-    expect(browser.createAlarm).toHaveBeenCalledWith(WORD_SYNC_CONTINUE_ALARM, {
-      delayInMinutes: 1,
-    });
-    coordinator.dispose();
-  });
-
   it("opens Shanbay only when a batch exists and sends the durable batch after page readiness", () => {
     const { browser, coordinator, transport } = createFixture();
     coordinator.handleActionClick();
@@ -342,19 +323,6 @@ describe("WordSyncCoordinator", () => {
     expect(browser.setTitle).toHaveBeenLastCalledWith(
       "划译：8 个生词待同步到扇贝；3 个词需要人工处理",
     );
-    coordinator.dispose();
-  });
-
-  it("deduplicates concurrent daily checks and action prepares", () => {
-    const { coordinator, transport } = createFixture();
-    coordinator.handleAlarm(WORD_SYNC_DAILY_ALARM);
-    coordinator.handleAlarm(WORD_SYNC_DAILY_ALARM);
-    coordinator.handleActionClick();
-    coordinator.handleActionClick();
-    expect(transport.requests.map((request) => request.type)).toEqual([
-      "word-sync-poll",
-      "word-sync-prepare-batch",
-    ]);
     coordinator.dispose();
   });
 

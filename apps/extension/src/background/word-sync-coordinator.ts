@@ -28,6 +28,12 @@ import {
   type PreparePendingKind,
 } from "./word-sync-coordinator-support.js";
 import {
+  ensureWordSyncDailyAlarm,
+  isWordSyncDailyPollTime,
+  scheduleNextWordSyncDailyAlarm,
+  WORD_SYNC_DAILY_ALARM,
+} from "./word-sync-daily-alarm.js";
+import {
   wordSyncCountsPresentation,
   wordSyncFailurePresentation,
   wordSyncStatusPresentation,
@@ -44,8 +50,8 @@ import {
 } from "./word-sync-request-factory.js";
 
 export const SHANBAY_COLLECTION_URL = "https://web.shanbay.com/wordsweb/#/collection";
-export const WORD_SYNC_DAILY_ALARM = "huayi-word-sync-daily";
 export const WORD_SYNC_CONTINUE_ALARM = "huayi-word-sync-continue";
+export { WORD_SYNC_DAILY_ALARM };
 
 export type {
   WordSyncBrowserApi,
@@ -55,6 +61,7 @@ export class WordSyncCoordinator {
   private readonly browser: WordSyncBrowserApi;
   private readonly createRequestId: () => string;
   private readonly pending = new Map<string, PendingSyncRequest>();
+  private readonly now: () => Date;
   private readonly removeDisconnectListener: () => void;
   private readonly removeEventListener: () => void;
   private readonly timeoutMs: number;
@@ -63,6 +70,7 @@ export class WordSyncCoordinator {
   constructor(options: WordSyncCoordinatorOptions) {
     this.browser = options.browser;
     this.createRequestId = options.createRequestId ?? (() => `sync-${crypto.randomUUID()}`);
+    this.now = options.now ?? (() => new Date());
     this.timeoutMs = options.timeoutMs ?? DEFAULT_WORD_SYNC_TIMEOUT_MS;
     this.transport = options.transport;
     this.removeEventListener = this.transport.onEvent((event) => this.handleEvent(event));
@@ -71,14 +79,16 @@ export class WordSyncCoordinator {
     );
   }
   initialize(): void {
-    this.browser.createAlarm(WORD_SYNC_DAILY_ALARM, {
-      delayInMinutes: 1,
-      periodInMinutes: 24 * 60,
-    });
+    void ensureWordSyncDailyAlarm(this.browser, this.now());
     this.requestStatus();
   }
   handleAlarm(name: string): void {
-    if (name === WORD_SYNC_DAILY_ALARM || name === WORD_SYNC_CONTINUE_ALARM) this.poll();
+    if (name === WORD_SYNC_DAILY_ALARM) {
+      scheduleNextWordSyncDailyAlarm(this.browser, this.now());
+      this.poll();
+      return;
+    }
+    if (name === WORD_SYNC_CONTINUE_ALARM) this.poll();
   }
   handleActionClick(): void {
     this.prepare("action-prepare");
@@ -131,7 +141,6 @@ export class WordSyncCoordinator {
     if (this.hasPending(kind)) return;
     this.send(createWordSyncPrepareBatchRequest(this.createRequestId()), kind, tabId);
   }
-
   private send(
     request: WordSyncRequest,
     kind: PendingKind,
@@ -154,11 +163,9 @@ export class WordSyncCoordinator {
       this.handleFailure(pending, hostUnavailableError({ reason: "host-unavailable" }));
     }
   }
-
   private hasPending(kind: PendingKind): boolean {
     return [...this.pending.values()].some((pending) => pending.kind === kind);
   }
-
   private handleEvent(event: HostEvent): void {
     const pending = this.pending.get(event.requestId);
     if (pending === undefined) return;
@@ -168,7 +175,6 @@ export class WordSyncCoordinator {
       this.recoverAfterPollFailure(pending, event.error);
       return;
     }
-
     if (event.type === "word-sync-status" && acceptsWordSyncStatus(pending.kind)) {
       this.finish(pending);
       this.handleStatus(pending, event);
@@ -205,7 +211,6 @@ export class WordSyncCoordinator {
       void this.handleUnresolvedDiscarded(pending, event);
       return;
     }
-
     this.finish(pending);
     this.handleFailure(pending, {
       code: "INVALID_RESPONSE",
@@ -213,7 +218,6 @@ export class WordSyncCoordinator {
       retryable: false,
     });
   }
-
   private handleStatus(pending: PendingSyncRequest, event: WordSyncStatusEvent): void {
     this.lastStatus = event;
     this.applyPresentation(wordSyncStatusPresentation(event));
@@ -235,7 +239,13 @@ export class WordSyncCoordinator {
     if (event.scanInProgress) {
       this.browser.createAlarm(WORD_SYNC_CONTINUE_ALARM, { delayInMinutes: 1 });
     }
-    if (pending.kind === "status" && event.pollDue) this.poll();
+    if (
+      pending.kind === "status" &&
+      event.pollDue &&
+      (event.scanInProgress || isWordSyncDailyPollTime(this.now()))
+    ) {
+      this.poll();
+    }
     if (pending.kind === "action-prepare" && event.unresolvedCount > 0) {
       ignoreBrowserFailure(this.browser.createTab(SHANBAY_COLLECTION_URL));
     }
@@ -248,7 +258,6 @@ export class WordSyncCoordinator {
       }
     }
   }
-
   private handleBatch(pending: PendingSyncRequest, event: WordSyncBatchEvent): void {
     const batchSourceCount = event.items.reduce(
       (total, item) => total + item.sourceWords.length,
@@ -268,7 +277,6 @@ export class WordSyncCoordinator {
       );
     }
   }
-
   private async handleResolved(
     pending: PendingSyncRequest,
     event: WordSyncBatchResolvedEvent,
@@ -278,7 +286,6 @@ export class WordSyncCoordinator {
       type: "SHANBAY_SYNC_RESOLVED",
     });
   }
-
   private handleUnresolvedList(
     pending: PendingSyncRequest,
     event: WordSyncUnresolvedListEvent,
@@ -291,7 +298,6 @@ export class WordSyncCoordinator {
       }),
     );
   }
-
   private async handleUnresolvedRequeued(
     pending: PendingSyncRequest,
     event: WordSyncUnresolvedRequeuedEvent,
@@ -301,7 +307,6 @@ export class WordSyncCoordinator {
       type: "SHANBAY_SYNC_REQUEUED",
     });
   }
-
   private async handleUnresolvedDiscarded(
     pending: PendingSyncRequest,
     event: WordSyncUnresolvedDiscardedEvent,
@@ -311,7 +316,6 @@ export class WordSyncCoordinator {
       type: "SHANBAY_SYNC_DISCARDED",
     });
   }
-
   private async handleDurableQueueUpdate(
     pending: PendingSyncRequest,
     counts: { pendingCount: number; unresolvedCount: number },
@@ -328,12 +332,10 @@ export class WordSyncCoordinator {
     if (counts.pendingCount > 0) this.prepare("tab-prepare", pending.tabId);
     else if (counts.unresolvedCount > 0) this.listUnresolved(pending.tabId, 0);
   }
-
   private applyPresentation(presentation: { badge: string; title: string }): void {
     ignoreBrowserFailure(this.browser.setBadgeText(presentation.badge));
     ignoreBrowserFailure(this.browser.setTitle(presentation.title));
   }
-
   private async sendToTab(tabId: number, message: ShanbayBackgroundMessage): Promise<void> {
     try {
       await this.browser.sendToTab(tabId, message);
@@ -341,7 +343,6 @@ export class WordSyncCoordinator {
       // The Host result is already durable. Reopening the page restores it.
     }
   }
-
   private handleTimeout(requestId: string): void {
     const pending = this.pending.get(requestId);
     if (pending === undefined) return;
@@ -364,7 +365,6 @@ export class WordSyncCoordinator {
     this.handleFailure(pending, error);
     this.recoverAfterPollFailure(pending, error);
   }
-
   private handleDisconnect(disconnect: NativeDisconnect): void {
     const error = hostUnavailableError(disconnect);
     const pendingRequests = [...this.pending.values()];
@@ -374,7 +374,6 @@ export class WordSyncCoordinator {
       this.recoverAfterPollFailure(pending, error);
     }
   }
-
   private handleFailure(pending: PendingSyncRequest, error: AnalysisError): void {
     this.applyPresentation(wordSyncFailurePresentation(this.lastStatus, error));
     if (pending.tabId !== undefined) {
@@ -383,7 +382,6 @@ export class WordSyncCoordinator {
       );
     }
   }
-
   private recoverAfterPollFailure(pending: PendingSyncRequest, error: AnalysisError): void {
     if (pending.kind !== "poll") return;
     if (error.retryable) {
@@ -391,7 +389,6 @@ export class WordSyncCoordinator {
     }
     this.requestStatus();
   }
-
   private finish(pending: PendingSyncRequest): void {
     clearTimeout(pending.timeoutId);
     this.pending.delete(pending.request.requestId);
