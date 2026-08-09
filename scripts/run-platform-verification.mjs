@@ -16,8 +16,8 @@ export function platformVerificationSteps(platform) {
   if (platform === "darwin") {
     return [
       ...sharedSteps,
-      { arguments: ["test:e2e"], command: "pnpm" },
       { arguments: ["build"], command: "pnpm" },
+      { arguments: ["test:e2e"], command: "pnpm" },
       { arguments: ["diff", "--check"], command: "git" },
     ];
   }
