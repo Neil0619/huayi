@@ -5,7 +5,8 @@
 - 产品版本：`0.12.0`
 - Native Messaging：`schemaVersion: 6`
 - 浏览器：Google Chrome 普通 `http/https` 顶层网页及 YouTube `/watch` 英文字幕
-- YouTube：点击立即暂停；完整句优先使用已验证的字幕轨，失败时回退到 30 秒仅内存缓冲
+- YouTube：可选择单词、短语和完整句的英文字幕；“中”固定双语，按住 F8 临时查看 `zh-Hans`
+  译文
 - macOS：完整功能，默认 Provider 为已登录 Codex
 - Windows：模型固定为 DeepSeek，不连接本机 Codex；支持欧路生词本
 - 发布方式：从 GitHub 源码构建并加载，尚未发布 Chrome Web Store
@@ -20,7 +21,7 @@
 | 0.5–0.7 | OpenAI、兼容 HTTP、DeepSeek Provider，以及独立凭据和诊断工具      |
 | 0.8     | 单词翻译与解释职责分离，wire 升至 v5                              |
 | 0.9     | 词典式浮层、稳定 DOM 更新和窄屏体验                               |
-| 0.10    | Windows DeepSeek/DPAPI/SEA、欧路生词本，以及 YouTube 英文字幕取词 |
+| 0.10    | Windows DeepSeek/DPAPI/SEA、欧路生词本，以及 YouTube 字幕取词基础 |
 | 0.11    | 欧路全部英语收藏到扇贝的每日持久同步、角标和双平台断点批次        |
 | 0.12    | 扇贝部分确认、离线词形还原、未解决词放弃/重排队及旧批次再审计     |
 
@@ -28,8 +29,7 @@
 
 - Windows 上的 Codex、OpenAI 和 Compatible HTTP。
 - Linux、Firefox、Edge、PDF、Chrome 内部页面、iframe 和编辑器区域。
-- YouTube 直播、Shorts、OCR 和持久字幕历史。普通录播的完整句优先使用尽力预取的字幕轨，
-  失败时回退到最近 30 秒、最多 2,000 字符的仅内存字幕缓冲。
+- YouTube 直播、Shorts、OCR 和持久字幕历史；CC 关闭或当前活动轨非英文时不接管字幕。
 - 分析历史记录、跨设备同步、后续对话、浏览器内 Provider 设置和 Chrome Web Store 自动安装。
 
 ## 文档接手顺序

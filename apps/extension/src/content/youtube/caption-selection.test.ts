@@ -1,28 +1,7 @@
 import { MAX_SELECTION_LENGTH } from "@huayi/protocol";
 import { describe, expect, it } from "vitest";
 
-import { createCaptionSelection, segmentCaptionText } from "./caption-selection.js";
-
-describe("segmentCaptionText", () => {
-  it("preserves the caption while keeping apostrophes and hyphens inside words", () => {
-    const caption = "A state-of-the-art tool doesn't guess.";
-    const segments = segmentCaptionText(caption);
-
-    expect(segments.map((segment) => segment.text).join("")).toBe(caption);
-    expect(segments.filter((segment) => segment.isWordLike).map((segment) => segment.text)).toEqual(
-      ["A", "state-of-the-art", "tool", "doesn't", "guess"],
-    );
-  });
-
-  it("uses the same boundaries when Intl.Segmenter is unavailable", () => {
-    const segments = segmentCaptionText("We're well-known.", null);
-
-    expect(segments.map((segment) => segment.text).join("")).toBe("We're well-known.");
-    expect(segments.filter((segment) => segment.isWordLike).map((segment) => segment.text)).toEqual(
-      ["We're", "well-known"],
-    );
-  });
-});
+import { createCaptionSelection } from "./caption-selection.js";
 
 describe("createCaptionSelection", () => {
   const caption = "The investigation was still in its early stages.";
@@ -59,10 +38,22 @@ describe("createCaptionSelection", () => {
     });
   });
 
-  it("does not fabricate lexical context for a full sentence", () => {
+  it("routes an exact full sentence through the frozen subtitle context", () => {
     expect(createCaptionSelection(caption, caption)).toEqual({
       context: caption,
       selection: caption,
+      selectionKind: "sentence",
+      sentenceContext: null,
+      wordbookContext: null,
+    });
+  });
+
+  it("treats an exact punctuation-free segmented caption as one sentence", () => {
+    const shortCaption = "still in its early stages";
+
+    expect(createCaptionSelection(shortCaption, shortCaption)).toEqual({
+      context: shortCaption,
+      selection: shortCaption,
       selectionKind: "sentence",
       sentenceContext: null,
       wordbookContext: null,

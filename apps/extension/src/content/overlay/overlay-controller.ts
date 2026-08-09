@@ -198,6 +198,8 @@ export class OverlayController {
   }
 
   close(): void {
+    const wasVisible = isVisibleOverlayState(this.machine.state);
+    const onClose = this.presentation.onClose;
     if (this.hasPendingRequest()) {
       this.options.onCancel();
     }
@@ -207,6 +209,7 @@ export class OverlayController {
     this.machine.dispatch({ type: "CLOSE" });
     this.host.remove();
     this.presentation = {};
+    if (wasVisible) onClose?.();
   }
 
   destroy(): void {
@@ -228,6 +231,7 @@ export class OverlayController {
   private readonly handleOutsidePointerDown = (event: PointerEvent): void => {
     if (
       isVisibleOverlayState(this.machine.state) &&
+      this.presentation.dismissOnOutsidePointer !== false &&
       !this.isSavingWordbook() &&
       !event.composedPath().includes(this.host)
     ) {

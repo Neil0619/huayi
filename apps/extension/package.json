@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "vite build --mode content && vite build --mode background",
+    "build": "vite build --mode content && vite build --mode youtube-bridge && vite build --mode background",
     "typecheck": "tsc --noEmit --project tsconfig.json && tsc --noEmit --project tsconfig.test.json && tsc --noEmit --project tsconfig.config.json"
   },
   "dependencies": {

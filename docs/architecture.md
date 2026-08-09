@@ -15,6 +15,15 @@
        `-> WordbookProvider -> 平台凭据 -> 欧路 OpenAPI
 ```
 
+YouTube `/watch` 另有一条只留在 Extension 内的字幕数据路径：
+
+```text
+当前 YouTube 播放器
+  -> MAIN-world bridge（驱动当前活动轨并捕获有界 JSON3）
+  -> isolated Content Script（严格复核、分句、Light DOM 字幕与选区）
+  -> 既有分析/查词/加词通道（仅用户执行操作后）
+```
+
 依赖方向固定为 `extension -> protocol <- native-host`。共享协议不感知 Chrome、Node、Codex
 或欧路；新的模型、新浏览器、新生词本和新操作系统必须分别位于现有边界后面。
 
@@ -34,6 +43,15 @@ Chrome 注册表键；macOS 继续使用用户级 manifest 目录和启动脚本
 
 Content Script 读取英文选区、最多 2,000 字符的模型上下文，以及单词所在的完整英文句子。
 它只通过 `textContent` 渲染模型增量和最终结果，不保存 URL、标题、查询或结果。
+
+YouTube controller 只在标准录播、CC ON 且活动轨与可见字幕均为英文时接管。MAIN-world bridge
+封装播放器私有字幕机制，isolated 侧只学习 requestId、代次、videoId、严格轨道指纹和有界
+JSON3；URL、baseUrl、播放器可能使用的 PoToken、Cookie 与播放器对象不跨 seam。源轨验证
+成功后，同代次译轨直接驱动 `zh-Hans`，不重复请求可能已被缓存的源轨。controller 通过实际
+注入的 `SubtitleSentenceSegmenter` 生成完整字幕句，用 Light DOM 和 `textContent` 增量显示；
+译文仅按正时间重叠关联。字幕面板与 YouTube 控制栏分别维护挂载生命周期，短暂 DOM 不匹配经
+2 秒确认后才重置；导航锁从 `yt-navigate-start` 保持至 `yt-navigate-finish`，期间的 page-data
+更新不能提前捕获过渡播放器。任何持续不确定状态都恢复 YouTube 原生字幕。
 
 模型更新先进入按会话隔离的批处理器，由 `requestAnimationFrame` 每帧最多触发一次渲染；终态
 到达时先同步排空待处理更新。结果正文按 `data-huayi-section` 复用稳定节点，累计数组只追加或

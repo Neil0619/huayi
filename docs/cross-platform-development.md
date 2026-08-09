@@ -14,6 +14,7 @@ Huayi 支持 macOS 与 Windows，但两端的 Native Host 能力不同。代码�
 | 改动类型                                             | 可以在哪个平台实现       | 自动门禁                                        | 目标平台人工验收       |
 | ---------------------------------------------------- | ------------------------ | ----------------------------------------------- | ---------------------- |
 | 协议、Schema、Prompt、HTTP、Extension UI、纯领域逻辑 | 任意                     | macOS 与 Windows                                | 不要求                 |
+| YouTube MAIN bridge 与私有播放器字幕适配             | 任意，使用离线 fixture   | 双平台门禁与 macOS Playwright                   | 发布前两端 Chrome 要求 |
 | macOS Keychain、Codex 进程、launcher、安装/卸载      | 任意，使用 fake 覆盖契约 | 双平台单测与 macOS 门禁                         | 要求 macOS             |
 | Windows DPAPI、PowerShell、注册表、SEA、安装/卸载    | 任意，使用 fake 覆盖契约 | 双平台单测、Windows Node 26 门禁与 SEA health   | 要求 Windows           |
 | 生词同步状态、迁移、词形还原、放弃终态和扇贝页面适配 | 任意，路径/文件行为注入  | 双平台单测、构建、macOS Playwright、Windows SEA | 两端 Chrome 发布前要求 |
@@ -23,6 +24,11 @@ Huayi 支持 macOS 与 Windows，但两端的 Native Host 能力不同。代码�
 
 fake 只能证明输入、输出、错误映射和调用约束，不能证明 Keychain、DPAPI、注册表、进程信号、
 文件权限、SEA 或 Chrome Native Messaging 在真实系统上工作。
+
+YouTube 离线 fixture 能证明 bridge/controller 协议、失败恢复和 DOM 交互，但不能证明当前真实
+YouTube 私有播放器仍会发出预期的 player-driven timedtext；该请求可能包含或省略 `pot`。此类
+改动在发布前必须另行授权，并在 macOS 与 Windows 的真实 Chrome 验证人工英文、英文 ASR、
+CC／切轨、`zh-Hans`、SPA、剧院／全屏、选词和生词本。
 
 ## 工程规则
 

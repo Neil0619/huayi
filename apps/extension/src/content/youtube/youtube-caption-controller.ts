@@ -1,379 +1,407 @@
-import type { OverlayPresentation } from "../overlay/overlay-controller.js";
-import { createFrameScheduler, type FrameScheduler } from "../overlay/frame-scheduler.js";
-import type { OverlayAnchorRect } from "../overlay/overlay-state.js";
-import type { SelectionRequestInput } from "../selection/read-selection.js";
-import { isYouTubeWatchPage } from "./caption-reader.js";
+import { isYouTubeWatchPage, readCurrentCaption } from "./caption-reader.js";
 import {
-  YouTubeCaptionContextSource,
-  type YouTubeCaptionContext,
-} from "./youtube-caption-context-source.js";
+  LocalSubtitleSentenceSegmenter,
+  type SubtitleSentence,
+  type SubtitleSentenceSegmenter,
+} from "./subtitle-sentence-segmenter.js";
 import {
-  createCaptionPickerView,
-  createYouTubeControlView,
-  type CaptionPickerView,
-  type YouTubeControlView,
-} from "./youtube-caption-view.js";
-
-export interface YouTubeCaptionSelectionEvent {
-  anchorRect: OverlayAnchorRect;
-  input: SelectionRequestInput;
-  presentation: OverlayPresentation;
-}
-
-export interface YouTubeCaptionControllerOptions {
-  captionContextSource?: YouTubeCaptionContext;
-  document?: Document;
-  frameScheduler?: FrameScheduler;
-  isWatchPage?: () => boolean;
-  onPresentationChange: () => void;
-  onSelection: (event: YouTubeCaptionSelectionEvent) => void;
-  onSessionClose: () => void;
-  onWarmup: () => void;
-}
-
-interface CaptionSession {
-  picker: CaptionPickerView;
-  player: HTMLElement;
-  resumeOnClose: boolean;
-  video: HTMLVideoElement;
-}
-
-interface PendingCaptionSession {
-  frameHandle: number;
-  player: HTMLElement;
-  resumeOnClose: boolean;
-  video: HTMLVideoElement;
-}
-
-const PLAYER_SELECTOR = ".html5-video-player";
-const SUBTITLES_BUTTON_SELECTOR = ".ytp-subtitles-button";
-
-function canUsePlayer(player: HTMLElement, video: HTMLVideoElement): boolean {
-  return (
-    !player.classList.contains("ad-showing") &&
-    !player.classList.contains("ytp-live") &&
-    video.duration !== Number.POSITIVE_INFINITY &&
-    !video.ended
-  );
-}
+  initialYouTubeCaptionState,
+  reduceYouTubeCaptionState,
+  type YouTubeCaptionState,
+} from "./youtube-caption-state.js";
+import {
+  YouTubeCaptionBridgeClient,
+  videoIdFromUrl,
+  type CapturedCaptionTrack,
+  type YouTubeCaptionBridge,
+} from "./youtube-caption-bridge-client.js";
+import type { YouTubeCaptionControllerOptions } from "./youtube-caption-controller-contract.js";
+import { YouTubeCaptionRuntime } from "./youtube-caption-runtime.js";
+import { YouTubeCaptionPresentation } from "./youtube-caption-presentation.js";
+import { loadYouTubeCaptionTracks } from "./youtube-caption-track-loader.js";
+import { YouTubeCaptionSelectionController } from "./youtube-caption-selection-controller.js";
+import { YouTubeTrackMismatchMonitor } from "./youtube-track-mismatch-monitor.js";
+import { YouTubeSourceTrackReconciler } from "./youtube-source-track-reconciler.js";
+import { canReplaceSubtitleSelection, dismissSubtitleSession } from "./youtube-subtitle-session.js";
+import {
+  hasVisibleSourceMismatch,
+  isPlayerBlankPointerTarget,
+  isUsableYouTubePlayer,
+  isValidBridgePlayerState,
+  readRawCaptionLanguage,
+  readYouTubeCaptionToggleState,
+} from "./youtube-player-state.js";
+import { YouTubeBilingualKeyController } from "./youtube-bilingual-key-controller.js";
 
 export class YouTubeCaptionController {
-  private readonly captionContextSource: YouTubeCaptionContext;
+  private readonly bridge: YouTubeCaptionBridge;
+  private readonly bilingualKeys: YouTubeBilingualKeyController;
   private readonly documentRef: Document;
-  private readonly documentObserver: MutationObserver;
+  private readonly getVideoId: () => string | null;
   private readonly isWatchPage: () => boolean;
+  private readonly observer: MutationObserver;
   private readonly options: YouTubeCaptionControllerOptions;
-  private readonly playerObserver: MutationObserver;
-  private readonly frameScheduler: FrameScheduler;
-  private control: YouTubeControlView | null = null;
-  private controlPlayer: HTMLElement | null = null;
+  private readonly presentation: YouTubeCaptionPresentation;
+  private readonly runtime: YouTubeCaptionRuntime;
+  private readonly selectionController: YouTubeCaptionSelectionController;
+  private readonly segmenter: SubtitleSentenceSegmenter;
   private destroyed = false;
-  private observedPlayer: HTMLElement | null = null;
-  private pendingSession: PendingCaptionSession | null = null;
+  private navigationPending = false;
+  private player: HTMLElement | null = null;
   private refreshScheduled = false;
-  private session: CaptionSession | null = null;
+  private sourceLoading = false;
+  private sourceAttempted = false;
+  private sourceSentences: SubtitleSentence[] = [];
+  private state: YouTubeCaptionState = initialYouTubeCaptionState();
+  private translated: CapturedCaptionTrack | null = null;
+  private readonly trackMismatchMonitor: YouTubeTrackMismatchMonitor;
+  private readonly trackReconciler: YouTubeSourceTrackReconciler;
+  private video: HTMLVideoElement | null = null;
+  private videoId: string | null = null;
 
   constructor(options: YouTubeCaptionControllerOptions) {
     this.options = options;
     this.documentRef = options.document ?? document;
+    this.getVideoId = options.getVideoId ?? (() => videoIdFromUrl(this.documentRef.URL));
     this.isWatchPage = options.isWatchPage ?? (() => isYouTubeWatchPage(this.documentRef.location));
-    this.captionContextSource = options.captionContextSource ?? new YouTubeCaptionContextSource();
-    this.frameScheduler =
-      options.frameScheduler ?? createFrameScheduler(this.documentRef.defaultView);
-    this.documentObserver = new MutationObserver(() => this.scheduleRefresh());
-    this.playerObserver = new MutationObserver(() => this.scheduleRefresh());
-    this.documentObserver.observe(this.documentRef.documentElement, {
+    this.presentation = new YouTubeCaptionPresentation(this.documentRef);
+    this.segmenter = options.segmenter ?? new LocalSubtitleSentenceSegmenter();
+    this.trackMismatchMonitor = new YouTubeTrackMismatchMonitor(
+      () => this.isTrackMismatch(),
+      () => {
+        void this.reconcileTrackMismatch();
+      },
+    );
+    this.bridge =
+      options.bridge ??
+      new YouTubeCaptionBridgeClient({
+        document: this.documentRef,
+        validatePlayerState: (track, target) => this.validateBridgeResult(track, target),
+      });
+    this.trackReconciler = new YouTubeSourceTrackReconciler(this.bridge);
+    this.bilingualKeys = new YouTubeBilingualKeyController(this.documentRef, {
+      canHold: () =>
+        this.state.translatedTrackReady &&
+        this.state.activeSelection === null &&
+        this.options.isOverlayVisible?.() !== true,
+      setHolding: (value) => this.setHoldingShortcut(value),
+    });
+    this.selectionController = new YouTubeCaptionSelectionController(
+      this.documentRef,
+      this.presentation,
+      {
+        canReplace: () => canReplaceSubtitleSelection(this.options),
+        getPlayer: () => this.player,
+        getState: () => this.state,
+        getVideo: () => this.video,
+        onSelection: this.options.onSelection,
+        onSelectionClose: () => this.dismissSelection(false, true),
+        onWarmup: this.options.onWarmup,
+        setState: (state) => {
+          this.state = state;
+        },
+      },
+    );
+    this.observer = new MutationObserver(() => this.scheduleRefresh());
+    this.observer.observe(this.documentRef.documentElement, {
+      attributeFilter: ["aria-pressed", "class"],
+      attributes: true,
       childList: true,
       characterData: true,
       subtree: true,
     });
-    this.documentRef.addEventListener("fullscreenchange", this.handlePresentationChange);
-    this.documentRef.addEventListener("keydown", this.handleKeydown, true);
-    this.documentRef.addEventListener("yt-navigate-finish", this.handleNavigation);
-    this.documentRef.addEventListener("yt-page-data-updated", this.handleNavigation);
+    this.runtime = new YouTubeCaptionRuntime(this.documentRef, {
+      blur: this.bilingualKeys.handleBlur,
+      fullscreenchange: this.handlePresentationChange,
+      keydown: this.bilingualKeys.handleKeydown,
+      keyup: this.bilingualKeys.handleKeyup,
+      mouseup: this.selectionController.handleMouseup,
+      navigation: this.handleNavigation,
+      playback: this.handleViewerPlayback,
+      pointerdown: this.handlePlayerPointerDown,
+      selectionchange: this.selectionController.handleSelectionChange,
+      timeupdate: this.handleTimeUpdate,
+      visibilitychange: this.bilingualKeys.handleVisibilityChange,
+    });
     this.refresh();
   }
 
   destroy(): void {
-    if (this.destroyed) {
-      return;
-    }
-    this.cancelPendingSession(true);
-    this.closeSession(true);
-    this.captionContextSource.clear();
+    if (this.destroyed) return;
     this.destroyed = true;
-    this.documentObserver.disconnect();
-    this.playerObserver.disconnect();
-    this.removeControl();
-    this.documentRef.removeEventListener("fullscreenchange", this.handlePresentationChange);
-    this.documentRef.removeEventListener("keydown", this.handleKeydown, true);
-    this.documentRef.removeEventListener("yt-navigate-finish", this.handleNavigation);
-    this.documentRef.removeEventListener("yt-page-data-updated", this.handleNavigation);
+    this.dismissSelection(false, false);
+    this.trackMismatchMonitor.clear();
+    this.runtime.destroy();
+    this.restoreNativeCaptions();
+    this.observer.disconnect();
+    this.bridge.destroy();
   }
 
-  private readonly handleKeydown = (event: KeyboardEvent): void => {
-    if (event.key !== "Escape" || (this.session === null && this.pendingSession === null)) {
+  containsEvent(event: Event): boolean {
+    return this.presentation.containsEvent(event);
+  }
+
+  releaseSelectionForExternalInteraction(): void {
+    if (this.state.activeSelection !== null || this.state.pauseOwnership !== null)
+      this.dismissSelection(false, true);
+  }
+
+  private readonly handleNavigation = (event: Event): void => {
+    if (event.type === "yt-navigate-start") {
+      this.navigationPending = true;
+      this.startNewGeneration();
       return;
     }
-    event.preventDefault();
-    this.cancelPendingSession(true);
-    this.closeSession(true);
-  };
-
-  private readonly handleNavigation = (): void => {
-    this.cancelPendingSession(false);
-    this.closeSession(false);
-    this.captionContextSource.clear();
+    if (event.type === "yt-navigate-finish") this.navigationPending = false;
     this.scheduleRefresh();
   };
 
   private readonly handlePresentationChange = (): void => {
     this.options.onPresentationChange();
-    this.scheduleRefresh();
+    this.renderAtCurrentTime();
+  };
+
+  private readonly handlePlayerPointerDown = (event: PointerEvent): void => {
+    if (
+      (this.state.activeSelection === null && this.options.isOverlayVisible?.() !== true) ||
+      this.options.canDismissSelection?.() === false ||
+      this.player === null ||
+      !isPlayerBlankPointerTarget(event, this.player)
+    ) {
+      return;
+    }
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    this.dismissSelection(true, true);
   };
 
   private readonly handleViewerPlayback = (): void => {
-    this.cancelPendingSession(false);
-    this.closeSession(false);
+    if (this.state.activeSelection === null && this.state.pauseOwnership === null) return;
+    this.state = reduceYouTubeCaptionState(this.state, { type: "REVOKE_PAUSE" });
+    this.dismissSelection(true, false);
   };
 
+  private readonly handleTimeUpdate = (): void => this.renderAtCurrentTime();
+
   private scheduleRefresh(): void {
-    if (this.destroyed || this.refreshScheduled) {
-      return;
-    }
+    if (this.destroyed || this.refreshScheduled) return;
     this.refreshScheduled = true;
     queueMicrotask(() => {
       this.refreshScheduled = false;
-      if (!this.destroyed) {
-        this.refresh();
-      }
+      if (!this.destroyed) this.refresh();
     });
   }
 
   private refresh(): void {
-    if (!this.isWatchPage()) {
-      this.cancelPendingSession(false);
-      this.closeSession(false);
-      this.captionContextSource.clear();
-      this.observePlayer(null);
-      this.removeControl();
-      return;
-    }
-
-    const player = this.documentRef.querySelector<HTMLElement>(PLAYER_SELECTOR);
-    if (player === null) {
-      this.cancelPendingSession(false);
-      this.closeSession(false);
-      this.captionContextSource.clear();
-      this.observePlayer(null);
-      this.removeControl();
-      return;
-    }
-    if (this.pendingSession !== null && this.pendingSession.player !== player) {
-      this.cancelPendingSession(false);
-    }
-    if (this.session !== null && this.session.player !== player) {
-      this.closeSession(false);
-    }
-    this.observePlayer(player);
-    this.ensureControl(player);
-
-    const video = player.querySelector<HTMLVideoElement>("video");
-    if (video === null || !canUsePlayer(player, video)) {
-      this.cancelPendingSession(false);
-      this.closeSession(false);
-      this.captionContextSource.clear();
-      this.control?.setState(false, false);
-      return;
-    }
-    if (this.pendingSession !== null && this.pendingSession.video !== video) {
-      this.cancelPendingSession(false);
-    }
-    if (this.session !== null && this.session.video !== video) {
-      this.closeSession(false);
-    }
-    this.captionContextSource.attach(player, video, () => this.scheduleRefresh());
-    const active = this.session !== null || this.pendingSession !== null;
-    const enabled = active || this.captionContextSource.freeze() !== null;
-    this.control?.setState(enabled, active);
-    if (this.session !== null) {
-      this.options.onPresentationChange();
-    }
-  }
-
-  private ensureControl(player: HTMLElement): void {
-    if (this.control !== null && this.controlPlayer === player && this.control.host.isConnected) {
-      return;
-    }
-    this.removeControl();
-    const subtitlesButton = player.querySelector<HTMLElement>(SUBTITLES_BUTTON_SELECTOR);
-    if (subtitlesButton?.parentElement === null || subtitlesButton === null) {
-      return;
-    }
-    this.control = createYouTubeControlView(this.documentRef, () => this.togglePicker());
-    this.controlPlayer = player;
-    subtitlesButton.before(this.control.host);
-  }
-
-  private observePlayer(player: HTMLElement | null): void {
-    if (this.observedPlayer === player) {
-      return;
-    }
-    this.playerObserver.disconnect();
-    this.observedPlayer = player;
-    if (player !== null) {
-      this.playerObserver.observe(player, {
-        attributeFilter: ["aria-hidden", "class", "style"],
-        attributes: true,
-        subtree: true,
-      });
-    }
-  }
-
-  private removeControl(): void {
-    this.control?.host.remove();
-    this.control = null;
-    this.controlPlayer = null;
-  }
-
-  private beginOpenPicker(): void {
-    const player = this.controlPlayer;
-    if (player === null || this.session !== null || this.pendingSession !== null) {
-      return;
-    }
-    const video = player.querySelector<HTMLVideoElement>("video");
-    if (video === null || !canUsePlayer(player, video)) {
-      this.refresh();
-      return;
-    }
-
-    const resumeOnClose = !video.paused && !video.ended;
-    video.pause();
-    const pending: PendingCaptionSession = {
-      frameHandle: 0,
-      player,
-      resumeOnClose,
-      video,
-    };
-    this.pendingSession = pending;
-    pending.frameHandle = this.frameScheduler.request(() => this.finishOpenPicker(pending));
-    if (this.pendingSession !== pending) {
-      return;
-    }
-    video.addEventListener("ended", this.handleViewerPlayback);
-    video.addEventListener("play", this.handleViewerPlayback);
-    video.addEventListener("seeking", this.handleViewerPlayback);
-    this.control?.setState(true, true);
-  }
-
-  private finishOpenPicker(pending: PendingCaptionSession): void {
-    if (this.pendingSession !== pending) {
-      return;
-    }
-    this.removePendingPlaybackListeners(pending);
-    this.pendingSession = null;
-    const snapshot = this.captionContextSource.freeze();
+    if (this.navigationPending) return;
+    const player = this.documentRef.querySelector<HTMLElement>(".html5-video-player");
+    const video = player?.querySelector<HTMLVideoElement>("video") ?? null;
+    const videoId = this.getVideoId();
+    const captionToggleState = player === null ? "unknown" : readYouTubeCaptionToggleState(player);
     if (
       !this.isWatchPage() ||
-      this.controlPlayer !== pending.player ||
-      !pending.player.isConnected ||
-      snapshot === null ||
-      !canUsePlayer(pending.player, pending.video)
+      player === null ||
+      video === null ||
+      videoId === null ||
+      !isUsableYouTubePlayer(player, video) ||
+      captionToggleState === "off"
     ) {
-      this.resumePendingVideo(pending);
-      this.scheduleRefresh();
+      this.startNewGeneration();
       return;
     }
-    const picker = createCaptionPickerView({
-      captionText: snapshot.text,
-      continueLabel: pending.resumeOnClose ? "继续播放" : "关闭取词",
-      document: this.documentRef,
-      onClose: () => this.closeSession(true),
-      onSelection: ({ input, resolveAnchorRect }) => {
-        const anchorRect = resolveAnchorRect();
-        this.options.onSelection({
-          anchorRect,
-          input,
-          presentation: {
-            preferredSide: "above",
-            resolveAnchorRect,
-            resolveMountTarget: () =>
-              this.documentRef.fullscreenElement ?? this.documentRef.documentElement,
-          },
-        });
+    if (this.player !== player || this.video !== video || this.videoId !== videoId) {
+      this.startNewGeneration();
+      this.player = player;
+      this.video = video;
+      this.videoId = videoId;
+      this.runtime.attachVideo(video);
+    }
+    if (captionToggleState === "unknown") {
+      if (this.state.sourceTrackReady) this.ensureView();
+      this.renderAtCurrentTime();
+      return;
+    }
+    const trackMismatch =
+      this.state.sourceTrackReady &&
+      !this.sourceLoading &&
+      !this.trackReconciler.isPending &&
+      (this.trackReconciler.isSuspended ||
+        readRawCaptionLanguage(player) === "other" ||
+        hasVisibleSourceMismatch(player, video, this.sourceSentences, this.state));
+    if (trackMismatch) {
+      this.trackMismatchMonitor.observeMismatch();
+      this.renderAtCurrentTime();
+      return;
+    }
+    this.trackMismatchMonitor.clear();
+    if (
+      !this.sourceLoading &&
+      !this.sourceAttempted &&
+      !this.state.sourceTrackReady &&
+      readCurrentCaption(player) !== null
+    ) {
+      void this.loadTracks(videoId);
+    }
+    if (this.state.sourceTrackReady) this.ensureView();
+    this.renderAtCurrentTime();
+  }
+
+  private async loadTracks(expectedVideoId: string): Promise<void> {
+    this.sourceAttempted = true;
+    this.sourceLoading = true;
+    const generation = this.state.generation;
+    try {
+      await loadYouTubeCaptionTracks({
+        bridge: this.bridge,
+        expectedVideoId,
+        generation,
+        isCurrent: () => this.isCurrent(generation, expectedVideoId),
+        onSource: (_source, sentences) => {
+          this.trackReconciler.resume();
+          this.sourceSentences = sentences;
+          this.state = reduceYouTubeCaptionState(this.state, { ready: true, type: "SOURCE_READY" });
+          this.ensureView();
+          this.renderAtCurrentTime();
+        },
+        onSourceFailure: () => {
+          this.restoreNativeCaptions();
+        },
+        onTranslated: (translated) => {
+          this.translated = translated;
+          this.state = reduceYouTubeCaptionState(this.state, {
+            ready: translated !== null,
+            type: "TRANSLATED_READY",
+          });
+          this.presentation.updateControl(this.state);
+          this.renderAtCurrentTime();
+        },
+        segmenter: this.segmenter,
+      });
+    } finally {
+      if (this.isCurrent(generation, expectedVideoId)) {
+        this.sourceLoading = false;
+        this.scheduleRefresh();
+      }
+    }
+  }
+
+  private async reconcileTrackMismatch(): Promise<void> {
+    if (!this.state.sourceTrackReady || this.videoId === null || !this.isTrackMismatch()) return;
+    const generation = this.state.generation;
+    const expectedVideoId = this.videoId;
+    await this.trackReconciler.reconcile({
+      expectedVideoId,
+      generation,
+      hasMismatch: () => this.hasCurrentTrackMismatch(),
+      isCurrent: () => this.isCurrent(generation, expectedVideoId),
+      onDifferentEnglish: () => {
+        this.startNewGeneration();
+        this.scheduleRefresh();
+      },
+      onSameSource: () => {
+        this.ensureView();
+        this.renderAtCurrentTime();
+      },
+      onSuspended: () => {
+        this.restoreNativeCaptions();
       },
     });
-    pending.player.append(picker.host);
-    this.session = {
-      picker,
-      player: pending.player,
-      resumeOnClose: pending.resumeOnClose,
-      video: pending.video,
-    };
-    pending.video.addEventListener("ended", this.handleViewerPlayback);
-    pending.video.addEventListener("play", this.handleViewerPlayback);
-    pending.video.addEventListener("seeking", this.handleViewerPlayback);
-    this.control?.setState(true, true);
-    this.options.onWarmup();
   }
 
-  private togglePicker(): void {
-    if (this.pendingSession !== null) {
-      this.cancelPendingSession(true);
-      return;
-    }
-    if (this.session !== null) {
-      this.closeSession(true);
-      return;
-    }
-    this.beginOpenPicker();
+  private validateBridgeResult(
+    track: { kind?: string; languageCode: string },
+    target: "source" | "translated",
+  ): boolean | "retry" {
+    return isValidBridgePlayerState(this.player, this.video, track, target);
   }
 
-  private cancelPendingSession(resume: boolean): void {
-    const pending = this.pendingSession;
-    if (pending === null) {
-      return;
-    }
-    this.pendingSession = null;
-    this.frameScheduler.cancel(pending.frameHandle);
-    this.removePendingPlaybackListeners(pending);
-    if (resume) {
-      this.resumePendingVideo(pending);
-    }
-    if (!this.destroyed) {
-      this.scheduleRefresh();
-    }
+  private isCurrent(generation: number, videoId: string): boolean {
+    return !this.destroyed && this.state.generation === generation && this.videoId === videoId;
   }
 
-  private removePendingPlaybackListeners(pending: PendingCaptionSession): void {
-    pending.video.removeEventListener("ended", this.handleViewerPlayback);
-    pending.video.removeEventListener("play", this.handleViewerPlayback);
-    pending.video.removeEventListener("seeking", this.handleViewerPlayback);
+  private ensureView(): void {
+    if (this.player === null) return;
+    this.presentation.ensure(this.player, this.state, () => {
+      this.state = reduceYouTubeCaptionState(this.state, { type: "TOGGLE_PIN" });
+      this.presentation.updateControl(this.state);
+      this.renderAtCurrentTime();
+    });
   }
 
-  private resumePendingVideo(pending: PendingCaptionSession): void {
-    if (pending.resumeOnClose && pending.video.paused && !pending.video.ended) {
-      void pending.video.play().catch(() => undefined);
-    }
+  private renderAtCurrentTime(): void {
+    this.presentation.render(
+      this.player,
+      this.video,
+      this.state,
+      this.sourceSentences,
+      this.translated,
+    );
   }
 
-  private closeSession(resume: boolean): void {
-    const session = this.session;
-    if (session === null) {
-      return;
-    }
-    this.session = null;
-    session.video.removeEventListener("ended", this.handleViewerPlayback);
-    session.video.removeEventListener("play", this.handleViewerPlayback);
-    session.video.removeEventListener("seeking", this.handleViewerPlayback);
-    session.picker.destroy();
-    this.options.onSessionClose();
+  private setHoldingShortcut(value: boolean): void {
+    if (this.state.holdingShortcut === value) return;
+    this.state = reduceYouTubeCaptionState(this.state, { type: "HOLD_SHORTCUT", value });
+    this.renderAtCurrentTime();
+  }
 
-    if (resume && session.resumeOnClose && session.video.paused && !session.video.ended) {
-      void session.video.play().catch(() => undefined);
+  private dismissSelection(notifyOverlay: boolean, resume: boolean): void {
+    const dismissal = dismissSubtitleSession({
+      document: this.documentRef,
+      overlayVisible: this.options.isOverlayVisible?.() === true,
+      player: this.player,
+      resume,
+      state: this.state,
+      video: this.video,
+    });
+    this.state = dismissal.state;
+    if (notifyOverlay && dismissal.notifyOverlay) this.options.onSessionClose();
+    if (dismissal.resumeVideo !== null) {
+      void dismissal.resumeVideo.play().catch(() => undefined);
     }
-    if (!this.destroyed) {
-      this.scheduleRefresh();
-    }
+    this.renderAtCurrentTime();
+  }
+
+  private startNewGeneration(): void {
+    this.trackMismatchMonitor.clear();
+    this.dismissSelection(true, false);
+    this.runtime.detachVideo();
+    this.restoreNativeCaptions();
+    this.translated = null;
+    this.sourceSentences = [];
+    this.sourceLoading = false;
+    this.trackReconciler.reset();
+    this.sourceAttempted = false;
+    this.player = null;
+    this.video = null;
+    this.videoId = null;
+    this.state = reduceYouTubeCaptionState(this.state, {
+      generation: this.state.generation + 1,
+      type: "NEW_GENERATION",
+    });
+  }
+
+  private restoreNativeCaptions(): void {
+    if (this.player !== null) delete this.player.dataset.huayiYoutubeSubtitlesActive;
+    this.presentation.restore();
+  }
+
+  private isTrackMismatch(): boolean {
+    return (
+      !this.destroyed &&
+      !this.sourceLoading &&
+      !this.trackReconciler.isPending &&
+      this.hasCurrentTrackMismatch()
+    );
+  }
+
+  private hasCurrentTrackMismatch(): boolean {
+    return (
+      this.state.sourceTrackReady &&
+      this.player !== null &&
+      this.video !== null &&
+      (this.trackReconciler.isSuspended ||
+        readRawCaptionLanguage(this.player) === "other" ||
+        hasVisibleSourceMismatch(this.player, this.video, this.sourceSentences, this.state))
+    );
   }
 }

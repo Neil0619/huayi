@@ -61,33 +61,57 @@ Script 的 `matches`。扩展不声明 `host_permissions`、`storage`、`tabs`�
 
 ### YouTube 字幕边界
 
-YouTube 字幕取词只在标准 `/watch` 录播页运行。Content Script 在本地观察当前播放器已经渲染
-且有可见布局框的英文字幕，并把最近 30 秒、最多 2,000 字符的去重片段仅保存在当前脚本内存。
-首次发现英文字幕后，它可从当前文档文本中的内嵌播放器响应尽力解析字幕轨；若 SPA 导航后的
-现存 DOM 没有响应数据，则只允许匿名重新获取带非空 `v` 参数的当前 HTTPS YouTube `/watch`
-文档，响应上限 2 MiB。两种路径都不执行页面脚本、不读取页面 JavaScript 全局对象，也不调用
-要求 OAuth 的 YouTube Data API。普通非 YouTube 网页不创建字幕观察器或字幕轨请求。
+YouTube 字幕只在三个精确 HTTPS YouTube host 的标准 `/watch` 录播页运行。isolated Content
+Script 必须同时确认 CC ON、当前活动轨为英文且页面实际显示英文字幕；它不替用户开启 CC 或
+切轨。普通网页、直播、广告、Shorts 和非英文活动轨不创建自定义字幕或发字幕请求。
 
-文档重新获取和字幕轨请求都固定 `credentials: "omit"` 并共享 3 秒超时；字幕轨 URL 只允许
-HTTPS YouTube 主机的精确 `/api/timedtext` 路径，响应上限 2 MiB、cue 上限 50,000。时间与文本字段严格
-解析；轨 URL 的 `v` 必须等于当前 `/watch` 视频，当前时间的候选 cue 还必须和可见字幕可靠重叠。
-SPA 残留的旧视频轨直接丢弃并重新获取当前文档。未公开 timedtext 格式不是稳定契约，
-任一 URL、页面格式、语言、网络、超限或匹配校验失败都静默回退到内存缓冲，再回退到当前
-可见字幕，不影响普通网页选区。
+独立 MAIN-world bridge 只在一次请求期间读取当前播放器、临时驱动活动源轨或其 `zh-Hans`
+自动翻译轨，并捕获播放器自己发出的精确 `/api/timedtext` JSON3。译轨请求必须引用同一代次
+已经成功捕获且仍为当前活动轨的源轨；它不会为了译轨重复触发可能已被缓存的源轨请求，也不
+接受未经源轨验证的孤立译轨请求。源轨身份与恢复快照按值复制，页面原地修改轨道对象不能
+改变已经验证的身份或待恢复值。它不调用匿名
+`/watch`、裸 `baseUrl`、YouTube Data API、模型或 Host。URL、baseUrl、PoToken、Cookie 和
+播放器对象不跨 world；isolated 请求只包含有界标识和固定目标。
 
-点击“译”立即暂停视频，至多等待一个动画帧后同步冻结内容；不继续播放、不固定等待 2.5 秒、
-不等待预取，也只发送无页面数据 warmup。冻结后异步结果不能改写卡片。只有用户随后点击解释
-或翻译时，当前选区和最多 2,000 字符的冻结字幕上下文才进入既有分析通道。单词查词只发送
-单词；显式加入欧路时沿用冻结字幕作为英文语境。该路径不发送 URL、标题、视频 ID、频道、
-播放时间或字幕历史给 Native Host 或 Provider，也不修改 wire、Native Host、Provider 接口或
-Manifest 权限。
+播放器生成的 timedtext 可以带 `pot`，也可以不带。缺少 `pot` 本身不是失败条件；若参数存在，
+bridge 只接受 1–4,096 字符的值。无 `pot` 的响应仍必须在受控播放器操作的短生命周期 wrapper
+内出现，并通过精确 HTTPS host/path、videoId、语言/kind、`tlang`、`fmt=json3`、2xx、JSON3
+Schema、body 与 cue 上限校验；匿名或 bridge 主动构造的 timedtext 请求仍被禁止。
 
-整轨和滚动缓冲不会写入 Extension storage、Native Host 或磁盘。视频切换、播放器替换、
-字幕语言变化、广告、直播或销毁会清空全部字幕状态；seek 会清空滚动缓冲。
+两端严格校验消息、当前 videoId、轨道语言/kind、`tlang` 与 `fmt=json3`，拒绝未知字段、跨
+视频和迟到响应。单轨超时 3 秒，body 上限 2 MiB、cue 上限 50,000。bridge 操作严格串行，并
+在成功、失败、超时、中止或导航后恢复精确 CC／轨道状态；只在 wrapper 仍属于 Huayi 时还原
+网络函数，避免覆盖页面后加的包装。私有播放器接口变化或任何不确定状态都失败关闭。
 
-冻结卡、单词按钮和结果继续使用原生 DOM、Shadow DOM 与 `textContent`。普通模式的结果挂载
-文档根节点，全屏时只重挂载到当前 `document.fullscreenElement`，不会读取或修改播放器媒体
-数据。
+字幕捕获只在 isolated 侧已经观察到可见英文 cue 后开始。每次捕获结束时，MAIN bridge 必须
+再次确认 CC 仍开启且当前驱动轨未被用户切换；否则失败关闭且不覆盖用户选择。bridge 自己的
+字幕模块重载会使原生 cue 在恢复期间短暂为空，因此 isolated 响应复核允许“暂无 cue”，但仍
+拒绝 source 阶段已经可见的非英文字幕、失效播放器、CC OFF、非英文轨元数据或跨视频结果。
+译轨捕获结束时，bridge 自己驱动的中文 cue 可能短暂残留；isolated 对译轨成功及可恢复失败都
+只在已有 7 秒请求期限内以 50ms 间隔等待连续 750ms 的稳定源轨窗口，超时即失败关闭，不延长
+请求寿命。
+
+原生字幕 DOM 在恢复和 ASR rolling correction 中可能短暂出现中文、空值或与完整预分句不
+互含的英文。DOM 文本差异不作为轨道身份；连续 2 秒不一致只触发严格的 MAIN-world 只读源轨
+身份探测。探测请求只含 requestId、generation 和 videoId，响应只含固定四态，不携带语言、
+kind、vssId、URL、Token、Cookie 或播放器对象，也不驱动字幕模块或包装网络函数。相同源轨
+保留 Huayi，另一英文轨重开代次，非英文或不可用状态暂停 Huayi 并恢复原生字幕，后续 cue
+变化可再次探测并恢复。明确 CC OFF、播放器失效、广告、
+直播或导航开始仍立即恢复。导航锁只有 `yt-navigate-finish` 能解除，过渡期 page-data 更新不能
+提前重新捕获。控制栏临时被 YouTube 重建时，字幕面板保持连接，仅在新的 CC 控件出现后重新
+挂载“中”，不会因此重新捕获字幕；YouTube 正常隐藏整条控制栏时“中”随其一起隐藏。
+
+英文源轨与中文译轨只保存在当前页面内存。字幕只通过 Light DOM `textContent` 显示；中文不可
+进入分析选区。Range 只有完全位于当前英文句节点、并精确对应内部冻结句子 substring 时才
+进入既有 wire v6 通道。warmup 不携带字幕；用户执行解释、翻译或加入生词本时，只发送选文和
+最多 2,000 字符的内部英文句子，不发送 URL、videoId、频道、播放时间或字幕历史。拖选完整句
+时（包括无句末标点的完整分句）发送 `selectionKind: sentence`、内部句作为 `context`，并按
+wire v6 固定
+`sentenceContext: null`；旧单词选区不会被复用。
+
+关 CC、换视频、播放器替换、广告、直播、导航或销毁会清空所有字幕状态并恢复原生字幕；同一
+视频切到非英文轨只暂停当前 Huayi 状态，以便切回已验证英文轨时安全恢复。此功能不修改 Native
+Host、Provider、凭据、wire 或 Manifest 权限。
 
 ## 欧路授权与网络
 
