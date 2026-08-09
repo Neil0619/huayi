@@ -51,6 +51,7 @@ describe("Windows DeepSeek native host", () => {
       processRunner: { run: vi.fn() },
       schemaDirectory: "C:\\Huayi\\provider\\schemas",
       workingDirectory: "C:\\Huayi\\workdir",
+      wordSyncNow: () => new Date(2026, 7, 9, 12, 0, 0, 0),
       wordSyncStatePath,
     });
     const healthEvents: HostEvent[] = [];

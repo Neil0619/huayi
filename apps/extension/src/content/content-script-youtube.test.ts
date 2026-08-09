@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AnalysisResult } from "@huayi/protocol";
 
 import type { ContentCommand } from "../shared/extension-messages.js";
-import type { FrameScheduler } from "./overlay/frame-scheduler.js";
+import type { YouTubeCaptionBridge } from "./youtube/youtube-caption-bridge-client.js";
 import {
   initializeContentScript,
   type ContentRuntime,
@@ -35,7 +35,7 @@ afterEach(() => {
 });
 
 describe("YouTube content script integration", () => {
-  it("routes a frozen caption selection through the existing analysis lane", () => {
+  it("routes a native selectable subtitle word through the existing analysis lane", async () => {
     const runtime = new FakeRuntime();
     const player = document.createElement("div");
     player.className = "html5-video-player";
@@ -49,6 +49,7 @@ describe("YouTube content script integration", () => {
       configurable: true,
       get: () => 120,
     });
+    Object.defineProperty(video, "currentTime", { configurable: true, value: 1 });
     Object.defineProperty(video, "pause", {
       configurable: true,
       value: vi.fn(() => {
@@ -88,40 +89,50 @@ describe("YouTube content script integration", () => {
     controls.className = "ytp-right-controls";
     const subtitles = document.createElement("button");
     subtitles.className = "ytp-subtitles-button";
+    subtitles.setAttribute("aria-pressed", "true");
     controls.append(subtitles);
     player.append(video, caption, controls);
     document.body.append(player);
 
-    let nextId = 0;
-    const frameCallbacks: (() => void)[] = [];
-    const frameScheduler: FrameScheduler = {
-      cancel: vi.fn(),
-      request: vi.fn((callback) => {
-        frameCallbacks.push(callback);
-        return 1;
-      }),
+    const bridge: YouTubeCaptionBridge = {
+      capture: vi.fn(async ({ target }) =>
+        target === "source"
+          ? {
+              cues: [
+                {
+                  endMs: 8_000,
+                  startMs: 0,
+                  text: "The investigation was still in its early stages.",
+                },
+              ],
+              track: { languageCode: "en" },
+            }
+          : null,
+      ),
+      destroy: vi.fn(),
+      probeSource: vi.fn(async () => "same-source" as const),
     };
+    let nextId = 0;
     instance = initializeContentScript({
       createRequestId: () => `youtube-${(nextId += 1)}`,
       document,
-      frameScheduler,
+      getYouTubeVideoId: () => "video-1",
       isYouTubeWatchPage: () => true,
       runtime,
+      youtubeBridge: bridge,
     });
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
 
-    player
-      .querySelector<HTMLElement>("[data-huayi-youtube-control-host]")
-      ?.shadowRoot?.querySelector<HTMLButtonElement>("button")
-      ?.click();
-    expect(video.pause).toHaveBeenCalledOnce();
-    expect(runtime.sent).toEqual([]);
-    frameCallbacks[0]?.();
-    expect(runtime.sent).toEqual([{ type: "WARMUP_HOST" }]);
-
-    const picker = player.querySelector<HTMLElement>("[data-huayi-youtube-picker-host]");
-    const word = [
-      ...(picker?.shadowRoot?.querySelectorAll<HTMLElement>("[data-caption-word]") ?? []),
-    ].find((candidate) => candidate.textContent === "investigation");
+    const english = player.querySelector<HTMLElement>("[data-huayi-youtube-english]");
+    const text = english?.firstChild;
+    if (!(text instanceof Text) || english === null) {
+      throw new Error("Expected the selectable Huayi subtitle.");
+    }
+    const range = document.createRange();
+    range.setStart(text, 4);
+    range.setEnd(text, 17);
     const wordRect = {
       ...captionRect,
       bottom: 580,
@@ -130,11 +141,17 @@ describe("YouTube content script integration", () => {
       top: 550,
       width: 100,
     };
-    Object.defineProperty(word, "getBoundingClientRect", {
+    Object.defineProperty(range, "getBoundingClientRect", {
       configurable: true,
       value: () => wordRect,
     });
-    word?.click();
+    window.getSelection()?.removeAllRanges();
+    window.getSelection()?.addRange(range);
+    document.dispatchEvent(new Event("selectionchange"));
+    english.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
+    expect(video.pause).toHaveBeenCalledOnce();
+    expect(runtime.sent).toEqual([{ type: "WARMUP_HOST" }]);
+
     instance.controller.shadowRoot
       .querySelector<HTMLButtonElement>("[data-action='translate']")
       ?.click();

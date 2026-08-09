@@ -10,10 +10,20 @@ describe("extension manifest", () => {
     expect(manifest.action).toEqual({ default_title: "划译生词同步" });
   });
 
-  it("injects only into normal HTTP and HTTPS pages", () => {
-    expect(manifest.content_scripts).toHaveLength(1);
+  it("injects the isolated script into normal HTTP and HTTPS pages", () => {
+    expect(manifest.content_scripts).toHaveLength(2);
     expect(manifest.content_scripts[0]?.matches).toEqual(["http://*/*", "https://*/*"]);
     expect(manifest.content_scripts[0]?.all_frames).toBe(false);
+  });
+
+  it("injects the YouTube bridge in the MAIN world at document start", () => {
+    expect(manifest.content_scripts[1]).toEqual({
+      matches: ["https://youtube.com/*", "https://www.youtube.com/*", "https://m.youtube.com/*"],
+      js: ["youtube-bridge.js"],
+      run_at: "document_start",
+      world: "MAIN",
+      all_frames: false,
+    });
   });
 
   it("declares the module service worker and static content bundle", () => {

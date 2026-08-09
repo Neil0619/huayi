@@ -18,6 +18,7 @@ import {
 } from "./shanbay/shanbay-sync-controller.js";
 import { isYouTubeHost } from "./youtube/caption-reader.js";
 import { YouTubeCaptionController } from "./youtube/youtube-caption-controller.js";
+import type { YouTubeCaptionBridge } from "./youtube/youtube-caption-bridge-client.js";
 
 export {
   createAddWordRequest,
@@ -40,8 +41,10 @@ export interface ContentScriptOptions {
   document?: Document;
   frameScheduler?: FrameScheduler;
   getAnchorRect?: (range: Range) => OverlayAnchorRect;
+  getYouTubeVideoId?: () => string | null;
   isYouTubeWatchPage?: () => boolean;
   runtime?: ContentRuntime;
+  youtubeBridge?: YouTubeCaptionBridge;
 }
 
 export interface ContentScriptInstance {
@@ -247,13 +250,21 @@ export function initializeContentScript(options: ContentScriptOptions = {}): Con
   const youtubeController =
     options.isYouTubeWatchPage !== undefined || isYouTubeHost(documentRef.location)
       ? new YouTubeCaptionController({
+          ...(options.youtubeBridge === undefined ? {} : { bridge: options.youtubeBridge }),
+          canDismissSelection: () =>
+            !(
+              controller.state.status === "result" &&
+              controller.state.wordbook.mutation.status === "saving"
+            ),
           document: documentRef,
-          ...(options.frameScheduler === undefined
-            ? {}
-            : { frameScheduler: options.frameScheduler }),
           ...(options.isYouTubeWatchPage === undefined
             ? {}
             : { isWatchPage: options.isYouTubeWatchPage }),
+          ...(options.getYouTubeVideoId === undefined
+            ? {}
+            : { getVideoId: options.getYouTubeVideoId }),
+          isOverlayVisible: () =>
+            controller.state.status !== "closed" && controller.state.status !== "idle",
           onPresentationChange: () => controller.refreshPresentation(),
           onSelection: ({ anchorRect, input, presentation }) => {
             controller.show(input, anchorRect, presentation);
@@ -279,12 +290,16 @@ export function initializeContentScript(options: ContentScriptOptions = {}): Con
     if (cameFromOverlay(event)) {
       return;
     }
+    if (youtubeController?.containsEvent(event) === true) {
+      return;
+    }
 
     const reading = readSelection(documentRef.defaultView?.getSelection() ?? null);
     if (reading === null) {
       return;
     }
 
+    youtubeController?.releaseSelectionForExternalInteraction();
     const anchorRect = getSelectionAnchorRect(event, getAnchorRect(reading.range));
     controller.show(
       {

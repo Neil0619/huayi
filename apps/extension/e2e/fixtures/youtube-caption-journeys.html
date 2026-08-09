@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="en" data-huayi-youtube-fixture="true">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Huayi YouTube caption journeys</title>
+    <title>Huayi YouTube subtitle journeys</title>
     <style>
       body {
         min-height: 900px;
@@ -21,7 +21,7 @@
         margin: 24px auto;
         overflow: hidden;
         background:
-          radial-gradient(circle at 30% 20%, rgba(59, 130, 246, 0.35), transparent 34%),
+          radial-gradient(circle at 30% 20%, rgb(59 130 246 / 35%), transparent 34%),
           linear-gradient(145deg, #1f2937, #020617);
       }
 
@@ -43,7 +43,7 @@
       .ytp-caption-segment {
         display: inline;
         padding: 4px 8px;
-        background: rgba(0, 0, 0, 0.78);
+        background: rgb(0 0 0 / 78%);
         color: #ffffff;
         font-size: 24px;
         line-height: 1.45;
@@ -65,29 +65,124 @@
         color: #ffffff;
         font-weight: 700;
       }
+
+      [data-huayi-youtube-english] {
+        white-space: nowrap;
+      }
+
+      [data-fixture-control] {
+        position: fixed;
+        bottom: 0;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        border: 0;
+        opacity: 0.01;
+      }
+
+      [data-testid="navigate-video"] {
+        left: 0;
+      }
+
+      [data-testid="theater-mode"] {
+        left: 4px;
+      }
+
+      [data-testid="fullscreen-mode"] {
+        left: 8px;
+      }
     </style>
   </head>
   <body>
-    <div class="html5-video-player" data-testid="youtube-player">
+    <div id="movie_player" class="html5-video-player" data-testid="youtube-player">
       <video data-testid="youtube-video"></video>
-      <div class="ytp-caption-window-container">
+      <div class="ytp-caption-window-container" data-testid="native-caption-container">
         <span class="ytp-caption-segment" data-testid="youtube-caption">
           The investigation was still in its early stages.
         </span>
       </div>
-      <div class="ytp-right-controls">
-        <button class="ytp-subtitles-button" type="button" aria-label="Subtitles">CC</button>
+      <div class="ytp-right-controls ytp-chrome-controls">
+        <button
+          class="ytp-subtitles-button"
+          type="button"
+          aria-label="Subtitles"
+          aria-pressed="true"
+        >
+          CC
+        </button>
       </div>
     </div>
 
+    <button data-fixture-control data-testid="navigate-video" type="button">Navigate</button>
+    <button data-fixture-control data-testid="theater-mode" type="button">Theater</button>
+    <button data-fixture-control data-testid="fullscreen-mode" type="button">Fullscreen</button>
+
     <ol data-native-request-log hidden></ol>
+    <ol data-timedtext-log hidden></ol>
     <script>
       (() => {
-        const scenario = new URLSearchParams(window.location.search).get("caption-scenario");
+        const query = new URLSearchParams(window.location.search);
+        const scenario = query.get("caption-scenario") ?? "success";
+        const player = document.querySelector("[data-testid='youtube-player']");
         const video = document.querySelector("[data-testid='youtube-video']");
-        const caption = document.querySelector("[data-testid='youtube-caption']");
-        let currentTime = scenario === "rolling" ? 1 : 5;
+        const nativeCaption = document.querySelector("[data-testid='youtube-caption']");
+        const timedTextLog = document.querySelector("[data-timedtext-log]");
+        let currentVideoId = query.get("v") ?? "video-1";
+        let currentTime = 4.5;
         let paused = false;
+        let currentTrack = {
+          kind: "asr",
+          languageCode: "en",
+          vssId: "a.en",
+        };
+        let captionsLoaded = true;
+        let sourceTimedTextRequests = 0;
+
+        document.addEventListener(
+          "keydown",
+          (event) => {
+            if (event.key.toLocaleLowerCase("en-US") !== "b") return;
+            const search = document.createElement("input");
+            search.dataset.youtubeTypeToSearch = "";
+            document.body.prepend(search);
+            search.focus();
+            search.value += event.key;
+          },
+          true,
+        );
+
+        const sourceCues = () => ({
+          events: [
+            { dDurationMs: 2_000, segs: [{ utf8: "A previous sentence." }], tStartMs: 0 },
+            {
+              dDurationMs: 2_000,
+              segs: [{ utf8: "The investigation was" }],
+              tStartMs: 2_000,
+            },
+            {
+              dDurationMs: 2_000,
+              segs: [{ utf8: "still in its early" }],
+              tStartMs: 4_000,
+            },
+            { dDurationMs: 2_000, segs: [{ utf8: "stages." }], tStartMs: 6_000 },
+          ],
+        });
+        const translatedCues = () => ({
+          events: [
+            { dDurationMs: 2_000, segs: [{ utf8: "前一句。" }], tStartMs: 0 },
+            {
+              dDurationMs: 3_000,
+              segs: [{ utf8: "调查仍处于" }],
+              tStartMs: 2_000,
+            },
+            {
+              dDurationMs: 3_000,
+              segs: [{ utf8: "早期阶段。" }],
+              tStartMs: 5_000,
+            },
+          ],
+        });
+
         Object.defineProperties(video, {
           currentTime: {
             configurable: true,
@@ -97,61 +192,131 @@
             },
           },
           duration: { configurable: true, get: () => 120 },
+          ended: { configurable: true, get: () => false },
           paused: { configurable: true, get: () => paused },
         });
         video.pause = () => {
           paused = true;
           video.dataset.pauseCount = String(Number(video.dataset.pauseCount ?? "0") + 1);
+          video.dispatchEvent(new Event("pause"));
         };
         video.play = () => {
           paused = false;
           video.dataset.playCount = String(Number(video.dataset.playCount ?? "0") + 1);
+          video.dispatchEvent(new Event("play"));
           return Promise.resolve();
         };
 
-        if (scenario === "rolling") {
-          caption.textContent = "The investigation was";
-          document.addEventListener("huayi-test-next-caption", () => {
-            currentTime = 5;
-            caption.textContent = "still in its early stages.";
-          });
-        }
-
-        if (scenario === "transcript") {
-          currentTime = 4.5;
-          caption.textContent = "still in its";
-          const response = document.createElement("script");
-          response.type = "application/json";
-          response.textContent = `var ytInitialPlayerResponse = ${JSON.stringify({
-            captions: {
-              playerCaptionsTracklistRenderer: {
-                captionTracks: [
-                  {
-                    baseUrl: "https://www.youtube.com/api/timedtext?v=e2e&lang=en",
-                    languageCode: "en",
-                  },
-                ],
-              },
+        window.fetch = async (input) => {
+          const url = new URL(input instanceof Request ? input.url : String(input));
+          const entry = document.createElement("li");
+          entry.dataset.timedtextRequest = url.searchParams.has("tlang") ? "translated" : "source";
+          entry.dataset.hasPoToken = String(url.searchParams.get("pot") === "fixture-potoken");
+          entry.dataset.transport = "fetch";
+          entry.dataset.videoId = url.searchParams.get("v") ?? "";
+          timedTextLog.append(entry);
+          const translated = url.searchParams.get("tlang") === "zh-Hans";
+          const shouldFail =
+            (!translated && scenario === "source-failure") ||
+            (translated && scenario === "translated-failure");
+          return new Response(
+            shouldFail ? "not-json3" : JSON.stringify(translated ? translatedCues() : sourceCues()),
+            {
+              headers: { "content-type": "application/json" },
+              status: 200,
             },
-          })};`;
-          document.head.append(response);
-          window.fetch = async () => {
-            document.documentElement.dataset.captionFetchComplete = "true";
-            return new Response(
-              JSON.stringify({
-                events: [
-                  { dDurationMs: 2000, segs: [{ utf8: "A previous sentence." }], tStartMs: 0 },
-                  { dDurationMs: 2000, segs: [{ utf8: "The investigation was" }], tStartMs: 2000 },
-                  { dDurationMs: 2000, segs: [{ utf8: "still in its" }], tStartMs: 4000 },
-                  { dDurationMs: 2000, segs: [{ utf8: "early stages." }], tStartMs: 6000 },
-                ],
-              }),
-              { status: 200 },
-            );
-          };
-        }
+          );
+        };
+
+        const requestTimedText = (track) => {
+          const params = new URLSearchParams({
+            fmt: "json3",
+            kind: track.kind,
+            lang: track.languageCode,
+            v: currentVideoId,
+          });
+          if (track.translationLanguage?.languageCode === "zh-Hans") {
+            params.set("tlang", "zh-Hans");
+          } else {
+            sourceTimedTextRequests += 1;
+            if (sourceTimedTextRequests > 1) return;
+          }
+          queueMicrotask(() => {
+            const url = `https://www.youtube.com/api/timedtext?${params.toString()}`;
+            if (params.has("tlang")) {
+              const entry = document.createElement("li");
+              entry.dataset.timedtextRequest = "translated";
+              entry.dataset.hasPoToken = String(params.get("pot") === "fixture-potoken");
+              entry.dataset.transport = "xhr";
+              entry.dataset.videoId = params.get("v") ?? "";
+              timedTextLog.append(entry);
+              const request = new XMLHttpRequest();
+              request.open("GET", url);
+              request.send();
+              return;
+            }
+            void window.fetch(url);
+          });
+        };
+
+        player.getPlayerResponse = () => ({
+          captions: {
+            playerCaptionsTracklistRenderer: {
+              captionTracks: [
+                {
+                  kind: "asr",
+                  languageCode: "en",
+                  vssId: "a.en",
+                },
+              ],
+            },
+          },
+          videoDetails: { isLiveContent: false, videoId: currentVideoId },
+        });
+        player.getOption = (moduleName, optionName) =>
+          moduleName === "captions" && optionName === "track" ? currentTrack : undefined;
+        player.getOptions = () => (captionsLoaded ? ["captions"] : []);
+        player.isSubtitlesOn = () =>
+          player.querySelector(".ytp-subtitles-button")?.getAttribute("aria-pressed") === "true";
+        player.unloadModule = () => {
+          captionsLoaded = false;
+        };
+        player.loadModule = () => {
+          captionsLoaded = true;
+        };
+        player.setOption = (moduleName, optionName, value) => {
+          if (moduleName !== "captions" || optionName !== "track") return;
+          currentTrack = value;
+          requestTimedText(value);
+        };
+
+        const navigate = (nextVideoId) => {
+          document.dispatchEvent(new Event("yt-navigate-start"));
+          currentVideoId = nextVideoId;
+          currentTime = 4.5;
+          paused = false;
+          currentTrack = { kind: "asr", languageCode: "en", vssId: "a.en" };
+          sourceTimedTextRequests = 0;
+          history.pushState({}, "", `/watch?v=${encodeURIComponent(nextVideoId)}`);
+          nativeCaption.textContent = "The investigation was still in its early stages.";
+          document.dispatchEvent(new Event("yt-navigate-finish"));
+        };
+        const setPresentation = (mode) => {
+          player.classList.toggle("ytp-fullscreen", mode === "fullscreen");
+          player.classList.toggle("ytp-embed", mode === "theater");
+          document.dispatchEvent(new Event("fullscreenchange"));
+        };
+        document.querySelector("[data-testid='navigate-video']").addEventListener("click", () => {
+          navigate("video-2");
+        });
+        document.querySelector("[data-testid='theater-mode']").addEventListener("click", () => {
+          setPresentation("theater");
+        });
+        document.querySelector("[data-testid='fullscreen-mode']").addEventListener("click", () => {
+          setPresentation("fullscreen");
+        });
       })();
     </script>
-    <script type="module" src="../support/harness.ts"></script>
+    <script src="/__huayi__/youtube-bridge.js"></script>
   </body>
 </html>

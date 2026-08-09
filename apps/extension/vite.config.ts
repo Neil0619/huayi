@@ -26,26 +26,34 @@ function copyExtensionAssets(): Plugin {
 
 export function createExtensionConfig(mode: string): UserConfig {
   const isContentBuild = mode === "content";
+  const isBridgeBuild = mode === "youtube-bridge";
+  const input = isContentBuild
+    ? "src/content/content-script.ts"
+    : isBridgeBuild
+      ? "src/content/youtube/youtube-bridge.ts"
+      : "src/background/service-worker.ts";
+  const entryFileName = isContentBuild
+    ? "content-script.js"
+    : isBridgeBuild
+      ? "youtube-bridge.js"
+      : "service-worker.js";
   return {
     build: {
       emptyOutDir: isContentBuild,
       minify: "esbuild",
       outDir: outputDirectory,
       rollupOptions: {
-        input: resolve(
-          extensionRoot,
-          isContentBuild ? "src/content/content-script.ts" : "src/background/service-worker.ts",
-        ),
+        input: resolve(extensionRoot, input),
         output: {
-          entryFileNames: isContentBuild ? "content-script.js" : "service-worker.js",
-          format: isContentBuild ? "iife" : "es",
+          entryFileNames: entryFileName,
+          format: isContentBuild || isBridgeBuild ? "iife" : "es",
           inlineDynamicImports: true,
         },
       },
       sourcemap: false,
       target: "chrome120",
     },
-    plugins: isContentBuild ? [] : [copyExtensionAssets()],
+    plugins: isContentBuild || isBridgeBuild ? [] : [copyExtensionAssets()],
   };
 }
 

@@ -1,420 +1,420 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { SelectionRequestInput } from "../selection/read-selection.js";
-import type { FrameScheduler } from "../overlay/frame-scheduler.js";
 import {
-  YouTubeCaptionController,
-  type YouTubeCaptionSelectionEvent,
-} from "./youtube-caption-controller.js";
-import type { YouTubeCaptionContext } from "./youtube-caption-context-source.js";
-
-interface Fixture {
-  controller: YouTubeCaptionController;
-  onSelection: ReturnType<typeof vi.fn<(event: YouTubeCaptionSelectionEvent) => void>>;
-  onWarmup: ReturnType<typeof vi.fn<() => void>>;
-  player: HTMLElement;
-  play: ReturnType<typeof vi.fn<() => Promise<void>>>;
-  setPaused(value: boolean): void;
-  video: HTMLVideoElement;
-}
-
-const controllers: YouTubeCaptionController[] = [];
-
-function setRect(element: Element, rect: Partial<DOMRect> = {}): void {
-  const value = {
-    bottom: 640,
-    height: 32,
-    left: 180,
-    right: 620,
-    top: 608,
-    width: 440,
-    x: 180,
-    y: 608,
-    toJSON: () => ({}),
-    ...rect,
-  };
-  Object.defineProperty(element, "getBoundingClientRect", {
-    configurable: true,
-    value: () => value,
-  });
-  Object.defineProperty(element, "getClientRects", {
-    configurable: true,
-    value: () => [value],
-  });
-}
-
-const immediateFrameScheduler: FrameScheduler = {
-  cancel: vi.fn(),
-  request: (callback) => {
-    callback();
-    return 1;
-  },
-};
-
-function createFixture(
-  initiallyPaused = false,
-  frameScheduler = immediateFrameScheduler,
-  captionContextSource?: YouTubeCaptionContext,
-): Fixture {
-  document.body.textContent = "";
-  const player = document.createElement("div");
-  player.className = "html5-video-player";
-  setRect(player, { bottom: 720, height: 640, left: 80, right: 880, top: 80, width: 800 });
-
-  const controls = document.createElement("div");
-  controls.className = "ytp-right-controls";
-  const captionsButton = document.createElement("button");
-  captionsButton.className = "ytp-subtitles-button";
-  controls.append(captionsButton);
-
-  const video = document.createElement("video");
-  let paused = initiallyPaused;
-  Object.defineProperty(video, "paused", {
-    configurable: true,
-    get: () => paused,
-  });
-  Object.defineProperty(video, "duration", {
-    configurable: true,
-    get: () => 120,
-  });
-  const pause = vi.fn(() => {
-    paused = true;
-  });
-  const play = vi.fn(() => {
-    paused = false;
-    return Promise.resolve();
-  });
-  Object.defineProperty(video, "pause", { configurable: true, value: pause });
-  Object.defineProperty(video, "play", { configurable: true, value: play });
-
-  const caption = document.createElement("span");
-  caption.className = "ytp-caption-segment";
-  caption.textContent = "The investigation was still in its early stages.";
-  setRect(caption);
-
-  player.append(video, caption, controls);
-  document.body.append(player);
-
-  const onSelection = vi.fn<(event: YouTubeCaptionSelectionEvent) => void>();
-  const onWarmup = vi.fn<() => void>();
-  const controller = new YouTubeCaptionController({
-    ...(captionContextSource === undefined ? {} : { captionContextSource }),
-    document,
-    frameScheduler,
-    isWatchPage: () => true,
-    onPresentationChange: vi.fn(),
-    onSelection,
-    onSessionClose: vi.fn(),
-    onWarmup,
-  });
-  controllers.push(controller);
-
-  return {
-    controller,
-    onSelection,
-    onWarmup,
-    player,
-    play,
-    setPaused: (value) => {
-      paused = value;
-    },
-    video,
-  };
-}
-
-function controlButton(player: Element): HTMLButtonElement {
-  const host = player.querySelector<HTMLElement>("[data-huayi-youtube-control-host]");
-  const button = host?.shadowRoot?.querySelector<HTMLButtonElement>("button");
-  if (button === null || button === undefined) {
-    throw new Error("Expected a Huayi YouTube control.");
-  }
-  return button;
-}
-
-function pickerHost(player: Element): HTMLElement {
-  const host = player.querySelector<HTMLElement>("[data-huayi-youtube-picker-host]");
-  if (host === null) {
-    throw new Error("Expected a Huayi caption picker.");
-  }
-  return host;
-}
+  captionEnglishNode as englishNode,
+  cleanupCaptionControllers,
+  createCaptionControllerFixture as createFixture,
+  selectCaptionText as selectText,
+  settleCaptionController as settle,
+} from "./youtube-caption-controller.test-support.js";
 
 afterEach(() => {
-  for (const controller of controllers.splice(0)) {
-    controller.destroy();
-  }
-  document.body.textContent = "";
+  cleanupCaptionControllers();
 });
 
 describe("YouTubeCaptionController", () => {
-  it("pauses synchronously and waits no more than one animation frame before freezing", () => {
-    const callbacks: (() => void)[] = [];
-    const frameScheduler: FrameScheduler = {
-      cancel: vi.fn(),
-      request: vi.fn((next) => {
-        callbacks.push(next);
-        return 7;
-      }),
-    };
-    const fixture = createFixture(false, frameScheduler);
-
-    controlButton(fixture.player).click();
-
-    expect(fixture.video.pause).toHaveBeenCalledOnce();
-    expect(fixture.play).not.toHaveBeenCalled();
-    expect(fixture.player.querySelector("[data-huayi-youtube-picker-host]")).toBeNull();
-    expect(frameScheduler.request).toHaveBeenCalledOnce();
-
-    callbacks[0]?.();
-
-    expect(pickerHost(fixture.player)).toBeTruthy();
-    expect(fixture.onWarmup).toHaveBeenCalledOnce();
-    expect(fixture.play).not.toHaveBeenCalled();
-  });
-
-  it("pauses before scanning the caption to freeze", () => {
-    const order: string[] = [];
-    const callbacks: (() => void)[] = [];
-    const captionContextSource: YouTubeCaptionContext = {
-      attach: vi.fn(),
-      clear: vi.fn(),
-      freeze: vi.fn(() => {
-        order.push("freeze");
-        return { text: "The investigation was still in its early stages." };
-      }),
-    };
-    const frameScheduler: FrameScheduler = {
-      cancel: vi.fn(),
-      request: vi.fn((callback) => {
-        callbacks.push(callback);
-        return 1;
-      }),
-    };
-    const fixture = createFixture(false, frameScheduler, captionContextSource);
-    vi.mocked(captionContextSource.freeze).mockClear();
-    order.length = 0;
-    vi.mocked(fixture.video.pause).mockImplementation(() => {
-      fixture.setPaused(true);
-      order.push("pause");
-    });
-
-    controlButton(fixture.player).click();
-    expect(order).toEqual(["pause"]);
-    callbacks[0]?.();
-
-    expect(order).toEqual(["pause", "freeze"]);
-  });
-
-  it("pauses, freezes the current caption, and emits an exact word selection", () => {
+  it("replaces native captions with a complete selectable English sentence and no legacy picker", async () => {
     const fixture = createFixture();
-    const button = controlButton(fixture.player);
+    await settle();
 
-    expect(button.disabled).toBe(false);
-    button.click();
-
-    expect(fixture.video.pause).toHaveBeenCalledOnce();
-    expect(fixture.onWarmup).toHaveBeenCalledOnce();
-    const picker = pickerHost(fixture.player);
-    const word = [
-      ...(picker.shadowRoot?.querySelectorAll<HTMLElement>("[data-caption-word]") ?? []),
-    ].find((candidate) => candidate.textContent === "investigation");
-    word?.click();
-
-    expect(fixture.onSelection).toHaveBeenCalledOnce();
-    const event = fixture.onSelection.mock.calls[0]?.[0];
-    expect(event?.input).toEqual<SelectionRequestInput>({
-      context: "The investigation was still in its early stages.",
-      selection: "investigation",
-      selectionKind: "word",
-      sentenceContext: "The investigation was still in its early stages.",
-      wordbookContext: "The investigation was still in its early stages.",
-    });
-    expect(event?.presentation.preferredSide).toBe("above");
-  });
-
-  it("selects the entire visible caption and keeps originally paused video paused", () => {
-    const fixture = createFixture(true);
-    controlButton(fixture.player).click();
-    const picker = pickerHost(fixture.player);
-
-    picker.shadowRoot?.querySelector<HTMLButtonElement>("[data-action='select-caption']")?.click();
-    expect(fixture.onSelection.mock.calls[0]?.[0].input.selection).toBe(
+    expect(englishNode(fixture.player).textContent).toBe(
       "The investigation was still in its early stages.",
     );
-
-    picker.shadowRoot?.querySelector<HTMLButtonElement>("[data-action='continue']")?.click();
-    expect(fixture.play).not.toHaveBeenCalled();
+    expect(fixture.player.dataset.huayiYoutubeSubtitlesActive).toBe("");
+    expect(fixture.player.querySelector("[data-huayi-youtube-picker-host]")).toBeNull();
+    expect(fixture.player.textContent).not.toContain("整条字幕");
+    const stableTextNode = englishNode(fixture.player).firstChild;
+    fixture.video.dispatchEvent(new Event("timeupdate"));
+    expect(englishNode(fixture.player).firstChild).toBe(stableTextNode);
   });
 
-  it("anchors word and whole-caption actions at the pointer position", () => {
+  it("defaults to English, pins Chinese with 中, and supports non-sticky hold-F8", async () => {
     const fixture = createFixture();
-    controlButton(fixture.player).click();
-    const picker = pickerHost(fixture.player);
-    const investigation = [
-      ...(picker.shadowRoot?.querySelectorAll<HTMLButtonElement>("[data-caption-word]") ?? []),
-    ].find((word) => word.textContent === "investigation");
-
-    investigation?.dispatchEvent(
-      new MouseEvent("click", {
-        bubbles: true,
-        clientX: 412,
-        clientY: 566,
-        detail: 1,
-      }),
+    await settle();
+    const translated = fixture.player.querySelector<HTMLElement>("[data-huayi-youtube-translated]");
+    const button = fixture.player.querySelector<HTMLButtonElement>(
+      "[data-huayi-youtube-bilingual]",
     );
-    expect(fixture.onSelection.mock.calls[0]?.[0].presentation.resolveAnchorRect?.()).toEqual({
-      bottom: 566,
-      height: 0,
-      left: 412,
-      right: 412,
-      top: 566,
-      width: 0,
-    });
 
-    picker.shadowRoot
-      ?.querySelector<HTMLButtonElement>("[data-action='select-caption']")
-      ?.dispatchEvent(
-        new MouseEvent("click", {
-          bubbles: true,
-          clientX: 704,
-          clientY: 622,
-          detail: 1,
-        }),
-      );
-    expect(fixture.onSelection.mock.calls[1]?.[0].presentation.resolveAnchorRect?.()).toEqual({
-      bottom: 622,
-      height: 0,
-      left: 704,
-      right: 704,
-      top: 622,
-      width: 0,
+    expect(translated?.hidden).toBe(true);
+    expect(button?.title).toContain("按住 F8");
+    button?.click();
+    expect(translated?.hidden).toBe(false);
+    expect(translated?.textContent).toBe("调查仍处于早期阶段。");
+    button?.click();
+    const shortcutKeydown = new KeyboardEvent("keydown", {
+      bubbles: true,
+      cancelable: true,
+      code: "F8",
+      key: "F8",
     });
+    document.dispatchEvent(shortcutKeydown);
+    expect(translated?.hidden).toBe(false);
+    expect(shortcutKeydown.defaultPrevented).toBe(true);
+    window.dispatchEvent(new Event("blur"));
+    expect(translated?.hidden).toBe(true);
+
+    document.dispatchEvent(new KeyboardEvent("keydown", { code: "F8", key: "F8" }));
+    document.dispatchEvent(new KeyboardEvent("keyup", { code: "F8", key: "F8" }));
+    expect(translated?.hidden).toBe(true);
+    const input = document.createElement("input");
+    fixture.player.append(input);
+    input.focus();
+    const editableKeydown = new KeyboardEvent("keydown", {
+      bubbles: true,
+      cancelable: true,
+      code: "F8",
+      key: "F8",
+    });
+    document.dispatchEvent(editableKeydown);
+    expect(translated?.hidden).toBe(true);
+    expect(editableKeydown.defaultPrevented).toBe(false);
   });
 
-  it("turns a pointer drag across word tokens into one exact phrase", async () => {
+  it("claims non-printing F8 without leaking printable B to the bilingual shortcut", async () => {
     const fixture = createFixture();
-    controlButton(fixture.player).click();
-    const words = [
-      ...(pickerHost(fixture.player).shadowRoot?.querySelectorAll<HTMLButtonElement>(
-        "[data-caption-word]",
-      ) ?? []),
-    ];
-    const early = words.find((word) => word.textContent === "early");
-    const stages = words.find((word) => word.textContent === "stages");
+    await settle();
+    const typeToSearch = (event: KeyboardEvent): void => {
+      if (event.key.toLocaleLowerCase("en-US") !== "b") return;
+      const search = document.createElement("input");
+      search.dataset.youtubeTypeToSearch = "";
+      document.body.prepend(search);
+      search.focus();
+      search.value += event.key;
+    };
+    const leakedF8Events: string[] = [];
+    const recordLeakedF8 = (event: KeyboardEvent): void => {
+      if (event.code === "F8") leakedF8Events.push(event.type);
+    };
+    window.addEventListener("keydown", typeToSearch, true);
+    window.addEventListener("keydown", recordLeakedF8, true);
+    window.addEventListener("keyup", recordLeakedF8, true);
 
-    early?.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true, button: 0 }));
-    stages?.dispatchEvent(new MouseEvent("pointerenter", { button: 0 }));
-    document.dispatchEvent(new MouseEvent("pointerup", { bubbles: true, button: 0 }));
+    try {
+      const translated = fixture.player.querySelector<HTMLElement>(
+        "[data-huayi-youtube-translated]",
+      );
+      const keydown = new KeyboardEvent("keydown", {
+        bubbles: true,
+        cancelable: true,
+        code: "F8",
+        key: "F8",
+      });
+      const repeat = new KeyboardEvent("keydown", {
+        bubbles: true,
+        cancelable: true,
+        code: "F8",
+        key: "F8",
+        repeat: true,
+      });
 
+      document.body.dispatchEvent(keydown);
+      document.body.dispatchEvent(repeat);
+      expect(document.querySelector("[data-youtube-type-to-search]")).toBeNull();
+      expect(keydown.defaultPrevented).toBe(true);
+      expect(repeat.defaultPrevented).toBe(true);
+      expect(translated?.hidden).toBe(false);
+      document.body.dispatchEvent(
+        new KeyboardEvent("keyup", { bubbles: true, code: "F8", key: "F8" }),
+      );
+      expect(translated?.hidden).toBe(true);
+      expect(leakedF8Events).toEqual([]);
+
+      const printableB = new KeyboardEvent("keydown", {
+        bubbles: true,
+        cancelable: true,
+        code: "KeyB",
+        key: "b",
+      });
+      document.body.dispatchEvent(printableB);
+      expect(document.querySelector("[data-youtube-type-to-search]")).not.toBeNull();
+      expect(printableB.defaultPrevented).toBe(false);
+      expect(translated?.hidden).toBe(true);
+    } finally {
+      window.removeEventListener("keydown", typeToSearch, true);
+      window.removeEventListener("keydown", recordLeakedF8, true);
+      window.removeEventListener("keyup", recordLeakedF8, true);
+    }
+  });
+
+  it("disables 中 when the translated track fails while retaining custom English", async () => {
+    const fixture = createFixture({ translated: null });
+    await settle();
+
+    expect(englishNode(fixture.player).textContent).toContain("investigation");
+    expect(
+      fixture.player.querySelector<HTMLButtonElement>("[data-huayi-youtube-bilingual]")?.disabled,
+    ).toBe(true);
+  });
+
+  it("keeps native English captions when the source track fails", async () => {
+    const fixture = createFixture({ source: null });
+    await settle();
+
+    expect(fixture.player.dataset.huayiYoutubeSubtitlesActive).toBeUndefined();
+    expect(fixture.player.querySelector("[data-huayi-youtube-subtitle-surface]")).toBeNull();
+    expect(fixture.player.querySelector(".ytp-caption-segment")?.textContent).toContain(
+      "investigation",
+    );
+
+    fixture.player.append(document.createElement("div"));
+    await settle();
+    expect(fixture.bridge.capture).toHaveBeenCalledOnce();
+  });
+
+  it("accepts an exact native word range, freezes its sentence, and pauses only playing video", async () => {
+    const fixture = createFixture();
+    await settle();
+    const english = englishNode(fixture.player);
+    const sentence = english.textContent ?? "";
+    const start = sentence.indexOf("investigation");
+
+    selectText(english, start, start + "investigation".length);
+
+    expect(fixture.video.pause).toHaveBeenCalledOnce();
     expect(fixture.onSelection).toHaveBeenCalledOnce();
     expect(fixture.onSelection.mock.calls[0]?.[0].input).toMatchObject({
-      context: "The investigation was still in its early stages.",
-      selection: "early stages",
-      selectionKind: "phrase",
-      sentenceContext: "The investigation was still in its early stages.",
+      context: sentence,
+      selection: "investigation",
+      sentenceContext: sentence,
+      wordbookContext: sentence,
+    });
+    expect(fixture.onSelection.mock.calls[0]?.[0].presentation.dismissOnOutsidePointer).toBe(false);
+  });
+
+  it("replaces an older word selection with an exact full-sentence drag", async () => {
+    const fixture = createFixture();
+    await settle();
+    const english = englishNode(fixture.player);
+    const sentence = english.textContent ?? "";
+    const wordStart = sentence.indexOf("investigation");
+
+    selectText(english, wordStart, wordStart + "investigation".length);
+
+    const downstreamMouseup = vi.fn();
+    document.addEventListener("mouseup", downstreamMouseup);
+    selectText(english, 0, sentence.length, fixture.player);
+
+    expect(fixture.onSelection).toHaveBeenCalledTimes(2);
+    expect(fixture.onSelection.mock.calls[1]?.[0].input).toMatchObject({
+      context: sentence,
+      selection: sentence,
+      selectionKind: "sentence",
+      sentenceContext: null,
       wordbookContext: null,
     });
-
-    const investigation = words.find((word) => word.textContent === "investigation");
-    await Promise.resolve();
-    investigation?.click();
-    expect(fixture.onSelection).toHaveBeenCalledTimes(2);
-    expect(fixture.onSelection.mock.calls[1]?.[0].input.selection).toBe("investigation");
+    expect(downstreamMouseup).not.toHaveBeenCalled();
+    document.removeEventListener("mouseup", downstreamMouseup);
   });
 
-  it("resumes only a video that Huayi paused", () => {
+  it("does not reset a ready pinned session for same-video page-data updates", async () => {
     const fixture = createFixture();
-    controlButton(fixture.player).click();
+    await settle();
+    const surface = fixture.player.querySelector("[data-huayi-youtube-subtitle-surface]");
+    const button = fixture.player.querySelector<HTMLButtonElement>(
+      "[data-huayi-youtube-bilingual]",
+    );
+    button?.click();
 
-    pickerHost(fixture.player)
-      .shadowRoot?.querySelector<HTMLButtonElement>("[data-action='continue']")
-      ?.click();
+    document.dispatchEvent(new Event("yt-page-data-updated"));
+    await settle();
 
-    expect(fixture.play).toHaveBeenCalledOnce();
-    expect(fixture.player.querySelector("[data-huayi-youtube-picker-host]")).toBeNull();
+    expect(fixture.player.querySelector("[data-huayi-youtube-subtitle-surface]")).toBe(surface);
+    expect(button?.getAttribute("aria-pressed")).toBe("true");
+    expect(fixture.bridge.capture).toHaveBeenCalledTimes(2);
   });
 
-  it("uses a second control click to close the picker and resume Huayi-paused playback", () => {
+  it("does not treat a persistent English ASR correction as a track switch", async () => {
+    vi.useFakeTimers();
     const fixture = createFixture();
-    const button = controlButton(fixture.player);
-    button.click();
+    await settle();
+    const surface = fixture.player.querySelector("[data-huayi-youtube-subtitle-surface]");
+    const nativeCaption = fixture.player.querySelector<HTMLElement>(".ytp-caption-segment");
 
-    button.click();
+    if (nativeCaption === null) throw new Error("Expected native captions.");
+    nativeCaption.textContent = "A completely different rolling English correction";
+    await settle();
+    await vi.advanceTimersByTimeAsync(2_100);
+    await settle();
 
-    expect(fixture.play).toHaveBeenCalledOnce();
-    expect(fixture.player.querySelector("[data-huayi-youtube-picker-host]")).toBeNull();
+    expect(fixture.player.querySelector("[data-huayi-youtube-subtitle-surface]")).toBe(surface);
+    expect(fixture.bridge.capture).toHaveBeenCalledTimes(2);
+    expect(fixture.bridge.probeSource).toHaveBeenCalledOnce();
   });
 
-  it("closes a stale picker when the viewer resumes playback", () => {
+  it("restores native captions after a persistent switch to a non-English track", async () => {
+    vi.useFakeTimers();
+    const fixture = createFixture({ sourceStatus: "non-english" });
+    await settle();
+    const nativeCaption = fixture.player.querySelector<HTMLElement>(".ytp-caption-segment");
+
+    if (nativeCaption === null) throw new Error("Expected native captions.");
+    nativeCaption.textContent = "这是一条中文字幕";
+    await settle();
+    await vi.advanceTimersByTimeAsync(2_100);
+    await settle();
+
+    expect(fixture.player.dataset.huayiYoutubeSubtitlesActive).toBeUndefined();
+    expect(fixture.player.querySelector("[data-huayi-youtube-subtitle-surface]")).toBeNull();
+    expect(fixture.bridge.capture).toHaveBeenCalledTimes(2);
+
+    nativeCaption.textContent = "这是另一条中文字幕";
+    await settle();
+    await vi.advanceTimersByTimeAsync(10_000);
+    await settle();
+    expect(fixture.bridge.capture).toHaveBeenCalledTimes(2);
+    expect(fixture.player.querySelector("[data-huayi-youtube-subtitle-surface]")).toBeNull();
+
+    fixture.setSourceStatus("same-source");
+    nativeCaption.textContent = "The investigation was";
+    await settle();
+    await vi.advanceTimersByTimeAsync(2_100);
+    await settle();
+    expect(fixture.bridge.capture).toHaveBeenCalledTimes(2);
+    expect(fixture.player.querySelector("[data-huayi-youtube-subtitle-surface]")).not.toBeNull();
+  });
+
+  it("restores native captions after switching to a Latin-script non-English track", async () => {
+    vi.useFakeTimers();
+    const fixture = createFixture({ sourceStatus: "non-english" });
+    await settle();
+    const nativeCaption = fixture.player.querySelector<HTMLElement>(".ytp-caption-segment");
+
+    if (nativeCaption === null) throw new Error("Expected native captions.");
+    nativeCaption.textContent = "Esta es otra pista de subtitulos";
+    await settle();
+    await vi.advanceTimersByTimeAsync(2_100);
+    await settle();
+
+    expect(fixture.bridge.probeSource).toHaveBeenCalledOnce();
+    expect(fixture.player.dataset.huayiYoutubeSubtitlesActive).toBeUndefined();
+    expect(fixture.player.querySelector("[data-huayi-youtube-subtitle-surface]")).toBeNull();
+  });
+
+  it("keeps the bilingual control mounted while no sentence is scheduled", async () => {
     const fixture = createFixture();
-    controlButton(fixture.player).click();
+    await settle();
 
-    fixture.setPaused(false);
-    fixture.video.dispatchEvent(new Event("play"));
+    fixture.video.currentTime = 20;
+    fixture.video.dispatchEvent(new Event("timeupdate"));
 
-    expect(fixture.player.querySelector("[data-huayi-youtube-picker-host]")).toBeNull();
-    expect(fixture.play).not.toHaveBeenCalled();
+    expect(
+      fixture.player.querySelector<HTMLElement>("[data-huayi-youtube-subtitle-surface]")?.hidden,
+    ).toBe(true);
+    expect(fixture.player.querySelector("[data-huayi-youtube-bilingual]")).not.toBeNull();
   });
 
-  it("updates the control when YouTube changes only the caption text node", async () => {
+  it("rejects a range crossing outside the stable English text node", async () => {
     const fixture = createFixture();
-    const captionText = fixture.player.querySelector(".ytp-caption-segment")?.firstChild;
-    if (!(captionText instanceof Text)) {
-      throw new Error("Expected a caption text node.");
-    }
+    await settle();
+    const english = englishNode(fixture.player);
+    const translation = fixture.player.querySelector<HTMLElement>(
+      "[data-huayi-youtube-translated]",
+    );
+    const range = document.createRange();
+    range.setStart(english.firstChild ?? english, 0);
+    range.setEnd(translation?.firstChild ?? translation ?? english, 1);
+    window.getSelection()?.removeAllRanges();
+    window.getSelection()?.addRange(range);
+    document.dispatchEvent(new Event("selectionchange"));
+    english.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
 
-    captionText.data = "这是中文字幕";
-    await Promise.resolve();
-    await Promise.resolve();
-
-    expect(controlButton(fixture.player).disabled).toBe(true);
+    expect(fixture.onSelection).not.toHaveBeenCalled();
+    expect(fixture.video.pause).not.toHaveBeenCalled();
   });
 
-  it("clears caption memory on YouTube SPA navigation", async () => {
-    const captionContextSource: YouTubeCaptionContext = {
-      attach: vi.fn(),
-      clear: vi.fn(),
-      freeze: vi.fn(() => ({ text: "The investigation was still in its early stages." })),
-    };
-    createFixture(false, immediateFrameScheduler, captionContextSource);
+  it("consumes the first player-surface click, closes the card, and resumes only its own pause", async () => {
+    const fixture = createFixture();
+    await settle();
+    const english = englishNode(fixture.player);
+    selectText(english, 4, 17);
+    const selectionEvent = fixture.onSelection.mock.calls[0]?.[0];
+    if (selectionEvent === undefined) throw new Error("Expected a subtitle selection event.");
+    fixture.setOverlayState({
+      status: "actions",
+      anchorRect: { bottom: 0, height: 0, left: 0, right: 0, top: 0, width: 0 },
+      selection: selectionEvent.input,
+    });
+    const surface = fixture.player.querySelector<HTMLElement>(".html5-video-container");
+    const click = new MouseEvent("pointerdown", { bubbles: true, cancelable: true });
+    fixture.onSessionClose.mockImplementation(() => selectionEvent.presentation.onClose?.());
+    surface?.dispatchEvent(click);
 
+    expect(click.defaultPrevented).toBe(true);
+    expect(fixture.onSessionClose).toHaveBeenCalledOnce();
+    expect(fixture.video.play).toHaveBeenCalledOnce();
+    expect(window.getSelection()?.isCollapsed).toBe(true);
+  });
+
+  it("keeps a pending wordbook write open on a player-surface click", async () => {
+    const fixture = createFixture({ canDismissSelection: () => false });
+    await settle();
+    selectText(englishNode(fixture.player), 4, 17);
+    const surface = fixture.player.querySelector<HTMLElement>(".html5-video-container");
+    const click = new MouseEvent("pointerdown", { bubbles: true, cancelable: true });
+    surface?.dispatchEvent(click);
+
+    expect(click.defaultPrevented).toBe(false);
+    expect(fixture.onSessionClose).not.toHaveBeenCalled();
+    expect(fixture.video.play).not.toHaveBeenCalled();
+    expect(window.getSelection()?.isCollapsed).toBe(false);
+
+    const selectionEvent = fixture.onSelection.mock.calls[0]?.[0];
+    if (selectionEvent === undefined) throw new Error("Expected a subtitle selection event.");
+    fixture.setOverlayState({
+      status: "actions",
+      anchorRect: { bottom: 0, height: 0, left: 0, right: 0, top: 0, width: 0 },
+      selection: selectionEvent.input,
+    });
+    selectText(englishNode(fixture.player), 22, 27);
+    expect(fixture.onSelection).toHaveBeenCalledOnce();
+    expect(fixture.video.pause).toHaveBeenCalledOnce();
+  });
+
+  it("clears on navigation start without re-entering pause ownership or resuming", async () => {
+    const fixture = createFixture();
+    await settle();
+    selectText(englishNode(fixture.player), 4, 17);
+    const selectionEvent = fixture.onSelection.mock.calls[0]?.[0];
+    if (selectionEvent === undefined) throw new Error("Expected a subtitle selection event.");
+    fixture.onSessionClose.mockImplementation(() => selectionEvent.presentation.onClose?.());
+
+    document.dispatchEvent(new Event("yt-navigate-start"));
+    await settle();
+
+    expect(fixture.onSessionClose).toHaveBeenCalledOnce();
+    expect(fixture.video.play).not.toHaveBeenCalled();
+    expect(fixture.player.querySelector("[data-huayi-youtube-subtitle-surface]")).toBeNull();
+  });
+
+  it("never resumes a video that was already paused and revokes ownership on play or seek", async () => {
+    const paused = createFixture({ initiallyPaused: true });
+    await settle();
+    selectText(englishNode(paused.player), 4, 17);
+    paused.onSelection.mock.calls[0]?.[0].presentation.onClose?.();
+    expect(paused.video.play).not.toHaveBeenCalled();
+
+    const playing = createFixture();
+    await settle();
+    selectText(englishNode(playing.player), 4, 17);
+    playing.setPaused(false);
+    playing.video.dispatchEvent(new Event("seeking"));
+    playing.onSelection.mock.calls[0]?.[0].presentation.onClose?.();
+    expect(playing.video.play).not.toHaveBeenCalled();
+  });
+
+  it("restores native captions on CC off, navigation, ads, and player destruction", async () => {
+    const fixture = createFixture();
+    await settle();
+    const cc = fixture.player.querySelector(".ytp-subtitles-button");
+    cc?.setAttribute("aria-pressed", "false");
+    await settle();
+    expect(fixture.player.dataset.huayiYoutubeSubtitlesActive).toBeUndefined();
+
+    cc?.setAttribute("aria-pressed", "true");
     document.dispatchEvent(new Event("yt-navigate-finish"));
-    await Promise.resolve();
-
-    expect(captionContextSource.clear).toHaveBeenCalledOnce();
+    fixture.player.classList.add("ad-showing");
+    await settle();
+    expect(fixture.player.querySelector("[data-huayi-youtube-subtitle-surface]")).toBeNull();
   });
-
-  it("clears caption memory when the controller is destroyed", () => {
-    const captionContextSource: YouTubeCaptionContext = {
-      attach: vi.fn(),
-      clear: vi.fn(),
-      freeze: vi.fn(() => ({ text: "The investigation was still in its early stages." })),
-    };
-    const fixture = createFixture(false, immediateFrameScheduler, captionContextSource);
-    vi.mocked(captionContextSource.clear).mockClear();
-
-    fixture.controller.destroy();
-
-    expect(captionContextSource.clear).toHaveBeenCalledOnce();
-    expect(fixture.player.querySelector("[data-huayi-youtube-control-host]")).toBeNull();
-  });
-
-  it.each(["ad-showing", "ytp-live"])(
-    "clears caption memory when the player enters %s state",
-    async (playerClass) => {
-      const captionContextSource: YouTubeCaptionContext = {
-        attach: vi.fn(),
-        clear: vi.fn(),
-        freeze: vi.fn(() => ({ text: "The investigation was still in its early stages." })),
-      };
-      const fixture = createFixture(false, immediateFrameScheduler, captionContextSource);
-
-      fixture.player.classList.add(playerClass);
-      await Promise.resolve();
-      await Promise.resolve();
-
-      expect(captionContextSource.clear).toHaveBeenCalled();
-      expect(controlButton(fixture.player).disabled).toBe(true);
-    },
-  );
 });

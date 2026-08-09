@@ -5,6 +5,6 @@
     "noEmit": true,
     "types": ["chrome"]
   },
-  "exclude": ["src/**/*.test.ts", "e2e/**/*.ts"],
+  "exclude": ["src/**/*.test-support.ts", "src/**/*.test.ts", "e2e/**/*.ts"],
   "include": ["src/**/*.ts"]
 }

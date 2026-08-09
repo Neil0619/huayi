@@ -17,8 +17,8 @@ test("macOS verification runs the complete shared and browser gate in order", ()
     "pnpm lint",
     "pnpm typecheck",
     "pnpm test",
-    "pnpm test:e2e",
     "pnpm build",
+    "pnpm test:e2e",
     "git diff --check",
   ]);
 });

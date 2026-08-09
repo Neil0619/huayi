@@ -233,6 +233,21 @@ describe("OverlayController", () => {
     expect(controller.shadowRoot.textContent).toContain("添加中");
   });
 
+  it("lets a YouTube presentation own outside dismissal and reports explicit close", () => {
+    const onClose = vi.fn();
+    const controller = createController([], []);
+    controller.show(selection, anchorRect, {
+      dismissOnOutsidePointer: false,
+      onClose,
+    });
+
+    document.body.dispatchEvent(new Event("pointerdown", { bubbles: true, composed: true }));
+    expect(controller.state.status).toBe("actions");
+
+    controller.close();
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
   it("batches text and typed updates with one animation frame", () => {
     const scheduler = new FakeFrameScheduler();
     const controller = createController([], [], [], scheduler);

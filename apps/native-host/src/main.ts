@@ -90,6 +90,7 @@ export interface NativeHostDispatcherOptions {
   securityExecutable?: string;
   schemaDirectory: string;
   workingDirectory: string;
+  wordSyncNow?: () => Date;
   wordSyncStatePath?: string;
 }
 
@@ -222,6 +223,7 @@ export function createNativeHostDispatcher(
     });
     const wordSyncService = new WordSyncService({
       client: eudicClient,
+      ...(options.wordSyncNow === undefined ? {} : { now: options.wordSyncNow }),
       operationExecutor: eudicOperationExecutor,
       stateStore: new WordSyncStateStore({ path: wordSyncStatePath }),
     });
@@ -312,6 +314,7 @@ export function createNativeHostDispatcher(
   });
   const wordSyncService = new WordSyncService({
     client: new EudicClient(options.eudicFetch === undefined ? {} : { fetch: options.eudicFetch }),
+    ...(options.wordSyncNow === undefined ? {} : { now: options.wordSyncNow }),
     operationExecutor: eudicOperationExecutor,
     stateStore: new WordSyncStateStore({ path: wordSyncStatePath }),
   });

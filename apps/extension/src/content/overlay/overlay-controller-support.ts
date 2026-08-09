@@ -14,6 +14,8 @@ export interface OverlayControllerOptions {
 }
 
 export interface OverlayPresentation {
+  dismissOnOutsidePointer?: boolean;
+  onClose?: () => void;
   preferredSide?: OverlayPreferredSide;
   resolveAnchorRect?: () => OverlayAnchorRect;
   resolveMountTarget?: () => Element;

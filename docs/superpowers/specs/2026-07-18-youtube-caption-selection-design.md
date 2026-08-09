@@ -1,5 +1,9 @@
 # YouTube 英文字幕取词设计
 
+> 已由
+> [`2026-08-08-youtube-selectable-bilingual-subtitles-design.md`](2026-08-08-youtube-selectable-bilingual-subtitles-design.md)
+> 取代；本文仅保留历史决策。
+
 ## 目标与边界
 
 在普通 YouTube `/watch` 录播视频中，为人工或自动英文字幕提供稳定、准确的完整句取词入口。
