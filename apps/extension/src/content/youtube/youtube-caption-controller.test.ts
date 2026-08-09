@@ -28,7 +28,7 @@ describe("YouTubeCaptionController", () => {
     expect(englishNode(fixture.player).firstChild).toBe(stableTextNode);
   });
 
-  it("defaults to English, pins Chinese with 中, and supports non-sticky hold-F8", async () => {
+  it("defaults to English, pins Chinese with 中, and supports non-sticky Shift+Z", async () => {
     const fixture = createFixture();
     await settle();
     const translated = fixture.player.querySelector<HTMLElement>("[data-huayi-youtube-translated]");
@@ -37,7 +37,7 @@ describe("YouTubeCaptionController", () => {
     );
 
     expect(translated?.hidden).toBe(true);
-    expect(button?.title).toContain("按住 F8");
+    expect(button?.title).toContain("按住 Shift+Z");
     button?.click();
     expect(translated?.hidden).toBe(false);
     expect(translated?.textContent).toBe("调查仍处于早期阶段。");
@@ -45,8 +45,9 @@ describe("YouTubeCaptionController", () => {
     const shortcutKeydown = new KeyboardEvent("keydown", {
       bubbles: true,
       cancelable: true,
-      code: "F8",
-      key: "F8",
+      code: "KeyZ",
+      key: "Z",
+      shiftKey: true,
     });
     document.dispatchEvent(shortcutKeydown);
     expect(translated?.hidden).toBe(false);
@@ -54,8 +55,8 @@ describe("YouTubeCaptionController", () => {
     window.dispatchEvent(new Event("blur"));
     expect(translated?.hidden).toBe(true);
 
-    document.dispatchEvent(new KeyboardEvent("keydown", { code: "F8", key: "F8" }));
-    document.dispatchEvent(new KeyboardEvent("keyup", { code: "F8", key: "F8" }));
+    document.dispatchEvent(new KeyboardEvent("keydown", { code: "KeyZ", key: "z", bubbles: true }));
+    document.dispatchEvent(new KeyboardEvent("keyup", { code: "KeyZ", key: "z", bubbles: true }));
     expect(translated?.hidden).toBe(true);
     const input = document.createElement("input");
     fixture.player.append(input);
@@ -63,78 +64,44 @@ describe("YouTubeCaptionController", () => {
     const editableKeydown = new KeyboardEvent("keydown", {
       bubbles: true,
       cancelable: true,
-      code: "F8",
-      key: "F8",
+      code: "KeyZ",
+      key: "Z",
+      shiftKey: true,
     });
     document.dispatchEvent(editableKeydown);
     expect(translated?.hidden).toBe(true);
     expect(editableKeydown.defaultPrevented).toBe(false);
   });
 
-  it("claims non-printing F8 without leaking printable B to the bilingual shortcut", async () => {
+  it("holds Chinese from the subtitle corner button and waits for both pointer and Shift+Z releases", async () => {
     const fixture = createFixture();
     await settle();
-    const typeToSearch = (event: KeyboardEvent): void => {
-      if (event.key.toLocaleLowerCase("en-US") !== "b") return;
-      const search = document.createElement("input");
-      search.dataset.youtubeTypeToSearch = "";
-      document.body.prepend(search);
-      search.focus();
-      search.value += event.key;
-    };
-    const leakedF8Events: string[] = [];
-    const recordLeakedF8 = (event: KeyboardEvent): void => {
-      if (event.code === "F8") leakedF8Events.push(event.type);
-    };
-    window.addEventListener("keydown", typeToSearch, true);
-    window.addEventListener("keydown", recordLeakedF8, true);
-    window.addEventListener("keyup", recordLeakedF8, true);
-
-    try {
-      const translated = fixture.player.querySelector<HTMLElement>(
-        "[data-huayi-youtube-translated]",
-      );
-      const keydown = new KeyboardEvent("keydown", {
+    const translated = fixture.player.querySelector<HTMLElement>("[data-huayi-youtube-translated]");
+    const temporary = fixture.player.querySelector<HTMLButtonElement>(
+      "[data-huayi-youtube-temporary-translation]",
+    );
+    expect(temporary?.title).toBe("按住显示中文（Shift+Z）");
+    temporary?.dispatchEvent(new Event("pointerdown", { bubbles: true, cancelable: true }));
+    expect(translated?.hidden).toBe(false);
+    document.dispatchEvent(
+      new KeyboardEvent("keydown", {
         bubbles: true,
         cancelable: true,
-        code: "F8",
-        key: "F8",
-      });
-      const repeat = new KeyboardEvent("keydown", {
-        bubbles: true,
-        cancelable: true,
-        code: "F8",
-        key: "F8",
-        repeat: true,
-      });
-
-      document.body.dispatchEvent(keydown);
-      document.body.dispatchEvent(repeat);
-      expect(document.querySelector("[data-youtube-type-to-search]")).toBeNull();
-      expect(keydown.defaultPrevented).toBe(true);
-      expect(repeat.defaultPrevented).toBe(true);
-      expect(translated?.hidden).toBe(false);
-      document.body.dispatchEvent(
-        new KeyboardEvent("keyup", { bubbles: true, code: "F8", key: "F8" }),
-      );
-      expect(translated?.hidden).toBe(true);
-      expect(leakedF8Events).toEqual([]);
-
-      const printableB = new KeyboardEvent("keydown", {
-        bubbles: true,
-        cancelable: true,
-        code: "KeyB",
-        key: "b",
-      });
-      document.body.dispatchEvent(printableB);
-      expect(document.querySelector("[data-youtube-type-to-search]")).not.toBeNull();
-      expect(printableB.defaultPrevented).toBe(false);
-      expect(translated?.hidden).toBe(true);
-    } finally {
-      window.removeEventListener("keydown", typeToSearch, true);
-      window.removeEventListener("keydown", recordLeakedF8, true);
-      window.removeEventListener("keyup", recordLeakedF8, true);
-    }
+        code: "KeyZ",
+        key: "Z",
+        shiftKey: true,
+      }),
+    );
+    temporary?.dispatchEvent(new Event("pointercancel", { bubbles: true }));
+    expect(translated?.hidden).toBe(false);
+    document.dispatchEvent(
+      new KeyboardEvent("keyup", { bubbles: true, code: "KeyZ", key: "Z", shiftKey: true }),
+    );
+    expect(translated?.hidden).toBe(true);
+    temporary?.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Enter" }));
+    expect(translated?.hidden).toBe(false);
+    temporary?.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true, key: "Enter" }));
+    expect(translated?.hidden).toBe(true);
   });
 
   it("disables 中 when the translated track fails while retaining custom English", async () => {
@@ -336,14 +303,54 @@ describe("YouTubeCaptionController", () => {
       selection: selectionEvent.input,
     });
     const surface = fixture.player.querySelector<HTMLElement>(".html5-video-container");
-    const click = new MouseEvent("pointerdown", { bubbles: true, cancelable: true });
+    const nativePlayerClick = vi.fn(() => {
+      if (fixture.video.paused) {
+        void fixture.video.play();
+      } else {
+        fixture.video.pause();
+      }
+    });
+    fixture.player.addEventListener("click", nativePlayerClick);
+    const pointerdown = new MouseEvent("pointerdown", { bubbles: true, cancelable: true });
     fixture.onSessionClose.mockImplementation(() => selectionEvent.presentation.onClose?.());
-    surface?.dispatchEvent(click);
+    surface?.dispatchEvent(pointerdown);
+    surface?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
 
-    expect(click.defaultPrevented).toBe(true);
+    expect(pointerdown.defaultPrevented).toBe(true);
     expect(fixture.onSessionClose).toHaveBeenCalledOnce();
     expect(fixture.video.play).toHaveBeenCalledOnce();
+    expect(fixture.video.pause).toHaveBeenCalledOnce();
+    expect(nativePlayerClick).not.toHaveBeenCalled();
     expect(window.getSelection()?.isCollapsed).toBe(true);
+  });
+
+  it("does not start an already-paused video while dismissing its subtitle card", async () => {
+    const fixture = createFixture({ initiallyPaused: true });
+    await settle();
+    selectText(englishNode(fixture.player), 4, 17);
+    const selectionEvent = fixture.onSelection.mock.calls[0]?.[0];
+    if (selectionEvent === undefined) throw new Error("Expected a subtitle selection event.");
+    fixture.setOverlayState({
+      status: "actions",
+      anchorRect: { bottom: 0, height: 0, left: 0, right: 0, top: 0, width: 0 },
+      selection: selectionEvent.input,
+    });
+    const nativePlayerClick = vi.fn(() => {
+      if (fixture.video.paused) {
+        void fixture.video.play();
+      } else {
+        fixture.video.pause();
+      }
+    });
+    fixture.player.addEventListener("click", nativePlayerClick);
+    const surface = fixture.player.querySelector<HTMLElement>(".html5-video-container");
+    fixture.onSessionClose.mockImplementation(() => selectionEvent.presentation.onClose?.());
+    surface?.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true, cancelable: true }));
+    surface?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+
+    expect(fixture.onSessionClose).toHaveBeenCalledOnce();
+    expect(fixture.video.play).not.toHaveBeenCalled();
+    expect(nativePlayerClick).not.toHaveBeenCalled();
   });
 
   it("keeps a pending wordbook write open on a player-surface click", async () => {

@@ -6,50 +6,73 @@ afterEach(() => {
   document.body.replaceChildren();
 });
 
-function f8(type: "keydown" | "keyup", repeat = false): KeyboardEvent {
+function shiftZ(type: "keydown" | "keyup", repeat = false): KeyboardEvent {
   return new KeyboardEvent(type, {
     bubbles: true,
     cancelable: true,
-    code: "F8",
-    key: "F8",
+    code: "KeyZ",
+    key: "Z",
     repeat,
+    shiftKey: true,
   });
 }
 
 describe("YouTubeBilingualKeyController", () => {
-  it("owns one claimed F8 press through repeats and keyup even if display state is cleared", () => {
-    let holding = false;
-    const setHolding = vi.fn((value: boolean) => {
-      holding = value;
-    });
+  it("owns one claimed Shift+Z press through repeats and keyup", () => {
+    const setHolding = vi.fn();
     const controller = new YouTubeBilingualKeyController(document, {
       canHold: () => true,
       setHolding,
     });
-    const keydown = f8("keydown");
+
+    const keydown = shiftZ("keydown");
+    const repeat = shiftZ("keydown", true);
+    const keyup = new KeyboardEvent("keyup", {
+      bubbles: true,
+      cancelable: true,
+      code: "KeyZ",
+      key: "z",
+      shiftKey: false,
+    });
     controller.handleKeydown(keydown);
-    expect(keydown.defaultPrevented).toBe(true);
-    expect(holding).toBe(true);
-
-    holding = false;
-    const input = document.createElement("input");
-    document.body.append(input);
-    input.focus();
-    const repeat = f8("keydown", true);
     controller.handleKeydown(repeat);
-    expect(repeat.defaultPrevented).toBe(true);
-
-    const keyup = f8("keyup");
     controller.handleKeyup(keyup);
-    expect(keyup.defaultPrevented).toBe(true);
-    expect(setHolding).toHaveBeenLastCalledWith(false);
 
-    const lateRepeat = f8("keydown", true);
-    controller.handleKeydown(lateRepeat);
-    expect(lateRepeat.defaultPrevented).toBe(false);
+    expect(keydown.defaultPrevented).toBe(true);
+    expect(repeat.defaultPrevented).toBe(true);
+    expect(keyup.defaultPrevented).toBe(true);
+    expect(setHolding).toHaveBeenNthCalledWith(1, true);
+    expect(setHolding).toHaveBeenNthCalledWith(2, false);
   });
 
-  it("does not claim a new F8 press while an editable control has focus", () => {
+  it("does not claim lowercase Z or Caps Lock Z without Shift", () => {
+    const setHolding = vi.fn();
+    const controller = new YouTubeBilingualKeyController(document, {
+      canHold: () => true,
+      setHolding,
+    });
+    const lowercase = new KeyboardEvent("keydown", {
+      bubbles: true,
+      cancelable: true,
+      code: "KeyZ",
+      key: "z",
+    });
+    const capsLock = new KeyboardEvent("keydown", {
+      bubbles: true,
+      cancelable: true,
+      code: "KeyZ",
+      key: "Z",
+    });
+
+    controller.handleKeydown(lowercase);
+    controller.handleKeydown(capsLock);
+
+    expect(lowercase.defaultPrevented).toBe(false);
+    expect(capsLock.defaultPrevented).toBe(false);
+    expect(setHolding).not.toHaveBeenCalled();
+  });
+
+  it("does not claim Shift+Z while an editable control has focus", () => {
     const input = document.createElement("input");
     document.body.append(input);
     input.focus();
@@ -57,53 +80,33 @@ describe("YouTubeBilingualKeyController", () => {
       canHold: () => true,
       setHolding: vi.fn(),
     });
-    const keydown = f8("keydown");
+    const keydown = shiftZ("keydown");
 
     controller.handleKeydown(keydown);
 
     expect(keydown.defaultPrevented).toBe(false);
   });
 
-  it("leaves unmatched, repeated, and modified F8 events untouched", () => {
+  it("leaves repeated and modified Shift+Z events untouched before the press is claimed", () => {
     const setHolding = vi.fn();
     const controller = new YouTubeBilingualKeyController(document, {
       canHold: () => true,
       setHolding,
     });
-    const events = [
-      f8("keydown", true),
-      f8("keyup"),
-      new KeyboardEvent("keydown", {
-        cancelable: true,
-        code: "F8",
-        ctrlKey: true,
-        key: "F8",
-      }),
-      new KeyboardEvent("keydown", {
-        altKey: true,
-        cancelable: true,
-        code: "F8",
-        key: "F8",
-      }),
-      new KeyboardEvent("keydown", {
-        cancelable: true,
-        code: "F8",
-        key: "F8",
-        metaKey: true,
-      }),
-      new KeyboardEvent("keydown", {
-        cancelable: true,
-        code: "F8",
-        key: "F8",
-        shiftKey: true,
-      }),
-    ];
+    const repeat = shiftZ("keydown", true);
+    const ctrl = new KeyboardEvent("keydown", {
+      cancelable: true,
+      code: "KeyZ",
+      ctrlKey: true,
+      key: "Z",
+      shiftKey: true,
+    });
 
-    controller.handleKeydown(events[0] as KeyboardEvent);
-    controller.handleKeyup(events[1] as KeyboardEvent);
-    for (const event of events.slice(2)) controller.handleKeydown(event as KeyboardEvent);
+    controller.handleKeydown(repeat);
+    controller.handleKeydown(ctrl);
 
-    expect(events.every((event) => !event.defaultPrevented)).toBe(true);
+    expect(repeat.defaultPrevented).toBe(false);
+    expect(ctrl.defaultPrevented).toBe(false);
     expect(setHolding).not.toHaveBeenCalled();
   });
 });

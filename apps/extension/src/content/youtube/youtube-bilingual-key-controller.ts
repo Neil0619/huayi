@@ -10,19 +10,16 @@ function consumeTemporaryBilingualKey(event: KeyboardEvent): void {
   event.stopImmediatePropagation();
 }
 
-function isTemporaryBilingualKey(event: KeyboardEvent): boolean {
-  return event.code === "F8" || event.key === "F8";
+function isPhysicalZ(event: KeyboardEvent): boolean {
+  return event.code === "KeyZ";
+}
+
+function isTemporaryBilingualKeydown(event: KeyboardEvent): boolean {
+  return isPhysicalZ(event) && event.shiftKey;
 }
 
 function isUnmodifiedTemporaryBilingualKey(event: KeyboardEvent): boolean {
-  return (
-    isTemporaryBilingualKey(event) &&
-    !event.altKey &&
-    !event.ctrlKey &&
-    !event.isComposing &&
-    !event.metaKey &&
-    !event.shiftKey
-  );
+  return isTemporaryBilingualKeydown(event) && !event.altKey && !event.ctrlKey && !event.metaKey;
 }
 
 export class YouTubeBilingualKeyController {
@@ -34,11 +31,11 @@ export class YouTubeBilingualKeyController {
   ) {}
 
   readonly handleKeydown = (event: KeyboardEvent): void => {
-    if (!isTemporaryBilingualKey(event)) return;
-    if (this.claimedPress) {
+    if (this.claimedPress && isPhysicalZ(event)) {
       consumeTemporaryBilingualKey(event);
       return;
     }
+    if (!isTemporaryBilingualKeydown(event)) return;
     if (
       !isUnmodifiedTemporaryBilingualKey(event) ||
       hasDocumentSelection(this.documentRef) ||
@@ -54,7 +51,7 @@ export class YouTubeBilingualKeyController {
   };
 
   readonly handleKeyup = (event: KeyboardEvent): void => {
-    if (!isTemporaryBilingualKey(event) || !this.claimedPress) return;
+    if (!isPhysicalZ(event) || !this.claimedPress) return;
     this.claimedPress = false;
     consumeTemporaryBilingualKey(event);
     this.options.setHolding(false);
@@ -70,4 +67,9 @@ export class YouTubeBilingualKeyController {
     this.claimedPress = false;
     this.options.setHolding(false);
   };
+
+  clear(): void {
+    this.claimedPress = false;
+    this.options.setHolding(false);
+  }
 }

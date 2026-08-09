@@ -87,7 +87,7 @@ describe("renderStreamingPreview", () => {
     ).toEqual(["语境解析", "词形解析", "构词解析", "用法要点", "同义词辨析"]);
   });
 
-  it("shows the spinner only before the first analysis update", () => {
+  it("shows an editorial skeleton only before the first analysis update", () => {
     const waiting = renderStreamingPreview(
       streamingState({ lastSequence: -1, sections: {}, text: {} }),
     );
@@ -99,8 +99,9 @@ describe("renderStreamingPreview", () => {
       }),
     );
 
-    expect(waiting.querySelector(".huayi-spinner")).not.toBeNull();
-    expect(started.querySelector(".huayi-spinner")).toBeNull();
+    expect(waiting.querySelector(".huayi-loading-skeleton")).not.toBeNull();
+    expect(waiting.querySelector(".huayi-spinner")).toBeNull();
+    expect(started.querySelector(".huayi-loading-skeleton")).toBeNull();
   });
 
   it("retains a read-only preview and marks it incomplete after an analysis error", () => {

@@ -28,7 +28,7 @@ function createHeader(state: PanelState, handlers: PanelHandlers): HTMLElement {
 
   const title = document.createElement("h2");
   title.className = "huayi-title";
-  title.textContent = state.action === "translate" ? "翻译" : "解释";
+  title.textContent = state.action === "translate" ? "HUAYI / 翻译" : "HUAYI / 解释";
 
   const dragHandle = document.createElement("button");
   dragHandle.className = "huayi-drag-handle";
@@ -98,10 +98,12 @@ function patchWordbookAction(panel: HTMLElement, state: PanelState, onAddWord: (
   const desiredButton = desired.querySelector<HTMLButtonElement>("[data-action='add-word']");
   if (currentButton !== null && desiredButton !== null) {
     currentButton.disabled = desiredButton.disabled;
+    currentButton.dataset.wordbookStatus = desiredButton.dataset.wordbookStatus;
     currentButton.setAttribute(
       "aria-label",
       desiredButton.getAttribute("aria-label") ?? "欧路生词本",
     );
+    currentButton.setAttribute("aria-busy", desiredButton.getAttribute("aria-busy") ?? "false");
     const currentLabel = currentButton.querySelector<HTMLElement>(":scope > span");
     const desiredLabel = desiredButton.querySelector<HTMLElement>(":scope > span");
     if (currentLabel !== null && currentLabel.textContent !== desiredLabel?.textContent) {

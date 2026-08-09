@@ -335,8 +335,9 @@ export function reduceOverlayState(state: OverlayState, event: OverlayEvent): Ov
     return { ...state, wordbook: { ...state.wordbook, availability: "unknown" } };
   }
 
-  if (state.status === "result" && event.type === "START_WORDBOOK") {
-    const isWordResult = ["explain-word", "translate-word"].includes(state.result.type);
+  if (hasAnalysis(state) && event.type === "START_WORDBOOK") {
+    const isWordResult =
+      state.status !== "result" || ["explain-word", "translate-word"].includes(state.result.type);
     const mutation = state.wordbook.mutation;
     const mayStart =
       state.selection.selectionKind === "word" &&
@@ -352,7 +353,7 @@ export function reduceOverlayState(state: OverlayState, event: OverlayEvent): Ov
   }
 
   if (
-    state.status === "result" &&
+    hasAnalysis(state) &&
     state.wordbook.mutation.status === "saving" &&
     event.type === "RESOLVE_WORDBOOK"
   ) {
@@ -360,7 +361,7 @@ export function reduceOverlayState(state: OverlayState, event: OverlayEvent): Ov
   }
 
   if (
-    state.status === "result" &&
+    hasAnalysis(state) &&
     state.wordbook.mutation.status === "saving" &&
     event.type === "REJECT_WORDBOOK"
   ) {

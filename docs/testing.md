@@ -29,7 +29,7 @@ POSIX 权限、目录 `fsync`、符号链接或 macOS Keychain 的专属测试�
   恢复轨道导致原生 cue 短暂为空时接受、source 非英文拒绝、译轨成功／失败都需连续 750ms
   稳定窗口后接受或超时；
   本地分句覆盖 1.5 秒、120 code points／12 秒、200 code points／15 秒、Unicode 和无标点 ASR，
-  译文只按正时间重叠排序去重。交互覆盖默认英文、“中”固定、按住 F8、原生双击／短语／完整句
+  译文只按正时间重叠排序去重。交互覆盖默认英文、CC 旁“中”固定、按住 `Shift+Z`／按住字幕角标临时展示、原生双击／短语／完整句
   拖选、无标点完整分句仍为 sentence、外部松开替换旧单词卡、wire v6 `sentenceContext: null`、
   Range 伪造拒绝、暂停所有权、播放器空白首击、pending 生词本，以及导航
   start/page-data/finish 锁、同视频 page-data 更新、控制栏重建、英文 ASR rolling correction
@@ -194,6 +194,16 @@ stdout。SEA health 从仓库外临时目录运行，清除 `NODE_PATH` 并使�
 该门禁不包含真实 smoke、Host 安装、Chrome 操作、真实钥匙串、DPAPI、注册表或欧路访问。
 纯逻辑和共享契约要求双平台 CI；系统原语还必须按
 [跨平台开发规则](cross-platform-development.md) 在目标平台人工验收。
+
+`0.12.0` 本轮 Windows 验证已完成离线质量门、另行 62 条 Playwright、Node.js 26 SEA 打包和
+仓库外独立 `health` 帧验证。随后完成实际 SEA 安装、精确 HKCU 注册表与 manifest 检查，并对
+安装后的 Host 直接执行 `health`；安装文件与已验证构建产物哈希一致，既有凭据和生词同步状态
+仍存在。Chrome 已重载最新未打包扩展；真实 YouTube 已确认新版字幕 UI 注入、播放中选词后
+连续两轮首击关闭并持续播放、原暂停状态保持暂停，以及下一次普通播放器点击只切换一次。
+`Shift+Z` 由浏览器 E2E 覆盖，字幕角标按住由控制器集成单测覆盖；实机页面已确认两个入口可见。
+真实 DeepSeek 与欧路请求未执行，仍需单独授权。macOS 门禁与实机验收后续在 macOS 环境继续，
+因此当前记录不是
+双平台发布完成结论。
 
 ## Windows 实机验收
 

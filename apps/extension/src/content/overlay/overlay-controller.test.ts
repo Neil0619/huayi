@@ -172,7 +172,7 @@ describe("OverlayController", () => {
     expect(controller.state).toMatchObject({ position: { left: 90, top: 128 } });
   });
 
-  it("adds a word once, preserves the result on error, and cancels saving on close", () => {
+  it("adds a word once, preserves the result on error, and notifies view close while saving", () => {
     const cancellations: number[] = [];
     const additions: string[] = [];
     const controller = createController([], cancellations, additions);
@@ -213,7 +213,7 @@ describe("OverlayController", () => {
     expect(cancellations).toHaveLength(1);
   });
 
-  it("keeps a pending wordbook write open when the page receives an outside pointerdown", () => {
+  it("dismisses the view while a pending wordbook write continues outside it", () => {
     const cancellations: number[] = [];
     const additions: string[] = [];
     const controller = createController([], cancellations, additions);
@@ -225,12 +225,9 @@ describe("OverlayController", () => {
     document.body.dispatchEvent(new Event("pointerdown", { bubbles: true, composed: true }));
 
     expect(additions).toEqual(["investigation"]);
-    expect(cancellations).toEqual([]);
-    expect(controller.state).toMatchObject({
-      status: "result",
-      wordbook: { mutation: { status: "saving" } },
-    });
-    expect(controller.shadowRoot.textContent).toContain("添加中");
+    expect(cancellations).toEqual([1]);
+    expect(controller.state.status).toBe("closed");
+    expect(controller.shadowRoot.host.isConnected).toBe(false);
   });
 
   it("lets a YouTube presentation own outside dismissal and reports explicit close", () => {

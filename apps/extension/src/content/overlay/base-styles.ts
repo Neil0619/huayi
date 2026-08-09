@@ -11,18 +11,21 @@ export const baseOverlayStyles = `
   }
 
   .huayi-root {
-    --huayi-accent: ${overlayDesignTokens.accent};
-    --huayi-accent-soft: ${overlayDesignTokens.accentSoft};
-    --huayi-background: ${overlayDesignTokens.background};
-    --huayi-border: ${overlayDesignTokens.border};
-    --huayi-muted: ${overlayDesignTokens.mutedText};
-    --huayi-subtle: ${overlayDesignTokens.subtleBackground};
-    --huayi-text: ${overlayDesignTokens.text};
+    --huayi-accent: ${overlayDesignTokens.terracotta};
+    --huayi-accent-soft: ${overlayDesignTokens.terracottaSoft};
+    --huayi-background: ${overlayDesignTokens.paper};
+    --huayi-border: ${overlayDesignTokens.fineRule};
+    --huayi-muted: ${overlayDesignTokens.muted};
+    --huayi-subtle: ${overlayDesignTokens.subtleSurface};
+    --huayi-text: ${overlayDesignTokens.ink};
+    --huayi-shadow: ${overlayDesignTokens.subtleShadow};
+    --huayi-serif: Georgia, "Times New Roman", serif;
+    --huayi-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     position: fixed;
     z-index: 2147483647;
     margin: 0;
     color: var(--huayi-text);
-    font: 14px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font: 14px/1.55 var(--huayi-sans);
     letter-spacing: normal;
     text-align: left;
     pointer-events: auto;
@@ -41,75 +44,40 @@ export const baseOverlayStyles = `
     outline-offset: 2px;
   }
 
-  .huayi-toolbar {
-    display: flex;
-    align-items: center;
-    gap: 3px;
-    min-height: 40px;
-    padding: 4px;
-    border: 1px solid rgba(15, 23, 42, 0.09);
-    border-radius: 12px;
-    background: var(--huayi-background);
-    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.16), 0 2px 6px rgba(15, 23, 42, 0.08);
-  }
-
-  .huayi-action {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    min-height: 31px;
-    padding: 5px 10px;
-    border-radius: 8px;
-    background: transparent;
-    white-space: nowrap;
-    transition: background 100ms ease, color 100ms ease;
-  }
-
-  .huayi-action:hover {
-    background: var(--huayi-subtle);
-  }
-
-  .huayi-action-icon {
-    display: grid;
-    width: 19px;
-    height: 19px;
-    place-items: center;
-    border-radius: 6px;
-    background: var(--huayi-accent-soft);
-    color: var(--huayi-accent);
-    font-size: 11px;
-    font-weight: 700;
-  }
-
   .huayi-panel {
     display: flex;
     flex-direction: column;
     width: min(${overlayDesignTokens.panelWidth}, calc(100vw - 16px));
     max-height: min(72vh, 680px);
     overflow: hidden;
-    border: 1px solid rgba(15, 23, 42, 0.1);
+    border: 1px solid var(--huayi-border);
     border-radius: ${overlayDesignTokens.radius};
     background: var(--huayi-background);
-    box-shadow: ${overlayDesignTokens.shadow};
+    box-shadow: ${overlayDesignTokens.subtleShadow};
   }
 
   .huayi-header {
-    position: relative;
+    position: sticky;
+    z-index: 2;
+    top: 0;
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
     flex: 0 0 auto;
-    min-height: 45px;
-    padding: 9px 10px 4px 18px;
+    min-height: 52px;
+    padding: 10px 10px 9px 18px;
+    border-bottom: 1px solid var(--huayi-border);
+    background: rgba(250, 248, 242, 0.96);
   }
 
   .huayi-title {
     min-width: 0;
     margin: 0;
     color: var(--huayi-muted);
-    font-size: 12px;
+    font-size: 10px;
     font-weight: 600;
-    letter-spacing: 0.02em;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
   }
 
   .huayi-drag-handle {
@@ -134,7 +102,7 @@ export const baseOverlayStyles = `
     width: 16px;
     height: 2px;
     border-radius: 2px;
-    background: #c7cbd2;
+    background: #aaa196;
   }
 
   .huayi-close {
@@ -176,7 +144,6 @@ export const baseOverlayStyles = `
     min-height: 208px;
   }
 
-  .huayi-loading,
   .huayi-error {
     display: grid;
     justify-items: center;
@@ -187,13 +154,32 @@ export const baseOverlayStyles = `
     text-align: center;
   }
 
-  .huayi-spinner {
-    width: 22px;
-    height: 22px;
-    border: 2px solid #dce2eb;
-    border-top-color: var(--huayi-accent);
-    border-radius: 50%;
-    animation: huayi-spin 0.8s linear infinite;
+  .huayi-loading {
+    display: grid;
+    gap: 13px;
+    padding: 18px 0 4px;
+    border-top: 1px solid var(--huayi-border);
+  }
+
+  .huayi-loading-status {
+    margin: 0;
+    color: var(--huayi-muted);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+  }
+
+  .huayi-loading-skeleton {
+    display: grid;
+    gap: 10px;
+  }
+
+  .huayi-loading-line {
+    display: block;
+    height: 8px;
+    border-radius: 2px;
+    background: linear-gradient(90deg, #e8e0d5, #f3ede4 55%, #e8e0d5);
+    background-size: 220% 100%;
+    animation: huayi-skeleton 1.6s ease-in-out infinite;
   }
 
   .huayi-slow-hint {
@@ -222,7 +208,7 @@ export const baseOverlayStyles = `
     min-height: 30px;
     padding: 4px 8px;
     border-radius: 9px;
-    background: transparent;
+    background: var(--huayi-accent-soft);
     color: var(--huayi-accent);
     font-size: 12px;
     font-weight: 600;
@@ -238,6 +224,15 @@ export const baseOverlayStyles = `
   .huayi-wordbook-button:disabled {
     color: var(--huayi-muted);
     cursor: default;
+  }
+
+  .huayi-wordbook-button[data-wordbook-status="present"] {
+    background: #eef5f1;
+    color: #426b58;
+  }
+
+  .huayi-wordbook-button[data-wordbook-status="saving"] {
+    background: var(--huayi-subtle);
   }
 
   .huayi-wordbook-icon {
@@ -270,8 +265,9 @@ export const baseOverlayStyles = `
     border-top: 1px solid var(--huayi-border);
   }
 
-  @keyframes huayi-spin {
-    to { transform: rotate(360deg); }
+  @keyframes huayi-skeleton {
+    0%, 100% { background-position: 100% 0; }
+    50% { background-position: 0 0; }
   }
 
   @keyframes huayi-enter {
@@ -296,6 +292,10 @@ export const baseOverlayStyles = `
     .huayi-enter {
       animation: none;
     }
+
+    .huayi-loading-line {
+      animation: none;
+    }
   }
 
   @media (max-width: 460px) {
@@ -310,6 +310,18 @@ export const baseOverlayStyles = `
 
     .huayi-header {
       padding-left: 14px;
+    }
+
+    .huayi-toolbar-actions {
+      gap: 6px;
+    }
+
+    .huayi-action {
+      padding: 11px 9px;
+    }
+
+    .huayi-action-description {
+      font-size: 10px;
     }
   }
 `;

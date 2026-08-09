@@ -129,6 +129,57 @@ describe("content-script analysis acknowledgements", () => {
     expect(showOrder).toBeLessThan(sendOrder);
   });
 
+  it("starts the check before an early add can replace it while analysis acknowledgement waits", async () => {
+    const runtime = new FakeRuntime();
+    const analysisAcknowledgement = deferred<{ handled: boolean }>();
+    runtime.enqueueDelivery(analysisAcknowledgement.promise);
+    const instance = createInstance(runtime);
+
+    selectAndTranslate("investigation");
+    instance.controller.shadowRoot
+      .querySelector<HTMLButtonElement>("[data-action='add-word']")
+      ?.click();
+
+    expect(runtime.sent).toMatchObject([
+      { type: "WARMUP_HOST" },
+      { request: { requestId: "request-1" }, type: "ANALYZE_SELECTION" },
+      { request: { requestId: "request-2" }, type: "CHECK_WORD_IN_EUDIC" },
+      { requestId: "request-2", type: "CANCEL_REQUEST" },
+      { request: { requestId: "request-3" }, type: "ADD_WORD_TO_EUDIC" },
+    ]);
+
+    analysisAcknowledgement.resolve({ handled: true });
+    await flushAcknowledgements();
+
+    expect(runtime.sent.filter((command) => command.type === "CHECK_WORD_IN_EUDIC")).toHaveLength(
+      1,
+    );
+  });
+
+  it("offers an absent word during loading before the analysis result arrives", async () => {
+    const runtime = new FakeRuntime();
+    const instance = createInstance(runtime);
+    selectAndTranslate("investigation");
+    await flushAcknowledgements();
+
+    runtime.emit({
+      presence: "absent",
+      requestId: "request-2",
+      schemaVersion: 6,
+      type: "word-status",
+    });
+
+    const button = instance.controller.shadowRoot.querySelector<HTMLButtonElement>(
+      "[data-action='add-word']",
+    );
+    expect(instance.controller.state).toMatchObject({
+      status: "loading",
+      wordbook: { availability: "absent" },
+    });
+    expect(button?.textContent).toBe("生词");
+    expect(button?.disabled).toBe(false);
+  });
+
   it("ignores warmup acknowledgement failure but still surfaces a real analysis error", async () => {
     const runtime = new FakeRuntime();
     const warmupAcknowledgement = deferred<{ handled: boolean }>();
@@ -156,6 +207,7 @@ describe("content-script analysis acknowledgements", () => {
     expect(runtime.sent.map((command) => command.type)).toEqual([
       "WARMUP_HOST",
       "ANALYZE_SELECTION",
+      "CHECK_WORD_IN_EUDIC",
     ]);
   });
 
@@ -172,7 +224,7 @@ describe("content-script analysis acknowledgements", () => {
       await flushAcknowledgements();
       runtime.emit({
         presence: "present",
-        requestId: "request-3",
+        requestId: "request-4",
         schemaVersion: 6,
         type: "word-status",
       });
@@ -198,31 +250,47 @@ describe("content-script analysis acknowledgements", () => {
       expect(runtime.sent).toEqual(commandsBeforeStaleAcknowledgement);
       expect(
         runtime.sent.filter((command) => command.type === "CHECK_WORD_IN_EUDIC"),
-      ).toMatchObject([{ request: { requestId: "request-3", word: "replacement" } }]);
+      ).toMatchObject([
+        { request: { requestId: "request-2", word: "investigation" } },
+        { request: { requestId: "request-4", word: "replacement" } },
+      ]);
     },
   );
 
-  it("rejects the current analysis and its unstarted word check when not handled", async () => {
-    const runtime = new FakeRuntime();
-    const acknowledgement = deferred<{ handled: boolean }>();
-    runtime.enqueueDelivery(acknowledgement.promise);
-    const instance = createInstance(runtime);
-    selectAndTranslate("investigation");
+  it.each(["handled false", "rejected"] as const)(
+    "rejects the current analysis and cancels its started word check when %s",
+    async (completion) => {
+      const runtime = new FakeRuntime();
+      const acknowledgement = deferred<{ handled: boolean }>();
+      runtime.enqueueDelivery(acknowledgement.promise);
+      const instance = createInstance(runtime);
+      selectAndTranslate("investigation");
 
-    acknowledgement.resolve({ handled: false });
-    await flushAcknowledgements();
+      if (completion === "handled false") {
+        acknowledgement.resolve({ handled: false });
+      } else {
+        acknowledgement.reject(new Error("The delivery failed."));
+      }
+      await flushAcknowledgements();
 
-    expect(instance.controller.state).toMatchObject({
-      error: { code: "INTERNAL_ERROR" },
-      selection: { selection: "investigation" },
-      status: "error",
-      wordbook: { availability: "unknown" },
-    });
-    expect(runtime.sent.map((command) => command.type)).toEqual([
-      "WARMUP_HOST",
-      "ANALYZE_SELECTION",
-    ]);
-  });
+      expect(instance.controller.state).toMatchObject({
+        error: { code: "INTERNAL_ERROR" },
+        selection: { selection: "investigation" },
+        status: "error",
+        wordbook: { availability: "unknown" },
+      });
+      expect(runtime.sent.map((command) => command.type)).toEqual([
+        "WARMUP_HOST",
+        "ANALYZE_SELECTION",
+        "CHECK_WORD_IN_EUDIC",
+        "CANCEL_REQUEST",
+      ]);
+      expect(runtime.sent.at(-1)).toEqual({
+        requestId: "request-2",
+        type: "CANCEL_REQUEST",
+      });
+    },
+  );
 
   it("preserves a resolved word status when the analysis host request fails", async () => {
     const runtime = new FakeRuntime();

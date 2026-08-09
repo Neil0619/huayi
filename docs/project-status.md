@@ -5,7 +5,7 @@
 - 产品版本：`0.12.0`
 - Native Messaging：`schemaVersion: 6`
 - 浏览器：Google Chrome 普通 `http/https` 顶层网页及 YouTube `/watch` 英文字幕
-- YouTube：可选择单词、短语和完整句的英文字幕；“中”固定双语，按住 F8 临时查看 `zh-Hans`
+- YouTube：可选择单词、短语和完整句的英文字幕；CC 旁“中”固定双语，按住 `Shift+Z` 或按住字幕角标临时查看 `zh-Hans`
   译文
 - macOS：完整功能，默认 Provider 为已登录 Codex
 - Windows：模型固定为 DeepSeek，不连接本机 Codex；支持欧路生词本
@@ -24,6 +24,25 @@
 | 0.10    | Windows DeepSeek/DPAPI/SEA、欧路生词本，以及 YouTube 字幕取词基础 |
 | 0.11    | 欧路全部英语收藏到扇贝的每日持久同步、角标和双平台断点批次        |
 | 0.12    | 扇贝部分确认、离线词形还原、未解决词放弃/重排队及旧批次再审计     |
+
+## 0.12.0 当前开发进度（2026-08-10）
+
+- YouTube 临时中文字幕已从 F8 调整为主键盘区按住 `Shift+Z`，并新增字幕卡右上角按住角标；选词浮层已
+  完成暖色编辑词典视觉、分层动作卡、翻译／解释原句语境条和加载骨架。相关单元测试、62 条
+  浏览器 E2E、Windows 视觉基线与 390px 窄屏实测均通过。
+- Windows `verify:windows` 离线质量门已通过，包括指令、格式、Lint、类型检查、单元测试、构建与
+  diff 检查；另行运行的 62 条浏览器 E2E 全部通过。Node.js 26 SEA 已完成打包和独立 `health`
+  帧验证。
+- Windows 已把本次 SEA 安装到 `%LOCALAPPDATA%\Huayi\native-host`，安装文件与已验证构建产物
+  的 SHA-256 一致；精确 HKCU Native Messaging 注册表项和 manifest 均指向该安装，既有
+  DeepSeek、欧路凭据及生词同步状态仍存在；安装后的 Host 也已通过直接 `health` 帧验证。
+  Chrome 已重载最新 `0.12.0` 未打包扩展，真实 YouTube 已确认新版字幕 UI 注入；播放中选词后
+  首击空白关闭并持续播放连续两轮通过，原暂停状态保持暂停，下一次普通播放器点击只切换一次。
+  `Shift+Z` 由浏览器 E2E 覆盖，字幕角标按住由控制器集成单测覆盖；实机页面已确认两个入口
+  可见。真实 DeepSeek
+  和欧路请求未运行，仍需单独授权外部数据发送及可能产生的费用。
+- macOS 自动门禁、安装与 Chrome 验收留待后续在 macOS 环境继续，不阻塞本次 Windows 开发
+  收尾；在这些检查完成前，不得将当前状态表述为双平台发布完成。
 
 ## 仍然不支持
 

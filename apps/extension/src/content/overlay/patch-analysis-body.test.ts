@@ -29,6 +29,68 @@ function resultState(result: AnalysisResult): ResultOverlayState {
 }
 
 describe("patchAnalysisBody", () => {
+  it("renders sentence context before analysis with a safe highlighted selection", () => {
+    const hostile = '<img src=x onerror="globalThis.pwned=true">';
+    const body = document.createElement("div");
+    patchAnalysisBody(body, {
+      ...streamingState(),
+      selection: {
+        ...session.selection,
+        context: `Fallback ${hostile} context.`,
+        selection: hostile,
+        sentenceContext: `Preferred ${hostile} sentence.`,
+      },
+    });
+
+    const source = body.querySelector('[data-huayi-section="source"]');
+    const context = body.querySelector('[data-huayi-section="source-context"]');
+    const highlight = context?.querySelector("mark");
+
+    expect(source?.nextElementSibling).toBe(context);
+    expect(context?.querySelector(".huayi-context-label")?.textContent).toBe("原句语境");
+    expect(context?.textContent).toContain(`Preferred ${hostile} sentence.`);
+    expect(context?.textContent).not.toContain("Fallback");
+    expect(highlight?.textContent).toBe(hostile);
+    expect(body.querySelector("img")).toBeNull();
+  });
+
+  it("falls back to paragraph context when sentence context is unavailable", () => {
+    const body = document.createElement("div");
+    patchAnalysisBody(body, {
+      ...streamingState(),
+      selection: {
+        ...session.selection,
+        context: "The wider investigation remains active.",
+        sentenceContext: null,
+      },
+    });
+
+    expect(body.querySelector('[data-huayi-section="source-context"]')?.textContent).toContain(
+      "The wider investigation remains active.",
+    );
+  });
+
+  it("keeps the lexical source and context stable from editorial loading through final result", () => {
+    const body = document.createElement("div");
+    patchAnalysisBody(body, { ...session, status: "loading" });
+    const source = body.querySelector('[data-huayi-section="source"]');
+    const context = body.querySelector('[data-huayi-section="source-context"]');
+
+    expect(body.querySelector(".huayi-loading-skeleton")).not.toBeNull();
+    expect(body.querySelector(".huayi-spinner")).toBeNull();
+    expect(context?.querySelector("mark")?.textContent).toBe("Selection");
+
+    patchAnalysisBody(body, streamingState());
+    expect(body.querySelector('[data-huayi-section="source"]')).toBe(source);
+    expect(body.querySelector('[data-huayi-section="source-context"]')).toBe(context);
+
+    patchAnalysisBody(body, resultState(lexicalTranslationResult));
+    expect(body.querySelector('[data-huayi-section="source"]')).toBe(source);
+    expect(body.querySelector('[data-huayi-section="source-context"]')).toBe(context);
+    expect(source?.nextElementSibling).toBe(context);
+    expect(body.querySelector(".huayi-loading-skeleton")).toBeNull();
+  });
+
   it("does not retain enter classes when the document prefers reduced motion", () => {
     const originalMatchMedia = window.matchMedia;
     const matchMedia = vi.fn().mockReturnValue({ matches: true });
@@ -115,7 +177,10 @@ describe("patchAnalysisBody", () => {
     expect(body.querySelector('[data-huayi-section="source"]')).toBe(header);
     expect(header?.querySelector('[data-huayi-section="pronunciation"]')).toBe(pronunciation);
     expect(pronunciation?.textContent).toBe("英 /final/　美 /final-us/");
-    expect(header?.nextElementSibling?.getAttribute("data-huayi-section")).toBe("contextual-sense");
+    expect(header?.nextElementSibling?.getAttribute("data-huayi-section")).toBe("source-context");
+    expect(header?.nextElementSibling?.nextElementSibling?.getAttribute("data-huayi-section")).toBe(
+      "contextual-sense",
+    );
   });
 
   it("renders hostile values as text and removes no preview section until the final result", () => {

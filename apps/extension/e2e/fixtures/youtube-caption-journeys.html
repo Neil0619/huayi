@@ -138,10 +138,11 @@
         let captionsLoaded = true;
         let sourceTimedTextRequests = 0;
 
-        document.addEventListener(
+        window.addEventListener(
           "keydown",
           (event) => {
-            if (event.key.toLocaleLowerCase("en-US") !== "b") return;
+            if (event.key !== "z") return;
+            event.stopImmediatePropagation();
             const search = document.createElement("input");
             search.dataset.youtubeTypeToSearch = "";
             document.body.prepend(search);
@@ -206,6 +207,22 @@
           video.dispatchEvent(new Event("play"));
           return Promise.resolve();
         };
+        player.addEventListener("click", (event) => {
+          const target = event.target;
+          if (
+            !(target instanceof Element) ||
+            target.closest(
+              ".ytp-chrome-controls, [data-huayi-youtube-subtitle-surface], [data-huayi-overlay-host]",
+            ) !== null
+          ) {
+            return;
+          }
+          if (paused) {
+            void video.play();
+          } else {
+            video.pause();
+          }
+        });
 
         window.fetch = async (input) => {
           const url = new URL(input instanceof Request ? input.url : String(input));

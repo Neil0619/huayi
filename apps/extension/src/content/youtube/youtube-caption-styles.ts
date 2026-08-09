@@ -24,12 +24,41 @@ export const youtubeCaptionStyles = `
   }
 
   [data-huayi-youtube-caption-box] {
+    position: relative;
     display: inline-flex;
     max-width: 100%;
     padding: 4px 10px;
     flex-direction: column;
     border-radius: 6px;
     background: rgba(8, 8, 8, 0.72);
+  }
+
+  [data-huayi-youtube-temporary-translation] {
+    position: absolute;
+    top: -9px;
+    right: -9px;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: 1px solid rgba(255, 255, 255, 0.34);
+    border-radius: 999px;
+    background: rgba(18, 18, 18, 0.82);
+    color: rgba(255, 255, 255, 0.92);
+    font: 650 12px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    cursor: pointer;
+    opacity: 0.88;
+  }
+
+  [data-huayi-youtube-temporary-translation]:hover,
+  [data-huayi-youtube-temporary-translation][aria-pressed="true"] {
+    border-color: #67e8f9;
+    color: #67e8f9;
+    opacity: 1;
+  }
+
+  [data-huayi-youtube-temporary-translation]:focus-visible {
+    outline: 2px solid #67e8f9;
+    outline-offset: 2px;
   }
 
   [data-huayi-youtube-english] {

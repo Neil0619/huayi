@@ -69,6 +69,16 @@ health 验证会把 `.exe` 复制到仓库外的临时目录，清除 `NODE_PATH
 `node_modules` 加载。
 两个命令都必须离线；真实 smoke、安装和凭据操作不在其中。
 
+当前 `0.12.0` 的 Windows 收尾已完成 Windows 离线质量门、另行 62 条 Playwright、Node.js 26
+SEA 独立 `health`、实际 SEA 安装、精确 HKCU 注册表与 manifest 检查，以及安装后 Host 的直接
+`health` 验证。安装文件与已验证构建产物哈希一致，既有凭据和生词同步状态仍存在。Chrome 已
+重载最新未打包扩展；真实 YouTube 已确认新版字幕 UI 注入、播放中选词后连续两轮首击关闭并
+持续播放、原暂停状态保持暂停，以及下一次普通播放器点击只切换一次。`Shift+Z` 由浏览器 E2E
+覆盖，字幕角标按住由控制器集成单测覆盖；实机页面已确认两个入口可见。真实 DeepSeek 与欧路
+请求仍须另行授权，
+不包含在本轮离线和本机安装验收中。macOS 门禁与实机验收后续回到 macOS 环境继续，不阻塞本次
+Windows 开发收尾，但在完成前仍属于双平台发布验证未完成。
+
 GitHub Actions 在 `main` push、Pull Request 和手动触发时运行 `macos-quality` 与
 `windows-quality`。工作流首次在 `main` 和 PR 各稳定通过一次后，再把两项设为 `main` 必需
 检查；在此之前仅告警，不改变直接推送习惯。

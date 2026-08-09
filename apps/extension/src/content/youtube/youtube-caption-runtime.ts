@@ -1,5 +1,6 @@
 export interface YouTubeCaptionRuntimeHandlers {
   blur: () => void;
+  click: (event: MouseEvent) => void;
   fullscreenchange: () => void;
   keydown: (event: KeyboardEvent) => void;
   keyup: (event: KeyboardEvent) => void;
@@ -23,6 +24,7 @@ export class YouTubeCaptionRuntime {
     documentRef.addEventListener("fullscreenchange", handlers.fullscreenchange);
     documentRef.defaultView?.addEventListener("keydown", handlers.keydown, true);
     documentRef.defaultView?.addEventListener("keyup", handlers.keyup, true);
+    documentRef.addEventListener("click", handlers.click, true);
     documentRef.addEventListener("pointerdown", handlers.pointerdown, true);
     documentRef.addEventListener("selectionchange", handlers.selectionchange);
     documentRef.addEventListener("mouseup", handlers.mouseup);
@@ -57,6 +59,7 @@ export class YouTubeCaptionRuntime {
     this.documentRef.removeEventListener("fullscreenchange", handlers.fullscreenchange);
     this.documentRef.defaultView?.removeEventListener("keydown", handlers.keydown, true);
     this.documentRef.defaultView?.removeEventListener("keyup", handlers.keyup, true);
+    this.documentRef.removeEventListener("click", handlers.click, true);
     this.documentRef.removeEventListener("pointerdown", handlers.pointerdown, true);
     this.documentRef.removeEventListener("selectionchange", handlers.selectionchange);
     this.documentRef.removeEventListener("mouseup", handlers.mouseup);

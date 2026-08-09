@@ -89,7 +89,7 @@ export class OverlayController {
     anchorRect: OverlayAnchorRect,
     presentation: OverlayPresentation = {},
   ): void {
-    if (this.hasPendingRequest()) {
+    if (isVisibleOverlayState(this.machine.state)) {
       this.options.onCancel();
     }
     this.updateBatch.clear();
@@ -158,7 +158,7 @@ export class OverlayController {
 
   addWord(): void {
     const current = this.machine.state;
-    if (current.status !== "result") {
+    if (current.status === "actions" || current.status === "closed" || current.status === "idle") {
       return;
     }
     const previousState = current;
@@ -200,7 +200,7 @@ export class OverlayController {
   close(): void {
     const wasVisible = isVisibleOverlayState(this.machine.state);
     const onClose = this.presentation.onClose;
-    if (this.hasPendingRequest()) {
+    if (wasVisible) {
       this.options.onCancel();
     }
     this.updateBatch.clear();
@@ -232,7 +232,6 @@ export class OverlayController {
     if (
       isVisibleOverlayState(this.machine.state) &&
       this.presentation.dismissOnOutsidePointer !== false &&
-      !this.isSavingWordbook() &&
       !event.composedPath().includes(this.host)
     ) {
       this.close();
@@ -391,21 +390,5 @@ export class OverlayController {
 
   private applyPosition(root: HTMLElement, position: OverlayPoint): void {
     applyOverlayPosition(root, position);
-  }
-
-  private hasPendingRequest(): boolean {
-    const state = this.machine.state;
-    if (state.status === "loading" || state.status === "streaming") {
-      return true;
-    }
-    return (
-      (state.status === "result" || state.status === "error") &&
-      (state.wordbook.availability === "checking" || state.wordbook.mutation.status === "saving")
-    );
-  }
-
-  private isSavingWordbook(): boolean {
-    const state = this.machine.state;
-    return state.status === "result" && state.wordbook.mutation.status === "saving";
   }
 }

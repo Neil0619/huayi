@@ -143,6 +143,7 @@ describe("content-script concurrent operations", () => {
     expect(runtime.sent.map((command) => command.type)).toEqual([
       "WARMUP_HOST",
       "ANALYZE_SELECTION",
+      "CHECK_WORD_IN_EUDIC",
     ]);
     await acknowledgeAnalysis();
 
@@ -231,6 +232,70 @@ describe("content-script concurrent operations", () => {
     });
   });
 
+  it("keeps an accepted add running after an outside click dismisses the overlay", async () => {
+    const runtime = new FakeRuntime();
+    const instance = createInstance(runtime);
+    selectText("investigation");
+    chooseTranslation();
+    await acknowledgeAnalysis();
+    emitResult(runtime);
+
+    instance.controller.addWord();
+    document.body.dispatchEvent(new Event("pointerdown", { bubbles: true, composed: true }));
+
+    expect(instance.controller.state.status).toBe("closed");
+    expect(runtime.sent.filter((command) => command.type === "CANCEL_REQUEST")).toEqual([
+      { requestId: "request-2", type: "CANCEL_REQUEST" },
+    ]);
+
+    runtime.emit({
+      outcome: "added",
+      requestId: "request-3",
+      schemaVersion: 6,
+      type: "word-added",
+    });
+    expect(runtime.sent.filter((command) => command.type === "CANCEL_REQUEST")).toEqual([
+      { requestId: "request-2", type: "CANCEL_REQUEST" },
+    ]);
+  });
+
+  it.each(["close button", "Escape", "new selection"] as const)(
+    "keeps an accepted add running across %s view lifecycle",
+    async (trigger) => {
+      const runtime = new FakeRuntime();
+      const instance = createInstance(runtime);
+      selectText("investigation");
+      chooseTranslation();
+      await acknowledgeAnalysis();
+      emitResult(runtime);
+      instance.controller.addWord();
+
+      if (trigger === "close button") {
+        instance.controller.shadowRoot
+          .querySelector<HTMLButtonElement>("[data-action='close']")
+          ?.click();
+      } else if (trigger === "Escape") {
+        document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+      } else {
+        selectText("replacement");
+        document.dispatchEvent(new MouseEvent("mouseup"));
+      }
+
+      expect(runtime.sent.filter((command) => command.type === "CANCEL_REQUEST")).toEqual([
+        { requestId: "request-2", type: "CANCEL_REQUEST" },
+      ]);
+      runtime.emit({
+        outcome: "added",
+        requestId: "request-3",
+        schemaVersion: 6,
+        type: "word-added",
+      });
+      expect(runtime.sent.filter((command) => command.type === "CANCEL_REQUEST")).toEqual([
+        { requestId: "request-2", type: "CANCEL_REQUEST" },
+      ]);
+    },
+  );
+
   it.each(["close", "Escape", "new selection"] as const)(
     "cancels every active ID exactly once on %s",
     async (trigger) => {
@@ -258,7 +323,7 @@ describe("content-script concurrent operations", () => {
     },
   );
 
-  it("does not start a stale check after close while the analysis acknowledgement is held", async () => {
+  it("cancels the started check before a held analysis acknowledgement resolves", async () => {
     const runtime = new FakeRuntime();
     const acknowledgement = deferred<{ handled: boolean }>();
     runtime.enqueueDelivery(acknowledgement.promise);
@@ -273,7 +338,9 @@ describe("content-script concurrent operations", () => {
     expect(runtime.sent).toEqual([
       { type: "WARMUP_HOST" },
       expect.objectContaining({ type: "ANALYZE_SELECTION" }),
+      expect.objectContaining({ type: "CHECK_WORD_IN_EUDIC" }),
       { requestId: "request-1", type: "CANCEL_REQUEST" },
+      { requestId: "request-2", type: "CANCEL_REQUEST" },
     ]);
   });
 

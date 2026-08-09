@@ -128,7 +128,8 @@ export class RequestCoordinator {
     const lane = laneFor(validatedRequest);
     switch (lane) {
       case "analysis":
-        this.cancelAll(tabId);
+        this.cancelLane(tabId, lane);
+        this.cancelLane(tabId, "wordbook-check");
         break;
       case "wordbook-check":
         this.cancelLane(tabId, lane);

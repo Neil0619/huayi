@@ -35,7 +35,7 @@ afterEach(() => {
 });
 
 describe("YouTube content script integration", () => {
-  it("routes a native selectable subtitle word through the existing analysis lane", async () => {
+  it("routes a subtitle word and dismisses its saving card on a player-surface click", async () => {
     const runtime = new FakeRuntime();
     const player = document.createElement("div");
     player.className = "html5-video-player";
@@ -170,6 +170,34 @@ describe("YouTube content script integration", () => {
         instance.controller.shadowRoot.querySelector<HTMLElement>(".huayi-root")?.style.top ?? "",
       ),
     ).toBeLessThan(wordRect.top);
+
+    instance.controller.resolve({
+      commonMeanings: [{ meaningsZh: ["调查"], partOfSpeech: "noun" }],
+      commonPhrases: [],
+      confusableWords: [],
+      contextualSense: { meaningZh: "调查", partOfSpeech: "noun" },
+      dictionaryForm: "investigation",
+      selectionKind: "word",
+      sourceText: "investigation",
+      type: "translate-word",
+    });
+    instance.controller.shadowRoot
+      .querySelector<HTMLButtonElement>("[data-action='add-word']")
+      ?.click();
+    expect(instance.controller.state).toMatchObject({
+      status: "result",
+      wordbook: { mutation: { status: "saving" } },
+    });
+
+    const click = new MouseEvent("pointerdown", { bubbles: true, cancelable: true });
+    player.dispatchEvent(click);
+
+    expect(click.defaultPrevented).toBe(true);
+    expect(instance.controller.state.status).toBe("closed");
+    expect(runtime.sent.filter((command) => command.type === "CANCEL_REQUEST")).toEqual([
+      { requestId: "youtube-1", type: "CANCEL_REQUEST" },
+    ]);
+    expect(video.play).toHaveBeenCalledOnce();
   });
 
   it("keeps the Eudic action for an ordinary word selected in the video title", () => {

@@ -24,14 +24,19 @@ export class YouTubeCaptionPresentation {
     return this.view !== null && event.composedPath().includes(this.view.english);
   }
 
-  ensure(player: HTMLElement, state: YouTubeCaptionState, onToggle: () => void): void {
+  ensure(
+    player: HTMLElement,
+    state: YouTubeCaptionState,
+    onToggle: () => void,
+    onTemporaryHold: (holding: boolean) => void,
+  ): void {
     if (this.view?.host.isConnected === true) {
       this.view.mountControl(player);
       this.updateControl(state);
       return;
     }
     this.view?.destroy();
-    this.view = createYouTubeCaptionView(this.documentRef, player, onToggle);
+    this.view = createYouTubeCaptionView(this.documentRef, player, onToggle, onTemporaryHold);
     this.updateControl(state);
   }
 

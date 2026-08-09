@@ -24,14 +24,18 @@ function isApplicableWordState(state: WordbookPanelState): boolean {
   return state.status !== "result" || state.result.selectionKind === "word";
 }
 
+function canAddWordToWordbook(state: WordbookPanelState): boolean {
+  if (state.selection.selectionKind !== "word" || state.selection.wordbookContext === null) {
+    return false;
+  }
+  return state.status !== "result" || canAddResultToWordbook(state);
+}
+
 function shouldRenderAction(state: WordbookPanelState): boolean {
   if (!isApplicableWordState(state)) {
     return false;
   }
-  return (
-    state.wordbook.availability === "present" ||
-    (state.status === "result" && canAddResultToWordbook(state))
-  );
+  return state.wordbook.availability === "present" || canAddWordToWordbook(state);
 }
 
 function buttonLabel(state: WordbookPanelState): string {
@@ -52,6 +56,16 @@ function buttonText(state: WordbookPanelState): string {
     return "已加入";
   }
   return "生词";
+}
+
+function buttonStatus(state: WordbookPanelState): "idle" | "present" | "saving" {
+  if (state.wordbook.mutation.status === "saving") {
+    return "saving";
+  }
+  if (state.wordbook.mutation.status === "success" || state.wordbook.availability === "present") {
+    return "present";
+  }
+  return "idle";
 }
 
 function createWordbookIcon(document: Document): SVGSVGElement {
@@ -80,8 +94,7 @@ function createWordbookIcon(document: Document): SVGSVGElement {
 
 function isActionDisabled(state: WordbookPanelState): boolean {
   return (
-    state.status !== "result" ||
-    !canAddResultToWordbook(state) ||
+    !canAddWordToWordbook(state) ||
     state.wordbook.availability === "present" ||
     state.wordbook.mutation.status === "saving" ||
     state.wordbook.mutation.status === "success" ||
@@ -105,8 +118,10 @@ export function renderWordbookAction(
   const button = document.createElement("button");
   button.className = "huayi-wordbook-button";
   button.dataset.action = "add-word";
+  button.dataset.wordbookStatus = buttonStatus(state);
   button.disabled = isActionDisabled(state);
   button.setAttribute("aria-label", buttonLabel(state));
+  button.setAttribute("aria-busy", state.wordbook.mutation.status === "saving" ? "true" : "false");
   button.append(createWordbookIcon(document));
   const label = document.createElement("span");
   label.textContent = buttonText(state);

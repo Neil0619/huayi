@@ -192,12 +192,18 @@ describe("reduceOverlayState", () => {
     });
   });
 
-  it("starts an add while checking and ignores late status while saving or successful", () => {
-    let state = reduceOverlayState(startWordAnalysis(), { result: lexicalResult, type: "RESOLVE" });
+  it("starts an add before analysis completes and preserves it through the final result", () => {
+    let state = startWordAnalysis();
     state = reduceOverlayState(state, { type: "START_WORDBOOK" });
     expect(state).toMatchObject({
-      status: "result",
+      status: "loading",
       wordbook: { availability: "checking", mutation: { status: "saving" } },
+    });
+
+    state = reduceOverlayState(state, { result: lexicalResult, type: "RESOLVE" });
+    expect(state).toMatchObject({
+      status: "result",
+      wordbook: { mutation: { status: "saving" } },
     });
 
     const saving = state;

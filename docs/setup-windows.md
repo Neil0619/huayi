@@ -5,6 +5,16 @@ Windows 版复用同一套 Chrome Extension 和 wire v6，但 Native Host 固定
 作为独立生词本能力提供，不参与模型分析。跨平台改动的完成判定和交接格式见
 [跨平台开发规则](cross-platform-development.md)。
 
+> 当前进度（2026-08-10）：Windows 离线质量门、另行 62 条 Playwright、Node.js 26 SEA 独立
+> `health`、实际安装、精确 HKCU 注册表与 manifest 检查，以及安装后 Host 直接 `health` 均已
+> 通过；安装文件与已验证构建产物哈希一致，既有凭据和生词同步状态仍存在。Chrome 已重载最新
+> `0.12.0` 未打包扩展，真实 YouTube 已确认新版字幕 UI 注入、播放中选词连续两轮首击关闭并
+> 持续播放、原暂停状态保持暂停，以及下一次普通播放器点击只切换一次。`Shift+Z` 由浏览器
+> E2E 覆盖，字幕角标按住由控制器集成单测覆盖；实机页面已确认两个入口可见。真实 DeepSeek／
+> 欧路请求未执行，仍需
+> 单独授权。macOS 验证将在后续 macOS 环境继续，不阻塞本次 Windows 收尾，也不表示双平台发布
+> 已完成。
+
 ## 前置条件
 
 - Windows 10/11、Google Chrome、Git。

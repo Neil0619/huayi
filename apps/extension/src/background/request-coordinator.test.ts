@@ -74,16 +74,30 @@ describe("RequestCoordinator lanes", () => {
     coordinator.dispose();
   });
 
-  it("cancels every prior lane before starting a new analysis", () => {
-    const { coordinator, transport } = createHarness();
+  it("replaces analysis and check while an accepted add finishes in the background", () => {
+    const { coordinator, delivered, transport } = createHarness();
     coordinator.start(7, analyzeRequest("analysis-1"));
     coordinator.start(7, addWordRequest("add-1"));
     coordinator.start(7, checkWordRequest("check-1"));
 
     coordinator.start(7, analyzeRequest("analysis-2"));
 
-    expect(cancelTargets(transport).sort()).toEqual(["add-1", "analysis-1", "check-1"]);
+    expect(cancelTargets(transport).sort()).toEqual(["analysis-1", "check-1"]);
     expect(transport.sent.at(-1)).toEqual(analyzeRequest("analysis-2"));
+    expect(coordinator.pendingCount).toBe(2);
+
+    transport.emitEvent({
+      outcome: "added",
+      requestId: "add-1",
+      schemaVersion: 6,
+      type: "word-added",
+    });
+
+    expect(delivered.at(-1)?.event).toMatchObject({
+      outcome: "added",
+      requestId: "add-1",
+      type: "word-added",
+    });
     expect(coordinator.pendingCount).toBe(1);
     coordinator.dispose();
   });

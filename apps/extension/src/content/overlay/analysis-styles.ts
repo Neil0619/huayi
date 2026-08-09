@@ -6,9 +6,7 @@ export const analysisOverlayStyles = `
   }
 
   .huayi-selection-header {
-    margin-bottom: 14px;
-    padding: 3px 0 0 10px;
-    border-left: 2px solid #cfd4dc;
+    padding: 15px 0 8px;
   }
 
   .huayi-source {
@@ -23,14 +21,14 @@ export const analysisOverlayStyles = `
     align-items: baseline;
     gap: 9px;
     flex-wrap: wrap;
-    padding: 2px 0 15px;
+    padding: 16px 0 9px;
   }
 
   .huayi-lexeme-header .huayi-source {
     color: var(--huayi-text);
-    font-size: 21px;
-    font-weight: 650;
-    line-height: 1.25;
+    font: 34px/1.05 var(--huayi-serif);
+    font-weight: 500;
+    letter-spacing: -0.035em;
   }
 
   .huayi-pronunciation {
@@ -38,6 +36,37 @@ export const analysisOverlayStyles = `
     color: var(--huayi-muted);
     font-size: 12px;
     white-space: pre-wrap;
+  }
+
+  .huayi-source-context {
+    margin: 8px 0 20px;
+    padding: 11px 13px 12px;
+    border-left: 2px solid var(--huayi-accent);
+    background: var(--huayi-subtle);
+  }
+
+  .huayi-context-label {
+    display: block;
+    margin-bottom: 4px;
+    color: #9a9287;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+  }
+
+  .huayi-source-context-copy {
+    margin: 0;
+    color: #555048;
+    font: italic 14px/1.55 var(--huayi-serif);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+
+  .huayi-context-highlight {
+    padding: 0 2px;
+    border-radius: 2px;
+    background: #f1d6c7;
+    color: #9f3e22;
+    font-weight: 500;
   }
 
   .huayi-section {
@@ -55,9 +84,12 @@ export const analysisOverlayStyles = `
 
   .huayi-section-title {
     margin: 0 0 8px;
-    font-size: 14px;
+    color: #8d8579;
+    font-size: 10px;
     font-weight: 650;
+    letter-spacing: 0.13em;
     line-height: 1.4;
+    text-transform: uppercase;
   }
 
   .huayi-copy {
@@ -73,20 +105,20 @@ export const analysisOverlayStyles = `
     gap: 5px 8px;
     margin-top: 0;
     padding: 12px 14px;
-    border-left: 3px solid var(--huayi-accent);
-    border-radius: 0 10px 10px 0;
-    background: var(--huayi-accent-soft);
+    border-left: 2px solid var(--huayi-accent);
+    border-radius: 0;
+    background: #f7eee7;
   }
 
   .huayi-context-section .huayi-section-title {
     margin: 0;
-    font-size: 12px;
+    font-size: 10px;
     font-weight: 650;
   }
 
   .huayi-context-section .huayi-copy {
     grid-column: 1 / -1;
-    font-size: 15px;
+    font: 17px/1.5 var(--huayi-serif);
     line-height: 1.55;
   }
 
@@ -96,9 +128,9 @@ export const analysisOverlayStyles = `
     min-height: 19px;
     align-items: center;
     padding: 1px 6px;
-    border-radius: 999px;
-    background: var(--huayi-accent-soft);
-    color: var(--huayi-accent);
+    border-radius: 4px;
+    background: #f0e3d5;
+    color: #76523d;
     font-size: 11px;
     font-weight: 650;
     line-height: 1.35;
@@ -106,7 +138,7 @@ export const analysisOverlayStyles = `
   }
 
   .huayi-context-section .huayi-pos-badge {
-    background: rgba(255, 255, 255, 0.75);
+    background: rgba(250, 248, 242, 0.78);
   }
 
   .huayi-list {
@@ -203,7 +235,7 @@ export const analysisOverlayStyles = `
 
   @media (max-width: 460px) {
     .huayi-lexeme-header .huayi-source {
-      font-size: 19px;
+      font-size: 30px;
     }
 
     .huayi-entry-list--pairs .huayi-entry,

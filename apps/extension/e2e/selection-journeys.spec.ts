@@ -167,7 +167,9 @@ test("rate limiting disables wordbook retry on the current result", async ({ pag
   await expect(button).toBeDisabled();
 });
 
-test("closing a pending wordbook write sends a targeted cancel", async ({ page }) => {
+test("closing a pending wordbook write dismisses the view without cancelling the write", async ({
+  page,
+}) => {
   const resultPanel = await openWordResult(page, "pending-word-selection");
   await resultPanel.locator('[data-action="add-word"]').click();
 
@@ -179,22 +181,41 @@ test("closing a pending wordbook write sends a targeted cancel", async ({ page }
   await resultPanel.locator('[data-action="close"]').click();
 
   await expect(overlayHost(page)).toHaveCount(0);
-  await expect(nativeRequests(page, "cancel")).toHaveAttribute(
-    "data-target-request-id",
-    requestId ?? "",
-  );
+  await expect
+    .poll(() =>
+      nativeRequests(page, "cancel").evaluateAll(
+        (entries, addRequestId) =>
+          entries.filter((entry) => (entry as HTMLElement).dataset.targetRequestId === addRequestId)
+            .length,
+        requestId,
+      ),
+    )
+    .toBe(0);
 });
 
-test("an outside page click does not cancel a pending wordbook write", async ({ page }) => {
+test("an outside page click dismisses the view without cancelling a pending write", async ({
+  page,
+}) => {
   const resultPanel = await openWordResult(page, "pending-word-selection");
   await resultPanel.locator('[data-action="add-word"]').click();
+  const addRequest = nativeRequests(page, "add-word");
+  const requestId = await addRequest.getAttribute("data-request-id");
+  expect(requestId).not.toBeNull();
 
   await expect(resultPanel.locator('[data-action="add-word"]')).toHaveText("添加中");
   await page.locator("body").click({ position: { x: 5, y: 5 } });
 
-  await expect(resultPanel).toBeVisible();
-  await expect(resultPanel.locator('[data-action="add-word"]')).toHaveText("添加中");
-  await expect(nativeRequests(page, "cancel")).toHaveCount(0);
+  await expect(overlayHost(page)).toHaveCount(0);
+  await expect
+    .poll(() =>
+      nativeRequests(page, "cancel").evaluateAll(
+        (entries, addRequestId) =>
+          entries.filter((entry) => (entry as HTMLElement).dataset.targetRequestId === addRequestId)
+            .length,
+        requestId,
+      ),
+    )
+    .toBe(0);
 });
 
 test("drag selection classifies a sentence and renders sentence explanation", async ({ page }) => {

@@ -14,6 +14,7 @@ import type {
   SectionEntry,
   SectionSpec,
 } from "./analysis-section-types.js";
+import { patchSourceContext } from "./patch-source-context.js";
 
 export type AnalysisPanelState =
   LoadingOverlayState | StreamingOverlayState | ResultOverlayState | ErrorOverlayState;
@@ -262,7 +263,9 @@ function patchSections(content: HTMLElement, specs: SectionSpec[], final: boolea
     }
     return section;
   });
-  let previous = content.querySelector<HTMLElement>(':scope > [data-huayi-section="source"]');
+  let previous =
+    content.querySelector<HTMLElement>(':scope > [data-huayi-section="source-context"]') ??
+    content.querySelector<HTMLElement>(':scope > [data-huayi-section="source"]');
   sectionElements.forEach((section) => {
     const expected = previous === null ? content.firstElementChild : previous.nextElementSibling;
     if (expected !== section) {
@@ -271,7 +274,7 @@ function patchSections(content: HTMLElement, specs: SectionSpec[], final: boolea
     previous = section;
   });
   if (final) {
-    const retained = new Set(["source", ...populated.map((spec) => spec.key)]);
+    const retained = new Set(["source", "source-context", ...populated.map((spec) => spec.key)]);
     content.querySelectorAll<HTMLElement>(":scope > [data-huayi-section]").forEach((section) => {
       if (!retained.has(section.dataset.huayiSection ?? "")) {
         section.remove();
@@ -285,15 +288,22 @@ function renderWaiting(container: HTMLElement, message: string): void {
   if (loading === null) {
     loading = container.ownerDocument.createElement("div");
     loading.className = "huayi-loading";
-    const spinner = container.ownerDocument.createElement("span");
-    spinner.className = "huayi-spinner";
-    spinner.setAttribute("aria-hidden", "true");
     const copy = container.ownerDocument.createElement("p");
-    copy.className = "huayi-copy";
-    loading.append(spinner, copy);
+    copy.className = "huayi-loading-status";
+    copy.setAttribute("role", "status");
+    const skeleton = container.ownerDocument.createElement("div");
+    skeleton.className = "huayi-loading-skeleton";
+    skeleton.setAttribute("aria-hidden", "true");
+    for (const width of ["42%", "88%", "69%"] as const) {
+      const line = container.ownerDocument.createElement("span");
+      line.className = "huayi-loading-line";
+      line.style.width = width;
+      skeleton.append(line);
+    }
+    loading.append(copy, skeleton);
     container.append(loading);
   }
-  const copy = loading.querySelector<HTMLElement>(".huayi-copy");
+  const copy = loading.querySelector<HTMLElement>(".huayi-loading-status");
   if (copy !== null && copy.textContent !== message) {
     copy.textContent = message;
   }
@@ -301,16 +311,6 @@ function renderWaiting(container: HTMLElement, message: string): void {
 
 export function patchAnalysisBody(body: HTMLElement, state: AnalysisPanelState): void {
   const waitingMessage = state.action === "translate" ? "正在翻译…" : "正在解释…";
-  if (state.status === "loading") {
-    body.querySelector(":scope > .huayi-analysis-content")?.remove();
-    renderWaiting(body, waitingMessage);
-    return;
-  }
-  body.querySelector(":scope > .huayi-loading")?.remove();
-  if (state.status === "error" && state.preview.lastSequence < 0) {
-    body.querySelector(":scope > .huayi-analysis-content")?.remove();
-    return;
-  }
   const content = ensurePreview(body);
   content.classList.toggle("huayi-preview", state.status !== "result");
   const wordResult = state.selection.selectionKind === "word";
@@ -324,7 +324,7 @@ export function patchAnalysisBody(body: HTMLElement, state: AnalysisPanelState):
       : state.status === "result"
         ? state.result.sourceText
         : state.selection.selection;
-  const specs =
+  const specs: SectionSpec[] =
     state.status === "result"
       ? resultSections(state.result)
       : state.status === "streaming" || state.status === "error"
@@ -334,14 +334,24 @@ export function patchAnalysisBody(body: HTMLElement, state: AnalysisPanelState):
     (spec): spec is PronunciationSectionSpec => spec.kind === "pronunciation",
   );
   patchSource(content, sourceText, wordResult, pronunciation, state.status === "result");
-  if (state.status === "streaming" && state.preview.lastSequence < 0) {
+  patchSourceContext(content, state.selection);
+  if (
+    state.status === "loading" ||
+    (state.status === "streaming" && state.preview.lastSequence < 0)
+  ) {
+    patchSections(content, [], true);
     renderWaiting(content, waitingMessage);
     return;
   }
   content.querySelector(":scope > .huayi-loading")?.remove();
-  patchSections(content, specs, state.status === "result");
+  const hasErrorPreview = state.status !== "error" || state.preview.lastSequence >= 0;
+  patchSections(
+    content,
+    hasErrorPreview ? specs : [],
+    state.status === "result" || !hasErrorPreview,
+  );
   let incomplete = content.querySelector<HTMLElement>(":scope > .huayi-preview-incomplete");
-  if (state.status === "error") {
+  if (state.status === "error" && state.preview.lastSequence >= 0) {
     if (incomplete === null) {
       incomplete = content.ownerDocument.createElement("p");
       incomplete.className = "huayi-preview-incomplete";

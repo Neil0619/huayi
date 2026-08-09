@@ -25,17 +25,18 @@ import { YouTubeSourceTrackReconciler } from "./youtube-source-track-reconciler.
 import { canReplaceSubtitleSelection, dismissSubtitleSession } from "./youtube-subtitle-session.js";
 import {
   hasVisibleSourceMismatch,
-  isPlayerBlankPointerTarget,
   isUsableYouTubePlayer,
   isValidBridgePlayerState,
   readRawCaptionLanguage,
   readYouTubeCaptionToggleState,
 } from "./youtube-player-state.js";
-import { YouTubeBilingualKeyController } from "./youtube-bilingual-key-controller.js";
+import { YouTubeTemporaryTranslationController } from "./youtube-temporary-translation-controller.js";
+import { YouTubeDismissalGesture } from "./youtube-dismissal-gesture.js";
 
 export class YouTubeCaptionController {
   private readonly bridge: YouTubeCaptionBridge;
-  private readonly bilingualKeys: YouTubeBilingualKeyController;
+  private readonly dismissalGesture: YouTubeDismissalGesture;
+  private readonly temporaryTranslation: YouTubeTemporaryTranslationController;
   private readonly documentRef: Document;
   private readonly getVideoId: () => string | null;
   private readonly isWatchPage: () => boolean;
@@ -76,15 +77,24 @@ export class YouTubeCaptionController {
       options.bridge ??
       new YouTubeCaptionBridgeClient({
         document: this.documentRef,
-        validatePlayerState: (track, target) => this.validateBridgeResult(track, target),
+        validatePlayerState: (track, target) =>
+          isValidBridgePlayerState(this.player, this.video, track, target),
       });
     this.trackReconciler = new YouTubeSourceTrackReconciler(this.bridge);
-    this.bilingualKeys = new YouTubeBilingualKeyController(this.documentRef, {
+    this.dismissalGesture = new YouTubeDismissalGesture({
+      canDismiss: () =>
+        (this.state.activeSelection !== null || this.options.isOverlayVisible?.() === true) &&
+        this.options.canDismissSelection?.() !== false,
+      dismiss: () => this.dismissSelection(true, true),
+      getPlayer: () => this.player,
+    });
+    this.temporaryTranslation = new YouTubeTemporaryTranslationController({
       canHold: () =>
         this.state.translatedTrackReady &&
         this.state.activeSelection === null &&
         this.options.isOverlayVisible?.() !== true,
-      setHolding: (value) => this.setHoldingShortcut(value),
+      document: this.documentRef,
+      setHolding: (held) => this.setHoldingShortcut(held),
     });
     this.selectionController = new YouTubeCaptionSelectionController(
       this.documentRef,
@@ -111,17 +121,21 @@ export class YouTubeCaptionController {
       subtree: true,
     });
     this.runtime = new YouTubeCaptionRuntime(this.documentRef, {
-      blur: this.bilingualKeys.handleBlur,
-      fullscreenchange: this.handlePresentationChange,
-      keydown: this.bilingualKeys.handleKeydown,
-      keyup: this.bilingualKeys.handleKeyup,
+      blur: this.temporaryTranslation.handleBlur,
+      click: this.dismissalGesture.handleClick,
+      fullscreenchange: () => {
+        this.options.onPresentationChange();
+        this.renderAtCurrentTime();
+      },
+      keydown: this.temporaryTranslation.handleKeydown,
+      keyup: this.temporaryTranslation.handleKeyup,
       mouseup: this.selectionController.handleMouseup,
       navigation: this.handleNavigation,
       playback: this.handleViewerPlayback,
-      pointerdown: this.handlePlayerPointerDown,
+      pointerdown: this.dismissalGesture.handlePointerDown,
       selectionchange: this.selectionController.handleSelectionChange,
-      timeupdate: this.handleTimeUpdate,
-      visibilitychange: this.bilingualKeys.handleVisibilityChange,
+      timeupdate: () => this.renderAtCurrentTime(),
+      visibilitychange: this.temporaryTranslation.handleVisibilityChange,
     });
     this.refresh();
   }
@@ -129,6 +143,7 @@ export class YouTubeCaptionController {
   destroy(): void {
     if (this.destroyed) return;
     this.destroyed = true;
+    this.temporaryTranslation.clear();
     this.dismissSelection(false, false);
     this.trackMismatchMonitor.clear();
     this.runtime.destroy();
@@ -156,32 +171,11 @@ export class YouTubeCaptionController {
     this.scheduleRefresh();
   };
 
-  private readonly handlePresentationChange = (): void => {
-    this.options.onPresentationChange();
-    this.renderAtCurrentTime();
-  };
-
-  private readonly handlePlayerPointerDown = (event: PointerEvent): void => {
-    if (
-      (this.state.activeSelection === null && this.options.isOverlayVisible?.() !== true) ||
-      this.options.canDismissSelection?.() === false ||
-      this.player === null ||
-      !isPlayerBlankPointerTarget(event, this.player)
-    ) {
-      return;
-    }
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    this.dismissSelection(true, true);
-  };
-
   private readonly handleViewerPlayback = (): void => {
     if (this.state.activeSelection === null && this.state.pauseOwnership === null) return;
     this.state = reduceYouTubeCaptionState(this.state, { type: "REVOKE_PAUSE" });
     this.dismissSelection(true, false);
   };
-
-  private readonly handleTimeUpdate = (): void => this.renderAtCurrentTime();
 
   private scheduleRefresh(): void {
     if (this.destroyed || this.refreshScheduled) return;
@@ -308,24 +302,21 @@ export class YouTubeCaptionController {
     });
   }
 
-  private validateBridgeResult(
-    track: { kind?: string; languageCode: string },
-    target: "source" | "translated",
-  ): boolean | "retry" {
-    return isValidBridgePlayerState(this.player, this.video, track, target);
-  }
-
-  private isCurrent(generation: number, videoId: string): boolean {
-    return !this.destroyed && this.state.generation === generation && this.videoId === videoId;
-  }
+  private readonly isCurrent = (generation: number, videoId: string): boolean =>
+    !this.destroyed && this.state.generation === generation && this.videoId === videoId;
 
   private ensureView(): void {
     if (this.player === null) return;
-    this.presentation.ensure(this.player, this.state, () => {
-      this.state = reduceYouTubeCaptionState(this.state, { type: "TOGGLE_PIN" });
-      this.presentation.updateControl(this.state);
-      this.renderAtCurrentTime();
-    });
+    this.presentation.ensure(
+      this.player,
+      this.state,
+      () => {
+        this.state = reduceYouTubeCaptionState(this.state, { type: "TOGGLE_PIN" });
+        this.presentation.updateControl(this.state);
+        this.renderAtCurrentTime();
+      },
+      (holding) => this.temporaryTranslation.setButtonHolding(holding),
+    );
   }
 
   private renderAtCurrentTime(): void {
@@ -362,6 +353,8 @@ export class YouTubeCaptionController {
   }
 
   private startNewGeneration(): void {
+    this.dismissalGesture.clear();
+    this.temporaryTranslation.clear();
     this.trackMismatchMonitor.clear();
     this.dismissSelection(true, false);
     this.runtime.detachVideo();
@@ -386,12 +379,8 @@ export class YouTubeCaptionController {
   }
 
   private isTrackMismatch(): boolean {
-    return (
-      !this.destroyed &&
-      !this.sourceLoading &&
-      !this.trackReconciler.isPending &&
-      this.hasCurrentTrackMismatch()
-    );
+    const eligible = !this.destroyed && !this.sourceLoading && !this.trackReconciler.isPending;
+    return eligible && this.hasCurrentTrackMismatch();
   }
 
   private hasCurrentTrackMismatch(): boolean {

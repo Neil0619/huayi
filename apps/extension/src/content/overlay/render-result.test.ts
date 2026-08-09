@@ -63,6 +63,7 @@ describe("renderOverlayPanel", () => {
     expect(panel.textContent).toContain(expectedText);
     expect(panel.querySelector(".huayi-preview")).toBeNull();
     expect(panel.querySelector('[data-huayi-section="source"]')).not.toBeNull();
+    expect(panel.querySelector('[data-huayi-section="source-context"]')).not.toBeNull();
   });
 
   it.each([
@@ -204,14 +205,21 @@ describe("renderOverlayPanel", () => {
   });
 
   it.each<
-    readonly [string, LoadingOverlayState | StreamingOverlayState, boolean, string | undefined]
+    readonly [
+      string,
+      LoadingOverlayState | StreamingOverlayState,
+      boolean,
+      string | undefined,
+      boolean,
+    ]
   >([
-    ["loading/checking", { ...session, status: "loading" }, false, undefined],
+    ["loading/checking", { ...session, status: "loading" }, true, "生词", false],
     [
       "loading/present",
       withAvailability({ ...session, status: "loading" }, "present"),
       true,
       "已加入",
+      true,
     ],
     [
       "streaming/present",
@@ -225,14 +233,15 @@ describe("renderOverlayPanel", () => {
       ),
       true,
       "已加入",
+      true,
     ],
-  ])("renders header action policy for %s", (_label, state, visible, label) => {
+  ])("renders header action policy for %s", (_label, state, visible, label, disabled) => {
     const button = wordbookButton(renderOverlayPanel(state, handlers));
 
     expect(button !== null).toBe(visible);
     expect(button?.textContent).toBe(label);
     if (button !== null) {
-      expect(button.disabled).toBe(true);
+      expect(button.disabled).toBe(disabled);
     }
   });
 
@@ -266,7 +275,7 @@ describe("renderOverlayPanel", () => {
   });
 
   it.each(["absent", "unknown"] as const)(
-    "waits for a complete result before offering add when availability is %s",
+    "offers add before the result completes when availability is %s",
     (availability) => {
       const loading = withAvailability({ ...session, status: "loading" }, availability);
       const streaming = withAvailability(
@@ -278,8 +287,8 @@ describe("renderOverlayPanel", () => {
         availability,
       );
 
-      expect(wordbookButton(renderOverlayPanel(loading, handlers))).toBeNull();
-      expect(wordbookButton(renderOverlayPanel(streaming, handlers))).toBeNull();
+      expect(wordbookButton(renderOverlayPanel(loading, handlers))?.disabled).toBe(false);
+      expect(wordbookButton(renderOverlayPanel(streaming, handlers))?.disabled).toBe(false);
       expect(
         wordbookButton(
           renderOverlayPanel(

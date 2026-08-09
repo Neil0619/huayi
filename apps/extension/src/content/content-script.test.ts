@@ -326,7 +326,7 @@ describe("initializeContentScript", () => {
     });
   });
 
-  it("cancels a pending wordbook request on a new selection and ignores its late success", () => {
+  it("keeps a pending wordbook request on a new selection and ignores its late success", () => {
     const runtime = new FakeRuntime();
     const instance = createInstance(runtime);
     const first = document.createElement("p");
@@ -348,9 +348,7 @@ describe("initializeContentScript", () => {
     selectContents(second);
     document.dispatchEvent(new MouseEvent("mouseup"));
 
-    expect(runtime.sent.filter((command) => command.type === "CANCEL_REQUEST")).toEqual([
-      { requestId: "request-2", type: "CANCEL_REQUEST" },
-    ]);
+    expect(runtime.sent.filter((command) => command.type === "CANCEL_REQUEST")).toEqual([]);
     expect(instance.controller.state).toMatchObject({
       selection: { selection: "replacement" },
       status: "actions",
@@ -367,7 +365,7 @@ describe("initializeContentScript", () => {
     });
   });
 
-  it("cancels a pending wordbook request when Escape closes the result", () => {
+  it("keeps a pending wordbook request when Escape closes the result", () => {
     const runtime = new FakeRuntime();
     const instance = createInstance(runtime);
     const paragraph = document.createElement("p");
@@ -387,7 +385,14 @@ describe("initializeContentScript", () => {
     document.dispatchEvent(new KeyboardEvent("keyup", { key: "Escape" }));
 
     expect(instance.controller.state.status).toBe("closed");
-    expect(runtime.sent.at(-1)).toEqual({ requestId: "request-2", type: "CANCEL_REQUEST" });
+    expect(runtime.sent.filter((command) => command.type === "CANCEL_REQUEST")).toEqual([]);
+    runtime.emit({
+      outcome: "added",
+      requestId: "request-2",
+      schemaVersion: 6,
+      type: "word-added",
+    });
+    expect(instance.controller.state.status).toBe("closed");
   });
 
   it("does not reopen the selected text when Escape keyup follows closing", () => {

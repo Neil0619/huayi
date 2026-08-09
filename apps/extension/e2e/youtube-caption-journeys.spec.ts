@@ -324,7 +324,7 @@ test("uses the built MAIN bridge to replace native captions with selectable Engl
   await expect(player(page).locator("[data-huayi-youtube-picker-host]")).toHaveCount(0);
 });
 
-test("pins bilingual subtitles and treats F8 as a temporary reveal with blur cleanup", async ({
+test("pins bilingual subtitles and treats Shift+Z as a temporary reveal with blur cleanup", async ({
   page,
 }) => {
   await expectEnglishReady(page);
@@ -338,17 +338,25 @@ test("pins bilingual subtitles and treats F8 as a temporary reveal with blur cle
 
   await control.click();
   await expect(translated).toBeHidden();
-  await page.keyboard.down("F8");
+  await page.keyboard.press("z");
+  await expect(page.locator("[data-youtube-type-to-search]")).toHaveCount(1);
+  await page.locator("[data-youtube-type-to-search]").evaluate((element) => element.remove());
+  await page.locator("body").focus();
+  await page.keyboard.down("Shift");
+  await page.keyboard.down("Z");
   await expect(page.locator("[data-youtube-type-to-search]")).toHaveCount(0);
   await expect(translated).toBeVisible();
-  await page.keyboard.up("F8");
+  await page.keyboard.up("Z");
+  await page.keyboard.up("Shift");
   await expect(translated).toBeHidden();
 
-  await page.keyboard.down("F8");
+  await page.keyboard.down("Shift");
+  await page.keyboard.down("Z");
   await expect(translated).toBeVisible();
   await page.evaluate(() => window.dispatchEvent(new Event("blur")));
   await expect(translated).toBeHidden();
-  await page.keyboard.up("F8");
+  await page.keyboard.up("Z");
+  await page.keyboard.up("Shift");
 });
 
 test("routes native double-click and drag selections with the frozen internal sentence", async ({
@@ -409,6 +417,23 @@ test("routes native double-click and drag selections with the frozen internal se
   const sentenceRequest = await expectAnalyzeRequest(page, "sentence", "translate");
   await expect(sentenceRequest).toHaveAttribute("data-selection-text", sentenceText);
   await expect(sentenceRequest).toHaveAttribute("data-sentence-context", "");
+});
+
+test("consumes the player click that dismisses a selected subtitle card", async ({ page }) => {
+  await expectEnglishReady(page);
+  const english = englishCaption(page);
+  const word = await substringBounds(english, "investigation");
+  await page.mouse.dblclick(word.x + word.width / 2, word.y + word.height / 2);
+
+  await expect(toolbar(page)).toBeVisible();
+  const video = page.getByTestId("youtube-video");
+  await expect(video).toHaveAttribute("data-pause-count", "1");
+
+  await page.mouse.click(400, 120);
+
+  await expect(toolbar(page)).toBeHidden();
+  await expect(video).toHaveAttribute("data-play-count", "1");
+  await expect(video).toHaveAttribute("data-pause-count", "1");
 });
 
 test("fails closed when the source track is invalid and restores native captions", async ({

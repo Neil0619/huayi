@@ -7,6 +7,7 @@ import {
   createAnalyzeRequest,
   createCheckWordRequest,
 } from "./content-request-factory.js";
+import { ContentRequestLifetimes, type ActiveOperation } from "./content-request-lifetimes.js";
 import { OverlayController } from "./overlay/overlay-controller.js";
 import type { FrameScheduler } from "./overlay/frame-scheduler.js";
 import { rectToOverlayAnchor } from "./overlay/position-overlay.js";
@@ -64,13 +65,6 @@ const INVALID_RESPONSE_ERROR: AnalysisError = {
   retryable: false,
 };
 
-type ActiveOperation = "analysis" | "wordbook-add" | "wordbook-check";
-
-interface ActiveRequest {
-  nextSequence: number;
-  operation: ActiveOperation;
-}
-
 function wasHandled(response: unknown): boolean {
   return (
     typeof response === "object" &&
@@ -126,7 +120,7 @@ export function initializeContentScript(options: ContentScriptOptions = {}): Con
   const runtime = options.runtime ?? createChromeRuntime();
   const createRequestId = options.createRequestId ?? (() => crypto.randomUUID());
   const getAnchorRect = options.getAnchorRect ?? getRangeAnchorRect;
-  const activeRequests = new Map<string, ActiveRequest>();
+  const requestLifetimes = new ContentRequestLifetimes();
 
   const rejectOperation = (operation: ActiveOperation, error: AnalysisError): void => {
     if (operation === "wordbook-add") {
@@ -139,23 +133,23 @@ export function initializeContentScript(options: ContentScriptOptions = {}): Con
   };
 
   const rejectActiveRequest = (requestId: string, error: AnalysisError): boolean => {
-    const activeRequest = activeRequests.get(requestId);
+    const activeRequest = requestLifetimes.complete(requestId);
     if (activeRequest === undefined) {
       return false;
     }
-    activeRequests.delete(requestId);
-    rejectOperation(activeRequest.operation, error);
+    if (activeRequest.attachedToView) {
+      rejectOperation(activeRequest.operation, error);
+    }
     return true;
   };
 
   const sendCommand = (
     command: ContentCommand,
     requestId?: string,
-    onRejectActiveRequest?: () => void,
   ): Promise<boolean> | undefined => {
     const rejectCommand = (): void => {
-      if (requestId !== undefined && rejectActiveRequest(requestId, RUNTIME_ERROR)) {
-        onRejectActiveRequest?.();
+      if (requestId !== undefined) {
+        rejectActiveRequest(requestId, RUNTIME_ERROR);
       }
     };
     try {
@@ -183,79 +177,82 @@ export function initializeContentScript(options: ContentScriptOptions = {}): Con
   };
 
   const cancelRequest = (requestId: string): void => {
-    if (!activeRequests.delete(requestId)) {
+    if (requestLifetimes.complete(requestId) === undefined) {
       return;
     }
     sendCommand({ requestId, type: "CANCEL_REQUEST" });
   };
 
-  const cancelOperations = (operation?: ActiveOperation): void => {
-    for (const [requestId, activeRequest] of [...activeRequests]) {
-      if (operation === undefined || activeRequest.operation === operation) {
-        cancelRequest(requestId);
-      }
+  const sendCancellations = (requestIds: string[]): void => {
+    for (const requestId of requestIds) {
+      sendCommand({ requestId, type: "CANCEL_REQUEST" });
     }
   };
 
+  const cancelOperation = (operation: ActiveOperation): void => {
+    sendCancellations(requestLifetimes.cancelOperation(operation));
+  };
+
+  const closeViewRequests = (): void => {
+    sendCancellations(requestLifetimes.closeView());
+  };
+
   const failActiveRequest = (requestId: string): void => {
-    const activeRequest = activeRequests.get(requestId);
+    const activeRequest = requestLifetimes.get(requestId);
     if (activeRequest === undefined) {
       return;
     }
     cancelRequest(requestId);
-    rejectOperation(activeRequest.operation, INVALID_RESPONSE_ERROR);
+    if (activeRequest.attachedToView) {
+      rejectOperation(activeRequest.operation, INVALID_RESPONSE_ERROR);
+    }
   };
 
   const controller = new OverlayController({
     document: documentRef,
     onAddWord: (selection) => {
-      cancelOperations("wordbook-check");
+      cancelOperation("wordbook-check");
       const requestId = createRequestId();
-      activeRequests.set(requestId, { nextSequence: 0, operation: "wordbook-add" });
+      requestLifetimes.begin(requestId, "wordbook-add");
       sendCommand(
         { request: createAddWordRequest(selection, requestId), type: "ADD_WORD_TO_EUDIC" },
         requestId,
       );
     },
     onAnalyze: (action, selection) => {
-      cancelOperations();
+      closeViewRequests();
       const requestId = createRequestId();
-      activeRequests.set(requestId, { nextSequence: 0, operation: "analysis" });
+      requestLifetimes.begin(requestId, "analysis");
       const acknowledgement = sendCommand(
         { request: createAnalyzeRequest(selection, action, requestId), type: "ANALYZE_SELECTION" },
         requestId,
-        () => controller.rejectWordbookCheck(),
       );
       if (selection.selectionKind !== "word" || acknowledgement === undefined) {
         return;
       }
+      const checkRequestId = createRequestId();
+      requestLifetimes.begin(checkRequestId, "wordbook-check");
+      sendCommand(
+        {
+          request: createCheckWordRequest(selection, checkRequestId),
+          type: "CHECK_WORD_IN_EUDIC",
+        },
+        checkRequestId,
+      );
       void acknowledgement.then((handled) => {
-        if (!handled || activeRequests.get(requestId)?.operation !== "analysis") {
-          return;
+        if (!handled && requestLifetimes.get(checkRequestId)?.operation === "wordbook-check") {
+          cancelRequest(checkRequestId);
+          controller.rejectWordbookCheck();
         }
-        const checkRequestId = createRequestId();
-        activeRequests.set(checkRequestId, { nextSequence: 0, operation: "wordbook-check" });
-        sendCommand(
-          {
-            request: createCheckWordRequest(selection, checkRequestId),
-            type: "CHECK_WORD_IN_EUDIC",
-          },
-          checkRequestId,
-        );
       });
     },
-    onCancel: () => cancelOperations(),
+    onCancel: closeViewRequests,
   });
 
   const youtubeController =
     options.isYouTubeWatchPage !== undefined || isYouTubeHost(documentRef.location)
       ? new YouTubeCaptionController({
           ...(options.youtubeBridge === undefined ? {} : { bridge: options.youtubeBridge }),
-          canDismissSelection: () =>
-            !(
-              controller.state.status === "result" &&
-              controller.state.wordbook.mutation.status === "saving"
-            ),
           document: documentRef,
           ...(options.isYouTubeWatchPage === undefined
             ? {}
@@ -321,7 +318,7 @@ export function initializeContentScript(options: ContentScriptOptions = {}): Con
       return;
     }
     const event = parsed.data;
-    const activeRequest = activeRequests.get(event.requestId);
+    const activeRequest = requestLifetimes.get(event.requestId);
     if (activeRequest === undefined) {
       return;
     }
@@ -335,14 +332,20 @@ export function initializeContentScript(options: ContentScriptOptions = {}): Con
       activeRequest.nextSequence += 1;
       controller.appendUpdate(event);
     } else if (event.type === "result" && activeRequest.operation === "analysis") {
-      activeRequests.delete(event.requestId);
-      controller.resolve(event.result);
+      const completed = requestLifetimes.complete(event.requestId);
+      if (completed?.attachedToView === true) {
+        controller.resolve(event.result);
+      }
     } else if (event.type === "word-status" && activeRequest.operation === "wordbook-check") {
-      activeRequests.delete(event.requestId);
-      controller.resolveWordbookCheck(event.presence);
+      const completed = requestLifetimes.complete(event.requestId);
+      if (completed?.attachedToView === true) {
+        controller.resolveWordbookCheck(event.presence);
+      }
     } else if (event.type === "word-added" && activeRequest.operation === "wordbook-add") {
-      activeRequests.delete(event.requestId);
-      controller.resolveWordbook(event.outcome);
+      const completed = requestLifetimes.complete(event.requestId);
+      if (completed?.attachedToView === true) {
+        controller.resolveWordbook(event.outcome);
+      }
     } else if (event.type === "error") {
       rejectActiveRequest(event.requestId, event.error);
     } else if (event.type !== "progress") {
@@ -362,6 +365,7 @@ export function initializeContentScript(options: ContentScriptOptions = {}): Con
       runtime.onMessage.removeListener(handleRuntimeMessage);
       youtubeController?.destroy();
       shanbayController?.destroy();
+      sendCancellations(requestLifetimes.cancelAll());
       controller.destroy();
     },
   };
