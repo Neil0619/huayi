@@ -326,6 +326,7 @@ describe("native host bootstrap", () => {
       },
       schemaDirectory: "/tmp/schemas",
       workingDirectory: "/tmp/work",
+      wordSyncNow: () => new Date(2026, 7, 9, 12, 0, 0, 0),
       wordSyncStatePath,
     });
     const events: HostEvent[] = [];
