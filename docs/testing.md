@@ -213,6 +213,8 @@ fail-closed 行为。Windows CI 会实际产出并运行 SEA `.exe` 的 health �
 
 - Node 26 的 `pnpm host:windows:package` 产出可独立启动的 SEA `.exe`；
 - 安装器只写 `%LOCALAPPDATA%\Huayi\native-host` 和精确 HKCU Chrome 注册表键；
+- 安装输出中的扩展 ID、Chrome 对当前未打包扩展显示的 ID，以及 Native Host manifest 唯一的
+  `allowed_origins` 三者完全一致；
 - Chrome health 显示 v0.12.0、DeepSeek 和 `codexVersion: null`；
 - DeepSeek 与欧路两份 DPAPI 凭据可由当前用户分别读取，换用户或复制到另一台机器后不能
   解密；

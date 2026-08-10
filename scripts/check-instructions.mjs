@@ -29,6 +29,10 @@ const requiredRootFragments = [
   "## Cross-platform development",
   "docs/cross-platform-development.md",
   "implemented; target-platform validation pending",
+  "On Windows, use the exact extension ID displayed by Chrome",
+];
+const forbiddenRootFragments = [
+  "pnpm host:install -- --extension-id chanmjjealoeeheohofnljbbkkfgfnfm",
 ];
 
 const errors = [];
@@ -67,6 +71,14 @@ for (const command of requiredCommands) {
 for (const fragment of requiredRootFragments) {
   if (!root.content.includes(fragment)) {
     errors.push(`${rootInstructions} is missing cross-platform rule: ${fragment}`);
+  }
+}
+
+for (const fragment of forbiddenRootFragments) {
+  if (root.content.includes(fragment)) {
+    errors.push(
+      `${rootInstructions} contains a platform-specific extension ID in shared guidance.`,
+    );
   }
 }
 

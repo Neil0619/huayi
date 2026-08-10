@@ -40,6 +40,9 @@ CC／切轨、`zh-Hans`、SPA、剧院／全屏、选词和生词本。
   用户 ACL；离线词形依赖必须同时进入 macOS bundle 和 Windows SEA，不能在运行时下载。
 - macOS Native Messaging 清单必须通过同目录 `0600` 临时文件、文件同步、原子 `rename` 和
   目录同步更新；替换前失败必须保留上一份有效清单并清理临时文件。
+- 未固定 Manifest `key` 的未打包扩展 ID 与加载路径有关。Windows 安装和实机验收必须使用
+  Chrome 对当前 `apps/extension/dist` 显示的 ID，并确认它与 Host manifest 唯一的
+  `allowed_origins` 一致；不得套用另一平台或另一工作树的 ID。
 - 子进程必须使用固定 executable、参数数组和 `shell: false`。测试 fixture 在 POSIX 需要执行
   权限时显式 `chmod`，在 Windows 不得依赖 POSIX mode。
 - 只有不可模拟的真实 OS 原语可以按平台跳过；跳过原因必须写在测试附近，并由目标平台 CI

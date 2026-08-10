@@ -104,6 +104,7 @@ describe("Windows Native Host installation", () => {
 
     expect(result.dryRun).toBe(true);
     expect(result.actions.join(" ")).toContain("DeepSeek and Eudic");
+    expect(result.actions).toContain(`Authorize Chrome extension ${EXTENSION_ID}`);
     expect(run).not.toHaveBeenCalled();
   });
 

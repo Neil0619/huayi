@@ -7,8 +7,10 @@ Windows 版复用同一套 Chrome Extension 和 wire v6，但 Native Host 固定
 
 > 当前进度（2026-08-10）：Windows 离线质量门、另行 62 条 Playwright、Node.js 26 SEA 独立
 > `health`、实际安装、精确 HKCU 注册表与 manifest 检查，以及安装后 Host 直接 `health` 均已
-> 通过；安装文件与已验证构建产物哈希一致，既有凭据和生词同步状态仍存在。Chrome 已重载最新
-> `0.12.0` 未打包扩展，真实 YouTube 已确认新版字幕 UI 注入、播放中选词连续两轮首击关闭并
+> 通过；当前加载路径的扩展 ID `kmeopbhijmkcjeckjicfinpdminhpbak` 已与 manifest 唯一的
+> `allowed_origins` 对齐，安装文件与已验证构建产物哈希一致，既有凭据和生词同步状态仍存在。
+> Chrome 已从该精确来源成功拉起已安装 Host，并已重载最新 `0.12.0` 未打包扩展；真实 YouTube
+> 已确认新版字幕 UI 注入、播放中选词连续两轮首击关闭并
 > 持续播放、原暂停状态保持暂停，以及下一次普通播放器点击只切换一次。`Shift+Z` 由浏览器
 > E2E 覆盖，字幕角标按住由控制器集成单测覆盖；实机页面已确认两个入口可见。真实 DeepSeek／
 > 欧路请求未执行，仍需
@@ -61,6 +63,9 @@ pnpm host:install -- --extension-id <ID> --dry-run
 pnpm host:install -- --extension-id <ID>
 ```
 
+dry-run 和正式安装都会输出 `Authorize Chrome extension <ID>`。该值必须与 Chrome 当前显示的
+扩展 ID 完全一致；若重新加载自另一工作树或移动了仓库，先复制新 ID，再重新安装 Host。
+
 安装器只写入：
 
 ```text
@@ -70,6 +75,17 @@ HKCU\Software\Google\Chrome\NativeMessagingHosts\com.huayi.codex_bridge
 
 注册表默认值指向 `%LOCALAPPDATA%` 下的 Native Messaging manifest；manifest 的
 `allowed_origins` 只包含你的扩展 ID。
+
+安装后用以下只读命令打印实际授权来源，并与 `chrome://extensions` 显示的 ID 对照：
+
+```powershell
+$key = 'HKCU:\Software\Google\Chrome\NativeMessagingHosts\com.huayi.codex_bridge'
+$manifest = (Get-ItemProperty -LiteralPath $key).'(default)'
+(Get-Content -LiteralPath $manifest -Raw | ConvertFrom-Json).allowed_origins
+```
+
+两者不一致时，Chrome 会在启动 Host 前拒绝连接，界面可能显示“未找到划译本机服务”；此时用
+Chrome 当前 ID 重新运行安装命令，不要放宽 `allowed_origins`。
 
 ## 4. 配置 DeepSeek 与欧路凭据
 

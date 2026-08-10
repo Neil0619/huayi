@@ -35,7 +35,9 @@
   帧验证。
 - Windows 已把本次 SEA 安装到 `%LOCALAPPDATA%\Huayi\native-host`，安装文件与已验证构建产物
   的 SHA-256 一致；精确 HKCU Native Messaging 注册表项和 manifest 均指向该安装，既有
-  DeepSeek、欧路凭据及生词同步状态仍存在；安装后的 Host 也已通过直接 `health` 帧验证。
+  DeepSeek、欧路凭据及生词同步状态仍存在。当前 Windows 加载路径的扩展 ID
+  `kmeopbhijmkcjeckjicfinpdminhpbak` 已与 manifest 唯一的 `allowed_origins` 对齐；安装后的 Host
+  已通过直接 `health` 帧验证，并已被 Chrome 以该精确扩展来源成功拉起。
   Chrome 已重载最新 `0.12.0` 未打包扩展，真实 YouTube 已确认新版字幕 UI 注入；播放中选词后
   首击空白关闭并持续播放连续两轮通过，原暂停状态保持暂停，下一次普通播放器点击只切换一次。
   `Shift+Z` 由浏览器 E2E 覆盖，字幕角标按住由控制器集成单测覆盖；实机页面已确认两个入口

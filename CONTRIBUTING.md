@@ -63,8 +63,9 @@ pnpm host:eudic:remove -- --dry-run
 
 提交信息使用 Conventional Commits，例如 `feat(extension): add selection overlay`。
 
-v0.12.0 的同步升级和回滚使用扩展 ID `chanmjjealoeeheohofnljbbkkfgfnfm`。macOS 保留欧路、官方
-OpenAI、Compatible 与 DeepSeek 四个精确钥匙串项、两份 Provider 配置和既有 Huayi 安装路径；
-具体命令只以
+v0.12.0 的 macOS 个人安装在文档指定路径使用扩展 ID
+`chanmjjealoeeheohofnljbbkkfgfnfm`；Windows 必须使用 Chrome 对当前 `apps/extension/dist`
+实际显示的 ID，不能套用 macOS ID。macOS 保留欧路、官方 OpenAI、Compatible 与 DeepSeek
+四个精确钥匙串项、两份 Provider 配置和既有 Huayi 安装路径；具体命令只以
 [macOS 安装说明](docs/setup-macos.md) 为准；Windows 从源码安装以
 [Windows 安装说明](docs/setup-windows.md) 为准。

@@ -354,8 +354,9 @@ Provider 为 Codex 时才探测 App Server 能力、禁用功能和 ChatGPT 登�
 macOS Chrome Native Messaging 清单使用目标目录内排他的 `0600` 临时文件，完成文件同步后
 再原子 `rename` 并同步目录；写入或替换前失败时清理临时文件并保持上一份有效清单不变。
 
-v0.12.0 使用 `schemaVersion: 6` 并拒绝 v5，Extension 与 Host 必须使用扩展 ID
-`chanmjjealoeeheohofnljbbkkfgfnfm` 同步重装或回滚。升级只替换带合法 Huayi 所有权标记的
+v0.12.0 使用 `schemaVersion: 6` 并拒绝 v5，Extension 与 Host 必须使用同一个实际扩展 ID
+同步重装或回滚。`chanmjjealoeeheohofnljbbkkfgfnfm` 只对应 macOS 安装文档中的固定加载路径；
+Windows 必须复制 Chrome 对当前未打包扩展显示的 ID。升级只替换带合法 Huayi 所有权标记的
 bundle、Schema、空工作目录和 launcher，保持
 `~/Library/Application Support/Huayi/native-host/`、Chrome Native Messaging 清单路径，以及
 欧路 `com.huayi.codex_bridge.eudic` / `authorization`、官方 OpenAI
@@ -369,8 +370,9 @@ bundle、Schema、空工作目录和 launcher，保持
 Messaging 清单或这些精确项之外的钥匙串项，也不会触碰任何 Codex 文件。
 
 Windows 安装不探测 Codex 或 macOS Keychain，只校验 SEA `.exe`、两份 PowerShell helper、
-模型 Schema 和扩展 ID。安装器写入 `%LOCALAPPDATA%\Huayi\native-host` 与精确 HKCU Chrome
-键；重复安装保留两份 DPAPI 凭据，卸载只删除带合法 ownership marker 的目录和该注册表键。
+模型 Schema 和扩展 ID。安装器把将要写入 `allowed_origins` 的精确 ID 显示在 dry-run 与正式
+安装动作中，并写入 `%LOCALAPPDATA%\Huayi\native-host` 与精确 HKCU Chrome 键；重复安装保留
+两份 DPAPI 凭据，卸载只删除带合法 ownership marker 的目录和该注册表键。
 目录已缺失时仍只查询并删除该精确键；查询失败时失败关闭，不删除仍存在的自有目录。
 
 ## 欧路到扇贝同步状态

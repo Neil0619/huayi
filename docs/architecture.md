@@ -262,8 +262,10 @@ Host 取得活动批次、打开批量上传并预填，最终提交仍由用户
 
 macOS 安装器把自包含 Host、六份 Schema、空工作目录和 launcher 放入 Huayi 专用用户目录。
 Chrome 清单只允许安装时提供的扩展 ID。重复安装只升级带合法 Huayi 所有权标记的文件；
-未知内容不会被认领或覆盖。v0.12.0 使用 wire v6 并拒绝 v5，因此 Extension 和 Host 必须使用
-扩展 ID `chanmjjealoeeheohofnljbbkkfgfnfm` 同步升级或回滚。重复安装保持
+未知内容不会被认领或覆盖。v0.12.0 使用 wire v6 并拒绝 v5，因此 Extension 和 Host 必须针对
+同一个实际扩展 ID 同步升级或回滚。macOS 文档路径当前对应
+`chanmjjealoeeheohofnljbbkkfgfnfm`；Windows 未打包扩展必须以 Chrome 对当前加载路径显示的 ID
+为准。重复安装保持
 `~/Library/Application Support/Huayi/native-host/`、Chrome Native Messaging 清单路径及
 钥匙串 `com.huayi.codex_bridge.eudic` / `authorization`、
 `com.huayi.codex_bridge.openai` / `api-key`、

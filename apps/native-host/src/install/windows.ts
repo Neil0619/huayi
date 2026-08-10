@@ -105,6 +105,7 @@ export async function installWindowsNativeHost(
   await assertOwnedDirectory(paths);
   const actions = [
     `Install Windows DeepSeek and Eudic Host at ${paths.executablePath}`,
+    `Authorize Chrome extension ${options.extensionId}`,
     `Register ${WINDOWS_NATIVE_HOST_REGISTRY_KEY}`,
   ];
   if (options.dryRun) return { actions, dryRun: true, paths };
