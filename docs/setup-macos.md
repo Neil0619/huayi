@@ -529,6 +529,26 @@ Chrome 每天本地时间 08:00 检查欧路；若该时刻 Chrome 或设备不�
 首次迁移和每日检查都从欧路默认生词本读取英语词，避免遗漏未进入用户语料列表的新收藏；
 每日完整扫描由 Host 分三页一段持久续扫，并依靠本地状态去重。
 
+## 从 v0.12.0 升级到 v0.13.0
+
+v0.13.0 同步升级 Extension、Native Host 和 wire v7，并新增标准配置页、快捷弹窗、网站黑白
+名单、Provider 非敏感状态/切换、生词本同步时间及 YouTube 偏好。配置保存在
+`chrome.storage.local`；既有 Provider、Compatible 配置、Keychain 凭据和 Host 生词同步状态
+继续由重复安装保留。wire v7 明确拒绝 v6，不能只升级一端。
+
+```bash
+pnpm verify:macos
+pnpm build
+pnpm host:install -- --extension-id chanmjjealoeeheohofnljbbkkfgfnfm \
+  --codex-path /Applications/ChatGPT.app/Contents/Resources/codex
+```
+
+在 `chrome://extensions` 刷新 `apps/extension/dist` 并确认版本为 `0.13.0`。打开扩展快捷弹窗和
+“完整设置”，确认 Provider 状态不展示 Key 或 endpoint；验证总开关、当前站点允许/阻止、
+最具体 hostname 规则、默认动作、生词本开关/同步小时及 YouTube 默认双语/快捷键即时生效。
+真实模型分析、欧路请求和扇贝同步仍需针对外部数据与费用另行授权，不能作为安装步骤默认
+执行。
+
 ## 从 v0.11.0 升级到 v0.12.0
 
 v0.12.0 将协议同步升级为 wire v6，并把扇贝批次改为部分确认：成功目标立即完成，拒绝的原词

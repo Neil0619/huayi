@@ -17,7 +17,7 @@ describe("word sync events", () => {
       pollDue: false,
       requestId: "sync-status-1",
       scanInProgress: false,
-      schemaVersion: 6,
+      schemaVersion: 7,
       skippedCount: 1,
       type: "word-sync-status",
       unresolvedCount: 1,
@@ -33,7 +33,7 @@ describe("word sync events", () => {
       ],
       pendingAfterBatch: 0,
       requestId: "sync-batch-1",
-      schemaVersion: 6,
+      schemaVersion: 7,
       type: "word-sync-batch",
     } as const;
     const resolved = {
@@ -42,7 +42,7 @@ describe("word sync events", () => {
       requestId: "sync-resolve-1",
       resolvedCount: 1,
       retryCount: 0,
-      schemaVersion: 6,
+      schemaVersion: 7,
       type: "word-sync-batch-resolved",
       unresolved: [],
       unresolvedCount: 0,
@@ -58,7 +58,7 @@ describe("word sync events", () => {
       ],
       offset: 0,
       requestId: "sync-list-1",
-      schemaVersion: 6,
+      schemaVersion: 7,
       totalCount: 1,
       type: "word-sync-unresolved-list",
     } as const;
@@ -71,7 +71,7 @@ describe("word sync events", () => {
       discardedCount: 1,
       pendingCount: 0,
       requestId: "sync-discard-1",
-      schemaVersion: 6,
+      schemaVersion: 7,
       type: "word-sync-unresolved-discarded",
       unresolvedCount: 0,
     } as const;
@@ -94,7 +94,7 @@ describe("word sync events", () => {
       ],
       pendingAfterBatch: 0,
       requestId: "sync-batch-1",
-      schemaVersion: 6,
+      schemaVersion: 7,
       type: "word-sync-batch",
     } as const;
     expect(() => wordSyncBatchEventSchema.parse({ ...batch, items: [] })).toThrow();

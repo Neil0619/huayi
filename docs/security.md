@@ -8,7 +8,7 @@ Host 持久化为生词同步队列；Extension 不保存词表。没有语义�
 最近的普通 `div` 正文容器提取当前英文句子；单词或短语位于中英混合容器且无法提取纯英文
 句子时，分析上下文安全退化为选区本身，不向模型发送包含汉字的容器内容。
 
-`warmup` 只包含类型、`schemaVersion: 6` 和随机请求 ID，不包含选区、上下文、句子、URL、标题
+`warmup` 只包含类型、`schemaVersion: 7` 和随机请求 ID，不包含选区、上下文、句子、URL、标题
 或其他页面数据。Codex 模式只完成 MCP 发现和 App Server 安全初始化；三个 HTTP API Provider
 只读取本地 Provider 路由，不读取 Key、不发送 HTTP。四种模式都不创建模型输出或消费模型
 额度。
@@ -49,10 +49,17 @@ ownership marker 的目录。
 
 ## 浏览器边界
 
-Manifest 权限严格为 `["alarms", "nativeMessaging"]`；普通 `http/https` 范围只存在于静态 Content
-Script 的 `matches`。扩展不声明 `host_permissions`、`storage`、`tabs`、`activeTab` 或
-`scripting`。Content Script 不能直接调用 Native Messaging，只能向 Service Worker 发送
-经过严格解析的内部命令。
+Manifest 权限严格为 `["activeTab", "alarms", "nativeMessaging", "storage"]`；普通
+`http/https` 范围只存在于静态 Content Script 的 `matches`，扩展不声明 `host_permissions`、
+`tabs` 或 `scripting`。`activeTab` 只供用户点击快捷弹窗时读取当前标签页 hostname，不注入
+脚本、不读取页面正文；`storage` 只在 `chrome.storage.local` 保存无凭据的扩展设置。
+
+设置只包含总开关、默认动作、hostname 规则、生词本同步偏好和 YouTube 显示/快捷键偏好。
+Service Worker 是唯一写入者，串行应用有界 mutation，避免配置页和弹窗并发覆盖；无效存储
+失败关闭。isolated Content Script 可以读取完整设置以在启动前执行站点策略，页面脚本不能
+访问该 isolated world 或 `chrome.storage`。站点规则不会发送给 Native Host、Provider 或
+网页，也不会改变 Chrome 网站权限。Service Worker 在转发页面命令前再次根据 sender URL
+执行策略；配置与 Host 控制命令只接受扩展自身页面的 sender URL。
 
 网页输入、模型增量、类型化板块和最终结果都视为不可信。流式预览与最终卡片只用
 `textContent`，禁止 `innerHTML` 和远程托管代码。只有终态 `result` 是完整成功；空词汇内容
@@ -103,10 +110,10 @@ kind、vssId、URL、Token、Cookie 或播放器对象，也不驱动字幕模�
 
 英文源轨与中文译轨只保存在当前页面内存。字幕只通过 Light DOM `textContent` 显示；中文不可
 进入分析选区。Range 只有完全位于当前英文句节点、并精确对应内部冻结句子 substring 时才
-进入既有 wire v6 通道。warmup 不携带字幕；用户执行解释、翻译或加入生词本时，只发送选文和
+进入既有 wire v7 通道。warmup 不携带字幕；用户执行解释、翻译或加入生词本时，只发送选文和
 最多 2,000 字符的内部英文句子，不发送 URL、videoId、频道、播放时间或字幕历史。拖选完整句
 时（包括无句末标点的完整分句）发送 `selectionKind: sentence`、内部句作为 `context`，并按
-wire v6 固定
+wire v7 固定
 `sentenceContext: null`；旧单词选区不会被复用。
 
 关 CC、换视频、播放器替换、广告、直播、导航或销毁会清空所有字幕状态并恢复原生字幕；同一
@@ -354,7 +361,7 @@ Provider 为 Codex 时才探测 App Server 能力、禁用功能和 ChatGPT 登�
 macOS Chrome Native Messaging 清单使用目标目录内排他的 `0600` 临时文件，完成文件同步后
 再原子 `rename` 并同步目录；写入或替换前失败时清理临时文件并保持上一份有效清单不变。
 
-v0.12.0 使用 `schemaVersion: 6` 并拒绝 v5，Extension 与 Host 必须使用同一个实际扩展 ID
+v0.13.0 使用 `schemaVersion: 7` 并拒绝 v6，Extension 与 Host 必须使用同一个实际扩展 ID
 同步重装或回滚。`chanmjjealoeeheohofnljbbkkfgfnfm` 只对应 macOS 安装文档中的固定加载路径；
 Windows 必须复制 Chrome 对当前未打包扩展显示的 ID。升级只替换带合法 Huayi 所有权标记的
 bundle、Schema、空工作目录和 launcher，保持

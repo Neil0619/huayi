@@ -9,7 +9,7 @@ function createRequest(overrides: Partial<AnalyzeRequest> = {}): AnalyzeRequest 
     action: "translate",
     context: "Four victims were interviewed.",
     requestId: "analysis-assembly-1",
-    schemaVersion: 6,
+    schemaVersion: 7,
     selection: "Four",
     selectionKind: "phrase",
     sentenceContext: "Four victims were interviewed.",

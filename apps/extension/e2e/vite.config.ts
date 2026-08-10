@@ -15,6 +15,8 @@ function buildExtensionFixtures(): Plugin {
     async configureServer() {
       await build(createExtensionConfig("content"));
       await build(createExtensionConfig("youtube-bridge"));
+      await build(createExtensionConfig("options"));
+      await build(createExtensionConfig("popup"));
       await build(createExtensionConfig("background"));
     },
   };

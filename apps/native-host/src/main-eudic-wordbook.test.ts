@@ -47,7 +47,7 @@ describe("native host Eudic wordbook bootstrap", () => {
         context: "The investigation is still in its early stages.",
         language: "en",
         requestId: "word-1",
-        schemaVersion: 6,
+        schemaVersion: 7,
         type: "add-word",
         word: "investigation",
       },
@@ -58,7 +58,7 @@ describe("native host Eudic wordbook bootstrap", () => {
     expect(events.at(-1)).toEqual({
       outcome: "already-exists",
       requestId: "word-1",
-      schemaVersion: 6,
+      schemaVersion: 7,
       type: "word-added",
     });
     expect(processRequests).toHaveLength(1);
@@ -113,7 +113,7 @@ describe("native host Eudic wordbook bootstrap", () => {
       {
         language: "en",
         requestId: "check-1",
-        schemaVersion: 6,
+        schemaVersion: 7,
         type: "check-word",
         word: "investigation",
       },
@@ -124,7 +124,7 @@ describe("native host Eudic wordbook bootstrap", () => {
     expect(events.at(-1)).toEqual({
       presence: "present",
       requestId: "check-1",
-      schemaVersion: 6,
+      schemaVersion: 7,
       type: "word-status",
     });
     expect(processRequests).toHaveLength(1);

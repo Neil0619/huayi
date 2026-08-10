@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>划译</title>
+    <link rel="stylesheet" href="settings.css" />
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body class="popup-body">
+    <main class="popup-shell">
+      <header class="popup-header">
+        <div class="brand-lockup">
+          <span class="brand-seal">译</span
+          ><span><strong>划译</strong><small>阅读与观看</small></span>
+        </div>
+        <label class="switch"><input data-popup-enabled type="checkbox" /><span></span></label>
+      </header>
+      <section class="popup-site">
+        <p class="eyebrow">CURRENT SITE</p>
+        <strong data-popup-host>正在读取当前网站…</strong
+        ><label class="site-toggle"
+          ><span><b>在此网站启用</b><small data-popup-site-note>使用当前站点策略</small></span
+          ><span class="switch"><input data-popup-site-enabled type="checkbox" /><span></span></span
+        ></label>
+      </section>
+      <section class="popup-summary">
+        <div><small>模型服务</small><strong data-popup-provider>正在读取…</strong></div>
+        <div><small>生词同步</small><strong data-popup-wordbook>等待状态</strong></div>
+      </section>
+      <p class="popup-message" data-popup-message aria-live="polite"></p>
+      <div class="popup-actions">
+        <button class="secondary-button" data-popup-sync type="button">准备同步</button
+        ><button class="primary-button" data-popup-options type="button">完整设置</button>
+      </div>
+    </main>
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>

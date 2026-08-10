@@ -1,10 +1,12 @@
 import { TemporaryTranslationHold } from "./temporary-translation-hold.js";
 import { YouTubeBilingualKeyController } from "./youtube-bilingual-key-controller.js";
+import type { KeyboardShortcut } from "../../settings/settings-domain.js";
 
 export interface YouTubeTemporaryTranslationControllerOptions {
   canHold: () => boolean;
   document: Document;
   setHolding: (holding: boolean) => void;
+  shortcut?: KeyboardShortcut | null;
 }
 
 /** Owns every temporary-translation input lifetime and exposes one display decision. */
@@ -19,6 +21,7 @@ export class YouTubeTemporaryTranslationController {
     this.keys = new YouTubeBilingualKeyController(options.document, {
       canHold: options.canHold,
       setHolding: (holding) => this.hold.set("keyboard", holding),
+      ...(options.shortcut === undefined ? {} : { shortcut: options.shortcut }),
     });
   }
 

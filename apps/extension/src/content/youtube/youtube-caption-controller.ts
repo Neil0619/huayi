@@ -32,6 +32,22 @@ import {
 } from "./youtube-player-state.js";
 import { YouTubeTemporaryTranslationController } from "./youtube-temporary-translation-controller.js";
 import { YouTubeDismissalGesture } from "./youtube-dismissal-gesture.js";
+import { DEFAULT_YOUTUBE_SHORTCUT, type KeyboardShortcut } from "../../settings/settings-domain.js";
+
+function shortcutLabel(shortcut: KeyboardShortcut | null | undefined): string {
+  if (shortcut === null) return "";
+  const resolved = shortcut ?? DEFAULT_YOUTUBE_SHORTCUT;
+  const key = resolved.code.startsWith("Key") ? resolved.code.slice(3) : resolved.code;
+  return [
+    resolved.ctrl ? "Ctrl" : "",
+    resolved.alt ? "Alt" : "",
+    resolved.shift ? "Shift" : "",
+    resolved.meta ? "Meta" : "",
+    key,
+  ]
+    .filter((part) => part.length > 0)
+    .join("+");
+}
 
 export class YouTubeCaptionController {
   private readonly bridge: YouTubeCaptionBridge;
@@ -95,6 +111,7 @@ export class YouTubeCaptionController {
         this.options.isOverlayVisible?.() !== true,
       document: this.documentRef,
       setHolding: (held) => this.setHoldingShortcut(held),
+      ...(options.shortcut === undefined ? {} : { shortcut: options.shortcut }),
     });
     this.selectionController = new YouTubeCaptionSelectionController(
       this.documentRef,
@@ -266,6 +283,13 @@ export class YouTubeCaptionController {
             ready: translated !== null,
             type: "TRANSLATED_READY",
           });
+          if (
+            translated !== null &&
+            this.options.defaultBilingual === true &&
+            !this.state.pinnedBilingual
+          ) {
+            this.state = reduceYouTubeCaptionState(this.state, { type: "TOGGLE_PIN" });
+          }
           this.presentation.updateControl(this.state);
           this.renderAtCurrentTime();
         },
@@ -316,6 +340,7 @@ export class YouTubeCaptionController {
         this.renderAtCurrentTime();
       },
       (holding) => this.temporaryTranslation.setButtonHolding(holding),
+      shortcutLabel(this.options.shortcut),
     );
   }
 

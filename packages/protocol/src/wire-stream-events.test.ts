@@ -7,13 +7,13 @@ import {
   wordStatusEventSchema,
 } from "./index.js";
 
-const PREVIOUS_SCHEMA_VERSION = 5;
+const PREVIOUS_SCHEMA_VERSION = 6;
 
 describe("analysisDeltaEventSchema", () => {
   const delta = {
     delta: "调查",
     requestId: "analysis-1",
-    schemaVersion: 6,
+    schemaVersion: 7,
     section: "contextual-meaning",
     sequence: 0,
     type: "analysis-delta",
@@ -65,7 +65,7 @@ describe("analysisDeltaEventSchema", () => {
       analysisDeltaEventSchema.safeParse({
         presence: "present",
         requestId: "check-1",
-        schemaVersion: 6,
+        schemaVersion: 7,
         type: "word-status",
       }).success,
     ).toBe(false);
@@ -76,7 +76,7 @@ describe("wordStatusEventSchema", () => {
   const wordStatus = {
     presence: "present",
     requestId: "check-1",
-    schemaVersion: 6,
+    schemaVersion: 7,
     type: "word-status",
   } as const;
 
@@ -104,7 +104,7 @@ describe("wordStatusEventSchema", () => {
       wordStatusEventSchema.safeParse({
         outcome: "added",
         requestId: "word-1",
-        schemaVersion: 6,
+        schemaVersion: 7,
         type: "word-added",
       }).success,
     ).toBe(false);

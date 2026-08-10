@@ -29,6 +29,7 @@ export class YouTubeCaptionPresentation {
     state: YouTubeCaptionState,
     onToggle: () => void,
     onTemporaryHold: (holding: boolean) => void,
+    shortcutLabel: string,
   ): void {
     if (this.view?.host.isConnected === true) {
       this.view.mountControl(player);
@@ -36,7 +37,13 @@ export class YouTubeCaptionPresentation {
       return;
     }
     this.view?.destroy();
-    this.view = createYouTubeCaptionView(this.documentRef, player, onToggle, onTemporaryHold);
+    this.view = createYouTubeCaptionView(
+      this.documentRef,
+      player,
+      onToggle,
+      onTemporaryHold,
+      shortcutLabel,
+    );
     this.updateControl(state);
   }
 

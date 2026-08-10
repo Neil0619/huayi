@@ -88,13 +88,13 @@ test("Codex resolution scans PATH without a shell", async () => {
 });
 
 test("smoke requests cover the exact lexical regression and passage matrix", () => {
-  const requests = createSmokeRequests(6);
+  const requests = createSmokeRequests(7);
   assert.deepEqual(requests, [
     {
       action: "translate",
       context: "He said the investigation was in its early stages.",
       requestId: "smoke-investigation",
-      schemaVersion: 6,
+      schemaVersion: 7,
       selection: "investigation",
       selectionKind: "word",
       sentenceContext: "He said the investigation was in its early stages.",
@@ -105,7 +105,7 @@ test("smoke requests cover the exact lexical regression and passage matrix", () 
       action: "translate",
       context: "The recovery remained sustained throughout the difficult winter.",
       requestId: "smoke-sustained",
-      schemaVersion: 6,
+      schemaVersion: 7,
       selection: "sustained",
       selectionKind: "word",
       sentenceContext: "The recovery remained sustained throughout the difficult winter.",
@@ -116,7 +116,7 @@ test("smoke requests cover the exact lexical regression and passage matrix", () 
       action: "explain",
       context: "The victims received immediate support from local volunteers.",
       requestId: "smoke-victims",
-      schemaVersion: 6,
+      schemaVersion: 7,
       selection: "victims",
       selectionKind: "word",
       sentenceContext: "The victims received immediate support from local volunteers.",
@@ -127,7 +127,7 @@ test("smoke requests cover the exact lexical regression and passage matrix", () 
       action: "explain",
       context: "Managers are accountable for the safety of their teams.",
       requestId: "smoke-accountable",
-      schemaVersion: 6,
+      schemaVersion: 7,
       selection: "accountable",
       selectionKind: "word",
       sentenceContext: "Managers are accountable for the safety of their teams.",
@@ -138,7 +138,7 @@ test("smoke requests cover the exact lexical regression and passage matrix", () 
       action: "translate",
       context: "Four students presented their findings to the class.",
       requestId: "smoke-four",
-      schemaVersion: 6,
+      schemaVersion: 7,
       selection: "Four",
       selectionKind: "word",
       sentenceContext: "Four students presented their findings to the class.",
@@ -149,7 +149,7 @@ test("smoke requests cover the exact lexical regression and passage matrix", () 
       action: "explain",
       context: "The region experienced a sustained heatwave throughout July.",
       requestId: "smoke-sustained-heatwave",
-      schemaVersion: 6,
+      schemaVersion: 7,
       selection: "sustained heatwave",
       selectionKind: "phrase",
       sentenceContext: "The region experienced a sustained heatwave throughout July.",
@@ -161,7 +161,7 @@ test("smoke requests cover the exact lexical regression and passage matrix", () 
       context:
         "He said the investigation was in the early stages and urged anyone with information to come forward.",
       requestId: "smoke-sentence",
-      schemaVersion: 6,
+      schemaVersion: 7,
       selection:
         "He said the investigation was in the early stages and urged anyone with information to come forward.",
       selectionKind: "sentence",
@@ -174,7 +174,7 @@ test("smoke requests cover the exact lexical regression and passage matrix", () 
       context:
         "The investigation remains in its early stages.\nOfficials asked witnesses to come forward with information.",
       requestId: "smoke-paragraph",
-      schemaVersion: 6,
+      schemaVersion: 7,
       selection:
         "The investigation remains in its early stages.\nOfficials asked witnesses to come forward with information.",
       selectionKind: "paragraph",

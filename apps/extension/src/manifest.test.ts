@@ -3,11 +3,12 @@ import { describe, expect, it } from "vitest";
 import manifest from "../manifest.json" with { type: "json" };
 
 describe("extension manifest", () => {
-  it("uses Manifest V3 with only alarms and nativeMessaging permissions", () => {
+  it("uses Manifest V3 with the bounded settings and active-tab permissions", () => {
     expect(manifest.manifest_version).toBe(3);
-    expect(manifest.permissions).toEqual(["alarms", "nativeMessaging"]);
+    expect(manifest.permissions).toEqual(["activeTab", "alarms", "nativeMessaging", "storage"]);
     expect(manifest).not.toHaveProperty("host_permissions");
-    expect(manifest.action).toEqual({ default_title: "划译生词同步" });
+    expect(manifest.action).toEqual({ default_popup: "popup.html", default_title: "划译" });
+    expect(manifest.options_page).toBe("options.html");
   });
 
   it("injects the isolated script into normal HTTP and HTTPS pages", () => {

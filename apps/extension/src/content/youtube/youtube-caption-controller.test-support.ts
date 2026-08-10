@@ -8,6 +8,7 @@ import type {
 import type { YouTubeSourceStatus } from "./youtube-bridge-contract.js";
 import type { YouTubeCaptionSelectionEvent } from "./youtube-caption-controller-contract.js";
 import { YouTubeCaptionController } from "./youtube-caption-controller.js";
+import type { KeyboardShortcut } from "../../settings/settings-domain.js";
 
 const SOURCE: CapturedCaptionTrack = {
   cues: [
@@ -54,10 +55,12 @@ function setRect(element: Element): void {
 export function createCaptionControllerFixture(
   options: {
     canDismissSelection?: () => boolean;
+    defaultBilingual?: boolean;
     initiallyPaused?: boolean;
     source?: CapturedCaptionTrack | null;
     getSource?: () => CapturedCaptionTrack | null;
     sourceStatus?: YouTubeSourceStatus;
+    shortcut?: KeyboardShortcut | null;
     translated?: CapturedCaptionTrack | null;
   } = {},
 ): Fixture {
@@ -128,6 +131,9 @@ export function createCaptionControllerFixture(
       ? {}
       : { canDismissSelection: options.canDismissSelection }),
     document,
+    ...(options.defaultBilingual === undefined
+      ? {}
+      : { defaultBilingual: options.defaultBilingual }),
     getVideoId: () => "video-1",
     isOverlayVisible: () => overlayState.status !== "closed" && overlayState.status !== "idle",
     isWatchPage: () => true,
@@ -135,6 +141,7 @@ export function createCaptionControllerFixture(
     onSelection,
     onSessionClose,
     onWarmup: vi.fn(),
+    ...(options.shortcut === undefined ? {} : { shortcut: options.shortcut }),
   });
   controllers.push(controller);
   return {

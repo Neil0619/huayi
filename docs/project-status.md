@@ -2,8 +2,8 @@
 
 ## 当前基线
 
-- 产品版本：`0.12.0`
-- Native Messaging：`schemaVersion: 6`
+- 产品版本：`0.13.0`
+- Native Messaging：`schemaVersion: 7`
 - 浏览器：Google Chrome 普通 `http/https` 顶层网页及 YouTube `/watch` 英文字幕
 - YouTube：可选择单词、短语和完整句的英文字幕；CC 旁“中”固定双语，按住 `Shift+Z` 或按住字幕角标临时查看 `zh-Hans`
   译文
@@ -24,6 +24,27 @@
 | 0.10    | Windows DeepSeek/DPAPI/SEA、欧路生词本，以及 YouTube 字幕取词基础 |
 | 0.11    | 欧路全部英语收藏到扇贝的每日持久同步、角标和双平台断点批次        |
 | 0.12    | 扇贝部分确认、离线词形还原、未解决词放弃/重排队及旧批次再审计     |
+| 0.13    | 标准配置页、快捷弹窗、网站黑白名单、Provider 状态及可配同步/字幕  |
+
+## 0.13.0 当前开发进度（2026-08-10）
+
+- 新增五分区标准配置页与快捷弹窗；配置写入由 Service Worker 串行协调，避免弹窗与配置页并发
+  保存时互相覆盖。缺失配置使用安全默认值，无效配置失败关闭。
+- 网站策略支持默认允许或默认阻止，以及按 hostname 配置允许/阻止和子域继承；最具体规则优先。
+  策略在 Content Script 和 Service Worker 两层执行，不改变 Chrome 网站权限。
+- macOS 配置页可读取四种 Provider 的非敏感就绪状态并切换到已配置 Provider；Windows 仍固定
+  DeepSeek。页面不读取、显示或传输 Key、endpoint、模型参数或在线测试结果。
+- 生词本总开关、每日同步开关和本地小时，以及 YouTube 总开关、默认双语和可关闭/自定义快捷键
+  均已进入本地配置。wire v7 新增本地状态/Provider 选择控制消息并明确拒绝 v6。
+- macOS `verify:macos` 已通过，包括指令、格式、Lint、类型检查、1,529 条单元测试、构建和
+  63 条浏览器 E2E。Native Host 已按个人扩展 ID
+  `chanmjjealoeeheohofnljbbkkfgfnfm` 重新安装并保留既有 Provider/凭据状态；Chrome 已重载
+  最终 `apps/extension/dist`，标准配置页的五个分区、`0.13.0` / Native Messaging v7 标识及
+  本机 Provider 状态均实机显示正常，四种 macOS Provider 均显示为已配置，DeepSeek 为当前
+  Provider。真实模型和欧路请求未运行，仍需另行批准外部数据发送及可能产生的费用。
+- Windows 代码已实现，自动门禁继续执行；Windows 实机安装、Node.js 26 SEA、DPAPI/注册表、
+  Popup/Options 与 Chrome 验收保持 `implemented; target-platform validation pending`，由 Windows
+  环境按交接清单完成。
 
 ## 0.12.0 当前开发进度（2026-08-10）
 
@@ -57,7 +78,7 @@
 - Windows 上的 Codex、OpenAI 和 Compatible HTTP。
 - Linux、Firefox、Edge、PDF、Chrome 内部页面、iframe 和编辑器区域。
 - YouTube 直播、Shorts、OCR 和持久字幕历史；CC 关闭或当前活动轨非英文时不接管字幕。
-- 分析历史记录、跨设备同步、后续对话、浏览器内 Provider 设置和 Chrome Web Store 自动安装。
+- 分析历史记录、跨设备同步、后续对话、浏览器内密钥/端点设置和 Chrome Web Store 自动安装。
 
 ## 文档接手顺序
 

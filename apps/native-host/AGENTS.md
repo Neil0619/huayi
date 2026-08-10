@@ -2,7 +2,7 @@
 
 - stdout is protocol-only; diagnostics go to stderr.
 - Keep the Host health version, App Server `clientInfo.version`, and Eudic `User-Agent` at the
-  current release identity `0.12.0`; wire `schemaVersion` is `6` and rejects v5.
+  current release identity `0.13.0`; wire `schemaVersion` is `7` and rejects v6.
 - Validate all wire values with `@huayi/protocol`; the Host name is `com.huayi.codex_bridge`.
 - Spawn Codex with argument arrays and stdin, never `shell: true`.
 - Codex App Server has no ignore-user-config or ignore-rules flags; never invent or require them.
@@ -65,7 +65,7 @@
 - Default tests use fake process/Keychain/fetch only: no real Codex, HTTP service, Keychain, smoke,
   Provider switch, or Eudic API.
 - Support dry-run; uninstall only Huayi-owned paths.
-- v0.12.0 upgrades reinstall Extension and Host synchronously; preserve owned credentials/config.
+- v0.13.0 upgrades reinstall Extension and Host synchronously; preserve owned credentials/config.
 - Invalid frames, oversized messages, stdout contamination, unknown requests, and invalid model
   results fail closed.
 - Keep Zod for private validation; never leak provider shapes through `@huayi/protocol`.

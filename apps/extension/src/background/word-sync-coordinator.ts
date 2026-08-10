@@ -18,14 +18,18 @@ import {
   acceptsWordSyncStatus,
   attachPrepareToPendingPoll,
   DEFAULT_WORD_SYNC_TIMEOUT_MS,
+  finishPendingSync,
   hostUnavailableError,
   ignoreBrowserFailure,
+  presentWordSyncFailure,
+  recoverWordSyncPollFailure,
   updateWordSyncStatusCounts,
   type WordSyncBrowserApi,
   type WordSyncCoordinatorOptions,
   type PendingKind,
   type PendingSyncRequest,
   type PreparePendingKind,
+  type WordSyncRuntimeSettings,
 } from "./word-sync-coordinator-support.js";
 import {
   ensureWordSyncDailyAlarm,
@@ -35,7 +39,6 @@ import {
 } from "./word-sync-daily-alarm.js";
 import {
   wordSyncCountsPresentation,
-  wordSyncFailurePresentation,
   wordSyncStatusPresentation,
 } from "./word-sync-presentation.js";
 import {
@@ -67,6 +70,11 @@ export class WordSyncCoordinator {
   private readonly timeoutMs: number;
   private readonly transport: NativeTransport;
   private lastStatus: WordSyncStatusEvent | null = null;
+  private settings: WordSyncRuntimeSettings = {
+    automaticSync: true,
+    enabled: true,
+    syncHour: 8,
+  };
   constructor(options: WordSyncCoordinatorOptions) {
     this.browser = options.browser;
     this.createRequestId = options.createRequestId ?? (() => `sync-${crypto.randomUUID()}`);
@@ -78,25 +86,38 @@ export class WordSyncCoordinator {
       this.handleDisconnect(disconnect),
     );
   }
-  initialize(): void {
-    void ensureWordSyncDailyAlarm(this.browser, this.now());
-    this.requestStatus();
+  initialize(settings: WordSyncRuntimeSettings = this.settings): void {
+    this.configure(settings);
+  }
+  configure(settings: WordSyncRuntimeSettings): void {
+    this.settings = settings;
+    if (!settings.enabled || !settings.automaticSync) {
+      const result = this.browser.clearAlarm?.(WORD_SYNC_DAILY_ALARM);
+      if (result instanceof Promise) void result.catch(() => undefined);
+    } else {
+      void ensureWordSyncDailyAlarm(this.browser, this.now(), settings.syncHour);
+    }
+    if (settings.enabled) this.requestStatus();
   }
   handleAlarm(name: string): void {
     if (name === WORD_SYNC_DAILY_ALARM) {
-      scheduleNextWordSyncDailyAlarm(this.browser, this.now());
+      if (!this.settings.enabled || !this.settings.automaticSync) return;
+      scheduleNextWordSyncDailyAlarm(this.browser, this.now(), this.settings.syncHour);
       this.poll();
       return;
     }
     if (name === WORD_SYNC_CONTINUE_ALARM) this.poll();
   }
-  handleActionClick(): void {
+  startManualSync(): boolean {
+    if (!this.settings.enabled) return false;
     this.prepare("action-prepare");
+    return true;
   }
   handleStartup(): void {
-    this.requestStatus();
+    if (this.settings.enabled) this.requestStatus();
   }
   handlePageReady(tabId: number): void {
+    if (!this.settings.enabled) return;
     this.prepare("tab-prepare", tabId);
   }
   resolveBatch(tabId: number, batchId: string, rejectedTargets: readonly string[]): void {
@@ -159,8 +180,13 @@ export class WordSyncCoordinator {
     try {
       this.transport.send(request);
     } catch {
-      this.finish(pending);
-      this.handleFailure(pending, hostUnavailableError({ reason: "host-unavailable" }));
+      finishPendingSync(this.pending, pending);
+      presentWordSyncFailure(
+        this.browser,
+        this.lastStatus,
+        pending,
+        hostUnavailableError({ reason: "host-unavailable" }),
+      );
     }
   }
   private hasPending(kind: PendingKind): boolean {
@@ -170,13 +196,13 @@ export class WordSyncCoordinator {
     const pending = this.pending.get(event.requestId);
     if (pending === undefined) return;
     if (event.type === "error") {
-      this.finish(pending);
-      this.handleFailure(pending, event.error);
-      this.recoverAfterPollFailure(pending, event.error);
+      finishPendingSync(this.pending, pending);
+      presentWordSyncFailure(this.browser, this.lastStatus, pending, event.error);
+      recoverWordSyncPollFailure(this.browser, pending, event.error, () => this.requestStatus());
       return;
     }
     if (event.type === "word-sync-status" && acceptsWordSyncStatus(pending.kind)) {
-      this.finish(pending);
+      finishPendingSync(this.pending, pending);
       this.handleStatus(pending, event);
       return;
     }
@@ -184,22 +210,22 @@ export class WordSyncCoordinator {
       event.type === "word-sync-batch" &&
       (pending.kind === "action-prepare" || pending.kind === "tab-prepare")
     ) {
-      this.finish(pending);
+      finishPendingSync(this.pending, pending);
       this.handleBatch(pending, event);
       return;
     }
     if (event.type === "word-sync-batch-resolved" && pending.kind === "resolve") {
-      this.finish(pending);
+      finishPendingSync(this.pending, pending);
       void this.handleResolved(pending, event);
       return;
     }
     if (event.type === "word-sync-unresolved-list" && pending.kind === "list-unresolved") {
-      this.finish(pending);
+      finishPendingSync(this.pending, pending);
       this.handleUnresolvedList(pending, event);
       return;
     }
     if (event.type === "word-sync-unresolved-requeued" && pending.kind === "requeue-unresolved") {
-      this.finish(pending);
+      finishPendingSync(this.pending, pending);
       void this.handleUnresolvedRequeued(pending, event);
       return;
     }
@@ -207,12 +233,12 @@ export class WordSyncCoordinator {
       event.type === "word-sync-unresolved-discarded" &&
       (pending.kind === "discard-unresolved" || pending.kind === "discard-all-unresolved")
     ) {
-      this.finish(pending);
+      finishPendingSync(this.pending, pending);
       void this.handleUnresolvedDiscarded(pending, event);
       return;
     }
-    this.finish(pending);
-    this.handleFailure(pending, {
+    finishPendingSync(this.pending, pending);
+    presentWordSyncFailure(this.browser, this.lastStatus, pending, {
       code: "INVALID_RESPONSE",
       message: "本机服务返回了与生词同步请求不匹配的数据。",
       retryable: false,
@@ -242,7 +268,8 @@ export class WordSyncCoordinator {
     if (
       pending.kind === "status" &&
       event.pollDue &&
-      (event.scanInProgress || isWordSyncDailyPollTime(this.now()))
+      this.settings.automaticSync &&
+      (event.scanInProgress || isWordSyncDailyPollTime(this.now(), this.settings.syncHour))
     ) {
       this.poll();
     }
@@ -356,41 +383,22 @@ export class WordSyncCoordinator {
     } catch {
       // The local timeout still completes when the Native port is already unavailable.
     }
-    this.finish(pending);
+    finishPendingSync(this.pending, pending);
     const error: AnalysisError = {
       code: "TIMEOUT",
       message: "生词同步请求超时，请重试。",
       retryable: true,
     };
-    this.handleFailure(pending, error);
-    this.recoverAfterPollFailure(pending, error);
+    presentWordSyncFailure(this.browser, this.lastStatus, pending, error);
+    recoverWordSyncPollFailure(this.browser, pending, error, () => this.requestStatus());
   }
   private handleDisconnect(disconnect: NativeDisconnect): void {
     const error = hostUnavailableError(disconnect);
     const pendingRequests = [...this.pending.values()];
-    for (const pending of pendingRequests) this.finish(pending);
+    for (const pending of pendingRequests) finishPendingSync(this.pending, pending);
     for (const pending of pendingRequests) {
-      this.handleFailure(pending, error);
-      this.recoverAfterPollFailure(pending, error);
+      presentWordSyncFailure(this.browser, this.lastStatus, pending, error);
+      recoverWordSyncPollFailure(this.browser, pending, error, () => this.requestStatus());
     }
-  }
-  private handleFailure(pending: PendingSyncRequest, error: AnalysisError): void {
-    this.applyPresentation(wordSyncFailurePresentation(this.lastStatus, error));
-    if (pending.tabId !== undefined) {
-      ignoreBrowserFailure(
-        this.browser.sendToTab(pending.tabId, { error, type: "SHANBAY_SYNC_ERROR" }),
-      );
-    }
-  }
-  private recoverAfterPollFailure(pending: PendingSyncRequest, error: AnalysisError): void {
-    if (pending.kind !== "poll") return;
-    if (error.retryable) {
-      this.browser.createAlarm(WORD_SYNC_CONTINUE_ALARM, { delayInMinutes: 1 });
-    }
-    this.requestStatus();
-  }
-  private finish(pending: PendingSyncRequest): void {
-    clearTimeout(pending.timeoutId);
-    this.pending.delete(pending.request.requestId);
   }
 }

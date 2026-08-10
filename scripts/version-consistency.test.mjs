@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import assert from "node:assert/strict";
 
 const rootDirectory = fileURLToPath(new URL("../", import.meta.url));
-const releaseVersion = "0.12.0";
+const releaseVersion = "0.13.0";
 
 async function readJson(path) {
   return JSON.parse(await readFile(resolve(rootDirectory, path), "utf8"));
@@ -45,7 +45,12 @@ test("packages, Manifest, and runtime identities share the release version", asy
 
   assert.equal(rootPackage.version, releaseVersion);
   assert.equal(extensionManifest.version, releaseVersion);
-  assert.deepEqual(extensionManifest.permissions, ["alarms", "nativeMessaging"]);
+  assert.deepEqual(extensionManifest.permissions, [
+    "activeTab",
+    "alarms",
+    "nativeMessaging",
+    "storage",
+  ]);
   assert.equal("host_permissions" in extensionManifest, false);
   for (const release of versions) {
     assert.equal(release.version, rootPackage.version, `${release.path} version must match root`);
@@ -57,5 +62,5 @@ test("packages, Manifest, and runtime identities share the release version", asy
   }
 
   const protocolLimits = await readText("packages/protocol/src/limits.ts");
-  assert.match(protocolLimits, /export const SCHEMA_VERSION = 6;/u);
+  assert.match(protocolLimits, /export const SCHEMA_VERSION = 7;/u);
 });

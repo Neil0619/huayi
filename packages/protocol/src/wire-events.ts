@@ -13,7 +13,7 @@ import {
   MAX_USAGE_NOTES,
   SCHEMA_VERSION,
 } from "./limits.js";
-import { requestIdSchema } from "./requests.js";
+import { modelProviderSchema, requestIdSchema, type ModelProvider } from "./requests.js";
 import {
   analysisResultSchema,
   collocationSchema,
@@ -57,14 +57,6 @@ export * from "./word-sync-event-schemas.js";
 
 const schemaVersionSchema = z.literal(SCHEMA_VERSION);
 
-export const modelProviderSchema = z.enum([
-  "codex",
-  "openai-responses",
-  "openai-compatible-http",
-  "deepseek-chat-completions",
-]);
-export type ModelProvider = z.infer<typeof modelProviderSchema>;
-
 export const healthResultEventSchema = z
   .strictObject({
     codexVersion: z.string().trim().min(1).max(120).nullable(),
@@ -88,6 +80,52 @@ export const healthResultEventSchema = z
     }
   });
 export type HealthResultEvent = z.infer<typeof healthResultEventSchema>;
+
+export const providerConfigurationStatusSchema = z.enum(["ready", "not-configured", "unsupported"]);
+export type ProviderConfigurationStatus = z.infer<typeof providerConfigurationStatusSchema>;
+
+export const settingsPlatformSchema = z.enum(["macos", "windows"]);
+export type SettingsPlatform = z.infer<typeof settingsPlatformSchema>;
+
+export const settingsProviderStatusSchema = z.strictObject({
+  provider: modelProviderSchema,
+  status: providerConfigurationStatusSchema,
+});
+export type SettingsProviderStatus = z.infer<typeof settingsProviderStatusSchema>;
+
+const SETTINGS_PROVIDER_ORDER: readonly ModelProvider[] = [
+  "codex",
+  "openai-responses",
+  "openai-compatible-http",
+  "deepseek-chat-completions",
+];
+
+const settingsProviderStatusesSchema = z
+  .array(settingsProviderStatusSchema)
+  .length(4)
+  .refine(
+    (values) => values.every((value, index) => value.provider === SETTINGS_PROVIDER_ORDER[index]),
+    "Provider settings must contain every Provider exactly once in canonical order.",
+  );
+
+export const settingsStatusResultEventSchema = z.strictObject({
+  currentProvider: modelProviderSchema,
+  platform: settingsPlatformSchema,
+  providers: settingsProviderStatusesSchema,
+  requestId: requestIdSchema,
+  schemaVersion: schemaVersionSchema,
+  type: z.literal("settings-status-result"),
+  wordbookConfigured: z.boolean(),
+});
+export type SettingsStatusResultEvent = z.infer<typeof settingsStatusResultEventSchema>;
+
+export const settingsProviderSelectedEventSchema = z.strictObject({
+  provider: modelProviderSchema,
+  requestId: requestIdSchema,
+  schemaVersion: schemaVersionSchema,
+  type: z.literal("settings-provider-selected"),
+});
+export type SettingsProviderSelectedEvent = z.infer<typeof settingsProviderSelectedEventSchema>;
 
 export const warmupReadyEventSchema = z.strictObject({
   requestId: requestIdSchema,
@@ -294,6 +332,8 @@ export type ErrorEvent = z.infer<typeof errorEventSchema>;
 
 export const hostEventSchema = z.discriminatedUnion("type", [
   healthResultEventSchema,
+  settingsStatusResultEventSchema,
+  settingsProviderSelectedEventSchema,
   warmupReadyEventSchema,
   progressEventSchema,
   analysisDeltaEventSchema,

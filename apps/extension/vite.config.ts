@@ -20,6 +20,18 @@ function copyExtensionAssets(): Plugin {
       await cp(resolve(extensionRoot, "assets"), resolve(outputDirectory, "assets"), {
         recursive: true,
       });
+      for (const filename of [
+        "options.css",
+        "options.html",
+        "popup.css",
+        "popup.html",
+        "settings.css",
+      ]) {
+        await copyFile(
+          resolve(extensionRoot, "pages", filename),
+          resolve(outputDirectory, filename),
+        );
+      }
     },
   };
 }
@@ -27,16 +39,26 @@ function copyExtensionAssets(): Plugin {
 export function createExtensionConfig(mode: string): UserConfig {
   const isContentBuild = mode === "content";
   const isBridgeBuild = mode === "youtube-bridge";
+  const isOptionsBuild = mode === "options";
+  const isPopupBuild = mode === "popup";
   const input = isContentBuild
     ? "src/content/content-script.ts"
     : isBridgeBuild
       ? "src/content/youtube/youtube-bridge.ts"
-      : "src/background/service-worker.ts";
+      : isOptionsBuild
+        ? "src/options/options-page.ts"
+        : isPopupBuild
+          ? "src/popup/popup-page.ts"
+          : "src/background/service-worker.ts";
   const entryFileName = isContentBuild
     ? "content-script.js"
     : isBridgeBuild
       ? "youtube-bridge.js"
-      : "service-worker.js";
+      : isOptionsBuild
+        ? "options.js"
+        : isPopupBuild
+          ? "popup.js"
+          : "service-worker.js";
   return {
     build: {
       emptyOutDir: isContentBuild,
@@ -53,7 +75,7 @@ export function createExtensionConfig(mode: string): UserConfig {
       sourcemap: false,
       target: "chrome120",
     },
-    plugins: isContentBuild || isBridgeBuild ? [] : [copyExtensionAssets()],
+    plugins: mode === "background" ? [copyExtensionAssets()] : [],
   };
 }
 

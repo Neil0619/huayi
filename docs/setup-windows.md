@@ -1,11 +1,11 @@
 # Windows 安装说明（DeepSeek + 欧路生词本）
 
-Windows 版复用同一套 Chrome Extension 和 wire v6，但 Native Host 固定只调用官方 DeepSeek。
+Windows 版复用同一套 Chrome Extension 和 wire v7，但 Native Host 固定只调用官方 DeepSeek。
 它不会查找或启动 Windows 上的 Codex，也不支持 OpenAI 或 Compatible 模型 Provider；欧路
 作为独立生词本能力提供，不参与模型分析。跨平台改动的完成判定和交接格式见
 [跨平台开发规则](cross-platform-development.md)。
 
-> 当前进度（2026-08-10）：Windows 离线质量门、另行 62 条 Playwright、Node.js 26 SEA 独立
+> v0.12.0 历史验证记录（2026-08-10）：Windows 离线质量门、另行 62 条 Playwright、Node.js 26 SEA 独立
 > `health`、实际安装、精确 HKCU 注册表与 manifest 检查，以及安装后 Host 直接 `health` 均已
 > 通过；当前加载路径的扩展 ID `kmeopbhijmkcjeckjicfinpdminhpbak` 已与 manifest 唯一的
 > `allowed_origins` 对齐，安装文件与已验证构建产物哈希一致，既有凭据和生词同步状态仍存在。
@@ -15,7 +15,8 @@ Windows 版复用同一套 Chrome Extension 和 wire v6，但 Native Host 固定
 > E2E 覆盖，字幕角标按住由控制器集成单测覆盖；实机页面已确认两个入口可见。真实 DeepSeek／
 > 欧路请求未执行，仍需
 > 单独授权。macOS 验证将在后续 macOS 环境继续，不阻塞本次 Windows 收尾，也不表示双平台发布
-> 已完成。
+> 已完成。v0.13.0 的 Windows 实机验证尚未执行；请按本页重新构建、安装并验证配置页、快捷
+> 弹窗、站点策略和固定 DeepSeek 状态，不能沿用 v0.12.0 的完成结论。
 
 ## 前置条件
 
@@ -117,7 +118,7 @@ pnpm host:provider:status
 
 ## 5. 刷新与验证
 
-1. 返回 `chrome://extensions`，确认版本为 `0.12.0` 并点击刷新。
+1. 返回 `chrome://extensions`，确认版本为 `0.13.0` 并点击刷新。
 2. 完全关闭并重新打开 Chrome。
 3. 在普通 HTTPS 页面选中英文，分别测试单词和句子翻译/解释。
 4. 选中一个英文单词，确认生词状态可查询，并测试“加入欧路生词本”。
@@ -132,7 +133,7 @@ pnpm host:windows:package
 pnpm host:install -- --extension-id <ID>
 ```
 
-然后在 Chrome 刷新扩展。Extension 和 Host 必须同步为 `0.12.0`；wire v6 不接受 v5 Host。
+然后在 Chrome 刷新扩展。Extension 和 Host 必须同步为 `0.13.0`；wire v7 不接受 v6 Host。
 重复安装会替换 Huayi 自有运行文件，保留现有的 DeepSeek、欧路 DPAPI 凭据和
 `%LOCALAPPDATA%\Huayi\native-host\word-sync-state.json`。
 

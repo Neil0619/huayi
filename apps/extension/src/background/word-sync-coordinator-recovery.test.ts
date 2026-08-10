@@ -64,7 +64,7 @@ function statusEvent(requestId: string): HostEvent {
     pollDue: false,
     requestId,
     scanInProgress: false,
-    schemaVersion: 6,
+    schemaVersion: 7,
     skippedCount: 0,
     type: "word-sync-status",
     unresolvedCount: 0,

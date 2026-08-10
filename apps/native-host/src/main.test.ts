@@ -51,7 +51,7 @@ class HealthDispatcher implements RequestDispatcher {
       provider: "codex",
       ready: true,
       requestId: "health-1",
-      schemaVersion: 6,
+      schemaVersion: 7,
       type: "health-result",
     });
   }
@@ -98,7 +98,7 @@ describe("runNativeHost", () => {
       output,
     });
 
-    input.write(encodeNativeMessage({ requestId: "health-1", schemaVersion: 6, type: "health" }));
+    input.write(encodeNativeMessage({ requestId: "health-1", schemaVersion: 7, type: "health" }));
     await vi.waitFor(() => expect(outputChunks.length).toBe(1));
 
     const decoder = new NativeMessageDecoder();
@@ -110,7 +110,7 @@ describe("runNativeHost", () => {
         provider: "codex",
         ready: true,
         requestId: "health-1",
-        schemaVersion: 6,
+        schemaVersion: 7,
         type: "health-result",
       },
     ]);
@@ -189,7 +189,7 @@ describe("runNativeHost", () => {
           action: "translate",
           context: "The investigation was in its early stages.",
           requestId: "analysis-stdin-close",
-          schemaVersion: 6,
+          schemaVersion: 7,
           selection: "investigation",
           selectionKind: "word",
           sentenceContext: null,
@@ -267,14 +267,14 @@ describe("native host bootstrap", () => {
     });
     const events: HostEvent[] = [];
 
-    dispatcher.dispatch({ requestId: "health-2", schemaVersion: 6, type: "health" }, (event) =>
+    dispatcher.dispatch({ requestId: "health-2", schemaVersion: 7, type: "health" }, (event) =>
       events.push(event),
     );
     await vi.waitFor(() => expect(events).toHaveLength(1));
 
     expect(events[0]).toMatchObject({
       codexVersion: "codex-cli 0.144.1",
-      hostVersion: "0.12.0",
+      hostVersion: "0.13.0",
       model: "gpt-5.4-mini",
       provider: "codex",
       ready: true,
@@ -335,7 +335,7 @@ describe("native host bootstrap", () => {
       {
         language: "en",
         requestId: "check-shared-macos",
-        schemaVersion: 6,
+        schemaVersion: 7,
         type: "check-word",
         word: "investigation",
       },
@@ -343,7 +343,7 @@ describe("native host bootstrap", () => {
     );
     await vi.waitFor(() => expect(events.some((event) => event.type === "word-status")).toBe(true));
     dispatcher.dispatch(
-      { requestId: "sync-shared-macos", schemaVersion: 6, type: "word-sync-poll" },
+      { requestId: "sync-shared-macos", schemaVersion: 7, type: "word-sync-poll" },
       (event) => events.push(event),
     );
     await vi.waitFor(() =>

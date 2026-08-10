@@ -58,21 +58,21 @@ describe("Windows DeepSeek native host", () => {
     const wordbookEvents: HostEvent[] = [];
     const wordSyncEvents: HostEvent[] = [];
 
-    dispatcher.dispatch({ requestId: "health-win", schemaVersion: 6, type: "health" }, (event) =>
+    dispatcher.dispatch({ requestId: "health-win", schemaVersion: 7, type: "health" }, (event) =>
       healthEvents.push(event),
     );
     dispatcher.dispatch(
       {
         language: "en",
         requestId: "word-win",
-        schemaVersion: 6,
+        schemaVersion: 7,
         type: "check-word",
         word: "investigation",
       },
       (event) => wordbookEvents.push(event),
     );
     dispatcher.dispatch(
-      { requestId: "word-sync-win", schemaVersion: 6, type: "word-sync-poll" },
+      { requestId: "word-sync-win", schemaVersion: 7, type: "word-sync-poll" },
       (event) => wordSyncEvents.push(event),
     );
     await vi.waitFor(() => expect(healthEvents).toHaveLength(1));

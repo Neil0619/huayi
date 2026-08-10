@@ -281,6 +281,9 @@ export class OverlayController {
         onAddWord: () => this.addWord(),
         onClose: () => this.close(),
         onRetry: () => this.retry(),
+        ...(this.options.wordbookEnabled === undefined
+          ? {}
+          : { wordbookEnabled: this.options.wordbookEnabled }),
       });
       this.mountHost();
       this.positionCurrentRoot();
@@ -295,6 +298,9 @@ export class OverlayController {
             onAddWord: () => this.addWord(),
             onClose: () => this.close(),
             onRetry: () => this.retry(),
+            ...(this.options.wordbookEnabled === undefined
+              ? {}
+              : { wordbookEnabled: this.options.wordbookEnabled }),
           });
     this.shadowRoot.replaceChildren(style, root);
     this.mountHost();

@@ -13,6 +13,14 @@ afterEach(() => {
 });
 
 describe("YouTubeCaptionController", () => {
+  it("pins translated subtitles when configured to start bilingual", async () => {
+    const fixture = createFixture({ defaultBilingual: true });
+    await settle();
+    const translated = fixture.player.querySelector<HTMLElement>("[data-huayi-youtube-translated]");
+    const button = fixture.player.querySelector<HTMLElement>("[data-huayi-youtube-bilingual]");
+    expect(translated?.hidden).toBe(false);
+    expect(button?.getAttribute("aria-pressed")).toBe("true");
+  });
   it("replaces native captions with a complete selectable English sentence and no legacy picker", async () => {
     const fixture = createFixture();
     await settle();

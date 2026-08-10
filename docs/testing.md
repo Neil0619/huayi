@@ -15,8 +15,9 @@ POSIX 权限、目录 `fsync`、符号链接或 macOS Keychain 的专属测试�
 自动测试覆盖：
 
 - 发布版本：根包、三个 workspace 包、Manifest、Host health、App Server clientInfo 和欧路
-  User-Agent 全部直接断言为 `0.12.0`，wire 版本为 6。
-- 协议：严格 v6 请求/事件联合、v5 拒绝、四种 Provider health、warmup、`analysis-delta` /
+  User-Agent 全部直接断言为 `0.13.0`，wire 版本为 7。
+- 协议：严格 v7 请求/事件联合、v6 拒绝、四种 Provider health、设置状态/Provider 选择、
+  warmup、`analysis-delta` /
   `analysis-section` 共享
   序号、`check-word` / `word-status`、错误码和 1 MiB 帧上限。
 - 选区：四类分类、2,000 字符裁剪、编辑区排除、单词所在英文句子的确定性提取，以及中英混合
@@ -30,7 +31,7 @@ POSIX 权限、目录 `fsync`、符号链接或 macOS Keychain 的专属测试�
   稳定窗口后接受或超时；
   本地分句覆盖 1.5 秒、120 code points／12 秒、200 code points／15 秒、Unicode 和无标点 ASR，
   译文只按正时间重叠排序去重。交互覆盖默认英文、CC 旁“中”固定、按住 `Shift+Z`／按住字幕角标临时展示、原生双击／短语／完整句
-  拖选、无标点完整分句仍为 sentence、外部松开替换旧单词卡、wire v6 `sentenceContext: null`、
+  拖选、无标点完整分句仍为 sentence、外部松开替换旧单词卡、wire v7 `sentenceContext: null`、
   Range 伪造拒绝、暂停所有权、播放器空白首击、pending 生词本，以及导航
   start/page-data/finish 锁、同视频 page-data 更新、控制栏重建、英文 ASR rolling correction
   保持同一面板、另一英文轨只重抓一次、中文／西语轨暂停并稳定恢复原生字幕、切回英文恢复、SPA、
@@ -41,7 +42,9 @@ POSIX 权限、目录 `fsync`、符号链接或 macOS Keychain 的专属测试�
 - 流式调度：注入 fake frame scheduler 验证每帧最多渲染一次、终态排空和关闭清理；键控 DOM
   测试验证旧节点复用、数组累计追加、最终校正、一次性 120ms 动画及 reduced-motion。
 - Service Worker：无页面数据 warmup、分析/查词/加词三通道、并发、定向取消、共享连续序号、
-  严格终态、断线和超时。
+  严格终态、断线和超时，以及扩展来源校验、站点策略二次防线和设置串行 mutation。
+- 设置：缺失默认、无效失败关闭、hostname 规范化、最具体站点规则、并发写入不丢失、立即应用
+  边界、Provider 非敏感状态、可配置同步小时、YouTube 默认双语及自定义/关闭快捷键。
 - 生词同步：欧路默认生词本首次与每日完整扫描、本地 08:00 边界（08:00 前不启动新扫描、错过
   alarm 后在 08:00 后补扫、未完成扫描可跨边界继续）、跨日去重、三页断点、状态 v1/v2→v3 原子
   迁移/独立快照/备份恢复、数据源升级后立即重扫、100 来源词幂等批次、角标与 alarm、扇贝来源校验、预填不覆盖、
@@ -93,7 +96,8 @@ POSIX 权限、目录 `fsync`、符号链接或 macOS Keychain 的专属测试�
   幂等清理，以及 macOS 清单同目录 `0600` 临时文件、文件/目录同步、原子替换和 rename 失败
   时保留旧清单；Windows fixture 覆盖真实文件复制、manifest、精确 HKCU 参数、升级保留两份
   DPAPI 凭据和同步状态、ownership marker 拒绝、注册表存在/不存在/失败及孤立键清理。
-- Manifest：`permissions` 严格等于 `["alarms", "nativeMessaging"]`，不存在 `host_permissions`。
+- Manifest：`permissions` 严格等于
+  `["activeTab", "alarms", "nativeMessaging", "storage"]`，不存在 `host_permissions`。
 
 ## 浏览器 E2E
 
@@ -185,7 +189,7 @@ pnpm verify:windows
 ```
 
 两条命令都依次执行指令、格式、Lint、类型、单测、构建和 diff 检查。macOS 另运行 Chrome
-Playwright；Windows 另构建真实 SEA `.exe`，用 Native Messaging `health` 帧验证 v0.12.0、
+Playwright；Windows 另构建真实 SEA `.exe`，用 Native Messaging `health` 帧验证 v0.13.0、
 DeepSeek 固定 Provider、`deepseek-v4-flash` 和 `codexVersion: null`，并拒绝 stderr 或额外
 stdout。SEA health 从仓库外临时目录运行，清除 `NODE_PATH` 并使用临时 `LOCALAPPDATA`，确保
 运行时不依赖仓库 `node_modules`。GitHub Actions 的 `macos-quality` 使用 Node 24，
@@ -195,7 +199,7 @@ stdout。SEA health 从仓库外临时目录运行，清除 `NODE_PATH` 并使�
 纯逻辑和共享契约要求双平台 CI；系统原语还必须按
 [跨平台开发规则](cross-platform-development.md) 在目标平台人工验收。
 
-`0.12.0` 本轮 Windows 验证已完成离线质量门、另行 62 条 Playwright、Node.js 26 SEA 打包和
+`0.12.0` 的 Windows 验证已完成离线质量门、另行 62 条 Playwright、Node.js 26 SEA 打包和
 仓库外独立 `health` 帧验证。随后完成实际 SEA 安装、精确 HKCU 注册表与 manifest 检查，并对
 安装后的 Host 直接执行 `health`；安装文件与已验证构建产物哈希一致，既有凭据和生词同步状态
 仍存在。Chrome 已重载最新未打包扩展；真实 YouTube 已确认新版字幕 UI 注入、播放中选词后
@@ -215,7 +219,7 @@ fail-closed 行为。Windows CI 会实际产出并运行 SEA `.exe` 的 health �
 - 安装器只写 `%LOCALAPPDATA%\Huayi\native-host` 和精确 HKCU Chrome 注册表键；
 - 安装输出中的扩展 ID、Chrome 对当前未打包扩展显示的 ID，以及 Native Host manifest 唯一的
   `allowed_origins` 三者完全一致；
-- Chrome health 显示 v0.12.0、DeepSeek 和 `codexVersion: null`；
+- Chrome health 显示 v0.13.0、DeepSeek 和 `codexVersion: null`；
 - DeepSeek 与欧路两份 DPAPI 凭据可由当前用户分别读取，换用户或复制到另一台机器后不能
   解密；
 - 单词、短语、句子和段落成功，欧路查词/加词成功，Codex/其他模型 Provider 命令明确拒绝；

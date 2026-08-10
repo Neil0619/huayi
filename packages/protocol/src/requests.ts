@@ -12,6 +12,14 @@ import {
 export const analyzeActionSchema = z.enum(["translate", "explain"]);
 export type AnalyzeAction = z.infer<typeof analyzeActionSchema>;
 
+export const modelProviderSchema = z.enum([
+  "codex",
+  "openai-responses",
+  "openai-compatible-http",
+  "deepseek-chat-completions",
+]);
+export type ModelProvider = z.infer<typeof modelProviderSchema>;
+
 export const selectionKindSchema = z.enum(["word", "phrase", "sentence", "paragraph"]);
 export type SelectionKind = z.infer<typeof selectionKindSchema>;
 
@@ -261,6 +269,21 @@ export const cancelRequestSchema = z.strictObject({
 });
 export type CancelRequest = z.infer<typeof cancelRequestSchema>;
 
+export const settingsStatusRequestSchema = z.strictObject({
+  requestId: requestIdSchema,
+  schemaVersion: schemaVersionSchema,
+  type: z.literal("settings-status"),
+});
+export type SettingsStatusRequest = z.infer<typeof settingsStatusRequestSchema>;
+
+export const settingsSelectProviderRequestSchema = z.strictObject({
+  provider: modelProviderSchema,
+  requestId: requestIdSchema,
+  schemaVersion: schemaVersionSchema,
+  type: z.literal("settings-select-provider"),
+});
+export type SettingsSelectProviderRequest = z.infer<typeof settingsSelectProviderRequestSchema>;
+
 export const hostRequestSchema = z
   .discriminatedUnion("type", [
     healthRequestSchema,
@@ -277,6 +300,8 @@ export const hostRequestSchema = z
     wordSyncDiscardUnresolvedRequestSchema,
     wordSyncDiscardAllUnresolvedRequestSchema,
     cancelRequestSchema,
+    settingsStatusRequestSchema,
+    settingsSelectProviderRequestSchema,
   ])
   .superRefine((request, context) => {
     if (request.type === "analyze") {

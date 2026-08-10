@@ -11,6 +11,7 @@ export interface OverlayControllerOptions {
   onAddWord: (selection: SelectionRequestInput) => void;
   onAnalyze: (action: AnalyzeAction, selection: SelectionRequestInput) => void;
   onCancel: () => void;
+  wordbookEnabled?: boolean;
 }
 
 export interface OverlayPresentation {

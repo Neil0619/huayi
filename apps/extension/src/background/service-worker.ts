@@ -1,7 +1,15 @@
 import type { HostWorkRequest, WordSyncRequeueUnresolvedRequest } from "@huayi/protocol";
 
-import { parseContentCommand, parseShanbayCommand } from "../shared/extension-messages.js";
+import {
+  parseContentCommand,
+  parseSettingsPageCommand,
+  parseShanbayCommand,
+} from "../shared/extension-messages.js";
+import { evaluatePageAccess, type ExtensionSettings } from "../settings/settings-domain.js";
+import { SettingsStore } from "../settings/settings-store.js";
 import { ChromeNativeTransport } from "./native-transport.js";
+import { HostSettingsCoordinator } from "./host-settings-coordinator.js";
+import { SettingsCoordinator } from "./settings-coordinator.js";
 import { RequestCoordinator } from "./request-coordinator.js";
 import { WordSyncCoordinator } from "./word-sync-coordinator.js";
 
@@ -17,6 +25,17 @@ export interface RuntimeMessageSender {
   tab?: { id?: number | undefined } | undefined;
 }
 
+export interface HostSettingsCoordinatorLike {
+  selectProvider(
+    provider: Parameters<HostSettingsCoordinator["selectProvider"]>[0],
+  ): ReturnType<HostSettingsCoordinator["selectProvider"]>;
+  status(): ReturnType<HostSettingsCoordinator["status"]>;
+}
+
+export interface SettingsCoordinatorLike {
+  mutate: SettingsCoordinator["mutate"];
+}
+
 export interface WordSyncCoordinatorLike {
   discardAllUnresolved(tabId: number): void;
   discardUnresolved(tabId: number, sourceWords: readonly string[]): void;
@@ -25,13 +44,14 @@ export interface WordSyncCoordinatorLike {
   listUnresolved(tabId: number, offset: number): void;
   requeueUnresolved(tabId: number, items: WordSyncRequeueUnresolvedRequest["items"]): void;
   resolveBatch(tabId: number, batchId: string, rejectedTargets: readonly string[]): void;
+  startManualSync?(): boolean;
 }
 
 export type RuntimeMessageListener = (
   message: unknown,
   sender: RuntimeMessageSender,
-  sendResponse: (response: { handled: boolean }) => void,
-) => false;
+  sendResponse: (response: unknown) => void,
+) => boolean;
 
 export function handleContentMessage(
   message: unknown,
@@ -60,10 +80,65 @@ export function handleContentMessage(
 export function createRuntimeMessageListener(
   coordinator: RequestCoordinatorLike,
   wordSyncCoordinator?: WordSyncCoordinatorLike,
+  hostSettingsCoordinator?: HostSettingsCoordinatorLike,
+  settingsCoordinator?: SettingsCoordinatorLike,
+  extensionOrigin?: string,
+  contentAllowed?: (sender: RuntimeMessageSender) => boolean,
 ): RuntimeMessageListener {
   return (message, sender, sendResponse) => {
+    const settingsCommand = parseSettingsPageCommand(message);
+    if (
+      settingsCommand !== null &&
+      sender.url !== undefined &&
+      extensionOrigin !== undefined &&
+      sender.url.startsWith(extensionOrigin)
+    ) {
+      if (settingsCommand.type === "MUTATE_SETTINGS") {
+        if (settingsCoordinator === undefined) {
+          sendResponse({ handled: false });
+          return false;
+        }
+        void settingsCoordinator.mutate(settingsCommand.mutation).then(
+          (settings) => sendResponse({ event: settings, handled: true }),
+          (error: unknown) =>
+            sendResponse({
+              error: error instanceof Error ? error.message : "设置保存失败。",
+              handled: false,
+            }),
+        );
+        return true;
+      }
+      if (settingsCommand.type === "START_WORD_SYNC") {
+        const handled =
+          wordSyncCoordinator?.startManualSync === undefined
+            ? false
+            : wordSyncCoordinator.startManualSync();
+        sendResponse({ handled });
+        return false;
+      }
+      const operation =
+        settingsCommand.type === "GET_HOST_SETTINGS"
+          ? hostSettingsCoordinator?.status()
+          : hostSettingsCoordinator?.selectProvider(settingsCommand.provider);
+      if (operation === undefined) {
+        sendResponse({ handled: false });
+        return false;
+      }
+      void operation.then(
+        (event) => sendResponse({ event, handled: true }),
+        (error: unknown) =>
+          sendResponse({
+            error: error instanceof Error ? error.message : "本机配置请求失败。",
+            handled: false,
+          }),
+      );
+      return true;
+    }
+    const contentCommand = parseContentCommand(message);
+    const mayHandleContent =
+      contentCommand?.type === "CANCEL_REQUEST" || contentAllowed?.(sender) !== false;
     const handled =
-      handleContentMessage(message, sender.tab?.id, coordinator) ||
+      (mayHandleContent && handleContentMessage(message, sender.tab?.id, coordinator)) ||
       handleShanbayMessage(message, sender, wordSyncCoordinator);
     sendResponse({ handled });
     return false;
@@ -117,6 +192,8 @@ export function handleShanbayMessage(
 
 export function registerServiceWorker(): () => void {
   const transport = new ChromeNativeTransport();
+  const hostSettingsCoordinator = new HostSettingsCoordinator({ transport });
+  const settingsCoordinator = new SettingsCoordinator();
   const coordinator = new RequestCoordinator({
     sendToTab: async (tabId, event) => {
       await chrome.tabs.sendMessage(tabId, event);
@@ -129,6 +206,7 @@ export function registerServiceWorker(): () => void {
         void chrome.alarms.create(name, alarmInfo);
       },
       getAlarm: async (name) => await chrome.alarms.get(name),
+      clearAlarm: async (name) => await chrome.alarms.clear(name),
       createTab: async (url) => {
         await chrome.tabs.create({ url });
       },
@@ -144,25 +222,59 @@ export function registerServiceWorker(): () => void {
     },
     transport,
   });
-  const listener = createRuntimeMessageListener(coordinator, wordSyncCoordinator);
+  const settingsStore = new SettingsStore();
+  let currentSettings: ExtensionSettings | null = null;
+  const contentAllowed = (sender: RuntimeMessageSender): boolean => {
+    if (sender.url === undefined || currentSettings === null) return false;
+    try {
+      return evaluatePageAccess(new URL(sender.url), currentSettings) === "allow";
+    } catch {
+      return false;
+    }
+  };
+  const listener = createRuntimeMessageListener(
+    coordinator,
+    wordSyncCoordinator,
+    hostSettingsCoordinator,
+    settingsCoordinator,
+    chrome.runtime.getURL(""),
+    contentAllowed,
+  );
   const tabRemovedListener = (tabId: number) => coordinator.cancelTab(tabId);
-  const actionClickListener = () => wordSyncCoordinator.handleActionClick();
   const alarmListener = (alarm: chrome.alarms.Alarm) => wordSyncCoordinator.handleAlarm(alarm.name);
   const startupListener = () => wordSyncCoordinator.handleStartup();
 
   chrome.runtime.onMessage.addListener(listener);
   chrome.tabs.onRemoved.addListener(tabRemovedListener);
-  chrome.action.onClicked.addListener(actionClickListener);
   chrome.alarms.onAlarm.addListener(alarmListener);
   chrome.runtime.onStartup.addListener(startupListener);
-  wordSyncCoordinator.initialize();
+  let settingsRevision = 0;
+  const unsubscribeSettings = settingsStore.subscribe((parsed) => {
+    settingsRevision += 1;
+    currentSettings = parsed.settings;
+    wordSyncCoordinator.configure(parsed.settings.wordbook);
+  });
+  const initialSettingsRevision = settingsRevision;
+  void settingsStore.read().then(
+    (parsed) => {
+      if (settingsRevision !== initialSettingsRevision) return;
+      currentSettings = parsed.settings;
+      wordSyncCoordinator.initialize(parsed.settings.wordbook);
+    },
+    () => {
+      if (settingsRevision === initialSettingsRevision) {
+        wordSyncCoordinator.initialize({ automaticSync: false, enabled: false, syncHour: 8 });
+      }
+    },
+  );
   return () => {
     chrome.runtime.onMessage.removeListener(listener);
     chrome.tabs.onRemoved.removeListener(tabRemovedListener);
-    chrome.action.onClicked.removeListener(actionClickListener);
     chrome.alarms.onAlarm.removeListener(alarmListener);
     chrome.runtime.onStartup.removeListener(startupListener);
     wordSyncCoordinator.dispose();
+    unsubscribeSettings();
+    hostSettingsCoordinator.dispose();
     coordinator.dispose();
     transport.dispose();
   };

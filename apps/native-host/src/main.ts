@@ -1,11 +1,16 @@
-import { dirname, resolve } from "node:path";
+import { resolve } from "node:path";
 import type { Readable, Writable } from "node:stream";
 
 import { hostEventSchema } from "@huayi/protocol";
 import type { HostEvent } from "@huayi/protocol";
 
 import { ProviderConfigurationStore } from "./config/provider-configuration-store.js";
+import { SettingsConfigurationController } from "./config/settings-configuration-controller.js";
 import { CompatibleHttpConfigurationStore } from "./config/compatible-http-configuration-store.js";
+import {
+  compatibleConfigurationPath,
+  createMacosSettingsController,
+} from "./config/macos-settings-controller.js";
 import { CompatibleHttpApiKeyReader } from "./credentials/compatible-http-keychain.js";
 import { DeepSeekApiKeyReader } from "./credentials/deepseek-keychain.js";
 import { WindowsDeepSeekApiKeyReader } from "./credentials/windows-deepseek-credential.js";
@@ -236,6 +241,11 @@ export function createNativeHostDispatcher(
       mapError: mapAnalysisProviderError,
       maximumConcurrency: 2,
       provider,
+      settingsController: new SettingsConfigurationController({
+        deepSeekProbe: deepSeekApiKeyReader,
+        platform: "windows",
+        wordbookProbe: eudicAuthorizationReader,
+      }),
       mapWordbookError: mapEudicError,
       wordbookProvider,
       wordSyncService,
@@ -248,7 +258,7 @@ export function createNativeHostDispatcher(
     options.providerConfigurationPath ?? resolve(options.workingDirectory, "..", "provider.json");
   const configurationStore = new ProviderConfigurationStore(providerConfigurationPath);
   const compatibleHttpConfigurationStore = new CompatibleHttpConfigurationStore(
-    resolve(dirname(providerConfigurationPath), "compatible-http.json"),
+    compatibleConfigurationPath(providerConfigurationPath),
   );
   const appServer = new CodexAppServerClient({
     codexExecutable,
@@ -324,6 +334,15 @@ export function createNativeHostDispatcher(
     mapWordbookError: mapEudicError,
     maximumConcurrency: 2,
     provider: providers.analysisProvider,
+    settingsController: createMacosSettingsController({
+      codexExecutable,
+      compatibleConfigurationStore: compatibleHttpConfigurationStore,
+      environment: options.environment,
+      processRunner: options.processRunner,
+      providerStore: configurationStore,
+      securityExecutable: options.securityExecutable ?? EUDIC_SECURITY_EXECUTABLE,
+      workingDirectory: options.workingDirectory,
+    }),
     wordbookProvider: providers.wordbookProvider,
     wordSyncService,
   });

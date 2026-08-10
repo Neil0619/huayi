@@ -17,14 +17,16 @@ import type {
   WarmupRequest,
 } from "@huayi/protocol";
 
+import type { SettingsConfigurationController } from "../config/settings-configuration-controller.js";
 import type { AnalysisProvider } from "../provider/analysis-provider.js";
 import { RequestQueue } from "../runtime/request-queue.js";
 import type { WordbookProvider } from "../wordbook/wordbook-provider.js";
+import { SettingsRequestDispatcher } from "./settings-request-dispatcher.js";
 import { WordSyncRequestDispatcher, type WordSyncServiceLike } from "./word-sync-dispatcher.js";
 
 export type { WordSyncServiceLike } from "./word-sync-dispatcher.js";
 
-const HOST_VERSION = "0.12.0";
+const HOST_VERSION = "0.13.0";
 
 export type HostEventEmitter = (event: HostEvent) => void;
 
@@ -40,6 +42,7 @@ export interface NativeMessageDispatcherOptions {
   mapWordbookError?: (error: unknown) => AnalysisError;
   maximumConcurrency?: number;
   provider: AnalysisProvider;
+  settingsController?: SettingsConfigurationController;
   wordbookProvider?: WordbookProvider;
   wordSyncService?: WordSyncServiceLike;
 }
@@ -65,12 +68,14 @@ export class NativeMessageDispatcher {
   private readonly mapWordbookError: (error: unknown) => AnalysisError;
   private readonly provider: AnalysisProvider;
   private readonly queue: RequestQueue;
+  private readonly settingsDispatcher: SettingsRequestDispatcher;
   private readonly wordbookProvider: WordbookProvider | undefined;
   private readonly wordSyncDispatcher: WordSyncRequestDispatcher;
   private disposed = false;
 
   constructor(options: NativeMessageDispatcherOptions) {
     this.provider = options.provider;
+    this.settingsDispatcher = new SettingsRequestDispatcher(options.settingsController);
     this.healthCheck = options.healthCheck;
     this.mapError = options.mapError ?? defaultError;
     this.mapWordbookError = options.mapWordbookError ?? defaultError;
@@ -131,6 +136,12 @@ export class NativeMessageDispatcher {
         break;
       case "cancel":
         this.dispatchCancel(parsed.data.targetRequestId, emit);
+        break;
+      case "settings-status":
+        this.settingsDispatcher.status(parsed.data, emit);
+        break;
+      case "settings-select-provider":
+        this.settingsDispatcher.selectProvider(parsed.data, emit);
         break;
       default: {
         const exhaustiveRequest: never = parsed.data;

@@ -20,6 +20,17 @@ import {
 import { isYouTubeHost } from "./youtube/caption-reader.js";
 import { YouTubeCaptionController } from "./youtube/youtube-caption-controller.js";
 import type { YouTubeCaptionBridge } from "./youtube/youtube-caption-bridge-client.js";
+import { supportsAction } from "./selection/classify-selection.js";
+import {
+  DEFAULT_EXTENSION_SETTINGS,
+  evaluatePageAccess,
+  type ExtensionSettings,
+} from "../settings/settings-domain.js";
+import { SettingsStore } from "../settings/settings-store.js";
+import {
+  bootstrapSettingsDrivenContent,
+  type ContentScriptBootstrap,
+} from "./content-script-bootstrap.js";
 
 export {
   createAddWordRequest,
@@ -45,13 +56,17 @@ export interface ContentScriptOptions {
   getYouTubeVideoId?: () => string | null;
   isYouTubeWatchPage?: () => boolean;
   runtime?: ContentRuntime;
+  settings?: ExtensionSettings;
   youtubeBridge?: YouTubeCaptionBridge;
 }
 
 export interface ContentScriptInstance {
   controller: OverlayController;
   destroy(): void;
+  updateSettings(settings: ExtensionSettings): void;
 }
+
+export type { ContentScriptBootstrap } from "./content-script-bootstrap.js";
 
 const RUNTIME_ERROR: AnalysisError = {
   code: "INTERNAL_ERROR",
@@ -121,6 +136,10 @@ export function initializeContentScript(options: ContentScriptOptions = {}): Con
   const createRequestId = options.createRequestId ?? (() => crypto.randomUUID());
   const getAnchorRect = options.getAnchorRect ?? getRangeAnchorRect;
   const requestLifetimes = new ContentRequestLifetimes();
+  let settings = options.settings ?? DEFAULT_EXTENSION_SETTINGS;
+  const featuresEnabled =
+    evaluatePageAccess(new URL(documentRef.location.href), settings) === "allow";
+  const wordbookEnabled = featuresEnabled && settings.wordbook.enabled;
 
   const rejectOperation = (operation: ActiveOperation, error: AnalysisError): void => {
     if (operation === "wordbook-add") {
@@ -211,6 +230,7 @@ export function initializeContentScript(options: ContentScriptOptions = {}): Con
   const controller = new OverlayController({
     document: documentRef,
     onAddWord: (selection) => {
+      if (!wordbookEnabled) return;
       cancelOperation("wordbook-check");
       const requestId = createRequestId();
       requestLifetimes.begin(requestId, "wordbook-add");
@@ -230,6 +250,7 @@ export function initializeContentScript(options: ContentScriptOptions = {}): Con
       if (selection.selectionKind !== "word" || acknowledgement === undefined) {
         return;
       }
+      if (!wordbookEnabled) return;
       const checkRequestId = createRequestId();
       requestLifetimes.begin(checkRequestId, "wordbook-check");
       sendCommand(
@@ -247,12 +268,30 @@ export function initializeContentScript(options: ContentScriptOptions = {}): Con
       });
     },
     onCancel: closeViewRequests,
+    wordbookEnabled,
   });
 
+  const showSelection = (
+    input: Parameters<OverlayController["show"]>[0],
+    anchorRect: Parameters<OverlayController["show"]>[1],
+    presentation?: Parameters<OverlayController["show"]>[2],
+  ): void => {
+    controller.show(input, anchorRect, presentation);
+    if (
+      settings.defaultAction !== "ask" &&
+      supportsAction(input.selectionKind, settings.defaultAction)
+    ) {
+      controller.start(settings.defaultAction);
+    }
+  };
+
   const youtubeController =
-    options.isYouTubeWatchPage !== undefined || isYouTubeHost(documentRef.location)
+    featuresEnabled &&
+    settings.youtube.enabled &&
+    (options.isYouTubeWatchPage !== undefined || isYouTubeHost(documentRef.location))
       ? new YouTubeCaptionController({
           ...(options.youtubeBridge === undefined ? {} : { bridge: options.youtubeBridge }),
+          defaultBilingual: settings.youtube.defaultBilingual,
           document: documentRef,
           ...(options.isYouTubeWatchPage === undefined
             ? {}
@@ -264,12 +303,13 @@ export function initializeContentScript(options: ContentScriptOptions = {}): Con
             controller.state.status !== "closed" && controller.state.status !== "idle",
           onPresentationChange: () => controller.refreshPresentation(),
           onSelection: ({ anchorRect, input, presentation }) => {
-            controller.show(input, anchorRect, presentation);
+            showSelection(input, anchorRect, presentation);
           },
           onSessionClose: () => controller.close(),
           onWarmup: () => {
             void sendCommand({ type: "WARMUP_HOST" });
           },
+          shortcut: settings.youtube.shortcut,
         })
       : null;
 
@@ -281,6 +321,7 @@ export function initializeContentScript(options: ContentScriptOptions = {}): Con
     : null;
 
   const handleSelection = (event: Event): void => {
+    if (!featuresEnabled) return;
     if (event instanceof KeyboardEvent && event.key === "Escape") {
       return;
     }
@@ -298,7 +339,7 @@ export function initializeContentScript(options: ContentScriptOptions = {}): Con
 
     youtubeController?.releaseSelectionForExternalInteraction();
     const anchorRect = getSelectionAnchorRect(event, getAnchorRect(reading.range));
-    controller.show(
+    showSelection(
       {
         context: reading.context,
         selection: reading.selection,
@@ -368,7 +409,16 @@ export function initializeContentScript(options: ContentScriptOptions = {}): Con
       sendCancellations(requestLifetimes.cancelAll());
       controller.destroy();
     },
+    updateSettings: (nextSettings) => {
+      settings = nextSettings;
+    },
   };
+}
+
+export async function bootstrapContentScript(
+  store = new SettingsStore(),
+): Promise<ContentScriptBootstrap> {
+  return bootstrapSettingsDrivenContent(store, (settings) => initializeContentScript({ settings }));
 }
 
 if (
@@ -376,5 +426,5 @@ if (
   typeof document !== "undefined" &&
   chrome.runtime?.id !== undefined
 ) {
-  initializeContentScript();
+  void bootstrapContentScript();
 }

@@ -133,7 +133,7 @@ function buildHeaders(authorization: string): Readonly<Record<string, string>> {
   return {
     Accept: "application/json",
     Authorization: authorization,
-    "User-Agent": "Huayi/0.12.0",
+    "User-Agent": "Huayi/0.13.0",
   };
 }
 

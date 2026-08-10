@@ -16,12 +16,12 @@ const requestId = "verify-windows-sea-health";
 function fixtureScript({ delay = false, stderr = "", trailing = false } = {}) {
   const response = JSON.stringify({
     codexVersion: null,
-    hostVersion: "0.12.0",
+    hostVersion: "0.13.0",
     model: "deepseek-v4-flash",
     provider: "deepseek-chat-completions",
     ready: true,
     requestId,
-    schemaVersion: 6,
+    schemaVersion: 7,
     type: "health-result",
   });
   return `
@@ -49,11 +49,11 @@ function verifyFixture(options = {}) {
 }
 
 test("encodes the fixed health request as one native message", () => {
-  const frame = encodeNativeMessage({ requestId, schemaVersion: 6, type: "health" });
+  const frame = encodeNativeMessage({ requestId, schemaVersion: 7, type: "health" });
   assert.equal(frame.readUInt32LE(0), frame.length - 4);
   assert.deepEqual(JSON.parse(frame.subarray(4).toString("utf8")), {
     requestId,
-    schemaVersion: 6,
+    schemaVersion: 7,
     type: "health",
   });
 });

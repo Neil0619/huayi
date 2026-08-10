@@ -86,12 +86,12 @@ describe("NativeMessageDispatcher word-sync service routing", () => {
     const dispatcher = createDispatcher(wordSyncService);
     const emit = (event: HostEvent) => events.push(event);
     dispatcher.dispatch(
-      { requestId: "sync-status", schemaVersion: 6, type: "word-sync-status" },
+      { requestId: "sync-status", schemaVersion: 7, type: "word-sync-status" },
       emit,
     );
-    dispatcher.dispatch({ requestId: "sync-poll", schemaVersion: 6, type: "word-sync-poll" }, emit);
+    dispatcher.dispatch({ requestId: "sync-poll", schemaVersion: 7, type: "word-sync-poll" }, emit);
     dispatcher.dispatch(
-      { requestId: "sync-prepare", schemaVersion: 6, type: "word-sync-prepare-batch" },
+      { requestId: "sync-prepare", schemaVersion: 7, type: "word-sync-prepare-batch" },
       emit,
     );
     dispatcher.dispatch(
@@ -99,7 +99,7 @@ describe("NativeMessageDispatcher word-sync service routing", () => {
         batchId: "batch-1",
         rejectedTargets: ["orbiting"],
         requestId: "sync-resolve",
-        schemaVersion: 6,
+        schemaVersion: 7,
         type: "word-sync-resolve-batch",
       },
       emit,
@@ -109,7 +109,7 @@ describe("NativeMessageDispatcher word-sync service routing", () => {
         limit: 100,
         offset: 0,
         requestId: "sync-list",
-        schemaVersion: 6,
+        schemaVersion: 7,
         type: "word-sync-list-unresolved",
       },
       emit,
@@ -118,7 +118,7 @@ describe("NativeMessageDispatcher word-sync service routing", () => {
       {
         items: [{ sourceWord: "splendidly", targetWord: "splendid" }],
         requestId: "sync-requeue",
-        schemaVersion: 6,
+        schemaVersion: 7,
         type: "word-sync-requeue-unresolved",
       },
       emit,
@@ -126,7 +126,7 @@ describe("NativeMessageDispatcher word-sync service routing", () => {
     dispatcher.dispatch(
       {
         requestId: "sync-discard",
-        schemaVersion: 6,
+        schemaVersion: 7,
         sourceWords: ["splendidly"],
         type: "word-sync-discard-unresolved",
       },
@@ -136,7 +136,7 @@ describe("NativeMessageDispatcher word-sync service routing", () => {
       {
         confirm: true,
         requestId: "sync-discard-all",
-        schemaVersion: 6,
+        schemaVersion: 7,
         type: "word-sync-discard-all-unresolved",
       },
       emit,

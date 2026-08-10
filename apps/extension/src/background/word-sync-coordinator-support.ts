@@ -2,9 +2,11 @@ import type { AnalysisError, WordSyncRequest, WordSyncStatusEvent } from "@huayi
 
 import type { ShanbayBackgroundMessage } from "../shared/extension-messages.js";
 import type { NativeDisconnect, NativeTransport } from "./native-transport.js";
+import { wordSyncFailurePresentation } from "./word-sync-presentation.js";
 
 export interface WordSyncBrowserApi {
   createAlarm(name: string, alarmInfo: chrome.alarms.AlarmCreateInfo): void;
+  clearAlarm?(name: string): Promise<boolean> | undefined;
   getAlarm(name: string): Promise<chrome.alarms.Alarm | undefined>;
   createTab(url: string): Promise<void> | void;
   sendToTab(tabId: number, message: ShanbayBackgroundMessage): Promise<void> | void;
@@ -18,6 +20,12 @@ export interface WordSyncCoordinatorOptions {
   now?: () => Date;
   timeoutMs?: number;
   transport: NativeTransport;
+}
+
+export interface WordSyncRuntimeSettings {
+  automaticSync: boolean;
+  enabled: boolean;
+  syncHour: number;
 }
 
 export const DEFAULT_WORD_SYNC_TIMEOUT_MS = 65_000;
@@ -89,4 +97,37 @@ export function updateWordSyncStatusCounts(
 ): WordSyncStatusEvent | null {
   if (status === null) return null;
   return { ...status, pendingCount, unresolvedCount };
+}
+
+export function finishPendingSync(
+  pendingRequests: Map<string, PendingSyncRequest>,
+  pending: PendingSyncRequest,
+): void {
+  clearTimeout(pending.timeoutId);
+  pendingRequests.delete(pending.request.requestId);
+}
+
+export function presentWordSyncFailure(
+  browser: WordSyncBrowserApi,
+  lastStatus: WordSyncStatusEvent | null,
+  pending: PendingSyncRequest,
+  error: AnalysisError,
+): void {
+  const presentation = wordSyncFailurePresentation(lastStatus, error);
+  ignoreBrowserFailure(browser.setBadgeText(presentation.badge));
+  ignoreBrowserFailure(browser.setTitle(presentation.title));
+  if (pending.tabId !== undefined) {
+    ignoreBrowserFailure(browser.sendToTab(pending.tabId, { error, type: "SHANBAY_SYNC_ERROR" }));
+  }
+}
+
+export function recoverWordSyncPollFailure(
+  browser: WordSyncBrowserApi,
+  pending: PendingSyncRequest,
+  error: AnalysisError,
+  requestStatus: () => void,
+): void {
+  if (pending.kind !== "poll") return;
+  if (error.retryable) browser.createAlarm("huayi-word-sync-continue", { delayInMinutes: 1 });
+  requestStatus();
 }

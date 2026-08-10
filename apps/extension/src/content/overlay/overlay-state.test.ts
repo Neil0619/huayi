@@ -51,7 +51,7 @@ function delta(
   return {
     delta: value,
     requestId: "analysis-1",
-    schemaVersion: 6,
+    schemaVersion: 7,
     section,
     sequence,
     type: "analysis-delta",
@@ -65,7 +65,7 @@ function section(
   return {
     ...payload,
     requestId: "analysis-1",
-    schemaVersion: 6,
+    schemaVersion: 7,
     sequence,
     type: "analysis-section",
   } as AnalysisSectionEvent;

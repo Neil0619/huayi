@@ -88,7 +88,7 @@ describe("WordSyncService concurrency", () => {
           ? ({
               language: "en",
               requestId: "check-shared",
-              schemaVersion: 6,
+              schemaVersion: 7,
               type: "check-word",
               word: "investigation",
             } satisfies CheckWordRequest)
@@ -96,7 +96,7 @@ describe("WordSyncService concurrency", () => {
               context: "The investigation continues.",
               language: "en",
               requestId: "add-shared",
-              schemaVersion: 6,
+              schemaVersion: 7,
               type: "add-word",
               word: "investigation",
             } satisfies AddWordRequest);

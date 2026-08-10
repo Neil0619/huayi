@@ -1,8 +1,10 @@
 import { hasDocumentSelection, hasEditableFocus } from "./youtube-player-state.js";
+import { DEFAULT_YOUTUBE_SHORTCUT, type KeyboardShortcut } from "../../settings/settings-domain.js";
 
 interface YouTubeBilingualKeyControllerOptions {
   canHold: () => boolean;
   setHolding: (value: boolean) => void;
+  shortcut?: KeyboardShortcut | null;
 }
 
 function consumeTemporaryBilingualKey(event: KeyboardEvent): void {
@@ -10,16 +12,19 @@ function consumeTemporaryBilingualKey(event: KeyboardEvent): void {
   event.stopImmediatePropagation();
 }
 
-function isPhysicalZ(event: KeyboardEvent): boolean {
-  return event.code === "KeyZ";
+function isShortcutKey(event: KeyboardEvent, shortcut: KeyboardShortcut | null): boolean {
+  return shortcut !== null && event.code === shortcut.code;
 }
 
-function isTemporaryBilingualKeydown(event: KeyboardEvent): boolean {
-  return isPhysicalZ(event) && event.shiftKey;
-}
-
-function isUnmodifiedTemporaryBilingualKey(event: KeyboardEvent): boolean {
-  return isTemporaryBilingualKeydown(event) && !event.altKey && !event.ctrlKey && !event.metaKey;
+function matchesShortcut(event: KeyboardEvent, shortcut: KeyboardShortcut | null): boolean {
+  return (
+    isShortcutKey(event, shortcut) &&
+    shortcut !== null &&
+    event.altKey === shortcut.alt &&
+    event.ctrlKey === shortcut.ctrl &&
+    event.metaKey === shortcut.meta &&
+    event.shiftKey === shortcut.shift
+  );
 }
 
 export class YouTubeBilingualKeyController {
@@ -31,16 +36,14 @@ export class YouTubeBilingualKeyController {
   ) {}
 
   readonly handleKeydown = (event: KeyboardEvent): void => {
-    if (this.claimedPress && isPhysicalZ(event)) {
+    const shortcut =
+      this.options.shortcut === undefined ? DEFAULT_YOUTUBE_SHORTCUT : this.options.shortcut;
+    if (this.claimedPress && isShortcutKey(event, shortcut)) {
       consumeTemporaryBilingualKey(event);
       return;
     }
-    if (!isTemporaryBilingualKeydown(event)) return;
-    if (
-      !isUnmodifiedTemporaryBilingualKey(event) ||
-      hasDocumentSelection(this.documentRef) ||
-      hasEditableFocus(this.documentRef)
-    ) {
+    if (!matchesShortcut(event, shortcut)) return;
+    if (hasDocumentSelection(this.documentRef) || hasEditableFocus(this.documentRef)) {
       return;
     }
     if (event.repeat) return;
@@ -51,7 +54,14 @@ export class YouTubeBilingualKeyController {
   };
 
   readonly handleKeyup = (event: KeyboardEvent): void => {
-    if (!isPhysicalZ(event) || !this.claimedPress) return;
+    if (
+      !isShortcutKey(
+        event,
+        this.options.shortcut === undefined ? DEFAULT_YOUTUBE_SHORTCUT : this.options.shortcut,
+      ) ||
+      !this.claimedPress
+    )
+      return;
     this.claimedPress = false;
     consumeTemporaryBilingualKey(event);
     this.options.setHolding(false);

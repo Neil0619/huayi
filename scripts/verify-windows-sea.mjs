@@ -34,12 +34,12 @@ function validateHealthFrame(frame) {
   try {
     assert.deepEqual(event, {
       codexVersion: null,
-      hostVersion: "0.12.0",
+      hostVersion: "0.13.0",
       model: "deepseek-v4-flash",
       provider: "deepseek-chat-completions",
       ready: true,
       requestId: REQUEST_ID,
-      schemaVersion: 6,
+      schemaVersion: 7,
       type: "health-result",
     });
   } catch {
@@ -124,7 +124,7 @@ export async function verifyNativeHostExecutable({
     });
 
     child.stdin.write(
-      encodeNativeMessage({ requestId: REQUEST_ID, schemaVersion: 6, type: "health" }),
+      encodeNativeMessage({ requestId: REQUEST_ID, schemaVersion: 7, type: "health" }),
     );
   });
 }

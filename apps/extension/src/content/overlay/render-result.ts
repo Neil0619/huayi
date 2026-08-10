@@ -11,6 +11,7 @@ export interface PanelHandlers {
   onAddWord: () => void;
   onClose: () => void;
   onRetry: () => void;
+  wordbookEnabled?: boolean;
 }
 
 export type PanelState =
@@ -46,7 +47,8 @@ function createHeader(state: PanelState, handlers: PanelHandlers): HTMLElement {
 
   const actions = document.createElement("div");
   actions.className = "huayi-header-actions";
-  const wordbook = renderWordbookAction(state, handlers.onAddWord);
+  const wordbook =
+    handlers.wordbookEnabled === false ? null : renderWordbookAction(state, handlers.onAddWord);
   if (wordbook !== null) {
     actions.append(wordbook);
   }
@@ -81,11 +83,16 @@ function renderAnalysisError(
   return error;
 }
 
-function patchWordbookAction(panel: HTMLElement, state: PanelState, onAddWord: () => void): void {
+function patchWordbookAction(
+  panel: HTMLElement,
+  state: PanelState,
+  handlers: Pick<PanelHandlers, "onAddWord" | "wordbookEnabled">,
+): void {
   const actions = panel.querySelector<HTMLElement>(".huayi-header-actions");
   const close = actions?.querySelector<HTMLElement>("[data-action='close']") ?? null;
   const current = actions?.querySelector<HTMLElement>(":scope > .huayi-wordbook") ?? null;
-  const desired = renderWordbookAction(state, onAddWord);
+  const desired =
+    handlers.wordbookEnabled === false ? null : renderWordbookAction(state, handlers.onAddWord);
   if (desired === null) {
     current?.remove();
     return;
@@ -176,7 +183,7 @@ export function patchOverlayPanel(
   now = Date.now(),
 ): void {
   patchPanelMetadata(panel, state);
-  patchWordbookAction(panel, state, handlers.onAddWord);
+  patchWordbookAction(panel, state, handlers);
   patchWordbookError(panel, state);
   const body = panel.querySelector<HTMLElement>(":scope > .huayi-body");
   if (body === null) {

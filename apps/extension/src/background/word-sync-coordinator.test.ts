@@ -67,7 +67,7 @@ function statusEvent(requestId: string, overrides = {}): HostEvent {
     pollDue: false,
     requestId,
     scanInProgress: false,
-    schemaVersion: 6,
+    schemaVersion: 7,
     skippedCount: 0,
     type: "word-sync-status",
     unresolvedCount: 0,
@@ -87,7 +87,7 @@ function batchEvent(requestId: string, batchId = "batch-1", pendingAfterBatch = 
     ],
     pendingAfterBatch,
     requestId,
-    schemaVersion: 6,
+    schemaVersion: 7,
     type: "word-sync-batch",
   };
 }
@@ -95,7 +95,7 @@ function batchEvent(requestId: string, batchId = "batch-1", pendingAfterBatch = 
 describe("WordSyncCoordinator", () => {
   it("opens Shanbay only when a batch exists and sends the durable batch after page readiness", () => {
     const { browser, coordinator, transport } = createFixture();
-    coordinator.handleActionClick();
+    coordinator.startManualSync();
     transport.emit(batchEvent("sync-1", "batch-1", 3));
     expect(browser.createTab).toHaveBeenCalledWith(SHANBAY_COLLECTION_URL);
 
@@ -122,7 +122,7 @@ describe("WordSyncCoordinator", () => {
       requestId: "sync-1",
       resolvedCount: 1,
       retryCount: 1,
-      schemaVersion: 6,
+      schemaVersion: 7,
       type: "word-sync-batch-resolved",
       unresolved: [],
       unresolvedCount: 0,
@@ -153,7 +153,7 @@ describe("WordSyncCoordinator", () => {
 
   it("opens the unresolved panel from the attention badge and supports manual requeue", async () => {
     const { browser, coordinator, transport } = createFixture();
-    coordinator.handleActionClick();
+    coordinator.startManualSync();
     transport.emit(statusEvent("sync-1", { unresolvedCount: 2 }));
     expect(browser.createTab).toHaveBeenCalledWith(SHANBAY_COLLECTION_URL);
 
@@ -177,7 +177,7 @@ describe("WordSyncCoordinator", () => {
       ],
       offset: 0,
       requestId: "sync-3",
-      schemaVersion: 6,
+      schemaVersion: 7,
       totalCount: 2,
       type: "word-sync-unresolved-list",
     });
@@ -203,7 +203,7 @@ describe("WordSyncCoordinator", () => {
       discardedCount: 1,
       pendingCount: 0,
       requestId: "sync-1",
-      schemaVersion: 6,
+      schemaVersion: 7,
       type: "word-sync-unresolved-discarded",
       unresolvedCount: 10,
     });
@@ -237,7 +237,7 @@ describe("WordSyncCoordinator", () => {
       discardedCount: 11,
       pendingCount: 0,
       requestId: "sync-1",
-      schemaVersion: 6,
+      schemaVersion: 7,
       type: "word-sync-unresolved-discarded",
       unresolvedCount: 0,
     });
@@ -260,7 +260,7 @@ describe("WordSyncCoordinator", () => {
     const { browser, coordinator, transport } = createFixture();
     coordinator.initialize();
     transport.emit(statusEvent("sync-1", { pendingCount: 8 }));
-    coordinator.handleActionClick();
+    coordinator.startManualSync();
     transport.disconnect({ reason: "disconnected" });
     expect(browser.setBadgeText).toHaveBeenLastCalledWith("8");
     coordinator.dispose();
@@ -277,7 +277,7 @@ describe("WordSyncCoordinator", () => {
       requestId: "sync-2",
       resolvedCount: 6,
       retryCount: 0,
-      schemaVersion: 6,
+      schemaVersion: 7,
       type: "word-sync-batch-resolved",
       unresolved: [],
       unresolvedCount: 1,
@@ -288,7 +288,7 @@ describe("WordSyncCoordinator", () => {
         expect.objectContaining({ type: "SHANBAY_SYNC_RESOLVED" }),
       ),
     );
-    coordinator.handleActionClick();
+    coordinator.startManualSync();
     transport.disconnect({ reason: "disconnected" });
     expect(browser.setBadgeText).toHaveBeenLastCalledWith("2");
     coordinator.dispose();
@@ -317,7 +317,7 @@ describe("WordSyncCoordinator", () => {
     const { browser, coordinator, transport } = createFixture();
     coordinator.initialize();
     transport.emit(statusEvent("sync-1", { pendingCount: 8, unresolvedCount: 3 }));
-    coordinator.handleActionClick();
+    coordinator.startManualSync();
     transport.emit(batchEvent("sync-2", "batch-1", 7));
 
     expect(browser.setTitle).toHaveBeenLastCalledWith(
@@ -332,7 +332,7 @@ describe("WordSyncCoordinator", () => {
     transport.emit({
       error: { code: "NETWORK_ERROR", message: "offline", retryable: true },
       requestId: "sync-1",
-      schemaVersion: 6,
+      schemaVersion: 7,
       type: "error",
     });
     expect(browser.createAlarm).toHaveBeenCalledWith(WORD_SYNC_CONTINUE_ALARM, {
@@ -378,7 +378,7 @@ describe("WordSyncCoordinator", () => {
       discardedCount: 1,
       pendingCount: 0,
       requestId: "sync-1",
-      schemaVersion: 6,
+      schemaVersion: 7,
       type: "word-sync-unresolved-discarded",
       unresolvedCount: 0,
     });

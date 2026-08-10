@@ -7,6 +7,7 @@ import type {
   HostWorkRequest,
 } from "@huayi/protocol";
 
+import { DEFAULT_EXTENSION_SETTINGS } from "../settings/settings-domain.js";
 import {
   createRuntimeMessageListener,
   handleContentMessage,
@@ -21,7 +22,7 @@ const request: AnalyzeRequest = {
   action: "translate",
   context: "The investigation was in its early stages.",
   requestId: "request-1",
-  schemaVersion: 6,
+  schemaVersion: 7,
   selection: "investigation",
   selectionKind: "word",
   sentenceContext: null,
@@ -33,7 +34,7 @@ const wordRequest: AddWordRequest = {
   context: "The investigation was in its early stages.",
   language: "en",
   requestId: "word-1",
-  schemaVersion: 6,
+  schemaVersion: 7,
   type: "add-word",
   word: "investigation",
 };
@@ -41,7 +42,7 @@ const wordRequest: AddWordRequest = {
 const checkRequest: CheckWordRequest = {
   language: "en",
   requestId: "check-1",
-  schemaVersion: 6,
+  schemaVersion: 7,
   type: "check-word",
   word: "investigation",
 };
@@ -208,7 +209,56 @@ describe("handleContentMessage", () => {
     expect(responses).toEqual([{ handled: true }]);
   });
 
-  it("cancels every request lane when Chrome removes the sender tab", () => {
+  it("accepts settings only from extension pages and applies the site-policy defense", async () => {
+    const coordinator = new FakeCoordinator();
+    const mutate = vi.fn(async () => DEFAULT_EXTENSION_SETTINGS);
+    const listener = createRuntimeMessageListener(
+      coordinator,
+      undefined,
+      undefined,
+      { mutate },
+      "chrome-extension://extension-id/",
+      (sender) => sender.url === "https://allowed.example/article",
+    );
+    const responses: unknown[] = [];
+
+    expect(
+      listener(
+        { enabled: false, type: "MUTATE_SETTINGS" },
+        { url: "https://evil.example/" },
+        (response) => responses.push(response),
+      ),
+    ).toBe(false);
+    expect(mutate).not.toHaveBeenCalled();
+    expect(
+      listener(
+        { mutation: { enabled: false, type: "set-enabled" }, type: "MUTATE_SETTINGS" },
+        { url: "chrome-extension://extension-id/options.html" },
+        (response) => responses.push(response),
+      ),
+    ).toBe(true);
+    await vi.waitFor(() => expect(mutate).toHaveBeenCalledOnce());
+
+    listener(
+      { request, type: "ANALYZE_SELECTION" },
+      { tab: { id: 7 }, url: "https://blocked.example/article" },
+      (response) => responses.push(response),
+    );
+    listener(
+      { request, type: "ANALYZE_SELECTION" },
+      { tab: { id: 7 }, url: "https://allowed.example/article" },
+      (response) => responses.push(response),
+    );
+    listener(
+      { requestId: request.requestId, type: "CANCEL_REQUEST" },
+      { tab: { id: 7 }, url: "https://blocked.example/article" },
+      (response) => responses.push(response),
+    );
+    expect(coordinator.starts).toEqual([{ request, tabId: 7 }]);
+    expect(coordinator.cancellations).toEqual([{ requestId: request.requestId, tabId: 7 }]);
+  });
+
+  it("cancels every request lane when Chrome removes the sender tab", async () => {
     type TabRemovedListener = (
       tabId: number,
       removeInfo: { isWindowClosing: boolean; windowId: number },
@@ -230,6 +280,7 @@ describe("handleContentMessage", () => {
         setTitle: () => Promise.resolve(),
       },
       alarms: {
+        clear: () => Promise.resolve(true),
         create: () => Promise.resolve(),
         get: () => Promise.resolve(undefined),
         onAlarm: {
@@ -247,6 +298,7 @@ describe("handleContentMessage", () => {
           postMessage: (message: unknown) => postedMessages.push(message),
         }),
         id: "extension-id",
+        getURL: (path: string) => `chrome-extension://extension-id/${path}`,
         onMessage: {
           addListener: (listener: RuntimeMessageListener) => runtimeListeners.push(listener),
           removeListener: (listener: RuntimeMessageListener) =>
@@ -256,6 +308,16 @@ describe("handleContentMessage", () => {
           addListener: (listener: () => void) => startupListeners.push(listener),
           removeListener: (listener: () => void) =>
             startupListeners.splice(startupListeners.indexOf(listener), 1),
+        },
+      },
+      storage: {
+        local: {
+          get: () => Promise.resolve({}),
+          set: () => Promise.resolve(),
+        },
+        onChanged: {
+          addListener: () => undefined,
+          removeListener: () => undefined,
         },
       },
       tabs: {
@@ -273,26 +335,25 @@ describe("handleContentMessage", () => {
     expect(runtimeListeners).toHaveLength(1);
     expect(tabRemovedListeners).toHaveLength(1);
     expect(startupListeners).toHaveLength(1);
-    expect(postedMessages).toEqual([
-      expect.objectContaining({ schemaVersion: 6, type: "word-sync-status" }),
-    ]);
+    await vi.waitFor(() =>
+      expect(postedMessages).toEqual([
+        expect.objectContaining({ schemaVersion: 7, type: "word-sync-status" }),
+      ]),
+    );
 
     const send = runtimeListeners[0];
     const removeTab = tabRemovedListeners[0];
     if (send === undefined || removeTab === undefined) {
       throw new Error("Expected registered Chrome listeners.");
     }
-    send({ type: "WARMUP_HOST" }, { tab: { id: 7 } }, () => undefined);
-    send({ request, type: "ANALYZE_SELECTION" }, { tab: { id: 7 } }, () => undefined);
-    send(
-      { request: checkRequest, type: "CHECK_WORD_IN_EUDIC" },
-      { tab: { id: 7 } },
-      () => undefined,
-    );
+    const sender = { tab: { id: 7 }, url: "https://example.com/article" };
+    send({ type: "WARMUP_HOST" }, sender, () => undefined);
+    send({ request, type: "ANALYZE_SELECTION" }, sender, () => undefined);
+    send({ request: checkRequest, type: "CHECK_WORD_IN_EUDIC" }, sender, () => undefined);
     removeTab(7, { isWindowClosing: false, windowId: 1 });
 
     expect(postedMessages).toHaveLength(6);
-    expect(postedMessages[1]).toMatchObject({ schemaVersion: 6, type: "warmup" });
+    expect(postedMessages[1]).toMatchObject({ schemaVersion: 7, type: "warmup" });
     expect(Object.keys(postedMessages[1] as object).sort()).toEqual([
       "requestId",
       "schemaVersion",

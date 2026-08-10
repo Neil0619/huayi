@@ -89,6 +89,19 @@ const isolatedRuntimeBootstrap = String.raw`
       },
     },
   });
+  Object.defineProperty(chromeApi, "storage", {
+    configurable: true,
+    value: {
+      local: {
+        get: async () => ({}),
+        set: async () => undefined,
+      },
+      onChanged: {
+        addListener: () => undefined,
+        removeListener: () => undefined,
+      },
+    },
+  });
   if (globalThis.chrome === undefined) {
     Object.defineProperty(globalThis, "chrome", { configurable: true, value: chromeApi });
   }

@@ -14,7 +14,7 @@ const request: AnalyzeRequest = {
   action: "translate",
   context: "The investigation remains open.",
   requestId: "deepseek-client-1",
-  schemaVersion: 6,
+  schemaVersion: 7,
   selection: "investigation",
   selectionKind: "word",
   sentenceContext: "The investigation remains open.",

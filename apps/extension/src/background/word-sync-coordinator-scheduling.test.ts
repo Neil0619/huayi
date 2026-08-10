@@ -42,6 +42,7 @@ function createFixture(now: () => Date) {
   let sequence = 0;
   const transport = new FakeTransport();
   const browser: WordSyncBrowserApi = {
+    clearAlarm: vi.fn(),
     createAlarm: vi.fn(),
     createTab: vi.fn(),
     getAlarm: vi.fn(async () => undefined),
@@ -66,7 +67,7 @@ function statusEvent(requestId: string, overrides = {}): HostEvent {
     pollDue: false,
     requestId,
     scanInProgress: false,
-    schemaVersion: 6,
+    schemaVersion: 7,
     skippedCount: 0,
     type: "word-sync-status",
     unresolvedCount: 0,
@@ -79,6 +80,22 @@ afterEach(() => {
 });
 
 describe("WordSyncCoordinator daily scheduling", () => {
+  it("clears daily work while disabled and honors a configured local hour when enabled", async () => {
+    const { browser, coordinator, transport } = createFixture(() => localTime(14, 30));
+    coordinator.initialize({ automaticSync: true, enabled: false, syncHour: 17 });
+    expect(browser.clearAlarm).toHaveBeenCalledWith(WORD_SYNC_DAILY_ALARM);
+    expect(transport.requests).toEqual([]);
+    expect(coordinator.startManualSync()).toBe(false);
+
+    coordinator.configure({ automaticSync: true, enabled: true, syncHour: 17 });
+    await vi.waitFor(() =>
+      expect(browser.createAlarm).toHaveBeenCalledWith(WORD_SYNC_DAILY_ALARM, {
+        when: localTime(17).getTime(),
+      }),
+    );
+    expect(coordinator.startManualSync()).toBe(true);
+    coordinator.dispose();
+  });
   it("anchors the daily scan at the next local 08:00 instead of from service-worker startup", async () => {
     vi.useFakeTimers({ now: localTime(7, 30).getTime() });
     const { browser, coordinator } = createFixture(() => new Date());
@@ -170,8 +187,8 @@ describe("WordSyncCoordinator daily scheduling", () => {
     const { coordinator, transport } = createFixture(() => localTime(8));
     coordinator.handleAlarm(WORD_SYNC_DAILY_ALARM);
     coordinator.handleAlarm(WORD_SYNC_DAILY_ALARM);
-    coordinator.handleActionClick();
-    coordinator.handleActionClick();
+    coordinator.startManualSync();
+    coordinator.startManualSync();
 
     expect(transport.requests.map((request) => request.type)).toEqual([
       "word-sync-poll",

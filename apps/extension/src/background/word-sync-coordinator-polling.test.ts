@@ -61,7 +61,7 @@ function statusEvent(requestId: string, overrides = {}): HostEvent {
     pollDue: false,
     requestId,
     scanInProgress: false,
-    schemaVersion: 6,
+    schemaVersion: 7,
     skippedCount: 0,
     type: "word-sync-status",
     unresolvedCount: 0,
@@ -81,7 +81,7 @@ function batchEvent(requestId: string): HostEvent {
     ],
     pendingAfterBatch: 3,
     requestId,
-    schemaVersion: 6,
+    schemaVersion: 7,
     type: "word-sync-batch",
   };
 }
@@ -90,7 +90,7 @@ describe("WordSyncCoordinator overdue polling", () => {
   it("polls overdue Eudic words before preparing an action-click batch", () => {
     const { browser, coordinator, transport } = createFixture();
 
-    coordinator.handleActionClick();
+    coordinator.startManualSync();
     expect(transport.requests[0]).toMatchObject({ type: "word-sync-prepare-batch" });
 
     transport.emit(statusEvent("sync-1", { pollDue: true }));
@@ -108,7 +108,7 @@ describe("WordSyncCoordinator overdue polling", () => {
   it("finishes a persisted multi-request scan before preparing the clicked batch", () => {
     const { browser, coordinator, transport } = createFixture();
 
-    coordinator.handleActionClick();
+    coordinator.startManualSync();
     transport.emit(statusEvent("sync-1", { pollDue: true }));
     transport.emit(statusEvent("sync-2", { pollDue: true, scanInProgress: true }));
 
@@ -128,7 +128,7 @@ describe("WordSyncCoordinator overdue polling", () => {
     const { coordinator, transport } = createFixture();
 
     coordinator.handleAlarm(WORD_SYNC_DAILY_ALARM);
-    coordinator.handleActionClick();
+    coordinator.startManualSync();
     transport.emit(statusEvent("sync-2", { pollDue: true }));
 
     expect(transport.requests.map((request) => request.type)).toEqual([

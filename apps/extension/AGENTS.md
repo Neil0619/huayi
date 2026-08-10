@@ -3,10 +3,10 @@
 - Build only a Manifest V3 extension.
 - Content scripts own DOM selection and overlay rendering. Only the service worker may use
   Native Messaging.
-- Version 0.12 permissions are limited to exactly `alarms`, `nativeMessaging`, and content-script matches for
-  normal `http` and `https` pages. Any new permission requires `docs/security.md` and
-  regression-test updates.
-- The Extension uses wire v6 only and must be refreshed together with a v0.12.0 Native Host; v5
+- Version 0.13 permissions are limited to exactly `activeTab`, `alarms`, `nativeMessaging`,
+  `storage`, and content-script matches for normal `http` and `https` pages. Any new permission
+  requires `docs/security.md` and regression-test updates.
+- The Extension uses wire v7 only and must be refreshed together with a v0.13.0 Native Host; v6
   messages are incompatible and must be rejected.
 - Warmup requests contain only type, schema version, and request ID. Never add selection,
   context, sentence, URL, or other page data to warmup.

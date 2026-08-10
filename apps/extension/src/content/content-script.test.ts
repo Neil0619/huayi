@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 
 import type { ContentCommand } from "../shared/extension-messages.js";
+import { DEFAULT_EXTENSION_SETTINGS, type ExtensionSettings } from "../settings/settings-domain.js";
 import {
   createAddWordRequest,
   createAnalyzeRequest,
@@ -44,7 +45,23 @@ function selectContents(element: Element): void {
   selection.addRange(range);
 }
 
-function createInstance(runtime: FakeRuntime): ContentScriptInstance {
+function createParagraph(text: string): HTMLParagraphElement {
+  const paragraph = document.createElement("p");
+  paragraph.textContent = text;
+  document.body.append(paragraph);
+  return paragraph;
+}
+
+function clickAction(instance: ContentScriptInstance, action: "add-word" | "translate"): void {
+  instance.controller.shadowRoot
+    .querySelector<HTMLButtonElement>(`[data-action='${action}']`)
+    ?.click();
+}
+
+function createInstance(
+  runtime: FakeRuntime,
+  settings: ExtensionSettings = DEFAULT_EXTENSION_SETTINGS,
+): ContentScriptInstance {
   let nextId = 0;
   const instance = initializeContentScript({
     createRequestId: () => `request-${(nextId += 1)}`,
@@ -58,6 +75,7 @@ function createInstance(runtime: FakeRuntime): ContentScriptInstance {
       width: 100,
     }),
     runtime,
+    settings,
   });
   instances.push(instance);
   return instance;
@@ -79,7 +97,7 @@ function resolveWordTranslation(runtime: FakeRuntime, requestId: string, sourceT
       sourceText,
       type: "translate-word",
     },
-    schemaVersion: 6,
+    schemaVersion: 7,
     type: "result",
   });
 }
@@ -110,7 +128,7 @@ describe("createAnalyzeRequest", () => {
       action: "translate",
       context: "The investigation was in its early stages.",
       requestId: "request-1",
-      schemaVersion: 6,
+      schemaVersion: 7,
       selection: "investigation",
       selectionKind: "word",
       sentenceContext: "The investigation was in its early stages.",
@@ -136,6 +154,39 @@ describe("createAnalyzeRequest", () => {
   });
 });
 
+describe("configured selection behavior", () => {
+  it("starts a supported configured action immediately", () => {
+    const runtime = new FakeRuntime();
+    const instance = createInstance(runtime, {
+      ...DEFAULT_EXTENSION_SETTINGS,
+      defaultAction: "translate",
+    });
+    const paragraph = createParagraph("investigation");
+    selectContents(paragraph);
+    document.dispatchEvent(new MouseEvent("mouseup"));
+
+    expect(instance.controller.state.status).toBe("loading");
+    expect(runtime.sent).toEqual([
+      expect.objectContaining({ request: expect.objectContaining({ action: "translate" }) }),
+      { type: "WARMUP_HOST" },
+    ]);
+  });
+
+  it("does not initialize selection behavior when the product is disabled", () => {
+    const runtime = new FakeRuntime();
+    const instance = createInstance(runtime, {
+      ...DEFAULT_EXTENSION_SETTINGS,
+      enabled: false,
+    });
+    const paragraph = createParagraph("The investigation continues.");
+    selectContents(paragraph);
+    document.dispatchEvent(new MouseEvent("mouseup"));
+
+    expect(instance.controller.state.status).toBe("idle");
+    expect(runtime.sent).toEqual([]);
+  });
+});
+
 describe("createAddWordRequest", () => {
   it("uses only the original selected word and extracted sentence", () => {
     expect(
@@ -153,7 +204,7 @@ describe("createAddWordRequest", () => {
       context: "The investigation was in its early stages.",
       language: "en",
       requestId: "word-1",
-      schemaVersion: 6,
+      schemaVersion: 7,
       type: "add-word",
       word: "investigation",
     });
@@ -191,7 +242,7 @@ describe("createCheckWordRequest", () => {
     ).toEqual({
       language: "en",
       requestId: "check-1",
-      schemaVersion: 6,
+      schemaVersion: 7,
       type: "check-word",
       word: "investigation",
     });
@@ -202,9 +253,7 @@ describe("initializeContentScript", () => {
   it("centers a mouse selection overlay on the release position", () => {
     const runtime = new FakeRuntime();
     const instance = createInstance(runtime);
-    const paragraph = document.createElement("p");
-    paragraph.textContent = "investigation";
-    document.body.append(paragraph);
+    const paragraph = createParagraph("investigation");
     selectContents(paragraph);
 
     document.dispatchEvent(new MouseEvent("mouseup", { clientX: 320, clientY: 110, detail: 1 }));
@@ -228,9 +277,7 @@ describe("initializeContentScript", () => {
   it("opens actions on mouse selection and renders the matching result", () => {
     const runtime = new FakeRuntime();
     const instance = createInstance(runtime);
-    const paragraph = document.createElement("p");
-    paragraph.textContent = "The investigation was in its early stages.";
-    document.body.append(paragraph);
+    const paragraph = createParagraph("The investigation was in its early stages.");
     const text = paragraph.firstChild;
     if (!(text instanceof Text)) {
       throw new Error("Expected text fixture.");
@@ -245,9 +292,7 @@ describe("initializeContentScript", () => {
 
     document.dispatchEvent(new MouseEvent("mouseup"));
     expect(runtime.sent).toEqual([{ type: "WARMUP_HOST" }]);
-    instance.controller.shadowRoot
-      .querySelector<HTMLButtonElement>("[data-action='translate']")
-      ?.click();
+    clickAction(instance, "translate");
 
     expect(runtime.sent[1]).toMatchObject({
       request: {
@@ -273,18 +318,16 @@ describe("initializeContentScript", () => {
         sourceText: "investigation",
         type: "translate-word",
       },
-      schemaVersion: 6,
+      schemaVersion: 7,
       type: "result",
     });
-    instance.controller.shadowRoot
-      .querySelector<HTMLButtonElement>("[data-action='add-word']")
-      ?.click();
+    clickAction(instance, "add-word");
     expect(runtime.sent[2]).toEqual({
       request: {
         context: "The investigation was in its early stages.",
         language: "en",
         requestId: "request-2",
-        schemaVersion: 6,
+        schemaVersion: 7,
         type: "add-word",
         word: "investigation",
       },
@@ -293,7 +336,7 @@ describe("initializeContentScript", () => {
     runtime.emit({
       outcome: "added",
       requestId: "request-2",
-      schemaVersion: 6,
+      schemaVersion: 7,
       type: "word-added",
     });
     expect(instance.controller.shadowRoot.textContent).toContain("已加入");
@@ -302,17 +345,12 @@ describe("initializeContentScript", () => {
   it("cancels the active request when a new selection replaces it", () => {
     const runtime = new FakeRuntime();
     const instance = createInstance(runtime);
-    const first = document.createElement("p");
-    first.textContent = "investigation";
-    const second = document.createElement("p");
-    second.textContent = "sustained heatwave";
-    document.body.append(first, second);
+    const first = createParagraph("investigation");
+    const second = createParagraph("sustained heatwave");
 
     selectContents(first);
     document.dispatchEvent(new MouseEvent("mouseup"));
-    instance.controller.shadowRoot
-      .querySelector<HTMLButtonElement>("[data-action='translate']")
-      ?.click();
+    clickAction(instance, "translate");
 
     selectContents(second);
     document.dispatchEvent(new MouseEvent("mouseup"));
@@ -329,21 +367,14 @@ describe("initializeContentScript", () => {
   it("keeps a pending wordbook request on a new selection and ignores its late success", () => {
     const runtime = new FakeRuntime();
     const instance = createInstance(runtime);
-    const first = document.createElement("p");
-    first.textContent = "investigation";
-    const second = document.createElement("p");
-    second.textContent = "replacement";
-    document.body.append(first, second);
+    const first = createParagraph("investigation");
+    const second = createParagraph("replacement");
 
     selectContents(first);
     document.dispatchEvent(new MouseEvent("mouseup"));
-    instance.controller.shadowRoot
-      .querySelector<HTMLButtonElement>("[data-action='translate']")
-      ?.click();
+    clickAction(instance, "translate");
     resolveWordTranslation(runtime, "request-1", "investigation");
-    instance.controller.shadowRoot
-      .querySelector<HTMLButtonElement>("[data-action='add-word']")
-      ?.click();
+    clickAction(instance, "add-word");
 
     selectContents(second);
     document.dispatchEvent(new MouseEvent("mouseup"));
@@ -356,7 +387,7 @@ describe("initializeContentScript", () => {
     runtime.emit({
       outcome: "added",
       requestId: "request-2",
-      schemaVersion: 6,
+      schemaVersion: 7,
       type: "word-added",
     });
     expect(instance.controller.state).toMatchObject({
@@ -368,18 +399,12 @@ describe("initializeContentScript", () => {
   it("keeps a pending wordbook request when Escape closes the result", () => {
     const runtime = new FakeRuntime();
     const instance = createInstance(runtime);
-    const paragraph = document.createElement("p");
-    paragraph.textContent = "investigation";
-    document.body.append(paragraph);
+    const paragraph = createParagraph("investigation");
     selectContents(paragraph);
     document.dispatchEvent(new MouseEvent("mouseup"));
-    instance.controller.shadowRoot
-      .querySelector<HTMLButtonElement>("[data-action='translate']")
-      ?.click();
+    clickAction(instance, "translate");
     resolveWordTranslation(runtime, "request-1", "investigation");
-    instance.controller.shadowRoot
-      .querySelector<HTMLButtonElement>("[data-action='add-word']")
-      ?.click();
+    clickAction(instance, "add-word");
 
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
     document.dispatchEvent(new KeyboardEvent("keyup", { key: "Escape" }));
@@ -389,7 +414,7 @@ describe("initializeContentScript", () => {
     runtime.emit({
       outcome: "added",
       requestId: "request-2",
-      schemaVersion: 6,
+      schemaVersion: 7,
       type: "word-added",
     });
     expect(instance.controller.state.status).toBe("closed");
@@ -398,14 +423,10 @@ describe("initializeContentScript", () => {
   it("does not reopen the selected text when Escape keyup follows closing", () => {
     const runtime = new FakeRuntime();
     const instance = createInstance(runtime);
-    const paragraph = document.createElement("p");
-    paragraph.textContent = "investigation";
-    document.body.append(paragraph);
+    const paragraph = createParagraph("investigation");
     selectContents(paragraph);
     document.dispatchEvent(new MouseEvent("mouseup"));
-    instance.controller.shadowRoot
-      .querySelector<HTMLButtonElement>("[data-action='translate']")
-      ?.click();
+    clickAction(instance, "translate");
 
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
     document.dispatchEvent(new KeyboardEvent("keyup", { key: "Escape" }));

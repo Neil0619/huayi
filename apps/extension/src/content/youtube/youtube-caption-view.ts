@@ -16,6 +16,7 @@ export function createYouTubeCaptionView(
   player: HTMLElement,
   onToggleBilingual: () => void,
   onTemporaryHold: (holding: boolean) => void,
+  shortcutLabel = "Shift+Z",
 ): YouTubeCaptionView {
   const style = documentRef.createElement("style");
   style.dataset.huayiYoutubeSubtitleStyle = "";
@@ -36,8 +37,10 @@ export function createYouTubeCaptionView(
   temporaryButton.dataset.huayiYoutubeTemporaryTranslation = "";
   temporaryButton.type = "button";
   temporaryButton.textContent = "中";
-  temporaryButton.title = "按住显示中文（Shift+Z）";
-  temporaryButton.setAttribute("aria-label", "按住显示中文字幕（Shift+Z）");
+  const temporaryTitle =
+    shortcutLabel.length > 0 ? `按住显示中文（${shortcutLabel}）` : "按住显示中文";
+  temporaryButton.title = temporaryTitle;
+  temporaryButton.setAttribute("aria-label", temporaryTitle.replace("中文", "中文字幕"));
   temporaryButton.setAttribute("aria-pressed", "false");
   const setTemporaryHolding = (value: boolean) => {
     temporaryButton.setAttribute("aria-pressed", String(value));
@@ -104,7 +107,11 @@ export function createYouTubeCaptionView(
     mountControl,
     setBilingualControl: (ready, pinned) => {
       const disabled = !ready;
-      const title = ready ? "固定显示中文字幕（按住 Shift+Z 临时显示）" : "中文字幕尚未就绪";
+      const title = ready
+        ? shortcutLabel.length > 0
+          ? `固定显示中文字幕（按住 ${shortcutLabel} 临时显示）`
+          : "固定显示中文字幕"
+        : "中文字幕尚未就绪";
       const pressed = String(ready && pinned);
       if (button.disabled !== disabled) button.disabled = disabled;
       if (button.title !== title) button.title = title;

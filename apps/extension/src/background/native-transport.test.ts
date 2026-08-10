@@ -44,13 +44,13 @@ class FakeNativePort implements NativePortLike {
 
 const healthRequest: HostRequest = {
   requestId: "health-1",
-  schemaVersion: 6,
+  schemaVersion: 7,
   type: "health",
 };
 
 const warmupRequest: HostRequest = {
   requestId: "warmup-1",
-  schemaVersion: 6,
+  schemaVersion: 7,
   type: "warmup",
 };
 
@@ -92,12 +92,12 @@ describe("ChromeNativeTransport", () => {
     transport.send(healthRequest);
     const healthResult = {
       codexVersion: "codex-cli 0.144.1",
-      hostVersion: "0.12.0",
+      hostVersion: "0.13.0",
       model: "gpt-5.4-mini",
       provider: "codex",
       ready: true,
       requestId: "health-1",
-      schemaVersion: 6,
+      schemaVersion: 7,
       type: "health-result",
     } as const;
     port.onMessage.emit(healthResult);
@@ -124,24 +124,24 @@ describe("ChromeNativeTransport", () => {
       transport.send(healthRequest);
       port.onMessage.emit({
         codexVersion: null,
-        hostVersion: "0.12.0",
+        hostVersion: "0.13.0",
         model,
         provider,
         ready: true,
         requestId: "health-1",
-        schemaVersion: 6,
+        schemaVersion: 7,
         type: "health-result",
       });
 
       expect(received).toEqual([
         {
           codexVersion: null,
-          hostVersion: "0.12.0",
+          hostVersion: "0.13.0",
           model,
           provider,
           ready: true,
           requestId: "health-1",
-          schemaVersion: 6,
+          schemaVersion: 7,
           type: "health-result",
         },
       ]);
@@ -149,10 +149,10 @@ describe("ChromeNativeTransport", () => {
   );
 
   it.each([
-    ["an unknown Provider", { provider: "unknown-provider", schemaVersion: 6 }],
+    ["an unknown Provider", { provider: "unknown-provider", schemaVersion: 7 }],
     ["wire v3", { schemaVersion: 3 }],
-    ["an endpoint", { endpoint: "http://third-party.example/v1", schemaVersion: 6 }],
-    ["a credential", { credential: "must-stay-host-private", schemaVersion: 6 }],
+    ["an endpoint", { endpoint: "http://third-party.example/v1", schemaVersion: 7 }],
+    ["a credential", { credential: "must-stay-host-private", schemaVersion: 7 }],
   ])("rejects compatible HTTP health with %s", (_name, overrides) => {
     const port = new FakeNativePort();
     const reasons: string[] = [];
@@ -165,7 +165,7 @@ describe("ChromeNativeTransport", () => {
     transport.send(healthRequest);
     port.onMessage.emit({
       codexVersion: null,
-      hostVersion: "0.12.0",
+      hostVersion: "0.13.0",
       model: "gpt-5.4-mini",
       provider: "openai-compatible-http",
       ready: true,

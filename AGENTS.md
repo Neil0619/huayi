@@ -43,6 +43,10 @@ follow-up chat, or browser settings.
 - Overlay visual behavior:
   `docs/superpowers/specs/2026-07-17-ui-refresh-design.md`.
 - Current release status and roadmap: `docs/project-status.md`.
+- Standard settings, site policies, and Host configuration status:
+  `docs/superpowers/specs/2026-08-10-settings-configuration-design.md`.
+- Settings implementation order:
+  `docs/superpowers/plans/2026-08-10-settings-configuration.md`.
 - Cross-platform development and completion rules: `docs/cross-platform-development.md`.
 - Windows source installation: `docs/setup-windows.md`.
 - Keep temporary task status out of AGENTS.md files.
@@ -50,8 +54,8 @@ follow-up chat, or browser settings.
 ## Current release invariants
 
 - All app, package, Manifest, Host, App Server client, and Eudic User-Agent identities are
-  `0.12.0`; the Native Messaging `schemaVersion` is `6`.
-- Wire v6 is incompatible with v5 and rejects it. Upgrade or roll back the Extension and Native
+  `0.13.0`; the Native Messaging `schemaVersion` is `7`.
+- Wire v7 is incompatible with v6 and rejects it. Upgrade or roll back the Extension and Native
   Host synchronously; do not add a translation shim.
 - Missing provider configuration defaults to Codex. Every other invalid configuration state
   fails closed. Each analysis request reads and pins one provider; never migrate an active

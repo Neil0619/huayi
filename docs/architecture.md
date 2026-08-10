@@ -77,6 +77,22 @@ Service Worker 按 `requestId` 和通道匹配事件：预热只接受 `warmup-r
 只接受 `word-added`。成功终态、序号或请求 ID 不匹配时失败关闭；已取消或已结束请求的迟到
 事件被丢弃。请求状态只存在内存，不写入 storage。
 
+## 配置与站点策略
+
+`chrome.storage.local` 只保存严格版本化的扩展设置，不保存选区、URL、结果、凭据或同步词表。
+配置页和快捷弹窗都只向 Service Worker 发送有界 mutation；单写者协调器针对每次 mutation
+重新读取最新值并串行替换，避免两个页面即时保存时出现 last-writer-wins 丢失更新。缺失配置
+使用默认值，未知字段、类型或版本失败关闭。
+
+站点策略由默认允许/阻止和规范化 hostname 规则组成；规则可选择继承子域，最具体 hostname
+优先。Content Script 启动和 Service Worker 转发命令时各执行一次策略，不修改 Manifest 匹配
+或 Chrome 网站权限。总开关、当前站点策略、生词本开关或 YouTube 运行配置发生实质变化时，
+Content Script 才重建对应运行态；同步小时、默认动作等无关变更不会取消活动分析。
+
+配置页通过 wire v7 的独立控制消息读取非敏感 Host 状态。macOS 可在四种已经配置且就绪的
+Provider 间选择；Windows 固定 DeepSeek。Host 只返回平台、Provider 枚举、就绪状态和欧路
+配置布尔值，不返回 Key、endpoint、路径、模型参数或原始错误。
+
 ## Native Host 与并发
 
 Native Host 解码 Native Messaging 帧并通过 `@huayi/protocol` 校验所有输入和输出。全局最多
@@ -135,7 +151,7 @@ reasoning 固定占 `output_index=0`，assistant 固定占 `output_index=1`；�
 与 assistant item 中携带加密内容、`turn_id` 和 `phase`。Host 只接受实测字段、类型和安全值，
 随后归一化为 ID、顺序和文本；这些私有字段不会进入日志、wire 或 Extension。请求模型仍固定
 为 `gpt-5.4-mini`，当前端点在响应中自报 `gpt-5.4`，专用 parser 仅把它作为该实测方言的允许
-别名。未知、重复、迟到、tool、refusal 或不一致事件全部失败关闭。Extension 只看到 wire v6
+别名。未知、重复、迟到、tool、refusal 或不一致事件全部失败关闭。Extension 只看到 wire v7
 的统一预览和结果，不接触第三方 SSE、endpoint 或 Key。
 
 ## DeepSeek Chat Completions Provider
@@ -152,7 +168,7 @@ DeepSeek Provider 每次分析从固定钥匙串 `com.huayi.codex_bridge.deepsee
 可信元数据组装；终止 chunk 中符合官方 Schema 的 usage（含缓存 token 统计及有界的
 `prompt_tokens_details.cached_tokens` / `completion_tokens_details.reasoning_tokens`）只校验后
 丢弃，不进入日志或 wire。
-因此 Extension 仍只接收统一 wire v6 预览与最终结果。DeepSeek 路径不读取、
+因此 Extension 仍只接收统一 wire v7 预览与最终结果。DeepSeek 路径不读取、
 修改或依赖 `~/.codex`，配置 Key、真实 smoke 与切换 Provider 是三个独立动作。
 
 ## Codex App Server 生命周期
@@ -262,7 +278,7 @@ Host 取得活动批次、打开批量上传并预填，最终提交仍由用户
 
 macOS 安装器把自包含 Host、六份 Schema、空工作目录和 launcher 放入 Huayi 专用用户目录。
 Chrome 清单只允许安装时提供的扩展 ID。重复安装只升级带合法 Huayi 所有权标记的文件；
-未知内容不会被认领或覆盖。v0.12.0 使用 wire v6 并拒绝 v5，因此 Extension 和 Host 必须针对
+未知内容不会被认领或覆盖。v0.13.0 使用 wire v7 并拒绝 v6，因此 Extension 和 Host 必须针对
 同一个实际扩展 ID 同步升级或回滚。macOS 文档路径当前对应
 `chanmjjealoeeheohofnljbbkkfgfnfm`；Windows 未打包扩展必须以 Chrome 对当前加载路径显示的 ID
 为准。重复安装保持

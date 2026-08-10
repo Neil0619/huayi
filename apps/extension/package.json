@@ -1,10 +1,10 @@
 {
   "name": "@huayi/extension",
-  "version": "0.12.0",
+  "version": "0.13.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "vite build --mode content && vite build --mode youtube-bridge && vite build --mode background",
+    "build": "vite build --mode content && vite build --mode youtube-bridge && vite build --mode options && vite build --mode popup && vite build --mode background",
     "typecheck": "tsc --noEmit --project tsconfig.json && tsc --noEmit --project tsconfig.test.json && tsc --noEmit --project tsconfig.config.json"
   },
   "dependencies": {

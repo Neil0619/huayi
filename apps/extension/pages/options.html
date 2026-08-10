@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>划译设置</title>
+    <link rel="stylesheet" href="settings.css" />
+    <link rel="stylesheet" href="options.css" />
+  </head>
+  <body class="settings-body">
+    <main class="settings-shell">
+      <header class="product-header">
+        <div class="brand-lockup">
+          <span class="brand-seal">译</span
+          ><span><strong>划译</strong><small>阅读与观看设置</small></span>
+        </div>
+        <div class="save-state">
+          <span class="status-dot"></span><span data-settings-status>设置仅保存在这台设备</span
+          ><button class="quiet-button" data-reset-settings hidden type="button">恢复默认</button>
+        </div>
+      </header>
+      <div class="settings-layout">
+        <nav class="settings-nav" aria-label="设置分类">
+          <button data-nav-target="general" type="button">通用</button>
+          <button data-nav-target="sites" type="button">网站</button>
+          <button data-nav-target="providers" type="button">模型服务</button>
+          <button data-nav-target="wordbook" type="button">生词本</button>
+          <button data-nav-target="youtube" type="button">YouTube</button>
+          <footer><span>版本 0.13.0</span><span>Native Messaging v7</span></footer>
+        </nav>
+        <div class="settings-content">
+          <section data-settings-section="general">
+            <p class="eyebrow">GENERAL</p>
+            <h1>让理解发生得更自然</h1>
+            <p class="lead">控制划译何时出现，以及选中文本后默认如何开始。</p>
+            <div class="hero-setting">
+              <span class="success-mark">✓</span
+              ><span
+                ><strong>划译总开关</strong
+                ><small>关闭后，普通网页和 YouTube 不再启动划译</small></span
+              ><label class="switch"
+                ><input data-setting-enabled type="checkbox" /><span></span
+              ></label>
+            </div>
+            <fieldset class="setting-group">
+              <legend>划词后的默认动作</legend>
+              <div class="segmented three">
+                <label
+                  ><input name="default-action" type="radio" value="ask" /><span
+                    >每次询问</span
+                  ></label
+                ><label
+                  ><input name="default-action" type="radio" value="explain" /><span
+                    >直接解释</span
+                  ></label
+                ><label
+                  ><input name="default-action" type="radio" value="translate" /><span
+                    >直接翻译</span
+                  ></label
+                >
+              </div>
+              <p class="field-note">
+                直达模式会立即向当前模型服务发送选区和有限上下文，可能产生 API 费用。
+              </p>
+            </fieldset>
+          </section>
+          <section data-settings-section="sites" hidden>
+            <p class="eyebrow">WEBSITES</p>
+            <h1>只在合适的网站工作</h1>
+            <p class="lead">先选默认策略，再用更具体的站点规则覆盖它。最具体的域名优先。</p>
+            <fieldset class="setting-group">
+              <legend>没有单独规则的网站</legend>
+              <div class="segmented two">
+                <label
+                  ><input name="site-default" type="radio" value="allow" /><span
+                    >默认允许</span
+                  ></label
+                ><label
+                  ><input name="site-default" type="radio" value="block" /><span
+                    >默认阻止</span
+                  ></label
+                >
+              </div>
+            </fieldset>
+            <form class="site-form" data-site-form>
+              <label
+                ><span>网站或 URL</span
+                ><input data-site-input placeholder="docs.example.com" autocomplete="off" /></label
+              ><label
+                ><span>动作</span
+                ><select data-site-action>
+                  <option value="allow">允许</option>
+                  <option value="block">阻止</option>
+                </select></label
+              ><label class="check-row"
+                ><input data-site-subdomains type="checkbox" checked /><span
+                  >包含子域名</span
+                ></label
+              ><button class="primary-button" type="submit">添加规则</button>
+            </form>
+            <div class="rule-list" data-site-rules></div>
+          </section>
+          <section data-settings-section="providers" hidden>
+            <p class="eyebrow">MODEL SERVICE</p>
+            <h1>选择本机模型服务</h1>
+            <p class="lead">这里只显示本机配置状态，不会读取或展示密钥，也不会发起联网测试。</p>
+            <div class="section-label">
+              <span data-platform-label>正在读取本机配置…</span
+              ><small>只有已配置的服务可以选择</small>
+            </div>
+            <div class="provider-list" data-provider-list>
+              <p class="empty-state">正在连接 Native Host…</p>
+            </div>
+            <aside class="notice">
+              密钥仍通过现有终端命令写入 macOS Keychain 或 Windows DPAPI；设置页不接触明文凭据。
+            </aside>
+          </section>
+          <section data-settings-section="wordbook" hidden>
+            <p class="eyebrow">WORDBOOK</p>
+            <h1>把生词同步留在自己的节奏里</h1>
+            <p class="lead">生词收藏与扇贝同步独立于模型服务。</p>
+            <div class="setting-row">
+              <span><strong>启用欧路生词本</strong><small>显示生词状态和添加按钮</small></span
+              ><label class="switch"
+                ><input data-wordbook-enabled type="checkbox" /><span></span
+              ></label>
+            </div>
+            <div class="setting-row">
+              <span><strong>每日自动同步</strong><small>按这台设备的本地时区运行</small></span
+              ><label class="switch"
+                ><input data-wordbook-auto type="checkbox" /><span></span
+              ></label>
+            </div>
+            <div class="setting-row">
+              <span><strong>同步时间</strong><small>每天整点检查一次</small></span
+              ><select class="compact-select" data-wordbook-hour></select>
+            </div>
+            <button class="primary-button standalone" data-manual-sync type="button">
+              立即准备同步
+            </button>
+          </section>
+          <section data-settings-section="youtube" hidden>
+            <p class="eyebrow">YOUTUBE</p>
+            <h1>字幕应该帮助观看，而不是打断观看</h1>
+            <p class="lead">控制可选择英文字幕、默认双语状态和临时翻译快捷键。</p>
+            <div class="setting-row">
+              <span><strong>增强字幕</strong><small>在 YouTube 播放页启用划选字幕</small></span
+              ><label class="switch"
+                ><input data-youtube-enabled type="checkbox" /><span></span
+              ></label>
+            </div>
+            <div class="setting-row">
+              <span><strong>默认显示双语</strong><small>翻译字幕就绪后自动固定中文</small></span
+              ><label class="switch"
+                ><input data-youtube-defaultBilingual type="checkbox" /><span></span
+              ></label>
+            </div>
+            <div class="setting-row shortcut-row">
+              <span><strong>临时翻译快捷键</strong><small>点击后直接按下新的组合键</small></span
+              ><span class="shortcut-actions"
+                ><button class="key-button" data-youtube-shortcut type="button">Shift + Z</button
+                ><button class="quiet-button" data-youtube-shortcut-clear type="button">
+                  关闭
+                </button></span
+              >
+            </div>
+          </section>
+        </div>
+      </div>
+    </main>
+    <script type="module" src="options.js"></script>
+  </body>
+</html>

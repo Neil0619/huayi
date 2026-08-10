@@ -64,7 +64,7 @@ describe.skipIf(process.platform === "win32")("native host macOS provider routin
     const events: HostEvent[] = [];
 
     dispatcher.dispatch(
-      { requestId: "health-deepseek", schemaVersion: 6, type: "health" },
+      { requestId: "health-deepseek", schemaVersion: 7, type: "health" },
       (event) => events.push(event),
     );
     await vi.waitFor(() => expect(events).toHaveLength(1));
@@ -116,7 +116,7 @@ describe.skipIf(process.platform === "win32")("native host macOS provider routin
     const events: HostEvent[] = [];
 
     dispatcher.dispatch(
-      { requestId: "health-compatible", schemaVersion: 6, type: "health" },
+      { requestId: "health-compatible", schemaVersion: 7, type: "health" },
       (event) => events.push(event),
     );
     await vi.waitFor(() => expect(events).toHaveLength(1));
@@ -156,7 +156,7 @@ describe.skipIf(process.platform === "win32")("native host macOS provider routin
     });
     const events: HostEvent[] = [];
 
-    dispatcher.dispatch({ requestId: "health-api", schemaVersion: 6, type: "health" }, (event) =>
+    dispatcher.dispatch({ requestId: "health-api", schemaVersion: 7, type: "health" }, (event) =>
       events.push(event),
     );
     await vi.waitFor(() => expect(events).toHaveLength(1));
@@ -164,12 +164,12 @@ describe.skipIf(process.platform === "win32")("native host macOS provider routin
     expect(events).toEqual([
       {
         codexVersion: null,
-        hostVersion: "0.12.0",
+        hostVersion: "0.13.0",
         model: "gpt-5.6-luna",
         provider: "openai-responses",
         ready: true,
         requestId: "health-api",
-        schemaVersion: 6,
+        schemaVersion: 7,
         type: "health-result",
       },
     ]);
@@ -195,7 +195,7 @@ describe.skipIf(process.platform === "win32")("native host macOS provider routin
     const events: HostEvent[] = [];
 
     dispatcher.dispatch(
-      { requestId: "health-invalid-provider", schemaVersion: 6, type: "health" },
+      { requestId: "health-invalid-provider", schemaVersion: 7, type: "health" },
       (event) => events.push(event),
     );
     await vi.waitFor(() => expect(events).toHaveLength(1));

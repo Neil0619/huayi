@@ -3,6 +3,7 @@ import type { OverlayAnchorRect } from "../overlay/overlay-state.js";
 import type { SelectionRequestInput } from "../selection/read-selection.js";
 import type { SubtitleSentenceSegmenter } from "./subtitle-sentence-segmenter.js";
 import type { YouTubeCaptionBridge } from "./youtube-caption-bridge-client.js";
+import type { KeyboardShortcut } from "../../settings/settings-domain.js";
 
 export interface YouTubeCaptionSelectionEvent {
   anchorRect: OverlayAnchorRect;
@@ -12,6 +13,7 @@ export interface YouTubeCaptionSelectionEvent {
 
 export interface YouTubeCaptionControllerOptions {
   bridge?: YouTubeCaptionBridge;
+  defaultBilingual?: boolean;
   canDismissSelection?: () => boolean;
   document?: Document;
   getVideoId?: () => string | null;
@@ -22,4 +24,5 @@ export interface YouTubeCaptionControllerOptions {
   onSessionClose: () => void;
   onWarmup: () => void;
   segmenter?: SubtitleSentenceSegmenter;
+  shortcut?: KeyboardShortcut | null;
 }

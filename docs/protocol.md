@@ -1,7 +1,7 @@
 # 协议说明
 
-当前协议版本为 `schemaVersion: 6`，所有消息均为严格的带 `type` 联合类型。v6 运行时直接
-拒绝 v5 及更早消息，不提供跨版本转换层；Extension 与 Native Host 必须同步升级、重装或
+当前协议版本为 `schemaVersion: 7`，所有消息均为严格的带 `type` 联合类型。v7 运行时直接
+拒绝 v6 及更早消息，不提供跨版本转换层；Extension 与 Native Host 必须同步升级、重装或
 回滚。
 
 ## 请求
@@ -25,6 +25,10 @@
 - `word-sync-discard-unresolved`：携带 1–100 个唯一来源词，把仍在未解决列表中的精确项目
   转为放弃终态；任一来源不匹配时整次失败且不修改状态。
 - `word-sync-discard-all-unresolved`：必须显式携带 `confirm: true`，原子放弃当前全部未解决词。
+- `settings-status`：读取当前平台、当前 Provider、四种 Provider 的有界就绪状态和欧路是否已
+  配置；不返回 Key、endpoint、模型参数、路径或诊断内容。
+- `settings-select-provider`：macOS 选择一个已经配置并验证为就绪的 Provider；Windows 只接受
+  固定的 `deepseek-chat-completions`，不在 wire 中配置凭据。
 - `cancel`：按请求 ID 终止排队或运行中的任务。
 
 `analyze` 的 `action` 只能是 `translate | explain`，`selectionKind` 只能是
@@ -39,7 +43,7 @@
 ```json
 {
   "requestId": "warmup-1",
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "type": "warmup"
 }
 ```
@@ -55,7 +59,7 @@
 {
   "language": "en",
   "requestId": "check-1",
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "type": "check-word",
   "word": "mother-in-law"
 }
@@ -83,6 +87,9 @@
 - `word-sync-unresolved-list`：返回一页未解决词、候选词、最后目标和固定失败原因。
 - `word-sync-unresolved-requeued`：返回人工替代词重新入队或被已有成功目标覆盖后的总数。
 - `word-sync-unresolved-discarded`：返回本次已放弃数量以及最新待同步、未解决总数。
+- `settings-status-result`：按固定顺序返回四种 Provider 的 `ready | not-configured |
+unsupported` 状态、当前 Provider、`macos | windows` 平台和欧路配置布尔值。
+- `settings-provider-selected`：只确认实际选中的 Provider，不返回配置内容。
 - `error`：返回固定错误码、中文用户提示和是否允许重试。
 
 Codex 健康检查成功示例：
@@ -90,12 +97,12 @@ Codex 健康检查成功示例：
 ```json
 {
   "codexVersion": "codex-cli 0.144.1",
-  "hostVersion": "0.12.0",
+  "hostVersion": "0.13.0",
   "model": "gpt-5.4-mini",
   "provider": "codex",
   "ready": true,
   "requestId": "health-codex",
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "type": "health-result"
 }
 ```
@@ -105,12 +112,12 @@ API Provider 健康检查成功示例：
 ```json
 {
   "codexVersion": null,
-  "hostVersion": "0.12.0",
+  "hostVersion": "0.13.0",
   "model": "gpt-5.6-luna",
   "provider": "openai-responses",
   "ready": true,
   "requestId": "health-api",
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "type": "health-result"
 }
 ```
@@ -120,12 +127,12 @@ Compatible Provider 健康检查成功示例：
 ```json
 {
   "codexVersion": null,
-  "hostVersion": "0.12.0",
+  "hostVersion": "0.13.0",
   "model": "gpt-5.4-mini",
   "provider": "openai-compatible-http",
   "ready": true,
   "requestId": "health-compatible",
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "type": "health-result"
 }
 ```
@@ -135,12 +142,12 @@ DeepSeek Provider 健康检查成功示例：
 ```json
 {
   "codexVersion": null,
-  "hostVersion": "0.12.0",
+  "hostVersion": "0.13.0",
   "model": "deepseek-v4-flash",
   "provider": "deepseek-chat-completions",
   "ready": true,
   "requestId": "health-deepseek",
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "type": "health-result"
 }
 ```
@@ -153,7 +160,7 @@ DeepSeek Provider 健康检查成功示例：
 ```json
 {
   "requestId": "warmup-1",
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "type": "warmup-ready"
 }
 ```
@@ -164,7 +171,7 @@ DeepSeek Provider 健康检查成功示例：
 {
   "delta": "调查",
   "requestId": "analysis-1",
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "section": "contextual-meaning",
   "sequence": 0,
   "type": "analysis-delta"
@@ -192,7 +199,7 @@ synonym-comparisons`；
 ```json
 {
   "requestId": "analysis-v5",
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "section": "part-of-speech",
   "sequence": 1,
   "type": "analysis-section",
@@ -221,7 +228,7 @@ Host 完整校验私有内容后，从可信 `analyze` 请求注入原始 `sourc
 {
   "presence": "present",
   "requestId": "check-1",
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "type": "word-status"
 }
 ```
@@ -245,7 +252,7 @@ Host 完整校验私有内容后，从可信 `analyze` 请求注入原始 `sourc
   ],
   "pendingAfterBatch": 12,
   "requestId": "sync-prepare-1",
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "type": "word-sync-batch"
 }
 ```
@@ -301,6 +308,12 @@ INTERNAL_ERROR
 所有对象（包括每个 `analysis-section` 变体及其嵌套对象）拒绝未知字段，Native Messaging
 单帧上限为 1 MiB。当前版本只允许新增可选字段；删除字段、重命名或改变语义时必须再次提升
 `schemaVersion`，同时在本节增加迁移说明。
+
+v0.13.0 从 wire v6 升至 v7，新增 `settings-status -> settings-status-result` 和
+`settings-select-provider -> settings-provider-selected` 控制消息。状态结果只允许固定平台、
+Provider 枚举、就绪状态和欧路配置布尔值；凭据、endpoint、路径、模型参数和原始诊断不得进入
+wire。v7 明确拒绝 v6，Extension 与 Host 必须同步升级或回滚，不提供转换层；既有分析、生词
+同步和结果消息语义不变。
 
 v0.12.0 从 wire v5 升至 v6，用 `word-sync-resolve-batch` 替代整批提交，并将批次词数组改为
 来源词、目标词与 `original | lemma | manual` 尝试类型。新增未解决词分页、人工重新入队、

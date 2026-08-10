@@ -18,6 +18,32 @@ function shiftZ(type: "keydown" | "keyup", repeat = false): KeyboardEvent {
 }
 
 describe("YouTubeBilingualKeyController", () => {
+  it("supports a configured combination and leaves disabled shortcuts untouched", () => {
+    const configuredHolding = vi.fn();
+    const configured = new YouTubeBilingualKeyController(document, {
+      canHold: () => true,
+      setHolding: configuredHolding,
+      shortcut: { alt: false, code: "KeyK", ctrl: true, meta: false, shift: false },
+    });
+    const ctrlK = new KeyboardEvent("keydown", {
+      cancelable: true,
+      code: "KeyK",
+      ctrlKey: true,
+      key: "k",
+    });
+    configured.handleKeydown(ctrlK);
+    expect(ctrlK.defaultPrevented).toBe(true);
+    expect(configuredHolding).toHaveBeenCalledWith(true);
+
+    const disabled = new YouTubeBilingualKeyController(document, {
+      canHold: () => true,
+      setHolding: vi.fn(),
+      shortcut: null,
+    });
+    const keydown = shiftZ("keydown");
+    disabled.handleKeydown(keydown);
+    expect(keydown.defaultPrevented).toBe(false);
+  });
   it("owns one claimed Shift+Z press through repeats and keyup", () => {
     const setHolding = vi.fn();
     const controller = new YouTubeBilingualKeyController(document, {

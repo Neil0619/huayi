@@ -119,7 +119,7 @@ describe("NativeMessageDispatcher word-sync routing", () => {
         action: "translate",
         context: "The investigation continues.",
         requestId: "queue-blocker",
-        schemaVersion: 6,
+        schemaVersion: 7,
         selection: "investigation",
         selectionKind: "word",
         sentenceContext: null,
@@ -129,39 +129,39 @@ describe("NativeMessageDispatcher word-sync routing", () => {
       (event) => events.push(event),
     );
     const requests = [
-      { requestId: "sync-status-q", schemaVersion: 6, type: "word-sync-status" },
-      { requestId: "sync-poll-q", schemaVersion: 6, type: "word-sync-poll" },
-      { requestId: "sync-prepare-q", schemaVersion: 6, type: "word-sync-prepare-batch" },
+      { requestId: "sync-status-q", schemaVersion: 7, type: "word-sync-status" },
+      { requestId: "sync-poll-q", schemaVersion: 7, type: "word-sync-poll" },
+      { requestId: "sync-prepare-q", schemaVersion: 7, type: "word-sync-prepare-batch" },
       {
         batchId: "batch-queued",
         rejectedTargets: [],
         requestId: "sync-resolve-q",
-        schemaVersion: 6,
+        schemaVersion: 7,
         type: "word-sync-resolve-batch",
       },
       {
         limit: 100,
         offset: 0,
         requestId: "sync-list-q",
-        schemaVersion: 6,
+        schemaVersion: 7,
         type: "word-sync-list-unresolved",
       },
       {
         items: [{ sourceWord: "splendidly", targetWord: "splendid" }],
         requestId: "sync-requeue-q",
-        schemaVersion: 6,
+        schemaVersion: 7,
         type: "word-sync-requeue-unresolved",
       },
       {
         requestId: "sync-discard-q",
-        schemaVersion: 6,
+        schemaVersion: 7,
         sourceWords: ["splendidly"],
         type: "word-sync-discard-unresolved",
       },
       {
         confirm: true,
         requestId: "sync-discard-all-q",
-        schemaVersion: 6,
+        schemaVersion: 7,
         type: "word-sync-discard-all-unresolved",
       },
     ] as const;
@@ -248,7 +248,7 @@ describe("NativeMessageDispatcher word-sync routing", () => {
     const emit = (event: HostEvent) => events.push(event);
 
     dispatcher.dispatch(
-      { requestId: "prepare-running", schemaVersion: 6, type: "word-sync-prepare-batch" },
+      { requestId: "prepare-running", schemaVersion: 7, type: "word-sync-prepare-batch" },
       emit,
     );
     await vi.waitFor(() => expect(wordSyncService.prepareBatch).toHaveBeenCalledOnce());
@@ -257,7 +257,7 @@ describe("NativeMessageDispatcher word-sync routing", () => {
         batchId: "batch-pending",
         rejectedTargets: [],
         requestId: "resolve-pending",
-        schemaVersion: 6,
+        schemaVersion: 7,
         type: "word-sync-resolve-batch",
       },
       emit,
@@ -268,7 +268,7 @@ describe("NativeMessageDispatcher word-sync routing", () => {
       dispatcher.dispatch(
         {
           requestId: `cancel-${targetRequestId}`,
-          schemaVersion: 6,
+          schemaVersion: 7,
           targetRequestId,
           type: "cancel",
         },
@@ -277,7 +277,7 @@ describe("NativeMessageDispatcher word-sync routing", () => {
       dispatcher.dispatch(
         {
           requestId: `cancel-${targetRequestId}-again`,
-          schemaVersion: 6,
+          schemaVersion: 7,
           targetRequestId,
           type: "cancel",
         },

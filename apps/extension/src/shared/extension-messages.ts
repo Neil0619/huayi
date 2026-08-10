@@ -23,7 +23,10 @@ import type {
   WordSyncUnresolvedDiscardedEvent,
   WordSyncUnresolvedListEvent,
   WordSyncUnresolvedRequeuedEvent,
+  ModelProvider,
 } from "@huayi/protocol";
+import { modelProviderSchema } from "@huayi/protocol";
+import { parseSettingsMutation, type SettingsMutation } from "../settings/settings-domain.js";
 
 export interface AnalyzeSelectionCommand {
   request: AnalyzeRequest;
@@ -92,6 +95,12 @@ export type ShanbayCommand =
   | RequeueShanbayUnresolvedCommand
   | DiscardShanbayUnresolvedCommand
   | DiscardAllShanbayUnresolvedCommand;
+
+export type SettingsPageCommand =
+  | { type: "GET_HOST_SETTINGS" }
+  | { provider: ModelProvider; type: "SELECT_HOST_PROVIDER" }
+  | { type: "START_WORD_SYNC" }
+  | { mutation: SettingsMutation; type: "MUTATE_SETTINGS" };
 
 export type ShanbayBackgroundMessage =
   | { event: WordSyncBatchEvent; type: "SHANBAY_SYNC_BATCH" }
@@ -211,6 +220,25 @@ export function parseShanbayCommand(value: unknown): ShanbayCommand | null {
       type: "word-sync-discard-all-unresolved",
     });
     return parsed.success ? { type: "DISCARD_ALL_SHANBAY_UNRESOLVED" } : null;
+  }
+  return null;
+}
+
+export function parseSettingsPageCommand(value: unknown): SettingsPageCommand | null {
+  if (!isRecord(value) || typeof value.type !== "string") return null;
+  if (value.type === "GET_HOST_SETTINGS" && hasExactKeys(value, ["type"])) {
+    return { type: "GET_HOST_SETTINGS" };
+  }
+  if (value.type === "START_WORD_SYNC" && hasExactKeys(value, ["type"])) {
+    return { type: "START_WORD_SYNC" };
+  }
+  if (value.type === "MUTATE_SETTINGS" && hasExactKeys(value, ["mutation", "type"])) {
+    const mutation = parseSettingsMutation(value.mutation);
+    return mutation === null ? null : { mutation, type: "MUTATE_SETTINGS" };
+  }
+  if (value.type === "SELECT_HOST_PROVIDER" && hasExactKeys(value, ["provider", "type"])) {
+    const parsed = modelProviderSchema.safeParse(value.provider);
+    return parsed.success ? { provider: parsed.data, type: "SELECT_HOST_PROVIDER" } : null;
   }
   return null;
 }
