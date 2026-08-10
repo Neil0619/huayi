@@ -42,9 +42,17 @@
   最终 `apps/extension/dist`，标准配置页的五个分区、`0.13.0` / Native Messaging v7 标识及
   本机 Provider 状态均实机显示正常，四种 macOS Provider 均显示为已配置，DeepSeek 为当前
   Provider。真实模型和欧路请求未运行，仍需另行批准外部数据发送及可能产生的费用。
-- Windows 代码已实现，自动门禁继续执行；Windows 实机安装、Node.js 26 SEA、DPAPI/注册表、
-  Popup/Options 与 Chrome 验收保持 `implemented; target-platform validation pending`，由 Windows
-  环境按交接清单完成。
+- Windows 已使用 Node.js 26 或更高版本与 pnpm 10.12.4 通过 `verify:windows`：包括指令、
+  格式、Lint、类型检查、89 条脚本测试、107 条 protocol 测试、991 条 native-host 测试
+  （另有 67 条按预期跳过）、376 条 extension 测试、构建、SEA 独立 `health` 和 diff 检查；
+  另行运行的 63 条 Chrome E2E 全部通过。
+- Windows 已同步安装 `0.13.0` / wire v7 Extension 和 Host。当前加载路径的扩展 ID
+  `kmeopbhijmkcjeckjicfinpdminhpbak` 与精确 HKCU Native Messaging 注册表项、manifest 唯一的
+  `allowed_origins` 对齐，安装文件与已验证构建产物哈希一致。Chrome 实机已检查 Options 五个
+  分区、Popup，以及无需联网的配置即时保存和刷新后持久化；配置页其他功能未发现问题。
+- 真实 DeepSeek 验证没有通过：Windows 本地 DPAPI/PowerShell 凭据读取存在唯一已知延期问题，
+  偶发约 5 秒超时；用户决定暂时忽略。真实 DeepSeek 和欧路 smoke 均未运行，仍需单独批准；
+  本轮也未执行幂等卸载，因此不得据此声称整个系统集成清单或双平台发布已经完成。
 
 ## 0.12.0 当前开发进度（2026-08-10）
 
