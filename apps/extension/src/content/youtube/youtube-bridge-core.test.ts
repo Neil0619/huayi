@@ -66,6 +66,22 @@ describe("YouTube MAIN-world bridge", () => {
     fixture.bridge.destroy();
   });
 
+  it("normalizes the empty kind and snake-case vss identity used by the live player", async () => {
+    const fixture = createFixture({ realPlayerTrackShape: true });
+    fixture.dispatch(request("source"));
+    await eventually();
+
+    expect(fixture.responses[0]).toMatchObject({
+      ok: true,
+      track: { languageCode: "en" },
+      fingerprint: { lang: "en", fmt: "json3" },
+    });
+    expect(fixture.responses[0]).not.toHaveProperty("track.kind");
+    expect(fixture.responses[0]).not.toHaveProperty("fingerprint.kind");
+    expect(fixture.state()).toEqual({ activeTrack: fixture.originalTrack, moduleLoaded: true });
+    fixture.bridge.destroy();
+  });
+
   it("uses a verified prior source capture before requesting fixed zh-Hans", async () => {
     const fixture = createFixture({ suppressRepeatedSourceRequests: true });
     fixture.dispatch(request("source"));

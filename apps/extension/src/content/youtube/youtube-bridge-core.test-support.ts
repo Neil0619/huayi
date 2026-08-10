@@ -45,6 +45,7 @@ export function createBridgeCoreFixture(
     cc?: boolean;
     languageCode?: string;
     omitActiveKind?: boolean;
+    realPlayerTrackShape?: boolean;
     poToken?: false | string;
     mutateTrackInPlace?: boolean;
     suppressRepeatedSourceRequests?: boolean;
@@ -55,12 +56,17 @@ export function createBridgeCoreFixture(
   const responses: YouTubeBridgeResponse[] = [];
   const probeResponses: YouTubeSourceProbeResponse[] = [];
   const responseTracks: unknown[] = [];
-  const originalTrack: { kind?: string; languageCode: string; vssId: string } = {
-    languageCode: options.languageCode ?? "en",
-    vssId: ".en",
-    ...(options.omitActiveKind === true ? {} : { kind: "asr" }),
-  };
-  const responseTrack = { ...originalTrack, kind: "asr" };
+  const languageCode = options.languageCode ?? "en";
+  const originalTrack = options.realPlayerTrackShape
+    ? { kind: "", languageCode, vss_id: `.${languageCode}` }
+    : {
+        languageCode,
+        vssId: `.${languageCode}`,
+        ...(options.omitActiveKind === true ? {} : { kind: "asr" }),
+      };
+  const responseTrack = options.realPlayerTrackShape
+    ? { languageCode, vssId: `.${languageCode}` }
+    : { ...originalTrack, kind: "asr" };
   let activeTrack: unknown = originalTrack;
   let moduleLoaded = true;
   let sourceRequestCount = 0;

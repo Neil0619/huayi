@@ -19,8 +19,45 @@ export interface PlayerSnapshot {
   track: unknown;
 }
 
+interface TrackIdentity {
+  kind?: string;
+  languageCode: string;
+  vssId?: string;
+}
+
+const MAX_LANGUAGE_CODE_LENGTH = 32;
+const MAX_KIND_LENGTH = 32;
+const MAX_VSS_ID_LENGTH = 128;
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function readTrackIdentity(value: unknown): TrackIdentity | null {
+  if (!isRecord(value)) return null;
+  const { kind, languageCode, vssId, vss_id: legacyVssId } = value;
+  if (
+    typeof languageCode !== "string" ||
+    languageCode.length === 0 ||
+    languageCode.length > MAX_LANGUAGE_CODE_LENGTH ||
+    (kind !== undefined && (typeof kind !== "string" || kind.length > MAX_KIND_LENGTH)) ||
+    (vssId !== undefined &&
+      (typeof vssId !== "string" || vssId.length === 0 || vssId.length > MAX_VSS_ID_LENGTH)) ||
+    (legacyVssId !== undefined &&
+      (typeof legacyVssId !== "string" ||
+        legacyVssId.length === 0 ||
+        legacyVssId.length > MAX_VSS_ID_LENGTH)) ||
+    (vssId !== undefined && legacyVssId !== undefined && vssId !== legacyVssId)
+  ) {
+    return null;
+  }
+  return {
+    languageCode,
+    ...(kind === undefined || kind.length === 0 ? {} : { kind }),
+    ...(vssId === undefined && legacyVssId === undefined
+      ? {}
+      : { vssId: (vssId ?? legacyVssId) as string }),
+  };
 }
 
 export function cloneTrackValue(value: unknown): unknown {
@@ -45,44 +82,38 @@ export function resolveActiveTrack(
   activeTrack: ActiveTrack,
 ): ActiveTrack | null {
   if (!isRecord(response) || !isRecord(response.captions)) return null;
+  const activeIdentity = readTrackIdentity(activeTrack);
+  if (activeIdentity === null) return null;
   const renderer = response.captions.playerCaptionsTracklistRenderer;
   if (!isRecord(renderer) || !Array.isArray(renderer.captionTracks)) return null;
   const candidates = renderer.captionTracks.filter((value) => {
-    if (
-      !isRecord(value) ||
-      value.languageCode !== activeTrack.languageCode ||
-      (activeTrack.kind !== undefined && value.kind !== activeTrack.kind)
-    ) {
-      return false;
-    }
-    return typeof activeTrack.vssId !== "string" || value.vssId === activeTrack.vssId;
+    const identity = readTrackIdentity(value);
+    return (
+      identity !== null &&
+      identity.languageCode === activeIdentity.languageCode &&
+      (activeIdentity.kind === undefined || identity.kind === activeIdentity.kind) &&
+      (activeIdentity.vssId === undefined || identity.vssId === activeIdentity.vssId)
+    );
   });
   if (candidates.length !== 1) return null;
   const candidate = candidates[0];
-  if (
-    !isRecord(candidate) ||
-    (candidate.kind !== undefined &&
-      (typeof candidate.kind !== "string" || candidate.kind.length > 32))
-  ) {
-    return null;
-  }
-  return {
-    ...activeTrack,
-    ...(candidate.kind === undefined ? {} : { kind: candidate.kind }),
-  };
+  const candidateIdentity = readTrackIdentity(candidate);
+  if (candidateIdentity === null) return null;
+  const resolved = { ...activeTrack };
+  if (candidateIdentity.kind === undefined) Reflect.deleteProperty(resolved, "kind");
+  else resolved.kind = candidateIdentity.kind;
+  return resolved;
 }
 
 export function readTrackValue(player: YouTubePlayer): ActiveTrack | null {
   const value = player.getOption("captions", "track");
   if (
     !isRecord(value) ||
-    typeof value.languageCode !== "string" ||
-    value.languageCode.length > 32 ||
-    (value.kind !== undefined && (typeof value.kind !== "string" || value.kind.length > 32)) ||
+    readTrackIdentity(value) === null ||
     (value.translationLanguage !== undefined &&
       (!isRecord(value.translationLanguage) ||
         typeof value.translationLanguage.languageCode !== "string" ||
-        value.translationLanguage.languageCode.length > 32))
+        value.translationLanguage.languageCode.length > MAX_LANGUAGE_CODE_LENGTH))
   ) {
     return null;
   }
@@ -118,6 +149,9 @@ export function setCaptionTrack(player: YouTubePlayer, value: unknown): void {
 
 export function sameDrivenTrack(first: unknown, second: unknown): boolean {
   if (!isRecord(first) || !isRecord(second)) return false;
+  const firstIdentity = readTrackIdentity(first);
+  const secondIdentity = readTrackIdentity(second);
+  if (firstIdentity === null || secondIdentity === null) return false;
   const firstTranslation = isRecord(first.translationLanguage)
     ? first.translationLanguage.languageCode
     : undefined;
@@ -125,9 +159,9 @@ export function sameDrivenTrack(first: unknown, second: unknown): boolean {
     ? second.translationLanguage.languageCode
     : undefined;
   return (
-    first.languageCode === second.languageCode &&
-    first.kind === second.kind &&
-    first.vssId === second.vssId &&
+    firstIdentity.languageCode === secondIdentity.languageCode &&
+    firstIdentity.kind === secondIdentity.kind &&
+    firstIdentity.vssId === secondIdentity.vssId &&
     firstTranslation === secondTranslation
   );
 }

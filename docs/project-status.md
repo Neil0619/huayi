@@ -43,8 +43,14 @@
   `Shift+Z` 由浏览器 E2E 覆盖，字幕角标按住由控制器集成单测覆盖；实机页面已确认两个入口
   可见。真实 DeepSeek
   和欧路请求未运行，仍需单独授权外部数据发送及可能产生的费用。
-- macOS 自动门禁、安装与 Chrome 验收留待后续在 macOS 环境继续，不阻塞本次 Windows 开发
-  收尾；在这些检查完成前，不得将当前状态表述为双平台发布完成。
+- macOS `verify:macos` 已通过，包括指令、格式、Lint、类型检查、1,500 条单元测试、构建和
+  62 条浏览器 E2E。Native Host 已重新安装并只允许扩展 ID
+  `chanmjjealoeeheohofnljbbkkfgfnfm`；安装 bundle 与已验证构建一致，既有 DeepSeek Provider
+  配置保持不变。Chrome 已重载当前 `apps/extension/dist`，真实 YouTube 已分别验证人工英文轨和
+  `kind: "asr"` 自动英文轨：完整句、固定双语、原生单词／短语选择、暂停所有权、首击空白关闭、
+  CC 关闭／恢复、SPA 和剧院模式均通过。全屏 journey 已由 E2E 覆盖；实机快捷键进入全屏边界时
+  浏览器控制会释放，重新接管后字幕 surface 仍存在。真实 DeepSeek 和欧路请求未运行，仍需另行
+  授权外部数据发送及可能产生的费用。
 
 ## 仍然不支持
 
