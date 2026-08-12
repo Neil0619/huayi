@@ -10,6 +10,8 @@ const sharedSteps = [
   { arguments: ["lint"], command: "pnpm" },
   { arguments: ["typecheck"], command: "pnpm" },
   { arguments: ["test"], command: "pnpm" },
+  { arguments: ["test:store:coverage"], command: "pnpm" },
+  { arguments: ["check:architecture"], command: "pnpm" },
 ];
 
 export function platformVerificationSteps(platform) {
@@ -18,6 +20,8 @@ export function platformVerificationSteps(platform) {
       ...sharedSteps,
       { arguments: ["build"], command: "pnpm" },
       { arguments: ["test:e2e"], command: "pnpm" },
+      { arguments: ["check:store-release"], command: "pnpm" },
+      { arguments: ["audit:prod"], command: "pnpm" },
       { arguments: ["diff", "--check"], command: "git" },
     ];
   }
@@ -25,6 +29,9 @@ export function platformVerificationSteps(platform) {
     return [
       ...sharedSteps,
       { arguments: ["build"], command: "pnpm" },
+      { arguments: ["test:e2e"], command: "pnpm" },
+      { arguments: ["check:store-release"], command: "pnpm" },
+      { arguments: ["audit:prod"], command: "pnpm" },
       { arguments: ["host:windows:package"], command: "pnpm" },
       { arguments: ["scripts/verify-windows-sea.mjs"], command: "node" },
       { arguments: ["diff", "--check"], command: "git" },

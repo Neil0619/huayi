@@ -1,5 +1,3 @@
-import type { ModelProvider, SettingsStatusResultEvent } from "@huayi/protocol";
-
 import {
   DEFAULT_EXTENSION_SETTINGS,
   normalizeSiteRuleInput,
@@ -10,13 +8,12 @@ import {
 import { SettingsHostClient } from "../settings/settings-host-client.js";
 import { settingsMutationsBetween } from "../settings/settings-mutations.js";
 import { SettingsStore } from "../settings/settings-store.js";
-
-const PROVIDER_LABELS: Record<ModelProvider, string> = {
-  codex: "Codex",
-  "deepseek-chat-completions": "DeepSeek",
-  "openai-compatible-http": "OpenAI-compatible HTTP",
-  "openai-responses": "OpenAI",
-};
+import {
+  browserClassicSettingsDownload,
+  ClassicSettingsTransferController,
+  type ClassicSettingsDownload,
+} from "./classic-settings-transfer-controller.js";
+import { OptionsProviderController } from "./options-provider-controller.js";
 
 function element<ElementType extends HTMLElement>(selector: string): ElementType {
   const found = document.querySelector<ElementType>(selector);
@@ -57,12 +54,22 @@ function keyboardShortcut(event: KeyboardEvent): KeyboardShortcut | null {
 }
 
 export class OptionsPage {
+  private readonly providerController: OptionsProviderController;
   private settings = DEFAULT_EXTENSION_SETTINGS;
+  private readonly transferController: ClassicSettingsTransferController;
 
   constructor(
     private readonly store = new SettingsStore(),
     private readonly host = new SettingsHostClient(),
-  ) {}
+    download: ClassicSettingsDownload = browserClassicSettingsDownload,
+  ) {
+    this.providerController = new OptionsProviderController(host, setStatus);
+    this.transferController = new ClassicSettingsTransferController({
+      download,
+      execute: (operation, success) => void this.execute(operation, success),
+      getSettings: () => this.settings,
+    });
+  }
 
   async initialize(): Promise<void> {
     const parsed = await this.store.read();
@@ -72,6 +79,7 @@ export class OptionsPage {
     this.bindSites();
     this.bindWordbook();
     this.bindYouTube();
+    this.transferController.bind();
     const hourSelect = element<HTMLSelectElement>("[data-wordbook-hour]");
     for (let hour = 0; hour < 24; hour += 1) {
       const option = document.createElement("option");
@@ -84,7 +92,7 @@ export class OptionsPage {
       setStatus("配置已损坏，功能已安全停用。请恢复默认设置。", "error");
       element<HTMLButtonElement>("[data-reset-settings]").hidden = false;
     }
-    await this.refreshHostStatus();
+    await this.providerController.refresh();
   }
 
   private bindNavigation(): void {
@@ -103,7 +111,7 @@ export class OptionsPage {
     const initial = location.hash.slice(1) || "general";
     document.querySelector<HTMLButtonElement>(`[data-nav-target='${initial}']`)?.click();
     element<HTMLButtonElement>("[data-reset-settings]").addEventListener("click", () => {
-      void this.host.mutateSettings({ type: "reset" }).then(() => location.reload());
+      void this.resetSettings();
     });
   }
 
@@ -145,16 +153,7 @@ export class OptionsPage {
         }
         const action = element<HTMLSelectElement>("[data-site-action]").value as SiteAction;
         const includeSubdomains = element<HTMLInputElement>("[data-site-subdomains]").checked;
-        void this.save({
-          ...this.settings,
-          sitePolicy: {
-            ...this.settings.sitePolicy,
-            rules: [...this.settings.sitePolicy.rules, { action, hostname, includeSubdomains }],
-          },
-        }).then(() => {
-          input.value = "";
-          this.renderSiteRules();
-        });
+        void this.addSiteRule({ action, hostname, includeSubdomains }, input);
       } catch (error) {
         setStatus(error instanceof Error ? error.message : "网站规则无效。", "error");
       }
@@ -169,7 +168,7 @@ export class OptionsPage {
           ...this.settings.wordbook,
           enabled: (event.currentTarget as HTMLInputElement).checked,
         },
-      }).then(() => this.render());
+      });
     });
     element<HTMLInputElement>("[data-wordbook-auto]").addEventListener("change", (event) => {
       void this.save({
@@ -207,7 +206,7 @@ export class OptionsPage {
             ...this.settings.youtube,
             [key]: (event.currentTarget as HTMLInputElement).checked,
           },
-        }).then(() => this.render());
+        });
       });
     }
     const shortcut = element<HTMLButtonElement>("[data-youtube-shortcut]");
@@ -229,23 +228,63 @@ export class OptionsPage {
       void this.save({
         ...this.settings,
         youtube: { ...this.settings.youtube, shortcut: value },
-      }).then(() => this.render());
+      });
     });
     element<HTMLButtonElement>("[data-youtube-shortcut-clear]").addEventListener("click", () => {
       void this.save({
         ...this.settings,
         youtube: { ...this.settings.youtube, shortcut: null },
-      }).then(() => this.render());
+      });
     });
   }
 
-  private async save(settings: ExtensionSettings): Promise<void> {
-    let current = this.settings;
-    for (const mutation of settingsMutationsBetween(this.settings, settings)) {
-      current = await this.host.mutateSettings(mutation);
+  private async resetSettings(): Promise<void> {
+    try {
+      await this.host.mutateSettings({ type: "reset" });
+      location.reload();
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "恢复默认设置失败。", "error");
     }
-    this.settings = current;
-    setStatus("设置已保存", "success");
+  }
+
+  private async addSiteRule(
+    rule: ExtensionSettings["sitePolicy"]["rules"][number],
+    input: HTMLInputElement,
+  ): Promise<void> {
+    const saved = await this.save({
+      ...this.settings,
+      sitePolicy: {
+        ...this.settings.sitePolicy,
+        rules: [...this.settings.sitePolicy.rules, rule],
+      },
+    });
+    if (saved) input.value = "";
+  }
+
+  private async execute(operation: () => Promise<void>, success: string): Promise<void> {
+    try {
+      await operation();
+      setStatus(success, "success");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "操作失败。", "error");
+    }
+  }
+
+  private async save(settings: ExtensionSettings): Promise<boolean> {
+    try {
+      let current = this.settings;
+      for (const mutation of settingsMutationsBetween(this.settings, settings)) {
+        current = await this.host.mutateSettings(mutation);
+      }
+      this.settings = current;
+      setStatus("设置已保存", "success");
+      return true;
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "设置保存失败。", "error");
+      return false;
+    } finally {
+      this.render();
+    }
   }
 
   private render(): void {
@@ -309,58 +348,10 @@ export class OptionsPage {
               (candidate) => candidate.hostname !== rule.hostname,
             ),
           },
-        }).then(() => this.renderSiteRules());
+        });
       });
       row.append(copy, remove);
       list.append(row);
-    }
-  }
-
-  private async refreshHostStatus(): Promise<void> {
-    const container = element<HTMLElement>("[data-provider-list]");
-    try {
-      const status = await this.host.status();
-      this.renderProviders(container, status);
-      element<HTMLElement>("[data-platform-label]").textContent =
-        status.platform === "macos" ? "macOS 本机配置" : "Windows 固定 DeepSeek";
-    } catch (error) {
-      container.textContent = error instanceof Error ? error.message : "无法读取本机配置。";
-      container.dataset.error = "true";
-    }
-  }
-
-  private renderProviders(container: HTMLElement, status: SettingsStatusResultEvent): void {
-    container.replaceChildren();
-    for (const item of status.providers) {
-      const row = document.createElement("button");
-      row.className = "provider-row";
-      row.type = "button";
-      row.disabled = item.status !== "ready" || item.provider === status.currentProvider;
-      const copy = document.createElement("span");
-      const label = document.createElement("strong");
-      label.textContent = PROVIDER_LABELS[item.provider];
-      const note = document.createElement("small");
-      note.textContent =
-        item.provider === status.currentProvider
-          ? "当前使用"
-          : item.status === "ready"
-            ? "已配置"
-            : item.status === "unsupported"
-              ? "此平台不支持"
-              : "尚未配置";
-      copy.append(label, note);
-      const marker = document.createElement("span");
-      marker.className = "provider-marker";
-      marker.textContent = item.provider === status.currentProvider ? "✓" : "选择";
-      row.append(copy, marker);
-      row.addEventListener("click", () => {
-        void this.host.selectProvider(item.provider).then(
-          () => this.refreshHostStatus(),
-          (error: unknown) =>
-            setStatus(error instanceof Error ? error.message : "Provider 切换失败。", "error"),
-        );
-      });
-      container.append(row);
     }
   }
 }

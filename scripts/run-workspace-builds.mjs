@@ -5,9 +5,13 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 export const workspaceBuildDirectories = Object.freeze([
+  "packages/learning-domain",
+  "packages/cloud-contracts",
   "packages/protocol",
+  "packages/store-domain",
   "apps/extension",
   "apps/native-host",
+  "apps/store-extension",
 ]);
 
 function resolvePnpmInvocation(directory) {

@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>划译 Store</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body aria-busy="true">
+    <header class="popup-header">
+      <div class="popup-brand">
+        <span class="brand-mark" data-brand-mark aria-hidden="true"></span>
+        <div>
+          <h1>划译</h1>
+          <p class="analysis-summary" data-analysis-summary>
+            <span data-provider>OpenAI</span> · <span data-model-consent>模型联网未开启</span>
+          </p>
+        </div>
+      </div>
+      <div class="header-actions" aria-label="快捷操作">
+        <label class="header-switch" title="在所有网站启用划译">
+          <span class="visually-hidden">在所有网站启用划译</span>
+          <input
+            type="checkbox"
+            role="switch"
+            data-global-enabled
+            aria-label="在所有网站启用划译"
+            disabled
+          />
+        </label>
+        <button
+          class="icon-button"
+          type="button"
+          data-toggle-overlay-theme
+          aria-label="切换词卡皮肤"
+          title="切换词卡皮肤"
+        >
+          <svg aria-hidden="true" viewBox="0 0 24 24">
+            <path
+              d="M12 3a9 9 0 1 0 9 9c0-1.1-.9-2-2-2h-1.2a2.8 2.8 0 0 1-2.8-2.8V5c0-1.1-.9-2-2-2Z"
+            />
+            <circle cx="7.5" cy="11" r="1" />
+            <circle cx="10" cy="7.5" r="1" />
+            <circle cx="8.5" cy="15" r="1" />
+          </svg>
+        </button>
+        <button
+          class="icon-button"
+          type="button"
+          data-open-options
+          aria-label="打开设置"
+          title="打开设置"
+        >
+          <svg aria-hidden="true" viewBox="0 0 24 24">
+            <path d="M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4Z" />
+            <path
+              d="m19.4 15 .1.1a2 2 0 0 1-2.8 2.8l-.1-.1a2 2 0 0 0-2.2-.4 2 2 0 0 0-1.2 1.8v.2a2 2 0 0 1-4 0v-.2A2 2 0 0 0 8 17.4a2 2 0 0 0-2.2.4l-.1.1a2 2 0 1 1-2.8-2.8L3 15a2 2 0 0 0 .4-2.2A2 2 0 0 0 1.6 12h-.2a2 2 0 0 1 0-4h.2a2 2 0 0 0 1.8-1.2A2 2 0 0 0 3 4.6l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A2 2 0 0 0 8 2.2 2 2 0 0 0 9.2.4V.4a2 2 0 0 1 4 0v.2a2 2 0 0 0 1.2 1.8 2 2 0 0 0 2.2-.4l.1-.1a2 2 0 0 1 2.8 2.8l-.1.1a2 2 0 0 0-.4 2.2 2 2 0 0 0 1.8 1.2h.2a2 2 0 0 1 0 4h-.2A2 2 0 0 0 19 13a2 2 0 0 0 .4 2Z"
+            />
+          </svg>
+        </button>
+      </div>
+    </header>
+    <p class="status" data-popup-status data-tone="neutral" role="status" aria-live="polite"></p>
+    <main>
+      <section aria-labelledby="site-title">
+        <div class="site-copy">
+          <span class="section-label" id="site-title">当前网站</span>
+          <strong data-site-host>正在读取当前页面…</strong>
+        </div>
+        <label class="toggle-row">
+          <span>在此网站启用</span>
+          <input
+            type="checkbox"
+            role="switch"
+            data-site-enabled
+            aria-label="在当前网站启用划译"
+            disabled
+          />
+        </label>
+      </section>
+    </main>
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>

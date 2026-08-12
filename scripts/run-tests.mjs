@@ -21,8 +21,8 @@ function createVitestStep(pnpmEntry, project, extraArguments = []) {
       "exec",
       "vitest",
       "run",
-      "--workspace",
-      "vitest.workspace.ts",
+      "--config",
+      "vitest.config.ts",
       "--passWithNoTests",
       ...(project === undefined ? [] : ["--project", project]),
       ...extraArguments,
@@ -44,9 +44,13 @@ function resolveTestSteps(scriptTests, pnpmEntry, platform) {
   }
   return [
     scriptStep,
+    createVitestStep(pnpmEntry, "store-domain"),
+    createVitestStep(pnpmEntry, "learning-domain"),
+    createVitestStep(pnpmEntry, "cloud-contracts"),
     createVitestStep(pnpmEntry, "protocol"),
     createVitestStep(pnpmEntry, "native-host", ["--no-file-parallelism"]),
     createVitestStep(pnpmEntry, "extension"),
+    createVitestStep(pnpmEntry, "store-extension"),
   ];
 }
 

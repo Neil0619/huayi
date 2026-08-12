@@ -1,0 +1,295 @@
+@import "./brand-theme.css";
+
+:root {
+  color: var(--text-primary);
+  background: var(--surface-canvas);
+  font-family:
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    "PingFang SC",
+    sans-serif;
+  font-synthesis: none;
+  font-size: 15px;
+  line-height: 1.58;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+  background: var(--ambient-canvas);
+  background-attachment: fixed;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+button,
+input,
+select {
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  transition:
+    color var(--duration-fast) ease,
+    border-color var(--duration-fast) ease,
+    background-color var(--duration-fast) ease,
+    box-shadow var(--duration-normal) ease,
+    transform var(--duration-fast) ease;
+}
+
+button {
+  min-height: var(--control-height);
+  padding: 10px var(--space-4);
+  color: var(--text-primary);
+  background: linear-gradient(180deg, rgb(255 255 255 / 94%), rgb(240 243 248 / 82%));
+  box-shadow: var(--control-shadow);
+  cursor: pointer;
+  font-weight: 650;
+}
+
+button:hover:not(:disabled) {
+  color: var(--action-primary-hover);
+  border-color: rgb(88 120 168 / 60%);
+  box-shadow:
+    0 9px 22px rgb(46 74 120 / 12%),
+    inset 0 1px 0 white;
+  transform: translateY(-1px);
+}
+
+button:active:not(:disabled) {
+  box-shadow: inset 0 2px 5px rgb(16 26 45 / 10%);
+  transform: translateY(0);
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 3px;
+}
+
+button:disabled,
+input:disabled,
+select:disabled {
+  cursor: wait;
+  opacity: 0.52;
+}
+
+button.primary {
+  color: var(--brand-pearl-0);
+  border-color: rgb(255 255 255 / 20%);
+  background: linear-gradient(
+    135deg,
+    var(--action-primary-hover),
+    var(--action-primary) 60%,
+    var(--brand-indigo-600)
+  );
+  box-shadow:
+    0 11px 24px rgb(46 74 120 / 24%),
+    inset 0 1px 0 rgb(255 255 255 / 28%);
+}
+
+button.primary:hover:not(:disabled) {
+  color: var(--brand-pearl-0);
+  border-color: rgb(255 255 255 / 38%);
+  background: linear-gradient(
+    135deg,
+    var(--brand-navy-800),
+    var(--action-primary-hover) 62%,
+    var(--brand-violet-600)
+  );
+}
+
+button.danger {
+  color: var(--text-danger);
+  border-color: var(--border-danger);
+  background: linear-gradient(180deg, rgb(255 255 255 / 90%), rgb(248 233 237 / 72%));
+}
+
+input,
+select {
+  width: 100%;
+  min-height: var(--control-height);
+  padding: 10px var(--space-3);
+  color: var(--text-primary);
+  background: rgb(255 255 255 / 76%);
+  box-shadow:
+    inset 0 1px 2px rgb(16 26 45 / 5%),
+    0 1px 0 rgb(255 255 255 / 86%);
+}
+
+input:hover:not(:disabled),
+select:hover:not(:disabled) {
+  border-color: rgb(88 120 168 / 58%);
+}
+
+h1,
+h2,
+h3,
+p {
+  margin-top: 0;
+}
+
+h1,
+h2 {
+  font-family: inherit;
+  font-weight: 720;
+}
+
+h1 {
+  margin: 1px 0 0;
+  font-size: 20px;
+  letter-spacing: -0.025em;
+  line-height: 1.2;
+}
+
+h2 {
+  margin-bottom: 0;
+  font-size: 22px;
+  letter-spacing: -0.025em;
+  line-height: 1.3;
+}
+
+h3 {
+  margin-bottom: var(--space-3);
+  font-size: 16px;
+}
+
+.settings-toolbar {
+  position: relative;
+  display: flex;
+  min-height: 68px;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-5);
+  padding: var(--space-2) max(var(--space-6), calc((100vw - 1180px) / 2));
+  border-bottom: 1px solid rgb(189 199 215 / 64%);
+  background:
+    radial-gradient(circle at 80% -30%, rgb(143 130 189 / 24%), transparent 55%),
+    linear-gradient(120deg, rgb(255 255 255 / 88%), rgb(240 243 248 / 70%));
+  box-shadow: inset 0 -1px 0 rgb(255 255 255 / 78%);
+}
+
+.toolbar-copy {
+  position: relative;
+  z-index: 1;
+  max-width: 680px;
+}
+
+.brand-lockup {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: 0;
+}
+
+.toolbar-meta {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.step,
+.navigation-label {
+  color: var(--action-primary);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+.status {
+  position: relative;
+  z-index: 1;
+  min-width: 210px;
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid rgb(255 255 255 / 80%);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  background: rgb(255 255 255 / 62%);
+  box-shadow: var(--control-shadow);
+  backdrop-filter: blur(18px) saturate(120%);
+}
+
+.status:empty {
+  display: none;
+}
+
+.github-link {
+  display: inline-flex;
+  min-height: var(--control-height);
+  align-items: center;
+  gap: var(--space-2);
+  padding: 9px var(--space-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  background: rgb(255 255 255 / 72%);
+  box-shadow: var(--control-shadow);
+  font-size: 15px;
+  font-weight: 700;
+  text-decoration: none;
+  transition:
+    color var(--duration-fast) ease,
+    border-color var(--duration-fast) ease,
+    transform var(--duration-fast) ease;
+}
+
+.github-link svg {
+  width: 18px;
+  height: 18px;
+  fill: currentcolor;
+}
+
+.github-link:hover {
+  color: var(--action-primary-hover);
+  border-color: rgb(88 120 168 / 60%);
+  transform: translateY(-1px);
+}
+
+.github-link:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 3px;
+}
+
+.status[data-tone="error"] {
+  color: var(--text-danger);
+  border-color: var(--border-danger);
+}
+
+.status[data-tone="success"] {
+  color: var(--action-primary-hover);
+}
+
+@media (max-width: 760px) {
+  .settings-toolbar {
+    min-height: 0;
+    align-items: flex-start;
+    padding: var(--space-3) var(--space-4);
+  }
+
+  .toolbar-meta {
+    align-items: flex-end;
+    flex-direction: column-reverse;
+    gap: var(--space-2);
+  }
+
+  .toolbar-meta .status {
+    min-width: 0;
+    padding: 6px 9px;
+    font-size: 12px;
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "noEmit": true,
+    "types": ["chrome"]
+  },
+  "exclude": ["src/**/*.test-support.ts", "src/**/*.test.ts"],
+  "include": ["src/**/*.ts"]
+}

@@ -18,7 +18,15 @@ test("workspace typechecks run serially in dependency order", async () => {
     active -= 1;
   });
 
-  assert.deepEqual(calls, ["packages/protocol", "apps/extension", "apps/native-host"]);
+  assert.deepEqual(calls, [
+    "packages/learning-domain",
+    "packages/cloud-contracts",
+    "packages/protocol",
+    "packages/store-domain",
+    "apps/extension",
+    "apps/native-host",
+    "apps/store-extension",
+  ]);
   assert.deepEqual(calls, [...workspaceTypecheckDirectories]);
 });
 
@@ -33,5 +41,11 @@ test("workspace typechecks stop at the first failure", async () => {
     /fixture failure/u,
   );
 
-  assert.deepEqual(calls, ["packages/protocol", "apps/extension"]);
+  assert.deepEqual(calls, [
+    "packages/learning-domain",
+    "packages/cloud-contracts",
+    "packages/protocol",
+    "packages/store-domain",
+    "apps/extension",
+  ]);
 });

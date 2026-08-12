@@ -11,16 +11,16 @@ Huayi 支持 macOS 与 Windows，但两端的 Native Host 能力不同。代码�
 
 ## 完成矩阵
 
-| 改动类型                                             | 可以在哪个平台实现       | 自动门禁                                        | 目标平台人工验收       |
-| ---------------------------------------------------- | ------------------------ | ----------------------------------------------- | ---------------------- |
-| 协议、Schema、Prompt、HTTP、Extension UI、纯领域逻辑 | 任意                     | macOS 与 Windows                                | 不要求                 |
-| YouTube MAIN bridge 与私有播放器字幕适配             | 任意，使用离线 fixture   | 双平台门禁与 macOS Playwright                   | 发布前两端 Chrome 要求 |
-| macOS Keychain、Codex 进程、launcher、安装/卸载      | 任意，使用 fake 覆盖契约 | 双平台单测与 macOS 门禁                         | 要求 macOS             |
-| Windows DPAPI、PowerShell、注册表、SEA、安装/卸载    | 任意，使用 fake 覆盖契约 | 双平台单测、Windows Node 26 门禁与 SEA health   | 要求 Windows           |
-| 生词同步状态、迁移、词形还原、放弃终态和扇贝页面适配 | 任意，路径/文件行为注入  | 双平台单测、构建、macOS Playwright、Windows SEA | 两端 Chrome 发布前要求 |
-| Native Messaging、版本、帧或共享传输                 | 任意                     | 双平台门禁                                      | 发布前两端都要求       |
-| 真实 Chrome、凭据、Provider smoke                    | 目标平台                 | 禁止进入 CI                                     | 取得用户授权后执行     |
-| 仅某平台可复现的系统缺陷                             | 任意平台可先写回归契约   | 双平台门禁                                      | 最终必须回到问题平台   |
+| 改动类型                                             | 可以在哪个平台实现         | 自动门禁                                        | 目标平台人工验收       |
+| ---------------------------------------------------- | -------------------------- | ----------------------------------------------- | ---------------------- |
+| 协议、Schema、Prompt、HTTP、Extension UI、纯领域逻辑 | 任意                       | macOS 与 Windows                                | 不要求                 |
+| YouTube MAIN bridge 与私有播放器字幕适配             | 任意，使用离线 fixture     | 双平台门禁与 macOS Playwright                   | 发布前两端 Chrome 要求 |
+| macOS Keychain、Codex 进程、launcher、安装/卸载      | 任意，使用 fake 覆盖契约   | 双平台单测与 macOS 门禁                         | 要求 macOS             |
+| Windows DPAPI、PowerShell、注册表、SEA、安装/卸载    | 任意，使用 fake 覆盖契约   | 双平台单测、Windows Node 26 门禁与 SEA health   | 要求 Windows           |
+| 生词同步状态、迁移、词形还原、放弃终态和扇贝页面适配 | 任意，路径/文件行为注入    | 双平台单测、构建、macOS Playwright、Windows SEA | 两端 Chrome 发布前要求 |
+| Native Messaging、版本、帧或共享传输                 | 任意                       | 双平台门禁                                      | 发布前两端都要求       |
+| 真实 Chrome、凭据、Provider smoke                    | 目标平台                   | 禁止进入 CI                                     | 取得用户授权后执行     |
+| 仅某平台可复现的系统缺陷                             | 任意平台可先写回归契约     | 双平台门禁                                      | 最终必须回到问题平台   |
 
 fake 只能证明输入、输出、错误映射和调用约束，不能证明 Keychain、DPAPI、注册表、进程信号、
 文件权限、SEA 或 Chrome Native Messaging 在真实系统上工作。
@@ -65,12 +65,14 @@ Windows 使用 PowerShell 与 Node.js 26 或更高版本：
 pnpm verify:windows
 ```
 
-macOS 门禁包含指令、格式、Lint、类型、单元测试、Chrome Playwright、构建和 diff。Windows
-门禁包含指令、格式、Lint、类型、单元测试、构建、SEA 打包、真实 `.exe` health 帧和 diff。
+macOS 与 Windows 门禁都包含指令、格式、Lint、类型、单元测试、Store 关键覆盖率、架构检查、
+构建、Chrome Playwright、Store 候选包审计、生产依赖审计和 diff。Windows 随后额外执行 SEA
+打包和真实 `.exe` health 帧。
 health 验证会把 `.exe` 复制到仓库外的临时目录，清除 `NODE_PATH` 并使用临时
 `LOCALAPPDATA`，从而证明包括 `wink-lemmatizer` 在内的运行时代码已进入 SEA，而不是从仓库
 `node_modules` 加载。
-两个命令都必须离线；真实 smoke、安装和凭据操作不在其中。
+产品测试必须离线；生产依赖审计只查询包管理器安全公告，不运行扩展或 Provider/词典请求。真实
+smoke、安装和凭据操作不在两个命令中。
 
 `0.12.0` 的 Windows 收尾已完成 Windows 离线质量门、另行 62 条 Playwright、Node.js 26
 SEA 独立 `health`、实际 SEA 安装、精确 HKCU 注册表与 manifest 检查，以及安装后 Host 的直接
@@ -95,8 +97,8 @@ SEA 独立 `health`、实际 SEA 安装、精确 HKCU 注册表与 manifest 检�
 批准；幂等卸载也未执行。以上结果不代表整个 Windows 系统集成清单或双平台发布已经完成。
 
 GitHub Actions 在 `main` push、Pull Request 和手动触发时运行 `macos-quality` 与
-`windows-quality`。工作流首次在 `main` 和 PR 各稳定通过一次后，再把两项设为 `main` 必需
-检查；在此之前仅告警，不改变直接推送习惯。
+`windows-quality`。两项都必须设为 `main` 必需检查；Actions 固定完整提交 SHA，两个平台都安装
+Chrome。设置分支保护与真实运行结果仍是仓库外发布操作，完成前不得声称发布门已经闭合。
 
 ## 人工验收与交接
 

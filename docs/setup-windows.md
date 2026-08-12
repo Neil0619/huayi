@@ -15,8 +15,10 @@ Windows 版复用同一套 Chrome Extension 和 wire v7，但 Native Host 固定
 > E2E 覆盖，字幕角标按住由控制器集成单测覆盖；实机页面已确认两个入口可见。真实 DeepSeek／
 > 欧路请求未执行，仍需
 > 单独授权。macOS 验证将在后续 macOS 环境继续，不阻塞本次 Windows 收尾，也不表示双平台发布
-> 已完成。v0.13.0 的 Windows 实机验证尚未执行；请按本页重新构建、安装并验证配置页、快捷
-> 弹窗、站点策略和固定 DeepSeek 状态，不能沿用 v0.12.0 的完成结论。
+> v0.13.0 实机验证记录（2026-08-10）：已通过离线质量门、63 条 Chrome E2E、SEA `health`、
+> 同步安装 Extension/Host，以及 Options、Popup 与无需联网的设置保存检查。真实 DeepSeek 验证仍有
+> 已知延期：DPAPI/PowerShell 凭据读取偶发约 5 秒超时；真实 DeepSeek、欧路 smoke 与幂等卸载均未
+> 执行。因此该记录不构成完整 Windows 系统集成或双平台发布验证结论。
 
 ## 前置条件
 
@@ -137,8 +139,8 @@ pnpm host:install -- --extension-id <ID>
 重复安装会替换 Huayi 自有运行文件，保留现有的 DeepSeek、欧路 DPAPI 凭据和
 `%LOCALAPPDATA%\Huayi\native-host\word-sync-state.json`。
 
-Chrome 每天本地时间 08:00 完整扫描欧路默认英语生词本并在 Host 本地去重；若该时刻 Chrome 或设备
-不可用，则恢复后尽快补扫，下一次仍固定在次日 08:00。角标显示待同步数量；点击后打开扇贝
+Chrome 每天在设置页选择的本地整点（默认 08:00）完整扫描欧路默认英语生词本并在 Host 本地去重；若该
+时刻 Chrome 或设备不可用，则恢复后尽快补扫，下一次仍固定在次日同一整点。角标显示待同步数量；点击后打开扇贝
 生词本并预填最多 100 个目标词。用户必须亲自点击扇贝“批量添加”。部分成功时 Host 只确认
 成功目标，并用随 SEA 打包的 `wink-lemmatizer` 离线尝试一次唯一名词/动词/形容词词元；无
 可靠候选或再次被拒绝的词进入 `!` 未解决面板。

@@ -8,6 +8,11 @@ runner、fake authorization reader、fake fetch 和 Mock NativeTransport；只�
 真实模型、明文传输、额度和 API 账单影响后，才可单独执行 `pnpm smoke:codex`、
 `pnpm smoke:compatible`、`pnpm smoke:compare` 或 `pnpm smoke:deepseek`。
 
+Store 1.0 另由 `pnpm check:architecture`、`pnpm test:store:coverage`、
+`pnpm check:store-release` 和 `pnpm audit:prod` 收口。前三者完全离线；`audit:prod` 只查询包管理器
+安全公告，不启动扩展或向 Provider/词典发送请求。macOS 与 Windows CI 都安装 Chrome并运行同一
+套 `pnpm test:e2e`，Windows 不再依赖另行补跑浏览器证据。
+
 Windows 默认门禁运行协议、Extension、共享 Provider、Windows Host/安装器和脚本测试；依赖
 POSIX 权限、目录 `fsync`、符号链接或 macOS Keychain 的专属测试只在非 Windows 环境运行。
 这些 macOS 文件在 Windows 仍参与 TypeScript 类型检查和构建。
@@ -45,8 +50,11 @@ POSIX 权限、目录 `fsync`、符号链接或 macOS Keychain 的专属测试�
   严格终态、断线和超时，以及扩展来源校验、站点策略二次防线和设置串行 mutation。
 - 设置：缺失默认、无效失败关闭、hostname 规范化、最具体站点规则、并发写入不丢失、立即应用
   边界、Provider 非敏感状态、可配置同步小时、YouTube 默认双语及自定义/关闭快捷键。
-- 生词同步：欧路默认生词本首次与每日完整扫描、本地 08:00 边界（08:00 前不启动新扫描、错过
-  alarm 后在 08:00 后补扫、未完成扫描可跨边界继续）、跨日去重、三页断点、状态 v1/v2→v3 原子
+- Store 设置：v1→v2→v3→v4→v5 原子升级、`sitePolicy` 默认/精确/子域优先级、Popup 精确
+  host upsert，以及 Classic 无秘密包的严格未知/重复/冲突拒绝、成功单次写入和失败
+  零写入；Options 行为测试覆盖可见成功与错误状态。
+- 生词同步：欧路默认生词本首次与每日完整扫描、设置的本地同步整点边界（默认 08:00；该整点前不启动
+  新扫描、错过 alarm 后在该整点后补扫、未完成扫描可跨边界继续）、跨日去重、三页断点、状态 v1/v2→v3 原子
   迁移/独立快照/备份恢复、数据源升级后立即重扫、100 来源词幂等批次、角标与 alarm、扇贝来源校验、预填不覆盖、
   全部成功、严格部分失败、通信失败和 10 秒人工确认兜底；Windows fixture 另验证 re-audit
   dry-run 不迁移或写回状态，以及目标文件被锁定时保留主文件并清理失败的原子替换临时文件。
@@ -103,6 +111,11 @@ POSIX 权限、目录 `fsync`、符号链接或 macOS Keychain 的专属测试�
 
 Vite fixture 串起真实 Content Script、Service Worker 消息处理、请求协调器和 fake Native
 Host。Playwright 覆盖：
+
+Store fixture 先生成完整候选 `apps/store-extension/dist`，再在真实 Chrome 页面中加载打包后的
+`content-script.js`，并在脚本执行前安装严格 fake Chrome runtime/analysis port。它验证普通网页
+选择到严格 Provider 结果、本地生词消息字段、Provider 失败不自动重试、用户手动重试，以及 Popup
+relay 关闭当前站点且消息不携带 URL。fake 不发 HTTP，也不替代发布前真实扩展加载和第三方验收。
 
 - 单词翻译/解释在最终卡片前显示至少两个独立增量；
 - 单词翻译固定验证音标置顶、词性与释义合并、常用短语、易混词以及没有原文例句/独立词性；
@@ -188,8 +201,9 @@ Windows Node.js 26 发布工作树运行：
 pnpm verify:windows
 ```
 
-两条命令都依次执行指令、格式、Lint、类型、单测、构建和 diff 检查。macOS 另运行 Chrome
-Playwright；Windows 另构建真实 SEA `.exe`，用 Native Messaging `health` 帧验证 v0.13.0、
+两条命令都依次执行指令、格式、Lint、类型、单测、Store 关键覆盖率、架构检查、构建、Chrome
+Playwright、Store 候选包审计、生产依赖审计和 diff 检查。Windows 另构建真实 SEA `.exe`，用
+Native Messaging `health` 帧验证 v0.13.0、
 DeepSeek 固定 Provider、`deepseek-v4-flash` 和 `codexVersion: null`，并拒绝 stderr 或额外
 stdout。SEA health 从仓库外临时目录运行，清除 `NODE_PATH` 并使用临时 `LOCALAPPDATA`，确保
 运行时不依赖仓库 `node_modules`。GitHub Actions 的 `macos-quality` 使用 Node 24，

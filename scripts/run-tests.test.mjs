@@ -18,8 +18,8 @@ test("repository tests run explicit script files before Vitest", async () => {
     "exec",
     "vitest",
     "run",
-    "--workspace",
-    "vitest.workspace.ts",
+    "--config",
+    "vitest.config.ts",
     "--passWithNoTests",
   ]);
   assert.equal(calls[0].executable, process.execPath);
@@ -40,9 +40,13 @@ test("Windows Vitest disables file parallelism at the CLI boundary", async () =>
   assert.deepEqual(
     calls.map((arguments_) => arguments_.slice(-3)),
     [
+      ["--passWithNoTests", "--project", "store-domain"],
+      ["--passWithNoTests", "--project", "learning-domain"],
+      ["--passWithNoTests", "--project", "cloud-contracts"],
       ["--passWithNoTests", "--project", "protocol"],
       ["--project", "native-host", "--no-file-parallelism"],
       ["--passWithNoTests", "--project", "extension"],
+      ["--passWithNoTests", "--project", "store-extension"],
     ],
   );
 });
@@ -75,8 +79,8 @@ test("repository test modes select exactly one reviewed subcheck", async () => {
         "exec",
         "vitest",
         "run",
-        "--workspace",
-        "vitest.workspace.ts",
+        "--config",
+        "vitest.config.ts",
         "--passWithNoTests",
       ],
     ],

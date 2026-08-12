@@ -1,0 +1,455 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>划译 Store 设置</title>
+    <link rel="stylesheet" href="options.css" />
+    <link rel="stylesheet" href="options-components.css" />
+  </head>
+  <body aria-busy="false">
+    <header class="settings-toolbar">
+      <div class="toolbar-copy">
+        <div class="brand-lockup">
+          <span class="brand-mark" data-brand-mark aria-hidden="true"></span>
+          <h1>划译设置</h1>
+        </div>
+      </div>
+      <div class="toolbar-meta">
+        <p class="status" data-page-status data-tone="neutral" role="status" aria-live="polite"></p>
+        <a
+          class="github-link"
+          data-github-project
+          href="https://github.com/Neil0619/huayi"
+          target="_blank"
+          rel="noreferrer noopener"
+        >
+          <svg aria-hidden="true" viewBox="0 0 24 24">
+            <path
+              d="M12 2a10 10 0 0 0-3.2 19.5v-2.3c-2.6.6-3.2-1.1-3.2-1.1-.4-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 0 1.6 1 1.6 1 .9 1.5 2.4 1.1 3 .8.1-.7.4-1.2.7-1.5-2.1-.2-4.3-1-4.3-4.7 0-1 .4-1.9 1-2.6-.1-.2-.4-1.2.1-2.5 0 0 .8-.3 2.7 1a9.3 9.3 0 0 1 4.8 0c1.9-1.3 2.7-1 2.7-1 .5 1.3.2 2.3.1 2.5.6.7 1 1.6 1 2.6 0 3.7-2.2 4.5-4.3 4.7.4.3.7 1 .7 2v3A10 10 0 0 0 12 2Z"
+            />
+          </svg>
+          GitHub
+        </a>
+      </div>
+    </header>
+
+    <main class="settings-layout">
+      <nav class="settings-navigation" aria-label="设置分类" role="tablist">
+        <p class="navigation-label">设置</p>
+        <button
+          aria-controls="settings-common"
+          aria-selected="true"
+          data-settings-nav="common"
+          id="settings-tab-common"
+          role="tab"
+          type="button"
+        >
+          常用设置
+        </button>
+        <button
+          aria-controls="settings-credentials"
+          aria-selected="false"
+          data-settings-nav="credentials"
+          id="settings-tab-credentials"
+          role="tab"
+          type="button"
+        >
+          密钥
+        </button>
+        <button
+          aria-controls="settings-wordbooks"
+          aria-selected="false"
+          data-settings-nav="wordbooks"
+          id="settings-tab-wordbooks"
+          role="tab"
+          type="button"
+        >
+          外部词典
+        </button>
+        <button
+          aria-controls="settings-lexicon"
+          aria-selected="false"
+          data-settings-nav="lexicon"
+          id="settings-tab-lexicon"
+          role="tab"
+          type="button"
+        >
+          本地生词
+        </button>
+      </nav>
+      <div class="settings-content">
+        <section
+          class="card"
+          data-settings-section="common"
+          id="settings-common"
+          role="tabpanel"
+          aria-labelledby="settings-tab-common"
+        >
+          <div class="section-heading">
+            <div>
+              <p class="step">常用设置</p>
+              <h2 id="site-policy-title">启用范围</h2>
+            </div>
+          </div>
+          <label class="switch-field">
+            <span
+              ><b>在所有网站启用</b><small>关闭后，网页和 YouTube 都不会显示划译功能。</small></span
+            >
+            <input type="checkbox" role="switch" data-global-enabled />
+          </label>
+          <p>你也可以在 Popup 中单独关闭当前网站。页面地址、标题和浏览历史不会写入设置。</p>
+          <h3>单独关闭的网站</h3>
+          <ul class="host-list" data-disabled-hosts></ul>
+        </section>
+
+        <section
+          class="card disclosure"
+          aria-labelledby="settings-tab-common"
+          data-settings-associated="common"
+          role="region"
+        >
+          <div class="section-heading">
+            <div>
+              <p class="step">隐私与费用</p>
+              <h2 id="network-title">模型联网许可</h2>
+            </div>
+            <span class="pill" data-consent-state>尚未同意联网</span>
+          </div>
+          <div data-network-disclosure>
+            <p>
+              同意后，只有当你主动发起分析时，选中的英文和上下文才会发送到你选择的 OpenAI 或
+              DeepSeek。请求会使用你自行提供的密钥，并可能产生服务商费用。
+            </p>
+            <p>划译不会发送完整页面、浏览历史或本地生词，也不会自动重试付费请求。</p>
+          </div>
+          <div class="actions">
+            <button type="button" class="primary" data-grant-consent>我已了解并同意联网</button>
+            <button type="button" class="danger" data-revoke-consent hidden>撤回联网同意</button>
+          </div>
+        </section>
+
+        <section
+          class="card"
+          aria-labelledby="settings-tab-common"
+          data-settings-associated="common"
+          role="region"
+        >
+          <div class="section-heading">
+            <div>
+              <p class="step">分析偏好</p>
+              <h2 id="provider-title">模型与划词动作</h2>
+            </div>
+          </div>
+          <label class="field compact">
+            <span>模型服务商</span>
+            <select data-provider>
+              <option value="openai">OpenAI</option>
+              <option value="deepseek">DeepSeek</option>
+            </select>
+            <small>一次分析只使用选定的服务商；失败时不会改用另一家，也不会自动重试。</small>
+          </label>
+          <label class="field compact">
+            <span>划词后的默认动作</span>
+            <select data-default-action>
+              <option value="ask">每次询问</option>
+              <option value="translate">直接翻译</option>
+              <option value="explain">直接解释</option>
+            </select>
+            <small>选择“每次询问”会先显示翻译和解释按钮；其他选项会直接开始对应分析。</small>
+          </label>
+        </section>
+
+        <section
+          class="card"
+          aria-labelledby="settings-tab-common"
+          data-settings-associated="common"
+          role="region"
+        >
+          <div class="section-heading">
+            <div>
+              <p class="step">观看偏好</p>
+              <h2 id="youtube-title">YouTube 字幕</h2>
+            </div>
+          </div>
+          <label class="field compact">
+            <span>默认字幕模式</span>
+            <select data-youtube-mode>
+              <option value="disabled">停用划译字幕</option>
+              <option value="english">英文（可手动切换双语）</option>
+              <option value="bilingual">默认双语</option>
+            </select>
+            <small>
+              仅在标准 YouTube 录播页面且已打开英文字幕时运行。划译不会发送或保存视频地址、标题
+              或视频 ID。
+            </small>
+          </label>
+          <div class="subsection">
+            <h3>YouTube 临时双语快捷键</h3>
+            <p>按住组合键时临时显示中文字幕；输入框聚焦或页面有选区时不会抢占按键。</p>
+            <div class="actions">
+              <button type="button" data-youtube-shortcut>已关闭</button>
+              <button type="button" data-youtube-shortcut-clear>关闭快捷键</button>
+            </div>
+          </div>
+        </section>
+
+        <div
+          data-settings-section="wordbooks"
+          id="settings-wordbooks"
+          role="tabpanel"
+          aria-labelledby="settings-tab-wordbooks"
+          hidden
+        >
+          <section class="card disclosure" aria-labelledby="recipients-title">
+            <div class="section-heading">
+              <div>
+                <p class="step">03 · 外部词典数据</p>
+                <h2 id="recipients-title">分别决定每个接收方</h2>
+              </div>
+            </div>
+            <p>
+              同意与启用彼此独立。新保存的词只会排入当时已同意且已启用的目标；以后启用不会补发旧词。
+            </p>
+            <div class="recipient-grid">
+              <article class="recipient-card" data-recipient-card="eudic">
+                <div class="section-heading">
+                  <h3>欧路词典</h3>
+                  <span class="pill" data-recipient-state="eudic">尚未同意</span>
+                </div>
+                <p><b>接收方：</b>欧路词典（Eudic）。</p>
+                <p>
+                  <b>字段：</b>导入会读取欧路词头；导出会发送词头、原句和语境释义。不会发送页面
+                  URL、 标题、完整模型结果或模型密钥。
+                </p>
+                <p>
+                  <b>费用：</b>划译不收费；欧路账户、API
+                  限额或费用由欧路规则决定。<b>远端保留：</b>数据提交后由欧路保存，本地删除不会删除欧路副本。
+                </p>
+                <div class="actions">
+                  <button class="primary" type="button" data-recipient-grant="eudic">
+                    同意欧路数据说明
+                  </button>
+                  <button class="danger" type="button" data-recipient-revoke="eudic" hidden>
+                    撤回欧路同意
+                  </button>
+                  <label class="switch-field compact-switch">
+                    <span>启用欧路导入与新词导出</span>
+                    <input type="checkbox" role="switch" data-recipient-enabled="eudic" disabled />
+                  </label>
+                </div>
+              </article>
+              <article class="recipient-card" data-recipient-card="shanbay">
+                <div class="section-heading">
+                  <h3>扇贝单词</h3>
+                  <span class="pill" data-recipient-state="shanbay">尚未同意</span>
+                </div>
+                <p><b>接收方：</b>扇贝单词页面。</p>
+                <p>
+                  <b>字段：</b
+                  >划译会把词头预填到扇贝批量输入框；不会自动点击最终提交，也不会发送原句、
+                  语境释义、页面 URL 或任何密钥。
+                </p>
+                <p>
+                  <b>服务费用：</b
+                  >划译不收费；扇贝账户或服务费用由扇贝规则决定。<b>远端保留：</b>你确认提交后由扇贝保存，本地删除不会删除扇贝副本。
+                </p>
+                <div class="actions">
+                  <button class="primary" type="button" data-recipient-grant="shanbay">
+                    同意扇贝数据说明
+                  </button>
+                  <button class="danger" type="button" data-recipient-revoke="shanbay" hidden>
+                    撤回扇贝同意
+                  </button>
+                  <label class="switch-field compact-switch">
+                    <span>启用新词扇贝导出与页面预填</span>
+                    <input
+                      type="checkbox"
+                      role="switch"
+                      data-recipient-enabled="shanbay"
+                      disabled
+                    />
+                  </label>
+                </div>
+              </article>
+            </div>
+          </section>
+        </div>
+
+        <section
+          class="card"
+          data-settings-section="credentials"
+          id="settings-credentials"
+          role="tabpanel"
+          aria-labelledby="settings-tab-credentials"
+          hidden
+        >
+          <div class="section-heading">
+            <div>
+              <p class="step">04 · Provider 密钥</p>
+              <h2 id="credentials-title">加密保存在本机</h2>
+            </div>
+          </div>
+          <p>页面只显示是否已配置，不会回显或导出已有密钥。保存新值会覆盖旧值。</p>
+          <div data-device-vault-ready>
+            <div class="credential-row">
+              <label class="field">
+                <span>OpenAI API Key · <b data-credential-status="openai-api-key">未配置</b></span>
+                <input
+                  type="password"
+                  autocomplete="off"
+                  data-credential-input="openai-api-key"
+                  aria-label="新的 OpenAI API Key"
+                />
+              </label>
+              <div class="actions">
+                <button type="button" data-credential-save="openai-api-key">加密保存</button>
+                <button class="danger" type="button" data-credential-delete="openai-api-key">
+                  删除
+                </button>
+              </div>
+            </div>
+            <div class="credential-row">
+              <label class="field">
+                <span
+                  >DeepSeek API Key · <b data-credential-status="deepseek-api-key">未配置</b></span
+                >
+                <input
+                  type="password"
+                  autocomplete="off"
+                  data-credential-input="deepseek-api-key"
+                  aria-label="新的 DeepSeek API Key"
+                />
+              </label>
+              <div class="actions">
+                <button type="button" data-credential-save="deepseek-api-key">加密保存</button>
+                <button class="danger" type="button" data-credential-delete="deepseek-api-key">
+                  删除
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <div
+          data-settings-section="lexicon"
+          id="settings-lexicon"
+          role="tabpanel"
+          aria-labelledby="settings-tab-lexicon"
+          hidden
+        >
+          <section
+            class="card"
+            data-lexicon-panel
+            aria-busy="false"
+            aria-labelledby="lexicon-title"
+            hidden
+          >
+            <div class="section-heading">
+              <div>
+                <p class="step">05 · 本地生词本</p>
+                <h2 id="lexicon-title">生词与语境</h2>
+              </div>
+              <p
+                class="pill"
+                data-lexicon-status
+                data-tone="neutral"
+                role="status"
+                aria-live="polite"
+              >
+                正在读取
+              </p>
+            </div>
+            <p data-local-delete-disclosure>删除只影响本地词条，不会删除欧路或扇贝中的远端数据。</p>
+            <form class="actions" data-lexicon-search-form>
+              <label class="field compact">
+                <span>搜索规范词条</span>
+                <input type="search" data-lexicon-search autocomplete="off" />
+              </label>
+              <button type="submit">搜索</button>
+            </form>
+            <div class="lexicon-list" data-lexicon-list></div>
+            <div class="actions">
+              <button type="button" data-lexicon-next disabled>下一页</button>
+            </div>
+
+            <div class="subsection word-list-export">
+              <div>
+                <h3>导出词表</h3>
+                <p>下载 UTF-8 文本文件，每行一个词。文件不包含语境、释义、来源或时间。</p>
+              </div>
+              <button type="button" data-word-list-export>下载词表</button>
+            </div>
+          </section>
+        </div>
+
+        <div
+          aria-labelledby="settings-tab-wordbooks"
+          data-settings-associated="wordbooks"
+          role="region"
+          hidden
+        >
+          <section
+            class="card"
+            data-wordbook-panel
+            aria-busy="false"
+            aria-labelledby="wordbook-title"
+            hidden
+          >
+            <div class="section-heading">
+              <div>
+                <p class="step">06 · 外部词典</p>
+                <h2 id="wordbook-title">欧路导入、耐久导出箱与扇贝批次</h2>
+              </div>
+              <p
+                class="pill"
+                data-wordbook-status
+                data-tone="neutral"
+                role="status"
+                aria-live="polite"
+              >
+                正在读取
+              </p>
+            </div>
+            <div class="subsection">
+              <h3>欧路 Authorization · <b data-eudic-auth-status>未配置</b></h3>
+              <p>授权会加密保存，只显示配置状态，不会回显或通过页面消息传递。</p>
+              <label class="field compact">
+                <span>新的完整 Authorization</span>
+                <input type="password" autocomplete="off" data-eudic-auth-input />
+              </label>
+              <div class="actions">
+                <button type="button" data-eudic-auth-save>加密保存</button>
+                <button class="danger" type="button" data-eudic-auth-delete>删除</button>
+              </div>
+            </div>
+            <div class="subsection">
+              <h3>一次性欧路导入</h3>
+              <p data-eudic-import-progress>尚未读取检查点。</p>
+              <p data-eudic-import-error role="alert"></p>
+              <div class="actions">
+                <button type="button" data-eudic-import-start>从头开始</button>
+                <button type="button" data-eudic-import-resume>恢复</button>
+                <button type="button" data-eudic-import-pause>暂停</button>
+                <button type="button" data-eudic-import-step>处理一页</button>
+              </div>
+            </div>
+            <div class="subsection">
+              <h3>耐久导出箱</h3>
+              <p>
+                欧路任务一次只处理一条；失败任务必须手动重新排队。扇贝最终提交始终由你在扇贝页面点击。
+              </p>
+              <div class="actions">
+                <button type="button" data-outbox-refresh>刷新</button>
+                <button type="button" data-outbox-process>处理一个欧路任务</button>
+              </div>
+              <ul class="outbox-list" data-outbox-list></ul>
+            </div>
+          </section>
+        </div>
+      </div>
+    </main>
+
+    <script type="module" src="options.js"></script>
+  </body>
+</html>

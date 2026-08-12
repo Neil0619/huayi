@@ -31,9 +31,11 @@ test("cross-platform workflow runs both offline platform gates with pinned runti
   assert.match(workflow, /^\s{4}runs-on: windows-latest$/m);
   assert.match(workflow, /node-version: 26/);
   assert.match(workflow, /run: pnpm verify:windows/);
-  assert.match(workflow, /actions\/checkout@v6/);
-  assert.match(workflow, /actions\/setup-node@v6/);
-  assert.match(workflow, /pnpm\/action-setup@v6/);
+  assert.match(workflow, /actions\/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6/);
+  assert.match(workflow, /actions\/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6/);
+  assert.match(workflow, /pnpm\/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6/);
+  assert.equal(workflow.match(/pnpm exec playwright install chrome/g)?.length, 2);
+  assert.doesNotMatch(workflow, /uses: [^\n]+@v\d+/);
 });
 
 test("cross-platform workflow never performs privileged or paid runtime operations", async () => {

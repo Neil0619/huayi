@@ -6,7 +6,7 @@ const configFiles = [
   "eslint.config.mjs",
   "prettier.config.mjs",
   "playwright.config.ts",
-  "vitest.workspace.ts",
+  "vitest*.config.ts",
   "**/vite.config.ts",
 ];
 
@@ -116,7 +116,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ["apps/extension/**/*.ts"],
+    files: ["apps/extension/**/*.ts", "apps/store-extension/**/*.ts"],
     languageOptions: {
       globals: {
         ...globals.browser,
@@ -131,6 +131,32 @@ export default tseslint.config(
             {
               message: "The extension cannot depend on the native host package.",
               name: "@huayi/native-host",
+            },
+          ],
+          patterns: [
+            {
+              group: ["@huayi/*/*"],
+              message: "Import workspace packages through their public entrypoint.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["apps/store-extension/**/*.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              message: "The Store extension cannot depend on the Classic native host.",
+              name: "@huayi/native-host",
+            },
+            {
+              message: "The Store extension must use its own domain contracts.",
+              name: "@huayi/protocol",
             },
           ],
           patterns: [
@@ -177,7 +203,61 @@ export default tseslint.config(
           patterns: [
             {
               group: ["node:*", "@huayi/*", "@huayi/*/*"],
-              message: "The protocol package must stay platform neutral.",
+              message: "Domain contract packages must stay platform neutral.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["packages/store-domain/**/*.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "@huayi/cloud-contracts",
+              message: "Store domain cannot depend on Cloud contracts.",
+            },
+            { name: "@huayi/protocol", message: "Store domain cannot depend on Classic protocol." },
+            { name: "@huayi/store-domain", message: "Store domain cannot import itself." },
+          ],
+          patterns: [
+            {
+              group: ["node:*", "@huayi/*/*"],
+              message: "Domain packages stay platform neutral and use public package exports.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["packages/learning-domain/**/*.ts", "packages/cloud-contracts/**/*.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "@huayi/cloud-contracts",
+              message: "Domain packages cannot import Cloud contracts.",
+            },
+            {
+              name: "@huayi/protocol",
+              message: "Cloud packages cannot depend on Classic protocol.",
+            },
+            {
+              name: "@huayi/store-domain",
+              message: "Cloud packages cannot depend on Store domain.",
+            },
+          ],
+          patterns: [
+            {
+              group: ["node:*", "@huayi/*/*"],
+              message: "Cloud packages stay platform neutral and use public package exports.",
             },
           ],
         },

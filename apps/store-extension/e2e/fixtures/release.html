@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Huayi Store release fixture</title>
+    <style>
+      body {
+        font:
+          18px/1.6 system-ui,
+          sans-serif;
+        margin: 48px;
+        max-width: 760px;
+      }
+    </style>
+  </head>
+  <body>
+    <button type="button" data-testid="disable-site">Disable this site</button>
+    <output data-testid="site-status">enabled</output>
+    <p>The <strong data-testid="word">investigation</strong> remained active all winter.</p>
+    <p>The <strong data-testid="failure-word">failure</strong> remained visible.</p>
+    <ol data-testid="message-log" hidden></ol>
+    <script type="module" src="/apps/store-extension/e2e/support/release-harness.ts"></script>
+  </body>
+</html>
