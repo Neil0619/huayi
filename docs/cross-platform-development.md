@@ -74,6 +74,21 @@ health 验证会把 `.exe` 复制到仓库外的临时目录，清除 `NODE_PATH
 产品测试必须离线；生产依赖审计只查询包管理器安全公告，不运行扩展或 Provider/词典请求。真实
 smoke、安装和凭据操作不在两个命令中。
 
+### 验证节奏：macOS 优先，Windows 按候选批次
+
+双平台门禁是冻结候选、合并和发布的完成要求，不代表每个普通提交后都必须立即切换到 Windows。日常
+产品需求、Web/Extension UI、纯领域逻辑、文档、测试和普通构建改动可以先在 macOS 按切片完成 focused
+验证，并在阶段节点运行 `pnpm verify:macos`；待一批需求暂时冻结、Mac 完整门全绿、工作树干净且精确
+候选 SHA 已 push 后，再执行一次 `pnpm verify:windows`。
+
+Windows 批次未执行时，必须记录 `implemented and verified on macOS; Windows batch validation pending`，
+旧 Windows 结果不能覆盖新增提交。DPAPI、PowerShell、注册表、Windows 路径/ACL、SEA、Windows 安装器、
+Windows-only 故障、Native Messaging/共享传输变更，以及 Windows 安装、Chrome 或发布候选准备会提前
+触发一个有界 Windows 冻结点；相关小修复可以集中，但最终必须在最新 SHA 上完整重跑 Windows 门。
+
+详细冻结条件、失败回流和证据格式见
+[`cloud-v1/macos-first-windows-batch-validation.md`](cloud-v1/macos-first-windows-batch-validation.md)。
+
 2026-08-14 的 Cloud V1 Phase 30 已在 macOS 真实执行完整 `pnpm verify:macos` 并以退出码 0
 通过，包括 109/109 Playwright、Store release、生产依赖审计和 `git diff --check`；审计未发现已知
 漏洞。这只证明 macOS 自动化离线门禁，不代表 Windows、真实 Chrome、安装、Provider/词典或云部署

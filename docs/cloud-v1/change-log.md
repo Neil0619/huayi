@@ -3,6 +3,19 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-20：Windows 验证改为候选冻结节点批量执行
+
+- 保留 Windows 支持和发布前双平台门禁，但不再要求每个普通小提交后立即切换 Windows 跑全量门；
+- 日常需求优化和功能切片先在 macOS 完成文档、Fresh RED→GREEN 与风险相称的验证，阶段节点运行
+  `pnpm verify:macos`；
+- 需求暂时冻结、Mac 完整门全绿、无 P0/P1、工作树干净且精确 SHA 已 push 后，才执行一轮 Windows
+  fresh install + `pnpm verify:windows`；
+- DPAPI、PowerShell、注册表、SEA、Windows 安装器、Windows-only 故障、共享 Native Messaging/传输和
+  Windows 发布操作会提前触发有界冻结点；相关修复可集中，最终仍须对最新 SHA 完整重跑；
+- 旧 Windows 证据不覆盖之后的新提交；批次未执行时必须明确保留 Windows pending，不得宣称跨平台
+  候选或发布已完成；
+- 邮件、域名、DNS、Resend 与真实部署继续在独立任务处理，不纳入该批次。
+
 ## 2026-08-20：Windows Fresh 门固定 workspace source 解析与精确异步等待
 
 - Fresh Windows 首个 RED 是根 `AGENTS.md` 12,404 字节超过 12 KiB；语义压缩至 12,287 字节后，门禁

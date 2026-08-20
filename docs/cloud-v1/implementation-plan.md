@@ -751,8 +751,9 @@ Provider。
    - 草稿上传和人工预审、最终公开提交、开放邀请分别取得明确批准。只有七条产品成功标准、全部双平台/
      真实服务门禁和 R3-C 独立任务都关闭后，才能把状态改为发布完成。
 
-推荐下一项是 A，不依赖邮件、域名、DNS 或生产密钥；但其中 Git 暂存/提交仍需用户明确授权。A 完成后
-优先执行 B，再等待独立部署任务提供正式 origin 后依次执行 C→D→E→F→G。
+以上 A→B 是 Phase 37 当时的候选收口顺序，A 与首轮 B 均已完成。当前后续 Windows 节奏由 Phase 41
+取代：先在 Mac 持续完成需求校准和功能切片，到候选冻结后再批量执行 Windows 门，不因普通小提交立即
+回到 B。邮件/域名独立任务提供正式 origin 后，C→D→E→F→G 的外部依赖顺序保持不变。
 
 ## Phase 38：Vercel Hobby + Supabase Free 高频调度适配（2026-08-20）
 
@@ -838,3 +839,22 @@ instructions/architecture/format/lint/typecheck/build、118/118 Node 脚本、44
 普通 push；若有任一项未满足，状态保持 `implemented; Windows target-platform validation pending`。
 GitHub macOS/Windows CI 只有真实全绿后才关闭发布检查表总项；未触发时明记 pending，不阻止把本地
 Windows 目标机结果交回当前任务复审。
+
+## Phase 41：macOS 优先开发与 Windows 批量验证（2026-08-20）
+
+本阶段采用 `macos-first-windows-batch-validation.md` 的新节奏，保留 Windows 支持和最终双平台门禁，
+但不再为每个普通小提交立即执行 Windows 全量验证。
+
+1. **41-A 产品需求校准**：在 Mac 继续优化需求，先同步产品、技术、数据、测试与验收文档并完成自审；
+2. **41-B Mac 功能切片**：按文档 Fresh RED→GREEN，逐切片运行 focused gate，在阶段或高风险 shared
+   边界运行完整 `pnpm verify:macos`；允许多个小提交累计；
+3. **41-C Mac 候选冻结**：需求暂时冻结、无已知 P0/P1、Mac 完整门全绿、累计 diff 已审、工作树干净，
+   普通 push 精确候选 SHA；
+4. **41-D Windows 批量验证**：只对冻结 SHA 执行一次 fresh install + `pnpm verify:windows`；Windows 发现
+   可集中修复，但最终必须在最新 SHA 从头重跑完整门；
+5. **41-E 候选裁决**：Mac 与 Windows 最终证据必须指向同一 SHA。CI、真实安装/Chrome、凭据、Provider、
+   词典和部署继续按各自授权与门禁单独记录。
+
+当前 Windows 已验证代码为 `3aa143c`，当前 Mac HEAD `2a035ee` 比它新增品牌与跨平台候选稳定性两个提交；
+两者进入下一批 Windows 验证，无需立即重跑。下一项是 41-A，邮件、域名、DNS、Resend 和真实部署仍在
+独立任务中，不纳入本阶段。

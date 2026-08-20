@@ -702,6 +702,20 @@ pending`，不能因路线拆分宣称完整 V1 已完成。
   该分支无开放 PR，GitHub Actions 无该分支 run；没有运行安装、真实 Chrome、凭据、Provider/词典
   smoke、部署或其他外部操作。
 
+## Cloud V1 Phase 41 macOS 优先与 Windows 批量验证状态（2026-08-20）
+
+- 用户决定继续保留 Windows 支持，但取消“每个普通小提交后立即去 Windows 跑全量门”的节奏；日常需求
+  优化和功能切片先在 macOS 完成，Windows 改为候选冻结节点的一次性批量验证；
+- 最近一次 Windows 完整门覆盖代码 `3aa143c`；当前 Mac HEAD `2a035ee` 比它新增 `35fc69f` 品牌改名和
+  `2a035ee` 跨平台候选稳定性修复。旧证据不覆盖这两个提交，但它们进入下一批，不要求立即重跑；
+- 当前状态为 `implemented and verified on macOS; Windows batch validation pending`。只有需求暂时冻结、
+  Mac `pnpm verify:macos` 全绿、无 P0/P1、累计 diff 已审、工作树干净且精确候选 SHA 已 push 后，才发起
+  下一轮 Windows `pnpm verify:windows`；
+- DPAPI、PowerShell、注册表、SEA、Windows 安装器、Windows-only 故障、Native Messaging/共享传输或
+  Windows 发布操作会提前触发有界冻结点；相关小修复可集中，最终必须在最新 SHA 完整重跑；
+- 下一项执行 Phase 41-A：继续在 Mac 校准下一批产品需求并同步产品、开发、测试和验收文档，再进入
+  41-B 开发。邮件、域名、DNS、Resend 与真实部署仍由独立任务处理。
+
 ## Cloud V1 Phase 23 离线实现状态
 
 - 五类平台付费练习生成已统一进入 PlatformGeneration：新增 ADR-0018、
