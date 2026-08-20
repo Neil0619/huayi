@@ -97,7 +97,7 @@
 
 .job-state {
   padding: var(--space-1) var(--space-2);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: var(--text-secondary);
   background: var(--surface-tint);
   white-space: nowrap;

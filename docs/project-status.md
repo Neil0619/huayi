@@ -744,6 +744,19 @@ pending`，不能因路线拆分宣称完整 V1 已完成。
 - 当前状态为 `implemented and verified on macOS; Windows batch validation pending`。Windows 继续在下一
   冻结候选批量验证；邮件、域名、DNS、Resend 与真实部署不纳入本阶段。
 
+## Cloud V1 Phase 44 Web 语义设计 Token 状态（2026-08-21）
+
+- 影响平台为 `shared + macOS`；Windows 支持保留并进入下一候选批次；
+- docs-first 新增 `web-design-token-contract.md` 并完成自审；Fresh RED 以 2 个预期失败 / 7 个基线通过
+  报告 1 个未定义引用和 33 个受控属性违规；
+- 集中 registry 与静态 parser 已覆盖 `main.tsx` 全部生产 CSS；原始值等值迁移，原本无效的危险区
+  `--red-600` 改用既有 danger 语义色；
+- GREEN 为静态契约 9/9、focused 4 files / 18 tests、Web full 43 files / 198 tests、actual bundle 3/3；
+  最终 `pnpm verify:macos` 退出 0，覆盖 121/121 Node 脚本、447 个 Vitest 文件、Store coverage
+  97 files / 481 tests 与 Playwright 110/110；
+- 当前状态为 `implemented and verified on macOS; Windows batch validation pending`；
+- 不处理邮件、域名、DNS、Resend、部署、Provider、词典、安装或 Chrome。
+
 ## Cloud V1 Phase 23 离线实现状态
 
 - 五类平台付费练习生成已统一进入 PlatformGeneration：新增 ADR-0018、

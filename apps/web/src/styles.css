@@ -1,6 +1,7 @@
 :root {
   /* Primitive tokens */
   --pearl-0: #ffffff;
+  --pearl-0-alpha-88: rgb(255 255 255 / 88%);
   --pearl-50: #f8f9fc;
   --pearl-100: #f0f3f8;
   --pearl-200: #e3e8f0;
@@ -8,49 +9,76 @@
   --slate-500: #5d6c84;
   --slate-600: #4d5d74;
   --ink-950: #101a2d;
+  --ink-950-alpha-10: rgb(16 26 45 / 10%);
   --blue-500: #5878a8;
   --blue-600: #3d5f91;
   --blue-700: #2e4a78;
+  --blue-700-alpha-7: rgb(46 74 120 / 7%);
   --violet-100: #e9e5f5;
+  --violet-100-alpha-58: rgb(233 229 245 / 58%);
   --violet-400: #8f82bd;
+  --violet-glow-72: rgb(233 229 245 / 72%);
   --red-100: #f8e9ed;
   --red-700: #984a5b;
   --silver: #bdc7d7;
+  --silver-alpha-72: rgb(189 199 215 / 72%);
+  --space-hairline: 0.08rem;
+  --space-micro: 0.1rem;
   --space-1: 0.25rem;
   --space-2: 0.5rem;
+  --space-compact: 0.35rem;
   --space-3: 0.75rem;
+  --space-sidebar-item: 0.7rem;
   --space-4: 1rem;
   --space-5: 1.25rem;
   --space-6: 1.5rem;
   --space-8: 2rem;
+  --space-16: 4rem;
+  --radius-glyph-start: 0.35rem;
+  --radius-glyph-end: 0.55rem;
   --radius-sm: 0.625rem;
+  --radius-control: 0.75rem;
   --radius-md: 1rem;
   --radius-lg: 1.5rem;
+  --radius-pill: 999px;
+  --shadow-elevated:
+    0 1.5rem 3.75rem var(--ink-950-alpha-10), 0 0.25rem 0.875rem var(--blue-700-alpha-7);
   --duration-fast: 160ms;
 
   /* Semantic tokens */
-  color: var(--ink-950);
-  background: var(--pearl-100);
+  color: var(--text-primary);
+  background: var(--surface-canvas);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", sans-serif;
   --surface-canvas: var(--pearl-100);
-  --surface-default: rgb(255 255 255 / 88%);
+  --surface-default: var(--pearl-0-alpha-88);
   --surface-strong: var(--pearl-0);
   --surface-subtle: var(--pearl-50);
-  --surface-tint: rgb(233 229 245 / 58%);
+  --surface-tint: var(--violet-100-alpha-58);
+  --surface-glow: var(--violet-glow-72);
+  --surface-inverse: var(--ink-950);
   --surface-danger: var(--red-100);
   --text-primary: var(--ink-950);
   --text-secondary: var(--slate-600);
   --text-tertiary: var(--slate-500);
+  --text-on-action: var(--pearl-0);
   --text-danger: var(--red-700);
-  --border-default: rgb(189 199 215 / 72%);
+  --border-default: var(--silver-alpha-72);
   --border-strong: var(--silver);
+  --border-accent: var(--violet-400);
+  --border-danger: var(--red-700);
   --action-primary: var(--blue-600);
   --action-hover: var(--blue-700);
   --focus-ring: var(--blue-500);
+  --shadow-card: var(--shadow-elevated);
 
   /* Component tokens */
   --control-height: 2.75rem;
-  --card-shadow: 0 1.5rem 3.75rem rgb(16 26 45 / 10%), 0 0.25rem 0.875rem rgb(46 74 120 / 7%);
+  --brand-glyph-radius: var(--radius-glyph-start) var(--radius-glyph-end);
+  --brand-mark-shadow: inset 0 0 0 1px var(--border-default);
+  --card-shadow: var(--shadow-card);
+  --privacy-notice-padding: clamp(var(--space-6), 5vw, var(--space-16));
+  --privacy-page-background:
+    radial-gradient(circle at 10% 0%, var(--surface-glow), transparent 28rem), var(--surface-canvas);
 }
 
 * {
@@ -107,7 +135,7 @@ button:disabled {
   top: var(--space-3);
   left: var(--space-3);
   padding: var(--space-2) var(--space-3);
-  color: var(--pearl-0);
+  color: var(--text-on-action);
   background: var(--action-primary);
   transform: translateY(-180%);
 }
@@ -132,7 +160,7 @@ button:disabled {
 }
 .topbar div {
   display: grid;
-  gap: 0.1rem;
+  gap: var(--space-micro);
 }
 .topbar strong {
   font-size: 1.125rem;
@@ -155,15 +183,15 @@ button:disabled {
   width: 2.25rem;
   height: 2.25rem;
   place-items: center;
-  border-radius: 0.75rem;
+  border-radius: var(--radius-control);
   background: var(--surface-tint);
-  box-shadow: inset 0 0 0 1px var(--border-default);
+  box-shadow: var(--brand-mark-shadow);
 }
 .brand-mark::before {
   width: 0.95rem;
   height: 0.95rem;
   border: 2px solid var(--action-primary);
-  border-radius: 0.35rem 0.55rem;
+  border-radius: var(--brand-glyph-radius);
   content: "";
   transform: rotate(45deg);
 }
@@ -184,7 +212,7 @@ button:disabled {
   display: flex;
   min-height: 2.75rem;
   align-items: center;
-  padding: 0.7rem var(--space-3);
+  padding: var(--space-sidebar-item) var(--space-3);
   border-radius: var(--radius-sm);
   color: var(--text-secondary);
   text-decoration: none;
@@ -364,7 +392,7 @@ main {
 }
 .form-actions button[type="submit"] {
   border-color: transparent;
-  color: var(--pearl-0);
+  color: var(--text-on-action);
   background: var(--action-primary);
 }
 .alert,
@@ -445,11 +473,11 @@ main {
 .auth-card .primary-button {
   width: 100%;
   border-color: transparent;
-  color: var(--pearl-0);
+  color: var(--text-on-action);
   background: var(--action-primary);
 }
 .auth-card .primary-button:hover {
-  color: var(--pearl-0);
+  color: var(--text-on-action);
   background: var(--action-hover);
 }
 .auth-status {

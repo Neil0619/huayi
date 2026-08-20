@@ -512,6 +512,26 @@ Phase 31 Fresh RED 为 2 passed / 3 expected failures；GREEN focused 为 17/17�
 coverage 97 files / 480 tests、Playwright 109/109、Store release、生产依赖审计和 `git diff --check`。
 Windows 仍须在目标机独立执行同一更新后的聚合命令。
 
+### 4.3 Phase 44 Web 语义设计 Token 契约
+
+Web 样式门禁必须由 `main.tsx` 的生产 CSS import 清单读取全部入口，解析规则块声明并同时证明：
+
+- `var(--*)` 引用全部由 `styles.css` 的 `:root` registry 定义，不允许 fallback 掩盖未知 Token；
+- 颜色、背景、边框/轮廓色、非零 margin/padding/gap/inset、圆角和阴影使用 Token；
+- `0`、`auto`、`none`、透明色、CSS 全局关键字和含 Token 的组合值是允许的结构性表达；breakpoint、
+  width/height、grid/flex、transform 与 typography 不被误判为主题值；
+- 失败消息包含相对文件、属性和原值，新增生产 CSS 时会自动进入同一闭包而不是手工扩第二份列表。
+
+Fresh RED 必须覆盖未定义引用与至少一个原始颜色/间距/圆角值；GREEN 后保留现有 responsive、
+reduced-motion 和组件行为断言。actual production bundle 在桌面和 390px 覆盖 `/app`、
+`/settings/data`、`/privacy` 的可见性、焦点、computed danger border/privacy background、零横向溢出和
+公共隐私页零 API。完整契约见 `web-design-token-contract.md`。
+
+Phase 44 Fresh RED 为 2 个预期失败 / 7 个基线通过；GREEN 为静态契约 9/9、focused 4 files /
+18 tests、Web full 43 files / 198 tests、actual bundle 3/3。最终 `pnpm verify:macos` 退出 0，并覆盖
+121/121 Node 脚本、447 个 Vitest 文件、Store coverage 97 files / 481 tests 与 Playwright 110/110。
+Windows 进入下一冻结候选批次。
+
 ## 5. 最终人工验收
 
 - macOS 与 Windows 真实 Chrome 分别验证 Web 配对三项偏好、普通网页、YouTube、退出/撤销、BYOK、

@@ -12,7 +12,7 @@ Chrome Web Store 就绪。
 - [ ] audit 输入中的候选/API Extension ID 与目标 Chrome Dashboard ID 相同，最低版本不高于候选版本；
 - [x] 当前 macOS 工作树的 instructions、architecture、format、lint、typecheck、unit、API integration
       全绿；
-- [x] 当前 Web 与 Store Extension Playwright 109/109 全绿；
+- [x] 当前 Web 与 Store Extension Playwright 110/110 全绿；
 - [x] 当前 macOS `pnpm verify:macos` 聚合门禁全绿；
 - [ ] Windows Node.js 26+ 的 `pnpm verify:windows`、SEA health 与 CI 全绿；Phase 37-B 已在 Windows 11
       build 26220、Node.js 26.7.0 上本地退出 0，109/109 Playwright、SEA 仓库外 health 与 production
@@ -103,6 +103,14 @@ Chrome Web Store 就绪。
       release scripts 2；明确排除但不删除 `.agents/skills/**` 150 个代理技能资产和 `artifacts/**` 8 张
       未引用截图；staged manifest 为 613 个新增 + 92 个相关 tracked 修改，`git diff --cached --check`、
       完整离线门与 macOS 聚合门均通过，未使用宽泛 `git add .`。
+
+## Web 设计 Token
+
+- [x] `main.tsx` 引入的全部生产 CSS 通过 Token 引用闭包，零未定义 `var(--*)`；
+- [x] 颜色、间距、圆角和阴影的受控属性全部经集中 registry，结构性例外与
+      `web-design-token-contract.md` 一致；
+- [x] `/app`、`/settings/data`、`/privacy` 在桌面与 390px 的实际产物中无横向溢出，危险区边框与隐私
+      背景 computed style 有效，焦点可见且公共隐私页零 API。
 
 ## 完整 V1
 

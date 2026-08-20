@@ -12,6 +12,14 @@ test("workspace navigation stays canonical across mobile and desktop routes", as
   await page.setViewportSize({ height: 844, width: 390 });
 
   await page.goto(`${webOrigin}/app`);
+  const inboxTabs = page.getByRole("tablist", { name: "待整理分类" });
+  await expect(inboxTabs).toBeVisible();
+  expect(
+    await inboxTabs.evaluate((element) => {
+      const computed = getComputedStyle(element);
+      return { borderRadius: computed.borderRadius, gap: computed.gap };
+    }),
+  ).toEqual({ borderRadius: "12px", gap: "5.6px" });
   const summary = page.locator(".workspace-navigation > summary");
   const navigation = page.getByRole("navigation", { name: "主导航" });
   await expect(summary).toContainText("待整理");
@@ -767,6 +775,11 @@ test("public privacy stays API-free and a missing session never reads learning c
 
   await page.goto(`${webOrigin}/privacy`);
   await expect(page.getByRole("heading", { name: "语见 Cloud V1 隐私说明" })).toBeVisible();
+  expect(
+    await page
+      .locator(".privacy-page")
+      .evaluate((element) => getComputedStyle(element).backgroundImage),
+  ).toContain("radial-gradient");
   await expect(
     page.getByText("BYOK Key 与该次精简结果不会发送给语见", { exact: false }),
   ).toBeVisible();

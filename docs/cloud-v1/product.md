@@ -219,7 +219,10 @@ Web 主导航固定为：今日练习、待整理、分析、学习库、生词�
 或抽屉；完整会话的学习工作台页面复用同一个 WorkspaceShell。data-rights-only、独立运营、公共、认证、
 恢复和配对页不提前显示完整学习导航。使用系统字体、珍珠灰/冷白背景、低饱和钢蓝动作色、轻边框和
 浅阴影，满足键盘操作、可见焦点、AA 对比度和 reduced-motion。V1 只有这一套皮肤，但全部颜色、圆角、
-间距和阴影必须通过语义 token 使用。
+间距和阴影必须通过语义 token 使用。Token 依赖固定为 primitive → semantic → component，所有生产
+CSS 引用必须由单一 registry 闭合；允许 `0`、`auto`、断点、结构尺寸和排版值等明确非主题例外，
+不得用例外绕过颜色、间距、圆角或阴影。可执行属性边界与验收见
+`web-design-token-contract.md`。
 
 ## 5. 明确不做
 

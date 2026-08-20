@@ -25,6 +25,12 @@ test("an account owner exports data and permanently deletes the account", async 
 
   await page.goto(`${webOrigin}/settings/data`);
   await expect(page.getByRole("heading", { name: "导出与永久删除", level: 1 })).toBeVisible();
+  expect(
+    await page.locator(".danger-zone").evaluate((element) => {
+      const computed = getComputedStyle(element);
+      return { borderColor: computed.borderColor, borderStyle: computed.borderStyle };
+    }),
+  ).toEqual({ borderColor: "rgb(152, 74, 91)", borderStyle: "solid" });
   await expect(page.getByRole("heading", { name: "尚未请求完整数据导出" })).toBeVisible();
   await page.getByRole("button", { name: "请求完整数据导出" }).click();
   await expect(page.getByRole("heading", { name: "正在等待生成" })).toBeVisible();

@@ -896,3 +896,30 @@ coverage、全部 workspace build、109/109 Playwright、release audits 与 prod
 journey 未展开导航，按真实用户交互修正后 focused 2/2、最终 110/110。Web strict typecheck/build、目标
 静态门和 `pnpm verify:macos` 全绿。状态为
 `implemented and verified on macOS; Windows batch validation pending`。
+
+## Phase 44：Web 语义设计 Token 收口（2026-08-21）
+
+影响平台为 `shared + macOS`；Windows 保留支持并进入下一候选批次。该阶段只落实产品已规定的单一
+皮肤与 Token-only 约束，不改变 DOM、路由、请求、数据或既有视觉值。
+
+1. **Docs-first**：以 `web-design-token-contract.md` 固定 primitive → semantic → component 依赖、受控
+   CSS 属性、结构性例外、TDD 和 actual-bundle 验收；同步产品、测试、审计、发布和状态文档；
+2. **文档自审**：确认 breakpoint、结构尺寸、字体和 reset 不被误判，颜色/间距/圆角/阴影没有宽泛豁免；
+   确认无需 architecture/data/API/security 变化；
+3. **Fresh RED**：由 `main.tsx` 的生产 CSS import 清单驱动测试，解析声明并证明 `--red-600` 未定义、
+   data-rights/privacy/StudyInbox 等入口仍含原始主题值；
+4. **最小 GREEN**：扩充集中 registry，并等值替换所有生产入口违规值；不新增依赖、主题切换或运行时
+   parser；
+5. **实际产物**：在桌面与 390px 检查 `/app`、`/settings/data`、`/privacy` 的可见性、焦点、computed
+   danger border/privacy background、零横向溢出与公共页零 API；
+6. **退出门槛**：focused/Web full、typecheck/build、目标 lint/format、instructions/architecture/diff 和
+   `pnpm verify:macos` 全绿。状态只能是
+   `implemented and verified on macOS; Windows batch validation pending`。
+
+本阶段不处理邮件、域名、DNS、Resend、部署、Provider、词典、安装或 Chrome。
+
+实现检查点：Fresh RED 为 2 个预期失败 / 7 个基线通过，分别报告 1 个未定义引用和 33 个受控属性
+违规。GREEN 静态契约 9/9、focused 4 files / 18 tests、Web full 43 files / 198 tests、actual bundle 3/3；
+最终 `pnpm verify:macos` 退出 0，覆盖 121/121 Node 脚本、447 个 Vitest 文件、Store coverage 97 files /
+481 tests、Playwright 110/110、全 workspace 静态/构建门、发布审计和 production audit。状态为
+`implemented and verified on macOS; Windows batch validation pending`。

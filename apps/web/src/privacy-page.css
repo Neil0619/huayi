@@ -1,8 +1,6 @@
 .privacy-page {
   min-height: 100vh;
-  background:
-    radial-gradient(circle at 10% 0%, rgb(233 229 245 / 72%), transparent 28rem),
-    var(--surface-canvas);
+  background: var(--privacy-page-background);
 }
 
 .privacy-header {
@@ -31,7 +29,7 @@
 
 .privacy-brand > span:last-child {
   display: grid;
-  gap: 0.08rem;
+  gap: var(--space-hairline);
 }
 
 .privacy-brand small {
@@ -45,7 +43,7 @@
 .privacy-notice {
   max-width: 72ch;
   margin: 0 auto;
-  padding: clamp(1.5rem, 5vw, 4rem);
+  padding: var(--privacy-notice-padding);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
   background: var(--surface-default);
@@ -74,7 +72,7 @@
   display: inline-block;
   margin: 0 0 var(--space-5);
   padding: var(--space-2) var(--space-3);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: var(--action-hover);
   background: var(--surface-tint);
   font-weight: 700;
@@ -83,7 +81,7 @@
 .privacy-callout {
   margin: var(--space-8) 0;
   padding: var(--space-5);
-  border-left: 0.3rem solid var(--violet-400);
+  border-left: 0.3rem solid var(--border-accent);
   border-radius: var(--radius-sm);
   background: var(--surface-tint);
 }

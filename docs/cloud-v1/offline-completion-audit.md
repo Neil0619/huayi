@@ -184,3 +184,21 @@ data-rights-only 受限形态和响应式 details；运营保持独立权限面�
 390px 原生折叠/键盘与指针展开、桌面 open、七项路由和子页 active；最终 Playwright 110/110 与
 `pnpm verify:macos` 全绿。状态为
 `implemented and verified on macOS; Windows batch validation pending`。
+
+## 9. Phase 44 Web Token 漂移审计（2026-08-21）
+
+产品已经要求颜色、间距、圆角和阴影全部经语义 Token，但生产 CSS 当前没有可执行闭包：
+`account-data-rights-page.css` 引用 registry 不存在的 `--red-600`，使危险区边框色声明失效；同页、
+`privacy-page.css`、`study-inbox.css` 与少量共用组件仍直接写主题值。现有 `styles.test.ts` 只读取六份
+CSS，未覆盖全部 `main.tsx` 生产入口，也不验证引用定义或受控属性。
+
+Phase 44 必须先以 `web-design-token-contract.md` 冻结三层 Token、结构性例外和 TDD，再让测试从生产
+import 清单建立完整闭包。完成前不能把产品的 Token-only/危险操作视觉一致性标为已验收。该缺口是
+本地 Web 产品代码与测试缺口，不是邮件、DNS、部署、真实 Provider、Chrome 或 Windows 外部项。
+
+缺口已关闭：Fresh RED 为 2 个预期失败 / 7 个基线通过，精确报告 1 个未定义引用和 33 个受控属性
+违规；GREEN 静态契约 9/9、focused 4 files / 18 tests、Web full 43 files / 198 tests。actual bundle 3/3
+证明 390px 待整理 tabs、危险区有效 computed border、隐私渐变/零 API 和无横向溢出。最终
+`pnpm verify:macos` 退出 0，覆盖 121/121 Node 脚本、447 个 Vitest 文件、Store coverage 97 files /
+481 tests、Playwright 110/110、全 workspace 静态/构建门、发布审计和无已知漏洞的 production audit。
+状态为 `implemented and verified on macOS; Windows batch validation pending`。

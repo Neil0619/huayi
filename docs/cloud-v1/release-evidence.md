@@ -491,3 +491,21 @@ eviction 影响；两个可并存、base64 后各可接近 6.7 MiB 的 `storage.
   `pnpm verify:macos` 均通过。状态为
   `implemented and verified on macOS; Windows batch validation pending`；
 - 未运行 Windows、真实 Provider/词典、安装、Chrome 扩展、邮件、域名、DNS、Resend 或部署。
+
+## 19. Phase 44 Web 语义设计 Token 收口（2026-08-21）
+
+- docs-first 已冻结 `web-design-token-contract.md`：唯一 registry、primitive → semantic → component、
+  受控属性和结构性例外均有可执行定义；
+- 实现前审计确认 `--red-600` 未定义，data-rights/privacy/StudyInbox 与少量共用组件保留原始主题值，
+  而旧 `styles.test.ts` 未读取全部生产 CSS；
+- Fresh RED 为 2 个预期失败 / 7 个基线通过：引用闭包报告 1 个未定义 Token，受控属性报告 33 个原始
+  颜色/间距/圆角/阴影或 primitive 颜色直访；
+- 最小 GREEN 保持既有视觉值，只把原本失效的危险区边框绑定既有 danger 色；静态契约 9/9、focused
+  4 files / 18 tests、Web full 43 files / 198 tests、Web strict typecheck/build 和目标 lint/format 全绿；
+- actual production bundle 3/3 覆盖 `/app`、`/settings/data`、`/privacy`，证明 390px tabs、有效危险边框、
+  隐私渐变、公共页零 API 与无横向溢出；
+- 最终 `pnpm verify:macos` 退出 0，覆盖 121/121 Node 脚本、447 个 Vitest 文件、Store coverage 97 files /
+  481 tests、Playwright 110/110、全 workspace format/lint/typecheck/build、instructions/architecture、发布
+  审计、`git diff --check` 和无已知漏洞的 production audit；
+- 状态为 `implemented and verified on macOS; Windows batch validation pending`；
+- 不运行 Windows、真实 Provider/词典、安装、Chrome 扩展、邮件、域名、DNS、Resend 或部署。
