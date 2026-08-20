@@ -25,7 +25,7 @@ export type ProviderId = z.infer<typeof providerIdSchema>;
 export const analysisActionSchema = z.enum(["translate", "explain"]);
 export type AnalysisAction = z.infer<typeof analysisActionSchema>;
 
-export const selectionKindSchema = z.enum(["word", "phrase", "sentence"]);
+export const selectionKindSchema = z.enum(["word", "phrase", "sentence", "passage"]);
 export type SelectionKind = z.infer<typeof selectionKindSchema>;
 
 const requestIdSchema = z.string().trim().min(1).max(64);
@@ -33,7 +33,6 @@ const sourceTextSchema = z.string().trim().min(1).max(MAX_CONTEXT_SENTENCE_LENGT
 
 export const analysisRequestSchema = z.strictObject({
   action: analysisActionSchema,
-  context: z.string().max(MAX_CONTEXT_SENTENCE_LENGTH),
   providerId: providerIdSchema,
   requestId: requestIdSchema,
   selection: sourceTextSchema,

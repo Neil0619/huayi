@@ -20,7 +20,6 @@ const encoder = new TextEncoder();
 function request(providerId: AnalysisRequest["providerId"]): AnalysisRequest {
   return {
     action: "translate",
-    context: "A friendly greeting.",
     providerId,
     requestId: "request-1",
     selection: "Hello world.",

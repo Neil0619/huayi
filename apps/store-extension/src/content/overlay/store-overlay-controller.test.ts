@@ -228,7 +228,7 @@ describe("Store selection overlay", () => {
     expect(ports).toHaveLength(1);
     expect(ports[0]?.postMessage).toHaveBeenCalledWith({
       action: "translate",
-      context: "Context for early stages",
+      boundaryEvidence: { kind: "local-rules" },
       messageVersion: STORE_MESSAGE_VERSION,
       selection: "early stages",
       sentenceContext: "Sentence with early stages.",

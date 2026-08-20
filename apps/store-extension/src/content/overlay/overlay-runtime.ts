@@ -2,6 +2,7 @@ import type {
   StoreAnalysisClientMessage,
   StoreLexiconPresenceRequest,
   StoreLexiconSaveRequest,
+  StoreStudyCaptureRequest,
 } from "@huayi/store-domain";
 
 interface PortListener<Listener> {
@@ -18,9 +19,11 @@ export interface ContentAnalysisPort {
 export interface StoreOverlayRuntime {
   connectAnalysis(): ContentAnalysisPort;
   openOptions(): Promise<void>;
+  openWebWorkspace(): Promise<void>;
   overlayStylesheetUrl(): string;
   queryWordPresence(request: StoreLexiconPresenceRequest): Promise<unknown>;
   saveWord(request: StoreLexiconSaveRequest): Promise<unknown>;
+  studyCapture(request: StoreStudyCaptureRequest): Promise<unknown>;
 }
 
 export interface StoreOverlayAnchor {

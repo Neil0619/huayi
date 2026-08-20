@@ -7,6 +7,7 @@ import {
   type AnalysisUpdate,
 } from "./analysis.js";
 import { MAX_CONTEXT_SENTENCE_LENGTH } from "./normalization.js";
+import { parseSelectionBoundaryEvidence, type SelectionBoundaryEvidence } from "./selection.js";
 
 export const STORE_MESSAGE_VERSION = 4;
 
@@ -68,6 +69,61 @@ export interface StoreOpenOptionsRequest {
   readonly type: "store/open-options";
 }
 
+export interface StoreOpenWebWorkspaceRequest {
+  readonly messageVersion: typeof STORE_MESSAGE_VERSION;
+  readonly type: "store/open-web-workspace";
+}
+
+export type StoreOpenWebWorkspaceResponse =
+  | {
+      readonly messageVersion: typeof STORE_MESSAGE_VERSION;
+      readonly opened: true;
+      readonly type: "store/open-web-workspace-result";
+    }
+  | {
+      readonly messageVersion: typeof STORE_MESSAGE_VERSION;
+      readonly opened: false;
+      readonly reason: "not-configured";
+      readonly type: "store/open-web-workspace-result";
+    };
+
+export function parseStoreOpenWebWorkspaceRequest(value: unknown): StoreOpenWebWorkspaceRequest {
+  if (
+    !isRecord(value) ||
+    !hasExactlyKeys(value, ["messageVersion", "type"]) ||
+    value.type !== "store/open-web-workspace"
+  ) {
+    throw new TypeError("Store open-Web-workspace request is invalid.");
+  }
+  return {
+    messageVersion: parseCurrentVersion(value.messageVersion),
+    type: "store/open-web-workspace",
+  };
+}
+
+export function parseStoreOpenWebWorkspaceResponse(value: unknown): StoreOpenWebWorkspaceResponse {
+  if (!isRecord(value) || value.type !== "store/open-web-workspace-result") {
+    throw new TypeError("Store open-Web-workspace response is invalid.");
+  }
+  const messageVersion = parseCurrentVersion(value.messageVersion);
+  if (value.opened === true && hasExactlyKeys(value, ["messageVersion", "opened", "type"])) {
+    return { messageVersion, opened: true, type: "store/open-web-workspace-result" };
+  }
+  if (
+    value.opened === false &&
+    value.reason === "not-configured" &&
+    hasExactlyKeys(value, ["messageVersion", "opened", "reason", "type"])
+  ) {
+    return {
+      messageVersion,
+      opened: false,
+      reason: "not-configured",
+      type: "store/open-web-workspace-result",
+    };
+  }
+  throw new TypeError("Store open-Web-workspace response is invalid.");
+}
+
 export function parseStoreOpenOptionsRequest(value: unknown): StoreOpenOptionsRequest {
   if (
     !isRecord(value) ||
@@ -84,7 +140,7 @@ export function parseStoreOpenOptionsRequest(value: unknown): StoreOpenOptionsRe
 
 export interface StoreAnalysisStartMessage {
   readonly action: AnalysisAction;
-  readonly context: string;
+  readonly boundaryEvidence: SelectionBoundaryEvidence;
   readonly messageVersion: typeof STORE_MESSAGE_VERSION;
   readonly selection: string;
   readonly sentenceContext: string | null;
@@ -108,6 +164,7 @@ export type StoreAnalysisErrorCode =
   | "invalid-response"
   | "network-error"
   | "provider-error"
+  | "quota-exhausted"
   | "timeout"
   | "version-mismatch";
 
@@ -160,7 +217,7 @@ export function parseAnalysisClientMessage(value: unknown): StoreAnalysisClientM
     value.type !== "store/analysis-start" ||
     !hasExactlyKeys(value, [
       "action",
-      "context",
+      "boundaryEvidence",
       "messageVersion",
       "selection",
       "sentenceContext",
@@ -175,7 +232,7 @@ export function parseAnalysisClientMessage(value: unknown): StoreAnalysisClientM
       : parseBoundedString(value.sentenceContext, 1, MAX_CONTEXT_SENTENCE_LENGTH);
   return {
     action: analysisActionSchema.parse(value.action),
-    context: parseBoundedString(value.context, 0, MAX_CONTEXT_SENTENCE_LENGTH),
+    boundaryEvidence: parseSelectionBoundaryEvidence(value.boundaryEvidence),
     messageVersion: parseCurrentVersion(value.messageVersion),
     selection: parseBoundedString(value.selection, 1, MAX_CONTEXT_SENTENCE_LENGTH),
     sentenceContext,
@@ -193,6 +250,7 @@ const STORE_ANALYSIS_ERROR_CODES: readonly StoreAnalysisErrorCode[] = [
   "invalid-response",
   "network-error",
   "provider-error",
+  "quota-exhausted",
   "timeout",
   "version-mismatch",
 ];

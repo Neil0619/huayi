@@ -1,0 +1,108 @@
+# Vercel Hobby + Supabase Free 高频任务调度方案
+
+## 1. 状态与范围
+
+本方案只校准 Cloud V1 四个既有生产 worker 的调度适配层，影响平台为 `shared`；macOS 与 Windows
+客户端支持均保留。本阶段不创建 Vercel/Supabase 项目，不购买域名，不配置 DNS、Resend、密钥或真实
+生产环境，也不调用任何外部服务。
+
+目标是移除 `apps/api/vercel.json` 中 Hobby 不接受的分钟级 Vercel Cron，把相同的四个 HTTPS GET
+触发器放入生产 Supabase 的 `pg_cron + pg_net`。业务 route、`CRON_SECRET` 鉴权、lease/fencing、批次
+上限和幂等状态机都保持不变；开发和 Preview 环境继续只允许人工触发，不自动安装任务。
+
+这不是“整个 Cloud V1 已兼容 Vercel Hobby”的声明：
+
+- Vercel Hobby 仅面向个人、非商业用途；后续商业化必须重新选择和验收套餐；
+- Hobby 普通 Function 当前最大执行时间为 60 秒，而四条 DeepSeek 生产 adapter 仍有 90 秒应用超时；
+  这是独立的正式部署阻塞项，本阶段不隐式缩短模型超时或改变账本语义；
+- Supabase Free 项目可能因低活动被暂停，且不含自动备份；它适合当前开发/个人验证基线，不等于生产
+  可用性与恢复策略已经验收；
+- `pg_net` 当前为 Beta；正式候选必须观察请求响应、失败率和扩展升级兼容性。
+
+## 2. 固定任务集合
+
+生产数据库只安装以下四个独立、每分钟运行的任务：
+
+| Job name                             | 固定路径                                           | 既有责任                         |
+| ------------------------------------ | -------------------------------------------------- | -------------------------------- |
+| `huayi-password-recovery`            | `/internal/password-recovery/run`                  | 密码恢复邮件 worker              |
+| `huayi-data-rights`                  | `/internal/data-rights/run`                        | 导出与账号删除 worker            |
+| `huayi-extension-query-cleanup`      | `/internal/extension-queries/cleanup`              | ExtensionQuery 过期终态化与清理  |
+| `huayi-duplicate-suggestion-cleanup` | `/internal/learning-duplicate-suggestions/cleanup` | 语义重复建议 lease/terminal 清理 |
+
+四个任务必须保持独立，不能合并为一个“大扫除” route。调度器只提供 at-least-once 触发；实际并发、
+重试和重复调用仍由各业务状态机处理。按 30 天估算，四个分钟任务约产生 172,800 次 Function 调用；这低于
+当前 Hobby 每月 1,000,000 次包含量，但用户请求、CPU、内存、带宽和其他函数同样消耗套餐资源，不能把
+该估算当作容量保证。
+
+R3-C 安全通知邮件不加入第五个任务。它仍属于邮件、域名、DNS 与生产告警独立任务，并继续保留为发布
+阻塞项。
+
+## 3. 安装 SQL 与安全边界
+
+仓库提供可审计的运维 SQL：`apps/api/operations/configure-supabase-cron.sql`。它不是应用 migration，
+只能由生产 Supabase 管理员在正式 origin 与 secret 已写入 Vault 后显式运行。
+
+SQL 必须满足：
+
+1. 幂等启用 `pg_cron`、`pg_net` 和 Supabase Vault，并使用固定 schema；
+2. 运行时只从 Vault 读取 `huayi_api_origin` 和 `huayi_cron_secret`，仓库、任务 command、响应和日志都不
+   出现真实 secret；
+3. 配置缺失、origin 非 HTTPS、origin 含路径/查询/片段/空白、secret 少于 32 或多于 512 字符时，在安装
+   任务前失败关闭；
+4. 私有 `SECURITY DEFINER` adapter 固定 `search_path`，只接受上表四个精确路径；`PUBLIC`、`anon`、
+   `authenticated` 和 `service_role` 都没有直接执行权限；
+5. 请求带 `Authorization: Bearer <CRON_SECRET>` 与 `Accept: application/json`，使用不超过 55 秒的
+   `pg_net` timeout，为 Vercel Hobby 60 秒上限预留网络与平台收尾时间；
+6. 安装前按固定 job name 取消旧任务，再各安装一次。重复运行后的结果仍只能是四个任务，不制造重复
+   schedule。
+
+应用账号、owner session、Web 或 Extension 身份都不能调用该 adapter。Vault 值轮换后，下一次触发应读取
+新值；若同步轮换 API `CRON_SECRET`，先更新 Vault，再更新 API 环境并立即做一次受控人工调用，避免长期
+鉴权失败。
+
+## 4. 运维与恢复
+
+安装前：
+
+1. 确认正式 API origin 已启用 HTTPS，且不带尾随路径；
+2. 在 Supabase Vault 分别创建 `huayi_api_origin` 与 `huayi_cron_secret`；
+3. 确认 API production 环境持有相同 `CRON_SECRET`；
+4. 以管理员执行运维 SQL，并查询 `cron.job`，确认固定四项、schedule 均为 `* * * * *`。
+
+停用时按固定 job name 调用 `cron.unschedule`；不要删除业务数据、lease 或 ledger。调度中断后恢复只需重装
+任务，worker 会从数据库状态继续处理。观测 `cron.job_run_details` 和 `net._http_response` 时只能记录 job、
+request ID、HTTP status、耗时和有界计数，不复制 Authorization、用户正文或模型内容；同时注意 `pg_net`
+响应为短期诊断数据，不是永久审计账本。
+
+Supabase Free 暂停或额度耗尽会使任务停止。正式发布前必须决定付费等级、备份/恢复、告警和容量阈值，
+并完成一次暂停或故障后的恢复演练。
+
+## 5. TDD 与验收
+
+离线自动化先取得 Fresh RED，再以最小实现转绿：
+
+- `production-app.test.ts` 证明四个既有内部 route 保留，同时 `vercel.json` 不再声明 `crons`；
+- `supabase-cron-operations.test.ts` 静态审计扩展、Vault、配置失败关闭、私有权限、精确 allowlist、请求
+  header、timeout、固定任务集合和重跑去重语义；
+- API full、strict typecheck/build、目标 lint/format、instructions/architecture 必须通过；SQL 没有
+  Prettier parser，以静态契约测试、diff review 和后续真实 Supabase 验收覆盖。
+
+本阶段完成只能标记为“调度适配已实现、真实部署待处理”。正式验收仍需要独立部署任务在受控环境中：
+
+1. 运行 SQL 两次并确认始终恰好四个任务；
+2. 等待至少两个周期，确认四个 route 均返回预期状态且无 secret/正文泄漏；
+3. 分别制造一次 401、5xx 和网络超时，确认下一周期恢复且业务状态机没有重复费用或越权；
+4. 核对 Vercel Function 时长、调用量与 Supabase Cron/pg_net 诊断；
+5. 完成 Supabase Free 暂停、无自动备份和 Vercel 60 秒限制的上线裁决。
+
+## 6. 官方依据（2026-08-20 核验）
+
+- [Vercel Cron usage and pricing](https://vercel.com/docs/cron-jobs/usage-and-pricing)
+- [Vercel Hobby plan](https://vercel.com/docs/plans/hobby)
+- [Vercel Functions limits](https://vercel.com/docs/functions/limitations)
+- [Supabase Cron](https://supabase.com/docs/guides/cron)
+- [Schedule Edge Functions with pg_cron and pg_net](https://supabase.com/docs/guides/functions/schedule-functions)
+- [Supabase pg_net](https://supabase.com/docs/guides/database/extensions/pg_net)
+- [Supabase Free project pausing](https://supabase.com/docs/guides/platform/free-project-pausing)
+- [Supabase backups](https://supabase.com/docs/guides/platform/backups)

@@ -10,10 +10,12 @@ function runtime(): StoreOverlayRuntime {
   return {
     connectAnalysis: vi.fn(),
     openOptions: vi.fn(async () => undefined),
+    openWebWorkspace: vi.fn(async () => undefined),
     overlayStylesheetUrl: () => "chrome-extension://test/overlay.css",
     queryWordPresence: vi.fn(async () => undefined),
     saveWord: vi.fn(async () => undefined),
-  } as unknown as StoreOverlayRuntime;
+    studyCapture: vi.fn(async () => undefined),
+  };
 }
 
 describe("Store overlay registry", () => {
@@ -26,6 +28,7 @@ describe("Store overlay registry", () => {
     const first = getOrCreateStoreOverlay(document, runtime());
     const second = getOrCreateStoreOverlay(document, runtime());
     const selection = {
+      boundaryEvidence: { kind: "local-rules" as const },
       context: "The investigation began.",
       range: document.createRange(),
       selection: "investigation",

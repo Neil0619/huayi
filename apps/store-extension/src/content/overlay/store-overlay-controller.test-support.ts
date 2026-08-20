@@ -35,6 +35,7 @@ export function reading(
   selectionKind: StoreSelectionReading["selectionKind"],
 ): StoreSelectionReading {
   return {
+    boundaryEvidence: { kind: "local-rules" },
     context: `Context for ${selection}`,
     range: document.createRange(),
     selection,
@@ -46,11 +47,13 @@ export function reading(
 export function setup(acceptUntrustedEvents = true): {
   readonly controller: StoreOverlayController;
   readonly openOptions: ReturnType<typeof vi.fn>;
+  readonly openWebWorkspace: ReturnType<typeof vi.fn>;
   readonly ports: FakePort[];
   readonly queryWordPresence: ReturnType<typeof vi.fn>;
 } {
   const ports: FakePort[] = [];
   const openOptions = vi.fn(async () => undefined);
+  const openWebWorkspace = vi.fn(async () => undefined);
   const queryWordPresence = vi.fn(async () => ({
     messageVersion: STORE_MESSAGE_VERSION,
     present: false,
@@ -63,12 +66,18 @@ export function setup(acceptUntrustedEvents = true): {
       return port;
     },
     openOptions,
+    openWebWorkspace,
     overlayStylesheetUrl: () => "chrome-extension://test/overlay.css",
     queryWordPresence,
     saveWord: vi.fn(async () => ({
       messageVersion: STORE_MESSAGE_VERSION,
       status: "saved",
       type: "store/lexicon-save-result",
+    })),
+    studyCapture: vi.fn(async () => ({
+      messageVersion: STORE_MESSAGE_VERSION,
+      outcome: "skipped",
+      type: "store/study-capture-result",
     })),
   };
   return {
@@ -78,6 +87,7 @@ export function setup(acceptUntrustedEvents = true): {
       acceptUntrustedEvents ? () => true : undefined,
     ),
     openOptions,
+    openWebWorkspace,
     ports,
     queryWordPresence,
   };

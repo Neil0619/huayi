@@ -50,6 +50,10 @@ describe("BrowserLexiconRepository", () => {
     await repository.save({ headword: "APPLE" });
 
     await expect(repository.exportWordList()).resolves.toBe("apple\nzebra\n");
+    await expect(repository.snapshot()).resolves.toMatchObject([
+      { contexts: [], id: "apple" },
+      { contexts: [], id: "zebra" },
+    ]);
   });
   it("normalizes word identity and keeps multiple deduplicated contexts", async () => {
     const { repository } = createFixture();

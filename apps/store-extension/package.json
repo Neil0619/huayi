@@ -5,14 +5,14 @@
   "type": "module",
   "scripts": {
     "build": "vite build --mode content && vite build --mode youtube-content && vite build --mode youtube-main && vite build --mode options && vite build --mode popup && vite build --mode background",
-    "typecheck": "tsc --noEmit --project tsconfig.json && tsc --noEmit --project tsconfig.test.json && tsc --noEmit --project tsconfig.config.json"
+    "typecheck": "tsc --noEmit --project tsconfig.json && tsc --noEmit --project tsconfig.test.json && tsc --noEmit --project tsconfig.config.json && tsc --noEmit --project tsconfig.e2e.json"
   },
   "dependencies": {
+    "@huayi/cloud-contracts": "workspace:*",
     "@huayi/store-domain": "workspace:*",
     "zod": "^4.0.5"
   },
   "devDependencies": {
-    "@huayi/cloud-contracts": "workspace:*",
     "fake-indexeddb": "^6.2.5"
   }
 }

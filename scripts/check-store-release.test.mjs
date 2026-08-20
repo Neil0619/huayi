@@ -90,6 +90,32 @@ test("release audit accepts only the reviewed self-contained package", async () 
   });
 });
 
+test("release audit accepts one explicitly reviewed Cloud API host without changing defaults", async () => {
+  await withReleaseFixture(async (root, distDirectory) => {
+    const apiOrigin = "https://api.huayi.production";
+    const cloudManifest = {
+      ...manifest,
+      content_security_policy: {
+        extension_pages: `${manifest.content_security_policy.extension_pages} ${apiOrigin}`,
+      },
+      host_permissions: [...manifest.host_permissions, `${apiOrigin}/*`],
+    };
+    await writeFile(
+      join(root, "apps/store-extension/manifest.json"),
+      JSON.stringify(cloudManifest),
+    );
+    await writeFile(join(distDirectory, "manifest.json"), JSON.stringify(cloudManifest));
+
+    assert.deepEqual(
+      await auditStoreRelease(root, {
+        expectedCsp: cloudManifest.content_security_policy.extension_pages,
+        expectedHosts: cloudManifest.host_permissions,
+      }),
+      [],
+    );
+  });
+});
+
 test("release audit rejects extra artifacts, remote executable code, and Classic markers", async () => {
   await withReleaseFixture(async (root, distDirectory) => {
     await writeFile(join(distDirectory, "host-installer.js"), "nativeMessaging codex");

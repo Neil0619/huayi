@@ -1,5 +1,8 @@
 # 架构说明
 
+> 本文件描述冻结维护的 Classic 0.13 与 Native Host。Store Extension + Web/API 的 Cloud V1 架构
+> 以 [`cloud-v1/architecture.md`](cloud-v1/architecture.md) 为准，两条产品线不得互相导入。
+
 ## 系统边界
 
 ```text
@@ -112,8 +115,9 @@ Provider 配置固定为
 `openai-responses`、`openai-compatible-http` 或 `deepseek-chat-completions`。活动请求期间修改
 配置只影响下一个请求；任一 Provider 失败都不会自动迁移或回退。Codex warmup 继续完成 App
 Server 初始化；三个 HTTP API Provider 的 warmup 只验证本地路由能力，不读 Key、不发 HTTP。
-该严格 Host 控制边界不向
-网页或 Extension 暴露配置消息、权限或 UI。
+该严格 Host 控制边界只向 Extension 暴露有界的设置状态、设置变更和 Provider 选择消息；网页不能
+调用这些消息。消息绝不包含 Key、endpoint、模型参数、原始配置或远程测试结果，且 Extension 不拥有
+直接读写 Host 配置或凭据的权限。
 
 ## OpenAI Responses Provider
 
@@ -245,9 +249,9 @@ HTTPS 端点发送原始单词，不发送句子、段落、URL、标题或模�
 ## 欧路到扇贝的持久同步
 
 Service Worker 的 `alarms` 只负责唤醒和展示角标，Host 的 `word-sync-state.json` 是唯一进度
-事实源。每日扫描固定锚定在本地时间 08:00：Service Worker 以单次绝对 alarm 安排下一次 08:00，
-每次触发后再计算下一天，因而不受重启或夏令时的 24 小时周期漂移影响。若该时刻 Chrome 或设备
-不可用，恢复后的状态检查会在 08:00 后立即补扫，下一次仍锚定次日 08:00。Host 首次和每日检查
+事实源。每日扫描固定锚定在设置中选择的本地整点（默认 08:00）：Service Worker 以单次绝对 alarm
+安排下一次该整点，每次触发后再计算下一天，因而不受重启或夏令时的 24 小时周期漂移影响。若该时刻
+Chrome 或设备不可用，恢复后的状态检查会在该整点后立即补扫，下一次仍锚定次日同一整点。Host 首次和每日检查
 都通过欧路默认生词本 `studylist/words` 读取英语收藏，以免遗漏没有进入用户语料列表的新词；每日
 完整扫描依靠本地状态去重。每个 Native 请求最多读取三页
 并原子保存游标，完整扫描结束后才更新最后成功时间。`prepare` 固定活动批次；提交后，页面把经严格验证的拒绝

@@ -29,7 +29,7 @@ test("Store selection reaches a strict fake Provider result and saves only bound
   await expect(shadow(page)).toContainText("调查");
   await expect(page.locator('[data-log-type="analysis"]')).toHaveAttribute(
     "data-message-keys",
-    "action,context,messageVersion,selection,sentenceContext,type",
+    "action,boundaryEvidence,messageVersion,selection,sentenceContext,type",
   );
   await shadow(page).locator("[data-save-word]").click();
   await expect(shadow(page)).toContainText("已保存到本地生词本");

@@ -8,6 +8,7 @@ import {
 } from "@huayi/store-domain";
 
 interface WordbookOptionsDependencies {
+  readonly cloudAuthority?: boolean | undefined;
   readonly sendMessage: (message: StoreWordbookRequest) => Promise<unknown>;
   readonly vault: DeviceVault;
 }
@@ -71,9 +72,22 @@ export class WordbookOptionsController {
     this.ready = ready;
     element<HTMLElement>("[data-wordbook-panel]").hidden = !ready;
     if (!ready) return;
-    await this.execute(async () => {
-      await Promise.all([this.refreshCredential(), this.refreshImport(), this.refreshOutbox()]);
-    }, "外部词典状态已加载。");
+    await this.execute(
+      async () => {
+        await this.refreshCredential();
+        if (this.dependencies.cloudAuthority === true) {
+          for (const local of document.querySelectorAll<HTMLElement>(
+            "[data-local-wordbook-authority]",
+          )) {
+            local.hidden = true;
+          }
+          element<HTMLElement>("[data-cloud-wordbook-authority]").hidden = false;
+          return;
+        }
+        await Promise.all([this.refreshImport(), this.refreshOutbox()]);
+      },
+      this.dependencies.cloudAuthority === true ? "云端任务权威已启用。" : "外部词典状态已加载。",
+    );
   }
 
   private bindEvents(): void {

@@ -116,6 +116,13 @@ class BrowserLexiconRepository implements LexiconRepository {
     };
   }
 
+  async snapshot(): Promise<readonly WordEntry[]> {
+    const cryptoContext = await this.createCryptoContext();
+    return (await this.readHealthyRecords(cryptoContext)).records
+      .sort(compareEntries)
+      .map(({ entry }) => entry);
+  }
+
   async delete(entryId: string): Promise<boolean> {
     const normalized = normalizeHeadword(entryId);
     for (let attempt = 0; attempt < MAX_WRITE_ATTEMPTS; attempt += 1) {

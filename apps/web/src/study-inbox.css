@@ -1,0 +1,29 @@
+.study-inbox-tabs {
+  position: fixed;
+  z-index: 4;
+  top: 1rem;
+  right: 1.5rem;
+  display: flex;
+  gap: 0.35rem;
+  padding: 0.25rem;
+  border: 1px solid var(--border-default);
+  border-radius: 0.75rem;
+  background: var(--surface-default);
+}
+
+.study-inbox-tabs button[aria-selected="true"] {
+  color: var(--surface-strong);
+  background: var(--ink-950);
+}
+
+.study-capture-shell textarea {
+  min-height: 6rem;
+  resize: vertical;
+}
+
+@media (max-width: 48rem) {
+  .study-inbox-tabs {
+    position: static;
+    margin: 0.75rem;
+  }
+}

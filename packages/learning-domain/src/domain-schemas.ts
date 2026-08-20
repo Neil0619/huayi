@@ -1,13 +1,20 @@
 import { z } from "zod/v3";
 
-import { storeAnalysisResultSchema } from "./analysis-results.js";
 import { canonicalKeyForContent, normalizeHeadword } from "./normalization.js";
 
 const idSchema = z.string().trim().min(1).max(128);
 const instantSchema = z.string().datetime({ offset: true });
 const textSchema = z.string().trim().min(1).max(4_000);
 const zhTextSchema = textSchema;
-const sourceTypeSchema = z.enum(["manual", "web-selection", "youtube-caption", "eudic"]);
+const sourceTypeSchema = z.enum([
+  "manual",
+  "study-capture",
+  "web-selection",
+  "youtube-caption",
+  "eudic",
+  "extension-collection",
+  "extension-local-import",
+]);
 const resourceFields = {
   createdAt: instantSchema,
   id: idSchema,
@@ -70,35 +77,26 @@ export const learningItemContentSchema = z.union([expressionSchema, sentencePatt
 export type LearningItemContent = z.infer<typeof learningItemContentSchema>;
 
 export const sourceExampleSchema = z.strictObject({
+  analysisUnitId: z
+    .string()
+    .regex(/^u(?:[1-9]|[1-3]\d|40)$/u)
+    .optional(),
   analysisId: idSchema.optional(),
   id: idSchema,
-  sentenceId: z
-    .string()
-    .regex(/^s[1-9]\d*$/u)
-    .optional(),
   sourceText: textSchema.max(2_000),
   sourceTitle: z.string().trim().min(1).max(500).optional(),
-  sourceType: sourceTypeSchema.exclude(["eudic"]),
+  sourceType: z.enum(["manual", "study-capture"]),
   translationZh: zhTextSchema.optional(),
 });
 export type SourceExample = z.infer<typeof sourceExampleSchema>;
 
-export const wordCandidatePayloadSchema = z.strictObject({
-  contextualMeaningZh: zhTextSchema.optional(),
-  headword: z.string().trim().min(1).max(200),
-  type: z.literal("word"),
-});
+const analysisUnitIdSchema = z.string().regex(/^u(?:[1-9]|[1-3]\d|40)$/u);
 const candidateCommon = {
+  analysisUnitId: analysisUnitIdSchema,
   id: idSchema,
   ordinal: z.number().int().min(0).max(199),
-  sentenceId: z.string().regex(/^s[1-9]\d*$/u),
 };
 export const candidateSchema = z.discriminatedUnion("type", [
-  z.strictObject({
-    ...candidateCommon,
-    payload: wordCandidatePayloadSchema,
-    type: z.literal("word"),
-  }),
   z.strictObject({ ...candidateCommon, payload: expressionSchema, type: z.literal("expression") }),
   z.strictObject({
     ...candidateCommon,
@@ -108,37 +106,62 @@ export const candidateSchema = z.discriminatedUnion("type", [
 ]);
 export type Candidate = z.infer<typeof candidateSchema>;
 
-export const passageAnalysisSchema = z
+export const generatedExampleSchema = z.strictObject({
+  sourceText: textSchema.max(500),
+  translationZh: zhTextSchema.max(1_000),
+});
+export const teachingPointSchema = z.strictObject({
+  commonMistakeZh: zhTextSchema.max(1_000).optional(),
+  evidenceText: textSchema.max(500).optional(),
+  explanationZh: zhTextSchema.max(2_000),
+  generatedExample: generatedExampleSchema.optional(),
+  label: textSchema.max(120),
+});
+export const phraseAnalysisSchema = z
+  .strictObject({
+    analysisUnitId: z.literal("u1"),
+    candidateIds: z.array(idSchema).max(20),
+    contextualMeaningZh: zhTextSchema,
+    register: z.string().trim().min(1).max(200).optional(),
+    structureAndCollocationZh: z.array(zhTextSchema.max(1_000)).max(20),
+    translationZh: zhTextSchema,
+    type: z.literal("phrase-analysis-v2"),
+    usageNotes: z.array(teachingPointSchema).max(20),
+  })
+  .refine((value) => new Set(value.candidateIds).size === value.candidateIds.length, {
+    message: "Candidate ids must be unique.",
+  });
+export const sentencePassageAnalysisSchema = z
   .strictObject({
     overall: z.strictObject({
       contextAndToneZh: zhTextSchema.optional(),
       translationZh: zhTextSchema,
       understandingZh: zhTextSchema,
     }),
-    schemaVersion: z.literal(1),
     sentences: z
       .array(
         z.strictObject({
+          analysisUnitId: analysisUnitIdSchema,
           candidateIds: z.array(idSchema).max(20),
-          grammarNotes: z
-            .array(z.strictObject({ explanationZh: zhTextSchema, label: textSchema.max(120) }))
-            .max(20),
-          id: z.string().regex(/^s[1-9]\d*$/u),
+          expressions: z.array(teachingPointSchema).max(20),
+          grammar: z.array(teachingPointSchema).max(20),
+          languageNotes: z.array(teachingPointSchema).max(20),
           ordinal: z.number().int().min(0).max(39),
           sourceText: textSchema.max(2_000),
-          structureZh: zhTextSchema,
+          structure: z.array(teachingPointSchema).max(20),
           translationZh: zhTextSchema,
         }),
       )
       .min(1)
       .max(40),
+    type: z.literal("sentence-passage-analysis-v2"),
   })
   .superRefine((analysis, context) => {
     analysis.sentences.forEach((sentence, index) => {
-      if (sentence.id !== `s${index + 1}` || sentence.ordinal !== index) {
+      if (sentence.analysisUnitId !== `u${index + 1}` || sentence.ordinal !== index) {
         context.addIssue({
           code: z.ZodIssueCode.custom,
-          message: "Sentence ids and ordinals must be contiguous and ordered.",
+          message: "Analysis unit ids and ordinals must be contiguous and ordered.",
         });
       }
       if (new Set(sentence.candidateIds).size !== sentence.candidateIds.length) {
@@ -146,7 +169,8 @@ export const passageAnalysisSchema = z
       }
     });
   });
-export type PassageAnalysis = z.infer<typeof passageAnalysisSchema>;
+export const webDeepAnalysisSchema = z.union([phraseAnalysisSchema, sentencePassageAnalysisSchema]);
+export type WebDeepAnalysis = z.infer<typeof webDeepAnalysisSchema>;
 
 export const modelMetadataSchema = z.strictObject({
   inputTokens: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER).optional(),
@@ -159,43 +183,30 @@ export const modelMetadataSchema = z.strictObject({
 const analysisContentObjectSchema = z.strictObject({
   candidates: z.array(candidateSchema).max(200),
   modelMetadata: modelMetadataSchema,
-  result: z.union([passageAnalysisSchema, storeAnalysisResultSchema]),
-  selectionKind: z.enum(["word", "phrase", "sentence", "passage"]),
+  result: webDeepAnalysisSchema,
+  selectionKind: z.enum(["phrase", "sentence", "passage"]),
   source: z.strictObject({
     title: z.string().trim().min(1).max(500).optional(),
-    type: sourceTypeSchema.exclude(["eudic"]),
+    type: z.enum(["manual", "study-capture"]),
+    userContext: z.string().trim().min(1).max(1_000).optional(),
   }),
+  sourceNormalizedHash: z.string().regex(/^[a-f0-9]{64}$/u),
   sourceText: textSchema.max(2_000),
+  studyCaptureId: idSchema.optional(),
 });
 
-type AnalysisContent = z.infer<typeof analysisContentObjectSchema>;
+export type AnalysisContent = z.infer<typeof analysisContentObjectSchema>;
 
 function validateAnalysisContent(record: AnalysisContent, context: z.RefinementCtx): void {
-  if (!("sentences" in record.result)) {
-    if (record.selectionKind !== record.result.selectionKind) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Record selection kind must match its result.",
-      });
-    }
-    if (record.sourceText !== record.result.sourceText) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Record source text must match its trusted result envelope.",
-      });
-    }
-    if (record.candidates.length > 0) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Legacy Store results cannot carry unreferenced Cloud candidates.",
-      });
-    }
-    return;
-  }
-  if (record.selectionKind !== "sentence" && record.selectionKind !== "passage") {
+  if (
+    (record.result.type === "phrase-analysis-v2" && record.selectionKind !== "phrase") ||
+    (record.result.type === "sentence-passage-analysis-v2" &&
+      record.selectionKind !== "sentence" &&
+      record.selectionKind !== "passage")
+  ) {
     context.addIssue({
       code: z.ZodIssueCode.custom,
-      message: "Structured passage results require sentence or passage input.",
+      message: "Analysis result must match its selection kind.",
     });
   }
   const ids = record.candidates.map((candidate) => candidate.id);
@@ -211,19 +222,32 @@ function validateAnalysisContent(record: AnalysisContent, context: z.RefinementC
     }
   });
   const referenced = new Map<string, string[]>();
-  for (const sentence of record.result.sentences) {
-    for (const candidateId of sentence.candidateIds) {
-      referenced.set(candidateId, [...(referenced.get(candidateId) ?? []), sentence.id]);
+  const units =
+    record.result.type === "phrase-analysis-v2"
+      ? [{ analysisUnitId: record.result.analysisUnitId, candidateIds: record.result.candidateIds }]
+      : record.result.sentences;
+  for (const unit of units) {
+    for (const candidateId of unit.candidateIds) {
+      referenced.set(candidateId, [...(referenced.get(candidateId) ?? []), unit.analysisUnitId]);
     }
   }
   for (const candidate of record.candidates) {
-    const sentenceIds = referenced.get(candidate.id) ?? [];
-    if (sentenceIds.length !== 1 || sentenceIds[0] !== candidate.sentenceId) {
+    const unitIds = referenced.get(candidate.id) ?? [];
+    if (unitIds.length !== 1 || unitIds[0] !== candidate.analysisUnitId) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "Every candidate must be referenced once by its sentence.",
+        message: "Every candidate must be referenced once by its analysis unit.",
       });
     }
+  }
+  if (
+    record.result.type === "phrase-analysis-v2" &&
+    record.candidates.some((candidate) => candidate.type !== "expression")
+  ) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Phrase candidates are expressions.",
+    });
   }
   if ([...referenced.keys()].some((id) => !ids.includes(id))) {
     context.addIssue({ code: z.ZodIssueCode.custom, message: "Unknown candidate reference." });
@@ -241,6 +265,23 @@ export const analysisRecordSchema = z
   })
   .superRefine(validateAnalysisContent);
 export type AnalysisRecord = z.infer<typeof analysisRecordSchema>;
+
+export const studyCaptureSchema = z.strictObject({
+  captureCount: z.number().int().min(1).max(Number.MAX_SAFE_INTEGER),
+  createdAt: instantSchema,
+  firstCapturedAt: instantSchema,
+  id: idSchema,
+  kind: z.enum(["phrase", "sentence", "passage"]),
+  lastCapturedAt: instantSchema,
+  normalizedTextHash: z.string().regex(/^[a-f0-9]{64}$/u),
+  revision: z.number().int().min(1),
+  sourceText: textSchema.max(2_000),
+  status: z.enum(["pending", "analyzing", "analyzed"]),
+  title: z.string().trim().min(1).max(500).optional(),
+  updatedAt: instantSchema,
+  userContext: z.string().trim().min(1).max(1_000).optional(),
+});
+export type StudyCapture = z.infer<typeof studyCaptureSchema>;
 
 export const contextObservationSchema = z.strictObject({
   contextualMeaningZh: zhTextSchema.optional(),

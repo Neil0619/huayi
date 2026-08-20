@@ -46,6 +46,7 @@ function repository(): LexiconRepository {
     findByHeadword: vi.fn(async () => null),
     list: vi.fn(async () => ({ entries, nextCursor: "a".repeat(64) })),
     save: vi.fn(async () => entries[0] as WordEntry),
+    snapshot: vi.fn(async () => entries),
   };
 }
 

@@ -1,0 +1,45 @@
+import {
+  STORE_MESSAGE_VERSION,
+  parseStoreOpenWebWorkspaceRequest,
+  type StoreOpenWebWorkspaceResponse,
+} from "@huayi/store-domain";
+
+export const HUAYI_WEB_WORKSPACE_URL: string | null = null;
+
+export async function handleOpenWebWorkspace(
+  message: unknown,
+  senderId: string | undefined,
+  extensionId: string,
+  webWorkspaceUrl: string | null,
+  createTab: (properties: { url: string }) => Promise<unknown>,
+): Promise<StoreOpenWebWorkspaceResponse | undefined> {
+  if (senderId !== extensionId) return undefined;
+  try {
+    parseStoreOpenWebWorkspaceRequest(message);
+  } catch {
+    return undefined;
+  }
+  if (webWorkspaceUrl === null) {
+    return {
+      messageVersion: STORE_MESSAGE_VERSION,
+      opened: false,
+      reason: "not-configured",
+      type: "store/open-web-workspace-result",
+    };
+  }
+  let workspace: URL;
+  try {
+    workspace = new URL(webWorkspaceUrl);
+  } catch {
+    return undefined;
+  }
+  if (workspace.protocol !== "https:" || workspace.username !== "" || workspace.password !== "") {
+    return undefined;
+  }
+  await createTab({ url: workspace.href });
+  return {
+    messageVersion: STORE_MESSAGE_VERSION,
+    opened: true,
+    type: "store/open-web-workspace-result",
+  };
+}

@@ -3,6 +3,7 @@ export {
   MAX_MODEL_TEXT_LENGTH,
   MAX_STREAM_DELTA_LENGTH,
   storeAnalysisResultSchema as analysisResultSchema,
+  storeAnalysisResultSchema,
   collocationSchema,
   commonPhraseSchema,
   confusableWordSchema,

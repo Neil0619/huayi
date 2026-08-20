@@ -12,6 +12,7 @@ import {
 } from "@huayi/store-domain";
 
 import { siteHostFromSenderUrl } from "./site-policy-handler.js";
+import type { CloudWordCopyClient } from "./cloud-word-copy-client.js";
 
 type RelevantSettings = Pick<StoreSettings, "globallyEnabled" | "recipientAccess" | "sitePolicy">;
 type ReadSettings = () => Promise<RelevantSettings>;
@@ -62,6 +63,7 @@ export async function handleLexiconMessage(
   wordbook?: WordbookExportEngine,
   readSettings?: ReadSettings,
   senderUrl?: string,
+  cloudWordCopy?: Pick<CloudWordCopyClient, "copy">,
 ): Promise<StoreLexiconResponse | undefined> {
   if (!isStoreLexiconMessage(value)) return undefined;
   let request;
@@ -120,6 +122,22 @@ export async function handleLexiconMessage(
       },
       headword: request.headword,
     });
+    const savedContext = saved.contexts.find(
+      (context) =>
+        context.source === source && normalizeObservationSentence(context.sentence) === sentenceKey,
+    );
+    if (cloudWordCopy !== undefined && savedContext !== undefined) {
+      try {
+        await cloudWordCopy.copy({
+          collectedAt: savedContext.observedAt,
+          contextualMeaningZh: request.contextualMeaningZh,
+          headword: saved.headword,
+          sentence: savedContext.sentence,
+        });
+      } catch {
+        // The local lexicon is authoritative and must remain successful.
+      }
+    }
     await enqueue(saved.id);
     return {
       messageVersion: STORE_MESSAGE_VERSION,

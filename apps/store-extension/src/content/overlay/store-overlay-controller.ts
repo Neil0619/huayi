@@ -10,12 +10,14 @@ import {
 
 import type { StoreSelectionReading } from "../selection/read-selection.js";
 import { parseContentAnalysisMessage } from "../content-analysis-parser.js";
+import { MAX_PREVIEW_CHARACTERS, resultMatchesAction } from "./overlay-analysis-guards.js";
 import { renderDisconnectedError, renderOverlayError } from "./overlay-error-view.js";
 import { OverlayCardSession, type OverlayModeState } from "./overlay-card-session.js";
 import { attachOverlayStyles } from "./overlay-stylesheet.js";
 import { renderCachedResult } from "./render-cached-result.js";
 import { renderStreamPreview, renderStreamStatus } from "./render-stream-preview.js";
 import { OverlayWordPresence } from "./overlay-word-presence.js";
+import { OverlayStudyCapture } from "./overlay-study-capture.js";
 import { createOverlayPanel } from "./overlay-panel.js";
 import type {
   ContentAnalysisPort,
@@ -23,16 +25,12 @@ import type {
   StoreOverlayCloseReason,
   StoreOverlayRuntime,
 } from "./overlay-runtime.js";
-
 export type {
   ContentAnalysisPort,
   StoreOverlayAnchor,
   StoreOverlayCloseReason,
   StoreOverlayRuntime,
 } from "./overlay-runtime.js";
-
-const MAX_PREVIEW_CHARACTERS = 16_384;
-
 export class StoreOverlayController {
   private activePort: ContentAnalysisPort | null = null;
   private analysisBody: HTMLElement | null = null;
@@ -44,6 +42,7 @@ export class StoreOverlayController {
   private onDismiss: (() => void) | null = null;
   private previousFocus: HTMLElement | null = null;
   private readonly wordPresence: OverlayWordPresence;
+  private readonly studyCapture: OverlayStudyCapture;
   private readonly preview = new Map<
     Extract<AnalysisUpdate, { type: "delta" }>["section"],
     string
@@ -63,11 +62,16 @@ export class StoreOverlayController {
     private readonly acceptsUserGesture: (event: Event) => boolean = (event) => event.isTrusted,
   ) {
     this.wordPresence = new OverlayWordPresence(runtime);
+    this.studyCapture = new OverlayStudyCapture({
+      acceptsUserGesture: this.acceptsUserGesture,
+      send: (request) => runtime.studyCapture(request),
+    });
   }
 
   show(selection: StoreSelectionReading, anchor: StoreOverlayAnchor, onDismiss?: () => void): void {
     this.removeOverlay("replacement");
     this.selection = selection;
+    this.studyCapture.reset();
     this.cardSession = new OverlayCardSession();
     this.onDismiss = onDismiss ?? null;
     this.previousFocus =
@@ -132,6 +136,7 @@ export class StoreOverlayController {
       this.wordPresence.query(this.selection.selection, this.headerActions);
     }
     this.renderStatus();
+    this.studyCapture.startAutomatic(this.selection);
 
     let port: ContentAnalysisPort;
     try {
@@ -141,7 +146,7 @@ export class StoreOverlayController {
       port.onDisconnect.addListener(() => this.disconnected(port, action));
       port.postMessage({
         action,
-        context: this.selection.context,
+        boundaryEvidence: this.selection.boundaryEvidence,
         messageVersion: STORE_MESSAGE_VERSION,
         selection: this.selection.selection,
         sentenceContext: this.selection.sentenceContext,
@@ -208,7 +213,7 @@ export class StoreOverlayController {
       this.selection === null ||
       message.result.sourceText !== this.selection.selection ||
       message.result.selectionKind !== this.selection.selectionKind ||
-      !this.resultMatchesAction(message.result.type, action) ||
+      !resultMatchesAction(message.result.type, action) ||
       (this.remoteRequestId !== null && message.result.requestId !== this.remoteRequestId)
     ) {
       this.finishWithError(action, "invalid-response");
@@ -219,10 +224,6 @@ export class StoreOverlayController {
     this.cardSession?.complete(action, message.result);
     this.setModeControls(action, false);
     this.renderReady(message.result);
-  }
-
-  private resultMatchesAction(type: string, action: AnalysisAction): boolean {
-    return action === "translate" ? type.startsWith("translate-") : type.startsWith("explain-");
   }
 
   private renderPreview(): void {
@@ -270,10 +271,12 @@ export class StoreOverlayController {
       body: this.analysisBody,
       headerActions: this.headerActions,
       presence: this.wordPresence,
+      openWebWorkspace: () => this.runtime.openWebWorkspace(),
       result,
       saveWord: (request) => this.runtime.saveWord(request),
       sentence: this.selection.sentenceContext ?? this.selection.selection,
     });
+    this.studyCapture.render(this.analysisBody, this.selection);
   }
 
   private finishWithError(action: AnalysisAction, code: StoreAnalysisErrorCode): void {
@@ -301,6 +304,7 @@ export class StoreOverlayController {
         this.start(action);
       },
     });
+    if (this.selection !== null) this.studyCapture.render(this.analysisBody, this.selection);
   }
 
   private disconnected(port: ContentAnalysisPort, action: AnalysisAction): void {
@@ -365,6 +369,7 @@ export class StoreOverlayController {
     this.selection = null;
     this.onDismiss = null;
     this.wordPresence.reset();
+    this.studyCapture.reset();
     if (reason !== "replacement" && this.previousFocus?.isConnected === true) {
       this.previousFocus.focus();
     }

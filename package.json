@@ -11,6 +11,8 @@
     "audit:prod": "pnpm audit --prod --audit-level high",
     "build": "node scripts/run-workspace-builds.mjs",
     "check:architecture": "node scripts/check-architecture.mjs",
+    "check:cloud-development-blocked": "node scripts/check-cloud-release.mjs development-blocked",
+    "check:cloud-release": "node scripts/check-cloud-release.mjs",
     "check:instructions": "node scripts/check-instructions.mjs",
     "check:store-release": "node scripts/check-store-release.mjs",
     "format": "prettier --write .",

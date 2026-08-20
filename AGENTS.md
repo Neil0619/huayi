@@ -2,12 +2,11 @@
 
 ## Project scope
 
-Huayi is a personal Google Chrome extension for English selection translation and analysis. The
-extension communicates with a local Native Messaging host. macOS supports Codex, OpenAI,
-OpenAI-compatible HTTP, DeepSeek, and Eudic. Windows is intentionally DeepSeek-only for model
-analysis, supports Eudic, and does not support Codex or alternate model providers. Huayi is not a
-Chrome Web Store release and does not support Linux, other browsers, history, synchronization,
-follow-up chat, or browser settings.
+Huayi contains a frozen personal Classic 0.13 Chrome extension with a Native Messaging host and an
+unreleased Cloud V1 product under development. Cloud V1 consists of a Store Extension query client,
+a Web learning workspace, a versioned API, and account-owned cloud learning data. Neither product is
+currently a Chrome Web Store release. Linux, other browsers, follow-up chat, and browser settings
+remain out of scope.
 
 ## Sources of truth
 
@@ -43,6 +42,13 @@ follow-up chat, or browser settings.
 - Overlay visual behavior:
   `docs/superpowers/specs/2026-07-17-ui-refresh-design.md`.
 - Current release status and roadmap: `docs/project-status.md`.
+- Cloud V1 documentation entry: `docs/cloud-v1/README.md`.
+- Cloud V1 product behavior and implementation order:
+  `docs/cloud-v1/product.md` and `docs/cloud-v1/implementation-plan.md`.
+- Cloud V1 architecture, data, API, security, and tests:
+  `docs/cloud-v1/architecture.md`, `docs/cloud-v1/data-model.md`,
+  `docs/cloud-v1/api.md`, `docs/cloud-v1/security.md`, and `docs/cloud-v1/testing.md`.
+- Cloud V1 decision changes: `docs/cloud-v1/change-log.md`.
 - Standard settings, site policies, and Host configuration status:
   `docs/superpowers/specs/2026-08-10-settings-configuration-design.md`.
 - Settings implementation order:
@@ -52,6 +58,10 @@ follow-up chat, or browser settings.
 - Keep temporary task status out of AGENTS.md files.
 
 ## Current release invariants
+
+The version, wire, Host, provider, and installation invariants below apply to frozen Classic 0.13
+unless a Cloud V1 source explicitly says otherwise. Cloud code must not change Classic wire v7 or
+Native Host behavior.
 
 - All app, package, Manifest, Host, App Server client, and Eudic User-Agent identities are
   `0.13.0`; the Native Messaging `schemaVersion` is `7`.

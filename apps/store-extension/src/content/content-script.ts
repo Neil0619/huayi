@@ -1,6 +1,8 @@
 import {
   STORE_ANALYSIS_PORT_NAME,
   STORE_MESSAGE_VERSION,
+  type StoreOpenWebWorkspaceRequest,
+  parseStoreOpenWebWorkspaceResponse,
   type StoreOpenOptionsRequest,
 } from "@huayi/store-domain";
 
@@ -29,9 +31,20 @@ function chromeRuntime(): StoreOverlayRuntime {
       };
       await chrome.runtime.sendMessage(message);
     },
+    openWebWorkspace: async () => {
+      const message: StoreOpenWebWorkspaceRequest = {
+        messageVersion: STORE_MESSAGE_VERSION,
+        type: "store/open-web-workspace",
+      };
+      const response = parseStoreOpenWebWorkspaceResponse(
+        await chrome.runtime.sendMessage(message),
+      );
+      if (!response.opened) throw new Error("Web workspace is not configured.");
+    },
     overlayStylesheetUrl: () => chrome.runtime.getURL("overlay.css"),
     queryWordPresence: (request) => chrome.runtime.sendMessage(request),
     saveWord: (request) => chrome.runtime.sendMessage(request),
+    studyCapture: (request) => chrome.runtime.sendMessage(request),
   };
 }
 

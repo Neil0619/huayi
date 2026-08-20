@@ -1,0 +1,108 @@
+.analysis-compose-layout {
+  display: grid;
+  max-width: 78rem;
+  margin: 0 auto;
+  grid-template-columns: minmax(0, 1.05fr) minmax(18rem, 0.95fr);
+  gap: var(--space-5);
+}
+
+.analysis-compose-card,
+.analysis-stream-card {
+  padding: var(--space-6);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--surface-default);
+  box-shadow: var(--card-shadow);
+}
+
+.analysis-compose-card {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.analysis-compose-card > label,
+.analysis-options label {
+  display: grid;
+  gap: var(--space-2);
+  color: var(--text-secondary);
+  font-weight: 700;
+}
+
+.analysis-compose-card input,
+.analysis-compose-card select,
+.analysis-compose-card textarea {
+  width: 100%;
+  padding: var(--space-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  background: var(--surface-strong);
+  font: inherit;
+}
+
+.analysis-compose-card textarea {
+  min-height: 12rem;
+  resize: vertical;
+}
+
+.source-kind {
+  margin: 0 0 var(--space-2);
+  color: var(--action-primary);
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.analysis-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+.analysis-stream-card {
+  align-self: start;
+  min-height: 22rem;
+}
+
+.analysis-stream-card h2 {
+  margin-top: 0;
+}
+
+.analysis-previews {
+  display: grid;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+.analysis-previews article,
+.analysis-completed,
+.analysis-error {
+  padding: var(--space-4);
+  border-left: 3px solid var(--focus-ring);
+  background: var(--surface-subtle);
+}
+
+.analysis-previews p,
+.analysis-completed p {
+  margin: var(--space-1) 0;
+  white-space: pre-wrap;
+}
+
+.analysis-error {
+  color: var(--text-danger);
+  background: var(--surface-danger);
+}
+
+.analysis-completed a {
+  display: inline-block;
+  margin-top: var(--space-2);
+  color: var(--action-primary);
+  font-weight: 800;
+}
+
+@media (max-width: 48rem) {
+  .analysis-compose-layout,
+  .analysis-options {
+    grid-template-columns: 1fr;
+  }
+}

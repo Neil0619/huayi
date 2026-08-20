@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Huayi Store Cloud release fixture</title>
+    <style>
+      body {
+        font:
+          18px/1.6 system-ui,
+          sans-serif;
+        margin: 48px;
+        max-width: 760px;
+      }
+    </style>
+  </head>
+  <body>
+    <p>The <strong data-testid="cloud-word">investigation</strong> remained active all winter.</p>
+    <p>The <strong data-testid="cloud-word-secondary">evidence</strong> remained persuasive.</p>
+    <p data-testid="cloud-sentence">The investigation remained active all winter.</p>
+    <output data-testid="cloud-status">idle</output>
+    <button data-testid="cloud-reconnect" type="button">Restore test network</button>
+    <button data-testid="cloud-network-only" type="button">Restore network only</button>
+    <button data-testid="cloud-disconnect" type="button">Disconnect Cloud account</button>
+    <button data-testid="cloud-switch-account" type="button">Switch Cloud account</button>
+    <section data-local-word-import-panel hidden>
+      <p data-local-word-import-summary hidden></p>
+      <p data-local-word-import-status role="status"></p>
+      <button type="button" data-local-word-import-preview>预览导入</button>
+      <button type="button" data-local-word-import-confirm disabled>确认导入</button>
+      <button type="button" data-local-word-import-retry hidden>继续重试</button>
+    </section>
+    <button data-testid="cloud-run-import-alarm" type="button" hidden>Run import alarm</button>
+    <button data-testid="cloud-run-eudic-import" type="button" hidden>
+      Import local Eudic page
+    </button>
+    <button data-testid="cloud-run-wordbook-job" type="button">Run Cloud wordbook job</button>
+    <button data-testid="cloud-claim-shanbay" type="button">Prepare Shanbay batch</button>
+    <button data-testid="cloud-confirm-shanbay" type="button" disabled>
+      Confirm Shanbay submission
+    </button>
+    <button data-testid="cloud-partial-shanbay" type="button">Report partial Shanbay result</button>
+    <script type="module" src="/apps/store-extension/e2e/support/cloud-release-harness.ts"></script>
+  </body>
+</html>

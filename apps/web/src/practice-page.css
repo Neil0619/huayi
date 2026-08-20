@@ -1,0 +1,331 @@
+.practice-queue,
+.practice-session,
+.dialogue-session,
+.practice-history-filters,
+.practice-history-layout {
+  max-width: 70rem;
+  margin: 0 auto;
+  padding: var(--space-5);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--surface-default);
+  box-shadow: var(--card-shadow);
+}
+
+.practice-history-link,
+.practice-history-filters,
+.practice-history-layout,
+.practice-history-page > p {
+  max-width: 70rem;
+  margin-right: auto;
+  margin-left: auto;
+}
+
+.practice-history-filters {
+  display: flex;
+  align-items: end;
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
+  box-shadow: none;
+}
+
+.practice-history-filters label {
+  display: grid;
+  gap: var(--space-1);
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.practice-history-filters select {
+  min-height: var(--control-height);
+  padding: var(--space-2);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  background: var(--surface-strong);
+  font: inherit;
+}
+
+.practice-history-layout {
+  display: grid;
+  grid-template-columns: minmax(15rem, 22rem) minmax(0, 1fr);
+  gap: var(--space-5);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.practice-history-list,
+.practice-history-detail {
+  padding: var(--space-4);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--surface-default);
+  box-shadow: var(--card-shadow);
+}
+
+.practice-history-list button {
+  display: grid;
+  width: 100%;
+  height: auto;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+  text-align: left;
+}
+
+.practice-history-list button[aria-pressed="true"] {
+  border-color: var(--focus-ring);
+  background: var(--surface-tint);
+}
+
+.practice-history-list span,
+.practice-history-list small {
+  color: var(--text-secondary);
+}
+
+.practice-history-detail {
+  display: grid;
+  min-height: 22rem;
+  gap: var(--space-3);
+}
+
+.practice-history-detail h2,
+.practice-history-detail h3,
+.practice-history-detail p {
+  margin: 0;
+}
+
+.practice-history-plan {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.practice-history-plan div,
+.practice-history-detail article,
+.practice-history-delete {
+  padding: var(--space-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--surface-strong);
+}
+
+.practice-history-plan dd {
+  margin: var(--space-1) 0 0;
+}
+
+.practice-history-turns {
+  display: grid;
+  gap: var(--space-2);
+  padding: 0;
+  list-style: none;
+}
+
+.practice-history-turns li {
+  max-width: 82%;
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--surface-strong);
+}
+
+.practice-history-turns .user {
+  justify-self: end;
+  border: 1px solid var(--border-strong);
+}
+
+.practice-history-delete {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.practice-history-delete p {
+  flex-basis: 100%;
+}
+
+.dialogue-starter,
+.dialogue-session,
+.dialogue-feedback,
+.dialogue-pending {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.dialogue-starter {
+  grid-column: 1 / -1;
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border-default);
+}
+
+.dialogue-starter fieldset,
+.dialogue-feedback fieldset {
+  display: grid;
+  gap: var(--space-2);
+  border: 0;
+  padding: 0;
+}
+
+.dialogue-plan {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.dialogue-plan div,
+.dialogue-feedback article {
+  padding: var(--space-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--surface-strong);
+}
+
+.dialogue-plan dt,
+.dialogue-turns strong {
+  font-weight: 700;
+}
+
+.dialogue-plan dd {
+  margin: var(--space-1) 0 0;
+}
+
+.dialogue-turns {
+  display: grid;
+  gap: var(--space-3);
+  padding: 0;
+  list-style: none;
+}
+
+.dialogue-turns li {
+  max-width: 80%;
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--surface-strong);
+}
+
+.dialogue-turns .user {
+  justify-self: end;
+  border: 1px solid var(--border-strong);
+}
+
+.dialogue-session form,
+.dialogue-session label {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.dialogue-session textarea,
+.dialogue-session select {
+  width: 100%;
+  padding: var(--space-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  background: var(--surface-default);
+  font: inherit;
+}
+
+.dialogue-session textarea {
+  min-height: 8rem;
+  resize: vertical;
+}
+
+.practice-queue > div {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.practice-queue article,
+.practice-prompt,
+.practice-feedback {
+  padding: var(--space-4);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--surface-strong);
+}
+
+.practice-session {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.practice-session form,
+.practice-session label {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.practice-session textarea {
+  width: 100%;
+  min-height: 10rem;
+  padding: var(--space-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  background: var(--surface-strong);
+  font: inherit;
+  resize: vertical;
+}
+
+.practice-feedback fieldset {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+  border: 0;
+  padding: 0;
+}
+
+.practice-feedback legend {
+  margin-bottom: var(--space-2);
+  font-weight: 700;
+}
+
+@media (max-width: 48rem) {
+  .practice-queue > div {
+    grid-template-columns: 1fr;
+  }
+
+  .practice-feedback fieldset {
+    display: grid;
+  }
+
+  .dialogue-plan {
+    grid-template-columns: 1fr;
+  }
+
+  .dialogue-turns li {
+    max-width: 94%;
+  }
+
+  .practice-history-filters,
+  .practice-history-layout,
+  .practice-history-plan {
+    grid-template-columns: 1fr;
+  }
+
+  .practice-history-filters {
+    display: grid;
+  }
+
+  .practice-history-turns li {
+    max-width: 94%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .practice-session *,
+  .dialogue-session * {
+    scroll-behavior: auto;
+    transition-duration: 0.01ms !important;
+  }
+
+  .practice-history-layout * {
+    scroll-behavior: auto;
+    transition-duration: 0.01ms !important;
+  }
+}

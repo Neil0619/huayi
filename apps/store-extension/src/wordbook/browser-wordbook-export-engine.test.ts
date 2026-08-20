@@ -29,6 +29,7 @@ function lexicon(current: WordEntry | null = entry): LexiconRepository {
     findByHeadword: vi.fn(async () => current),
     list: vi.fn(async () => ({ entries: [], nextCursor: null })),
     save: vi.fn(async () => entry),
+    snapshot: vi.fn(async () => (current === null ? [] : [current])),
   };
 }
 

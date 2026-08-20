@@ -102,6 +102,17 @@ describe("Store PopupPage", () => {
     const sendRuntimeMessage = vi
       .fn()
       .mockResolvedValueOnce(status())
+      .mockResolvedValueOnce({
+        messageVersion: STORE_MESSAGE_VERSION,
+        status: "not-configured",
+        type: "store/cloud-session-result",
+      })
+      .mockResolvedValueOnce({
+        messageVersion: STORE_MESSAGE_VERSION,
+        outcome: "status",
+        state: "empty",
+        type: "store/submission-outbox-result",
+      })
       .mockResolvedValueOnce({ ...status(), globallyEnabled: false })
       .mockResolvedValueOnce({ ...status(), globallyEnabled: false, overlayTheme: "parchment" });
     const page = new PopupPage({
@@ -116,7 +127,7 @@ describe("Store PopupPage", () => {
     global.checked = false;
     global.dispatchEvent(new Event("change"));
     await vi.waitFor(() => expect(global.disabled).toBe(false));
-    expect(sendRuntimeMessage).toHaveBeenNthCalledWith(2, {
+    expect(sendRuntimeMessage).toHaveBeenNthCalledWith(4, {
       enabled: false,
       messageVersion: STORE_MESSAGE_VERSION,
       type: "store/popup-global-toggle",
@@ -125,7 +136,7 @@ describe("Store PopupPage", () => {
 
     element<HTMLButtonElement>("[data-toggle-overlay-theme]").click();
     await vi.waitFor(() => expect(document.body.dataset.overlayTheme).toBe("parchment"));
-    expect(sendRuntimeMessage).toHaveBeenNthCalledWith(3, {
+    expect(sendRuntimeMessage).toHaveBeenNthCalledWith(5, {
       messageVersion: STORE_MESSAGE_VERSION,
       overlayTheme: "parchment",
       type: "store/popup-overlay-theme",
@@ -230,5 +241,115 @@ describe("Store PopupPage", () => {
 
     expect(element("[data-popup-status]").textContent).toBe("扩展状态读取失败，请稍后重试。");
     expect(element<HTMLInputElement>("[data-site-enabled]").disabled).toBe(true);
+  });
+
+  it("keeps an unconfigured cloud build fail-closed and starts configured pairing", async () => {
+    renderPage();
+    const cloudResult = (state: "connected" | "disconnected" | "not-configured" | "pairing") => ({
+      ...(state === "pairing" || state === "connected"
+        ? { expiresAt: "2026-08-13T01:00:00.000Z" }
+        : {}),
+      messageVersion: STORE_MESSAGE_VERSION,
+      status: state,
+      type: "store/cloud-session-result" as const,
+    });
+    let configured = false;
+    const sendRuntimeMessage = vi.fn(async (message: unknown) => {
+      const type = (message as { type?: string }).type;
+      if (type === "store/popup-status") return status();
+      if (type === "store/cloud-session-status") {
+        return cloudResult(configured ? "disconnected" : "not-configured");
+      }
+      if (type === "store/cloud-session-start") return cloudResult("pairing");
+      if (type === "store/cloud-session-disconnect") return cloudResult("disconnected");
+      throw new Error("unexpected message");
+    });
+    const page = new PopupPage({
+      openOptionsPage: vi.fn(),
+      queryActiveTab: vi.fn(async () => null),
+      sendRuntimeMessage,
+      sendTabMessage: vi.fn(),
+    });
+    await page.initialize();
+
+    const action = element<HTMLButtonElement>("[data-cloud-session-action]");
+    expect(element("[data-cloud-session-state]").textContent).toBe("此构建尚未配置云端");
+    expect(action.disabled).toBe(true);
+
+    configured = true;
+    renderPage();
+    const configuredPage = new PopupPage({
+      openOptionsPage: vi.fn(),
+      queryActiveTab: vi.fn(async () => null),
+      sendRuntimeMessage,
+      sendTabMessage: vi.fn(),
+    });
+    await configuredPage.initialize();
+    const configuredAction = element<HTMLButtonElement>("[data-cloud-session-action]");
+    configuredAction.click();
+    await vi.waitFor(() =>
+      expect(element("[data-cloud-session-state]").textContent).toBe("等待网页批准"),
+    );
+    expect(sendRuntimeMessage).toHaveBeenCalledWith({
+      messageVersion: STORE_MESSAGE_VERSION,
+      type: "store/cloud-session-start",
+    });
+    expect(configuredAction.disabled).toBe(true);
+
+    sendRuntimeMessage.mockImplementation(async (message: unknown) => {
+      const type = (message as { type?: string }).type;
+      if (type === "store/popup-status") return status();
+      if (type === "store/cloud-session-status") return cloudResult("connected");
+      if (type === "store/cloud-session-disconnect") return cloudResult("disconnected");
+      throw new Error("unexpected message");
+    });
+    renderPage();
+    const connectedPage = new PopupPage({
+      openOptionsPage: vi.fn(),
+      queryActiveTab: vi.fn(async () => null),
+      sendRuntimeMessage,
+      sendTabMessage: vi.fn(),
+    });
+    await connectedPage.initialize();
+    expect(element<HTMLButtonElement>("[data-cloud-session-action]").textContent).toBe(
+      "断开此设备",
+    );
+    element<HTMLButtonElement>("[data-cloud-session-action]").click();
+    await vi.waitFor(() =>
+      expect(element("[data-cloud-session-state]").textContent).toBe("尚未连接"),
+    );
+  });
+
+  it("keeps the connected state and explains a failed safe disconnect", async () => {
+    renderPage();
+    const sendRuntimeMessage = vi.fn(async (message: unknown) => {
+      const type = (message as { type?: string }).type;
+      if (type === "store/popup-status") return status();
+      if (type === "store/cloud-session-status") {
+        return {
+          expiresAt: "2026-09-13T01:00:00.000Z",
+          messageVersion: STORE_MESSAGE_VERSION,
+          status: "connected",
+          type: "store/cloud-session-result",
+        };
+      }
+      if (type === "store/cloud-session-disconnect") throw new TypeError("network unavailable");
+      throw new Error("unexpected message");
+    });
+    const page = new PopupPage({
+      openOptionsPage: vi.fn(),
+      queryActiveTab: vi.fn(async () => null),
+      sendRuntimeMessage,
+      sendTabMessage: vi.fn(),
+    });
+    await page.initialize();
+
+    element<HTMLButtonElement>("[data-cloud-session-action]").click();
+    await vi.waitFor(() =>
+      expect(element("[data-popup-status]").textContent).toBe(
+        "暂时无法安全断开；本机会话仍保留，请联网后重试。",
+      ),
+    );
+    expect(element("[data-cloud-session-state]").textContent).toBe("已连接");
   });
 });

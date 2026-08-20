@@ -7,7 +7,7 @@ describe("Store selection policy", () => {
     ["investigation", "word"],
     ["early stages", "phrase"],
     ["The investigation was still in its early stages.", "sentence"],
-    ["First sentence. Second sentence.", "sentence"],
+    ["First sentence. Second sentence.", "passage"],
   ] as const)("classifies %s as %s", (selection, kind) => {
     expect(classifyEnglishSelection(selection)).toBe(kind);
   });

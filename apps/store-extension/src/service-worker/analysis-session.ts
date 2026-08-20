@@ -35,6 +35,7 @@ const PUBLIC_ENGINE_ERROR_CODES: readonly StoreAnalysisErrorCode[] = [
   "invalid-response",
   "network-error",
   "provider-error",
+  "quota-exhausted",
   "timeout",
 ];
 

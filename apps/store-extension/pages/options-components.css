@@ -361,6 +361,22 @@
   margin-bottom: var(--space-1);
 }
 
+.local-word-import {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-5);
+  align-items: start;
+}
+
+.local-word-import h3,
+.local-word-import p {
+  margin-bottom: var(--space-2);
+}
+
+.local-word-import-actions {
+  justify-content: flex-end;
+}
+
 @media (max-width: 760px) {
   .settings-layout {
     display: block;
@@ -390,9 +406,14 @@
   .section-heading,
   .recipient-grid,
   .split,
-  .credential-row {
+  .credential-row,
+  .local-word-import {
     display: grid;
     grid-template-columns: 1fr;
+  }
+
+  .local-word-import-actions {
+    justify-content: flex-start;
   }
 
   .card {

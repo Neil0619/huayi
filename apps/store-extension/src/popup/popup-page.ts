@@ -1,9 +1,13 @@
 import {
   STORE_MESSAGE_VERSION,
+  parseCloudSessionResponse,
+  parseSubmissionOutboxResponse,
   parseStorePopupStatusResponse,
   parseStoreSitePolicyResponse,
   type StorePopupStatusResponse,
   type StoreSitePolicyResponse,
+  type CloudSessionResponse,
+  type SubmissionOutboxResponse,
 } from "@huayi/store-domain";
 
 interface ActiveTab {
@@ -32,8 +36,14 @@ function element<ElementType extends HTMLElement>(selector: string): ElementType
 export class PopupPage {
   private activeTabId: number | null = null;
   private busy = false;
+  private cloudSession: CloudSessionResponse | null = null;
+  private cloudUnavailable = false;
+  private focusOutboxAfterRender = false;
+  private outboxClearConfirmation = false;
   private sitePolicy: StoreSitePolicyResponse | null = null;
   private status: StorePopupStatusResponse | null = null;
+  private submissionOutbox: SubmissionOutboxResponse | null = null;
+  private submissionOutboxUnavailable = false;
   private unsupportedTab = false;
 
   constructor(private readonly dependencies: PopupPageDependencies) {}
@@ -53,15 +63,48 @@ export class PopupPage {
     element<HTMLButtonElement>("[data-toggle-overlay-theme]").addEventListener("click", () => {
       void this.execute(async () => this.toggleOverlayTheme());
     });
+    element<HTMLButtonElement>("[data-cloud-session-action]").addEventListener("click", () => {
+      void this.execute(async () => this.toggleCloudSession());
+    });
+    element<HTMLButtonElement>("[data-submission-outbox-retry]").addEventListener("click", () => {
+      void this.execute(async () => this.retrySubmissionOutbox());
+    });
+    element<HTMLButtonElement>("[data-submission-outbox-clear]").addEventListener("click", () => {
+      if (!this.outboxClearConfirmation) {
+        this.outboxClearConfirmation = true;
+        this.setPageStatus("再次点击只清空本机待提交学习采集。", "neutral");
+        this.render();
+        return;
+      }
+      void this.execute(async () => this.clearSubmissionOutbox());
+    });
     await this.execute(async () => {
-      const [status, tab] = await Promise.all([
+      const [status, tab, cloudSession, submissionOutbox] = await Promise.all([
         this.dependencies.sendRuntimeMessage({
           messageVersion: STORE_MESSAGE_VERSION,
           type: "store/popup-status",
         }),
         this.dependencies.queryActiveTab(),
+        this.dependencies
+          .sendRuntimeMessage({
+            messageVersion: STORE_MESSAGE_VERSION,
+            type: "store/cloud-session-status",
+          })
+          .then((value) => parseCloudSessionResponse(value))
+          .catch(() => null),
+        this.dependencies
+          .sendRuntimeMessage({
+            messageVersion: STORE_MESSAGE_VERSION,
+            type: "store/submission-outbox-status",
+          })
+          .then((value) => parseSubmissionOutboxResponse(value))
+          .catch(() => null),
       ]);
       this.status = parseStorePopupStatusResponse(status);
+      this.cloudSession = cloudSession;
+      this.cloudUnavailable = cloudSession === null;
+      this.submissionOutbox = submissionOutbox;
+      this.submissionOutboxUnavailable = submissionOutbox === null;
       if (tab === null) {
         this.unsupportedTab = true;
         return;
@@ -121,6 +164,80 @@ export class PopupPage {
     );
   }
 
+  private async toggleCloudSession(): Promise<void> {
+    if (this.cloudSession === null) throw new PopupPageError("云端连接状态尚未就绪。");
+    const type =
+      this.cloudSession.status === "connected"
+        ? "store/cloud-session-disconnect"
+        : "store/cloud-session-start";
+    try {
+      this.cloudSession = parseCloudSessionResponse(
+        await this.dependencies.sendRuntimeMessage({
+          messageVersion: STORE_MESSAGE_VERSION,
+          type,
+        }),
+      );
+    } catch (error) {
+      if (type === "store/cloud-session-disconnect") {
+        throw new PopupPageError("暂时无法安全断开；本机会话仍保留，请联网后重试。");
+      }
+      throw error;
+    }
+    await this.readSubmissionOutbox();
+  }
+
+  private async readSubmissionOutbox(): Promise<void> {
+    try {
+      this.submissionOutbox = parseSubmissionOutboxResponse(
+        await this.dependencies.sendRuntimeMessage({
+          messageVersion: STORE_MESSAGE_VERSION,
+          type: "store/submission-outbox-status",
+        }),
+      );
+      this.submissionOutboxUnavailable = false;
+    } catch {
+      this.submissionOutbox = null;
+      this.submissionOutboxUnavailable = true;
+    }
+  }
+
+  private async retrySubmissionOutbox(): Promise<string> {
+    if (this.submissionOutbox?.state !== "queued") {
+      throw new PopupPageError("当前没有可重试的待提交学习采集。");
+    }
+    this.outboxClearConfirmation = false;
+    this.submissionOutbox = parseSubmissionOutboxResponse(
+      await this.dependencies.sendRuntimeMessage({
+        messageVersion: STORE_MESSAGE_VERSION,
+        type: "store/submission-outbox-retry",
+      }),
+    );
+    switch (this.submissionOutbox.outcome) {
+      case "retry-pending":
+        return "暂时仍无法提交，稍后会自动重试。";
+      case "submitted":
+        return "已提交到云端待整理。";
+      case "session-invalid":
+        return "云端连接已失效，待提交学习采集已清除。";
+      case "discarded":
+        return "一条无法提交的内容已从本机移除。";
+      default:
+        return "待提交学习采集状态已刷新。";
+    }
+  }
+
+  private async clearSubmissionOutbox(): Promise<string> {
+    this.submissionOutbox = parseSubmissionOutboxResponse(
+      await this.dependencies.sendRuntimeMessage({
+        messageVersion: STORE_MESSAGE_VERSION,
+        type: "store/submission-outbox-clear",
+      }),
+    );
+    this.outboxClearConfirmation = false;
+    this.focusOutboxAfterRender = true;
+    return "只清除了本机待提交学习采集，云端已有记录不受影响。";
+  }
+
   private async openOptions(): Promise<void> {
     try {
       await this.dependencies.openOptionsPage();
@@ -129,14 +246,15 @@ export class PopupPage {
     }
   }
 
-  private async execute(operation: () => Promise<void>): Promise<void> {
+  private async execute(operation: () => Promise<unknown>): Promise<void> {
     if (this.busy) return;
     this.busy = true;
     this.setPageStatus("", "neutral");
     this.render();
     try {
-      await operation();
-      this.setPageStatus("", "neutral");
+      const result = await operation();
+      const message = typeof result === "string" ? result : undefined;
+      this.setPageStatus(message ?? "", message === undefined ? "neutral" : "success");
     } catch (error) {
       this.setPageStatus(
         error instanceof PopupPageError ? error.message : "扩展状态读取失败，请稍后重试。",
@@ -169,6 +287,66 @@ export class PopupPage {
       ? "当前标签页不支持划译"
       : (this.sitePolicy?.host ?? "正在读取当前页面…");
     document.body.setAttribute("aria-busy", String(this.busy));
+    const cloudAction = element<HTMLButtonElement>("[data-cloud-session-action]");
+    const cloudStatus = this.cloudSession?.status;
+    element("[data-cloud-session-state]").textContent = this.cloudUnavailable
+      ? "状态读取失败"
+      : cloudStatus === "not-configured"
+        ? "此构建尚未配置云端"
+        : cloudStatus === "connected"
+          ? "已连接"
+          : cloudStatus === "pairing"
+            ? "等待网页批准"
+            : cloudStatus === "expired"
+              ? "会话已过期"
+              : "尚未连接";
+    cloudAction.textContent = cloudStatus === "connected" ? "断开此设备" : "连接";
+    cloudAction.disabled =
+      this.busy ||
+      this.cloudUnavailable ||
+      cloudStatus === undefined ||
+      cloudStatus === "not-configured" ||
+      cloudStatus === "pairing";
+    const submissionOutbox = this.submissionOutbox;
+    const outboxState = submissionOutbox?.state;
+    const queuedLabel =
+      submissionOutbox?.state === "queued"
+        ? `${submissionOutbox.count} 条学习采集等待提交（最早 ${submissionOutbox.oldestQueuedAt.slice(0, 10)}）`
+        : null;
+    const unconfiguredLabel =
+      submissionOutbox?.state === "not-configured" && "count" in submissionOutbox
+        ? `此构建尚未配置云端提交；${submissionOutbox.count} 条学习采集仍加密保存在本机（最早 ${submissionOutbox.oldestQueuedAt.slice(0, 10)}）`
+        : null;
+    const outboxLabel = element("[data-submission-outbox-state]");
+    outboxLabel.textContent = this.submissionOutboxUnavailable
+      ? "待提交学习采集状态读取失败"
+      : outboxState === "not-configured"
+        ? (unconfiguredLabel ?? "此构建尚未配置云端提交")
+        : outboxState === "upload-disabled"
+          ? "模型联网同意已关闭"
+          : outboxState === "session-unavailable"
+            ? "连接云端后可提交"
+            : outboxState === "client-upgrade-required"
+              ? "请先更新划译；待提交学习采集仍加密保存在本机"
+              : queuedLabel !== null
+                ? queuedLabel
+                : "没有待提交学习采集";
+    outboxLabel.dataset.state = outboxState ?? "unavailable";
+    const hasStored =
+      outboxState === "client-upgrade-required" ||
+      outboxState === "queued" ||
+      (outboxState === "not-configured" &&
+        submissionOutbox !== null &&
+        "count" in submissionOutbox);
+    element<HTMLButtonElement>("[data-submission-outbox-retry]").disabled =
+      this.busy || outboxState !== "queued";
+    const clear = element<HTMLButtonElement>("[data-submission-outbox-clear]");
+    clear.textContent = this.outboxClearConfirmation ? "确认清空" : "清空";
+    clear.disabled = this.busy || !hasStored;
+    if (this.focusOutboxAfterRender) {
+      this.focusOutboxAfterRender = false;
+      outboxLabel.focus();
+    }
   }
 
   private setPageStatus(message: string, tone: "error" | "neutral" | "success"): void {

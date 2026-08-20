@@ -88,7 +88,7 @@ function parseJson(value, label, violations) {
   }
 }
 
-function auditManifest(manifest, violations) {
+function auditManifest(manifest, violations, { expectedCsp, expectedHosts }) {
   if (manifest === null || typeof manifest !== "object" || Array.isArray(manifest)) return;
   if (manifest.manifest_version !== 3) violations.push("Store package must use Manifest V3.");
   try {
@@ -97,11 +97,11 @@ function auditManifest(manifest, violations) {
     violations.push("Store package does not use the reviewed permissions.");
   }
   try {
-    assert.deepEqual(manifest.host_permissions, EXPECTED_HOSTS);
+    assert.deepEqual(manifest.host_permissions, expectedHosts);
   } catch {
     violations.push("Store package does not use the reviewed API hosts.");
   }
-  if (manifest.content_security_policy?.extension_pages !== EXPECTED_CSP) {
+  if (manifest.content_security_policy?.extension_pages !== expectedCsp) {
     violations.push("Store package CSP is not the reviewed self-only policy.");
   }
   if (manifest.incognito !== "not_allowed") {
@@ -342,7 +342,10 @@ function auditExecutable(path, contents, violations) {
   }
 }
 
-export async function auditStoreRelease(repositoryRoot) {
+export async function auditStoreRelease(
+  repositoryRoot,
+  { expectedCsp = EXPECTED_CSP, expectedHosts = EXPECTED_HOSTS } = {},
+) {
   const root = resolve(repositoryRoot);
   const extensionRoot = resolve(root, "apps/store-extension");
   const dist = resolve(extensionRoot, "dist");
@@ -371,7 +374,7 @@ export async function auditStoreRelease(repositoryRoot) {
   } catch {
     violations.push("Store packaged manifest differs from the source manifest.");
   }
-  auditManifest(packagedManifest, violations);
+  auditManifest(packagedManifest, violations, { expectedCsp, expectedHosts });
 
   for (const file of files) {
     const contents = await readFile(resolve(dist, file), "utf8");

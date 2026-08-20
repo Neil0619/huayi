@@ -2,13 +2,19 @@ import { describe, expect, it } from "vitest";
 
 import {
   analysisEventSchema,
+  analysisRecordSchema,
+  analysisHttpRoutes,
+  analysisDeleteResponseSchema,
+  analysisMutationRequestSchema,
+  analysisDeleteRequestSchema,
+  analysisRequestStatusSchema,
   accountPreferencesRequestSchema,
   apiErrorSchema,
   claimInvitationRequestSchema,
   confirmCandidatesRequestSchema,
+  confirmCandidatesResponseSchema,
   contractFixtures,
   createLearningItemRequestSchema,
-  importAnalysisRequestSchema,
   listAnalysesQuerySchema,
   listResponseSchema,
   revisionWriteHeadersSchema,
@@ -16,23 +22,57 @@ import {
   startAnalysisRequestSchema,
   upsertWordRequestSchema,
   createExtensionPairingRequestSchema,
+  claimInvitationResponseSchema,
+  csrfTokenResponseSchema,
+  extensionPairingResponseSchema,
+  extensionSessionListResponseSchema,
+  identityHttpRoutes,
+  passwordRegistrationResponseSchema,
+  createdInvitationResponseSchema,
   createWordbookJobRequestSchema,
   dailyQueueQuerySchema,
   quotaSummarySchema,
 } from "./index.js";
 
 describe("/v1 public contracts", () => {
+  it("publishes stable analysis HTTP seams and shared fixtures", () => {
+    expect(analysisHttpRoutes.start).toBe("/v1/analyses:stream");
+    expect(analysisHttpRoutes.process).toBe("/v1/analyses/:id/process");
+    expect(analysisHttpRoutes.confirmCandidates).toBe("/v1/analyses/:id/candidates:confirm");
+    expect(analysisRequestStatusSchema.parse(contractFixtures.analysisRequestStatus)).toEqual(
+      contractFixtures.analysisRequestStatus,
+    );
+  });
+  it("publishes the fixed current-account quota route", () => {
+    expect(identityHttpRoutes.quota).toBe("/v1/quota");
+    expect(quotaSummarySchema.parse(contractFixtures.quota)).toEqual(contractFixtures.quota);
+  });
   it("parses shared route fixtures through strict public schemas", () => {
     expect(startAnalysisRequestSchema.parse(contractFixtures.startAnalysisRequest)).toEqual(
       contractFixtures.startAnalysisRequest,
-    );
-    expect(importAnalysisRequestSchema.parse(contractFixtures.importAnalysisRequest)).toEqual(
-      contractFixtures.importAnalysisRequest,
     );
     expect(analysisEventSchema.parse(contractFixtures.completedEvent)).toEqual(
       contractFixtures.completedEvent,
     );
     expect(apiErrorSchema.parse(contractFixtures.error)).toEqual(contractFixtures.error);
+    expect(
+      apiErrorSchema.parse({
+        error: {
+          code: "learning_item_archived",
+          message: "Learning item is archived.",
+          requestId: "request-1",
+        },
+      }),
+    ).toBeTruthy();
+    expect(
+      apiErrorSchema.parse({
+        error: {
+          code: "learning_item_must_be_archived",
+          message: "Archive the learning item before permanent deletion.",
+          requestId: "request-2",
+        },
+      }).error.code,
+    ).toBe("learning_item_must_be_archived");
   });
 
   it("enforces source, pagination, SSE, error, and bounded input rules", () => {
@@ -46,6 +86,18 @@ describe("/v1 public contracts", () => {
     expect(listAnalysesQuerySchema.parse({ archived: "false", limit: "20" })).toMatchObject({
       archived: false,
       limit: 20,
+    });
+    expect(listAnalysesQuerySchema.parse({})).toMatchObject({ archived: false, limit: 20 });
+    expect(() => listAnalysesQuerySchema.parse({ cursor: "not base64!" })).toThrow();
+    expect(analysisMutationRequestSchema.parse({ expectedRevision: 1 })).toEqual({
+      expectedRevision: 1,
+    });
+    expect(
+      analysisDeleteRequestSchema.parse({ deleteStudyCapture: true, expectedRevision: 1 }),
+    ).toEqual({ deleteStudyCapture: true, expectedRevision: 1 });
+    expect(analysisDeleteResponseSchema.parse({ deleted: true, id: "analysis-1" })).toEqual({
+      deleted: true,
+      id: "analysis-1",
     });
     expect(() =>
       analysisEventSchema.parse({
@@ -62,7 +114,11 @@ describe("/v1 public contracts", () => {
     ).toThrow();
     expect(() => listResponseSchema.parse({ items: [], nextCursor: "", total: 0 })).toThrow();
     expect(() =>
-      accountPreferencesRequestSchema.parse({ dailyGoal: 5, timezone: "Mars/Base" }),
+      accountPreferencesRequestSchema.parse({
+        dailyGoal: 5,
+        expectedRevision: 1,
+        timezone: "Mars/Base",
+      }),
     ).toThrow();
     expect(() => dailyQueueQuerySchema.parse({ date: "2026-02-30" })).toThrow();
     expect(() =>
@@ -73,18 +129,47 @@ describe("/v1 public contracts", () => {
     ).toThrow();
   });
 
-  it("applies AnalysisRecord referential checks to BYOK imports", () => {
+  it("applies AnalysisRecord referential checks to Web deep analysis", () => {
     expect(() =>
-      importAnalysisRequestSchema.parse({
-        ...contractFixtures.importAnalysisRequest,
+      analysisRecordSchema.parse({
+        ...contractFixtures.analysis,
         candidates: [
           {
-            ...contractFixtures.importAnalysisRequest.candidates[0],
-            sentenceId: "s2",
+            ...contractFixtures.analysis.candidates[0],
+            analysisUnitId: "u2",
           },
         ],
       }),
     ).toThrow();
+  });
+
+  it("requires unique candidate confirmations and strict routed results", () => {
+    expect(() =>
+      confirmCandidatesRequestSchema.parse({
+        ...contractFixtures.confirmCandidatesRequest,
+        confirmations: [
+          ...contractFixtures.confirmCandidatesRequest.confirmations,
+          ...contractFixtures.confirmCandidatesRequest.confirmations,
+        ],
+      }),
+    ).toThrow();
+    expect(() =>
+      confirmCandidatesRequestSchema.parse({
+        analysisRevision: 1,
+        confirmations: [
+          {
+            candidateId: "candidate-word",
+            decision: "create",
+            payload: { headword: "Works", type: "word" },
+            tags: ["silently ignored"],
+            targetType: "word",
+          },
+        ],
+      }),
+    ).toThrow();
+    expect(
+      confirmCandidatesResponseSchema.parse(contractFixtures.confirmCandidatesResponse),
+    ).toEqual(contractFixtures.confirmCandidatesResponse);
   });
 });
 
@@ -106,12 +191,6 @@ describe("client authority and secret rejection", () => {
     expect(() =>
       startAnalysisRequestSchema.parse({
         ...contractFixtures.startAnalysisRequest,
-        [field]: value,
-      }),
-    ).toThrow();
-    expect(() =>
-      importAnalysisRequestSchema.parse({
-        ...contractFixtures.importAnalysisRequest,
         [field]: value,
       }),
     ).toThrow();
@@ -145,6 +224,43 @@ describe("client authority and secret rejection", () => {
 
   it("keeps account, pairing, wordbook, and concurrency envelopes strict", () => {
     expect(claimInvitationRequestSchema.parse({ invitationToken: "x".repeat(32) })).toBeTruthy();
+    expect(identityHttpRoutes.claimInvitation).toBe("/v1/invitations/claim");
+    expect(identityHttpRoutes.passwordLogin).toBe("/v1/auth/password/login");
+    expect(
+      claimInvitationResponseSchema.parse({
+        claimTicket: "c".repeat(32),
+        expiresAt: "2026-08-13T01:00:00.000Z",
+      }),
+    ).toBeTruthy();
+    expect(passwordRegistrationResponseSchema.parse({ emailConfirmationRequired: true })).toEqual({
+      emailConfirmationRequired: true,
+    });
+    expect(
+      createdInvitationResponseSchema.parse({
+        consumedAt: null,
+        createdAt: "2026-08-13T00:00:00.000Z",
+        expiresAt: "2026-08-16T00:00:00.000Z",
+        id: "invitation-1",
+        invitationPath: `/join#${"i".repeat(32)}`,
+        revokedAt: null,
+      }).invitationPath,
+    ).toBe(`/join#${"i".repeat(32)}`);
+    expect(() =>
+      createdInvitationResponseSchema.parse({
+        consumedAt: null,
+        createdAt: "2026-08-13T00:00:00.000Z",
+        expiresAt: "2026-08-16T00:00:00.000Z",
+        id: "invitation-1",
+        invitationPath: `/join/${"i".repeat(32)}`,
+        revokedAt: null,
+      }),
+    ).toThrow();
+    expect(() =>
+      passwordRegistrationResponseSchema.parse({
+        claimTicket: "secret",
+        emailConfirmationRequired: true,
+      }),
+    ).toThrow();
     expect(() =>
       claimInvitationRequestSchema.parse({ invitationToken: "x".repeat(32), userId: "user-1" }),
     ).toThrow();
@@ -155,6 +271,25 @@ describe("client authority and secret rejection", () => {
         state: "c".repeat(32),
       }),
     ).toBeTruthy();
+    expect(csrfTokenResponseSchema.parse({ access: "full", csrfToken: "x".repeat(32) })).toEqual({
+      access: "full",
+      csrfToken: "x".repeat(32),
+    });
+    expect(identityHttpRoutes.extensionPairing).toBe("/v1/extension-pairings/:id");
+    expect(identityHttpRoutes.extensionPairingApprove).toBe("/v1/extension-pairings/:id/approve");
+    expect(identityHttpRoutes.extensionSessionCurrent).toBe("/v1/extension-session");
+    expect(() =>
+      extensionPairingResponseSchema.parse({
+        expiresAt: "2026-08-13T00:00:00.000Z",
+        id: "pairing-1",
+        pairingPath: "/pair-extension/pairing-1",
+        status: "consumed",
+      }),
+    ).toThrow();
+    expect(extensionSessionListResponseSchema.parse({ items: [] })).toEqual({ items: [] });
+    expect(() =>
+      extensionSessionListResponseSchema.parse({ items: [], sessionToken: "x" }),
+    ).toThrow();
     expect(() =>
       createWordbookJobRequestSchema.parse({ direction: "import", target: "shanbay" }),
     ).toThrow();

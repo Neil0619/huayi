@@ -1,0 +1,242 @@
+.admin-operations-page {
+  max-width: 78rem;
+  margin: 0 auto;
+}
+
+.admin-live {
+  min-height: 1.5rem;
+  color: var(--text-secondary);
+  font-weight: 700;
+}
+
+.admin-section,
+.admin-gate,
+.admin-user-card {
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--surface-default);
+  box-shadow: var(--card-shadow);
+}
+
+.admin-section,
+.admin-gate {
+  margin-bottom: var(--space-5);
+  padding: var(--space-5);
+}
+
+.admin-gate {
+  max-width: 42rem;
+  margin: 10vh auto;
+}
+
+.admin-section-heading,
+.admin-user-card > header,
+.admin-actions,
+.admin-inline-form > div,
+.admin-confirm {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.admin-section-heading {
+  align-items: start;
+  margin-bottom: var(--space-4);
+}
+
+.admin-section-heading h2,
+.admin-section-heading p,
+.admin-user-card h3,
+.admin-user-card header p {
+  margin: 0;
+}
+
+.admin-section-heading p,
+.admin-user-card header p {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.admin-metrics,
+.admin-user-facts {
+  display: grid;
+  margin: 0;
+  gap: var(--space-3);
+}
+
+.admin-metrics {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.admin-metrics div,
+.admin-user-facts div {
+  padding: var(--space-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--surface-subtle);
+}
+
+.admin-metrics dt,
+.admin-user-facts dt {
+  color: var(--text-secondary);
+  font-weight: 700;
+}
+
+.admin-metrics dd,
+.admin-user-facts dd {
+  margin: var(--space-1) 0 0;
+  font-size: 1.2rem;
+  font-weight: 800;
+}
+
+.admin-filter {
+  display: grid;
+  align-items: end;
+  grid-template-columns: minmax(12rem, 1fr) minmax(8rem, 0.4fr) auto;
+  gap: var(--space-2) var(--space-3);
+}
+
+.admin-filter label:first-of-type {
+  grid-column: 1;
+}
+
+.admin-filter input,
+.admin-filter select,
+.admin-inline-form input,
+.admin-filter button {
+  min-height: var(--control-height);
+}
+
+.admin-user-grid {
+  display: grid;
+  margin-top: var(--space-5);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+.admin-user-card {
+  padding: var(--space-4);
+  box-shadow: none;
+}
+
+.admin-status {
+  padding: var(--space-1) var(--space-2);
+  border-radius: 999px;
+  background: var(--surface-tint);
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.admin-status-disabled,
+.admin-status-deleting {
+  color: var(--text-danger);
+  background: var(--surface-danger);
+}
+
+.admin-user-facts {
+  margin: var(--space-4) 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.admin-inline-form {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.admin-inline-form input {
+  min-width: 0;
+  flex: 1;
+}
+
+.admin-actions {
+  justify-content: flex-start;
+  margin-top: var(--space-3);
+}
+
+.admin-confirm {
+  align-items: start;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  margin-top: var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--surface-danger);
+}
+
+.admin-confirm p {
+  width: 100%;
+  margin: 0;
+}
+
+.admin-card-message {
+  min-height: 1.5rem;
+  margin-bottom: 0;
+}
+
+.admin-split {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-5);
+}
+
+.admin-split ul,
+.admin-split ol {
+  display: grid;
+  padding: 0;
+  gap: var(--space-2);
+  list-style: none;
+}
+
+.admin-split li {
+  display: grid;
+  padding: var(--space-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  gap: var(--space-1);
+  overflow-wrap: anywhere;
+}
+
+.admin-invitation-path {
+  display: block;
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--surface-tint);
+  overflow-wrap: anywhere;
+  font-family: ui-monospace, monospace;
+}
+
+@media (max-width: 60rem) {
+  .admin-metrics,
+  .admin-user-grid,
+  .admin-split {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 42rem) {
+  .admin-section-heading,
+  .admin-user-card > header,
+  .admin-actions,
+  .admin-inline-form > div,
+  .admin-confirm {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .admin-filter,
+  .admin-user-facts {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-filter label:first-of-type {
+    grid-column: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-operations-page * {
+    scroll-behavior: auto;
+    transition-duration: 0.01ms !important;
+  }
+}

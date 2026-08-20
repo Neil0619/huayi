@@ -21,12 +21,18 @@ function runtime(): StoreOverlayRuntime {
       throw new Error("Analysis is outside this interaction test.");
     },
     openOptions: vi.fn(async () => undefined),
+    openWebWorkspace: vi.fn(async () => undefined),
     overlayStylesheetUrl: () => "chrome-extension://test/overlay.css",
     queryWordPresence: vi.fn(async () => undefined),
     saveWord: vi.fn(async () => ({
       messageVersion: STORE_MESSAGE_VERSION,
       status: "saved",
       type: "store/lexicon-save-result",
+    })),
+    studyCapture: vi.fn(async () => ({
+      messageVersion: STORE_MESSAGE_VERSION,
+      outcome: "skipped",
+      type: "store/study-capture-result",
     })),
   };
 }

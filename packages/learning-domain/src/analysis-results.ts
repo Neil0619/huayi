@@ -126,7 +126,7 @@ export const lexicalTranslationResultSchema = z.strictObject({
 });
 export const passageTranslationResultSchema = z.strictObject({
   ...trustedResultFields,
-  selectionKind: z.literal("sentence"),
+  selectionKind: z.enum(["sentence", "passage"]),
   translationZh: chineseTextSchema,
   type: z.literal("translate-passage"),
 });
@@ -163,7 +163,7 @@ export const sentenceExplanationResultSchema = z.strictObject({
     .min(1)
     .max(6),
   mainStructure: z.string().trim().min(1).max(MAX_MODEL_TEXT_LENGTH),
-  selectionKind: z.literal("sentence"),
+  selectionKind: z.enum(["sentence", "passage"]),
   translationZh: chineseTextSchema,
   type: z.literal("explain-sentence"),
 });

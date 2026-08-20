@@ -4,6 +4,7 @@ export type BrowserAnalysisErrorCode =
   | "invalid-response"
   | "network-error"
   | "provider-error"
+  | "quota-exhausted"
   | "timeout"
   | "internal-error";
 
@@ -13,6 +14,7 @@ const PUBLIC_MESSAGES: Readonly<Record<BrowserAnalysisErrorCode, string>> = {
   "invalid-response": "The provider returned an invalid response.",
   "network-error": "The provider request failed.",
   "provider-error": "The provider rejected the request.",
+  "quota-exhausted": "The platform usage allowance is exhausted.",
   timeout: "The provider request timed out.",
   "internal-error": "Local encrypted storage is unavailable.",
 };

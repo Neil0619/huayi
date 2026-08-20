@@ -5,6 +5,7 @@ import { createChromeStoreSettings } from "../service-worker/store-settings.js";
 import { createProductionDeviceVault } from "../vault/browser-device-vault.js";
 import { createProductionWordbookExportEngine } from "../wordbook/production-wordbook-export-engine.js";
 import { LexiconOptionsController } from "./lexicon-options-controller.js";
+import { LocalWordImportOptionsController } from "./local-word-import-options-controller.js";
 import { OptionsPage } from "./options-page.js";
 import { createBrowserTextFileAdapter } from "./text-file-adapter.js";
 import { WordbookOptionsController } from "./wordbook-options-controller.js";
@@ -21,7 +22,15 @@ const lexiconOptions = new LexiconOptionsController({
   lexicon,
   wordbook,
 });
+const localWordImportOptions = new LocalWordImportOptionsController({
+  confirmImport: (wordCount, contextCount) =>
+    window.confirm(
+      `确认把 ${wordCount} 个本机词条、${contextCount} 条语境导入 Web？本机数据不会删除，Web 现有笔记不会被覆盖。`,
+    ),
+  sendMessage: (message) => chrome.runtime.sendMessage(message),
+});
 const wordbookOptions = new WordbookOptionsController({
+  cloudAuthority: true,
   sendMessage: (message) => chrome.runtime.sendMessage(message),
   vault,
 });
@@ -29,10 +38,18 @@ const wordbookOptions = new WordbookOptionsController({
 const page = new OptionsPage({
   lexiconOptions: {
     async initialize(ready) {
-      await Promise.all([lexiconOptions.initialize(ready), wordbookOptions.initialize(ready)]);
+      await Promise.all([
+        lexiconOptions.initialize(ready),
+        localWordImportOptions.initialize(ready),
+        wordbookOptions.initialize(ready),
+      ]);
     },
     async setReady(ready) {
-      await Promise.all([lexiconOptions.setReady(ready), wordbookOptions.setReady(ready)]);
+      await Promise.all([
+        lexiconOptions.setReady(ready),
+        localWordImportOptions.setReady(ready),
+        wordbookOptions.setReady(ready),
+      ]);
     },
   },
   notifySitePolicyChanged: async () => {

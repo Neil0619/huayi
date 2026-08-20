@@ -196,6 +196,23 @@ button:disabled {
 .error-actions {
   padding-top: 10px;
 }
+.study-capture {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 0 0;
+  border-top: 1px solid var(--b);
+}
+.study-capture p {
+  margin: 0;
+  color: var(--m);
+  font-size: 13px;
+}
+.study-capture button {
+  min-height: 34px;
+  padding: 5px 9px;
+}
 .result-heading {
   padding: 14px 0 12px;
 }
@@ -254,6 +271,19 @@ button:disabled {
   margin: 0;
   padding: 0;
   list-style: none;
+}
+.cloud-workspace {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 13px 0 0;
+  border-top: 1px solid var(--b);
+}
+.cloud-workspace p {
+  margin: 0;
+  color: var(--m);
+  font-size: 13px;
 }
 .result-entry {
   display: grid;

@@ -7,7 +7,8 @@ const playwrightConfig = defineConfig({
   fullyParallel: false,
   outputDir: "test-results",
   reporter: [["list"], ["html", { open: "never", outputFolder: "playwright-report" }]],
-  testDir: "apps/extension/e2e",
+  testDir: "apps",
+  testMatch: "**/e2e/**/*.spec.ts",
   timeout: 30_000,
   use: {
     baseURL: "http://127.0.0.1:4173",

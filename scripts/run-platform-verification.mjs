@@ -19,6 +19,7 @@ export function platformVerificationSteps(platform) {
     return [
       ...sharedSteps,
       { arguments: ["build"], command: "pnpm" },
+      { arguments: ["check:cloud-development-blocked"], command: "pnpm" },
       { arguments: ["test:e2e"], command: "pnpm" },
       { arguments: ["check:store-release"], command: "pnpm" },
       { arguments: ["audit:prod"], command: "pnpm" },
@@ -29,6 +30,7 @@ export function platformVerificationSteps(platform) {
     return [
       ...sharedSteps,
       { arguments: ["build"], command: "pnpm" },
+      { arguments: ["check:cloud-development-blocked"], command: "pnpm" },
       { arguments: ["test:e2e"], command: "pnpm" },
       { arguments: ["check:store-release"], command: "pnpm" },
       { arguments: ["audit:prod"], command: "pnpm" },

@@ -101,6 +101,7 @@ export interface LexiconRepository {
   save(input: SaveWordInput): Promise<WordEntry>;
   findByHeadword(headword: string): Promise<WordEntry | null>;
   list(query: LexiconQuery): Promise<LexiconPage>;
+  snapshot(): Promise<readonly WordEntry[]>;
   delete(entryId: string): Promise<boolean>;
   exportWordList(): Promise<string>;
 }

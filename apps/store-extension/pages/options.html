@@ -380,6 +380,30 @@
               </div>
               <button type="button" data-word-list-export>下载词表</button>
             </div>
+
+            <div class="subsection local-word-import" data-local-word-import-panel hidden>
+              <div>
+                <h3>导入本机生词到 Web</h3>
+                <p>
+                  先预览本机词条与语境数量，再确认一次。无语境词条也会创建；本机数据不会删除，Web
+                  现有笔记不会被覆盖。
+                </p>
+                <p data-local-word-import-summary hidden></p>
+                <p
+                  data-local-word-import-status
+                  role="status"
+                  aria-live="polite"
+                  aria-atomic="true"
+                >
+                  尚未预览。
+                </p>
+              </div>
+              <div class="actions local-word-import-actions">
+                <button type="button" data-local-word-import-preview>预览导入</button>
+                <button type="button" data-local-word-import-confirm disabled>确认导入</button>
+                <button type="button" data-local-word-import-retry hidden>继续重试</button>
+              </div>
+            </div>
           </section>
         </div>
 
@@ -399,7 +423,7 @@
             <div class="section-heading">
               <div>
                 <p class="step">06 · 外部词典</p>
-                <h2 id="wordbook-title">欧路导入、耐久导出箱与扇贝批次</h2>
+                <h2 id="wordbook-title">外部词典连接</h2>
               </div>
               <p
                 class="pill"
@@ -409,6 +433,13 @@
                 aria-live="polite"
               >
                 正在读取
+              </p>
+            </div>
+            <div class="subsection" data-cloud-wordbook-authority hidden>
+              <h3>任务由华译云端统一管理</h3>
+              <p>
+                请在 Web 学习工作台的“外部词典”页面创建、查看、重试或取消任务。插件只执行云端租约，
+                不再建立本地正式导入或导出队列。
               </p>
             </div>
             <div class="subsection">
@@ -423,7 +454,7 @@
                 <button class="danger" type="button" data-eudic-auth-delete>删除</button>
               </div>
             </div>
-            <div class="subsection">
+            <div class="subsection" data-local-wordbook-authority>
               <h3>一次性欧路导入</h3>
               <p data-eudic-import-progress>尚未读取检查点。</p>
               <p data-eudic-import-error role="alert"></p>
@@ -434,7 +465,7 @@
                 <button type="button" data-eudic-import-step>处理一页</button>
               </div>
             </div>
-            <div class="subsection">
+            <div class="subsection" data-local-wordbook-authority>
               <h3>耐久导出箱</h3>
               <p>
                 欧路任务一次只处理一条；失败任务必须手动重新排队。扇贝最终提交始终由你在扇贝页面点击。

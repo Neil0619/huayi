@@ -5,7 +5,7 @@ import {
   candidateSchema,
   contextObservationSchema,
   learningItemSchema,
-  passageAnalysisSchema,
+  sentencePassageAnalysisSchema,
   practiceSessionSchema,
   scheduleStateSchema,
   wordEntrySchema,
@@ -20,26 +20,22 @@ const expressionCandidate = {
     type: "expression",
     usageZh: "用于直接表达个人意见。",
   },
-  sentenceId: "s1",
+  analysisUnitId: "u1",
   type: "expression",
 } as const;
 
 describe("strict learning schemas", () => {
-  it("accepts the three candidate variants and rejects unknown or mismatched fields", () => {
+  it("accepts the two learning candidate variants and rejects word or mismatched fields", () => {
     expect(candidateSchema.parse(expressionCandidate)).toEqual(expressionCandidate);
-    expect(
+    expect(() =>
       candidateSchema.parse({
         id: "candidate-2",
         ordinal: 1,
-        payload: {
-          contextualMeaningZh: "维持",
-          headword: "sustain",
-          type: "word",
-        },
-        sentenceId: "s1",
+        payload: { headword: "sustain", type: "word" },
+        analysisUnitId: "u1",
         type: "word",
       }),
-    ).toBeTruthy();
+    ).toThrow();
     expect(
       candidateSchema.parse({
         id: "candidate-3",
@@ -51,7 +47,7 @@ describe("strict learning schemas", () => {
           type: "sentence_pattern",
           usageZh: "用于承认事实后给出相反结论。",
         },
-        sentenceId: "s1",
+        analysisUnitId: "u1",
         type: "sentence-pattern",
       }),
     ).toBeTruthy();
@@ -61,27 +57,29 @@ describe("strict learning schemas", () => {
     ).toThrow();
   });
 
-  it("checks passage sentence ordering, ids, and candidate references", () => {
+  it("checks analysis unit ordering and candidate references", () => {
     const passage = {
       overall: { translationZh: "总译文", understandingZh: "整体理解" },
-      schemaVersion: 1,
       sentences: [
         {
+          analysisUnitId: "u1",
           candidateIds: ["candidate-1"],
-          grammarNotes: [{ explanationZh: "不定式短语", label: "结构" }],
-          id: "s1",
+          expressions: [],
+          grammar: [{ explanationZh: "不定式短语", label: "结构" }],
+          languageNotes: [],
           ordinal: 0,
           sourceText: "To be frank, this works.",
-          structureZh: "插入语加主句。",
+          structure: [{ explanationZh: "插入语加主句。", label: "主干" }],
           translationZh: "坦率地说，这很有效。",
         },
       ],
+      type: "sentence-passage-analysis-v2",
     } as const;
-    expect(passageAnalysisSchema.parse(passage)).toEqual(passage);
+    expect(sentencePassageAnalysisSchema.parse(passage)).toEqual(passage);
     expect(() =>
-      passageAnalysisSchema.parse({
+      sentencePassageAnalysisSchema.parse({
         ...passage,
-        sentences: [{ ...passage.sentences[0], id: "s2" }],
+        sentences: [{ ...passage.sentences[0], analysisUnitId: "u2" }],
       }),
     ).toThrow();
 
@@ -101,6 +99,7 @@ describe("strict learning schemas", () => {
       revision: 1,
       selectionKind: "passage",
       source: { title: "Notes", type: "manual" },
+      sourceNormalizedHash: "a".repeat(64),
       sourceText: "To be frank, this works.",
       updatedAt: "2026-08-12T10:00:00.000Z",
     } as const;
@@ -156,7 +155,15 @@ describe("strict learning schemas", () => {
         id: "observation-1",
         observedAt: "2026-08-12T10:00:00.000Z",
         sourceText: "The effort cannot be sustained.",
-        sourceType: "web-selection",
+        sourceType: "study-capture",
+      }),
+    ).toBeTruthy();
+    expect(
+      contextObservationSchema.parse({
+        id: "observation-2",
+        observedAt: "2026-08-12T10:00:00.000Z",
+        sourceText: "Imported without a contextual meaning.",
+        sourceType: "extension-local-import",
       }),
     ).toBeTruthy();
     expect(
@@ -216,8 +223,116 @@ describe("strict learning schemas", () => {
     expect(
       practiceSessionSchema.parse({
         ...common,
+        dialoguePlan: {
+          endConditionZh: "完成一次礼貌的意见交换。",
+          roleZh: "你是项目成员，对方是同事。",
+          taskZh: "表达不同意见并达成下一步。",
+        },
+        itemFeedbacks: [{ feedback: "表达使用准确。", itemId: "item-1" }],
         turns: [...twoRounds, turn(5, "user"), turn(6, "assistant")],
       }),
     ).toBeTruthy();
+    expect(() =>
+      practiceSessionSchema.parse({
+        ...common,
+        dialoguePlan: {
+          endConditionZh: "完成一次礼貌的意见交换。",
+          roleZh: "你是项目成员，对方是同事。",
+          taskZh: "表达不同意见并达成下一步。",
+        },
+        itemFeedbacks: [],
+        turns: [...twoRounds, turn(5, "user"), turn(6, "assistant")],
+      }),
+    ).toThrow();
+  });
+
+  it("models dialogue generation state without treating a user turn as feedback", () => {
+    const pending = {
+      createdAt: "2026-08-12T10:00:00.000Z",
+      dialoguePlan: {
+        endConditionZh: "完成一次礼貌的意见交换。",
+        roleZh: "你是项目成员，对方是同事。",
+        taskZh: "表达不同意见并达成下一步。",
+      },
+      id: "session-1",
+      items: [
+        {
+          itemId: "item-1",
+          position: 0,
+          scheduleBefore: { consecutiveMastered: 0, dueAt: null, level: -1 },
+        },
+      ],
+      pendingGeneration: "assistant-turn",
+      prompt: "完成一次受约束对话。",
+      revision: 2,
+      status: "awaiting-feedback",
+      turns: [
+        {
+          content: "What do you think?",
+          createdAt: "2026-08-12T10:00:00.000Z",
+          id: "turn-0",
+          ordinal: 0,
+          role: "assistant",
+        },
+        {
+          content: "To be frank, I disagree.",
+          createdAt: "2026-08-12T10:01:00.000Z",
+          id: "turn-1",
+          ordinal: 1,
+          role: "user",
+        },
+      ],
+      type: "dialogue",
+      updatedAt: "2026-08-12T10:01:00.000Z",
+    } as const;
+    expect(practiceSessionSchema.parse(pending)).toBeTruthy();
+    expect(() =>
+      practiceSessionSchema.parse({ ...pending, pendingGeneration: undefined }),
+    ).toThrow();
+    expect(
+      practiceSessionSchema.parse({
+        ...pending,
+        dialoguePlan: undefined,
+        pendingGeneration: "dialogue-start",
+        prompt: undefined,
+        revision: 1,
+        turns: [],
+      }),
+    ).toBeTruthy();
+  });
+
+  it("models a durable pending sentence prompt without fabricating prompt text", () => {
+    const pendingSentence = {
+      createdAt: "2026-08-13T10:00:00.000Z",
+      id: "sentence-session-1",
+      items: [
+        {
+          itemId: "item-1",
+          position: 0,
+          scheduleBefore: { consecutiveMastered: 0, dueAt: null, level: -1 },
+        },
+      ],
+      pendingGeneration: "sentence-prompt",
+      revision: 1,
+      status: "awaiting-feedback",
+      turns: [],
+      type: "sentence-creation",
+      updatedAt: "2026-08-13T10:00:00.000Z",
+    } as const;
+
+    expect(practiceSessionSchema.parse(pendingSentence)).toBeTruthy();
+    expect(() =>
+      practiceSessionSchema.parse({
+        ...pendingSentence,
+        pendingGeneration: undefined,
+        status: "active",
+      }),
+    ).toThrow();
+    expect(() =>
+      practiceSessionSchema.parse({
+        ...pendingSentence,
+        type: "dialogue",
+      }),
+    ).toThrow();
   });
 });

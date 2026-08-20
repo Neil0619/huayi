@@ -6,7 +6,6 @@ import { buildDeepSeekRequestBody } from "./provider-requests.js";
 
 const request: AnalysisRequest = {
   action: "explain",
-  context: "At least 23 people are missing.",
   providerId: "deepseek",
   requestId: "request-1",
   selection: "missing",

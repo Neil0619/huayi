@@ -44,9 +44,19 @@ export const practiceAttemptSchema = z.strictObject({
   itemIds: z.array(idSchema).min(1).max(3),
   submittedAt: instantSchema,
 });
+export const dialoguePlanSchema = z.strictObject({
+  endConditionZh: textSchema,
+  roleZh: textSchema,
+  taskZh: textSchema,
+});
+export const practiceItemFeedbackSchema = z.strictObject({
+  feedback: textSchema,
+  itemId: idSchema,
+});
 export const practiceSessionItemSchema = z
   .strictObject({
     itemId: idSchema,
+    learningItemDeletedAt: instantSchema.optional(),
     position: z.number().int().min(0).max(2),
     rating: practiceRatingSchema.optional(),
     scheduleAfter: scheduleStateSchema.optional(),
@@ -61,9 +71,14 @@ export const practiceSessionSchema = z
   .strictObject({
     ...resourceFields,
     attempts: z.array(practiceAttemptSchema).max(5).optional(),
+    dialoguePlan: dialoguePlanSchema.optional(),
     finalFeedback: textSchema.optional(),
+    itemFeedbacks: z.array(practiceItemFeedbackSchema).min(1).max(3).optional(),
     items: z.array(practiceSessionItemSchema).min(1).max(3),
-    prompt: textSchema,
+    pendingGeneration: z
+      .enum(["sentence-prompt", "dialogue-start", "assistant-turn", "final-feedback"])
+      .optional(),
+    prompt: textSchema.optional(),
     status: z.enum(["active", "awaiting-feedback", "completed", "failed"]),
     turns: z.array(practiceTurnSchema).max(11),
     type: z.enum(["sentence-creation", "dialogue"]),
@@ -107,13 +122,56 @@ export const practiceSessionSchema = z
       }
     });
     if (session.type === "sentence-creation") {
+      const waitingForPrompt = session.pendingGeneration === "sentence-prompt";
+      if (!waitingForPrompt && session.prompt === undefined) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Sentence creation requires a prompt.",
+        });
+      }
       if (session.items.length !== 1) {
         context.addIssue({
           code: z.ZodIssueCode.custom,
           message: "Sentence creation uses exactly one learning item.",
         });
       }
+      if (
+        session.dialoguePlan !== undefined ||
+        session.itemFeedbacks !== undefined ||
+        (session.pendingGeneration !== undefined && !waitingForPrompt) ||
+        session.turns.length !== 0
+      ) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Sentence creation cannot contain dialogue state.",
+        });
+      }
+      if (
+        waitingForPrompt &&
+        (session.status !== "awaiting-feedback" ||
+          session.prompt !== undefined ||
+          (session.attempts?.length ?? 0) !== 0 ||
+          session.finalFeedback !== undefined)
+      ) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "A pending sentence prompt cannot contain generated or submitted content.",
+        });
+      }
     } else {
+      const waitingForStart = session.pendingGeneration === "dialogue-start";
+      if (!waitingForStart && session.prompt === undefined) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Generated dialogues require a prompt.",
+        });
+      }
+      if (session.dialoguePlan === undefined && !waitingForStart) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Dialogue sessions require a role, task, and end condition.",
+        });
+      }
       session.turns.forEach((turn, index) => {
         const expectedRole = index % 2 === 0 ? "assistant" : "user";
         if (turn.role !== expectedRole) {
@@ -123,12 +181,51 @@ export const practiceSessionSchema = z
           });
         }
       });
+      const rounds = (session.turns.length - 1) / 2;
+      if (session.status === "active") {
+        if (session.turns.length < 1 || !Number.isInteger(rounds)) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Active dialogues must end with an assistant turn.",
+          });
+        }
+      }
+      if (session.status === "awaiting-feedback") {
+        const waitingForAssistant = session.pendingGeneration === "assistant-turn";
+        const waitingForFinal = session.pendingGeneration === "final-feedback";
+        if (
+          (!waitingForStart && !waitingForAssistant && !waitingForFinal) ||
+          (waitingForStart && (session.turns.length !== 0 || session.dialoguePlan !== undefined)) ||
+          (waitingForAssistant && Number.isInteger(rounds)) ||
+          (waitingForFinal && (!Number.isInteger(rounds) || rounds < 3 || rounds > 5))
+        ) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Dialogue pending generation must match its persisted turn state.",
+          });
+        }
+      } else if (session.pendingGeneration !== undefined) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Only awaiting dialogues may expose pending generation.",
+        });
+      }
       if (session.status === "completed") {
-        const rounds = (session.turns.length - 1) / 2;
         if (!Number.isInteger(rounds) || rounds < 3 || rounds > 5) {
           context.addIssue({
             code: z.ZodIssueCode.custom,
             message: "Completed dialogues require three to five rounds.",
+          });
+        }
+        const feedbackIds = session.itemFeedbacks?.map((feedback) => feedback.itemId) ?? [];
+        if (
+          feedbackIds.length !== itemIds.length ||
+          new Set(feedbackIds).size !== feedbackIds.length ||
+          feedbackIds.some((itemId) => !itemIds.includes(itemId))
+        ) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Completed dialogues require feedback for every practice item.",
           });
         }
       }

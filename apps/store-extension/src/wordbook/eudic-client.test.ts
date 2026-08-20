@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { EUDIC_WORD_ENDPOINT, EUDIC_WORDS_ENDPOINT, StoreEudicClient } from "./eudic-client.js";
+import {
+  DEFAULT_EUDIC_REQUEST_TIMEOUT_MS,
+  EUDIC_WORD_ENDPOINT,
+  EUDIC_WORDS_ENDPOINT,
+  StoreEudicClient,
+} from "./eudic-client.js";
 
 function response(status: number, value: unknown): Response {
   return new Response(JSON.stringify(value), {
@@ -96,5 +101,41 @@ describe("Store Eudic client", () => {
     await expect(client.listWords(0, new AbortController().signal)).rejects.toMatchObject({
       code: "authentication-failed",
     });
+  });
+
+  it("enforces the fixed internal deadline when the caller signal never aborts", async () => {
+    expect(DEFAULT_EUDIC_REQUEST_TIMEOUT_MS).toBe(10_000);
+    expect(
+      () =>
+        new StoreEudicClient({
+          authorization: async () => "NIS test",
+          timeoutMs: DEFAULT_EUDIC_REQUEST_TIMEOUT_MS + 1,
+        }),
+    ).toThrow();
+
+    let providerSignal: AbortSignal | undefined;
+    const client = new StoreEudicClient({
+      authorization: async () => "NIS test",
+      fetch: async (_input, init) => {
+        providerSignal = init?.signal as AbortSignal;
+        return new Promise<Response>((_resolve, reject) => {
+          providerSignal?.addEventListener("abort", () => reject(new Error("aborted")), {
+            once: true,
+          });
+        });
+      },
+      timeoutMs: 1,
+    });
+
+    const outcome = await Promise.race([
+      client.listWords(0, new AbortController().signal).then(
+        () => ({ code: "unexpected-success" }),
+        (error: unknown) => error,
+      ),
+      new Promise((resolve) => setTimeout(() => resolve({ code: "still-pending" }), 25)),
+    ]);
+
+    expect(outcome).toMatchObject({ code: "timeout" });
+    expect(providerSignal?.aborted).toBe(true);
   });
 });

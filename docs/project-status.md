@@ -13,6 +13,9 @@
 - 验证方式：macOS/Windows 双平台 GitHub Actions 先以告警方式运行，稳定后再设为 `main`
   必需检查；系统原语仍需对应平台人工验收
 
+以上是冻结维护的 Classic 0.13 基线。新的 Cloud V1 尚处于文档与实现阶段，不共享 Native Host、
+wire 版本或完成声明。
+
 ## 已完成阶段
 
 | 版本    | 阶段成果                                                          |
@@ -54,6 +57,535 @@
   偶发约 5 秒超时；用户决定暂时忽略。真实 DeepSeek 和欧路 smoke 均未运行，仍需单独批准；
   本轮也未执行幂等卸载，因此不得据此声称整个系统集成清单或双平台发布已经完成。
 
+## Classic 0.13 安全封存状态（2026-08-11）
+
+- 0.13 保持个人源码加载版，不作为 Chrome Web Store 发布候选；后续只接受严重安全或兼容性修复。
+- 本轮补齐设置页保存失败的错误边界及 Options/Popup 行为测试，并校正设置消息、可配置同步整点和
+  Windows 验证状态的文档表述。
+- 已知 Windows 限制保持不变：真实 DeepSeek 的 DPAPI/PowerShell 凭据读取偶发约 5 秒超时；真实
+  DeepSeek/欧路 smoke 与幂等卸载未运行。因而 Classic 不声称完整发布或双平台系统集成验证完成。
+
+## Store 1.0 本地候选历史状态（2026-08-11）
+
+> 此候选从未发布且没有真实本地词库用户，已被 Cloud V1 取代。以下内容只保留为实现证据，不再是
+> 当前产品、隐私或发布权威。
+
+- 新的纯 MV3 Store Edition、加密 Vault/生词本、OpenAI/DeepSeek 分析、欧路/扇贝 Outbox、
+  YouTube、设置、Popup 和站点生命周期已经形成离线实现闭环，与 Classic/Native Host 无运行时
+  依赖。
+- 自动发布工程已加入 Store 架构与循环检查、九个关键文件 85% 聚合覆盖率门、候选包审计、生产
+  依赖审计，以及加载实际 Store `dist/content-script.js` 的离线 Chrome journey。macOS/Windows
+  workflow 固定 Actions SHA，两个平台都执行 E2E。
+- Classic 无秘密设置包导出和 Store Settings v5 原子导入已实现，且 Store 生产包已移除
+  Zod 4 `Function` 构造器路径，不放宽的严格发布审计通过实际 dist。设置包不包含凭据、
+  Provider、URL、页面标题、模型 payload 或生词；导入失败不修改 Store 原设置。
+- 当前仍是 `implemented; target-platform validation pending`：真实双平台 Classic→Store 升级核对、
+  候选模型、Chrome/Provider/欧路/扇贝、商店材料和新 Store ID 均缺少正式发布证据。不得把
+  当前工作树或 `1.0.0` Manifest 版本解释为已经上架。
+
+## Cloud V1 当前状态（2026-08-14）
+
+> **当前校准检查点（Phase 33）**：Phase 28 已补齐 production 语义重复建议和
+> 可计算 AA token 证据；2026-08-14 完成度源码审计发现的 SubmissionOutbox `api=null` 误清账号绑定
+> 密文与未计数 `not-configured` 回归也已按 Fresh RED→GREEN 修复。Phase 32 按 `product.md` 七条
+> 成功标准重建证据矩阵后，将总体状态校准为
+> `core slices offline-evidenced; R3-C production implementation and external release gates pending`。
+> C5 首轮 RED 为 5 expected failures / 24 baseline passes，终审第二轮 RED 为 2 expected failures / 17
+> baseline passes；最终 focused 6 files / 32 tests、Store-domain+Store 110 files / 524 tests、两包 strict
+> typecheck/build、目标 ESLint/Prettier 与 instructions/architecture 全绿。根侧完整门禁又通过 114/114
+> Node 脚本、444 个 Vitest 文件（2,721 passed / 12 skipped）、Playwright 109/109、全 workspace
+> typecheck/build、Store release audit 与 Store coverage 97 files / 480 tests；真实环境门禁未运行。
+> Phase 29 随后关闭根 format/lint 例外：精确排除不属于产品 workspace/运行时/发布包的
+> `.agents/skills/**`，真实修复其余 5 个门内格式文件；根 format/lint、115/115 Node 脚本、444 个 Vitest
+> 文件（2,721 passed / 12 skipped）、Playwright 109/109、workspace typecheck/build 与 instructions/
+> architecture 全绿。Phase 30 又在 macOS 真实执行完整 `pnpm verify:macos` 聚合门禁并以退出码 0
+> 通过，覆盖上述检查、Store coverage/release、109/109 Playwright、生产依赖审计和
+> `git diff --check`；依赖审计未发现已知漏洞。该证据不包含安装、真实 Chrome、Provider/词典 smoke、
+> Supabase/Vercel 或多连接 Postgres，因此外部门禁不变。
+> Phase 31 已完成正式候选 ready 与开发态 expected-blocked 的独立门禁：后者只允许真实工作树精确命中
+> `privacy-not-final`、六项 `release-config-*`、`store-api-origin` 与 `store-web-workspace-url` 九项固定
+> 安全 blocker；少项、多项均失败且不回显不可信诊断。Fresh RED 为 2 passed / 3 expected failures，
+> GREEN focused 17/17；全量 118/118 Node 脚本、444 个 Vitest 文件（2,721 passed / 12 skipped）通过。
+> 更新后的 macOS 聚合门禁也以退出码 0 证明 build 后真实入口、109/109 Playwright、Store release、生产
+> 依赖审计与 diff 全绿。Windows 与真实候选/服务/Chrome 外部门禁不变。
+> Phase 32 进一步明确：R3-C 仍缺真实安全通知 sender、独立通知 CRON 生产组合和告警实现，
+> 且邮件厂商、verified sender/域名、支持联系方式和告警渠道尚未决策；这不是纯验证项。当前
+> Cloud V1 范围还含未跟踪文件，`git diff --check` 只检查已跟踪差异，候选交付范围入库后的重跑
+> 仍 pending。逐条证据见 `docs/cloud-v1/offline-completion-audit.md`。
+> Phase 33 又完成 Store 当前权限必要性源码审阅：Chrome 官方语义与实际后端共同证明应保留
+> `storage`、`unlimitedStorage`、`alarms` 及 OpenAI/DeepSeek/Eudic 三个精确 HTTPS host，不新增
+> `tabs`。正式本机词库和词典耐久状态使用 IndexedDB；前者没有总词条/总字节 cap。`storage.local` 中
+> SubmissionOutbox 与本机批量导入任务各允许约 5 MiB 明文并可同时存在，删除权限会重新引入默认
+> 10 MiB quota rejection 和 IndexedDB 常规 eviction，改变 local-first/耐久恢复语义。当前没有 Cache
+> Storage/OPFS 调用，也不把 Chrome 的“无限配额”误述为无限物理磁盘。该结论只关闭当前源码审阅，
+> Huayi API origin、正式候选 permission/host/CSP 一致性和双平台真实 Chrome 验收仍 pending。
+> 2026-08-20 用户确认当前没有自有正式域名、DNS 管理方、Resend 账号、支持邮箱或告警目的地，R3-C
+> 外部前置条件明确延期。本阶段不购买/注册、不创建密钥、不配置 DNS，也不继续真实通知 sender/CRON/
+> 告警实现；暂定恢复时优先复核 Cloudflare Registrar + `notify` 子域 + Resend，国内账号/支付不便时
+> 备选腾讯云域名 + DNSPod。R3-C 仍是未关闭的生产代码与外部决策缺口。
+> 下方 Phase 3–27
+> 条目保留各阶段当时的离线实现证据；凡涉及“登录 BYOK 完整结果上传、`/v1/analyses:import`、
+> SubmissionOutbox analysis-import、Store 结果直接进入 pendingReview、云端替代本机词库”者均已被
+> Phase 27 supersede，不能作为当前产品完成声明。
+>
+> 文档复审已完成：用户确认 AccountDataExport 是最多保留 24 小时的独立私有副本，可包含 snapshot
+> 时尚未过期的平台查询；原 generation 仍按一小时硬删且不进入历史，隐私材料明确披露这一导出例外。
+> Phase 27A–27D 已完成离线实现，27E/27F 的 StudyCapture 显式分析、断线恢复和 analysis/capture
+> 删除关系与 Phase 27 八类账号导出 snapshot 已完成离线实现；CloudWordCopy 单条副本和显式本机批量
+> 导入也已完成 contracts/API/Postgres/Store Options 的离线实现。TTL 已补齐 durable dispatch mark、
+> security-definer `SKIP LOCKED` 批处理、未 dispatch 释放、已 dispatch 保守结算、terminal 到期硬删、
+> CRON_SECRET 路由与 Vercel 每分钟调度；owner 按访问路径也不会误删尚未安全终态化的 running 行。
+> 27H 已替换旧 analysis-import 浏览器 fixture：packaged Store Content Script 经 production
+> StudyCapture outbox/API seam 手动采集句子，actual Web 从 CaptureInbox 显式深度分析进入 ReviewInbox，
+> 再确认候选并从 Learning Library 重读；automatic journey 另证明 created-only 当前卡撤销和 exact
+> existing 无撤销；双页面并发证明 stale revision 不误删，断网队列经 production alarm runner 恢复后可由
+> Web 重读。platform query 另经 production QueryRouter/PlatformAnalysisEngine/HTTP SSE decoder 证明成功
+> 不进入历史/待收藏/StudyCapture，quota exhausted 也不回退本地 BYOK。CloudWordCopy 联合 journey 证明
+> 本机保存先成功、开启复制后可由 Web 重读、关闭复制时 authority 零写入，以及离线关卡后共享 outbox
+> 可经 production alarm runner 恢复。显式历史导入另以 production Options controller、加密 runtime 与
+> alarm runner 证明 201 词预览/二次确认、100+100+1 续传、Web 重读和本机不删除。完整离线 Playwright
+> 账号断开 journey 另证明离线 CloudWordCopy 队列被清除、authority 零写入而本机词仍可重读。完整离线
+> 换号 journey 再经 production CloudSessionManager 完成新配对交换，证明旧队列不跨账号、本机旧词保留、
+> 新收藏使用第二个 session 写入。LocalEudicImport 再证明欧路页先只进本机，用户完成 2 词/1 语境预览
+> 与二次确认后才创建 Web 副本。Cloud Eudic export/import 和 Shanbay 人工确认任务另通过 actual Web/
+> Store production bridge 联合验收，证明 import 不写本机、Shanbay 不暴露云 capability；Eudic 稳定失败
+> 需 Web 显式重试，Shanbay 两词可精确投影 1/2 部分成功，取消后的当前租约迟到回执也不会改变
+> cancelled 权威。AccountDataRights actual bundle journey 另覆盖导出、下载、永久删除和 signed-out；
+> AdminOperations 两条 actual bundle journey 覆盖 Operator 管理闭环与非 Operator access 失败关闭；密码
+> actual-bundle 另覆盖邀请注册 202、显式确认 callback、错误密码与正确密码新 session；登录方式 fence
+> 再证明 provider 密码正确但 Huayi 只登记 Google 时统一 401、零 Cookie；Phase B 双向绑定旅程再覆盖
+> recent-auth、provider callback、Cookie/CSRF 轮换和服务器重读；stale password-link 在稳定 409 后重读
+> canonical method list。完整离线 Playwright 104/104 通过。
+> 当前全局生产路由覆盖复审已固定在 `docs/cloud-v1/browser-acceptance.md`：`/practice/history` 的生产入口
+> 组合证据已完成；`/history` 的正交状态维护闭环、`/pair-extension/:id` 审批入口和密码认证入口均已
+> 补齐，当前矩阵没有已知的 production Web 入口组合缺口。
+> 后续账号能力审计发现 Supabase 同邮箱 auto-link 与“不静默合并”冲突。Huayi-owned method
+> authorization fence 的 Phase A 已实现并完成实现后复审：邀请只登记实际 method，普通密码/Google 登录
+> 未登记 method 时零 session，既有 profile 不能借邀请补绑。Phase B recent-auth 与双向可恢复显式绑定
+> 后端与账号页双向 UI 已离线实现，真实验证仍 pending，详见
+> `docs/cloud-v1/account-sign-in-methods.md`；不得把 Phase A 或离线实现解释为整体完成。
+> Phase B 已继续完成 production method GET、forced-RLS owner 查询、Web strict client、recent-auth/link
+> contract scaffold，以及 password recent-auth 的 Cookie+Origin+CSRF、限速、同 user 校验和原子 encrypted
+> refresh/session/CSRF 轮换；Google recent-auth 的 path-scoped intent、purpose/session/user-bound flow、
+> 单次 continue/callback 与同一原子轮换也已完成。Google manual link 已实现四阶段/30 秒单写 lease、
+> refresh/state 先持久化、manual link、callback method 写入及其他 session 撤销；Google-only→password
+> 也已实现独立四阶段/30 秒 lease、authenticated updateUser、method 写入和全局 session 撤销。账号页 UI
+> 已接入 canonical method list、双向 recent-auth/link、Cookie/CSRF 刷新与服务器重读，两条 actual Web
+> bundle 三条旅程已通过。session 已新增 password/google/null recent-auth provenance，普通登录
+> 不能冒充绑定前置证明；Provider adapter 已把 session refresh 与 manual link start 拆成两个可持久化
+> stage，数据库四阶段 flow 已接入 production Postgres adapter；重复已绑定请求现仅在完整 Web proof 与
+> 正确 recent-auth provenance 后返回稳定 409 `sign_in_method_already_linked`，stale Web 页面会重读权威
+> method list；当前状态为 `Phase B offline implementation complete; target-platform validation pending`。
+> Store/Web E2E support 均已纳入 strict TypeScript
+> 门禁。断开与换号不再是待处理矩阵；根 format/lint 阻塞已由 Phase 29 关闭，真实登录/部署、真实外部
+> 服务与双平台验收仍待处理。
+> PasswordRecovery 随后已完成全局审计、Supabase 官方 PKCE 行为复核和独立需求/技术/数据/测试/验收
+> 方案审查。R1 已按 RED→GREEN 增加 strict contracts/internal outcome、独立三操作 Provider port、共享
+> 逐 flow Supabase PKCE storage 与 recovery adapter；R2 已实现深模块、内存与 Postgres 状态机，覆盖本地
+> request、dispatch-before-provider、同 owner callback、过期、单写完成、dispatch/complete 前 eligibility
+> 重检、全 session 撤销和单通知事务。两张受限表、12 个 recovery 与 3 个 notification SECURITY DEFINER
+> 转换、forced RLS、业务 role 零直访和 cleanup 已进入 migration。R3-A 又完成五条公开 HTTP、dispatch
+> CRON、250ms start floor 与 production composition，R3-B 完成 notification-ID 幂等 sender port、120 秒
+> Postgres lease、有界退避与 fake sender。R4 已接入 Web strict client、独立 `/recover` 状态机与
+> production-bundle fake-mail journey；focused Web 17/17、专项 Playwright 1/1 覆盖另一浏览器最新邮件、
+> 旧邮件/replay、显式 callback、purpose Cookie、全 session 撤销、单通知与旧/新密码重登。当前 contracts
+> 62/62、API 102 files、360/360。真实 notification sender/CRON/告警受邮件厂商、verified sender、支持
+> 联系方式和部署配置门禁约束，Supabase/邮件/部署与双平台 Chrome 仍待 R5；状态严格保持
+> `R4 Web + actual bundle offline implemented; R3-C real notification sender and R5 target-platform
+validation pending`。R5 离线总审已通过 Web 184/184、完整 Playwright 105/105、instructions、workspace
+> typecheck/build、`pnpm test`、目标 lint/format 与 diff check；当时根级 format/lint 仍分别由既有 70 个
+> 文件和 `.agents/skills/**` 143 条错误阻塞，后由 Phase 29 关闭。详见
+> `docs/cloud-v1/password-recovery.md`。
+> 普通 Google 登录随后完成独立全局审计、产品/技术/数据/TDD/验收方案和实现前后复审。登录 handler 已
+> 改用 identity-owned strict 空 schema；普通/邀请 start 与共用 callback 固定 no-store，callback 成功/失败
+> 固定 no-referrer。actual `/login` production bundle 新增 active→`/app` full session、disabled→
+> `/settings/data` data-rights session、未登记 google method→统一失败/零 Cookie 三条 fake Provider
+> 旅程，并证明 flow/code 不作为 Referer 进入 Web。专项 3/3、完整 Playwright 108/108 通过；状态为
+> `implemented; target-platform validation pending`，详见
+> `docs/cloud-v1/google-authentication-acceptance.md`。
+> 随后的完整 V1 离线完成度审计不再以“production Web 入口矩阵无缺口”代替逐项证明。审计确认的两个
+> 本地缺口——production 语义重复建议与 AA token 可计算证据——现均已完成离线闭环。需求/技术/数据/
+> TDD/验收与实现前后审查已写入 `docs/cloud-v1/offline-completion-audit.md` 和
+> `docs/cloud-v1/semantic-duplicate-suggestions.md`；当前状态为
+> `Phase 28 S1–S5 implemented and verified; target-platform and real-service validation pending`。
+> A1 Fresh RED 实测 tertiary/canvas 仅
+> 3.27:1，
+> 新增 slate-500 映射后 normal text 全部组合≥4.5:1、focus ring≥3:1；专项 2/2、既有 styles 7/7 与 Web
+> strict typecheck 通过。S1 另完成语义建议 strict Idempotency-Key、Web 传键、API no-store/拒绝
+> `If-Match` 和稳定 409/429/502 error status；focused contracts 3/3、Web 12/12、API 7/7 与三包 strict
+> typecheck 通过。S2 已对照既有 paid Practice/Analysis 模式复审深 module seam，并完成固定 DeepSeek
+> Provider、paid generator、空候选零调用与费用/dispatch/alias/error 回归；S2 focused 12/12、API
+> 105 files / 374 tests、strict typecheck/build、instructions/architecture 与目标 lint/format 通过。Postgres
+> S3 又完成 restricted forced-RLS Postgres authority、原子费用结算、dispatch 前释放重领、dispatch 后
+> 保守失败、24h replay TTL 和 ≤100 cleanup；根侧复审补齐 CRON 未 dispatch 同 key 重领回归。focused
+> 4 files / 23 tests、API 107 files / 383 tests、strict typecheck/build、instructions/architecture 与目标
+> lint/format 通过。S4 已把固定 DeepSeek adapter、paid generator 与 Postgres authority 接入 production，
+> 并挂载 `CRON_SECRET` 保护的每分钟 cleanup。相同 owner/key 先处理 terminal replay/busy/conflict；只有新
+> generation 才执行精确价格预检、kill/quota-before-fetch、新 reservation 与 durable dispatch。Web 每次
+> 显式点击使用新 key、不自动重试，稳定失败保留详情，item/revision 变化清除并抑制迟到 suggestion。
+> actual `/library` production bundle 已走完 suggestion→preview→显式 confirm→target GET server reread，
+> 并证明公开 snapshot/Web Storage 不含正文、prompt、raw output、reservation 或 task。S4 fresh evidence
+> 为 API 109 files / 387 tests、Web 42 files / 191 tests、专项 Playwright 1/1、strict typecheck/build、目标
+> lint/format 与 instructions/architecture 全绿；根侧 focused 复验另为 API 9 files / 38 tests、Web 2 files /
+> 17 tests、Playwright 1/1。Cloud V1 可声明本地离线实现完成；真实 DeepSeek、Supabase/Vercel、邮件、
+> 多连接 production Postgres、双平台 Chrome 与发布动作仍待独立批准和验证。
+> S5 又完成 15 份权威文档收口，并以新鲜 workspace 证据通过 typecheck/build、114/114 Node 脚本、
+> 443 个 Vitest 文件（2,714 passed / 12 skipped）、Playwright 109/109、instructions 与 architecture。
+> 目标文档和本阶段文件的 lint/format 通过；当时根级 format/lint 仍分别由 70 个既有文件与
+> `.agents/skills/**` 的 143 条既有错误阻断，不属于 Phase 28 回归；该历史阻断已由 Phase 29 关闭。
+
+- 当前产品线是 Store Extension + Web App；BYOK 只是插件查询模式。账号级模式默认 platform，可在 Web
+  全局切为 byok，各设备 Key/Provider 仍只在本机；任一失败都不自动 fallback。
+- 插件 platform/BYOK 都只显示 compact ExtensionQueryResult。平台正文/结果最多保留一小时，BYOK 结果
+  零上传；两者均不进入 AnalysisRecord/历史。Web 的 V2 深度分析独立消耗平台额度，只分析 phrase/
+  sentence/passage，并只产生 Expression/SentencePattern 候选。
+- 新 StudyCapture 只保存原始学习意图，支持 manual/automatic、exact dedupe、created-only 当前卡 undo、
+  CaptureInbox→显式分析/reanalysis→ReviewInbox。分析请求在模型前持久化并锁住 capture revision；首次
+  失败恢复 pending，重新分析失败保留旧 latest；刷新后可从脱敏 running requestId 查询同一请求。
+- LocalLexiconEntry 是每个安装的独立正式数据。登录/换号不清本机词库；CloudWordCopy 是可关闭的
+  future-only 独立副本，历史本机生词只经显式数量预览和二次确认导入。
+- 文档权威入口为 `docs/cloud-v1/extension-query-and-study-capture.md`，ADR-0019/0020/0021 及 Cloud 核心
+  文档。Phase 27 文档已复审；CloudWordCopy 与 TTL 定时清理已完成离线实现，首条 actual Web/Store
+  StudyCapture 跨端 journey，以及 automatic/created undo/existing/offline/revision race journey 已通过；
+  platform query 成功/额度失败无 fallback journey 也已通过；CloudWordCopy local-first、关闭零写入和离线
+  恢复联合 journey 已通过；201 词显式历史批量导入和账号断开保留本机词也已完成离线 actual Store/Web
+  联合验收；换号的新 session 隔离和本机保留也已完成。真实部署与双平台验收仍缺，因此不得据此开放
+  邀请或发布。
+- 本轮 fresh 离线门禁通过 instructions、architecture、全 workspace typecheck/build、114/114 Node 脚本、
+  423 个 Vitest 文件（2,628 passed / 12 skipped）、104/104 Playwright，以及本任务文件的精确 ESLint/
+  Prettier。当时根 `format:check` 仍被 70 个既有文件阻断，根 `lint` 仅被 `.agents/skills/**` CJS 资产的
+  143 个错误阻断；本轮已清除同一受影响 Web 测试中的两个既有 lint 错误，未改动其余非本任务文件。该
+  根阻断后由 Phase 29 关闭；目标平台验证仍未写成已完成。
+- Phase B recent-auth/provenance/manual-link 当前 fresh 证据为两种 link HTTP 12/12、深模块恢复 2/2、
+  专项 PGlite 4/4、Supabase adapter 4/4、API 包 94/94 文件与 323/323 测试；API strict typecheck/build、
+  目标 ESLint/Prettier 与 instructions/architecture/diff-check 均通过，最后组合/migration 改动另有 focused
+  20/20 回归。Web identity 16/16、登录方式 component 4/4、Web 包 38 文件/175 测试、三条 actual
+  bundle journey 均通过；上一条 Phase A 全量证据保持有效但不冒充本增量全量
+  证据。
+- Cloud release audit 已补齐 Phase 27 公开材料规则：缺少账号偏好、无自动 fallback、StudyCapture 原始
+  意图或本机词库/CloudWordCopy 独立边界时固定失败；旧 `analyses:import`、`pendingReview import` 和登录
+  BYOK 完整结果上传口径也固定失败。当前开发态仍只因最终隐私事实、候选公开配置与 Store null-origin
+  按设计失败关闭。
+- `GET /v1/account` 已完成需求/技术方案复审与离线 TDD：聚合规范邮箱、完整五项偏好、当前有效
+  Extension session 和公开最低版本；拒绝旧孤立契约伪造的账号 consent/status，quota 保持独立模块。
+  Contracts 3/3、API 8/8、Web 28/28 focused 与 actual Web 账号页均通过，详见
+  `docs/cloud-v1/account-profile.md`；真实登录/部署仍待。
+- LearningItemArchive 已完成需求/技术/TDD 方案、领域术语、离线实现与实现后复审：归档只停止未来练习，
+  完整保留排期、来源、标签和既有 PracticeSession，恢复沿用原排期；strict contract、bootstrap migration、
+  Postgres 锁/幂等、queue/session、账号导出、Web 二次确认/筛选和 actual bundle 归档恢复旅程均已接线。
+  不可逆删除已单列为 LearningItemErasure；归档状态为 `implemented; target-platform validation pending`，详见
+  `docs/cloud-v1/learning-item-archive.md`。
+- LearningItemErasure 已完成需求/技术/数据权/TDD 文档、实现前后复审与离线实现：已练习项须先归档，
+  仅在引用 session 安全终态后清除正文、identity、来源、标签、系统属性和排期；PracticeSession 独立
+  保留，最小墓碑在最后引用删除后清理。contracts、Postgres、Practice replay/history、账号导出、Web
+  与 actual bundle journey 均已通过，状态为 `implemented; target-platform validation pending`，详见
+  `docs/cloud-v1/learning-item-erasure.md`。
+- Store DeviceDisconnect 已完成需求、技术、数据、安全、TDD、验收方案与 ADR-0022：动作由“只忘记
+  本机”校准为当前 token singular self-revoke 204 后再清本机会话/账号绑定队列；网络失败必须保留撤销
+  能力。contracts、SQL/API、Postgres adapter、Store manager、Popup 与 actual bundle 离线实现和实现后
+  复审均已完成；focused 53/53、workspace Vitest 2580 通过/12 跳过、Playwright 93/93 通过。状态为
+  `implemented; target-platform validation pending`，详见 `docs/cloud-v1/extension-session-disconnect.md`。
+- Phase 19 AdminOperations 的 contracts/Postgres/API/Web 组件闭环仍有效；2026-08-14 全局复审发现并
+  修复 actual Web production bundle 证据缺口。独立 strict helper 与两条 journey 已覆盖 Operator 四区、
+  literal 筛选、停用、一次性邀请、kill switch、服务器重读和非 Operator access 403 后零下游读取；
+  focused 2/2 与完整 Playwright 96/96 通过，状态为
+  `implemented; target-platform validation pending`。真实角色、部署近期认证、告警与备份恢复仍 pending。
+
+- 已确认 Extension 查询 + Web 学习工作台、云端学习数据唯一权威、React/Vite + Hono、
+  Supabase/Vercel、DeepSeek 平台额度与本机 BYOK 并存的产品和技术路线。
+- 已建立产品、架构、数据模型、API、安全、测试、运营、隐私、发布和分阶段开发文档，以及 superseding
+  ADR；Phase 0 文档审阅与 Phase 1 工程骨架已经完成主任务验收。
+- 已创建 `learning-domain`、`cloud-contracts`、`api` 和 `web` workspace，加入离线 fake、Vercel
+  入口/环境 schema、runner 与架构夹具。Phase 2 已实现严格领域模型、规范键、候选确认与非覆盖合并、
+  固定排期、micro-USD 计算、`/v1` Zod 契约和共享 fixture；Store 的既有分析结果与词头规范化通过
+  `learning-domain` 公开 seam 复用。Phase 2 定向测试为 learning-domain 14、cloud-contracts 15、
+  Store 兼容 32，API/Web/Store Extension 各 1 条共享 fixture；全量 typecheck、build、架构与定向
+  ESLint/Prettier/diff 检查通过。
+- Store 当前阶段已提交并成为后续双端同步开发的基线；最新 bundle budget 定向测试 4/4 通过，旧的
+  两项 bundle 红灯不再是当前状态。根 `format:check` / `lint` 是否仍受用户已有、未跟踪的
+  `.agents/skills/**` 设计资产影响，必须以每次全门禁的新鲜结果单独归因。
+- Store Extension 现有本地候选代码将作为查询、Provider、DeviceVault 凭据、YouTube 和外部词典
+  能力的迁移来源；不开发旧本地 WordEntry 用户数据迁移器。
+- Phase 3 已实现 Hono→Postgres/Supabase adapter、核心迁移、强制 RLS、邀请/Auth flow、Web session、
+  CSRF/CORS、Extension 配对、额度/价格/账本、限流与管理审计，PGlite 离线迁移与跨租户矩阵通过。
+  Phase 3 定向 API 测试为 80/80；当时全量单元测试为 2,044 passed、12 skipped；全量 typecheck 和离线
+  E2E 66/66 通过。当时根 format/lint 仍被未跟踪 `.agents/skills/**` 资产以及既有
+  `docs/cross-platform-development.md` 格式阻断，受影响 API/契约/Cloud 文档范围的 ESLint/Prettier
+  已通过；该历史阻断后由 Phase 29 关闭，真实服务、多连接数据库竞争与目标浏览器仍未运行。
+  状态为 `Phase 3 foundation implemented; external production validation pending`。Phase 4 首个
+  分析/历史切片已实现 fake-model 用例、SSE、断线状态、BYOK 导入、租户隔离历史，以及 Web/Store
+  共用契约上的真流式 HTTP adapter；生产组合已将 AnalysisRecord、Candidate、UsageLedger 与额度结算
+  放入同一 Postgres 事务，Web 写请求要求 Cookie+Origin+CSRF，插件请求使用可撤销设备 token。
+  DeepSeek 平台 adapter 已离线实现固定模型、thinking high、严格 JSON、90 秒总超时、一次仅修结构、
+  reasoning 丢弃、逐调用 token/费用账本，以及部署单价和不可变数据库价格快照完全一致的失败关闭；
+  数据库请求生命周期已进一步实现跨实例运行中去重、terminal 重放、4 分钟租约 fencing、5 分钟
+  额度预留和过期保守结算；完整分析历史 API 切片也已实现签名 cursor/keyset 分页、五类筛选、详情、
+  nothing-to-save、归档、恢复、删除、revision/幂等事务及 Web/Store adapter。候选确认切片已实现
+  Word/Expression/SentencePattern 严格路由、混合批次原子 create/merge、精确重复冲突、可信来源快照、
+  revision/幂等/RLS 与 Web/Store adapter。API focused tests 为 127/127，cloud-contracts 为 19/19、
+  learning-domain 为 15/15、Web 为 8/8，Store confirmation adapter 为 5/5；2026-08-13 候选确认切片
+  根任务复验
+  `check:instructions`、`check:architecture`、全 workspace typecheck/build、受影响范围 ESLint/Prettier、
+  diff 检查、2,107 passed/12 skipped 全量单元与集成测试及 66/66 离线浏览器 E2E 均通过。随后首个
+  Web/Store UI 切片完成，根任务再次复验为 2,127 passed/12 skipped，离线浏览器 E2E 仍为 66/66；
+  并使用本地 fake API 在真实浏览器验证桌面、390px 窄屏、候选编辑/确认、空态、无横向溢出和零
+  控制台错误。真实
+  DeepSeek 模型/价格能力核验与跨端 journey 当时仍未完成；学习库/语义重复建议和完整历史 Web UI 后续
+  已形成离线纵向切片，Phase 28 又补齐语义建议 actual-bundle；不得解释为可邀请注册、已部署、已通过真实
+  DeepSeek/Supabase/Chrome 或已具备商店候选资格。
+- Phase 5/6 首个 UI 切片已实现：Web 现在有复用三层品牌 token 的可访问 App Shell，以及待整理列表、
+  详情、候选字段编辑/勾选、原子批量确认和无需收藏闭环；loading/empty/error、精确重复保留草稿、
+  键盘焦点交接、窄屏与 reduced-motion 均有离线覆盖。生产入口以严格 `VITE_API_ORIGIN` 和 Cookie
+  CSRF bootstrap 接线，缺配置失败关闭。本切片 Web focused tests 为 19/19，Web/Store/store-domain
+  typecheck 与 build、Store 入口 focused tests 43/43、完整 Store + store-domain 离线测试 411/411、
+  受影响 ESLint/Prettier、架构与 diff 检查均通过。
+- Store 浮层在终态查询结果下显示“整理与收藏在 Web 完成”，只发送无 URL/analysisId/token 的严格
+  命令，由 Service Worker 决定发布期固定 HTTPS 目标；当前正式 Web 目标尚未配置，因此入口会显示
+  失败，不会打开 `.example` 或任意页面，Manifest 也没有增加 `tabs` 权限。完整登录/邀请、Extension
+  配对/session、语义/精确查重目标选择、完整跨端 journey、真实 Vercel/Supabase/Chrome 环境仍未
+  完成；本切片不得解释为 Phase 5/6 完成或可邀请用户使用。
+- Phase 5/6 账号配对客户端纵向切片已离线实现：Web 以 Cookie + 固定 Origin 的 CSRF bootstrap
+  区分登录态，并提供固定 pairing ID 的显式设备标签审批；未登录会进入真实密码登录页。API 复用
+  既有 Postgres pairing/session authority，一次 exchange 后公开轮询返回
+  404，不泄露 consumed 或设备标签。Store Service Worker 生成 state/PKCE、固定间隔有界轮询、交换并
+  使用 DeviceVault DEK 下的专用 envelope 加密 pending/session；通用 CredentialSlot、Options 和
+  Content Script 不获得 token 能力。Popup 只显示脱敏状态，并把本地删除明确标为“本机断开”。
+  2026-08-14 复审另发现 `api.md` 对 approve 的 Idempotency-Key/If-Match 描述与一次性状态机不一致，现已
+  校正为 body revision + GET approved 恢复；production `/pair-extension/:id` actual-bundle 审批旅程已按
+  `docs/cloud-v1/pairing-approval-acceptance.md` 完成：披露文案、三项偏好、consent、一次批准与 reload GET
+  approved 均通过，完整 Playwright 99/99。状态为
+  `implemented; target-platform validation pending`。
+- 生产 `HUAYI_CLOUD_API_ORIGIN` 与 `HUAYI_WEB_WORKSPACE_URL` 仍为 null，因此当前发布组合保持
+  not-configured，不会调用真实服务或打开保留域名。真实 Supabase/Vercel/Google/邮件/Chrome
+  journey、平台云分析和当时尚未开始的 outbox 仍未实现或验证；后续 BYOK outbox 切片状态见下文，
+  不能据此宣称 Phase 5/6 完成或
+  产品可用。
+- 2026-08-13 根任务对账号配对切片再次执行全仓门禁：`check:instructions`、架构、全 workspace
+  typecheck/build、2,145 passed/12 skipped 全量单元与集成测试及 66/66 离线浏览器 E2E 均通过；本地
+  fake API 的真实浏览器验收也覆盖设备名输入、审批提交、品牌化成功态和零控制台错误。该次证据不
+  替代真实登录、发布 origin 或 Chrome 跨端配对 journey；服务端撤销由后续账号设备管理切片覆盖。
+- Phase 5/6 账号设备管理切片进一步实现 Web `/settings/devices`：登录 bootstrap 后严格列出服务器
+  有效的 Extension session 元数据，覆盖 loading/empty/error/retry、窄屏、二次确认、焦点交接、撤销
+  成功和失败保留。DELETE 继续要求 Cookie + 固定 Origin + CSRF；Hono 与 embedded Postgres 测试证明
+  跨账号 ID 不可撤销，只有 owner 撤销后设备才从权威列表消失。页面不接收 token，并明确说明 Store
+  Popup“本机断开”只删除本机凭据，不等同于服务器撤销。
+- 2026-08-13 根任务对设备管理切片复验：`check:instructions`、架构、全 workspace typecheck/build、
+  2,152 passed/12 skipped 全量单元与集成测试及 66/66 离线浏览器 E2E 均通过；本地 fake API 的真实
+  浏览器验收覆盖设备元数据、二次确认焦点、服务器撤销、成功播报和空态。该证据不替代真实登录、
+  Supabase/Vercel 或 Store↔Web 跨端撤销 journey。
+- Phase 5/6 邀请与 Web 认证切片已离线实现：`/join#<token>` 的 fragment 不发送给托管/CDN，Web 以
+  严格 JSON body 和 `no-referrer` 领取后立即清除地址栏，
+  claim ticket 只在组件内存与固定 API 原生 Google POST 的隐藏 body 中短暂存在；Google start 同时
+  保持严格 JSON 兼容，并拒绝 form 的额外、重复、缺失、过长/非法字段和错误 Content-Type。邮箱密码
+  注册区分邮件验证等待与即时 Cookie session，`/login` 只在严格服务端成功后进入工作台；客户端不
+  直接使用 Supabase，也不伪造 Google 成功。
+- 2026-08-13 根任务安全复审发现并修复了最初 `/join/<token>` 可能进入托管/CDN path 日志的问题，
+  改为 fragment 路由并增加旧路径拒绝、邀请响应契约和 `no-referrer` 回归。复验通过全 workspace
+  typecheck/build、2,167 passed/12 skipped 全量单元与集成测试、66/66 离线浏览器 E2E，以及本地真实
+  浏览器的品牌化登录页与旧邀请路径拒绝检查。
+- 生产 API/Web origin 仍为 null，Store 本机断开也没有主动调用服务器退出。普通 Google 登录、双向
+  身份绑定和邀请到学习项的 actual-bundle 离线组合已实现；真实 Supabase/Vercel/Google/邮件、部署
+  Cookie/Domain、Chrome 跨端配对/撤销仍未验证，不能据此关闭 Phase 5/6、开放邀请或宣称产品可用。
+- Phase 5/6 登录 BYOK SubmissionOutbox 切片已离线实现：Store Service Worker 只在固定 API 配置与
+  活动 session 同时存在时，把严格终态、可信来源、公开 model/prompt/schema version 转成既有
+  `/v1/analyses:import` 内容；现有结果没有 Candidate 时保持空数组，不伪造深度分析。正文以 DeviceVault
+  DEK、独立 AAD/envelope 加密，限制 20 条/5 MiB/7 天，并由 alarm 使用稳定幂等键恢复 transient 失败。
+- 401/403、过期、本机断开、新 session 或撤回联网同意会在请求前清除账号绑定队列；永久无效项单独
+  丢弃。未登录、未配置和用户关闭后迟到的结果保持 local-only，Content Script/Options/Popup 消息与
+  Manifest 均未扩权。API
+  幂等接收后使用同一 CloudAuthority 保存 `pendingReview`，既有 Web Inbox 可见，不新增第二权威。
+- 生产 `HUAYI_CLOUD_API_ORIGIN` 仍为 null，因此发布组合尚不会真实排队/上传；Popup 已可查看脱敏聚合
+  状态、复用原幂等键手动重试并二次确认清空本机队列，但不提供逐项正文管理。真实断网恢复、
+  Store→API→Web 浏览器 journey、远程撤销即时推送和平台模型客户端仍未完成
+  或验证，不能据此关闭 Phase 5/6。
+- 2026-08-13 根任务对 SubmissionOutbox 切片复验：`check:instructions`、架构、全 workspace
+  typecheck/build、2,186 passed/12 skipped 全量单元与集成测试及 66/66 离线浏览器 E2E 均通过；独立
+  审阅确认断开后晚到结果不捕获、撤回同意不上传、换号/过期/鉴权失败会清队列，且 Content/Options
+  没有获得 token 或正文能力。该证据不替代真实离线恢复或 Store→API→Web Chrome journey。
+- 2026-08-13 根任务对 Popup 脱敏 SubmissionOutbox 管理再次复验并补齐断开后的聚合重读、当时 API
+  配置消失时清理旧队列和规范 ISO 时间校验；其中 adapter 缺失清理口径已由 2026-08-14 Phase 27F-R
+  supersede 为保留密文与 counted `not-configured`：当时全 workspace typecheck/build、2,323 passed/12 skipped 全量
+  单元与集成测试、既有 66 条离线浏览器 E2E、instructions/architecture、受影响 ESLint/Prettier 与
+  diff 检查均通过。根 `lint`/`format:check` 仍只被未跟踪 `.agents/skills/**` 资产及既有
+  `docs/cross-platform-development.md` 阻断；真实断网和 Store→API→Web Chrome journey 未验证。
+- Phase 5 Web 粘贴分析切片已离线实现 `/analysis`：登录 bootstrap 后以 strict manual 请求、Cookie、
+  固定 Origin、CSRF 和新幂等键消费既有 SSE；页面覆盖 started、临时 preview、completed、failed、
+  保留输入重试、AbortSignal 取消/迟到抑制，以及 started-only 后 owner-scoped status 查询。只有严格
+  完成才交接到既有 `/app` 待整理权威，不建立本地记录；running 不伪造完成或自动重跑。页面包含
+  2,000/500 字符边界、键盘可达控件、live region、窄屏单列和 reduced-motion。当前取消只停止本页
+  等待，不是服务器任务撤销；真实 DeepSeek/部署网络、真实登录账号和分析→整理浏览器 journey 仍未
+  验证，Phase 5/6 与总体目标保持 open。
+- 2026-08-13 根任务对 Web 粘贴分析切片复验：`check:instructions`、架构、全 workspace
+  typecheck/build、2,196 passed/12 skipped 全量单元与集成测试，以及既有 66/66 离线浏览器 E2E
+  均通过；受影响 Web/Cloud 文档的 ESLint、Prettier 和 diff 检查也通过。既有 E2E 只覆盖扩展离线
+  journey，不替代 Web `/analysis` 在真实登录、SSE 代理、平台模型和部署环境中的端到端验收。
+- Phase 5 学习库只读切片已实现 strict list/detail、服务器筛选与 due/new 时钟、Postgres tenant
+  transaction/强制 RLS、最近 completed practice 最小摘要，以及 Web `/library` 列表、详情、筛选、
+  分页和恢复状态。根任务复审进一步用 HMAC 上下文分离阻止分析历史与学习库 cursor 跨资源复用，并
+  用运行代次抑制 Web 旧列表/详情响应覆盖最后一次操作。后续手动创建、维护安全子集与练习切片已接入；
+  真实登录、部署 Postgres 查询计划与 Web 学习库浏览器 journey 仍待验证。
+- 2026-08-13 根任务对学习库只读切片最终复验：全 workspace typecheck/build、2,212 passed/12 skipped
+  全量单元与集成测试、既有 66/66 扩展离线浏览器 E2E、instructions/architecture、受影响
+  ESLint/Prettier 与 diff 检查均通过。两条新增 RED 分别证明同密钥跨资源 cursor 原先会被接受、旧列表
+  响应原先会覆盖新筛选；修复后双向 cursor 领域分离和列表/详情竞态均有回归覆盖。既有 E2E 仍不替代
+  Web `/library` 的真实浏览器 journey。
+- Phase 5 学习库首个只读切片已离线实现：共享契约新增 LearningItem + ScheduleState + 最近 completed
+  practice 最小摘要的 list/detail 与固定 GET routes；API 深模块使用独立签名 keyset cursor，Postgres
+  adapter 在 tenant transaction/forced RLS 中执行 type/tag/systemAttribute/query/due/new 筛选、详情和
+  最近练习查询，跨账号 UUID 与不存在统一 404。Web `/library` 提供登录后列表、详情、服务端筛选、
+  分页、loading/empty/error/retry、详情焦点/live region、窄屏和 reduced-motion；页面不建立第二权威。
+  本切片没有修改 migration，也不实现 create/patch/delete/merge、语义建议或练习。真实部署账号、数据
+  规模查询计划与浏览器 journey 仍未验证，总体目标保持 open。
+- Phase 5 学习库手动收录切片已离线实现 strict POST + Idempotency-Key、Web Cookie/Origin/CSRF、
+  Postgres tenant transaction 原子创建 item/level -1 schedule/规范化标签，以及两类 Web 表单、duplicate
+  草稿保留和成功后的 server list/detail 重读。维护与练习由后续 Phase 10/8/9 安全子集补齐；真实部署
+  仍未验证。Cloud 未发布 bootstrap 0001 的 allowlist 有变，既有开发库需重建。
+- Phase 10 学习库维护切片已离线实现 strict PATCH/DELETE/semantic suggestion/merge preview+confirm、
+  Postgres owner/RLS/revision/idempotency transaction，以及 Web 类型专属编辑、二次删除确认与显式合并。
+  当前删除实现只开放未练习 hard-delete；安全合并 source 必须未练习且 level -1，target schedule 保留，删除/合并
+  后同 key 从 response snapshot 重放。production 语义模型 fail-closed；已练习项目的可逆 archive 已于
+  2026-08-14 完成离线实现与 actual bundle 旅程；不可逆 LearningItemErasure 也已完成实现前后复审、
+  离线实现与 actual bundle 旅程，真实模型 quota/claim/lease、真实多连接数据库、登录/部署浏览器 journey
+  尚未验证。bootstrap 0001 allowlist 有变，
+  既有开发数据库需重建。
+- Phase 8 最小主动练习已离线实现：strict daily queue/session/attempt/retry/rating contracts，Postgres
+  timezone/due-first/new-fill、PracticeAttempt、反馈 lease fencing 和排期一次推进，以及 Web `/practice`
+  队列→作答→反馈→来源→自评闭环。
+- Phase 9 受约束对话已离线实现：strict 1–3 items、3–5 round、turn-first、start/assistant/final generation
+  lease fencing、显式 retry、逐项反馈、刷新恢复与多项原子自评。production practice/dialogue model 明确
+  fail-closed；quota ledger、历史与删除已在后续阶段接线，练习历史 actual-bundle 补充验收也已完成；
+  当前只缺真实模型/登录部署浏览器验证。bootstrap 0001 有新字段/索引，既有开发库需重建。
+- Phase 9 根审阅补齐对话请求丢响应后的权威重读与草稿保留/清空，并禁止 pending start 暴露内部
+  prompt 占位；模型失败的成功 HTTP 投影也只播报处理中，不再误报“已更新”。
+- Phase 11 练习历史与单次删除已离线实现：strict summary/detail/delete 契约，独立签名 completion cursor，
+  2026-08-14 复审确认 contracts/API/Postgres/Web 组件证据仍有效，并按
+  `docs/cloud-v1/practice-history-acceptance.md` 补齐 production `/practice/history` actual-bundle 组合旅程：
+  删除后 history server reread 为空，LearningItem/ScheduleState 仍以两个 `DUE` 项由 `/practice` 重读；
+  focused 1/1 与完整 Playwright 97/97 通过。状态为
+  `implemented; target-platform validation pending`；真实身份、数据库和部署验证继续 pending。
+  Postgres owner/RLS status/type 查询与完整造句/对话投影，Web `/practice/history` 的筛选、分页、详情和
+  二次确认删除。历史如实包含未完成正式 session，但只允许删除无 worker lease 的 completed（已评分或
+  未评分）；删除不回滚 LearningItem 排期或删除 SourceExample，同 key 从删除前 snapshot 重放。
+  production origin 仍 fail-closed，真实登录/部署浏览器 journey 未验证；bootstrap 0001 有新字段/allowlist，
+  既有开发库需重建。
+- Phase 12 生词管理已离线实现：strict WordEntry core/list/detail/context-page/notes PATCH/whole-word DELETE，
+  独立 word/context 签名 cursor，Postgres normalized literal 搜索、forced RLS、revision/幂等 snapshot，以及
+  Web `/words` 搜索、分页、语境、备注和二次确认删除。ContextObservation 与词头 identity 不可编辑；
+  ExternalWordbookItem 已引用时拒绝删除以保留任务历史，不实现单词 SRS。外部词典任务、真实
+  Eudic/Shanbay、真实登录/部署浏览器 journey 尚未完成。bootstrap allowlist 有变，dev DB 需重建。
+- Phase 17 手动生词收录已离线实现：strict POST 只接受词头、仅创建时 notes 与可选手动语境，服务器固定
+  manual/now/ID；Postgres owner-RLS 事务按 canonical 收敛词条、内容 hash 去重语境、保留既有 notes，
+  只在真实追加时推进 revision，并支持 `word.upsert` replay/conflict snapshot。Web `/words` 新增可访问
+  表单、duplicate/created/existing 诚实状态、失败草稿保留与 list/detail 写后重读。无新表；bootstrap
+  allowlist 有变，dev DB 需重建。单条 context mutation 与外部词典任务仍未开放。
+- Phase 7 外部词典桥接已完成需求/技术复审并拆为 7A 云任务权威、7B Store Extension 桥接、7C
+  WordListExport/联合验收；详见 `docs/cloud-v1/external-wordbooks.md`。复审确认旧 lease shape 与
+  `word_entry_id` 前置无法表达 Eudic page，且旧 Store 本地 outbox 与 CloudAuthority 冲突；文档已改为
+  import cursor lease、export snapshot item、nonce/hash-only fencing、Shanbay 本机别名和取消迟到语义。
+  当前已离线实现 strict contracts、Postgres RLS/job/item/nonce lease/receipt authority、Web
+  `/words/wordbooks`、Extension-only HTTP adapter、Eudic 云租约执行、Shanbay 独立加密 lease vault/本机
+  别名，以及 owner UTF-8 互操作词表下载。Store production 已停止向旧本地 outbox 写入正式任务，Options
+  只保留 Eudic credential 并指向云任务权威；production origin 仍 fail-closed。当前 actual Web/Store
+  联合层已覆盖 Eudic export/import、稳定失败显式重试、Shanbay 人工确认/两词部分成功、active cancel
+  与当前租约迟到回执，完整 Playwright 93/93 通过；真实 Eudic/Shanbay、真实登录/部署/Chrome
+  与部署后联合 browser journey 未验证，因此不能声称真实第三方系统集成完成。
+- Phase 13 完整分析历史 Web UI 已离线实现：`/history` 复用现有 strict history adapter，支持服务器搜索、
+  reviewState/archived/sourceType/selectionKind 筛选、签名游标分页、完整 AnalysisRecord/候选/来源/公开模型
+  元数据的纯文本结构化详情，以及 nothing-to-save、归档、恢复和二次确认删除。归档与整理状态独立；
+  mutation 成功后重新读取服务器，刷新失败会如实保留“写入已完成”，list/detail/action 迟到响应均被
+  generation guard 丢弃。2026-08-14 已按 `docs/cloud-v1/analysis-history-acceptance.md` 补齐 production
+  `/history` actual-bundle 维护闭环：revision 1→2→3→4、review/archive 正交、四次有效写和默认 linked
+  StudyCapture 删除均通过，完整 Playwright 98/98。状态为
+  `implemented; target-platform validation pending`。未新增契约、API、表或 migration；真实登录/部署
+  浏览器 journey 尚未验证。
+- Phase 14 账号平台额度可见性已离线实现：fixed `GET /v1/quota` 只接受 Web Cookie，从现有 Postgres
+  current grant、UsageLedger 与 active reservation 权威返回 strict UTC 月度投影；Web `/settings/account`
+  显示 limit/used/reserved/remaining/percent、80% warning、committed exhausted、0 grant 空配置和 BYOK
+  排除说明。production 继续使用严格 API origin/fail-closed 组合，未新增 migration。完整 `GET /v1/account`
+  profile/consent、真实登录/部署浏览器 E2E 与平台模型真实额度消费仍未实现或验证。
+- Phase 18 账号数据权利已完成离线实现与自动化验证：完整导出采用 owner-RLS job、strict
+  NDJSON、24 小时 private object 和 15 分钟 signed URL；永久删除采用独立于 user_profiles 的可恢复
+  AccountDeletionJob，在请求返回前撤销 session/pairing，再以 fenced worker 清理 export object、主库
+  与 Supabase Auth，完成后清除 subject UUID。审阅拒绝同步 JSON、随账号级联删除 job、先删 Auth 和
+  “签 URL 即下载完成”等不完整路线；另发现 disabled 账号当前无法行使数据权利，方案已要求新增只允许
+  导出/删除/退出的 DataRightsSession，并补齐仅为既有 profile 建 session 的普通 Google login flow，确保
+  Google-only 账号也可重新认证且不绕过邀请。当前 strict contracts、Postgres authority、可恢复
+  worker/cron、Supabase service-role adapter、普通 Google 登录、DataRightsSession 和 Web
+  `/settings/data` 均已接线。2026-08-14 实现后复审发现并修复 actual Web 导出下载/删除 journey 缺失及
+  删除 accepted 后仍保留账号控件的问题：页面通过 `onAccountDeleted` 把会话转换交还 Cloud App，
+  actual bundle 已验证 strict proof、服务器重读 ready、新窗口 signed URL、Cookie 清除、signed-out 与
+  后续 401；focused Web 11/11、全 workspace 411 个 Vitest 文件（2,582 passed / 12 skipped）与完整
+  Playwright 94/94 通过。状态为 `implemented; target-platform validation pending`；真实
+  Supabase/Vercel、登录与部署数据库仍待验证，整体目标保持 open。
+- 2026-08-13 根任务对 Phase 18 完成复验：101 个脚本测试、353 个 Vitest 文件（2,397 passed/
+  12 skipped）、全 workspace typecheck/build、既有 66 条扩展离线浏览器 E2E、instructions/architecture、
+  Phase 18 定向 ESLint/Prettier 与 diff 检查均通过。全仓 ESLint/Prettier 仍被用户已有未跟踪
+  `.agents/` 设计技能资产和既有 `docs/cross-platform-development.md` 格式阻断；未擅自改写无关文件。
+  这些离线证据不替代真实 Supabase Storage/Auth、Vercel Cron、部署 Cookie/CSRF 和账号导出/删除浏览器
+  journey。
+- Phase 19 管理运营台已完成需求/技术方案、只读审计和离线实现：固定受限 Operator、规范化登录邮箱
+  投影、users/invitations/audit 独立签名 cursor、当前 UTC 月无正文 usage、幂等管理事务、严格账号
+  状态机和 kill switch；旧非幂等 admin HTTP 写入已移除，停用会原子撤销 Web/Extension session 并过期
+  pairing，deleting 不可恢复。Web `/admin` 已覆盖分区错误/重试、筛选/分页、一次性邀请 path、额度、
+  设备、账号状态、无正文审计、二步确认、焦点/live region 与响应式边界。方案见
+  `docs/cloud-v1/admin-operations.md` 与 ADR-0017；真实 Supabase/Vercel/Postgres、Operator 浏览器、告警
+  和备份恢复演练仍 pending。
+- 2026-08-13 根任务对 Phase 19 完成复验：101 个脚本测试、359 个 Vitest 文件（2,416 passed/
+  12 skipped）、全 workspace typecheck/build、既有 66 条扩展离线浏览器 E2E、instructions/architecture、
+  Phase 19 定向 ESLint/Prettier 与 diff 检查均通过。全仓 ESLint/Prettier 仍只被用户已有未跟踪
+  `.agents/` 设计技能资产和既有 `docs/cross-platform-development.md` 格式阻断；未擅自改写无关文件。
+  这些离线证据不替代真实 Supabase/Vercel/Postgres、Operator 浏览器、告警与备份恢复演练。
+- Phase 20 公开信任页与商店披露已按方案审阅并离线实现：Web 精确 `/privacy` 在 API Origin 与登录前
+  分流，登录页可达，页面不发远端请求且公开服务器可读、BYOK 本机秘密、第三方接收方、保留/数据
+  权利和 Limited Use；Cloud 专用 listing 已取代旧纯本地产品口径，Manifest 权限/host 与披露矩阵进入
+  自动回归。本机 Chrome 已检查桌面与 320px/reduced-motion，窄屏无横向溢出。方案与外部阻塞见
+  `docs/cloud-v1/release-trust-surfaces.md`。
+- 2026-08-13 根任务对 Phase 20 完成复验：101 个脚本测试、362 个 Vitest 文件（2,424 passed/
+  12 skipped）、全 workspace typecheck/build、66/66 既有扩展 E2E、instructions/architecture、受影响
+  ESLint/Prettier 与 diff 检查均通过。运营主体/联系方式、真实区域/备份期限、生产 URL、Dashboard
+  问卷与商店人工预审仍 pending，因此页面保持“预发布”，不得宣称 Chrome Web Store 就绪。
+- Phase 21 Cloud 候选证据审计已完成离线实现：新增独立 `check:cloud-release` 深模块，使用四个公开候选
+  标识核对 Store 源码/bundle/Manifest/CSP、Web 本地资产与隐私页、正式政策和 Cloud listing；输出只有
+  稳定 code/固定文案，不读取 secret 或访问网络。既有 `check:store-release` 的无参数 Store 1.0 profile
+  保持不变，Cloud host 只能经显式 expected profile 接受。当前真实开发态按预期被预发布政策、四项
+  缺失候选配置和两个 null runtime origin 阻断，未填入虚构生产值。方案与证据见
+  `docs/cloud-v1/release-evidence.md`；ready 仍不能替代真实部署、Dashboard、双平台 Chrome 或商店人工
+  预审。
+- 2026-08-13 根任务对 Phase 21 完成复验：107 个脚本测试、362 个 Vitest 文件（2,424 passed/
+  12 skipped）、全 workspace typecheck/build、66/66 既有离线浏览器 E2E、instructions/architecture、
+  受影响 ESLint/Prettier 与 diff 检查均通过。`check:store-release` 继续通过；`check:cloud-release` 在真实
+  开发构建上按预期只返回预发布政策、四项公开候选配置及两个 runtime origin 阻断。全仓 lint/format
+  仍只被用户已有 `.agents/` 设计技能资产和既有 `docs/cross-platform-development.md` 格式阻断；未改写
+  无关文件，也未运行真实服务、Provider、安装或商店上传。
+- Phase 22 Cloud 离线浏览器联合验收已完成实现：Playwright 现在同时发现原 66 条 Extension journey 与
+  4 条 Cloud journey；实际 Web production bundle 通过同站 HTTPS 保留域本地提供，stateful fake
+  authority 严格裁决 CORS/Cookie/CSRF/revision/幂等，packaged Store Content Script 通过生产
+  AnalysisSession、SubmissionOutbox、alarm/import adapter 导入同一 Web Inbox。旅程覆盖 Inbox
+  confirm→Learning Library、Store import→nothing-to-save、公共隐私页零 API、signed-out 不读正文、缺
+  proof 拒绝、same-key replay/different-body conflict 和 snapshot 脱敏。
+- Phase 22 的 route interception 不证明真实 Vercel/Supabase、Manifest host 权限、Extension Service
+  Worker 重启、真实账号 Cookie、双平台 Chrome load-unpacked 或第三方网络；这些发布证据继续 pending。
+- 2026-08-13 根任务对 Phase 22 完成复验：108 个脚本测试、362 个 Vitest 文件（2,424 passed /
+  12 skipped）、全 workspace typecheck/build、70/70 离线浏览器 E2E、instructions/architecture、受影响
+  ESLint/Prettier 与 diff 检查均通过。全仓 lint/format 仍只被用户已有未跟踪 `.agents/` 设计技能资产和
+  既有 `docs/cross-platform-development.md` 格式阻断；未改写无关文件，也未运行真实服务、Provider、
+  Chrome 安装或商店上传。
+- Phase 16 账号练习偏好已离线实现：strict `GET/PATCH /v1/account/preferences` 只投影 timezone/dailyGoal，
+  GET 使用 Web Cookie，PATCH 还要求 Origin + CSRF；Postgres 在 owner forced-RLS transaction 内读写，
+  Web `/settings/account` 覆盖载入、保存确认与失败草稿保留。设置只影响后续每日队列，无 migration；
+  该阶段当时尚缺完整 `/v1/account` 聚合，现已由 2026-08-14 账号聚合切片补齐；真实登录/部署浏览器
+  journey 仍待。
+- 2026-08-13 根任务对账号偏好切片完成复验：101 个脚本测试、333 个 Vitest 文件（2,331 passed/
+  12 skipped）、全 workspace typecheck/build、既有 66 条扩展离线浏览器 E2E、instructions/architecture、
+  受影响 ESLint/Prettier 与 diff 检查均通过。该证据不替代真实 Web 登录、部署 Postgres 或浏览器设置
+  journey；完整账号聚合当时保持 pending，现已由 2026-08-14 账号聚合切片补齐。
+- Phase 8 根审阅已把本地日改为服务器时钟+账号时区权威，补齐 completed-but-unrated 与丢失提交响应
+  恢复，并让评分在 session 行锁下裁决；浏览器不再提交日期，活跃反馈租约也不会形成永久 retry 响应。
+- 2026-08-13 根任务对手动收录切片复验并补强成功后刷新失败/筛选排除新条目的诚实状态：101 个脚本
+  测试、334 个 Vitest 文件（2,339 passed/12 skipped）、全 workspace typecheck/build、既有 66/66
+  扩展离线浏览器 E2E、instructions/architecture、受影响 ESLint/Prettier 与 diff 检查均通过。上述 E2E
+  不替代 Web 手动收录在真实登录、部署数据库和浏览器中的完整 journey。
+
 ## 0.12.0 当前开发进度（2026-08-10）
 
 - YouTube 临时中文字幕已从 F8 调整为主键盘区按住 `Shift+Z`，并新增字幕卡右上角按住角标；选词浮层已
@@ -81,7 +613,192 @@
   浏览器控制会释放，重新接管后字幕 surface 仍存在。真实 DeepSeek 和欧路请求未运行，仍需另行
   授权外部数据发送及可能产生的费用。
 
-## 仍然不支持
+## Cloud V1 Phase 34 DeepSeek V4 Flash 计费校准状态
+
+- 官方 usage/price facts 已完成 docs-first 校准与实现前自审。`DeepSeekPriceSchedule` 固定 legacy、
+  off-peak、peak 三套受审计代码单价，部署环境只接受三个互异价格 UUID；
+- 四条平台付费路径都先按 peak 上限 reservation，再在 durable dispatch 的可信 UTC 时刻选择、精确校验
+  DB 并固定实际 UUID；Provider billed calls、terminal settlement 和 post-dispatch 保守恢复不再跨窗漂移；
+- analysis 未发布 bootstrap 新增内部 `dispatched_at` 与 transition，使 pre-dispatch 过期安全释放、
+  post-dispatch 才保守入账；公开 API、Classic wire v7、Native Host、Store BYOK 与权限不变；
+- strict Provider usage 现兼容空 `completion_tokens_details` 或可选非负 `reasoning_tokens`，但不公开或记录
+  reasoning 字段。Fresh RED 覆盖 schedule、usage schema 与 production dispatch 边界；GREEN 为 focused
+  7 files / 55 tests、API full 110 files / 407 tests，API strict 与全 workspace typecheck/build、目标
+  lint/format、instructions/architecture 全绿；
+- Root 关闭 Phase 33 权限文案与 Web 发布材料断言的旧词漂移后，完整 `pnpm test` 为 118/118 脚本、
+  445 个 Vitest 文件（2,741 passed / 12 skipped）；当前 `pnpm verify:macos` 以退出码 0 完成，另含 Store
+  coverage 97 files / 480 tests、Playwright 109/109、全 workspace typecheck/build、format/lint、
+  instructions/architecture、development blocker、Store release 与 production dependency audit；
+- 状态为 `implemented; real DeepSeek and production price-row validation pending`。未运行真实模型、密钥、
+  账单、部署数据库、安装或 Chrome；生产三个 UUID 行与经批准实际对账仍未完成。
+
+## Cloud V1 Phase 35 未跟踪候选范围状态
+
+- 2026-08-14 当时盘点的未跟踪交付候选共 610 个：`.prettierignore` 1、API 292、Store Extension 75、Web 152、ADR 14、
+  Cloud 文档 42、Cloud contracts 22、learning-domain 1、store-domain 9、Cloud release scripts 2；
+- `.agents/skills/**` 150 个代理辅助资产和 `artifacts/**` 8 张未引用截图不属于 Cloud 候选，本轮未删除；
+- 这是历史只读盘点；Phase 39 已按同一规则重算 613 个候选并关闭 staged delivery gate。
+
+## Cloud V1 Phase 37 剩余工作规划状态（2026-08-20）
+
+- 域名、DNS、Resend、verified sender、支持邮箱、通知告警和相关生产部署已由用户指定放到独立新任务；
+  当前任务不实施该范围，R3-C 发布阻塞保持不变；
+- 排除该范围后推荐的仓库交付收口已由 Phase 39 完成：613 个新候选与 92 个相关修改经过
+  diff/secret/生成物边界、fake model/third-party 矩阵和完整 macOS 离线门禁审查；
+- 后续依赖顺序为 Windows Node.js 26+ 离线门禁 → 生产 Supabase/Vercel/Postgres/Google 与数据权利演练
+  → DeepSeek 真实计费对账 → macOS/Windows 真实 Chrome/升级 → 欧路/扇贝真实验收 → 运营材料、商店
+  草稿和最终发布；每一项外部数据、费用、安装、Chrome、上传或不可逆操作均保持单独授权。
+- 当前状态仍为 `core slices offline-evidenced; R3-C production implementation and external release gates
+pending`，不能因路线拆分宣称完整 V1 已完成。
+
+## Cloud V1 Phase 38 Vercel Hobby + Supabase Free 调度适配状态（2026-08-20）
+
+- Windows 支持保留；本阶段是 shared scheduler adapter。`apps/api/vercel.json` 已移除 Hobby 不接受的四项
+  minute cron，四个既有 `CRON_SECRET` worker route 与业务状态机不变；
+- 新增 production-only `apps/api/operations/configure-supabase-cron.sql`：管理员显式启用 Supabase
+  `pg_cron + pg_net + Vault`，从 Vault 读取正式 API origin/secret，固定四路径 allowlist、search_path、
+  角色撤权、55 秒 timeout 和固定 job name 重装；local/preview 不自动安装；
+- Fresh RED 为 3 个预期失败/2 个基线通过；GREEN focused 2 files / 5 tests。修复一条已到期的历史测试
+  lease 后，相关 lifecycle 5/5、API full 111 files / 409 tests、API strict typecheck/build、目标
+  lint/format、instructions/architecture 全绿；根级 format/lint/typecheck/build、118/118 脚本、446 个
+  Vitest 文件（2,743 passed / 12 skipped）与完整重跑 Playwright 109/109 也通过；
+- 当前状态为 `implemented; real Vercel/Supabase deployment pending`。这不解决 Hobby 个人非商业与 60 秒
+  Function 上限同 DeepSeek 90 秒超时的冲突，也不关闭 Supabase Free 暂停/备份、`pg_net` Beta、R3-C
+  邮件、域名/DNS/Resend 或其他外部发布门禁；本阶段未运行任何真实云服务。
+
+## Cloud V1 Phase 39 交付候选与 fake/third-party 收口状态（2026-08-20）
+
+- Phase 37-A 重算当前未跟踪交付候选为 613 个：API 294、Cloud 文档 43，其余分类保持 Phase 35
+  allowlist；`.agents/skills/**` 150 个和 `artifacts/**` 8 张截图继续排除且不删除；
+- fake matrix 已按能力真实语义审查。Fresh RED 为 2 个预期失败 / 19 个基线通过；GREEN 新增 Eudic
+  每请求固定 10 秒内部 deadline、ExtensionQuery 90 秒配置上限、quota-before-provider 和四条 DeepSeek
+  adapter stalled abort 回归；
+- 当前局部证据为 focused 5 files / 21 tests、Store Extension 97 files / 481 tests、API 111 files /
+  413 tests，两包 strict typecheck/build 和目标 ESLint 全绿；首次完整 E2E 发现 harness session 在当日
+  10:00 UTC 日期漂移过期，修复后单条 1/1、受影响范围 8/8、完整 109/109 均通过；
+- staged candidate 为 613 个新增 + 92 个相关修改，排除项 158 个零暂存；最终根级 118/118 Node、446 个
+  Vitest 文件（2,748 passed / 12 skipped）、instructions/architecture/format/lint/typecheck/build、开发态/
+  Store release/依赖审计全绿，`pnpm verify:macos` 退出 0；
+- 当前状态为 `repository delivery candidate closed; Windows target validation pending`。没有运行真实服务、
+  部署、安装、Chrome 或 Windows 目标机；Windows 支持保留，`verify:windows`/SEA health 是下一阶段独立证据。
+
+## Cloud V1 Phase 23 离线实现状态
+
+- 五类平台付费练习生成已统一进入 PlatformGeneration：新增 ADR-0018、
+  `cloud-v1/paid-practice-generation.md` 与 owner-RLS `practice_generation_tasks`；句子题目/反馈及对话
+  开场/回复/最终反馈都先持久化领域输入和 task，再额度预留、durable dispatch、strict ready、
+  UsageLedger settlement，最后由领域事务置 applied 并清除临时 output。
+- PGlite 已覆盖 ready crash 零调用重放、claimed/reserved 过期接管、dispatched 过期保守结算且不透明
+  重试、released reservation 迟到失败结算、quota 失败清理、旧 token fencing 与五类 domain apply。
+  DeepSeek practice adapter 固定 endpoint/model/high thinking/JSON，只接收无 owner/UUID 的有界正文/别名，
+  最多一次结构修复并逐 call 计价；production 已用现有价格/额度环境组合该 adapter。
+- Phase 23 的两种 Playwright 练习旅程现已离线完成：actual Web bundle 覆盖 pending sentence 零自动调用
+  →显式题目重试→反馈→来源→自评，以及两个学习项的三轮对话→逐项反馈→原子自评；两条旅程均重读
+  `/settings/account` quota，公开 snapshot 不含答案、task 或 reservation。Web E2E support 也已纳入 strict
+  TypeScript 门禁。
+- Phase 23 仍是 `implemented; validation pending`：默认测试未访问真实 DeepSeek；真实部署 Cookie/数据库、
+  并发多进程与真实费用变化仍待独立验证。Cloud 未发布，bootstrap 0001 变更要求既有开发数据库重建，
+  不能当增量 migration 重放。
+- 2026-08-13 根任务完成 Phase 23 浏览器验收复验：366 个 Vitest 文件（2,441 passed / 12 skipped）、
+  全 workspace typecheck/build、72/72 离线浏览器 E2E、instructions/architecture、受影响 ESLint/Prettier
+  与 diff 检查均通过。全仓 lint/format 仍只被用户已有未跟踪 `.agents/` 设计技能资产和既有
+  `docs/cross-platform-development.md` 格式阻断；未改写无关文件，也未运行真实服务、Provider、安装或
+  商店上传。
+
+## Cloud V1 Phase 24 离线实现状态
+
+- 新增 actual Web invitation onboarding journey：浏览器从 `/join#token` 开始，首个 document request 不含
+  fragment；claim 在 StrictMode 下只发生一次并立即清理 URL，claim ticket 只进入固定 API 原生 POST。
+- 独立 fake Google 页面只接收 opaque flow；用户显式继续后 callback 设置 Secure/HttpOnly/SameSite=Lax
+  session Cookie 并固定回到 `/app`。新账号随后进入空学习库，以 production adapter 手动创建 Expression，
+  再从同一 CloudAuthority list/detail 重读；重复邀请领取返回 409。
+- 旅程在 390px/reduced-motion 下验证 labelled 控件、详情焦点和无横向溢出；snapshot 不含邀请、ticket、
+  Cookie、email、正文或幂等材料。默认测试仍未访问 Google/Supabase/邮件/部署网络，真实身份与 Domain
+  Cookie 行为保持 pending。
+- 2026-08-13 fresh 复验：完整 `pnpm test` 为 366 个 Vitest 文件（2,441 passed / 12 skipped），全
+  workspace typecheck/build、73/73 离线浏览器 E2E、instructions/architecture、受影响 ESLint/Prettier
+  与 `git diff --check` 全绿。未运行真实 Google/Supabase、Provider smoke、安装或商店上传。
+
+## Cloud V1 Phase 25 离线实现状态
+
+- 新增 actual Web analysis→review journey：从空 authority 的 `/analysis` 提交 strict manual passage，
+  browser-only streaming authority 验证 Cookie/Origin/CSRF/Idempotency 后输出 started→preview→completed；
+  preview 只留在页面内存，completed AnalysisRecord 才进入 Inbox。
+- 用户在 Inbox 编辑并确认 expression，随后 `/library` 通过 server list/detail 重读 LearningItem；学习库
+  详情新增只读 SourceExample 区块，显示来源标题、原文和已有翻译，使用文本节点且不提供单条来源 mutation。
+- journey 证明 start same-key replay 不新增记录、different-body 409、confirm revision proof、390px/
+  reduced-motion、详情焦点、无横向溢出、Web Storage 为空和 snapshot 不含正文/preview/候选/凭据。
+- focused Web 组件 154/154 与新 Playwright journey 1/1 通过；最终 fresh 复验为 366 个 Vitest 文件
+  （2,441 passed / 12 skipped）、全 workspace typecheck/build、74/74 离线浏览器 E2E、
+  instructions/architecture、受影响 ESLint/Prettier 与 `git diff --check` 全绿。真实 DeepSeek、代理缓冲、
+  Vercel/Supabase/Postgres 和浏览器网络恢复仍 pending。
+- 2026-08-14 全局校准确认顶部“Phase 27 重新验收待办”已过时：当前 journey 使用无 action/word 的
+  strict manual passage、V2 AnalysisRecord/current candidates、completed-only authority 与服务器重读；
+  本轮 411 个 Vitest 文件（2581 passed / 12 skipped）和 93/93 Playwright 通过。真实环境待办不变。
+
+## Cloud V1 Phase 26A 离线实现状态
+
+- 修复 Extension Cloud request proof 的文档/运行时漂移：Store BYOK import、CloudAnalysis 和 external
+  wordbook adapters 现在共用 strict session-header module，从 manifest 注入
+  `X-Huayi-Client-Version`，token/version 非法时 fail-before-fetch。
+- production API 新增独立 principal authentication 深模块；环境必填发布 Extension ID 与最低版本，
+  analysis/import/wordbook token 请求在身份库前验证精确 Chrome Origin 和数字三元版本。陈旧客户端返回
+  426 `client_upgrade_required`；错误 Origin 返回 403；Web Cookie+CSRF 语义保持不变。
+- CORS 只允许固定 Web 与发布 Extension 两个 origin，并允许 Authorization/client-version；BYOK outbox
+  对 upgrade failure 保留加密队列和原幂等键。无 Manifest、migration、Classic 或 Host 变更，生产
+  API/Store URL 仍 fail-closed。
+- focused API/Store 9 files、43 tests 与两个 workspace typecheck 已通过；最终 fresh 复验为 109/109
+  repository script tests、368 个 Vitest 文件（2,447 passed / 12 skipped）、全 workspace typecheck/build、
+  74/74 离线浏览器 E2E、instructions/architecture、受影响 ESLint/Prettier 与 `git diff --check` 全绿。
+  真实 Chrome 是否发送目标 Origin、部署 ID 一致性和升级 UX 仍 pending；未运行真实服务、Provider
+  smoke、安装或部署验证。
+- 2026-08-14 全局校准确认当前 Store production source 只有共享 header seam 生成 `HuayiExtension`，API
+  只有统一 principal module 进入 token repository；platform query、StudyCapture、CloudWordCopy、identity/
+  preferences 与 external wordbook 均在当前 proof 回归中。DeviceDisconnect 只豁免最低版本 gate，不豁免
+  exact Origin/token/version syntax。focused 39/39 与本轮完整离线门禁通过；真实环境待办不变。
+
+## Cloud V1 Phase 26B 离线实现状态
+
+- Cloud release audit 现在直接接收候选 Extension ID、API 公开 Extension ID 与最低客户端版本；两个
+  ID 必须严格相同，候选 source Manifest 版本必须按数字三元组大于或等于最低版本。
+- 新增稳定 `release-config-api-extension-id`、`release-config-min-extension-version` 与
+  `store-client-version-policy` 阻塞项；错误只返回固定安全文案，不回显 ID 或版本。
+- fresh RED 证明 ID 漂移、候选版本过旧和空配置仍错误 ready；实现审阅又发现 API environment 会接受
+  超安全整数版本，方案先修订后以环境 RED 收紧。最终 8/8 release tests 覆盖前导零、非三段、
+  超出安全整数与 `1.10 > 1.9`。无 Manifest、数据库、Store runtime、Classic 或 Host 变更。
+- 当前开发态继续按预期 blocked；最终 fresh 复验为 112/112 repository script tests、368 个 Vitest
+  文件（2,447 passed / 12 skipped）、全 workspace typecheck/build、74/74 离线浏览器 E2E、
+  instructions/architecture、受影响 ESLint/Prettier 与 `git diff --check` 全绿。真实 Dashboard ID、部署
+  环境和 Chrome Origin 仍 pending；未运行真实服务、Provider smoke、安装或商店上传。
+
+## Cloud V1 Phase 26C 离线实现状态
+
+> 下列 BYOK import/outbox 数字是被 Phase 27 取代的历史基线；当前升级阻塞机制已迁移到 strict
+> StudyCapture/CloudWordCopy union，旧 payload、route 和通过数字仍不计入当前完成项。
+
+- BYOK import 将 426 独立分类为 `client-upgrade-required`；SubmissionOutbox 在现有 AES-GCM state 中
+  持久一个可选客户端版本标记，保留全部 items、session 与原幂等键，同版本 `process()` 零 fetch/零
+  alarm，新版本读取后解除阻塞并恢复显式重试。
+- Store-domain 聚合状态只新增 upgrade 枚举；Popup 显示“更新划译/仍加密保存在本机”，禁用重试但
+  保留二步本机清空与 polite live region。响应和 DOM 不含版本、正文、token、key、URL 或原始错误；
+  Overlay/Content/Options/Manifest 未扩权。
+- fresh RED 为 7 expected failures / 22 baseline passes；GREEN focused 7 files / 30 tests，Store-domain 与
+  Store typecheck 通过。实现自审另补同版本直接 process 的 fail-before-fetch 回归，以及阻断前仍须
+  持久删除超过 7 天密文项的保留期回归。
+- 最终 fresh 复验为 112/112 repository script tests、368 个 Vitest 文件（2,452 passed / 12 skipped）、
+  全 workspace typecheck/build、74/74 离线浏览器 E2E、instructions/architecture、受影响
+  ESLint/Prettier 与 `git diff --check` 全绿。真实 426/升级后的 Chrome 恢复、生产 URL 和商店更新仍
+  pending；未运行真实服务、Provider smoke、安装或商店上传。
+
+- Phase 27 当前实现使用 v3 learning outbox、严格 StudyCapture/CloudWordCopy union，并直接清除 legacy
+  v1 analysis-import 与 v2 StudyCapture-only envelope；426 分类、同版本零 fetch、版本变化恢复、七天裁剪、
+  聚合消息和 Popup 已有当前回归。
+- 2026-08-14 实现后状态机复审发现：blocked 队列 current-card undo 删除一项时会误清剩余 item 的升级
+  标记。方案、架构、测试矩阵与变更记录先校准，再以 fresh RED 证明第二次 API 调用；最小修复后剩余
+  item 保留原版本标记且同版本零 fetch。focused 38/38、workspace Vitest 2581 通过/12 跳过、Playwright
+  93/93 通过；状态为 `implemented; target-platform validation pending`。
+
+## Classic 0.13 仍然不支持
 
 - Windows 上的 Codex、OpenAI 和 Compatible HTTP。
 - Linux、Firefox、Edge、PDF、Chrome 内部页面、iframe 和编辑器区域。

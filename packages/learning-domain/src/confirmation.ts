@@ -4,14 +4,14 @@ import type {
   LearningItemContent,
   SourceExample,
 } from "./domain-schemas.js";
-import { canonicalKeyForContent, normalizeHeadword } from "./normalization.js";
+import { canonicalKeyForContent } from "./normalization.js";
 
 export interface ConfirmationSource {
+  readonly analysisUnitId?: string;
   readonly analysisId?: string;
-  readonly sentenceId?: string;
   readonly sourceText: string;
   readonly sourceTitle?: string;
-  readonly sourceType: "manual" | "web-selection" | "youtube-caption";
+  readonly sourceType: "manual" | "study-capture";
   readonly translationZh?: string;
 }
 
@@ -31,9 +31,10 @@ export interface LearningItemDraft {
   readonly type: "expression" | "sentence-pattern";
 }
 
-export type ConfirmationResult =
-  | { readonly type: "word"; readonly word: WordDraft }
-  | { readonly item: LearningItemDraft; readonly type: "learning-item" };
+export interface ConfirmationResult {
+  readonly item: LearningItemDraft;
+  readonly type: "learning-item";
+}
 
 function generatedId(prefix: string, candidateId: string): string {
   return `${prefix}:${candidateId}`;
@@ -44,26 +45,7 @@ export function confirmCandidate(
   source: ConfirmationSource,
   confirmedAt: string,
 ): ConfirmationResult {
-  if (candidate.type === "word") {
-    const headword = normalizeHeadword(candidate.payload.headword);
-    return {
-      type: "word",
-      word: {
-        canonicalKey: headword,
-        contexts: [
-          {
-            contextualMeaningZh: candidate.payload.contextualMeaningZh,
-            id: generatedId("context", candidate.id),
-            observedAt: confirmedAt,
-            sourceText: source.sourceText,
-            sourceTitle: source.sourceTitle,
-            sourceType: source.sourceType,
-          },
-        ],
-        headword,
-      },
-    };
-  }
+  void confirmedAt;
   const content = candidate.payload;
   return {
     item: {
@@ -73,7 +55,7 @@ export function confirmCandidate(
         {
           analysisId: source.analysisId,
           id: generatedId("source", candidate.id),
-          sentenceId: candidate.sentenceId,
+          analysisUnitId: candidate.analysisUnitId,
           sourceText: source.sourceText,
           sourceTitle: source.sourceTitle,
           sourceType: source.sourceType,

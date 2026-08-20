@@ -1,7 +1,10 @@
 import type { StoreOverlayAnchor } from "../overlay/store-overlay-controller.js";
 import { readStoreSelection } from "../selection/read-selection.js";
 import type { CaptionBridge, CapturedCaptionTrack } from "./youtube-bridge-client.js";
+import { applyYouTubeSelectionBoundary } from "./youtube-selection-boundary.js";
 import type { YouTubeCaptionControllerOptions } from "./youtube-caption-controller-contract.js";
+import { SELECTION_PAUSE, TEMPORARY_PAUSE } from "./youtube-pause-ownership.js";
+import type { YouTubePauseOwnership } from "./youtube-pause-ownership.js";
 import { YouTubeCaptionSelectionGesture } from "./youtube-caption-selection-gesture.js";
 import {
   captureTranslatedCaption,
@@ -23,14 +26,6 @@ import {
 } from "./youtube-player-state.js";
 import { formatYouTubeShortcutLabel, YouTubeShortcutController } from "./youtube-shortcut.js";
 import { YouTubeTemporaryTranslationHold } from "./youtube-temporary-translation-hold.js";
-type PauseOwnership = readonly [
-  generation: number,
-  player: HTMLElement,
-  video: HTMLVideoElement,
-  videoId: string,
-];
-const SELECTION_PAUSE = 0;
-const TEMPORARY_PAUSE = 1;
 export class YouTubeCaptionController {
   readonly #acceptsUserGesture: (event: Event) => boolean;
   readonly #bridge: CaptionBridge;
@@ -49,7 +44,10 @@ export class YouTubeCaptionController {
   #generation = 0;
   #lastSourceAttemptCaption: string | null = null;
   #loading = false;
-  readonly #pauseOwnerships: [PauseOwnership | null, PauseOwnership | null] = [null, null];
+  readonly #pauseOwnerships: [YouTubePauseOwnership | null, YouTubePauseOwnership | null] = [
+    null,
+    null,
+  ];
   #player: HTMLElement | null = null;
   #sentences: readonly SubtitleSentence[] = [];
   #selectionActive = false;
@@ -313,7 +311,7 @@ export class YouTubeCaptionController {
     if (!transferred) this.#pauseVideoFor(SELECTION_PAUSE);
     this.#selectionActive = true;
     const anchor: StoreOverlayAnchor = { bottom: rect.bottom, left: rect.left, top: rect.top };
-    this.#overlay.show(reading, anchor, () => {
+    this.#overlay.show(applyYouTubeSelectionBoundary(reading, text.data), anchor, () => {
       this.#selectionActive = false;
       this.#render();
       this.#resumeOwnedVideo(SELECTION_PAUSE);
@@ -340,7 +338,7 @@ export class YouTubeCaptionController {
   #isCurrent(videoId: string, generation: number): boolean {
     return this.#started && this.#videoId === videoId && this.#generation === generation;
   }
-  #isCurrentOwnership(ownership: PauseOwnership): boolean {
+  #isCurrentOwnership(ownership: YouTubePauseOwnership): boolean {
     return (
       this.#started &&
       this.#generation === ownership[0] &&

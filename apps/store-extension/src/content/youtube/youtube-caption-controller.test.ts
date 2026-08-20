@@ -256,6 +256,7 @@ describe("Store YouTube caption controller", () => {
 
     expect(harness.overlay.show).toHaveBeenCalledWith(
       expect.objectContaining({
+        boundaryEvidence: { kind: "local-rules" },
         context: "The investigation was still in its early stages.",
         selection: "investigation",
         sentenceContext: "The investigation was still in its early stages.",
@@ -264,6 +265,22 @@ describe("Store YouTube caption controller", () => {
       expect.any(Function),
     );
     expect(harness.video.pause).toHaveBeenCalledOnce();
+    harness.controller.stop();
+  });
+
+  it("marks only the exact complete Huayi subtitle sentence as trusted structure", async () => {
+    const harness = fixture();
+    await settle();
+    selectCaption(harness, "The investigation was still in its early stages.");
+
+    expect(harness.overlay.show).toHaveBeenCalledWith(
+      expect.objectContaining({
+        boundaryEvidence: { kind: "youtube-subtitle-sentence" },
+        selectionKind: "sentence",
+      }),
+      expect.any(Object),
+      expect.any(Function),
+    );
     harness.controller.stop();
   });
 

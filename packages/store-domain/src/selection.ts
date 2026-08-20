@@ -8,6 +8,31 @@ const WORD_PATTERN = /^[A-Za-z]+(?:[-'’][A-Za-z]+)*$/u;
 const SENTENCE_END_PATTERN = /[.!?]+(?:["'’”\])}]*)?(?=\s|$)/gu;
 const SENTENCE_WORD_THRESHOLD = 8;
 
+export type SelectionBoundaryEvidence =
+  | { readonly kind: "dom-passage" }
+  | { readonly kind: "dom-sentence" }
+  | { readonly kind: "local-rules" }
+  | { readonly kind: "youtube-subtitle-sentence" };
+
+export function parseSelectionBoundaryEvidence(value: unknown): SelectionBoundaryEvidence {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new TypeError("Selection boundary evidence is invalid.");
+  }
+  const record = value as Record<string, unknown>;
+  if (Object.keys(record).length !== 1) {
+    throw new TypeError("Selection boundary evidence is invalid.");
+  }
+  if (
+    record.kind !== "dom-passage" &&
+    record.kind !== "dom-sentence" &&
+    record.kind !== "local-rules" &&
+    record.kind !== "youtube-subtitle-sentence"
+  ) {
+    throw new TypeError("Selection boundary evidence is invalid.");
+  }
+  return { kind: record.kind };
+}
+
 export function normalizeSelectionText(value: string): string {
   return value
     .normalize("NFC")
@@ -29,14 +54,23 @@ export function isBoundedEnglishSelection(value: string): boolean {
   );
 }
 
-export function classifyEnglishSelection(value: string): SelectionKind | null {
+export function classifyEnglishSelection(
+  value: string,
+  evidence?: SelectionBoundaryEvidence,
+): SelectionKind | null {
   const normalized = normalizeSelectionText(value);
   if (!isBoundedEnglishSelection(normalized)) return null;
   if (WORD_PATTERN.test(normalized)) return "word";
 
+  if (evidence?.kind === "dom-passage") return "passage";
+  if (evidence?.kind === "dom-sentence" || evidence?.kind === "youtube-subtitle-sentence") {
+    return "sentence";
+  }
+
   const sentenceEndCount = normalized.match(SENTENCE_END_PATTERN)?.length ?? 0;
   const wordCount = normalized.split(/\s+/u).filter(Boolean).length;
-  return normalized.includes("\n") || sentenceEndCount > 0 || wordCount >= SENTENCE_WORD_THRESHOLD
+  if (sentenceEndCount >= 2 || normalized.includes("\n\n")) return "passage";
+  return sentenceEndCount === 1 || normalized.includes("\n") || wordCount >= SENTENCE_WORD_THRESHOLD
     ? "sentence"
     : "phrase";
 }

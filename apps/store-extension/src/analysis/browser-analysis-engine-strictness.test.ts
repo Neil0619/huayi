@@ -10,7 +10,6 @@ const encoder = new TextEncoder();
 function request(providerId: AnalysisRequest["providerId"]): AnalysisRequest {
   return {
     action: "translate",
-    context: "A friendly greeting.",
     providerId,
     requestId: "request-1",
     selection: "Hello world.",
@@ -125,7 +124,6 @@ describe("BrowserAnalysisEngine strict provider handling", () => {
     await engine.analyze(
       {
         action: "translate",
-        context: "At least 23 people are missing.",
         providerId: "deepseek",
         requestId: "translate-missing",
         selection: "missing",
@@ -177,7 +175,6 @@ describe("BrowserAnalysisEngine strict provider handling", () => {
       engine.analyze(
         {
           action: "explain",
-          context: "At least 23 people are missing.",
           providerId: "deepseek",
           requestId: "explain-missing",
           selection: "missing",
@@ -217,7 +214,6 @@ describe("BrowserAnalysisEngine strict provider handling", () => {
       engine.analyze(
         {
           action: "explain",
-          context: "At least 23 people are missing.",
           providerId: "deepseek",
           requestId: "invalid-explain",
           selection: "missing",

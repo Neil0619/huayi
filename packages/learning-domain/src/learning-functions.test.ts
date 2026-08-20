@@ -8,9 +8,13 @@ import {
   mergeWordEntries,
   normalizeCanonicalText,
   normalizeHeadword,
+  normalizeTagName,
 } from "./index.js";
 
 describe("canonical identity", () => {
+  it("normalizes tags with NFKC, whitespace, quotes, and deterministic case folding", () => {
+    expect(normalizeTagName("  Ｗriting   ‘Style’ ")).toBe("writing 'style'");
+  });
   it("normalizes NFKC, whitespace, case, and curved quotes", () => {
     expect(normalizeCanonicalText("  ＴＯ\tBE “FRANK”  ")).toBe('to be "frank"');
     expect(normalizeHeadword("  CAFÉ\tD’ART  ")).toBe("café d'art");
@@ -42,38 +46,14 @@ describe("canonical identity", () => {
 
 describe("candidate confirmation and merge", () => {
   const source = {
+    analysisUnitId: "u1",
     analysisId: "analysis-1",
-    sentenceId: "s1",
     sourceText: "To be frank, this works.",
     sourceTitle: "Notes",
     sourceType: "manual" as const,
   };
 
-  it("routes words to WordEntry contexts and expressions to LearningItem snapshots", () => {
-    const word = confirmCandidate(
-      {
-        id: "candidate-word",
-        ordinal: 0,
-        payload: {
-          contextualMeaningZh: "有效",
-          headword: "works",
-          type: "word",
-        },
-        sentenceId: "s1",
-        type: "word",
-      },
-      source,
-      "2026-08-12T10:00:00.000Z",
-    );
-    expect(word).toMatchObject({
-      type: "word",
-      word: {
-        canonicalKey: "works",
-        contexts: [{ contextualMeaningZh: "有效", sourceText: source.sourceText }],
-        headword: "works",
-      },
-    });
-
+  it("routes expressions to LearningItem snapshots", () => {
     const expression = confirmCandidate(
       {
         id: "candidate-expression",
@@ -84,7 +64,7 @@ describe("candidate confirmation and merge", () => {
           type: "expression",
           usageZh: "用于直接表达个人意见。",
         },
-        sentenceId: "s1",
+        analysisUnitId: "u1",
         type: "expression",
       },
       source,

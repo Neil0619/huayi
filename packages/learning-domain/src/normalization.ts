@@ -28,6 +28,14 @@ export function normalizeHeadword(value: string): string {
   return normalized;
 }
 
+export function normalizeTagName(value: string): string {
+  const normalized = normalizeCanonicalText(value);
+  if (normalized.length === 0 || normalized.length > 100) {
+    throw new Error("Tag must be non-empty and at most 100 characters.");
+  }
+  return normalized;
+}
+
 export function normalizeObservationSentence(value: string): string {
   const normalized = normalizeWhitespaceAndQuotes(value);
   if (normalized.length === 0 || normalized.length > MAX_CONTEXT_SENTENCE_LENGTH) {

@@ -16,6 +16,8 @@ import { z } from "zod/v3";
 
 import { MODEL_JSON_SCHEMAS } from "./model-json-schemas.js";
 
+export const STORE_ANALYSIS_SCHEMA_VERSION = 1;
+
 const chineseText = z.string().trim().min(1).max(MAX_MODEL_TEXT_LENGTH);
 function englishText(maximum: number): z.ZodEffects<z.ZodEffects<z.ZodString>> {
   return z

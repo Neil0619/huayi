@@ -9,6 +9,7 @@ interface CachedResultOptions {
   readonly body: HTMLElement;
   readonly headerActions: HTMLElement;
   readonly presence: OverlayWordPresence;
+  readonly openWebWorkspace: () => Promise<void>;
   readonly result: AnalysisResult;
   readonly saveWord: (request: StoreLexiconSaveRequest) => Promise<unknown>;
   readonly sentence: string;
@@ -38,4 +39,31 @@ export function renderCachedResult(options: CachedResultOptions): void {
   if (headword !== null && initialPresence === null) {
     options.presence.query(headword, options.headerActions);
   }
+
+  const cloud = options.body.ownerDocument.createElement("section");
+  cloud.className = "cloud-workspace";
+  const status = options.body.ownerDocument.createElement("p");
+  status.textContent = "整理与收藏在 Web 完成";
+  const open = options.body.ownerDocument.createElement("button");
+  open.type = "button";
+  open.dataset.openWebWorkspace = "";
+  open.textContent = "打开 Web 待整理";
+  open.addEventListener("click", (event) => {
+    if (!options.acceptsUserGesture(event)) return;
+    open.disabled = true;
+    void options
+      .openWebWorkspace()
+      .catch(() => {
+        const error = options.body.ownerDocument.createElement("p");
+        error.className = "error";
+        error.setAttribute("role", "alert");
+        error.textContent = "暂时无法打开 Web，请稍后重试。";
+        cloud.append(error);
+      })
+      .finally(() => {
+        open.disabled = false;
+      });
+  });
+  cloud.append(status, open);
+  options.body.append(cloud);
 }

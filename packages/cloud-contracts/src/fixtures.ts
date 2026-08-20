@@ -1,6 +1,7 @@
 const now = "2026-08-12T10:00:00.000Z";
 
 const expressionCandidate = {
+  analysisUnitId: "u1",
   id: "candidate-1",
   ordinal: 0,
   payload: {
@@ -9,24 +10,25 @@ const expressionCandidate = {
     type: "expression",
     usageZh: "用于直接表达个人意见。",
   },
-  sentenceId: "s1",
   type: "expression",
 } as const;
 
 const passage = {
   overall: { translationZh: "坦率地说，这很有效。", understandingZh: "说话者直接肯定效果。" },
-  schemaVersion: 1,
   sentences: [
     {
+      analysisUnitId: "u1",
       candidateIds: ["candidate-1"],
-      grammarNotes: [{ explanationZh: "句首插入语。", label: "插入语" }],
-      id: "s1",
+      expressions: [],
+      grammar: [{ explanationZh: "句首插入语。", label: "插入语" }],
+      languageNotes: [],
       ordinal: 0,
       sourceText: "To be frank, this works.",
-      structureZh: "插入语加主句。",
+      structure: [{ explanationZh: "插入语加主句。", label: "主干" }],
       translationZh: "坦率地说，这很有效。",
     },
   ],
+  type: "sentence-passage-analysis-v2",
 } as const;
 
 const analysis = {
@@ -47,6 +49,7 @@ const analysis = {
   revision: 1,
   selectionKind: "passage",
   source: { title: "Writing notes", type: "manual" },
+  sourceNormalizedHash: "a".repeat(64),
   sourceText: "To be frank, this works.",
   updatedAt: now,
 } as const;
@@ -63,6 +66,11 @@ const quota = {
 } as const;
 
 export const contractFixtures = {
+  analysisRequestStatus: {
+    analysisId: "analysis-1",
+    requestId: "request-1",
+    state: "completed",
+  },
   analysis,
   completedEvent: { analysis, quota, type: "analysis.completed" },
   confirmCandidatesRequest: {
@@ -78,6 +86,38 @@ export const contractFixtures = {
       },
     ],
   },
+  confirmCandidatesResponse: {
+    analysis: { ...analysis, reviewState: "reviewed", revision: 2 },
+    results: [
+      {
+        action: "created",
+        candidateId: "candidate-1",
+        item: {
+          canonicalKey: "to be frank",
+          content: expressionCandidate.payload,
+          createdAt: now,
+          id: "item-1",
+          revision: 1,
+          sourceExamples: [
+            {
+              analysisId: "analysis-1",
+              id: "source-1",
+              analysisUnitId: "u1",
+              sourceText: "To be frank, this works.",
+              sourceTitle: "Writing notes",
+              sourceType: "manual",
+              translationZh: "坦率地说，这很有效。",
+            },
+          ],
+          systemAttributes: ["discourse-marker"],
+          tags: ["writing"],
+          type: "expression",
+          updatedAt: now,
+        },
+        type: "learning-item",
+      },
+    ],
+  },
   createLearningItemRequest: {
     content: expressionCandidate.payload,
     systemAttributes: ["discourse-marker"],
@@ -90,21 +130,12 @@ export const contractFixtures = {
       requestId: "request-1",
     },
   },
-  importAnalysisRequest: {
-    candidates: [expressionCandidate],
-    modelMetadata: analysis.modelMetadata,
-    result: passage,
-    selectionKind: "passage",
-    source: analysis.source,
-    sourceText: analysis.sourceText,
-  },
   practiceRatingsRequest: {
     expectedRevision: 2,
     ratings: [{ itemId: "item-1", rating: "mastered" }],
   },
   quota,
   startAnalysisRequest: {
-    action: "deep-analyze",
     selectionKind: "passage",
     source: analysis.source,
     sourceText: analysis.sourceText,

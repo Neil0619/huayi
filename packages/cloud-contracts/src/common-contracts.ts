@@ -1,10 +1,24 @@
 import { z } from "zod/v3";
 
+export {
+  calculateConservativeReservation,
+  calculateModelCost,
+  modelPriceSchema,
+  modelUsageSchema,
+  type ModelPrice,
+  type ModelUsage,
+} from "@huayi/learning-domain";
+
 export const CLOUD_CONTRACT_VERSION = "v1" as const;
 export const resourceIdSchema = z.string().trim().min(1).max(128);
 export const revisionSchema = z.number().int().min(1);
 export const idempotencyKeySchema = z.string().min(1).max(128);
-export const cursorSchema = z.string().trim().min(1).max(2_048);
+export const cursorSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(2_048)
+  .regex(/^[A-Za-z0-9_-]+$/u);
 export const writeHeadersSchema = z.strictObject({
   "idempotency-key": idempotencyKeySchema,
 });
@@ -20,14 +34,26 @@ export const apiErrorCodeSchema = z.enum([
   "invitation_invalid",
   "invitation_expired",
   "invitation_consumed",
+  "sign_in_method_already_linked",
   "revision_conflict",
+  "exact_duplicate",
   "idempotency_conflict",
+  "learning_item_archived",
+  "learning_item_in_use",
+  "learning_item_must_be_archived",
   "quota_exhausted",
   "rate_limited",
   "generation_busy",
   "model_unavailable",
   "model_output_invalid",
+  "practice_session_in_use",
+  "word_entry_in_use",
+  "wordbook_job_leased",
+  "wordbook_job_not_claimable",
+  "wordbook_lease_stale",
   "client_upgrade_required",
+  "capture_hash_collision",
+  "study_capture_in_use",
   "not_found",
 ]);
 export const apiErrorDetailSchema = z.strictObject({

@@ -1,5 +1,8 @@
 # 安全与隐私
 
+> 本文件描述冻结维护的 Classic 0.13。Cloud V1 会由 Huayi API 接收账号学习内容，其新安全边界见
+> [`cloud-v1/security.md`](cloud-v1/security.md)；不得把本文件的“开发者不接收”结论套用到 Cloud。
+
 ## 数据最小化
 
 扩展只发送英文选区和所在语义块中围绕选区的最多 2,000 个字符，不发送 URL、标题、整页
@@ -68,8 +71,10 @@ Service Worker 是唯一写入者，串行应用有界 mutation，避免配置�
 
 ### YouTube 字幕边界
 
-YouTube 字幕只在三个精确 HTTPS YouTube host 的标准 `/watch` 录播页运行。isolated Content
-Script 必须同时确认 CC ON、当前活动轨为英文且页面实际显示英文字幕；它不替用户开启 CC 或
+为支持 YouTube 从非播放页进入播放页的 SPA 导航，Store Edition 的 isolated controller 与静态
+MAIN bridge 在三个精确 HTTPS YouTube host 的 `/*` 加载，但非 `/watch` 时只保留导航/消息监听器，
+不读取设置或播放器、不创建字幕视图，也不包装 fetch/XHR；进入标准 `/watch` 录播页才激活，离开
+时立即销毁。isolated Content Script 必须同时确认 CC ON、当前活动轨为英文且页面实际显示英文字幕；它不替用户开启 CC 或
 切轨。普通网页、直播、广告、Shorts 和非英文活动轨不创建自定义字幕或发字幕请求。
 
 独立 MAIN-world bridge 只在一次请求期间读取当前播放器、临时驱动活动源轨或其 `zh-Hans`
@@ -195,8 +200,8 @@ item/content part 的生命周期和唯一完成终态。拒答、工具、推�
 Provider 选择固定保存在
 `~/Library/Application Support/Huayi/native-host/provider.json`。缺失文件表示 Codex；存在时
 必须通过普通文件、所有权、`0600` 权限、大小和严格 Schema 校验，其余情况失败关闭。每次分析
-只读取一次并固定路由，配置变化只影响下一请求，API 错误不自动回退 Codex。未来设置页只能
-复用这一受控 Host 接口，不能直接读写文件、Key 或远程配置。
+只读取一次并固定路由，配置变化只影响下一请求，API 错误不自动回退 Codex。现有设置页只通过
+这一受控 Host 接口读取有界状态并提交受限变更，不能直接读写文件、Key 或远程配置。
 `provider-set`（包括 dry-run）会先验证任何已有目标；无效目标不会被自动修复或覆盖。
 
 ## OpenAI-compatible HTTP 边界

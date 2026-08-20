@@ -50,7 +50,7 @@ function settings(overrides: Partial<StoreSettings> = {}): StoreSettings {
 function start(overrides: Record<string, unknown> = {}): unknown {
   return {
     action: "translate",
-    context: "The selected expression appears here.",
+    boundaryEvidence: { kind: "local-rules" },
     messageVersion: STORE_MESSAGE_VERSION,
     selection: "selected expression",
     sentenceContext: "The selected expression appears here.",
@@ -101,7 +101,6 @@ describe("Store analysis session", () => {
     expect(requests).toEqual([
       {
         action: "explain",
-        context: "The selected expression appears here.",
         providerId: "deepseek",
         requestId: "trusted-request-1",
         selection: "selected expression",
@@ -292,5 +291,61 @@ describe("Store analysis session", () => {
     await settle();
     expect(signals[1]?.aborted).toBe(true);
     expect(engine.analyze).toHaveBeenCalledTimes(2);
+  });
+
+  it("never posts a late result after the user disconnects", async () => {
+    let resolve: ((result: AnalysisResult) => void) | undefined;
+    const engine: AnalysisEngine = {
+      analyze: vi.fn(
+        (request): Promise<AnalysisResult> =>
+          new Promise((complete) => {
+            resolve = complete;
+            expect(request.requestId).toBe("trusted-request-1");
+          }),
+      ),
+    };
+    const sessionPort = port();
+    createAnalysisSession(sessionPort, {
+      analysisEngine: engine,
+      createRequestId: () => "trusted-request-1",
+      getSettings: async () => settings(),
+      siteHost: "example.com",
+    });
+    sessionPort.receive(start());
+    await settle();
+    sessionPort.disconnect();
+    resolve?.({
+      requestId: "trusted-request-1",
+      selectionKind: "sentence",
+      sourceText: "selected expression",
+      translationZh: "翻译",
+      type: "translate-passage",
+    });
+    await settle();
+
+    expect(sessionPort.messages).toEqual([]);
+  });
+
+  it("keeps a completed local result independent from cloud learning capture", async () => {
+    const engine: AnalysisEngine = {
+      analyze: vi.fn(async (request): Promise<AnalysisResult> => ({
+        requestId: request.requestId,
+        selectionKind: "sentence",
+        sourceText: request.selection,
+        translationZh: "翻译",
+        type: "translate-passage",
+      })),
+    };
+    const sessionPort = port();
+    createAnalysisSession(sessionPort, {
+      analysisEngine: engine,
+      createRequestId: () => "trusted-request-1",
+      getSettings: async () => settings(),
+      siteHost: "example.com",
+    });
+    sessionPort.receive(start());
+    await settle();
+
+    expect(sessionPort.messages.at(-1)).toMatchObject({ type: "store/analysis-result" });
   });
 });

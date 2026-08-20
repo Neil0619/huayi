@@ -23,6 +23,8 @@ test("workspace typechecks run serially in dependency order", async () => {
     "packages/cloud-contracts",
     "packages/protocol",
     "packages/store-domain",
+    "apps/api",
+    "apps/web",
     "apps/extension",
     "apps/native-host",
     "apps/store-extension",
@@ -46,6 +48,8 @@ test("workspace typechecks stop at the first failure", async () => {
     "packages/cloud-contracts",
     "packages/protocol",
     "packages/store-domain",
+    "apps/api",
+    "apps/web",
     "apps/extension",
   ]);
 });

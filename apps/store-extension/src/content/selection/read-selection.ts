@@ -1,6 +1,7 @@
 import {
   classifyEnglishSelection,
   normalizeSelectionText,
+  type SelectionBoundaryEvidence,
   type SelectionKind,
 } from "@huayi/store-domain";
 
@@ -10,6 +11,7 @@ const EDITABLE_SELECTOR =
   'input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"]';
 
 export interface StoreSelectionReading {
+  readonly boundaryEvidence: SelectionBoundaryEvidence;
   readonly context: string;
   readonly range: Range;
   readonly selection: string;
@@ -41,6 +43,7 @@ export function readStoreSelection(
   const sentenceContext = lexical ? extractLexicalSentence(range, text) : null;
   const extractedContext = extractSelectionContext(range, text);
   return {
+    boundaryEvidence: { kind: "local-rules" },
     context: classifyEnglishSelection(extractedContext) === null ? text : extractedContext,
     range: range.cloneRange(),
     selection: text,

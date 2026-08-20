@@ -1,3 +1,4 @@
+import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { build, defineConfig, type Plugin } from "vite";
@@ -12,6 +13,15 @@ const protocolSource = fileURLToPath(
 const storeDomainSource = fileURLToPath(
   new URL("../../../packages/store-domain/src/index.ts", import.meta.url),
 );
+const learningDomainSource = fileURLToPath(
+  new URL("../../../packages/learning-domain/src/index.ts", import.meta.url),
+);
+const cloudContractsSource = fileURLToPath(
+  new URL("../../../packages/cloud-contracts/src/index.ts", import.meta.url),
+);
+const cloudApiOrigin = "https://api.huayi.invalid";
+const webRoot = resolve(repositoryRoot, "apps/web");
+const webConfig = resolve(repositoryRoot, "apps/web/vite.config.ts");
 
 function buildExtensionFixtures(): Plugin {
   return {
@@ -32,6 +42,23 @@ function buildExtensionFixtures(): Plugin {
       ]) {
         await build(createStoreExtensionConfig(mode));
       }
+      const previousApiOrigin = process.env.VITE_API_ORIGIN;
+      process.env.VITE_API_ORIGIN = cloudApiOrigin;
+      try {
+        await build({
+          configFile: webConfig,
+          resolve: {
+            alias: {
+              "@huayi/cloud-contracts": cloudContractsSource,
+              "@huayi/learning-domain": learningDomainSource,
+            },
+          },
+          root: webRoot,
+        });
+      } finally {
+        if (previousApiOrigin === undefined) delete process.env.VITE_API_ORIGIN;
+        else process.env.VITE_API_ORIGIN = previousApiOrigin;
+      }
     },
   };
 }
@@ -42,6 +69,8 @@ const e2eViteConfig = defineConfig({
     alias: {
       "@huayi/protocol": protocolSource,
       "@huayi/store-domain": storeDomainSource,
+      "@huayi/cloud-contracts": cloudContractsSource,
+      "@huayi/learning-domain": learningDomainSource,
     },
   },
   root: repositoryRoot,

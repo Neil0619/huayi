@@ -12,6 +12,8 @@ import {
   parseAnalysisServerMessage,
   parseStoreHandshakeRequest,
   parseStoreHandshakeResponse,
+  parseStoreOpenWebWorkspaceRequest,
+  parseStoreOpenWebWorkspaceResponse,
   parseStoreOpenOptionsRequest,
   parseStoreWordbookRequest,
   storeSettingsSchema,
@@ -126,7 +128,7 @@ describe("Store domain contracts", () => {
     expect(
       parseAnalysisClientMessage({
         action: "translate",
-        context: "The selected sentence.",
+        boundaryEvidence: { kind: "dom-sentence" },
         messageVersion: STORE_MESSAGE_VERSION,
         selection: "selected",
         sentenceContext: "The selected sentence.",
@@ -142,7 +144,7 @@ describe("Store domain contracts", () => {
     expect(() =>
       parseAnalysisClientMessage({
         action: "translate",
-        context: "Context",
+        boundaryEvidence: { kind: "dom-sentence" },
         endpoint: "https://attacker.invalid",
         messageVersion: STORE_MESSAGE_VERSION,
         providerId: "openai",
@@ -154,7 +156,7 @@ describe("Store domain contracts", () => {
     expect(() =>
       parseAnalysisClientMessage({
         action: "translate",
-        context: "Context",
+        boundaryEvidence: { kind: "dom-sentence" },
         messageVersion: 0,
         selection: "selected",
         sentenceContext: null,
@@ -257,6 +259,47 @@ describe("Store domain contracts", () => {
       parseStoreOpenOptionsRequest({
         messageVersion: STORE_MESSAGE_VERSION,
         type: "store/open-options",
+        url: "https://attacker.invalid",
+      }),
+    ).toThrow();
+  });
+
+  it("accepts only the parameter-free Web workspace command", () => {
+    expect(
+      parseStoreOpenWebWorkspaceRequest({
+        messageVersion: STORE_MESSAGE_VERSION,
+        type: "store/open-web-workspace",
+      }),
+    ).toEqual({
+      messageVersion: STORE_MESSAGE_VERSION,
+      type: "store/open-web-workspace",
+    });
+    for (const authority of [
+      { url: "https://attacker.invalid" },
+      { analysisId: "analysis-1" },
+      { token: "secret" },
+    ]) {
+      expect(() =>
+        parseStoreOpenWebWorkspaceRequest({
+          ...authority,
+          messageVersion: STORE_MESSAGE_VERSION,
+          type: "store/open-web-workspace",
+        }),
+      ).toThrow();
+    }
+    expect(
+      parseStoreOpenWebWorkspaceResponse({
+        messageVersion: STORE_MESSAGE_VERSION,
+        opened: false,
+        reason: "not-configured",
+        type: "store/open-web-workspace-result",
+      }),
+    ).toMatchObject({ opened: false, reason: "not-configured" });
+    expect(() =>
+      parseStoreOpenWebWorkspaceResponse({
+        messageVersion: STORE_MESSAGE_VERSION,
+        opened: true,
+        type: "store/open-web-workspace-result",
         url: "https://attacker.invalid",
       }),
     ).toThrow();

@@ -1,0 +1,279 @@
+import { act } from "react";
+import { createRoot } from "react-dom/client";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { analysisRecordSchema, contractFixtures } from "@huayi/cloud-contracts";
+
+import type { AnalysisHistoryPageApi } from "./analysis-history-page-api.js";
+import type { AccountQuotaApi } from "./account-quota-page.js";
+import { CloudApp, type IdentityApi } from "./cloud-app.js";
+import { WebIdentityApiError } from "./identity-api.js";
+import type { PasteAnalysisApi } from "./paste-analysis-page.js";
+import type { WebExternalWordbookApi } from "./external-wordbook-api.js";
+
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+const pairing = {
+  expiresAt: "2026-08-13T01:00:00.000Z",
+  id: "pairing-1",
+  pairingPath: "/pair-extension/pairing-1",
+  status: "pending" as const,
+};
+const preferences = {
+  cloudWordCopyMode: "enabled" as const,
+  dailyGoal: 3,
+  extensionQueryModelMode: "platform" as const,
+  revision: 1,
+  studyCaptureMode: "manual" as const,
+  timezone: "UTC",
+  updatedAt: "2026-08-13T10:00:00.000Z",
+};
+
+function api(overrides: Partial<IdentityApi> = {}): IdentityApi {
+  return {
+    approvePairing: vi.fn(async () => undefined),
+    bootstrap: vi.fn(async () => ({ access: "full" as const, csrfToken: "c".repeat(32) })),
+    createAccountDataExport: vi.fn(),
+    deleteAccount: vi.fn(),
+    downloadAccountDataExport: vi.fn(),
+    getCurrentAccountDataExport: vi.fn(async () => ({ job: null })),
+    getAccountPreferences: vi.fn(async () => preferences),
+    getPairing: vi.fn(async () => pairing),
+    listExtensionSessions: vi.fn(async () => ({ items: [] })),
+    retryAccountDataExport: vi.fn(),
+    revokeExtensionSession: vi.fn(async () => undefined),
+    ...overrides,
+  };
+}
+
+async function render(identity: IdentityApi, pairingId = "pairing-1") {
+  const container = document.createElement("div");
+  document.body.append(container);
+  await act(async () =>
+    createRoot(container).render(<CloudApp identity={identity} pairingId={pairingId} />),
+  );
+  await act(async () => Promise.resolve());
+  return container;
+}
+
+async function change(control: HTMLInputElement, value: string) {
+  await act(async () => {
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+    setter?.call(control, value);
+    control.dispatchEvent(new Event("input", { bubbles: true }));
+    control.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+}
+
+describe("Web account bootstrap and pairing approval", () => {
+  beforeEach(() => document.body.replaceChildren());
+
+  it("links a signed-out session to the real password login page", async () => {
+    const identity = api({
+      bootstrap: vi.fn(async () => {
+        throw new WebIdentityApiError("authentication_required", 401);
+      }),
+    });
+    const container = await render(identity);
+    expect(container.querySelector("h1")?.textContent).toContain("需要先登录");
+    expect(container.querySelector("[role='status']")?.textContent).toContain("当前会话无效");
+    expect(container.querySelector<HTMLAnchorElement>("a")?.pathname).toBe("/login");
+    expect(container.querySelector("form")).toBeNull();
+  });
+
+  it("loads a pending pairing and approves an explicit device label", async () => {
+    const identity = api();
+    const container = await render(identity);
+    expect(container.textContent).toContain("最小选区");
+    expect(container.textContent).toContain("最多保留一小时");
+    expect(container.textContent).toContain("标题、视频 ID");
+    const field = container.querySelector<HTMLInputElement>("input[name='deviceLabel']");
+    const consent = container.querySelector<HTMLInputElement>("input[name='cloudUploadConsent']");
+    if (field === null) throw new Error("Device label input is missing.");
+    if (consent === null) throw new Error("Cloud upload consent is missing.");
+    await change(field, "Writing laptop");
+    const submit = container.querySelector<HTMLButtonElement>("button[type='submit']");
+    expect(submit?.disabled).toBe(true);
+    await act(async () => consent.click());
+    await act(async () => submit?.click());
+    expect(identity.approvePairing).toHaveBeenCalledWith(
+      "pairing-1",
+      {
+        cloudWordCopyMode: "enabled",
+        deviceLabel: "Writing laptop",
+        expectedPreferencesRevision: 1,
+        extensionQueryModelMode: "platform",
+        studyCaptureMode: "manual",
+      },
+      "c".repeat(32),
+    );
+    expect(container.querySelector("[role='status']")?.textContent).toContain("已批准");
+  });
+
+  it("renders account devices only after a successful session bootstrap", async () => {
+    const identity = api();
+    const container = document.createElement("div");
+    document.body.append(container);
+    await act(async () =>
+      createRoot(container).render(<CloudApp identity={identity} page="devices" />),
+    );
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(identity.bootstrap).toHaveBeenCalledOnce();
+    expect(identity.listExtensionSessions).toHaveBeenCalledOnce();
+    expect(container.querySelector("h1")?.textContent).toBe("扩展设备");
+  });
+
+  it("routes an authenticated account to the pasted-analysis page", async () => {
+    const identity = api();
+    const analysisApi: PasteAnalysisApi = {
+      getRequestStatus: vi.fn(async () => ({
+        analysisId: "analysis-1",
+        requestId: "request-1",
+        state: "completed" as const,
+      })),
+      startAnalysis: vi.fn(async function* () {
+        yield* [];
+      }),
+    };
+    const container = document.createElement("div");
+    document.body.append(container);
+    await act(async () =>
+      createRoot(container).render(
+        <CloudApp analysisApi={analysisApi} identity={identity} page="analysis" />,
+      ),
+    );
+    await act(async () => Promise.resolve());
+
+    expect(container.querySelector("h1")?.textContent).toBe("粘贴英文分析");
+    expect(container.querySelector("[aria-current='page']")?.textContent).toBe("分析");
+  });
+
+  it("routes an authenticated account to the strict quota page", async () => {
+    const identity = api();
+    const preferences = {
+      cloudWordCopyMode: "enabled" as const,
+      dailyGoal: 3,
+      extensionQueryModelMode: "platform" as const,
+      revision: 1,
+      studyCaptureMode: "manual" as const,
+      timezone: "UTC",
+      updatedAt: "2026-08-13T10:00:00.000Z",
+    };
+    const accountApi: AccountQuotaApi = {
+      bootstrap: vi.fn(async () => ({ access: "full" as const, csrfToken: "n".repeat(32) })),
+      getAccount: vi.fn(async () => ({
+        email: "learner@example.com",
+        extensionSessions: [],
+        minSupportedExtensionVersion: "1.0.0",
+        preferences,
+      })),
+      getQuota: vi.fn(async () => contractFixtures.quota),
+      getAccountSignInMethods: vi.fn(async () => ({
+        methods: [{ linkedAt: "2026-08-14T00:00:00.000Z", method: "password" as const }],
+      })),
+      linkPassword: vi.fn(),
+      reauthenticatePassword: vi.fn(),
+      startGoogleLink: vi.fn(),
+      startGoogleReauthentication: vi.fn(),
+      updateAccountPreferences: vi.fn(async (input) => ({
+        ...preferences,
+        ...input,
+        revision: 2,
+      })),
+    };
+    const container = document.createElement("div");
+    document.body.append(container);
+    await act(async () =>
+      createRoot(container).render(
+        <CloudApp accountApi={accountApi} identity={identity} page="account" />,
+      ),
+    );
+    await act(async () => Promise.resolve());
+
+    expect(container.querySelector("h1")?.textContent).toBe("账号与平台额度");
+    expect(container.querySelector("[aria-current='page']")?.textContent).toContain("设置");
+  });
+
+  it("routes an authenticated account to analysis history", async () => {
+    const identity = api();
+    const record = analysisRecordSchema.parse(contractFixtures.analysis);
+    const historyApi: AnalysisHistoryPageApi = {
+      archiveAnalysis: vi.fn(async () => record),
+      deleteAnalysis: vi.fn(async (id) => ({ deleted: true as const, id })),
+      getAnalysis: vi.fn(async () => record),
+      listHistory: vi.fn(async () => ({ items: [record], nextCursor: null })),
+      processNothingToSave: vi.fn(async () => record),
+      restoreAnalysis: vi.fn(async () => record),
+    };
+    const container = document.createElement("div");
+    document.body.append(container);
+    await act(async () =>
+      createRoot(container).render(
+        <CloudApp historyApi={historyApi} identity={identity} page="history" />,
+      ),
+    );
+    await act(async () => Promise.resolve());
+
+    expect(container.querySelector("h1")?.textContent).toBe("分析历史");
+    expect(container.querySelector("[aria-current='page']")?.textContent).toBe("分析历史");
+  });
+
+  it("routes an authenticated account to external wordbook jobs", async () => {
+    const identity = api();
+    const wordbookApi: WebExternalWordbookApi = {
+      cancelJob: vi.fn(),
+      createJob: vi.fn(),
+      downloadWords: vi.fn(),
+      getJob: vi.fn(),
+      listJobs: vi.fn(async () => ({ items: [], nextCursor: null })),
+      retryJob: vi.fn(),
+    };
+    const container = document.createElement("div");
+    document.body.append(container);
+    await act(async () =>
+      createRoot(container).render(
+        <CloudApp identity={identity} page="wordbooks" wordbookApi={wordbookApi} />,
+      ),
+    );
+    await act(async () => Promise.resolve());
+
+    expect(container.querySelector("h1")?.textContent).toBe("外部词典任务");
+    expect(container.querySelector("[aria-current='page']")?.textContent).toBe("外部词典");
+  });
+
+  it("enters the signed-out view after account deletion is accepted", async () => {
+    const identity = api({
+      deleteAccount: vi.fn(async () => ({
+        accepted: true as const,
+        requestedAt: "2026-08-13T10:00:00.000Z",
+      })),
+    });
+    const container = document.createElement("div");
+    document.body.append(container);
+    await act(async () =>
+      createRoot(container).render(<CloudApp identity={identity} page="data" />),
+    );
+    await act(async () => Promise.resolve());
+
+    const checkbox = container.querySelector<HTMLInputElement>("[name='understood']");
+    const phrase = container.querySelector<HTMLInputElement>("[name='confirmationPhrase']");
+    const prepare = container.querySelector<HTMLButtonElement>("[data-prepare-deletion]");
+    if (checkbox === null || phrase === null || prepare === null) {
+      throw new Error("Account deletion controls are missing.");
+    }
+    await act(async () => checkbox.click());
+    await change(phrase, "删除我的账号");
+    await act(async () => prepare.click());
+    await act(async () =>
+      container.querySelector<HTMLButtonElement>("[data-confirm-deletion]")?.click(),
+    );
+
+    expect(identity.deleteAccount).toHaveBeenCalledOnce();
+    expect(container.querySelector("h1")?.textContent).toBe("需要先登录");
+    expect(container.textContent).not.toContain("导出与永久删除");
+  });
+});

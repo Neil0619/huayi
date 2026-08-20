@@ -9,6 +9,8 @@ export const workspaceBuildDirectories = Object.freeze([
   "packages/cloud-contracts",
   "packages/protocol",
   "packages/store-domain",
+  "apps/api",
+  "apps/web",
   "apps/extension",
   "apps/native-host",
   "apps/store-extension",

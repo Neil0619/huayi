@@ -36,6 +36,11 @@ const PRESENTATIONS: Readonly<Record<StoreAnalysisErrorCode, OverlayErrorPresent
     optionsAction: false,
     retry: true,
   },
+  "quota-exhausted": {
+    message: "平台模型额度已用完，请前往 Web 端查看额度或切换为自备 Key。",
+    optionsAction: false,
+    retry: false,
+  },
   timeout: { message: "分析请求超时，请手动重试。", optionsAction: false, retry: true },
   "version-mismatch": {
     message: "扩展已更新，请刷新当前页面后再试。",

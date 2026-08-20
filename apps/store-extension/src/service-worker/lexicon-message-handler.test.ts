@@ -55,6 +55,7 @@ function repository(found: WordEntry | null = null): LexiconRepository {
     findByHeadword: vi.fn(async () => found),
     list: vi.fn(async () => ({ entries: [], nextCursor: null })),
     save: vi.fn(async () => existing),
+    snapshot: vi.fn(async () => (found === null ? [] : [found])),
   };
 }
 
@@ -128,6 +129,29 @@ describe("Store lexicon one-off message handler", () => {
     ).resolves.toMatchObject({ status: "saved" });
     expect(lexicon.save).toHaveBeenCalledOnce();
     expect(exports.enqueue).not.toHaveBeenCalled();
+  });
+
+  it("keeps local save successful when optional CloudWordCopy fails", async () => {
+    const lexicon = repository();
+    const cloudWordCopy = { copy: vi.fn(async () => Promise.reject(new Error("offline"))) };
+
+    await expect(
+      handleLexiconMessage(
+        saveRequest(),
+        lexicon,
+        undefined,
+        undefined,
+        "https://example.test/article",
+        cloudWordCopy,
+      ),
+    ).resolves.toMatchObject({ status: "saved" });
+    expect(lexicon.save).toHaveBeenCalledOnce();
+    expect(cloudWordCopy.copy).toHaveBeenCalledWith({
+      collectedAt: "2026-08-11T00:00:00.000Z",
+      contextualMeaningZh: "调查",
+      headword: "investigation",
+      sentence: "The investigation began.",
+    });
   });
 
   it("blocks a disabled sender before local or export writes", async () => {

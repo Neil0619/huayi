@@ -5,7 +5,7 @@ import {
   recipientAccessDecision,
   type StoreWordbookResponse,
   type StoreSettings,
-  type WordbookExportEngine,
+  type ShanbayBatch,
 } from "@huayi/store-domain";
 
 type RelevantSettings = Pick<StoreSettings, "globallyEnabled" | "recipientAccess" | "sitePolicy">;
@@ -44,7 +44,14 @@ function invalidRequest(): StoreWordbookResponse {
 export async function handleShanbayMessage(
   value: unknown,
   sender: StoreMessageSender,
-  wordbook: WordbookExportEngine,
+  wordbook: {
+    claimShanbayBatch(limit: number): Promise<ShanbayBatch | null>;
+    resolveShanbayBatch(
+      token: string,
+      confirmedOutboxIds: readonly string[],
+      failedOutboxIds: readonly string[],
+    ): Promise<boolean>;
+  },
   readSettings: ReadSettings,
 ): Promise<StoreWordbookResponse | undefined> {
   const isCandidate =
@@ -70,15 +77,15 @@ export async function handleShanbayMessage(
     };
   }
   if (!isSiteEnabled(settings, "web.shanbay.com")) return invalidRequest();
+  const decision = recipientAccessDecision(settings, "shanbay");
+  if (decision !== "allowed") {
+    return {
+      code: decision,
+      messageVersion: STORE_MESSAGE_VERSION,
+      type: "store/wordbook-error",
+    };
+  }
   if (request.type === "store/shanbay-page-ready") {
-    const decision = recipientAccessDecision(settings, "shanbay");
-    if (decision !== "allowed") {
-      return {
-        code: decision,
-        messageVersion: STORE_MESSAGE_VERSION,
-        type: "store/wordbook-error",
-      };
-    }
     return {
       batch: await wordbook.claimShanbayBatch(SHANBAY_BATCH_LIMIT),
       messageVersion: STORE_MESSAGE_VERSION,

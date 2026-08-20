@@ -167,6 +167,7 @@ const errorCode = enumeration(
   "invalid-response",
   "network-error",
   "provider-error",
+  "quota-exhausted",
   "timeout",
   "version-mismatch",
 );

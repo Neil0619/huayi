@@ -11,11 +11,10 @@ export function createTrustedAnalysisRequest(
   settings: StoreSettings,
   requestId: string,
 ): AnalysisRequest {
-  const selectionKind = classifyEnglishSelection(message.selection);
+  const selectionKind = classifyEnglishSelection(message.selection, message.boundaryEvidence);
   if (selectionKind === null) throw new TypeError("Unsupported selection.");
   return analysisRequestSchema.parse({
     action: message.action,
-    context: message.context,
     providerId: settings.providerId,
     requestId,
     selection: message.selection,

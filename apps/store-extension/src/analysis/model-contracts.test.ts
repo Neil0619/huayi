@@ -18,7 +18,6 @@ function request(
 ): AnalysisRequest {
   return {
     action,
-    context: "The selected expression appears here.",
     providerId: "openai",
     requestId: "request-1",
     selection: selectionKind === "word" ? "selected" : "selected expression",
