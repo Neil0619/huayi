@@ -411,8 +411,8 @@ eviction 影响；两个可并存、base64 后各可接近 6.7 MiB 的 `storage.
   通过；Playwright 首轮唯一 fake Google consent 导航超时经单条 1/1 与完整重跑 109/109 关闭，未改认证
   产品行为；
 - 证据不包含真实 Vercel/Supabase、Vault、HTTP、域名/DNS/Resend、Provider、安装或 Chrome。正式任务仍
-  须运行 SQL 两次并确认恰好四项，观察失败恢复，并裁决 Hobby 个人非商业/60 秒、DeepSeek 90 秒、
-  Supabase Free 暂停/无自动备份与 `pg_net` Beta。
+  须运行 SQL 两次并确认恰好四项、观察失败恢复；Phase 45 后改为核验 Fluid/120 秒实际部署，并继续
+  裁决 Hobby 个人非商业、Supabase Free 暂停/无自动备份与 `pg_net` Beta。
 
 ## 15. Phase 39 交付候选与 fake/third-party 矩阵（2026-08-20）
 
@@ -509,3 +509,20 @@ eviction 影响；两个可并存、base64 后各可接近 6.7 MiB 的 `storage.
   审计、`git diff --check` 和无已知漏洞的 production audit；
 - 状态为 `implemented and verified on macOS; Windows batch validation pending`；
 - 不运行 Windows、真实 Provider/词典、安装、Chrome 扩展、邮件、域名、DNS、Resend 或部署。
+
+## 20. Phase 45 Vercel Fluid 与 Function 时长（2026-08-21）
+
+- docs-first 已冻结 `vercel-fluid-function-duration.md`，并由源码复审确认 90 秒是一次 DeepSeek 生成的
+  总 Provider budget，可选结构修复共用同一个 timer；
+- Fresh RED 为 `production-app.test.ts` 2 个预期失败 / 3 个基线通过，分别证明当前配置缺少 `fluid` 与
+  `functions["src/server.ts"]`；最小 GREEN 只写入 `fluid: true` 与 `maxDuration: 120`，不恢复 Vercel
+  Cron，不改 Provider timeout、公开 API、账本、lease 或依赖；
+- GREEN focused 为配置与四条 DeepSeek deadline 5 files / 25 tests；API full 111 files / 415 tests、API
+  strict typecheck/build、目标 lint/format 全绿；
+- 最终 `pnpm verify:macos` 退出 0，覆盖 121/121 Node 脚本、447 个 Vitest 文件（2,757 passed /
+  12 skipped）、Store coverage 97 files / 481 tests、Playwright 110/110、全 workspace
+  format/lint/typecheck/build、instructions/architecture、发布审计、production audit 与 diff check；
+- 当前状态为
+  `runtime configuration implemented and verified on macOS; real deployment and Windows batch pending`。
+  真实 Vercel project、Dashboard、部署产物、Observability、Windows、邮件、域名、DNS、Resend、Provider、
+  安装和 Chrome 均未运行。

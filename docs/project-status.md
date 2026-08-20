@@ -662,9 +662,10 @@ pending`，不能因路线拆分宣称完整 V1 已完成。
   lease 后，相关 lifecycle 5/5、API full 111 files / 409 tests、API strict typecheck/build、目标
   lint/format、instructions/architecture 全绿；根级 format/lint/typecheck/build、118/118 脚本、446 个
   Vitest 文件（2,743 passed / 12 skipped）与完整重跑 Playwright 109/109 也通过；
-- 当前状态为 `implemented; real Vercel/Supabase deployment pending`。这不解决 Hobby 个人非商业与 60 秒
-  Function 上限同 DeepSeek 90 秒超时的冲突，也不关闭 Supabase Free 暂停/备份、`pg_net` Beta、R3-C
-  邮件、域名/DNS/Resend 或其他外部发布门禁；本阶段未运行任何真实云服务。
+- 当时状态为 `implemented; real Vercel/Supabase deployment pending`。当时尚未解决未启用 Fluid 时 60 秒
+  上限同 DeepSeek 90 秒超时的冲突；该仓库配置缺口后由 Phase 45 取代和关闭，但真实 Vercel 核验、
+  Hobby 个人非商业、Supabase Free 暂停/备份、`pg_net` Beta、R3-C 邮件、域名/DNS/Resend 及其他外部
+  发布门禁仍未关闭。本阶段未运行任何真实云服务。
 
 ## Cloud V1 Phase 39 交付候选与 fake/third-party 收口状态（2026-08-20）
 
@@ -756,6 +757,21 @@ pending`，不能因路线拆分宣称完整 V1 已完成。
   97 files / 481 tests 与 Playwright 110/110；
 - 当前状态为 `implemented and verified on macOS; Windows batch validation pending`；
 - 不处理邮件、域名、DNS、Resend、部署、Provider、词典、安装或 Chrome。
+
+## Cloud V1 Phase 45 Vercel Fluid 与 Function 时长状态（2026-08-21）
+
+- 影响平台为 `shared + macOS`；Windows 支持保留并进入下一冻结候选批次；
+- Vercel 当前 Fluid 模式下 Hobby Function 默认/最大均为 300 秒，但旧/导入项目不能依赖新项目默认；
+  实现前 API `vercel.json` 只有 schema，仓库配置缺口真实存在；
+- 四条 DeepSeek adapter 的 90 秒为一次生成总预算，可选结构修复共用 timer；目标是显式
+  `fluid: true` 与唯一 `src/server.ts` 的 120 秒 Function 上限；
+- Fresh RED 为 2 个预期失败 / 3 个基线通过；最小 JSON GREEN 后 focused 5 files / 25 tests、API full
+  111 files / 415 tests，最终 `pnpm verify:macos` 退出 0，覆盖 121/121 Node 脚本、447 个 Vitest 文件、
+  Store coverage 97 files / 481 tests 与 Playwright 110/110；
+- 当前状态为
+  `runtime configuration implemented and verified on macOS; real deployment and Windows batch pending`；
+- 真实 Vercel 部署、Dashboard/Observability、邮件、域名、DNS、Resend、Provider、安装、Chrome 和
+  Windows 均保持 pending。
 
 ## Cloud V1 Phase 23 离线实现状态
 

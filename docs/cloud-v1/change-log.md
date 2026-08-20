@@ -3,6 +3,18 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-21：Vercel API 显式固定 Fluid Compute 与 120 秒 Function 上限
+
+- Phase 38 的“未启用 Fluid 时 Hobby 最大 60 秒”口径由当前 Vercel 执行模型事实取代：仓库必须显式
+  `fluid: true`，不能依赖新项目默认值或未知 Dashboard 状态；
+- 唯一 Hono 入口 `src/server.ts` 固定 `maxDuration: 120`。四条 DeepSeek adapter 的 90 秒是一次生成的
+  总应用预算；可选结构修复共用同一 timer，不能误算为两次各 90 秒；
+- 120 秒只为 90 秒应用 abort 后的数据库终态与响应收尾留余量，不放宽 Provider timeout、自动重试、
+  lease/fencing、价格快照或账本；
+- Vercel Cron 保持移除，Supabase `pg_net` 55 秒仍是四个有界调度请求的独立故障隔离上限；
+- 本阶段只建立仓库配置与离线门，真实 Vercel project、Dashboard、部署产物和 Observability 继续由独立
+  部署任务验收。
+
 ## 2026-08-21：Web 单一皮肤由可执行三层 Token 契约约束
 
 - `styles.css` 的 `:root` 成为生产 Web 唯一 registry，依赖固定为 primitive → semantic → component；
@@ -90,9 +102,10 @@
   ExtensionQuery cleanup 和 duplicate suggestion cleanup。管理员运维 SQL 从 Vault 运行时读取正式 HTTPS
   API origin 与 cron secret，固定四路径 allowlist、search_path、超时与角色撤权，并以固定 job name
   幂等重装；local/preview 不自动安装；
-- 该变更只解决高频调度适配，不能宣称整个 Cloud V1 已兼容 Hobby。Hobby 的个人非商业用途和 60 秒
-  Function 上限、当前 DeepSeek 90 秒应用超时、Supabase Free 暂停/无自动备份及 `pg_net` Beta 仍须在
-  独立部署任务裁决；本阶段不创建云资源、不配置域名/DNS/Resend、不运行真实服务；
+- 该变更只解决高频调度适配，不能宣称整个 Cloud V1 已兼容 Hobby。当时记录的 legacy 60 秒 Function
+  与 90 秒应用超时冲突后由 Phase 45 的 Fluid/120 秒仓库契约 supersede；个人非商业、真实部署、
+  Supabase Free 暂停/无自动备份及 `pg_net` Beta 仍须在独立部署任务裁决；本阶段不创建云资源、不配置
+  域名/DNS/Resend、不运行真实服务；
 - R3-C 安全通知不加入第五个 job，继续作为邮件与生产告警独立任务的发布阻塞项。完整方案见
   `vercel-hobby-supabase-cron.md`。
 

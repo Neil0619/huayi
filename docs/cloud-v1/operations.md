@@ -7,6 +7,9 @@
   与 production 共用。
 - `production` 的 Web/API 是独立 Vercel project，数据库迁移由审批后的 CI job 执行。每个环境启动
   时只校验必需变量名和格式，不输出值。
+- API project 必须从 `apps/api/vercel.json` 应用 `fluid: true`，并把唯一 `src/server.ts` Function 的
+  `maxDuration` 固定为 120 秒。静态配置不替代 Dashboard/部署核验；部署后必须确认 Fluid 已启用、生成
+  Function 上限为 120 秒，并在 Observability 区分 90 秒应用 abort 与平台终止。
 - Cloud API 运行时固定 Node.js 22 或更高版本，以满足当前 Supabase SDK 的运行时约束；这不改变
   Classic workspace 仍保留的 Node.js 18 工具链下限。
 
@@ -89,3 +92,5 @@ DeepSeek key、Google OAuth 和邮件凭据。生产值只存在部署平台 sec
   secret、限制精确 path、撤销业务角色执行权，并以固定 job name 重装实现幂等。Vercel
   `vercel.json` 不再声明分钟级 crons；开发/Preview 不自动安装。完整边界、停用与真实验收见
   `vercel-hobby-supabase-cron.md`。
+- Vercel Fluid/Function 时长的仓库契约、应用预算和真实验收见
+  `vercel-fluid-function-duration.md`；不得用 Hobby 的 300 秒平台能力放宽 90 秒 Provider deadline。

@@ -13,8 +13,8 @@
 这不是“整个 Cloud V1 已兼容 Vercel Hobby”的声明：
 
 - Vercel Hobby 仅面向个人、非商业用途；后续商业化必须重新选择和验收套餐；
-- Hobby 普通 Function 当前最大执行时间为 60 秒，而四条 DeepSeek 生产 adapter 仍有 90 秒应用超时；
-  这是独立的正式部署阻塞项，本阶段不隐式缩短模型超时或改变账本语义；
+- Phase 38 当时按未启用 Fluid Compute 的 legacy Hobby 上限记录了 60 秒 Function 与 90 秒应用超时
+  冲突；Phase 45 已用显式 Fluid 配置和 120 秒入口上限取代该口径，真实部署验证仍待独立任务；
 - Supabase Free 项目可能因低活动被暂停，且不含自动备份；它适合当前开发/个人验证基线，不等于生产
   可用性与恢复策略已经验收；
 - `pg_net` 当前为 Beta；正式候选必须观察请求响应、失败率和扩展升级兼容性。
@@ -53,7 +53,7 @@ SQL 必须满足：
 4. 私有 `SECURITY DEFINER` adapter 固定 `search_path`，只接受上表四个精确路径；`PUBLIC`、`anon`、
    `authenticated` 和 `service_role` 都没有直接执行权限；
 5. 请求带 `Authorization: Bearer <CRON_SECRET>` 与 `Accept: application/json`，使用不超过 55 秒的
-   `pg_net` timeout，为 Vercel Hobby 60 秒上限预留网络与平台收尾时间；
+   `pg_net` timeout，作为四个有界 worker/cleanup 调度请求自身的故障隔离上限；
 6. 安装前按固定 job name 取消旧任务，再各安装一次。重复运行后的结果仍只能是四个任务，不制造重复
    schedule。
 
@@ -94,13 +94,17 @@ Supabase Free 暂停或额度耗尽会使任务停止。正式发布前必须决
 2. 等待至少两个周期，确认四个 route 均返回预期状态且无 secret/正文泄漏；
 3. 分别制造一次 401、5xx 和网络超时，确认下一周期恢复且业务状态机没有重复费用或越权；
 4. 核对 Vercel Function 时长、调用量与 Supabase Cron/pg_net 诊断；
-5. 完成 Supabase Free 暂停、无自动备份和 Vercel 60 秒限制的上线裁决。
+5. 完成 Supabase Free 暂停、无自动备份，以及 Vercel Fluid/120 秒配置的真实上线核验。
 
-## 6. 官方依据（2026-08-20 核验）
+Phase 45 只关闭仓库内 Function 执行模型与时长配置缺口；Dashboard 和实际部署仍须按
+`vercel-fluid-function-duration.md` 核验。
+
+## 6. 官方依据（2026-08-21 复核）
 
 - [Vercel Cron usage and pricing](https://vercel.com/docs/cron-jobs/usage-and-pricing)
 - [Vercel Hobby plan](https://vercel.com/docs/plans/hobby)
-- [Vercel Functions limits](https://vercel.com/docs/functions/limitations)
+- [Vercel Functions duration](https://vercel.com/docs/functions/configuring-functions/duration)
+- [Vercel Fluid Compute](https://vercel.com/docs/fluid-compute)
 - [Supabase Cron](https://supabase.com/docs/guides/cron)
 - [Schedule Edge Functions with pg_cron and pg_net](https://supabase.com/docs/guides/functions/schedule-functions)
 - [Supabase pg_net](https://supabase.com/docs/guides/database/extensions/pg_net)

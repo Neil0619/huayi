@@ -202,3 +202,25 @@ import 清单建立完整闭包。完成前不能把产品的 Token-only/危险�
 `pnpm verify:macos` 退出 0，覆盖 121/121 Node 脚本、447 个 Vitest 文件、Store coverage 97 files /
 481 tests、Playwright 110/110、全 workspace 静态/构建门、发布审计和无已知漏洞的 production audit。
 状态为 `implemented and verified on macOS; Windows batch validation pending`。
+
+## 10. Phase 45 Vercel Function 运行时漂移审计（2026-08-21）
+
+Phase 38 按 legacy 非 Fluid 模型记录 Hobby 60 秒 Function 与 DeepSeek 90 秒 deadline 冲突；当前 Vercel
+权威资料已明确 Fluid 模式下 Hobby 默认/最大时长为 300 秒，而且新项目虽默认启用，旧项目或导入项目
+不能由仓库假定。实现前 `apps/api/vercel.json` 只有 `$schema`，因此源码无法证明 API project 使用
+Fluid，也没有把平台时长放在应用 90 秒 abort 之后。
+
+源码复审进一步确认 analysis、ExtensionQuery、practice 的结构修复与首次调用共用同一个 90 秒 timer，
+duplicate suggestion 只有一次调用；security 旧文案“合法的两次 90 秒供应商调用”会把总预算误读为
+180 秒。4 分钟 generation lease 与 5 分钟 reservation 是恢复/fencing 窗口，不是 Function 请求预算。
+
+Phase 45 必须先冻结 `vercel-fluid-function-duration.md`，再以真实 JSON 配置测试取得 RED，并最小写入
+`fluid: true` 与 `src/server.ts` 的 120 秒上限。该缺口是本地部署配置和测试缺口，不是必须等真实账号
+才能实现的 X；但 Dashboard、真实部署和 Observability 仍是 X，离线测试不得关闭它们。
+
+缺口已关闭：Fresh RED 为 2 个预期失败 / 3 个基线通过；最小 JSON GREEN 后，配置与四条 Provider
+deadline 基线为 5 files / 25 tests、API full 为 111 files / 415 tests。最终 `pnpm verify:macos` 退出 0，
+覆盖 121/121 Node 脚本、447 个 Vitest 文件（2,757 passed / 12 skipped）、Store coverage
+97 files / 481 tests 与 Playwright 110/110。真实 Vercel Dashboard/部署/Observability 和 Windows 批次仍是
+X；状态为
+`runtime configuration implemented and verified on macOS; real deployment and Windows batch pending`。

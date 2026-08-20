@@ -762,8 +762,9 @@ Provider。
 业务状态机。
 
 1. **需求与技术方案**：以 `vercel-hobby-supabase-cron.md` 冻结四个固定 minute job、production-only
-   安装、Vault 配置、精确 allowlist、权限撤销、≤55 秒网络 timeout、幂等重装和停用/恢复；明确该切片不
-   解决 Hobby 60 秒 Function 与 DeepSeek 90 秒应用超时的独立冲突；
+   安装、Vault 配置、精确 allowlist、权限撤销、≤55 秒网络 timeout、幂等重装和停用/恢复；明确该切片
+   当时不解决未启用 Fluid 时 Hobby 60 秒与 DeepSeek 90 秒应用超时的独立冲突；该口径由 Phase 45
+   supersede；
 2. **文档审查**：同步 architecture/security/operations/testing/data-rights/ExtensionQuery/change-log，保留
    历史 Vercel Cron 记录但用本阶段新决策 supersede；确认 R3-C 不被误并为第五项；
 3. **Fresh RED**：保留四个 route 挂载断言，新增 `vercel.json` 零 cron 与 operations SQL 静态安全契约；
@@ -773,8 +774,8 @@ Provider。
 5. **离线验收**：focused、API full、strict typecheck/build、目标 ESLint/Prettier、instructions 与
    architecture 全绿，并复审 diff/secret/路径/Windows 边界；
 6. **外部验收保持 pending**：独立部署任务配置正式 origin/Vault 后运行 SQL 两次并确认恰好四项，观察
-   成功/401/5xx/timeout/恢复，再裁决 Hobby 60 秒、个人非商业限制、Supabase Free 暂停/备份与 pg_net
-   Beta。未取得授权前不执行。
+   成功/401/5xx/timeout/恢复；Phase 45 后改为核验 Fluid/120 秒实际部署，并继续裁决个人非商业限制、
+   Supabase Free 暂停/备份与 pg_net Beta。未取得授权前不执行。
 
 Fresh RED 为 2 个文件中 3 个预期失败、2 个基线通过；GREEN focused 为 2 files / 5 tests。首次 API full
 另暴露历史 dispatch-price 测试把 lease 到期硬编码在 2026-08-17，当前日期下被数据库正确拒绝；最小测试
@@ -923,3 +924,32 @@ journey 未展开导航，按真实用户交互修正后 focused 2/2、最终 11
 最终 `pnpm verify:macos` 退出 0，覆盖 121/121 Node 脚本、447 个 Vitest 文件、Store coverage 97 files /
 481 tests、Playwright 110/110、全 workspace 静态/构建门、发布审计和 production audit。状态为
 `implemented and verified on macOS; Windows batch validation pending`。
+
+## Phase 45：Vercel Fluid Compute 与 API Function 时长（2026-08-21）
+
+影响平台为 `shared + macOS`；Windows 支持保留并进入下一冻结候选批次。本阶段只关闭 API 部署配置的
+离线缺口，不访问 Vercel、不部署，也不处理邮件、域名、DNS、Resend、Provider、安装或 Chrome。
+
+1. **Docs-first**：以 `vercel-fluid-function-duration.md` 冻结当前 Vercel Fluid/Hobby 时长事实、90 秒
+   应用总预算、120 秒 Function 上限、55 秒 Cron timeout 的独立边界和真实部署 pending；
+2. **文档自审**：从四条生产 adapter 证明结构修复共用同一 timer，确认 4/5 分钟 lease/reservation 是
+   恢复窗口而非请求时长；同步 architecture/security/operations/testing 与 Phase 38 历史口径；
+3. **Fresh RED**：扩展 `production-app.test.ts` 解析真实配置，先观察当前 `vercel.json` 缺少 `fluid` 和
+   `functions["src/server.ts"].maxDuration`；保留零 Vercel Cron 断言；
+4. **最小 GREEN**：只在 API `vercel.json` 显式写入 `fluid: true` 与入口 `maxDuration: 120`，不改业务
+   TypeScript、公开 API、Provider deadline、lease/fencing、账本或依赖；
+5. **离线退出门**：focused/API full、strict typecheck/build、目标 lint/format、instructions/architecture、
+   root 离线门与 `pnpm verify:macos` 全绿；回写 fresh 数字并审查 diff；
+6. **外部验收保持 pending**：另行部署后在 Vercel Settings/Functions、部署产物和 Observability 验证
+   Fluid、120 秒上限、90 秒应用 abort 与平台终止恢复；未授权前不执行。
+
+状态在实现与 Mac 门通过后只能标记为
+`runtime configuration implemented and verified on macOS; real deployment and Windows batch pending`。
+
+实现检查点：Fresh RED 为 `production-app.test.ts` 2 个预期失败 / 3 个基线通过；最小 GREEN 只修改
+`apps/api/vercel.json`。配置与四条 DeepSeek deadline focused 为 5 files / 25 tests，API full 为
+111 files / 415 tests，API strict typecheck/build 与目标 lint/format 全绿。最终 `pnpm verify:macos`
+退出 0，覆盖 121/121 Node 脚本、447 个 Vitest 文件（2,757 passed / 12 skipped）、Store coverage
+97 files / 481 tests、Playwright 110/110、全 workspace 静态/构建门、发布审计、production audit 与
+diff check。状态为
+`runtime configuration implemented and verified on macOS; real deployment and Windows batch pending`。

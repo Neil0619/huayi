@@ -441,8 +441,9 @@ timeout 配置上限和三个非 analysis DeepSeek adapter 的实际 abort 没�
   ≤55 秒 timeout、四个固定 job 以及先取消再安装的重跑去重；
 - 离线测试不执行 SQL、不创建 Supabase/Vercel 资源、不访问 Vault 或 HTTP。真实部署必须另行执行 SQL
   两次，检查 `cron.job` 恰好四项，并观察成功、401、5xx 与超时后的下一周期恢复；
-- 这组测试只证明调度适配。Vercel Hobby 60 秒 Function 上限、DeepSeek 90 秒应用超时、个人非商业用途、
-  Supabase Free 暂停与无自动备份仍是独立上线裁决，详见 `vercel-hobby-supabase-cron.md`。
+- 这组测试只证明调度适配。当时的 legacy 60 秒/DeepSeek 90 秒仓库配置缺口由 Phase 45 supersede；
+  Fluid/120 秒真实部署、Hobby 个人非商业用途、Supabase Free 暂停与无自动备份仍是独立上线裁决，详见
+  `vercel-hobby-supabase-cron.md` 与 `vercel-fluid-function-duration.md`。
 
 ## 3. 日志与隐私验证
 
@@ -531,6 +532,26 @@ Phase 44 Fresh RED 为 2 个预期失败 / 7 个基线通过；GREEN 为静态�
 18 tests、Web full 43 files / 198 tests、actual bundle 3/3。最终 `pnpm verify:macos` 退出 0，并覆盖
 121/121 Node 脚本、447 个 Vitest 文件、Store coverage 97 files / 481 tests 与 Playwright 110/110。
 Windows 进入下一冻结候选批次。
+
+### 4.4 Phase 45 Vercel Fluid 与 Function 时长契约
+
+`production-app.test.ts` 解析真实 `apps/api/vercel.json`，必须同时证明 `fluid` 精确为 `true`、唯一
+`functions["src/server.ts"].maxDuration` 精确为 120、没有 `crons`，且 production composition 保留四个
+既有 internal worker route。测试不得只 mock 配置读取，也不得把 Dashboard 或真实部署标为已验证。
+
+源码复审同时绑定四条 DeepSeek adapter 的 90 秒上限：analysis、ExtensionQuery 和 practice 的可选结构
+修复与首次调用共用一个 timer，duplicate suggestion 只有一次调用。120 秒 Function 上限不允许测试放宽
+Provider timeout、lease/fencing、账本或自动重试。完整契约见
+`vercel-fluid-function-duration.md`。
+
+Fresh RED 必须在只含 `$schema` 的旧配置上因缺 `fluid`/`functions` 失败；最小 GREEN 只修改 JSON。离线
+退出门包含 focused/API full、strict typecheck/build、目标 lint/format、instructions/architecture 和
+`pnpm verify:macos`。Vercel Settings、部署产物、Observability 和实际超时恢复仍由另行授权的部署任务验证。
+
+Phase 45 Fresh RED 为 2 个预期失败 / 3 个基线通过；GREEN 为配置与四条 DeepSeek deadline 基线
+5 files / 25 tests、API full 111 files / 415 tests。最终 `pnpm verify:macos` 退出 0，覆盖 121/121 Node
+脚本、447 个 Vitest 文件（2,757 passed / 12 skipped）、Store coverage 97 files / 481 tests、Playwright
+110/110 及全部静态、构建和发布审计门。
 
 ## 5. 最终人工验收
 

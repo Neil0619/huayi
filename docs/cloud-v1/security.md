@@ -204,8 +204,12 @@ Google、邮件服务、Eudic 与 Shanbay 都是外部接收方，分别使用�
   配对、导出和模型端点分别按 pepper hash 后的 IP、账号和设备执行窗口限制。当前 Phase 3 已接入邀请、
   Google/密码登录与配对创建/轮询/交换，其余入口在对应纵向切片实现时接入同一 port。
 - 模型请求先取得持久的 owner/key 请求声明和 4 分钟生成租约，再持有用户 advisory lock 与 5 分钟
-  费用预留；预留期限必须晚于合法的两次 90 秒供应商调用。完成、失败和过期恢复均按
+  费用预留；可结构修复的 adapter 在同一个 90 秒应用 deadline 内最多调用 Provider 两次，预留和租约
+  是崩溃恢复窗口而不是 Function 时长。完成、失败和过期恢复均按
   request→reservation 的固定锁序执行，租约 token 在任何记录/账本写入前 fencing 陈旧 worker。
+- Vercel API 显式使用 Fluid Compute 与 120 秒入口上限。平台时长必须晚于 90 秒应用 abort 并留出终态
+  写入余量，但不得被当成新的 Provider deadline；平台提前终止仍由 durable dispatch、保守结算和 cleanup
+  恢复。配置与离线/真实部署证据边界见 `vercel-fluid-function-duration.md`。
 - 租约过期不自动重跑可能已计费的供应商调用；恢复只使用请求固定的价格版本和预分配账本 ID，原子
   保守结算并写可重放失败。跨租户状态查询由 RLS 隔离，同 key 不同正文在 SSE 前失败关闭。
 - 账本只追加，价格快照不可回写。缺失 usage 保守扣预留；运营人员只能增加新 grant，不能删除历史

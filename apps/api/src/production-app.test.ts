@@ -9,6 +9,19 @@ import {
   duplicateSuggestionCleanupRoute,
 } from "./production-app.js";
 
+interface VercelConfiguration {
+  builds?: unknown;
+  crons?: unknown;
+  fluid?: unknown;
+  functions?: unknown;
+}
+
+async function readVercelConfiguration(): Promise<VercelConfiguration> {
+  return JSON.parse(
+    await readFile(new URL("../vercel.json", import.meta.url), "utf8"),
+  ) as VercelConfiguration;
+}
+
 describe("production API composition", () => {
   it("wires the fail-closed adapters without contacting external services for health", async () => {
     const app = createProductionApp({
@@ -124,11 +137,24 @@ describe("production API composition", () => {
   });
 
   it("leaves frequent scheduling to the production Supabase Cron adapter", async () => {
-    const configuration = JSON.parse(
-      await readFile(new URL("../vercel.json", import.meta.url), "utf8"),
-    ) as { crons?: unknown };
+    const configuration = await readVercelConfiguration();
 
     expect(configuration).not.toHaveProperty("crons");
+  });
+
+  it("pins the API project to Fluid Compute", async () => {
+    const configuration = await readVercelConfiguration();
+
+    expect(configuration.fluid).toBe(true);
+    expect(configuration).not.toHaveProperty("builds");
+  });
+
+  it("gives only the Hono entrypoint a bounded Function duration", async () => {
+    const configuration = await readVercelConfiguration();
+
+    expect(configuration.functions).toEqual({
+      "src/server.ts": { maxDuration: 120 },
+    });
   });
 });
 

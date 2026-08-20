@@ -112,6 +112,13 @@ Chrome Web Store 就绪。
 - [x] `/app`、`/settings/data`、`/privacy` 在桌面与 390px 的实际产物中无横向溢出，危险区边框与隐私
       背景 computed style 有效，焦点可见且公共隐私页零 API。
 
+## Vercel API 运行时
+
+- [x] `apps/api/vercel.json` 显式 `fluid: true`，且唯一 `src/server.ts` Function 的 `maxDuration` 为 120；
+- [x] 配置回归同时证明没有 Vercel Cron、宽泛 Function override 或 legacy `builds`；
+- [ ] 真实部署后在 Vercel Settings/Functions、部署产物和 Observability 核验 Fluid 与 120 秒上限；该项
+      不能由静态 JSON 或 macOS 离线门勾选。
+
 ## 完整 V1
 
 - [ ] CaptureInbox 待分析、ReviewInbox 待收藏、Web V2 深度分析、学习库、生词、历史、两种练习、账号

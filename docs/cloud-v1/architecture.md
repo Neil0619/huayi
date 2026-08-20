@@ -401,6 +401,9 @@ fake clock。客户端通过 HTTP adapter 访问同一用例，不复制领域�
   operations SQL 安装四个独立 `pg_cron` job，再由私有 `pg_net` adapter 调用既有
   `CRON_SECRET` HTTPS route；local/preview 不自动安装。调度 adapter 不进入 migration，也不改变 worker
   的 lease/fencing/幂等语义。完整方案见 `vercel-hobby-supabase-cron.md`。
+- API 项目以 `apps/api/vercel.json` 显式启用 Fluid Compute，并只为唯一 Hono 入口 `src/server.ts`
+  配置 120 秒 `maxDuration`。它容纳既有 90 秒应用级 Provider 总预算与终态写入余量，不改变 Provider
+  deadline、公开 API、lease 或账本；完整契约见 `vercel-fluid-function-duration.md`。
 - API 日志只包含 request ID、route、稳定错误码、时延、模型/价格版本、token 和 micro-USD；正文、
   可选标题、答案、模型响应、凭据、session 和 reasoning 均不得进入日志或错误监控。
 - 运营指标只保留无正文聚合：请求成功率、结构修复率、延迟分位、费用、额度拒绝和 session 撤销。
