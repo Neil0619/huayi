@@ -7,7 +7,7 @@
 凭据、不启动真实 Chrome，不调用 DeepSeek、欧路、扇贝、Supabase、Vercel、Google、Resend 或其他
 真实服务。
 
-当前状态：`implemented on macOS; Windows target-platform validation pending`。
+当前状态：`Windows local offline validation complete; repair commit pushed; remote CI not triggered`。
 
 Windows 必须使用 Codex App 当前原生任务能力。已废弃的 `/Users/niuzhenya/Documents/windows-codex`
 项目及其插件、Hooks、Skills、MCP、runner、job、SSH 或配对流程不得安装、恢复或使用。
@@ -175,17 +175,36 @@ Node.js 与 pnpm，再 Fresh 运行 pnpm verify:windows。若失败，先保存�
 
 ## 9. 执行结果（由 Windows Codex 填写）
 
-- Windows：`pending`
-- Node.js：`pending`
-- pnpm：`pending`
-- 开始 HEAD：`pending`
-- Fresh `pnpm verify:windows`：`pending`
-- 首个失败与根因：`none recorded`
-- 修复与 regression：`none recorded`
-- 最终 `pnpm verify:windows`：`pending`
-- Node/Vitest/Playwright：`pending`
-- SEA health：`pending`
-- 最终 HEAD：`pending`
-- push：`pending`
-- GitHub macOS/Windows CI：`pending`
+- Windows：`Windows 11 Pro 10.0.26220（build 26220）`
+- Node.js：`v26.7.0`，官方 x64 portable，下载 SHA-256 已核验
+- pnpm：`10.12.4`
+- 开始 HEAD：`c6af3c0bbdf94600d936a2a13394d705e9695d08`
+- Fresh `pnpm verify:windows`：`exit 1`；首个失败是根 `AGENTS.md` 12,404 字节超过
+  12,288 字节上限
+- 首个失败与根因：首个门禁失败属于 instructions 文件大小；修复后继续暴露 fresh checkout 中 Store
+  Vite/coverage 配置缺少 workspace source alias、依赖包尚无 `dist` 时无法解析的问题；浏览器全套负载
+  还暴露两项 journey 时序缺陷：切到“已归档”筛选后没有重新选择条目，以及 Google 离线 journey 用
+  默认 5 秒标题断言间接等待两次 API 与重定向
+- 修复与 regression：语义压缩根 `AGENTS.md` 至 12,287 字节；为 Store Vite 与 coverage 配置补齐
+  workspace source alias；归档筛选后显式重选条目；Google journey 改为等待精确 Provider HTTP 200。
+  受影响 targeted 9/9 通过，最慢 12.4 秒
+- 最终 `pnpm verify:windows`：`exit 0`；instructions、format、lint、strict typecheck、development/Store
+  release audits、production dependency audit、九项 Cloud development blocker、9 个 build、SEA health
+  与 `git diff --check` 全绿；production audit 无已知漏洞
+- Node/Vitest/Playwright：脚本 118、store-domain 44、learning-domain 20、cloud-contracts 63、protocol
+  107、native-host 991 passed / 67 macOS skipped、Classic Extension 383、Store Extension 481；聚合门内
+  各次测试调用共 2,797 passed / 67 skipped。Store coverage 为 97 files / 481 tests，statements/lines
+  92.66%、branches 87.87%、functions 88.09%；Playwright 109/109、无 skip
+- SEA health：出现精确成功文案 `Windows SEA health verified.`；仓库外 `.exe` 返回
+  `codexVersion=null`、`hostVersion=0.13.0`、`model=deepseek-v4-flash`、
+  `provider=deepseek-chat-completions`、`ready=true`、`requestId=verify-windows-sea-health`、
+  `schemaVersion=7`、`type=health-result`
+- 本机验证日志：SHA-256 `1BD8…B416`；路径仅为本机临时证据，未纳入仓库
+- 修复提交：`3aa143c7f60ba52a941f2a2db587bc93819427eb`
+- 完整 Windows 门所验证的修复 HEAD：
+  `3aa143c7f60ba52a941f2a2db587bc93819427eb`；随后只提交验证结果文档，不把文档提交冒充完整门证据
+- push：修复提交 `3aa143c7f60ba52a941f2a2db587bc93819427eb` 已普通 push 至
+  `origin/codex/settings-configuration`，无 force
+- GitHub macOS/Windows CI：`not triggered`；该分支无开放 PR，GitHub Actions 无该分支 run，本地 Windows
+  已全绿但远端 CI 尚未运行
 - 外部操作确认：`未运行安装、真实 Chrome、凭据、Provider/词典 smoke 或部署`

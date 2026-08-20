@@ -14,8 +14,10 @@ Chrome Web Store 就绪。
       全绿；
 - [x] 当前 Web 与 Store Extension Playwright 109/109 全绿；
 - [x] 当前 macOS `pnpm verify:macos` 聚合门禁全绿；
-- [ ] Windows Node.js 26+ 的 `pnpm verify:windows`、SEA health 与 CI 全绿；Phase 37-B 精确交接已冻结在
-      `windows-validation-handoff.md`，Windows Codex 必须回写真实结果后才能勾选；
+- [ ] Windows Node.js 26+ 的 `pnpm verify:windows`、SEA health 与 CI 全绿；Phase 37-B 已在 Windows 11
+      build 26220、Node.js 26.7.0 上本地退出 0，109/109 Playwright、SEA 仓库外 health 与 production
+      audit 全绿；完整门证据提交 `3aa143c7f60ba52a941f2a2db587bc93819427eb` 已普通 push，但分支无
+      开放 PR 且 GitHub Actions 无该分支 run，因此 macOS/Windows CI 未触发，组合项保持未勾选；
 - [ ] 数据库空库/升级 migration、RLS 多租户矩阵和账号删除恢复通过；
 - [x] 当前开发态构建审计确认没有新增秘密、远程代码、动态 endpoint 或危险 HTML；
 - [ ] 正式候选注入公开配置后重新执行完整构建审计，并复核每项 permission/host；

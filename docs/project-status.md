@@ -684,14 +684,23 @@ pending`，不能因路线拆分宣称完整 V1 已完成。
 
 ## Cloud V1 Phase 37-B Windows 交接状态（2026-08-20）
 
-- 已新增 `docs/cloud-v1/windows-validation-handoff.md`，固定目标分支、候选祖先提交、Node.js 26+ / pnpm
-  10.12.4、Fresh `pnpm verify:windows`、SEA health、失败修复边界、结果模板、提交/push 和返回信息；
-- Windows 必须使用 Codex App 原生任务；废弃的 windows-codex 项目及其插件、Hooks、Skills、MCP、runner、
-  job、SSH/配对流程不得恢复；
-- 当前 macOS 分支在交接准备前比远端领先 2 个提交。远端包含 `e9abf51` 和本交接文档前，Windows pull
-  前置尚未满足；本阶段不会未经明确授权自动 push；
-- 当前状态为 `handoff documented; baseline publication and Windows validation pending`。没有运行 Windows、
-  安装、真实 Chrome、凭据、Provider/词典 smoke 或部署。
+- Windows 11 Pro build 26220 使用已核验 SHA-256 的官方 Node.js `v26.7.0` x64 portable 与 pnpm
+  `10.12.4`，从 HEAD `c6af3c0bbdf94600d936a2a13394d705e9695d08` Fresh 执行完整门禁；首个 RED
+  是根 `AGENTS.md` 12,404 字节超过 12 KiB 上限；
+- 后续 Fresh 缺陷按最小 shared/build/test 范围修复：指令文件压缩至 12,287 字节；Store Vite 与 coverage
+  补 workspace source alias，解除无 `dist` checkout 的解析失败；Web 归档 journey 显式重选条目；Google
+  离线 journey 改为等待精确 Provider HTTP 200；受影响 targeted 9/9 最慢 12.4 秒；
+- 最终 `pnpm verify:windows` 退出 0：脚本 118、各 workspace 测试全绿，native-host 991 passed / 67
+  macOS skipped，Store coverage 97 files / 481 tests（statements/lines 92.66%、branches 87.87%、functions
+  88.09%），Playwright 109/109 无 skip，9 个 build、development/Store release audits、production audit
+  与 SEA 仓库外 health 全绿；聚合门内各次测试调用共 2,797 passed / 67 skipped，production audit 无漏洞；
+- `Windows SEA health verified.` 已出现，health 为 schema 7、Host `0.13.0`、
+  `deepseek-chat-completions` / `deepseek-v4-flash`、ready，且 `codexVersion=null`；
+- 完整门所验证的修复 HEAD 为 `3aa143c7f60ba52a941f2a2db587bc93819427eb`，已无 force 普通 push
+  至 `origin/codex/settings-configuration`；随后只提交验证结果文档，不把文档提交冒充完整门证据；
+- 当前状态为 `Windows local offline validation complete; repair commit pushed; remote CI not triggered`。
+  该分支无开放 PR，GitHub Actions 无该分支 run；没有运行安装、真实 Chrome、凭据、Provider/词典
+  smoke、部署或其他外部操作。
 
 ## Cloud V1 Phase 23 离线实现状态
 

@@ -3,6 +3,20 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-20：Windows Fresh 门固定 workspace source 解析与精确异步等待
+
+- Fresh Windows 首个 RED 是根 `AGENTS.md` 12,404 字节超过 12 KiB；语义压缩至 12,287 字节后，门禁
+  继续证明 Store Vite 与 coverage 不能依赖 workspace 包已预建 `dist`。两份配置改用同一组 workspace
+  source alias，使 fresh checkout 与常规 workspace build/test 解析一致，不放宽 coverage 或发布审计；
+- actual-bundle journey 的筛选动作必须重新选择当前视图中的条目，不能沿用切换到“已归档”前的详情；
+  Google 离线 journey 也不再以默认 5 秒标题断言间接等待两个 API 和重定向，而是等待精确 Provider
+  HTTP 200。targeted 9/9 通过，最慢 12.4 秒；
+- 最终 Windows `pnpm verify:windows` 退出 0，覆盖 109/109 Playwright、Store coverage、9 个 build、
+  development/Store release audits、无漏洞 production audit 与仓库外 SEA health；这些 shared/build/test
+  修复不改变 Classic wire、Provider、权限、数据模型或任何外部发布边界；完整门证据提交
+  `3aa143c7f60ba52a941f2a2db587bc93819427eb` 已普通 push，该分支无开放 PR 且 GitHub Actions 无分支
+  run，因此远端 macOS/Windows CI 未触发。
+
 ## 2026-08-20：冻结 Phase 37-B Windows 离线验证交接
 
 - 保留 Windows 支持；下一阶段只验证 Node.js 26+ 完整离线门、SEA package 与仓库外 `.exe` health，不把
