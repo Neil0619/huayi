@@ -19,6 +19,13 @@ test("Playwright resolves workspace protocol imports from source in a clean chec
   assert.doesNotMatch(viteConfig, /packages\/protocol\/dist/);
 });
 
+test("Playwright scans Classic and Store fixtures before the first browser journey", async () => {
+  const viteConfig = await readFile(viteConfigUrl, "utf8");
+
+  assert.match(viteConfig, /"apps\/extension\/e2e\/fixtures\/\*\*\/\*\.html"/u);
+  assert.match(viteConfig, /"apps\/store-extension\/e2e\/fixtures\/\*\*\/\*\.html"/u);
+});
+
 test("Playwright discovers Cloud journeys and builds one reviewed production Web fixture", async () => {
   const [playwrightConfig, viteConfig] = await Promise.all([
     readFile(playwrightConfigUrl, "utf8"),

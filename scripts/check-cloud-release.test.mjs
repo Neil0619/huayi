@@ -131,7 +131,7 @@ async function createFixture() {
   await write(
     root,
     "apps/web/dist/assets/index.js",
-    "华译 Cloud V1 隐私说明 Chrome Web Store User Data Policy Limited Use requirements",
+    "语见 Cloud V1 隐私说明 Chrome Web Store User Data Policy Limited Use requirements",
   );
   await write(root, "apps/web/dist/assets/index.css", "body{color:#101a2d}");
   await write(
@@ -143,7 +143,7 @@ async function createFixture() {
     root,
     "docs/cloud-v1/privacy-policy.md",
     [
-      "# 华译 Cloud V1 隐私说明",
+      "# 语见 Cloud V1 隐私说明",
       "Chrome Web Store User Data Policy Limited Use requirements",
       "Cloud V1 不是端到端加密产品，华译服务器可读学习内容。",
       "BYOK 与欧路凭据只保存在本机。",

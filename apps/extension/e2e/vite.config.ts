@@ -64,6 +64,12 @@ function buildExtensionFixtures(): Plugin {
 }
 
 const e2eViteConfig = defineConfig({
+  optimizeDeps: {
+    entries: [
+      "apps/extension/e2e/fixtures/**/*.html",
+      "apps/store-extension/e2e/fixtures/**/*.html",
+    ],
+  },
   plugins: [buildExtensionFixtures()],
   resolve: {
     alias: {

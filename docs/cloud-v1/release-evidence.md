@@ -442,3 +442,21 @@ eviction 影响；两个可并存、base64 后各可接近 6.7 MiB 的 `storage.
   audit 全绿；`pnpm verify:macos` 退出 0，并再次覆盖 Store coverage 与 Playwright 109/109；
 - 本阶段没有真实 Provider/词典、部署、安装、Chrome、邮件、域名、DNS 或 Windows 目标机操作。Windows
   支持和 CI/SEA 契约保留，实际 `verify:windows` 与 SEA health 进入下一阶段。
+
+## 16. Phase 40 Windows 回流与品牌候选复验（2026-08-20）
+
+- 拉取并线性整合 Windows 修复/证据提交 `3aa143c`、`313b5d4` 与“语见 / Seen & Said”品牌提交；
+  `AGENTS.md` 合并后为 12,206 bytes，低于 12 KiB 上限；
+- 首次隔离 macOS 全门在 Playwright 得到 107/109：Store cold Vite discovery 触发同页 reload，Cloud
+  学习库在第二次 archive mutation 完成前切换 archived filter。前者通过显式扫描两组 E2E HTML entry
+  在冷启动预发现依赖，后者等待 mutation 的“恢复学习项”可见状态后再筛选并重选条目；
+- 品牌提交把 Web 隐私页改为 `语见 Cloud V1 隐私说明`，release audit 仍检查旧公共名称而新增
+  `web-privacy-artifact`。测试夹具先改名取得 7 expected failures / 6 baseline passed，再只校准 artifact
+  marker；固定九项 development blocker 和全部安全/发布阈值保持不变；
+- focused GREEN：Playwright source/release audit 17/17、目标 journeys 连续 10/10；最终
+  `pnpm verify:macos` 退出 0，覆盖 446 个 Vitest 文件（2,748 passed / 12 skipped）、Store coverage
+  97 files / 481 tests、Playwright 109/109、9 个 build、完整静态门、release audits 与 production
+  dependency audit；
+- Windows 11 上的上一候选 `verify:windows` 与 SEA health 证据仍有效地证明 `3aa143c`；但当前品牌与
+  shared harness/audit 修复晚于该 HEAD，因此当前精确候选仍需 Windows/远端 CI 重验。未运行安装、
+  真实 Chrome、凭据、Provider/词典 smoke、邮件/域名/DNS 或部署。

@@ -208,3 +208,25 @@ Node.js 与 pnpm，再 Fresh 运行 pnpm verify:windows。若失败，先保存�
 - GitHub macOS/Windows CI：`not triggered`；该分支无开放 PR，GitHub Actions 无该分支 run，本地 Windows
   已全绿但远端 CI 尚未运行
 - 外部操作确认：`未运行安装、真实 Chrome、凭据、Provider/词典 smoke 或部署`
+
+## 10. Windows 结果回流与 macOS 复验（2026-08-20）
+
+- Windows 结果文档提交 `313b5d409e5fa49e9a0391b6e7d791eea8a28893` 已普通 push；它的完整
+  Windows 门证据仍以被验证的修复 HEAD `3aa143c7f60ba52a941f2a2db587bc93819427eb` 为准；
+- 当前任务把 Windows 两个提交与“语见 / Seen & Said”品牌提交线性 rebase。根 `AGENTS.md` 同时保留
+  新品牌口径和 Windows 的压缩修复，当前为 12,206 bytes，低于 12 KiB 上限；
+- 首次隔离 macOS 复验在其他门全绿后得到 Playwright 107/109：Store 首个 journey 被 Vite cold
+  dependency discovery 强制刷新；Cloud 学习库在第二次归档完成前切换筛选，列表请求与 mutation 竞态；
+- 修复只让 E2E Vite 启动时显式扫描 Classic/Store 两组 fixture，并让归档 journey 等到“恢复学习项”
+  出现后再切换筛选、重新选择条目；另把 Cloud release Web 隐私 artifact marker 从旧公共名称校准为
+  `语见 Cloud V1 隐私说明`，固定九项 development blocker、覆盖率和发布审计阈值均未改变；
+- Fresh 配置 RED 为 1 expected failure / 3 baseline passed、修后 4/4；归档竞态修前 repeat 1/3、修后
+  两条目标 journey 10/10；品牌审计 marker RED 为 7 expected failures / 6 baseline passed、修后 release
+  audit 13/13，development blocker 恢复精确通过；
+- 最终 `pnpm verify:macos` 退出 0：446 个 Vitest 文件（2,748 passed / 12 skipped）、Store coverage
+  97 files / 481 tests（statements/lines 92.66%、branches 87.87%、functions 88.09%）、Playwright
+  109/109、9 个 workspace build、instructions、format、lint、typecheck、architecture、release audits、
+  production dependency audit 与 `git diff --check` 全绿；
+- 该复验没有运行安装、真实 Chrome、凭据、Provider/词典 smoke 或部署。因为品牌提交和本节 shared
+  harness/audit 修复晚于 Windows 已验证 HEAD，当前精确候选的 `verify:windows`/远端双平台 CI 仍待重跑；
+  不把早先 Windows 结果外推为当前 HEAD 的完成证明。

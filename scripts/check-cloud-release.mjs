@@ -274,7 +274,7 @@ async function auditWeb(root, violations) {
   }
   const bundle = contents.map((entry) => entry.text).join("\n");
   if (
-    !bundle.includes("华译 Cloud V1 隐私说明") ||
+    !bundle.includes("语见 Cloud V1 隐私说明") ||
     !bundle.includes("Chrome Web Store User Data Policy")
   ) {
     violations.push(violation("web-privacy-artifact"));
