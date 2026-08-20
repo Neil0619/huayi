@@ -32,14 +32,15 @@ Cloud V1 是尚未发布的 Store Edition 云端学习增量。实现和审阅�
 28. [Phase 26C Store 客户端升级恢复方案](store-upgrade-recovery.md)
 29. [Phase 34 DeepSeek V4 Flash usage 与分时计费方案](deepseek-v4-billing.md)
 30. [Vercel Hobby + Supabase Free 高频任务调度方案](vercel-hobby-supabase-cron.md)
-31. [运营与恢复](operations.md)
-32. [隐私说明草案](privacy-policy.md)
-33. [Cloud V1 商店清单与数据披露草案](store-listing.md)
-34. [发布检查表](release-checklist.md)
-35. [Phase 32 Cloud V1 完成度证据矩阵](offline-completion-audit.md)
-36. [Phase 28 语义重复建议与显式合并方案](semantic-duplicate-suggestions.md)
-37. [Phase 29 根级离线质量门收口方案](root-quality-gates.md)
-38. [决策变更记录](change-log.md)
+31. [Phase 37-B Windows 离线验证交接](windows-validation-handoff.md)
+32. [运营与恢复](operations.md)
+33. [隐私说明草案](privacy-policy.md)
+34. [Cloud V1 商店清单与数据披露草案](store-listing.md)
+35. [发布检查表](release-checklist.md)
+36. [Phase 32 Cloud V1 完成度证据矩阵](offline-completion-audit.md)
+37. [Phase 28 语义重复建议与显式合并方案](semantic-duplicate-suggestions.md)
+38. [Phase 29 根级离线质量门收口方案](root-quality-gates.md)
+39. [决策变更记录](change-log.md)
 
 根 `CONTEXT.md` 定义领域语言，`docs/adr/0009`–`0022` 记录难以逆转的取舍。需求或技术路线变化先
 更新 `change-log.md` 和对应权威文档，再修改代码。

@@ -3,6 +3,16 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-20：冻结 Phase 37-B Windows 离线验证交接
+
+- 保留 Windows 支持；下一阶段只验证 Node.js 26+ 完整离线门、SEA package 与仓库外 `.exe` health，不把
+  macOS fake 或历史 Windows 记录冒充当前 Cloud 候选证据；
+- 新增独立交接文档，固定 `e9abf51` 候选祖先、同一远端分支、干净工作树、Fresh 结果、修复边界、最终
+  全门、Conventional Commit、普通 push 和返回摘要；
+- 明确废弃 windows-codex 项目不得恢复；Windows 使用 Codex App 原生任务；
+- 邮件/域名/DNS/Resend、安装、真实 Chrome、DPAPI、Provider/词典、云部署和商店操作继续保持独立授权，
+  不因 Windows 自动门通过而关闭。
+
 ## 2026-08-20：交付收口前补齐 Eudic deadline 与 fake 分支矩阵
 
 - Phase 37-A 重算得到 613 个未跟踪 Cloud 交付候选；`.agents/skills/**` 150 个和 `artifacts/**` 8 张仍

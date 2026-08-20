@@ -817,3 +817,24 @@ ExtensionQuery 接受 90,001ms；其余 quota/abort 用例作为 characterizatio
 instructions/architecture/format/lint/typecheck/build、118/118 Node 脚本、446 个 Vitest 文件（2,748 passed /
 12 skipped）、development blocker、Store release 与 production dependency audit 全绿，`pnpm verify:macos`
 退出 0。Windows 目标机证据仍按计划进入 Phase 37-B。
+
+## Phase 37-B：Windows Node.js 26+ 离线候选验证
+
+1. **发布前置**：`origin/codex/settings-configuration` 必须先包含 `e9abf514807cd5bf9eba54c531a4d7d6ef426c05`
+   和 `windows-validation-handoff.md`；Windows 以 `merge-base --is-ancestor` 失败关闭，不能在旧远端 HEAD
+   上验证；
+2. **Fresh 目标门**：在干净 Windows 10/11、Node.js 26+、pnpm 10.12.4 工作树执行
+   `pnpm install --frozen-lockfile` 与 `pnpm verify:windows`；记录首轮真实结果；
+3. **最小修复**：只有 Fresh 门失败时才在 Windows/shared 范围复现、补 regression 并修复；禁止新增
+   skip、降低 audit/coverage、删除 Windows 支持或扩大到安装、凭据、真实 Chrome/Provider/词典/部署；
+4. **完整 GREEN**：focused 只用于收敛，最终必须重新执行整个 `pnpm verify:windows`，确认真实 SEA
+   package 与仓库外 `.exe` health；
+5. **记录与推送**：按交接文档回写 Windows/Node/pnpm/HEAD/首轮/修复/最终数量/SEA/CI，精确暂存并
+   Conventional Commit，普通 push 到同一分支；不得 force-push；
+6. **返回复审**：当前任务在 Windows push 后核对提交、文档、CI 和 shared diff；Windows 自动门不关闭
+   真实安装、Chrome、DPAPI、DeepSeek/Eudic、云部署或商店发布门禁。
+
+本地退出门槛：Windows `pnpm verify:windows` 退出 0 且输出 `Windows SEA health verified.`，记录提交已
+普通 push；若有任一项未满足，状态保持 `implemented; Windows target-platform validation pending`。
+GitHub macOS/Windows CI 只有真实全绿后才关闭发布检查表总项；未触发时明记 pending，不阻止把本地
+Windows 目标机结果交回当前任务复审。

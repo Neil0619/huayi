@@ -682,6 +682,17 @@ pending`，不能因路线拆分宣称完整 V1 已完成。
 - 当前状态为 `repository delivery candidate closed; Windows target validation pending`。没有运行真实服务、
   部署、安装、Chrome 或 Windows 目标机；Windows 支持保留，`verify:windows`/SEA health 是下一阶段独立证据。
 
+## Cloud V1 Phase 37-B Windows 交接状态（2026-08-20）
+
+- 已新增 `docs/cloud-v1/windows-validation-handoff.md`，固定目标分支、候选祖先提交、Node.js 26+ / pnpm
+  10.12.4、Fresh `pnpm verify:windows`、SEA health、失败修复边界、结果模板、提交/push 和返回信息；
+- Windows 必须使用 Codex App 原生任务；废弃的 windows-codex 项目及其插件、Hooks、Skills、MCP、runner、
+  job、SSH/配对流程不得恢复；
+- 当前 macOS 分支在交接准备前比远端领先 2 个提交。远端包含 `e9abf51` 和本交接文档前，Windows pull
+  前置尚未满足；本阶段不会未经明确授权自动 push；
+- 当前状态为 `handoff documented; baseline publication and Windows validation pending`。没有运行 Windows、
+  安装、真实 Chrome、凭据、Provider/词典 smoke 或部署。
+
 ## Cloud V1 Phase 23 离线实现状态
 
 - 五类平台付费练习生成已统一进入 PlatformGeneration：新增 ADR-0018、

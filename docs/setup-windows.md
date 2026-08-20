@@ -181,6 +181,11 @@ pnpm host:uninstall
 本文件、`project-status.md`、架构、协议、安全和测试文档已经描述当前边界。新的 Codex 应先跑
 离线门禁，再做 Windows 实机安装；不要重新设计协议，也不要在 Windows 补 Codex Provider。
 
+Cloud V1 Phase 37-B 只做离线候选门和 SEA health 时，先完整阅读
+[`cloud-v1/windows-validation-handoff.md`](cloud-v1/windows-validation-handoff.md)，按其中固定分支、
+候选祖先、Fresh 结果、修复边界、证据模板和普通 push 流程执行。不要恢复已废弃的 windows-codex
+项目，也不要把离线门授权扩大为安装、真实 Chrome、凭据或 Provider/词典 smoke。
+
 ## 官方接口依据
 
 - [Chrome Native Messaging](https://developer.chrome.com/docs/extensions/develop/concepts/native-messaging)
