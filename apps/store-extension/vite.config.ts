@@ -6,6 +6,11 @@ import { defineConfig, type Plugin, type UserConfig } from "vite";
 
 const extensionRoot = dirname(fileURLToPath(import.meta.url));
 const outputDirectory = resolve(extensionRoot, "dist");
+const workspaceAliases = {
+  "@huayi/cloud-contracts": resolve(extensionRoot, "../../packages/cloud-contracts/src/index.ts"),
+  "@huayi/learning-domain": resolve(extensionRoot, "../../packages/learning-domain/src/index.ts"),
+  "@huayi/store-domain": resolve(extensionRoot, "../../packages/store-domain/src/index.ts"),
+};
 const PAGE_ASSETS = {
   options: ["options.html", "options.css", "options-components.css", "brand-theme.css"],
   popup: ["popup.html", "popup.css", "brand-theme.css"],
@@ -59,6 +64,9 @@ export function createStoreExtensionConfig(mode: string): UserConfig {
   const isYouTubeContentBuild = mode === "youtube-content";
   const isYouTubeMainBuild = mode === "youtube-main";
   return {
+    resolve: {
+      alias: workspaceAliases,
+    },
     build: {
       emptyOutDir: isContentBuild,
       minify: "esbuild",

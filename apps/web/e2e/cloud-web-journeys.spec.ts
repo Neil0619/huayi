@@ -50,6 +50,7 @@ test("actual Web bundle confirms one candidate and rereads it from the learning 
   await page.getByRole("button", { name: "归档学习项" }).click();
   await page.getByRole("button", { name: "确认归档" }).click();
   await page.getByLabel("状态").selectOption("true");
+  await page.getByRole("button", { name: /to be completely frank/u }).click();
   await expect(page.getByRole("button", { name: "永久删除学习项" })).toBeVisible();
   await page.getByRole("button", { name: "永久删除学习项" }).click();
   await expect(page.getByText(/既有练习题、作答、对话和反馈会保留/u)).toBeVisible();

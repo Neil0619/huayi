@@ -41,39 +41,38 @@ remain out of scope.
   `docs/superpowers/plans/2026-07-16-word-results.md`.
 - Overlay visual behavior:
   `docs/superpowers/specs/2026-07-17-ui-refresh-design.md`.
-- Current release status and roadmap: `docs/project-status.md`.
-- Cloud V1 documentation entry: `docs/cloud-v1/README.md`.
-- Cloud V1 product behavior and implementation order:
+- Release status and roadmap: `docs/project-status.md`.
+- Cloud V1 docs: `docs/cloud-v1/README.md`.
+- Cloud V1 behavior/implementation order:
   `docs/cloud-v1/product.md` and `docs/cloud-v1/implementation-plan.md`.
-- Cloud V1 architecture, data, API, security, and tests:
+- Cloud V1 architecture/data/API/security/testing:
   `docs/cloud-v1/architecture.md`, `docs/cloud-v1/data-model.md`,
   `docs/cloud-v1/api.md`, `docs/cloud-v1/security.md`, and `docs/cloud-v1/testing.md`.
 - Cloud V1 decision changes: `docs/cloud-v1/change-log.md`.
-- Standard settings, site policies, and Host configuration status:
+- Settings/site policies/Host configuration status:
   `docs/superpowers/specs/2026-08-10-settings-configuration-design.md`.
 - Settings implementation order:
   `docs/superpowers/plans/2026-08-10-settings-configuration.md`.
-- Cross-platform development and completion rules: `docs/cross-platform-development.md`.
+- Cross-platform development/completion rules: `docs/cross-platform-development.md`.
 - Windows source installation: `docs/setup-windows.md`.
 - Keep temporary task status out of AGENTS.md files.
 
 ## Current release invariants
 
-The version, wire, Host, provider, and installation invariants below apply to frozen Classic 0.13
-unless a Cloud V1 source explicitly says otherwise. Cloud code must not change Classic wire v7 or
-Native Host behavior.
+Version, wire, Host, provider, and installation invariants apply to frozen Classic 0.13 unless a
+Cloud V1 source says otherwise. Cloud code must not alter Classic wire v7 or Native Host behavior.
 
 - All app, package, Manifest, Host, App Server client, and Eudic User-Agent identities are
   `0.13.0`; the Native Messaging `schemaVersion` is `7`.
-- Wire v7 is incompatible with v6 and rejects it. Upgrade or roll back the Extension and Native
-  Host synchronously; do not add a translation shim.
-- Missing provider configuration defaults to Codex. Every other invalid configuration state
-  fails closed. Each analysis request reads and pins one provider; never migrate an active
-  request or automatically fall back after a provider failure.
-- Provider schemas describe private model content only. The trusted Host owns `sourceText`,
-  `selectionKind`, and public result `type`, then validates the assembled public result.
-- Word translation is dictionary-focused (`translate-word`); word explanation is contextual
-  usage-focused (`explain-word`). Keep phrase behavior in the lexical result types.
+- Wire v7 is incompatible with v6 and rejects it. Upgrade or roll back Extension and Native Host
+  synchronously; do not add a translation shim.
+- Missing provider configuration defaults to Codex; every other invalid state fails closed. Each
+  analysis request reads and pins one provider; never migrate an active request or automatically
+  fall back after a provider failure.
+- Provider schemas describe only private model content. The trusted Host owns `sourceText`,
+  `selectionKind`, and public result `type`, then validates the assembled result.
+- Word translation is dictionary-focused (`translate-word`); explanation is contextual-usage-focused
+  (`explain-word`). Keep phrase behavior in lexical result types.
 - Warmup carries no selection, context, sentence, URL, or other page data and must not create a
   thread, turn, or model output. Typed deltas and sections are previews; only `result` is a
   complete success. Omit empty lexical sections instead of fabricating values.

@@ -2,6 +2,12 @@ import { fileURLToPath } from "node:url";
 
 import { defineConfig } from "vitest/config";
 
+const cloudContractsSource = fileURLToPath(
+  new URL("./packages/cloud-contracts/src/index.ts", import.meta.url),
+);
+const learningDomainSource = fileURLToPath(
+  new URL("./packages/learning-domain/src/index.ts", import.meta.url),
+);
 const storeDomainSource = fileURLToPath(
   new URL("./packages/store-domain/src/index.ts", import.meta.url),
 );
@@ -9,6 +15,8 @@ const storeDomainSource = fileURLToPath(
 export default defineConfig({
   resolve: {
     alias: {
+      "@huayi/cloud-contracts": cloudContractsSource,
+      "@huayi/learning-domain": learningDomainSource,
       "@huayi/store-domain": storeDomainSource,
     },
   },

@@ -1,8 +1,17 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 import { createCloudBrowserAuthority } from "./support/cloud-browser-authority.js";
 
 const webOrigin = "https://web.huayi.invalid";
+const providerOrigin = "https://accounts.google.invalid";
+
+function waitForGoogleProvider(page: Page, purpose: "link" | "reauthenticate") {
+  return page.waitForResponse(
+    (response) =>
+      response.status() === 200 &&
+      response.url() === `${providerOrigin}/consent?purpose=${purpose}`,
+  );
+}
 
 test("password account links Google through recent authentication in the actual Web bundle", async ({
   page,
@@ -19,7 +28,10 @@ test("password account links Google through recent authentication in the actual 
   const password = page.getByLabel("当前密码");
   await expect(password).toHaveAttribute("autocomplete", "current-password");
   await password.fill("correct horse battery staple");
-  await page.getByRole("button", { name: "确认并前往 Google" }).click();
+  await Promise.all([
+    waitForGoogleProvider(page, "link"),
+    page.getByRole("button", { name: "确认并前往 Google" }).click(),
+  ]);
   await expect(page.getByRole("heading", { name: "测试 Google 账号" })).toBeVisible();
   await page.getByRole("button", { name: "以测试账号继续" }).click();
 
@@ -46,7 +58,10 @@ test("Google account reauthenticates then links a password in the actual Web bun
   await authority.install(page);
   await page.goto(`${webOrigin}/settings/account`);
 
-  await page.getByRole("button", { name: "通过 Google 确认身份" }).click();
+  await Promise.all([
+    waitForGoogleProvider(page, "reauthenticate"),
+    page.getByRole("button", { name: "通过 Google 确认身份" }).click(),
+  ]);
   await expect(page.getByRole("heading", { name: "测试 Google 账号" })).toBeVisible();
   await page.getByRole("button", { name: "以测试账号继续" }).click();
   await expect(page).toHaveURL(`${webOrigin}/settings/account`);
@@ -72,7 +87,10 @@ test("a stale password-link view rereads canonical methods after the method was 
   await authority.install(page);
   await page.goto(`${webOrigin}/settings/account`);
 
-  await page.getByRole("button", { name: "通过 Google 确认身份" }).click();
+  await Promise.all([
+    waitForGoogleProvider(page, "reauthenticate"),
+    page.getByRole("button", { name: "通过 Google 确认身份" }).click(),
+  ]);
   await expect(page.getByRole("heading", { name: "测试 Google 账号" })).toBeVisible();
   await page.getByRole("button", { name: "以测试账号继续" }).click();
   await expect(page).toHaveURL(`${webOrigin}/settings/account`);
