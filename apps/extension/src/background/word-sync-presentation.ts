@@ -16,7 +16,7 @@ export function wordSyncCountsPresentation(
 ): WordSyncPresentation {
   const badge = pendingCount > 0 ? wordSyncBadgeText(pendingCount) : unresolvedCount > 0 ? "!" : "";
   let title =
-    pendingCount === 0 ? "划译：暂无待同步生词" : `划译：${pendingCount} 个生词待同步到扇贝`;
+    pendingCount === 0 ? "语见：暂无待同步生词" : `语见：${pendingCount} 个生词待同步到扇贝`;
   if (unresolvedCount > 0) title += `；${unresolvedCount} 个词需要人工处理`;
   return { badge, title };
 }

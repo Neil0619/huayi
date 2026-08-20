@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "划译 Store",
+  "name": "语见 · Seen & Said",
   "version": "1.0.0",
-  "description": "面向中文英语学习者的网页划词翻译与本地生词本。",
+  "description": "Turn what you see into what you can say. 面向中文英语学习者的网页划词翻译与本地生词本。",
   "incognito": "not_allowed",
   "permissions": ["alarms", "storage", "unlimitedStorage"],
   "host_permissions": [

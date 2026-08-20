@@ -128,10 +128,10 @@ export class PopupPage {
   }
 
   private async toggleSite(enabled: boolean): Promise<void> {
-    if (this.activeTabId === null) throw new PopupPageError("当前标签页不支持划译。");
+    if (this.activeTabId === null) throw new PopupPageError("当前标签页不支持语见。");
     const current = await this.dependencies.queryActiveTab();
     if (current === null || current.id !== this.activeTabId) {
-      throw new PopupPageError("标签页已切换，请重新打开划译弹窗后再试。");
+      throw new PopupPageError("标签页已切换，请重新打开语见弹窗后再试。");
     }
     this.sitePolicy = parseStoreSitePolicyResponse(
       await this.dependencies.sendTabMessage(current.id, {
@@ -284,7 +284,7 @@ export class PopupPage {
       this.busy || status === null;
     document.body.dataset.overlayTheme = status?.overlayTheme ?? "pearl";
     element("[data-site-host]").textContent = this.unsupportedTab
-      ? "当前标签页不支持划译"
+      ? "当前标签页不支持语见"
       : (this.sitePolicy?.host ?? "正在读取当前页面…");
     document.body.setAttribute("aria-busy", String(this.busy));
     const cloudAction = element<HTMLButtonElement>("[data-cloud-session-action]");
@@ -327,7 +327,7 @@ export class PopupPage {
           : outboxState === "session-unavailable"
             ? "连接云端后可提交"
             : outboxState === "client-upgrade-required"
-              ? "请先更新划译；待提交学习采集仍加密保存在本机"
+              ? "请先更新语见；待提交学习采集仍加密保存在本机"
               : queuedLabel !== null
                 ? queuedLabel
                 : "没有待提交学习采集";

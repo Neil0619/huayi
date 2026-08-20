@@ -21,7 +21,7 @@ it("renders public privacy without API or identity composition", async () => {
   const container = document.createElement("div");
   document.body.append(container);
   await act(async () => createRoot(container).render(<App publicPage="privacy" />));
-  expect(container.querySelector("h1")?.textContent).toBe("华译 Cloud V1 隐私说明");
+  expect(container.querySelector("h1")?.textContent).toBe("语见 Cloud V1 隐私说明");
   expect(container.textContent).not.toContain("缺少有效的 API Origin");
 });
 

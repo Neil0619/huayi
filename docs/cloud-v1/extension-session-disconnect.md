@@ -1,4 +1,4 @@
-# 华译 Cloud V1 Store 设备安全断开方案
+# 语见 Cloud V1 Store 设备安全断开方案
 
 状态：需求、技术方案、离线实现与实现后复审已完成；`implemented; target-platform validation pending`。
 影响平台：shared（Store Extension + API + Web 设备投影）。Classic/Native Host 不受影响。

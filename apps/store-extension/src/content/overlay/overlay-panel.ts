@@ -30,7 +30,7 @@ export function createOverlayPanel(
   panel.className = "panel";
   panel.dataset.card = "action";
   panel.dataset.theme = theme;
-  panel.setAttribute("aria-label", "划译分析");
+  panel.setAttribute("aria-label", "语见分析");
   panel.setAttribute("role", "dialog");
 
   const header = document.createElement("div");
@@ -62,7 +62,7 @@ export function createOverlayPanel(
       mark.ariaHidden = "true";
       const brand = document.createElement("p");
       brand.className = "eyebrow";
-      brand.textContent = "HUAYI";
+      brand.textContent = "SEEN & SAID";
       panel.dataset.card = "result";
       header.className = "header";
       header.replaceChildren(mark, brand, modes, headerActions);

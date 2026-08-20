@@ -97,7 +97,7 @@ test("an invited learner confirms password registration and later signs in again
 
   await page.context().clearCookies();
   await page.goto(`${webOrigin}/login`);
-  await expect(page.getByRole("heading", { name: "登录华译", level: 1 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "登录语见", level: 1 })).toBeVisible();
   const loginEmail = page.getByLabel("邮箱");
   const loginPassword = page.getByLabel("密码");
   await expect(loginPassword).toHaveAttribute("autocomplete", "current-password");

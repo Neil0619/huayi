@@ -321,7 +321,7 @@ describe("WordSyncCoordinator", () => {
     transport.emit(batchEvent("sync-2", "batch-1", 7));
 
     expect(browser.setTitle).toHaveBeenLastCalledWith(
-      "划译：8 个生词待同步到扇贝；3 个词需要人工处理",
+      "语见：8 个生词待同步到扇贝；3 个词需要人工处理",
     );
     coordinator.dispose();
   });

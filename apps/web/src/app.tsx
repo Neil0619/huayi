@@ -100,7 +100,7 @@ export function App({
   return (
     <main className="configuration-error" id="main-content">
       <span aria-hidden="true" className="brand-mark" />
-      <p className="eyebrow">HUAYI CLOUD</p>
+      <p className="eyebrow">SEEN & SAID</p>
       <h1>学习工作台尚未连接</h1>
       <p role="alert">此构建缺少有效的 API Origin，已停止业务请求。请完成部署配置后重试。</p>
     </main>

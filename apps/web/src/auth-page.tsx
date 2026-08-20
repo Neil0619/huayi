@@ -100,8 +100,11 @@ export function AuthPage(props: AuthPageProps) {
     <main className="auth-page" id="main-content">
       <section className="auth-card" aria-labelledby="auth-heading">
         <span aria-hidden="true" className="brand-mark" />
-        <p className="eyebrow">HUAYI CLOUD</p>
-        <h1 id="auth-heading">{props.mode === "join" ? "接受学习邀请" : "登录华译"}</h1>
+        <p className="eyebrow">SEEN & SAID</p>
+        <h1 id="auth-heading">{props.mode === "join" ? "接受学习邀请" : "登录语见"}</h1>
+        <p className="auth-intro" lang="en">
+          Turn what you see into what you can say.
+        </p>
         {error !== null && (
           <div className="alert" id="auth-form-error" role="alert">
             <p>{error}</p>

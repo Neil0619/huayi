@@ -200,7 +200,7 @@ it("announces an upgrade block while preserving only the local clear action", as
   });
   await page.initialize();
 
-  expect(element("[data-submission-outbox-state]").textContent).toContain("更新划译");
+  expect(element("[data-submission-outbox-state]").textContent).toContain("更新语见");
   expect(element("[data-submission-outbox-state]").textContent).toContain("加密保存在本机");
   expect(element<HTMLButtonElement>("[data-submission-outbox-retry]").disabled).toBe(true);
   expect(element<HTMLButtonElement>("[data-submission-outbox-clear]").disabled).toBe(false);

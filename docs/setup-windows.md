@@ -87,7 +87,7 @@ $manifest = (Get-ItemProperty -LiteralPath $key).'(default)'
 (Get-Content -LiteralPath $manifest -Raw | ConvertFrom-Json).allowed_origins
 ```
 
-两者不一致时，Chrome 会在启动 Host 前拒绝连接，界面可能显示“未找到划译本机服务”；此时用
+两者不一致时，Chrome 会在启动 Host 前拒绝连接，界面可能显示“未找到语见本机服务”；此时用
 Chrome 当前 ID 重新运行安装命令，不要放宽 `allowed_origins`。
 
 ## 4. 配置 DeepSeek 与欧路凭据

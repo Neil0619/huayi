@@ -15,10 +15,10 @@ describe("Public privacy page", () => {
     await act(async () => createRoot(container).render(<PrivacyPage />));
 
     expect(container.querySelectorAll("h1")).toHaveLength(1);
-    expect(container.querySelector("h1")?.textContent).toBe("华译 Cloud V1 隐私说明");
+    expect(container.querySelector("h1")?.textContent).toBe("语见 Cloud V1 隐私说明");
     expect(container.textContent).toContain("预发布");
     expect(container.textContent).toContain("主动选择的英文与必要上下文");
-    expect(container.textContent).toContain("华译服务器能够读取");
+    expect(container.textContent).toContain("语见服务器能够读取");
     expect(container.textContent).toContain("DeepSeek");
     expect(container.textContent).toContain("Supabase");
     expect(container.textContent).toContain("BYOK 与欧路凭据只保存在本机");

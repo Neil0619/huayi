@@ -1,4 +1,6 @@
-# 华译 Cloud V1 隐私说明草案
+# 语见 · Seen & Said Cloud V1 隐私说明草案
+
+> Turn what you see into what you can say.
 
 > 本文件是实现阶段的产品事实草案。正式公开前必须补充运营主体、联系方式、实际部署区域、第三方
 > 链接和经验证的备份残留期限，并完成 Chrome Web Store 数据披露核对。
@@ -15,32 +17,32 @@
   的可选标题和上下文；
 - 学习内容：用户在 Web 显式发起的深度分析、候选、收藏的云端单词/表达/句型、标签、练习题、
   回答/对话、反馈和自评；
-- 临时插件查询：使用平台额度时，Huayi API 与平台模型接收完成当前翻译或解释所需的最小英文；请求
+- 临时插件查询：使用平台额度时，语见 API 与平台模型接收完成当前翻译或解释所需的最小英文；请求
   与精简结果最多保留一小时用于恢复和幂等，此后只保留不含正文的用量账本；
 - 使用资料：模型与 schema 版本、token、费用、请求时延、稳定错误码和额度状态；
 - 本机数据与秘密：BYOK、欧路凭据及插件本机词库保存在 Store Extension。BYOK/欧路凭据不发送给
-  华译服务器；本机词条只有在用户开启以后新词复制，或显式确认批量导入时，才向 Web 创建独立副本。
+  语见服务器；本机词条只有在用户开启以后新词复制，或显式确认批量导入时，才向 Web 创建独立副本。
 
-华译不会自动收集 URL、页面标题、完整网页、浏览历史、视频 ID 或 Google Drive 等额外账号资料。
+语见不会自动收集 URL、页面标题、完整网页、浏览历史、视频 ID 或 Google Drive 等额外账号资料。
 用户可以自行填写来源标题。
 
 ## 用途与接收方
 
-- Huayi API 接收登录用户主动提交的 StudyCapture、CloudWordCopy、Web 深度分析和练习数据，用于
+- 语见 API 接收登录用户主动提交的 StudyCapture、CloudWordCopy、Web 深度分析和练习数据，用于
   待分析、待收藏、历史、跨设备学习与练习；插件 BYOK 的精简查询结果不会上传为 Web 分析记录；
 - 平台模型接收平台插件查询、Web 深度分析或练习所需的最小英文与固定指令；插件平台查询的正文与
   精简结果最多保留一小时，Web 学习内容则按账号数据规则保留；
-- 用户选择 BYOK 时，插件直接把最小查询输入发送给该设备所选 OpenAI 或 DeepSeek；Huayi 不接收
-  API Key，也不接收该次精简结果，但用户独立开启的 StudyCapture/CloudWordCopy 仍可发送给 Huayi；
+- 用户选择 BYOK 时，插件直接把最小查询输入发送给该设备所选 OpenAI 或 DeepSeek；语见不接收
+  API Key，也不接收该次精简结果，但用户独立开启的 StudyCapture/CloudWordCopy 仍可发送给语见；
 - Supabase/Vercel 承载身份、数据库、API 与 Web；Google 只用于用户选择的登录；邮件提供商用于验证、
   密码恢复和安全通知；
 - Eudic/Shanbay 只在用户显式创建任务时接收最小数据：欧路导出接收词头和可选原句，扇贝只接收
   词头；notes、语境释义、标题与来源不发送。欧路凭据由插件直达欧路，扇贝最终提交由用户点击。
 
-Cloud V1 不是端到端加密产品，华译服务器在提供功能时能够读取学习内容。运行日志和管理页不提供
+Cloud V1 不是端到端加密产品，语见服务器在提供功能时能够读取学习内容。运行日志和管理页不提供
 正文浏览；内容不会用于广告或出售。
 
-Google 只用于用户主动选择的登录；华译不读取 Google Drive、Gmail、联系人或其他 Google 产品资料。
+Google 只用于用户主动选择的登录；语见不读取 Google Drive、Gmail、联系人或其他 Google 产品资料。
 The use of information received from Google APIs will adhere to the Chrome Web Store User Data
 Policy, including the Limited Use requirements.
 
@@ -55,12 +57,12 @@ Policy, including the Limited Use requirements.
 - 插件“断开此设备”只撤销当前服务器设备会话，并在服务器确认后清除账号绑定本机状态；不退出其他设备、
   Web，也不删除本机词库或本机第三方凭据；
 - Extension 待提交箱最多 20 条/5 MiB，7 天过期，可由用户提前删除；
-- 用户撤回 Huayi 数据联网同意后，插件不再调用平台模型，也不再提交 StudyCapture、CloudWordCopy 或
+- 用户撤回语见数据联网同意后，插件不再调用平台模型，也不再提交 StudyCapture、CloudWordCopy 或
   云端外部词典任务，并清除尚未提交的账号绑定正文；已有云端数据仍可在 Web 导出或删除。本机 BYOK
   查询和本机词库/外部词典能力在用户另行接受对应第三方条款后仍可独立使用。
 
 ## 安全与费用
 
 传输使用 TLS，数据库由托管平台加密并以账号/RLS 隔离。平台模型请求计入账号公开显示的月度额度；
-BYOK 费用由用户与对应供应商结算，密钥不由华译托管。任何系统都无法保证绝对安全，正式政策会提供
+BYOK 费用由用户与对应供应商结算，密钥不由语见托管。任何系统都无法保证绝对安全，正式政策会提供
 安全联系和事故通知方式。

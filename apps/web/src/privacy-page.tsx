@@ -33,8 +33,8 @@ export function PrivacyPage() {
         <a className="privacy-brand" href="/login">
           <span aria-hidden="true" className="brand-mark" />
           <span>
-            <strong>划译 Huayi</strong>
-            <small>Cloud V1</small>
+            <strong>语见</strong>
+            <small>Seen &amp; Said</small>
           </span>
         </a>
         <a href="/login">返回登录</a>
@@ -44,12 +44,12 @@ export function PrivacyPage() {
         <article className="privacy-notice">
           <header className="privacy-title">
             <p className="eyebrow">PUBLIC TRUST · PRE-RELEASE</p>
-            <h1>华译 Cloud V1 隐私说明</h1>
+            <h1>语见 Cloud V1 隐私说明</h1>
             <p className="privacy-status" role="status">
               预发布隐私说明 · 最后更新 {privacyNotice.effectiveDate}
             </p>
             <p>
-              华译帮助中文英语学习者理解主动选择的英文，并把用户主动提交的结果连接到同一学习、整理与
+              语见帮助中文英语学习者理解主动选择的英文，并把用户主动提交的结果连接到同一学习、整理与
               练习闭环。本页说明当前实现事实，不代表产品已经公开发布或通过 Chrome Web Store 审核。
             </p>
           </header>
@@ -57,7 +57,7 @@ export function PrivacyPage() {
           <aside className="privacy-callout" aria-labelledby="prerelease-title">
             <h2 id="prerelease-title">正式发布前仍需补齐</h2>
             <p>
-              运营主体、联系方式、实际部署区域和备份残留期限仍待真实环境与发布责任人确认。华译不会
+              运营主体、联系方式、实际部署区域和备份残留期限仍待真实环境与发布责任人确认。语见不会
               用占位值或猜测数字伪装正式政策；这些事实补齐前不会开放邀请或提交商店。
             </p>
             <p>未成年人适用规则、适用法律和争议处理方式也必须在正式发布前由责任人确认。</p>
@@ -77,7 +77,7 @@ export function PrivacyPage() {
               <li>账号数据导出：用户显式请求时生成的私有、限时完整账号导出对象。</li>
             </ul>
             <p>
-              华译不会自动收集 URL、页面标题、完整网页、浏览历史或视频 ID；来源标题只能由用户填写或
+              语见不会自动收集 URL、页面标题、完整网页、浏览历史或视频 ID；来源标题只能由用户填写或
               受信的固定来源类型提供。
             </p>
           </section>
@@ -85,7 +85,7 @@ export function PrivacyPage() {
           <section aria-labelledby="recipients-title">
             <h2 id="recipients-title">用途与接收方</h2>
             <ul>
-              <li>Huayi API 接收登录用户主动发起或同意上传的严格结果，用于待整理、历史和学习。</li>
+              <li>语见 API 接收登录用户主动发起或同意上传的严格结果，用于待整理、历史和学习。</li>
               <li>DeepSeek 接收平台模型功能所需的英文与固定指令，用于分析、建议和练习反馈。</li>
               <li>Supabase 与 Vercel 承载身份、数据库、私有导出对象、API 和 Web。</li>
               <li>Google 只用于用户选择的登录；邮件提供商用于验证、恢复和安全通知。</li>
@@ -95,7 +95,7 @@ export function PrivacyPage() {
               </li>
             </ul>
             <p>
-              Cloud V1 不是端到端加密产品，华译服务器能够读取为提供 Cloud 功能而保存的学习内容。
+              Cloud V1 不是端到端加密产品，语见服务器能够读取为提供 Cloud 功能而保存的学习内容。
               运行日志和管理页不提供正文浏览，内容不用于广告、画像、信用判断或出售。
             </p>
           </section>
@@ -127,7 +127,7 @@ export function PrivacyPage() {
           <section aria-labelledby="google-title">
             <h2 id="google-title">Google 数据与 Limited Use</h2>
             <p>
-              Google 只用于用户主动选择的登录；华译不读取 Google Drive、Gmail、联系人或其他 Google
+              Google 只用于用户主动选择的登录；语见不读取 Google Drive、Gmail、联系人或其他 Google
               产品资料。
             </p>
             <p lang="en">
@@ -153,7 +153,7 @@ export function PrivacyPage() {
               事故通知方式。
             </p>
             <p>
-              实质改变数据种类、触发条件、接收方、用途或保留规则时，华译会先更新本页和商店披露，
+              实质改变数据种类、触发条件、接收方、用途或保留规则时，语见会先更新本页和商店披露，
               再发布对应版本；不会用静默更新扩大数据用途。
             </p>
           </section>

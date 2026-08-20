@@ -1,18 +1,21 @@
-# Huayi 英语学习
+# 语见（Seen & Said）英语学习
 
-Huayi 帮助用户在不离开当前阅读或观看内容的情况下理解英文，并把需要记忆的词汇加入个人
+语见帮助用户在不离开当前阅读或观看内容的情况下理解英文，并把需要记忆的词汇加入个人
 生词本。
+
+面向用户和仓库交流的项目名称固定为“语见”，英文为“Seen & Said”，Slogan 为
+“Turn what you see into what you can say.”。`HuayiAccount` 等既有词只作为兼容技术术语保留。
 
 ## Language
 
 ### Product lines
 
 **Classic Edition（经典版）**:
-面向既有个人用户、只接受必要维护的 Huayi 原有产品线。
+面向既有个人用户、只接受必要维护的语见原有产品线。
 _Avoid_: 旧版、桌面版、本地版、0.13
 
 **Store Edition（商店版）**:
-面向公开分发和长期演进、由 Store Extension 与 Web App 共同组成的 Huayi 云端产品线；插件负责
+面向公开分发和长期演进、由 Store Extension 与 Web App 共同组成的语见云端产品线；插件负责
 就地查询，Web 负责整理、管理与主动练习。
 _Avoid_: 新版、云版、本地版、1.0
 
@@ -80,12 +83,12 @@ _Avoid_: 完整日志、错误遥测、模型响应快照
 
 ### Cloud learning
 
-**HuayiAccount（华译账号）**:
+**HuayiAccount（语见账号）**:
 一个受邀请用户在 Store Edition 中的身份，以及其云端学习数据和平台模型额度的所有者。
 _Avoid_: Chrome Profile、设备、订阅
 
 **CloudAuthority（云端权威）**:
-华译账号下 StudyCapture、WordEntry、分析历史、学习项和练习记录的唯一云端正式状态；设备待提交
+语见账号下 StudyCapture、WordEntry、分析历史、学习项和练习记录的唯一云端正式状态；设备待提交
 数据不构成第二云端权威，但独立插件的 LocalLexiconEntry 不是它的缓存或副本。
 _Avoid_: 双向同步、把本机词条当云端缓存、多主云端复制
 
@@ -153,7 +156,7 @@ StudyInbox 中所有 `pendingReview` AnalysisRecord 构成的工作视图，用�
 _Avoid_: CaptureInbox、收件箱通知、自动收藏队列、临时云草稿
 
 **LearningItem（学习项）**:
-用户明确确认、由华译安排主动练习的 Expression 或 SentencePattern。
+用户明确确认、由语见安排主动练习的 Expression 或 SentencePattern。
 _Avoid_: 单词、候选、原句
 
 **LearningItemMaintenance（学习项维护）**:
@@ -202,7 +205,7 @@ _Avoid_: 聊天历史、单词背诵、模型评分
 _Avoid_: 对话 turn、临时输入、最终反馈
 
 **PracticeFeedback（练习反馈）**:
-华译在用户提交作答后生成的正确性、自然度与改进建议；它不包含精确分数，也不替代用户自评。
+语见在用户提交作答后生成的正确性、自然度与改进建议；它不包含精确分数，也不替代用户自评。
 _Avoid_: 自动评分、掌握度、自评
 
 **DialogueRound（对话轮次）**:
@@ -222,26 +225,26 @@ _Avoid_: AI 掌握度、精确记忆分数、强制清零
 _Avoid_: 必须清零的任务、连续签到、单词复习队列
 
 **UsageAllowance（使用额度）**:
-华译账号在一个 UTC 自然月内可消耗的平台模型费用上限；插件平台查询、Web 深度分析和主动练习共用
+语见账号在一个 UTC 自然月内可消耗的平台模型费用上限；插件平台查询、Web 深度分析和主动练习共用
 同一额度池，但账本按用途区分，BYOK 与纯数据操作不消耗额度。它不是可提现余额或订阅权益。
 _Avoid_: 钱包、积分、无限次数
 
 **PlatformGeneration（平台生成）**:
-HuayiAccount 发起、由华译托管模型完成并占用 UsageAllowance 的一次可计费生成；它在调用模型前成为
+HuayiAccount 发起、由语见托管模型完成并占用 UsageAllowance 的一次可计费生成；它在调用模型前成为
 可恢复权威，并且只拥有一个最终结果。
 _Avoid_: Provider 请求、练习租约、分析请求
 
 **ExtensionQueryModelMode（插件查询模型模式）**:
 HuayiAccount 为全部关联 Store Extension 统一选择的查询模型来源，只能是平台模型或 BYOK；它不是
 逐设备偏好，调用失败、额度耗尽或服务停用也不能让两种模式自动互相回退。平台模式的具体 Provider
-与模型由华译管理且不提供用户选择，BYOK Provider 才由每个插件安装分别选择。
+与模型由语见管理且不提供用户选择，BYOK Provider 才由每个插件安装分别选择。
 账号模式只能在 Web 修改；每次查询在开始时固定模式，设置变化只影响插件同步后的后续查询。
 _Avoid_: 登录状态、逐设备模型设置、Provider 选择、Web 模型模式
 
 **BYOK（自带模型密钥）**:
 Store Extension 使用用户保存在 DeviceVault 中的 OpenAI 或 DeepSeek API Key 直接完成查询；每个插件
 安装分别选择 Provider 并保存自己的 Key，它不是插件产品线，也不消耗 UsageAllowance。BYOK 只决定
-模型调用路径，不阻止插件按独立账号偏好向华译提交 StudyCapture、CloudWordCopy 或云端任务数据。
+模型调用路径，不阻止插件按独立账号偏好向语见提交 StudyCapture、CloudWordCopy 或云端任务数据。
 _Avoid_: 插件、本地版、账号级 Provider、平台模型
 
 **DeviceSession（设备会话）**:
@@ -259,7 +262,7 @@ _Avoid_: 本机忘记、退出全部设备、清空本机词库
 _Avoid_: 本地学习库、同步副本、已保存内容
 
 **WordEntry（词条）**:
-华译账号中一个规范单词及其全部语境记录的云端集合；它不进入 Huayi 主动练习队列。
+语见账号中一个规范单词及其全部语境记录的云端集合；它不进入 Huayi 主动练习队列。
 _Avoid_: 单词行、学习项、外部词条
 
 **LocalLexiconEntry（本机词条）**:

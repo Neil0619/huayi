@@ -124,7 +124,7 @@ export class ShanbayBatchPrefiller {
     ) {
       this.replaceableTextarea = null;
       this.replaceableValue = null;
-      this.renderMessage("批量输入框已有内容，划译没有覆盖；本批仍保留在待同步队列。");
+      this.renderMessage("批量输入框已有内容，语见没有覆盖；本批仍保留在待同步队列。");
       return;
     }
     if (textarea.value !== expected) {

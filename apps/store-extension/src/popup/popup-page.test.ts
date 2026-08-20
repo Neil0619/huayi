@@ -182,7 +182,7 @@ describe("Store PopupPage", () => {
     await page.initialize();
 
     expect(element("[data-popup-status]").textContent).toBe("");
-    expect(element("[data-site-host]").textContent).toBe("当前标签页不支持划译");
+    expect(element("[data-site-host]").textContent).toBe("当前标签页不支持语见");
     expect(element("[data-provider]").textContent).toBe("DeepSeek");
     expect(element("[data-model-consent]").textContent).toBe("已允许联网");
     expect(document.querySelector("[data-credential]")).toBeNull();

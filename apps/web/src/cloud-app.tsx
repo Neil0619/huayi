@@ -161,7 +161,7 @@ export function CloudApp({
     return (
       <main className="configuration-error" id="main-content">
         <span aria-hidden="true" className="brand-mark" />
-        <p className="eyebrow">HUAYI CLOUD</p>
+        <p className="eyebrow">SEEN & SAID</p>
         <h1>正在确认登录状态</h1>
         <p role="status">正在确认登录状态…</p>
       </main>
@@ -170,7 +170,7 @@ export function CloudApp({
     return (
       <main className="configuration-error" id="main-content">
         <span aria-hidden="true" className="brand-mark" />
-        <p className="eyebrow">HUAYI CLOUD</p>
+        <p className="eyebrow">SEEN & SAID</p>
         <h1>需要先登录</h1>
         <p role="status">当前会话无效。请前往登录页后重试。</p>
         <a href="/login">前往登录</a>
@@ -181,7 +181,7 @@ export function CloudApp({
     return (
       <main className="configuration-error" id="main-content">
         <span aria-hidden="true" className="brand-mark" />
-        <p className="eyebrow">HUAYI CLOUD</p>
+        <p className="eyebrow">SEEN & SAID</p>
         <h1>设备配对已批准</h1>
         <p role="status">扩展设备已批准，可以返回扩展。</p>
       </main>
@@ -190,7 +190,7 @@ export function CloudApp({
     return (
       <main className="configuration-error" id="main-content">
         <span aria-hidden="true" className="brand-mark" />
-        <p className="eyebrow">HUAYI CLOUD</p>
+        <p className="eyebrow">SEEN & SAID</p>
         <h1>无法继续配对</h1>
         <p role="alert">无法继续这次配对，请重新从扩展发起。</p>
       </main>
@@ -241,7 +241,7 @@ export function CloudApp({
     return inboxApi === undefined ? (
       <main className="configuration-error" id="main-content">
         <span aria-hidden="true" className="brand-mark" />
-        <p className="eyebrow">HUAYI CLOUD</p>
+        <p className="eyebrow">SEEN & SAID</p>
         <h1>登录状态有效</h1>
         <p role="status">登录状态有效。</p>
       </main>
@@ -252,9 +252,9 @@ export function CloudApp({
   return (
     <main className="configuration-error" id="main-content">
       <span aria-hidden="true" className="brand-mark" />
-      <p className="eyebrow">HUAYI CLOUD</p>
+      <p className="eyebrow">SEEN & SAID</p>
       <h1>批准扩展设备</h1>
-      <p>仅在你刚刚从华译扩展发起配对时继续。</p>
+      <p>仅在你刚刚从语见扩展发起配对时继续。</p>
       <p>
         连接后，platform 查询只发送最小选区并最多保留一小时；扩展只会按下面的账号偏好保存
         StudyCapture 原始学习意图或复制未来新增单词。BYOK 分析结果、API Key、页面 URL、标题、视频 ID
@@ -318,7 +318,7 @@ export function CloudApp({
             required
             type="checkbox"
           />
-          我了解并同意上述华译云端同步
+          我了解并同意上述语见云端同步
         </label>
         <button disabled={!cloudUploadConsent} type="submit">
           批准此设备

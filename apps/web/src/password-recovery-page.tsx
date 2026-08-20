@@ -118,7 +118,7 @@ export function PasswordRecoveryPage({
     <main className="auth-page" id="main-content">
       <section className="auth-card" aria-labelledby="password-recovery-heading">
         <span aria-hidden="true" className="brand-mark" />
-        <p className="eyebrow">HUAYI CLOUD</p>
+        <p className="eyebrow">SEEN & SAID</p>
         <h1
           id="password-recovery-heading"
           ref={heading}

@@ -1,12 +1,12 @@
 {
   "manifest_version": 3,
-  "name": "划译",
+  "name": "语见 · Seen & Said",
   "version": "0.13.0",
-  "description": "使用本机服务翻译和解释英文划词，并在支持的平台管理生词本。",
+  "description": "Turn what you see into what you can say. 使用本机服务翻译和解释英文划词，并在支持的平台管理生词本。",
   "permissions": ["activeTab", "alarms", "nativeMessaging", "storage"],
   "action": {
     "default_popup": "popup.html",
-    "default_title": "划译"
+    "default_title": "语见"
   },
   "options_page": "options.html",
   "background": {

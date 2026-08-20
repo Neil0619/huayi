@@ -36,7 +36,7 @@ describe("Store OptionsPage", () => {
     expect(link.getAttribute("rel")).toContain("noreferrer");
     expect(document.querySelector(".hero")).toBeNull();
     expect(document.querySelector(".settings-toolbar")).not.toBeNull();
-    expect(document.querySelector(".settings-toolbar h1")?.textContent).toBe("划译设置");
+    expect(document.querySelector(".settings-toolbar h1")?.textContent).toBe("语见设置");
     expect(document.querySelector(".eyebrow")).toBeNull();
     expect(element("[data-page-status]").textContent).toBe("");
   });

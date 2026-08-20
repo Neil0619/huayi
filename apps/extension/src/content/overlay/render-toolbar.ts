@@ -61,7 +61,7 @@ function explanationDescription(state: ActionsOverlayState): string {
 export function renderToolbar(state: ActionsOverlayState, handlers: ToolbarHandlers): HTMLElement {
   const toolbar = document.createElement("div");
   toolbar.className = "huayi-root huayi-toolbar";
-  toolbar.setAttribute("aria-label", "划译操作");
+  toolbar.setAttribute("aria-label", "语见操作");
   toolbar.setAttribute("role", "toolbar");
 
   const selectionHeader = document.createElement("header");

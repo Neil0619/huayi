@@ -28,7 +28,7 @@ const ERROR_DEFINITIONS = {
   CANCELLED: { code: "CANCELLED", message: "请求已取消。", retryable: false },
   CODEX_CAPABILITY_MISSING: {
     code: "CODEX_CAPABILITY_MISSING",
-    message: "当前 Codex CLI 缺少划译所需能力，请升级后重试。",
+    message: "当前 Codex CLI 缺少语见所需能力，请升级后重试。",
     retryable: false,
   },
   CODEX_NOT_AUTHENTICATED: {

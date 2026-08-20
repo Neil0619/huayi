@@ -1,4 +1,4 @@
-# 华译 Cloud V1 已练习学习项不可逆抹除方案
+# 语见 Cloud V1 已练习学习项不可逆抹除方案
 
 状态：离线实现与实现后复审已完成；`implemented; target-platform validation pending`。影响平台：
 shared。

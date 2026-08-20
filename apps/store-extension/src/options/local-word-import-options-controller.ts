@@ -129,7 +129,7 @@ export class LocalWordImportOptionsController {
     } else {
       if (result.outcome !== "retry-pending") summary.hidden = true;
       const messages: Record<typeof result.outcome, string> = {
-        "client-upgrade-required": "请先更新划译，再继续导入。",
+        "client-upgrade-required": "请先更新语见，再继续导入。",
         empty: "尚无可导入的本机生词。",
         failed: "导入已停止；请重新预览后再试。",
         "not-configured": "云端服务尚未配置。",

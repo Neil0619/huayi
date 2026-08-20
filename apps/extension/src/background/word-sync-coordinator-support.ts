@@ -85,7 +85,7 @@ export function hostUnavailableError(disconnect: NativeDisconnect): AnalysisErro
     message:
       disconnect.reason === "invalid-message"
         ? "本机服务返回了无效数据。"
-        : "无法连接划译本机服务，请确认已经安装并与扩展同步升级。",
+        : "无法连接语见本机服务，请确认已经安装并与扩展同步升级。",
     retryable: disconnect.reason !== "invalid-message",
   };
 }

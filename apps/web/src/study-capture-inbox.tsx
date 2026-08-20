@@ -230,7 +230,7 @@ export function StudyCaptureInbox({
       </a>
       <header className="topbar">
         <span aria-hidden="true" className="brand-mark" />
-        <strong>华译</strong>
+        <strong>语见</strong>
       </header>
       <nav aria-label="主导航" className="sidebar">
         <a aria-current="page" href="/app">

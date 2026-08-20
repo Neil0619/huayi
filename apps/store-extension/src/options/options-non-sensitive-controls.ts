@@ -74,7 +74,7 @@ export class OptionsNonSensitiveControls {
           await this.dependencies.settings.setGloballyEnabled(enabled);
           await this.refreshSitePolicy();
         },
-        enabled ? "划译全局开关已启用。" : "划译已在所有网站停用。",
+        enabled ? "语见全局开关已启用。" : "语见已在所有网站停用。",
       );
     });
   }
@@ -164,7 +164,7 @@ export class OptionsNonSensitiveControls {
       this.dependencies.execute(async () => {
         await this.dependencies.settings.setSiteEnabled(host, true);
         await this.refreshSitePolicy();
-      }, `已在 ${host} 重新启用划译。`);
+      }, `已在 ${host} 重新启用语见。`);
     });
     item.append(label, button);
     return item;

@@ -192,7 +192,7 @@ export function PasteAnalysisPage({
       <header className="topbar">
         <span aria-hidden="true" className="brand-mark" />
         <div>
-          <strong>华译</strong>
+          <strong>语见</strong>
           <span>Cloud 学习工作台</span>
         </div>
       </header>

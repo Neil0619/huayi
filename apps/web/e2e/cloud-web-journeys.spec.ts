@@ -712,7 +712,7 @@ test("public privacy stays API-free and a missing session never reads learning c
   await authority.install(page);
 
   await page.goto(`${webOrigin}/privacy`);
-  await expect(page.getByRole("heading", { name: "华译 Cloud V1 隐私说明" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "语见 Cloud V1 隐私说明" })).toBeVisible();
   expect(authority.snapshot().requestFacts).toEqual([]);
 
   await page.goto(`${webOrigin}/app`);

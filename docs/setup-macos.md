@@ -274,7 +274,7 @@ URL、标题、历史记录、欧路授权或模型历史。钥匙串保护静�
 v0.3.0 同时改变扩展、Native Host、App Server provider 和 wire 事件，升级顺序固定为：
 
 1. 运行 `pnpm install && pnpm build`，重新生成扩展和 Host。
-2. 在 `chrome://extensions` 找到“划译”并点击刷新。
+2. 在 `chrome://extensions` 找到“语见”并点击刷新。
 3. 复制当前扩展 ID，重新运行 `pnpm host:install -- --extension-id <ID>`。
 4. 用单词验证流式文本和生词状态；需要真实模型证据时再显式运行 `pnpm smoke:codex`。
 
@@ -290,7 +290,7 @@ v0.3.1 修复 Codex App Server 能力兼容性：每次进程启动前发现用�
 1. 在 v0.3.1 源码目录运行 `pnpm install && pnpm build`，重新生成扩展和 Host。
 2. 确认 Chrome 当前加载的扩展目录。若它不是本次构建的 `apps/extension/dist`，把新构建内容
    完整同步到 Chrome 当前加载的原目录，保持加载路径和扩展 ID 不变。
-3. 在 `chrome://extensions` 找到“划译”并点击刷新，使 Chrome 载入 v0.3.1 Manifest。
+3. 在 `chrome://extensions` 找到“语见”并点击刷新，使 Chrome 载入 v0.3.1 Manifest。
 4. 使用同一个扩展 ID 重新运行 `pnpm host:install -- --extension-id <ID>`，安装 v0.3.1 Host。
 5. 用一个单词确认流式解释和生词状态正常；真实模型验证只在明确需要时运行
    `pnpm smoke:codex`。
@@ -313,7 +313,7 @@ pnpm build
 pnpm host:install -- --extension-id chanmjjealoeeheohofnljbbkkfgfnfm
 ```
 
-然后立即打开 `chrome://extensions`，确认“划译”当前加载路径仍是本次构建的
+然后立即打开 `chrome://extensions`，确认“语见”当前加载路径仍是本次构建的
 `apps/extension/dist`，点击刷新，并确认 Chrome 显示版本 `0.4.0`。重新加载测试页后，检查一个
 未收藏单词和一个已存在单词；文本/类型化板块只属于预览，最终必须收到完整 `result`，不适用
 的词汇板块不应留下空标题。
@@ -522,8 +522,8 @@ v0.11.0 增加欧路全部英语收藏到扇贝的每日持久同步。Extension
 
 Chrome 每天在设置页选择的本地整点（默认 08:00）检查欧路；若该时刻 Chrome 或设备不可用，则恢复后
 尽快补扫，下一次仍固定在次日同一整点。点击角标会打开扇贝并预填最多 100 个词，最终“批量添加”
-仍必须由用户点击。扇贝未明确全部成功时，划译不会删除 Host 队列。
-角标叠加在 Chrome 工具栏的“划译”扩展图标上；图标位于拼图菜单内时，需要先固定到工具栏。
+仍必须由用户点击。扇贝未明确全部成功时，语见不会删除 Host 队列。
+角标叠加在 Chrome 工具栏的“语见”扩展图标上；图标位于拼图菜单内时，需要先固定到工具栏。
 待同步数量为零时不显示角标。
 
 首次迁移和每日检查都从欧路默认生词本读取英语词，避免遗漏未进入用户语料列表的新收藏；

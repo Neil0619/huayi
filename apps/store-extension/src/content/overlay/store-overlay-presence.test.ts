@@ -21,7 +21,7 @@ describe("Store overlay word presence", () => {
     expect(checking?.dataset.saveState).toBe("checking");
     expect(checking?.closest(".header")).not.toBeNull();
     expect(shadow().querySelector("[data-close]")).toBeNull();
-    expect(shadow().querySelector(".eyebrow")?.textContent).toBe("HUAYI");
+    expect(shadow().querySelector(".eyebrow")?.textContent).toBe("SEEN & SAID");
     ports[0]?.receive({
       messageVersion: STORE_MESSAGE_VERSION,
       result: {

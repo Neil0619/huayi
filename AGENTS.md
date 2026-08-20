@@ -1,14 +1,17 @@
-# Huayi Repository Instructions
+# 语见 Repository Instructions
 
-## Project scope
+## Scope
 
-Huayi contains a frozen personal Classic 0.13 Chrome extension with a Native Messaging host and an
-unreleased Cloud V1 product under development. Cloud V1 consists of a Store Extension query client,
-a Web learning workspace, a versioned API, and account-owned cloud learning data. Neither product is
-currently a Chrome Web Store release. Linux, other browsers, follow-up chat, and browser settings
-remain out of scope.
+The public project name is `语见`, English `Seen & Said`, with the slogan
+`Turn what you see into what you can say.` Use `语见` in repository conversation and UI copy.
+Keep `Huayi` only in existing technical identifiers (paths, packages, environment variables,
+protocol headers, database roles, and compatibility IDs) unless separately migrated.
 
-## Sources of truth
+语见 contains frozen Classic 0.13 and unreleased Cloud V1 products: Store Extension, Web workspace,
+versioned API, and account-owned learning data. Neither is a Chrome Web Store release. Linux, other
+browsers, follow-up chat, and browser settings are out of scope.
+
+## Sources
 
 - Product behavior: `docs/superpowers/specs/2026-07-11-huayi-design.md`.
 - Eudic wordbook behavior: `docs/superpowers/specs/2026-07-12-eudic-wordbook-design.md`.
@@ -55,7 +58,6 @@ remain out of scope.
   `docs/superpowers/plans/2026-08-10-settings-configuration.md`.
 - Cross-platform development/completion rules: `docs/cross-platform-development.md`.
 - Windows source installation: `docs/setup-windows.md`.
-- Keep temporary task status out of AGENTS.md files.
 
 ## Current release invariants
 

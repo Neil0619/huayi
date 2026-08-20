@@ -1,4 +1,4 @@
-# 华译 Cloud V1 发布检查表
+# 语见 Cloud V1 发布检查表
 
 任何一项发布阻塞项未完成时，状态只能是 `implemented; validation pending`，不能开放邀请或宣称
 Chrome Web Store 就绪。

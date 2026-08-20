@@ -1,1 +1,1 @@
-export const extensionName = "划译";
+export const extensionName = "语见";

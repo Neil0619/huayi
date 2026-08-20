@@ -23,7 +23,7 @@ describe("Store selection overlay", () => {
     const { controller } = setup();
     controller.show(reading(selection, kind), { bottom: 80, left: 40, top: 60 });
 
-    expect(shadow().querySelector("[role='dialog']")?.getAttribute("aria-label")).toBe("划译分析");
+    expect(shadow().querySelector("[role='dialog']")?.getAttribute("aria-label")).toBe("语见分析");
     expect(shadow().querySelector("[data-brand-mark]")).toBeNull();
     expect(shadow().querySelector("[data-selection]")).toBeNull();
     expect(shadow().textContent).not.toContain(selection);

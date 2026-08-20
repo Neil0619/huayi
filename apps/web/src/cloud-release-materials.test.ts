@@ -23,10 +23,10 @@ describe("Cloud release trust materials", () => {
   });
 
   it("does not reuse the local-only Store product claim for Cloud", () => {
-    expect(listing).toContain("Huayi API");
+    expect(listing).toContain("语见 API");
     expect(listing).toContain("Cloud 内容端到端加密");
     expect(listing).toContain("不得宣称");
-    expect(listing).toContain("华译服务端不接收");
+    expect(listing).toContain("语见服务端不接收");
     expect(privacy).toContain("Cloud V1 不是端到端加密产品");
     expect(privacy.replaceAll(/\s+/gu, " ")).toContain("Chrome Web Store User Data Policy");
   });

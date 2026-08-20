@@ -55,7 +55,7 @@ export class PopupPage {
     this.url = url;
     this.bind();
     this.render();
-    if (parsed.status === "invalid") message("配置损坏，划译已安全停用。", true);
+    if (parsed.status === "invalid") message("配置损坏，语见已安全停用。", true);
     await this.renderHostStatus();
   }
 
@@ -113,7 +113,7 @@ export class PopupPage {
     const toggle = element<HTMLInputElement>("[data-popup-site-enabled]");
     const note = element<HTMLElement>("[data-popup-site-note]");
     if (this.url === null) {
-      host.textContent = "此页面不支持划译";
+      host.textContent = "此页面不支持语见";
       toggle.disabled = true;
       toggle.checked = false;
       note.textContent = "仅支持普通 HTTP(S) 页面";

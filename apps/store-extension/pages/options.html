@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>划译 Store 设置</title>
+    <title>语见设置 · Seen &amp; Said</title>
     <link rel="stylesheet" href="options.css" />
     <link rel="stylesheet" href="options-components.css" />
   </head>
@@ -12,7 +12,7 @@
       <div class="toolbar-copy">
         <div class="brand-lockup">
           <span class="brand-mark" data-brand-mark aria-hidden="true"></span>
-          <h1>划译设置</h1>
+          <h1>语见设置</h1>
         </div>
       </div>
       <div class="toolbar-meta">
@@ -94,7 +94,7 @@
           </div>
           <label class="switch-field">
             <span
-              ><b>在所有网站启用</b><small>关闭后，网页和 YouTube 都不会显示划译功能。</small></span
+              ><b>在所有网站启用</b><small>关闭后，网页和 YouTube 都不会显示语见功能。</small></span
             >
             <input type="checkbox" role="switch" data-global-enabled />
           </label>
@@ -121,7 +121,7 @@
               同意后，只有当你主动发起分析时，选中的英文和上下文才会发送到你选择的 OpenAI 或
               DeepSeek。请求会使用你自行提供的密钥，并可能产生服务商费用。
             </p>
-            <p>划译不会发送完整页面、浏览历史或本地生词，也不会自动重试付费请求。</p>
+            <p>语见不会发送完整页面、浏览历史或本地生词，也不会自动重试付费请求。</p>
           </div>
           <div class="actions">
             <button type="button" class="primary" data-grant-consent>我已了解并同意联网</button>
@@ -175,12 +175,12 @@
           <label class="field compact">
             <span>默认字幕模式</span>
             <select data-youtube-mode>
-              <option value="disabled">停用划译字幕</option>
+              <option value="disabled">停用语见字幕</option>
               <option value="english">英文（可手动切换双语）</option>
               <option value="bilingual">默认双语</option>
             </select>
             <small>
-              仅在标准 YouTube 录播页面且已打开英文字幕时运行。划译不会发送或保存视频地址、标题
+              仅在标准 YouTube 录播页面且已打开英文字幕时运行。语见不会发送或保存视频地址、标题
               或视频 ID。
             </small>
           </label>
@@ -223,7 +223,7 @@
                   URL、 标题、完整模型结果或模型密钥。
                 </p>
                 <p>
-                  <b>费用：</b>划译不收费；欧路账户、API
+                  <b>费用：</b>语见不收费；欧路账户、API
                   限额或费用由欧路规则决定。<b>远端保留：</b>数据提交后由欧路保存，本地删除不会删除欧路副本。
                 </p>
                 <div class="actions">
@@ -247,12 +247,12 @@
                 <p><b>接收方：</b>扇贝单词页面。</p>
                 <p>
                   <b>字段：</b
-                  >划译会把词头预填到扇贝批量输入框；不会自动点击最终提交，也不会发送原句、
+                  >语见会把词头预填到扇贝批量输入框；不会自动点击最终提交，也不会发送原句、
                   语境释义、页面 URL 或任何密钥。
                 </p>
                 <p>
                   <b>服务费用：</b
-                  >划译不收费；扇贝账户或服务费用由扇贝规则决定。<b>远端保留：</b>你确认提交后由扇贝保存，本地删除不会删除扇贝副本。
+                  >语见不收费；扇贝账户或服务费用由扇贝规则决定。<b>远端保留：</b>你确认提交后由扇贝保存，本地删除不会删除扇贝副本。
                 </p>
                 <div class="actions">
                   <button class="primary" type="button" data-recipient-grant="shanbay">
@@ -436,7 +436,7 @@
               </p>
             </div>
             <div class="subsection" data-cloud-wordbook-authority hidden>
-              <h3>任务由华译云端统一管理</h3>
+              <h3>任务由语见云端统一管理</h3>
               <p>
                 请在 Web 学习工作台的“外部词典”页面创建、查看、重试或取消任务。插件只执行云端租约，
                 不再建立本地正式导入或导出队列。

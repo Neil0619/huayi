@@ -7,7 +7,7 @@ describe("extension manifest", () => {
     expect(manifest.manifest_version).toBe(3);
     expect(manifest.permissions).toEqual(["activeTab", "alarms", "nativeMessaging", "storage"]);
     expect(manifest).not.toHaveProperty("host_permissions");
-    expect(manifest.action).toEqual({ default_popup: "popup.html", default_title: "划译" });
+    expect(manifest.action).toEqual({ default_popup: "popup.html", default_title: "语见" });
     expect(manifest.options_page).toBe("options.html");
   });
 

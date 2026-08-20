@@ -31,7 +31,7 @@ test("pairing approval atomically selects preferences and reloads from approved 
   await page.getByLabel("待学习采集").selectOption("automatic");
   await page.getByLabel("云端单词副本").selectOption("disabled");
   await expect(submit).toBeDisabled();
-  await page.getByLabel("我了解并同意上述华译云端同步").check();
+  await page.getByLabel("我了解并同意上述语见云端同步").check();
   await expect(submit).toBeEnabled();
   await submit.click();
 

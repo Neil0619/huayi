@@ -156,8 +156,8 @@ export class ShanbaySyncController {
       this.render(
         error instanceof ShanbayAccessError
           ? error.code === "consent-required"
-            ? "扇贝导出尚未同意；请在划译设置中阅读数据说明并授权。"
-            : "扇贝导出已停用；请在划译设置中启用后再打开此页面。"
+            ? "扇贝导出尚未同意；请在语见设置中阅读数据说明并授权。"
+            : "扇贝导出已停用；请在语见设置中启用后再打开此页面。"
           : "与扩展后台通信失败；待同步状态没有修改。",
       );
     }
@@ -192,7 +192,7 @@ export class ShanbaySyncController {
       textarea.value.trim().length > 0 &&
       normalizeBatchText(textarea.value) !== normalizeBatchText(expected)
     ) {
-      this.render("批量输入框已有内容，划译没有覆盖；本批仍保留在待同步队列。");
+      this.render("批量输入框已有内容，语见没有覆盖；本批仍保留在待同步队列。");
       return;
     }
     if (textarea.value !== expected) {
@@ -214,7 +214,7 @@ export class ShanbaySyncController {
     const textarea = findBatchTextarea(this.options.document);
     const expected = this.activeBatch.items.map((item) => item.entryId).join("\n");
     if (textarea === null || normalizeBatchText(textarea.value) !== normalizeBatchText(expected)) {
-      this.render("批量输入内容与当前批次不一致，划译不会确认结果。");
+      this.render("批量输入内容与当前批次不一致，语见不会确认结果。");
       return;
     }
     this.awaitingResult = true;

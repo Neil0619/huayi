@@ -104,7 +104,7 @@ export function AccountDataRightsPage({
     try {
       const signed = await api.downloadAccountDataExport(job.id);
       window.open(signed.url, "_blank", "noopener,noreferrer");
-      setMessage("已在新窗口打开一次性下载地址；华译不会在浏览器中保存该地址。");
+      setMessage("已在新窗口打开一次性下载地址；语见不会在浏览器中保存该地址。");
     } catch {
       setError("无法取得下载地址；请确认最近已重新登录，且导出尚未过期。");
     } finally {
@@ -205,7 +205,7 @@ export function AccountDataRightsPage({
           <h2 id="delete-account-heading">永久删除账号</h2>
           <p>
             这会退出所有 Web
-            与扩展设备，并永久删除华译云端数据及登录身份；外部词典已有副本不会被远程删除。
+            与扩展设备，并永久删除语见云端数据及登录身份；外部词典已有副本不会被远程删除。
           </p>
           <label>
             <input

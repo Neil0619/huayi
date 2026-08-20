@@ -40,7 +40,7 @@ function createHeader(state: PanelState, handlers: PanelHandlers): HTMLElement {
   const close = document.createElement("button");
   close.className = "huayi-close";
   close.dataset.action = "close";
-  close.setAttribute("aria-label", "关闭划译浮层");
+  close.setAttribute("aria-label", "关闭语见浮层");
   close.textContent = "×";
   close.type = "button";
   close.addEventListener("click", handlers.onClose);

@@ -61,7 +61,7 @@ function errorForDisconnect(
     case "host-unavailable":
       return {
         code: "HOST_NOT_INSTALLED",
-        message: "未找到划译本机服务，请先完成安装。",
+        message: "未找到语见本机服务，请先完成安装。",
         retryable: true,
       };
     case "invalid-message":
@@ -156,7 +156,7 @@ export class RequestCoordinator {
       this.finish(pending);
       this.deliverError(pending, {
         code: "HOST_NOT_INSTALLED",
-        message: "无法连接划译本机服务，请确认已经安装。",
+        message: "无法连接语见本机服务，请确认已经安装。",
         retryable: true,
       });
     }

@@ -1,4 +1,4 @@
-# 华译 Cloud V1 文档入口
+# 语见 · Seen & Said Cloud V1 文档入口
 
 Cloud V1 是尚未发布的 Store Edition 云端学习增量。实现和审阅顺序：
 
