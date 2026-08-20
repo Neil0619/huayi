@@ -15,6 +15,7 @@ import { PrivacyPage } from "./privacy-page.js";
 import type { PublicPage } from "./public-bootstrap.js";
 import { PasswordRecoveryPage, type PasswordRecoveryApi } from "./password-recovery-page.js";
 import type { PasswordRecoveryRoute } from "./password-recovery-route.js";
+import { WorkspaceShell } from "./workspace-shell.js";
 
 export function App({
   accountApi,
@@ -96,7 +97,12 @@ export function App({
         pairingId={pairingId}
       />
     );
-  if (api !== undefined) return <InboxApp api={api} />;
+  if (api !== undefined)
+    return (
+      <WorkspaceShell access="full" activeSection="inbox">
+        <InboxApp api={api} />
+      </WorkspaceShell>
+    );
   return (
     <main className="configuration-error" id="main-content">
       <span aria-hidden="true" className="brand-mark" />

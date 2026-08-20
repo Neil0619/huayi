@@ -28,6 +28,23 @@ const preferences = {
   timezone: "UTC",
   updatedAt: "2026-08-13T10:00:00.000Z",
 };
+const expectedPrimaryNavigation = [
+  ["今日练习", "/practice"],
+  ["待整理", "/app"],
+  ["分析", "/analysis"],
+  ["学习库", "/library"],
+  ["生词", "/words"],
+  ["分析历史", "/history"],
+  ["设置", "/settings/account"],
+] as const;
+
+function primaryNavigation(container: Element) {
+  const navigation = container.querySelector("nav[aria-label='主导航']");
+  return [...(navigation?.querySelectorAll<HTMLAnchorElement>("a") ?? [])].map((link) => [
+    link.textContent,
+    link.getAttribute("href"),
+  ]);
+}
 
 function api(overrides: Partial<IdentityApi> = {}): IdentityApi {
   return {
@@ -129,6 +146,12 @@ describe("Web account bootstrap and pairing approval", () => {
     expect(identity.bootstrap).toHaveBeenCalledOnce();
     expect(identity.listExtensionSessions).toHaveBeenCalledOnce();
     expect(container.querySelector("h1")?.textContent).toBe("扩展设备");
+    expect(primaryNavigation(container)).toEqual(
+      expectedPrimaryNavigation.map(([label, href]) => [
+        label,
+        label === "设置" ? "#main-content" : href,
+      ]),
+    );
   });
 
   it("routes an authenticated account to the pasted-analysis page", async () => {
@@ -246,7 +269,28 @@ describe("Web account bootstrap and pairing approval", () => {
     await act(async () => Promise.resolve());
 
     expect(container.querySelector("h1")?.textContent).toBe("外部词典任务");
-    expect(container.querySelector("[aria-current='page']")?.textContent).toBe("外部词典");
+    expect(
+      container.querySelector("nav[aria-label='主导航'] [aria-current='page']")?.textContent,
+    ).toBe("生词");
+    expect(
+      container.querySelector("nav[aria-label='生词设置'] [aria-current='page']")?.textContent,
+    ).toBe("外部词典");
+  });
+
+  it("withholds full workspace and account navigation from a data-rights-only session", async () => {
+    const identity = api({
+      bootstrap: vi.fn(async () => ({ access: "data-rights" as const, csrfToken: "r".repeat(32) })),
+    });
+    const container = document.createElement("div");
+    document.body.append(container);
+    await act(async () =>
+      createRoot(container).render(<CloudApp identity={identity} page="data" />),
+    );
+    await act(async () => Promise.resolve());
+
+    expect(container.querySelector("h1")?.textContent).toBe("导出与永久删除");
+    expect(container.querySelector("nav[aria-label='主导航']")).toBeNull();
+    expect(container.querySelector("nav[aria-label='账号设置']")).toBeNull();
   });
 
   it("enters the signed-out view after account deletion is accepted", async () => {

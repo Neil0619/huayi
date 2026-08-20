@@ -113,8 +113,8 @@ describe("Web pending-review workspace", () => {
     await settle();
 
     expect(api.getAnalysis).toHaveBeenCalledWith("analysis-1");
-    expect(container.querySelector("main")?.id).toBe("main-content");
-    expect(container.querySelector("[aria-current='page']")?.textContent).toContain("待整理");
+    expect(container.querySelector("main")).toBeNull();
+    expect(container.querySelector("nav[aria-label='主导航']")).toBeNull();
     const text = input(container, "表达");
     await change(text, "to speak frankly");
     await change(input(container, "标签（逗号分隔）"), "writing, conversation");

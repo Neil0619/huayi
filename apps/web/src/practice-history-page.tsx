@@ -8,7 +8,6 @@ import type {
 
 import type { PracticeHistoryPageApi } from "./practice-history-page-api.js";
 import { PracticeHistoryDetail } from "./practice-history-detail.js";
-import { PracticeShell } from "./practice-shell.js";
 
 type LoadState = "empty" | "error" | "loading" | "ready";
 
@@ -149,7 +148,7 @@ export function PracticeHistoryPage({
   };
 
   return (
-    <PracticeShell>
+    <>
       <header className="page-heading">
         <div>
           <p className="eyebrow">PRACTICE HISTORY</p>
@@ -295,6 +294,6 @@ export function PracticeHistoryPage({
           </section>
         </div>
       )}
-    </PracticeShell>
+    </>
   );
 }

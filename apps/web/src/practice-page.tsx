@@ -8,7 +8,6 @@ import type {
 
 import { DialoguePracticePanel } from "./dialogue-practice-panel.js";
 import type { PracticePageApi } from "./practice-page-api.js";
-import { PracticeShell } from "./practice-shell.js";
 
 export type { PracticePageApi } from "./practice-page-api.js";
 
@@ -202,7 +201,7 @@ export function PracticePage({
   const rated = session?.items[0]?.rating !== undefined;
 
   return (
-    <PracticeShell>
+    <>
       <header className="page-heading">
         <div>
           <p className="eyebrow">TODAY</p>
@@ -379,6 +378,6 @@ export function PracticePage({
           )}
         </section>
       )}
-    </PracticeShell>
+    </>
   );
 }

@@ -9,7 +9,6 @@ import type {
 import type { WebIdentityApi } from "./identity-api.js";
 import type { WebAdminOperationsApi } from "./admin-operations-api.js";
 import { AccountPreferencesForm } from "./account-preferences-form.js";
-import { PracticeShell } from "./practice-shell.js";
 import { SignInMethodsPanel, type SignInMethodsApi } from "./sign-in-methods-panel.js";
 
 export type AccountQuotaApi = Pick<
@@ -109,7 +108,7 @@ export function AccountQuotaPage({
   }, [loadState]);
 
   return (
-    <PracticeShell current="设置">
+    <>
       <div className="account-quota-page">
         <header className="page-heading">
           <div>
@@ -226,6 +225,6 @@ export function AccountQuotaPage({
           </>
         )}
       </div>
-    </PracticeShell>
+    </>
   );
 }

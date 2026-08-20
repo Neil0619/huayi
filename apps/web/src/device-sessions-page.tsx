@@ -16,16 +16,6 @@ interface DeviceSessionsPageProps {
 
 type LoadState = "empty" | "error" | "loading" | "ready";
 
-const navigation = [
-  { href: "/", label: "今日练习" },
-  { href: "/app", label: "待整理" },
-  { href: "/analysis", label: "分析" },
-  { href: "/library", label: "学习库" },
-  { href: "/words", label: "生词" },
-  { href: "/history", label: "分析历史" },
-  { href: "/settings/account", label: "设置" },
-];
-
 function formatTime(value: string): string {
   return new Intl.DateTimeFormat("zh-CN", {
     dateStyle: "medium",
@@ -86,147 +76,122 @@ export function DeviceSessionsPage({ api, csrfToken }: DeviceSessionsPageProps) 
   };
 
   return (
-    <div className="app-shell">
-      <a className="skip-link" href="#main-content">
-        跳到主要内容
-      </a>
-      <header className="topbar">
-        <span aria-hidden="true" className="brand-mark" />
+    <>
+      <header className="page-heading">
         <div>
-          <strong>语见</strong>
-          <span>Cloud 学习工作台</span>
+          <p className="eyebrow">ACCOUNT SECURITY</p>
+          <h1>扩展设备</h1>
         </div>
+        <p>查看并撤销由服务器管理的扩展授权。</p>
       </header>
-      <nav aria-label="主导航" className="sidebar">
-        {navigation.map((item) => (
-          <a
-            aria-current={item.label === "设置" ? "page" : undefined}
-            href={item.href}
-            key={item.label}
-          >
-            {item.label}
-          </a>
-        ))}
+      <nav aria-label="账号设置" className="account-settings-nav">
+        <a href="/settings/account">账号与额度</a>
+        <a aria-current="page" href="/settings/devices">
+          扩展设备
+        </a>
+        <a href="/settings/data">数据权利</a>
       </nav>
-      <main id="main-content" tabIndex={-1}>
-        <header className="page-heading">
-          <div>
-            <p className="eyebrow">ACCOUNT SECURITY</p>
-            <h1>扩展设备</h1>
-          </div>
-          <p>查看并撤销由服务器管理的扩展授权。</p>
-        </header>
-        <nav aria-label="账号设置" className="account-settings-nav">
-          <a href="/settings/account">账号与额度</a>
-          <a aria-current="page" href="/settings/devices">
-            扩展设备
-          </a>
-          <a href="/settings/data">数据权利</a>
-        </nav>
-        <p className="device-note">
-          这里的撤销会使服务器会话立即失效。扩展 Popup
-          的“本机断开”只删除本机凭据，不等同于服务器撤销。
+      <p className="device-note">
+        这里的撤销会使服务器会话立即失效。扩展 Popup
+        的“本机断开”只删除本机凭据，不等同于服务器撤销。
+      </p>
+      {status !== null && (
+        <p aria-live="polite" role="status">
+          {status}
         </p>
-        {status !== null && (
-          <p aria-live="polite" role="status">
-            {status}
-          </p>
-        )}
-        {error !== null && (
-          <div className="alert" role="alert">
-            <p>{error}</p>
-            {loadState === "error" && (
-              <button data-retry-devices onClick={() => void load()} type="button">
-                重新载入
-              </button>
-            )}
-          </div>
-        )}
-        {loadState === "loading" && (
-          <p aria-live="polite" role="status">
-            正在载入设备…
-          </p>
-        )}
-        {loadState === "empty" && (
-          <section className="empty-state">
-            <h2 ref={listHeading} tabIndex={-1}>
-              没有已连接的扩展设备
-            </h2>
-            <p>从扩展发起配对并在 Web 明确批准后，设备会出现在这里。</p>
-          </section>
-        )}
-        {loadState === "ready" && (
-          <section aria-labelledby="device-list-heading" className="device-sessions">
-            <h2 id="device-list-heading" ref={listHeading} tabIndex={-1}>
-              已连接设备 {sessions.length}
-            </h2>
-            <ul className="device-list">
-              {sessions.map((session) => (
-                <li className="device-card" key={session.id}>
-                  <div>
-                    <h3>{session.deviceLabel}</h3>
-                    <dl className="device-meta">
-                      <div>
-                        <dt>添加时间</dt>
-                        <dd>{formatTime(session.createdAt)}</dd>
-                      </div>
-                      <div>
-                        <dt>最近使用</dt>
-                        <dd>
-                          {session.lastUsedAt === null
-                            ? "尚未使用"
-                            : formatTime(session.lastUsedAt)}
-                        </dd>
-                      </div>
-                      <div>
-                        <dt>会话到期</dt>
-                        <dd>{formatTime(session.expiresAt)}</dd>
-                      </div>
-                    </dl>
-                  </div>
-                  {confirmingId === session.id ? (
-                    <div
-                      aria-label={`确认撤销 ${session.deviceLabel}`}
-                      className="revocation-confirmation"
-                      role="group"
-                    >
-                      <p>这会立即撤销服务器上的云端授权。确定继续吗？</p>
-                      <div className="form-actions">
-                        <button
-                          className="danger-button"
-                          data-confirm-revoke
-                          disabled={busyId === session.id}
-                          onClick={() => void revoke(session)}
-                          ref={confirmButton}
-                          type="button"
-                        >
-                          确认撤销
-                        </button>
-                        <button
-                          disabled={busyId === session.id}
-                          onClick={() => setConfirmingId(null)}
-                          type="button"
-                        >
-                          取消
-                        </button>
-                      </div>
+      )}
+      {error !== null && (
+        <div className="alert" role="alert">
+          <p>{error}</p>
+          {loadState === "error" && (
+            <button data-retry-devices onClick={() => void load()} type="button">
+              重新载入
+            </button>
+          )}
+        </div>
+      )}
+      {loadState === "loading" && (
+        <p aria-live="polite" role="status">
+          正在载入设备…
+        </p>
+      )}
+      {loadState === "empty" && (
+        <section className="empty-state">
+          <h2 ref={listHeading} tabIndex={-1}>
+            没有已连接的扩展设备
+          </h2>
+          <p>从扩展发起配对并在 Web 明确批准后，设备会出现在这里。</p>
+        </section>
+      )}
+      {loadState === "ready" && (
+        <section aria-labelledby="device-list-heading" className="device-sessions">
+          <h2 id="device-list-heading" ref={listHeading} tabIndex={-1}>
+            已连接设备 {sessions.length}
+          </h2>
+          <ul className="device-list">
+            {sessions.map((session) => (
+              <li className="device-card" key={session.id}>
+                <div>
+                  <h3>{session.deviceLabel}</h3>
+                  <dl className="device-meta">
+                    <div>
+                      <dt>添加时间</dt>
+                      <dd>{formatTime(session.createdAt)}</dd>
                     </div>
-                  ) : (
-                    <button
-                      className="danger-button"
-                      data-request-revoke={session.id}
-                      onClick={() => setConfirmingId(session.id)}
-                      type="button"
-                    >
-                      撤销服务器会话
-                    </button>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
-      </main>
-    </div>
+                    <div>
+                      <dt>最近使用</dt>
+                      <dd>
+                        {session.lastUsedAt === null ? "尚未使用" : formatTime(session.lastUsedAt)}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>会话到期</dt>
+                      <dd>{formatTime(session.expiresAt)}</dd>
+                    </div>
+                  </dl>
+                </div>
+                {confirmingId === session.id ? (
+                  <div
+                    aria-label={`确认撤销 ${session.deviceLabel}`}
+                    className="revocation-confirmation"
+                    role="group"
+                  >
+                    <p>这会立即撤销服务器上的云端授权。确定继续吗？</p>
+                    <div className="form-actions">
+                      <button
+                        className="danger-button"
+                        data-confirm-revoke
+                        disabled={busyId === session.id}
+                        onClick={() => void revoke(session)}
+                        ref={confirmButton}
+                        type="button"
+                      >
+                        确认撤销
+                      </button>
+                      <button
+                        disabled={busyId === session.id}
+                        onClick={() => setConfirmingId(null)}
+                        type="button"
+                      >
+                        取消
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    className="danger-button"
+                    data-request-revoke={session.id}
+                    onClick={() => setConfirmingId(session.id)}
+                    type="button"
+                  >
+                    撤销服务器会话
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+    </>
   );
 }

@@ -2,8 +2,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { AccountDataExportJobResource, AccountDeletionResponse } from "@huayi/cloud-contracts";
 
-import { PracticeShell } from "./practice-shell.js";
-
 export interface AccountDataRightsApi {
   createAccountDataExport(): Promise<AccountDataExportJobResource>;
   deleteAccount(): Promise<AccountDeletionResponse>;
@@ -28,9 +26,11 @@ function status(job: AccountDataExportJobResource): string {
 export function AccountDataRightsPage({
   api,
   onAccountDeleted,
+  showAccountNavigation = true,
 }: {
   readonly api: AccountDataRightsApi;
   readonly onAccountDeleted: () => void;
+  readonly showAccountNavigation?: boolean | undefined;
 }) {
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState(false);
@@ -128,7 +128,7 @@ export function AccountDataRightsPage({
   };
 
   return (
-    <PracticeShell current="设置">
+    <>
       <div className="account-data-rights-page">
         <header className="page-heading">
           <div>
@@ -137,13 +137,15 @@ export function AccountDataRightsPage({
           </div>
           <p>取得完整账号数据，或发起不可撤销的账号删除。</p>
         </header>
-        <nav aria-label="账号设置" className="account-settings-nav">
-          <a href="/settings/account">账号与额度</a>
-          <a href="/settings/devices">扩展设备</a>
-          <a aria-current="page" href="/settings/data">
-            数据权利
-          </a>
-        </nav>
+        {showAccountNavigation && (
+          <nav aria-label="账号设置" className="account-settings-nav">
+            <a href="/settings/account">账号与额度</a>
+            <a href="/settings/devices">扩展设备</a>
+            <a aria-current="page" href="/settings/data">
+              数据权利
+            </a>
+          </nav>
+        )}
         <p aria-atomic="true" aria-live="polite" role="status">
           {message}
         </p>
@@ -252,6 +254,6 @@ export function AccountDataRightsPage({
           )}
         </section>
       </div>
-    </PracticeShell>
+    </>
   );
 }

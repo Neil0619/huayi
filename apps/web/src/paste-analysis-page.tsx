@@ -23,8 +23,6 @@ interface PasteAnalysisPageProps {
 
 type RunState = "cancelled" | "completed" | "failed" | "idle" | "running" | "waiting";
 
-const navigation = ["今日练习", "待整理", "分析", "学习库", "生词", "分析历史", "设置"];
-
 function failureMessage(code: string | undefined) {
   switch (code) {
     case "quota_exhausted":
@@ -185,180 +183,143 @@ export function PasteAnalysisPage({
   };
 
   return (
-    <div className="app-shell">
-      <a className="skip-link" href="#main-content">
-        跳到主要内容
-      </a>
-      <header className="topbar">
-        <span aria-hidden="true" className="brand-mark" />
+    <>
+      <header className="page-heading">
         <div>
-          <strong>语见</strong>
-          <span>Cloud 学习工作台</span>
+          <p className="eyebrow">ANALYSIS</p>
+          <h1>粘贴英文分析</h1>
         </div>
+        <p>粘贴你主动选择的英文；只有完整结果会进入待整理。</p>
       </header>
-      <nav aria-label="主导航" className="sidebar">
-        {navigation.map((item) => (
-          <a
-            aria-current={item === "分析" ? "page" : undefined}
-            href={
-              item === "待整理"
-                ? "/app"
-                : item === "分析"
-                  ? "#main-content"
-                  : item === "学习库"
-                    ? "/library"
-                    : item === "生词"
-                      ? "/words"
-                      : item === "分析历史"
-                        ? "/history"
-                        : item === "设置"
-                          ? "/settings/account"
-                          : `#${item}`
-            }
-            key={item}
-          >
-            {item}
-          </a>
-        ))}
-      </nav>
-      <main id="main-content" tabIndex={-1}>
-        <header className="page-heading">
-          <div>
-            <p className="eyebrow">ANALYSIS</p>
-            <h1>粘贴英文分析</h1>
-          </div>
-          <p>粘贴你主动选择的英文；只有完整结果会进入待整理。</p>
-        </header>
-        <div className="analysis-compose-layout">
-          <form className="analysis-compose-card" onSubmit={submit}>
-            <p className="source-kind">来源：手动粘贴</p>
-            <label htmlFor="source-text">英文内容</label>
-            <textarea
-              disabled={state === "running"}
-              id="source-text"
-              maxLength={2_000}
-              name="sourceText"
-              onChange={(event) => {
-                setSourceText(event.currentTarget.value);
-                if (state === "cancelled" || state === "waiting") setState("idle");
-              }}
-              required
-              rows={10}
-              value={sourceText}
-            />
-            <p className="field-help">最多 2,000 个字符，不会自动截断。</p>
-            <label htmlFor="source-title">来源标题（可选）</label>
-            <input
-              disabled={state === "running"}
-              id="source-title"
-              maxLength={500}
-              name="sourceTitle"
-              onChange={(event) => setSourceTitle(event.currentTarget.value)}
-              value={sourceTitle}
-            />
-            <div className="analysis-options">
-              <label htmlFor="selection-kind">
-                内容类型
-                <select
-                  disabled={state === "running"}
-                  id="selection-kind"
-                  name="selectionKind"
-                  onChange={(event) =>
-                    setSelectionKind(
-                      event.currentTarget.value as StartAnalysisRequest["selectionKind"],
-                    )
-                  }
-                  value={selectionKind}
-                >
-                  <option value="phrase">短语</option>
-                  <option value="sentence">句子</option>
-                  <option value="passage">段落</option>
-                </select>
-              </label>
-            </div>
-            <div className="form-actions">
-              <button
-                disabled={
-                  state === "cancelled" ||
-                  state === "running" ||
-                  state === "waiting" ||
-                  sourceText.trim() === ""
+      <div className="analysis-compose-layout">
+        <form className="analysis-compose-card" onSubmit={submit}>
+          <p className="source-kind">来源：手动粘贴</p>
+          <label htmlFor="source-text">英文内容</label>
+          <textarea
+            disabled={state === "running"}
+            id="source-text"
+            maxLength={2_000}
+            name="sourceText"
+            onChange={(event) => {
+              setSourceText(event.currentTarget.value);
+              if (state === "cancelled" || state === "waiting") setState("idle");
+            }}
+            required
+            rows={10}
+            value={sourceText}
+          />
+          <p className="field-help">最多 2,000 个字符，不会自动截断。</p>
+          <label htmlFor="source-title">来源标题（可选）</label>
+          <input
+            disabled={state === "running"}
+            id="source-title"
+            maxLength={500}
+            name="sourceTitle"
+            onChange={(event) => setSourceTitle(event.currentTarget.value)}
+            value={sourceTitle}
+          />
+          <div className="analysis-options">
+            <label htmlFor="selection-kind">
+              内容类型
+              <select
+                disabled={state === "running"}
+                id="selection-kind"
+                name="selectionKind"
+                onChange={(event) =>
+                  setSelectionKind(
+                    event.currentTarget.value as StartAnalysisRequest["selectionKind"],
+                  )
                 }
-                type="submit"
+                value={selectionKind}
               >
-                开始分析
+                <option value="phrase">短语</option>
+                <option value="sentence">句子</option>
+                <option value="passage">段落</option>
+              </select>
+            </label>
+          </div>
+          <div className="form-actions">
+            <button
+              disabled={
+                state === "cancelled" ||
+                state === "running" ||
+                state === "waiting" ||
+                sourceText.trim() === ""
+              }
+              type="submit"
+            >
+              开始分析
+            </button>
+            {(state === "running" || state === "waiting") && (
+              <button data-cancel-analysis onClick={cancel} type="button">
+                取消等待
               </button>
-              {(state === "running" || state === "waiting") && (
-                <button data-cancel-analysis onClick={cancel} type="button">
-                  取消等待
-                </button>
+            )}
+            {state === "failed" && (
+              <button data-retry-analysis onClick={() => void runAnalysis()} type="button">
+                重试
+              </button>
+            )}
+          </div>
+        </form>
+        <section aria-busy={state === "running"} className="analysis-stream-card">
+          <h2>分析进度</h2>
+          {state === "idle" && <p>提交后，这里会渐进显示临时预览。</p>}
+          {state === "running" && (
+            <p aria-live="polite" role="status">
+              {unitCount === null ? "正在启动分析…" : `分析已开始，共 ${unitCount} 个分析单元。`}
+            </p>
+          )}
+          {previews.length > 0 && (
+            <div aria-label="临时预览" aria-live="polite" className="analysis-previews">
+              <p className="field-help">临时预览不会保存或用于收藏。</p>
+              {previews.map((preview, index) => (
+                <article key={`${preview.section}-${index}`}>
+                  <strong>{preview.section === "overall" ? "整体" : preview.section}</strong>
+                  <p>{preview.text}</p>
+                </article>
+              ))}
+            </div>
+          )}
+          {state === "cancelled" && (
+            <p role="status">
+              已取消本页等待；服务端可能仍会完成，输入内容已保留。请稍后检查待整理。
+            </p>
+          )}
+          {state === "waiting" && (
+            <div>
+              <p role="status">服务器仍在处理；不会在此伪造完成结果或自动重复分析。</p>
+              {error !== null && (
+                <p className="analysis-error" role="alert">
+                  {error}
+                </p>
               )}
-              {state === "failed" && (
-                <button data-retry-analysis onClick={() => void runAnalysis()} type="button">
-                  重试
+              {activeRequestId !== null && (
+                <button
+                  data-check-analysis-status
+                  onClick={() => void recoverRequest(activeRequestId, runGeneration.current)}
+                  type="button"
+                >
+                  重新检查状态
                 </button>
               )}
             </div>
-          </form>
-          <section aria-busy={state === "running"} className="analysis-stream-card">
-            <h2>分析进度</h2>
-            {state === "idle" && <p>提交后，这里会渐进显示临时预览。</p>}
-            {state === "running" && (
-              <p aria-live="polite" role="status">
-                {unitCount === null ? "正在启动分析…" : `分析已开始，共 ${unitCount} 个分析单元。`}
-              </p>
-            )}
-            {previews.length > 0 && (
-              <div aria-label="临时预览" aria-live="polite" className="analysis-previews">
-                <p className="field-help">临时预览不会保存或用于收藏。</p>
-                {previews.map((preview, index) => (
-                  <article key={`${preview.section}-${index}`}>
-                    <strong>{preview.section === "overall" ? "整体" : preview.section}</strong>
-                    <p>{preview.text}</p>
-                  </article>
-                ))}
-              </div>
-            )}
-            {state === "cancelled" && (
-              <p role="status">
-                已取消本页等待；服务端可能仍会完成，输入内容已保留。请稍后检查待整理。
-              </p>
-            )}
-            {state === "waiting" && (
-              <div>
-                <p role="status">服务器仍在处理；不会在此伪造完成结果或自动重复分析。</p>
-                {error !== null && (
-                  <p className="analysis-error" role="alert">
-                    {error}
-                  </p>
-                )}
-                {activeRequestId !== null && (
-                  <button
-                    data-check-analysis-status
-                    onClick={() => void recoverRequest(activeRequestId, runGeneration.current)}
-                    type="button"
-                  >
-                    重新检查状态
-                  </button>
-                )}
-              </div>
-            )}
-            {state === "failed" && error !== null && (
-              <p className="analysis-error" role="alert">
-                {error}
-              </p>
-            )}
-            {state === "completed" && analysisId !== null && (
-              <div className="analysis-completed" role="status">
-                <p>分析已完成，并已进入账号的待整理区。</p>
-                <a data-open-inbox href="/app">
-                  前往待整理
-                </a>
-              </div>
-            )}
-          </section>
-        </div>
-      </main>
-    </div>
+          )}
+          {state === "failed" && error !== null && (
+            <p className="analysis-error" role="alert">
+              {error}
+            </p>
+          )}
+          {state === "completed" && analysisId !== null && (
+            <div className="analysis-completed" role="status">
+              <p>分析已完成，并已进入账号的待整理区。</p>
+              <a data-open-inbox href="/app">
+                前往待整理
+              </a>
+            </div>
+          )}
+        </section>
+      </div>
+    </>
   );
 }

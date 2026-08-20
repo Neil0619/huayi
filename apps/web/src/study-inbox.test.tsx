@@ -139,11 +139,13 @@ describe("StudyInbox", () => {
       patchCapture: vi.fn(),
     });
     expect(container.textContent).toContain("还没有待分析内容");
+    expect(container.querySelector("nav[aria-label='主导航']")).toBeNull();
     await click(
       [...container.querySelectorAll("[role=tab]")].find((item) => item.textContent === "待收藏") ??
         null,
     );
     await act(async () => Promise.resolve());
     expect(container.textContent).toContain("待整理箱已经清空");
+    expect(container.querySelector("nav[aria-label='主导航']")).toBeNull();
   });
 });

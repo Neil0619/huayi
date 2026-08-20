@@ -357,6 +357,11 @@ fake clock。客户端通过 HTTP adapter 访问同一用例，不复制领域�
 - 所有模型文本按纯文本渲染；不使用 `dangerouslySetInnerHTML`，不解析模型生成 HTML/Markdown 中的
   原始标签，不动态导入模型指定资源。
 - UI 基于现有 `brand-theme.css` 提炼三层 token。组件负责可访问行为，页面不得复制颜色和阴影常量。
+- Web WorkspaceShell 是登录后页面的 in-process 深 module：discriminated interface 接收 full 会话的
+  当前一级区段，或 data-rights-only 受限访问，再接页面 children。implementation 独占品牌顶栏、skip
+  link、固定一级 route/order、active 语义和窄屏原生 details；seam 位于 `CloudApp` identity bootstrap 后
+  的业务页组合处，每页只返回内容。公共/认证/恢复/配对和独立运营面不经过完整导航；练习历史归入今日
+  练习、外部词典归入生词、完整会话账号子页归入设置，受限会话只显示数据权利内容。
 - Web 生产入口从严格 `VITE_API_ORIGIN` 创建 HTTP adapter，并通过携带 Cookie 的
   `/v1/auth/csrf` bootstrap 获取每次写入所需 token；缺少部署配置时只显示失败关闭页面，不发业务
   请求。待整理组件依赖窄 `InboxApi`，测试不需要真实网络或伪造登录 token。

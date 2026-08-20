@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 
 import type { AdminUsageSummary, AdminUserResource } from "@huayi/cloud-contracts";
 
@@ -6,9 +6,31 @@ import type { WebAdminOperationsApi } from "./admin-operations-api.js";
 import { AdminUserPanel } from "./admin-user-panel.js";
 import { AdminSecondaryPanels } from "./admin-secondary-panels.js";
 import { WebIdentityApiError } from "./identity-api.js";
-import { PracticeShell } from "./practice-shell.js";
 
 type LoadState = "denied" | "error" | "loading" | "ready";
+
+function AdminShell({ children }: { readonly children: ReactNode }) {
+  return (
+    <div className="operator-shell">
+      <a className="skip-link" href="#main-content">
+        跳到主要内容
+      </a>
+      <header className="topbar">
+        <span aria-hidden="true" className="brand-mark" />
+        <div>
+          <strong>语见</strong>
+          <span>运营控制台</span>
+        </div>
+        <a className="operator-back-link" href="/settings/account">
+          返回学习工作台
+        </a>
+      </header>
+      <main id="main-content" tabIndex={-1}>
+        {children}
+      </main>
+    </div>
+  );
+}
 
 export function AdminOperationsPage({
   api,
@@ -152,7 +174,7 @@ export function AdminOperationsPage({
 
   if (state !== "ready") {
     return (
-      <PracticeShell current="运营" operator>
+      <AdminShell>
         <section className="admin-gate" role={state === "loading" ? undefined : "alert"}>
           <p className="eyebrow">OPERATOR ONLY</p>
           <h1>{state === "loading" ? "正在确认 Operator 权限" : "无法进入运营控制台"}</h1>
@@ -167,12 +189,12 @@ export function AdminOperationsPage({
             </button>
           )}
         </section>
-      </PracticeShell>
+      </AdminShell>
     );
   }
 
   return (
-    <PracticeShell current="运营" operator>
+    <AdminShell>
       <div className="admin-operations-page">
         <header className="page-heading">
           <div>
@@ -321,6 +343,6 @@ export function AdminOperationsPage({
         </section>
         <AdminSecondaryPanels api={api} csrfToken={csrfToken} />
       </div>
-    </PracticeShell>
+    </AdminShell>
   );
 }

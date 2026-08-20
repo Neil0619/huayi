@@ -10,7 +10,6 @@ import {
   type AnalysisHistoryFilters,
 } from "./analysis-history-filters.js";
 import type { AnalysisHistoryPageApi } from "./analysis-history-page-api.js";
-import { PracticeShell } from "./practice-shell.js";
 
 type LoadState = "empty" | "error" | "loading" | "ready";
 
@@ -186,7 +185,7 @@ export function AnalysisHistoryPage({
   };
 
   return (
-    <PracticeShell current="分析历史">
+    <>
       <div className="analysis-history-page">
         <header className="page-heading">
           <div>
@@ -350,6 +349,6 @@ export function AnalysisHistoryPage({
           </div>
         )}
       </div>
-    </PracticeShell>
+    </>
   );
 }

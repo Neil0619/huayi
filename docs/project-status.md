@@ -733,6 +733,17 @@ pending`，不能因路线拆分宣称完整 V1 已完成。
 - Web 主导航复制和菜单漂移另记为下一个 Mac 产品体验候选，不与本轮混改；Windows 在下一冻结候选
   批量验证。
 
+## Cloud V1 Phase 43 Web 工作台外壳状态（2026-08-20）
+
+- 已以 `CloudApp` 组合层的单一 WorkspaceShell 取代 `PracticeShell` 与页面复制外壳；普通账号一级导航
+  固定七项，练习历史/外部词典/账号子页归组正确，运营和 data-rights-only 不暴露完整工作台导航；
+- 48rem 以下使用同一原生 details 默认收起，桌面保持 open；actual bundle 已覆盖 390px 键盘/指针展开、
+  七项顺序与跳转、子页 active、桌面重排和无水平溢出；
+- Fresh RED 为缺 module、5 个预期行为失败与 12 个基线通过；GREEN 为 focused 4 files / 20 tests、Web
+  full 43 files / 196 tests、最终 Playwright 110/110，Web 静态门与 `pnpm verify:macos` 全绿；
+- 当前状态为 `implemented and verified on macOS; Windows batch validation pending`。Windows 继续在下一
+  冻结候选批量验证；邮件、域名、DNS、Resend 与真实部署不纳入本阶段。
+
 ## Cloud V1 Phase 23 离线实现状态
 
 - 五类平台付费练习生成已统一进入 PlatformGeneration：新增 ADR-0018、

@@ -475,3 +475,19 @@ eviction 影响；两个可并存、base64 后各可接近 6.7 MiB 的 `storage.
   检查没有溢出或布局异常；
 - 当前状态为 `implemented and verified on macOS; Windows batch validation pending`。未运行 Windows、
   真实 Provider/词典、安装、Chrome 扩展、邮件、域名、DNS 或部署。
+
+## 18. Phase 43 Web 工作台外壳与主导航（2026-08-20）
+
+- Fresh RED 为 focused 4 个 Web 文件：WorkspaceShell module 缺失，另有 5 个预期行为失败与 12 个基线
+  通过，固定今日练习错误目标、tab 切换丢壳、设备/词典 active 漂移和 data-rights-only 导航泄露；
+- 最小实现由 `CloudApp` 在 bootstrap 后只组合一次 WorkspaceShell，删除 `PracticeShell` 与页面复制外壳；
+  普通账号一级导航恰好七项，练习历史、外部词典、设置子页正确归组，运营和受限账号不扩张导航；
+- actual-bundle 首轮发现 closed details 的桌面子树即使 CSS 为 flex 仍不可见，最终以 48rem media query
+  控制同一 details：桌面 open、移动默认 closed。Workspace journey 1/1 覆盖 390px 键盘/指针展开、七项
+  顺序/跳转、子页 active、桌面重排与无水平溢出；
+- GREEN 为 focused 4 files / 20 tests、Web full 43 files / 196 tests；完整 Playwright 首轮的两条旧移动
+  journey 未展开导航而失败，按真实用户展开修正后 focused 2/2，最终 Mac 聚合门为 110/110 Playwright；
+- Web strict typecheck/build、目标 ESLint/Prettier、instructions、architecture、diff check 与最终
+  `pnpm verify:macos` 均通过。状态为
+  `implemented and verified on macOS; Windows batch validation pending`；
+- 未运行 Windows、真实 Provider/词典、安装、Chrome 扩展、邮件、域名、DNS、Resend 或部署。

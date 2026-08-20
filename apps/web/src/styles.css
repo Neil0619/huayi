@@ -141,6 +141,14 @@ button:disabled {
   color: var(--text-secondary);
   font-size: 0.8125rem;
 }
+.operator-shell {
+  min-height: 100vh;
+}
+.operator-back-link {
+  margin-left: auto;
+  color: var(--action-primary);
+  font-weight: 700;
+}
 .brand-mark {
   position: relative;
   display: inline-grid;
@@ -159,15 +167,23 @@ button:disabled {
   content: "";
   transform: rotate(45deg);
 }
+.workspace-navigation {
+  border-right: 1px solid var(--border-default);
+  background: var(--surface-default);
+}
+.workspace-navigation > summary {
+  display: none;
+}
 .sidebar {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
   padding: var(--space-6) var(--space-3);
-  border-right: 1px solid var(--border-default);
-  background: var(--surface-default);
 }
 .sidebar a {
+  display: flex;
+  min-height: 2.75rem;
+  align-items: center;
   padding: 0.7rem var(--space-3);
   border-radius: var(--radius-sm);
   color: var(--text-secondary);
@@ -177,6 +193,9 @@ button:disabled {
 .sidebar a[aria-current="page"] {
   color: var(--action-hover);
   background: var(--surface-tint);
+}
+.workspace-shell-restricted {
+  grid-template-columns: minmax(0, 1fr);
 }
 main {
   min-width: 0;
@@ -209,6 +228,25 @@ main {
   margin-top: var(--space-1);
   font-size: clamp(1.8rem, 4vw, 2.6rem);
   line-height: 1.1;
+}
+.workspace-section-nav {
+  display: flex;
+  max-width: 78rem;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0 auto var(--space-5);
+}
+.workspace-section-nav a {
+  min-height: 2.75rem;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-weight: 700;
+}
+.workspace-section-nav a[aria-current="page"] {
+  color: var(--action-hover);
+  background: var(--surface-tint);
 }
 .inbox-layout {
   display: grid;
@@ -501,15 +539,24 @@ main {
     z-index: 10;
     top: 0;
   }
-  .sidebar {
-    flex-direction: row;
-    overflow-x: auto;
-    padding: var(--space-2) var(--space-3);
+  .workspace-navigation {
     border-right: 0;
     border-bottom: 1px solid var(--border-default);
   }
-  .sidebar a {
-    flex: 0 0 auto;
+  .workspace-navigation > summary {
+    display: block;
+    min-height: 2.75rem;
+    padding: var(--space-3);
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-weight: 750;
+  }
+  .workspace-navigation:not([open]) > .sidebar {
+    display: none;
+  }
+  .sidebar {
+    flex-direction: column;
+    padding: var(--space-2) var(--space-3);
   }
   main {
     padding: var(--space-5) var(--space-3);

@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from "react"
 
 import type { WordEntryCore, WordEntryDetailResponse } from "@huayi/cloud-contracts";
 
-import { PracticeShell } from "./practice-shell.js";
 import { ManualWordForm } from "./manual-word-form.js";
 import type { WebWordLibraryApi } from "./word-library-api.js";
 
@@ -183,7 +182,7 @@ export function WordLibraryPage({
   };
 
   return (
-    <PracticeShell current="生词">
+    <>
       <div className="word-page">
         <header className="page-heading">
           <div>
@@ -192,6 +191,12 @@ export function WordLibraryPage({
           </div>
           <p>浏览和整理云端词条与语境；这里不建立单词复习计划。</p>
         </header>
+        <nav aria-label="生词设置" className="workspace-section-nav">
+          <a aria-current="page" href="#main-content">
+            生词
+          </a>
+          <a href="/words/wordbooks">外部词典</a>
+        </nav>
         <ManualWordForm api={api} idempotencyKey={idempotencyKey} onSaved={refreshSavedWord} />
         <form className="word-filters" onSubmit={submit}>
           <label htmlFor="word-query">搜索规范词头</label>
@@ -304,6 +309,6 @@ export function WordLibraryPage({
           </div>
         )}
       </div>
-    </PracticeShell>
+    </>
   );
 }

@@ -35,8 +35,6 @@ interface InboxAppProps {
 
 type LoadState = "empty" | "error" | "loading" | "ready";
 
-const navigation = ["今日练习", "待整理", "分析", "学习库", "生词", "分析历史", "设置"];
-
 function errorCode(error: unknown): string | undefined {
   if (typeof error !== "object" || error === null || !("code" in error)) return undefined;
   return typeof error.code === "string" ? error.code : undefined;
@@ -147,141 +145,104 @@ export function InboxApp({ api, createIdempotencyKey = () => crypto.randomUUID()
   };
 
   return (
-    <div className="app-shell">
-      <a className="skip-link" href="#main-content">
-        跳到主要内容
-      </a>
-      <header className="topbar">
-        <span aria-hidden="true" className="brand-mark" />
+    <>
+      <header className="page-heading">
         <div>
-          <strong>语见</strong>
-          <span>Cloud 学习工作台</span>
+          <p className="eyebrow">INBOX</p>
+          <h1>待整理</h1>
         </div>
+        <p>把分析候选编辑成你真正想复用的表达与句型。</p>
       </header>
-      <nav aria-label="主导航" className="sidebar">
-        {navigation.map((item) => (
-          <a
-            aria-current={item === "待整理" ? "page" : undefined}
-            href={
-              item === "待整理"
-                ? "#main-content"
-                : item === "分析"
-                  ? "/analysis"
-                  : item === "学习库"
-                    ? "/library"
-                    : item === "生词"
-                      ? "/words"
-                      : item === "分析历史"
-                        ? "/history"
-                        : item === "设置"
-                          ? "/settings/account"
-                          : `#${item}`
-            }
-            key={item}
-          >
-            {item}
-          </a>
-        ))}
-      </nav>
-      <main id="main-content" tabIndex={-1}>
-        <header className="page-heading">
-          <div>
-            <p className="eyebrow">INBOX</p>
-            <h1>待整理</h1>
-          </div>
-          <p>把分析候选编辑成你真正想复用的表达与句型。</p>
-        </header>
-        {status !== null && (
-          <p aria-live="polite" role="status">
-            {status}
-          </p>
-        )}
-        {error !== null && (
-          <div className="alert" role="alert">
-            <p>{error}</p>
-            {loadState === "error" && (
-              <button data-retry-inbox onClick={() => void loadInbox()} type="button">
-                重新载入
+      {status !== null && (
+        <p aria-live="polite" role="status">
+          {status}
+        </p>
+      )}
+      {error !== null && (
+        <div className="alert" role="alert">
+          <p>{error}</p>
+          {loadState === "error" && (
+            <button data-retry-inbox onClick={() => void loadInbox()} type="button">
+              重新载入
+            </button>
+          )}
+        </div>
+      )}
+      {loadState === "loading" && (
+        <p aria-live="polite" role="status">
+          正在载入待整理内容…
+        </p>
+      )}
+      {loadState === "empty" && (
+        <section className="empty-state">
+          <h2>待整理箱已经清空</h2>
+          <p>新的完整分析会出现在这里。</p>
+        </section>
+      )}
+      {loadState === "ready" && (
+        <div className="inbox-layout">
+          <aside aria-label="待整理分析" className="analysis-list">
+            <h2 data-analysis-list-heading ref={listHeading} tabIndex={-1}>
+              待处理 {analyses.length}
+            </h2>
+            {analyses.map((analysis) => (
+              <button
+                aria-pressed={detail?.id === analysis.id}
+                key={analysis.id}
+                onClick={() => void openAnalysis(analysis)}
+                type="button"
+              >
+                <strong>{analysis.source.title ?? "未命名来源"}</strong>
+                <span>{analysis.sourceText}</span>
               </button>
+            ))}
+          </aside>
+          <section aria-busy={detailLoading} className="analysis-detail">
+            {detailLoading && <p role="status">正在载入分析详情…</p>}
+            {!detailLoading && detail !== null && (
+              <>
+                <header>
+                  <p>{detail.source.type}</p>
+                  <h2>{detail.sourceText}</h2>
+                </header>
+                {"overall" in detail.result && (
+                  <div className="analysis-summary">
+                    <p>{detail.result.overall.understandingZh}</p>
+                    <p>{detail.result.overall.translationZh}</p>
+                  </div>
+                )}
+                <form data-candidate-form onSubmit={(event) => void confirm(event)}>
+                  {drafts.map((draft, index) => (
+                    <CandidateEditor
+                      draft={draft}
+                      index={index}
+                      key={draft.candidate.id}
+                      onChange={(next) =>
+                        setDrafts((current) =>
+                          current.map((item, itemIndex) => (itemIndex === index ? next : item)),
+                        )
+                      }
+                    />
+                  ))}
+                  <div className="form-actions">
+                    <button disabled={busy} type="submit">
+                      确认所选候选
+                    </button>
+                    <button
+                      data-nothing-to-save
+                      disabled={busy}
+                      onClick={() => void markNothing()}
+                      type="button"
+                    >
+                      无需收藏
+                    </button>
+                  </div>
+                </form>
+              </>
             )}
-          </div>
-        )}
-        {loadState === "loading" && (
-          <p aria-live="polite" role="status">
-            正在载入待整理内容…
-          </p>
-        )}
-        {loadState === "empty" && (
-          <section className="empty-state">
-            <h2>待整理箱已经清空</h2>
-            <p>新的完整分析会出现在这里。</p>
           </section>
-        )}
-        {loadState === "ready" && (
-          <div className="inbox-layout">
-            <aside aria-label="待整理分析" className="analysis-list">
-              <h2 data-analysis-list-heading ref={listHeading} tabIndex={-1}>
-                待处理 {analyses.length}
-              </h2>
-              {analyses.map((analysis) => (
-                <button
-                  aria-pressed={detail?.id === analysis.id}
-                  key={analysis.id}
-                  onClick={() => void openAnalysis(analysis)}
-                  type="button"
-                >
-                  <strong>{analysis.source.title ?? "未命名来源"}</strong>
-                  <span>{analysis.sourceText}</span>
-                </button>
-              ))}
-            </aside>
-            <section aria-busy={detailLoading} className="analysis-detail">
-              {detailLoading && <p role="status">正在载入分析详情…</p>}
-              {!detailLoading && detail !== null && (
-                <>
-                  <header>
-                    <p>{detail.source.type}</p>
-                    <h2>{detail.sourceText}</h2>
-                  </header>
-                  {"overall" in detail.result && (
-                    <div className="analysis-summary">
-                      <p>{detail.result.overall.understandingZh}</p>
-                      <p>{detail.result.overall.translationZh}</p>
-                    </div>
-                  )}
-                  <form data-candidate-form onSubmit={(event) => void confirm(event)}>
-                    {drafts.map((draft, index) => (
-                      <CandidateEditor
-                        draft={draft}
-                        index={index}
-                        key={draft.candidate.id}
-                        onChange={(next) =>
-                          setDrafts((current) =>
-                            current.map((item, itemIndex) => (itemIndex === index ? next : item)),
-                          )
-                        }
-                      />
-                    ))}
-                    <div className="form-actions">
-                      <button disabled={busy} type="submit">
-                        确认所选候选
-                      </button>
-                      <button
-                        data-nothing-to-save
-                        disabled={busy}
-                        onClick={() => void markNothing()}
-                        type="button"
-                      >
-                        无需收藏
-                      </button>
-                    </div>
-                  </form>
-                </>
-              )}
-            </section>
-          </div>
-        )}
-      </main>
-    </div>
+        </div>
+      )}
+    </>
   );
 }

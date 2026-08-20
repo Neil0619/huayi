@@ -3,7 +3,6 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from "react"
 import type { WordbookJobResource } from "@huayi/cloud-contracts";
 
 import type { WebExternalWordbookApi } from "./external-wordbook-api.js";
-import { PracticeShell } from "./practice-shell.js";
 
 type LoadState = "empty" | "error" | "loading" | "ready";
 type JobChoice = "eudic-export" | "eudic-import" | "shanbay-export";
@@ -162,7 +161,7 @@ export function ExternalWordbookPage({
   };
 
   return (
-    <PracticeShell current="外部词典">
+    <>
       <div className="wordbook-page">
         <header className="page-heading">
           <div>
@@ -171,6 +170,12 @@ export function ExternalWordbookPage({
           </div>
           <p>云端保存任务状态；配对插件在本机调用欧路词典或扇贝，并回传最小结果。</p>
         </header>
+        <nav aria-label="生词设置" className="workspace-section-nav">
+          <a href="/words">生词</a>
+          <a aria-current="page" href="#main-content">
+            外部词典
+          </a>
+        </nav>
         <section className="wordbook-create" aria-labelledby="wordbook-create-title">
           <h2 id="wordbook-create-title">创建任务</h2>
           <form data-create-wordbook-job onSubmit={(event) => void create(event)}>
@@ -289,6 +294,6 @@ export function ExternalWordbookPage({
           </section>
         )}
       </div>
-    </PracticeShell>
+    </>
   );
 }

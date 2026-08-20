@@ -6,6 +6,57 @@ import { createCloudBrowserAuthority } from "./support/cloud-browser-authority.j
 const webOrigin = "https://web.huayi.invalid";
 const storeFixture = "http://127.0.0.1:4173/apps/store-extension/e2e/fixtures/cloud-release.html";
 
+test("workspace navigation stays canonical across mobile and desktop routes", async ({ page }) => {
+  const authority = createCloudBrowserAuthority({ authenticated: true, seed: "empty" });
+  await authority.install(page);
+  await page.setViewportSize({ height: 844, width: 390 });
+
+  await page.goto(`${webOrigin}/app`);
+  const summary = page.locator(".workspace-navigation > summary");
+  const navigation = page.getByRole("navigation", { name: "主导航" });
+  await expect(summary).toContainText("待整理");
+  await expect(summary).toBeVisible();
+  await expect(navigation).toBeHidden();
+  await summary.focus();
+  await summary.press("Enter");
+  await expect(navigation).toBeVisible();
+  await expect(navigation.getByRole("link")).toHaveText([
+    "今日练习",
+    "待整理",
+    "分析",
+    "学习库",
+    "生词",
+    "分析历史",
+    "设置",
+  ]);
+  await navigation.getByRole("link", { name: "今日练习" }).click();
+  await expect(page).toHaveURL(`${webOrigin}/practice`);
+  await expect(page.getByRole("heading", { level: 1, name: "今日练习" })).toBeVisible();
+
+  await page.goto(`${webOrigin}/words/wordbooks`);
+  const wordSummary = page.locator(".workspace-navigation > summary");
+  await expect(wordSummary).toHaveText("主导航 · 生词");
+  await wordSummary.click();
+  await expect(
+    page.getByRole("navigation", { name: "主导航" }).getByRole("link", { name: "生词" }),
+  ).toHaveAttribute("aria-current", "page");
+  const wordNavigation = page.getByRole("navigation", { name: "生词设置" });
+  await expect(wordNavigation.getByRole("link", { name: "外部词典" })).toHaveAttribute(
+    "aria-current",
+    "page",
+  );
+  await wordNavigation.getByRole("link", { name: "生词", exact: true }).click();
+  await expect(page).toHaveURL(`${webOrigin}/words`);
+
+  await page.setViewportSize({ height: 900, width: 1280 });
+  await page.reload();
+  await expect(page.locator(".workspace-navigation > summary")).toBeHidden();
+  await expect(page.getByRole("navigation", { name: "主导航" })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  );
+});
+
 test("actual Web bundle confirms one candidate and rereads it from the learning library", async ({
   page,
 }) => {

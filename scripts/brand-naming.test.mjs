@@ -43,7 +43,7 @@ const userFacingFiles = [
   "apps/web/src/learning-library-page.tsx",
   "apps/web/src/password-recovery-page.tsx",
   "apps/web/src/paste-analysis-page.tsx",
-  "apps/web/src/practice-shell.tsx",
+  "apps/web/src/workspace-shell.tsx",
   "apps/web/src/privacy-page.tsx",
   "apps/web/src/study-capture-inbox.tsx",
 ];

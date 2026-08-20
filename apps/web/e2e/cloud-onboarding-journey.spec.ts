@@ -43,6 +43,7 @@ test("an invited learner completes Google registration and creates a learning it
   await expect(page).toHaveURL(`${webOrigin}/app`);
   await expect(page.getByRole("heading", { name: "待分析", level: 1 })).toBeVisible();
   await expect(page.getByRole("heading", { name: "还没有待分析内容" })).toBeVisible();
+  await page.locator(".workspace-navigation > summary").click();
   await page.getByRole("link", { name: "学习库" }).click();
   await expect(page).toHaveURL(`${webOrigin}/library`);
   await expect(page.getByRole("heading", { name: "当前筛选下没有学习项" })).toBeVisible();

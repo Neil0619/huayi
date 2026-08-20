@@ -168,3 +168,19 @@ BYOK Key/精简结果不发送语见，StudyCapture/CloudWordCopy 是独立动�
 与 actual bundle 2 个预期失败；GREEN 为 focused 3 files / 13 tests、Web full 42 files / 192 tests、
 actual bundle 2/2、目标静态门与 `pnpm verify:macos` 全绿。公开信任面的实现缺口已关闭；正式运营事实、
 公开 URL、Windows 冻结候选验证及真实部署仍保持 pending。
+
+## 8. Phase 43 工作台外壳漂移审计（2026-08-20）
+
+源码共有一个 `PracticeShell`、四份完整 app-shell 复制和一份删减外壳；普通一级导航因此出现七项/八项/
+五项三种集合。“今日练习”分别指向 `/`、不存在的 hash 或仅当前页 main，练习历史又错误沿用默认 active；
+窄屏只是横向滚动。该缺口违反 `product.md` 固定导航与折叠语义，但不涉及业务数据流。
+
+Phase 43 以 `CloudApp` 组合层的 WorkspaceShell interface 集中固定页面范围、七项 route/order、子页归组、
+data-rights-only 受限形态和响应式 details；运营保持独立权限面，不加入一级导航。完成前不能声称 Web
+工作台信息架构一致；邮件/域名/部署和 Windows 批次不纳入本阶段。
+
+当前缺口已关闭：源码只剩 WorkspaceShell 一份一级导航定义；Fresh RED 为缺 module 加 5 个预期行为
+失败，GREEN 为 focused 4 files / 20 tests、Web full 43 files / 196 tests。actual bundle 固定单一导航 DOM、
+390px 原生折叠/键盘与指针展开、桌面 open、七项路由和子页 active；最终 Playwright 110/110 与
+`pnpm verify:macos` 全绿。状态为
+`implemented and verified on macOS; Windows batch validation pending`。

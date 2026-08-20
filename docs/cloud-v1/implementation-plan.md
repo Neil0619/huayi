@@ -878,3 +878,21 @@ GREEN 为 focused 3 files / 13 tests、Web full 42 files / 192 tests、actual bu
 typecheck/build 及目标静态门全绿。最终 `pnpm verify:macos` 退出 0，并覆盖 121/121 Node 脚本、Store
 coverage、全部 workspace build、109/109 Playwright、release audits 与 production dependency audit。
 状态为 `implemented and verified on macOS; Windows batch validation pending`。
+
+## Phase 43：Web 工作台外壳与主导航（2026-08-20）
+
+1. **需求校准**：固定七项一级导航、独立运营入口、练习历史/外部词典/设置子页归组、受限数据权利和
+   非工作台页面边界；
+2. **技术方案**：以 `CloudApp` 组合层的单一 WorkspaceShell deep module 替换 `PracticeShell` 和五份
+   复制外壳；module 独占 route/order/active/skip link/details，各页面只返回内容；
+3. **Fresh RED**：从页面可见 interface 证明今日练习 href、七项集合、子页 active 和窄屏折叠当前错误；
+4. **最小 GREEN**：不引入 router/依赖，不改业务请求和状态；为词典子页补显式二级入口；
+5. **验收**：focused/Web full、实际 bundle 桌面与 390px、Web typecheck/build、目标 lint/format、
+   instructions/architecture 与完整 `pnpm verify:macos`；Windows 进入下一冻结候选批次。
+
+实现检查点：Fresh RED 为 1 个缺失 suite、5 个预期行为失败与 12 个基线通过；GREEN 为 focused
+4 files / 20 tests、Web full 43 files / 196 tests。实际 bundle 先暴露 closed details 的桌面无障碍树缺陷，
+改为 media-query 控制的单一 details 后 Workspace journey 1/1；完整 Playwright 首轮再暴露两条旧移动
+journey 未展开导航，按真实用户交互修正后 focused 2/2、最终 110/110。Web strict typecheck/build、目标
+静态门和 `pnpm verify:macos` 全绿。状态为
+`implemented and verified on macOS; Windows batch validation pending`。

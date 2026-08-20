@@ -224,108 +224,88 @@ export function StudyCaptureInbox({
   };
 
   return (
-    <div className="app-shell study-capture-shell">
-      <a className="skip-link" href="#main-content">
-        跳到主要内容
-      </a>
-      <header className="topbar">
-        <span aria-hidden="true" className="brand-mark" />
-        <strong>语见</strong>
+    <div className="study-capture-shell">
+      <header className="page-heading">
+        <div>
+          <p className="eyebrow">STUDY INBOX</p>
+          <h1>待分析</h1>
+        </div>
+        <p>这里只保存原始学习意图；深度分析由你在 Web 明确启动。</p>
       </header>
-      <nav aria-label="主导航" className="sidebar">
-        <a aria-current="page" href="/app">
-          待整理
-        </a>
-        <a href="/analysis">分析</a>
-        <a href="/library">学习库</a>
-        <a href="/practice">今日练习</a>
-        <a href="/settings/account">设置</a>
-      </nav>
-      <main id="main-content" tabIndex={-1}>
-        <header className="page-heading">
-          <div>
-            <p className="eyebrow">STUDY INBOX</p>
-            <h1>待分析</h1>
-          </div>
-          <p>这里只保存原始学习意图；深度分析由你在 Web 明确启动。</p>
-        </header>
-        {status !== null && (
-          <p aria-live="polite" role="status">
-            {status}
-          </p>
-        )}
-        {error !== null && (
-          <div className="alert" role="alert">
-            <p>{error}</p>
-            {state === "error" && (
-              <button onClick={() => void load()} type="button">
-                重新载入
+      {status !== null && (
+        <p aria-live="polite" role="status">
+          {status}
+        </p>
+      )}
+      {error !== null && (
+        <div className="alert" role="alert">
+          <p>{error}</p>
+          {state === "error" && (
+            <button onClick={() => void load()} type="button">
+              重新载入
+            </button>
+          )}
+        </div>
+      )}
+      {state === "loading" && <p role="status">正在载入待分析内容…</p>}
+      {state === "empty" && (
+        <section className="empty-state">
+          <h2>还没有待分析内容</h2>
+          <p>可从插件浮层手动加入，或在设置中开启句子/段落自动加入。</p>
+        </section>
+      )}
+      <label className="capture-status-filter">
+        显示状态
+        <select
+          value={captureStatus}
+          onChange={(event) => setCaptureStatus(event.currentTarget.value as typeof captureStatus)}
+        >
+          <option value="pending">待分析</option>
+          <option value="analyzing">分析中</option>
+          <option value="analyzed">已分析</option>
+        </select>
+      </label>
+      {state === "ready" && (
+        <div className="inbox-layout">
+          <aside aria-label="待分析采集" className="analysis-list">
+            <h2 ref={listHeading} tabIndex={-1}>
+              待分析 {items.length}
+            </h2>
+            {items.map((item) => (
+              <button
+                aria-pressed={detail?.capture.id === item.capture.id}
+                key={item.capture.id}
+                onClick={() => void open(item.capture.id)}
+                type="button"
+              >
+                <strong>{item.capture.title ?? item.capture.kind}</strong>
+                <span>{item.capture.sourceText}</span>
               </button>
-            )}
-          </div>
-        )}
-        {state === "loading" && <p role="status">正在载入待分析内容…</p>}
-        {state === "empty" && (
-          <section className="empty-state">
-            <h2>还没有待分析内容</h2>
-            <p>可从插件浮层手动加入，或在设置中开启句子/段落自动加入。</p>
-          </section>
-        )}
-        <label className="capture-status-filter">
-          显示状态
-          <select
-            value={captureStatus}
-            onChange={(event) =>
-              setCaptureStatus(event.currentTarget.value as typeof captureStatus)
-            }
-          >
-            <option value="pending">待分析</option>
-            <option value="analyzing">分析中</option>
-            <option value="analyzed">已分析</option>
-          </select>
-        </label>
-        {state === "ready" && (
-          <div className="inbox-layout">
-            <aside aria-label="待分析采集" className="analysis-list">
-              <h2 ref={listHeading} tabIndex={-1}>
-                待分析 {items.length}
-              </h2>
-              {items.map((item) => (
-                <button
-                  aria-pressed={detail?.capture.id === item.capture.id}
-                  key={item.capture.id}
-                  onClick={() => void open(item.capture.id)}
-                  type="button"
-                >
-                  <strong>{item.capture.title ?? item.capture.kind}</strong>
-                  <span>{item.capture.sourceText}</span>
-                </button>
-              ))}
-            </aside>
-            {detail !== null && (
-              <StudyCaptureDetailPanel
-                activeRequestId={activeRequestId}
-                busy={busy}
-                confirmDelete={confirmDelete}
-                detail={detail}
-                kind={kind}
-                onAnalyze={() => void analyze()}
-                onBeginDelete={() => setConfirmDelete(true)}
-                onCancelAnalysis={cancelAnalysis}
-                onCancelDelete={() => setConfirmDelete(false)}
-                onDelete={() => void remove()}
-                onKind={setKind}
-                onRecheck={() => activeRequestId !== null && void recoverRequest(activeRequestId)}
-                onSubmit={(event) => void save(event)}
-                onTitle={setTitle}
-                onUserContext={setUserContext}
-                title={title}
-                userContext={userContext}
-              />
-            )}
-          </div>
-        )}
-      </main>
+            ))}
+          </aside>
+          {detail !== null && (
+            <StudyCaptureDetailPanel
+              activeRequestId={activeRequestId}
+              busy={busy}
+              confirmDelete={confirmDelete}
+              detail={detail}
+              kind={kind}
+              onAnalyze={() => void analyze()}
+              onBeginDelete={() => setConfirmDelete(true)}
+              onCancelAnalysis={cancelAnalysis}
+              onCancelDelete={() => setConfirmDelete(false)}
+              onDelete={() => void remove()}
+              onKind={setKind}
+              onRecheck={() => activeRequestId !== null && void recoverRequest(activeRequestId)}
+              onSubmit={(event) => void save(event)}
+              onTitle={setTitle}
+              onUserContext={setUserContext}
+              title={title}
+              userContext={userContext}
+            />
+          )}
+        </div>
+      )}
     </div>
   );
 }

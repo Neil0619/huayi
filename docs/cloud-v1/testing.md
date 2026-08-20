@@ -354,6 +354,11 @@ timeout 配置上限和三个非 analysis DeepSeek adapter 的实际 abort 没�
   `store-listing.md`：四方分别说明 BYOK 查询、platform 查询、StudyCapture 与 CloudWordCopy；禁止
   “登录 BYOK 上传”或“严格结果上传 Huayi/语见”，并证明 `/privacy` 零 API、platform 查询最多一小时且
   不进入 ReviewInbox/History。
+- Phase 43 WorkspaceShell contract 必须从公开 interface 验证普通账号七项标签/顺序/绝对路径、恰好一个
+  `aria-current`、受限访问形态和 skip link；页面 integration 覆盖待整理两 tab、分析、学习库、练习历史、
+  外部词典、完整账号 settings 与 data-rights-only 会话。运营、配对和公共/认证页必须没有学习主导航。
+  actual bundle 在桌面及 390px 验证 details 默认收起、键盘展开、完整导航和“今日练习”真实跳转；禁止
+  用源码快照代替可见/可操作行为断言。
 
 ### 双端同步切片门禁
 

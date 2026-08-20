@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 
 import type { WebIdentityApi } from "./identity-api.js";
 import { WebIdentityApiError } from "./identity-api.js";
@@ -21,6 +21,7 @@ import type { WebExternalWordbookApi } from "./external-wordbook-api.js";
 import { AccountDataRightsPage } from "./account-data-rights-page.js";
 import { AdminOperationsPage } from "./admin-operations-page.js";
 import type { WebAdminOperationsApi } from "./admin-operations-api.js";
+import { WorkspaceShell, type WorkspaceSection } from "./workspace-shell.js";
 
 export type IdentityApi = Pick<
   WebIdentityApi,
@@ -52,6 +53,16 @@ export type CloudPage =
 
 type ViewState = "approved" | "error" | "loading" | "pending" | "signed-out";
 type StudyInboxApi = InboxApi & WebStudyCaptureApi;
+
+function workspaceSection(page: CloudPage): WorkspaceSection {
+  if (page === "practice" || page === "practice-history") return "practice";
+  if (page === "analysis") return "analysis";
+  if (page === "library") return "library";
+  if (page === "words" || page === "wordbooks") return "words";
+  if (page === "history") return "history";
+  if (page === "account" || page === "data" || page === "devices") return "settings";
+  return "inbox";
+}
 
 export function CloudApp({
   accountApi,
@@ -196,26 +207,33 @@ export function CloudApp({
       </main>
     );
   if (pairingId === undefined) {
-    if (sessionAccess === "data-rights" || page === "data")
-      return (
-        <AccountDataRightsPage
-          api={{
-            createAccountDataExport: () => identity.createAccountDataExport(csrfToken),
-            deleteAccount: () => identity.deleteAccount(csrfToken),
-            downloadAccountDataExport: (exportId) =>
-              identity.downloadAccountDataExport(exportId, csrfToken),
-            getCurrentAccountDataExport: () => identity.getCurrentAccountDataExport(),
-            retryAccountDataExport: (exportId, revision) =>
-              identity.retryAccountDataExport(exportId, revision, csrfToken),
-          }}
-          onAccountDeleted={() => {
-            setCsrfToken("");
-            setState("signed-out");
-          }}
-        />
-      );
-    if (page === "account" && accountApi !== undefined)
-      return (
+    const dataRightsPage = (showAccountNavigation: boolean) => (
+      <AccountDataRightsPage
+        api={{
+          createAccountDataExport: () => identity.createAccountDataExport(csrfToken),
+          deleteAccount: () => identity.deleteAccount(csrfToken),
+          downloadAccountDataExport: (exportId) =>
+            identity.downloadAccountDataExport(exportId, csrfToken),
+          getCurrentAccountDataExport: () => identity.getCurrentAccountDataExport(),
+          retryAccountDataExport: (exportId, revision) =>
+            identity.retryAccountDataExport(exportId, revision, csrfToken),
+        }}
+        onAccountDeleted={() => {
+          setCsrfToken("");
+          setState("signed-out");
+        }}
+        showAccountNavigation={showAccountNavigation}
+      />
+    );
+    if (sessionAccess === "data-rights")
+      return <WorkspaceShell access="data-rights">{dataRightsPage(false)}</WorkspaceShell>;
+    if (page === "admin" && adminApi !== undefined)
+      return <AdminOperationsPage api={adminApi} csrfToken={csrfToken} />;
+
+    let content: ReactNode;
+    if (page === "data") content = dataRightsPage(true);
+    else if (page === "account" && accountApi !== undefined)
+      content = (
         <AccountQuotaPage
           adminApi={adminApi}
           api={accountApi}
@@ -223,30 +241,38 @@ export function CloudApp({
           onCsrfTokenChanged={setCsrfToken}
         />
       );
-    if (page === "admin" && adminApi !== undefined)
-      return <AdminOperationsPage api={adminApi} csrfToken={csrfToken} />;
-    if (page === "devices") return <DeviceSessionsPage api={identity} csrfToken={csrfToken} />;
-    if (page === "analysis" && analysisApi !== undefined)
-      return <PasteAnalysisPage api={analysisApi} />;
-    if (page === "history" && historyApi !== undefined)
-      return <AnalysisHistoryPage api={historyApi} />;
-    if (page === "library" && libraryApi !== undefined)
-      return <LearningLibraryPage api={libraryApi} />;
-    if (page === "practice" && practiceApi !== undefined) return <PracticePage api={practiceApi} />;
-    if (page === "practice-history" && practiceHistoryApi !== undefined)
-      return <PracticeHistoryPage api={practiceHistoryApi} />;
-    if (page === "words" && wordApi !== undefined) return <WordLibraryPage api={wordApi} />;
-    if (page === "wordbooks" && wordbookApi !== undefined)
-      return <ExternalWordbookPage api={wordbookApi} />;
-    return inboxApi === undefined ? (
-      <main className="configuration-error" id="main-content">
-        <span aria-hidden="true" className="brand-mark" />
-        <p className="eyebrow">SEEN & SAID</p>
-        <h1>登录状态有效</h1>
-        <p role="status">登录状态有效。</p>
-      </main>
-    ) : (
-      <StudyInbox captureApi={inboxApi} reviewApi={inboxApi} />
+    else if (page === "devices")
+      content = <DeviceSessionsPage api={identity} csrfToken={csrfToken} />;
+    else if (page === "analysis" && analysisApi !== undefined)
+      content = <PasteAnalysisPage api={analysisApi} />;
+    else if (page === "history" && historyApi !== undefined)
+      content = <AnalysisHistoryPage api={historyApi} />;
+    else if (page === "library" && libraryApi !== undefined)
+      content = <LearningLibraryPage api={libraryApi} />;
+    else if (page === "practice" && practiceApi !== undefined)
+      content = <PracticePage api={practiceApi} />;
+    else if (page === "practice-history" && practiceHistoryApi !== undefined)
+      content = <PracticeHistoryPage api={practiceHistoryApi} />;
+    else if (page === "words" && wordApi !== undefined) content = <WordLibraryPage api={wordApi} />;
+    else if (page === "wordbooks" && wordbookApi !== undefined)
+      content = <ExternalWordbookPage api={wordbookApi} />;
+    else
+      content =
+        inboxApi === undefined ? (
+          <section className="configuration-error">
+            <span aria-hidden="true" className="brand-mark" />
+            <p className="eyebrow">SEEN & SAID</p>
+            <h1>登录状态有效</h1>
+            <p role="status">登录状态有效。</p>
+          </section>
+        ) : (
+          <StudyInbox captureApi={inboxApi} reviewApi={inboxApi} />
+        );
+
+    return (
+      <WorkspaceShell access="full" activeSection={workspaceSection(page)}>
+        {content}
+      </WorkspaceShell>
     );
   }
   return (

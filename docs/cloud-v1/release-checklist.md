@@ -90,6 +90,14 @@ Chrome Web Store 就绪。
 - [ ] 披露分别说明 BYOK Provider、平台插件查询、StudyCapture、CloudWordCopy、本机词库和云端学习内容，
       且任何页面都没有“登录后上传 BYOK 完整结果”的旧文案；
 - [ ] 草稿上传的权限/远程代码/数据预审通过；最终公开上传另行批准。
+
+## Web 工作台外壳
+
+- [x] Phase 43 所有 full-session 学习工作台页面使用同一 WorkspaceShell，普通一级导航恰好七项且
+      route/order 一致；
+- [x] 练习历史归入今日练习、外部词典归入生词、账号子页归入设置，运营不扩张普通一级导航；
+- [x] data-rights-only 会话、运营、公共、认证、恢复和配对页面不暴露完整学习工作台导航；
+- [x] 390px 窄屏 details、键盘展开、skip link、active、桌面侧栏和 actual route 跳转均由浏览器测试证明。
 - [x] Phase 37-A 已将重算的 613 个未跟踪交付候选纳入本次精确 staged candidate：`.prettierignore` 1、API 294、Store
       Extension 75、Web 152、ADR 14、Cloud 文档 43、Cloud contracts 22、learning-domain 1、store-domain 9、Cloud
       release scripts 2；明确排除但不删除 `.agents/skills/**` 150 个代理技能资产和 `artifacts/**` 8 张

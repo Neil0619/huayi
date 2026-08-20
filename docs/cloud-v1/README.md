@@ -43,6 +43,7 @@ Cloud V1 是尚未发布的 Store Edition 云端学习增量。实现和审阅�
 39. [决策变更记录](change-log.md)
 40. [Phase 41 macOS 优先开发与 Windows 批量验证规划](macos-first-windows-batch-validation.md)
 41. [Phase 42 Cloud 数据边界公开披露一致性](cloud-data-disclosure-consistency.md)
+42. [Phase 43 Web 工作台外壳与主导航](web-workspace-shell.md)
 
 根 `CONTEXT.md` 定义领域语言，`docs/adr/0009`–`0022` 记录难以逆转的取舍。需求或技术路线变化先
 更新 `change-log.md` 和对应权威文档，再修改代码。

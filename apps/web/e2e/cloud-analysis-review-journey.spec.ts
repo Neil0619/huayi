@@ -54,6 +54,7 @@ test("a pasted analysis streams into Inbox and becomes a server-reread learning 
   await page.getByRole("button", { name: "确认所选候选" }).click();
   await expect(page.getByRole("heading", { name: "待整理箱已经清空" })).toBeVisible();
 
+  await page.locator(".workspace-navigation > summary").click();
   await page.getByRole("link", { name: "学习库" }).click();
   const item = page.getByRole("button", { name: /to be completely frank/u });
   await expect(item).toBeVisible();
