@@ -256,8 +256,9 @@ export function CloudApp({
       <h1>批准扩展设备</h1>
       <p>仅在你刚刚从语见扩展发起配对时继续。</p>
       <p>
-        连接后，platform 查询只发送最小选区并最多保留一小时；扩展只会按下面的账号偏好保存
-        StudyCapture 原始学习意图或复制未来新增单词。BYOK 分析结果、API Key、页面 URL、标题、视频 ID
+        连接后，platform 查询只发送最小选区，正文与精简结果最多保留一小时且不进入待整理或分析历史。
+        BYOK Key 与精简结果不会发送给语见。StudyCapture 原始学习意图和 CloudWordCopy 单词副本是由
+        下面账号偏好分别控制的云端动作，三项选择相互独立；页面 URL、标题、视频 ID
         和完整页面不会上传。
       </p>
       <form onSubmit={(event) => void approve(event)}>

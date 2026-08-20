@@ -8,6 +8,9 @@
 当前状态为预发布，尚未开放邀请或提交 Chrome Web Store。缺少的外部事实不会用占位值伪装为正式
 政策；Web `/privacy` 必须在无需登录和 API 配置的情况下展示同一份事实。
 
+公开 `/privacy`、Extension 配对审批与 Store listing 必须把 BYOK 查询、platform 查询、StudyCapture 和
+CloudWordCopy 作为四类独立动作披露，不得把云端学习意图或单词副本误称为“登录 BYOK 结果上传”。
+
 ## 我们处理的数据
 
 - 账号资料：邮箱、Google 基础身份、邀请状态、设备标签和安全会话元数据；

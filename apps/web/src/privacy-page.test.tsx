@@ -22,6 +22,14 @@ describe("Public privacy page", () => {
     expect(container.textContent).toContain("DeepSeek");
     expect(container.textContent).toContain("Supabase");
     expect(container.textContent).toContain("BYOK 与欧路凭据只保存在本机");
+    expect(container.textContent).toContain("BYOK Key 与该次精简结果不会发送给语见");
+    expect(container.textContent).toContain(
+      "StudyCapture 和 CloudWordCopy 是与 BYOK 查询结果分开的云端学习动作",
+    );
+    expect(container.textContent).toContain(
+      "平台插件查询的正文与精简结果最多保留一小时，不进入待整理或分析历史",
+    );
+    expect(container.textContent).toContain("本机 BYOK、本机词库和本机外部词典仍可独立使用");
     expect(container.textContent).toContain("最多 20 条、5 MiB、7 天");
     expect(container.textContent).toContain("24 小时内删除");
     expect(container.textContent).toContain("运营主体、联系方式、实际部署区域和备份残留期限");
@@ -29,6 +37,9 @@ describe("Public privacy page", () => {
     expect(container.textContent).toContain(
       "The use of information received from Google APIs will adhere to the Chrome Web Store User Data Policy",
     );
+    expect(container.textContent).not.toContain("登录 BYOK 上传");
+    expect(container.textContent).not.toContain("严格结果才可上传");
+    expect(container.textContent).not.toContain("Huayi");
   });
 
   it("uses only structured text and safe same-tab policy links", async () => {

@@ -716,6 +716,14 @@ test("public privacy stays API-free and a missing session never reads learning c
 
   await page.goto(`${webOrigin}/privacy`);
   await expect(page.getByRole("heading", { name: "语见 Cloud V1 隐私说明" })).toBeVisible();
+  await expect(
+    page.getByText("BYOK Key 与该次精简结果不会发送给语见", { exact: false }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("平台插件查询的正文与精简结果最多保留一小时，不进入待整理或分析历史", {
+      exact: false,
+    }),
+  ).toBeVisible();
   expect(authority.snapshot().requestFacts).toEqual([]);
 
   await page.goto(`${webOrigin}/app`);

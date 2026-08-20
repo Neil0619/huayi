@@ -21,6 +21,10 @@ test("pairing approval atomically selects preferences and reloads from approved 
   await expect(page.getByRole("heading", { name: "批准扩展设备" })).toBeVisible();
   await expect(page.getByText(/最小选区.*最多保留一小时/u)).toBeVisible();
   await expect(page.getByText(/标题、视频 ID/u)).toBeVisible();
+  await expect(page.getByText(/BYOK Key 与精简结果不会发送给语见/u)).toBeVisible();
+  await expect(page.getByText(/StudyCapture 原始学习意图/u)).toBeVisible();
+  await expect(page.getByText(/CloudWordCopy 单词副本/u)).toBeVisible();
+  await expect(page.getByText(/三项选择相互独立/u)).toBeVisible();
   await expect(page.getByLabel("插件查询模型")).toHaveValue("platform");
   await expect(page.getByLabel("待学习采集")).toHaveValue("manual");
   await expect(page.getByLabel("云端单词副本")).toHaveValue("enabled");

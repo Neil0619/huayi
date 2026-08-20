@@ -460,3 +460,18 @@ eviction 影响；两个可并存、base64 后各可接近 6.7 MiB 的 `storage.
 - Windows 11 上的上一候选 `verify:windows` 与 SEA health 证据仍有效地证明 `3aa143c`；但当前品牌与
   shared harness/audit 修复晚于该 HEAD，因此当前精确候选仍需 Windows/远端 CI 重验。未运行安装、
   真实 Chrome、凭据、Provider/词典 smoke、邮件/域名/DNS 或部署。
+
+## 17. Phase 42 Cloud 数据边界公开披露一致性（2026-08-20）
+
+- 复审确认 actual `/privacy` 仍含“登录 BYOK 上传/严格结果上传 Huayi”旧语义，与现行 BYOK Key/精简
+  结果不发送语见、platform 临时保留、StudyCapture/CloudWordCopy 独立执行的产品事实冲突；
+- Fresh RED 为 focused Vitest 3 files / 3 expected failures / 10 baseline passes 与 actual bundle 2 个
+  expected failures；最小实现只校准 PrivacyPage、配对摘要与对应回归，没有改协议、API、数据库、
+  Provider 或 Extension runtime；
+- GREEN 为 focused Vitest 3 files / 13 tests、Web full 42 files / 192 tests、actual bundle 2/2、Web
+  strict typecheck/build、目标 ESLint/Prettier、instructions/architecture 与 diff check 全绿；
+- `pnpm verify:macos` 退出 0，覆盖 121/121 Node 脚本、Store coverage、全部 workspace build、109/109
+  Playwright、release audits 与 production dependency audit；本机 actual `/privacy` 的 DOM 与全页截图
+  检查没有溢出或布局异常；
+- 当前状态为 `implemented and verified on macOS; Windows batch validation pending`。未运行 Windows、
+  真实 Provider/词典、安装、Chrome 扩展、邮件、域名、DNS 或部署。

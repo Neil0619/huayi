@@ -87,6 +87,10 @@ describe("Web account bootstrap and pairing approval", () => {
     expect(container.textContent).toContain("最小选区");
     expect(container.textContent).toContain("最多保留一小时");
     expect(container.textContent).toContain("标题、视频 ID");
+    expect(container.textContent).toContain("BYOK Key 与精简结果不会发送给语见");
+    expect(container.textContent).toContain("StudyCapture 原始学习意图");
+    expect(container.textContent).toContain("CloudWordCopy 单词副本");
+    expect(container.textContent).toContain("三项选择相互独立");
     const field = container.querySelector<HTMLInputElement>("input[name='deviceLabel']");
     const consent = container.querySelector<HTMLInputElement>("input[name='cloudUploadConsent']");
     if (field === null) throw new Error("Device label input is missing.");

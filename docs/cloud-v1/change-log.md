@@ -3,6 +3,15 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-20：公开披露必须分开 BYOK、platform 与两类云端学习动作
+
+- BYOK 查询只把最小输入发送该设备所选 Provider；API Key 与精简结果不发送语见，不产生待整理或分析
+  历史；
+- platform 查询由语见 API/平台 DeepSeek 处理，正文与精简结果最多保留一小时用于恢复和幂等；
+- StudyCapture 与 CloudWordCopy 是用户分别选择的独立云端学习动作，不能被称为“BYOK 结果上传”；
+- `/privacy`、配对审批、隐私草案和 Store listing 必须对四类动作、接收方、保留和撤回语义一致；
+- 本轮只修复公开披露漂移，不修改协议、API、数据库、Provider 或 Extension runtime。
+
 ## 2026-08-20：Windows 验证改为候选冻结节点批量执行
 
 - 保留 Windows 支持和发布前双平台门禁，但不再要求每个普通小提交后立即切换 Windows 跑全量门；

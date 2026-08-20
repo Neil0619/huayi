@@ -350,6 +350,10 @@ timeout 配置上限和三个非 analysis DeepSeek adapter 的实际 abort 没�
   或文件内容；既有 `check:store-release` 无参数 profile 必须继续通过；
 - ready 只属于离线候选一致性证据，不替代 TLS/DNS、OAuth、备份、Dashboard、双平台 Chrome 或商店
   人工预审。
+- Phase 42 公开数据边界回归必须同时读取 actual `PrivacyPage`、pairing approval、`privacy-policy.md` 和
+  `store-listing.md`：四方分别说明 BYOK 查询、platform 查询、StudyCapture 与 CloudWordCopy；禁止
+  “登录 BYOK 上传”或“严格结果上传 Huayi/语见”，并证明 `/privacy` 零 API、platform 查询最多一小时且
+  不进入 ReviewInbox/History。
 
 ### 双端同步切片门禁
 

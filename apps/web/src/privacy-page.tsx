@@ -85,8 +85,11 @@ export function PrivacyPage() {
           <section aria-labelledby="recipients-title">
             <h2 id="recipients-title">用途与接收方</h2>
             <ul>
-              <li>语见 API 接收登录用户主动发起或同意上传的严格结果，用于待整理、历史和学习。</li>
-              <li>DeepSeek 接收平台模型功能所需的英文与固定指令，用于分析、建议和练习反馈。</li>
+              <li>
+                语见 API 接收用户主动提交的 Web 分析与练习、StudyCapture 原始学习意图和
+                CloudWordCopy 单词副本，用于待分析、待收藏、历史和跨设备学习。
+              </li>
+              <li>DeepSeek 接收 platform 查询、Web 分析、建议和练习所需的最小英文与固定指令。</li>
               <li>Supabase 与 Vercel 承载身份、数据库、私有导出对象、API 和 Web。</li>
               <li>Google 只用于用户选择的登录；邮件提供商用于验证、恢复和安全通知。</li>
               <li>
@@ -103,9 +106,13 @@ export function PrivacyPage() {
           <section aria-labelledby="local-secrets-title">
             <h2 id="local-secrets-title">本机秘密与两条模型路径</h2>
             <p>
-              BYOK 与欧路凭据只保存在本机 DeviceVault。未登录 BYOK 查询从 Extension 直达用户明确选择
-              的 Provider；登录且同意后，严格结果才可上传 Huayi。平台模型则由 Huayi API 调用
+              BYOK 与欧路凭据只保存在本机 DeviceVault。BYOK 查询从 Extension 直达用户明确选择的
+              Provider；BYOK Key 与该次精简结果不会发送给语见。platform 查询由语见 API 调用
               DeepSeek，并计入账号显示的月度额度。
+            </p>
+            <p>
+              StudyCapture 和 CloudWordCopy 是与 BYOK 查询结果分开的云端学习动作，由用户分别选择；
+              即使查询模式为 BYOK，也不会把该次精简结果上传为 Web 分析记录。
             </p>
           </section>
 
@@ -113,14 +120,19 @@ export function PrivacyPage() {
             <h2 id="retention-title">保留、导出与删除</h2>
             <ul>
               <li>正式分析、学习项、生词和练习保留至用户删除；归档不是删除。</li>
+              <li>
+                平台插件查询的正文与精简结果最多保留一小时，不进入待整理或分析历史；之后只保留无正文
+                用量账本。
+              </li>
               <li>用户可以删除符合安全边界的单条记录、导出词表，或请求完整账号数据导出。</li>
               <li>账号删除立即撤销会话，主数据库内容在 24 小时内删除；备份残留期限仍待核验。</li>
               <li>完整账号导出 ready 后 24 小时过期，每个签名下载地址最长 15 分钟。</li>
               <li>Extension 待提交箱最多 20 条、5 MiB、7 天过期，用户可提前清空。</li>
             </ul>
             <p>
-              撤回云端联网同意后，Extension 停止平台请求与登录 BYOK 上传，并清除尚未上传的正文；
-              既有数据仍可浏览、导出或删除。
+              撤回语见数据联网同意后，Extension 停止 platform 查询、StudyCapture、CloudWordCopy 和
+              云端外部词典任务，并清除尚未提交的账号绑定正文；既有云端数据仍可浏览、导出或删除，
+              本机 BYOK、本机词库和本机外部词典仍可独立使用。
             </p>
           </section>
 

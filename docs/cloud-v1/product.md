@@ -59,6 +59,9 @@ V1 面向持有一次性邀请链接的少量中文母语英语学习者。成�
 - SubmissionOutbox 只保存 strict StudyCapture/CloudWordCopy 意图，不保存完整插件结果。网络/API
   暂时不可用时保留与有效 session 绑定的密文；断开、更换账号、session 失效、撤回同意或用户二次确认
   清空时删除，避免正文跨账号提交。
+- 公开 `/privacy`、配对审批和 Store 披露必须分别说明 BYOK 查询、platform 查询、StudyCapture 与
+  CloudWordCopy：BYOK Key 和精简结果不发送语见；platform 查询正文/精简结果最多保留一小时且不进入
+  待整理或分析历史；StudyCapture/CloudWordCopy 是独立用户选择，不得称为“BYOK 结果上传”。
 
 ### 3.2 分析
 

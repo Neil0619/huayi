@@ -858,3 +858,23 @@ Windows 目标机结果交回当前任务复审。
 当前 Windows 已验证代码为 `3aa143c`，当前 Mac HEAD `2a035ee` 比它新增品牌与跨平台候选稳定性两个提交；
 两者进入下一批 Windows 验证，无需立即重跑。下一项是 41-A，邮件、域名、DNS、Resend 和真实部署仍在
 独立任务中，不纳入本阶段。
+
+## Phase 42：Cloud 数据边界公开披露一致性（2026-08-20）
+
+1. **需求校准**：以现行 product/security 为权威，分别固定 BYOK、platform、StudyCapture、CloudWordCopy
+   的接收方、字段、用途、保留和撤回语义；
+2. **文档自审**：同步 `cloud-data-disclosure-consistency.md`、隐私草案、Store listing、testing、审计、
+   状态和 change log，不填入邮件/域名/运营主体等未知生产事实；
+3. **Fresh RED**：扩展 PrivacyPage、pairing 和 release-material tests，证明 actual `/privacy` 仍含“登录
+   BYOK 上传/严格结果上传 Huayi”的旧边界；
+4. **最小 GREEN**：只校准公开页面与材料，不改协议、API、数据库、Provider 或 Extension runtime；
+5. **验收**：focused Web tests、actual bundle privacy/pairing、Web typecheck/build、目标 lint/format、
+   instructions/architecture 与完整 `pnpm verify:macos`；Windows 进入下一冻结候选批次。
+
+下一产品体验候选为统一 Web 工作台外壳与主导航；不与本轮隐私边界混改。
+
+实现检查点：Fresh RED 为 focused Vitest 3 个预期失败 / 10 个基线通过与 actual bundle 2 个预期失败；
+GREEN 为 focused 3 files / 13 tests、Web full 42 files / 192 tests、actual bundle 2/2、Web strict
+typecheck/build 及目标静态门全绿。最终 `pnpm verify:macos` 退出 0，并覆盖 121/121 Node 脚本、Store
+coverage、全部 workspace build、109/109 Playwright、release audits 与 production dependency audit。
+状态为 `implemented and verified on macOS; Windows batch validation pending`。

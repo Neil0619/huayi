@@ -85,6 +85,8 @@ Chrome Web Store 就绪。
       不再需要而应删除的 Manifest 权限；
 - [ ] 隐私政策有公开 HTTPS URL，并准确披露 Huayi、DeepSeek、Supabase/Vercel、Google、邮件和词典；
 - [ ] 数据问卷、截图、商店文案、首次云端同意与产品行为一致；
+- [x] Phase 42 `/privacy`、配对审批、隐私草案和 Store listing 已分别披露 BYOK、platform、StudyCapture、
+      CloudWordCopy，且不再出现“登录 BYOK 上传/严格结果上传 Huayi”旧语义；
 - [ ] 披露分别说明 BYOK Provider、平台插件查询、StudyCapture、CloudWordCopy、本机词库和云端学习内容，
       且任何页面都没有“登录后上传 BYOK 完整结果”的旧文案；
 - [ ] 草稿上传的权限/远程代码/数据预审通过；最终公开上传另行批准。

@@ -155,3 +155,16 @@ Prettier/ESLint 通过；当时根级 format/lint 仍分别由 70 个既有文�
 - R3-C 在真实 sender、通知 CRON 生产组合和告警实现前保持生产代码缺口，不降级为验证项；
 - Phase 39 staged manifest、`git diff --cached --check` 和 `F3` 聚合门已关闭版本控制交付缺口；
 - 完整 V1 与发布检查表在所有 X 项完成前保持未完成。
+
+## 7. Phase 42 公开披露漂移审计（2026-08-20）
+
+Phase 41-A 复审发现本矩阵的运行时行为证据仍正确，但 actual `/privacy` 没有跟随 Phase 27 后的边界：
+页面仍暗示登录 BYOK 结果可以上传，并使用公开 `Huayi`。权威 product/privacy/store/security 已一致规定
+BYOK Key/精简结果不发送语见，StudyCapture/CloudWordCopy 是独立动作，platform 查询最多保留一小时且
+不进入待整理/历史。
+
+该缺口属于用户可见的隐私事实错误，不新增产品数据流。Phase 42 先通过三组 Fresh RED 固定四方披露，
+再最小修改 PrivacyPage/配对摘要与材料测试。Fresh RED 为 focused Vitest 3 个预期失败 / 10 个基线通过
+与 actual bundle 2 个预期失败；GREEN 为 focused 3 files / 13 tests、Web full 42 files / 192 tests、
+actual bundle 2/2、目标静态门与 `pnpm verify:macos` 全绿。公开信任面的实现缺口已关闭；正式运营事实、
+公开 URL、Windows 冻结候选验证及真实部署仍保持 pending。

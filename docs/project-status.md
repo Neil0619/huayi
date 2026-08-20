@@ -716,6 +716,23 @@ pending`，不能因路线拆分宣称完整 V1 已完成。
 - 下一项执行 Phase 41-A：继续在 Mac 校准下一批产品需求并同步产品、开发、测试和验收文档，再进入
   41-B 开发。邮件、域名、DNS、Resend 与真实部署仍由独立任务处理。
 
+## Cloud V1 Phase 42 公开数据边界一致性状态（2026-08-20）
+
+- Phase 41-A 复审发现 actual `/privacy` 仍暗示“登录 BYOK 结果上传”，与现行 product/privacy/store/
+  security 的唯一边界冲突；BYOK Key 与精简结果实际不发送语见；
+- 已冻结四类独立动作：BYOK 查询、platform 查询、StudyCapture、CloudWordCopy。platform 查询最多保留
+  一小时且不进入待整理/分析历史，后两者不能被称为 BYOK 结果上传；
+- Fresh RED 为 focused Vitest 3 个预期失败 / 10 个基线通过与 actual bundle 2 个预期失败；GREEN 为
+  focused 3 files / 13 tests、Web full 42 files / 192 tests、actual bundle 2/2、Web strict typecheck/build
+  与目标静态门全绿；
+- 最终 `pnpm verify:macos` 退出 0，覆盖 121/121 Node 脚本、Store coverage、全部 workspace build、
+  109/109 Playwright、release audits 与 production dependency audit；本机 actual `/privacy` 的 DOM 与
+  全页截图检查也无溢出或布局异常；
+- 当前状态为 `implemented and verified on macOS; Windows batch validation pending`。本轮只修改公开披露
+  与回归，不改 runtime 数据流；
+- Web 主导航复制和菜单漂移另记为下一个 Mac 产品体验候选，不与本轮混改；Windows 在下一冻结候选
+  批量验证。
+
 ## Cloud V1 Phase 23 离线实现状态
 
 - 五类平台付费练习生成已统一进入 PlatformGeneration：新增 ADR-0018、
