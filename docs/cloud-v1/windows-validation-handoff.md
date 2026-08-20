@@ -230,3 +230,44 @@ Node.js 与 pnpm，再 Fresh 运行 pnpm verify:windows。若失败，先保存�
 - 该复验没有运行安装、真实 Chrome、凭据、Provider/词典 smoke 或部署。因为品牌提交和本节 shared
   harness/audit 修复晚于 Windows 已验证 HEAD，当前精确候选的 `verify:windows`/远端双平台 CI 仍待重跑；
   不把早先 Windows 结果外推为当前 HEAD 的完成证明。
+
+## 11. Phase 46 第二批 Windows 候选交接（2026-08-21）
+
+本节 supersede 第 2 节“只需包含旧 Cloud 基线”的宽松起点，用于下一次真实 Windows 批次。旧执行结果
+继续只证明 `3aa143c`，不能覆盖当前候选。
+
+- 上次 Windows 验证代码：`3aa143c7f60ba52a941f2a2db587bc93819427eb`；
+- Phase 45 代码锚点：`15306b46b4129682278c7dcecc47ac45bbfa7f7d`；
+- Mac 冻结提交：由当前任务完成本节、最终 `pnpm verify:macos` 和本地提交后，以聊天中报告的**完整
+  40 位 SHA**为唯一候选；该 SHA 必须包含上述代码锚点和本节；
+- 该候选相对上次 Windows 验证代码共 9 commits：到 Phase 45 锚点为 8 commits，随后一个为本节所在
+  docs-only 冻结提交；
+- 当前远端仍为 `313b5d409e5fa49e9a0391b6e7d791eea8a28893`。用户普通 push 前，Windows 不得开始，不能拿旧远端
+  HEAD 冒充第二批候选。
+
+用户 push 后，在 Windows Codex App 原生任务中把 Mac 报告的 SHA 填入 `$ExpectedCandidate`：
+
+```powershell
+$ExpectedCandidate = '<Mac 任务报告的 40 位候选 SHA>'
+git fetch origin
+git switch codex/settings-configuration
+git pull --ff-only origin codex/settings-configuration
+if ((git rev-parse HEAD) -ne $ExpectedCandidate) { throw 'Windows checkout is not the frozen candidate.' }
+git merge-base --is-ancestor 15306b46b4129682278c7dcecc47ac45bbfa7f7d HEAD
+if ($LASTEXITCODE -ne 0) { throw 'Windows checkout does not contain the Phase 45 code anchor.' }
+git status --short
+node --version
+pnpm --version
+pnpm install --frozen-lockfile
+pnpm verify:windows
+git status --short
+```
+
+验收仍按第 4–8 节执行，但当前浏览器基线是 Playwright 110/110，不再沿用旧结果的 109/109。必须看到
+`Windows SEA health verified.`、最终状态干净且零新增 skip/门禁弱化。若 Fresh 失败，保存首个安全
+失败、最小回归与修复；任何修复都会生成新候选，必须回到 Mac 对最新 SHA 完整重跑，再由 Windows
+从头完整验证。
+
+本批累计包含品牌/Manifest/Native Host 文案、跨平台 E2E 启动稳定性、Cloud 公开披露、Web 工作台壳与
+Token、API Fluid/Function 配置及文档。明确不运行安装、真实 Chrome、DPAPI 凭据、Provider/词典 smoke、
+Supabase/Vercel 部署、邮件、域名、DNS 或 Resend；Windows 完整离线门通过也不会关闭这些外部项。

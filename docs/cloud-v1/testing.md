@@ -553,6 +553,30 @@ Phase 45 Fresh RED 为 2 个预期失败 / 3 个基线通过；GREEN 为配置�
 脚本、447 个 Vitest 文件（2,757 passed / 12 skipped）、Store coverage 97 files / 481 tests、Playwright
 110/110 及全部静态、构建和发布审计门。
 
+### 4.5 Phase 46 第二批候选冻结门
+
+Phase 46 不引入产品行为或生产代码，因此不得为了形式伪造 Fresh RED。可复现的真实失配是批次账本仍把
+`2a035ee` 与两个新增提交写作当前状态，而 Phase 45 代码锚点已为
+`15306b46b4129682278c7dcecc47ac45bbfa7f7d`。最小 GREEN 只校准冻结、证据、状态和 Windows 交接文档。
+
+冻结前必须完成以下本地检查：
+
+- 审查 `3aa143c..15306b4` 的累计提交、文件、行数和敏感路径；
+- 证明没有新增 secret-shaped additions、凭据、依赖锁、生成物或可执行产物；
+- 明确 wire/schema、协议包、DPAPI、PowerShell、注册表、SEA、Windows 安装器和 Native Messaging
+  transport 是否变化；
+- 在最终文档工作树执行 `git diff --check`、目标格式、instructions、architecture 和完整
+  `pnpm verify:macos`；
+- 仅在 Mac 门退出 0、工作树提交后固定 40 位候选 SHA；用户普通 push 后，Windows 才可拉取该精确 SHA
+  并执行 `pnpm install --frozen-lockfile` 与 `pnpm verify:windows`。
+
+旧 Windows 结果只覆盖 `3aa143c7f60ba52a941f2a2db587bc93819427eb`，不得外推到第二批候选。Windows
+完整门必须从最新候选 SHA 重新开始；若修复任何失败，最终仍须对修复后的最新 SHA 重跑完整门。
+
+最终冻结文档工作树的 `pnpm verify:macos` 已退出 0：121/121 Node 脚本、447 个 Vitest 文件（2,757
+passed / 12 skipped）、Store coverage 97 files / 481 tests、Playwright 110/110；全部静态、构建、发布审计
+和 diff 门同次通过。该结果记为 `F4`，只证明 Mac/共享离线候选，不证明 Windows 或任何外部项。
+
 ## 5. 最终人工验收
 
 - macOS 与 Windows 真实 Chrome 分别验证 Web 配对三项偏好、普通网页、YouTube、退出/撤销、BYOK、

@@ -526,3 +526,24 @@ eviction 影响；两个可并存、base64 后各可接近 6.7 MiB 的 `storage.
   `runtime configuration implemented and verified on macOS; real deployment and Windows batch pending`。
   真实 Vercel project、Dashboard、部署产物、Observability、Windows、邮件、域名、DNS、Resend、Provider、
   安装和 Chrome 均未运行。
+
+## 21. Phase 46 第二批候选冻结结果（2026-08-21）
+
+- 完成度复核没有发现新的本地产品代码纵切：七条成功标准中第 1–5、7 条已有 production/contract/
+  database/actual-bundle 离线证据；第 6 条唯一代码缺口仍是依赖已延期邮件/域名/告警决策的 R3-C；
+- 冻结账本真实 mismatch 是仍写 `2a035ee` 与两个累计提交，而 Phase 45 代码锚点已为
+  `15306b46b4129682278c7dcecc47ac45bbfa7f7d`；当前远端仍为
+  `313b5d409e5fa49e9a0391b6e7d791eea8a28893`；冻结提交前本地 ahead 7，本节提交后 ahead 8；
+- 从上次 Windows 完整门验证的代码 `3aa143c` 到该锚点共有 8 commits、111 files、`+3007/-1175`。
+  累计范围含品牌/Manifest/Native Host 文案、跨平台 E2E 稳定性、公开披露、Web 工作台/Token 与 API
+  Vercel 配置；没有协议包、wire/schema version、依赖锁、DPAPI、PowerShell、注册表、SEA、Windows
+  安装器或 Native Messaging 传输变化。最终候选再增加本节所在的 docs-only 冻结提交，因此相对上次
+  Windows 代码共 9 commits；
+- `git diff --check 3aa143c..15306b4` 通过；added-line secret-shaped 扫描和路径审计未发现凭据、生成物、
+  打包产物或可执行文件；
+- 最终交接文档工作树的 `pnpm verify:macos` 退出 0：121/121 Node 脚本、447 个 Vitest 文件（2,757
+  passed / 12 skipped）、Store coverage 97 files / 481 tests、Playwright 110/110；instructions、format、
+  lint、全 workspace typecheck/build、architecture、development blocker、Store release、production audit
+  与 `git diff --check` 同次通过；
+- 当前状态为 `candidate prepared locally; push and Windows validation pending`。未运行 Windows、
+  push、CI、安装、Chrome、凭据、真实服务、Provider/词典、部署、邮件、域名、DNS 或 Resend。

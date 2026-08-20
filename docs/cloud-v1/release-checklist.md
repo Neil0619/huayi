@@ -19,7 +19,10 @@ Chrome Web Store 就绪。
       audit 全绿；完整门证据提交 `3aa143c7f60ba52a941f2a2db587bc93819427eb` 已普通 push，但分支无
       开放 PR 且 GitHub Actions 无该分支 run，因此 macOS/Windows CI 未触发，组合项保持未勾选。Windows
       门按 Phase 41 在候选冻结节点批量执行，不要求每个普通提交后重跑；当前新增提交进入下一批且保持
-      `Windows batch validation pending`；
+      `Windows batch validation pending`。Phase 46 已把 `3aa143c..15306b4` 的 8 commits / 111 files
+      代码范围和随后一个 docs-only 冻结提交纳入第二批候选（自上次 Windows 代码共 9 commits），且 Mac
+      完整门已绿；最终交接 SHA 由本节所在本地提交固定并在任务中报告，用户普通 push 与 Windows 完整门
+      前不能提前勾选；
 - [ ] 数据库空库/升级 migration、RLS 多租户矩阵和账号删除恢复通过；
 - [x] 当前开发态构建审计确认没有新增秘密、远程代码、动态 endpoint 或危险 HTML；
 - [ ] 正式候选注入公开配置后重新执行完整构建审计，并复核每项 permission/host；

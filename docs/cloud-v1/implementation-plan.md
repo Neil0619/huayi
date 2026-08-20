@@ -856,9 +856,10 @@ Windows 目标机结果交回当前任务复审。
 5. **41-E 候选裁决**：Mac 与 Windows 最终证据必须指向同一 SHA。CI、真实安装/Chrome、凭据、Provider、
    词典和部署继续按各自授权与门禁单独记录。
 
-当前 Windows 已验证代码为 `3aa143c`，当前 Mac HEAD `2a035ee` 比它新增品牌与跨平台候选稳定性两个提交；
-两者进入下一批 Windows 验证，无需立即重跑。下一项是 41-A，邮件、域名、DNS、Resend 和真实部署仍在
-独立任务中，不纳入本阶段。
+Phase 41 启动时，Windows 已验证代码为 `3aa143c`，当时 Mac HEAD `2a035ee` 比它新增品牌与跨平台候选
+稳定性两个提交；两者进入下一批 Windows 验证，无需立即重跑。当时下一项是 41-A；该历史基线已由
+Phase 46 的第二批冻结账本 supersede。邮件、域名、DNS、Resend 和真实部署仍在独立任务中，不纳入
+本阶段。
 
 ## Phase 42：Cloud 数据边界公开披露一致性（2026-08-20）
 
@@ -953,3 +954,31 @@ journey 未展开导航，按真实用户交互修正后 focused 2/2、最终 11
 97 files / 481 tests、Playwright 110/110、全 workspace 静态/构建门、发布审计、production audit 与
 diff check。状态为
 `runtime configuration implemented and verified on macOS; real deployment and Windows batch pending`。
+
+## Phase 46：第二批候选冻结与 Windows 交接（2026-08-21）
+
+影响平台为 `shared + macOS + Windows handoff`。该阶段不是产品开发切片，不修改生产代码；它证明当前
+本地开发已到达用户要求的关键批次节点，并把 Phase 42–45 与品牌/跨平台修复一次性交给 Windows 验证。
+
+1. **完成度复核**：从 `product.md` 七条成功标准、离线矩阵和发布检查表逐项证明没有可继续的本地产品
+   代码切片；R3-C 仍依赖已延期的邮件/域名/告警决策，其余未完成项是外部门；
+2. **真实 Fresh mismatch**：不伪造行为 RED；记录冻结账本仍写 `2a035ee`/两个新增提交，而当前 Phase 45
+   代码锚点已是 `15306b4`，自上次 Windows 验证代码起累计 8 commits、111 files；
+3. **累计范围审查**：审查 `3aa143c..15306b4` 的 `+3007/-1175`、敏感路径、secret-shaped additions、
+   依赖锁、生成物和跨平台风险；旧 Windows 证据不得外推；
+4. **最小文档 GREEN**：只更新 Phase 41 批次账本、Windows handoff、完成度矩阵、发布证据/检查表和
+   项目状态，不勾选任何真实部署、Provider、Chrome、CI 或 Windows 门；
+5. **Mac 冻结门**：对最终交接工作树运行文档 Prettier、instructions/architecture、diff check 和完整
+   `pnpm verify:macos`，审查 staged diff 后创建一个本地 Conventional Commit；
+6. **外部边界**：不自动 push。向用户报告最终完整 SHA；用户普通 push 后，Windows Codex App 原生任务
+   必须拉取同一 SHA、fresh 运行 `pnpm verify:windows` 并确认仓库外 SEA health；任何修复产生新 SHA，
+   Mac 和 Windows 都须对最终 SHA 重新完整验证。
+
+本地退出门槛为
+`candidate prepared locally; exact SHA fixed; push and Windows validation pending`。邮件、域名、DNS、
+Resend、部署、真实 Provider/词典、安装和 Chrome 均不在本阶段运行。
+
+实现检查点：完成度和累计范围审查通过；最终交接文档工作树的 `pnpm verify:macos` 退出 0，覆盖
+121/121 Node 脚本、447 个 Vitest 文件（2,757 passed / 12 skipped）、Store coverage 97 files / 481
+tests、Playwright 110/110 及全部静态、构建、发布审计和 diff 门。下一动作只创建本地候选提交并报告
+完整 SHA；push 与 Windows 门保持 pending。

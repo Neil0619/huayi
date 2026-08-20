@@ -19,16 +19,20 @@ implemented and verified on macOS; Windows batch validation pending
 
 ## 2. 当前基线
 
-| 项目                              | 当前事实                                             |
-| --------------------------------- | ---------------------------------------------------- |
-| 最近一次 Windows 完整门验证的代码 | `3aa143c7f60ba52a941f2a2db587bc93819427eb`           |
-| Windows 结果文档提交              | `313b5d4`                                            |
-| 当前 macOS HEAD                   | `2a035ee`                                            |
-| Windows 验证后新增提交            | `35fc69f` 品牌改名；`2a035ee` 跨平台候选门稳定性修复 |
-| 当前裁决                          | 两个提交纳入下一批 Windows 验证，不要求立即重跑      |
+| 项目                               | 当前事实                                                          |
+| ---------------------------------- | ----------------------------------------------------------------- |
+| 最近一次 Windows 完整门验证的代码  | `3aa143c7f60ba52a941f2a2db587bc93819427eb`                        |
+| Windows 结果文档提交/当前远端 HEAD | `313b5d409e5fa49e9a0391b6e7d791eea8a28893`                        |
+| Phase 46 冻结前代码锚点            | `15306b46b4129682278c7dcecc47ac45bbfa7f7d`                        |
+| 相对远端                           | 冻结提交前 `ahead 7`；本节提交后 `ahead 8`，尚未 push             |
+| Phase 45 锚点前累计范围            | `3aa143c..15306b4`：8 commits、111 files、`+3007/-1175`           |
+| 最终候选累计提交                   | 上述 8 个提交 + 本节所在 docs-only 冻结提交，共 9 个              |
+| 当前裁决                           | 本地功能切片停止；准备第二批候选，普通 push 后转 Windows 完整验证 |
 
-这两个提交包含共享品牌文案、构建、E2E 和发布审计调整，不属于 Windows DPAPI、注册表、SEA 或安装器
-实现。旧 Windows 结果不能覆盖它们，但可以和后续 Mac 开发成果一起在下一个冻结节点验证。
+累计改动包含品牌与公开披露、跨平台 E2E 启动稳定性、Web 工作台壳、Web Token 契约和 API Vercel
+Fluid/120 秒配置。范围触及共享品牌文案、Classic/Store Manifest、一个 Native Host 安全文案、Web/API、
+构建与发布审计，因此旧 Windows 结果不能外推；但没有修改 wire/schema version、协议包、依赖锁、DPAPI、
+PowerShell、注册表、SEA、Windows 安装器或 Native Messaging 传输。
 
 ## 3. 哪些改动可以累计
 
@@ -169,6 +173,11 @@ pnpm verify:windows
 
 ## 11. 下一项任务
 
-下一项直接执行 **Phase 41-A：在 Mac 继续校准下一批产品需求，并同步产品、开发、测试和验收文档**。
-随后在同一任务中进入 41-B 开发，不安排立即 Windows 全量验证。等产品需求和 Mac 端 bug/优化形成稳定
-候选后，再执行 41-C→41-D，一次性完成 Windows 批量验证。
+Phase 42–45 已完成下一批 Mac 需求校准、功能切片和完整聚合门。Phase 46 的完成度复核没有发现新的、
+可诚实独立于外部决策推进的本地产品代码缺口：唯一生产代码缺口仍是用户已延期的 R3-C 邮件/告警，
+其他未完成项属于真实部署、Provider、Chrome、词典、运营或 Windows 证据。
+
+因此下一项改为 **Phase 41-D：执行第二批 Windows 批量验证**。Mac 侧累计 diff/secret/依赖/生成物审计
+及 `pnpm verify:macos` 已全绿，并由本节所在提交冻结；用户普通 push 任务报告中的精确 SHA 后，Windows
+才能拉取该 SHA 并执行 `pnpm verify:windows`。push 前状态保持
+`candidate prepared locally; push and Windows validation pending`。

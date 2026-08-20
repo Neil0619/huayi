@@ -707,15 +707,16 @@ pending`，不能因路线拆分宣称完整 V1 已完成。
 
 - 用户决定继续保留 Windows 支持，但取消“每个普通小提交后立即去 Windows 跑全量门”的节奏；日常需求
   优化和功能切片先在 macOS 完成，Windows 改为候选冻结节点的一次性批量验证；
-- 最近一次 Windows 完整门覆盖代码 `3aa143c`；当前 Mac HEAD `2a035ee` 比它新增 `35fc69f` 品牌改名和
-  `2a035ee` 跨平台候选稳定性修复。旧证据不覆盖这两个提交，但它们进入下一批，不要求立即重跑；
+- 最近一次 Windows 完整门覆盖代码 `3aa143c`；Phase 45 代码锚点已推进到 `15306b4`。从 Windows
+  验证代码起累计 8 commits / 111 files，旧证据不覆盖它们；Phase 46 已停止继续加入本地产品切片并
+  转入第二批冻结；
 - 当前状态为 `implemented and verified on macOS; Windows batch validation pending`。只有需求暂时冻结、
   Mac `pnpm verify:macos` 全绿、无 P0/P1、累计 diff 已审、工作树干净且精确候选 SHA 已 push 后，才发起
   下一轮 Windows `pnpm verify:windows`；
 - DPAPI、PowerShell、注册表、SEA、Windows 安装器、Windows-only 故障、Native Messaging/共享传输或
   Windows 发布操作会提前触发有界冻结点；相关小修复可集中，最终必须在最新 SHA 完整重跑；
-- 下一项执行 Phase 41-A：继续在 Mac 校准下一批产品需求并同步产品、开发、测试和验收文档，再进入
-  41-B 开发。邮件、域名、DNS、Resend 与真实部署仍由独立任务处理。
+- 下一项执行 Phase 41-C→41-D：完成最终 Mac 候选门和交接提交，用户普通 push 精确 SHA 后在 Windows
+  一次性运行完整门。邮件、域名、DNS、Resend 与真实部署仍由独立任务处理。
 
 ## Cloud V1 Phase 42 公开数据边界一致性状态（2026-08-20）
 
@@ -772,6 +773,23 @@ pending`，不能因路线拆分宣称完整 V1 已完成。
   `runtime configuration implemented and verified on macOS; real deployment and Windows batch pending`；
 - 真实 Vercel 部署、Dashboard/Observability、邮件、域名、DNS、Resend、Provider、安装、Chrome 和
   Windows 均保持 pending。
+
+## Cloud V1 Phase 46 第二批候选冻结状态（2026-08-21）
+
+- 完成度复核确认没有新的本地产品代码切片；唯一生产代码缺口仍是已延期的 R3-C 邮件/告警，其他
+  未完成项属于 Windows、CI、真实部署、Provider、Chrome、词典或运营事实；
+- 上次 Windows 验证代码为 `3aa143c`，Phase 45 代码锚点为 `15306b4`，累计 8 commits / 111 files /
+  `+3007/-1175`；本节 docs-only 冻结提交使最终候选相对上次 Windows 代码共 9 commits。当前远端仍是
+  `313b5d4`，冻结提交前本地 ahead 7；
+- 累计 diff、secret-shaped additions、依赖锁、生成物和跨平台敏感路径已审；没有 wire/schema、协议包、
+  Windows 系统原语、SEA/安装器或 Native Messaging 传输变化，但品牌 Manifest、Native Host 文案、
+  E2E 启动、Web/API 均需新的 Windows 完整门，旧证据不得外推；
+- 最终交接文档工作树的 `pnpm verify:macos` 已退出 0：121/121 Node 脚本、447 个 Vitest 文件（2,757
+  passed / 12 skipped）、Store coverage 97 files / 481 tests、Playwright 110/110，全部静态、构建、发布
+  审计和 diff 门同次通过；
+- 状态为 `candidate prepared locally; push and Windows validation pending`；冻结提交前相对远端 ahead 7，
+  本节所在本地候选提交后为 ahead 8，完整 SHA 以任务交接报告为准；
+- 未运行 push、Windows、CI、安装、Chrome、凭据、Provider/词典、部署、邮件、域名、DNS 或 Resend。
 
 ## Cloud V1 Phase 23 离线实现状态
 
