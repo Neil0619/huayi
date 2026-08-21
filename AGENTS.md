@@ -2,9 +2,9 @@
 
 ## Scope
 
-The public project name is `语见`, English `Seen & Said`, with the slogan
+The public name is `语见`, English `Seen & Said`; slogan:
 `Turn what you see into what you can say.` Use `语见` in repository conversation and UI copy.
-Keep `Huayi` only in existing technical identifiers (paths, packages, environment variables,
+Reserve `Huayi` for existing technical identifiers (paths, packages, environment variables,
 protocol headers, database roles, and compatibility IDs) unless separately migrated.
 
 语见 contains frozen Classic 0.13 and unreleased Cloud V1 products: Store Extension, Web workspace,
@@ -61,8 +61,8 @@ browsers, follow-up chat, and browser settings are out of scope.
 
 ## Current release invariants
 
-Version, wire, Host, provider, and installation invariants apply to frozen Classic 0.13 unless a
-Cloud V1 source says otherwise. Cloud code must not alter Classic wire v7 or Native Host behavior.
+These invariants apply to frozen Classic 0.13 unless a Cloud V1 source says otherwise. Cloud code
+must not alter Classic wire v7 or Native Host behavior.
 
 - All app, package, Manifest, Host, App Server client, and Eudic User-Agent identities are
   `0.13.0`; the Native Messaging `schemaVersion` is `7`.
@@ -100,17 +100,17 @@ Cloud V1 source says otherwise. Cloud code must not alter Classic wire v7 or Nat
 ## Architecture boundaries
 
 - Dependency direction is `apps/extension -> packages/protocol <- apps/native-host`.
-- The extension and native host must never import each other.
-- The protocol package must not depend on DOM, Chrome, Node.js, or provider-specific APIs.
-- Cross-package imports must use package public exports; deep imports are forbidden.
-- Add a new browser under `apps/<browser>`, a new provider behind `AnalysisProvider`, and a new
-  operating-system installer under `apps/native-host/src/install/`.
-- Add a new wordbook behind `WordbookProvider`; do not put wordbook concerns in
+- Extension and Native Host must never import each other.
+- Protocol must not depend on DOM, Chrome, Node.js, or provider-specific APIs.
+- Use public package exports across packages; deep imports are forbidden.
+- Add browsers under `apps/<browser>`, providers behind `AnalysisProvider`, and OS installers under
+  `apps/native-host/src/install/`.
+- Add wordbooks behind `WordbookProvider`; do not put wordbook concerns in
   `AnalysisProvider`.
 
 ## Cross-platform development
 
-- At task start, declare the affected platform set as `shared`, `macOS`, `Windows`, or a
+- At task start, declare affected platforms as `shared`, `macOS`, `Windows`, or a
   combination. Do not infer completion for an unverified target platform.
 - Protocol, Schema, Prompt, HTTP, Extension UI, and pure domain changes may be implemented on
   either OS, but the macOS and Windows CI jobs must both pass.
@@ -127,7 +127,7 @@ Cloud V1 source says otherwise. Cloud code must not alter Classic wire v7 or Nat
   exact handoff commands and expected results, and do not claim the task or release complete.
 - Inject platform, path, permission, newline, case-sensitivity, process, and environment behavior.
   Use `node:path` platform variants where needed, argument arrays, and `shell: false`.
-- Do not skip a test merely because the development host differs. Skip only unavoidable real OS
+- Do not skip a test because the development host differs. Skip only unavoidable real OS
   primitives, document why, and cover the behavior in the matching target-platform CI job.
 - Platform integration changes must update `docs/cross-platform-development.md`, `docs/testing.md`,
   the affected setup document, and `docs/security.md` when the security boundary changes.
