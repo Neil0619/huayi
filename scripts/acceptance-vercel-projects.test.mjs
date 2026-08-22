@@ -51,8 +51,10 @@ test("Vercel project plan is offline, deterministic, and secret independent", as
     "GET /v7/deployments",
     "seen-said-acceptance-api | apps/api | hono | 22.x",
     "seen-said-acceptance-web | apps/web | vite | 22.x",
-    "Production Branch: codex/settings-configuration",
-    "Preview Deployments disabled: Dashboard readback required",
+    "Before Git: Settings -> Environments -> Preview must read Disabled",
+    "Connect API then Web; prove zero deployments after each connection",
+    "After Git: Production Branch Tracking must be codex/settings-configuration",
+    "Prove zero deployments again after each Production Branch save",
     "No Git link, deployment, domain, environment variable, or secret is created",
   ]) {
     assert.match(plan, new RegExp(expected.replaceAll(/[.*+?^${}()|[\]\\]/gu, "\\$&"), "u"));

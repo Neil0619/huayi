@@ -1402,9 +1402,9 @@ passed; first Operator empty`。候选已提交推送，0012 已实际 push；�
 
 - API/Web `vercel.json` 已用官方 `git.deploymentEnabled=false` 临时禁止所有分支的 Git deployment；首次
   GitHub 连接不能因为 push 或 repository connect 自动发布未配置完成的应用；
-- runbook 固定 Projects REST API 空 shell → REST PATCH settings → Dashboard Production Branch 设为
-  `codex/settings-configuration` → CLI Git connect；准备首次正式部署时另做受审查提交，只解锁冻结的受控
-  production branch，不把当前 kill switch 直接改成全分支允许；
+- 本阶段最初把 runbook 写为 Projects REST API 空 shell → REST PATCH settings → Dashboard Production
+  Branch → CLI Git connect；Phase 59 的真实 Dashboard 证据证明连接前不存在 Branch Tracking，已将该顺序
+  校准为 Preview 回读 → Git connect → 零 deployment → Production Branch → 再次零 deployment；
 - Fresh RED 精确命中两份缺失配置和 plan 缺口；GREEN focused 为 Vitest 12/12、deployment Node 4/4、
   Cloud release verifier 14/14；完整 `pnpm verify:macos` 为 Node 214/214、Vitest 474/474 files
   （2,863 passed / 12 skipped）、Store coverage 481/481、Playwright 110/110，且全部
@@ -1455,3 +1455,18 @@ passed; first Operator empty`。候选已提交推送，0012 已实际 push；�
 - deterministic fake-fetch 回归先稳定复现用户同一 stage/reason/status，随后转绿并覆盖首次 create 与既有
   API shell 幂等重跑；修正版尚未真实重跑，Web shell、settings、Git、environment/domain/deployment 门仍
   关闭。
+
+## Cloud V1 Phase 59 Vercel 空 project 与 Dashboard 零部署状态（2026-08-22）
+
+- 修正版真实 bootstrap 已完成两个 Vercel project 的 settings PATCH 和 canonical GET，并固定验证零
+  deployment；API/Web 的 Framework、Root、Node、root 外 source 与各自 build/output 均已按冻结契约回读；
+- Dashboard 只读核验确认两个 project 的 Preview environment 均为 `Disabled`，Deployments 页面均为
+  `No Production Deployment`，Git repository 均未连接；
+- Dashboard 同时证明未连接 Git 时 Production environment 只显示 `No branch configuration`，不存在可保存
+  的 Production Branch Tracking。runbook 已改为逐项目 Git connect → 零 deployment 回查 → 设置
+  `codex/settings-configuration` → 再次零 deployment 回查；
+- 更新后的计划专项 16/16 与完整 `pnpm verify:macos` 均通过；完整门覆盖 Node 231/231、Vitest 474/474
+  files（2,863 passed / 12 skipped）、Store coverage 481/481、Playwright 110/110，以及全部
+  format/lint/typecheck/build、architecture、release 与 production audit；
+- 当前 Git、Production Branch、environment variable、domain、deployment、真实 Provider 请求和邀请仍未
+  执行。下一外部门是先 API、后 Web 的受控 Git connection；任何一步出现 deployment 都立即停止。

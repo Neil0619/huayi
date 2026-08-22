@@ -1320,3 +1320,22 @@ typecheck、architecture、build、development blocker、Store release、product
   Deployments API 检查。除 root 外 source 的 `false|true` 安全布尔默认外，其他部分漂移仍失败关闭；
 - **外部状态边界**：当前 API shell 可能被下一次幂等重跑复用；尚未配置 settings、创建 Web shell、连接
   Git、写入环境变量/domain 或产生 deployment。修正版真实重跑仍待执行。
+
+## 50. Vercel 空 project bootstrap 与 Dashboard 零部署回读（2026-08-22）
+
+- **真实 bootstrap**：修正版 `acceptance:vercel:projects:apply` 已完成两个 name-only project shell 的
+  settings PATCH 与 canonical GET，固定输出 `zero deployments verified`；未创建 Git link、environment、
+  domain、secret 或 deployment；
+- **Dashboard project settings**：API 回读为 Hono、Root=`apps/api`、Node 22、root 外 source enabled；Web
+  回读为 Vite、Root=`apps/web`、build=`pnpm build`、output=`dist`、Node 22、root 外 source enabled；
+- **独立环境回读**：两个 project 的 `Settings → Environments` 均显示 Preview=`Disabled`，Deployments
+  均显示 `No Production Deployment`；这关闭了 GET schema 无 Preview 字段留下的人工门；
+- **顺序校准**：两个 Production environment 均显示 `No branch configuration`，Git settings 均未连接
+  repository。真实 UI 证明 Production Branch Tracking 只能在 Git link 后设置，因此后续顺序改为逐项目
+  Git connect → 零 deployment → Production Branch Tracking=`codex/settings-configuration` → 再次零
+  deployment；
+- **回归与完整门禁**：更新后的离线 plan 专项 16/16 通过；`pnpm verify:macos` 原样退出 0，覆盖 Node
+  231/231、Vitest 474/474 files（2,863 passed / 12 skipped）、Store coverage 481/481、Playwright 110/110，
+  format/lint/typecheck/build、instructions、architecture、release 与 production audit 均通过且无已知
+  production 漏洞；
+- **边界**：本节仍未连接 Git、设置 Production Branch、写入环境变量、配置域名或发起 deployment。

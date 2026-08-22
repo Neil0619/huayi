@@ -4,8 +4,10 @@
 0012 dry-run 只列出 FirstOperatorBootstrap，随后已经实际 push。push 后 diagnostic 证明 12 条 chain、
 0012 结构和空 Operator 数据，但也暴露旧版 PostgreSQL 17 membership 校验误判。用户随后已运行修正版
 只读 foundation verify 与固定 Operator status，分别返回 passed 与 `empty`。用户随后确认 Reply-To 可用、
-已有 hosted DeepSeek key 并批准验收环境产生少量真实费用，同时选择首轮禁用 Store。Vercel project 仍未
-创建，DNS/Auth/SMTP/secret、应用部署和邀请也仍未执行。
+已有 hosted DeepSeek key 并批准验收环境产生少量真实费用，同时选择首轮禁用 Store。两个 Vercel 空
+project 已创建并冻结 project settings；REST 与 Dashboard 均确认零 deployment，Dashboard 还确认两个
+Preview environment 均为 Disabled。Git、Production Branch Tracking、DNS/Auth/SMTP/secret、应用部署和
+邀请仍未执行。
 
 ## 1. 当前事实与目标
 
@@ -17,7 +19,7 @@ diagnostic 显示 chain/schema/RLS/价格/Storage/空 Auth 与 0012 结构均符
 creator-control 边而失败。用户已在同一工作树运行修正版 foundation verify 并通过，随后固定 Operator
 status 返回 `empty`；Auth、profile、Operator 和 invitation 仍为空。
 2026-08-22 通过 Google DoH 复核，`app.acceptance`、`api.acceptance`、`notify.acceptance` 与其 DMARC 名称
-仍为 NXDOMAIN；Vercel project/link 也尚不存在。
+仍为 NXDOMAIN。Vercel project 已存在，但 Git link 仍不存在。
 
 本阶段目标是建立可重复、默认失败关闭的 hosted application deployment contract，然后按固定顺序部署：
 
@@ -86,11 +88,14 @@ repository connect 自动创建 deployment。
 1. 通过 Vercel Projects REST API 创建不带 Git repository 的空 project shell；此步不得产生 deployment；
 2. 通过 Projects REST API PATCH 两个 shell 的 Root Directory、framework、build/output、Node/region 等
    已冻结 project settings，并回读确认；
-3. 在 Dashboard 分别把 Production Branch 设为 `codex/settings-configuration`；这项设置属于 project，不在
-   `vercel.json` 中伪造；
-4. 本机只在对应 project link 下执行 Vercel CLI 的 Git connect；两份 JSON 的全分支 kill switch 此时仍为
-   `false`，连接完成后确认 deployments 仍为空；
-5. DNS、Resend、Supabase Auth/SMTP 和 Production environment 全部完成并复核后，另做一次受审查提交，
+3. 在 Dashboard 打开两个 project 的 `Settings → Environments`，确认 Preview 行均为 `Disabled`，并再次
+   确认 Deployments 页面均为 `No Production Deployment`；
+4. 依次为 API、Web 执行 Vercel CLI project link 与 Git connect。每连接一个 project，立即在 Dashboard
+   确认 repository 精确且 deployments 仍为空；两份 JSON 的全分支 kill switch 此时仍为 `false`；
+5. Git link 建立后，分别进入 `Settings → Environments → Production → Branch Tracking`，设置并保存
+   `codex/settings-configuration`，每次保存后再次确认 deployments 仍为空。Production Branch 属于 Git
+   link，未连接 Git 时 Dashboard 不显示该设置，禁止再要求操作者连接前寻找或伪造它；
+6. DNS、Resend、Supabase Auth/SMTP 和 Production environment 全部完成并复核后，另做一次受审查提交，
    根据当时官方 schema 冻结“只允许 `codex/settings-configuration`”的精确 Git deployment policy，再先
    API、后 Web 发起首次正式 deployment。禁止为了省略该提交直接把布尔值改成允许所有分支。
 
@@ -123,20 +128,23 @@ alias/integration 或其他部分漂移一律停止，不能覆盖；请求中�
 shell。
 
 Vercel 官方 PATCH 请求支持 `previewDeploymentsDisabled=true`，但当前官方 project GET response schema 不
-返回这个字段，所以脚本只能安全发出幂等请求，不能把它冒充成已回读证明。第 3 步必须在 Dashboard 同时
-核对 Preview Deployments disabled，并设置 Production Branch；两项均完成前不得连接 Git。Production-only
-环境变量继续属于后续 secret 阶段，本 bootstrap 不创建任何 environment、domain 或 deployment。
+返回这个字段，所以脚本只能安全发出幂等请求，不能把它冒充成已回读证明。Dashboard 已在两个 project 的
+`Settings → Environments` 将 Preview 回读为 `Disabled`。Production Branch Tracking 只有 Git link 建立后
+才出现，因此它必须在逐项目 Git connect、零 deployment 回查之后设置，并在保存后再次回查零 deployment。
+Production-only 环境变量继续属于后续 secret 阶段，本 bootstrap 不创建任何 environment、domain 或
+deployment。
 
 官方依据：[Vercel project configuration: git](https://vercel.com/docs/project-configuration#git)、
 [Vercel Projects REST API](https://vercel.com/docs/rest-api/reference/endpoints/projects)、
 [Vercel Deployments REST API](https://vercel.com/docs/rest-api/reference/endpoints/deployments)、
 [Vercel Teams REST API](https://vercel.com/docs/rest-api/reference/endpoints/teams)、
 [Vercel CLI git](https://vercel.com/docs/cli/git)。本节 REST 版本和字段另按当前官方 `vercel/sdk` 生成契约
-交叉核对。首次 `apply` 尝试因 pnpm 分隔符尚未规范化而在本机参数校验阶段退出；修复后的第二次真实
-`apply` 已创建 API name-only shell，但 Vercel 默认开启 root 外 source，旧空壳分类在 PATCH 前失败关闭。
-Dashboard 只读回查确认该 API project 仍为 Connect Git、Framework=Other、Build/Output/Root 为空、Node
-24.x、无 Production/Preview deployment；Web create、settings PATCH、repository connect 和 deployment 均未
-执行。修正版在 fake-fetch 中以相同默认值完成 canonical GET 与零 deployment 复核；真实安全重跑仍待执行。
+交叉核对。首次 `apply` 因 pnpm 分隔符在本机参数校验阶段退出；第二次创建 API name-only shell 后因安全的
+平台默认值被旧分类器拒绝。修正版真实重跑随后完成：API/Web 两个 shell 均已冻结 project settings，REST
+确认零 deployment；Dashboard 只读回查确认 API 为 Hono、`apps/api`、Node 22，Web 为 Vite、`apps/web`、
+`pnpm build`/`dist`、Node 22，两者均启用 root 外 source、Preview=`Disabled`、无 Production deployment、
+无 Git link。Dashboard 还证明未连接 Git 时 Production environment 只显示 `No branch configuration`，
+Production Branch Tracking 尚不可设置。
 
 `.vercel/` 只保存本机 project link，不提交。项目 ID、team ID、deployment ID 和 custom-domain 记录可写入
 无 secret 发布证据；token 与环境变量值不可写入仓库或聊天。
@@ -247,8 +255,9 @@ Fresh RED 必须先覆盖：
 
 最小 GREEN 提供一个零网络、零写入的 `pnpm acceptance:hosted:deployment --plan`，只输出固定 project、
 Root/Framework/Build/Output/Node/region、变量名分类、五条 Auth redirect、SMTP/DNS/CRON 顺序与 pending
-外部门，并明确 project shell → settings PATCH → Production Branch → Git connect 仍为零 deployment，首次
-部署必须由后续受审查提交解锁。`--verify-environment` 只读取进程环境，复用生产 schema 验证格式和固定
+外部门，并明确 project shell → settings PATCH → Preview 回读 → Git connect → 零 deployment → Production
+Branch Tracking → 再次零 deployment，首次部署必须由后续受审查提交解锁。`--verify-environment` 只读取
+进程环境，复用生产 schema 验证格式和固定
 project/origin 一致性，
 只输出 fixed passed/failed，不输出变量值、URL 中密码或第三方错误。
 

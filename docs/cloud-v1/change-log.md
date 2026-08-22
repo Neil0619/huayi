@@ -3,6 +3,16 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-22：Production Branch 改为 Git 连接后的零部署门
+
+- 真实 Dashboard 证明未连接 Git 时 `Settings → Environments → Production` 只有 `No branch configuration`，
+  不提供 Production Branch Tracking；旧的“连接前设置 Production Branch”顺序无法执行；
+- 新顺序固定为 project settings 与 Preview=`Disabled` 回读 → API Git connect → 零 deployment 回查 →
+  API Production Branch Tracking → 再次零 deployment 回查 → Web 重复同一流程；Production Branch 固定为
+  `codex/settings-configuration`；
+- 仓库 `git.deploymentEnabled=false` 与 Dashboard Preview Disabled 是两个独立保险，均须保留；Git connect
+  和 Branch Tracking 保存都不得冒充 deployment，任何一步出现 deployment 立即停止后续外部操作。
+
 ## 2026-08-22：Vercel 空 shell 以 canonical GET 判定并接受安全平台默认值
 
 - 真实 name-only create 证明 Vercel 会把新 project 的 `sourceFilesOutsideRootDirectory` 默认设为 `true`；
@@ -34,8 +44,9 @@
 
 - API/Web 两份 `vercel.json` 新增官方 `git.deploymentEnabled=false`；GitHub repository 连接期间所有分支
   都不能自动触发 deployment，避免环境、域名和 Auth/SMTP 尚未完成时提前发布；
-- 首次创建顺序冻结为 Projects REST API 空 shell → REST PATCH project settings → Dashboard 设置
-  Production Branch=`codex/settings-configuration` → CLI Git connect，并要求连接后 deployments 仍为空；
+- 首次创建顺序冻结为 Projects REST API 空 shell → REST PATCH project settings → Dashboard 回读 Preview
+  Disabled → CLI Git connect → 确认零 deployment → Dashboard 设置 Production Branch
+  `codex/settings-configuration` → 再次确认零 deployment；
 - 准备首次正式发布时必须另做一次受审查提交，按当时官方 schema 只允许受控 production branch；不得在
   本次连接提交中开放所有分支，也不得把 Dashboard Production Branch 冒充为仓库 JSON 配置；
 - 本条只改变离线配置保险与 runbook；未创建 Vercel project、未连接 Git、未配置 secret、未产生
