@@ -1502,6 +1502,20 @@ passed; first Operator empty`。候选已提交推送，0012 已实际 push；�
 - Resend Dashboard 最终显示 `Domain verified: Your domain is ready to send emails`；两个 Vercel project
   仍为 `No Production Deployment`。本阶段仅关闭 sender-domain/DNS 门，不表示 API/Web 已部署，亦不代表
   Supabase Auth SMTP、R3-C HTTP sender、真实确认/恢复邮件、告警接收或 production ready；
-- 下一步须分别托管新的 SMTP 与 HTTP credential、配置并验证 Supabase Auth SMTP 和 Reply-To、补齐
-  production-only Vercel environment，再按 API→Web 受控部署并完成应用/邮件/Cron smoke。对话中泄露的旧
-  Resend key 继续视为泄露且不可使用，撤销状态仍待 Dashboard 核验。
+- 后续 Phase 63 已完成旧 key 撤销、分离 SMTP/HTTP credential 托管、Custom SMTP 与 R3-C 部分
+  Production 配置；真实邮件、完整 Production environment、API→Web deployment、Cron 与邀请仍未执行。
+
+## Cloud V1 Phase 63 Hosted acceptance 邮件凭据与配置状态（2026-08-23）
+
+- Resend Dashboard 已撤销对话中泄露的旧 `seensaid` key；一次误建的 Full access R3-C key 与一次因工具
+  诊断暴露的临时 domain-scoped R3-C key 也均在未使用前撤销。当前仅保留
+  `seen-said-acceptance-supabase-auth-smtp` 与 `seen-said-acceptance-r3c-http` 两把 Sending access、
+  `notify.acceptance.seen-said.cn` domain-scoped key；未记录任何 token 或 prefix；
+- Supabase project `kpadiulxkgckskcfydry` 已启用 Custom SMTP：`smtp.resend.com:465`、username=`resend`、
+  sender=`语见 <accounts@notify.acceptance.seen-said.cn>`，密码使用独立 SMTP key 且不可回读；
+- Vercel API project `seen-said-acceptance-api` 的 Production 已把 R3-C key 托管为
+  `HUAYI_RESEND_API_KEY` Sensitive，并配置 notification mode=`resend`、固定 security sender 和用户确认的
+  Reply-To。Web project 未改；API 仍为 `No Production Deployment`；
+- `pnpm acceptance:hosted:deployment --plan` 通过。本阶段没有发送真实确认/恢复/安全通知邮件，没有发起
+  API/Web deployment，没有安装或触发 Cron，也没有发行邀请。下一门是补齐并复核全部 API/Web
+  Production environment，再按受控 API→Web 顺序首次部署和执行应用/邮件 smoke。

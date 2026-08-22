@@ -1372,7 +1372,27 @@ typecheck、architecture、build、development blocker、Store release、product
   解析同步返回四条精确记录。既有 `api.acceptance` / `app.acceptance` DNS-only CNAME 未修改；
 - **厂商状态**：Resend Dashboard 显示 `Domain verified: Your domain is ready to send emails`；两个 Vercel
   acceptance project 同时仍显示 `No Production Deployment`；
-- **证据边界与后续门**：没有写入或记录 API key，未配置 Supabase custom SMTP、R3-C HTTP credential 或
-  production-only environment，未发送真实确认/恢复/通知邮件，未配置告警接收方，未部署 API/Web，未运行
-  DeepSeek 或 Cron。旧对话泄露 key 仍必须视为不可用，撤销状态待 Resend Dashboard 单独核验。下一外部门为
-  secret store 中分离 SMTP/HTTP credential、Auth/SMTP 验证，再到受控 API→Web deployment 和应用/邮件 smoke。
+- **证据边界与后续门**：后续 Phase 63 已完成旧 key 撤销、分离 SMTP/HTTP credential、Custom SMTP 与
+  R3-C 部分 Production 配置；真实邮件、完整 Production environment、API/Web deployment、DeepSeek、Cron
+  与邀请仍未运行。
+
+## 54. Hosted acceptance 邮件凭据分离与托管配置（2026-08-23）
+
+- **撤销证据**：Resend Dashboard 已不再保留对话中泄露的旧 `seensaid` key；误建的 Full access R3-C key
+  与因工具诊断暴露的临时 domain-scoped R3-C key 也都在未使用前撤销。证据不包含 token、prefix 或 secret
+  value；
+- **最小权限分离**：Dashboard 当前只保留 `seen-said-acceptance-supabase-auth-smtp` 与
+  `seen-said-acceptance-r3c-http`；两把 key 均为 Sending access、仅限
+  `notify.acceptance.seen-said.cn`，用途分别固定为 Supabase Auth SMTP 与应用 R3-C HTTP；
+- **Supabase 配置**：project `kpadiulxkgckskcfydry` 已启用 Custom SMTP，host/port 为
+  `smtp.resend.com:465`、username=`resend`、sender=
+  `语见 <accounts@notify.acceptance.seen-said.cn>`；独立 SMTP password 不可回读；
+- **Vercel 配置**：API project `seen-said-acceptance-api` 的 Production 已存在 Sensitive
+  `HUAYI_RESEND_API_KEY`，并配置 `HUAYI_SECURITY_NOTIFICATION_MODE=resend`、固定 security sender 与用户
+  确认的 Reply-To。Web project 未改，API Deployments 仍显示 `No Production Deployment`；
+- **仓库与零动作证据**：`pnpm acceptance:hosted:deployment --plan` 退出 0；外部配置前工作树为 clean。
+  本阶段未发送真实确认/恢复/R3-C 邮件，未发起 API/Web deployment，未运行 DeepSeek，未安装或触发 Cron，
+  未发行邀请；
+- **剩余门禁**：补齐 API/Web 完整 Production environment，运行不回显值的 verifier，受审查解锁精确
+  production branch 并按 API→Web 首次部署；随后才验收 Auth 邮件、R3-C 通知、Cookie/CORS/SSE/Storage、
+  五项 Cron 与 FirstOperatorBootstrap。

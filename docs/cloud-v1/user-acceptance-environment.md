@@ -256,7 +256,9 @@ actual push。Auth 仍为 0 用户；foundation bootstrap 后 Storage 为唯一 
 Vercel 应用部署仍是独立门；修正版 PostgreSQL 17 foundation verify 已通过，Operator status 已返回
 `empty`。两个 Vercel project、Git/Branch、custom domain 与部署前 TLS 已建立，但仍为零 deployment；Tokyo
 (`ap-northeast-1`) 的 Resend sender domain `notify.acceptance.seen-said.cn` 也已完成 DNS 与 Dashboard
-verified，SMTP/HTTP credential、真实投递与应用部署仍未完成。
+verified。旧泄露 key 与两把未使用的错误/临时 R3-C key 均已撤销；两把 sending-only/domain-scoped
+SMTP/HTTP key 已分离托管，Supabase Custom SMTP 与 API R3-C 通知变量子集已配置。真实投递、完整
+Production environment 与应用部署仍未完成。
 
 `.cn` 域名实名认证是启用解析的必需项。验收环境继续使用 Vercel/Supabase 境外托管资源时，ICP备案不
 作为当前启动前置；未来迁入中国大陆服务器、使用中国大陆 CDN 或其他境内接入资源前，必须重新设置备案
@@ -274,24 +276,27 @@ verified，SMTP/HTTP credential、真实投递与应用部署仍未完成。
 
 Resend 使用 Free 版本和独立 `notify.acceptance.seen-said.cn` 子域隔离验收事务邮件信誉，不能复用未来
 production 的 `notify`；验收 sender 暂定 `accounts@notify.acceptance.seen-said.cn` 与
-`security@notify.acceptance.seen-said.cn`。最终 display name、支持邮箱与告警接收人仍需用户确认。按
+`security@notify.acceptance.seen-said.cn`，display name 固定为 `语见`，Reply-To 使用用户已确认的支持
+地址但不把其值写入仓库。无正文告警接收人仍需后续确认和验收。按
 2026-08-21 官方价格页，Free 为每月 3,000 封、每天 100 封，足够当前单用户验收；配额或价格变化以创建
 账号时 Dashboard 为准。API key 只放 hosted secret store，仓库、日志、Web 和 Extension 都不得出现；
 优先使用仅发送权限的 key。
 
 邮件分成两条独立链路：Supabase Auth 通过 Resend custom SMTP 发送注册确认/恢复链接；R3-C 由应用自己的
 Resend HTTP sender 消费 `security_notification_outbox`。二者使用不同 credential、发件地址和失败证据；
-SMTP 配置成功不等于 R3-C 完成。
+当前两把 key 均为 Sending access、仅限该验收子域；Supabase 已启用
+`smtp.resend.com:465`、username=`resend` 与 accounts sender，API Production 已托管 Sensitive R3-C key、
+mode、security sender 与 Reply-To。SMTP/变量配置成功不等于真实邮件或 R3-C 完成。
 
-域名和 Resend 验证完成后仍不能宣称 R3-C 完成。仓库已实现固定 Resend sender、独立 notification CRON、
-厂商幂等映射、失败告警与无正文日志；尚缺 verified domain、新分离 credential、真实受控投递和告警接收
+域名、Resend 验证、分离 credential 与托管配置完成后仍不能宣称 R3-C 完成。仓库已实现固定 Resend sender、
+独立 notification CRON、厂商幂等映射、失败告警与无正文日志；尚缺真实受控投递、重复投递观测和告警接收
 验收。hosted acceptance 只能通过 FirstOperatorBootstrap 创建唯一首位验收账号，并保持公开注册/邀请
 扩张关闭：
 
 - 可以验收登录后的 Web、学习库、生词、历史、练习、账号、数据导出/删除和 Store 配对；
 - 本机注册确认使用 Mailpit；托管 Supabase 内置邮件只允许项目团队预授权地址的极低频测试，不作为
   可靠投递或外部邀请证据；
-- 密码恢复安全通知的外部投递、verified sender、支持邮箱和真实告警接收保持 unavailable/pending；
+- 密码恢复安全通知的外部投递、重复投递观测和真实告警接收保持 unavailable/pending；
 - 不得增加跳过身份校验的 test-only 登录后门、硬编码 Cookie 或长期 service-role session。
 
 如果现有 production composition 无法安全创建首个验收账号，应新增仓库外 secret 驱动、一次性且默认

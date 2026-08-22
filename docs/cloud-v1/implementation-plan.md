@@ -1405,3 +1405,27 @@ status 关闭这道门；下一步可以按外部门顺序准备 Vercel 创建�
    后核验 Cookie/CORS/SSE/Auth/Storage/五项 Cron，最后才发行首张邀请；
 5. **安全边界**：对话中泄露的旧 Resend key 仍为不可用泄露材料，撤销状态须在 Resend Dashboard 单独核验；
    sender-domain verified 不授权部署、真实模型调用或 production cutover。
+
+## Phase 63：Hosted acceptance 邮件凭据分离与配置（2026-08-23）
+
+影响平台为 `hosted-acceptance`。本阶段只配置邮件发送凭据与对应托管入口，不把配置成功解释为真实投递、
+应用部署或 production ready。
+
+1. **先撤销再创建**：Resend Dashboard 已撤销对话中泄露的旧 `seensaid` key；误建的 Full access R3-C key
+   与因工具诊断暴露的临时 domain-scoped R3-C key 也在未使用前撤销。文档只记录状态，不记录任何 token、
+   prefix 或 secret value；
+2. **分离最小权限**：Resend 当前仅保留 `seen-said-acceptance-supabase-auth-smtp` 与
+   `seen-said-acceptance-r3c-http` 两把 key；均为 Sending access 且只限
+   `notify.acceptance.seen-said.cn`。SMTP 与 HTTP key 不得互换、复用或回读；
+3. **Supabase Auth SMTP**：project `kpadiulxkgckskcfydry` 已启用 Custom SMTP，固定
+   `smtp.resend.com:465`、username=`resend`、sender=
+   `语见 <accounts@notify.acceptance.seen-said.cn>`；密码由独立 SMTP key 承担，Dashboard 不提供回读；
+4. **R3-C Vercel 配置**：API project `seen-said-acceptance-api` 的 Production 已托管
+   `HUAYI_RESEND_API_KEY` 并启用 Sensitive，同时配置 mode=`resend`、固定 security sender 与用户确认的
+   Reply-To。Web project 未改；其余 API/Web Production environment 仍须按完整 schema 逐项补齐和复核；
+5. **零部署边界**：`pnpm acceptance:hosted:deployment --plan` 通过；Vercel API 仍显示
+   `No Production Deployment`。本阶段未发送确认、恢复或安全通知邮件，未发起 API/Web deployment，
+   未安装/触发 Cron，未发行邀请；
+6. **下一门**：补齐 API/Web Production environment 并运行不回显值的 verifier；经受审查提交解锁精确
+   production branch 后按 API→Web 首次部署，再验收 Auth 邮件、R3-C 通知、Cookie/CORS/SSE/Storage、
+   五项 Cron 与 FirstOperatorBootstrap。

@@ -3,6 +3,23 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-23：Hosted acceptance 邮件凭据分离与配置门部分关闭
+
+- 对话中泄露的旧 Resend key `seensaid` 已在 Dashboard 撤销；一次误建的 Full access R3-C key 与一次
+  因工具诊断暴露的临时 domain-scoped R3-C key 也均在未使用前撤销。任何 token、prefix 或 secret value
+  均不进入仓库、证据或日志；
+- Resend 当前只保留两把验收 key：`seen-said-acceptance-supabase-auth-smtp` 与
+  `seen-said-acceptance-r3c-http`。两者均为 Sending access、仅限
+  `notify.acceptance.seen-said.cn`，并分别用于 Supabase Auth Custom SMTP 与应用 R3-C HTTP sender，
+  禁止复用；
+- Supabase project `kpadiulxkgckskcfydry` 已启用 Custom SMTP：`smtp.resend.com:465`、username=`resend`、
+  sender=`语见 <accounts@notify.acceptance.seen-said.cn>`，密码使用独立 SMTP key 且不可回读；
+- Vercel API project `seen-said-acceptance-api` 已在 Production 托管 R3-C key 为 Sensitive，并配置
+  notification mode=`resend`、固定 security sender 与用户确认的 Reply-To。Web project 未改，API 仍为
+  `No Production Deployment`；本阶段没有发送真实邮件、发起 API/Web deployment、安装 Cron 或发行邀请。
+  下一门仍是补齐并复核 API/Web 全部 Production environment，再受控执行 API→Web deployment 与邮件/
+  应用 smoke。
+
 ## 2026-08-23：Hosted acceptance Resend sender 域名门关闭
 
 - Resend sender domain 固定为 Tokyo (`ap-northeast-1`) 的
@@ -12,9 +29,9 @@
 - Resend Dashboard 最终显示 `Domain verified: Your domain is ready to send emails`。这只关闭验收 sender
   域名与 DNS 门，不创建或记录任何 API key，也不等于 Supabase custom SMTP、R3-C HTTP credential、真实邮件
   投递、告警接收、应用 deployment 或 production ready；
-- 两个 Vercel acceptance project 回读仍为 `No Production Deployment`。后续顺序保持：分别托管新的 SMTP/HTTP
-  credential 与 production-only environment → Auth/SMTP 配置及验证 → 受控 API→Web deployment → 应用与邮件
-  smoke → Cron/首张邀请；对话中泄露的旧 Resend key 仍必须视为泄露且其撤销状态待在 Dashboard 核验。
+- 两个 Vercel acceptance project 回读仍为 `No Production Deployment`。后续 Phase 63 已完成旧 key 撤销、
+  分离 SMTP/HTTP credential 托管、Custom SMTP 与 R3-C 部分 Production 配置；真实邮件、完整
+  production-only environment、受控 API→Web deployment、应用/邮件 smoke、Cron 与首张邀请仍待后续门禁。
 
 ## 2026-08-22：Hosted acceptance DNS 与 TLS 门关闭
 

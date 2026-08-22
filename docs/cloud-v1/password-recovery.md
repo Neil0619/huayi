@@ -240,7 +240,8 @@ R3-C 仓库代码固定使用 Resend `https://api.resend.com/emails`、notificat
 `GET /internal/security-notifications/run` 只接受 CRON bearer 并只返回 bounded outcome。production
 Supabase operations SQL 安装第五个独立 minute job。本机验收只能显式使用
 `disabled-local-acceptance`，且该模式被三个固定 localhost origin 限定；route 返回 idle，不读取 outbox、
-不调用 Resend。真实 verified sender、DNS、Resend 投递、监控目的地和厂商 Dashboard 仍是外部发布门禁。
+不调用 Resend。真实 verified sender/DNS、分离 credential 与托管配置已完成；Resend 真实投递、重复投递
+观测、监控目的地和对应 Dashboard 结果仍是外部发布门禁。
 
 ### 5.1 2026-08-20 外部前置条件延期
 
@@ -269,7 +270,8 @@ DNS 记录，也不实现真实 sender/CRON/告警。现有 fake sender 与离�
 `notify.<root-domain>`；Supabase Auth 的 Resend custom SMTP 负责恢复链接，应用 R3-C 的 Resend HTTP
 sender 负责消费 `security_notification_outbox`，两者使用不同 credential。域名/SPF/DKIM/SMTP 验证都
 不能替代 R3-C 的仓库门禁。sender adapter、通知 CRON、厂商幂等窗口、terminal/dead-letter 与无正文告警
-已完成 Fresh RED→GREEN；受控真实投递、verified sender 与监控接收方仍待 hosted 验收。
+已完成 Fresh RED→GREEN；verified sender、分离 SMTP/HTTP credential、Supabase Custom SMTP 与 API R3-C
+通知变量子集也已配置，受控真实投递、重复投递观测与监控接收方仍待 hosted 验收。
 
 Resend 当前只保留 idempotency key 24 小时；实现因此固定 23 小时 delivery deadline、最多 8 次、
 failed/dead-letter 终态与超窗零发送告警，并覆盖“Provider 已发送、数据库 complete 失败”只在窗口内以
@@ -391,8 +393,8 @@ email scanner 行为、secure-password-change 配置、Cookie same-site/domain/T
    R3-B 独立通知 worker port、notification-ID sender 幂等键、120 秒 Postgres lease、有界退避与 fake sender
    已完成。R3 focused 为 HTTP 8/8、通知 worker/adapter 6/6、通知 PGlite 1/1，完整 API 102 files、360/360，
    typecheck/build/目标 lint/format 通过。R3-C 又补齐 Resend sender、23 小时/8 次状态机、0011、独立
-   bounded route、第五个 Cron 与无正文 alert port；真实 verified sender、受控投递、监控接收方和部署
-   配置仍受外部门禁约束；
+   bounded route、第五个 Cron 与无正文 alert port；真实 verified sender、分离 credential、Custom SMTP
+   与 API R3-C 通知变量子集已完成，受控投递、监控接收方和完整部署配置仍受外部门禁约束；
 5. **R4 Web + actual bundle（离线已完成）**：Web strict client 已接入 start/session/complete；`/login` 与
    独立 `/recover` 页面覆盖统一 start、query 清理、两份 new-password 输入、本地 mismatch 零请求、失败
    保留输入、成功清空并返回登录。focused Web 单元 17/17；production bundle + fake mail Playwright 1/1
@@ -429,5 +431,6 @@ email scanner 行为、secure-password-change 配置、Cookie same-site/domain/T
 - **结论**：方案与邀请、method fence、recent-auth、Cookie/RLS 和隐私边界一致。R1 独立 Provider seam、
   R2 深模块/内存/Postgres、R3-A HTTP/dispatch、R3-B 通知核心、R3-C production notification code 与
   R4 Web/actual bundle 均已通过离线回归，R5 离线总审也未发现新的权限提升、秘密持久化或任意 redirect。
-  hosted acceptance 的真实 DNS/verified sender 已通过；Resend 投递/监控接收方、Supabase/邮件部署和
-  双平台 Chrome 仍未验证，整体状态只能是 `implemented; target-platform validation pending`。
+  hosted acceptance 的真实 DNS/verified sender、分离 credential、Supabase Custom SMTP 与 API R3-C
+  通知变量子集已通过；Resend 真实投递/监控接收方、完整应用/邮件部署和双平台 Chrome 仍未验证，整体
+  状态只能是 `implemented; target-platform validation pending`。

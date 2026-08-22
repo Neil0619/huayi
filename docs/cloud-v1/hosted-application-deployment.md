@@ -9,9 +9,11 @@ project 已创建并冻结 project settings；REST 与 Dashboard 均确认零 de
 Preview environment 均为 Disabled。两个 project 现均已连接精确 GitHub repository `Neil0619/huayi`，
 Production Branch Tracking 均为 `codex/settings-configuration`；Root 独立回读两个 Git、Environment 与
 Deployments 页面，确认仍无 Production deployment 或 deployment 记录，Production environment 均为
-`No Environment Variables Added`。本轮没有接受 GitHub App permission upgrade，也没有执行 domain、
-environment variable 或 deployment 动作。DNS/Resend/Auth/SMTP/production-only environment、应用部署和
-邀请仍未执行；仓库 `git.deploymentEnabled=false` 继续保持首次部署关闭。
+`No Environment Variables Added`。此后 hosted sender DNS 已验证；旧泄露 Resend key 与两把未使用的错误/
+临时 R3-C key 均已撤销，当前只保留两把 sending-only/domain-scoped SMTP/HTTP key。Supabase Custom SMTP
+已经启用；API Production 已托管 Sensitive R3-C key 与三项通知配置。Web 未改，API 仍为
+`No Production Deployment`。其余 production-only environment、应用部署、真实邮件、Cron 和邀请仍未
+执行；仓库 `git.deploymentEnabled=false` 继续保持首次部署关闭。
 
 ## 1. 当前事实与目标
 
@@ -27,9 +29,10 @@ status 返回 `empty`；Auth、profile、Operator 和 invitation 仍为空。
 递归 DNS、Vercel domain 与 TLS 回读。2026-08-23，Tokyo (`ap-northeast-1`) Resend sender domain
 `notify.acceptance.seen-said.cn` 已完成 Resend 指定 DKIM、feedback MX、SPF 与 monitoring DMARC 的
 Cloudflare 写入和公共解析复核，Dashboard 显示 `Domain verified: Your domain is ready to send emails`。
-这不等于 SMTP/HTTP credential 已托管、邮件已投递或应用已部署。两个 Vercel project 已连接精确 GitHub repository `Neil0619/huayi`，Preview 均为
-`Disabled`，Production Branch Tracking 均为 `codex/settings-configuration`；Production environment 尚无
-变量，Deployments 仍为空。
+此后旧泄露 key 已撤销，Supabase SMTP 与 R3-C HTTP 两把最小权限 key 已分离托管；Custom SMTP 与 API
+Production 的 R3-C 通知变量已经配置。这仍不等于邮件已投递或应用已部署。两个 Vercel project 已连接精确
+GitHub repository `Neil0619/huayi`，Preview 均为 `Disabled`，Production Branch Tracking 均为
+`codex/settings-configuration`；API Production 只有本阶段的 R3-C 通知子集，Web 未改，Deployments 仍为空。
 
 Cloudflare DNS 与公网 TLS 门已完成：`api.acceptance.seen-said.cn` 的 CNAME 为
 `7cb58e1372474614.vercel-dns-017.com.`，`app.acceptance.seen-said.cn` 的 CNAME 为
@@ -61,9 +64,10 @@ remote migration 0012
    不得重跑 migration；
 2. 修正版 `acceptance:hosted:verify` 已通过，随后 `acceptance:hosted:operator:status` 已返回 `empty`；不能
    重跑 foundation bootstrap；
-3. 对话中曾出现的 Resend key 必须先撤销，不能用于 SMTP、R3-C 或 Vercel；
-4. `notify.acceptance.seen-said.cn` 必须先按 Resend Dashboard 实际值完成 SPF、DKIM、MX 和初始 DMARC；
-5. Supabase Auth SMTP key 与 API R3-C HTTP key 必须是两把独立、sending-only、限定该验收子域的 key；
+3. 对话中曾出现的 Resend key 已撤销；误建 Full access 与工具诊断暴露的临时 scoped R3-C key 也已在未
+   使用前撤销，均不得用于 SMTP、R3-C 或 Vercel；
+4. `notify.acceptance.seen-said.cn` 已按 Resend Dashboard 实际值完成 SPF、DKIM、MX 和初始 DMARC；
+5. Supabase Auth SMTP key 与 API R3-C HTTP key 已建立为两把独立、sending-only、限定该验收子域的 key；
 6. 当前 production API 只接受完整 Resend hosted composition。缺 Resend、DeepSeek、数据库 CA/DSN 或任一
    secret 时必须在初始化阶段失败；禁止填假 key 或把 local disabled 模式带到公网；
 7. 用户已确认 hosted DeepSeek key 可用，并批准验收环境产生少量真实费用；仍不得把 key 写入仓库、聊天
@@ -210,6 +214,11 @@ Production environment 均为 `No Environment Variables Added`。本轮没有接
 Production，避免 Preview 意外连接同一项目。任何环境变量变化只对下一次 deployment 生效，修改后必须重新
 部署并记录 deployment ID/SHA。
 
+2026-08-23 当前配置进度：API Production 已托管 `HUAYI_RESEND_API_KEY` 为 Sensitive，并已配置
+`HUAYI_SECURITY_NOTIFICATION_MODE=resend`、固定 security sender 和用户确认的 Reply-To；Web 未改。
+这只是上表的 R3-C 通知子集，其余 API/Web 变量仍必须全部补齐并由
+`acceptance:hosted:deployment --verify-environment` 一次性复核，不能用部分配置触发 deployment。
+
 首轮 Web-only hosted acceptance 不伪造 Store ID：API composition 不注册配对、设备、ExtensionQuery、
 CloudWordCopy、Extension preferences/self-disconnect 等 Store 专用路由，CORS 只允许 Web origin；混合
 Web/Store 路由收到任意 `HuayiExtension` token 也固定拒绝。以后启用 Store 必须在同次配置中把 capability
@@ -310,9 +319,9 @@ format/lint/typecheck/build、architecture、development blocker、Store release
 `admin=false / inherit=false / set=true`，仅允许可选 `postgres` creator-control
 `admin=true / inherit=false / set=false`，并由 bootstrap/verify/diagnostic 复用同一 SQL 契约。实现修复阶段
 未连接远端；修正版远端只读 verify 与固定 Operator status 已由用户实际运行并分别得到 passed / `empty`，
-因此数据库 foundation 门已关闭；Vercel project settings、Git repository、Preview、Production Branch 与
-零 deployment 回读门也已关闭。DNS/Resend/Auth/SMTP/production-only environment、domain、deployment 与
-邀请门仍保持关闭。
+因此数据库 foundation 门已关闭；Vercel project settings、Git repository、Preview、Production Branch、
+domain/TLS、Resend sender DNS、分离邮件 credential 与 Custom SMTP 配置门也已关闭。API 只完成 R3-C 通知
+变量子集；完整 production-only environment、真实邮件、deployment、Cron 与邀请门仍保持关闭。
 
 ## 8. 文档审查结论与外部输入
 
@@ -333,8 +342,9 @@ Singapore Function region、五项 CRON、五条 Auth redirect，并让 hosted W
 Vitest files（2,862 passed / 12 skipped）、Store 481/481、Playwright 110/110，以及全部
 format/lint/typecheck/build、architecture、release 和 production audit；production 依赖审计无已知漏洞。
 该证据在当时只关闭离线实现门，不代表当时已创建 Vercel project 或完成任何外部配置、部署、真实请求与
-邀请；后续已单独完成 project bootstrap、Git/Branch Tracking 与零 deployment 回读，但仍未执行
-production-only environment、domain、Resend/Auth/SMTP、deployment、真实请求或邀请。
+邀请；后续已单独完成 project bootstrap、Git/Branch Tracking、domain/TLS、Resend sender、分离邮件
+credential、Custom SMTP、API R3-C 通知变量与零 deployment 回读。完整 production-only environment、
+真实邮件、deployment、Cron 与邀请仍未执行。
 
 官方约束来源：
 

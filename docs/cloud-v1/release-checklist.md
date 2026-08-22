@@ -21,13 +21,14 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       显式 CA + verify-full，并加入精确角色图、越权 SQLSTATE 与同 backend 跨事务 context 隔离验证。更新后
       focused 与本轮完整 macOS 门、远端 hardened admin/application 双复验均已通过。第 12 条
       FirstOperatorBootstrap migration 已实际应用；Vercel API/Web 项目、Git/Branch、custom domain 与 TLS
-      已建立但仍为零 deployment，Resend sender domain 也已验证；其余隔离运行时配置与应用验收未完成，
-      因此本项仍未勾选；
+      已建立但仍为零 deployment，Resend sender domain、分离 SMTP/HTTP key、Supabase Custom SMTP 与 API
+      R3-C 通知变量子集也已配置；其余隔离运行时配置与应用验收未完成，因此本项仍未勾选；
 - [ ] `app.acceptance.<root-domain>` / `api.acceptance.<root-domain>` 的 DNS、Vercel domain 和部署前 TLS
       已验证，但 Cookie、CSRF、SSE、callback 仍须在受控 API→Web deployment 后验收；若曾使用
       `*.vercel.app` gateway 备用方案，目标子域仍已重新验收；
-- [ ] `notify.acceptance.<root-domain>` 已在 Resend Tokyo 通过 SPF/DKIM 及 monitoring DMARC；仍须分别托管
-      Supabase Auth SMTP 与 R3-C HTTP key，并完成真实投递与告警接收验收；
+- [ ] `notify.acceptance.<root-domain>` 已在 Resend Tokyo 通过 SPF/DKIM 及 monitoring DMARC；旧泄露 key
+      已撤销，两把 sending-only/domain-scoped SMTP/HTTP key 已分离托管，Supabase Custom SMTP 与 API
+      R3-C 通知变量子集已配置；仍须完成真实投递、重复投递观测与告警接收验收；
 - [x] R3-C outbox 固定 23 小时 deadline、最多 8 次与 failed/dead-letter 终态；超窗/耗尽在 sender 前
       终态化且零外调，同 notification ID 只在窗口内重放；固定 Resend adapter、独立通知 CRON production
       route/composition 与无正文 reason/count 告警 port 已由 fake fetch、PGlite 和 composition 回归证明；
@@ -63,7 +64,8 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       完整门已绿；Windows 本地批次已回证，组合项现在仅因 GitHub 双平台 CI 未触发而保持未勾选；
 - [x] 数据库空库/升级 migration、RLS 多租户矩阵和账号删除恢复通过；仓库当前 12 条 migration 的 baseline、
       forward-only API/Supabase 镜像与生产角色回归均通过，实际一次性账号删除完成且重放权限不扩大；远端
-      acceptance 仍只应用 11 条，第 12 条 FirstOperatorBootstrap 另待显式 dry-run/push；
+      acceptance 已在 dry-run、用户明确确认后应用第 12 条 FirstOperatorBootstrap migration，修正版
+      foundation verify 已通过且 Operator status 为 `empty`；
 - [x] 当前开发态构建审计确认没有新增秘密、远程代码、动态 endpoint 或危险 HTML；
 - [ ] 正式候选注入公开配置后重新执行完整构建审计，并复核每项 permission/host；
 - [x] fake model/mail/third-party 已按各能力真实定义覆盖成功、失败、取消、超时和额度分支；没有额度或
@@ -91,8 +93,9 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       正文/raw error。本条只关闭本机代码，不证明 verified sender、真实投递或监控接收方；
 - [ ] R3-C 外部前置条件部分完成：`seen-said.cn` 已在腾讯云购买/实名，权威 NS 已由两个独立 DoH
       解析器核验为 Cloudflare，Tokyo 的 `notify.acceptance` sender domain 已通过 SPF/DKIM/monitoring
-      DMARC。仍须完成支持邮箱、告警目的地、分离 credential 的轮换/secret 托管和真实投递；此前粘贴到
-      对话中的 Resend key 必须撤销，不得进入任何部署。不能把本机 Mailpit 或仅验证域名当 production 证据；
+      DMARC；旧泄露 key 与两把未使用的错误/临时 R3-C key 均已撤销，两把最小权限正式 key 已分离托管，
+      Custom SMTP 与 API R3-C 配置也已写入对应 hosted secret/config。仍须完成真实投递、重复投递观测与
+      无正文告警接收；不能把本机 Mailpit、域名验证或配置成功当 production 证据；
 - [x] DeepSeek 官方文档事实已校准：固定 `deepseek-v4-flash`、thinking + JSON、非流
       `completion_tokens_details.reasoning_tokens`，以及 2026-08-16T16:00:00Z 起两个 UTC peak 窗口和
       legacy/off-peak/peak 精确价格；离线 adapter/分时账本实现与回归已完成；
