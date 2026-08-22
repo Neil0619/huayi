@@ -44,10 +44,10 @@ test("hosted deployment plan is complete, deterministic, and secret independent"
   for (const expected of [
     "seen-said-acceptance-api | apps/api | hono | sin1 | Fluid | 120s",
     "seen-said-acceptance-web | apps/web | vite | pnpm build | dist",
-    "Git zero-deployment safety: both vercel.json files disable every branch",
+    "API Git deployment allows only codex/settings-configuration; Web disables every branch",
     "REST shell -> PATCH settings -> Preview disabled readback -> CLI git connect; no deploy",
     "After Git: Production Branch Tracking is codex/settings-configuration; recheck no deploy",
-    "A separate reviewed commit must arm the first deployment",
+    "The reviewed API-only commit arms the first deployment; Web remains disabled",
     "HUAYI_DATABASE_TLS_CA_BASE64",
     "HUAYI_STORE_EXTENSION_CAPABILITY",
     "Confirmed deployment decisions (values are not printed):",

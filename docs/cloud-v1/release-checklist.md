@@ -172,6 +172,8 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
 
 ## Vercel API 运行时
 
+- [x] 首次 API-only policy 精确为 `"**": false` +
+      `"codex/settings-configuration": true`；Web 继续 `deploymentEnabled=false`，没有同时解锁；
 - [x] `apps/api/vercel.json` 显式 `fluid: true`，且唯一 `src/server.ts` Function 的 `maxDuration` 为 120；
 - [x] 配置回归同时证明没有 Vercel Cron、宽泛 Function override 或 legacy `builds`；
 - [ ] 真实部署后在 Vercel Settings/Functions、部署产物和 Observability 核验 Fluid 与 120 秒上限；该项

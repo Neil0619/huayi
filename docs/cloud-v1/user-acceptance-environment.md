@@ -379,10 +379,11 @@ Production-ready 不能由以上任何一层自动推出；即使 acceptance 域
 
 ## 9. 当前下一步
 
-Phase 64 已完成 hosted Auth 与 API/Web Production environment 结构配置，双项目仍为
-`No Production Deployment`，`git.deploymentEnabled=false` 未改。下一步先完成文档审查，再准备首次部署
-解锁的受审查提交；随后严格按 API health/真实 hosted smoke → Web → 真实邮件/R3-C → Cron → 首位 Operator
-邀请执行。下一次 Windows 全门等到验收批次冻结，不因每个文档或配置步骤重复执行。
+Phase 64 已完成 hosted Auth 与 API/Web Production environment 结构配置，纯文档提交已推送且未触发部署。
+Phase 65 已把 API 收窄为全局拒绝加 exact production branch 允许，Web 继续全分支关闭。下一步在 push 前
+复核 Production Branch/Preview/零部署，再执行 API-only 首次 deployment；API health/真实 hosted smoke 通过
+并重新关闭 API 后，才进入 Web → 真实邮件/R3-C → Cron → 首位 Operator 邀请。下一次 Windows 全门等到
+验收批次冻结，不因每个文档或配置步骤重复执行。
 
 ## 10. 官方约束来源
 

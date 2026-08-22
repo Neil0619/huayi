@@ -1536,3 +1536,14 @@ passed; first Operator empty`。候选已提交推送，0012 已实际 push；�
 - 当前状态是 `hosted configuration complete; first deployment pending`，不是已部署或 production ready。
   下一门是准备解锁首次部署的受审查提交，再按 API health 与真实 hosted smoke → Web → 邮件/R3-C → Cron
   → FirstOperatorBootstrap invitation 执行。
+
+## Cloud V1 Phase 65 Hosted acceptance API-only 部署解锁状态（2026-08-23）
+
+- API `git.deploymentEnabled` 已收窄为 `"**": false` +
+  `"codex/settings-configuration": true`；Web 继续全分支 `false`。该 policy 只按分支生效，不按变更文件生效；
+- Fresh RED 已分别证明旧 API 布尔 `false` 和旧 deployment plan 不满足 API-only 解锁契约；最小实现与文档
+  已同步，尚未因本节本身宣称 deployment 成功；
+- 解锁提交 push 前必须再次确认 Production Branch Tracking、Preview Disabled 与双项目零部署。push 后只
+  接受一个 SHA 精确匹配的 API Production deployment，Web 必须仍为零；
+- API health 与真实 hosted smoke 通过后先恢复 API `false` 并记录实际 deployment/runtime/region/alias
+  证据，再进入 Web 独立解锁。

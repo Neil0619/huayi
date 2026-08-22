@@ -3,6 +3,15 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-23：首次 hosted deployment 改为 API-only one-shot 分支 allowlist
+
+- API `git.deploymentEnabled` 从全分支关闭改为 `"**": false` 加
+  `"codex/settings-configuration": true`；显式全局拒绝用于避免未声明分支继承平台默认允许；
+- Web 保持 `git.deploymentEnabled=false`。首次 push 只能产生 API Production deployment，不得同时部署
+  Web；分支 allowlist 不按文件路径过滤，因此 API armed 期间禁止无关 push；
+- API health 与真实 hosted smoke 通过后，必须用独立提交把 API 恢复为 `false` 并记录 deployment ID/SHA/
+  runtime/region/alias 证据；关闭后才允许准备 Web 的独立解锁提交。
+
 ## 2026-08-23：Hosted acceptance 环境完成后以首次 API health gate 验证真实组合
 
 - Supabase Auth 固定一个 Site URL 和五条 exact API redirect，不允许 wildcard；API/Web Vercel 环境均只

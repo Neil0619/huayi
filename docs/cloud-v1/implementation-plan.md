@@ -1447,3 +1447,19 @@ status 关闭这道门；下一步可以按外部门顺序准备 Vercel 创建�
    `git.deploymentEnabled=false` 未改；
 6. **下一门**：准备首次部署解锁的受审查提交；随后严格按 API first → API health/TLS/CORS/Cookie/SSE/
    Auth/Storage/真实 DeepSeek 小额 smoke → Web → 真实邮件/R3-C → Cron → FirstOperatorBootstrap 执行。
+
+## Phase 65：Hosted acceptance API-only 首次部署解锁（2026-08-23）
+
+影响平台为 `shared + hosted-acceptance`。本阶段只武装 API 的精确 production branch；Web 保持关闭。
+
+1. **Fresh RED**：API Vercel 配置回归先要求 `"**": false` +
+   `"codex/settings-configuration": true`，deployment plan 先要求明确 API-only/Web-disabled，均在旧布尔
+   `false` 实现上按预期失败；
+2. **最小 GREEN**：只修改 API `vercel.json` 为全局拒绝加 exact branch 允许；Web `vercel.json` 继续
+   `deploymentEnabled=false`。计划输出同步声明 API-only one-shot，不把分支 allowlist 误当路径过滤；
+3. **一次性边界**：解锁提交 push 前再次回读 exact Production Branch、Preview Disabled 与双项目零部署；
+   push 后只允许 API 新增一个与提交 SHA 一致的 Production deployment，Web 必须继续为零；
+4. **真实门禁**：记录 API deployment ID/SHA/alias、实际 Node major、`sin1`、Fluid、120s，并验证 custom
+   domain `/health` 的 TLS、200、exact JSON 与 `x-vercel-id`；随后才执行数据库、DeepSeek 和 Auth smoke；
+5. **重新关闭**：API health/smoke 通过后，用独立提交恢复 API `deploymentEnabled=false` 并写入实际证据；
+   关闭 API 后才准备 Web 的独立部署解锁。

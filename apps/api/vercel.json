@@ -3,7 +3,10 @@
   "framework": "hono",
   "fluid": true,
   "git": {
-    "deploymentEnabled": false
+    "deploymentEnabled": {
+      "**": false,
+      "codex/settings-configuration": true
+    }
   },
   "regions": ["sin1"],
   "functions": {

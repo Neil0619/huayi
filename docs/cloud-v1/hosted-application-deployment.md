@@ -13,8 +13,9 @@ Deployments 页面，确认仍无 Production deployment 或 deployment 记录，
 临时 R3-C key 均已撤销，当前只保留两把 sending-only/domain-scoped SMTP/HTTP key。Supabase Custom SMTP
 已经启用。Phase 64 已完成 Supabase Auth exact URL 配置、API 21/21 与 Web 2/2 Production-only
 environment 配置和结构回读；API 精确为 9 项 Sensitive、12 项 public，Web 两项均为 public，四项禁止变量
-不存在。API/Web 仍均为 `No Production Deployment`，仓库 `git.deploymentEnabled=false` 继续保持首次部署
-关闭。真实应用组合、邮件、Cron 和邀请仍未验证或执行。
+不存在。API/Web 仍均为 `No Production Deployment`。Phase 65 只把 API policy 收窄为全局拒绝加
+`codex/settings-configuration` 精确允许，Web 继续 `git.deploymentEnabled=false`；该受审查提交用于触发
+首次 API-only deployment，不会解锁 Web。真实应用组合、邮件、Cron 和邀请仍未验证或执行。
 
 ## 1. 当前事实与目标
 
@@ -102,10 +103,24 @@ API `vercel.json` 必须把 framework 固定为 `hono`、project region 固定�
 
 ### 3.1 首次 Git 连接的零部署保险
 
-Vercel 官方 project configuration 支持 `git.deploymentEnabled`。当前 API/Web 两份 `vercel.json` 均固定
-`{ "git": { "deploymentEnabled": false } }`，含义是临时禁用所有分支的 Git deployment；这不是 Preview
-开关，也不是长期发布策略。即使 GitHub App 权限或连接步骤发生误操作，当前候选也不能因 push 或首次
-repository connect 自动创建 deployment。
+Vercel 官方 project configuration 支持 `git.deploymentEnabled`。首次连接期间 API/Web 两份
+`vercel.json` 均固定 `{ "git": { "deploymentEnabled": false } }`，临时禁用所有分支的 Git deployment；
+这不是 Preview 开关，也不是长期发布策略。Phase 65 的 API-only one-shot policy 改为：
+
+```json
+{
+  "git": {
+    "deploymentEnabled": {
+      "**": false,
+      "codex/settings-configuration": true
+    }
+  }
+}
+```
+
+未声明分支不能依赖平台默认值，因此必须保留 `"**": false`；Web 继续使用布尔 `false`。API policy 按分支
+而非按改动路径生效，armed 期间该分支的任意后续 push 都可能再次部署 API。首次 API health 与真实 hosted
+smoke 通过后，必须用“API 恢复 `false` + 实际部署证据”的独立提交重新关闭，之后才准备 Web 解锁。
 
 首次创建必须按以下顺序执行并逐步保存无 secret 证据：
 
@@ -119,9 +134,9 @@ repository connect 自动创建 deployment。
 5. Git link 建立后，分别进入 `Settings → Environments → Production → Branch Tracking`，设置并保存
    `codex/settings-configuration`，每次保存后再次确认 deployments 仍为空。Production Branch 属于 Git
    link，未连接 Git 时 Dashboard 不显示该设置，禁止再要求操作者连接前寻找或伪造它；
-6. DNS、Resend、Supabase Auth/SMTP 和 Production environment 全部完成并复核后，另做一次受审查提交，
-   根据当时官方 schema 冻结“只允许 `codex/settings-configuration`”的精确 Git deployment policy，再先
-   API、后 Web 发起首次正式 deployment。禁止为了省略该提交直接把布尔值改成允许所有分支。
+6. DNS、Resend、Supabase Auth/SMTP 和 Production environment 全部完成并复核后，Phase 65 受审查提交
+   以 `"**": false` + exact branch `true` 只解锁 API，Web 保持 `false`。API 通过真实 health/smoke 后先重新
+   关闭 API，再以另一受审查提交准备 Web。禁止改成允许所有分支或同时解锁两个 project。
 
 仓库提供三个固定入口执行上述第 1–2 步，而不要求调用方临时拼接 REST body：
 
@@ -292,8 +307,8 @@ URL，无通配符。该状态只关闭 Auth URL 配置门；尚未通过真实 
 
 Fresh RED 必须先覆盖：
 
-1. API/Web Vercel config 缺全分支 `git.deploymentEnabled=false`，或 API 缺
-   `framework=hono`/`regions=sin1`、Web 缺 Vite/build/output；
+1. API Vercel config 缺 `"**": false` + exact production branch `true`、Web 缺全分支
+   `git.deploymentEnabled=false`，或 API 缺 `framework=hono`/`regions=sin1`、Web 缺 Vite/build/output；
 2. hosted Web 缺环境/SHA 可见身份，或公网 origin 接受 simulated；
 3. deployment plan 缺任一 Vercel、environment、Auth redirect、SMTP、DNS 或 CRON 项；
 4. verifier 输出任何 secret/value，或错误地把 preview 配成 hosted production；

@@ -26,10 +26,15 @@ async function readVercelConfiguration(): Promise<VercelConfiguration> {
 }
 
 describe("production API composition", () => {
-  it("keeps Git deployments disabled until the first hosted release is explicitly armed", async () => {
+  it("arms only the reviewed hosted production branch for the first API deployment", async () => {
     const vercelConfiguration = await readVercelConfiguration();
 
-    expect(vercelConfiguration.git).toEqual({ deploymentEnabled: false });
+    expect(vercelConfiguration.git).toEqual({
+      deploymentEnabled: {
+        "**": false,
+        "codex/settings-configuration": true,
+      },
+    });
   });
 
   it("wires the fail-closed adapters without contacting external services for health", async () => {
