@@ -99,7 +99,10 @@ test("confirmation, token, team identity, and remote errors fail without secret 
   });
   assert.equal(code, 1);
   assert.equal(stdout, "");
-  assert.equal(stderr, "Vercel empty project operation failed.\n");
+  assert.equal(
+    stderr,
+    "Vercel empty project operation failed: stage=resolve-team; reason=request-rejected; status=500.\n",
+  );
   assert.doesNotMatch(`${stdout}${stderr}`, new RegExp(`${token}|${remoteSecret}`, "u"));
 
   const wrongTeam = createFakeFetch([
@@ -120,6 +123,57 @@ test("confirmation, token, team identity, and remote errors fail without secret 
     /team scope failed/u,
   );
   wrongTeam.done();
+});
+
+test("the documented pnpm separator reaches apply without changing the confirmation", async () => {
+  const fake = createFakeFetch([
+    { response: teamResponse(), url: teamQuery },
+    missingProjectExpectation("seen-said-acceptance-api"),
+    missingProjectExpectation("seen-said-acceptance-web"),
+    ...configureExpectations("seen-said-acceptance-api"),
+    ...configureExpectations("seen-said-acceptance-web"),
+  ]);
+  let stderr = "";
+  let stdout = "";
+  const code = await runVercelProjectsCli({
+    arguments_: ["apply", "--", vercelProjectsApplyConfirmation],
+    environment: { VERCEL_TOKEN: token },
+    fetch_: fake.fetch_,
+    writeError: (value) => {
+      stderr += value;
+    },
+    writeOutput: (value) => {
+      stdout += value;
+    },
+  });
+
+  assert.equal(code, 0);
+  assert.equal(stderr, "");
+  assert.equal(
+    stdout,
+    "Vercel empty project bootstrap completed; zero deployments verified. Dashboard verification is pending.\n",
+  );
+  fake.done();
+});
+
+test("CLI failures expose only bounded stage, reason, and HTTP status", async () => {
+  const remoteSecret = "remote-detail-must-not-be-reflected";
+  let stderr = "";
+  const code = await runVercelProjectsCli({
+    arguments_: ["apply", "--", vercelProjectsApplyConfirmation],
+    environment: { VERCEL_TOKEN: token },
+    fetch_: async () => jsonResponse(403, { error: { message: remoteSecret }, token }),
+    writeError: (value) => {
+      stderr += value;
+    },
+  });
+
+  assert.equal(code, 1);
+  assert.equal(
+    stderr,
+    "Vercel empty project operation failed: stage=resolve-team; reason=request-rejected; status=403.\n",
+  );
+  assert.doesNotMatch(stderr, new RegExp(`${token}|${remoteSecret}|https?://|Bearer`, "u"));
 });
 
 test("a partial write stops immediately and a rerun can resume from the blank shell", async () => {

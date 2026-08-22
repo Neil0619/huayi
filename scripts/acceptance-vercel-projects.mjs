@@ -1,67 +1,26 @@
 import { pathToFileURL } from "node:url";
 
-const apiOrigin = "https://api.vercel.com";
-const expectedTeamName = "neil0619's projects";
-const expectedTeamSlug = "neil0619s-projects";
-const maximumResponseBytes = 1_000_000;
+import {
+  expectedTeamName,
+  expectedTeamSlug,
+  renderVercelProjectPlan,
+  vercelProjectSpecifications,
+  vercelProjectsApplyConfirmation,
+  vercelProjectsStatusArgument,
+} from "./acceptance-vercel-projects-config.mjs";
+import {
+  normalizeForwardedArguments,
+  operationError,
+  renderOperationFailure,
+} from "./acceptance-vercel-projects-diagnostics.mjs";
+import { requestJson, urlFor } from "./acceptance-vercel-projects-http.mjs";
 
-export const vercelProjectsApplyConfirmation = "--confirm-vercel-empty-projects-neil0619s-projects";
-export const vercelProjectsStatusArgument = "--status-vercel-empty-projects-neil0619s-projects";
-
-export const vercelProjectSpecifications = Object.freeze([
-  Object.freeze({
-    name: "seen-said-acceptance-api",
-    settings: Object.freeze({
-      buildCommand: null,
-      framework: "hono",
-      nodeVersion: "22.x",
-      outputDirectory: null,
-      previewDeploymentsDisabled: true,
-      resourceConfig: Object.freeze({
-        fluid: true,
-        functionDefaultRegions: Object.freeze(["sin1"]),
-        functionDefaultTimeout: 120,
-      }),
-      rootDirectory: "apps/api",
-      sourceFilesOutsideRootDirectory: true,
-    }),
-  }),
-  Object.freeze({
-    name: "seen-said-acceptance-web",
-    settings: Object.freeze({
-      buildCommand: "pnpm build",
-      framework: "vite",
-      nodeVersion: "22.x",
-      outputDirectory: "dist",
-      previewDeploymentsDisabled: true,
-      rootDirectory: "apps/web",
-      sourceFilesOutsideRootDirectory: true,
-    }),
-  }),
-]);
-
-export function renderVercelProjectPlan() {
-  return [
-    "Vercel hosted acceptance empty-project plan (offline / zero write)",
-    `Scope: ${expectedTeamName} | ${expectedTeamSlug}`,
-    "Projects:",
-    "- seen-said-acceptance-api | apps/api | hono | 22.x | sin1 | Fluid | 120s",
-    "- seen-said-acceptance-web | apps/web | vite | 22.x | pnpm build | dist",
-    "REST contract:",
-    "- GET /v2/teams resolves the exact token-scoped team.",
-    "- POST /v11/projects creates name-only project shells without gitRepository.",
-    "- PATCH /v9/projects/{idOrName} freezes supported project settings.",
-    "- GET /v7/deployments proves each project remains empty before and after PATCH.",
-    "- Preview Deployments disabled is requested through the official project field.",
-    "Dashboard gates before Git connection:",
-    "- Production Branch: codex/settings-configuration",
-    "- Preview Deployments disabled: Dashboard readback required",
-    "- Production-only environment variables remain pending for the later secret stage.",
-    "No Git link, deployment, domain, environment variable, or secret is created.",
-    "VERCEL_TOKEN is read only by apply/status and is never printed or persisted.",
-    "",
-  ].join("\n");
-}
+export {
+  renderVercelProjectPlan,
+  vercelProjectSpecifications,
+  vercelProjectsApplyConfirmation,
+  vercelProjectsStatusArgument,
+};
 
 function isRecord(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -76,62 +35,26 @@ function requireToken(environment) {
     token.trim() !== token ||
     /[\r\n\0]/u.test(token)
   ) {
-    throw new Error("Vercel token is unavailable.");
+    throw operationError("Vercel token is unavailable.", "credential", "token-unavailable");
   }
   return token;
-}
-
-function urlFor(pathname, query = {}) {
-  const url = new URL(pathname, apiOrigin);
-  for (const [name, value] of Object.entries(query)) url.searchParams.set(name, String(value));
-  return url.href;
-}
-
-async function requestJson({ allowNotFound = false, body, fetch_, method = "GET", token, url }) {
-  const headers = { Accept: "application/json", Authorization: `Bearer ${token}` };
-  if (body !== undefined) headers["Content-Type"] = "application/json";
-  let response;
-  try {
-    response = await fetch_(url, {
-      body: body === undefined ? undefined : JSON.stringify(body),
-      headers,
-      method,
-    });
-  } catch {
-    throw new Error("Vercel REST request failed.");
-  }
-  if (allowNotFound && response.status === 404) return undefined;
-  if (!response.ok) throw new Error("Vercel REST request failed.");
-  let text;
-  try {
-    text = await response.text();
-  } catch {
-    throw new Error("Vercel REST response failed.");
-  }
-  if (text.length === 0 || text.length > maximumResponseBytes) {
-    throw new Error("Vercel REST response failed.");
-  }
-  try {
-    const parsed = JSON.parse(text);
-    if (!isRecord(parsed)) throw new Error("invalid");
-    return parsed;
-  } catch {
-    throw new Error("Vercel REST response failed.");
-  }
 }
 
 async function resolveTeam({ fetch_, token }) {
   const response = await requestJson({
     fetch_,
+    stage: "resolve-team",
     token,
     url: urlFor("/v2/teams", { limit: 100 }),
   });
-  if (!Array.isArray(response.teams)) throw new Error("Vercel team scope failed.");
+  if (!Array.isArray(response.teams)) {
+    throw operationError("Vercel team scope failed.", "resolve-team", "response-invalid", 200);
+  }
   const matches = response.teams.filter(
     (team) => isRecord(team) && team.slug === expectedTeamSlug && team.name === expectedTeamName,
   );
   if (matches.length !== 1 || typeof matches[0].id !== "string" || matches[0].id.length === 0) {
-    throw new Error("Vercel team scope failed.");
+    throw operationError("Vercel team scope failed.", "resolve-team", "scope-mismatch", 200);
   }
   return matches[0].id;
 }
@@ -140,16 +63,17 @@ function projectUrl(name, teamId) {
   return urlFor(`/v9/projects/${encodeURIComponent(name)}`, { teamId });
 }
 
-async function readProject({ fetch_, name, teamId, token }) {
+async function readProject({ fetch_, name, stage, teamId, token }) {
   return requestJson({
     allowNotFound: true,
     fetch_,
+    stage,
     token,
     url: projectUrl(name, teamId),
   });
 }
 
-function assertSafeProjectIdentity(project, specification, teamId) {
+function assertSafeProjectIdentity(project, specification, stage, teamId) {
   if (
     !isRecord(project) ||
     typeof project.id !== "string" ||
@@ -170,18 +94,19 @@ function assertSafeProjectIdentity(project, specification, teamId) {
     (project.latestDeployments !== undefined &&
       (!Array.isArray(project.latestDeployments) || project.latestDeployments.length !== 0))
   ) {
-    throw new Error("Vercel project preflight failed.");
+    throw operationError("Vercel project preflight failed.", stage, "preflight-rejected");
   }
 }
 
-async function assertNoDeployments({ fetch_, projectId, teamId, token }) {
+async function assertNoDeployments({ fetch_, projectId, stage, teamId, token }) {
   const response = await requestJson({
     fetch_,
+    stage,
     token,
     url: urlFor("/v7/deployments", { projectId, limit: 1, teamId }),
   });
   if (!Array.isArray(response.deployments) || response.deployments.length !== 0) {
-    throw new Error("Vercel project preflight failed.");
+    throw operationError("Vercel project preflight failed.", stage, "preflight-rejected", 200);
   }
 }
 
@@ -231,55 +156,103 @@ function isBlankShell(project) {
   );
 }
 
-function classifyProject(project, specification) {
+function classifyProject(project, specification, stage) {
   if (matchesDesiredSettings(project, specification.settings)) return "desired";
   if (isBlankShell(project)) return "blank";
-  throw new Error("Vercel project preflight failed.");
+  throw operationError("Vercel project preflight failed.", stage, "preflight-rejected");
+}
+
+function projectKind(specification) {
+  return specification.name.endsWith("-api") ? "api" : "web";
 }
 
 async function inspectProjects({ fetch_, teamId, token }) {
   const inspections = [];
   for (const specification of vercelProjectSpecifications) {
-    const project = await readProject({ fetch_, name: specification.name, teamId, token });
+    const kind = projectKind(specification);
+    const stage = `inspect-${kind}`;
+    const project = await readProject({
+      fetch_,
+      name: specification.name,
+      stage,
+      teamId,
+      token,
+    });
     if (project === undefined) {
       inspections.push({ project: undefined, specification, state: "missing" });
       continue;
     }
-    assertSafeProjectIdentity(project, specification, teamId);
-    await assertNoDeployments({ fetch_, projectId: project.id, teamId, token });
-    inspections.push({ project, specification, state: classifyProject(project, specification) });
+    assertSafeProjectIdentity(project, specification, stage, teamId);
+    await assertNoDeployments({
+      fetch_,
+      projectId: project.id,
+      stage: `verify-deployments-${kind}`,
+      teamId,
+      token,
+    });
+    inspections.push({
+      project,
+      specification,
+      state: classifyProject(project, specification, stage),
+    });
   }
   return inspections;
 }
 
 async function createBlankShell({ fetch_, specification, teamId, token }) {
+  const kind = projectKind(specification);
+  const stage = `create-${kind}`;
   const project = await requestJson({
     body: { name: specification.name },
     fetch_,
     method: "POST",
+    stage,
     token,
     url: urlFor("/v11/projects", { teamId }),
   });
-  assertSafeProjectIdentity(project, specification, teamId);
-  if (!isBlankShell(project)) throw new Error("Vercel project preflight failed.");
-  await assertNoDeployments({ fetch_, projectId: project.id, teamId, token });
+  assertSafeProjectIdentity(project, specification, stage, teamId);
+  if (!isBlankShell(project)) {
+    throw operationError("Vercel project preflight failed.", stage, "preflight-rejected");
+  }
+  await assertNoDeployments({
+    fetch_,
+    projectId: project.id,
+    stage: `verify-deployments-${kind}`,
+    teamId,
+    token,
+  });
   return project;
 }
 
 async function freezeAndVerify({ fetch_, specification, teamId, token }) {
+  const kind = projectKind(specification);
   await requestJson({
     body: specification.settings,
     fetch_,
     method: "PATCH",
+    stage: `configure-${kind}`,
     token,
     url: projectUrl(specification.name, teamId),
   });
-  const project = await readProject({ fetch_, name: specification.name, teamId, token });
-  assertSafeProjectIdentity(project, specification, teamId);
+  const verifyStage = `verify-${kind}`;
+  const project = await readProject({
+    fetch_,
+    name: specification.name,
+    stage: verifyStage,
+    teamId,
+    token,
+  });
+  assertSafeProjectIdentity(project, specification, verifyStage, teamId);
   if (!matchesDesiredSettings(project, specification.settings)) {
-    throw new Error("Vercel project verification failed.");
+    throw operationError("Vercel project verification failed.", verifyStage, "verification-failed");
   }
-  await assertNoDeployments({ fetch_, projectId: project.id, teamId, token });
+  await assertNoDeployments({
+    fetch_,
+    projectId: project.id,
+    stage: `verify-deployments-${kind}`,
+    teamId,
+    token,
+  });
 }
 
 export async function applyVercelProjectShells({
@@ -287,12 +260,17 @@ export async function applyVercelProjectShells({
   environment = process.env,
   fetch_ = globalThis.fetch,
 } = {}) {
+  arguments_ = normalizeForwardedArguments(arguments_);
   if (
     arguments_.length !== 2 ||
     arguments_[0] !== "apply" ||
     arguments_[1] !== vercelProjectsApplyConfirmation
   ) {
-    throw new Error("Vercel empty project arguments are invalid.");
+    throw operationError(
+      "Vercel empty project arguments are invalid.",
+      "input",
+      "invalid-arguments",
+    );
   }
   const token = requireToken(environment);
   const teamId = await resolveTeam({ fetch_, token });
@@ -313,12 +291,17 @@ export async function applyVercelProjectShells({
 }
 
 async function readVercelProjectStatus({ arguments_, environment, fetch_ }) {
+  arguments_ = normalizeForwardedArguments(arguments_);
   if (
     arguments_.length !== 2 ||
     arguments_[0] !== "status" ||
     arguments_[1] !== vercelProjectsStatusArgument
   ) {
-    throw new Error("Vercel empty project arguments are invalid.");
+    throw operationError(
+      "Vercel empty project arguments are invalid.",
+      "input",
+      "invalid-arguments",
+    );
   }
   const token = requireToken(environment);
   const teamId = await resolveTeam({ fetch_, token });
@@ -342,6 +325,7 @@ export async function runVercelProjectsCli({
   writeOutput = (value) => process.stdout.write(value),
 } = {}) {
   try {
+    arguments_ = normalizeForwardedArguments(arguments_);
     if (arguments_.length === 1 && arguments_[0] === "plan") {
       writeOutput(renderVercelProjectPlan());
       return 0;
@@ -362,8 +346,8 @@ export async function runVercelProjectsCli({
       ].join("\n"),
     );
     return 0;
-  } catch {
-    writeError("Vercel empty project operation failed.\n");
+  } catch (error) {
+    writeError(renderOperationFailure(error));
     return 1;
   }
 }

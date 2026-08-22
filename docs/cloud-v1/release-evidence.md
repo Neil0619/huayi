@@ -1286,3 +1286,19 @@ typecheck、architecture、build、development blocker、Store release、product
   （2,863 passed / 12 skipped）、Store coverage 481/481、Playwright 110/110，workspace
   format/lint/typecheck/build、instructions、architecture、development blocker、Store release 与 production
   audit 全部通过，且无已知 production 漏洞。
+
+## 48. Vercel bootstrap 首次外部调用的 CLI 参数修复（2026-08-22）
+
+- **用户可见症状**：按 runbook 执行 `pnpm acceptance:vercel:projects:apply -- --confirm-...` 后，pnpm
+  实际启动 `node ... apply -- --confirm-...`，CLI 只输出固定 operation failed 并退出 1；没有足够信息判断
+  是本机参数、Token、Team scope 还是远端 REST 阶段；
+- **确认根因与外部边界**：package script 已固定 `apply`，pnpm 又原样转发单个 `--`，形成三个 Node 参数；
+  旧实现只接受两个参数，因此在 Token 校验和首个 fetch 前确定失败。该次尝试没有读取远端状态、没有创建
+  project，也没有产生 Git link、environment 或 deployment；
+- **Fresh RED/GREEN**：fake HTTP 接缝用真实参数形状 `apply, --, --confirm-...` 精确复现 exit 1；修复只移除
+  `apply/status` 后精确位置的单个分隔符，随后仍严格校验固定确认参数。相同测试转绿并完整经过 exact Team、
+  两 project 预检、name-only create、settings PATCH 和零 deployment 模拟；
+- **安全诊断**：CLI 失败只输出白名单 stage/reason 与有界 HTTP status。403/500、transport、response、
+  scope、preflight 和 verification 均不回显 URL、请求体、Token、team 数据或远端正文；未知异常固定降级为
+  `internal/unexpected/unavailable`。focused bootstrap/security 13/13、完整 `pnpm test:scripts` 227/227、
+  受影响 ESLint/Prettier 与 diff check 均通过；修复后真实外部 `apply` 仍待用户使用进程级 Token 重跑。

@@ -104,6 +104,12 @@ repository connect 自动创建 deployment。
   仅输出 `missing`、`shell-unconfigured` 或 `settings-ready-dashboard-pending` 等有界状态，不输出 team/
   project/deployment ID 或第三方正文。
 
+pnpm 会把上述命令中的单个 `--` 原样转发给固定了 `apply/status` 的 Node script；CLI 只在该精确位置移除
+一次分隔符，然后继续严格校验确认参数，不能接受额外参数。失败时 stderr 只输出白名单
+`stage=<input|credential|resolve-team|inspect-api|...>`、`reason=<invalid-arguments|request-rejected|...>` 与
+`status=<HTTP code|unavailable|not-applicable>`；这些字段用于定位安全阶段，不包含 URL、请求体、Token、team
+数据或第三方错误正文。
+
 `apply` 的创建请求固定为 `POST /v11/projects` 且 body 只有 project name，不提供 `gitRepository`；PATCH
 固定走 `PATCH /v9/projects/{idOrName}`，写入 Root、Framework、Node `22.x`、root 外 source 和官方支持的
 Preview 禁用字段，Web 另写 build/output，API 另写 Fluid、`sin1` 和 120 秒 resource defaults。每次写入前后
@@ -123,8 +129,9 @@ Vercel 官方 PATCH 请求支持 `previewDeploymentsDisabled=true`，但当前�
 [Vercel Deployments REST API](https://vercel.com/docs/rest-api/reference/endpoints/deployments)、
 [Vercel Teams REST API](https://vercel.com/docs/rest-api/reference/endpoints/teams)、
 [Vercel CLI git](https://vercel.com/docs/cli/git)。本节 REST 版本和字段另按当前官方 `vercel/sdk` 生成契约
-交叉核对。本节记录的是待执行 runbook；截至当前脚本尚未执行外部 `apply`，未创建 Vercel project、连接
-repository 或产生 deployment。
+交叉核对。本节记录的是待执行 runbook；首次 `apply` 尝试因 pnpm 分隔符尚未规范化而在本机参数校验阶段
+退出，未读取远端状态或发出 REST 请求。该缺陷已有真实参数形状回归并修复，但修复后尚未重跑外部
+`apply`；仍未创建 Vercel project、连接 repository 或产生 deployment。
 
 `.vercel/` 只保存本机 project link，不提交。项目 ID、team ID、deployment ID 和 custom-domain 记录可写入
 无 secret 发布证据；token 与环境变量值不可写入仓库或聊天。

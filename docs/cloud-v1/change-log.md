@@ -15,7 +15,9 @@
   在 Dashboard 回读；Production Branch 也继续只在 Dashboard 设置。脚本不得据此连接 Git、创建 domain/
   environment/deployment 或宣称 production-only 已关闭；
 - Token 只允许从进程环境读取，计划完全离线，状态输出有界且不包含远端正文或资源 ID。本条只冻结仓库
-  工具与外部执行协议；截至记录时尚未执行真实 REST `apply`。
+  工具与外部执行协议；`apply/status` 必须兼容 pnpm 转发产生的单个参数分隔符，但分隔符移除后仍精确
+  校验固定确认参数。失败输出只允许白名单 stage/reason 和 HTTP status，不得回显 URL、请求体、Token、
+  team 数据或第三方错误正文。
 
 ## 2026-08-22：Vercel 首次 Git 连接增加全分支 deployment kill switch
 

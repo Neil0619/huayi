@@ -1430,3 +1430,16 @@ passed; first Operator empty`。候选已提交推送，0012 已实际 push；�
   通过且无已知 production 漏洞；
 - 当前只完成离线实现、fake-fetch 验证与文档校准；尚未执行真实 `apply`，未创建 project、Git link、domain、
   environment variable 或 deployment。外部 Vercel 门仍关闭。
+
+## Cloud V1 Phase 57 Vercel bootstrap CLI 参数兼容修复状态（2026-08-22）
+
+- 首次按文档运行 `apply` 已在本机失败；根因不是已观察到的 Token/权限/REST 故障，而是 package script
+  固定 `apply` 后，pnpm 又把命令中的单个 `--` 原样传给 Node，旧 CLI 因三参数形状在任何 fetch 前拒绝；
+- CLI 现在只规范化 `apply/status` 后精确位置的一次 pnpm 分隔符，固定确认参数、零 deployment、无 Git、
+  两 project 写前预检和漂移失败关闭规则均保持不变；
+- stderr 改为白名单 stage/reason/status，能够区分 input、credential、resolve-team、inspect/create/configure/
+  verify 与 HTTP code，但不会显示 URL、请求体、Token、team 数据或第三方错误正文；
+- 回归用真实参数形状先稳定得到 exit 1，再修复转绿；focused bootstrap/security 13/13、完整 scripts
+  227/227、受影响 format/lint 与 diff check 均通过；
+- 首次失败没有发出 Vercel REST 请求，也没有创建 project 或 deployment。修复后的真实 `apply` 尚未重跑，
+  外部 Vercel 门仍关闭。
