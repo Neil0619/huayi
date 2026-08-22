@@ -7,7 +7,8 @@
 
 - Cloudflare `seen-said.cn` 已保存并回读两条 DNS-only CNAME：`api.acceptance` → `7cb58e1372474614.vercel-dns-017.com.`，`app.acceptance` → `f0cbaadacf303110.vercel-dns-017.com.`；Proxy disabled、TTL Auto；1.1.1.1、8.8.8.8、9.9.9.9 均解析到精确 CNAME；
 - Vercel 两个 custom domain 均 properly configured。两端 HTTPS 的 `curl ssl_verify_result=0` 通过，部署前返回预期 404，zero deployments 仍保持；不表示应用已部署或 production ready；
-- 下一门是 Resend verified sender subdomain/DNS、production-only environment、Supabase Auth/SMTP。旧 Resend key 已撤销且不可用，不得出现。
+- 下一门是 Resend verified sender subdomain/DNS、production-only environment、Supabase Auth/SMTP。对话中
+  泄露的旧 Resend key 撤销状态尚未核验；必须视为已泄露且不可使用，并在 Resend Dashboard 确认撤销。
 
 ## 2026-08-22：Vercel Git 与 Production Branch 门在零部署下关闭
 

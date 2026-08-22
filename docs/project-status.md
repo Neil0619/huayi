@@ -1489,4 +1489,6 @@ passed; first Operator empty`。候选已提交推送，0012 已实际 push；�
 
 - Cloudflare `seen-said.cn` 已保存并回读两条 DNS-only CNAME：`api.acceptance` → `7cb58e1372474614.vercel-dns-017.com.`，`app.acceptance` → `f0cbaadacf303110.vercel-dns-017.com.`；两条均 Proxy disabled、TTL Auto；1.1.1.1、8.8.8.8、9.9.9.9 均解析到精确 CNAME；
 - Vercel 两个 custom domain 均 properly configured。两个 HTTPS host 的 TLS 校验 `curl ssl_verify_result=0` 通过，部署前返回预期 404；zero deployments 仍保持；
-- 本阶段不声明应用已部署或 production ready。下一门是 Resend verified sender subdomain/DNS、production-only environment、Supabase Auth/SMTP 与之后的受控 API→Web deployment；旧 Resend key 已撤销且不可用，禁止重新使用或写入文档/环境。
+- 本阶段不声明应用已部署或 production ready。下一门是 Resend verified sender subdomain/DNS、
+  production-only environment、Supabase Auth/SMTP 与之后的受控 API→Web deployment；对话中泄露的旧
+  Resend key 撤销状态尚未核验，必须视为已泄露且禁止重新使用或写入文档/环境。

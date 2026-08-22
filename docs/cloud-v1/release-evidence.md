@@ -1359,4 +1359,6 @@ typecheck、architecture、build、development blocker、Store release、product
 
 - Cloudflare saved/readback：`api.acceptance` → `7cb58e1372474614.vercel-dns-017.com.`，`app.acceptance` → `f0cbaadacf303110.vercel-dns-017.com.`；两条均 DNS only、Proxy disabled、TTL Auto；1.1.1.1、8.8.8.8、9.9.9.9 均返回精确 CNAME；
 - Vercel 两个 custom domain 均 properly configured；两个 HTTPS host 的 `curl ssl_verify_result=0` 通过并在尚无 deployment 时返回预期 404；zero deployments 仍为零；
-- 该证据只关闭 DNS/domain/TLS 配置门，不声明应用部署或 production readiness。Resend verified sender subdomain/DNS、production-only environment、Supabase Auth/SMTP 与真实应用部署仍 pending；旧 Resend key 已撤销且不可用。
+- 该证据只关闭 DNS/domain/TLS 配置门，不声明应用部署或 production readiness。Resend verified sender
+  subdomain/DNS、production-only environment、Supabase Auth/SMTP 与真实应用部署仍 pending；对话中
+  泄露的旧 Resend key 撤销状态尚未核验，必须视为已泄露且不可使用。
