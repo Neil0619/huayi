@@ -1339,3 +1339,18 @@ typecheck、architecture、build、development blocker、Store release、product
   format/lint/typecheck/build、instructions、architecture、release 与 production audit 均通过且无已知
   production 漏洞；
 - **边界**：本节仍未连接 Git、设置 Production Branch、写入环境变量、配置域名或发起 deployment。
+
+## 51. Vercel Git 与 Production Branch 零部署回读（2026-08-22）
+
+- **精确 repository**：`seen-said-acceptance-api` 与 `seen-said-acceptance-web` 均已连接 GitHub
+  repository `Neil0619/huayi`，没有接受 GitHub App permission upgrade；
+- **双重 environment 门**：两个 project 的 Preview environment 均继续显示 `Disabled`，Production
+  Branch Tracking 均显示 `codex/settings-configuration`；两个 Production environment 均显示
+  `No Environment Variables Added`；
+- **独立零部署回读**：Root 在连接和 Branch Tracking 保存后独立复读两个 project 的 Git、Environment 与
+  Deployments 页面；两边均显示 `No Production Deployment`，且页面没有任何 deployment 记录；
+- **外部动作边界**：本轮没有配置 domain 或 environment variable，也没有触发 deployment。Production-only
+  environment、domain、Resend、Supabase Auth/SMTP 与首次 API/Web deployment 仍待后续明确门禁；
+- **失败关闭保持**：API/Web 仓库配置中的 `git.deploymentEnabled=false` 没有改变，所有 Git deployment
+  仍禁用。Git connection 与 Production Branch Tracking 已完成不表示首次 deployment 已武装；解锁仍必须
+  由 production-only 配置全部复核后的另一次受审查提交完成。

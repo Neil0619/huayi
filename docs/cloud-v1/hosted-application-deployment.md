@@ -6,8 +6,12 @@
 只读 foundation verify 与固定 Operator status，分别返回 passed 与 `empty`。用户随后确认 Reply-To 可用、
 已有 hosted DeepSeek key 并批准验收环境产生少量真实费用，同时选择首轮禁用 Store。两个 Vercel 空
 project 已创建并冻结 project settings；REST 与 Dashboard 均确认零 deployment，Dashboard 还确认两个
-Preview environment 均为 Disabled。Git、Production Branch Tracking、DNS/Auth/SMTP/secret、应用部署和
-邀请仍未执行。
+Preview environment 均为 Disabled。两个 project 现均已连接精确 GitHub repository `Neil0619/huayi`，
+Production Branch Tracking 均为 `codex/settings-configuration`；Root 独立复读两个 Git、Environment 与
+Deployments 页面，确认仍无 Production deployment 或 deployment 记录，Production environment 均为
+`No Environment Variables Added`。本轮没有接受 GitHub App permission upgrade，也没有执行 domain、
+environment variable 或 deployment 动作。DNS/Resend/Auth/SMTP/production-only environment、应用部署和
+邀请仍未执行；仓库 `git.deploymentEnabled=false` 继续保持首次部署关闭。
 
 ## 1. 当前事实与目标
 
@@ -19,7 +23,9 @@ diagnostic 显示 chain/schema/RLS/价格/Storage/空 Auth 与 0012 结构均符
 creator-control 边而失败。用户已在同一工作树运行修正版 foundation verify 并通过，随后固定 Operator
 status 返回 `empty`；Auth、profile、Operator 和 invitation 仍为空。
 2026-08-22 通过 Google DoH 复核，`app.acceptance`、`api.acceptance`、`notify.acceptance` 与其 DMARC 名称
-仍为 NXDOMAIN。Vercel project 已存在，但 Git link 仍不存在。
+仍为 NXDOMAIN。两个 Vercel project 已连接精确 GitHub repository `Neil0619/huayi`，Preview 均为
+`Disabled`，Production Branch Tracking 均为 `codex/settings-configuration`；Production environment 尚无
+变量，Deployments 仍为空。
 
 本阶段目标是建立可重复、默认失败关闭的 hosted application deployment contract，然后按固定顺序部署：
 
@@ -144,7 +150,12 @@ deployment。
 确认零 deployment；Dashboard 只读回查确认 API 为 Hono、`apps/api`、Node 22，Web 为 Vite、`apps/web`、
 `pnpm build`/`dist`、Node 22，两者均启用 root 外 source、Preview=`Disabled`、无 Production deployment、
 无 Git link。Dashboard 还证明未连接 Git 时 Production environment 只显示 `No branch configuration`，
-Production Branch Tracking 尚不可设置。
+Production Branch Tracking 尚不可设置。随后 API/Web 均已连接精确 GitHub repository `Neil0619/huayi`，
+并分别把 Production Branch Tracking 保存为 `codex/settings-configuration`。Root 独立复读两个 project：
+Preview 仍为 `Disabled`，Deployments 页面均为 `No Production Deployment` 且没有 deployment 记录，
+Production environment 均为 `No Environment Variables Added`。本轮没有接受 permission upgrade，也没有
+执行 domain、environment variable 或 deployment 动作；`git.deploymentEnabled=false` 仍使首次部署保持
+关闭，不能把 Git/Branch Tracking 门通过解释为 deployment 已就绪。
 
 `.vercel/` 只保存本机 project link，不提交。项目 ID、team ID、deployment ID 和 custom-domain 记录可写入
 无 secret 发布证据；token 与环境变量值不可写入仓库或聊天。
@@ -288,7 +299,9 @@ format/lint/typecheck/build、architecture、development blocker、Store release
 `admin=false / inherit=false / set=true`，仅允许可选 `postgres` creator-control
 `admin=true / inherit=false / set=false`，并由 bootstrap/verify/diagnostic 复用同一 SQL 契约。实现修复阶段
 未连接远端；修正版远端只读 verify 与固定 Operator status 已由用户实际运行并分别得到 passed / `empty`，
-因此数据库 foundation 门已关闭；Vercel/DNS/Auth/SMTP/secret/deployment 与邀请门仍保持关闭。
+因此数据库 foundation 门已关闭；Vercel project settings、Git repository、Preview、Production Branch 与
+零 deployment 回读门也已关闭。DNS/Resend/Auth/SMTP/production-only environment、domain、deployment 与
+邀请门仍保持关闭。
 
 ## 8. 文档审查结论与外部输入
 
@@ -308,7 +321,9 @@ Singapore Function region、五项 CRON、五条 Auth redirect，并让 hosted W
 本轮 Store-disabled 实现与上述输入校准已通过 fresh 根级 `pnpm verify:macos`：214/214 Node、474/474
 Vitest files（2,862 passed / 12 skipped）、Store 481/481、Playwright 110/110，以及全部
 format/lint/typecheck/build、architecture、release 和 production audit；production 依赖审计无已知漏洞。
-该证据只关闭离线实现门，不代表已创建 Vercel project 或完成任何外部配置、部署、真实请求与邀请。
+该证据在当时只关闭离线实现门，不代表当时已创建 Vercel project 或完成任何外部配置、部署、真实请求与
+邀请；后续已单独完成 project bootstrap、Git/Branch Tracking 与零 deployment 回读，但仍未执行
+production-only environment、domain、Resend/Auth/SMTP、deployment、真实请求或邀请。
 
 官方约束来源：
 

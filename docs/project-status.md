@@ -1470,3 +1470,17 @@ passed; first Operator empty`。候选已提交推送，0012 已实际 push；�
   format/lint/typecheck/build、architecture、release 与 production audit；
 - 当前 Git、Production Branch、environment variable、domain、deployment、真实 Provider 请求和邀请仍未
   执行。下一外部门是先 API、后 Web 的受控 Git connection；任何一步出现 deployment 都立即停止。
+
+## Cloud V1 Phase 60 Vercel Git 与 Production Branch 零部署状态（2026-08-22）
+
+- `seen-said-acceptance-api` 与 `seen-said-acceptance-web` 均已连接精确 GitHub repository
+  `Neil0619/huayi`；两个 Preview environment 均继续为 `Disabled`，两个 Production Branch Tracking 均为
+  `codex/settings-configuration`；
+- Root 独立复读两个 project 的 Git、Environment 与 Deployments 页面：两边均为
+  `No Production Deployment` 且没有 deployment 记录，两个 Production environment 均为
+  `No Environment Variables Added`；
+- 本轮没有接受 GitHub App permission upgrade，也没有执行 domain、environment variable 或 deployment
+  动作；Phase 59 的零部署状态在 Git connection 与 Branch Tracking 保存后仍保持；
+- 仓库 `git.deploymentEnabled=false` 继续禁用所有 Git deployment，因此首次部署尚未武装。下一外部门是
+  production-only environment、domain、Resend、Supabase Auth/SMTP 的配置与复核；全部通过后才允许另做
+  受审查提交，收窄并解锁受控 production branch，再按 API→Web 发起首次 deployment。

@@ -3,6 +3,19 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-22：Vercel Git 与 Production Branch 门在零部署下关闭
+
+- `seen-said-acceptance-api` 与 `seen-said-acceptance-web` 均已连接精确 GitHub repository
+  `Neil0619/huayi`；两个 project 的 Preview environment 继续为 `Disabled`，Production Branch Tracking
+  均固定为 `codex/settings-configuration`；
+- Root 独立复读两个 project 的 Git、Environment 与 Deployments 页面：均为
+  `No Production Deployment` 且没有 deployment 记录，Production environment 均为
+  `No Environment Variables Added`；本轮未接受 GitHub App permission upgrade，也未执行 domain、
+  environment variable 或 deployment 动作；
+- Git/Branch Tracking 门通过不等于首次部署已武装。仓库 `git.deploymentEnabled=false` 继续禁用所有 Git
+  deployment；只有 production-only environment、domain、Resend、Supabase Auth/SMTP 全部完成并复核后，
+  才能通过另一次受审查提交收窄并解锁受控 production branch，然后按 API→Web 执行首次部署。
+
 ## 2026-08-22：Production Branch 改为 Git 连接后的零部署门
 
 - 真实 Dashboard 证明未连接 Git 时 `Settings → Environments → Production` 只有 `No branch configuration`，
