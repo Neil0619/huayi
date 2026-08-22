@@ -8,6 +8,7 @@
   },
   "scripts": {
     "build": "tsc --project tsconfig.build.json",
+    "build:vercel": "pnpm --dir ../.. --filter @huayi/learning-domain --filter @huayi/cloud-contracts build && pnpm build",
     "test": "pnpm --dir ../.. exec vitest run --config vitest.config.ts --project api",
     "typecheck": "tsc --noEmit --project tsconfig.json && tsc --noEmit --project tsconfig.test.json"
   },

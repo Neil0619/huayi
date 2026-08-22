@@ -10,6 +10,7 @@ import {
 } from "./production-app.js";
 
 interface VercelConfiguration {
+  buildCommand?: unknown;
   builds?: unknown;
   crons?: unknown;
   fluid?: unknown;
@@ -35,6 +36,18 @@ describe("production API composition", () => {
         "codex/settings-configuration": true,
       },
     });
+  });
+
+  it("builds runtime workspace packages before Vercel traces the Hono function", async () => {
+    const vercelConfiguration = await readVercelConfiguration();
+    const packageConfiguration = JSON.parse(
+      await readFile(new URL("../package.json", import.meta.url), "utf8"),
+    ) as { scripts?: Record<string, string> };
+
+    expect(vercelConfiguration.buildCommand).toBe("pnpm build:vercel");
+    expect(packageConfiguration.scripts?.["build:vercel"]).toBe(
+      "pnpm --dir ../.. --filter @huayi/learning-domain --filter @huayi/cloud-contracts build && pnpm build",
+    );
   });
 
   it("wires the fail-closed adapters without contacting external services for health", async () => {
