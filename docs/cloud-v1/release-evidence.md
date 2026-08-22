@@ -1262,3 +1262,27 @@ typecheck、architecture、build、development blocker、Store release、product
   漏洞；
 - **外部状态边界**：本节只记录仓库候选与待执行 runbook，不声称已创建 Vercel project、连接 repository、
   安装/运行 Vercel CLI、配置环境变量或产生 deployment；真实外部证据必须在后续步骤单独记录。
+
+## 47. Vercel 空 project REST bootstrap（2026-08-22）
+
+- **官方契约复核**：只使用 Vercel 官方 REST 文档，并按官方 `vercel/sdk` 当前生成模型交叉确认
+  `GET /v2/teams`、`POST /v11/projects`、`GET/PATCH /v9/projects/{idOrName}`、
+  `GET /v7/deployments` 及 Root/Framework/Node/source-outside-root/Preview/resource settings 字段；没有向
+  `api.vercel.com` 发请求，也未安装 Vercel CLI；
+- **Fresh RED/GREEN**：新增测试先因 bootstrap 模块缺失按预期失败；最小实现以 fake fetch 覆盖 exact
+  URL/method/query/body、name-only create、settings PATCH、零 deployment 前后检查、无 Git、精确 team、
+  幂等既有 project、部分失败重跑、只读 status、Token 与第三方错误不回显；
+- **失败关闭边界**：两个 project 在首个写入前一起预检；已有 Git、deployment、environment、alias/
+  integration 或部分配置漂移时不覆盖。创建请求从不携带 `gitRepository`，实现中不存在 deployment POST；
+- **Dashboard 事实边界**：官方 PATCH 支持 Preview 禁用，但当前官方 project GET schema不返回该字段，故
+  仍要求 Dashboard 回读；Production Branch 也只在 Dashboard 设置。脚本不创建 production environment、
+  domain、Git link 或 deployment；
+- **外部状态**：用户已在 Vercel 侧生成短期 Access Token，但本实现没有读取、显示或持久化它；截至本节
+  尚未运行真实 `apply`；
+- **离线验证**：Fresh RED 后新 bootstrap/security 测试 11/11、与既有 hosted deployment 合并 15/15、
+  `pnpm test:scripts` 225/225 通过；无 Token 的 package plan、format、lint、typecheck、build、instructions、
+  architecture 与 `git diff --check` 均通过；
+- **完整 macOS 门禁复核**：`pnpm verify:macos` 原样退出 0；Node 225/225、Vitest 474/474 files
+  （2,863 passed / 12 skipped）、Store coverage 481/481、Playwright 110/110，workspace
+  format/lint/typecheck/build、instructions、architecture、development blocker、Store release 与 production
+  audit 全部通过，且无已知 production 漏洞。

@@ -1411,3 +1411,22 @@ passed; first Operator empty`。候选已提交推送，0012 已实际 push；�
   format/lint/typecheck/build、architecture、发布和 production audit 门通过并无已知 production 漏洞；
 - 当前只完成离线配置、测试和文档校准；未创建 Vercel project、未连接 repository、未配置 secret、未产生
   deployment，外部部署门仍关闭。
+
+## Cloud V1 Phase 56 Vercel 空 project REST bootstrap 状态（2026-08-22）
+
+- 新增 `acceptance:vercel:projects:{plan,apply,status}`：plan 完全离线；apply 需要精确确认参数且只从进程
+  环境读取 Token；status 只输出 bounded state，不记录 Token、资源 ID 或第三方错误正文；
+- 当前官方 REST 契约已固定为 token-scoped `GET /v2/teams`、name-only `POST /v11/projects`、
+  `GET/PATCH /v9/projects/{idOrName}` 与零集合 `GET /v7/deployments`。脚本不会调用 deployment POST，
+  create body 不含 Git repository；
+- 两个 project 在任何写入前同时预检。已有 Git、deployment、environment、alias/integration 或配置漂移
+  时失败关闭；不存在或安全空 shell 才按 API→Web 顺序冻结 Root/Framework/Node 22/monorepo 外部 source，
+  Web 固定 build/dist，API 固定 Fluid/`sin1`/120 秒。中途失败立即停止并允许从安全空 shell 重跑；
+- Preview 禁用使用官方 PATCH 字段，但当前官方 GET schema 不返回该字段，所以仍需 Dashboard 回读；
+  Production Branch=`codex/settings-configuration` 也继续是 Dashboard 门，不能由脚本冒充已配置；
+- Fresh RED 后 bootstrap/security 11/11、相关合并 15/15、完整 scripts 225/225 通过；最终
+  `pnpm verify:macos` 为 Node 225/225、Vitest 474/474 files（2,863 passed / 12 skipped）、Store coverage
+  481/481、Playwright 110/110，全部 format/lint/typecheck/build、architecture、发布和 production audit 门
+  通过且无已知 production 漏洞；
+- 当前只完成离线实现、fake-fetch 验证与文档校准；尚未执行真实 `apply`，未创建 project、Git link、domain、
+  environment variable 或 deployment。外部 Vercel 门仍关闭。

@@ -94,10 +94,37 @@ repository connect 自动创建 deployment。
    根据当时官方 schema 冻结“只允许 `codex/settings-configuration`”的精确 Git deployment policy，再先
    API、后 Web 发起首次正式 deployment。禁止为了省略该提交直接把布尔值改成允许所有分支。
 
+仓库提供三个固定入口执行上述第 1–2 步，而不要求调用方临时拼接 REST body：
+
+- `pnpm acceptance:vercel:projects:plan`：完全离线，不读取 `VERCEL_TOKEN`；
+- `pnpm acceptance:vercel:projects:apply -- --confirm-vercel-empty-projects-neil0619s-projects`：只从进程
+  环境读取 `VERCEL_TOKEN`，先用 `GET /v2/teams` 精确匹配 name=`neil0619's projects` 且
+  slug=`neil0619s-projects` 的 token-scoped team，再预检两个 project，最后才允许写入；
+- `pnpm acceptance:vercel:projects:status -- --status-vercel-empty-projects-neil0619s-projects`：只读回查，
+  仅输出 `missing`、`shell-unconfigured` 或 `settings-ready-dashboard-pending` 等有界状态，不输出 team/
+  project/deployment ID 或第三方正文。
+
+`apply` 的创建请求固定为 `POST /v11/projects` 且 body 只有 project name，不提供 `gitRepository`；PATCH
+固定走 `PATCH /v9/projects/{idOrName}`，写入 Root、Framework、Node `22.x`、root 外 source 和官方支持的
+Preview 禁用字段，Web 另写 build/output，API 另写 Fluid、`sin1` 和 120 秒 resource defaults。每次写入前后
+都用 `GET /v7/deployments?projectId=...&limit=1` 证明空集合，并通过 `GET /v9/projects/{idOrName}` 回读
+Root/Framework/Node/build/output/resource settings 与 Git link 缺失。两个 project 在任何写入前都完成预检；
+只接受不存在、全空 shell 或与冻结设置精确一致的零 deployment/零 Git project。已有 Git link、deployment、
+环境变量、alias/integration 或部分漂移一律停止，不能覆盖；请求中途失败也立即停止，重跑只会复用已创建的
+安全空 shell。
+
+Vercel 官方 PATCH 请求支持 `previewDeploymentsDisabled=true`，但当前官方 project GET response schema 不
+返回这个字段，所以脚本只能安全发出幂等请求，不能把它冒充成已回读证明。第 3 步必须在 Dashboard 同时
+核对 Preview Deployments disabled，并设置 Production Branch；两项均完成前不得连接 Git。Production-only
+环境变量继续属于后续 secret 阶段，本 bootstrap 不创建任何 environment、domain 或 deployment。
+
 官方依据：[Vercel project configuration: git](https://vercel.com/docs/project-configuration#git)、
 [Vercel Projects REST API](https://vercel.com/docs/rest-api/reference/endpoints/projects)、
-[Vercel CLI git](https://vercel.com/docs/cli/git)。本节记录的是待执行 runbook；截至当前尚未创建 Vercel
-project、连接 repository 或产生 deployment。
+[Vercel Deployments REST API](https://vercel.com/docs/rest-api/reference/endpoints/deployments)、
+[Vercel Teams REST API](https://vercel.com/docs/rest-api/reference/endpoints/teams)、
+[Vercel CLI git](https://vercel.com/docs/cli/git)。本节 REST 版本和字段另按当前官方 `vercel/sdk` 生成契约
+交叉核对。本节记录的是待执行 runbook；截至当前脚本尚未执行外部 `apply`，未创建 Vercel project、连接
+repository 或产生 deployment。
 
 `.vercel/` 只保存本机 project link，不提交。项目 ID、team ID、deployment ID 和 custom-domain 记录可写入
 无 secret 发布证据；token 与环境变量值不可写入仓库或聊天。
@@ -203,6 +230,8 @@ Fresh RED 必须先覆盖：
 3. deployment plan 缺任一 Vercel、environment、Auth redirect、SMTP、DNS 或 CRON 项；
 4. verifier 输出任何 secret/value，或错误地把 preview 配成 hosted production；
 5. Web bundle 含任一服务端 secret 名/值。
+6. Vercel empty-project bootstrap 缺 exact team scope、name-only create、settings PATCH、双向零 deployment
+   检查、Git/link/漂移失败关闭、幂等重跑、固定 status 或 Token/远端错误不回显。
 
 最小 GREEN 提供一个零网络、零写入的 `pnpm acceptance:hosted:deployment --plan`，只输出固定 project、
 Root/Framework/Build/Output/Node/region、变量名分类、五条 Auth redirect、SMTP/DNS/CRON 顺序与 pending
@@ -210,6 +239,11 @@ Root/Framework/Build/Output/Node/region、变量名分类、五条 Auth redirect
 部署必须由后续受审查提交解锁。`--verify-environment` 只读取进程环境，复用生产 schema 验证格式和固定
 project/origin 一致性，
 只输出 fixed passed/failed，不输出变量值、URL 中密码或第三方错误。
+
+Vercel bootstrap 的最小 GREEN 另要求：`plan` 不访问网络且不读取 Token；`apply` 只有精确确认参数才能访问
+REST，先预检两个 project 再按 API→Web 顺序创建/复用；请求序列、method、query、body 和 Authorization
+位置必须由 fake fetch 精确断言，且任何路径都不存在 deployment POST。API 错误状态不得读取或反射远端
+正文，部分失败后安全重跑必须从空 shell 继续；`status` 只读且输出有界状态。默认自动门不得访问 Vercel。
 
 离线退出门：focused API/Web/script tests、API/Web full、typecheck/build、Prettier/ESLint、Vercel config
 schema、secret scan、`git diff --check` 和完整 `pnpm verify:macos`。Hosted 退出门另要求：

@@ -3,6 +3,20 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-22：Vercel 空 project shell 改用失败关闭、可重放的固定 REST bootstrap
+
+- 不再让操作者临时拼接 Vercel 请求：固定 CLI 先通过 token-scoped Teams API 精确解析
+  `neil0619s-projects`，同时预检 API/Web 两个 project，只有不存在、全空 shell 或冻结设置完全一致且
+  无 Git、deployment、environment/alias/integration 的状态才能继续；
+- project create 只发送 name，不附 `gitRepository`；随后用官方 Projects PATCH 字段冻结 Root、Framework、
+  Node 22、monorepo 外部 source、Preview 禁用请求与 API/Web 专属设置，并在写入前后查询 Deployments API
+  确认仍为空。任何漂移或部分失败立即停止，安全空 shell 可幂等重跑；
+- 当前官方 project GET schema 不返回 `previewDeploymentsDisabled`，因此该字段虽由 PATCH 幂等请求，仍必须
+  在 Dashboard 回读；Production Branch 也继续只在 Dashboard 设置。脚本不得据此连接 Git、创建 domain/
+  environment/deployment 或宣称 production-only 已关闭；
+- Token 只允许从进程环境读取，计划完全离线，状态输出有界且不包含远端正文或资源 ID。本条只冻结仓库
+  工具与外部执行协议；截至记录时尚未执行真实 REST `apply`。
+
 ## 2026-08-22：Vercel 首次 Git 连接增加全分支 deployment kill switch
 
 - API/Web 两份 `vercel.json` 新增官方 `git.deploymentEnabled=false`；GitHub repository 连接期间所有分支
