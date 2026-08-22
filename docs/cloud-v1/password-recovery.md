@@ -7,8 +7,8 @@ Google→password 显式绑定，以及 PasswordRecovery 的离线 Web 入口与
 `privacy-policy.md` 已声明邮件提供商用于密码恢复，
 `account-sign-in-methods.md` 又明确恢复必须是未登录、email-enumeration-safe、purpose-bound temporary
 session，不能复用已登录 identity-link flow。本方案补齐这项独立能力，当前状态为
-`R4 Web + actual bundle offline implemented; R3-C real notification sender and R5 target-platform
-validation pending`。
+`R3-C production notification code offline implemented; real Resend/DNS delivery and R5
+target-platform validation pending`。
 
 2026-08-14 复核的 Supabase 官方行为是：`resetPasswordForEmail` 支持 PKCE，并把用户带回配置的固定
 redirect URL；回调 code 必须与同一 PKCE flow 的 verifier 一起交换，code 短时且单次；更新密码仍要求
@@ -166,6 +166,7 @@ interface SecurityNotificationSender {
 interface SecurityNotificationRepository {
   claim(): Promise<{
     attemptCount: number;
+    deliveryDeadline: Date;
     email: string;
     leaseToken: string;
     notificationId: string;
@@ -221,20 +222,25 @@ state，verified 前不能出现 recovery session/CSRF；completed 必须有 con
 SELECT/INSERT/UPDATE/DELETE，只能调用 fixed-search-path SECURITY DEFINER 函数。账号删除级联 flow。所有
 secret 只存 keyed hash 或加密 ciphertext，明文 email、code、Cookie、CSRF、新密码和 Provider token 不入表。
 
-另新增通用 `security_notification_outbox`：`id`、owner、固定 kind、status、attempt count、available/sent/
-created timestamps。恢复成功事务只写 `kind=password-reset-completed`，不写密码、token、IP、user agent 或
-Provider detail；worker 发送时从 active/disabled profile 读取当前规范邮箱。通知失败可重试并告警，不回滚
-密码变化。通知 worker 每次只领取一条、使用 120 秒 keyed lease；发送失败回到 pending，按
-`min(6 hours, 60 seconds * 2^(attemptCount-1))` 退避，稳定 outcome 供部署监控告警。邮件 port 只接收规范
+另新增通用 `security_notification_outbox`：`id`、owner、固定 kind、status、attempt count、23 小时
+`delivery_deadline_at` 与 available/sent/created timestamps。恢复成功事务只写
+`kind=password-reset-completed`，不写密码、token、IP、user agent 或 Provider detail；worker 发送时从
+active/disabled profile 读取当前规范邮箱。通知失败可重试并告警，不回滚密码变化。通知 worker 每次只领取
+一条、使用 120 秒 keyed lease；最多 8 次，发送失败按
+`min(deadline, 6 hours, 60 seconds * 2^(attemptCount-1))` 退避。到期行在 Provider 前进入 `failed`，尝试
+耗尽行在 Provider 前或最后一次失败后进入 `dead-letter`；一次 claim 最多终态化 100 条。邮件 port 只接收规范
 邮箱、outbox notification ID 形式的幂等键和固定 `password-reset-completed` 模板意图，不接收 flow、
 token、IP、密码或 Provider detail；真实 sender 必须把该 ID 映射为厂商幂等键，使“已投递但本地 complete
 失败”的 lease 接管不会重复发信。该
-outbox 后续可复用登录方式绑定通知，但不会与 recovery flow 合并。
+outbox 后续可复用登录方式绑定通知，但不会与 recovery flow 合并。无正文 alert port 只接收固定 reason 与
+1–100 的 count；不得接收 email、owner、notification ID、正文或原始异常。
 
-当前仓库没有选择真实安全通知邮件厂商，也没有对应 API key/verified sender 配置。R3 先实现上述深模块、
-Postgres lease/retry 与 fake sender 离线证据；在厂商、发送域名、支持联系方式和告警渠道完成产品确认前，
-不挂载一个必然失败的 production sender 或伪造成功。选型后需补充独立 CRON bearer route、严格 bounded
-outcome、环境 schema、隐私接收方和部署验证，再把通知发布门禁关闭。
+R3-C 仓库代码固定使用 Resend `https://api.resend.com/emails`、notification ID 幂等键、20 秒请求上限和
+固定“密码已重置”模板；API key、from 与 Reply-To 只从 hosted secret 环境读取。独立
+`GET /internal/security-notifications/run` 只接受 CRON bearer 并只返回 bounded outcome。production
+Supabase operations SQL 安装第五个独立 minute job。本机验收只能显式使用
+`disabled-local-acceptance`，且该模式被三个固定 localhost origin 限定；route 返回 idle，不读取 outbox、
+不调用 Resend。真实 verified sender、DNS、Resend 投递、监控目的地和厂商 Dashboard 仍是外部发布门禁。
 
 ### 5.1 2026-08-20 外部前置条件延期
 
@@ -255,6 +261,20 @@ DNS 记录，也不实现真实 sender/CRON/告警。现有 fake sender 与离�
 4. 恢复条件至少包含：已购买主域、明确 DNS 管理方、Resend 账号与计划获批、验证
    `notify.<root-domain>`、确定可监控的 Reply-To/支持邮箱和 dead-letter 告警目的地；API key 只能进入
    部署 secret，不得写入仓库、文档或对话。
+
+### 5.2 2026-08-21 外部前置条件恢复
+
+用户现已确认可以注册自有域名、Resend 并配置 DNS，5.1 的延期记录保留为历史但不再代表当前执行
+状态。hosted acceptance 使用 `notify.acceptance.<root-domain>`，未来 production 保留
+`notify.<root-domain>`；Supabase Auth 的 Resend custom SMTP 负责恢复链接，应用 R3-C 的 Resend HTTP
+sender 负责消费 `security_notification_outbox`，两者使用不同 credential。域名/SPF/DKIM/SMTP 验证都
+不能替代 R3-C 的仓库门禁。sender adapter、通知 CRON、厂商幂等窗口、terminal/dead-letter 与无正文告警
+已完成 Fresh RED→GREEN；受控真实投递、verified sender 与监控接收方仍待 hosted 验收。
+
+Resend 当前只保留 idempotency key 24 小时；实现因此固定 23 小时 delivery deadline、最多 8 次、
+failed/dead-letter 终态与超窗零发送告警，并覆盖“Provider 已发送、数据库 complete 失败”只在窗口内以
+同 notification ID 重放以及超窗后不再调用 Provider。完整厂商事实见
+[Resend Idempotency Keys](https://resend.com/docs/dashboard/emails/idempotency-keys)。
 
 参考当前官方资料：
 
@@ -366,12 +386,13 @@ email scanner 行为、secure-password-change 配置、Cookie same-site/domain/T
    SECURITY DEFINER
    转换、forced RLS、业务 role 零直访、100 条 cleanup 与 Postgres adapter 已实现；深模块+内存 11/11，
    migration+PGlite adapter 19/19，其中 recovery 专属 PGlite 7/7，当时 API 99 files、345/345；
-4. **R3 HTTP + workers/outbox（部分离线已完成）**：R3-A 五条公开 route、internal dispatch route、250ms
+4. **R3 HTTP + workers/outbox（仓库内离线已完成）**：R3-A 五条公开 route、internal dispatch route、250ms
    start floor、Cookie/Origin/CSRF/rate-limit/no-store/no-referrer 与 production recovery composition 已完成；
    R3-B 独立通知 worker port、notification-ID sender 幂等键、120 秒 Postgres lease、有界退避与 fake sender
    已完成。R3 focused 为 HTTP 8/8、通知 worker/adapter 6/6、通知 PGlite 1/1，完整 API 102 files、360/360，
-   typecheck/build/目标 lint/format 通过。R3-C 真实通知 sender、CRON 与告警仍受邮件厂商、verified sender、
-   支持联系方式和部署配置外部门禁约束；
+   typecheck/build/目标 lint/format 通过。R3-C 又补齐 Resend sender、23 小时/8 次状态机、0011、独立
+   bounded route、第五个 Cron 与无正文 alert port；真实 verified sender、受控投递、监控接收方和部署
+   配置仍受外部门禁约束；
 5. **R4 Web + actual bundle（离线已完成）**：Web strict client 已接入 start/session/complete；`/login` 与
    独立 `/recover` 页面覆盖统一 start、query 清理、两份 new-password 输入、本地 mismatch 零请求、失败
    保留输入、成功清空并返回登录。focused Web 单元 17/17；production bundle + fake mail Playwright 1/1
@@ -382,8 +403,8 @@ email scanner 行为、secure-password-change 配置、Cookie same-site/domain/T
 6. **R5 离线总审与目标验收（离线审查已完成，目标验收 pending）**：Web 184/184、完整 Playwright
    105/105、`check:instructions`、workspace typecheck/build、`pnpm test`、目标 ESLint/Prettier 与
    `git diff --check` 通过。根级 `format:check` 仍被既有 70 个文件阻塞，根级 `lint` 仍被既有
-   `.agents/skills/**` 143 条 CJS 环境错误阻塞；本阶段没有扩大或顺手改写这些不相关文件。真实服务、通知
-   sender/CRON/告警与双平台矩阵必须另行批准和配置后执行。
+   `.agents/skills/**` 143 条 CJS 环境错误阻塞；本阶段没有扩大或顺手改写这些不相关文件。真实服务、邮件
+   投递/监控接收与双平台矩阵必须另行批准和配置后执行。
 
 ## 9. 实现与审查结论
 
@@ -398,15 +419,15 @@ email scanner 行为、secure-password-change 配置、Cookie same-site/domain/T
 - **已记录跨系统窗口**：异步 worker 在发信前写 durable dispatch，丢失后不得自动重发；Provider 发信仍
   早于 state durable save，Provider update 也早于数据库 stage，二者都不能被伪装成 exactly-once；失败
   依赖用户显式重试，禁止后台透明发信或改密。
-- **已分离安全通知**：通知通过耐久 outbox 后置发送，不让邮件暂时失败回滚已经生效的密码，但通知真实
-  投递仍是发布门禁。
+- **已分离安全通知**：通知通过耐久 outbox 后置发送，不让邮件暂时失败回滚已经生效的密码；仓库内
+  sender/终态/Cron/告警投影已完成，但真实投递仍是发布门禁。
 - **R4 审查结论**：Web 只依赖三个窄 recovery 方法，不读取 Supabase token 或账号身份；continuation query
   首次渲染即清除，React StrictMode 只读一次 session；密码不一致在客户端失败且不触发 API。actual bundle
   证明确认页 GET 不消费 proof，显式 POST 才建立 path-scoped Cookie；成功完成后没有自动登录，必须以新
   密码重新取得 Huayi session。公开 request facts、DOM 与 Storage 不含邮箱、密码、flow/code、Cookie 或
   CSRF 值。
 - **结论**：方案与邀请、method fence、recent-auth、Cookie/RLS 和隐私边界一致。R1 独立 Provider seam、
-  R2 深模块/内存/Postgres、R3-A HTTP/dispatch、R3-B 通知核心与 R4 Web/actual bundle 均已通过离线回归，
-  R5 离线总审也未发现新的权限提升、秘密持久化或任意 redirect。真实 notification sender/CRON/告警、
-  Supabase/邮件/部署和双平台 Chrome 仍未验证，整体状态只能是
+  R2 深模块/内存/Postgres、R3-A HTTP/dispatch、R3-B 通知核心、R3-C production notification code 与
+  R4 Web/actual bundle 均已通过离线回归，R5 离线总审也未发现新的权限提升、秘密持久化或任意 redirect。
+  真实 DNS/verified sender/Resend 投递/监控接收方、Supabase/邮件部署和双平台 Chrome 仍未验证，整体状态只能是
   `implemented; target-platform validation pending`。

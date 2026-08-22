@@ -1,4 +1,8 @@
-import { confirmCandidatesResponseSchema, contractFixtures } from "@huayi/cloud-contracts";
+import {
+  analysisRecordSchema,
+  confirmCandidatesResponseSchema,
+  contractFixtures,
+} from "@huayi/cloud-contracts";
 import { describe, expect, it } from "vitest";
 import { Hono } from "hono";
 import { createAnalysisApp } from "./analysis-app.js";
@@ -137,6 +141,20 @@ describe("analysis HTTP slice", () => {
   it("confirms candidates only with matching revision and idempotency proof", async () => {
     const server = app();
     const analysisId = await seedAnalysis(server);
+    const analysis = analysisRecordSchema.parse(
+      await (await server.request(`/v1/analyses/${analysisId}`)).json(),
+    );
+    const candidateId = analysis.candidates[0]?.id;
+    if (candidateId === undefined) throw new Error("Expected seeded candidate.");
+    const confirmationRequest = {
+      ...contractFixtures.confirmCandidatesRequest,
+      confirmations: contractFixtures.confirmCandidatesRequest.confirmations.map(
+        (confirmation) => ({
+          ...confirmation,
+          candidateId,
+        }),
+      ),
+    };
     const missing = await server.request(`/v1/analyses/${analysisId}/candidates:confirm`, {
       body: JSON.stringify(contractFixtures.confirmCandidatesRequest),
       headers: { "Content-Type": "application/json" },
@@ -154,7 +172,7 @@ describe("analysis HTTP slice", () => {
     expect(missing.status).toBe(400);
     expect(mismatch.status).toBe(400);
     const confirmed = await server.request(`/v1/analyses/${analysisId}/candidates:confirm`, {
-      body: JSON.stringify(contractFixtures.confirmCandidatesRequest),
+      body: JSON.stringify(confirmationRequest),
       headers: {
         "Content-Type": "application/json",
         "Idempotency-Key": "confirm-ok",
@@ -165,7 +183,7 @@ describe("analysis HTTP slice", () => {
     expect(confirmed.status).toBe(200);
     expect(confirmCandidatesResponseSchema.parse(await confirmed.json())).toMatchObject({
       analysis: { reviewState: "reviewed", revision: 2 },
-      results: [{ action: "created", candidateId: "candidate-1" }],
+      results: [{ action: "created", candidateId }],
     });
   });
 });

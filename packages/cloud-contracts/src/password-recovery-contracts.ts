@@ -47,3 +47,12 @@ export const passwordRecoveryRunResponseSchema = z.strictObject({
   outcome: z.enum(["failed", "idle", "sent"]),
 });
 export type PasswordRecoveryRunResponse = z.infer<typeof passwordRecoveryRunResponseSchema>;
+
+export const securityNotificationHttpRoutes = {
+  run: "/internal/security-notifications/run",
+} as const;
+
+export const securityNotificationRunResponseSchema = z.strictObject({
+  outcome: z.enum(["failed", "idle", "sent", "terminalized"]),
+});
+export type SecurityNotificationRunResponse = z.infer<typeof securityNotificationRunResponseSchema>;

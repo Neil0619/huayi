@@ -2,6 +2,7 @@ import { calculateConservativeReservation } from "@huayi/cloud-contracts";
 
 import type { AnalysisDatabase } from "./analysis-database.js";
 import type { AnalysisQuota } from "./analysis-ports.js";
+import type { DeepSeekAnalysisFetch } from "./deepseek-analysis-protocol.js";
 import {
   createDeepSeekPracticeProvider,
   deepSeekPracticeMaximumUsage,
@@ -14,16 +15,22 @@ import { systemClock } from "./security.js";
 export function createProductionPracticeGenerator(options: {
   apiKey: string;
   database: AnalysisDatabase;
+  fetch?: DeepSeekAnalysisFetch;
   pricing: DeepSeekPriceSchedule;
   quota: AnalysisQuota;
 }) {
   return createPaidPracticeGenerator({
     provider: createDeepSeekPracticeProvider({
       apiKey: options.apiKey,
+      ...(options.fetch === undefined ? {} : { fetch: options.fetch }),
       prices: options.pricing.reservation.prices,
     }),
     providerForPricing: (snapshot) =>
-      createDeepSeekPracticeProvider({ apiKey: options.apiKey, prices: snapshot.prices }),
+      createDeepSeekPracticeProvider({
+        apiKey: options.apiKey,
+        ...(options.fetch === undefined ? {} : { fetch: options.fetch }),
+        prices: snapshot.prices,
+      }),
     repository: createPostgresPracticeGenerationRepository({
       database: options.database,
       ledgerId: () => crypto.randomUUID(),

@@ -273,12 +273,15 @@ export function createIdentityModule(options: IdentityModuleOptions) {
     return flow.protectedProviderState;
   }
 
-  function completeAuthFlow(flowId: string, userId: string, email: string) {
+  function completeAuthFlow(flowId: string, userId: string, email: string, method: SignInMethod) {
     const flow = authFlows.get(hashSecret(flowId, options.pepper));
     if (flow === undefined || flow.used || flow.expiresAt <= options.clock.now()) {
       throw new CloudFault("authentication_required", "The authentication flow is invalid.");
     }
     if (flow.kind === "login") {
+      if (method !== "google") {
+        throw new CloudFault("authentication_required", "The authentication flow is invalid.");
+      }
       authorizeSignInMethod(userId, "google");
       flow.used = true;
       profileEmails.set(userId, email.trim().toLowerCase());
@@ -289,7 +292,7 @@ export function createIdentityModule(options: IdentityModuleOptions) {
     }
     const claimTicket = flow.claimTicket;
     bindInvitationIdentity(claimTicket, userId);
-    const result = finalizeInvitation(claimTicket, userId, email, "google");
+    const result = finalizeInvitation(claimTicket, userId, email, method);
     flow.used = true;
     return result;
   }

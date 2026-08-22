@@ -233,7 +233,14 @@ export function createCloudBrowserPracticeHistoryAuthority() {
       await hooks.json(
         route,
         200,
-        practiceHistoryDetailResponseSchema.parse({ completedAt, session }),
+        practiceHistoryDetailResponseSchema.parse({
+          completedAt,
+          itemLabels: [
+            { itemId: "practice-item-1", label: itemOneContent.text },
+            { itemId: "practice-item-2", label: itemTwoContent.template },
+          ],
+          session,
+        }),
       );
       return true;
     }

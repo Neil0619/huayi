@@ -18,12 +18,12 @@ export async function beginDialogueWrite(
 }
 
 export async function saveDialogueWrite(
-  query: AnalysisQuery,
+  tenant: AnalysisQuery,
   command: { idempotencyKey: string; now: string; ownerUserId: string; requestHash: string },
   operation: string,
   response: PracticeSession,
 ) {
-  await query.rows(
+  await tenant.rows(
     `INSERT INTO idempotency_records(owner_user_id,operation,key,request_hash,response,expires_at)
       VALUES($1,$2,$3,$4,$5::jsonb,$6::timestamptz)`,
     [
@@ -38,13 +38,13 @@ export async function saveDialogueWrite(
 }
 
 export async function replaceDialogueWrite(
-  query: AnalysisQuery,
+  tenant: AnalysisQuery,
   ownerUserId: string,
   operation: string,
   key: string,
   response: PracticeSession,
 ) {
-  await query.rows(
+  await tenant.rows(
     `UPDATE idempotency_records SET response=$4::jsonb
       WHERE owner_user_id=$1 AND operation=$2 AND key=$3`,
     [ownerUserId, operation, key, JSON.stringify(response)],

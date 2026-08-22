@@ -147,7 +147,7 @@ export function createPostgresSentenceFeedbackOperations(
       });
     },
     async completeFeedback(command) {
-      return database.transaction(command.ownerUserId, async ({ tenant, trusted }) => {
+      return database.transaction(command.ownerUserId, async ({ tenant }) => {
         const tasks = await tenant.rows<{ id: string }>(
           `UPDATE practice_generation_tasks SET state='applied',output=NULL,updated_at=$5
             WHERE id=$1 AND session_id=$2 AND attempt_id=$3 AND lease_token=$4
@@ -194,9 +194,9 @@ export function createPostgresSentenceFeedbackOperations(
         );
         const response = await loadSession(tenant, command.sessionId);
         if (command.operation === "practice.feedback-retry") {
-          await savePracticeWrite(trusted, command, command.operation, response);
+          await savePracticeWrite(tenant, command, command.operation, response);
         } else {
-          await trusted.rows(
+          await tenant.rows(
             `UPDATE idempotency_records SET response=$4::jsonb WHERE owner_user_id=$1
               AND operation=$2 AND key=$3`,
             [
@@ -272,7 +272,7 @@ export function createPostgresSentenceFeedbackOperations(
           command.generationId,
         ]);
         const current = await claimItem(tenant, command.sessionId);
-        await savePracticeWrite(trusted, command, "practice.attempt", current.session);
+        await savePracticeWrite(tenant, command, "practice.attempt", current.session);
         return {
           claimed: true,
           generationId: command.generationId,

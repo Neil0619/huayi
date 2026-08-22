@@ -67,6 +67,34 @@ function privateOutput() {
   };
 }
 
+function privatePhraseOutput() {
+  return {
+    candidates: [
+      {
+        analysisUnitId: "u1",
+        id: "candidate-1",
+        ordinal: 0,
+        payload: {
+          meaningZh: "坦率地说",
+          text: "to be frank",
+          type: "expression",
+          usageZh: "用于直接表达个人意见。",
+        },
+        type: "expression",
+      },
+    ],
+    result: {
+      analysisUnitId: "u1",
+      candidateIds: ["candidate-1"],
+      contextualMeaningZh: "这里用于引出坦率意见。",
+      structureAndCollocationZh: ["固定表达。"],
+      translationZh: "坦率地说",
+      type: "phrase-analysis-v2",
+      usageNotes: [],
+    },
+  };
+}
+
 function createFixture(fetch: DeepSeekAnalysisFetch) {
   return createDeepSeekAnalysisModel({
     apiKey: "test-platform-key-that-is-never-logged",
@@ -76,6 +104,23 @@ function createFixture(fetch: DeepSeekAnalysisFetch) {
 }
 
 describe("DeepSeek platform analysis model", () => {
+  it("assembles a strict phrase result without replacing its trusted fields", async () => {
+    const model = createFixture(async () => providerResponse(privatePhraseOutput()));
+
+    await expect(
+      model.analyze({
+        input: {
+          selectionKind: "phrase",
+          source: { type: "manual" },
+          sourceText: "to be frank",
+        },
+        sentences: [{ analysisUnitId: "u1", ordinal: 0, sourceText: "to be frank" }],
+      }),
+    ).resolves.toMatchObject({
+      content: { result: { translationZh: "坦率地说", type: "phrase-analysis-v2" } },
+    });
+  });
+
   it("accepts bounded reasoning token usage without exposing it", async () => {
     const fetch = vi.fn<DeepSeekAnalysisFetch>(async () =>
       providerResponse(privateOutput(), { reasoningTokens: 120 }),

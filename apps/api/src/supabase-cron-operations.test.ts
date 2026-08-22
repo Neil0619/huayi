@@ -9,10 +9,11 @@ const jobs = [
   ["huayi-data-rights", "/internal/data-rights/run"],
   ["huayi-extension-query-cleanup", "/internal/extension-queries/cleanup"],
   ["huayi-duplicate-suggestion-cleanup", "/internal/learning-duplicate-suggestions/cleanup"],
+  ["huayi-security-notifications", "/internal/security-notifications/run"],
 ] as const;
 
 describe("Supabase Cron production adapter", () => {
-  it("installs four independent minute jobs through one private allowlisted adapter", async () => {
+  it("installs five independent minute jobs through one private allowlisted adapter", async () => {
     const sql = await readFile(operationsUrl, "utf8");
 
     expect(sql).toMatch(/create extension if not exists pg_cron/iu);

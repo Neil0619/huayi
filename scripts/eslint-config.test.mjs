@@ -23,13 +23,14 @@ test("rejects a non-kebab-case filename", () => {
   assert.equal(reportsFor("C:\\repo\\src\\WindowsEudicCredential.ts").length, 1);
 });
 
-test("excludes only the external agent skill subtree from product quality gates", async () => {
+test("excludes only reviewed external and generated subtrees from product quality gates", async () => {
   const prettierIgnore = await readFile(new URL("../.prettierignore", import.meta.url), "utf8");
-  const eslintAgentIgnores = eslintConfig
+  const eslintReviewedIgnores = eslintConfig
     .flatMap((config) => config.ignores ?? [])
-    .filter((pattern) => pattern.startsWith(".agents"));
+    .filter((pattern) => pattern.startsWith(".agents") || pattern.startsWith("supabase"));
 
-  assert.equal(prettierIgnore.trim(), ".agents/skills/**");
-  assert.deepEqual(eslintAgentIgnores, [".agents/skills/**"]);
-  assert.equal(eslintAgentIgnores.includes(".agents/**"), false);
+  assert.equal(prettierIgnore.trim(), ".agents/skills/**\nsupabase/.temp/**");
+  assert.deepEqual(eslintReviewedIgnores, [".agents/skills/**", "supabase/.temp/**"]);
+  assert.equal(eslintReviewedIgnores.includes(".agents/**"), false);
+  assert.equal(eslintReviewedIgnores.includes("supabase/**"), false);
 });

@@ -1,6 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "hono",
   "fluid": true,
+  "regions": ["sin1"],
   "functions": {
     "src/server.ts": {
       "maxDuration": 120

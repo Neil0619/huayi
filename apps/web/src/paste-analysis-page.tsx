@@ -58,6 +58,7 @@ export function PasteAnalysisPage({
   const [sourceText, setSourceText] = useState("");
   const [sourceTitle, setSourceTitle] = useState("");
   const [state, setState] = useState<RunState>("idle");
+  const [statusNotice, setStatusNotice] = useState<string | null>(null);
   const abort = useRef<AbortController | null>(null);
   const runGeneration = useRef(0);
 
@@ -69,29 +70,38 @@ export function PasteAnalysisPage({
     [],
   );
 
-  const applyRecoveredStatus = (status: AnalysisRequestStatus, generation: number) => {
+  const applyRecoveredStatus = (
+    status: AnalysisRequestStatus,
+    generation: number,
+    manuallyChecked: boolean,
+  ) => {
     if (generation !== runGeneration.current) return;
     setError(null);
     if (status.state === "completed") {
+      setStatusNotice(null);
       setActiveRequestId(null);
       setAnalysisId(status.analysisId);
       setState("completed");
       return;
     }
     if (status.state === "failed") {
+      setStatusNotice(null);
       setActiveRequestId(null);
       setError(failureMessage(status.error.code));
       setState("failed");
       return;
     }
+    setStatusNotice(manuallyChecked ? "已重新检查，服务器仍在处理。" : null);
     setState("waiting");
   };
 
-  const recoverRequest = async (requestId: string, generation: number) => {
+  const recoverRequest = async (requestId: string, generation: number, manuallyChecked = false) => {
+    if (manuallyChecked) setStatusNotice("正在重新检查服务器状态…");
     try {
-      applyRecoveredStatus(await api.getRequestStatus(requestId), generation);
+      applyRecoveredStatus(await api.getRequestStatus(requestId), generation, manuallyChecked);
     } catch {
       if (generation !== runGeneration.current) return;
+      setStatusNotice(null);
       setError("暂时无法确认服务器状态；请稍后重新检查，不会自动发起第二次分析。");
       setState("waiting");
     }
@@ -107,6 +117,7 @@ export function PasteAnalysisPage({
     setActiveRequestId(null);
     setError(null);
     setPreviews([]);
+    setStatusNotice(null);
     setUnitCount(null);
     setState("running");
 
@@ -178,7 +189,7 @@ export function PasteAnalysisPage({
     runGeneration.current += 1;
     abort.current?.abort();
     abort.current = null;
-    setActiveRequestId(null);
+    setStatusNotice(null);
     setState("cancelled");
   };
 
@@ -200,10 +211,7 @@ export function PasteAnalysisPage({
             id="source-text"
             maxLength={2_000}
             name="sourceText"
-            onChange={(event) => {
-              setSourceText(event.currentTarget.value);
-              if (state === "cancelled" || state === "waiting") setState("idle");
-            }}
+            onChange={(event) => setSourceText(event.currentTarget.value)}
             required
             rows={10}
             value={sourceText}
@@ -240,12 +248,7 @@ export function PasteAnalysisPage({
           </div>
           <div className="form-actions">
             <button
-              disabled={
-                state === "cancelled" ||
-                state === "running" ||
-                state === "waiting" ||
-                sourceText.trim() === ""
-              }
+              disabled={state === "running" || state === "waiting" || sourceText.trim() === ""}
               type="submit"
             >
               开始分析
@@ -282,13 +285,27 @@ export function PasteAnalysisPage({
             </div>
           )}
           {state === "cancelled" && (
-            <p role="status">
-              已取消本页等待；服务端可能仍会完成，输入内容已保留。请稍后检查待整理。
-            </p>
+            <div>
+              <p role="status">
+                {statusNotice ??
+                  "已取消本页等待；服务端可能仍会完成，输入内容已保留。请重新检查状态。"}
+              </p>
+              {activeRequestId !== null && (
+                <button
+                  data-check-analysis-status
+                  onClick={() => void recoverRequest(activeRequestId, runGeneration.current, true)}
+                  type="button"
+                >
+                  重新检查状态
+                </button>
+              )}
+            </div>
           )}
           {state === "waiting" && (
             <div>
-              <p role="status">服务器仍在处理；不会在此伪造完成结果或自动重复分析。</p>
+              <p role="status">
+                {statusNotice ?? "服务器仍在处理；不会在此伪造完成结果或自动重复分析。"}
+              </p>
               {error !== null && (
                 <p className="analysis-error" role="alert">
                   {error}
@@ -297,7 +314,7 @@ export function PasteAnalysisPage({
               {activeRequestId !== null && (
                 <button
                   data-check-analysis-status
-                  onClick={() => void recoverRequest(activeRequestId, runGeneration.current)}
+                  onClick={() => void recoverRequest(activeRequestId, runGeneration.current, true)}
                   type="button"
                 >
                   重新检查状态

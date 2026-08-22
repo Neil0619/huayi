@@ -152,7 +152,30 @@ export type PracticeHistoryListResponse = z.infer<typeof practiceHistoryListResp
 export const practiceHistoryDetailResponseSchema = z
   .strictObject({
     completedAt: z.string().datetime({ offset: true }).nullable(),
+    itemLabels: z
+      .array(
+        z.strictObject({
+          itemId: resourceIdSchema,
+          label: z.string().trim().min(1).max(2_000),
+        }),
+      )
+      .max(3),
     session: practiceSessionSchema,
+  })
+  .superRefine((detail, context) => {
+    const expectedItemIds = detail.session.items
+      .filter((item) => item.learningItemDeletedAt === undefined)
+      .map((item) => item.itemId);
+    if (
+      detail.itemLabels.length !== expectedItemIds.length ||
+      detail.itemLabels.some((item, index) => item.itemId !== expectedItemIds[index])
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Practice history labels must match retained session items in order.",
+        path: ["itemLabels"],
+      });
+    }
   })
   .refine((detail) => (detail.session.status === "completed") === (detail.completedAt !== null), {
     message: "Practice session and completion time must agree.",

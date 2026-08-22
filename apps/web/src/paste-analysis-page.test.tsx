@@ -178,12 +178,39 @@ describe("Web pasted-English analysis", () => {
       container.querySelector<HTMLButtonElement>("[data-cancel-analysis]")?.click(),
     );
     expect(startAnalysis.mock.calls[0]?.[2]?.aborted).toBe(true);
+    expect(container.querySelector("[data-check-analysis-status]")).not.toBeNull();
     await act(async () => release.resolve(undefined));
     await settle();
 
     expect(container.querySelector("[role='status']")?.textContent).toContain("已取消");
     expect(container.textContent).not.toContain("迟到的预览");
     expect(container.querySelector("[data-open-inbox]")).toBeNull();
+  });
+
+  it("re-enables analysis after cancellation without requiring an input edit", async () => {
+    const release = deferred<undefined>();
+    const startAnalysis = vi.fn<PasteAnalysisApi["startAnalysis"]>(async function* () {
+      yield { requestId: "request-1", type: "analysis.started", unitCount: 1 };
+      await release.promise;
+      yield { analysis, quota: contractFixtures.quota, type: "analysis.completed" };
+    });
+    const container = await render(api(startAnalysis));
+    await change(control(container, "sourceText"), "Cancel and retry this sentence.");
+    await act(async () => container.querySelector<HTMLFormElement>("form")?.requestSubmit());
+    await settle();
+
+    await act(async () =>
+      container.querySelector<HTMLButtonElement>("[data-cancel-analysis]")?.click(),
+    );
+    const submit = container.querySelector<HTMLButtonElement>("button[type='submit']");
+    expect(container.querySelector("[role='status']")?.textContent).toContain("已取消");
+    expect(submit?.disabled).toBe(false);
+    await act(async () => container.querySelector<HTMLFormElement>("form")?.requestSubmit());
+    await settle();
+    expect(startAnalysis).toHaveBeenCalledTimes(2);
+    await act(async () => release.resolve(undefined));
+    await settle();
+    expect(container.querySelector("[role='status']")?.textContent).toContain("分析已完成");
   });
 
   it("uses the authenticated request status when a started stream ends without a terminal event", async () => {
@@ -207,6 +234,7 @@ describe("Web pasted-English analysis", () => {
     analysisApi.getRequestStatus = vi
       .fn<PasteAnalysisApi["getRequestStatus"]>()
       .mockResolvedValueOnce({ requestId: "request-1", state: "running" as const })
+      .mockResolvedValueOnce({ requestId: "request-1", state: "running" as const })
       .mockResolvedValueOnce({
         analysisId: "analysis-1",
         requestId: "request-1",
@@ -227,6 +255,15 @@ describe("Web pasted-English analysis", () => {
     );
     await settle();
     expect(analysisApi.getRequestStatus).toHaveBeenCalledTimes(2);
+    expect(container.querySelector("[role='status']")?.textContent).toContain(
+      "已重新检查，服务器仍在处理",
+    );
+    expect(container.querySelector("[data-open-inbox]")).toBeNull();
+    await act(async () =>
+      container.querySelector<HTMLButtonElement>("[data-check-analysis-status]")?.click(),
+    );
+    await settle();
+    expect(analysisApi.getRequestStatus).toHaveBeenCalledTimes(3);
     expect(container.querySelector("[data-open-inbox]")).not.toBeNull();
   });
 

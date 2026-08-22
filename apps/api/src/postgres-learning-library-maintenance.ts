@@ -28,7 +28,7 @@ async function begin(
 }
 
 async function save(
-  trusted: AnalysisQuery,
+  tenant: AnalysisQuery,
   command: {
     idempotencyKey: string;
     now: string;
@@ -39,7 +39,7 @@ async function save(
   response: unknown,
 ) {
   const expiresAt = new Date(Date.parse(command.now) + 7 * 24 * 60 * 60 * 1_000).toISOString();
-  await trusted.rows(
+  await tenant.rows(
     `INSERT INTO idempotency_records(owner_user_id,operation,key,request_hash,response,expires_at)
       VALUES($1,$2,$3,$4,$5::jsonb,$6::timestamptz)`,
     [
@@ -155,7 +155,7 @@ export function createPostgresLearningLibraryMaintenance(
         );
         const updated = await view(tenant, command.id);
         if (updated === null) throw new CloudFault("not_found", "Learning item not found.");
-        await save(trusted, command, operation, updated);
+        await save(tenant, command, operation, updated);
         return updated;
       });
     } catch (error) {
@@ -234,7 +234,7 @@ export function createPostgresLearningLibraryMaintenance(
             deletedSourceId: command.id,
             target: merged,
           });
-          await save(trusted, command, "learning.merge", response);
+          await save(tenant, command, "learning.merge", response);
           return response;
         });
       } catch (error) {
@@ -275,7 +275,7 @@ export function createPostgresLearningLibraryMaintenance(
           await replaceTags(tenant, options, command);
           const updated = await view(tenant, command.id);
           if (updated === null) throw new CloudFault("not_found", "Learning item not found.");
-          await save(trusted, command, "learning.patch", updated);
+          await save(tenant, command, "learning.patch", updated);
           return updated;
         });
       } catch (error) {

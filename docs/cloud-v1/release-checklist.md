@@ -1,7 +1,40 @@
 # 语见 Cloud V1 发布检查表
 
-任何一项发布阻塞项未完成时，状态只能是 `implemented; validation pending`，不能开放邀请或宣称
-Chrome Web Store 就绪。
+任何一项发布阻塞项未完成时，状态只能是 `implemented; validation pending`，不能向外部用户开放
+hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-acceptance` 一次性自验邀请只用于
+隔离测试，不等于对外开放邀请。
+
+## 可用测试环境与用户验收
+
+- [x] `local-acceptance` 可从空状态一条命令启动、status、stop 和 reset，并可重放
+      migration/seed/bootstrap；Phase 47 在独立 project/network/ports 的无 volume 环境真实完成 start、
+      offline install、无 dist build、HTTPS status、虚构状态写入、确认式 reset、重建聚合和 stop；
+- [x] 本机公开端点均为 loopback 受信任 HTTPS；真实 API/Postgres/Auth/Store acceptance build 完成
+      密码注册、Mailpit 确认、Cookie/CSRF 和核心学习闭环，重启及一次增量 migration 后数据仍在；隔离
+      reset 没有修改主环境，主账号数据和会话在演练后复核保持；
+- [ ] 独立 hosted acceptance 的 Supabase、Vercel API/Web 与自有根域同站子域已创建，且不与 production 共用
+      数据、Auth、Storage、OAuth client、secret、Provider Key、额度或调度；Supabase Free 组织已创建，
+      首次空 `us-east-1` 项目已在用户确认后删除，正确项目 `kpadiulxkgckskcfydry` 已在 Singapore 创建；
+      Data API 已关闭，11 条 migration 已实际应用并经 Dashboard history/schema/roles/RLS 复核；Auth 仍为
+      0 用户。用户已确认并完成 foundation bootstrap，创建 application login、三条价格、唯一 private
+      empty bucket 和开启的 kill switch，初版 admin/application 验证均 passed；后续安全审查已把 TLS 收紧为
+      显式 CA + verify-full，并加入精确角色图、越权 SQLSTATE 与同 backend 跨事务 context 隔离验证。更新后
+      focused 与本轮完整 macOS 门、远端 hardened admin/application 双复验均已通过。仓库另有首位 Operator
+      bootstrap 第 12 条 forward migration，但尚未 dry-run/push；Vercel 与其余隔离资源未完成，因此本项
+      仍未勾选；
+- [ ] `app.acceptance.<root-domain>` / `api.acceptance.<root-domain>` 已完成 TLS、Cookie、CSRF、SSE 和
+      callback；若曾使用 `*.vercel.app` gateway 备用方案，目标子域仍已重新验收；
+- [ ] `notify.acceptance.<root-domain>` 已在 Resend 通过 SPF/DKIM（及受审计 DMARC），Supabase Auth SMTP
+      与 R3-C HTTP key 已分离，并完成真实投递与告警接收验收；
+- [x] R3-C outbox 固定 23 小时 deadline、最多 8 次与 failed/dead-letter 终态；超窗/耗尽在 sender 前
+      终态化且零外调，同 notification ID 只在窗口内重放；固定 Resend adapter、独立通知 CRON production
+      route/composition 与无正文 reason/count 告警 port 已由 fake fetch、PGlite 和 composition 回归证明；
+- [ ] 用户已完成一次端到端清单和至少一个跨多日自然使用周期；P0/P1 清零，P2 均已修复或有用户接受的
+      明确结论，每轮反馈/修复/回归/重新部署都有版本记录；
+- [ ] 最新验收 SHA 已通过自动回归、macOS 完整门和对应 Windows 批次门，用户明确批准进入生产候选。
+
+以上项目未关闭前不得开始 production cutover。本机验收继续使用 Mailpit；自有域名/DNS/Resend 已恢复为
+托管验收准备项，但不用“域名已验证”冒充 production 通知完成。
 
 ## 自动门禁
 
@@ -12,18 +45,23 @@ Chrome Web Store 就绪。
 - [ ] audit 输入中的候选/API Extension ID 与目标 Chrome Dashboard ID 相同，最低版本不高于候选版本；
 - [x] 当前 macOS 工作树的 instructions、architecture、format、lint、typecheck、unit、API integration
       全绿；
-- [x] 当前 Web 与 Store Extension Playwright 110/110 全绿；
-- [x] 当前 macOS `pnpm verify:macos` 聚合门禁全绿；
+- [x] 当前 Web 与 Store Extension Playwright 110/110 全绿；测试使用隔离的 4173 Vite 服务，没有改写或
+      重启当前 8443 验收环境；
+- [x] 当前 macOS `pnpm verify:macos` 原样退出 0：207/207 Node scripts、473 个 Vitest files（2,855
+      passed / 12 skipped）、Store 481/481、Playwright 110/110；instructions、format、lint、typecheck、
+      architecture、workspace build、development blocker、Store release、production audit 和 diff 同轮通过；
 - [ ] Windows Node.js 26+ 的 `pnpm verify:windows`、SEA health 与 CI 全绿；Phase 37-B 已在 Windows 11
       build 26220、Node.js 26.7.0 上本地退出 0，109/109 Playwright、SEA 仓库外 health 与 production
       audit 全绿；完整门证据提交 `3aa143c7f60ba52a941f2a2db587bc93819427eb` 已普通 push，但分支无
       开放 PR 且 GitHub Actions 无该分支 run，因此 macOS/Windows CI 未触发，组合项保持未勾选。Windows
-      门按 Phase 41 在候选冻结节点批量执行，不要求每个普通提交后重跑；当前新增提交进入下一批且保持
-      `Windows batch validation pending`。Phase 46 已把 `3aa143c..15306b4` 的 8 commits / 111 files
+      门按 Phase 41 在候选冻结节点批量执行，不要求每个普通提交后重跑。Phase 46 第二批已由用户确认在
+      最终远端 `d451122b86c978732a599202437d82caaf03b3d4` 完成，但仓库没有第二批精确计数日志，且 GitHub
+      CI 未触发，所以组合项仍不勾选。Phase 46 已把 `3aa143c..15306b4` 的 8 commits / 111 files
       代码范围和随后一个 docs-only 冻结提交纳入第二批候选（自上次 Windows 代码共 9 commits），且 Mac
-      完整门已绿；最终交接 SHA 由本节所在本地提交固定并在任务中报告，用户普通 push 与 Windows 完整门
-      前不能提前勾选；
-- [ ] 数据库空库/升级 migration、RLS 多租户矩阵和账号删除恢复通过；
+      完整门已绿；Windows 本地批次已回证，组合项现在仅因 GitHub 双平台 CI 未触发而保持未勾选；
+- [x] 数据库空库/升级 migration、RLS 多租户矩阵和账号删除恢复通过；仓库当前 12 条 migration 的 baseline、
+      forward-only API/Supabase 镜像与生产角色回归均通过，实际一次性账号删除完成且重放权限不扩大；远端
+      acceptance 仍只应用 11 条，第 12 条 FirstOperatorBootstrap 另待显式 dry-run/push；
 - [x] 当前开发态构建审计确认没有新增秘密、远程代码、动态 endpoint 或危险 HTML；
 - [ ] 正式候选注入公开配置后重新执行完整构建审计，并复核每项 permission/host；
 - [x] fake model/mail/third-party 已按各能力真实定义覆盖成功、失败、取消、超时和额度分支；没有额度或
@@ -36,18 +74,23 @@ Chrome Web Store 就绪。
       Store 回归；
 - [x] StudyCapture exact dedupe、created-only undo、离线恢复、stale revision、分析/reanalysis/delete 关系和
       CloudWordCopy local-first 有 PGlite 与跨端回归。
+- [x] Phase 47 已在 production 本机 HTTPS/API/Postgres/Auth/Mailpit 上实际完成 ExtensionQuery、
+      StudyCapture、CloudWordCopy、设备自断开与一次性账号删除；bodyless DELETE 为 `body=null`，同 proof
+      断开重放 204、旧 token 401，账号删除回执只经 context-setter-only wrapper 重放；这项只证明服务端
+      契约，不替代真实 Chrome Extension UI/vault/outbox 验收。
 - [x] Phase 28 语义建议已有 strict HTTP、固定 DeepSeek adapter、paid/Postgres durable authority、价格/
       kill/quota-before-fetch、CRON cleanup、Web 无自动重试及 actual-bundle suggestion→preview→显式
       confirm→server reread 离线证据；AA semantic token 组合也有可计算回归。
 
 ## 生产事实
 
-- [ ] 先确定安全通知邮件厂商、verified sender/域名、支持联系方式与告警渠道，再实现并部署
-      R3-C 真实 sender、独立通知 CRON production route/composition 和无正文告警；当前是产品代码 +
-      外部决策缺口，不是单纯部署验证；
-- [ ] R3-C 外部前置条件按 2026-08-20 用户决定保持延期：当前无自有域名/DNS/Resend 账号/支持邮箱/
-      告警目的地；不得购买、注册、创建密钥或把 fake mail 当生产证据。恢复时优先复核 Cloudflare
-      Registrar + 独立 `notify` 子域 + Resend Free 起步方案及届时价格，再取得逐项批准；
+- [x] R3-C 生产代码已固定使用 Resend HTTPS sender、独立通知 CRON production route/composition 和
+      无正文告警 port；provider error、deadline、尝试耗尽及 persistence failure 都不会记录邮箱/owner/
+      正文/raw error。本条只关闭本机代码，不证明 verified sender、真实投递或监控接收方；
+- [ ] R3-C 外部前置条件部分完成：`seen-said.cn` 已在腾讯云购买/实名，权威 NS 已由两个独立 DoH
+      解析器核验为 Cloudflare；仍须完成 `notify` 子域 SPF/DKIM/DMARC、支持邮箱、告警目的地和 secret
+      轮换/托管。此前粘贴到对话中的 Resend key 必须撤销，不得进入任何部署；新 key 只能进入
+      deployment secret store。不能把本机 Mailpit 或仅验证域名当 production 证据；
 - [x] DeepSeek 官方文档事实已校准：固定 `deepseek-v4-flash`、thinking + JSON、非流
       `completion_tokens_details.reasoning_tokens`，以及 2026-08-16T16:00:00Z 起两个 UTC peak 窗口和
       legacy/off-peak/peak 精确价格；离线 adapter/分时账本实现与回归已完成；
@@ -82,7 +125,9 @@ Chrome Web Store 就绪。
 
 - [x] Web 精确 `/privacy` 无需 API Origin、Cookie 或登录即可离线渲染预发布事实；
 - [ ] 补齐运营主体、联系信息、生产区域、备份残留并把 `/privacy` 从预发布升级为正式政策；
-- [ ] 单一用途说明以英文理解和学习闭环为中心，Web 不被描述为远程代码宿主；
+- [x] 单一用途说明以英文理解和学习闭环为中心，Web 不被描述为远程代码宿主；Cloud listing 已明确
+      “主动选择的英文”与“分析、整理、学习与练习闭环”，并明确不下载或执行远程扩展代码；材料回归固定
+      这些边界；
 - [x] Phase 33 已逐项绑定当前 permission/host 到源码调用；`unlimitedStorage` 由正式本机词库、词典
       IndexedDB 及可并存且合计可超过 10 MiB 的加密 `storage.local` 耐久状态证明仍需保留；当前没有
       不再需要而应删除的 Manifest 权限；
@@ -90,8 +135,9 @@ Chrome Web Store 就绪。
 - [ ] 数据问卷、截图、商店文案、首次云端同意与产品行为一致；
 - [x] Phase 42 `/privacy`、配对审批、隐私草案和 Store listing 已分别披露 BYOK、platform、StudyCapture、
       CloudWordCopy，且不再出现“登录 BYOK 上传/严格结果上传 Huayi”旧语义；
-- [ ] 披露分别说明 BYOK Provider、平台插件查询、StudyCapture、CloudWordCopy、本机词库和云端学习内容，
-      且任何页面都没有“登录后上传 BYOK 完整结果”的旧文案；
+- [x] 披露分别说明 BYOK Provider、平台插件查询、StudyCapture、CloudWordCopy、本机词库和云端学习
+      内容；listing、隐私草案和实际 `/privacy` 页面回归禁止“登录后上传 BYOK 完整结果”及旧 import
+      语义；
 - [ ] 草稿上传的权限/远程代码/数据预审通过；最终公开上传另行批准。
 
 ## Web 工作台外壳
@@ -101,11 +147,11 @@ Chrome Web Store 就绪。
 - [x] 练习历史归入今日练习、外部词典归入生词、账号子页归入设置，运营不扩张普通一级导航；
 - [x] data-rights-only 会话、运营、公共、认证、恢复和配对页面不暴露完整学习工作台导航；
 - [x] 390px 窄屏 details、键盘展开、skip link、active、桌面侧栏和 actual route 跳转均由浏览器测试证明。
-- [x] Phase 37-A 已将重算的 613 个未跟踪交付候选纳入本次精确 staged candidate：`.prettierignore` 1、API 294、Store
-      Extension 75、Web 152、ADR 14、Cloud 文档 43、Cloud contracts 22、learning-domain 1、store-domain 9、Cloud
-      release scripts 2；明确排除但不删除 `.agents/skills/**` 150 个代理技能资产和 `artifacts/**` 8 张
-      未引用截图；staged manifest 为 613 个新增 + 92 个相关 tracked 修改，`git diff --cached --check`、
-      完整离线门与 macOS 聚合门均通过，未使用宽泛 `git add .`。
+- [x] Phase 37-A 当时已将重算的 613 个未跟踪交付候选纳入该批精确 staged candidate：
+      `.prettierignore` 1、API 294、Store Extension 75、Web 152、ADR 14、Cloud 文档 43、Cloud contracts 22、
+      learning-domain 1、store-domain 9、Cloud release scripts 2；明确排除但不删除 `.agents/skills/**`
+      150 个代理技能资产和 `artifacts/**` 8 张未引用截图。该条是历史候选证据，不描述当前 index；当前
+      工作树是否 staged 只以 `git status`/`git diff --cached` 为准。
 
 ## Web 设计 Token
 
@@ -124,8 +170,15 @@ Chrome Web Store 就绪。
 
 ## 完整 V1
 
+- [x] 当前 production 本机构建以实际登录会话巡检待分析、待收藏、分析、学习库、生词、分析历史、今日
+      练习、账号与数据权利页面；公开 `/privacy` 同时复核，全部标题/空态/已有数据读取正常且浏览器无
+      warning/error。该证据不替代真实 Store Extension 或 hosted 验收；
 - [ ] CaptureInbox 待分析、ReviewInbox 待收藏、Web V2 深度分析、学习库、生词、历史、两种练习、账号
       偏好、设备、额度、管理、导出/删除均可用；
-- [ ] 所有已知高严重度安全/数据缺陷关闭，无未披露的正文日志；
-- [ ] Classic 0.13 与 Native Host 没有被 Cloud 构建、部署或版本流程改动；
+- [x] 当前审计发现的本机高严重度安全/数据缺陷已关闭：月切额度、生产持久限速、R3-C 无限 retry 与
+      导出过期清理均有回归；安全通知和新增日志只含固定 reason/count，无未披露正文。真实外部服务门禁
+      仍由本表其他未勾选项跟踪；
+- [x] Classic 0.13 与 Native Host 没有被 Cloud 构建、部署或版本流程改动；当前
+      `apps/extension`、`apps/native-host`、`packages/protocol` diff 为 0，验收构建只构建
+      learning-domain、cloud-contracts、API、Web，完整门继续固定 0.13/wire 7 与 Store release；
 - [ ] 变更记录、项目状态、运行手册和回滚步骤与候选构建一致。

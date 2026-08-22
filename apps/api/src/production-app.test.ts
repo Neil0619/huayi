@@ -13,7 +13,9 @@ interface VercelConfiguration {
   builds?: unknown;
   crons?: unknown;
   fluid?: unknown;
+  framework?: unknown;
   functions?: unknown;
+  regions?: unknown;
 }
 
 async function readVercelConfiguration(): Promise<VercelConfiguration> {
@@ -28,13 +30,21 @@ describe("production API composition", () => {
       HUAYI_API_ORIGIN: "https://api.huayi.example",
       HUAYI_ACCOUNT_EXPORT_BUCKET: "account-exports",
       CRON_SECRET: "cron-test-secret-at-least-32-characters",
-      HUAYI_DATABASE_URL: "postgresql://runtime:password@database.example:5432/huayi",
+      HUAYI_DATABASE_TLS_CA_BASE64: Buffer.from(
+        "-----BEGIN CERTIFICATE-----\ntest-ca\n-----END CERTIFICATE-----\n",
+      ).toString("base64"),
+      HUAYI_DATABASE_URL:
+        "postgresql://runtime.abcdefghijklmnopqrst:password@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres?sslmode=verify-full",
       HUAYI_DEEPSEEK_API_KEY: "deepseek-test-key-at-least-20-characters",
       HUAYI_DEEPSEEK_LEGACY_PRICE_VERSION_ID: "10000000-0000-4000-8000-000000000001",
       HUAYI_DEEPSEEK_OFF_PEAK_PRICE_VERSION_ID: "10000000-0000-4000-8000-000000000002",
       HUAYI_DEEPSEEK_PEAK_PRICE_VERSION_ID: "10000000-0000-4000-8000-000000000003",
       HUAYI_REFRESH_ENCRYPTION_KEY: Buffer.alloc(32, 7).toString("base64url"),
+      HUAYI_RESEND_API_KEY: "re_test-only-not-a-real-secret",
       HUAYI_SECRET_PEPPER: "production-test-pepper-at-least-32-characters",
+      HUAYI_SECURITY_NOTIFICATION_FROM: "语见 <security@notify.example.test>",
+      HUAYI_SECURITY_NOTIFICATION_MODE: "resend",
+      HUAYI_SECURITY_NOTIFICATION_REPLY_TO: "support@example.test",
       HUAYI_STORE_EXTENSION_ID: "a".repeat(32),
       HUAYI_MIN_SUPPORTED_EXTENSION_VERSION: "1.0.0",
       HUAYI_WEB_ORIGIN: "https://app.huayi.example",
@@ -72,6 +82,7 @@ describe("production API composition", () => {
     expect(app.routes.map((route) => route.path)).toContain("/v1/auth/password/recovery/session");
     expect(app.routes.map((route) => route.path)).toContain("/v1/auth/password/recovery/complete");
     expect(app.routes.map((route) => route.path)).toContain("/internal/password-recovery/run");
+    expect(app.routes.map((route) => route.path)).toContain("/internal/security-notifications/run");
     expect(app.routes.map((route) => route.path)).toContain("/v1/wordbook-jobs/:id/lease");
     const extensionOrigin = `chrome-extension://${"a".repeat(32)}`;
     const missingOrigin = await app.request("/v1/analyses:stream", {
@@ -146,6 +157,8 @@ describe("production API composition", () => {
     const configuration = await readVercelConfiguration();
 
     expect(configuration.fluid).toBe(true);
+    expect(configuration.framework).toBe("hono");
+    expect(configuration.regions).toEqual(["sin1"]);
     expect(configuration).not.toHaveProperty("builds");
   });
 

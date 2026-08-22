@@ -4,19 +4,30 @@
 数据库扩展；所有公开列表都以 `(created_at,id)` 稳定游标排序，因此不把 UUID 本身当作时间。时间使用
 `timestamptz`，金额使用 `bigint micro_usd`，用户正文使用 `text/jsonb`。
 
+练习生成的 `practice_generation_tasks` 与 `quota_reservations` 由
+`settle_practice_generation_quota` 建立终态一致性：成功只接受 `ready + output + active reservation`；
+失败接受 `failed|abandoned + stable_error_code + active|released reservation`。函数从 task kind 派生固定
+usage feature 和 price version，校验 1–2 条调用及总 cost 后追加 ledger 并把 reservation 置为 settled；
+不新增公开表或客户端字段。
+
 ## 身份与运营
 
-| 表                             | 关键字段                                                                                          | 约束与语义                                                                            |
-| ------------------------------ | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| `user_profiles`                | `user_id`, `email`, status、timezone、daily goal、三项插件偏好、`preferences_revision/updated_at` | email 为规范投影；偏好默认 platform/manual/enabled；同一 revision 原子更新            |
-| `account_sign_in_methods`      | `owner_user_id`, `method`, `linked_at`                                                            | owner+password/google 唯一；Huayi 登录授权 fence，不保存 provider subject/token       |
-| `invitations`                  | `id`, `token_hash`, `expires_at`, `consumed_at`, `revoked_at`, `created_by`                       | token hash 唯一；不绑定邮箱；消费使用行锁/条件更新                                    |
-| `invitation_claims`            | `ticket_hash`, `invitation_id`, `expires_at`, `bound_user_id`, `finalized_user_id`                | 15 分钟短时租约；领取后仍受父邀请撤销与过期约束                                       |
-| `auth_flows`                   | `flow_hash`, `kind`, ticket/owner/session、stage/lease、started/consumed、provider state、expiry  | invite 持票；两种 link 分 purpose 四阶段、单 open flow/30 秒 lease                    |
-| `password_recovery_flows`      | flow/owner、stage、加密 provider state、recovery session/CSRF hash、lease、expiry/consumed        | 未登录一次改密权威；每 owner 单 open flow；不产生 Huayi session                       |
-| `web_sessions`                 | `id`, `user_id`, access、encrypted refresh、`reauthenticated_at/method`、expiry/revoked           | 普通登录 method=null；显式 reauth 写 password/google；full/data-rights 隔离           |
-| `extension_sessions`           | `id`, `user_id`, `install_id_hash`, `token_hash`, `last_used_at`, `expires_at`, `revoked_at`      | token hash 唯一；Web 可按 owner+ID 撤销，设备可按当前 token hash 只撤销自身           |
-| `security_notification_outbox` | `id`, owner、固定 kind/status、attempt、available/lease/sent/created timestamps                   | 安全事件耐久后置发送；120 秒 lease+有界退避；不保存密码、token、IP 或 Provider detail |
+| 表                             | 关键字段                                                                                           | 约束与语义                                                                                                                   |
+| ------------------------------ | -------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `user_profiles`                | `user_id`, `email`, status、timezone、daily goal、三项插件偏好、`preferences_revision/updated_at`  | email 为规范投影；偏好默认 platform/manual/enabled；同一 revision 原子更新                                                   |
+| `account_sign_in_methods`      | `owner_user_id`, `method`, `linked_at`                                                             | owner+password/google 唯一；Huayi 登录授权 fence，不保存 provider subject/token                                              |
+| `invitations`                  | `id`, `token_hash`, expiry/consume/revoke、`created_by_kind`, `created_by?`                        | token hash 唯一；operator 必须有 actor，deployment-bootstrap 必须无 actor；消费使用行锁                                      |
+| `invitation_claims`            | `ticket_hash`, `invitation_id`, `expires_at`, `bound_user_id`, `finalized_user_id`                 | 15 分钟短时租约；领取后仍受父邀请撤销与过期约束                                                                              |
+| `auth_flows`                   | `flow_hash`, `kind`, ticket/owner/session、stage/lease、started/consumed、provider state、expiry   | invite 持票；两种 link 分 purpose 四阶段、单 open flow/30 秒 lease                                                           |
+| `password_recovery_flows`      | flow/owner、stage、加密 provider state、recovery session/CSRF hash、lease、expiry/consumed         | 未登录一次改密权威；每 owner 单 open flow；不产生 Huayi session                                                              |
+| `web_sessions`                 | `id`, `user_id`, access、encrypted refresh、`reauthenticated_at/method`、expiry/revoked            | 普通登录 method=null；显式 reauth 写 password/google；full/data-rights 隔离                                                  |
+| `extension_sessions`           | `id`, `user_id`, `install_id_hash`, `token_hash`, `last_used_at`, `expires_at`, `revoked_at`       | token hash 唯一；Web 可按 owner+ID 撤销，设备可按当前 token hash 只撤销自身                                                  |
+| `security_notification_outbox` | `id`, owner、固定 kind/status、attempt、delivery deadline、available/lease/sent/created timestamps | 安全事件耐久后置发送；120 秒 lease+有界退避+最大尝试；sent/failed-dead-letter 终态；不保存密码、token、IP 或 Provider detail |
+
+该 R3-C 语义已进入当前未发布 baseline 与 `0011-security-notification-delivery.sql`：固定 23 小时 deadline
+小于 Resend 24 小时幂等窗口，最多 8 次；到期为 `failed`，耗尽为 `dead-letter`。claim 先以最多 100 条
+批次终态化超窗/耗尽行再领取一条发送任务，因而不会为已终态行调用 Provider；发送成功但本地 complete
+失败只在 deadline 内以同 notification ID 重放。
 
 `account_sign_in_methods` 启用并强制 RLS；普通业务 role 仅可在 owner context 下 SELECT，不能直接
 INSERT/UPDATE/DELETE。邀请 finalization 与后续显式绑定只能经固定 search path、已撤销公开权限的
@@ -39,8 +50,8 @@ hash，worker 所需 flow secret 与 Provider state 加密，新密码和完整�
 Huayi sessions、保持 method 不变并写一条 `password-reset-completed` 通知 outbox。完整字段与跨系统恢复
 裁决见 `password-recovery.md`。两表、约束、partial unique、forced RLS、业务 role 零直访、12 个 recovery
 与 3 个 notification fixed-search-path SECURITY DEFINER 状态转换及 100 条 cleanup 已进入基础 migration。
-recovery 与 notification PGlite 状态机合计 6/6；通知 worker/adapter 离线 6/6。真实邮件 sender、CRON 与
-告警仍待 R3-C 外部门禁完成。
+notification 的 0011 forward、Resend adapter、独立 route、无正文告警 port 与第五个 Cron job 均有离线
+回归；真实 DNS/verified sender/Resend 投递和监控目的地仍待 hosted 外部门禁。
 
 Store DeviceDisconnect 不新增 secret 或表。`revoke_current_extension_session(token_hash)` 只把匹配、未撤销、
 未过期的当前行置为 revoked；SECURITY DEFINER 固定 search path 并撤销公共/业务角色权限。HTTP 不返回该函数
@@ -49,6 +60,15 @@ Store DeviceDisconnect 不新增 secret 或表。`revoke_current_extension_sessi
 | `extension_pairings` | `id`, `state_hash`, `pkce_challenge`, `install_id_hash`, `status`, `expires_at`, `user_id` | `pending                                                                   | approved | consumed | expired`; 只能消费一次 |
 | `admin_roles` | `user_id`, `role`, `created_at` | 仅服务端可写；不能信任 Auth 可编辑 metadata |
 | `audit_events` | `id`, `actor_user_id`, `action`, `subject_id`, `safe_details`, `created_at` | `safe_details` 使用字段白名单，禁止正文与秘密 |
+
+`huayi_private.first_operator_bootstrap` 最多一行，保存 invited/completed、current invitation、revision、
+issued/completed time、最终 operator user ID 与可选 deletion time，不保存 token/hash/email。只有项目
+`postgres` 管理员可经固定
+SECURITY DEFINER issue/replace-unclaimed/complete 函数改变它；application/runtime/business/context-setter
+均无表或函数权限。BootstrapInvitation 使用正常 claim/Auth/finalization，complete 从锁定的 invitation 与
+claim 推导唯一账号，不接收 userId。该记录是部署证据，不是伪造 actor 的 OperationalAuditEvent。完整
+不变量见 `first-operator-bootstrap.md` 与 ADR-0023。首位账号删除前的窄 trigger 清除 record 中的 user UUID
+并保存 deletion time，使账号/角色正常删除但不重新打开 bootstrap。
 
 `GET /v1/account` 不新增聚合表。它在一个 owner repeatable-read snapshot 中只读取 active
 `user_profiles` 的规范 email 与五项偏好，并读取当前未撤销、未过期的 `extension_sessions` 公开字段；
@@ -175,6 +195,11 @@ type LearningItemContent =
     };
 ```
 
+PracticeHistory detail 的 `itemLabels` 是同一 owner transaction 内由 `practice_session_items` 连接
+`learning_items.content` 得到的只读投影，不新增快照列或第二份学习项正文。expression 使用 `text`，
+sentence-pattern 使用 `template`；`deleted_at` 非空或 content 已擦除时不投影 label，页面只能显示固定墓碑
+文案。投影按 session position 排序，并由 strict contract 校验与全部未擦除 session item 一一对应。
+
 规范键执行 Unicode NFKC、首尾空白清理、内部空白折叠和英文大小写折叠。Expression 保留标点但
 统一弯/直引号；SentencePattern 还要按槽位顺序规范成稳定占位符。跨类型不比较唯一键。标签使用同样
 的 NFKC、引号/空白统一和英文大小写折叠作为唯一键，并保留首次确认时的 display name。
@@ -223,6 +248,12 @@ ContextObservation 是不可编辑的来源快照，公开详情按 `(observed_a
 `external_wordbook_items` 引用时开放，并级联 contexts；已有任务引用不能借现有 ON DELETE CASCADE 静默抹去
 任务 item/receipt，因此返回 `word_entry_in_use`。`word.patch|word.delete` 使用 owner operation/key/hash 与
 删除前响应快照。当前 0001 是未发布 bootstrap，既有开发库需重建，不能当增量 migration 重放。
+Phase 47 开始持续用户验收前必须冻结这份 canonical baseline；验收数据库建立后，任何 schema 变化都
+只能新增 forward-only migration，并至少验证空库重建、baseline→当前升级和一次失败迁移回滚。seed 与
+首个账号 bootstrap 不能手工掩盖 schema 缺口。local seed 只可在显式 destructive reset 中创建固定虚构
+Operator/profile/admin role，并调用已迁移的默认额度 helper；不得成为 Auth、邀请、session、学习数据或
+环境 provisioning 权威。hosted/production 首位 Operator 只走 forward migration 提供的
+FirstOperatorBootstrap，不能复制 local seed。完整环境路线见 `user-acceptance-environment.md`。
 
 external job state 是 `pending|active|completed|failed|cancelled|source-limit-reached`；export item state 是
 `pending|in-flight|delivered|failed|cancelled`。export 创建在同一 transaction 中快照现有 WordEntry：Eudic
@@ -283,16 +314,28 @@ SourceExample；若最后一条引用指向墓碑，则同时清理该墓碑，
 
 ## 配额
 
-| 表                     | 关键字段                                                                                                              | 约束与语义                                         |
-| ---------------------- | --------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
-| `model_price_versions` | `id`, `provider`, `model`, token 单价, `effective_from`                                                               | 生效时间不重叠；历史不可修改                       |
-| `quota_grants`         | `id`, `user_id`, `period_start`, `period_end`, `limit_micro_usd`, `source`, timestamps                                | 同用户同周期只有一个有效 grant；覆盖写审计         |
-| `quota_reservations`   | `id`, `user_id`, `request_id`, `reserved_micro_usd`, `status`, `expires_at`, timestamps                               | status 为 active/settled/released；request 唯一    |
-| `usage_ledger`         | `id`, `user_id`, `request_id`, `feature`, token counts, `price_version_id`, `cost_micro_usd`, `outcome`, `created_at` | 追加写；request/调用序号唯一；失败调用也可产生费用 |
+| 表                        | 关键字段                                                                                                              | 约束与语义                                         |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| `model_price_versions`    | `id`, `provider`, `model`, token 单价, `effective_from`                                                               | 生效时间不重叠；历史不可修改                       |
+| `quota_grants`            | `id`, `user_id`, `period_start`, `period_end`, `limit_micro_usd`, `source`, timestamps                                | 同用户同周期只有一个有效 grant；覆盖写审计         |
+| `quota_reservations`      | `id`, `user_id`, `request_id`, `reserved_micro_usd`, `status`, `expires_at`, timestamps                               | status 为 active/settled/released；request 唯一    |
+| `model_rate_limit_events` | `owner_user_id`, `request_id`, `occurred_at`                                                                          | request 唯一；共享滚动小时/24 小时计数             |
+| `usage_ledger`            | `id`, `user_id`, `request_id`, `feature`, token counts, `price_version_id`, `cost_micro_usd`, `outcome`, `created_at` | 追加写；request/调用序号唯一；失败调用也可产生费用 |
 
 额度余额由 grant 减去 ledger 与 active reservation 计算，不维护可漂移的客户端余额字段。
 `usage_ledger.feature` 至少区分 extension-query-translate、extension-query-explain、web-deep-analysis 与
 practice 五类生成；全部平台调用共享同一 grant/reservation 并发边界，BYOK 与纯数据写入不入账。
+
+邀请注册事务在写入 profile/sign-in method 后调用默认额度初始化：当前 UTC 月只允许一个未 supersede
+grant，默认值为 `1_000_000 micro_usd`、`source=default`；同月已有 admin grant 时保持 admin 权威。
+`0002` migration 对既有非 deleting profile 使用同一规则幂等回填。该 migration 不依赖 Supabase
+`storage` schema；私有导出 bucket 属于环境 provisioning。
+
+此后每次 production reserve 与 owner quota summary 都复用同一 helper 惰性确保当前 UTC 月 grant，
+因此无需依赖月初 CRON；summary 只查询该月，不能返回已过期历史 grant。所有平台模型功能在
+`reserve_quota` 内共享每账号滚动 60 次/小时、300 次/24 小时限制；只有新成功 reservation 写一条事件，
+active request replay 不重复写，quota 拒绝也不消费限速。事件超过 24 小时后在下一次成功 reserve 清理，
+单账号存量受日上限约束。
 
 ## RLS 与删除
 

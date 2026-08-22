@@ -116,7 +116,7 @@ export function createPostgresPracticeRepository(database: AnalysisDatabase): Pr
           ) {
             throw new CloudFault("idempotency_conflict", "Practice rating already differs.");
           }
-          await savePracticeWrite(trusted, command, "practice.rate", session);
+          await savePracticeWrite(tenant, command, "practice.rate", session);
           return session;
         }
         if (session.revision !== input.expectedRevision) {
@@ -152,7 +152,7 @@ export function createPostgresPracticeRepository(database: AnalysisDatabase): Pr
           [command.sessionId, command.now],
         );
         const response = await loadSession(tenant, command.sessionId);
-        await savePracticeWrite(trusted, command, "practice.rate", response);
+        await savePracticeWrite(tenant, command, "practice.rate", response);
         return response;
       });
     },

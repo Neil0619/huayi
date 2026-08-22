@@ -6,13 +6,12 @@
 路由缺口”、单层单元测试或历史绿灯等同于完成。审计只判定当前工作树可证明的离线实现；真实
 Google/Supabase/Vercel/邮件、Provider 费用、Chrome Dashboard 与双平台 Chrome 仍是独立外部门禁。
 
-Phase 32 以下方 7 条成功标准重建证据矩阵。当前能证明主要产品切片已完成本地离线组合，但不能
-声称完整 V1 已验收：密码恢复 R3-C 尚缺真实安全通知 sender、独立通知 CRON 生产组合与告警实现，
-而邮件厂商、verified sender/域名、联系方式和告警渠道又是实现前必须确定的外部产品/运营决策。
-另外，真实 Google/Supabase/Vercel/Provider/词典、多连接 production Postgres 和双平台 Chrome 仍是独立
-外部门禁。
+Phase 32 以下方 7 条成功标准重建证据矩阵。Phase 48 严格复审已关闭此前遗漏的月切额度、production
+持久限速、R3-C deadline/终态/sender/CRON/告警 port 与导出过期清理回归；不能据此声称完整 V1 已验收。
+真实 sender 域名、Resend 投递、告警接收方、Google/Supabase/Vercel/Provider/词典、多连接 production
+Postgres 和双平台 Chrome 仍是独立外部门禁。
 
-状态：`core slices offline-evidenced; R3-C production implementation and external release gates pending`。
+状态：`local code gaps closed; external acceptance and release gates pending`。
 
 ## 2. Phase 32 证据矩阵方案
 
@@ -51,12 +50,15 @@ actual-production-bundle Playwright 路径与用例关键词、fresh 聚合命�
 
 ## 3. 完整产品要求矩阵
 
-历史聚合证据 `F1` 为 Phase 31，`F2` 为 Phase 34，`F3` 为 Phase 39。当前聚合证据 `F4`：2026-08-21
+下表保留 Phase 32–46 当时的审计快照和 `F4` 路径，不能作为当前缺口清单；Phase 48 的修复与 `F5`
+裁决见第 13 节。
+
+历史聚合证据 `F1` 为 Phase 31，`F2` 为 Phase 34，`F3` 为 Phase 39，`F4` 为 Phase 46。`F4`：2026-08-21
 Phase 46 在最终冻结文档工作树执行 `pnpm verify:macos` 退出 0，其中 `pnpm test` 为 121/121 Node 脚本、
 447 个 Vitest 文件（2,757 passed / 12 skipped），Store coverage 为 97 files / 481 tests，
 `pnpm test:e2e` 为 110/110；同次聚合命令还通过 instructions、format、lint、全 workspace typecheck、
 architecture、build、固定九项 development blocker、Store release、production dependency audit 与
-`git diff --check`。`F4` 取代下表的历史 `F3` 作为当前本地证据。
+`git diff --check`。该段是历史门禁证据；当前证据由 Phase 48 的 `F5` 取代。
 
 历史 `F3`：2026-08-20 Phase 39 在 macOS
 精确 staged candidate 上执行 `pnpm verify:macos` 退出 0，其中 `pnpm test` 为 118/118 Node 脚本、446 个
@@ -81,9 +83,9 @@ development blocker、Store release 和 production dependency audit。
 | 6. Google/邮箱密码、跨设备、月额度、导出/删除形成可运营闭环   | `apps/api/src/production-app.ts`、`apps/api/src/production-account-settings.ts`、`apps/api/src/production-account-data-rights.ts`、`apps/api/src/production-password-recovery.ts`、`apps/web/src/account-quota-page.tsx`、`apps/web/src/account-data-rights-page.tsx`；**缺失**真实安全通知 sender、通知 CRON production route/composition 与告警代码，`apps/api/src/security-notification-worker.ts` 只是 port/worker | `packages/cloud-contracts/src/account-contracts.ts`、`packages/cloud-contracts/src/password-recovery-contracts.ts`、`packages/cloud-contracts/src/account-data-rights-contracts.ts`、`packages/cloud-contracts/src/admin-operations-contracts.ts` | `apps/api/src/database-auth-flow-integration.test.ts`、`apps/api/src/database-password-recovery-integration.test.ts`、`apps/api/src/postgres-account-data-rights.test.ts`、`apps/api/src/postgres-admin-operations.test.ts`、`apps/api/src/postgres-security-notification.test.ts` | `apps/web/e2e/cloud-google-authentication-journey.spec.ts`：“an active existing Google account signs in…”；`cloud-password-authentication-journey.spec.ts`：“an invited learner confirms password registration…”；`cloud-password-recovery-journey.spec.ts`：“…latest confirmed mail”（fake mail）；`cloud-account-data-rights-journey.spec.ts`：“exports data and permanently deletes…” | `F4` 覆盖已组合部分与 fake-mail actual bundle；不证明缺失代码 | **未完成**；先决策邮件厂商、verified sender/域名、支持联系方式和告警渠道，再实现 R3-C。`X`：真实 Google/Supabase Auth/邮件、对象存储 24h 删除、备份残留、生产 grant/告警演练、跨设备 |
 | 7. Extension 可独立就地查询，不依赖远程托管代码               | `apps/store-extension/src/analysis/production-analysis-engine.ts`、`apps/store-extension/src/analysis/browser-analysis-engine.ts`、`apps/store-extension/src/service-worker/query-router.ts`、`apps/store-extension/manifest.json`、`apps/store-extension/src/service-worker/production-query-engine.ts`                                                                                                               | `packages/store-domain/src/analysis-results.ts`、`packages/store-domain/src/analysis.ts`、`packages/cloud-contracts/src/extension-learning-contracts.ts`                                                                                          | platform 查询：`apps/api/src/postgres-extension-query.test.ts`、`apps/api/src/postgres-extension-query-maintenance.test.ts`；BYOK 为零 Huayi 数据库写入边界，无需数据库 repository                                                                                                 | `apps/extension/e2e/store-release-journeys.spec.ts`：“Store selection reaches a strict fake Provider result…”；`apps/web/e2e/cloud-web-journeys.spec.ts`：“platform query uses the production router but creates no analysis or capture”、“platform quota exhaustion never falls back to the local BYOK engine”                                                                          | `F4` 覆盖打包 Store journey、release audit 与数据库边界       | 离线打包代码/无远程代码审计有证据；`X`：真实 macOS/Windows Chrome、Dashboard permission/data-use 问卷、真实 BYOK/platform Provider                                                   |
 
-矩阵结论：第 1–5、7 条有本地离线分层证据，但仍保留各自 `X`；第 6 条除了 `X` 还有
-R3-C 生产代码缺口，因此完整 V1 开发、测试与验收均未完成。Phase 39 已精确暂存 613 个新候选和 92 个
-相关修改，并以 `git diff --cached --check` 与 `F3` 聚合门验证该候选；版本控制交付缺口已关闭。
+历史矩阵结论：第 1–5、7 条有本地离线分层证据，但仍保留各自 `X`；第 6 条当时除了 `X` 还有
+R3-C 生产代码缺口。Phase 48 已关闭该本机代码缺口，但外部 `X` 与完整 V1 验收仍未完成。Phase 39 当时
+以 `git diff --cached --check` 与 `F3` 验证其候选；该 staged 数字不描述当前 index。
 
 ## 4. 校准出的本地缺口
 
@@ -159,7 +161,8 @@ Prettier/ESLint 通过；当时根级 format/lint 仍分别由 70 个既有文�
 - 语义建议已在 production composition、可恢复付费结算和 actual bundle 分层通过；
 - A1 只有在真实 token 值通过计算、测试对故意回退会 RED 后才完成；
 - 根 format/lint 不再依赖 70/143 例外，且配置回归证明 ignore 没有扩大到 `.agents/**` 或产品资产；
-- R3-C 在真实 sender、通知 CRON 生产组合和告警实现前保持生产代码缺口，不降级为验证项；
+- R3-C 在当时真实 sender、通知 CRON 生产组合和告警实现前保持生产代码缺口；Phase 48 已关闭代码部分，
+  verified sender、真实投递和告警接收方继续作为外部验证项；
 - Phase 39 staged manifest、`git diff --cached --check` 和 `F3` 聚合门已关闭版本控制交付缺口；
 - 完整 V1 与发布检查表在所有 X 项完成前保持未完成。
 
@@ -234,10 +237,9 @@ X；状态为
 
 ## 11. Phase 46 第二批候选冻结审计（2026-08-21）
 
-完成度复核没有发现新的本地产品代码纵切。成功标准第 1–5、7 条继续有 production source、strict
-contract、database/RLS test 与 actual bundle 分层证据；第 6 条唯一生产代码缺口仍是依赖已延期邮件、
-域名和告警决策的 R3-C。Windows、CI、真实部署、Provider、Chrome、词典与运营事实继续保留为 `X`，
-不能被本轮离线审查勾选。
+Phase 46 当时的完成度复核没有发现新的本地产品代码纵切，并把 R3-C 记为唯一缺口；Phase 48 的严格
+复审已经证明该结论不完整：月切额度和 production 持久限速同样是本机代码缺口。三项现均已关闭，
+Windows、CI、真实部署、Provider、Chrome、词典与运营事实继续保留为 `X`，不能被离线审查勾选。
 
 冻结账本此前仍把 `2a035ee` 和两个新增提交写成当前状态，而 Phase 45 代码锚点已经推进到
 `15306b46b4129682278c7dcecc47ac45bbfa7f7d`。从上次 Windows 完整门验证的 `3aa143c` 到该锚点累计
@@ -248,3 +250,73 @@ SEA/安装器或 Native Messaging 传输变化，也未发现 added-line secret�
 本阶段不伪造行为 Fresh RED：真实失配是冻结文档基线过期。最小 GREEN 是校准候选账本、交接步骤、
 验收范围与未完成项，再对最终文档工作树运行完整 `pnpm verify:macos`。该门已退出 0，证据记为 `F4`；随后
 只创建本地候选提交，普通 push 和 Windows `pnpm verify:windows` 必须等待用户明确执行。
+
+## 12. Phase 47 可用验收环境审计（2026-08-21）
+
+用户指出完成度矩阵遗漏了关键产品交付层：当前证据证明源码、契约、数据库行为和离线 actual bundle，
+但没有提供一个用户可持续使用的本机或托管环境。Playwright 保留域由 route fulfill，仓库也没有 Supabase
+local manifest、seed/bootstrap、启动编排、loopback HTTPS 或 hosted same-origin gateway，因此此前“没有
+新的本地产品切片”不能推导为“可直接进入 production”。
+
+该缺口是 environment composition、初始化、持久 migration、部署验收和用户反馈生命周期缺口。Phase 47
+以 `user-acceptance-environment.md` 冻结 local + hosted 两层方案，并将 production candidate 改为用户
+自然使用验收后的状态。用户现可准备域名/DNS/Resend，因此 hosted acceptance 首选自有根域下的同站
+Web/API 子域与独立 `notify` 发件子域；同源 gateway 仅作备用。未实现通知或 fake mail 仍不得伪装为
+完成。
+
+当前矩阵结论更新为：`offline product evidence retained; usable acceptance environment and user sign-off
+pending`。第二批 Windows 验证已由用户回传完成；随后必须优先实现 Phase 47，而不是继续发明离线切片。
+
+## 13. Phase 48 严格完成度复审（2026-08-22）
+
+本次从当前需求和 production composition 重新审查，而不是沿用“只有 R3-C”的旧结论。复审得到四个
+本机缺口：UTC 月切后默认额度不会创建、production PostgreSQL 没有 60/小时和 300/日持久限速、R3-C
+可无限 retry，以及 AccountDataExport 过期对象清理缺直接测试。前三项分别由 `0010/0011` 和 production
+adapter/worker 修复；第四项由 worker 与 PGlite Storage 删除成功/失败路径补证。
+
+Web 真实用户症状也取得精确 Fresh RED：“取消等待”后若不编辑输入，开始分析仍永久 disabled。根因是
+按钮条件直接包含 `state === "cancelled"`；最小 GREEN 删除该永久禁用，同时保留 running/waiting fence、
+AbortSignal、generation 迟到事件抑制和服务器状态复核。实际本机模拟 Provider 太快，无法稳定人工点击
+取消；因此真实 bundle 验收成功路径与可控延迟取消回归分层记录，不伪造人工取消证据。
+
+当前 11 条 baseline/forward migration 可重放且镜像一致；本机主库已无 reset 前向升级到
+`20260822020000`，数据与会话保持，实际浏览器新分析完成并进入待收藏。`F5` 覆盖 194/194 Node scripts、
+470 个 Vitest files（2,841 passed / 12 skipped），以及完整 macOS 聚合门；真实 Resend/DNS/告警、hosted、
+Google/Provider/词典、真实 Chrome、Windows 最新冻结批次、多日用户验收与最终签字仍是 `X`。
+
+## 14. Phase 49 托管配置输入复审（2026-08-22）
+
+hosted acceptance 的目标拓扑已经冻结为同一根域下不同 Web/API HTTPS origin，但运行时 schema 仍只验证
+通用 URL。Fresh RED 证明 HTTP、路径或尾随 `/` 可通过 API/Web 配置；这会把可在启动时发现的问题拖成
+浏览器 Cookie/CORS/callback 故障，因此仍是本机代码缺口，不是外部账号阻塞。
+
+API/Web 现均要求 canonical 精确 HTTPS origin，禁止凭据、路径、query、fragment 与尾随 `/`；API 与 Web
+必须不同。focused 为 6/6，完整 `F6 = pnpm verify:macos` 为 194 Node、470 Vitest files
+（2,843 passed / 12 skipped）、Store 481、Playwright 110 与全部发布/依赖门。该结论只关闭输入校验：
+门后受控本机 deploy 及 runtime/HTTPS/doctor 复核均通过，且没有停止/reset Supabase。
+真实域名、DNS、TLS、Vercel/Supabase、Resend、跨设备和自然使用继续为 `X`。下一项明确外部动作是先在
+腾讯云购买并实名 `seen-said.cn`。
+
+## 15. Phase 50 外部域名事实复核（2026-08-22）
+
+用户确认腾讯云购买并实名 `seen-said.cn`；公开 WHOIS、`.cn` 父区与 Cloudflare/Google 两家 DoH
+交叉证明权威 NS 已是 Cloudflare 的 `kim` / `malcolm`。父区无 DS、WHOIS unsigned，当前没有
+DNSSEC 委派冲突。目标 `app.acceptance` 子域仍为 NXDOMAIN，因此没有把占位记录冒充成部署完成。
+
+本节把“域名/权威 DNS”从 `X` 更新为已完成。随后已创建独立 Supabase Free acceptance project
+`kpadiulxkgckskcfydry`，实际区域为 `ap-southeast-1 / Singapore`；Data API 关闭，首页状态卡最终收敛为
+`Healthy`。用户先完成列出 11 条 canonical migration 的 dry-run，再明确确认实际 push；Dashboard 已显示
+完整 11 条 history、最新 `security_notification_delivery`、业务表、三类运行角色和 tenant owner RLS，
+因此 hosted migration 从 `X` 更新为已完成。
+
+这仍不等于应用部署完成。Auth 仍为 0 用户；用户已明确确认并完成 hosted bootstrap，唯一 private bucket、
+application login、三条价格与开启的 kill switch 已写入，初版 admin/application 验证均 passed。安全复审发现
+初版 require-only TLS、包含式 membership 与 rollback-only context 证据不足；仓库随后固定显式 Supabase CA +
+verify-full、精确角色图、越权 SQLSTATE/exit code 与同 backend COMMIT 后下一事务 context 为 NULL；聚焦
+脚本/API/PGlite 回归与本轮完整 macOS 门已绿；完整门覆盖 202 Node、472 Vitest files、481 Store coverage
+和 110 Playwright。用户的顺序式 `set -e` 远端命令已到达 application passed，因此前置 admin 只读与
+application hardened 双复验均通过，foundation 升为 `applied; hardened remote verification passed`。
+Vercel/Resend、Cookie/SSE、CRON、真实邮件、跨设备与首个 Operator 远端执行继续为 `X`。Phase 52 已完成
+文档自审、离线实现与完整 macOS 门：207 Node、473 Vitest files（2,855 passed / 12 skipped）、Store 481、
+Playwright 110 和全部构建/发布/依赖门均绿；但远端仍为原 11 条 migration，不能把离线实现冒充 hosted
+bootstrap 完成。

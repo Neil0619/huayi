@@ -32,8 +32,12 @@ describe("Postgres security notification repository", () => {
         return [
           {
             attempt_count: 2,
+            deadline_exceeded_count: 0,
+            delivery_deadline_at: new Date("2026-08-15T09:00:00.000Z"),
             email: "learner@example.test",
+            maximum_attempts_exceeded_count: 0,
             notification_id: "32000000-0000-0000-0000-000000000001",
+            outcome: "delivery",
           },
         ] as Row[];
       }
@@ -48,6 +52,7 @@ describe("Postgres security notification repository", () => {
 
     await expect(repository.claim()).resolves.toEqual({
       attemptCount: 2,
+      deliveryDeadline: new Date("2026-08-15T09:00:00.000Z"),
       email: "learner@example.test",
       leaseToken,
       notificationId: "32000000-0000-0000-0000-000000000001",

@@ -84,6 +84,7 @@ describe("Postgres practice history", () => {
     expect(page.items.map(({ id }) => id)).toEqual([activeA, sessionA]);
     await expect(history.findById(userA, sessionA)).resolves.toMatchObject({
       completedAt: "2026-08-13T05:05:00.000Z",
+      itemLabels: [{ itemId: itemA, label: "to be frank" }],
       session: { attempts: [{ answer: "To be frank, I disagree." }], status: "completed" },
     });
     await expect(history.findById(userB, sessionA)).resolves.toBeNull();
@@ -168,6 +169,7 @@ describe("Postgres practice history", () => {
 
     const history = createPostgresPracticeHistory(adapter);
     await expect(history.findById(userA, failed)).resolves.toMatchObject({
+      itemLabels: [],
       session: {
         items: [{ itemId: tombstone, learningItemDeletedAt: "2026-08-14T05:00:00.000Z" }],
       },

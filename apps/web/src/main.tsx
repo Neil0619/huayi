@@ -14,6 +14,8 @@ import { createWebAdminOperationsApi } from "./admin-operations-api.js";
 import { createWebStudyCaptureApi } from "./study-capture-api.js";
 import { resolveWebBootstrap } from "./public-bootstrap.js";
 import { parsePasswordRecoveryRoute } from "./password-recovery-route.js";
+import { HostedAcceptanceNotice } from "./hosted-acceptance-notice.js";
+import { LocalAcceptanceNotice } from "./local-acceptance-notice.js";
 import "./styles.css";
 import "./account-quota-page.css";
 import "./account-data-rights-page.css";
@@ -32,8 +34,16 @@ if (root === null) throw new Error("Web application root is missing.");
 
 let api;
 let identity;
+const acceptanceModel = import.meta.env.VITE_ACCEPTANCE_MODEL;
+const deploymentEnvironment = import.meta.env.VITE_DEPLOYMENT_ENVIRONMENT;
+const deploymentCommit = HUAYI_DEPLOYMENT_COMMIT;
 const bootstrap = resolveWebBootstrap(location.pathname, {
+  ...(acceptanceModel === undefined ? {} : { VITE_ACCEPTANCE_MODEL: acceptanceModel }),
   VITE_API_ORIGIN: import.meta.env.VITE_API_ORIGIN,
+  ...(deploymentEnvironment === undefined
+    ? {}
+    : { VITE_DEPLOYMENT_ENVIRONMENT: deploymentEnvironment }),
+  ...(deploymentCommit === "" ? {} : { VITE_DEPLOYMENT_COMMIT: deploymentCommit }),
 });
 if (bootstrap.environment !== undefined) {
   const environment = bootstrap.environment;
@@ -113,6 +123,8 @@ const page =
 
 createRoot(root).render(
   <StrictMode>
+    <HostedAcceptanceNotice commit={bootstrap.environment?.VITE_DEPLOYMENT_COMMIT} />
+    <LocalAcceptanceNotice mode={acceptanceModel === "simulated" ? "simulated" : undefined} />
     <App
       api={api}
       accountApi={identity}

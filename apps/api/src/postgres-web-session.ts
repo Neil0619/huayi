@@ -25,8 +25,12 @@ export function createPostgresWebSession(
     const expiresAt = addMilliseconds(options.clock.now(), 30 * 24 * 60 * 60 * 1_000);
     const [result] = await trusted(async (sql) => {
       if (email !== undefined) {
-        await sql`UPDATE public.user_profiles SET email=${email},updated_at=now()
-          WHERE user_id=${userId} AND status IN ('active','disabled')`;
+        const [profile] = await sql<{ refreshed: boolean }[]>`
+          SELECT refresh_profile_email(${userId}, ${email}) AS refreshed
+        `;
+        if (profile?.refreshed !== true) {
+          throw new CloudFault("authentication_required", "The account is not active.");
+        }
       }
       return sql<{ access_scope: "data-rights" | "full"; id: string | null }[]>`
       SELECT id::text,access_scope FROM create_web_session(

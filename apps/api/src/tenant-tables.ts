@@ -32,6 +32,7 @@ export const tenantTables = [
 
 export const restrictedTenantTables = [
   "learning_duplicate_suggestion_requests",
+  "model_rate_limit_events",
   "password_recovery_flows",
   "security_notification_outbox",
 ] as const;

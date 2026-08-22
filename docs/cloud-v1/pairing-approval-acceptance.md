@@ -116,3 +116,40 @@ exchange 或真实部署验收。
 
 真实 Supabase、部署 Cookie、Web↔Store Chrome 配对、session token vault 与双平台验证仍未执行，不能由
 离线 99/99 替代。
+
+## 8. 本机真实交换缺陷与修订方案（2026-08-22）
+
+本机 production Web/API/Postgres 实测完成 pending→approved 后，exchange 返回 400；数据库同时已经把
+pairing 置为 consumed 并创建 ExtensionSession。根因是 `exchange_extension_pairing` 只返回 session ID，
+adapter 在事务提交后另开 trusted/context-setter transaction，直接 JOIN forced-RLS `user_profiles` 读取
+偏好。第二次查询没有 owner tenant context，响应失败时已无法回滚单次 pairing 和 session。
+
+修订路线：
+
+1. `exchange_extension_pairing` 在同一 SECURITY DEFINER statement 内锁定并消费 pairing、创建 session、
+   读取 owner preference snapshot；返回 session ID 与三项偏好、revision、updatedAt；
+2. owner profile 不存在时函数必须抛错，使 pairing consume 和 session insert 一起回滚，不能返回空 snapshot；
+3. adapter 只执行这一条受控函数，不再直接查询 forced-RLS 表；session token 仍只在进程内生成并仅在成功
+   response 返回，数据库只保存 pepper hash；
+4. 新增 `0008` forward migration，baseline 和 Supabase 镜像保持同一最终定义；旧已产生的本机幽灵 session
+   只对本次临时测试 owner 精确撤销/删除，不改主验收账号；
+5. 回归必须先证明旧 adapter 在 exchange 后发出第二条 profile 查询并失败，再证明单条函数原子返回偏好；
+   实际配对须重跑 create→approve→exchange→preference reread→device list→revoke→token rejected。
+
+该修订不扩大 PUBLIC/business grant，不改变公开 HTTP schema、PKCE/state、10 分钟 pairing、90 天 session
+或客户端 vault。真实 Chrome 安装仍为目标平台外部门，但 production 服务端配对协议可在本机独立验收。
+
+### 8.1 实现与本机复验结果
+
+- baseline、API forward `0008` 和 Supabase mirror 已更新为同一最终函数；doctor 同时审计 forward mirror；
+- adapter 回归先以“exchange 后出现意外查询”取得 RED，最终只保留角色设置和一次
+  `exchange_extension_pairing` statement；migration/PGlite 回归证明缺失或停用 profile 会让 consume 与
+  session insert 一起回滚；
+- focused migration/adapter/database integration 为 12/12，acceptance doctor 为 5/5，API typecheck 与
+  目标 lint/format 通过；
+- `0008` 已在本机前向应用。首次失败产生的临时账号、幽灵 session 与诊断 pairing 均按精确 owner/hash
+  清理，主验收账号未改动；
+- 全新一次性账号实际完成 create→pending→approve→exchange→偏好快照回读→设备列表→revoke；exchange
+  单次消费，撤销后的 token 返回 401，清理后 Auth/profile/pairing/session 均为 0；
+- 因此 production 服务端配对协议状态更新为 `exercised locally`；真实 Store Extension vault、真实 Chrome
+  页面连接和 macOS/Windows 双平台手工安装仍由后续外部门验收。

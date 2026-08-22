@@ -8,6 +8,7 @@ import {
   DEEPSEEK_PLATFORM_MODEL,
   deepSeekMaximumUsage,
 } from "./deepseek-analysis-model.js";
+import type { DeepSeekAnalysisFetch } from "./deepseek-analysis-protocol.js";
 import type { ApiEnvironment } from "./environment.js";
 import { createPostgresAnalysisQuota } from "./postgres-analysis-quota.js";
 import { createPostgresAnalysisRequestLifecycle } from "./postgres-analysis-request-lifecycle.js";
@@ -20,6 +21,7 @@ import type { DeepSeekPriceSchedule } from "./deepseek-price-schedule.js";
 export function createProductionAnalysis(options: {
   database: AnalysisDatabase;
   environment: ApiEnvironment;
+  fetch?: DeepSeekAnalysisFetch;
   pricing: DeepSeekPriceSchedule;
 }) {
   const reservationPricing = options.pricing.reservation;
@@ -49,11 +51,13 @@ export function createProductionAnalysis(options: {
     ids: () => crypto.randomUUID(),
     model: createDeepSeekAnalysisModel({
       apiKey: options.environment.HUAYI_DEEPSEEK_API_KEY,
+      ...(options.fetch === undefined ? {} : { fetch: options.fetch }),
       prices: reservationPricing.prices,
     }),
     modelForPricing: (pricing) =>
       createDeepSeekAnalysisModel({
         apiKey: options.environment.HUAYI_DEEPSEEK_API_KEY,
+        ...(options.fetch === undefined ? {} : { fetch: options.fetch }),
         prices: pricing.prices,
       }),
     pricing: options.pricing,

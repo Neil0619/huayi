@@ -25,7 +25,8 @@ BEGIN
     '/internal/password-recovery/run',
     '/internal/data-rights/run',
     '/internal/extension-queries/cleanup',
-    '/internal/learning-duplicate-suggestions/cleanup'
+    '/internal/learning-duplicate-suggestions/cleanup',
+    '/internal/security-notifications/run'
   ) THEN
     RAISE EXCEPTION 'unsupported cron path';
   END IF;
@@ -121,7 +122,8 @@ WHERE jobname IN (
   'huayi-password-recovery',
   'huayi-data-rights',
   'huayi-extension-query-cleanup',
-  'huayi-duplicate-suggestion-cleanup'
+  'huayi-duplicate-suggestion-cleanup',
+  'huayi-security-notifications'
 );
 
 SELECT cron.schedule(
@@ -146,6 +148,12 @@ SELECT cron.schedule(
   'huayi-duplicate-suggestion-cleanup',
   '* * * * *',
   $$SELECT huayi_private.invoke_cron_path('/internal/learning-duplicate-suggestions/cleanup');$$
+);
+
+SELECT cron.schedule(
+  'huayi-security-notifications',
+  '* * * * *',
+  $$SELECT huayi_private.invoke_cron_path('/internal/security-notifications/run');$$
 );
 
 COMMIT;

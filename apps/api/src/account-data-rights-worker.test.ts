@@ -90,6 +90,80 @@ describe("account data rights worker", () => {
     );
   });
 
+  it("deletes one expired export object before claiming new export work", async () => {
+    const cleanup = {
+      exportId: "export-expired",
+      objectKey: "account-exports/export-expired.ndjson",
+    };
+    const repository: AccountDataRightsWorkerRepository = {
+      cleanupExpiredExport: vi.fn(async () => cleanup),
+      claimDeletion: vi.fn(async () => null),
+      claimExport: vi.fn(async () => null),
+      completeExport: vi.fn(),
+      failDeletion: vi.fn(),
+      failExpiredExportCleanup: vi.fn(),
+      failExport: vi.fn(),
+      finishAuthDeletion: vi.fn(),
+      finishDatabaseDeletion: vi.fn(),
+      finishExpiredExportCleanup: vi.fn(),
+      finishExportDeletion: vi.fn(),
+    };
+    const deleteObjects = vi.fn(async () => undefined);
+    const worker = createAccountDataRightsWorker({
+      authority: {
+        deleteAuthUser: vi.fn(),
+        deleteObjects,
+        upload: vi.fn(),
+      },
+      exportSource: { records: vi.fn() },
+      now: () => new Date("2026-08-13T01:00:00.000Z"),
+      repository,
+    });
+
+    await expect(worker.runOne()).resolves.toEqual({ deletion: "idle", export: "processed" });
+    expect(deleteObjects).toHaveBeenCalledWith([cleanup.objectKey]);
+    expect(repository.finishExpiredExportCleanup).toHaveBeenCalledWith(cleanup);
+    expect(repository.failExpiredExportCleanup).not.toHaveBeenCalled();
+    expect(repository.claimExport).not.toHaveBeenCalled();
+  });
+
+  it("keeps an expired export cleanup retryable when object deletion fails", async () => {
+    const cleanup = {
+      exportId: "export-expired",
+      objectKey: "account-exports/export-expired.ndjson",
+    };
+    const repository: AccountDataRightsWorkerRepository = {
+      cleanupExpiredExport: vi.fn(async () => cleanup),
+      claimDeletion: vi.fn(async () => null),
+      claimExport: vi.fn(async () => null),
+      completeExport: vi.fn(),
+      failDeletion: vi.fn(),
+      failExpiredExportCleanup: vi.fn(),
+      failExport: vi.fn(),
+      finishAuthDeletion: vi.fn(),
+      finishDatabaseDeletion: vi.fn(),
+      finishExpiredExportCleanup: vi.fn(),
+      finishExportDeletion: vi.fn(),
+    };
+    const worker = createAccountDataRightsWorker({
+      authority: {
+        deleteAuthUser: vi.fn(),
+        deleteObjects: vi.fn(async () => {
+          throw new Error("storage unavailable");
+        }),
+        upload: vi.fn(),
+      },
+      exportSource: { records: vi.fn() },
+      now: () => new Date("2026-08-13T01:00:00.000Z"),
+      repository,
+    });
+
+    await expect(worker.runOne()).resolves.toEqual({ deletion: "idle", export: "failed" });
+    expect(repository.failExpiredExportCleanup).toHaveBeenCalledWith(cleanup);
+    expect(repository.finishExpiredExportCleanup).not.toHaveBeenCalled();
+    expect(repository.claimExport).not.toHaveBeenCalled();
+  });
+
   it("advances deletion in fixed object, database, and Auth order", async () => {
     const calls: string[] = [];
     const repository: AccountDataRightsWorkerRepository = {

@@ -67,6 +67,39 @@ async function createWebSession(dependencies: CloudFoundationDependencies, sessi
 export function createCloudFoundationApp(dependencies: CloudFoundationDependencies) {
   const app = new Hono<{ Variables: CloudFoundationVariables }>();
 
+  const completeAuthenticationCallback = async (
+    context: Context<{ Variables: CloudFoundationVariables }>,
+    signInMethod: "google" | "password",
+  ) => {
+    context.header("Cache-Control", "private, no-store");
+    context.header("Referrer-Policy", "no-referrer");
+    const code = context.req.query("code");
+    const flowId = context.req.query("flow");
+    if (code === undefined || flowId === undefined) {
+      throw new CloudFault("invalid_request", "Authentication callback is incomplete.");
+    }
+    const protectedState = await dependencies.identity.readAuthFlowState(flowId);
+    const serializedState = (
+      dependencies.unprotectTransientAuthState ?? ((value: string) => value)
+    )(protectedState);
+    const authSession = await dependencies.auth.completeCode({
+      authState: JSON.parse(serializedState) as Record<string, string>,
+      code,
+    });
+    await dependencies.identity.completeAuthFlow(
+      flowId,
+      authSession.userId,
+      authSession.email,
+      signInMethod,
+    );
+    const session = await createWebSession(dependencies, authSession);
+    context.header("Set-Cookie", session.setCookie);
+    return context.redirect(
+      `${dependencies.webOrigin}${session.access === "full" ? "/app" : "/settings/data"}`,
+      302,
+    );
+  };
+
   app.use("*", async (context, next) => {
     const id = crypto.randomUUID();
     context.set("requestId", id);
@@ -85,8 +118,9 @@ export function createCloudFoundationApp(dependencies: CloudFoundationDependenci
         "X-CSRF-Token",
         "X-Huayi-Client-Version",
       ],
-      allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+      allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
       credentials: true,
+      exposeHeaders: ["Content-Disposition"],
       origin: [dependencies.webOrigin, dependencies.extensionOrigin],
     }),
   );
@@ -175,30 +209,11 @@ export function createCloudFoundationApp(dependencies: CloudFoundationDependenci
     }),
   );
 
-  app.get("/v1/auth/callback", async (context) => {
-    context.header("Cache-Control", "private, no-store");
-    context.header("Referrer-Policy", "no-referrer");
-    const code = context.req.query("code");
-    const flowId = context.req.query("flow");
-    if (code === undefined || flowId === undefined) {
-      throw new CloudFault("invalid_request", "Authentication callback is incomplete.");
-    }
-    const protectedState = await dependencies.identity.readAuthFlowState(flowId);
-    const serializedState = (
-      dependencies.unprotectTransientAuthState ?? ((value: string) => value)
-    )(protectedState);
-    const authSession = await dependencies.auth.completeCode({
-      authState: JSON.parse(serializedState) as Record<string, string>,
-      code,
-    });
-    await dependencies.identity.completeAuthFlow(flowId, authSession.userId, authSession.email);
-    const session = await createWebSession(dependencies, authSession);
-    context.header("Set-Cookie", session.setCookie);
-    return context.redirect(
-      `${dependencies.webOrigin}${session.access === "full" ? "/app" : "/settings/data"}`,
-      302,
-    );
-  });
+  app.get("/v1/auth/callback", (context) => completeAuthenticationCallback(context, "google"));
+
+  app.get("/v1/auth/password/callback", (context) =>
+    completeAuthenticationCallback(context, "password"),
+  );
 
   app.get("/v1/auth/csrf", async (context) => {
     const sessionId = webSessionCookie(context);
@@ -219,7 +234,7 @@ export function createCloudFoundationApp(dependencies: CloudFoundationDependenci
     const pending = await dependencies.auth.registerPassword({
       email: input.email,
       password: input.password,
-      redirectTo: `${dependencies.apiOrigin}/v1/auth/callback?flow=${encodeURIComponent(flow.flowId)}`,
+      redirectTo: `${dependencies.apiOrigin}/v1/auth/password/callback?flow=${encodeURIComponent(flow.flowId)}`,
     });
     await dependencies.identity.saveAuthFlowState(
       flow.flowId,

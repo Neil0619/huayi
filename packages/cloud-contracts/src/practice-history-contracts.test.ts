@@ -73,9 +73,19 @@ describe("practice history contracts", () => {
     expect(
       practiceHistoryDetailResponseSchema.parse({
         completedAt: "2026-08-13T05:05:30.000Z",
+        itemLabels: [],
         session: completed,
       }),
     ).toMatchObject({ session: { attempts: [{ answer: "I wrote a sentence." }] } });
+    const retainedItem = { ...completed.items[0] };
+    delete retainedItem.learningItemDeletedAt;
+    expect(
+      practiceHistoryDetailResponseSchema.parse({
+        completedAt: "2026-08-13T05:05:30.000Z",
+        itemLabels: [{ itemId: "item-1", label: "to be frank" }],
+        session: { ...completed, items: [retainedItem] },
+      }),
+    ).toMatchObject({ itemLabels: [{ itemId: "item-1", label: "to be frank" }] });
     expect(() =>
       practiceHistorySummarySchema.parse({ ...summary, ownerUserId: "user-a" }),
     ).toThrow();

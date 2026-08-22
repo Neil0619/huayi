@@ -99,6 +99,12 @@ describe("Cloud V1 foundation migration", () => {
     expect(sql).toContain("create_extension_pairing");
     expect(sql).toContain("approve_extension_pairing");
     expect(sql).toContain("exchange_extension_pairing");
+    expect(sql).toMatch(
+      /create function exchange_extension_pairing[\s\S]*?returns table\([\s\S]*?preferences_updated_at timestamptz/iu,
+    );
+    expect(sql).toMatch(
+      /select \* into profile_snapshot from public\.user_profiles[\s\S]*?if not found then raise exception 'profile unavailable'/iu,
+    );
     expect(sql).toContain("revoke_current_extension_session");
     expect(sql).toContain("pg_advisory_xact_lock");
     expect(sql).toContain("reserve_quota");
@@ -108,7 +114,19 @@ describe("Cloud V1 foundation migration", () => {
     expect(sql).toContain("mutate_analysis_record");
     expect(sql).toContain("begin_idempotent_write");
     expect(sql).toMatch(
+      /revoke all on function replay_account_deletion\(text, text, text\)[\s\S]*?from public, huayi_business/iu,
+    );
+    expect(sql).toMatch(
+      /grant execute on function replay_account_deletion\(text, text, text\)[\s\S]*?to huayi_context_setter/iu,
+    );
+    expect(sql).toMatch(
       /revoke all on function huayi_private\.analysis_public_record\(uuid\) from public, huayi_business/iu,
+    );
+    expect(sql).toMatch(
+      /owner_analysis_public_record[\s\S]*?records\.owner_user_id=account_owner_user_id[\s\S]*?account_owner_user_id=huayi_private\.current_owner_user_id\(\)/iu,
+    );
+    expect(sql).toMatch(
+      /grant execute on function huayi_private\.owner_analysis_public_record\(uuid, uuid\)[\s\S]*?to huayi_context_setter/iu,
     );
     expect(sql).toMatch(
       /revoke all on function begin_idempotent_write\(uuid, text, text, text\)[\s\S]*?from public, huayi_business/iu,

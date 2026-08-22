@@ -247,7 +247,6 @@ export function PracticeHistoryPage({
               <p>选择一条记录查看完整练习。</p>
             ) : (
               <>
-                <p className="eyebrow">{detail.session.id}</p>
                 <h2 ref={detailHeading} tabIndex={-1}>
                   {detail.session.type === "sentence-creation" ? "句子创作详情" : "受约束对话详情"}
                 </h2>

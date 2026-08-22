@@ -19,6 +19,8 @@ import {
   type SecretSource,
 } from "./security.js";
 
+type AuthMethod = "google" | "password";
+
 export interface PostgresFoundationIdentityOptions {
   clock: Clock;
   pepper: string;
@@ -101,18 +103,18 @@ export function createPostgresFoundationIdentity(options: PostgresFoundationIden
     return { expiresAt, flowId };
   }
 
-  async function completeAuthFlow(flowId: string, userId: string, email: string) {
+  async function completeAuthFlow(flow: string, user: string, email: string, method: AuthMethod) {
     const [result] = await trusted(
       (sql) => sql<{ id: string | null }[]>`
       SELECT complete_auth_flow(
-        ${hashSecret(flowId, options.pepper)}, ${userId}, ${email}, 'UTC', 5
+        ${hashSecret(flow, options.pepper)}, ${user}, ${email}, 'UTC', 5, ${method}
       )::text AS id
     `,
     );
     if (result?.id === null || result === undefined) {
       throw new CloudFault("authentication_required", "The authentication flow is invalid.");
     }
-    return { userId };
+    return { userId: user };
   }
 
   async function authenticateWebSession(sessionId: string) {
@@ -284,38 +286,31 @@ export function createPostgresFoundationIdentity(options: PostgresFoundationIden
       const expiresAt = addMilliseconds(options.clock.now(), 90 * 24 * 60 * 60 * 1_000);
       const challenge = createHash("sha256").update(verifier).digest("base64url");
       const [result] = await trusted(
-        (sql) => sql<{ id: string | null }[]>`
-        SELECT exchange_extension_pairing(
-          ${id}, ${hashSecret(state, options.pepper)}, ${challenge}, ${sessionId},
-          ${hashSecret(sessionToken, options.pepper)}, ${expiresAt}
-        )::text AS id
-      `,
-      );
-      if (result?.id === null || result === undefined)
-        throw new CloudFault("forbidden", "Invalid pairing.");
-      const [preferences] = await trusted(
         (sql) => sql<
           {
             cloud_word_copy_mode: "disabled" | "enabled";
             extension_query_model_mode: "byok" | "platform";
+            id: string;
             preferences_revision: number;
+            preferences_updated_at: Date;
             study_capture_mode: "automatic" | "manual";
-            updated_at: Date;
           }[]
         >`
-          SELECT profiles.extension_query_model_mode,profiles.study_capture_mode,
-            profiles.cloud_word_copy_mode,profiles.preferences_revision,profiles.updated_at
-          FROM user_profiles profiles JOIN extension_sessions sessions
-            ON sessions.user_id=profiles.user_id WHERE sessions.id=${sessionId}
-        `,
+        SELECT id::text,extension_query_model_mode,study_capture_mode,
+          cloud_word_copy_mode,preferences_revision,preferences_updated_at
+        FROM exchange_extension_pairing(
+          ${id}, ${hashSecret(state, options.pepper)}, ${challenge}, ${sessionId},
+          ${hashSecret(sessionToken, options.pepper)}, ${expiresAt}
+        )
+      `,
       );
-      if (preferences === undefined) throw new CloudFault("forbidden", "Preferences unavailable.");
+      if (result === undefined) throw new CloudFault("forbidden", "Invalid pairing.");
       const snapshot: ExtensionPreferences = {
-        cloudWordCopyMode: preferences.cloud_word_copy_mode,
-        extensionQueryModelMode: preferences.extension_query_model_mode,
-        revision: preferences.preferences_revision,
-        studyCaptureMode: preferences.study_capture_mode,
-        updatedAt: preferences.updated_at.toISOString(),
+        cloudWordCopyMode: result.cloud_word_copy_mode,
+        extensionQueryModelMode: result.extension_query_model_mode,
+        revision: result.preferences_revision,
+        studyCaptureMode: result.study_capture_mode,
+        updatedAt: result.preferences_updated_at.toISOString(),
       };
       return { expiresAt, preferences: snapshot, sessionId, sessionToken };
     },

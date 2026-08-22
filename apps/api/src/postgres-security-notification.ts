@@ -21,22 +21,58 @@ export function createPostgresSecurityNotificationRepository(
         async (query) =>
           (
             await query.rows<{
-              attempt_count: number;
-              email: string;
-              notification_id: string;
+              attempt_count: number | null;
+              deadline_exceeded_count: number;
+              delivery_deadline_at: Date | null;
+              email: string | null;
+              maximum_attempts_exceeded_count: number;
+              notification_id: string | null;
+              outcome: "delivery" | "terminalized";
             }>(
-              `SELECT notification_id::text,email,attempt_count
+              `SELECT outcome,notification_id::text,email,attempt_count,delivery_deadline_at,
+                deadline_exceeded_count,maximum_attempts_exceeded_count
              FROM claim_security_notification($1,$2,$3)`,
               [hashSecret(leaseToken, options.pepper), leaseExpiresAt, now],
             )
           )[0],
       );
       if (row === undefined) return null;
-      if (!Number.isInteger(row.attempt_count) || row.attempt_count < 1) {
+      if (row.outcome === "terminalized") {
+        if (
+          !Number.isInteger(row.deadline_exceeded_count) ||
+          row.deadline_exceeded_count < 0 ||
+          row.deadline_exceeded_count > 100 ||
+          !Number.isInteger(row.maximum_attempts_exceeded_count) ||
+          row.maximum_attempts_exceeded_count < 0 ||
+          row.maximum_attempts_exceeded_count > 100 ||
+          row.deadline_exceeded_count + row.maximum_attempts_exceeded_count < 1 ||
+          row.deadline_exceeded_count + row.maximum_attempts_exceeded_count > 100
+        ) {
+          throw new Error("Security notification terminal count is invalid.");
+        }
+        return {
+          deadlineExceededCount: row.deadline_exceeded_count,
+          maximumAttemptsExceededCount: row.maximum_attempts_exceeded_count,
+          type: "terminalized",
+        };
+      }
+      if (
+        row.outcome !== "delivery" ||
+        row.attempt_count === null ||
+        !Number.isInteger(row.attempt_count) ||
+        row.attempt_count < 1 ||
+        row.attempt_count > 8 ||
+        row.email === null ||
+        row.notification_id === null ||
+        !(row.delivery_deadline_at instanceof Date) ||
+        !Number.isFinite(row.delivery_deadline_at.getTime()) ||
+        row.delivery_deadline_at.getTime() <= now.getTime()
+      ) {
         throw new Error("Security notification attempt is invalid.");
       }
       return {
         attemptCount: row.attempt_count,
+        deliveryDeadline: row.delivery_deadline_at,
         email: accountEmailSchema.parse(row.email),
         leaseToken,
         notificationId: resourceIdSchema.parse(row.notification_id),

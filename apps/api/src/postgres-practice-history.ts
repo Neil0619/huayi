@@ -121,7 +121,7 @@ export function createPostgresPracticeHistory(
           const expiresAt = new Date(
             Date.parse(command.now) + 7 * 24 * 60 * 60 * 1_000,
           ).toISOString();
-          await trusted.rows(
+          await tenant.rows(
             `INSERT INTO idempotency_records(
               owner_user_id,operation,key,request_hash,response,expires_at
             ) VALUES($1,'practice.delete',$2,$3,$4::jsonb,$5::timestamptz)`,
@@ -146,8 +146,21 @@ export function createPostgresPracticeHistory(
           [id],
         );
         if (rows[0] === undefined) return null;
+        const itemLabels = await tenant.rows<{ item_id: string; label: string }>(
+          `SELECT links.learning_item_id::text AS item_id,
+            CASE items.content->>'type'
+              WHEN 'expression' THEN items.content->>'text'
+              WHEN 'sentence_pattern' THEN items.content->>'template'
+            END AS label
+            FROM practice_session_items links
+            JOIN learning_items items ON items.id=links.learning_item_id
+            WHERE links.session_id=$1 AND items.deleted_at IS NULL AND items.content IS NOT NULL
+            ORDER BY links.position`,
+          [id],
+        );
         return practiceHistoryDetailResponseSchema.parse({
           completedAt: rows[0].completed_at?.toISOString() ?? null,
+          itemLabels: itemLabels.map((item) => ({ itemId: item.item_id, label: item.label })),
           session: await loadPracticeSession(tenant, id),
         });
       });

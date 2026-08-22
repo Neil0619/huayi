@@ -122,7 +122,17 @@ export function createPostgresAnalysisStore(options: {
               ],
             );
           }
-          const calls = settlementCalls(command, command.actualCostMicroUsd ?? 100_000);
+          const calls = settlementCalls(
+            command,
+            command.actualCostMicroUsd ??
+              (await reservedCostMicroUsd(
+                trusted,
+                command.userId,
+                command.requestId,
+                command.leaseToken,
+                command.reservationId,
+              )),
+          );
           await trusted.rows(
             `SELECT settle_quota_reservation($1,$2::uuid[],'analysis',$3,$4::jsonb,'succeeded')`,
             [
@@ -162,7 +172,17 @@ export function createPostgresAnalysisStore(options: {
           command.requestId,
           command.leaseToken,
         ]);
-        const calls = settlementCalls(command, command.actualCostMicroUsd ?? 100_000);
+        const calls = settlementCalls(
+          command,
+          command.actualCostMicroUsd ??
+            (await reservedCostMicroUsd(
+              trusted,
+              command.userId,
+              command.requestId,
+              command.leaseToken,
+              command.reservationId,
+            )),
+        );
         await trusted.rows(
           "SELECT settle_quota_reservation($1,$2::uuid[],'analysis',$3,$4::jsonb,'failed')",
           [
@@ -310,6 +330,22 @@ function settlementCalls(
       outputTokens: command.usage?.outputTokens ?? null,
     },
   ];
+}
+
+async function reservedCostMicroUsd(
+  query: AnalysisQuery,
+  userId: string,
+  requestId: string,
+  leaseToken: string,
+  reservationId: string,
+): Promise<number> {
+  const rows = await query.rows<{ reserved_micro_usd: string }>(
+    `SELECT analysis_reservation_amount($1,$2,$3,$4)::text AS reserved_micro_usd`,
+    [userId, requestId, leaseToken, reservationId],
+  );
+  const value = Number(rows[0]?.reserved_micro_usd);
+  if (!Number.isSafeInteger(value) || value <= 0) throw new Error("Invalid active reservation.");
+  return value;
 }
 
 async function quotaSummary(query: AnalysisQuery, userId: string) {

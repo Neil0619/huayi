@@ -143,7 +143,7 @@ export function createPostgresDialogueAssistantOperations(
       });
     },
     async completeAssistant(command) {
-      return database.transaction(command.ownerUserId, async ({ tenant, trusted }) => {
+      return database.transaction(command.ownerUserId, async ({ tenant }) => {
         const tasks = await tenant.rows<{ output: unknown }>(
           `SELECT output FROM practice_generation_tasks WHERE id=$1 AND session_id=$2
             AND lease_token=$3 AND kind='dialogue-assistant' AND state='ready' FOR UPDATE`,
@@ -192,10 +192,10 @@ export function createPostgresDialogueAssistantOperations(
         );
         const response = await loadPracticeSession(tenant, command.sessionId);
         if (command.operation === "practice.dialogue-assistant-retry") {
-          await saveDialogueWrite(trusted, command, command.operation, response);
+          await saveDialogueWrite(tenant, command, command.operation, response);
         } else {
           await replaceDialogueWrite(
-            trusted,
+            tenant,
             command.ownerUserId,
             command.operation,
             command.idempotencyKey,
@@ -265,7 +265,7 @@ export function createPostgresDialogueAssistantOperations(
           ],
         );
         const session = await loadPracticeSession(tenant, command.sessionId);
-        await saveDialogueWrite(trusted, command, "practice.dialogue-turn", session);
+        await saveDialogueWrite(tenant, command, "practice.dialogue-turn", session);
         return {
           claimed: true,
           generationId: command.generationId,

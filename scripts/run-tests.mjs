@@ -40,7 +40,7 @@ function resolveTestSteps(scriptTests, pnpmEntry, platform) {
     executable: process.execPath,
   };
   if (platform !== "win32") {
-    return [scriptStep, createVitestStep(pnpmEntry)];
+    return [scriptStep, createVitestStep(pnpmEntry, undefined, ["--maxWorkers", "4"])];
   }
   return [
     scriptStep,

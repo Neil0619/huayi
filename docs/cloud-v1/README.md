@@ -46,6 +46,10 @@ Cloud V1 是尚未发布的 Store Edition 云端学习增量。实现和审阅�
 42. [Phase 43 Web 工作台外壳与主导航](web-workspace-shell.md)
 43. [Phase 44 Web 语义设计 Token 契约](web-design-token-contract.md)
 44. [Phase 45 Vercel Fluid Compute 与 API Function 时长契约](vercel-fluid-function-duration.md)
+45. [Phase 47 可用测试环境与用户验收循环](user-acceptance-environment.md)
+46. [Phase 47 本机验收模拟模型](local-acceptance-simulated-provider.md)
+47. [Phase 52 首位 Operator 部署引导方案](first-operator-bootstrap.md)
+48. [Phase 53 Hosted application deployment contract](hosted-application-deployment.md)
 
-根 `CONTEXT.md` 定义领域语言，`docs/adr/0009`–`0022` 记录难以逆转的取舍。需求或技术路线变化先
+根 `CONTEXT.md` 定义领域语言，`docs/adr/0009`–`0023` 记录难以逆转的取舍。需求或技术路线变化先
 更新 `change-log.md` 和对应权威文档，再修改代码。

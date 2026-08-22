@@ -1,0 +1,6 @@
+.branches/
+.temp/
+.env
+.env.*
+certs/*
+!certs/.gitkeep

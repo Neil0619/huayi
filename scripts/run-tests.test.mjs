@@ -21,6 +21,8 @@ test("repository tests run explicit script files before Vitest", async () => {
     "--config",
     "vitest.config.ts",
     "--passWithNoTests",
+    "--maxWorkers",
+    "4",
   ]);
   assert.equal(calls[0].executable, process.execPath);
   assert.equal(calls[1].executable, process.execPath);
@@ -82,6 +84,8 @@ test("repository test modes select exactly one reviewed subcheck", async () => {
         "--config",
         "vitest.config.ts",
         "--passWithNoTests",
+        "--maxWorkers",
+        "4",
       ],
     ],
   ]) {

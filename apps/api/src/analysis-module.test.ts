@@ -1,13 +1,14 @@
 import { contractFixtures } from "@huayi/cloud-contracts";
 import { describe, expect, it, vi } from "vitest";
 
-import { createAnalysisModule, segmentSentences } from "./analysis-module.js";
+import { createAnalysisModule } from "./analysis-module.js";
 import { createInMemoryAnalysisRequestLifecycle } from "./analysis-request-lifecycle.js";
 import {
   createInMemoryAnalysisCommitter,
   createInMemoryAnalysisRepository,
 } from "./analysis-repository.js";
 import { FakeAnalysisModel, FakeAnalysisQuota } from "./test-support/analysis-fakes.js";
+import { createFakeStudyCaptureReader } from "./test-support/analysis-study-capture-fake.js";
 import { MutableClock } from "./test-support/security-fakes.js";
 import { CloudFault } from "./cloud-fault.js";
 import { createDeepSeekPriceSchedule } from "./deepseek-price-schedule.js";
@@ -19,6 +20,7 @@ function fixture(
     result: contractFixtures.analysis.result,
   },
   withDispatchPricing = false,
+  failCommit = false,
 ) {
   const model = new FakeAnalysisModel(content);
   const dispatchModel = new FakeAnalysisModel(content);
@@ -33,9 +35,17 @@ function fixture(
     peak: "10000000-0000-4000-8000-000000000003",
   });
   const requestLifecycle = withDispatchPricing ? { ...lifecycle, markDispatched } : lifecycle;
+  const baseCommitter = createInMemoryAnalysisCommitter(repository, quota, lifecycle);
   const module = createAnalysisModule({
     clock,
-    committer: createInMemoryAnalysisCommitter(repository, quota, lifecycle),
+    committer: failCommit
+      ? {
+          ...baseCommitter,
+          async complete() {
+            throw new Error("database commit failed");
+          },
+        }
+      : baseCommitter,
     cursorKey: new Uint8Array(32).fill(7),
     ids: (() => {
       let value = 0;
@@ -46,29 +56,7 @@ function fixture(
     quota,
     requestLifecycle,
     repository,
-    studyCaptures: {
-      async get() {
-        return {
-          activeAnalysisRequest: null,
-          capture: {
-            captureCount: 1,
-            createdAt: "2026-08-12T09:00:00.000Z",
-            firstCapturedAt: "2026-08-12T09:00:00.000Z",
-            id: "capture-1",
-            kind: "sentence" as const,
-            lastCapturedAt: "2026-08-12T09:00:00.000Z",
-            normalizedTextHash: "a".repeat(64),
-            revision: 1,
-            sourceText: "This line is worth learning.",
-            status: "pending" as const,
-            title: "A useful line",
-            updatedAt: "2026-08-12T09:00:00.000Z",
-            userContext: "Notice the tone.",
-          },
-          latestAnalysis: null,
-        };
-      },
-    },
+    studyCaptures: createFakeStudyCaptureReader(),
   });
   return {
     clock,
@@ -101,15 +89,6 @@ describe("analysis module", () => {
     expect(dispatchModel.requests).toHaveLength(1);
   });
 
-  it("segments deterministically while preserving common abbreviations", () => {
-    expect(segmentSentences("Dr. Smith agreed. It works! Does it? Yes")).toEqual([
-      { analysisUnitId: "u1", ordinal: 0, sourceText: "Dr. Smith agreed." },
-      { analysisUnitId: "u2", ordinal: 1, sourceText: "It works!" },
-      { analysisUnitId: "u3", ordinal: 2, sourceText: "Does it?" },
-      { analysisUnitId: "u4", ordinal: 3, sourceText: "Yes" },
-    ]);
-  });
-
   it("reserves before the fake model, emits ordered events, and persists only final output", async () => {
     const { model, module, quota, repository } = fixture();
     const events = [];
@@ -138,6 +117,52 @@ describe("analysis module", () => {
       state: "completed",
     });
     expect((await repository.list("user-a", { archived: false, limit: 20 })).items).toHaveLength(1);
+  });
+
+  it("replaces private model candidate aliases with server-owned ids before persistence", async () => {
+    const { module } = fixture();
+    const events = [];
+    for await (const event of module.startPlatformAnalysis({
+      idempotencyKey: "server-candidate-ids",
+      input: contractFixtures.startAnalysisRequest,
+      userId: "user-a",
+    })) {
+      events.push(event);
+    }
+
+    const completed = events.at(-1);
+    expect(completed).toMatchObject({
+      analysis: {
+        candidates: [expect.objectContaining({ id: "generated-4" })],
+        result: { sentences: [expect.objectContaining({ candidateIds: ["generated-4"] })] },
+      },
+      type: "analysis.completed",
+    });
+  });
+
+  it("preserves generated billing facts when persistence fails after model completion", async () => {
+    const { module, quota } = fixture(undefined, false, true);
+    const events = [];
+    for await (const event of module.startPlatformAnalysis({
+      idempotencyKey: "post-model-commit-failure",
+      input: contractFixtures.startAnalysisRequest,
+      userId: "user-a",
+    })) {
+      events.push(event);
+    }
+
+    expect(events.at(-1)).toMatchObject({ type: "analysis.failed" });
+    expect(quota.settlements.at(-1)).toMatchObject({
+      actualCostMicroUsd: 20_000,
+      billedCalls: [
+        {
+          costMicroUsd: 20_000,
+          usage: { cachedInputTokens: 10, inputTokens: 100, outputTokens: 200 },
+        },
+      ],
+      outcome: "failed",
+      usage: { cachedInputTokens: 10, inputTokens: 100, outputTokens: 200 },
+    });
   });
 
   it("settles failures without partial persistence or private errors", async () => {

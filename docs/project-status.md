@@ -108,8 +108,9 @@ wire 版本或完成声明。
 > GREEN focused 17/17；全量 118/118 Node 脚本、444 个 Vitest 文件（2,721 passed / 12 skipped）通过。
 > 更新后的 macOS 聚合门禁也以退出码 0 证明 build 后真实入口、109/109 Playwright、Store release、生产
 > 依赖审计与 diff 全绿。Windows 与真实候选/服务/Chrome 外部门禁不变。
-> Phase 32 进一步明确：R3-C 仍缺真实安全通知 sender、独立通知 CRON 生产组合和告警实现，
-> 且邮件厂商、verified sender/域名、支持联系方式和告警渠道尚未决策；这不是纯验证项。当前
+> Phase 32 当时进一步明确：R3-C 缺真实安全通知 sender、独立通知 CRON 生产组合和告警实现，
+> 且邮件厂商、verified sender/域名、支持联系方式和告警渠道尚未决策；这不是纯验证项。代码缺口后由
+> Phase 48 关闭，当前只剩 verified domain/credential/真实投递/告警接收等外部门禁。当前
 > Cloud V1 范围还含未跟踪文件，`git diff --check` 只检查已跟踪差异，候选交付范围入库后的重跑
 > 仍 pending。逐条证据见 `docs/cloud-v1/offline-completion-audit.md`。
 > Phase 33 又完成 Store 当前权限必要性源码审阅：Chrome 官方语义与实际后端共同证明应保留
@@ -648,13 +649,14 @@ validation pending`。R5 离线总审已通过 Web 184/184、完整 Playwright 1
 - 后续依赖顺序为 Windows Node.js 26+ 离线门禁 → 生产 Supabase/Vercel/Postgres/Google 与数据权利演练
   → DeepSeek 真实计费对账 → macOS/Windows 真实 Chrome/升级 → 欧路/扇贝真实验收 → 运营材料、商店
   草稿和最终发布；每一项外部数据、费用、安装、Chrome、上传或不可逆操作均保持单独授权。
-- 当前状态仍为 `core slices offline-evidenced; R3-C production implementation and external release gates
-pending`，不能因路线拆分宣称完整 V1 已完成。
+- Phase 37 当时状态为 `core slices offline-evidenced; R3-C production implementation and external release
+gates pending`。Phase 48 后 production implementation 已关闭，外部门禁仍 pending；不能因代码完成
+  宣称完整 V1 已完成。
 
 ## Cloud V1 Phase 38 Vercel Hobby + Supabase Free 调度适配状态（2026-08-20）
 
 - Windows 支持保留；本阶段是 shared scheduler adapter。`apps/api/vercel.json` 已移除 Hobby 不接受的四项
-  minute cron，四个既有 `CRON_SECRET` worker route 与业务状态机不变；
+  minute cron；这里记录的是 Phase 38 当时的四个 route，Phase 48 后正式 operations SQL/route 数量为五；
 - 新增 production-only `apps/api/operations/configure-supabase-cron.sql`：管理员显式启用 Supabase
   `pg_cron + pg_net + Vault`，从 Vault 读取正式 API origin/secret，固定四路径 allowlist、search_path、
   角色撤权、55 秒 timeout 和固定 job name 重装；local/preview 不自动安装；
@@ -791,6 +793,185 @@ pending`，不能因路线拆分宣称完整 V1 已完成。
   本节所在本地候选提交后为 ahead 8，完整 SHA 以任务交接报告为准；
 - 未运行 push、Windows、CI、安装、Chrome、凭据、Provider/词典、部署、邮件、域名、DNS 或 Resend。
 
+## Cloud V1 Phase 47 可用测试环境与持续用户验收状态（2026-08-21）
+
+- 用户校准指出此前路线遗漏可实际使用的测试环境；离线 actual bundle、PGlite 和平台门禁不能直接推导
+  production ready，Phase 46“没有新的本地产品切片”只适用于既有业务功能，不包含环境 composition；
+- Phase 47 启动审计时仓库没有 Supabase local manifest、seed/bootstrap、start/reset、loopback HTTPS、
+  forward migration 路线或 Store acceptance build；后续纵切的最新状态见本节下方；
+- 第二批 Windows 验证已由用户回传完成；远端当前为 instruction size 修复提交 `d451122`。新顺序为：
+  Mac 本机持久验收环境 → 用户边用边改 → 独立 Supabase/Vercel hosted acceptance → 用户签字 →
+  production candidate；
+- 用户现可注册域名、Resend 并配置 DNS；hosted acceptance 首选自有根域下的同站 Web/API 子域，
+  Vercel 同源 gateway 降为备用，`notify` 子域用于隔离事务邮件信誉。该行是 Phase 47 当时状态；R3-C
+  sender/CRON/告警代码后由 Phase 48 实现，当前等待真实外部投递验收；
+- 当前状态为 `Windows batch returned complete; local acceptance implementation starting`。上一轮只更新文档，
+  fresh `pnpm verify:macos` 退出 0，覆盖 121/121 Node、447 个 Vitest 文件（2,757 passed / 12 skipped）、
+  Store coverage 97 files / 481 tests、Playwright 110/110 与全部静态/构建/发布审计门；未创建账号、资源、
+  secret 或部署，未运行 Provider、安装或 Chrome。
+
+## Cloud V1 Phase 47 本机验收第一纵切状态（2026-08-21）
+
+- 第二批 Windows 本地离线验证已由用户回传在最终远端 `d451122` 完成；CI、真实 Chrome、安装和外部
+  服务仍分别 pending；
+- 域名/DNS/Resend 从延期项恢复：hosted acceptance 首选自有根域下 `app.acceptance` /
+  `api.acceptance`，邮件使用 `notify.acceptance`，production `notify` 保留；Supabase Auth SMTP 与 R3-C
+  HTTP sender key 分离；
+- 第一纵切已新增 pinned Supabase CLI `2.115.0`、local manifest、secret-free 环境模板、精确 ignore 与
+  失败关闭 doctor；Fresh RED 因模块不存在退出 1，GREEN focused 5/5；
+- 真实 doctor 只报告 `docker-daemon`、`local-ca` 并退出 1；尚未启动 Docker 或安装/信任 CA，因此当前
+  不是可使用环境；
+- fresh `pnpm verify:macos` 退出 0：126/126 Node、447 个 Vitest 文件（2,757 passed / 12 skipped）、
+  Store coverage 97 files / 481 tests、Playwright 110/110，以及全部静态、构建、发布和 production audit
+  门；状态为 `local acceptance contract implemented; runtime prerequisites pending`。
+
+## Cloud V1 Phase 47 本机验收第二纵切状态（2026-08-21）
+
+- 用户授权启动 OrbStack、安装 `mkcert` 并建立本机信任；OrbStack/Docker Server `29.4.0` 已运行，
+  `mkcert 1.4.4` 已安装；由于后台进程无法完成 macOS 管理员交互，CA 尚未信任，用户需在自己的 Terminal
+  执行一次 `mkcert -install`；
+- 首次 `supabase start` 在镜像下载阶段被安全审查主动停止：OrbStack 当前允许 LAN port forwarding，而
+  旧入口未固定 loopback network；现场确认没有 Supabase 容器或 54320–54324 listener；
+- Fresh RED 证明 `supabase/migrations` 与 runtime 入口缺失；GREEN 新增与 API `0001` 字节一致的时间戳
+  baseline、漂移回归、`acceptance:local:start|status|stop` 和项目专用 Docker network。该 network 的
+  `com.docker.network.bridge.host_binding_ipv4` 已实测为 `127.0.0.1`，所有启动必须显式传 `--network-id`；
+- focused 8/8 通过；真实 doctor 目前只报告 `local-ca`，Supabase/Web/API/proxy 均未启动。状态为
+  `runtime network and migration hardened; interactive local CA trust pending`；
+- 域名固定为腾讯云购买/实名 `seen-said.cn`；Cloudflare DNS Free 只负责权威解析，不是 Cloudflare
+  Registrar；Resend 使用 Free。验收子域固定为 `app.acceptance`、`api.acceptance` 与
+  `notify.acceptance`，production `notify` 保留。
+
+## Cloud V1 Phase 47 本机 runtime 与 HTTPS 状态（2026-08-21）
+
+- macOS CA 已信任，Supabase 11 个容器已在专用 loopback network 运行；`status`/`dev` 每次复核容器
+  network 与 published host，拒绝任何 LAN 暴露；
+- baseline migration、非 BYPASSRLS 业务登录角色、三条价格行、kill switch、ignored `0600` 环境和证书
+  已建立；Web/API production build 由 8443/8444 提供，8445 代理本机 Supabase；
+- 三个 HTTPS health 均在系统信任下返回 200；headless Chromium 打开 `/app` 为“需要先登录”且无页面
+  脚本错误；模型入口在 acceptance composition 中固定零外联失败；
+- 用户首次打开邀请链接时 8443 拒绝连接；现场证明 Supabase 仍健康但旧 HTTPS 前台进程已随 Codex
+  命令结束。现已改为 `acceptance:local:dev|dev:status|dev:stop` 管理 detached 后台进程，
+  `dev:foreground` 仅供诊断；ignored `0600` PID、三入口 health、旧不健康 PID 替换均有回归，真实进程
+  PPID 为 1 且三个 loopback HTTPS 入口重新返回 200；
+- 一次性邀请入口已实现并创建首个 72 小时本机注册链接。在该检查点用户尚未完成注册/Mailpit、登录和
+  核心旅程，Store acceptance、默认 quota、reset/增量 migration、重启持久化也 pending；默认 quota 与
+  第一条增量 migration 已由下一节关闭，其余仍 pending，当前仍不是 Local-ready；
+- fresh `pnpm verify:macos` 退出 0：142/142 Node scripts、448 个 Vitest files（2,758 passed / 12 skipped）、
+  Store coverage 97 files / 481 tests、Playwright 110/110 及全部静态/构建/审计/diff 门通过；
+- 腾讯云域名购买、Cloudflare zone/NS、Resend 账号与 DNS 均未代用户执行；它们不阻塞本机注册验收。
+
+## Cloud V1 Phase 47 首账号初始化与前向迁移状态（2026-08-21）
+
+- password/Google 邀请注册现在与 profile/登录方式同事务创建当前 UTC 月 1 美元默认额度；注册重放不
+  重复，已有同月 admin grant 不覆盖，deleting profile 不回填；该检查点的未来月份自动续期缺口已由
+  Phase 48 的 `0010` 关闭；
+- 第一条 `0002` forward-only migration 已通过 API/Supabase 字节一致性、baseline→0002、权限与两条注册
+  路径回归；`acceptance:local:migrate` 在 migration-up 前后审计 loopback runtime；
+- private `account-exports-acceptance` bucket 已进入幂等 bootstrap，连续两次执行仍只有一条且不公开；
+- 真实当前库未 reset：profile/grant/bucket/未消费邀请由 `1/0/0/1` 变为 `1/1/1/1`，migration history
+  同时保留 baseline 与 `account_default_quota`，HTTPS 服务持续健康；
+- Fresh RED/GREEN 后 script focused 15/15、API migration/auth focused 18/18。真实注册/Mailpit、登录、
+  核心学习闭环、seed/reset、Store acceptance、重启持久化与未来月份续期仍 pending；当前状态为
+  `persistent local runtime and first-account initialization operational; first-user journey pending`，不是
+  Local-ready；
+- 本纵切完整 `pnpm verify:macos` 退出 0：145/145 Node scripts、449 个 Vitest files（2,761 passed /
+  12 skipped）、Store coverage 97 files / 481 tests、Playwright 110/110 与全部静态、构建、发布和 production
+  dependency audit 门通过；门后 app/API/Supabase HTTPS 均为 200，数据和 migration history 未漂移；
+- Windows 依用户要求留到下一个关键批次，不因本次 shared 数据库与本机 macOS 环境纵切要求立即重跑。
+
+## Cloud V1 Phase 47 受控 reset 与虚构 seed 状态（2026-08-21）
+
+- 新增 `acceptance:local:reset --confirm-local-data-loss`，只允许 pinned CLI、本机数据库和仓库固定
+  `seed.sql`；固定顺序为 runtime verify → HTTPS stop → local reset/seed → runtime verify → bootstrap →
+  build → HTTPS start，任一阶段失败立即停止；
+- seed 只创建固定虚构 Operator/profile/admin role 与当前月默认额度，不创建 Auth identity、登录方式、
+  邀请、session、学习内容、Provider 结果或 secret。reset 后必须重新创建邀请；
+- Fresh RED 为 3 个预期失败；GREEN focused 31/31、scripts 156/156、seed migration 4/4、database focused
+  19/19。首次全门发现全仓默认并行使 6 个 PGlite 建库 hook 越过 10 秒；目标 32/32 与 API 420/420
+  单独通过后，将全仓 Vitest 固定最多 4 workers，保留原 hook timeout；
+- 最终 `pnpm verify:macos` 退出 0：156/156 Node scripts、449 个 Vitest files（2,762 passed / 12
+  skipped）、Store coverage 97 files / 481 tests、Playwright 110/110 与全部静态、构建、架构、发布、
+  production dependency audit 和 diff 门通过；
+- 本纵切没有执行真实 destructive reset。无确认参数的真实命令在任何副作用前固定拒绝；门后
+  app/API/Supabase HTTPS 均为 200，profile/default grant/private bucket/未消费邀请保持 `1/1/1/1`，
+  baseline 与 `account_default_quota` 两条 migration 未漂移；
+- 当前状态仍是 `persistent local runtime and first-account initialization operational; first-user journey
+pending`。下一产品验收重点是真实注册/Mailpit、登录和核心学习闭环；真实 reset 演练等待用户明确授权，
+  Windows 继续留到关键批次。
+
+## Cloud V1 Phase 47 非破坏性重启与持久化状态（2026-08-21）
+
+- 新增无参数 `acceptance:local:restart:verify`，固定执行 runtime verify → server-side before snapshot →
+  HTTPS stop → Supabase stop/start → forward migration → runtime verify → after snapshot → equality → HTTPS
+  start；任一失败停止后续阶段，不 reset 或自动掩盖现场；
+- snapshot 在 PostgreSQL 内覆盖全部 public tables、Auth users/identities、Storage buckets/objects 与
+  migration history，Node 只接收固定 relation/count/digest 并在内存比较，不输出 digest、计数、用户内容、
+  email、token、password hash、credential 或 SQL 错误；
+- Fresh RED 7/7；GREEN restart 16/16、acceptance/lifecycle/runtime focused 57/57。真实命令完整停启并以
+  退出码 0 证明 before/after 指纹一致；
+- 前后显式聚合均为 profile/default grant/private bucket/unconsumed invite/Auth user/sign-in method/learning
+  item/migration `1/1/1/1/0/0/0/2`，两条 migration 未漂移；app/API/Supabase/Mailpit 均为 200；
+- 最终 `pnpm verify:macos` 退出 0：172/172 Node scripts、449 个 Vitest files（2,762 passed / 12
+  skipped）、Store coverage 97 files / 481 tests、Playwright 110/110 与全部静态、构建、架构、发布、
+  production dependency audit 和 diff 门通过；
+- 这只关闭注册前初始化状态与邀请 persistence。真实账号、登录方式和学习数据目前仍为 0；用户完成
+  注册/Mailpit、登录并创建学习数据后，再运行同一命令才可关闭真实用户 persistence。Windows 继续按
+  关键批次验证。
+
+## Cloud V1 Phase 47 本机验收模拟模型状态（2026-08-21）
+
+- 文档审计确认固定 `model_unavailable` 不能支持用户边用边改；下一纵切以 acceptance composition 现有
+  `providerFetch` seam 生成确定性 strict response，同时保留 production quota、durable dispatch、schema、
+  ledger、lease/fencing 与数据库状态机；
+- Web acceptance build 必须在邀请、登录、错误与工作台全部页面持续显示“本机验收 · 模拟模型”，正文
+  再带 `【本机模拟】`，明确不是 DeepSeek、只用本机测试额度、不产生外部费用；
+- 模拟器位于 DeepSeek HTTP Adapter 内，测试 metadata/price/ledger 保留技术兼容标识，不得作为真实模型
+  质量、usage 或账单证据；不扩大 production provider enum；
+- 完整需求/技术/TDD/人工清单已写入 `local-acceptance-simulated-provider.md` 并完成 seam 交叉审查；
+  Fresh RED 命中模拟模块/横幅/build mode 缺失，并补出 phrase trusted assembly 回归；
+- GREEN 后 API focused 37/37、Web focused 17/17、build contract 1/1、两个 workspace strict typecheck 与
+  目标 lint/format/diff 通过；API 全量 114 files / 447 tests、Web 44 files / 201 tests、Node scripts
+  173/173 全绿；
+- 当前工作树根级 `pnpm test` 451/451 files 全绿（2,792 passed / 12 skipped），instructions、architecture、
+  format、lint、typecheck 与 diff check 也已通过；当前 Node scripts 176/176、Store coverage 97 files /
+  481 tests、Playwright 110/110 与 production audit 也已通过；这些先行检查本身不包含 build、development
+  blocker 与 Store release，随后由隔离 Mac 聚合门统一关闭；
+- 运行边界审查发现旧 HTTPS Web server 逐请求读取 live `dist`，可能在 build 时形成新 Web + 旧 API；
+  snapshot Fresh RED→GREEN 5/5 后已改为启动时固定 Web bundle、缺入口失败关闭，并在 URL 规范化前拒绝
+  原始 traversal；API 也只加载一次。当前旧进程尚未重启加载该修复，所以首次 live acceptance
+  build/cutover 仍等待空闲窗口；后续迭代可在旧快照在线时构建；
+- 用户当前可能正在注册，尚未执行会改写 live Web `dist` 的 acceptance build 或 HTTPS 重启，运行环境
+  仍是旧的 Provider 失败关闭 bundle；
+- 当前 Git 可见文件已复制到排除 ignored secret/运行数据的隔离候选，offline frozen install 零下载，
+  原样 `pnpm verify:macos` 退出 0：176 Node scripts、451 Vitest files（2,792 passed / 12 skipped）、481
+  Store coverage tests、全部 build、110 Playwright、development blocker、Store release、production audit
+  与 diff 全绿；门后 checksum 复核零文件内容差异，候选 Git 干净；
+- 状态更新为 `implemented and Mac-candidate-verified; local deployment pending idle window`。首次 live build/
+  HTTPS cutover、横幅/模拟旅程、真实 Provider、Store acceptance、hosted 环境与 Windows 批次保持 pending。
+- 唯一 deploy 协调器已实现并通过 focused 9/9，缺确认的真实 CLI 调用在零副作用下拒绝；随后用户邀请
+  入口的 connection refused 已定位为域名双解析而旧进程只监听 IPv4。候选现为每端口同时绑定
+  `127.0.0.1`/`::1`，focused 7/7、完整 Node scripts 187/187、451/451 Vitest files（2,792 passed /
+  12 skipped）及全部静态门通过；运行中旧进程仍未切换，必须等明确空闲后 deploy，再以 IPv4/IPv6 CA
+  probe 和浏览器复验关闭该缺陷。
+- 包含部署协调器与双栈修复的最新可见文件已再次复制到隔离候选；offline frozen install 复用 277 个包、
+  下载 0，`pnpm verify:macos` 退出 0：187 Node scripts、451 Vitest files、481 Store coverage tests、全部
+  workspace build、110 Playwright、development blocker、Store release、production audit 与 diff 全绿。
+  门后 checksum 零文件内容差异且候选 Git 干净；该证据关闭最新候选 Mac 门，仍不等于 live 部署。
+- 门后 lifecycle 审查继续发现 hostname health 只命中一个地址族；已用 Fresh RED→GREEN focused 7/7
+  固定三个 URL 的 IPv4/IPv6 双探针，单边失败不再返回 healthy。最新精确候选随后通过完整
+  `pnpm verify:macos`：189 Node scripts、451 Vitest files、481 Store coverage tests、全部 build、110
+  Playwright、发布与审计门全绿；checksum 零文件内容差异且候选 Git 干净。状态恢复为
+  `implemented and latest-Mac-candidate-verified; live deploy pending confirmation`；旧 IPv4-only 进程会被新
+  status 准确拒绝。
+- 用户授权后真实 deploy 已退出 0；Supabase/HTTPS status 通过，Web/API/Supabase 三入口分别以 IPv4/IPv6
+  返回 200，运行 bundle 已指向本机 API 并显示模拟模型标识。旧 `api.huayi.invalid` 与 IPv4-only 状态均
+  已退出 live 环境；
+- 首次真实邮箱注册进一步发现本机 Auth `letters_digits` 超出 Cloud 已冻结的 12 至 256 字符契约。数据库
+  与脱敏 Auth 日志证明邀请已领取、注册 API 已到达、Provider 422、Auth user 仍为 0。doctor artifact
+  Fresh RED→GREEN 5/5 后配置改为最少 12、空字符要求；完整 persistence restart 重跑退出 0，容器配置、
+  邀请与活动 claim 均保留，服务恢复健康。用户仍需在原页面重试并完成 Mailpit 确认，当前不能声明
+  Local-ready。
+
 ## Cloud V1 Phase 23 离线实现状态
 
 - 五类平台付费练习生成已统一进入 PlatformGeneration：新增 ADR-0018、
@@ -925,3 +1106,266 @@ pending`，不能因路线拆分宣称完整 V1 已完成。
 5. 需要追溯设计决策时，再读取 `docs/superpowers/specs/` 与 `plans/`。
 
 历史设计文档保留当时版本的边界，不代表当前发布状态；当前状态以本文件和主题文档为准。
+
+## Cloud V1 Phase 47 首次真实邮箱确认回调状态（2026-08-21）
+
+- 邮件确认本身已经成功：Auth user/identity、业务 profile、邀请消费与 flow 完成均有聚合证据；旧确认链接
+  已单次消费，不应再次点击；
+- 当前阻塞不是“邮箱未验证”，而是密码确认复用 Google callback 导致 method 错标，以及确认后的 profile
+  邮箱 direct UPDATE 被 forced RLS 拒绝，最终没有创建 Web session；
+- 独立 password callback、显式 method completion、`0003` 条件修复和窄 profile-email definer 已完成
+  Fresh RED→GREEN；focused 26/26 与 API typecheck 通过；
+- 完整 `verify:macos` 已通过：189/189 Node scripts、453 个 Vitest files（2,797 passed / 12 skipped）、
+  Store 481/481、Playwright 110/110 及静态/构建/架构/审计全绿；
+- `0003` 已前向应用，聚合证明第三条 migration 存在、已确认账号现在只有 password method，Auth/profile/
+  邀请均保留且 Web session 仍为 0。同步 deploy 完整重跑退出 0，Web/API/Supabase 的 IPv4/IPv6 均 200；
+- 当前下一步明确为：用户打开 `/login`，使用原邮箱和注册密码登录；不重发邀请、不重复确认。登录与核心
+  模拟旅程通过后再执行注册后持久化验证。Windows 继续按冻结批次验证。
+
+## Cloud V1 Phase 47 首次真实模拟分析失败状态（2026-08-21）
+
+- 用户已成功建立 Web session；首次分析不是网络或输入问题。无正文数据库证据证明四次点击均在模型
+  dispatch 和额度 reservation 前停止，没有 AnalysisRecord、ledger 或外部费用；
+- 串联根因已确认：local bootstrap 错误保持 `model_kill_switch=true`；预检失败后 quota summary 又使用
+  context-setter/trusted 读取 forced-RLS 表，权限错误阻止 terminal event 并留下 `running`；
+- bootstrap 和 forced-RLS quota 回归均已取得 Fresh RED→GREEN，summary 现在通过 owner tenant
+  transaction 读取；四条租约过期、未 dispatch、未 reservation 请求已由既有恢复函数精确终态化为
+  `failed`，账号、会话、邀请、额度和学习数据未 reset；
+- 完整 `verify:macos` 已通过：190/190 Node scripts、454 个 Vitest files（2,798 passed / 12 skipped）、
+  Store 481/481、Playwright 110/110 及全部静态/构建/架构/发布/审计门；
+- 幂等 bootstrap 已使 kill switch 为 false。同步 deploy 首次在后台 start health 阶段安全失败；同一构建
+  前台启动与 IPv4/IPv6 六入口均健康，干净停止后完整 deploy 重跑退出 0。Supabase/HTTPS lifecycle、
+  六入口、活动 Web session 1、running 0 均已复核；
+- 当前状态为 `local simulated analysis fix deployed; one user replay pending`。请用户只重新发起一次分析，
+  成功后继续候选→学习库→练习；Windows 留到下一关键冻结批次。
+
+## Cloud V1 Phase 47 模拟候选持久化与取消等待状态（2026-08-21）
+
+- 用户单次重试先长期显示 running；取消等待后开始按钮保持禁用，但编辑正文会错误解锁；再次提交返回
+  通用失败，手动“重新检查状态”对仍 running 没有可见反馈；
+- live 聚合为 request 7、failed 6、running/dispatched/reserved 各 1、record/ledger 0。固定 Postgres 错误
+  确认 private `candidate-1` 写入 UUID 列失败，随后 fallback settlement `invalid settlement`；后续请求因
+  active generation 唯一约束失败；
+- API 先取得 2 个精确 RED、Web 取得 2 个精确 RED；实现后 API module/HTTP/segmentation 18/18、Web
+  6/6。Analysis module 现在用服务端 ID 重键 candidate 及引用，并在 model 返回后立即保全 billed calls、
+  usage 与 cost；Web cancel 保留 request fence，输入编辑不能解锁 duplicate，手动 running 检查有可见回执；
+- 已等待 dispatched request lease 到期，再通过既有恢复函数保守终态化；当前 running=0、active
+  reservation=0，未 reset 账号、会话、邀请或学习数据；
+- 完整 `verify:macos` 已通过：190/190 Node scripts、455 个 Vitest files（2,800 passed / 12 skipped）、
+  Store 481/481、Playwright 110/110 及全部静态/构建/架构/发布/审计门；
+- 同步 deploy 首次在后台 start health 阶段安全失败；同一构建以前台启动并通过 IPv4/IPv6 六入口 200，
+  干净停止后完整 deploy 重跑退出 0。最终 Supabase/HTTPS lifecycle、六入口、活动 Web session 1、
+  running 0、active reservation 0 均已复核；
+- 当前状态为 `fixed and deployed locally; one user replay pending`。请刷新 `/analysis`，只提交一次；成功后
+  继续候选→学习库→练习。Windows 仍留到下一关键冻结批次，不因本次小批次单独往返。
+
+## Cloud V1 Phase 47 真实核心闭环状态（2026-08-22）
+
+- 第 32 节的用户复测待办已经关闭：Codex 在真实本机 Web/API/Postgres/Mailpit 环境完成邀请注册、邮箱
+  确认、登录、分析、候选确认、学习库、题目、反馈、自评和历史回读；
+- 分析修复包含真实 driver JSONB 参数规范化、reservation-bound fallback；练习修复包含 tenant 幂等写入
+  和 context-setter-only `settle_practice_generation_quota`。没有通过放宽 RLS 或表 grant 绕过；
+- 当前无正文聚合为 analysis completed/running `1/0`、record/learning/completed practice `1/1/1`、open
+  practice task/active reservation `0/0`。核心本机体验状态为 `implemented and exercised locally`；
+- 完整 `verify:macos` 已通过：190/190 Node scripts、460 个 Vitest files（2,808 passed / 12 skipped）、
+  Store 481/481、Playwright 110/110 及静态、构建、架构、发布、审计门全绿。另修复旧未登记前台进程可
+  掩盖 detached child 端口冲突的 lifecycle 竞态；持久 start/status 通过，浏览器重载后会话和练习历史
+  仍在；门后又以 focused 9/9 修复强制停止后的延迟退出误报，真实 stop→start→status 全部退出 0；
+- 仍待本阶段后续：注册后非破坏 persistence 重启、更多自然使用反馈、3–5 轮对话人工体验；Windows
+  不因本次修复单独往返，留到下一关键冻结点。真实 Provider、Vercel/Supabase hosted、域名/DNS/Resend
+  与发布仍是独立任务。
+
+## Cloud V1 Phase 47 本机扩展功能验收状态（2026-08-22）
+
+- 上一节的注册后 persistence 和 3–5 轮对话待办已经关闭：完整 Supabase/HTTPS 非破坏重启后会话与数据
+  保持，实际完成第二个表达和 3 轮对话，反馈、自评及历史回读成功；
+- 实际覆盖继续扩展到分析历史归档/恢复、学习库编辑/还原/归档/恢复/重复建议、单词 CRUD、账号偏好、
+  外部词表下载、Eudic 空导出和导入取消、phrase 分析“无需收藏”；最终所有 running/open/pending 聚合为 0；
+- 验收中修复分析历史泄露内部字段、CORS 缺少 `PATCH`、下载 header 未暴露、账号导出 serializer 权限
+  边界和 Postgres bigint 投影五类缺陷。数据导出 worker 实际完成，一次性对象为 7,939 bytes / 9 records，
+  严格扫描未发现禁出字段；原始 serializer 仍不对业务角色开放；
+- 最终 `pnpm verify:macos` 退出 0：192/192 Node scripts、完整 workspace Vitest、Store 481/481、
+  Playwright 110/110，以及全部静态、类型、构建、架构、发布和生产依赖审计门全绿；
+- 当前状态为 `local acceptance exercised across primary non-destructive flows; external gates pending`。
+  本轮没有删除主验收账号；设备配对/撤销需要真实 Store Extension。真实 Chrome、Provider、Google、外部
+  词典凭据、hosted Supabase/Vercel、域名/DNS/Resend、发布和最新 Windows 批次仍是外部待办。
+
+## Cloud V1 Phase 47 身份、管理、删除与服务端配对状态（2026-08-22）
+
+- 主账号保持不变，使用隔离的一次性账号实际关闭永久账号删除、密码恢复、未知邮箱防枚举、密码重新认证、
+  logout、operator 管理、停用 data-rights、学习项两类永久删除和练习历史删除；全部临时账号已通过正常
+  deletion worker 或精确诊断清理；
+- 服务端配对首次实测发现“HTTP 失败但 pairing 已 consumed/session 已创建”的非原子缺陷；`0008` 把
+  consume、session insert 和 profile snapshot 收敛为一个 context-setter-only 数据库 statement，并已
+  实际完成单次 exchange、偏好回读、设备列表、撤销及撤销 token 401；
+- 管理审计覆盖邀请、额度、设备撤销、用户停用/启用和 kill switch，最终 kill switch=false；学习删除证明
+  无历史 hard-delete、有历史 erase 保留历史以及随后历史删除的完整语义；
+- 最终完整 macOS 门为 192 scripts、462 Vitest files（2,812 passed / 12 skipped）、Store 481、Playwright
+  110，全构建、发布与 production audit 通过；最终 acceptance deploy、Supabase/HTTPS status 和 doctor
+  通过。早期空 Codex 账号已按正常删除链清理，全部 open/running/pending 聚合为 0，验收账号的 3 条学习
+  项、2 条分析和 2 条练习保持；浏览器 `/app` 与 `/settings/data` 登录态、模拟横幅和可下载导出均正常；
+- 当前本机状态为 `primary and destructive disposable-account flows exercised locally`。真实 Store Chrome
+  安装/vault、Google、真实 Provider/外部词典、hosted Supabase/Vercel、域名/DNS/Resend、生产发布和
+  Windows 冻结批次仍是外部待办；本机主验收项目的 destructive reset 不属于本轮授权范围。
+
+## Cloud V1 Phase 47 Store 服务端全旅程状态（2026-08-22）
+
+- production HTTPS/API/Postgres/Auth/Mailpit 与一次性账号已实际覆盖 ExtensionQuery、StudyCapture、
+  CloudWordCopy、设备自断开和永久账号删除；该一次性账号及其 Extension/Web session 已清理，主验收
+  账号的 3 条学习项、2 条分析和 2 条练习保持；另一个用户已注册但无学习数据的邮箱账号及活动会话按
+  用户状态保留，不误作临时账号删除；
+- 实测修复 Node adapter 为 bodyless DELETE 错建 stream，以及 context-setter 重放账号删除时直接读取私有
+  表的权限缺陷。`0009` 以窄 SECURITY DEFINER 返回匹配且未过期的 receipt，没有增加业务表权限；
+- 完整 macOS 门为 193 scripts、463 Vitest files（2,814 passed / 12 skipped）、Store 481、Playwright 110，
+  全部静态、类型、构建、发布与 production audit 通过；迁移共 9 条且最新为 `20260821080000`；
+- 当前状态为 `Store server-side cloud services exercised locally; real Chrome and external gates pending`。
+  真实 Chrome 安装/UI/vault/outbox、Google、真实 Provider/外部词典、hosted Supabase/Vercel、域名/DNS/
+  Resend、生产发布与下一 Windows 冻结批次仍未由本节替代。
+
+## Cloud V1 Phase 47 隔离空库与 destructive reset 状态（2026-08-22）
+
+- 独立临时 Supabase project/network/ports 从无容器、无 volume、无 workspace dist 状态完成 pinned offline
+  install（277 reused / 0 downloaded）、start、doctor、bootstrap、四层 build、双栈 HTTPS status、虚构状态
+  写入、确认式 reset、重建聚合和 stop；
+- 首次真实 start 发现 baseline 已含 `replay_account_deletion`，`0009` 普通 CREATE 导致 duplicate function；
+  Fresh RED 同时覆盖单 migration 与 baseline→全部 `0002`–`0009` 链，修复为 CREATE OR REPLACE 后 4/4；
+- 首次无 dist build 发现 builder 只构建 API/Web，隐式依赖完整门留下的 shared dist；Fresh RED 固定
+  learning-domain→cloud-contracts→API→Web 顺序，修复后真实 clean build 与 HTTPS start 通过；
+- reset 前隔离状态为 migration 9、profile 2、邀请 1、学习项 1；reset 后为 migration 9、固定 Operator 1、
+  admin 1、价格 3、默认 grant 1、bucket 1，邀请/学习/分析/练习/Auth/running/kill switch 均为 0；
+- 隔离 dev/runtime stop 成功，临时容器、3 个 volume、network 和目录已删除。主环境随后仍为 migration 9、
+  profile/Auth `3/2`、LearningItem/AnalysisRecord/PracticeSession `3/2/2`，active Extension/running/kill
+  switch `0/0/0`，runtime/dev status 与 doctor 全绿；
+- 最终 `pnpm verify:macos` 退出 0：194/194 Node scripts、464 个 Vitest files（2,816 passed / 12 skipped）、
+  Store 481/481、Playwright 110/110，以及全部静态、类型、架构、构建、发布和 production dependency
+  audit 门；无已知生产依赖漏洞；
+- 当前状态升级为 `local acceptance rebuild and destructive reset exercised in isolation; hosted, real Chrome
+and Windows gates pending`。
+
+## Cloud V1 Phase 48 本机完成度复审与时间边界状态（2026-08-22）
+
+- 严格复审推翻了“唯一生产代码缺口是 R3-C”的旧结论：UTC 月切默认额度、production PostgreSQL
+  60/小时与 300/日持久限速同样缺失；AccountDataExport 到期清理另有直接测试缺口；
+- `0010` 已实现 current-month default 与跨实例持久限速，管理员 grant 和 idempotent replay 边界保持；
+  `0011` 已实现 R3-C 23 小时 deadline、8 次上限、failed/dead-letter、固定 Resend adapter、无正文 alert、
+  独立 bearer route 和第 5 个 Supabase CRON。本机 acceptance composition 显式禁用外发；
+- 账号导出过期对象的 Storage 删除成功/失败路径已有 worker 与 PGlite 回归；取消等待后的按钮死锁取得精确
+  RED 并最小修复，不再要求编辑输入才能重新提交，迟到事件 fence 保持；
+- 主本机环境已无 reset 前向升级到 migration 11 / `20260822020000` 并重新部署；profile 3、learning 3、
+  practice 2 保持，running analysis、active reservation 和 notification open/terminal error 均为 0。实际
+  登录浏览器的新分析成功进入待收藏；模拟 Provider 太快，人工取消分支由可控延迟回归而非伪造点击证明；
+- Fresh tests 为 Node 194、Vitest 470 files（2,841 passed / 12 skipped）、Store 481、Playwright 110；完整
+  静态、类型、架构、构建、发布和依赖审计纳入最终 macOS 门。当前状态为
+  `local code gaps closed and primary local flows exercised; external acceptance gates pending`；
+- 对话中曾粘贴的 Resend key 必须撤销且不得部署，新 key 只能进入 secret store。真实 DNS/Resend/告警、
+  hosted、真实 Provider/Google/词典、Chrome Dashboard/真实 Chrome、Windows 最新冻结批次、多日自然使用、
+  正式隐私运营事实和用户最终签字仍是外部门禁。
+
+## Cloud V1 Phase 49 托管验收配置失败关闭状态（2026-08-22）
+
+- hosted acceptance 部署审查发现 API/Web 环境 schema 只校验通用 URL，与文档要求的固定 HTTPS origin
+  不一致；HTTP、凭据、路径、query、fragment、尾随 `/` 和 API=Web 可能拖到浏览器阶段才失败；
+- API 的 `HUAYI_API_ORIGIN`、`HUAYI_WEB_ORIGIN`、`SUPABASE_URL` 与 Web 的
+  `VITE_API_ORIGIN` 已收紧为精确 HTTPS origin，API/Web 还要求不同；本机固定三 origin 继续通过；
+- Fresh RED 为 API/Web 2 个失败测试，最小 GREEN 后 focused 6/6。最终 `pnpm verify:macos` 覆盖
+  194/194 Node scripts、470/470 Vitest files（2,843 passed / 12 skipped）、Store 481/481、Playwright
+  110/110，以及完整静态、类型、架构、构建、发布和生产依赖审计；
+- 完整门后执行受控 `acceptance:local:deploy --confirm-local-downtime`，没有停止/reset Supabase；runtime、
+  HTTPS status 与 doctor 均退出 0，本机验收环境已同步到该配置校验版本；
+- 当前仓库内可在外部资源前关闭的部署入口缺口已关闭。下一门是用户在腾讯云购买并实名
+  `seen-said.cn`；在域名所有权确认前不创建 Cloudflare zone、Vercel/Supabase hosted 资源、Resend
+  sender 或任何新 secret。
+
+## Cloud V1 Phase 50 域名与 Cloudflare 委派状态（2026-08-22）
+
+- 用户已确认 `seen-said.cn` 在腾讯云购买并完成实名认证；注册商和续费继续留在腾讯云；
+- `.cn` 父区、Cloudflare DoH 和 Google DoH 均返回 `kim.ns.cloudflare.com` /
+  `malcolm.ns.cloudflare.com`，Cloudflare SOA 可权威回答；当前无 DS，DNSSEC 未启用，无旧 DS 冲突；
+- `app.acceptance.seen-said.cn` 当前为 NXDOMAIN。此状态在 Vercel 尚未生成目标记录时正确，不添加
+  占位 A/CNAME，也不使用当前网络环境映射出的 `198.19.0.0/16` 测试地址；
+- Supabase Free 组织 `Seen & Said` 已创建；首次 `seen-and-said-acceptance` 因新开页面恢复默认而误建在
+  `us-east-1 / East US (North Virginia)`。删除前已核验它无用户、Storage bucket、migration 或 backup；
+  用户明确确认后已永久删除 project ref `wyvehjwcdjmgupldykuv`，原数据库密码随之失效；
+- 正确项目已创建：project ref `kpadiulxkgckskcfydry`，URL
+  `https://kpadiulxkgckskcfydry.supabase.co`，Primary Database 为
+  `ap-southeast-1 / Southeast Asia (Singapore)`，Data API 创建后实测仍关闭，自动 RLS 未启用；
+- 首页状态卡最终收敛为 `Healthy`；`Connect` 已启用，Auth 查询返回 0 用户，Database 查询返回 `public`
+  schema 无表，HTTPS gateway 对无 key 请求按预期拒绝。Dashboard 给出的 transaction pooler 为 Singapore
+  shared pooler / 6543；无密码 direct dry-run 未连接，pooler 使用故意错误测试密码得到预期认证失败，证明
+  网络路径可达且没有改库；
+- 用户在本机终端通过临时 `PGPASSWORD` 先完成 dry-run，再明确确认并实际执行
+  `supabase db push --yes --skip-vault`。Dashboard 随后显示从 `20260821000000` 到
+  `20260822020000_security_notification_delivery` 的 11 条完整 migration history，Schema Visualizer 已出现
+  业务表，数据库角色包含 `huayi_business`、`huayi_context_setter`、`huayi_runtime`；tenant 表显示 owner RLS
+  policy，Data API 继续关闭；
+- 在 migration push 后、bootstrap 前的项目快照仍为 `Healthy`，最新 migration 为
+  `security_notification_delivery`，Auth 明确显示 0 用户，Storage 是“Create a file bucket”空态。聚焦
+  迁移/RLS 门此前的单
+  worker、20 秒上限重跑为 11 files / 37 tests 全绿，doctor 5/5；
+- 下一项不是复用 `acceptance:local:bootstrap` 或 `supabase/seed.sql`：hosted bootstrap 必须独立、默认保持
+  `model_kill_switch=true`，只建立非 BYPASSRLS login role、三条不可变价格、private export bucket 和受控
+  Operator 接管路线。独立 foundation plan/apply/verify 已取得模块缺失 Fresh RED 与 7/7 GREEN，其中真实
+  package `--plan` 零联网退出 0；完整 `pnpm verify:macos` 为 201/201 Node scripts、470/470 Vitest files
+  （2,843 passed / 12 skipped）、Store 481/481、Playwright 110/110 和全部构建/发布/依赖门。该处记录的是
+  Phase 50 的 bootstrap 前状态；实际 apply 与后续 hardened 状态见 Phase 51。首张邀请仍需先冻结
+  deployment bootstrap authority 与真实账号晋升协议；Vercel/Resend DNS、
+  TLS、邮件投递和应用部署仍未开始。
+
+## Cloud V1 Phase 51 Hosted foundation 写入与安全复验状态（2026-08-22）
+
+- 用户已明确确认并实际执行固定 Singapore project 的 hosted foundation bootstrap；终端返回 bootstrap
+  completed，初版管理员 verify 与 application login verify 均返回 passed。当前远端已建立
+  `huayi_hosted_acceptance_login`、三条 acceptance 价格、开启的 kill switch 和唯一 private empty export
+  bucket，Auth/profile/admin/invitation 仍保持为空；
+- 安全审查确认初版验证不能作为最终门：`sslmode=require` 不验证 CA/hostname，membership 包含判断不能
+  排除额外授权，rollback 内 context 也不能证明 transaction pooler 跨事务隔离。初版 passed 因此只保留为
+  apply/login preliminary evidence；
+- 仓库已加固为 Supabase 官方 CA + `verify-full`、固定 6543 pooler 与同 project ref；管理员复验检查精确
+  membership/ADMIN OPTION、角色属性、价格生效时间、唯一 control/bucket/object，application 复验检查 TLS、
+  public CREATE/direct context 权限、postgres 越权精确 SQLSTATE `42501`/exit `3`，并要求事务 A COMMIT 后
+  transaction pooler 同 backend 的事务 B context 为 NULL；连接失败不能冒充安全拒绝；
+- bootstrap 也已修正为安全幂等：既允许 pristine 空 Storage，也允许精确唯一 private empty bucket 的已应用
+  状态，部分或额外状态失败关闭。API/PGlite focused 与 hosted Node 8/8 已通过；fresh
+  `pnpm verify:macos` 最终为 202/202 Node、472/472 Vitest files（2,847 passed / 12 skipped）、Store
+  481/481、Playwright 110/110、全部 build/release/audit 门退出 0；
+- 用户随后执行顺序式 `set -e` 命令并到达 application verification passed，证明前置 admin 只读复验与
+  application 最小权限/事务隔离复验均通过。当前状态为
+  `hosted foundation applied; hardened remote verification passed`。application 探测只在 private unlogged
+  context 表提交固定合成 transaction context，不创建账号、业务数据或配置。Vercel、Resend DNS/投递、
+  真实 Provider、跨设备和 Windows 下一关键批次不由本阶段替代。
+
+## Cloud V1 Phase 52 首位 Operator 两阶段引导状态（2026-08-22）
+
+- 已新增 `first-operator-bootstrap.md` 和 ADR-0023，并同步领域、产品、架构、数据、API、安全、测试、
+  运维、实施计划与变更记录；文档自审选择两阶段、无公开 route 的 FirstOperatorBootstrap；
+- DeploymentBootstrapAuthority 先发行唯一 BootstrapInvitation，用户继续走正常 Supabase Auth/profile/
+  sign-in method/default quota，complete 只能从 finalized claim 推导唯一账号且不接收 userId/email；
+- 部署动作由私有 bootstrap record 与邀请生命周期记录，不伪造 OperationalAuditEvent actor。邀请丢失仅在
+  零 claim/零 identity 时允许显式替换，完成后永久封闭；
+- baseline/forward migration、Supabase mirror、私有 bootstrap record、issue/replace/complete 数据库函数、
+  account deletion 清理 trigger 与固定 hosted CLI 已实现；focused 数据库 8/8、CLI 5/5、hosted/local
+  scripts 18/18、认证/管理/migration 38/38、账号删除 15/15 通过；
+- fresh `pnpm verify:macos` 原样退出 0：207/207 Node scripts、473/473 Vitest files（2,855 passed /
+  12 skipped）、Store 481/481、Playwright 110/110 和全部构建/发布/依赖门；迁移镜像、diff 与 known
+  secret/token scan 通过；
+- hosted foundation hardened admin/application 双复验已通过。0012 dry-run 已只列出
+  FirstOperatorBootstrap，实际 push 已获明确确认，正在等待候选 commit/push 完成；远端仍保持 11 条
+  migration、0 Auth/profile/admin/invitation，未执行 Vercel 部署、邀请发行、真实注册、complete 或
+  `/admin` 浏览器验收。
+
+## Cloud V1 Phase 53 Hosted 应用部署契约状态（2026-08-22）
+
+- 两个 Vercel project 的 Root/Framework/build/output 已冻结；API 仓库配置固定 Hono、`sin1`、Fluid/120s，
+  Web 固定 Vite、`pnpm build`、`dist` 和 SPA rewrite；`.vercel/` 保持 ignored；
+- Hosted Web 新增 `hosted-acceptance + short SHA` 持续标识，完整 Vercel commit 留作构建证据；simulated
+  只能使用固定本机 API origin，公网组合在 bootstrap 前失败关闭；
+- 新增 `acceptance:hosted:deployment --plan|--verify-environment`：plan 零网络/零写入，verifier 复用 API
+  production schema 并固定 Singapore project/application role/origin/价格/bucket，任何错误都不回显值；
+- Fresh RED/GREEN、API 136 files / 506、Web 45 files / 208、Node 211/211、合成 Hosted Web build/SHA/secret
+  scan 和当前 Vercel schema 检查均通过；最终 `pnpm verify:macos` 为 211 Node、474 Vitest files（2,859
+  passed / 12 skipped）、Store 481、Playwright 110 及全部质量/发布/依赖门退出 0；
+- 当前状态为 `offline deployment contract verified; migration 0012 dry-run passed`。dry-run 只列出
+  FirstOperatorBootstrap，未改库；用户已明确确认先提交并推送当前候选，再实际 push 这一条 migration。
+  未创建 Vercel/DNS/Auth/SMTP/secret/deployment，未调用 DeepSeek/Resend，也未发行邀请。当前候选范围为
+  116 个 tracked 修改、103 个未跟踪交付文件、0 staged，范围/生成物/大文件/symlink/known-secret 初审无
+  异常；下一步形成并推送完整 SHA，然后执行实际 migration 与只读复验。

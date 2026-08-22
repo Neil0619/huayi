@@ -15,7 +15,7 @@ import {
 } from "./production-principal-authentication.js";
 import { createPostgresFoundationIdentity } from "./postgres-foundation-identity.js";
 import { createProductionExtensionSessionDisconnect } from "./production-extension-session-disconnect.js";
-import { createRuntimeSql } from "./runtime-sql.js";
+import { createProductionRuntimeSql } from "./production-runtime-sql.js";
 import { createProductionAdminOperations } from "./production-admin-operations.js";
 import { createPostgresAccountPreferences } from "./postgres-account-preferences.js";
 import { createStudyCaptureApp } from "./study-capture-app.js";
@@ -59,11 +59,20 @@ import { createProductionAccountDataRights } from "./production-account-data-rig
 import { createProductionExtensionQuery } from "./production-extension-query.js";
 import { createProductionAnalysis } from "./production-analysis.js";
 import { createProductionDeepSeekPricing } from "./production-deepseek-pricing.js";
+import type { DeepSeekAnalysisFetch } from "./deepseek-analysis-protocol.js";
 import { createProductionPracticeGenerator } from "./production-practice-generation.js";
 import { createProductionCloudWordCopy } from "./production-cloud-word-copy.js";
 import { createProductionAccountSettings } from "./production-account-settings.js";
 import type { Context } from "hono";
-export function createProductionApp(environment: ApiEnvironment) {
+import { createProductionSecurityNotifications } from "./production-security-notifications.js";
+import type { SecurityNotificationFetch } from "./resend-security-notification-sender.js";
+export function createProductionApp(
+  environment: ApiEnvironment,
+  options: {
+    providerFetch?: DeepSeekAnalysisFetch;
+    securityNotificationFetch?: SecurityNotificationFetch;
+  } = {},
+) {
   const extensionPolicy = {
     extensionOrigin: `chrome-extension://${environment.HUAYI_STORE_EXTENSION_ID}`,
     minSupportedExtensionVersion: environment.HUAYI_MIN_SUPPORTED_EXTENSION_VERSION,
@@ -72,7 +81,7 @@ export function createProductionApp(environment: ApiEnvironment) {
     key: Buffer.from(environment.HUAYI_REFRESH_ENCRYPTION_KEY, "base64url"),
     secrets: systemSecrets,
   });
-  const sql = createRuntimeSql(environment.HUAYI_DATABASE_URL);
+  const sql = createProductionRuntimeSql(environment);
   const identity = createPostgresFoundationIdentity({
     clock: systemClock,
     pepper: environment.HUAYI_SECRET_PEPPER,
@@ -112,6 +121,7 @@ export function createProductionApp(environment: ApiEnvironment) {
   const { analysis, quota, studyCaptures } = createProductionAnalysis({
     database: analysisDatabase,
     environment,
+    ...(options.providerFetch === undefined ? {} : { fetch: options.providerFetch }),
     pricing,
   });
   const library = createLearningLibraryModule({
@@ -122,6 +132,7 @@ export function createProductionApp(environment: ApiEnvironment) {
   const duplicateSuggestions = createProductionDuplicateSuggestions({
     apiKey: environment.HUAYI_DEEPSEEK_API_KEY,
     database: analysisDatabase,
+    ...(options.providerFetch === undefined ? {} : { fetch: options.providerFetch }),
     pricing,
   });
   const libraryMaintenance = createLearningLibraryMaintenance({
@@ -132,6 +143,7 @@ export function createProductionApp(environment: ApiEnvironment) {
   const practiceGenerator = createProductionPracticeGenerator({
     apiKey: environment.HUAYI_DEEPSEEK_API_KEY,
     database: analysisDatabase,
+    ...(options.providerFetch === undefined ? {} : { fetch: options.providerFetch }),
     pricing,
     quota,
   });
@@ -189,6 +201,16 @@ export function createProductionApp(environment: ApiEnvironment) {
       protectSecret: protector.protect,
       rateLimiter,
       unprotectSecret: protector.unprotect,
+    }),
+  );
+  app.route(
+    "/",
+    createProductionSecurityNotifications({
+      database: analysisDatabase,
+      environment,
+      ...(options.securityNotificationFetch === undefined
+        ? {}
+        : { fetch: options.securityNotificationFetch }),
     }),
   );
   app.route(
@@ -275,6 +297,7 @@ export function createProductionApp(environment: ApiEnvironment) {
     createProductionExtensionQuery({
       database: analysisDatabase,
       environment,
+      ...(options.providerFetch === undefined ? {} : { fetch: options.providerFetch }),
       identity,
       policy: extensionPolicy,
       pricing,

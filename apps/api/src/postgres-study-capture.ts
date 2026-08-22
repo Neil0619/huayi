@@ -95,7 +95,7 @@ function escapeLike(value: string) {
 }
 
 async function save(
-  trusted: AnalysisQuery,
+  tenant: AnalysisQuery,
   command: {
     idempotencyKey: string;
     now: string;
@@ -105,7 +105,7 @@ async function save(
   response: unknown,
   operation = "study-capture.create",
 ) {
-  await trusted.rows(
+  await tenant.rows(
     `INSERT INTO idempotency_records(owner_user_id,operation,key,request_hash,response,expires_at)
       VALUES($1,$2,$3,$4,$5::jsonb,$6::timestamptz)`,
     [
@@ -220,7 +220,7 @@ export function createPostgresStudyCapture(
               ? { undo: { captureId: row.id, expectedRevision: row.revision } }
               : {}),
           });
-          await save(trusted, command, response);
+          await save(tenant, command, response);
           return response;
         });
       } catch (error) {
@@ -258,7 +258,7 @@ export function createPostgresStudyCapture(
             id: command.captureId,
           });
           await tenant.rows("DELETE FROM study_captures WHERE id=$1", [command.captureId]);
-          await save(trusted, command, response, "study-capture.delete");
+          await save(tenant, command, response, "study-capture.delete");
           return response;
         });
       } catch (error) {
@@ -348,7 +348,7 @@ export function createPostgresStudyCapture(
           ]);
           if (updated[0] === undefined) throw new Error("StudyCapture update disappeared.");
           const response = detail(updated[0]);
-          await save(trusted, command, response, "study-capture.patch");
+          await save(tenant, command, response, "study-capture.patch");
           return response;
         });
       } catch (error) {

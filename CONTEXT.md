@@ -310,6 +310,22 @@ _Avoid_: 普通 WebSession、管理员代办、账号恢复
 用户学习正文、凭据或代登录的能力。
 _Avoid_: 超级管理员、数据库管理员、客服代登录
 
+**DeploymentBootstrapAuthority（部署引导授权者）**:
+在隔离环境中持有 Supabase 项目管理员数据库凭据、通过仓库固定 CLI 完成首位 Operator 引导的人；它
+不是 HuayiAccount 或 Operator，不能访问 Web 管理台，也不能被写成 OperationalAuditEvent 的
+`actorUserId`。
+_Avoid_: 初始管理员账号、service-role 用户、部署机器人账号
+
+**FirstOperatorBootstrap（首位运营人员引导）**:
+空环境中先发行唯一 BootstrapInvitation，再把该邀请经正常注册最终绑定的唯一 HuayiAccount 晋升为
+首位 Operator 的一次性部署协议；完成后永久封闭，不能用于后续角色管理。
+_Avoid_: seed、公开注册、手工插入管理员、通用角色授予
+
+**BootstrapInvitation（引导邀请）**:
+FirstOperatorBootstrap 发行、来源明确为 deployment-bootstrap 的一次性邀请；它与普通邀请使用相同
+领取和注册状态机，明文 token 仍只显示在当前部署终端一次。
+_Avoid_: 管理员登录链接、service-role session、可重复邀请码
+
 **OperationalAuditEvent（运营审计事件）**:
 一次 Operator 动作的不可变、无正文记录，只包含动作、执行者、目标、有限安全详情与时间。
 _Avoid_: 应用日志、用户活动记录、正文快照

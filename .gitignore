@@ -6,9 +6,13 @@ test-results/
 .DS_Store
 .codex-pet-runs/
 .idea/
+.vercel/
 .worktrees/
 .env
 .env.*
+!.env.acceptance.example
+.env.acceptance.local
+.acceptance-local-dev.pid
 *.log
 AGENTS.override.md
 provider-comparison*.json

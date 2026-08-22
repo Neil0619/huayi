@@ -3,26 +3,18 @@ import { readFile } from "node:fs/promises";
 import { PGlite } from "@electric-sql/pglite";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import type { AnalysisDatabase, AnalysisQuery } from "./analysis-database.js";
+import type { AnalysisDatabase } from "./analysis-database.js";
 import { createPostgresAnalysisQuota } from "./postgres-analysis-quota.js";
 import { createPostgresDialoguePracticeRepository } from "./postgres-dialogue-practice-repository.js";
 import { createPostgresPracticeGenerationRepository } from "./postgres-practice-generation.js";
 import { createPostgresPracticeRepository } from "./postgres-practice-repository.js";
+import { createPgliteAnalysisDatabase } from "./test-support/postgres-analysis-database.js";
 
 const migrationUrl = new URL("../migrations/0001-cloud-v1-foundation.sql", import.meta.url);
 const userId = "00000000-0000-0000-0000-00000000000a";
 const itemOne = "60000000-0000-0000-0000-00000000000a";
 const itemTwo = "60000000-0000-0000-0000-00000000000b";
 const sessionId = "90000000-0000-0000-0000-00000000000a";
-
-function query(executor: {
-  query<Row>(text: string, parameters?: unknown[]): Promise<{ rows: Row[] }>;
-}): AnalysisQuery {
-  return {
-    rows: async <Row>(text: string, parameters = []) =>
-      (await executor.query<Row>(text, [...parameters])).rows,
-  };
-}
 
 describe("Postgres constrained dialogue practice", () => {
   let database: PGlite;
@@ -31,26 +23,7 @@ describe("Postgres constrained dialogue practice", () => {
     database = new PGlite();
     await database.waitReady;
     await database.exec(await readFile(migrationUrl, "utf8"));
-    adapter = {
-      async transaction(ownerUserId, operation) {
-        return database.transaction(async (transaction) => {
-          await transaction.exec("SET LOCAL ROLE huayi_context_setter");
-          await transaction.query("SELECT huayi_private.set_owner_context($1)", [ownerUserId]);
-          return operation({
-            tenant: {
-              rows: async (text, parameters) => {
-                await transaction.exec("SET LOCAL ROLE huayi_business");
-                return query(transaction).rows(text, parameters);
-              },
-            },
-            trusted: query(transaction),
-          });
-        });
-      },
-      async trusted(operation) {
-        return operation(query(database));
-      },
-    };
+    adapter = createPgliteAnalysisDatabase(database);
     await database.exec(`INSERT INTO user_profiles(user_id,owner_user_id,email,status,timezone,daily_goal)
       VALUES('${userId}','${userId}','user@example.test','active','UTC',5);
       INSERT INTO learning_items(id,owner_user_id,type,canonical_key,content)

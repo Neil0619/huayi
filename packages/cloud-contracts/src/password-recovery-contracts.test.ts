@@ -9,6 +9,8 @@ import {
   passwordRecoveryRunResponseSchema,
   passwordRecoverySessionResponseSchema,
   passwordRecoveryStartRequestSchema,
+  securityNotificationHttpRoutes,
+  securityNotificationRunResponseSchema,
 } from "./password-recovery-contracts.js";
 
 const csrfToken = "c".repeat(32);
@@ -95,6 +97,21 @@ describe("password recovery contracts", () => {
     expect(() => passwordRecoveryRunResponseSchema.parse({ outcome: "retrying" })).toThrow();
     expect(() =>
       passwordRecoveryRunResponseSchema.parse({ outcome: "sent", flowId: "secret" }),
+    ).toThrow();
+  });
+
+  it("keeps the security-notification worker route and response bounded", () => {
+    expect(securityNotificationHttpRoutes).toEqual({
+      run: "/internal/security-notifications/run",
+    });
+    for (const outcome of ["failed", "idle", "sent", "terminalized"] as const) {
+      expect(securityNotificationRunResponseSchema.parse({ outcome })).toEqual({ outcome });
+    }
+    expect(() =>
+      securityNotificationRunResponseSchema.parse({
+        email: "private@example.test",
+        outcome: "failed",
+      }),
     ).toThrow();
   });
 });

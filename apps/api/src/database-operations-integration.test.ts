@@ -49,18 +49,32 @@ describe("Cloud V1 operational transactions in embedded PostgreSQL", () => {
         '${pairingId}','${userA}','Work Mac',1,'byok','automatic','disabled'
       );
     `);
-    const first = await database.query<{ id: string | null }>(`SELECT exchange_extension_pairing(
+    const first = await database.query<{
+      cloud_word_copy_mode: string;
+      extension_query_model_mode: string;
+      id: string;
+      preferences_revision: number;
+      study_capture_mode: string;
+    }>(`SELECT id::text,extension_query_model_mode,study_capture_mode,
+      cloud_word_copy_mode,preferences_revision FROM exchange_extension_pairing(
       '${pairingId}', 'state-hash', 'challenge-hash',
       '23000000-0000-0000-0000-000000000001', 'session-token-hash',
-      now() + interval '90 days'
-    )::text AS id`);
-    const second = await database.query<{ id: string | null }>(`SELECT exchange_extension_pairing(
+      now() + interval '90 days')`);
+    const second = await database.query<{ id: string }>(`SELECT id::text
+      FROM exchange_extension_pairing(
       '${pairingId}', 'state-hash', 'challenge-hash',
       '23000000-0000-0000-0000-000000000002', 'other-token-hash',
-      now() + interval '90 days'
-    )::text AS id`);
-    expect(first.rows).toEqual([{ id: "23000000-0000-0000-0000-000000000001" }]);
-    expect(second.rows).toEqual([{ id: null }]);
+      now() + interval '90 days')`);
+    expect(first.rows).toEqual([
+      {
+        cloud_word_copy_mode: "disabled",
+        extension_query_model_mode: "byok",
+        id: "23000000-0000-0000-0000-000000000001",
+        preferences_revision: 2,
+        study_capture_mode: "automatic",
+      },
+    ]);
+    expect(second.rows).toEqual([]);
     const preferences = await database.query(`SELECT extension_query_model_mode,
       study_capture_mode,cloud_word_copy_mode,preferences_revision
       FROM user_profiles WHERE user_id='${userA}'`);
@@ -118,6 +132,34 @@ describe("Cloud V1 operational transactions in embedded PostgreSQL", () => {
     expect(crossAccount.rows).toEqual([{ revoked: null }]);
     expect(revoked.rows).toEqual([{ revoked: true }]);
     expect(after.rows).toEqual([]);
+  });
+
+  it("rolls back a pairing exchange when the owner preference snapshot is unavailable", async () => {
+    const pairingId = "22000000-0000-0000-0000-000000000003";
+    await database.exec(`
+      INSERT INTO user_profiles (user_id, owner_user_id, email, status, timezone, daily_goal)
+      VALUES ('${userA}', '${userA}', 'a@example.test', 'active', 'Asia/Shanghai', 5);
+      SELECT create_extension_pairing(
+        '${pairingId}', 'state-hash', 'challenge-hash', 'install-hash',
+        now() + interval '10 minutes'
+      );
+      SELECT approve_extension_pairing(
+        '${pairingId}','${userA}','Work Mac',1,'byok','automatic','disabled'
+      );
+      UPDATE user_profiles SET status='disabled' WHERE user_id='${userA}';
+    `);
+
+    await expect(
+      database.query(`SELECT * FROM exchange_extension_pairing(
+        '${pairingId}', 'state-hash', 'challenge-hash',
+        '23000000-0000-0000-0000-000000000003', 'session-token-hash',
+        now() + interval '90 days')`),
+    ).rejects.toThrow(/profile unavailable/iu);
+    await expect(
+      database.query(`SELECT status,
+        (SELECT count(*)::int FROM extension_sessions) session_count
+        FROM extension_pairings WHERE id='${pairingId}'`),
+    ).resolves.toMatchObject({ rows: [{ session_count: 0, status: "approved" }] });
   });
 
   it("preserves quota grant history and blocks reservations under the kill switch", async () => {

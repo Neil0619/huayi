@@ -186,6 +186,10 @@ DeepSeek、生产价格行、部署、安装或 Chrome。
   草稿冲突，Store session-bound cache/断开清理和无逐设备 override；DeviceDisconnect 另覆盖 singular
   self-revoke、旧版本仍可退出、统一 204、远端先于本机清理、网络失败零本机变化和其他设备保持有效，
   完整矩阵见 `extension-session-disconnect.md`。
+- pairing production adapter 回归必须证明 exchange 只执行 role setup 加一条受控数据库函数，并由该
+  statement 同时返回 session ID 和偏好 snapshot；禁止 exchange 后第二次直接 JOIN `user_profiles`。
+  migration 回归还要证明 profile 缺失会回滚 consumed/session，API 实际环境必须完成单次 exchange、
+  preference reread、设备列表、Web 撤销和旧 token 拒绝。
 - 受约束对话：strict 1–3 item/turn/retry/finish/rating contracts；开场与 3–5 round 状态机；user turn
   先落库；start/assistant/final lease 的活跃抑制、expired takeover 与 stale worker fencing；逐项 feedback
   全覆盖；多项 rating 同事务推进；pending start 不公开占位 prompt。Web 选择、pending 显式重试、
@@ -204,6 +208,10 @@ contract/API/Web 测试、PGlite migration 集成、typecheck/build、ESLint/Pre
   另须从生产 `/practice/history` 入口覆盖 dialogue/completed 筛选、完整结构化详情、确认焦点、有效写证明、
   删除后 server reread 空态，并返回 `/practice` 证明两个 LearningItem 与 ScheduleState 仍可读取；fixture、
   私密字段与 390px 验收见 `practice-history-acceptance.md`。
+  detail contract/repository/Web 另必须证明 `itemLabels` 与全部未擦除 session item 一一对应、顺序稳定、
+  expression/text 与 sentence-pattern/template 映射正确；已擦除项没有 label，UI 固定显示墓碑。逐项反馈和
+  自评不得回显 UUID，详情标题也不得回显 session ID；真实本机对话完成后必须在历史详情看到原学习项
+  英文文本且主 DOM 不含对应技术 ID。
 - 生词库：strict core/list/detail/context-page/PATCH/DELETE 与固定 route，word/context HMAC 上下文隔离和
   context word-ID 绑定；PGlite 覆盖 normalized literal wildcard、createdAt/id 与 observedAt/id 稳定分页、
   forced RLS/cross-owner 404、notes clear/revision/replay、external task 引用拒删、无引用 contexts cascade、
@@ -246,11 +254,14 @@ timeout 配置上限和三个非 analysis DeepSeek adapter 的实际 abort 没�
   幂等/revision header 和稳定错误码不会在 UI seam 丢失；
 - StudyInbox 覆盖 CaptureInbox/ReviewInbox 两个资源 tab；capture 覆盖 kind/title/context、显式分析、失败
   重试、reanalysis 费用警告、pending 二次删除，以及 analysis 删除默认勾选/取消/非最新关系；
-- 分析历史 component 测试覆盖真实服务器筛选形状、游标分页、完整结构化详情、归档与 reviewState 独立、
+- 分析历史 component 测试覆盖真实服务器筛选形状、游标分页、按结果类型显示的完整语义详情，且不把
+  记录/候选/分析单元 ID、revision、协议类型或 Prompt/Schema 版本暴露为用户文案；覆盖归档与
+  reviewState 独立、
   nothing-to-save、归档/恢复、二次确认删除、mutation 后 server reread、写入成功但刷新失败的诚实状态，
   以及迟到 list/detail/action 抑制、焦点、loading/empty/error/retry；adapter 回归继续证明 Cookie、CSRF、
   Idempotency-Key 与 If-Match。actual bundle 另须从 production `/history` 覆盖 StudyCapture-linked record 的
-  五类筛选子集、结构化详情、process→archive→restore 的 revision 链、默认勾选 capture 的两步删除、
+  五类筛选子集、无技术 ID 的语义详情、process→archive→restore 的服务器 revision 链、默认勾选
+  capture 的两步删除、
   server reread 空态、390px 与公开 snapshot 脱敏；完整矩阵见 `analysis-history-acceptance.md`。
 - 设备页 component 测试覆盖 loading/empty/error/retry、严格元数据、二次确认、确认焦点、撤销成功与
   失败保留；identity adapter 证明 GET 带 Cookie、DELETE 带 Cookie+CSRF 且非法 ID 不发请求。API 与
@@ -269,7 +280,8 @@ timeout 配置上限和三个非 analysis DeepSeek adapter 的实际 abort 没�
   2,000/500/1,000 字符边界、started 与
   preview live region、completed 到既有 Inbox 的交接、严格 failed 文案、保留输入的新 key 重试、
   AbortSignal 取消与迟到 terminal 抑制。started-only 流必须查询 owner-scoped status；running 不显示
-  假完成也不启用重复提交。窄屏为单列，沿用全局可见焦点与 reduced-motion 契约；
+  假完成也不启用重复提交；取消后保留 request ID，手动检查 running 有可见确认，编辑输入不能解锁
+  第二次提交。窄屏为单列，沿用全局可见焦点与 reduced-motion 契约；
 - Playwright 覆盖邀请注册、登录、分析、待整理、编辑/批量确认、学习库、语义建议→预览→显式确认→
   server reread、两种练习、生词、归档恢复、配额耗尽、设备撤销、导出和删号；
 - landmark、label、dialog、aria-live 与焦点恢复已有组件/浏览器证据；AA token 自动检查现按 WCAG sRGB
@@ -284,7 +296,8 @@ timeout 配置上限和三个非 analysis DeepSeek adapter 的实际 abort 没�
 - platform query、StudyCapture、CloudWordCopy 与 external wordbook adapters 共享 strict session-header
   module，测试固定
   Authorization/client-version、非法 token/version fail-before-fetch；API 测试固定 Extension Origin、
-  数字版本比较、426 upgrade、CORS allowlist 和 token repository 不被错误 proof 调用；
+  数字版本比较、426 upgrade、CORS origin/header/method allowlist（含真实 Web PATCH 预检及词表下载
+  `Content-Disposition` exposed header）和 token repository 不被错误 proof 调用；
 - 消息严格拒绝 URL、页面标题、Header、token、userId、endpoint、泛化 raw context 和未知 sender；只
   允许精确选区、word/phrase 的一条 sentenceContext 与无正文 trusted boundary evidence，来源从可信
   sender 与页面状态派生；
@@ -434,13 +447,13 @@ timeout 配置上限和三个非 analysis DeepSeek adapter 的实际 abort 没�
 
 ### Vercel Hobby + Supabase Cron 调度适配
 
-- `production-app.test.ts` 同时证明四个内部 worker route 继续挂载，且 `apps/api/vercel.json` 不再声明
+- `production-app.test.ts` 同时证明五个内部 worker route 继续挂载，且 `apps/api/vercel.json` 不再声明
   Hobby 不接受的分钟级 `crons`；
 - `supabase-cron-operations.test.ts` 对 operations SQL 做无 secret 静态审计：扩展与 schema、Vault key、
-  配置失败关闭、security-definer 固定 search_path、四路径 allowlist、角色权限撤销、Bearer/Accept header、
-  ≤55 秒 timeout、四个固定 job 以及先取消再安装的重跑去重；
+  配置失败关闭、security-definer 固定 search_path、五路径 allowlist、角色权限撤销、Bearer/Accept header、
+  ≤55 秒 timeout、五个固定 job 以及先取消再安装的重跑去重；
 - 离线测试不执行 SQL、不创建 Supabase/Vercel 资源、不访问 Vault 或 HTTP。真实部署必须另行执行 SQL
-  两次，检查 `cron.job` 恰好四项，并观察成功、401、5xx 与超时后的下一周期恢复；
+  两次，检查 `cron.job` 恰好五项，并观察成功、401、5xx 与超时后的下一周期恢复；
 - 这组测试只证明调度适配。当时的 legacy 60 秒/DeepSeek 90 秒仓库配置缺口由 Phase 45 supersede；
   Fluid/120 秒真实部署、Hobby 个人非商业用途、Supabase Free 暂停与无自动备份仍是独立上线裁决，详见
   `vercel-hobby-supabase-cron.md` 与 `vercel-fluid-function-duration.md`。
@@ -459,9 +472,10 @@ timeout 配置上限和三个非 analysis DeepSeek adapter 的实际 abort 没�
   诚实状态，以及窄屏/reduced-motion CSS contract；
 - AccountDataExport 和 WordListExport 使用 golden fixtures 验证内容范围；WordListExport 另覆盖 canonical
   排序、Unicode、空文件、LF/末尾换行、UTF-8 MIME 与无 notes/context/ID/owner/credential；
-- AccountDataExport 另覆盖 strict NDJSON 八类记录、owner snapshot、仅纳入 snapshot 时尚未过期且不延长
-  expiry 的 ExtensionQueryGeneration、24 小时 object/15 分钟 URL、对象写入/清理失败与 old-worker
-  fencing；
+- AccountDataExport 另覆盖 strict NDJSON 八类记录、owner snapshot、包含实际 AnalysisRecord 时的 private
+  serializer 权限与跨 owner 空结果、仅纳入 snapshot 时尚未过期且不延长 expiry 的
+  ExtensionQueryGeneration、生产 Postgres `bigint` 字符串到 ready `byteLength` 的安全整数投影、24 小时
+  object/15 分钟 URL、对象写入/清理失败与 old-worker fencing；
 - 删除测试覆盖数据库级联、非 FK 直接 UUID 清理、RLS、session/pairing 即时撤销、exports→database→Auth
   顺序、逐 stage 幂等/过期接管及完成后 subject UUID 清除。详细矩阵见 `account-data-rights.md`。
 
@@ -533,10 +547,33 @@ Phase 44 Fresh RED 为 2 个预期失败 / 7 个基线通过；GREEN 为静态�
 121/121 Node 脚本、447 个 Vitest 文件、Store coverage 97 files / 481 tests 与 Playwright 110/110。
 Windows 进入下一冻结候选批次。
 
+### 4.3.1 R3-C 安全通知生产代码
+
+- `security-notification-worker.test.ts` 覆盖固定 23 小时 deadline、8 次上限、终态零 sender、Provider
+  已发送但 complete 失败时只以同 notification ID 重放，以及 alert port 只接收固定 reason/count；
+- `resend-security-notification-sender.test.ts` 使用 fake fetch 锁定唯一
+  `https://api.resend.com/emails`、固定模板、20 秒上限、notification ID 幂等 header 与固定失败错误；默认
+  测试不访问网络、不读取真实 key；
+- `security-notification-delivery-migration.test.ts` 与 `database-migration-chain.test.ts` 证明当前 baseline
+  后可重放 0002–0011、API/Supabase 0011 byte-identical、超窗为 failed、耗尽为 dead-letter、一次只领取
+  一个第 8 次 delivery；
+- `security-notification-app.test.ts`、`production-app.test.ts` 和
+  `supabase-cron-operations.test.ts` 锁定独立 bearer route、bounded outcome、production composition 与第
+  五个 minute job；`acceptance-app.test.ts` 证明本机模式返回 idle 且 global fetch 零调用。
+
+真实 DNS、verified sender、Resend 接收、重复投递观测、Dashboard 和无正文告警接收方仍必须在 hosted
+acceptance 独立验收，离线 GREEN 不替代该外部门禁。
+
+2026-08-22 Fresh RED 为 contracts 1 个预期失败，以及 API 8 个断言失败+2 个缺模块 suite；GREEN 为本节
+focused contracts 6/6、API 12 files / 34 tests，随后 contracts full 15 files / 64 tests、API full 132
+files / 493 tests。两包 strict typecheck/build、目标 ESLint/Prettier、instructions、architecture、migration
+mirror 与 `git diff --check` 通过；全仓 `format:check` 当时仅被本纵切禁止修改的并行
+`postgres-account-data-rights.test.ts` 格式差异阻塞，不归因于 R3-C 文件。
+
 ### 4.4 Phase 45 Vercel Fluid 与 Function 时长契约
 
 `production-app.test.ts` 解析真实 `apps/api/vercel.json`，必须同时证明 `fluid` 精确为 `true`、唯一
-`functions["src/server.ts"].maxDuration` 精确为 120、没有 `crons`，且 production composition 保留四个
+`functions["src/server.ts"].maxDuration` 精确为 120、没有 `crons`，且 production composition 保留五个
 既有 internal worker route。测试不得只 mock 配置读取，也不得把 Dashboard 或真实部署标为已验证。
 
 源码复审同时绑定四条 DeepSeek adapter 的 90 秒上限：analysis、ExtensionQuery 和 practice 的可选结构
@@ -577,8 +614,396 @@ Phase 46 不引入产品行为或生产代码，因此不得为了形式伪造 F
 passed / 12 skipped）、Store coverage 97 files / 481 tests、Playwright 110/110；全部静态、构建、发布审计
 和 diff 门同次通过。该结果记为 `F4`，只证明 Mac/共享离线候选，不证明 Windows 或任何外部项。
 
+### 4.6 Phase 47 本机验收第一纵切：前置条件 doctor
+
+第一纵切只建立可审计配置与失败关闭的 doctor，不启动 Docker、不拉镜像、不生成证书、不创建账号或
+调用云服务。Fresh RED 必须因缺 `acceptance-local-doctor.mjs`、Supabase manifest 与环境模板失败；最小
+GREEN 固定以下契约：
+
+- 根 `supabase` CLI 精确 pin，`supabase/config.toml` 固定 local project/ports、Mailpit、真实邮箱确认和
+  canonical baseline 路径；seed 在下一纵切完成前保持 disabled；
+- `.env.acceptance.example` 只有固定 public local origin、变量名和 `REPLACE_WITH` 占位；真实
+  `.env.acceptance.local`、Supabase 临时目录和证书私钥被忽略；
+- doctor 分别检查 Node.js 22+、Docker CLI、daemon、pinned Supabase CLI、受信任本机 CA 工具、manifest、模板与
+  baseline；失败只输出固定 code/message，不回显命令 stderr、环境值或路径；
+- 注入 check 的 Node 测试覆盖全绿、多个 blocker、异常和输出边界；真实 doctor 缺任一系统前置条件时
+  必须非零退出，不能把“代码契约已实现”写成 local-ready。
+
+focused GREEN 后运行全部 script tests、format、lint、instructions、architecture 与 diff check；由于
+Supabase/Docker/CA 属于本机运行时，只有用户批准并完成安装/信任、真实 `up/status/down/reset`、Mailpit
+与重启持久化后，才升级为 local-ready。
+
+### 4.7 Phase 47 本机 runtime、HTTPS 与邀请
+
+- runtime 测试必须拒绝错误 network option、零项目容器、容器不在专网、任一 published host 非
+  `127.0.0.1`；`start`、`status` 和 `dev` 都运行真实复核；
+- HTTPS 启动覆盖 SPA 路径约束和部分端口失败后的全 server 清理；真实 smoke 不使用 `curl -k`，并核对
+  8443/8444/8445 listener 均为 loopback；
+- HTTPS Web 服务必须在启动时固定完整 bundle；测试先取得 snapshot，再改写磁盘入口，旧 snapshot 仍
+  返回原字节。缺失 `index.html` 或非普通文件失败关闭，确保 build 不会让在线 Web 先于 API 切换；
+- HTTPS 生命周期测试必须证明子进程使用 `detached + stdio=ignore + shell=false`，健康后才写入/保留 PID
+  并 `unref`；不健康的新进程会被终止并清理状态，仍存活但不健康的旧进程会被替换；
+- 真实生命周期 smoke 必须证明启动进程的 PPID 不再属于调用终端、`dev:status` 与三个系统信任 HTTPS
+  probe 均成功，并在新的命令会话中复核，避免把一次前台 shell 成功冒充持续可用；
+- bootstrap 重复运行不得输出 secret，环境权限保持 `0600`，数据库角色保持非 superuser/BYPASSRLS；
+- invitation 测试证明 token 只进入 URL fragment，数据库只保存 peppered hash；链接只供本机一次性注册；
+- doctor artifact contract 必须固定 Auth 密码最少 12 位且不附加 Cloud 契约之外的字符组合规则；真实
+  注册前核对 Auth 容器等效加载 `12` 与空 required characters；
+- acceptance API composition 的所有模型 adapter 必须使用阻断 fetch，默认测试与本机首轮均零第三方网络；
+- 服务健康、构建或邀请创建不等于 Local-ready；仍须真实 Mailpit 注册/确认、Cookie/CSRF、核心旅程、
+  重启持久化与 forward migration 证据。
+
+2026-08-21 首次真实邮箱注册命中 Provider 422：邀请 claim/API rate limit 已写入，但 Auth user、identity、
+profile finalization 均未发生；脱敏 Auth 日志确认本机额外要求字母与数字。Fresh RED 以 doctor artifact
+contract 精确命中 `minimum_password_length = 8` 与 `letters_digits`，GREEN 5/5 固定为 `12` 与空字符要求。
+配置生效时首次 persistence restart 失败关闭并保持 HTTPS 停止；完整重跑随后退出 0，Auth 容器加载新值，
+Supabase/HTTPS status 通过，现有邀请与活动 claim 均保留，Auth user 仍为 0，等待用户原页面重试。
+
+### 4.8 Phase 47 首账号初始化与第一条前向迁移
+
+- Fresh RED 必须证明 baseline→`0002` 后，password `finalize_invitation`、Google `complete_auth_flow` 和
+  既有非 deleting profile 尚无当前 UTC 月 1 美元默认 grant；
+- GREEN 必须证明每条路径恰有一个 `source=default` 当前月 grant、注册重放不重复、同月 admin grant
+  不被覆盖、deleting profile 不回填；
+- API `0002` 与 Supabase 时间戳 migration 必须字节一致，baseline 文件保持原 version，不通过 reset
+  伪造升级成功；
+- `acceptance:local:migrate` 测试固定 pinned CLI 参数、先后 runtime 审计和安全输出，真实执行后
+  `supabase_migrations.schema_migrations` 同时保留 baseline 与 `0002` version；
+- bootstrap SQL 必须幂等创建 private `account-exports-acceptance` bucket，重复执行后仍只有一条且
+  `public=false`；测试和日志不得读取 service-role key；
+- 真实库执行 migration/bootstrap 前后分别记录 profile、grant、bucket、未消费邀请计数，证明没有清库、
+  没有消费邀请且 HTTPS 三入口持续健康。
+
+2026-08-21 实测：migration Fresh RED 3/3、bootstrap 与 runtime migrate 入口分别按预期失败；最小 GREEN
+后 script focused 15/15、API migration/auth focused 18/18。当前库前后计数由 `1/0/0/1` 变为
+`1/1/1/1`，history 保留 baseline 与 `0002`，重复 bootstrap 未增加 bucket，当前邀请仍未消费。最终
+`pnpm verify:macos` 退出 0：145/145 Node scripts、449 个 Vitest files（2,761 passed / 12 skipped）、
+Store 97 files / 481 tests、Playwright 110/110；门后 app/API/Supabase HTTPS 复核均为 200。
+
+### 4.9 Phase 47 受控 reset 与虚构 seed
+
+- Fresh RED 必须证明仓库没有 `acceptance:local:reset` 入口、`supabase/seed.sql` 或固定 reset 编排；
+- 缺失、多余或错误确认参数必须在 stop、CLI、bootstrap、build、start 之前失败；正确参数必须按
+  runtime verify → HTTPS stop → pinned `db reset --local --yes --sql-paths seed.sql` → runtime verify →
+  bootstrap → build → HTTPS start 的固定顺序执行；
+- CLI 参数不得出现 `--db-url`、`--linked`、`--project-ref` 或调用者提供的值，stdout/stderr 不转发 CLI、
+  SQL、credential、容器环境或路径；中途失败不得继续后续阶段或自动恢复旧服务；
+- seed 只能包含固定虚构 Operator/profile/admin role 与 current default quota；不得写 `auth.users`、
+  sign-in method、邀请/token、session、正文、Provider 结果、真实邮箱域或 secret；
+- doctor 必须把 seed 作为固定前置条件，package script 固定调用无 shell 的 Node 入口；普通
+  start/migrate/bootstrap/build/test 不得隐式 reset；
+- 本纵切只运行注入依赖的离线 reset 回归和完整 Mac 门，真实当前库保持 profile/grant/bucket/未消费邀请
+  `1/1/1/1`、两条 migration 与 HTTPS 200。只有用户另行明确要求销毁本机数据后，才真实执行 reset，
+  核对重建后 `1/1/1/0`、两条 migration、private bucket、默认额度和新邀请流程。
+
+2026-08-21 实测：Fresh RED 为 3 个预期失败；最小 GREEN 后 reset/doctor/bootstrap/lifecycle/runtime
+focused 31/31、scripts 156/156、seed migration 4/4、database focused 19/19。首次完整门的 6 个失败均为
+全仓默认并行负载下 PGlite `beforeEach` 建库越过 10 秒；同 6 文件 32/32 与 API 420/420 单独通过。
+仓库测试入口以回归测试固定全仓 Vitest 最多 4 workers 后，最终 `pnpm verify:macos` 退出 0：449 个
+Vitest files（2,762 passed / 12 skipped）、Store 97 files / 481 tests、Playwright 110/110 与其余门全绿。
+只执行过无确认参数的拒绝路径，真实数据、邀请、两条 migration 和三个 HTTPS 200 均未变化。
+
+### 4.10 Phase 47 非破坏性重启与持久化指纹
+
+- Fresh RED 必须证明 `acceptance:local:restart:verify` 模块、package 入口与固定 snapshot/restart 编排缺失；
+- 任意参数必须在 runtime verify、snapshot 或 stop 前失败；成功顺序固定为 runtime verify → before
+  snapshot → HTTPS stop → Supabase stop → Supabase start → forward migration → runtime verify → after
+  snapshot → equality check → HTTPS start；
+- snapshot runner 只能使用 `docker exec` 固定本机数据库容器和 `psql`，禁止 shell、URL、password、远端
+  参数、调用者 SQL/路径；SQL 在服务器内逐表生成排序聚合 digest，stdout parser 只接受固定 relation、
+  非负 count 与 digest，不把结果写入终端；
+- 覆盖全部 `public` tables、`auth.users`、`auth.identities`、`storage.buckets`、`storage.objects` 与
+  `supabase_migrations.schema_migrations`；缺 relation、重复 relation、格式错误、执行失败或前后差异均
+  失败关闭；
+- 每个失败阶段必须停止后续调用；HTTPS stop 之前失败保持环境不变，stop 之后失败不自动恢复或 reset；
+  persistence 命令不得调用 bootstrap、seed、db reset、build 或 Provider；
+- 真实运行前后核对三个 HTTPS 200、两条 migration、当前未消费邀请与既有 `1/1/1/1` 初始化状态；用户
+  注册并创建学习数据后必须再次运行，才证明真实账号/学习内容跨重启。
+
+2026-08-21 实测：Fresh RED 7/7 失败，分别证明 restart module 与 package entry 缺失；最小 GREEN 的
+编排/解析/固定命令测试 16/16、acceptance/lifecycle/runtime focused 57/57。真实只读 snapshot 先通过，
+随后 `pnpm acceptance:local:restart:verify` 完整停止并恢复 HTTPS/Supabase，以退出码 0 证明 before/after
+服务器内指纹完全一致。显式聚合复核前后均为
+profile/default grant/private bucket/unconsumed invite/Auth user/sign-in method/learning item/migration
+`1/1/1/1/0/0/0/2`，两条 migration 名称不变；app/API/Supabase/Mailpit 均为 200。最终
+`pnpm verify:macos` 退出 0：172/172 Node scripts、449 个 Vitest files（2,762 passed / 12 skipped）、Store
+97 files / 481 tests、Playwright 110/110 与其余门全绿。该证据只关闭注册前初始化状态/邀请 persistence；
+用户注册并创建学习数据后的第二次运行仍 pending。
+
+### 4.10a Phase 47 首次真实邮箱确认回调回归
+
+- actual Mailpit 首击必须证明 Supabase signup、verify 与 PKCE exchange 成功；同一确认链接第二击过期是
+  正常的单次凭证语义，不能据此要求重发或重建账号；
+- API 回归必须证明密码注册链接固定生成 `/v1/auth/password/callback`，该路由向 identity completion
+  传 `password`，Google callback 传 `google`，password 不得完成普通 Google login flow；
+- migration Fresh RED 必须先因 6 参数 completion、错误 method 修复和 `refresh_profile_email` 缺失失败；
+  GREEN 证明 API/Supabase migration 字节一致，只有 email identity 的已完成邀请由 google 修复为
+  password，有真实 Google identity 的账号不受影响；
+- forced-RLS 回归必须以 `SET LOCAL ROLE huayi_context_setter` 成功刷新 active profile，并证明 PUBLIC 与
+  `huayi_business` 无函数执行权；API 不再直接 UPDATE `user_profiles`；
+- live migration 前后只记录聚合计数，不输出邮箱、code、flow、邀请或 token。升级后既有确认账号直接
+  使用邮箱密码登录并创建 Web session，不再次点击已消费确认链接。
+
+2026-08-21 实测：focused 26/26 与完整 `verify:macos` 全绿；第三条 migration 已应用，聚合状态确认
+confirmed Auth user/password method/profile 为 `1/1/2`、google method/Web session 为 `0/0`、消费/可用邀请
+为 `1/1`。deploy 完整重跑成功，IPv4/IPv6 六个入口探测均 200，新 password callback 缺参数为 400。
+用户密码登录与首个 Web session 仍待人工完成。
+
+### 4.11 Phase 47 本机验收模拟模型
+
+- Fresh RED 必须证明 acceptance fetch 仍固定 `model_unavailable`、phrase trusted assembly 不能保留 strict
+  phrase result、Web environment/build/banner 尚无 `simulated` 模式；不能先改实现再补绿测试；
+- 模拟 Adapter 通过 production DeepSeek Adapter 驱动 phrase/sentence/passage、六类 ExtensionQuery、
+  DuplicateSuggestion 与五类 PracticeGeneration；focused 测试必须解析最终公开 schema，而不是只断言
+  fake 被调用；
+- endpoint、POST、credentials omit、redirect error、JSON headers、本机 Authorization、request byte bound、
+  abort 和未知 prompt 都失败关闭；测试替换全局 fetch 并断言调用次数为零；
+- 输出固定非零虚构 usage、无 reasoning，同一 request bytes 得到字节一致 response；analysis 至少生成一个
+  可收藏 Expression，duplicate/dialogue 只回显 server-owned alias，主要结果带 `【本机模拟】`；
+- acceptance build 只为 Web 固定注入 `VITE_ACCEPTANCE_MODEL=simulated`；环境 schema 拒绝其他值，普通
+  build 缺省不渲染。组件测试断言全页面根级 `role=status` 横幅明确“不是 DeepSeek”“不产生外部费用”；
+- focused API/Web/script、strict typecheck、lint、format 和 diff 通过后运行完整 Mac 门。测试和真实本机
+  smoke 均不得触网；Windows 留到验收冻结批次；
+- 用户正在操作时不 build/restart 当前 bundle。部署只在空闲窗口停止并重启 HTTPS，不停止/reset/seed
+  Supabase；真实浏览器验证横幅、分析→候选→学习库→练习后，再记录实现状态。
+- 快照运行时首次部署后，后续 build/full gate 可在旧 HTTPS 版本在线期间执行；只有显式 stop/start 才
+  同步激活新 Web/API，测试必须证明磁盘改写不会改变既有 snapshot。
+- deploy 协调器必须在任何副作用前拒绝缺失、错误或多余的 downtime confirmation；成功调用顺序固定为
+  runtime verify → HTTPS stop → acceptance build → HTTPS start。四个阶段分别失败时不得继续，stop 后
+  失败不得自动启动；package/source contract 不得调用 runtime stop/start、migrate、reset、seed、
+  bootstrap、invite 或外部 smoke。
+- `*.acceptance.localhost` 的 IPv4/IPv6 双解析必须有回归：每个 8443/8444/8445 服务各生成
+  `127.0.0.1` 与 `::1` 两个独立 listener，任一部分 listen 失败关闭全部 server；真实部署后再以本机 CA
+  执行 `curl -4`/`curl -6`，两者都返回 200 才关闭浏览器 connection-refused 缺陷。
+- lifecycle start/status 另以注入 probe 断言三个固定 URL 都执行 `family=4` 与 `family=6`；任一单次失败
+  整体为 false。不能以 listener 生成单测替代 health gate，也不能让一次 hostname 请求受系统 DNS 顺序
+  决定验证哪个地址族。
+
+完整需求、技术路线和人工清单见 `local-acceptance-simulated-provider.md`。
+
+2026-08-21 实现检查点：Fresh RED 分别因模拟模块/横幅缺失、Web strict environment 拒绝模式、build 未
+注入模式而失败；独立 phrase 回归还证明 production trusted assembly 把 strict phrase result 留为
+`undefined`，两次 repair 后以 `model_output_invalid` 终止。最小 GREEN 后 API focused 3 files / 37 tests、
+Web focused 5 files / 17 tests、build contract 1/1、API/Web strict typecheck、目标 lint/format/diff 通过；
+API 全量 114 files / 447 tests、Web 全量 44 files / 201 tests、初始 Node scripts 173/173 继续全绿。当前没有
+执行 acceptance build 或重启，运行环境仍为旧的 Provider 失败关闭 bundle；根级 Vitest 451 files /
+2,792 passed / 12 skipped、当前 Node scripts 176/176、Store coverage 97 files / 481 tests、Playwright
+110/110 已通过。snapshot Fresh RED 因缺 export 失败；路径复审再证明 URL 规范化可能吞掉点段，最终
+focused 5/5 证明磁盘改写隔离、缺入口失败关闭和原始 traversal 在 SPA fallback 前拒绝。此时完整 Mac
+聚合门与真实 HTTPS 模拟旅程尚未取得，不能用源码 GREEN 冒充已部署。
+
+随后将当前 Git 可见文件复制到排除 ignored secret/运行数据的系统临时候选，以
+`pnpm install --offline --frozen-lockfile` 零下载重建依赖，并原样执行 `pnpm verify:macos`。聚合门退出 0：
+176/176 Node scripts、451/451 Vitest files（2,792 passed / 12 skipped）、Store coverage 97 files / 481
+tests、全部 workspace build、Playwright 110/110、development blocker、Store release、production audit 与
+diff 全绿。门后 checksum 复核候选与工作树零文件内容差异；该证据关闭当前代码候选 Mac 门，但不关闭
+live acceptance build/restart、真实横幅/模拟旅程或 Windows。
+
+部署协调器必须另取 Fresh RED：模块/package script/精确确认参数尚不存在；GREEN 后运行 deploy focused、
+完整 Node scripts 与静态门，但绝不在用户未确认空闲时调用真实命令。真实成功证据只能来自用户确认后的
+一次 CLI 退出 0、三个 HTTPS health、横幅和模拟旅程。
+
+部署协调器 Fresh RED 已以模块缺失失败，GREEN focused 9/9 覆盖精确确认、固定顺序、四阶段失败、异常
+归一化和 package entry；真实无参数调用在副作用前退出 1，原 HTTPS 随后仍健康。用户打开邀请时再次
+出现 connection refused，现场分地址族复现 IPv4 200、IPv6 拒绝；双栈 listener Fresh RED 因 export
+缺失失败；第二个 RED 复现并行绑定提前清理竞态，GREEN focused 7/7。当前完整 Node scripts 187/187
+通过；根级 `pnpm test` 还以 451/451 Vitest files、2,792 passed / 12 skipped 退出 0，全部静态门退出
+0。尚未执行带确认 deploy，因此运行中旧进程仍只监听 IPv4，本条只能证明修复候选，不能冒充浏览器缺陷
+已部署关闭。
+
+随后为包含部署协调器与双栈修复的最新可见文件重新建立隔离候选；offline frozen install 复用 277 个包、
+下载 0，原样 `pnpm verify:macos` 退出 0。结果为 187/187 Node scripts、451/451 Vitest files（2,792
+passed / 12 skipped）、Store coverage 97 files / 481 tests、全部 workspace build、Playwright 110/110、
+development blocker、Store release、production audit 与 diff 全绿；门后 checksum 零文件内容差异，
+候选 Git 干净。证据文档回写属于 docs-only delta，需重跑文档静态门，但不要求重复构建。
+
+门后复审发现 lifecycle health 仍只发起一次 hostname 请求，可能只验证一个地址族。Fresh RED 因缺双栈
+probe export 失败，GREEN focused 7/7（新增 2 项）固定三个 URL × 两个 family，任一失败整体失败关闭。
+第三次精确候选随后以零下载 offline install 执行 `pnpm verify:macos` 并退出 0：189/189 Node scripts、
+451/451 Vitest files（2,792 passed / 12 skipped）、Store coverage 97 files / 481 tests、全部 workspace
+build、Playwright 110/110、development blocker、Store release、production audit 与 diff 全绿；checksum
+零文件内容差异且候选 Git 干净。旧 IPv4-only 进程会被新 status 正确拒绝，不能把该预期失败误报为
+服务被停止。
+
+### 4.12 Phase 47 首次真实模拟分析失败回归
+
+- 现场先用无正文聚合证明四次请求全部停在 `running`，且 `reservation_id`、`dispatched_at`、ledger 和
+  AnalysisRecord 均为空；Postgres 固定错误依次为 `model unavailable` 与
+  `permission denied for function current_owner_user_id`；
+- bootstrap Fresh RED 必须证明 SQL 仍把 `model_kill_switch` 写为 `true`；GREEN 固定 local-only
+  `false`，不得修改 hosted/production 默认值或引入真实 Provider key；
+- quota Fresh RED 使用真实 baseline、`huayi_context_setter`、owner context、`huayi_business` 与 forced
+  RLS 复现 `summary()` 权限错误；GREEN 必须改由 tenant transaction 查询，不以放宽函数 grant、RLS 或
+  business role 权限绕过；
+- 既有 analysis failure replay 回归继续证明 reserve/preflight 失败后先取得 quota summary，再写 terminal
+  event，不打开 SSE、不调用模型。现场只允许通过 `abandon_analysis_request` 回收租约过期、未 dispatch、
+  未 reservation 的精确请求，并复核 `running=0`、`failed=4`；
+- focused GREEN、完整 Mac 门、bootstrap/deploy、IPv4/IPv6 health 和运行库 kill switch/请求状态全部通过
+  后，用户只新发起一次分析。成功后继续候选→学习库→练习；Windows 留到下一关键冻结批次。
+
+2026-08-21 实测：bootstrap 4/4、quota/analysis focused 16/16；`pnpm verify:macos` 退出 0，覆盖
+190/190 Node scripts、454/454 Vitest files（2,798 passed / 12 skipped）、Store 481/481、Playwright
+110/110 与全部静态、构建、架构、发布、production audit。bootstrap 后 kill switch 为 false，四条遗留
+请求为 failed、running/reservation/ledger/record 均为 0，活动 Web session 保留为 1。首次后台 deploy 在
+start health 阶段安全失败；同一新构建以前台诊断证明 IPv4/IPv6 六入口均 200 后干净停止，完整 deploy
+重跑退出 0，runtime/dev status 与六入口复核全绿。现在只待用户新发起一次分析。
+
+### 4.13 Phase 47 模拟候选持久化与取消等待回归
+
+- live 无正文聚合必须区分 completed、failed、running、dispatch、reservation、ledger 与 record；数据库
+  固定错误允许证明 private candidate alias 被写入 UUID 列及其后的 settlement 失败，但不得输出正文、
+  request ID、session 或 credential；
+- Analysis module RED 必须让 strict `candidate-1` 通过 model seam 到达公共记录并证明未重键；GREEN 由
+  server ID source 同步改写 candidates 和 phrase/sentence/passage 引用；
+- post-model commit RED 必须让 committer.complete 失败，并证明 fail command 丢失 billed calls/usage/
+  cost；GREEN 必须沿用已生成的计费事实，不能用 fallback cost；
+- Web RED 覆盖取消后 request ID/检查入口丢失、编辑输入解锁重复提交，以及手动查询仍 running 时没有
+  可见变化；GREEN 必须保持 server fence，直到 strict status 返回 completed/failed；
+- dispatched 遗留请求只有 lease 过期后才调用既有恢复函数保守结算；随后部署并由用户只发起一次分析。
+
+### 4.14 Phase 47 真实 Postgres 模拟分析闭环回归
+
+- 新增 production composition + PGlite baseline + acceptance Provider 的纵切测试，使用无敏感固定英文输入，
+  不替换 quota、request lifecycle、AnalysisStore 或 DeepSeek Adapter；只有最终事件为 completed，且同一
+  事务留下 AnalysisRecord、服务器 UUID candidate、settled reservation、精确 usage ledger 与 completed
+  request，才算 GREEN；
+- settlement 回归必须覆盖“没有可用 billed call/usage 的失败收尾”。可信 Postgres store 从当前 active
+  reservation 取得保守金额并在同一事务结算，禁止固定 `100000` 超过较小 reservation 后再次失败；错误
+  分支最终必须是 failed + settled，不得留下 running + active；
+- 部署后由 Codex 在本机浏览器使用生成的非敏感文本，亲自完成分析、候选收录、学习库读取和至少一次
+  练习交互；同时只读取无正文、无 ID 的数据库聚合。刷新和重复状态查询都不得生成第二个 active
+  generation。该现场闭环通过前不把页面交还给用户继续代测。
+
+### 4.15 Phase 47 真实驱动与练习角色边界回归
+
+- `analysis-database` 单测必须证明只有显式 `$N::jsonb` 参数会从 JSON 字符串解析为 driver JSON，普通
+  字符串与 `$10` 等精确序号不误匹配；真实 `postgres` 探针另证明 stringified JSON 会成为 scalar，而
+  原生数组为 array；
+- 句子与对话 repository 测试必须在每次 tenant/trusted 查询前恢复真实角色，不能让前一个
+  `SET LOCAL ROLE huayi_business` 泄漏到 trusted adapter 后掩盖权限错误；
+- 所有 owner-scoped idempotency response 直接写入都使用 tenant query；begin/replay 继续只经
+  `begin_idempotent_write` trusted function。角色回归应先精确得到 `permission denied for table
+idempotency_records`，修复后覆盖创建、练习、历史、删除、词典和 StudyCapture；
+- practice terminal settlement 必须先精确得到 context-setter 无权更新 `practice_generation_tasks`，
+  再由 context-setter-only settlement function 关闭 task/quota/ledger 原子边界；API/Supabase baseline
+  与 forward migration 字节一致，PUBLIC/business 无执行权；
+- 真实浏览器最终至少完成 analysis completed→candidate confirm→library reread→sentence prompt→answer
+  feedback→rating→history reread，并复核 running analysis、open practice task、active reservation 全为 0。
+- HTTPS lifecycle 回归必须覆盖“未登记旧进程仍响应、刚启动 child 因端口冲突退出”的竞态；health 首次
+  成功后等待稳定窗口，再确认 child 存活并重做六入口 probe；stop 在升级为强制信号后须再次等待退出。
+  随后真实 stop→start→`dev:status` 与页面刷新都通过。
+
+### 4.16 Phase 47 Store 服务端实际旅程与注销回执权限回归
+
+- 本机 HTTPS adapter 单测必须证明 bodyless DELETE 产生 `Request.body === null`：无长度或
+  `Content-Length: 0` 均无 body，正数长度或 `Transfer-Encoding` 才建立 stream；GET/HEAD 始终无 body；
+- 使用 production API/Postgres/Auth/Mailpit 与一次性账号实际完成 ExtensionQuery 创建/状态/重放、
+  StudyCapture 创建/重放/已有项/PATCH、未分析 Capture 撤销、另一 Capture 的初次分析/重分析，以及
+  CloudWordCopy 单条/重放/批量；已有分析的 Capture 必须继续拒绝直接撤销；
+- DeviceDisconnect 实际覆盖首次断开 204、相同 proof 幂等重放 204、旧 token 401 和设备列表归零，不能
+  以 Web 管理撤销替代 Store 自断开；
+- `postgres-account-data-rights` 测试 adapter 必须按生产角色运行 trusted 查询。删除 receipt replay 先
+  精确得到 `permission denied for table account_deletion_jobs`，随后只通过 context-setter-only
+  SECURITY DEFINER wrapper 读取匹配且未过期的固定回执；不得授予表级 SELECT；
+- 部署后用正常账号删除与 worker 清理本次临时账号，并只读取聚合证明 Auth/profile/Web session/
+  ExtensionSession/开放任务为 0；原始删除错误不得再被 replay 二次异常掩盖。
+
+### 4.17 Phase 47 隔离空库与 destructive reset 回归
+
+- 回归必须不修改地执行 current baseline 后再执行 `0002`–`0010` 全部 API forward migration；任何重复
+  function、table、constraint 或 grant 都应让测试失败。每个 forward 同时保留从其旧前态升级的定向测试，
+  不能通过预先 DROP 当前 baseline 对象掩盖空库链冲突；
+- 真实演练使用独立 Supabase project ID、Docker network、容器名、数据库/HTTP/HTTPS 端口和生成式本机
+  secret；主验收项目在演练前后都必须保持 runtime/dev status 健康且数据聚合不变；
+- 隔离项目必须从无容器/无 volume 状态依次通过 start、doctor、bootstrap、build、HTTPS start/status，
+  再创建可检测的临时业务状态，执行带精确确认参数的 `acceptance:local:reset`，证明业务状态消失、固定
+  Operator/价格/bucket/kill switch 与全部 migration 恢复，最后通过 dev stop、runtime stop 并删除临时
+  network/目录；
+- 隔离副本在 build 前必须删除所有 workspace `dist`，只允许 lockfile 固定的 offline install；构建输出应
+  证明共享 domain/contracts 先于 API/Web 生成，避免主工作树旧产物掩盖冷启动缺依赖；
+- 真实 reset 的成功不能只看命令退出 0：重建后的只读聚合必须证明 migration 数量和最新版本正确、seed
+  Operator 恰好一条、用户/Auth/学习/分析/练习为空、模型 kill switch 关闭、活动任务为 0。日志与最终证据
+  不得输出数据库密码、JWT、Cookie、邀请 token 或用户正文。
+
+### 4.18 UTC 月度额度续期与生产模型持久限速
+
+- migration RED 必须从 baseline→全部 forward 的真实链证明 owner ensure wrapper 和持久限速表尚不存在；
+  adapter RED 必须分别命中 `rate_limited` 未映射、summary 未确保 grant 且未限定当前月；
+- GREEN 覆盖跨 UTC 月生成恰好一条 `default / 1_000_000` grant、同月 admin grant 保持、重复 ensure 幂等、
+  非 current owner 调用失败，以及 summary 先经窄函数确保、再由 business forced RLS 只读当前月；
+- 生产 reservation 回归必须证明 Web/Extension/practice/duplicate 共用的数据库入口执行滚动 60/小时、
+  300/24 小时持久限制；同 request active replay 返回原 reservation 且事件总数不变，新 request 返回
+  `rate_limited`，零额度单独返回 `quota_exhausted` 且不写 rate event；
+- `model_rate_limit_events` 必须有 owner/time 索引、超过 24 小时清理、profile cascade、forced RLS 和零表级
+  grant；owner ensure wrapper 只授 context-setter。API `0010` 与 Supabase 时间戳 migration 字节一致，
+  baseline 与 `0002` 调整后 current baseline→`0002`…`0010` 必须可重放。
+
+### 4.19 Hosted acceptance 精确 origin 配置回归
+
+- API 环境测试必须分别拒绝 `HUAYI_API_ORIGIN`、`HUAYI_WEB_ORIGIN` 与 `SUPABASE_URL` 的 HTTP、凭据、
+  非根路径、query、fragment 和尾随 `/`；API 与 Web 使用相同 origin 也必须失败；
+- Web 环境测试必须对 `VITE_API_ORIGIN` 执行相同精确 HTTPS origin 约束，并证明解析失败发生在创建任何
+  API client 或网络请求之前；
+- 固定 `https://api.acceptance.localhost:8444`、`https://app.acceptance.localhost:8443` 与
+  `https://supabase.acceptance.localhost:8445` 必须继续通过，本机模拟模式的额外限制不放宽；
+- 回归只证明仓库配置失败关闭。真实 TLS、Cookie/CSRF/SSE、OAuth callback、Vercel/Supabase Dashboard
+  与跨设备仍由 hosted acceptance 人工门验证。
+
+### 4.20 Hosted acceptance foundation bootstrap、管理员只读与应用安全复核
+
+- Fresh RED 必须先因 `acceptance-hosted-bootstrap.mjs`、共享 foundation 常量和 verify 入口缺失失败；
+  package scripts、固定 project/pooler 和三条 acceptance 价格 UUID 都由测试锁定；
+- 默认只允许 `--plan`，不得连接数据库。实际写入只接受包含 project ref 的唯一确认参数；数据库管理员
+  密码和 application role 密码只从环境读取，不能进入 argv、stdout、stderr、调用者 SQL 路径或本机文件；
+- bootstrap SQL 在一个事务内验证精确 12 条 migration、42 张 public 表、2 张 private 表、33 张
+  tenant `ENABLE + FORCE RLS + owner policy` 表和三个安全迁移角色；Auth users/identities、profile、admin、
+  invitation 任一非空都必须失败，Storage 只允许 pristine 或精确已应用的 private empty bucket；
+- application login 必须是 LOGIN/NOINHERIT/NOBYPASSRLS 且无 superuser/create-db/create-role/replication，
+  只授 `huayi_runtime`；runtime 只授 business/context-setter，三条 direct membership 均无 ADMIN OPTION
+  且无额外边。既有 role 重跑不得 `ALTER PASSWORD`；三条价格必须经
+  `require_model_price_version` 精确复核；kill switch 冲突不得 DO UPDATE 为 false；bucket 冲突不得静默
+  改写；
+- bootstrap 必须既接受 pristine 空 Storage，也接受精确“唯一 private acceptance bucket + 0 object”的已应用
+  状态，从而可安全重跑；部分状态、额外 bucket/object/price/control 必须整笔回滚；
+- admin verify 只读查询必须同时证明上述 schema/role/RLS、精确价格生效时间、唯一 kill switch、唯一
+  private empty bucket 和零 identity/operator/invitation。返回值不是唯一 `t` 或 psql 非零都统一失败；
+- application verify 必须通过 `pg_stat_ssl`、权限探测、精确越权 SQLSTATE `42501`/exit `3`，以及 pooler
+  同一 backend 上“事务 A 设置并 COMMIT，事务 B 未设置且读到 NULL”证明 TLS、最小权限和 context 不泄漏。
+  PGlite 另覆盖 commit 后下一事务 context 为空；连接错误、不同 backend 或只执行 ROLLBACK 都不能通过；
+- CLI 与 production runtime 都必须使用显式 Supabase CA 与 `verify-full`；API 环境回归拒绝 require/无 TLS、
+  非 6543 pooler、错误 project ref、缺失/越界 CA，本机 disabled 模式只接受固定 loopback database DSN；
+- 本阶段 focused tests 只能证明 SQL/CLI composition 与嵌入式事务语义。真实执行仍需用户确认；执行后要用
+  自定义 login 经 transaction pooler 完成 hardened application verify，才能把 DSN 写入 Vercel secret store。
+  Supabase 托管 `postgres` 不是 superuser，preflight 只能要求精确 `postgres` 管理角色和 CREATEROLE，
+  不得以 `is_superuser=on` 作为不可满足的前置。
+
+### 4.21 首位 Operator 两阶段部署引导
+
+- migration 必须同时通过 current baseline 空库、baseline→forward 与 Supabase mirror；issuer 约束固定
+  operator+actor 或 deployment-bootstrap+null，私有 bootstrap table/function 对全部 application chain
+  角色不可见；
+- issue 只在 Auth/identity/profile/admin/invitation/claim/audit 全空时成功，并发只有一个赢家；数据库与
+  SQL 不含明文 token；
+- replace-unclaimed 只有 current invitation 零 claim、零 identity 时可用，必须撤销旧邀请并让 revision
+  恰好 +1；已 claim、部分 Auth 或注册完成后全部失败关闭；
+- complete 不接受 userId/email。password/Google 正常 finalization 后只能推导唯一 bound/finalized user，
+  并要求唯一 profile/self owner、全部 identity/method、注册时段 default grant 和零 admin role；额外账号、错绑定、
+  缺额度、重复/并发完成均不得留下部分 role/state；
+- 首位账号删除必须完整移除 profile/admin role/学习数据，并只把私有 record 的 operator UUID 清空为
+  deletion time；bootstrap 保持 completed 且不能重新发行；
+- CLI 固定 project/pooler/verify-full/CA、精确确认参数和同 API pepper。plan/status 零写入，普通失败输出
+  固定且不含 secret；invite URL 只允许一次性 secret stdout；
+- hosted 人工门按 migration dry-run/push、status、真实注册、complete、admin verify、application 越权复验
+  和 `/admin` Cookie/CSRF journey 执行。没有这些证据只能标记 implemented，不能标记 hosted ready。
+
 ## 5. 最终人工验收
 
+- 在 production 前先执行 `user-acceptance-environment.md` 的两层验收：本机环境证明从空状态重建、reset、
+  forward migration 和快速修复，hosted acceptance 证明真实 TLS、Cookie/CSRF/SSE、托管 Auth/Storage、
+  多连接和持续使用；两者均不能由 Playwright fake authority 或 PGlite 单独替代；
+- hosted acceptance 每轮绑定完整 SHA、环境资源、migration、启用能力和用户发现；Fresh RED/自动回归
+  通过后必须重新部署并由用户复验原场景。至少一个跨多日自然使用周期、零开放 P0/P1 和用户明确批准
+  是 production candidate 前置条件；
 - macOS 与 Windows 真实 Chrome 分别验证 Web 配对三项偏好、普通网页、YouTube、退出/撤销、BYOK、
   本地凭据、平台查询、StudyCapture/当前卡撤销、两个 Inbox、本机/云端生词、离线 outbox 恢复和更新后
   旧标签失败关闭；

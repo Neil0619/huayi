@@ -56,7 +56,7 @@ describe("identity module", () => {
     const claim = module.claimInvitation(invitation.token);
     const registration = module.createAuthFlow(claim.claimTicket);
 
-    module.completeAuthFlow(registration.flowId, "google-user", "google@example.com");
+    module.completeAuthFlow(registration.flowId, "google-user", "google@example.com", "google");
     expect(module.listSignInMethods("google-user")).toEqual([
       { linkedAt: new Date("2026-08-12T00:00:00.000Z"), method: "google" },
     ]);
@@ -64,7 +64,7 @@ describe("identity module", () => {
     module.createProfile("password-only", "same@example.com", ["password"]);
     const login = module.createLoginAuthFlow();
     expect(() =>
-      module.completeAuthFlow(login.flowId, "password-only", "same@example.com"),
+      module.completeAuthFlow(login.flowId, "password-only", "same@example.com", "google"),
     ).toThrowError(expect.objectContaining({ code: "authentication_required" }));
   });
 
@@ -173,11 +173,11 @@ describe("identity module", () => {
     const claim = module.claimInvitation(invitation.token);
     const flow = module.createAuthFlow(claim.claimTicket);
 
-    expect(module.completeAuthFlow(flow.flowId, "auth-user-a", "user-a@example.com")).toEqual({
-      userId: "auth-user-a",
-    });
+    expect(
+      module.completeAuthFlow(flow.flowId, "auth-user-a", "user-a@example.com", "google"),
+    ).toEqual({ userId: "auth-user-a" });
     expect(() =>
-      module.completeAuthFlow(flow.flowId, "auth-user-a", "user-a@example.com"),
+      module.completeAuthFlow(flow.flowId, "auth-user-a", "user-a@example.com", "google"),
     ).toThrowError(expect.objectContaining({ code: "authentication_required" }));
   });
 

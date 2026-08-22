@@ -9,6 +9,10 @@ import { createPostgresAccountDataRights } from "./postgres-account-data-rights.
 import { createAccountDataRightsWorker } from "./account-data-rights-worker.js";
 import { createPostgresAccountDataRightsWorker } from "./postgres-account-data-rights-worker.js";
 import { createPostgresAccountDataExportSource } from "./postgres-account-data-export-source.js";
+import {
+  accountDataExportAnalysisId,
+  insertAccountDataExportAnalysisFixture,
+} from "./test-support/account-data-export-analysis-fixture.js";
 import { DeterministicSecrets, MutableClock } from "./test-support/security-fakes.js";
 
 const migrationUrl = new URL("../migrations/0001-cloud-v1-foundation.sql", import.meta.url);
@@ -70,12 +74,20 @@ describe("Postgres account data rights", () => {
                 return query(transaction).rows(text, parameters);
               },
             },
-            trusted: query(transaction),
+            trusted: {
+              rows: async (text, parameters) => {
+                await transaction.exec("SET LOCAL ROLE huayi_context_setter");
+                return query(transaction).rows(text, parameters);
+              },
+            },
           });
         });
       },
       async trusted(operation) {
-        return database.transaction((transaction) => operation(query(transaction)));
+        return database.transaction(async (transaction) => {
+          await transaction.exec("SET LOCAL ROLE huayi_context_setter");
+          return operation(query(transaction));
+        });
       },
     };
     nextId = 1;
@@ -165,6 +177,7 @@ describe("Postgres account data rights", () => {
         JSON.stringify(completedQueryEvent),
       ],
     );
+    await insertAccountDataExportAnalysisFixture(database, ownerA);
   });
   afterEach(async () => database.close());
 
@@ -232,8 +245,18 @@ describe("Postgres account data rights", () => {
           id: "30000000-0000-4000-8000-000000000001",
           sourceText: "The plan fell through.",
         }),
-        latestAnalysis: null,
+        latestAnalysis: expect.objectContaining({
+          id: accountDataExportAnalysisId,
+          reviewState: "pendingReview",
+        }),
         recordType: "study-capture",
+      }),
+      expect.objectContaining({
+        analysis: expect.objectContaining({
+          id: accountDataExportAnalysisId,
+          sourceText: "To be frank, this works.",
+        }),
+        recordType: "analysis",
       }),
       expect.objectContaining({
         archivedAt: "2026-08-13T00:35:00.000Z",
@@ -260,6 +283,14 @@ describe("Postgres account data rights", () => {
     expect(serialized).not.toContain("private-completed-lease");
     expect(serialized).not.toContain("availableMicroUsd");
     expect(serialized).not.toContain("Expired.");
+    await expect(
+      adapter.transaction(ownerB, async ({ trusted }) =>
+        trusted.rows<{ value: unknown }>(
+          "SELECT huayi_private.owner_analysis_public_record($1,$2) value",
+          [ownerB, accountDataExportAnalysisId],
+        ),
+      ),
+    ).resolves.toEqual([{ value: null }]);
   });
 
   it("atomically marks deleting, revokes every session, and replays its fixed receipt", async () => {
@@ -280,6 +311,17 @@ describe("Postgres account data rights", () => {
         { confirmation: "delete-account" },
       ),
     ).resolves.toEqual(accepted);
+    await database.exec("UPDATE account_deletion_jobs SET ack_expires_at=now()+interval '1 hour'");
+    await expect(
+      rights.replayDeletion("delete-1", "presented-session-proof", {
+        confirmation: "delete-account",
+      }),
+    ).resolves.toEqual(accepted);
+    await expect(
+      rights.replayDeletion("wrong-key", "presented-session-proof", {
+        confirmation: "delete-account",
+      }),
+    ).resolves.toBeNull();
     expect(
       (
         await database.query<{ status: string }>(

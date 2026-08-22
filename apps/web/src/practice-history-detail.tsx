@@ -8,8 +8,12 @@ const statusText = {
 };
 const ratingText = { effortful: "勉强", forgot: "不会", mastered: "掌握" };
 
-function itemLabel(item: PracticeHistorySummary["items"][number]) {
-  return item.learningItemDeletedAt === undefined ? item.itemId : "学习项已删除";
+function itemLabel(
+  item: PracticeHistorySummary["items"][number],
+  labels: ReadonlyMap<string, string>,
+) {
+  if (item.learningItemDeletedAt !== undefined) return "学习项已删除";
+  return labels.get(item.itemId) ?? "学习项";
 }
 
 export function PracticeHistoryDetail({
@@ -18,6 +22,7 @@ export function PracticeHistoryDetail({
   readonly detail: PracticeHistoryDetailResponse;
 }) {
   const { session } = detail;
+  const itemLabels = new Map(detail.itemLabels.map((item) => [item.itemId, item.label]));
   return (
     <>
       <p>
@@ -88,6 +93,7 @@ export function PracticeHistoryDetail({
                       session.items.find(({ itemId }) => itemId === feedback.itemId) ?? {
                         itemId: feedback.itemId,
                       },
+                      itemLabels,
                     )}
                   </strong>
                   <p>{feedback.feedback}</p>
@@ -103,7 +109,8 @@ export function PracticeHistoryDetail({
         <ul>
           {session.items.map((item) => (
             <li key={item.itemId}>
-              {itemLabel(item)}：{item.rating === undefined ? "尚未自评" : ratingText[item.rating]}
+              {itemLabel(item, itemLabels)}：
+              {item.rating === undefined ? "尚未自评" : ratingText[item.rating]}
             </li>
           ))}
         </ul>

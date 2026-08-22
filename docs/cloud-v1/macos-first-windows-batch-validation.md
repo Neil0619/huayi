@@ -171,13 +171,17 @@ pnpm verify:windows
 - CI、真实 Chrome、安装和外部服务未完成时继续分别标记 pending；
 - 只有适用门禁全部完成后，才能宣称该候选跨平台完成。
 
-## 11. 下一项任务
+## 11. 第二批结果与下一项任务
 
 Phase 42–45 已完成下一批 Mac 需求校准、功能切片和完整聚合门。Phase 46 的完成度复核没有发现新的、
 可诚实独立于外部决策推进的本地产品代码缺口：唯一生产代码缺口仍是用户已延期的 R3-C 邮件/告警，
 其他未完成项属于真实部署、Provider、Chrome、词典、运营或 Windows 证据。
 
-因此下一项改为 **Phase 41-D：执行第二批 Windows 批量验证**。Mac 侧累计 diff/secret/依赖/生成物审计
-及 `pnpm verify:macos` 已全绿，并由本节所在提交冻结；用户普通 push 任务报告中的精确 SHA 后，Windows
-才能拉取该 SHA 并执行 `pnpm verify:windows`。push 前状态保持
-`candidate prepared locally; push and Windows validation pending`。
+第二批 Windows 验证现已由用户回传完成，最终远端 HEAD 为
+`d451122b86c978732a599202437d82caaf03b3d4`；该 SHA 相对冻结候选只增加根指令文件尺寸修复，没有产品或
+runtime 变化。仓库未保存第二批完整命令输出和精确计数，因此当前只记录用户确认，不虚构统计；CI 与
+真实 Chrome/安装/外部服务仍 pending。
+
+下一项改为 **Phase 47：可用测试环境与持续用户验收**。先在 Mac 实现 local acceptance 并让用户边用
+边改；托管层使用自有根域下同站 Web/API 子域，下一次 Windows 完整门等到验收批次冻结，不因每个小修
+重复执行。

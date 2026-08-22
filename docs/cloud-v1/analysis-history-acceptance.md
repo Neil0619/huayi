@@ -15,8 +15,9 @@ RED→GREEN 与实现后复审，状态为 `implemented; target-platform validat
 已登录用户必须能够：
 
 1. 从 `/history` 用字面搜索、归档、整理状态、来源与选区条件读取服务器历史；
-2. 打开 linked StudyCapture 产生的 pendingReview passage，查看完整原文、结构化结果、候选和公开模型
-   元数据，详情标题获得焦点；
+2. 打开 linked StudyCapture 产生的 pendingReview passage，查看完整原文、按结果类型组织的语义结果、
+   候选和公开模型名称/token 用量，详情标题获得焦点；记录/候选/分析单元 ID、revision、协议类型及
+   Prompt/Schema 版本不作为用户文案；
 3. 执行“无需收藏，标记已整理”，服务器 revision 前进且记录仍未归档；
 4. 归档 reviewed 记录，归档不能把它改回 pendingReview；再从同一服务器权威恢复；
 5. 经第二次确认删除分析；linked StudyCapture 默认勾选一并删除，确认按钮获得焦点；
@@ -84,7 +85,7 @@ analysis absent + capture absent
 1. RED：新增 `/history` journey，先使用现有 `empty` seed，预期在筛选后的唯一记录处失败；
 2. GREEN：新增专用 strict helper/seed，并在主 authority 认证后、通用 analyses handler 前接线；
 3. 应用 `query=frank`、`sourceType=study-capture`、`selectionKind=passage`，打开唯一记录；
-4. 断言详情焦点、原文、结果、候选和公开模型 metadata；
+4. 断言详情焦点、原文、语义结果、候选和公开模型 metadata，且 DOM 不含技术 ID 或协议字段文案；
 5. 依次 process、archive、restore，每步等待状态提示和服务器重读，断言 reviewed/archived 正交；
 6. 点击删除，断言 linked StudyCapture checkbox 默认选中、确认按钮聚焦、DELETE 为 `write-valid`；
 7. 删除后断言筛选空态、analysis/capture count 为 0，四个 mutation request facts 均为有效 Web 写；
@@ -95,7 +96,8 @@ analysis absent + capture absent
 
 - focused journey 1/1，完整离线 Playwright 从 97/97 更新为 98/98；
 - `apps/web` strict E2E typecheck、目标 ESLint/Prettier、workspace tests、instructions/architecture 通过；
-- list/detail 为 `read`，process/archive/restore/delete 均为 authenticated Web `write-valid`；
+- list/detail 为 `read`，process/archive/restore/delete 均为 authenticated Web `write-valid`；技术 ID 与
+  revision 只用于请求 proof，不进入详情文案；
 - revision 依次为 1→2→3→4，任一旧 revision、错误 proof、未知字段或非法状态失败关闭；
 - 删除后 analysis/capture 聚合均为 0，公开 snapshot 和 post-delete DOM 无正文/结果/token/key；
 - 文档、实现计划、测试矩阵、路由覆盖矩阵、项目状态和变更记录同步；
@@ -111,7 +113,7 @@ capture 删除，同时明确不冒充 Postgres/RLS 或真实部署证据。
 
 - RED 如预期在筛选后的唯一记录失败，旧 `empty` authority 未伪造 history 维护能力；
 - 新增 205 行独立 strict helper 与专用 seed；生产页面、adapter、contracts、API 和 SQL 零改动；
-- actual bundle 已通过 query/source/selection 筛选、完整详情/焦点、revision 1→2→3→4、
+- actual bundle 已通过 query/source/selection 筛选、语义详情/焦点、服务器 revision 1→2→3→4、
   process→archive→restore 正交状态，以及默认 linked StudyCapture 两步删除；
 - list/detail 为 `read`，四个 mutation 都是 authenticated Web `write-valid`；删除后 analysis/capture 聚合
   同时归零，post-delete DOM 与公开 snapshot 无正文或结果；
@@ -121,3 +123,10 @@ capture 删除，同时明确不冒充 Postgres/RLS 或真实部署证据。
 
 真实 Postgres/RLS、多连接数据库、身份、DeepSeek、部署浏览器和目标平台验证仍未执行，不能由离线
 98/98 证据替代。
+
+## 8. 2026-08-22 真实验收校准
+
+本机真实分析历史暴露了 AnalysisRecord、Candidate 和分析单元 UUID，并把递归协议对象作为开发者字段
+表展示。验收标准据此收紧：Web 必须按 phrase 或 sentence/passage 结果类型显示中文语义区块；API 保留
+完整 strict resource 供写入和并发控制，但 DOM 不显示技术 ID、revision、结果 type、Prompt/Schema
+版本或原始字段名。组件、actual-bundle 和本机真实浏览器都必须同时证明内容完整且技术字段不可见。

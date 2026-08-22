@@ -34,6 +34,12 @@ SECURITY DEFINER 函数；禁用 prepared statements 以兼容 Supabase transact
 `@supabase/supabase-js` 只封装 Auth PKCE/密码流程，不承担业务表访问。默认离线数据库门禁使用测试
 依赖 PGlite 执行真实迁移与 PostgreSQL 方言，但真实多连接竞争和托管环境仍需独立验证。
 
+`AnalysisDatabase` 在交给 `postgres` 驱动前只识别 SQL 中显式 `$N::jsonb` 参数，并把既有 JSON 字符串
+解析一次；这是 driver adapter 的私有规范化，不改变 repository 接口。事务内 `tenant` 每次查询恢复
+`huayi_business`，`trusted` 每次查询恢复 `huayi_context_setter`，测试 adapter 必须同样恢复角色。业务表
+与幂等响应由 tenant 写；练习额度终态由 tenant 先锁定生成任务，再在同一事务调用窄
+`settle_practice_generation_quota` 写账本和预留，避免把任一角色扩成跨边界表管理员。
+
 ## 2. 深模块与 seam
 
 API 对调用者暴露少量用例模块，数据库、模型、邮件和时钟 adapter 只作为内部 seam：
@@ -79,13 +85,17 @@ fake clock。客户端通过 HTTP adapter 访问同一用例，不复制领域�
 
 1. 邀请领取端点在事务内校验 hash、过期时间、未撤销和未消费，并原子创建 15 分钟 claim ticket；
    邀请不绑定邮箱，同一时间只能有一个有效 claim。
-2. Google OAuth 或已验证邮箱密码由 Supabase Auth 完成身份验证。API 以幂等 finalization 事务写入
-   user profile、仅登记本次实际 `password|google` method 并消费 invitation；既有 profile 不能借邀请
-   登录或补 method。跨系统失败时保留 ticket 供重试，禁止签发业务 session。
+2. Google OAuth 或已验证邮箱密码由 Supabase Auth 完成身份验证。Google 与密码确认使用不同的固定 API
+   callback；API 把路由确定的 `password|google` 显式传给幂等 finalization 事务，写入 user profile、仅
+   登记本次实际 method 并消费 invitation。既有 profile 不能借邀请登录或补 method。跨系统失败时保留
+   ticket 供重试，禁止签发业务 session；finalization 已提交而后续 session 创建失败时，账号保持已注册，
+   由普通登录重建 session，不重放单次邮箱确认。
 3. 失去有效 ticket 且没有 user profile 的孤立 Auth identity 保持不可登录，并由一小时清理任务删除。
 4. API 验证 Supabase 身份、profile 和 Huayi-owned `account_sign_in_methods` 后才签发自己的 Web session；
    Supabase 同邮箱 auto-link 不自动取得 Huayi 授权。refresh token 只保存在加密服务端会话记录，浏览器只
-   得到 `HttpOnly; Secure; SameSite=Lax; Path=/` Cookie。
+   得到 `HttpOnly; Secure; SameSite=Lax; Path=/` Cookie。Provider 返回的规范邮箱只经
+   `refresh_profile_email` 窄 SECURITY DEFINER 函数刷新；context-setter 不直接更新 forced-RLS profile，
+   刷新失败时整个 Web-session 事务失败关闭。
 5. 密码近期重认证由 Web-session 深模块分两步封装：prepare 校验 Cookie/Origin/CSRF、active/full、
    password method 并读取服务端规范邮箱；Provider password sign-in 成功且 user ID 相同后，complete 经
    `rotate_password_reauthenticated_session` 锁定旧 session，在一个事务写入新 encrypted refresh、session
@@ -110,9 +120,10 @@ fake clock。客户端通过 HTTP adapter 访问同一用例，不复制领域�
     PKCE，公开请求不等待 Provider。callback 只建立一次改密 session，complete 成功撤销全部 Huayi
     sessions并要求重登，不能派生 full/data-rights session或新增 method。独立三操作 Provider port、共享
     逐 flow Supabase PKCE storage 与 adapter 已在 R1 实现；深模块、内存与 Postgres/forced-RLS 状态机已
-    在 R2 建立；R3-A production HTTP/dispatch、R3-B notification outbox lease/retry 与 R4 Web/actual
-    bundle 已离线实现。真实 notification sender/CRON/告警仍待 R3-C 外部门禁，Supabase/邮件/部署与
-    双平台 Chrome 待 R5 目标验证。详见 `password-recovery.md`。
+    在 R2 建立；R3-A production HTTP/dispatch、R3-B notification outbox lease/retry、R3-C Resend
+    sender/23 小时幂等窗口/8 次上限/独立 CRON/无正文告警 port 与 R4 Web/actual bundle 已离线实现。
+    真实 DNS/verified sender/Resend 投递/监控目的地、Supabase/邮件部署与双平台 Chrome 待 R5 目标验证。
+    详见 `password-recovery.md`。
 11. 非安全方法必须同时校验 Origin 和双提交 CSRF token。登录、邀请、近期重认证和密码恢复另加 IP/账号
     速率限制。
 12. 所有业务查询从服务端 session 取得 `userId`；请求体中的 owner、role 或 quota 字段一律拒绝。
@@ -229,6 +240,15 @@ fake clock。客户端通过 HTTP adapter 访问同一用例，不复制领域�
   fencing、ledger settlement 与有界恢复。相同 owner/key 先处理 terminal replay/busy/conflict；只有新
   generation 才依次执行精确价格预检、共享 kill/quota 检查、新 reservation 和 dispatch，Provider HTTP
   期间不持数据库事务。
+- Analysis model 的 candidate ID 是 private request-local alias；Analysis module 在 strict assembly 后用
+  server ID source 统一重键 candidates 和 result 引用，再交给 UUID Postgres authority。模型已产生 usage
+  后的 assembly/commit 异常必须把同一 billed calls/usage/cost 传给失败 committer，不能用默认成本覆盖；
+  失败结算与 terminal event 仍走原 reservation/lease fencing。
+- quota summary 属于 owner-scoped 业务读取，统一在已设置 owner context 的 tenant transaction 中先由
+  context-setter 调用校验 owner 的窄 SECURITY DEFINER helper，幂等确保当前 UTC 月 default grant，再由
+  `huayi_business` 通过 forced RLS 查询该月 grant、ledger 与 reservation；trusted/context-setter 不获得
+  quota 表读取权。这样跨月访问自动续期，价格、kill switch 或 reserve 失败后的 terminalization 仍能
+  生成严格额度摘要，不会回退到历史月或因第二次权限错误留下永久 `running` 请求。
 - 主动练习深模块把队列选择、PracticeAttempt、反馈租约和排期推进隐藏在 Postgres repository 后。队列
   用服务器时钟与账号 timezone 计算本地日边界，due 项按 created/id 稳定优先，再用 level -1 新项补
   dailyGoal；浏览器不提交日期。响应同时携带匹配的 current session/item，使 active、awaiting-feedback
@@ -297,6 +317,9 @@ fake clock。客户端通过 HTTP adapter 访问同一用例，不复制领域�
   settlement 共享该快照，跨峰谷边界不重新路由。详见 `deepseek-v4-billing.md`。
 - 默认 grant 为每 UTC 月 1_000_000 micro-USD。后台覆盖额度产生新 QuotaGrant 和审计记录，不修改
   已结算账本。
+- 邀请注册在 profile 与 sign-in method 的同一事务中建立当前 UTC 月默认 grant；注册重放不重复，已有
+  当前月 admin grant 不被覆盖。既有账号通过 forward-only migration 幂等回填，不能要求清库换取一致性；
+  后续月份的自动续期仍须由独立额度生命周期纵切冻结，不能把首次注册 grant 冒充永久续期。
 - 同一账号只允许一个 active model generation；此外默认 60 次/小时、300 次/日。额度和频率分别
   判断并返回不同错误码。
 - 练习 PlatformGeneration 的 task ID 同时作为 quota reservation request ID；它与 AnalysisGeneration
@@ -308,9 +331,17 @@ fake clock。客户端通过 HTTP adapter 访问同一用例，不复制领域�
   revision 变化会让旧 suggestion/response generation 失效。练习生成和反馈额度不足时保留当前答案草稿
   并给出可恢复错误。
 - API 提供全局模型 kill switch 和单账号停用；两者不能阻止数据导出、删除或登出。
+- production 的 Web 分析、Extension 平台查询、练习和语义重复建议共用同一个 Postgres reservation
+  入口；入口在 owner advisory lock 内先处理 active request replay，再检查 quota，并以持久事件共享滚动
+  60 次/小时、300 次/24 小时限速。BYOK 与纯数据动作不经过该入口。
 - 管理端由单一 `AdminOperationsModule` 隐藏 operator/recent-auth、资源专用签名 cursor、幂等事务、严格
   账号状态机、审计和 kill switch；Web/Hono 不直接组合表。管理查询使用 Postgres 白名单投影，不能用
   Supabase service role 枚举用户或读取学习正文。详见 `admin-operations.md`。
+- 空环境的首位 Operator 不进入 `AdminOperationsModule` 或公开 Hono。独立
+  `FirstOperatorBootstrap` 部署深模块只暴露 issue/replace-unclaimed/complete：CLI 持有项目管理员连接并
+  生成 token，私有数据库函数持有 advisory lock、空状态 guard 和精确账号推导。complete 不接受
+  userId/email，只能晋升 current BootstrapInvitation 正常 finalization 的唯一账号；完成后没有复用入口。
+  详见 `first-operator-bootstrap.md` 与 ADR-0023。
 - `GET /v1/quota` 复用平台生成的 `AnalysisQuota.summary(userId)` 深模块：Hono 只从 Web Cookie session
   取得 userId，production adapter 从 current grant、append-only ledger 与 active reservation 计算一次
   strict server projection。Hono 与 Web HTTP adapter 都再次 strict parse，客户端不提交时间或 owner。
@@ -386,19 +417,48 @@ fake clock。客户端通过 HTTP adapter 访问同一用例，不复制领域�
   token。claim ticket 仅存在于页面组件状态；密码注册继续走 Cookie 响应，Google 注册用固定 API
   origin 的原生 POST 表单完成真实 302 顶层导航。`/login` 只为已注册密码用户创建 Cookie session；
   客户端不直接组合 Supabase、不伪造 provider 成功，也不把认证材料放入全局实体 store。
-- 密码注册的待邮箱确认响应不签发 Web session；确认链接仍经固定 API callback 恢复加密 auth-flow state
-  并完成 invitation。密码注册/登录响应与 callback/CSRF 一样使用 private/no-store，避免认证阶段或
-  CSRF token 被中间缓存保存。
+- 密码注册的待邮箱确认响应不签发 Web session；确认链接只经固定
+  `/v1/auth/password/callback` 恢复加密 auth-flow state，以显式 `password` 完成 invitation。共用
+  `/v1/auth/callback` 只处理 Google。密码注册/登录响应与 callback/CSRF 一样使用 private/no-store，
+  避免认证阶段或 CSRF token 被中间缓存保存。
 
 ## 9. 部署与可观测性
 
+- 环境生命周期固定为 offline automation → local acceptance → hosted acceptance → production candidate →
+  production。hosted acceptance 使用独立 Vercel/Supabase 资源，不能与 production 共用数据库、Auth、
+  Storage、OAuth client、Provider Key、额度或调度。
+- local acceptance 的 destructive reset 是独立开发运维 composition，不进入 API 请求或生产 migration：
+  只有精确本机数据丢失确认才能触发，固定串联 loopback 审计、HTTPS 停机、local migration/虚构 seed、
+  bootstrap/build 与 HTTPS 恢复；不能接受远端目标或调用者 SQL。失败保持停机，普通启动不自动修复为
+  reset。该 seam 不改变业务表、RLS、Auth 或生产部署契约。
+- local acceptance 的 persistence verification 是另一条非破坏性开发运维 composition：服务器内先生成
+  覆盖 public/Auth/Storage/migration 的不透明 row digest，完整停启 Supabase 并只做 forward migration，
+  第二次指纹完全一致后才恢复 HTTPS。Node 不接收原始行或输出 digest；该 seam 不运行 bootstrap、seed、
+  reset、build 或 Provider，也不外推 hosted backup/multi-connection 结论。
+- local acceptance 的模型成功路径只在 composition root 将现有 `providerFetch` seam 替换为确定性零网络
+  Adapter；WebDeepAnalysis、ExtensionQuery、DuplicateSuggestion 与 Practice 继续通过 production
+  quota/dispatch/schema/ledger/repository。Web 构建以持续横幅和正文标记公开模拟性质；production App 和
+  普通 Web build 不知道该 Adapter，也不扩大公开 provider 枚举。技术兼容 metadata/ledger 不能作为真实
+  DeepSeek 证据。细节见 `local-acceptance-simulated-provider.md`。
+- local acceptance bootstrap 同时把共享 `model_kill_switch` 幂等设置为关闭；这只让上述固定零网络
+  Adapter 进入 production 状态机，不授权外网 Provider。hosted acceptance 与 production 不继承该
+  bootstrap 值，仍由各自 Operator 控制并按部署策略失败关闭。
+- local acceptance HTTPS 进程在启动时把 Web bundle 固定为只读内存快照，并只加载一次 API
+  composition；磁盘 build 只产生候选，不能改变已运行的 8443/8444。SPA fallback 与静态资源来自同一
+  快照，缺入口或非普通文件时失败关闭；显式 HTTPS restart 是 Web/API 唯一同步 cutover seam，且不改变
+  Supabase 生命周期。
+- hosted acceptance 首选自有根域下的 `app.acceptance.<root-domain>` 与
+  `api.acceptance.<root-domain>`：二者同站、不同源，保留 host-only `Secure; SameSite=Lax` Cookie、精确
+  CORS/Origin 与 CSRF。域名未就绪时才使用一个 Vercel `*.vercel.app` 同源 gateway 代理 Web/API；不把
+  Cookie 改为 `SameSite=None` 或依赖第三方 Cookie。两个 profile 都不得改变 production origin 契约；
+  完整方案见 `user-acceptance-environment.md`。
 - `apps/web` 和 `apps/api` 各有独立 Vercel 配置、环境校验和 preview/production 环境；Cloud
   workspace 与 Store Manifest 首个公开版本为 `1.0.0`，不改变 Classic/root 的 `0.13.0`。数据库
   迁移由 CI 的受控生产步骤执行，不在请求启动时自动迁移。
 - Vercel 原生 Hono 检测要求认可入口默认导出 app；`apps/api/src/server.ts` 是唯一允许的适配器例外，
   业务模块仍只使用命名导出。
 - Vercel Hobby 只承载 Web/API Function，不承载分钟级 Cron。production Supabase 以管理员显式运行的
-  operations SQL 安装四个独立 `pg_cron` job，再由私有 `pg_net` adapter 调用既有
+  operations SQL 安装五个独立 `pg_cron` job，再由私有 `pg_net` adapter 调用既有
   `CRON_SECRET` HTTPS route；local/preview 不自动安装。调度 adapter 不进入 migration，也不改变 worker
   的 lease/fencing/幂等语义。完整方案见 `vercel-hobby-supabase-cron.md`。
 - API 项目以 `apps/api/vercel.json` 显式启用 Fluid Compute，并只为唯一 Hono 入口 `src/server.ts`

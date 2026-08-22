@@ -1,4 +1,4 @@
-import type { Sql, TransactionSql } from "postgres";
+import type { JSONValue, ParameterOrJSON, Sql, TransactionSql } from "postgres";
 
 export interface AnalysisQuery {
   rows<Row>(text: string, parameters?: readonly unknown[]): Promise<Row[]>;
@@ -15,9 +15,52 @@ export interface AnalysisDatabase {
   trusted<Result>(operation: (query: AnalysisQuery) => Promise<Result>): Promise<Result>;
 }
 
+export function preparePostgresParameters(
+  text: string,
+  parameters: readonly unknown[],
+): ParameterOrJSON<never>[] {
+  const jsonbIndexes = new Set<number>();
+  for (const match of text.matchAll(/\$(\d+)\s*::\s*jsonb\b/giu)) {
+    const ordinal = Number(match[1]);
+    if (Number.isSafeInteger(ordinal) && ordinal > 0) jsonbIndexes.add(ordinal - 1);
+  }
+  return parameters.map((parameter, index) => {
+    if (!jsonbIndexes.has(index) || typeof parameter !== "string") {
+      return postgresParameter(parameter);
+    }
+    try {
+      return postgresParameter(JSON.parse(parameter) as unknown);
+    } catch {
+      throw new Error("Invalid JSONB database parameter.");
+    }
+  });
+}
+
+function postgresParameter(value: unknown): ParameterOrJSON<never> {
+  if (value instanceof Uint8Array) return value;
+  return jsonValue(value);
+}
+
+function jsonValue(value: unknown): JSONValue {
+  if (
+    value === null ||
+    typeof value === "boolean" ||
+    typeof value === "number" ||
+    typeof value === "string" ||
+    value instanceof Date
+  )
+    return value;
+  if (Array.isArray(value)) return value.map(jsonValue);
+  if (typeof value === "object") {
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, jsonValue(item)]));
+  }
+  throw new Error("Invalid database parameter.");
+}
+
 function query(sql: TransactionSql): AnalysisQuery {
   return {
-    rows: async <Row>(text: string, parameters = []) => sql.unsafe<Row[]>(text, [...parameters]),
+    rows: async <Row>(text: string, parameters = []) =>
+      sql.unsafe<Row[]>(text, preparePostgresParameters(text, parameters)),
   };
 }
 

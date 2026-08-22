@@ -83,7 +83,12 @@ pending ──claim──> running ──object written──> ready ──24 h�
 ```
 
 - claim 使用随机 lease token 与 expiry；过期可接管，旧 worker 不能完成新 lease。
-- worker 在一个 owner-scoped repeatable snapshot 中构造确定性 NDJSON，再写入私有对象。
+- worker 在一个 owner-scoped repeatable snapshot 中构造确定性 NDJSON，再写入私有对象。分析记录沿用
+  内部完整公开 AnalysisRecord 序列化器；导出只能调用额外的 owner-scoped SECURITY DEFINER 包装函数，
+  同时校验显式 owner 和当前 owner context，且包装函数只向 `huayi_context_setter` 授权。原始序列化器
+  继续只供受信数据库函数内部互调，不能让 context/business 角色仅凭任意 record ID 直接调用。
+- Postgres `bigint` 的 `byte_length` 在生产驱动中按十进制字符串返回；公开 ready resource 投影必须先做
+  非负安全整数转换并再经 strict schema 校验，不能依赖 PGlite 的 number 返回形态。
 - 上传失败时删除可能存在的临时对象并 fenced 标记 `failed`；不得发布不完整下载。
 - `ready` 的 object key、hash、byte length 和 lease 都是内部字段，公开任务只返回稳定状态、时间、文件
   大小、记录数和可空 `expiresAt`。expired 可在内部暂时保留 object key/cleanup error，直到幂等删除成功。
@@ -215,6 +220,9 @@ export job 响应不返回 owner、object key/hash、lease、错误原文或 sig
 响应内含 `url/expiresAt`，响应头 `private, no-store`；其他 route 永不返回 URL。删除成功为 `202`、固定
 `{accepted:true,requestedAt}` 并清除 `huayi_session` Cookie。删除端点在普通认证失败后，只可调用内部
 receipt replay：presented Cookie hash、key 和 body hash 全部匹配且 ack 未过期才返回同一固定响应。
+该 replay 只能调用授予 `huayi_context_setter` 的窄 `SECURITY DEFINER` 查询函数；context setter、
+business、PUBLIC 均不得获得 `account_deletion_jobs` 表级读取权。生产角色回归必须直接调用 repository
+并证明首次响应和固定回执可重放，避免初始删除错误被 replay 自身的权限异常覆盖成通用 400。
 
 ### 5.2 内部 worker
 

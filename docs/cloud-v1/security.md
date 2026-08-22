@@ -14,6 +14,12 @@
 信任链为：Web/Extension → Hono API 认证与授权 → 业务用例 → Postgres；RLS 是第二道防线。DeepSeek、
 Google、邮件服务、Eudic 与 Shanbay 都是外部接收方，分别使用最小数据。
 
+本机真实 PostgreSQL 验收不得通过扩大 `huayi_context_setter` 权限修复业务写入。owner-scoped
+`idempotency_records` 由 `huayi_business` 在 owner context 下写；context-setter 只调用固定函数。
+`settle_practice_generation_quota` 仅授予 context-setter，PUBLIC/business 均无执行权；函数重新校验当前
+owner context、generation/reservation 归属、task 成功或失败终态、价格版本、调用条数/token/cost 和预留
+上限后才写 usage ledger 并 settle reservation。不一致时 task、session、ledger 与 quota 同事务回滚。
+
 ## 2. 身份、会话与租户隔离
 
 - 邀请 token 使用至少 256 位随机数，数据库只存带 pepper 的 hash；72 小时过期、一次消费、创建/
@@ -25,12 +31,18 @@ Google、邮件服务、Eudic 与 Shanbay 都是外部接收方，分别使用�
 - Google start 对 JSON 与表单按 Content-Type 分支严格解析；表单恰好接受一个合法 `claimTicket`，
   拒绝额外、重复、缺失和越界字段。Web 只能从已验证的 HTTPS API origin 构造 form action，不能把
   用户或 URL 提供的 destination 带入导航。
-- 密码注册 202 不设置 Web Cookie；邮箱确认 callback 成功前不得进入工作台。密码注册/登录响应统一
-  `Cache-Control: private, no-store`，登录失败使用相同认证错误，不暴露账号存在性或 provider 细节。
+- 密码注册 202 不设置 Web Cookie；邮箱确认 callback 成功前不得进入工作台。密码确认与 Google 使用
+  不同固定 callback，由服务端路由确定并向数据库显式传递 `password|google`，不得从上游邮箱或 query
+  猜测 method。密码注册/登录响应统一 `Cache-Control: private, no-store`，登录失败使用相同认证错误，
+  不暴露账号存在性或 provider 细节。
 - Supabase user/identity 只证明 provider 认证，不直接授予 Huayi 数据权。邀请事务只登记本次实际 method；
   普通密码/Google 登录必须命中 owner-scoped `account_sign_in_methods` 才能建 session。相同邮箱或上游
   auto-link 不能创建 profile、补 method 或越过邀请；普通业务 role 对该表只有 SELECT，method 写入只经
   锁定邀请/会话的 SECURITY DEFINER 状态机。
+- Provider 成功后的规范邮箱刷新只经 `refresh_profile_email` 窄 SECURITY DEFINER 函数；仅
+  `huayi_context_setter` 可执行，PUBLIC、业务角色和 runtime 角色本身均无直接执行权。函数只更新指定
+  active/disabled profile 的 email/updated_at；找不到 profile 时 Web-session 事务整体失败，不能先完成
+  部分会话写入。
 - 普通 Google start 只接受 strict 空 JSON 或空原生 form，不接受 email、claim ticket、return URL 或身份
   字段。Google start/callback 禁止缓存；callback 成功和失败都固定 `Referrer-Policy: no-referrer`，避免
   API URL 中短时 flow/code 作为 Referer 进入 Web 或第三方。完整矩阵见
@@ -80,7 +92,9 @@ Google、邮件服务、Eudic 与 Shanbay 都是外部接收方，分别使用�
 - Web Cookie 使用随机不透明 ID；会话固定攻击通过登录后轮换 ID 防止。CSRF 同时校验固定 Web Origin
   与随机 token；OAuth callback 只把 HttpOnly session Cookie 带回 API origin，再由固定 Web Origin
   调用无缓存 bootstrap 原子轮换 CSRF hash。CORS 只允许固定 Web origin 携带 Cookie；Extension 使用
-  独立 token 认证，不依赖浏览器凭据 CORS。
+  独立 token 认证，不依赖浏览器凭据 CORS。允许方法与公开路由严格对齐，包括 Web 学习项和账号偏好
+  所需的 PATCH；只额外暴露下载契约需要的固定 `Content-Disposition` 响应头，不暴露认证或内部头。
+  预检通过不替代 Cookie、Origin、CSRF、If-Match 和幂等校验。
 - 配对采用 state + PKCE，批准页显示请求设备，授权码单次且 10 分钟过期。Extension token 只在
   Worker 和专用加密 ExtensionSessionVault 内出现，Content Script 无法读取。pending state/verifier
   同样使用 DeviceVault DEK 下的独立严格 envelope 持久化；通用 CredentialSlot 不新增 session 槽，
@@ -89,6 +103,10 @@ Google、邮件服务、Eudic 与 Shanbay 都是外部接收方，分别使用�
 - 配对审批页在签发 session 前展示并可修改三项账号插件偏好，再分别披露：platform 查询会发送最小
   选区并最多保留一小时；StudyCapture/CloudWordCopy 只在对应设置/动作下发送；BYOK result/Key、页面
   URL、标题、视频 ID 与完整页面不发送 Huayi。批准与偏好 revision 在同一事务提交。
+- pairing exchange 必须在一条 SECURITY DEFINER statement 中原子消费 PKCE/state、创建 ExtensionSession
+  并返回 owner preference snapshot；不得先提交 token hash/session，再由 context-setter 直接查询
+  forced-RLS profile。profile snapshot 缺失必须使整个 exchange 回滚，避免 consumed pairing 和客户端
+  未收到 token 的幽灵设备。函数仍只授权 context-setter，PUBLIC/business 不获得执行权。
 - API 根据已验证 session 得到 ownerUserId。Repository 方法不接受“任意 owner”；普通用例在请求
   scope 中固定 owner。管理员另走显式模块并写审计。
 - Web 设备列表只返回当前账号未撤销且未过期的 session 元数据。设备撤销要求 Web Cookie、固定
@@ -171,6 +189,8 @@ Google、邮件服务、Eudic 与 Shanbay 都是外部接收方，分别使用�
   URL 或数据库。
 - 输出先做字节、深度、数组长度和字符串长度限制，再 JSON 解析和严格 Schema。未知字段、HTML
   控制意图、错误 sentence ID 或越界 candidate 引用均失败关闭。
+- Provider candidate ID 仅是严格 private output 内的 alias；可信 Analysis module 为公共候选分配服务器
+  UUID 并原子改写所有 result 引用。Provider 不能选择数据库主键，浏览器也不能提交候选 identity。
 - 客户端只以文本节点或安全 Markdown 子集呈现；禁止模型 HTML、事件属性、脚本 URL、远程模块、
   `eval`、`new Function` 和动态代码下载。
 - preview 不持久化、不可收藏。最终结果在校验后落库；结构修复只能接收原始有界 JSON 并输出同一
@@ -212,10 +232,37 @@ Google、邮件服务、Eudic 与 Shanbay 都是外部接收方，分别使用�
   恢复。配置与离线/真实部署证据边界见 `vercel-fluid-function-duration.md`。
 - 租约过期不自动重跑可能已计费的供应商调用；恢复只使用请求固定的价格版本和预分配账本 ID，原子
   保守结算并写可重放失败。跨租户状态查询由 RLS 隔离，同 key 不同正文在 SSE 前失败关闭。
+- Provider 已返回 usage 后的 trusted assembly 或数据库 commit 失败，失败路径必须保留同一 billed calls、
+  usage 和实际成本；不得回退到可能超过 reservation 的默认成本并让 settlement 再次失败。
+- quota summary 必须在已设置 owner context 的业务 tenant transaction 内通过 forced RLS 读取；不得让
+  context-setter/trusted 角色直接查询 quota 表。当前月 grant 的惰性确保只经校验参数等于 current owner
+  的窄函数调用；该函数只授 context-setter，PUBLIC/business/runtime 无执行权。预检失败后的 terminal
+  event 依赖同一安全摘要路径，权限错误不能把已声明请求留在 `running`。只允许恢复函数回收租约已
+  过期且归属精确匹配的请求。
 - 账本只追加，价格快照不可回写。缺失 usage 保守扣预留；运营人员只能增加新 grant，不能删除历史
   消耗。
+- `model_rate_limit_events` 只保存 owner、request ID 和时间，不保存正文、Provider 请求或输出；表启用并
+  强制 RLS，但不授 PUBLIC、business、context-setter 或 runtime 表权限。只有 `reserve_quota` 在用户锁和
+  quota 检查后原子写入；active request replay 在计数前返回，quota 拒绝回滚且不产生限速事件。
 - 全局 kill switch、单账号停用和 Extension session 撤销必须独立生效；kill switch 不影响导出、
   删除和查看既有数据。
+- 本机验收是唯一部署例外：bootstrap 关闭 kill switch 只为固定、零网络、页面持续标识的模拟 Adapter；
+  它不读取 DeepSeek key，也不能访问第三方网络。hosted acceptance 与 production 不复用该 bootstrap，
+  foundation 必须显式建立 `model_kill_switch=true`，只创建 NOBYPASSRLS application login、不可变价格和
+  private bucket；Auth、profile、Operator 与邀请保持为空。首个真实 Operator 只能经两阶段
+  FirstOperatorBootstrap 建立：项目管理员发行唯一 BootstrapInvitation，正常 Auth/finalization 后只晋升
+  该邀请绑定的唯一账号。私有 record 与邀请生命周期记录部署动作，不把 DeploymentBootstrapAuthority
+  伪装成 OperationalAuditEvent actor；不能复制 `.localhost` seed、接受任意 userId、创建公开 route 或以
+  service-role session 代替。完成后协议永久封闭。
+- FirstOperatorBootstrap record 不得以外键阻止 AccountDataErasure。首位账号删除前只清除 record 的
+  operator user UUID 并写 deletion time；保留的 completion/invitation deployment evidence 不含 email、正文、
+  Auth identity 或 session，也不能再次执行 issue/complete。
+- hosted/production 数据库连接必须固定 Supabase transaction pooler、6543、`/postgres`、同一 project ref
+  与 `sslmode=verify-full`，并显式加载 Supabase CA、启用证书链和 hostname 校验。`sslmode=require` 只保证
+  加密而不满足身份验证；CA 缺失、project ref 不一致、非固定 pooler 或本机验收 DSN 漂移都在进程启动前
+  失败关闭。application login 只能精确继承 runtime→business/context-setter，不得有 ADMIN OPTION、额外
+  membership、public CREATE、直接 context setter 或切换 `postgres` 的能力；连接失败不能作为越权测试
+  成功。owner context 还必须在 transaction pooler 的前一事务提交后，于同一 backend 的下一事务为空。
 - disabled 账号重新认证后只能取得 `DataRightsSession`；普通 session/authenticate seam 仍严格要求
   active+full。受限会话不能访问分析、学习库、练习、生词、设备或管理端点，deleting 不创建会话。
 - 普通 Google login flow 没有 claim ticket，只允许 Supabase 返回的既有 user ID；不得自动创建 profile、
@@ -254,8 +301,8 @@ Google、邮件服务、Eudic 与 Shanbay 都是外部接收方，分别使用�
   reservation、零 UsageLedger；已 dispatch 则按预留上限保守结算并终态化，任何路径都不得透明二次调用。
   定时清理使用固定 CRON_SECRET、常量时间比较、每批 100 条和 `SKIP LOCKED`；公开响应只有两个计数，
   不允许 owner、sourceText、result、quota、reservation/lease 或原始错误进入 cron 响应/日志。
-- production 的四个 minute trigger 由 Supabase `pg_cron + pg_net` 调用既有 HTTPS route；私有
-  security-definer adapter 只接受四个精确 path，从 Vault 运行时读取 HTTPS API origin 与 32–512 字符
+- production 的五个 minute trigger 由 Supabase `pg_cron + pg_net` 调用既有 HTTPS route；私有
+  security-definer adapter 只接受五个精确 path，从 Vault 运行时读取 HTTPS API origin 与 32–512 字符
   secret，固定 search_path 且不向 `PUBLIC`、业务角色或 service role 授予执行权。Vercel Hobby 配置不再
   承载高频 cron；SQL、job 名、轮换和停用边界见 `vercel-hobby-supabase-cron.md`。
 - Extension SubmissionOutbox 最多 20 条/5 MiB、7 天后硬删除；配对码 10 分钟、邀请 72 小时、
@@ -290,7 +337,9 @@ Google、邮件服务、Eudic 与 Shanbay 都是外部接收方，分别使用�
   策略确认后写入公开隐私政策；无法验证前不得填写猜测数字。
 - Supabase service-role 仅封装在 private Storage/Auth Admin adapter，不得作为 RLS 业务读取通道；worker
   secret、object key、signed URL、subject UUID 和内部 stage 不进入日志或公开 job。数据权利 worker 使用
-  lease fencing；删除完成后运营任务必须清除直接 subject UUID。详见 `account-data-rights.md`。
+  lease fencing；导出分析记录只能调用 owner-scoped private wrapper，由它匹配显式 owner 与当前 owner
+  context。仅凭 record ID 的底层 serializer 不授权 context/business 角色，只供受信数据库函数内部互调；
+  删除完成后运营任务必须清除直接 subject UUID。详见 `account-data-rights.md`。
 - 删除请求 receipt replay 只保存高熵 session 的 pepper hash，并同时绑定 idempotency key/body hash；旧
   Cookie 只能在完成后 24 小时内取得固定 accepted 响应，不能恢复 session、读取任务或访问普通 API。
 
@@ -309,6 +358,17 @@ Google、邮件服务、Eudic 与 Shanbay 都是外部接收方，分别使用�
   控制，撤回 Huayi 数据同意不会删除本机词库或 BYOK/欧路凭据。
 
 ## 9. 发布前未决的外部事实
+
+隔离验收环境是 production 前的强制安全门：local 只绑定 loopback 受信任 HTTPS，hosted acceptance
+使用独立数据库/Auth/Storage/OAuth client/secret/Provider Key/额度且不复制 production 数据。hosted
+acceptance 首选自有根域下的同站 Web/API 子域并保持精确 CORS/Origin/CSRF；无域名时才通过单一 gateway
+origin 代理 Web/API。两者都不把 Cookie 改为 `SameSite=None`，也不把 service role 或 bootstrap secret
+暴露为 HTTP route。Resend key 只进入 hosted secret store，验收 `notify.acceptance` 与 production
+`notify` 分离；Supabase Auth SMTP credential 不复用 R3-C HTTP sender key。R3-C 仓库代码固定 23 小时
+deadline、8 次上限、failed/dead-letter、notification-ID 幂等键、独立 bearer route/第五个 Cron 和仅含
+reason/count 的 alert port；本机模式被固定 localhost origin 限定且零发送。DNS/SMTP 验证仍不能替代
+真实 Resend 投递与监控接收方验收。acceptance Store Manifest 使用独立固定开发 key/ID 和精确
+host/CSP，不能污染发布 Manifest。完整边界见 `user-acceptance-environment.md`。
 
 以下不是产品决策，必须以真实环境验证后补入发布材料：Vercel/Supabase 新加坡实际部署与网络延迟、
 Google OAuth 在目标网络的可达性、Supabase 备份残留、DeepSeek 当前模型 ID/价格/JSON 与 usage

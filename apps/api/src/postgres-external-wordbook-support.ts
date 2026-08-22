@@ -112,7 +112,7 @@ export async function replayWordbookWrite(
 }
 
 export async function saveWordbookWrite(
-  trusted: AnalysisQuery,
+  tenant: AnalysisQuery,
   input: {
     key: string;
     now: string;
@@ -122,7 +122,7 @@ export async function saveWordbookWrite(
     response: WordbookJobResource;
   },
 ): Promise<void> {
-  await trusted.rows(
+  await tenant.rows(
     `INSERT INTO idempotency_records(owner_user_id,operation,key,request_hash,response,expires_at)
      VALUES($1,$2,$3,$4,$5::jsonb,$6::timestamptz)`,
     [

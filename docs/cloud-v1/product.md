@@ -84,8 +84,9 @@ V1 面向持有一次性邀请链接的少量中文母语英语学习者。成�
 - Web `/analysis` 只以 `manual` 来源提交用户粘贴的英文、可选来源标题/用户上下文和内容类型；页面不再
   提供 action，也不接受 word、
   userId、Provider、模型或额度权威字段。开始、临时 preview、完成和失败使用可访问状态区展示，失败
-  重试保留输入并生成新幂等键。取消只停止本页等待并抑制迟到事件，不伪称撤销服务器任务；服务器
-  后续严格完成的记录仍可能进入待整理。
+  重试保留输入并生成新幂等键。取消只停止本页等待并抑制迟到事件，不伪称撤销服务器任务；页面保留
+  requestId 与“重新检查状态”，每次 running 检查都给出可见反馈。编辑输入不能绕过 active request
+  锁定；服务器 completed/failed 后才交接结果或允许重试，后续严格完成的记录仍可能进入待整理。
 - Web 手动粘贴与 StudyCapture 使用同一 strict WebDeepAnalysis V2。phrase 只产生 Expression 候选；
   sentence/passage 产生 Expression/SentencePattern 候选；不产生 WordCandidate。每个真实教学点最多一条
   明确标注 GeneratedExample，且它不能成为 SourceExample 或学习项。
@@ -127,8 +128,10 @@ V1 面向持有一次性邀请链接的少量中文母语英语学习者。成�
   编辑、查重建议或合并，canonical identity 仍占用。
 - 分析历史支持搜索、分页、详情、归档、恢复和删除。归档与“待整理／已整理”状态彼此独立，只改变
   默认可见性；删除来源分析不能删除已确认学习项保存的 SourceExample 快照。Web `/history` 只读取
-  服务器筛选/游标与完整 AnalysisRecord，结构化显示结果、候选、来源和公开模型元数据；维护成功后
-  重新读取服务器，刷新失败也不得把已完成写入误报为失败。
+  服务器筛选/游标与完整 AnalysisRecord，并按结果类型语义化显示整体理解、逐句讲解、候选、来源和
+  公开模型名称/token 用量；记录、候选、分析单元等 ID，以及 revision、协议类型、Prompt/Schema
+  版本只用于路由、关联和并发控制，不能作为用户文案或详情字段。维护成功后重新读取服务器，刷新
+  失败也不得把已完成写入误报为失败。
 - Web 显式 reanalysis 会警告再次消耗额度并追加新的 AnalysisRecord；StudyCapture 的公开投影选择最新
   关联记录。删除当前分析默认勾选同时删除原始 StudyCapture，用户可取消；取消后自动回退到最新剩余
   分析或 pending，删除非最新旧分析不显示该选项。
@@ -160,6 +163,9 @@ V1 面向持有一次性邀请链接的少量中文母语英语学习者。成�
   fail-closed，真实网络与费用行为仍需独立批准验证。
 - `/practice/history` 读取服务器保存的全部正式练习会话，并如实区分 active、awaiting-feedback、failed
   与 completed；详情按类型展示造句答案/反馈，或对话计划、开场、轮次、最终逐项反馈和自评。未完成会话
+  的逐项反馈和自评必须使用用户可识别的学习项英文文本，不能显示 UUID 等内部资源 ID；服务器只为仍
+  保留正文的学习项返回显示文本，已擦除墓碑统一显示“学习项已删除”，不恢复已清除内容。未完成会话
+  详情也不显示 session ID；这些 ID 仅供 API 路由、关联和写入证明使用。
   进行中或等待反馈时可查看但不能删除。已完成会话（已评分或未评分）和 failed 终态可经二次确认删除；
   删除只清理该次会话记录，
   不回滚或重算 LearningItem 的排期，也不删除 SourceExample。
@@ -202,6 +208,10 @@ V1 面向持有一次性邀请链接的少量中文母语英语学习者。成�
   最低兼容插件版本；配对勾选和各安装的本机 recipient consent 不伪装成账号 consent 字段，平台额度
   仍由独立额度权威返回。
 - 管理页支持创建或撤销邀请、停用账号、调整月额度、查看聚合用量和审计事件，不显示用户正文。
+- 空 hosted/production 环境的首位 Operator 必须先以唯一 BootstrapInvitation 完成正常邀请注册，再由
+  DeploymentBootstrapAuthority 把该邀请最终绑定的唯一账号晋升；不提供公开 bootstrap、任意账号
+  角色授予、service-role 登录或虚构管理员。完成后该协议永久封闭，详见
+  `first-operator-bootstrap.md`。
 - Web `/settings/data` 提供完整 AccountDataExport 与永久删除账号。导出是版本化 NDJSON 私有任务，
   包含五项账号偏好、导出快照时尚未过期的平台 ExtensionQueryGeneration 公共内容、StudyCapture、
   分析、学习项、云端生词和练习，排除凭据/session/内部安全记录、各设备 LocalLexiconEntry 和未提交
@@ -228,12 +238,20 @@ CSS 引用必须由单一 registry 闭合；允许 `0`、`auto`、断点、结�
 
 - 不做追问聊天、聊天树、模型记忆、MCP、语音、发音评分、提醒、排行榜或社交；
 - 不做单词 SRS，不替代外部单词软件；
-- 不做平台付费购买、公开注册、多租户组织、协作学习或管理员正文检索；
+- 不做平台付费购买、公开注册、多租户组织、协作学习、Web 角色管理或管理员正文检索；
 - 不支持 Firefox、Edge、Safari、原生移动/桌面 App、PDF/OCR 或 Chrome 内部页面；
 - 不做 E2EE、插件端表达/句型学习库、云端与本机词库双向同步或 Classic WordEntry 迁移；
 - 不在 V1 实现换肤 UI，也不采用本轮已否决的企业后台原型。
 
 ## 6. 发布标准
+
+离线自动化全绿只允许进入隔离验收环境，不能直接进入 production。Cloud V1 必须先完成可重建的本机
+验收环境，再完成独立 hosted acceptance；用户需要经历至少一个跨多日自然使用周期，每轮反馈都同步
+需求、技术、测试和验收文档，补回归后重新部署。只有 P0/P1 清零、P2 有明确处理结论、最新 macOS/
+Windows 候选门通过且用户明确批准进入生产候选，才继续正式域名、生产部署和商店发布。完整拓扑和
+退出门见 `user-acceptance-environment.md`。自有根域注册、验收 Web/API 子域和 Resend 验收子域可以在
+hosted acceptance 前准备；这里的“才继续”指 production 子域/cutover 和公开发布，不要求把域名采购拖到
+用户验收之后。
 
 工程可以按依赖顺序分阶段完成，但只有账号、分析、待整理、学习库、生词、外部词典桥接、两种练习、
 额度、导出删除、安全披露和双平台 Chrome 验收全部通过后，才向邀请用户一次性开放完整 V1。

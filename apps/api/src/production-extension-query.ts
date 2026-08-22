@@ -6,6 +6,7 @@ import {
   createDeepSeekExtensionQueryModel,
   deepSeekExtensionQueryMaximumUsage,
 } from "./deepseek-extension-query-model.js";
+import type { DeepSeekAnalysisFetch } from "./deepseek-analysis-protocol.js";
 import type { ApiEnvironment } from "./environment.js";
 import { createExtensionQueryMaintenanceApp } from "./extension-query-maintenance-app.js";
 import { createExtensionQueryApp } from "./extension-query-app.js";
@@ -24,6 +25,7 @@ import type { DeepSeekPriceSchedule } from "./deepseek-price-schedule.js";
 export function createProductionExtensionQuery(options: {
   database: AnalysisDatabase;
   environment: ApiEnvironment;
+  fetch?: DeepSeekAnalysisFetch;
   identity: ProductionIdentityAuthentication;
   policy: ExtensionRequestPolicy;
   pricing: DeepSeekPriceSchedule;
@@ -39,11 +41,13 @@ export function createProductionExtensionQuery(options: {
         ids: () => crypto.randomUUID(),
         model: createDeepSeekExtensionQueryModel({
           apiKey: options.environment.HUAYI_DEEPSEEK_API_KEY,
+          ...(options.fetch === undefined ? {} : { fetch: options.fetch }),
           prices: options.pricing.reservation.prices,
         }),
         modelForPricing: (pricing) =>
           createDeepSeekExtensionQueryModel({
             apiKey: options.environment.HUAYI_DEEPSEEK_API_KEY,
+            ...(options.fetch === undefined ? {} : { fetch: options.fetch }),
             prices: pricing.prices,
           }),
         now: () => systemClock.now(),

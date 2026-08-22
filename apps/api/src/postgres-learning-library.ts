@@ -173,7 +173,7 @@ export function createPostgresLearningLibrary(
           const expiresAt = new Date(
             Date.parse(command.now) + 7 * 24 * 60 * 60 * 1_000,
           ).toISOString();
-          await trusted.rows(
+          await tenant.rows(
             `INSERT INTO idempotency_records(
               owner_user_id,operation,key,request_hash,response,expires_at
             ) VALUES($1,'learning.create',$2,$3,$4::jsonb,$5::timestamptz)`,

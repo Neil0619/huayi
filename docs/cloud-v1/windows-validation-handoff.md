@@ -271,3 +271,15 @@ git status --short
 本批累计包含品牌/Manifest/Native Host 文案、跨平台 E2E 启动稳定性、Cloud 公开披露、Web 工作台壳与
 Token、API Fluid/Function 配置及文档。明确不运行安装、真实 Chrome、DPAPI 凭据、Provider/词典 smoke、
 Supabase/Vercel 部署、邮件、域名、DNS 或 Resend；Windows 完整离线门通过也不会关闭这些外部项。
+
+## 12. Phase 46 第二批 Windows 结果回流（2026-08-21）
+
+- 用户已回传当前 Windows 批次完成，最终远端 HEAD 为
+  `d451122b86c978732a599202437d82caaf03b3d4`；原冻结提交 `3fd6180` 是其直接父提交；
+- `d451122` 只对根 `AGENTS.md` 做 24 行等量语义压缩以关闭 instruction size 门，没有产品、runtime、
+  migration、协议、Manifest、Windows integration 或依赖变化；
+- 仓库当前没有归档第二批命令日志和精确测试统计，因此只记录
+  `Windows local offline validation user-confirmed at d451122`，不复用第一批 109/109 等数字，也不虚构
+  第二批计数；
+- GitHub macOS/Windows CI、真实 Chrome、安装、凭据、Provider/词典、Supabase/Vercel、邮件、域名、DNS
+  与 Resend 仍分别 pending；本次用户回传只关闭 Phase 46 本地 Windows 批次，不关闭这些外部门。

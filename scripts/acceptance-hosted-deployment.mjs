@@ -1,0 +1,142 @@
+import { pathToFileURL } from "node:url";
+
+import { readApiEnvironment } from "../apps/api/src/environment.ts";
+import {
+  hostedAcceptanceApplicationRole,
+  hostedAcceptanceExportBucket,
+  hostedAcceptancePriceVersionIds,
+  hostedAcceptanceProjectRef,
+} from "./acceptance-hosted-foundation.mjs";
+
+const apiOrigin = "https://api.acceptance.seen-said.cn";
+const webOrigin = "https://app.acceptance.seen-said.cn";
+const supabaseUrl = `https://${hostedAcceptanceProjectRef}.supabase.co`;
+const authRedirects = Object.freeze([
+  `${apiOrigin}/v1/auth/callback`,
+  `${apiOrigin}/v1/auth/password/callback`,
+  `${apiOrigin}/v1/auth/password/recovery/confirm`,
+  `${apiOrigin}/v1/auth/reauthenticate/google/callback`,
+  `${apiOrigin}/v1/account/sign-in-methods/google:callback`,
+]);
+
+const publicApiEnvironmentNames = Object.freeze([
+  "HUAYI_API_ORIGIN",
+  "HUAYI_WEB_ORIGIN",
+  "SUPABASE_URL",
+  "HUAYI_DEEPSEEK_LEGACY_PRICE_VERSION_ID",
+  "HUAYI_DEEPSEEK_OFF_PEAK_PRICE_VERSION_ID",
+  "HUAYI_DEEPSEEK_PEAK_PRICE_VERSION_ID",
+  "HUAYI_STORE_EXTENSION_ID",
+  "HUAYI_MIN_SUPPORTED_EXTENSION_VERSION",
+  "HUAYI_ACCOUNT_EXPORT_BUCKET",
+  "HUAYI_SECURITY_NOTIFICATION_MODE",
+  "HUAYI_SECURITY_NOTIFICATION_FROM",
+  "HUAYI_SECURITY_NOTIFICATION_REPLY_TO",
+]);
+
+const sensitiveApiEnvironmentNames = Object.freeze([
+  "HUAYI_DATABASE_URL",
+  "HUAYI_DATABASE_TLS_CA_BASE64",
+  "SUPABASE_PUBLISHABLE_KEY",
+  "SUPABASE_SERVICE_ROLE_KEY",
+  "HUAYI_REFRESH_ENCRYPTION_KEY",
+  "HUAYI_SECRET_PEPPER",
+  "CRON_SECRET",
+  "HUAYI_DEEPSEEK_API_KEY",
+  "HUAYI_RESEND_API_KEY",
+]);
+
+export function renderHostedDeploymentPlan() {
+  return [
+    "Hosted acceptance deployment plan (zero network / zero write)",
+    "Projects:",
+    "- seen-said-acceptance-api | apps/api | hono | sin1 | Fluid | 120s",
+    "- seen-said-acceptance-web | apps/web | vite | pnpm build | dist",
+    "- Both projects: include source outside Root Directory; Production only; Preview disabled.",
+    "API public environment names:",
+    ...publicApiEnvironmentNames.map((name) => `- ${name}`),
+    "API sensitive environment names:",
+    ...sensitiveApiEnvironmentNames.map((name) => `- ${name}`),
+    "Web build environment names:",
+    "- VITE_API_ORIGIN",
+    "- VITE_DEPLOYMENT_ENVIRONMENT",
+    "- VERCEL_GIT_COMMIT_SHA (injected, not copied)",
+    "Supabase Auth exact redirects:",
+    ...authRedirects.map((redirect) => `- ${redirect}`),
+    "Supabase Auth SMTP:",
+    "- smtp.resend.com:465 | resend | separate sending-only key",
+    "DNS and deployment sequence:",
+    "- migration 0012 -> Vercel domains -> Resend DNS -> Auth/SMTP -> Production environment",
+    "- API deploy -> Web deploy -> TLS/Cookie/CORS/SSE/Auth/Storage smoke",
+    "- five Supabase Cron jobs -> FirstOperatorBootstrap invitation",
+    "Pending external inputs:",
+    "- Reply-To/support mailbox",
+    "- approved hosted DeepSeek key and billing",
+    "- stable acceptance Store Extension ID or an explicit disabled capability",
+    "",
+  ].join("\n");
+}
+
+function assertEqual(actual, expected) {
+  if (actual !== expected) throw new Error("Hosted acceptance deployment contract mismatch.");
+}
+
+export function verifyHostedDeploymentEnvironment(environment) {
+  const parsed = readApiEnvironment(environment);
+  assertEqual(parsed.HUAYI_API_ORIGIN, apiOrigin);
+  assertEqual(parsed.HUAYI_WEB_ORIGIN, webOrigin);
+  assertEqual(parsed.SUPABASE_URL, supabaseUrl);
+  assertEqual(parsed.HUAYI_ACCOUNT_EXPORT_BUCKET, hostedAcceptanceExportBucket);
+  assertEqual(
+    parsed.HUAYI_DEEPSEEK_LEGACY_PRICE_VERSION_ID,
+    hostedAcceptancePriceVersionIds.legacy,
+  );
+  assertEqual(
+    parsed.HUAYI_DEEPSEEK_OFF_PEAK_PRICE_VERSION_ID,
+    hostedAcceptancePriceVersionIds.offPeak,
+  );
+  assertEqual(parsed.HUAYI_DEEPSEEK_PEAK_PRICE_VERSION_ID, hostedAcceptancePriceVersionIds.peak);
+  assertEqual(parsed.HUAYI_MIN_SUPPORTED_EXTENSION_VERSION, "1.0.0");
+  assertEqual(parsed.HUAYI_SECURITY_NOTIFICATION_MODE, "resend");
+  assertEqual(
+    parsed.HUAYI_SECURITY_NOTIFICATION_FROM,
+    "语见 <security@notify.acceptance.seen-said.cn>",
+  );
+  const database = new URL(parsed.HUAYI_DATABASE_URL);
+  assertEqual(
+    database.username,
+    `${hostedAcceptanceApplicationRole}.${hostedAcceptanceProjectRef}`,
+  );
+  if (new Set(parsed.HUAYI_STORE_EXTENSION_ID).size < 2) {
+    throw new Error("Hosted acceptance Store Extension ID is a placeholder.");
+  }
+  return true;
+}
+
+export async function runHostedDeploymentCli({
+  arguments_ = process.argv.slice(2),
+  environment = process.env,
+  writeError = (value) => process.stderr.write(value),
+  writeOutput = (value) => process.stdout.write(value),
+} = {}) {
+  if (arguments_.length !== 1 || !new Set(["--plan", "--verify-environment"]).has(arguments_[0])) {
+    writeError("Hosted acceptance deployment arguments are invalid.\n");
+    return 1;
+  }
+  if (arguments_[0] === "--plan") {
+    writeOutput(renderHostedDeploymentPlan());
+    return 0;
+  }
+  try {
+    verifyHostedDeploymentEnvironment(environment);
+    writeOutput("Hosted acceptance deployment environment verification passed.\n");
+    return 0;
+  } catch {
+    writeError("Hosted acceptance deployment environment verification failed.\n");
+    return 1;
+  }
+}
+
+if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  process.exitCode = await runHostedDeploymentCli();
+}

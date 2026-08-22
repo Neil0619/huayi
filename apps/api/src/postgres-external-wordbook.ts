@@ -17,7 +17,7 @@ import {
 } from "./postgres-external-wordbook-support.js";
 
 async function finishWrite(
-  trusted: AnalysisQuery,
+  tenant: AnalysisQuery,
   input: {
     key: string;
     now: string;
@@ -28,7 +28,7 @@ async function finishWrite(
   response: Awaited<ReturnType<typeof loadExternalJob>>,
 ) {
   if (response === null) throw new CloudFault("not_found", "Wordbook job not found.");
-  await saveWordbookWrite(trusted, { ...input, response });
+  await saveWordbookWrite(tenant, { ...input, response });
   return response;
 }
 
@@ -76,7 +76,7 @@ export function createPostgresExternalWordbook(
             [command.jobId, keepLease, command.now],
           );
           return finishWrite(
-            trusted,
+            tenant,
             {
               key: command.idempotencyKey,
               now: command.now,
@@ -157,7 +157,7 @@ export function createPostgresExternalWordbook(
             }
           }
           return finishWrite(
-            trusted,
+            tenant,
             {
               key: command.idempotencyKey,
               now: command.now,
@@ -270,7 +270,7 @@ export function createPostgresExternalWordbook(
             [command.jobId, command.now],
           );
           return finishWrite(
-            trusted,
+            tenant,
             {
               key: command.idempotencyKey,
               now: command.now,
@@ -345,7 +345,7 @@ export function createPostgresExternalWordbook(
             });
           }
           return finishWrite(
-            trusted,
+            tenant,
             {
               key: command.idempotencyKey,
               now: command.now,

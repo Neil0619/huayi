@@ -3,6 +3,381 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-22：Hosted application 先冻结可重复部署契约，再创建 Vercel 资源
+
+- hosted acceptance 使用两个 Git-linked Vercel Hobby project，分别固定 `apps/api` Hono 与 `apps/web`
+  Vite root；API Function 固定 `sin1` 靠近 Singapore Supabase、Fluid/120 秒，Web 固定 build/dist/SPA，
+  两者显式包含 root 外 workspace source；
+- Preview 不复用 production Supabase/Auth/Storage/secret；无独立 Preview 资源时保持禁用/失败关闭。部署
+  只接受已记录 commit，Web 持续显示 `hosted-acceptance + short SHA`；公网 origin 不能启用本机 simulated；
+- 当前 production API 强制完整 Resend hosted composition，因此邮件不是“API 裸部署之后再补”的可选项。
+  Resend verified subdomain、分离 SMTP/R3-C key、Reply-To 与经批准 DeepSeek key必须先就绪；禁止填假 key；
+- Supabase Auth 固定 Site URL、五条 exact API redirect、动态 RedirectTo 邮件模板和独立 SMTP；Google
+  callback 与应用 callback 保持两层，不启用 Google 时允许继续延期；
+- 外部写入顺序固定为 0012 migration/status empty → Vercel project/domain → Resend DNS/key → Auth/SMTP →
+  production secrets → API/Web deploy → TLS/Cookie/CORS/SSE/callback → 五项 Supabase Cron → 首张邀请。
+
+## 2026-08-22：首位 Operator 使用两阶段、无公开入口的部署引导
+
+- hosted/production 空环境不能由既有 Operator 创建首张邀请，因此新增一次性 FirstOperatorBootstrap：
+  DeploymentBootstrapAuthority 先发行唯一 BootstrapInvitation，用户仍走正常邀请/Supabase Auth/profile/
+  sign-in method/默认额度事务，随后只把该邀请最终绑定的唯一账号晋升；
+- 邀请来源显式区分 `operator` 与 `deployment-bootstrap`。部署管理员不是 HuayiAccount/Operator，私有
+  bootstrap record 与邀请生命周期记录部署轨迹，不伪造 OperationalAuditEvent `actorUserId`；
+- complete 不接收 userId/email/role；数据库在锁和空状态 guard 下从 finalized claim 推导唯一账号。
+  明文 token 丢失时仅允许在零 claim/零 identity 前提下显式替换，协议完成后永久封闭；
+- 首位账号永久删除不能被 deployment record 外键阻断；删除前只清除私有 record 的 operator UUID 并写
+  deletion time，保留无身份的 completed 状态且不重新开放 bootstrap；
+- 不新增公开 `/v1`/`/internal` route，不复用 local seed，不构造 Auth/profile，不产生 service-role Web
+  session。设计与取舍见 `first-operator-bootstrap.md` 和 ADR-0023。
+
+## 2026-08-22：Hosted PostgreSQL 必须 verify-full，并验证精确角色图与事务池隔离
+
+- 初版 hosted foundation/app login 验证能证明写入和登录成功，但 `sslmode=require` 未校验证书链与 hostname，
+  membership 包含判断也不能排除额外授权；该证据降级为初步 apply 证据，不再充当最终安全门；
+- 管理脚本与 application DSN 统一固定 Singapore Supabase transaction pooler、6543、同一 project ref 和
+  `sslmode=verify-full`。CLI 使用官方 CA 临时文件，Vercel 运行时使用 base64 CA 并显式
+  `rejectUnauthorized=true`；缺失 CA、require-only、错误 pooler/project 或本机 DSN 漂移均失败关闭；
+- role graph 必须恰好为 application login→runtime、runtime→business/context-setter，三条边均无 ADMIN
+  OPTION；login 不能切换 postgres、在 public CREATE 或直接调用 set_owner_context。预期越权只有 SQLSTATE
+  `42501` 且 psql exit `3` 才通过，网络/认证错误不能冒充拒绝；
+- owner context 必须经事务 A 设置并 COMMIT，随后 transaction pooler 在同一 backend 上开启未设置 context
+  的事务 B 并读到 NULL；bootstrap 同时改为仅接受 pristine 或精确已应用的 private empty bucket 状态，
+  保持安全幂等重跑。
+
+## 2026-08-22：Hosted foundation 与首个 Operator 必须分离初始化
+
+- hosted acceptance 不复用 `acceptance:local:bootstrap`、`supabase/seed.sql` 或本机邀请脚本：本机入口会
+  关闭模型 kill switch，并写固定 `.localhost` 虚构 Operator；这些行为只适用于持续标识、零网络的本机
+  模拟环境；
+- hosted foundation 只允许固定 Singapore project，先验证 11 条 migration、42 张 public 表、33 张 tenant
+  forced RLS 表和三个 NOLOGIN/NOBYPASSRLS 迁移角色，再幂等建立独立 NOBYPASSRLS application LOGIN
+  role、三条环境专属不可变价格、`model_kill_switch=true` 和 private export bucket；Auth/profile/admin/
+  invitation 必须继续为空；
+- foundation 默认只有无副作用 plan。实际写入要求包含 project ref 的精确确认参数，管理员密码与 application
+  role 密码只从进程环境送入固定 pooler，不进入参数、输出、仓库或日志；重跑不能旋转既有 role 密码、
+  关闭 kill switch 或覆盖冲突价格/bucket；
+- Supabase 托管 `postgres` 是管理员但不是 superuser；preflight 只要求当前角色为 `postgres` 且具有
+  CREATEROLE，不能错误要求 `is_superuser=on`。后续 Supavisor application 用户名使用
+  `<role>.<project-ref>`，连接密码必须 URL-encode；
+- 首张邀请和首个 Operator 不属于 foundation。现有 `admin_create_invitation` 要求既有 Operator，形成启动
+  闭环；该待定项现已由本文更上方的 FirstOperatorBootstrap 决策替代，不能用虚构 profile/admin row
+  临场绕过。
+
+## 2026-08-22：Cloud 运行时入口必须是精确 HTTPS origin
+
+- `HUAYI_API_ORIGIN`、`HUAYI_WEB_ORIGIN`、`SUPABASE_URL` 与 Web 构建期
+  `VITE_API_ORIGIN` 从“任意可解析 URL”收紧为精确 HTTPS origin：禁止明文 HTTP、用户名/密码、路径、
+  query、fragment 和尾随 `/`；API 与 Web origin 还必须不同；
+- 该约束同时适用于 hosted acceptance 与 production，并在进程启动或 Web bootstrap 前失败关闭，不能等到
+  浏览器以 Cookie、CORS、OAuth callback 或路由错误暴露配置漂移；固定本机验收 HTTPS origin 保持不变；
+- 真实域名、DNS、Vercel/Supabase 资源和 secret 仍是外部门禁；本变更只关闭仓库内配置校验缺口，不把
+  静态校验冒充为托管部署证据。
+
+## 2026-08-22：R3-C 固定 23 小时 Resend 窗口、8 次上限与第五个调度任务
+
+- Resend notification ID 幂等键只有 24 小时保留窗口，因此安全通知 outbox 固定
+  `created_at + 23 hours` delivery deadline 与最多 8 次 Provider 尝试；超窗进入 `failed`，耗尽进入
+  `dead-letter`。claim 在 sender 前以最多 100 条批次终态化不可发送工作，再只领取一条有效任务；
+- Provider 已发送但数据库 complete 失败只能在 deadline 内用相同 notification ID 重放。Resend adapter
+  固定 HTTPS endpoint、20 秒请求上限、固定密码重置模板和稳定错误，不读取响应正文，不记录 API key；
+- 新增独立 `/internal/security-notifications/run` CRON bearer route 与 bounded outcome。无正文 alert
+  port 只接收固定 reason/count；不允许 email、owner、notification ID、正文或原始异常穿过该 port；
+- Supabase operations SQL 从四个 job 扩为五个。本机验收显式使用只允许三个固定 localhost origin 的
+  `disabled-local-acceptance`，route 返回 idle 且不访问 outbox/网络；hosted/production 必须使用 resend
+  环境并由 secret store 提供 key/from/Reply-To；
+- 新增 `0011` forward 与 Supabase 镜像，并同步最终 baseline；current baseline→0002…0011 直接重放。
+  真实 DNS、verified sender、Resend 投递与监控接收方仍是外部门禁，不因离线实现关闭。
+
+## 2026-08-22：默认额度按 UTC 月惰性续期，生产模型调用共享持久限速
+
+- “注册时获得首月默认额度”扩展为完整生命周期：每次 production reserve 和 owner quota summary 都先
+  幂等确保当前 UTC 月 `1_000_000 micro-USD` default grant；同月已有 admin grant 时绝不覆盖，summary
+  只投影当前月，不得回退到最近历史月；
+- Web 分析、Extension 平台查询、练习生成和语义重复建议继续汇入同一 Postgres `reserve_quota` 原子
+  边界，每账号共享滚动 60 次/小时、300 次/24 小时的持久限速。相同 request 的 active replay 在限速
+  计数前返回原 reservation；`model rate limited` 映射 `rate_limited`，与 `quota_exhausted` 保持独立；
+- 限速事件只保存 owner、request ID 与时间，不含正文/模型输出；每账号 reservation 成功时清理超过
+  24 小时事件，索引支持滚动窗口。表继续 forced RLS 且不授业务角色表权限；summary 只新增校验当前
+  owner 的 context-setter 窄函数，grant/ledger/reservation 仍由 business role 经 forced RLS 读取；
+- 新增 `0010` forward 与 Supabase 时间戳镜像，并把 baseline 同步为最终 schema；`0002` helper 改为
+  `CREATE OR REPLACE`，确保 current baseline→`0002`…`0010` 仍可完整重放。
+
+## 2026-08-22：当前 baseline 与 forward migration 必须组成可重放的空库链
+
+- 本机隔离空库首次真实启动证明，baseline 已含最新 `replay_account_deletion`，随后 `0009` 再执行普通
+  `CREATE FUNCTION` 会以 duplicate function 中止整个 Supabase start；单独证明 baseline 和 forward
+  字节一致、旧库可升级，不能证明两者能在当前空库顺序共同执行；
+- baseline 继续表达新安装的最终 schema，forward migration 继续服务尚未包含该定义的旧库；因此新增或
+  替换已有对象的 forward SQL 必须对“对象不存在”和“baseline 已含最终对象”两种前态都成立，例如使用
+  `CREATE OR REPLACE` 或精确条件迁移，不能要求测试先人为 DROP 才能通过；
+- 自动回归必须直接执行 current baseline→全部 forward migration，真实验收还必须在隔离项目执行空状态
+  start、bootstrap、HTTPS status、destructive reset、重建后聚合与 stop。不得重置正在承载用户验收数据的
+  主项目，也不得用 PGlite 单迁移测试冒充 Supabase CLI/容器重建。
+- `acceptance:local:build` 必须从没有 workspace `dist` 的干净 checkout 自给完成；应按依赖顺序构建
+  learning-domain、cloud-contracts、API 和 Web，不得因为完整门禁恰好留下共享包产物而隐式成功。
+
+## 2026-08-22：本机 bodyless DELETE 与注销回执必须遵守生产语义和最小权限
+
+- Store 服务端实际旅程证明本机 Node adapter 为所有非 GET/HEAD 请求无条件建立 body stream，导致严格
+  DeviceDisconnect 把没有正文的 DELETE 判为 proof 非法；adapter 改为只在正数 Content-Length 或存在
+  Transfer-Encoding 时建立 stream，并以实际首次断开、重放和旧 token 401 验收；
+- 账号删除异常处理会在首次写入失败后查询固定 receipt，但 production `huayi_context_setter` 无权直接
+  SELECT forced private `account_deletion_jobs`，二次权限错误掩盖了首个稳定错误。replay 改走只返回
+  `requested_at` 的窄 SECURITY DEFINER；PUBLIC/business 不获执行权，context setter 不获表权限；
+- PGlite adapter 必须真实 `SET LOCAL ROLE huayi_context_setter`，不能以测试 superuser 代替生产角色。
+  一次性实际旅程完成后须经正常 deletion worker 清理，不能用手工级联删除冒充成功。
+- 实际脚本遵守既有产品边界：当前卡撤销只适用于尚未开始分析的 StudyCapture；已产生 AnalysisRecord
+  后直接删除 Capture 必须返回 `study_capture_in_use`。完整旅程用独立 Capture 分别验证撤销和
+  initial/reanalysis，不为验收方便放宽数据关联。
+
+## 2026-08-22：配对交换必须原子返回偏好快照
+
+- 本机 production pairing 实测证明旧流程在数据库已 consumed pairing、创建 ExtensionSession 后，才由
+  trusted/context-setter 直接 JOIN forced-RLS profile 读取偏好；该查询失败使 HTTP 返回 400，但客户端
+  已永久失去单次 state/verifier 的交换机会并留下幽灵设备；
+- `exchange_extension_pairing` 调整为同一 SECURITY DEFINER statement 内完成验证、消费、session insert
+  和 owner preference snapshot 返回；profile 缺失必须抛错并回滚全部状态。adapter 不再直接读取
+  `user_profiles`；公开 HTTP、PKCE/state、token hash 和权限 grant 不变；
+- baseline、forward migration 和 Supabase 镜像必须保持最终定义一致；production adapter 回归锁定单条
+  exchange 调用，实际本机验收覆盖 approve→exchange→preference reread→list→revoke→旧 token 拒绝。
+
+## 2026-08-22：分析历史的资源键和协议结构不能成为用户详情
+
+- 真实本机详情证明通用对象递归渲染会暴露 AnalysisRecord、Candidate 和分析单元 UUID，以及 revision、
+  result type、Prompt/Schema 版本和原始协议字段名；“完整结构化详情”调整为“完整语义详情”，按 phrase
+  或 sentence/passage 的公开结果类型组织中文内容；
+- API strict resource 不变，技术 ID/revision 继续用于路由、关联、幂等和并发控制。Web 仅展示来源、
+  选择类型、整理/归档状态、用户内容、候选内容、公开 provider/model 和 token 用量，不以内部键作为
+  fallback 或用户文案；
+- component、actual bundle 与本机真实浏览器验收必须同时断言可理解内容仍完整且 DOM 无技术 UUID、
+  协议字段文案或版本信息，不能再用可见 revision 证明服务器状态链。
+
+## 2026-08-22：CORS 方法必须覆盖 Web 实际使用的 PATCH
+
+- 本机学习项编辑证明组件、adapter 和 Postgres 各自通过仍不能替代浏览器预检；全局 CORS 漏列 PATCH
+  会在身份、CSRF、revision 和仓储逻辑前直接阻断学习项编辑及账号偏好更新；
+- 固定 origin、credential/header allowlist 与既有写入 proof 不变，只把公开路由已使用的 PATCH 纳入
+  allowMethods。Foundation 回归必须使用真实 Web origin 和 PATCH headers 断言 204 与 allow-methods，
+  actual local browser 必须完成至少一次编辑写入和服务器重读。
+- 本机互操作词表下载进一步证明成功正文仍不足够：Web adapter 必须读取固定
+  `Content-Disposition` 才接受文件，而该头不是 CORS safelisted response header。全局 CORS 只新增此
+  exposed header；回归和实际浏览器必须证明严格文件头可读且下载成功。
+
+## 2026-08-22：账号导出的分析序列化必须有 owner-scoped 受信权限
+
+- 本机数据导出 worker 在账号已有 AnalysisRecord 时稳定失败为 `export-build-failed`；对象 bucket 正常，
+  根因是导出 source 调用 private `analysis_public_record`，但该分支既未获 context setter 权限，也从未被
+  无分析 fixture 的 Postgres 导出测试执行；
+- 新增 owner-scoped wrapper，同时校验显式 owner 与当前 owner context，只把 wrapper 授权给
+  `huayi_context_setter`；仅凭 record ID 的底层序列化器继续供 analysis security-definer 内部互调，不
+  授权 context/business 角色。后续纠正迁移恢复既有分析维护事务，foundation migration 同步保证新环境
+  一致；
+- Postgres 回归必须真实插入分析和候选，证明导出包含完整公开 AnalysisRecord，且另一个 owner 即使传入
+  记录 ID 也只得到空结果。本机 worker 必须从 failed 显式 retry 后生成 ready 私有对象并签发下载 URL。
+
+## 2026-08-22：ready 导出必须适配生产 Postgres 的 bigint 字符串
+
+- worker 成功写入对象并把任务推进到 ready 后，真实页面仍无法读取状态；生产 `postgres` 驱动把
+  `byte_length bigint` 返回为十进制字符串，而仓储投影错误假定为 number，PGlite 形态未暴露该差异；
+- 仓储只接受非负十进制字符串或 number，并在不超过 JavaScript 安全整数后转为公开 `byteLength`，再由
+  strict resource schema 校验；非法或越界数据库值继续失败关闭。独立投影回归必须直接使用生产驱动
+  字符串形态，实际本机页面必须显示 ready 并成功签发下载。
+
+## 2026-08-22：练习历史的项目关联键不能作为用户显示名称
+
+- 真实三轮对话证明逐项反馈与自评直接显示 UUID；“结构存在”不足以证明详情可用。PracticeHistory detail
+  新增 owner-scoped、按 session position 排序的 `itemLabels`，恰好覆盖未擦除学习项；Web 禁止用 item ID
+  作为显示 fallback，也不显示 session ID；技术 ID 只保留在 API 路由、关联和写入证明中；
+- label 只从当前 `learning_items.content` 投影：expression 使用 `text`，sentence-pattern 使用 `template`，
+  不新增内容快照。正文已擦除的墓碑不返回 label，继续显示固定“学习项已删除”，不能为改善显示而恢复
+  已清除内容；
+- contract、Postgres repository、Web 组件和 actual local browser 都必须断言可识别名称；旧 fake journey
+  只检查反馈/自评存在的证据不再足够。
+
+## 2026-08-22：真实 PostgreSQL 参数与角色边界是本机核心闭环的发布门
+
+- `postgres` 驱动会把已经 `JSON.stringify` 的值再次编码；数据库 adapter 只对 SQL 中显式
+  `$N::jsonb` 的参数解析一次后交给驱动，其他字符串保持不变。PGlite 与真实驱动都必须覆盖该边界，
+  不能只凭 PGlite 通过认定 JSONB 结算可用；
+- owner-scoped 幂等响应属于租户业务表写入，必须由已设置 owner context 的 `huayi_business` 完成；
+  `huayi_context_setter` 只读取幂等状态机函数并调用窄 SECURITY DEFINER，不因实际验收失败而扩大表
+  权限；
+- 练习生成终态先由租户角色更新 task/session/attempt，再由
+  `settle_practice_generation_quota` 在同一事务内校验 owner、generation、reservation、终态、价格和
+  1–2 条 billed calls 后写 ledger/settle quota。失败和过期恢复允许 active/released reservation，成功
+  只允许 active；任何不一致整体回滚。
+- 后台 HTTPS lifecycle 不能仅因入口已有进程返回 200 就认定刚启动的 child 健康；首次六入口通过后
+  必须等待稳定窗口，确认记录的 child 仍存活并再次完成 IPv4/IPv6 probe，防止未登记旧前台进程掩盖
+  新 child 的端口冲突。PID 与真实 listener 不一致时启动失败并清理状态，不能留下伪成功；正常停止超时
+  并发送 `SIGKILL` 后也必须再次有界等待真实退出，不能在信号发出瞬间误报失败。
+
+## 2026-08-21：分析完成与失败结算必须使用 reservation 约束内的完整调用事实
+
+- 本机真实浏览器纵切已经证明模拟 Provider 返回 preview 后，完成事务仍可能在 quota settlement 阶段
+  回滚；因此“Provider Adapter 单测通过”和“Web 收到 preview”都不得作为分析完成证据，必须用真实
+  Postgres composition 覆盖 AnalysisRecord、candidate、usage ledger、reservation 与 terminal event 的
+  同一事务；
+- analysis settlement 的 billed call 必须同时携带非空、非负且相互一致的 input/cached-input/output token
+  与 cost，并且总 cost 不得超过当前 reservation。完成事务失败后，失败收尾必须复用已经生成的调用
+  事实；若生成调用事实不存在，则由可信数据库读取该 reservation 的保守金额，不能使用脱离 reservation
+  的固定 fallback；
+- complete 或 fail 任一阶段异常都不能留下永久 active generation。Web 仍以 owner status 为唯一终态
+  权威，但本机验收交付前必须由 Codex 自己走完分析、候选收录、学习库读取与练习，不再把首次真实纵切
+  留给用户代测。
+
+## 2026-08-21：模型候选只提供别名且取消等待必须保留服务器请求
+
+- DeepSeek private output 的 candidate `id` 只是请求内别名；可信 Analysis module 必须在持久化前为每个
+  candidate 分配服务器 UUID，并同步改写 result 中全部引用。Provider、模拟 Adapter 和浏览器都不能
+  决定数据库 candidate identity；
+- 模型已经返回并产生 usage 后，若 trusted assembly 或持久化失败，失败结算必须沿用该次生成的真实
+  billed calls/usage/cost，不能退回可能大于 reservation 的默认值，否则会让 settlement 失败并遗留
+  active generation；
+- Web“取消等待”只中止本页 SSE，必须保留 active request ID 和手动状态查询入口。`running` 状态的每次
+  手动检查都显示可见反馈；编辑正文、标题或类型不得解锁第二次提交。只有 owner status 返回 completed/
+  failed 后，页面才交接结果或允许使用新幂等键重试。
+
+## 2026-08-21：本机模拟模型必须显式启用且额度失败必须可靠终态化
+
+- local acceptance 的模型调用仍先经过共享 kill switch；因此 acceptance bootstrap 必须把
+  `model_kill_switch` 幂等设置为关闭，才能只启用固定的零网络模拟 Adapter。该例外不进入 hosted
+  acceptance 或 production：这些环境继续由 Operator 管理开关并默认失败关闭；
+- 额度摘要是账号所有者数据，必须在已设置 owner context 的 `huayi_business` tenant transaction 中通过
+  forced RLS 读取；`huayi_context_setter` 只负责建立上下文和调用受控转换函数，不得作为 quota 表读取
+  通道；
+- 请求已持久声明但在价格、开关或额度预检阶段失败时，失败收尾必须仍能读取额度摘要并写入可重放
+  terminal event。收尾本身失败不得让请求永久停留 `running`；过期且尚未 dispatch、未 reservation 的
+  遗留请求只通过既有 `abandon_analysis_request` 精确回收，不 reset 账号或学习数据。
+
+## 2026-08-21：邮箱确认必须使用独立回调并显式登记 password method
+
+- 首次真实 Mailpit 确认证明共用 Google callback 会把邮箱密码注册错误登记为 `google`；密码确认固定改走
+  `GET /v1/auth/password/callback`，数据库完成函数必须接收并校验显式 `password|google`，普通登录 flow
+  仍只允许 Google callback；
+- 邮箱确认已成功、邀请已完成后，API 又以 `huayi_context_setter` 直接更新 forced-RLS `user_profiles`，因
+  无权执行 owner-context 读取而在 Web session 创建前失败。邮箱刷新改为只允许 context-setter 调用的窄
+  `SECURITY DEFINER refresh_profile_email`，PUBLIC 与业务角色无执行权；
+- `0003` forward-only migration 同步修复符合“邀请已完成 + 只有 Supabase email identity + 没有 Google
+  identity”的错误 `google` method；不重置 Auth、邀请或业务数据。确认链接是单次凭证，已确认账号修复后
+  直接使用邮箱密码登录，不得要求用户再次点击旧链接。
+
+## 2026-08-21：本机 Auth 密码策略必须与 Cloud 契约一致
+
+- Cloud V1 已冻结密码长度为 12 至 256 个字符，没有额外的字符类型组合要求；本机 Supabase 不得另行
+  要求“字母 + 数字”，否则通过 Web/Contracts 校验的密码会在 Provider 层以 422 失败；
+- local Auth 固定 `minimum_password_length = 12`、空 `password_requirements`，并由 doctor artifact
+  contract 回归；hosted Supabase Auth 必须使用同一策略，不能让不同环境形成不同注册规则；
+- 本次只校准环境策略，不降低长度、不改变邮箱确认、邀请单次领取、密码传输或 Provider 错误脱敏边界。
+
+## 2026-08-21：本机验收必须提供明确标识的零网络模拟模型
+
+- Provider 永久失败关闭只能证明安全边界，不能让用户实际走完分析、候选收藏、学习库和练习；本机
+  acceptance 新增确定性模拟模型，但不授权真实 DeepSeek 或任何第三方网络；
+- 唯一实现 seam 是 `createProductionApp` 已有的 acceptance-only `providerFetch` Adapter；四类 production
+  quota、durable dispatch、strict schema、ledger、lease/fencing 和持久化不得被 fake caller/repository
+  绕过；
+- Web 全页面持续显示“本机验收 · 模拟模型”，主要输出同时带 `【本机模拟】`，明确结果不是 DeepSeek、
+  只消耗本机测试额度且没有外部费用；
+- 因模拟 response 位于 DeepSeek HTTP Adapter 内，本机 metadata、price version 与 ledger 保留技术兼容
+  标识，只能作为测试状态证据，不能作为真实质量、usage 或账单证据；不为本机方便扩大 production
+  provider enum；
+- acceptance Web 模式由固定 build 注入，非法值失败关闭；用户正在使用时不重启服务，部署等待空闲窗口，
+  且不停止/reset/seed Supabase。完整方案见 `local-acceptance-simulated-provider.md`。
+- HTTPS 运行版本在进程启动时固定：Web bundle 进入只读内存快照，API composition 只加载一次；磁盘
+  build 只产生候选，只有显式 restart 同步激活 Web/API。这样完整构建门不会形成“新 Web + 旧 API”的
+  半部署；快照运行时首次切换仍等待用户空闲窗口。
+- 本机代码切换新增唯一窄入口 `acceptance:local:deploy --confirm-local-downtime`；它只组合 loopback runtime
+  复核、HTTPS stop、acceptance build 和 health-checked start。错误确认零副作用，阶段失败不自动掩盖；
+  不复用 destructive reset 或会停止 Supabase 的 persistence restart，也不触碰邀请或外部服务。
+- `*.acceptance.localhost` 同时解析到 `127.0.0.1` 与 `::1`；浏览器可能优先选择 IPv6，因此三个 HTTPS
+  端口必须在两个 loopback 地址各自监听。只绑定 IPv4 不再视为健康，绑定 `::`/`0.0.0.0` 或局域网仍
+  禁止；任一地址绑定失败时整组启动失败关闭。后台 lifecycle 的 start/status 固定对每个入口执行
+  IPv4/IPv6 两次系统信任 CA probe，不能再由 DNS 顺序随机掩盖单边失效。
+
+## 2026-08-21：本机持久化必须由完整停启前后不透明指纹证明
+
+- 只重启 HTTPS、只看容器 health 或只比较行数都不足以证明用户数据持久；新增独立
+  `acceptance:local:restart:verify`，完整停止并恢复 HTTPS 与 Supabase；
+- 命令不接受参数或远端目标，先在数据库服务器内部为全部 public tables、Auth users/identities、Storage
+  buckets/objects 与 migration history 计算 canonical row digest，再停启、forward migrate 并计算第二次；
+- Node 只在内存比较 relation/count/digest，终端不输出 snapshot、用户字段、密码散列、token、credential
+  或 SQL 错误；任何差异或阶段失败都失败关闭，HTTPS 停止后不自动掩盖现场；
+- 注册前运行只能证明初始化数据和邀请保留；用户注册并创建学习数据后必须重复同一命令，才关闭真实账号
+  与学习内容跨重启验收。
+
+## 2026-08-21：本机 reset 必须显式确认并只重建固定虚构状态
+
+- reset 是唯一允许销毁 local-acceptance 数据的仓库入口，要求精确
+  `--confirm-local-data-loss`；不能把 start、migrate、build、test 或服务自愈变成隐式清库；
+- 目标固定为当前仓库 local Supabase，不接受数据库 URL、linked project、project ref、调用者 seed 路径
+  或云端登录态；先验证 loopback runtime 并停止 HTTPS，失败不继续也不自动交付半重建环境；
+- 固定重放 migration 后只加载虚构 Operator seed，再由既有 bootstrap 建立角色、价格、kill switch、
+  private bucket 和生成式本机 credential，重建 API/Web 并恢复 HTTPS；
+- seed 不创建 Auth 用户、登录方式、邀请、session、正文或 Provider 结果。reset 后旧邀请失效，用户必须
+  显式生成新邀请；真实 reset 仍需用户单独接受数据丢失后执行，离线测试不能替代。
+
+## 2026-08-21：首账号初始化必须通过前向迁移进入生产注册事务
+
+- 本机审计证明现有注册函数只创建 profile/sign-in method，未建立产品规定的当前 UTC 月 1 美元默认
+  grant；环境虽声明导出 bucket，但 bootstrap 也未创建实际 private bucket；
+- password 与 Google 邀请注册必须在同一数据库事务中创建当前月默认 grant，重放不重复且不能覆盖同月
+  admin grant；既有非 deleting profile 由 `0002` forward-only migration 幂等回填；
+- 已执行 baseline 不因本机方便而改 version 或 reset；新增安全的 local migration-up 命令，同时验证 API
+  migration 与 Supabase 时间戳副本一致；
+- Supabase Storage bucket 属于环境 provisioning，不进入可移植业务 migration；本机 bootstrap 只创建
+  private acceptance bucket，hosted/production 仍须各自配置与验收；
+- 本纵切只建立首次月份 grant。后续 UTC 月自动续期是独立额度生命周期需求，不能由本次完成声明外推。
+
+## 2026-08-21：本机用户验收入口必须独立于 Codex 与终端生命周期
+
+- 用户首次打开本机邀请链接时 8443 已无 listener，现场同时证明 Supabase 容器仍健康；根因是原
+  `acceptance:local:dev` 仅为前台命令，却被文档当成可持续交付环境；
+- 用户可持续验收入口固定改为后台生命周期：`dev` 启动或复用、`dev:status` 检查、`dev:stop` 停止，
+  `dev:foreground` 只用于故障诊断；
+- 后台进程必须脱离调用终端、忽略 stdio、禁止 shell，PID 状态只存 ignored `0600` 本机文件；启动成功
+  前以系统信任 CA 验证 Web/API/Supabase 三个 HTTPS 入口，存活但不健康的已记录实例必须被替换；
+- 入口恢复只证明本机 runtime 可达，不升级 Local-ready；注册、Mailpit 确认、登录和核心旅程仍由用户
+  实际完成并反馈。
+
+## 2026-08-21：域名、DNS 与 Resend 从延期项恢复为验收环境准备项
+
+- 用户确认现在可以注册自有域名、Resend 并配置 DNS；Phase 36 的“当前没有外部前置条件”是当时事实，
+  不再代表当前执行状态；
+- `local-acceptance` 仍先实现，Mailpit 仍是本机 Auth 邮件工具；域名采购不会阻塞本机用户验收；
+- `hosted-acceptance` 首选自有根域下的 `app.acceptance` 与 `api.acceptance` 同站双子域，Vercel
+  `*.vercel.app` 同源 gateway 降为域名未就绪时的备用方案；
+- Resend 验收使用独立 `notify.acceptance` 子域，production `notify` 保留；具体 SPF/DKIM/DMARC 值只
+  来自 Resend Dashboard。Supabase Auth SMTP 与 R3-C HTTP sender 使用分离 credential；完成域名验证或
+  SMTP 配置不等于 R3-C 完成；该条记录 Phase 47 当时仍须实现 production sender、通知 CRON、厂商幂等
+  和无正文告警，代码部分后由 Phase 48 关闭，真实外部验收仍 pending；
+- 用户随后选择 `seen-said.cn` 并指定在腾讯云购买：腾讯云保留 registrar/续费/实名职责，Cloudflare DNS
+  Free 只作为权威 DNS，不再使用“Cloudflare Registrar”表述；Resend 固定先用 Free。验收子域为
+  `app.acceptance.seen-said.cn`、`api.acceptance.seen-said.cn` 与
+  `notify.acceptance.seen-said.cn`，production `notify.seen-said.cn` 保留。
+- `.cn` 实名是解析前置；Vercel/Supabase 境外托管的验收环境暂不把 ICP 作为启动前置，未来改用中国大陆
+  服务器或大陆 CDN 时重新设置备案门。购买、实名、NS、DNSSEC、DNS record 与 Resend key 仍须逐步验收。
+
+## 2026-08-21：生产候选前新增可用测试环境与用户自然使用验收门
+
+- 用户纠正原路线缺少“部署起来实际使用、边用边改”的关键阶段；离线自动化、actual bundle 和双平台
+  门禁不能直接导向 production；
+- 环境固定为两层：Mac `local-acceptance` 先用于高频持久使用，隔离 `hosted-acceptance` 后用于真实 TLS、
+  托管 Auth/Storage、跨设备和持续远程使用；两者不与 production 共用资源；
+- 本机使用 loopback HTTPS + Supabase Mailpit；hosted acceptance 优先采用自有根域下的同站 Web/API
+  子域，域名未就绪时才使用平台地址和同源 gateway；不通过 `SameSite=None` 依赖第三方 Cookie；
+- OrbStack 的全局 LAN forwarding 不能成为隐式信任：本机 Supabase 使用固定 loopback Docker network，
+  `start`、`status` 和 Web/API `dev` 均须复核每个项目容器的 network 与 published host；部分端口启动失败
+  必须关闭全部本轮 server；
+- 本机 acceptance composition 默认阻断四条 Provider 出网；首账号使用只保存 peppered hash 的一次性邀请
+  链接注册，不添加 test-only 登录后门。服务可访问或邀请生成都不能替代 Mailpit、Cookie/CSRF 和核心
+  用户旅程验收；
+- 验收账号由受控 bootstrap 创建，不加身份后门；R3-C 在 Resend/DNS 前置条件就绪后恢复实施，但在真实
+  sender、通知 CRON 与告警通过前仍保持 pending；
+- 第二批 Windows 门已由用户回传完成；远端随后推进到指令尺寸修复提交 `d451122`。Phase 47 现在优先于
+  生产部署和商店发布。用户完成跨多日自然使用、反馈回流并明确批准后，才允许冻结 production
+  candidate。
+
 ## 2026-08-21：Phase 46 在第二批候选冻结点停止继续发明本地功能
 
 - 七条产品成功标准中第 1–5、7 条已有离线分层证据；唯一生产代码缺口仍是依赖邮件、域名和告警决策的
@@ -107,8 +482,9 @@
 
 ## 2026-08-20：高频 worker 调度从 Vercel Cron 移到 Supabase Cron
 
-- Vercel Hobby 不接受分钟级 Cron，因此 `apps/api/vercel.json` 不再声明四项 `* * * * *`；四个既有
-  `CRON_SECRET` route、业务状态机、lease/fencing、批次上限和 Windows 支持均不改变；
+- Vercel Hobby 不接受分钟级 Cron，因此 `apps/api/vercel.json` 不再声明四项 `* * * * *`；本条记录
+  Phase 38 当时的四个 `CRON_SECRET` route，Phase 48 后当前固定为五项；业务状态机、lease/fencing、
+  批次上限和 Windows 支持均不改变；
 - production 改由 Supabase `pg_cron + pg_net` 每分钟独立调用 password recovery、data rights、
   ExtensionQuery cleanup 和 duplicate suggestion cleanup。管理员运维 SQL 从 Vault 运行时读取正式 HTTPS
   API origin 与 cron secret，固定四路径 allowlist、search_path、超时与角色撤权，并以固定 job name
@@ -117,8 +493,8 @@
   与 90 秒应用超时冲突后由 Phase 45 的 Fluid/120 秒仓库契约 supersede；个人非商业、真实部署、
   Supabase Free 暂停/无自动备份及 `pg_net` Beta 仍须在独立部署任务裁决；本阶段不创建云资源、不配置
   域名/DNS/Resend、不运行真实服务；
-- R3-C 安全通知不加入第五个 job，继续作为邮件与生产告警独立任务的发布阻塞项。完整方案见
-  `vercel-hobby-supabase-cron.md`。
+- R3-C 安全通知在 Phase 38 当时不加入第五个 job；该决策后由 Phase 48 supersede，当前固定为五个 job。
+  完整现行方案见 `vercel-hobby-supabase-cron.md`。
 
 ## 2026-08-20：R3-C 生产邮件前置条件延期，不以占位配置推进
 
@@ -173,9 +549,9 @@
 - 完整 V1 不再用 A/B 等级或已实现功能域反推；七条成功标准必须各自绑定 production source、
   strict contract、database/RLS test、actual-bundle 用例、fresh 命令和剩余外部门禁，任一缺失层
   都要显式写出。
-- 密码恢复 R3-C 的真实安全通知 sender、通知 CRON 生产组合和告警尚未实现；邮件厂商、
-  verified sender/域名、联系方式和告警渠道也尚未决策。因此它同时是生产代码与外部决策缺口，不得
-  误记为纯验证 pending。
+- Phase 32 当时密码恢复 R3-C 的真实安全通知 sender、通知 CRON 生产组合和告警尚未实现；邮件厂商、
+  verified sender/域名、联系方式和告警渠道也尚未决策。Phase 48 后代码部分关闭，外部决策与真实验收
+  仍 pending。
 - `git diff --check` 只检查已跟踪差异；当前尚有未跟踪 Cloud V1 交付文件，因此候选交付范围
   确认、入库及入库后重跑仍是发布前门禁。
 

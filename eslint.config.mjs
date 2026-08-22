@@ -44,6 +44,7 @@ export default tseslint.config(
       ".worktrees/**",
       "node_modules/**",
       "playwright-report/**",
+      "supabase/.temp/**",
       "test-results/**",
     ],
   },

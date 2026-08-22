@@ -94,6 +94,19 @@ describe("Cloud foundation HTTP adapter", () => {
         "access-control-allow-origin",
       ),
     ).toBeNull();
+
+    const patch = await app.request("/v1/learning-items/item-1", {
+      headers: {
+        "access-control-request-headers": "content-type,idempotency-key,if-match,x-csrf-token",
+        "access-control-request-method": "PATCH",
+        origin,
+      },
+      method: "OPTIONS",
+    });
+    expect(patch.status).toBe(204);
+    expect(patch.headers.get("access-control-allow-origin")).toBe(origin);
+    expect(patch.headers.get("access-control-allow-methods")).toContain("PATCH");
+    expect(patch.headers.get("access-control-expose-headers")).toContain("Content-Disposition");
   });
 
   it("returns only the authenticated Web account's strict quota projection", async () => {

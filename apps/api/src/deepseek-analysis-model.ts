@@ -99,7 +99,7 @@ function trustedContent(
   const parsed = privateAnalysisOutputSchema.safeParse(json);
   if (!parsed.success) return null;
   const parsedResult = parsed.data.result;
-  let result: unknown;
+  let result: unknown = parsedResult;
   if ("sentences" in parsedResult) {
     if (parsedResult.sentences.length !== sentences.length) return null;
     result = {

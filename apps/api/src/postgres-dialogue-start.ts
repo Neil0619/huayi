@@ -207,7 +207,7 @@ export async function completeDialogueStart(
   database: AnalysisDatabase,
   command: Parameters<DialoguePracticeRepository["completeStart"]>[0],
 ) {
-  return database.transaction(command.ownerUserId, async ({ tenant, trusted }) => {
+  return database.transaction(command.ownerUserId, async ({ tenant }) => {
     const tasks = await tenant.rows<{ output: unknown }>(
       `SELECT output FROM practice_generation_tasks WHERE id=$1 AND session_id=$2
         AND lease_token=$3 AND kind='dialogue-start' AND state='ready' FOR UPDATE`,
@@ -253,7 +253,7 @@ export async function completeDialogueStart(
     );
     const response = await loadPracticeSession(tenant, command.sessionId);
     const expiresAt = new Date(Date.parse(command.now) + 7 * 86_400_000).toISOString();
-    await trusted.rows(
+    await tenant.rows(
       `INSERT INTO idempotency_records(owner_user_id,operation,key,request_hash,response,expires_at)
         VALUES($1,'practice.dialogue-start',$2,$3,$4::jsonb,$5)`,
       [

@@ -17,13 +17,13 @@ export async function beginPracticeWrite(
 }
 
 export async function savePracticeWrite(
-  trusted: AnalysisQuery,
+  tenant: AnalysisQuery,
   command: { idempotencyKey: string; now: string; ownerUserId: string; requestHash: string },
   operation: string,
   response: PracticeSession,
 ) {
   const expiresAt = new Date(Date.parse(command.now) + 7 * 86_400_000).toISOString();
-  await trusted.rows(
+  await tenant.rows(
     `INSERT INTO idempotency_records(owner_user_id,operation,key,request_hash,response,expires_at)
       VALUES($1,$2,$3,$4,$5::jsonb,$6::timestamptz)`,
     [

@@ -29,8 +29,11 @@ test("completed practice history deletes without removing learning items or sche
   await expect(page.getByText("讨论方案是否具备足够证据。")).toBeVisible();
   await expect(page.getByText(privateReply)).toBeVisible();
   await expect(page.getByText(privateFeedback)).toBeVisible();
-  await expect(page.getByText("practice-item-1：掌握")).toBeVisible();
-  await expect(page.getByText("practice-item-2：勉强")).toBeVisible();
+  await expect(page.getByText("to be completely frank：掌握")).toBeVisible();
+  await expect(page.getByText("It is worth {action}：勉强")).toBeVisible();
+  await expect(page.locator("body")).not.toContainText("practice-item-1");
+  await expect(page.locator("body")).not.toContainText("practice-item-2");
+  await expect(page.locator("body")).not.toContainText("practice-history-dialogue");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 
   await page.getByRole("button", { name: "删除这次练习" }).click();

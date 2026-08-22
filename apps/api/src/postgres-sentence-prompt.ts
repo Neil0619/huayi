@@ -23,12 +23,12 @@ async function begin(trusted: AnalysisQuery, command: BeginCommand) {
 }
 
 async function savePending(
-  trusted: AnalysisQuery,
+  tenant: AnalysisQuery,
   command: BeginCommand,
   response: PracticeSession,
 ) {
   const expiresAt = new Date(Date.parse(command.now) + 7 * 86_400_000).toISOString();
-  await trusted.rows(
+  await tenant.rows(
     `INSERT INTO idempotency_records(owner_user_id,operation,key,request_hash,response,expires_at)
       VALUES($1,'practice.start',$2,$3,$4::jsonb,$5::timestamptz)`,
     [
@@ -101,7 +101,7 @@ export function createPostgresSentencePromptOperations(
             current.task_state === "ready" &&
             current.task_lease_token !== null
           ) {
-            await savePending(trusted, command, session);
+            await savePending(tenant, command, session);
             return {
               claimed: true,
               generationId: current.current_generation_id,
@@ -115,7 +115,7 @@ export function createPostgresSentencePromptOperations(
             current.task_state === "dispatched" &&
             current.task_lease_token !== null
           ) {
-            await savePending(trusted, command, session);
+            await savePending(tenant, command, session);
             return current.task_lease_expires_at !== null &&
               current.task_lease_expires_at.getTime() <= Date.parse(command.now)
               ? {
@@ -132,7 +132,7 @@ export function createPostgresSentencePromptOperations(
             current.generation_lease_expires_at !== null &&
             current.generation_lease_expires_at.getTime() > Date.parse(command.now)
           ) {
-            await savePending(trusted, command, session);
+            await savePending(tenant, command, session);
             return { claimed: false, item: requestedItem, session };
           }
           let generationId = current.current_generation_id;
@@ -180,7 +180,7 @@ export function createPostgresSentencePromptOperations(
             ],
           );
           const claimed = await loadPracticeSession(tenant, current.id);
-          await savePending(trusted, command, claimed);
+          await savePending(tenant, command, claimed);
           return {
             claimed: true,
             generationId,
@@ -236,7 +236,7 @@ export function createPostgresSentencePromptOperations(
           command.generationId,
         ]);
         const session = await loadPracticeSession(tenant, command.sessionId);
-        await savePending(trusted, command, session);
+        await savePending(tenant, command, session);
         return {
           claimed: true,
           generationId: command.generationId,
@@ -247,7 +247,7 @@ export function createPostgresSentencePromptOperations(
       });
     },
     async completeSentencePrompt(command: CompleteCommand) {
-      return database.transaction(command.ownerUserId, async ({ tenant, trusted }) => {
+      return database.transaction(command.ownerUserId, async ({ tenant }) => {
         const applied = await tenant.rows<{ id: string }>(
           `UPDATE practice_generation_tasks SET state='applied',output=NULL,updated_at=$3
             WHERE session_id=$1 AND owner_user_id=$2 AND lease_token=$4 AND state='ready'
@@ -279,7 +279,7 @@ export function createPostgresSentencePromptOperations(
         if (updated[0] === undefined && session.prompt !== command.prompt) {
           throw new CloudFault("revision_conflict", "Practice prompt generation changed.");
         }
-        await trusted.rows(
+        await tenant.rows(
           `UPDATE idempotency_records SET response=$5::jsonb
             WHERE owner_user_id=$1 AND operation='practice.start' AND key=$2 AND request_hash=$3
             AND expires_at>$4`,

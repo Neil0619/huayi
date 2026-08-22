@@ -11,14 +11,6 @@ import { settleFailedPracticeGeneration } from "./postgres-practice-generation-s
 import type { DeepSeekPriceSchedule } from "./deepseek-price-schedule.js";
 import { DEEPSEEK_PLATFORM_MODEL } from "./deepseek-analysis-protocol.js";
 
-const featureByKind: Record<PracticeGenerationKind, string> = {
-  "dialogue-assistant": "practice.dialogue-assistant",
-  "dialogue-final-feedback": "practice.dialogue-final-feedback",
-  "dialogue-start": "practice.dialogue-start",
-  "sentence-feedback": "practice.sentence-feedback",
-  "sentence-prompt": "practice.sentence-prompt",
-};
-
 interface TaskRow {
   attempt_id: string | null;
   kind: PracticeGenerationKind;
@@ -99,71 +91,18 @@ export function createPostgresPracticeGenerationRepository(options: {
         if (current.reservation_id === null || current.price_version_id === null) {
           throw new CloudFault("revision_conflict", "Practice generation reservation is missing.");
         }
-        await options.database.trusted(async (query) => {
-          const reservations = await query.rows<{
-            owner_user_id: string;
-            period_start: Date;
-            request_id: string;
-            reserved_micro_usd: string;
-            status: string;
-            user_id: string;
-          }>(
-            `SELECT user_id::text,owner_user_id::text,request_id::text,period_start,
-              reserved_micro_usd::text,status FROM quota_reservations WHERE id=$1 FOR UPDATE`,
-            [current.reservation_id],
-          );
-          const reservation = reservations[0];
-          if (
-            reservation === undefined ||
-            reservation.user_id !== command.ownerUserId ||
-            reservation.owner_user_id !== command.ownerUserId ||
-            reservation.request_id !== command.generationId ||
-            !["active", "released"].includes(reservation.status)
-          ) {
-            throw new CloudFault("revision_conflict", "Practice reservation changed.");
-          }
-          const abandoned = await query.rows<{ id: string }>(
-            `UPDATE practice_generation_tasks SET state='abandoned',
-              stable_error_code='model_unavailable',updated_at=$4
-              WHERE id=$1 AND owner_user_id=$2 AND lease_token=$3 AND state='dispatched'
-              AND lease_expires_at<=$4 RETURNING id::text`,
-            [command.generationId, command.ownerUserId, command.leaseToken, options.now()],
-          );
-          if (abandoned[0] === undefined) return;
-          await query.rows(
-            `INSERT INTO usage_ledger(
-              id,user_id,owner_user_id,request_id,call_ordinal,period_start,feature,
-              price_version_id,cost_micro_usd,outcome
-            ) VALUES($1,$2,$2,$3,0,$4,$5,$6,$7,'failed')`,
-            [
-              options.ledgerId(),
-              command.ownerUserId,
-              command.generationId,
-              reservation.period_start,
-              featureByKind[command.kind],
-              current.price_version_id,
-              Number(reservation.reserved_micro_usd),
-            ],
-          );
-          await query.rows(
-            "UPDATE quota_reservations SET status='settled',updated_at=$2 WHERE id=$1",
-            [current.reservation_id, options.now()],
-          );
-          await query.rows(
-            `UPDATE practice_sessions SET current_generation_id=NULL,
-              generation_lease_token=NULL,generation_lease_expires_at=NULL,updated_at=$3
-              WHERE id=$1 AND owner_user_id=$2 AND current_generation_id=$4`,
-            [current.session_id, command.ownerUserId, options.now(), command.generationId],
-          );
-          if (current.attempt_id !== null) {
-            await query.rows(
-              `UPDATE practice_attempts SET current_generation_id=NULL,
-                feedback_lease_token=NULL,feedback_lease_expires_at=NULL,updated_at=$3
-                WHERE id=$1 AND owner_user_id=$2 AND current_generation_id=$4`,
-              [current.attempt_id, command.ownerUserId, options.now(), command.generationId],
-            );
-          }
-        });
+        const operationTime = options.now();
+        await options.database.transaction(command.ownerUserId, (queries) =>
+          settleFailedPracticeGeneration(queries, {
+            ...command,
+            ledgerId: options.ledgerId,
+            leaseExpiredAt: operationTime,
+            now: operationTime,
+            reservationId: current.reservation_id ?? "",
+            stableErrorCode: "model_unavailable",
+            terminalState: "abandoned",
+          }),
+        );
         return { kind: "pending" };
       }
       if (current.state === "reserved" && current.reservation_id !== null) {
@@ -228,8 +167,8 @@ export function createPostgresPracticeGenerationRepository(options: {
         inputTokens: call.usage.inputTokens,
         outputTokens: call.usage.outputTokens,
       }));
-      await options.database.trusted(async (query) => {
-        const updated = await query.rows<{ id: string }>(
+      await options.database.transaction(command.ownerUserId, async ({ tenant, trusted }) => {
+        const updated = await tenant.rows<{ id: string }>(
           `UPDATE practice_generation_tasks SET state='ready',output=$4::jsonb,updated_at=now()
             WHERE id=$1 AND owner_user_id=$2 AND lease_token=$3 AND state='dispatched'
             RETURNING id::text`,
@@ -237,22 +176,25 @@ export function createPostgresPracticeGenerationRepository(options: {
         );
         if (updated[0] === undefined)
           throw new CloudFault("revision_conflict", "Practice generation changed.");
-        await query.rows(
-          "SELECT settle_quota_reservation($1,$2::uuid[],$3,$4,$5::jsonb,'succeeded')",
+        await trusted.rows(
+          `SELECT settle_practice_generation_quota(
+            $1,$2,$3,$4::uuid[],$5::jsonb,'succeeded',$6
+          )`,
           [
+            command.ownerUserId,
+            command.generationId,
             command.reservationId,
             calls.map(() => options.ledgerId()),
-            featureByKind[command.kind],
-            command.pricing?.priceVersionId ?? options.priceVersionId,
             JSON.stringify(calls),
+            options.now(),
           ],
         );
       });
       return output;
     },
     async fail(command) {
-      await options.database.trusted((query) =>
-        settleFailedPracticeGeneration(query, {
+      await options.database.transaction(command.ownerUserId, (queries) =>
+        settleFailedPracticeGeneration(queries, {
           ...command,
           ledgerId: options.ledgerId,
           now: options.now(),

@@ -13,5 +13,22 @@ describe("public Web bootstrap", () => {
     expect(resolveWebBootstrap("/app", { VITE_API_ORIGIN: "https://api.huayi.example" })).toEqual({
       environment: { VITE_API_ORIGIN: "https://api.huayi.example" },
     });
+    expect(
+      resolveWebBootstrap("/app", {
+        VITE_ACCEPTANCE_MODEL: "simulated",
+        VITE_API_ORIGIN: "https://api.acceptance.localhost:8444",
+      }),
+    ).toEqual({
+      environment: {
+        VITE_ACCEPTANCE_MODEL: "simulated",
+        VITE_API_ORIGIN: "https://api.acceptance.localhost:8444",
+      },
+    });
+    expect(
+      resolveWebBootstrap("/app", {
+        VITE_ACCEPTANCE_MODEL: "deepseek",
+        VITE_API_ORIGIN: "https://api.acceptance.localhost:8444",
+      }),
+    ).toEqual({});
   });
 });

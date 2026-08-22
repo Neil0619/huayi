@@ -72,6 +72,14 @@ describe("Web analysis history", () => {
     expect(container.textContent).toContain("坦率地说，这很有效");
     expect(container.textContent).toContain("to be frank");
     expect(container.textContent).toContain("deepseek-chat");
+    expect(container.textContent).toContain("句首插入语");
+    expect(container.textContent).not.toContain("analysis-1");
+    expect(container.textContent).not.toContain("candidate-1");
+    expect(container.textContent).not.toContain("分析单元 u1");
+    expect(container.textContent).not.toContain("revision");
+    expect(container.textContent).not.toContain("sentence-passage-analysis-v2");
+    expect(container.textContent).not.toContain("Prompt 1");
+    expect(container.textContent).not.toContain("Schema 1");
     const archived = container.querySelector<HTMLSelectElement>("[name='archived']");
     const review = container.querySelector<HTMLSelectElement>("[name='reviewState']");
     if (archived === null || review === null) throw new Error("History filters missing.");

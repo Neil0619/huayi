@@ -277,10 +277,11 @@ describe("Cloud V1 password recovery database state machine", () => {
     const notificationId = "32000000-0000-0000-0000-000000000003";
     await database.exec(`
       INSERT INTO security_notification_outbox(
-        id,owner_user_id,kind,available_at,created_at
+        id,owner_user_id,kind,available_at,created_at,delivery_deadline_at
       ) VALUES (
         '${notificationId}','${userA}','password-reset-completed',
-        '2026-08-14T10:00:00.000Z','2026-08-14T10:00:00.000Z'
+        '2026-08-14T10:00:00.000Z','2026-08-14T10:00:00.000Z',
+        '2026-08-15T09:00:00.000Z'
       )
     `);
     const first = await database.query<{

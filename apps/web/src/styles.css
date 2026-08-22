@@ -89,6 +89,22 @@ body {
   margin: 0;
   background: var(--surface-canvas);
 }
+.acceptance-environment-notice {
+  position: sticky;
+  z-index: 30;
+  top: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  color: var(--text-on-action);
+  background: var(--surface-inverse);
+  text-align: center;
+}
+.acceptance-environment-notice span {
+  color: var(--text-on-action);
+}
 button,
 input,
 textarea {

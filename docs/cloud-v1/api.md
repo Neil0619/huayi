@@ -8,6 +8,9 @@
 - 各资源显式声明的可重放 mutation 必须带不超过 128 字符的 `Idempotency-Key`；编辑、归档、恢复和
   删除通常还需 `If-Match: "<revision>"`。认证、邀请、pairing approval 与一次性 auth/link flow 使用
   各自的短时状态机和读取恢复语义，不伪造 replay header。
+- 本轮不新增公开路由或响应字段。练习开始、反馈、评分和历史契约保持不变；内部生成完成只有在 task、
+  usage ledger 与 quota reservation 同一事务全部终态化后才返回成功，失败不会把内部权限错误暴露给
+  Web。
 - 每个响应含 `X-Request-Id`。错误 envelope：
 
 ```ts
@@ -50,6 +53,7 @@ type ApiError = {
 | `POST /v1/auth/google/start`      | 发起 Google OAuth    | body 中的 claim ticket；302 到 Supabase/Google             |
 | `GET /v1/auth/csrf`               | 登录后获取新 CSRF    | HttpOnly Cookie + Web Origin；轮换后返回短时 token         |
 | `POST /v1/auth/password/register` | 邮箱密码注册         | claim ticket、email、password；要求邮件验证                |
+| `GET /v1/auth/password/callback`  | 完成邮箱确认         | Supabase code + opaque flow；设置 Web Cookie 并跳转工作台  |
 | `POST /v1/auth/password/login`    | 已注册账号登录       | email、password；设置 Web Cookie                           |
 | `POST /v1/auth/password/recovery` | 请求密码恢复         | email；统一 202 accepted，不披露账号或 method              |
 | `POST /v1/auth/logout`            | 撤销当前 Web session | CSRF；204                                                  |
@@ -63,6 +67,9 @@ type ApiError = {
 密码注册 202/200 与密码登录 200 响应都使用 `Cache-Control: private, no-store`。注册 202 只返回
 `{emailConfirmationRequired:true}`，不设置 Web Cookie；只有邮件确认 callback 完成邀请，或 provider 明确
 返回已验证 session 时才可创建 Cookie。密码登录错误统一为认证失败，不回显账号或供应商细节。
+密码确认只允许 `/v1/auth/password/callback` 并以显式 `password` 完成邀请；Google 继续使用
+`/v1/auth/callback`。两条 callback 不按 query 或 Provider 返回值猜测 method，缺失/过期/错用途 flow 均
+失败关闭。已消费的确认 code 不支持重试；确认完成但跳转失败的账号经前向修复后直接走密码登录。
 
 PasswordRecovery 使用独立五路由状态机：start 为 strict `{email}` 并对未知/Google-only/非 active/eligible
 统一 202 `{accepted:true}`；只有 active+password method 才创建 flow。邮件固定回到
@@ -74,15 +81,20 @@ PasswordRecovery 使用独立五路由状态机：start 为 strict `{email}` 并
 Huayi Web/Extension sessions并要求重新登录；不创建 Huayi session、不新增 method。全部响应 no-store，
 callback no-referrer；有效且未限速的 start 202 固定至少 250ms handler floor。完整契约见
 `password-recovery.md`。当前 strict route/input/output、五条公开 handler、internal outcome/dispatch route、
-production composition、Web strict client/页面与 actual-bundle fake-mail journey 已离线实现；真实通知
-sender/CRON/告警、Supabase/邮件/部署与双平台 Chrome 尚未验证。
+production composition、Web strict client/页面与 actual-bundle fake-mail journey 已离线实现。R3-C
+另提供 `GET /internal/security-notifications/run`：只接受 CRON bearer，返回
+`failed|idle|sent|terminalized`，不返回 email、owner、notification ID 或 Provider detail；真实
+DNS/verified sender/Resend 投递/监控目的地、Supabase/邮件部署与双平台 Chrome 尚未验证。
 eligible start 只创建 `requested` flow；外部发信由
 `GET /internal/password-recovery/run` 的 CRON bearer worker 每次有界领取一个任务。worker 在 Provider
 前耐久标记 dispatch，若回执不明确则不得自动重发。
 
 Web 与 API 为独立 origin；API CORS 只允许固定 `HUAYI_WEB_ORIGIN` 与配置的发布 Store Extension
 origin，响应包含 `Vary: Origin`。只有 Web origin 携带 Cookie；Extension 使用 Authorization 和
-client-version 且 `credentials=omit`。OAuth callback 绝对跳转至 Web `/app`。Web 随后以 HttpOnly
+client-version 且 `credentials=omit`。允许方法必须覆盖公开路由实际使用的 GET/POST/PUT/PATCH/DELETE
+与 OPTIONS；尤其学习项编辑和账号偏好更新的 PATCH 预检不得被全局 CORS 提前拒绝。OAuth callback
+绝对跳转至 Web `/app`。词表下载的固定 `Content-Disposition` 必须列入 CORS exposed headers，否则
+Web 即使收到成功正文也不能校验文件契约。Web 随后以 HttpOnly
 session Cookie 和固定 Origin 调用 `/v1/auth/csrf`，原子轮换服务端 hash 后取得 token；长期 token
 不进入 OAuth query。
 
@@ -102,6 +114,10 @@ session、token/hash、install ID、quota 或正文。disabled data-rights sessi
 `user_profiles` 和本次实际 `account_sign_in_methods.method` 的幂等 finalization 完成后才标记 consumed；
 失败可以使用同一 ticket 安全重试，不能签发业务 session、生成多个 profile 或给既有 profile 补 method。
 失去有效 ticket 的孤立 Auth identity 不可登录并由清理任务删除。
+
+FirstOperatorBootstrap 不新增任何 `/v1`、`/internal` 或 Web route。BootstrapInvitation 发行与首位账号
+晋升只存在于显式部署 CLI + project-admin database function；浏览器仍只看到上表现有邀请/认证接口，
+且 complete 不接受客户端 userId、email、role 或 bootstrap secret。
 
 普通 `POST /v1/auth/password/login` 与 Google `kind=login` callback 都在 provider 成功后、Web session
 创建前校验 `(userId,password|google)` 已登记。未登记、profile 不存在或 deleting 统一
@@ -199,7 +215,9 @@ Web 客户端通过 HttpOnly Cookie、固定 Origin、CSRF token 和新幂等键
 `AbortSignal` 停止当前 SSE 消费，但 V1 没有平台分析取消端点，不能据此推断模型调用或服务器租约已
 撤销；客户端必须忽略该运行代次的迟到事件，后续完成记录仍以服务器待整理区为准。若流只返回
 `analysis.started` 或连接在取得 request ID 后中断，客户端查询严格 request status；`running` 不得
-伪装为完成或自动以新 key 重跑。
+伪装为完成或自动以新 key 重跑。浏览器中止 SSE 后仍须保留该 request ID；用户手动查询若仍为
+`running`，页面必须确认“已检查、仍在处理”，不能表现为按钮无响应。修改输入不解除这个 server-side
+generation fence。
 
 Web manual 与 StudyCapture analyze 都使用 WebDeepAnalysis V2；phrase 只允许 ExpressionCandidate，
 sentence/passage 只允许 ExpressionCandidate/SentencePatternCandidate。phrase 固定 `analysisUnitId=u1`，
@@ -208,6 +226,9 @@ Provider、model、quota 和 URL。`POST /v1/study-captures/:id/analyses:stream`
 `intent=initial|reanalysis`；reanalysis 使用新 key 并追加记录。initial 失败 fencing 后 capture 回到
 pending；reanalysis 期间保持 analyzed，失败保留旧 latest，成功才追加 AnalysisRecord/candidates 并更新
 最新投影。
+模型返回的 candidate ID 只在本次 private output 内作为引用别名；Analysis module 严格解析引用关系后，
+为每个 candidate 分配服务器 UUID 并同步替换 result 中的 alias。数据库、公共 AnalysisRecord 与后续
+确认接口只接收服务器 UUID，不信任 Provider identity。
 manual 记录 `source.type=manual`；capture endpoint 忽略/拒绝客户端 source type，服务器固定
 `source.type=study-capture`。两者都不出现 web-selection/youtube-caption。
 
@@ -420,8 +441,11 @@ DialoguePlan，不用内部占位文案伪装正式题目。
 练习历史默认 `limit=20`，可按 `status=active|awaiting-feedback|completed|failed` 与
 `type=sentence-creation|dialogue` 筛选。未完成项以 null completion time 和 ID 稳定分页，完成项再按
 `(completedAt,id)` 降序；cursor 是资源隔离、签名且版本化的不透明值。列表只返回会话元数据、有序 item
-ID/自评和 revision；详情返回严格公开 PracticeSession 及可空 `completedAt`，不返回 owner、生成/反馈
-lease、token、内部 prompt reservation 或幂等记录。
+ID/自评和 revision；详情返回严格公开 PracticeSession、可空 `completedAt`，以及按 session position 排序
+的 `itemLabels:[{itemId,label}]`。labels 必须恰好覆盖仍保留正文的 session item，文本来自 owner-scoped
+LearningItem expression `text` 或 sentence-pattern `template`；已擦除 item 不返回 label，由客户端显示固定
+“学习项已删除”。不得以 item ID 作为显示 fallback，也不返回 owner、生成/反馈 lease、token、内部
+prompt reservation 或幂等记录。
 
 DELETE 必须同时携带 Cookie、固定 Origin、CSRF、`Idempotency-Key`、`If-Match` 与 body 中相同的
 `expectedRevision`。只有 status=completed|failed 且不存在 pending generation/反馈 worker lease 的会话

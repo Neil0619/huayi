@@ -112,5 +112,14 @@ completed history + two learning items
 - 实现后复审把缺失详情和 conflict 分支也统一到 strict error helper，并在详情页与今日练习页都检查
   390px 无横向溢出；未发现需要修改生产行为的新问题。
 
+## 8. 2026-08-22 真实本机对话复审
+
+- 真实账号在 local acceptance 完成两项、三轮对话、最终逐项反馈和原子自评；历史详情却把两项名称显示
+  为内部 UUID。旧离线旅程只断言反馈/自评存在，没有断言名称可识别，因此属于验收标准缺口；
+- 详情契约新增 owner-scoped `itemLabels` 只读投影，恰好覆盖未擦除 session item；Web 必须用 label 渲染
+  逐项反馈和自评，禁止回退到 ID；详情标题上方也不显示 session ID。擦除后的墓碑仍只显示固定文案；
+- 新增 contract、PGlite repository、React component 与实际浏览器回归；修复后重新打开本次真实对话详情，
+  必须看到 `to follow up on`、`from my perspective`，且主 DOM 不再出现对应 UUID。
+
 真实 Supabase/RLS、多连接数据库、真实身份、部署浏览器与目标平台验证仍未执行，不能由 97/97 离线
 证据替代。

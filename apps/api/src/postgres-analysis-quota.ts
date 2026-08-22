@@ -42,6 +42,8 @@ export function createPostgresAnalysisQuota(options: {
         const message = error instanceof Error ? error.message : "";
         if (message.includes("quota exhausted"))
           throw new CloudFault("quota_exhausted", "Quota exhausted.");
+        if (message.includes("model rate limited"))
+          throw new CloudFault("rate_limited", "The model request rate limit was reached.");
         if (message.includes("model unavailable"))
           throw new CloudFault("model_unavailable", "Model unavailable.");
         if (message.includes("model price mismatch"))
@@ -62,8 +64,11 @@ export function createPostgresAnalysisQuota(options: {
       );
     },
     async summary(userId) {
-      const rows = await options.database.trusted((query) =>
-        query.rows<{
+      const now = options.now();
+      const periodStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+      const rows = await options.database.transaction(userId, async ({ tenant, trusted }) => {
+        await trusted.rows("SELECT ensure_owner_current_default_quota($1,$2)", [userId, now]);
+        return tenant.rows<{
           limit_micro_usd: string;
           period_end: Date;
           period_start: Date;
@@ -75,15 +80,14 @@ export function createPostgresAnalysisQuota(options: {
           AND period_start=grants.period_start),0)::text AS used_micro_usd,
         COALESCE((SELECT sum(reserved_micro_usd) FROM quota_reservations WHERE user_id=$1
           AND period_start=grants.period_start AND status='active'),0)::text AS reserved_micro_usd
-        FROM quota_grants grants WHERE grants.user_id=$1 AND grants.superseded_at IS NULL
-        ORDER BY period_start DESC LIMIT 1`,
-          [userId],
-        ),
-      );
+        FROM quota_grants grants WHERE grants.user_id=$1 AND grants.period_start=$2
+          AND grants.superseded_at IS NULL
+        LIMIT 1`,
+          [userId, periodStart],
+        );
+      });
       const row = rows[0];
       if (row === undefined) {
-        const now = options.now();
-        const periodStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
         const periodEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
         return {
           availableMicroUsd: 0,

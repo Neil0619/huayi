@@ -142,7 +142,7 @@ export function createPostgresDialogueFinishOperations(
         if (row.status === "awaiting-feedback" && row.pending_generation === "final-feedback") {
           const claim = await claimPendingFinish(tenant, command);
           if (claim.claimed) {
-            await saveDialogueWrite(trusted, command, "practice.dialogue-finish", claim.session);
+            await saveDialogueWrite(tenant, command, "practice.dialogue-finish", claim.session);
           }
           return claim;
         }
@@ -184,7 +184,7 @@ export function createPostgresDialogueFinishOperations(
           ],
         );
         const session = await loadPracticeSession(tenant, command.sessionId);
-        await saveDialogueWrite(trusted, command, "practice.dialogue-finish", session);
+        await saveDialogueWrite(tenant, command, "practice.dialogue-finish", session);
         return {
           claimed: true,
           generationId: command.generationId,
@@ -194,7 +194,7 @@ export function createPostgresDialogueFinishOperations(
       });
     },
     async completeFinish(command) {
-      return database.transaction(command.ownerUserId, async ({ tenant, trusted }) => {
+      return database.transaction(command.ownerUserId, async ({ tenant }) => {
         const tasks = await tenant.rows<{ output: unknown }>(
           `SELECT output FROM practice_generation_tasks WHERE id=$1 AND session_id=$2
             AND lease_token=$3 AND kind='dialogue-final-feedback' AND state='ready' FOR UPDATE`,
@@ -244,7 +244,7 @@ export function createPostgresDialogueFinishOperations(
         );
         const response = await loadPracticeSession(tenant, command.sessionId);
         await replaceDialogueWrite(
-          trusted,
+          tenant,
           command.ownerUserId,
           "practice.dialogue-finish",
           command.idempotencyKey,

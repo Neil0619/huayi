@@ -147,6 +147,7 @@ describe("Web practice API", () => {
   it("uses fixed history list/detail and strict delete requests", async () => {
     const detail = {
       completedAt: "2026-08-13T05:05:00.000Z",
+      itemLabels: [{ itemId: "item-1", label: "to be frank" }],
       session: {
         attempts: [
           {

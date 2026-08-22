@@ -238,8 +238,8 @@ export function createPostgresAccountDataExportSource(database: AnalysisDatabase
         for (const { id } of analyses) {
           const analysis = (
             await trusted.rows<{ value: unknown }>(
-              "SELECT huayi_private.analysis_public_record($1) value",
-              [id],
+              "SELECT huayi_private.owner_analysis_public_record($1,$2) value",
+              [ownerUserId, id],
             )
           )[0]?.value;
           records.push(accountDataExportRecordSchema.parse({ analysis, recordType: "analysis" }));

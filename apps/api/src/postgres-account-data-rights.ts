@@ -11,7 +11,7 @@ import type { AccountDataRightsRepository } from "./account-data-rights-module.j
 import { CloudFault } from "./cloud-fault.js";
 
 interface ExportRow {
-  byte_length: number | null;
+  byte_length: number | string | null;
   created_at: Date | string;
   expires_at: Date | string | null;
   format_version: number;
@@ -28,7 +28,15 @@ function instant(value: Date | string): string {
   return typeof value === "string" ? new Date(value).toISOString() : value.toISOString();
 }
 
-function project(row: ExportRow): AccountDataExportJobResource {
+function databaseInteger(value: number | string | null): number | null {
+  if (typeof value !== "string") return value;
+  if (!/^(?:0|[1-9]\d*)$/u.test(value)) throw new Error("Invalid database integer.");
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed)) throw new Error("Database integer exceeds safe range.");
+  return parsed;
+}
+
+export function projectAccountDataExportRow(row: ExportRow): AccountDataExportJobResource {
   const common = {
     createdAt: instant(row.created_at),
     formatVersion: row.format_version,
@@ -39,7 +47,7 @@ function project(row: ExportRow): AccountDataExportJobResource {
   if (row.state === "ready") {
     return accountDataExportJobResourceSchema.parse({
       ...common,
-      byteLength: row.byte_length,
+      byteLength: databaseInteger(row.byte_length),
       expiresAt: row.expires_at === null ? null : instant(row.expires_at),
       recordCount: row.record_count,
       state: row.state,
@@ -122,7 +130,7 @@ export function createPostgresAccountDataRights(
              ORDER BY created_at DESC,id DESC LIMIT 1`,
           )
         )[0];
-        return row === undefined ? null : project(row);
+        return row === undefined ? null : projectAccountDataExportRow(row);
       });
     },
     async exportDownload(ownerUserId, exportId) {
@@ -172,10 +180,8 @@ export function createPostgresAccountDataRights(
     async replayDeletion(command) {
       return database.trusted(async (trusted) => {
         const row = (
-          await trusted.rows<{ requested_at: Date | string }>(
-            `SELECT requested_at FROM account_deletion_jobs
-             WHERE request_key_hash=$1 AND request_hash=$2 AND request_session_hash=$3
-               AND ack_expires_at>now() LIMIT 1`,
+          await trusted.rows<{ requested_at: Date | string | null }>(
+            "SELECT replay_account_deletion($1,$2,$3) requested_at",
             [
               protect("deletion-key", command.idempotencyKey),
               command.requestHash,
@@ -183,7 +189,7 @@ export function createPostgresAccountDataRights(
             ],
           )
         )[0];
-        return row === undefined
+        return row?.requested_at === null || row?.requested_at === undefined
           ? null
           : accountDeletionResponseSchema.parse({
               accepted: true,
@@ -224,7 +230,7 @@ export function createPostgresAccountDataRights(
             )[0];
           }
           if (row === undefined) throw new Error("Export insert returned no row.");
-          const response = project(row);
+          const response = projectAccountDataExportRow(row);
           await save(tenant, command, operation, response);
           return response;
         });
@@ -267,7 +273,7 @@ export function createPostgresAccountDataRights(
             )
           )[0];
           if (row === undefined) throw new Error("Export retry returned no row.");
-          const response = project(row);
+          const response = projectAccountDataExportRow(row);
           await save(tenant, command, operation, response);
           return response;
         });

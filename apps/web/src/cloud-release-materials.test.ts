@@ -7,12 +7,31 @@ import { describe, expect, it } from "vitest";
 const listing = readFileSync("docs/cloud-v1/store-listing.md", "utf8");
 const privacy = readFileSync("docs/cloud-v1/privacy-policy.md", "utf8");
 const privacyPage = readFileSync("apps/web/src/privacy-page.tsx", "utf8");
+const webVercel = JSON.parse(readFileSync("apps/web/vercel.json", "utf8")) as Record<
+  string,
+  unknown
+>;
 const manifest = JSON.parse(readFileSync("apps/store-extension/manifest.json", "utf8")) as Record<
   string,
   unknown
 >;
 
 describe("Cloud release trust materials", () => {
+  it("pins the hosted Web build and SPA output contract", () => {
+    expect(webVercel.framework).toBe("vite");
+    expect(webVercel.buildCommand).toBe("pnpm build");
+    expect(webVercel.outputDirectory).toBe("dist");
+    expect(webVercel.rewrites).toEqual([{ destination: "/index.html", source: "/(.*)" }]);
+  });
+
+  it("keeps the Store single purpose on English understanding and the learning loop", () => {
+    const normalized = listing.replaceAll(/\s+/gu, " ");
+    expect(normalized).toContain("理解当前阅读或观看语境中主动选择的英文");
+    expect(normalized).toContain("分析、整理、学习与练习闭环");
+    expect(normalized).toContain("不下载或执行远程扩展代码");
+    expect(normalized).not.toContain("Web 是远程代码宿主");
+  });
+
   it("covers every current Manifest permission and third-party host", () => {
     for (const permission of manifest.permissions as string[])
       expect(listing).toContain(permission);

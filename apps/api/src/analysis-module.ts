@@ -1,18 +1,18 @@
 import {
   analysisEventSchema,
-  analysisContentSchema,
-  normalizeWhitespaceAndQuotes,
   startAnalysisRequestSchema,
   studyCaptureAnalyzeRequestSchema,
   type AnalysisEvent,
   type AnalysisRecord,
   type StartAnalysisRequest,
   type AnalysisContent,
+  type ModelUsage,
 } from "@huayi/cloud-contracts";
 import { createHash } from "node:crypto";
 
 import type {
   AnalysisCommitter,
+  AnalysisBilledCall,
   AnalysisModel,
   AnalysisQuota,
   AnalysisRequestLifecycle,
@@ -33,6 +33,8 @@ import { createAnalysisHistoryModule } from "./analysis-history-module.js";
 import { createCandidateConfirmationModule } from "./candidate-confirmation-module.js";
 import { CloudFault } from "./cloud-fault.js";
 import type { DeepSeekPriceSchedule, DeepSeekPriceSnapshot } from "./deepseek-price-schedule.js";
+import { replaceCandidateAliases } from "./analysis-candidate-ids.js";
+import { assembleTrustedContent } from "./analysis-trusted-content.js";
 
 export { segmentSentences } from "./analysis-segmentation.js";
 
@@ -204,6 +206,13 @@ export function createAnalysisModule(dependencies: AnalysisDependencies) {
     capture?: CaptureContext;
   }): AsyncIterable<AnalysisEvent> {
     const { capture, claim, command, dispatchPricing, input, reservation, sentences } = context;
+    let generatedBilling:
+      | {
+          actualCostMicroUsd?: number;
+          billedCalls?: readonly AnalysisBilledCall[];
+          usage?: ModelUsage;
+        }
+      | undefined;
     yield analysisEventSchema.parse({
       requestId: claim.requestId,
       unitCount: sentences.length,
@@ -215,6 +224,17 @@ export function createAnalysisModule(dependencies: AnalysisDependencies) {
           ? dependencies.model
           : dependencies.modelForPricing(dispatchPricing);
       const generated = await model.analyze({ input, sentences });
+      const actualCostMicroUsd = generated.billedCalls?.reduce(
+        (total, call) => total + call.costMicroUsd,
+        0,
+      );
+      generatedBilling = {
+        ...(actualCostMicroUsd === undefined && generated.usageCostMicroUsd === undefined
+          ? {}
+          : { actualCostMicroUsd: actualCostMicroUsd ?? generated.usageCostMicroUsd }),
+        ...(generated.billedCalls === undefined ? {} : { billedCalls: generated.billedCalls }),
+        ...(generated.usage === undefined ? {} : { usage: generated.usage }),
+      };
       if (generated.preview !== undefined) {
         const preview = analysisEventSchema.parse({
           requestId: claim.requestId,
@@ -224,16 +244,12 @@ export function createAnalysisModule(dependencies: AnalysisDependencies) {
         });
         yield preview;
       }
-      const content = assembleTrustedContent(generated.content, input, sentences, capture);
-      const actualCostMicroUsd = generated.billedCalls?.reduce(
-        (total, call) => total + call.costMicroUsd,
-        0,
+      const content = replaceCandidateAliases(
+        assembleTrustedContent(generated.content, input, sentences, capture),
+        dependencies.ids,
       );
       const committed = await dependencies.committer.complete({
-        ...(actualCostMicroUsd === undefined && generated.usageCostMicroUsd === undefined
-          ? {}
-          : { actualCostMicroUsd: actualCostMicroUsd ?? generated.usageCostMicroUsd }),
-        ...(generated.billedCalls === undefined ? {} : { billedCalls: generated.billedCalls }),
+        ...generatedBilling,
         record: record(content, dependencies.ids()),
         leaseToken: claim.leaseToken,
         ...(dispatchPricing === undefined
@@ -241,7 +257,6 @@ export function createAnalysisModule(dependencies: AnalysisDependencies) {
           : { priceVersionId: dispatchPricing.priceVersionId }),
         requestId: claim.requestId,
         reservationId: reservation.id,
-        ...(generated.usage === undefined ? {} : { usage: generated.usage }),
         userId: command.userId,
       });
       const completed = analysisEventSchema.parse({
@@ -252,6 +267,10 @@ export function createAnalysisModule(dependencies: AnalysisDependencies) {
       yield completed;
     } catch (modelError) {
       const failureUsage = modelUsageFromError(modelError);
+      const actualCostMicroUsd =
+        generatedBilling?.actualCostMicroUsd ?? failureUsage.usageCostMicroUsd;
+      const billedCalls = generatedBilling?.billedCalls ?? failureUsage.billedCalls;
+      const usage = generatedBilling?.usage ?? failureUsage.usage;
       const errorCode = publicModelErrorCode(modelError);
       const error = {
         code: errorCode,
@@ -259,12 +278,8 @@ export function createAnalysisModule(dependencies: AnalysisDependencies) {
         requestId: claim.requestId,
       };
       const failed = await dependencies.committer.fail({
-        ...(failureUsage.usageCostMicroUsd === undefined
-          ? {}
-          : { actualCostMicroUsd: failureUsage.usageCostMicroUsd }),
-        ...(failureUsage.billedCalls === undefined
-          ? {}
-          : { billedCalls: failureUsage.billedCalls }),
+        ...(actualCostMicroUsd === undefined ? {} : { actualCostMicroUsd }),
+        ...(billedCalls === undefined ? {} : { billedCalls }),
         error,
         leaseToken: claim.leaseToken,
         ...(dispatchPricing === undefined
@@ -272,7 +287,7 @@ export function createAnalysisModule(dependencies: AnalysisDependencies) {
           : { priceVersionId: dispatchPricing.priceVersionId }),
         requestId: claim.requestId,
         reservationId: reservation.id,
-        ...(failureUsage.usage === undefined ? {} : { usage: failureUsage.usage }),
+        ...(usage === undefined ? {} : { usage }),
         userId: command.userId,
       });
       yield failed;
@@ -345,43 +360,6 @@ export function createAnalysisModule(dependencies: AnalysisDependencies) {
 
 async function* replay(event: AnalysisEvent): AsyncIterable<AnalysisEvent> {
   yield structuredClone(event);
-}
-
-function assembleTrustedContent(
-  generated: unknown,
-  input: StartAnalysisRequest,
-  sentences: readonly SegmentedSentence[],
-  capture?: CaptureContext,
-): AnalysisContent {
-  if (typeof generated !== "object" || generated === null)
-    return analysisContentSchema.parse(generated);
-  const raw = generated as Record<string, unknown>;
-  let result = raw.result;
-  if (typeof result === "object" && result !== null && "sentences" in result) {
-    const passage = result as Record<string, unknown>;
-    if (!Array.isArray(passage.sentences) || passage.sentences.length !== sentences.length) {
-      return analysisContentSchema.parse({});
-    }
-    result = {
-      ...passage,
-      sentences: passage.sentences.map((value, index) => ({
-        ...(typeof value === "object" && value !== null ? value : {}),
-        ...sentences[index],
-      })),
-    };
-  }
-  return analysisContentSchema.parse({
-    candidates: raw.candidates,
-    modelMetadata: raw.modelMetadata,
-    result,
-    selectionKind: input.selectionKind,
-    source: capture?.source ?? input.source,
-    sourceNormalizedHash: createHash("sha256")
-      .update(normalizeWhitespaceAndQuotes(input.sourceText))
-      .digest("hex"),
-    sourceText: input.sourceText,
-    ...(capture === undefined ? {} : { studyCaptureId: capture.captureId }),
-  });
 }
 
 export type AnalysisModule = ReturnType<typeof createAnalysisModule>;

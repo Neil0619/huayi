@@ -15,6 +15,7 @@ import type { PracticeHistoryPageApi } from "./practice-history-page-api.js";
 function detail(id = "session-1", erased = false): PracticeHistoryDetailResponse {
   return practiceHistoryDetailResponseSchema.parse({
     completedAt: "2026-08-13T05:05:00.000Z",
+    itemLabels: erased ? [] : [{ itemId: "item-1", label: "to be frank" }],
     session: {
       attempts: [
         {
@@ -108,6 +109,9 @@ describe("practice history page", () => {
     );
     expect(container.textContent).toContain("To be frank, I disagree.");
     expect(container.textContent).toContain("表达自然");
+    expect(container.textContent).toContain("to be frank：掌握");
+    expect(container.textContent).not.toContain("item-1");
+    expect(container.textContent).not.toContain("session-1");
     expect(container.querySelector(".practice-history-detail h2")).toBe(document.activeElement);
     await act(async () => container.querySelector<HTMLButtonElement>("[data-load-more]")?.click());
     expect(historyApi.listPracticeHistory).toHaveBeenLastCalledWith(
@@ -172,7 +176,11 @@ describe("practice history page", () => {
       resolve = onResolve;
     });
     const current = detail();
-    const newer = detail("session-2");
+    const second = detail("session-2");
+    const newer = {
+      ...second,
+      session: { ...second.session, prompt: "Write the newer sentence." },
+    };
     const historyApi = api({
       getPracticeHistory: vi
         .fn<PracticeHistoryPageApi["getPracticeHistory"]>()
@@ -187,8 +195,8 @@ describe("practice history page", () => {
     const buttons = container.querySelectorAll<HTMLButtonElement>("[data-open-session]");
     await act(async () => buttons[0]?.click());
     await act(async () => buttons[1]?.click());
-    expect(container.textContent).toContain("session-2");
+    expect(container.textContent).toContain("Write the newer sentence.");
     await act(async () => resolve(current));
-    expect(container.textContent).toContain("session-2");
+    expect(container.textContent).toContain("Write the newer sentence.");
   });
 });

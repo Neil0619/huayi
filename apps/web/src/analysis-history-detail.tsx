@@ -1,111 +1,152 @@
 import type { AnalysisRecord } from "@huayi/cloud-contracts";
 
-const labels: Readonly<Record<string, string>> = {
-  baseForm: "基本形式",
-  candidateIds: "候选 ID",
-  collocations: "常见搭配",
-  commonMeanings: "常见含义",
-  commonPhrases: "常用短语",
-  confusableWords: "易混词",
-  contextAndToneZh: "语境与语气",
-  contextExample: "语境例句",
-  contextualAnalysisZh: "语境解析",
-  contextualMeaningZh: "语境含义",
-  contextualSense: "当前语义",
-  coreMeanings: "核心含义",
-  descriptionZh: "说明",
-  dictionaryForm: "词典形式",
-  distinctionZh: "区别",
-  english: "英文",
-  explanationZh: "解释",
-  formTypeZh: "词形",
-  functionZh: "功能",
-  grammarNotes: "语法说明",
-  keyExpressions: "关键表达",
-  mainStructure: "主要结构",
-  meaningZh: "含义",
-  meaningsZh: "含义",
-  ordinal: "顺序",
-  overall: "整体理解",
-  partOfSpeech: "词性",
-  pronunciation: "发音",
-  register: "语域",
-  requestId: "请求 ID",
-  schemaVersion: "结构版本",
-  selectionKind: "选择类型",
-  sentenceRoleZh: "句中作用",
-  sentences: "逐句解析",
-  similarTerms: "近义表达",
-  slots: "槽位",
-  sourceText: "原文",
-  structureZh: "句子结构",
-  synonyms: "近义词",
-  template: "模板",
-  text: "文本",
-  titleZh: "标题",
-  translationZh: "翻译",
-  type: "结果类型",
-  uk: "英式",
-  understandingZh: "整体理解",
-  usageNotes: "用法提示",
-  usageZh: "用法",
-  us: "美式",
-  wordForm: "词形信息",
-  wordFormation: "构词",
-  wordFormationZh: "构词说明",
+type PassageResult = Extract<
+  AnalysisRecord["result"],
+  { readonly type: "sentence-passage-analysis-v2" }
+>;
+type TeachingPoint = PassageResult["sentences"][number]["grammar"][number];
+
+const selectionLabels = {
+  passage: "段落",
+  phrase: "短语",
+  sentence: "句子",
+} as const;
+
+const sourceLabels = {
+  manual: "手动输入",
+  "study-capture": "学习采集",
+} as const;
+
+const registerLabels: Readonly<Record<string, string>> = {
+  formal: "正式",
+  informal: "非正式",
+  literary: "书面／文学",
+  neutral: "中性",
+  spoken: "口语",
 };
 
-function StructuredValue({ name, value }: { readonly name: string; readonly value: unknown }) {
-  const label = labels[name] ?? name;
-  if (Array.isArray(value)) {
-    return (
-      <div>
-        <dt>{label}</dt>
-        <dd>
-          {value.length === 0 ? (
-            "无"
-          ) : (
-            <ol>
-              {value.map((entry, index) => (
-                <li key={index}>
-                  {typeof entry === "object" && entry !== null ? (
-                    <StructuredObject value={entry} />
-                  ) : (
-                    String(entry)
-                  )}
-                </li>
-              ))}
-            </ol>
-          )}
-        </dd>
-      </div>
-    );
-  }
-  if (typeof value === "object" && value !== null) {
-    return (
-      <div>
-        <dt>{label}</dt>
-        <dd>
-          <StructuredObject value={value} />
-        </dd>
-      </div>
-    );
-  }
+function formatInstant(value: string): string {
+  return new Intl.DateTimeFormat("zh-CN", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(value));
+}
+
+function TeachingPoints({
+  points,
+  title,
+}: {
+  readonly points: readonly TeachingPoint[];
+  readonly title: string;
+}) {
+  return (
+    <section>
+      <h5>{title}</h5>
+      {points.length === 0 ? (
+        <p>暂无。</p>
+      ) : (
+        <ol>
+          {points.map((point, index) => (
+            <li key={`${point.label}-${index}`}>
+              <strong>{point.label}</strong>
+              {point.evidenceText !== undefined && <p>原文依据：{point.evidenceText}</p>}
+              <p>{point.explanationZh}</p>
+              {point.commonMistakeZh !== undefined && <p>常见误区：{point.commonMistakeZh}</p>}
+              {point.generatedExample !== undefined && (
+                <div>
+                  <p>例句：{point.generatedExample.sourceText}</p>
+                  <p>译文：{point.generatedExample.translationZh}</p>
+                </div>
+              )}
+            </li>
+          ))}
+        </ol>
+      )}
+    </section>
+  );
+}
+
+function PhraseResult({
+  result,
+}: {
+  readonly result: Extract<AnalysisRecord["result"], { readonly type: "phrase-analysis-v2" }>;
+}) {
   return (
     <div>
-      <dt>{label}</dt>
-      <dd>{value === undefined || value === null ? "未提供" : String(value)}</dd>
+      <dl className="analysis-history-fields">
+        <div>
+          <dt>翻译</dt>
+          <dd>{result.translationZh}</dd>
+        </div>
+        <div>
+          <dt>语境含义</dt>
+          <dd>{result.contextualMeaningZh}</dd>
+        </div>
+        {result.register !== undefined && (
+          <div>
+            <dt>语域</dt>
+            <dd>{registerLabels[result.register] ?? result.register}</dd>
+          </div>
+        )}
+        <div>
+          <dt>结构与搭配</dt>
+          <dd>
+            {result.structureAndCollocationZh.length === 0 ? (
+              "暂无。"
+            ) : (
+              <ul>
+                {result.structureAndCollocationZh.map((entry, index) => (
+                  <li key={index}>{entry}</li>
+                ))}
+              </ul>
+            )}
+          </dd>
+        </div>
+      </dl>
+      <TeachingPoints points={result.usageNotes} title="用法提示" />
     </div>
   );
 }
 
-function StructuredObject({ value }: { readonly value: object }) {
+function PassageResultView({ result }: { readonly result: PassageResult }) {
   return (
-    <dl className="analysis-history-fields">
-      {Object.entries(value).map(([name, entry]) => (
-        <StructuredValue key={name} name={name} value={entry} />
-      ))}
-    </dl>
+    <div>
+      <section>
+        <h4>整体理解</h4>
+        <dl className="analysis-history-fields">
+          <div>
+            <dt>全文翻译</dt>
+            <dd>{result.overall.translationZh}</dd>
+          </div>
+          <div>
+            <dt>内容理解</dt>
+            <dd>{result.overall.understandingZh}</dd>
+          </div>
+          {result.overall.contextAndToneZh !== undefined && (
+            <div>
+              <dt>语境与语气</dt>
+              <dd>{result.overall.contextAndToneZh}</dd>
+            </div>
+          )}
+        </dl>
+      </section>
+      <section>
+        <h4>逐句讲解</h4>
+        <ol>
+          {result.sentences.map((sentence, index) => (
+            <li key={sentence.analysisUnitId}>
+              <h5>第 {index + 1} 句</h5>
+              <p>原文：{sentence.sourceText}</p>
+              <p>翻译：{sentence.translationZh}</p>
+              <TeachingPoints points={sentence.grammar} title="语法" />
+              <TeachingPoints points={sentence.structure} title="结构" />
+              <TeachingPoints points={sentence.expressions} title="表达" />
+              <TeachingPoints points={sentence.languageNotes} title="语言提示" />
+            </li>
+          ))}
+        </ol>
+      </section>
+    </div>
   );
 }
 
@@ -115,11 +156,50 @@ function Candidate({ candidate }: { readonly candidate: AnalysisRecord["candidat
   return (
     <li>
       <strong>{title}</strong>
-      <span>{candidate.type === "expression" ? "表达" : "句型"}</span>
-      <p>
-        候选 {candidate.id} · 第 {candidate.ordinal + 1} 项 · 分析单元 {candidate.analysisUnitId}
-      </p>
-      <StructuredObject value={payload} />
+      <span>{payload.type === "expression" ? "表达" : "句型"}</span>
+      <dl className="analysis-history-fields">
+        {payload.type === "expression" ? (
+          <>
+            <div>
+              <dt>含义</dt>
+              <dd>{payload.meaningZh}</dd>
+            </div>
+            <div>
+              <dt>用法</dt>
+              <dd>{payload.usageZh}</dd>
+            </div>
+            {payload.register !== undefined && (
+              <div>
+                <dt>语域</dt>
+                <dd>{registerLabels[payload.register] ?? payload.register}</dd>
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            <div>
+              <dt>功能</dt>
+              <dd>{payload.functionZh}</dd>
+            </div>
+            <div>
+              <dt>用法</dt>
+              <dd>{payload.usageZh}</dd>
+            </div>
+            <div>
+              <dt>可替换部分</dt>
+              <dd>
+                <ul>
+                  {payload.slots.map((slot) => (
+                    <li key={slot.name}>
+                      <strong>{slot.name}</strong>：{slot.descriptionZh}
+                    </li>
+                  ))}
+                </ul>
+              </dd>
+            </div>
+          </>
+        )}
+      </dl>
     </li>
   );
 }
@@ -129,16 +209,18 @@ export function AnalysisHistoryDetail({ record }: { readonly record: AnalysisRec
     <>
       <div className="analysis-history-metadata">
         <p>
-          <strong>记录：</strong>
-          {record.id} · revision {record.revision}
-        </p>
-        <p>
           <strong>来源：</strong>
-          {record.source.type} · {record.source.title ?? "无标题"}
+          {sourceLabels[record.source.type]} · {record.source.title ?? "无标题"}
         </p>
+        {record.source.userContext !== undefined && (
+          <p>
+            <strong>补充语境：</strong>
+            {record.source.userContext}
+          </p>
+        )}
         <p>
-          <strong>选择类型：</strong>
-          {record.selectionKind}
+          <strong>内容类型：</strong>
+          {selectionLabels[record.selectionKind]}
         </p>
         <p>
           <strong>整理状态：</strong>
@@ -150,16 +232,16 @@ export function AnalysisHistoryDetail({ record }: { readonly record: AnalysisRec
         </p>
         <p>
           <strong>创建：</strong>
-          {record.createdAt}
+          {formatInstant(record.createdAt)}
         </p>
         <p>
           <strong>更新：</strong>
-          {record.updatedAt}
+          {formatInstant(record.updatedAt)}
         </p>
         {record.archivedAt !== null && (
           <p>
             <strong>归档：</strong>
-            {record.archivedAt}
+            {formatInstant(record.archivedAt)}
           </p>
         )}
       </div>
@@ -169,7 +251,11 @@ export function AnalysisHistoryDetail({ record }: { readonly record: AnalysisRec
       </section>
       <section className="analysis-history-result">
         <h3>分析结果</h3>
-        <StructuredObject value={record.result} />
+        {record.result.type === "phrase-analysis-v2" ? (
+          <PhraseResult result={record.result} />
+        ) : (
+          <PassageResultView result={record.result} />
+        )}
       </section>
       <section>
         <h3>可整理候选</h3>
@@ -184,12 +270,10 @@ export function AnalysisHistoryDetail({ record }: { readonly record: AnalysisRec
         )}
       </section>
       <section className="analysis-history-model">
-        <h3>公开模型信息</h3>
+        <h3>模型信息</h3>
         <p>
-          {record.modelMetadata.provider} · {record.modelMetadata.model}
-        </p>
-        <p>
-          Prompt {record.modelMetadata.promptVersion} · Schema {record.modelMetadata.schemaVersion}
+          {record.modelMetadata.provider === "deepseek" ? "DeepSeek" : "OpenAI"} ·{" "}
+          {record.modelMetadata.model}
         </p>
         <p>
           输入 token {record.modelMetadata.inputTokens ?? "未提供"} · 输出 token{" "}

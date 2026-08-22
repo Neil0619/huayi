@@ -116,7 +116,7 @@ export function createPostgresWordLibrary(database: AnalysisDatabase): WordLibra
             id: command.wordId,
           });
           await tenant.rows("DELETE FROM word_entries WHERE id=$1", [command.wordId]);
-          await trusted.rows(
+          await tenant.rows(
             `INSERT INTO idempotency_records(owner_user_id,operation,key,request_hash,response,expires_at)
              VALUES($1,'word.delete',$2,$3,$4::jsonb,$5::timestamptz)`,
             [
@@ -186,7 +186,7 @@ export function createPostgresWordLibrary(database: AnalysisDatabase): WordLibra
             throw new CloudFault("not_found", "Word entry not found.");
           }
           const response = mapWord(updated[0]);
-          await trusted.rows(
+          await tenant.rows(
             `INSERT INTO idempotency_records(owner_user_id,operation,key,request_hash,response,expires_at)
              VALUES($1,'word.patch',$2,$3,$4::jsonb,$5::timestamptz)`,
             [
@@ -270,7 +270,7 @@ export function createPostgresWordLibrary(database: AnalysisDatabase): WordLibra
             word: mapWord(current[0] ?? word),
             wordOutcome,
           });
-          await trusted.rows(
+          await tenant.rows(
             `INSERT INTO idempotency_records(owner_user_id,operation,key,request_hash,response,expires_at)
              VALUES($1,'word.upsert',$2,$3,$4::jsonb,$5::timestamptz)`,
             [

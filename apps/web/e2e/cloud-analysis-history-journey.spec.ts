@@ -32,26 +32,31 @@ test("analysis history keeps review and archive independent before linked captur
   await expect(page.getByText(privateResult).first()).toBeVisible();
   await expect(page.getByText("to be frank", { exact: true }).first()).toBeVisible();
   await expect(page.locator(".analysis-history-model")).toContainText("deepseek-chat");
-  await expect(page.locator(".analysis-history-metadata")).toContainText("revision 1");
+  await expect(page.locator(".analysis-history-detail")).not.toContainText("analysis-history-1");
+  await expect(page.locator(".analysis-history-detail")).not.toContainText("candidate-1");
+  await expect(page.locator(".analysis-history-detail")).not.toContainText("分析单元");
+  await expect(page.locator(".analysis-history-detail")).not.toContainText("revision");
+  await expect(page.locator(".analysis-history-detail")).not.toContainText(
+    "sentence-passage-analysis-v2",
+  );
+  await expect(page.locator(".analysis-history-detail")).not.toContainText("Prompt 1");
+  await expect(page.locator(".analysis-history-detail")).not.toContainText("Schema 1");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 
   await page.getByRole("button", { name: "无需收藏，标记已整理" }).click();
   await expect(page.getByRole("status")).toContainText("标记已整理已完成。");
   await expect(page.locator(".analysis-history-detail")).toContainText("整理状态：已整理");
   await expect(page.locator(".analysis-history-detail")).toContainText("归档状态：未归档");
-  await expect(page.locator(".analysis-history-metadata")).toContainText("revision 2");
 
   await page.getByRole("button", { name: "归档", exact: true }).click();
   await expect(page.getByRole("status")).toContainText("归档已完成。");
   await expect(page.locator(".analysis-history-detail")).toContainText("整理状态：已整理");
   await expect(page.locator(".analysis-history-detail")).toContainText("归档状态：已归档");
-  await expect(page.locator(".analysis-history-metadata")).toContainText("revision 3");
 
   await page.getByRole("button", { name: "恢复", exact: true }).click();
   await expect(page.getByRole("status")).toContainText("恢复已完成。");
   await expect(page.locator(".analysis-history-detail")).toContainText("整理状态：已整理");
   await expect(page.locator(".analysis-history-detail")).toContainText("归档状态：未归档");
-  await expect(page.locator(".analysis-history-metadata")).toContainText("revision 4");
 
   await page.getByRole("button", { name: "删除…" }).click();
   await expect(page.getByLabel("同时删除原始 StudyCapture")).toBeChecked();
