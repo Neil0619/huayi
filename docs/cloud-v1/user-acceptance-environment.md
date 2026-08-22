@@ -222,13 +222,18 @@ Operator/invitation 为空。用户已于 2026-08-22 明确确认并完成远端
 验证返回 passed，证明写入和登录可用。安全审查随后发现 require-only TLS 与包含式 membership 验证不足，
 现已改为显式 Supabase CA + verify-full、精确角色图、预期越权 SQLSTATE/exit code 和 transaction pooler
 同一 backend 跨事务 context 清空验证；用户随后运行顺序式 `set -e` 命令并到达 application passed，证明
-前置 admin 只读与 application hardened 双复验均通过。当前 foundation 状态为
-`applied; hardened remote verification passed`，但 Vercel/API/Web/Auth 尚未部署。
+当时 admin 查询与 application hardened 路径均可运行。0012 push 后 diagnostic 暴露旧 membership SQL
+错误要求 PostgreSQL 17 `NOINHERIT` 产品边 `inherit=true`，并错误拒绝 creator-control 边；仓库已修正。
+用户随后运行修正版远端只读 verify 并通过，固定 Operator status 返回 `empty`。当前 foundation 状态为
+`applied; corrected PostgreSQL 17 remote verification passed; first Operator empty`，Vercel/API/Web/Auth
+尚未部署。
 
 首个 Operator 不由 foundation 创建。Phase 52 已冻结两阶段 FirstOperatorBootstrap：
 DeploymentBootstrapAuthority 发行唯一 BootstrapInvitation，正常注册完成后只晋升该邀请最终绑定的账号；
 不得把本机固定虚构 Operator 带入 hosted，也不得用 service role、任意 userId 或公开 HTTP 后门绕过。
-离线实现、focused 回归与完整 macOS 门已完成；远端第 12 条 migration 与实际引导仍未完成，详见
+离线实现、focused 回归与完整 macOS 门已完成；远端第 12 条 migration 已实际 push，diagnostic 显示空
+first Operator record；修正版 foundation verify 已通过、固定 Operator status 已返回 `empty`，实际引导仍
+未完成，详见
 `first-operator-bootstrap.md`。
 
 ## 4. 域名、DNS 与 Resend 准备
@@ -245,10 +250,11 @@ Resend Dashboard 生成实际记录后再逐条写入；未来启用 DNSSEC 时�
 `kpadiulxkgckskcfydry`，URL `https://kpadiulxkgckskcfydry.supabase.co`，Primary Database 实测位于
 `ap-southeast-1 / Southeast Asia (Singapore)`。Data API 创建后仍关闭，自动 RLS 未启用；用户明确确认后
 已实际应用 11 条 canonical migration，Dashboard 已复核完整 history、业务表、运行角色与 tenant owner
-RLS，首页仍为 `Healthy`。仓库已新增第 12 条 FirstOperatorBootstrap forward migration，但远端尚未
-dry-run/push。Auth 仍为 0 用户；foundation bootstrap 后 Storage 为唯一 private
+RLS，首页仍为 `Healthy`。第 12 条 FirstOperatorBootstrap forward migration 已完成 dry-run、明确确认与
+actual push。Auth 仍为 0 用户；foundation bootstrap 后 Storage 为唯一 private
 `account-exports-acceptance` bucket 且 0 object，application login 与三条价格已建立，kill switch 保持开启。
-Vercel 应用部署仍是独立门；hardened admin/application 双复验已通过。
+Vercel 应用部署仍是独立门；修正版 PostgreSQL 17 foundation verify 已通过，Operator status 已返回
+`empty`，但未创建或部署 Vercel 应用。
 
 `.cn` 域名实名认证是启用解析的必需项。验收环境继续使用 Vercel/Supabase 境外托管资源时，ICP备案不
 作为当前启动前置；未来迁入中国大陆服务器、使用中国大陆 CDN 或其他境内接入资源前，必须重新设置备案

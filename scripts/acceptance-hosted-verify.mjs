@@ -12,6 +12,7 @@ import {
   runHostedPsql,
   sqlTextArray,
 } from "./acceptance-hosted-foundation.mjs";
+import { renderHostedRoleMembershipContractSql } from "./acceptance-hosted-role-memberships.mjs";
 
 export const hostedVerificationArgument = `--verify-hosted-foundation-${hostedAcceptanceProjectRef}`;
 
@@ -19,6 +20,7 @@ export function renderHostedVerificationSql() {
   const migrations = sqlTextArray(hostedAcceptanceMigrationVersions);
   const tenantTables = sqlTextArray(hostedAcceptanceTenantTables);
   const { legacy, offPeak, peak } = hostedAcceptancePriceVersionIds;
+  const roleMembershipContract = renderHostedRoleMembershipContractSql();
   return `
 SELECT
   (SELECT array_agg(version::text ORDER BY version::text)
@@ -40,29 +42,7 @@ SELECT
          AND NOT rolsuper AND NOT rolinherit AND NOT rolbypassrls
          AND NOT rolcreatedb AND NOT rolcreaterole AND NOT rolreplication) = 1
   AND pg_has_role('${hostedAcceptanceApplicationRole}', 'huayi_runtime', 'member')
-  AND (SELECT count(*)
-       FROM pg_auth_members memberships
-       JOIN pg_roles member_role ON member_role.oid = memberships.member
-       JOIN pg_roles granted_role ON granted_role.oid = memberships.roleid
-       WHERE member_role.rolname IN (
-         '${hostedAcceptanceApplicationRole}', 'huayi_runtime', 'huayi_business',
-         'huayi_context_setter'
-       ) OR granted_role.rolname IN (
-         '${hostedAcceptanceApplicationRole}', 'huayi_runtime', 'huayi_business',
-         'huayi_context_setter'
-       )) = 3
-  AND (SELECT count(*)
-       FROM pg_auth_members memberships
-       JOIN pg_roles member_role ON member_role.oid = memberships.member
-       JOIN pg_roles granted_role ON granted_role.oid = memberships.roleid
-       WHERE NOT memberships.admin_option
-         AND memberships.inherit_option
-         AND memberships.set_option
-         AND (member_role.rolname, granted_role.rolname) IN (
-           ('${hostedAcceptanceApplicationRole}', 'huayi_runtime'),
-           ('huayi_runtime', 'huayi_business'),
-           ('huayi_runtime', 'huayi_context_setter')
-         )) = 3
+  AND (${roleMembershipContract})
   AND (SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
        WHERE n.nspname = 'public' AND c.relname = ANY(${tenantTables})
          AND c.relkind = 'r' AND c.relrowsecurity AND c.relforcerowsecurity

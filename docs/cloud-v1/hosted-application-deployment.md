@@ -1,17 +1,21 @@
 # Phase 53 Hosted application deployment contract
 
-状态：2026-08-22 docs-first、跨文档审查、离线 RED→GREEN 与完整 macOS 门均已完成；0012 dry-run
-也已只列出 FirstOperatorBootstrap。用户已明确确认先提交并推送当前候选，再实际推送这一条 migration。
-在 0012 尚未实际推送和复验为空、外部输入未齐备时，仍不允许创建 Vercel project、写
+状态：2026-08-22 docs-first、跨文档审查、离线 RED→GREEN、完整 macOS 门和候选提交推送均已完成；
+0012 dry-run 只列出 FirstOperatorBootstrap，随后已经实际 push。push 后 diagnostic 证明 12 条 chain、
+0012 结构和空 Operator 数据，但也暴露旧版 PostgreSQL 17 membership 校验误判。用户随后已运行修正版
+只读 foundation verify 与固定 Operator status，分别返回 passed 与 `empty`。外部输入仍未齐备，因此仍不
+允许创建 Vercel project、写
 DNS/Auth/SMTP/secret、部署应用或发行邀请。
 
 ## 1. 当前事实与目标
 
-Hosted foundation 已在 Supabase project `kpadiulxkgckskcfydry` 完成 hardened admin/application 双复验。
-仓库已有 12 条 migration；远端仍只有前 11 条。用户以进程级 `PGPASSWORD` 完成
-`supabase db push --dry-run --skip-vault`，结果只列出
-`20260822030000_first_operator_bootstrap`，未改库；实际 push 已获明确确认但尚未执行。Auth、profile、
-Operator 和 invitation 仍为空。
+Hosted foundation 已在 Supabase project `kpadiulxkgckskcfydry` 完成 bootstrap 与 application login
+复验。仓库和远端现均为 12 条 migration；用户以进程级 `PGPASSWORD` 完成只列出
+`20260822030000_first_operator_bootstrap` 的 dry-run 后，已实际 push 这一条 migration。push 后的只读
+diagnostic 显示 chain/schema/RLS/价格/Storage/空 Auth 与 0012 结构均符合预期，`first_operator_empty` 为真；
+旧版 foundation verifier 仅因把 PostgreSQL 17 `NOINHERIT` 产品边误写为 `inherit=true` 并拒绝合法
+creator-control 边而失败。用户已在同一工作树运行修正版 foundation verify 并通过，随后固定 Operator
+status 返回 `empty`；Auth、profile、Operator 和 invitation 仍为空。
 2026-08-22 通过 Google DoH 复核，`app.acceptance`、`api.acceptance`、`notify.acceptance` 与其 DMARC 名称
 仍为 NXDOMAIN；Vercel project/link 也尚不存在。
 
@@ -34,8 +38,10 @@ remote migration 0012
 
 ## 2. 不能绕过的前置条件
 
-1. 第 12 条 migration 必须先 dry-run，且只列出 FirstOperatorBootstrap；经用户再次明确确认后才能 push；
-2. push 后 `acceptance:hosted:operator:status` 必须返回 `empty`；不能重跑 foundation bootstrap；
+1. 第 12 条 migration 已经按“dry-run 只列出 FirstOperatorBootstrap → 用户明确确认 → actual push”完成；
+   不得重跑 migration；
+2. 修正版 `acceptance:hosted:verify` 已通过，随后 `acceptance:hosted:operator:status` 已返回 `empty`；不能
+   重跑 foundation bootstrap；
 3. 对话中曾出现的 Resend key 必须先撤销，不能用于 SMTP、R3-C 或 Vercel；
 4. `notify.acceptance.seen-said.cn` 必须先按 Resend Dashboard 实际值完成 SPF、DKIM、MX 和初始 DMARC；
 5. Supabase Auth SMTP key 与 API R3-C HTTP key 必须是两把独立、sending-only、限定该验收子域的 key；
@@ -174,7 +180,7 @@ Root/Framework/Build/Output/Node/region、变量名分类、五条 Auth redirect
 离线退出门：focused API/Web/script tests、API/Web full、typecheck/build、Prettier/ESLint、Vercel config
 schema、secret scan、`git diff --check` 和完整 `pnpm verify:macos`。Hosted 退出门另要求：
 
-- migration 0012 applied + status empty；
+- migration 0012 applied + corrected foundation verify passed + Operator status empty；
 - 两个 deployment 均绑定记录的 commit，API 位于 `sin1`、Fluid/120s；
 - custom-domain TLS、exact CORS、host-only Secure SameSite=Lax Cookie、CSRF、SSE 与五条 callback 通过；
 - Resend domain/SMTP/R3-C 两把 key、一次真实确认邮件和一次 R3-C 通知通过，无重复投递；
@@ -188,6 +194,12 @@ deployment Node 4/4。API full 为 136 files / 506 tests，Web full 为 45/45 fi
 零命中；当前 Vercel schema 识别所固定字段。最终 `pnpm verify:macos` 原样退出 0，覆盖 211/211 Node、
 474/474 Vitest files（2,859 passed / 12 skipped）、Store 481/481、Playwright 110/110、全 workspace
 format/lint/typecheck/build、architecture、development blocker、Store release 与 production audit。
+
+0012 已实际 push；当前新增的 PostgreSQL 17 membership 修复把三条产品边固定为唯一
+`admin=false / inherit=false / set=true`，仅允许可选 `postgres` creator-control
+`admin=true / inherit=false / set=false`，并由 bootstrap/verify/diagnostic 复用同一 SQL 契约。实现修复阶段
+未连接远端；修正版远端只读 verify 与固定 Operator status 已由用户实际运行并分别得到 passed / `empty`，
+因此数据库 foundation 门已关闭；Vercel/DNS/Auth/SMTP/secret/deployment 与邀请门仍保持关闭。
 
 ## 8. 文档审查结论与外部输入
 

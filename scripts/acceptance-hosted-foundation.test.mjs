@@ -14,12 +14,19 @@ import {
   verifyHostedApplicationLogin,
 } from "./acceptance-hosted-application-verify.mjs";
 import {
+  diagnoseHostedAcceptance,
+  hostedDiagnosticArgument,
+  hostedDiagnosticPredicateNames,
+  renderHostedDiagnosticSql,
+} from "./acceptance-hosted-diagnose.mjs";
+import {
   hostedAcceptanceApplicationPoolerUrl,
   hostedAcceptanceMigrationVersions,
   hostedAcceptancePoolerUrl,
   hostedAcceptancePriceVersionIds,
   hostedAcceptanceProjectRef,
 } from "./acceptance-hosted-foundation.mjs";
+import { renderHostedRoleMembershipContractSql } from "./acceptance-hosted-role-memberships.mjs";
 import {
   renderHostedVerificationSql,
   verifyHostedAcceptance,
@@ -147,7 +154,7 @@ test("hosted bootstrap SQL fails closed on populated identity state and mismatch
   assert.match(sql, /require_model_price_version/u);
   assert.match(sql, /FROM pg_auth_members memberships/u);
   assert.match(sql, /memberships\.admin_option/u);
-  assert.match(sql, /OR granted_role\.rolname IN/u);
+  assert.match(sql, /OR granted_role\.rolname = ANY/u);
   assert.match(sql, /Hosted acceptance role memberships conflict with the contract\./u);
   assert.match(sql, /Foundation bucket conflicts with the hosted acceptance contract\./u);
   assert.match(sql, /SELECT count\(\*\) FROM storage\.buckets\) = 0/u);
@@ -155,6 +162,34 @@ test("hosted bootstrap SQL fails closed on populated identity state and mismatch
   assert.match(sql, /SELECT count\(\*\) FROM public\.runtime_controls\) <> 1/u);
   assert.doesNotMatch(sql, /ON CONFLICT \(name\) DO UPDATE SET enabled/u);
   assert.doesNotMatch(sql, /ALTER ROLE huayi_hosted_acceptance_login PASSWORD/u);
+});
+
+test("hosted role membership contract matches PostgreSQL 17 NOINHERIT and creator grants", () => {
+  const contract = renderHostedRoleMembershipContractSql();
+
+  assert.match(contract, /required_product_memberships/u);
+  assert.match(contract, /HAVING count\(matching_memberships\.grantor\) <> 1/u);
+  assert.match(contract, /membership\.admin_option IS FALSE/u);
+  assert.match(contract, /membership\.inherit_option IS FALSE/u);
+  assert.match(contract, /membership\.set_option IS TRUE/u);
+  assert.match(contract, /member_role = 'postgres'/u);
+  assert.match(contract, /membership\.admin_option IS TRUE/u);
+  assert.match(contract, /membership\.set_option IS FALSE/u);
+  assert.doesNotMatch(contract, /FROM pg_auth_members[\s\S]*\) = 3/u);
+
+  const hostedSqls = [
+    renderHostedBootstrapSql(applicationPassword),
+    renderHostedVerificationSql(),
+    renderHostedDiagnosticSql(),
+  ];
+  for (const sql of hostedSqls) {
+    assert.ok(sql.includes(contract));
+    assert.doesNotMatch(
+      sql,
+      /WHERE NOT memberships\.admin_option\s+AND memberships\.inherit_option/u,
+    );
+    assert.doesNotMatch(sql, /OR granted_role\.rolname IN[\s\S]*\)\) (?:=|<>) 3/u);
+  }
 });
 
 test("hosted verification checks migration, roles, forced RLS, prices, bucket and empty identities", async () => {
@@ -173,7 +208,7 @@ test("hosted verification checks migration, roles, forced RLS, prices, bucket an
   assert.match(sql, /first_operator_bootstrap/u);
   assert.match(sql, /FROM pg_auth_members memberships/u);
   assert.match(sql, /memberships\.admin_option/u);
-  assert.match(sql, /OR granted_role\.rolname IN/u);
+  assert.match(sql, /OR granted_role\.rolname = ANY/u);
   assert.match(sql, /'2026-08-16T15:59:59Z'::timestamptz/u);
   assert.match(sql, /SELECT count\(\*\) FROM public\.model_price_versions\) = 3/u);
   assert.match(sql, /SELECT count\(\*\) FROM storage\.buckets\) = 1/u);
@@ -206,6 +241,46 @@ test("hosted verification checks migration, roles, forced RLS, prices, bucket an
       runPsql: async () => ({ code: 0, stdout: "f\n" }),
     }),
     /Hosted acceptance foundation verification failed\./u,
+  );
+});
+
+test("hosted diagnostic reports only fixed read-only predicate verdicts", async () => {
+  const sql = renderHostedDiagnosticSql();
+  assert.match(sql, /BEGIN READ ONLY;/u);
+  assert.match(sql, /ROLLBACK;/u);
+  assert.match(sql, /migration_chain/u);
+  assert.match(sql, /membership_contract_exact/u);
+  assert.match(sql, /first_operator_empty/u);
+  assert.match(sql, /migration_0012_trigger/u);
+
+  const stdout = hostedDiagnosticPredicateNames.map((name) => `${name}|t`).join("\n") + "\n";
+  const calls = [];
+  const result = await diagnoseHostedAcceptance({
+    arguments_: [hostedDiagnosticArgument],
+    environment: {
+      HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: rootCertificate,
+      PGPASSWORD: postgresPassword,
+    },
+    runPsql: async (request) => {
+      calls.push(request);
+      return { code: 0, stdout };
+    },
+  });
+  assert.deepEqual(result, stdout.trim().split("\n"));
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].captureOutput, true);
+  assert.equal(calls[0].databaseUrl, hostedAcceptancePoolerUrl);
+
+  await assert.rejects(
+    diagnoseHostedAcceptance({
+      arguments_: [hostedDiagnosticArgument],
+      environment: {
+        HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: rootCertificate,
+        PGPASSWORD: postgresPassword,
+      },
+      runPsql: async () => ({ code: 0, stdout: "migration_chain|t\nunexpected|f\n" }),
+    }),
+    /Hosted acceptance foundation diagnostic failed\./u,
   );
 });
 

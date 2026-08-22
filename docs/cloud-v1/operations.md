@@ -100,6 +100,13 @@ Supabase 托管 `postgres` 具有管理员能力但不是 superuser；preflight 
 `postgres` 且具有 CREATEROLE，不要求或尝试取得 superuser。application runtime 后续使用 Supavisor 时，
 用户名按 `<role>.<project-ref>` 组成且密码必须 URL-encode；真实 DSN 只进入 Vercel secret store。
 
+PostgreSQL 17 下，三个 `NOINHERIT` 成员角色的产品直接边必须各自唯一且为
+`admin=false / inherit=false / set=true`。`postgres` 作为 CREATEROLE creator 可能因角色创建历史拥有到
+四个固定 Huayi role 的 creator-control 边；这些边不要求固定数量，存在时只能为
+`admin=true / inherit=false / set=false`。除此之外的直接边、错误 option 或同角色对的重复产品 grantor
+全部失败关闭。bootstrap、管理员 verify 与 diagnostic 共用同一 membership SQL 契约，不再按相关边裸
+总数判断。
+
 写入后使用管理员进程级 `PGPASSWORD` 运行
 `pnpm acceptance:hosted:verify --verify-hosted-foundation-kpadiulxkgckskcfydry`。verify 只执行一个只读
 布尔查询并输出固定通过/失败，不显示表计数、UUID 以外的行、密码或 SQL 错误。随后改用 application
@@ -110,20 +117,32 @@ role 密码运行
 再在 transaction pooler 复用同一 backend 的第二事务证明 context 为 NULL。`SET LOCAL ROLE postgres`
 只有 psql 精确返回 SQLSTATE `42501` 和 exit code `3` 才算预期拒绝，连接失败不能冒充通过。
 
-2026-08-22 用户已执行 foundation bootstrap；安全审查后更新的管理员只读与 application login hardened
-复验也已顺序通过。因为复验命令使用 `set -e` 且先运行管理员 verify，能够到达并通过 application verify
-即证明两道门均成功。foundation 当前状态为 `applied; hardened remote verification passed`；这只允许
-进入首位 Operator forward migration 和隔离 Vercel/API/Web 配置，不代表 hosted 应用已部署或可用。
+管理员 verify 失败时，可在相同 CA 与进程级 `PGPASSWORD` 下运行
+`node scripts/acceptance-hosted-diagnose.mjs --diagnose-hosted-foundation-kpadiulxkgckskcfydry`。该命令只在
+`BEGIN READ ONLY` 中输出固定顺序的 allowlisted `name|t/f`，不输出 catalog row、grantor、密码或 SQL
+错误；任一 `f` 仅用于定位，不能作为通过证据。完成修复后仍必须重跑正式 verify，不能用 diagnostic
+代替门禁。
+
+2026-08-22 用户已执行 foundation bootstrap，随后在 0012 push 前完成过当时版本的管理员只读与
+application login 复验；这证明 TLS、application 登录和事务隔离路径当时可用。0012 实际 push 后，新的
+只读 diagnostic 显示 migration chain、schema/RLS、价格、kill switch、Storage、空 Auth/identity 与 0012
+结构均为真，只剩旧版 `membership_edges_exact` / `membership_options_exact` 为假。根因是旧校验误把
+PostgreSQL 17 `NOINHERIT` 产品边要求成 `inherit=true`，并把合法 creator-control 边计入固定总数；这不是
+远端 migration 失败或需要修改角色图的证据。仓库已改为上方共享契约；用户随后运行修正版管理员远端
+只读复验并得到 `Hosted acceptance foundation verification passed.`，再运行固定 Operator status 并得到
+`Hosted first Operator status: empty.`。当前状态为
+`applied; corrected PostgreSQL 17 remote verification passed; first Operator empty`。这只关闭数据库
+foundation 门，不代表 Vercel、DNS、Auth、SMTP、应用部署或邀请已经完成。
 
 首张 hosted 邀请和首个 Operator 使用 `first-operator-bootstrap.md` 的两阶段协议：先在 API/Web/Auth 已
 可用后发行唯一 BootstrapInvitation，用户走正常注册，再由项目管理员 complete 精确绑定账号。离线实现
-已通过完整 macOS 门，但仍必须先 dry-run/显式推送 forward migration。不得复用虚构 seed、手工插入长期假
-Operator、接受任意 userId 或新增公开 bootstrap HTTP route。邀请 URL 丢失时只有零 claim/零 identity 才
-能走显式 replace-unclaimed；其他状态必须停止调查，不能 reset。
+已通过完整 macOS 门，forward migration 也已完成 dry-run、明确确认和 actual push，不得重跑。不得复用
+虚构 seed、手工插入长期假 Operator、接受任意 userId 或新增公开 bootstrap HTTP route。邀请 URL 丢失时
+只有零 claim/零 identity 才能走显式 replace-unclaimed；其他状态必须停止调查，不能 reset。
 
-当前远端仍只有已验证的 11 条 foundation migration；`0012` 尚未推送。因此下一次远端数据库动作只能是
-先 dry-run 再经用户明确确认 push `20260822030000_first_operator_bootstrap`，不能重跑 foundation bootstrap。
-push 后先运行 operator status 证明 `empty`；API/Web/Auth 可用前仍不得发行邀请。
+当前远端已经实际推送完整 12 条 migration，diagnostic 的 `first_operator_empty` 为真且 0012 columns、
+constraint、functions、trigger 均为真；固定 Operator status CLI 也已返回 `empty`，修正版只读 foundation
+verify 已通过。不得重跑 migration 或 foundation bootstrap；API/Web/Auth 可用前仍不得发行邀请。
 
 三个主机名同时解析到 `127.0.0.1` 与 `::1`；每个 HTTPS 端口必须同时建立 IPv4/IPv6 loopback
 listener，禁止使用 `0.0.0.0` 或 `::` 代替。若浏览器报告 connection refused，分别运行带本机 CA 的

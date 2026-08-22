@@ -1329,6 +1329,11 @@ rollback、真实 Chrome、外部服务和 Windows 冻结批次保持为独立�
 5. 完整门通过后只让用户运行更新后的 admin 只读复验与 application 最小权限/事务隔离复验，不重跑
    bootstrap；application 探测只触及 private unlogged transaction context，不创建账号或业务数据。双复验
    通过后才关闭 foundation，并进入首个真实 Operator deployment bootstrap 协议。
+6. 0012 push 后的远端 diagnostic 暴露 PostgreSQL 17 membership option 建模错误：把三条 `NOINHERIT`
+   产品边校准为唯一 `false/false/true`，允许可选且只允许 `postgres` creator-control
+   `true/false/false`，禁止其他相关边；bootstrap/admin verify/diagnostic 抽取同一 SQL 契约并增加旧
+   `inherit=true + incident count=3` 回归。用户随后运行修正版只读远端复验并通过，固定 Operator status
+   返回 `empty`，foundation 门重新关闭。
 
 ## Phase 52：首位 Operator 两阶段部署引导（2026-08-22）
 
@@ -1369,9 +1374,10 @@ rollback、真实 Chrome、外部服务和 Windows 冻结批次保持为独立�
 Function 固定 Singapore、CRON 数量固定为五项，以及 hosted Web 必须显示构建 commit。三项外部输入继续
 保持门禁，不阻断离线 RED→GREEN。
 
-当前状态为 `offline deployment contract verified`：Vercel config、Hosted Web 环境/可见 SHA、simulated
-本机限定、零写入 plan、复用生产 schema 的不回显 verifier、bundle secret scan 与完整 macOS 门均已完成。
-候选范围审查另确认 116 个 tracked 修改、103 个未跟踪交付文件、0 staged，未发现冲突、生成/大文件、
-symlink、私钥或已知泄露 key；但仍未形成可部署 commit。远端仍为 11 条 migration。0012 dry-run 已只
-列出 FirstOperatorBootstrap，用户已明确确认先完成候选 commit/push 与 SHA 复核，再实际 push 这一条
-migration；push 后必须先通过 foundation verify 和 Operator `empty` 状态门，才能继续 Vercel 创建。
+当前状态为 `offline deployment contract verified; migration 0012 applied; corrected foundation verify
+passed; first Operator empty`：Vercel config、Hosted Web 环境/可见 SHA、simulated 本机限定、零写入 plan、复用生产 schema
+的不回显 verifier、bundle secret scan 与完整 macOS 门均已完成，候选也已提交推送。0012 dry-run 只列出
+FirstOperatorBootstrap，随后已实际 push；远端 diagnostic 证明 12 条 chain、0012 结构与空 Operator 数据，
+同时暴露旧版 PostgreSQL 17 membership 校验误判。用户已用修正版只读 foundation verify 和固定 Operator
+status 关闭这道门；下一步可以按外部门顺序准备 Vercel 创建，但不得重跑 migration 或 bootstrap，也不能
+跳过 DNS/Auth/SMTP/secret/deployment 与邀请前置条件。

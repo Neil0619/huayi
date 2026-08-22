@@ -3,6 +3,18 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-22：Hosted 角色图按 PostgreSQL 17 membership option 精确建模
+
+- 三条产品直接边固定为 application login→runtime、runtime→business/context-setter；每个角色对必须且
+  只能有一条 membership row，并精确要求 `admin=false`、`inherit=false`、`set=true`。成员角色均为
+  `NOINHERIT`，不能继续按旧校验假设要求 `inherit=true`；
+- PostgreSQL 17 的 CREATEROLE creator-control grant 允许形成 `postgres`→固定 Huayi role 的直接边；
+  这些边因创建历史可以存在或不存在，存在时只能为 `admin=true`、`inherit=false`、`set=false`，不能以
+  固定总行数或要求四条全部存在来判断角色图；
+- 除上述三条唯一产品边与可选 creator-control 边外，任何涉及固定 Huayi role 的直接边都失败关闭。校验按
+  角色对分组识别不同 grantor 的重复产品授权，bootstrap、管理员 verify 与只读 diagnostic 必须复用同一
+  SQL 契约，避免三处规则漂移。
+
 ## 2026-08-22：Hosted application 先冻结可重复部署契约，再创建 Vercel 资源
 
 - hosted acceptance 使用两个 Git-linked Vercel Hobby project，分别固定 `apps/api` Hono 与 `apps/web`

@@ -314,9 +314,11 @@ application login、三条价格与开启的 kill switch 已写入，初版 admi
 初版 require-only TLS、包含式 membership 与 rollback-only context 证据不足；仓库随后固定显式 Supabase CA +
 verify-full、精确角色图、越权 SQLSTATE/exit code 与同 backend COMMIT 后下一事务 context 为 NULL；聚焦
 脚本/API/PGlite 回归与本轮完整 macOS 门已绿；完整门覆盖 202 Node、472 Vitest files、481 Store coverage
-和 110 Playwright。用户的顺序式 `set -e` 远端命令已到达 application passed，因此前置 admin 只读与
-application hardened 双复验均通过，foundation 升为 `applied; hardened remote verification passed`。
-Vercel/Resend、Cookie/SSE、CRON、真实邮件、跨设备与首个 Operator 远端执行继续为 `X`。Phase 52 已完成
-文档自审、离线实现与完整 macOS 门：207 Node、473 Vitest files（2,855 passed / 12 skipped）、Store 481、
-Playwright 110 和全部构建/发布/依赖门均绿；但远端仍为原 11 条 migration，不能把离线实现冒充 hosted
-bootstrap 完成。
+和 110 Playwright。用户的顺序式 `set -e` 远端命令曾到达 application passed，证明当时 admin 查询与
+application TLS/事务隔离路径可用。随后 0012 已实际 push；新 diagnostic 除旧 membership 两项外全部为
+真。调查确认旧校验误解 PostgreSQL 17 `NOINHERIT` 与 creator-control membership option，仓库已修正，
+用户随后运行修正版远端只读 verify，返回 `Hosted acceptance foundation verification passed.`；固定
+Operator status 返回 `Hosted first Operator status: empty.`。因此 foundation 状态为
+`applied; corrected PostgreSQL 17 remote verification passed; first Operator empty`。Vercel/Resend、
+Cookie/SSE、CRON、真实邮件、跨设备与首个 Operator 实际引导继续为 `X`；远端现有 12 条 migration，且
+本次只读门通过不代表任何应用部署或邀请发行完成。

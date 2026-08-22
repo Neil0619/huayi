@@ -1328,11 +1328,13 @@ and Windows gates pending`。
   状态，部分或额外状态失败关闭。API/PGlite focused 与 hosted Node 8/8 已通过；fresh
   `pnpm verify:macos` 最终为 202/202 Node、472/472 Vitest files（2,847 passed / 12 skipped）、Store
   481/481、Playwright 110/110、全部 build/release/audit 门退出 0；
-- 用户随后执行顺序式 `set -e` 命令并到达 application verification passed，证明前置 admin 只读复验与
-  application 最小权限/事务隔离复验均通过。当前状态为
-  `hosted foundation applied; hardened remote verification passed`。application 探测只在 private unlogged
-  context 表提交固定合成 transaction context，不创建账号、业务数据或配置。Vercel、Resend DNS/投递、
-  真实 Provider、跨设备和 Windows 下一关键批次不由本阶段替代。
+- 用户在 0012 push 前执行顺序式 `set -e` 命令并到达 application verification passed，证明当时 admin
+  查询与 application TLS/最小权限/事务隔离路径均可运行。0012 push 后再次 admin verify 失败；只读
+  diagnostic 除旧版 `membership_edges_exact` / `membership_options_exact` 外全部为真。根因是旧 SQL 错把
+  PostgreSQL 17 `NOINHERIT` 产品边要求为 `inherit=true`，又以固定 incident 总数拒绝合法 creator-control
+  边。仓库已抽共享精确契约修复，未修改远端角色图；用户随后运行修正版只读 verify 并通过，固定
+  Operator status 返回 `empty`。当前状态为
+  `hosted foundation applied; corrected PostgreSQL 17 remote verification passed; first Operator empty`。
 
 ## Cloud V1 Phase 52 首位 Operator 两阶段引导状态（2026-08-22）
 
@@ -1348,10 +1350,11 @@ and Windows gates pending`。
 - fresh `pnpm verify:macos` 原样退出 0：207/207 Node scripts、473/473 Vitest files（2,855 passed /
   12 skipped）、Store 481/481、Playwright 110/110 和全部构建/发布/依赖门；迁移镜像、diff 与 known
   secret/token scan 通过；
-- hosted foundation hardened admin/application 双复验已通过。0012 dry-run 已只列出
-  FirstOperatorBootstrap，实际 push 已获明确确认，正在等待候选 commit/push 完成；远端仍保持 11 条
-  migration、0 Auth/profile/admin/invitation，未执行 Vercel 部署、邀请发行、真实注册、complete 或
-  `/admin` 浏览器验收。
+- hosted foundation 的 application 复验已通过；管理员 membership 校验已按 PostgreSQL 17 语义更正，
+  修正版远端只读复验也已通过。0012 已按只列出 FirstOperatorBootstrap 的 dry-run、候选 commit/push、
+  明确确认和 actual push 完成；diagnostic 证明 12 条 migration、0012 结构与空 Auth/profile/admin/
+  invitation/first Operator。固定 Operator status 已返回 `empty`；未执行 Vercel 部署、邀请发行、真实注册、
+  complete 或 `/admin` 浏览器验收。
 
 ## Cloud V1 Phase 53 Hosted 应用部署契约状态（2026-08-22）
 
@@ -1364,8 +1367,12 @@ and Windows gates pending`。
 - Fresh RED/GREEN、API 136 files / 506、Web 45 files / 208、Node 211/211、合成 Hosted Web build/SHA/secret
   scan 和当前 Vercel schema 检查均通过；最终 `pnpm verify:macos` 为 211 Node、474 Vitest files（2,859
   passed / 12 skipped）、Store 481、Playwright 110 及全部质量/发布/依赖门退出 0；
-- 当前状态为 `offline deployment contract verified; migration 0012 dry-run passed`。dry-run 只列出
-  FirstOperatorBootstrap，未改库；用户已明确确认先提交并推送当前候选，再实际 push 这一条 migration。
-  未创建 Vercel/DNS/Auth/SMTP/secret/deployment，未调用 DeepSeek/Resend，也未发行邀请。当前候选范围为
-  116 个 tracked 修改、103 个未跟踪交付文件、0 staged，范围/生成物/大文件/symlink/known-secret 初审无
-  异常；下一步形成并推送完整 SHA，然后执行实际 migration 与只读复验。
+- 当前状态为 `offline deployment contract verified; migration 0012 applied; corrected foundation verify
+passed; first Operator empty`。候选已提交推送，0012 已实际 push；修正版 PostgreSQL 17 membership 只读
+  复验已通过，固定 Operator status 已返回 `empty`。未创建 Vercel/DNS/Auth/SMTP/secret/deployment，未调用
+  DeepSeek/Resend，也未发行邀请；不得重跑 migration 或 foundation bootstrap。
+- PostgreSQL 17 membership 修复新增共享 SQL renderer 与 diagnostic 有界输出；hosted foundation + first
+  Operator focused 15/15，本机 PostgreSQL 17.6 事务探测得到 expected=true、extra-edge=false、
+  wrong-inherit=false 且全部 rollback。fresh `pnpm verify:macos` 为 213/213 Node、474/474 Vitest files
+  （2,859 passed / 12 skipped）、Store 481/481、Playwright 110/110，全部质量、构建、发布和依赖门通过。
+  修复实现阶段未连接远端；随后由用户运行的两道只读命令已补齐远端 foundation/Operator 状态证据。

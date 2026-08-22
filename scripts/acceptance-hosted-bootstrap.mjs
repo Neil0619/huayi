@@ -13,6 +13,7 @@ import {
   sqlLiteral,
   sqlTextArray,
 } from "./acceptance-hosted-foundation.mjs";
+import { renderHostedRoleMembershipContractSql } from "./acceptance-hosted-role-memberships.mjs";
 
 export const hostedBootstrapConfirmation = `--confirm-hosted-foundation-${hostedAcceptanceProjectRef}`;
 
@@ -34,6 +35,7 @@ export function renderHostedBootstrapSql(applicationPassword) {
   const tenantTables = sqlTextArray(hostedAcceptanceTenantTables);
   const password = sqlLiteral(applicationPassword);
   const { legacy, offPeak, peak } = hostedAcceptancePriceVersionIds;
+  const roleMembershipContract = renderHostedRoleMembershipContractSql();
   return `
 BEGIN;
 
@@ -128,29 +130,7 @@ GRANT huayi_runtime TO ${hostedAcceptanceApplicationRole};
 
 DO $hosted_memberships$
 BEGIN
-  IF (SELECT count(*)
-      FROM pg_auth_members memberships
-      JOIN pg_roles member_role ON member_role.oid = memberships.member
-      JOIN pg_roles granted_role ON granted_role.oid = memberships.roleid
-      WHERE member_role.rolname IN (
-        '${hostedAcceptanceApplicationRole}', 'huayi_runtime', 'huayi_business',
-        'huayi_context_setter'
-      ) OR granted_role.rolname IN (
-        '${hostedAcceptanceApplicationRole}', 'huayi_runtime', 'huayi_business',
-        'huayi_context_setter'
-      )) <> 3
-     OR (SELECT count(*)
-         FROM pg_auth_members memberships
-         JOIN pg_roles member_role ON member_role.oid = memberships.member
-         JOIN pg_roles granted_role ON granted_role.oid = memberships.roleid
-         WHERE NOT memberships.admin_option
-           AND memberships.inherit_option
-           AND memberships.set_option
-           AND (member_role.rolname, granted_role.rolname) IN (
-             ('${hostedAcceptanceApplicationRole}', 'huayi_runtime'),
-             ('huayi_runtime', 'huayi_business'),
-             ('huayi_runtime', 'huayi_context_setter')
-           )) <> 3 THEN
+  IF NOT (${roleMembershipContract}) THEN
     RAISE EXCEPTION 'Hosted acceptance role memberships conflict with the contract.';
   END IF;
 END;

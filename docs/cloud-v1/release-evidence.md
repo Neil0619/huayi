@@ -1135,12 +1135,14 @@ typecheck、architecture、build、development blocker、Store release、product
   通过；fresh `pnpm verify:macos` 最终覆盖 202/202 Node scripts、472/472 Vitest files（2,847 passed /
   12 skipped）、Store coverage 481/481、Playwright 110/110、全 workspace build、architecture、development
   blocker、Store release 与 production dependency audit（无已知漏洞），原样退出 0；
-- **远端结果**：用户随后运行顺序式 `set -e` 命令并到达
-  `Hosted acceptance application login verification passed.`；因此其前置 admin 只读复验也已成功，foundation
-  状态升为 `applied; hardened remote verification passed`。管理员复验只读，application 复验
-  只提交 private unlogged context 表的固定合成 transaction context，并执行预期失败的越权探测；不创建
-  identity、业务数据或配置，也不再重跑
-  bootstrap。Vercel/Resend/真实邮件与应用部署仍未完成。
+- **远端结果与后续更正**：用户随后运行顺序式 `set -e` 命令并到达
+  `Hosted acceptance application login verification passed.`；这证明当时前置 admin 查询与 application
+  TLS/最小权限/事务隔离路径均可运行。0012 实际 push 后，管理员 verify 再次失败；只读 diagnostic 的
+  migration/schema/RLS/价格/Storage/Auth/identity/0012 predicates 全为真，仅旧版
+  `membership_edges_exact` 与 `membership_options_exact` 为假。调查确认旧 SQL 错把 PostgreSQL 17
+  `NOINHERIT` 产品边要求为 `inherit=true`，又以固定 incident 总数拒绝合法 creator-control 边；因此此前
+  `hardened remote verification passed` 一度降级为修复前历史证据。未重跑 bootstrap，也没有据此修改远端
+  角色图；共享契约修复后的正式只读通过证据见第 44 节。
 
 ## 42. Phase 52 首位 Operator 两阶段部署引导（2026-08-22）
 
@@ -1161,9 +1163,10 @@ typecheck、architecture、build、development blocker、Store release、product
 - **完整门**：fresh `pnpm verify:macos` 原样退出 0，覆盖 207/207 Node scripts、473/473 Vitest files
   （2,855 passed / 12 skipped）、Store coverage 481/481、Playwright 110/110、全部 workspace build、
   architecture、development blocker、Store release 和 production dependency audit（无已知漏洞）；
-- **证据边界**：hosted foundation hardened admin/application 双复验已通过，但远端仍只有原 11 条 migration。
-  第 12 条 migration 的 dry-run/push、Vercel API/Web/Auth 配置、邀请发行、真实注册、complete 和 `/admin`
-  浏览器验收均未执行，获得新的显式远端写入确认前不得 push。
+- **远端 0012 与证据边界**：第 12 条 migration 已按 dry-run、明确确认和 actual push 的顺序完成；后续
+  diagnostic 证明完整 12 条 chain、0012 columns/constraint/functions/trigger 与空 first Operator record；
+  用户随后又实际运行修正版 foundation verify 与固定 Operator status，分别返回 passed 和 `empty`。
+  Vercel API/Web/Auth 配置、邀请发行、真实注册、complete 和 `/admin` 浏览器验收仍未完成。
 
 ## 43. Phase 53 Hosted application deployment contract（2026-08-22）
 
@@ -1183,12 +1186,38 @@ typecheck、architecture、build、development blocker、Store release、product
   schema 识别固定字段。API full 136 files / 506、Web full 45/45 / 208、Node 211/211 通过。最终
   `pnpm verify:macos` 退出 0：211/211 Node scripts、474/474 Vitest files（2,859 passed / 12 skipped）、
   Store 481/481、Playwright 110/110、全部 format/lint/typecheck/build/architecture/release/audit 门全绿；
-- **远端 0012 dry-run 与授权**：用户以进程级 `PGPASSWORD` 执行
+- **远端 0012 dry-run、授权与 actual push**：用户以进程级 `PGPASSWORD` 执行
   `supabase db push --dry-run --skip-vault`，结果只列出
   `20260822030000_first_operator_bootstrap.sql` 并正常结束，未改库；随后明确确认先提交并推送当前候选，
-  再实际推送这一条 migration；
+  再实际推送这一条 migration。候选已提交推送，0012 随后已实际应用；
 - **证据边界**：自适应路由的只读部署审查以 `full-checks` 记录 passed；没有创建 Vercel project、DNS、
-  Auth/SMTP/secret 或 deployment，也没有调用 DeepSeek/Resend。远端仍只有 11 条 migration，0012 实际
-  push 与其后 Hosted 外部门禁尚未执行。部署候选范围另审计为 116 个 tracked 修改、103 个未跟踪文件、
-  0 staged；无冲突、symlink、超过 1 MiB、生成/归档/可执行/私钥文件或已知泄露 key，`re_` 命中均为
-  测试假值。该证据不等于已 commit/push，Vercel 仍不能绑定当前未提交工作树；
+  Auth/SMTP/secret 或 deployment，也没有调用 DeepSeek/Resend。0012 后的 diagnostic 暴露 PostgreSQL 17
+  membership verifier 误判；共享契约修复后，用户已运行正式只读 foundation verify 与固定 Operator
+  status，分别得到 passed 和 `empty`。数据库 foundation 门已关闭，但 Vercel/DNS/Auth/SMTP/secret/
+  deployment 与邀请门仍关闭。此前部署候选范围审计仍作为提交前历史证据保留，不替代当前修复 diff 的复核；
+
+## 44. PostgreSQL 17 hosted membership verifier 更正（2026-08-22）
+
+- **根因**：旧版 bootstrap/admin verify/diagnostic 同时假设三条产品 membership 为
+  `admin=false / inherit=true / set=true`，并要求所有涉及四个 Huayi role 的 catalog row 总数恰好为三。
+  PostgreSQL 17 对 `NOINHERIT` 成员默认形成 `inherit=false` 的 grant；CREATEROLE creator 还可能拥有
+  `postgres`→新角色的 `admin=true / inherit=false / set=false` 控制边，因此远端安全状态被错误拒绝；
+- **RED 与最小修复**：新增回归先因共享 membership 模块缺失而 Fresh RED；实现按角色对要求三条产品边
+  各自唯一 `false/false/true`，只允许存在的 `postgres` creator-control `true/false/false`，并禁止其他
+  相关直接边。不同 grantor 的重复产品 row 由每个角色对的分组计数拒绝，不再用裸 incident 总数；
+- **防漂移**：bootstrap、admin verify 与 read-only diagnostic 现在嵌入同一个 SQL renderer；diagnostic
+  保留 migration/identity/0012 有界 predicates，并把旧的两个 membership verdict 收敛为共享
+  `membership_contract_exact`；
+- **离线验证与证据边界**：hosted foundation + first Operator focused 为 15/15；本机 PostgreSQL 17.6
+  事务探测证明预期角色图返回 true，额外产品边或错误 `inherit=true` 均返回 false，三次探测全部
+  rollback。fresh `pnpm verify:macos` 随后原样退出 0，覆盖 213/213 Node scripts、474/474 Vitest files
+  （2,859 passed / 12 skipped）、Store coverage 481/481、Playwright 110/110、全 workspace
+  format/lint/typecheck/build、architecture、development blocker、Store release 与 production dependency
+  audit（无已知漏洞）。实现修复时不连接远端、不执行 migration/bootstrap，也不修改 Supabase 角色；
+- **远端正式复验**：用户随后在当前工作树运行
+  `pnpm acceptance:hosted:verify --verify-hosted-foundation-kpadiulxkgckskcfydry`，得到
+  `Hosted acceptance foundation verification passed.`；紧接着运行
+  `pnpm acceptance:hosted:operator:status --status-first-operator-kpadiulxkgckskcfydry`，得到
+  `Hosted first Operator status: empty.`。两条均为正式固定 CLI 的只读结果，关闭 migration 0012 后的
+  foundation/空 Operator 数据库门；它们不证明或代替 Vercel、DNS、Auth、SMTP、secret、deployment、真实
+  邮件、邀请发行或实际 Operator 引导。
