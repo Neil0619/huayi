@@ -5,5 +5,3 @@ export function createHealthApp(): HonoApp {
   app.get("/health", (context) => context.json({ service: "huayi-cloud-api", status: "ok" }));
   return app;
 }
-
-export const app = createHealthApp();
