@@ -429,5 +429,5 @@ email scanner 行为、secure-password-change 配置、Cookie same-site/domain/T
 - **结论**：方案与邀请、method fence、recent-auth、Cookie/RLS 和隐私边界一致。R1 独立 Provider seam、
   R2 深模块/内存/Postgres、R3-A HTTP/dispatch、R3-B 通知核心、R3-C production notification code 与
   R4 Web/actual bundle 均已通过离线回归，R5 离线总审也未发现新的权限提升、秘密持久化或任意 redirect。
-  真实 DNS/verified sender/Resend 投递/监控接收方、Supabase/邮件部署和双平台 Chrome 仍未验证，整体状态只能是
-  `implemented; target-platform validation pending`。
+  hosted acceptance 的真实 DNS/verified sender 已通过；Resend 投递/监控接收方、Supabase/邮件部署和
+  双平台 Chrome 仍未验证，整体状态只能是 `implemented; target-platform validation pending`。

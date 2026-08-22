@@ -254,7 +254,9 @@ RLS，首页仍为 `Healthy`。第 12 条 FirstOperatorBootstrap forward migrati
 actual push。Auth 仍为 0 用户；foundation bootstrap 后 Storage 为唯一 private
 `account-exports-acceptance` bucket 且 0 object，application login 与三条价格已建立，kill switch 保持开启。
 Vercel 应用部署仍是独立门；修正版 PostgreSQL 17 foundation verify 已通过，Operator status 已返回
-`empty`，但未创建或部署 Vercel 应用。
+`empty`。两个 Vercel project、Git/Branch、custom domain 与部署前 TLS 已建立，但仍为零 deployment；Tokyo
+(`ap-northeast-1`) 的 Resend sender domain `notify.acceptance.seen-said.cn` 也已完成 DNS 与 Dashboard
+verified，SMTP/HTTP credential、真实投递与应用部署仍未完成。
 
 `.cn` 域名实名认证是启用解析的必需项。验收环境继续使用 Vercel/Supabase 境外托管资源时，ICP备案不
 作为当前启动前置；未来迁入中国大陆服务器、使用中国大陆 CDN 或其他境内接入资源前，必须重新设置备案
@@ -262,13 +264,13 @@ Vercel 应用部署仍是独立门；修正版 PostgreSQL 17 foundation verify �
 
 固定 DNS 职责如下，具体 record value 只复制 Vercel/Resend Dashboard 的当前值：
 
-| 名称                                    | 用途                         | 管理方                  |
-| --------------------------------------- | ---------------------------- | ----------------------- |
-| `app.acceptance.seen-said.cn`           | Vercel hosted Web 验收       | Vercel + Cloudflare DNS |
-| `api.acceptance.seen-said.cn`           | Vercel hosted API 验收       | Vercel + Cloudflare DNS |
-| `notify.acceptance.seen-said.cn`        | Resend 验收事务邮件发件子域  | Resend + Cloudflare DNS |
-| `_dmarc.notify.acceptance.seen-said.cn` | 验收发件子域 DMARC 策略      | Cloudflare DNS          |
-| `notify.seen-said.cn`                   | 未来 production 发件子域预留 | 当前不配置或发送        |
+| 名称                             | 用途                           | 管理方                  |
+| -------------------------------- | ------------------------------ | ----------------------- |
+| `app.acceptance.seen-said.cn`    | Vercel hosted Web 验收         | Vercel + Cloudflare DNS |
+| `api.acceptance.seen-said.cn`    | Vercel hosted API 验收         | Vercel + Cloudflare DNS |
+| `notify.acceptance.seen-said.cn` | Resend 验收事务邮件发件子域    | Resend + Cloudflare DNS |
+| `_dmarc.seen-said.cn`            | 当前根域 monitoring DMARC 策略 | Cloudflare DNS          |
+| `notify.seen-said.cn`            | 未来 production 发件子域预留   | 当前不配置或发送        |
 
 Resend 使用 Free 版本和独立 `notify.acceptance.seen-said.cn` 子域隔离验收事务邮件信誉，不能复用未来
 production 的 `notify`；验收 sender 暂定 `accounts@notify.acceptance.seen-said.cn` 与

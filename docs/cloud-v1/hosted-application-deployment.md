@@ -24,7 +24,10 @@ creator-control 边而失败。用户已在同一工作树运行修正版 founda
 status 返回 `empty`；Auth、profile、Operator 和 invitation 仍为空。
 2026-08-22 的历史 bootstrap 前 DoH 复核曾显示 `app.acceptance`、`api.acceptance`、`notify.acceptance` 与
 其 DMARC 名称为 NXDOMAIN；随后 `app.acceptance` 与 `api.acceptance` 已完成 Cloudflare/Vercel 配置并通过
-递归 DNS、Vercel domain 与 TLS 回读。`notify.acceptance` 仍待 Resend 验证。两个 Vercel project 已连接精确 GitHub repository `Neil0619/huayi`，Preview 均为
+递归 DNS、Vercel domain 与 TLS 回读。2026-08-23，Tokyo (`ap-northeast-1`) Resend sender domain
+`notify.acceptance.seen-said.cn` 已完成 Resend 指定 DKIM、feedback MX、SPF 与 monitoring DMARC 的
+Cloudflare 写入和公共解析复核，Dashboard 显示 `Domain verified: Your domain is ready to send emails`。
+这不等于 SMTP/HTTP credential 已托管、邮件已投递或应用已部署。两个 Vercel project 已连接精确 GitHub repository `Neil0619/huayi`，Preview 均为
 `Disabled`，Production Branch Tracking 均为 `codex/settings-configuration`；Production environment 尚无
 变量，Deployments 仍为空。
 
@@ -250,8 +253,8 @@ redirect allowlist，不能互换。
 1. 在 Vercel 两个 project 添加 exact custom domain；只复制 Dashboard 当前给出的 CNAME/TXT；
 2. 在 Cloudflare DNS 添加记录，初始关闭代理（DNS only），避免域名所有权/TLS 核验被代理掩盖；Vercel
    显示 Valid Configuration 且证书生效后再评估是否保持 DNS only；
-3. 在 Resend 添加 `notify.acceptance.seen-said.cn`，逐条复制其 DKIM、SPF/MX，并添加初始
-   `_dmarc.notify.acceptance` `p=none`；Resend 显示 verified 后创建两把新 key并撤销旧 key；
+3. Resend `notify.acceptance.seen-said.cn` 已逐条配置 DKIM、SPF/MX 与 Dashboard 指定的根域 `_dmarc`
+   monitoring `p=none`，并显示 verified；下一步创建两把新 key并确认撤销旧 key；
 4. 配置 Supabase Auth URL/SMTP；Google 保持 disabled；
 5. 配置 API/Web Production environment，先部署 API，再部署 Web；
 6. API `/health`、Web `/` 与 `/privacy` 通过真实 TLS 后，验证 Cookie/CORS/CSRF/SSE/password callback；

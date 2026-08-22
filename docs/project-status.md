@@ -1492,3 +1492,16 @@ passed; first Operator empty`。候选已提交推送，0012 已实际 push；�
 - 本阶段不声明应用已部署或 production ready。下一门是 Resend verified sender subdomain/DNS、
   production-only environment、Supabase Auth/SMTP 与之后的受控 API→Web deployment；对话中泄露的旧
   Resend key 撤销状态尚未核验，必须视为已泄露且禁止重新使用或写入文档/环境。
+
+## Cloud V1 Phase 62 Hosted acceptance Resend sender 域名验证状态（2026-08-23）
+
+- Resend sender domain `notify.acceptance.seen-said.cn` 已在 Tokyo (`ap-northeast-1`) 创建；Cloudflare
+  `seen-said.cn` 已新增并经公共递归解析核验四条 Resend 指定记录：
+  `resend._domainkey.notify.acceptance` TXT、`send.notify.acceptance` priority 10 feedback MX、同名 SPF TXT，
+  以及 `_dmarc` monitoring TXT；既有 `api.acceptance` / `app.acceptance` CNAME 未修改；
+- Resend Dashboard 最终显示 `Domain verified: Your domain is ready to send emails`；两个 Vercel project
+  仍为 `No Production Deployment`。本阶段仅关闭 sender-domain/DNS 门，不表示 API/Web 已部署，亦不代表
+  Supabase Auth SMTP、R3-C HTTP sender、真实确认/恢复邮件、告警接收或 production ready；
+- 下一步须分别托管新的 SMTP 与 HTTP credential、配置并验证 Supabase Auth SMTP 和 Reply-To、补齐
+  production-only Vercel environment，再按 API→Web 受控部署并完成应用/邮件/Cron smoke。对话中泄露的旧
+  Resend key 继续视为泄露且不可使用，撤销状态仍待 Dashboard 核验。

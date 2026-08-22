@@ -3,6 +3,19 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-23：Hosted acceptance Resend sender 域名门关闭
+
+- Resend sender domain 固定为 Tokyo (`ap-northeast-1`) 的
+  `notify.acceptance.seen-said.cn`；Cloudflare `seen-said.cn` 保留既有
+  `api.acceptance` / `app.acceptance` CNAME 不变，并新增且公共解析核验 Resend 指定的 DKIM TXT、
+  `send.notify.acceptance` 的 priority 10 feedback MX 与 SPF TXT，以及根域监测策略 DMARC TXT；
+- Resend Dashboard 最终显示 `Domain verified: Your domain is ready to send emails`。这只关闭验收 sender
+  域名与 DNS 门，不创建或记录任何 API key，也不等于 Supabase custom SMTP、R3-C HTTP credential、真实邮件
+  投递、告警接收、应用 deployment 或 production ready；
+- 两个 Vercel acceptance project 回读仍为 `No Production Deployment`。后续顺序保持：分别托管新的 SMTP/HTTP
+  credential 与 production-only environment → Auth/SMTP 配置及验证 → 受控 API→Web deployment → 应用与邮件
+  smoke → Cron/首张邀请；对话中泄露的旧 Resend key 仍必须视为泄露且其撤销状态待在 Dashboard 核验。
+
 ## 2026-08-22：Hosted acceptance DNS 与 TLS 门关闭
 
 - Cloudflare `seen-said.cn` 已保存并回读两条 DNS-only CNAME：`api.acceptance` → `7cb58e1372474614.vercel-dns-017.com.`，`app.acceptance` → `f0cbaadacf303110.vercel-dns-017.com.`；Proxy disabled、TTL Auto；1.1.1.1、8.8.8.8、9.9.9.9 均解析到精确 CNAME；

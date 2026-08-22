@@ -1386,3 +1386,22 @@ FirstOperatorBootstrap，随后已实际 push；远端 diagnostic 证明 12 条 
 同时暴露旧版 PostgreSQL 17 membership 校验误判。用户已用修正版只读 foundation verify 和固定 Operator
 status 关闭这道门；下一步可以按外部门顺序准备 Vercel 创建，但不得重跑 migration 或 bootstrap，也不能
 跳过 DNS/Auth/SMTP/secret/deployment 与邀请前置条件。
+
+## Phase 62：Hosted acceptance Resend sender 域名与 DNS 验证（2026-08-23）
+
+影响平台为 `hosted-acceptance`。本阶段只关闭可独立验证的 sender-domain 门，不以 DNS 或 Dashboard 状态
+推导应用、SMTP 或真实投递成功。
+
+1. **固定发送域与区域**：Resend 使用 Tokyo (`ap-northeast-1`) 的
+   `notify.acceptance.seen-said.cn`；不复用未来 production 的 `notify.seen-said.cn`；
+2. **精确 DNS**：Cloudflare `seen-said.cn` 新增 Resend 指定的
+   `resend._domainkey.notify.acceptance` TXT、`send.notify.acceptance` priority 10 feedback MX、同名 SPF TXT，
+   与 `_dmarc` monitoring TXT；已有 `api.acceptance` / `app.acceptance` DNS-only CNAME 不得修改；
+3. **独立证据**：Cloudflare 保存/回读后，用公共递归解析器核验四条记录；再由 Resend Dashboard 显示
+   `Domain verified: Your domain is ready to send emails`。记录 record 类型、名称、目标/策略与状态，不把 DNS
+   内容或任何 credential 复制到仓库；
+4. **仍关闭的门**：分别在 secret store 托管新的 SMTP 与 R3-C HTTP credential，配置并验证 Supabase Auth SMTP、
+   Reply-To、真实确认/恢复邮件与告警接收；再配置 production-only Vercel environment，受控 API→Web deployment
+   后核验 Cookie/CORS/SSE/Auth/Storage/五项 Cron，最后才发行首张邀请；
+5. **安全边界**：对话中泄露的旧 Resend key 仍为不可用泄露材料，撤销状态须在 Resend Dashboard 单独核验；
+   sender-domain verified 不授权部署、真实模型调用或 production cutover。

@@ -1362,3 +1362,17 @@ typecheck、architecture、build、development blocker、Store release、product
 - 该证据只关闭 DNS/domain/TLS 配置门，不声明应用部署或 production readiness。Resend verified sender
   subdomain/DNS、production-only environment、Supabase Auth/SMTP 与真实应用部署仍 pending；对话中
   泄露的旧 Resend key 撤销状态尚未核验，必须视为已泄露且不可使用。
+
+## 53. Hosted acceptance Resend sender 域名与 DNS 回读（2026-08-23）
+
+- **固定范围**：Resend sender domain 为 Tokyo (`ap-northeast-1`) 的
+  `notify.acceptance.seen-said.cn`。future production sender `notify.seen-said.cn` 仍不在本阶段范围；
+- **DNS 证据**：Cloudflare `seen-said.cn` 保存并回读 Resend 指定的 DKIM TXT、
+  `send.notify.acceptance` priority 10 feedback MX、同名 SPF TXT 和 `_dmarc` monitoring TXT；公共递归
+  解析同步返回四条精确记录。既有 `api.acceptance` / `app.acceptance` DNS-only CNAME 未修改；
+- **厂商状态**：Resend Dashboard 显示 `Domain verified: Your domain is ready to send emails`；两个 Vercel
+  acceptance project 同时仍显示 `No Production Deployment`；
+- **证据边界与后续门**：没有写入或记录 API key，未配置 Supabase custom SMTP、R3-C HTTP credential 或
+  production-only environment，未发送真实确认/恢复/通知邮件，未配置告警接收方，未部署 API/Web，未运行
+  DeepSeek 或 Cron。旧对话泄露 key 仍必须视为不可用，撤销状态待 Resend Dashboard 单独核验。下一外部门为
+  secret store 中分离 SMTP/HTTP credential、Auth/SMTP 验证，再到受控 API→Web deployment 和应用/邮件 smoke。

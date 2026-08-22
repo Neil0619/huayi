@@ -19,13 +19,15 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       0 用户。用户已确认并完成 foundation bootstrap，创建 application login、三条价格、唯一 private
       empty bucket 和开启的 kill switch，初版 admin/application 验证均 passed；后续安全审查已把 TLS 收紧为
       显式 CA + verify-full，并加入精确角色图、越权 SQLSTATE 与同 backend 跨事务 context 隔离验证。更新后
-      focused 与本轮完整 macOS 门、远端 hardened admin/application 双复验均已通过。仓库另有首位 Operator
-      bootstrap 第 12 条 forward migration，但尚未 dry-run/push；Vercel 与其余隔离资源未完成，因此本项
-      仍未勾选；
-- [ ] `app.acceptance.<root-domain>` / `api.acceptance.<root-domain>` 已完成 TLS、Cookie、CSRF、SSE 和
-      callback；若曾使用 `*.vercel.app` gateway 备用方案，目标子域仍已重新验收；
-- [ ] `notify.acceptance.<root-domain>` 已在 Resend 通过 SPF/DKIM（及受审计 DMARC），Supabase Auth SMTP
-      与 R3-C HTTP key 已分离，并完成真实投递与告警接收验收；
+      focused 与本轮完整 macOS 门、远端 hardened admin/application 双复验均已通过。第 12 条
+      FirstOperatorBootstrap migration 已实际应用；Vercel API/Web 项目、Git/Branch、custom domain 与 TLS
+      已建立但仍为零 deployment，Resend sender domain 也已验证；其余隔离运行时配置与应用验收未完成，
+      因此本项仍未勾选；
+- [ ] `app.acceptance.<root-domain>` / `api.acceptance.<root-domain>` 的 DNS、Vercel domain 和部署前 TLS
+      已验证，但 Cookie、CSRF、SSE、callback 仍须在受控 API→Web deployment 后验收；若曾使用
+      `*.vercel.app` gateway 备用方案，目标子域仍已重新验收；
+- [ ] `notify.acceptance.<root-domain>` 已在 Resend Tokyo 通过 SPF/DKIM 及 monitoring DMARC；仍须分别托管
+      Supabase Auth SMTP 与 R3-C HTTP key，并完成真实投递与告警接收验收；
 - [x] R3-C outbox 固定 23 小时 deadline、最多 8 次与 failed/dead-letter 终态；超窗/耗尽在 sender 前
       终态化且零外调，同 notification ID 只在窗口内重放；固定 Resend adapter、独立通知 CRON production
       route/composition 与无正文 reason/count 告警 port 已由 fake fetch、PGlite 和 composition 回归证明；
@@ -88,9 +90,9 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       无正文告警 port；provider error、deadline、尝试耗尽及 persistence failure 都不会记录邮箱/owner/
       正文/raw error。本条只关闭本机代码，不证明 verified sender、真实投递或监控接收方；
 - [ ] R3-C 外部前置条件部分完成：`seen-said.cn` 已在腾讯云购买/实名，权威 NS 已由两个独立 DoH
-      解析器核验为 Cloudflare；仍须完成 `notify` 子域 SPF/DKIM/DMARC、支持邮箱、告警目的地和 secret
-      轮换/托管。此前粘贴到对话中的 Resend key 必须撤销，不得进入任何部署；新 key 只能进入
-      deployment secret store。不能把本机 Mailpit 或仅验证域名当 production 证据；
+      解析器核验为 Cloudflare，Tokyo 的 `notify.acceptance` sender domain 已通过 SPF/DKIM/monitoring
+      DMARC。仍须完成支持邮箱、告警目的地、分离 credential 的轮换/secret 托管和真实投递；此前粘贴到
+      对话中的 Resend key 必须撤销，不得进入任何部署。不能把本机 Mailpit 或仅验证域名当 production 证据；
 - [x] DeepSeek 官方文档事实已校准：固定 `deepseek-v4-flash`、thinking + JSON、非流
       `completion_tokens_details.reasoning_tokens`，以及 2026-08-16T16:00:00Z 起两个 UTC peak 窗口和
       legacy/off-peak/peak 精确价格；离线 adapter/分时账本实现与回归已完成；

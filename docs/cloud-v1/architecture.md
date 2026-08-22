@@ -122,7 +122,8 @@ fake clock。客户端通过 HTTP adapter 访问同一用例，不复制领域�
     逐 flow Supabase PKCE storage 与 adapter 已在 R1 实现；深模块、内存与 Postgres/forced-RLS 状态机已
     在 R2 建立；R3-A production HTTP/dispatch、R3-B notification outbox lease/retry、R3-C Resend
     sender/23 小时幂等窗口/8 次上限/独立 CRON/无正文告警 port 与 R4 Web/actual bundle 已离线实现。
-    真实 DNS/verified sender/Resend 投递/监控目的地、Supabase/邮件部署与双平台 Chrome 待 R5 目标验证。
+    hosted acceptance 的真实 DNS/verified sender 已通过；Resend 投递/监控目的地、Supabase/邮件部署与
+    双平台 Chrome 仍待 R5 目标验证。
     详见 `password-recovery.md`。
 11. 非安全方法必须同时校验 Origin 和双提交 CSRF token。登录、邀请、近期重认证和密码恢复另加 IP/账号
     速率限制。
