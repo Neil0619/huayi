@@ -1347,7 +1347,7 @@ typecheck、architecture、build、development blocker、Store release、product
 - **双重 environment 门**：两个 project 的 Preview environment 均继续显示 `Disabled`，Production
   Branch Tracking 均显示 `codex/settings-configuration`；两个 Production environment 均显示
   `No Environment Variables Added`；
-- **独立零部署回读**：Root 在连接和 Branch Tracking 保存后独立复读两个 project 的 Git、Environment 与
+- **独立零部署回读**：Root 在连接和 Branch Tracking 保存后独立回读两个 project 的 Git、Environment 与
   Deployments 页面；两边均显示 `No Production Deployment`，且页面没有任何 deployment 记录；
 - **外部动作边界**：本轮没有配置 domain 或 environment variable，也没有触发 deployment。Production-only
   environment、domain、Resend、Supabase Auth/SMTP 与首次 API/Web deployment 仍待后续明确门禁；

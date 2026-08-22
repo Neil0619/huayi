@@ -7,7 +7,7 @@
 已有 hosted DeepSeek key 并批准验收环境产生少量真实费用，同时选择首轮禁用 Store。两个 Vercel 空
 project 已创建并冻结 project settings；REST 与 Dashboard 均确认零 deployment，Dashboard 还确认两个
 Preview environment 均为 Disabled。两个 project 现均已连接精确 GitHub repository `Neil0619/huayi`，
-Production Branch Tracking 均为 `codex/settings-configuration`；Root 独立复读两个 Git、Environment 与
+Production Branch Tracking 均为 `codex/settings-configuration`；Root 独立回读两个 Git、Environment 与
 Deployments 页面，确认仍无 Production deployment 或 deployment 记录，Production environment 均为
 `No Environment Variables Added`。本轮没有接受 GitHub App permission upgrade，也没有执行 domain、
 environment variable 或 deployment 动作。DNS/Resend/Auth/SMTP/production-only environment、应用部署和
@@ -151,7 +151,7 @@ deployment。
 `pnpm build`/`dist`、Node 22，两者均启用 root 外 source、Preview=`Disabled`、无 Production deployment、
 无 Git link。Dashboard 还证明未连接 Git 时 Production environment 只显示 `No branch configuration`，
 Production Branch Tracking 尚不可设置。随后 API/Web 均已连接精确 GitHub repository `Neil0619/huayi`，
-并分别把 Production Branch Tracking 保存为 `codex/settings-configuration`。Root 独立复读两个 project：
+并分别把 Production Branch Tracking 保存为 `codex/settings-configuration`。Root 独立回读两个 project：
 Preview 仍为 `Disabled`，Deployments 页面均为 `No Production Deployment` 且没有 deployment 记录，
 Production environment 均为 `No Environment Variables Added`。本轮没有接受 permission upgrade，也没有
 执行 domain、environment variable 或 deployment 动作；`git.deploymentEnabled=false` 仍使首次部署保持

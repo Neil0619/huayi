@@ -8,7 +8,7 @@
 - `seen-said-acceptance-api` 与 `seen-said-acceptance-web` 均已连接精确 GitHub repository
   `Neil0619/huayi`；两个 project 的 Preview environment 继续为 `Disabled`，Production Branch Tracking
   均固定为 `codex/settings-configuration`；
-- Root 独立复读两个 project 的 Git、Environment 与 Deployments 页面：均为
+- Root 独立回读两个 project 的 Git、Environment 与 Deployments 页面：均为
   `No Production Deployment` 且没有 deployment 记录，Production environment 均为
   `No Environment Variables Added`；本轮未接受 GitHub App permission upgrade，也未执行 domain、
   environment variable 或 deployment 动作；
