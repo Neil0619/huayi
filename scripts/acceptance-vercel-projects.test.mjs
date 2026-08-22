@@ -11,12 +11,15 @@ import {
   blankProject,
   configuredProject,
   configureExpectations,
+  createProjectResponse,
   createFakeFetch,
   deploymentEmpty,
   deploymentUrl,
   missingProjectExpectation,
+  platformDefaultBlankProject,
   projectUrl,
   specs,
+  teamId,
   teamQuery,
   teamResponse,
   token,
@@ -89,6 +92,55 @@ test("apply creates two name-only shells, freezes settings, rereads, and proves 
     ),
     false,
   );
+  fake.done();
+});
+
+test("apply rereads a created shell and accepts Vercel's safe source-outside-root default", async () => {
+  const name = "seen-said-acceptance-api";
+  const fake = createFakeFetch([
+    { response: teamResponse(), url: teamQuery },
+    missingProjectExpectation(name),
+    {
+      response: configuredProject("seen-said-acceptance-web"),
+      url: projectUrl("seen-said-acceptance-web"),
+    },
+    { response: deploymentEmpty(), url: deploymentUrl("seen-said-acceptance-web") },
+    {
+      body: { name },
+      method: "POST",
+      response: createProjectResponse(name),
+      url: `https://api.vercel.com/v11/projects?teamId=${teamId}`,
+    },
+    { response: platformDefaultBlankProject(name), url: projectUrl(name) },
+    { response: deploymentEmpty(), url: deploymentUrl(name) },
+    {
+      body: specs[name].settings,
+      method: "PATCH",
+      response: configuredProject(name),
+      url: projectUrl(name),
+    },
+    { response: configuredProject(name), url: projectUrl(name) },
+    { response: deploymentEmpty(), url: deploymentUrl(name) },
+    {
+      body: specs["seen-said-acceptance-web"].settings,
+      method: "PATCH",
+      response: configuredProject("seen-said-acceptance-web"),
+      url: projectUrl("seen-said-acceptance-web"),
+    },
+    {
+      response: configuredProject("seen-said-acceptance-web"),
+      url: projectUrl("seen-said-acceptance-web"),
+    },
+    { response: deploymentEmpty(), url: deploymentUrl("seen-said-acceptance-web") },
+  ]);
+
+  const result = await applyVercelProjectShells({
+    arguments_: ["apply", vercelProjectsApplyConfirmation],
+    environment: { VERCEL_TOKEN: token },
+    fetch_: fake.fetch_,
+  });
+
+  assert.equal(result.outcome, "applied");
   fake.done();
 });
 
@@ -171,6 +223,30 @@ test("preflight fails closed on drift, Git linkage, or any existing deployment",
       project: {
         ...configuredProject("seen-said-acceptance-api"),
         env: [{ key: "UNEXPECTED", target: ["production"] }],
+      },
+      deployments: null,
+    },
+    {
+      label: "existing custom environment",
+      project: {
+        ...configuredProject("seen-said-acceptance-api"),
+        customEnvironments: [{ id: "env_unexpected" }],
+      },
+      deployments: null,
+    },
+    {
+      label: "existing alias",
+      project: {
+        ...configuredProject("seen-said-acceptance-api"),
+        alias: ["unexpected.example"],
+      },
+      deployments: null,
+    },
+    {
+      label: "existing integration",
+      project: {
+        ...configuredProject("seen-said-acceptance-api"),
+        integrations: [{ id: "integration_unexpected" }],
       },
       deployments: null,
     },

@@ -60,6 +60,23 @@ export function blankProject(name) {
   };
 }
 
+export function platformDefaultBlankProject(name) {
+  return {
+    ...blankProject(name),
+    sourceFilesOutsideRootDirectory: true,
+  };
+}
+
+export function createProjectResponse(name) {
+  return {
+    ...platformDefaultBlankProject(name),
+    alias: [],
+    defaultResourceConfig: {},
+    deploymentExpiration: {},
+    directoryListing: false,
+  };
+}
+
 export function configuredProject(name) {
   const settings = specs[name].settings;
   return {
@@ -138,9 +155,10 @@ export function configureExpectations(name) {
     {
       body: { name },
       method: "POST",
-      response: blankProject(name),
+      response: createProjectResponse(name),
       url: `https://api.vercel.com/v11/projects?teamId=${teamId}`,
     },
+    { response: platformDefaultBlankProject(name), url: projectUrl(name) },
     { response: deploymentEmpty(), url: deploymentUrl(name) },
     {
       body: specs[name].settings,

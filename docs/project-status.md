@@ -1443,3 +1443,15 @@ passed; first Operator empty`。候选已提交推送，0012 已实际 push；�
   227/227、受影响 format/lint 与 diff check 均通过；
 - 首次失败没有发出 Vercel REST 请求，也没有创建 project 或 deployment。修复后的真实 `apply` 尚未重跑，
   外部 Vercel 门仍关闭。
+
+## Cloud V1 Phase 58 Vercel 空 shell 平台默认值修复状态（2026-08-22）
+
+- 第二次真实 `apply` 已到达 API name-only create，并留下零 deployment、未连接 Git 的 API shell；Dashboard
+  回查为 Framework=Other、Build/Output/Root 为空、Node 24.x，但 root 外 source 被 Vercel 默认开启；
+- 旧空壳分类把 `sourceFilesOutsideRootDirectory=true` 当成部分漂移，因此在任何 settings PATCH、Web create
+  或 deployment 前以 `create-api/preflight-rejected` 失败关闭；Token/team/HTTP 权限不是本次故障；
+- 修复接受该与冻结目标一致的安全布尔默认，并在 POST 后重新 GET exact team/name canonical project，再
+  复用原有无 Git/environment/custom environment/alias/integration、其余配置与零 deployment 检查；
+- deterministic fake-fetch 回归先稳定复现用户同一 stage/reason/status，随后转绿并覆盖首次 create 与既有
+  API shell 幂等重跑；修正版尚未真实重跑，Web shell、settings、Git、environment/domain/deployment 门仍
+  关闭。

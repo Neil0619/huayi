@@ -16,6 +16,7 @@ import {
   deploymentUrl,
   jsonResponse,
   missingProjectExpectation,
+  platformDefaultBlankProject,
   projectUrl,
   specs,
   teamId,
@@ -187,6 +188,10 @@ test("a partial write stops immediately and a rerun can resume from the blank sh
       response: blankProject("seen-said-acceptance-api"),
       url: `https://api.vercel.com/v11/projects?teamId=${teamId}`,
     },
+    {
+      response: platformDefaultBlankProject("seen-said-acceptance-api"),
+      url: projectUrl("seen-said-acceptance-api"),
+    },
     { response: deploymentEmpty(), url: deploymentUrl("seen-said-acceptance-api") },
     {
       body: specs["seen-said-acceptance-api"].settings,
@@ -209,7 +214,7 @@ test("a partial write stops immediately and a rerun can resume from the blank sh
   const rerun = createFakeFetch([
     { response: teamResponse(), url: teamQuery },
     {
-      response: blankProject("seen-said-acceptance-api"),
+      response: platformDefaultBlankProject("seen-said-acceptance-api"),
       url: projectUrl("seen-said-acceptance-api"),
     },
     { response: deploymentEmpty(), url: deploymentUrl("seen-said-acceptance-api") },

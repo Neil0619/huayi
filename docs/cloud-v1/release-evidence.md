@@ -1302,3 +1302,21 @@ typecheck、architecture、build、development blocker、Store release、product
   scope、preflight 和 verification 均不回显 URL、请求体、Token、team 数据或远端正文；未知异常固定降级为
   `internal/unexpected/unavailable`。focused bootstrap/security 13/13、完整 `pnpm test:scripts` 227/227、
   受影响 ESLint/Prettier 与 diff check 均通过；修复后真实外部 `apply` 仍待用户使用进程级 Token 重跑。
+
+## 49. Vercel name-only create 安全默认值兼容（2026-08-22）
+
+- **真实症状**：修复参数后，外部调用到达 `POST /v11/projects` 并以
+  `stage=create-api; reason=preflight-rejected; status=not-applicable` 停止；API project shell 已创建，后续
+  PATCH、Web create 和任何 deployment 未执行；
+- **确认根因**：Dashboard 只读证据为 Connect Git、无 Production/Preview deployment、Framework=Other、
+  Build/Output/Root 为空、Node 24.x，但 Vercel 默认开启 `sourceFilesOutsideRootDirectory`。旧
+  `isBlankShell` 精确要求该值不能为 `true`，因而拒绝了与最终冻结目标一致的安全平台默认值；
+- **Fresh RED/GREEN**：deterministic fake create response 使用当前官方 create schema 的必需默认字段，随后
+  canonical GET 返回 root 外 source=true 的零 Git/零 environment/零 alias/零 integration 空 shell。修复前
+  单测稳定复现同一 `create-api/preflight-rejected`；修复后接受该布尔默认值、PATCH 冻结设置并验证零
+  deployment；
+- **契约加固**：POST response 只确认 create 成功，不再当完整 project 投影；脚本随后按 exact team/name
+  调用 canonical GET，再执行原有 identity、Git/environment/custom environment/alias/integration、配置与
+  Deployments API 检查。除 root 外 source 的 `false|true` 安全布尔默认外，其他部分漂移仍失败关闭；
+- **外部状态边界**：当前 API shell 可能被下一次幂等重跑复用；尚未配置 settings、创建 Web shell、连接
+  Git、写入环境变量/domain 或产生 deployment。修正版真实重跑仍待执行。

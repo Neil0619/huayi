@@ -115,9 +115,12 @@ pnpm 会把上述命令中的单个 `--` 原样转发给固定了 `apply/status`
 Preview 禁用字段，Web 另写 build/output，API 另写 Fluid、`sin1` 和 120 秒 resource defaults。每次写入前后
 都用 `GET /v7/deployments?projectId=...&limit=1` 证明空集合，并通过 `GET /v9/projects/{idOrName}` 回读
 Root/Framework/Node/build/output/resource settings 与 Git link 缺失。两个 project 在任何写入前都完成预检；
-只接受不存在、全空 shell 或与冻结设置精确一致的零 deployment/零 Git project。已有 Git link、deployment、
-环境变量、alias/integration 或部分漂移一律停止，不能覆盖；请求中途失败也立即停止，重跑只会复用已创建的
-安全空 shell。
+只接受不存在、安全空 shell 或与冻结设置精确一致的零 deployment/零 Git project。Vercel 新建空 shell 会把
+`sourceFilesOutsideRootDirectory` 安全默认为 `true`；它与冻结目标一致，不能被误判为部分漂移。POST 响应只
+作为创建成功确认，随后必须按 name 重新 GET canonical project，再检查精确 account/name、Git、environment、
+custom environment、alias/integration、其余配置和零 deployment。已有 Git link、deployment、环境变量、
+alias/integration 或其他部分漂移一律停止，不能覆盖；请求中途失败也立即停止，重跑只会复用已创建的安全空
+shell。
 
 Vercel 官方 PATCH 请求支持 `previewDeploymentsDisabled=true`，但当前官方 project GET response schema 不
 返回这个字段，所以脚本只能安全发出幂等请求，不能把它冒充成已回读证明。第 3 步必须在 Dashboard 同时
@@ -129,9 +132,11 @@ Vercel 官方 PATCH 请求支持 `previewDeploymentsDisabled=true`，但当前�
 [Vercel Deployments REST API](https://vercel.com/docs/rest-api/reference/endpoints/deployments)、
 [Vercel Teams REST API](https://vercel.com/docs/rest-api/reference/endpoints/teams)、
 [Vercel CLI git](https://vercel.com/docs/cli/git)。本节 REST 版本和字段另按当前官方 `vercel/sdk` 生成契约
-交叉核对。本节记录的是待执行 runbook；首次 `apply` 尝试因 pnpm 分隔符尚未规范化而在本机参数校验阶段
-退出，未读取远端状态或发出 REST 请求。该缺陷已有真实参数形状回归并修复，但修复后尚未重跑外部
-`apply`；仍未创建 Vercel project、连接 repository 或产生 deployment。
+交叉核对。首次 `apply` 尝试因 pnpm 分隔符尚未规范化而在本机参数校验阶段退出；修复后的第二次真实
+`apply` 已创建 API name-only shell，但 Vercel 默认开启 root 外 source，旧空壳分类在 PATCH 前失败关闭。
+Dashboard 只读回查确认该 API project 仍为 Connect Git、Framework=Other、Build/Output/Root 为空、Node
+24.x、无 Production/Preview deployment；Web create、settings PATCH、repository connect 和 deployment 均未
+执行。修正版在 fake-fetch 中以相同默认值完成 canonical GET 与零 deployment 复核；真实安全重跑仍待执行。
 
 `.vercel/` 只保存本机 project link，不提交。项目 ID、team ID、deployment ID 和 custom-domain 记录可写入
 无 secret 发布证据；token 与环境变量值不可写入仓库或聊天。

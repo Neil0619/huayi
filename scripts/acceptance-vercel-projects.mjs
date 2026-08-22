@@ -146,12 +146,14 @@ function matchesDesiredSettings(project, settings) {
 }
 
 function isBlankShell(project) {
+  const sourceFilesOutsideRootDirectory = project.sourceFilesOutsideRootDirectory;
   return (
     project.buildCommand == null &&
     project.framework == null &&
     project.outputDirectory == null &&
     project.rootDirectory == null &&
-    project.sourceFilesOutsideRootDirectory !== true &&
+    (sourceFilesOutsideRootDirectory === undefined ||
+      typeof sourceFilesOutsideRootDirectory === "boolean") &&
     project.previewDeploymentsDisabled !== true
   );
 }
@@ -202,13 +204,20 @@ async function inspectProjects({ fetch_, teamId, token }) {
 async function createBlankShell({ fetch_, specification, teamId, token }) {
   const kind = projectKind(specification);
   const stage = `create-${kind}`;
-  const project = await requestJson({
+  await requestJson({
     body: { name: specification.name },
     fetch_,
     method: "POST",
     stage,
     token,
     url: urlFor("/v11/projects", { teamId }),
+  });
+  const project = await readProject({
+    fetch_,
+    name: specification.name,
+    stage,
+    teamId,
+    token,
   });
   assertSafeProjectIdentity(project, specification, stage, teamId);
   if (!isBlankShell(project)) {

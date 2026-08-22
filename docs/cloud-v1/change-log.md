@@ -3,6 +3,17 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-22：Vercel 空 shell 以 canonical GET 判定并接受安全平台默认值
+
+- 真实 name-only create 证明 Vercel 会把新 project 的 `sourceFilesOutsideRootDirectory` 默认设为 `true`；
+  该值与冻结目标一致，且 Dashboard 已证明 Build/Output/Root 仍为空、Git 未连接、deployment 为零，因此
+  不再把它单独视为部分配置漂移；
+- create response 只作为成功确认，不再承担完整安全投影。POST 后必须重新 GET 同 team/name 的 canonical
+  project，再验证精确 identity、无 Git/environment/custom environment/alias/integration、其余空壳设置与
+  Deployments API 空集合；canonical GET 的任何其他漂移仍失败关闭；
+- 首次真实写入已留下 API 安全空 shell，但没有执行 settings PATCH、Web create、Git connect 或 deployment。
+  重跑按既有幂等协议复用 API shell 后继续，不删除或覆盖未知远端状态。
+
 ## 2026-08-22：Vercel 空 project shell 改用失败关闭、可重放的固定 REST bootstrap
 
 - 不再让操作者临时拼接 Vercel 请求：固定 CLI 先通过 token-scoped Teams API 精确解析
