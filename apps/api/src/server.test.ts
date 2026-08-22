@@ -1,4 +1,4 @@
-import { readdir } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 
 import { afterEach, expect, it, vi } from "vitest";
 
@@ -54,6 +54,9 @@ it("keeps Vercel auto-discovery on the production server entrypoint", async () =
     .map((name) => `src/${name}`);
 
   expect([...rootCandidates, ...sourceCandidates]).toEqual(["src/server.ts"]);
+
+  const source = await readFile(new URL("./server.ts", import.meta.url), "utf8");
+  expect(source).toMatch(/^import \{ Hono \} from "hono";$/mu);
 
   stubLocalAcceptanceEnvironment();
   const productionEntrypoint = await import("./server.js");
