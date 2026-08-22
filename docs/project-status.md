@@ -1397,3 +1397,17 @@ passed; first Operator empty`。候选已提交推送，0012 已实际 push；�
   474/474 Vitest files（2,862 passed / 12 skipped）、Store 481/481、Playwright 110/110，全部
   format/lint/typecheck/build、architecture、发布和 production audit 门通过且无已知 production 漏洞。
   Vercel project、环境变量、部署、真实 Provider 请求与邀请仍未执行。
+
+## Cloud V1 Phase 55 Vercel Git 连接零 deployment 状态（2026-08-22）
+
+- API/Web `vercel.json` 已用官方 `git.deploymentEnabled=false` 临时禁止所有分支的 Git deployment；首次
+  GitHub 连接不能因为 push 或 repository connect 自动发布未配置完成的应用；
+- runbook 固定 Projects REST API 空 shell → REST PATCH settings → Dashboard Production Branch 设为
+  `codex/settings-configuration` → CLI Git connect；准备首次正式部署时另做受审查提交，只解锁冻结的受控
+  production branch，不把当前 kill switch 直接改成全分支允许；
+- Fresh RED 精确命中两份缺失配置和 plan 缺口；GREEN focused 为 Vitest 12/12、deployment Node 4/4、
+  Cloud release verifier 14/14；完整 `pnpm verify:macos` 为 Node 214/214、Vitest 474/474 files
+  （2,863 passed / 12 skipped）、Store coverage 481/481、Playwright 110/110，且全部
+  format/lint/typecheck/build、architecture、发布和 production audit 门通过并无已知 production 漏洞；
+- 当前只完成离线配置、测试和文档校准；未创建 Vercel project、未连接 repository、未配置 secret、未产生
+  deployment，外部部署门仍关闭。

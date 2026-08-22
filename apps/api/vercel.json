@@ -2,6 +2,9 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "hono",
   "fluid": true,
+  "git": {
+    "deploymentEnabled": false
+  },
   "regions": ["sin1"],
   "functions": {
     "src/server.ts": {

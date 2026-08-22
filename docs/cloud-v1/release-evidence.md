@@ -1244,3 +1244,21 @@ typecheck、architecture、build、development blocker、Store release、product
   audit，且无已知 production 漏洞。一次并发重复启动 API 全包导致既有 5 秒 migration test 超时；该文件
   单独 5/5 通过，随后无并发完整重跑 509/509 通过。未连接 Vercel/Supabase/Resend/DeepSeek，未提交或
   推送。
+
+## 46. Vercel Git 连接零 deployment 保险（2026-08-22）
+
+- **Fresh RED**：API/Web 真实 `vercel.json` 的 focused assertions 均因缺少
+  `git.deploymentEnabled=false` 失败；deployment plan 测试因缺少空 shell、settings PATCH、Production
+  Branch、Git connect 与后续审查提交解锁顺序失败；
+- **最小 GREEN**：两份配置临时禁用所有分支 Git deployment，离线 plan 同步输出零部署保险和受控解锁
+  条件；不改业务代码、runtime、数据库或 Classic/Windows/Store；
+- **离线验证**：配置 focused Vitest 为 2 files / 12 tests，deployment Node 为 4/4，Cloud release verifier
+  单测为 14/14；全 workspace Prettier、ESLint、typecheck、build 与 `git diff --check` 通过。无 production
+  candidate environment 直接运行 `check:cloud-release` 按设计拒绝缺失配置和首轮 Store-disabled runtime，
+  未把该失败关闭结果冒充为 Store release 通过；
+- **完整 macOS 门禁复核**：`pnpm verify:macos` 通过；Node 214/214、Vitest 474/474 files
+  （2,863 passed / 12 skipped）、Store coverage 481/481、Playwright 110/110，architecture、build、
+  development-blocked、Store release 与 production dependency audit 全部通过，且无已知 production
+  漏洞；
+- **外部状态边界**：本节只记录仓库候选与待执行 runbook，不声称已创建 Vercel project、连接 repository、
+  安装/运行 Vercel CLI、配置环境变量或产生 deployment；真实外部证据必须在后续步骤单独记录。

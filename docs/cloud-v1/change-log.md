@@ -3,6 +3,17 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-22：Vercel 首次 Git 连接增加全分支 deployment kill switch
+
+- API/Web 两份 `vercel.json` 新增官方 `git.deploymentEnabled=false`；GitHub repository 连接期间所有分支
+  都不能自动触发 deployment，避免环境、域名和 Auth/SMTP 尚未完成时提前发布；
+- 首次创建顺序冻结为 Projects REST API 空 shell → REST PATCH project settings → Dashboard 设置
+  Production Branch=`codex/settings-configuration` → CLI Git connect，并要求连接后 deployments 仍为空；
+- 准备首次正式发布时必须另做一次受审查提交，按当时官方 schema 只允许受控 production branch；不得在
+  本次连接提交中开放所有分支，也不得把 Dashboard Production Branch 冒充为仓库 JSON 配置；
+- 本条只改变离线配置保险与 runbook；未创建 Vercel project、未连接 Git、未配置 secret、未产生
+  deployment。
+
 ## 2026-08-22：Hosted 首轮允许显式关闭 Store capability，禁止占位 Extension ID
 
 - API 部署必须显式设置 `HUAYI_STORE_EXTENSION_CAPABILITY=enabled|disabled`；缺失或非法值在启动前失败

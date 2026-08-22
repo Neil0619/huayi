@@ -74,6 +74,31 @@ API `vercel.json` 必须把 framework 固定为 `hono`、project region 固定�
 手工记忆。Web `vercel.json` 必须固定 `vite`、build/output 和 SPA rewrite。Dashboard 部署后再核对文件配置
 确实生效，不能以仓库 JSON 代替生成 Function 的 region/duration 证据。
 
+### 3.1 首次 Git 连接的零部署保险
+
+Vercel 官方 project configuration 支持 `git.deploymentEnabled`。当前 API/Web 两份 `vercel.json` 均固定
+`{ "git": { "deploymentEnabled": false } }`，含义是临时禁用所有分支的 Git deployment；这不是 Preview
+开关，也不是长期发布策略。即使 GitHub App 权限或连接步骤发生误操作，当前候选也不能因 push 或首次
+repository connect 自动创建 deployment。
+
+首次创建必须按以下顺序执行并逐步保存无 secret 证据：
+
+1. 通过 Vercel Projects REST API 创建不带 Git repository 的空 project shell；此步不得产生 deployment；
+2. 通过 Projects REST API PATCH 两个 shell 的 Root Directory、framework、build/output、Node/region 等
+   已冻结 project settings，并回读确认；
+3. 在 Dashboard 分别把 Production Branch 设为 `codex/settings-configuration`；这项设置属于 project，不在
+   `vercel.json` 中伪造；
+4. 本机只在对应 project link 下执行 Vercel CLI 的 Git connect；两份 JSON 的全分支 kill switch 此时仍为
+   `false`，连接完成后确认 deployments 仍为空；
+5. DNS、Resend、Supabase Auth/SMTP 和 Production environment 全部完成并复核后，另做一次受审查提交，
+   根据当时官方 schema 冻结“只允许 `codex/settings-configuration`”的精确 Git deployment policy，再先
+   API、后 Web 发起首次正式 deployment。禁止为了省略该提交直接把布尔值改成允许所有分支。
+
+官方依据：[Vercel project configuration: git](https://vercel.com/docs/project-configuration#git)、
+[Vercel Projects REST API](https://vercel.com/docs/rest-api/reference/endpoints/projects)、
+[Vercel CLI git](https://vercel.com/docs/cli/git)。本节记录的是待执行 runbook；截至当前尚未创建 Vercel
+project、连接 repository 或产生 deployment。
+
 `.vercel/` 只保存本机 project link，不提交。项目 ID、team ID、deployment ID 和 custom-domain 记录可写入
 无 secret 发布证据；token 与环境变量值不可写入仓库或聊天。
 
@@ -172,7 +197,8 @@ redirect allowlist，不能互换。
 
 Fresh RED 必须先覆盖：
 
-1. API Vercel config 缺 `framework=hono`/`regions=sin1`；Web config 缺 Vite/build/output；
+1. API/Web Vercel config 缺全分支 `git.deploymentEnabled=false`，或 API 缺
+   `framework=hono`/`regions=sin1`、Web 缺 Vite/build/output；
 2. hosted Web 缺环境/SHA 可见身份，或公网 origin 接受 simulated；
 3. deployment plan 缺任一 Vercel、environment、Auth redirect、SMTP、DNS 或 CRON 项；
 4. verifier 输出任何 secret/value，或错误地把 preview 配成 hosted production；
@@ -180,7 +206,9 @@ Fresh RED 必须先覆盖：
 
 最小 GREEN 提供一个零网络、零写入的 `pnpm acceptance:hosted:deployment --plan`，只输出固定 project、
 Root/Framework/Build/Output/Node/region、变量名分类、五条 Auth redirect、SMTP/DNS/CRON 顺序与 pending
-外部门。`--verify-environment` 只读取进程环境，复用生产 schema 验证格式和固定 project/origin 一致性，
+外部门，并明确 project shell → settings PATCH → Production Branch → Git connect 仍为零 deployment，首次
+部署必须由后续受审查提交解锁。`--verify-environment` 只读取进程环境，复用生产 schema 验证格式和固定
+project/origin 一致性，
 只输出 fixed passed/failed，不输出变量值、URL 中密码或第三方错误。
 
 离线退出门：focused API/Web/script tests、API/Web full、typecheck/build、Prettier/ESLint、Vercel config

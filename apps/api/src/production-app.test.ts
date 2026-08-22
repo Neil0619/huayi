@@ -15,6 +15,7 @@ interface VercelConfiguration {
   fluid?: unknown;
   framework?: unknown;
   functions?: unknown;
+  git?: unknown;
   regions?: unknown;
 }
 
@@ -25,6 +26,12 @@ async function readVercelConfiguration(): Promise<VercelConfiguration> {
 }
 
 describe("production API composition", () => {
+  it("keeps Git deployments disabled until the first hosted release is explicitly armed", async () => {
+    const vercelConfiguration = await readVercelConfiguration();
+
+    expect(vercelConfiguration.git).toEqual({ deploymentEnabled: false });
+  });
+
   it("wires the fail-closed adapters without contacting external services for health", async () => {
     const app = createProductionApp({
       HUAYI_API_ORIGIN: "https://api.huayi.example",
