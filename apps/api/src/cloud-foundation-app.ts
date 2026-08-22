@@ -268,7 +268,10 @@ export function createCloudFoundationApp(dependencies: CloudFoundationDependenci
     context.header("Cache-Control", "private, no-store");
     const input = await strictJson(context, passwordLoginRequestSchema);
     await limit(context, "auth.password", input.email, 5);
-    const authSession = await dependencies.auth.signInWithPassword(input);
+    const authSession = await dependencies.auth.signInWithPassword({
+      email: input.email,
+      password: input.password,
+    });
     await dependencies.identity.authorizeSignInMethod(authSession.userId, "password");
     const session = await createWebSession(dependencies, authSession);
     context.header("Set-Cookie", session.setCookie);
@@ -295,7 +298,11 @@ export function createCloudFoundationApp(dependencies: CloudFoundationDependenci
     app.post("/v1/extension-pairings", async (context) => {
       const input = await strictJson(context, createExtensionPairingRequestSchema);
       await limit(context, "pairing.create", input.installIdHash, 10);
-      const pairing = await dependencies.identity.createExtensionPairing(input);
+      const pairing = await dependencies.identity.createExtensionPairing({
+        installIdHash: input.installIdHash,
+        pkceChallenge: input.pkceChallenge,
+        state: input.state,
+      });
       return context.json(
         {
           expiresAt: pairing.expiresAt.toISOString(),

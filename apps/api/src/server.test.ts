@@ -67,3 +67,12 @@ it("keeps Vercel auto-discovery on the production server entrypoint", async () =
   expect(response.status).toBe(200);
   await expect(response.json()).resolves.toEqual({ service: "huayi-cloud-api", status: "ok" });
 });
+
+it("projects schema-validated commands across Vercel's Hono compiler boundary", async () => {
+  const source = await readFile(new URL("./cloud-foundation-app.ts", import.meta.url), "utf8");
+
+  expect(source).not.toContain("signInWithPassword(input)");
+  expect(source).not.toContain("createExtensionPairing(input)");
+  expect(source).toContain("signInWithPassword({");
+  expect(source).toContain("createExtensionPairing({");
+});
