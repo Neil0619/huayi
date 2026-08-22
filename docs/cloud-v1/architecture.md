@@ -467,10 +467,11 @@ fake clock。客户端通过 HTTP adapter 访问同一用例，不复制领域�
 - API 日志只包含 request ID、route、稳定错误码、时延、模型/价格版本、token 和 micro-USD；正文、
   可选标题、答案、模型响应、凭据、session 和 reasoning 均不得进入日志或错误监控。
 - 运营指标只保留无正文聚合：请求成功率、结构修复率、延迟分位、费用、额度拒绝和 session 撤销。
-- API 用部署配置 `HUAYI_MIN_SUPPORTED_EXTENSION_VERSION` 强制最低版本，并以 426
-  `client_upgrade_required` 让陈旧客户端失败关闭；`HUAYI_STORE_EXTENSION_ID` 同时把业务 token 请求
-  绑定到固定 Chrome Origin。完整 `/v1/account` 已聚合公开最低版本；正式发布时至少兼容当前和
-  上一 Store Cloud 版本的 `/v1` 契约。
+- API 以必填 `HUAYI_STORE_EXTENSION_CAPABILITY=enabled|disabled` 决定是否组合 Store surface；disabled
+  从 CORS/专用路由移除 Extension 并在 identity 查询前拒绝 token。enabled 才使用
+  `HUAYI_MIN_SUPPORTED_EXTENSION_VERSION` 强制最低版本并以 426 `client_upgrade_required` 让陈旧客户端
+  失败关闭，同时用 `HUAYI_STORE_EXTENSION_ID` 把业务 token 请求绑定到固定 Chrome Origin。完整
+  `/v1/account` 仍聚合公开最低版本；正式发布时至少兼容当前和上一 Store Cloud 版本的 `/v1` 契约。
 
 ## 10. 安全与 Chrome 边界
 

@@ -26,7 +26,7 @@ const publicApiEnvironmentNames = Object.freeze([
   "HUAYI_DEEPSEEK_LEGACY_PRICE_VERSION_ID",
   "HUAYI_DEEPSEEK_OFF_PEAK_PRICE_VERSION_ID",
   "HUAYI_DEEPSEEK_PEAK_PRICE_VERSION_ID",
-  "HUAYI_STORE_EXTENSION_ID",
+  "HUAYI_STORE_EXTENSION_CAPABILITY",
   "HUAYI_MIN_SUPPORTED_EXTENSION_VERSION",
   "HUAYI_ACCOUNT_EXPORT_BUCKET",
   "HUAYI_SECURITY_NOTIFICATION_MODE",
@@ -69,10 +69,10 @@ export function renderHostedDeploymentPlan() {
     "- migration 0012 -> Vercel domains -> Resend DNS -> Auth/SMTP -> Production environment",
     "- API deploy -> Web deploy -> TLS/Cookie/CORS/SSE/Auth/Storage smoke",
     "- five Supabase Cron jobs -> FirstOperatorBootstrap invitation",
-    "Pending external inputs:",
-    "- Reply-To/support mailbox",
-    "- approved hosted DeepSeek key and billing",
-    "- stable acceptance Store Extension ID or an explicit disabled capability",
+    "Confirmed deployment decisions (values are not printed):",
+    "- Reply-To/support mailbox is available",
+    "- hosted DeepSeek key is available and small real acceptance charges are approved",
+    "- Store Extension capability is disabled for the first hosted acceptance round",
     "",
   ].join("\n");
 }
@@ -97,6 +97,7 @@ export function verifyHostedDeploymentEnvironment(environment) {
   );
   assertEqual(parsed.HUAYI_DEEPSEEK_PEAK_PRICE_VERSION_ID, hostedAcceptancePriceVersionIds.peak);
   assertEqual(parsed.HUAYI_MIN_SUPPORTED_EXTENSION_VERSION, "1.0.0");
+  assertEqual(parsed.HUAYI_STORE_EXTENSION_CAPABILITY, "disabled");
   assertEqual(parsed.HUAYI_SECURITY_NOTIFICATION_MODE, "resend");
   assertEqual(
     parsed.HUAYI_SECURITY_NOTIFICATION_FROM,
@@ -107,9 +108,6 @@ export function verifyHostedDeploymentEnvironment(environment) {
     database.username,
     `${hostedAcceptanceApplicationRole}.${hostedAcceptanceProjectRef}`,
   );
-  if (new Set(parsed.HUAYI_STORE_EXTENSION_ID).size < 2) {
-    throw new Error("Hosted acceptance Store Extension ID is a placeholder.");
-  }
   return true;
 }
 

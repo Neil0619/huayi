@@ -3,6 +3,17 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-22：Hosted 首轮允许显式关闭 Store capability，禁止占位 Extension ID
+
+- API 部署必须显式设置 `HUAYI_STORE_EXTENSION_CAPABILITY=enabled|disabled`；缺失或非法值在启动前失败
+  关闭。`enabled` 继续严格要求真实 32 位 `[a-p]` Extension ID 与最低版本；`disabled` 必须省略 ID，
+  不能用重复字符或其他占位 ID 模拟；
+- `disabled` composition 从 CORS 和 production 路由表移除 Store pairing/session/preferences/query/
+  cloud-copy/self-disconnect surface；仍与 Web 共用的路由在查询 token 归属前拒绝任何 Extension
+  authorization。Local acceptance 保持显式 `enabled`，Classic、Windows 与 Store 客户端不变；
+- hosted 首轮固定 `disabled`，先验收 Web/API。完整 Store release audit 只接受 `enabled`，防止 Web-only
+  hosted runtime 被误报为 Store 候选 ready；启用 Store 时必须提供真实 ID 并重新走发布与 Chrome 门禁。
+
 ## 2026-08-22：Hosted 角色图按 PostgreSQL 17 membership option 精确建模
 
 - 三条产品直接边固定为 application login→runtime、runtime→business/context-setter；每个角色对必须且

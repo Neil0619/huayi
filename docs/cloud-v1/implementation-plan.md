@@ -5,6 +5,11 @@ Phase 3 后，每个稳定的 API/契约纵向切片允许 Web 与 Store Extensi
 fixture、API 集成和跨端 journey 联合验收。共享契约、迁移和 API 每个切片仍由单一协调者维护，避免
 并行写入同一 seam。需求或技术边界变化必须先写入 `change-log.md` 并同步权威文档。
 
+2026-08-22 hosted 部署切片新增显式 Store capability 门：首轮以 `disabled` 组合 Web-only API，不提供
+占位 Extension ID，不注册 Store 专用路由或 origin/token 通道；环境、composition、hosted verifier 与
+release audit 通过 TDD 锁定。该切片通过后再创建 Vercel 资源；未来启用 Store 必须提供真实 ID 并重跑
+完整 Store release/Chrome 门禁，不改变 Classic、Windows 或 Store 本地实现。
+
 ## 当前进度（2026-08-14）
 
 - Phase 0 已完成：权威文档、领域词汇、ADR 和只读审阅已收口；

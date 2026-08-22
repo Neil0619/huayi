@@ -8,7 +8,7 @@ import {
 } from "./production-extension-authentication.js";
 import { createAnalysisApp } from "./analysis-app.js";
 import { createPostgresAnalysisDatabase } from "./analysis-database.js";
-import { readApiEnvironment, type ApiEnvironment } from "./environment.js";
+import type { ApiEnvironment } from "./environment.js";
 import {
   authenticateProductionAnalysisRequest,
   authenticateProductionPrincipalRequest,
@@ -28,7 +28,7 @@ import {
   createProductionDuplicateSuggestionMaintenance,
   createProductionDuplicateSuggestions,
 } from "./production-duplicate-suggestions.js";
-import { duplicateSuggestionCleanupRoute } from "./duplicate-suggestion-maintenance-app.js";
+export { duplicateSuggestionCleanupRoute } from "./duplicate-suggestion-maintenance-app.js";
 import { createPracticeApp } from "./practice-app.js";
 import { createDialoguePracticeModule } from "./dialogue-practice-module.js";
 import { createPracticeModule } from "./practice-module.js";
@@ -66,6 +66,7 @@ import { createProductionAccountSettings } from "./production-account-settings.j
 import type { Context } from "hono";
 import { createProductionSecurityNotifications } from "./production-security-notifications.js";
 import type { SecurityNotificationFetch } from "./resend-security-notification-sender.js";
+import { createProductionStorePolicy } from "./production-store-capability.js";
 export function createProductionApp(
   environment: ApiEnvironment,
   options: {
@@ -73,10 +74,7 @@ export function createProductionApp(
     securityNotificationFetch?: SecurityNotificationFetch;
   } = {},
 ) {
-  const extensionPolicy = {
-    extensionOrigin: `chrome-extension://${environment.HUAYI_STORE_EXTENSION_ID}`,
-    minSupportedExtensionVersion: environment.HUAYI_MIN_SUPPORTED_EXTENSION_VERSION,
-  };
+  const extensionPolicy = createProductionStorePolicy(environment);
   const protector = createSecretProtector({
     key: Buffer.from(environment.HUAYI_REFRESH_ENCRYPTION_KEY, "base64url"),
     secrets: systemSecrets,
@@ -181,7 +179,9 @@ export function createProductionApp(
   const app = createCloudFoundationApp({
     apiOrigin: environment.HUAYI_API_ORIGIN,
     auth,
-    extensionOrigin: extensionPolicy.extensionOrigin,
+    ...(extensionPolicy.capability === "enabled"
+      ? { extensionOrigin: extensionPolicy.extensionOrigin }
+      : {}),
     googleLink: identity.googleLink,
     identity,
     passwordLink: identity.passwordLink,
@@ -213,14 +213,16 @@ export function createProductionApp(
         : { fetch: options.securityNotificationFetch }),
     }),
   );
-  app.route(
-    "/",
-    createProductionExtensionSessionDisconnect({
-      database: analysisDatabase,
-      extensionOrigin: extensionPolicy.extensionOrigin,
-      pepper: environment.HUAYI_SECRET_PEPPER,
-    }),
-  );
+  if (extensionPolicy.capability === "enabled") {
+    app.route(
+      "/",
+      createProductionExtensionSessionDisconnect({
+        database: analysisDatabase,
+        extensionOrigin: extensionPolicy.extensionOrigin,
+        pepper: environment.HUAYI_SECRET_PEPPER,
+      }),
+    );
+  }
   app.route(
     "/",
     createProductionAdminOperations({ database: analysisDatabase, environment, identity }),
@@ -251,23 +253,25 @@ export function createProductionApp(
       repository: accountPreferences,
     }),
   );
-  app.route(
-    "/",
-    createExtensionPreferencesApp({
-      authenticate: (context) =>
-        authenticateProductionExtensionRequest(identity, context, extensionPolicy),
-      async read(owner) {
-        const value = await accountPreferences.read(owner);
-        return {
-          cloudWordCopyMode: value.cloudWordCopyMode,
-          extensionQueryModelMode: value.extensionQueryModelMode,
-          revision: value.revision,
-          studyCaptureMode: value.studyCaptureMode,
-          updatedAt: value.updatedAt,
-        };
-      },
-    }),
-  );
+  if (extensionPolicy.capability === "enabled") {
+    app.route(
+      "/",
+      createExtensionPreferencesApp({
+        authenticate: (context) =>
+          authenticateProductionExtensionRequest(identity, context, extensionPolicy),
+        async read(owner) {
+          const value = await accountPreferences.read(owner);
+          return {
+            cloudWordCopyMode: value.cloudWordCopyMode,
+            extensionQueryModelMode: value.extensionQueryModelMode,
+            revision: value.revision,
+            studyCaptureMode: value.studyCaptureMode,
+            updatedAt: value.updatedAt,
+          };
+        },
+      }),
+    );
+  }
   app.route(
     "/",
     createStudyCaptureApp({
@@ -282,28 +286,30 @@ export function createProductionApp(
       module: studyCaptures,
     }),
   );
-  app.route(
-    "/",
-    createProductionCloudWordCopy({
-      database: analysisDatabase,
-      identity,
-      ids: () => crypto.randomUUID(),
-      now: () => systemClock.now(),
-      policy: extensionPolicy,
-    }),
-  );
-  app.route(
-    "/",
-    createProductionExtensionQuery({
-      database: analysisDatabase,
-      environment,
-      ...(options.providerFetch === undefined ? {} : { fetch: options.providerFetch }),
-      identity,
-      policy: extensionPolicy,
-      pricing,
-      quota,
-    }),
-  );
+  if (extensionPolicy.capability === "enabled") {
+    app.route(
+      "/",
+      createProductionCloudWordCopy({
+        database: analysisDatabase,
+        identity,
+        ids: () => crypto.randomUUID(),
+        now: () => systemClock.now(),
+        policy: extensionPolicy,
+      }),
+    );
+    app.route(
+      "/",
+      createProductionExtensionQuery({
+        database: analysisDatabase,
+        environment,
+        ...(options.providerFetch === undefined ? {} : { fetch: options.providerFetch }),
+        identity,
+        policy: extensionPolicy,
+        pricing,
+        quota,
+      }),
+    );
+  }
   app.route(
     "/",
     createAnalysisApp({
@@ -391,10 +397,4 @@ export function createProductionApp(
   app.get("/health", (context) => context.json({ service: "huayi-cloud-api", status: "ok" }));
   return app;
 }
-
 export { authenticateProductionAnalysisRequest, authenticateProductionPrincipalRequest };
-export { duplicateSuggestionCleanupRoute };
-
-export function createProductionAppFromProcess() {
-  return createProductionApp(readApiEnvironment(process.env));
-}

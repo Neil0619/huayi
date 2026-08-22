@@ -31,6 +31,7 @@ interface CloudReleaseConfiguration {
   extensionId?: string;
   minSupportedExtensionVersion?: string;
   privacyUrl?: string;
+  storeExtensionCapability?: "enabled" | "disabled";
   webOrigin?: string;
 }
 ```
@@ -40,19 +41,23 @@ CLI 只读取公开值：
 - `HUAYI_RELEASE_EXTENSION_ID`：Chrome Dashboard/候选审批确认的发布 ID；
 - `HUAYI_STORE_EXTENSION_ID`：准备写入 API 部署的同名公开运行时配置；
 - `HUAYI_MIN_SUPPORTED_EXTENSION_VERSION`：准备写入 API 部署的最低客户端版本。
+- `HUAYI_STORE_EXTENSION_CAPABILITY`：必须为 `enabled` 才能声明完整 Store 候选 ready；hosted Web-only
+  验收的 `disabled` runtime 不能冒充 Store release candidate。
 
 审计模块自行读取 source Manifest；既有 Store package audit 已证明 source/dist Manifest 完全一致。版本
 比较使用严格、无前导零的 `major.minor.patch` 三个安全整数，不引入宽松 semver 或预发布标签。
 
 规则：
 
-1. 两个 Extension ID 都必须严格匹配 `[a-p]{32}`，并且完全相同；
-2. 最低版本必须是严格数字三元组；
-3. 候选 Manifest 版本必须大于或等于最低版本；
-4. 缺失/非法 API ID 返回 `release-config-api-extension-id`；
-5. 缺失/非法最低版本返回 `release-config-min-extension-version`；
-6. 候选低于最低版本返回 `store-client-version-policy`；
-7. 结果继续只包含固定 code/安全文案，不回显任何输入值。
+1. 完整 Store 候选必须显式 capability=`enabled`；缺失、非法或 `disabled` 返回
+   `release-config-store-capability`；
+2. 两个 Extension ID 都必须严格匹配 `[a-p]{32}`，并且完全相同；
+3. 最低版本必须是严格数字三元组；
+4. 候选 Manifest 版本必须大于或等于最低版本；
+5. 缺失/非法 API ID 返回 `release-config-api-extension-id`；
+6. 缺失/非法最低版本返回 `release-config-min-extension-version`；
+7. 候选低于最低版本返回 `store-client-version-policy`；
+8. 结果继续只包含固定 code/安全文案，不回显任何输入值。
 
 API `parseApiEnvironment` 复用同一外部语义：非三段、前导零或任一段超出安全整数都拒绝启动。本阶段不
 跨 package 导入脚本实现，也不创建共享 runtime 依赖；两处通过相同边界回归锁定一致行为。

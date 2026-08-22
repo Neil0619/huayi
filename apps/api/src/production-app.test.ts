@@ -45,6 +45,7 @@ describe("production API composition", () => {
       HUAYI_SECURITY_NOTIFICATION_FROM: "语见 <security@notify.example.test>",
       HUAYI_SECURITY_NOTIFICATION_MODE: "resend",
       HUAYI_SECURITY_NOTIFICATION_REPLY_TO: "support@example.test",
+      HUAYI_STORE_EXTENSION_CAPABILITY: "enabled",
       HUAYI_STORE_EXTENSION_ID: "a".repeat(32),
       HUAYI_MIN_SUPPORTED_EXTENSION_VERSION: "1.0.0",
       HUAYI_WEB_ORIGIN: "https://app.huayi.example",
@@ -147,6 +148,63 @@ describe("production API composition", () => {
     expect(blockedAdminWrite.status).toBe(403);
   });
 
+  it("fails closed when the Store capability is explicitly disabled", async () => {
+    const app = createProductionApp({
+      CRON_SECRET: "cron-test-secret-at-least-32-characters",
+      HUAYI_ACCOUNT_EXPORT_BUCKET: "account-exports",
+      HUAYI_API_ORIGIN: "https://api.huayi.example",
+      HUAYI_DATABASE_TLS_CA_BASE64: Buffer.from(
+        "-----BEGIN CERTIFICATE-----\ntest-ca\n-----END CERTIFICATE-----\n",
+      ).toString("base64"),
+      HUAYI_DATABASE_URL:
+        "postgresql://runtime.abcdefghijklmnopqrst:password@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres?sslmode=verify-full",
+      HUAYI_DEEPSEEK_API_KEY: "deepseek-test-key-at-least-20-characters",
+      HUAYI_DEEPSEEK_LEGACY_PRICE_VERSION_ID: "10000000-0000-4000-8000-000000000001",
+      HUAYI_DEEPSEEK_OFF_PEAK_PRICE_VERSION_ID: "10000000-0000-4000-8000-000000000002",
+      HUAYI_DEEPSEEK_PEAK_PRICE_VERSION_ID: "10000000-0000-4000-8000-000000000003",
+      HUAYI_MIN_SUPPORTED_EXTENSION_VERSION: "1.0.0",
+      HUAYI_REFRESH_ENCRYPTION_KEY: Buffer.alloc(32, 7).toString("base64url"),
+      HUAYI_RESEND_API_KEY: "re_test-only-not-a-real-secret",
+      HUAYI_SECRET_PEPPER: "production-test-pepper-at-least-32-characters",
+      HUAYI_SECURITY_NOTIFICATION_FROM: "语见 <security@notify.example.test>",
+      HUAYI_SECURITY_NOTIFICATION_MODE: "resend",
+      HUAYI_SECURITY_NOTIFICATION_REPLY_TO: "support@example.test",
+      HUAYI_STORE_EXTENSION_CAPABILITY: "disabled",
+      HUAYI_WEB_ORIGIN: "https://app.huayi.example",
+      SUPABASE_PUBLISHABLE_KEY: "publishable-test-key-at-least-20-characters",
+      SUPABASE_SERVICE_ROLE_KEY: "service-role-test-key-at-least-20-characters",
+      SUPABASE_URL: "https://project.supabase.co",
+    });
+    const paths = app.routes.map((route) => route.path);
+    for (const path of [
+      "/v1/extension-pairings",
+      "/v1/extension-sessions",
+      "/v1/extension-session",
+      "/v1/extension-preferences",
+      "/v1/extension-queries:stream",
+    ]) {
+      expect(paths).not.toContain(path);
+    }
+
+    const tokenRequest = await app.request("/v1/analyses:stream", {
+      headers: {
+        authorization: `HuayiExtension ${"s".repeat(43)}`,
+        origin: `chrome-extension://${"a".repeat(32)}`,
+        "x-huayi-client-version": "1.0.0",
+      },
+      method: "POST",
+    });
+    expect(tokenRequest.status).toBe(403);
+    const preflight = await app.request("/v1/analyses:stream", {
+      headers: {
+        "access-control-request-method": "POST",
+        origin: `chrome-extension://${"a".repeat(32)}`,
+      },
+      method: "OPTIONS",
+    });
+    expect(preflight.headers.get("access-control-allow-origin")).toBeNull();
+  });
+
   it("leaves frequent scheduling to the production Supabase Cron adapter", async () => {
     const configuration = await readVercelConfiguration();
 
@@ -173,6 +231,7 @@ describe("production API composition", () => {
 
 it("authenticates analysis with either a Web cookie or an Extension token", async () => {
   const policy = {
+    capability: "enabled" as const,
     extensionOrigin: `chrome-extension://${"a".repeat(32)}`,
     minSupportedExtensionVersion: "1.0.0",
   };

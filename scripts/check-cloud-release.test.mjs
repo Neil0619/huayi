@@ -89,6 +89,7 @@ const configuration = {
   extensionId,
   minSupportedExtensionVersion: "1.0.0",
   privacyUrl,
+  storeExtensionCapability: "enabled",
   webOrigin,
 };
 
@@ -197,6 +198,7 @@ test("development-blocked audit accepts exactly the fixed blocker set in any ord
     "release-config-extension-id",
     "release-config-min-extension-version",
     "release-config-privacy-url",
+    "release-config-store-capability",
     "release-config-web-origin",
     "store-api-origin",
     "store-web-workspace-url",
@@ -209,6 +211,16 @@ test("development-blocked audit accepts exactly the fixed blocker set in any ord
     blockerAudit([CLOUD_DEVELOPMENT_BLOCKER_CODES[0], ...CLOUD_DEVELOPMENT_BLOCKER_CODES]),
     { blockedAsExpected: true, violations: [] },
   );
+});
+
+test("Cloud release audit refuses a Store-disabled runtime as a Store release candidate", async () => {
+  await withFixture(async (root) => {
+    const result = await auditCloudRelease(root, {
+      ...configuration,
+      storeExtensionCapability: "disabled",
+    });
+    assert.deepEqual(codes(result), ["release-config-store-capability"]);
+  });
 });
 
 test("development-blocked audit rejects a missing blocker with a fixed safe diagnostic", () => {
@@ -255,6 +267,7 @@ test("Cloud release audit reports missing public configuration without echoing v
         "release-config-extension-id",
         "release-config-min-extension-version",
         "release-config-privacy-url",
+        "release-config-store-capability",
         "release-config-web-origin",
       ],
     );

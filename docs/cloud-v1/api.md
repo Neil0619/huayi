@@ -89,8 +89,9 @@ eligible start 只创建 `requested` flow；外部发信由
 `GET /internal/password-recovery/run` 的 CRON bearer worker 每次有界领取一个任务。worker 在 Provider
 前耐久标记 dispatch，若回执不明确则不得自动重发。
 
-Web 与 API 为独立 origin；API CORS 只允许固定 `HUAYI_WEB_ORIGIN` 与配置的发布 Store Extension
-origin，响应包含 `Vary: Origin`。只有 Web origin 携带 Cookie；Extension 使用 Authorization 和
+Web 与 API 为独立 origin；API CORS 始终只允许固定 `HUAYI_WEB_ORIGIN`，并仅在
+`HUAYI_STORE_EXTENSION_CAPABILITY=enabled` 时增加配置的发布 Store Extension origin，响应包含
+`Vary: Origin`。只有 Web origin 携带 Cookie；Extension 使用 Authorization 和
 client-version 且 `credentials=omit`。允许方法必须覆盖公开路由实际使用的 GET/POST/PUT/PATCH/DELETE
 与 OPTIONS；尤其学习项编辑和账号偏好更新的 PATCH 预检不得被全局 CORS 提前拒绝。OAuth callback
 绝对跳转至 Web `/app`。词表下载的固定 `Content-Disposition` 必须列入 CORS exposed headers，否则
@@ -174,7 +175,9 @@ approve body 含 deviceLabel、三项插件偏好和 expectedPreferencesRevision
 session token 之外返回偏好快照，供 SW 建立与 session 绑定的本机 cache。
 
 Extension 业务请求使用 `Authorization: HuayiExtension <token>`、`X-Huayi-Client-Version` 与固定
-`Origin: chrome-extension://<published-id>`。生产 API 先按 `HUAYI_STORE_EXTENSION_ID` 和
+`Origin: chrome-extension://<published-id>`。capability=`disabled` 时任何 Extension authorization 都在
+token 查询前固定拒绝，且 Store 专用路由不进入 composition；capability=`enabled` 时生产 API 先按
+`HUAYI_STORE_EXTENSION_ID` 和
 `HUAYI_MIN_SUPPORTED_EXTENSION_VERSION` 验证 Origin/版本，再验证 token；旧或非法版本返回 HTTP 426
 `client_upgrade_required`。服务器仍只以 token 归属决定 userId，不接受客户端 userId。
 

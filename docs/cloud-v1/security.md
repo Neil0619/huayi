@@ -351,6 +351,9 @@ owner context、generation/reservation 归属、task 成功或失败终态、价
 - 登录 Extension 的业务请求除高熵 session token 外，还必须由浏览器提供精确发布
   `chrome-extension://<id>` Origin，并携带 manifest 三段版本。API 在查询 token 归属前验证固定 Origin
   与最低版本；Origin/版本只是 defense-in-depth，不能替代 token。不得接受通配 Extension Origin。
+- Store capability 是必填的 fail-closed 部署开关。`disabled` 必须没有 Extension ID，并从 CORS、配对/
+  设备和 Store 专用 production composition 移除 Extension surface；混合路由也在 identity 查询前拒绝
+  任意 Extension authorization。`enabled` 才允许配置精确 ID，不能以占位 ID 模拟禁用。
 - Manifest 权限逐项绑定用户可见功能；实现结束后由打包检查证明无未使用权限、任意 host、动态代码
   或秘密。
 - 首次把网页内容发送 Huayi API 前重新展示接收方、字段、用途、费用与保留；用户撤回后平台查询、

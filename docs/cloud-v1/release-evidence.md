@@ -38,6 +38,7 @@ interface CloudReleaseConfiguration {
   extensionId?: string;
   minSupportedExtensionVersion?: string;
   privacyUrl?: string;
+  storeExtensionCapability?: "enabled" | "disabled";
   webOrigin?: string;
 }
 
@@ -63,6 +64,7 @@ auditCloudRelease(repositoryRoot, configuration): Promise<CloudReleaseAudit>
 - `HUAYI_RELEASE_EXTENSION_ID`
 - `HUAYI_STORE_EXTENSION_ID`
 - `HUAYI_MIN_SUPPORTED_EXTENSION_VERSION`
+- `HUAYI_STORE_EXTENSION_CAPABILITY`
 
 后两项就是准备写入 API 部署的公开配置；审计器直接要求 API ID 与候选 ID 相同，并要求候选 Manifest
 版本满足最低版本。真实部署值与 Chrome Dashboard 仍由外部发布证据确认。
@@ -147,7 +149,7 @@ StudyCapture 原始意图和本机词库/CloudWordCopy 的独立边界；旧 `an
   仍由 `pnpm check:store-release` 验证；
 - fake 完整候选、缺配置、Store/Web/政策/披露漂移、等价账号导出文案与旧 Store 口径回流均有 Node
   回归；
-- 当前开发态按预期返回 `privacy-not-final`、六个 `release-config-*`、`store-api-origin` 与
+- 当前开发态按预期返回 `privacy-not-final`、七个 `release-config-*`、`store-api-origin` 与
   `store-web-workspace-url`，不会为了通过审计填入虚构值；
 - 当前阻塞由正式运营事实、生产 URL/Extension ID 和候选 Store 接线共同解除；解除后仍需真实环境、
   Dashboard、双平台 Chrome 与商店人工预审证据。
@@ -284,7 +286,7 @@ fixture 与 `check:cloud-release` 的 ready 行为完全不变；聚合门禁在
   与 Windows 顺序测试都证明 build 后尚未调用新入口；
 - 最小实现首次 GREEN 让 focused 17/17 通过，同时真实工作树按设计因集合不一致失败，并只输出
   `development-blocker-missing` 与 `development-blocker-unexpected`。据正式审计的安全 code 复核后，固定
-  九项校准为 `privacy-not-final`、六项 `release-config-*`、`store-api-origin` 和
+  十项校准为 `privacy-not-final`、七项 `release-config-*`、`store-api-origin` 和
   `store-web-workspace-url`；没有把 `store-bundle-origin` 误写进空配置时不会执行的 bundle 分支；
 - 校准后的真实 `pnpm check:cloud-development-blocked` 在 build 后静默退出 0；少项、多项、乱序、重复和
   不回显不可信 code/message 均有单元证据；完整 fake 正式候选仍返回 `ready=true`；
@@ -1221,3 +1223,24 @@ typecheck、architecture、build、development blocker、Store release、product
   `Hosted first Operator status: empty.`。两条均为正式固定 CLI 的只读结果，关闭 migration 0012 后的
   foundation/空 Operator 数据库门；它们不证明或代替 Vercel、DNS、Auth、SMTP、secret、deployment、真实
   邮件、邀请发行或实际 Operator 引导。
+
+## 45. Hosted 首轮 Store-disabled capability（2026-08-22）
+
+- **部署选择**：用户明确选择首轮禁用 Store。公开配置新增必填
+  `HUAYI_STORE_EXTENSION_CAPABILITY=enabled|disabled`；hosted verifier 固定 `disabled` 并拒绝任何
+  Extension ID，local acceptance 保持显式 `enabled`。用户同时确认 Reply-To 可用、已有 hosted DeepSeek
+  key 并批准少量真实验收费用；邮箱和 key 值不进入仓库、计划或测试输出；
+- **失败关闭组合**：disabled 时 production API 的 CORS 只含 Web origin，路由表不注册 pairing/session/
+  preferences/query/cloud-copy/self-disconnect 等 Store 专用 surface；分析、StudyCapture、外部词表等混合
+  路由也在 identity 查询前拒绝 `HuayiExtension` token。enabled 仍要求严格 `[a-p]{32}` ID 和最低版本；
+- **发布一致性**：完整 `check:cloud-release` 新增 `release-config-store-capability`，只接受 enabled 的完整
+  Store 候选；Web-only hosted runtime 不能冒充 Store ready。Classic、Windows、Store 客户端与数据库均
+  未修改；
+- **TDD 与 fresh 证据**：environment/capability 与 disabled composition 先出现预期失败，最小实现后
+  focused 18/18 Vitest、22/22 Node 通过；API 全包 136 files / 509 tests。根审查校准外部输入状态后又通过
+  focused 15/15 Vitest、18/18 Node；最终 `pnpm verify:macos` 原样退出 0，覆盖 214/214 Node、474/474
+  Vitest files（2,862 passed / 12 skipped）、Store 481/481、Playwright 110/110、workspace
+  format/lint/typecheck/build、instructions、architecture、development blocker、Store release 与 production
+  audit，且无已知 production 漏洞。一次并发重复启动 API 全包导致既有 5 秒 migration test 超时；该文件
+  单独 5/5 通过，随后无并发完整重跑 509/509 通过。未连接 Vercel/Supabase/Resend/DeepSeek，未提交或
+  推送。

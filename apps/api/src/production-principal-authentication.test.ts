@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { authenticateProductionPrincipalRequest } from "./production-principal-authentication.js";
 
 const policy = {
+  capability: "enabled" as const,
   extensionOrigin: `chrome-extension://${"a".repeat(32)}`,
   minSupportedExtensionVersion: "1.0.0",
 };
@@ -17,6 +18,22 @@ function identity() {
 }
 
 describe("production principal authentication", () => {
+  it("rejects every Extension token before identity lookup when Store is disabled", async () => {
+    const adapter = identity();
+    await expect(
+      authenticateProductionPrincipalRequest(
+        adapter,
+        {
+          authorization,
+          clientVersion: "999.999.999",
+          origin: policy.extensionOrigin,
+        },
+        { capability: "disabled" },
+      ),
+    ).rejects.toMatchObject({ code: "forbidden" });
+    expect(adapter.authenticateExtension).not.toHaveBeenCalled();
+  });
+
   it("requires fixed Origin and a supported client version before token authentication", async () => {
     const adapter = identity();
     await expect(

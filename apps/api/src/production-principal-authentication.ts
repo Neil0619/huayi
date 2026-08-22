@@ -10,10 +10,14 @@ export interface ProductionIdentityAuthentication {
   authenticateWebSession(sessionId: string): Promise<{ userId: string }>;
 }
 
-export interface ExtensionRequestPolicy {
+export interface EnabledExtensionRequestPolicy {
+  readonly capability: "enabled";
   readonly extensionOrigin: string;
   readonly minSupportedExtensionVersion: string;
 }
+
+export type ExtensionRequestPolicy =
+  EnabledExtensionRequestPolicy | { readonly capability: "disabled" };
 
 export interface ProductionPrincipalHeaders {
   readonly authorization?: string;
@@ -64,6 +68,9 @@ export async function authenticateProductionPrincipalRequest(
   policy: ExtensionRequestPolicy,
 ): Promise<{ kind: "extension" | "web"; userId: string }> {
   if (headers.authorization !== undefined) {
+    if (policy.capability === "disabled") {
+      throw new CloudFault("forbidden", "Extension access is disabled.");
+    }
     const token = extensionToken(headers.authorization);
     if (token === null || headers.origin !== policy.extensionOrigin) {
       throw new CloudFault("forbidden", "Extension request proof is invalid.");

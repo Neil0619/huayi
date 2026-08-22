@@ -31,7 +31,7 @@ function validHostedEnvironment() {
     HUAYI_SECURITY_NOTIFICATION_FROM: "语见 <security@notify.acceptance.seen-said.cn>",
     HUAYI_SECURITY_NOTIFICATION_MODE: "resend",
     HUAYI_SECURITY_NOTIFICATION_REPLY_TO: "support@example.test",
-    HUAYI_STORE_EXTENSION_ID: "abcdefghijklmnopabcdefghijklmnop",
+    HUAYI_STORE_EXTENSION_CAPABILITY: "disabled",
     HUAYI_WEB_ORIGIN: "https://app.acceptance.seen-said.cn",
     SUPABASE_PUBLISHABLE_KEY: "publishable-hosted-test-key",
     SUPABASE_SERVICE_ROLE_KEY: "service-role-hosted-test-key",
@@ -45,6 +45,9 @@ test("hosted deployment plan is complete, deterministic, and secret independent"
     "seen-said-acceptance-api | apps/api | hono | sin1 | Fluid | 120s",
     "seen-said-acceptance-web | apps/web | vite | pnpm build | dist",
     "HUAYI_DATABASE_TLS_CA_BASE64",
+    "HUAYI_STORE_EXTENSION_CAPABILITY",
+    "Confirmed deployment decisions (values are not printed):",
+    "hosted DeepSeek key is available and small real acceptance charges are approved",
     "https://api.acceptance.seen-said.cn/v1/auth/callback",
     "https://api.acceptance.seen-said.cn/v1/auth/password/callback",
     "https://api.acceptance.seen-said.cn/v1/auth/password/recovery/confirm",
@@ -57,6 +60,7 @@ test("hosted deployment plan is complete, deterministic, and secret independent"
     assert.match(plan, new RegExp(expected.replaceAll(/[.*+?^${}()|[\]\\]/gu, "\\$&"), "u"));
   }
   assert.doesNotMatch(plan, /application-password|re_hosted-test|deepseek-hosted-test/u);
+  assert.doesNotMatch(plan, /HUAYI_STORE_EXTENSION_ID/u);
 });
 
 test("hosted deployment environment verifier reuses the production schema and fixed contract", () => {
@@ -67,7 +71,11 @@ test("hosted deployment environment verifier reuses the production schema and fi
       HUAYI_DATABASE_URL:
         "postgresql://other.kpadiulxkgckskcfydry:application-password@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres?sslmode=verify-full",
     },
-    { HUAYI_STORE_EXTENSION_ID: "a".repeat(32) },
+    { HUAYI_STORE_EXTENSION_CAPABILITY: "enabled" },
+    {
+      HUAYI_STORE_EXTENSION_CAPABILITY: "disabled",
+      HUAYI_STORE_EXTENSION_ID: "abcdefghijklmnopabcdefghijklmnop",
+    },
   ]) {
     assert.throws(() =>
       verifyHostedDeploymentEnvironment({ ...validHostedEnvironment(), ...mutation }),

@@ -35,11 +35,11 @@ DeepSeek key、Google OAuth、`HUAYI_RESEND_API_KEY` 和邮件凭据。productio
 `disabled-local-acceptance` 只允许三个固定 localhost origin。生产值只存在部署平台 secret store，按供应商事故、人员
 变更或疑似泄露轮换；Extension/Web 构建扫描不得包含它们。
 
-公开 API 配置还必须包含 `HUAYI_STORE_EXTENSION_ID` 与
-`HUAYI_MIN_SUPPORTED_EXTENSION_VERSION`。前者必须等于本次 Cloud release audit 的
-`HUAYI_RELEASE_EXTENSION_ID`，后者按 API→Web→Extension 发布顺序设置且至少保留当前和上一兼容
-客户端；两者不是秘密，但缺失、非法或不一致时发布失败关闭。候选审批把这两个公开值直接传给
-`check:cloud-release`，自动验证 ID 相等和候选 Manifest 版本满足最低版本；真实部署仍需核对平台配置。
+公开 API 配置必须显式包含 `HUAYI_STORE_EXTENSION_CAPABILITY=enabled|disabled` 与
+`HUAYI_MIN_SUPPORTED_EXTENSION_VERSION`，缺失或非法值在 composition 前失败关闭。`enabled` 还必须
+提供真实 `HUAYI_STORE_EXTENSION_ID`，并等于 Cloud release audit 的 `HUAYI_RELEASE_EXTENSION_ID`；
+`disabled` 必须省略 ID，API 不开放 Store origin、token 或专用路由。完整 Store 候选只接受 `enabled`，
+并自动验证 ID 相等和候选 Manifest 版本满足最低版本；真实部署仍需核对平台配置。
 
 平台模型组合要求 `HUAYI_DEEPSEEK_API_KEY` 及
 `HUAYI_DEEPSEEK_LEGACY_PRICE_VERSION_ID`、`HUAYI_DEEPSEEK_OFF_PEAK_PRICE_VERSION_ID`、

@@ -41,7 +41,7 @@ interface FoundationIdentity {
 export interface CloudFoundationDependencies {
   apiOrigin: string;
   auth: AuthProvider;
-  extensionOrigin: string;
+  extensionOrigin?: string;
   identity: {
     [Key in keyof FoundationIdentity]: (
       ...args: Parameters<FoundationIdentity[Key]>

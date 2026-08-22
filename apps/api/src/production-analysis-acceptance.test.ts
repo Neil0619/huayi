@@ -101,6 +101,7 @@ describe("production analysis with the local acceptance provider", () => {
       HUAYI_REFRESH_ENCRYPTION_KEY: Buffer.alloc(32, 1).toString("base64url"),
       HUAYI_SECRET_PEPPER: "p".repeat(32),
       HUAYI_SECURITY_NOTIFICATION_MODE: "disabled-local-acceptance",
+      HUAYI_STORE_EXTENSION_CAPABILITY: "enabled",
       HUAYI_STORE_EXTENSION_ID: "a".repeat(32),
       HUAYI_WEB_ORIGIN: "https://app.acceptance.localhost:8443",
       SUPABASE_PUBLISHABLE_KEY: "publishable-local-acceptance",

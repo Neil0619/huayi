@@ -56,6 +56,8 @@ const SAFE_MESSAGES = {
   "release-config-min-extension-version":
     "Cloud release minimum Extension version is missing or invalid.",
   "release-config-privacy-url": "Cloud release privacy URL is missing or invalid.",
+  "release-config-store-capability":
+    "Cloud Store release requires the enabled Store Extension capability.",
   "release-config-web-origin": "Cloud release Web origin is missing or invalid.",
   "store-api-origin": "Store runtime API origin does not match the candidate.",
   "store-bundle-origin": "Store bundle does not contain the fixed candidate origins.",
@@ -74,6 +76,7 @@ export const CLOUD_DEVELOPMENT_BLOCKER_CODES = Object.freeze([
   "release-config-extension-id",
   "release-config-min-extension-version",
   "release-config-privacy-url",
+  "release-config-store-capability",
   "release-config-web-origin",
   "store-api-origin",
   "store-web-workspace-url",
@@ -127,6 +130,9 @@ function configurationEvidence(configuration, violations) {
   if (api === null) violations.push(violation("release-config-api-origin"));
   if (web === null || web?.origin === api?.origin) {
     violations.push(violation("release-config-web-origin"));
+  }
+  if (configuration.storeExtensionCapability !== "enabled") {
+    violations.push(violation("release-config-store-capability"));
   }
   const extensionId =
     typeof configuration.extensionId === "string" && /^[a-p]{32}$/u.test(configuration.extensionId)
@@ -373,6 +379,7 @@ async function main() {
     extensionId: process.env.HUAYI_RELEASE_EXTENSION_ID,
     minSupportedExtensionVersion: process.env.HUAYI_MIN_SUPPORTED_EXTENSION_VERSION,
     privacyUrl: process.env.HUAYI_RELEASE_PRIVACY_URL,
+    storeExtensionCapability: process.env.HUAYI_STORE_EXTENSION_CAPABILITY,
     webOrigin: process.env.HUAYI_RELEASE_WEB_ORIGIN,
   });
   if (process.argv[2] === "development-blocked") {

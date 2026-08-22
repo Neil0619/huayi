@@ -99,7 +99,11 @@ const baseEnvironmentShape = {
       message: "Expected a base64url-encoded 256-bit encryption key.",
     }),
   HUAYI_SECRET_PEPPER: z.string().min(32),
-  HUAYI_STORE_EXTENSION_ID: z.string().regex(/^[a-p]{32}$/u),
+  HUAYI_STORE_EXTENSION_CAPABILITY: z.enum(["enabled", "disabled"]),
+  HUAYI_STORE_EXTENSION_ID: z
+    .string()
+    .regex(/^[a-p]{32}$/u)
+    .optional(),
   HUAYI_MIN_SUPPORTED_EXTENSION_VERSION: extensionVersionSchema,
   HUAYI_ACCOUNT_EXPORT_BUCKET: z.string().regex(/^[a-z0-9][a-z0-9._-]{1,62}$/u),
   CRON_SECRET: z.string().min(32),
@@ -142,6 +146,13 @@ const localAcceptanceEnvironmentSchema = z
 
 const apiEnvironmentSchema = z
   .union([resendEnvironmentSchema, localAcceptanceEnvironmentSchema])
+  .refine(
+    (environment) =>
+      environment.HUAYI_STORE_EXTENSION_CAPABILITY === "enabled"
+        ? environment.HUAYI_STORE_EXTENSION_ID !== undefined
+        : environment.HUAYI_STORE_EXTENSION_ID === undefined,
+    "Store Extension ID must be present only when the Store capability is enabled.",
+  )
   .refine(
     (environment) => environment.HUAYI_API_ORIGIN !== environment.HUAYI_WEB_ORIGIN,
     "API and Web origins must be different.",
@@ -193,7 +204,10 @@ export function readApiEnvironment(
           HUAYI_SECURITY_NOTIFICATION_REPLY_TO: environment.HUAYI_SECURITY_NOTIFICATION_REPLY_TO,
         }
       : {}),
-    HUAYI_STORE_EXTENSION_ID: environment.HUAYI_STORE_EXTENSION_ID,
+    HUAYI_STORE_EXTENSION_CAPABILITY: environment.HUAYI_STORE_EXTENSION_CAPABILITY,
+    ...(environment.HUAYI_STORE_EXTENSION_ID === undefined
+      ? {}
+      : { HUAYI_STORE_EXTENSION_ID: environment.HUAYI_STORE_EXTENSION_ID }),
     HUAYI_MIN_SUPPORTED_EXTENSION_VERSION: environment.HUAYI_MIN_SUPPORTED_EXTENSION_VERSION,
     HUAYI_ACCOUNT_EXPORT_BUCKET: environment.HUAYI_ACCOUNT_EXPORT_BUCKET,
     CRON_SECRET: environment.CRON_SECRET,

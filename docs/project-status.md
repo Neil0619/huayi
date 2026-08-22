@@ -85,6 +85,12 @@ wire 版本或完成声明。
 
 ## Cloud V1 当前状态（2026-08-14）
 
+2026-08-22 hosted 首轮部署已选择 Web-only：新增必填
+`HUAYI_STORE_EXTENSION_CAPABILITY=enabled|disabled`，首轮固定 `disabled` 并省略 Extension ID。API
+从 CORS/路由 composition 移除 Store 专用 surface，混合路由也拒绝 Extension token；完整 Store release
+audit 仍只允许 `enabled`。这不代表 Store 产品或 Windows 支持被取消，启用时仍须真实 ID、版本和 Chrome
+门禁。
+
 > **当前校准检查点（Phase 33）**：Phase 28 已补齐 production 语义重复建议和
 > 可计算 AA token 证据；2026-08-14 完成度源码审计发现的 SubmissionOutbox `api=null` 误清账号绑定
 > 密文与未计数 `not-configured` 回归也已按 Fresh RED→GREEN 修复。Phase 32 按 `product.md` 七条
@@ -103,7 +109,7 @@ wire 版本或完成声明。
 > `git diff --check`；依赖审计未发现已知漏洞。该证据不包含安装、真实 Chrome、Provider/词典 smoke、
 > Supabase/Vercel 或多连接 Postgres，因此外部门禁不变。
 > Phase 31 已完成正式候选 ready 与开发态 expected-blocked 的独立门禁：后者只允许真实工作树精确命中
-> `privacy-not-final`、六项 `release-config-*`、`store-api-origin` 与 `store-web-workspace-url` 九项固定
+> `privacy-not-final`、七项 `release-config-*`、`store-api-origin` 与 `store-web-workspace-url` 十项固定
 > 安全 blocker；少项、多项均失败且不回显不可信诊断。Fresh RED 为 2 passed / 3 expected failures，
 > GREEN focused 17/17；全量 118/118 Node 脚本、444 个 Vitest 文件（2,721 passed / 12 skipped）通过。
 > 更新后的 macOS 聚合门禁也以退出码 0 证明 build 后真实入口、109/109 Playwright、Store release、生产
@@ -1376,3 +1382,18 @@ passed; first Operator empty`。候选已提交推送，0012 已实际 push；�
   wrong-inherit=false 且全部 rollback。fresh `pnpm verify:macos` 为 213/213 Node、474/474 Vitest files
   （2,859 passed / 12 skipped）、Store 481/481、Playwright 110/110，全部质量、构建、发布和依赖门通过。
   修复实现阶段未连接远端；随后由用户运行的两道只读命令已补齐远端 foundation/Operator 状态证据。
+
+## Cloud V1 Phase 54 Hosted 首轮 Store-disabled 状态（2026-08-22）
+
+- 用户已选择首轮只验收 Web/API；hosted API 必填
+  `HUAYI_STORE_EXTENSION_CAPABILITY=disabled`，且 `HUAYI_STORE_EXTENSION_ID` 必须不存在，不再填占位值；
+- 用户已确认 Reply-To 可用、已有 hosted DeepSeek key 并批准验收环境产生少量真实费用；邮箱和 key 值均不
+  写入仓库或计划输出，实际外部配置前仍逐项确认；
+- disabled composition 已从 CORS 和路由表移除 Store 专用 surface，并在 identity 查询前拒绝混合路由的
+  Extension token；enabled/local acceptance 与完整 Store release 仍保持真实 ID、最低版本和 Chrome
+  门禁，Classic/Windows/Store 客户端未变；
+- Fresh RED 后 focused 18/18 Vitest、22/22 Node、API 136 files / 509 tests 通过；根审查校准外部输入状态
+  后又通过 focused 15/15 Vitest、18/18 Node。最终 `pnpm verify:macos` 原样退出 0：214/214 Node、
+  474/474 Vitest files（2,862 passed / 12 skipped）、Store 481/481、Playwright 110/110，全部
+  format/lint/typecheck/build、architecture、发布和 production audit 门通过且无已知 production 漏洞。
+  Vercel project、环境变量、部署、真实 Provider 请求与邀请仍未执行。

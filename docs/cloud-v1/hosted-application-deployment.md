@@ -3,9 +3,9 @@
 状态：2026-08-22 docs-first、跨文档审查、离线 RED→GREEN、完整 macOS 门和候选提交推送均已完成；
 0012 dry-run 只列出 FirstOperatorBootstrap，随后已经实际 push。push 后 diagnostic 证明 12 条 chain、
 0012 结构和空 Operator 数据，但也暴露旧版 PostgreSQL 17 membership 校验误判。用户随后已运行修正版
-只读 foundation verify 与固定 Operator status，分别返回 passed 与 `empty`。外部输入仍未齐备，因此仍不
-允许创建 Vercel project、写
-DNS/Auth/SMTP/secret、部署应用或发行邀请。
+只读 foundation verify 与固定 Operator status，分别返回 passed 与 `empty`。用户随后确认 Reply-To 可用、
+已有 hosted DeepSeek key 并批准验收环境产生少量真实费用，同时选择首轮禁用 Store。Vercel project 仍未
+创建，DNS/Auth/SMTP/secret、应用部署和邀请也仍未执行。
 
 ## 1. 当前事实与目标
 
@@ -47,8 +47,8 @@ remote migration 0012
 5. Supabase Auth SMTP key 与 API R3-C HTTP key 必须是两把独立、sending-only、限定该验收子域的 key；
 6. 当前 production API 只接受完整 Resend hosted composition。缺 Resend、DeepSeek、数据库 CA/DSN 或任一
    secret 时必须在初始化阶段失败；禁止填假 key 或把 local disabled 模式带到公网；
-7. hosted DeepSeek key 及真实计费必须另经用户明确批准；批准前只能完成 docs/source preflight，不能部署
-   一个靠假 key 启动的 API；
+7. 用户已确认 hosted DeepSeek key 可用，并批准验收环境产生少量真实费用；仍不得把 key 写入仓库、聊天
+   或测试输出，部署时只写入 Vercel Production Sensitive Environment；
 8. 最新候选必须是已记录的完整 commit SHA。Vercel 不部署无法追溯的未提交工作树。
 
 Google 可以继续延期。首位 Operator 先用邮箱密码完成正常邀请注册；Google Provider 未配置时 UI/路由
@@ -99,21 +99,27 @@ API `vercel.json` 必须把 framework 固定为 `hono`、project region 固定�
 | `HUAYI_REFRESH_ENCRYPTION_KEY`             | 新生成 32-byte base64url key                                            | sensitive  |
 | `HUAYI_SECRET_PEPPER`                      | 新生成 32+ 字符；后续 bootstrap CLI 必须使用同一个值                    | sensitive  |
 | `CRON_SECRET`                              | 新生成 32+ 字符 bearer                                                  | sensitive  |
-| `HUAYI_DEEPSEEK_API_KEY`                   | 独立验收 key；需另行批准真实请求/计费                                   | sensitive  |
+| `HUAYI_DEEPSEEK_API_KEY`                   | 用户已确认可用的独立验收 key；已批准少量真实验收费用                    | sensitive  |
 | `HUAYI_DEEPSEEK_LEGACY_PRICE_VERSION_ID`   | `8a7c5397-dbba-4e28-bc0d-107c4d04c3c3`                                  | public     |
 | `HUAYI_DEEPSEEK_OFF_PEAK_PRICE_VERSION_ID` | `dad0deb1-cbdc-4311-b3ad-b492c7ece757`                                  | public     |
 | `HUAYI_DEEPSEEK_PEAK_PRICE_VERSION_ID`     | `e4479ddf-f4da-4a75-825a-2b25c1a145cf`                                  | public     |
-| `HUAYI_STORE_EXTENSION_ID`                 | 当前 acceptance Store build 的真实稳定 Chrome ID；未确认前不得填占位值  | public     |
+| `HUAYI_STORE_EXTENSION_CAPABILITY`         | 首轮固定 `disabled`；缺失/非法值拒绝启动                                | public     |
+| `HUAYI_STORE_EXTENSION_ID`                 | 仅 capability=`enabled` 时必填真实稳定 Chrome ID；首轮必须不存在        | public     |
 | `HUAYI_MIN_SUPPORTED_EXTENSION_VERSION`    | `1.0.0`                                                                 | public     |
 | `HUAYI_ACCOUNT_EXPORT_BUCKET`              | `account-exports-acceptance`                                            | public     |
 | `HUAYI_SECURITY_NOTIFICATION_MODE`         | `resend`                                                                | public     |
 | `HUAYI_RESEND_API_KEY`                     | 独立 R3-C sending-only/domain-scoped key                                | sensitive  |
 | `HUAYI_SECURITY_NOTIFICATION_FROM`         | `语见 <security@notify.acceptance.seen-said.cn>`                        | public     |
-| `HUAYI_SECURITY_NOTIFICATION_REPLY_TO`     | 用户确认且可收件的支持地址                                              | public PII |
+| `HUAYI_SECURITY_NOTIFICATION_REPLY_TO`     | 用户已确认且可收件的支持地址；值不写入仓库或计划输出                    | public PII |
 
 所有 sensitive 变量只创建在 Vercel Production 并启用 Sensitive；不 pull 到仓库文件。公开变量也只作用于
 Production，避免 Preview 意外连接同一项目。任何环境变量变化只对下一次 deployment 生效，修改后必须重新
 部署并记录 deployment ID/SHA。
+
+首轮 Web-only hosted acceptance 不伪造 Store ID：API composition 不注册配对、设备、ExtensionQuery、
+CloudWordCopy、Extension preferences/self-disconnect 等 Store 专用路由，CORS 只允许 Web origin；混合
+Web/Store 路由收到任意 `HuayiExtension` token 也固定拒绝。以后启用 Store 必须在同次配置中把 capability
+改为 `enabled` 并提供真实 `[a-p]{32}` ID，随后重跑 release audit、部署和真实 Chrome 门禁。
 
 ### 4.2 Web build variables and visible identity
 
@@ -208,12 +214,18 @@ format/lint/typecheck/build、architecture、development blocker、Store release
 Singapore Function region、五项 CRON、五条 Auth redirect，并让 hosted Web 可见标识 commit。未发现需要
 推翻现有架构的阻塞问题，允许按第 7 节进入离线实现。
 
-外部写入前仍必须明确三项输入，不用假值代替：
+三项原待定输入现已全部明确，且不使用假值代替：
 
-1. 用户确认可收件的 Reply-To/支持邮箱；
-2. 用户提供或批准创建 hosted DeepSeek key 及真实费用；
-3. acceptance Store 的真实稳定 Chrome ID。若首轮只验收 Web，可将 Store 接入作为明确 disabled capability，
-   但 production API 环境契约必须相应建模，不能填 `aaaaaaaa...` 冒充真实客户端。
+1. 用户已提供可收件的 Reply-To/支持邮箱；值只在外部配置动作前再次确认，不写入计划输出；
+2. 用户已有 hosted DeepSeek key，并批准验收环境产生少量真实费用；key 值只由用户直接写入 Vercel
+   Production Sensitive Environment；
+3. 首轮 Store 明确禁用，production API 已用 capability=`disabled` 建模并要求 Extension ID 不存在，不填
+   `aaaaaaaa...` 冒充真实客户端。未来启用时再要求真实稳定 Chrome ID 和完整 Store 门禁。
+
+本轮 Store-disabled 实现与上述输入校准已通过 fresh 根级 `pnpm verify:macos`：214/214 Node、474/474
+Vitest files（2,862 passed / 12 skipped）、Store 481/481、Playwright 110/110，以及全部
+format/lint/typecheck/build、architecture、release 和 production audit；production 依赖审计无已知漏洞。
+该证据只关闭离线实现门，不代表已创建 Vercel project 或完成任何外部配置、部署、真实请求与邀请。
 
 官方约束来源：
 

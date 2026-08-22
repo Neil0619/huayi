@@ -64,6 +64,7 @@ export function renderAcceptanceEnvironment(values) {
     `HUAYI_SECRET_PEPPER=${values.pepper}`,
     "HUAYI_SECURITY_NOTIFICATION_MODE=disabled-local-acceptance",
     `CRON_SECRET=${values.cronSecret}`,
+    "HUAYI_STORE_EXTENSION_CAPABILITY=enabled",
     `HUAYI_STORE_EXTENSION_ID=${"a".repeat(32)}`,
     "HUAYI_MIN_SUPPORTED_EXTENSION_VERSION=1.0.0",
     "HUAYI_ACCOUNT_EXPORT_BUCKET=account-exports-acceptance",

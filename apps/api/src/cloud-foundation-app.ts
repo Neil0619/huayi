@@ -121,7 +121,10 @@ export function createCloudFoundationApp(dependencies: CloudFoundationDependenci
       allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
       credentials: true,
       exposeHeaders: ["Content-Disposition"],
-      origin: [dependencies.webOrigin, dependencies.extensionOrigin],
+      origin:
+        dependencies.extensionOrigin === undefined
+          ? [dependencies.webOrigin]
+          : [dependencies.webOrigin, dependencies.extensionOrigin],
     }),
   );
 
@@ -288,107 +291,109 @@ export function createCloudFoundationApp(dependencies: CloudFoundationDependenci
     return context.body(null, 204);
   });
 
-  app.post("/v1/extension-pairings", async (context) => {
-    const input = await strictJson(context, createExtensionPairingRequestSchema);
-    await limit(context, "pairing.create", input.installIdHash, 10);
-    const pairing = await dependencies.identity.createExtensionPairing(input);
-    return context.json(
-      {
+  if (dependencies.extensionOrigin !== undefined) {
+    app.post("/v1/extension-pairings", async (context) => {
+      const input = await strictJson(context, createExtensionPairingRequestSchema);
+      await limit(context, "pairing.create", input.installIdHash, 10);
+      const pairing = await dependencies.identity.createExtensionPairing(input);
+      return context.json(
+        {
+          expiresAt: pairing.expiresAt.toISOString(),
+          id: pairing.id,
+          pairingPath: `/pair-extension/${pairing.id}`,
+          status: pairing.status,
+        },
+        201,
+      );
+    });
+
+    app.get("/v1/extension-pairings/:id", async (context) => {
+      await limit(context, "pairing.poll", context.req.param("id"), 60);
+      const pairing = await dependencies.identity.getExtensionPairing(context.req.param("id"));
+      if (pairing.status === "consumed") {
+        throw new CloudFault("not_found", "Pairing is no longer available.");
+      }
+      return context.json({
         expiresAt: pairing.expiresAt.toISOString(),
         id: pairing.id,
         pairingPath: `/pair-extension/${pairing.id}`,
         status: pairing.status,
-      },
-      201,
-    );
-  });
-
-  app.get("/v1/extension-pairings/:id", async (context) => {
-    await limit(context, "pairing.poll", context.req.param("id"), 60);
-    const pairing = await dependencies.identity.getExtensionPairing(context.req.param("id"));
-    if (pairing.status === "consumed") {
-      throw new CloudFault("not_found", "Pairing is no longer available.");
-    }
-    return context.json({
-      expiresAt: pairing.expiresAt.toISOString(),
-      id: pairing.id,
-      pairingPath: `/pair-extension/${pairing.id}`,
-      status: pairing.status,
+      });
     });
-  });
 
-  app.post("/v1/extension-pairings/:id/approve", async (context) => {
-    const sessionId = webSessionCookie(context);
-    const csrf = context.req.header("x-csrf-token");
-    const origin = context.req.header("origin");
-    if (sessionId === undefined || csrf === undefined || origin === undefined) {
-      throw new CloudFault("authentication_required", "Web session proof is required.");
-    }
-    const authentication = await dependencies.identity.authenticateWebMutation(
-      sessionId,
-      origin,
-      csrf,
-    );
-    const input = await strictJson(context, approveExtensionPairingRequestSchema);
-    await dependencies.identity.approveExtensionPairing(
-      context.req.param("id"),
-      authentication.userId,
-      input,
-    );
-    return context.body(null, 204);
-  });
-
-  app.post("/v1/extension-pairings/:id/exchange", async (context) => {
-    const input = await strictJson(context, exchangeExtensionPairingRequestSchema);
-    await limit(context, "pairing.exchange", context.req.param("id"), 10);
-    const session = await dependencies.identity.exchangeExtensionPairing(
-      context.req.param("id"),
-      input.state,
-      input.pkceVerifier,
-    );
-    return context.json({
-      expiresAt: session.expiresAt.toISOString(),
-      preferences: session.preferences,
-      sessionToken: session.sessionToken,
+    app.post("/v1/extension-pairings/:id/approve", async (context) => {
+      const sessionId = webSessionCookie(context);
+      const csrf = context.req.header("x-csrf-token");
+      const origin = context.req.header("origin");
+      if (sessionId === undefined || csrf === undefined || origin === undefined) {
+        throw new CloudFault("authentication_required", "Web session proof is required.");
+      }
+      const authentication = await dependencies.identity.authenticateWebMutation(
+        sessionId,
+        origin,
+        csrf,
+      );
+      const input = await strictJson(context, approveExtensionPairingRequestSchema);
+      await dependencies.identity.approveExtensionPairing(
+        context.req.param("id"),
+        authentication.userId,
+        input,
+      );
+      return context.body(null, 204);
     });
-  });
 
-  app.get("/v1/extension-sessions", async (context) => {
-    const sessionId = webSessionCookie(context);
-    if (sessionId === undefined) {
-      throw new CloudFault("authentication_required", "Web session proof is required.");
-    }
-    const authentication = await dependencies.identity.authenticateWebSession(sessionId);
-    const sessions = await dependencies.identity.listExtensionSessions(authentication.userId);
-    return context.json({
-      items: sessions.map((session) => ({
-        deviceLabel: session.deviceLabel,
-        createdAt: session.createdAt.toISOString(),
+    app.post("/v1/extension-pairings/:id/exchange", async (context) => {
+      const input = await strictJson(context, exchangeExtensionPairingRequestSchema);
+      await limit(context, "pairing.exchange", context.req.param("id"), 10);
+      const session = await dependencies.identity.exchangeExtensionPairing(
+        context.req.param("id"),
+        input.state,
+        input.pkceVerifier,
+      );
+      return context.json({
         expiresAt: session.expiresAt.toISOString(),
-        id: session.id,
-        lastUsedAt: session.lastUsedAt?.toISOString() ?? null,
-      })),
+        preferences: session.preferences,
+        sessionToken: session.sessionToken,
+      });
     });
-  });
 
-  app.delete("/v1/extension-sessions/:id", async (context) => {
-    const sessionId = webSessionCookie(context);
-    const csrf = context.req.header("x-csrf-token");
-    const origin = context.req.header("origin");
-    if (sessionId === undefined || csrf === undefined || origin === undefined) {
-      throw new CloudFault("authentication_required", "Web session proof is required.");
-    }
-    const authentication = await dependencies.identity.authenticateWebMutation(
-      sessionId,
-      origin,
-      csrf,
-    );
-    await dependencies.identity.revokeExtensionSession(
-      authentication.userId,
-      context.req.param("id"),
-    );
-    return context.body(null, 204);
-  });
+    app.get("/v1/extension-sessions", async (context) => {
+      const sessionId = webSessionCookie(context);
+      if (sessionId === undefined) {
+        throw new CloudFault("authentication_required", "Web session proof is required.");
+      }
+      const authentication = await dependencies.identity.authenticateWebSession(sessionId);
+      const sessions = await dependencies.identity.listExtensionSessions(authentication.userId);
+      return context.json({
+        items: sessions.map((session) => ({
+          deviceLabel: session.deviceLabel,
+          createdAt: session.createdAt.toISOString(),
+          expiresAt: session.expiresAt.toISOString(),
+          id: session.id,
+          lastUsedAt: session.lastUsedAt?.toISOString() ?? null,
+        })),
+      });
+    });
+
+    app.delete("/v1/extension-sessions/:id", async (context) => {
+      const sessionId = webSessionCookie(context);
+      const csrf = context.req.header("x-csrf-token");
+      const origin = context.req.header("origin");
+      if (sessionId === undefined || csrf === undefined || origin === undefined) {
+        throw new CloudFault("authentication_required", "Web session proof is required.");
+      }
+      const authentication = await dependencies.identity.authenticateWebMutation(
+        sessionId,
+        origin,
+        csrf,
+      );
+      await dependencies.identity.revokeExtensionSession(
+        authentication.userId,
+        context.req.param("id"),
+      );
+      return context.body(null, 204);
+    });
+  }
 
   return app;
 }

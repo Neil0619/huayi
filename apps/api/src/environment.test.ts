@@ -25,6 +25,7 @@ function validHostedEnvironment() {
     HUAYI_SECURITY_NOTIFICATION_FROM: "语见 <security@notify.example.test>",
     HUAYI_SECURITY_NOTIFICATION_MODE: "resend",
     HUAYI_SECURITY_NOTIFICATION_REPLY_TO: "support@example.test",
+    HUAYI_STORE_EXTENSION_CAPABILITY: "enabled",
     HUAYI_STORE_EXTENSION_ID: "a".repeat(32),
     HUAYI_WEB_ORIGIN: "https://app.huayi.example",
     SUPABASE_PUBLISHABLE_KEY: "sb_publishable_test-value",
@@ -34,6 +35,33 @@ function validHostedEnvironment() {
 }
 
 describe("API security environment", () => {
+  it("requires an explicit Store capability and disables Store without an Extension ID", () => {
+    const enabled = validHostedEnvironment();
+    const disabled: Record<string, string | undefined> = {
+      ...enabled,
+      HUAYI_STORE_EXTENSION_CAPABILITY: "disabled",
+    };
+    delete disabled.HUAYI_STORE_EXTENSION_ID;
+
+    expect(parseApiEnvironment(disabled)).toMatchObject({
+      HUAYI_STORE_EXTENSION_CAPABILITY: "disabled",
+    });
+    expect(parseApiEnvironment(disabled)).not.toHaveProperty("HUAYI_STORE_EXTENSION_ID");
+    expect(() =>
+      parseApiEnvironment({ ...enabled, HUAYI_STORE_EXTENSION_CAPABILITY: undefined }),
+    ).toThrow();
+    expect(() =>
+      parseApiEnvironment({ ...enabled, HUAYI_STORE_EXTENSION_CAPABILITY: "disabled" }),
+    ).toThrow();
+    expect(() =>
+      parseApiEnvironment({
+        ...enabled,
+        HUAYI_STORE_EXTENSION_CAPABILITY: "enabled",
+        HUAYI_STORE_EXTENSION_ID: "invalid",
+      }),
+    ).toThrow();
+  });
+
   it("requires server-only origin and hashing configuration", () => {
     expect(parseApiEnvironment(validHostedEnvironment())).toMatchObject({
       HUAYI_MIN_SUPPORTED_EXTENSION_VERSION: "1.0.0",
@@ -104,6 +132,7 @@ describe("API security environment", () => {
       HUAYI_REFRESH_ENCRYPTION_KEY: Buffer.alloc(32, 1).toString("base64url"),
       HUAYI_SECRET_PEPPER: "a-secure-test-pepper-with-32-characters",
       HUAYI_SECURITY_NOTIFICATION_MODE: "disabled-local-acceptance",
+      HUAYI_STORE_EXTENSION_CAPABILITY: "enabled",
       HUAYI_STORE_EXTENSION_ID: "a".repeat(32),
       HUAYI_WEB_ORIGIN: "https://app.acceptance.localhost:8443",
       SUPABASE_PUBLISHABLE_KEY: "sb_publishable_test-value",
