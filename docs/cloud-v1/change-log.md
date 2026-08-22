@@ -3,6 +3,18 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-23：Hosted acceptance 环境完成后以首次 API health gate 验证真实组合
+
+- Supabase Auth 固定一个 Site URL 和五条 exact API redirect，不允许 wildcard；API/Web Vercel 环境均只
+  使用 Production，API schema 为 21 项（9 Sensitive、12 public），Web 为 2 项 public；
+- `HUAYI_STORE_EXTENSION_ID`、`VITE_ACCEPTANCE_MODEL`、`VITE_DEPLOYMENT_COMMIT` 和人工创建的
+  `VERCEL_GIT_COMMIT_SHA` 必须不存在。Vercel 平台在真实 deployment 时提供 commit SHA；
+- Vercel Sensitive 值托管后不可回读，因此远端结构复核不能伪装成完整值 composition 验证，也不能为了
+  重跑 `acceptance:hosted:deployment --verify-environment` 旋转已托管 Secret。首次 API deployment 必须
+  由启动与 `/health` gate 失败关闭验证真实组合，成功后才能继续 Web、邮件、Cron 和邀请；
+- 三项本地生成 Secret 只以固定 service 名和 project ref account 保存在 macOS login Keychain；文档不记录
+  值。数据库 DSN、Provider key 与 Reply-To 值同样不得写入仓库或状态证据。
+
 ## 2026-08-23：Hosted acceptance 邮件凭据分离与配置门部分关闭
 
 - 对话中泄露的旧 Resend key `seensaid` 已在 Dashboard 撤销；一次误建的 Full access R3-C key 与一次
@@ -15,10 +27,10 @@
 - Supabase project `kpadiulxkgckskcfydry` 已启用 Custom SMTP：`smtp.resend.com:465`、username=`resend`、
   sender=`语见 <accounts@notify.acceptance.seen-said.cn>`，密码使用独立 SMTP key 且不可回读；
 - Vercel API project `seen-said-acceptance-api` 已在 Production 托管 R3-C key 为 Sensitive，并配置
-  notification mode=`resend`、固定 security sender 与用户确认的 Reply-To。Web project 未改，API 仍为
-  `No Production Deployment`；本阶段没有发送真实邮件、发起 API/Web deployment、安装 Cron 或发行邀请。
-  下一门仍是补齐并复核 API/Web 全部 Production environment，再受控执行 API→Web deployment 与邮件/
-  应用 smoke。
+  notification mode=`resend`、固定 security sender 与用户确认的 Reply-To。Web project 在本阶段当时未改，
+  API 仍为 `No Production Deployment`；本阶段没有发送真实邮件、发起 API/Web deployment、安装 Cron 或
+  发行邀请。后续 Phase 64 已补齐 Auth 与 API/Web Production environment 结构；下一门为受审查解锁后
+  执行 API→Web deployment 与邮件/应用 smoke。
 
 ## 2026-08-23：Hosted acceptance Resend sender 域名门关闭
 

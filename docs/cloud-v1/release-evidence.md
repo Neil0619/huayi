@@ -1387,12 +1387,37 @@ typecheck、architecture、build、development blocker、Store release、product
 - **Supabase 配置**：project `kpadiulxkgckskcfydry` 已启用 Custom SMTP，host/port 为
   `smtp.resend.com:465`、username=`resend`、sender=
   `语见 <accounts@notify.acceptance.seen-said.cn>`；独立 SMTP password 不可回读；
-- **Vercel 配置**：API project `seen-said-acceptance-api` 的 Production 已存在 Sensitive
+- **Vercel 配置**：API project `seen-said-acceptance-api` 的 Production 当时已存在 Sensitive
   `HUAYI_RESEND_API_KEY`，并配置 `HUAYI_SECURITY_NOTIFICATION_MODE=resend`、固定 security sender 与用户
-  确认的 Reply-To。Web project 未改，API Deployments 仍显示 `No Production Deployment`；
+  确认的 Reply-To。Web project 在本 Phase 当时未改，API Deployments 仍显示 `No Production Deployment`；
 - **仓库与零动作证据**：`pnpm acceptance:hosted:deployment --plan` 退出 0；外部配置前工作树为 clean。
   本阶段未发送真实确认/恢复/R3-C 邮件，未发起 API/Web deployment，未运行 DeepSeek，未安装或触发 Cron，
   未发行邀请；
-- **剩余门禁**：补齐 API/Web 完整 Production environment，运行不回显值的 verifier，受审查解锁精确
-  production branch 并按 API→Web 首次部署；随后才验收 Auth 邮件、R3-C 通知、Cookie/CORS/SSE/Storage、
-  五项 Cron 与 FirstOperatorBootstrap。
+- **后续状态**：Phase 64 已完成 API/Web 完整 Production environment 结构与 Auth exact URL；Sensitive
+  值不可回读，不为重跑 verifier 旋转 Secret。当前剩余门为受审查解锁精确 production branch 并按
+  API→Web 首次部署；随后才验收 Auth 邮件、R3-C 通知、Cookie/CORS/SSE/Storage、五项 Cron 与
+  FirstOperatorBootstrap。
+
+## 55. Phase 64 Hosted acceptance Auth 与完整环境结构（2026-08-23）
+
+- **Supabase Auth exact 配置**：Site URL 已固定为 `https://app.acceptance.seen-said.cn`；redirect allowlist
+  只含 contract 中五条 `https://api.acceptance.seen-said.cn` exact callback URL，无通配符；
+- **Vercel Production environment**：`seen-said-acceptance-api` 为 21/21，精确 9 项 Sensitive、12 项
+  public；`seen-said-acceptance-web` 为 2/2 public。全部只属于 Production。曾误设 Sensitive 的三项通知
+  public 变量因 Vercel 不支持原地关闭，已删除并按原值重建为 Production-only public，最终结构复核通过；
+- **禁止变量与值边界**：`HUAYI_STORE_EXTENSION_ID`、`VITE_ACCEPTANCE_MODEL`、
+  `VITE_DEPLOYMENT_COMMIT` 与人工 `VERCEL_GIT_COMMIT_SHA` 均不存在。数据库 DSN 与 DeepSeek key 由用户
+  直接安全输入，系统剪贴板随后清空；本文不记录任何值。Reply-To 只记录为“用户确认地址”；
+- **本地恢复材料**：三项本地生成 Secret 只保存在 macOS login Keychain，service 为
+  `huayi-hosted-acceptance-refresh-encryption`、`huayi-hosted-acceptance-secret-pepper`、
+  `huayi-hosted-acceptance-cron-secret`，account 均为 `kpadiulxkgckskcfydry`；只记录名称与 project ref；
+- **零部署与验证边界**：两个 project 均仍为 `No Production Deployment`，仓库
+  `git.deploymentEnabled=false` 未改，未触发 deployment。`acceptance:hosted:deployment --plan` 退出 0；
+  Vercel Sensitive 值不可回读，不能据此重跑 `--verify-environment`，也不为重跑而旋转已托管 Secret。
+  首次 API deployment 的启动与 `/health` gate 仍负责验证真实 composition；
+- **最新离线门**：`pnpm verify:macos` 退出 0：231/231 Node script tests、474/474 Vitest files
+  （2,863 passed / 12 skipped）、Store 97 files 481/481、Playwright 110/110；build、architecture、
+  cloud-blocked、Store release、production audit 均通过，production dependencies 无已知漏洞；
+- **下一门**：完成文档审查后形成首次部署解锁的受审查提交；不在本阶段修改 `vercel.json` 或部署。之后
+  固定 API first → health/TLS/CORS/Cookie/SSE/Auth/Storage/真实 DeepSeek 小额 smoke → Web → 真实邮件与
+  R3-C → Cron → first Operator invitation。

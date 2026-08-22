@@ -22,13 +22,15 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       focused 与本轮完整 macOS 门、远端 hardened admin/application 双复验均已通过。第 12 条
       FirstOperatorBootstrap migration 已实际应用；Vercel API/Web 项目、Git/Branch、custom domain 与 TLS
       已建立但仍为零 deployment，Resend sender domain、分离 SMTP/HTTP key、Supabase Custom SMTP 与 API
-      R3-C 通知变量子集也已配置；其余隔离运行时配置与应用验收未完成，因此本项仍未勾选；
+      R3-C 配置也已完成；Supabase Auth Site URL 与五条 exact redirect 已配置，API 21/21（9 Sensitive、
+      12 public）与 Web 2/2 public Production-only environment 结构复核通过。真实应用 composition、部署与
+      运行验收未完成，因此本项仍未勾选；
 - [ ] `app.acceptance.<root-domain>` / `api.acceptance.<root-domain>` 的 DNS、Vercel domain 和部署前 TLS
       已验证，但 Cookie、CSRF、SSE、callback 仍须在受控 API→Web deployment 后验收；若曾使用
       `*.vercel.app` gateway 备用方案，目标子域仍已重新验收；
 - [ ] `notify.acceptance.<root-domain>` 已在 Resend Tokyo 通过 SPF/DKIM 及 monitoring DMARC；旧泄露 key
-      已撤销，两把 sending-only/domain-scoped SMTP/HTTP key 已分离托管，Supabase Custom SMTP 与 API
-      R3-C 通知变量子集已配置；仍须完成真实投递、重复投递观测与告警接收验收；
+      已撤销，两把 sending-only/domain-scoped SMTP/HTTP key 已分离托管，Supabase Custom SMTP 与完整 API
+      Production environment 已配置；仍须完成真实投递、重复投递观测与告警接收验收；
 - [x] R3-C outbox 固定 23 小时 deadline、最多 8 次与 failed/dead-letter 终态；超窗/耗尽在 sender 前
       终态化且零外调，同 notification ID 只在窗口内重放；固定 Resend adapter、独立通知 CRON production
       route/composition 与无正文 reason/count 告警 port 已由 fake fetch、PGlite 和 composition 回归证明；
@@ -47,11 +49,12 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
 - [ ] 使用已核验的公开候选配置运行 `pnpm check:cloud-release` 并得到 ready；
 - [ ] audit 输入中的候选/API Extension ID 与目标 Chrome Dashboard ID 相同，最低版本不高于候选版本；
 - [x] 当前 macOS 工作树的 instructions、architecture、format、lint、typecheck、unit、API integration
-      全绿；
+      全绿；最新 Phase 64 门为 231/231 Node scripts、474/474 Vitest files（2,863 passed / 12 skipped）、
+      Store 97 files 481/481 与 Playwright 110/110；
 - [x] 当前 Web 与 Store Extension Playwright 110/110 全绿；测试使用隔离的 4173 Vite 服务，没有改写或
       重启当前 8443 验收环境；
-- [x] 当前 macOS `pnpm verify:macos` 原样退出 0：207/207 Node scripts、473 个 Vitest files（2,855
-      passed / 12 skipped）、Store 481/481、Playwright 110/110；instructions、format、lint、typecheck、
+- [x] 当前 macOS `pnpm verify:macos` 原样退出 0：231/231 Node scripts、474 个 Vitest files（2,863
+      passed / 12 skipped）、Store 97 files 481/481、Playwright 110/110；instructions、format、lint、typecheck、
       architecture、workspace build、development blocker、Store release、production audit 和 diff 同轮通过；
 - [ ] Windows Node.js 26+ 的 `pnpm verify:windows`、SEA health 与 CI 全绿；Phase 37-B 已在 Windows 11
       build 26220、Node.js 26.7.0 上本地退出 0，109/109 Playwright、SEA 仓库外 health 与 production
@@ -94,7 +97,7 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
 - [ ] R3-C 外部前置条件部分完成：`seen-said.cn` 已在腾讯云购买/实名，权威 NS 已由两个独立 DoH
       解析器核验为 Cloudflare，Tokyo 的 `notify.acceptance` sender domain 已通过 SPF/DKIM/monitoring
       DMARC；旧泄露 key 与两把未使用的错误/临时 R3-C key 均已撤销，两把最小权限正式 key 已分离托管，
-      Custom SMTP 与 API R3-C 配置也已写入对应 hosted secret/config。仍须完成真实投递、重复投递观测与
+      Custom SMTP 与完整 API Production 配置也已写入对应 hosted secret/config。仍须完成真实投递、重复投递观测与
       无正文告警接收；不能把本机 Mailpit、域名验证或配置成功当 production 证据；
 - [x] DeepSeek 官方文档事实已校准：固定 `deepseek-v4-flash`、thinking + JSON、非流
       `completion_tokens_details.reasoning_tokens`，以及 2026-08-16T16:00:00Z 起两个 UTC peak 窗口和
@@ -103,7 +106,8 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       usage、timeout、实际账单与 UsageLedger 一致；
 - [ ] 真实 DeepSeek 语义建议在受控小额度下核验固定 endpoint/model、usage、价格、timeout 和账本；不得
       用离线 fake fetch/authority 代替费用或网络事实；
-- [ ] Supabase/Vercel 区域、备份残留、OAuth callback、CORS/Cookie 和 TLS 已核验；
+- [ ] Supabase/Vercel 区域、部署前 TLS、Auth Site URL 与五条 exact redirect 已核验；备份残留、真实 OAuth
+      callback、CORS/Cookie 和部署后 TLS 仍须在首次 API→Web deployment 后核验；
 - [ ] 目标网络验证 Google OAuth、邮箱密码、Web SSE 与新加坡区域延迟；
 - [ ] 生产价格快照、默认 1 美元 grant、限速、kill switch 和无正文告警已演练；
 - [ ] AccountDataExport 独立私有副本 ready 后 24 小时删除、snapshot 纳入未过期平台查询且不延长原

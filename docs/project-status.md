@@ -1502,8 +1502,9 @@ passed; first Operator empty`。候选已提交推送，0012 已实际 push；�
 - Resend Dashboard 最终显示 `Domain verified: Your domain is ready to send emails`；两个 Vercel project
   仍为 `No Production Deployment`。本阶段仅关闭 sender-domain/DNS 门，不表示 API/Web 已部署，亦不代表
   Supabase Auth SMTP、R3-C HTTP sender、真实确认/恢复邮件、告警接收或 production ready；
-- 后续 Phase 63 已完成旧 key 撤销、分离 SMTP/HTTP credential 托管、Custom SMTP 与 R3-C 部分
-  Production 配置；真实邮件、完整 Production environment、API→Web deployment、Cron 与邀请仍未执行。
+- 后续 Phase 63 已完成旧 key 撤销、分离 SMTP/HTTP credential 托管与 Custom SMTP；Phase 64 又完成 Auth
+  exact URL 与完整 API/Web Production environment 结构。真实邮件、API→Web deployment、Cron 与邀请仍未
+  执行。
 
 ## Cloud V1 Phase 63 Hosted acceptance 邮件凭据与配置状态（2026-08-23）
 
@@ -1515,7 +1516,23 @@ passed; first Operator empty`。候选已提交推送，0012 已实际 push；�
   sender=`语见 <accounts@notify.acceptance.seen-said.cn>`，密码使用独立 SMTP key 且不可回读；
 - Vercel API project `seen-said-acceptance-api` 的 Production 已把 R3-C key 托管为
   `HUAYI_RESEND_API_KEY` Sensitive，并配置 notification mode=`resend`、固定 security sender 和用户确认的
-  Reply-To。Web project 未改；API 仍为 `No Production Deployment`；
+  Reply-To。Web project 在本 Phase 当时未改；API 仍为 `No Production Deployment`；
 - `pnpm acceptance:hosted:deployment --plan` 通过。本阶段没有发送真实确认/恢复/安全通知邮件，没有发起
-  API/Web deployment，没有安装或触发 Cron，也没有发行邀请。下一门是补齐并复核全部 API/Web
-  Production environment，再按受控 API→Web 顺序首次部署和执行应用/邮件 smoke。
+  API/Web deployment，没有安装或触发 Cron，也没有发行邀请。后续 Phase 64 已补齐并复核全部 API/Web
+  Production environment 结构与 Auth exact URL；下一门已推进为受审查解锁后按 API→Web 顺序首次部署和
+  执行应用/邮件 smoke。
+
+## Cloud V1 Phase 64 Hosted acceptance Auth 与完整环境状态（2026-08-23）
+
+- Supabase Auth Site URL 与五条 exact redirect 已完成且无 wildcard；API Vercel Production environment
+  已完成 21/21（9 Sensitive、12 public），Web 已完成 2/2 public，全部 Production-only；三项曾误设
+  Sensitive 的通知 public 变量已删除并按原值重建，结构回读正确；
+- 四项 forbidden variables 均不存在。数据库 DSN 与 DeepSeek key 由用户直接安全输入且未写入文档；三项
+  本地生成 Secret 仅以固定 service 名和 project ref account 保存在 macOS login Keychain。Reply-To 仅
+  记录为“用户确认地址”；
+- 两个 Vercel project 均仍为 `No Production Deployment`，`git.deploymentEnabled=false` 未改。
+  `acceptance:hosted:deployment --plan` 与最新 `verify:macos` 通过；Sensitive 值不可从 Vercel 回读，因此
+  未重跑完整值 `--verify-environment`，也不为此旋转 Secret；
+- 当前状态是 `hosted configuration complete; first deployment pending`，不是已部署或 production ready。
+  下一门是准备解锁首次部署的受审查提交，再按 API health 与真实 hosted smoke → Web → 邮件/R3-C → Cron
+  → FirstOperatorBootstrap invitation 执行。

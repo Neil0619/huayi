@@ -1422,10 +1422,28 @@ status 关闭这道门；下一步可以按外部门顺序准备 Vercel 创建�
    `语见 <accounts@notify.acceptance.seen-said.cn>`；密码由独立 SMTP key 承担，Dashboard 不提供回读；
 4. **R3-C Vercel 配置**：API project `seen-said-acceptance-api` 的 Production 已托管
    `HUAYI_RESEND_API_KEY` 并启用 Sensitive，同时配置 mode=`resend`、固定 security sender 与用户确认的
-   Reply-To。Web project 未改；其余 API/Web Production environment 仍须按完整 schema 逐项补齐和复核；
+   Reply-To。Web project 在本 Phase 当时未改；其余 API/Web Production environment 当时仍待补齐；
 5. **零部署边界**：`pnpm acceptance:hosted:deployment --plan` 通过；Vercel API 仍显示
    `No Production Deployment`。本阶段未发送确认、恢复或安全通知邮件，未发起 API/Web deployment，
    未安装/触发 Cron，未发行邀请；
-6. **下一门**：补齐 API/Web Production environment 并运行不回显值的 verifier；经受审查提交解锁精确
-   production branch 后按 API→Web 首次部署，再验收 Auth 邮件、R3-C 通知、Cookie/CORS/SSE/Storage、
-   五项 Cron 与 FirstOperatorBootstrap。
+6. **后续状态**：Phase 64 已完成 API/Web Production environment 结构和 Auth exact URL；下一门已推进为
+   经受审查提交解锁精确 production branch 后按 API→Web 首次部署，再验收 Auth 邮件、R3-C 通知、
+   Cookie/CORS/SSE/Storage、五项 Cron 与 FirstOperatorBootstrap。
+
+## Phase 64：Hosted acceptance Auth 与 Production environment 完成（2026-08-23）
+
+影响平台为 `shared + hosted-acceptance`。本阶段只关闭 Auth URL 与远端环境结构配置门，保持零部署。
+
+1. **Auth exact URL**：Supabase Site URL 固定为 `https://app.acceptance.seen-said.cn`，redirect allowlist
+   只含五条 contract URL，无 wildcard；
+2. **完整环境结构**：API Production 21/21，精确 9 Sensitive + 12 public；Web Production 2/2 public，
+   全部 Production-only。三项误设 Sensitive 的通知 public 变量已删除并按原值重建，结构复核通过；
+3. **禁止变量**：Store ID、hosted simulated-model 标记、人工 deployment commit 与人工 Vercel commit SHA
+   均不存在；真实 SHA 由首次 Vercel deployment 注入；
+4. **Secret 生命周期**：数据库 DSN 与 DeepSeek key 由用户直接安全输入且不落文档；三项本地生成 Secret
+   只在 macOS login Keychain 以固定 service 名和 project ref account 保存。Vercel Sensitive 不可回读，
+   不为重跑本地 verifier 旋转已托管 Secret；
+5. **门禁证据**：deployment plan 与完整 macOS 离线门通过，双项目仍为 `No Production Deployment`，
+   `git.deploymentEnabled=false` 未改；
+6. **下一门**：准备首次部署解锁的受审查提交；随后严格按 API first → API health/TLS/CORS/Cookie/SSE/
+   Auth/Storage/真实 DeepSeek 小额 smoke → Web → 真实邮件/R3-C → Cron → FirstOperatorBootstrap 执行。

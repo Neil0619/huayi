@@ -21,7 +21,7 @@ Phase 47 启动审计时仓库只有离线自动化夹具和生产构建配置�
 loopback-only runtime、生成式 secret/bootstrap、受信任 HTTPS Web/API/Supabase 入口、一次性本机邀请、
 首账号默认额度、私有导出 bucket 和第一条 forward-only migration；
 以下尚未完成项继续作为后续纵切输入；本节后续章节保留各次历史检查点，当前状态以本列表和发布证据
-第 38 节为准：
+第 55 节为准：
 
 - Playwright 的 `web.huayi.invalid` / `api.huayi.invalid` 由本机 route fulfill 提供，不执行 DNS、TLS、
   Supabase、Vercel、真实 Provider 或真实扩展进程；
@@ -45,13 +45,14 @@ loopback-only runtime、生成式 secret/bootstrap、受信任 HTTPS Web/API/Sup
   该固定零网络路径，hosted/production 不继承该值。分析、候选、学习、练习、历史与 Store 服务端旅程
   已实际完成，真实 Provider 质量/计费仍须单独批准；
 - 邮件通知 R3-C 的 23 小时 deadline、8 次上限、持久终态、固定 Resend sender、独立通知 CRON 和无正文
-  告警 port 已实现并离线验证；本机 composition 明确禁用外发。真实 sender 域名、DNS、Resend 投递和
-  告警接收方仍是 hosted-acceptance 外部门禁，不能被 fake mail 或仅完成 DNS 验证冒充为真实投递完成。
+  告警 port 已实现并离线验证；本机 composition 明确禁用外发。hosted sender 域名/DNS、分离 credential、
+  Custom SMTP 与完整 API Production environment 已配置；真实 Resend 投递、重复投递观测和告警接收方仍是
+  hosted-acceptance 外部门禁，不能被 fake mail、域名验证或配置完成冒充为真实投递完成。
 
 因此当前状态为
-`local production services and primary server-side Store journeys exercised; real Chrome and external gates
-pending`。本机核心学习闭环、持续重启和服务端 Store 契约已通过，但不得据此宣称 hosted acceptance、
-真实 Chrome 或 production ready。
+`hosted configuration complete; first deployment and real acceptance pending`。本机核心学习闭环、持续
+重启和服务端 Store 契约已通过，托管 Auth 与环境结构也已配置，但不得据此宣称 hosted 应用已部署、真实
+Chrome 或 production ready。
 
 ## 3. 推荐拓扑
 
@@ -225,8 +226,8 @@ Operator/invitation 为空。用户已于 2026-08-22 明确确认并完成远端
 当时 admin 查询与 application hardened 路径均可运行。0012 push 后 diagnostic 暴露旧 membership SQL
 错误要求 PostgreSQL 17 `NOINHERIT` 产品边 `inherit=true`，并错误拒绝 creator-control 边；仓库已修正。
 用户随后运行修正版远端只读 verify 并通过，固定 Operator status 返回 `empty`。当前 foundation 状态为
-`applied; corrected PostgreSQL 17 remote verification passed; first Operator empty`，Vercel/API/Web/Auth
-尚未部署。
+`applied; corrected PostgreSQL 17 remote verification passed; first Operator empty`。Vercel API/Web、Auth
+URL/SMTP 与 Production environment 已配置，但应用仍为零 deployment，Auth/Operator 仍为空。
 
 首个 Operator 不由 foundation 创建。Phase 52 已冻结两阶段 FirstOperatorBootstrap：
 DeploymentBootstrapAuthority 发行唯一 BootstrapInvitation，正常注册完成后只晋升该邀请最终绑定的账号；
@@ -243,8 +244,9 @@ DNS 使用 Cloudflare DNS Free。这里不使用 Cloudflare Registrar：Cloudfla
 Cloudflare DoH 与 Google DoH 已一致返回 `kim.ns.cloudflare.com` /
 `malcolm.ns.cloudflare.com`，Cloudflare 已权威回答该 zone；当前没有 DS，DNSSEC 保持未启用。
 
-`app.acceptance.seen-said.cn` 在 Vercel project 创建前保持 NXDOMAIN，不添加占位 A/CNAME。Vercel 与
-Resend Dashboard 生成实际记录后再逐条写入；未来启用 DNSSEC 时，只能在 Cloudflare 给出 DS 后回填腾讯云。
+历史上 `app.acceptance.seen-said.cn` 在 Vercel project 创建前保持 NXDOMAIN，未添加占位 A/CNAME；当前
+Web/API 与 Resend Dashboard 生成的记录均已按实际值写入并完成回读。未来启用 DNSSEC 时，只能在
+Cloudflare 给出 DS 后回填腾讯云。
 
 2026-08-22 已在 Supabase Free 组织 `Seen & Said` 创建独立 hosted acceptance project：project ref
 `kpadiulxkgckskcfydry`，URL `https://kpadiulxkgckskcfydry.supabase.co`，Primary Database 实测位于
@@ -257,8 +259,9 @@ Vercel 应用部署仍是独立门；修正版 PostgreSQL 17 foundation verify �
 `empty`。两个 Vercel project、Git/Branch、custom domain 与部署前 TLS 已建立，但仍为零 deployment；Tokyo
 (`ap-northeast-1`) 的 Resend sender domain `notify.acceptance.seen-said.cn` 也已完成 DNS 与 Dashboard
 verified。旧泄露 key 与两把未使用的错误/临时 R3-C key 均已撤销；两把 sending-only/domain-scoped
-SMTP/HTTP key 已分离托管，Supabase Custom SMTP 与 API R3-C 通知变量子集已配置。真实投递、完整
-Production environment 与应用部署仍未完成。
+SMTP/HTTP key 已分离托管，Supabase Custom SMTP、Auth Site URL/五条 exact redirect、API 21/21 与 Web
+2/2 Production-only environment 均已配置并完成结构回读。双项目仍为 `No Production Deployment`；真实
+composition、投递与应用验收仍未完成。
 
 `.cn` 域名实名认证是启用解析的必需项。验收环境继续使用 Vercel/Supabase 境外托管资源时，ICP备案不
 作为当前启动前置；未来迁入中国大陆服务器、使用中国大陆 CDN 或其他境内接入资源前，必须重新设置备案
@@ -335,12 +338,13 @@ transport/wire 或候选冻结时才提前进入 Windows。一个验收周期结
 3. 最小实现本机环境与明确标识的零网络模拟模型，从空数据目录启动，完成密码注册/Mailpit 确认、
    Cookie/CSRF、核心学习闭环、重启持久化和一次 baseline→增量 migration；
 4. 用户在本机持续使用并完成首轮反馈/修复循环；
-5. 已完成：用户在腾讯云购买并实名 `seen-said.cn`，权威 NS 已切到 Cloudflare DNS；Web/API acceptance
-   子域及 `notify` 子域继续等待各 Dashboard 生成精确记录值；
-6. 经用户授权创建独立 Supabase/Vercel acceptance 资源，部署 Web/API；网关仅作为域名未就绪的备用；
-7. 验证真实 TLS/Cookie/CORS/SSE、托管 Auth/Storage、多连接 RLS、session 撤销与备份/重建；
-8. 接通 Resend 后验收已实现的 R3-C sender/通知 CRON/告警；
-9. 分别批准 DeepSeek、Google 和 Store/Chrome 后扩展真实验收范围；
+5. 已完成：域名实名、Cloudflare 权威 NS、Web/API/Resend 精确 DNS、部署前 TLS、Supabase/Vercel 独立资源、
+   Auth URL/SMTP 与完整 Production-only environment 结构；
+6. 形成受审查的首次部署解锁提交，再按 API first 执行启动、health、TLS/CORS/Cookie/SSE/Auth/Storage 与
+   真实 DeepSeek 小额 smoke，全部通过后部署 Web；
+7. 在 Web 部署后完成真实 callback、托管 Auth/Storage、多连接 RLS、session 撤销与备份/重建；
+8. 验收真实邮件、R3-C sender/通知 CRON/告警，再安装五项 Cron；
+9. DeepSeek 小额真实验收已获批准但须等待 API health；Google 与 Store/Chrome 仍分别等待后续批准；
 10. 用户跨多日自然使用；每轮按反馈循环修复并部署；
 11. 用户明确签字前不创建 production candidate。
 
@@ -375,11 +379,10 @@ Production-ready 不能由以上任何一层自动推出；即使 acceptance 域
 
 ## 9. 当前下一步
 
-第二批 Windows 离线候选已由用户在 Windows 完成验证；远端随后因指令文件尺寸门修复推进到
-`d451122b86c978732a599202437d82caaf03b3d4`。当前直接实现 local-acceptance，让用户在本机边用边改；
-同时准备腾讯云 `seen-said.cn` 注册/实名、Cloudflare DNS zone 与 Resend Free 账号。主流程基本稳定且
-域名就绪后部署 hosted-acceptance。
-下一次 Windows 全门等到验收批次冻结，不因每个小修重复执行。
+Phase 64 已完成 hosted Auth 与 API/Web Production environment 结构配置，双项目仍为
+`No Production Deployment`，`git.deploymentEnabled=false` 未改。下一步先完成文档审查，再准备首次部署
+解锁的受审查提交；随后严格按 API health/真实 hosted smoke → Web → 真实邮件/R3-C → Cron → 首位 Operator
+邀请执行。下一次 Windows 全门等到验收批次冻结，不因每个文档或配置步骤重复执行。
 
 ## 10. 官方约束来源
 

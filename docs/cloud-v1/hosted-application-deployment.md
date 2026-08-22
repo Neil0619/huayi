@@ -11,9 +11,10 @@ Production Branch Tracking 均为 `codex/settings-configuration`；Root 独立�
 Deployments 页面，确认仍无 Production deployment 或 deployment 记录，Production environment 均为
 `No Environment Variables Added`。此后 hosted sender DNS 已验证；旧泄露 Resend key 与两把未使用的错误/
 临时 R3-C key 均已撤销，当前只保留两把 sending-only/domain-scoped SMTP/HTTP key。Supabase Custom SMTP
-已经启用；API Production 已托管 Sensitive R3-C key 与三项通知配置。Web 未改，API 仍为
-`No Production Deployment`。其余 production-only environment、应用部署、真实邮件、Cron 和邀请仍未
-执行；仓库 `git.deploymentEnabled=false` 继续保持首次部署关闭。
+已经启用。Phase 64 已完成 Supabase Auth exact URL 配置、API 21/21 与 Web 2/2 Production-only
+environment 配置和结构回读；API 精确为 9 项 Sensitive、12 项 public，Web 两项均为 public，四项禁止变量
+不存在。API/Web 仍均为 `No Production Deployment`，仓库 `git.deploymentEnabled=false` 继续保持首次部署
+关闭。真实应用组合、邮件、Cron 和邀请仍未验证或执行。
 
 ## 1. 当前事实与目标
 
@@ -30,9 +31,11 @@ status 返回 `empty`；Auth、profile、Operator 和 invitation 仍为空。
 `notify.acceptance.seen-said.cn` 已完成 Resend 指定 DKIM、feedback MX、SPF 与 monitoring DMARC 的
 Cloudflare 写入和公共解析复核，Dashboard 显示 `Domain verified: Your domain is ready to send emails`。
 此后旧泄露 key 已撤销，Supabase SMTP 与 R3-C HTTP 两把最小权限 key 已分离托管；Custom SMTP 与 API
-Production 的 R3-C 通知变量已经配置。这仍不等于邮件已投递或应用已部署。两个 Vercel project 已连接精确
+Production 的 R3-C 通知变量已经配置。Phase 64 又完成 Auth Site URL、五条 exact redirect 和完整 API/Web
+Production environment；三项本地生成 Secret 只保存在 macOS login Keychain，不进入仓库或本文。这仍不
+等于邮件已投递或应用已部署。两个 Vercel project 已连接精确
 GitHub repository `Neil0619/huayi`，Preview 均为 `Disabled`，Production Branch Tracking 均为
-`codex/settings-configuration`；API Production 只有本阶段的 R3-C 通知子集，Web 未改，Deployments 仍为空。
+`codex/settings-configuration`；API Production 现为 21/21，Web 为 2/2，Deployments 仍为空。
 
 Cloudflare DNS 与公网 TLS 门已完成：`api.acceptance.seen-said.cn` 的 CNAME 为
 `7cb58e1372474614.vercel-dns-017.com.`，`app.acceptance.seen-said.cn` 的 CNAME 为
@@ -214,10 +217,20 @@ Production environment 均为 `No Environment Variables Added`。本轮没有接
 Production，避免 Preview 意外连接同一项目。任何环境变量变化只对下一次 deployment 生效，修改后必须重新
 部署并记录 deployment ID/SHA。
 
-2026-08-23 当前配置进度：API Production 已托管 `HUAYI_RESEND_API_KEY` 为 Sensitive，并已配置
-`HUAYI_SECURITY_NOTIFICATION_MODE=resend`、固定 security sender 和用户确认的 Reply-To；Web 未改。
-这只是上表的 R3-C 通知子集，其余 API/Web 变量仍必须全部补齐并由
-`acceptance:hosted:deployment --verify-environment` 一次性复核，不能用部分配置触发 deployment。
+2026-08-23 Phase 64 配置结果：API Production 已完成 21/21，精确为 9 项 Sensitive、12 项 public；Web
+Production 已完成 2/2 public。全部变量均只属于 Production。`HUAYI_STORE_EXTENSION_ID`、
+`VITE_ACCEPTANCE_MODEL`、`VITE_DEPLOYMENT_COMMIT` 与人工创建的 `VERCEL_GIT_COMMIT_SHA` 均不存在；后者由
+Vercel 在真实 deployment 时提供，不在 Dashboard 手工复制。三项本地生成 Secret 只保存在 macOS login
+Keychain，service 分别为 `huayi-hosted-acceptance-refresh-encryption`、
+`huayi-hosted-acceptance-secret-pepper`、`huayi-hosted-acceptance-cron-secret`，account 均为 project ref
+`kpadiulxkgckskcfydry`；本文不记录值。数据库 DSN 与 DeepSeek key 由用户直接安全输入，系统剪贴板随后
+清空，文档不保存值。三项通知 public 变量曾误设为 Sensitive；因 Vercel 不支持原地关闭 Sensitive，已删除
+并按原值重建为 Production-only public，最终结构回读正确。Reply-To 继续只记录为“用户确认地址”。
+
+`acceptance:hosted:deployment --verify-environment` 需要完整值做本地 composition 校验，但 Vercel Sensitive
+值在托管后不可回读。因此不能从 Dashboard/API 重建该命令，也不得仅为重跑它而旋转已托管 Secret。当前
+完成证据是远端变量名、目标环境和 Sensitive/public 分类的精确结构回读；真实值组合仍由首次 API
+deployment 的启动与 `/health` gate 失败关闭验证。
 
 首轮 Web-only hosted acceptance 不伪造 Store ID：API composition 不注册配对、设备、ExtensionQuery、
 CloudWordCopy、Extension preferences/self-disconnect 等 Store 专用路由，CORS 只允许 Web origin；混合
@@ -257,15 +270,19 @@ Authorized redirect URI 是 Supabase callback
 `https://kpadiulxkgckskcfydry.supabase.co/auth/v1/callback`，上面五条应用 API callback 只是 Supabase
 redirect allowlist，不能互换。
 
+Phase 64 已回读 Site URL 为 `https://app.acceptance.seen-said.cn`，redirect allowlist 仅含上述五条 exact
+URL，无通配符。该状态只关闭 Auth URL 配置门；尚未通过真实 deployment 验证 callback 或邮件。
+
 ## 6. DNS、部署与 CRON 顺序
 
 1. 在 Vercel 两个 project 添加 exact custom domain；只复制 Dashboard 当前给出的 CNAME/TXT；
 2. 在 Cloudflare DNS 添加记录，初始关闭代理（DNS only），避免域名所有权/TLS 核验被代理掩盖；Vercel
    显示 Valid Configuration 且证书生效后再评估是否保持 DNS only；
 3. Resend `notify.acceptance.seen-said.cn` 已逐条配置 DKIM、SPF/MX 与 Dashboard 指定的根域 `_dmarc`
-   monitoring `p=none`，并显示 verified；下一步创建两把新 key并确认撤销旧 key；
-4. 配置 Supabase Auth URL/SMTP；Google 保持 disabled；
-5. 配置 API/Web Production environment，先部署 API，再部署 Web；
+   monitoring `p=none`，显示 verified，且两把分离 key 已托管、旧 key 已撤销；
+4. Supabase Auth exact URL 与 SMTP 已配置；Google 保持 disabled；
+5. API/Web Production environment 已完成结构复核；下一步由受审查提交解锁精确 production branch，再先
+   部署 API、后部署 Web；
 6. API `/health`、Web `/` 与 `/privacy` 通过真实 TLS 后，验证 Cookie/CORS/CSRF/SSE/password callback；
 7. 只有稳定 API custom domain 通过后，才把 `configure-supabase-cron.sql` 的固定五项任务写入 Vault/
    `pg_cron + pg_net`；不得使用 Vercel Hobby CRON；
@@ -343,8 +360,9 @@ Vitest files（2,862 passed / 12 skipped）、Store 481/481、Playwright 110/110
 format/lint/typecheck/build、architecture、release 和 production audit；production 依赖审计无已知漏洞。
 该证据在当时只关闭离线实现门，不代表当时已创建 Vercel project 或完成任何外部配置、部署、真实请求与
 邀请；后续已单独完成 project bootstrap、Git/Branch Tracking、domain/TLS、Resend sender、分离邮件
-credential、Custom SMTP、API R3-C 通知变量与零 deployment 回读。完整 production-only environment、
-真实邮件、deployment、Cron 与邀请仍未执行。
+credential、Custom SMTP、Supabase Auth exact URL、API 21/21 与 Web 2/2 Production-only environment 和零
+deployment 回读。由于托管 Sensitive 值不可回读，未从远端重跑完整值 verifier，且不为此旋转 Secret；
+真实 composition 仍由首次 API deployment health gate 关闭。真实邮件、deployment、Cron 与邀请仍未执行。
 
 官方约束来源：
 

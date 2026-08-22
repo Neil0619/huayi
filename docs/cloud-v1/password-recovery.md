@@ -394,7 +394,7 @@ email scanner 行为、secure-password-change 配置、Cookie same-site/domain/T
    已完成。R3 focused 为 HTTP 8/8、通知 worker/adapter 6/6、通知 PGlite 1/1，完整 API 102 files、360/360，
    typecheck/build/目标 lint/format 通过。R3-C 又补齐 Resend sender、23 小时/8 次状态机、0011、独立
    bounded route、第五个 Cron 与无正文 alert port；真实 verified sender、分离 credential、Custom SMTP
-   与 API R3-C 通知变量子集已完成，受控投递、监控接收方和完整部署配置仍受外部门禁约束；
+   与 API 完整 Production environment 已完成，受控投递、监控接收方和首次 deployment 仍受外部门禁约束；
 5. **R4 Web + actual bundle（离线已完成）**：Web strict client 已接入 start/session/complete；`/login` 与
    独立 `/recover` 页面覆盖统一 start、query 清理、两份 new-password 输入、本地 mismatch 零请求、失败
    保留输入、成功清空并返回登录。focused Web 单元 17/17；production bundle + fake mail Playwright 1/1

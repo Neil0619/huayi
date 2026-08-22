@@ -51,8 +51,8 @@ Huayi sessions、保持 method 不变并写一条 `password-reset-completed` 通
 裁决见 `password-recovery.md`。两表、约束、partial unique、forced RLS、业务 role 零直访、12 个 recovery
 与 3 个 notification fixed-search-path SECURITY DEFINER 状态转换及 100 条 cleanup 已进入基础 migration。
 notification 的 0011 forward、Resend adapter、独立 route、无正文告警 port 与第五个 Cron job 均有离线
-回归；真实 DNS/verified sender、分离 SMTP/HTTP key、Custom SMTP 与 API R3-C 通知变量子集已关闭对应
-hosted 配置门，Resend 真实投递、重复投递观测和监控目的地仍待验收。
+回归；真实 DNS/verified sender、分离 SMTP/HTTP key、Custom SMTP 与 API 完整 Production environment 已
+关闭对应 hosted 配置门，Resend 真实投递、重复投递观测和监控目的地仍待验收。
 
 Store DeviceDisconnect 不新增 secret 或表。`revoke_current_extension_session(token_hash)` 只把匹配、未撤销、
 未过期的当前行置为 revoked；SECURITY DEFINER 固定 search path 并撤销公共/业务角色权限。HTTP 不返回该函数
