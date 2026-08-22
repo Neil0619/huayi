@@ -22,10 +22,18 @@ diagnostic 显示 chain/schema/RLS/价格/Storage/空 Auth 与 0012 结构均符
 旧版 foundation verifier 仅因把 PostgreSQL 17 `NOINHERIT` 产品边误写为 `inherit=true` 并拒绝合法
 creator-control 边而失败。用户已在同一工作树运行修正版 foundation verify 并通过，随后固定 Operator
 status 返回 `empty`；Auth、profile、Operator 和 invitation 仍为空。
-2026-08-22 通过 Google DoH 复核，`app.acceptance`、`api.acceptance`、`notify.acceptance` 与其 DMARC 名称
-仍为 NXDOMAIN。两个 Vercel project 已连接精确 GitHub repository `Neil0619/huayi`，Preview 均为
+2026-08-22 的历史 bootstrap 前 DoH 复核曾显示 `app.acceptance`、`api.acceptance`、`notify.acceptance` 与
+其 DMARC 名称为 NXDOMAIN；随后 `app.acceptance` 与 `api.acceptance` 已完成 Cloudflare/Vercel 配置并通过
+递归 DNS、Vercel domain 与 TLS 回读。`notify.acceptance` 仍待 Resend 验证。两个 Vercel project 已连接精确 GitHub repository `Neil0619/huayi`，Preview 均为
 `Disabled`，Production Branch Tracking 均为 `codex/settings-configuration`；Production environment 尚无
 变量，Deployments 仍为空。
+
+Cloudflare DNS 与公网 TLS 门已完成：`api.acceptance.seen-said.cn` 的 CNAME 为
+`7cb58e1372474614.vercel-dns-017.com.`，`app.acceptance.seen-said.cn` 的 CNAME 为
+`f0cbaadacf303110.vercel-dns-017.com.`；两条均为 DNS only、Proxy disabled、TTL Auto。Cloudflare 保存后
+回读一致，1.1.1.1、8.8.8.8、9.9.9.9 均解析到精确 CNAME；Vercel 两个 custom domain 均显示 properly
+configured。两个 HTTPS host 的 TLS 校验 `curl ssl_verify_result=0`，部署前返回预期 404；zero deployments
+仍保持。此前 NXDOMAIN 仅是历史 Phase 50 bootstrap 前状态。
 
 本阶段目标是建立可重复、默认失败关闭的 hosted application deployment contract，然后按固定顺序部署：
 

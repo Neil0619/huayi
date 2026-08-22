@@ -3,6 +3,12 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-22：Hosted acceptance DNS 与 TLS 门关闭
+
+- Cloudflare `seen-said.cn` 已保存并回读两条 DNS-only CNAME：`api.acceptance` → `7cb58e1372474614.vercel-dns-017.com.`，`app.acceptance` → `f0cbaadacf303110.vercel-dns-017.com.`；Proxy disabled、TTL Auto；1.1.1.1、8.8.8.8、9.9.9.9 均解析到精确 CNAME；
+- Vercel 两个 custom domain 均 properly configured。两端 HTTPS 的 `curl ssl_verify_result=0` 通过，部署前返回预期 404，zero deployments 仍保持；不表示应用已部署或 production ready；
+- 下一门是 Resend verified sender subdomain/DNS、production-only environment、Supabase Auth/SMTP。旧 Resend key 已撤销且不可用，不得出现。
+
 ## 2026-08-22：Vercel Git 与 Production Branch 门在零部署下关闭
 
 - `seen-said-acceptance-api` 与 `seen-said-acceptance-web` 均已连接精确 GitHub repository
