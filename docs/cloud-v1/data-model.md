@@ -24,6 +24,11 @@ usage feature 和 price version，校验 1–2 条调用及总 cost 后追加 le
 | `extension_sessions`           | `id`, `user_id`, `install_id_hash`, `token_hash`, `last_used_at`, `expires_at`, `revoked_at`       | token hash 唯一；Web 可按 owner+ID 撤销，设备可按当前 token hash 只撤销自身                                                  |
 | `security_notification_outbox` | `id`, owner、固定 kind/status、attempt、delivery deadline、available/lease/sent/created timestamps | 安全事件耐久后置发送；120 秒 lease+有界退避+最大尝试；sent/failed-dead-letter 终态；不保存密码、token、IP 或 Provider detail |
 
+普通邀请运营四态不新增列：`revoked_at` 非空为已撤销，否则 `consumed_at` 非空为已领取，否则
+`expires_at <= now` 为已过期，其余为可领取。`admin_list_invitations` 只投影上述时间戳与公开 ID/创建时间；
+撤销仍锁定原行并只允许未领取、未撤销记录，claim/finalization 继续同时检查 revoke/expiry。明文 token、
+领取账号与 claim ticket 不进入管理列表。
+
 该 R3-C 语义已进入当前未发布 baseline 与 `0011-security-notification-delivery.sql`：固定 23 小时 deadline
 小于 Resend 24 小时幂等窗口，最多 8 次；到期为 `failed`，耗尽为 `dead-letter`。claim 先以最多 100 条
 批次终态化超窗/耗尽行再领取一条发送任务，因而不会为已终态行调用 Provider；发送成功但本地 complete

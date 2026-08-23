@@ -296,6 +296,11 @@ owner context、generation/reservation 归属、task 成功或失败终态、价
 - 错误监控发送前使用白名单序列化；禁止自动捕获 request body、breadcrumb 输入或 DOM replay。
 - 管理页只有运营元数据，不实现正文搜索、代登录或任意 SQL。紧急排障依赖 request ID 和无正文指标。
 - 审计记录管理员的邀请、启停、额度和设备撤销动作，不记录秘密或用户正文。
+- 普通邀请的一次性 fragment 只在创建响应后的组件内存显示。链接丢失时不得从数据库、日志或幂等
+  snapshot 还原明文；Operator 重新认证后只读取白名单生命周期时间戳，撤销对应“可领取”邀请，再按需
+  创建新邀请。无法唯一定位时先撤销所有可能受影响的可领取邀请，不能留下未知有效链接。确认发起撤销
+  当前邀请时立即清除组件内的一次性输出；响应不确定时先重读权威状态，期间不再显示撤销按钮。已领取、
+  已撤销和已过期项也不提供撤销按钮。
 - Operator GET 只接受 active/full Cookie session、显式 operator role 和 15 分钟内重新认证；mutation 另
   要求固定 Origin、CSRF 与 Idempotency-Key。DataRightsSession 和 Extension token 不能访问管理端。
 - `/admin` 对首次统一 `forbidden` 只提供既有 password reauthentication，不在客户端推断是角色缺失还是

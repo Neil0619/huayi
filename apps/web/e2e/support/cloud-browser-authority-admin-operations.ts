@@ -14,6 +14,8 @@ import {
   listAdminAuditEventsQuerySchema,
   listAdminInvitationsQuerySchema,
   listAdminUsersQuerySchema,
+  revokeAdminInvitationRequestSchema,
+  revokedAdminInvitationResponseSchema,
   setAdminKillSwitchRequestSchema,
   setAdminUserStatusRequestSchema,
   type AdminAuditEvent,
@@ -265,6 +267,37 @@ export function createCloudBrowserAdminOperationsAuthority(operator: boolean) {
             ...invitation,
             invitationPath: "/join#operator-invitation-token-00000001",
           }),
+        );
+        return true;
+      }
+      const invitationRevoke = /^\/v1\/admin\/invitations\/([^/]+)$/u.exec(url.pathname);
+      if (invitationRevoke?.[1] !== undefined && request.method() === "DELETE") {
+        const parsed = revokeAdminInvitationRequestSchema.safeParse(cloudRequestBody(request));
+        const targetId = decodeURIComponent(invitationRevoke[1]);
+        if (!parsed.success || context.writeProof(request) === null) {
+          await context.reject(
+            route,
+            parsed.success ? 403 : 400,
+            parsed.success ? "forbidden" : "invalid_request",
+          );
+          return true;
+        }
+        if (
+          invitation === null ||
+          targetId !== invitation.id ||
+          invitation.consumedAt !== null ||
+          invitation.revokedAt !== null
+        ) {
+          await context.reject(route, 404, "not_found", "write-valid");
+          return true;
+        }
+        invitation = { ...invitation, revokedAt: now };
+        addAudit("invitation.revoked", targetId, {});
+        context.record(request, "write-valid");
+        await context.json(
+          route,
+          200,
+          revokedAdminInvitationResponseSchema.parse({ id: targetId, revoked: true }),
         );
         return true;
       }

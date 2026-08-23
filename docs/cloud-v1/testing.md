@@ -992,6 +992,20 @@ idempotency_records`，修复后覆盖创建、练习、历史、删除、词典
   保留 HSTS；页面显示 arm short SHA，bundle 含完整 arm SHA，浏览器无 CSP/error log。默认 6/7 非 Canceled
   可见数为 Web 5→6、API 保持 15，两项目最终均 disarmed。
 
+### 4.19b 普通邀请生命周期运营回归
+
+- strict list 继续只返回 `id/createdAt/expiresAt/consumedAt/revokedAt`，创建响应以外的列表、审计、日志、
+  snapshot 与 Web Storage 都不得出现 fragment/token；不新增领取账号或 claim 投影；
+- 组件在固定时钟下覆盖可领取、已领取、已撤销、已过期四态；只为可领取项显示撤销，过期项不能因
+  `consumedAt/revokedAt` 均空而误显示按钮；
+- DELETE 必须经 active/full Cookie、recent-auth Operator、Origin、CSRF 与 Idempotency-Key；Postgres
+  same-key replay 返回相同公开结果并只写一条 `invitation.revoked`、空 safeDetails 审计，新 key 对终态
+  返回 `not_found`；既有 function grant/role graph 不变；
+- actual production bundle fake authority 覆盖 create→一次性 path→可领取→二步 revoke→已撤销→刷新，
+  验证 DELETE 为 `write-valid`、刷新后终态与 audit 可见、当前 output 被清除，token 不进入 snapshot/
+  Storage；组件另覆盖 DELETE 响应不确定时立即清除 output、关闭重复撤销并要求 GET 重读。该层不创建
+  或撤销 Hosted 真实邀请；真实历史四态仍需 Web-only deploy/disarm 后只读复核。
+
 ### 4.20 Hosted acceptance foundation bootstrap、管理员只读与应用安全复核
 
 - Fresh RED 必须先因 `acceptance-hosted-bootstrap.mjs`、共享 foundation 常量和 verify 入口缺失失败；

@@ -3,6 +3,17 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-24：普通邀请列表必须显示四态并为丢失链接提供撤销收口
+
+- 真实 Hosted 运营台证明历史邀请只显示 ID/过期时间时，终态行因无撤销按钮而无法区分已领取、已撤销
+  或已过期；该表现不符合既有“创建或撤销邀请”产品要求，不能解释为有意的 metadata-only 设计；
+- 不新增数据库字段或公开秘密。Web 使用 strict list 已有的 `consumedAt/revokedAt/expiresAt` 投影
+  “可领取/已领取/已撤销/已过期”，只为可领取项提供二步撤销；服务端继续作为状态与授权唯一权威；
+- 丢失一次性 fragment 时不恢复 token。Operator 重新认证后撤销对应可领取项；无法唯一定位时撤销所有
+  可能受影响项后再创建。撤销保持 Origin/CSRF/Idempotency、same-key replay、单一空 safeDetails 审计和
+  既有最小角色 grant；确认发起撤销当前创建项时立即清除内存 output，响应不确定时先重读权威状态，
+  不允许保留 path 或盲目重复撤销。
+
 ## 2026-08-24：Hosted deployment plan 改为当前动作账本
 
 - 静态部署计划不得在环境已推进后继续把 migration、foundation bootstrap、BootstrapInvitation、First

@@ -43,9 +43,10 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       6/7 视图分别为 15 与 6 条，Latest API 为 `39094d0` / `9jbyfnAvZwpa3Ci7YU6s6asmNZNG`，Latest Web
       为 `b80c793` / `7zNFzM4LHHGwyKxbwoDLfWoYGfve`，且两项目均为 `deploymentEnabled=false`。live `/`、
       `/privacy`、`/admin` 与实际 JS asset 已通过精确安全响应头、真实渲染、exact SHA 和 secret scan；
-      同轮公共边界只读探针通过，未写 Auth、SMTP、Supabase 或 DeepSeek。用户尚未亲自提交 `/admin`
-      密码，管理区、普通邀请、OTP、真实邮件、Cron 与 DeepSeek 应用路径 smoke 仍未完成，因此本项仍未
-      勾选；
+      同轮公共边界只读探针通过，未写 Auth、SMTP、Supabase 或 DeepSeek。用户随后已亲自提交 `/admin`
+      密码并通过 Operator 四区只读；邀请区四条历史行暴露“只有 ID/expiry、无状态”的 Web 缺口，尚未
+      创建或撤销普通邀请。生命周期显示修复仍需 Web-only deploy/disarm，OTP、真实邮件、Cron 与 DeepSeek
+      应用路径 smoke 仍未完成，因此本项仍未勾选；
 - [x] 在正确 Rotate 后 exact-SHA `7577cdd` deployment 上通过 DB-backed application-role smoke；
       `GET /health` 为 200，随机无效 session 的 `GET /v1/quota` 为精确 401
       `authentication_required`。deployment ID/SHA/创建时间与 Git 关闭证据已记录，API 未重新武装；
@@ -258,9 +259,11 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       origin 无 `Access-Control-Allow-Origin`，无 Cookie 的 CSRF/analysis 与五个 admin GET 精确 401，
       password confirm/callback 缺失输入精确 400 且保持 no-store/no-referrer，Google-disabled callback 为
       404；全程未创建 Auth flow、发送 SMTP、修改 Supabase、调用 DeepSeek 或执行其他外部写入；
-- [ ] 用户亲自输入当前密码并验证 `/admin` 四区与权限后，新邀请再完成 scanner/repeated GET 无副作用、
-      显式 OTP POST、Web 落点和密码重登；真实邮件投递、Cron 和 DeepSeek 应用路径 smoke 仍保持 pending，
-      完成管理门前不得运行 DeepSeek 应用路径 smoke。
+- [x] 用户亲自输入当前密码并验证 `/admin` 四区与 Operator 只读权限；页面无 alert/console error，显示一
+      个 active Operator、四条邀请 metadata 和零无正文审计，本门没有执行任何管理 mutation；
+- [ ] 受控部署普通邀请四态/撤销修复并只读复核历史行后，由用户明确授权不同于 Operator 的收件人创建
+      恰好一张邀请，再完成 scanner/repeated GET 无副作用、显式 OTP POST、Web 落点和密码重登；真实邮件
+      投递、Cron 和 DeepSeek 应用路径 smoke 仍保持 pending，完成管理门前不得运行 DeepSeek 应用路径 smoke。
 
 ## 完整 V1
 

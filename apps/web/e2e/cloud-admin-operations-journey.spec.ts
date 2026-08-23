@@ -12,6 +12,7 @@ test("an operator manages metadata through the actual console", async ({ page })
     seed: "operator-console",
   });
   await page.setViewportSize({ height: 844, width: 390 });
+  await page.clock.setFixedTime(new Date("2026-08-13T10:00:00.000Z"));
   await page.emulateMedia({ reducedMotion: "reduce" });
   await authority.install(page);
 
@@ -35,6 +36,14 @@ test("an operator manages metadata through the actual console", async ({ page })
 
   await page.getByRole("button", { name: "创建邀请" }).click();
   await expect(page.locator("output")).toHaveText(`/join#${invitationToken}`);
+  await expect(page.getByLabel("邀请状态")).toHaveText("可领取");
+  await page.getByRole("button", { name: "撤销", exact: true }).click();
+  const revoke = page.getByRole("button", { name: "确认撤销邀请", exact: true });
+  await expect(revoke).toBeFocused();
+  await revoke.click();
+  await expect(page.getByLabel("邀请状态")).toHaveText("已撤销");
+  await expect(page.locator("output")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "撤销", exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: "启用模型熔断" }).click();
   const stopModel = page.getByRole("button", { name: "确认停止平台模型请求" });
   await expect(stopModel).toBeFocused();
@@ -45,6 +54,7 @@ test("an operator manages metadata through the actual console", async ({ page })
   for (const [method, path] of [
     ["POST", "/v1/admin/users/00000000-0000-0000-0000-000000000002/status"],
     ["POST", "/v1/admin/invitations"],
+    ["DELETE", "/v1/admin/invitations/80000000-0000-0000-0000-000000000001"],
     ["PUT", "/v1/admin/runtime/model-kill-switch"],
   ] as const) {
     expect(snapshot.requestFacts).toContainEqual({
@@ -60,7 +70,9 @@ test("an operator manages metadata through the actual console", async ({ page })
   await expect(page.getByRole("button", { name: "关闭模型熔断" })).toBeVisible();
   await expect(page.getByText(learnerEmail)).toBeVisible();
   await expect(page.locator(".admin-status-disabled")).toContainText("disabled");
+  await expect(page.getByLabel("邀请状态")).toHaveText("已撤销");
   await expect(page.getByText("user.disabled")).toBeVisible();
+  await expect(page.getByText("invitation.revoked")).toBeVisible();
   await expect(page.getByText("model.kill-switch-set")).toBeVisible();
   expect(await page.locator("body").textContent()).not.toContain(invitationToken);
   expect(await page.evaluate(() => [localStorage.length, sessionStorage.length])).toEqual([0, 0]);

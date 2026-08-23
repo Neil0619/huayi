@@ -140,9 +140,18 @@
 }
 
 .admin-status-disabled,
-.admin-status-deleting {
+.admin-status-deleting,
+.admin-invitation-status-expired,
+.admin-invitation-status-revoked {
   color: var(--text-danger);
   background: var(--surface-danger);
+}
+
+.admin-invitation-status-active,
+.admin-invitation-status-consumed,
+.admin-invitation-status-expired,
+.admin-invitation-status-revoked {
+  width: fit-content;
 }
 
 .admin-user-facts {

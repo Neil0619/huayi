@@ -546,6 +546,12 @@ headword、可选 contextLine）或 Eudic import page（固定 pageSize=100）�
 | `PUT /v1/admin/runtime/model-kill-switch`           | 幂等暂停或恢复新的平台模型额度预留                                     |
 | `GET /v1/admin/audit-events`                        | 固定 action/safeDetails 白名单的无正文审计                             |
 
+邀请列表资源只含 `id/createdAt/expiresAt/consumedAt/revokedAt`，不返回 token、token hash、领取账号或
+正文。Web 依次以 `revokedAt`、`consumedAt`、`expiresAt <= now` 投影“已撤销/已领取/已过期”，其余为
+“可领取”；只有可领取项可以发起 `DELETE`。撤销仍由服务器重新锁定并验证未消费/未撤销状态，客户端状态
+只用于显示，不能授权写入。同一 Idempotency-Key 与相同 request hash 重放相同撤销响应且不重复审计；
+响应丢失后先重新 GET，不能用新建邀请代替状态确认。
+
 管理员 GET 必须验证 active/full Web session、`admin_roles` 和最近重新认证时间；mutation 还必须验证
 固定 Origin、CSRF 与 `Idempotency-Key`。所有成功写入恰好产生一条 `audit_events`，幂等重放不重复
 写审计。严格投影、状态机、cursor 和 kill switch 路由见 `admin-operations.md`。

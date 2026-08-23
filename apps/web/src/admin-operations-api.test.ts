@@ -54,4 +54,26 @@ describe("Web admin operations API", () => {
     expect(new Headers(init?.headers).get("x-csrf-token")).toBe("csrf-token");
     expect(new Headers(init?.headers).get("idempotency-key")).toEqual(expect.any(String));
   });
+
+  it("uses the fixed invitation DELETE route with Cookie, CSRF, and one idempotency key", async () => {
+    const invitationId = "80000000-0000-0000-0000-000000000001";
+    const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      void input;
+      void init;
+      return new Response(JSON.stringify({ id: invitationId, revoked: true }), { status: 200 });
+    });
+    const api = createWebAdminOperationsApi({ apiOrigin: "https://api.huayi.example", fetch });
+
+    await expect(api.revokeInvitation(invitationId, "csrf-token")).resolves.toEqual({
+      id: invitationId,
+      revoked: true,
+    });
+    const [input, init] = vi.mocked(fetch).mock.calls[0] ?? [];
+    expect(input).toEqual(
+      new URL(`https://api.huayi.example/v1/admin/invitations/${invitationId}`),
+    );
+    expect(init).toMatchObject({ body: "{}", credentials: "include", method: "DELETE" });
+    expect(new Headers(init?.headers).get("x-csrf-token")).toBe("csrf-token");
+    expect(new Headers(init?.headers).get("idempotency-key")).toEqual(expect.any(String));
+  });
 });

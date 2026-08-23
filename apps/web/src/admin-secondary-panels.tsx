@@ -8,6 +8,25 @@ import type {
 
 import type { WebAdminOperationsApi } from "./admin-operations-api.js";
 
+type InvitationLifecycleState = "active" | "consumed" | "expired" | "revoked";
+
+function invitationLifecycleState(
+  invitation: InvitationResource,
+  now = Date.now(),
+): InvitationLifecycleState {
+  if (invitation.revokedAt !== null) return "revoked";
+  if (invitation.consumedAt !== null) return "consumed";
+  if (Date.parse(invitation.expiresAt) <= now) return "expired";
+  return "active";
+}
+
+const invitationLifecycleLabels: Readonly<Record<InvitationLifecycleState, string>> = {
+  active: "可领取",
+  consumed: "已领取",
+  expired: "已过期",
+  revoked: "已撤销",
+};
+
 export function AdminSecondaryPanels({
   api,
   csrfToken,
@@ -110,6 +129,8 @@ export function AdminSecondaryPanels({
   };
 
   const revoke = async (id: string) => {
+    setMessage("");
+    setInvitation((current) => (current?.id === id ? null : current));
     try {
       await api.revokeInvitation(id, csrfToken);
       setInvitations((current) =>
@@ -120,7 +141,8 @@ export function AdminSecondaryPanels({
       setRevokeId(null);
       setMessage((await loadInvitations()) ? "邀请已撤销。" : "邀请已撤销，但列表刷新失败。");
     } catch {
-      setInvitationError("邀请未撤销，已保留当前列表。");
+      setRevokeId(null);
+      setInvitationError("撤销结果未知，请先重新载入邀请列表。");
     }
   };
 
@@ -148,28 +170,43 @@ export function AdminSecondaryPanels({
           </div>
         )}
         <ul>
-          {invitations.map((item) => (
-            <li key={item.id}>
-              <span>{item.id}</span>
-              <time>{item.expiresAt}</time>
-              {item.revokedAt === null && item.consumedAt === null && (
-                <button onClick={() => setRevokeId(item.id)} type="button">
-                  撤销
-                </button>
-              )}
-              {revokeId === item.id && (
-                <div className="admin-confirm" role="group" aria-label={`确认撤销邀请 ${item.id}`}>
-                  <p>撤销后该邀请不能再领取，已领取账号不受影响。</p>
-                  <button onClick={() => void revoke(item.id)} ref={confirmRef} type="button">
-                    确认撤销邀请
+          {invitations.map((item) => {
+            const lifecycle = invitationLifecycleState(item);
+            return (
+              <li key={item.id}>
+                <span>{item.id}</span>
+                <span
+                  aria-label="邀请状态"
+                  className={`admin-status admin-invitation-status-${lifecycle}`}
+                >
+                  {invitationLifecycleLabels[lifecycle]}
+                </span>
+                <span>
+                  失效时间 <time dateTime={item.expiresAt}>{item.expiresAt}</time>
+                </span>
+                {lifecycle === "active" && invitationError === "" && (
+                  <button onClick={() => setRevokeId(item.id)} type="button">
+                    撤销
                   </button>
-                  <button onClick={() => setRevokeId(null)} type="button">
-                    取消
-                  </button>
-                </div>
-              )}
-            </li>
-          ))}
+                )}
+                {revokeId === item.id && lifecycle === "active" && (
+                  <div
+                    className="admin-confirm"
+                    role="group"
+                    aria-label={`确认撤销邀请 ${item.id}`}
+                  >
+                    <p>撤销后该邀请不能再领取，已领取账号不受影响。</p>
+                    <button onClick={() => void revoke(item.id)} ref={confirmRef} type="button">
+                      确认撤销邀请
+                    </button>
+                    <button onClick={() => setRevokeId(null)} type="button">
+                      取消
+                    </button>
+                  </div>
+                )}
+              </li>
+            );
+          })}
         </ul>
         {invitations.length === 0 && invitationError === "" && <p>暂无邀请。</p>}
         {invitationCursor !== null && (

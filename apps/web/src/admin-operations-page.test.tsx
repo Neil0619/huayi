@@ -161,6 +161,55 @@ describe("Admin operations page", () => {
     expect(container.textContent).toContain("平台模型请求已停止。浏览与 BYOK 不受影响。");
   });
 
+  it("projects every invitation lifecycle state and only offers revoke for an active link", async () => {
+    const future = new Date(Date.now() + 60_000).toISOString();
+    const past = new Date(Date.now() - 60_000).toISOString();
+    const invitations = [
+      {
+        consumedAt: null,
+        createdAt: past,
+        expiresAt: future,
+        id: "80000000-0000-0000-0000-000000000010",
+        revokedAt: null,
+      },
+      {
+        consumedAt: past,
+        createdAt: past,
+        expiresAt: future,
+        id: "80000000-0000-0000-0000-000000000011",
+        revokedAt: null,
+      },
+      {
+        consumedAt: null,
+        createdAt: past,
+        expiresAt: future,
+        id: "80000000-0000-0000-0000-000000000012",
+        revokedAt: past,
+      },
+      {
+        consumedAt: null,
+        createdAt: new Date(Date.now() - 120_000).toISOString(),
+        expiresAt: past,
+        id: "80000000-0000-0000-0000-000000000013",
+        revokedAt: null,
+      },
+    ];
+    const { container } = await setup({
+      listInvitations: vi.fn(async () => ({ items: invitations, nextCursor: null })),
+    });
+
+    const rows = [...container.querySelectorAll("li")].filter((row) =>
+      row.textContent?.includes("80000000-0000-0000-0000-0000000000"),
+    );
+    expect(rows.map((row) => row.querySelector("[aria-label='邀请状态']")?.textContent)).toEqual([
+      "可领取",
+      "已领取",
+      "已撤销",
+      "已过期",
+    ]);
+    expect(rows.map((row) => row.querySelectorAll("button").length)).toEqual([1, 0, 0, 0]);
+  });
+
   it("fails closed for a non-operator without rendering controls", async () => {
     const { container } = await setup({
       access: vi.fn(async () => Promise.reject(new Error("forbidden"))),
@@ -264,8 +313,8 @@ describe("Admin operations page", () => {
       .mockResolvedValueOnce({ items: [nextUser], nextCursor: null });
     const invitation = {
       consumedAt: null,
-      createdAt: "2026-08-13T06:00:00.000Z",
-      expiresAt: "2026-08-14T06:00:00.000Z",
+      createdAt: new Date(Date.now() - 60_000).toISOString(),
+      expiresAt: new Date(Date.now() + 60_000).toISOString(),
       id: "80000000-0000-0000-0000-000000000002",
       revokedAt: null,
     };
@@ -279,5 +328,49 @@ describe("Admin operations page", () => {
     expect(document.activeElement).toBe(confirm);
     await act(async () => confirm.click());
     expect(api.revokeInvitation).toHaveBeenCalledWith(invitation.id, "csrf-token");
+  });
+
+  it("clears a one-time path and requires a list reread after an uncertain revoke", async () => {
+    const invitation = {
+      consumedAt: null,
+      createdAt: new Date(Date.now() - 60_000).toISOString(),
+      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+      id: "80000000-0000-0000-0000-000000000014",
+      revokedAt: null,
+    };
+    const listInvitations = vi
+      .fn<WebAdminOperationsApi["listInvitations"]>()
+      .mockResolvedValueOnce({ items: [invitation], nextCursor: null })
+      .mockResolvedValueOnce({ items: [invitation], nextCursor: null })
+      .mockResolvedValueOnce({
+        items: [{ ...invitation, revokedAt: new Date().toISOString() }],
+        nextCursor: null,
+      });
+    const revokeInvitation = vi.fn(async () => Promise.reject(new Error("response lost")));
+    const { container } = await setup({
+      createInvitation: vi.fn(async () => ({
+        ...invitation,
+        invitationPath: "/join#abcdefghijklmnopqrstuvwxyzABCDEFGH123456789",
+      })),
+      listInvitations,
+      revokeInvitation,
+    });
+
+    await act(async () => button(container, "创建邀请").click());
+    expect(container.querySelector("output")).not.toBeNull();
+    await act(async () => button(container, "撤销").click());
+    await act(async () => button(container, "确认撤销邀请").click());
+
+    expect(revokeInvitation).toHaveBeenCalledOnce();
+    expect(container.querySelector("output")).toBeNull();
+    expect(container.querySelector("[role='alert']")?.textContent).toContain(
+      "撤销结果未知，请先重新载入邀请列表",
+    );
+    expect(
+      [...container.querySelectorAll("button")].some((item) => item.textContent === "撤销"),
+    ).toBe(false);
+    await act(async () => button(container, "重试邀请列表").click());
+    expect(listInvitations).toHaveBeenCalledTimes(3);
+    expect(container.querySelector("[aria-label='邀请状态']")?.textContent).toBe("已撤销");
   });
 });

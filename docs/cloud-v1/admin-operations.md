@@ -111,6 +111,11 @@ cursor。`%`、`_`、`\\` 都按普通字符搜索。
 `invitationPath=/join#<token>`。列表按 `(created_at,id) DESC` 使用 invitation cursor。已消费或已撤销邀请
 不能再次撤销；不存在和不可撤销统一返回 `not_found`，不泄露 token hash。
 
+Web 必须把上述白名单时间戳明确投影为四个互斥状态：`revokedAt` 非空为“已撤销”，否则
+`consumedAt` 非空为“已领取”，否则 `expiresAt <= now` 为“已过期”，其余为“可领取”。只有“可领取”
+显示撤销入口；服务端仍重新验证真实状态，客户端投影不构成授权。状态不新增账号、token、claim 或
+领取人信息。
+
 审计列表只含 id、action、actorUserId、subjectId、safeDetails、createdAt，支持 action 过滤并按
 `(created_at,id) DESC` 使用 audit cursor。三个 cursor 有不同签名 context，不能跨资源复用。
 
@@ -203,6 +208,10 @@ Web 只依赖更窄的 `AdminConsoleApi`，不能获得 SQL、role mutation、se
 - 停用、设备撤销、邀请撤销、kill switch 都要求二步确认；停用明确说明会退出所有设备；
 - 额度编辑使用 micro-USD 的人民币/美元文案换算只作显示，提交仍是整数 micro-USD；
 - 创建邀请成功后 path 只保存在当前组件内存，明确“仅显示一次”；用户离开/刷新即丢弃；
+- 邀请列表始终显示四态标签，只为“可领取”项显示二步撤销；确认发起撤销当前刚创建项时立即从组件
+  内存移除一次性 path；若 DELETE 响应不确定，关闭确认和撤销入口，只允许先重读列表恢复权威状态；
+- 一次性 path 丢失时不提供“重新显示”。Operator 先按公开 ID/创建顺序定位并撤销仍可领取项，再创建
+  新邀请；无法唯一定位时撤销全部可能受影响的可领取项，禁止留下未知有效链接；
 - mutation 成功先信任 strict response，再重新读取相关列表；刷新失败显示“操作已完成，但刷新失败”；
 - list/detail/action 使用独立 generation guard，迟到响应不覆盖较新筛选或动作；
 - live region、确认焦点、键盘可达、60rem/42rem 单列和 reduced-motion 进入组件测试/CSS contract。
@@ -232,6 +241,8 @@ Web 只依赖更窄的 `AdminConsoleApi`，不能获得 SQL、role mutation、se
 - disable/enable 状态矩阵、自停用、deleting、session/pairing 撤销数量与单一 audit；
 - quota current/future period 校验、kill switch reserve 阻断/恢复、无 grant 和零分母 usage；
 - 邀请创建丢响应重放相同 path，数据库/log/audit 不含 token；撤销 consumed/revoked/unknown 一致；
+- Web 对 active/consumed/revoked/expired 四态逐项显示，expired 不误显示撤销；撤销只产生一次空
+  safeDetails 审计，同 key 重放不重复写；
 - user list 只含白名单字段，email wildcard literal，跨租户正文 fixture 不出现在任何 admin response；
 - Web 一次性邀请 path 不持久化，mutation 成功/刷新失败诚实状态，确认 focus 和 generation guard；
 - PGlite 执行完整 bootstrap，证明业务角色不能直接全表读取 admin/audit/user projection。
@@ -244,8 +255,9 @@ Web 只依赖更窄的 `AdminConsoleApi`，不能获得 SQL、role mutation、se
 - `operator-console` seed 只代表已由 API/PGlite 单独证明的 operator + recent-auth 前置条件。actual
   `/admin` 必须从 production `access/usage/users/invitations/audit` adapter 重读四区，而不是把组件
   props 直接种成成功态；
-- Operator journey 覆盖 email literal 筛选、账号停用二次确认及焦点、一次性邀请 fragment、kill
-  switch 二次确认、服务器刷新后的 disabled/enabled 状态和无正文 audit；所有 mutation 必须留下
+- Operator journey 覆盖 email literal 筛选、账号停用二次确认及焦点、一次性邀请 fragment、可领取
+  状态、邀请撤销二次确认及焦点、kill switch 二次确认、服务器刷新后的邀请终态、disabled/enabled 状态
+  和无正文 audit；所有 mutation 必须留下
   `write-valid` request fact；
 - 刷新后一次性邀请 fragment 必须从 DOM 消失，不能进入 Web Storage 或公开 snapshot；用户/运营正文、
   Cookie、CSRF、幂等键和请求 body 同样不得进入公开证据；
@@ -269,6 +281,8 @@ Web 只依赖更窄的 `AdminConsoleApi`，不能获得 SQL、role mutation、se
 7. actual Web Operator journey 重读四区并完成筛选、停用、邀请和 kill switch；非 Operator 在首次
    access 403 后只得到统一重新认证门，成功重新认证但再次 access 403 后失败关闭，且一次性邀请/正文/
    秘密不进入持久化或公开证据。
+8. 邀请列表明确显示四态，丢失一次性链接可通过撤销对应可领取项安全收口；撤销响应丢失以 GET 恢复，
+   不要求 token、不重复审计，也不扩大数据库角色权限。
 
 真实完成另需：部署 Postgres 查询计划与并发、Supabase 登录邮箱更新、Vercel Web/API Cookie/CSRF、
 真实 Operator 浏览器 journey、告警渠道、备份/恢复演练和 kill switch runbook 演练。未取得这些证据前，
@@ -311,3 +325,17 @@ Postgres 状态机或 production Web API 的需求。真实 Operator browser jou
 本地 route fulfill 替代。此前离线门禁只证明 React 组件注入 fake API；现已用独立 helper + 两条 actual
 bundle journey 补齐 production bootstrap、Cookie/CORS、Admin adapter、一次性 fragment 生命周期和
 access 失败关闭，且未放宽近期认证、角色、strict body 或写证明。
+
+## 11. 2026-08-24 普通邀请生命周期显示校准
+
+真实 Hosted `/admin` 完成密码重新认证并读取四区后，邀请区的四条历史记录只显示 ID 与过期时间；因为
+这些记录没有可见撤销按钮，Operator 无法判断它们是已领取、已撤销还是已过期。审查确认这不是后端
+能力缺失：strict resource、`admin_list_invitations` 与 Web adapter 已传递 `consumedAt/revokedAt`，
+`admin_execute` 也已有 recent-auth/operator、Origin/CSRF/key、幂等撤销与空 safeDetails 审计。根因是 Web
+渲染丢弃了状态字段，并且仅以“未领取且未撤销”决定按钮，连过期项也可能误显示为可撤销。
+
+最小修复不新增 migration、公开 route、token 存储或角色 grant：Web 从既有五个公开字段投影四态，只为
+可领取项显示二步撤销，并在撤销刚创建项时清除当前内存 path；API/Postgres 回归固定 same-key replay、
+单一无正文审计和不可撤销终态，actual production bundle journey 固定 create→可领取→revoke→已撤销→
+刷新后仍为已撤销且 token 不进入 storage/snapshot。Hosted 仍需在受控 Web-only deploy/disarm 后只读
+复核四条历史记录状态；在此之前不创建或撤销真实普通邀请。

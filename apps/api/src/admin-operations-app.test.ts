@@ -24,6 +24,9 @@ function setup() {
           revokedAt: null,
         };
       }
+      if (command.type === "revoke-invitation") {
+        return { id: command.id, revoked: true as const };
+      }
       return { id: "00000000-0000-0000-0000-000000000002", status: "disabled" };
     }),
     listAuditEvents: vi.fn(async () => ({ items: [], next: null })),
@@ -89,5 +92,24 @@ describe("admin operations HTTP app", () => {
     });
     expect(response.headers.get("cache-control")).toBe("private, no-store");
     expect(authenticate).toHaveBeenCalledWith(expect.anything(), true);
+  });
+
+  it("routes invitation revocation through mutation authentication and no-store response", async () => {
+    const { app, authenticate, repository } = setup();
+    const invitationId = "80000000-0000-0000-0000-000000000001";
+    const response = await app.request(`/v1/admin/invitations/${invitationId}`, {
+      body: "{}",
+      headers: { "Content-Type": "application/json", "Idempotency-Key": "revoke-key" },
+      method: "DELETE",
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    await expect(response.json()).resolves.toEqual({ id: invitationId, revoked: true });
+    expect(authenticate).toHaveBeenCalledWith(expect.anything(), true);
+    expect(repository.execute).toHaveBeenCalledWith(
+      authorization,
+      expect.objectContaining({ id: invitationId, type: "revoke-invitation" }),
+    );
   });
 });

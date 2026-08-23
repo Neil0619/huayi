@@ -1674,3 +1674,22 @@ environment 或 deployment，不发送邮件、不调用 DeepSeek；API/Web 始�
    闭环 → R3-C 真实投递/重复/告警 → 五项 Cron → 受审计 kill switch disable → 一笔获批 Cloud DeepSeek
    应用路径请求及账本对账 → 恢复 kill switch。完成前不得重新 bootstrap、发行 BootstrapInvitation、直接
    创建 Supabase 用户、重新部署或用 SQL/Classic smoke 绕过产品路径。
+
+### Phase 74：普通邀请生命周期运营收口（2026-08-24）
+
+影响平台为 `shared Web/API + hosted-acceptance`。真实 Hosted `/admin` 已完成密码重新认证和四区只读，
+但四条邀请历史只显示 ID/expiry 且无状态；本阶段不创建/撤销真实邀请、不部署、不修改数据库或外部服务。
+
+1. **需求与根因**：产品和 Phase 19 已要求创建/撤销；数据库、strict contract、API list 和 DELETE 已完整
+   支持 consumed/revoked timestamps、recent-auth Operator、幂等与无正文审计。缺口仅是 Web 丢弃状态
+   字段，并把过期但未消费/未撤销的行当作可撤销；
+2. **最小路线**：不加 migration/status wire field/grant；按 revoked→consumed→expired→active 顺序从既有
+   时间戳投影“已撤销/已领取/已过期/可领取”，只有可领取项保留二步撤销；撤销刚创建项同步清除内存
+   fragment output；
+3. **TDD**：组件 Fresh RED 必须因四态标签全缺失败；GREEN 后补 Web adapter DELETE、Hono mutation、
+   Postgres same-key replay/单一空审计和 actual-bundle create→revoke→refresh 证据；secret snapshot 保持零；
+4. **运营恢复**：丢失普通邀请 token 时按公开 ID/创建顺序撤销对应可领取项；无法唯一定位则撤销所有
+   可能项后重建。不得恢复明文、盲目叠加邀请、用 SQL 或复用 Bootstrap replace；
+5. **远端剩余门**：候选必须在 API/Web 双 disarmed 下提交；之后仅经单独批准的 Web-only
+   arm→deployment→disarm，先只读核对四条历史状态与零 console error，再由用户授权不同于 Operator 的
+   收件人创建恰好一张普通邀请并继续 scanner-safe OTP/Auth SMTP。

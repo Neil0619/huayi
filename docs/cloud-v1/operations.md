@@ -196,6 +196,15 @@ BootstrapInvitation；普通邀请须等待用户完成 `/admin` 密码重新认
 kill-switch 切换、一笔获批 Cloud DeepSeek 应用路径请求和账本对账 → 恢复 kill switch。用户密码、Cookie、
 Token 与 secret 不进入自动化或发布证据。
 
+普通 Operator 邀请与 BootstrapInvitation 的丢失处理不同。创建普通邀请后只安全传递一次 fragment，并
+保留非秘密 invitation ID 作为运营引用；不得把 URL 写入工单、日志或证据。若传递前或传递过程中丢失，
+先停止继续创建，在 `/admin` 重新认证并重读邀请列表：目标仍为“可领取”时执行二步撤销，确认列表变为
+“已撤销”且出现一条 `invitation.revoked` 无正文审计后，才创建替代邀请；目标已领取/撤销/过期则不再
+撤销。若无法凭 ID 与创建顺序唯一定位，撤销所有可能受影响的可领取邀请再重建，不能从数据库、日志、
+幂等表或 SQL 恢复 token，也不能留下未知有效链接。Operator 确认发起 DELETE 后客户端立即丢弃当前
+一次性 path；响应不确定时关闭该行撤销入口，先 GET 恢复状态，再决定是否仍需撤销，不能盲目重复写或
+创建。该流程不使用 First Operator 的 replace-unclaimed。
+
 三个主机名同时解析到 `127.0.0.1` 与 `::1`；每个 HTTPS 端口必须同时建立 IPv4/IPv6 loopback
 listener，禁止使用 `0.0.0.0` 或 `::` 代替。若浏览器报告 connection refused，分别运行带本机 CA 的
 `curl -4` 与 `curl -6` probe；不能以单一地址族返回 200 宣称入口健康。代码切换仍只使用下述 deploy

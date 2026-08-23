@@ -145,6 +145,54 @@ describe("Postgres admin operations", () => {
     ).rejects.toMatchObject({ code: "idempotency_conflict" });
   });
 
+  it("projects invitation state and replays one content-free revocation audit", async () => {
+    const { authorization, module } = setup();
+    const created = (await module.execute(authorization, {
+      body: { expiresInHours: 24 },
+      idempotencyKey: "invite-for-revoke",
+      type: "create-invitation",
+    })) as { id: string };
+    const revoke = {
+      body: {},
+      id: created.id,
+      idempotencyKey: "revoke-1",
+      type: "revoke-invitation" as const,
+    };
+
+    await expect(module.listInvitations(authorization, {})).resolves.toMatchObject({
+      items: [{ consumedAt: null, id: created.id, revokedAt: null }],
+    });
+    const stale = setup(operator, new Date("2026-08-13T05:44:59.999Z"));
+    await expect(stale.module.execute(stale.authorization, revoke)).rejects.toMatchObject({
+      code: "forbidden",
+    });
+    const unauthorized = setup(outsider);
+    await expect(
+      unauthorized.module.execute(unauthorized.authorization, revoke),
+    ).rejects.toMatchObject({ code: "forbidden" });
+    await expect(module.execute(authorization, revoke)).resolves.toEqual({
+      id: created.id,
+      revoked: true,
+    });
+    await expect(module.execute(authorization, revoke)).resolves.toEqual({
+      id: created.id,
+      revoked: true,
+    });
+    await expect(module.listInvitations(authorization, {})).resolves.toMatchObject({
+      items: [{ consumedAt: null, id: created.id, revokedAt: now.toISOString() }],
+    });
+
+    const audit = await database.query<{ count: number; safe_details_empty: boolean }>(
+      `SELECT count(*)::int AS count,bool_and(safe_details='{}'::jsonb) AS safe_details_empty
+       FROM audit_events WHERE action='invitation.revoked' AND subject_id=$1`,
+      [created.id],
+    );
+    expect(audit.rows).toEqual([{ count: 1, safe_details_empty: true }]);
+    await expect(
+      module.execute(authorization, { ...revoke, idempotencyKey: "revoke-2" }),
+    ).rejects.toMatchObject({ code: "not_found" });
+  });
+
   it("atomically disables an account, expires access, audits once, and controls model availability", async () => {
     const { authorization, module } = setup();
     const disable = {

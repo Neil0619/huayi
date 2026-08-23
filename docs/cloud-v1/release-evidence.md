@@ -1701,3 +1701,24 @@ typecheck、architecture、build、development blocker、Store release、product
 - **边界**：本阶段没有修改 Supabase、Custom SMTP、DNS、Vercel environment 或密钥，没有发送邮件、
   调用 DeepSeek 或武装 API。响应头验收不替代用户亲自输入当前密码后的 `/admin` 四区、普通邀请与 OTP
   journey。
+
+## 64. Hosted Operator 四区与普通邀请生命周期缺口（2026-08-24）
+
+- **真实只读证据**：用户亲自完成 Hosted 密码重新认证后，`/admin` 显示运营概览、账号管理、邀请、无
+  正文审计四区；页面无 alert，浏览器 warning/error 为 0。概览只显示当前 UTC 月聚合，账号区只有一个
+  active Operator 的白名单 metadata，邀请区四行只显示 ID/expiry，审计为 0。本轮没有点击 kill switch、
+  额度、设备、账号、创建或撤销；
+- **根因**：strict `InvitationResource`、Postgres `admin_list_invitations` 与 Web API 已包含
+  `createdAt/expiresAt/consumedAt/revokedAt`，产品与 Phase 19 也明确要求撤销；`admin_execute` 已有
+  Operator/recent-auth、幂等撤销与 `invitation.revoked` 空 safeDetails 审计。Web 列表却只渲染 ID/expiry，
+  并仅用 consumed/revoked 决定按钮，导致所有终态无标签且过期项仍可能显示撤销；
+- **Fresh RED/GREEN**：新增组件矩阵在旧实现精确 1 fail / 8 pass，四行 `[aria-label=邀请状态]` 均缺失；
+  最小实现从既有时间戳投影可领取/已领取/已撤销/已过期，只对可领取项显示二步撤销，并在撤销当前创建项
+  时清除一次性 output。最终审查再以 1 fail / 9 pass 证明不确定 DELETE 曾保留 output；修复后确认发起即
+  清除 output、关闭重复撤销并要求重读列表。无需 migration、公开 route、wire 字段或角色 grant；
+- **纵向回归**：API Hono 覆盖 DELETE mutation/no-store，Postgres 覆盖 list→same-key revoke replay→单一
+  空审计→新 key 终态拒绝，Web adapter 覆盖 Cookie/CSRF/key DELETE；actual production bundle fake
+  journey 覆盖 create→可领取→revoke→已撤销→refresh/audit，且 fragment 不进入 snapshot/Web Storage；
+- **边界与下一门**：尚未部署本候选，也未创建/撤销 Hosted 真实普通邀请。候选提交时 API/Web 必须保持
+  disarmed；后续只允许单独批准的 Web-only arm/deploy/disarm 和历史四态只读复核。通过后仍需用户明确
+  提供不同于 Operator 的授权收件人，才创建唯一普通邀请并进入 scanner-safe OTP/Auth SMTP。
