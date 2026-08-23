@@ -67,8 +67,13 @@ test("an operator manages metadata through the actual console", async ({ page })
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
-test("a signed-in non-operator is denied before admin metadata loads", async ({ page }) => {
-  const authority = createCloudBrowserAuthority({ authenticated: true, seed: "empty" });
+test("a signed-in non-operator reauthenticates once before admin metadata is denied", async ({
+  page,
+}) => {
+  const authority = createCloudBrowserAuthority({
+    authenticated: true,
+    seed: "password-only-sign-in-methods",
+  });
   const accessStatuses: number[] = [];
   page.on("response", (response) => {
     if (new URL(response.url()).pathname === "/v1/admin/access") {
@@ -80,14 +85,18 @@ test("a signed-in non-operator is denied before admin metadata loads", async ({ 
   await authority.install(page);
 
   await page.goto(`${webOrigin}/admin`);
+  await expect(
+    page.getByRole("heading", { name: "重新确认 Operator 身份", level: 1 }),
+  ).toBeVisible();
+  await page.getByLabel("当前密码").fill("correct horse battery staple");
+  await page.getByRole("button", { name: "重新确认并进入" }).click();
   await expect(page.getByRole("heading", { name: "无法进入运营控制台" })).toBeVisible();
-  expect(accessStatuses.length).toBeGreaterThan(0);
+  expect(accessStatuses.length).toBeGreaterThanOrEqual(2);
   expect(accessStatuses.every((status) => status === 403)).toBe(true);
   await expect(page.getByText(learnerEmail)).toHaveCount(0);
   await expect(page.getByRole("button", { name: "创建邀请" })).toHaveCount(0);
-  const adminFacts = authority
-    .snapshot()
-    .requestFacts.filter((fact) => fact.path.startsWith("/v1/admin/"));
+  const snapshot = authority.snapshot();
+  const adminFacts = snapshot.requestFacts.filter((fact) => fact.path.startsWith("/v1/admin/"));
   expect(adminFacts.length).toBeGreaterThan(0);
   expect(
     adminFacts.every(
@@ -95,6 +104,16 @@ test("a signed-in non-operator is denied before admin metadata loads", async ({ 
         method === "GET" && path === "/v1/admin/access" && proof === "read",
     ),
   ).toBe(true);
+  expect(
+    snapshot.requestFacts.filter((fact) => fact.path === "/v1/auth/reauthenticate/password"),
+  ).toEqual([
+    {
+      authenticatedAs: "web",
+      method: "POST",
+      path: "/v1/auth/reauthenticate/password",
+      proof: "write-valid",
+    },
+  ]);
   expect(await page.evaluate(() => [localStorage.length, sessionStorage.length])).toEqual([0, 0]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });

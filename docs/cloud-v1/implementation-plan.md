@@ -431,7 +431,8 @@ worker/cron 入口、Supabase service-role adapter、普通 Google 登录、Data
 事务、无正文 usage/audit、严格账号状态机、kill switch 和 Web `/admin` 的离线闭环；没有沿用旧非幂等
 HTTP 写入。2026-08-14 复审曾确认缺少 actual Web bundle 的 Operator/非 Operator 离线组合证据，现已按
 `admin-operations.md` 补齐 strict authority 与两条 journey；Operator 四区/管理写入/服务器重读、一次性
-fragment 和非 Operator access 403 均已通过，完整 Playwright 更新为 96/96。状态为
+fragment 和非 Operator 首次 403→统一密码重新认证→第二次 403 后失败关闭均已通过，完整 Playwright
+更新为 96/96。状态为
 `implemented; target-platform validation pending`；真实部署、Supabase 登录邮箱刷新、真实 Operator
 浏览器 journey、告警与备份恢复演练仍 pending。
 

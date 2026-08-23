@@ -952,7 +952,9 @@
 - React 组件注入 fake API 不能单独证明 `/admin` 的 production bootstrap、Cookie/CORS、Admin adapter、
   一次性邀请 fragment 生命周期或 access 失败关闭；新增 actual bundle Operator/非 Operator 离线层。
 - Operator journey 必须服务器重读 usage/users/invitations/audit，并覆盖筛选、停用、一次性邀请和 kill
-  switch 的二步确认/写证明；非 Operator 在 access 403 后不得继续读取管理数据。
+  switch 的二步确认/写证明；非 Operator 在 access 403 后不得继续读取管理数据。2026-08-24 Phase 72
+  进一步要求客户端不能从首次统一 403 推断角色：先完成一次密码重新认证，第二次 access 仍为 403 才
+  显示无权限，期间始终不得读取下游管理数据。
 - 一次性 fragment 刷新后必须消失且不进入 Web Storage/公开 snapshot。本地 strict authority 不证明真实
   角色、近期认证、告警渠道、备份恢复或部署完成；完整边界见 `admin-operations.md`。
 

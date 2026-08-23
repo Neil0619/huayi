@@ -194,8 +194,9 @@ Web 只依赖更窄的 `AdminConsoleApi`，不能获得 SQL、role mutation、se
 
 ## 5. Web `/admin`
 
-页面固定四区：运营概览、账号、邀请、审计。非 Operator 收到统一无权限页面，不通过隐藏导航作为
-授权。Operator 入口只在服务器证明角色后显示。
+页面固定四区：运营概览、账号、邀请、审计。首次统一 `forbidden` 不能让客户端区分非 Operator 与
+近期认证过期，因此先显示密码重新认证门；重新认证后服务端仍拒绝才显示统一无权限页面。页面不通过
+隐藏导航作为授权，Operator 入口只在服务器证明角色后显示。
 
 - loading/empty/error/retry 分区独立；一个区失败不清空其他已确认数据；
 - 账号按 email/status 筛选并分页；详情卡只显示公开资源；
@@ -248,8 +249,9 @@ Web 只依赖更窄的 `AdminConsoleApi`，不能获得 SQL、role mutation、se
   `write-valid` request fact；
 - 刷新后一次性邀请 fragment 必须从 DOM 消失，不能进入 Web Storage 或公开 snapshot；用户/运营正文、
   Cookie、CSRF、幂等键和请求 body 同样不得进入公开证据；
-- 非 Operator 使用有效 full Cookie 访问 `/admin` 时，access 固定 403，页面显示统一拒绝视图且不得继续
-  请求 usage/users/invitations/audit；
+- 非 Operator 使用有效 full Cookie 访问 `/admin` 时，首次 access 固定 403 并显示统一密码重新认证门；
+  密码重新认证成功、CSRF 轮换后再次 access 仍固定 403，页面才显示统一拒绝视图，且全程不得请求
+  usage/users/invitations/audit；
 - 两条 journey 均覆盖 390px、reduced-motion、无横向溢出和空 Web Storage。它们只证明离线 bundle/
   adapter 组合，不替代真实 Operator 角色、部署 Cookie、告警或备份恢复演练。
 
@@ -264,8 +266,9 @@ Web 只依赖更窄的 `AdminConsoleApi`，不能获得 SQL、role mutation、se
 5. contracts/API/Web full tests、workspace typecheck/build、architecture/instructions/diff 和受影响 lint/format
    通过；
 6. 新增手写 source 小于 400 行，production 缺配置继续 fail closed。
-7. actual Web Operator journey 重读四区并完成筛选、停用、邀请和 kill switch；非 Operator 在 access
-   后失败关闭，且一次性邀请/正文/秘密不进入持久化或公开证据。
+7. actual Web Operator journey 重读四区并完成筛选、停用、邀请和 kill switch；非 Operator 在首次
+   access 403 后只得到统一重新认证门，成功重新认证但再次 access 403 后失败关闭，且一次性邀请/正文/
+   秘密不进入持久化或公开证据。
 
 真实完成另需：部署 Postgres 查询计划与并发、Supabase 登录邮箱更新、Vercel Web/API Cookie/CSRF、
 真实 Operator 浏览器 journey、告警渠道、备份/恢复演练和 kill switch runbook 演练。未取得这些证据前，
@@ -294,8 +297,9 @@ Web 只依赖更窄的 `AdminConsoleApi`，不能获得 SQL、role mutation、se
   `docs/cross-platform-development.md` 的范围外问题。
 - 2026-08-14 actual bundle 补充层新增独立 admin authority helper 和两条 journey：Operator 从
   production adapter 重读四区，完成 literal email 筛选、停用、一次性邀请和 kill switch，再刷新
-  disabled/kill-switch/audit 权威；非 Operator 的 StrictMode access 均为 403 且零下游管理读取。邀请
-  token 刷新后不在 DOM，且从未进入 Web Storage/公开 snapshot。
+  disabled/kill-switch/audit 权威；2026-08-24 非 Operator journey 随 Phase 72 安全契约校准为首次 403
+  显示统一密码重新认证门、成功重新认证后第二次 403 才显示无权限，且两次 access 间及之后均为零下游
+  管理读取。邀请 token 刷新后不在 DOM，且从未进入 Web Storage/公开 snapshot。
 - 本轮 focused Playwright 2/2、完整 Playwright 96/96、114/114 脚本、411 个 Vitest 文件（2,582 passed /
   12 skipped）、Web E2E strict typecheck、instructions/architecture 与受影响 ESLint/Prettier 均通过；
   production bundle 仍只有既有单 chunk >500 kB 警告。

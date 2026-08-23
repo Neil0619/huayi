@@ -294,7 +294,8 @@ validation pending`。R5 离线总审已通过 Web 184/184、完整 Playwright 1
   `implemented; target-platform validation pending`，详见 `docs/cloud-v1/extension-session-disconnect.md`。
 - Phase 19 AdminOperations 的 contracts/Postgres/API/Web 组件闭环仍有效；2026-08-14 全局复审发现并
   修复 actual Web production bundle 证据缺口。独立 strict helper 与两条 journey 已覆盖 Operator 四区、
-  literal 筛选、停用、一次性邀请、kill switch、服务器重读和非 Operator access 403 后零下游读取；
+  literal 筛选、停用、一次性邀请、kill switch、服务器重读和非 Operator 首次 access 403 后统一重新
+  认证、第二次 access 403 后失败关闭且零下游读取；
   focused 2/2 与完整 Playwright 96/96 通过，状态为
   `implemented; target-platform validation pending`。真实角色、部署近期认证、告警与备份恢复仍 pending。
 

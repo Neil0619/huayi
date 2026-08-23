@@ -442,9 +442,10 @@ timeout 配置上限和三个非 analysis DeepSeek adapter 的实际 abort 没�
   accepted 必须清 Cookie 并让 Cloud App 切换 signed-out，后续数据 API 返回 401；signed URL/token 不得
   进入主 DOM、Web Storage 或公开 authority snapshot；
 - AdminOperations actual bundle 必须从 `/admin` 经过 production access/usage/users/invitations/audit
-  adapter；Operator 完成筛选、停用、一次性邀请和 kill switch 并经服务器重读，非 Operator 在 access
-  403 后不得继续读取运营元数据。邀请 fragment、正文、Cookie、CSRF、幂等键和 body 不进入 Web
-  Storage 或公开 snapshot；本地 authority 证据不替代真实角色、部署近期认证、告警或恢复演练；
+  adapter；Operator 完成筛选、停用、一次性邀请和 kill switch 并经服务器重读；非 Operator 首次 access
+  403 后只显示统一密码重新认证门，成功重新认证、CSRF 轮换并再次 access 403 后才显示无权限，且全程
+  不读取运营元数据。邀请 fragment、正文、Cookie、CSRF、幂等键和 body 不进入 Web Storage 或公开
+  snapshot；本地 authority 证据不替代真实角色、部署近期认证、告警或恢复演练；
 - 完整需求与边界见 `browser-acceptance.md`。该层只证明离线浏览器组合，不替代真实部署、Manifest host
   授权、双平台 Chrome 安装或真实第三方服务。
 
