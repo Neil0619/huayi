@@ -22,12 +22,7 @@ describe("Cloud release trust materials", () => {
     expect(webVercel.buildCommand).toBe("pnpm build");
     expect(webVercel.outputDirectory).toBe("dist");
     expect(webVercel.rewrites).toEqual([{ destination: "/index.html", source: "/(.*)" }]);
-    expect(webVercel.git).toEqual({
-      deploymentEnabled: {
-        "**": false,
-        "codex/settings-configuration": true,
-      },
-    });
+    expect(webVercel.git).toEqual({ deploymentEnabled: false });
   });
 
   it("keeps the Store single purpose on English understanding and the learning loop", () => {
