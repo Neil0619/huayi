@@ -43,27 +43,26 @@ test("hosted deployment plan is complete, deterministic, and secret independent"
   const plan = renderHostedDeploymentPlan();
   const opaqueFlowGlob = "?".repeat(43);
   for (const expected of [
+    "Hosted acceptance current action ledger (zero network / zero write)",
     "seen-said-acceptance-api | apps/api | hono | sin1 | Fluid | 120s",
     "seen-said-acceptance-web | apps/web | vite | pnpm build:vercel | dist",
     "API and Web Git deployment both disable every branch",
-    "Corrected database-URL deployment DyqRzj5UMN8BRpSeZyohXprnAkaT is Ready at exact source 7577cdd7658fe966e85e8c8b4346e3291089e4e1",
-    "Disarm commit 00beea8 created no API or Web deployment",
-    "Dashboard redeploy preserved the exact source while Git deployment remained disabled",
+    "First Operator is completed and the post-completion verifier passed; do not rerun foundation bootstrap, migration 0012/0013, or BootstrapInvitation",
+    "Current API latest is Ready deployment 9jbyfnAvZwpa3Ci7YU6s6asmNZNG at source 39094d0c557b829138ec6f70b6fc838f4594ab9b",
+    "Current Web latest is Ready deployment 7zNFzM4LHHGwyKxbwoDLfWoYGfve at source b80c7930b8d4a9a87f8c27e500316899adbbdc53",
+    "Security-header candidate 3c0af44f73f769da829c4218bf8fc69ef571f133 was deployed only through the reviewed arm and followed by disarm 0e7ef5271b2f97cd9b3743275292e4037bd0f801",
+    "API is 12 Ready / 3 Error / 9 Canceled; Web is 5 Ready / 1 Error / 10 Canceled",
+    "Default non-Canceled deployment counts are API 15 and Web 6; both projects remain disarmed",
+    "Public read-only Web/API boundary and exact Web security-header gates are complete",
     "/health proves TLS and process startup only; it does not execute SQL or prove the database DSN",
-    "Corrected /health passed with HTTP 200 and the fixed service/status response",
-    "Invalid-session GET /v1/quota passed with exact HTTP 401 authentication_required",
-    "The quota probe proves the runtime database login and authentication SQL path without business writes",
-    "The original Git-triggered deployment was followed only by the API disarm commit",
-    "Later exact-source Dashboard redeploys did not re-arm Git deployment",
-    "The disarm commit created no API or Web deployment before runtime smoke began",
-    "First Web deployment 87fk9rqpGH2sUcGrzCf68tuXjyu8 failed at exact source c9ee267cee943b888fc02e360dee4300d955c5d2",
-    "Web disarm commit 26022a9 created no API or Web deployment",
-    "The failed Web build resolved @huayi/cloud-contracts before its ignored dist existed",
-    "The repository fix builds learning-domain and cloud-contracts before Vite",
-    "A later reviewed deployment requires a separate Web re-arm commit",
-    "After Web disarm: /, /privacy, hosted SHA, secret-free bundle, and zero-account public boundaries",
-    "build fix while disarmed -> reviewed Web re-arm -> deployment -> disarm Web -> zero-account public smoke -> BootstrapInvitation",
-    "password registration -> SMTP confirmation -> callback -> complete Operator -> audited kill-switch change -> Cloud DeepSeek smoke",
+    "User-only gate: the user personally enters the current password in /admin; automation must not read, store, or submit it",
+    "password reauthentication -> reread all four admin sections and permissions -> create one ordinary invitation",
+    "scanner-safe repeated GET -> explicit OTP POST -> Auth SMTP delivery -> Web landing -> password relogin",
+    "real R3-C delivery and duplicate/alert observation -> install and verify five Supabase Cron jobs",
+    "audited kill-switch disable -> one approved Cloud DeepSeek application-path request -> model/usage/price/reservation/UsageLedger reconciliation -> restore kill switch",
+    "Current Vercel Functions settings show Fluid enabled and sin1",
+    "Current deployment resource /index is Node.js 24.x in SIN1 with max duration <=120s",
+    "The 90-second application abort versus platform termination observation remains paired with the approved Cloud DeepSeek smoke",
     "HUAYI_DATABASE_TLS_CA_BASE64",
     "HUAYI_STORE_EXTENSION_CAPABILITY",
     "Confirmed deployment decisions (values are not printed):",
@@ -83,6 +82,13 @@ test("hosted deployment plan is complete, deterministic, and secret independent"
   assert.doesNotMatch(plan, /HUAYI_GOOGLE_AUTHENTICATION|VITE_GOOGLE_AUTHENTICATION/u);
   assert.doesNotMatch(plan, /Web Git deployment denies every branch except/u);
   assert.doesNotMatch(plan, /Web remains disabled and has no Production deployment/u);
+  assert.doesNotMatch(plan, /migration 0012 -> Vercel domains/u);
+  assert.doesNotMatch(plan, /zero-account public smoke -> BootstrapInvitation/u);
+  assert.doesNotMatch(
+    plan,
+    /password registration -> SMTP confirmation -> callback -> complete Operator/u,
+  );
+  assert.doesNotMatch(plan, /No Auth user, invitation, SMTP, DeepSeek/u);
   assert.doesNotMatch(plan, /https:\/\/api\.acceptance\.seen-said\.cn\/\*\*/u);
   assert.doesNotMatch(plan, /flow=\*/u);
 });

@@ -1021,6 +1021,13 @@ session is invalid.`；400 `invalid_request` 表示 runtime 数据库路径未�
 - Phase 70 的 Web-only armed RED 必须在旧 `deploymentEnabled=false` 上失败，并要求 API 继续布尔
   `false`、Web 精确为 `{"**":false,"codex/settings-configuration":true}`；deployment plan 与发布材料
   测试必须共同锁定该窗口。push 后任何 Web deployment 状态都先 disarm，不能在 armed 窗口修复；
+- 当前 deployment plan 回归必须拒绝把已经完成的 migration、foundation bootstrap、BootstrapInvitation、
+  First Operator complete 或首次部署再列为未来动作；固定输出当前 API/Web deployment ID/source/count、
+  双项目 disarm、已完成门、用户亲自输入 `/admin` 密码的下一门和 ordinary invite → OTP/Auth SMTP → R3-C →
+  Cron → audited Cloud DeepSeek 的依赖链，且不得读取 secret 或访问网络；
+- Vercel Dashboard/资源页的只读证据只关闭 Fluid Enabled、`sin1` 与 Latest `/index` Node.js 24.x /
+  `≤120s`；90 秒应用 abort 与平台终止必须绑定获批的真实 Cloud DeepSeek 应用路径请求，不能由空
+  Observability 页面推导；
 - Web Vercel build 回归必须锁定 `vercel.json.buildCommand=pnpm build:vercel` 和 Web package 的完整命令：
   learning-domain → cloud-contracts → Vite。原始反馈环先临时移走 cloud-contracts `dist` 并确认旧
   `pnpm build` 复现 Vercel resolver error；修复后在相同缺失 dist 条件运行专用构建必须成功。下一次真实

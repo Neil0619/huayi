@@ -3,6 +3,18 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-24：Hosted deployment plan 改为当前动作账本
+
+- 静态部署计划不得在环境已推进后继续把 migration、foundation bootstrap、BootstrapInvitation、First
+  Operator complete 或首次部署列为未来动作；计划改为零网络/零写入的 current action ledger，固定记录
+  已完成且禁止重跑的门、当前 deployment/disarm 证据、下一项用户门和剩余外部依赖链；
+- Hosted 当前顺序固定为 `/admin` 用户密码重新认证与四区权限回读 → 普通邀请与 scanner-safe OTP/Auth
+  SMTP → R3-C 真实投递/重复/告警 → 五项 Cron → 受审计 kill-switch 切换与一笔 Cloud DeepSeek 应用路径
+  请求/账本对账 → 恢复 kill switch。不得用第二张 BootstrapInvitation、直接创建 Supabase 用户、SQL 或
+  Classic smoke 绕过产品路径；
+- Vercel Settings/资源页的只读证据可关闭 Fluid Enabled、Singapore `sin1` 与 Latest Function `≤120s`，但
+  不能关闭 90 秒应用 abort 与平台终止的 Observability 门；后者必须与获批的真实 Cloud DeepSeek 请求绑定。
+
 ## 2026-08-24：Hosted Web 固定最小安全响应头并保持 production origin 失败关闭
 
 - 当前 acceptance Web 线上响应只有平台 HSTS，仓库没有 CSP、Referrer-Policy、nosniff 或

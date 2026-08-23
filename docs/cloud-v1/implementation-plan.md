@@ -1650,3 +1650,27 @@ source 仍为 `39094d0`。最终 7/7 状态分布为 API Ready 12 / Error 3 / Ca
 Canceled 10，两项目 `deploymentEnabled=false`。custom-domain Web/域名健康与 bundle 中 exact arm SHA 已
 验证；真实 `/admin` 已显示密码重新认证门，但用户尚未亲自输入密码，因此四区数据与管理操作、普通邀请、
 scanner-safe OTP journey 仍为 pending，完成前继续禁止 DeepSeek smoke。
+
+### Phase 73：Hosted 当前动作账本与运行时门复审
+
+影响平台为 `shared + hosted-acceptance`。本阶段不读取用户密码/Token，不修改 Supabase、DNS、Vercel
+environment 或 deployment，不发送邮件、不调用 DeepSeek；API/Web 始终保持
+`git.deploymentEnabled=false`。
+
+1. **根因**：`acceptance:hosted:deployment --plan` 仍把已经完成的 migration、zero-account Web、
+   BootstrapInvitation、密码注册与 First Operator complete 列为未来步骤；权威部署文档的“当前事实”也保留
+   zero-deployment/`status=empty`，可能误导操作者重复执行不可逆外部写；
+2. **Fresh RED → GREEN**：先让 deployment script 回归要求 current action ledger 并拒绝旧步骤，取得精确
+   1 项失败；最小 GREEN 只更新零网络/零写入计划，输出当前 deployment/disarm 证据、已完成且禁止重跑的
+   门、用户/外部依赖链和禁止捷径；
+3. **只读运行时证据**：Vercel Settings → Functions 回读 Fluid Enabled 与 Singapore `sin1`；当前 API
+   deployment `9jbyfnAvZwpa3Ci7YU6s6asmNZNG` 的唯一 `/index` Function 为 Node.js 24.x、`SIN1`、
+   `≤120s`。Observability 页面本身不能证明 90 秒应用 abort 与平台终止，该项继续绑定获批的真实 Cloud
+   DeepSeek 应用路径请求；
+4. **分类结论**：migration/First Operator/deployment/public/security-header/Fluid/120 秒为已关闭；本机
+   script/doc/config 验证可安全运行；`/admin` 密码、普通邀请、OTP/Auth SMTP、R3-C、Cron、Cloud
+   DeepSeek、备份/目标网络/跨平台完整旅程均需要用户或外部动作；未发现新的 production runtime 代码缺口；
+5. **当前依赖链**：用户亲自输入 `/admin` 密码 → 重读四区和权限 → 普通邀请与 scanner-safe OTP/Auth SMTP
+   闭环 → R3-C 真实投递/重复/告警 → 五项 Cron → 受审计 kill switch disable → 一笔获批 Cloud DeepSeek
+   应用路径请求及账本对账 → 恢复 kill switch。完成前不得重新 bootstrap、发行 BootstrapInvitation、直接
+   创建 Supabase 用户、重新部署或用 SQL/Classic smoke 绕过产品路径。

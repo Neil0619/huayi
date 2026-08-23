@@ -23,8 +23,9 @@
   回归与人工重验。它不能因长期使用自动升级为 production；完整运行与退出门见
   `user-acceptance-environment.md`。
 - API project 必须从 `apps/api/vercel.json` 应用 `fluid: true`，并把唯一 `src/server.ts` Function 的
-  `maxDuration` 固定为 120 秒。静态配置不替代 Dashboard/部署核验；部署后必须确认 Fluid 已启用、生成
-  Function 上限为 120 秒，并在 Observability 区分 90 秒应用 abort 与平台终止。
+  `maxDuration` 固定为 120 秒。静态配置不替代 Dashboard/部署核验；当前 hosted acceptance 已回读 Fluid
+  Enabled、`sin1` 和 Latest `/index` Node.js 24.x / `≤120s`。Observability 区分 90 秒应用 abort 与平台终止
+  仍必须随获批的真实 Cloud DeepSeek 请求完成，不能由空页面推导。
 - Cloud API 运行时固定 Node.js 22 或更高版本，以满足当前 Supabase SDK 的运行时约束；这不改变
   Classic workspace 仍保留的 Node.js 18 工具链下限。
 
@@ -162,9 +163,10 @@ deployment 与邀请状态仍必须读取各自后续证据，不能由历史 fo
 关闭、固定成功回执和 `Updated just now`。验证器的 session pooler `5432` DSN 从未写入 runtime；系统与
 浏览器剪贴板在纠正后均已清空。
 
-Vercel API 当前有 10 条 Production deployment 记录，Latest/Current 为 deployment
-`DyqRzj5UMN8BRpSeZyohXprnAkaT`、source `7577cdd7658fe966e85e8c8b4346e3291089e4e1`；Web 仍无
-Production deployment。API/Web Git deployment 均已关闭。运行态复核必须分层：
+Phase 67 的历史检查点为 API 10 条 Production deployment、Latest
+`DyqRzj5UMN8BRpSeZyohXprnAkaT` / source `7577cdd7658fe966e85e8c8b4346e3291089e4e1`、Web 尚无
+Production deployment；它只说明当时的 database runtime 门。当前 deployment/count/disarm 状态以
+`pnpm acceptance:hosted:deployment --plan` 为准，不能用该历史快照覆盖。运行态复核必须分层：
 
 1. `/health` 只关闭 custom domain、TLS、进程启动、固定 JSON 与 `x-vercel-id` 门，不执行 SQL；
 2. DB-backed smoke 才关闭 application role、CA、轮换密码、RLS/context 与数据库 runtime composition 门；
@@ -187,6 +189,12 @@ columns/constraint/functions/trigger 均为真；固定 Operator status CLI 当�
 foundation verify 通过。随后 0013 已作为第 13 条 migration 实际应用，首张邀请账号已恢复并完成 First
 Operator，最终 status 为 `completed`。不得重跑 migration 或 foundation bootstrap，也不得重新发行
 BootstrapInvitation；普通邀请须等待用户完成 `/admin` 密码重新认证。
+
+当前操作必须先运行零网络/零写入的 `pnpm acceptance:hosted:deployment --plan` 读取 current action ledger，
+不得沿用 Phase 53 的静态首次部署顺序。账本后的依赖链固定为：用户亲自输入 `/admin` 密码并重读四区权限 →
+普通邀请与 scanner-safe OTP/Auth SMTP → R3-C 真实投递、重复与无正文告警 → 五项 Cron → 受审计
+kill-switch 切换、一笔获批 Cloud DeepSeek 应用路径请求和账本对账 → 恢复 kill switch。用户密码、Cookie、
+Token 与 secret 不进入自动化或发布证据。
 
 三个主机名同时解析到 `127.0.0.1` 与 `::1`；每个 HTTPS 端口必须同时建立 IPv4/IPv6 loopback
 listener，禁止使用 `0.0.0.0` 或 `::` 代替。若浏览器报告 connection refused，分别运行带本机 CA 的

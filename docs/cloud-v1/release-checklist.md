@@ -21,8 +21,8 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       显式 CA + verify-full，并加入精确角色图、越权 SQLSTATE 与同 backend 跨事务 context 隔离验证。更新后
       focused 与本轮完整 macOS 门、远端 hardened admin/application 双复验均已通过。第 12 条
       FirstOperatorBootstrap migration 已实际应用；Vercel API/Web 项目、Git/Branch、custom domain 与 TLS
-      已建立；API 已产生 10 条 Production deployment 记录，当前 Latest/Current source 为 `7577cdd`；Web
-      已有首次 Error 与第二次 Ready 两条记录，Ready source 为 `b87ef03`，随后已独立 disarm。Resend sender
+      已建立；Phase 67 历史检查点为 API 10 条 Production deployment、Latest/Current source `7577cdd`；Web
+      当时已有首次 Error 与第二次 Ready 两条记录，Ready source 为 `b87ef03`，随后已独立 disarm。Resend sender
       domain、分离 SMTP/HTTP key、Supabase Custom SMTP 与 API
       R3-C 配置也已完成；Supabase Auth Site URL 与五条 exact redirect 已配置，API 21/21（9 Sensitive、
       12 public）与 Web 2/2 public Production-only environment 结构复核通过。application DSN 已 Rotate，
@@ -205,8 +205,10 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       `"codex/settings-configuration": true`；Web 继续 `deploymentEnabled=false`，没有同时解锁；
 - [x] `apps/api/vercel.json` 显式 `fluid: true`，且唯一 `src/server.ts` Function 的 `maxDuration` 为 120；
 - [x] 配置回归同时证明没有 Vercel Cron、宽泛 Function override 或 legacy `builds`；
-- [ ] 真实部署后在 Vercel Settings/Functions、部署产物和 Observability 核验 Fluid 与 120 秒上限；该项
-      不能由静态 JSON 或 macOS 离线门勾选。
+- [x] Vercel Settings → Functions 已回读 Fluid 为 Enabled、region 为 Singapore `sin1`；当前 API deployment
+      `9jbyfnAvZwpa3Ci7YU6s6asmNZNG` 的唯一 `/index` Function 为 Node.js 24.x、`SIN1`、`≤120s`；
+- [ ] 在获批的真实 Cloud DeepSeek 应用路径请求中用 Observability 区分 90 秒应用 abort 与平台终止；静态
+      JSON、Function 资源页或无真实请求的 Observability 页面不能关闭本项。
 
 ## Hosted Web 公共门
 

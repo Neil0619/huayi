@@ -25,55 +25,46 @@ diagnostic 22 个字段与正式 verifier 均已远端通过，Vercel runtime DS
 立即 disarm；发行邀请前还必须部署 Google fail-closed 与 password callback 校准候选。
 
 2026-08-24 当前校准：上述为 Phase 53--71 的历史推进记录。0013 已作为第 13 条 migration 实际应用；
-First Operator 已恢复、complete 并通过 post-completion verifier，最终 status 为 `completed`。Phase 72
-`/admin` recent-auth UI 又以 Web arm `3fcc8322ff6387a1ff7d49fb72582562a3d65c16` 部署到
-`FxRmiGZMzotoqiSmU7hSHfonbeV8`，再以 `8dea25c` disarm；API 最新受控 source 仍为 `39094d0`，两项目当前
-`deploymentEnabled=false`。页面已显示密码重新认证门，但用户输入密码、四区权限、普通邀请与 OTP 仍待验收。
+First Operator 已恢复、complete 并通过 post-completion verifier，最终 status 为 `completed`。安全响应头
+候选 `3c0af44f73f769da829c4218bf8fc69ef571f133` 经 Web arm
+`b80c7930b8d4a9a87f8c27e500316899adbbdc53` 部署为
+`7zNFzM4LHHGwyKxbwoDLfWoYGfve`，再以 `0e7ef5271b2f97cd9b3743275292e4037bd0f801`
+disarm；API/Web 当前分别为 12 Ready / 3 Error / 9 Canceled 与 5 Ready / 1 Error / 10 Canceled，默认排除
+Canceled 的视图分别为 15 与 6 条。Latest API 是 `39094d0c557b829138ec6f70b6fc838f4594ab9b` /
+`9jbyfnAvZwpa3Ci7YU6s6asmNZNG`，Latest Web 是上述 arm/deployment，两项目当前均为
+`deploymentEnabled=false`。live `/`、`/privacy`、SPA `/admin`、实际 JS asset、安全响应头、渲染、公开
+只读边界与 bundle secret scan 均通过；用户输入密码、四区权限、普通邀请与 OTP 仍待验收。
 
 ## 1. 当前事实与目标
 
-Hosted foundation 已在 Supabase project `kpadiulxkgckskcfydry` 完成 bootstrap 与 application login
-复验。0012 应用时，仓库和远端当时均为 12 条 migration；用户以进程级 `PGPASSWORD` 完成只列出
-`20260822030000_first_operator_bootstrap` 的 dry-run 后实际 push。push 后的只读 diagnostic 显示
-chain/schema/RLS/价格/Storage/空 Auth 与 0012 结构均符合预期，`first_operator_empty` 为真；旧版 foundation
-verifier 仅因把 PostgreSQL 17 `NOINHERIT` 产品边误写为 `inherit=true` 并拒绝合法 creator-control 边而
-失败。修正版 foundation verify 随后通过，Operator status 当时为 `empty`。Phase 72 后 0013 已应用，仓库
-与远端 migration head 均为 13 条；当前身份状态非空且 First Operator 为 `completed`，因此不再运行上述
-pristine foundation verifier。
-2026-08-22 的历史 bootstrap 前 DoH 复核曾显示 `app.acceptance`、`api.acceptance`、`notify.acceptance` 与
-其 DMARC 名称为 NXDOMAIN；随后 `app.acceptance` 与 `api.acceptance` 已完成 Cloudflare/Vercel 配置并通过
-递归 DNS、Vercel domain 与 TLS 回读。2026-08-23，Tokyo (`ap-northeast-1`) Resend sender domain
-`notify.acceptance.seen-said.cn` 已完成 Resend 指定 DKIM、feedback MX、SPF 与 monitoring DMARC 的
-Cloudflare 写入和公共解析复核，Dashboard 显示 `Domain verified: Your domain is ready to send emails`。
-此后旧泄露 key 已撤销，Supabase SMTP 与 R3-C HTTP 两把最小权限 key 已分离托管；Custom SMTP 与 API
-Production 的 R3-C 通知变量已经配置。Phase 64 又完成 Auth Site URL、五条 exact redirect 和完整 API/Web
-Production environment；三项本地生成 Secret 只保存在 macOS login Keychain，不进入仓库或本文。这仍不
-等于邮件已投递或应用已部署。两个 Vercel project 已连接精确
-GitHub repository `Neil0619/huayi`，Preview 均为 `Disabled`，Production Branch Tracking 均为
-`codex/settings-configuration`；API Production 现为 21/21，Web 为 2/2。API 有 10 条 Production deployment
-记录，当前 Latest/Current source 为 `7577cdd`；Web Deployments 仍为空，API/Web Git deployment 均为
-`false`。
+Hosted foundation 已在 Supabase project `kpadiulxkgckskcfydry` 完成，仓库与远端 migration head 均为 13
+条，First Operator 为 `completed`。不得再运行 pristine foundation bootstrap、0012/0013、首张
+BootstrapInvitation 或 First Operator complete；这些步骤只保留为历史证据。Supabase Auth Site URL、五条
+query-aware redirect、scanner-safe OTP 模板、Custom SMTP、分离的 SMTP/R3-C credential 与 API/Web
+Production environment 已配置；Google 与 Store 仍禁用。配置完成不等于真实邮件投递、R3-C 发送或 Cron
+已经验收。
 
-Cloudflare DNS 与公网 TLS 门已完成：`api.acceptance.seen-said.cn` 的 CNAME 为
-`7cb58e1372474614.vercel-dns-017.com.`，`app.acceptance.seen-said.cn` 的 CNAME 为
-`f0cbaadacf303110.vercel-dns-017.com.`；两条均为 DNS only、Proxy disabled、TTL Auto。Cloudflare 保存后
-回读一致，1.1.1.1、8.8.8.8、9.9.9.9 均解析到精确 CNAME；Vercel 两个 custom domain 均显示 properly
-configured。两个 HTTPS host 的部署前 TLS 校验曾返回 `curl ssl_verify_result=0` 与预期 404；当前 API
-custom-domain `/health` 已返回 TLS 校验通过、HTTP 200 与固定 JSON，Web 仍未部署。此前 NXDOMAIN 与
-zero-deployment 只属于历史 bootstrap/连接阶段。
+两个 Vercel project 已连接精确 GitHub repository `Neil0619/huayi`，Preview 均为 `Disabled`，Production
+Branch Tracking 均为 `codex/settings-configuration`。当前 Latest deployment、状态计数和 disarm 证据以本页
+开头的 2026-08-24 校准为准，不得再使用历史的 zero-deployment 或 `7577cdd` 作为 current。Cloudflare DNS、
+公网 TLS、API health/application-role runtime、CORS/未认证边界、Web 安全响应头与公开页面均已通过。
+Vercel Settings → Functions 当前回读 Fluid 为 Enabled、region 为 `sin1`；Latest API deployment 的唯一
+`/index` Function 为 Node.js 24.x、`SIN1`、`≤120s`。90 秒应用 abort 与平台终止的 Observability 区分仍须
+绑定获批的真实 Cloud DeepSeek 应用路径请求，不能由静态配置或空 Observability 页面关闭。
 
-本阶段目标是建立可重复、默认失败关闭的 hosted application deployment contract，然后按固定顺序部署：
+本阶段的当前目标不是重新部署，而是在双项目保持 disarmed 时完成剩余用户/外部门：
 
 ```text
-remote migration 0012
-  -> two Vercel projects + exact custom domains
-  -> verified Resend subdomain + separated credentials
-  -> Supabase Auth URL/SMTP
-  -> production-only Vercel environment
-  -> API then Web deployment
-  -> TLS/Cookie/CORS/SSE/Auth/Storage smoke
-  -> five Supabase Cron jobs
-  -> FirstOperatorBootstrap invitation
+user enters current password in /admin
+  -> reread all four admin sections and verify permissions
+  -> create one ordinary invitation
+  -> scanner-safe repeated GET + explicit OTP POST + Auth SMTP delivery
+  -> Web landing + password relogin
+  -> real R3-C delivery + duplicate/alert observation
+  -> install and verify five Supabase Cron jobs
+  -> audited kill-switch disable
+  -> one approved Cloud DeepSeek application-path request and ledger reconciliation
+  -> restore kill switch
 ```
 
 影响平台为 `shared + hosted-acceptance`。不修改 Classic、Store wire、Windows 原生集成或 production
@@ -81,10 +72,10 @@ remote migration 0012
 
 ## 2. 不能绕过的前置条件
 
-1. 第 12 条 migration 已经按“dry-run 只列出 FirstOperatorBootstrap → 用户明确确认 → actual push”完成；
-   不得重跑 migration；
-2. 修正版 `acceptance:hosted:verify` 已通过，随后 `acceptance:hosted:operator:status` 已返回 `empty`；不能
-   重跑 foundation bootstrap；
+1. 13 条 migration 与 First Operator completion 已完成；不得重跑 migration、foundation bootstrap、
+   BootstrapInvitation 或 complete；
+2. post-completion verifier 已通过且最终 status 为 `completed`；下一步必须从用户亲自完成 `/admin` 密码
+   重新认证开始；
 3. 密码轮换后的 `acceptance:hosted:application:verify` 已通过，Vercel Production Sensitive
    `HUAYI_DATABASE_URL` 已用当前 application 密码对应的 transaction pooler `6543` DSN 完成纠正 Rotate；
    exact-SHA deployment、disarm、health 与 DB-backed runtime smoke 均已通过；
@@ -358,6 +349,10 @@ wildcard pattern，无额外 URL。Confirm sign up 保存态精确使用 `{{ .To
 
 ## 6. DNS、部署与 CRON 顺序
 
+下列 1--8 是 Phase 53--72 的历史执行链，不是当前操作清单；其中 domain、environment、API/Web
+deployment、首张 BootstrapInvitation 与 First Operator 已完成，禁止重跑。第 9 项 Cron 仍须等待本页
+6.3 的真实 R3-C 投递门。
+
 1. 在 Vercel 两个 project 添加 exact custom domain；只复制 Dashboard 当前给出的 CNAME/TXT；
 2. 在 Cloudflare DNS 添加记录，初始关闭代理（DNS only），避免域名所有权/TLS 核验被代理掩盖；Vercel
    显示 Valid Configuration 且证书生效后再评估是否保持 DNS only；
@@ -370,10 +365,9 @@ wildcard pattern，无额外 URL。Confirm sign up 保存态精确使用 `{{ .To
 6. API `/health` 与 DB-backed 无写入探针通过后，以独立提交只武装 Web；Web deployment 记录出现后先
    独立关闭 Web Git deployment，再验证 Web `/`、`/privacy`、可见构建 SHA、secret-free bundle、零账号
    CORS/CSRF/SSE/callback 边界；
-7. operator status 仍为 `empty` 且 Auth/profile/admin/invitation 仍为空、Web 公共门已关闭后，才能发行
-   72 小时首张邀请并正常完成密码注册、SMTP 确认与 callback；
-8. complete Operator 后，再通过 `/admin` 受审计切换模型 kill switch 并运行一笔真实 DeepSeek 应用路径
-   smoke，完成 model/usage/price/reservation/UsageLedger 对账后恢复 kill switch；
+7. 当时 operator status 为 `empty` 且 Web 公共门已关闭后发行了首张邀请；Phase 72 随后恢复中断注册并
+   complete First Operator，此项已经完成且不得重跑；
+8. complete Operator 后的 `/admin` 受审计 kill-switch 切换与真实 DeepSeek 应用路径 smoke 尚未执行；
 9. 真实 R3-C 投递门关闭后，才把 `configure-supabase-cron.sql` 的固定五项任务写入 Vault/
    `pg_cron + pg_net`；不得使用 Vercel Hobby CRON。
 
@@ -397,7 +391,7 @@ project 现在都恢复 `deploymentEnabled=false`，且该提交没有新增 Web
 与 `/privacy` 均为真实 TLS/HTTP 200，页面显示 `Hosted 验收 · b87ef03`；发布 bundle secret scan、无 Cookie
 CSRF/分析 401、缺参数密码 callback 400 与 12 项远端零新增计数均通过。Web 公共门已经关闭，下一门是首张
 BootstrapInvitation → 正常密码注册 → Resend Custom SMTP 确认 → API callback → Web 落点；不能再次部署
-Web、直接创建 Auth 用户或提前切换模型 kill switch。
+Web、直接创建 Auth 用户或提前切换模型 kill switch。这一段是 Phase 70 历史检查点，当前动作见 6.3。
 
 ## 6.1 Phase 71 邀请前 authentication hardening
 
@@ -452,6 +446,28 @@ push 只允许增加 Canceled 审计记录，不得新增非 Canceled deployment
 7/7 状态分布为 12 Ready / 3 Error / 9 Canceled 与 4 Ready / 1 Error / 10 Canceled；API 最新受控 source
 仍为 `39094d0`，两项目均为 `deploymentEnabled=false`。Web 域名、bundle exact SHA 和密码门可见性已
 验证；用户尚未亲自输入密码，不能据此关闭真实 `/admin` 四区、Cookie/CSRF、权限或管理 mutation 门。
+本段计数是安全响应头部署前的历史检查点，不能覆盖下节的 current evidence。
+
+## 6.3 2026-08-24 当前动作账本
+
+唯一当前入口是 `pnpm acceptance:hosted:deployment --plan`。它必须保持零网络、零写入，并同时输出：
+
+- 已完成且禁止重跑的 13 条 migration、foundation bootstrap、BootstrapInvitation、First Operator
+  complete、API/Web deployment 与公开/安全响应头门；
+- Latest API `39094d0c557b829138ec6f70b6fc838f4594ab9b` /
+  `9jbyfnAvZwpa3Ci7YU6s6asmNZNG`，Latest Web
+  `b80c7930b8d4a9a87f8c27e500316899adbbdc53` / `7zNFzM4LHHGwyKxbwoDLfWoYGfve`；
+- API 12 Ready / 3 Error / 9 Canceled、Web 5 Ready / 1 Error / 10 Canceled，默认排除 Canceled 分别为
+  15 与 6，两项目 `deploymentEnabled=false`；
+- Vercel Functions 已回读 Fluid Enabled、`sin1`，Latest API `/index` 为 Node.js 24.x、`SIN1`、`≤120s`；
+  90 秒应用 abort 与平台终止仍随真实 Cloud DeepSeek 请求验收；
+- 当前唯一依赖链：用户亲自输入 `/admin` 密码 → 重读四区和权限 → 创建一张普通邀请 → scanner-safe
+  repeated GET / 显式 OTP POST / Auth SMTP / Web 落点 / 密码重登 → 真实 R3-C 投递、重复与无正文告警 →
+  安装并验证五项 Cron → 受审计关闭 kill switch → 一笔获批的 Cloud DeepSeek 应用路径请求及
+  model/usage/price/reservation/UsageLedger 对账 → 恢复 kill switch。
+
+在上述用户/外部门完成前，不重新部署 API/Web，不创建第二个 BootstrapInvitation，不直接创建 Supabase
+用户，不用 SQL 切换 kill switch，不发送产品路径外测试邮件，也不运行 Classic `pnpm smoke:deepseek`。
 
 ## 7. TDD 与验收标准
 
@@ -460,16 +476,17 @@ Fresh RED 必须先覆盖：
 1. API Vercel config 缺 `"**": false` + exact production branch `true`、Web 缺全分支
    `git.deploymentEnabled=false`，或 API 缺 `framework=hono`/`regions=sin1`、Web 缺 Vite/build/output；
 2. hosted Web 缺环境/SHA 可见身份，或公网 origin 接受 simulated；
-3. deployment plan 缺任一 Vercel、environment、Auth redirect、SMTP、DNS 或 CRON 项；
+3. deployment plan 把已经完成的 migration/bootstrap/BootstrapInvitation/First Operator/deployment 当成
+   未来动作，或缺少 current deployment evidence、双 disarm 和剩余用户/外部依赖链；
 4. verifier 输出任何 secret/value，或错误地把 preview 配成 hosted production；
 5. Web bundle 含任一服务端 secret 名/值。
 6. Vercel empty-project bootstrap 缺 exact team scope、name-only create、settings PATCH、双向零 deployment
    检查、Git/link/漂移失败关闭、幂等重跑、固定 status 或 Token/远端错误不回显。
 
 最小 GREEN 提供一个零网络、零写入的 `pnpm acceptance:hosted:deployment --plan`，只输出固定 project、
-Root/Framework/Build/Output/Node/region、变量名分类、五条 Auth redirect、SMTP/DNS/CRON 顺序与 pending
-外部门，并明确 project shell → settings PATCH → Preview 回读 → Git connect → 零 deployment → Production
-Branch Tracking → 再次零 deployment，首次部署必须由后续受审查提交解锁。`--verify-environment` 只读取
+Root/Framework/Build/Output/Node/region、变量名分类、五条 Auth redirect、当前 deployment/disarm 证据、
+已完成且禁止重跑的门与 pending 用户/外部依赖链。它不得再输出 project bootstrap、首次部署、首张邀请或
+First Operator complete 作为未来动作。`--verify-environment` 只读取
 进程环境，复用生产 schema 验证格式和固定
 project/origin 一致性，
 只输出 fixed passed/failed，不输出变量值、URL 中密码或第三方错误。
@@ -482,13 +499,15 @@ REST，先预检两个 project 再按 API→Web 顺序创建/复用；请求序�
 离线退出门：focused API/Web/script tests、API/Web full、typecheck/build、Prettier/ESLint、Vercel config
 schema、secret scan、`git diff --check` 和完整 `pnpm verify:macos`。Hosted 退出门另要求：
 
-- migration 0012 applied + corrected foundation verify passed + latest application verifier passed + Operator
-  status empty；
-- 两个 deployment 均绑定记录的 commit，API 位于 `sin1`、Fluid/120s；
+- migration 0012/0013 applied + latest application verifier passed + First Operator post-completion verifier /
+  status `completed`；
+- 当前两个 deployment 均绑定记录的 commit、两项目 disarmed，API 位于 `sin1`、Fluid Enabled、Latest
+  `/index` 为 Node.js 24.x 且 `≤120s`；90 秒应用 abort 与平台终止另随真实 DeepSeek 请求核验；
 - custom-domain TLS、exact CORS、host-only Secure SameSite=Lax Cookie、CSRF、SSE 与五条 callback 通过；
 - Resend domain/SMTP/R3-C 两把 key、一次真实确认邮件和一次 R3-C 通知通过，无重复投递；
 - 五项 Cron 写入、人工触发与有界响应通过；
-- 验收前 Auth/profile/admin/invitation 为空，随后 FirstOperatorBootstrap 完整闭环并访问 `/admin`。
+- FirstOperatorBootstrap 已完整闭环；用户亲自通过 `/admin` recent-auth 后重读四区和权限，再创建普通邀请
+  完成 scanner-safe OTP/Auth SMTP/password relogin。
 
 2026-08-22 离线实施证据：Fresh RED 精确命中 API/Web Vercel config、Hosted Web environment/identity、
 公网 simulated 和 deployment CLI 缺口；GREEN focused 为 API 1 file / 5 tests、Web 5 files / 15 tests、
@@ -530,10 +549,10 @@ format/lint/typecheck/build、architecture、release 和 production audit；prod
 credential、Custom SMTP、Supabase Auth exact URL、API 21/21 与 Web 2/2 Production-only environment 和零
 deployment 回读。后续 API 已产生 10 条 Production 记录；application 密码轮换后的正式数据库 verifier、
 纠正 Vercel DSN Rotate、exact-SHA deployment、立即 disarm 与 DB-backed runtime gate 均已完成。Phase 70
-已完成首条 Ready Web deployment、立即 disarm 与零账号公共 smoke；Phase 71 API/Web authentication
-hardening 各一次 one-shot Ready/disarm、Google 404/隐藏、零状态、bundle scan 与 confirmation template
-回读也已完成。真实 Auth/邮件投递、DeepSeek、Cron 与邀请仍未执行；当前下一步是
-BootstrapInvitation → Auth/SMTP/Operator → DeepSeek。
+已完成首条 Ready Web deployment、立即 disarm 与零账号公共 smoke；Phase 71/72 又完成 authentication
+hardening、中断恢复、First Operator complete、recent-auth UI 与安全响应头受控部署，当前 deployment 与
+计数见 6.3。普通邀请、scanner-safe OTP、真实 Auth SMTP/R3-C 投递、Cron 与 DeepSeek 应用路径仍未执行；
+当前下一步只能从用户亲自输入 `/admin` 密码开始。
 
 官方约束来源：
 
