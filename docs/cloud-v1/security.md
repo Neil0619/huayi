@@ -186,6 +186,17 @@ owner context、generation/reservation 归属、task 成功或失败终态、价
   事务校验 analysis、candidate 和 merge target 的 owner/type/canonical key。该内部入口只接受固定
   `analysis.confirm` operation，撤销 PUBLIC/业务角色执行权；客户端不能借 candidate/target UUID
   跨租户读取、合并或把部分批次写入。
+- Hosted Web 的 Vercel 静态响应必须在所有 path 上统一返回 CSP、`Referrer-Policy: no-referrer`、
+  `X-Content-Type-Options: nosniff` 和禁止 camera/microphone/geolocation 的 `Permissions-Policy`。CSP
+  默认只允许同源脚本、样式、字体和 manifest；图片只额外允许 `data:`；frame、object、worker 与
+  frame ancestor 全部禁用。`connect-src` 只额外允许冻结的 exact API origin；`form-action` 除 API 外只
+  允许实际 OAuth 302 链需要的 exact Supabase project origin 与 `https://accounts.google.com`，因为 Chrome
+  可能继续对表单提交后的 redirect 执行该指令。不得使用 wildcard，也不得把两个 Provider origin 加入
+  script/connect allowlist。当前 acceptance API 与 Supabase project 精确固定；正式 production origin/
+  project 尚未冻结，不得猜测写入，发布前必须校准并重跑认证旅程。
+- 本阶段不设置 Cross-Origin-Opener-Policy。当前 Google 流程包含跨 origin 顶层导航，未来可能使用需要
+  opener 互操作的 OAuth popup；在没有浏览器回归证明前加入 COOP 会扩大兼容性风险。它必须作为独立安全
+  变更评估，不能顺手附加到本次明确缺失响应头修复。
 
 ## 3. 内容与模型安全
 

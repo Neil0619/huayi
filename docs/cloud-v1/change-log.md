@@ -3,6 +3,19 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-24：Hosted Web 固定最小安全响应头并保持 production origin 失败关闭
+
+- 当前 acceptance Web 线上响应只有平台 HSTS，仓库没有 CSP、Referrer-Policy、nosniff 或
+  Permissions-Policy；改为由 `apps/web/vercel.json` 对全部 path 统一输出四项固定响应头，避免依赖
+  Dashboard 手工状态；
+- CSP 只允许同源可执行/样式/字体/manifest、`data:` 图片和 acceptance exact API origin 的
+  connect/form，显式禁止 object/frame/worker/frame ancestor；`form-action` 另精确允许当前 Supabase
+  project 与 Google account origin，以兼容 Chrome 对 Google 注册原生 POST 后 302 链的检查，但 Provider
+  不进入 script/connect，也不使用 wildcard；
+- 正式 production origin 尚未冻结，不能猜测加入共享 allowlist；正式发布必须先冻结 exact Web/API
+  origin 并校准 CSP。COOP 因 Google redirect/popup 兼容性尚无浏览器证据而延期为独立决策。本次只形成
+  disarmed 候选，远端必须另走 Web-only 受控 deploy/disarm 与 header/auth 回读。
+
 ## 2026-08-23：密码注册改为显式邮件 OTP，并增加已确认中断账号原子恢复
 
 - 真实首位账号确认暴露两个缺口：动态 flow 未被 Supabase exact redirect allowlist 匹配，以及邮件扫描器

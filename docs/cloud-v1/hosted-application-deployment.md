@@ -222,6 +222,27 @@ Production environment 均为 `No Environment Variables Added`。本轮没有接
 `.vercel/` 只保存本机 project link，不提交。项目 ID、team ID、deployment ID 和 custom-domain 记录可写入
 无 secret 发布证据；token 与环境变量值不可写入仓库或聊天。
 
+### 3.2 Hosted Web 安全响应头
+
+Vercel 官方 `headers` 配置以 path pattern 为所有匹配响应追加固定 header。Web project 必须对
+`/(.*)` 同时设置 CSP、`Referrer-Policy: no-referrer`、`X-Content-Type-Options: nosniff` 与禁止
+camera/microphone/geolocation 的 `Permissions-Policy`，并让规则与 SPA rewrite 并存。CSP 只允许同源
+静态资源、`data:` 图片和 acceptance exact API origin 的 credentialed fetch/原生 POST；`form-action`
+另精确允许当前 Supabase project 与 Google account origin，保留 Chrome 对表单 302 链的兼容。它们不进入
+script/connect allowlist；frame、object、worker、base override 与其他第三方资源默认失败关闭。正式
+production 的 Web/API/Supabase project 尚未冻结，因此不得用 wildcard 或猜测值预放行；正式发布前另行
+替换为冻结的 exact origin。
+配置形状依据
+[Vercel project configuration: headers](https://vercel.com/docs/project-configuration/vercel-json#headers)，
+表单 redirect 风险依据 [CSP Level 3 form-action](https://www.w3.org/TR/CSP3/#directive-form-action)；不使用
+Dashboard-only header 作为仓库契约。
+
+2026-08-24 公网只读检查确认当前 Ready Web deployment 只有 HSTS，缺上述四个仓库控制的响应头。离线
+Fresh RED/GREEN 只能证明候选配置，尚未部署；必须保持 API/Web 双 disarm，待本批候选审查通过后按既有
+Web-only arm → 唯一 deployment record → 立即独立 disarm 顺序发布，再从 custom domain 回读所有 path 和
+asset。未完成该远端回读前不得把 Hosted Web security-header 门标记为通过。本次不配置 COOP，避免在没有
+Google redirect/popup 浏览器证据时引入新的 browsing-context 兼容性假设。
+
 2026-08-22 候选范围复核：当前工作树有 116 个 tracked 修改、103 个未跟踪交付文件、0 个 staged 项；
 没有冲突、symlink、超过 1 MiB 的候选、生成目录、归档/可执行/私钥文件或已知泄露 Resend key。通用
 `re_` 扫描只命中四个测试文件中的显式假值。该结果证明当前范围可继续收口，不等于已有可部署 commit；

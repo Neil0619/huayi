@@ -19,6 +19,23 @@ const manifest = JSON.parse(readFileSync("apps/store-extension/manifest.json", "
   unknown
 >;
 
+const hostedWebContentSecurityPolicy = [
+  "default-src 'self'",
+  "base-uri 'none'",
+  "object-src 'none'",
+  "frame-ancestors 'none'",
+  "frame-src 'none'",
+  "worker-src 'none'",
+  "script-src 'self'",
+  "style-src 'self'",
+  "font-src 'self'",
+  "img-src 'self' data:",
+  "connect-src 'self' https://api.acceptance.seen-said.cn",
+  "form-action 'self' https://api.acceptance.seen-said.cn https://kpadiulxkgckskcfydry.supabase.co https://accounts.google.com",
+  "manifest-src 'self'",
+  "upgrade-insecure-requests",
+].join("; ");
+
 describe("Cloud release trust materials", () => {
   it("pins the hosted Web build and SPA output contract", () => {
     expect(webVercel.framework).toBe("vite");
@@ -29,6 +46,23 @@ describe("Cloud release trust materials", () => {
     expect(webVercel.outputDirectory).toBe("dist");
     expect(webVercel.rewrites).toEqual([{ destination: "/index.html", source: "/(.*)" }]);
     expect(webVercel.git).toEqual({ deploymentEnabled: false });
+  });
+
+  it("pins fail-closed security headers for every hosted Web response", () => {
+    expect(webVercel.headers).toEqual([
+      {
+        headers: [
+          { key: "Content-Security-Policy", value: hostedWebContentSecurityPolicy },
+          { key: "Referrer-Policy", value: "no-referrer" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          {
+            key: "Permissions-Policy",
+            value: "camera=(), microphone=(), geolocation=()",
+          },
+        ],
+        source: "/(.*)",
+      },
+    ]);
   });
 
   it("keeps the Store single purpose on English understanding and the learning loop", () => {
