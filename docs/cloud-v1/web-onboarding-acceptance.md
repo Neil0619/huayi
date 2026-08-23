@@ -8,7 +8,7 @@ actual Web production bundle 证据证明这些能力能在一个新账号旅程
 1. 新用户从 `/join#<token>` 打开邀请，首个 Web 请求不携带 token；
 2. 邀请只领取一次，成功后地址栏立即清除 fragment；
 3. claim ticket 只进入固定 API 的原生 Google POST body，不进入 URL、Web Storage、DOM 文本或日志；
-4. Google callback 由 API 设置 HttpOnly session Cookie，并只重定向到固定 Web `/app`；
+4. Google callback 由 API 设置 HttpOnly session Cookie，并只重定向到固定 Web `/practice`；
 5. 新账号进入学习库，手动收录一个 Expression，随后从同一 CloudAuthority list/detail 重读；
 6. 所有浏览器 mutation 使用既有严格 contract、固定 origin、Cookie/CSRF、Idempotency-Key；公开测试
    snapshot 不含邀请、claim ticket、Cookie、CSRF、正文或幂等键。
@@ -33,7 +33,7 @@ Web /join#token
   → user confirms fake provider page
   → GET /v1/auth/callback?flow=<opaque>&code=<opaque>
   → Set-Cookie: huayi_session=...; HttpOnly; Secure; SameSite=Lax
-  → 302 Web /app
+  → 302 Web /practice
   → GET /v1/auth/csrf with Cookie + Origin
   → Web /library manual capture
   → POST /v1/learning-items with Cookie + Origin + CSRF + Idempotency-Key
@@ -122,7 +122,7 @@ interface OnboardingState {
 - claim：StrictMode 下浏览器只产生一个 claim 请求；错误 token/重复领取失败关闭；
 - native form：request 为 `application/x-www-form-urlencoded`，恰好一个 claimTicket；Provider URL 不含
   token/ticket；
-- callback：fake Provider 必须由用户点击，callback 才设置 session；随后 `/app` bootstrap 获得 full
+- callback：fake Provider 必须由用户点击，callback 才设置 session；随后 `/practice` bootstrap 获得 full
   access；
 - capture：`/library` 初始空，手动 Expression 写入后 list/detail 重读并聚焦详情；
 - proof：LearningItem POST 记录为 authenticated web + write-valid；缺 CSRF/Origin/key 仍由已有 authority

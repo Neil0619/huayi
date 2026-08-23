@@ -1,7 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
-import { App } from "./app.js";
+import { App, authenticatedLandingPath } from "./app.js";
 import { parseAuthRoute } from "./auth-route.js";
 import { createWebAnalysisApi } from "./analysis-api.js";
 import { fetchCsrfToken } from "./csrf-token.js";
@@ -135,9 +135,7 @@ createRoot(root).render(
       authRoute={authRoute}
       googleAuthenticationEnabled={bootstrap.environment?.VITE_GOOGLE_AUTHENTICATION === "enabled"}
       identity={identity}
-      onAuthenticated={(access) =>
-        location.assign(access === "data-rights" ? "/settings/data" : "/app")
-      }
+      onAuthenticated={(access) => location.assign(authenticatedLandingPath(access))}
       onPasswordRecoveryCompleted={() => location.assign("/login")}
       page={page}
       pairingId={pairingMatch?.[1]}

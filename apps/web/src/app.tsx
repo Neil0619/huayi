@@ -17,14 +17,17 @@ import { PasswordRecoveryPage, type PasswordRecoveryApi } from "./password-recov
 import type { PasswordRecoveryRoute } from "./password-recovery-route.js";
 import { WorkspaceShell } from "./workspace-shell.js";
 
+export function authenticatedLandingPath(access: "data-rights" | "full") {
+  return access === "data-rights" ? "/settings/data" : "/practice";
+}
+
 export function App({
   accountApi,
   api,
   identity,
   googleAuthenticationEnabled = false,
   authRoute,
-  onAuthenticated = (access) =>
-    location.assign(access === "data-rights" ? "/settings/data" : "/app"),
+  onAuthenticated = (access) => location.assign(authenticatedLandingPath(access)),
   onPasswordRecoveryCompleted = () => location.assign("/login"),
   page,
   pairingId,

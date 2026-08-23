@@ -140,6 +140,9 @@ pnpm check:architecture
 本阶段不重新设计视觉品牌、不加入图标或客户端 router，不改变页面命名、信息架构、练习/词典/设置
 业务，不处理邮件、域名、DNS、Resend、真实部署、Provider、安装或 Chrome。
 
+> 2026-08-24 补充：本节是 Phase 43 的历史边界。当前视觉契约已由
+> `cloud-web-ui-redesign.md` 取代；一级标签、路径、权限与单一 WorkspaceShell 契约继续有效。
+
 ## 7. 实现与验证证据
 
 - Fresh RED 为 4 个 focused Web 文件：缺少 WorkspaceShell module，另有 5 个预期行为失败和 12 个

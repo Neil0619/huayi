@@ -105,6 +105,7 @@ describe("Cloud foundation ordinary Google login", () => {
     );
 
     expect(callback.status).toBe(302);
+    expect(callback.headers.get("location")).toBe(`${webOrigin}/practice`);
     expect(callback.headers.get("cache-control")).toBe("private, no-store");
     expect(callback.headers.get("referrer-policy")).toBe("no-referrer");
     expect(callback.headers.get("set-cookie")).toContain("HttpOnly; Secure; SameSite=Lax; Path=/");

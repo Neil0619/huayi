@@ -42,7 +42,7 @@
   既有 profile 邀请失败且不消费；active/disabled/deleting 为 full/data-rights/reject；业务 role 不能直接
   写 method，forced RLS、账号导出与 actual-bundle 统一 401/零 Cookie 均有回归；
 - 普通 Google 登录：identity-owned strict 空 request，JSON/form 分支、固定 redirect、15 分钟 login flow、
-  callback no-store/no-referrer；actual Web production bundle 覆盖 active→`/app`、disabled→
+  callback no-store/no-referrer；actual Web production bundle 覆盖 active→`/practice`、disabled→
   `/settings/data`、未登记 google method→统一失败/零 Cookie，并证明 flow/code/Provider state/session 不进入
   Web URL、Storage 或公开 snapshot。Fresh RED→GREEN 后 contracts 6/6、Cloud foundation HTTP 11/11、
   专项 Playwright 3/3 与完整离线 Playwright 108/108 通过。详见
@@ -428,10 +428,10 @@ timeout 配置上限和三个非 analysis DeepSeek adapter 的实际 abort 没�
   TypeScript 门禁，不能只依赖 Playwright 运行时转译；
 - onboarding journey 从 `/join#token` 的 actual bundle 开始，证明首个 document request 无 fragment、
   claim 仅一次、地址栏清理、原生 Google POST、fake Provider 用户点击、callback Secure HttpOnly Cookie、
-  `/app` bootstrap 和 manual LearningItem 写后重读。邮箱密码仍要求真实确认，不得用免确认 fake 代替；
+  `/practice` bootstrap 和 manual LearningItem 写后重读。邮箱密码仍要求真实确认，不得用免确认 fake 代替；
 - password authentication journey 必须从同一 actual `/join#token` 领取后提交密码注册，202 只显示待邮箱
   确认且零 session；用户显式点击本地 fake mail/provider 确认链接后，固定 callback 才可设置 HttpOnly
-  Cookie 并进入 `/app`。清 Cookie 后 `/login` 先覆盖统一错误，再由正确密码创建新 session；两个密码
+  Cookie 并进入 `/practice`。清 Cookie 后 `/login` 先覆盖统一错误，再由正确密码创建新 session；两个密码
   响应必须 private/no-store，snapshot/Web Storage/URL 不含邮箱、密码、ticket、flow/code 或会话秘密；
 - analysis review journey 从 actual `/analysis` 提交无 action 的 strict manual passage，消费
   started/preview/completed
@@ -762,7 +762,7 @@ confirmed Auth user/password method/profile 为 `1/1/2`、google method/Web sess
   原子恢复只接受仍有效 invitation、唯一 bound claim/flow、confirmed email identity 与零账号数据；
 - API 恢复必须先做 Provider password proof，再执行原子函数，失败无 Cookie/无 Web session；invitation
   token 不得进入 Provider command。Web 失败保留内存 token/email，成功才清 URL；
-- actual bundle 必须覆盖 scanner/repeated GET confirm、显式 OTP POST、`/app` Cookie 与之后密码重登；
+- actual bundle 必须覆盖 scanner/repeated GET confirm、显式 OTP POST、`/practice` Cookie 与之后密码重登；
   旧 GET password callback + code journey 不再是当前契约。
 - First Operator 必须先完成 post-completion verifier，再进入 `/admin`：首次 access 的统一 `forbidden`
   显示密码重新认证表单；提交只调用既有 `reauthenticatePassword(password, currentCsrf)`，成功后轮换

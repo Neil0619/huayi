@@ -101,7 +101,8 @@ Web 与 API 为独立 origin；API CORS 始终只允许固定 `HUAYI_WEB_ORIGIN`
 `Vary: Origin`。只有 Web origin 携带 Cookie；Extension 使用 Authorization 和
 client-version 且 `credentials=omit`。允许方法必须覆盖公开路由实际使用的 GET/POST/PUT/PATCH/DELETE
 与 OPTIONS；尤其学习项编辑和账号偏好更新的 PATCH 预检不得被全局 CORS 提前拒绝。OAuth callback
-绝对跳转至 Web `/app`。词表下载的固定 `Content-Disposition` 必须列入 CORS exposed headers，否则
+绝对跳转至 Web `/practice`；data-rights session 仍跳转 `/settings/data`。词表下载的固定
+`Content-Disposition` 必须列入 CORS exposed headers，否则
 Web 即使收到成功正文也不能校验文件契约。Web 随后以 HttpOnly
 session Cookie 和固定 Origin 调用 `/v1/auth/csrf`，原子轮换服务端 hash 后取得 token；长期 token
 不进入 OAuth query。

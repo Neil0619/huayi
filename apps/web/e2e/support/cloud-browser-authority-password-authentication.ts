@@ -171,7 +171,7 @@ export function createCloudBrowserPasswordAuthenticationAuthority(
       body: "",
       headers: {
         "cache-control": "private, no-store",
-        location: `${webOrigin}/app`,
+        location: `${webOrigin}/practice`,
         "referrer-policy": "no-referrer",
         "set-cookie": `huayi_session=${registrationSession}; HttpOnly; Secure; SameSite=Lax; Path=/`,
       },

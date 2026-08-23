@@ -111,7 +111,7 @@ export function createCloudBrowserGoogleAuthenticationAuthority(seed: GoogleAuth
     await route.fulfill({
       headers: {
         "cache-control": "private, no-store",
-        location: `${webOrigin}${access === "full" ? "/app" : "/settings/data"}`,
+        location: `${webOrigin}${access === "full" ? "/practice" : "/settings/data"}`,
         "referrer-policy": "no-referrer",
         "set-cookie": `huayi_session=${session}; HttpOnly; Secure; SameSite=Lax; Path=/`,
       },

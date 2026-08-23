@@ -3,9 +3,9 @@
 .dialogue-session,
 .practice-history-filters,
 .practice-history-layout {
-  max-width: 70rem;
+  max-width: 68rem;
   margin: 0 auto;
-  padding: var(--space-5);
+  padding: clamp(var(--space-6), 5vw, var(--space-12));
   border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
   background: var(--surface-default);
@@ -16,7 +16,7 @@
 .practice-history-filters,
 .practice-history-layout,
 .practice-history-page > p {
-  max-width: 70rem;
+  max-width: 68rem;
   margin-right: auto;
   margin-left: auto;
 }
@@ -27,6 +27,20 @@
   gap: var(--space-3);
   margin-bottom: var(--space-5);
   box-shadow: none;
+}
+
+.practice-history-link {
+  margin-top: calc(var(--space-4) * -1);
+  margin-bottom: var(--space-6);
+  text-align: right;
+}
+
+.practice-history-link a {
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-weight: 650;
+  text-decoration-color: var(--border-strong);
+  text-underline-offset: var(--space-1);
 }
 
 .practice-history-filters label {
@@ -66,17 +80,27 @@
   box-shadow: var(--card-shadow);
 }
 
+.practice-history-list {
+  padding: var(--space-2);
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
 .practice-history-list button {
   display: grid;
   width: 100%;
   height: auto;
   gap: var(--space-1);
   margin-top: var(--space-2);
+  padding: var(--space-3);
+  border-color: transparent;
+  background: transparent;
   text-align: left;
 }
 
 .practice-history-list button[aria-pressed="true"] {
-  border-color: var(--focus-ring);
+  border-color: var(--border-default);
   background: var(--surface-tint);
 }
 
@@ -243,10 +267,28 @@
 .practice-queue article,
 .practice-prompt,
 .practice-feedback {
-  padding: var(--space-4);
+  padding: var(--space-5);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
   background: var(--surface-strong);
+}
+
+.practice-queue article {
+  display: grid;
+  align-content: start;
+}
+
+.practice-queue article h3 {
+  margin-bottom: var(--space-2);
+  font-size: 1.35rem;
+  font-weight: 600;
+}
+
+.practice-queue article button {
+  margin-top: auto;
+  border-color: transparent;
+  color: var(--text-on-action);
+  background: var(--action-primary);
 }
 
 .practice-session {

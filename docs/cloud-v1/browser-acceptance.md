@@ -329,12 +329,12 @@ proof 和聚合 Provider 次数证明浏览器组合。真实 task/quota/ledger/
   恢复，approve 恰好一次且不创建 ExtensionSession。390px、reduced-motion、Web Storage 与 snapshot
   脱敏通过；完整离线浏览器门禁更新为 99/99，专项方案见 `pairing-approval-acceptance.md`。
 - PasswordAuthentication actual bundle 从 `/join#token` 覆盖 strict 密码注册 202、零 session、显式 fake
-  mailbox confirmation、callback hardened Cookie 与 `/app`；清 Cookie 后从 `/login` 覆盖统一错误与正确
+  mailbox confirmation、callback hardened Cookie 与 `/practice`；清 Cookie 后从 `/login` 覆盖统一错误与正确
   密码的新 session。两个密码响应均 private/no-store，390px、reduced-motion、Web Storage 与 snapshot
   脱敏通过；完整离线浏览器门禁更新为 100/100，专项方案见
   `password-authentication-acceptance.md`。
 - GoogleAuthentication actual bundle 从 production `/login` 的空原生 POST 进入独立 fake Provider；
-  active callback 创建 full Cookie 并进入 `/app`，disabled 只创建 data-rights Cookie 并进入
+  active callback 创建 full Cookie 并进入 `/practice`，disabled 只创建 data-rights Cookie 并进入
   `/settings/data`，未登记 google method 统一失败且零 Cookie。start/callback no-store、callback
   no-referrer、390px、reduced-motion、Web Storage 与公开 snapshot 脱敏同时通过；完整离线浏览器门禁
   更新为 108/108，专项方案见 `google-authentication-acceptance.md`。

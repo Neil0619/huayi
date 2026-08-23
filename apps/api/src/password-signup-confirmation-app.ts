@@ -135,7 +135,7 @@ export function createPasswordSignupConfirmationApp(dependencies: CloudFoundatio
       );
       const session = await createCloudWebSession(dependencies, authSession);
       context.header("Set-Cookie", session.setCookie);
-      return context.redirect(`${dependencies.webOrigin}/app`, 302);
+      return context.redirect(`${dependencies.webOrigin}/practice`, 302);
     } catch (error) {
       if (!(error instanceof CloudFault) || error.code !== "authentication_required") throw error;
       return context.html(confirmationPage(input.flow, true), 400);

@@ -188,75 +188,84 @@ export function LearningLibraryPage({ api }: { readonly api: LearningLibraryApi 
         </div>
         <p>浏览、维护和归档已确认的表达与句型；排期与练习记录由云端持续保留。</p>
       </header>
-      <form className="library-filters" onSubmit={submitFilters}>
-        <label>
-          类型
-          <select
-            name="type"
-            onChange={(event) => setType(event.currentTarget.value as typeof type)}
-            value={type}
-          >
-            <option value="">全部</option>
-            <option value="expression">表达</option>
-            <option value="sentence-pattern">句型</option>
-          </select>
-        </label>
-        <label>
-          状态
-          <select
-            name="archived"
-            onChange={(event) => setArchived(event.currentTarget.value === "true")}
-            value={String(archived)}
-          >
-            <option value="false">使用中</option>
-            <option value="true">已归档</option>
-          </select>
-        </label>
-        <label>
-          排期
-          <select
-            name="due"
-            onChange={(event) => setDue(event.currentTarget.value as typeof due)}
-            value={due}
-          >
-            <option value="">全部</option>
-            <option value="due">已到期</option>
-            <option value="new">新学习项</option>
-          </select>
-        </label>
-        <label>
-          标签
-          <input name="tag" onChange={(event) => setTag(event.currentTarget.value)} value={tag} />
-        </label>
-        <label>
-          系统属性
-          <input
-            name="systemAttribute"
-            onChange={(event) => setSystemAttribute(event.currentTarget.value)}
-            value={systemAttribute}
+      <details className="library-tools utility-disclosure">
+        <summary>筛选与收录</summary>
+        <div className="utility-disclosure-content">
+          <form className="library-filters" onSubmit={submitFilters}>
+            <label>
+              类型
+              <select
+                name="type"
+                onChange={(event) => setType(event.currentTarget.value as typeof type)}
+                value={type}
+              >
+                <option value="">全部</option>
+                <option value="expression">表达</option>
+                <option value="sentence-pattern">句型</option>
+              </select>
+            </label>
+            <label>
+              状态
+              <select
+                name="archived"
+                onChange={(event) => setArchived(event.currentTarget.value === "true")}
+                value={String(archived)}
+              >
+                <option value="false">使用中</option>
+                <option value="true">已归档</option>
+              </select>
+            </label>
+            <label>
+              排期
+              <select
+                name="due"
+                onChange={(event) => setDue(event.currentTarget.value as typeof due)}
+                value={due}
+              >
+                <option value="">全部</option>
+                <option value="due">已到期</option>
+                <option value="new">新学习项</option>
+              </select>
+            </label>
+            <label>
+              标签
+              <input
+                name="tag"
+                onChange={(event) => setTag(event.currentTarget.value)}
+                value={tag}
+              />
+            </label>
+            <label>
+              系统属性
+              <input
+                name="systemAttribute"
+                onChange={(event) => setSystemAttribute(event.currentTarget.value)}
+                value={systemAttribute}
+              />
+            </label>
+            <label>
+              文本搜索
+              <input
+                maxLength={200}
+                name="query"
+                onChange={(event) => setQuery(event.currentTarget.value)}
+                value={query}
+              />
+            </label>
+            <button type="submit">应用筛选</button>
+          </form>
+          <ManualLearningItemForm
+            createLearningItem={api.createLearningItem}
+            idempotencyKey={() => crypto.randomUUID()}
+            onCreated={async (created) => {
+              const listLoaded = await load();
+              const detailLoaded = await open(created.item.id);
+              if (!listLoaded || !detailLoaded) throw new Error("Created item refresh failed.");
+              setStatus("已收录并从学习库重新载入。详情已打开。");
+            }}
           />
-        </label>
-        <label>
-          文本搜索
-          <input
-            maxLength={200}
-            name="query"
-            onChange={(event) => setQuery(event.currentTarget.value)}
-            value={query}
-          />
-        </label>
-        <button type="submit">应用筛选</button>
-      </form>
-      <ManualLearningItemForm
-        createLearningItem={api.createLearningItem}
-        idempotencyKey={() => crypto.randomUUID()}
-        onCreated={async (created) => {
-          const listLoaded = await load();
-          const detailLoaded = await open(created.item.id);
-          if (!listLoaded || !detailLoaded) throw new Error("Created item refresh failed.");
-          setStatus("已收录并从学习库重新载入。详情已打开。");
-        }}
-      />
+        </div>
+      </details>
       <p aria-live="polite" className="sr-only">
         {status}
       </p>

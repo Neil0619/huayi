@@ -6,13 +6,20 @@ import {
   cloudWordCopyResponseSchema,
   idempotencyKeySchema,
   listWordEntriesQuerySchema,
+  normalizeHeadword,
+  upsertWordRequestSchema,
+  upsertWordResponseSchema,
   wordEntryDetailQuerySchema,
   wordEntryDetailResponseSchema,
   wordEntryListResponseSchema,
   type ApiError,
 } from "@huayi/cloud-contracts";
 
-import { cloudQueryObject, cloudRequestBody } from "./cloud-browser-authority-request.js";
+import {
+  cloudQueryObject,
+  cloudRequestBody,
+  type CloudStoredReplay,
+} from "./cloud-browser-authority-request.js";
 import type {
   CloudBrowserAuthenticatedAs,
   CloudBrowserRequestFact,
@@ -21,6 +28,7 @@ import type {
 interface WordAuthorityContext {
   authentication(request: Request): CloudBrowserAuthenticatedAs;
   json(route: Route, status: number, body: unknown): Promise<void>;
+  mutationProof(request: Request): boolean;
   record(request: Request, proof: CloudBrowserRequestFact["proof"]): void;
   reject(
     route: Route,
@@ -28,6 +36,7 @@ interface WordAuthorityContext {
     code: ApiError["error"]["code"],
     proof?: CloudBrowserRequestFact["proof"],
   ): Promise<void>;
+  writeProof(request: Request): string | null;
 }
 
 type StoredWord = ReturnType<typeof wordEntryDetailResponseSchema.parse>;
@@ -42,23 +51,26 @@ function extensionWriteIsValid(request: Request, context: WordAuthorityContext):
 
 export function createCloudBrowserWordAuthority() {
   const contextKeys = new Map<string, Set<string>>();
+  const replays = new Map<string, CloudStoredReplay>();
   const words = new Map<string, StoredWord>();
   let copyCount = 0;
   let importCount = 0;
   let nextWordSequence = 0;
 
-  const createWord = (headword: string, at: string): StoredWord =>
-    wordEntryDetailResponseSchema.parse({
+  const createWord = (headword: string, at: string): StoredWord => {
+    const canonicalKey = normalizeHeadword(headword);
+    return wordEntryDetailResponseSchema.parse({
       contexts: { items: [], nextCursor: null },
       word: {
-        canonicalKey: headword.toLowerCase(),
+        canonicalKey,
         createdAt: at,
-        headword: headword.toLowerCase(),
+        headword,
         id: `word-${++nextWordSequence}`,
         revision: 1,
         updatedAt: at,
       },
     });
+  };
 
   return {
     copyCount: () => copyCount,
@@ -72,7 +84,7 @@ export function createCloudBrowserWordAuthority() {
       }),
     importEudic(entries: readonly { addedAt: string; contextLine?: string; headword: string }[]) {
       for (const entry of entries) {
-        const canonicalKey = entry.headword.toLowerCase();
+        const canonicalKey = normalizeHeadword(entry.headword);
         let word = words.get(canonicalKey) ?? createWord(entry.headword, entry.addedAt);
         if (entry.contextLine !== undefined) {
           word = wordEntryDetailResponseSchema.parse({
@@ -109,7 +121,7 @@ export function createCloudBrowserWordAuthority() {
           return true;
         }
         copyCount += 1;
-        const canonicalKey = parsed.data.headword.toLowerCase();
+        const canonicalKey = normalizeHeadword(parsed.data.headword);
         const word =
           words.get(canonicalKey) ?? createWord(parsed.data.headword, parsed.data.collectedAt);
         const contextCreated = word.contexts.items.every(
@@ -156,7 +168,7 @@ export function createCloudBrowserWordAuthority() {
         }
         importCount += 1;
         const entries = parsed.data.entries.map((entry) => {
-          const canonicalKey = entry.headword.toLowerCase();
+          const canonicalKey = normalizeHeadword(entry.headword);
           const existing = words.get(canonicalKey);
           let word =
             existing ??
@@ -241,6 +253,90 @@ export function createCloudBrowserWordAuthority() {
             nextCursor: null,
           }),
         );
+        return true;
+      }
+      if (url.pathname === "/v1/words" && request.method() === "POST") {
+        if (context.authentication(request) !== "web") {
+          await context.reject(route, 401, "authentication_required", "write-invalid");
+          return true;
+        }
+        if (!context.mutationProof(request)) {
+          await context.reject(route, 403, "forbidden", "write-invalid");
+          return true;
+        }
+        const parsed = upsertWordRequestSchema.safeParse(cloudRequestBody(request));
+        if (!parsed.success) {
+          await context.reject(route, 400, "invalid_request", "write-invalid");
+          return true;
+        }
+        const key = context.writeProof(request);
+        if (key === null) {
+          await context.reject(route, 400, "invalid_request", "write-invalid");
+          return true;
+        }
+        const replayKey = `${url.pathname}\u0000${key}`;
+        const requestHash = JSON.stringify(parsed.data);
+        const prior = replays.get(replayKey);
+        if (prior !== undefined) {
+          if (prior.hash !== requestHash) {
+            await context.reject(route, 409, "idempotency_conflict", "write-valid");
+            return true;
+          }
+          context.record(request, "write-valid");
+          await context.json(route, 200, structuredClone(prior.response));
+          return true;
+        }
+        const at = "2026-08-13T10:00:00.000Z";
+        const canonicalKey = normalizeHeadword(parsed.data.headword);
+        const existing = words.get(canonicalKey);
+        let word = existing ?? createWord(parsed.data.headword, at);
+        if (existing === undefined && parsed.data.notes !== undefined) {
+          word = wordEntryDetailResponseSchema.parse({
+            ...word,
+            word: { ...word.word, notes: parsed.data.notes },
+          });
+        }
+        let contextOutcome = "omitted" as "created" | "duplicate" | "omitted";
+        const manualContext = parsed.data.context;
+        if (manualContext !== undefined) {
+          const duplicate = word.contexts.items.some(
+            (item) =>
+              item.sourceText === manualContext.sourceText &&
+              item.contextualMeaningZh === manualContext.contextualMeaningZh &&
+              item.sourceTitle === manualContext.sourceTitle,
+          );
+          contextOutcome = duplicate ? "duplicate" : "created";
+          if (!duplicate) {
+            word = wordEntryDetailResponseSchema.parse({
+              contexts: {
+                items: [
+                  ...word.contexts.items,
+                  {
+                    id: `${word.word.id}-context-${word.contexts.items.length + 1}`,
+                    observedAt: at,
+                    sourceType: "manual",
+                    ...manualContext,
+                  },
+                ],
+                nextCursor: null,
+              },
+              word: {
+                ...word.word,
+                revision: existing === undefined ? word.word.revision : word.word.revision + 1,
+                updatedAt: at,
+              },
+            });
+          }
+        }
+        words.set(canonicalKey, word);
+        context.record(request, "write-valid");
+        const response = upsertWordResponseSchema.parse({
+          contextOutcome,
+          word: word.word,
+          wordOutcome: existing === undefined ? "created" : "existing",
+        });
+        replays.set(replayKey, { hash: requestHash, response: structuredClone(response) });
+        await context.json(route, 200, response);
         return true;
       }
       if (url.pathname.startsWith("/v1/words/") && request.method() === "GET") {

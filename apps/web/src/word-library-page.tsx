@@ -197,18 +197,23 @@ export function WordLibraryPage({
           </a>
           <a href="/words/wordbooks">外部词典</a>
         </nav>
-        <ManualWordForm api={api} idempotencyKey={idempotencyKey} onSaved={refreshSavedWord} />
-        <form className="word-filters" onSubmit={submit}>
-          <label htmlFor="word-query">搜索规范词头</label>
-          <input
-            id="word-query"
-            maxLength={200}
-            name="query"
-            onChange={(event) => setQuery(event.currentTarget.value)}
-            value={query}
-          />
-          <button type="submit">搜索</button>
-        </form>
+        <details className="utility-disclosure word-tools">
+          <summary>搜索与手动收录</summary>
+          <div className="utility-disclosure-content">
+            <ManualWordForm api={api} idempotencyKey={idempotencyKey} onSaved={refreshSavedWord} />
+            <form className="word-filters" onSubmit={submit}>
+              <label htmlFor="word-query">搜索规范词头</label>
+              <input
+                id="word-query"
+                maxLength={200}
+                name="query"
+                onChange={(event) => setQuery(event.currentTarget.value)}
+                value={query}
+              />
+              <button type="submit">搜索</button>
+            </form>
+          </div>
+        </details>
         <p aria-atomic="true" aria-live="polite" className="word-status">
           {status}
         </p>

@@ -1,19 +1,34 @@
 .study-inbox-tabs {
-  position: fixed;
-  z-index: 4;
-  top: var(--space-4);
-  right: var(--space-6);
+  position: static;
   display: flex;
-  gap: var(--space-compact);
-  padding: var(--space-1);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-control);
-  background: var(--surface-default);
+  max-width: 74rem;
+  justify-content: flex-end;
+  gap: var(--space-5);
+  margin: 0 auto var(--space-6);
+  padding: 0 0 var(--space-hairline);
+  border: 0;
+  border-bottom: 1px solid var(--border-default);
+  border-radius: 0;
+  background: transparent;
+}
+
+.study-inbox-tabs button {
+  min-height: var(--control-height);
+  padding: var(--space-2) 0;
+  border: 0;
+  border-bottom-color: transparent;
+  border-bottom-style: solid;
+  border-bottom-width: var(--space-hairline);
+  border-radius: 0;
+  color: var(--text-secondary);
+  background: transparent;
+  font-size: 0.82rem;
 }
 
 .study-inbox-tabs button[aria-selected="true"] {
-  color: var(--surface-strong);
-  background: var(--surface-inverse);
+  border-bottom-color: var(--action-primary);
+  color: var(--text-primary);
+  background: transparent;
 }
 
 .study-capture-shell textarea {
@@ -23,7 +38,6 @@
 
 @media (max-width: 48rem) {
   .study-inbox-tabs {
-    position: static;
-    margin: var(--space-3);
+    justify-content: flex-start;
   }
 }

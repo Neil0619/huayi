@@ -10,6 +10,10 @@ Store Edition 是一个产品、两个客户端：Store Extension 负责在网�
 App 负责完整分析、待整理内容、学习库、生词、历史和练习。Classic 0.13 与 Native Host 不在本次
 范围内。
 
+完整账号完成 Google、密码登录或邀请确认后，固定进入 `/practice`，把“今日练习”作为工作台默认
+任务；`/app` 继续是“待整理”一级页面，不承担认证默认入口。data-rights session 仍只进入
+`/settings/data`。
+
 ## 2. 用户与成功标准
 
 V1 面向持有一次性邀请链接的少量中文母语英语学习者。成功必须同时满足：

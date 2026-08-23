@@ -18,7 +18,8 @@ import {
   type PracticeSession,
 } from "@huayi/cloud-contracts";
 
-export type PracticeAuthoritySeed = "dialogue-practice" | "pending-sentence-practice";
+export type PracticeAuthoritySeed =
+  "dialogue-practice" | "empty-practice" | "pending-sentence-practice";
 
 interface Hooks {
   json(route: Route, status: number, body: unknown): Promise<void>;
@@ -166,7 +167,7 @@ export function createCloudBrowserPracticeAuthority(seed: PracticeAuthoritySeed)
       currentSession: session,
       dailyGoal: 2,
       date: "2026-08-13",
-      items: queueItems,
+      items: seed === "empty-practice" ? [] : queueItems,
       timezone: "Asia/Shanghai",
     });
 

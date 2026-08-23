@@ -41,7 +41,7 @@ test("an active existing Google account signs in through the production Web form
   });
   const appDocumentReferers: (string | undefined)[] = [];
   page.on("request", (request) => {
-    if (request.resourceType() === "document" && request.url() === `${webOrigin}/app`) {
+    if (request.resourceType() === "document" && request.url() === `${webOrigin}/practice`) {
       appDocumentReferers.push(request.headers().referer);
     }
   });
@@ -58,8 +58,9 @@ test("an active existing Google account signs in through the production Web form
   expect(callback.status()).toBe(302);
   expect(callback.headers()["cache-control"]).toBe("private, no-store");
   expect(callback.headers()["referrer-policy"]).toBe("no-referrer");
-  await expect(page).toHaveURL(`${webOrigin}/app`);
-  await expect(page.getByRole("heading", { level: 1, name: "待分析" })).toBeVisible();
+  await expect(page).toHaveURL(`${webOrigin}/practice`);
+  await expect(page.getByRole("heading", { level: 1, name: "今日练习" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "今天没有待练习内容" })).toBeVisible();
   expect(appDocumentReferers).toEqual([undefined]);
   const sessionCookie = (await page.context().cookies(apiOrigin)).find(
     (cookie) => cookie.name === "huayi_session",

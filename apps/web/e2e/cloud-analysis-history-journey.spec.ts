@@ -18,6 +18,7 @@ test("analysis history keeps review and archive independent before linked captur
   await authority.install(page);
 
   await page.goto(`${webOrigin}/history`);
+  await page.getByText("筛选记录", { exact: true }).click();
   await page.getByLabel("搜索").fill("frank");
   await page.getByLabel("来源").selectOption("study-capture");
   await page.getByLabel("选区").selectOption("passage");

@@ -19,7 +19,7 @@ test("workspace navigation stays canonical across mobile and desktop routes", as
       const computed = getComputedStyle(element);
       return { borderRadius: computed.borderRadius, gap: computed.gap };
     }),
-  ).toEqual({ borderRadius: "12px", gap: "5.6px" });
+  ).toEqual({ borderRadius: "0px", gap: "20px" });
   const summary = page.locator(".workspace-navigation > summary");
   const navigation = page.getByRole("navigation", { name: "主导航" });
   await expect(summary).toContainText("待整理");
@@ -63,6 +63,135 @@ test("workspace navigation stays canonical across mobile and desktop routes", as
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
     true,
   );
+
+  await page.goto(`${webOrigin}/app`);
+  await expect(inboxTabs).toBeVisible();
+  await expect(inboxTabs).toHaveCSS("position", "static");
+  const desktopTabs = await inboxTabs.boundingBox();
+  const desktopHeading = await page
+    .getByRole("heading", { level: 1, name: "待分析" })
+    .boundingBox();
+  expect(desktopTabs).not.toBeNull();
+  expect(desktopHeading).not.toBeNull();
+  expect((desktopTabs?.y ?? 0) + (desktopTabs?.height ?? 0)).toBeLessThanOrEqual(
+    desktopHeading?.y ?? 0,
+  );
+
+  await page.setViewportSize({ height: 900, width: 769 });
+  for (const [path, disclosureName] of [
+    ["/library", "筛选与收录"],
+    ["/history", "筛选记录"],
+  ] as const) {
+    await page.goto(`${webOrigin}${path}`);
+    await page.getByText(disclosureName, { exact: true }).click();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
+    );
+  }
+});
+
+test("word tools open from the keyboard and preserve focus after manual collection", async ({
+  page,
+}) => {
+  const authority = createCloudBrowserAuthority({ authenticated: true, seed: "empty" });
+  await authority.install(page);
+
+  await page.goto(`${webOrigin}/words`);
+  const disclosure = page.locator("details.word-tools");
+  const tools = disclosure.locator(":scope > summary");
+  const headword = page.getByRole("textbox", { name: "英文词头或短语" });
+  await expect(disclosure).not.toHaveAttribute("open", "");
+  await expect(headword).toBeHidden();
+  await tools.focus();
+  await tools.press("Enter");
+  await expect(disclosure).toHaveAttribute("open", "");
+  await expect(headword).toBeVisible();
+  await headword.fill("serendipity");
+  await page.getByRole("button", { name: "收录词条" }).click();
+  await expect(page.getByRole("status")).toContainText("词条已收录");
+  await expect(headword).toBeFocused();
+  await expect(headword).toHaveValue("");
+  await expect(page.getByRole("button", { name: "serendipity" })).toBeVisible();
+
+  const manualUpsert = await page.evaluate(async () => {
+    const csrfResponse = await fetch("https://api.huayi.invalid/v1/auth/csrf", {
+      credentials: "include",
+    });
+    const csrf = (await csrfResponse.json()) as { csrfToken: string };
+    const body = {
+      context: { sourceText: "A café d’art rewards close attention." },
+      headword: "  CAFÉ\tD’ART  ",
+    };
+    const invalidBodyWithoutCsrf = await fetch("https://api.huayi.invalid/v1/words", {
+      body: JSON.stringify({ headword: "" }),
+      credentials: "include",
+      headers: { "content-type": "application/json" },
+      method: "POST",
+    });
+    const missingIdempotencyKey = await fetch("https://api.huayi.invalid/v1/words", {
+      body: JSON.stringify(body),
+      credentials: "include",
+      headers: {
+        "content-type": "application/json",
+        "x-csrf-token": csrf.csrfToken,
+      },
+      method: "POST",
+    });
+    const submit = async (key: string, value: unknown) => {
+      const response = await fetch("https://api.huayi.invalid/v1/words", {
+        body: JSON.stringify(value),
+        credentials: "include",
+        headers: {
+          "content-type": "application/json",
+          "idempotency-key": key,
+          "x-csrf-token": csrf.csrfToken,
+        },
+        method: "POST",
+      });
+      return { body: await response.json(), status: response.status };
+    };
+    const first = await submit("cloud-e2e-word-upsert-000000000001", body);
+    const replay = await submit("cloud-e2e-word-upsert-000000000001", body);
+    const conflict = await submit("cloud-e2e-word-upsert-000000000001", {
+      ...body,
+      context: { sourceText: "A changed context must conflict." },
+    });
+    const existing = await submit("cloud-e2e-word-upsert-000000000002", {
+      ...body,
+      context: { sourceText: "A second observation advances the revision." },
+    });
+    return {
+      conflict,
+      existing,
+      first,
+      invalidBodyWithoutCsrf: invalidBodyWithoutCsrf.status,
+      missingIdempotencyKey: missingIdempotencyKey.status,
+      replay,
+    };
+  });
+  expect(manualUpsert.invalidBodyWithoutCsrf).toBe(403);
+  expect(manualUpsert.missingIdempotencyKey).toBe(400);
+  expect(manualUpsert.first).toMatchObject({
+    body: {
+      contextOutcome: "created",
+      word: { canonicalKey: "café d'art", headword: "CAFÉ\tD’ART", revision: 1 },
+      wordOutcome: "created",
+    },
+    status: 200,
+  });
+  expect(manualUpsert.replay).toEqual(manualUpsert.first);
+  expect(manualUpsert.conflict).toMatchObject({
+    body: { error: { code: "idempotency_conflict" } },
+    status: 409,
+  });
+  expect(manualUpsert.existing).toMatchObject({
+    body: {
+      contextOutcome: "created",
+      word: { canonicalKey: "café d'art", revision: 2 },
+      wordOutcome: "existing",
+    },
+    status: 200,
+  });
 });
 
 test("actual Web bundle confirms one candidate and rereads it from the learning library", async ({
@@ -86,6 +215,7 @@ test("actual Web bundle confirms one candidate and rereads it from the learning 
   await page.getByRole("link", { name: "学习库" }).click();
   await expect(page).toHaveURL(`${webOrigin}/library`);
   await expect(page.getByRole("heading", { name: "学习库", level: 1 })).toBeVisible();
+  await page.getByText("筛选与收录", { exact: true }).click();
   await expect(page.getByRole("button", { name: /to be completely frank/u })).toBeVisible();
   await page.getByRole("button", { name: /to be completely frank/u }).click();
   await page.getByRole("button", { name: "归档学习项" }).click();
@@ -104,6 +234,7 @@ test("actual Web bundle confirms one candidate and rereads it from the learning 
 
   authority.markLearningItemPracticed("item-1");
   await page.reload();
+  await page.getByText("筛选与收录", { exact: true }).click();
   await page.getByRole("button", { name: /to be completely frank/u }).click();
   await expect(page.getByRole("button", { name: "删除学习项", exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: "归档学习项" }).click();
