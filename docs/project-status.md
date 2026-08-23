@@ -1671,12 +1671,18 @@ passed; first Operator empty`。候选已提交推送，0012 已实际 push；�
 - 0013 migration 保留 bound expired claim，并新增只授予 context setter 的原子恢复函数；Web 仅在 claim
   失败时用原 invitation token + email/password proof 恢复，成功后才清 URL；
 - 设计/实施计划审查、focused/full 验证与完整 macOS 门均已通过；候选 `be38942` 已在双关闭下推送，
-  API/Web 仍为 14/3 条历史 deployment 且新增均为 0；两份 Vercel 配置继续保持 disarmed；
+  Vercel 默认 6/7 状态筛选下 API/Web 可见数仍为 14/3 且新增均为 0；两份 Vercel 配置继续保持 disarmed；
 - 2026-08-24 真实 status 精确为 `registration-interrupted`；0013 已实际应用，migration-chain、recovery
   function/ACL diagnostic 与 application verifier 均通过；
 - Supabase Site URL 保持 `https://app.acceptance.seen-said.cn`；五条 43-character query-aware redirect 已
   逐字符回读。Confirm sign up 保存并重新加载后为 `{{ .Token }}` + `{{ .RedirectTo }}`，不含
   `{{ .ConfirmationURL }}`；Custom SMTP 未改，Resend tracking 仍 disabled，未轮换密钥、未发送邮件；
-- API/Web 受控部署和真实账号恢复仍待执行。恢复不要求用户手工识别/输入原邀请 token；Web 保持 URL
-  fragment 于内存并在恢复时自动提交，API/0013 在写入前用 Production pepper 验证 continuity 和精确状态。
-  DeepSeek smoke 仍禁止。
+- API/Web 已严格串行受控部署：API `39094d0` / disarm `88c9b09` 与 Web `b18d804` / disarm `2744757`
+  各只产生一条 Ready deployment；默认 6/7（排除 Canceled）可见数在各目标项目 arm 时分别为 API
+  14→15、Web 3→4，最终为 15/4；在各项目自身 arm 窗口，7/7 全状态数分别为 API 19→20、Web
+  13→14。双 disarm 后、证据文档提交前的 7/7 检查点为 API 22、Web 14，Canceled 为 7/10；两个
+  disarm 均未在其目标项目新增 deployment，但各自在另一仍 disarmed 项目留下一条 Canceled 审计记录。
+  双项目恢复关闭；custom-domain API `/health` 与 Web `/` 均为 TLS 验证通过的 HTTP 200；
+- 真实账号恢复仍待执行。恢复不要求用户手工识别/输入原邀请 token；Web 保持 URL fragment 于内存并在
+  恢复时自动提交，API/0013 在写入前用 Production pepper 验证 continuity 和精确状态。DeepSeek smoke
+  仍禁止。

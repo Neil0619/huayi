@@ -400,8 +400,15 @@ commit。证据应记录 candidate、各自 arm/deployment source、disarm 及�
 截至 2026-08-24，部署前置门已完成：0013 实际应用后的 migration-chain、recovery function/ACL diagnostic
 与 Hosted application verifier 通过；Site URL 保持 `https://app.acceptance.seen-said.cn`，五条
 43-character query-aware Redirect URL 与 `{{ .Token }}` + `{{ .RedirectTo }}` Confirm sign up 模板已保存并
-重新加载回读。Custom SMTP 未改，Resend tracking 仍 disabled，本步骤未轮换密钥或发送邮件。API/Web
-仍保持 disarmed，下一动作才是上述严格串行的 API→Web 受控部署。
+重新加载回读。Custom SMTP 未改，Resend tracking 仍 disabled，本步骤未轮换密钥或发送邮件。随后 API
+arm `39094d0` / disarm `88c9b09` 与 Web arm `b18d804` / disarm `2744757` 严格串行执行，各只新增一条
+Production/Ready deployment；两个 disarm 均未在其目标项目新增 deployment，但各自在另一仍 disarmed
+项目留下一条 Canceled 审计记录。默认 6/7（排除 Canceled）可见数在各目标项目 arm 时分别为 API
+14→15、Web 3→4，最终为 15/4；在各项目自身 arm 窗口，7/7 全状态数分别为 API 19→20、Web 13→14。
+双 disarm 后、证据文档提交前的 7/7 检查点为 API 22、Web 14，Canceled 为 7/10；后续双关闭下的文档
+push 只允许增加 Canceled 审计记录，不得新增非 Canceled deployment。API/Web 都恢复
+`deploymentEnabled=false`。custom-domain API
+`/health` 与 Web `/` 均为 TLS 验证通过的 HTTP 200。
 
 ## 7. TDD 与验收标准
 

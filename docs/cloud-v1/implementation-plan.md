@@ -1632,4 +1632,10 @@ Phase 72 的受控部署顺序必须展开为：双项目 disarmed 时提交并�
 application verifier 均通过。Hosted Auth 已回读 Site URL 不变、五条 43-character query-aware redirect
 逐字符精确、Confirm sign up 为 `{{ .Token }}` + `{{ .RedirectTo }}` 且不含
 `{{ .ConfirmationURL }}`；Custom SMTP 未改，Resend tracking 仍 disabled，未轮换密钥或发送邮件。
-API/Web 受控部署与浏览器恢复仍待执行。
+Phase 72 API arm `39094d0` 只新增 Ready deployment `9jbyfnAvZwpa3Ci7YU6s6asmNZNG`，独立 disarm
+`88c9b09` 未在 API 项目新增 deployment；确认 API 已关闭后，Web arm `b18d804` 只新增 Ready
+deployment `Bks2JvgrNidQ1CRjmUiwz9RTfhjF`，独立 disarm `2744757` 未在 Web 项目新增 deployment。
+两个项目均恢复 `deploymentEnabled=false`。默认 6/7（排除 Canceled）可见数在各目标项目 arm 时分别为 API 14→15、
+Web 3→4，最终为 15/4；在各项目自身 arm 窗口，7/7 全状态数分别为 API 19→20、Web 13→14。双
+disarm 后、证据文档提交前的 7/7 检查点为 API 22、Web 14，Canceled 为 7/10；两个 disarm 均未在其
+目标项目新增 deployment，但各自在另一仍 disarmed 项目留下一条 Canceled 审计记录。浏览器恢复仍待执行。

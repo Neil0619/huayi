@@ -215,13 +215,15 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       测试域或旧密码 callback；API `emailRedirectTo` 继续进入 ConfirmationURL 的 `redirect_to`；
 - [x] Phase 71 上述 `ConfirmationURL` 仅保留为历史回读；真实验收已证明它会被 scanner/prefetch 提前消费。
       保存并回读 `{{ .Token }}` + `{{ .RedirectTo }}` 模板及五条 43-character flow allowlist；
-- [x] Phase 72 候选 `be38942` 已在双关闭下 push，API/Web 保持 14/3 条 deployment 且新增均为 0；
+- [x] Phase 72 候选 `be38942` 已在双关闭下 push；Vercel 默认 6/7 状态筛选下 API/Web 可见数保持
+      14/3 且新增均为 0；
 - [x] 只读 status 为 `registration-interrupted`，application login verifier 通过；0013 dry-run 只列出
       `20260823010000_password_signup_interruption_recovery.sql` 且数据库未修改；
 - [x] 明确确认后实际 push 0013，验证 migration/ACL/application login；不得在当前非空状态要求 pristine
       foundation verifier；
-- [ ] 严格执行 API arm→deployment record→独立 disarm→零额外 deployment，再执行
-      Web 同序；两个项目从不同时 armed，并记录同一 reviewed lineage 而非虚构相同 SHA；
+- [x] 严格执行 API arm→deployment record→独立 disarm，再执行 Web 同序；两个 disarm 均未在其目标
+      项目新增 deployment，但各自在另一仍 disarmed 项目留下一条 Canceled 审计记录；两个项目从不同时
+      armed，并记录同一 reviewed lineage 而非虚构相同 SHA；
 - [ ] 浏览器从原邀请页面发起恢复并自动提交内存 token + Provider 密码证明；API/0013 在写入前以
       Production pepper 验证 hash、active invitation 与精确中断状态，取得 `registered` 后完成首位 Operator；
 - [ ] 新邀请完成 scanner/repeated GET 无副作用、显式 OTP POST、Web 落点和密码重登；完成前不得运行

@@ -156,8 +156,14 @@ opaque token。用户在恢复表单提交后，Web 才把内存中的 token 与
 migration-chain、recovery function/ACL diagnostic 与 application verifier 均通过。Supabase Site URL 保持
 `https://app.acceptance.seen-said.cn`；五条 43-character query-aware redirect 已逐字符回读；Confirm sign up
 保存后重新加载仍精确使用 `{{ .Token }}` + `{{ .RedirectTo }}`，不含 `{{ .ConfirmationURL }}`。Custom SMTP
-未改，Resend tracking 仍 disabled，本步骤未轮换密钥、未发送邮件。API/Web 受控部署与浏览器内系统管理的
-pepper continuity/recovery 仍待执行。
+未改，Resend tracking 仍 disabled，本步骤未轮换密钥、未发送邮件。API arm `39094d0` 与 Web arm
+`b18d804` 各只新增一条 Ready deployment；独立 disarm `88c9b09` / `2744757` 均未在其目标项目新增
+deployment，两个项目均恢复 `deploymentEnabled=false`。默认 6/7（排除 Canceled）可见数在各目标项目
+arm 时分别为 API 14→15、
+Web 3→4，最终为 15/4；在各项目自身 arm 窗口，7/7 全状态数分别为 API 19→20、Web 13→14。双
+disarm 后、证据文档提交前的 7/7 检查点为 API 22、Web 14，Canceled 为 7/10；两个 disarm 均未在其
+目标项目新增 deployment，但各自在另一仍 disarmed 项目留下一条 Canceled 审计记录。浏览器内系统管理的 pepper
+continuity/recovery 仍待执行。
 
 若原 Bootstrap invitation 已过期，阶段立即停止；不得临时 SQL 绕过或直接删除部分账号。
 

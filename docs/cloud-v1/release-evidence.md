@@ -1625,8 +1625,9 @@ typecheck、architecture、build、development blocker、Store release、product
 - **Phase 71 结论已被真实验收修正**：首张邀请实际发行后，Provider user/email identity 已确认，但 API
   callback、profile/method/quota/session 未完成；邮件点击落到 Site URL `otp_expired`，普通登录也因语见
   method fence 失败。此前动态 `ConfirmationURL` 门不能证明 scanner-safe，不能再作为当前发布证据。
-- **Phase 72 候选与零部署**：受审查候选 `be38942` 已在双项目 disarmed 时推送；推送后 API/Web 仍分别
-  只有 14/3 条历史 deployment，新增均为 0，两份 Vercel 配置的 `deploymentEnabled` 均保持 `false`；
+- **Phase 72 候选与零部署**：受审查候选 `be38942` 已在双项目 disarmed 时推送；推送后 Vercel 默认 6/7
+  状态筛选下 API/Web 仍分别可见 14/3 条 deployment，新增均为 0，两份 Vercel 配置的
+  `deploymentEnabled` 均保持 `false`；
 - **真实只读预检与 dry-run**：2026-08-24 Operator status 精确为 `registration-interrupted`，Hosted
   application login verifier 通过；Supabase migration dry-run 只列出
   `20260823010000_password_signup_interruption_recovery.sql`，数据库未修改；
@@ -1639,8 +1640,22 @@ typecheck、architecture、build、development blocker、Store release、product
   Confirm sign up 保存并重新加载后精确包含一次 `{{ .Token }}` 和一次 `{{ .RedirectTo }}`，CTA 的唯一
   `href` 为 `.RedirectTo`，不含 `.ConfirmationURL` 或硬编码 URL。Custom SMTP 未改，Resend tracking 仍
   disabled，本步骤未轮换密钥、未发送邮件。
-- **当前下一门**：严格串行记录 API arm/deployment/disarm/零额外 deployment，再记录 Web 同序，两个项目
-  不得同时 armed。随后用原邀请 + Provider 密码证明原子恢复当前账号，并以新邀请验证 inert GET + 显式
-  OTP POST。真实 pepper continuity 由浏览器自动提交内存中的原邀请 token，API 用 Production pepper
-  hash，0013 在写入前验证 active invitation、精确中断状态与 hash；不要求用户手工提取 opaque token。
-  恢复前不得删除 Auth user、重新领取 bound claim、完成 Operator 或运行 DeepSeek smoke。
+- **Phase 72 串行部署证据**：配置门文档提交 `59d04e2` 在双关闭状态推送后，默认 6/7 非 Canceled 可见数
+  仍为 14/3。API arm
+  `39094d0` 只新增 Production/Ready deployment `9jbyfnAvZwpa3Ci7YU6s6asmNZNG`；记录出现后唯一后续 push
+  是独立 API disarm `88c9b09`，计数保持 15/3。确认 origin API/Web 均为 false 后，Web arm `b18d804`
+  只新增 Production/Ready deployment `Bks2JvgrNidQ1CRjmUiwz9RTfhjF`；独立 Web disarm `2744757` 后默认
+  可见数保持 15/4。默认 6/7（排除 Canceled）可见数在各目标项目 arm 时分别为 API 14→15、Web 3→4；
+  在各项目自身 arm 窗口，7/7 全状态数分别为 API 19→20、Web 13→14。双 disarm 后、证据文档提交前的
+  7/7 检查点为 API 22、Web 14，状态分布为 API Ready 12 / Error 3 / Canceled 7、Web Ready 3 /
+  Error 1 / Canceled 10。API 列表中 `39094d0` 为 Ready、`b18d804` 与 `2744757` 为 Canceled、无
+  `88c9b09`；Web 列表中 `b18d804` 为 Ready、`39094d0` 与 `88c9b09` 为 Canceled、无 `2744757`。
+  因此两个 disarm 均未在其目标项目新增 deployment，但各自在另一仍 disarmed 项目留下一条 Canceled
+  审计记录；后续双关闭下的证据文档 push 只允许增加 Canceled 审计记录，不得新增非 Canceled
+  deployment。两个项目任何时刻未同时 armed，最终两份 `vercel.json` 均为
+  `deploymentEnabled=false`。custom-domain API `/health` 与 Web `/` 均为 TLS 验证通过的 HTTP 200；本阶段
+  未修改 Supabase、Custom SMTP、DNS、环境变量或密钥，未发送邮件、未运行 DeepSeek smoke。
+- **当前下一门**：用原邀请 + Provider 密码证明原子恢复当前账号，并以新邀请验证 inert GET + 显式 OTP
+  POST。真实 pepper continuity 由浏览器自动提交内存中的原邀请 token，API 用 Production pepper hash，
+  0013 在写入前验证 active invitation、精确中断状态与 hash；不要求用户手工提取 opaque token。恢复前
+  不得删除 Auth user、重新领取 bound claim、完成 Operator 或运行 DeepSeek smoke。

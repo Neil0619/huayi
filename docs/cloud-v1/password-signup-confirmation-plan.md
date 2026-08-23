@@ -41,7 +41,8 @@
 
 ## 阶段 E：Hosted migration、配置、部署与恢复
 
-- [x] 双项目 disarmed 时提交并推送受审查候选 `be38942`；API/Web deployment 数保持 14/3，新增均为 0，
+- [x] 双项目 disarmed 时提交并推送受审查候选 `be38942`；Vercel 默认 6/7 状态筛选下 API/Web 可见数
+      保持 14/3，新增均为 0，
       两份 `vercel.json` 的 `deploymentEnabled` 仍为 `false`；
 - [x] 只读确认当前 Operator status 精确为 `registration-interrupted`，application login verifier 通过；
       pristine foundation verifier 在当前非空状态下不得作为前置门；
@@ -54,9 +55,15 @@
 - [x] 保存并重新加载回读 OTP Confirm sign up 模板：正文精确使用一次 `{{ .Token }}` 与一次
       `{{ .RedirectTo }}`，不含 `{{ .ConfirmationURL }}`；Resend tracking 仍 disabled；Custom SMTP 未改，
       本步骤未轮换密钥、未发送邮件；
-- [ ] API-only arm→记录 deployment→立即独立 disarm→验证零额外 deployment，确认 API 已关闭后 Web 才
-      执行同样顺序；两者绝不同时 armed；
-- [ ] API/Web 来自同一受审查候选 lineage；arm/disarm 后 deployment source SHA 可不同，不把“同一
+- [x] API-only arm `39094d0` 仅新增 Ready deployment `9jbyfnAvZwpa3Ci7YU6s6asmNZNG`，独立 disarm
+      `88c9b09` 未在 API 项目新增 deployment；确认 API 已关闭后，Web arm `b18d804` 仅新增 Ready
+      deployment `Bks2JvgrNidQ1CRjmUiwz9RTfhjF`，独立 disarm `2744757` 未在 Web 项目新增
+      deployment；默认 6/7（排除 Canceled）可见数
+      在各目标项目 arm 时分别为 API 14→15、Web 3→4，最终为 15/4；在各项目自身 arm 窗口，7/7
+      全状态数分别为 API 19→20、Web 13→14。双 disarm 后、证据文档提交前的 7/7 检查点为 API 22、
+      Web 14，Canceled 为 7/10；两个 disarm 均未在其目标项目新增 deployment，但各自在另一仍
+      disarmed 项目留下一条 Canceled 审计记录；
+- [x] API/Web 来自同一受审查候选 lineage；arm/disarm 后 deployment source SHA 可不同，不把“同一
       lineage”误写成“完全相同 SHA”；
 - [ ] 从仍持有原邀请 URL fragment 的浏览器页面发起恢复；Web 自动提交内存中的 invitation token 与原
       密码证明，API 使用 Production pepper hash，0013 在任何写入前验证 continuity、邀请与中断状态；

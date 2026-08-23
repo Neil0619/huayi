@@ -403,8 +403,14 @@ route 404/12 项零状态、Web exact SHA/零 Google 控件/bundle scan 均通�
 `otp_expired` 事故推翻。当前门改为 `{{ .Token }}` + `{{ .RedirectTo }}`、inert GET confirm、显式 OTP
 POST 与 0013 中断恢复。2026-08-24 已实际应用唯一的 0013，migration/ACL/application verifier 均通过；
 Site URL 保持不变，五条 43-character query-aware redirect 与 OTP 模板已保存并重新加载回读。Custom SMTP
-未改、密钥未轮换、邮件未发送，Resend tracking 仍 disabled。完成当前账号恢复及新账号 OTP journey 前
-不得切换 kill switch 或运行真实 Cloud DeepSeek 应用路径 smoke；
+未改、密钥未轮换、邮件未发送，Resend tracking 仍 disabled。Phase 72 API/Web 已严格串行各新增一条
+Ready deployment，独立 disarm 均未在其目标项目新增 deployment；默认 6/7 非 Canceled 可见数为
+14→15 / 3→4，全状态 7/7 总数在各项目自身 arm 窗口为 19→20 / 13→14。双 disarm 后、证据文档提交前
+的 7/7 检查点为 API 22、
+Web 14，Canceled 为 7/10；两个 disarm 均未在其目标项目新增 deployment，但各自在另一仍 disarmed
+项目留下一条 Canceled 审计记录。两个项目均关闭，API `/health` 与 Web `/` 的 custom-domain TLS/HTTP
+200 通过。
+完成当前账号恢复及新账号 OTP journey 前不得切换 kill switch 或运行真实 Cloud DeepSeek 应用路径 smoke；
 再后续为真实 R3-C → Cron。下一次 Windows 全门等到验收批次冻结，不因每个文档或配置步骤重复执行。
 
 ## 10. 官方约束来源
