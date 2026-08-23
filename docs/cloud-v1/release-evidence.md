@@ -1625,12 +1625,17 @@ typecheck、architecture、build、development blocker、Store release、product
 - **Phase 71 结论已被真实验收修正**：首张邀请实际发行后，Provider user/email identity 已确认，但 API
   callback、profile/method/quota/session 未完成；邮件点击落到 Site URL `otp_expired`，普通登录也因语见
   method fence 失败。此前动态 `ConfirmationURL` 门不能证明 scanner-safe，不能再作为当前发布证据。
-- **当前下一门**：先完成 Phase 72 的 0013 migration、43-character query-aware redirect、
+- **Phase 72 候选与零部署**：受审查候选 `be38942` 已在双项目 disarmed 时推送；推送后 API/Web 仍分别
+  只有 14/3 条历史 deployment，新增均为 0，两份 Vercel 配置的 `deploymentEnabled` 均保持 `false`；
+- **真实只读预检与 dry-run**：2026-08-24 Operator status 精确为 `registration-interrupted`，Hosted
+  application login verifier 通过；Supabase migration dry-run 只列出
+  `20260823010000_password_signup_interruption_recovery.sql`，数据库未修改；
+- **当前下一门**：明确确认并实际推送 Phase 72 的 0013 migration，再完成 43-character query-aware redirect、
   `{{ .Token }}` + `{{ .RedirectTo }}` 模板与 API/Web exact-source 部署；随后用原邀请 + Provider 密码证明
   原子恢复当前账号，并以新邀请验证 inert GET + 显式 OTP POST。恢复前不得删除 Auth user、重新领取
   bound claim、完成 Operator 或运行 DeepSeek smoke。
-- **Phase 72 待执行证据边界**：0013 后先取得 application/structure/ACL、精确
-  `registration-interrupted` 与 pepper continuity bounded pass；当前非空状态不运行 pristine foundation
-  verifier。双关闭候选 push 后必须串行记录 API arm/deployment/disarm/零额外 deployment，再记录 Web
-  同序，两个项目不得同时 armed；“同一受审查候选”只表示相同 reviewed lineage，不要求 API/Web 或原
-  candidate 使用完全相同 SHA。
+- **Phase 72 待执行证据边界**：0013 后取得 migration/structure/ACL 与 application verifier；当前非空
+  状态不运行 pristine foundation verifier。随后串行记录 API arm/deployment/disarm/零额外 deployment，
+  再记录 Web 同序，两个项目不得同时 armed。真实 pepper continuity 由浏览器自动提交内存中的原邀请
+  token，API 用 Production pepper hash，0013 在写入前验证 active invitation、精确中断状态与 hash；不
+  要求用户手工提取 opaque token。可选 CLI 只在安全 managed token source 已存在时用于工程诊断。

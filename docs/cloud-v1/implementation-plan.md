@@ -1615,7 +1615,8 @@ status 关闭这道门；下一步可以按外部门顺序准备 Vercel 创建�
 3. 加入 0013 API/Supabase byte-identical migration、Provider `verifyOtp(type=email)`、API/Web 恢复与
    actual-bundle OTP journey；
 4. 完整 macOS 门通过后形成候选；Hosted 先 dry-run/确认/push migration，再验证 structure/ACL、application
-   login、pepper continuity boolean 与 `registration-interrupted`；
+   login 与 `registration-interrupted`；pepper continuity 在真实恢复时由 Web 自动提交内存中的原邀请，
+   API/0013 在任何写入前失败关闭验证，不要求用户手工输入 opaque token；
 5. 写入并回读五条 query-aware redirect 与 `{{ .Token }}` + `{{ .RedirectTo }}` 模板，受控部署 API/Web；
 6. 用原邀请与密码证明恢复当前账号，取得 `registered` 后 complete/verify Operator；再用新邀请验证 scanner
    GET 无副作用和显式 OTP POST。完成前保持 kill switch enabled 且不运行 DeepSeek smoke。
@@ -1625,3 +1626,8 @@ Phase 72 的受控部署顺序必须展开为：双项目 disarmed 时提交并�
 已回到 disarmed 后才对 Web 重复 arm→deployment record→独立 disarm→零额外 deployment。两个项目任何
 时刻不得同时 armed。这里的“同一候选”指同一受审查 candidate lineage；arm/disarm 是候选之后的独立配置
 提交，因此 API/Web deployment source SHA 可以不同，不能要求与候选提交或彼此完全相同。
+
+截至 2026-08-24，候选 `be38942` 已在双关闭下推送且 API/Web deployment 新增均为 0；真实只读 status
+精确为 `registration-interrupted`，application verifier 通过，0013 dry-run 只列出
+`20260823010000_password_signup_interruption_recovery.sql` 且数据库未修改。actual migration、Hosted
+Auth 配置、API/Web 部署与浏览器恢复仍待执行。

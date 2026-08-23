@@ -215,13 +215,15 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       测试域或旧密码 callback；API `emailRedirectTo` 继续进入 ConfirmationURL 的 `redirect_to`；
 - [ ] Phase 71 上述 `ConfirmationURL` 仅保留为历史回读；真实验收已证明它会被 scanner/prefetch 提前消费。
       保存并回读 `{{ .Token }}` + `{{ .RedirectTo }}` 模板及五条 43-character flow allowlist；
-- [ ] dry-run/确认/实际 push 0013，验证 migration/ACL/application login 与
-      `registration-interrupted`；不得在当前非空状态要求 pristine foundation verifier；
-- [ ] 固定 pepper continuity verifier 只返回 passed，证明 Keychain Production pepper + 原邀请 token 匹配
-      当前有效 Bootstrap invitation；输出不得包含 pepper/token/hash/DSN/身份；
-- [ ] 双关闭候选 push 后严格执行 API arm→deployment record→独立 disarm→零额外 deployment，再执行
+- [x] Phase 72 候选 `be38942` 已在双关闭下 push，API/Web 保持 14/3 条 deployment 且新增均为 0；
+- [x] 只读 status 为 `registration-interrupted`，application login verifier 通过；0013 dry-run 只列出
+      `20260823010000_password_signup_interruption_recovery.sql` 且数据库未修改；
+- [ ] 明确确认后实际 push 0013，验证 migration/ACL/application login；不得在当前非空状态要求 pristine
+      foundation verifier；
+- [ ] 严格执行 API arm→deployment record→独立 disarm→零额外 deployment，再执行
       Web 同序；两个项目从不同时 armed，并记录同一 reviewed lineage 而非虚构相同 SHA；
-- [ ] 用原邀请 + Provider 密码证明恢复当前 confirmed Auth user，取得 `registered`，再完成首位 Operator；
+- [ ] 浏览器从原邀请页面发起恢复并自动提交内存 token + Provider 密码证明；API/0013 在写入前以
+      Production pepper 验证 hash、active invitation 与精确中断状态，取得 `registered` 后完成首位 Operator；
 - [ ] 新邀请完成 scanner/repeated GET 无副作用、显式 OTP POST、Web 落点和密码重登；完成前不得运行
       DeepSeek 应用路径 smoke。
 

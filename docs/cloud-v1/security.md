@@ -365,9 +365,12 @@ owner context、generation/reservation 归属、task 成功或失败终态、价
   invitation token、Provider 密码证明和数据库精确中断状态；Provider user id/email 只取服务器 session。
 - `resume_interrupted_password_registration` 只授予 context setter，在单事务内检查邀请/claim/flow/Auth
   identity/零账号数据后创建 profile、password method、default quota 并消费旧状态；失败不得部分写入。
-- Hosted 恢复前必须通过固定 `acceptance:hosted:operator:pepper:verify` 只输出 pepper 与原邀请 token hash
-  是否匹配当前 active Bootstrap invitation 的 bounded pass/fail，并同时要求精确
-  `registration-interrupted`；不得打印 pepper、token、hash、DSN、email、user id、OTP 或密码。
+- Hosted 恢复不要求用户识别、复制或输入原邀请 token。token 留在原邀请 URL fragment 与 Web 内存，恢复
+  提交时由 Web 自动传给 API；API 使用当前 Production pepper 计算 hash，0013 在任何写入前同时要求精确
+  `registration-interrupted`、active Bootstrap invitation 与 hash equality。任何错配均失败关闭且零部分
+  写入；不得打印 pepper、token、hash、DSN、email、user id、OTP 或密码。
+- `acceptance:hosted:operator:pepper:verify` 仅是具有安全 managed token source 时的可选工程诊断，不是
+  用户验收步骤，也不得把 opaque token 手工输入变成运维要求。
 
 ## 9. Chrome Web Store
 

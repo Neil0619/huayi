@@ -105,7 +105,7 @@ Auth identity、sign-in method 和注册时段 default grant 均属于该账号�
 
 ## 4. CLI 与执行顺序
 
-实现提供六个 Operator 命令、一个 pepper continuity 命令和一个零联网 plan：
+实现提供六个 Operator 命令、一个可选工程 pepper continuity 诊断和一个零联网 plan：
 
 1. `pnpm acceptance:hosted:operator --plan`：零联网、零写入；
 2. `pnpm acceptance:hosted:operator:status --status-first-operator-kpadiulxkgckskcfydry`：只读，只输出
@@ -118,8 +118,9 @@ Auth identity、sign-in method 和注册时段 default grant 均属于该账号�
 5. `acceptance:hosted:operator:complete`：用户正常注册后运行；不接受 userId/email；
 6. `acceptance:hosted:operator:verify`：complete 后只读验证完整首账号链；不接受 userId/email，也不输出
    UUID、邮箱、hash、Cookie 或数据库错误。
-7. `acceptance:hosted:operator:pepper:verify`：只在 `registration-interrupted` 恢复前运行；固定 project，
-   从临时进程环境读取管理员密码、Keychain Production pepper 和原邀请 token，只返回固定 passed/failed。
+7. `acceptance:hosted:operator:pepper:verify`：仅当自动化或受控运维已有安全、非回显的 managed token
+   source 时使用；固定 project，只返回 fixed passed/failed。它不是用户验收步骤，不能要求用户识别、
+   复制或输入原邀请 URL fragment。
 
 两条较长命令的精确形式为：
 
@@ -137,12 +138,13 @@ pnpm acceptance:hosted:operator:pepper:verify \
 命令固定 Singapore transaction pooler、project ref、`sslmode=verify-full` 与已校验 Supabase CA，继承
 foundation CLI 的临时 0600 root certificate 和有界错误输出。argv、SQL、stdout/stderr 不含数据库密码；
 数据库只接收 token hash。邀请 URL 是唯一允许的 secret stdout，调用者不得粘贴到聊天、文档或日志。
+可选 pepper 诊断只能从 managed token source 取值，不能由用户手工提供。
 
 pristine 环境的原始顺序为：完成 hardened foundation verify -> 创建并配置隔离 API/Web/Supabase Auth ->
 确认部署 commit/health -> 发行邀请 -> 用户浏览器正常注册 -> complete -> post-completion verify -> 用户重新
 登录/重新认证并访问 `/admin`。当前已越过发行邀请且停在 `registration-interrupted`，恢复顺序改为：0013
-diagnostic/application verifier -> pepper continuity passed -> Phase 72 API/Web 严格串行部署 -> 原邀请 +
-Provider 密码证明恢复 -> status `registered` -> complete -> post-completion verify。当前非空状态不运行
+diagnostic/application verifier -> Phase 72 API/Web 严格串行部署 -> 浏览器自动提交原邀请 + Provider 密码
+证明，API/0013 在写入前验证 pepper continuity -> status `registered` -> complete -> post-completion verify。当前非空状态不运行
 pristine foundation verifier，且恢复前不 replace、不重新 claim、不新发邀请。
 
 ## 5. TDD 与验证矩阵

@@ -112,14 +112,18 @@ type PasswordRegistrationResumeRequest = {
 Provider password proof → atomic interrupted-registration recovery → Web session。不得先重新 claim、创建新
 auth flow、删除旧 claim 或接受客户端 user id。
 
-### 3.5 Pepper continuity verifier
+### 3.5 恢复时的 pepper continuity
 
-恢复前使用固定命令 `acceptance:hosted:operator:pepper:verify`。命令只接受固定 Singapore project 确认
-参数；管理员数据库密码、Keychain 中准备继续用于 Production 的 pepper 与原 Bootstrap invitation token
-只通过交互式 `read -rs` 后的临时进程环境传入，不得放进 argv、shell history、文件或聊天。命令在一个
-read-only transaction 中同时要求 Operator status 精确为 `registration-interrupted`、当前邀请仍是有效的
-`deployment-bootstrap` 邀请，并比较该邀请保存的 hash；stdout/stderr 只能是固定 pass/fail，不得返回
-pepper、token、hash、DSN、email 或 user id。
+原 Bootstrap invitation token 始终留在原邀请 URL fragment 与 Web 内存中，不要求用户识别、复制或输入
+opaque token。用户在恢复表单提交后，Web 才把内存中的 token 与 email/password proof 一并交给 API；API
+使用当前 Production pepper 计算 hash，0013 原子函数同时要求 Operator status 精确为
+`registration-interrupted`、当前邀请是仍有效且未消费/撤销的 `deployment-bootstrap` invitation，并在任何
+业务写入前匹配保存的 hash。pepper 或 token 缺失、轮换不连续、邀请失效或状态漂移均失败关闭且零部分
+写入；日志和错误不得返回 pepper、token、hash、DSN、email 或 user id。
+
+`acceptance:hosted:operator:pepper:verify` 仅保留为可选工程诊断工具：只有自动化或受控运维已经具有安全、
+非回显的托管 token source 时才能使用，不是用户验收步骤，也不得要求用户从 URL 手工提取 token。真实
+恢复的权威 continuity gate 是上述 Web → API → 0013 系统管理路径。
 
 ## 4. 测试与验收
 
@@ -137,16 +141,21 @@ pepper、token、hash、DSN、email 或 user id。
 
 1. dry-run 并实际推送恢复 migration；migration chain/0013 structure+ACL diagnostic 与 application verifier
    通过。当前 identity/profile 非空，因此 pristine foundation verifier 不适用且不得宣称通过；
-2. 运行 pepper continuity verifier，并只接受固定 passed 状态；
-3. 回读五条 Supabase allowlist pattern 与 OTP 模板，确认 Resend tracking disabled；
-4. 双项目保持 disarmed 时提交并推送受审查候选；随后 API-only arm→产生并记录 deployment→立即独立
+2. 回读五条 Supabase allowlist pattern 与 OTP 模板，确认 Resend tracking disabled；
+3. 双项目保持 disarmed 时提交并推送受审查候选；随后 API-only arm→产生并记录 deployment→立即独立
    disarm→验证没有额外 deployment；确认 API 已关闭后，Web 才执行同样顺序，任何时刻不得同时 armed；
-5. API/Web 部署必须来自同一受审查候选 lineage，但 arm/disarm 是后续独立提交，因此两次 deployment
+4. API/Web 部署必须来自同一受审查候选 lineage，但 arm/disarm 是后续独立提交，因此两次 deployment
    source SHA 不要求也不可能与候选提交或彼此完全相同；
-6. 对当前 confirmed-but-unfinalized user 使用原私密邀请与原密码执行恢复，不删除账号；
-7. read-only Operator status 为 `registered`，然后完成 First Operator bootstrap；
-8. 新建一条受控测试邀请，完成 scanner GET 无副作用 + OTP 显式提交 + 登录 journey；
-9. 通过完整 post-completion verifier 后再推进 DeepSeek smoke。
+5. 对当前 confirmed-but-unfinalized user 使用仍留在浏览器中的原私密邀请与原密码执行恢复；API/0013 在
+   写入前完成 pepper continuity 与邀请状态验证，不删除账号；
+6. read-only Operator status 为 `registered`，然后完成 First Operator bootstrap；
+7. 新建一条受控测试邀请，完成 scanner GET 无副作用 + OTP 显式提交 + 登录 journey；
+8. 通过完整 post-completion verifier 后再推进 DeepSeek smoke。
+
+2026-08-24 已完成的真实只读证据为：Operator status 精确为 `registration-interrupted`，application login
+verifier 通过，migration dry-run 只列出
+`20260823010000_password_signup_interruption_recovery.sql` 且数据库未修改。实际 migration、Hosted 配置、
+部署与浏览器内系统管理的 pepper continuity/recovery 仍待执行。
 
 若原 Bootstrap invitation 已过期，阶段立即停止；不得临时 SQL 绕过或直接删除部分账号。
 

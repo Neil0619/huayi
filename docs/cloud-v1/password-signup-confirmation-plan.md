@@ -41,20 +41,26 @@
 
 ## 阶段 E：Hosted migration、配置、部署与恢复
 
-- [ ] 只读确认 project/domain/source 与当前 interrupted state；
-- [ ] migration dry-run 只列出本次一条，用户确认后实际 push；
-- [ ] migration-chain/0013 structure+ACL diagnostic、application verifier 与精确
-      `registration-interrupted` 通过；pristine foundation verifier 在当前非空状态下不得作为前置门；
-- [ ] 用固定 `acceptance:hosted:operator:pepper:verify` 只读证明 Keychain Production pepper + 原邀请 token
-      匹配当前有效 Bootstrap invitation；只接受 bounded pass/fail；
+- [x] 双项目 disarmed 时提交并推送受审查候选 `be38942`；API/Web deployment 数保持 14/3，新增均为 0，
+      两份 `vercel.json` 的 `deploymentEnabled` 仍为 `false`；
+- [x] 只读确认当前 Operator status 精确为 `registration-interrupted`，application login verifier 通过；
+      pristine foundation verifier 在当前非空状态下不得作为前置门；
+- [x] migration dry-run 只列出
+      `20260823010000_password_signup_interruption_recovery.sql`，数据库未修改；
+- [ ] 用户明确确认后实际 push 0013，再验证 migration-chain/0013 structure+ACL diagnostic 与 application
+      verifier；
 - [ ] 写入并回读五条 query-aware Redirect URLs；
 - [ ] 保存并回读 OTP Confirm sign up 模板，确认 Resend tracking disabled；
-- [ ] 双关闭下提交并推送受审查候选；API-only arm→记录 deployment→立即独立 disarm→验证零额外
-      deployment，确认 API 已关闭后 Web 才执行同样顺序；两者绝不同时 armed；
+- [ ] API-only arm→记录 deployment→立即独立 disarm→验证零额外 deployment，确认 API 已关闭后 Web 才
+      执行同样顺序；两者绝不同时 armed；
 - [ ] API/Web 来自同一受审查候选 lineage；arm/disarm 后 deployment source SHA 可不同，不把“同一
       lineage”误写成“完全相同 SHA”；
-- [ ] 用原 invitation token + 原密码恢复当前 confirmed user；
+- [ ] 从仍持有原邀请 URL fragment 的浏览器页面发起恢复；Web 自动提交内存中的 invitation token 与原
+      密码证明，API 使用 Production pepper hash，0013 在任何写入前验证 continuity、邀请与中断状态；
 - [ ] 完成 registered/Operator verifier 与新用户 OTP journey。
+
+`acceptance:hosted:operator:pepper:verify` 不是用户门。它只在工程自动化已有安全 managed token source 时
+作为可选非回显诊断；不得要求用户识别、复制或输入 URL fragment 中的 opaque token。
 
 任何外部写入前重新核对目标。若原邀请已过期，阶段 E 停止并另行设计受保护的破坏性恢复；禁止临时
 SQL 绕过。

@@ -1670,6 +1670,10 @@ passed; first Operator empty`。候选已提交推送，0012 已实际 push；�
   预先消费。新候选采用 6 位 email OTP、inert GET confirm、显式 POST callback 与 43-character allowlist；
 - 0013 migration 保留 bound expired claim，并新增只授予 context setter 的原子恢复函数；Web 仅在 claim
   失败时用原 invitation token + email/password proof 恢复，成功后才清 URL；
-- 当前已完成设计/实施计划审查、focused TypeScript 与核心 API/Web/contract/migration 回归；尚未完成完整
-  macOS 门、migration dry-run/push、Supabase 模板/redirect 写入、API/Web 受控部署和真实账号恢复。两个
-  Vercel project 继续保持 disarmed，DeepSeek smoke 仍禁止。
+- 设计/实施计划审查、focused/full 验证与完整 macOS 门均已通过；候选 `be38942` 已在双关闭下推送，
+  API/Web 仍为 14/3 条历史 deployment 且新增均为 0；两份 Vercel 配置继续保持 disarmed；
+- 2026-08-24 真实只读 status 精确为 `registration-interrupted`，application login verifier 通过；0013
+  dry-run 只列出 `20260823010000_password_signup_interruption_recovery.sql` 且数据库未修改；
+- 实际 migration、Supabase 模板/redirect 写入、API/Web 受控部署和真实账号恢复仍待执行。恢复不要求用户
+  手工识别/输入原邀请 token；Web 保持 URL fragment 于内存并在恢复时自动提交，API/0013 在写入前用
+  Production pepper 验证 continuity 和精确状态。DeepSeek smoke 仍禁止。

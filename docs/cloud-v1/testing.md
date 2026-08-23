@@ -1039,10 +1039,13 @@ session is invalid.`；400 `invalid_request` 表示 runtime 数据库路径未�
   deletion time；bootstrap 保持 completed 且不能重新发行；
 - CLI 固定 project/pooler/verify-full/CA、精确确认参数和同 API pepper。plan/status 零写入，普通失败输出
   固定且不含 secret；invite URL 只允许一次性 secret stdout；
-- pepper continuity CLI 只接受固定 project 参数以及环境中的管理员密码、Production pepper 和 43 字符原
-  邀请 token；单个 read-only boolean 必须同时锁定 `registration-interrupted`、current active
-  deployment-bootstrap invitation 与 hash equality。缺失/错配/额外输出全部失败，且 token/pepper/hash/DSN/
-  身份不得出现在 argv、child environment 或 CLI 输出；
+- pepper continuity CLI 是可选工程诊断，只能在自动化或受控运维已有安全 managed token source 时运行；
+  不得要求用户识别、复制或输入 43 字符原邀请 token。单个 read-only boolean 仍同时锁定
+  `registration-interrupted`、current active deployment-bootstrap invitation 与 hash equality；缺失/错配/
+  额外输出全部失败，且 token/pepper/hash/DSN/身份不得出现在 argv 或 CLI 输出；
+- 真实恢复由 Web 从原邀请 URL fragment 的内存状态自动提交 token；API 用 Production pepper 计算 hash，
+  0013 在任何业务写入前验证 invitation provenance/active state、精确中断状态与 hash equality。错误 pepper、
+  丢失 token 或状态漂移均证明零部分写入；
 - hosted 人工门按 migration dry-run/push、status、真实注册、complete、admin verify、application 越权复验
   和 `/admin` Cookie/CSRF journey 执行。没有这些证据只能标记 implemented，不能标记 hosted ready。
 
