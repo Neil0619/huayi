@@ -34,6 +34,7 @@ export type IdentityApi = Pick<
   | "getAccountPreferences"
   | "getPairing"
   | "listExtensionSessions"
+  | "reauthenticatePassword"
   | "retryAccountDataExport"
   | "revokeExtensionSession"
 >;
@@ -230,7 +231,14 @@ export function CloudApp({
     if (sessionAccess === "data-rights")
       return <WorkspaceShell access="data-rights">{dataRightsPage(false)}</WorkspaceShell>;
     if (page === "admin" && adminApi !== undefined)
-      return <AdminOperationsPage api={adminApi} csrfToken={csrfToken} />;
+      return (
+        <AdminOperationsPage
+          api={adminApi}
+          csrfToken={csrfToken}
+          onCsrfTokenChanged={setCsrfToken}
+          reauthenticationApi={identity}
+        />
+      );
 
     let content: ReactNode;
     if (page === "data") content = dataRightsPage(true);

@@ -148,12 +148,17 @@ opaque token。用户在恢复表单提交后，Web 才把内存中的 token 与
    source SHA 不要求也不可能与候选提交或彼此完全相同；
 5. 对当前 confirmed-but-unfinalized user 使用仍留在浏览器中的原私密邀请与原密码执行恢复；API/0013 在
    写入前完成 pepper continuity 与邀请状态验证，不删除账号；
-6. read-only Operator status 为 `registered`，然后完成 First Operator bootstrap；
-7. 新建一条受控测试邀请，完成 scanner GET 无副作用 + OTP 显式提交 + 登录 journey；
-8. 通过完整 post-completion verifier 后再推进 DeepSeek smoke。
+6. read-only Operator status 为 `registered`，然后完成 First Operator bootstrap，并先通过完整
+   post-completion verifier；
+7. `/admin` 首次 access 因缺少 recent-auth 返回统一 `forbidden` 时，显示当前密码重新认证表单；成功后
+   使用轮换后的 CSRF 重读 Operator 权限与四区数据，认证后仍被拒绝才显示无权限页；
+8. 只有 `/admin` 重新认证完成后，才新建一条受控普通邀请，完成 scanner GET 无副作用 + OTP 显式提交 +
+   登录 journey；
+9. 上述真实验收完成后再推进 DeepSeek smoke。
 
-2026-08-24 已完成的真实证据为：Operator status 精确为 `registration-interrupted`；0013 已实际应用，
-migration-chain、recovery function/ACL diagnostic 与 application verifier 均通过。Supabase Site URL 保持
+2026-08-24 已完成的真实证据为：Operator status 从 `registration-interrupted` 恢复到 `registered`，
+随后 First Operator bootstrap 完成，read-only status 精确为 `completed`，完整 post-completion verifier
+通过；0013 已实际应用，migration-chain、recovery function/ACL diagnostic 与 application verifier 均通过。Supabase Site URL 保持
 `https://app.acceptance.seen-said.cn`；五条 43-character query-aware redirect 已逐字符回读；Confirm sign up
 保存后重新加载仍精确使用 `{{ .Token }}` + `{{ .RedirectTo }}`，不含 `{{ .ConfirmationURL }}`。Custom SMTP
 未改，Resend tracking 仍 disabled，本步骤未轮换密钥、未发送邮件。API arm `39094d0` 与 Web arm
@@ -164,6 +169,11 @@ Web 3→4，最终为 15/4；在各项目自身 arm 窗口，7/7 全状态数分
 disarm 后、证据文档提交前的 7/7 检查点为 API 22、Web 14，Canceled 为 7/10；两个 disarm 均未在其
 目标项目新增 deployment，但各自在另一仍 disarmed 项目留下一条 Canceled 审计记录。浏览器内系统管理的 pepper
 continuity/recovery 仍待执行。
+
+`/admin` 密码重新认证 UI 已在本地按 RED→GREEN 补齐：不新增存储，不改变 API recent-auth 门；失败文案不
+回显密码或 Provider detail，成功响应的轮换 CSRF 同时更新 CloudApp session state 与当前管理页写请求。
+First Operator complete 与 post-completion verifier 已取得真实 Hosted 证据；该离线实现仍不能替代受控
+Web 部署和真实 `/admin` 浏览器验证。
 
 若原 Bootstrap invitation 已过期，阶段立即停止；不得临时 SQL 绕过或直接删除部分账号。
 

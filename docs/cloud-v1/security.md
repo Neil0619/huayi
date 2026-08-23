@@ -287,6 +287,9 @@ owner context、generation/reservation 归属、task 成功或失败终态、价
 - 审计记录管理员的邀请、启停、额度和设备撤销动作，不记录秘密或用户正文。
 - Operator GET 只接受 active/full Cookie session、显式 operator role 和 15 分钟内重新认证；mutation 另
   要求固定 Origin、CSRF 与 Idempotency-Key。DataRightsSession 和 Extension token 不能访问管理端。
+- `/admin` 对首次统一 `forbidden` 只提供既有 password reauthentication，不在客户端推断是角色缺失还是
+  recent-auth 过期。密码只存在于受控输入和组件内存，不进入 URL、日志、状态文案或 Web Storage；成功
+  必须轮换 CSRF 并重新请求服务端 access，第二次仍拒绝即显示统一无权限页，不得绕过 API 安全门。
   邀请 token 由服务端 secret 与 actor/key/strict request hash 派生，数据库只保存 hash；幂等 snapshot
   和审计都不得保存明文 token。停用只能 active→disabled，并原子撤销 Web/Extension session 与未完成 pairing；deleting
   不能由管理端恢复，Operator 不能停用自己。

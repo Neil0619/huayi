@@ -1686,3 +1686,10 @@ passed; first Operator empty`。候选已提交推送，0012 已实际 push；�
 - 真实账号恢复仍待执行。恢复不要求用户手工识别/输入原邀请 token；Web 保持 URL fragment 于内存并在
   恢复时自动提交，API/0013 在写入前用 Production pepper 验证 continuity 和精确状态。DeepSeek smoke
   仍禁止。
+- Phase 72 后续顺序已校准为：恢复到 `registered` → complete First Operator → post-completion verifier →
+  `/admin` 密码重新认证 → 普通邀请 scanner-safe OTP。`/admin` 本地缺口已按 RED→GREEN 补齐：首次统一
+  `forbidden` 显示密码表单，成功轮换 CloudApp/管理页 CSRF 并重读权限，错误可重试且不泄露密码；尚未
+  受控部署或取得真实 Hosted 浏览器证据。
+- 2026-08-24 First Operator 已在 Hosted 真实完成：恢复后 status 为 `registered`，completion 后精确为
+  `completed`，完整 post-completion verifier 通过。当前下一门是受控部署 `/admin` recent-auth UI；普通
+  邀请、OTP journey 与 DeepSeek smoke 均尚未执行。

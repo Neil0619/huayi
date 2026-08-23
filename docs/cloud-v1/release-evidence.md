@@ -1659,3 +1659,10 @@ typecheck、architecture、build、development blocker、Store release、product
   POST。真实 pepper continuity 由浏览器自动提交内存中的原邀请 token，API 用 Production pepper hash，
   0013 在写入前验证 active invitation、精确中断状态与 hash；不要求用户手工提取 opaque token。恢复前
   不得删除 Auth user、重新领取 bound claim、完成 Operator 或运行 DeepSeek smoke。
+- **`/admin` recent-auth 缺口（本地证据）**：后续顺序已更正为恢复 `registered` → complete →
+  post-completion verifier → `/admin` 密码重新认证 → 普通邀请 OTP。Web 组件回归先 RED 证明旧页面只显示
+  拒绝页，再 GREEN 证明首次统一 `forbidden` 显示可重试密码表单、调用既有 password reauthentication、
+  使用轮换 CSRF 重读权限并创建邀请；密码不进入渲染文案或新存储。此项尚无部署或 Hosted 浏览器证据。
+- **First Operator 真实完成证据**：2026-08-24 浏览器恢复成功进入 Hosted workspace；只读 status 先精确为
+  `registered`，随后受控执行 First Operator completion，最终 status 精确为 `completed`，完整
+  post-completion verifier 通过。普通邀请尚未创建，`/admin` recent-auth 与 OTP journey 仍待后续门。

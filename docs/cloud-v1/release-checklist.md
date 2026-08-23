@@ -226,8 +226,12 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       armed，并记录同一 reviewed lineage 而非虚构相同 SHA；
 - [ ] 浏览器从原邀请页面发起恢复并自动提交内存 token + Provider 密码证明；API/0013 在写入前以
       Production pepper 验证 hash、active invitation 与精确中断状态，取得 `registered` 后完成首位 Operator；
-- [ ] 新邀请完成 scanner/repeated GET 无副作用、显式 OTP POST、Web 落点和密码重登；完成前不得运行
-      DeepSeek 应用路径 smoke。
+- [x] First Operator complete 后先通过 post-completion verifier；最终 read-only status 精确为
+      `completed`，未跳过该只读门创建普通邀请；
+- [x] `/admin` 密码重新认证已本地 RED→GREEN：首次统一 `forbidden` 显示可重试表单，成功轮换 CSRF 并
+      重读权限，第二次仍拒绝时失败关闭；尚未部署或取得 Hosted 浏览器证据；
+- [ ] 受控部署并完成真实 `/admin` 密码重新认证后，新邀请再完成 scanner/repeated GET 无副作用、显式
+      OTP POST、Web 落点和密码重登；完成前不得运行 DeepSeek 应用路径 smoke。
 
 ## 完整 V1
 

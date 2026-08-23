@@ -3,11 +3,13 @@ import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNod
 import type { AdminUsageSummary, AdminUserResource } from "@huayi/cloud-contracts";
 
 import type { WebAdminOperationsApi } from "./admin-operations-api.js";
+import { AdminReauthenticationGate } from "./admin-reauthentication-gate.js";
 import { AdminUserPanel } from "./admin-user-panel.js";
 import { AdminSecondaryPanels } from "./admin-secondary-panels.js";
-import { WebIdentityApiError } from "./identity-api.js";
+import { WebIdentityApiError, type WebIdentityApi } from "./identity-api.js";
 
-type LoadState = "denied" | "error" | "loading" | "ready";
+export type AdminReauthenticationApi = Pick<WebIdentityApi, "reauthenticatePassword">;
+type LoadState = "denied" | "error" | "loading" | "ready" | "reauthentication";
 
 function AdminShell({ children }: { readonly children: ReactNode }) {
   return (
@@ -35,10 +37,15 @@ function AdminShell({ children }: { readonly children: ReactNode }) {
 export function AdminOperationsPage({
   api,
   csrfToken,
+  onCsrfTokenChanged,
+  reauthenticationApi,
 }: {
   readonly api: WebAdminOperationsApi;
   readonly csrfToken: string;
+  readonly onCsrfTokenChanged?: ((csrfToken: string) => void) | undefined;
+  readonly reauthenticationApi?: AdminReauthenticationApi | undefined;
 }) {
+  const [activeCsrfToken, setActiveCsrfToken] = useState(csrfToken);
   const [confirmKill, setConfirmKill] = useState(false);
   const [message, setMessage] = useState("");
   const [query, setQuery] = useState("");
@@ -54,34 +61,50 @@ export function AdminOperationsPage({
   const usageGeneration = useRef(0);
   const userGeneration = useRef(0);
 
-  const load = useCallback(async () => {
-    const current = ++generation.current;
-    setState("loading");
-    setMessage("");
-    setUsageError("");
-    setUserError("");
-    try {
-      await api.access();
-      const [nextUsage, nextUsers] = await Promise.allSettled([api.getUsage(), api.listUsers()]);
-      if (generation.current !== current) return;
-      if (nextUsage.status === "fulfilled") setUsage(nextUsage.value);
-      else setUsageError("运营概览载入失败。");
-      if (nextUsers.status === "fulfilled") {
-        setUsers(nextUsers.value.items);
-        setUserCursor(nextUsers.value.nextCursor);
-      } else setUserError("账号列表载入失败。");
-      setState("ready");
-    } catch (error) {
-      if (generation.current !== current) return;
-      setState(
-        error instanceof WebIdentityApiError && error.code === "forbidden" ? "denied" : "error",
-      );
-    }
-  }, [api]);
+  const load = useCallback(
+    async (afterReauthentication = false) => {
+      const current = ++generation.current;
+      setState("loading");
+      setMessage("");
+      setUsageError("");
+      setUserError("");
+      try {
+        await api.access();
+        const [nextUsage, nextUsers] = await Promise.allSettled([api.getUsage(), api.listUsers()]);
+        if (generation.current !== current) return;
+        if (nextUsage.status === "fulfilled") setUsage(nextUsage.value);
+        else setUsageError("运营概览载入失败。");
+        if (nextUsers.status === "fulfilled") {
+          setUsers(nextUsers.value.items);
+          setUserCursor(nextUsers.value.nextCursor);
+        } else setUserError("账号列表载入失败。");
+        setState("ready");
+      } catch (error) {
+        if (generation.current !== current) return;
+        if (error instanceof WebIdentityApiError && error.code === "forbidden") {
+          setState(
+            !afterReauthentication && reauthenticationApi !== undefined
+              ? "reauthentication"
+              : "denied",
+          );
+        } else setState("error");
+      }
+    },
+    [api, reauthenticationApi],
+  );
 
   useEffect(() => void load(), [load]);
+  useEffect(() => setActiveCsrfToken(csrfToken), [csrfToken]);
   useEffect(() => () => void (generation.current += 1), []);
   useEffect(() => confirmKillRef.current?.focus(), [confirmKill]);
+
+  const reauthenticate = async (password: string) => {
+    if (reauthenticationApi === undefined) return;
+    const session = await reauthenticationApi.reauthenticatePassword(password, activeCsrfToken);
+    setActiveCsrfToken(session.csrfToken);
+    onCsrfTokenChanged?.(session.csrfToken);
+    await load(true);
+  };
 
   const filterUsers = async (event: FormEvent) => {
     event.preventDefault();
@@ -150,7 +173,7 @@ export function AdminOperationsPage({
     if (usage === null) return;
     const current = ++usageGeneration.current;
     try {
-      const killSwitch = await api.setKillSwitch(!usage.killSwitch.enabled, csrfToken);
+      const killSwitch = await api.setKillSwitch(!usage.killSwitch.enabled, activeCsrfToken);
       if (current !== usageGeneration.current) return;
       setUsage({ ...usage, killSwitch });
       setConfirmKill(false);
@@ -171,6 +194,14 @@ export function AdminOperationsPage({
       setMessage("熔断状态未变更，请重新认证后重试。");
     }
   };
+
+  if (state === "reauthentication") {
+    return (
+      <AdminShell>
+        <AdminReauthenticationGate onReauthenticate={reauthenticate} />
+      </AdminShell>
+    );
+  }
 
   if (state !== "ready") {
     return (
@@ -322,7 +353,7 @@ export function AdminOperationsPage({
             {users.map((user) => (
               <AdminUserPanel
                 api={api}
-                csrfToken={csrfToken}
+                csrfToken={activeCsrfToken}
                 key={user.id}
                 onUpdated={(updated) =>
                   setUsers((current) =>
@@ -341,7 +372,7 @@ export function AdminOperationsPage({
             </button>
           )}
         </section>
-        <AdminSecondaryPanels api={api} csrfToken={csrfToken} />
+        <AdminSecondaryPanels api={api} csrfToken={activeCsrfToken} />
       </div>
     </AdminShell>
   );

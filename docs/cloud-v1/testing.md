@@ -763,6 +763,11 @@ confirmed Auth user/password method/profile 为 `1/1/2`、google method/Web sess
   token 不得进入 Provider command。Web 失败保留内存 token/email，成功才清 URL；
 - actual bundle 必须覆盖 scanner/repeated GET confirm、显式 OTP POST、`/app` Cookie 与之后密码重登；
   旧 GET password callback + code journey 不再是当前契约。
+- First Operator 必须先完成 post-completion verifier，再进入 `/admin`：首次 access 的统一 `forbidden`
+  显示密码重新认证表单；提交只调用既有 `reauthenticatePassword(password, currentCsrf)`，成功后轮换
+  CloudApp/管理页 CSRF 并重新读取 access/usage/users，随后创建邀请必须使用新 CSRF；
+- `/admin` 密码错误保持表单可重试，固定错误不得含密码或 Provider detail；重新认证成功后 access 仍为
+  `forbidden` 时显示统一拒绝页，不能渲染管理控件。测试不读取 Web Storage，且实现不得新增密码存储。
 
 ### 4.11 Phase 47 本机验收模拟模型
 

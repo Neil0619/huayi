@@ -6,6 +6,7 @@ import { analysisRecordSchema, contractFixtures } from "@huayi/cloud-contracts";
 
 import type { AnalysisHistoryPageApi } from "./analysis-history-page-api.js";
 import type { AccountQuotaApi } from "./account-quota-page.js";
+import type { WebAdminOperationsApi } from "./admin-operations-api.js";
 import { CloudApp, type IdentityApi } from "./cloud-app.js";
 import { WebIdentityApiError } from "./identity-api.js";
 import type { PasteAnalysisApi } from "./paste-analysis-page.js";
@@ -57,6 +58,10 @@ function api(overrides: Partial<IdentityApi> = {}): IdentityApi {
     getAccountPreferences: vi.fn(async () => preferences),
     getPairing: vi.fn(async () => pairing),
     listExtensionSessions: vi.fn(async () => ({ items: [] })),
+    reauthenticatePassword: vi.fn(async () => ({
+      access: "full" as const,
+      csrfToken: "r".repeat(32),
+    })),
     retryAccountDataExport: vi.fn(),
     revokeExtensionSession: vi.fn(async () => undefined),
     ...overrides,
@@ -223,6 +228,45 @@ describe("Web account bootstrap and pairing approval", () => {
 
     expect(container.querySelector("h1")?.textContent).toBe("账号与平台额度");
     expect(container.querySelector("[aria-current='page']")?.textContent).toContain("设置");
+  });
+
+  it("uses the bootstrapped CSRF token to reauthenticate a stale admin session", async () => {
+    const identity = api();
+    const adminApi: WebAdminOperationsApi = {
+      access: vi.fn(async () => Promise.reject(new WebIdentityApiError("forbidden", 403))),
+      createInvitation: vi.fn(),
+      getUsage: vi.fn(),
+      listAuditEvents: vi.fn(),
+      listInvitations: vi.fn(),
+      listUsers: vi.fn(),
+      revokeInvitation: vi.fn(),
+      revokeUserDevices: vi.fn(),
+      setKillSwitch: vi.fn(),
+      setUserQuota: vi.fn(),
+      setUserStatus: vi.fn(),
+    };
+    const container = document.createElement("div");
+    document.body.append(container);
+    await act(async () =>
+      createRoot(container).render(
+        <CloudApp adminApi={adminApi} identity={identity} page="admin" />,
+      ),
+    );
+    await act(async () => Promise.resolve());
+
+    const password = container.querySelector<HTMLInputElement>("#admin-current-password");
+    if (password === null) throw new Error("Operator password input is missing.");
+    await change(password, "correct horse battery staple");
+    await act(async () =>
+      container.querySelector<HTMLFormElement>("[data-admin-reauthentication]")?.requestSubmit(),
+    );
+
+    expect(identity.reauthenticatePassword).toHaveBeenCalledWith(
+      "correct horse battery staple",
+      "c".repeat(32),
+    );
+    expect(container.textContent).not.toContain("correct horse battery staple");
+    expect(container.querySelector("h1")?.textContent).toBe("无法进入运营控制台");
   });
 
   it("routes an authenticated account to analysis history", async () => {

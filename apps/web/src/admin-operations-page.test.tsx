@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AdminOperationsPage } from "./admin-operations-page.js";
 import type { WebAdminOperationsApi } from "./admin-operations-api.js";
+import { WebIdentityApiError } from "./identity-api.js";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -47,7 +48,19 @@ const usage = {
   usageCalls: { failed: 0, succeeded: 2 },
 };
 
-async function setup(overrides: Partial<WebAdminOperationsApi> = {}) {
+async function setup(
+  overrides: Partial<WebAdminOperationsApi> = {},
+  reauthentication?: {
+    readonly onCsrfTokenChanged: (csrfToken: string) => void;
+    readonly reauthenticatePassword: (
+      password: string,
+      csrfToken: string,
+    ) => Promise<{
+      access: "full";
+      csrfToken: string;
+    }>;
+  },
+) {
   const api = {
     access: vi.fn(async () => ({ role: "operator" as const })),
     createInvitation: vi.fn(async () => ({
@@ -75,7 +88,14 @@ async function setup(overrides: Partial<WebAdminOperationsApi> = {}) {
   const container = document.createElement("div");
   document.body.append(container);
   await act(async () =>
-    createRoot(container).render(<AdminOperationsPage api={api} csrfToken="csrf-token" />),
+    createRoot(container).render(
+      <AdminOperationsPage
+        api={api}
+        csrfToken="csrf-token"
+        onCsrfTokenChanged={reauthentication?.onCsrfTokenChanged}
+        reauthenticationApi={reauthentication}
+      />,
+    ),
   );
   await act(async () => Promise.resolve());
   return { api, container };
@@ -87,6 +107,14 @@ function button(container: Element, label: string): HTMLButtonElement {
   );
   if (!(found instanceof HTMLButtonElement)) throw new Error(`Button ${label} is missing.`);
   return found;
+}
+
+async function change(control: HTMLInputElement, value: string) {
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(control, value);
+    control.dispatchEvent(new Event("input", { bubbles: true }));
+    control.dispatchEvent(new Event("change", { bubbles: true }));
+  });
 }
 
 describe("Admin operations page", () => {
@@ -139,6 +167,79 @@ describe("Admin operations page", () => {
     });
     expect(container.querySelector("[role='alert']")?.textContent).toContain("无法进入运营控制台");
     expect(container.textContent).not.toContain("创建邀请");
+  });
+
+  it("password-reauthenticates a stale Operator session before loading and creating an invitation", async () => {
+    const access = vi
+      .fn<WebAdminOperationsApi["access"]>()
+      .mockRejectedValueOnce(new WebIdentityApiError("forbidden", 403))
+      .mockResolvedValue({ role: "operator" });
+    const reauthenticatePassword = vi.fn(async () => ({
+      access: "full" as const,
+      csrfToken: "rotated-csrf-token",
+    }));
+    const onCsrfTokenChanged = vi.fn();
+    const { api, container } = await setup(
+      { access },
+      { onCsrfTokenChanged, reauthenticatePassword },
+    );
+
+    expect(container.querySelector("h1")?.textContent).toBe("重新确认 Operator 身份");
+    const password = container.querySelector<HTMLInputElement>("#admin-current-password");
+    expect(password?.getAttribute("autocomplete")).toBe("current-password");
+    if (password === null) throw new Error("Operator password input is missing.");
+    await change(password, "correct horse battery staple");
+    await act(async () =>
+      container.querySelector<HTMLFormElement>("[data-admin-reauthentication]")?.requestSubmit(),
+    );
+
+    expect(reauthenticatePassword).toHaveBeenCalledWith(
+      "correct horse battery staple",
+      "csrf-token",
+    );
+    expect(onCsrfTokenChanged).toHaveBeenCalledWith("rotated-csrf-token");
+    expect(access).toHaveBeenCalledTimes(2);
+    expect(container.querySelector("h1")?.textContent).toBe("运营控制台");
+    expect(container.textContent).not.toContain("correct horse battery staple");
+
+    await act(async () => button(container, "创建邀请").click());
+    expect(api.createInvitation).toHaveBeenCalledWith(72, "rotated-csrf-token");
+  });
+
+  it("keeps a failed Operator password reauthentication retryable without rendering the password", async () => {
+    const access = vi.fn(async () => Promise.reject(new WebIdentityApiError("forbidden", 403)));
+    const reauthenticatePassword = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("provider password detail"))
+      .mockResolvedValueOnce({ access: "full" as const, csrfToken: "rotated-csrf-token" });
+    const { container } = await setup(
+      { access },
+      { onCsrfTokenChanged: vi.fn(), reauthenticatePassword },
+    );
+    const password = container.querySelector<HTMLInputElement>("#admin-current-password");
+    if (password === null) throw new Error("Operator password input is missing.");
+    await change(password, "correct horse battery staple");
+    await act(async () =>
+      container.querySelector<HTMLFormElement>("[data-admin-reauthentication]")?.requestSubmit(),
+    );
+
+    expect(container.querySelector("[role='alert']")?.textContent).toContain(
+      "密码确认失败，请检查后重试",
+    );
+    expect(container.textContent).not.toContain("correct horse battery staple");
+    expect(password.value).toBe("correct horse battery staple");
+    expect(button(container, "重新确认并进入").disabled).toBe(false);
+
+    await act(async () =>
+      container.querySelector<HTMLFormElement>("[data-admin-reauthentication]")?.requestSubmit(),
+    );
+    expect(reauthenticatePassword).toHaveBeenCalledTimes(2);
+    expect(reauthenticatePassword).toHaveBeenLastCalledWith(
+      "correct horse battery staple",
+      "csrf-token",
+    );
+    expect(container.querySelector("h1")?.textContent).toBe("无法进入运营控制台");
+    expect(container.textContent).not.toContain("correct horse battery staple");
   });
 
   it("keeps confirmed account and usage panels when invitation loading fails", async () => {
