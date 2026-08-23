@@ -27,14 +27,11 @@ async function readVercelConfiguration(): Promise<VercelConfiguration> {
 }
 
 describe("production API composition", () => {
-  it("arms only the reviewed hosted production branch for the Phase 72 API deployment", async () => {
+  it("keeps hosted API Git deployment disabled after the Phase 72 deployment", async () => {
     const vercelConfiguration = await readVercelConfiguration();
 
     expect(vercelConfiguration.git).toEqual({
-      deploymentEnabled: {
-        "**": false,
-        "codex/settings-configuration": true,
-      },
+      deploymentEnabled: false,
     });
   });
 
