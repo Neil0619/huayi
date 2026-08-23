@@ -1515,3 +1515,20 @@ status 关闭这道门；下一步可以按外部门顺序准备 Vercel 创建�
 3. 以无真实账号、非空随机 session Cookie 的 `GET /v1/quota` 验证 application-role DB 路径：数据库可用时
    必须是 `401 authentication_required`，数据库/TLS/role 失败不得冒充该结果；
 4. 数据库门通过后再按独立证据验证 DeepSeek 小额真实请求、Auth/Cookie/CORS/SSE；Web 继续零 deployment。
+
+## Phase 69：错误 Sensitive 值修复与 DB-backed runtime gate（2026-08-23）
+
+影响平台为 `shared + hosted-acceptance`。API/Web Git deployment 全程保持关闭，未重新武装分支。
+
+1. 首次 `/health` 在 deployment `3fxCRe2xku5qzZ8kdbFo4GivGiRL` 返回 Vercel 500；runtime 日志确认
+   `HUAYI_DATABASE_URL` 被错误保存为固定变量名 `HUAYI_SECURITY_NOTIFICATION_MODE`，不是密码锁定或
+   application role 失败；
+2. 第一轮修正没有得到新的变量更新时间，Dashboard redeploy
+   `CHnaZQuohoNiTM4ukQqY1NXQZv2V` 仍以相同启动错误失败；该记录保留，不删除或冒充成功；
+3. 第二轮只在精确 Rotate dialog 内构造并校验 transaction-pooler `6543` DSN，提交后必须同时看到 dialog
+   关闭、`Rotated HUAYI_DATABASE_URL` 回执和 `Updated just now`，随后清空系统与浏览器剪贴板；
+4. 在 Git 关闭状态下从精确候选 `7577cdd7658fe966e85e8c8b4346e3291089e4e1` 进行一次 Dashboard redeploy，
+   得到 Ready deployment `DyqRzj5UMN8BRpSeZyohXprnAkaT`；API 历史为 10，Web 仍为零；
+5. custom-domain `/health` 必须为 200 和固定 JSON；随后随机无效 session 的 `GET /v1/quota` 必须为精确
+   401 `authentication_required` / `The Web session is invalid.`。这关闭 DSN、CA/TLS、application login、
+   role switch 与认证 SQL 路径，但不扩大为 tenant context/RLS、DeepSeek、Supabase Auth 或 Resend 已通过。

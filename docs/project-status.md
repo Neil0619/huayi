@@ -1585,3 +1585,18 @@ passed; first Operator empty`。候选已提交推送，0012 已实际 push；�
 - 当前下一门不是重新部署，而是先修复旧 armed 测试断言，并确认该修复 push 也不产生 deployment；随后在
   保留的 `7577cdd` deployment 上运行 health 与 DB-backed runtime smoke，再推进 DeepSeek/Auth/Cookie/
   CORS/SSE。Web 继续保持零 deployment。
+
+## Cloud V1 Phase 69 Hosted runtime 数据库门关闭状态（2026-08-23）
+
+- 首次对 `3fxCRe2xku5qzZ8kdbFo4GivGiRL` 运行 `/health` 返回 Vercel 500；日志把根因收敛为
+  `HUAYI_DATABASE_URL` 的值被误写成固定变量名 `HUAYI_SECURITY_NOTIFICATION_MODE`。该结论排除数据库
+  密码锁定、Supabase application role 或业务 SQL 作为本次启动失败根因；
+- 第一轮纠正未取得变量新时间戳，redeploy `CHnaZQuohoNiTM4ukQqY1NXQZv2V` 保留同一失败。第二轮在精确
+  Rotate dialog 内重新构造并校验 6543 transaction-pooler DSN，Dashboard 同时显示成功回执和
+  `Updated just now`，随后系统与浏览器剪贴板均已清空；
+- Git 自动部署保持关闭，通过 Dashboard 从精确 source `7577cdd7658fe966e85e8c8b4346e3291089e4e1`
+  创建 deployment `DyqRzj5UMN8BRpSeZyohXprnAkaT`；状态 Ready，API 历史总数为 10，Web 仍无 deployment；
+- `https://api.acceptance.seen-said.cn/health` 返回 HTTP 200 和固定 service/status JSON；随后随机无效 session
+  的 `GET /v1/quota` 返回精确 HTTP 401、`authentication_required` 与
+  `The Web session is invalid.`。该无写入探针关闭 Vercel runtime 的 DSN、CA/TLS、application role 与
+  认证 SQL 路径；tenant context/RLS、DeepSeek、Supabase Auth、Resend、Web 与邀请仍待独立验收。

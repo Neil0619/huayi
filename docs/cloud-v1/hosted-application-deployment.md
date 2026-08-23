@@ -18,8 +18,10 @@ environment 配置和结构回读；API 精确为 9 项 Sensitive、12 项 publi
 `git.deploymentEnabled=false` 且仍为 `No Production Deployment`。2026-08-23 application 密码轮换后的分段
 diagnostic 22 个字段与正式 verifier 均已远端通过，Vercel runtime DSN 也已成功 Rotate。Rotate 后精确 SHA
 `7577cdd` 已产生 Ready API deployment `3fxCRe2xku5qzZ8kdbFo4GivGiRL`；随后的 disarm 提交
-`00beea8` 未产生 API/Web deployment，两个项目当前均关闭 Git 自动部署。真实数据库/Provider/Auth runtime、
-邮件、Cron 和邀请仍未验证或执行。
+`00beea8` 未产生 API/Web deployment，两个项目当前均关闭 Git 自动部署。首次 runtime smoke 揭示
+`HUAYI_DATABASE_URL` 被误写为固定变量名；错误 redeploy `CHnaZQuohoNiTM4ukQqY1NXQZv2V` 保留。正确 Rotate
+后从同一 source 创建的 `DyqRzj5UMN8BRpSeZyohXprnAkaT` 已通过 health 与无写入 application-role 数据库
+探针。Provider/Auth、邮件、Cron、Web 和邀请仍未验证或执行。
 
 ## 1. 当前事实与目标
 
@@ -40,7 +42,7 @@ Production 的 R3-C 通知变量已经配置。Phase 64 又完成 Auth Site URL�
 Production environment；三项本地生成 Secret 只保存在 macOS login Keychain，不进入仓库或本文。这仍不
 等于邮件已投递或应用已部署。两个 Vercel project 已连接精确
 GitHub repository `Neil0619/huayi`，Preview 均为 `Disabled`，Production Branch Tracking 均为
-`codex/settings-configuration`；API Production 现为 21/21，Web 为 2/2。API 有 8 条 Production deployment
+`codex/settings-configuration`；API Production 现为 21/21，Web 为 2/2。API 有 10 条 Production deployment
 记录，当前 Latest/Current source 为 `7577cdd`；Web Deployments 仍为空，API/Web Git deployment 均为
 `false`。
 
@@ -76,8 +78,8 @@ remote migration 0012
 2. 修正版 `acceptance:hosted:verify` 已通过，随后 `acceptance:hosted:operator:status` 已返回 `empty`；不能
    重跑 foundation bootstrap；
 3. 密码轮换后的 `acceptance:hosted:application:verify` 已通过，Vercel Production Sensitive
-   `HUAYI_DATABASE_URL` 也已更新为当前 application 密码对应的 transaction pooler `6543` DSN；Rotate 后
-   exact-SHA deployment 与 disarm 已完成，仍须通过 DB-backed runtime smoke 验证；
+   `HUAYI_DATABASE_URL` 已用当前 application 密码对应的 transaction pooler `6543` DSN 完成纠正 Rotate；
+   exact-SHA deployment、disarm、health 与 DB-backed runtime smoke 均已通过；
 4. 对话中曾出现的 Resend key 已撤销；误建 Full access 与工具诊断暴露的临时 scoped R3-C key 也已在未
    使用前撤销，均不得用于 SMTP、R3-C 或 Vercel；
 5. `notify.acceptance.seen-said.cn` 已按 Resend Dashboard 实际值完成 SPF、DKIM、MX 和初始 DMARC；
@@ -247,9 +249,10 @@ Production environment 均为 `No Environment Variables Added`。本轮没有接
 
 `HUAYI_DATABASE_URL` 必须使用 application role 的 percent-encoded 当前密码和 transaction pooler `6543`；
 session pooler `5432` 只供隔离验证器使用。2026-08-23 application 密码轮换后的分段 diagnostic 22 个字段与
-正式 verifier 已远端通过，Vercel 中该变量也已成功 Rotate 为 Production Sensitive；Rotate 后 exact-SHA
-`7577cdd` deployment 已 Ready，随后 API 已关闭。结构存在、Ready 或 `/health` 通过都不能证明新 DSN 已
-进入 runtime，必须由该保留 deployment 的 DB-backed smoke 关闭。
+正式 verifier 已远端通过。首次 Vercel Rotate 把值误写为固定变量名并由 runtime 500 暴露；纠正 Rotate
+同时取得成功回执与 `Updated just now`，随后 exact-SHA `7577cdd` deployment
+`DyqRzj5UMN8BRpSeZyohXprnAkaT` 已 Ready，API 继续关闭。结构存在、Ready 或 `/health` 单独通过都不能证明
+新 DSN；当前无效 session `/v1/quota` 的精确 401 已关闭 DB-backed application-role 门。
 
 所有 sensitive 变量只创建在 Vercel Production 并启用 Sensitive；不 pull 到仓库文件。公开变量也只作用于
 Production，避免 Preview 意外连接同一项目。任何环境变量变化只对下一次 deployment 生效，修改后必须重新
@@ -403,10 +406,9 @@ format/lint/typecheck/build、architecture、release 和 production audit；prod
 该证据在当时只关闭离线实现门，不代表当时已创建 Vercel project 或完成任何外部配置、部署、真实请求与
 邀请；后续已单独完成 project bootstrap、Git/Branch Tracking、domain/TLS、Resend sender、分离邮件
 credential、Custom SMTP、Supabase Auth exact URL、API 21/21 与 Web 2/2 Production-only environment 和零
-deployment 回读。后续 API 已产生 8 条 Production 记录；application 密码轮换后的正式数据库 verifier、
-Vercel DSN Rotate、Rotate 后 exact-SHA deployment 与立即 disarm 均已完成。由于托管 Sensitive 值不可
-回读，真实 composition 继续由保留的 `7577cdd` deployment 上的 DB-backed runtime gate 关闭。真实邮件、
-Web deployment、Cron 与邀请仍未执行。
+deployment 回读。后续 API 已产生 10 条 Production 记录；application 密码轮换后的正式数据库 verifier、
+纠正 Vercel DSN Rotate、exact-SHA deployment、立即 disarm 与 DB-backed runtime gate 均已完成。真实
+DeepSeek/Auth/邮件、Web deployment、Cron 与邀请仍未执行。
 
 官方约束来源：
 

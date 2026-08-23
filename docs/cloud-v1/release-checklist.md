@@ -21,15 +21,17 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       显式 CA + verify-full，并加入精确角色图、越权 SQLSTATE 与同 backend 跨事务 context 隔离验证。更新后
       focused 与本轮完整 macOS 门、远端 hardened admin/application 双复验均已通过。第 12 条
       FirstOperatorBootstrap migration 已实际应用；Vercel API/Web 项目、Git/Branch、custom domain 与 TLS
-      已建立；API 已产生 8 条 Production deployment 记录，当前 Latest/Current source 为 `7577cdd`，Web 仍
+      已建立；API 已产生 10 条 Production deployment 记录，当前 Latest/Current source 为 `7577cdd`，Web 仍
       为 `No Production Deployment`。Resend sender domain、分离 SMTP/HTTP key、Supabase Custom SMTP 与 API
       R3-C 配置也已完成；Supabase Auth Site URL 与五条 exact redirect 已配置，API 21/21（9 Sensitive、
       12 public）与 Web 2/2 public Production-only environment 结构复核通过。application DSN 已 Rotate，
       Rotate 后 exact-SHA API deployment `3fxCRe2xku5qzZ8kdbFo4GivGiRL` 已 Ready；独立 disarm 提交
-      `00beea8` 未产生 API/Web deployment，API/Web Git deployment 当前均关闭。真实 runtime composition
-      与完整运行验收未完成，因此本项仍未勾选；
-- [ ] 在 Rotate 后 exact-SHA `7577cdd` deployment 上通过 DB-backed application-role smoke；deployment
-      ID/SHA/创建时间晚于 Rotate 与关闭证据已记录，不得重新武装 API；
+      `00beea8` 未产生 API/Web deployment，API/Web Git deployment 当前均关闭。错误值导致的两次启动失败
+      已保留；正确 Rotate 后 deployment `DyqRzj5UMN8BRpSeZyohXprnAkaT` 已通过 health 与无写入数据库探针。
+      DeepSeek/Auth/Web/邮件/Cron/邀请等完整运行验收未完成，因此本项仍未勾选；
+- [x] 在正确 Rotate 后 exact-SHA `7577cdd` deployment 上通过 DB-backed application-role smoke；
+      `GET /health` 为 200，随机无效 session 的 `GET /v1/quota` 为精确 401
+      `authentication_required`。deployment ID/SHA/创建时间与 Git 关闭证据已记录，API 未重新武装；
 - [ ] `app.acceptance.<root-domain>` / `api.acceptance.<root-domain>` 的 DNS 与 Vercel domain 已验证；API
       custom-domain TLS、`/health` 200 和固定 JSON 已通过，Web 尚未部署，Cookie、CSRF、SSE、callback 仍须
       在受控 API→Web deployment 后验收；若曾使用

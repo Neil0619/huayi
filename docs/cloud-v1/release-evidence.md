@@ -1480,3 +1480,25 @@ typecheck、architecture、build、development blocker、Store release、product
   进入 `/health` 与 DB-backed runtime smoke。Ready 本身不证明数据库、DeepSeek、Auth、Cookie/CORS/SSE；
 - **回归待闭合**：关闭配置使旧 armed 断言按预期失败；后续测试/文档修复 push 必须继续回读 API 总数为 8、
   Web 为 0，以证明 `deploymentEnabled=false` 持续生效。
+
+## 59. Sensitive DSN 纠正与 runtime 数据库门（2026-08-23）
+
+- **启动失败证据**：`3fxCRe2xku5qzZ8kdbFo4GivGiRL` 的 custom-domain `/health` 返回 HTTP 500，Vercel
+  runtime 日志在 `environment.ts` 的 URL 校验处显示输入为固定变量名
+  `HUAYI_SECURITY_NOTIFICATION_MODE`。这证明此前“正确 DSN 已进入 runtime”的描述无效，但没有暴露密码、
+  DSN、CA 或其他 secret；
+- **失败重试保留**：第一轮纠正没有取得变量更新时间，exact-source Dashboard redeploy
+  `CHnaZQuohoNiTM4ukQqY1NXQZv2V` 仍以同一固定错误失败。该 Ready deployment 和 500 日志均保留为证据；
+- **正确 Rotate 证据**：第二轮只在 `HUAYI_DATABASE_URL` 的 Rotate dialog 内填写经结构校验的 6543
+  transaction-pooler DSN；提交后 dialog 关闭、Dashboard 显示 `Rotated HUAYI_DATABASE_URL` 和
+  `Updated just now`。系统与浏览器剪贴板随后均清空，不记录密码或完整 DSN；
+- **纠正 deployment**：API/Web Git deployment 全程为 `false`。从精确候选
+  `7577cdd7658fe966e85e8c8b4346e3291089e4e1` 进行一次无缓存 Dashboard redeploy，得到 Production
+  deployment `DyqRzj5UMN8BRpSeZyohXprnAkaT`，状态 Ready；API 历史总数为 10，Web 仍为零；
+- **健康门**：custom-domain `/health` 返回 HTTP 200、固定
+  `{"service":"huayi-cloud-api","status":"ok"}`，`x-vercel-id` 为
+  `sin1::sin1::ftzls-1787473912756-ba19a54971b6`；
+- **数据库门**：随机无效 session 的 `GET /v1/quota` 返回精确 HTTP 401、
+  `authentication_required`、`The Web session is invalid.`，`x-vercel-id` 为
+  `sin1::sin1::rvdmw-1787473926428-f9a857274998`。Cookie 未记录；该无写入结果证明 runtime 已完成
+  DB TLS/login、transaction、role switch 与认证 SQL，但不证明 tenant context/RLS、DeepSeek、Auth 或邮件。

@@ -259,15 +259,16 @@ RLS，首页仍为 `Healthy`。第 12 条 FirstOperatorBootstrap forward migrati
 actual push。Auth 仍为 0 用户；foundation bootstrap 后 Storage 为唯一 private
 `account-exports-acceptance` bucket 且 0 object，application login 与三条价格已建立，kill switch 保持开启。
 Vercel 应用部署仍是独立门；修正版 PostgreSQL 17 foundation verify 已通过，Operator status 已返回
-`empty`。两个 Vercel project、Git/Branch、custom domain 与部署前 TLS 已建立；API 已有 8 条 Production
+`empty`。两个 Vercel project、Git/Branch、custom domain 与部署前 TLS 已建立；API 已有 10 条 Production
 deployment 记录且 Web 仍为 `No Production Deployment`。Tokyo
 (`ap-northeast-1`) 的 Resend sender domain `notify.acceptance.seen-said.cn` 也已完成 DNS 与 Dashboard
 verified。旧泄露 key 与两把未使用的错误/临时 R3-C key 均已撤销；两把 sending-only/domain-scoped
 SMTP/HTTP key 已分离托管，Supabase Custom SMTP、Auth Site URL/五条 exact redirect、API 21/21 与 Web
 2/2 Production-only environment 均已配置并完成结构回读。API 当前 Latest/Current deployment source 为
-Rotate 后 `7577cdd`，deployment ID 为 `3fxCRe2xku5qzZ8kdbFo4GivGiRL`；disarm `00beea8` 没有新增 API/Web
-deployment，两个项目当前均关闭 Git 自动部署。此前 custom-domain `/health` 已返回 TLS 校验通过、HTTP 200
-与固定 JSON，但保留 deployment 的数据库 composition、投递与完整应用验收仍未完成。
+Rotate 后 `7577cdd`，deployment ID 为 `DyqRzj5UMN8BRpSeZyohXprnAkaT`；disarm `00beea8` 没有新增 API/Web
+deployment，两个项目当前均关闭 Git 自动部署。正确 Rotate 后 custom-domain `/health` 已返回 HTTP 200 与
+固定 JSON，无效 session `/v1/quota` 已返回精确 401，关闭 application-role 数据库路径；投递与完整应用
+验收仍未完成。
 
 `.cn` 域名实名认证是启用解析的必需项。验收环境继续使用 Vercel/Supabase 境外托管资源时，ICP备案不
 作为当前启动前置；未来迁入中国大陆服务器、使用中国大陆 CDN 或其他境内接入资源前，必须重新设置备案
@@ -391,10 +392,10 @@ Phase 64 已完成 hosted Auth 与 API/Web Production environment 结构配置�
 加 exact production branch 允许后，实际产生 6 个线性 commit 对应的 Production deployment 及一次 redeploy；
 冻结本候选前的 Latest/Current source 为 `0c04130`，Web 继续全分支关闭且没有 deployment。Phase 66 的新 application
 diagnostic 22 个字段与正式 verify 均已远端通过，Vercel `HUAYI_DATABASE_URL` 也已用轮换后密码成功 Rotate
-为 Production Sensitive transaction-pooler `6543` DSN。Phase 67/68 已完成 Rotate 后 exact-SHA `7577cdd`
-API deployment 与 disarm；API/Web Git deployment 均关闭，Web 仍无 deployment。下一门是在保留的
-`7577cdd` deployment 上验证 health、数据库、DeepSeek 与 Auth；之后才进入 Web → 真实邮件/R3-C → Cron
-→ 首位 Operator 邀请。下一次 Windows 全门等到验收
+为 Production Sensitive transaction-pooler `6543` DSN。Phase 67/68 已完成 exact-SHA deployment 与
+disarm；Phase 69 纠正误写的 Sensitive 值，并在 `DyqRzj5UMN8BRpSeZyohXprnAkaT` 上通过 health 与无写入
+数据库探针。API/Web Git deployment 均关闭，Web 仍无 deployment。下一门是 DeepSeek 与 Auth，再进入
+Web → 真实邮件/R3-C → Cron → 首位 Operator 邀请。下一次 Windows 全门等到验收
 批次冻结，不因每个文档或配置步骤重复执行。
 
 ## 10. 官方约束来源

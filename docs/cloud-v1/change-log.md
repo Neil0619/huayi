@@ -3,6 +3,16 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-23：Sensitive 变量轮换必须以保存回执和新 deployment runtime 共同验收
+
+- 点击 Vercel 环境变量名称会复制变量名，不能用该控件定位 Rotate 后再依赖原剪贴板；必须点击行尾操作
+  菜单，并在精确 Rotate dialog 内填写值。提交成功至少同时要求 dialog 关闭、固定 Rotate 成功回执与变量
+  更新时间刷新；只看到 Redeploy dialog、Ready deployment 或旧成功 toast 均不能证明新值已保存；
+- Sensitive 值不可回读，结构校验只能在提交前以内存布尔结果完成且不得输出值；提交后必须清空系统与浏览器
+  剪贴板。任何环境变更只由随后新建的 deployment 使用，旧 deployment 不得作为新值证据；
+- Git deployment 已关闭时，允许从已审查的精确 source 进行单次 Dashboard redeploy，不得为了应用环境变更
+  重新武装分支。失败 deployment 与脱敏启动日志必须保留；先通过 `/health`，再运行无写入 DB-backed 探针。
+
 ## 2026-08-23：API armed 窗口改为受控部署后立即重新关闭
 
 - Phase 65 的 exact branch allowlist 只能保证 API-only，不能保证“一次 push 只产生一次部署”。API 保持
