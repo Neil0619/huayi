@@ -137,6 +137,27 @@ describe("API security environment", () => {
     ).toMatchObject({ HUAYI_WEB_ORIGIN: "https://app.huayi.example" });
   });
 
+  it("keeps the API cron bearer within the Supabase Cron Vault contract", () => {
+    expect(() =>
+      parseApiEnvironment({
+        ...validHostedEnvironment(),
+        CRON_SECRET: "c".repeat(31),
+      }),
+    ).toThrow();
+    expect(() =>
+      parseApiEnvironment({
+        ...validHostedEnvironment(),
+        CRON_SECRET: "c".repeat(513),
+      }),
+    ).toThrow();
+    expect(
+      parseApiEnvironment({
+        ...validHostedEnvironment(),
+        CRON_SECRET: "c".repeat(512),
+      }),
+    ).toMatchObject({ CRON_SECRET: "c".repeat(512) });
+  });
+
   it("allows notification delivery to be disabled only for the fixed local acceptance origin", () => {
     const common = {
       CRON_SECRET: "cron-test-secret-at-least-32-characters",

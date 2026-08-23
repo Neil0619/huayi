@@ -1767,3 +1767,24 @@ typecheck、architecture、build、development blocker、Store release、product
 - **边界**：本阶段未修改 API deployment、Supabase、DNS、Vercel environment 或密钥，未创建/撤销
   邀请、发送邮件、切换 kill switch 或调用 DeepSeek。普通邀请、OTP/Auth SMTP、R3-C、Cron 与 Cloud
   DeepSeek 依赖链不因 UI 部署而被标记完成。
+
+## 67. Hosted 剩余门代码审计与 Provider/Cron 校准（2026-08-24）
+
+- **审计范围**：逐项复核 R3-C worker/Resend sender/production composition、五项 Supabase Cron、四条
+  DeepSeek 付费路径、Hosted 动作账本与发布清单；未访问 Supabase/Resend/DeepSeek/Vercel，也未读取或
+  修改任何密钥；
+- **DeepSeek Fresh RED**：Provider envelope 的 `model` 过去只要求非空，parser 丢弃该字段；新增回归用
+  其他非空模型取得了错误的成功结果，并显示元数据仍被强制写成 `deepseek-v4-flash`。GREEN 在四条付费
+  路径共用的 response schema 处改为 exact literal，错误模型现在失败关闭；
+- **Cron Fresh RED**：API environment 过去接受 513 字符 `CRON_SECRET`，与 Supabase SQL 的 32–512
+  契约不一致；GREEN 增加 512 上限并覆盖 31/32/512/513 边界。Cron SQL 回归还精确提取五个
+  unschedule 名称并要求每个 job/path 在 allowlist 与 schedule 中各出现一次；
+- **生产组合补证**：PGlite acceptance 现在同时证明 durable dispatch、request/ledger 价格 UUID 一致、
+  reservation settled、64/0/32 usage、实际 cost、单条 succeeded ledger 和 model metadata，而不再只统计
+  records/candidates/ledger 行数；
+- **完整验证**：focused 7 files / 32 tests、Hosted deployment script 4/4、API full 138 files / 531
+  tests、API strict typecheck/build 与目标 lint 通过；完整 `pnpm verify:macos` 原样退出 0，覆盖 240/240
+  scripts、476 个 Vitest files（2,901 passed / 12 skipped）、Store 481/481、Playwright 111/111、全仓
+  format/lint/typecheck/build/architecture/release/audit/diff；
+- **边界**：真实 R3-C、Cron 安装/重复执行、DeepSeek 90 秒 timeout/实际账单、备份、目标网络与 Windows
+  最终批次继续保持 pending。

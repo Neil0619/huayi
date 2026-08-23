@@ -69,22 +69,28 @@ ExtensionQuery、duplicate suggestion 与 practice task 已有 `dispatched_at`�
 - Provider `completion_tokens_details` 使用严格对象，允许为空或只含可选非负安全整数
   `reasoning_tokens`，拒绝其他
   未知字段；该兼容字段不改变 `total_tokens = prompt_tokens + completion_tokens` 不变量。
+- Provider envelope 的 `model` 必须逐字等于 `deepseek-v4-flash`。空值或任意其他非空模型均在解析阶段
+  失败关闭，禁止把 Provider 实际返回的其他模型改写成固定模型后继续保存或结算。
 
 ## 4. TDD 与验收
 
 Fresh RED 必须先证明：
 
 1. 合法的 `completion_tokens_details.reasoning_tokens` 当前被 strict response schema 拒绝；
-2. 单一部署价格无法表达 legacy/off-peak/peak，且边界 dispatch 不能固定正确 UUID；
-3. begin 后在 pre-dispatch lease reclaim 跨窗的请求若按 begin 选价，会与实际 Provider dispatch 费率不符。
+2. Provider 返回其他非空 `model` 时当前会被错误接受并以固定模型写入元数据；
+3. 单一部署价格无法表达 legacy/off-peak/peak，且边界 dispatch 不能固定正确 UUID；
+4. begin 后在 pre-dispatch lease reclaim 跨窗的请求若按 begin 选价，会与实际 Provider dispatch 费率不符。
 
 GREEN 验收矩阵：
 
 - 时间：生效前一毫秒、精确生效点、00:59:59.999/01:00、03:59:59.999/04:00、
   05:59:59.999/06:00、09:59:59.999/10:00 UTC；
 - schema：reasoning token 字段接受、非整数/负数/未知字段拒绝，公开 usage 仍只有 input/cached/output；
+- 模型身份：四条付费路径共享同一个 strict Provider envelope，错误 `model` 必须零成功结果、零伪造元数据；
 - 组合：四条付费路径按 peak reserve，再以 dispatch snapshot 完成 fetch→actual ledger；begin/reclaim 可跨窗，
   dispatch→settlement 跨窗不漂移；
+- production acceptance：完整组合必须证明 request 已 durable dispatch、实际价格 UUID 同时进入 request 与
+  ledger、reservation settled、单条 usage token/cost 正确、record model metadata 与 ledger 一致；
 - 数据库：三个 UUID 与三项精确价格逐一校验；不匹配零 Provider；ledger 引用固定 UUID；
 - 生命周期：same-key terminal replay、active busy、ready replay、lease fencing、dispatched timeout 保守结算
   和 quota/kill switch 顺序均无回归。

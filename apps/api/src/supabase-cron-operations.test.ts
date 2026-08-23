@@ -32,9 +32,16 @@ describe("Supabase Cron production adapter", () => {
     expect(sql).toMatch(/cron\.unschedule/iu);
     expect(sql.match(/cron\.schedule\(/gu)).toHaveLength(jobs.length);
 
+    const unscheduleNames = /WHERE jobname IN \(([\s\S]*?)\);/iu.exec(sql)?.[1];
+    expect(unscheduleNames).toBeDefined();
+    const configuredNames = [...(unscheduleNames ?? "").matchAll(/'([^']+)'/gu)].map(
+      ([, name]) => name,
+    );
+    expect(configuredNames).toEqual(jobs.map(([jobName]) => jobName));
+
     for (const [jobName, path] of jobs) {
-      expect(sql).toContain(`'${jobName}'`);
-      expect(sql).toContain(`'${path}'`);
+      expect(sql.match(new RegExp(`'${jobName}'`, "gu"))).toHaveLength(2);
+      expect(sql.match(new RegExp(`'${path}'`, "gu"))).toHaveLength(2);
     }
     expect(sql.match(/'\* \* \* \* \*'/gu)).toHaveLength(jobs.length);
   });

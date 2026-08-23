@@ -42,15 +42,18 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       12 Ready / 3 Error / 9 Canceled、Web 5 Ready / 1 Error / 10 Canceled。随后普通邀请生命周期候选
       `526fb8b` 经 Web-only arm `bb21817` 只产生 Ready Production deployment
       `2D2o6cYZJWSRKLHKQQB7XXxZRAt1`，Web 默认非 Canceled 数 6→7，API 保持 15；独立 disarm
-      `636968d` 没有新增非 Canceled deployment。Latest API 仍为 `39094d0` /
-      `9jbyfnAvZwpa3Ci7YU6s6asmNZNG`，Latest Web 为 `bb21817` /
-      `2D2o6cYZJWSRKLHKQQB7XXxZRAt1`，且两项目均为 `deploymentEnabled=false`。live `/`、
+      `636968d` 没有新增非 Canceled deployment。Cloud Web UI 合并后又以 Web-only arm `f3feff1` 只新增
+      Ready deployment `DU6wE2r9ZLeSSoAMZAbsQihBjC72`，独立 disarm `d6d901c` 零额外非 Canceled。
+      Latest API 仍为 `39094d0` / `9jbyfnAvZwpa3Ci7YU6s6asmNZNG`，Latest Web 为 `f3feff1` /
+      `DU6wE2r9ZLeSSoAMZAbsQihBjC72`，默认非 Canceled 为 API/Web 15/8，且两项目均为
+      `deploymentEnabled=false`。live `/`、
       `/privacy`、`/admin` 与实际 JS asset 已通过精确安全响应头、真实渲染、exact SHA 和 secret scan；
       同轮公共边界只读探针通过，未写 Auth、SMTP、Supabase 或 DeepSeek。用户随后已亲自提交 `/admin`
       密码并通过 Operator 四区只读；邀请区四条历史行暴露“只有 ID/expiry、无状态”的 Web 缺口，尚未
       创建或撤销普通邀请。新 bundle 已显示 `Hosted 验收 · bb21817`；独立复核在用户仍有效的 recent-auth
       会话中读取到一条“已领取”和三条“已撤销”，终态行均无撤销入口且 console error 为零。当前没有
-      “可领取”或“已过期”行；active 标签/二步撤销仍须在用户授权收件人并创建唯一普通邀请后验证。OTP、
+      “可领取”或“已过期”行；active 标签/二步撤销仍须在用户授权收件人并创建唯一普通邀请后验证。新的
+      UI bundle 已显示 `Hosted 验收 · f3feff1`；OTP、
       真实邮件、Cron 与 DeepSeek 应用路径 smoke 仍未完成，因此本项仍未勾选；
 - [x] 在正确 Rotate 后 exact-SHA `7577cdd` deployment 上通过 DB-backed application-role smoke；
       `GET /health` 为 200，随机无效 session 的 `GET /v1/quota` 为精确 401
@@ -87,7 +90,7 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       Store 97 files 481/481 与 Playwright 110/110；
 - [x] 当前 Web 与 Store Extension Playwright 111/111 全绿；测试使用隔离的 4173 Vite 服务，没有改写或
       重启当前 8443 验收环境；
-- [x] 当前 macOS `pnpm verify:macos` 原样退出 0：240/240 Node scripts、476 个 Vitest files（2,899
+- [x] 当前 macOS `pnpm verify:macos` 原样退出 0：240/240 Node scripts、476 个 Vitest files（2,901
       passed / 12 skipped）、Store 97 files 481/481、Playwright 111/111；instructions、format、lint、typecheck、
       architecture、workspace build、development blocker、Store release、production audit 和 diff 同轮通过；
 - [ ] Windows Node.js 26+ 的 `pnpm verify:windows`、SEA health 与 CI 全绿；Phase 37-B 已在 Windows 11
@@ -137,12 +140,15 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
 - [x] DeepSeek 官方文档事实已校准：固定 `deepseek-v4-flash`、thinking + JSON、非流
       `completion_tokens_details.reasoning_tokens`，以及 2026-08-16T16:00:00Z 起两个 UTC peak 窗口和
       legacy/off-peak/peak 精确价格；离线 adapter/分时账本实现与回归已完成；
-- [ ] 生产环境插入并核对三个不可变价格 UUID 行，部署三个 UUID 配置，并以经批准真实请求核验模型、
-      usage、timeout、实际账单与 UsageLedger 一致；
+- [x] Hosted foundation 已插入并由 verifier 核对三个不可变价格 UUID 行；Vercel Production 已部署三个
+      UUID 配置。离线 production composition 现同时核对 durable dispatch、价格 UUID、reservation、
+      UsageLedger 与模型元数据；
+- [ ] 以经批准真实请求核验 Provider 返回模型、usage、90 秒应用 timeout、实际账单与 UsageLedger 一致；
 - [ ] 真实 DeepSeek 语义建议在受控小额度下核验固定 endpoint/model、usage、价格、timeout 和账本；不得
       用离线 fake fetch/authority 代替费用或网络事实；
-- [ ] Supabase/Vercel 区域、部署前 TLS、Auth Site URL 与五条 exact redirect 已核验；备份残留、真实 OAuth
-      callback、CORS/Cookie 和部署后 TLS 仍须在首次 API→Web deployment 后核验；
+- [x] Supabase Singapore、Vercel `sin1`、部署后 TLS、Auth Site URL/五条 exact redirect、Web-origin
+      credentialed CORS 与无 Cookie 认证边界已在真实 API→Web deployment 后核验；
+- [ ] 备份残留、真实 OAuth callback 与目标网络行为仍须独立核验；
 - [ ] 目标网络验证 Google OAuth、邮箱密码、Web SSE 与新加坡区域延迟；
 - [ ] 生产价格快照、默认 1 美元 grant、限速、kill switch 和无正文告警已演练；
 - [ ] AccountDataExport 独立私有副本 ready 后 24 小时删除、snapshot 纳入未过期平台查询且不延长原

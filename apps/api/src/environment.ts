@@ -107,7 +107,7 @@ const baseEnvironmentShape = {
     .optional(),
   HUAYI_MIN_SUPPORTED_EXTENSION_VERSION: extensionVersionSchema,
   HUAYI_ACCOUNT_EXPORT_BUCKET: z.string().regex(/^[a-z0-9][a-z0-9._-]{1,62}$/u),
-  CRON_SECRET: z.string().min(32),
+  CRON_SECRET: z.string().min(32).max(512),
   HUAYI_WEB_ORIGIN: exactHttpsOriginSchema,
   SUPABASE_PUBLISHABLE_KEY: z.string().min(20),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(20),

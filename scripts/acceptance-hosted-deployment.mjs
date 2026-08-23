@@ -60,7 +60,7 @@ export function renderHostedDeploymentPlan() {
     "- Current Web latest is Ready deployment DU6wE2r9ZLeSSoAMZAbsQihBjC72 at source f3feff1252673e715a5624c9539f04d8078a5d4b.",
     "- Cloud workspace redesign candidate 524a55b35dadfd1e8bd1ef89b0abc2baadf69066 was deployed only through the reviewed arm and followed by disarm d6d901c.",
     "- Default non-Canceled deployment counts are API 15 and Web 8; both projects remain disarmed.",
-    "- Public read-only Web/API, exact Web security-header, invitation-lifecycle, and redesigned workspace gates are complete.",
+    "- Public read-only Web/API, exact Web security-header, historical invitation terminal-state UI, and redesigned workspace gates are complete.",
     "Git deployment safety:",
     "- API and Web Git deployment both disable every branch.",
     "- Do not re-arm or redeploy either project for the remaining user, mail, Cron, or Provider gates.",

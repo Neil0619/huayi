@@ -52,7 +52,7 @@ test("hosted deployment plan is complete, deterministic, and secret independent"
     "Current Web latest is Ready deployment DU6wE2r9ZLeSSoAMZAbsQihBjC72 at source f3feff1252673e715a5624c9539f04d8078a5d4b",
     "Cloud workspace redesign candidate 524a55b35dadfd1e8bd1ef89b0abc2baadf69066 was deployed only through the reviewed arm and followed by disarm d6d901c",
     "Default non-Canceled deployment counts are API 15 and Web 8; both projects remain disarmed",
-    "Public read-only Web/API, exact Web security-header, invitation-lifecycle, and redesigned workspace gates are complete",
+    "Public read-only Web/API, exact Web security-header, historical invitation terminal-state UI, and redesigned workspace gates are complete",
     "/health proves TLS and process startup only; it does not execute SQL or prove the database DSN",
     "User-only gate: the user personally enters the current password in /admin; automation must not read, store, or submit it",
     "password reauthentication -> reread all four admin sections and permissions -> create one ordinary invitation",

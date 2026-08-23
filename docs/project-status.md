@@ -91,7 +91,14 @@ wire 版本或完成声明。
 audit 仍只允许 `enabled`。这不代表 Store 产品或 Windows 支持被取消，启用时仍须真实 ID、版本和 Chrome
 门禁。
 
-> **当前校准检查点（Phase 33）**：Phase 28 已补齐 production 语义重复建议和
+> **当前校准检查点（Phase 76，2026-08-24）**：Hosted Singapore Supabase、Vercel API/Web、同站域名、
+> First Operator、Cloud Web UI 与受控 deploy/disarm 已完成，API/Web 当前默认非 Canceled 为 15/8 且均
+> `deploymentEnabled=false`。剩余发布链为唯一普通邀请与 scanner-safe OTP/Auth SMTP → R3-C 真实投递/
+> 重复/无正文告警 → 五项 Supabase Cron → 受审计 kill switch 与一笔 Cloud DeepSeek 应用路径对账 →
+> 备份/目标网络/自然使用/Store 与 Windows 最终批次。Phase 76 复审修复了 Provider 返回其他模型仍被伪记为
+> `deepseek-v4-flash`，以及 API `CRON_SECRET` 缺 512 字符上限的问题；真实外部门未因此关闭。
+
+> **历史校准检查点（Phase 33）**：Phase 28 已补齐 production 语义重复建议和
 > 可计算 AA token 证据；2026-08-14 完成度源码审计发现的 SubmissionOutbox `api=null` 误清账号绑定
 > 密文与未计数 `not-configured` 回归也已按 Fresh RED→GREEN 修复。Phase 32 按 `product.md` 七条
 > 成功标准重建证据矩阵后，将总体状态校准为

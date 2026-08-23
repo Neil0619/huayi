@@ -574,6 +574,25 @@ files / 493 tests。两包 strict typecheck/build、目标 ESLint/Prettier、ins
 mirror 与 `git diff --check` 通过；全仓 `format:check` 当时仅被本纵切禁止修改的并行
 `postgres-account-data-rights.test.ts` 格式差异阻塞，不归因于 R3-C 文件。
 
+### 4.3.2 Phase 76 Provider 身份、Cron secret 与生产组合校准
+
+- `deepseek-analysis-model.test.ts` 用非空但错误的 Provider `model` 先复现成功结果，再要求共享 strict
+  envelope 只接受 `deepseek-v4-flash`；同一 parser 由 analysis、ExtensionQuery、practice 和 duplicate
+  suggestion 四条付费路径复用；
+- `environment.test.ts` 先证明 513 字符 `CRON_SECRET` 被 API environment 接受，再锁定与 Supabase Cron
+  SQL 相同的 32–512 字符区间；边界 31/32/512/513 都有断言；
+- `supabase-cron-operations.test.ts` 不再只断言“存在一次 unschedule 和五次 schedule”，而是提取
+  `WHERE jobname IN (...)` 的 exact 五项有序集合，并要求每个 job/path 同时出现在 allowlist/unschedule 与
+  schedule 位置；该静态检查不冒充真实 Supabase 连续执行两次的幂等证据；
+- `production-analysis-acceptance.test.ts` 在本机完整 production composition 内核对 durable dispatch、
+  request/ledger 的同一价格 UUID、settled reservation、64/0/32 token、实际 cost、单条 succeeded ledger
+  和 record model metadata，不再只检查表行数。
+
+阶段内 focused 聚合为 7 files / 32 tests，API full 为 138 files / 531 tests；完整 `verify:macos` 为
+240/240 scripts、476 个 Vitest files（2,901 passed / 12 skipped）、Store 481/481 与 Playwright 111/111，
+全部通过。这些检查全程使用 PGlite 与固定本机 Provider，不访问 DeepSeek、Supabase、Resend 或 Vercel。
+真实 Provider 返回模型、90 秒应用 timeout、账单、R3-C、Cron 安装/重复执行仍由 hosted 外部门单独验收。
+
 ### 4.4 Phase 45 Vercel Fluid 与 Function 时长契约
 
 `production-app.test.ts` 解析真实 `apps/api/vercel.json`，必须同时证明 `fluid` 精确为 `true`、唯一

@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 
+import { calculateModelCost } from "@huayi/cloud-contracts";
 import { PGlite } from "@electric-sql/pglite";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
@@ -9,6 +10,7 @@ import {
 } from "./acceptance-provider-fetch.js";
 import type { AnalysisDatabase, AnalysisQuery } from "./analysis-database.js";
 import { createDeepSeekPriceSchedule } from "./deepseek-price-schedule.js";
+import { DEEPSEEK_PLATFORM_MODEL } from "./deepseek-analysis-protocol.js";
 import type { ApiEnvironment } from "./environment.js";
 import { createProductionAnalysis } from "./production-analysis.js";
 
@@ -153,6 +155,78 @@ describe("production analysis with the local acceptance provider", () => {
       records: 1,
       settled_reservations: 1,
       usage_rows: 1,
+    });
+
+    const request = (
+      await database.query<{
+        dispatched_at: Date;
+        id: string;
+        price_version_id: string;
+        reservation_id: string;
+        state: string;
+        terminal_type: string;
+      }>(`SELECT id::text,state,dispatched_at,price_version_id::text,reservation_id::text,
+        terminal_event->>'type' AS terminal_type FROM analysis_requests`)
+    ).rows[0];
+    if (request === undefined) throw new Error("Missing production analysis request.");
+    expect(request).toMatchObject({ state: "completed", terminal_type: "analysis.completed" });
+    expect(request.dispatched_at).toBeInstanceOf(Date);
+    const dispatchPricing = pricing.at(request.dispatched_at);
+    expect(request.price_version_id).toBe(dispatchPricing.priceVersionId);
+
+    const reservation = (
+      await database.query<{
+        id: string;
+        request_id: string;
+        reserved_micro_usd: string;
+        status: string;
+      }>("SELECT id::text,request_id::text,reserved_micro_usd::text,status FROM quota_reservations")
+    ).rows[0];
+    if (reservation === undefined) throw new Error("Missing production quota reservation.");
+    expect(reservation.request_id).toBe(request.id);
+    expect(reservation.id).toBe(request.reservation_id);
+    expect(reservation.status).toBe("settled");
+
+    const ledger = (
+      await database.query<{
+        cached_input_tokens: number;
+        call_ordinal: number;
+        cost_micro_usd: string;
+        feature: string;
+        input_tokens: number;
+        outcome: string;
+        output_tokens: number;
+        price_version_id: string;
+        request_id: string;
+      }>(`SELECT request_id::text,call_ordinal,feature,input_tokens,cached_input_tokens,
+        output_tokens,price_version_id::text,cost_micro_usd::text,outcome FROM usage_ledger`)
+    ).rows[0];
+    if (ledger === undefined) throw new Error("Missing production usage ledger entry.");
+    const expectedUsage = { cachedInputTokens: 0, inputTokens: 64, outputTokens: 32 };
+    const expectedCost = calculateModelCost(expectedUsage, dispatchPricing.prices);
+    expect(ledger).toEqual({
+      cached_input_tokens: expectedUsage.cachedInputTokens,
+      call_ordinal: 0,
+      cost_micro_usd: String(expectedCost),
+      feature: "analysis",
+      input_tokens: expectedUsage.inputTokens,
+      outcome: "succeeded",
+      output_tokens: expectedUsage.outputTokens,
+      price_version_id: request.price_version_id,
+      request_id: request.id,
+    });
+    expect(Number(reservation.reserved_micro_usd)).toBeGreaterThanOrEqual(expectedCost);
+
+    const record = (
+      await database.query<{ model_metadata: unknown }>(
+        "SELECT model_metadata FROM analysis_records",
+      )
+    ).rows[0];
+    expect(record?.model_metadata).toMatchObject({
+      inputTokens: expectedUsage.inputTokens,
+      model: DEEPSEEK_PLATFORM_MODEL,
+      outputTokens: expectedUsage.outputTokens,
+      provider: "deepseek",
     });
   });
 });

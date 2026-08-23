@@ -65,7 +65,7 @@ const providerResponseSchema = z.strictObject({
     .length(1),
   created: z.number().int().nonnegative().optional(),
   id: z.string().min(1).max(256).optional(),
-  model: z.string().min(1).max(200),
+  model: z.literal(DEEPSEEK_PLATFORM_MODEL),
   object: z.literal("chat.completion").optional(),
   system_fingerprint: z.string().max(256).nullable().optional(),
   usage: providerUsageSchema,

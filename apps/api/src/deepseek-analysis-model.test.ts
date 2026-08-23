@@ -17,6 +17,7 @@ const prices = {
 function providerResponse(
   content: unknown,
   options: {
+    model?: string;
     reasoning?: string;
     reasoningDetails?: boolean;
     reasoningTokens?: number;
@@ -39,7 +40,7 @@ function providerResponse(
       ],
       created: 1,
       id: "provider-response",
-      model: DEEPSEEK_PLATFORM_MODEL,
+      model: options.model ?? DEEPSEEK_PLATFORM_MODEL,
       object: "chat.completion",
       usage: {
         completion_tokens: usage.output,
@@ -148,6 +149,20 @@ describe("DeepSeek platform analysis model", () => {
     ).resolves.toMatchObject({
       usage: { cachedInputTokens: 20, inputTokens: 100, outputTokens: 200 },
     });
+  });
+
+  it("rejects a provider response produced by a different model", async () => {
+    const fetch = vi.fn<DeepSeekAnalysisFetch>(async () =>
+      providerResponse(privateOutput(), { model: "not-deepseek-v4-flash" }),
+    );
+
+    await expect(
+      createFixture(fetch).analyze({
+        input: contractFixtures.startAnalysisRequest,
+        sentences: [{ analysisUnitId: "u1", ordinal: 0, sourceText: "To be frank, this works." }],
+      }),
+    ).rejects.toMatchObject({ code: "model_response_invalid" });
+    expect(fetch).toHaveBeenCalledTimes(1);
   });
 
   it("pins the request contract, discards reasoning, and prices trusted usage", async () => {

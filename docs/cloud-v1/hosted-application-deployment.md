@@ -29,11 +29,13 @@ First Operator 已恢复、complete 并通过 post-completion verifier，最终 
 候选 `3c0af44f73f769da829c4218bf8fc69ef571f133` 经 Web arm
 `b80c7930b8d4a9a87f8c27e500316899adbbdc53` 部署为
 `7zNFzM4LHHGwyKxbwoDLfWoYGfve`，再以 `0e7ef5271b2f97cd9b3743275292e4037bd0f801`
-disarm；API/Web 当前分别为 12 Ready / 3 Error / 9 Canceled 与 5 Ready / 1 Error / 10 Canceled，默认排除
-Canceled 的视图分别为 15 与 6 条。Latest API 是 `39094d0c557b829138ec6f70b6fc838f4594ab9b` /
-`9jbyfnAvZwpa3Ci7YU6s6asmNZNG`，Latest Web 是上述 arm/deployment，两项目当前均为
-`deploymentEnabled=false`。live `/`、`/privacy`、SPA `/admin`、实际 JS asset、安全响应头、渲染、公开
-只读边界与 bundle secret scan 均通过；用户输入密码、四区权限、普通邀请与 OTP 仍待验收。
+disarm；其后普通邀请终态 UI 与 Cloud Web UI 又各完成一次 Web-only deploy/disarm。当前默认排除
+Canceled 的 API/Web 视图分别为 15 与 8 条。Latest API 是
+`39094d0c557b829138ec6f70b6fc838f4594ab9b` / `9jbyfnAvZwpa3Ci7YU6s6asmNZNG`，Latest Web 是
+`f3feff1252673e715a5624c9539f04d8078a5d4b` / `DU6wE2r9ZLeSSoAMZAbsQihBjC72`，两项目当前均为
+`deploymentEnabled=false`。live `/`、`/privacy`、SPA `/admin`、`/practice`、实际 JS asset、安全响应头、
+渲染、公开只读边界与 bundle secret scan 均通过；普通邀请、OTP/Auth SMTP、R3-C、Cron 与 DeepSeek
+应用路径仍待验收。
 
 ## 1. 当前事实与目标
 
@@ -263,7 +265,7 @@ redirect/popup 浏览器证据时引入新的 browsing-context 兼容性假设�
 | `SUPABASE_SERVICE_ROLE_KEY`                | 当前 project service role key，仅 DataRights/Auth 删除 adapter          | sensitive  |
 | `HUAYI_REFRESH_ENCRYPTION_KEY`             | 新生成 32-byte base64url key                                            | sensitive  |
 | `HUAYI_SECRET_PEPPER`                      | 新生成 32+ 字符；后续 bootstrap CLI 必须使用同一个值                    | sensitive  |
-| `CRON_SECRET`                              | 新生成 32+ 字符 bearer                                                  | sensitive  |
+| `CRON_SECRET`                              | 新生成 32–512 字符 bearer                                               | sensitive  |
 | `HUAYI_DEEPSEEK_API_KEY`                   | 用户已确认可用的独立验收 key；已批准少量真实验收费用                    | sensitive  |
 | `HUAYI_DEEPSEEK_LEGACY_PRICE_VERSION_ID`   | `8a7c5397-dbba-4e28-bc0d-107c4d04c3c3`                                  | public     |
 | `HUAYI_DEEPSEEK_OFF_PEAK_PRICE_VERSION_ID` | `dad0deb1-cbdc-4311-b3ad-b492c7ece757`                                  | public     |
@@ -456,9 +458,9 @@ push 只允许增加 Canceled 审计记录，不得新增非 Canceled deployment
   complete、API/Web deployment 与公开/安全响应头门；
 - Latest API `39094d0c557b829138ec6f70b6fc838f4594ab9b` /
   `9jbyfnAvZwpa3Ci7YU6s6asmNZNG`，Latest Web
-  `b80c7930b8d4a9a87f8c27e500316899adbbdc53` / `7zNFzM4LHHGwyKxbwoDLfWoYGfve`；
-- API 12 Ready / 3 Error / 9 Canceled、Web 5 Ready / 1 Error / 10 Canceled，默认排除 Canceled 分别为
-  15 与 6，两项目 `deploymentEnabled=false`；
+  `f3feff1252673e715a5624c9539f04d8078a5d4b` / `DU6wE2r9ZLeSSoAMZAbsQihBjC72`；
+- 默认排除 Canceled 的 API/Web 计数分别为 15 与 8，两项目 `deploymentEnabled=false`；历史全状态分布
+  只作为各次受控部署检查点，不覆盖当前账本；
 - Vercel Functions 已回读 Fluid Enabled、`sin1`，Latest API `/index` 为 Node.js 24.x、`SIN1`、`≤120s`；
   90 秒应用 abort 与平台终止仍随真实 Cloud DeepSeek 请求验收；
 - 当前唯一依赖链：用户亲自输入 `/admin` 密码 → 重读四区和权限 → 创建一张普通邀请 → scanner-safe

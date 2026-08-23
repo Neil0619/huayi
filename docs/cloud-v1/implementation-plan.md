@@ -1667,9 +1667,10 @@ environment 或 deployment，不发送邮件、不调用 DeepSeek；API/Web 始�
    deployment `9jbyfnAvZwpa3Ci7YU6s6asmNZNG` 的唯一 `/index` Function 为 Node.js 24.x、`SIN1`、
    `≤120s`。Observability 页面本身不能证明 90 秒应用 abort 与平台终止，该项继续绑定获批的真实 Cloud
    DeepSeek 应用路径请求；
-4. **分类结论**：migration/First Operator/deployment/public/security-header/Fluid/120 秒为已关闭；本机
-   script/doc/config 验证可安全运行；`/admin` 密码、普通邀请、OTP/Auth SMTP、R3-C、Cron、Cloud
-   DeepSeek、备份/目标网络/跨平台完整旅程均需要用户或外部动作；未发现新的 production runtime 代码缺口；
+4. **当时的分类结论**：migration/First Operator/deployment/public/security-header/Fluid/120 秒为已关闭；
+   `/admin` 密码、普通邀请、OTP/Auth SMTP、R3-C、Cron、Cloud DeepSeek、备份/目标网络/跨平台完整旅程
+   均需要用户或外部动作。当时“未发现新的 production runtime 代码缺口”的结论已被 Phase 76 的 strict
+   Provider model 与 Cron secret 边界复审取代；
 5. **当前依赖链**：用户亲自输入 `/admin` 密码 → 重读四区和权限 → 普通邀请与 scanner-safe OTP/Auth SMTP
    闭环 → R3-C 真实投递/重复/告警 → 五项 Cron → 受审计 kill switch disable → 一笔获批 Cloud DeepSeek
    应用路径请求及账本对账 → 恢复 kill switch。完成前不得重新 bootstrap、发行 BootstrapInvitation、直接
@@ -1718,3 +1719,25 @@ environment 或 deployment，不发送邮件、不调用 DeepSeek；API/Web 始�
 5. **真实页面与下一门**：live `/practice` 显示 exact arm short SHA、新分组导航和今日练习空态。部署期间
    `/admin` recent-auth 自然过期，下一项仍是用户本人再次提交当前密码，然后创建唯一普通邀请；UI 部署
    不关闭 OTP/Auth SMTP、R3-C、Cron、DeepSeek、备份、自然使用或 Windows 最终批次。
+
+### Phase 76：Hosted 剩余门代码审计与 Provider/Cron 失败关闭校准（2026-08-24）
+
+影响平台为 `shared API + hosted-acceptance`。不修改 migration、Supabase、Vercel environment、DNS 或密钥，
+不发送邮件、不调用真实 DeepSeek；Windows 继续留在最终冻结批次。
+
+1. **审计结论**：R3-C sender/23 小时/8 次/同 ID replay、production composition 与第五个 Cron 的本机代码
+   已存在，外部门仍是产品路径真实投递、重复观测和无正文告警接收；Cron 安装必须继续等 R3-C 通过；
+2. **DeepSeek 根因与 Fresh RED**：四条付费路径共用的 Provider response schema 只要求 `model` 为非空字符串，
+   parser 又丢弃该字段，导致其他模型可被接受并伪记为 `deepseek-v4-flash`。回归先证明错误模型返回成功，
+   再把 envelope 收紧为 exact literal；
+3. **Cron 根因与 Fresh RED**：Supabase adapter 已固定 secret 为 32–512 字符，但 API environment 只限制下限；
+   回归先证明 513 字符被接受，再把 API schema 上限收紧为 512；Cron 静态回归同时核对 exact 五项
+   unschedule/schedule set，而不是只统计任意五次 schedule；
+4. **生产组合证据**：本机 acceptance 不再只检查六个表计数；还必须证明 request durable dispatch、实际价格
+   UUID 在 request/ledger 一致、reservation settled、usage token/cost 正确，以及 record model metadata 与
+   ledger 对齐；
+5. **边界**：这些 GREEN 只关闭本机失败关闭缺口。真实 R3-C、Cron 安装/重复执行、Cloud DeepSeek 请求与
+   90 秒 timeout、实际账单、备份/目标网络和 Windows/Chrome 仍按发布清单逐项完成。
+6. **候选门**：focused 7 files / 32 tests、API full 138 files / 531 tests、API typecheck/build、目标 lint
+   与完整 `verify:macos` 均通过；聚合门覆盖 240/240 scripts、476 个 Vitest files（2,901 passed / 12
+   skipped）、Store 481/481 和 Playwright 111/111。
