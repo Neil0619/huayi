@@ -7,6 +7,7 @@ import { CloudFault } from "./cloud-fault.js";
 import { createPostgresWebSession } from "./postgres-web-session.js";
 import { createPostgresSignInMethods } from "./postgres-sign-in-methods.js";
 import { createPostgresPasswordReauthentication } from "./postgres-password-reauthentication.js";
+import { createPostgresPasswordRegistrationRecovery } from "./postgres-password-registration-recovery.js";
 import { createPostgresGoogleReauthentication } from "./postgres-google-reauthentication.js";
 import { createPostgresGoogleLink } from "./postgres-google-link.js";
 import { createPostgresPasswordLink } from "./postgres-password-link.js";
@@ -40,6 +41,10 @@ export function createPostgresFoundationIdentity(options: PostgresFoundationIden
   const createWebSession = createPostgresWebSession(options, trusted);
   const signInMethods = createPostgresSignInMethods(options, trusted);
   const passwordReauthentication = createPostgresPasswordReauthentication(options, trusted);
+  const resumeInterruptedPasswordRegistration = createPostgresPasswordRegistrationRecovery(
+    options,
+    trusted,
+  );
   const googleReauthentication = createPostgresGoogleReauthentication(options, trusted);
   const googleLink = createPostgresGoogleLink(options, trusted);
   const passwordLink = createPostgresPasswordLink(options, trusted);
@@ -340,6 +345,7 @@ export function createPostgresFoundationIdentity(options: PostgresFoundationIden
       );
     },
     requireClaimTicket,
+    resumeInterruptedPasswordRegistration,
     async readAuthFlowState(flowId: string) {
       const [result] = await trusted(
         (sql) => sql<{ state: string | null }[]>`

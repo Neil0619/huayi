@@ -35,4 +35,5 @@ export interface AuthProvider {
     password: string;
   }): Promise<{ authState: AuthState; userId: string }>;
   signInWithPassword(command: { email: string; password: string }): Promise<AuthSession>;
+  verifyPasswordRegistrationOtp(command: { email: string; token: string }): Promise<AuthSession>;
 }

@@ -88,8 +88,8 @@ test("hosted foundation is pinned to the Singapore acceptance project and public
     peak: "e4479ddf-f4da-4a75-825a-2b25c1a145cf",
   });
   assert.equal(new Set(Object.values(hostedAcceptancePriceVersionIds)).size, 3);
-  assert.equal(hostedAcceptanceMigrationVersions.at(-1), "20260822030000");
-  assert.equal(hostedAcceptanceMigrationVersions.length, 12);
+  assert.equal(hostedAcceptanceMigrationVersions.at(-1), "20260823010000");
+  assert.equal(hostedAcceptanceMigrationVersions.length, 13);
 });
 
 test("hosted psql always pins verify-full and the temporary CA path", () => {
@@ -292,6 +292,8 @@ test("hosted diagnostic reports only fixed read-only predicate verdicts", async 
   assert.match(sql, /membership_contract_exact/u);
   assert.match(sql, /first_operator_empty/u);
   assert.match(sql, /migration_0012_trigger/u);
+  assert.match(sql, /migration_0013_recovery_function/u);
+  assert.match(sql, /resume_interrupted_password_registration/u);
 
   const stdout = hostedDiagnosticPredicateNames.map((name) => `${name}|t`).join("\n") + "\n";
   const calls = [];
@@ -663,6 +665,10 @@ test("package scripts expose separate hosted plan, apply and read-only verificat
   assert.equal(
     packageDocument.scripts["acceptance:hosted:operator:verify"],
     "node scripts/acceptance-hosted-first-operator.mjs verify",
+  );
+  assert.equal(
+    packageDocument.scripts["acceptance:hosted:operator:pepper:verify"],
+    "node scripts/acceptance-hosted-pepper-continuity.mjs",
   );
 });
 

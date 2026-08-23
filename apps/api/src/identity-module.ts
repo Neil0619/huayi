@@ -3,7 +3,9 @@ import type { ExtensionPreferences, SignInMethod } from "@huayi/cloud-contracts"
 import { createExtensionIdentityModule } from "./extension-identity-module.js";
 import { createInMemorySignInMethods } from "./in-memory-sign-in-methods.js";
 import { createInMemoryGoogleLink } from "./in-memory-google-link.js";
+import { createInMemoryGoogleReauthentication } from "./in-memory-google-reauthentication.js";
 import { createInMemoryPasswordLink } from "./in-memory-password-link.js";
+import { createInMemoryPasswordRegistrationRecovery } from "./in-memory-password-registration-recovery.js";
 import { createInMemoryWebSessions } from "./in-memory-web-sessions.js";
 import type {
   AccountStatus,
@@ -138,8 +140,29 @@ export function createIdentityModule(options: IdentityModuleOptions) {
     if (invitation.expiresAt <= options.clock.now()) {
       throw new CloudFault("invitation_expired", "The invitation has expired.");
     }
-    if (invitation.consumedBy !== undefined || invitation.claimedByHash !== undefined) {
+    if (invitation.consumedBy !== undefined) {
       throw new CloudFault("invitation_consumed", "The invitation is unavailable.");
+    }
+    if (invitation.claimedByHash !== undefined) {
+      const priorClaim = claims.get(invitation.claimedByHash);
+      if (
+        priorClaim === undefined ||
+        priorClaim.expiresAt > options.clock.now() ||
+        priorClaim.boundUserId !== undefined
+      ) {
+        throw new CloudFault("invitation_consumed", "The invitation is unavailable.");
+      }
+      claims.delete(invitation.claimedByHash);
+      for (const [flowHash, flow] of authFlows) {
+        if (
+          flow.kind === "invite-registration" &&
+          flow.claimTicket !== undefined &&
+          hashSecret(flow.claimTicket, options.pepper) === invitation.claimedByHash
+        ) {
+          authFlows.delete(flowHash);
+        }
+      }
+      delete invitation.claimedByHash;
     }
     const claimTicket = opaqueSecret(options.secrets);
     const ticketHash = hashSecret(claimTicket, options.pepper);
@@ -297,69 +320,23 @@ export function createIdentityModule(options: IdentityModuleOptions) {
     return result;
   }
 
-  function createGoogleReauthentication(sessionId: string, origin: string, csrfToken: string) {
-    const authentication = web.authenticateWebMutation(sessionId, origin, csrfToken);
-    authorizeSignInMethod(authentication.userId, "google");
-    const flowId = opaqueSecret(options.secrets);
-    const expiresAt = addMilliseconds(options.clock.now(), 15 * 60 * 1_000);
-    authFlows.set(hashSecret(flowId, options.pepper), {
-      expiresAt,
-      kind: "reauthenticate-google",
-      ownerUserId: authentication.userId,
-      used: false,
-      webSessionHash: hashSecret(sessionId, options.pepper),
-    });
-    return { expiresAt, flowId };
-  }
-
-  function continueGoogleReauthentication(flowId: string, sessionId: string): void {
-    const flow = authFlows.get(hashSecret(flowId, options.pepper));
-    const authentication = web.authenticateWebSession(sessionId);
-    if (
-      flow === undefined ||
-      flow.kind !== "reauthenticate-google" ||
-      flow.used ||
-      flow.started === true ||
-      flow.expiresAt <= options.clock.now() ||
-      flow.ownerUserId !== authentication.userId ||
-      flow.webSessionHash !== hashSecret(sessionId, options.pepper)
-    ) {
-      throw new CloudFault("authentication_required", "Google authentication is unavailable.");
-    }
-    authorizeSignInMethod(authentication.userId, "google");
-    flow.started = true;
-  }
-
-  function completeGoogleReauthentication(
-    flowId: string,
-    sessionId: string,
-    providerUserId: string,
-    refreshCiphertext: string,
-  ) {
-    const flow = authFlows.get(hashSecret(flowId, options.pepper));
-    if (
-      flow === undefined ||
-      flow.kind !== "reauthenticate-google" ||
-      flow.used ||
-      flow.started !== true ||
-      flow.expiresAt <= options.clock.now() ||
-      flow.webSessionHash !== hashSecret(sessionId, options.pepper)
-    ) {
-      throw new CloudFault("authentication_required", "Google authentication is unavailable.");
-    }
-    if (flow.ownerUserId !== providerUserId) {
-      flow.used = true;
-      throw new CloudFault("authentication_required", "Google authentication did not match.");
-    }
-    const session = web.completeReauthenticatedWebSession(
-      sessionId,
-      providerUserId,
-      refreshCiphertext,
-      "google",
-    );
-    flow.used = true;
-    return session;
-  }
+  const resumeInterruptedPasswordRegistration = createInMemoryPasswordRegistrationRecovery({
+    authFlows,
+    claims,
+    clock: options.clock,
+    createProfile,
+    invitations,
+    pepper: options.pepper,
+    profiles,
+  });
+  const googleReauthentication = createInMemoryGoogleReauthentication({
+    authFlows,
+    authorizeGoogle: (userId) => authorizeSignInMethod(userId, "google"),
+    clock: options.clock,
+    pepper: options.pepper,
+    secrets: options.secrets,
+    web,
+  });
 
   function setAccountStatus(userId: string, status: AccountStatus): void {
     if (!profiles.has(userId)) throw new CloudFault("not_found", "The account was not found.");
@@ -372,18 +349,16 @@ export function createIdentityModule(options: IdentityModuleOptions) {
 
   return {
     ...extensionIdentity,
+    ...googleReauthentication,
     ...webIdentity,
     authorizeSignInMethod,
     bindInvitationIdentity,
     claimInvitation,
     completeAuthFlow,
-    completeGoogleReauthentication,
-    continueGoogleReauthentication,
     consumeAuthFlow,
     createAuthFlow,
     createInvitation,
     createLoginAuthFlow,
-    createGoogleReauthentication,
     createProfile,
     finalizeInvitation,
     googleLink,
@@ -391,6 +366,7 @@ export function createIdentityModule(options: IdentityModuleOptions) {
     passwordLink,
     requireClaimTicket,
     readAuthFlowState,
+    resumeInterruptedPasswordRegistration,
     saveAuthFlowState,
     setAccountStatus,
   };

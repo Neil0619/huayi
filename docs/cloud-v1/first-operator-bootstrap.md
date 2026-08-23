@@ -1,8 +1,10 @@
 # Phase 52 首位 Operator 部署引导方案
 
 状态：2026-08-22 已完成需求、领域、技术、测试与验收方案、离线实现和文档自审；远端第 12 条 migration
-已经实际应用，hardened foundation/application verifier 与空 Operator status 已通过。2026-08-23 又在发行
-首张邀请前补齐独立 post-completion verifier；邀请仍未发行。
+已经实际应用，hardened foundation/application verifier 与空 Operator status 当时已通过。2026-08-23 已
+发行首张邀请；真实密码确认中断后，当前精确状态为 `registration-interrupted`，Auth user/email identity
+已确认但 profile/method/quota/session 尚未建立。当前不得再运行要求空身份的 pristine foundation verifier，
+也不得替换邀请或执行 complete；先按 Phase 72 恢复。
 
 ## 1. 问题与目标
 
@@ -103,11 +105,12 @@ Auth identity、sign-in method 和注册时段 default grant 均属于该账号�
 
 ## 4. CLI 与执行顺序
 
-实现提供五个固定命令和一个零联网 plan：
+实现提供六个 Operator 命令、一个 pepper continuity 命令和一个零联网 plan：
 
 1. `pnpm acceptance:hosted:operator --plan`：零联网、零写入；
 2. `pnpm acceptance:hosted:operator:status --status-first-operator-kpadiulxkgckskcfydry`：只读，只输出
-   empty/invited/registering/registered/completed/completed-operator-deleted/invalid；
+   empty/invited/registering/registration-interrupted/registered/completed/
+   completed-operator-deleted/invalid；
 3. `pnpm acceptance:hosted:operator:invite --confirm-first-operator-invitation-kpadiulxkgckskcfydry`：要求
    管理员 `PGPASSWORD`、官方 CA、与未来 API 完全
    相同的 `HUAYI_SECRET_PEPPER`；生成至少 256 位 token，只把完整 `/join#...` URL 显示一次；
@@ -115,6 +118,8 @@ Auth identity、sign-in method 和注册时段 default grant 均属于该账号�
 5. `acceptance:hosted:operator:complete`：用户正常注册后运行；不接受 userId/email；
 6. `acceptance:hosted:operator:verify`：complete 后只读验证完整首账号链；不接受 userId/email，也不输出
    UUID、邮箱、hash、Cookie 或数据库错误。
+7. `acceptance:hosted:operator:pepper:verify`：只在 `registration-interrupted` 恢复前运行；固定 project，
+   从临时进程环境读取管理员密码、Keychain Production pepper 和原邀请 token，只返回固定 passed/failed。
 
 两条较长命令的精确形式为：
 
@@ -125,15 +130,20 @@ pnpm acceptance:hosted:operator:complete \
   --confirm-complete-first-operator-kpadiulxkgckskcfydry
 pnpm acceptance:hosted:operator:verify \
   --verify-completed-first-operator-kpadiulxkgckskcfydry
+pnpm acceptance:hosted:operator:pepper:verify \
+  --verify-hosted-pepper-continuity-kpadiulxkgckskcfydry
 ```
 
 命令固定 Singapore transaction pooler、project ref、`sslmode=verify-full` 与已校验 Supabase CA，继承
 foundation CLI 的临时 0600 root certificate 和有界错误输出。argv、SQL、stdout/stderr 不含数据库密码；
 数据库只接收 token hash。邀请 URL 是唯一允许的 secret stdout，调用者不得粘贴到聊天、文档或日志。
 
-真实顺序为：完成 hardened foundation verify -> 创建并配置隔离 API/Web/Supabase Auth -> 确认部署
-commit/health -> 发行邀请 -> 用户浏览器正常注册 -> complete -> post-completion verify -> 用户重新登录/
-重新认证并访问 `/admin`。API/Web 未可用前不得发行会过期的邀请。
+pristine 环境的原始顺序为：完成 hardened foundation verify -> 创建并配置隔离 API/Web/Supabase Auth ->
+确认部署 commit/health -> 发行邀请 -> 用户浏览器正常注册 -> complete -> post-completion verify -> 用户重新
+登录/重新认证并访问 `/admin`。当前已越过发行邀请且停在 `registration-interrupted`，恢复顺序改为：0013
+diagnostic/application verifier -> pepper continuity passed -> Phase 72 API/Web 严格串行部署 -> 原邀请 +
+Provider 密码证明恢复 -> status `registered` -> complete -> post-completion verify。当前非空状态不运行
+pristine foundation verifier，且恢复前不 replace、不重新 claim、不新发邀请。
 
 ## 5. TDD 与验证矩阵
 
@@ -186,5 +196,6 @@ application role 越权复验和 `/admin` 真实 Cookie/CSRF journey。离线测
 - fresh `pnpm verify:macos` 原样退出 0，覆盖 207/207 Node scripts、473/473 Vitest files（2,855 passed /
   12 skipped）、Store coverage 481/481、Playwright 110/110、全部 workspace build、architecture、development
   blocker、Store release 和 production dependency audit；
-- 第 12 条 migration 后续已经 dry-run、明确确认并实际 push；Vercel API/Web 首轮部署门也已建立。当前仍未
-  发行邀请、真实注册、complete、post-completion verify 或 `/admin` 浏览器 journey。
+- 第 12 条 migration 后续已经 dry-run、明确确认并实际 push；Vercel API/Web 首轮部署门也已建立。首张
+  邀请已发行并形成可恢复的 `registration-interrupted` 状态；真实 complete、post-completion verify 与
+  `/admin` 浏览器 journey 仍未完成，当前由 Phase 72 的 0013 和中断恢复流程接管。

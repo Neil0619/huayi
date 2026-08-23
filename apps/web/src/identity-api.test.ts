@@ -293,17 +293,40 @@ describe("Web identity API", () => {
     const request = vi
       .fn()
       .mockResolvedValueOnce(json({ emailConfirmationRequired: true }, 202))
+      .mockResolvedValueOnce(
+        json({
+          access: "full",
+          csrfToken: "r".repeat(32),
+          emailConfirmationRequired: false,
+        }),
+      )
       .mockResolvedValueOnce(json({ access: "full", csrfToken: "c".repeat(32) }));
     const api = createWebIdentityApi({ apiOrigin: origin, fetch: request });
 
     await expect(
       api.registerPassword("c".repeat(32), "learner@example.com", "password long enough"),
     ).resolves.toEqual({ emailConfirmationRequired: true });
+    await expect(
+      api.resumePasswordRegistration("i".repeat(43), "learner@example.com", "password long enough"),
+    ).resolves.toMatchObject({ access: "full", emailConfirmationRequired: false });
     await expect(api.loginPassword("learner@example.com", "password long enough")).resolves.toEqual(
       { access: "full", csrfToken: "c".repeat(32) },
     );
     expect(request.mock.calls[0]?.[1]).toMatchObject({ credentials: "include", method: "POST" });
-    expect(request.mock.calls[1]?.[1]).toMatchObject({ credentials: "include", method: "POST" });
+    expect(request).toHaveBeenNthCalledWith(
+      2,
+      new URL("/v1/auth/password/register/resume", origin),
+      expect.objectContaining({
+        body: JSON.stringify({
+          email: "learner@example.com",
+          invitationToken: "i".repeat(43),
+          password: "password long enough",
+        }),
+      }),
+    );
+    expect(request.mock.calls[1]?.[1]?.body).not.toContain("claimTicket");
+    expect(request.mock.calls[1]?.[1]?.body).not.toContain("userId");
+    expect(request.mock.calls[2]?.[1]).toMatchObject({ credentials: "include", method: "POST" });
     expect(api.googleAuthStartUrl).toBe("https://api.huayi.invalid/v1/auth/google/start");
   });
 

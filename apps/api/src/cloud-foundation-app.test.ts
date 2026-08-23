@@ -31,6 +31,7 @@ function foundation(rateLimiter?: RateLimiter) {
   const auth = createFoundationAuthProvider();
   vi.spyOn(auth, "beginGoogle");
   vi.spyOn(auth, "registerPassword");
+  vi.spyOn(auth, "signInWithPassword");
   const quota = createQuotaModule({ clock });
   const app = createCloudFoundationApp({
     apiOrigin: "https://api.huayi.example",
@@ -65,6 +66,7 @@ function foundation(rateLimiter?: RateLimiter) {
   return {
     app,
     auth,
+    clock,
     identity,
     quota,
   };
@@ -174,28 +176,6 @@ describe("Cloud foundation HTTP adapter", () => {
       method: "POST",
     });
     expect(unknownField.status).toBe(400);
-  });
-
-  it("rate-limits password registration before an invalid claim can reach Auth", async () => {
-    const { app, auth } = foundation();
-    const request = () =>
-      app.request("/v1/auth/password/register", {
-        body: JSON.stringify({
-          claimTicket: "x".repeat(32),
-          email: "learner@example.com",
-          password: "correct horse battery staple",
-        }),
-        headers: { "content-type": "application/json", "x-forwarded-for": "198.51.100.8" },
-        method: "POST",
-      });
-
-    for (let attempt = 0; attempt < 5; attempt += 1) {
-      const response = await request();
-      expect(response.status).toBe(400);
-      expect(response.headers.get("cache-control")).toBe("private, no-store");
-    }
-    expect((await request()).status).toBe(429);
-    expect(auth.registerPassword).not.toHaveBeenCalled();
   });
 
   it("starts Google Auth from a body so the claim ticket never enters a request URL", async () => {

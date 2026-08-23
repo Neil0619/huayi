@@ -44,8 +44,10 @@ Web /join#token
   -> history.replaceState("/join")
   -> POST /v1/auth/password/register (claimTicket,email,password)
   -> 202 {emailConfirmationRequired:true}; no Cookie; private,no-store
-  -> user opens local fake mailbox and clicks one opaque confirmation link
-  -> GET /v1/auth/password/callback?flow=<opaque>&code=<opaque>
+  -> user opens local fake mailbox and opens inert confirmation page
+  -> repeated GET /v1/auth/password/confirm?flow=<43-char> has zero side effects
+  -> user enters email + six-digit OTP
+  -> POST /v1/auth/password/callback (exact form)
   -> invitation consumed + private,no-store + no-referrer
   -> Set-Cookie HttpOnly/Secure/SameSite=Lax + 302 /app
   -> GET /v1/auth/csrf with Cookie + Origin

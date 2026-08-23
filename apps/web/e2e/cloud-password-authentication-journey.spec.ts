@@ -78,7 +78,7 @@ test("an invited learner confirms password registration and later signs in again
 
   expect(registrationResponse.status()).toBe(202);
   expect(registrationResponse.headers()["cache-control"]).toBe("private, no-store");
-  await expect(page.getByRole("status")).toContainText("验证成功后会自动进入工作台");
+  await expect(page.getByRole("status")).toContainText("输入邮件中的六位验证码");
   await expect(page).toHaveURL(`${webOrigin}/join`);
   expect(
     (await page.context().cookies(apiOrigin)).some((cookie) => cookie.name === "huayi_session"),
@@ -86,13 +86,31 @@ test("an invited learner confirms password registration and later signs in again
 
   await page.goto(`${mailOrigin}/inbox`);
   await expect(page.getByRole("heading", { name: "测试邮箱确认", level: 1 })).toBeVisible();
+  const [confirmationResponse] = await Promise.all([
+    page.waitForResponse(
+      (response) =>
+        new URL(response.url()).pathname === "/v1/auth/password/confirm" &&
+        response.request().method() === "GET",
+    ),
+    page.getByRole("link", { name: "打开确认页" }).click(),
+  ]);
+  expect(confirmationResponse.status()).toBe(200);
+  expect(confirmationResponse.headers()["cache-control"]).toBe("private, no-store");
+  expect(confirmationResponse.headers()["referrer-policy"]).toBe("no-referrer");
+  await expect(page.getByRole("heading", { name: "确认语见邮箱", level: 1 })).toBeVisible();
+  await page.reload();
+  expect(
+    (await page.context().cookies(apiOrigin)).some((cookie) => cookie.name === "huayi_session"),
+  ).toBe(false);
+  await page.getByLabel("邮箱").fill(email);
+  await page.getByLabel("六位验证码").fill("123456");
   const [callbackResponse] = await Promise.all([
     page.waitForResponse(
       (response) =>
         new URL(response.url()).pathname === "/v1/auth/password/callback" &&
-        response.request().method() === "GET",
+        response.request().method() === "POST",
     ),
-    page.getByRole("button", { name: "确认邮箱" }).click(),
+    page.getByRole("button", { name: "确认邮箱并继续" }).click(),
   ]);
 
   await expect(page).toHaveURL(`${webOrigin}/app`);
@@ -149,11 +167,32 @@ test("an invited learner confirms password registration and later signs in again
 
   const snapshot = authority.snapshot();
   for (const expected of [
-    { authenticatedAs: "none", method: "POST", path: "/v1/invitations/claim" },
-    { authenticatedAs: "none", method: "POST", path: "/v1/auth/password/register" },
-    { authenticatedAs: "none", method: "GET", path: "/v1/auth/password/callback" },
+    {
+      authenticatedAs: "none",
+      method: "POST",
+      path: "/v1/invitations/claim",
+      proof: "write-valid",
+    },
+    {
+      authenticatedAs: "none",
+      method: "POST",
+      path: "/v1/auth/password/register",
+      proof: "write-valid",
+    },
+    {
+      authenticatedAs: "none",
+      method: "GET",
+      path: "/v1/auth/password/confirm",
+      proof: "read",
+    },
+    {
+      authenticatedAs: "none",
+      method: "POST",
+      path: "/v1/auth/password/callback",
+      proof: "write-valid",
+    },
   ] as const) {
-    expect(snapshot.requestFacts).toContainEqual({ ...expected, proof: "write-valid" });
+    expect(snapshot.requestFacts).toContainEqual(expected);
   }
   expect(
     snapshot.requestFacts.filter(

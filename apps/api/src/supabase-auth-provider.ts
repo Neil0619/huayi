@@ -120,6 +120,23 @@ export function createSupabaseAuthProvider(
         userId: data.user.id,
       };
     },
+
+    async verifyPasswordRegistrationOtp(command): Promise<AuthSession> {
+      const { storage } = createSupabaseAuthFlow();
+      const { data, error } = await createAuthClient(storage).auth.verifyOtp({
+        email: command.email,
+        token: command.token,
+        type: "email",
+      });
+      if (error !== null || data.session === null || data.user === null) {
+        throw new CloudFault("authentication_required", "Email verification could not finish.");
+      }
+      return {
+        email: accountEmailSchema.parse(data.user.email),
+        refreshToken: data.session.refresh_token,
+        userId: data.user.id,
+      };
+    },
   };
 }
 

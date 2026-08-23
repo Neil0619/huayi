@@ -5,21 +5,20 @@ import {
   exchangeExtensionPairingRequestSchema,
   passwordLoginRequestSchema,
   passwordRegistrationRequestSchema,
+  passwordRegistrationResumeRequestSchema,
   type ApiError,
 } from "@huayi/cloud-contracts";
 import { Hono, type Context } from "hono";
 import { cors } from "hono/cors";
 
-import {
-  completeCloudAuthenticationCallback,
-  createCloudWebSession,
-} from "./cloud-authentication-session.js";
+import { createCloudWebSession } from "./cloud-authentication-session.js";
 import type { CloudFoundationDependencies } from "./cloud-foundation-dependencies.js";
 import { CloudFault } from "./cloud-fault.js";
 import { createGoogleAuthenticationApp } from "./google-authentication-app.js";
 import { createPasswordReauthenticationApp } from "./password-reauthentication-app.js";
 import { createPasswordLinkApp } from "./password-link-app.js";
 import { createPasswordLinkModule } from "./password-link-module.js";
+import { createPasswordSignupConfirmationApp } from "./password-signup-confirmation-app.js";
 import { enforceRateLimit } from "./rate-limiter.js";
 import { webSessionCookie } from "./web-session-cookie.js";
 import { strictJson } from "./strict-json.js";
@@ -137,9 +136,7 @@ export function createCloudFoundationApp(dependencies: CloudFoundationDependenci
     }),
   );
 
-  app.get("/v1/auth/password/callback", (context) =>
-    completeCloudAuthenticationCallback(dependencies, context, "password"),
-  );
+  app.route("/", createPasswordSignupConfirmationApp(dependencies));
 
   app.get("/v1/auth/csrf", async (context) => {
     const sessionId = webSessionCookie(context);
@@ -160,20 +157,14 @@ export function createCloudFoundationApp(dependencies: CloudFoundationDependenci
     const pending = await dependencies.auth.registerPassword({
       email: input.email,
       password: input.password,
-      redirectTo: `${dependencies.apiOrigin}/v1/auth/password/callback?flow=${encodeURIComponent(flow.flowId)}`,
+      redirectTo: `${dependencies.apiOrigin}/v1/auth/password/confirm?flow=${encodeURIComponent(flow.flowId)}`,
     });
-    await dependencies.identity.saveAuthFlowState(
-      flow.flowId,
-      (dependencies.protectTransientAuthState ?? dependencies.protectRefreshToken)(
-        JSON.stringify(pending.authState),
-      ),
-    );
     await dependencies.identity.bindInvitationIdentity(input.claimTicket, pending.userId);
     if (pending.session === undefined) {
       return context.json({ emailConfirmationRequired: true }, 202);
     }
-    await dependencies.identity.finalizeInvitation(
-      input.claimTicket,
+    await dependencies.identity.completeAuthFlow(
+      flow.flowId,
       pending.userId,
       pending.email,
       "password",
@@ -184,6 +175,28 @@ export function createCloudFoundationApp(dependencies: CloudFoundationDependenci
       access: session.access,
       csrfToken: session.csrfToken,
       emailConfirmationRequired: false,
+    });
+  });
+
+  app.post("/v1/auth/password/register/resume", async (context) => {
+    context.header("Cache-Control", "private, no-store");
+    const input = await strictJson(context, passwordRegistrationResumeRequestSchema);
+    await limit(context, "auth.register-resume", input.email, 5);
+    const authSession = await dependencies.auth.signInWithPassword({
+      email: input.email,
+      password: input.password,
+    });
+    await dependencies.identity.resumeInterruptedPasswordRegistration(
+      input.invitationToken,
+      authSession.userId,
+      authSession.email,
+    );
+    const session = await createCloudWebSession(dependencies, authSession);
+    context.header("Set-Cookie", session.setCookie);
+    return context.json({
+      access: session.access,
+      csrfToken: session.csrfToken,
+      emailConfirmationRequired: false as const,
     });
   });
 

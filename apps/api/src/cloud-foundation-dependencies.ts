@@ -32,6 +32,7 @@ interface FoundationIdentity {
   requireClaimTicket: IdentityModule["requireClaimTicket"];
   readAuthFlowState: IdentityModule["readAuthFlowState"];
   requireRecentAuthentication: IdentityModule["requireRecentAuthentication"];
+  resumeInterruptedPasswordRegistration: IdentityModule["resumeInterruptedPasswordRegistration"];
   revokeExtensionSession: IdentityModule["revokeExtensionSession"];
   revokeWebSession: IdentityModule["revokeWebSession"];
   rotateWebCsrf: IdentityModule["rotateWebCsrf"];

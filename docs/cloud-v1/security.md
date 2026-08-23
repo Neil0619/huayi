@@ -352,7 +352,24 @@ owner context、generation/reservation 归属、task 成功或失败终态、价
 - 删除请求 receipt replay 只保存高熵 session 的 pepper hash，并同时绑定 idempotency key/body hash；旧
   Cookie 只能在完成后 24 小时内取得固定 accepted 响应，不能恢复 session、读取任务或访问普通 API。
 
-## 8. Chrome Web Store
+## 8. 密码注册确认与中断恢复
+
+- Confirm sign up 邮件不得直接链接可被 scanner 消费的 Supabase `ConfirmationURL`；只显示六位 OTP，
+  CTA 指向 query 严格、GET 无副作用的语见确认页。OTP/email/password 不进入 URL、日志、Referer、
+  Storage 或错误响应。
+- OTP 仅在用户显式 `application/x-www-form-urlencoded` POST 后交给 Supabase `verifyOtp(type=email)`；
+  GET/reload/prefetch 不调用 Provider 或数据库。错误统一返回无 Provider 细节、输入留空的可重试页面。
+- 确认页 `form-action` 只允许 `'self'` 和精确配置的 Web origin；后者用于允许 API 完成 POST 后跳转
+  Web 工作台，禁止通配域名。
+- 已绑定 Provider user 的过期 invitation claim 是恢复证据，不能由普通重新领取删除。恢复同时要求原
+  invitation token、Provider 密码证明和数据库精确中断状态；Provider user id/email 只取服务器 session。
+- `resume_interrupted_password_registration` 只授予 context setter，在单事务内检查邀请/claim/flow/Auth
+  identity/零账号数据后创建 profile、password method、default quota 并消费旧状态；失败不得部分写入。
+- Hosted 恢复前必须通过固定 `acceptance:hosted:operator:pepper:verify` 只输出 pepper 与原邀请 token hash
+  是否匹配当前 active Bootstrap invitation 的 bounded pass/fail，并同时要求精确
+  `registration-interrupted`；不得打印 pepper、token、hash、DSN、email、user id、OTP 或密码。
+
+## 9. Chrome Web Store
 
 - Extension 的单一用途是对当前英文内容提供就地翻译/解释，并按用户动作/账号偏好把原始学习采集或
   生词副本交给同一华译学习工作台；它不上传 compact BYOK result，Web 不提供远程脚本或替换扩展代码。
@@ -369,7 +386,7 @@ owner context、generation/reservation 归属、task 成功或失败终态、价
   StudyCapture、CloudWordCopy 和云任务立即停止并清除待提交正文。BYOK 查询仍只受对应 Provider 同意
   控制，撤回 Huayi 数据同意不会删除本机词库或 BYOK/欧路凭据。
 
-## 9. 发布前未决的外部事实
+## 10. 发布前未决的外部事实
 
 隔离验收环境是 production 前的强制安全门：local 只绑定 loopback 受信任 HTTPS，hosted acceptance
 使用独立数据库/Auth/Storage/OAuth client/secret/Provider Key/额度且不复制 production 数据。hosted

@@ -399,9 +399,10 @@ secret scan、零 Cookie CSRF/分析 401、失败 callback 400 与 12 项远端�
 邀请前审查发现的 Google capability/password callback 缺口已由 Phase 71 关闭：API `f1186a6` 与 Web
 `beac29d` 各只产生一条 Ready，独立 disarm `837ec0d` / `b52992e` 均零新增，最终双关闭；API Google
 route 404/12 项零状态、Web exact SHA/零 Google 控件/bundle scan 均通过。Supabase `Confirm sign up` 保存态
-模板使用动态 `{{ .ConfirmationURL }}`，没有硬编码 URL、localhost、测试域或旧密码 callback，API 的
-`emailRedirectTo` 作为其 `redirect_to`。现在才允许发行首张 BootstrapInvitation并完成密码注册、SMTP
-确认与首位 Operator。只有之后才受审计切换 kill switch 并运行一笔真实 Cloud DeepSeek 应用路径 smoke；
+模板使用动态 `{{ .ConfirmationURL }}` 的 Phase 71 回读仅是历史证据，已被首次真实确认中的
+`otp_expired` 事故推翻。当前门改为 `{{ .Token }}` + `{{ .RedirectTo }}`、inert GET confirm、显式 OTP
+POST 与 0013 中断恢复；完成当前账号恢复及新账号 OTP journey 前不得切换 kill switch 或运行真实
+Cloud DeepSeek 应用路径 smoke；
 再后续为真实 R3-C → Cron。下一次 Windows 全门等到验收批次冻结，不因每个文档或配置步骤重复执行。
 
 ## 10. 官方约束来源

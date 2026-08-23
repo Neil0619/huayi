@@ -47,6 +47,7 @@ describe("GoogleLink module", () => {
       registerPassword: vi.fn(),
       setPassword: vi.fn(),
       signInWithPassword: vi.fn(),
+      verifyPasswordRegistrationOtp: vi.fn(),
     };
     const link = createGoogleLinkModule({
       apiOrigin: "https://api.huayi.example",

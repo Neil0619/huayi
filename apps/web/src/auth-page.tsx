@@ -9,6 +9,7 @@ export type AuthApi = Pick<
   | "googleLoginStartUrl"
   | "loginPassword"
   | "registerPassword"
+  | "resumePasswordRegistration"
 >;
 
 export type AuthRoute =
@@ -67,7 +68,7 @@ export function AuthPage(props: AuthPageProps) {
       setPassword("");
       setClaimTicket(null);
       if (result.emailConfirmationRequired) {
-        setStatus("注册已提交。请打开验证邮件中的链接；验证成功后会自动进入工作台。");
+        setStatus("注册已提交。请从验证邮件打开确认页，并输入邮件中的六位验证码。");
       } else {
         setStatus("注册成功，正在进入工作台。");
         props.onAuthenticated("full");
@@ -95,6 +96,28 @@ export function AuthPage(props: AuthPageProps) {
     }
   };
 
+  const resumeRegistration = async () => {
+    const token = invitationToken.current;
+    if (token === null || claimState !== "error") return;
+    setBusy(true);
+    setError(null);
+    try {
+      const session = await props.api.resumePasswordRegistration(token, email, password);
+      if (session.emailConfirmationRequired) {
+        throw new Error("Interrupted registration did not complete.");
+      }
+      setPassword("");
+      invitationToken.current = null;
+      props.replaceInvitationUrl();
+      setStatus("邮箱已确认，邀请已完成，正在进入工作台。");
+      props.onAuthenticated(session.access);
+    } catch {
+      setError("无法继续完成邀请。请确认邮箱、密码和私密邀请仍然有效后重试。");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const errorDescription = error === null ? undefined : "auth-form-error";
 
   return (
@@ -110,9 +133,41 @@ export function AuthPage(props: AuthPageProps) {
           <div className="alert" id="auth-form-error" role="alert">
             <p>{error}</p>
             {claimState === "error" && (
-              <button data-retry-invitation onClick={() => void claim()} type="button">
-                重新验证邀请
-              </button>
+              <>
+                <button data-retry-invitation onClick={() => void claim()} type="button">
+                  重新验证邀请
+                </button>
+                <p>如果你已经点击过确认邮件，可使用原邮箱和密码继续这次中断的注册。</p>
+                <form className="auth-form" onSubmit={(event) => event.preventDefault()}>
+                  <label htmlFor="recovery-registration-email">邮箱</label>
+                  <input
+                    autoComplete="email"
+                    id="recovery-registration-email"
+                    onChange={(event) => setEmail(event.currentTarget.value)}
+                    required
+                    type="email"
+                    value={email}
+                  />
+                  <label htmlFor="recovery-registration-password">密码</label>
+                  <input
+                    autoComplete="current-password"
+                    id="recovery-registration-password"
+                    minLength={12}
+                    onChange={(event) => setPassword(event.currentTarget.value)}
+                    required
+                    type="password"
+                    value={password}
+                  />
+                  <button
+                    data-resume-registration
+                    disabled={busy}
+                    onClick={() => void resumeRegistration()}
+                    type="button"
+                  >
+                    {busy ? "正在恢复…" : "继续中断注册"}
+                  </button>
+                </form>
+              </>
             )}
           </div>
         )}

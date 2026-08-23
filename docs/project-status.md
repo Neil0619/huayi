@@ -1659,3 +1659,17 @@ passed; first Operator empty`。候选已提交推送，0012 已实际 push；�
   密码专用文案与零 Google 控件，bundle secret-shape scan 为零。Supabase `Confirm sign up` 保存态模板精确
   使用动态 `{{ .ConfirmationURL }}`，无硬编码 URL、localhost、测试域或旧密码 callback；API 的
   `emailRedirectTo` 会进入该确认 URL 的 `redirect_to`。Phase 71 邀请前门已关闭，邀请尚未发行。
+
+## Cloud V1 Phase 72 真实密码确认故障与恢复候选（2026-08-23）
+
+- 首张 BootstrapInvitation 已实际发行并进入注册；Supabase Auth user/email identity 已创建且邮箱已确认，
+  但 profile/password method/default quota/Web session 均未完成，First Operator 仍处于 invited lifecycle；
+- 用户点击确认邮件落到 Web Site URL 并得到 `otp_expired`，Vercel 没有 password callback 记录；普通密码
+  登录不能替代 invitation completion，因此统一登录失败不是密码错误证据；
+- 根因校准为动态 query 未被旧 exact redirect allowlist 匹配，以及直接 `ConfirmationURL` 可被邮件扫描器
+  预先消费。新候选采用 6 位 email OTP、inert GET confirm、显式 POST callback 与 43-character allowlist；
+- 0013 migration 保留 bound expired claim，并新增只授予 context setter 的原子恢复函数；Web 仅在 claim
+  失败时用原 invitation token + email/password proof 恢复，成功后才清 URL；
+- 当前已完成设计/实施计划审查、focused TypeScript 与核心 API/Web/contract/migration 回归；尚未完成完整
+  macOS 门、migration dry-run/push、Supabase 模板/redirect 写入、API/Web 受控部署和真实账号恢复。两个
+  Vercel project 继续保持 disarmed，DeepSeek smoke 仍禁止。

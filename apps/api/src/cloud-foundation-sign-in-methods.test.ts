@@ -31,6 +31,7 @@ function foundation() {
       refreshToken: "refresh-token",
       userId: "auth-user-a",
     }),
+    verifyPasswordRegistrationOtp: vi.fn(),
   };
   return {
     app: createCloudFoundationApp({

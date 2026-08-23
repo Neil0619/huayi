@@ -3,6 +3,18 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-23：密码注册改为显式邮件 OTP，并增加已确认中断账号原子恢复
+
+- 真实首位账号确认暴露两个缺口：动态 flow 未被 Supabase exact redirect allowlist 匹配，以及邮件扫描器
+  可先消费 `ConfirmationURL`。Confirm sign up 改为显示 `{{ .Token }}`，CTA 只用
+  `{{ .RedirectTo }}`；GET confirm inert，用户显式 POST OTP 后才验证；
+- redirect allowlist 固定为五条 path + `\?flow=` + 43 个单字符 wildcard，禁止 `*`/`**`；password path
+  从 callback 改为 `/v1/auth/password/confirm`；
+- bound expired claim 不再由普通 claim 重领删除；新增 0013 原子恢复函数，以原 invitation token、Provider
+  password proof 和精确中断状态完成 profile/method/quota/invitation/claim/flow；
+- First Operator 新增 `registration-interrupted`。当前中断环境不能运行要求 identity 空状态的 pristine
+  foundation verifier；恢复前使用 migration/ACL diagnostic、application verifier 与该精确状态。
+
 ## 2026-08-23：首张邀请前增加 Google 双端能力门与 Operator 完成后独立验证
 
 - hosted Google Provider 保持 disabled，但 Phase 70 Web 仍显示 Google 动作；改为 API/Web 两个 strict

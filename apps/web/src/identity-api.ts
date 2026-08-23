@@ -31,6 +31,7 @@ import {
   passwordRecoverySessionResponseSchema,
   passwordRecoveryStartRequestSchema,
   passwordRegistrationRequestSchema,
+  passwordRegistrationResumeRequestSchema,
   passwordRegistrationResponseSchema,
   passwordReauthenticationRequestSchema,
   passwordReauthenticationResponseSchema,
@@ -268,6 +269,20 @@ export function createWebIdentityApi(options: WebIdentityApiOptions) {
     async registerPassword(claimTicket: string, email: string, password: string) {
       const input = passwordRegistrationRequestSchema.parse({ claimTicket, email, password });
       const response = await request(identityHttpRoutes.passwordRegister, {
+        body: JSON.stringify(input),
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
+      return passwordRegistrationResponseSchema.parse(await response.json());
+    },
+    async resumePasswordRegistration(invitationToken: string, email: string, password: string) {
+      const input = passwordRegistrationResumeRequestSchema.parse({
+        email,
+        invitationToken,
+        password,
+      });
+      const response = await request(identityHttpRoutes.passwordRegistrationResume, {
         body: JSON.stringify(input),
         credentials: "include",
         headers: { "Content-Type": "application/json" },

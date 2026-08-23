@@ -48,6 +48,7 @@ describe("PasswordLink module", () => {
         .mockRejectedValueOnce(new CloudFault("authentication_required", "Password rejected."))
         .mockResolvedValueOnce({ authState: {}, userId: "auth-user-a" }),
       signInWithPassword: vi.fn(),
+      verifyPasswordRegistrationOtp: vi.fn(),
     };
     const link = createPasswordLinkModule({
       auth,

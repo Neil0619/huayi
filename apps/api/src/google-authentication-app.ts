@@ -55,7 +55,7 @@ export function createGoogleAuthenticationApp(dependencies: CloudFoundationDepen
   );
   app.route("/", createGoogleReauthenticationApp(dependencies));
   app.get("/v1/auth/callback", (context) =>
-    completeCloudAuthenticationCallback(dependencies, context, "google"),
+    completeCloudAuthenticationCallback(dependencies, context),
   );
 
   return app;

@@ -119,6 +119,11 @@ async function migrationForwardMatches(root) {
       "0011-security-notification-delivery.sql",
       "20260822020000_security_notification_delivery.sql",
     ],
+    ["0012-first-operator-bootstrap.sql", "20260822030000_first_operator_bootstrap.sql"],
+    [
+      "0013-password-signup-interruption-recovery.sql",
+      "20260823010000_password_signup_interruption_recovery.sql",
+    ],
   ];
   try {
     const pairs = await Promise.all(

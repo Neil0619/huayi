@@ -213,8 +213,17 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       route 全部 404，Web `/login` 为 exact SHA、密码专用文案与零 Google 控件，bundle secret scan 为零；
 - [x] Supabase `Confirm sign up` 保存态模板使用动态 `{{ .ConfirmationURL }}`，没有硬编码 URL、localhost、
       测试域或旧密码 callback；API `emailRedirectTo` 继续进入 ConfirmationURL 的 `redirect_to`；
-- [ ] 发行首张 BootstrapInvitation，正常完成密码注册、真实 SMTP 确认、API callback、Web 落点和首位
-      Operator complete；完成前不得运行 DeepSeek 应用路径 smoke。
+- [ ] Phase 71 上述 `ConfirmationURL` 仅保留为历史回读；真实验收已证明它会被 scanner/prefetch 提前消费。
+      保存并回读 `{{ .Token }}` + `{{ .RedirectTo }}` 模板及五条 43-character flow allowlist；
+- [ ] dry-run/确认/实际 push 0013，验证 migration/ACL/application login 与
+      `registration-interrupted`；不得在当前非空状态要求 pristine foundation verifier；
+- [ ] 固定 pepper continuity verifier 只返回 passed，证明 Keychain Production pepper + 原邀请 token 匹配
+      当前有效 Bootstrap invitation；输出不得包含 pepper/token/hash/DSN/身份；
+- [ ] 双关闭候选 push 后严格执行 API arm→deployment record→独立 disarm→零额外 deployment，再执行
+      Web 同序；两个项目从不同时 armed，并记录同一 reviewed lineage 而非虚构相同 SHA；
+- [ ] 用原邀请 + Provider 密码证明恢复当前 confirmed Auth user，取得 `registered`，再完成首位 Operator；
+- [ ] 新邀请完成 scanner/repeated GET 无副作用、显式 OTP POST、Web 落点和密码重登；完成前不得运行
+      DeepSeek 应用路径 smoke。
 
 ## 完整 V1
 

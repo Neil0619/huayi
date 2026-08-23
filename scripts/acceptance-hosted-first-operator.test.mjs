@@ -8,6 +8,7 @@ import {
   firstOperatorStatusArgument,
   firstOperatorVerifyArgument,
   hostedFirstOperatorInvitationUrl,
+  renderFirstOperatorStatusSql,
   renderFirstOperatorVerificationSql,
   runHostedFirstOperator,
 } from "./acceptance-hosted-first-operator.mjs";
@@ -50,7 +51,25 @@ test("first Operator status is read-only and returns only a bounded state", asyn
   assert.equal(calls.length, 1);
   assert.equal(calls[0].captureOutput, true);
   assert.match(calls[0].input, /first_operator_bootstrap/u);
-  assert.doesNotMatch(calls[0].input, /email|token_hash|operator_user_id::text/u);
+  assert.doesNotMatch(calls[0].input, /token_hash|operator_user_id::text/u);
+});
+
+test("first Operator status distinguishes the recoverable interrupted registration", () => {
+  const sql = renderFirstOperatorStatusSql();
+  const interruptedEnd = sql.indexOf("THEN 'registration-interrupted'");
+  const interruptedStart = sql.lastIndexOf("WHEN ", interruptedEnd);
+  const interruptedBranch = sql.slice(interruptedStart, interruptedEnd);
+  assert.match(sql, /THEN 'registration-interrupted'/u);
+  assert.match(interruptedBranch, /claim\.bound_user_id IS NOT NULL/u);
+  assert.match(interruptedBranch, /claim\.finalized_user_id IS NULL/u);
+  assert.match(interruptedBranch, /identity\.provider = 'email'/u);
+  assert.match(interruptedBranch, /auth_flow\.expires_at <= now\(\)/u);
+  assert.match(interruptedBranch, /bootstrap\.current_invitation_id = invitation\.id/u);
+  assert.match(interruptedBranch, /invitation\.created_by_kind = 'deployment-bootstrap'/u);
+  assert.match(interruptedBranch, /invitation\.created_by IS NULL/u);
+  assert.match(interruptedBranch, /invitation\.expires_at > now\(\)/u);
+  assert.match(interruptedBranch, /invitation\.consumed_at IS NULL/u);
+  assert.match(interruptedBranch, /invitation\.revoked_at IS NULL/u);
 });
 
 test("completed first Operator verification checks the bound account without exposing identity", async () => {

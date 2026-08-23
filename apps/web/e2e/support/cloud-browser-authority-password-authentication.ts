@@ -6,6 +6,7 @@ import {
   passwordLoginResponseSchema,
   passwordRegistrationRequestSchema,
   passwordRegistrationResponseSchema,
+  passwordSignupCallbackFormSchema,
   type ApiError,
 } from "@huayi/cloud-contracts";
 
@@ -17,8 +18,8 @@ const mailOrigin = "https://mail.huayi.invalid";
 const webOrigin = "https://web.huayi.invalid";
 const invitationToken = "i".repeat(32);
 const claimTicket = "c".repeat(32);
-const confirmationFlow = "password-confirmation-flow";
-const confirmationCode = "password-confirmation-code";
+const confirmationFlow = "f".repeat(43);
+const confirmationCode = "123456";
 const email = "password-learner@example.com";
 const password = "correct horse battery staple";
 const registrationSession = "cloud-e2e-password-registration-session";
@@ -119,15 +120,45 @@ export function createCloudBrowserPasswordAuthenticationAuthority(
     );
   };
 
-  const handleCallback = async (route: Route, hooks: Hooks) => {
+  const handleConfirmation = async (route: Route, hooks: Hooks) => {
     const request = route.request();
     if (
       registration !== "confirmation-pending" ||
       callback !== "available" ||
-      !exactQuery(new URL(request.url()), {
-        code: confirmationCode,
-        flow: confirmationFlow,
-      })
+      !exactQuery(new URL(request.url()), { flow: confirmationFlow })
+    ) {
+      return hooks.reject(route, 404, "not_found");
+    }
+    hooks.record(request, "read");
+    await route.fulfill({
+      body: `<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>确认语见邮箱</title><main><h1>确认语见邮箱</h1><p>输入验证邮件中的六位验证码。</p><form action="/v1/auth/password/callback" method="post"><input name="flow" type="hidden" value="${confirmationFlow}"><label for="email">邮箱</label><input id="email" name="email" type="email"><label for="token">六位验证码</label><input id="token" name="token" type="text"><button type="submit">确认邮箱并继续</button></form></main></html>`,
+      contentType: "text/html; charset=utf-8",
+      headers: {
+        "cache-control": "private, no-store",
+        "content-security-policy": `default-src 'none'; form-action 'self' ${webOrigin}; base-uri 'none'; frame-ancestors 'none'`,
+        "referrer-policy": "no-referrer",
+      },
+      status: 200,
+    });
+  };
+
+  const handleCallback = async (route: Route, hooks: Hooks) => {
+    const request = route.request();
+    const contentType = request.headers()["content-type"]?.split(";", 1)[0];
+    const entries = [...new URLSearchParams(request.postData() ?? "").entries()];
+    const form = Object.fromEntries(entries);
+    const parsed = passwordSignupCallbackFormSchema.safeParse(form);
+    if (
+      registration !== "confirmation-pending" ||
+      callback !== "available" ||
+      request.method() !== "POST" ||
+      contentType !== "application/x-www-form-urlencoded" ||
+      entries.length !== 3 ||
+      new Set(entries.map(([key]) => key)).size !== entries.length ||
+      !parsed.success ||
+      parsed.data.email !== email ||
+      parsed.data.flow !== confirmationFlow ||
+      parsed.data.token !== confirmationCode
     ) {
       return hooks.reject(route, 404, "not_found");
     }
@@ -137,6 +168,7 @@ export function createCloudBrowserPasswordAuthenticationAuthority(
     callback = "consumed";
     hooks.record(request, "write-valid");
     await route.fulfill({
+      body: "",
       headers: {
         "cache-control": "private, no-store",
         location: `${webOrigin}/app`,
@@ -185,7 +217,11 @@ export function createCloudBrowserPasswordAuthenticationAuthority(
       await handleRegistration(route, hooks);
       return true;
     }
-    if (path === "/v1/auth/password/callback" && request.method() === "GET") {
+    if (path === "/v1/auth/password/confirm" && request.method() === "GET") {
+      await handleConfirmation(route, hooks);
+      return true;
+    }
+    if (path === "/v1/auth/password/callback" && request.method() === "POST") {
       await handleCallback(route, hooks);
       return true;
     }
@@ -208,7 +244,7 @@ export function createCloudBrowserPasswordAuthenticationAuthority(
       return;
     }
     await route.fulfill({
-      body: `<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>测试邮箱确认</title><main><h1>测试邮箱确认</h1><p>此页面只模拟离线验收中的显式邮箱确认。</p><form action="${apiOrigin}/v1/auth/password/callback" method="get"><input name="flow" type="hidden" value="${confirmationFlow}"><input name="code" type="hidden" value="${confirmationCode}"><button type="submit">确认邮箱</button></form></main></html>`,
+      body: `<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>测试邮箱确认</title><main><h1>测试邮箱确认</h1><p>验证码：<strong>${confirmationCode}</strong></p><a href="${apiOrigin}/v1/auth/password/confirm?flow=${confirmationFlow}">打开确认页</a></main></html>`,
       contentType: "text/html; charset=utf-8",
       status: 200,
     });

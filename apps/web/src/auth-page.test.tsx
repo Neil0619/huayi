@@ -26,6 +26,11 @@ function api(overrides: Partial<AuthApi> = {}): AuthApi {
     googleLoginStartUrl: "https://api.huayi.invalid/v1/auth/google/login/start",
     loginPassword: vi.fn(async () => ({ access: "full" as const, csrfToken: "s".repeat(32) })),
     registerPassword: vi.fn(async () => ({ emailConfirmationRequired: true as const })),
+    resumePasswordRegistration: vi.fn(async () => ({
+      access: "full" as const,
+      csrfToken: "s".repeat(32),
+      emailConfirmationRequired: false as const,
+    })),
     ...overrides,
   };
 }
@@ -159,7 +164,7 @@ describe("Web invitation and authentication", () => {
       "password long enough",
     );
     expect(view.container.querySelector("[role='status']")?.textContent).toBe(
-      "注册已提交。请打开验证邮件中的链接；验证成功后会自动进入工作台。",
+      "注册已提交。请从验证邮件打开确认页，并输入邮件中的六位验证码。",
     );
     expect(view.onAuthenticated).not.toHaveBeenCalled();
     expect(view.container.querySelector("[data-google-auth-form]")).toBeNull();
@@ -182,6 +187,66 @@ describe("Web invitation and authentication", () => {
     expect(login.container.textContent).not.toContain("Google");
     expect(login.container.querySelector("form[action*='google']")).toBeNull();
     expect(login.container.textContent).toContain("使用邮箱密码登录");
+  });
+
+  it("continues an interrupted confirmed signup without using ordinary login", async () => {
+    const authApi = api({ claimInvitation: vi.fn().mockRejectedValue(new Error("bound")) });
+    const view = await render(authApi, { invitationToken: "i".repeat(32), mode: "join" });
+    await act(async () => Promise.resolve());
+    const email = view.container.querySelector<HTMLInputElement>("#recovery-registration-email");
+    const password = view.container.querySelector<HTMLInputElement>(
+      "#recovery-registration-password",
+    );
+    if (email === null || password === null) throw new Error("Registration fields missing.");
+    await change(email, "learner@example.com");
+    await change(password, "password long enough");
+    await act(async () =>
+      view.container.querySelector<HTMLButtonElement>("[data-resume-registration]")?.click(),
+    );
+
+    expect(authApi.resumePasswordRegistration).toHaveBeenCalledWith(
+      "i".repeat(32),
+      "learner@example.com",
+      "password long enough",
+    );
+    expect(authApi.loginPassword).not.toHaveBeenCalled();
+    expect(view.onAuthenticated).toHaveBeenCalledWith("full");
+    expect(view.replaceInvitationUrl).toHaveBeenCalledOnce();
+    expect(view.container.querySelector("[role='status']")?.textContent).toContain("邀请已完成");
+  });
+
+  it("keeps the original invitation and email retryable when interrupted recovery fails", async () => {
+    const authApi = api({
+      claimInvitation: vi.fn().mockRejectedValue(new Error("bound")),
+      resumePasswordRegistration: vi.fn().mockRejectedValue(new Error("rejected")),
+    });
+    const view = await render(authApi, { invitationToken: "i".repeat(32), mode: "join" });
+    await act(async () => Promise.resolve());
+    const email = view.container.querySelector<HTMLInputElement>("#recovery-registration-email");
+    const password = view.container.querySelector<HTMLInputElement>(
+      "#recovery-registration-password",
+    );
+    if (email === null || password === null) throw new Error("Recovery fields missing.");
+    await change(email, "learner@example.com");
+    await change(password, "password long enough");
+    await act(async () =>
+      view.container.querySelector<HTMLButtonElement>("[data-resume-registration]")?.click(),
+    );
+
+    expect(view.container.querySelector("[role='alert']")?.textContent).toContain(
+      "无法继续完成邀请",
+    );
+    expect(email.value).toBe("learner@example.com");
+    expect(view.replaceInvitationUrl).not.toHaveBeenCalled();
+    expect(authApi.loginPassword).not.toHaveBeenCalled();
+    await act(async () =>
+      view.container.querySelector<HTMLButtonElement>("[data-resume-registration]")?.click(),
+    );
+    expect(authApi.resumePasswordRegistration).toHaveBeenLastCalledWith(
+      "i".repeat(32),
+      "learner@example.com",
+      "password long enough",
+    );
   });
 
   it("logs in only after a strict server response and preserves retryable errors", async () => {

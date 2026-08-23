@@ -34,6 +34,7 @@ function foundation() {
       userId: "auth-user-a",
     }),
     signInWithPassword: vi.fn(),
+    verifyPasswordRegistrationOtp: vi.fn(),
   };
   return {
     app: createCloudFoundationApp({

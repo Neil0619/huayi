@@ -47,6 +47,8 @@ export const hostedDiagnosticPredicateNames = Object.freeze([
   "migration_0012_constraint",
   "migration_0012_functions",
   "migration_0012_trigger",
+  "migration_0013_recovery_function",
+  "migration_0013_recovery_acl",
 ]);
 
 function diagnosticPredicates() {
@@ -138,6 +140,24 @@ function diagnosticPredicates() {
         AND tgname = 'user_profile_clear_first_operator_identity'
         AND NOT tgisinternal
     )`,
+    `to_regprocedure(
+      'public.resume_interrupted_password_registration(text,uuid,text,text,integer)'
+    ) IS NOT NULL`,
+    `has_function_privilege(
+      'huayi_context_setter',
+      'public.resume_interrupted_password_registration(text,uuid,text,text,integer)',
+      'EXECUTE'
+    )
+      AND NOT has_function_privilege(
+        'huayi_business',
+        'public.resume_interrupted_password_registration(text,uuid,text,text,integer)',
+        'EXECUTE'
+      )
+      AND NOT has_function_privilege(
+        'huayi_runtime',
+        'public.resume_interrupted_password_registration(text,uuid,text,text,integer)',
+        'EXECUTE'
+      )`,
   ];
 }
 

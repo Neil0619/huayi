@@ -18,7 +18,6 @@ export async function createCloudWebSession(
 export async function completeCloudAuthenticationCallback(
   dependencies: CloudFoundationDependencies,
   context: Context,
-  signInMethod: "google" | "password",
 ) {
   context.header("Cache-Control", "private, no-store");
   context.header("Referrer-Policy", "no-referrer");
@@ -39,7 +38,7 @@ export async function completeCloudAuthenticationCallback(
     flowId,
     authSession.userId,
     authSession.email,
-    signInMethod,
+    "google",
   );
   const session = await createCloudWebSession(dependencies, authSession);
   context.header("Set-Cookie", session.setCookie);

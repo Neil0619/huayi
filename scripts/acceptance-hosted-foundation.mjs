@@ -34,6 +34,7 @@ export const hostedAcceptanceMigrationVersions = Object.freeze([
   "20260822010000",
   "20260822020000",
   "20260822030000",
+  "20260823010000",
 ]);
 
 export const hostedAcceptanceTenantTables = Object.freeze([

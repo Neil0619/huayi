@@ -306,3 +306,5 @@ export function createInMemoryWebSessions(options: InMemoryWebSessionOptions) {
     rotateWebSession,
   };
 }
+
+export type InMemoryWebSessions = ReturnType<typeof createInMemoryWebSessions>;

@@ -752,6 +752,18 @@ confirmed Auth user/password method/profile 为 `1/1/2`、google method/Web sess
 为 `1/1`。deploy 完整重跑成功，IPv4/IPv6 六个入口探测均 200，新 password callback 缺参数为 400。
 用户密码登录与首个 Web session 仍待人工完成。
 
+### 4.10b Phase 72 scanner-safe OTP 与中断恢复回归
+
+- Confirmation GET 必须在重复/预取条件下保持零 Provider 调用、零数据库消费、零 Cookie；只有 exact
+  form POST 的 email + 6 位 ASCII OTP 才调用 `verifyOtp(type=email)`；
+- 错误 OTP 返回固定可重试 HTML，不回显 email、OTP、Provider detail；flow 只允许 43 位 Base64URL；
+- migration 回归必须证明 expired unbound claim 可回收并 cascade 旧 flow，expired bound claim 必须保留；
+  原子恢复只接受仍有效 invitation、唯一 bound claim/flow、confirmed email identity 与零账号数据；
+- API 恢复必须先做 Provider password proof，再执行原子函数，失败无 Cookie/无 Web session；invitation
+  token 不得进入 Provider command。Web 失败保留内存 token/email，成功才清 URL；
+- actual bundle 必须覆盖 scanner/repeated GET confirm、显式 OTP POST、`/app` Cookie 与之后密码重登；
+  旧 GET password callback + code journey 不再是当前契约。
+
 ### 4.11 Phase 47 本机验收模拟模型
 
 - Fresh RED 必须证明 acceptance fetch 仍固定 `model_unavailable`、phrase trusted assembly 不能保留 strict
@@ -1027,6 +1039,10 @@ session is invalid.`；400 `invalid_request` 表示 runtime 数据库路径未�
   deletion time；bootstrap 保持 completed 且不能重新发行；
 - CLI 固定 project/pooler/verify-full/CA、精确确认参数和同 API pepper。plan/status 零写入，普通失败输出
   固定且不含 secret；invite URL 只允许一次性 secret stdout；
+- pepper continuity CLI 只接受固定 project 参数以及环境中的管理员密码、Production pepper 和 43 字符原
+  邀请 token；单个 read-only boolean 必须同时锁定 `registration-interrupted`、current active
+  deployment-bootstrap invitation 与 hash equality。缺失/错配/额外输出全部失败，且 token/pepper/hash/DSN/
+  身份不得出现在 argv、child environment 或 CLI 输出；
 - hosted 人工门按 migration dry-run/push、status、真实注册、complete、admin verify、application 越权复验
   和 `/admin` Cookie/CSRF journey 执行。没有这些证据只能标记 implemented，不能标记 hosted ready。
 

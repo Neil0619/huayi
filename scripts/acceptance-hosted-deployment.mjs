@@ -11,12 +11,13 @@ import {
 const apiOrigin = "https://api.acceptance.seen-said.cn";
 const webOrigin = "https://app.acceptance.seen-said.cn";
 const supabaseUrl = `https://${hostedAcceptanceProjectRef}.supabase.co`;
+const opaqueFlowGlob = "?".repeat(43);
 const authRedirects = Object.freeze([
-  `${apiOrigin}/v1/auth/callback`,
-  `${apiOrigin}/v1/auth/password/callback`,
-  `${apiOrigin}/v1/auth/password/recovery/confirm`,
-  `${apiOrigin}/v1/auth/reauthenticate/google/callback`,
-  `${apiOrigin}/v1/account/sign-in-methods/google:callback`,
+  `${apiOrigin}/v1/auth/callback\\?flow=${opaqueFlowGlob}`,
+  `${apiOrigin}/v1/auth/password/confirm\\?flow=${opaqueFlowGlob}`,
+  `${apiOrigin}/v1/auth/password/recovery/confirm\\?flow=${opaqueFlowGlob}`,
+  `${apiOrigin}/v1/auth/reauthenticate/google/callback\\?flow=${opaqueFlowGlob}`,
+  `${apiOrigin}/v1/account/sign-in-methods/google:callback\\?flow=${opaqueFlowGlob}`,
 ]);
 
 const publicApiEnvironmentNames = Object.freeze([
@@ -71,7 +72,7 @@ export function renderHostedDeploymentPlan() {
     "- VITE_API_ORIGIN",
     "- VITE_DEPLOYMENT_ENVIRONMENT",
     "- VERCEL_GIT_COMMIT_SHA (injected, not copied)",
-    "Supabase Auth exact redirects:",
+    "Supabase Auth query-aware exact-path redirects:",
     ...authRedirects.map((redirect) => `- ${redirect}`),
     "Supabase Auth SMTP:",
     "- smtp.resend.com:465 | resend | separate sending-only key",

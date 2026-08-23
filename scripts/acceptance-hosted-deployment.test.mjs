@@ -41,6 +41,7 @@ function validHostedEnvironment() {
 
 test("hosted deployment plan is complete, deterministic, and secret independent", () => {
   const plan = renderHostedDeploymentPlan();
+  const opaqueFlowGlob = "?".repeat(43);
   for (const expected of [
     "seen-said-acceptance-api | apps/api | hono | sin1 | Fluid | 120s",
     "seen-said-acceptance-web | apps/web | vite | pnpm build:vercel | dist",
@@ -67,11 +68,11 @@ test("hosted deployment plan is complete, deterministic, and secret independent"
     "HUAYI_STORE_EXTENSION_CAPABILITY",
     "Confirmed deployment decisions (values are not printed):",
     "hosted DeepSeek key is available and small real acceptance charges are approved",
-    "https://api.acceptance.seen-said.cn/v1/auth/callback",
-    "https://api.acceptance.seen-said.cn/v1/auth/password/callback",
-    "https://api.acceptance.seen-said.cn/v1/auth/password/recovery/confirm",
-    "https://api.acceptance.seen-said.cn/v1/auth/reauthenticate/google/callback",
-    "https://api.acceptance.seen-said.cn/v1/account/sign-in-methods/google:callback",
+    `https://api.acceptance.seen-said.cn/v1/auth/callback\\?flow=${opaqueFlowGlob}`,
+    `https://api.acceptance.seen-said.cn/v1/auth/password/confirm\\?flow=${opaqueFlowGlob}`,
+    `https://api.acceptance.seen-said.cn/v1/auth/password/recovery/confirm\\?flow=${opaqueFlowGlob}`,
+    `https://api.acceptance.seen-said.cn/v1/auth/reauthenticate/google/callback\\?flow=${opaqueFlowGlob}`,
+    `https://api.acceptance.seen-said.cn/v1/account/sign-in-methods/google:callback\\?flow=${opaqueFlowGlob}`,
     "smtp.resend.com:465 | resend",
     "five Supabase Cron jobs",
   ]) {
@@ -82,6 +83,8 @@ test("hosted deployment plan is complete, deterministic, and secret independent"
   assert.doesNotMatch(plan, /HUAYI_GOOGLE_AUTHENTICATION|VITE_GOOGLE_AUTHENTICATION/u);
   assert.doesNotMatch(plan, /Web Git deployment denies every branch except/u);
   assert.doesNotMatch(plan, /Web remains disabled and has no Production deployment/u);
+  assert.doesNotMatch(plan, /https:\/\/api\.acceptance\.seen-said\.cn\/\*\*/u);
+  assert.doesNotMatch(plan, /flow=\*/u);
 });
 
 test("hosted deployment environment verifier reuses the production schema and fixed contract", () => {

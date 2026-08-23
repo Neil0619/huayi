@@ -47,29 +47,31 @@ type ApiError = {
 
 ## 2. 认证与账号
 
-| Method/path                       | 用途                 | 关键输入/输出                                              |
-| --------------------------------- | -------------------- | ---------------------------------------------------------- |
-| `POST /v1/invitations/claim`      | 验证并预占邀请       | invitation token；返回短时 claim ticket，不创建业务账号    |
-| `POST /v1/auth/google/start`      | 发起 Google OAuth    | body 中的 claim ticket；302 到 Supabase/Google             |
-| `GET /v1/auth/csrf`               | 登录后获取新 CSRF    | HttpOnly Cookie + Web Origin；轮换后返回短时 token         |
-| `POST /v1/auth/password/register` | 邮箱密码注册         | claim ticket、email、password；要求邮件验证                |
-| `GET /v1/auth/password/callback`  | 完成邮箱确认         | Supabase code + opaque flow；设置 Web Cookie 并跳转工作台  |
-| `POST /v1/auth/password/login`    | 已注册账号登录       | email、password；设置 Web Cookie                           |
-| `POST /v1/auth/password/recovery` | 请求密码恢复         | email；统一 202 accepted，不披露账号或 method              |
-| `POST /v1/auth/logout`            | 撤销当前 Web session | CSRF；204                                                  |
-| `GET /v1/account`                 | 当前账号聚合         | Cookie；email/preferences/有效 extension sessions/最低版本 |
-| `GET /v1/account/preferences`     | 当前账号偏好         | Cookie；练习偏好、三项插件偏好、revision/updatedAt         |
-| `PATCH /v1/account/preferences`   | 更新账号偏好         | Cookie + Origin + CSRF + revision/idempotency proof        |
-| `GET /v1/extension-preferences`   | 插件偏好投影         | Extension proof；三项插件偏好、revision/updatedAt          |
-| `POST /v1/account/export`         | 创建导出             | 返回 export job；完成后给短时签名下载地址                  |
-| `POST /v1/account/delete`         | 删除账号             | 重新认证证明与确认字符串；立即撤销会话并返回 job           |
+| Method/path                              | 用途                   | 关键输入/输出                                              |
+| ---------------------------------------- | ---------------------- | ---------------------------------------------------------- |
+| `POST /v1/invitations/claim`             | 验证并预占邀请         | invitation token；返回短时 claim ticket，不创建业务账号    |
+| `POST /v1/auth/google/start`             | 发起 Google OAuth      | body 中的 claim ticket；302 到 Supabase/Google             |
+| `GET /v1/auth/csrf`                      | 登录后获取新 CSRF      | HttpOnly Cookie + Web Origin；轮换后返回短时 token         |
+| `POST /v1/auth/password/register`        | 邮箱密码注册           | claim ticket、email、password；要求邮件验证                |
+| `GET /v1/auth/password/confirm`          | 打开邮箱确认表单       | exact 43-char flow；inert HTML，不消费 Provider token      |
+| `POST /v1/auth/password/callback`        | 显式完成邮箱确认       | flow + email + 6 位 OTP；设置 Web Cookie 并跳转工作台      |
+| `POST /v1/auth/password/register/resume` | 恢复已确认但中断的注册 | 原 invitation token + email/password proof；原子完成建档   |
+| `POST /v1/auth/password/login`           | 已注册账号登录         | email、password；设置 Web Cookie                           |
+| `POST /v1/auth/password/recovery`        | 请求密码恢复           | email；统一 202 accepted，不披露账号或 method              |
+| `POST /v1/auth/logout`                   | 撤销当前 Web session   | CSRF；204                                                  |
+| `GET /v1/account`                        | 当前账号聚合           | Cookie；email/preferences/有效 extension sessions/最低版本 |
+| `GET /v1/account/preferences`            | 当前账号偏好           | Cookie；练习偏好、三项插件偏好、revision/updatedAt         |
+| `PATCH /v1/account/preferences`          | 更新账号偏好           | Cookie + Origin + CSRF + revision/idempotency proof        |
+| `GET /v1/extension-preferences`          | 插件偏好投影           | Extension proof；三项插件偏好、revision/updatedAt          |
+| `POST /v1/account/export`                | 创建导出               | 返回 export job；完成后给短时签名下载地址                  |
+| `POST /v1/account/delete`                | 删除账号               | 重新认证证明与确认字符串；立即撤销会话并返回 job           |
 
 密码注册 202/200 与密码登录 200 响应都使用 `Cache-Control: private, no-store`。注册 202 只返回
-`{emailConfirmationRequired:true}`，不设置 Web Cookie；只有邮件确认 callback 完成邀请，或 provider 明确
-返回已验证 session 时才可创建 Cookie。密码登录错误统一为认证失败，不回显账号或供应商细节。
-密码确认只允许 `/v1/auth/password/callback` 并以显式 `password` 完成邀请；Google 继续使用
-`/v1/auth/callback`。两条 callback 不按 query 或 Provider 返回值猜测 method，缺失/过期/错用途 flow 均
-失败关闭。已消费的确认 code 不支持重试；确认完成但跳转失败的账号经前向修复后直接走密码登录。
+`{emailConfirmationRequired:true}`，不设置 Web Cookie。邮件显示六位 OTP，CTA 只进入 inert
+`GET /v1/auth/password/confirm?flow=<43-char>`；安全扫描器或重复 GET 不调用 Provider、不消费 flow。
+用户显式提交 exact form 到 `POST /v1/auth/password/callback` 后才调用 email OTP verification，以
+`password` 完成 invitation。Google 继续单独使用 `/v1/auth/callback` code exchange。确认已在 Provider
+成功但语见建档中断时，只能从原邀请走 `/register/resume`，不能用普通登录隐式补数据。
 
 Google HTTP surface 由 server capability `HUAYI_GOOGLE_AUTHENTICATION=enabled` 控制，缺失即不挂载邀请
 start、普通 login、Google callback、link 和 reauthentication routes。关闭状态直接 404，并且不能先创建

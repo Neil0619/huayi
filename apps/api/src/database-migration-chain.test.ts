@@ -15,6 +15,8 @@ const migrationUrls = [
   "0009-account-deletion-replay.sql",
   "0010-quota-lifecycle-and-model-rate-limit.sql",
   "0011-security-notification-delivery.sql",
+  "0012-first-operator-bootstrap.sql",
+  "0013-password-signup-interruption-recovery.sql",
 ].map((name) => new URL(`../migrations/${name}`, import.meta.url));
 
 describe("Cloud V1 current migration chain", () => {

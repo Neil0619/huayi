@@ -422,10 +422,11 @@ fake clock。客户端通过 HTTP adapter 访问同一用例，不复制领域�
   token。claim ticket 仅存在于页面组件状态；密码注册继续走 Cookie 响应，Google 注册用固定 API
   origin 的原生 POST 表单完成真实 302 顶层导航。`/login` 只为已注册密码用户创建 Cookie session；
   客户端不直接组合 Supabase、不伪造 provider 成功，也不把认证材料放入全局实体 store。
-- 密码注册的待邮箱确认响应不签发 Web session；确认链接只经固定
-  `/v1/auth/password/callback` 恢复加密 auth-flow state，以显式 `password` 完成 invitation。共用
-  `/v1/auth/callback` 只处理 Google。密码注册/登录响应与 callback/CSRF 一样使用 private/no-store，
-  避免认证阶段或 CSRF token 被中间缓存保存。
+- 密码注册的待邮箱确认响应不签发 Web session。邮件只显示六位 OTP，CTA 进入固定 inert
+  `/v1/auth/password/confirm?flow=<43-char>`；GET 不访问 Provider/数据库。用户显式 POST
+  `/v1/auth/password/callback` 后才执行 `verifyOtp(type=email)` 并以 `password` 完成 invitation。
+  `/v1/auth/callback` 只处理 Google code exchange。已绑定但过期的 claim 不能被重新领取清理；原邀请、
+  Provider 密码证明与数据库原子恢复函数共同关闭确认后中断状态。
 
 ## 9. 部署与可观测性
 

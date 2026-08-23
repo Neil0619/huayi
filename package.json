@@ -16,6 +16,7 @@
     "acceptance:hosted:operator": "node scripts/acceptance-hosted-first-operator.mjs",
     "acceptance:hosted:operator:complete": "node scripts/acceptance-hosted-first-operator.mjs complete",
     "acceptance:hosted:operator:invite": "node scripts/acceptance-hosted-first-operator.mjs invite",
+    "acceptance:hosted:operator:pepper:verify": "node scripts/acceptance-hosted-pepper-continuity.mjs",
     "acceptance:hosted:operator:replace": "node scripts/acceptance-hosted-first-operator.mjs replace",
     "acceptance:hosted:operator:status": "node scripts/acceptance-hosted-first-operator.mjs status",
     "acceptance:hosted:operator:verify": "node scripts/acceptance-hosted-first-operator.mjs verify",

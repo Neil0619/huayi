@@ -1,0 +1,162 @@
+# 密码注册确认与中断恢复设计
+
+## 1. 背景与已确认故障
+
+Hosted acceptance 首次真实密码注册进入了可重复的部分成功状态：Supabase `auth.users` 与 email
+identity 已创建且邮箱已确认，但语见 API 没有完成 invitation claim、`invite-registration` flow、profile、
+password sign-in method、quota 与 Web session。普通密码登录即使通过 Provider 密码校验，也会被语见的
+已登记 method 检查拒绝；因此当前现象不能归因于“密码一定错误”。
+
+根因包含两个独立缺口：
+
+1. API 传给 Supabase 的 `redirectTo` 包含动态 `?flow=<opaque>`，Hosted Auth allowlist 却只保存不带
+   query 的 exact path。Supabase 对完整 URL 做 glob 匹配，未匹配时回退 Site URL；确认请求不会回到
+   API。
+2. `Confirm sign up` 模板直接链接 `{{ .ConfirmationURL }}`。邮件安全扫描器可能先访问并消费一次性
+   token，用户随后点击只会得到 `otp_expired`。
+
+本设计同时修复后续注册和已经中断的账号。只重发邮件、放宽到域级 `/**`、直接 SQL 补 profile、删除
+Auth 用户重建，或把一次性链接藏入前端 fragment，都不能满足安全与可恢复性要求。
+
+## 2. 产品行为
+
+### 2.1 新注册确认
+
+- 注册提交成功后显示“检查验证邮件”，不自动轮询或验证。
+- Supabase `Confirm sign up` 邮件显示 `{{ .Token }}` 六位验证码；CTA 只进入语见 API 的 inert
+  confirmation page，不直接链接 `{{ .ConfirmationURL }}`。
+- API 注册时把 `emailRedirectTo` 固定为
+  `/v1/auth/password/confirm?flow=<43-char-base64url>`。邮件 CTA 使用 `{{ .RedirectTo }}`，因此安全扫描器
+  最多 GET 语见的无副作用页面，不能消费 Supabase token。
+- confirmation GET 只严格校验 flow 并返回 email + 验证码表单；不读取/修改数据库，不调用 Supabase，
+  不设置 Cookie。
+- 只有用户显式 POST 表单后，API 才调用
+  `verifyOtp({ email, token, type: "email" })`，再以既有 `complete_auth_flow(..., 'password')` 原子创建
+  profile、password method、default quota，消费 invitation/claim/flow，创建 full Web session，并跳转
+  `/app`。
+- email、验证码和密码不得进入 URL、日志、Referer、Storage 或错误响应。
+
+### 2.2 已中断注册恢复
+
+- 重新打开原私密邀请时，若 claim 因“已绑定但未完成”而失败，页面显示专门的“继续中断注册”表单；
+  普通 `/login` 仍只服务已经完成建档的账号。
+- 恢复请求提交原 invitation token、email 和 password。API 先用 Supabase password sign-in 证明现有
+  Auth identity 的控制权，再调用单个数据库原子函数；Provider user id/email 均取自 Provider session，
+  不信任客户端身份字段。
+- 原子函数仅接受：邀请仍有效且未消费/撤销、恰好一条已过期未 finalization 且已绑定到该 Provider user
+  的 claim、恰好一条对应的已过期未消费 invite-registration flow、Auth user 已确认且只有 email identity、
+  且不存在 profile/method/quota/session/admin/audit/business data 的状态。
+- 成功时一次性创建 profile、password method、default quota，finalize claim，消费 invitation 和旧 flow；
+  随后 API 创建 full Web session。
+- 任何前置条件不满足都失败关闭，不设置 Cookie、不删除 Auth user、不创建第二个 identity，也不披露账号
+  是否存在。若邀请已经过期，则停止并进入另一个明确授权的破坏性恢复流程。
+
+### 2.3 claim 生命周期修正
+
+`claim_invitation` 只能自动清理 `bound_user_id IS NULL` 的过期未完成 claim。已经绑定 Provider identity
+的 claim 即使过期也必须保留，直到原子恢复成功或后续受保护的运维流程处理；否则会丢失唯一恢复证据并
+允许同一邀请产生第二个 Auth identity。
+
+## 3. 技术契约
+
+### 3.1 Supabase Redirect URL allowlist
+
+语见 opaque flow 固定由 32 bytes 随机值编码为 43 个 Base64URL 字符。Hosted acceptance 只允许以下
+query-aware pattern；`\?` 是 literal question mark，后面的 43 个 `?` 每个只匹配一个非分隔符字符：
+
+```text
+https://api.acceptance.seen-said.cn/v1/auth/callback\?flow=???????????????????????????????????????????
+https://api.acceptance.seen-said.cn/v1/auth/password/confirm\?flow=???????????????????????????????????????????
+https://api.acceptance.seen-said.cn/v1/auth/password/recovery/confirm\?flow=???????????????????????????????????????????
+https://api.acceptance.seen-said.cn/v1/auth/reauthenticate/google/callback\?flow=???????????????????????????????????????????
+https://api.acceptance.seen-said.cn/v1/account/sign-in-methods/google:callback\?flow=???????????????????????????????????????????
+```
+
+不得使用 `*`、`**`、host/path wildcard、localhost 或其他域。API 同样要求 flow 恰好 43 个
+Base64URL 字符且 query 不得重复或包含额外字段。
+
+### 3.2 Supabase Confirm sign up 模板
+
+模板必须显示 `{{ .Token }}`，CTA 仅指向 `{{ .RedirectTo }}`，不出现可点击或自动加载的
+`{{ .ConfirmationURL }}`，并保持 Resend click/open tracking disabled。
+
+```html
+<p>你的语见验证码是：<strong>{{ .Token }}</strong></p>
+<p><a href="{{ .RedirectTo }}">打开语见并输入验证码</a></p>
+```
+
+### 3.3 API confirmation
+
+- `GET /v1/auth/password/confirm?flow=<43-char>`：严格 query；返回 `private, no-store`、
+  `Referrer-Policy: no-referrer`、`default-src 'none'; form-action 'self' <exact Web origin>;
+base-uri 'none'; frame-ancestors 'none'`；精确 Web origin 只用于允许确认后的 API → Web 跳转，
+  不允许通配域名；页面只含 email、六位验证码和隐藏 flow。
+- `POST /v1/auth/password/callback`：只接收 exact
+  `application/x-www-form-urlencoded` 的 `flow/email/token`，拒绝重复/额外字段；按 IP 和 email 限流；
+  显式验证 OTP 后完成既有 auth flow，设置 Web Cookie 并 302 到 Web `/app`。
+- GET 重复、预取或 scanner 访问必须保持零 Provider 调用和零数据库消费。
+
+### 3.4 恢复 API
+
+新增 `POST /v1/auth/password/register/resume`，strict body：
+
+```ts
+type PasswordRegistrationResumeRequest = {
+  invitationToken: string;
+  email: string;
+  password: string;
+};
+```
+
+成功响应复用 `{emailConfirmationRequired:false,access:"full",csrfToken}`。顺序固定为：rate limit →
+Provider password proof → atomic interrupted-registration recovery → Web session。不得先重新 claim、创建新
+auth flow、删除旧 claim 或接受客户端 user id。
+
+### 3.5 Pepper continuity verifier
+
+恢复前使用固定命令 `acceptance:hosted:operator:pepper:verify`。命令只接受固定 Singapore project 确认
+参数；管理员数据库密码、Keychain 中准备继续用于 Production 的 pepper 与原 Bootstrap invitation token
+只通过交互式 `read -rs` 后的临时进程环境传入，不得放进 argv、shell history、文件或聊天。命令在一个
+read-only transaction 中同时要求 Operator status 精确为 `registration-interrupted`、当前邀请仍是有效的
+`deployment-bootstrap` 邀请，并比较该邀请保存的 hash；stdout/stderr 只能是固定 pass/fail，不得返回
+pepper、token、hash、DSN、email 或 user id。
+
+## 4. 测试与验收
+
+### 4.1 离线 TDD
+
+- deployment plan 固定五条 43-character query-aware allowlist pattern，并拒绝 `*`/`**`；
+- confirmation GET 对 scanner/repeat 请求零副作用，POST 严格拒绝重复/额外字段与错误 content type；
+- Supabase Provider 精确调用 `verifyOtp({email,token,type:"email"})`，并规范化失败；
+- migration 证明 bound expired claim 不会被 `claim_invitation` 删除；只有唯一、仍有效邀请下的精确中断
+  状态能原子恢复，其他状态不产生任何部分写入；
+- API/Web 恢复使用 original invitation token，错误密码或状态不匹配不设置 Cookie；
+- actual-bundle E2E 证明邮件 CTA 的首次 GET 不消费 token，显式 OTP POST 后才进入 `/app`。
+
+### 4.2 Hosted 验收
+
+1. dry-run 并实际推送恢复 migration；migration chain/0013 structure+ACL diagnostic 与 application verifier
+   通过。当前 identity/profile 非空，因此 pristine foundation verifier 不适用且不得宣称通过；
+2. 运行 pepper continuity verifier，并只接受固定 passed 状态；
+3. 回读五条 Supabase allowlist pattern 与 OTP 模板，确认 Resend tracking disabled；
+4. 双项目保持 disarmed 时提交并推送受审查候选；随后 API-only arm→产生并记录 deployment→立即独立
+   disarm→验证没有额外 deployment；确认 API 已关闭后，Web 才执行同样顺序，任何时刻不得同时 armed；
+5. API/Web 部署必须来自同一受审查候选 lineage，但 arm/disarm 是后续独立提交，因此两次 deployment
+   source SHA 不要求也不可能与候选提交或彼此完全相同；
+6. 对当前 confirmed-but-unfinalized user 使用原私密邀请与原密码执行恢复，不删除账号；
+7. read-only Operator status 为 `registered`，然后完成 First Operator bootstrap；
+8. 新建一条受控测试邀请，完成 scanner GET 无副作用 + OTP 显式提交 + 登录 journey；
+9. 通过完整 post-completion verifier 后再推进 DeepSeek smoke。
+
+若原 Bootstrap invitation 已过期，阶段立即停止；不得临时 SQL 绕过或直接删除部分账号。
+
+## 5. 已知相邻边界
+
+密码恢复邮件目前仍由 Supabase `/verify` 链接先到达 Provider，再进入语见 inert confirm page；因此不能
+把现有 password recovery 宣称为端到端 scanner-safe。本修复不扩张其行为，后续需要单独设计同样的
+显式验证码或等价机制。
+
+## 6. 官方约束
+
+- [Supabase Redirect URLs](https://supabase.com/docs/guides/auth/redirect-urls)
+- [Supabase Email Templates - email prefetching](https://supabase.com/docs/guides/auth/auth-email-templates#email-prefetching)

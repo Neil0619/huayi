@@ -99,6 +99,8 @@ test("local acceptance artifacts stay secret-free and local values stay ignored"
     supabaseNotificationForward,
     apiOperatorForward,
     supabaseOperatorForward,
+    apiSignupRecoveryForward,
+    supabaseSignupRecoveryForward,
     seed,
     runtime,
     reset,
@@ -166,6 +168,17 @@ test("local acceptance artifacts stay secret-free and local values stay ignored"
       resolve(repositoryRoot, "supabase/migrations/20260822030000_first_operator_bootstrap.sql"),
       "utf8",
     ),
+    readFile(
+      resolve(repositoryRoot, "apps/api/migrations/0013-password-signup-interruption-recovery.sql"),
+      "utf8",
+    ),
+    readFile(
+      resolve(
+        repositoryRoot,
+        "supabase/migrations/20260823010000_password_signup_interruption_recovery.sql",
+      ),
+      "utf8",
+    ),
     readFile(resolve(repositoryRoot, "supabase/seed.sql"), "utf8"),
     readFile(resolve(repositoryRoot, "scripts/acceptance-local-runtime.mjs"), "utf8"),
     readFile(resolve(repositoryRoot, "scripts/acceptance-local-reset.mjs"), "utf8"),
@@ -189,6 +202,7 @@ test("local acceptance artifacts stay secret-free and local values stay ignored"
   assert.equal(supabaseQuotaForward, apiQuotaForward);
   assert.equal(supabaseNotificationForward, apiNotificationForward);
   assert.equal(supabaseOperatorForward, apiOperatorForward);
+  assert.equal(supabaseSignupRecoveryForward, apiSignupRecoveryForward);
   assert.match(runtime, /com\.docker\.network\.bridge\.host_binding_ipv4/u);
   assert.match(runtime, /127\.0\.0\.1/u);
   assert.match(runtime, /--network-id/u);

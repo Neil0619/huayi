@@ -32,5 +32,12 @@ export function createFoundationAuthProvider(): AuthProvider {
         userId: "auth-user-a",
       };
     },
+    async verifyPasswordRegistrationOtp() {
+      return {
+        email: "learner@example.com",
+        refreshToken: "refresh-token",
+        userId: "auth-user-a",
+      };
+    },
   };
 }

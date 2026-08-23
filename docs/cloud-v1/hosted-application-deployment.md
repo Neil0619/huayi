@@ -298,16 +298,15 @@ Web/Store 路由收到任意 `HuayiExtension` token 也固定拒绝。以后启�
 URL Configuration 固定：
 
 - Site URL：`https://app.acceptance.seen-said.cn`；
-- Redirect allowlist 只含以下 exact API path，不使用 `/**` 或 Vercel preview wildcard：
-  - `https://api.acceptance.seen-said.cn/v1/auth/callback`
-  - `https://api.acceptance.seen-said.cn/v1/auth/password/callback`
-  - `https://api.acceptance.seen-said.cn/v1/auth/password/recovery/confirm`
-  - `https://api.acceptance.seen-said.cn/v1/auth/reauthenticate/google/callback`
-  - `https://api.acceptance.seen-said.cn/v1/account/sign-in-methods/google:callback`
+- Redirect allowlist 使用固定 path + `\?flow=` + 恰好 43 个单字符 wildcard `?`；不使用 `*`、`**` 或
+  Vercel preview wildcard。五条 path 为 `/v1/auth/callback`、`/v1/auth/password/confirm`、
+  `/v1/auth/password/recovery/confirm`、`/v1/auth/reauthenticate/google/callback` 与
+  `/v1/account/sign-in-methods/google:callback`。
 
 Email/password 保持启用、email confirmation 开启、autoconfirm 关闭，密码长度与 Cloud contract 一致为
-12–256。邮件模板必须使用 Supabase 当前动态 RedirectTo/ConfirmationURL，不能硬编码 Site URL，否则
-注册/恢复会绕过 API callback。Custom SMTP 固定 `smtp.resend.com:465`、username `resend`、独立 SMTP
+12–256。Confirm sign up 模板显示 `{{ .Token }}`，CTA 只用 `{{ .RedirectTo }}`，不得直接链接
+`{{ .ConfirmationURL }}`；否则邮件扫描器可提前消费一次性 token。Custom SMTP 固定
+`smtp.resend.com:465`、username `resend`、独立 SMTP
 key、sender `accounts@notify.acceptance.seen-said.cn` 与品牌名 `语见`。
 
 Google 延期时保持 Provider disabled。未来启用时使用独立 acceptance OAuth client；Google Console 的
@@ -379,9 +378,21 @@ one-shot deploy/disarm/Google UI hidden → Supabase 邮件模板回读 → 发�
 `beac29d` / disarm `b52992e` 严格串行，分别只产生 Ready deployment
 `8XRLHd9B3bFk6cLeGMG8hspQDPVW` 与 `FxmMSypN7cV7UPXQb3XUQU1JGD8L`，两个关闭提交均零新增。API 九条
 Google route 全部 404，12 项数据库零状态仍为 true；Web exact SHA、密码专用 UI、零 Google 控件与 bundle
-secret-shape scan 均通过。Supabase `Confirm sign up` 保存态模板使用 `{{ .ConfirmationURL }}`，没有硬编码
-URL、localhost、测试域或旧密码 callback；API `emailRedirectTo` 作为 ConfirmationURL 的动态
-`redirect_to` 继续回到专用 password callback。Phase 71 邀请前门已关闭，邀请仍未发行。
+secret-shape scan 均通过。随后真实首张邀请证明 Phase 71 保存态 `{{ .ConfirmationURL }}` 仍会受 scanner
+预取与 query allowlist mismatch 影响，因此该段只保留为历史证据。当前部署门以 Phase 72 的
+`{{ .Token }}` + `{{ .RedirectTo }}`、inert password confirm、显式 OTP POST 和 0013 原子恢复为准。
+
+## 6.2 Phase 72 中断恢复部署纪律
+
+先在 API/Web 均为 `deploymentEnabled=false` 时提交并推送受审查候选。随后只允许 API arm 提交产生一条
+deployment record；记录一旦出现，下一次 push 必须是独立 API disarm，并回读证明它没有产生额外
+deployment。只有确认 API 已关闭，才允许 Web 按完全相同的 arm→deployment record→立即独立 disarm→
+零额外 deployment 顺序执行；两个项目绝不同时 armed。
+
+API/Web 必须继承同一受审查候选 lineage，但 Vercel 部署由后续 arm 提交触发，disarm 又是独立提交，
+因此“同一候选”不表示 API/Web deployment source 必须是同一 SHA，也不表示 source 必须等于最初候选
+commit。证据应记录 candidate、各自 arm/deployment source、disarm 及部署计数，而不能用“exact same SHA”
+掩盖这组线性提交。
 
 ## 7. TDD 与验收标准
 

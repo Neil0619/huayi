@@ -20,6 +20,7 @@ const statuses = new Set([
   "empty",
   "invited",
   "registering",
+  "registration-interrupted",
   "registered",
   "completed",
   "completed-operator-deleted",
@@ -59,15 +60,86 @@ SELECT CASE
     AND (SELECT count(*) FROM public.invitation_claims) = 0
   THEN 'empty'
   WHEN (SELECT state FROM huayi_private.first_operator_bootstrap WHERE singleton = true) = 'invited'
-    AND (SELECT consumed_at FROM public.invitations WHERE id = (
-      SELECT current_invitation_id FROM huayi_private.first_operator_bootstrap WHERE singleton = true
-    )) IS NULL
+    AND EXISTS (
+      SELECT 1
+      FROM public.invitations invitation
+      JOIN huayi_private.first_operator_bootstrap bootstrap
+        ON bootstrap.current_invitation_id = invitation.id
+      WHERE invitation.created_by_kind = 'deployment-bootstrap'
+        AND invitation.created_by IS NULL
+        AND invitation.expires_at > now()
+        AND invitation.consumed_at IS NULL
+        AND invitation.revoked_at IS NULL
+    )
     AND (SELECT count(*) FROM auth.users) = 0
     AND (SELECT count(*) FROM auth.identities) = 0
     AND (SELECT count(*) FROM public.user_profiles) = 0
     AND (SELECT count(*) FROM public.admin_roles) = 0
     AND (SELECT count(*) FROM public.invitation_claims) = 0
   THEN 'invited'
+  WHEN (SELECT state FROM huayi_private.first_operator_bootstrap WHERE singleton = true) = 'invited'
+    AND EXISTS (
+      SELECT 1
+      FROM public.invitations invitation
+      JOIN huayi_private.first_operator_bootstrap bootstrap
+        ON bootstrap.current_invitation_id = invitation.id
+      WHERE invitation.created_by_kind = 'deployment-bootstrap'
+        AND invitation.created_by IS NULL
+        AND invitation.expires_at > now()
+        AND invitation.consumed_at IS NULL
+        AND invitation.revoked_at IS NULL
+    )
+    AND (SELECT count(*) FROM public.invitation_claims) = 1
+    AND EXISTS (
+      SELECT 1
+      FROM public.invitation_claims claim
+      JOIN huayi_private.first_operator_bootstrap bootstrap
+        ON bootstrap.current_invitation_id = claim.invitation_id
+      WHERE claim.expires_at <= now()
+        AND claim.bound_user_id IS NOT NULL
+        AND claim.finalized_user_id IS NULL
+    )
+    AND (SELECT count(*) FROM public.auth_flows) = 1
+    AND EXISTS (
+      SELECT 1
+      FROM public.auth_flows auth_flow
+      JOIN public.invitation_claims claim ON claim.ticket_hash = auth_flow.ticket_hash
+      WHERE auth_flow.kind = 'invite-registration'
+        AND auth_flow.expires_at <= now()
+        AND auth_flow.consumed_at IS NULL
+    )
+    AND (SELECT count(*) FROM auth.users) = 1
+    AND EXISTS (
+      SELECT 1
+      FROM auth.users auth_user
+      JOIN public.invitation_claims claim ON claim.bound_user_id = auth_user.id
+      WHERE auth_user.email_confirmed_at IS NOT NULL
+    )
+    AND (SELECT count(*) FROM auth.identities) = 1
+    AND EXISTS (
+      SELECT 1
+      FROM auth.identities identity
+      JOIN public.invitation_claims claim ON claim.bound_user_id = identity.user_id
+      WHERE identity.provider = 'email'
+    )
+    AND (SELECT count(*) FROM public.user_profiles) = 0
+    AND (SELECT count(*) FROM public.account_sign_in_methods) = 0
+    AND (SELECT count(*) FROM public.quota_grants) = 0
+    AND (SELECT count(*) FROM public.web_sessions) = 0
+    AND (SELECT count(*) FROM public.extension_sessions) = 0
+    AND (SELECT count(*) FROM public.admin_roles) = 0
+    AND NOT EXISTS (
+      SELECT 1
+      FROM public.account_deletion_jobs deletion
+      JOIN public.invitation_claims claim ON claim.bound_user_id = deletion.subject_user_id
+    )
+    AND NOT EXISTS (
+      SELECT 1
+      FROM public.audit_events audit
+      JOIN public.invitation_claims claim
+        ON claim.bound_user_id = audit.actor_user_id OR claim.bound_user_id = audit.subject_id
+    )
+  THEN 'registration-interrupted'
   WHEN (SELECT state FROM huayi_private.first_operator_bootstrap WHERE singleton = true) = 'invited'
     AND (SELECT consumed_at FROM public.invitations WHERE id = (
       SELECT current_invitation_id FROM huayi_private.first_operator_bootstrap WHERE singleton = true

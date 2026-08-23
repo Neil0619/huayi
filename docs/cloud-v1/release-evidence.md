@@ -1622,5 +1622,15 @@ typecheck、architecture、build、development blocker、Store release、product
   `/v1/auth/callback`；Save 保持 disabled。API `signUp` 继续通过 `emailRedirectTo` 注入专用
   `/v1/auth/password/callback?flow=<opaque>`；依据 Supabase 定义，`ConfirmationURL` 自身携带该动态
   `redirect_to`，无需在模板再暴露第二条 `.RedirectTo` 链接；
-- **下一门**：Phase 71 邀请前门已关闭，两个 project 与远端分支最终均为 disarmed。邀请尚未发行；下一步
-  才允许创建 72 小时 BootstrapInvitation，并由用户完成真实密码注册、Resend SMTP 确认与首位 Operator。
+- **Phase 71 结论已被真实验收修正**：首张邀请实际发行后，Provider user/email identity 已确认，但 API
+  callback、profile/method/quota/session 未完成；邮件点击落到 Site URL `otp_expired`，普通登录也因语见
+  method fence 失败。此前动态 `ConfirmationURL` 门不能证明 scanner-safe，不能再作为当前发布证据。
+- **当前下一门**：先完成 Phase 72 的 0013 migration、43-character query-aware redirect、
+  `{{ .Token }}` + `{{ .RedirectTo }}` 模板与 API/Web exact-source 部署；随后用原邀请 + Provider 密码证明
+  原子恢复当前账号，并以新邀请验证 inert GET + 显式 OTP POST。恢复前不得删除 Auth user、重新领取
+  bound claim、完成 Operator 或运行 DeepSeek smoke。
+- **Phase 72 待执行证据边界**：0013 后先取得 application/structure/ACL、精确
+  `registration-interrupted` 与 pepper continuity bounded pass；当前非空状态不运行 pristine foundation
+  verifier。双关闭候选 push 后必须串行记录 API arm/deployment/disarm/零额外 deployment，再记录 Web
+  同序，两个项目不得同时 armed；“同一受审查候选”只表示相同 reviewed lineage，不要求 API/Web 或原
+  candidate 使用完全相同 SHA。

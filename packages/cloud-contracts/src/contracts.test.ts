@@ -28,6 +28,12 @@ import {
   extensionSessionListResponseSchema,
   identityHttpRoutes,
   passwordRegistrationResponseSchema,
+  passwordRegistrationResumeRequestSchema,
+  passwordSignupCallbackFormSchema,
+  passwordSignupConfirmationHttpRoutes,
+  passwordSignupConfirmQuerySchema,
+  passwordSignupFlowSchema,
+  passwordSignupOtpSchema,
   createdInvitationResponseSchema,
   createWordbookJobRequestSchema,
   dailyQueueQuerySchema,
@@ -46,6 +52,26 @@ describe("/v1 public contracts", () => {
   it("publishes the fixed current-account quota route", () => {
     expect(identityHttpRoutes.quota).toBe("/v1/quota");
     expect(quotaSummarySchema.parse(contractFixtures.quota)).toEqual(contractFixtures.quota);
+  });
+  it("publishes strict scanner-safe password signup confirmation contracts", () => {
+    const flow = "f".repeat(43);
+    expect(passwordSignupConfirmationHttpRoutes).toEqual({
+      callback: "/v1/auth/password/callback",
+      confirm: "/v1/auth/password/confirm",
+    });
+    expect(passwordSignupFlowSchema.parse(flow)).toBe(flow);
+    expect(passwordSignupOtpSchema.parse("123456")).toBe("123456");
+    expect(passwordSignupConfirmQuerySchema.parse({ flow })).toEqual({ flow });
+    expect(
+      passwordSignupCallbackFormSchema.parse({
+        email: "Learner@Example.COM",
+        flow,
+        token: "123456",
+      }),
+    ).toEqual({ email: "learner@example.com", flow, token: "123456" });
+    expect(() => passwordSignupFlowSchema.parse("f".repeat(42))).toThrow();
+    expect(() => passwordSignupOtpSchema.parse("１２３４５６")).toThrow();
+    expect(() => passwordSignupConfirmQuerySchema.parse({ extra: "x", flow })).toThrow();
   });
   it("parses shared route fixtures through strict public schemas", () => {
     expect(startAnalysisRequestSchema.parse(contractFixtures.startAnalysisRequest)).toEqual(
@@ -226,6 +252,18 @@ describe("client authority and secret rejection", () => {
     expect(claimInvitationRequestSchema.parse({ invitationToken: "x".repeat(32) })).toBeTruthy();
     expect(identityHttpRoutes.claimInvitation).toBe("/v1/invitations/claim");
     expect(identityHttpRoutes.passwordLogin).toBe("/v1/auth/password/login");
+    expect(identityHttpRoutes.passwordRegistrationResume).toBe("/v1/auth/password/register/resume");
+    expect(
+      passwordRegistrationResumeRequestSchema.parse({
+        email: "Learner@Example.COM",
+        invitationToken: "i".repeat(43),
+        password: "correct horse battery staple",
+      }),
+    ).toEqual({
+      email: "learner@example.com",
+      invitationToken: "i".repeat(43),
+      password: "correct horse battery staple",
+    });
     expect(
       claimInvitationResponseSchema.parse({
         claimTicket: "c".repeat(32),
