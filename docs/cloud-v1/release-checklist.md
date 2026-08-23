@@ -36,10 +36,16 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       re-arm `b87ef03` 产生 Ready deployment `6AAAVXP175oviEhrjULxH48eQjPu`，独立 `c5c25f5` disarm 未新增
       deployment，零账号公开 smoke 已通过。Phase 71 随后完成 API/Web 各一次 Google fail-closed/password
       callback hardening Ready + 独立 disarm，关闭提交均零新增。此后第 13 条 migration、账号恢复、First
-      Operator complete/post-completion verify 和 `/admin` recent-auth UI 受控部署已完成；最终 API/Web
-      7/7 状态分布为 12 Ready / 3 Error / 9 Canceled 与 4 Ready / 1 Error / 10 Canceled，且两项目均为
-      `deploymentEnabled=false`。用户尚未亲自提交 `/admin` 密码，普通邀请、OTP、真实邮件、Cron 与
-      DeepSeek 应用路径 smoke 仍未完成，因此本项仍未勾选；
+      Operator complete/post-completion verify 和 `/admin` recent-auth UI 受控部署已完成。安全响应头候选
+      `3c0af44` 经 reviewed arm `b80c793` 只产生 Ready Web deployment
+      `7zNFzM4LHHGwyKxbwoDLfWoYGfve`，独立 disarm `0e7ef52` 没有新增部署。当前 API/Web 7/7 状态分布
+      分别为 12 Ready / 3 Error / 9 Canceled 与 5 Ready / 1 Error / 10 Canceled；默认排除 Canceled 的
+      6/7 视图分别为 15 与 6 条，Latest API 为 `39094d0` / `9jbyfnAvZwpa3Ci7YU6s6asmNZNG`，Latest Web
+      为 `b80c793` / `7zNFzM4LHHGwyKxbwoDLfWoYGfve`，且两项目均为 `deploymentEnabled=false`。live `/`、
+      `/privacy`、`/admin` 与实际 JS asset 已通过精确安全响应头、真实渲染、exact SHA 和 secret scan；
+      同轮公共边界只读探针通过，未写 Auth、SMTP、Supabase 或 DeepSeek。用户尚未亲自提交 `/admin`
+      密码，管理区、普通邀请、OTP、真实邮件、Cron 与 DeepSeek 应用路径 smoke 仍未完成，因此本项仍未
+      勾选；
 - [x] 在正确 Rotate 后 exact-SHA `7577cdd` deployment 上通过 DB-backed application-role smoke；
       `GET /health` 为 200，随机无效 session 的 `GET /v1/quota` 为精确 401
       `authentication_required`。deployment ID/SHA/创建时间与 Git 关闭证据已记录，API 未重新武装；
@@ -234,8 +240,25 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
 - [x] `/admin` 密码重新认证已本地 RED→GREEN，且 Web arm `3fcc832` 只新增 Ready deployment
       `FxRmiGZMzotoqiSmU7hSHfonbeV8`；独立 disarm `8dea25c` 后两项目均为
       `deploymentEnabled=false`。custom-domain 与 bundle exact SHA 已验证，真实页面已显示密码重新认证门；
-- [ ] 用户亲自输入当前密码并验证 `/admin` 四区与权限后，新邀请再完成 scanner/repeated GET 无副作用、显式
-      OTP POST、Web 落点和密码重登；完成前不得运行 DeepSeek 应用路径 smoke。
+- [x] 安全响应头候选 `3c0af44` 经 reviewed arm `b80c793` 只新增 Ready Web deployment
+      `7zNFzM4LHHGwyKxbwoDLfWoYGfve`；独立 disarm `0e7ef52` 后 API/Web 均保持
+      `deploymentEnabled=false`。当前 7/7 状态分布为 API 12 Ready / 3 Error / 9 Canceled、Web 5 Ready /
+      1 Error / 10 Canceled；默认排除 Canceled 的 6/7 视图为 API 15、Web 6，Latest 分别是
+      `39094d0` / `9jbyfnAvZwpa3Ci7YU6s6asmNZNG` 与 `b80c793` /
+      `7zNFzM4LHHGwyKxbwoDLfWoYGfve`；
+- [x] live `/`、`/privacy`、SPA `/admin` 与实际 `/assets/index-Cl8ZwtXY.js` 均为 TLS/HTTP 200，并精确返回
+      仓库 CSP、`Referrer-Policy: no-referrer`、`X-Content-Type-Options: nosniff`、
+      `Permissions-Policy: camera=(), microphone=(), geolocation=()` 与
+      `Strict-Transport-Security: max-age=63072000`。`/`、`/privacy`、`/admin` 分别渲染“待分析”、
+      “语见 Cloud V1 隐私说明”和“重新确认 Operator 身份”，浏览器 console error 为 0；bundle 只含一次
+      完整 `b80c793` arm SHA、零已知 secret/config marker；
+- [x] 同轮公共只读边界探针确认 `/health` 固定 200 JSON、Web origin credentialed CORS 预检通过、外部
+      origin 无 `Access-Control-Allow-Origin`，无 Cookie 的 CSRF/analysis 与五个 admin GET 精确 401，
+      password confirm/callback 缺失输入精确 400 且保持 no-store/no-referrer，Google-disabled callback 为
+      404；全程未创建 Auth flow、发送 SMTP、修改 Supabase、调用 DeepSeek 或执行其他外部写入；
+- [ ] 用户亲自输入当前密码并验证 `/admin` 四区与权限后，新邀请再完成 scanner/repeated GET 无副作用、
+      显式 OTP POST、Web 落点和密码重登；真实邮件投递、Cron 和 DeepSeek 应用路径 smoke 仍保持 pending，
+      完成管理门前不得运行 DeepSeek 应用路径 smoke。
 
 ## 完整 V1
 
