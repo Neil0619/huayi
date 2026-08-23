@@ -974,6 +974,9 @@ idempotency_records`，修复后覆盖创建、练习、历史、删除、词典
   六项权限结果必须全真，session pooler `5432` 的同一连接还必须在同一 backend 上证明“事务 A 设置并
   COMMIT，事务 B 未设置且读到 NULL”。PGlite 另覆盖 commit 后下一事务 context 为空；连接错误、不同
   backend、输出形状漂移或只执行 ROLLBACK 都不能通过。不得用 `pg_stat_ssl` 证明 Supavisor 客户端 TLS；
+- Rotate 后 deployment 必须先关闭 Git deployment，再运行 hosted HTTP smoke。无账号 DB-backed 探针使用
+  `GET /v1/quota` 与非空随机 `huayi_session` Cookie，精确期待 401 `authentication_required` / `The Web
+session is invalid.`；400 `invalid_request` 表示 runtime 数据库路径未关闭，Cookie 不得进入证据；
 - CLI 与 production runtime 都必须使用显式 Supabase CA 与 `verify-full`；API 环境回归拒绝 require/无 TLS、
   非 6543 pooler、错误 project ref、缺失/越界 CA，本机 disabled 模式只接受固定 loopback database DSN；
 - hosted psql 子进程回归必须证明调用方不能覆盖 `PGSSLMODE=verify-full` 与临时 `PGSSLROOTCERT`；diagnostic

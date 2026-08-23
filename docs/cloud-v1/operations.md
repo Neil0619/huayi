@@ -159,16 +159,22 @@ foundation 门，不能单独证明 Vercel、DNS、Auth、SMTP、应用 deployme
 该结果证明修订后的完整 contract，但没有单独重放旧文本探针，因此不把某一个旧表达式伪装成唯一已隔离
 根因。随后已在 Vercel API project 成功 Rotate Production Sensitive `HUAYI_DATABASE_URL`：新值使用当前
 密码、percent-encoded transaction-pooler `6543` 与 `sslmode=verify-full`，剪贴板已清空且未点击 Redeploy；
-不能把验证器的 session pooler `5432` DSN 写入 runtime。现有 Latest API deployment 早于该 Rotate，只有
-下一次受控 deployment 的启动、数据库路径和 hosted smoke 能证明新值已被 runtime 使用。
+不能把验证器的 session pooler `5432` DSN 写入 runtime。Rotate 后 exact-SHA `7577cdd` API deployment 已
+Ready，随后 disarm `00beea8` 未产生 API/Web deployment；只有该保留 deployment 的数据库路径和 hosted
+smoke 能证明新值已被 runtime 使用。
 
-Vercel API 当前有 7 条 Production deployment 记录，Latest/Current 为 deployment
-`BAC8nKdfjGH9Qtp1wdwi1j4376bN`、source `0c0413085a9dc78e7dc772cdee2eff2ce446ae04`；Web 仍无
-Production deployment。API policy 仍 armed，因此在候选冻结前禁止任何无关 push。运行态复核必须分层：
+Vercel API 当前有 8 条 Production deployment 记录，Latest/Current 为 deployment
+`3fxCRe2xku5qzZ8kdbFo4GivGiRL`、source `7577cdd7658fe966e85e8c8b4346e3291089e4e1`；Web 仍无
+Production deployment。API/Web Git deployment 均已关闭。运行态复核必须分层：
 
 1. `/health` 只关闭 custom domain、TLS、进程启动、固定 JSON 与 `x-vercel-id` 门，不执行 SQL；
 2. DB-backed smoke 才关闭 application role、CA、轮换密码、RLS/context 与数据库 runtime composition 门；
-3. 现有 7 条 deployment 全部早于 DSN Rotate，均不能作为第 2 层证据。
+3. 只有 Rotate 后 `7577cdd` deployment 能用于第 2 层；此前 7 条均不能作为该层证据。
+
+首个无写入 DB-backed 探针固定为 `GET /v1/quota` 加非空随机 `huayi_session` Cookie。精确预期是 HTTP
+401、`authentication_required` 与 `The Web session is invalid.`；它会执行 application-role 认证 SQL，
+而 DSN/TLS/role 失败归一为 400 `invalid_request`。探针不得记录 Cookie，也不能扩大为 RLS、Supabase Auth
+或 DeepSeek 已通过。
 
 首张 hosted 邀请和首个 Operator 使用 `first-operator-bootstrap.md` 的两阶段协议：先在 API/Web/Auth 已
 可用后发行唯一 BootstrapInvitation，用户走正常注册，再由项目管理员 complete 精确绑定账号。离线实现

@@ -1548,7 +1548,7 @@ passed; first Operator empty`。候选已提交推送，0012 已实际 push；�
 - 实际 armed 窗口内，`ac06dba` 到 `0c04130` 的 6 个线性 commit 均产生 API Production 记录，另有一次
   `0c04130` redeploy；其中 3 条 Error、4 条 Ready。Web 仍为 `No Production Deployment`；
 - 该结果证明 exact branch policy 保持了 API/Web 隔离，但没有实现“只产生一个 deployment”的流程目标。
-  API 仍 armed，完成轮换后受控 runtime smoke 之前不得继续无关 push。
+  该阶段结束时 API 仍 armed；后续 Phase 68 已完成 disarm。
 
 ## Cloud V1 Phase 66 Hosted application 角色复验与 runtime DSN 状态（2026-08-23）
 
@@ -1572,9 +1572,16 @@ passed; first Operator empty`。候选已提交推送，0012 已实际 push；�
 - `https://api.acceptance.seen-said.cn/health` 返回 HTTP 200、TLS verify result 0 和固定
   `{"service":"huayi-cloud-api","status":"ok"}`，`x-vercel-id` 以 `sin1::sin1` 开头。该 route 不访问
   数据库，不能证明轮换后 DSN、DeepSeek 或 Auth composition；
-- API/Web 的 Production Branch Tracking 均为 `codex/settings-configuration`，Preview 均为 `Disabled`；Web
-  仍为 `No Production Deployment`。API 仓库配置仍 armed，Web 仍全分支关闭；
-- 下一门：审查并提交当前候选，受控 push 只允许 API 产生一个 SHA 匹配的轮换后 deployment；新记录一旦
-  产生，无论 Ready/Error 或 smoke 成败，唯一允许的下一次 push 都是以独立提交恢复 API
-  `deploymentEnabled=false`。确认关闭提交没有产生 API/Web deployment 后，才完成数据库、DeepSeek、
-  Auth/Cookie/CORS/SSE smoke。
+- API/Web 的 Production Branch Tracking 均为 `codex/settings-configuration`，Preview 均为 `Disabled`；该
+  阶段结束时 API 仍 armed，Web 仍全分支关闭，下一阶段按受控顺序执行一次部署与关闭。
+
+## Cloud V1 Phase 68 Rotate 后 API deployment 与关闭（2026-08-23）
+
+- 受审查候选 `7577cdd7658fe966e85e8c8b4346e3291089e4e1` push 后只新增一条 API Production
+  deployment `3fxCRe2xku5qzZ8kdbFo4GivGiRL`，状态 Ready；API 历史总数为 8，Web 仍为
+  `No Production Deployment`；
+- 新 deployment 记录出现后未先运行 smoke，唯一后续 push 是 disarm 提交 `00beea8`；API
+  `git.deploymentEnabled=false` 已恢复，Dashboard 回读该提交没有产生 API/Web deployment；
+- 当前下一门不是重新部署，而是先修复旧 armed 测试断言，并确认该修复 push 也不产生 deployment；随后在
+  保留的 `7577cdd` deployment 上运行 health 与 DB-backed runtime smoke，再推进 DeepSeek/Auth/Cookie/
+  CORS/SSE。Web 继续保持零 deployment。

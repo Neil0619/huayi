@@ -1500,8 +1500,18 @@ status 关闭这道门；下一步可以按外部门顺序准备 Vercel 创建�
 2. **当前健康**：Latest/Current deployment `BAC8nKdfjGH9Qtp1wdwi1j4376bN` 绑定 custom domain，`/health`
    返回 HTTP 200、TLS verify result 0 与 `{"service":"huayi-cloud-api","status":"ok"}`；该 route 不访问
    数据库，且 deployment 早于 DSN Rotate；
-3. **控制门**：API 仍 armed，Web 仍 `deploymentEnabled=false`；任何 push 都可能再次部署 API。先完成本批
-   文档/代码审查和完整离线门，再以一个记录完整 SHA 的提交触发轮换后 deployment；
-4. **退出门**：新 deployment 必须匹配候选 SHA；记录一旦产生，无论 Ready/Error 或 smoke 成败，先以独立
-   提交恢复 API 全分支关闭并确认该提交没有产生 API/Web deployment。只有关闭证据成立后才验证 health、
-   数据库、DeepSeek、Auth/Cookie/CORS/SSE；Web 仍须为 `No Production Deployment`。
+3. **受控结果**：完整离线门通过后，精确候选 SHA
+   `7577cdd7658fe966e85e8c8b4346e3291089e4e1` 产生唯一新 API Production deployment
+   `3fxCRe2xku5qzZ8kdbFo4GivGiRL`，状态 Ready；Web 仍为 `No Production Deployment`；
+4. **退出门关闭**：新记录产生后未先运行 smoke，唯一后续 push 为独立 disarm 提交 `00beea8`，API 恢复
+   `deploymentEnabled=false`。Dashboard 确认该提交没有产生 API/Web deployment。
+
+## Phase 68：Rotate 后 API runtime smoke（2026-08-23）
+
+影响平台为 `shared + hosted-acceptance`。API/Web Git deployment 均已关闭；本阶段不得重新武装 API。
+
+1. 先修复并运行 disarm 配置契约测试，确认后续测试/文档 push 不产生 API/Web deployment；
+2. 对保留的 `7577cdd` deployment 验证 custom-domain `/health`、TLS 与 exact response；
+3. 以无真实账号、非空随机 session Cookie 的 `GET /v1/quota` 验证 application-role DB 路径：数据库可用时
+   必须是 `401 authentication_required`，数据库/TLS/role 失败不得冒充该结果；
+4. 数据库门通过后再按独立证据验证 DeepSeek 小额真实请求、Auth/Cookie/CORS/SSE；Web 继续零 deployment。

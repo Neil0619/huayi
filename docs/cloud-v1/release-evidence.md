@@ -1465,7 +1465,18 @@ typecheck、architecture、build、development blocker、Store release、product
   `{"service":"huayi-cloud-api","status":"ok"}`，`x-vercel-id` 以 `sin1::sin1` 开头。该 endpoint 不访问
   数据库，且 deployment 早于 DSN Rotate；它不证明新 DSN、DeepSeek、Auth、Cookie/CORS/SSE 或完整
   runtime composition；
-- **配置门**：API/Web Production Branch Tracking 均为 `codex/settings-configuration`，Preview 均为
-  `Disabled`。API 仍 armed，Web 仍全分支关闭；任何 push 前必须冻结候选。下一次只允许一个 SHA 匹配的
-  轮换后 API deployment；新记录产生后，无论 Ready/Error 或 smoke 成败，唯一允许的下一次 push 都是恢复
-  API 全分支关闭。确认关闭提交没有产生 API/Web deployment 后，才运行 runtime smoke。
+- **候选时配置门**：API/Web Production Branch Tracking 均为 `codex/settings-configuration`，Preview 均为
+  `Disabled`。当时 API 仍 armed，Web 仍全分支关闭；下一次只允许一个 SHA 匹配的轮换后 API deployment。
+
+## 58. Rotate 后 exact-SHA API deployment 与立即关闭（2026-08-23）
+
+- **受控 deployment**：候选提交 `7577cdd7658fe966e85e8c8b4346e3291089e4e1` push 后，API Dashboard
+  新增唯一 Production deployment `3fxCRe2xku5qzZ8kdbFo4GivGiRL`，状态 Ready，source 精确匹配候选；API
+  历史总数由 7 增为 8，Web 仍为 `No Production Deployment`；
+- **立即关闭**：新记录出现后未先运行 smoke；唯一后续 push 为独立提交 `00beea8`，把 API
+  `git.deploymentEnabled` 恢复为 `false`。Dashboard 刷新确认该提交没有新增 API deployment，Web 也没有
+  deployment；
+- **当前边界**：Git 自动部署窗口已关闭，保留的 `7577cdd` deployment 使用 Rotate 后 Sensitive 环境，现可
+  进入 `/health` 与 DB-backed runtime smoke。Ready 本身不证明数据库、DeepSeek、Auth、Cookie/CORS/SSE；
+- **回归待闭合**：关闭配置使旧 armed 断言按预期失败；后续测试/文档修复 push 必须继续回读 API 总数为 8、
+  Web 为 0，以证明 `deploymentEnabled=false` 持续生效。
