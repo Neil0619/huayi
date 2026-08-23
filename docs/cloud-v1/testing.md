@@ -978,6 +978,16 @@ idempotency_records`，修复后覆盖创建、练习、历史、删除、词典
   `GET /v1/quota` 与非空随机 `huayi_session` Cookie，精确期待 401 `authentication_required` / `The Web
 session is invalid.`；400 `invalid_request` 表示 runtime 数据库路径未关闭，Cookie 不得进入证据。当前
   deployment `DyqRzj5UMN8BRpSeZyohXprnAkaT` 已取得精确 401；
+- Phase 70 的 Web-only armed RED 必须在旧 `deploymentEnabled=false` 上失败，并要求 API 继续布尔
+  `false`、Web 精确为 `{"**":false,"codex/settings-configuration":true}`；deployment plan 与发布材料
+  测试必须共同锁定该窗口。push 后任何 Web deployment 状态都先 disarm，不能在 armed 窗口修复；
+- 零账号公开 smoke 只允许无写入验证：Web `/`、`/privacy`、hosted build SHA、无模拟标识、bundle secret
+  scan；允许 Web origin/credentials 且拒绝其他 origin 的 CORS preflight；无 Cookie 的 CSRF/SSE 入口 401；
+  缺 flow/code callback 400 加 `private, no-store` / `no-referrer`。同时以只读远端状态证明 Auth/profile/
+  admin/invitation/usage 仍为空。该门不调用 Supabase signup、SMTP 或 DeepSeek；
+- Cloud DeepSeek 必须在正常邀请注册并 complete Operator 后，由受审计 `/admin` 动作临时关闭 kill switch，
+  再经真实 Web session 的应用路径核验 model/usage/价格 UUID/reservation/UsageLedger。Classic
+  `pnpm smoke:deepseek`、公开测试 endpoint、直接 Auth 用户或 SQL 绕过均不可作为 hosted 证据；
 - CLI 与 production runtime 都必须使用显式 Supabase CA 与 `verify-full`；API 环境回归拒绝 require/无 TLS、
   非 6543 pooler、错误 project ref、缺失/越界 CA，本机 disabled 模式只接受固定 loopback database DSN；
 - hosted psql 子进程回归必须证明调用方不能覆盖 `PGSSLMODE=verify-full` 与临时 `PGSSLROOTCERT`；diagnostic

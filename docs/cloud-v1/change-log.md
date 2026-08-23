@@ -3,6 +3,23 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-23：Hosted 首个账号前先单独部署 Web，再验收 Auth 与 DeepSeek
+
+- Phase 68 中“DeepSeek/Auth 在 Web 零部署时先完成”的顺序不可执行：Cloud 模型路径需要真实 Web
+  session，hosted 模型 kill switch 当前保持开启；真实 Auth/SMTP 又必须经 FirstOperatorBootstrap 邀请、
+  API callback 和 Web 落点，不能直接创建 Supabase 用户绕过首账号空状态保护；
+- 正确顺序固定为：保持 API Git deployment 关闭 → 只武装 Web 的精确 production branch → Web
+  deployment 记录产生后立即用独立提交恢复 Web `deploymentEnabled=false` → 验证 Web/TLS/公开页面/
+  build identity/secret-free bundle 与零账号公共 API 边界 → 发行首张 BootstrapInvitation → 正常密码注册、
+  SMTP 确认和 callback → complete 首位 Operator → 由 Operator 受审计地临时关闭模型 kill switch →
+  DeepSeek 应用路径小额 smoke 与账本对账；
+- `pnpm smoke:deepseek` 属于 Classic Native Host，不得冒充 Cloud hosted runtime。不得新增公开 smoke
+  endpoint、直接创建 Auth 测试用户、手插 profile/admin、用 SQL 绕过 Operator 切换 kill switch，或同时
+  武装 API 与 Web；
+- Web armed 窗口沿用 API 的事故教训：任何状态的首条 deployment 一旦出现，唯一允许的下一次 push 是
+  Web disarm；armed 窗口内禁止夹带修复提交。真实模型费用虽已获小额批准，kill switch 切换、账号建立与
+  邮件投递仍分别按产品路径验收。
+
 ## 2026-08-23：Sensitive 变量轮换必须以保存回执和新 deployment runtime 共同验收
 
 - 点击 Vercel 环境变量名称会复制变量名，不能用该控件定位 Rotate 后再依赖原剪贴板；必须点击行尾操作

@@ -1600,3 +1600,25 @@ passed; first Operator empty`。候选已提交推送，0012 已实际 push；�
   的 `GET /v1/quota` 返回精确 HTTP 401、`authentication_required` 与
   `The Web session is invalid.`。该无写入探针关闭 Vercel runtime 的 DSN、CA/TLS、application role 与
   认证 SQL 路径；tenant context/RLS、DeepSeek、Supabase Auth、Resend、Web 与邀请仍待独立验收。
+
+## Cloud V1 Phase 70 首次 Web-only deployment 候选状态（2026-08-23）
+
+- 文档交叉审查发现 Phase 68 的“DeepSeek/Auth 在 Web 前完成”不可执行：Cloud 模型路径需要真实 Web
+  session，hosted kill switch 当前开启；正常 Auth/SMTP 又必须经首张邀请、API callback 和 Web 落点，
+  直接创建 Supabase 用户会破坏 FirstOperatorBootstrap 的空状态保护；
+- 下一门固定为保持 API Git deployment 关闭，只武装 Web 的 exact production branch。Web 记录一旦产生，
+  无论 Ready/Error，唯一下一次 push 都是独立 Web disarm；之后才验收 `/`、`/privacy`、hosted SHA、
+  secret-free bundle 与零账号 CORS/CSRF/SSE/callback；
+- 现有 API 已完成无写入 CORS 实测：Web origin 返回 204、精确 allow-origin 与 credentials，外域同为 204
+  但没有 allow-origin。该证据不扩大为 Cookie、Auth、SMTP、SSE 或 DeepSeek 已通过；
+- 公共门关闭后才发行 BootstrapInvitation；真实密码注册/SMTP/callback 完成并 complete Operator 后，才由
+  受审计 `/admin` 动作切换 kill switch，运行一笔真实 DeepSeek 应用路径 smoke 并核对账本。Windows 继续
+  留到 hosted 验收批次冻结后集中验证；
+- Web 发布材料与 hosted deployment plan 已按 Fresh RED → 最小 GREEN 更新：API 继续
+  `deploymentEnabled=false`，Web 仅允许 `codex/settings-configuration` 且以 `"**": false` 拒绝其他分支；
+  hosted build、bundle/diff secret scan 和 focused 回归均通过；
+- 最新 `pnpm verify:macos` 原样退出 0：235/235 Node script tests、474/474 Vitest files（2,866 passed /
+  12 skipped）、Store 97 files 481/481、Playwright 110/110；instructions、format、lint、typecheck、
+  architecture、workspace build、development blocker、Store release 与 production audit 同轮通过；
+- 候选仍只在本地未提交工作树：尚未 push、尚未产生 Web deployment。用户明确 `push` 后才允许打开这一
+  次 Web 窗口；记录一旦出现，无论 Ready/Error，都必须先独立 disarm，再执行零账号公开 smoke。

@@ -28,7 +28,11 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       Rotate 后 exact-SHA API deployment `3fxCRe2xku5qzZ8kdbFo4GivGiRL` 已 Ready；独立 disarm 提交
       `00beea8` 未产生 API/Web deployment，API/Web Git deployment 当前均关闭。错误值导致的两次启动失败
       已保留；正确 Rotate 后 deployment `DyqRzj5UMN8BRpSeZyohXprnAkaT` 已通过 health 与无写入数据库探针。
-      DeepSeek/Auth/Web/邮件/Cron/邀请等完整运行验收未完成，因此本项仍未勾选；
+      现有 API 的 Web-origin/外域 CORS OPTIONS 无写入预检已通过。Web-only exact-branch armed 候选已在
+      本地完成 Fresh RED/GREEN、hosted build、secret scan 和完整 macOS 门，但尚未 push、尚未产生 Web
+      deployment。后续顺序固定为 Web deployment → 独立 disarm → 零账号公开 smoke → Auth/SMTP/首位账号
+      → Operator complete → DeepSeek 应用路径 smoke；Web/邮件/Cron/邀请等完整运行验收仍未完成，因此
+      本项仍未勾选；
 - [x] 在正确 Rotate 后 exact-SHA `7577cdd` deployment 上通过 DB-backed application-role smoke；
       `GET /health` 为 200，随机无效 session 的 `GET /v1/quota` 为精确 401
       `authentication_required`。deployment ID/SHA/创建时间与 Git 关闭证据已记录，API 未重新武装；
@@ -57,11 +61,11 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
 - [ ] 使用已核验的公开候选配置运行 `pnpm check:cloud-release` 并得到 ready；
 - [ ] audit 输入中的候选/API Extension ID 与目标 Chrome Dashboard ID 相同，最低版本不高于候选版本；
 - [x] 当前 macOS 工作树的 instructions、architecture、format、lint、typecheck、unit、API integration
-      全绿；最新 Phase 64 门为 231/231 Node scripts、474/474 Vitest files（2,863 passed / 12 skipped）、
+      全绿；最新 Phase 70 门为 235/235 Node scripts、474/474 Vitest files（2,866 passed / 12 skipped）、
       Store 97 files 481/481 与 Playwright 110/110；
 - [x] 当前 Web 与 Store Extension Playwright 110/110 全绿；测试使用隔离的 4173 Vite 服务，没有改写或
       重启当前 8443 验收环境；
-- [x] 当前 macOS `pnpm verify:macos` 原样退出 0：231/231 Node scripts、474 个 Vitest files（2,863
+- [x] 当前 macOS `pnpm verify:macos` 原样退出 0：235/235 Node scripts、474 个 Vitest files（2,866
       passed / 12 skipped）、Store 97 files 481/481、Playwright 110/110；instructions、format、lint、typecheck、
       architecture、workspace build、development blocker、Store release、production audit 和 diff 同轮通过；
 - [ ] Windows Node.js 26+ 的 `pnpm verify:windows`、SEA health 与 CI 全绿；Phase 37-B 已在 Windows 11

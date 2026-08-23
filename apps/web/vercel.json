@@ -3,7 +3,10 @@
   "framework": "vite",
   "buildCommand": "pnpm build",
   "git": {
-    "deploymentEnabled": false
+    "deploymentEnabled": {
+      "**": false,
+      "codex/settings-configuration": true
+    }
   },
   "outputDirectory": "dist",
   "rewrites": [

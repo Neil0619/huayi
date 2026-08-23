@@ -1427,10 +1427,10 @@ status 关闭这道门；下一步可以按外部门顺序准备 Vercel 创建�
 5. **零部署边界**：`pnpm acceptance:hosted:deployment --plan` 通过；Vercel API 仍显示
    `No Production Deployment`。本阶段未发送确认、恢复或安全通知邮件，未发起 API/Web deployment，
    未安装/触发 Cron，未发行邀请；
-6. **后续状态**：Phase 64 已完成 API/Web Production environment 结构和 Auth exact URL；Phase 65 已产生
-   API deployment 历史，Phase 66 已完成 application verifier 与 Vercel DSN Rotate。下一门是轮换后受控 API
-   deployment/runtime smoke 并重新关闭 API，再验收 Web、Auth 邮件、R3-C 通知、Cookie/CORS/SSE/Storage、
-   五项 Cron 与 FirstOperatorBootstrap。
+6. **历史后续状态**：Phase 64 已完成 API/Web Production environment 结构和 Auth exact URL；Phase 65 已
+   产生 API deployment 历史，Phase 66 已完成 application verifier 与 Vercel DSN Rotate。其后 API
+   deployment/runtime smoke 与重新关闭已经完成；余下 Web、Auth、DeepSeek、R3-C、Cron 和首位 Operator
+   的当前权威顺序已由 Phase 70 校正。
 
 ## Phase 64：Hosted acceptance Auth 与 Production environment 完成（2026-08-23）
 
@@ -1447,8 +1447,8 @@ status 关闭这道门；下一步可以按外部门顺序准备 Vercel 创建�
    不为重跑本地 verifier 旋转已托管 Secret；
 5. **门禁证据**：deployment plan 与完整 macOS 离线门通过，双项目仍为 `No Production Deployment`，
    `git.deploymentEnabled=false` 未改；
-6. **下一门**：准备首次部署解锁的受审查提交；随后严格按 API first → API health/TLS/CORS/Cookie/SSE/
-   Auth/Storage/真实 DeepSeek 小额 smoke → Web → 真实邮件/R3-C → Cron → FirstOperatorBootstrap 执行。
+6. **当时的下一门**：准备首次 API 部署解锁的受审查提交。其后续顺序已由 Phase 70 校正，不再要求在
+   Web 零部署且首账号不存在时先完成 Auth/DeepSeek；当前权威顺序见 Phase 70。
 
 ## Phase 65：Hosted acceptance API-only 首次部署解锁（2026-08-23）
 
@@ -1532,3 +1532,33 @@ status 关闭这道门；下一步可以按外部门顺序准备 Vercel 创建�
 5. custom-domain `/health` 必须为 200 和固定 JSON；随后随机无效 session 的 `GET /v1/quota` 必须为精确
    401 `authentication_required` / `The Web session is invalid.`。这关闭 DSN、CA/TLS、application login、
    role switch 与认证 SQL 路径，但不扩大为 tenant context/RLS、DeepSeek、Supabase Auth 或 Resend 已通过。
+
+## Phase 70：首次 Web-only deployment 与零账号公共边界（2026-08-23）
+
+影响平台为 `shared + hosted-acceptance`。API 保持 `deploymentEnabled=false`；本阶段不创建 Auth 用户、不
+发行邀请、不发送邮件、不调用 DeepSeek，也不改变数据库 kill switch。
+
+1. **Docs-first 顺序校准**：把 Phase 68 遗留的“DeepSeek/Auth 先于 Web”校正为 Web → Auth/SMTP/首位
+   账号 → Operator complete → 受审计 kill switch 切换 → DeepSeek 应用路径 smoke。Cloud DeepSeek 需要
+   真实 Web session，且当前 kill switch 在 Provider fetch 前阻断；Classic `pnpm smoke:deepseek` 不能替代；
+2. **公共 API 前置证据**：在现有 API deployment 上以无写入 OPTIONS 验证 Web origin 精确允许 credentials，
+   任意其他 origin 不返回 `Access-Control-Allow-Origin`；该结果不证明 Cookie、CSRF、Auth 或模型；
+3. **Fresh RED → 最小 GREEN**：Web `vercel.json` 只允许
+   `codex/settings-configuration`，同时保留 `"**": false`；API 继续布尔 `false`。deployment plan、Web
+   发布材料回归先在旧全关闭配置上失败，再只更新 Web one-shot armed contract；
+4. **提交前门禁**：冻结完整 SHA，运行 focused tests、secret scan、`git diff --check` 与完整
+   `pnpm verify:macos`。用户明确 `push` 前不得产生 deployment；
+5. **部署与立即关闭**：push 后只允许新增一条与候选 SHA 一致的 Web Production deployment，API 总数
+   不变。新记录无论 Ready/Error，唯一允许的下一次 push 都是独立 Web disarm；确认 disarm 未产生 API/
+   Web deployment 后才运行公开 smoke；
+6. **零账号验收**：`/` 与 `/privacy` 真实 TLS/200；页面显示 `Hosted 验收 · <short SHA>` 且没有模拟模型
+   标识；bundle secret scan 通过；无 Cookie 的 `/v1/auth/csrf` 与分析入口为精确 401；缺 flow/code 的密码
+   callback 为精确 400 且保持 `private, no-store` / `no-referrer`；Auth/profile/admin/invitation、Provider
+   调用和 UsageLedger 保持零新增；
+7. **后续门**：上述门关闭后才发行 BootstrapInvitation，让用户正常完成密码注册、真实 SMTP 确认、API
+   callback 与 Web 落点；complete Operator 后由 `/admin` 受审计动作暂时关闭 kill switch，执行一笔真实
+   DeepSeek 应用路径请求并核对 model、usage、价格 UUID、reservation 与 UsageLedger，随后恢复 kill switch。
+8. **当前候选状态**：文档审查、无写入 CORS 预检、Fresh RED/GREEN、hosted Web build、bundle/diff secret
+   scan 与完整 `pnpm verify:macos` 已通过。API 仍为全分支关闭；Web exact-branch armed 仅存在于未提交工作树，
+   尚未 push、尚未产生 Web deployment。下一动作只能在用户明确要求 `push` 后提交并推送该候选；新 Web
+   记录出现后立即进入独立 disarm，不先执行公开 smoke。

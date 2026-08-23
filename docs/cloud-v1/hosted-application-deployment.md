@@ -326,10 +326,21 @@ URL，无通配符。该状态只关闭 Auth URL 配置门；尚未通过真实 
 5. API/Web Production environment 已完成结构复核，Vercel API Production Sensitive
    `HUAYI_DATABASE_URL` 已 Rotate；再次回读 Production Branch 与 Preview Disabled 后，由受审查提交只触发
    一个轮换后 API Production deployment，Web 继续保持零 deployment；
-6. API `/health`、Web `/` 与 `/privacy` 通过真实 TLS 后，验证 Cookie/CORS/CSRF/SSE/password callback；
-7. 只有稳定 API custom domain 通过后，才把 `configure-supabase-cron.sql` 的固定五项任务写入 Vault/
-   `pg_cron + pg_net`；不得使用 Vercel Hobby CRON；
-8. operator status 仍为 `empty` 且 Auth/profile/admin/invitation 仍为空后，才能发行 72 小时首张邀请。
+6. API `/health` 与 DB-backed 无写入探针通过后，以独立提交只武装 Web；Web deployment 记录出现后先
+   独立关闭 Web Git deployment，再验证 Web `/`、`/privacy`、可见构建 SHA、secret-free bundle、零账号
+   CORS/CSRF/SSE/callback 边界；
+7. operator status 仍为 `empty` 且 Auth/profile/admin/invitation 仍为空、Web 公共门已关闭后，才能发行
+   72 小时首张邀请并正常完成密码注册、SMTP 确认与 callback；
+8. complete Operator 后，再通过 `/admin` 受审计切换模型 kill switch 并运行一笔真实 DeepSeek 应用路径
+   smoke，完成 model/usage/price/reservation/UsageLedger 对账后恢复 kill switch；
+9. 真实 R3-C 投递门关闭后，才把 `configure-supabase-cron.sql` 的固定五项任务写入 Vault/
+   `pg_cron + pg_net`；不得使用 Vercel Hobby CRON。
+
+Phase 70 校正了旧的“DeepSeek/Auth 在 Web 前完成”描述：Cloud 模型请求需要真实 Web session，且 hosted
+kill switch 当前保持开启；真实 Auth/SMTP 也需要邀请、API callback 和 Web 落点。不得运行 Classic Native
+Host 的 `pnpm smoke:deepseek` 冒充 Cloud smoke，不得直接创建 Supabase 用户或用 SQL 绕过 Operator。首次
+Web armed policy 只允许 `codex/settings-configuration` 并保留 `"**": false`；API 继续为布尔 `false`。
+任何 Web deployment 记录产生后，唯一允许的下一次 push 都是独立 Web disarm。
 
 ## 7. TDD 与验收标准
 
@@ -408,7 +419,8 @@ format/lint/typecheck/build、architecture、release 和 production audit；prod
 credential、Custom SMTP、Supabase Auth exact URL、API 21/21 与 Web 2/2 Production-only environment 和零
 deployment 回读。后续 API 已产生 10 条 Production 记录；application 密码轮换后的正式数据库 verifier、
 纠正 Vercel DSN Rotate、exact-SHA deployment、立即 disarm 与 DB-backed runtime gate 均已完成。真实
-DeepSeek/Auth/邮件、Web deployment、Cron 与邀请仍未执行。
+Web deployment、Auth/邮件、DeepSeek、Cron 与邀请仍未执行；当前顺序以 Phase 70 的
+Web → Auth/SMTP/Operator → DeepSeek 为准。
 
 官方约束来源：
 

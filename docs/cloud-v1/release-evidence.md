@@ -1421,7 +1421,8 @@ typecheck、architecture、build、development blocker、Store release、product
 - **Phase 64 当时的下一门**：完成文档审查后形成首次部署解锁的受审查提交；不在本阶段修改
   `vercel.json` 或部署。之后
   固定 API first → health/TLS/CORS/Cookie/SSE/Auth/Storage/真实 DeepSeek 小额 smoke → Web → 真实邮件与
-  R3-C → Cron → first Operator invitation。
+  R3-C → Cron → first Operator invitation。该历史顺序已由 Phase 70 取代；当前不再要求在 Web 零部署、
+  首账号不存在且 kill switch 开启时先运行 Auth/DeepSeek。
 
 ## 56. Hosted application 登录验证分段诊断（2026-08-23）
 
@@ -1502,3 +1503,30 @@ typecheck、architecture、build、development blocker、Store release、product
   `authentication_required`、`The Web session is invalid.`，`x-vercel-id` 为
   `sin1::sin1::rvdmw-1787473926428-f9a857274998`。Cookie 未记录；该无写入结果证明 runtime 已完成
   DB TLS/login、transaction、role switch 与认证 SQL，但不证明 tenant context/RLS、DeepSeek、Auth 或邮件。
+
+## 60. Phase 70 Web-only armed candidate（2026-08-23）
+
+- **顺序校准**：交叉审查确认 Cloud DeepSeek 必须依赖真实 Web session，hosted kill switch 又在 Provider
+  fetch 前阻断；真实 Auth/SMTP 则必须经 BootstrapInvitation、API callback 与 Web 落点。因此当前权威
+  顺序固定为 Web deployment → 独立 disarm → 零账号公开 smoke → Auth/SMTP/首位账号 → Operator
+  complete → 受审计 kill switch 切换 → 一笔真实 Cloud DeepSeek 应用路径 smoke；Classic Native Host 的
+  `pnpm smoke:deepseek` 不替代该门；
+- **现有 API 公共前置证据**：对 `/v1/quota` 运行无写入 OPTIONS；
+  `https://app.acceptance.seen-said.cn` 返回 HTTP 204、精确 allow-origin、credentials=true 且允许 GET，
+  `https://example.invalid` 同为 204 但没有 allow-origin。该结果不扩大为 Cookie、CSRF、Auth、SSE、模型
+  或业务写入已通过；
+- **Fresh RED**：旧 Web `deploymentEnabled=false` 下，hosted deployment plan 为 1 fail / 3 pass；Web
+  release materials 为 1 fail / 4 pass，失败值精确为布尔 `false` 而非 exact-branch map；
+- **最小 GREEN**：API 配置保持布尔 `false`；Web 仅增加 `"**": false` 与
+  `"codex/settings-configuration": true`。deployment plan 4/4、Web release materials 5/5 通过；hosted
+  environment/notice/public-bootstrap 3 files 8/8 通过；
+- **构建与秘密边界**：以 hosted public origin、`hosted-acceptance` 和冻结基线 SHA 构建 Web 成功；bundle
+  包含 hosted 标识与完整 SHA，服务端数据库、CA、Supabase service role、DeepSeek、Resend、pepper、Cron
+  变量名均不存在。工作树 diff 的 Resend key、Provider key、含密码 DSN 与 JWT 扫描均为 clear；
+- **完整离线门**：`pnpm verify:macos` 原样退出 0：235/235 Node script tests、474/474 Vitest files
+  （2,866 passed / 12 skipped）、Store 97 files 481/481、Playwright 110/110；instructions、format、lint、
+  typecheck、architecture、workspace build、development blocker、Store release、production audit 均通过，
+  production dependencies 无已知漏洞；
+- **当前远端边界**：该 armed candidate 仍是本地未提交工作树，尚未 push，Web 仍无 deployment；现有 API
+  Git deployment 继续全分支关闭。只有用户明确要求 `push` 才提交并推送；新 Web 记录无论 Ready/Error，
+  下一次唯一允许的 push 都是独立 disarm，且 disarm 前不执行公开 smoke。

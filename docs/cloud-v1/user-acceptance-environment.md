@@ -394,8 +394,10 @@ Phase 64 已完成 hosted Auth 与 API/Web Production environment 结构配置�
 diagnostic 22 个字段与正式 verify 均已远端通过，Vercel `HUAYI_DATABASE_URL` 也已用轮换后密码成功 Rotate
 为 Production Sensitive transaction-pooler `6543` DSN。Phase 67/68 已完成 exact-SHA deployment 与
 disarm；Phase 69 纠正误写的 Sensitive 值，并在 `DyqRzj5UMN8BRpSeZyohXprnAkaT` 上通过 health 与无写入
-数据库探针。API/Web Git deployment 均关闭，Web 仍无 deployment。下一门是 DeepSeek 与 Auth，再进入
-Web → 真实邮件/R3-C → Cron → 首位 Operator 邀请。下一次 Windows 全门等到验收
+数据库探针。API/Web Git deployment 均关闭，Web 仍无 deployment。Phase 70 已校正旧顺序：先单独部署
+并立即关闭 Web，完成零账号公开边界，再发行首张邀请走
+真实 Auth/SMTP；首位 Operator complete 后才受审计切换 kill switch 并运行 DeepSeek 应用路径 smoke。
+之后才进入真实 R3-C → Cron。下一次 Windows 全门等到验收
 批次冻结，不因每个文档或配置步骤重复执行。
 
 ## 10. 官方约束来源
