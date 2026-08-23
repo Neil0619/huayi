@@ -152,10 +152,12 @@ opaque token。用户在恢复表单提交后，Web 才把内存中的 token 与
 7. 新建一条受控测试邀请，完成 scanner GET 无副作用 + OTP 显式提交 + 登录 journey；
 8. 通过完整 post-completion verifier 后再推进 DeepSeek smoke。
 
-2026-08-24 已完成的真实只读证据为：Operator status 精确为 `registration-interrupted`，application login
-verifier 通过，migration dry-run 只列出
-`20260823010000_password_signup_interruption_recovery.sql` 且数据库未修改。实际 migration、Hosted 配置、
-部署与浏览器内系统管理的 pepper continuity/recovery 仍待执行。
+2026-08-24 已完成的真实证据为：Operator status 精确为 `registration-interrupted`；0013 已实际应用，
+migration-chain、recovery function/ACL diagnostic 与 application verifier 均通过。Supabase Site URL 保持
+`https://app.acceptance.seen-said.cn`；五条 43-character query-aware redirect 已逐字符回读；Confirm sign up
+保存后重新加载仍精确使用 `{{ .Token }}` + `{{ .RedirectTo }}`，不含 `{{ .ConfirmationURL }}`。Custom SMTP
+未改，Resend tracking 仍 disabled，本步骤未轮换密钥、未发送邮件。API/Web 受控部署与浏览器内系统管理的
+pepper continuity/recovery 仍待执行。
 
 若原 Bootstrap invitation 已过期，阶段立即停止；不得临时 SQL 绕过或直接删除部分账号。
 

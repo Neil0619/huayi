@@ -314,8 +314,11 @@ Authorized redirect URI 是 Supabase callback
 `https://kpadiulxkgckskcfydry.supabase.co/auth/v1/callback`，上面五条应用 API callback 只是 Supabase
 redirect allowlist，不能互换。
 
-Phase 64 已回读 Site URL 为 `https://app.acceptance.seen-said.cn`，redirect allowlist 仅含上述五条 exact
-URL，无通配符。该状态只关闭 Auth URL 配置门；尚未通过真实 deployment 验证 callback 或邮件。
+Phase 64 的五条 queryless exact URL 已被 Phase 72 取代。2026-08-24 回读确认 Site URL 仍为
+`https://app.acceptance.seen-said.cn`，allowlist 恰好为上述五条固定 path + `\?flow=` + 43 个单字符
+wildcard pattern，无额外 URL。Confirm sign up 保存态精确使用 `{{ .Token }}`，CTA 唯一 `href` 为
+`{{ .RedirectTo }}`。本轮 Custom SMTP 未改、密钥未轮换、邮件未发送，Resend tracking 仍 disabled。
+该证据关闭配置门，不代替真实 callback 或投递验收。
 
 ## 6. DNS、部署与 CRON 顺序
 
@@ -393,6 +396,12 @@ API/Web 必须继承同一受审查候选 lineage，但 Vercel 部署由后续 a
 因此“同一候选”不表示 API/Web deployment source 必须是同一 SHA，也不表示 source 必须等于最初候选
 commit。证据应记录 candidate、各自 arm/deployment source、disarm 及部署计数，而不能用“exact same SHA”
 掩盖这组线性提交。
+
+截至 2026-08-24，部署前置门已完成：0013 实际应用后的 migration-chain、recovery function/ACL diagnostic
+与 Hosted application verifier 通过；Site URL 保持 `https://app.acceptance.seen-said.cn`，五条
+43-character query-aware Redirect URL 与 `{{ .Token }}` + `{{ .RedirectTo }}` Confirm sign up 模板已保存并
+重新加载回读。Custom SMTP 未改，Resend tracking 仍 disabled，本步骤未轮换密钥或发送邮件。API/Web
+仍保持 disarmed，下一动作才是上述严格串行的 API→Web 受控部署。
 
 ## 7. TDD 与验收标准
 

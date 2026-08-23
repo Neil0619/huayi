@@ -213,12 +213,12 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       route 全部 404，Web `/login` 为 exact SHA、密码专用文案与零 Google 控件，bundle secret scan 为零；
 - [x] Supabase `Confirm sign up` 保存态模板使用动态 `{{ .ConfirmationURL }}`，没有硬编码 URL、localhost、
       测试域或旧密码 callback；API `emailRedirectTo` 继续进入 ConfirmationURL 的 `redirect_to`；
-- [ ] Phase 71 上述 `ConfirmationURL` 仅保留为历史回读；真实验收已证明它会被 scanner/prefetch 提前消费。
+- [x] Phase 71 上述 `ConfirmationURL` 仅保留为历史回读；真实验收已证明它会被 scanner/prefetch 提前消费。
       保存并回读 `{{ .Token }}` + `{{ .RedirectTo }}` 模板及五条 43-character flow allowlist；
 - [x] Phase 72 候选 `be38942` 已在双关闭下 push，API/Web 保持 14/3 条 deployment 且新增均为 0；
 - [x] 只读 status 为 `registration-interrupted`，application login verifier 通过；0013 dry-run 只列出
       `20260823010000_password_signup_interruption_recovery.sql` 且数据库未修改；
-- [ ] 明确确认后实际 push 0013，验证 migration/ACL/application login；不得在当前非空状态要求 pristine
+- [x] 明确确认后实际 push 0013，验证 migration/ACL/application login；不得在当前非空状态要求 pristine
       foundation verifier；
 - [ ] 严格执行 API arm→deployment record→独立 disarm→零额外 deployment，再执行
       Web 同序；两个项目从不同时 armed，并记录同一 reviewed lineage 而非虚构相同 SHA；

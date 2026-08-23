@@ -1672,8 +1672,11 @@ passed; first Operator empty`。候选已提交推送，0012 已实际 push；�
   失败时用原 invitation token + email/password proof 恢复，成功后才清 URL；
 - 设计/实施计划审查、focused/full 验证与完整 macOS 门均已通过；候选 `be38942` 已在双关闭下推送，
   API/Web 仍为 14/3 条历史 deployment 且新增均为 0；两份 Vercel 配置继续保持 disarmed；
-- 2026-08-24 真实只读 status 精确为 `registration-interrupted`，application login verifier 通过；0013
-  dry-run 只列出 `20260823010000_password_signup_interruption_recovery.sql` 且数据库未修改；
-- 实际 migration、Supabase 模板/redirect 写入、API/Web 受控部署和真实账号恢复仍待执行。恢复不要求用户
-  手工识别/输入原邀请 token；Web 保持 URL fragment 于内存并在恢复时自动提交，API/0013 在写入前用
-  Production pepper 验证 continuity 和精确状态。DeepSeek smoke 仍禁止。
+- 2026-08-24 真实 status 精确为 `registration-interrupted`；0013 已实际应用，migration-chain、recovery
+  function/ACL diagnostic 与 application verifier 均通过；
+- Supabase Site URL 保持 `https://app.acceptance.seen-said.cn`；五条 43-character query-aware redirect 已
+  逐字符回读。Confirm sign up 保存并重新加载后为 `{{ .Token }}` + `{{ .RedirectTo }}`，不含
+  `{{ .ConfirmationURL }}`；Custom SMTP 未改，Resend tracking 仍 disabled，未轮换密钥、未发送邮件；
+- API/Web 受控部署和真实账号恢复仍待执行。恢复不要求用户手工识别/输入原邀请 token；Web 保持 URL
+  fragment 于内存并在恢复时自动提交，API/0013 在写入前用 Production pepper 验证 continuity 和精确状态。
+  DeepSeek smoke 仍禁止。

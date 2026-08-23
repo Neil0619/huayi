@@ -401,8 +401,10 @@ secret scan、零 Cookie CSRF/分析 401、失败 callback 400 与 12 项远端�
 route 404/12 项零状态、Web exact SHA/零 Google 控件/bundle scan 均通过。Supabase `Confirm sign up` 保存态
 模板使用动态 `{{ .ConfirmationURL }}` 的 Phase 71 回读仅是历史证据，已被首次真实确认中的
 `otp_expired` 事故推翻。当前门改为 `{{ .Token }}` + `{{ .RedirectTo }}`、inert GET confirm、显式 OTP
-POST 与 0013 中断恢复；完成当前账号恢复及新账号 OTP journey 前不得切换 kill switch 或运行真实
-Cloud DeepSeek 应用路径 smoke；
+POST 与 0013 中断恢复。2026-08-24 已实际应用唯一的 0013，migration/ACL/application verifier 均通过；
+Site URL 保持不变，五条 43-character query-aware redirect 与 OTP 模板已保存并重新加载回读。Custom SMTP
+未改、密钥未轮换、邮件未发送，Resend tracking 仍 disabled。完成当前账号恢复及新账号 OTP journey 前
+不得切换 kill switch 或运行真实 Cloud DeepSeek 应用路径 smoke；
 再后续为真实 R3-C → Cron。下一次 Windows 全门等到验收批次冻结，不因每个文档或配置步骤重复执行。
 
 ## 10. 官方约束来源

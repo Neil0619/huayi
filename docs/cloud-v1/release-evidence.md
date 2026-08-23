@@ -1630,12 +1630,17 @@ typecheck、architecture、build、development blocker、Store release、product
 - **真实只读预检与 dry-run**：2026-08-24 Operator status 精确为 `registration-interrupted`，Hosted
   application login verifier 通过；Supabase migration dry-run 只列出
   `20260823010000_password_signup_interruption_recovery.sql`，数据库未修改；
-- **当前下一门**：明确确认并实际推送 Phase 72 的 0013 migration，再完成 43-character query-aware redirect、
-  `{{ .Token }}` + `{{ .RedirectTo }}` 模板与 API/Web exact-source 部署；随后用原邀请 + Provider 密码证明
-  原子恢复当前账号，并以新邀请验证 inert GET + 显式 OTP POST。恢复前不得删除 Auth user、重新领取
-  bound claim、完成 Operator 或运行 DeepSeek smoke。
-- **Phase 72 待执行证据边界**：0013 后取得 migration/structure/ACL 与 application verifier；当前非空
-  状态不运行 pristine foundation verifier。随后串行记录 API arm/deployment/disarm/零额外 deployment，
-  再记录 Web 同序，两个项目不得同时 armed。真实 pepper continuity 由浏览器自动提交内存中的原邀请
-  token，API 用 Production pepper hash，0013 在写入前验证 active invitation、精确中断状态与 hash；不
-  要求用户手工提取 opaque token。可选 CLI 只在安全 managed token source 已存在时用于工程诊断。
+- **0013 实际应用证据**：明确确认后只应用
+  `20260823010000_password_signup_interruption_recovery.sql`；migration-chain、0013 recovery function/ACL
+  diagnostic 为 true，随后 Hosted application verifier 通过；Operator status 仍精确为
+  `registration-interrupted`。当前非空状态未运行 pristine foundation verifier。
+- **Hosted Auth 配置回读**：Site URL 保持 `https://app.acceptance.seen-said.cn`；Redirect URL 列表恰好五条，
+  均为固定 path + literal `\?flow=` + 恰好 43 个 `?`，无 `*`/`**`、localhost、preview 或额外 URL。
+  Confirm sign up 保存并重新加载后精确包含一次 `{{ .Token }}` 和一次 `{{ .RedirectTo }}`，CTA 的唯一
+  `href` 为 `.RedirectTo`，不含 `.ConfirmationURL` 或硬编码 URL。Custom SMTP 未改，Resend tracking 仍
+  disabled，本步骤未轮换密钥、未发送邮件。
+- **当前下一门**：严格串行记录 API arm/deployment/disarm/零额外 deployment，再记录 Web 同序，两个项目
+  不得同时 armed。随后用原邀请 + Provider 密码证明原子恢复当前账号，并以新邀请验证 inert GET + 显式
+  OTP POST。真实 pepper continuity 由浏览器自动提交内存中的原邀请 token，API 用 Production pepper
+  hash，0013 在写入前验证 active invitation、精确中断状态与 hash；不要求用户手工提取 opaque token。
+  恢复前不得删除 Auth user、重新领取 bound claim、完成 Operator 或运行 DeepSeek smoke。

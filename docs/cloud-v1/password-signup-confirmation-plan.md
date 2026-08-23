@@ -47,10 +47,13 @@
       pristine foundation verifier 在当前非空状态下不得作为前置门；
 - [x] migration dry-run 只列出
       `20260823010000_password_signup_interruption_recovery.sql`，数据库未修改；
-- [ ] 用户明确确认后实际 push 0013，再验证 migration-chain/0013 structure+ACL diagnostic 与 application
-      verifier；
-- [ ] 写入并回读五条 query-aware Redirect URLs；
-- [ ] 保存并回读 OTP Confirm sign up 模板，确认 Resend tracking disabled；
+- [x] 用户明确确认后实际 push 0013；migration-chain、0013 recovery function/ACL diagnostic 与 Hosted
+      application verifier 均通过；
+- [x] 写入并回读五条 query-aware Redirect URLs；Site URL 保持
+      `https://app.acceptance.seen-said.cn`，列表恰好五条且每条 `flow=` 后均为 43 个单字符 wildcard；
+- [x] 保存并重新加载回读 OTP Confirm sign up 模板：正文精确使用一次 `{{ .Token }}` 与一次
+      `{{ .RedirectTo }}`，不含 `{{ .ConfirmationURL }}`；Resend tracking 仍 disabled；Custom SMTP 未改，
+      本步骤未轮换密钥、未发送邮件；
 - [ ] API-only arm→记录 deployment→立即独立 disarm→验证零额外 deployment，确认 API 已关闭后 Web 才
       执行同样顺序；两者绝不同时 armed；
 - [ ] API/Web 来自同一受审查候选 lineage；arm/disarm 后 deployment source SHA 可不同，不把“同一

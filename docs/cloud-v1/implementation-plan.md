@@ -1627,7 +1627,9 @@ Phase 72 的受控部署顺序必须展开为：双项目 disarmed 时提交并�
 时刻不得同时 armed。这里的“同一候选”指同一受审查 candidate lineage；arm/disarm 是候选之后的独立配置
 提交，因此 API/Web deployment source SHA 可以不同，不能要求与候选提交或彼此完全相同。
 
-截至 2026-08-24，候选 `be38942` 已在双关闭下推送且 API/Web deployment 新增均为 0；真实只读 status
-精确为 `registration-interrupted`，application verifier 通过，0013 dry-run 只列出
-`20260823010000_password_signup_interruption_recovery.sql` 且数据库未修改。actual migration、Hosted
-Auth 配置、API/Web 部署与浏览器恢复仍待执行。
+截至 2026-08-24，候选 `be38942` 已在双关闭下推送且 API/Web deployment 新增均为 0；真实 status 精确为
+`registration-interrupted`。0013 已实际应用，migration-chain、recovery function/ACL diagnostic 与
+application verifier 均通过。Hosted Auth 已回读 Site URL 不变、五条 43-character query-aware redirect
+逐字符精确、Confirm sign up 为 `{{ .Token }}` + `{{ .RedirectTo }}` 且不含
+`{{ .ConfirmationURL }}`；Custom SMTP 未改，Resend tracking 仍 disabled，未轮换密钥或发送邮件。
+API/Web 受控部署与浏览器恢复仍待执行。
