@@ -1693,6 +1693,8 @@ environment 或 deployment，不发送邮件、不调用 DeepSeek；API/Web 始�
    可能项后重建。不得恢复明文、盲目叠加邀请、用 SQL 或复用 Bootstrap replace；
 5. **远端状态与剩余门**：候选 `526fb8b` 在双 disarmed 下提交；Web-only arm `bb21817` 只新增 Ready
    Production deployment `2D2o6cYZJWSRKLHKQQB7XXxZRAt1`，Web 默认非 Canceled 数 6→7、API 保持 15；
-   独立 disarm `636968d` 没有新增 deployment，两项目最终均为 `false`。live 已显示 bundle `bb21817`，
-   但 recent-auth 已过期；用户亲自重新输入当前密码后，先只读核对四条历史状态与零 console error，再
-   授权不同于 Operator 的收件人创建恰好一张普通邀请并继续 scanner-safe OTP/Auth SMTP。
+   独立 disarm `636968d` 没有新增 deployment，两项目最终均为 `false`。live 已显示 bundle `bb21817`；
+   当前仍有效的用户 recent-auth 会话只读核对到一条“已领取”和三条“已撤销”，终态行均无撤销入口，
+   四区完整且 console error 为零。当前没有“可领取”或“已过期”行；“可领取”标签与二步撤销入口必须在
+   用户明确授权不同于 Operator 的收件人、创建恰好一张普通邀请后再经 live DOM 验证，并继续
+   scanner-safe OTP/Auth SMTP。

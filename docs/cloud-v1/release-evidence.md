@@ -1737,10 +1737,11 @@ typecheck、architecture、build、development blocker、Store release、product
   `636968d72b016e95cf5114c56c53ff49670efed5` 已推送。关闭后 Web/API 默认非 Canceled 数仍为 7/15，
   Latest 仍分别是 `bb21817` / `2D2o6cYZJWSRKLHKQQB7XXxZRAt1` 与 `39094d0` /
   `9jbyfnAvZwpa3Ci7YU6s6asmNZNG`，两项目最终均为 `deploymentEnabled=false`；
-- **live 只读边界**：custom-domain `/admin` 已显示 `Hosted 验收 · bb21817`，证明新 bundle 生效；刷新后
-  服务器 recent-auth 窗口已经过期，页面只显示“重新确认 Operator 身份”、当前密码输入框与确认按钮，
-  浏览器 warning/error 为 0。本轮没有读取或填写密码，没有点击创建、撤销、kill switch、额度、账号或
-  设备控制，也没有修改 Supabase/DNS/environment/secret、发送邮件或调用 DeepSeek；
-- **未完成门**：四区、新生命周期标签及“只为可领取项显示撤销”的 live DOM 复核必须等用户亲自重新输入
-  当前密码。该只读门通过前不创建/撤销真实邀请；之后仍须用户明确授权不同于 Operator 的收件人，才能
-  创建恰好一张普通邀请并继续 scanner-safe OTP/Auth SMTP。
+- **live 只读边界**：custom-domain `/admin` 已显示 `Hosted 验收 · bb21817`，证明新 bundle 生效。部署执行
+  会话刷新后曾精确进入 recent-auth 重新确认门且 warning/error 为 0；独立复核使用用户此前亲自完成密码
+  重新认证、仍有效的浏览器会话读取到完整四区、一条“已领取”和三条“已撤销”，所有终态行均无撤销
+  入口，浏览器 warning/error 仍为 0。本轮没有读取或填写密码，没有点击创建、撤销、kill switch、额度、
+  账号或设备控制，也没有修改 Supabase/DNS/environment/secret、发送邮件或调用 DeepSeek；
+- **未完成门**：现有数据没有“可领取”或“已过期”行，因此这两种 live 标签及“只为可领取项显示二步
+  撤销”不能由历史终态行冒充。仍须用户明确授权不同于 Operator 的收件人，随后创建恰好一张普通邀请，
+  以新 active 行关闭该 DOM 门并继续 scanner-safe OTP/Auth SMTP。
