@@ -79,6 +79,7 @@ test("hosted deployment plan is complete, deterministic, and secret independent"
   }
   assert.doesNotMatch(plan, /application-password|re_hosted-test|deepseek-hosted-test/u);
   assert.doesNotMatch(plan, /HUAYI_STORE_EXTENSION_ID/u);
+  assert.doesNotMatch(plan, /HUAYI_GOOGLE_AUTHENTICATION|VITE_GOOGLE_AUTHENTICATION/u);
   assert.doesNotMatch(plan, /Web Git deployment denies every branch except/u);
   assert.doesNotMatch(plan, /Web remains disabled and has no Production deployment/u);
 });
@@ -96,6 +97,7 @@ test("hosted deployment environment verifier reuses the production schema and fi
       HUAYI_STORE_EXTENSION_CAPABILITY: "disabled",
       HUAYI_STORE_EXTENSION_ID: "abcdefghijklmnopabcdefghijklmnop",
     },
+    { HUAYI_GOOGLE_AUTHENTICATION: "enabled" },
   ]) {
     assert.throws(() =>
       verifyHostedDeploymentEnvironment({ ...validHostedEnvironment(), ...mutation }),

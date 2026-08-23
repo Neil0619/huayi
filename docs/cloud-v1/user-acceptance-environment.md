@@ -396,10 +396,12 @@ Web/API deployment，两个 project 当前都保持 disarmed。custom-domain Web
 secret scan、零 Cookie CSRF/分析 401、失败 callback 400 与 12 项远端零新增计数均通过，Phase 70 公共门
 已关闭。
 
-当前下一项是发行唯一首张 BootstrapInvitation，让用户走真实密码注册、Resend Custom SMTP 确认、API
-callback 与 Web 落点，再完成首位 Operator。只有之后才受审计切换 kill switch 并运行一笔真实 Cloud
-DeepSeek 应用路径 smoke；再后续为真实 R3-C → Cron。下一次 Windows 全门等到验收批次冻结，不因每个
-文档或配置步骤重复执行。
+邀请前审查发现旧 Ready Web 仍显示未启用的 Google 动作，API Google 路由也没有 server capability
+guard。Phase 71 必须先按 API→Web 顺序各做一次 one-shot deploy + 立即 disarm，证明关闭时 API route
+404/零 flow 与 Web join/login/settings 零 Google 控件；随后回读 Supabase 邮件模板没有 localhost/旧
+callback，才发行首张 BootstrapInvitation并完成密码注册、SMTP 确认与首位 Operator。只有之后才受审计
+切换 kill switch 并运行一笔真实 Cloud DeepSeek 应用路径 smoke；再后续为真实 R3-C → Cron。下一次
+Windows 全门等到验收批次冻结，不因每个文档或配置步骤重复执行。
 
 ## 10. 官方约束来源
 

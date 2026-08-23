@@ -10,6 +10,7 @@ import {
 } from "./acceptance-hosted-foundation.mjs";
 
 export const firstOperatorStatusArgument = `--status-first-operator-${hostedAcceptanceProjectRef}`;
+export const firstOperatorVerifyArgument = `--verify-completed-first-operator-${hostedAcceptanceProjectRef}`;
 export const firstOperatorInviteConfirmation = `--confirm-first-operator-invitation-${hostedAcceptanceProjectRef}`;
 export const firstOperatorReplaceConfirmation = `--confirm-replace-unclaimed-first-operator-invitation-${hostedAcceptanceProjectRef}`;
 export const firstOperatorCompleteConfirmation = `--confirm-complete-first-operator-${hostedAcceptanceProjectRef}`;
@@ -172,6 +173,116 @@ COMMIT;
 `;
 }
 
+export function renderFirstOperatorVerificationSql() {
+  return `
+BEGIN READ ONLY;
+WITH bootstrap AS MATERIALIZED (
+  SELECT * FROM huayi_private.first_operator_bootstrap WHERE singleton = true
+)
+SELECT
+  (SELECT count(*) FROM bootstrap) = 1
+  AND EXISTS (
+    SELECT 1 FROM bootstrap
+    WHERE state = 'completed' AND completed_at IS NOT NULL
+      AND operator_user_id IS NOT NULL AND operator_deleted_at IS NULL
+  )
+  AND (SELECT count(*) FROM public.invitations) = (SELECT revision FROM bootstrap)
+  AND NOT EXISTS (
+    SELECT 1 FROM public.invitations invitation, bootstrap
+    WHERE invitation.created_by_kind <> 'deployment-bootstrap'
+      OR invitation.created_by IS NOT NULL
+      OR (
+        invitation.id = bootstrap.current_invitation_id
+        AND (invitation.consumed_at IS NULL OR invitation.revoked_at IS NOT NULL)
+      )
+      OR (
+        invitation.id <> bootstrap.current_invitation_id
+        AND (invitation.consumed_at IS NOT NULL OR invitation.revoked_at IS NULL)
+      )
+  )
+  AND (SELECT count(*) FROM public.invitation_claims) = 1
+  AND EXISTS (
+    SELECT 1
+    FROM bootstrap
+    JOIN public.invitation_claims claim
+      ON claim.invitation_id = bootstrap.current_invitation_id
+    WHERE claim.ticket_hash IS NOT NULL
+      AND claim.bound_user_id = bootstrap.operator_user_id
+      AND claim.finalized_user_id = bootstrap.operator_user_id
+  )
+  AND (SELECT count(*) FROM auth.users) = 1
+  AND EXISTS (
+    SELECT 1 FROM auth.users auth_user, bootstrap
+    WHERE auth_user.id = bootstrap.operator_user_id
+      AND auth_user.email_confirmed_at IS NOT NULL
+  )
+  AND (SELECT count(*) FROM auth.identities) BETWEEN 1 AND 2
+  AND NOT EXISTS (
+    SELECT 1 FROM auth.identities identity, bootstrap
+    WHERE identity.user_id <> bootstrap.operator_user_id
+  )
+  AND (SELECT count(*) FROM public.user_profiles) = 1
+  AND EXISTS (
+    SELECT 1 FROM public.user_profiles profile, bootstrap
+    WHERE profile.user_id = bootstrap.operator_user_id
+      AND profile.owner_user_id = bootstrap.operator_user_id
+      AND profile.status = 'active'
+  )
+  AND (SELECT count(*) FROM public.account_sign_in_methods) = 1
+  AND EXISTS (
+    SELECT 1 FROM public.account_sign_in_methods sign_in_method, bootstrap
+    WHERE sign_in_method.owner_user_id = bootstrap.operator_user_id
+      AND sign_in_method.method = 'password'
+  )
+  AND (SELECT count(*) FROM public.quota_grants) = 1
+  AND EXISTS (
+    SELECT 1
+    FROM public.quota_grants quota
+    JOIN public.user_profiles profile ON profile.user_id = quota.user_id
+    JOIN bootstrap ON bootstrap.operator_user_id = quota.user_id
+    WHERE quota.owner_user_id = bootstrap.operator_user_id
+      AND quota.source = 'default' AND quota.superseded_at IS NULL
+      AND quota.limit_micro_usd = 1000000
+      AND quota.period_start <= profile.created_at AND profile.created_at < quota.period_end
+  )
+  AND (SELECT count(*) FROM public.admin_roles) = 1
+  AND EXISTS (
+    SELECT 1 FROM public.admin_roles admin_role, bootstrap
+    WHERE admin_role.user_id = bootstrap.operator_user_id AND admin_role.role = 'operator'
+  )
+  AND (SELECT count(*) FROM public.auth_flows) = 1
+  AND EXISTS (
+    SELECT 1
+    FROM public.auth_flows auth_flow
+    JOIN public.invitation_claims claim ON claim.ticket_hash = auth_flow.ticket_hash
+    JOIN bootstrap ON bootstrap.current_invitation_id = claim.invitation_id
+    WHERE auth_flow.kind = 'invite-registration' AND auth_flow.consumed_at IS NOT NULL
+  )
+  AND (SELECT count(*) FROM public.web_sessions) = 1
+  AND EXISTS (
+    SELECT 1 FROM public.web_sessions web_session, bootstrap
+    WHERE web_session.user_id = bootstrap.operator_user_id
+      AND web_session.owner_user_id = bootstrap.operator_user_id
+      AND web_session.access_scope = 'full'
+      AND web_session.revoked_at IS NULL
+      AND web_session.reauthenticated_method IS NULL
+  )
+  AND (SELECT count(*) FROM public.runtime_controls) = 1
+  AND EXISTS (
+    SELECT 1 FROM public.runtime_controls runtime_control
+    WHERE runtime_control.name = 'model_kill_switch' AND runtime_control.enabled
+  )
+  AND NOT EXISTS (SELECT 1 FROM public.audit_events)
+  AND NOT EXISTS (SELECT 1 FROM public.study_captures)
+  AND NOT EXISTS (SELECT 1 FROM public.learning_items)
+  AND NOT EXISTS (SELECT 1 FROM public.analysis_requests)
+  AND NOT EXISTS (SELECT 1 FROM public.quota_reservations)
+  AND NOT EXISTS (SELECT 1 FROM public.usage_ledger)
+  AND NOT EXISTS (SELECT 1 FROM public.model_rate_limit_events);
+COMMIT;
+`;
+}
+
 function databaseEnvironment(environment) {
   return {
     HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: environment.HUAYI_HOSTED_DATABASE_CA_CERTIFICATE,
@@ -195,13 +306,15 @@ export async function runHostedFirstOperator({
   const expectedConfirmation =
     action === "status"
       ? firstOperatorStatusArgument
-      : action === "invite"
-        ? firstOperatorInviteConfirmation
-        : action === "replace"
-          ? firstOperatorReplaceConfirmation
-          : action === "complete"
-            ? firstOperatorCompleteConfirmation
-            : undefined;
+      : action === "verify"
+        ? firstOperatorVerifyArgument
+        : action === "invite"
+          ? firstOperatorInviteConfirmation
+          : action === "replace"
+            ? firstOperatorReplaceConfirmation
+            : action === "complete"
+              ? firstOperatorCompleteConfirmation
+              : undefined;
   if (arguments_.length !== 2 || confirmation !== expectedConfirmation) {
     throw new Error("Hosted first Operator arguments are invalid.");
   }
@@ -223,6 +336,18 @@ export async function runHostedFirstOperator({
       throw new Error("Hosted first Operator status failed.");
     }
     return { outcome: "status", status };
+  }
+
+  if (action === "verify") {
+    const result = await runPsql({
+      ...sharedCall,
+      captureOutput: true,
+      input: renderFirstOperatorVerificationSql(),
+    });
+    if (result.code !== 0 || result.stdout.trim() !== "t") {
+      throw new Error("Hosted first Operator verification failed.");
+    }
+    return { outcome: "verified" };
   }
 
   if (action === "complete") {
@@ -264,12 +389,18 @@ if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.a
         process.stdout.write(`Hosted first Operator status: ${result.status}.\n`);
       } else if (result.outcome === "completed") {
         process.stdout.write("Hosted first Operator bootstrap completed.\n");
+      } else if (result.outcome === "verified") {
+        process.stdout.write("Hosted first Operator post-completion verification passed.\n");
       } else {
         process.stdout.write(`${result.invitationUrl}\n`);
       }
     })
     .catch(() => {
-      process.stderr.write("Hosted first Operator operation failed.\n");
+      process.stderr.write(
+        process.argv[2] === "verify"
+          ? "Hosted first Operator post-completion verification failed.\n"
+          : "Hosted first Operator operation failed.\n",
+      );
       process.exitCode = 1;
     });
 }

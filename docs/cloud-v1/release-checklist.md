@@ -21,8 +21,9 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       显式 CA + verify-full，并加入精确角色图、越权 SQLSTATE 与同 backend 跨事务 context 隔离验证。更新后
       focused 与本轮完整 macOS 门、远端 hardened admin/application 双复验均已通过。第 12 条
       FirstOperatorBootstrap migration 已实际应用；Vercel API/Web 项目、Git/Branch、custom domain 与 TLS
-      已建立；API 已产生 10 条 Production deployment 记录，当前 Latest/Current source 为 `7577cdd`，Web 仍
-      为 `No Production Deployment`。Resend sender domain、分离 SMTP/HTTP key、Supabase Custom SMTP 与 API
+      已建立；API 已产生 10 条 Production deployment 记录，当前 Latest/Current source 为 `7577cdd`；Web
+      已有首次 Error 与第二次 Ready 两条记录，Ready source 为 `b87ef03`，随后已独立 disarm。Resend sender
+      domain、分离 SMTP/HTTP key、Supabase Custom SMTP 与 API
       R3-C 配置也已完成；Supabase Auth Site URL 与五条 exact redirect 已配置，API 21/21（9 Sensitive、
       12 public）与 Web 2/2 public Production-only environment 结构复核通过。application DSN 已 Rotate，
       Rotate 后 exact-SHA API deployment `3fxCRe2xku5qzZ8kdbFo4GivGiRL` 已 Ready；独立 disarm 提交
@@ -31,16 +32,19 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       现有 API 的 Web-origin/外域 CORS OPTIONS 无写入预检已通过。首个 Web-only deployment
       `87fk9rqpGH2sUcGrzCf68tuXjyu8` 在精确 source `c9ee267` 上因 workspace dist 未先构建而 Error；独立
       disarm `26022a9` 没有触发第二条 Web 或 API deployment。`pnpm build:vercel` 本地修复已通过缺失 dist
-      条件验证和完整 macOS 门；fix-only `aba1cc0` 已推送且没有新增 Web/API deployment，但下一次 reviewed
-      re-arm 尚未完成。后续顺序固定为成功 Web deployment → 独立 disarm → 零账号公开 smoke →
-      Auth/SMTP/首位账号 → Operator complete → DeepSeek 应用路径 smoke；Web/邮件/Cron/邀请等完整运行
+      条件验证和完整 macOS 门；fix-only `aba1cc0` 已推送且没有新增 Web/API deployment；随后 reviewed
+      re-arm `b87ef03` 产生 Ready deployment `6AAAVXP175oviEhrjULxH48eQjPu`，独立 `c5c25f5` disarm 未新增
+      deployment，零账号公开 smoke 已通过。邀请前还需部署 Google fail-closed/password callback 校准候选；
+      之后才进入 Auth/SMTP/首位账号 → Operator complete → DeepSeek 应用路径 smoke。邮件/Cron/邀请等完整运行
       验收仍未完成，因此本项仍未勾选；
 - [x] 在正确 Rotate 后 exact-SHA `7577cdd` deployment 上通过 DB-backed application-role smoke；
       `GET /health` 为 200，随机无效 session 的 `GET /v1/quota` 为精确 401
       `authentication_required`。deployment ID/SHA/创建时间与 Git 关闭证据已记录，API 未重新武装；
-- [ ] `app.acceptance.<root-domain>` / `api.acceptance.<root-domain>` 的 DNS 与 Vercel domain 已验证；API
-      custom-domain TLS、`/health` 200 和固定 JSON 已通过；Web 首次部署为 Error，尚无可访问的成功
-      deployment，Cookie、CSRF、SSE、callback 仍须在受控 Web deployment 后验收；若曾使用
+- [x] `app.acceptance.<root-domain>` / `api.acceptance.<root-domain>` 的 DNS 与 Vercel domain 已验证；API
+      custom-domain TLS、`/health` 200 和固定 JSON 已通过；Web Ready deployment、`/`/`/privacy` TLS 200、
+      hosted SHA、secret-free bundle、无 Cookie CSRF/SSE 401 与密码 callback 400 headers 已通过。新的
+      authentication hardening 候选已通过 fresh 完整 macOS 离线门与文档复审，仍需单独 redeploy，但不撤销
+      Phase 70 已完成的 DNS/TLS 公共门；若曾使用
       `*.vercel.app` gateway 备用方案，目标子域仍已重新验收；
 - [ ] `notify.acceptance.<root-domain>` 已在 Resend Tokyo 通过 SPF/DKIM 及 monitoring DMARC；旧泄露 key
       已撤销，两把 sending-only/domain-scoped SMTP/HTTP key 已分离托管，Supabase Custom SMTP 与完整 API

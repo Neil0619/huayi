@@ -78,7 +78,7 @@ test("an invited learner confirms password registration and later signs in again
 
   expect(registrationResponse.status()).toBe(202);
   expect(registrationResponse.headers()["cache-control"]).toBe("private, no-store");
-  await expect(page.getByRole("status")).toContainText("请检查邮箱并完成验证");
+  await expect(page.getByRole("status")).toContainText("验证成功后会自动进入工作台");
   await expect(page).toHaveURL(`${webOrigin}/join`);
   expect(
     (await page.context().cookies(apiOrigin)).some((cookie) => cookie.name === "huayi_session"),
@@ -86,9 +86,18 @@ test("an invited learner confirms password registration and later signs in again
 
   await page.goto(`${mailOrigin}/inbox`);
   await expect(page.getByRole("heading", { name: "测试邮箱确认", level: 1 })).toBeVisible();
-  await page.getByRole("button", { name: "确认邮箱" }).click();
+  const [callbackResponse] = await Promise.all([
+    page.waitForResponse(
+      (response) =>
+        new URL(response.url()).pathname === "/v1/auth/password/callback" &&
+        response.request().method() === "GET",
+    ),
+    page.getByRole("button", { name: "确认邮箱" }).click(),
+  ]);
 
   await expect(page).toHaveURL(`${webOrigin}/app`);
+  expect(callbackResponse.headers()["cache-control"]).toBe("private, no-store");
+  expect(callbackResponse.headers()["referrer-policy"]).toBe("no-referrer");
   await expect(page.getByRole("heading", { name: "待分析", level: 1 })).toBeVisible();
   const registrationCookie = (await page.context().cookies(apiOrigin)).find(
     (cookie) => cookie.name === "huayi_session",
@@ -142,7 +151,7 @@ test("an invited learner confirms password registration and later signs in again
   for (const expected of [
     { authenticatedAs: "none", method: "POST", path: "/v1/invitations/claim" },
     { authenticatedAs: "none", method: "POST", path: "/v1/auth/password/register" },
-    { authenticatedAs: "none", method: "GET", path: "/v1/auth/callback" },
+    { authenticatedAs: "none", method: "GET", path: "/v1/auth/password/callback" },
   ] as const) {
     expect(snapshot.requestFacts).toContainEqual({ ...expected, proof: "write-valid" });
   }

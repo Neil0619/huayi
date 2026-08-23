@@ -1636,3 +1636,21 @@ passed; first Operator empty`。候选已提交推送，0012 已实际 push；�
 - Supabase 只读联合计数确认 Auth/profile/admin/invitation/analysis/usage/rate-limit/audit/首位 Operator 共
   12 项全部为 0。Phase 70 零账号公共门已关闭；当前下一项改为发行首张 BootstrapInvitation，并由用户
   正常完成密码注册、真实 SMTP 确认、API callback 与 Web 落点。
+
+## Cloud V1 Phase 71 首张邀请前 authentication hardening（2026-08-23）
+
+- 邀请尚未发行。审查发现现有 Ready Web 在 hosted Google Provider disabled 时仍显示 Google 注册/登录，
+  账号设置也显示 link/reauth；API 公开 Google route 缺独立 deployment capability；
+- 当前候选已以 Fresh RED 驱动 strict 双端 capability：缺失时 API 不挂载全部 Google route，Web 不显示
+  join/login/settings Google 动作；未知值拒绝，离线 E2E 构建单独显式启用；
+- 密码确认文案与 actual-bundle 已校准到自动 `/app` 和专用 `/v1/auth/password/callback`，browser 断言
+  `private, no-store` / `no-referrer`；
+- 新增 `acceptance:hosted:operator:verify` read-only post-completion gate，严格验证 password-only 首账号、
+  default quota、唯一 Operator/full session、kill switch 与零业务使用，固定输出且不接受账号标识；
+- focused Web/API/script/typecheck 与密码 actual-bundle 已通过；fresh 完整 Mac 门也以 exit 0 通过，包含
+  237 项 Node script tests、根测试 474 files / 2,872 passed / 12 skipped、Store 97 files / 481 passed、
+  110 项 Playwright E2E、build、release/secret/audit 门。完整门先后暴露两个 401 行 entrypoint，已抽出
+  production principal authentication、Google authentication composition 与共享 callback/session 深模块，
+  相关 24/24 API 回归及复跑完整门均通过；
+- 文档已按最终实现复审。受控 API→Web redeploy/disarm、远端 capability/页面回读与 Supabase 邮件模板
+  检查仍未完成；两端新候选部署并验证前不得发行邀请。

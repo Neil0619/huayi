@@ -35,6 +35,24 @@ function validHostedEnvironment() {
 }
 
 describe("API security environment", () => {
+  it("keeps Google authentication fail-closed unless explicitly enabled", () => {
+    expect(parseApiEnvironment(validHostedEnvironment())).not.toHaveProperty(
+      "HUAYI_GOOGLE_AUTHENTICATION",
+    );
+    expect(
+      parseApiEnvironment({
+        ...validHostedEnvironment(),
+        HUAYI_GOOGLE_AUTHENTICATION: "enabled",
+      }),
+    ).toMatchObject({ HUAYI_GOOGLE_AUTHENTICATION: "enabled" });
+    expect(() =>
+      parseApiEnvironment({
+        ...validHostedEnvironment(),
+        HUAYI_GOOGLE_AUTHENTICATION: "disabled",
+      }),
+    ).toThrow();
+  });
+
   it("requires an explicit Store capability and disables Store without an Extension ID", () => {
     const enabled = validHostedEnvironment();
     const disabled: Record<string, string | undefined> = {

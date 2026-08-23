@@ -12,6 +12,7 @@ import type { ApiEnvironment } from "./environment.js";
 import {
   authenticateProductionAnalysisRequest,
   authenticateProductionPrincipalRequest,
+  createProductionAnalysisAuthenticator,
 } from "./production-principal-authentication.js";
 import { createPostgresFoundationIdentity } from "./postgres-foundation-identity.js";
 import { createProductionExtensionSessionDisconnect } from "./production-extension-session-disconnect.js";
@@ -63,7 +64,6 @@ import type { DeepSeekAnalysisFetch } from "./deepseek-analysis-protocol.js";
 import { createProductionPracticeGenerator } from "./production-practice-generation.js";
 import { createProductionCloudWordCopy } from "./production-cloud-word-copy.js";
 import { createProductionAccountSettings } from "./production-account-settings.js";
-import type { Context } from "hono";
 import { createProductionSecurityNotifications } from "./production-security-notifications.js";
 import type { SecurityNotificationFetch } from "./resend-security-notification-sender.js";
 import { createProductionStorePolicy } from "./production-store-capability.js";
@@ -99,21 +99,7 @@ export function createProductionApp(
     sql,
   });
   const analysisDatabase = createPostgresAnalysisDatabase(sql);
-  const authenticateWebAnalysis = (context: Context) => {
-    const cookie = context.req.header("cookie");
-    const csrf = context.req.header("x-csrf-token");
-    const origin = context.req.header("origin");
-    return authenticateProductionAnalysisRequest(
-      identity,
-      {
-        ...(cookie === undefined ? {} : { cookie }),
-        ...(csrf === undefined ? {} : { csrf }),
-        method: context.req.method,
-        ...(origin === undefined ? {} : { origin }),
-      },
-      extensionPolicy,
-    );
-  };
+  const authenticateWebAnalysis = createProductionAnalysisAuthenticator(identity, extensionPolicy);
   const pricing = createProductionDeepSeekPricing(environment);
   const accountPreferences = createPostgresAccountPreferences(analysisDatabase);
   const { analysis, quota, studyCaptures } = createProductionAnalysis({
@@ -183,6 +169,7 @@ export function createProductionApp(
       ? { extensionOrigin: extensionPolicy.extensionOrigin }
       : {}),
     googleLink: identity.googleLink,
+    googleAuthenticationEnabled: environment.HUAYI_GOOGLE_AUTHENTICATION === "enabled",
     identity,
     passwordLink: identity.passwordLink,
     protectRefreshToken: protector.protect,
@@ -397,4 +384,7 @@ export function createProductionApp(
   app.get("/health", (context) => context.json({ service: "huayi-cloud-api", status: "ok" }));
   return app;
 }
-export { authenticateProductionAnalysisRequest, authenticateProductionPrincipalRequest };
+export {
+  authenticateProductionAnalysisRequest,
+  authenticateProductionPrincipalRequest,
+} from "./production-principal-authentication.js";

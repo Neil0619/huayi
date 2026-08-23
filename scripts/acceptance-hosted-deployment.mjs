@@ -121,6 +121,7 @@ export function verifyHostedDeploymentEnvironment(environment) {
   assertEqual(parsed.HUAYI_DEEPSEEK_PEAK_PRICE_VERSION_ID, hostedAcceptancePriceVersionIds.peak);
   assertEqual(parsed.HUAYI_MIN_SUPPORTED_EXTENSION_VERSION, "1.0.0");
   assertEqual(parsed.HUAYI_STORE_EXTENSION_CAPABILITY, "disabled");
+  assertEqual(parsed.HUAYI_GOOGLE_AUTHENTICATION, undefined);
   assertEqual(parsed.HUAYI_SECURITY_NOTIFICATION_MODE, "resend");
   assertEqual(
     parsed.HUAYI_SECURITY_NOTIFICATION_FROM,

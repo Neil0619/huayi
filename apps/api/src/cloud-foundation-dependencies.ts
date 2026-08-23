@@ -48,6 +48,7 @@ export interface CloudFoundationDependencies {
     ) => Awaitable<ReturnType<FoundationIdentity[Key]>>;
   };
   googleLink: GoogleLinkRepository;
+  googleAuthenticationEnabled: boolean;
   passwordLink: PasswordLinkRepository;
   protectRefreshToken: (refreshToken: string) => string;
   protectTransientAuthState?: (state: string) => string;

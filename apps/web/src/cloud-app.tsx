@@ -70,6 +70,7 @@ export function CloudApp({
   analysisApi,
   historyApi,
   identity,
+  googleAuthenticationEnabled = false,
   inboxApi,
   libraryApi,
   practiceApi,
@@ -84,6 +85,7 @@ export function CloudApp({
   analysisApi?: PasteAnalysisApi | undefined;
   historyApi?: AnalysisHistoryPageApi | undefined;
   identity: IdentityApi;
+  googleAuthenticationEnabled?: boolean | undefined;
   inboxApi?: StudyInboxApi | undefined;
   libraryApi?: LearningLibraryApi | undefined;
   practiceApi?: PracticePageApi | undefined;
@@ -238,6 +240,7 @@ export function CloudApp({
           adminApi={adminApi}
           api={accountApi}
           csrfToken={csrfToken}
+          googleAuthenticationEnabled={googleAuthenticationEnabled}
           onCsrfTokenChanged={setCsrfToken}
         />
       );

@@ -140,6 +140,7 @@ export function createCloudBrowserPasswordAuthenticationAuthority(
       headers: {
         "cache-control": "private, no-store",
         location: `${webOrigin}/app`,
+        "referrer-policy": "no-referrer",
         "set-cookie": `huayi_session=${registrationSession}; HttpOnly; Secure; SameSite=Lax; Path=/`,
       },
       status: 302,
@@ -184,7 +185,7 @@ export function createCloudBrowserPasswordAuthenticationAuthority(
       await handleRegistration(route, hooks);
       return true;
     }
-    if (path === "/v1/auth/callback" && request.method() === "GET") {
+    if (path === "/v1/auth/password/callback" && request.method() === "GET") {
       await handleCallback(route, hooks);
       return true;
     }
@@ -207,7 +208,7 @@ export function createCloudBrowserPasswordAuthenticationAuthority(
       return;
     }
     await route.fulfill({
-      body: `<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>测试邮箱确认</title><main><h1>测试邮箱确认</h1><p>此页面只模拟离线验收中的显式邮箱确认。</p><form action="${apiOrigin}/v1/auth/callback" method="get"><input name="flow" type="hidden" value="${confirmationFlow}"><input name="code" type="hidden" value="${confirmationCode}"><button type="submit">确认邮箱</button></form></main></html>`,
+      body: `<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>测试邮箱确认</title><main><h1>测试邮箱确认</h1><p>此页面只模拟离线验收中的显式邮箱确认。</p><form action="${apiOrigin}/v1/auth/password/callback" method="get"><input name="flow" type="hidden" value="${confirmationFlow}"><input name="code" type="hidden" value="${confirmationCode}"><button type="submit">确认邮箱</button></form></main></html>`,
       contentType: "text/html; charset=utf-8",
       status: 200,
     });

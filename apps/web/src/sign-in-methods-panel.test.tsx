@@ -38,7 +38,7 @@ function api(methods = passwordOnly): SignInMethodsApi {
   };
 }
 
-async function render(methods = passwordOnly) {
+async function render(methods = passwordOnly, googleAuthenticationEnabled = true) {
   const container = document.createElement("div");
   document.body.append(container);
   const identity = api(methods);
@@ -49,6 +49,7 @@ async function render(methods = passwordOnly) {
       <SignInMethodsPanel
         api={identity}
         csrfToken={"c".repeat(32)}
+        googleAuthenticationEnabled={googleAuthenticationEnabled}
         navigate={navigate}
         onCsrfTokenChanged={onCsrfTokenChanged}
       />,
@@ -89,6 +90,20 @@ describe("SignInMethodsPanel", () => {
     expect(view.identity.startGoogleLink).toHaveBeenCalledWith("r".repeat(32));
     expect(view.onCsrfTokenChanged).toHaveBeenCalledWith("r".repeat(32));
     expect(view.navigate).toHaveBeenCalledWith("https://api.test/google-link");
+  });
+
+  it("does not offer an unavailable Google method", async () => {
+    const view = await render(passwordOnly, false);
+    expect(view.container.textContent).toContain("密码已绑定");
+    expect(view.container.textContent).not.toContain("添加 Google 登录");
+    expect(view.container.querySelector("[data-add-google]")).toBeNull();
+  });
+
+  it("does not offer Google reauthentication to a historical Google-only account when disabled", async () => {
+    const view = await render(googleOnly, false);
+    expect(view.container.textContent).toContain("Google 已绑定");
+    expect(view.container.querySelector("[data-google-reauth]")).toBeNull();
+    expect(view.container.querySelector("[data-password-link-form]")).toBeNull();
   });
 
   it("Google-reauthenticates, then links password and refreshes CSRF plus server methods", async () => {

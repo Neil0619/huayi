@@ -45,8 +45,9 @@ Web /join#token
   -> POST /v1/auth/password/register (claimTicket,email,password)
   -> 202 {emailConfirmationRequired:true}; no Cookie; private,no-store
   -> user opens local fake mailbox and clicks one opaque confirmation link
-  -> GET /v1/auth/callback?flow=<opaque>&code=<opaque>
-  -> invitation consumed + Set-Cookie HttpOnly/Secure/SameSite=Lax + 302 /app
+  -> GET /v1/auth/password/callback?flow=<opaque>&code=<opaque>
+  -> invitation consumed + private,no-store + no-referrer
+  -> Set-Cookie HttpOnly/Secure/SameSite=Lax + 302 /app
   -> GET /v1/auth/csrf with Cookie + Origin
 
 browser returns to signed-out state

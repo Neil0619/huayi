@@ -44,11 +44,13 @@ export function AccountQuotaPage({
   api,
   adminApi,
   csrfToken,
+  googleAuthenticationEnabled = false,
   onCsrfTokenChanged,
 }: {
   readonly api: AccountQuotaApi;
   readonly adminApi?: Pick<WebAdminOperationsApi, "access"> | undefined;
   readonly csrfToken: string;
+  readonly googleAuthenticationEnabled?: boolean | undefined;
   readonly onCsrfTokenChanged: (csrfToken: string) => void;
 }) {
   const [error, setError] = useState("");
@@ -219,6 +221,7 @@ export function AccountQuotaPage({
             <SignInMethodsPanel
               api={api}
               csrfToken={csrfToken}
+              googleAuthenticationEnabled={googleAuthenticationEnabled}
               onCsrfTokenChanged={onCsrfTokenChanged}
             />
             <AccountPreferencesForm api={preferencesApi} initialPreferences={account.preferences} />

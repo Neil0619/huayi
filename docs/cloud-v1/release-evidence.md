@@ -1579,3 +1579,30 @@ typecheck、architecture、build、development blocker、Store release、product
 - **下一门**：Phase 70 公共门已关闭。下一步只发行首张 BootstrapInvitation，让用户通过正常密码注册、
   Resend Custom SMTP 确认、API callback 与 Web 落点完成首位账号；完成 Operator 后才允许受审计切换 kill
   switch 并运行一笔真实 Cloud DeepSeek 应用路径 smoke。
+
+## 62. Phase 71 邀请前 authentication hardening 候选（2026-08-23）
+
+- **审查阻塞**：Phase 70 Ready Web 在 hosted Google Provider disabled 时仍显示 join/login Google 动作，
+  account settings 也显示 link/reauth；API Google route 会在 Provider 失败前创建 flow。密码待确认文案又与
+  callback 自动 Cookie + `/app` 冲突，actual-bundle fake mail 仍使用旧共用 callback；
+- **Fresh RED**：Web component/environment 4 个断言失败；API environment/route/production composition
+  3 个断言失败；post-completion verifier 因缺 export/script 失败；密码 actual-bundle 等待 dedicated
+  callback 超时。这些失败分别锁定 UI、server composition、CLI 和真实 bundle 导航缺口；
+- **最小 GREEN**：新增 API/Web strict optional Google capability，缺失时 API 不挂载全部 Google routes、
+  Web 不渲染 join/login/settings Google 动作；只有 E2E Vite 构建显式 enabled。本机 acceptance 保持缺失；
+- **密码路径**：精确文案改为“打开验证邮件中的链接；验证成功后会自动进入工作台”；fake mail、request
+  fact 与 browser response 统一 `/v1/auth/password/callback`，并观察到 no-store/no-referrer、hardened
+  Cookie 与最终 `/app`；
+- **Operator 验证**：新增固定 `acceptance:hosted:operator:verify`；admin pooler/verify-full CA 上的单个
+  read-only boolean 检查 completed bootstrap、邀请/claim/confirmed Auth/password profile/default quota/
+  Operator/consumed flow/full session、开启 kill switch 与零业务使用。成功/失败输出固定，不接收或输出账号；
+- **完整离线门**：focused Web 16/16 与后续能力补充 11/11、API 18/18、Operator/foundation/local scripts
+  23/23、密码 actual-bundle 1/1、API/Web strict typecheck 均已通过；随后 fresh `pnpm verify:macos`
+  以 exit 0 完成 instructions、format、lint、typecheck、architecture、237 项 Node script tests、根测试
+  474 files / 2,872 passed / 12 skipped、Store 97 files / 481 passed、build、110 项 Playwright E2E、
+  development-blocked、Store release、secret audit 与 production audit（无已知 high vulnerability）；
+- **门禁反馈修复**：第一次完整门发现 `production-app.ts` 达 401 行，第二次发现
+  `cloud-foundation-app.ts` 达 401 行；分别抽出 production principal authentication、Google
+  authentication composition 与共享 cloud callback/session 深模块，相关 API 24/24 回归与完整门均通过；
+- **剩余外部门**：文档已按实现复审，diff/secret scan 在候选提交前执行。受控 API→Web
+  redeploy/disarm、远端 capability/页面回读与 Supabase 邮件模板检查尚未完成，不能发行邀请。

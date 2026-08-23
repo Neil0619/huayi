@@ -6,7 +6,9 @@ import {
   firstOperatorInviteConfirmation,
   firstOperatorReplaceConfirmation,
   firstOperatorStatusArgument,
+  firstOperatorVerifyArgument,
   hostedFirstOperatorInvitationUrl,
+  renderFirstOperatorVerificationSql,
   runHostedFirstOperator,
 } from "./acceptance-hosted-first-operator.mjs";
 
@@ -49,6 +51,54 @@ test("first Operator status is read-only and returns only a bounded state", asyn
   assert.equal(calls[0].captureOutput, true);
   assert.match(calls[0].input, /first_operator_bootstrap/u);
   assert.doesNotMatch(calls[0].input, /email|token_hash|operator_user_id::text/u);
+});
+
+test("completed first Operator verification checks the bound account without exposing identity", async () => {
+  const sql = renderFirstOperatorVerificationSql();
+  assert.match(sql, /BEGIN READ ONLY/u);
+  assert.match(sql, /state = 'completed'/u);
+  assert.match(sql, /current_invitation_id/u);
+  assert.match(sql, /bound_user_id = bootstrap\.operator_user_id/u);
+  assert.match(sql, /source = 'default'/u);
+  assert.match(sql, /limit_micro_usd = 1000000/u);
+  assert.match(sql, /method = 'password'/u);
+  assert.match(sql, /email_confirmed_at IS NOT NULL/u);
+  assert.match(sql, /access_scope = 'full'/u);
+  assert.match(sql, /reauthenticated_method IS NULL/u);
+  assert.match(sql, /kind = 'invite-registration'/u);
+  assert.match(sql, /name = 'model_kill_switch' AND runtime_control\.enabled/u);
+  assert.match(sql, /model_rate_limit_events/u);
+  assert.match(sql, /role = 'operator'/u);
+  assert.doesNotMatch(sql, /SELECT\s+email|operator_user_id::text|finalized_user_id::text/iu);
+
+  const calls = [];
+  const result = await runHostedFirstOperator({
+    arguments_: ["verify", firstOperatorVerifyArgument],
+    environment,
+    runPsql: async (call) => {
+      calls.push(call);
+      return { code: 0, stderr: "", stdout: "t\n" };
+    },
+  });
+  assert.deepEqual(result, { outcome: "verified" });
+  assert.equal(calls[0].captureOutput, true);
+});
+
+test("completed first Operator verification fails closed on any non-true result", async () => {
+  for (const result of [
+    { code: 0, stderr: "", stdout: "f\n" },
+    { code: 0, stderr: "", stdout: "t\nunexpected\n" },
+    { code: 1, stderr: "private database error", stdout: "t\n" },
+  ]) {
+    await assert.rejects(
+      runHostedFirstOperator({
+        arguments_: ["verify", firstOperatorVerifyArgument],
+        environment,
+        runPsql: async () => result,
+      }),
+      /verification failed/u,
+    );
+  }
 });
 
 test("first Operator invite stores only a keyed hash and returns the fragment URL once", async () => {

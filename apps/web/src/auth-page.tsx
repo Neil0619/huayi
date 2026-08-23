@@ -16,6 +16,7 @@ export type AuthRoute =
 
 type AuthPageProps = {
   readonly api: AuthApi;
+  readonly googleAuthenticationEnabled: boolean;
   readonly onAuthenticated: (access: "data-rights" | "full") => void;
   readonly replaceInvitationUrl: () => void;
 } & AuthRoute;
@@ -66,7 +67,7 @@ export function AuthPage(props: AuthPageProps) {
       setPassword("");
       setClaimTicket(null);
       if (result.emailConfirmationRequired) {
-        setStatus("注册已提交。请检查邮箱并完成验证，然后返回登录。");
+        setStatus("注册已提交。请打开验证邮件中的链接；验证成功后会自动进入工作台。");
       } else {
         setStatus("注册成功，正在进入工作台。");
         props.onAuthenticated("full");
@@ -127,21 +128,29 @@ export function AuthPage(props: AuthPageProps) {
         )}
         {props.mode === "join" && claimState === "ready" && claimTicket !== null && (
           <>
-            <p className="auth-intro">邀请已验证。选择一种方式创建账号。</p>
-            <form
-              acceptCharset="UTF-8"
-              action={props.api.googleAuthStartUrl}
-              data-google-auth-form
-              method="post"
-            >
-              <input name="claimTicket" type="hidden" value={claimTicket} />
-              <button className="primary-button" type="submit">
-                使用 Google 继续
-              </button>
-            </form>
-            <div aria-hidden="true" className="auth-divider">
-              或使用邮箱
-            </div>
+            <p className="auth-intro">
+              {props.googleAuthenticationEnabled
+                ? "邀请已验证。选择一种方式创建账号。"
+                : "邀请已验证。使用邮箱创建账号。"}
+            </p>
+            {props.googleAuthenticationEnabled && (
+              <>
+                <form
+                  acceptCharset="UTF-8"
+                  action={props.api.googleAuthStartUrl}
+                  data-google-auth-form
+                  method="post"
+                >
+                  <input name="claimTicket" type="hidden" value={claimTicket} />
+                  <button className="primary-button" type="submit">
+                    使用 Google 继续
+                  </button>
+                </form>
+                <div aria-hidden="true" className="auth-divider">
+                  或使用邮箱
+                </div>
+              </>
+            )}
             <form className="auth-form" onSubmit={(event) => void register(event)}>
               <label htmlFor="registration-email">邮箱</label>
               <input
@@ -175,15 +184,23 @@ export function AuthPage(props: AuthPageProps) {
         )}
         {props.mode === "login" && (
           <>
-            <p className="auth-intro">已注册用户可使用 Google 或邮箱密码登录。</p>
-            <form action={props.api.googleLoginStartUrl} method="post">
-              <button className="primary-button" type="submit">
-                使用 Google 登录
-              </button>
-            </form>
-            <div aria-hidden="true" className="auth-divider">
-              或使用邮箱
-            </div>
+            <p className="auth-intro">
+              {props.googleAuthenticationEnabled
+                ? "已注册用户可使用 Google 或邮箱密码登录。"
+                : "已注册用户使用邮箱密码登录。"}
+            </p>
+            {props.googleAuthenticationEnabled && (
+              <>
+                <form action={props.api.googleLoginStartUrl} method="post">
+                  <button className="primary-button" type="submit">
+                    使用 Google 登录
+                  </button>
+                </form>
+                <div aria-hidden="true" className="auth-divider">
+                  或使用邮箱
+                </div>
+              </>
+            )}
             <form className="auth-form" onSubmit={(event) => void login(event)}>
               <label htmlFor="login-email">邮箱</label>
               <input

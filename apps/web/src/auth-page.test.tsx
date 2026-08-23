@@ -35,6 +35,7 @@ async function render(
   props: { invitationToken: string; mode: "join" } | { mode: "login" },
   replaceInvitationUrl = vi.fn(),
   onAuthenticated = vi.fn(),
+  googleAuthenticationEnabled = true,
 ) {
   const container = document.createElement("div");
   document.body.append(container);
@@ -42,6 +43,7 @@ async function render(
     createRoot(container).render(
       <AuthPage
         api={authApi}
+        googleAuthenticationEnabled={googleAuthenticationEnabled}
         onAuthenticated={onAuthenticated}
         replaceInvitationUrl={replaceInvitationUrl}
         {...props}
@@ -101,6 +103,7 @@ describe("Web invitation and authentication", () => {
         <StrictMode>
           <AuthPage
             api={authApi}
+            googleAuthenticationEnabled
             invitationToken={"i".repeat(32)}
             mode="join"
             onAuthenticated={vi.fn()}
@@ -155,9 +158,30 @@ describe("Web invitation and authentication", () => {
       "learner@example.com",
       "password long enough",
     );
-    expect(view.container.querySelector("[role='status']")?.textContent).toContain("检查邮箱");
+    expect(view.container.querySelector("[role='status']")?.textContent).toBe(
+      "注册已提交。请打开验证邮件中的链接；验证成功后会自动进入工作台。",
+    );
     expect(view.onAuthenticated).not.toHaveBeenCalled();
     expect(view.container.querySelector("[data-google-auth-form]")).toBeNull();
+  });
+
+  it("hides every Google authentication control when the deployment capability is disabled", async () => {
+    const join = await render(
+      api(),
+      { invitationToken: "i".repeat(32), mode: "join" },
+      vi.fn(),
+      vi.fn(),
+      false,
+    );
+    await act(async () => Promise.resolve());
+    expect(join.container.querySelector("[data-google-auth-form]")).toBeNull();
+    expect(join.container.textContent).not.toContain("Google");
+    expect(join.container.textContent).toContain("使用邮箱创建账号");
+
+    const login = await render(api(), { mode: "login" }, vi.fn(), vi.fn(), false);
+    expect(login.container.textContent).not.toContain("Google");
+    expect(login.container.querySelector("form[action*='google']")).toBeNull();
+    expect(login.container.textContent).toContain("使用邮箱密码登录");
   });
 
   it("logs in only after a strict server response and preserves retryable errors", async () => {

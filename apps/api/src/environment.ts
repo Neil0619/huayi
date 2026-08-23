@@ -99,6 +99,7 @@ const baseEnvironmentShape = {
       message: "Expected a base64url-encoded 256-bit encryption key.",
     }),
   HUAYI_SECRET_PEPPER: z.string().min(32),
+  HUAYI_GOOGLE_AUTHENTICATION: z.literal("enabled").optional(),
   HUAYI_STORE_EXTENSION_CAPABILITY: z.enum(["enabled", "disabled"]),
   HUAYI_STORE_EXTENSION_ID: z
     .string()
@@ -196,6 +197,9 @@ export function readApiEnvironment(
     HUAYI_DEEPSEEK_PEAK_PRICE_VERSION_ID: environment.HUAYI_DEEPSEEK_PEAK_PRICE_VERSION_ID,
     HUAYI_REFRESH_ENCRYPTION_KEY: environment.HUAYI_REFRESH_ENCRYPTION_KEY,
     HUAYI_SECRET_PEPPER: environment.HUAYI_SECRET_PEPPER,
+    ...(environment.HUAYI_GOOGLE_AUTHENTICATION === undefined
+      ? {}
+      : { HUAYI_GOOGLE_AUTHENTICATION: environment.HUAYI_GOOGLE_AUTHENTICATION }),
     HUAYI_SECURITY_NOTIFICATION_MODE: environment.HUAYI_SECURITY_NOTIFICATION_MODE,
     ...(environment.HUAYI_SECURITY_NOTIFICATION_MODE === "resend"
       ? {

@@ -21,6 +21,7 @@ export function App({
   accountApi,
   api,
   identity,
+  googleAuthenticationEnabled = false,
   authRoute,
   onAuthenticated = (access) =>
     location.assign(access === "data-rights" ? "/settings/data" : "/app"),
@@ -47,6 +48,7 @@ export function App({
         WebExternalWordbookApi)
     | undefined;
   readonly authRoute?: AuthRoute | undefined;
+  readonly googleAuthenticationEnabled?: boolean | undefined;
   readonly identity?: (AuthApi & IdentityApi) | undefined;
   readonly onAuthenticated?: ((access: "data-rights" | "full") => void) | undefined;
   readonly onPasswordRecoveryCompleted?: (() => void) | undefined;
@@ -73,6 +75,7 @@ export function App({
     return (
       <AuthPage
         api={identity}
+        googleAuthenticationEnabled={googleAuthenticationEnabled}
         onAuthenticated={onAuthenticated}
         replaceInvitationUrl={replaceInvitationUrl}
         {...authRoute}
@@ -87,6 +90,7 @@ export function App({
         analysisApi={api}
         historyApi={api}
         identity={identity}
+        googleAuthenticationEnabled={googleAuthenticationEnabled}
         inboxApi={api}
         libraryApi={api}
         practiceHistoryApi={api}

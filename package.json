@@ -18,6 +18,7 @@
     "acceptance:hosted:operator:invite": "node scripts/acceptance-hosted-first-operator.mjs invite",
     "acceptance:hosted:operator:replace": "node scripts/acceptance-hosted-first-operator.mjs replace",
     "acceptance:hosted:operator:status": "node scripts/acceptance-hosted-first-operator.mjs status",
+    "acceptance:hosted:operator:verify": "node scripts/acceptance-hosted-first-operator.mjs verify",
     "acceptance:hosted:verify": "node scripts/acceptance-hosted-verify.mjs",
     "acceptance:vercel:projects:apply": "node scripts/acceptance-vercel-projects.mjs apply",
     "acceptance:vercel:projects:plan": "node scripts/acceptance-vercel-projects.mjs plan",

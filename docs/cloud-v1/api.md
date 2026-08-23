@@ -71,6 +71,11 @@ type ApiError = {
 `/v1/auth/callback`。两条 callback 不按 query 或 Provider 返回值猜测 method，缺失/过期/错用途 flow 均
 失败关闭。已消费的确认 code 不支持重试；确认完成但跳转失败的账号经前向修复后直接走密码登录。
 
+Google HTTP surface 由 server capability `HUAYI_GOOGLE_AUTHENTICATION=enabled` 控制，缺失即不挂载邀请
+start、普通 login、Google callback、link 和 reauthentication routes。关闭状态直接 404，并且不能先创建
+rate-limit event、auth flow、intent Cookie 或 Provider 请求。Web 的同名 build capability 必须与 API 同批
+显式启用；hosted acceptance 首轮两端均保持缺失。
+
 PasswordRecovery 使用独立五路由状态机：start 为 strict `{email}` 并对未知/Google-only/非 active/eligible
 统一 202 `{accepted:true}`；只有 active+password method 才创建 flow。邮件固定回到
 `GET /v1/auth/password/recovery/confirm?flow&code`；该 GET 只显示 inert CSP/no-store/no-referrer 确认页，

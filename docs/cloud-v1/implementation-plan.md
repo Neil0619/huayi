@@ -1579,3 +1579,25 @@ status 关闭这道门；下一步可以按外部门顺序准备 Vercel 创建�
     带 `private, no-store` 与 `no-referrer`。远端只读 SQL 同时证明 Auth/profile/admin/invitation、分析、
     Provider usage/rate-limit、audit 与 FirstOperatorBootstrap 共 12 项仍全部为 0；下一门解锁为发行首张
     BootstrapInvitation，并让用户走真实密码注册、SMTP 确认与 callback。
+
+## Phase 71：首张邀请前 authentication hardening（2026-08-23）
+
+影响平台为 `shared + hosted-acceptance`；无 migration、无账号写入，Windows 完整门继续留到 hosted 批次
+冻结节点。
+
+1. **根因与需求**：Phase 70 线上 Web 无条件显示 Google，但 hosted Provider disabled；账号设置也提供
+   不可用 link/reauth。密码注册文案错误要求“返回登录”，actual-bundle 仍使用旧共用 callback，且
+   `status=completed` 不能证明首位账号完整链；
+2. **技术路线**：新增严格 optional `HUAYI_GOOGLE_AUTHENTICATION=enabled` 与
+   `VITE_GOOGLE_AUTHENTICATION=enabled`，缺失即关闭、未知值拒绝。API 关闭时不挂载全部 Google 子应用，
+   Web 关闭时隐藏 join/login/settings 全部 Google 动作；仅 E2E 构建显式启用；
+3. **密码闭环**：待确认文案明确“邮件验证成功后自动进入工作台”；fake mail、request fact 与 browser
+   response 全部改到 `/v1/auth/password/callback`，精确验证 no-store/no-referrer、Cookie 与 `/app`；
+4. **独立 verifier**：新增 `acceptance:hosted:operator:verify`，用 admin pooler + verify-full CA 执行单个
+   read-only boolean，验证 completed bootstrap、邀请/claim/Auth/profile/password method/default quota/
+   Operator/auth flow/full session/kill switch 与零业务使用；stdout/stderr 固定且不接受账号标识；
+5. **TDD/门禁**：先取得 Web/API/script/Playwright Fresh RED，再运行 focused、全包、strict typecheck/build、
+   secret scan、文档审查和完整 `pnpm verify:macos`；任何失败先修复再进入部署；
+6. **远端顺序**：双项目先保持 disarmed；候选 push 后先 API one-shot re-arm→部署记录→立即 disarm→404/
+   零新增 smoke，再 Web one-shot re-arm→部署记录→立即 disarm→Google UI hidden/新 SHA/bundle scan。回读
+   Supabase confirmation template 的动态 ConfirmationURL/RedirectTo 且无 localhost 后，才开始 72 小时邀请。

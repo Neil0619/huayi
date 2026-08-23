@@ -660,6 +660,10 @@ test("package scripts expose separate hosted plan, apply and read-only verificat
     packageDocument.scripts["acceptance:hosted:operator:complete"],
     "node scripts/acceptance-hosted-first-operator.mjs complete",
   );
+  assert.equal(
+    packageDocument.scripts["acceptance:hosted:operator:verify"],
+    "node scripts/acceptance-hosted-first-operator.mjs verify",
+  );
 });
 
 test("pnpm hosted bootstrap plan uses one argument and remains offline", async () => {

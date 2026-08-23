@@ -8,7 +8,7 @@ import { DeterministicSecrets, MutableClock } from "./test-support/security-fake
 
 const webOrigin = "https://app.huayi.example";
 
-function foundation() {
+function foundation(googleAuthenticationEnabled = true) {
   const clock = new MutableClock("2026-08-12T00:00:00.000Z");
   const identity = createIdentityModule({
     clock,
@@ -24,6 +24,7 @@ function foundation() {
       auth,
       extensionOrigin: `chrome-extension://${"a".repeat(32)}`,
       googleLink: identity.googleLink,
+      googleAuthenticationEnabled,
       identity,
       passwordLink: identity.passwordLink,
       protectRefreshToken: (token) => `protected:${token}`,
@@ -39,6 +40,28 @@ function foundation() {
 }
 
 describe("Cloud foundation ordinary Google login", () => {
+  it("does not mount Google routes or create provider state when the capability is disabled", async () => {
+    const disabled = foundation(false);
+    const createFlow = vi.spyOn(disabled.identity, "createLoginAuthFlow");
+    const response = await disabled.app.request("/v1/auth/google/login/start", {
+      body: "",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      method: "POST",
+    });
+    expect(response.status).toBe(404);
+    expect(createFlow).not.toHaveBeenCalled();
+    expect(disabled.auth.beginGoogle).not.toHaveBeenCalled();
+    for (const path of [
+      "/v1/auth/google/start",
+      "/v1/auth/google/login/start",
+      "/v1/auth/callback",
+      "/v1/auth/reauthenticate/google/start",
+      "/v1/account/sign-in-methods/google:start",
+    ]) {
+      expect(disabled.app.routes.map((route) => route.path)).not.toContain(path);
+    }
+  });
+
   it("starts only from an empty native form", async () => {
     const { app } = foundation();
     const start = await app.request("/v1/auth/google/login/start", {

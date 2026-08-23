@@ -36,6 +36,7 @@ let api;
 let identity;
 const acceptanceModel = import.meta.env.VITE_ACCEPTANCE_MODEL;
 const deploymentEnvironment = import.meta.env.VITE_DEPLOYMENT_ENVIRONMENT;
+const googleAuthentication = import.meta.env.VITE_GOOGLE_AUTHENTICATION;
 const deploymentCommit = HUAYI_DEPLOYMENT_COMMIT;
 const bootstrap = resolveWebBootstrap(location.pathname, {
   ...(acceptanceModel === undefined ? {} : { VITE_ACCEPTANCE_MODEL: acceptanceModel }),
@@ -44,6 +45,9 @@ const bootstrap = resolveWebBootstrap(location.pathname, {
     ? {}
     : { VITE_DEPLOYMENT_ENVIRONMENT: deploymentEnvironment }),
   ...(deploymentCommit === "" ? {} : { VITE_DEPLOYMENT_COMMIT: deploymentCommit }),
+  ...(googleAuthentication === undefined
+    ? {}
+    : { VITE_GOOGLE_AUTHENTICATION: googleAuthentication }),
 });
 if (bootstrap.environment !== undefined) {
   const environment = bootstrap.environment;
@@ -129,6 +133,7 @@ createRoot(root).render(
       api={api}
       accountApi={identity}
       authRoute={authRoute}
+      googleAuthenticationEnabled={bootstrap.environment?.VITE_GOOGLE_AUTHENTICATION === "enabled"}
       identity={identity}
       onAuthenticated={(access) =>
         location.assign(access === "data-rights" ? "/settings/data" : "/app")

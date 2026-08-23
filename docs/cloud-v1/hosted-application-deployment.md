@@ -21,7 +21,8 @@ diagnostic 22 个字段与正式 verifier 均已远端通过，Vercel runtime DS
 `00beea8` 未产生 API/Web deployment，两个项目当前均关闭 Git 自动部署。首次 runtime smoke 揭示
 `HUAYI_DATABASE_URL` 被误写为固定变量名；错误 redeploy `CHnaZQuohoNiTM4ukQqY1NXQZv2V` 保留。正确 Rotate
 后从同一 source 创建的 `DyqRzj5UMN8BRpSeZyohXprnAkaT` 已通过 health 与无写入 application-role 数据库
-探针。Provider/Auth、邮件、Cron、Web 和邀请仍未验证或执行。
+探针。Provider/Auth、邮件、Cron 和邀请仍未完成。Web 已在后续 Phase 70 得到一条 Ready deployment 并
+立即 disarm；发行邀请前还必须部署 Google fail-closed 与 password callback 校准候选。
 
 ## 1. 当前事实与目标
 
@@ -360,6 +361,20 @@ CSRF/分析 401、缺参数密码 callback 400 与 12 项远端零新增计数�
 BootstrapInvitation → 正常密码注册 → Resend Custom SMTP 确认 → API callback → Web 落点；不能再次部署
 Web、直接创建 Auth 用户或提前切换模型 kill switch。
 
+## 6.1 Phase 71 邀请前 authentication hardening
+
+Phase 70 的 Ready Web 仍显示 Google 注册/登录，但 hosted Supabase Google Provider 明确 disabled；账号
+设置也会显示不可用的 Google link。首张邀请前必须先修复并重新部署：Web 缺
+`VITE_GOOGLE_AUTHENTICATION=enabled` 时隐藏 join/login/link/reauth 全部 Google 动作；API 缺
+`HUAYI_GOOGLE_AUTHENTICATION=enabled` 时不挂载全部 Google 路由，并在 flow/Provider 前固定 404。两项
+变量当前都不得添加，既有 API 21/21 与 Web 2/2 environment 结构不变。
+
+同一候选把密码注册待确认文案改为“打开邮件链接后自动进入工作台”，并把离线 actual-bundle 的旧共用
+callback 校准为 `/v1/auth/password/callback`，精确验证 `private, no-store`、`no-referrer` 与 302 `/app`。
+完成 Operator 后使用独立 `acceptance:hosted:operator:verify` read-only boolean 验证完整账号链，不能再以
+宽松 `status=completed` 代替。外部顺序更新为：API one-shot deploy/disarm/Google route 404 → Web
+one-shot deploy/disarm/Google UI hidden → Supabase 邮件模板回读 → 发行邀请。
+
 ## 7. TDD 与验收标准
 
 Fresh RED 必须先覆盖：
@@ -436,9 +451,10 @@ format/lint/typecheck/build、architecture、release 和 production audit；prod
 邀请；后续已单独完成 project bootstrap、Git/Branch Tracking、domain/TLS、Resend sender、分离邮件
 credential、Custom SMTP、Supabase Auth exact URL、API 21/21 与 Web 2/2 Production-only environment 和零
 deployment 回读。后续 API 已产生 10 条 Production 记录；application 密码轮换后的正式数据库 verifier、
-纠正 Vercel DSN Rotate、exact-SHA deployment、立即 disarm 与 DB-backed runtime gate 均已完成。真实
-Web deployment、Auth/邮件、DeepSeek、Cron 与邀请仍未执行；当前顺序以 Phase 70 的
-Web → Auth/SMTP/Operator → DeepSeek 为准。
+纠正 Vercel DSN Rotate、exact-SHA deployment、立即 disarm 与 DB-backed runtime gate 均已完成。Phase 70
+已完成首条 Ready Web deployment、立即 disarm 与零账号公共 smoke。Auth/邮件、DeepSeek、Cron 与邀请仍
+未执行；当前顺序以 Phase 71 的 API/Web authentication hardening redeploy → 邮件模板回读 →
+Auth/SMTP/Operator → DeepSeek 为准。
 
 官方约束来源：
 

@@ -1,3 +1,5 @@
+import type { Context } from "hono";
+
 import { CloudFault } from "./cloud-fault.js";
 
 export interface ProductionIdentityAuthentication {
@@ -60,6 +62,27 @@ export async function authenticateProductionAnalysisRequest(
   policy: ExtensionRequestPolicy,
 ): Promise<string> {
   return (await authenticateProductionPrincipalRequest(identity, headers, policy)).userId;
+}
+
+export function createProductionAnalysisAuthenticator(
+  identity: ProductionIdentityAuthentication,
+  policy: ExtensionRequestPolicy,
+): (context: Context) => Promise<string> {
+  return (context) => {
+    const cookie = context.req.header("cookie");
+    const csrf = context.req.header("x-csrf-token");
+    const origin = context.req.header("origin");
+    return authenticateProductionAnalysisRequest(
+      identity,
+      {
+        ...(cookie === undefined ? {} : { cookie }),
+        ...(csrf === undefined ? {} : { csrf }),
+        method: context.req.method,
+        ...(origin === undefined ? {} : { origin }),
+      },
+      policy,
+    );
+  };
 }
 
 export async function authenticateProductionPrincipalRequest(

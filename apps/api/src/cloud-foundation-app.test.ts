@@ -39,6 +39,7 @@ function foundation(rateLimiter?: RateLimiter) {
     identity,
     passwordLink: identity.passwordLink,
     googleLink: identity.googleLink,
+    googleAuthenticationEnabled: true,
     protectRefreshToken: (token) => `protected:${token}`,
     protectTransientAuthState: (state) => state,
     rateLimiter: rateLimiter ?? createInMemoryRateLimiter(clock),

@@ -78,6 +78,7 @@ it("routes a valid invitation into the real authentication surface", async () =>
   expect(container.querySelector("h1")?.textContent).toBe("接受学习邀请");
   expect(claimInvitation).toHaveBeenCalledWith("i".repeat(32));
   expect(replaceInvitationUrl).toHaveBeenCalledOnce();
+  expect(container.textContent).not.toContain("Google");
 });
 
 it("routes public password recovery without bootstrapping a Huayi session", async () => {

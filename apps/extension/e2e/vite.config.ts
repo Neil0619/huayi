@@ -43,7 +43,9 @@ function buildExtensionFixtures(): Plugin {
         await build(createStoreExtensionConfig(mode));
       }
       const previousApiOrigin = process.env.VITE_API_ORIGIN;
+      const previousGoogleAuthentication = process.env.VITE_GOOGLE_AUTHENTICATION;
       process.env.VITE_API_ORIGIN = cloudApiOrigin;
+      process.env.VITE_GOOGLE_AUTHENTICATION = "enabled";
       try {
         await build({
           configFile: webConfig,
@@ -58,6 +60,9 @@ function buildExtensionFixtures(): Plugin {
       } finally {
         if (previousApiOrigin === undefined) delete process.env.VITE_API_ORIGIN;
         else process.env.VITE_API_ORIGIN = previousApiOrigin;
+        if (previousGoogleAuthentication === undefined)
+          delete process.env.VITE_GOOGLE_AUTHENTICATION;
+        else process.env.VITE_GOOGLE_AUTHENTICATION = previousGoogleAuthentication;
       }
     },
   };

@@ -16,6 +16,7 @@ test("local acceptance build owns its clean workspace dependency order", () => {
 
 test("local acceptance build fixes the simulated model label only in the Web build", () => {
   assert.match(source, /VITE_ACCEPTANCE_MODEL:\s*"simulated"/u);
+  assert.doesNotMatch(source, /VITE_GOOGLE_AUTHENTICATION/u);
   assert.doesNotMatch(source, /startsWith\("VITE_ACCEPTANCE_MODEL="\)/u);
   assert.match(source, /VITE_API_ORIGIN:\s*await webApiOrigin\(\)/u);
 });

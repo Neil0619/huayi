@@ -30,6 +30,7 @@ describe("Cloud foundation password callback", () => {
       auth,
       extensionOrigin: `chrome-extension://${"a".repeat(32)}`,
       googleLink: identity.googleLink,
+      googleAuthenticationEnabled: true,
       identity,
       passwordLink: identity.passwordLink,
       protectRefreshToken: (token) => `protected:${token}`,
@@ -67,6 +68,8 @@ describe("Cloud foundation password callback", () => {
       `/v1/auth/password/callback?code=provider-code&flow=${encodeURIComponent(flow ?? "")}`,
     );
     expect(callback.status).toBe(302);
+    expect(callback.headers.get("cache-control")).toBe("private, no-store");
+    expect(callback.headers.get("referrer-policy")).toBe("no-referrer");
     expect(callback.headers.get("location")).toBe(`${webOrigin}/app`);
     expect(callback.headers.get("set-cookie")).toContain("HttpOnly; Secure; SameSite=Lax; Path=/");
     expect(completeCode).toHaveBeenCalledOnce();

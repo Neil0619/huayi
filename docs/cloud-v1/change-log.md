@@ -3,6 +3,20 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-23：首张邀请前增加 Google 双端能力门与 Operator 完成后独立验证
+
+- hosted Google Provider 保持 disabled，但 Phase 70 Web 仍显示 Google 动作；改为 API/Web 两个 strict
+  optional capability，缺失即分别“不挂载路由”与“不显示控件”，未知值拒绝。两个 capability 必须同批
+  显式启用，当前 Vercel environment 结构保持不变；
+- 本机 acceptance 不再因 simulated model 自动显示 Google；只有离线 Google E2E 构建显式启用，避免用户
+  点击不存在的 Provider。Classic/Store 协议与技术 Huayi identifiers 不变；
+- 密码待确认文案校准为邮件链接成功后自动进入工作台，离线旅程从旧 `/v1/auth/callback` 修正到专用
+  `/v1/auth/password/callback` 并验证 no-store/no-referrer；
+- `status=completed` 只保留有界状态提示；新增独立 post-completion verifier 严格验证首位账号链、仍开启
+  kill switch 与零业务使用，输出不含账号或数据库细节；
+- 因现有 API/Web deployment 都早于本修复，发行首张邀请前新增 API→Web 各一次 one-shot deploy/disarm
+  门，随后才回读 Supabase 邮件模板并开始 72 小时有效期。
+
 ## 2026-08-23：Hosted Web 必须显式构建运行时 workspace 依赖
 
 - Vercel 使用干净 checkout，仓库忽略的 `packages/learning-domain/dist` 与

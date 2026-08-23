@@ -41,6 +41,7 @@ function foundation() {
       auth,
       extensionOrigin: `chrome-extension://${"a".repeat(32)}`,
       googleLink: identity.googleLink,
+      googleAuthenticationEnabled: true,
       identity,
       passwordLink: identity.passwordLink,
       protectRefreshToken: (token) => `protected:${token}`,

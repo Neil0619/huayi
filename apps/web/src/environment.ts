@@ -30,6 +30,7 @@ const webEnvironmentSchema = z
       .regex(/^[0-9a-f]{40}$/u)
       .optional(),
     VITE_DEPLOYMENT_ENVIRONMENT: z.literal("hosted-acceptance").optional(),
+    VITE_GOOGLE_AUTHENTICATION: z.literal("enabled").optional(),
   })
   .strict()
   .superRefine((environment, context) => {
@@ -52,7 +53,8 @@ const webEnvironmentSchema = z
       (environment.VITE_DEPLOYMENT_ENVIRONMENT !== "hosted-acceptance" ||
         environment.VITE_DEPLOYMENT_COMMIT === undefined ||
         environment.VITE_API_ORIGIN !== "https://api.acceptance.seen-said.cn" ||
-        environment.VITE_ACCEPTANCE_MODEL !== undefined)
+        environment.VITE_ACCEPTANCE_MODEL !== undefined ||
+        environment.VITE_GOOGLE_AUTHENTICATION !== undefined)
     ) {
       context.addIssue({
         code: "custom",

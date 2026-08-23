@@ -765,6 +765,10 @@ confirmed Auth user/password method/profile 为 `1/1/2`、google method/Web sess
   可收藏 Expression，duplicate/dialogue 只回显 server-owned alias，主要结果带 `【本机模拟】`；
 - acceptance build 只为 Web 固定注入 `VITE_ACCEPTANCE_MODEL=simulated`；环境 schema 拒绝其他值，普通
   build 缺省不渲染。组件测试断言全页面根级 `role=status` 横幅明确“不是 DeepSeek”“不产生外部费用”；
+- Google capability 单独默认关闭；普通、本机验收与 hosted build 都不因 simulated/origin 自动启用。
+  组件测试覆盖 join/login/account settings 全部 Google 动作隐藏，API composition 测试覆盖关闭时路由
+  不挂载且 flow/Provider 零调用；Google actual-bundle 的 Vite E2E 入口才显式注入
+  `VITE_GOOGLE_AUTHENTICATION=enabled`，避免根 build 或组件默认值伪造能力；
 - focused API/Web/script、strict typecheck、lint、format 和 diff 通过后运行完整 Mac 门。测试和真实本机
   smoke 均不得触网；Windows 留到验收冻结批次；
 - 用户正在操作时不 build/restart 当前 bundle。部署只在空闲窗口停止并重启 HTTPS，不停止/reset/seed

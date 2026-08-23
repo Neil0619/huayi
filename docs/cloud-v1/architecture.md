@@ -115,7 +115,11 @@ fake clock。客户端通过 HTTP adapter 访问同一用例，不复制领域�
    encrypted token/state，再从该 state 调 `updateUser({password})`，最后事务写 password method/轮换当前
    session/撤销其他 sessions。明文密码只穿过 HTTP→AuthProvider 调用，不进入 repository、flow 或日志；
    provider 成功后的重试不再消费 refresh generation。
-10. PasswordRecovery 使用独立深模块、独立表与 purpose-scoped HttpOnly Cookie：公开 start 统一 202，
+10. Google authentication 是 deployment capability，不由 origin 或 Supabase Dashboard 状态推断。API
+    composition 缺 `HUAYI_GOOGLE_AUTHENTICATION=enabled` 时不挂载全部 Google 子应用；Web composition
+    缺 `VITE_GOOGLE_AUTHENTICATION=enabled` 时不渲染注册、登录、link 或 Google reauth 动作。离线 E2E
+    由专用构建显式启用，两端生产部署必须同批配置并验证。
+11. PasswordRecovery 使用独立深模块、独立表与 purpose-scoped HttpOnly Cookie：公开 start 统一 202，
     只有 active+password method 才入队；trusted worker 在外部调用前耐久标记 dispatch 后启动 Supabase
     PKCE，公开请求不等待 Provider。callback 只建立一次改密 session，complete 成功撤销全部 Huayi
     sessions并要求重登，不能派生 full/data-rights session或新增 method。独立三操作 Provider port、共享
@@ -125,9 +129,9 @@ fake clock。客户端通过 HTTP adapter 访问同一用例，不复制领域�
     hosted acceptance 的真实 DNS/verified sender、分离 SMTP/HTTP key、Supabase Custom SMTP 与 API R3-C
     通知变量子集已完成；真实 Resend 投递/监控目的地、完整应用/邮件部署与双平台 Chrome 仍待 R5 目标验证。
     详见 `password-recovery.md`。
-11. 非安全方法必须同时校验 Origin 和双提交 CSRF token。登录、邀请、近期重认证和密码恢复另加 IP/账号
+12. 非安全方法必须同时校验 Origin 和双提交 CSRF token。登录、邀请、近期重认证和密码恢复另加 IP/账号
     速率限制。
-12. 所有业务查询从服务端 session 取得 `userId`；请求体中的 owner、role 或 quota 字段一律拒绝。
+13. 所有业务查询从服务端 session 取得 `userId`；请求体中的 owner、role 或 quota 字段一律拒绝。
 
 ### Extension
 

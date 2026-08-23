@@ -79,7 +79,34 @@ it("accepts hosted acceptance only with its exact API origin and full commit", (
       VITE_DEPLOYMENT_COMMIT: commit,
       VITE_DEPLOYMENT_ENVIRONMENT: "hosted-acceptance",
     },
+    {
+      VITE_API_ORIGIN: "https://api.acceptance.seen-said.cn",
+      VITE_DEPLOYMENT_COMMIT: commit,
+      VITE_DEPLOYMENT_ENVIRONMENT: "hosted-acceptance",
+      VITE_GOOGLE_AUTHENTICATION: "enabled",
+    },
   ]) {
     expect(() => parseWebEnvironment(environment)).toThrow();
   }
+});
+
+it("keeps Google authentication fail-closed unless explicitly enabled", () => {
+  expect(parseWebEnvironment({ VITE_API_ORIGIN: "https://api.huayi.example" })).not.toHaveProperty(
+    "VITE_GOOGLE_AUTHENTICATION",
+  );
+  expect(
+    parseWebEnvironment({
+      VITE_API_ORIGIN: "https://api.huayi.example",
+      VITE_GOOGLE_AUTHENTICATION: "enabled",
+    }),
+  ).toEqual({
+    VITE_API_ORIGIN: "https://api.huayi.example",
+    VITE_GOOGLE_AUTHENTICATION: "enabled",
+  });
+  expect(() =>
+    parseWebEnvironment({
+      VITE_API_ORIGIN: "https://api.huayi.example",
+      VITE_GOOGLE_AUTHENTICATION: "disabled",
+    }),
+  ).toThrow();
 });

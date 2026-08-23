@@ -10,14 +10,13 @@ import {
 import { Hono, type Context } from "hono";
 import { cors } from "hono/cors";
 
-import type { AuthSession } from "./auth-provider.js";
+import {
+  completeCloudAuthenticationCallback,
+  createCloudWebSession,
+} from "./cloud-authentication-session.js";
 import type { CloudFoundationDependencies } from "./cloud-foundation-dependencies.js";
 import { CloudFault } from "./cloud-fault.js";
-import { googleAuthStartInput } from "./google-auth-start-input.js";
-import { createGoogleLoginApp } from "./google-login-app.js";
-import { createGoogleLinkApp } from "./google-link-app.js";
-import { createGoogleLinkModule } from "./google-link-module.js";
-import { createGoogleReauthenticationApp } from "./google-reauthentication-app.js";
+import { createGoogleAuthenticationApp } from "./google-authentication-app.js";
 import { createPasswordReauthenticationApp } from "./password-reauthentication-app.js";
 import { createPasswordLinkApp } from "./password-link-app.js";
 import { createPasswordLinkModule } from "./password-link-module.js";
@@ -56,49 +55,8 @@ export function errorStatus(
   return 400;
 }
 
-async function createWebSession(dependencies: CloudFoundationDependencies, session: AuthSession) {
-  return dependencies.identity.createWebSession(
-    session.userId,
-    dependencies.protectRefreshToken(session.refreshToken),
-    session.email,
-  );
-}
-
 export function createCloudFoundationApp(dependencies: CloudFoundationDependencies) {
   const app = new Hono<{ Variables: CloudFoundationVariables }>();
-
-  const completeAuthenticationCallback = async (
-    context: Context<{ Variables: CloudFoundationVariables }>,
-    signInMethod: "google" | "password",
-  ) => {
-    context.header("Cache-Control", "private, no-store");
-    context.header("Referrer-Policy", "no-referrer");
-    const code = context.req.query("code");
-    const flowId = context.req.query("flow");
-    if (code === undefined || flowId === undefined) {
-      throw new CloudFault("invalid_request", "Authentication callback is incomplete.");
-    }
-    const protectedState = await dependencies.identity.readAuthFlowState(flowId);
-    const serializedState = (
-      dependencies.unprotectTransientAuthState ?? ((value: string) => value)
-    )(protectedState);
-    const authSession = await dependencies.auth.completeCode({
-      authState: JSON.parse(serializedState) as Record<string, string>,
-      code,
-    });
-    await dependencies.identity.completeAuthFlow(
-      flowId,
-      authSession.userId,
-      authSession.email,
-      signInMethod,
-    );
-    const session = await createWebSession(dependencies, authSession);
-    context.header("Set-Cookie", session.setCookie);
-    return context.redirect(
-      `${dependencies.webOrigin}${session.access === "full" ? "/app" : "/settings/data"}`,
-      302,
-    );
-  };
 
   app.use("*", async (context, next) => {
     const id = crypto.randomUUID();
@@ -159,42 +117,9 @@ export function createCloudFoundationApp(dependencies: CloudFoundationDependenci
     });
   });
 
-  app.post("/v1/auth/google/start", async (context) => {
-    context.header("Cache-Control", "private, no-store");
-    const { claimTicket } = await googleAuthStartInput(context);
-    await limit(context, "auth.google", claimTicket, 5);
-    await dependencies.identity.requireClaimTicket(claimTicket);
-    const flow = await dependencies.identity.createAuthFlow(claimTicket);
-    const redirectTo = `${dependencies.apiOrigin}/v1/auth/callback?flow=${encodeURIComponent(flow.flowId)}`;
-    const result = await dependencies.auth.beginGoogle({ redirectTo });
-    await dependencies.identity.saveAuthFlowState(
-      flow.flowId,
-      (dependencies.protectTransientAuthState ?? dependencies.protectRefreshToken)(
-        JSON.stringify(result.authState),
-      ),
-    );
-    return context.redirect(result.redirectUrl, 302);
-  });
-
-  app.route("/", createGoogleLoginApp(dependencies));
-  app.route(
-    "/",
-    createGoogleLinkApp({
-      link: createGoogleLinkModule({
-        apiOrigin: dependencies.apiOrigin,
-        auth: dependencies.auth,
-        protectRefreshToken: dependencies.protectRefreshToken,
-        protectTransientAuthState:
-          dependencies.protectTransientAuthState ?? dependencies.protectRefreshToken,
-        repository: dependencies.googleLink,
-        unprotectRefreshToken: dependencies.unprotectRefreshToken,
-        unprotectTransientAuthState: dependencies.unprotectTransientAuthState ?? ((value) => value),
-      }),
-      rateLimiter: dependencies.rateLimiter,
-      webOrigin: dependencies.webOrigin,
-    }),
-  );
-  app.route("/", createGoogleReauthenticationApp(dependencies));
+  if (dependencies.googleAuthenticationEnabled) {
+    app.route("/", createGoogleAuthenticationApp(dependencies));
+  }
   app.route("/", createPasswordReauthenticationApp(dependencies));
   app.route(
     "/",
@@ -212,10 +137,8 @@ export function createCloudFoundationApp(dependencies: CloudFoundationDependenci
     }),
   );
 
-  app.get("/v1/auth/callback", (context) => completeAuthenticationCallback(context, "google"));
-
   app.get("/v1/auth/password/callback", (context) =>
-    completeAuthenticationCallback(context, "password"),
+    completeCloudAuthenticationCallback(dependencies, context, "password"),
   );
 
   app.get("/v1/auth/csrf", async (context) => {
@@ -255,7 +178,7 @@ export function createCloudFoundationApp(dependencies: CloudFoundationDependenci
       pending.email,
       "password",
     );
-    const session = await createWebSession(dependencies, pending.session);
+    const session = await createCloudWebSession(dependencies, pending.session);
     context.header("Set-Cookie", session.setCookie);
     return context.json({
       access: session.access,
@@ -270,7 +193,7 @@ export function createCloudFoundationApp(dependencies: CloudFoundationDependenci
     await limit(context, "auth.password", input.email, 5);
     const authSession = await dependencies.auth.signInWithPassword(input);
     await dependencies.identity.authorizeSignInMethod(authSession.userId, "password");
-    const session = await createWebSession(dependencies, authSession);
+    const session = await createCloudWebSession(dependencies, authSession);
     context.header("Set-Cookie", session.setCookie);
     return context.json({ access: session.access, csrfToken: session.csrfToken });
   });

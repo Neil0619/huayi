@@ -31,11 +31,13 @@ function linkedDate(value: string): string {
 export function SignInMethodsPanel({
   api,
   csrfToken,
+  googleAuthenticationEnabled,
   navigate = (url) => window.location.assign(url),
   onCsrfTokenChanged,
 }: {
   readonly api: SignInMethodsApi;
   readonly csrfToken: string;
+  readonly googleAuthenticationEnabled: boolean;
   readonly navigate?: (url: string) => void;
   readonly onCsrfTokenChanged: (csrfToken: string) => void;
 }) {
@@ -181,7 +183,7 @@ export function SignInMethodsPanel({
               </li>
             ))}
           </ul>
-          {!hasMethod("google") && (
+          {googleAuthenticationEnabled && !hasMethod("google") && (
             <div className="sign-in-method-action">
               <h3>添加 Google 登录</h3>
               <p>先用当前密码确认身份，再前往 Google 完成绑定。</p>
@@ -219,7 +221,7 @@ export function SignInMethodsPanel({
               )}
             </div>
           )}
-          {!hasMethod("password") && (
+          {googleAuthenticationEnabled && !hasMethod("password") && (
             <div className="sign-in-method-action">
               <h3>添加密码登录</h3>
               <p>先通过 Google 重新确认身份，然后为当前账号设置一个新密码。</p>

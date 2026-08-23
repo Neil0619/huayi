@@ -31,6 +31,10 @@ owner context、generation/reservation 归属、task 成功或失败终态、价
 - Google start 对 JSON 与表单按 Content-Type 分支严格解析；表单恰好接受一个合法 `claimTicket`，
   拒绝额外、重复、缺失和越界字段。Web 只能从已验证的 HTTPS API origin 构造 form action，不能把
   用户或 URL 提供的 destination 带入导航。
+- Google 能力默认关闭：API 只有显式 `HUAYI_GOOGLE_AUTHENTICATION=enabled` 才挂载 Google 注册、登录、
+  callback、link 与 reauthentication 路由；Web 只有显式 `VITE_GOOGLE_AUTHENTICATION=enabled` 才显示对应
+  动作。缺失/未知值失败关闭，API 在 rate-limit、flow、Cookie 和 Provider 前返回固定 404。两端不能单边
+  启用；hosted acceptance 首轮保持缺失并继续让 Supabase Google Provider disabled。
 - 密码注册 202 不设置 Web Cookie；邮箱确认 callback 成功前不得进入工作台。密码确认与 Google 使用
   不同固定 callback，由服务端路由确定并向数据库显式传递 `password|google`，不得从上游邮箱或 query
   猜测 method。密码注册/登录响应统一 `Cache-Control: private, no-store`，登录失败使用相同认证错误，

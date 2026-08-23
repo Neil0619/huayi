@@ -57,8 +57,16 @@ Web /login
      otherwise: generic no-store/no-referrer authentication failure, no Cookie
 ```
 
-Web 不引入 Supabase client，也不解析 callback。`AuthPage` 继续只渲染固定 `googleLoginStartUrl` 的空原生
-表单；API 拥有 flow、Provider state、callback、method fence 与 session 创建。
+Web 不引入 Supabase client，也不解析 callback。只有严格 build capability
+`VITE_GOOGLE_AUTHENTICATION=enabled` 时，`AuthPage` 才渲染固定 `googleLoginStartUrl` 的空原生表单；
+缺失或未知值失败关闭。API 也只有严格 server capability `HUAYI_GOOGLE_AUTHENTICATION=enabled` 时才挂载
+Google invitation/login/callback/link/reauth routes。两端必须同批显式启用；API 继续拥有 flow、Provider
+state、callback、method fence 与 session 创建。
+
+Hosted acceptance 首轮没有配置这两个 capability，Supabase Google Provider 也保持 disabled。因此登录、
+邀请注册和账号设置都不显示 Google 动作，直接访问 Google route 得到固定 404，且在 rate-limit、flow、
+数据库和 Provider 调用前结束。离线 Google actual-bundle 只由 E2E 构建入口显式启用，不能改变普通或
+本机验收构建的默认关闭状态。
 
 ### 3.2 契约与 HTTP 校准
 
