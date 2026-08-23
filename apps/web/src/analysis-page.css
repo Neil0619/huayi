@@ -1,23 +1,28 @@
 .analysis-compose-layout {
   display: grid;
-  max-width: 78rem;
+  max-width: 74rem;
   margin: 0 auto;
-  grid-template-columns: minmax(0, 1.05fr) minmax(18rem, 0.95fr);
-  gap: var(--space-5);
+  grid-template-columns: minmax(0, 0.95fr) minmax(20rem, 1.05fr);
+  gap: var(--space-8);
 }
 
 .analysis-compose-card,
 .analysis-stream-card {
-  padding: var(--space-6);
+  padding: clamp(var(--space-6), 4vw, var(--space-10));
+}
+
+.analysis-compose-card {
+  display: grid;
+  gap: var(--space-2);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
   background: var(--surface-default);
   box-shadow: var(--card-shadow);
 }
 
-.analysis-compose-card {
-  display: grid;
-  gap: var(--space-2);
+.analysis-stream-card {
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border-default);
 }
 
 .analysis-compose-card > label,
@@ -25,7 +30,7 @@
   display: grid;
   gap: var(--space-2);
   color: var(--text-secondary);
-  font-weight: 700;
+  font-weight: 650;
 }
 
 .analysis-compose-card input,
@@ -41,7 +46,7 @@
 }
 
 .analysis-compose-card textarea {
-  min-height: 12rem;
+  min-height: 16rem;
   resize: vertical;
 }
 
@@ -49,7 +54,8 @@
   margin: 0 0 var(--space-2);
   color: var(--action-primary);
   font-size: 0.8rem;
-  font-weight: 800;
+  font-weight: 700;
+  letter-spacing: 0.08em;
 }
 
 .analysis-options {
@@ -61,7 +67,7 @@
 
 .analysis-stream-card {
   align-self: start;
-  min-height: 22rem;
+  min-height: 24rem;
 }
 
 .analysis-stream-card h2 {
@@ -77,9 +83,11 @@
 .analysis-previews article,
 .analysis-completed,
 .analysis-error {
-  padding: var(--space-4);
-  border-left: 3px solid var(--focus-ring);
-  background: var(--surface-subtle);
+  padding: var(--space-4) 0 var(--space-4) var(--space-5);
+  border-left-color: var(--focus-ring);
+  border-left-style: solid;
+  border-left-width: var(--space-hairline);
+  background: transparent;
 }
 
 .analysis-previews p,

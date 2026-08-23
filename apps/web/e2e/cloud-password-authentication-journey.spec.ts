@@ -113,10 +113,11 @@ test("an invited learner confirms password registration and later signs in again
     page.getByRole("button", { name: "确认邮箱并继续" }).click(),
   ]);
 
-  await expect(page).toHaveURL(`${webOrigin}/app`);
+  await expect(page).toHaveURL(`${webOrigin}/practice`);
   expect(callbackResponse.headers()["cache-control"]).toBe("private, no-store");
   expect(callbackResponse.headers()["referrer-policy"]).toBe("no-referrer");
-  await expect(page.getByRole("heading", { name: "待分析", level: 1 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "今日练习", level: 1 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "今天没有待练习内容" })).toBeVisible();
   const registrationCookie = (await page.context().cookies(apiOrigin)).find(
     (cookie) => cookie.name === "huayi_session",
   );
@@ -157,8 +158,9 @@ test("an invited learner confirms password registration and later signs in again
   ]);
   expect(acceptedLogin.status()).toBe(200);
   expect(acceptedLogin.headers()["cache-control"]).toBe("private, no-store");
-  await expect(page).toHaveURL(`${webOrigin}/app`);
-  await expect(page.getByRole("heading", { name: "待分析", level: 1 })).toBeVisible();
+  await expect(page).toHaveURL(`${webOrigin}/practice`);
+  await expect(page.getByRole("heading", { name: "今日练习", level: 1 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "今天没有待练习内容" })).toBeVisible();
   const loginCookie = (await page.context().cookies(apiOrigin)).find(
     (cookie) => cookie.name === "huayi_session",
   );

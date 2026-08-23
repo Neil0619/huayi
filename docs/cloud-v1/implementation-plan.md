@@ -23,7 +23,7 @@ release audit 通过 TDD 锁定。该切片通过后再创建 Vercel 资源；�
   callback Cookie、登录 bootstrap 和手动 LearningItem 写后重读。完整证据见
   `web-onboarding-acceptance.md`；真实 Google/Supabase/部署仍待。
 - PasswordAuthentication actual-bundle 增量已完成需求/技术/数据/测试方案、实现前后复审和 TDD：邀请
-  密码注册 202 待确认→fake mail 显式 callback→Cookie `/app`，清会话后再覆盖 `/login` 错误/正确密码；
+  密码注册 202 待确认→fake mail 显式 callback→Cookie `/practice`，清会话后再覆盖 `/login` 错误/正确密码；
   密码响应已统一 private/no-store。完整 Playwright 更新为 100/100，状态为
   `implemented; target-platform validation pending`，详见 `password-authentication-acceptance.md`。
 - GoogleAuthentication 普通登录已完成全局审计、独立产品/技术/数据/TDD/验收方案、实现前后复审和
@@ -1593,7 +1593,7 @@ status 关闭这道门；下一步可以按外部门顺序准备 Vercel 创建�
    `VITE_GOOGLE_AUTHENTICATION=enabled`，缺失即关闭、未知值拒绝。API 关闭时不挂载全部 Google 子应用，
    Web 关闭时隐藏 join/login/settings 全部 Google 动作；仅 E2E 构建显式启用；
 3. **密码闭环**：待确认文案明确“邮件验证成功后自动进入工作台”；fake mail、request fact 与 browser
-   response 全部改到 `/v1/auth/password/callback`，精确验证 no-store/no-referrer、Cookie 与 `/app`；
+   response 全部改到 `/v1/auth/password/callback`，精确验证 no-store/no-referrer、Cookie 与 `/practice`；
 4. **独立 verifier**：新增 `acceptance:hosted:operator:verify`，用 admin pooler + verify-full CA 执行单个
    read-only boolean，验证 completed bootstrap、邀请/claim/Auth/profile/password method/default quota/
    Operator/auth flow/full session/kill switch 与零业务使用；stdout/stderr 固定且不接受账号标识；

@@ -194,84 +194,89 @@ export function AnalysisHistoryPage({
           </div>
           <p>归档与整理状态彼此独立；这里不重新编辑候选。</p>
         </header>
-        <form className="analysis-history-filters" onSubmit={submit}>
-          <label>
-            搜索
-            <input
-              maxLength={200}
-              name="query"
-              onChange={(event) => {
-                const query = event.currentTarget.value;
-                setDraftFilters((value) => ({ ...value, query }));
-              }}
-              value={draftFilters.query}
-            />
-          </label>
-          <label>
-            归档
-            <select
-              name="archived"
-              onChange={(event) => {
-                const archived = event.currentTarget.value === "true";
-                setDraftFilters((value) => ({ ...value, archived }));
-              }}
-              value={String(draftFilters.archived)}
-            >
-              <option value="false">未归档</option>
-              <option value="true">已归档</option>
-            </select>
-          </label>
-          <label>
-            整理状态
-            <select
-              name="reviewState"
-              onChange={(event) => {
-                const reviewState = event.currentTarget
-                  .value as AnalysisHistoryFilters["reviewState"];
-                setDraftFilters((value) => ({ ...value, reviewState }));
-              }}
-              value={draftFilters.reviewState}
-            >
-              <option value="">全部</option>
-              <option value="pendingReview">待整理</option>
-              <option value="reviewed">已整理</option>
-            </select>
-          </label>
-          <label>
-            来源
-            <select
-              name="sourceType"
-              onChange={(event) => {
-                const sourceType = event.currentTarget
-                  .value as AnalysisHistoryFilters["sourceType"];
-                setDraftFilters((value) => ({ ...value, sourceType }));
-              }}
-              value={draftFilters.sourceType}
-            >
-              <option value="">全部</option>
-              <option value="manual">手动</option>
-              <option value="study-capture">待学习采集</option>
-            </select>
-          </label>
-          <label>
-            选区
-            <select
-              name="selectionKind"
-              onChange={(event) => {
-                const selectionKind = event.currentTarget
-                  .value as AnalysisHistoryFilters["selectionKind"];
-                setDraftFilters((value) => ({ ...value, selectionKind }));
-              }}
-              value={draftFilters.selectionKind}
-            >
-              <option value="">全部</option>
-              <option value="phrase">短语</option>
-              <option value="sentence">句子</option>
-              <option value="passage">段落</option>
-            </select>
-          </label>
-          <button type="submit">应用筛选</button>
-        </form>
+        <details className="history-tools utility-disclosure">
+          <summary>筛选记录</summary>
+          <div className="utility-disclosure-content">
+            <form className="analysis-history-filters" onSubmit={submit}>
+              <label>
+                搜索
+                <input
+                  maxLength={200}
+                  name="query"
+                  onChange={(event) => {
+                    const query = event.currentTarget.value;
+                    setDraftFilters((value) => ({ ...value, query }));
+                  }}
+                  value={draftFilters.query}
+                />
+              </label>
+              <label>
+                归档
+                <select
+                  name="archived"
+                  onChange={(event) => {
+                    const archived = event.currentTarget.value === "true";
+                    setDraftFilters((value) => ({ ...value, archived }));
+                  }}
+                  value={String(draftFilters.archived)}
+                >
+                  <option value="false">未归档</option>
+                  <option value="true">已归档</option>
+                </select>
+              </label>
+              <label>
+                整理状态
+                <select
+                  name="reviewState"
+                  onChange={(event) => {
+                    const reviewState = event.currentTarget
+                      .value as AnalysisHistoryFilters["reviewState"];
+                    setDraftFilters((value) => ({ ...value, reviewState }));
+                  }}
+                  value={draftFilters.reviewState}
+                >
+                  <option value="">全部</option>
+                  <option value="pendingReview">待整理</option>
+                  <option value="reviewed">已整理</option>
+                </select>
+              </label>
+              <label>
+                来源
+                <select
+                  name="sourceType"
+                  onChange={(event) => {
+                    const sourceType = event.currentTarget
+                      .value as AnalysisHistoryFilters["sourceType"];
+                    setDraftFilters((value) => ({ ...value, sourceType }));
+                  }}
+                  value={draftFilters.sourceType}
+                >
+                  <option value="">全部</option>
+                  <option value="manual">手动</option>
+                  <option value="study-capture">待学习采集</option>
+                </select>
+              </label>
+              <label>
+                选区
+                <select
+                  name="selectionKind"
+                  onChange={(event) => {
+                    const selectionKind = event.currentTarget
+                      .value as AnalysisHistoryFilters["selectionKind"];
+                    setDraftFilters((value) => ({ ...value, selectionKind }));
+                  }}
+                  value={draftFilters.selectionKind}
+                >
+                  <option value="">全部</option>
+                  <option value="phrase">短语</option>
+                  <option value="sentence">句子</option>
+                  <option value="passage">段落</option>
+                </select>
+              </label>
+              <button type="submit">应用筛选</button>
+            </form>
+          </div>
+        </details>
         <p aria-atomic="true" aria-live="polite" className="analysis-history-status" role="status">
           {status}
         </p>

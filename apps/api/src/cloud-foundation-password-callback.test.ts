@@ -94,7 +94,7 @@ describe("Cloud foundation password signup confirmation", () => {
     });
 
     expect(callback.status).toBe(302);
-    expect(callback.headers.get("location")).toBe(`${webOrigin}/app`);
+    expect(callback.headers.get("location")).toBe(`${webOrigin}/practice`);
     expect(callback.headers.get("set-cookie")).toContain("HttpOnly; Secure; SameSite=Lax; Path=/");
     expect(auth.verifyPasswordRegistrationOtp).toHaveBeenCalledWith({
       email: "learner@example.com",

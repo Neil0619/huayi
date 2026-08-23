@@ -1,20 +1,19 @@
 .library-filters {
   display: grid;
-  max-width: 78rem;
-  margin: 0 auto var(--space-5);
-  grid-template-columns: repeat(5, minmax(8rem, 1fr)) auto;
+  margin: 0;
+  grid-template-columns: repeat(3, minmax(10rem, 1fr));
   gap: var(--space-3);
   align-items: end;
 }
 
+.library-filters button {
+  justify-self: start;
+}
+
 .manual-learning-item {
-  max-width: 78rem;
-  margin: 0 auto var(--space-5);
-  padding: var(--space-4);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-lg);
-  background: var(--surface-default);
-  box-shadow: var(--card-shadow);
+  margin: 0;
+  padding: var(--space-5) 0 0;
+  border-top: 1px solid var(--border-default);
 }
 
 .manual-learning-item h2 {
@@ -33,7 +32,7 @@
   gap: var(--space-1);
   color: var(--text-secondary);
   font-size: 0.8rem;
-  font-weight: 700;
+  font-weight: 650;
 }
 
 .manual-learning-item input,
@@ -76,15 +75,24 @@
 
 .library-layout {
   display: grid;
-  max-width: 78rem;
+  max-width: 74rem;
   margin: 0 auto;
-  grid-template-columns: minmax(15rem, 22rem) minmax(0, 1fr);
-  gap: var(--space-5);
+  grid-template-columns: minmax(14rem, 20rem) minmax(0, 1fr);
+  gap: var(--space-8);
 }
 
 .library-list,
 .library-detail {
   padding: var(--space-4);
+}
+
+.library-list {
+  align-self: start;
+  padding: var(--space-2);
+}
+
+.library-detail {
+  padding: clamp(var(--space-6), 4vw, var(--space-10));
   border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
   background: var(--surface-default);
@@ -92,8 +100,11 @@
 }
 
 .library-list h2 {
-  margin: 0 0 var(--space-3);
-  font-size: 1rem;
+  margin: var(--space-2) var(--space-3) var(--space-3);
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
 }
 
 .library-list button {
@@ -101,12 +112,15 @@
   width: 100%;
   height: auto;
   gap: var(--space-1);
-  margin-top: var(--space-2);
+  margin-top: var(--space-1);
+  padding: var(--space-3);
+  border-color: transparent;
+  background: transparent;
   text-align: left;
 }
 
 .library-list button[aria-pressed="true"] {
-  border-color: var(--focus-ring);
+  border-color: var(--border-default);
   background: var(--surface-tint);
 }
 
@@ -144,8 +158,11 @@
 .source-examples li {
   min-width: 0;
   padding: var(--space-3);
-  border-radius: var(--radius-md);
-  background: var(--surface-subtle);
+  border-left-color: var(--border-accent);
+  border-left-style: solid;
+  border-left-width: var(--space-hairline);
+  border-radius: 0;
+  background: transparent;
 }
 
 .source-examples blockquote {
@@ -240,9 +257,10 @@
   margin: 0 0 var(--space-2);
 }
 
-@media (max-width: 62rem) {
-  .library-filters {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+@media (max-width: 64rem) {
+  .library-filters,
+  .library-layout {
+    grid-template-columns: 1fr;
   }
 }
 

@@ -58,6 +58,24 @@ describe("WorkspaceShell", () => {
     expect(container.querySelector("summary")?.textContent).toContain("学习库");
   });
 
+  it("organizes the workspace as a quiet task index instead of a flat admin menu", async () => {
+    const container = await render("practice");
+    const groups = [...container.querySelectorAll<HTMLElement>("[data-navigation-group]")];
+
+    expect(groups.map((group) => group.getAttribute("aria-label"))).toEqual([
+      "开始",
+      "积累",
+      "回看",
+      "账户",
+    ]);
+    expect(
+      [...container.querySelectorAll("[data-navigation-index]")].map((index) =>
+        index.getAttribute("data-navigation-index"),
+      ),
+    ).toEqual(["01", "02", "03", "04", "05", "06", "07"]);
+    expect(container.querySelector(".topbar")?.textContent).toContain("Seen & Said");
+  });
+
   it("marks exactly one current section for every full workspace route group", async () => {
     for (const section of sections) {
       const container = await render(section);

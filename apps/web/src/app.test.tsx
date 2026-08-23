@@ -2,12 +2,17 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { expect, it, vi } from "vitest";
 
-import { App } from "./app.js";
+import { App, authenticatedLandingPath } from "./app.js";
 import type { AuthApi } from "./auth-page.js";
 import type { IdentityApi } from "./cloud-app.js";
 import type { PasswordRecoveryApi } from "./password-recovery-page.js";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+it("starts a full workspace session from today's practice", () => {
+  expect(authenticatedLandingPath("full")).toBe("/practice");
+  expect(authenticatedLandingPath("data-rights")).toBe("/settings/data");
+});
 
 it("fails closed when the production API origin is unavailable", async () => {
   const container = document.createElement("div");

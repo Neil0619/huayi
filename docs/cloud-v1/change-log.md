@@ -28,6 +28,15 @@
   origin 并校准 CSP。COOP 因 Google redirect/popup 兼容性尚无浏览器证据而延期为独立决策。本次只形成
   disarmed 候选，远端必须另走 Web-only 受控 deploy/disarm 与 header/auth 回读。
 
+## 2026-08-24：Cloud Web 改为内容优先的个人语言工作台
+
+- 保留七项一级导航、路径、权限和业务状态机，把外壳从通用管理后台改为暖色纸张画布、窄章节索引、
+  编辑式标题和低装饰阅读表面；筛选与手动维护动作使用原生 `details/summary` 渐进披露；
+- 完整账号的 Google、密码与邀请确认固定进入 `/practice`，突出当前最值得完成的练习；`/app` 继续是
+  “待整理”，data-rights 仍只进入 `/settings/data`；
+- 视觉值继续使用 primitive→semantic→component token，不引入远程字体或 UI 依赖，并保留 AA、键盘、
+  reduced-motion、390px 与桌面验收。
+
 ## 2026-08-23：密码注册改为显式邮件 OTP，并增加已确认中断账号原子恢复
 
 - 真实首位账号确认暴露两个缺口：动态 flow 未被 Supabase exact redirect allowlist 匹配，以及邮件扫描器

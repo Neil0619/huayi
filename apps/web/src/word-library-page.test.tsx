@@ -110,6 +110,8 @@ describe("Web word library", () => {
     });
     const container = await render(words);
     expect(container.querySelector("h1")?.textContent).toBe("生词");
+    expect(container.querySelector(".word-tools > summary")?.textContent).toBe("搜索与手动收录");
+    expect(container.querySelector(".word-filters")?.closest("details")?.open).toBe(false);
     await act(async () => container.querySelector<HTMLButtonElement>("[data-open-word]")?.click());
     expect(container.textContent).toContain("I ran into her.");
     expect(container.querySelector(".word-detail h2")).toBe(document.activeElement);

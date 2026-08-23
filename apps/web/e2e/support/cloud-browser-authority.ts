@@ -95,10 +95,17 @@ export function createCloudBrowserAuthority(
   const importCount = 0;
   const facts: CloudBrowserRequestFact[] = [];
   const replays = new Map<string, CloudStoredReplay>();
+  const hasEmptyPracticeQueue =
+    seed.seed === "google-authentication" ||
+    seed.seed === "invitation-onboarding" ||
+    seed.seed === "password-authentication" ||
+    seed.seed === "password-recovery";
   const practice =
     seed.seed === "dialogue-practice" || seed.seed === "pending-sentence-practice"
       ? createCloudBrowserPracticeAuthority(seed.seed)
-      : null;
+      : hasEmptyPracticeQueue
+        ? createCloudBrowserPracticeAuthority("empty-practice")
+        : null;
   const analysisHistory =
     seed.seed === "analysis-history-maintenance"
       ? createCloudBrowserAnalysisHistoryAuthority()
@@ -464,7 +471,18 @@ export function createCloudBrowserAuthority(
       return;
     }
     if (await extensionQueries.handle(route, { authentication, record, reject })) return;
-    if (await words.handle(route, { authentication, json, record, reject })) return;
+    if (
+      await words.handle(route, {
+        authentication,
+        json,
+        mutationProof: webMutationProof,
+        record,
+        reject,
+        writeProof: webProof,
+      })
+    ) {
+      return;
+    }
     if (
       await wordbooks.handle(route, {
         authentication,

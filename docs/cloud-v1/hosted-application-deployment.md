@@ -402,7 +402,7 @@ Phase 70 的 Ready Web 仍显示 Google 注册/登录，但 hosted Supabase Goog
 变量当前都不得添加，既有 API 21/21 与 Web 2/2 environment 结构不变。
 
 同一候选把密码注册待确认文案改为“打开邮件链接后自动进入工作台”，并把离线 actual-bundle 的旧共用
-callback 校准为 `/v1/auth/password/callback`，精确验证 `private, no-store`、`no-referrer` 与 302 `/app`。
+callback 校准为 `/v1/auth/password/callback`，精确验证 `private, no-store`、`no-referrer` 与 302 `/practice`。
 完成 Operator 后使用独立 `acceptance:hosted:operator:verify` read-only boolean 验证完整账号链，不能再以
 宽松 `status=completed` 代替。外部顺序更新为：API one-shot deploy/disarm/Google route 404 → Web
 one-shot deploy/disarm/Google UI hidden → Supabase 邮件模板回读 → 发行邀请。

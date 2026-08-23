@@ -33,7 +33,7 @@ Auth 用户重建，或把一次性链接藏入前端 fragment，都不能满足
 - 只有用户显式 POST 表单后，API 才调用
   `verifyOtp({ email, token, type: "email" })`，再以既有 `complete_auth_flow(..., 'password')` 原子创建
   profile、password method、default quota，消费 invitation/claim/flow，创建 full Web session，并跳转
-  `/app`。
+  `/practice`。
 - email、验证码和密码不得进入 URL、日志、Referer、Storage 或错误响应。
 
 ### 2.2 已中断注册恢复
@@ -93,7 +93,7 @@ base-uri 'none'; frame-ancestors 'none'`；精确 Web origin 只用于允许确�
   不允许通配域名；页面只含 email、六位验证码和隐藏 flow。
 - `POST /v1/auth/password/callback`：只接收 exact
   `application/x-www-form-urlencoded` 的 `flow/email/token`，拒绝重复/额外字段；按 IP 和 email 限流；
-  显式验证 OTP 后完成既有 auth flow，设置 Web Cookie 并 302 到 Web `/app`。
+  显式验证 OTP 后完成既有 auth flow，设置 Web Cookie 并 302 到 Web `/practice`。
 - GET 重复、预取或 scanner 访问必须保持零 Provider 调用和零数据库消费。
 
 ### 3.4 恢复 API
@@ -135,7 +135,7 @@ opaque token。用户在恢复表单提交后，Web 才把内存中的 token 与
 - migration 证明 bound expired claim 不会被 `claim_invitation` 删除；只有唯一、仍有效邀请下的精确中断
   状态能原子恢复，其他状态不产生任何部分写入；
 - API/Web 恢复使用 original invitation token，错误密码或状态不匹配不设置 Cookie；
-- actual-bundle E2E 证明邮件 CTA 的首次 GET 不消费 token，显式 OTP POST 后才进入 `/app`。
+- actual-bundle E2E 证明邮件 CTA 的首次 GET 不消费 token，显式 OTP POST 后才进入 `/practice`。
 
 ### 4.2 Hosted 验收
 

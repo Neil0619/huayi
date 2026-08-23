@@ -65,6 +65,10 @@ describe("Web analysis history", () => {
     const historyApi = api();
     const container = await render(historyApi);
     expect(container.querySelector("h1")?.textContent).toBe("分析历史");
+    expect(container.querySelector(".history-tools > summary")?.textContent).toBe("筛选记录");
+    expect(container.querySelector(".analysis-history-filters")?.closest("details")?.open).toBe(
+      false,
+    );
     await act(async () =>
       container.querySelector<HTMLButtonElement>("[data-open-analysis]")?.click(),
     );

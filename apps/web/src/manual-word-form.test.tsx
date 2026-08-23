@@ -1,4 +1,4 @@
-import { act } from "react";
+import { act, StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -144,5 +144,40 @@ describe("manual word form", () => {
         wordOutcome: "created",
       }),
     );
+  });
+
+  it("completes an asynchronous save under StrictMode effect replay", async () => {
+    const word = {
+      canonicalKey: "serendipity",
+      createdAt: "2026-08-13T01:00:00.000Z",
+      headword: "serendipity",
+      id: "word-strict",
+      revision: 1,
+      updatedAt: "2026-08-13T01:00:00.000Z",
+    };
+    const api = {
+      upsertWord: vi.fn(async () => ({
+        contextOutcome: "omitted" as const,
+        word,
+        wordOutcome: "created" as const,
+      })),
+    };
+    const onSaved = vi.fn(async () => true);
+    const container = document.createElement("div");
+    document.body.append(container);
+    await act(async () =>
+      createRoot(container).render(
+        <StrictMode>
+          <ManualWordForm api={api} idempotencyKey={() => "strict-1"} onSaved={onSaved} />
+        </StrictMode>,
+      ),
+    );
+    const headword = container.querySelector<HTMLInputElement>("[name='headword']");
+    if (headword === null) throw new Error("Expected headword field.");
+    await change(headword, "serendipity");
+    await act(async () => container.querySelector<HTMLFormElement>("form")?.requestSubmit());
+    expect(onSaved).toHaveBeenCalledWith("word-strict");
+    expect(container.querySelector("[role='status']")?.textContent).toContain("词条已收录");
+    expect(headword.value).toBe("");
   });
 });

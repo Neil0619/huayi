@@ -32,12 +32,12 @@ export function ManualWordForm({
   const headwordControl = useRef<HTMLInputElement>(null);
   const savingLock = useRef(false);
 
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    active.current = true;
+    return () => {
       active.current = false;
-    },
-    [],
-  );
+    };
+  }, []);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();

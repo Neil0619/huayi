@@ -95,6 +95,8 @@ describe("Web learning library", () => {
     const libraryApi = api();
     const container = await render(libraryApi);
     expect(container.querySelector("h1")?.textContent).toBe("学习库");
+    expect(container.querySelector(".library-tools > summary")?.textContent).toBe("筛选与收录");
+    expect(container.querySelector(".library-filters")?.closest("details")?.open).toBe(false);
     expect(container.textContent).toContain("to be frank");
     expect(container.textContent).toContain("新学习项");
     await act(async () => container.querySelector<HTMLButtonElement>("[data-open-item]")?.click());

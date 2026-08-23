@@ -28,7 +28,7 @@ link，但没有从 production `/login` 走完“原生 POST→Provider→callba
 3. Provider 完成后只回到固定 API `/v1/auth/callback?flow=<opaque>&code=<opaque>`。callback 必须单次、
    no-store/no-referrer，并只接受已有 profile、已登记 `google` method 与相同 Provider user ID；
 4. active 账号创建 `access=full`、`reauthenticatedMethod=null` 的 hardened Huayi Cookie，并固定进入
-   `/app`；disabled 账号只创建 `access=data-rights` session并固定进入 `/settings/data`；
+   `/practice`；disabled 账号只创建 `access=data-rights` session并固定进入 `/settings/data`；
 5. unknown、未登记 google method、deleting、过期/重放/错误 flow/code 或 Provider user 不匹配都统一
    认证失败，不创建 profile、method、邀请消费或 Cookie，不在 URL/DOM/日志返回具体原因；
 6. 普通登录不能冒充 recent authentication。即使刚取得新 session，Google/password link 仍必须先走
@@ -52,7 +52,7 @@ Web /login
   -> Provider consent/authentication
   -> GET fixed API callback?flow&code
   -> completeCode + authorize existing (userId, google method)
-  -> active: full Cookie + 302 /app
+  -> active: full Cookie + 302 /practice
      disabled: data-rights Cookie + 302 /settings/data
      otherwise: generic no-store/no-referrer authentication failure, no Cookie
 ```
@@ -77,7 +77,7 @@ Hosted acceptance 首轮没有配置这两个 capability，Supabase Google Provi
 - login start、邀请 Google start 与共用 callback 从 handler 起点设置
   `Cache-Control: private, no-store`；OAuth callback 另固定 `Referrer-Policy: no-referrer`，因此成功、
   expected failure 和畸形输入都继承同一防泄漏 header；
-- success redirect 仍只由服务器依据 session access 选择固定 `/app` 或 `/settings/data`；本切片不增加
+- success redirect 仍只由服务器依据 session access 选择固定 `/practice` 或 `/settings/data`；本切片不增加
   `returnTo`、错误 query、公开 flow resource 或 JSON token。
 
 ### 3.3 actual-bundle authority
@@ -136,7 +136,7 @@ method 或 Provider identity。
 - identity/Postgres：既有测试继续证明 active→full、disabled→data-rights、deleting/unknown/missing
   method→zero session、邀请不消费、method 不新增、flow expiry/replay；
 - actual Web：390px/reduced-motion，从 `/login` 原生 POST 到 fake Provider；GET consent 页面不创建
-  Huayi Cookie，显式继续后 active 进入 `/app`，disabled 进入 `/settings/data`；未登记 method 的 callback
+  Huayi Cookie，显式继续后 active 进入 `/practice`，disabled 进入 `/settings/data`；未登记 method 的 callback
   为统一失败且零 Cookie；
 - privacy：最终 Web URL、DOM、Storage 与 authority snapshot 不含 email/userId/flow/code/Provider state/
   Cookie/CSRF；request facts 只保留 method/path/authenticatedAs/proof。

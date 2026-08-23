@@ -43,7 +43,7 @@ export async function completeCloudAuthenticationCallback(
   const session = await createCloudWebSession(dependencies, authSession);
   context.header("Set-Cookie", session.setCookie);
   return context.redirect(
-    `${dependencies.webOrigin}${session.access === "full" ? "/app" : "/settings/data"}`,
+    `${dependencies.webOrigin}${session.access === "full" ? "/practice" : "/settings/data"}`,
     302,
   );
 }

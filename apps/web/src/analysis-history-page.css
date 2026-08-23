@@ -1,5 +1,5 @@
 .analysis-history-page {
-  max-width: 78rem;
+  max-width: 74rem;
   margin: 0 auto;
 }
 
@@ -16,9 +16,16 @@
 
 .analysis-history-filters {
   display: grid;
-  padding: var(--space-4);
-  grid-template-columns: repeat(5, minmax(8rem, 1fr)) auto;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  grid-template-columns: repeat(3, minmax(10rem, 1fr));
   gap: var(--space-3);
+}
+
+.analysis-history-filters button {
+  justify-self: start;
 }
 
 .analysis-history-filters label {
@@ -44,8 +51,8 @@
 
 .analysis-history-layout {
   display: grid;
-  grid-template-columns: minmax(13rem, 20rem) minmax(0, 1fr);
-  gap: var(--space-5);
+  grid-template-columns: minmax(13rem, 19rem) minmax(0, 1fr);
+  gap: var(--space-8);
 }
 
 .analysis-history-list,
@@ -57,17 +64,23 @@
   display: grid;
   align-content: start;
   gap: var(--space-2);
+  padding: var(--space-2);
+  border-color: transparent;
+  background: transparent;
 }
 
 .analysis-history-list button {
   display: grid;
   overflow: hidden;
+  padding: var(--space-3);
+  border-color: transparent;
+  background: transparent;
   text-align: left;
   gap: var(--space-1);
 }
 
 .analysis-history-list button[aria-pressed="true"] {
-  border-color: var(--action-primary);
+  border-color: var(--border-default);
   background: var(--surface-tint);
 }
 
@@ -86,6 +99,12 @@
 .analysis-history-detail h3,
 .analysis-history-detail p {
   margin-top: 0;
+}
+
+.analysis-history-detail {
+  padding: clamp(var(--space-6), 4vw, var(--space-10));
+  border-radius: var(--radius-lg);
+  box-shadow: var(--card-shadow);
 }
 
 .analysis-history-metadata,
@@ -144,8 +163,9 @@
 }
 
 @media (max-width: 64rem) {
-  .analysis-history-filters {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .analysis-history-filters,
+  .analysis-history-layout {
+    grid-template-columns: 1fr;
   }
 }
 

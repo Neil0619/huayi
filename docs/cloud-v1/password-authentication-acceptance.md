@@ -21,9 +21,9 @@ Supabase Auth adapter、Postgres invitation/auth-flow/Web-session 事务与分�
 1. 从 `/join#<token>` 领取一次邀请；首个 document request 不含 fragment，成功后地址栏变为 `/join`；
 2. 以规范邮箱和至少 12 字符密码提交注册，看到“检查邮箱”，此时不得创建 Web session 或进入工作台；
 3. 经外部邮件提供方的确认链接回到固定 API callback；callback 单次消费 auth flow、完成 invitation、设置
-   hardened HttpOnly Cookie，并只重定向固定 Web `/app`；
+   hardened HttpOnly Cookie，并只重定向固定 Web `/practice`；
 4. 在回到未登录浏览器状态后，从 `/login` 先经历一次错误密码并保留可修改邮箱，再以正确密码取得新
-   Cookie session 并进入 `/app`；
+   Cookie session 并进入 `/practice`；
 5. 注册/登录请求严格拒绝未知字段和非法 body；密码错误使用统一认证错误，不回显账号存在性或供应商
    细节；
 6. invitation token、claim ticket、密码、provider flow/code、Cookie 和 CSRF 不进入 URL（callback 所需
@@ -49,7 +49,7 @@ Web /join#token
   -> user enters email + six-digit OTP
   -> POST /v1/auth/password/callback (exact form)
   -> invitation consumed + private,no-store + no-referrer
-  -> Set-Cookie HttpOnly/Secure/SameSite=Lax + 302 /app
+  -> Set-Cookie HttpOnly/Secure/SameSite=Lax + 302 /practice
   -> GET /v1/auth/csrf with Cookie + Origin
 
 browser returns to signed-out state
@@ -57,7 +57,7 @@ browser returns to signed-out state
   -> wrong POST /v1/auth/password/login -> generic 401
   -> correct POST /v1/auth/password/login
   -> strict {access:"full",csrfToken}; rotated Set-Cookie; private,no-store
-  -> location.assign("/app") -> authenticated bootstrap
+  -> location.assign("/practice") -> authenticated bootstrap
 ```
 
 生产 Web 仍只调用固定 HTTPS API origin；不引入 Supabase browser client，不把 invitation proof 发给
@@ -106,10 +106,10 @@ interface PasswordAuthenticationState {
 
 - invitation：首个 document URL 无 token；StrictMode claim 恰好一次；成功后 URL 清理；
 - registration：label/autoComplete/minLength 正确；202 后显示检查邮箱，页面未跳转，API Cookie 为空；
-- confirmation：用户在 fake mail 页显式点击；callback 才设置 hardened Cookie 并进入 `/app`；callback
+- confirmation：用户在 fake mail 页显式点击；callback 才设置 hardened Cookie 并进入 `/practice`；callback
   request fact 为未认证 `write-valid`，随后 CSRF bootstrap 为认证 Web `read`；
 - returning login：清除 Cookie 后 `/login` 可见；错误密码显示统一 alert、邮箱仍可修改且零 Cookie；正确
-  密码后进入 `/app`，登录 POST 共两次且都只记录脱敏 path/proof；
+  密码后进入 `/practice`，登录 POST 共两次且都只记录脱敏 path/proof；
 - strictness：register/login 必须是 JSON、固定字段、固定 API origin；成功响应为 private/no-store；
 - privacy：最终 Web URL、visible DOM、local/session storage 与 snapshot 不含 token/ticket/password/email/
   flow/code/Cookie/CSRF；callback URL 只短暂携带其必需的 opaque flow/code，密码只允许在用户正在编辑的
@@ -125,7 +125,7 @@ interface PasswordAuthenticationState {
 ## 5. 验收标准
 
 - actual Web production bundle 完成 invitation→password registration→pending confirmation→callback Cookie→
-  `/app`，并在清 Cookie 后完成 wrong password→correct password→新 Cookie→`/app`；
+  `/practice`，并在清 Cookie 后完成 wrong password→correct password→新 Cookie→`/practice`；
 - 202 pending confirmation 不登录，只有 confirmation callback 完成邀请和 session；
 - register/login adapter、真实浏览器 CORS/preflight、Cookie 和 navigation 均参与，不由组件 fake 替代；
 - API 两个密码响应均明确 `Cache-Control: private, no-store`；
@@ -154,9 +154,9 @@ interface PasswordAuthenticationState {
   专用 seed 后，没有修改 production Web 路由、组件、contract、Supabase adapter 或 migration；
 - actual `/join#token` 已证明首个 document request 无 fragment、单次 claim、地址栏清理、strict 密码
   register 202、零 Cookie 与待确认文案；用户必须在本地 fake mailbox 显式点击，callback 才设置
-  Secure/HttpOnly/SameSite=Lax Cookie 并进入 `/app`；
+  Secure/HttpOnly/SameSite=Lax Cookie 并进入 `/practice`；
 - 清除浏览器 Cookie 后，actual `/login` 先以错误密码获得统一 401 并保留邮箱，再以正确密码设置不同的
-  hardened session Cookie 并重新 bootstrap `/app`；两个密码响应都从浏览器观察到 private/no-store；
+  hardened session Cookie 并重新 bootstrap `/practice`；两个密码响应都从浏览器观察到 private/no-store；
 - claim/register/callback 各一次且为未认证 `write-valid`，两次 login 均为未认证 `write-valid`；StrictMode
   允许重复只读 CSRF bootstrap，但所有事实都必须是认证 Web `read`；
 - 390px、reduced-motion、label/autoComplete/minLength、无横向溢出、空 Web Storage 与 snapshot 零秘密

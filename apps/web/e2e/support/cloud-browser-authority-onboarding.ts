@@ -98,7 +98,7 @@ export function createCloudBrowserOnboardingAuthority() {
     await route.fulfill({
       headers: {
         "cache-control": "private, no-store",
-        location: `${webOrigin}/app`,
+        location: `${webOrigin}/practice`,
         "set-cookie": "huayi_session=cloud-e2e-web-session; HttpOnly; Secure; SameSite=Lax; Path=/",
       },
       status: 302,

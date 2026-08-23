@@ -3,19 +3,43 @@ import { useEffect, useState, type ReactNode } from "react";
 export type WorkspaceSection =
   "analysis" | "history" | "inbox" | "library" | "practice" | "settings" | "words";
 
-const navigation: readonly {
+interface NavigationItem {
   readonly href: string;
+  readonly index: string;
   readonly label: string;
   readonly section: WorkspaceSection;
+}
+
+const navigationGroups: readonly {
+  readonly items: readonly NavigationItem[];
+  readonly label: string;
 }[] = [
-  { href: "/practice", label: "今日练习", section: "practice" },
-  { href: "/app", label: "待整理", section: "inbox" },
-  { href: "/analysis", label: "分析", section: "analysis" },
-  { href: "/library", label: "学习库", section: "library" },
-  { href: "/words", label: "生词", section: "words" },
-  { href: "/history", label: "分析历史", section: "history" },
-  { href: "/settings/account", label: "设置", section: "settings" },
+  {
+    label: "开始",
+    items: [
+      { href: "/practice", index: "01", label: "今日练习", section: "practice" },
+      { href: "/app", index: "02", label: "待整理", section: "inbox" },
+      { href: "/analysis", index: "03", label: "分析", section: "analysis" },
+    ],
+  },
+  {
+    label: "积累",
+    items: [
+      { href: "/library", index: "04", label: "学习库", section: "library" },
+      { href: "/words", index: "05", label: "生词", section: "words" },
+    ],
+  },
+  {
+    label: "回看",
+    items: [{ href: "/history", index: "06", label: "分析历史", section: "history" }],
+  },
+  {
+    label: "账户",
+    items: [{ href: "/settings/account", index: "07", label: "设置", section: "settings" }],
+  },
 ];
+
+const navigation = navigationGroups.flatMap((group) => group.items);
 
 const narrowNavigationQuery = "(max-width: 48rem)";
 
@@ -59,10 +83,11 @@ export function WorkspaceShell(props: WorkspaceShellProps) {
       </a>
       <header className="topbar">
         <span aria-hidden="true" className="brand-mark" />
-        <div>
+        <div className="brand-lockup">
           <strong>语见</strong>
-          <span>{props.access === "full" ? "Cloud 学习工作台" : "账号数据权利"}</span>
+          <span>Seen &amp; Said</span>
         </div>
+        <p>{props.access === "full" ? "个人语言工作台" : "账号数据权利"}</p>
       </header>
       {props.access === "full" && (
         <details
@@ -79,18 +104,24 @@ export function WorkspaceShell(props: WorkspaceShellProps) {
         >
           <summary>主导航 · {active?.label}</summary>
           <nav aria-label="主导航" className="sidebar">
-            {navigation.map((item) => {
-              const current = item.section === props.activeSection;
-              return (
-                <a
-                  aria-current={current ? "page" : undefined}
-                  href={current ? "#main-content" : item.href}
-                  key={item.section}
-                >
-                  {item.label}
-                </a>
-              );
-            })}
+            {navigationGroups.map((group) => (
+              <section aria-label={group.label} data-navigation-group key={group.label}>
+                <p aria-hidden="true">{group.label}</p>
+                {group.items.map((item) => {
+                  const current = item.section === props.activeSection;
+                  return (
+                    <a
+                      aria-current={current ? "page" : undefined}
+                      href={current ? "#main-content" : item.href}
+                      key={item.section}
+                    >
+                      <span aria-hidden="true" data-navigation-index={item.index} />
+                      <span>{item.label}</span>
+                    </a>
+                  );
+                })}
+              </section>
+            ))}
           </nav>
         </details>
       )}

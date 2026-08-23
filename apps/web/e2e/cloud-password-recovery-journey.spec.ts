@@ -222,8 +222,9 @@ test("a learner completes password recovery only through the latest confirmed ma
     recoveryPage.getByRole("button", { name: "登录", exact: true }).click(),
   ]);
   expect(newLoginResponse.status()).toBe(200);
-  await expect(recoveryPage).toHaveURL(`${webOrigin}/app`);
-  await expect(recoveryPage.getByRole("heading", { level: 1, name: "待分析" })).toBeVisible();
+  await expect(recoveryPage).toHaveURL(`${webOrigin}/practice`);
+  await expect(recoveryPage.getByRole("heading", { level: 1, name: "今日练习" })).toBeVisible();
+  await expect(recoveryPage.getByRole("heading", { name: "今天没有待练习内容" })).toBeVisible();
   expect(authority.snapshot().webSessionCount).toBe(1);
 
   const replayContext = await browser.newContext({
