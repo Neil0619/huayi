@@ -1719,6 +1719,28 @@ typecheck、architecture、build、development blocker、Store release、product
 - **纵向回归**：API Hono 覆盖 DELETE mutation/no-store，Postgres 覆盖 list→same-key revoke replay→单一
   空审计→新 key 终态拒绝，Web adapter 覆盖 Cookie/CSRF/key DELETE；actual production bundle fake
   journey 覆盖 create→可领取→revoke→已撤销→refresh/audit，且 fragment 不进入 snapshot/Web Storage；
-- **边界与下一门**：尚未部署本候选，也未创建/撤销 Hosted 真实普通邀请。候选提交时 API/Web 必须保持
-  disarmed；后续只允许单独批准的 Web-only arm/deploy/disarm 和历史四态只读复核。通过后仍需用户明确
-  提供不同于 Operator 的授权收件人，才创建唯一普通邀请并进入 scanner-safe OTP/Auth SMTP。
+- **边界与下一门**：本节的本地候选已经由第 65 节受控 Web-only deploy/disarm；仍未创建/撤销 Hosted
+  真实普通邀请。用户重新输入当前密码后只允许先完成历史四态只读复核；通过后仍需用户明确提供不同于
+  Operator 的授权收件人，才创建唯一普通邀请并进入 scanner-safe OTP/Auth SMTP。
+
+## 65. Hosted 普通邀请生命周期 Web 受控部署（2026-08-24）
+
+- **基线**：clean candidate/upstream 为 `526fb8bf57a51b602cb73e2fc81f10f8787fc065`，API/Web
+  `deploymentEnabled` 均为布尔 `false`。默认排除 Canceled 的 Vercel 6/7 视图中，Web 为 6 条
+  （5 Ready / 1 Error），Latest `b80c793` / `7zNFzM4LHHGwyKxbwoDLfWoYGfve`；API 为 15 条
+  （12 Ready / 3 Error），Latest `39094d0` / `9jbyfnAvZwpa3Ci7YU6s6asmNZNG`；
+- **唯一武装与部署**：只把 Web production branch 武装并提交
+  `bb218178b45a7216ac247860f15dd94052f58a72`；Vercel 只新增一条 Production deployment
+  `2D2o6cYZJWSRKLHKQQB7XXxZRAt1`，source 精确匹配 arm SHA，14 秒后 Ready。Web 默认非 Canceled 数
+  6→7（6 Ready / 1 Error），API 保持 15；
+- **立即关闭**：Ready 后先于任何其他检查把 Web 恢复为 `false`，独立 disarm 提交
+  `636968d72b016e95cf5114c56c53ff49670efed5` 已推送。关闭后 Web/API 默认非 Canceled 数仍为 7/15，
+  Latest 仍分别是 `bb21817` / `2D2o6cYZJWSRKLHKQQB7XXxZRAt1` 与 `39094d0` /
+  `9jbyfnAvZwpa3Ci7YU6s6asmNZNG`，两项目最终均为 `deploymentEnabled=false`；
+- **live 只读边界**：custom-domain `/admin` 已显示 `Hosted 验收 · bb21817`，证明新 bundle 生效；刷新后
+  服务器 recent-auth 窗口已经过期，页面只显示“重新确认 Operator 身份”、当前密码输入框与确认按钮，
+  浏览器 warning/error 为 0。本轮没有读取或填写密码，没有点击创建、撤销、kill switch、额度、账号或
+  设备控制，也没有修改 Supabase/DNS/environment/secret、发送邮件或调用 DeepSeek；
+- **未完成门**：四区、新生命周期标签及“只为可领取项显示撤销”的 live DOM 复核必须等用户亲自重新输入
+  当前密码。该只读门通过前不创建/撤销真实邀请；之后仍须用户明确授权不同于 Operator 的收件人，才能
+  创建恰好一张普通邀请并继续 scanner-safe OTP/Auth SMTP。

@@ -337,5 +337,7 @@ access 失败关闭，且未放宽近期认证、角色、strict body 或写证�
 最小修复不新增 migration、公开 route、token 存储或角色 grant：Web 从既有五个公开字段投影四态，只为
 可领取项显示二步撤销，并在撤销刚创建项时清除当前内存 path；API/Postgres 回归固定 same-key replay、
 单一无正文审计和不可撤销终态，actual production bundle journey 固定 create→可领取→revoke→已撤销→
-刷新后仍为已撤销且 token 不进入 storage/snapshot。Hosted 仍需在受控 Web-only deploy/disarm 后只读
-复核四条历史记录状态；在此之前不创建或撤销真实普通邀请。
+刷新后仍为已撤销且 token 不进入 storage/snapshot。候选 `526fb8b` 已通过 Web-only arm `bb21817` 的唯一
+Ready Production deployment `2D2o6cYZJWSRKLHKQQB7XXxZRAt1` 上线，并以独立 `636968d` 关闭；live 已显示
+新 bundle，但 recent-auth 已过期。用户亲自重新输入当前密码后仍需只读复核四条历史记录状态；在此之前
+不创建或撤销真实普通邀请。

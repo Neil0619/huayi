@@ -1678,7 +1678,8 @@ environment 或 deployment，不发送邮件、不调用 DeepSeek；API/Web 始�
 ### Phase 74：普通邀请生命周期运营收口（2026-08-24）
 
 影响平台为 `shared Web/API + hosted-acceptance`。真实 Hosted `/admin` 已完成密码重新认证和四区只读，
-但四条邀请历史只显示 ID/expiry 且无状态；本阶段不创建/撤销真实邀请、不部署、不修改数据库或外部服务。
+但四条邀请历史只显示 ID/expiry 且无状态；实现阶段不创建/撤销真实邀请、不修改数据库或外部服务，随后
+只按单独批准执行一次 Web-only 受控部署。
 
 1. **需求与根因**：产品和 Phase 19 已要求创建/撤销；数据库、strict contract、API list 和 DELETE 已完整
    支持 consumed/revoked timestamps、recent-auth Operator、幂等与无正文审计。缺口仅是 Web 丢弃状态
@@ -1690,6 +1691,8 @@ environment 或 deployment，不发送邮件、不调用 DeepSeek；API/Web 始�
    Postgres same-key replay/单一空审计和 actual-bundle create→revoke→refresh 证据；secret snapshot 保持零；
 4. **运营恢复**：丢失普通邀请 token 时按公开 ID/创建顺序撤销对应可领取项；无法唯一定位则撤销所有
    可能项后重建。不得恢复明文、盲目叠加邀请、用 SQL 或复用 Bootstrap replace；
-5. **远端剩余门**：候选必须在 API/Web 双 disarmed 下提交；之后仅经单独批准的 Web-only
-   arm→deployment→disarm，先只读核对四条历史状态与零 console error，再由用户授权不同于 Operator 的
-   收件人创建恰好一张普通邀请并继续 scanner-safe OTP/Auth SMTP。
+5. **远端状态与剩余门**：候选 `526fb8b` 在双 disarmed 下提交；Web-only arm `bb21817` 只新增 Ready
+   Production deployment `2D2o6cYZJWSRKLHKQQB7XXxZRAt1`，Web 默认非 Canceled 数 6→7、API 保持 15；
+   独立 disarm `636968d` 没有新增 deployment，两项目最终均为 `false`。live 已显示 bundle `bb21817`，
+   但 recent-auth 已过期；用户亲自重新输入当前密码后，先只读核对四条历史状态与零 console error，再
+   授权不同于 Operator 的收件人创建恰好一张普通邀请并继续 scanner-safe OTP/Auth SMTP。

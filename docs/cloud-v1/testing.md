@@ -1004,7 +1004,10 @@ idempotency_records`，修复后覆盖创建、练习、历史、删除、词典
 - actual production bundle fake authority 覆盖 create→一次性 path→可领取→二步 revoke→已撤销→刷新，
   验证 DELETE 为 `write-valid`、刷新后终态与 audit 可见、当前 output 被清除，token 不进入 snapshot/
   Storage；组件另覆盖 DELETE 响应不确定时立即清除 output、关闭重复撤销并要求 GET 重读。该层不创建
-  或撤销 Hosted 真实邀请；真实历史四态仍需 Web-only deploy/disarm 后只读复核。
+  或撤销 Hosted 真实邀请。候选 `526fb8b` 已由 Web-only arm `bb21817` 产生唯一 Ready Production
+  deployment `2D2o6cYZJWSRKLHKQQB7XXxZRAt1`，独立 disarm `636968d` 后 Web/API 默认非 Canceled 数
+  保持 7/15 且两项目均关闭；custom domain 已显示新 bundle，但 recent-auth 已过期，真实历史四态仍待
+  用户亲自重新输入当前密码后只读复核。
 
 ### 4.20 Hosted acceptance foundation bootstrap、管理员只读与应用安全复核
 

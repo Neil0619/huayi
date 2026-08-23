@@ -38,15 +38,19 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       callback hardening Ready + 独立 disarm，关闭提交均零新增。此后第 13 条 migration、账号恢复、First
       Operator complete/post-completion verify 和 `/admin` recent-auth UI 受控部署已完成。安全响应头候选
       `3c0af44` 经 reviewed arm `b80c793` 只产生 Ready Web deployment
-      `7zNFzM4LHHGwyKxbwoDLfWoYGfve`，独立 disarm `0e7ef52` 没有新增部署。当前 API/Web 7/7 状态分布
-      分别为 12 Ready / 3 Error / 9 Canceled 与 5 Ready / 1 Error / 10 Canceled；默认排除 Canceled 的
-      6/7 视图分别为 15 与 6 条，Latest API 为 `39094d0` / `9jbyfnAvZwpa3Ci7YU6s6asmNZNG`，Latest Web
-      为 `b80c793` / `7zNFzM4LHHGwyKxbwoDLfWoYGfve`，且两项目均为 `deploymentEnabled=false`。live `/`、
+      `7zNFzM4LHHGwyKxbwoDLfWoYGfve`，独立 disarm `0e7ef52` 没有新增部署；该阶段 7/7 状态分布为 API
+      12 Ready / 3 Error / 9 Canceled、Web 5 Ready / 1 Error / 10 Canceled。随后普通邀请生命周期候选
+      `526fb8b` 经 Web-only arm `bb21817` 只产生 Ready Production deployment
+      `2D2o6cYZJWSRKLHKQQB7XXxZRAt1`，Web 默认非 Canceled 数 6→7，API 保持 15；独立 disarm
+      `636968d` 没有新增非 Canceled deployment。Latest API 仍为 `39094d0` /
+      `9jbyfnAvZwpa3Ci7YU6s6asmNZNG`，Latest Web 为 `bb21817` /
+      `2D2o6cYZJWSRKLHKQQB7XXxZRAt1`，且两项目均为 `deploymentEnabled=false`。live `/`、
       `/privacy`、`/admin` 与实际 JS asset 已通过精确安全响应头、真实渲染、exact SHA 和 secret scan；
       同轮公共边界只读探针通过，未写 Auth、SMTP、Supabase 或 DeepSeek。用户随后已亲自提交 `/admin`
       密码并通过 Operator 四区只读；邀请区四条历史行暴露“只有 ID/expiry、无状态”的 Web 缺口，尚未
-      创建或撤销普通邀请。生命周期显示修复仍需 Web-only deploy/disarm，OTP、真实邮件、Cron 与 DeepSeek
-      应用路径 smoke 仍未完成，因此本项仍未勾选；
+      创建或撤销普通邀请。新 bundle 已显示 `Hosted 验收 · bb21817`，但刷新后 15 分钟 recent-auth 已过期，
+      因此四态/撤销入口仍待用户重新输入当前密码后只读复核；OTP、真实邮件、Cron 与 DeepSeek 应用路径
+      smoke 仍未完成，因此本项仍未勾选；
 - [x] 在正确 Rotate 后 exact-SHA `7577cdd` deployment 上通过 DB-backed application-role smoke；
       `GET /health` 为 200，随机无效 session 的 `GET /v1/quota` 为精确 401
       `authentication_required`。deployment ID/SHA/创建时间与 Git 关闭证据已记录，API 未重新武装；
@@ -261,7 +265,12 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       404；全程未创建 Auth flow、发送 SMTP、修改 Supabase、调用 DeepSeek 或执行其他外部写入；
 - [x] 用户亲自输入当前密码并验证 `/admin` 四区与 Operator 只读权限；页面无 alert/console error，显示一
       个 active Operator、四条邀请 metadata 和零无正文审计，本门没有执行任何管理 mutation；
-- [ ] 受控部署普通邀请四态/撤销修复并只读复核历史行后，由用户明确授权不同于 Operator 的收件人创建
+- [x] 普通邀请生命周期候选 `526fb8b` 经 Web-only arm `bb21817` 只新增 Ready Production deployment
+      `2D2o6cYZJWSRKLHKQQB7XXxZRAt1`；Web 默认非 Canceled 数 6→7、API 保持 15，独立 disarm
+      `636968d` 与后续关闭状态均未新增 deployment，两项目最终保持 `deploymentEnabled=false`；live
+      custom domain 已显示 exact bundle short SHA `bb21817`；
+- [ ] 用户重新输入当前密码后只读复核普通邀请历史行四态与“仅可领取可撤销”，再由用户明确授权不同于
+      Operator 的收件人创建
       恰好一张邀请，再完成 scanner/repeated GET 无副作用、显式 OTP POST、Web 落点和密码重登；真实邮件
       投递、Cron 和 DeepSeek 应用路径 smoke 仍保持 pending，完成管理门前不得运行 DeepSeek 应用路径 smoke。
 
