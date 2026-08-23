@@ -987,6 +987,10 @@ idempotency_records`，修复后覆盖创建、练习、历史、删除、词典
   下一次 Web-only arm/deploy/disarm 后必须对 `/`、`/privacy`、SPA 深路径和静态 asset 回读四个响应头，
   再跑密码登录、Google disabled、API credentialed fetch 与原生表单/跳转回归。COOP 保持未配置，除非另有
   popup/redirect 兼容性设计与浏览器证据。
+- 2026-08-24 远端回归已由 Web arm `b80c793` / deployment `7zNFzM4LHHGwyKxbwoDLfWoYGfve` / disarm
+  `0e7ef52` 关闭：`/`、`/privacy`、`/admin` 和实际 JS asset 均为 200/TLS verify 0，精确返回四项安全头并
+  保留 HSTS；页面显示 arm short SHA，bundle 含完整 arm SHA，浏览器无 CSP/error log。默认 6/7 非 Canceled
+  可见数为 Web 5→6、API 保持 15，两项目最终均 disarmed。
 
 ### 4.20 Hosted acceptance foundation bootstrap、管理员只读与应用安全复核
 

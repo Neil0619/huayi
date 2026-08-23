@@ -237,11 +237,19 @@ production 的 Web/API/Supabase project 尚未冻结，因此不得用 wildcard 
 表单 redirect 风险依据 [CSP Level 3 form-action](https://www.w3.org/TR/CSP3/#directive-form-action)；不使用
 Dashboard-only header 作为仓库契约。
 
-2026-08-24 公网只读检查确认当前 Ready Web deployment 只有 HSTS，缺上述四个仓库控制的响应头。离线
-Fresh RED/GREEN 只能证明候选配置，尚未部署；必须保持 API/Web 双 disarm，待本批候选审查通过后按既有
-Web-only arm → 唯一 deployment record → 立即独立 disarm 顺序发布，再从 custom domain 回读所有 path 和
-asset。未完成该远端回读前不得把 Hosted Web security-header 门标记为通过。本次不配置 COOP，避免在没有
-Google redirect/popup 浏览器证据时引入新的 browsing-context 兼容性假设。
+2026-08-24 初始公网只读检查确认旧 Ready Web deployment 只有 HSTS。安全头候选
+`3c0af44f73f769da829c4218bf8fc69ef571f133` 在双关闭状态推送后没有部署；随后 Web-only arm
+`b80c7930b8d4a9a87f8c27e500316899adbbdc53` 只新增 Production/Ready deployment
+`7zNFzM4LHHGwyKxbwoDLfWoYGfve`，独立 disarm
+`0e7ef5271b2f97cd9b3743275292e4037bd0f801` 没有新增非 Canceled deployment。默认 6/7 非 Canceled 可见数
+为 Web 5→6、API 保持 15；API 最新 Ready source 仍为 `39094d0`，两份配置最终均为布尔 `false`。
+
+Custom domain 的 `/`、`/privacy`、`/admin` 与实际 `/assets/index-Cl8ZwtXY.js` 均为 HTTP 200、TLS verify
+result 0，并精确返回候选 CSP、`no-referrer`、`nosniff`、禁止 camera/microphone/geolocation 的
+Permissions-Policy 和既有 `Strict-Transport-Security: max-age=63072000`。实际 bundle 恰好包含一次完整 arm
+SHA 且不含旧候选 SHA；页面显示 `Hosted 验收 · b80c793`，隐私页与 `/admin` 密码重新认证门完成渲染且
+浏览器无 error log。因此 acceptance security-header 远端门已关闭。本次仍不配置 COOP，避免在没有 Google
+redirect/popup 浏览器证据时引入新的 browsing-context 兼容性假设。
 
 2026-08-22 候选范围复核：当前工作树有 116 个 tracked 修改、103 个未跟踪交付文件、0 个 staged 项；
 没有冲突、symlink、超过 1 MiB 的候选、生成目录、归档/可执行/私钥文件或已知泄露 Resend key。通用

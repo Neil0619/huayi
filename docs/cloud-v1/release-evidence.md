@@ -1676,3 +1676,28 @@ typecheck、architecture、build、development blocker、Store release、product
 - **当前仓库基线校准**：0013 应用后仓库与 Hosted forward migration head 均为 13 条；当前
   `CLOUD_DEVELOPMENT_BLOCKER_CODES` 为 10 项。旧章节中的“12 条 migration”或“固定九项”只保留为其
   所属阶段的历史快照，不代表当前基线。
+
+## 63. Hosted Web 安全响应头受控部署（2026-08-24）
+
+- **部署前基线**：安全头候选 `3c0af44f73f769da829c4218bf8fc69ef571f133` 已推送但未部署；仓库干净，
+  HEAD/origin 一致，API/Web `deploymentEnabled` 均为布尔 `false`。Vercel 默认 6/7 非 Canceled 列表中
+  API/Web 分别为 15/5；最新 Ready source 分别为 `39094d0` / `3fcc832`；
+- **唯一 Web deployment**：只修改 Web policy 的 arm commit
+  `b80c7930b8d4a9a87f8c27e500316899adbbdc53` 新增且只新增 Production deployment
+  `7zNFzM4LHHGwyKxbwoDLfWoYGfve`，source 精确匹配，15 秒后 Ready。Web 默认可见数 5→6，API 保持 15；
+  API 从未 armed；
+- **独立关闭**：Ready 后立即推送独立 disarm
+  `0e7ef5271b2f97cd9b3743275292e4037bd0f801`。等待后 Web/API 非 Canceled 数仍为 6/15，最新 source 分别
+  保持 `b80c793` / `39094d0`；两份 Vercel 配置均为布尔 `false`，关闭提交没有产生额外非 Canceled
+  deployment；
+- **公网 header/TLS**：custom domain `/`、`/privacy`、`/admin` 与实际
+  `/assets/index-Cl8ZwtXY.js` 全部返回 HTTP 200、TLS verify result 0；四处 CSP 都精确等于仓库候选，另有
+  `Referrer-Policy: no-referrer`、`X-Content-Type-Options: nosniff`、
+  `Permissions-Policy: camera=(), microphone=(), geolocation=()`，并保留
+  `Strict-Transport-Security: max-age=63072000`；
+- **渲染与构建身份**：Root、隐私页和 `/admin` 均完成实际浏览器渲染，显示
+  `Hosted 验收 · b80c793`；`/admin` 稳定进入密码重新认证门，浏览器 error log 为空。实际 JS bundle
+  恰好包含一次完整 arm SHA，不含未部署候选完整 SHA；
+- **边界**：本阶段没有修改 Supabase、Custom SMTP、DNS、Vercel environment 或密钥，没有发送邮件、
+  调用 DeepSeek 或武装 API。响应头验收不替代用户亲自输入当前密码后的 `/admin` 四区、普通邀请与 OTP
+  journey。
