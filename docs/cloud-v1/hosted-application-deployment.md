@@ -348,7 +348,9 @@ Web armed policy 只允许 `codex/settings-configuration` 并保留 `"**": false
 disarm `26022a9` 没有新增 API/Web deployment。日志确认旧 `pnpm build` 在干净 checkout 中先解析
 `@huayi/cloud-contracts`，但其 ignored `dist` 尚未生成。仓库修复保持 Git deployment 关闭，改用
 `pnpm build:vercel` 先构建 learning-domain、cloud-contracts 再运行 Vite；下一次 reviewed re-arm 前必须
-先完成离线门，真实 deployment 还必须回读相同构建顺序。
+先完成离线门，真实 deployment 还必须回读相同构建顺序。修复提交
+`aba1cc07a4bea87074068148f672424f3e615f31` 已在双项目 disarmed 状态推送；Dashboard 回读 Web 仍只有
+原 Error、API 仍为 10 条，证明 fix-only push 没有触发 deployment。
 
 ## 7. TDD 与验收标准
 

@@ -1623,6 +1623,7 @@ passed; first Operator empty`。候选已提交推送，0012 已实际 push；�
 - 最新 `pnpm verify:macos` 原样退出 0：235/235 Node script tests、474/474 Vitest files（2,866 passed /
   12 skipped）、Store 97 files 481/481、Playwright 110/110；instructions、format、lint、typecheck、
   architecture、workspace build、development blocker、Store release 与 production audit 同轮通过；
-- 当前 API/Web Git deployment 均关闭；修复仍在本地未提交工作树，修复后的完整 macOS 门已通过，
-  fix-only 安全 push 尚未完成。下一次真实 Web deployment 必须另行 reviewed re-arm，日志必须显示
-  learning-domain → cloud-contracts → Web Vite；不能直接 redeploy 失败记录或提前执行公开 smoke。
+- 当前 API/Web Git deployment 均关闭；修复后的完整 macOS 门已通过，fix-only commit
+  `aba1cc07a4bea87074068148f672424f3e615f31` 已推送且没有触发 Web/API deployment。下一次真实 Web
+  deployment 必须另行 reviewed re-arm，日志必须显示 learning-domain → cloud-contracts → Web Vite；
+  不能直接 redeploy 失败记录或提前执行公开 smoke。

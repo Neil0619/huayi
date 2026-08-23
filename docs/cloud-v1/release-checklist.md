@@ -31,9 +31,10 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       现有 API 的 Web-origin/外域 CORS OPTIONS 无写入预检已通过。首个 Web-only deployment
       `87fk9rqpGH2sUcGrzCf68tuXjyu8` 在精确 source `c9ee267` 上因 workspace dist 未先构建而 Error；独立
       disarm `26022a9` 没有触发第二条 Web 或 API deployment。`pnpm build:vercel` 本地修复已通过缺失 dist
-      条件验证和完整 macOS 门，但尚未完成 fix-only push 和下一次 reviewed re-arm。后续顺序固定为成功
-      Web deployment → 独立 disarm → 零账号公开 smoke → Auth/SMTP/首位账号 → Operator complete →
-      DeepSeek 应用路径 smoke；Web/邮件/Cron/邀请等完整运行验收仍未完成，因此本项仍未勾选；
+      条件验证和完整 macOS 门；fix-only `aba1cc0` 已推送且没有新增 Web/API deployment，但下一次 reviewed
+      re-arm 尚未完成。后续顺序固定为成功 Web deployment → 独立 disarm → 零账号公开 smoke →
+      Auth/SMTP/首位账号 → Operator complete → DeepSeek 应用路径 smoke；Web/邮件/Cron/邀请等完整运行
+      验收仍未完成，因此本项仍未勾选；
 - [x] 在正确 Rotate 后 exact-SHA `7577cdd` deployment 上通过 DB-backed application-role smoke；
       `GET /health` 为 200，随机无效 session 的 `GET /v1/quota` 为精确 401
       `authentication_required`。deployment ID/SHA/创建时间与 Git 关闭证据已记录，API 未重新武装；

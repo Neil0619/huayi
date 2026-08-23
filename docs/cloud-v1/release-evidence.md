@@ -1542,5 +1542,7 @@ typecheck、architecture、build、development blocker、Store release、product
 - **修复完整门**：`pnpm verify:macos` 原样退出 0：235/235 Node script tests、474/474 Vitest files
   （2,866 passed / 12 skipped）、Store 97 files 481/481、Playwright 110/110；instructions、format、lint、
   typecheck、architecture、workspace build、development blocker、Store release 与 production audit 均通过，
-  production dependencies 无已知漏洞。修复仍为本地未提交工作树；fix-only push 和下一次 reviewed
-  re-arm 尚待完成。
+  production dependencies 无已知漏洞；
+- **fix-only push 边界**：commit `aba1cc07a4bea87074068148f672424f3e615f31` 已在 API/Web
+  `deploymentEnabled=false` 下推送。Dashboard 等待并回读后，Web 仍只有 `87fk9rqpGH2sUcGrzCf68tuXjyu8`
+  一条 Error，API 仍为 10 条且 Latest 未变；下一次 reviewed re-arm 尚待完成。

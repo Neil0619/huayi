@@ -1566,5 +1566,6 @@ status 关闭这道门；下一步可以按外部门顺序准备 Vercel 创建�
    `pnpm build` 在 Vite 解析 runtime export 时失败。Fresh RED 锁定 `buildCommand` 与 package script；最小
    GREEN 新增 `pnpm build:vercel`，先构建 learning-domain、cloud-contracts，再运行 Vite。临时移走本地
    cloud-contracts `dist` 后原错误可重复出现，专用构建在同一条件下通过；修复后的完整
-   `pnpm verify:macos` 已退出 0。下一步只允许在双项目 disarmed 状态提交并推送 fix-only；下一次真实
-   deployment 仍须独立 reviewed re-arm，不得直接 redeploy 失败记录。
+   `pnpm verify:macos` 已退出 0。fix-only commit
+   `aba1cc07a4bea87074068148f672424f3e615f31` 已在双项目 disarmed 状态推送，Web 仍只有原 Error、API
+   仍为 10 条；下一次真实 deployment 仍须独立 reviewed re-arm，不得直接 redeploy 失败记录。
