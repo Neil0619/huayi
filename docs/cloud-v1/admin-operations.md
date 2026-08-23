@@ -342,3 +342,14 @@ Ready Production deployment `2D2o6cYZJWSRKLHKQQB7XXxZRAt1` 上线，并以独立
 新 bundle。独立复核使用用户仍有效的 recent-auth 会话读取到一条“已领取”和三条“已撤销”，终态行均
 无撤销入口且 console error 为零。当前没有 active/expired 行；active 标签与二步撤销必须随唯一普通邀请
 验证，expired 标签保留到真实过期行出现时验证。在此之前不创建或撤销真实普通邀请。
+
+## 12. 2026-08-24 UI 合并后的 Hosted 复核
+
+Cloud Web UI 重设计已合并为 `524a55b`，并通过 Web-only arm `f3feff1` 的唯一 Ready deployment
+`DU6wE2r9ZLeSSoAMZAbsQihBjC72` 上线；独立 `d6d901c` disarm 没有新增非 Canceled deployment。
+管理员页只同步 token 与排版，不改变 recent-auth、Operator、Origin/CSRF/Idempotency 或二步确认。
+
+真实浏览器刷新 `/admin` 后显示 exact arm short SHA，但 15 分钟 recent-auth 已在合并、全门与部署期间
+自然过期，因此准确回到密码重新确认页；登录 session 本身仍有效。下一项必须由 Operator 本人再次输入
+当前密码。自动化不得读取、保存或提交密码，也不得把“曾进入控制台”当作无限期 recent-auth。重新进入后
+先回读四区与邀请列表，再经用户即时确认创建唯一普通邀请。

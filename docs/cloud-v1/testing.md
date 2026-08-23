@@ -1010,6 +1010,12 @@ idempotency_records`，修复后覆盖创建、练习、历史、删除、词典
   会话读取到一条“已领取”和三条“已撤销”，终态行均无撤销入口且 console error 为零。当前无 active/
   expired 行，因此“可领取”及其二步撤销必须随唯一普通邀请验证，“已过期”保留到真实过期行验证。
 
+- Cloud Web 工作台重设计合并后，必须重新执行完整 macOS 门禁和受控 Hosted 部署：先确认 API/Web
+  均为 disarmed，再只 arm Web 并等待唯一 deployment 进入终态，随后以独立提交 disarm；disarm
+  不得产生第二条 non-canceled deployment，API 全程不得 armed。部署后至少实测 `/practice` 与
+  `/admin`；若 `/admin` 的 15 分钟 recent-auth 已自然过期，只要求用户重新输入当前 Operator
+  密码，不得重做 Supabase、DNS、环境变量、密钥或 First Operator bootstrap。
+
 ### 4.20 Hosted acceptance foundation bootstrap、管理员只读与应用安全复核
 
 - Fresh RED 必须先因 `acceptance-hosted-bootstrap.mjs`、共享 foundation 常量和 verify 入口缺失失败；

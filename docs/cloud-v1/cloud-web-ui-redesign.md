@@ -48,3 +48,16 @@
   Google、密码、恢复和邀请后的默认入口；
 - 默认门禁保持离线、无 secret、无 hosted 写入；真实部署、Google、Supabase、邮件和双平台 Chrome
   仍需各自批准后验收。
+
+## 6. Hosted 合并与部署证据（2026-08-24）
+
+- UI 唯一提交 `0fff445` 已三方合并到最新 Hosted 验收基线，合并提交为 `524a55b`；自动合并保留普通
+  邀请四态、Phase 72、管理员控制台与安全响应头，并保持 API/Web Git deployment 默认关闭；
+- 合并后完整 `verify:macos` 通过：240 项脚本测试、476 个 Vitest 文件（2,899 passed / 12 skipped）、
+  Store 481/481 与 92.66% statement coverage、Playwright 111/111、全仓 build 与 production audit；
+- Web-only arm `f3feff1` 只新增 Ready Production deployment
+  `DU6wE2r9ZLeSSoAMZAbsQihBjC72`，source 与 arm SHA 精确一致；独立 disarm `d6d901c` 没有新增非
+  Canceled deployment，最终 API/Web 分别保持 15/8 条非 Canceled 且两份配置均为 `false`；
+- live `/practice` 已显示 `Hosted 验收 · f3feff1`、七项分组导航与内容优先的今日练习空态。部署后
+  `/admin` 的 15 分钟 recent-auth 已自然过期，下一项仍是用户亲自重新确认密码；本阶段没有创建邀请、
+  发送邮件、修改 Supabase/DNS/environment/secret 或调用 DeepSeek。

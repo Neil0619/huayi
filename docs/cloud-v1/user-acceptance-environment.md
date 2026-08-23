@@ -415,6 +415,12 @@ Web 14，Canceled 为 7/10；两个 disarm 均未在其目标项目新增 deploy
 完成当前账号恢复及新账号 OTP journey 前不得切换 kill switch 或运行真实 Cloud DeepSeek 应用路径 smoke；
 再后续为真实 R3-C → Cron。下一次 Windows 全门等到验收批次冻结，不因每个文档或配置步骤重复执行。
 
+2026-08-24 后续 UI 合并候选 `524a55b` 已通过完整 macOS 门并由 Web-only arm `f3feff1` 部署为
+`DU6wE2r9ZLeSSoAMZAbsQihBjC72`；独立 disarm `d6d901c` 零额外非 Canceled，最终 Web/API 为 8/15 且
+均关闭。live `/practice` 已显示新工作台；部署期间 `/admin` 的 15 分钟密码确认自然过期，下一项是用户
+本人再次提交当前密码后创建唯一普通邀请。不得因重复进入 recent-auth 门而重做 Supabase migration、
+First Operator、Vercel environment、DNS 或密钥配置。
+
 ## 10. 官方约束来源
 
 - [Vercel environments](https://vercel.com/docs/deployments/environments)

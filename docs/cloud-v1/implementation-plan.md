@@ -1698,3 +1698,23 @@ environment 或 deployment，不发送邮件、不调用 DeepSeek；API/Web 始�
    四区完整且 console error 为零。当前没有“可领取”或“已过期”行；“可领取”标签与二步撤销入口必须在
    用户明确授权不同于 Operator 的收件人、创建恰好一张普通邀请后再经 live DOM 验证，并继续
    scanner-safe OTP/Auth SMTP。
+
+### Phase 75：Cloud Web UI 合并、验证与受控部署（2026-08-24）
+
+影响平台为 `shared Web/API + hosted-acceptance`。UI 任务只改变 Cloud Web 信息架构与完整认证默认落点，
+不改变 Classic、Store runtime、数据库、权限或公开数据 contract。
+
+1. **任务校验与合并**：读取“重审并升级UI设计”任务，核实目标为唯一提交 `0fff445`；以 `87212ff` 为
+   merge-base 对当前分支做三方预检，6 个并发文件均自动合并且零 conflict marker。合并提交 `524a55b`
+   保留邀请四态、管理员控制台、Phase 72、安全响应头和两项目默认 disarm；
+2. **行为边界**：完整账号的 Google、密码确认与 Web 登录默认落点统一为 `/practice`；data-rights 仍为
+   `/settings/data`，`/app` 仍是“待整理”。七项一级导航、URL、权限和后端请求保持不变；
+3. **合并后验证**：focused Web 224/224、API 串行 529/529、关键 Playwright 33/33 与 Web/API typecheck/
+   Web build 通过；完整 `verify:macos` 通过 240 项脚本、476 个 Vitest 文件（2,899 passed / 12 skipped）、
+   Store 481/481、Playwright 111/111、全仓 build/audit；
+4. **受控部署**：双关闭候选 push 后 API/Web 仍为 15/7 条非 Canceled；Web-only arm `f3feff1` 只新增
+   Ready deployment `DU6wE2r9ZLeSSoAMZAbsQihBjC72`，独立 disarm `d6d901c` 零额外非 Canceled。
+   最终 API/Web 为 15/8，API latest 不变，两份配置均为 `false`；
+5. **真实页面与下一门**：live `/practice` 显示 exact arm short SHA、新分组导航和今日练习空态。部署期间
+   `/admin` recent-auth 自然过期，下一项仍是用户本人再次提交当前密码，然后创建唯一普通邀请；UI 部署
+   不关闭 OTP/Auth SMTP、R3-C、Cron、DeepSeek、备份、自然使用或 Windows 最终批次。

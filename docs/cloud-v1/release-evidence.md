@@ -1745,3 +1745,25 @@ typecheck、architecture、build、development blocker、Store release、product
 - **未完成门**：现有数据没有“可领取”或“已过期”行，因此这两种 live 标签及“只为可领取项显示二步
   撤销”不能由历史终态行冒充。仍须用户明确授权不同于 Operator 的收件人，随后创建恰好一张普通邀请，
   以新 active 行关闭该 DOM 门并继续 scanner-safe OTP/Auth SMTP。
+
+## 66. Cloud Web UI 合并、全门与 Web-only 受控部署（2026-08-24）
+
+- **任务来源与合并**：读取任务“重审并升级UI设计”后核实唯一 UI 提交 `0fff445`，merge-base 为
+  `87212ff`；当前验收分支领先 5 个提交。`merge-tree` 对 6 个并发文件零结构/文本冲突，合并提交
+  `524a55b35dadfd1e8bd1ef89b0abc2baadf69066` 同时保留邀请四态、安全响应头、Phase 72 与双项目
+  `deploymentEnabled=false`；
+- **合并后门禁**：focused Web 224/224、API 串行 529/529、关键 Playwright 33/33、Web/API typecheck 与
+  Web build 通过；完整 `verify:macos` 再通过 240/240 脚本测试、476 个 Vitest 文件（2,899 passed / 12
+  skipped）、Store 481/481 与 92.66% statements、Playwright 111/111、全仓 build 和零 high production
+  vulnerability；首次并行 API 检查的四个 10 秒 hook timeout 经单独串行重跑全部通过；
+- **真实部署**：推送双关闭候选后 Web/API 保持 7/15 条非 Canceled。只 arm Web 的独立提交
+  `f3feff1252673e715a5624c9539f04d8078a5d4b` 仅产生 Production deployment
+  `DU6wE2r9ZLeSSoAMZAbsQihBjC72`，source 精确匹配且 15 秒 Ready；记录出现后立即推送独立 disarm
+  `d6d901c`。最终 Web/API 为 8/15，Web latest 仍为该 arm deployment，API latest 仍为
+  `39094d0` / `9jbyfnAvZwpa3Ci7YU6s6asmNZNG`，两份配置均为布尔 `false`；
+- **live 只读结果**：真实 `/practice` 返回 `Hosted 验收 · f3feff1`，显示七项分组导航、今日练习内容优先
+  空态与新视觉，无管理或外部 mutation。`/admin` 仍保持已登录 session，但部署耗时使 15 分钟密码
+  recent-auth 自然过期，页面准确回到“重新确认 Operator 身份”；后续必须由用户本人重新输入当前密码；
+- **边界**：本阶段未修改 API deployment、Supabase、DNS、Vercel environment 或密钥，未创建/撤销
+  邀请、发送邮件、切换 kill switch 或调用 DeepSeek。普通邀请、OTP/Auth SMTP、R3-C、Cron 与 Cloud
+  DeepSeek 依赖链不因 UI 部署而被标记完成。

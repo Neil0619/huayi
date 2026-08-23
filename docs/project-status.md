@@ -1697,3 +1697,17 @@ passed; first Operator empty`。候选已提交推送，0012 已实际 push；�
   source 仍为 `39094d0`，最终 API/Web 7/7 状态分布分别为 12 Ready / 3 Error / 9 Canceled 与 4 Ready /
   1 Error / 10 Canceled，且两项目均为 `deploymentEnabled=false`。当前下一门是用户亲自完成 `/admin`
   密码重新认证，再验证四区、普通邀请和 OTP journey；DeepSeek smoke 尚未执行。
+
+## Cloud V1 Phase 75 Cloud Web UI 合并与 Hosted 部署状态（2026-08-24）
+
+- “重审并升级UI设计”的唯一提交 `0fff445` 已合并为 `524a55b`，保留 Hosted 邀请四态、Phase 72、管理员
+  recent-auth、安全响应头及 API/Web 默认 disarm；完整账号认证默认落点统一为 `/practice`，七项一级导航、
+  data-rights `/settings/data`、后端权限和请求 contract 不变；
+- 合并后 `pnpm verify:macos` 原样退出 0：240/240 scripts、476 个 Vitest 文件（2,899 passed / 12 skipped）、
+  Store 481/481、Playwright 111/111、全仓 build 与 production audit 全绿；
+- Web-only arm `f3feff1` 只新增 Ready Production deployment `DU6wE2r9ZLeSSoAMZAbsQihBjC72`，独立
+  disarm `d6d901c` 没有新增非 Canceled deployment。最终 API/Web 分别为 15/8 且均
+  `deploymentEnabled=false`；live `/practice` 显示 exact arm short SHA 与新工作台；
+- 部署期间 `/admin` 的 15 分钟 recent-auth 自然过期，但登录 session 仍有效。当前下一门仍是用户本人重新
+  输入当前 Operator 密码、回读四区，再经即时确认创建唯一普通邀请；本阶段未创建邀请、发送邮件、修改
+  Supabase/DNS/environment/secret、切换 kill switch 或调用 DeepSeek。

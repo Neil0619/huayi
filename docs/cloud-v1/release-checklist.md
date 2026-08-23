@@ -85,10 +85,10 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
 - [x] 当前 macOS 工作树的 instructions、architecture、format、lint、typecheck、unit、API integration
       全绿；最新 Phase 70 门为 235/235 Node scripts、474/474 Vitest files（2,866 passed / 12 skipped）、
       Store 97 files 481/481 与 Playwright 110/110；
-- [x] 当前 Web 与 Store Extension Playwright 110/110 全绿；测试使用隔离的 4173 Vite 服务，没有改写或
+- [x] 当前 Web 与 Store Extension Playwright 111/111 全绿；测试使用隔离的 4173 Vite 服务，没有改写或
       重启当前 8443 验收环境；
-- [x] 当前 macOS `pnpm verify:macos` 原样退出 0：235/235 Node scripts、474 个 Vitest files（2,866
-      passed / 12 skipped）、Store 97 files 481/481、Playwright 110/110；instructions、format、lint、typecheck、
+- [x] 当前 macOS `pnpm verify:macos` 原样退出 0：240/240 Node scripts、476 个 Vitest files（2,899
+      passed / 12 skipped）、Store 97 files 481/481、Playwright 111/111；instructions、format、lint、typecheck、
       architecture、workspace build、development blocker、Store release、production audit 和 diff 同轮通过；
 - [ ] Windows Node.js 26+ 的 `pnpm verify:windows`、SEA health 与 CI 全绿；Phase 37-B 已在 Windows 11
       build 26220、Node.js 26.7.0 上本地退出 0，109/109 Playwright、SEA 仓库外 health 与 production
@@ -272,6 +272,10 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       custom domain 已显示 exact bundle short SHA `bb21817`；
 - [x] 新 bundle 在用户仍有效的 recent-auth 会话中只读显示一条“已领取”和三条“已撤销”；终态行均无
       撤销入口、四区完整、console error 为零，且没有执行管理 mutation；
+- [x] UI 唯一提交 `0fff445` 已合并为 `524a55b`，完整 `verify:macos` 通过；Web-only arm `f3feff1` 只新增
+      Ready deployment `DU6wE2r9ZLeSSoAMZAbsQihBjC72`，独立 disarm `d6d901c` 零额外非 Canceled。
+      最终 Web/API 为 8/15 且均 `deploymentEnabled=false`；live `/practice` 已显示 exact arm short SHA、
+      七项分组导航和新今日练习空态；
 - [ ] 用户明确授权不同于 Operator 的收件人后创建恰好一张邀请，以新 active 行验证“可领取”标签与二步
       撤销入口，再完成 scanner/repeated GET 无副作用、显式 OTP POST、Web 落点和密码重登；“已过期”
       live 标签保留到出现真实过期行时验证。真实邮件投递、Cron 和 DeepSeek 应用路径 smoke 仍保持
