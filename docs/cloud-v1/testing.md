@@ -989,6 +989,10 @@ session is invalid.`；400 `invalid_request` 表示 runtime 数据库路径未�
   scan；允许 Web origin/credentials 且拒绝其他 origin 的 CORS preflight；无 Cookie 的 CSRF/SSE 入口 401；
   缺 flow/code callback 400 加 `private, no-store` / `no-referrer`。同时以只读远端状态证明 Auth/profile/
   admin/invitation/usage 仍为空。该门不调用 Supabase signup、SMTP 或 DeepSeek；
+- Phase 70 真实证据已在 Web deployment `6AAAVXP175oviEhrjULxH48eQjPu` / source `b87ef03` 上关闭：Web
+  TLS/200、hosted identity、三项 bundle 零秘密、CSRF/分析 401、失败 callback 400 及其缓存/referrer header
+  均符合契约；只读联合计数的 Auth/profile/admin/invitation/analysis/usage/rate-limit/audit/首位 Operator
+  共 12 项全部为 0。独立 disarm `c5c25f5` 没有新增 Web/API deployment；
 - Cloud DeepSeek 必须在正常邀请注册并 complete Operator 后，由受审计 `/admin` 动作临时关闭 kill switch，
   再经真实 Web session 的应用路径核验 model/usage/价格 UUID/reservation/UsageLedger。Classic
   `pnpm smoke:deepseek`、公开测试 endpoint、直接 Auth 用户或 SQL 绕过均不可作为 hosted 证据；

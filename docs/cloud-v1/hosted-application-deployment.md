@@ -352,6 +352,14 @@ disarm `26022a9` 没有新增 API/Web deployment。日志确认旧 `pnpm build` 
 `aba1cc07a4bea87074068148f672424f3e615f31` 已在双项目 disarmed 状态推送；Dashboard 回读 Web 仍只有
 原 Error、API 仍为 10 条，证明 fix-only push 没有触发 deployment。
 
+第二次 reviewed re-arm `b87ef03d948934fad7faf50418e0b79a1914af30` 已产生 Web Production deployment
+`6AAAVXP175oviEhrjULxH48eQjPu` 并 Ready；新记录仍在 Building 时先推送独立 disarm `c5c25f5`，两个
+project 现在都恢复 `deploymentEnabled=false`，且该提交没有新增 Web/API deployment。custom-domain `/`
+与 `/privacy` 均为真实 TLS/HTTP 200，页面显示 `Hosted 验收 · b87ef03`；发布 bundle secret scan、无 Cookie
+CSRF/分析 401、缺参数密码 callback 400 与 12 项远端零新增计数均通过。Web 公共门已经关闭，下一门是首张
+BootstrapInvitation → 正常密码注册 → Resend Custom SMTP 确认 → API callback → Web 落点；不能再次部署
+Web、直接创建 Auth 用户或提前切换模型 kill switch。
+
 ## 7. TDD 与验收标准
 
 Fresh RED 必须先覆盖：

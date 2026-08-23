@@ -388,20 +388,18 @@ Production-ready 不能由以上任何一层自动推出；即使 acceptance 域
 
 ## 9. 当前下一步
 
-Phase 64 已完成 hosted Auth 与 API/Web Production environment 结构配置。Phase 65 把 API 收窄为全局拒绝
-加 exact production branch 允许后，实际产生 6 个线性 commit 对应的 Production deployment 及一次 redeploy；
-冻结本候选前的 Latest/Current source 为 `0c04130`，Web 继续全分支关闭且没有 deployment。Phase 66 的新 application
-diagnostic 22 个字段与正式 verify 均已远端通过，Vercel `HUAYI_DATABASE_URL` 也已用轮换后密码成功 Rotate
-为 Production Sensitive transaction-pooler `6543` DSN。Phase 67/68 已完成 exact-SHA deployment 与
-disarm；Phase 69 纠正误写的 Sensitive 值，并在 `DyqRzj5UMN8BRpSeZyohXprnAkaT` 上通过 health 与无写入
-数据库探针。Phase 70 首次 Web-only deployment `87fk9rqpGH2sUcGrzCf68tuXjyu8` 在精确 source
-`c9ee267` 上因 workspace dist 未先构建而 Error；独立 disarm `26022a9` 没有新增 Web/API deployment，
-当前两者 Git deployment 均关闭。`pnpm build:vercel` 修复已通过相同缺失 dist 条件和完整 macOS 门；
-fix-only `aba1cc0` 已推送且没有新增 deployment，仍须下一次 reviewed re-arm。成功 Web 部署并立即关闭后，
-才完成零账号公开边界并发行首张邀请走
-真实 Auth/SMTP；首位 Operator complete 后才受审计切换 kill switch 并运行 DeepSeek 应用路径 smoke。
-之后才进入真实 R3-C → Cron。下一次 Windows 全门等到验收
-批次冻结，不因每个文档或配置步骤重复执行。
+Phase 64–69 已完成 hosted Auth/environment 结构、application verifier、纠正后的 API DSN、API exact-SHA
+deployment/disarm 与 DB-backed runtime 门。Phase 70 首次 Web deployment 因 workspace `dist` 未先构建而
+Error，修复后第二次 reviewed re-arm `b87ef03d948934fad7faf50418e0b79a1914af30` 已产生 Ready deployment
+`6AAAVXP175oviEhrjULxH48eQjPu`，并先以独立 `c5c25f5` 恢复 Web Git deployment 关闭；该提交没有新增
+Web/API deployment，两个 project 当前都保持 disarmed。custom-domain Web/TLS/hosted identity、bundle
+secret scan、零 Cookie CSRF/分析 401、失败 callback 400 与 12 项远端零新增计数均通过，Phase 70 公共门
+已关闭。
+
+当前下一项是发行唯一首张 BootstrapInvitation，让用户走真实密码注册、Resend Custom SMTP 确认、API
+callback 与 Web 落点，再完成首位 Operator。只有之后才受审计切换 kill switch 并运行一笔真实 Cloud
+DeepSeek 应用路径 smoke；再后续为真实 R3-C → Cron。下一次 Windows 全门等到验收批次冻结，不因每个
+文档或配置步骤重复执行。
 
 ## 10. 官方约束来源
 

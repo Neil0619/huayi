@@ -1569,3 +1569,13 @@ status 关闭这道门；下一步可以按外部门顺序准备 Vercel 创建�
    `pnpm verify:macos` 已退出 0。fix-only commit
    `aba1cc07a4bea87074068148f672424f3e615f31` 已在双项目 disarmed 状态推送，Web 仍只有原 Error、API
    仍为 10 条；下一次真实 deployment 仍须独立 reviewed re-arm，不得直接 redeploy 失败记录。
+10. **第二次 deployment 与关闭**：reviewed re-arm `b87ef03d948934fad7faf50418e0b79a1914af30`
+    只产生 Web Production deployment `6AAAVXP175oviEhrjULxH48eQjPu`，状态 Ready；新记录出现后先以独立
+    `c5c25f5` 恢复 Web `deploymentEnabled=false`。Dashboard 回读 Web 总计两条记录、API 仍为原 10 条且
+    Latest 仍是 `DyqRzj5UMN8BRpSeZyohXprnAkaT`，disarm 没有触发额外 deployment；
+11. **零账号公共门关闭**：custom-domain `/` 与 `/privacy` 均为 TLS verify result 0 / HTTP 200，页面显示
+    `Hosted 验收 · b87ef03` 且没有本机模拟标识；HTML/JS/CSS 三项发布产物秘密扫描为零。无 Cookie 的
+    `/v1/auth/csrf` 与 `/v1/analyses:stream` 均为精确 401；缺 flow/code 的密码 callback 为精确 400，且
+    带 `private, no-store` 与 `no-referrer`。远端只读 SQL 同时证明 Auth/profile/admin/invitation、分析、
+    Provider usage/rate-limit、audit 与 FirstOperatorBootstrap 共 12 项仍全部为 0；下一门解锁为发行首张
+    BootstrapInvitation，并让用户走真实密码注册、SMTP 确认与 callback。

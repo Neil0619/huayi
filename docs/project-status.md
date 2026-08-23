@@ -1627,3 +1627,12 @@ passed; first Operator empty`。候选已提交推送，0012 已实际 push；�
   `aba1cc07a4bea87074068148f672424f3e615f31` 已推送且没有触发 Web/API deployment。下一次真实 Web
   deployment 必须另行 reviewed re-arm，日志必须显示 learning-domain → cloud-contracts → Web Vite；
   不能直接 redeploy 失败记录或提前执行公开 smoke。
+- 第二次 reviewed re-arm `b87ef03d948934fad7faf50418e0b79a1914af30` 产生唯一新 Web Production
+  deployment `6AAAVXP175oviEhrjULxH48eQjPu`，状态 Ready；记录出现后先以独立 `c5c25f5` 恢复 Web
+  `deploymentEnabled=false`。该 push 没有新增 Web/API deployment，API 历史仍为 10 条且 Latest 未变；
+- `app.acceptance.seen-said.cn` 的 `/` 与 `/privacy` 已完成 TLS/200、hosted short SHA 与无模拟标识验收，
+  HTML/JS/CSS bundle secret scan 为零；无 Cookie CSRF/分析入口精确 401，缺参数密码 callback 精确 400
+  且带私有无缓存/不发送 referrer；
+- Supabase 只读联合计数确认 Auth/profile/admin/invitation/analysis/usage/rate-limit/audit/首位 Operator 共
+  12 项全部为 0。Phase 70 零账号公共门已关闭；当前下一项改为发行首张 BootstrapInvitation，并由用户
+  正常完成密码注册、真实 SMTP 确认、API callback 与 Web 落点。

@@ -193,6 +193,19 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
 - [ ] 真实部署后在 Vercel Settings/Functions、部署产物和 Observability 核验 Fluid 与 120 秒上限；该项
       不能由静态 JSON 或 macOS 离线门勾选。
 
+## Hosted Web 公共门
+
+- [x] reviewed re-arm `b87ef03` 只产生 Web deployment `6AAAVXP175oviEhrjULxH48eQjPu` 并 Ready；记录
+      出现后先以独立 `c5c25f5` 恢复 Web Git deployment 关闭，且没有新增 Web/API deployment；
+- [x] `app.acceptance.seen-said.cn` 的 `/` 与 `/privacy` 为真实 TLS/HTTP 200，页面显示
+      `Hosted 验收 · b87ef03` 且不显示本机模拟模型；HTML/JS/CSS 发布产物秘密扫描为零；
+- [x] 无 Cookie 的 CSRF 与分析入口均为精确 401；缺 flow/code 的密码 callback 为精确 400，并保持
+      `private, no-store` 与 `no-referrer`；
+- [x] 远端只读计数确认 Auth/profile/admin/invitation/analysis/usage/rate-limit/audit/首位 Operator 共 12 项
+      全部为 0；公共门没有创建账号、发送邮件、调用 Provider 或切换 kill switch；
+- [ ] 发行首张 BootstrapInvitation，正常完成密码注册、真实 SMTP 确认、API callback、Web 落点和首位
+      Operator complete；完成前不得运行 DeepSeek 应用路径 smoke。
+
 ## 完整 V1
 
 - [x] 当前 production 本机构建以实际登录会话巡检待分析、待收藏、分析、学习库、生词、分析历史、今日

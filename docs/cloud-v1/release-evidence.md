@@ -1546,3 +1546,36 @@ typecheck、architecture、build、development blocker、Store release、product
 - **fix-only push 边界**：commit `aba1cc07a4bea87074068148f672424f3e615f31` 已在 API/Web
   `deploymentEnabled=false` 下推送。Dashboard 等待并回读后，Web 仍只有 `87fk9rqpGH2sUcGrzCf68tuXjyu8`
   一条 Error，API 仍为 10 条且 Latest 未变；下一次 reviewed re-arm 尚待完成。
+
+## 61. Hosted Web Ready、独立 disarm 与零账号公共门（2026-08-23）
+
+- **提交前门**：第二次 re-arm diff 仍严格只有 Web `vercel.json` 与发布材料回归；API 保持布尔
+  `deploymentEnabled=false`，Web 保留 `buildCommand=pnpm build:vercel` 并仅允许 exact production branch。
+  第一次完整门的 110 条 E2E 中一条 Shanbay 时序用例收到 idle；同用例随后连续 3/3 通过，完整
+  `pnpm verify:macos` 原样重跑并退出 0：235/235 Node scripts、474/474 Vitest files（2,866 passed /
+  12 skipped）、Store 97 files 481/481、Playwright 110/110，全部 format/lint/typecheck/build/release/audit
+  同轮通过，production dependencies 无已知漏洞；
+- **受控 deployment**：re-arm commit `b87ef03d948934fad7faf50418e0b79a1914af30` push 后只新增 Web
+  Production deployment `6AAAVXP175oviEhrjULxH48eQjPu`，source 精确匹配并在 21 秒后 Ready；custom
+  domain 为 `app.acceptance.seen-said.cn`，构建日志确认 Web Vite 转换 202 modules 并完成发布；
+- **立即关闭**：新 Web 记录出现时仍为 Building，未先查看日志或运行 smoke；独立提交 `c5c25f5` 随即把
+  Web 恢复为 `deploymentEnabled=false`。Dashboard 等待回读后 Web 仍恰好两条历史记录（首次 Error、本次
+  Ready），API 仍为 10 条且 Latest 仍是 `DyqRzj5UMN8BRpSeZyohXprnAkaT`；disarm 没有产生新 deployment；
+- **Web/TLS/identity**：`https://app.acceptance.seen-said.cn/` 与 `/privacy` 均返回 HTTP 200、TLS verify
+  result 0；实际页面显示 `Hosted 验收 · b87ef03` 与真实托管说明，不显示本机模拟模型。首页无会话时只
+  显示登录入口，隐私页无需 API/Cookie 即完整渲染；
+- **bundle secret scan**：下载并只在内存扫描 HTML、`index-CXF6XyPL.js`、`index-CAOsJwyc.css` 共三项
+  发布产物；Resend/provider key、含凭据 PostgreSQL DSN、private key 与 Vercel token 形态均为零命中；
+- **公共 API 边界**：API `/health` 为 200 与固定 service/status JSON；Web origin 下无 Cookie 的
+  `/v1/auth/csrf` 返回 401 `authentication_required` / `Web session proof is required.`，无 Cookie 的
+  `POST /v1/analyses:stream` 返回 401 `authentication_required` / `A session is required.`。缺 flow/code 的
+  `/v1/auth/password/callback` 返回 400 `invalid_request` / `Authentication callback is incomplete.`，同时
+  带 `Cache-Control: private, no-store` 与 `Referrer-Policy: no-referrer`；
+- **零新增数据库证据**：Supabase SQL Editor 只执行未保存的 `count(*)` 联合查询并随后丢弃临时 snippet。
+  `auth.users`、`auth.identities`、`user_profiles`、`admin_roles`、`invitations`、`invitation_claims`、
+  `analysis_requests`、`analysis_records`、`usage_ledger`、`model_rate_limit_events`、`audit_events` 与
+  `huayi_private.first_operator_bootstrap` 共 12 项均为 0；因此本门没有创建账号/邀请、调用 Provider、写
+  usage 或改变首位 Operator 状态；
+- **下一门**：Phase 70 公共门已关闭。下一步只发行首张 BootstrapInvitation，让用户通过正常密码注册、
+  Resend Custom SMTP 确认、API callback 与 Web 落点完成首位账号；完成 Operator 后才允许受审计切换 kill
+  switch 并运行一笔真实 Cloud DeepSeek 应用路径 smoke。
