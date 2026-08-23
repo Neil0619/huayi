@@ -1652,5 +1652,10 @@ passed; first Operator empty`。候选已提交推送，0012 已实际 push；�
   110 项 Playwright E2E、build、release/secret/audit 门。完整门先后暴露两个 401 行 entrypoint，已抽出
   production principal authentication、Google authentication composition 与共享 callback/session 深模块，
   相关 24/24 API 回归及复跑完整门均通过；
-- 文档已按最终实现复审。受控 API→Web redeploy/disarm、远端 capability/页面回读与 Supabase 邮件模板
-  检查仍未完成；两端新候选部署并验证前不得发行邀请。
+- candidate `eb57887` 在双关闭状态推送且零 deployment；API re-arm `f1186a6` 只产生 Ready deployment
+  `8XRLHd9B3bFk6cLeGMG8hspQDPVW`，disarm `837ec0d` 零新增；Web re-arm `beac29d` 只产生 Ready deployment
+  `FxmMSypN7cV7UPXQb3XUQU1JGD8L`，disarm `b52992e` 零新增。最终 API/Web 恰为 11/3 条且双关闭；
+- 线上 API 九条 Google route 全部 404，12 项远端零状态仍为 true；Web `/login` 精确显示 `beac29d`、
+  密码专用文案与零 Google 控件，bundle secret-shape scan 为零。Supabase `Confirm sign up` 保存态模板精确
+  使用动态 `{{ .ConfirmationURL }}`，无硬编码 URL、localhost、测试域或旧密码 callback；API 的
+  `emailRedirectTo` 会进入该确认 URL 的 `redirect_to`。Phase 71 邀请前门已关闭，邀请尚未发行。

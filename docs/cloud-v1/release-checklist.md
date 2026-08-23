@@ -34,8 +34,9 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       disarm `26022a9` 没有触发第二条 Web 或 API deployment。`pnpm build:vercel` 本地修复已通过缺失 dist
       条件验证和完整 macOS 门；fix-only `aba1cc0` 已推送且没有新增 Web/API deployment；随后 reviewed
       re-arm `b87ef03` 产生 Ready deployment `6AAAVXP175oviEhrjULxH48eQjPu`，独立 `c5c25f5` disarm 未新增
-      deployment，零账号公开 smoke 已通过。邀请前还需部署 Google fail-closed/password callback 校准候选；
-      之后才进入 Auth/SMTP/首位账号 → Operator complete → DeepSeek 应用路径 smoke。邮件/Cron/邀请等完整运行
+      deployment，零账号公开 smoke 已通过。Phase 71 随后完成 API/Web 各一次 Google fail-closed/password
+      callback hardening Ready + 独立 disarm，关闭提交均零新增；之后才进入 Auth/SMTP/首位账号 → Operator
+      complete → DeepSeek 应用路径 smoke。邮件/Cron/邀请等完整运行
       验收仍未完成，因此本项仍未勾选；
 - [x] 在正确 Rotate 后 exact-SHA `7577cdd` deployment 上通过 DB-backed application-role smoke；
       `GET /health` 为 200，随机无效 session 的 `GET /v1/quota` 为精确 401
@@ -43,8 +44,9 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
 - [x] `app.acceptance.<root-domain>` / `api.acceptance.<root-domain>` 的 DNS 与 Vercel domain 已验证；API
       custom-domain TLS、`/health` 200 和固定 JSON 已通过；Web Ready deployment、`/`/`/privacy` TLS 200、
       hosted SHA、secret-free bundle、无 Cookie CSRF/SSE 401 与密码 callback 400 headers 已通过。新的
-      authentication hardening 候选已通过 fresh 完整 macOS 离线门与文档复审，仍需单独 redeploy，但不撤销
-      Phase 70 已完成的 DNS/TLS 公共门；若曾使用
+      authentication hardening 候选已通过 fresh 完整 macOS 离线门、文档复审、API/Web one-shot
+      redeploy/disarm、Google 404/隐藏、exact SHA 与 bundle scan；不撤销 Phase 70 已完成的 DNS/TLS 公共门；
+      若曾使用
       `*.vercel.app` gateway 备用方案，目标子域仍已重新验收；
 - [ ] `notify.acceptance.<root-domain>` 已在 Resend Tokyo 通过 SPF/DKIM 及 monitoring DMARC；旧泄露 key
       已撤销，两把 sending-only/domain-scoped SMTP/HTTP key 已分离托管，Supabase Custom SMTP 与完整 API
@@ -207,6 +209,10 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       `private, no-store` 与 `no-referrer`；
 - [x] 远端只读计数确认 Auth/profile/admin/invitation/analysis/usage/rate-limit/audit/首位 Operator 共 12 项
       全部为 0；公共门没有创建账号、发送邮件、调用 Provider 或切换 kill switch；
+- [x] Phase 71 API/Web hardening 各只产生一条 exact-source Ready，独立 disarm 均零新增；API 九条 Google
+      route 全部 404，Web `/login` 为 exact SHA、密码专用文案与零 Google 控件，bundle secret scan 为零；
+- [x] Supabase `Confirm sign up` 保存态模板使用动态 `{{ .ConfirmationURL }}`，没有硬编码 URL、localhost、
+      测试域或旧密码 callback；API `emailRedirectTo` 继续进入 ConfirmationURL 的 `redirect_to`；
 - [ ] 发行首张 BootstrapInvitation，正常完成密码注册、真实 SMTP 确认、API callback、Web 落点和首位
       Operator complete；完成前不得运行 DeepSeek 应用路径 smoke。
 

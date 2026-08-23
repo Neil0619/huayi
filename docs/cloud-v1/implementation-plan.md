@@ -1600,4 +1600,9 @@ status 关闭这道门；下一步可以按外部门顺序准备 Vercel 创建�
    secret scan、文档审查和完整 `pnpm verify:macos`；任何失败先修复再进入部署；
 6. **远端顺序**：双项目先保持 disarmed；候选 push 后先 API one-shot re-arm→部署记录→立即 disarm→404/
    零新增 smoke，再 Web one-shot re-arm→部署记录→立即 disarm→Google UI hidden/新 SHA/bundle scan。回读
-   Supabase confirmation template 的动态 ConfirmationURL/RedirectTo 且无 localhost 后，才开始 72 小时邀请。
+   Supabase confirmation template 的动态 ConfirmationURL/RedirectTo 且无 localhost 后，才开始 72 小时邀请；
+7. **远端结果**：candidate `eb57887` 零 deployment；API `f1186a6` 与 Web `beac29d` 各只产生一条 Ready，
+   对应 disarm `837ec0d` / `b52992e` 均零新增，最终双关闭。九条 Google API route 全部 404、12 项数据库
+   零状态仍为 true；Web exact SHA/密码专用 UI/零 Google 控件与 bundle secret scan 通过。`Confirm sign up`
+   保存态模板使用 `{{ .ConfirmationURL }}`，无硬编码 URL/localhost/旧 callback；API `emailRedirectTo`
+   动态进入 ConfirmationURL 的 `redirect_to`。本阶段已关闭，邀请尚未发行。

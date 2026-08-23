@@ -375,6 +375,14 @@ callback 校准为 `/v1/auth/password/callback`，精确验证 `private, no-stor
 宽松 `status=completed` 代替。外部顺序更新为：API one-shot deploy/disarm/Google route 404 → Web
 one-shot deploy/disarm/Google UI hidden → Supabase 邮件模板回读 → 发行邀请。
 
+实际执行中 candidate `eb57887` 在双关闭状态零 deployment；API `f1186a6` / disarm `837ec0d` 与 Web
+`beac29d` / disarm `b52992e` 严格串行，分别只产生 Ready deployment
+`8XRLHd9B3bFk6cLeGMG8hspQDPVW` 与 `FxmMSypN7cV7UPXQb3XUQU1JGD8L`，两个关闭提交均零新增。API 九条
+Google route 全部 404，12 项数据库零状态仍为 true；Web exact SHA、密码专用 UI、零 Google 控件与 bundle
+secret-shape scan 均通过。Supabase `Confirm sign up` 保存态模板使用 `{{ .ConfirmationURL }}`，没有硬编码
+URL、localhost、测试域或旧密码 callback；API `emailRedirectTo` 作为 ConfirmationURL 的动态
+`redirect_to` 继续回到专用 password callback。Phase 71 邀请前门已关闭，邀请仍未发行。
+
 ## 7. TDD 与验收标准
 
 Fresh RED 必须先覆盖：
@@ -452,9 +460,10 @@ format/lint/typecheck/build、architecture、release 和 production audit；prod
 credential、Custom SMTP、Supabase Auth exact URL、API 21/21 与 Web 2/2 Production-only environment 和零
 deployment 回读。后续 API 已产生 10 条 Production 记录；application 密码轮换后的正式数据库 verifier、
 纠正 Vercel DSN Rotate、exact-SHA deployment、立即 disarm 与 DB-backed runtime gate 均已完成。Phase 70
-已完成首条 Ready Web deployment、立即 disarm 与零账号公共 smoke。Auth/邮件、DeepSeek、Cron 与邀请仍
-未执行；当前顺序以 Phase 71 的 API/Web authentication hardening redeploy → 邮件模板回读 →
-Auth/SMTP/Operator → DeepSeek 为准。
+已完成首条 Ready Web deployment、立即 disarm 与零账号公共 smoke；Phase 71 API/Web authentication
+hardening 各一次 one-shot Ready/disarm、Google 404/隐藏、零状态、bundle scan 与 confirmation template
+回读也已完成。真实 Auth/邮件投递、DeepSeek、Cron 与邀请仍未执行；当前下一步是
+BootstrapInvitation → Auth/SMTP/Operator → DeepSeek。
 
 官方约束来源：
 
@@ -463,6 +472,7 @@ Auth/SMTP/Operator → DeepSeek 为准。
 - [Vercel regions](https://vercel.com/docs/functions/configuring-functions/region)
 - [Vercel sensitive environment variables](https://vercel.com/docs/environment-variables/sensitive-environment-variables)
 - [Supabase redirect URLs](https://supabase.com/docs/guides/auth/redirect-urls)
+- [Supabase email templates](https://supabase.com/docs/guides/auth/auth-email-templates)
 - [Supabase custom SMTP](https://supabase.com/docs/guides/auth/auth-smtp)
 - [Resend domain verification](https://resend.com/docs/dashboard/domains/introduction)
 - [Resend + Supabase SMTP](https://resend.com/docs/send-with-supabase-smtp)

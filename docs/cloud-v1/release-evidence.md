@@ -1604,5 +1604,23 @@ typecheck、architecture、build、development blocker、Store release、product
 - **门禁反馈修复**：第一次完整门发现 `production-app.ts` 达 401 行，第二次发现
   `cloud-foundation-app.ts` 达 401 行；分别抽出 production principal authentication、Google
   authentication composition 与共享 cloud callback/session 深模块，相关 API 24/24 回归与完整门均通过；
-- **剩余外部门**：文档已按实现复审，diff/secret scan 在候选提交前执行。受控 API→Web
-  redeploy/disarm、远端 capability/页面回读与 Supabase 邮件模板检查尚未完成，不能发行邀请。
+- **候选与受控部署**：candidate `eb57887` 在双项目关闭状态推送且零 deployment。API re-arm
+  `f1186a63a6f4147fd1d171e32262909aa374ad1c` 只新增 Production deployment
+  `8XRLHd9B3bFk6cLeGMG8hspQDPVW` 并 Ready；记录出现后立即推送 disarm
+  `837ec0dba028b76493e73dc180ec5288c55460fc`，API 保持恰好 11 条、Web 2 条。随后 Web re-arm
+  `beac29d7de4ee2712cb06a7c28cc53dd53002f5f` 只新增 Production deployment
+  `FxmMSypN7cV7UPXQb3XUQU1JGD8L` 并 Ready；立即 disarm
+  `b52992e30d7f36111a1011c337c12ef03e9a3c92` 后 Web 恰好 3 条、API 11 条。两个 disarm 均零新增；
+- **远端 hardening smoke**：API 九条 Google invitation/login/callback/link/reauth route 全部精确 404；
+  Supabase 单个 read-only boolean 再证 Auth/profile/admin/invitation/analysis/usage/rate-limit/audit 与
+  FirstOperatorBootstrap 共 12 项全部为 0，临时 SQL 已丢弃。Web `/login` 的完整
+  `data-deployment-commit` 精确为 Web re-arm SHA，显示 `Hosted 验收 · beac29d`、密码专用文案，零 Google
+  form/control、零本机模拟提示；线上 1 个 JS asset 的含凭据 DSN、provider/Resend key、private key、
+  Vercel token 形态均为零命中；
+- **邮件模板门**：Supabase `Confirm sign up` 保存态源码只读回读为动态
+  `href="{{ .ConfirmationURL }}"`，无硬编码 HTTP URL、localhost/127.0.0.1、测试域或旧密码
+  `/v1/auth/callback`；Save 保持 disabled。API `signUp` 继续通过 `emailRedirectTo` 注入专用
+  `/v1/auth/password/callback?flow=<opaque>`；依据 Supabase 定义，`ConfirmationURL` 自身携带该动态
+  `redirect_to`，无需在模板再暴露第二条 `.RedirectTo` 链接；
+- **下一门**：Phase 71 邀请前门已关闭，两个 project 与远端分支最终均为 disarmed。邀请尚未发行；下一步
+  才允许创建 72 小时 BootstrapInvitation，并由用户完成真实密码注册、Resend SMTP 确认与首位 Operator。
