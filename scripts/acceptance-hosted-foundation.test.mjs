@@ -10,9 +10,18 @@ import {
 } from "./acceptance-hosted-bootstrap.mjs";
 import {
   hostedApplicationVerificationArgument,
-  renderHostedApplicationVerificationSql,
+  parseHostedApplicationContextOutput,
+  parseHostedApplicationContractOutput,
+  renderHostedApplicationContextSql,
+  renderHostedApplicationContractSql,
   verifyHostedApplicationLogin,
 } from "./acceptance-hosted-application-verify.mjs";
+import {
+  classifyHostedPsqlExitCode,
+  diagnoseHostedApplicationLogin,
+  hostedApplicationDiagnosticArgument,
+  hostedApplicationDiagnosticPredicateNames,
+} from "./acceptance-hosted-application-diagnose.mjs";
 import {
   diagnoseHostedAcceptance,
   hostedDiagnosticArgument,
@@ -20,7 +29,8 @@ import {
   renderHostedDiagnosticSql,
 } from "./acceptance-hosted-diagnose.mjs";
 import {
-  hostedAcceptanceApplicationPoolerUrl,
+  createHostedPsqlProcessEnvironment,
+  hostedAcceptanceApplicationSessionPoolerUrl,
   hostedAcceptanceMigrationVersions,
   hostedAcceptancePoolerUrl,
   hostedAcceptancePriceVersionIds,
@@ -68,6 +78,10 @@ test("hosted foundation is pinned to the Singapore acceptance project and public
     hostedAcceptancePoolerUrl,
     "postgresql://postgres.kpadiulxkgckskcfydry@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres?sslmode=verify-full",
   );
+  assert.equal(
+    hostedAcceptanceApplicationSessionPoolerUrl,
+    "postgresql://huayi_hosted_acceptance_login.kpadiulxkgckskcfydry@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres?sslmode=verify-full",
+  );
   assert.deepEqual(hostedAcceptancePriceVersionIds, {
     legacy: "8a7c5397-dbba-4e28-bc0d-107c4d04c3c3",
     offPeak: "dad0deb1-cbdc-4311-b3ad-b492c7ece757",
@@ -76,6 +90,32 @@ test("hosted foundation is pinned to the Singapore acceptance project and public
   assert.equal(new Set(Object.values(hostedAcceptancePriceVersionIds)).size, 3);
   assert.equal(hostedAcceptanceMigrationVersions.at(-1), "20260822030000");
   assert.equal(hostedAcceptanceMigrationVersions.length, 12);
+});
+
+test("hosted psql always pins verify-full and the temporary CA path", () => {
+  assert.deepEqual(
+    createHostedPsqlProcessEnvironment({
+      callerEnvironment: {
+        PGPASSWORD: postgresPassword,
+        PGSSLMODE: "disable",
+        PGSSLROOTCERT: "/untrusted/root.crt",
+      },
+      processEnvironment: {
+        LANG: "C.UTF-8",
+        LC_ALL: "C.UTF-8",
+        PATH: "/usr/bin",
+      },
+      rootCertificate: "/private/temporary/root.crt",
+    }),
+    {
+      LANG: "C.UTF-8",
+      LC_ALL: "C.UTF-8",
+      PATH: "/usr/bin",
+      PGPASSWORD: postgresPassword,
+      PGSSLMODE: "verify-full",
+      PGSSLROOTCERT: "/private/temporary/root.crt",
+    },
+  );
 });
 
 test("hosted bootstrap plan is side-effect free and apply requires the exact confirmation", async () => {
@@ -285,18 +325,25 @@ test("hosted diagnostic reports only fixed read-only predicate verdicts", async 
 });
 
 test("hosted application login verifies privileges and context isolation across transactions", async () => {
-  const sql = renderHostedApplicationVerificationSql();
-  assert.match(sql, /BEGIN READ ONLY/u);
-  assert.match(sql, /session_user = 'huayi_hosted_acceptance_login'/u);
-  assert.match(sql, /pg_stat_ssl/u);
-  assert.match(sql, /has_schema_privilege\(session_user, 'public', 'CREATE'\)/u);
-  assert.match(sql, /has_function_privilege/u);
-  assert.match(sql, /pg_has_role\(session_user, 'postgres', 'SET'\)/u);
-  assert.match(sql, /SET LOCAL ROLE huayi_context_setter/u);
-  assert.match(sql, /set_owner_context/u);
-  assert.match(sql, /SET LOCAL ROLE huayi_business/u);
-  assert.match(sql, /current_owner_user_id\(\) IS NULL/u);
-  assert.equal(sql.match(/COMMIT;/gu)?.length, 2);
+  const contractSql = renderHostedApplicationContractSql();
+  const contextSql = renderHostedApplicationContextSql();
+  assert.match(contractSql, /BEGIN READ ONLY/u);
+  assert.match(contractSql, /session_user = 'huayi_hosted_acceptance_login'/u);
+  assert.doesNotMatch(contractSql, /pg_stat_ssl/u);
+  assert.match(contractSql, /has_schema_privilege\(session_user, 'public', 'CREATE'\)/u);
+  assert.match(contractSql, /has_function_privilege/u);
+  assert.doesNotMatch(
+    contractSql,
+    /has_function_privilege\(\s*session_user,\s*'huayi_private\.set_owner_context\(uuid\)'/u,
+  );
+  assert.match(contractSql, /JOIN pg_namespace/u);
+  assert.match(contractSql, /procedures\.proargtypes\[0\] = 'uuid'::regtype/u);
+  assert.match(contractSql, /pg_has_role\(session_user, 'postgres', 'SET'\)/u);
+  assert.match(contextSql, /SET LOCAL ROLE huayi_context_setter/u);
+  assert.match(contextSql, /set_owner_context/u);
+  assert.match(contextSql, /SET LOCAL ROLE huayi_business/u);
+  assert.match(contextSql, /current_owner_user_id\(\) IS NULL/u);
+  assert.equal(contextSql.match(/COMMIT;/gu)?.length, 2);
   assert.equal(
     hostedApplicationVerificationArgument,
     "--verify-hosted-application-login-kpadiulxkgckskcfydry",
@@ -311,18 +358,20 @@ test("hosted application login verifies privileges and context isolation across 
     },
     runPsql: async (request) => {
       calls.push(request);
-      return calls.length === 1
-        ? { code: 0, stdout: "t\nt|123\nt\nt|123\n" }
-        : { code: 3, stderr: "ERROR:  42501\n", stdout: "" };
+      if (calls.length === 1) return { code: 0, stdout: "t|t|t|t|t|t\n" };
+      if (calls.length === 2) return { code: 0, stdout: "t|123\nt\nt|123\n" };
+      return { code: 3, stderr: "ERROR:  42501\n", stdout: "" };
     },
   });
-  assert.equal(calls.length, 2);
+  assert.equal(calls.length, 3);
   assert.equal(calls[0].captureOutput, true);
-  assert.equal(calls[0].databaseUrl, hostedAcceptanceApplicationPoolerUrl);
+  assert.equal(calls[0].databaseUrl, hostedAcceptanceApplicationSessionPoolerUrl);
+  assert.equal(calls[0].input, contractSql);
   assert.equal(calls[0].environment.PGPASSWORD, applicationPassword);
   assert.equal(calls[0].environment.HUAYI_HOSTED_DATABASE_CA_CERTIFICATE, rootCertificate);
-  assert.match(calls[1].input, /SET LOCAL ROLE postgres/u);
-  assert.equal(calls[1].captureErrorCode, true);
+  assert.equal(calls[1].input, contextSql);
+  assert.match(calls[2].input, /SET LOCAL ROLE postgres/u);
+  assert.equal(calls[2].captureErrorCode, true);
 
   await assert.rejects(
     verifyHostedApplicationLogin({
@@ -331,26 +380,29 @@ test("hosted application login verifies privileges and context isolation across 
         HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: rootCertificate,
         PGPASSWORD: applicationPassword,
       },
-      runPsql: async () => ({ code: 0, stdout: "t\nf|123\nt\nt|123\n" }),
+      runPsql: async () => ({ code: 0, stdout: "t|t|t|t|t|f\n" }),
     }),
     /Hosted acceptance application login verification failed\./u,
   );
 
-  let retries = 0;
-  await verifyHostedApplicationLogin({
-    arguments_: [hostedApplicationVerificationArgument],
-    environment: {
-      HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: rootCertificate,
-      PGPASSWORD: applicationPassword,
-    },
-    runPsql: async () => {
-      retries += 1;
-      if (retries === 1) return { code: 0, stdout: "t\nt|123\nt\nt|456\n" };
-      if (retries === 2) return { code: 0, stdout: "t\nt|789\nt\nt|789\n" };
-      return { code: 3, stderr: "ERROR:  42501\n", stdout: "" };
-    },
-  });
-  assert.equal(retries, 3);
+  let mismatchedBackendCalls = 0;
+  await assert.rejects(
+    verifyHostedApplicationLogin({
+      arguments_: [hostedApplicationVerificationArgument],
+      environment: {
+        HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: rootCertificate,
+        PGPASSWORD: applicationPassword,
+      },
+      runPsql: async () => {
+        mismatchedBackendCalls += 1;
+        return mismatchedBackendCalls === 1
+          ? { code: 0, stdout: "t|t|t|t|t|t\n" }
+          : { code: 0, stdout: "t|123\nt\nt|456\n" };
+      },
+    }),
+    /Hosted acceptance application login verification failed\./u,
+  );
+  assert.equal(mismatchedBackendCalls, 2);
 
   await assert.rejects(
     verifyHostedApplicationLogin({
@@ -362,6 +414,209 @@ test("hosted application login verifies privileges and context isolation across 
       runPsql: async () => ({ code: 1, stderr: "ERROR:  42501\n", stdout: "" }),
     }),
     /Hosted acceptance application login verification failed\./u,
+  );
+});
+
+test("hosted application output parsers accept only the fixed split contracts", () => {
+  assert.deepEqual(parseHostedApplicationContractOutput("t|t|t|f|t|t\r\n"), [
+    true,
+    true,
+    true,
+    false,
+    true,
+    true,
+  ]);
+  assert.deepEqual(parseHostedApplicationContextOutput("t|123\r\nt\r\nt|123\r\n"), {
+    contextCleared: true,
+    contextSet: true,
+    contextVisible: true,
+    firstBackendPid: "123",
+    secondBackendPid: "123",
+  });
+  for (const malformed of [
+    "",
+    "t|t|t|t|t\n",
+    "t|t|t|t|t|t|t\n",
+    "true|t|t|t|t|t\n",
+    "t|t|t|t|t|t\nextra\n",
+  ]) {
+    assert.equal(parseHostedApplicationContractOutput(malformed), null);
+  }
+  for (const malformed of [
+    "",
+    "t|not-a-pid\nt\nt|123\n",
+    "t|123\nt\nt|123\nextra\n",
+    "t|123\ntrue\nt|123\n",
+  ]) {
+    assert.equal(parseHostedApplicationContextOutput(malformed), null);
+  }
+});
+
+test("hosted application diagnostic reports only fixed stage predicates", async () => {
+  const calls = [];
+  const results = await diagnoseHostedApplicationLogin({
+    arguments_: [hostedApplicationDiagnosticArgument],
+    environment: {
+      HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: rootCertificate,
+      PGPASSWORD: applicationPassword,
+    },
+    runPsql: async (request) => {
+      calls.push(request);
+      if (calls.length === 1) return { code: 0, stderr: "", stdout: "t\n" };
+      if (calls.length === 2) return { code: 0, stderr: "", stdout: "t|t|t|f|t|t\n" };
+      if (calls.length === 3) return { code: 0, stderr: "", stdout: "t|123\nt\nt|123\n" };
+      return { code: 3, stderr: "ERROR:  42501\n", stdout: "" };
+    },
+  });
+  assert.deepEqual(results, [
+    "connection_exit_class|ok",
+    "psql_connection_ok|t",
+    "client_tls_verified|t",
+    "contract_exit_class|ok",
+    "contract_execution_completed|t",
+    "contract_output_valid|t",
+    "session_user_exact|t",
+    "current_user_exact|t",
+    "runtime_member|t",
+    "postgres_not_settable|f",
+    "public_create_denied|t",
+    "context_function_denied|t",
+    "application_contract|f",
+    "context_exit_class|ok",
+    "context_execution_completed|t",
+    "context_output_valid|t",
+    "context_set|t",
+    "context_visible|t",
+    "context_cleared|t",
+    "backend_reused|t",
+    "postgres_switch_exit_class|script_error",
+    "postgres_switch_denied|t",
+  ]);
+  assert.deepEqual(
+    hostedApplicationDiagnosticPredicateNames,
+    results.map((result) => result.split("|")[0]),
+  );
+  assert.equal(calls[0].databaseUrl, hostedAcceptanceApplicationSessionPoolerUrl);
+  assert.equal(calls[0].input, "SELECT true;\n");
+  assert.equal(calls[1].input, renderHostedApplicationContractSql());
+  assert.equal(calls[2].input, renderHostedApplicationContextSql());
+  assert.equal(calls[3].captureErrorCode, true);
+
+  for (const scenario of [
+    {
+      code: null,
+      stages: [false, false],
+      stdout: "",
+    },
+    {
+      code: 2,
+      stages: [false, false],
+      stdout: "",
+    },
+    {
+      code: 3,
+      stages: [false, false],
+      stdout: "",
+    },
+  ]) {
+    let failedCalls = 0;
+    const failed = await diagnoseHostedApplicationLogin({
+      arguments_: [hostedApplicationDiagnosticArgument],
+      environment: {
+        HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: rootCertificate,
+        PGPASSWORD: applicationPassword,
+      },
+      runPsql: async () => {
+        failedCalls += 1;
+        return { code: scenario.code, stderr: "", stdout: scenario.stdout };
+      },
+    });
+    assert.deepEqual(failed.slice(0, 3), [
+      `connection_exit_class|${classifyHostedPsqlExitCode(scenario.code)}`,
+      `psql_connection_ok|${scenario.stages[0] ? "t" : "f"}`,
+      `client_tls_verified|${scenario.stages[1] ? "t" : "f"}`,
+    ]);
+    assert.deepEqual(
+      failed.slice(3),
+      hostedApplicationDiagnosticPredicateNames
+        .slice(3)
+        .map((name) => (name.endsWith("_exit_class") ? `${name}|not_run` : `${name}|f`)),
+    );
+    assert.equal(failedCalls, 1);
+  }
+
+  const stageScenarios = [
+    {
+      expected: {
+        applicationContract: "f",
+        contextExecutionCompleted: "t",
+        contractExecutionCompleted: "f",
+      },
+      responses: [
+        { code: 0, stderr: "", stdout: "t\n" },
+        { code: 3, stderr: "SECRET contract error", stdout: "" },
+        { code: 0, stderr: "", stdout: "t|123\nt\nt|123\n" },
+        { code: 3, stderr: "ERROR:  42501\n", stdout: "" },
+      ],
+    },
+    {
+      expected: {
+        applicationContract: "t",
+        contextExecutionCompleted: "f",
+        contractExecutionCompleted: "t",
+      },
+      responses: [
+        { code: 0, stderr: "", stdout: "t\n" },
+        { code: 0, stderr: "", stdout: "t|t|t|t|t|t\n" },
+        { code: 3, stderr: "SECRET context error", stdout: "" },
+        { code: 3, stderr: "ERROR:  42501\n", stdout: "" },
+      ],
+    },
+  ];
+  for (const scenario of stageScenarios) {
+    let stageCalls = 0;
+    const stageResults = await diagnoseHostedApplicationLogin({
+      arguments_: [hostedApplicationDiagnosticArgument],
+      environment: {
+        HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: rootCertificate,
+        PGPASSWORD: applicationPassword,
+      },
+      runPsql: async () => scenario.responses[stageCalls++],
+    });
+    const stageMap = Object.fromEntries(stageResults.map((result) => result.split("|")));
+    assert.equal(stageCalls, 4);
+    assert.equal(
+      stageMap.contract_execution_completed,
+      scenario.expected.contractExecutionCompleted,
+    );
+    assert.equal(
+      stageMap.contract_exit_class,
+      scenario.expected.contractExecutionCompleted === "t" ? "ok" : "script_error",
+    );
+    assert.equal(stageMap.application_contract, scenario.expected.applicationContract);
+    assert.equal(stageMap.context_execution_completed, scenario.expected.contextExecutionCompleted);
+    assert.equal(
+      stageMap.context_exit_class,
+      scenario.expected.contextExecutionCompleted === "t" ? "ok" : "script_error",
+    );
+    assert.equal(stageMap.postgres_switch_exit_class, "script_error");
+    assert.equal(stageMap.postgres_switch_denied, "t");
+    assert.doesNotMatch(stageResults.join("\n"), /SECRET|123|42501/u);
+  }
+});
+
+test("hosted psql exit classification is fixed and exhaustive", () => {
+  assert.deepEqual(
+    [0, 1, 2, 3, null, 4, -1].map((code) => classifyHostedPsqlExitCode(code)),
+    [
+      "ok",
+      "client_fatal",
+      "connection_error",
+      "script_error",
+      "process_error",
+      "unexpected_error",
+      "unexpected_error",
+    ],
   );
 });
 
@@ -380,6 +635,10 @@ test("package scripts expose separate hosted plan, apply and read-only verificat
   assert.equal(
     packageDocument.scripts["acceptance:hosted:application:verify"],
     "node scripts/acceptance-hosted-application-verify.mjs",
+  );
+  assert.equal(
+    packageDocument.scripts["acceptance:hosted:application:diagnose"],
+    "node scripts/acceptance-hosted-application-diagnose.mjs",
   );
   assert.equal(
     packageDocument.scripts["acceptance:hosted:operator"],

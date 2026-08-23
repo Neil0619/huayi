@@ -1393,9 +1393,9 @@ typecheck、architecture、build、development blocker、Store release、product
 - **仓库与零动作证据**：`pnpm acceptance:hosted:deployment --plan` 退出 0；外部配置前工作树为 clean。
   本阶段未发送真实确认/恢复/R3-C 邮件，未发起 API/Web deployment，未运行 DeepSeek，未安装或触发 Cron，
   未发行邀请；
-- **后续状态**：Phase 64 已完成 API/Web 完整 Production environment 结构与 Auth exact URL；Sensitive
-  值不可回读，不为重跑 verifier 旋转 Secret。当前剩余门为受审查解锁精确 production branch 并按
-  API→Web 首次部署；随后才验收 Auth 邮件、R3-C 通知、Cookie/CORS/SSE/Storage、五项 Cron 与
+- **后续状态**：Phase 64 随后完成 API/Web 完整 Production environment 结构与 Auth exact URL；Phase 65
+  已产生 API Production deployment 历史，Web 仍未部署。当前剩余门为轮换后受控 API deployment 与真实
+  runtime smoke；随后才验收 Web、Auth 邮件、R3-C 通知、Cookie/CORS/SSE/Storage、五项 Cron 与
   FirstOperatorBootstrap。
 
 ## 55. Phase 64 Hosted acceptance Auth 与完整环境结构（2026-08-23）
@@ -1411,13 +1411,61 @@ typecheck、architecture、build、development blocker、Store release、product
 - **本地恢复材料**：三项本地生成 Secret 只保存在 macOS login Keychain，service 为
   `huayi-hosted-acceptance-refresh-encryption`、`huayi-hosted-acceptance-secret-pepper`、
   `huayi-hosted-acceptance-cron-secret`，account 均为 `kpadiulxkgckskcfydry`；只记录名称与 project ref；
-- **零部署与验证边界**：两个 project 均仍为 `No Production Deployment`，仓库
+- **Phase 64 当时的零部署与验证边界**：两个 project 均仍为 `No Production Deployment`，仓库
   `git.deploymentEnabled=false` 未改，未触发 deployment。`acceptance:hosted:deployment --plan` 退出 0；
   Vercel Sensitive 值不可回读，不能据此重跑 `--verify-environment`，也不为重跑而旋转已托管 Secret。
-  首次 API deployment 的启动与 `/health` gate 仍负责验证真实 composition；
+  后续 API deployment 的启动与 `/health` gate 仍负责验证真实 composition；
 - **最新离线门**：`pnpm verify:macos` 退出 0：231/231 Node script tests、474/474 Vitest files
   （2,863 passed / 12 skipped）、Store 97 files 481/481、Playwright 110/110；build、architecture、
   cloud-blocked、Store release、production audit 均通过，production dependencies 无已知漏洞；
-- **下一门**：完成文档审查后形成首次部署解锁的受审查提交；不在本阶段修改 `vercel.json` 或部署。之后
+- **Phase 64 当时的下一门**：完成文档审查后形成首次部署解锁的受审查提交；不在本阶段修改
+  `vercel.json` 或部署。之后
   固定 API first → health/TLS/CORS/Cookie/SSE/Auth/Storage/真实 DeepSeek 小额 smoke → Web → 真实邮件与
   R3-C → Cron → first Operator invitation。
+
+## 56. Hosted application 登录验证分段诊断（2026-08-23）
+
+- **已排除密码与锁定**：用户轮换 application 数据库密码后，最小 psql 登录验证曾通过；最新 diagnostic
+  返回 `psql_connection_ok=t` 且组合 SQL `application_execution_completed=f`。因此当前失败位于 SQL
+  执行层，不是密码错误、网络不可达或多次重试后的账号锁定；
+- **证据校正**：审查确认 `pg_stat_ssl` 经 Supavisor 只能观察 pooler 到 PostgreSQL 的 backend 链路，不能
+  证明 psql 到 pooler 的客户端 CA/hostname 验证。该判据已移除；真实 TLS 门继续由固定
+  `sslmode=verify-full`、不可降级的 `PGSSLMODE`、权限 `0600` 的临时 CA 与成功连接共同证明；
+- **Fresh RED/GREEN**：回归先因缺少 split parser 与 catalog OID privilege probe 精确失败；最小实现把
+  正式 verify 拆成六项权限 contract、同一 session-pooler 连接的三项 context contract 和独立 postgres
+  越权拒绝。`set_owner_context(uuid)` 权限检查不再通过可能触发 schema 权限错误的 text/regprocedure 名称
+  解析，而是从 `pg_namespace + pg_proc` 固定找到 UUID 参数函数 OID；函数缺失仍失败关闭；
+- **诊断边界**：diagnostic 依次执行固定 `SELECT true`、权限、context 与 postgres 越权探针，只返回固定
+  布尔项和 psql exit class 枚举；原始 stderr、SQL、SQLSTATE、PID、密码和动态数据库内容均不输出。聚焦
+  Node 回归当前 14/14 通过；
+- **完整离线门**：instructions、format、lint、typecheck、235/235 Node script tests、474/474 Vitest files
+  （2,866 passed / 12 skipped）、Playwright 110/110 与全部 workspace build 均通过；build 只有既有的 Web
+  chunk size 提示；
+- **远端关闭证据**：用户运行新 diagnostic 后，连接/TLS、六项权限、三项 context、同 backend 和 postgres
+  越权拒绝全部符合固定预期，随后正式 verifier 返回
+  `Hosted acceptance application login verification passed.`。这关闭 application 数据库角色与隔离门；
+- **因果与部署边界**：远端通过证明 catalog OID + split contract 的修订路径有效，但没有单独重放旧文本
+  探针，因此 text/regprocedure 名称解析仍是最强解释，不记录成唯一已隔离根因。Vercel
+  `HUAYI_DATABASE_URL` 随后已用新密码成功 Rotate 为 Production Sensitive transaction-pooler `6543` DSN，
+  但现有 Latest deployment 早于 Rotate；轮换后受控 deployment 与数据库 smoke 前，runtime database
+  composition 仍不能记为通过。
+
+## 57. Hosted API deployment 历史与 application DSN Rotate（2026-08-23）
+
+- **DSN Rotate**：Vercel API project 的 `HUAYI_DATABASE_URL` 已通过 Sensitive Rotate 更新；Dashboard 回读
+  为 Production、Sensitive、`Updated just now`。旧 application 密码此前已经撤销，操作未点击 Redeploy；
+  系统剪贴板随即清空，本文不记录 DSN 或密码；
+- **部署历史**：API Dashboard 有 7 条 Production 记录。六个 branch source 依次为 `ac06dba`、`aa747fc`、
+  `2380f2d`、`9c6fd44`、`e216ef2`、`0c04130`，均是当前分支线性祖先；另有一次 `0c04130` redeploy。
+  三个中间修复为 Error，其余四条为 Ready。Web 保持 `No Production Deployment`；
+- **候选提交前身份基线**：冻结本候选前，本地 HEAD、远端跟踪分支与 Vercel Latest source 均为
+  `0c0413085a9dc78e7dc772cdee2eff2ce446ae04`。Latest/Current deployment ID 为
+  `BAC8nKdfjGH9Qtp1wdwi1j4376bN`，custom domain 为 `api.acceptance.seen-said.cn`；
+- **健康证据**：custom-domain `/health` 返回 HTTP 200、TLS verify result 0 与固定
+  `{"service":"huayi-cloud-api","status":"ok"}`，`x-vercel-id` 以 `sin1::sin1` 开头。该 endpoint 不访问
+  数据库，且 deployment 早于 DSN Rotate；它不证明新 DSN、DeepSeek、Auth、Cookie/CORS/SSE 或完整
+  runtime composition；
+- **配置门**：API/Web Production Branch Tracking 均为 `codex/settings-configuration`，Preview 均为
+  `Disabled`。API 仍 armed，Web 仍全分支关闭；任何 push 前必须冻结候选。下一次只允许一个 SHA 匹配的
+  轮换后 API deployment；新记录产生后，无论 Ready/Error 或 smoke 成败，唯一允许的下一次 push 都是恢复
+  API 全分支关闭。确认关闭提交没有产生 API/Web deployment 后，才运行 runtime smoke。

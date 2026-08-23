@@ -1328,8 +1328,9 @@ rollback、真实 Chrome、外部服务和 Windows 冻结批次保持为独立�
 2. 让 bootstrap 对 pristine 与精确已应用 private empty bucket 均幂等，同时拒绝额外角色边、ADMIN OPTION、
    价格/control/bucket/object 漂移；
 3. admin verify 精确校验 migration、role graph、角色属性、RLS、价格生效时间、唯一 control/bucket 和零
-   identity；application verify 校验 TLS、最小权限、postgres 越权精确拒绝和同 backend COMMIT 后 context
-   为空；
+   identity；application verify 以强制 verify-full/固定 CA 证明客户端 TLS，把六项最小权限、session pooler
+   同 backend COMMIT 后 context 为空和 postgres 越权精确拒绝拆成固定 contract；`pg_stat_ssl` 不作为
+   Supavisor 客户端 TLS 证据；
 4. 运行 API/runtime/PGlite 与 hosted script 聚焦回归、文档审查和完整 `pnpm verify:macos`；
 5. 完整门通过后只让用户运行更新后的 admin 只读复验与 application 最小权限/事务隔离复验，不重跑
    bootstrap；application 探测只触及 private unlogged transaction context，不创建账号或业务数据。双复验
@@ -1426,9 +1427,10 @@ status 关闭这道门；下一步可以按外部门顺序准备 Vercel 创建�
 5. **零部署边界**：`pnpm acceptance:hosted:deployment --plan` 通过；Vercel API 仍显示
    `No Production Deployment`。本阶段未发送确认、恢复或安全通知邮件，未发起 API/Web deployment，
    未安装/触发 Cron，未发行邀请；
-6. **后续状态**：Phase 64 已完成 API/Web Production environment 结构和 Auth exact URL；下一门已推进为
-   经受审查提交解锁精确 production branch 后按 API→Web 首次部署，再验收 Auth 邮件、R3-C 通知、
-   Cookie/CORS/SSE/Storage、五项 Cron 与 FirstOperatorBootstrap。
+6. **后续状态**：Phase 64 已完成 API/Web Production environment 结构和 Auth exact URL；Phase 65 已产生
+   API deployment 历史，Phase 66 已完成 application verifier 与 Vercel DSN Rotate。下一门是轮换后受控 API
+   deployment/runtime smoke 并重新关闭 API，再验收 Web、Auth 邮件、R3-C 通知、Cookie/CORS/SSE/Storage、
+   五项 Cron 与 FirstOperatorBootstrap。
 
 ## Phase 64：Hosted acceptance Auth 与 Production environment 完成（2026-08-23）
 
@@ -1461,5 +1463,45 @@ status 关闭这道门；下一步可以按外部门顺序准备 Vercel 创建�
    push 后只允许 API 新增一个与提交 SHA 一致的 Production deployment，Web 必须继续为零；
 4. **真实门禁**：记录 API deployment ID/SHA/alias、实际 Node major、`sin1`、Fluid、120s，并验证 custom
    domain `/health` 的 TLS、200、exact JSON 与 `x-vercel-id`；随后才执行数据库、DeepSeek 和 Auth smoke；
-5. **重新关闭**：API health/smoke 通过后，用独立提交恢复 API `deploymentEnabled=false` 并写入实际证据；
-   关闭 API 后才准备 Web 的独立部署解锁。
+5. **重新关闭**：该阶段的原顺序已被 Phase 67 校正；API deployment 记录产生后，无论 Ready/Error 或 smoke
+   成败，都先用独立提交恢复 API `deploymentEnabled=false` 并确认关闭提交未触发 deployment，再运行
+   runtime smoke。关闭 API 后才准备 Web 的独立部署解锁。
+6. **实际结果校正**：armed 后连续 6 个线性 commit 触发 API Production deployment，另有一次 redeploy；
+   `aa747fc`、`2380f2d`、`9c6fd44` 为 Error，`ac06dba`、`e216ef2`、`0c04130` 与 `0c04130` redeploy 为
+   Ready。Web 保持零 deployment。该链证明 branch allowlist 只隔离 Web，不能保证单次部署；Ready 也不等于
+   runtime acceptance。
+
+## Phase 66：Hosted application role 复验与 runtime DSN 轮换（2026-08-23）
+
+影响平台为 `shared + hosted-acceptance`，不触及 migration、业务数据或 Windows 原生集成。
+
+1. **验证器修复**：客户端 TLS 继续强制 verify-full 与固定 CA；application contract 删除不能证明
+   Supavisor 客户端链路的 `pg_stat_ssl`，私有函数权限改用固定 catalog OID，权限/context/postgres 越权
+   拆为独立探针；
+2. **远端证据**：用户运行分段 diagnostic，22 个固定字段全部符合预期；正式 verifier 返回 passed，关闭
+   application 数据库角色、最小权限与跨事务 context 隔离门；
+3. **证据边界**：远端通过证明修订路径有效，但未单独重放旧文本函数签名探针，不把它记录成唯一已隔离
+   根因；
+4. **Vercel Rotate**：旧 `HUAYI_DATABASE_URL` 已替换为新密码构造的 percent-encoded transaction-pooler
+   `6543` DSN，保持 Production-only Sensitive；剪贴板已清空且未点击 Redeploy。session pooler `5432`
+   未进入 runtime；
+5. **下一门**：现有 Latest API deployment 早于 Rotate，不能证明新 DSN。冻结候选后执行一次轮换后受控 API
+   deployment；新记录一旦产生，唯一允许的下一次 push 是恢复 API `deploymentEnabled=false`。确认关闭提交
+   没有产生 deployment 后，再验证数据库/DeepSeek/Auth runtime。
+
+## Phase 67：Hosted API deployment 历史校准与轮换后受控部署（2026-08-23）
+
+影响平台为 `shared + hosted-acceptance`。本阶段不删除历史 deployment，不触发 Web，不把 `/health` 通过
+扩大为数据库或 Provider 通过。
+
+1. **候选提交前基线**：API Dashboard 有 7 条 Production 记录；六个 source SHA 均属于
+   `codex/settings-configuration` 的线性历史；冻结本候选前，本地 HEAD、origin 与 Latest source 均为完整 SHA
+   `0c0413085a9dc78e7dc772cdee2eff2ce446ae04`，另有一次该 source 的 redeploy；
+2. **当前健康**：Latest/Current deployment `BAC8nKdfjGH9Qtp1wdwi1j4376bN` 绑定 custom domain，`/health`
+   返回 HTTP 200、TLS verify result 0 与 `{"service":"huayi-cloud-api","status":"ok"}`；该 route 不访问
+   数据库，且 deployment 早于 DSN Rotate；
+3. **控制门**：API 仍 armed，Web 仍 `deploymentEnabled=false`；任何 push 都可能再次部署 API。先完成本批
+   文档/代码审查和完整离线门，再以一个记录完整 SHA 的提交触发轮换后 deployment；
+4. **退出门**：新 deployment 必须匹配候选 SHA；记录一旦产生，无论 Ready/Error 或 smoke 成败，先以独立
+   提交恢复 API 全分支关闭并确认该提交没有产生 API/Web deployment。只有关闭证据成立后才验证 health、
+   数据库、DeepSeek、Auth/Cookie/CORS/SSE；Web 仍须为 `No Production Deployment`。

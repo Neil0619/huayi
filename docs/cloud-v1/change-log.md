@@ -3,14 +3,43 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-23：API armed 窗口改为受控部署后立即重新关闭
+
+- Phase 65 的 exact branch allowlist 只能保证 API-only，不能保证“一次 push 只产生一次部署”。API 保持
+  armed 时，同一 production branch 的每次修复 push 都会继续触发 API；因此后续不得把 branch allowlist
+  本身称为 one-shot 保证；
+- 部署前必须先冻结候选、完成 secret/runtime 轮换和离线门，再允许一次受控 push。新 deployment 记录一旦
+  产生，无论状态为 Ready/Error 或后续 smoke 成败，唯一允许的下一次 push 都是用独立提交恢复 API
+  `git.deploymentEnabled=false`；确认该关闭提交没有产生 API/Web deployment 后，才运行 health、数据库、
+  Provider 与 Auth smoke。该关闭不得依赖操作者在 Dashboard 手工停止自动部署；
+- Vercel Sensitive Rotate 只影响下一次 deployment，不追溯修改既有 deployment。固定 `/health` 不执行
+  SQL，不能证明 application role、CA、密码、RLS/context 或新 DSN；runtime 数据库门必须由 Rotate 后 exact
+  SHA deployment 加 DB-backed smoke 关闭；
+- 已经产生的 API deployment 历史不删除、不伪装成零部署；保留失败与修复链作为证据。Web 继续全分支
+  关闭，只有 API 重新关闭并完成实际 runtime 验收后才单独解锁。
+
+## 2026-08-23：Hosted application 验证拆分固定 contract，并校正 Supavisor TLS 证据
+
+- 管理脚本与 Vercel runtime 继续固定 transaction pooler `6543`；application 隔离验证器改用 session
+  pooler `5432`，以同一个 psql 连接确定验证同 backend 跨事务 context 清空，验证器端口不得进入 runtime；
+- 删除 application SQL 中的 `pg_stat_ssl` 判据。经 Supavisor 时该视图观察 pooler 到 PostgreSQL 的 backend
+  链路，不能证明客户端到 pooler 的 CA/hostname 验证；客户端门禁继续强制 `sslmode=verify-full`、固定 CA
+  和不可降级的 `PGSSLMODE` / `PGSSLROOTCERT`；
+- 正式 verify 拆成六项权限 contract、三项 context contract 和 postgres 越权拒绝；diagnostic 先执行固定
+  `SELECT true`，再输出 allowlisted TLS/contract/context 阶段和固定 psql exit class，不输出 stderr、SQL、
+  SQLSTATE、PID、密码或动态内容；禁止 postgres 切换作为独立探针，在客户端连接成功后不依赖其他 contract；
+- 密码轮换后的第一版诊断已确认连接成功而旧组合 SQL 未完成；拆分后的真实 hosted verify 必须重新通过，
+  离线回归不能替代远端门禁。
+
 ## 2026-08-23：首次 hosted deployment 改为 API-only one-shot 分支 allowlist
 
 - API `git.deploymentEnabled` 从全分支关闭改为 `"**": false` 加
   `"codex/settings-configuration": true`；显式全局拒绝用于避免未声明分支继承平台默认允许；
 - Web 保持 `git.deploymentEnabled=false`。首次 push 只能产生 API Production deployment，不得同时部署
   Web；分支 allowlist 不按文件路径过滤，因此 API armed 期间禁止无关 push；
-- API health 与真实 hosted smoke 通过后，必须用独立提交把 API 恢复为 `false` 并记录 deployment ID/SHA/
-  runtime/region/alias 证据；关闭后才允许准备 Web 的独立解锁提交。
+- 本节的“smoke 后关闭”顺序已被上方“产生 deployment 后先关闭”决策取代。受控 deployment 记录产生后，
+  必须先用独立提交把 API 恢复为 `false` 并确认关闭提交没有触发新 deployment，再记录 deployment
+  ID/SHA/runtime/region/alias 与 smoke 证据；关闭后才允许准备 Web 的独立解锁提交。
 
 ## 2026-08-23：Hosted acceptance 环境完成后以首次 API health gate 验证真实组合
 
@@ -174,19 +203,20 @@
 - 不新增公开 `/v1`/`/internal` route，不复用 local seed，不构造 Auth/profile，不产生 service-role Web
   session。设计与取舍见 `first-operator-bootstrap.md` 和 ADR-0023。
 
-## 2026-08-22：Hosted PostgreSQL 必须 verify-full，并验证精确角色图与事务池隔离
+## 2026-08-22：Hosted PostgreSQL 必须 verify-full，并验证精确角色图与池化隔离
 
 - 初版 hosted foundation/app login 验证能证明写入和登录成功，但 `sslmode=require` 未校验证书链与 hostname，
   membership 包含判断也不能排除额外授权；该证据降级为初步 apply 证据，不再充当最终安全门；
-- 管理脚本与 application DSN 统一固定 Singapore Supabase transaction pooler、6543、同一 project ref 和
-  `sslmode=verify-full`。CLI 使用官方 CA 临时文件，Vercel 运行时使用 base64 CA 并显式
+- 当时管理脚本与 application DSN 统一固定 Singapore Supabase transaction pooler、6543、同一 project ref
+  和 `sslmode=verify-full`；application 隔离验证器后续由 2026-08-23 决策校正为 session pooler 5432，
+  runtime 仍保持 6543。CLI 使用官方 CA 临时文件，Vercel 运行时使用 base64 CA 并显式
   `rejectUnauthorized=true`；缺失 CA、require-only、错误 pooler/project 或本机 DSN 漂移均失败关闭；
 - role graph 必须恰好为 application login→runtime、runtime→business/context-setter，三条边均无 ADMIN
   OPTION；login 不能切换 postgres、在 public CREATE 或直接调用 set_owner_context。预期越权只有 SQLSTATE
   `42501` 且 psql exit `3` 才通过，网络/认证错误不能冒充拒绝；
-- owner context 必须经事务 A 设置并 COMMIT，随后 transaction pooler 在同一 backend 上开启未设置 context
-  的事务 B 并读到 NULL；bootstrap 同时改为仅接受 pristine 或精确已应用的 private empty bucket 状态，
-  保持安全幂等重跑。
+- owner context 必须经事务 A 设置并 COMMIT，随后同一 backend 上开启未设置 context 的事务 B 并读到
+  NULL；后续改为 session pooler 同一连接确定复用 backend，不再依赖 transaction pooler 碰撞重试；
+  bootstrap 同时改为仅接受 pristine 或精确已应用的 private empty bucket 状态，保持安全幂等重跑。
 
 ## 2026-08-22：Hosted foundation 与首个 Operator 必须分离初始化
 

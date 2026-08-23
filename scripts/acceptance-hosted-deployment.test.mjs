@@ -45,9 +45,13 @@ test("hosted deployment plan is complete, deterministic, and secret independent"
     "seen-said-acceptance-api | apps/api | hono | sin1 | Fluid | 120s",
     "seen-said-acceptance-web | apps/web | vite | pnpm build | dist",
     "API Git deployment allows only codex/settings-configuration; Web disables every branch",
-    "REST shell -> PATCH settings -> Preview disabled readback -> CLI git connect; no deploy",
-    "After Git: Production Branch Tracking is codex/settings-configuration; recheck no deploy",
-    "The reviewed API-only commit arms the first deployment; Web remains disabled",
+    "The API allowlist is an armed window; every matching-branch push can deploy API",
+    "Next: deploy one reviewed post-rotation commit to API by exact SHA",
+    "/health proves TLS and process startup only; it does not execute SQL or prove the database DSN",
+    "Once the new deployment record exists, the only allowed next push is the API disarm commit",
+    "regardless of Ready, Error, or smoke outcome",
+    "Verify the disarm commit created no API or Web deployment; only then run health and DB-backed runtime smoke",
+    "Web remains disabled and has no Production deployment",
     "HUAYI_DATABASE_TLS_CA_BASE64",
     "HUAYI_STORE_EXTENSION_CAPABILITY",
     "Confirmed deployment decisions (values are not printed):",
@@ -65,6 +69,10 @@ test("hosted deployment plan is complete, deterministic, and secret independent"
   }
   assert.doesNotMatch(plan, /application-password|re_hosted-test|deepseek-hosted-test/u);
   assert.doesNotMatch(plan, /HUAYI_STORE_EXTENSION_ID/u);
+  assert.doesNotMatch(
+    plan,
+    /arms the first deployment|one-shot|Git zero-deployment safety|CLI git connect; no deploy|recheck no deploy|Web deploy ->|DB-backed runtime smoke must pass; then disable/u,
+  );
 });
 
 test("hosted deployment environment verifier reuses the production schema and fixed contract", () => {

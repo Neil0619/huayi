@@ -257,12 +257,17 @@ owner context、generation/reservation 归属、task 成功或失败终态、价
 - FirstOperatorBootstrap record 不得以外键阻止 AccountDataErasure。首位账号删除前只清除 record 的
   operator user UUID 并写 deletion time；保留的 completion/invitation deployment evidence 不含 email、正文、
   Auth identity 或 session，也不能再次执行 issue/complete。
-- hosted/production 数据库连接必须固定 Supabase transaction pooler、6543、`/postgres`、同一 project ref
-  与 `sslmode=verify-full`，并显式加载 Supabase CA、启用证书链和 hostname 校验。`sslmode=require` 只保证
-  加密而不满足身份验证；CA 缺失、project ref 不一致、非固定 pooler 或本机验收 DSN 漂移都在进程启动前
-  失败关闭。application login 只能精确继承 runtime→business/context-setter，不得有 ADMIN OPTION、额外
-  membership、public CREATE、直接 context setter 或切换 `postgres` 的能力；连接失败不能作为越权测试
-  成功。owner context 还必须在 transaction pooler 的前一事务提交后，于同一 backend 的下一事务为空。
+- hosted/production 管理脚本与 application runtime 数据库连接必须固定 Supabase transaction pooler、
+  `6543`、`/postgres`、同一 project ref 与 `sslmode=verify-full`；application 隔离验证器是唯一例外，只用
+  session pooler `5432` 保证同一 psql 连接跨事务复用 backend，不能作为 runtime DSN。两类连接都显式加载
+  Supabase CA、启用证书链和 hostname 校验。`sslmode=require` 只保证加密而不满足身份验证；CA 缺失、
+  project ref 不一致、端口用途漂移或本机验收 DSN 漂移都失败关闭。`pg_stat_ssl` 在 Supavisor 后只能观察
+  pooler 到 PostgreSQL 的 backend 链路，不能作为客户端 TLS 证据；客户端门禁由强制 verify-full、固定 CA
+  和成功连接共同证明。application login 只能精确继承 runtime→business/context-setter，不得有 ADMIN
+  OPTION、额外 membership、public CREATE、直接 context setter 或切换 `postgres` 的能力；其中精确角色
+  图、额外 membership 与 ADMIN OPTION 由 foundation 管理员 verify 证明，application verify 只证明登录
+  账号实际可见的 runtime 能力面与越权拒绝，连接失败不能作为越权测试成功。owner context 还必须在 session pooler 的前一事务提交后，于同一 backend 的下一
+  事务为空。
 - disabled 账号重新认证后只能取得 `DataRightsSession`；普通 session/authenticate seam 仍严格要求
   active+full。受限会话不能访问分析、学习库、练习、生词、设备或管理端点，deleting 不创建会话。
 - 普通 Google login flow 没有 claim ticket，只允许 Supabase 返回的既有 user ID；不得自动创建 profile、

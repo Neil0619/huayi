@@ -9,6 +9,8 @@ export const hostedAcceptancePoolerUrl =
 export const hostedAcceptanceApplicationRole = "huayi_hosted_acceptance_login";
 export const hostedAcceptanceApplicationPoolerUrl =
   "postgresql://huayi_hosted_acceptance_login.kpadiulxkgckskcfydry@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres?sslmode=verify-full";
+export const hostedAcceptanceApplicationSessionPoolerUrl =
+  "postgresql://huayi_hosted_acceptance_login.kpadiulxkgckskcfydry@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres?sslmode=verify-full";
 export const hostedAcceptanceExportBucket = "account-exports-acceptance";
 export const hostedAcceptanceCaCertificateUrl =
   "https://supabase-downloads.s3-ap-southeast-1.amazonaws.com/prod/ssl/prod-ca-2021.crt";
@@ -92,6 +94,21 @@ export function requireHostedCaCertificate(environment) {
   return certificate;
 }
 
+export function createHostedPsqlProcessEnvironment({
+  callerEnvironment,
+  processEnvironment = process.env,
+  rootCertificate,
+}) {
+  return {
+    LANG: processEnvironment.LANG ?? "C",
+    LC_ALL: processEnvironment.LC_ALL ?? "C",
+    PATH: processEnvironment.PATH ?? "",
+    PGPASSWORD: callerEnvironment.PGPASSWORD,
+    PGSSLMODE: "verify-full",
+    PGSSLROOTCERT: rootCertificate,
+  };
+}
+
 async function spawnHostedPsql({
   captureErrorCode,
   captureOutput,
@@ -115,14 +132,10 @@ async function spawnHostedPsql({
         databaseUrl,
       ],
       {
-        env: {
-          LANG: process.env.LANG ?? "C",
-          LC_ALL: process.env.LC_ALL ?? "C",
-          PATH: process.env.PATH ?? "",
-          PGPASSWORD: environment.PGPASSWORD,
-          PGSSLMODE: "verify-full",
-          PGSSLROOTCERT: rootCertificate,
-        },
+        env: createHostedPsqlProcessEnvironment({
+          callerEnvironment: environment,
+          rootCertificate,
+        }),
         shell: false,
         stdio: ["pipe", captureOutput ? "pipe" : "ignore", captureErrorCode ? "pipe" : "ignore"],
         windowsHide: true,

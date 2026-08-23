@@ -970,13 +970,18 @@ idempotency_records`，修复后覆盖创建、练习、历史、删除、词典
   状态，从而可安全重跑；部分状态、额外 bucket/object/price/control 必须整笔回滚；
 - admin verify 只读查询必须同时证明上述 schema/role/RLS、精确价格生效时间、唯一 kill switch、唯一
   private empty bucket 和零 identity/operator/invitation。返回值不是唯一 `t` 或 psql 非零都统一失败；
-- application verify 必须通过 `pg_stat_ssl`、权限探测、精确越权 SQLSTATE `42501`/exit `3`，以及 pooler
-  同一 backend 上“事务 A 设置并 COMMIT，事务 B 未设置且读到 NULL”证明 TLS、最小权限和 context 不泄漏。
-  PGlite 另覆盖 commit 后下一事务 context 为空；连接错误、不同 backend 或只执行 ROLLBACK 都不能通过；
+- application verify 将权限 contract、context contract 与精确越权 SQLSTATE `42501`/exit `3` 分开执行；
+  六项权限结果必须全真，session pooler `5432` 的同一连接还必须在同一 backend 上证明“事务 A 设置并
+  COMMIT，事务 B 未设置且读到 NULL”。PGlite 另覆盖 commit 后下一事务 context 为空；连接错误、不同
+  backend、输出形状漂移或只执行 ROLLBACK 都不能通过。不得用 `pg_stat_ssl` 证明 Supavisor 客户端 TLS；
 - CLI 与 production runtime 都必须使用显式 Supabase CA 与 `verify-full`；API 环境回归拒绝 require/无 TLS、
   非 6543 pooler、错误 project ref、缺失/越界 CA，本机 disabled 模式只接受固定 loopback database DSN；
+- hosted psql 子进程回归必须证明调用方不能覆盖 `PGSSLMODE=verify-full` 与临时 `PGSSLROOTCERT`；diagnostic
+  布尔项只输出固定 TLS/contract/context/越权阶段的 `name|t/f`，exit class 只允许固定枚举；任何 stderr、
+  SQL、SQLSTATE、PID 或密码都不能出现，并覆盖 psql code `0/1/2/3/null/other` 的精确分类；
 - 本阶段 focused tests 只能证明 SQL/CLI composition 与嵌入式事务语义。真实执行仍需用户确认；执行后要用
-  自定义 login 经 transaction pooler 完成 hardened application verify，才能把 DSN 写入 Vercel secret store。
+  自定义 login 经 session pooler 完成 hardened application verify，才能把 transaction-pooler runtime DSN
+  保留在 Vercel secret store。
   Supabase 托管 `postgres` 不是 superuser，preflight 只能要求精确 `postgres` 管理角色和 CREATEROLE，
   不得以 `is_superuser=on` 作为不可满足的前置。
 

@@ -1326,10 +1326,11 @@ and Windows gates pending`。
 - 安全审查确认初版验证不能作为最终门：`sslmode=require` 不验证 CA/hostname，membership 包含判断不能
   排除额外授权，rollback 内 context 也不能证明 transaction pooler 跨事务隔离。初版 passed 因此只保留为
   apply/login preliminary evidence；
-- 仓库已加固为 Supabase 官方 CA + `verify-full`、固定 6543 pooler 与同 project ref；管理员复验检查精确
-  membership/ADMIN OPTION、角色属性、价格生效时间、唯一 control/bucket/object，application 复验检查 TLS、
-  public CREATE/direct context 权限、postgres 越权精确 SQLSTATE `42501`/exit `3`，并要求事务 A COMMIT 后
-  transaction pooler 同 backend 的事务 B context 为 NULL；连接失败不能冒充安全拒绝；
+- 仓库已加固为 Supabase 官方 CA + `verify-full` 与同 project ref；runtime 固定 transaction pooler `6543`，
+  application 隔离 verifier 专用 session pooler `5432` 保证单连接复用同 backend。管理员复验检查精确
+  membership/ADMIN OPTION、角色属性、价格生效时间、唯一 control/bucket/object；application 复验拆分检查
+  public CREATE/direct context 权限、postgres 越权精确 SQLSTATE `42501`/exit `3` 与 COMMIT 后 context 清空。
+  客户端 TLS 由 `verify-full`、固定 CA 与成功连接证明，不再以 `pg_stat_ssl` 观察 pooler 后端链路；
 - bootstrap 也已修正为安全幂等：既允许 pristine 空 Storage，也允许精确唯一 private empty bucket 的已应用
   状态，部分或额外状态失败关闭。API/PGlite focused 与 hosted Node 8/8 已通过；fresh
   `pnpm verify:macos` 最终为 202/202 Node、472/472 Vitest files（2,847 passed / 12 skipped）、Store
@@ -1356,8 +1357,9 @@ and Windows gates pending`。
 - fresh `pnpm verify:macos` 原样退出 0：207/207 Node scripts、473/473 Vitest files（2,855 passed /
   12 skipped）、Store 481/481、Playwright 110/110 和全部构建/发布/依赖门；迁移镜像、diff 与 known
   secret/token scan 通过；
-- hosted foundation 的 application 复验已通过；管理员 membership 校验已按 PostgreSQL 17 语义更正，
-  修正版远端只读复验也已通过。0012 已按只列出 FirstOperatorBootstrap 的 dry-run、候选 commit/push、
+- hosted foundation 的管理员 membership 校验已按 PostgreSQL 17 语义更正，修正版远端只读复验已通过；
+  0012 后、application 密码轮换后的最新正式 application verifier 也已通过。0012 已按只列出
+  FirstOperatorBootstrap 的 dry-run、候选 commit/push、
   明确确认和 actual push 完成；diagnostic 证明 12 条 migration、0012 结构与空 Auth/profile/admin/
   invitation/first Operator。固定 Operator status 已返回 `empty`；未执行 Vercel 部署、邀请发行、真实注册、
   complete 或 `/admin` 浏览器验收。
@@ -1530,20 +1532,49 @@ passed; first Operator empty`。候选已提交推送，0012 已实际 push；�
 - 四项 forbidden variables 均不存在。数据库 DSN 与 DeepSeek key 由用户直接安全输入且未写入文档；三项
   本地生成 Secret 仅以固定 service 名和 project ref account 保存在 macOS login Keychain。Reply-To 仅
   记录为“用户确认地址”；
-- 两个 Vercel project 均仍为 `No Production Deployment`，`git.deploymentEnabled=false` 未改。
+- 截至 Phase 64 完成时，两个 Vercel project 均仍为 `No Production Deployment`，
+  `git.deploymentEnabled=false` 未改。
   `acceptance:hosted:deployment --plan` 与最新 `verify:macos` 通过；Sensitive 值不可从 Vercel 回读，因此
   未重跑完整值 `--verify-environment`，也不为此旋转 Secret；
-- 当前状态是 `hosted configuration complete; first deployment pending`，不是已部署或 production ready。
-  下一门是准备解锁首次部署的受审查提交，再按 API health 与真实 hosted smoke → Web → 邮件/R3-C → Cron
-  → FirstOperatorBootstrap invitation 执行。
+- 该阶段退出状态是 `hosted configuration structure complete; deployment pending`，不是已部署或
+  production ready；后续 Phase 65–67 已单独记录实际 API deployment 与 DSN Rotate。
 
 ## Cloud V1 Phase 65 Hosted acceptance API-only 部署解锁状态（2026-08-23）
 
 - API `git.deploymentEnabled` 已收窄为 `"**": false` +
   `"codex/settings-configuration": true`；Web 继续全分支 `false`。该 policy 只按分支生效，不按变更文件生效；
 - Fresh RED 已分别证明旧 API 布尔 `false` 和旧 deployment plan 不满足 API-only 解锁契约；最小实现与文档
-  已同步，尚未因本节本身宣称 deployment 成功；
-- 解锁提交 push 前必须再次确认 Production Branch Tracking、Preview Disabled 与双项目零部署。push 后只
-  接受一个 SHA 精确匹配的 API Production deployment，Web 必须仍为零；
-- API health 与真实 hosted smoke 通过后先恢复 API `false` 并记录实际 deployment/runtime/region/alias
-  证据，再进入 Web 独立解锁。
+  已同步；
+- 实际 armed 窗口内，`ac06dba` 到 `0c04130` 的 6 个线性 commit 均产生 API Production 记录，另有一次
+  `0c04130` redeploy；其中 3 条 Error、4 条 Ready。Web 仍为 `No Production Deployment`；
+- 该结果证明 exact branch policy 保持了 API/Web 隔离，但没有实现“只产生一个 deployment”的流程目标。
+  API 仍 armed，完成轮换后受控 runtime smoke 之前不得继续无关 push。
+
+## Cloud V1 Phase 66 Hosted application 角色复验与 runtime DSN 状态（2026-08-23）
+
+- application verifier 已把客户端 TLS、六项权限、三项 context 与 postgres 越权拒绝拆成固定探针；
+  `pg_stat_ssl` 不再误作 Supavisor 客户端 TLS 证据，私有函数权限使用固定 catalog OID；
+- 用户运行新 diagnostic，22 个固定字段全部符合预期，正式 verifier 返回
+  `Hosted acceptance application login verification passed.`；application 数据库角色、最小权限和同 backend
+  跨事务 context 清空门已关闭；
+- 远端通过证明修订后的完整 contract 有效，但未单独重放旧 text/regprocedure 探针，因此不把单一表达式
+  记录成唯一已隔离根因；
+- Vercel `HUAYI_DATABASE_URL` 已用轮换后密码成功 Rotate 为 percent-encoded transaction-pooler `6543`
+  DSN，仍为 Production-only Sensitive；剪贴板已清空且未点击 Redeploy；
+- 现有 Latest API deployment 早于 Rotate，不能证明新 DSN 已被 runtime 使用。下一门是冻结候选并执行一次
+  轮换后受控 deployment，而不是重做数据库验证或声称首次部署。
+
+## Cloud V1 Phase 67 Hosted API 真实部署状态与轮换后门禁（2026-08-23）
+
+- Dashboard 回读 API 共 7 条 Production deployment 记录；冻结本候选前的 Latest/Current deployment
+  `BAC8nKdfjGH9Qtp1wdwi1j4376bN` 的 source 为当时本地/远端共同 HEAD
+  `0c0413085a9dc78e7dc772cdee2eff2ce446ae04`，不是陌生代码；
+- `https://api.acceptance.seen-said.cn/health` 返回 HTTP 200、TLS verify result 0 和固定
+  `{"service":"huayi-cloud-api","status":"ok"}`，`x-vercel-id` 以 `sin1::sin1` 开头。该 route 不访问
+  数据库，不能证明轮换后 DSN、DeepSeek 或 Auth composition；
+- API/Web 的 Production Branch Tracking 均为 `codex/settings-configuration`，Preview 均为 `Disabled`；Web
+  仍为 `No Production Deployment`。API 仓库配置仍 armed，Web 仍全分支关闭；
+- 下一门：审查并提交当前候选，受控 push 只允许 API 产生一个 SHA 匹配的轮换后 deployment；新记录一旦
+  产生，无论 Ready/Error 或 smoke 成败，唯一允许的下一次 push 都是以独立提交恢复 API
+  `deploymentEnabled=false`。确认关闭提交没有产生 API/Web deployment 后，才完成数据库、DeepSeek、
+  Auth/Cookie/CORS/SSE smoke。

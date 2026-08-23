@@ -50,9 +50,10 @@ loopback-only runtime、生成式 secret/bootstrap、受信任 HTTPS Web/API/Sup
   hosted-acceptance 外部门禁，不能被 fake mail、域名验证或配置完成冒充为真实投递完成。
 
 因此当前状态为
-`hosted configuration complete; first deployment and real acceptance pending`。本机核心学习闭环、持续
-重启和服务端 Store 契约已通过，托管 Auth 与环境结构也已配置，但不得据此宣称 hosted 应用已部署、真实
-Chrome 或 production ready。
+`hosted API deployed; runtime DSN rotated; post-rotation runtime and real acceptance pending`。本机核心学习
+闭环、持续重启和服务端 Store 契约已通过，托管 Auth 与环境结构也已配置；API 当前 `/health` 可用且 Web
+仍未部署，但现有 API deployment 早于 DSN Rotate，不得据此宣称数据库/Provider/Auth 已验收、真实 Chrome
+或 production ready。
 
 ## 3. 推荐拓扑
 
@@ -221,13 +222,15 @@ hosted foundation 使用独立 `acceptance:hosted:bootstrap` / `acceptance:hoste
 login、三条 acceptance 价格、`model_kill_switch=true` 与 private export bucket，并保持 Auth/profile/
 Operator/invitation 为空。用户已于 2026-08-22 明确确认并完成远端 bootstrap；初版 admin/application login
 验证返回 passed，证明写入和登录可用。安全审查随后发现 require-only TLS 与包含式 membership 验证不足，
-现已改为显式 Supabase CA + verify-full、精确角色图、预期越权 SQLSTATE/exit code 和 transaction pooler
+现已改为显式 Supabase CA + verify-full、精确角色图、预期越权 SQLSTATE/exit code 和 session pooler
 同一 backend 跨事务 context 清空验证；用户随后运行顺序式 `set -e` 命令并到达 application passed，证明
-当时 admin 查询与 application hardened 路径均可运行。0012 push 后 diagnostic 暴露旧 membership SQL
+当时 admin 查询与 application hardened 路径均可运行。Vercel runtime 仍只接受 transaction pooler `6543`；
+验证 SQL 不再用只能观察 Supavisor backend 链路的 `pg_stat_ssl` 证明客户端 TLS。0012 push 后 diagnostic 暴露旧 membership SQL
 错误要求 PostgreSQL 17 `NOINHERIT` 产品边 `inherit=true`，并错误拒绝 creator-control 边；仓库已修正。
 用户随后运行修正版远端只读 verify 并通过，固定 Operator status 返回 `empty`。当前 foundation 状态为
 `applied; corrected PostgreSQL 17 remote verification passed; first Operator empty`。Vercel API/Web、Auth
-URL/SMTP 与 Production environment 已配置，但应用仍为零 deployment，Auth/Operator 仍为空。
+URL/SMTP 与 Production environment 已配置；API 已有 Production deployment，Web 尚未部署，Auth/Operator
+仍为空。
 
 首个 Operator 不由 foundation 创建。Phase 52 已冻结两阶段 FirstOperatorBootstrap：
 DeploymentBootstrapAuthority 发行唯一 BootstrapInvitation，正常注册完成后只晋升该邀请最终绑定的账号；
@@ -256,12 +259,14 @@ RLS，首页仍为 `Healthy`。第 12 条 FirstOperatorBootstrap forward migrati
 actual push。Auth 仍为 0 用户；foundation bootstrap 后 Storage 为唯一 private
 `account-exports-acceptance` bucket 且 0 object，application login 与三条价格已建立，kill switch 保持开启。
 Vercel 应用部署仍是独立门；修正版 PostgreSQL 17 foundation verify 已通过，Operator status 已返回
-`empty`。两个 Vercel project、Git/Branch、custom domain 与部署前 TLS 已建立，但仍为零 deployment；Tokyo
+`empty`。两个 Vercel project、Git/Branch、custom domain 与部署前 TLS 已建立；API 已有 7 条 Production
+deployment 记录且 Web 仍为 `No Production Deployment`。Tokyo
 (`ap-northeast-1`) 的 Resend sender domain `notify.acceptance.seen-said.cn` 也已完成 DNS 与 Dashboard
 verified。旧泄露 key 与两把未使用的错误/临时 R3-C key 均已撤销；两把 sending-only/domain-scoped
 SMTP/HTTP key 已分离托管，Supabase Custom SMTP、Auth Site URL/五条 exact redirect、API 21/21 与 Web
-2/2 Production-only environment 均已配置并完成结构回读。双项目仍为 `No Production Deployment`；真实
-composition、投递与应用验收仍未完成。
+2/2 Production-only environment 均已配置并完成结构回读。API 当前 Latest/Current deployment source 为
+`0c04130`，custom-domain `/health` 返回 TLS 校验通过、HTTP 200 与固定 JSON；该 deployment 早于 application
+DSN Rotate，因此真实数据库 composition、投递与完整应用验收仍未完成。
 
 `.cn` 域名实名认证是启用解析的必需项。验收环境继续使用 Vercel/Supabase 境外托管资源时，ICP备案不
 作为当前启动前置；未来迁入中国大陆服务器、使用中国大陆 CDN 或其他境内接入资源前，必须重新设置备案
@@ -340,8 +345,10 @@ transport/wire 或候选冻结时才提前进入 Windows。一个验收周期结
 4. 用户在本机持续使用并完成首轮反馈/修复循环；
 5. 已完成：域名实名、Cloudflare 权威 NS、Web/API/Resend 精确 DNS、部署前 TLS、Supabase/Vercel 独立资源、
    Auth URL/SMTP 与完整 Production-only environment 结构；
-6. 形成受审查的首次部署解锁提交，再按 API first 执行启动、health、TLS/CORS/Cookie/SSE/Auth/Storage 与
-   真实 DeepSeek 小额 smoke，全部通过后部署 Web；
+6. 已形成 API-only armed 提交并产生 API deployment 历史；下一步冻结受审查候选，执行一次轮换后受控 API
+   deployment。新 deployment 记录产生后，无论 Ready/Error 或 smoke 成败，唯一允许的下一次 push 都是
+   重新关闭 API Git deployment；确认关闭提交没有产生 API/Web deployment 后，才验证启动、health、
+   TLS/CORS/Cookie/SSE/Auth/Storage 与真实 DeepSeek 小额 smoke；全部通过后才单独部署 Web；
 7. 在 Web 部署后完成真实 callback、托管 Auth/Storage、多连接 RLS、session 撤销与备份/重建；
 8. 验收真实邮件、R3-C sender/通知 CRON/告警，再安装五项 Cron；
 9. DeepSeek 小额真实验收已获批准但须等待 API health；Google 与 Store/Chrome 仍分别等待后续批准；
@@ -379,11 +386,15 @@ Production-ready 不能由以上任何一层自动推出；即使 acceptance 域
 
 ## 9. 当前下一步
 
-Phase 64 已完成 hosted Auth 与 API/Web Production environment 结构配置，纯文档提交已推送且未触发部署。
-Phase 65 已把 API 收窄为全局拒绝加 exact production branch 允许，Web 继续全分支关闭。下一步在 push 前
-复核 Production Branch/Preview/零部署，再执行 API-only 首次 deployment；API health/真实 hosted smoke 通过
-并重新关闭 API 后，才进入 Web → 真实邮件/R3-C → Cron → 首位 Operator 邀请。下一次 Windows 全门等到
-验收批次冻结，不因每个文档或配置步骤重复执行。
+Phase 64 已完成 hosted Auth 与 API/Web Production environment 结构配置。Phase 65 把 API 收窄为全局拒绝
+加 exact production branch 允许后，实际产生 6 个线性 commit 对应的 Production deployment 及一次 redeploy；
+冻结本候选前的 Latest/Current source 为 `0c04130`，Web 继续全分支关闭且没有 deployment。Phase 66 的新 application
+diagnostic 22 个字段与正式 verify 均已远端通过，Vercel `HUAYI_DATABASE_URL` 也已用轮换后密码成功 Rotate
+为 Production Sensitive transaction-pooler `6543` DSN；但现有 deployment 早于 Rotate。下一门是冻结当前
+候选并执行一次轮换后受控 API deployment；记录产生后先用唯一后续 push 关闭 API Git deployment，并确认
+关闭提交没有产生 API/Web deployment，再验证 health、数据库、DeepSeek 与 Auth；之后才进入 Web → 真实
+邮件/R3-C → Cron → 首位 Operator 邀请。下一次 Windows 全门等到验收
+批次冻结，不因每个文档或配置步骤重复执行。
 
 ## 10. 官方约束来源
 

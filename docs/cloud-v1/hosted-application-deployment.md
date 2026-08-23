@@ -13,9 +13,11 @@ Deployments 页面，确认仍无 Production deployment 或 deployment 记录，
 临时 R3-C key 均已撤销，当前只保留两把 sending-only/domain-scoped SMTP/HTTP key。Supabase Custom SMTP
 已经启用。Phase 64 已完成 Supabase Auth exact URL 配置、API 21/21 与 Web 2/2 Production-only
 environment 配置和结构回读；API 精确为 9 项 Sensitive、12 项 public，Web 两项均为 public，四项禁止变量
-不存在。API/Web 仍均为 `No Production Deployment`。Phase 65 只把 API policy 收窄为全局拒绝加
-`codex/settings-configuration` 精确允许，Web 继续 `git.deploymentEnabled=false`；该受审查提交用于触发
-首次 API-only deployment，不会解锁 Web。真实应用组合、邮件、Cron 和邀请仍未验证或执行。
+不存在。Phase 65 把 API policy 收窄为全局拒绝加 `codex/settings-configuration` 精确允许后，API 实际产生
+6 个线性 source commit 的 Production deployment 与一次 redeploy；Web 继续
+`git.deploymentEnabled=false` 且仍为 `No Production Deployment`。2026-08-23 application 密码轮换后的分段
+diagnostic 22 个字段与正式 verifier 均已远端通过，Vercel runtime DSN 也已成功 Rotate；但现有 Latest API
+deployment 早于 Rotate。真实数据库/Provider/Auth runtime、邮件、Cron 和邀请仍未验证或执行。
 
 ## 1. 当前事实与目标
 
@@ -36,14 +38,16 @@ Production 的 R3-C 通知变量已经配置。Phase 64 又完成 Auth Site URL�
 Production environment；三项本地生成 Secret 只保存在 macOS login Keychain，不进入仓库或本文。这仍不
 等于邮件已投递或应用已部署。两个 Vercel project 已连接精确
 GitHub repository `Neil0619/huayi`，Preview 均为 `Disabled`，Production Branch Tracking 均为
-`codex/settings-configuration`；API Production 现为 21/21，Web 为 2/2，Deployments 仍为空。
+`codex/settings-configuration`；API Production 现为 21/21，Web 为 2/2。API 有 7 条 Production deployment
+记录，当前 Latest/Current source 为 `0c04130`；Web Deployments 仍为空。
 
 Cloudflare DNS 与公网 TLS 门已完成：`api.acceptance.seen-said.cn` 的 CNAME 为
 `7cb58e1372474614.vercel-dns-017.com.`，`app.acceptance.seen-said.cn` 的 CNAME 为
 `f0cbaadacf303110.vercel-dns-017.com.`；两条均为 DNS only、Proxy disabled、TTL Auto。Cloudflare 保存后
 回读一致，1.1.1.1、8.8.8.8、9.9.9.9 均解析到精确 CNAME；Vercel 两个 custom domain 均显示 properly
-configured。两个 HTTPS host 的 TLS 校验 `curl ssl_verify_result=0`，部署前返回预期 404；zero deployments
-仍保持。此前 NXDOMAIN 仅是历史 Phase 50 bootstrap 前状态。
+configured。两个 HTTPS host 的部署前 TLS 校验曾返回 `curl ssl_verify_result=0` 与预期 404；当前 API
+custom-domain `/health` 已返回 TLS 校验通过、HTTP 200 与固定 JSON，Web 仍未部署。此前 NXDOMAIN 与
+zero-deployment 只属于历史 bootstrap/连接阶段。
 
 本阶段目标是建立可重复、默认失败关闭的 hosted application deployment contract，然后按固定顺序部署：
 
@@ -68,15 +72,18 @@ remote migration 0012
    不得重跑 migration；
 2. 修正版 `acceptance:hosted:verify` 已通过，随后 `acceptance:hosted:operator:status` 已返回 `empty`；不能
    重跑 foundation bootstrap；
-3. 对话中曾出现的 Resend key 已撤销；误建 Full access 与工具诊断暴露的临时 scoped R3-C key 也已在未
+3. 密码轮换后的 `acceptance:hosted:application:verify` 已通过，Vercel Production Sensitive
+   `HUAYI_DATABASE_URL` 也已更新为当前 application 密码对应的 transaction pooler `6543` DSN；现有
+   deployment 早于 Rotate，仍须通过轮换后受控 deployment 验证；
+4. 对话中曾出现的 Resend key 已撤销；误建 Full access 与工具诊断暴露的临时 scoped R3-C key 也已在未
    使用前撤销，均不得用于 SMTP、R3-C 或 Vercel；
-4. `notify.acceptance.seen-said.cn` 已按 Resend Dashboard 实际值完成 SPF、DKIM、MX 和初始 DMARC；
-5. Supabase Auth SMTP key 与 API R3-C HTTP key 已建立为两把独立、sending-only、限定该验收子域的 key；
-6. 当前 production API 只接受完整 Resend hosted composition。缺 Resend、DeepSeek、数据库 CA/DSN 或任一
+5. `notify.acceptance.seen-said.cn` 已按 Resend Dashboard 实际值完成 SPF、DKIM、MX 和初始 DMARC；
+6. Supabase Auth SMTP key 与 API R3-C HTTP key 已建立为两把独立、sending-only、限定该验收子域的 key；
+7. 当前 production API 只接受完整 Resend hosted composition。缺 Resend、DeepSeek、数据库 CA/DSN 或任一
    secret 时必须在初始化阶段失败；禁止填假 key 或把 local disabled 模式带到公网；
-7. 用户已确认 hosted DeepSeek key 可用，并批准验收环境产生少量真实费用；仍不得把 key 写入仓库、聊天
+8. 用户已确认 hosted DeepSeek key 可用，并批准验收环境产生少量真实费用；仍不得把 key 写入仓库、聊天
    或测试输出，部署时只写入 Vercel Production Sensitive Environment；
-8. 最新候选必须是已记录的完整 commit SHA。Vercel 不部署无法追溯的未提交工作树。
+9. 最新候选必须是已记录的完整 commit SHA。Vercel 不部署无法追溯的未提交工作树。
 
 Google 可以继续延期。首位 Operator 先用邮箱密码完成正常邀请注册；Google Provider 未配置时 UI/路由
 不得冒充可用。
@@ -105,7 +112,7 @@ API `vercel.json` 必须把 framework 固定为 `hono`、project region 固定�
 
 Vercel 官方 project configuration 支持 `git.deploymentEnabled`。首次连接期间 API/Web 两份
 `vercel.json` 均固定 `{ "git": { "deploymentEnabled": false } }`，临时禁用所有分支的 Git deployment；
-这不是 Preview 开关，也不是长期发布策略。Phase 65 的 API-only one-shot policy 改为：
+这不是 Preview 开关，也不是长期发布策略。Phase 65 的 API-only armed policy 改为：
 
 ```json
 {
@@ -119,8 +126,10 @@ Vercel 官方 project configuration 支持 `git.deploymentEnabled`。首次连�
 ```
 
 未声明分支不能依赖平台默认值，因此必须保留 `"**": false`；Web 继续使用布尔 `false`。API policy 按分支
-而非按改动路径生效，armed 期间该分支的任意后续 push 都可能再次部署 API。首次 API health 与真实 hosted
-smoke 通过后，必须用“API 恢复 `false` + 实际部署证据”的独立提交重新关闭，之后才准备 Web 解锁。
+而非按改动路径生效，armed 期间该分支的任意后续 push 都可能再次部署 API；实际修复链已经证明它不能
+当成只允许一次 deployment 的平台保证。轮换后 deployment 记录一旦产生，无论 Ready/Error 或 smoke
+成败，唯一允许的下一次 push 都是用独立提交把 API 恢复为 `false`；确认关闭提交没有产生 API/Web
+deployment 后，才运行 health 与真实 hosted smoke，并准备 Web 解锁。
 
 首次创建必须按以下顺序执行并逐步保存无 secret 证据：
 
@@ -135,8 +144,10 @@ smoke 通过后，必须用“API 恢复 `false` + 实际部署证据”的独�
    `codex/settings-configuration`，每次保存后再次确认 deployments 仍为空。Production Branch 属于 Git
    link，未连接 Git 时 Dashboard 不显示该设置，禁止再要求操作者连接前寻找或伪造它；
 6. DNS、Resend、Supabase Auth/SMTP 和 Production environment 全部完成并复核后，Phase 65 受审查提交
-   以 `"**": false` + exact branch `true` 只解锁 API，Web 保持 `false`。API 通过真实 health/smoke 后先重新
-   关闭 API，再以另一受审查提交准备 Web。禁止改成允许所有分支或同时解锁两个 project。
+   以 `"**": false` + exact branch `true` 只解锁 API，Web 保持 `false`。API deployment 记录产生后，无论
+   Ready/Error 或 smoke 成败，唯一允许的下一次 push 都是重新关闭 API；确认关闭提交没有产生 API/Web
+   deployment 后，才运行 health/smoke 并以另一受审查提交准备 Web。禁止改成允许所有分支或同时解锁两个
+   project。
 
 仓库提供三个固定入口执行上述第 1–2 步，而不要求调用方临时拼接 REST body：
 
@@ -147,6 +158,9 @@ smoke 通过后，必须用“API 恢复 `false` + 实际部署证据”的独�
 - `pnpm acceptance:vercel:projects:status -- --status-vercel-empty-projects-neil0619s-projects`：只读回查，
   仅输出 `missing`、`shell-unconfigured` 或 `settings-ready-dashboard-pending` 等有界状态，不输出 team/
   project/deployment ID 或第三方正文。
+
+上述 `apply/status` 只适用于 empty-project bootstrap。当前 project 已有 Git、environment 与 API deployment，
+不得重跑；其失败关闭不是当前远端漂移证据。现阶段只使用 Dashboard/受审查的 deployment readback。
 
 pnpm 会把上述命令中的单个 `--` 原样转发给固定了 `apply/status` 的 Node script；CLI 只在该精确位置移除
 一次分隔符，然后继续严格校验确认参数，不能接受额外参数。失败时 stderr 只输出白名单
@@ -228,6 +242,12 @@ Production environment 均为 `No Environment Variables Added`。本轮没有接
 | `HUAYI_SECURITY_NOTIFICATION_FROM`         | `语见 <security@notify.acceptance.seen-said.cn>`                        | public     |
 | `HUAYI_SECURITY_NOTIFICATION_REPLY_TO`     | 用户已确认且可收件的支持地址；值不写入仓库或计划输出                    | public PII |
 
+`HUAYI_DATABASE_URL` 必须使用 application role 的 percent-encoded 当前密码和 transaction pooler `6543`；
+session pooler `5432` 只供隔离验证器使用。2026-08-23 application 密码轮换后的分段 diagnostic 22 个字段与
+正式 verifier 已远端通过，Vercel 中该变量也已成功 Rotate 为 Production Sensitive；但现有 Latest
+deployment 早于 Rotate。结构存在、旧值不可回读或 `/health` 通过都不能证明新 DSN 已进入 runtime，必须由
+轮换后 exact-SHA deployment 与 DB-backed smoke 关闭。
+
 所有 sensitive 变量只创建在 Vercel Production 并启用 Sensitive；不 pull 到仓库文件。公开变量也只作用于
 Production，避免 Preview 意外连接同一项目。任何环境变量变化只对下一次 deployment 生效，修改后必须重新
 部署并记录 deployment ID/SHA。
@@ -244,8 +264,9 @@ Keychain，service 分别为 `huayi-hosted-acceptance-refresh-encryption`、
 
 `acceptance:hosted:deployment --verify-environment` 需要完整值做本地 composition 校验，但 Vercel Sensitive
 值在托管后不可回读。因此不能从 Dashboard/API 重建该命令，也不得仅为重跑它而旋转已托管 Secret。当前
-完成证据是远端变量名、目标环境和 Sensitive/public 分类的精确结构回读；真实值组合仍由首次 API
-deployment 的启动与 `/health` gate 失败关闭验证。
+完成证据是远端变量名、目标环境和 Sensitive/public 分类的精确结构回读。固定 `/health` 不执行 SQL，只能
+证明 domain/TLS/启动/固定 JSON；真实数据库值组合必须由 Rotate 后 exact-SHA deployment 加 DB-backed
+application-role smoke 失败关闭验证。
 
 首轮 Web-only hosted acceptance 不伪造 Store ID：API composition 不注册配对、设备、ExtensionQuery、
 CloudWordCopy、Extension preferences/self-disconnect 等 Store 专用路由，CORS 只允许 Web origin；混合
@@ -296,8 +317,9 @@ URL，无通配符。该状态只关闭 Auth URL 配置门；尚未通过真实 
 3. Resend `notify.acceptance.seen-said.cn` 已逐条配置 DKIM、SPF/MX 与 Dashboard 指定的根域 `_dmarc`
    monitoring `p=none`，显示 verified，且两把分离 key 已托管、旧 key 已撤销；
 4. Supabase Auth exact URL 与 SMTP 已配置；Google 保持 disabled；
-5. API/Web Production environment 已完成结构复核；下一步由受审查提交解锁精确 production branch，再先
-   部署 API、后部署 Web；
+5. API/Web Production environment 已完成结构复核，Vercel API Production Sensitive
+   `HUAYI_DATABASE_URL` 已 Rotate；再次回读 Production Branch 与 Preview Disabled 后，由受审查提交只触发
+   一个轮换后 API Production deployment，Web 继续保持零 deployment；
 6. API `/health`、Web `/` 与 `/privacy` 通过真实 TLS 后，验证 Cookie/CORS/CSRF/SSE/password callback；
 7. 只有稳定 API custom domain 通过后，才把 `configure-supabase-cron.sql` 的固定五项任务写入 Vault/
    `pg_cron + pg_net`；不得使用 Vercel Hobby CRON；
@@ -332,7 +354,8 @@ REST，先预检两个 project 再按 API→Web 顺序创建/复用；请求序�
 离线退出门：focused API/Web/script tests、API/Web full、typecheck/build、Prettier/ESLint、Vercel config
 schema、secret scan、`git diff --check` 和完整 `pnpm verify:macos`。Hosted 退出门另要求：
 
-- migration 0012 applied + corrected foundation verify passed + Operator status empty；
+- migration 0012 applied + corrected foundation verify passed + latest application verifier passed + Operator
+  status empty；
 - 两个 deployment 均绑定记录的 commit，API 位于 `sin1`、Fluid/120s；
 - custom-domain TLS、exact CORS、host-only Secure SameSite=Lax Cookie、CSRF、SSE 与五条 callback 通过；
 - Resend domain/SMTP/R3-C 两把 key、一次真实确认邮件和一次 R3-C 通知通过，无重复投递；
@@ -353,7 +376,8 @@ format/lint/typecheck/build、architecture、development blocker、Store release
 未连接远端；修正版远端只读 verify 与固定 Operator status 已由用户实际运行并分别得到 passed / `empty`，
 因此数据库 foundation 门已关闭；Vercel project settings、Git repository、Preview、Production Branch、
 domain/TLS、Resend sender DNS、分离邮件 credential 与 Custom SMTP 配置门也已关闭。API 只完成 R3-C 通知
-变量子集；完整 production-only environment、真实邮件、deployment、Cron 与邀请门仍保持关闭。
+变量子集；Phase 64 已完成 Production environment 结构配置，application DSN 也已 Rotate。API 已有部署
+历史，但轮换后 runtime composition、邮件、Web deployment、Cron 与邀请门仍保持关闭。
 
 ## 8. 文档审查结论与外部输入
 
@@ -376,8 +400,10 @@ format/lint/typecheck/build、architecture、release 和 production audit；prod
 该证据在当时只关闭离线实现门，不代表当时已创建 Vercel project 或完成任何外部配置、部署、真实请求与
 邀请；后续已单独完成 project bootstrap、Git/Branch Tracking、domain/TLS、Resend sender、分离邮件
 credential、Custom SMTP、Supabase Auth exact URL、API 21/21 与 Web 2/2 Production-only environment 和零
-deployment 回读。由于托管 Sensitive 值不可回读，未从远端重跑完整值 verifier，且不为此旋转 Secret；
-真实 composition 仍由首次 API deployment health gate 关闭。真实邮件、deployment、Cron 与邀请仍未执行。
+deployment 回读。后续 API 已产生 7 条 Production 记录；application 密码轮换后的正式数据库 verifier 与
+Vercel DSN Rotate 均已完成，但现有 Latest deployment 早于 Rotate。由于托管 Sensitive 值不可回读，真实
+composition 继续由轮换后受控 API deployment/runtime gate 关闭。真实邮件、Web deployment、Cron 与邀请
+仍未执行。
 
 官方约束来源：
 

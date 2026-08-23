@@ -81,11 +81,14 @@ foundation 只允许 project ref `kpadiulxkgckskcfydry` 的 Singapore transactio
 application role 密码只从 `HUAYI_HOSTED_APP_DATABASE_PASSWORD` 读取，均不得放入参数、文档、日志或
 聊天。该密码在 Vercel project 创建后只进入 secret store；脚本不创建本机 secret 文件。
 
-所有 hosted 管理与应用 DSN 固定使用 transaction pooler `/postgres?sslmode=verify-full`。命令行从
-Supabase 官方 Singapore CA 地址读取 PEM 到进程变量 `HUAYI_HOSTED_DATABASE_CA_CERTIFICATE`，脚本只把
-它写入权限 `0600` 的临时 root certificate 并在退出时删除；Vercel 运行时使用
+hosted 管理脚本与 Vercel application runtime 固定使用 transaction pooler `6543`；只有 application
+隔离验证器使用 session pooler `5432`，从而让同一个 psql 连接在两个已提交事务中确定落到同一 backend。
+两类命令行 DSN 均固定 `/postgres?sslmode=verify-full`。命令行从 Supabase 官方 Singapore CA 地址读取 PEM
+到进程变量 `HUAYI_HOSTED_DATABASE_CA_CERTIFICATE`，脚本只把它写入权限 `0600` 的临时 root certificate，
+强制 `PGSSLMODE=verify-full` 与 `PGSSLROOTCERT`，并在退出时删除；调用者环境不能降级。Vercel 运行时使用
 `HUAYI_DATABASE_TLS_CA_BASE64`，由 postgres.js 显式设置 CA 与 `rejectUnauthorized=true`。只设置
-`sslmode=require`、关闭 hostname 验证或依赖系统根证书都不满足门禁。
+`sslmode=require`、关闭 hostname 验证或依赖系统根证书都不满足门禁。SQL 不使用 `pg_stat_ssl` 证明客户端
+TLS：经 Supavisor 时它观察的是 pooler 到 PostgreSQL 的 backend 链路，不是 psql 到 pooler 的客户端链路。
 
 当前仓库脚本在同一事务验证完整 12 条 migration、42 张 public 表、2 张 private 表、33 张 tenant forced
 RLS 表、三个
@@ -112,10 +115,22 @@ PostgreSQL 17 下，三个 `NOINHERIT` 成员角色的产品直接边必须各�
 布尔查询并输出固定通过/失败，不显示表计数、UUID 以外的行、密码或 SQL 错误。随后改用 application
 role 密码运行
 `pnpm acceptance:hosted:application:verify --verify-hosted-application-login-kpadiulxkgckskcfydry`：它必须
-证明 TLS 已启用、角色图恰好为 login→runtime→business/context-setter 且无 ADMIN OPTION、login 不能切换
-到 `postgres`、不能在 public 建对象或直接设置 owner context；还必须让第一个事务提交 owner context，
-再在 transaction pooler 复用同一 backend 的第二事务证明 context 为 NULL。`SET LOCAL ROLE postgres`
-只有 psql 精确返回 SQLSTATE `42501` 和 exit code `3` 才算预期拒绝，连接失败不能冒充通过。
+在强制 verify-full 与固定 CA 的客户端连接上分别执行权限 contract 与 context contract：六项权限结果证明
+application login 当前具备 runtime member 能力且不能在 public 建对象、直接设置 owner context 或切换
+postgres；精确的 login→runtime→business/context-setter 角色图、额外 membership 与 ADMIN OPTION 由前置
+foundation 管理员 verify 证明，不把它们误归给 application verifier。session pooler 的同一 psql 连接必须让第一个事务提交 owner context，再在同一
+backend 的第二事务证明 context 为 NULL。`SET LOCAL ROLE postgres` 只有 psql 精确返回 SQLSTATE `42501`
+和 exit code `3` 才算预期拒绝，连接失败不能冒充通过。Vercel runtime 仍使用 transaction pooler `6543`，
+不得把验证器专用 `5432` DSN 写入运行时环境。
+
+application verify 失败时，运行
+`pnpm acceptance:hosted:application:diagnose -- --diagnose-hosted-application-login-kpadiulxkgckskcfydry`。
+诊断先用固定 `SELECT true` 证明 verify-full 客户端连接，再把权限 contract、context contract 与 postgres
+越权拒绝拆成固定阶段，只输出 allowlisted `name|fixed-value`；布尔项固定为 `t/f`，四个 exit class 只允许
+`ok`、`client_fatal`、`connection_error`、`script_error`、`process_error`、`unexpected_error` 或
+`not_run`。它不输出 stderr、SQL、SQLSTATE、PID、密码或动态数据库内容。
+`client_tls_verified`、`contract_execution_completed`、`contract_output_valid`、
+`context_execution_completed` 与 `context_output_valid` 用于定位失败层级，不能代替正式 verify。
 
 管理员 verify 失败时，可在相同 CA 与进程级 `PGPASSWORD` 下运行
 `node scripts/acceptance-hosted-diagnose.mjs --diagnose-hosted-foundation-kpadiulxkgckskcfydry`。该命令只在
@@ -132,7 +147,28 @@ PostgreSQL 17 `NOINHERIT` 产品边要求成 `inherit=true`，并把合法 creat
 只读复验并得到 `Hosted acceptance foundation verification passed.`，再运行固定 Operator status 并得到
 `Hosted first Operator status: empty.`。当前状态为
 `applied; corrected PostgreSQL 17 remote verification passed; first Operator empty`。这只关闭数据库
-foundation 门，不代表 Vercel、DNS、Auth、SMTP、应用部署或邀请已经完成。
+foundation 门，不能单独证明 Vercel、DNS、Auth、SMTP、应用 deployment 或邀请状态；这些门必须读取各自
+后续证据。
+
+2026-08-23 应用密码轮换后，最小 application 登录曾通过，但旧组合式 application verify 失败；第一版
+诊断确认 `psql_connection_ok=t` 且 SQL 执行未完成，排除“密码错误或重试锁定”。审查同时发现
+`pg_stat_ssl` 不是 Supavisor 客户端 TLS 证据，文本函数签名权限探测也可能先触发 schema 名称解析；因此
+移除前者、把后者改为固定 catalog OID，并将正式 verify/diagnostic 拆成上述 contract 阶段。用户随后运行
+新 diagnostic，22 个固定字段全部符合预期，再得到
+`Hosted acceptance application login verification passed.`；application 数据库角色与隔离门现已关闭。
+该结果证明修订后的完整 contract，但没有单独重放旧文本探针，因此不把某一个旧表达式伪装成唯一已隔离
+根因。随后已在 Vercel API project 成功 Rotate Production Sensitive `HUAYI_DATABASE_URL`：新值使用当前
+密码、percent-encoded transaction-pooler `6543` 与 `sslmode=verify-full`，剪贴板已清空且未点击 Redeploy；
+不能把验证器的 session pooler `5432` DSN 写入 runtime。现有 Latest API deployment 早于该 Rotate，只有
+下一次受控 deployment 的启动、数据库路径和 hosted smoke 能证明新值已被 runtime 使用。
+
+Vercel API 当前有 7 条 Production deployment 记录，Latest/Current 为 deployment
+`BAC8nKdfjGH9Qtp1wdwi1j4376bN`、source `0c0413085a9dc78e7dc772cdee2eff2ce446ae04`；Web 仍无
+Production deployment。API policy 仍 armed，因此在候选冻结前禁止任何无关 push。运行态复核必须分层：
+
+1. `/health` 只关闭 custom domain、TLS、进程启动、固定 JSON 与 `x-vercel-id` 门，不执行 SQL；
+2. DB-backed smoke 才关闭 application role、CA、轮换密码、RLS/context 与数据库 runtime composition 门；
+3. 现有 7 条 deployment 全部早于 DSN Rotate，均不能作为第 2 层证据。
 
 首张 hosted 邀请和首个 Operator 使用 `first-operator-bootstrap.md` 的两阶段协议：先在 API/Web/Auth 已
 可用后发行唯一 BootstrapInvitation，用户走正常注册，再由项目管理员 complete 精确绑定账号。离线实现
