@@ -981,6 +981,10 @@ session is invalid.`；400 `invalid_request` 表示 runtime 数据库路径未�
 - Phase 70 的 Web-only armed RED 必须在旧 `deploymentEnabled=false` 上失败，并要求 API 继续布尔
   `false`、Web 精确为 `{"**":false,"codex/settings-configuration":true}`；deployment plan 与发布材料
   测试必须共同锁定该窗口。push 后任何 Web deployment 状态都先 disarm，不能在 armed 窗口修复；
+- Web Vercel build 回归必须锁定 `vercel.json.buildCommand=pnpm build:vercel` 和 Web package 的完整命令：
+  learning-domain → cloud-contracts → Vite。原始反馈环先临时移走 cloud-contracts `dist` 并确认旧
+  `pnpm build` 复现 Vercel resolver error；修复后在相同缺失 dist 条件运行专用构建必须成功。下一次真实
+  deployment 日志仍须显示专用命令和依赖顺序，本地 GREEN 不替代远端关闭；
 - 零账号公开 smoke 只允许无写入验证：Web `/`、`/privacy`、hosted build SHA、无模拟标识、bundle secret
   scan；允许 Web origin/credentials 且拒绝其他 origin 的 CORS preflight；无 Cookie 的 CSRF/SSE 入口 401；
   缺 flow/code callback 400 加 `private, no-store` / `no-referrer`。同时以只读远端状态证明 Auth/profile/

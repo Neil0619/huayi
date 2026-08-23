@@ -1558,7 +1558,13 @@ status 关闭这道门；下一步可以按外部门顺序准备 Vercel 创建�
 7. **后续门**：上述门关闭后才发行 BootstrapInvitation，让用户正常完成密码注册、真实 SMTP 确认、API
    callback 与 Web 落点；complete Operator 后由 `/admin` 受审计动作暂时关闭 kill switch，执行一笔真实
    DeepSeek 应用路径请求并核对 model、usage、价格 UUID、reservation 与 UsageLedger，随后恢复 kill switch。
-8. **当前候选状态**：文档审查、无写入 CORS 预检、Fresh RED/GREEN、hosted Web build、bundle/diff secret
-   scan 与完整 `pnpm verify:macos` 已通过。API 仍为全分支关闭；Web exact-branch armed 仅存在于未提交工作树，
-   尚未 push、尚未产生 Web deployment。下一动作只能在用户明确要求 `push` 后提交并推送该候选；新 Web
-   记录出现后立即进入独立 disarm，不先执行公开 smoke。
+8. **首次远端结果与 disarm**：候选 `c9ee267cee943b888fc02e360dee4300d955c5d2` 只产生 Web
+   deployment `87fk9rqpGH2sUcGrzCf68tuXjyu8`，source 精确匹配但状态为 Error；API 仍为原 10 条。
+   未查看日志、未运行 smoke，先以独立提交 `26022a9` 把 Web 恢复为 `deploymentEnabled=false`；该 push
+   没有新增 API/Web deployment；
+9. **构建失败修复**：disarm 后日志确认 Vercel 干净 checkout 缺少 ignored cloud-contracts `dist`，旧
+   `pnpm build` 在 Vite 解析 runtime export 时失败。Fresh RED 锁定 `buildCommand` 与 package script；最小
+   GREEN 新增 `pnpm build:vercel`，先构建 learning-domain、cloud-contracts，再运行 Vite。临时移走本地
+   cloud-contracts `dist` 后原错误可重复出现，专用构建在同一条件下通过；修复后的完整
+   `pnpm verify:macos` 已退出 0。下一步只允许在双项目 disarmed 状态提交并推送 fix-only；下一次真实
+   deployment 仍须独立 reviewed re-arm，不得直接 redeploy 失败记录。

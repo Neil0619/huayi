@@ -97,10 +97,10 @@ Google 可以继续延期。首位 Operator 先用邮箱密码完成正常邀请
 
 同一 Git repository 建立两个隔离 Hobby project，不建立同源 gateway：
 
-| 项目                       | Root Directory | Framework | Build/Output                            | Runtime/Region                | Domain                        |
-| -------------------------- | -------------- | --------- | --------------------------------------- | ----------------------------- | ----------------------------- |
-| `seen-said-acceptance-api` | `apps/api`     | Hono      | 原生 Hono 检测；无自定义 output         | Node 22+；Fluid；120s；`sin1` | `api.acceptance.seen-said.cn` |
-| `seen-said-acceptance-web` | `apps/web`     | Vite      | `pnpm build`；`dist`；SPA exact rewrite | Node 22 build                 | `app.acceptance.seen-said.cn` |
+| 项目                       | Root Directory | Framework | Build/Output                             | Runtime/Region                | Domain                        |
+| -------------------------- | -------------- | --------- | ---------------------------------------- | ----------------------------- | ----------------------------- |
+| `seen-said-acceptance-api` | `apps/api`     | Hono      | 原生 Hono 检测；无自定义 output          | Node 22+；Fluid；120s；`sin1` | `api.acceptance.seen-said.cn` |
+| `seen-said-acceptance-web` | `apps/web`     | Vite      | `pnpm build:vercel`；`dist`；SPA rewrite | Node 22 build                 | `app.acceptance.seen-said.cn` |
 
 两个 project 都必须启用 monorepo 的“Include source files outside of the Root Directory”，因为 API/Web
 分别依赖根 workspace 下的 `packages/*`；package manager 继续使用根 `packageManager=pnpm@10.12.4` 与
@@ -110,8 +110,10 @@ Auth、Storage 或 secret，也不能因缺变量而连接 hosted acceptance。�
 
 API `vercel.json` 必须把 framework 固定为 `hono`、project region 固定为 `sin1`，保留 `fluid=true` 与
 `src/server.ts maxDuration=120`。Vercel 默认 `iad1` 会跨洋访问 Singapore Supabase，不能依赖 Dashboard
-手工记忆。Web `vercel.json` 必须固定 `vite`、build/output 和 SPA rewrite。Dashboard 部署后再核对文件配置
-确实生效，不能以仓库 JSON 代替生成 Function 的 region/duration 证据。
+手工记忆。Web `vercel.json` 必须固定 `vite`、`pnpm build:vercel`、output 和 SPA rewrite；该 repository
+override 先构建 learning-domain 与 cloud-contracts，再运行 Vite，并覆盖 Dashboard 空 project bootstrap
+时期保留的 `pnpm build` setting。Dashboard 部署日志必须实际显示专用命令与依赖顺序，不能只以仓库 JSON
+推断它已经生效，也不能机械改写历史 bootstrap 证据。
 
 ### 3.1 首次 Git 连接的零部署保险
 
@@ -341,6 +343,12 @@ kill switch 当前保持开启；真实 Auth/SMTP 也需要邀请、API callback
 Host 的 `pnpm smoke:deepseek` 冒充 Cloud smoke，不得直接创建 Supabase 用户或用 SQL 绕过 Operator。首次
 Web armed policy 只允许 `codex/settings-configuration` 并保留 `"**": false`；API 继续为布尔 `false`。
 任何 Web deployment 记录产生后，唯一允许的下一次 push 都是独立 Web disarm。
+
+首次 Web deployment `87fk9rqpGH2sUcGrzCf68tuXjyu8` 已在 source `c9ee267` 上以 Error 结束；独立
+disarm `26022a9` 没有新增 API/Web deployment。日志确认旧 `pnpm build` 在干净 checkout 中先解析
+`@huayi/cloud-contracts`，但其 ignored `dist` 尚未生成。仓库修复保持 Git deployment 关闭，改用
+`pnpm build:vercel` 先构建 learning-domain、cloud-contracts 再运行 Vite；下一次 reviewed re-arm 前必须
+先完成离线门，真实 deployment 还必须回读相同构建顺序。
 
 ## 7. TDD 与验收标准
 

@@ -3,6 +3,18 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-23：Hosted Web 必须显式构建运行时 workspace 依赖
+
+- Vercel 使用干净 checkout，仓库忽略的 `packages/learning-domain/dist` 与
+  `packages/cloud-contracts/dist` 不存在；Web 直接运行 Vite 会在解析 `@huayi/cloud-contracts` 的
+  `./dist/index.js` export 时失败；
+- Web 的 repository override 固定改为 `pnpm build:vercel`：先按依赖顺序构建 learning-domain 与
+  cloud-contracts，再运行 Web Vite build。Dashboard 空 project bootstrap 的历史 setting 仍为
+  `pnpm build`；`vercel.json.buildCommand` 负责覆盖它，不重写历史证据或对已有 deployment 的空项目工具；
+- 回归必须锁定 `vercel.json`、Web package script 与完整依赖顺序，并在临时缺失 cloud-contracts `dist`
+  时证明专用构建仍成功。下一次真实 deployment 日志必须显示 `pnpm build:vercel` 以及
+  learning-domain → cloud-contracts → Web Vite；否则不能把修复记为远端通过。
+
 ## 2026-08-23：Hosted 首个账号前先单独部署 Web，再验收 Auth 与 DeepSeek
 
 - Phase 68 中“DeepSeek/Auth 在 Web 零部署时先完成”的顺序不可执行：Cloud 模型路径需要真实 Web

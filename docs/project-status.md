@@ -1614,11 +1614,15 @@ passed; first Operator empty`。候选已提交推送，0012 已实际 push；�
 - 公共门关闭后才发行 BootstrapInvitation；真实密码注册/SMTP/callback 完成并 complete Operator 后，才由
   受审计 `/admin` 动作切换 kill switch，运行一笔真实 DeepSeek 应用路径 smoke 并核对账本。Windows 继续
   留到 hosted 验收批次冻结后集中验证；
-- Web 发布材料与 hosted deployment plan 已按 Fresh RED → 最小 GREEN 更新：API 继续
-  `deploymentEnabled=false`，Web 仅允许 `codex/settings-configuration` 且以 `"**": false` 拒绝其他分支；
-  hosted build、bundle/diff secret scan 和 focused 回归均通过；
+- 首次候选 `c9ee267cee943b888fc02e360dee4300d955c5d2` 只触发 Web deployment
+  `87fk9rqpGH2sUcGrzCf68tuXjyu8`；source 精确匹配，状态 Error，API 部署仍为原 10 条。未先查看日志，
+  独立 disarm `26022a9` 已恢复 Web 全分支关闭且没有触发第二条 Web 或 API deployment；
+- disarm 后日志把根因收敛为旧 `pnpm build` 没有先生成 ignored `@huayi/cloud-contracts/dist`。本地已用同一
+  错误完成可重复 RED；最小修复新增 Web `pnpm build:vercel`，依次构建 learning-domain、cloud-contracts
+  后再运行 Vite，配置/脚本回归 5/5 与缺失 dist 条件下的专用构建已通过；
 - 最新 `pnpm verify:macos` 原样退出 0：235/235 Node script tests、474/474 Vitest files（2,866 passed /
   12 skipped）、Store 97 files 481/481、Playwright 110/110；instructions、format、lint、typecheck、
   architecture、workspace build、development blocker、Store release 与 production audit 同轮通过；
-- 候选仍只在本地未提交工作树：尚未 push、尚未产生 Web deployment。用户明确 `push` 后才允许打开这一
-  次 Web 窗口；记录一旦出现，无论 Ready/Error，都必须先独立 disarm，再执行零账号公开 smoke。
+- 当前 API/Web Git deployment 均关闭；修复仍在本地未提交工作树，修复后的完整 macOS 门已通过，
+  fix-only 安全 push 尚未完成。下一次真实 Web deployment 必须另行 reviewed re-arm，日志必须显示
+  learning-domain → cloud-contracts → Web Vite；不能直接 redeploy 失败记录或提前执行公开 smoke。

@@ -1527,6 +1527,20 @@ typecheck、architecture、build、development blocker、Store release、product
   （2,866 passed / 12 skipped）、Store 97 files 481/481、Playwright 110/110；instructions、format、lint、
   typecheck、architecture、workspace build、development blocker、Store release、production audit 均通过，
   production dependencies 无已知漏洞；
-- **当前远端边界**：该 armed candidate 仍是本地未提交工作树，尚未 push，Web 仍无 deployment；现有 API
-  Git deployment 继续全分支关闭。只有用户明确要求 `push` 才提交并推送；新 Web 记录无论 Ready/Error，
-  下一次唯一允许的 push 都是独立 disarm，且 disarm 前不执行公开 smoke。
+- **首次远端结果**：candidate `c9ee267cee943b888fc02e360dee4300d955c5d2` 只产生 Web Production
+  deployment `87fk9rqpGH2sUcGrzCf68tuXjyu8`；source 精确匹配，状态 Error，API 仍为原 10 条且 Latest
+  仍是 `DyqRzj5UMN8BRpSeZyohXprnAkaT`；
+- **独立 disarm**：Error 记录出现后没有查看日志或运行 smoke；唯一后续 push 为 `26022a9`，把 Web
+  `deploymentEnabled` 恢复为布尔 `false`。Dashboard 回读仍只有上述一条 Web Error，API 列表未变化；
+- **错误与本地复现**：disarm 后 Build Logs 显示 Vercel 直接运行 `pnpm build`，Vite 在 30 modules 后因
+  `@huayi/cloud-contracts` 的 package entry 无法解析而失败。本地临时移走 `packages/cloud-contracts/dist`
+  后，旧 Web build 在 0.5 秒内复现同一 resolver error；
+- **Fresh RED/GREEN 修复**：发布材料回归先以 actual `pnpm build` / expected `pnpm build:vercel` 精确失败；
+  最小修复在 Web package 增加专用命令，先构建 learning-domain、cloud-contracts，再运行 Vite，并让
+  `vercel.json` 覆盖 Dashboard 的历史 build setting。回归 5/5 通过；在 cloud-contracts `dist` 缺失条件
+  下专用构建成功；
+- **修复完整门**：`pnpm verify:macos` 原样退出 0：235/235 Node script tests、474/474 Vitest files
+  （2,866 passed / 12 skipped）、Store 97 files 481/481、Playwright 110/110；instructions、format、lint、
+  typecheck、architecture、workspace build、development blocker、Store release 与 production audit 均通过，
+  production dependencies 无已知漏洞。修复仍为本地未提交工作树；fix-only push 和下一次 reviewed
+  re-arm 尚待完成。

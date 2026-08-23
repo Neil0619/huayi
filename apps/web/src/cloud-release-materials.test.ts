@@ -7,6 +7,9 @@ import { describe, expect, it } from "vitest";
 const listing = readFileSync("docs/cloud-v1/store-listing.md", "utf8");
 const privacy = readFileSync("docs/cloud-v1/privacy-policy.md", "utf8");
 const privacyPage = readFileSync("apps/web/src/privacy-page.tsx", "utf8");
+const webPackage = JSON.parse(readFileSync("apps/web/package.json", "utf8")) as {
+  scripts?: Record<string, string>;
+};
 const webVercel = JSON.parse(readFileSync("apps/web/vercel.json", "utf8")) as Record<
   string,
   unknown
@@ -19,7 +22,10 @@ const manifest = JSON.parse(readFileSync("apps/store-extension/manifest.json", "
 describe("Cloud release trust materials", () => {
   it("pins the hosted Web build and SPA output contract", () => {
     expect(webVercel.framework).toBe("vite");
-    expect(webVercel.buildCommand).toBe("pnpm build");
+    expect(webVercel.buildCommand).toBe("pnpm build:vercel");
+    expect(webPackage.scripts?.["build:vercel"]).toBe(
+      "pnpm --dir ../.. --filter @huayi/learning-domain --filter @huayi/cloud-contracts build && pnpm build",
+    );
     expect(webVercel.outputDirectory).toBe("dist");
     expect(webVercel.rewrites).toEqual([{ destination: "/index.html", source: "/(.*)" }]);
     expect(webVercel.git).toEqual({ deploymentEnabled: false });

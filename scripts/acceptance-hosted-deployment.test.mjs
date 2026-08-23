@@ -43,9 +43,8 @@ test("hosted deployment plan is complete, deterministic, and secret independent"
   const plan = renderHostedDeploymentPlan();
   for (const expected of [
     "seen-said-acceptance-api | apps/api | hono | sin1 | Fluid | 120s",
-    "seen-said-acceptance-web | apps/web | vite | pnpm build | dist",
-    "API Git deployment disables every branch",
-    "Web Git deployment denies every branch except codex/settings-configuration",
+    "seen-said-acceptance-web | apps/web | vite | pnpm build:vercel | dist",
+    "API and Web Git deployment both disable every branch",
     "Corrected database-URL deployment DyqRzj5UMN8BRpSeZyohXprnAkaT is Ready at exact source 7577cdd7658fe966e85e8c8b4346e3291089e4e1",
     "Disarm commit 00beea8 created no API or Web deployment",
     "Dashboard redeploy preserved the exact source while Git deployment remained disabled",
@@ -56,11 +55,13 @@ test("hosted deployment plan is complete, deterministic, and secret independent"
     "The original Git-triggered deployment was followed only by the API disarm commit",
     "Later exact-source Dashboard redeploys did not re-arm Git deployment",
     "The disarm commit created no API or Web deployment before runtime smoke began",
-    "The Web allowlist is an armed window, not a one-deployment platform guarantee",
-    "Any first Web deployment record requires an immediate standalone Web disarm push",
-    "No Auth user, invitation, SMTP, DeepSeek, or kill-switch change occurs in this armed commit",
+    "First Web deployment 87fk9rqpGH2sUcGrzCf68tuXjyu8 failed at exact source c9ee267cee943b888fc02e360dee4300d955c5d2",
+    "Web disarm commit 26022a9 created no API or Web deployment",
+    "The failed Web build resolved @huayi/cloud-contracts before its ignored dist existed",
+    "The repository fix builds learning-domain and cloud-contracts before Vite",
+    "A later reviewed deployment requires a separate Web re-arm commit",
     "After Web disarm: /, /privacy, hosted SHA, secret-free bundle, and zero-account public boundaries",
-    "Web deployment -> disarm Web -> zero-account public smoke -> BootstrapInvitation",
+    "build fix while disarmed -> reviewed Web re-arm -> deployment -> disarm Web -> zero-account public smoke -> BootstrapInvitation",
     "password registration -> SMTP confirmation -> callback -> complete Operator -> audited kill-switch change -> Cloud DeepSeek smoke",
     "HUAYI_DATABASE_TLS_CA_BASE64",
     "HUAYI_STORE_EXTENSION_CAPABILITY",
@@ -78,7 +79,7 @@ test("hosted deployment plan is complete, deterministic, and secret independent"
   }
   assert.doesNotMatch(plan, /application-password|re_hosted-test|deepseek-hosted-test/u);
   assert.doesNotMatch(plan, /HUAYI_STORE_EXTENSION_ID/u);
-  assert.doesNotMatch(plan, /API and Web Git deployment both disable every branch/u);
+  assert.doesNotMatch(plan, /Web Git deployment denies every branch except/u);
   assert.doesNotMatch(plan, /Web remains disabled and has no Production deployment/u);
 });
 
