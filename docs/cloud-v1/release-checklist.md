@@ -15,8 +15,8 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
 - [ ] 独立 hosted acceptance 的 Supabase、Vercel API/Web 与自有根域同站子域已创建，且不与 production 共用
       数据、Auth、Storage、OAuth client、secret、Provider Key、额度或调度；Supabase Free 组织已创建，
       首次空 `us-east-1` 项目已在用户确认后删除，正确项目 `kpadiulxkgckskcfydry` 已在 Singapore 创建；
-      Data API 已关闭，11 条 migration 已实际应用并经 Dashboard history/schema/roles/RLS 复核；Auth 仍为
-      0 用户。用户已确认并完成 foundation bootstrap，创建 application login、三条价格、唯一 private
+      Data API 已关闭，初始 11 条 migration 已实际应用并经 Dashboard history/schema/roles/RLS 复核；
+      用户已确认并完成 foundation bootstrap，创建 application login、三条价格、唯一 private
       empty bucket 和开启的 kill switch，初版 admin/application 验证均 passed；后续安全审查已把 TLS 收紧为
       显式 CA + verify-full，并加入精确角色图、越权 SQLSTATE 与同 backend 跨事务 context 隔离验证。更新后
       focused 与本轮完整 macOS 门、远端 hardened admin/application 双复验均已通过。第 12 条
@@ -35,9 +35,11 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       条件验证和完整 macOS 门；fix-only `aba1cc0` 已推送且没有新增 Web/API deployment；随后 reviewed
       re-arm `b87ef03` 产生 Ready deployment `6AAAVXP175oviEhrjULxH48eQjPu`，独立 `c5c25f5` disarm 未新增
       deployment，零账号公开 smoke 已通过。Phase 71 随后完成 API/Web 各一次 Google fail-closed/password
-      callback hardening Ready + 独立 disarm，关闭提交均零新增；之后才进入 Auth/SMTP/首位账号 → Operator
-      complete → DeepSeek 应用路径 smoke。邮件/Cron/邀请等完整运行
-      验收仍未完成，因此本项仍未勾选；
+      callback hardening Ready + 独立 disarm，关闭提交均零新增。此后第 13 条 migration、账号恢复、First
+      Operator complete/post-completion verify 和 `/admin` recent-auth UI 受控部署已完成；最终 API/Web
+      7/7 状态分布为 12 Ready / 3 Error / 9 Canceled 与 4 Ready / 1 Error / 10 Canceled，且两项目均为
+      `deploymentEnabled=false`。用户尚未亲自提交 `/admin` 密码，普通邀请、OTP、真实邮件、Cron 与
+      DeepSeek 应用路径 smoke 仍未完成，因此本项仍未勾选；
 - [x] 在正确 Rotate 后 exact-SHA `7577cdd` deployment 上通过 DB-backed application-role smoke；
       `GET /health` 为 200，随机无效 session 的 `GET /v1/quota` 为精确 401
       `authentication_required`。deployment ID/SHA/创建时间与 Git 关闭证据已记录，API 未重新武装；
@@ -64,7 +66,7 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
 ## 自动门禁
 
 - [x] `pnpm check:cloud-release` 在当前 null-origin/预发布政策开发态按固定安全 code 失败关闭；
-- [x] `pnpm check:cloud-development-blocked` 在 build 后证明真实工作树恰好保留固定九项开发态阻塞，
+- [x] `pnpm check:cloud-development-blocked` 在 build 后证明真实工作树恰好保留固定十项开发态阻塞，
       少项或多项均失败；
 - [ ] 使用已核验的公开候选配置运行 `pnpm check:cloud-release` 并得到 ready；
 - [ ] audit 输入中的候选/API Extension ID 与目标 Chrome Dashboard ID 相同，最低版本不高于候选版本；
@@ -85,10 +87,11 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       CI 未触发，所以组合项仍不勾选。Phase 46 已把 `3aa143c..15306b4` 的 8 commits / 111 files
       代码范围和随后一个 docs-only 冻结提交纳入第二批候选（自上次 Windows 代码共 9 commits），且 Mac
       完整门已绿；Windows 本地批次已回证，组合项现在仅因 GitHub 双平台 CI 未触发而保持未勾选；
-- [x] 数据库空库/升级 migration、RLS 多租户矩阵和账号删除恢复通过；仓库当前 12 条 migration 的 baseline、
+- [x] 数据库空库/升级 migration、RLS 多租户矩阵和账号删除恢复通过；仓库当前 13 条 migration 的 baseline、
       forward-only API/Supabase 镜像与生产角色回归均通过，实际一次性账号删除完成且重放权限不扩大；远端
-      acceptance 已在 dry-run、用户明确确认后应用第 12 条 FirstOperatorBootstrap migration，修正版
-      foundation verify 已通过且 Operator status 为 `empty`；
+      acceptance 已按各自 dry-run 和用户明确确认应用第 12 条 FirstOperatorBootstrap 与第 13 条密码注册中断
+      恢复 migration。空身份阶段的修正版 foundation verify 当时通过；当前非空状态不再运行该 pristine 门，
+      First Operator 最终 status 为 `completed`；
 - [x] 当前开发态构建审计确认没有新增秘密、远程代码、动态 endpoint 或危险 HTML；
 - [ ] 正式候选注入公开配置后重新执行完整构建审计，并复核每项 permission/host；
 - [x] fake model/mail/third-party 已按各能力真实定义覆盖成功、失败、取消、超时和额度分支；没有额度或
@@ -224,13 +227,14 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
 - [x] 严格执行 API arm→deployment record→独立 disarm，再执行 Web 同序；两个 disarm 均未在其目标
       项目新增 deployment，但各自在另一仍 disarmed 项目留下一条 Canceled 审计记录；两个项目从不同时
       armed，并记录同一 reviewed lineage 而非虚构相同 SHA；
-- [ ] 浏览器从原邀请页面发起恢复并自动提交内存 token + Provider 密码证明；API/0013 在写入前以
+- [x] 浏览器从原邀请页面发起恢复并自动提交内存 token + Provider 密码证明；API/0013 在写入前以
       Production pepper 验证 hash、active invitation 与精确中断状态，取得 `registered` 后完成首位 Operator；
 - [x] First Operator complete 后先通过 post-completion verifier；最终 read-only status 精确为
       `completed`，未跳过该只读门创建普通邀请；
-- [x] `/admin` 密码重新认证已本地 RED→GREEN：首次统一 `forbidden` 显示可重试表单，成功轮换 CSRF 并
-      重读权限，第二次仍拒绝时失败关闭；尚未部署或取得 Hosted 浏览器证据；
-- [ ] 受控部署并完成真实 `/admin` 密码重新认证后，新邀请再完成 scanner/repeated GET 无副作用、显式
+- [x] `/admin` 密码重新认证已本地 RED→GREEN，且 Web arm `3fcc832` 只新增 Ready deployment
+      `FxRmiGZMzotoqiSmU7hSHfonbeV8`；独立 disarm `8dea25c` 后两项目均为
+      `deploymentEnabled=false`。custom-domain 与 bundle exact SHA 已验证，真实页面已显示密码重新认证门；
+- [ ] 用户亲自输入当前密码并验证 `/admin` 四区与权限后，新邀请再完成 scanner/repeated GET 无副作用、显式
       OTP POST、Web 落点和密码重登；完成前不得运行 DeepSeek 应用路径 smoke。
 
 ## 完整 V1

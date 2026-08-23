@@ -980,7 +980,7 @@ idempotency_records`，修复后覆盖创建、练习、历史、删除、词典
   package scripts、固定 project/pooler 和三条 acceptance 价格 UUID 都由测试锁定；
 - 默认只允许 `--plan`，不得连接数据库。实际写入只接受包含 project ref 的唯一确认参数；数据库管理员
   密码和 application role 密码只从环境读取，不能进入 argv、stdout、stderr、调用者 SQL 路径或本机文件；
-- bootstrap SQL 在一个事务内验证精确 12 条 migration、42 张 public 表、2 张 private 表、33 张
+- bootstrap SQL 在一个事务内验证精确 13 条 migration、42 张 public 表、2 张 private 表、33 张
   tenant `ENABLE + FORCE RLS + owner policy` 表和三个安全迁移角色；Auth users/identities、profile、admin、
   invitation 任一非空都必须失败，Storage 只允许 pristine 或精确已应用的 private empty bucket；
 - application login 必须是 LOGIN/NOINHERIT/NOBYPASSRLS 且无 superuser/create-db/create-role/replication，

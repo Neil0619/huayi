@@ -90,7 +90,7 @@ hosted 管理脚本与 Vercel application runtime 固定使用 transaction poole
 `sslmode=require`、关闭 hostname 验证或依赖系统根证书都不满足门禁。SQL 不使用 `pg_stat_ssl` 证明客户端
 TLS：经 Supavisor 时它观察的是 pooler 到 PostgreSQL 的 backend 链路，不是 psql 到 pooler 的客户端链路。
 
-当前仓库脚本在同一事务验证完整 12 条 migration、42 张 public 表、2 张 private 表、33 张 tenant forced
+当前仓库脚本在同一事务验证完整 13 条 migration、42 张 public 表、2 张 private 表、33 张 tenant forced
 RLS 表、三个
 NOLOGIN/NOBYPASSRLS 迁移角色，以及 Auth/profile/admin/invitation 空状态。Storage 只允许完全空，或允许
 重跑时已经存在唯一 private `account-exports-acceptance` bucket 且无对象；任何部分状态或额外资源失败。
@@ -145,10 +145,10 @@ application login 复验；这证明 TLS、application 登录和事务隔离路�
 PostgreSQL 17 `NOINHERIT` 产品边要求成 `inherit=true`，并把合法 creator-control 边计入固定总数；这不是
 远端 migration 失败或需要修改角色图的证据。仓库已改为上方共享契约；用户随后运行修正版管理员远端
 只读复验并得到 `Hosted acceptance foundation verification passed.`，再运行固定 Operator status 并得到
-`Hosted first Operator status: empty.`。当前状态为
-`applied; corrected PostgreSQL 17 remote verification passed; first Operator empty`。这只关闭数据库
-foundation 门，不能单独证明 Vercel、DNS、Auth、SMTP、应用 deployment 或邀请状态；这些门必须读取各自
-后续证据。
+`Hosted first Operator status: empty.`。这是 0012 后的历史 foundation 检查点。Phase 72 后 0013 已作为
+第 13 条 migration 应用，First Operator 已恢复并完成，最终 status 为 `completed`；当前非空状态不得再
+运行要求空 Auth/profile/admin/invitation 的 pristine foundation verifier。Vercel、DNS、Auth、SMTP、应用
+deployment 与邀请状态仍必须读取各自后续证据，不能由历史 foundation 结果代替。
 
 2026-08-23 应用密码轮换后，最小 application 登录曾通过，但旧组合式 application verify 失败；第一版
 诊断确认 `psql_connection_ok=t` 且 SQL 执行未完成，排除“密码错误或重试锁定”。审查同时发现
@@ -182,9 +182,11 @@ Production deployment。API/Web Git deployment 均已关闭。运行态复核必
 虚构 seed、手工插入长期假 Operator、接受任意 userId 或新增公开 bootstrap HTTP route。邀请 URL 丢失时
 只有零 claim/零 identity 才能走显式 replace-unclaimed；其他状态必须停止调查，不能 reset。
 
-当前远端已经实际推送完整 12 条 migration，diagnostic 的 `first_operator_empty` 为真且 0012 columns、
-constraint、functions、trigger 均为真；固定 Operator status CLI 也已返回 `empty`，修正版只读 foundation
-verify 已通过。不得重跑 migration 或 foundation bootstrap；API/Web/Auth 可用前仍不得发行邀请。
+远端在 Phase 52 时已经实际推送完整 12 条 migration，diagnostic 的 `first_operator_empty` 与 0012
+columns/constraint/functions/trigger 均为真；固定 Operator status CLI 当时返回 `empty`，修正版只读
+foundation verify 通过。随后 0013 已作为第 13 条 migration 实际应用，首张邀请账号已恢复并完成 First
+Operator，最终 status 为 `completed`。不得重跑 migration 或 foundation bootstrap，也不得重新发行
+BootstrapInvitation；普通邀请须等待用户完成 `/admin` 密码重新认证。
 
 三个主机名同时解析到 `127.0.0.1` 与 `::1`；每个 HTTPS 端口必须同时建立 IPv4/IPv6 loopback
 listener，禁止使用 `0.0.0.0` 或 `::` 代替。若浏览器报告 connection refused，分别运行带本机 CA 的

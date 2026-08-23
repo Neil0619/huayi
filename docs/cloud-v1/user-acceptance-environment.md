@@ -227,18 +227,20 @@ Operator/invitation 为空。用户已于 2026-08-22 明确确认并完成远端
 当时 admin 查询与 application hardened 路径均可运行。Vercel runtime 仍只接受 transaction pooler `6543`；
 验证 SQL 不再用只能观察 Supavisor backend 链路的 `pg_stat_ssl` 证明客户端 TLS。0012 push 后 diagnostic 暴露旧 membership SQL
 错误要求 PostgreSQL 17 `NOINHERIT` 产品边 `inherit=true`，并错误拒绝 creator-control 边；仓库已修正。
-用户随后运行修正版远端只读 verify 并通过，固定 Operator status 返回 `empty`。当前 foundation 状态为
-`applied; corrected PostgreSQL 17 remote verification passed; first Operator empty`。Vercel API/Web、Auth
-URL/SMTP 与 Production environment 已配置；API 已有 Production deployment，Web 尚未部署，Auth/Operator
-仍为空。
+用户随后运行修正版远端只读 verify 并通过，固定 Operator status 当时返回 `empty`。该 foundation 检查点
+为 `applied; corrected PostgreSQL 17 remote verification passed; first Operator empty`。Phase 72 后 0013
+已作为第 13 条 migration 实际应用，First Operator 已恢复、complete 并通过 post-completion verifier，
+最终 status 为 `completed`。Vercel API/Web、Auth URL/SMTP 与 Production environment 已配置；真实
+`/admin` 密码重新认证、普通邀请 OTP、真实邮件与 Cron 仍须读取各自后续证据。
 
 首个 Operator 不由 foundation 创建。Phase 52 已冻结两阶段 FirstOperatorBootstrap：
 DeploymentBootstrapAuthority 发行唯一 BootstrapInvitation，正常注册完成后只晋升该邀请最终绑定的账号；
 不得把本机固定虚构 Operator 带入 hosted，也不得用 service role、任意 userId 或公开 HTTP 后门绕过。
-离线实现、focused 回归与完整 macOS 门已完成；远端第 12 条 migration 已实际 push，diagnostic 显示空
-first Operator record；修正版 foundation verify 已通过、固定 Operator status 已返回 `empty`，实际引导仍
-未完成，详见
-`first-operator-bootstrap.md`。
+离线实现、focused 回归与完整 macOS 门已完成；远端第 12 条 migration 已实际 push，diagnostic 当时显示空
+first Operator record；修正版 foundation verify 已通过、固定 Operator status 当时返回 `empty`。Phase 72
+随后应用第 13 条 migration 并完成实际恢复、First Operator completion 与 post-completion verify，最终
+status 为 `completed`。`/admin` recent-auth UI 已部署且密码门可见，但用户输入密码、四区与普通邀请 OTP
+仍未完成，详见 `first-operator-bootstrap.md`。
 
 ## 4. 域名、DNS 与 Resend 准备
 
@@ -255,12 +257,12 @@ Cloudflare 给出 DS 后回填腾讯云。
 `kpadiulxkgckskcfydry`，URL `https://kpadiulxkgckskcfydry.supabase.co`，Primary Database 实测位于
 `ap-southeast-1 / Southeast Asia (Singapore)`。Data API 创建后仍关闭，自动 RLS 未启用；用户明确确认后
 已实际应用 11 条 canonical migration，Dashboard 已复核完整 history、业务表、运行角色与 tenant owner
-RLS，首页仍为 `Healthy`。第 12 条 FirstOperatorBootstrap forward migration 已完成 dry-run、明确确认与
-actual push。Auth 仍为 0 用户；foundation bootstrap 后 Storage 为唯一 private
-`account-exports-acceptance` bucket 且 0 object，application login 与三条价格已建立，kill switch 保持开启。
-Vercel 应用部署仍是独立门；修正版 PostgreSQL 17 foundation verify 已通过，Operator status 已返回
-`empty`。两个 Vercel project、Git/Branch、custom domain 与部署前 TLS 已建立；API 已有 10 条 Production
-deployment 记录且 Web 仍为 `No Production Deployment`。Tokyo
+RLS，首页仍为 `Healthy`。第 12 条 FirstOperatorBootstrap 与第 13 条密码注册中断恢复 forward migration
+均已完成各自 dry-run、明确确认与 actual push。foundation bootstrap 后 Storage 为唯一 private
+`account-exports-acceptance` bucket 且 0 object，application login 与三条价格已建立，kill switch 保持开启；
+First Operator 最终 status 为 `completed`。两个 Vercel project、Git/Branch、custom domain 与 TLS 已建立；
+API 最新受控 source 为 `39094d0`，Web recent-auth arm `3fcc832` 对应 Ready deployment
+`FxRmiGZMzotoqiSmU7hSHfonbeV8`，随后 `8dea25c` disarm；两项目当前 `deploymentEnabled=false`。Tokyo
 (`ap-northeast-1`) 的 Resend sender domain `notify.acceptance.seen-said.cn` 也已完成 DNS 与 Dashboard
 verified。旧泄露 key 与两把未使用的错误/临时 R3-C key 均已撤销；两把 sending-only/domain-scoped
 SMTP/HTTP key 已分离托管，Supabase Custom SMTP、Auth Site URL/五条 exact redirect、API 21/21 与 Web

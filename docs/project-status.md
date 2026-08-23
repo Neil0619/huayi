@@ -1684,13 +1684,16 @@ passed; first Operator empty`。候选已提交推送，0012 已实际 push；�
   13→14。双 disarm 后、证据文档提交前的 7/7 检查点为 API 22、Web 14，Canceled 为 7/10；两个
   disarm 均未在其目标项目新增 deployment，但各自在另一仍 disarmed 项目留下一条 Canceled 审计记录。
   双项目恢复关闭；custom-domain API `/health` 与 Web `/` 均为 TLS 验证通过的 HTTP 200；
-- 真实账号恢复仍待执行。恢复不要求用户手工识别/输入原邀请 token；Web 保持 URL fragment 于内存并在
-  恢复时自动提交，API/0013 在写入前用 Production pepper 验证 continuity 和精确状态。DeepSeek smoke
-  仍禁止。
+- 真实账号恢复已经完成。恢复未要求用户手工识别/输入原邀请 token；Web 从内存自动提交 URL fragment，
+  API/0013 在写入前用 Production pepper 验证 continuity 和精确状态。First Operator 最终 status 为
+  `completed`，但真实 `/admin` 密码重新认证与普通邀请 OTP 完成前 DeepSeek smoke 仍禁止。
 - Phase 72 后续顺序已校准为：恢复到 `registered` → complete First Operator → post-completion verifier →
-  `/admin` 密码重新认证 → 普通邀请 scanner-safe OTP。`/admin` 本地缺口已按 RED→GREEN 补齐：首次统一
-  `forbidden` 显示密码表单，成功轮换 CloudApp/管理页 CSRF 并重读权限，错误可重试且不泄露密码；尚未
-  受控部署或取得真实 Hosted 浏览器证据。
+  `/admin` 密码重新认证 → 普通邀请 scanner-safe OTP。前三步已完成。`/admin` 本地缺口已按 RED→GREEN
+  补齐；后续 Web arm `3fcc8322ff6387a1ff7d49fb72582562a3d65c16` 只新增 Ready deployment
+  `FxRmiGZMzotoqiSmU7hSHfonbeV8`，独立 disarm `8dea25c` 后 Web 未新增非 Canceled deployment。真实页面已
+  显示密码重新认证门，但用户尚未亲自提交当前密码，四区和管理 mutation 不能写成已验收。
 - 2026-08-24 First Operator 已在 Hosted 真实完成：恢复后 status 为 `registered`，completion 后精确为
-  `completed`，完整 post-completion verifier 通过。当前下一门是受控部署 `/admin` recent-auth UI；普通
-  邀请、OTP journey 与 DeepSeek smoke 均尚未执行。
+  `completed`，完整 post-completion verifier 通过。`/admin` recent-auth UI 也已受控部署；API 最新受控
+  source 仍为 `39094d0`，最终 API/Web 7/7 状态分布分别为 12 Ready / 3 Error / 9 Canceled 与 4 Ready /
+  1 Error / 10 Canceled，且两项目均为 `deploymentEnabled=false`。当前下一门是用户亲自完成 `/admin`
+  密码重新认证，再验证四区、普通邀请和 OTP journey；DeepSeek smoke 尚未执行。

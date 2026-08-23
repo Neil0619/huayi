@@ -24,15 +24,22 @@ diagnostic 22 个字段与正式 verifier 均已远端通过，Vercel runtime DS
 探针。Provider/Auth、邮件、Cron 和邀请仍未完成。Web 已在后续 Phase 70 得到一条 Ready deployment 并
 立即 disarm；发行邀请前还必须部署 Google fail-closed 与 password callback 校准候选。
 
+2026-08-24 当前校准：上述为 Phase 53--71 的历史推进记录。0013 已作为第 13 条 migration 实际应用；
+First Operator 已恢复、complete 并通过 post-completion verifier，最终 status 为 `completed`。Phase 72
+`/admin` recent-auth UI 又以 Web arm `3fcc8322ff6387a1ff7d49fb72582562a3d65c16` 部署到
+`FxRmiGZMzotoqiSmU7hSHfonbeV8`，再以 `8dea25c` disarm；API 最新受控 source 仍为 `39094d0`，两项目当前
+`deploymentEnabled=false`。页面已显示密码重新认证门，但用户输入密码、四区权限、普通邀请与 OTP 仍待验收。
+
 ## 1. 当前事实与目标
 
 Hosted foundation 已在 Supabase project `kpadiulxkgckskcfydry` 完成 bootstrap 与 application login
-复验。仓库和远端现均为 12 条 migration；用户以进程级 `PGPASSWORD` 完成只列出
-`20260822030000_first_operator_bootstrap` 的 dry-run 后，已实际 push 这一条 migration。push 后的只读
-diagnostic 显示 chain/schema/RLS/价格/Storage/空 Auth 与 0012 结构均符合预期，`first_operator_empty` 为真；
-旧版 foundation verifier 仅因把 PostgreSQL 17 `NOINHERIT` 产品边误写为 `inherit=true` 并拒绝合法
-creator-control 边而失败。用户已在同一工作树运行修正版 foundation verify 并通过，随后固定 Operator
-status 返回 `empty`；Auth、profile、Operator 和 invitation 仍为空。
+复验。0012 应用时，仓库和远端当时均为 12 条 migration；用户以进程级 `PGPASSWORD` 完成只列出
+`20260822030000_first_operator_bootstrap` 的 dry-run 后实际 push。push 后的只读 diagnostic 显示
+chain/schema/RLS/价格/Storage/空 Auth 与 0012 结构均符合预期，`first_operator_empty` 为真；旧版 foundation
+verifier 仅因把 PostgreSQL 17 `NOINHERIT` 产品边误写为 `inherit=true` 并拒绝合法 creator-control 边而
+失败。修正版 foundation verify 随后通过，Operator status 当时为 `empty`。Phase 72 后 0013 已应用，仓库
+与远端 migration head 均为 13 条；当前身份状态非空且 First Operator 为 `completed`，因此不再运行上述
+pristine foundation verifier。
 2026-08-22 的历史 bootstrap 前 DoH 复核曾显示 `app.acceptance`、`api.acceptance`、`notify.acceptance` 与
 其 DMARC 名称为 NXDOMAIN；随后 `app.acceptance` 与 `api.acceptance` 已完成 Cloudflare/Vercel 配置并通过
 递归 DNS、Vercel domain 与 TLS 回读。2026-08-23，Tokyo (`ap-northeast-1`) Resend sender domain
@@ -409,6 +416,13 @@ Production/Ready deployment；两个 disarm 均未在其目标项目新增 deplo
 push 只允许增加 Canceled 审计记录，不得新增非 Canceled deployment。API/Web 都恢复
 `deploymentEnabled=false`。custom-domain API
 `/health` 与 Web `/` 均为 TLS 验证通过的 HTTP 200。
+
+后续 `/admin` recent-auth 候选已完成第二次 Web-only 受控部署：arm
+`3fcc8322ff6387a1ff7d49fb72582562a3d65c16` 只新增 Ready deployment
+`FxRmiGZMzotoqiSmU7hSHfonbeV8`，独立 disarm `8dea25c` 后没有新增非 Canceled Web deployment。最终 API/Web
+7/7 状态分布为 12 Ready / 3 Error / 9 Canceled 与 4 Ready / 1 Error / 10 Canceled；API 最新受控 source
+仍为 `39094d0`，两项目均为 `deploymentEnabled=false`。Web 域名、bundle exact SHA 和密码门可见性已
+验证；用户尚未亲自输入密码，不能据此关闭真实 `/admin` 四区、Cookie/CSRF、权限或管理 mutation 门。
 
 ## 7. TDD 与验收标准
 

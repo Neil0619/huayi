@@ -1639,4 +1639,14 @@ deployment `Bks2JvgrNidQ1CRjmUiwz9RTfhjF`，独立 disarm `2744757` 未在 Web �
 两个项目均恢复 `deploymentEnabled=false`。默认 6/7（排除 Canceled）可见数在各目标项目 arm 时分别为 API 14→15、
 Web 3→4，最终为 15/4；在各项目自身 arm 窗口，7/7 全状态数分别为 API 19→20、Web 13→14。双
 disarm 后、证据文档提交前的 7/7 检查点为 API 22、Web 14，Canceled 为 7/10；两个 disarm 均未在其
-目标项目新增 deployment，但各自在另一仍 disarmed 项目留下一条 Canceled 审计记录。浏览器恢复仍待执行。
+目标项目新增 deployment，但各自在另一仍 disarmed 项目留下一条 Canceled 审计记录。这是第一次 Phase 72
+部署检查点，不应被后续部署计数覆盖。
+
+随后浏览器恢复成功，status 先达到 `registered`；First Operator completion、完整 post-completion verifier
+与最终 `completed` status 均通过。`/admin` 密码 recent-auth UI 的后续受控 Web arm
+`3fcc8322ff6387a1ff7d49fb72582562a3d65c16` 只新增 Ready deployment
+`FxRmiGZMzotoqiSmU7hSHfonbeV8`，独立 disarm `8dea25c` 后 Web 未新增非 Canceled deployment；API 最新受控
+source 仍为 `39094d0`。最终 7/7 状态分布为 API Ready 12 / Error 3 / Canceled 9、Web Ready 4 / Error 1 /
+Canceled 10，两项目 `deploymentEnabled=false`。custom-domain Web/域名健康与 bundle 中 exact arm SHA 已
+验证；真实 `/admin` 已显示密码重新认证门，但用户尚未亲自输入密码，因此四区数据与管理操作、普通邀请、
+scanner-safe OTP journey 仍为 pending，完成前继续禁止 DeepSeek smoke。

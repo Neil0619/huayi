@@ -1666,3 +1666,13 @@ typecheck、architecture、build、development blocker、Store release、product
 - **First Operator 真实完成证据**：2026-08-24 浏览器恢复成功进入 Hosted workspace；只读 status 先精确为
   `registered`，随后受控执行 First Operator completion，最终 status 精确为 `completed`，完整
   post-completion verifier 通过。普通邀请尚未创建，`/admin` recent-auth 与 OTP journey 仍待后续门。
+- **`/admin` 受控部署与用户门**：后续 Web arm
+  `3fcc8322ff6387a1ff7d49fb72582562a3d65c16` 只新增 Production/Ready deployment
+  `FxRmiGZMzotoqiSmU7hSHfonbeV8`；独立 disarm `8dea25c` 后 Web 没有新增非 Canceled deployment，API 最新
+  受控 source 仍为 `39094d0`，两项目 `deploymentEnabled=false`。最终 7/7 状态分布为 API Ready 12 /
+  Error 3 / Canceled 9、Web Ready 4 / Error 1 / Canceled 10。custom-domain Web/域名健康与 bundle exact
+  arm SHA 已验证；真实 `/admin` 已显示当前密码重新认证门。用户尚未亲自提交密码，因此不能把页面可见性
+  写成四区、Cookie/CSRF、角色权限或管理 mutation 已验收，普通邀请与 scanner-safe OTP journey 仍 pending。
+- **当前仓库基线校准**：0013 应用后仓库与 Hosted forward migration head 均为 13 条；当前
+  `CLOUD_DEVELOPMENT_BLOCKER_CODES` 为 10 项。旧章节中的“12 条 migration”或“固定九项”只保留为其
+  所属阶段的历史快照，不代表当前基线。

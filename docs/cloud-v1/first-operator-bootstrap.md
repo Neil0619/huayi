@@ -2,9 +2,10 @@
 
 状态：2026-08-22 已完成需求、领域、技术、测试与验收方案、离线实现和文档自审；远端第 12 条 migration
 已经实际应用，hardened foundation/application verifier 与空 Operator status 当时已通过。2026-08-23 已
-发行首张邀请；真实密码确认中断后，当前精确状态为 `registration-interrupted`，Auth user/email identity
-已确认但 profile/method/quota/session 尚未建立。当前不得再运行要求空身份的 pristine foundation verifier，
-也不得替换邀请或执行 complete；先按 Phase 72 恢复。
+发行首张邀请；真实密码确认中断后，Phase 72 已应用第 13 条 migration 并原子恢复账号。2026-08-24 只读
+status 先达到 `registered`，随后 First Operator completion 与完整 post-completion verifier 均通过，最终
+status 精确为 `completed`。当前不得再运行要求空身份的 pristine foundation verifier，也不得重新发行或
+替换 BootstrapInvitation；下一门是由用户在已部署 `/admin` 页面亲自完成当前密码重新认证。
 
 ## 1. 问题与目标
 
@@ -142,10 +143,11 @@ foundation CLI 的临时 0600 root certificate 和有界错误输出。argv、SQ
 
 pristine 环境的原始顺序为：完成 hardened foundation verify -> 创建并配置隔离 API/Web/Supabase Auth ->
 确认部署 commit/health -> 发行邀请 -> 用户浏览器正常注册 -> complete -> post-completion verify -> 用户重新
-登录/重新认证并访问 `/admin`。当前已越过发行邀请且停在 `registration-interrupted`，恢复顺序改为：0013
-diagnostic/application verifier -> Phase 72 API/Web 严格串行部署 -> 浏览器自动提交原邀请 + Provider 密码
-证明，API/0013 在写入前验证 pepper continuity -> status `registered` -> complete -> post-completion verify。当前非空状态不运行
-pristine foundation verifier，且恢复前不 replace、不重新 claim、不新发邀请。
+登录/重新认证并访问 `/admin`。Phase 72 中断恢复已按以下顺序完成：0013 diagnostic/application verifier ->
+API/Web 严格串行部署 -> 浏览器自动提交原邀请 + Provider 密码证明 -> API/0013 在写入前验证 pepper
+continuity -> status `registered` -> complete -> post-completion verify -> status `completed`。当前非空状态不运行
+pristine foundation verifier，也不 replace、不重新 claim、不新发 BootstrapInvitation；普通邀请只能在用户
+完成 `/admin` 密码重新认证后创建。
 
 ## 5. TDD 与验证矩阵
 
@@ -198,6 +200,8 @@ application role 越权复验和 `/admin` 真实 Cookie/CSRF journey。离线测
 - fresh `pnpm verify:macos` 原样退出 0，覆盖 207/207 Node scripts、473/473 Vitest files（2,855 passed /
   12 skipped）、Store coverage 481/481、Playwright 110/110、全部 workspace build、architecture、development
   blocker、Store release 和 production dependency audit；
-- 第 12 条 migration 后续已经 dry-run、明确确认并实际 push；Vercel API/Web 首轮部署门也已建立。首张
-  邀请已发行并形成可恢复的 `registration-interrupted` 状态；真实 complete、post-completion verify 与
-  `/admin` 浏览器 journey 仍未完成，当前由 Phase 72 的 0013 和中断恢复流程接管。
+- 第 12 条 migration 后续已经 dry-run、明确确认并实际 push；首张邀请发行后形成的
+  `registration-interrupted` 状态已由 Phase 72 的 0013 和中断恢复流程接管。0013 已作为第 13 条 migration
+  实际应用，恢复、First Operator complete、post-completion verify 与最终 `completed` status 均已完成；
+  `/admin` recent-auth UI 已受控部署并显示密码重新认证门，但用户尚未亲自提交当前密码，普通邀请与 OTP
+  journey 仍未执行。
