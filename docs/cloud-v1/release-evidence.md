@@ -2100,6 +2100,10 @@ typecheck、architecture、build、development blocker、Store release、product
 - **完整 macOS 门禁**：三项独立审查修复后重新运行 `pnpm verify:macos` 并原样退出 0，覆盖 Node scripts
   317/317、Vitest 478 files / 2917 tests（12 个预期 skip）、Store coverage 97 files / 481 tests、全 workspace
   build/architecture、Playwright 111/111、Store release 与 production audit 零已知漏洞；
+- **提交与零部署**：writer 候选以 `231f848`（`feat(build): add hosted backup writer`）提交并推送；Vercel
+  Dashboard 只读回查确认 API 最新仍是 source `4f1ce4a` / deployment
+  `6QeRbqxgA88cFXggKekkr2axH9JM`，Web 最新仍是 source `9b0860a` / deployment
+  `V3NzjTYXtH7fb3WC2P6hpWR1twhb`，本批 push 零新增 deployment；
 - **明确未执行**：本阶段没有调用三个真实写入口，没有连接 Supabase/Hosted、运行 dump/restore/rebuild、
   生成真实 evidence、应用或 dry-run 0014、发送邮件、部署、调用 DeepSeek，亦未修改 Hosted/DNS/SMTP/
   environment/key。真实 pre/rebuild/post 与两个 evidence gate 仍等待独立授权和运行证据，0014 仍不 ready。
