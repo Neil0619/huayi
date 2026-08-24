@@ -8,6 +8,11 @@ import {
   readHostedImportantBatchBackupRepositoryState,
 } from "./acceptance-hosted-important-batch-backup.mjs";
 import { hostedAcceptanceProjectRef } from "./acceptance-hosted-foundation.mjs";
+import {
+  inspectHostedSupabasePlatformImages,
+  readHostedSupabasePlatformImageLock,
+  verifyHostedSupabasePlatformImageLock,
+} from "./acceptance-hosted-supabase-platform-lock.mjs";
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const pinnedSupabaseCliVersion = "2.115.0";
@@ -58,28 +63,14 @@ function runBoundedInspection(command, arguments_, { timeoutMilliseconds = 5_000
   });
 }
 
-function localImageMatchesPinnedDigest(stdout) {
-  if (typeof stdout !== "string" || stdout.length === 0) return false;
-  try {
-    const repoDigests = JSON.parse(stdout);
-    return (
-      Array.isArray(repoDigests) &&
-      repoDigests.some(
-        (value) =>
-          value === `supabase/postgres@${pinnedPostgresImageDigest}` ||
-          value === `docker.io/supabase/postgres@${pinnedPostgresImageDigest}`,
-      )
-    );
-  } catch {
-    return false;
-  }
-}
-
 export async function inspectHostedImportantBatchBackupRuntime({
+  inspectPlatformImages = inspectHostedSupabasePlatformImages,
+  readPlatformLock = readHostedSupabasePlatformImageLock,
   runInspection = runBoundedInspection,
+  verifyPlatformLock = verifyHostedSupabasePlatformImageLock,
 } = {}) {
   const supabaseCommand = join(repositoryRoot, "node_modules", ".bin", "supabase");
-  const [docker, postgresImage, supabase, artifactEncryption] = await Promise.all([
+  const [docker, supabase, artifactEncryption, platformImages] = await Promise.all([
     runInspection("docker", [
       "--host",
       "unix:///var/run/docker.sock",
@@ -87,17 +78,17 @@ export async function inspectHostedImportantBatchBackupRuntime({
       "--format",
       "{{.Server.Version}}",
     ]),
-    runInspection("docker", [
-      "--host",
-      "unix:///var/run/docker.sock",
-      "image",
-      "inspect",
-      "--format",
-      "{{json .RepoDigests}}",
-      hostedImportantBatchPostgresImage,
-    ]),
     runInspection(supabaseCommand, ["--version"]),
     runInspection("fdesetup", ["status"]),
+    (async () => {
+      try {
+        await verifyPlatformLock();
+        const lock = await readPlatformLock();
+        return await inspectPlatformImages({ lock, runInspection });
+      } catch {
+        return { ready: false };
+      }
+    })(),
   ]);
   return {
     artifactEncryptionReady:
@@ -105,9 +96,8 @@ export async function inspectHostedImportantBatchBackupRuntime({
       artifactEncryption.code === 0 &&
       artifactEncryption.stdout.trim() === "FileVault is On.",
     dockerDaemonReady: docker.code === 0 && /^\d+\.\d+(?:\.\d+)?$/u.test(docker.stdout.trim()),
-    pinnedPostgres17RuntimeReady:
-      postgresImage.code === 0 && localImageMatchesPinnedDigest(postgresImage.stdout),
-    pinnedScratchRuntimeReady: false,
+    pinnedPostgres17RuntimeReady: platformImages.ready === true,
+    pinnedScratchRuntimeReady: platformImages.ready === true,
     supabaseCliPinned: supabase.code === 0 && supabase.stdout.trim() === pinnedSupabaseCliVersion,
   };
 }
@@ -154,9 +144,10 @@ Capture contract:
 - Every failure removes only the fixed partial file, CA file, manifest temporary file, and scratch temporary files. Database rows, identities, secrets, archive contents, and raw stdout or stderr are never logged or reflected.
 Isolated rebuild contract:
 - Start from an empty non-production scratch with a repository-pinned image digest and distinct fixed project identity; never reuse the local acceptance or Hosted database.
-- Pin and verify the digest of every image that creates the Supabase Auth/Storage platform baseline. Pinning only the PostgreSQL image is not a complete Supabase platform image lock and cannot produce rebuild evidence.
+- The repository-pinned platform lock classifies all 14 CLI start services for the fixed config: 11 enabled images and three disabled services. Every enabled exact tag pins its OCI/Docker index plus linux/amd64 and linux/arm64 platform manifests.
+- Before any future start, run the static lock verifier and the local-only image inspector. The inspector issues only fixed Unix-socket Docker image-inspect commands against index-digest references; it has no pull, build, run, start, or manifest-network command.
 - Apply exactly the repository migrations through 20260824010000 plus the fictional seed, run fixed bounded migration/runtime/absence contracts, prove Hosted data absent, and destroy scratch before writing the rebuild manifest last.
-Current result: blocked fail-closed. The PostgreSQL 17.6.1.159 image index is pinned, but the complete Supabase platform image lock and reviewed write executor do not exist. Readiness uses only the fixed local Unix Docker socket, local image metadata, pinned CLI version, and FileVault status; it cannot pull images, connect to Hosted, or create evidence.
+Current result: blocked fail-closed. The complete 11-image platform lock exists, but the fixed images have not been acquired and locally inspected, and the reviewed write executor does not exist. Supabase CLI start can pull on a cache miss, so it remains forbidden until a separately approved acquisition stage and the local-only inspector both pass. Readiness uses only the fixed local Unix Docker socket, local image metadata, pinned CLI version, and FileVault status; it cannot pull images, connect to Hosted, or create evidence.
 `;
 }
 

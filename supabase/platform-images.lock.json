@@ -1,0 +1,303 @@
+{
+  "contract": "huayi-supabase-platform-images/v1",
+  "cliVersion": "2.115.0",
+  "source": {
+    "tag": "v2.115.0",
+    "commit": "18ae43a34a2257458197b62f74e2a97e2b5cf7f9",
+    "repository": "https://github.com/supabase/cli",
+    "files": {
+      "apps/cli-go/pkg/config/config.go": "sha256:aa8e3e46011be6cdb70f177cec63522823a9dbce1129a7bcb724e0075278421b",
+      "apps/cli-go/pkg/config/templates/Dockerfile": "sha256:a386c05c6b4f34c9b9553668cbe3b38d19bba72528d82758ff8ea2a39572be07",
+      "apps/cli-go/pkg/config/templates/config.toml": "sha256:4a7d44b36e91a3321c8ad71d8bdbde8472bf8630acb83bab91ca5ef3beadf6ac",
+      "apps/cli/src/legacy/commands/start/start.gates.ts": "sha256:6746159397337600a06dc69e3f22aabc0361b2e3fe6b4d24d5476d07805aba18",
+      "apps/cli/src/legacy/commands/start/start.services.ts": "sha256:9fd5315c34617944eaa2541e8c13860680e8001592ab03fe78ef710186c0ee20",
+      "apps/cli/src/legacy/shared/legacy-local-config-values.ts": "sha256:d81f2f7c653f9fa93fb25e087df37df6b06edd9f24bc51ac43950cec19794dd9"
+    }
+  },
+  "discovery": {
+    "registry": "registry-1.docker.io",
+    "resolvedAt": "2026-08-24T09:07:48.000Z",
+    "runtimePlatforms": ["linux/amd64", "linux/arm64"],
+    "exclude": [],
+    "method": "Parse the pinned CLI Dockerfile image aliases, apply the pinned default config and start gates to repository supabase/config.toml, then resolve enabled exact tags through the Docker Hub Registry v2 manifest endpoint."
+  },
+  "services": [
+    {
+      "service": "postgres",
+      "alias": "pg",
+      "gate": "always",
+      "enabled": true,
+      "reason": "Postgres is unconditional and db.major_version is 17.",
+      "image": {
+        "repository": "docker.io/supabase/postgres",
+        "tag": "17.6.1.159",
+        "tagDigest": "sha256:86a2e078779e5bdccda1f6f6c5063aa9779a322d1fface5fb408d051909b230f",
+        "indexMediaType": "application/vnd.oci.image.index.v1+json",
+        "platforms": {
+          "linux/amd64": {
+            "manifestDigest": "sha256:617b62a16858dc8436c1ded1970fa13e33539feb4c98b580cf6274b46b2ab1ef",
+            "mediaType": "application/vnd.oci.image.manifest.v1+json"
+          },
+          "linux/arm64": {
+            "manifestDigest": "sha256:ae11e1311cbf16eceeab5d594ce24583cbfadbc948468629cf605d61fa0ba231",
+            "mediaType": "application/vnd.oci.image.manifest.v1+json"
+          }
+        }
+      }
+    },
+    {
+      "service": "logflare",
+      "alias": "logflare",
+      "gate": "analytics.enabled",
+      "enabled": true,
+      "reason": "analytics.enabled is omitted locally and resolves to the pinned CLI default true.",
+      "image": {
+        "repository": "docker.io/supabase/logflare",
+        "tag": "1.50.2",
+        "tagDigest": "sha256:7f42582ddda690e0ccc3f7f32defc7fca4d484e560a56e87155eea6cf11671a0",
+        "indexMediaType": "application/vnd.oci.image.index.v1+json",
+        "platforms": {
+          "linux/amd64": {
+            "manifestDigest": "sha256:c11e59359a8edb3d2025b2601e0afd73fd7e7e81411230ba7aa04de6e5241bc6",
+            "mediaType": "application/vnd.oci.image.manifest.v1+json"
+          },
+          "linux/arm64": {
+            "manifestDigest": "sha256:65edf767d71a0b860cbfbfc9453a99133cd37709c02d270b44a482a6d8dd3094",
+            "mediaType": "application/vnd.oci.image.manifest.v1+json"
+          }
+        }
+      }
+    },
+    {
+      "service": "vector",
+      "alias": "vector",
+      "gate": "analytics.enabled",
+      "enabled": true,
+      "reason": "Vector is the analytics companion and analytics resolves enabled.",
+      "image": {
+        "repository": "docker.io/timberio/vector",
+        "tag": "0.53.0-alpine",
+        "tagDigest": "sha256:ca92d617e905953c3f852e7e88061f7039460e733522e3f0c21bc6ae946b2558",
+        "indexMediaType": "application/vnd.oci.image.index.v1+json",
+        "platforms": {
+          "linux/amd64": {
+            "manifestDigest": "sha256:7a74872eb7791f65357b200813bcf613c8dedcac561b4f1a68f9d290f6e6a40c",
+            "mediaType": "application/vnd.oci.image.manifest.v1+json"
+          },
+          "linux/arm64": {
+            "manifestDigest": "sha256:d2d5381f69b885c1b10d396623bf8d5ce825bcb8f8efcdb14a3154223c13b3b7",
+            "mediaType": "application/vnd.oci.image.manifest.v1+json"
+          }
+        }
+      }
+    },
+    {
+      "service": "kong",
+      "alias": "kong",
+      "gate": "not excluded",
+      "enabled": true,
+      "reason": "The fixed scratch command has an empty exclude set.",
+      "image": {
+        "repository": "docker.io/library/kong",
+        "tag": "2.8.1",
+        "tagDigest": "sha256:1b53405d8680a09d6f44494b7990bf7da2ea43f84a258c59717d4539abf09f6d",
+        "indexMediaType": "application/vnd.docker.distribution.manifest.list.v2+json",
+        "platforms": {
+          "linux/amd64": {
+            "manifestDigest": "sha256:e21b0b793879ab96720ed4188f9441260273f4bf775bcbff8d435e019ffb759a",
+            "mediaType": "application/vnd.docker.distribution.manifest.v2+json"
+          },
+          "linux/arm64": {
+            "manifestDigest": "sha256:8a5a7357d6cbda1840574130d109fc37b8088750d32c87b50f3b7909b7975425",
+            "mediaType": "application/vnd.docker.distribution.manifest.v2+json"
+          }
+        }
+      }
+    },
+    {
+      "service": "gotrue",
+      "alias": "gotrue",
+      "gate": "auth.enabled",
+      "enabled": true,
+      "reason": "auth.enabled is explicitly true.",
+      "image": {
+        "repository": "docker.io/supabase/gotrue",
+        "tag": "v2.195.0",
+        "tagDigest": "sha256:362659ca70eaa75ba05bbaf963caa84c1c5afe5e8fbf0777e17b830dd5f0f60a",
+        "indexMediaType": "application/vnd.oci.image.index.v1+json",
+        "platforms": {
+          "linux/amd64": {
+            "manifestDigest": "sha256:0dda7536205217ca6f207e7bd6ba36e281b0da46074cef5d55ae1de6ee0733f2",
+            "mediaType": "application/vnd.oci.image.manifest.v1+json"
+          },
+          "linux/arm64": {
+            "manifestDigest": "sha256:4573d756d66c2e49feda74ab90af5f09c7917e27cbd7422c9166edb4be78cc7a",
+            "mediaType": "application/vnd.oci.image.manifest.v1+json"
+          }
+        }
+      }
+    },
+    {
+      "service": "mailpit",
+      "alias": "mailpit",
+      "gate": "local_smtp.enabled",
+      "enabled": true,
+      "reason": "local_smtp.enabled is explicitly true.",
+      "image": {
+        "repository": "docker.io/axllent/mailpit",
+        "tag": "v1.30.2",
+        "tagDigest": "sha256:37a38e48e9338cd7e89dfeb487f37b02ebfcd9cb23111bed2d345e79d37d6dd6",
+        "indexMediaType": "application/vnd.oci.image.index.v1+json",
+        "platforms": {
+          "linux/amd64": {
+            "manifestDigest": "sha256:f0b0ed33c8cf53aac0dd004abbe245c83420a7ae44914e25178f7791dec5723a",
+            "mediaType": "application/vnd.oci.image.manifest.v1+json"
+          },
+          "linux/arm64": {
+            "manifestDigest": "sha256:60ae914dde3ad75aaf153c65cdf4a4e76cb2b89abc3720f37340c2cc8271a2f7",
+            "mediaType": "application/vnd.oci.image.manifest.v1+json"
+          }
+        }
+      }
+    },
+    {
+      "service": "realtime",
+      "alias": "realtime",
+      "gate": "realtime.enabled",
+      "enabled": false,
+      "reason": "realtime.enabled is explicitly false.",
+      "imageTag": "docker.io/supabase/realtime:v2.129.0"
+    },
+    {
+      "service": "postgrest",
+      "alias": "postgrest",
+      "gate": "api.enabled",
+      "enabled": true,
+      "reason": "api.enabled is explicitly true.",
+      "image": {
+        "repository": "docker.io/postgrest/postgrest",
+        "tag": "v16.1",
+        "tagDigest": "sha256:5922bde07147b82b1c9d8f749e48c1e5b99ebb233f3888bb7ab65f07cf4ac82d",
+        "indexMediaType": "application/vnd.docker.distribution.manifest.list.v2+json",
+        "platforms": {
+          "linux/amd64": {
+            "manifestDigest": "sha256:73e76c305027cb1119bc7c6ab82449d9e1a50a9e8697f4ebac5443dc63590c90",
+            "mediaType": "application/vnd.docker.distribution.manifest.v2+json"
+          },
+          "linux/arm64": {
+            "manifestDigest": "sha256:2fa40bb679b2a731f6ffe7dc9db6c15d57fd4e329e59e6362f9307630323535f",
+            "mediaType": "application/vnd.docker.distribution.manifest.v2+json"
+          }
+        }
+      }
+    },
+    {
+      "service": "storage",
+      "alias": "storage",
+      "gate": "storage.enabled",
+      "enabled": true,
+      "reason": "storage.enabled is explicitly true.",
+      "image": {
+        "repository": "docker.io/supabase/storage-api",
+        "tag": "v1.69.11",
+        "tagDigest": "sha256:97ed68d33417d253a45fe0a70f84324d92250a3e239bf18aa6cf87269dbf6727",
+        "indexMediaType": "application/vnd.oci.image.index.v1+json",
+        "platforms": {
+          "linux/amd64": {
+            "manifestDigest": "sha256:66e195167a2067fedd92fdf6e5c7ae324430bca806c7bd77a5df7700ca67cc70",
+            "mediaType": "application/vnd.oci.image.manifest.v1+json"
+          },
+          "linux/arm64": {
+            "manifestDigest": "sha256:63b19205d942c5054d3021e56c7e195b7fcb29e72048dc80503040123beb7b15",
+            "mediaType": "application/vnd.oci.image.manifest.v1+json"
+          }
+        }
+      }
+    },
+    {
+      "service": "imgproxy",
+      "alias": "imgproxy",
+      "gate": "storage.enabled && storage.image_transformation.enabled",
+      "enabled": false,
+      "reason": "storage.image_transformation is absent and resolves to the pinned CLI default false.",
+      "imageTag": "docker.io/darthsim/imgproxy:v3.8.0"
+    },
+    {
+      "service": "edge-runtime",
+      "alias": "edgeruntime",
+      "gate": "edge_runtime.enabled",
+      "enabled": true,
+      "reason": "edge_runtime.enabled is omitted locally and resolves to the pinned CLI default true.",
+      "image": {
+        "repository": "docker.io/supabase/edge-runtime",
+        "tag": "v1.74.3",
+        "tagDigest": "sha256:c52405002a890ca9fcf77978671c57f3a988e03174afb277f84ac65bc917013c",
+        "indexMediaType": "application/vnd.oci.image.index.v1+json",
+        "platforms": {
+          "linux/amd64": {
+            "manifestDigest": "sha256:cc355c3d0e9c063a351cad56d1c4c52a3c4d85aff4e1fad9d91688e75f9aad09",
+            "mediaType": "application/vnd.oci.image.manifest.v1+json"
+          },
+          "linux/arm64": {
+            "manifestDigest": "sha256:523316cc2bf776eab2144c56f0a1f58c1fbad5a2ffe3b35ce7fbeaf2a1be89cb",
+            "mediaType": "application/vnd.oci.image.manifest.v1+json"
+          }
+        }
+      }
+    },
+    {
+      "service": "postgres-meta",
+      "alias": "pgmeta",
+      "gate": "studio.enabled",
+      "enabled": true,
+      "reason": "studio.enabled is explicitly true and postgres-meta is its required companion.",
+      "image": {
+        "repository": "docker.io/supabase/postgres-meta",
+        "tag": "v0.98.0",
+        "tagDigest": "sha256:cef71ba901751dcc242cc685cf13786935ea8926820fb342f23bb0fbef77de5a",
+        "indexMediaType": "application/vnd.oci.image.index.v1+json",
+        "platforms": {
+          "linux/amd64": {
+            "manifestDigest": "sha256:4f23a37bc0e3a153463b62cecb71409972660fe97f66cc772989d89d628fafd1",
+            "mediaType": "application/vnd.oci.image.manifest.v1+json"
+          },
+          "linux/arm64": {
+            "manifestDigest": "sha256:1fa69d2836fb3dc0718534a7a54132723d20597f7cb0cdaa3f7c1c4f77674909",
+            "mediaType": "application/vnd.oci.image.manifest.v1+json"
+          }
+        }
+      }
+    },
+    {
+      "service": "studio",
+      "alias": "studio",
+      "gate": "studio.enabled",
+      "enabled": true,
+      "reason": "studio.enabled is explicitly true.",
+      "image": {
+        "repository": "docker.io/supabase/studio",
+        "tag": "2026.08.17-sha-0c1da8f",
+        "tagDigest": "sha256:08dc77f12e08faacc55960fef1dce37fa73d16acb52abeb216aa23dc5e70824b",
+        "indexMediaType": "application/vnd.oci.image.index.v1+json",
+        "platforms": {
+          "linux/amd64": {
+            "manifestDigest": "sha256:ef381c8b2ca2e24565e18f9eb5a08ae9b2f26a0fbfeb1c093ec421e17e7f1e91",
+            "mediaType": "application/vnd.oci.image.manifest.v1+json"
+          },
+          "linux/arm64": {
+            "manifestDigest": "sha256:55cbbfe667f068c9cc022c5c113f60b91d5dc79238a3b7cca12e19edf9c675d2",
+            "mediaType": "application/vnd.oci.image.manifest.v1+json"
+          }
+        }
+      }
+    },
+    {
+      "service": "supavisor",
+      "alias": "supavisor",
+      "gate": "db.pooler.enabled",
+      "enabled": false,
+      "reason": "db.pooler is absent and resolves to the pinned CLI default false.",
+      "imageTag": "docker.io/supabase/supavisor:2.9.7"
+    }
+  ]
+}

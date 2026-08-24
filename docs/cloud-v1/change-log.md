@@ -3,6 +3,22 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-24：Hosted scratch 以 CLI 源码派生的完整双平台 image lock 为唯一 service graph
+
+- 完整集合不能由手写镜像清单或 `strings` 猜测。以 Supabase CLI `v2.115.0`/commit
+  `18ae43a34a2257458197b62f74e2a97e2b5cf7f9` 的 embedded Dockerfile、默认 config、start gate/service
+  source 与仓库 `supabase/config.toml` 共同派生，并记录六个 upstream source SHA-256；
+- 固定 scratch 不传 `--exclude`，也不接受 `SUPABASE_*_ENABLED` 或 `.temp/*-version` override。14 个 start
+  service 中 11 个 active；Realtime 显式 false、ImgProxy 的可选 image-transformation section 缺失且默认
+  false、Supavisor 的 pooler section 缺失且默认 false，因此三者不启动；
+- 11 个 active exact tag 同时固定 Docker Hub primary registry 的 OCI/Docker index digest，以及
+  `linux/amd64`、`linux/arm64` platform manifest digest。index 是 tag 的跨平台内容身份，platform manifest
+  是特定运行架构身份，两者不得混称；
+- 静态 lock verifier 零 Docker/零网络，并以独立 SHA-256 tripwire 绑定完整 lock 内容，不能只靠 digest 格式
+  检查；本机 verifier 只允许固定 Unix socket 的 `docker image inspect`
+  index-digest reference，不含 pull/build/run/start/registry manifest。CLI 自身在 cache miss 会 pull，因此
+  普通 `supabase start` 仍禁止；镜像尚未经单独批准获取并本机验证，writer 也未落地，readiness 继续失败。
+
 ## 2026-08-24：Hosted backup runtime 以 digest-pinned image 为唯一客户端，但完整 platform lock 缺失时仍禁止写
 
 - host 安装的 PostgreSQL 14.6 不再参与 Hosted backup。唯一候选 client/runtime 固定为 Supabase CLI

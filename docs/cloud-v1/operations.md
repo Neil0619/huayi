@@ -201,8 +201,10 @@ Phase 81 已在唯一普通邀请的真实注册邮件中发现 Hosted Email OTP
 且未发送新邮件。今后每次真实邀请前先运行 `pnpm acceptance:hosted:auth:status`；它失败时停止，不得截取
 旧码或整份 push Auth config。当前先运行零 I/O 的 `pnpm acceptance:hosted:backup:plan` 与
 `pnpm acceptance:hosted:backup:executor:plan`；executor 已固定唯一 PostgreSQL 17.6.1.159 OCI index，但
-readiness 因完整 Auth/Storage platform image digest lock 与 write executor 缺失而固定失败。只有这些
-prerequisite 关闭、单独批准的 pre raw logical dump 与
+完整 platform lock 现已由 `pnpm acceptance:hosted:backup:platform-lock:verify` 在零 Docker/零网络下校验：
+14 个 CLI start service 精确为 11 active + 3 disabled，active image 同时固定 index 与 amd64/arm64 manifest。
+CLI cache miss 会主动 pull；当前未批准获取/本机检查全部 11 镜像，write executor 也缺失，所以 readiness
+仍固定失败。只有这些 prerequisite 关闭、单独批准的 pre raw logical dump 与
 migrations+fictional-seed scratch rebuild 完成、且
 `pnpm acceptance:hosted:backup:preflight` 通过后，才允许应用受审查的 0014 并部署 token-only resend。
 再由仍持有原私密邀请的 Web 自动重发；用户不输入 fragment/token，系统不创建第二邀请或删除 Auth user。

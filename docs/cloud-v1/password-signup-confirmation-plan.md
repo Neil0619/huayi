@@ -99,11 +99,13 @@ SQL 绕过。
       manifest/权限/hash/migration+fictional-seed rebuild 契约；本项没有连接 Supabase 或生成真实 dump；
 - [x] Phase 82 executor readiness 继续以 Fresh RED→GREEN 校准：固定 pre/rebuild/post readiness、session
       pooler 5432/verify-full/process-scoped secret+CA、PG17/custom archive 与 Storage metadata/object bytes
-      边界；本机只有 PG14.6，且 pinned scratch image/write executor 缺失，因此固定失败且零 evidence；
+      边界；该阶段本机只有 PG14.6，且 pinned scratch image/write executor 缺失，因此固定失败且零 evidence；
 - [x] Phase 83 固定 PostgreSQL 17.6.1.159 OCI index、本机 Unix Docker socket、local image/FileVault verdict，
       并把未来密码传递改为 `0600 .pgpass` read-only mount；未启动 daemon、pull/run image 或写 evidence；
-- [ ] 先固定并审查完整 Auth/Storage platform image digest lock/write executor，并证明 Storage objects 为零
-      或完成单独 object export；不得用 Supabase CLI filtered SQL 冒充 postgres-custom；
+- [x] Phase 84 从 pinned CLI source/config/start gates 派生完整 14-service graph，固定 11 active image 的
+      index + amd64/arm64 manifest digest，并证明三项 disabled；静态 verifier 零 Docker/零网络；
+- [ ] 单独批准获取并本机检查全部 11 个固定镜像、完成 write executor，并证明 Storage objects 为零或完成
+      单独 object export；CLI cache miss 会 pull，不得直接运行普通 start，也不得用 filtered SQL 冒充 custom；
 - [ ] 单独批准并完成 0014 前 raw logical dump 与隔离 scratch 重建，且
       `pnpm acceptance:hosted:backup:preflight` 通过；该门关闭前 0014 不得描述为 ready；
 - [ ] 用户确认后只实际应用唯一 0014，再 API→Web 严格串行 one-shot deploy/disarm；部署完成前不发送

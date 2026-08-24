@@ -113,7 +113,7 @@ test("executor plan is deterministic, zero-I/O, and states exact coverage and bl
   assert.match(stdout, /manifest last/u);
   assert.match(stdout, /raw stdout or stderr/u);
   assert.match(stdout, /\.pgpass/u);
-  assert.match(stdout, /complete Supabase platform image lock/u);
+  assert.match(stdout, /complete 11-image platform lock exists/u);
   assert.match(stdout, /blocked fail-closed/u);
 });
 
@@ -161,7 +161,7 @@ test("all three exact readiness checks fail closed before any executor or eviden
   }
 });
 
-test("readiness remains blocked with the database image present because the platform lock is incomplete", async () => {
+test("readiness remains blocked with the complete platform runtime because the writer is unpinned", async () => {
   const result = await runCli({
     arguments_: [hostedImportantBatchPreCaptureReadinessArgument],
     runtime: unavailableRuntime({
@@ -257,20 +257,23 @@ test("runtime diagnostics classify only allowlisted readiness and discard raw pr
 
 test("runtime inspector uses fixed argument arrays and returns booleans instead of raw output", async () => {
   const calls = [];
-  const outputs = [
-    { code: 0, stdout: "29.4.0\n" },
-    {
-      code: 0,
-      stdout:
-        '["supabase/postgres@sha256:86a2e078779e5bdccda1f6f6c5063aa9779a322d1fface5fb408d051909b230f"]\n',
-    },
-    { code: 0, stdout: "2.115.0\n" },
-    { code: 0, stdout: "FileVault is On.\n" },
-  ];
   const runtime = await inspectHostedImportantBatchBackupRuntime({
     runInspection: async (command, arguments_) => {
       calls.push({ arguments: arguments_, command });
-      return outputs[calls.length - 1];
+      if (command.endsWith("/node_modules/.bin/supabase")) {
+        return { code: 0, stdout: "2.115.0\n" };
+      }
+      if (command === "fdesetup") return { code: 0, stdout: "FileVault is On.\n" };
+      if (arguments_.includes("version")) return { code: 0, stdout: "29.4.0\n" };
+      const reference = arguments_.at(-1);
+      return {
+        code: 0,
+        stdout: JSON.stringify({
+          Architecture: process.arch === "x64" ? "amd64" : process.arch,
+          Os: "linux",
+          RepoDigests: [reference],
+        }),
+      };
     },
   });
 
@@ -284,26 +287,32 @@ test("runtime inspector uses fixed argument arrays and returns booleans instead 
     ],
     command: "docker",
   });
-  assert.deepEqual(calls[1], {
-    arguments: [
-      "--host",
-      "unix:///var/run/docker.sock",
-      "image",
-      "inspect",
-      "--format",
-      "{{json .RepoDigests}}",
-      hostedImportantBatchPostgresImage,
-    ],
-    command: "docker",
-  });
-  assert.match(calls[2].command, /node_modules\/.bin\/supabase$/u);
-  assert.deepEqual(calls[2].arguments, ["--version"]);
-  assert.deepEqual(calls[3], { arguments: ["status"], command: "fdesetup" });
+  const imageInspections = calls.filter(
+    (call) => call.command === "docker" && call.arguments.includes("inspect"),
+  );
+  assert.equal(imageInspections.length, 11);
+  assert.equal(
+    imageInspections.every(
+      (call) =>
+        call.arguments[0] === "--host" &&
+        call.arguments[1] === "unix:///var/run/docker.sock" &&
+        call.arguments.at(-1).includes("@sha256:"),
+    ),
+    true,
+  );
+  assert.equal(
+    calls.some((call) => /node_modules\/.bin\/supabase$/u.test(call.command)),
+    true,
+  );
+  assert.equal(
+    calls.some((call) => call.command === "fdesetup"),
+    true,
+  );
   assert.deepEqual(runtime, {
     artifactEncryptionReady: true,
     dockerDaemonReady: true,
     pinnedPostgres17RuntimeReady: true,
-    pinnedScratchRuntimeReady: false,
+    pinnedScratchRuntimeReady: true,
     supabaseCliPinned: true,
   });
   assert.equal(JSON.stringify(runtime).includes("86a2e078"), false);
@@ -320,7 +329,7 @@ test("real runtime inspection never inherits remote Docker selectors", async () 
   try {
     await writeFile(
       dockerPath,
-      `#!/bin/sh\nprintf '%s|%s\\n' "\${DOCKER_HOST-unset}" "\${DOCKER_CONTEXT-unset}" >> '${dockerLog}'\ncase "$*" in\n  *'image inspect'*) printf '["supabase/postgres@sha256:86a2e078779e5bdccda1f6f6c5063aa9779a322d1fface5fb408d051909b230f"]\\n' ;;\n  *) printf '29.4.0\\n' ;;\nesac\n`,
+      `#!/bin/sh\nprintf '%s|%s\\n' "\${DOCKER_HOST-unset}" "\${DOCKER_CONTEXT-unset}" >> '${dockerLog}'\ncase "$*" in\n  *'image inspect'*) ref=""; for arg in "$@"; do ref="$arg"; done; printf '{"Architecture":"${process.arch === "x64" ? "amd64" : process.arch}","Os":"linux","RepoDigests":["%s"]}\\n' "$ref" ;;\n  *) printf '29.4.0\\n' ;;\nesac\n`,
       { mode: 0o700 },
     );
     await chmod(dockerPath, 0o700);
@@ -335,7 +344,11 @@ test("real runtime inspection never inherits remote Docker selectors", async () 
     await inspectHostedImportantBatchBackupRuntime();
 
     const lines = (await readFile(dockerLog, "utf8")).trim().split("\n");
-    assert.deepEqual(lines, ["unset|unset", "unset|unset"]);
+    assert.equal(lines.length, 12);
+    assert.equal(
+      lines.every((line) => line === "unset|unset"),
+      true,
+    );
   } finally {
     if (originalPath === undefined) delete process.env.PATH;
     else process.env.PATH = originalPath;

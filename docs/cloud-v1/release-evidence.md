@@ -1994,3 +1994,31 @@ typecheck、architecture、build、development blocker、Store release、product
   `Docker-Content-Digest` 精确等于上方固定 digest；未 pull image。最终 `pnpm verify:macos` 原样退出 0，覆盖
   Node scripts 277/277、Vitest 478 files / 2917 tests（12 个预期 skip）、Store coverage 97 files / 481 tests、
   build/architecture、Playwright 111/111 与 production audit 零已知漏洞。
+
+## 75. Phase 84 Hosted Supabase 完整 platform image lock（2026-08-24）
+
+- **Fresh RED**：新增 platform-lock interface test，首次运行因目标
+  `acceptance-hosted-supabase-platform-lock.mjs` 不存在而以 `ERR_MODULE_NOT_FOUND` 失败；
+- **完整集合证据**：只读 clone 官方 `supabase/cli` tag `v2.115.0`（source commit
+  `18ae43a34a2257458197b62f74e2a97e2b5cf7f9`），由 embedded Dockerfile、默认 config、start gate/service
+  source 与仓库 `supabase/config.toml` 联合派生，不使用手写清单或 binary strings 充当 complete proof。
+  固定 config 无 exclude/env/version override，14 个 service 精确为 11 active + 3 disabled；
+- **双平台 digest**：11 个 active exact tag 只通过 Docker Hub Registry v2 primary endpoint 回读；每个响应的
+  `Docker-Content-Digest` 与响应 body SHA-256 一致。lock 同时保存 OCI/Docker index digest 与
+  `linux/amd64`、`linux/arm64` platform manifest digest；Bearer token 只存在于请求进程内，未输出或落盘；
+- **离线门**：静态 verifier 零 Docker/零 network，校验 CLI/version/source provenance、config gate、无 env/
+  `.temp/*-version` override、service 完整性与所有 digest；根任务补充 Fresh RED，证明旧 verifier 会接受
+  合法格式但错误的 digest，随后以独立 SHA-256 tripwire 绑定完整 lock 内容并转绿。local verifier 只生成固定
+  `docker --host unix:///var/run/docker.sock image inspect ... <repo>@<index-digest>` argv，不继承 remote
+  selector，也没有 pull/build/run/start/registry manifest interface；
+- **仍失败关闭**：CLI 的 cache-miss resolver 会 pull，因此普通 `supabase start` 仍禁止。当前没有启动
+  OrbStack/daemon、没有获取或运行镜像，也没有本机执行 local-images verifier；reviewed write executor、真实
+  dump/restore/rebuild/evidence 仍不存在，0014 仍不 ready；
+- **根任务独立回查**：再次从 GitHub 官方 commit 回读六个 source，SHA-256 结果 6/6 一致；再次从 Docker
+  Hub Registry v2 回读全部 active tag，11 个 index header/body digest 与 22 个 amd64/arm64 manifest 均零
+  mismatch。该回查只读 registry，未 pull 或运行 image；
+- **GREEN**：platform lock + executor/deployment focused 19/19，Node scripts 283/283；零网络静态命令
+  `pnpm acceptance:hosted:backup:platform-lock:verify` 回报 11 active / 3 disabled。首次完整门仅因新脚本
+  Prettier 排版失败；机械格式化后 `pnpm verify:macos` 原样退出 0，覆盖 instructions/format/lint/typecheck、
+  Node scripts 283/283、全 Vitest、Store coverage 97 files / 481 tests、architecture/build、Playwright
+  111/111、Store release 与 production audit 零已知漏洞。

@@ -1883,10 +1883,14 @@ Vercel environment 或密钥；实际邮件发送与 0014 远端应用分别等�
 6. **覆盖边界**：full database archive 只有在内部 coverage contract 通过时才可声明包含 Auth database rows
    与 Storage metadata；它不包含 Storage object bytes、global roles 或 Hosted provider/SMTP/DNS/Edge/
    environment config。Storage object 非零时必须另行 export，本批次继续阻塞；
-7. **Fresh RED 与当前 blocker**：新增 executor test 先以 `ERR_MODULE_NOT_FOUND` 失败；后续 Phase 83 RED
-   又先因缺 pinned image export 失败。数据库 client 已固定为 PostgreSQL 17.6.1.159 OCI index，不再信任本机
-   14.6；但完整 Auth/Storage platform image digest lock 与 write executor 仍缺失。即使 fake runtime 全 ready，
-   readiness 也必须固定失败且零 evidence；
-8. **动作账本**：executor prerequisite/readiness → pre capture/rebuild → `backup:preflight` → 0014 apply →
+7. **Phase 83/84 runtime lock**：Phase 83 RED 先因缺 pinned image export 失败；数据库 client 已固定为
+   PostgreSQL 17.6.1.159 OCI index，不再信任本机 14.6。Phase 84 再以缺 platform-lock module 的
+   `ERR_MODULE_NOT_FOUND` Fresh RED，随后从 pinned CLI source/config/start gates 严格派生 14-service graph，
+   固定 11 active image 的 index 与 `linux/amd64`/`linux/arm64` manifest digest，并证明 Realtime、ImgProxy、
+   Supavisor 三项 disabled；
+8. **当前 blocker**：静态 lock verifier 零 Docker/零网络，local verifier 只有固定 Unix-socket image inspect，
+   不含 pull/run/start。CLI cache miss 会隐式 pull，因此固定镜像仍需另行批准获取并本机验证；reviewed write
+   executor 也仍缺失。即使 fake runtime 全 ready，readiness 仍因 executor 未 pinned 固定失败且零 evidence；
+9. **动作账本**：executor prerequisite/readiness → pre capture/rebuild → `backup:preflight` → 0014 apply →
    post capture → `backup:complete` → API/Web 串行 deployment。离线 GREEN 不代表两个 evidence gate 真实
    通过，也不关闭 Storage export、backup retention 或 production restore drill。

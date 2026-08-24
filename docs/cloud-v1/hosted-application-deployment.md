@@ -40,8 +40,9 @@ Web-only deployment 与独立 disarm。当前默认排除 Canceled 的 API/Web �
 独立回读，未发送新邮件。仓库候选新增 0014 同邀请重发，远端仍停在 13 条；0014、API/Web 部署、六位
 OTP/Auth SMTP、R3-C、Cron 与 DeepSeek 应用路径仍待验收。Phase 82 已补离线 backup/rebuild 证据门与
 executor readiness；Phase 83 固定了唯一 PostgreSQL 17.6.1.159 OCI index，并把 Docker 限制到本机 Unix
-socket/FileVault gate，但完整 Auth/Storage platform image lock 与 write executor 仍缺失，故固定失败且零
-evidence。真实 pre dump/rebuild 与 preflight 尚未执行，因而 0014 仍不 ready。
+socket/FileVault gate。Phase 84 已完成 11-active/3-disabled 的完整双平台 image lock 与零网络静态 verifier；
+但全部固定镜像尚未获批获取/本机检查，write executor 仍缺失，故固定失败且零 evidence。CLI cache miss 会
+pull，普通 start 仍禁止。真实 pre dump/rebuild 与 preflight 尚未执行，因而 0014 仍不 ready。
 
 ## 1. 当前事实与目标
 
@@ -572,7 +573,8 @@ strict `0700/0600`、size/SHA-256/manifest、clean current Git HEAD，以及从 
 已经销毁 scratch 的 rebuild evidence。`backup:complete` 再要求 post dump 与 migration head 14。
 
 executor 只有 pre/rebuild/post exact readiness，没有 capture/restore/rebuild 写 interface，也不连接 Supabase。
-真实 dump 是敏感原始备份，不是脱敏 artifact；必须先固定完整 platform image lock/write executor，再在单独批准的
+真实 dump 是敏感原始备份，不是脱敏 artifact；完整 platform image lock 已固定，但仍必须先经单独批准获取并
+本机检查全部 11 镜像、完成 write executor，再在单独批准的
 后续阶段由固定 session-pooler 5432 verify-full administrator 写入 explicit partial，执行 fsync/hash/size/
 atomic rename/manifest-last，并保持数据库 row、identity、正文、secret 和原始错误不进入 stdout/log。数据库
 archive 不包含 Storage object bytes、global roles 或 Hosted platform config。当前只完成离线控制面，两个

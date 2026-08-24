@@ -854,8 +854,13 @@ confirmed Auth user/password method/profile 为 `1/1/2`、google method/Web sess
   capture/restore/rebuild 写入口；
 - executor pre/rebuild/post readiness 只允许三个 exact argument；检查 clean HEAD/ignored 后只读取 allowlisted
   本地 runtime verdict。唯一 PG17 client 必须是 repository-pinned OCI index，Docker 调用固定
-  `--host unix:///var/run/docker.sock` 且 child env 不含 `DOCKER_HOST`/`DOCKER_CONTEXT`；完整 Supabase
-  Auth/Storage platform image lock、FileVault、local image 或 write executor 任一缺失都固定失败；即使测试
+  `--host unix:///var/run/docker.sock` 且 child env 不含 `DOCKER_HOST`/`DOCKER_CONTEXT`；
+  `platform-lock:verify` 必须零 Docker/零 network 地验证 CLI 2.115.0/source provenance、无 env/version
+  override、14-service gate 分类、完整 lock SHA-256 tripwire、11 active index 与双平台 manifest digest；
+  Realtime/ImgProxy/Supavisor 的 disabled gate 或任一合法格式 digest 漂移都失败；
+- local image inspector 只允许 11 个固定 `docker image inspect` index-digest reference，测试逐 argv 证明没有
+  pull/build/run/start/manifest-network verb，且远程 Docker selectors 不进入 child。FileVault、local image 或
+  write executor 任一缺失都固定失败；即使测试
   fake 全 ready，也必须在 executor 未 pinned 时失败且零 evidence；raw subprocess stdout/stderr 不得转发；
 - preflight/complete 只允许固定 project `kpadiulxkgckskcfydry`、batch `phase-81-0014` 和固定 artifacts
   路径；拒绝额外 project/path/operation 参数，错误只输出 fixed failure，不反射参数、manifest 或原始错误；

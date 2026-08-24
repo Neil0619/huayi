@@ -22,6 +22,8 @@
     "acceptance:hosted:backup:executor:post:readiness": "node scripts/acceptance-hosted-important-batch-backup-executor.mjs --readiness-post-0014-important-batch-backup-kpadiulxkgckskcfydry",
     "acceptance:hosted:backup:executor:pre:readiness": "node scripts/acceptance-hosted-important-batch-backup-executor.mjs --readiness-pre-0014-important-batch-backup-kpadiulxkgckskcfydry",
     "acceptance:hosted:backup:executor:rebuild:readiness": "node scripts/acceptance-hosted-important-batch-backup-executor.mjs --readiness-rebuild-0014-important-batch-backup-kpadiulxkgckskcfydry",
+    "acceptance:hosted:backup:platform-lock:local-images": "node scripts/acceptance-hosted-supabase-platform-lock.mjs --verify-local-images",
+    "acceptance:hosted:backup:platform-lock:verify": "node scripts/acceptance-hosted-supabase-platform-lock.mjs --verify-lock",
     "acceptance:hosted:backup:plan": "node scripts/acceptance-hosted-important-batch-backup.mjs --plan",
     "acceptance:hosted:backup:preflight": "node scripts/acceptance-hosted-important-batch-backup.mjs --verify-pre-0014-important-batch-backup-kpadiulxkgckskcfydry",
     "acceptance:hosted:deployment": "node scripts/acceptance-hosted-deployment.mjs",

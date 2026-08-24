@@ -62,7 +62,7 @@ test("hosted deployment plan is complete, deterministic, and secret independent"
     "The real /admin password reauthentication and four-section read-only verification are complete",
     "Phase 77 runtime snapshot and Phase 79 controlled Cron tooling are not yet connected to Hosted",
     "Before migration 0014, run pnpm acceptance:hosted:backup:plan and require pnpm acceptance:hosted:backup:preflight to pass",
-    "The executor readiness audit pins the PostgreSQL 17.6.1.159 image index, but remains fail-closed because the complete Supabase Auth/Storage platform image lock and reviewed write executor are absent; no backup evidence has been produced",
+    "The complete platform lock classifies 11 active and 3 disabled CLI services and pins every active index plus linux/amd64 and linux/arm64 manifest; readiness remains fail-closed because local image inspection and the reviewed writer are pending",
     "Run pnpm acceptance:hosted:backup:executor:plan and the exact pre/rebuild/post readiness checks only; they perform no database, network, or artifact write",
     "Preflight requires a secure pre-batch logical backup plus migrations-and-fictional-seed rebuild evidence for the clean current candidate",
     "apply exactly migration 0014 after explicit approval, then deploy API and Web through separate one-shot arm/disarm windows",
@@ -85,7 +85,7 @@ test("hosted deployment plan is complete, deterministic, and secret independent"
     "smtp.resend.com:465 | resend",
     "five Supabase Cron jobs",
     "backup, target-network, natural-use, Store, and Windows final-batch gates remain pending",
-    "finish the complete Supabase platform image digest lock and reviewed writer -> separately approve the fixed capture/rebuild executor",
+    "separately approve fixed-image acquisition -> local-only inspect all 11 locked images -> finish the reviewed writer -> separately approve the fixed capture/rebuild executor",
   ]) {
     assert.match(plan, new RegExp(expected.replaceAll(/[.*+?^${}()|[\]\\]/gu, "\\$&"), "u"));
   }

@@ -6,7 +6,7 @@ Supabase Free 不提供可依赖的自动备份。Hosted 验收环境虽然不�
 identity、邀请与用户学习数据；任何 forward-only migration 或重要部署批次前后都必须留下可恢复证据，不能
 把“migration dry-run 通过”当成备份。
 
-Phase 82/83 只交付默认离线、失败关闭的计划、执行器就绪度审计与证据验证模块：
+Phase 82–84 只交付默认离线、失败关闭的计划、执行器就绪度审计、完整 platform image lock 与证据验证模块：
 
 - 固定 Supabase project `kpadiulxkgckskcfydry` 和当前批次 `phase-81-0014`；
 - `pnpm acceptance:hosted:backup:plan` 只渲染固定计划，零文件、Git、网络和写入；
@@ -14,15 +14,22 @@ Phase 82/83 只交付默认离线、失败关闭的计划、执行器就绪度�
 - `pnpm acceptance:hosted:backup:complete` 再要求 0014 后备份，关闭整个重要批次；
 - `pnpm acceptance:hosted:backup:executor:plan` 零 I/O 地列出 pre capture、isolated rebuild、post capture
   三个固定 operation；对应 `executor:*:readiness` 只做本地 Git/runtime 分类并固定失败关闭；
+- `pnpm acceptance:hosted:backup:platform-lock:verify` 零 Docker、零网络校验 pinned CLI/config/source provenance、
+  14 个 start service 的 11 active + 3 disabled 分类、完整 lock SHA-256 tripwire，以及 active image 的
+  index/双平台 manifest digest；
+- `platform-lock:local-images` 只允许固定 Unix socket 的 `docker image inspect`，没有 pull/build/run/start/
+  registry manifest 命令；本阶段没有运行该命令，也没有启动 daemon；
 - 本阶段没有可执行 capture、restore、scratch rebuild、Supabase connection 或 migration apply 命令，也
   没有执行真实 dump。
 
 审计确认当前本机 `pg_dump`/`pg_restore`/`psql` 是 14.6，而 Hosted/仓库目标为 PostgreSQL 17。Phase 83
 已经把 Supabase CLI 2.115.0 对应的数据库镜像固定为
 `docker.io/supabase/postgres:17.6.1.159@sha256:86a2e078779e5bdccda1f6f6c5063aa9779a322d1fface5fb408d051909b230f`，
-并禁止再信任 host client；但完整 scratch 还依赖建立 Auth/Storage platform baseline 的其他服务镜像，仓库
-尚未固定并验证这组完整 digest lock，也没有受审查写执行器。当前 OrbStack daemon 未启动，固定数据库镜像
-也未做本机 offline image inspection/实际运行。真实 capture/restore 必须先关闭这些前提，再由用户明确批准后
+并禁止再信任 host client。Phase 84 又从 CLI `v2.115.0` 的 embedded Dockerfile、默认 config、start gate
+源码与仓库 `supabase/config.toml` 得出完整 service graph：11 个镜像会启动，Realtime、ImgProxy 与
+Supavisor 分别因显式/默认 gate 为 false 不启动。11 个 exact tag 均锁定 Docker Hub registry 返回的
+index digest 与 `linux/amd64`、`linux/arm64` platform manifest digest。当前 OrbStack daemon 未启动，固定镜像
+尚未做本机 offline image inspection/实际运行，也没有受审查写执行器。真实 capture/restore 必须先关闭这些前提，再由用户明确批准后
 单独实现和执行。离线 GREEN 只证明控制面、证据格式与失败关闭，不证明数据库已经备份、恢复或重建。
 
 ## 2. 固定证据目录与权限
@@ -102,16 +109,19 @@ contract，但在 pinned image 离线验证、完整 coverage contract 与写执
 工具必须使用固定且不同于 Hosted/本机验收的 project identity、固定无冲突端口与 repository-pinned image
 digest，从空 scratch 开始；只复制仓库 migrations 与虚构 seed，执行完整 migration/seed/固定 bounded
 contract，确认没有 Hosted 数据，并在删除 scratch 后才原子写 manifest。证据不保存表计数、账号、邮箱、
-ID、正文或 dump 内容。只固定 PostgreSQL image 不能代表完整 Supabase platform：必须把建立 Auth/Storage
-baseline 的每个实际镜像 digest 一并固定、在启动前逐一做 local-only inspection，并证明 CLI 没有隐式 pull；
-该完整 lock 当前缺失，因此 readiness 必须失败。
+ID、正文或 dump 内容。完整 lock 的 14 个 service gate 精确分类为：Postgres、Logflare、Vector、Kong、
+GoTrue、Mailpit、PostgREST、Storage、Edge Runtime、Postgres Meta、Studio 启动；Realtime 因仓库显式
+`enabled=false`，ImgProxy 因可选 `storage.image_transformation` section 缺失并默认 false，Supavisor 因
+`db.pooler` 缺失并默认 false 而不启动。CLI `supabase start` 在 cache miss 时会主动 pull，因此不能用普通
+start 证明 offline。未来 start 前必须先通过静态 lock verifier 与全部 11 个 index-digest reference 的
+local-only image inspection；本阶段未获取镜像，readiness 仍必须失败。
 
 ## 5. Phase 81 动作依赖
 
 0014 的顺序现固定为：
 
 1. 运行零网络 `acceptance:hosted:backup:plan` 与 `acceptance:hosted:backup:executor:plan`；
-2. exact pre/rebuild/post readiness 在完整 Supabase platform image lock 或写执行器缺失时必须失败；
+2. exact pre/rebuild/post readiness 在静态 platform lock、本机 11 镜像检查或写执行器缺失时必须失败；
 3. 关闭前提并通过独立代码审查/明确授权后，完成 pre raw logical dump 和 migrations+fictional-seed scratch
    rebuild；
 4. `acceptance:hosted:backup:preflight` 必须通过；
@@ -133,7 +143,9 @@ baseline 的每个实际镜像 digest 一并固定、在启动前逐一做 local
 - 参数不能注入 project、路径或 operation，错误只输出固定消息；
 - readiness 即使 fake runtime 全 ready 也必须因 write executor 未 pinned 失败，不得创建 evidence；本地
   inspector 只通过固定 Unix Docker socket 读取 daemon/local image metadata、固定 CLI version 与 FileVault
-  status，且只输出 allowlisted verdict，不转发 raw stdout/stderr；
+  status，且只输出 allowlisted verdict，不转发 raw stdout/stderr；静态 lock verifier 必须在零 Docker/
+  零 network 下拒绝 CLI/config/env/version override/service/digest 漂移；完整 lock 内容由独立 SHA-256
+  tripwire 绑定，合法格式但错误的 digest 也必须失败；
 - preflight/complete 校验固定 project、batch、clean HEAD、ignore、目录/file mode、exact keys、size/hash 和
   pre/post migration head；
 - rebuild manifest 必须是 migrations+fictional-seed、Hosted data absent 且 scratch destroyed；
