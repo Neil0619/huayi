@@ -849,8 +849,12 @@ confirmed Auth user/password method/profile 为 `1/1/2`、google method/Web sess
 
 - Fresh RED 必须先证明仓库没有 fixed backup plan/preflight/completion module；action ledger 缺少 0014 前置
   backup gate 时也必须独立失败，不能先改文档再补正向断言；
-- `backup:plan` 必须零 filesystem、Git、network 和 write，只输出固定 project/batch/path/权限/清理/依赖
-  契约；根 scripts 只能提供 plan/preflight/complete，不得在默认门增加 capture/restore；
+- `backup:plan` 与 `backup:executor:plan` 必须零 filesystem、Git、network 和 write，只输出固定 project/
+  batch/path/权限/清理/依赖契约；根 scripts 只能提供 plan/readiness/preflight/complete，不得在默认门增加
+  capture/restore/rebuild 写入口；
+- executor pre/rebuild/post readiness 只允许三个 exact argument；检查 clean HEAD/ignored 后只读取 allowlisted
+  本地 runtime verdict。PG17 tools、pinned scratch image、write executor 任一缺失都固定失败；即使测试 fake
+  全 ready，也必须在 executor 未 pinned 时失败且零 evidence；raw subprocess stdout/stderr 不得转发；
 - preflight/complete 只允许固定 project `kpadiulxkgckskcfydry`、batch `phase-81-0014` 和固定 artifacts
   路径；拒绝额外 project/path/operation 参数，错误只输出 fixed failure，不反射参数、manifest 或原始错误；
 - evidence fixture 必须覆盖 clean Git HEAD 精确、artifact ignored、目录 `0700`、文件 `0600`、非 symlink、
@@ -860,7 +864,10 @@ confirmed Auth user/password method/profile 为 `1/1/2`、google method/Web sess
   migration/seed/runtime 全 true、Hosted data absent、scratch destroyed。静态 migration test、dump listing、
   command exit 0 或手写 manifest 不能替代实际隔离重建；
 - raw logical dump 是敏感备份，不进入测试 fixture/stdout/log。默认测试只使用不含用户数据的内存 adapter；
-  真实 capture、restore、scratch rebuild、Supabase 连接与 0014 apply 都是另行批准的 Hosted 门。
+  测试必须区分 PG17 full-database custom archive 与 Supabase CLI filtered SQL，且断言 Storage object bytes、
+  global roles 和 Hosted platform config 不在 archive 覆盖声明内；
+- 真实 capture、Storage object export、restore、scratch rebuild、Supabase 连接与 0014 apply 都是另行批准的
+  Hosted 门。
 
 ### 4.11 Phase 47 本机验收模拟模型
 

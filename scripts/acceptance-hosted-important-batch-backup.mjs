@@ -85,7 +85,7 @@ function runGit(arguments_, cwd, { captureOutput = false } = {}) {
   });
 }
 
-async function readRepositoryState(root) {
+export async function readHostedImportantBatchBackupRepositoryState(root) {
   const [head, ignored, status] = await Promise.all([
     runGit(["rev-parse", "--verify", "HEAD"], root, { captureOutput: true }),
     runGit(["check-ignore", "--quiet", "--", hostedImportantBatchBackupArtifactDirectory], root),
@@ -285,10 +285,12 @@ export function renderHostedImportantBatchBackupPlan() {
 Pinned target: Supabase project ${hostedAcceptanceProjectRef}; batch ${hostedImportantBatchId}.
 Evidence directory: ${hostedImportantBatchBackupArtifactDirectory}
 - This plan performs no filesystem, Git, database, mail, model, or deployment operation.
-- Real capture and restore are not implemented by this module and require a separately approved stage.
+- Real capture and restore are not implemented. Run acceptance:hosted:backup:executor:plan for the fail-closed runtime-readiness audit before requesting a separately approved stage.
 Future controlled logical-backup contract:
 - Use only the fixed project through a verify-full administrator profile and a process-scoped secret.
+- Use the fixed session pooler on port 5432 with a repository-pinned PostgreSQL 17 runtime. The transaction pooler on 6543 and the Supabase CLI filtered SQL dump are not postgres-custom evidence.
 - Write PostgreSQL custom format through an explicit file path; never stream database rows to stdout.
+- The database archive may cover Auth rows and Storage metadata only after fixed internal checks; it never covers Storage object bytes, global roles, or hosted platform configuration.
 - Treat the artifact as a raw sensitive logical dump, not as anonymized or shareable evidence.
 - Create protected directories with mode 0700 and files with mode 0600; remove partial, CA, and temporary files on every failure.
 - Hash the closed dump, then atomically create the strict body-free manifest; never print the dump, identities, content, or raw errors.
@@ -306,7 +308,7 @@ Phase 81 dependency gates:
 export async function runHostedImportantBatchBackupCli({
   arguments_ = process.argv.slice(2),
   evidenceIo = realEvidenceIo,
-  readRepositoryState: readState = readRepositoryState,
+  readRepositoryState: readState = readHostedImportantBatchBackupRepositoryState,
   repositoryRoot: root = repositoryRoot,
   writeError = (value) => process.stderr.write(value),
   writeOutput = (value) => process.stdout.write(value),

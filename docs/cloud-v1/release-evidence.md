@@ -1942,3 +1942,28 @@ typecheck、architecture、build、development blocker、Store release、product
   268/268、instructions、全仓 format、ESLint 与全部 workspace typecheck 通过；真实 plan 只输出固定合同，
   实际 preflight 在当前 dirty candidate 且证据不存在的条件下按设计固定失败。真实 dump、restore、scratch
   rebuild、Supabase connection、0014 apply、邮件与部署均未执行，两个 evidence gate 仍 pending。
+- **Executor readiness Fresh RED**：后续同一阶段先增加
+  `acceptance-hosted-important-batch-backup-executor.test.mjs`，首次运行以目标 module
+  `ERR_MODULE_NOT_FOUND` 失败；没有先补实现或把静态 plan 当成 capture；
+- **工具事实校准**：本地 `supabase db dump --help` 证明 2.115.0 没有 custom-format flag，默认/`--data-only`/
+  `--role-only` 是 Supabase-filtered SQL 路径；本机 `pg_dump`/`pg_restore`/`psql` 均为 14.6，而仓库/Hosted
+  目标为 PG17。OrbStack Docker daemon 当前未运行，仓库也无 pinned scratch image digest；未启动 daemon、
+  未 pull image、未连接 Supabase；
+- **失败关闭 readiness GREEN**：新增固定 executor plan 与 pre/rebuild/post 三个 exact readiness interface。
+  plan 零 I/O；readiness 只读 clean HEAD/ignore 与 allowlisted runtime verdict，任何动态 project/path/operation、
+  dirty/unignored、PG17 runtime/scratch pin 缺失均 fixed failure。即使测试注入所有 runtime 为 ready，也因
+  write executor 未 pinned 继续失败，证明不能写 dump/CA/partial/manifest/scratch；focused backup + executor
+  当前为 18/18；Docker 检查强制使用本机 `unix:///var/run/docker.sock`，不继承可能指向远程 daemon 的
+  `DOCKER_HOST`/`DOCKER_CONTEXT`；
+- **覆盖声明纠偏**：未来 full-database custom archive 可在 coverage contract 后覆盖应用数据、migration
+  history、Auth database rows 与 Storage metadata，但不包含 Storage object bytes、global roles 或 Hosted
+  Auth provider/SMTP/DNS/Edge/environment config。Storage objects 必须证明为零，否则需单独 export；CLI
+  roles/schema/data SQL 与 postgres-custom 不再混称；
+- **仍未关闭**：当前没有 repository-pinned PG17 dump/restore runtime、pinned isolated-scratch image digest 或
+  reviewed write executor；所以没有生成 pre/post dump 或 rebuild manifest，既有 evidence verifier 仍应失败，
+  0014 仍不 ready。真实网络、数据库写、邮件、部署、migration、DeepSeek、DNS、SMTP、environment 与 key
+  均未触碰。
+- **离线复核**：focused executor + verifier + deployment ledger 18/18、完整 Node scripts 276/276、instructions、
+  全仓 Prettier、ESLint 与全部 workspace typecheck 通过；本地 runtime inspector 只返回
+  `dockerDaemonReady=false`、`pinnedPostgres17RuntimeReady=false`、`pinnedScratchRuntimeReady=false`、
+  `supabaseCliPinned=true` 四个 allowlisted boolean，没有输出版本命令 raw stdout/stderr、路径、身份或秘密。

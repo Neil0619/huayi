@@ -8,13 +8,19 @@
 - Supabase Free 无可依赖的自动备份，0014 不能只凭 migration dry-run 与离线测试进入实际 apply。每个
   重要批次固定需要 pre/post raw logical dump evidence，以及从仓库 migration + fictional seed 在隔离
   scratch 重建的证据；preflight 必须位于实际 migration apply 之前；
-- raw logical dump 可能包含 Auth、Storage、邀请与业务记录，是严格敏感备份，不再称为“脱敏 dump”。禁止
-  用伪匿名导出、表计数或 `pg_restore --list` 冒充可恢复备份；真实 capture/restore/rebuild 必须单独批准；
+- raw logical dump 可能包含 Auth database rows、Storage metadata、邀请与业务记录，是严格敏感备份，不再
+  称为“脱敏 dump”；它不包含 Storage object bytes、global roles 或 Hosted platform config。禁止用伪匿名
+  导出、表计数或 `pg_restore --list` 冒充可恢复备份；真实 capture/object export/restore/rebuild 必须单独批准；
 - 新增固定 Singapore project/batch 的离线 plan、preflight 和 completion interface。plan 零 I/O；两个
   verifier 只读取本机 ignored 窄目录，失败关闭地验证 clean Git HEAD、strict `0700/0600`、普通文件、
   exact manifest、dump size/SHA-256、migration head、scratch cleanup，且不输出数据库内容或原始错误；
 - 当前只实现控制面和证据格式，没有执行 Supabase 连接、dump、restore、migration apply、邮件或部署。
   Phase 81 动作账本在 preflight 真实通过前不得再把 0014 描述为 ready。
+- 后续工具审计确认 `supabase db dump` 2.115.0 不提供 custom-format，当前本机 PG clients 14.6 又不能作为
+  PG17 dump/restore runtime；仓库缺 pinned scratch image digest 与 reviewed write executor。新增的
+  pre/rebuild/post readiness 因而必须固定失败且不能写 evidence。未来数据库 archive 只能在 coverage
+  contract 后声称包含 Auth rows 与 Storage metadata；Storage object bytes、global roles 与 Hosted platform
+  config 不在覆盖内，objects 非零时另行 export。
 
 ## 2026-08-24：Hosted Email OTP 位数是六位产品契约，不再是未验证的 Dashboard 默认值
 

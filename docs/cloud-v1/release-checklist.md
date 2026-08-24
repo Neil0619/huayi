@@ -161,6 +161,13 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
 - [x] Phase 82 已提供固定 project/batch 的零 I/O backup plan 与离线 preflight/completion verifier；严格
       校验 clean HEAD/ignored/`0700/0600`/manifest/size/hash/migration head/rebuild cleanup，并且没有
       capture/restore 写接口。本条只关闭工具缺口，不代表已生成、恢复或重建真实 Hosted backup；
+- [x] Phase 82 executor readiness 审计已用 Fresh RED→GREEN 提供零 I/O plan 与 pre/rebuild/post 三个 exact
+      readiness；本地 PG clients 14.6、缺 pinned PG17 runtime/scratch image/write executor 时固定失败，即使
+      fake runtime 全 ready 也不会写 evidence。CLI filtered SQL 不再冒充 postgres-custom；Storage object bytes
+      明确不在数据库 archive 内；
+- [ ] 固定并审查 PG17 dump/restore runtime、isolated scratch image digest 与 write executor；先证明
+      `storage.objects` 为零，否则另行完成 Storage object export。该 prerequisite 未关闭前不得请求真实
+      capture 或把 0014 描述为 ready；
 - [ ] 0014 apply 前由单独批准的真实阶段生成 pre raw logical dump，并从 migration + fictional seed 在隔离
       scratch 重建；`acceptance:hosted:backup:preflight` 必须通过。0014 后生成 post dump 并由
       `acceptance:hosted:backup:complete` 关闭批次；dump 不进入 Git/stdout/log，失败 partial/CA/temp 全清理；

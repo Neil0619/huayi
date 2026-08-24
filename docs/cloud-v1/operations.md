@@ -199,8 +199,10 @@ Token 与 secret 不进入自动化或发布证据。
 Phase 81 已在唯一普通邀请的真实注册邮件中发现 Hosted Email OTP length 为 8，而产品契约固定 6。用户只
 授权把该字段保存为 6；独立重新加载确认 6、expiry 仍 3600，其他 Auth/SMTP/DNS/environment/secret 未改
 且未发送新邮件。今后每次真实邀请前先运行 `pnpm acceptance:hosted:auth:status`；它失败时停止，不得截取
-旧码或整份 push Auth config。当前先运行零 I/O 的 `pnpm acceptance:hosted:backup:plan`；只有单独批准的
-pre raw logical dump 与 migrations+fictional-seed scratch rebuild 完成、且
+旧码或整份 push Auth config。当前先运行零 I/O 的 `pnpm acceptance:hosted:backup:plan` 与
+`pnpm acceptance:hosted:backup:executor:plan`；executor readiness 已因本机 PG14.6、缺 pinned PG17 runtime/
+scratch image/write executor 而固定失败。只有这些 prerequisite 关闭、单独批准的 pre raw logical dump 与
+migrations+fictional-seed scratch rebuild 完成、且
 `pnpm acceptance:hosted:backup:preflight` 通过后，才允许应用受审查的 0014 并部署 token-only resend。
 再由仍持有原私密邀请的 Web 自动重发；用户不输入 fragment/token，系统不创建第二邀请或删除 Auth user。
 
@@ -282,15 +284,21 @@ deploy 只接受精确 `--confirm-local-downtime`。任何失败都停止后续�
 ## 备份、导出与删除
 
 - Hosted 重要批次以 `hosted-important-batch-backup.md` 为权威契约。当前 Phase 81/0014 固定顺序是
-  `backup:plan` → 单独批准的 pre capture + isolated rebuild → `backup:preflight` → migration apply →
-  post capture → `backup:complete` → API/Web 串行 deploy/disarm；preflight 失败时 migration 不 ready。
+  双 plan/executor prerequisite → 单独批准的 pre capture + isolated rebuild → `backup:preflight` → migration
+  apply → post capture → `backup:complete` → API/Web 串行 deploy/disarm；readiness/preflight 失败时 migration
+  不 ready。
 - 离线 verifier 只读取
   `artifacts/hosted-important-batch-backups/phase-81-0014`，并验证当前工作树干净、Git HEAD、本克隆
   ignored、目录 `0700`、文件 `0600`、exact manifest、dump size/SHA-256 与 pre/post migration head。它不
   连接数据库、不创建备份，也不允许调用者传 project、路径或 operation。
 - 真实 logical dump 是 raw sensitive backup，不能称为脱敏或把它复制到 Git、日志、聊天/工单。未来
-  capture 只允许固定 project 的 verify-full 管理员、进程级凭证、显式 custom-format output file、受验证的
-  at-rest protection 与完整失败清理；当前没有 capture/restore 根脚本，不能手写 manifest 绕过。
+  capture 只允许固定 project/session pooler 5432 的 verify-full 管理员、进程级凭证/CA、pinned PG17、
+  显式 custom-format partial、受验证的 at-rest protection、fsync/atomic rename/manifest-last 与完整失败清理；
+  transaction pooler 6543 与 Supabase CLI filtered SQL 不得冒充 postgres-custom。当前只有 fail-closed readiness，
+  没有 capture/restore 根脚本，不能手写 manifest 绕过。
+- 数据库 archive 只有 coverage contract 通过后才可声称包含 Auth database rows 与 Storage metadata；它不
+  包含 Storage object bytes、global roles 或 Hosted provider/SMTP/DNS/Edge/environment config。先证明
+  Storage objects 为零，否则必须单独批准 object export。
 - rebuild evidence 只从仓库 migrations + fictional seed 在隔离非 production scratch 生成，禁止导入 Hosted
   数据；必须在 migration/runtime/seed 聚合通过、确认 Hosted data absent 且 scratch 已销毁后再落严格
   body-free manifest。静态测试、命令退出 0 或 dump listing 不能单独关闭该门。

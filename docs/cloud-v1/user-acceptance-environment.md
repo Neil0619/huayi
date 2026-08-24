@@ -429,6 +429,7 @@ DNS 或密钥配置。
 该历史下一项已经推进：唯一普通邀请已创建并提交密码注册，真实邮件发现 Hosted Email OTP length=8 与
 六位产品契约不一致。用户只授权保存 8→6；独立重新加载回读为 6，expiry 仍 3600，其他
 Auth/SMTP/DNS/environment/secret 未改且未发新邮件。当前下一项改为：完成本机同邀请 resend/0014 验证 →
+关闭 PG17/pinned scratch/write executor readiness prerequisite（并证明 Storage objects 为零或另行 export）→
 单独批准并完成 pre raw logical dump + migration/fictional-seed rebuild → backup preflight 通过 → 明确批准后
 只应用唯一 0014 → post dump + completion gate → API/Web 严格串行 one-shot deploy/disarm → 再次只读回读
 OTP length=6 → 用户点击重发一封新邮件并完成 scanner-safe 六位 OTP、Web 落点和密码重登。旧 8 位码不得
@@ -447,6 +448,7 @@ OTP length=6 → 用户点击重发一封新邮件并完成 scanner-safe 六位 
 - [Supabase redirect URLs](https://supabase.com/docs/guides/auth/redirect-urls)
 - [Supabase Free project pausing](https://supabase.com/docs/guides/platform/free-project-pausing)
 - [Supabase backups](https://supabase.com/docs/guides/platform/backups)
+- [Supabase CLI backup/restore](https://supabase.com/docs/guides/platform/migrating-within-supabase/backup-restore)
 - [Chrome extension manifest key](https://developer.chrome.com/docs/extensions/reference/manifest/key)
 - [Tencent Cloud domain registration and real-name verification](https://cloud.tencent.com/document/product/242/39039)
 - [Cloudflare DNS full setup](https://developers.cloudflare.com/dns/zone-setups/full-setup/setup/)

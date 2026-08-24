@@ -1859,22 +1859,33 @@ Vercel environment 或密钥；实际邮件发送与 0014 远端应用分别等�
 
 ### Phase 82：Hosted 重要批次备份与可重建证据门（2026-08-24）
 
-影响平台为 `shared tooling/docs + hosted-acceptance`。本阶段只关闭离线控制面缺口，不连接 Supabase、执行
-dump/restore/rebuild、应用 migration、发送邮件或部署。
+影响平台为 `shared tooling/docs + hosted-acceptance`。本阶段只关闭离线控制面与执行器就绪度审计缺口，
+不连接 Supabase、执行 dump/restore/rebuild、应用 migration、发送邮件或部署。
 
 1. **Fresh RED**：新模块测试先以 `ERR_MODULE_NOT_FOUND` 失败；deployment ledger 的独立断言再证明旧
    action chain 缺少 0014 前 backup dependency；最终安全审查另以 dirty worktree case 证明旧 verifier 会
    错误放行脏候选；
-2. **深模块 interface**：固定 `backup:plan|preflight|complete`。plan 零 filesystem/Git/network/write；两个
-   verifier 只读固定 project/batch/artifacts，不接受动态 path/project/operation，也不提供 capture/restore；
-3. **raw backup contract**：未来单独批准的 capture 只允许 verify-full administrator、process-scoped secret、
-   explicit custom-format file、受验证的 at-rest protection、`0700/0600` 与失败清理。dump 是敏感原始备份，
-   不能伪装脱敏或进入 stdout/log/Git；
+2. **深模块 interface**：固定 `backup:plan|preflight|complete`，并增加
+   `backup:executor:plan|pre:readiness|rebuild:readiness|post:readiness`。两个 plan 零 filesystem/Git/network/
+   write；verifier/readiness 只读固定 project/batch/artifacts/runtime，不接受动态 path/project/operation，
+   也不提供 capture/restore/rebuild 写入口；
+3. **raw backup contract**：未来单独批准的 capture 只允许固定 session pooler `5432`、verify-full
+   administrator、process-scoped secret/CA、repository-pinned PostgreSQL 17、explicit custom-format partial
+   file、受验证的 at-rest protection、`0700/0600`、fsync/atomic rename/manifest-last 与失败清理。dump 是
+   敏感原始备份，不能伪装脱敏或进入 stdout/log/Git；transaction pooler `6543` 与 Supabase CLI filtered
+   SQL 不能冒充 postgres-custom；
 4. **evidence verifier**：严格验证 clean current HEAD、Git ignored、目录/文件类型与权限、exact
    directory/manifest、dump size/SHA-256，以及 pre head `20260823010000` / post head
    `20260824010000`；dirty/stale/partial/extra/mismatch 全部 fixed failure；
 5. **rebuild contract**：隔离 scratch 只从 repository migrations + fictional seed 重建，不导入 Hosted data；
-   migration/seed/runtime exact、Hosted data absent、scratch destroyed 全部 true 后才允许 body-free manifest；
-6. **动作账本**：pre capture/rebuild → `backup:preflight` → 0014 apply → post capture → `backup:complete` →
-   API/Web 串行 deployment。离线 GREEN 不代表两个 evidence gate 真实通过，也不关闭 backup retention 或
-   production restore drill。
+   固定独立 project identity/ports、pinned image digest、migration/seed/runtime exact、Hosted data absent、
+   scratch destroyed 全部满足后才允许 body-free manifest；
+6. **覆盖边界**：full database archive 只有在内部 coverage contract 通过时才可声明包含 Auth database rows
+   与 Storage metadata；它不包含 Storage object bytes、global roles 或 Hosted provider/SMTP/DNS/Edge/
+   environment config。Storage object 非零时必须另行 export，本批次继续阻塞；
+7. **Fresh RED 与当前 blocker**：新增 executor test 先以 `ERR_MODULE_NOT_FOUND` 失败；本地实测 PostgreSQL
+   clients 14.6 与 PG17 目标不兼容，且仓库无 pinned scratch image/write executor。即使 fake runtime 全
+   ready，readiness 也必须固定失败且零 evidence；
+8. **动作账本**：executor prerequisite/readiness → pre capture/rebuild → `backup:preflight` → 0014 apply →
+   post capture → `backup:complete` → API/Web 串行 deployment。离线 GREEN 不代表两个 evidence gate 真实
+   通过，也不关闭 Storage export、backup retention 或 production restore drill。
