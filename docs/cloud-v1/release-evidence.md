@@ -2022,3 +2022,7 @@ typecheck、architecture、build、development blocker、Store release、product
   Prettier 排版失败；机械格式化后 `pnpm verify:macos` 原样退出 0，覆盖 instructions/format/lint/typecheck、
   Node scripts 283/283、全 Vitest、Store coverage 97 files / 481 tests、architecture/build、Playwright
   111/111、Store release 与 production audit 零已知漏洞。
+- **提交与零部署**：候选以 `45f57bb`（`feat(build): lock hosted Supabase platform images`）提交并推送；随后
+  从 Vercel Dashboard 只读回查，API 最新仍是 source `4f1ce4a` / deployment
+  `6QeRbqxgA88cFXggKekkr2axH9JM`，Web 最新仍是 source `9b0860a` / deployment
+  `V3NzjTYXtH7fb3WC2P6hpWR1twhb`，本批 push 零新增 deployment。
