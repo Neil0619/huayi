@@ -53,6 +53,7 @@ Cloud V1 是尚未发布的 Store Edition 云端学习增量。实现和审阅�
 49. [Phase 52 首位 Operator 部署引导方案](first-operator-bootstrap.md)
 50. [Phase 53 Hosted application deployment contract](hosted-application-deployment.md)
 51. [Phase 82 Hosted 重要批次备份与可重建证据契约](hosted-important-batch-backup.md)
+52. [Phase 87 Hosted production 逻辑备份恢复演练方案](hosted-logical-backup-restore-drill.md)
 
 根 `CONTEXT.md` 定义领域语言，`docs/adr/0009`–`0023` 记录难以逆转的取舍。需求或技术路线变化先
 更新 `change-log.md` 和对应权威文档，再修改代码。

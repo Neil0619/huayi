@@ -901,6 +901,32 @@ confirmed Auth user/password method/profile 为 `1/1/2`、google method/Web sess
 - 真实 capture、Storage object export、scratch rebuild、Supabase 连接与 0014 apply 都是另行批准的
   Hosted 门。
 
+### 4.10.2 Hosted production 逻辑备份恢复演练
+
+- 本项不是 Phase 81/0014 的新依赖；当前 Hosted 验收批次关闭后才进入实现，真实 project create/restore/
+  delete 还需单独批准。默认测试不得连接 Supabase、读取真实 archive、发送邮件、部署或运行 Provider；
+- TDD 先以缺 restore module 的 `ERR_MODULE_NOT_FOUND`、strict JSON/lifecycle negative cases、unknown TOC/
+  global/platform entry、target non-empty、secret argv/env/log、timeout cleanup 与跨租户可见建立 RED；GREEN
+  依次只实现 contract/state、TOC/order、secret/process/cleanup 和 fictional two-tenant restore；
+- source verifier 必须固定 archive/manifest/coverage/TOC/candidate commit/migration head/hash/mode 与 retention
+  deadline；target verifier 必须证明新建同区同 PG major、platform baseline exact、Auth/Storage/product empty
+  和 outbound absent。extra/missing key/file、symlink、`.partial`、旧 commit/head 或 hash 漂移全部失败；
+- networkless PostgreSQL 17 fixture 必须覆盖 pre-data→application data→Auth rows→Storage metadata→post-data→
+  target-local ACL/role→sequence→verify→destroy 的 exact order，并拒绝 source globals/owner/ACL/platform
+  config。它只证明工具 contract，不能冒充 Supabase Hosted；
+- body-free verification 必须证明 source/target count HMAC digest 相同、schema/migration/FORCE RLS exact、
+  owner A/B/unknown 隔离、Auth/application direct access deny、admin projection、application role/context deny
+  matrix、Storage metadata/bytes 分支与 platform/global untouched；不保存 HMAC key、raw count、identity 或正文；
+- 每个失败 stage 都必须等待 child close，只清理精确 identity，删除 target、revoke credential、删除 partial
+  后才允许 fixed failure evidence。unknown container/project identity 不得删除；target absence 未证明时保持
+  cleanup-pending 并按事故处理；
+- strict artifacts 依次为 source attestation、target-empty、restore 或 failure、target-cleanup、到期后的 source
+  disposition；success/failure 互斥，target 未删或 backup retention 未关闭时不能宣称 drill complete；
+- shared parser/process tests 在 macOS 与 Windows 门运行；v1 actual operator host 只在受控 macOS 上以
+  FileVault + fixed OrbStack 验证。Windows 产品支持不变，但 shared GREEN 不得冒充 Windows restore operator
+  已支持。完整 exact JSON keys、lifecycle 和 acceptance matrix 见
+  `hosted-logical-backup-restore-drill.md`。
+
 ### 4.11 Phase 47 本机验收模拟模型
 
 - Fresh RED 必须证明 acceptance fetch 仍固定 `model_unavailable`、phrase trusted assembly 不能保留 strict

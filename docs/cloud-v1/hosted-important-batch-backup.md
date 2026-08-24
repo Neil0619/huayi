@@ -185,7 +185,9 @@ start 证明 offline。writer 不调用普通 `supabase start`；任何 scratch 
 
 真实 dump、成功的 scratch rebuild、Supabase 连接和 retained-backup 删除仍分别需要批准、运行证据与清理
 证据；两次 rebuild 安全失败不形成重建证据。本文件不关闭 Storage object export、Supabase 备份残留期限或
-正式 production 恢复演练。
+正式 production 恢复演练。后者的独立 target、restore order、evidence lifecycle、季度 cadence 与删除门见
+`hosted-logical-backup-restore-drill.md`；它不是 Phase 81/0014 的新增前置条件，只能在当前验收批次关闭并
+取得独立批准后实施。
 
 ## 7. 官方约束来源
 

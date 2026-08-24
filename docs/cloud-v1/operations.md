@@ -315,9 +315,18 @@ deploy 只接受精确 `--confirm-local-downtime`。任何失败都停止后续�
   digest-only Supabase PostgreSQL scratch 生成，禁止导入 Hosted 数据；必须在 migration/runtime/seed 聚合
   通过、确认 Hosted data absent 且 scratch 已销毁后再落严格
   body-free manifest。静态测试、命令退出 0 或 dump listing 不能单独关闭该门。
-- 上线前确认 Supabase point-in-time/备份策略、恢复演练和残留期限，并同步公开隐私政策。
-- 每季度在非生产环境从备份恢复并验证 RLS、行数和不可访问性；恢复样本不得复制真实用户正文到
-  开发环境。
+- production logical-backup restore drill 以 `hosted-logical-backup-restore-drill.md` 为权威契约。它不是
+  Phase 81/0014 的新增依赖；当前 Hosted 验收批次关闭并取得独立批准后，才可创建同组织/同区/同 PG major
+  的全新临时 recovery project。真实 archive 只能从加密介质流向该隔离 project，禁止复制到 development、
+  Git、日志、聊天或工单；本机 networkless fixture 不能冒充 Hosted 证据。
+- 首次 production cutover 前、之后每季度以及 PG major/backup format/role graph/Auth-Storage schema 重大
+  变更后执行恢复演练：先证明 target empty/outbound absent，再按 exact TOC 恢复 product schema/data、
+  Auth rows 与 Storage metadata，以 target-local role/ACL 重建权限；body-free count HMAC、RLS 双租户隔离、
+  Auth/admin/application role 与 Storage bytes 门全部通过后删除整个 project。archive 不含 Storage object
+  bytes；非零 objects 需要独立加密 export/restore 批准。
+- cleanup 必须回读 project 不存在、凭据撤销、临时文件/container 清空；retained backup 到已批准 deadline
+  后再删除 archive/manifest/object export 并留下 body-free disposition evidence。Supabase backup residual、
+  evidence/archive retention 和公开隐私期限尚未由用户确认时停止，不能填写猜测数字。
 - 账号删除任务超过 1 小时告警，24 小时仍未完成升级为事故；session 撤销必须在请求返回前完成。
 - AccountDataExport 私有对象在 ready 后设置 24 小时 expiry；签名下载最长 15 分钟且不能越过对象到期。
   当前对象存储没有可信“下载完成”回调，因此任务到期先变为不可下载的 expired，再幂等删除对象；清理

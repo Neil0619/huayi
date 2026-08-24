@@ -371,6 +371,28 @@ owner context、generation/reservation 归属、task 成功或失败终态、价
 - 删除请求 receipt replay 只保存高熵 session 的 pepper hash，并同时绑定 idempotency key/body hash；旧
   Cookie 只能在完成后 24 小时内取得固定 accepted 响应，不能恢复 session、读取任务或访问普通 API。
 
+### 7.1 Production logical-backup restore drill
+
+- production raw archive 只能恢复到批准后新建、同组织/同区/同 PostgreSQL major、无 Vercel/DNS/SMTP/
+  OAuth/Cron/Vault/Edge/Provider 的临时 Supabase recovery project；它不是 development 环境。禁止恢复到
+  production，也禁止把 archive/row sample/plaintext SQL 复制到 fixture、日志、聊天、工单、Git 或共享
+  object store；
+- source manifest 必须绑定 full commit、migration head、archive/manifest/TOC SHA-256、`0700/0600` mode、
+  coverage profile 与 retention deadline。global roles、source login/password、Auth/SMTP/OAuth/JWT、DNS、
+  Vercel environment 和 platform config 永不恢复；target role/ACL 由 target-local fixed contract 重建；
+- target-empty proof 必须在任何写入前确认 Auth/identity、Storage object、product schema/ledger/data 为空且
+  outbound surface absent。恢复后只保存 RLS/Auth/admin/application-role 布尔量和以一次性进程内 HMAC key
+  计算的 source/target count digest；不保存逐表计数、email、UUID、object key、正文、token/hash 或 SQL；
+- Storage metadata 属于 database archive；Storage object bytes 始终是独立加密 export/restore。source object
+  非零而独立 manifest/bytes 未恢复时，不能声明完整恢复；
+- source/target 管理密码与 management token 只从 TTY 隐藏读取；数据库密码进入固定 `0600 .pgpass`，必要
+  management token 只能进入单一 child 的 process-scoped environment。secret 不进入 argv、parent env、
+  stdout/stderr、日志或 evidence；
+- 无论成功或失败都必须删除 recovery project、撤销 drill credential、清理精确 container/temp 并回读
+  target absent。archive 到已批准 retention deadline 后删除并留下 body-free disposition evidence；期限和
+  隐私披露未决时失败关闭。完整 lifecycle 与 exact JSON keys 见
+  `hosted-logical-backup-restore-drill.md`。
+
 ## 8. 密码注册确认与中断恢复
 
 - Confirm sign up 邮件不得直接链接可被 scanner 消费的 Supabase `ConfirmationURL`；只显示六位 OTP，

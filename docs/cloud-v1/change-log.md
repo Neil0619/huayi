@@ -3,6 +3,24 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-24：Production 逻辑备份恢复演练使用临时 Supabase recovery project
+
+- 备份 capture 与 migration+fictional-seed rebuild 不再被视为“真实 archive 可恢复”的证据；production
+  restore drill 成为独立发布门，但不是 Phase 81/0014 当前 preflight 的新增依赖，只在当前 Hosted 验收批次
+  关闭且取得独立批准后实施；
+- 真实 target 固定为批准后新建、同组织/同区/同 PostgreSQL major、无 outbound integration 的临时
+  Supabase recovery project；本机 networkless PG17 只做 TDD/fixture。这样覆盖 managed Auth/Storage、
+  platform roles/runtime、RLS 与 application role，同时禁止把 raw archive 复制到普通 development；
+- source 必须绑定 archive/manifest/TOC/coverage/full commit/migration head/hash/mode/retention；恢复只使用
+  exact TOC 和 target-local role/ACL，禁止 global role/source password/platform config。Storage metadata 在
+  DB archive 内，object bytes 非零时必须另行批准 encrypted export/restore；
+- evidence 只允许 strict canonical JSON、布尔量与一次性 HMAC count digest；成功、失败、target cleanup、
+  retention deletion lifecycle 均失败关闭。target 删除/凭据撤销/absence 回读与 retained backup 到期删除
+  全部完成后，才能把季度 drill 标记 closed；
+- v1 actual operator host 固定 macOS OrbStack+FileVault；shared contract 仍进入 Windows 门，但 Windows
+  产品支持与 restore operator support 分开判定。完整需求、技术路线、测试和验收矩阵见
+  `hosted-logical-backup-restore-drill.md`。
+
 ## 2026-08-24：Hosted 重要批次 writer 固定为原子归档与隔离重建执行器
 
 - Phase 86 只增加三个 exact-confirmation 写入口：0014 前、后 raw custom archive capture，以及从仓库

@@ -1905,3 +1905,29 @@ inspection；Phase 86 只实现受审查 writer 与隔离 rebuild，不连接 Su
 10. **动作账本**：executor prerequisite/readiness → pre capture/rebuild → `backup:preflight` → 0014 apply →
     post capture → `backup:complete` → API/Web 串行 deployment。离线 GREEN 不代表两个 evidence gate 真实
     通过，也不关闭 Storage export、backup retention 或 production restore drill。
+
+### Phase 87：Hosted production 逻辑备份恢复演练（当前批次关闭后）
+
+影响平台为 `shared recovery tooling/docs + hosted production + macOS operator host`。本阶段先完成方案，不
+改变 Phase 81/0014 顺序；实现只在当前 Hosted 验收批次关闭后开始，真实 project create/restore/delete 另行
+批准。完整方案见 `hosted-logical-backup-restore-drill.md`。
+
+1. **决策冻结**：真实 target 固定为批准后全新创建、同组织/同区/同 PostgreSQL major、无 Vercel/DNS/
+   SMTP/OAuth/Cron/Vault/Edge/Provider 的临时 recovery project；networkless local PG17 只做 fixture/TDD，
+   不冒充 Hosted；
+2. **Fresh RED A/B**：先证明缺 restore module、strict evidence/lifecycle 不存在，再用 unknown TOC/global/
+   platform entry、target 非空、PG/runtime 漂移、secret argv/env/log 和 cleanup 遗留建立失败；
+3. **GREEN contract/process**：先为 future production capture 增加 body-free coverage report/TOC identity；当前
+   Phase 81 v1 evidence 不手工升级。再实现零 I/O plan、source binding、target-empty、exact TOC/order、
+   TTY/private temp、bounded child、identity-safe cleanup、canonical JSON 与 fixed safe messages；
+4. **Fresh RED C -> GREEN fixture**：fictional two-tenant archive 依次覆盖 schema/data/Auth/Storage metadata/
+   ACL/role/sequence，证明 count HMAC、FORCE RLS、A/B/unknown isolation、Auth/admin/application-role deny matrix
+   与 Storage bytes 分支；每种失败删除 target/temp，unknown identity 永不删除；
+5. **真实 Hosted 门**：独立批准后从 production raw archive 恢复到 ephemeral target；只保存 body-free
+   evidence，不执行登录/JWT/邮件/Provider/deploy；验证后删除 project、revoke credential 并回读 absent；
+6. **retention/cadence**：首次 production cutover 前、之后每季度及 PG major/format/role/Auth-Storage 重大
+   变更后运行。archive/object export 到用户批准 deadline 后删除并留下 disposition evidence；期限未决时
+   不能 close；
+7. **平台门**：actual v1 只支持受控 macOS OrbStack+FileVault；shared contract 必须通过 macOS/Windows
+   gates，但不据此宣称 Windows operator support。若新增 Windows 执行，另做 BitLocker/Docker Desktop
+   exact host contract 与实机验证。
