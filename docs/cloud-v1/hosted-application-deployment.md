@@ -30,10 +30,10 @@ First Operator 已恢复、complete 并通过 post-completion verifier，最终 
 `b80c7930b8d4a9a87f8c27e500316899adbbdc53` 部署为
 `7zNFzM4LHHGwyKxbwoDLfWoYGfve`，再以 `0e7ef5271b2f97cd9b3743275292e4037bd0f801`
 disarm；其后普通邀请终态 UI 与 Cloud Web UI 又各完成一次 Web-only deploy/disarm。Phase 78 随后把
-Phase 76 runtime 候选以 API-only one-shot 部署并立即独立 disarm。当前默认排除 Canceled 的 API/Web
-视图分别为 16 与 8 条。Latest API 是 `4f1ce4a458fe138aeee6fb455b2dcc398a55555a` /
+Phase 76 runtime 候选以 API-only one-shot 部署并立即独立 disarm；Phase 80 邀请幂等候选又完成唯一
+Web-only deployment 与独立 disarm。当前默认排除 Canceled 的 API/Web 视图分别为 16 与 9 条。Latest API 是 `4f1ce4a458fe138aeee6fb455b2dcc398a55555a` /
 `6QeRbqxgA88cFXggKekkr2axH9JM`，Latest Web 是
-`f3feff1252673e715a5624c9539f04d8078a5d4b` / `DU6wE2r9ZLeSSoAMZAbsQihBjC72`，两项目当前均为
+`9b0860a91940e4f78968b3882af91ef5bf923b8a` / `V3NzjTYXtH7fb3WC2P6hpWR1twhb`，两项目当前均为
 `deploymentEnabled=false`。live `/`、`/privacy`、SPA `/admin`、`/practice`、实际 JS asset、安全响应头、
 渲染、公开只读边界与 bundle secret scan 均通过；Phase 78 API `/health` 与无 Cookie CSRF/CORS 也已
 通过。普通邀请、OTP/Auth SMTP、R3-C、Cron 与 DeepSeek 应用路径仍待验收。
@@ -458,8 +458,8 @@ push 只允许增加 Canceled 审计记录，不得新增非 Canceled deployment
   complete、API/Web deployment 与公开/安全响应头门；
 - Latest API `4f1ce4a458fe138aeee6fb455b2dcc398a55555a` /
   `6QeRbqxgA88cFXggKekkr2axH9JM`，Latest Web
-  `f3feff1252673e715a5624c9539f04d8078a5d4b` / `DU6wE2r9ZLeSSoAMZAbsQihBjC72`；
-- 默认排除 Canceled 的 API/Web 计数分别为 16 与 8，两项目 `deploymentEnabled=false`；历史全状态分布
+  `9b0860a91940e4f78968b3882af91ef5bf923b8a` / `V3NzjTYXtH7fb3WC2P6hpWR1twhb`；
+- 默认排除 Canceled 的 API/Web 计数分别为 16 与 9，两项目 `deploymentEnabled=false`；历史全状态分布
   只作为各次受控部署检查点，不覆盖当前账本；
 - Vercel Functions 已回读 Fluid Enabled、`sin1`，Latest API `/index` 为 Node.js 24.x、`SIN1`、`≤120s`；
   90 秒应用 abort 与平台终止仍随真实 Cloud DeepSeek 请求验收；
@@ -470,8 +470,9 @@ push 只允许增加 Canceled 审计记录，不得新增非 Canceled deployment
 
 Phase 78 文档审查实际运行该命令后发现实现输出仍停留在部署前的 API `39094d0` / 15 条，并仍把已经
 完成的 `/admin` recent-auth/四区复核列为 pending。该漂移现已按 Fresh RED→最小 GREEN 修复：current
-ledger 固定 Latest API `4f1ce4a` / `6QeRbqxgA88cFXggKekkr2axH9JM`、API/Web 16/8、独立 disarm
-`020e21e` 零新增及双关闭，并从“明确授权一个收件人→创建唯一普通邀请”开始后续依赖链。旧输出只作为
+ledger 固定 Latest API `4f1ce4a` / `6QeRbqxgA88cFXggKekkr2axH9JM`、Latest Web `9b0860a` /
+`V3NzjTYXtH7fb3WC2P6hpWR1twhb`、API/Web 16/9、Phase 80 独立 disarm `1d1f567` 零新增及双关闭，并从
+“明确授权一个未使用邮箱→创建唯一普通邀请”开始后续依赖链。旧输出只作为
 本段缺陷复现，不再是 current authority。
 
 `/admin` recent-auth 与四区只读复核已经完成。在上述用户/外部门完成前，不重新部署 API/Web，不创建

@@ -1882,5 +1882,15 @@ typecheck、architecture、build、development blocker、Store release、product
   项目状态校准到 Phase 79，旧密码恢复计划中已完成/已取代的 Hosted 门不再显示为 pending；
 - **验证与边界**：focused Web 16/16、Hosted/Vercel scripts 16/16、目标 Prettier 与 diff check 通过；
   完整 `pnpm verify:macos` 也通过，其中 111/111 Playwright E2E、全 workspace build、Store release
-  check 与 production dependency audit 均通过，audit 报告无已知漏洞。提交/push 与 Web-only 受控部署
-  见本阶段后续证据；真实普通邀请仍等待未注册邮箱，本节不把本机 GREEN 冒充 OTP/Auth SMTP 已完成。
+  check 与 production dependency audit 均通过，audit 报告无已知漏洞；
+- **受控部署**：候选 `946e132` 在双关闭状态推送且零部署。Web-only arm
+  `9b0860a91940e4f78968b3882af91ef5bf923b8a` 只新增 Ready Production deployment
+  `V3NzjTYXtH7fb3WC2P6hpWR1twhb`，Web 非 Canceled 8→9；记录出现后立即以独立
+  `1d1f5675ad461e9692358fd055dcf89973c1c25b` disarm，二次回读证明 disarm source 零 deployment、Web
+  仍为 9 且无 in-flight。API 全程保持 16、Latest `4f1ce4a` / `6QeRbqxgA88cFXggKekkr2axH9JM`、无
+  arm/disarm source 或 in-flight；最终 HEAD/upstream 为 `1d1f567` 且两份配置均为 `false`；
+- **公网只读回归**：Hosted `/admin` 返回 200，HSTS/CSP 精确通过；实际
+  `assets/index-uBOjGG5r.js` 显示 `Hosted 验收 · 9b0860a`，包含“安全恢复邀请结果”和结果未知文案，
+  bundle secret scan 通过。Operator recent-auth 已自然过期，页面正确显示 15 分钟密码重新认证门；本轮
+  没有代输密码、创建邀请或发送邮件。真实普通邀请仍等待未注册邮箱，本节不把本机 GREEN 冒充
+  OTP/Auth SMTP 已完成。

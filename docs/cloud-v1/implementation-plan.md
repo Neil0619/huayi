@@ -1827,5 +1827,7 @@ environment/key，不发送邮件、不调用 DeepSeek、不实际安装或触�
    恢复，strict success 后清除；开始尝试先清除旧一次性 path；
 4. **账本收口**：deployment plan 固定未使用邮箱/零精确账号命中；历史 Vercel empty-project 工具在 plan
    显示 bootstrap-only，当前 apply/status 禁止重跑；校准 Phase 79 与已取代的 signup recovery 项；
-5. **退出门**：focused Web/scripts、完整 `verify:macos`、diff/review 通过后提交推送；若部署，严格只 arm
-   Web→观察唯一 deployment→立即独立 disarm，API 全程保持关闭。真实邀请仍等待用户授权新邮箱。
+5. **退出门**：focused Web/scripts、完整 `verify:macos`、diff/review 均通过；候选 `946e132` 推送后零
+   部署，Web-only arm `9b0860a` 只新增 Ready `V3NzjTYXtH7fb3WC2P6hpWR1twhb`，独立 disarm
+   `1d1f567` 零新增。最终 Web/API 为 9/16、无 in-flight、两份配置均为 `false`；Hosted `/admin`、HSTS、
+   CSP、exact bundle SHA/recovery copy 与 secret scan 通过。真实邀请仍等待用户授权新邮箱。

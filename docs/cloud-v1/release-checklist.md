@@ -46,16 +46,18 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       Ready deployment `DU6wE2r9ZLeSSoAMZAbsQihBjC72`，独立 disarm `d6d901c` 零额外非 Canceled。
       Phase 78 又以 API-only arm `4f1ce4a` 只新增 Ready deployment
       `6QeRbqxgA88cFXggKekkr2axH9JM`；记录出现后立即推送独立 disarm `020e21e`，该 source 没有新增
-      deployment。Latest API 现为 `4f1ce4a` / `6QeRbqxgA88cFXggKekkr2axH9JM`，Latest Web 仍为
-      `f3feff1` / `DU6wE2r9ZLeSSoAMZAbsQihBjC72`，默认非 Canceled 为 API/Web 16/8，且两项目均为
+      deployment。Phase 80 邀请幂等候选随后以 Web-only arm `9b0860a` 只新增 Ready deployment
+      `V3NzjTYXtH7fb3WC2P6hpWR1twhb`，独立 disarm `1d1f567` 零新增。Latest API 现为 `4f1ce4a` /
+      `6QeRbqxgA88cFXggKekkr2axH9JM`，Latest Web 为 `9b0860a` / `V3NzjTYXtH7fb3WC2P6hpWR1twhb`，
+      默认非 Canceled 为 API/Web 16/9，且两项目均为
       `deploymentEnabled=false`。live `/`、
       `/privacy`、`/admin` 与实际 JS asset 已通过精确安全响应头、真实渲染、exact SHA 和 secret scan；
       同轮公共边界只读探针通过，未写 Auth、SMTP、Supabase 或 DeepSeek。用户随后已亲自提交 `/admin`
       密码并通过 Operator 四区只读；邀请区四条历史行暴露“只有 ID/expiry、无状态”的 Web 缺口，尚未
       创建或撤销普通邀请。新 bundle 已显示 `Hosted 验收 · bb21817`；独立复核在用户仍有效的 recent-auth
       会话中读取到一条“已领取”和三条“已撤销”，终态行均无撤销入口且 console error 为零。当前没有
-      “可领取”或“已过期”行；active 标签/二步撤销仍须在用户授权收件人并创建唯一普通邀请后验证。新的
-      UI bundle 已显示 `Hosted 验收 · f3feff1`；OTP、
+      “可领取”或“已过期”行；active 标签/二步撤销仍须在用户授权收件人并创建唯一普通邀请后验证。
+      Phase 80 幂等 bundle 已显示 `Hosted 验收 · 9b0860a` 并通过 recovery copy/secret scan；OTP、
       真实邮件、Cron 与 DeepSeek 应用路径 smoke 仍未完成，因此本项仍未勾选；
 - [x] 在正确 Rotate 后 exact-SHA `7577cdd` deployment 上通过 DB-backed application-role smoke；
       `GET /health` 为 200，随机无效 session 的 `GET /v1/quota` 为精确 401

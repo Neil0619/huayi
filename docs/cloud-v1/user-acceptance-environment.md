@@ -262,8 +262,8 @@ RLS，首页仍为 `Healthy`。第 12 条 FirstOperatorBootstrap 与第 13 条�
 `account-exports-acceptance` bucket 且 0 object，application login 与三条价格已建立，kill switch 保持开启；
 First Operator 最终 status 为 `completed`。两个 Vercel project、Git/Branch、custom domain 与 TLS 已建立；
 Phase 78 API-only arm `4f1ce4a` 对应 Ready deployment `6QeRbqxgA88cFXggKekkr2axH9JM`，独立
-`020e21e` disarm 零新增；Latest Web 为 Cloud Web UI arm `f3feff1` 对应
-`DU6wE2r9ZLeSSoAMZAbsQihBjC72`。默认非 Canceled API/Web 为 16/8，两项目当前
+`020e21e` disarm 零新增；Latest Web 已更新为 Phase 80 arm `9b0860a` 对应
+`V3NzjTYXtH7fb3WC2P6hpWR1twhb`，独立 `1d1f567` disarm 零新增。默认非 Canceled API/Web 为 16/9，两项目当前
 `deploymentEnabled=false`。Tokyo
 (`ap-northeast-1`) 的 Resend sender domain `notify.acceptance.seen-said.cn` 也已完成 DNS 与 Dashboard
 verified。旧泄露 key 与两把未使用的错误/临时 R3-C key 均已撤销；两把 sending-only/domain-scoped
