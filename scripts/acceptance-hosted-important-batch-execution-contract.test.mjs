@@ -103,6 +103,7 @@ test("timed-out process waits for the killed client to close before reporting co
 test("container settle accepts only exact known absent inspect results", async () => {
   for (const absent of [
     { code: 1, stdout: "" },
+    { code: 1, stdout: "\n" },
     { code: 1, stdout: "[]\n" },
   ]) {
     let calls = 0;

@@ -1898,7 +1898,10 @@ inspection；Phase 86 只实现受审查 writer 与隔离 rebuild，不连接 Su
    并回查不存在；独立审查后再固定 TTY 为 echo-before-prompt + bounded byte reader、process timeout 等待 child
    `close`、约 4.9 秒 late-create 稳定窗口，以及 rebuild start race 中未知同名容器永不删除。离线测试只用
    fake process/fictional archive。首次真实 rebuild 又捕获 OrbStack absent inspect 的 exit 1 + `[]\n` 形态；
-   共享 strict predicate 只增加该精确形态并继续拒绝宽松输出，失败尝试未启动 scratch 或生成 evidence；
+   共享 strict predicate 只增加该精确形态并继续拒绝宽松输出，失败尝试未启动 scratch 或生成 evidence。clean
+   `b329e97` 的第二次真实尝试又捕获连续稳定的 exit 1 + 单个换行 `\n`；Fresh RED 在 settle/capture/rebuild 三处
+   精确失败后只加入该 exact 形态，仍拒绝任意其它空白、无换行 `[]`、JSON/文本、exit 0 与未知同名 identity。
+   第二次失败同样零 scratch、零 evidence，且未连接 Hosted、发送邮件或部署；
 10. **动作账本**：executor prerequisite/readiness → pre capture/rebuild → `backup:preflight` → 0014 apply →
     post capture → `backup:complete` → API/Web 串行 deployment。离线 GREEN 不代表两个 evidence gate 真实
     通过，也不关闭 Storage export、backup retention 或 production restore drill。

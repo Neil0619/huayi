@@ -31,6 +31,10 @@
   guard 只接受 exit 1 + empty stdout。共享 absent predicate 现在只接受这两种已验证形态，并同步用于 capture/
   rebuild pre-start、late settle 与 post-removal；空白、无换行 `[]`、任意 JSON/文本、exit 0 或未知同名 identity
   继续失败关闭；该次失败未启动 scratch、未生成 evidence；
+- clean `b329e97` 上的第二次真实 rebuild 仍在 scratch start 前安全失败；连续五次只读 inspect 都返回 exit 1 +
+  stdout 精确单个换行 `\n`。共享 predicate 因此只再加入这一种真实形态；empty、`\n`、`[]\n` 之外的空白、
+  无换行 `[]`、JSON/文本、exit 0 与未知同名 identity 仍全部拒绝。该次失败同样零 scratch、零 evidence，未
+  连接 Hosted、发送邮件或产生 deployment；
 - Fresh RED 为 artifacts/capture/rebuild 三个 module 均 `ERR_MODULE_NOT_FOUND`。本阶段只完成离线 fake 与本机
   文件系统测试；没有连接 Hosted、执行 dump/rebuild/restore、生成真实 evidence、应用 0014、发邮件或部署。
 

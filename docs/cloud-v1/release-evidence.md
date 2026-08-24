@@ -2111,6 +2111,11 @@ typecheck、architecture、build、development blocker、Store release、product
   精确失败；共享 strict absent predicate 修复后 focused 17/17、Node scripts 318/318，并继续拒绝空白、无换行
   `[]`、其它 JSON/文本、exit 0 与未知同名 identity。修复阶段没有运行 Docker/rebuild/capture、连接 Hosted、
   发送邮件或部署；
+- **第二次真实 rebuild 的安全失败与修复**：clean `b329e97` 上 readiness 通过，但 exact rebuild 仍在 scratch
+  start 前 exit 1；固定容器数回查为 0、evidence 不存在、Git 保持 clean。随后五次只读 OrbStack inspect 均为
+  exit 1 + stdout 精确单个换行 `\n`。Fresh RED 再次在 settle、capture 与 rebuild 三处精确失败；共享 predicate
+  只加入这一种 exact 形态，继续拒绝其它空白、无换行 `[]`、JSON/文本、exit 0 与未知同名 identity。第二次
+  失败未启动 scratch、未生成 evidence、未连接 Hosted、未发送邮件、未产生 deployment；
 - **明确未执行**：本阶段没有调用三个真实写入口，没有连接 Supabase/Hosted、运行 dump/restore/rebuild、
   生成真实 evidence、应用或 dry-run 0014、发送邮件、部署、调用 DeepSeek，亦未修改 Hosted/DNS/SMTP/
   environment/key。真实 pre/rebuild/post 与两个 evidence gate 仍等待独立授权和运行证据，0014 仍不 ready。

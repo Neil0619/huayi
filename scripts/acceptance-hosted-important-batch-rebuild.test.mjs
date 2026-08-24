@@ -63,7 +63,7 @@ test("rebuild runs a networkless digest-only scratch, applies exact migrations a
       false,
     );
     if (arguments_[2] === "container" && arguments_[3] === "inspect") {
-      if (!started || destroyed) return { code: 1, stdout: "[]\n" };
+      if (!started || destroyed) return { code: 1, stdout: "\n" };
       return {
         code: 0,
         stdout: JSON.stringify({

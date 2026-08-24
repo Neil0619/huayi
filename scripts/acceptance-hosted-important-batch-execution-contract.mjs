@@ -112,7 +112,10 @@ export function inspectHostedImportantBatchContainer(dockerTarget, name, runProc
 }
 
 export function isHostedImportantBatchContainerAbsent(result) {
-  return result.code === 1 && (result.stdout === "" || result.stdout === "[]\n");
+  return (
+    result.code === 1 &&
+    (result.stdout === "" || result.stdout === "\n" || result.stdout === "[]\n")
+  );
 }
 
 export async function settleHostedImportantBatchContainer({
