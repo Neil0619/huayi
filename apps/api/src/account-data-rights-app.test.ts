@@ -101,6 +101,7 @@ describe("account data rights HTTP", () => {
       method: "POST",
     });
     expect(mismatch.status).toBe(400);
+    expect(mismatch.headers.get("cache-control")).toBe("private, no-store");
 
     const retried = await outer.request(`/v1/account-data-exports/${job.id}/retry`, {
       body: JSON.stringify({ expectedRevision: 1 }),
@@ -118,6 +119,24 @@ describe("account data rights HTTP", () => {
       expiresAt: "2026-08-13T01:15:00.000Z",
       url: "https://project.supabase.co/storage/v1/object/sign/private/export?token=opaque",
     });
+  });
+
+  it("prevents caching authentication and request-validation failures", async () => {
+    const { authenticate, outer } = server();
+    authenticate.mockRejectedValueOnce(
+      new CloudFault("authentication_required", "The data-rights session is invalid."),
+    );
+    const unauthorized = await outer.request("/v1/account-data-exports/current");
+    expect(unauthorized.status).toBe(401);
+    expect(unauthorized.headers.get("cache-control")).toBe("private, no-store");
+
+    const invalid = await outer.request("/v1/account-data-exports", {
+      body: JSON.stringify({ unexpected: true }),
+      headers: proofHeaders,
+      method: "POST",
+    });
+    expect(invalid.status).toBe(400);
+    expect(invalid.headers.get("cache-control")).toBe("private, no-store");
   });
 
   it("accepts deletion once and clears the browser session cookie", async () => {

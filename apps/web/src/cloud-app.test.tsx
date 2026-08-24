@@ -58,6 +58,7 @@ function api(overrides: Partial<IdentityApi> = {}): IdentityApi {
     getAccountPreferences: vi.fn(async () => preferences),
     getPairing: vi.fn(async () => pairing),
     listExtensionSessions: vi.fn(async () => ({ items: [] })),
+    logout: vi.fn(async () => undefined),
     reauthenticatePassword: vi.fn(async () => ({
       access: "full" as const,
       csrfToken: "r".repeat(32),

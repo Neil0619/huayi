@@ -3,6 +3,23 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-25：数据权利失败响应、删除回执与受限会话退出收紧
+
+- 数据权利五条公开 route 必须在认证和 request validation 前设置
+  `Cache-Control: private, no-store`，保证 401/400/409 与成功响应采用同一禁止缓存边界；Web logout
+  同样在读取 Cookie、Origin 或 CSRF 前设置该响应头；
+- disabled 账号的 `DataRightsSession` 必须能够通过同一 CSRF-protected logout 撤销当前 Web session。
+  共享 route、Web adapter 和 `/settings/data` 必须提供明确“退出登录”入口；退出不删除账号或云端数据；
+- 账号删除 Web adapter 在同一个浏览器 authority 生命周期内固定一个 Idempotency-Key。首次 accepted
+  响应丢失后，用户重试必须复用相同 key/body/旧 Cookie proof，不能因每次生成新 key 而让 24 小时固定
+  receipt replay 失效；transport/HTTP/strict response 失败继续保留该 key，只有严格 accepted 或成功的
+  logout/新密码会话转换才清除，避免同一 SPA 后续账号复用前一账号的删除 proof；
+- 删除回执 `ack_expires_at` 固定为请求时间后 24 小时，不能沿用普通幂等记录的 7 天期限。导出对象的
+  24 小时期限从 Storage upload 完成后的 ready 时刻计算，manifest `exportedAt` 仍保持 owner snapshot
+  时刻；
+- Supabase 签名 URL 除固定 HTTPS origin、无 userinfo 外，还必须匹配配置的 private bucket path；同源其他
+  bucket 也失败关闭。这些修复不修改 migration、托管资源、密钥、邮件、部署或外部服务状态。
+
 ## 2026-08-25：ExtensionQuery repair 失败不得丢失已产生费用
 
 - ExtensionQuery 首次 Provider 调用已返回严格 usage、但 JSON 结构需要 repair 时，第二次 HTTP、timeout 或

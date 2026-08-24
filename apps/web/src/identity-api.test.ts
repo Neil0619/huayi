@@ -156,6 +156,18 @@ describe("Web identity API", () => {
     });
   });
 
+  it("revokes the current Cookie session through the fixed CSRF logout route", async () => {
+    const request = vi.fn(async () => new Response(null, { status: 204 }));
+    const api = createWebIdentityApi({ apiOrigin: origin, fetch: request });
+
+    await (api as typeof api & { logout(csrfToken: string): Promise<void> }).logout("c".repeat(32));
+    expect(request).toHaveBeenCalledWith(new URL("/v1/auth/logout", origin), {
+      credentials: "include",
+      headers: { "X-CSRF-Token": "c".repeat(32) },
+      method: "POST",
+    });
+  });
+
   it("preserves a safe authentication code without exposing response content", async () => {
     const api = createWebIdentityApi({
       apiOrigin: origin,

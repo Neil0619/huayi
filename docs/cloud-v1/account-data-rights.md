@@ -48,6 +48,8 @@ WordListExport 仍是“一行一词”的互操作文件，不是 AccountDataEx
   1 分钟时拒绝再签。到期任务先原子转为 `expired`、立即停止签发，再幂等删除对象；删除失败保留内部
   object key/error 供 worker 重试和告警，不把它重新公开为 ready。不依赖对象存储提供“下载完成”回调，
   也不伪称 URL 打开即下载成功。
+- full 与 data-rights session 都可以在本页显式退出当前 Web 登录。退出只撤销当前 Web session，不删除
+  账号或云端学习数据；受限 session 不需要借用普通业务认证才能退出。
 
 ### 2.2 永久删除账号
 
@@ -62,11 +64,13 @@ WordListExport 仍是“一行一词”的互操作文件，不是 AccountDataEx
   session、使未消费 pairing 失效，并返回清除 Cookie。此后普通登录和业务接口都失败关闭。
 - Web 收到 accepted 后必须立即丢弃当前 CSRF/session UI 状态并切到 signed-out 视图；不能只显示“已退出”
   文案却继续保留导出、下载或再次删除控件。该转换由 Cloud App 的会话状态拥有，数据权利页面只发出
-  `onAccountDeleted` 事件，不自行伪造登录页或保存删除回执。
+  `onSessionEnded` 事件，不自行伪造登录页或保存删除回执。
 - 删除任务不提供用户可轮询详情：会话已被撤销，不能建立“已删除账号仍可认证”的第二通道。
 - 若首次响应丢失，旧 Cookie 只可对相同 confirmation、Idempotency-Key 和 request hash 重放固定
   `{accepted:true,requestedAt}`；它不能读取任务状态或任何账号数据。任务保存 pepper-hash 的请求 session
-  到完成后 24 小时作为 receipt proof，随后清除。
+  最长 24 小时作为 receipt proof，随后清除。Web 在同一 authority 生命周期内固定该删除 key，失败重试
+  不生成新 key；只有严格 accepted 或成功 logout/新密码会话转换才清除，避免同一 SPA 后续账号复用旧
+  proof。普通导出等其他写入仍各自拥有独立 key。
 - 运营任务在 1 小时未完成时告警，24 小时未完成升级为事故；失败只保存稳定阶段，不保存正文或原始
   Provider 错误。
 
@@ -255,13 +259,14 @@ Auth adapter。Hono/Web 不编排阶段或删除顺序。
   Extension、构建产物、错误和日志不得出现。
 - service-role client 只在对象/Auth adapter 内使用，绝不用于业务表读取以绕过 RLS。
 - signed URL 必须是配置的 Supabase HTTPS origin/private bucket，禁止 userinfo、重定向到任意 host 或把 URL
-  写入日志；Web 只在用户点击后打开。
+  写入日志；同一 Supabase origin 的其他 bucket 同样拒绝。Web 只在用户点击后打开。
 - 导出构建在 owner RLS snapshot 内读取；跨 owner job/detail/download 一律 `not_found`。
 - 删除不能被平台模型 kill switch、额度耗尽或账号 disabled 阻止。active 用户使用 full session，disabled
   用户重新验证后使用 data-rights session；任务开始后 worker 不再依赖用户 session。
 - 错误对用户仅投影 `export_failed`、`recent_authentication_required` 或既有安全 code；内部 job 只保存
   allowlist stage code。
-- 所有响应 `private, no-store`；导出/删除端点接入有界账号级 rate limit。
+- 所有成功、认证失败和 request validation 失败响应都必须在处理开始时设置 `private, no-store`；
+  导出/删除端点接入有界账号级 rate limit。logout 也在 Cookie/Origin/CSRF 校验前设置同一响应头。
 
 ## 7. TDD 与验证矩阵
 
@@ -318,7 +323,7 @@ Auth adapter。Hono/Web 不编排阶段或删除顺序。
    URL 不进入主页面 DOM、Web Storage 或 authority snapshot；
 4. 删除必须先通过 checkbox、精确本地短语与最终确认焦点，再发送固定
    `{confirmation:"delete-account"}`、Cookie/Origin/CSRF/Idempotency-Key；accepted 响应清 Cookie；
-5. Cloud App 收到 `onAccountDeleted` 后立即显示“需要先登录”，数据权利标题/导出/删除控件消失；再次
+5. Cloud App 收到 `onSessionEnded` 后立即显示“需要先登录”，数据权利标题/导出/删除控件消失；再次
    访问数据 API 使用已清除 Cookie 并得到 401；
 6. 390px/reduced-motion、无横向溢出、空 Web Storage、snapshot 不含 signed URL/token/正文/key。
 
@@ -355,7 +360,7 @@ Auth adapter。Hono/Web 不编排阶段或删除顺序。
 
 上述产品裁决仍成立。2026-08-14 实现后复审曾发现 7.5 明列的 actual Web journey 不存在；同时组件
 成功分支只显示“已退出”文案，Cloud App 仍保留账号 UI，与 7.4 冲突。现已在既有 seam 内修复：页面
-仅在 deletion accepted 后发出 `onAccountDeleted`，Cloud App 清空 CSRF 并进入统一 signed-out 视图；
+仅在 deletion accepted 后发出 `onSessionEnded`，Cloud App 清空 CSRF 并进入统一 signed-out 视图；
 独立 data-rights authority helper 与 actual bundle journey 已覆盖服务器重读 ready、新窗口下载、签名
 token 脱敏、双重删除确认、Cookie 清除及后续 401。复审未引入新的供应商或安全边界。
 本轮 focused Web 11/11、全 workspace 411 个 Vitest 文件（2,582 passed / 12 skipped）、全 workspace
@@ -370,3 +375,10 @@ Supabase `auth.admin.deleteUser` 要求 service-role 且只能服务端调用；
 - [Supabase pg_net](https://supabase.com/docs/guides/database/extensions/pg_net)
 - [Supabase Auth Admin deleteUser](https://supabase.com/docs/reference/javascript/auth-admin-deleteuser)
 - [Supabase Storage createSignedUrl](https://supabase.com/docs/reference/javascript/v1/storage-from-createsignedurl)
+
+2026-08-25 阶段复审又通过 Fresh RED 复现七项实现漂移：数据权利错误响应缺 no-store、logout 只接受
+full session、受限页面没有退出入口、删除失败重试每次换 Idempotency-Key、receipt 错沿用 7 天、对象
+expiry 从 snapshot 而非 ready 计算，以及 signed URL 只校验 origin 不校验 private bucket。现已在既有
+深模块边界内收紧；没有修改 migration 或真实 Hosted 状态。离线证据覆盖真实 Hono error path、PGlite
+回执期限、worker 时钟推进、同源错 bucket、Web lost-response replay/清理边界与受限页面自撤销；真实
+Storage、Auth 删除和目标浏览器仍保持 pending。

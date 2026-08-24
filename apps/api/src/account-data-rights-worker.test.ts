@@ -10,6 +10,7 @@ import {
 describe("account data rights worker", () => {
   it("strictly serializes one claimed owner snapshot and publishes only after upload", async () => {
     const content: Uint8Array[] = [];
+    const times = [new Date("2026-08-13T01:00:00.000Z"), new Date("2026-08-13T01:10:00.000Z")];
     const repository: AccountDataRightsWorkerRepository = {
       claimDeletion: vi.fn(async () => null),
       claimExport: vi.fn(async () => ({
@@ -48,7 +49,7 @@ describe("account data rights worker", () => {
           },
         ]),
       },
-      now: () => new Date("2026-08-13T01:00:00.000Z"),
+      now: () => times.shift() ?? new Date("2026-08-13T01:10:00.000Z"),
       repository,
     });
 
@@ -84,6 +85,7 @@ describe("account data rights worker", () => {
     expect(repository.completeExport).toHaveBeenCalledWith(
       expect.objectContaining({
         byteLength: bytes.byteLength,
+        expiresAt: "2026-08-14T01:10:00.000Z",
         recordCount: 2,
         sha256: createHash("sha256").update(bytes).digest("hex"),
       }),

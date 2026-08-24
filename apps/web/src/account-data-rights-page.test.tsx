@@ -26,17 +26,18 @@ function api(overrides: Partial<AccountDataRightsApi> = {}): AccountDataRightsAp
     })),
     downloadAccountDataExport: vi.fn(),
     getCurrentAccountDataExport: vi.fn(async () => ({ job: null })),
+    logout: vi.fn(async () => undefined),
     retryAccountDataExport: vi.fn(async () => pending),
     ...overrides,
   };
 }
 
-async function render(rightsApi: AccountDataRightsApi, onAccountDeleted = vi.fn()) {
+async function render(rightsApi: AccountDataRightsApi, onSessionEnded = vi.fn()) {
   const container = document.createElement("div");
   document.body.append(container);
   await act(async () =>
     createRoot(container).render(
-      <AccountDataRightsPage api={rightsApi} onAccountDeleted={onAccountDeleted} />,
+      <AccountDataRightsPage api={rightsApi} onSessionEnded={onSessionEnded} />,
     ),
   );
   await act(async () => Promise.resolve());
@@ -57,6 +58,19 @@ describe("Web account data rights", () => {
     );
     expect(rightsApi.createAccountDataExport).toHaveBeenCalledOnce();
     expect(container.textContent).toContain("正在等待生成");
+  });
+
+  it("lets a data-rights session revoke itself without deleting the account", async () => {
+    const logout = vi.fn(async () => undefined);
+    const onSessionEnded = vi.fn();
+    const rightsApi = api({ logout });
+    const container = await render(rightsApi, onSessionEnded);
+
+    await act(async () => container.querySelector<HTMLButtonElement>("[data-logout]")?.click());
+
+    expect(logout).toHaveBeenCalledOnce();
+    expect(rightsApi.deleteAccount).not.toHaveBeenCalled();
+    expect(onSessionEnded).toHaveBeenCalledOnce();
   });
 
   it("downloads only after a ready response and does not persist the signed URL", async () => {

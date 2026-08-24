@@ -102,9 +102,10 @@ export function createAccountDataRightsWorker(options: {
     );
     try {
       await options.authority.upload(claim.objectKey, body);
+      const readyAt = options.now();
       await options.repository.completeExport({
         byteLength: body.byteLength,
-        expiresAt: new Date(exportedAt.getTime() + 24 * 60 * 60_000).toISOString(),
+        expiresAt: new Date(readyAt.getTime() + 24 * 60 * 60_000).toISOString(),
         exportId: claim.exportId,
         leaseToken: claim.leaseToken,
         objectKey: claim.objectKey,

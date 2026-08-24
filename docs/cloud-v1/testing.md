@@ -485,6 +485,10 @@ timeout 配置上限和三个非 analysis DeepSeek adapter 的实际 abort 没�
   object/15 分钟 URL、对象写入/清理失败与 old-worker fencing；
 - 删除测试覆盖数据库级联、非 FK 直接 UUID 清理、RLS、session/pairing 即时撤销、exports→database→Auth
   顺序、逐 stage 幂等/过期接管及完成后 subject UUID 清除。详细矩阵见 `account-data-rights.md`。
+- 数据权利回归还必须覆盖：全部公开 route 的认证/校验失败也为 `private, no-store`；disabled
+  DataRightsSession 可经 CSRF logout 自撤销；Web 在 transport/HTTP 失败后复用同一删除 key/body，并在
+  strict accepted、成功 logout 或新密码会话转换后清除；receipt 精确 24 小时；对象 expiry 从 ready
+  时刻计算；同源错误 Storage bucket 的 signed URL 被拒绝。
 
 ## 4. 阶段门禁
 

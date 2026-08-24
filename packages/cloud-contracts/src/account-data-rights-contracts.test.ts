@@ -32,6 +32,7 @@ describe("account data rights contracts", () => {
       runWorker: "/internal/data-rights/run",
     });
     expect(identityHttpRoutes.googleLoginStart).toBe("/v1/auth/google/login/start");
+    expect(identityHttpRoutes.logout).toBe("/v1/auth/logout");
     expect(createAccountDataExportRequestSchema.parse({})).toEqual({});
     expect(retryAccountDataExportRequestSchema.parse({ expectedRevision: 2 })).toEqual({
       expectedRevision: 2,

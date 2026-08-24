@@ -54,4 +54,19 @@ describe("Supabase account data authority", () => {
       code: "forbidden",
     });
   });
+
+  it("rejects a same-origin signed URL for another storage bucket", async () => {
+    const fake = client(
+      "https://project.supabase.co/storage/v1/object/sign/public-assets/export?token=private",
+    );
+    const authority = createSupabaseAccountDataAuthority({
+      bucket: "account-exports",
+      client: fake.value,
+      supabaseUrl: "https://project.supabase.co",
+    });
+
+    await expect(authority.signedUrls.create("export.ndjson", 900)).rejects.toMatchObject({
+      code: "forbidden",
+    });
+  });
 });

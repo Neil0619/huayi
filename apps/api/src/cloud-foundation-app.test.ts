@@ -282,11 +282,36 @@ describe("Cloud foundation HTTP adapter", () => {
       method: "POST",
     });
     expect(rejected.status).toBe(403);
+    expect(rejected.headers.get("cache-control")).toBe("private, no-store");
     const logout = await app.request("/v1/auth/logout", {
       headers: { cookie, origin, "x-csrf-token": rotated.csrfToken },
       method: "POST",
     });
     expect(logout.status).toBe(204);
+    expect(logout.headers.get("cache-control")).toBe("private, no-store");
+  });
+
+  it("allows a disabled account's data-rights session to log out", async () => {
+    const { app, identity } = foundation();
+    identity.createProfile("disabled-user", undefined, ["password"]);
+    identity.setAccountStatus("disabled-user", "disabled");
+    const session = identity.createWebSession("disabled-user", "protected-refresh");
+
+    const logout = await app.request("/v1/auth/logout", {
+      headers: {
+        cookie: `huayi_session=${session.sessionId}`,
+        origin,
+        "x-csrf-token": session.csrfToken,
+      },
+      method: "POST",
+    });
+
+    expect(logout.status).toBe(204);
+    expect(logout.headers.get("cache-control")).toBe("private, no-store");
+    expect(logout.headers.get("set-cookie")).toContain("huayi_session=;");
+    expect(() => identity.authenticateDataRightsSession(session.sessionId)).toThrow(
+      "The data-rights session is invalid.",
+    );
   });
 
   it("creates and exchanges a PKCE pairing once through strict routes", async () => {

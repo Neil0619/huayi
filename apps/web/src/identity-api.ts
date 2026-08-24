@@ -75,7 +75,6 @@ function resourcePath(route: string, id: string): string {
   if (!/^[A-Za-z0-9_-]{1,128}$/u.test(id)) throw new TypeError("Resource ID is invalid.");
   return route.replace(":id", encodeURIComponent(id));
 }
-
 export function createWebIdentityApi(options: WebIdentityApiOptions) {
   const apiOrigin = new URL(options.apiOrigin);
   if (
@@ -88,6 +87,9 @@ export function createWebIdentityApi(options: WebIdentityApiOptions) {
   ) {
     throw new TypeError("Huayi API origin is invalid.");
   }
+  let accountDeletionIdempotencyKey: string | undefined;
+  const deletionKey = () => (accountDeletionIdempotencyKey ??= crypto.randomUUID());
+  const clearDeletionKey = () => void (accountDeletionIdempotencyKey = undefined);
   const request = async (path: string, init?: RequestInit): Promise<Response> => {
     const response = await options.fetch(new URL(path, apiOrigin), init);
     if (response.ok) return response;
@@ -128,12 +130,14 @@ export function createWebIdentityApi(options: WebIdentityApiOptions) {
         credentials: "include",
         headers: {
           "Content-Type": "application/json",
-          "Idempotency-Key": crypto.randomUUID(),
+          "Idempotency-Key": deletionKey(),
           "X-CSRF-Token": csrfTokenResponseSchema.parse({ access: "full", csrfToken }).csrfToken,
         },
         method: "POST",
       });
-      return accountDeletionResponseSchema.parse(await response.json());
+      const result = accountDeletionResponseSchema.parse(await response.json());
+      clearDeletionKey();
+      return result;
     },
     async downloadAccountDataExport(exportId: string, csrfToken: string) {
       const response = await request(
@@ -247,6 +251,15 @@ export function createWebIdentityApi(options: WebIdentityApiOptions) {
       });
       return extensionSessionListResponseSchema.parse(await response.json());
     },
+    async logout(csrfToken: string): Promise<void> {
+      const csrf = csrfTokenResponseSchema.parse({ access: "data-rights", csrfToken }).csrfToken;
+      await request(identityHttpRoutes.logout, {
+        credentials: "include",
+        headers: { "X-CSRF-Token": csrf },
+        method: "POST",
+      });
+      clearDeletionKey();
+    },
     async loginPassword(email: string, password: string) {
       const input = passwordLoginRequestSchema.parse({ email, password });
       const response = await request(identityHttpRoutes.passwordLogin, {
@@ -255,7 +268,9 @@ export function createWebIdentityApi(options: WebIdentityApiOptions) {
         headers: { "Content-Type": "application/json" },
         method: "POST",
       });
-      return passwordLoginResponseSchema.parse(await response.json());
+      const result = passwordLoginResponseSchema.parse(await response.json());
+      clearDeletionKey();
+      return result;
     },
     async reauthenticatePassword(password: string, csrfToken: string) {
       const input = passwordReauthenticationRequestSchema.parse({ password });
@@ -276,7 +291,9 @@ export function createWebIdentityApi(options: WebIdentityApiOptions) {
         headers: { "Content-Type": "application/json" },
         method: "POST",
       });
-      return passwordRegistrationResponseSchema.parse(await response.json());
+      const result = passwordRegistrationResponseSchema.parse(await response.json());
+      if (!result.emailConfirmationRequired) clearDeletionKey();
+      return result;
     },
     async resendPasswordRegistration(invitationToken: string) {
       const input = passwordRegistrationResendRequestSchema.parse({ invitationToken });
@@ -300,7 +317,9 @@ export function createWebIdentityApi(options: WebIdentityApiOptions) {
         headers: { "Content-Type": "application/json" },
         method: "POST",
       });
-      return passwordRegistrationResponseSchema.parse(await response.json());
+      const result = passwordRegistrationResponseSchema.parse(await response.json());
+      if (!result.emailConfirmationRequired) clearDeletionKey();
+      return result;
     },
     async requestPasswordRecovery(email: string) {
       const input = passwordRecoveryStartRequestSchema.parse({ email });

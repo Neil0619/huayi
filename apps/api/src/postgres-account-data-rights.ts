@@ -161,7 +161,7 @@ export function createPostgresAccountDataRights(
                 command.requestHash,
                 command.requestSessionHash,
                 command.requestedAt,
-                new Date(Date.parse(command.requestedAt) + 7 * 24 * 60 * 60_000).toISOString(),
+                new Date(Date.parse(command.requestedAt) + 24 * 60 * 60_000).toISOString(),
               ],
             )
           )[0];

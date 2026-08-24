@@ -36,6 +36,7 @@ export const identityHttpRoutes = {
   googleLoginStart: "/v1/auth/google/login/start",
   googleReauthenticationContinue: "/v1/auth/reauthenticate/google/continue",
   googleReauthenticationStart: "/v1/auth/reauthenticate/google/start",
+  logout: "/v1/auth/logout",
   passwordLink: "/v1/account/sign-in-methods/password",
   passwordLogin: "/v1/auth/password/login",
   passwordReauthentication: "/v1/auth/reauthenticate/password",

@@ -7,6 +7,7 @@ export interface AccountDataRightsApi {
   deleteAccount(): Promise<AccountDeletionResponse>;
   downloadAccountDataExport(exportId: string): Promise<{ expiresAt: string; url: string }>;
   getCurrentAccountDataExport(): Promise<{ job: AccountDataExportJobResource | null }>;
+  logout(): Promise<void>;
   retryAccountDataExport(
     exportId: string,
     expectedRevision: number,
@@ -25,11 +26,11 @@ function status(job: AccountDataExportJobResource): string {
 
 export function AccountDataRightsPage({
   api,
-  onAccountDeleted,
+  onSessionEnded,
   showAccountNavigation = true,
 }: {
   readonly api: AccountDataRightsApi;
-  readonly onAccountDeleted: () => void;
+  readonly onSessionEnded: () => void;
   readonly showAccountNavigation?: boolean | undefined;
 }) {
   const [busy, setBusy] = useState(false);
@@ -119,9 +120,22 @@ export function AccountDataRightsPage({
       await api.deleteAccount();
       setConfirming(false);
       setMessage("删除请求已接受。本机登录已退出，后台删除不可撤销。");
-      onAccountDeleted();
+      onSessionEnded();
     } catch {
       setError("无法提交删除请求；账号未被视为已删除，请重新确认后重试。");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const logout = async () => {
+    setBusy(true);
+    setError("");
+    try {
+      await api.logout();
+      onSessionEnded();
+    } catch {
+      setError("无法退出当前登录，请检查网络后重试。");
     } finally {
       setBusy(false);
     }
@@ -203,6 +217,13 @@ export function AccountDataRightsPage({
             )}
           </section>
         )}
+        <section className="data-export-card">
+          <h2>当前登录</h2>
+          <p>退出只撤销当前 Web 会话，不会删除账号或云端学习数据。</p>
+          <button data-logout disabled={busy} onClick={() => void logout()} type="button">
+            退出登录
+          </button>
+        </section>
         <section aria-labelledby="delete-account-heading" className="danger-zone">
           <h2 id="delete-account-heading">永久删除账号</h2>
           <p>

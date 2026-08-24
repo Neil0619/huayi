@@ -311,6 +311,10 @@ describe("Postgres account data rights", () => {
         { confirmation: "delete-account" },
       ),
     ).resolves.toEqual(accepted);
+    const receipt = await database.query<{ ack_expires_at: Date }>(
+      "SELECT ack_expires_at FROM account_deletion_jobs",
+    );
+    expect(receipt.rows[0]?.ack_expires_at.toISOString()).toBe("2026-08-14T01:00:00.000Z");
     await database.exec("UPDATE account_deletion_jobs SET ack_expires_at=now()+interval '1 hour'");
     await expect(
       rights.replayDeletion("delete-1", "presented-session-proof", {

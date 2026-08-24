@@ -3,6 +3,7 @@ import {
   claimInvitationRequestSchema,
   createExtensionPairingRequestSchema,
   exchangeExtensionPairingRequestSchema,
+  identityHttpRoutes,
   passwordLoginRequestSchema,
   passwordRegistrationRequestSchema,
   passwordRegistrationResendRequestSchema,
@@ -243,14 +244,15 @@ export function createCloudFoundationApp(dependencies: CloudFoundationDependenci
     return context.json({ access: session.access, csrfToken: session.csrfToken });
   });
 
-  app.post("/v1/auth/logout", async (context) => {
+  app.post(identityHttpRoutes.logout, async (context) => {
+    context.header("Cache-Control", "private, no-store");
     const sessionId = webSessionCookie(context);
     const csrf = context.req.header("x-csrf-token");
     const origin = context.req.header("origin");
     if (sessionId === undefined || csrf === undefined || origin === undefined) {
       throw new CloudFault("authentication_required", "Web session proof is required.");
     }
-    await dependencies.identity.authenticateWebMutation(sessionId, origin, csrf);
+    await dependencies.identity.authenticateDataRightsMutation(sessionId, origin, csrf);
     await dependencies.identity.revokeWebSession(sessionId);
     context.header(
       "Set-Cookie",

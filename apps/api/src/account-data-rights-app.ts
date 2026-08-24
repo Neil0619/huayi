@@ -62,9 +62,12 @@ export function createAccountDataRightsApp(options: {
   requestSessionProof?(context: Context): string;
 }) {
   const app = new Hono();
+  app.use("*", async (context, next) => {
+    noStore(context);
+    await next();
+  });
   app.get(accountDataRightsHttpRoutes.currentExport, async (context) => {
     const principal = await options.authenticate(context);
-    noStore(context);
     return context.json(
       currentAccountDataExportResponseSchema.parse({
         job: await options.module.currentExport(principal.ownerUserId),
@@ -74,7 +77,6 @@ export function createAccountDataRightsApp(options: {
   app.post(accountDataRightsHttpRoutes.createExport, async (context) => {
     const principal = await options.authenticate(context);
     const input = createAccountDataExportRequestSchema.parse(await jsonBody(context));
-    noStore(context);
     return context.json(
       accountDataExportJobResourceSchema.parse(
         await options.module.requestExport(principal.ownerUserId, createKey(context), input),
@@ -85,7 +87,6 @@ export function createAccountDataRightsApp(options: {
   app.post(accountDataRightsHttpRoutes.retryExport, async (context) => {
     const principal = await options.authenticate(context);
     const input = retryAccountDataExportRequestSchema.parse(await jsonBody(context));
-    noStore(context);
     return context.json(
       accountDataExportJobResourceSchema.parse(
         await options.module.retryExport(
@@ -100,7 +101,6 @@ export function createAccountDataRightsApp(options: {
   app.post(accountDataRightsHttpRoutes.downloadExport, async (context) => {
     const principal = await options.authenticate(context);
     createAccountDataExportRequestSchema.parse(await jsonBody(context));
-    noStore(context);
     return context.json(
       downloadAccountDataExportResponseSchema.parse(
         await options.module.createDownload(
@@ -134,7 +134,6 @@ export function createAccountDataRightsApp(options: {
       response = replay;
     }
     response = accountDeletionResponseSchema.parse(response);
-    noStore(context);
     context.header(
       "Set-Cookie",
       "huayi_session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0",

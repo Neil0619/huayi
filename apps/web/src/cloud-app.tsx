@@ -34,6 +34,7 @@ export type IdentityApi = Pick<
   | "getAccountPreferences"
   | "getPairing"
   | "listExtensionSessions"
+  | "logout"
   | "reauthenticatePassword"
   | "retryAccountDataExport"
   | "revokeExtensionSession"
@@ -218,10 +219,11 @@ export function CloudApp({
           downloadAccountDataExport: (exportId) =>
             identity.downloadAccountDataExport(exportId, csrfToken),
           getCurrentAccountDataExport: () => identity.getCurrentAccountDataExport(),
+          logout: () => identity.logout(csrfToken),
           retryAccountDataExport: (exportId, revision) =>
             identity.retryAccountDataExport(exportId, revision, csrfToken),
         }}
-        onAccountDeleted={() => {
+        onSessionEnded={() => {
           setCsrfToken("");
           setState("signed-out");
         }}

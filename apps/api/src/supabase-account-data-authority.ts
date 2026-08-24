@@ -32,6 +32,7 @@ export function createSupabaseAccountDataAuthority(options: {
   supabaseUrl: string;
 }) {
   const expectedOrigin = new URL(options.supabaseUrl).origin;
+  const expectedSignedPathPrefix = `/storage/v1/object/sign/${options.bucket}/`;
   const bucket = options.client.storage.from(options.bucket);
   return {
     async deleteAuthUser(userId: string): Promise<void> {
@@ -53,6 +54,7 @@ export function createSupabaseAccountDataAuthority(options: {
         if (
           parsed.protocol !== "https:" ||
           parsed.origin !== expectedOrigin ||
+          !parsed.pathname.startsWith(expectedSignedPathPrefix) ||
           parsed.username !== "" ||
           parsed.password !== ""
         ) {
