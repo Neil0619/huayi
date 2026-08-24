@@ -1844,8 +1844,9 @@ Vercel environment 或密钥；实际邮件发送与 0014 远端应用分别等�
    保持 3600；Site URL、五条 Redirect URLs、模板、Custom SMTP、DNS、environment、secret 均未改，也
    未发送新邮件。新增 status/apply guard，apply 只允许 8→6 或幂等 6→6，且比较其他 Auth config 不变；
 3. **Fresh RED → GREEN**：新增 strict token-only resend contract、Supabase signup resend provider、Web
-   内存 token/StrictMode 单飞与 pending/bound-error 两入口、API IP+invitation 双限流，以及 byte-identical
-   0014；API 先轮换同一 claim/唯一 flow，再发最新六位 OTP；
+   内存 token、claim StrictMode 单飞与 pending/bound-error 两个 resend 入口、API IP+invitation 双限流，
+   以及 byte-identical 0014；后续竞态审查又以 deferred Promise 复现同一渲染周期双击会发出两次 resend，
+   现以同步 ref 单飞门保证只调用一次。API 先轮换同一 claim/唯一 flow，再发最新六位 OTP；
 4. **数据库安全边界**：0014 不修改已应用 0013，只允许 active invitation、唯一 bound unfinished claim、
    唯一未消费 flow、未确认单 email identity 与零业务账号数据；旧 flow 被替换，数据库不创建第二张
    invitation/claim/flow/Auth user/identity，函数只授权 context setter；

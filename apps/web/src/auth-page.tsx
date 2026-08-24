@@ -38,6 +38,7 @@ export function AuthPage(props: AuthPageProps) {
   const [emailConfirmationPending, setEmailConfirmationPending] = useState(false);
   const invitationToken = useRef(props.mode === "join" ? props.invitationToken : null);
   const claimInFlight = useRef(false);
+  const resendInFlight = useRef(false);
 
   const claim = useCallback(async () => {
     const token = invitationToken.current;
@@ -88,7 +89,8 @@ export function AuthPage(props: AuthPageProps) {
 
   const resendRegistration = async () => {
     const token = invitationToken.current;
-    if (token === null) return;
+    if (token === null || resendInFlight.current) return;
+    resendInFlight.current = true;
     setBusy(true);
     setError(null);
     try {
@@ -98,6 +100,7 @@ export function AuthPage(props: AuthPageProps) {
     } catch {
       setError("无法重新发送验证码。请稍后重试，并确认仍在使用原私密邀请。");
     } finally {
+      resendInFlight.current = false;
       setBusy(false);
     }
   };

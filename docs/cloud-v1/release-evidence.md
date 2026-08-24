@@ -2245,3 +2245,22 @@ typecheck、architecture、build、development blocker、Store release、product
   instructions、format、lint、typecheck、build、architecture、Store release 与 production audit 均通过；
 - **执行边界**：本阶段没有运行默认 fetch、真实 pre/post capture、rebuild、preflight/complete、dry-run/apply，
   没有读取密码、连接或修改 Supabase、发送邮件、部署或运行模型。真实 evidence 状态不因离线实现而改变。
+
+## 83. Phase 81 OTP resend 同渲染周期单飞修复（2026-08-24）
+
+- **缺口分类与选择原因**：阶段审计将真实 Hosted/目标网络/Windows/Store/模型等列为未验证，把 restore
+  drill 实现与正式运营材料列为功能缺失；其中多数需要用户秘密、外部写入或独立批准。当前可离线执行且
+  直接影响下一次六位 OTP 验收的最高价值问题，是 Web resend 竞态：组件只用 React `busy` 状态呈现禁用，
+  没有同步互斥；API 每次请求都会轮换唯一 flow 并发邮件，因此重复调用不能由服务端限流安全吸收；
+- **Fresh RED 与根因**：在 `auth-page.test.tsx` 用 deferred Promise 保持第一次 resend pending，并在同一
+  `act`/同一渲染周期对同一按钮连续 `click()` 两次。原实现稳定得到
+  `expected spy to be called once, but got 2 times`，证明 DOM 尚未因状态更新同步 disabled，根因是把异步
+  state 误当同步锁；
+- **最小 GREEN**：`AuthPage` 增加专用 `resendInFlight` ref，在读取内存 invitation token 后同步检查并占位，
+  成功/失败都在 `finally` 释放；既有按钮 busy 文案、token-only API、双限流、数据库 flow 轮换、内存/DOM/
+  Storage 边界均不改变。相同回归转绿，Web focused 为 45 files / 231 tests；
+- **执行边界**：本阶段只修改 Web 组件、回归与文档；没有读取秘密、发送邮件、连接或修改 Supabase，未运行
+  0014 dry-run/apply/capture/rebuild 或已暂停的 allowlisted-stage 诊断，没有 arm/deploy Vercel，也没有调用
+  DeepSeek/真实模型。`pnpm verify:macos` 原样 exit 0：Node scripts 343/343、Vitest 478 files / 2,918 passed
+  - 12 skipped、Store coverage 97 files / 481 passed、Playwright 111/111；instructions、format、lint、typecheck、
+    build、architecture、development blocker、Store release 与 production audit 全部通过，生产依赖零已知漏洞。

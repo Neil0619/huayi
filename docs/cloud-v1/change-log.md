@@ -3,6 +3,15 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-24：OTP 重发必须用同步单飞门阻止同渲染周期重复轮换
+
+- React `busy` 状态和按钮 `disabled` 只负责呈现，不能作为异步动作的互斥锁；同一事件循环内的快速
+  双击可能在重渲染前进入两次 resend，连续轮换同一 invitation flow 并发送两封只有最后一封有效的邮件；
+- Web 必须在调用 token-only resend API 前以组件内 ref 同步占位，并在成功或失败的 `finally` 中释放；
+  pending 与 bound-claim error 两个入口共用同一门，不把 invitation token 写入 DOM、Storage 或日志；
+- 回归必须用未完成 Promise 保持首个请求 pending，并在同一渲染周期连续触发两次，证明客户端只发出
+  一次请求。API 双限流与数据库 flow 轮换契约保持不变，不能把限流当作客户端幂等。
+
 ## 2026-08-24：重要批次 pre/post capture 单命令内部获取固定官方 CA
 
 - 操作者只运行既有 `pnpm acceptance:hosted:backup:capture:pre|post` 并在 TTY 输入管理员数据库密码，不再

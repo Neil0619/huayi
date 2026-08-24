@@ -92,8 +92,8 @@ SQL 绕过。
 - [x] 仅把 Hosted `mailer_otp_length` 保存为 6 并独立回读；新增只读 status 与单字段受控 apply；
 - [x] Fresh RED：token-only resend contract/Provider/API/Web、0014 原子 flow 轮换、byte-identical mirror、
       ACL 与 actual-bundle journey；
-- [x] 最小 GREEN：Web 内存保留 invitation token、StrictMode 独立单飞、API 双限流、Supabase signup
-      resend、0014 同 invitation/claim/bound identity 唯一 flow 轮换；
+- [x] 最小 GREEN：Web 内存保留 invitation token、claim StrictMode 单飞、resend 同渲染周期同步单飞、API
+      双限流、Supabase signup resend、0014 同 invitation/claim/bound identity 唯一 flow 轮换；
 - [x] focused/full macOS 门和安全 diff 审查；Windows 继续按最终关键批次统一验证；
 - [x] Phase 82 补齐固定项目/批次的离线 backup plan、preflight/completion verifier 与严格 clean HEAD/
       manifest/权限/hash/migration+fictional-seed rebuild 契约；本项没有连接 Supabase 或生成真实 dump；

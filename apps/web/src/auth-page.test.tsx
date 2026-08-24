@@ -197,6 +197,32 @@ describe("Web invitation and authentication", () => {
     expect(sessionStorage).toHaveLength(0);
   });
 
+  it("sends only one OTP resend while the first same-render request is pending", async () => {
+    const pending = deferred<{ accepted: true }>();
+    const resendPasswordRegistration = vi.fn(() => pending.promise);
+    const authApi = api({ resendPasswordRegistration });
+    const view = await render(authApi, { invitationToken: "i".repeat(32), mode: "join" });
+    await act(async () => Promise.resolve());
+    const email = view.container.querySelector<HTMLInputElement>("#registration-email");
+    const password = view.container.querySelector<HTMLInputElement>("#registration-password");
+    if (email === null || password === null) throw new Error("Registration fields missing.");
+    await change(email, "learner@example.com");
+    await change(password, "password long enough");
+    await act(async () =>
+      view.container.querySelector<HTMLButtonElement>("[data-register]")?.click(),
+    );
+
+    const resend = view.container.querySelector<HTMLButtonElement>("[data-resend-registration]");
+    if (resend === null) throw new Error("Resend control missing.");
+    act(() => {
+      resend.click();
+      resend.click();
+    });
+
+    expect(resendPasswordRegistration).toHaveBeenCalledOnce();
+    await act(async () => pending.resolve({ accepted: true }));
+  });
+
   it("resends from a bound-claim error with the original memory-held invitation", async () => {
     const authApi = api({ claimInvitation: vi.fn().mockRejectedValue(new Error("bound")) });
     const view = await render(authApi, { invitationToken: "i".repeat(32), mode: "join" });

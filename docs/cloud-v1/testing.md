@@ -830,7 +830,9 @@ confirmed Auth user/password method/profile 为 `1/1/2`、google method/Web sess
   stdout/stderr 不反射 access token；不得以本地 `supabase/config.toml` 或邮件正文测试代替 Hosted 回读；
 - resend contract 必须 strict token-only；API 覆盖额外字段拒绝、IP/invitation 双限流先于数据库与
   Provider、固定 202/no-store/无 Cookie、Provider 失败可重试且不泄露。Web 覆盖 pending 与 bound-claim
-  error 两个入口、StrictMode 单飞、token 仅驻内存且不进入 DOM/Storage；
+  error 两个入口、claim StrictMode 单飞、token 仅驻内存且不进入 DOM/Storage；另用 deferred Promise
+  保持首个 resend pending，在同一渲染周期连续点击两次，必须只调用一次 API；不能只断言按钮随后变为
+  disabled，也不能用服务端限流替代客户端单飞；
 - 0014 migration 必须证明 API/Supabase 镜像 byte-identical、同一过期/未过期 bound claim 都只轮换唯一
   flow，并回读服务端派生的 `bound_email`；wrong token、claim/Auth email 错配、已确认/多 identity、
   profile/method/quota/session/admin/deletion/audit 数据、

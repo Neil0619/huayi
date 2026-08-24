@@ -134,6 +134,10 @@ audit 仍只允许 `enabled`。这不代表 Store 产品或 Windows 支持被取
 > pre/post capture 随后也复用同一 fixed official CA fetch 深模块：用户只运行既有 pnpm 命令并输入管理员
 > 密码，CA 在密码提示前完成有界严格验证，不再准备 CA environment；本次只完成离线实现与 fake-fetch/
 > 真实 PTY 回归，尚未运行真实 capture 或连接 Supabase。
+> 同阶段离线审计还发现 Web 的 OTP resend 只依赖异步 `busy` 状态，快速双击会在重渲染前发出两次请求，
+> 连续轮换 flow 并产生两封只有最新一封可用的邮件。deferred Promise Fresh RED 精确得到两次调用；组件现以
+> 同步 ref 占位并在 `finally` 释放，pending/bound-error 两入口共享单飞门。该修复未发送邮件、未部署或修改
+> Hosted 配置，真实六位 OTP journey 仍须在 0014/备份/部署链关闭后验收。
 
 > **历史校准检查点（Phase 33）**：Phase 28 已补齐 production 语义重复建议和
 > 可计算 AA token 证据；2026-08-14 完成度源码审计发现的 SubmissionOutbox `api=null` 误清账号绑定
