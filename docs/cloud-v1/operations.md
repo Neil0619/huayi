@@ -188,11 +188,11 @@ Production deployment；它只说明当时的 database runtime 门。当前 depl
 columns/constraint/functions/trigger 均为真；固定 Operator status CLI 当时返回 `empty`，修正版只读
 foundation verify 通过。随后 0013 已作为第 13 条 migration 实际应用，首张邀请账号已恢复并完成 First
 Operator，最终 status 为 `completed`。不得重跑 migration 或 foundation bootstrap，也不得重新发行
-BootstrapInvitation；普通邀请须等待用户完成 `/admin` 密码重新认证。
+BootstrapInvitation；真实 `/admin` 密码重新认证与四区只读复核也已经完成。
 
 当前操作必须先运行零网络/零写入的 `pnpm acceptance:hosted:deployment --plan` 读取 current action ledger，
-不得沿用 Phase 53 的静态首次部署顺序。账本后的依赖链固定为：用户亲自输入 `/admin` 密码并重读四区权限 →
-普通邀请与 scanner-safe OTP/Auth SMTP → R3-C 真实投递、重复与无正文告警 → 五项 Cron → 受审计
+不得沿用 Phase 53 的静态首次部署顺序。账本后的依赖链固定为：明确授权一个收件人并创建唯一普通邀请 →
+scanner-safe OTP/Auth SMTP → R3-C 真实投递、重复与无正文告警 → 五项 Cron → 受审计
 kill-switch 切换、一笔获批 Cloud DeepSeek 应用路径请求和账本对账 → 恢复 kill switch。用户密码、Cookie、
 Token 与 secret 不进入自动化或发布证据。
 

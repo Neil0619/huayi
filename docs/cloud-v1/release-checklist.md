@@ -228,9 +228,10 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       `6QeRbqxgA88cFXggKekkr2axH9JM`，独立 disarm `020e21e` 零新增。最终 API/Web 为 16/8、in-flight
       均为 0、Web Latest 不变且两项目均关闭；disarm 后 `/health` 200 与无 Cookie CSRF/CORS 401
       无写入 smoke 通过；
-- [ ] 以 TDD 校准零网络 `acceptance:hosted:deployment --plan`：Latest/count 必须为 Phase 78 current
-      evidence，依赖链不得再次要求已完成的 `/admin` recent-auth/四区复核；修复前旧输出不是 current
-      authority；
+- [x] 已以 Fresh RED→GREEN 校准零网络 `acceptance:hosted:deployment --plan`：Latest/count 精确为
+      Phase 78 的 API `4f1ce4a` / `6QeRbqxgA88cFXggKekkr2axH9JM` 与 API/Web 16/8，保留独立 disarm
+      `020e21e` 零新增和双关闭；依赖链不再重复已完成的 `/admin` recent-auth/四区复核，而从明确授权一个
+      收件人并创建唯一普通邀请开始；
 - [ ] 在获批的真实 Cloud DeepSeek 应用路径请求中用 Observability 区分 90 秒应用 abort 与平台终止；静态
       JSON、Function 资源页或无真实请求的 Observability 页面不能关闭本项。
 

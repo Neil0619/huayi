@@ -1839,6 +1839,8 @@ typecheck、architecture、build、development blocker、Store release、product
   密钥，也没有创建邀请、发送邮件、切换 kill switch 或运行付费模型。Phase 76 API runtime 修复已上线；
   唯一普通邀请与 scanner-safe OTP/Auth SMTP 仍是下一道外部门，R3-C、Cron、DeepSeek、备份、自然使用
   与 Windows 最终批次仍保持 pending；
-- **文档审查发现的工具漂移**：实际运行零网络 `acceptance:hosted:deployment --plan` 后确认其输出仍停留在
-  API `39094d0` / 15 条，并仍把已完成的 `/admin` recent-auth/四区复核列为 pending。该 bounded ledger
-  需要后续按 TDD 校准；在修复前不能作为 current authority，也不改变上述 Vercel 双回读和公网 smoke。
+- **工具漂移已修复**：零网络 `acceptance:hosted:deployment --plan` 的 Fresh RED 精确捕获旧 API
+  `39094d0` / 15 条及重复 `/admin` pending 门；最小 GREEN 现固定 Latest API `4f1ce4a` /
+  `6QeRbqxgA88cFXggKekkr2axH9JM`、API/Web 16/8、独立 disarm `020e21e` 零新增和双关闭。当前依赖链从
+  “明确授权一个收件人→创建唯一普通邀请”开始；Phase 77 snapshot 仍未连接 Hosted，普通邀请/OTP、R3-C、
+  Cron、DeepSeek、备份、自然使用与 Windows 最终批次仍 pending。

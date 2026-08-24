@@ -99,8 +99,9 @@ audit 仍只允许 `enabled`。这不代表 Store 产品或 Windows 支持被取
 > 数据库侧证据。剩余发布链为唯一普通邀请与 scanner-safe OTP/Auth SMTP → R3-C 真实投递/
 > 重复/无正文告警 → 五项 Supabase Cron → 受审计 kill switch 与一笔 Cloud DeepSeek 应用路径对账 →
 > 备份/目标网络/自然使用/Store 与 Windows 最终批次。Phase 77 的 snapshot 尚未连接 Hosted；真实外部
-> 邮件、Cron 与模型门未因此关闭。零网络 deployment plan 仍输出 Phase 78 前的 API Latest/count 和旧
-> `/admin` pending 链，已记为紧邻 TDD follow-up，修复前不能作为 current authority。
+> 邮件、Cron 与模型门未因此关闭。零网络 deployment plan 已按 Fresh RED→GREEN 校准到 Phase 78 的
+> Latest API `4f1ce4a` / `6QeRbqxgA88cFXggKekkr2axH9JM`、API/Web 16/8、独立 disarm 零新增与双关闭；
+> current 依赖链从明确授权一个收件人并创建唯一普通邀请开始。
 
 > **历史校准检查点（Phase 33）**：Phase 28 已补齐 production 语义重复建议和
 > 可计算 AA token 证据；2026-08-14 完成度源码审计发现的 SubmissionOutbox `api=null` 误清账号绑定
@@ -1701,13 +1702,15 @@ passed; first Operator empty`。候选已提交推送，0012 已实际 push；�
 - Phase 72 后续顺序已校准为：恢复到 `registered` → complete First Operator → post-completion verifier →
   `/admin` 密码重新认证 → 普通邀请 scanner-safe OTP。前三步已完成。`/admin` 本地缺口已按 RED→GREEN
   补齐；后续 Web arm `3fcc8322ff6387a1ff7d49fb72582562a3d65c16` 只新增 Ready deployment
-  `FxRmiGZMzotoqiSmU7hSHfonbeV8`，独立 disarm `8dea25c` 后 Web 未新增非 Canceled deployment。真实页面已
-  显示密码重新认证门，但用户尚未亲自提交当前密码，四区和管理 mutation 不能写成已验收。
+  `FxRmiGZMzotoqiSmU7hSHfonbeV8`，独立 disarm `8dea25c` 后 Web 未新增非 Canceled deployment。该阶段当时
+  真实页面只显示密码重新认证门，用户尚未亲自提交当前密码，四区和管理 mutation 当时不能写成已验收；
+  后续完成状态见 Phase 77。
 - 2026-08-24 First Operator 已在 Hosted 真实完成：恢复后 status 为 `registered`，completion 后精确为
   `completed`，完整 post-completion verifier 通过。`/admin` recent-auth UI 也已受控部署；API 最新受控
   source 仍为 `39094d0`，最终 API/Web 7/7 状态分布分别为 12 Ready / 3 Error / 9 Canceled 与 4 Ready /
-  1 Error / 10 Canceled，且两项目均为 `deploymentEnabled=false`。当前下一门是用户亲自完成 `/admin`
-  密码重新认证，再验证四区、普通邀请和 OTP journey；DeepSeek smoke 尚未执行。
+  1 Error / 10 Canceled，且两项目均为 `deploymentEnabled=false`。该阶段当时的下一门是用户亲自完成
+  `/admin` 密码重新认证，再验证四区、普通邀请和 OTP journey；后续 Phase 77 已关闭前两项，DeepSeek
+  smoke 尚未执行。
 
 ## Cloud V1 Phase 75 Cloud Web UI 合并与 Hosted 部署状态（2026-08-24）
 
@@ -1719,9 +1722,9 @@ passed; first Operator empty`。候选已提交推送，0012 已实际 push；�
 - Web-only arm `f3feff1` 只新增 Ready Production deployment `DU6wE2r9ZLeSSoAMZAbsQihBjC72`，独立
   disarm `d6d901c` 没有新增非 Canceled deployment。最终 API/Web 分别为 15/8 且均
   `deploymentEnabled=false`；live `/practice` 显示 exact arm short SHA 与新工作台；
-- 部署期间 `/admin` 的 15 分钟 recent-auth 自然过期，但登录 session 仍有效。当前下一门仍是用户本人重新
-  输入当前 Operator 密码、回读四区，再经即时确认创建唯一普通邀请；本阶段未创建邀请、发送邮件、修改
-  Supabase/DNS/environment/secret、切换 kill switch 或调用 DeepSeek。
+- 部署期间 `/admin` 的 15 分钟 recent-auth 自然过期，但登录 session 仍有效。该阶段当时的下一门是用户
+  本人重新输入当前 Operator 密码、回读四区，再经即时确认创建唯一普通邀请；后续 Phase 77 已完成前两项。
+  本阶段未创建邀请、发送邮件、修改 Supabase/DNS/environment/secret、切换 kill switch 或调用 DeepSeek。
 
 ## Cloud V1 Phase 77 Hosted runtime 安全快照与运营台状态（2026-08-24）
 
@@ -1752,5 +1755,7 @@ passed; first Operator empty`。候选已提交推送，0012 已实际 push；�
 - disarm 后 `/health` 精确 TLS/HTTP2 200 与固定 JSON；无 Cookie、exact Web Origin 的 `/v1/auth/csrf`
   精确 401 / `authentication_required`，CORS credential headers 正确。全程没有数据库或外部写、邮件、
   DeepSeek、Supabase/DNS/environment/secret 变更；下一门是唯一普通邀请与 OTP/Auth SMTP；
-- 文档审查实际运行 deployment plan 后发现它仍报告 API `39094d0` / 15 条，并把已完成的 `/admin` 门列为
-  pending；该 CLI 漂移已隔离为后续 TDD 修复，不覆盖本节 current Vercel 证据。
+- 文档审查实际运行 deployment plan 后复现其仍报告 API `39094d0` / 15 条并重复 `/admin` 门；现已按
+  Fresh RED→GREEN 修复为 Latest API `4f1ce4a` / `6QeRbqxgA88cFXggKekkr2axH9JM`、API/Web 16/8、独立
+  disarm `020e21e` 零新增与双关闭，依赖链从明确授权一个收件人并创建唯一普通邀请开始。Phase 77
+  snapshot 尚未连接 Hosted，普通邀请/OTP、R3-C、Cron、DeepSeek、备份、自然使用和 Windows 仍 pending。

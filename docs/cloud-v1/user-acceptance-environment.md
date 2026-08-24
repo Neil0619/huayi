@@ -230,8 +230,8 @@ Operator/invitation 为空。用户已于 2026-08-22 明确确认并完成远端
 用户随后运行修正版远端只读 verify 并通过，固定 Operator status 当时返回 `empty`。该 foundation 检查点
 为 `applied; corrected PostgreSQL 17 remote verification passed; first Operator empty`。Phase 72 后 0013
 已作为第 13 条 migration 实际应用，First Operator 已恢复、complete 并通过 post-completion verifier，
-最终 status 为 `completed`。Vercel API/Web、Auth URL/SMTP 与 Production environment 已配置；真实
-`/admin` 密码重新认证、普通邀请 OTP、真实邮件与 Cron 仍须读取各自后续证据。
+最终 status 为 `completed`。Vercel API/Web、Auth URL/SMTP 与 Production environment 已配置；后续真实
+`/admin` 密码重新认证与四区只读也已通过，普通邀请 OTP、真实邮件与 Cron 仍须读取各自后续证据。
 
 首个 Operator 不由 foundation 创建。Phase 52 已冻结两阶段 FirstOperatorBootstrap：
 DeploymentBootstrapAuthority 发行唯一 BootstrapInvitation，正常注册完成后只晋升该邀请最终绑定的账号；
@@ -239,8 +239,8 @@ DeploymentBootstrapAuthority 发行唯一 BootstrapInvitation，正常注册完�
 离线实现、focused 回归与完整 macOS 门已完成；远端第 12 条 migration 已实际 push，diagnostic 当时显示空
 first Operator record；修正版 foundation verify 已通过、固定 Operator status 当时返回 `empty`。Phase 72
 随后应用第 13 条 migration 并完成实际恢复、First Operator completion 与 post-completion verify，最终
-status 为 `completed`。`/admin` recent-auth UI 已部署且密码门可见，但用户输入密码、四区与普通邀请 OTP
-仍未完成，详见 `first-operator-bootstrap.md`。
+status 为 `completed`。`/admin` recent-auth 与四区只读复核随后已完成；当前仍未完成的是经明确收件人
+授权创建唯一普通邀请后的 OTP journey，详见 `first-operator-bootstrap.md`。
 
 ## 4. 域名、DNS 与 Resend 准备
 
@@ -419,9 +419,10 @@ Web 14，Canceled 为 7/10；两个 disarm 均未在其目标项目新增 deploy
 
 2026-08-24 后续 UI 合并候选 `524a55b` 已通过完整 macOS 门并由 Web-only arm `f3feff1` 部署为
 `DU6wE2r9ZLeSSoAMZAbsQihBjC72`；独立 disarm `d6d901c` 零额外非 Canceled，最终 Web/API 为 8/15 且
-均关闭。live `/practice` 已显示新工作台；部署期间 `/admin` 的 15 分钟密码确认自然过期，下一项是用户
-本人再次提交当前密码后创建唯一普通邀请。不得因重复进入 recent-auth 门而重做 Supabase migration、
-First Operator、Vercel environment、DNS 或密钥配置。
+均关闭。live `/practice` 已显示新工作台；部署期间 `/admin` 的 15 分钟密码确认自然过期，是该阶段当时
+的历史检查点。后续 Phase 77 已重新完成 recent-auth 与四区只读；当前下一项是明确授权一个收件人后创建
+唯一普通邀请。不得因阶段快照中的旧门而重做 Supabase migration、First Operator、Vercel environment、
+DNS 或密钥配置。
 
 ## 10. 官方约束来源
 

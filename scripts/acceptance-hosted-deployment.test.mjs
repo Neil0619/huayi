@@ -48,14 +48,16 @@ test("hosted deployment plan is complete, deterministic, and secret independent"
     "seen-said-acceptance-web | apps/web | vite | pnpm build:vercel | dist",
     "API and Web Git deployment both disable every branch",
     "First Operator is completed and the post-completion verifier passed; do not rerun foundation bootstrap, migration 0012/0013, or BootstrapInvitation",
-    "Current API latest is Ready deployment 9jbyfnAvZwpa3Ci7YU6s6asmNZNG at source 39094d0c557b829138ec6f70b6fc838f4594ab9b",
+    "Current API latest is Ready deployment 6QeRbqxgA88cFXggKekkr2axH9JM at source 4f1ce4a458fe138aeee6fb455b2dcc398a55555a",
     "Current Web latest is Ready deployment DU6wE2r9ZLeSSoAMZAbsQihBjC72 at source f3feff1252673e715a5624c9539f04d8078a5d4b",
     "Cloud workspace redesign candidate 524a55b35dadfd1e8bd1ef89b0abc2baadf69066 was deployed only through the reviewed arm and followed by disarm d6d901c",
-    "Default non-Canceled deployment counts are API 15 and Web 8; both projects remain disarmed",
+    "Phase 78 API-only arm 4f1ce4a458fe138aeee6fb455b2dcc398a55555a produced only deployment 6QeRbqxgA88cFXggKekkr2axH9JM; immediate disarm 020e21efa13bafb795d70a369e4512e76c7f7ab6 produced zero additional deployments",
+    "Default non-Canceled deployment counts are API 16 and Web 8; both projects remain disarmed",
     "Public read-only Web/API, exact Web security-header, historical invitation terminal-state UI, and redesigned workspace gates are complete",
     "/health proves TLS and process startup only; it does not execute SQL or prove the database DSN",
-    "User-only gate: the user personally enters the current password in /admin; automation must not read, store, or submit it",
-    "password reauthentication -> reread all four admin sections and permissions -> create one ordinary invitation",
+    "The real /admin password reauthentication and four-section read-only verification are complete",
+    "Phase 77 runtime snapshot tooling is not yet connected to Hosted",
+    "explicitly authorize one recipient -> create exactly one ordinary invitation",
     "scanner-safe repeated GET -> explicit OTP POST -> Auth SMTP delivery -> Web landing -> password relogin",
     "real R3-C delivery and duplicate/alert observation -> install and verify five Supabase Cron jobs",
     "audited kill-switch disable -> one approved Cloud DeepSeek application-path request -> model/usage/price/reservation/UsageLedger reconciliation -> restore kill switch",
@@ -73,6 +75,7 @@ test("hosted deployment plan is complete, deterministic, and secret independent"
     `https://api.acceptance.seen-said.cn/v1/account/sign-in-methods/google:callback\\?flow=${opaqueFlowGlob}`,
     "smtp.resend.com:465 | resend",
     "five Supabase Cron jobs",
+    "backup, target-network, natural-use, Store, and Windows final-batch gates remain pending",
   ]) {
     assert.match(plan, new RegExp(expected.replaceAll(/[.*+?^${}()|[\]\\]/gu, "\\$&"), "u"));
   }
@@ -88,6 +91,13 @@ test("hosted deployment plan is complete, deterministic, and secret independent"
     /password registration -> SMTP confirmation -> callback -> complete Operator/u,
   );
   assert.doesNotMatch(plan, /No Auth user, invitation, SMTP, DeepSeek/u);
+  assert.doesNotMatch(
+    plan,
+    /Current API latest is Ready deployment 9jbyfnAvZwpa3Ci7YU6s6asmNZNG at source 39094d0/u,
+  );
+  assert.doesNotMatch(plan, /Default non-Canceled deployment counts are API 15 and Web 8/u);
+  assert.doesNotMatch(plan, /the user personally enters the current password in \/admin/u);
+  assert.doesNotMatch(plan, /password reauthentication -> reread all four admin sections/u);
   assert.doesNotMatch(plan, /https:\/\/api\.acceptance\.seen-said\.cn\/\*\*/u);
   assert.doesNotMatch(plan, /flow=\*/u);
 });

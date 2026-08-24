@@ -1788,6 +1788,7 @@ SMTP、DNS、environment、密钥、邀请、kill switch 与付费模型均不�
    `/v1/auth/csrf` 精确 401、CORS credential contract 与 `authentication_required`。探针零数据库/外部写；
 6. **下一门**：Phase 76 runtime 候选至此上线。继续唯一普通邀请与 scanner-safe OTP/Auth SMTP；R3-C、
    Cron、Cloud DeepSeek、备份/网络/自然使用及 Windows 最终批次不得提前标记完成；
-7. **审查 follow-up**：零网络 deployment plan 仍输出部署前 API `39094d0` / 15 条，并把已完成的
-   `/admin` recent-auth/四区门列为 pending。下一代码阶段须先以 Fresh RED 锁定新 Latest/count/依赖链，
-   再校准 ledger；本阶段不扩大为脚本修改。
+7. **审查 follow-up 已关闭**：Fresh RED 精确捕获零网络 deployment plan 仍输出部署前 API
+   `39094d0` / 15 条和旧 `/admin` pending 链；最小 GREEN 已固定 Latest API `4f1ce4a` /
+   `6QeRbqxgA88cFXggKekkr2axH9JM`、API/Web 16/8、独立 disarm `020e21e` 零新增、双关闭，并把依赖链起点
+   校准为“明确授权一个收件人→创建唯一普通邀请”。

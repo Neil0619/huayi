@@ -468,9 +468,10 @@ push 只允许增加 Canceled 审计记录，不得新增非 Canceled deployment
   model/usage/price/reservation/UsageLedger 对账 → 恢复 kill switch。
 
 Phase 78 文档审查实际运行该命令后发现实现输出仍停留在部署前的 API `39094d0` / 15 条，并仍把已经
-完成的 `/admin` recent-auth/四区复核列为 pending。该 CLI 漂移必须另按 TDD 校准到 6.5 的 current
-authority；在修复前不得把旧输出当作当前部署或依赖链证据。本节上方列表描述目标合同，6.5 记录真实
-current evidence。
+完成的 `/admin` recent-auth/四区复核列为 pending。该漂移现已按 Fresh RED→最小 GREEN 修复：current
+ledger 固定 Latest API `4f1ce4a` / `6QeRbqxgA88cFXggKekkr2axH9JM`、API/Web 16/8、独立 disarm
+`020e21e` 零新增及双关闭，并从“明确授权一个收件人→创建唯一普通邀请”开始后续依赖链。旧输出只作为
+本段缺陷复现，不再是 current authority。
 
 `/admin` recent-auth 与四区只读复核已经完成。在上述用户/外部门完成前，不重新部署 API/Web，不创建
 第二个 BootstrapInvitation，不直接创建 Supabase 用户，不用 SQL 切换 kill switch，不发送产品路径外
@@ -522,7 +523,7 @@ CORS credential contract 通过。上述 smoke 没有数据库或外部写。
 
 这次部署只关闭 Phase 76 API runtime 上线门，不代表普通邀请、OTP/Auth SMTP、R3-C、Cron、Cloud
 DeepSeek、备份、自然使用或 Windows 已验收。零网络 deployment plan 的旧 Latest/count/pending 文案漂移
-已在 6.3 标记为紧邻 TDD follow-up，不回滚或削弱本节的远端只读证据。
+已按 6.3 的 TDD 合同修复，不回滚或削弱本节的远端只读证据。
 
 ## 7. TDD 与验收标准
 
@@ -561,8 +562,8 @@ schema、secret scan、`git diff --check` 和完整 `pnpm verify:macos`。Hosted
 - custom-domain TLS、exact CORS、host-only Secure SameSite=Lax Cookie、CSRF、SSE 与五条 callback 通过；
 - Resend domain/SMTP/R3-C 两把 key、一次真实确认邮件和一次 R3-C 通知通过，无重复投递；
 - 五项 Cron 写入、人工触发与有界响应通过；
-- FirstOperatorBootstrap 已完整闭环；用户亲自通过 `/admin` recent-auth 后重读四区和权限，再创建普通邀请
-  完成 scanner-safe OTP/Auth SMTP/password relogin。
+- FirstOperatorBootstrap、真实 `/admin` recent-auth 与四区只读复核已完整闭环；明确授权一个收件人后只
+  创建唯一普通邀请，完成 scanner-safe OTP/Auth SMTP/password relogin。
 
 2026-08-22 离线实施证据：Fresh RED 精确命中 API/Web Vercel config、Hosted Web environment/identity、
 公网 simulated 和 deployment CLI 缺口；GREEN focused 为 API 1 file / 5 tests、Web 5 files / 15 tests、

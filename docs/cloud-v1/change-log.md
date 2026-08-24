@@ -31,10 +31,13 @@
 - 静态部署计划不得在环境已推进后继续把 migration、foundation bootstrap、BootstrapInvitation、First
   Operator complete 或首次部署列为未来动作；计划改为零网络/零写入的 current action ledger，固定记录
   已完成且禁止重跑的门、当前 deployment/disarm 证据、下一项用户门和剩余外部依赖链；
-- Hosted 当前顺序固定为 `/admin` 用户密码重新认证与四区权限回读 → 普通邀请与 scanner-safe OTP/Auth
-  SMTP → R3-C 真实投递/重复/告警 → 五项 Cron → 受审计 kill-switch 切换与一笔 Cloud DeepSeek 应用路径
-  请求/账本对账 → 恢复 kill switch。不得用第二张 BootstrapInvitation、直接创建 Supabase 用户、SQL 或
-  Classic smoke 绕过产品路径；
+- current ledger 必须由回归测试锁定 Latest source/deployment、非 Canceled count、独立 disarm 零新增及
+  双关闭；Phase 78 后固定 API `4f1ce4a` / `6QeRbqxgA88cFXggKekkr2axH9JM`、API/Web 16/8，不能把历史
+  `39094d0` / 15 条或已完成的 `/admin` 门继续输出为 current；
+- Hosted 当前顺序固定为：明确授权一个收件人并创建唯一普通邀请 → scanner-safe OTP/Auth SMTP → R3-C
+  真实投递/重复/告警 → 五项 Cron → 受审计 kill-switch 切换与一笔 Cloud DeepSeek 应用路径请求/账本
+  对账 → 恢复 kill switch。不得用第二张 BootstrapInvitation、直接创建 Supabase 用户、SQL 或 Classic
+  smoke 绕过产品路径；
 - Vercel Settings/资源页的只读证据可关闭 Fluid Enabled、Singapore `sin1` 与 Latest Function `≤120s`，但
   不能关闭 90 秒应用 abort 与平台终止的 Observability 门；后者必须与获批的真实 Cloud DeepSeek 请求绑定。
 

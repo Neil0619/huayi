@@ -5,7 +5,8 @@
 发行首张邀请；真实密码确认中断后，Phase 72 已应用第 13 条 migration 并原子恢复账号。2026-08-24 只读
 status 先达到 `registered`，随后 First Operator completion 与完整 post-completion verifier 均通过，最终
 status 精确为 `completed`。当前不得再运行要求空身份的 pristine foundation verifier，也不得重新发行或
-替换 BootstrapInvitation；下一门是由用户在已部署 `/admin` 页面亲自完成当前密码重新认证。
+替换 BootstrapInvitation；真实 `/admin` 密码重新认证与四区只读复核随后已经完成，当前下一门是明确
+授权一个收件人后创建唯一普通邀请。
 
 ## 1. 问题与目标
 
@@ -146,8 +147,8 @@ pristine 环境的原始顺序为：完成 hardened foundation verify -> 创建�
 登录/重新认证并访问 `/admin`。Phase 72 中断恢复已按以下顺序完成：0013 diagnostic/application verifier ->
 API/Web 严格串行部署 -> 浏览器自动提交原邀请 + Provider 密码证明 -> API/0013 在写入前验证 pepper
 continuity -> status `registered` -> complete -> post-completion verify -> status `completed`。当前非空状态不运行
-pristine foundation verifier，也不 replace、不重新 claim、不新发 BootstrapInvitation；普通邀请只能在用户
-完成 `/admin` 密码重新认证后创建。
+pristine foundation verifier，也不 replace、不重新 claim、不新发 BootstrapInvitation；`/admin` recent-auth
+与四区只读已经完成，普通邀请只能在明确授权一个收件人后创建。
 
 ## 5. TDD 与验证矩阵
 
@@ -203,5 +204,5 @@ application role 越权复验和 `/admin` 真实 Cookie/CSRF journey。离线测
 - 第 12 条 migration 后续已经 dry-run、明确确认并实际 push；首张邀请发行后形成的
   `registration-interrupted` 状态已由 Phase 72 的 0013 和中断恢复流程接管。0013 已作为第 13 条 migration
   实际应用，恢复、First Operator complete、post-completion verify 与最终 `completed` status 均已完成；
-  `/admin` recent-auth UI 已受控部署并显示密码重新认证门，但用户尚未亲自提交当前密码，普通邀请与 OTP
-  journey 仍未执行。
+  `/admin` recent-auth UI 已受控部署；后续真实密码重新认证与四区只读复核也已完成，当前只等待明确授权
+  一个收件人后创建唯一普通邀请并执行 OTP journey。
