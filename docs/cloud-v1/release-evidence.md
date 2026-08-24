@@ -1865,3 +1865,22 @@ typecheck、architecture、build、development blocker、Store release、product
   plan、format、lint、全 workspace typecheck、instructions、architecture、development-blocked 与 Store
   release check 均通过；根任务随后完成 `pnpm verify:macos`，其中 111 条 Playwright E2E、全 workspace
   build 与 production dependency audit 也通过。真实 status/apply、五 job、两周期与故障恢复仍 pending。
+
+## 71. Phase 80 普通邀请唯一性预检与同键恢复加固（2026-08-24）
+
+- **真实预检停止写入**：Hosted `/admin` 对授权地址的精确搜索命中现有 First Operator 账号。普通邀请
+  注册状态机要求新 profile，数据库 email 也唯一，因此本轮没有点击创建、没有新增邀请或发送邮件；
+  下一次必须由用户明确授权一个未使用且不同于 Operator 的邮箱；
+- **Fresh RED**：Web adapter 每次 mutation 都生成新 Idempotency-Key，创建按钮在 pending 时也未禁用；
+  快速双击会发出多个创建请求。任意网络错误又错误显示“邀请未创建，请重试”，服务器已提交但响应
+  丢失时会诱导以新键创建第二张邀请；
+- **GREEN**：创建动作以 ref 单飞并禁用；adapter 在闭包内保存单次 UUID，模糊失败只允许同键恢复，
+  strict 成功后才清除；新尝试开始先清除旧的一次性 path。UI 只显示“创建结果未知”和“安全恢复邀请
+  结果”，不使用 Storage、不记录 key/token；
+- **运营防误操作**：Hosted current action ledger 现在明确要求账号精确搜索为零且邮箱不同于 Operator；
+  Vercel 空 project plan 显式标为历史 bootstrap-only，当前已有部署的 project 禁止运行其 apply/status；
+  项目状态校准到 Phase 79，旧密码恢复计划中已完成/已取代的 Hosted 门不再显示为 pending；
+- **验证与边界**：focused Web 16/16、Hosted/Vercel scripts 16/16、目标 Prettier 与 diff check 通过；
+  完整 `pnpm verify:macos` 也通过，其中 111/111 Playwright E2E、全 workspace build、Store release
+  check 与 production dependency audit 均通过，audit 报告无已知漏洞。提交/push 与 Web-only 受控部署
+  见本阶段后续证据；真实普通邀请仍等待未注册邮箱，本节不把本机 GREEN 冒充 OTP/Auth SMTP 已完成。

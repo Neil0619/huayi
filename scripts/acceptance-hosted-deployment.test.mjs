@@ -57,7 +57,8 @@ test("hosted deployment plan is complete, deterministic, and secret independent"
     "/health proves TLS and process startup only; it does not execute SQL or prove the database DSN",
     "The real /admin password reauthentication and four-section read-only verification are complete",
     "Phase 77 runtime snapshot and Phase 79 controlled Cron tooling are not yet connected to Hosted",
-    "explicitly authorize one recipient -> create exactly one ordinary invitation",
+    "authorized recipient must use an unused email distinct from the existing First Operator account",
+    "authorize one unused recipient email distinct from the Operator -> create exactly one ordinary invitation",
     "scanner-safe repeated GET -> explicit OTP POST -> Auth SMTP delivery -> Web landing -> password relogin",
     "real R3-C delivery and duplicate/alert observation -> install and verify five Supabase Cron jobs",
     "audited kill-switch disable -> one approved Cloud DeepSeek application-path request -> model/usage/price/reservation/UsageLedger reconciliation -> restore kill switch",
@@ -98,6 +99,10 @@ test("hosted deployment plan is complete, deterministic, and secret independent"
   assert.doesNotMatch(plan, /Default non-Canceled deployment counts are API 15 and Web 8/u);
   assert.doesNotMatch(plan, /the user personally enters the current password in \/admin/u);
   assert.doesNotMatch(plan, /password reauthentication -> reread all four admin sections/u);
+  assert.doesNotMatch(
+    plan,
+    /explicitly authorize one recipient -> create exactly one ordinary invitation/u,
+  );
   assert.doesNotMatch(plan, /https:\/\/api\.acceptance\.seen-said\.cn\/\*\*/u);
   assert.doesNotMatch(plan, /flow=\*/u);
 });

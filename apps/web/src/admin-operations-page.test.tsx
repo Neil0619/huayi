@@ -161,6 +161,71 @@ describe("Admin operations page", () => {
     expect(container.textContent).toContain("平台模型请求已停止。浏览与 BYOK 不受影响。");
   });
 
+  it("single-flights invitation creation and clears the previous one-time path at start", async () => {
+    let release:
+      ((value: Awaited<ReturnType<WebAdminOperationsApi["createInvitation"]>>) => void) | undefined;
+    const pending = new Promise<Awaited<ReturnType<WebAdminOperationsApi["createInvitation"]>>>(
+      (resolve) => {
+        release = resolve;
+      },
+    );
+    const previous = {
+      consumedAt: null,
+      createdAt: "2026-08-13T06:00:00.000Z",
+      expiresAt: "2026-08-14T06:00:00.000Z",
+      id: "80000000-0000-0000-0000-000000000001",
+      invitationPath: "/join#abcdefghijklmnopqrstuvwxyzABCDEFGH123456789",
+      revokedAt: null,
+    };
+    const createInvitation = vi
+      .fn<WebAdminOperationsApi["createInvitation"]>()
+      .mockResolvedValueOnce(previous)
+      .mockReturnValueOnce(pending);
+    const { container } = await setup({ createInvitation });
+
+    await act(async () => button(container, "创建邀请").click());
+    expect(container.querySelector("output")?.textContent).toBe(previous.invitationPath);
+
+    const createButton = button(container, "创建邀请");
+    act(() => {
+      createButton.click();
+      createButton.click();
+    });
+    expect(createInvitation).toHaveBeenCalledTimes(2);
+    expect(createButton.disabled).toBe(true);
+    expect(container.querySelector("output")).toBeNull();
+
+    await act(async () => release?.(previous));
+    expect(createButton.disabled).toBe(false);
+  });
+
+  it("recovers an ambiguous invitation response without claiming it was not created", async () => {
+    const created = {
+      consumedAt: null,
+      createdAt: "2026-08-13T06:00:00.000Z",
+      expiresAt: "2026-08-14T06:00:00.000Z",
+      id: "80000000-0000-0000-0000-000000000001",
+      invitationPath: "/join#abcdefghijklmnopqrstuvwxyzABCDEFGH123456789",
+      revokedAt: null,
+    };
+    const createInvitation = vi
+      .fn<WebAdminOperationsApi["createInvitation"]>()
+      .mockRejectedValueOnce(new TypeError("response lost"))
+      .mockResolvedValueOnce(created);
+    const { container } = await setup({ createInvitation });
+
+    await act(async () => button(container, "创建邀请").click());
+    const alert = container.querySelector("[role='alert']");
+    expect(alert?.textContent).toContain("创建结果未知");
+    expect(alert?.textContent).not.toContain("未创建");
+    expect(button(container, "创建邀请").disabled).toBe(true);
+
+    await act(async () => button(container, "安全恢复邀请结果").click());
+    expect(createInvitation).toHaveBeenLastCalledWith(72, "csrf-token", true);
+    expect(container.querySelector("output")?.textContent).toBe(created.invitationPath);
+    expect(button(container, "创建邀请").disabled).toBe(false);
+  });
+
   it("projects every invitation lifecycle state and only offers revoke for an active link", async () => {
     const future = new Date(Date.now() + 60_000).toISOString();
     const past = new Date(Date.now() - 60_000).toISOString();

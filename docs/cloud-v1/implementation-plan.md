@@ -1813,3 +1813,19 @@ environment/key，不发送邮件、不调用 DeepSeek、不实际安装或触�
 5. **TDD/验证**：Fresh RED 为模块缺失；离线 GREEN 覆盖零调用 plan、只读 SQL、bounded parser、wrong
    confirmation/preflight/operations/four-stage failure、完整 SQL 两次和 exact postflight。真实 status/apply、
    两周期、五 route、401/5xx/timeout 恢复仍保持 pending。
+
+### Phase 80：普通邀请唯一创建、同键恢复与动作账本校准（2026-08-24）
+
+影响平台为 `shared Web + hosted-acceptance`。现有 Operator 邮箱不能作为普通新账号收件人；该外部门记录
+后跳过，先关闭会导致重复 invitation 的本地产品风险。
+
+1. **创建前门**：授权邮箱必须不同于 First Operator，且 `/admin` 精确账号搜索返回零；普通邀请不绑定
+   邮箱，不能声称创建动作已发送或绑定收件人；
+2. **Fresh RED**：证明 pending 连续点击可产生多个 API call，且模糊失败后的普通重试会生成新
+   Idempotency-Key；
+3. **最小 GREEN**：UI ref 单飞并禁用按钮，adapter 为一次尝试保存内存态 UUID；模糊失败只提供同键
+   恢复，strict success 后清除；开始尝试先清除旧一次性 path；
+4. **账本收口**：deployment plan 固定未使用邮箱/零精确账号命中；历史 Vercel empty-project 工具在 plan
+   显示 bootstrap-only，当前 apply/status 禁止重跑；校准 Phase 79 与已取代的 signup recovery 项；
+5. **退出门**：focused Web/scripts、完整 `verify:macos`、diff/review 通过后提交推送；若部署，严格只 arm
+   Web→观察唯一 deployment→立即独立 disarm，API 全程保持关闭。真实邀请仍等待用户授权新邮箱。

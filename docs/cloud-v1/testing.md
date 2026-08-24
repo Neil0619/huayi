@@ -1075,6 +1075,12 @@ idempotency_records`，修复后覆盖创建、练习、历史、删除、词典
   会话读取到一条“已领取”和三条“已撤销”，终态行均无撤销入口且 console error 为零。当前无 active/
   expired 行，因此“可领取”及其二步撤销必须随唯一普通邀请验证，“已过期”保留到真实过期行验证。
 
+- Phase 80 增加创建单飞与同键恢复回归：同一渲染周期连续点击只能调用一次 create；pending 时创建和
+  恢复按钮均禁用；新尝试先清除旧 path；首个响应丢失后 Web API 必须以原 Idempotency-Key 重放，严格
+  成功后下一次新尝试才生成不同键。错误 UI 只能显示“创建结果未知”和“安全恢复邀请结果”，不得显示
+  “未创建”或把 token/key 写入 Storage、快照、日志。Hosted 上线后仍须以未注册邮箱完成真实 active 行、
+  OTP/Auth SMTP 和密码重登，本地回归不能替代该门。
+
 - Cloud Web 工作台重设计合并后，必须重新执行完整 macOS 门禁和受控 Hosted 部署：先确认 API/Web
   均为 disarmed，再只 arm Web 并等待唯一 deployment 进入终态，随后以独立提交 disarm；disarm
   不得产生第二条 non-canceled deployment，API 全程不得 armed。部署后至少实测 `/practice` 与

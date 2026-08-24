@@ -41,10 +41,14 @@ export function AdminSecondaryPanels({
   const [invitations, setInvitations] = useState<InvitationResource[]>([]);
   const [invitationCursor, setInvitationCursor] = useState<string | null>(null);
   const [invitationError, setInvitationError] = useState("");
+  const [invitationRecoveryAvailable, setInvitationRecoveryAvailable] = useState(false);
+  const [invitationCreationError, setInvitationCreationError] = useState("");
+  const [invitationCreationPending, setInvitationCreationPending] = useState(false);
   const [message, setMessage] = useState("");
   const [revokeId, setRevokeId] = useState<string | null>(null);
   const confirmRef = useRef<HTMLButtonElement>(null);
   const invitationGeneration = useRef(0);
+  const invitationCreationPendingRef = useRef(false);
   const auditGeneration = useRef(0);
 
   const loadInvitations = useCallback(
@@ -111,12 +115,20 @@ export function AdminSecondaryPanels({
   }, [loadAudit, loadInvitations]);
   useEffect(() => confirmRef.current?.focus(), [revokeId]);
 
-  const create = async () => {
-    setMessage("");
+  const create = async (recover = false) => {
+    if (invitationCreationPendingRef.current) return;
+    invitationCreationPendingRef.current = true;
+    setInvitationCreationPending(true);
+    setInvitationCreationError("");
+    setInvitation(null);
+    setMessage(recover ? "正在安全恢复邀请创建结果…" : "正在创建邀请…");
     try {
-      const created = await api.createInvitation(72, csrfToken);
+      const created = recover
+        ? await api.createInvitation(72, csrfToken, true)
+        : await api.createInvitation(72, csrfToken);
       setInvitation(created);
       setInvitations((current) => [created, ...current.filter((item) => item.id !== created.id)]);
+      setInvitationRecoveryAvailable(false);
       const refreshed = await loadInvitations();
       setMessage(
         refreshed
@@ -124,7 +136,14 @@ export function AdminSecondaryPanels({
           : "邀请已创建，但列表刷新失败；一次性链接仍可立即使用。",
       );
     } catch {
-      setMessage("邀请未创建，请重新认证后重试。");
+      setMessage("");
+      setInvitationRecoveryAvailable(true);
+      setInvitationCreationError(
+        "邀请创建结果未知，可能已经创建。请使用原请求安全恢复结果，切勿重复创建。",
+      );
+    } finally {
+      invitationCreationPendingRef.current = false;
+      setInvitationCreationPending(false);
     }
   };
 
@@ -151,7 +170,11 @@ export function AdminSecondaryPanels({
       <section className="admin-section" aria-labelledby="invitations-title">
         <div className="admin-section-heading">
           <h2 id="invitations-title">邀请</h2>
-          <button onClick={() => void create()} type="button">
+          <button
+            disabled={invitationCreationPending || invitationRecoveryAvailable}
+            onClick={() => void create()}
+            type="button"
+          >
             创建邀请
           </button>
         </div>
@@ -160,6 +183,18 @@ export function AdminSecondaryPanels({
         </p>
         {invitation !== null && (
           <output className="admin-invitation-path">{invitation.invitationPath}</output>
+        )}
+        {invitationCreationError !== "" && (
+          <div className="alert" role="alert">
+            <p>{invitationCreationError}</p>
+            <button
+              disabled={invitationCreationPending}
+              onClick={() => void create(true)}
+              type="button"
+            >
+              安全恢复邀请结果
+            </button>
+          </div>
         )}
         {invitationError !== "" && (
           <div className="alert" role="alert">

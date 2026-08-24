@@ -39,6 +39,8 @@ export const vercelProjectSpecifications = Object.freeze([
 export function renderVercelProjectPlan() {
   return [
     "Vercel hosted acceptance empty-project plan (offline / zero write)",
+    "Historical bootstrap-only tool; the current acceptance projects are non-empty.",
+    "Do not run apply or status against the current deployed projects.",
     `Scope: ${expectedTeamName} | ${expectedTeamSlug}`,
     "Projects:",
     "- seen-said-acceptance-api | apps/api | hono | 22.x | sin1 | Fluid | 120s",

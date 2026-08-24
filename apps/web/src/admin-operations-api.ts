@@ -55,30 +55,53 @@ export function createWebAdminOperationsApi(options: WebAdminOperationsApiOption
     method: "DELETE" | "POST" | "PUT",
     body: unknown,
     csrfToken: string,
+    idempotencyKey: string = crypto.randomUUID(),
   ) =>
     request(route, {
       body: JSON.stringify(body),
       credentials: "include",
       headers: {
         "Content-Type": "application/json",
-        "Idempotency-Key": crypto.randomUUID(),
+        "Idempotency-Key": idempotencyKey,
         "X-CSRF-Token": csrfToken,
       },
       method,
     });
+  let invitationRetryKey: string | null = null;
+
+  const createInvitation = async (
+    expiresInHours: number,
+    csrfToken: string,
+    idempotencyKey: string,
+  ) => {
+    const response = await write(
+      adminHttpRoutes.invitations,
+      "POST",
+      { expiresInHours },
+      csrfToken,
+      idempotencyKey,
+    );
+    const created = createdInvitationResponseSchema.parse(await response.json());
+    invitationRetryKey = null;
+    return created;
+  };
 
   return {
     async access() {
       return adminAccessResponseSchema.parse(await (await read(adminHttpRoutes.access)).json());
     },
-    async createInvitation(expiresInHours: number, csrfToken: string) {
-      const response = await write(
-        adminHttpRoutes.invitations,
-        "POST",
-        { expiresInHours },
-        csrfToken,
-      );
-      return createdInvitationResponseSchema.parse(await response.json());
+    async createInvitation(expiresInHours: number, csrfToken: string, recover = false) {
+      if (recover) {
+        if (invitationRetryKey === null) {
+          throw new TypeError("Invitation creation recovery is unavailable.");
+        }
+      } else {
+        if (invitationRetryKey !== null) {
+          throw new TypeError("Invitation creation recovery is required.");
+        }
+        invitationRetryKey = crypto.randomUUID();
+      }
+      return createInvitation(expiresInHours, csrfToken, invitationRetryKey);
     },
     async getUsage() {
       return adminUsageSummarySchema.parse(await (await read(adminHttpRoutes.usage)).json());

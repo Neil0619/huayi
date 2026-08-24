@@ -166,8 +166,9 @@ deployment 后，才运行 health 与真实 hosted smoke，并准备 Web 解锁�
   仅输出 `missing`、`shell-unconfigured` 或 `settings-ready-dashboard-pending` 等有界状态，不输出 team/
   project/deployment ID 或第三方正文。
 
-上述 `apply/status` 只适用于 empty-project bootstrap。当前 project 已有 Git、environment 与 API deployment，
-不得重跑；其失败关闭不是当前远端漂移证据。现阶段只使用 Dashboard/受审查的 deployment readback。
+上述 `plan/apply/status` 是历史 empty-project bootstrap 工具。当前 project 已有 Git、environment 与
+deployment；plan 会显式提示 bootstrap-only，`apply/status` 不得重跑，其失败关闭也不是当前远端漂移证据。
+现阶段只使用 Dashboard/受审查的 deployment readback。
 
 pnpm 会把上述命令中的单个 `--` 原样转发给固定了 `apply/status` 的 Node script；CLI 只在该精确位置移除
 一次分隔符，然后继续严格校验确认参数，不能接受额外参数。失败时 stderr 只输出白名单

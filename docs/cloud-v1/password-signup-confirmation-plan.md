@@ -65,14 +65,14 @@
       disarmed 项目留下一条 Canceled 审计记录；
 - [x] API/Web 来自同一受审查候选 lineage；arm/disarm 后 deployment source SHA 可不同，不把“同一
       lineage”误写成“完全相同 SHA”；
-- [ ] 从仍持有原邀请 URL fragment 的浏览器页面发起恢复；Web 自动提交内存中的 invitation token 与原
-      密码证明，API 使用 Production pepper hash，0013 在任何写入前验证 continuity、邀请与中断状态；
+- [x] 原计划“从仍持有原邀请 URL fragment 的浏览器页面恢复”已由后续受控替换邀请与 0013 原子恢复
+      路径取代，旧 fragment 路径未执行且禁止重跑；最终恢复后 status 已进入 `registered`；
 - [x] 确认 status `registered`，完成 First Operator，并先通过 post-completion verifier；最终 read-only
       status 精确为 `completed`；
 - [x] 按 RED→GREEN 实现 `/admin` 密码重新认证：首次统一 `forbidden` 显示密码表单，成功后更新 CSRF 并
       重读权限；错误可重试且不在文案中泄露密码，认证后仍拒绝则失败关闭；
-- [ ] 受控部署上述 Web 修复并完成真实 `/admin` 密码重新认证；只有此门通过后才创建普通邀请并执行新用户
-      scanner-safe OTP journey。
+- [x] 受控部署上述 Web 修复并完成真实 `/admin` 密码重新认证与四区只读复核；普通邀请仍须使用不同于
+      Operator 的未注册邮箱，scanner-safe OTP journey 继续 pending。
 
 `acceptance:hosted:operator:pepper:verify` 不是用户门。它只在工程自动化已有安全 managed token source 时
 作为可选非回显诊断；不得要求用户识别、复制或输入 URL fragment 中的 opaque token。

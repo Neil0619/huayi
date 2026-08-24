@@ -301,7 +301,9 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       Ready deployment `DU6wE2r9ZLeSSoAMZAbsQihBjC72`，独立 disarm `d6d901c` 零额外非 Canceled。
       最终 Web/API 为 8/15 且均 `deploymentEnabled=false`；live `/practice` 已显示 exact arm short SHA、
       七项分组导航和新今日练习空态；
-- [ ] 用户明确授权不同于 Operator 的收件人后创建恰好一张邀请，以新 active 行验证“可领取”标签与二步
+- [ ] 用户明确授权不同于 Operator、且账号精确搜索为零的未使用邮箱后创建恰好一张邀请。Phase 80 已
+      离线修复创建双击和模糊响应重复风险：pending 单飞、同一内存 Idempotency-Key 安全恢复、成功后
+      才换键；该候选部署前仍不得执行真实创建。上线后以新 active 行验证“可领取”标签与二步
       撤销入口，再完成 scanner/repeated GET 无副作用、显式 OTP POST、Web 落点和密码重登；“已过期”
       live 标签保留到出现真实过期行时验证。真实邮件投递、Cron 和 DeepSeek 应用路径 smoke 仍保持
       pending，完成管理门前不得运行 DeepSeek 应用路径 smoke。

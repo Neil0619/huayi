@@ -91,7 +91,7 @@ wire 版本或完成声明。
 audit 仍只允许 `enabled`。这不代表 Store 产品或 Windows 支持被取消，启用时仍须真实 ID、版本和 Chrome
 门禁。
 
-> **当前校准检查点（Phase 78，2026-08-24）**：Hosted Singapore Supabase、Vercel API/Web、同站域名、
+> **当前校准检查点（Phase 79，2026-08-24）**：Hosted Singapore Supabase、Vercel API/Web、同站域名、
 > First Operator、Cloud Web UI 与受控 deploy/disarm 已完成。Phase 76 API runtime 候选已通过唯一
 > API-only one-shot 上线并立即独立 disarm；API/Web 当前默认非 Canceled 为 16/8 且均
 > `deploymentEnabled=false`。真实 `/admin` recent-auth 与四区只读门已通过，kill switch 仍开启；新增的
@@ -99,9 +99,11 @@ audit 仍只允许 `enabled`。这不代表 Store 产品或 Windows 支持被取
 > 数据库侧证据。剩余发布链为唯一普通邀请与 scanner-safe OTP/Auth SMTP → R3-C 真实投递/
 > 重复/无正文告警 → 五项 Supabase Cron → 受审计 kill switch 与一笔 Cloud DeepSeek 应用路径对账 →
 > 备份/目标网络/自然使用/Store 与 Windows 最终批次。Phase 77 的 snapshot 尚未连接 Hosted；真实外部
-> 邮件、Cron 与模型门未因此关闭。零网络 deployment plan 已按 Fresh RED→GREEN 校准到 Phase 78 的
+> 邮件、Cron 与模型门未因此关闭。Phase 79 已补充 Hosted Cron 的零网络 plan、只读 status/preflight、
+> 双事务 apply 与独立 postflight 工具，但尚未连接真实 Supabase。deployment plan 已校准到 Phase 78 的
 > Latest API `4f1ce4a` / `6QeRbqxgA88cFXggKekkr2axH9JM`、API/Web 16/8、独立 disarm 零新增与双关闭；
-> current 依赖链从明确授权一个收件人并创建唯一普通邀请开始。
+> current 依赖链从明确授权一个不同于现有 Operator、且账号精确搜索为零的未使用邮箱开始；普通邀请
+> 本身不绑定邮箱，真正的邮箱约束在后续注册/OTP 阶段执行。
 
 > **历史校准检查点（Phase 33）**：Phase 28 已补齐 production 语义重复建议和
 > 可计算 AA token 证据；2026-08-14 完成度源码审计发现的 SubmissionOutbox `api=null` 误清账号绑定

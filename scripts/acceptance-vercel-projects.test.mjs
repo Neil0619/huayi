@@ -56,6 +56,8 @@ test("Vercel project plan is offline, deterministic, and secret independent", as
     "After Git: Production Branch Tracking must be codex/settings-configuration",
     "Prove zero deployments again after each Production Branch save",
     "No Git link, deployment, domain, environment variable, or secret is created",
+    "Historical bootstrap-only tool; the current acceptance projects are non-empty",
+    "Do not run apply or status against the current deployed projects",
   ]) {
     assert.match(plan, new RegExp(expected.replaceAll(/[.*+?^${}()|[\]\\]/gu, "\\$&"), "u"));
   }

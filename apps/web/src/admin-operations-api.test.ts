@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createWebAdminOperationsApi } from "./admin-operations-api.js";
+import {
+  createWebAdminOperationsApi,
+  type WebAdminOperationsApiOptions,
+} from "./admin-operations-api.js";
 
 const usage = {
   accounts: { active: 1, deleting: 0, disabled: 0, total: 1 },
@@ -53,6 +56,35 @@ describe("Web admin operations API", () => {
     expect(init).toMatchObject({ credentials: "include", method: "POST" });
     expect(new Headers(init?.headers).get("x-csrf-token")).toBe("csrf-token");
     expect(new Headers(init?.headers).get("idempotency-key")).toEqual(expect.any(String));
+  });
+
+  it("replays an ambiguous invitation creation with the same idempotency key", async () => {
+    const created = {
+      consumedAt: null,
+      createdAt: "2026-08-13T06:00:00.000Z",
+      expiresAt: "2026-08-14T06:00:00.000Z",
+      id: "80000000-0000-0000-0000-000000000001",
+      invitationPath: "/join#abcdefghijklmnopqrstuvwxyzABCDEFGH123456789",
+      revokedAt: null,
+    };
+    const fetch = vi
+      .fn<WebAdminOperationsApiOptions["fetch"]>()
+      .mockRejectedValueOnce(new TypeError("response lost"))
+      .mockResolvedValueOnce(new Response(JSON.stringify(created), { status: 201 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(created), { status: 201 }));
+    const api = createWebAdminOperationsApi({ apiOrigin: "https://api.huayi.example", fetch });
+
+    await expect(api.createInvitation(24, "csrf-token")).rejects.toThrow("response lost");
+    await expect(api.createInvitation(24, "csrf-token", true)).resolves.toEqual(created);
+
+    const firstKey = new Headers(fetch.mock.calls[0]?.[1]?.headers).get("idempotency-key");
+    const retryKey = new Headers(fetch.mock.calls[1]?.[1]?.headers).get("idempotency-key");
+    expect(firstKey).toMatch(/^[0-9a-f-]{36}$/u);
+    expect(retryKey).toBe(firstKey);
+
+    await api.createInvitation(24, "csrf-token");
+    const nextAttemptKey = new Headers(fetch.mock.calls[2]?.[1]?.headers).get("idempotency-key");
+    expect(nextAttemptKey).not.toBe(firstKey);
   });
 
   it("uses the fixed invitation DELETE route with Cookie, CSRF, and one idempotency key", async () => {
