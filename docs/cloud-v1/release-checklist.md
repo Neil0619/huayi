@@ -198,10 +198,12 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
 - [ ] 0014 apply 前由单独批准的真实阶段生成 pre raw logical dump，并从 migration + fictional seed 在隔离
       scratch 重建；`acceptance:hosted:backup:preflight` 必须通过。0014 后生成 post dump 并由
       `acceptance:hosted:backup:complete` 关闭批次；dump 不进入 Git/stdout/log，失败 partial/CA/temp 全清理；
-- [ ] 只通过 `pnpm acceptance:hosted:migration:0014:dry-run` 的固定 confirmation/TTY 入口运行 0014 dry-run，
+- [x] 只通过 `pnpm acceptance:hosted:migration:0014:dry-run` 的固定 confirmation/TTY 入口运行 0014 dry-run，
       结果必须精确为唯一 `20260824010000_password_signup_otp_resend.sql` 和固定未改库成功消息；安全入口已
       实现并通过离线 fake-fetch/process 回归；单命令内部从固定官方 URL 获取 CA，并在管理员 transaction
-      pooler `6543` 强制 verify-full，用户不准备 CA env。尚未真实连接 Hosted，因此本项保持未勾选；
+      pooler `6543` 强制 verify-full，用户不准备 CA env。2026-08-25 用户提供的真实 raw child transcript
+      精确含 non-mutating header、remote connection、唯一 0014 与 finished marker，严格 parser 接受并证明
+      数据库未修改；未把没有随结果提供的 wrapper 固定成功行冒充为已观察输出；
 - [ ] preflight 与真实 dry-run 均通过并取得独立写入授权后，只运行
       `pnpm acceptance:hosted:migration:0014:apply`；入口必须在同一执行内重新 exact dry-run，并在 mutation 前
       第二次验证 preflight + byte-identical fixed-hash migration mirrors，写后只读验证完整 14-version chain、

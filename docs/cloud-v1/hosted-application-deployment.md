@@ -46,7 +46,10 @@ Phase 85 已受控获取并在固定 OrbStack socket 检查全部 11 个 index-d
 cache miss 会 pull，普通 start 仍禁止；真实 pre dump/rebuild 与 preflight 尚未执行，因而 0014 仍不 ready。
 0014 dry-run 的本机候选已补固定官方 CA 的内部有界获取、无 redirect、管理员 transaction pooler `6543`
 verify-full URL/child env 与 `0600` 临时 CA；用户仍只运行一个 pnpm 命令，不准备 CA 环境变量。该离线修复
-尚未替代真实 dry-run 证据。后续实际写入也已收敛到单一
+随后 2026-08-25 用户提供的真实 raw child transcript 精确包含 non-mutating header、remote connection
+marker、唯一 `20260824010000_password_signup_otp_resend.sql` 与 finished marker，已匹配 strict parser；据此
+记录真实 dry-run 完成且数据库未修改，不把未提供的 wrapper 固定成功行写成已观察证据。后续实际写入也已
+收敛到单一
 `pnpm acceptance:hosted:migration:0014:apply`：它绑定 preflight、同执行 exact dry-run、mutation 前
 clean-HEAD/source-hash 重查和写后只读 canonical-chain/0014-contract postflight；该入口尚未真实运行，不能
 绕过 pre evidence，也不能替代 post backup/completion。
@@ -466,7 +469,7 @@ push 只允许增加 Canceled 审计记录，不得新增非 Canceled deployment
 验证；用户尚未亲自输入密码，不能据此关闭真实 `/admin` 四区、Cookie/CSRF、权限或管理 mutation 门。
 本段计数是安全响应头部署前的历史检查点，不能覆盖下节的 current evidence。
 
-## 6.3 2026-08-24 当前动作账本
+## 6.3 2026-08-25 当前动作账本
 
 唯一当前入口是 `pnpm acceptance:hosted:deployment --plan`。它必须保持零网络、零写入，并同时输出：
 
@@ -479,8 +482,8 @@ push 只允许增加 Canceled 审计记录，不得新增非 Canceled deployment
   只作为各次受控部署检查点，不覆盖当前账本；
 - Vercel Functions 已回读 Fluid Enabled、`sin1`，Latest API `/index` 为 Node.js 24.x、`SIN1`、`≤120s`；
   90 秒应用 abort 与平台终止仍随真实 Cloud DeepSeek 请求验收；
-- 当前唯一依赖链：单独批准 pre raw logical dump + migrations/fictional-seed rebuild →
-  `acceptance:hosted:backup:preflight` → real dry-run →
+- 当前唯一依赖链：已完成的 real dry-run 仅保留为只读证据；单独批准 pre raw logical dump +
+  migrations/fictional-seed rebuild → `acceptance:hosted:backup:preflight` →
   `acceptance:hosted:migration:0014:apply` 对已提交注册的同一普通邀请应用并验证唯一 0014 → post dump +
   `acceptance:hosted:backup:complete` → 部署 token-only resend → 再次只读确认 OTP length=6 → 用户点击重发 →
   scanner-safe repeated GET / 显式 OTP POST / Auth SMTP / Web 落点 /

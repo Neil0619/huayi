@@ -50,7 +50,8 @@ test("hosted deployment plan is complete, deterministic, and secret independent"
     "First Operator is completed and the post-completion verifier passed; do not rerun foundation bootstrap, migration 0012/0013, or BootstrapInvitation",
     "The only ordinary invitation has already submitted password registration; do not create or revoke another invitation or delete its bound Auth user",
     "Hosted Email OTP length was corrected only from 8 to 6 and independently reloaded; expiration remains 3600 and no new email has been sent",
-    "Remote migration head remains 13; candidate migration 0014 and the token-only resend route are pending review, deployment, and explicit approval",
+    "On 2026-08-25, the real 0014 dry-run child transcript passed the strict parser: the non-mutating header, remote connection marker, exactly 20260824010000_password_signup_otp_resend.sql, and finished marker were present; the database was not modified. The wrapper fixed success line was not part of the supplied evidence and is not claimed",
+    "Remote migration head remains 13; migration 0014 apply and the token-only resend route deployment remain pending backup preflight and explicit approval",
     "Current API latest is Ready deployment 6QeRbqxgA88cFXggKekkr2axH9JM at source 4f1ce4a458fe138aeee6fb455b2dcc398a55555a",
     "Current Web latest is Ready deployment V3NzjTYXtH7fb3WC2P6hpWR1twhb at source 9b0860a91940e4f78968b3882af91ef5bf923b8a",
     "Cloud workspace redesign candidate 524a55b35dadfd1e8bd1ef89b0abc2baadf69066 was deployed only through the reviewed arm and followed by disarm d6d901c",
@@ -61,12 +62,12 @@ test("hosted deployment plan is complete, deterministic, and secret independent"
     "/health proves TLS and process startup only; it does not execute SQL or prove the database DSN",
     "The real /admin password reauthentication and four-section read-only verification are complete",
     "Phase 77 runtime snapshot and Phase 79 controlled Cron tooling are not yet connected to Hosted",
-    "Before migration 0014, run pnpm acceptance:hosted:backup:plan and require pnpm acceptance:hosted:backup:preflight to pass",
+    "Before migration 0014 apply, run pnpm acceptance:hosted:backup:plan and require pnpm acceptance:hosted:backup:preflight to pass",
     "The complete platform lock classifies 11 active and 3 disabled CLI services and pins every active index plus linux/amd64 and linux/arm64 manifest; all 11 current macOS local image inspections passed through the fixed OrbStack socket, and the reviewed writer is pinned",
     "Run pnpm acceptance:hosted:backup:executor:plan and the exact pre/rebuild/post readiness checks first; readiness performs no database, network, or artifact write",
     "After separate approval, run only acceptance:hosted:backup:capture:pre and acceptance:hosted:backup:rebuild; each is exact-confirmation-gated and produces only the fixed ignored evidence",
     "Preflight requires a secure pre-batch logical backup plus migrations-and-fictional-seed rebuild evidence for the clean current candidate",
-    "After preflight, real dry-run, and explicit approval, run only pnpm acceptance:hosted:migration:0014:apply; it rechecks preflight and migration identity before mutation and verifies the canonical chain/0014 contract after mutation",
+    "After preflight and explicit approval, run only pnpm acceptance:hosted:migration:0014:apply; it reruns the exact dry-run, rechecks preflight and migration identity before mutation, and verifies the canonical chain/0014 contract after mutation",
     "read back Hosted Email OTP length 6 -> user-triggered same-invitation resend -> latest six-digit OTP only",
     "scanner-safe repeated GET -> explicit OTP POST -> Auth SMTP delivery -> Web landing -> password relogin",
     "real R3-C delivery and duplicate/alert observation -> install and verify five Supabase Cron jobs",
@@ -87,7 +88,7 @@ test("hosted deployment plan is complete, deterministic, and secret independent"
     "five Supabase Cron jobs",
     "backup, target-network, natural-use, Store, and Windows final-batch gates remain pending",
     "current macOS local-only inspection of all 11 locked images passed -> reviewed writer pinned -> exact readiness -> separately approved pre capture/rebuild",
-    "real dry-run -> pnpm acceptance:hosted:migration:0014:apply -> separately approved post capture -> acceptance:hosted:backup:complete -> API and Web separate one-shot arm/disarm windows",
+    "validated real dry-run retained as read-only evidence -> preflight -> pnpm acceptance:hosted:migration:0014:apply -> separately approved post capture -> acceptance:hosted:backup:complete -> API and Web separate one-shot arm/disarm windows",
   ]) {
     assert.match(plan, new RegExp(expected.replaceAll(/[.*+?^${}()|[\]\\]/gu, "\\$&"), "u"));
   }

@@ -201,7 +201,11 @@ Token 与 secret 不进入自动化或发布证据。
 Phase 81 已在唯一普通邀请的真实注册邮件中发现 Hosted Email OTP length 为 8，而产品契约固定 6。用户只
 授权把该字段保存为 6；独立重新加载确认 6、expiry 仍 3600，其他 Auth/SMTP/DNS/environment/secret 未改
 且未发送新邮件。今后每次真实邀请前先运行 `pnpm acceptance:hosted:auth:status`；它失败时停止，不得截取
-旧码或整份 push Auth config。0014 的唯一 dry-run 入口已经实现但尚未真实运行：
+旧码或整份 push Auth config。0014 的唯一 dry-run 入口已经实现。2026-08-25 用户运行真实入口后提供的
+Supabase child transcript 精确包含 non-mutating header、remote connection marker、唯一
+`20260824010000_password_signup_otp_resend.sql` 与 finished marker，匹配仓库严格 parser；据此记录本次
+dry-run 已完成且数据库未修改。用户提供的是 raw child transcript，不把未提供的 wrapper 固定成功行写成
+已观察证据：
 `pnpm acceptance:hosted:migration:0014:dry-run` 只接受固定 Singapore project 与
 `20260824010000_password_signup_otp_resend.sql` 的内置 confirmation；拒绝继承的 `PGPASSWORD` /
 `SUPABASE_DB_PASSWORD` 后，才从 TTY 隐藏读取管理员密码。它固定调用本仓库 Supabase CLI、管理员

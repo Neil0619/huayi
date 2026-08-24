@@ -2392,3 +2392,18 @@ typecheck、architecture、build、development blocker、Store release、product
 - **外部门保持**：没有 migration、Supabase/Storage/Auth 外部写、邮件、Vercel deployment、DeepSeek、
   0014、capture 或 rebuild。真实 private Storage、Auth 删除、Hosted 浏览器旅程和 Windows 候选门仍 pending；
   现有 API/Web 远端 deployment/disarm 基线未由本次离线修复改变。
+
+## 90. Phase 81 真实 0014 dry-run 回执（2026-08-25）
+
+- **原始证据**：用户返回 Supabase child transcript，依次为 non-mutating dry-run header、remote database
+  connection marker、`Would push these migrations:`、唯一
+  `20260824010000_password_signup_otp_resend.sql` 与 `Finished supabase db push.`；没有第二条 migration、
+  apply marker 或额外输出；
+- **严格复核**：该五行 transcript 匹配 `parseHostedMigration0014DryRunOutput` 的 exact contract；项目符号无
+  前导空格属于 parser 明确允许的两种规范形式之一。header 明确 migrations 不会 push，因此本次数据库未
+  修改。用户提供的是 raw child transcript，未把未提供的 wrapper 固定成功行记录为已观察输出；
+- **状态边界**：真实 0014 dry-run 已完成，但 pre capture、成功 isolated rebuild、
+  `acceptance:hosted:backup:preflight`、0014 apply、post capture/completion、API/Web 串行部署和六位 OTP
+  journey 仍 pending。dry-run 不生成 backup evidence、不使 0014 ready，也不构成 apply 授权；
+- **副作用边界**：本次只记录用户提供的只读回执；文档校准没有连接 Supabase、执行 migration、运行
+  capture/rebuild、发送邮件、部署或调用模型，也没有恢复暂停中的 isolated rebuild 诊断。

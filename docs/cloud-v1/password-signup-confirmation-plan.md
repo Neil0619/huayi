@@ -109,6 +109,9 @@ SQL 绕过。
       14 migration + pinned fictional seed rebuild；本项未运行真实入口；
 - [x] pre/post capture 已改为单命令内部从固定官方 URL 有界获取严格 PEM CA，CA 成功后才读取隐藏管理员
       密码；用户只运行既有 pnpm 命令，不准备 CA environment。默认测试使用 fake fetch，未连接 Supabase；
+- [x] 2026-08-25 真实 0014 dry-run raw child transcript 通过仓库严格 parser：non-mutating header、remote
+      connection marker、唯一 `20260824010000_password_signup_otp_resend.sql` 与 finished marker 均精确存在；
+      数据库未修改，且未把未提供的 wrapper 固定成功行写成已观察证据；
 - [ ] 实际 pre capture 必须证明 Storage objects 为零或另行完成 object export；CLI cache miss 会 pull，
       不得运行普通 start，也不得用 filtered SQL 冒充 custom；
 - [ ] 单独批准并完成 0014 前 raw logical dump 与隔离 scratch 重建，且
