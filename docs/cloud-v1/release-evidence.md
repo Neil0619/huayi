@@ -1788,3 +1788,24 @@ typecheck、architecture、build、development blocker、Store release、product
   format/lint/typecheck/build/architecture/release/audit/diff；
 - **边界**：真实 R3-C、Cron 安装/重复执行、DeepSeek 90 秒 timeout/实际账单、备份、目标网络与 Windows
   最终批次继续保持 pending。
+
+## 68. Hosted runtime 安全只读快照与运营台复核（2026-08-24）
+
+- **真实运营台只读证据**：用户在 Hosted `/admin` 重新提交当前密码后，同一会话显示完整四区、1 个
+  active account、0 个 Extension device、当月 1,000,000 μUSD、邀请 1 条已领取/3 条已撤销；终态行
+  均无撤销入口。kill-switch 按钮仍显示“关闭模型熔断”，因此熔断保持开启；页面无可见 alert/error；
+  本轮未点击任何创建、撤销、额度、账号、设备或 kill-switch 控件；
+- **工具与数据最小化**：新增 `acceptance:hosted:runtime:plan|snapshot`。snapshot 固定 Singapore project
+  ref，只用一个 verify-full `BEGIN READ ONLY` 事务，输出 31 个有序 boolean/enum/count；只读 Vault 的
+  两个名称，不输出 secret、邮箱、用户/请求/通知 ID、原文、result、金额或原始错误；
+- **三组门**：R3-C 覆盖五类状态、claimable/超窗/max attempts 与 23 小时/8 次/lease/sent 合同；Cron
+  覆盖三个 extension、exact 五项 active minute job/command、函数合同与 ACL；DeepSeek 自动选择 latest
+  request，核对 dispatch、Hosted 三价、settled reservation、1–2 个连续 billed call、逐 call cost、
+  ledger outcome、terminal record 与固定 `deepseek-v4-flash`/prompt/schema metadata；
+- **Fresh RED 与复审修正**：先证明模块缺失；实现后又捕获并修复 boolean `true/false` 与 parser `t/f`
+  不一致，以及 3+ billed calls 仍可能误报 reconciled 的缺口。CLI/parser 151 行、SQL 313 行，均低于
+  400 行；恶意、额外、乱序或越界数据库输出全部固定失败且不反射；
+- **完整验证**：新增 Node 回归 5/5、scripts 245/245；`pnpm verify:macos` 原样退出 0，覆盖 476 个 Vitest
+  files（2,901 passed / 12 skipped）、Store 481/481、Playwright 111/111、全仓 format/lint/typecheck/
+  build/architecture/release/audit。实际 Hosted snapshot、邮件、Cron、DeepSeek、Supabase/Vercel 写入均
+  未执行，真实外部门继续 pending。

@@ -3,6 +3,18 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-24：Hosted 剩余运行门共用固定安全只读快照
+
+- R3-C、Supabase Cron 与 Cloud DeepSeek 的数据库侧验收不得继续依赖用户手工识别或输入 request ID、
+  price UUID、notification ID 等 opaque 值；新增固定 Singapore project-ref 的统一 snapshot，自动选择
+  latest analysis request，并以一次 `BEGIN READ ONLY` 管理员事务回读；
+- 输出只能是 31 个有序的 boolean、受限 enum 和 64-bit 非负聚合计数。Cron 只读取两个 Vault secret
+  **名称**；不得查询或输出 Vault 值、邮箱、用户/请求/通知 ID、原文、结果、金额或原始数据库错误，任何
+  字段数量、顺序、名称或值域漂移都固定失败关闭；
+- snapshot 只证明当前数据库 catalog/聚合/对账状态，不能替代真实 Resend 收件与重复观测、Cron SQL
+  连跑两次及 HTTP 周期、DeepSeek Provider/Dashboard/账单或 90 秒 timeout。它不得发送邮件、调用模型、
+  安装或触发 Cron、切换 kill switch，也不得写数据库。
+
 ## 2026-08-24：普通邀请列表必须显示四态并为丢失链接提供撤销收口
 
 - 真实 Hosted 运营台证明历史邀请只显示 ID/过期时间时，终态行因无撤销按钮而无法区分已领取、已撤销

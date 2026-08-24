@@ -91,12 +91,14 @@ wire 版本或完成声明。
 audit 仍只允许 `enabled`。这不代表 Store 产品或 Windows 支持被取消，启用时仍须真实 ID、版本和 Chrome
 门禁。
 
-> **当前校准检查点（Phase 76，2026-08-24）**：Hosted Singapore Supabase、Vercel API/Web、同站域名、
+> **当前校准检查点（Phase 77，2026-08-24）**：Hosted Singapore Supabase、Vercel API/Web、同站域名、
 > First Operator、Cloud Web UI 与受控 deploy/disarm 已完成，API/Web 当前默认非 Canceled 为 15/8 且均
-> `deploymentEnabled=false`。剩余发布链为唯一普通邀请与 scanner-safe OTP/Auth SMTP → R3-C 真实投递/
+> `deploymentEnabled=false`。真实 `/admin` recent-auth 与四区只读门已通过，kill switch 仍开启；新增的
+> 固定安全 snapshot 可在不手输 opaque ID、不中转秘密/身份/正文的前提下回读 R3-C/Cron/DeepSeek
+> 数据库侧证据。剩余发布链为 API runtime one-shot deploy → 唯一普通邀请与 scanner-safe OTP/Auth SMTP → R3-C 真实投递/
 > 重复/无正文告警 → 五项 Supabase Cron → 受审计 kill switch 与一笔 Cloud DeepSeek 应用路径对账 →
-> 备份/目标网络/自然使用/Store 与 Windows 最终批次。Phase 76 复审修复了 Provider 返回其他模型仍被伪记为
-> `deepseek-v4-flash`，以及 API `CRON_SECRET` 缺 512 字符上限的问题；真实外部门未因此关闭。
+> 备份/目标网络/自然使用/Store 与 Windows 最终批次。Phase 76 的 runtime 修复尚待 API-only 受控部署，
+> Phase 77 的 snapshot 尚未连接 Hosted；真实外部门未因此关闭。
 
 > **历史校准检查点（Phase 33）**：Phase 28 已补齐 production 语义重复建议和
 > 可计算 AA token 证据；2026-08-14 完成度源码审计发现的 SubmissionOutbox `api=null` 误清账号绑定
@@ -1718,3 +1720,16 @@ passed; first Operator empty`。候选已提交推送，0012 已实际 push；�
 - 部署期间 `/admin` 的 15 分钟 recent-auth 自然过期，但登录 session 仍有效。当前下一门仍是用户本人重新
   输入当前 Operator 密码、回读四区，再经即时确认创建唯一普通邀请；本阶段未创建邀请、发送邮件、修改
   Supabase/DNS/environment/secret、切换 kill switch 或调用 DeepSeek。
+
+## Cloud V1 Phase 77 Hosted runtime 安全快照与运营台状态（2026-08-24）
+
+- 用户已在真实 `/admin` 重新完成密码 recent-auth；四区显示 1 个 active account、0 个 Extension device、
+  当月 1,000,000 μUSD、邀请 1 条已领取/3 条已撤销，终态无撤销入口，kill switch 仍开启；本轮零管理写；
+- 新增固定 `acceptance:hosted:runtime:plan|snapshot`，以 verify-full、`BEGIN READ ONLY` 和 31 个 bounded
+  字段统一回读 R3-C/Cron/DeepSeek 数据库侧证据，不要求用户识别 request/price/notification ID，且不
+  输出 Vault 值、身份、正文、result、金额或原始错误；
+- TDD 及复审修复 boolean `true/false` 与 `t/f` 漂移，并把 DeepSeek 对账限制为 1–2 个连续 billed call；
+  新增测试 5/5、scripts 245/245、完整 macOS 门通过 2,901 passed / 12 skipped、Store 481/481、
+  Playwright 111/111；
+- 工具尚未连接真实 Hosted。API/Web 仍双关闭；下一步先提交推送本阶段，再 one-shot 部署 Phase 76 API
+  runtime 修复，之后才创建唯一普通邀请并继续 OTP/Auth SMTP。

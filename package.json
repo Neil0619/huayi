@@ -20,6 +20,8 @@
     "acceptance:hosted:operator:replace": "node scripts/acceptance-hosted-first-operator.mjs replace",
     "acceptance:hosted:operator:status": "node scripts/acceptance-hosted-first-operator.mjs status",
     "acceptance:hosted:operator:verify": "node scripts/acceptance-hosted-first-operator.mjs verify",
+    "acceptance:hosted:runtime:plan": "node scripts/acceptance-hosted-runtime-gates.mjs --plan",
+    "acceptance:hosted:runtime:snapshot": "node scripts/acceptance-hosted-runtime-gates.mjs --snapshot-hosted-runtime-gates-kpadiulxkgckskcfydry",
     "acceptance:hosted:verify": "node scripts/acceptance-hosted-verify.mjs",
     "acceptance:vercel:projects:apply": "node scripts/acceptance-vercel-projects.mjs apply",
     "acceptance:vercel:projects:plan": "node scripts/acceptance-vercel-projects.mjs plan",

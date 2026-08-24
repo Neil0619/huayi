@@ -471,6 +471,32 @@ push 只允许增加 Canceled 审计记录，不得新增非 Canceled deployment
 在上述用户/外部门完成前，不重新部署 API/Web，不创建第二个 BootstrapInvitation，不直接创建 Supabase
 用户，不用 SQL 切换 kill switch，不发送产品路径外测试邮件，也不运行 Classic `pnpm smoke:deepseek`。
 
+## 6.4 Hosted runtime 安全只读快照
+
+先运行 `pnpm acceptance:hosted:runtime:plan`；该命令零网络、零写入。实际回读使用
+`pnpm acceptance:hosted:runtime:snapshot`，命令已经固定 Singapore project ref，不要求用户输入 request
+ID、price UUID、notification ID、邀请片段或其他 opaque 值。管理员数据库密码仍只能由用户通过既有
+non-echo terminal wrapper 提供，CA 仍使用本页既有 verify-full 获取流程；两者只经既有 adapter 用于建立
+连接，不得回显或持久化。
+
+snapshot 是一个 `BEGIN READ ONLY` 聚合事务，输出固定 31 行：
+
+1. R3-C outbox 的 status/claimable/超窗/attempt 聚合与 `r3c_contract_exact`；
+2. Cron 所需 extensions、两个 Vault secret **名称**、exact 五项 job/command、私有函数合同与 ACL；
+3. analysis request/record/UsageLedger 总数，以及自动选择的 latest request 的 state、dispatch、价格档位、
+   reservation、ledger outcome/row count、model metadata 和总对账结论。
+
+真实 DeepSeek 小额请求前后可分别把命令输出重定向到系统临时目录并做 `diff -u`，无需手输任何 request
+标识。成功请求应使 request/completed/record 计数各增加 1，usage row 增加实际 billed call 数；latest 应为
+`completed`、`dispatched=t`、价格合同 `t`、reservation `settled`、ledger `succeeded`、metadata 与总对账
+均为 `t`；单次分析只接受 1–2 个连续 billed call。price 只显示
+`legacy|off_peak|peak|other`，不显示 UUID 或金额。
+
+同理，真实 R3-C 前后快照只能证明数据库 outbox 聚合变化，不能单独证明 Resend 收件或无重复邮件；Cron
+安装前后快照只能证明当前 catalog/Vault 名称/job/function/ACL，真实 SQL 连续运行两次和五条 HTTP route
+仍需外部验收。snapshot 自身绝不发送邮件、调用 Provider、安装/触发 Cron、切换 kill switch 或写数据库，
+也不能据此提前关闭 6.3 的任何外部门。
+
 ## 7. TDD 与验收标准
 
 Fresh RED 必须先覆盖：

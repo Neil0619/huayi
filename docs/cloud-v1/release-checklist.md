@@ -143,6 +143,9 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
 - [x] Hosted foundation 已插入并由 verifier 核对三个不可变价格 UUID 行；Vercel Production 已部署三个
       UUID 配置。离线 production composition 现同时核对 durable dispatch、价格 UUID、reservation、
       UsageLedger 与模型元数据；
+- [x] Phase 77 已提供固定 Singapore project-ref 的 R3-C/Cron/DeepSeek 安全只读 snapshot；只输出 31 个
+      bounded boolean/enum/count，不要求手输 opaque ID，也不读取 Vault 值、身份、正文、result 或金额。
+      本条只关闭验收工具缺口，不代表已运行真实 Hosted snapshot 或关闭下列外部门；
 - [ ] 以经批准真实请求核验 Provider 返回模型、usage、90 秒应用 timeout、实际账单与 UsageLedger 一致；
 - [ ] 真实 DeepSeek 语义建议在受控小额度下核验固定 endpoint/model、usage、价格、timeout 和账本；不得
       用离线 fake fetch/authority 代替费用或网络事实；

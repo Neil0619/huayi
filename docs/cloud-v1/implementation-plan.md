@@ -1741,3 +1741,27 @@ environment 或 deployment，不发送邮件、不调用 DeepSeek；API/Web 始�
 6. **候选门**：focused 7 files / 32 tests、API full 138 files / 531 tests、API typecheck/build、目标 lint
    与完整 `verify:macos` 均通过；聚合门覆盖 240/240 scripts、476 个 Vitest files（2,901 passed / 12
    skipped）、Store 481/481 和 Playwright 111/111。
+
+### Phase 77：Hosted runtime 安全只读快照与运营台复核（2026-08-24）
+
+影响平台为 `shared scripts/docs + hosted-acceptance`。本阶段不修改 API/Web runtime、migration、Hosted
+数据库、Supabase Auth、Vercel、DNS、environment 或密钥，不发送邮件、不调用 DeepSeek、不安装 Cron。
+
+1. **运营台只读门**：用户已在真实 `/admin` 重新完成密码 recent-auth；同一浏览器会话显示四区完整、
+   当前 1 个 active account、0 个 Extension device、当月 1,000,000 μUSD 配额、邀请历史 1 条已领取和
+   3 条已撤销，终态行无撤销入口。按钮仍为“关闭模型熔断”，证明 kill switch 保持开启；未点击任何
+   create/revoke/quota/account/device/kill-switch mutation；
+2. **接口**：新增零网络 `acceptance:hosted:runtime:plan` 与固定 Singapore project-ref 的
+   `acceptance:hosted:runtime:snapshot`。用户不再手工输入 request/price/notification/invitation 标识；
+   snapshot 复用 verify-full Hosted adapter，在一个 `BEGIN READ ONLY` 事务内输出固定 31 行；
+3. **安全合同**：R3-C 只回读 status/claimable/超窗/attempt 聚合；Cron 只核对三个 extension、两个 Vault
+   名称、exact 五项 active minute job/command、私有函数与 ACL；DeepSeek 自动对账 latest request 的
+   dispatch、固定价格、reservation、1–2 个连续 billed call、ledger、terminal record 与固定 metadata。
+   输出不含 secret、身份、ID、正文、result、金额或原始错误，任何额外/恶意输出都固定拒绝；
+4. **TDD 与审查修正**：Fresh RED 为模块不存在；审查阶段另捕获 PostgreSQL boolean cast 会产生
+   `true/false` 而 parser 要求 `t/f`，以及 3 个以上 billed call 曾可能误报 reconciled。GREEN 使用显式
+   boolean 投影并把调用数收紧为 1–2；SQL 与 CLI/parser 拆分后分别低于 400 行；
+5. **验证与边界**：新增回归 5/5、scripts 245/245、完整 `verify:macos` 通过 476 个 Vitest files
+   （2,901 passed / 12 skipped）、Store 481/481、Playwright 111/111、全仓 format/lint/typecheck/build/
+   architecture/release/audit。真实 Hosted snapshot、R3-C、Cron 与 DeepSeek 外部门均未执行；下一阶段先
+   保持双项目 disarmed 提交本工具，再按既有 one-shot 流程部署 Phase 76 API runtime 候选。

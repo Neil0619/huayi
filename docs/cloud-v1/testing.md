@@ -593,6 +593,30 @@ mirror 与 `git diff --check` 通过；全仓 `format:check` 当时仅被本纵�
 全部通过。这些检查全程使用 PGlite 与固定本机 Provider，不访问 DeepSeek、Supabase、Resend 或 Vercel。
 真实 Provider 返回模型、90 秒应用 timeout、账单、R3-C、Cron 安装/重复执行仍由 hosted 外部门单独验收。
 
+### 4.3.3 Hosted runtime 安全只读快照
+
+`scripts/acceptance-hosted-runtime-gates.mjs` 把三个外部门的数据库侧证据收敛到一个深模块；专用
+`acceptance-hosted-runtime-gates-sql.mjs` 只负责固定 SQL，入口只负责参数、adapter、parser 与 bounded
+输出，两个手写文件都低于 400 行。其外部 interface 只有零网络 `--plan` 和固定 Singapore project-ref 的
+`snapshot`；snapshot 复用 hosted foundation 的管理员 pooler、临时 CA 文件与 `verify-full`，整条 SQL 固定
+在 `BEGIN READ ONLY`，只把 31 个有序字段规范化为 boolean、enum 或 64-bit 非负计数。数据库返回字段
+数量、顺序、名称或值域有任一偏差都以固定错误失败，原始 stdout/stderr 不会被反射。
+
+- R3-C 只统计五类 status、claimable/超窗数量、最大 attempts 和 23 小时/8 次/lease/sent-at 数据契约；
+  不查询 profile、email、owner 或 notification ID；
+- Cron 在 catalog 尚不存在时返回 `f`，存在时核对三个所需 extension、Vault 中两个固定**名称**、exact
+  五个 active minute job/command、私有函数 allowlist/search-path/timeout/header 和 function/schema ACL；
+  只查 `vault.secrets.name`，不查 `vault.decrypted_secrets` 或任何值；
+- DeepSeek 输出 analysis request/record/ledger 聚合计数，并自动选择最新 request，映射为
+  `legacy|off_peak|peak|other`，核对 dispatch、固定价格、reservation、逐 call token/cost/outcome、连续
+  ordinal、每次分析最多 1–2 个 billed call、terminal record 与固定 prompt/schema model metadata。内部连接
+  用 request/record ID 完成 join；输出不含这些 ID，也不含用户、原文、result 或金额。
+
+`acceptance-hosted-runtime-gates.test.mjs` 的 Fresh RED 是模块不存在；GREEN 覆盖 plan 零调用、只读 SQL
+静态安全面、verify-full fake adapter、31 字段 parser 和恶意/额外输出拒绝。测试不连接 Supabase。实际
+snapshot 仍是只读观察，不会发送邮件、调用 DeepSeek、安装 Cron、切换 kill switch 或替代 Provider/
+Dashboard 证据。
+
 ### 4.4 Phase 45 Vercel Fluid 与 Function 时长契约
 
 `production-app.test.ts` 解析真实 `apps/api/vercel.json`，必须同时证明 `fluid` 精确为 `true`、唯一
