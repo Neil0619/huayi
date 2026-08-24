@@ -199,7 +199,14 @@ Token 与 secret 不进入自动化或发布证据。
 Phase 81 已在唯一普通邀请的真实注册邮件中发现 Hosted Email OTP length 为 8，而产品契约固定 6。用户只
 授权把该字段保存为 6；独立重新加载确认 6、expiry 仍 3600，其他 Auth/SMTP/DNS/environment/secret 未改
 且未发送新邮件。今后每次真实邀请前先运行 `pnpm acceptance:hosted:auth:status`；它失败时停止，不得截取
-旧码或整份 push Auth config。当前先运行零 I/O 的 `pnpm acceptance:hosted:backup:plan` 与
+旧码或整份 push Auth config。0014 的唯一 dry-run 入口已经实现但尚未真实运行：
+`pnpm acceptance:hosted:migration:0014:dry-run` 只接受固定 Singapore project 与
+`20260824010000_password_signup_otp_resend.sql` 的内置 confirmation；拒绝继承的 `PGPASSWORD` /
+`SUPABASE_DB_PASSWORD` 后，才从 TTY 隐藏读取管理员密码。它固定调用本仓库 Supabase CLI、session
+pooler `5432`、`db push --dry-run --skip-vault --db-url`，密码只进入该子进程环境，不进入 URL、argv、文件
+或输出；stdout 只有在严格证明 dry-run、唯一 0014 与 finished marker 时才输出固定成功消息，其余一律固定
+失败且不转发原始 stdout/stderr。dry-run 不写数据库，也不能代替 pre backup/rebuild/preflight 或授权 apply。
+当前先运行零 I/O 的 `pnpm acceptance:hosted:backup:plan` 与
 `pnpm acceptance:hosted:backup:executor:plan`；executor 已固定唯一 PostgreSQL 17.6.1.159 OCI index，但
 完整 platform lock 现已由 `pnpm acceptance:hosted:backup:platform-lock:verify` 在零 Docker/零网络下校验：
 14 个 CLI start service 精确为 11 active + 3 disabled，active image 同时固定 index 与 amd64/arm64 manifest。

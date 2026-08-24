@@ -2121,3 +2121,26 @@ typecheck、architecture、build、development blocker、Store release、product
   都在 scratch start 前安全失败，零 scratch、零 evidence、零 Hosted/Supabase 连接。当前 pre/post capture、
   成功的 isolated rebuild 与两个 evidence gate 仍缺运行证据，0014 仍不 ready；Hosted/DNS/SMTP/
   environment/key 均未修改。
+
+## 78. Phase 81 0014 安全 dry-run 单命令入口（2026-08-24）
+
+- **Fresh RED**：新增 0014 dry-run 行为测试，首次运行仅因
+  `scripts/acceptance-hosted-migration-0014-dry-run.mjs` 不存在而以 `ERR_MODULE_NOT_FOUND` 失败；没有调用
+  Supabase CLI、网络或数据库；
+- **秘密输入边界**：入口只接受固定 project `kpadiulxkgckskcfydry` 与 migration
+  `20260824010000_password_signup_otp_resend.sql` 的 exact confirmation。额外/错误参数或调用者环境含
+  `PGPASSWORD` / `SUPABASE_DB_PASSWORD` 时，在 TTY password read 前失败；复用 Phase 86 已通过真实 macOS
+  PTY 验证的 echo-before-prompt、有界同步 byte reader，不使用 readline redraw；
+- **固定进程契约**：只调用仓库 `node_modules/.bin/supabase`，参数精确为固定 session pooler `5432` 的无密码
+  URL 与 `db push --dry-run --skip-vault --db-url`；`shell:false`，child env 只有 `LANG=C`、`LC_ALL=C` 与该
+  进程级 `PGPASSWORD`，stdin 忽略、stderr 丢弃、stdout 有 byte/time 上限，密码不进入 argv、URL、日志或
+  持久文件；
+- **严格结果契约**：只有 stdout 精确包含 dry-run header、连接 marker、唯一 0014 与 finished marker 且
+  exit 0 才输出固定成功消息；extra/missing migration、apply-like、未知文本、overflow、timeout 或非零退出
+  均固定失败，不反射 raw output/secret；
+- **离线 GREEN 与完整门**：0014 dry-run + 共享 TTY 聚焦回归 10/10，完整 Node scripts 326/326；
+  `pnpm verify:macos` 原样退出 0，覆盖 instructions/format/lint/typecheck、Vitest 478 files / 2917 tests
+  （12 个预期 skip）、Store coverage 97 files / 481 tests、workspace build/architecture、Playwright 111/111、
+  Store release 与 production audit 零已知漏洞；全部新进程测试使用 fake child，没有外部 I/O；
+- **当前执行边界**：本节只记录实现与 fake-process GREEN；真实入口尚未运行，Hosted/Supabase 未连接，
+  0014 未 dry-run/apply，未发送邮件、未部署、未执行 pre/post capture 或 blocked rebuild diagnosis。

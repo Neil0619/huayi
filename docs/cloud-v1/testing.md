@@ -835,6 +835,14 @@ confirmed Auth user/password method/profile 为 `1/1/2`、google method/Web sess
   flow，并回读服务端派生的 `bound_email`；wrong token、claim/Auth email 错配、已确认/多 identity、
   profile/method/quota/session/admin/deletion/audit 数据、
   revoked/expired invitation 与 consumed/finalized 状态全部零写入，ACL 只给 context setter；
+- 0014 Hosted dry-run CLI 必须先以 Fresh RED 证明入口不存在；只接受 pinned project/migration confirmation，
+  在读取 TTY 前拒绝额外参数与继承的 `PGPASSWORD` / `SUPABASE_DB_PASSWORD`。复用提示前关闭 echo 的同步
+  有界 byte reader，不使用 readline；只以 `shell:false` 调用本地 pinned Supabase binary，固定 session
+  pooler 无密码 URL 与 `db push --dry-run --skip-vault --db-url` 参数，child env 只含固定 locale 与进程级
+  `PGPASSWORD`，stderr 丢弃、stdout 有 byte/time 上限且不落盘；严格 parser 只能接受 dry-run header、连接
+  marker、唯一 `20260824010000_password_signup_otp_resend.sql` 与 finished marker，extra/missing migration、
+  apply-like 或未知文本均 fixed failure 且不反射 secret/raw output。默认测试只能注入 fake process，不得
+  连接 Hosted；真实运行结果必须另行记录，不能由离线 GREEN 代替；
 - API 恢复必须先做 Provider password proof，再执行原子函数，失败无 Cookie/无 Web session；invitation
   token 不得进入 Provider command。Web 失败保留内存 token/email，成功才清 URL；
 - actual bundle 必须覆盖 scanner/repeated GET confirm、显式 OTP POST、`/practice` Cookie 与之后密码重登；

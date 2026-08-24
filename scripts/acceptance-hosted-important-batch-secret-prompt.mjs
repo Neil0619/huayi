@@ -24,7 +24,7 @@ function readBoundedLine(fileDescriptor) {
   throw new Error("Hosted important-batch secret prompt is unavailable.");
 }
 
-async function readHiddenTerminalLine() {
+export async function readHiddenTerminalLine() {
   const fileDescriptor = openSync("/dev/tty", "r+");
   let echoDisabled = false;
   try {
