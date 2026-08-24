@@ -62,7 +62,7 @@ test("hosted deployment plan is complete, deterministic, and secret independent"
     "The real /admin password reauthentication and four-section read-only verification are complete",
     "Phase 77 runtime snapshot and Phase 79 controlled Cron tooling are not yet connected to Hosted",
     "Before migration 0014, run pnpm acceptance:hosted:backup:plan and require pnpm acceptance:hosted:backup:preflight to pass",
-    "The executor readiness audit is fail-closed: the repository has no pinned PostgreSQL 17 dump/restore runtime, pinned isolated-scratch image digest, or reviewed write executor; no backup evidence has been produced",
+    "The executor readiness audit pins the PostgreSQL 17.6.1.159 image index, but remains fail-closed because the complete Supabase Auth/Storage platform image lock and reviewed write executor are absent; no backup evidence has been produced",
     "Run pnpm acceptance:hosted:backup:executor:plan and the exact pre/rebuild/post readiness checks only; they perform no database, network, or artifact write",
     "Preflight requires a secure pre-batch logical backup plus migrations-and-fictional-seed rebuild evidence for the clean current candidate",
     "apply exactly migration 0014 after explicit approval, then deploy API and Web through separate one-shot arm/disarm windows",
@@ -85,7 +85,7 @@ test("hosted deployment plan is complete, deterministic, and secret independent"
     "smtp.resend.com:465 | resend",
     "five Supabase Cron jobs",
     "backup, target-network, natural-use, Store, and Windows final-batch gates remain pending",
-    "close the fail-closed PostgreSQL 17 + pinned scratch runtime prerequisite -> implement and separately approve the fixed capture/rebuild executor",
+    "finish the complete Supabase platform image digest lock and reviewed writer -> separately approve the fixed capture/rebuild executor",
   ]) {
     assert.match(plan, new RegExp(expected.replaceAll(/[.*+?^${}()|[\]\\]/gu, "\\$&"), "u"));
   }

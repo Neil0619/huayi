@@ -1967,3 +1967,30 @@ typecheck、architecture、build、development blocker、Store release、product
   全仓 Prettier、ESLint 与全部 workspace typecheck 通过；本地 runtime inspector 只返回
   `dockerDaemonReady=false`、`pinnedPostgres17RuntimeReady=false`、`pinnedScratchRuntimeReady=false`、
   `supabaseCliPinned=true` 四个 allowlisted boolean，没有输出版本命令 raw stdout/stderr、路径、身份或秘密。
+
+## 74. Phase 83 Hosted backup pinned runtime 与完整 platform lock 门（2026-08-24）
+
+- **Fresh RED**：executor regression 先要求导出固定 PostgreSQL image、只检查 local digest/FileVault，并证明
+  真实 child 不继承 `DOCKER_HOST`/`DOCKER_CONTEXT`；旧模块因缺少
+  `hostedImportantBatchPostgresImage` export 直接 `SyntaxError`，不是先改实现后补测试。deployment ledger
+  断言随后也因旧的“仓库没有 pinned PG17 runtime”文案 Fresh RED；
+- **数据库 runtime 已固定**：唯一候选为
+  `docker.io/supabase/postgres:17.6.1.159@sha256:86a2e078779e5bdccda1f6f6c5063aa9779a322d1fface5fb408d051909b230f`。
+  该 tag 来自 pinned Supabase CLI 2.115.0，digest 通过只读 registry manifest inspection 取得；运行时不信任
+  host PG14.6，只允许固定 `--host unix:///var/run/docker.sock` 的 daemon/local image inspect，不能 pull；
+- **完整 scratch 仍失败关闭**：现有 migrations 读取 `auth.users`/`auth.identities`，Storage contract 读取
+  `storage.objects`；只启动 PostgreSQL image 不能诚实证明 Supabase Auth/Storage platform baseline。CLI local
+  stack 还会使用额外服务镜像；未把所有实际 digest 固定、local-only 验证并禁止隐式 pull 前，
+  `pinnedScratchRuntimeReady=false`，write executor 也继续 unpinned；
+- **秘密与静态加密契约**：未来 container writer 不把 `PGPASSWORD` 放入 Docker env/argument，而只允许固定
+  `0600 .pgpass`/CA read-only mount 和固定 `PGPASSFILE`/`PGSSLROOTCERT` path；当前 macOS gate 只接受
+  `fdesetup status` 精确 `FileVault is On.`。partial/fsync/atomic rename/directory fsync/manifest-last 与固定
+  cleanup 仍是必选，不是调用者参数；
+- **离线 GREEN 与边界**：executor focused 9/9，backup+executor+deployment 19/19。真实 runtime inspector 的
+  fake-Docker regression 在父进程故意设置 remote selector 时观察到两个 Docker child 均为 `unset|unset`；
+  allowlisted verdict 新增 `artifactEncryptionReady`。本阶段没有启动 OrbStack、pull/run image、连接 Supabase、
+  dump/restore、生成 evidence、执行 migration/dry-run、部署、发邮件、调用 DeepSeek 或修改任何 Hosted 配置。
+- **独立回读与完整门**：根审查从 Docker Hub registry manifest API 只读回读 tag，响应为 OCI image index 且
+  `Docker-Content-Digest` 精确等于上方固定 digest；未 pull image。最终 `pnpm verify:macos` 原样退出 0，覆盖
+  Node scripts 277/277、Vitest 478 files / 2917 tests（12 个预期 skip）、Store coverage 97 files / 481 tests、
+  build/architecture、Playwright 111/111 与 production audit 零已知漏洞。

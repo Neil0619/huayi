@@ -853,8 +853,10 @@ confirmed Auth user/password method/profile 为 `1/1/2`、google method/Web sess
   batch/path/权限/清理/依赖契约；根 scripts 只能提供 plan/readiness/preflight/complete，不得在默认门增加
   capture/restore/rebuild 写入口；
 - executor pre/rebuild/post readiness 只允许三个 exact argument；检查 clean HEAD/ignored 后只读取 allowlisted
-  本地 runtime verdict。PG17 tools、pinned scratch image、write executor 任一缺失都固定失败；即使测试 fake
-  全 ready，也必须在 executor 未 pinned 时失败且零 evidence；raw subprocess stdout/stderr 不得转发；
+  本地 runtime verdict。唯一 PG17 client 必须是 repository-pinned OCI index，Docker 调用固定
+  `--host unix:///var/run/docker.sock` 且 child env 不含 `DOCKER_HOST`/`DOCKER_CONTEXT`；完整 Supabase
+  Auth/Storage platform image lock、FileVault、local image 或 write executor 任一缺失都固定失败；即使测试
+  fake 全 ready，也必须在 executor 未 pinned 时失败且零 evidence；raw subprocess stdout/stderr 不得转发；
 - preflight/complete 只允许固定 project `kpadiulxkgckskcfydry`、batch `phase-81-0014` 和固定 artifacts
   路径；拒绝额外 project/path/operation 参数，错误只输出 fixed failure，不反射参数、manifest 或原始错误；
 - evidence fixture 必须覆盖 clean Git HEAD 精确、artifact ignored、目录 `0700`、文件 `0600`、非 symlink、
@@ -866,6 +868,9 @@ confirmed Auth user/password method/profile 为 `1/1/2`、google method/Web sess
 - raw logical dump 是敏感备份，不进入测试 fixture/stdout/log。默认测试只使用不含用户数据的内存 adapter；
   测试必须区分 PG17 full-database custom archive 与 Supabase CLI filtered SQL，且断言 Storage object bytes、
   global roles 和 Hosted platform config 不在 archive 覆盖声明内；
+- 容器化 writer 不得把密码放入 Docker env/argument；测试必须固定 `.pgpass`/CA `0600`、read-only mount、
+  `PGPASSFILE`/`PGSSLROOTCERT` 固定 path、partial→fsync→atomic rename→directory fsync→manifest-last 与固定
+  cleanup。完整 writer 落地前 package scripts 不得暴露 capture/rebuild 操作；
 - 真实 capture、Storage object export、restore、scratch rebuild、Supabase 连接与 0014 apply 都是另行批准的
   Hosted 门。
 

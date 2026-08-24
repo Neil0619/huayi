@@ -100,7 +100,9 @@ SQL 绕过。
 - [x] Phase 82 executor readiness 继续以 Fresh RED→GREEN 校准：固定 pre/rebuild/post readiness、session
       pooler 5432/verify-full/process-scoped secret+CA、PG17/custom archive 与 Storage metadata/object bytes
       边界；本机只有 PG14.6，且 pinned scratch image/write executor 缺失，因此固定失败且零 evidence；
-- [ ] 先固定并审查 PG17 runtime、isolated scratch image digest/write executor，并证明 Storage objects 为零
+- [x] Phase 83 固定 PostgreSQL 17.6.1.159 OCI index、本机 Unix Docker socket、local image/FileVault verdict，
+      并把未来密码传递改为 `0600 .pgpass` read-only mount；未启动 daemon、pull/run image 或写 evidence；
+- [ ] 先固定并审查完整 Auth/Storage platform image digest lock/write executor，并证明 Storage objects 为零
       或完成单独 object export；不得用 Supabase CLI filtered SQL 冒充 postgres-custom；
 - [ ] 单独批准并完成 0014 前 raw logical dump 与隔离 scratch 重建，且
       `pnpm acceptance:hosted:backup:preflight` 通过；该门关闭前 0014 不得描述为 ready；

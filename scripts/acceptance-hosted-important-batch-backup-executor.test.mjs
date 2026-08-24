@@ -1,9 +1,12 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 
 import {
   hostedImportantBatchPostCaptureReadinessArgument,
+  hostedImportantBatchPostgresImage,
   hostedImportantBatchPreCaptureReadinessArgument,
   hostedImportantBatchRebuildReadinessArgument,
   inspectHostedImportantBatchBackupRuntime,
@@ -29,6 +32,7 @@ function readyRepositoryState(overrides = {}) {
 
 function unavailableRuntime(overrides = {}) {
   return {
+    artifactEncryptionReady: false,
     dockerDaemonReady: false,
     pinnedPostgres17RuntimeReady: false,
     pinnedScratchRuntimeReady: false,
@@ -97,6 +101,7 @@ test("executor plan is deterministic, zero-I/O, and states exact coverage and bl
   assert.match(stdout, /session pooler port 5432/u);
   assert.match(stdout, /transaction pooler port 6543 is forbidden/u);
   assert.match(stdout, /PostgreSQL 17/u);
+  assert.ok(stdout.includes(hostedImportantBatchPostgresImage));
   assert.match(stdout, /Supabase CLI 2\.115\.0/u);
   assert.match(stdout, /Auth database rows/u);
   assert.match(stdout, /Storage metadata/u);
@@ -107,6 +112,8 @@ test("executor plan is deterministic, zero-I/O, and states exact coverage and bl
   assert.match(stdout, /atomic rename/u);
   assert.match(stdout, /manifest last/u);
   assert.match(stdout, /raw stdout or stderr/u);
+  assert.match(stdout, /\.pgpass/u);
+  assert.match(stdout, /complete Supabase platform image lock/u);
   assert.match(stdout, /blocked fail-closed/u);
 });
 
@@ -154,10 +161,11 @@ test("all three exact readiness checks fail closed before any executor or eviden
   }
 });
 
-test("readiness remains blocked with local tools present because no repository-pinned executor exists", async () => {
+test("readiness remains blocked with the database image present because the platform lock is incomplete", async () => {
   const result = await runCli({
     arguments_: [hostedImportantBatchPreCaptureReadinessArgument],
     runtime: unavailableRuntime({
+      artifactEncryptionReady: true,
       dockerDaemonReady: true,
       pinnedPostgres17RuntimeReady: true,
       pinnedScratchRuntimeReady: true,
@@ -250,11 +258,14 @@ test("runtime diagnostics classify only allowlisted readiness and discard raw pr
 test("runtime inspector uses fixed argument arrays and returns booleans instead of raw output", async () => {
   const calls = [];
   const outputs = [
-    { code: 0, stdout: "pg_dump (PostgreSQL) 17.6\n" },
-    { code: 0, stdout: "pg_restore (PostgreSQL) 17.6\n" },
-    { code: 0, stdout: "psql (PostgreSQL) 17.6\n" },
-    { code: 0, stdout: "2.115.0\n" },
     { code: 0, stdout: "29.4.0\n" },
+    {
+      code: 0,
+      stdout:
+        '["supabase/postgres@sha256:86a2e078779e5bdccda1f6f6c5063aa9779a322d1fface5fb408d051909b230f"]\n',
+    },
+    { code: 0, stdout: "2.115.0\n" },
+    { code: 0, stdout: "FileVault is On.\n" },
   ];
   const runtime = await inspectHostedImportantBatchBackupRuntime({
     runInspection: async (command, arguments_) => {
@@ -263,14 +274,7 @@ test("runtime inspector uses fixed argument arrays and returns booleans instead 
     },
   });
 
-  assert.deepEqual(calls.slice(0, 3), [
-    { arguments: ["--version"], command: "pg_dump" },
-    { arguments: ["--version"], command: "pg_restore" },
-    { arguments: ["--version"], command: "psql" },
-  ]);
-  assert.match(calls[3].command, /node_modules\/.bin\/supabase$/u);
-  assert.deepEqual(calls[3].arguments, ["--version"]);
-  assert.deepEqual(calls[4], {
+  assert.deepEqual(calls[0], {
     arguments: [
       "--host",
       "unix:///var/run/docker.sock",
@@ -280,11 +284,65 @@ test("runtime inspector uses fixed argument arrays and returns booleans instead 
     ],
     command: "docker",
   });
+  assert.deepEqual(calls[1], {
+    arguments: [
+      "--host",
+      "unix:///var/run/docker.sock",
+      "image",
+      "inspect",
+      "--format",
+      "{{json .RepoDigests}}",
+      hostedImportantBatchPostgresImage,
+    ],
+    command: "docker",
+  });
+  assert.match(calls[2].command, /node_modules\/.bin\/supabase$/u);
+  assert.deepEqual(calls[2].arguments, ["--version"]);
+  assert.deepEqual(calls[3], { arguments: ["status"], command: "fdesetup" });
   assert.deepEqual(runtime, {
+    artifactEncryptionReady: true,
     dockerDaemonReady: true,
     pinnedPostgres17RuntimeReady: true,
     pinnedScratchRuntimeReady: false,
     supabaseCliPinned: true,
   });
-  assert.equal(JSON.stringify(runtime).includes("17.6"), false);
+  assert.equal(JSON.stringify(runtime).includes("86a2e078"), false);
+});
+
+test("real runtime inspection never inherits remote Docker selectors", async () => {
+  const temporaryRoot = await mkdtemp(join(tmpdir(), "huayi-hosted-backup-test-"));
+  const dockerLog = join(temporaryRoot, "docker-environment.log");
+  const dockerPath = join(temporaryRoot, "docker");
+  const fileVaultPath = join(temporaryRoot, "fdesetup");
+  const originalPath = process.env.PATH;
+  const originalDockerHost = process.env.DOCKER_HOST;
+  const originalDockerContext = process.env.DOCKER_CONTEXT;
+  try {
+    await writeFile(
+      dockerPath,
+      `#!/bin/sh\nprintf '%s|%s\\n' "\${DOCKER_HOST-unset}" "\${DOCKER_CONTEXT-unset}" >> '${dockerLog}'\ncase "$*" in\n  *'image inspect'*) printf '["supabase/postgres@sha256:86a2e078779e5bdccda1f6f6c5063aa9779a322d1fface5fb408d051909b230f"]\\n' ;;\n  *) printf '29.4.0\\n' ;;\nesac\n`,
+      { mode: 0o700 },
+    );
+    await chmod(dockerPath, 0o700);
+    await writeFile(fileVaultPath, "#!/bin/sh\nprintf 'FileVault is On.\\n'\n", {
+      mode: 0o700,
+    });
+    await chmod(fileVaultPath, 0o700);
+    process.env.PATH = `${temporaryRoot}:${originalPath ?? ""}`;
+    process.env.DOCKER_HOST = "tcp://private.example.test:2376";
+    process.env.DOCKER_CONTEXT = "remote-private";
+
+    await inspectHostedImportantBatchBackupRuntime();
+
+    const lines = (await readFile(dockerLog, "utf8")).trim().split("\n");
+    assert.deepEqual(lines, ["unset|unset", "unset|unset"]);
+  } finally {
+    if (originalPath === undefined) delete process.env.PATH;
+    else process.env.PATH = originalPath;
+    if (originalDockerHost === undefined) delete process.env.DOCKER_HOST;
+    else process.env.DOCKER_HOST = originalDockerHost;
+    if (originalDockerContext === undefined) delete process.env.DOCKER_CONTEXT;
+    else process.env.DOCKER_CONTEXT = originalDockerContext;
+    await rm(temporaryRoot, { force: true, recursive: true });
+  }
 });

@@ -165,7 +165,11 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       readiness；本地 PG clients 14.6、缺 pinned PG17 runtime/scratch image/write executor 时固定失败，即使
       fake runtime 全 ready 也不会写 evidence。CLI filtered SQL 不再冒充 postgres-custom；Storage object bytes
       明确不在数据库 archive 内；
-- [ ] 固定并审查 PG17 dump/restore runtime、isolated scratch image digest 与 write executor；先证明
+- [x] Phase 83 已固定唯一 PostgreSQL 17.6.1.159 OCI index digest，readiness 只检查本机 Unix Docker socket/
+      local image metadata、Supabase CLI 2.115.0 与 FileVault，且回归证明不继承 remote Docker selector；
+      password contract 已改为 `0600 .pgpass` read-only mount，不进入 Docker env/argument；本条没有 pull/start
+      image、连接 Hosted 或生成 evidence；
+- [ ] 固定并审查建立 Auth/Storage baseline 的完整 Supabase platform image digest lock 与 write executor；先证明
       `storage.objects` 为零，否则另行完成 Storage object export。该 prerequisite 未关闭前不得请求真实
       capture 或把 0014 描述为 ready；
 - [ ] 0014 apply 前由单独批准的真实阶段生成 pre raw logical dump，并从 migration + fictional seed 在隔离

@@ -6,7 +6,7 @@ Supabase Free 不提供可依赖的自动备份。Hosted 验收环境虽然不�
 identity、邀请与用户学习数据；任何 forward-only migration 或重要部署批次前后都必须留下可恢复证据，不能
 把“migration dry-run 通过”当成备份。
 
-Phase 82 只交付默认离线、失败关闭的计划、执行器就绪度审计与证据验证模块：
+Phase 82/83 只交付默认离线、失败关闭的计划、执行器就绪度审计与证据验证模块：
 
 - 固定 Supabase project `kpadiulxkgckskcfydry` 和当前批次 `phase-81-0014`；
 - `pnpm acceptance:hosted:backup:plan` 只渲染固定计划，零文件、Git、网络和写入；
@@ -17,10 +17,13 @@ Phase 82 只交付默认离线、失败关闭的计划、执行器就绪度审�
 - 本阶段没有可执行 capture、restore、scratch rebuild、Supabase connection 或 migration apply 命令，也
   没有执行真实 dump。
 
-审计确认当前本机 `pg_dump`/`pg_restore`/`psql` 是 14.6，而 Hosted/仓库目标为 PostgreSQL 17；仓库还没有
-固定 PG17 runtime、固定 scratch image digest 或受审查写执行器。真实 capture/restore 必须先关闭这些前提，
-再由用户明确批准后单独实现和执行。离线 GREEN 只证明控制面、证据格式与失败关闭，不证明数据库已经
-备份、恢复或重建。
+审计确认当前本机 `pg_dump`/`pg_restore`/`psql` 是 14.6，而 Hosted/仓库目标为 PostgreSQL 17。Phase 83
+已经把 Supabase CLI 2.115.0 对应的数据库镜像固定为
+`docker.io/supabase/postgres:17.6.1.159@sha256:86a2e078779e5bdccda1f6f6c5063aa9779a322d1fface5fb408d051909b230f`，
+并禁止再信任 host client；但完整 scratch 还依赖建立 Auth/Storage platform baseline 的其他服务镜像，仓库
+尚未固定并验证这组完整 digest lock，也没有受审查写执行器。当前 OrbStack daemon 未启动，固定数据库镜像
+也未做本机 offline image inspection/实际运行。真实 capture/restore 必须先关闭这些前提，再由用户明确批准后
+单独实现和执行。离线 GREEN 只证明控制面、证据格式与失败关闭，不证明数据库已经备份、恢复或重建。
 
 ## 2. 固定证据目录与权限
 
@@ -62,10 +65,13 @@ Edge Functions、environment 或平台密钥。Storage objects 必须先由固�
 发布证据，不得复制到 Git、聊天、工单、测试 fixture、日志或 stdout。未来受控 capture 必须：
 
 1. 只使用固定 project 的 verify-full 管理员 session pooler `5432`；transaction pooler `6543` 禁止用于
-   dump/restore；`PGPASSWORD` 只存在于子进程环境，CA 只来自
-   `HUAYI_HOSTED_DATABASE_CA_CERTIFICATE`，写入固定 `0600` 临时文件并通过 `PGSSLROOTCERT` 使用；
-2. 以参数数组和 `shell:false` 调用仓库固定且 major-compatible 的 PostgreSQL 17 custom-format dump，并用
-   显式 fixed `--file` 写入固定目录；本机 14.6 必须失败，不能冒充兼容；
+   dump/restore；密码只写入固定 `0600` 临时 `.pgpass` 并 read-only mount，容器只得到固定 `PGPASSFILE`
+   path，不能收到 `PGPASSWORD` 或 secret-bearing Docker argument；CA 只来自
+   `HUAYI_HOSTED_DATABASE_CA_CERTIFICATE`，写入固定 `0600` 临时文件、read-only mount，并只通过固定
+   `PGSSLROOTCERT` path 使用；
+2. 以参数数组和 `shell:false` 调用上方 digest-pinned PostgreSQL 17 database image 内的 custom-format
+   `pg_dump`，并用显式 fixed `--file` 写入固定目录；本机 14.6 永远不参与，不能冒充兼容；Docker 只允许
+   `--host unix:///var/run/docker.sock`，进程不得继承 `DOCKER_HOST`/`DOCKER_CONTEXT`；
 3. 运行前确认目标文件系统的静态加密/访问控制；不能证明时停止，改用经验证的安全临时介质；
 4. 不转发工具 stdout/stderr，不记录 row、identity、正文、token、secret 或原始数据库错误；
 5. 预创建 `0600` partial，成功关闭后 `fsync`、计算 SHA-256/size、atomic rename 并 `fsync` 目录；canonical
@@ -76,7 +82,7 @@ Edge Functions、environment 或平台密钥。Storage objects 必须先由固�
 本地 `supabase db dump --help` 证明 CLI 2.115.0 不提供 custom-format flag；官方 CLI 文档同时说明默认
 dump 无 data/custom roles 且会过滤 Supabase managed schemas。官方 platform restore 指南采用 roles/schema/
 data 三份 SQL，而不是 PostgreSQL custom archive。两种 artifact 不得混称；本阶段保留 custom archive
-contract，但在固定 PG17 runtime 与覆盖 contract 落地前失败关闭，不会用看似安全却覆盖不明的 CLI SQL、
+contract，但在 pinned image 离线验证、完整 coverage contract 与写执行器落地前失败关闭，不会用看似安全却覆盖不明的 CLI SQL、
 伪匿名 dump 或手写 manifest 代替备份。
 
 ## 4. migration + fictional seed 重建证据
@@ -96,14 +102,16 @@ contract，但在固定 PG17 runtime 与覆盖 contract 落地前失败关闭，
 工具必须使用固定且不同于 Hosted/本机验收的 project identity、固定无冲突端口与 repository-pinned image
 digest，从空 scratch 开始；只复制仓库 migrations 与虚构 seed，执行完整 migration/seed/固定 bounded
 contract，确认没有 Hosted 数据，并在删除 scratch 后才原子写 manifest。证据不保存表计数、账号、邮箱、
-ID、正文或 dump 内容。当前没有 pinned scratch image digest，因此 readiness 必须失败。
+ID、正文或 dump 内容。只固定 PostgreSQL image 不能代表完整 Supabase platform：必须把建立 Auth/Storage
+baseline 的每个实际镜像 digest 一并固定、在启动前逐一做 local-only inspection，并证明 CLI 没有隐式 pull；
+该完整 lock 当前缺失，因此 readiness 必须失败。
 
 ## 5. Phase 81 动作依赖
 
 0014 的顺序现固定为：
 
 1. 运行零网络 `acceptance:hosted:backup:plan` 与 `acceptance:hosted:backup:executor:plan`；
-2. exact pre/rebuild/post readiness 在固定 PG17 runtime、pinned scratch image 和写执行器缺失时必须失败；
+2. exact pre/rebuild/post readiness 在完整 Supabase platform image lock 或写执行器缺失时必须失败；
 3. 关闭前提并通过独立代码审查/明确授权后，完成 pre raw logical dump 和 migrations+fictional-seed scratch
    rebuild；
 4. `acceptance:hosted:backup:preflight` 必须通过；
@@ -124,7 +132,8 @@ ID、正文或 dump 内容。当前没有 pinned scratch image digest，因此 r
   capture/restore/rebuild 写入口；
 - 参数不能注入 project、路径或 operation，错误只输出固定消息；
 - readiness 即使 fake runtime 全 ready 也必须因 write executor 未 pinned 失败，不得创建 evidence；本地
-  inspector 只输出 allowlisted verdict，不转发版本命令或 Docker 的 raw stdout/stderr；
+  inspector 只通过固定 Unix Docker socket 读取 daemon/local image metadata、固定 CLI version 与 FileVault
+  status，且只输出 allowlisted verdict，不转发 raw stdout/stderr；
 - preflight/complete 校验固定 project、batch、clean HEAD、ignore、目录/file mode、exact keys、size/hash 和
   pre/post migration head；
 - rebuild manifest 必须是 migrations+fictional-seed、Hosted data absent 且 scratch destroyed；

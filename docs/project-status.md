@@ -112,8 +112,9 @@ audit 仍只允许 `enabled`。这不代表 Store 产品或 Windows 支持被取
 > 或删除 Auth user。Phase 82 审计同时发现 0014 前缺少 Supabase Free 重要批次备份门；现已补固定项目/
 > 批次的零 I/O plan 和只读 preflight/completion verifier，并把 raw sensitive pre-backup +
 > migrations/fictional-seed isolated rebuild 放到 0014 apply 之前。后续 executor readiness 审计又确认本机
-> PG client 只有 14.6、`supabase db dump` 2.115.0 不产生 custom archive，且仓库缺 pinned PG17 runtime、
-> isolated scratch image digest 与 reviewed write executor；三个 exact readiness 因而固定失败且零 evidence。
+> PG client 只有 14.6、`supabase db dump` 2.115.0 不产生 custom archive。Phase 83 已固定唯一 PostgreSQL
+> 17.6.1.159 OCI index，并锁定本机 Unix Docker socket/FileVault verdict；但完整 Auth/Storage platform image
+> digest lock 与 reviewed write executor 仍缺失，三个 exact readiness 因而继续固定失败且零 evidence。
 > 数据库 archive 最多覆盖经过 contract 验证的 Auth rows 与 Storage metadata，不包含 Storage object bytes；
 > objects 非零时必须另行 export。离线工具不提供 capture/restore/rebuild 写入口，也未连接 Supabase；真实 pre
 > evidence 与 preflight 尚未完成，所以 0014 仍不 ready，不能用 dry-run、CLI filtered SQL 或手写 manifest

@@ -13,6 +13,10 @@ const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const pinnedSupabaseCliVersion = "2.115.0";
 const fixedSessionPooler = "aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres";
 const executorImplementationPinned = false;
+const pinnedPostgresImageDigest =
+  "sha256:86a2e078779e5bdccda1f6f6c5063aa9779a322d1fface5fb408d051909b230f";
+
+export const hostedImportantBatchPostgresImage = `docker.io/supabase/postgres:17.6.1.159@${pinnedPostgresImageDigest}`;
 
 export const hostedImportantBatchPreCaptureReadinessArgument = `--readiness-pre-0014-important-batch-backup-${hostedAcceptanceProjectRef}`;
 export const hostedImportantBatchRebuildReadinessArgument = `--readiness-rebuild-0014-important-batch-backup-${hostedAcceptanceProjectRef}`;
@@ -54,19 +58,28 @@ function runBoundedInspection(command, arguments_, { timeoutMilliseconds = 5_000
   });
 }
 
-function isPostgres17Version(command, stdout) {
-  return new RegExp(`^${command} \\(PostgreSQL\\) 17(?:\\.|$)`, "u").test(stdout.trim());
+function localImageMatchesPinnedDigest(stdout) {
+  if (typeof stdout !== "string" || stdout.length === 0) return false;
+  try {
+    const repoDigests = JSON.parse(stdout);
+    return (
+      Array.isArray(repoDigests) &&
+      repoDigests.some(
+        (value) =>
+          value === `supabase/postgres@${pinnedPostgresImageDigest}` ||
+          value === `docker.io/supabase/postgres@${pinnedPostgresImageDigest}`,
+      )
+    );
+  } catch {
+    return false;
+  }
 }
 
 export async function inspectHostedImportantBatchBackupRuntime({
   runInspection = runBoundedInspection,
 } = {}) {
   const supabaseCommand = join(repositoryRoot, "node_modules", ".bin", "supabase");
-  const [pgDump, pgRestore, psql, supabase, docker] = await Promise.all([
-    runInspection("pg_dump", ["--version"]),
-    runInspection("pg_restore", ["--version"]),
-    runInspection("psql", ["--version"]),
-    runInspection(supabaseCommand, ["--version"]),
+  const [docker, postgresImage, supabase, artifactEncryption] = await Promise.all([
     runInspection("docker", [
       "--host",
       "unix:///var/run/docker.sock",
@@ -74,16 +87,26 @@ export async function inspectHostedImportantBatchBackupRuntime({
       "--format",
       "{{.Server.Version}}",
     ]),
+    runInspection("docker", [
+      "--host",
+      "unix:///var/run/docker.sock",
+      "image",
+      "inspect",
+      "--format",
+      "{{json .RepoDigests}}",
+      hostedImportantBatchPostgresImage,
+    ]),
+    runInspection(supabaseCommand, ["--version"]),
+    runInspection("fdesetup", ["status"]),
   ]);
   return {
+    artifactEncryptionReady:
+      process.platform === "darwin" &&
+      artifactEncryption.code === 0 &&
+      artifactEncryption.stdout.trim() === "FileVault is On.",
     dockerDaemonReady: docker.code === 0 && /^\d+\.\d+(?:\.\d+)?$/u.test(docker.stdout.trim()),
     pinnedPostgres17RuntimeReady:
-      pgDump.code === 0 &&
-      isPostgres17Version("pg_dump", pgDump.stdout) &&
-      pgRestore.code === 0 &&
-      isPostgres17Version("pg_restore", pgRestore.stdout) &&
-      psql.code === 0 &&
-      isPostgres17Version("psql", psql.stdout),
+      postgresImage.code === 0 && localImageMatchesPinnedDigest(postgresImage.stdout),
     pinnedScratchRuntimeReady: false,
     supabaseCliPinned: supabase.code === 0 && supabase.stdout.trim() === pinnedSupabaseCliVersion,
   };
@@ -100,7 +123,8 @@ function repositoryStateIsReady(state) {
 
 function runtimeIsReady(runtime) {
   return (
-    runtime?.dockerDaemonReady === true &&
+    runtime?.artifactEncryptionReady === true &&
+    runtime.dockerDaemonReady === true &&
     runtime.pinnedPostgres17RuntimeReady === true &&
     runtime.pinnedScratchRuntimeReady === true &&
     runtime.supabaseCliPinned === true &&
@@ -118,10 +142,11 @@ Exact readiness operations:
 - post capture: ${hostedImportantBatchPostCaptureReadinessArgument}
 Connection and process contract:
 - A future executor must use the fixed verify-full administrator session pooler port 5432 at ${fixedSessionPooler}; transaction pooler port 6543 is forbidden for dump/restore.
-- PGPASSWORD exists only in the child-process environment. The CA PEM is accepted only from HUAYI_HOSTED_DATABASE_CA_CERTIFICATE, written to a fixed 0600 temporary file, and exposed only as PGSSLROOTCERT.
+- PostgreSQL client commands must run only from ${hostedImportantBatchPostgresImage}; host-installed pg_dump/pg_restore/psql are never trusted.
+- The Hosted password is written only to a fixed 0600 temporary .pgpass and mounted read-only; the container receives only the fixed PGPASSFILE path, never PGPASSWORD or a secret-bearing Docker argument. The CA PEM is accepted only from HUAYI_HOSTED_DATABASE_CA_CERTIFICATE, written to a fixed 0600 temporary file, mounted read-only, and exposed only as the fixed PGSSLROOTCERT path.
 - Commands use shell false and fixed argument arrays. Project, database URL, artifact path, phase, migration head, and operation are never caller supplied.
 Capture contract:
-- A repository-pinned PostgreSQL 17 pg_dump/pg_restore/psql runtime is required. The installed Supabase CLI ${pinnedSupabaseCliVersion} has no custom-format flag and its filtered SQL export must not be labelled postgres-custom.
+- The pinned PostgreSQL 17 database image is also the only permitted pg_dump/pg_restore/psql runtime. The installed Supabase CLI ${pinnedSupabaseCliVersion} has no custom-format flag and its filtered SQL export must not be labelled postgres-custom.
 - The future full-database custom archive may include accessible application schemas, migration history, Auth database rows, and Storage metadata only after internal fixed coverage checks pass.
 - The archive does not include Storage object bytes. It also does not include global roles or hosted platform configuration such as Auth providers, SMTP, DNS, Edge Functions, or environment secrets.
 - Storage object count must be proven zero before capture; otherwise a separately approved Storage object export is required and this batch remains blocked.
@@ -129,8 +154,9 @@ Capture contract:
 - Every failure removes only the fixed partial file, CA file, manifest temporary file, and scratch temporary files. Database rows, identities, secrets, archive contents, and raw stdout or stderr are never logged or reflected.
 Isolated rebuild contract:
 - Start from an empty non-production scratch with a repository-pinned image digest and distinct fixed project identity; never reuse the local acceptance or Hosted database.
+- Pin and verify the digest of every image that creates the Supabase Auth/Storage platform baseline. Pinning only the PostgreSQL image is not a complete Supabase platform image lock and cannot produce rebuild evidence.
 - Apply exactly the repository migrations through 20260824010000 plus the fictional seed, run fixed bounded migration/runtime/absence contracts, prove Hosted data absent, and destroy scratch before writing the rebuild manifest last.
-Current result: blocked fail-closed. This repository has no pinned PostgreSQL 17 execution runtime, pinned isolated-scratch image digest, or reviewed write executor. Readiness commands perform local inspection only and cannot create evidence.
+Current result: blocked fail-closed. The PostgreSQL 17.6.1.159 image index is pinned, but the complete Supabase platform image lock and reviewed write executor do not exist. Readiness uses only the fixed local Unix Docker socket, local image metadata, pinned CLI version, and FileVault status; it cannot pull images, connect to Hosted, or create evidence.
 `;
 }
 

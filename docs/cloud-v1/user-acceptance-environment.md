@@ -429,7 +429,7 @@ DNS 或密钥配置。
 该历史下一项已经推进：唯一普通邀请已创建并提交密码注册，真实邮件发现 Hosted Email OTP length=8 与
 六位产品契约不一致。用户只授权保存 8→6；独立重新加载回读为 6，expiry 仍 3600，其他
 Auth/SMTP/DNS/environment/secret 未改且未发新邮件。当前下一项改为：完成本机同邀请 resend/0014 验证 →
-关闭 PG17/pinned scratch/write executor readiness prerequisite（并证明 Storage objects 为零或另行 export）→
+完成 Auth/Storage platform image digest lock/write executor readiness prerequisite（并证明 Storage objects 为零或另行 export）→
 单独批准并完成 pre raw logical dump + migration/fictional-seed rebuild → backup preflight 通过 → 明确批准后
 只应用唯一 0014 → post dump + completion gate → API/Web 严格串行 one-shot deploy/disarm → 再次只读回读
 OTP length=6 → 用户点击重发一封新邮件并完成 scanner-safe 六位 OTP、Web 落点和密码重登。旧 8 位码不得

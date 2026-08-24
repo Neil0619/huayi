@@ -3,6 +3,22 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-24：Hosted backup runtime 以 digest-pinned image 为唯一客户端，但完整 platform lock 缺失时仍禁止写
+
+- host 安装的 PostgreSQL 14.6 不再参与 Hosted backup。唯一候选 client/runtime 固定为 Supabase CLI
+  2.115.0 对应的 `supabase/postgres:17.6.1.159` OCI index digest
+  `sha256:86a2e078779e5bdccda1f6f6c5063aa9779a322d1fface5fb408d051909b230f`；readiness 只从固定本机
+  `unix:///var/run/docker.sock` 读取 local image metadata，不继承 `DOCKER_HOST`/`DOCKER_CONTEXT`，也不 pull；
+- 只固定 PostgreSQL image 不等于固定完整 Supabase scratch。Auth/Storage platform baseline 由额外服务及其
+  migrations 建立；未把所有实际镜像 digest 固定、逐一 local-only 验证并证明 CLI 不会隐式 pull 前，
+  `pinnedScratchRuntimeReady` 必须为 false，不能生成 rebuild manifest；
+- raw Hosted 密码不得作为 `docker --env PGPASSWORD=...` 或 secret-bearing argument 进入 daemon/container
+  metadata。未来 writer 只能创建固定 `0600 .pgpass` 与 CA 文件、read-only mount，并向容器暴露固定
+  `PGPASSFILE`/`PGSSLROOTCERT` path；失败必须按固定范围清理；
+- at-rest gate 在当前 macOS 验收机只接受 `fdesetup status` 精确返回 `FileVault is On.`。完整 platform lock、
+  本机 pinned image 离线运行与 reviewed writer 缺失时，三个 exact readiness 继续固定失败且没有 write
+  interface；不得为推进 0014 手写 evidence。
+
 ## 2026-08-24：Hosted 重要 migration 前先关闭备份与可重建证据门
 
 - Supabase Free 无可依赖的自动备份，0014 不能只凭 migration dry-run 与离线测试进入实际 apply。每个
