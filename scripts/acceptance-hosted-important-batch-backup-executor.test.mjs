@@ -1,7 +1,5 @@
 import assert from "node:assert/strict";
-import { chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import {
@@ -20,6 +18,10 @@ import {
 import { hostedAcceptanceProjectRef } from "./acceptance-hosted-foundation.mjs";
 
 const candidateCommit = "0123456789abcdef0123456789abcdef01234567";
+const fixedTestDockerTarget = {
+  command: "/fixed/local/docker",
+  host: "unix:///fixed/local/docker.sock",
+};
 
 function readyRepositoryState(overrides = {}) {
   return {
@@ -114,6 +116,8 @@ test("executor plan is deterministic, zero-I/O, and states exact coverage and bl
   assert.match(stdout, /raw stdout or stderr/u);
   assert.match(stdout, /\.pgpass/u);
   assert.match(stdout, /complete 11-image platform lock exists/u);
+  assert.match(stdout, /local-only image inspection passes/u);
+  assert.match(stdout, /reviewed write executor does not exist/u);
   assert.match(stdout, /blocked fail-closed/u);
 });
 
@@ -257,55 +261,41 @@ test("runtime diagnostics classify only allowlisted readiness and discard raw pr
 
 test("runtime inspector uses fixed argument arrays and returns booleans instead of raw output", async () => {
   const calls = [];
+  const platformCalls = [];
   const runtime = await inspectHostedImportantBatchBackupRuntime({
+    inspectPlatformImages: async (options) => {
+      platformCalls.push(options);
+      assert.deepEqual(await options.resolveDockerTarget(), fixedTestDockerTarget);
+      assert.equal(options.runInspection, undefined);
+      return { ready: true };
+    },
+    resolveDockerTarget: async () => fixedTestDockerTarget,
     runInspection: async (command, arguments_) => {
       calls.push({ arguments: arguments_, command });
       if (command.endsWith("/node_modules/.bin/supabase")) {
         return { code: 0, stdout: "2.115.0\n" };
       }
-      if (command === "fdesetup") return { code: 0, stdout: "FileVault is On.\n" };
+      if (command === "/usr/bin/fdesetup") return { code: 0, stdout: "FileVault is On.\n" };
       if (arguments_.includes("version")) return { code: 0, stdout: "29.4.0\n" };
-      const reference = arguments_.at(-1);
-      return {
-        code: 0,
-        stdout: JSON.stringify({
-          Architecture: process.arch === "x64" ? "amd64" : process.arch,
-          Os: "linux",
-          RepoDigests: [reference],
-        }),
-      };
+      return { code: 1, stdout: "unexpected inspection" };
     },
   });
 
   assert.deepEqual(calls[0], {
-    arguments: [
-      "--host",
-      "unix:///var/run/docker.sock",
-      "version",
-      "--format",
-      "{{.Server.Version}}",
-    ],
-    command: "docker",
+    arguments: ["--host", fixedTestDockerTarget.host, "version", "--format", "{{.Server.Version}}"],
+    command: fixedTestDockerTarget.command,
   });
-  const imageInspections = calls.filter(
-    (call) => call.command === "docker" && call.arguments.includes("inspect"),
-  );
-  assert.equal(imageInspections.length, 11);
+  assert.equal(platformCalls.length, 1);
   assert.equal(
-    imageInspections.every(
-      (call) =>
-        call.arguments[0] === "--host" &&
-        call.arguments[1] === "unix:///var/run/docker.sock" &&
-        call.arguments.at(-1).includes("@sha256:"),
-    ),
-    true,
+    calls.some((call) => call.arguments.includes("inspect")),
+    false,
   );
   assert.equal(
     calls.some((call) => /node_modules\/.bin\/supabase$/u.test(call.command)),
     true,
   );
   assert.equal(
-    calls.some((call) => call.command === "fdesetup"),
+    calls.some((call) => call.command === "/usr/bin/fdesetup"),
     true,
   );
   assert.deepEqual(runtime, {
@@ -318,44 +308,27 @@ test("runtime inspector uses fixed argument arrays and returns booleans instead 
   assert.equal(JSON.stringify(runtime).includes("86a2e078"), false);
 });
 
-test("real runtime inspection never inherits remote Docker selectors", async () => {
-  const temporaryRoot = await mkdtemp(join(tmpdir(), "huayi-hosted-backup-test-"));
-  const dockerLog = join(temporaryRoot, "docker-environment.log");
-  const dockerPath = join(temporaryRoot, "docker");
-  const fileVaultPath = join(temporaryRoot, "fdesetup");
-  const originalPath = process.env.PATH;
+test("real runtime inspection rejects remote Docker selectors before any command", async () => {
   const originalDockerHost = process.env.DOCKER_HOST;
   const originalDockerContext = process.env.DOCKER_CONTEXT;
   try {
-    await writeFile(
-      dockerPath,
-      `#!/bin/sh\nprintf '%s|%s\\n' "\${DOCKER_HOST-unset}" "\${DOCKER_CONTEXT-unset}" >> '${dockerLog}'\ncase "$*" in\n  *'image inspect'*) ref=""; for arg in "$@"; do ref="$arg"; done; printf '{"Architecture":"${process.arch === "x64" ? "amd64" : process.arch}","Os":"linux","RepoDigests":["%s"]}\\n' "$ref" ;;\n  *) printf '29.4.0\\n' ;;\nesac\n`,
-      { mode: 0o700 },
-    );
-    await chmod(dockerPath, 0o700);
-    await writeFile(fileVaultPath, "#!/bin/sh\nprintf 'FileVault is On.\\n'\n", {
-      mode: 0o700,
-    });
-    await chmod(fileVaultPath, 0o700);
-    process.env.PATH = `${temporaryRoot}:${originalPath ?? ""}`;
     process.env.DOCKER_HOST = "tcp://private.example.test:2376";
     process.env.DOCKER_CONTEXT = "remote-private";
 
-    await inspectHostedImportantBatchBackupRuntime();
+    const calls = [];
+    const runtime = await inspectHostedImportantBatchBackupRuntime({
+      runInspection: async (command, arguments_) => {
+        calls.push({ arguments: arguments_, command });
+        return { code: 0, stdout: "unexpected" };
+      },
+    });
 
-    const lines = (await readFile(dockerLog, "utf8")).trim().split("\n");
-    assert.equal(lines.length, 12);
-    assert.equal(
-      lines.every((line) => line === "unset|unset"),
-      true,
-    );
+    assert.deepEqual(calls, []);
+    assert.deepEqual(runtime, unavailableRuntime({ supabaseCliPinned: false }));
   } finally {
-    if (originalPath === undefined) delete process.env.PATH;
-    else process.env.PATH = originalPath;
     if (originalDockerHost === undefined) delete process.env.DOCKER_HOST;
     else process.env.DOCKER_HOST = originalDockerHost;
     if (originalDockerContext === undefined) delete process.env.DOCKER_CONTEXT;
     else process.env.DOCKER_CONTEXT = originalDockerContext;
-    await rm(temporaryRoot, { force: true, recursive: true });
   }
 });

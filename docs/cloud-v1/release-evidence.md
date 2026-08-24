@@ -2026,3 +2026,32 @@ typecheck、architecture、build、development blocker、Store release、product
   从 Vercel Dashboard 只读回查，API 最新仍是 source `4f1ce4a` / deployment
   `6QeRbqxgA88cFXggKekkr2axH9JM`，Web 最新仍是 source `9b0860a` / deployment
   `V3NzjTYXtH7fb3WC2P6hpWR1twhb`，本批 push 零新增 deployment。
+
+## 76. Phase 85 OrbStack socket 与真实 11-image local inspection（2026-08-24）
+
+- **受控获取**：启动已批准的 OrbStack 后，只从 lock 读取 11 个 enabled `repository@indexDigest`，固定
+  `--platform linux/arm64` 逐一 pull 成功；未使用 tag、未运行 container。获取结束后仓库仍为 clean
+  `76303ea`，未连接 Supabase 或触发部署；
+- **Fresh RED**：`pnpm acceptance:hosted:backup:platform-lock:local-images` 连续两次 exit 1；当前 OS 用户的真实
+  `~/.orbstack/run/docker.sock` 是 Unix socket，而旧代码固定的 `/var/run/docker.sock` 不存在。
+  回归测试先因新 resolver module 缺失与旧 argv 仍指向 `/var/run` 失败；
+- **受控 resolver**：macOS 从 `os.userInfo().homedir` 派生当前用户 OrbStack 固定 socket，直接调用 app 内
+  absolute Docker executable；Linux 保留 `/var/run/docker.sock` 与 `/usr/bin/docker`。不读取 `HOME`、不搜索
+  `PATH`、不接受调用者/env socket；`DOCKER_HOST`/`DOCKER_CONTEXT`（包括空值）、非 socket、非 executable
+  或不支持平台均在 spawn 前失败。共享 bounded process adapter 的 child env 只有 `LANG`/`LC_ALL`；
+- **第二个 RED**：固定 socket 后，11 个真实 `image inspect` 均 exit 0、OS=linux、Architecture=arm64，但旧
+  verifier 全部因 `RepoDigests` 不包含带 `docker.io/` 的 reference 而误判。Docker 本机会把 Docker Hub
+  repository canonicalize，且 `library/kong` 进一步显示为 `kong`；测试改用真实 canonical shape 后旧实现
+  精确失败；
+- **GREEN**：verifier 只接受锁定 repository 的 Docker Hub canonical name + 相同 index digest；不接受 ECR
+  alias。修复 executor 不再用 256-byte 版本探针截断完整 image-inspect JSON，platform module 保留 32 KiB
+  bound。根任务 fresh focused local-Docker/platform/executor/deployment 25/25；真实 11-image local inspection
+  通过，检查/修复复跑只有固定 `image inspect`，未追加 pull，也没有
+  run/start/build/manifest-network；
+- **失败关闭证明**：只读 harness 保留真实 Docker/FileVault/Supabase runtime，五项 allowlisted verdict 均为
+  true；注入 clean repository state 后 exact pre-readiness 仍 exit 1、stdout 为空、只输出固定 failed-closed
+  消息，证明 blocker 精确是 `executorImplementationPinned=false`。没有连接 Supabase、执行 migration、部署、
+  发送邮件、调用 DeepSeek，或修改 Hosted/DNS/environment/key；
+- **完整门**：`pnpm verify:macos` 原样退出 0，覆盖 Node scripts 289/289、Vitest 478 files / 2917 tests
+  （12 个预期 skip）、Store coverage 97 files / 481 tests、build/architecture、Playwright 111/111、Store
+  release 与 production audit 零已知漏洞。

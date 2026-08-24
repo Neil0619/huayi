@@ -1,7 +1,5 @@
 import assert from "node:assert/strict";
-import { chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import {
@@ -24,6 +22,11 @@ const expectedActiveServices = [
   "postgres-meta",
   "studio",
 ];
+
+const fixedTestDockerTarget = {
+  command: "/fixed/local/docker",
+  host: "unix:///fixed/local/docker.sock",
+};
 
 test("platform lock classifies every CLI 2.115.0 start service and pins both target platforms", async () => {
   const lock = await readHostedSupabasePlatformImageLock();
@@ -167,6 +170,7 @@ test("local image inspection uses only fixed Unix-socket inspect commands and ne
   const result = await inspectHostedSupabasePlatformImages({
     architecture: "arm64",
     lock,
+    resolveDockerTarget: async () => fixedTestDockerTarget,
     runInspection: async (command, arguments_) => {
       calls.push({ arguments: arguments_, command });
       const reference = arguments_.at(-1);
@@ -179,7 +183,9 @@ test("local image inspection uses only fixed Unix-socket inspect commands and ne
         stdout: JSON.stringify({
           Architecture: "arm64",
           Os: "linux",
-          RepoDigests: [`${service.image.repository}@${service.image.tagDigest}`],
+          RepoDigests: [
+            `${service.image.repository.replace(/^docker\.io\/(?:library\/)?/u, "")}@${service.image.tagDigest}`,
+          ],
         }),
       };
     },
@@ -188,10 +194,10 @@ test("local image inspection uses only fixed Unix-socket inspect commands and ne
   assert.equal(result.ready, true);
   assert.equal(calls.length, 11);
   for (const call of calls) {
-    assert.equal(call.command, "docker");
+    assert.equal(call.command, fixedTestDockerTarget.command);
     assert.deepEqual(call.arguments.slice(0, 5), [
       "--host",
-      "unix:///var/run/docker.sock",
+      fixedTestDockerTarget.host,
       "image",
       "inspect",
       "--format",
@@ -205,44 +211,51 @@ test("local image inspection uses only fixed Unix-socket inspect commands and ne
   }
 });
 
-test("real local inspection drops remote Docker selectors and emits no raw diagnostics", async () => {
-  if (process.platform === "win32") return;
-  const temporaryRoot = await mkdtemp(join(tmpdir(), "huayi-platform-lock-test-"));
-  const dockerLog = join(temporaryRoot, "docker-environment.log");
-  const dockerPath = join(temporaryRoot, "docker");
-  const originalPath = process.env.PATH;
+test("real local inspection rejects remote Docker selectors before spawning", async () => {
   const originalDockerHost = process.env.DOCKER_HOST;
   const originalDockerContext = process.env.DOCKER_CONTEXT;
   try {
-    await writeFile(
-      dockerPath,
-      `#!/bin/sh\nprintf '%s|%s\\n' "\${DOCKER_HOST-unset}" "\${DOCKER_CONTEXT-unset}" >> '${dockerLog}'\nref=""\nfor arg in "$@"; do ref="$arg"; done\nprintf '{"Architecture":"${process.arch === "x64" ? "amd64" : process.arch}","Os":"linux","RepoDigests":["%s"]}\\n' "$ref"\n`,
-      { mode: 0o700 },
-    );
-    await chmod(dockerPath, 0o700);
-    process.env.PATH = `${temporaryRoot}:${originalPath ?? ""}`;
     process.env.DOCKER_HOST = "tcp://private.example.test:2376";
     process.env.DOCKER_CONTEXT = "remote-private";
 
     const lock = await readHostedSupabasePlatformImageLock();
-    const result = await inspectHostedSupabasePlatformImages({ lock });
-
-    assert.equal(result.ready, true);
-    const lines = (await readFile(dockerLog, "utf8")).trim().split("\n");
-    assert.equal(lines.length, 11);
-    assert.equal(
-      lines.every((line) => line === "unset|unset"),
-      true,
+    let inspectionCalls = 0;
+    await assert.rejects(
+      inspectHostedSupabasePlatformImages({
+        lock,
+        runInspection: async () => {
+          inspectionCalls += 1;
+          return { code: 0, stdout: "{}" };
+        },
+      }),
+      /Docker environment selectors are forbidden/u,
     );
+    assert.equal(inspectionCalls, 0);
   } finally {
-    if (originalPath === undefined) delete process.env.PATH;
-    else process.env.PATH = originalPath;
     if (originalDockerHost === undefined) delete process.env.DOCKER_HOST;
     else process.env.DOCKER_HOST = originalDockerHost;
     if (originalDockerContext === undefined) delete process.env.DOCKER_CONTEXT;
     else process.env.DOCKER_CONTEXT = originalDockerContext;
-    await rm(temporaryRoot, { force: true, recursive: true });
   }
+});
+
+test("local image inspection rejects registry aliases even when their digest matches", async () => {
+  const lock = await readHostedSupabasePlatformImageLock();
+  const result = await inspectHostedSupabasePlatformImages({
+    architecture: "arm64",
+    lock,
+    resolveDockerTarget: async () => fixedTestDockerTarget,
+    runInspection: async (_command, arguments_) => ({
+      code: 0,
+      stdout: JSON.stringify({
+        Architecture: "arm64",
+        Os: "linux",
+        RepoDigests: [`public.ecr.aws/alias@${arguments_.at(-1).split("@").at(-1)}`],
+      }),
+    }),
+  });
+
+  assert.deepEqual(result, { ready: false });
 });
 
 test("CLI exposes only static verification and local inspection with fixed output", async () => {

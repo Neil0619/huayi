@@ -6,7 +6,8 @@ Supabase Free 不提供可依赖的自动备份。Hosted 验收环境虽然不�
 identity、邀请与用户学习数据；任何 forward-only migration 或重要部署批次前后都必须留下可恢复证据，不能
 把“migration dry-run 通过”当成备份。
 
-Phase 82–84 只交付默认离线、失败关闭的计划、执行器就绪度审计、完整 platform image lock 与证据验证模块：
+Phase 82–85 交付默认离线、失败关闭的计划、执行器就绪度审计、完整 platform image lock、本机镜像检查与
+证据验证模块：
 
 - 固定 Supabase project `kpadiulxkgckskcfydry` 和当前批次 `phase-81-0014`；
 - `pnpm acceptance:hosted:backup:plan` 只渲染固定计划，零文件、Git、网络和写入；
@@ -17,8 +18,10 @@ Phase 82–84 只交付默认离线、失败关闭的计划、执行器就绪度
 - `pnpm acceptance:hosted:backup:platform-lock:verify` 零 Docker、零网络校验 pinned CLI/config/source provenance、
   14 个 start service 的 11 active + 3 disabled 分类、完整 lock SHA-256 tripwire，以及 active image 的
   index/双平台 manifest digest；
-- `platform-lock:local-images` 只允许固定 Unix socket 的 `docker image inspect`，没有 pull/build/run/start/
-  registry manifest 命令；本阶段没有运行该命令，也没有启动 daemon；
+- `platform-lock:local-images` 只允许受控 local-only resolver 选出的 Unix socket 与绝对 Docker executable
+  执行 `docker image inspect`，没有 pull/build/run/start/registry manifest 命令；当前 macOS 验收机的 11 个
+  index-digest reference 已全部检查通过。此前受控获取步骤已按 11 个 index digest 和 `linux/arm64` 下载
+  镜像；检查与修复步骤没有追加 pull，整个阶段没有运行镜像；
 - 本阶段没有可执行 capture、restore、scratch rebuild、Supabase connection 或 migration apply 命令，也
   没有执行真实 dump。
 
@@ -28,9 +31,11 @@ Phase 82–84 只交付默认离线、失败关闭的计划、执行器就绪度
 并禁止再信任 host client。Phase 84 又从 CLI `v2.115.0` 的 embedded Dockerfile、默认 config、start gate
 源码与仓库 `supabase/config.toml` 得出完整 service graph：11 个镜像会启动，Realtime、ImgProxy 与
 Supavisor 分别因显式/默认 gate 为 false 不启动。11 个 exact tag 均锁定 Docker Hub registry 返回的
-index digest 与 `linux/amd64`、`linux/arm64` platform manifest digest。当前 OrbStack daemon 未启动，固定镜像
-尚未做本机 offline image inspection/实际运行，也没有受审查写执行器。真实 capture/restore 必须先关闭这些前提，再由用户明确批准后
-单独实现和执行。离线 GREEN 只证明控制面、证据格式与失败关闭，不证明数据库已经备份、恢复或重建。
+index digest 与 `linux/amd64`、`linux/arm64` platform manifest digest。Phase 85 修复了实际 OrbStack socket
+位置与 Docker Hub canonical `RepoDigests` 表达差异；当前 macOS 验收机的 11 个固定镜像已完成 local-only
+inspection，但没有运行镜像，也没有受审查写执行器。真实 capture/restore 必须先关闭剩余前提，再由用户
+明确批准后单独实现和执行。本机检查 GREEN 只证明当前 host 的镜像缓存与 lock 一致，不证明数据库已经备份、
+恢复或重建，其他执行 host 也必须重新检查。
 
 ## 2. 固定证据目录与权限
 
@@ -77,8 +82,11 @@ Edge Functions、environment 或平台密钥。Storage objects 必须先由固�
    `HUAYI_HOSTED_DATABASE_CA_CERTIFICATE`，写入固定 `0600` 临时文件、read-only mount，并只通过固定
    `PGSSLROOTCERT` path 使用；
 2. 以参数数组和 `shell:false` 调用上方 digest-pinned PostgreSQL 17 database image 内的 custom-format
-   `pg_dump`，并用显式 fixed `--file` 写入固定目录；本机 14.6 永远不参与，不能冒充兼容；Docker 只允许
-   `--host unix:///var/run/docker.sock`，进程不得继承 `DOCKER_HOST`/`DOCKER_CONTEXT`；
+   `pg_dump`，并用显式 fixed `--file` 写入固定目录；本机 14.6 永远不参与，不能冒充兼容；Docker 必须复用
+   受控 resolver：macOS 从 OS 当前用户信息派生固定 `~/.orbstack/run/docker.sock` 并只调用
+   `/Applications/OrbStack.app/Contents/MacOS/xbin/docker`，Linux 只允许 `/var/run/docker.sock` 与
+   `/usr/bin/docker`。不得读取 `HOME` 或任意 env socket；`DOCKER_HOST`/`DOCKER_CONTEXT` 即使为空也必须
+   在 spawn 前失败；
 3. 运行前确认目标文件系统的静态加密/访问控制；不能证明时停止，改用经验证的安全临时介质；
 4. 不转发工具 stdout/stderr，不记录 row、identity、正文、token、secret 或原始数据库错误；
 5. 预创建 `0600` partial，成功关闭后 `fsync`、计算 SHA-256/size、atomic rename 并 `fsync` 目录；canonical
@@ -114,7 +122,8 @@ GoTrue、Mailpit、PostgREST、Storage、Edge Runtime、Postgres Meta、Studio �
 `enabled=false`，ImgProxy 因可选 `storage.image_transformation` section 缺失并默认 false，Supavisor 因
 `db.pooler` 缺失并默认 false 而不启动。CLI `supabase start` 在 cache miss 时会主动 pull，因此不能用普通
 start 证明 offline。未来 start 前必须先通过静态 lock verifier 与全部 11 个 index-digest reference 的
-local-only image inspection；本阶段未获取镜像，readiness 仍必须失败。
+local-only image inspection；当前 macOS 验收机已通过该检查，但 reviewed writer 未 pinned，readiness 仍必须
+失败。其他执行 host 必须独立重跑检查，不能复用本机结论。
 
 ## 5. Phase 81 动作依赖
 
@@ -141,9 +150,11 @@ local-only image inspection；本阶段未获取镜像，readiness 仍必须失�
 - 两个 plan 不访问 filesystem/Git/network；三个 readiness 只允许固定 operation/project/batch 并且没有
   capture/restore/rebuild 写入口；
 - 参数不能注入 project、路径或 operation，错误只输出固定消息；
-- readiness 即使 fake runtime 全 ready 也必须因 write executor 未 pinned 失败，不得创建 evidence；本地
-  inspector 只通过固定 Unix Docker socket 读取 daemon/local image metadata、固定 CLI version 与 FileVault
-  status，且只输出 allowlisted verdict，不转发 raw stdout/stderr；静态 lock verifier 必须在零 Docker/
+- readiness 即使 fake 或当前真实 runtime 全 ready 也必须因 write executor 未 pinned 失败，不得创建 evidence；
+  本地 inspector 只通过 platform-fixed Unix Docker socket 与固定 absolute executable 读取 daemon/local image
+  metadata、固定 CLI version 与 FileVault status；macOS path 由当前 OS 用户信息而不是 username/HOME 组成，
+  Linux 保留 `/var/run/docker.sock`。selector/env socket、缺失/非 socket target、非 executable 与不支持平台均
+  失败，且只输出 allowlisted verdict，不转发 raw stdout/stderr；静态 lock verifier 必须在零 Docker/
   零 network 下拒绝 CLI/config/env/version override/service/digest 漂移；完整 lock 内容由独立 SHA-256
   tripwire 绑定，合法格式但错误的 digest 也必须失败；
 - preflight/complete 校验固定 project、batch、clean HEAD、ignore、目录/file mode、exact keys、size/hash 和

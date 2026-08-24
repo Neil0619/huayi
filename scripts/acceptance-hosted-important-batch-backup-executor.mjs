@@ -1,7 +1,10 @@
-import { spawn } from "node:child_process";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
+import {
+  resolveLocalDockerInspectionTarget,
+  runBoundedLocalInspection,
+} from "./acceptance-local-docker-inspection.mjs";
 import {
   hostedImportantBatchBackupArtifactDirectory,
   hostedImportantBatchId,
@@ -27,64 +30,47 @@ export const hostedImportantBatchPreCaptureReadinessArgument = `--readiness-pre-
 export const hostedImportantBatchRebuildReadinessArgument = `--readiness-rebuild-0014-important-batch-backup-${hostedAcceptanceProjectRef}`;
 export const hostedImportantBatchPostCaptureReadinessArgument = `--readiness-post-0014-important-batch-backup-${hostedAcceptanceProjectRef}`;
 
-function runBoundedInspection(command, arguments_, { timeoutMilliseconds = 5_000 } = {}) {
-  return new Promise((resolveResult) => {
-    let settled = false;
-    let stdout = "";
-    const finish = (result) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timeout);
-      resolveResult(result);
-    };
-    const child = spawn(command, arguments_, {
-      cwd: repositoryRoot,
-      env: {
-        LANG: "C",
-        LC_ALL: "C",
-        PATH: process.env.PATH ?? "",
-      },
-      shell: false,
-      stdio: ["ignore", "pipe", "ignore"],
-      windowsHide: true,
-    });
-    const timeout = setTimeout(() => {
-      child.kill("SIGKILL");
-      finish({ code: null, stdout: "" });
-    }, timeoutMilliseconds);
-    child.stdout.setEncoding("utf8");
-    child.stdout.on("data", (chunk) => {
-      if (stdout.length < 256) stdout += chunk.slice(0, 256 - stdout.length);
-    });
-    child.once("error", () => finish({ code: null, stdout: "" }));
-    child.once("exit", (code, signal) => {
-      finish({ code: signal === null ? code : null, stdout });
-    });
-  });
-}
+const runBoundedInspection = (command, arguments_) =>
+  runBoundedLocalInspection(command, arguments_, { maxOutputBytes: 256 });
 
 export async function inspectHostedImportantBatchBackupRuntime({
   inspectPlatformImages = inspectHostedSupabasePlatformImages,
   readPlatformLock = readHostedSupabasePlatformImageLock,
+  resolveDockerTarget = resolveLocalDockerInspectionTarget,
   runInspection = runBoundedInspection,
   verifyPlatformLock = verifyHostedSupabasePlatformImageLock,
 } = {}) {
+  let dockerTarget;
+  try {
+    dockerTarget = await resolveDockerTarget();
+  } catch {
+    return {
+      artifactEncryptionReady: false,
+      dockerDaemonReady: false,
+      pinnedPostgres17RuntimeReady: false,
+      pinnedScratchRuntimeReady: false,
+      supabaseCliPinned: false,
+    };
+  }
   const supabaseCommand = join(repositoryRoot, "node_modules", ".bin", "supabase");
   const [docker, supabase, artifactEncryption, platformImages] = await Promise.all([
-    runInspection("docker", [
+    runInspection(dockerTarget.command, [
       "--host",
-      "unix:///var/run/docker.sock",
+      dockerTarget.host,
       "version",
       "--format",
       "{{.Server.Version}}",
     ]),
     runInspection(supabaseCommand, ["--version"]),
-    runInspection("fdesetup", ["status"]),
+    runInspection("/usr/bin/fdesetup", ["status"]),
     (async () => {
       try {
         await verifyPlatformLock();
         const lock = await readPlatformLock();
-        return await inspectPlatformImages({ lock, runInspection });
+        return await inspectPlatformImages({
+          lock,
+          resolveDockerTarget: async () => dockerTarget,
+        });
       } catch {
         return { ready: false };
       }
@@ -147,7 +133,7 @@ Isolated rebuild contract:
 - The repository-pinned platform lock classifies all 14 CLI start services for the fixed config: 11 enabled images and three disabled services. Every enabled exact tag pins its OCI/Docker index plus linux/amd64 and linux/arm64 platform manifests.
 - Before any future start, run the static lock verifier and the local-only image inspector. The inspector issues only fixed Unix-socket Docker image-inspect commands against index-digest references; it has no pull, build, run, start, or manifest-network command.
 - Apply exactly the repository migrations through 20260824010000 plus the fictional seed, run fixed bounded migration/runtime/absence contracts, prove Hosted data absent, and destroy scratch before writing the rebuild manifest last.
-Current result: blocked fail-closed. The complete 11-image platform lock exists, but the fixed images have not been acquired and locally inspected, and the reviewed write executor does not exist. Supabase CLI start can pull on a cache miss, so it remains forbidden until a separately approved acquisition stage and the local-only inspector both pass. Readiness uses only the fixed local Unix Docker socket, local image metadata, pinned CLI version, and FileVault status; it cannot pull images, connect to Hosted, or create evidence.
+Current result: blocked fail-closed. The complete 11-image platform lock exists and this macOS host's local-only image inspection passes, but the reviewed write executor does not exist. Supabase CLI start can pull on a cache miss, so ordinary start remains forbidden; any later execution host must independently pass the same local-only inspector. Readiness uses only the platform-fixed local Unix Docker socket, fixed Docker executable, local image metadata, pinned CLI version, and FileVault status; it cannot pull images, connect to Hosted, or create evidence.
 `;
 }
 

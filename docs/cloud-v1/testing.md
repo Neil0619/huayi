@@ -853,15 +853,19 @@ confirmed Auth user/password method/profile 为 `1/1/2`、google method/Web sess
   batch/path/权限/清理/依赖契约；根 scripts 只能提供 plan/readiness/preflight/complete，不得在默认门增加
   capture/restore/rebuild 写入口；
 - executor pre/rebuild/post readiness 只允许三个 exact argument；检查 clean HEAD/ignored 后只读取 allowlisted
-  本地 runtime verdict。唯一 PG17 client 必须是 repository-pinned OCI index，Docker 调用固定
-  `--host unix:///var/run/docker.sock` 且 child env 不含 `DOCKER_HOST`/`DOCKER_CONTEXT`；
+  本地 runtime verdict。唯一 PG17 client 必须是 repository-pinned OCI index。local Docker resolver 必须拒绝
+  任何 `DOCKER_HOST`/`DOCKER_CONTEXT`（包括空值），不得读取任意 env socket 或 `HOME`；macOS 从 OS 当前
+  用户信息派生固定 OrbStack socket 并使用 app 内绝对 Docker executable，Linux 固定 `/var/run/docker.sock`
+  与 `/usr/bin/docker`。socket/executable 类型或权限不符必须在 spawn 前失败；
   `platform-lock:verify` 必须零 Docker/零 network 地验证 CLI 2.115.0/source provenance、无 env/version
   override、14-service gate 分类、完整 lock SHA-256 tripwire、11 active index 与双平台 manifest digest；
   Realtime/ImgProxy/Supavisor 的 disabled gate 或任一合法格式 digest 漂移都失败；
 - local image inspector 只允许 11 个固定 `docker image inspect` index-digest reference，测试逐 argv 证明没有
-  pull/build/run/start/manifest-network verb，且远程 Docker selectors 不进入 child。FileVault、local image 或
-  write executor 任一缺失都固定失败；即使测试
-  fake 全 ready，也必须在 executor 未 pinned 时失败且零 evidence；raw subprocess stdout/stderr 不得转发；
+  pull/build/run/start/manifest-network verb，且远程 Docker selectors 在任何 child 前被拒绝。Docker Hub
+  `RepoDigests` 必须精确匹配同一锁定仓库的 canonical name 与 index digest，不能以 registry alias 或任意
+  digest 放行；真实 JSON 使用 platform-lock 模块自身 32 KiB bounded reader，不能被 executor 的短版本输出
+  上限截断。FileVault、local image 或 write executor 任一缺失都固定失败；即使测试或当前真实 runtime 全
+  ready，也必须在 executor 未 pinned 时失败且零 evidence；raw subprocess stdout/stderr 不得转发；
 - preflight/complete 只允许固定 project `kpadiulxkgckskcfydry`、batch `phase-81-0014` 和固定 artifacts
   路径；拒绝额外 project/path/operation 参数，错误只输出 fixed failure，不反射参数、manifest 或原始错误；
 - evidence fixture 必须覆盖 clean Git HEAD 精确、artifact ignored、目录 `0700`、文件 `0600`、非 symlink、

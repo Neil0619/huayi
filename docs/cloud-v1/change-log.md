@@ -3,6 +3,21 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-24：Hosted 本机 Docker 检查按平台固定 socket/executable 并拒绝环境选择器
+
+- `/var/run/docker.sock` 不是 macOS OrbStack 的可靠实际入口。macOS 只允许从 OS 当前用户信息派生的
+  `~/.orbstack/run/docker.sock`，并直接调用 `/Applications/OrbStack.app/Contents/MacOS/xbin/docker`；Linux
+  保留 `/var/run/docker.sock` 与 `/usr/bin/docker`。不得硬编码 username、读取 `HOME`、搜索 `PATH` 或接受
+  任意 env socket；
+- `DOCKER_HOST` 或 `DOCKER_CONTEXT` 只要存在（包括空值）就必须在任何 process spawn 前失败，而不是静默
+  删除后继续。socket 必须是 Unix socket，Docker executable 必须是固定 regular executable；远程 TCP/
+  context、缺失 target 和不支持平台均失败关闭；
+- Docker Hub 的本机 `RepoDigests` 会省略 `docker.io/`，且 official image 会再省略 `library/`。local verifier
+  只接受锁定 Docker Hub repository 的该 canonical name 与同一 index digest，不接受 ECR alias 或其他 digest；
+- platform image inspector 保留独立 32 KiB bounded JSON reader；executor 的 256-byte version/status reader
+  不得覆盖它。当前真实 runtime 五项均通过后，readiness 仍必须因为 reviewed writer 未 pinned 而固定失败，
+  不能创建 dump、manifest、scratch 或其他 evidence。
+
 ## 2026-08-24：Hosted scratch 以 CLI 源码派生的完整双平台 image lock 为唯一 service graph
 
 - 完整集合不能由手写镜像清单或 `strings` 猜测。以 Supabase CLI `v2.115.0`/commit
