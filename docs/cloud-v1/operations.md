@@ -84,9 +84,11 @@ application role 密码只从 `HUAYI_HOSTED_APP_DATABASE_PASSWORD` 读取，均�
 
 hosted 管理脚本与 Vercel application runtime 固定使用 transaction pooler `6543`；只有 application
 隔离验证器使用 session pooler `5432`，从而让同一个 psql 连接在两个已提交事务中确定落到同一 backend。
-两类命令行 DSN 均固定 `/postgres?sslmode=verify-full`。命令行从 Supabase 官方 Singapore CA 地址读取 PEM
-到进程变量 `HUAYI_HOSTED_DATABASE_CA_CERTIFICATE`，脚本只把它写入权限 `0600` 的临时 root certificate，
-强制 `PGSSLMODE=verify-full` 与 `PGSSLROOTCERT`，并在退出时删除；调用者环境不能降级。Vercel 运行时使用
+两类命令行 DSN 均固定 `/postgres?sslmode=verify-full`。命令行从 Supabase 官方 Singapore CA 地址读取 PEM；
+0014 dry-run/apply 与重要批次 pre/post capture 由共享 fixed-URL 模块内部获取，调用者不准备 CA environment，
+其他既有管理脚本仍由受控 wrapper 传入 `HUAYI_HOSTED_DATABASE_CA_CERTIFICATE`。脚本只把 CA 写入权限
+`0600` 的临时 root certificate，强制 `PGSSLMODE=verify-full` 与 `PGSSLROOTCERT`，并在退出时删除；调用者
+不能降级。Vercel 运行时使用
 `HUAYI_DATABASE_TLS_CA_BASE64`，由 postgres.js 显式设置 CA 与 `rejectUnauthorized=true`。只设置
 `sslmode=require`、关闭 hostname 验证或依赖系统根证书都不满足门禁。SQL 不使用 `pg_stat_ssl` 证明客户端
 TLS：经 Supavisor 时它观察的是 pooler 到 PostgreSQL 的 backend 链路，不是 psql 到 pooler 的客户端链路。
@@ -214,7 +216,7 @@ Supabase child 启动前，入口内部只从 `hostedAcceptanceCaCertificateUrl`
 只有临时目录已创建的路线才有可删目标，并一律尝试删除。若 `rm` 自身失败，只能记录 cleanup attempted，不能宣称目录已删：按本机
 cleanup incident 处理，在重试前人工检查并清理临时目录下固定 `huayi-hosted-0014-ca-*` 前缀。该残留若
 存在，只含 `0700` 目录/`0600` 公开 CA，不含密码。隐藏提示期间 Ctrl-C 会恢复 echo/canonical/ISIG 后固定
-exit 1；它不会获取 CA 或启动 Supabase，也不会被 pnpm 吞掉后误报成功。stdout 只有在严格证明 dry-run、
+exit 1；公开 CA 已在提示前取得，但不会启动 Supabase，也不会被 pnpm 吞掉后误报成功。stdout 只有在严格证明 dry-run、
 唯一 0014 与 finished marker 时才输出固定成功消息。dry-run 不写数据库，也不能代替 pre
 backup/rebuild/preflight 或授权 apply。
 实际 apply 也不得使用手工 Supabase 命令。只有真实 dry-run 已通过、pre capture/rebuild evidence 已生成且
@@ -230,8 +232,9 @@ postflight 失败只返回“不要重试，先检查远端状态”；此时禁
 完整 platform lock 现已由 `pnpm acceptance:hosted:backup:platform-lock:verify` 在零 Docker/零网络下校验：
 14 个 CLI start service 精确为 11 active + 3 disabled，active image 同时固定 index 与 amd64/arm64 manifest。
 CLI cache miss 会主动 pull，因此普通 `supabase start` 仍禁止；当前 11 镜像已按 digest 获取并完成本机
-local-only inspection，Phase 86 writer 也已落地，但三个真实入口尚未运行、证据仍不存在。先运行 exact
-readiness；只有其通过且单独批准的 pre raw logical dump 与
+local-only inspection，Phase 86 writer 也已落地，但三个真实入口尚未运行、证据仍不存在。pre/post capture
+现只需运行既有 pnpm 命令并在 TTY 输入管理员密码，内部 CA 获取失败发生在密码提示前；不准备 CA env。
+先运行 exact readiness；只有其通过且单独批准的 pre raw logical dump 与
 migrations+fictional-seed scratch rebuild 完成、且
 `pnpm acceptance:hosted:backup:preflight` 通过后，才允许经受控 apply 入口应用 0014；post capture/completion
 关闭后才能部署 token-only resend。

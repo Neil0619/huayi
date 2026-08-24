@@ -3,6 +3,18 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-24：重要批次 pre/post capture 单命令内部获取固定官方 CA
+
+- 操作者只运行既有 `pnpm acceptance:hosted:backup:capture:pre|post` 并在 TTY 输入管理员数据库密码，不再
+  准备 `HUAYI_HOSTED_DATABASE_CA_CERTIFICATE` 或拼接长 shell；exact confirmation、固定 project/phase、
+  session pooler `5432`、digest-only PostgreSQL 17 runtime 与 evidence 目录契约不变；
+- fixed official CA fetch 从 0014 专用文件下沉为共享深模块：固定 Singapore 官方 URL、GET、拒绝 redirect、
+  no-store/no-credentials/no-referrer、10 秒/16 KiB、HTTP 200/final URL/fatal UTF-8/单一严格 PEM。0014
+  dry-run/apply 与 backup capture 共用这一实现，安全修复集中在一个 seam；
+- capture 先取得并验证公开 CA，再显示隐藏密码提示；CA 获取失败时零 password read、零 Docker/数据库
+  child。CA 与 `.pgpass` 仍只进入 `0700` 临时目录下的 `0600` 文件并 read-only mount，失败统一收敛为
+  fixed error。该调整只实现本地 interface，未运行真实 capture、rebuild、dry-run/apply、邮件或部署。
+
 ## 2026-08-24：0014 apply 只能通过绑定 preflight、source identity 与 postflight 的单命令
 
 - 实际写入不再允许操作者手工拼接 `supabase db push --yes`。只有 pre raw logical dump、isolated rebuild 与
@@ -21,8 +33,8 @@
 ## 2026-08-24：0014 dry-run 单命令内部获取固定官方 CA 并强制 transaction-pooler verify-full
 
 - 用户只运行 `pnpm acceptance:hosted:migration:0014:dry-run` 并在 TTY 输入管理员密码；不得再要求复制 CA、
-  拼接长 shell 或准备 `HUAYI_HOSTED_DATABASE_CA_CERTIFICATE`。入口在密码有效后、Supabase child 启动前，
-  只从仓库既有固定 Singapore 官方 CA URL 获取公开证书；
+  拼接长 shell 或准备 `HUAYI_HOSTED_DATABASE_CA_CERTIFICATE`。入口先从仓库既有固定 Singapore 官方 CA
+  URL 获取公开证书，成功后才显示密码提示，Supabase child 仍在二者都有效后才启动；
 - CA 获取固定 `GET`、`redirect=error`、no-store/no-credentials/no-referrer、10 秒和 16 KiB 上限，并要求
   HTTP 200、final URL 精确、fatal UTF-8 与单一严格 PEM。固定 URL 是支持官方 CA 轮换的信任接口，不把
   某次证书 digest 固化为长期 pin；任一漂移都固定失败且零数据库 child；

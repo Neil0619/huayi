@@ -5,12 +5,12 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import {
-  hostedAcceptanceCaCertificateUrl,
   hostedAcceptancePoolerUrl,
   hostedAcceptanceProjectRef,
   requireHostedCaCertificate,
 } from "./acceptance-hosted-foundation.mjs";
 import { readHiddenTerminalLine } from "./acceptance-hosted-important-batch-secret-prompt.mjs";
+import { fetchHostedAcceptanceOfficialCaCertificate } from "./acceptance-hosted-official-ca.mjs";
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const supabaseCommand = join(repositoryRoot, "node_modules", ".bin", "supabase");
@@ -43,76 +43,6 @@ function environmentHasInheritedPassword(environment) {
   return ["PGPASSWORD", "SUPABASE_DB_PASSWORD"].some((name) =>
     Object.prototype.hasOwnProperty.call(environment, name),
   );
-}
-
-export async function fetchHostedMigration0014CaCertificate({
-  fetchImplementation = fetch,
-  maxOutputBytes = 16_384,
-  timeoutMilliseconds = 10_000,
-} = {}) {
-  const abortController = new AbortController();
-  const timeout = setTimeout(() => abortController.abort(), timeoutMilliseconds);
-  let reader;
-  try {
-    const response = await fetchImplementation(hostedAcceptanceCaCertificateUrl, {
-      cache: "no-store",
-      credentials: "omit",
-      method: "GET",
-      redirect: "error",
-      referrerPolicy: "no-referrer",
-      signal: abortController.signal,
-    });
-    if (
-      response?.ok !== true ||
-      response.status !== 200 ||
-      response.url !== hostedAcceptanceCaCertificateUrl ||
-      response.body === null ||
-      typeof response.body?.getReader !== "function"
-    ) {
-      throw new Error("Hosted 0014 CA download failed.");
-    }
-    reader = response.body.getReader();
-    const chunks = [];
-    let outputBytes = 0;
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      if (!(value instanceof Uint8Array)) {
-        throw new Error("Hosted 0014 CA download failed.");
-      }
-      outputBytes += value.byteLength;
-      if (outputBytes > maxOutputBytes) {
-        throw new Error("Hosted 0014 CA download failed.");
-      }
-      chunks.push(value);
-    }
-    const certificate = new TextDecoder("utf-8", { fatal: true }).decode(
-      Buffer.concat(chunks, outputBytes),
-    );
-    if (
-      !/^-----BEGIN CERTIFICATE-----\n(?:[A-Za-z0-9+/=]+\n)+-----END CERTIFICATE-----\n$/u.test(
-        certificate,
-      )
-    ) {
-      throw new Error("Hosted 0014 CA download failed.");
-    }
-    return requireHostedCaCertificate({
-      HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: certificate,
-    });
-  } catch {
-    throw new Error("Hosted 0014 CA download failed.");
-  } finally {
-    clearTimeout(timeout);
-    if (reader !== undefined) {
-      try {
-        await reader.cancel();
-      } catch {
-        reader.releaseLock();
-        reader = undefined;
-      }
-      reader?.releaseLock();
-    }
-  }
 }
 
 export function parseHostedMigration0014DryRunOutput(output) {
@@ -202,7 +132,7 @@ export async function runHostedMigration0014DryRunProcess(
 export async function runHostedMigration0014DryRunCli({
   arguments_ = process.argv.slice(2),
   environment = process.env,
-  fetchCaCertificate = fetchHostedMigration0014CaCertificate,
+  fetchCaCertificate = fetchHostedAcceptanceOfficialCaCertificate,
   readPassword = readHiddenTerminalLine,
   runSupabase = runHostedMigration0014DryRunProcess,
   writeError = (value) => process.stderr.write(value),
@@ -216,9 +146,9 @@ export async function runHostedMigration0014DryRunCli({
     ) {
       throw new Error(failureMessage);
     }
+    const caCertificate = await fetchCaCertificate();
     const password = await readPassword();
     if (!passwordIsValid(password)) throw new Error(failureMessage);
-    const caCertificate = await fetchCaCertificate();
     const result = await runSupabase({ administratorPassword: password, caCertificate });
     if (result.code !== 0 || !parseHostedMigration0014DryRunOutput(result.stdout)) {
       throw new Error(failureMessage);

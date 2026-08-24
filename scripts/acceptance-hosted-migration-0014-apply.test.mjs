@@ -181,8 +181,8 @@ test("0014 apply orders preflight, exact dry-run, mutation, and postflight", asy
   const result = await runCli(dependencies);
   assert.deepEqual(calls, [
     "preflight",
-    "password",
     "fetch-ca",
+    "password",
     "dry-run",
     "preflight",
     "apply",

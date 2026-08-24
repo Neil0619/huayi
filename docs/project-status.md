@@ -131,6 +131,9 @@ audit 仍只允许 `enabled`。这不代表 Store 产品或 Windows 支持被取
 > column/check/function/ACL postflight 串成一个深模块；失败提示明确禁止盲目重试。该入口仅完成离线实现，真实
 > pre evidence 与 preflight 尚未完成，所以 0014 仍不 ready，不能用 dry-run、CLI filtered SQL、手工
 > `db push` 或手写 manifest 绕过。
+> pre/post capture 随后也复用同一 fixed official CA fetch 深模块：用户只运行既有 pnpm 命令并输入管理员
+> 密码，CA 在密码提示前完成有界严格验证，不再准备 CA environment；本次只完成离线实现与 fake-fetch/
+> 真实 PTY 回归，尚未运行真实 capture 或连接 Supabase。
 
 > **历史校准检查点（Phase 33）**：Phase 28 已补齐 production 语义重复建议和
 > 可计算 AA token 证据；2026-08-14 完成度源码审计发现的 SubmissionOutbox `api=null` 误清账号绑定

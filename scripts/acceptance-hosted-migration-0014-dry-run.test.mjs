@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { readFile } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import {
   hostedMigration0014DryRunArgument,
@@ -38,7 +39,7 @@ test("package exposes only the exact pinned 0014 dry-run entrypoint", async () =
   );
   assert.doesNotMatch(implementation, /PGPASSFILE/u);
   assert.match(implementation, /writeFile\(rootCertificate, certificate/u);
-  assert.match(implementation, /hostedAcceptanceCaCertificateUrl/u);
+  assert.match(implementation, /fetchHostedAcceptanceOfficialCaCertificate/u);
 });
 
 test("0014 dry-run parser accepts only the exact non-mutating single migration transcript", () => {
@@ -136,7 +137,7 @@ test("0014 dry-run CLI fails closed when the fixed CA cannot be fetched", async 
     writeOutput: () => assert.fail("must not write stdout"),
   });
   assert.equal(code, 1);
-  assert.equal(passwordReads, 1);
+  assert.equal(passwordReads, 0);
   assert.equal(processRuns, 0);
   assert.equal(stderr, "Hosted 0014 migration dry-run failed closed; database was not modified.\n");
   assert.equal(stderr.includes("fictional"), false);
@@ -167,7 +168,7 @@ test("0014 dry-run CLI fails closed when the hidden password prompt is cancelled
   });
 
   assert.equal(code, 1);
-  assert.equal(certificateFetches, 0);
+  assert.equal(certificateFetches, 1);
   assert.equal(processRuns, 0);
   assert.equal(stderr, "Hosted 0014 migration dry-run failed closed; database was not modified.\n");
   assert.equal(stderr.includes("cancellation"), false);
@@ -177,6 +178,36 @@ test(
   "real macOS package entry fails closed when Ctrl-C cancels the hidden password prompt",
   { skip: process.platform !== "darwin" },
   async () => {
+    const root = await mkdtemp(join(tmpdir(), "huayi-hosted-0014-offline-fetch-"));
+    const fetchAdapterPath = join(root, "offline-fetch.mjs");
+    await writeFile(
+      fetchAdapterPath,
+      `const certificate = ${JSON.stringify(caCertificate)};
+globalThis.fetch = async (url) => {
+  const bytes = Buffer.from(certificate);
+  let sent = false;
+  return {
+    body: {
+      getReader() {
+        return {
+          async cancel() {},
+          async read() {
+            if (sent) return { done: true, value: undefined };
+            sent = true;
+            return { done: false, value: bytes };
+          },
+          releaseLock() {},
+        };
+      },
+    },
+    ok: true,
+    status: 200,
+    url,
+  };
+};
+`,
+      "utf8",
+    );
     const expectSource = `set timeout 10
 log_user 1
 spawn pnpm acceptance:hosted:migration:0014:dry-run
@@ -187,47 +218,52 @@ catch wait result
 puts "HUAYI_CHILD_STATUS=[lindex $result 2]:[lindex $result 3]"
 exit 0
 `;
-    const result = await new Promise((resolveResult) => {
-      const child = spawn("/usr/bin/expect", ["-f", "-"], {
-        cwd: repositoryRoot,
-        env: {
-          LANG: "C",
-          LC_ALL: "C",
-          PATH: process.env.PATH ?? "",
-        },
-        shell: false,
-        stdio: ["pipe", "pipe", "pipe"],
-        windowsHide: true,
+    try {
+      const result = await new Promise((resolveResult) => {
+        const child = spawn("/usr/bin/expect", ["-f", "-"], {
+          cwd: repositoryRoot,
+          env: {
+            LANG: "C",
+            LC_ALL: "C",
+            NODE_OPTIONS: `--import=${pathToFileURL(fetchAdapterPath).href}`,
+            PATH: process.env.PATH ?? "",
+          },
+          shell: false,
+          stdio: ["pipe", "pipe", "pipe"],
+          windowsHide: true,
+        });
+        let stderr = "";
+        let stdout = "";
+        child.stdout.setEncoding("utf8");
+        child.stderr.setEncoding("utf8");
+        child.stdout.on("data", (chunk) => {
+          stdout += chunk;
+        });
+        child.stderr.on("data", (chunk) => {
+          stderr += chunk;
+        });
+        child.once("close", (code, signal) => resolveResult({ code, signal, stderr, stdout }));
+        child.stdin.end(expectSource);
       });
-      let stderr = "";
-      let stdout = "";
-      child.stdout.setEncoding("utf8");
-      child.stderr.setEncoding("utf8");
-      child.stdout.on("data", (chunk) => {
-        stdout += chunk;
-      });
-      child.stderr.on("data", (chunk) => {
-        stderr += chunk;
-      });
-      child.once("close", (code, signal) => resolveResult({ code, signal, stderr, stdout }));
-      child.stdin.end(expectSource);
-    });
 
-    assert.equal(result.code, 0, JSON.stringify(result));
-    assert.equal(result.signal, null);
-    assert.equal(result.stderr, "");
-    assert.match(
-      result.stdout,
-      /Hosted 0014 migration dry-run failed closed; database was not modified\./u,
-    );
-    assert.match(result.stdout, /HUAYI_CHILD_STATUS=0:1/u);
-    assert.equal(
-      result.stdout.match(
-        /Hosted 0014 migration dry-run failed closed; database was not modified\./gu,
-      )?.length,
-      1,
-    );
-    assert.doesNotMatch(result.stdout, /DRY RUN:|Connecting to remote database/u);
+      assert.equal(result.code, 0, JSON.stringify(result));
+      assert.equal(result.signal, null);
+      assert.equal(result.stderr, "");
+      assert.match(
+        result.stdout,
+        /Hosted 0014 migration dry-run failed closed; database was not modified\./u,
+      );
+      assert.match(result.stdout, /HUAYI_CHILD_STATUS=0:1/u);
+      assert.equal(
+        result.stdout.match(
+          /Hosted 0014 migration dry-run failed closed; database was not modified\./gu,
+        )?.length,
+        1,
+      );
+      assert.doesNotMatch(result.stdout, /DRY RUN:|Connecting to remote database/u);
+    } finally {
+      await rm(root, { force: true, recursive: true });
+    }
   },
 );
 

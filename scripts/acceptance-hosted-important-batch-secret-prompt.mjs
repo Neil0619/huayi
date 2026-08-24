@@ -1,6 +1,8 @@
 import { spawn, spawnSync } from "node:child_process";
 import { closeSync, openSync, writeSync } from "node:fs";
 
+import { fetchHostedAcceptanceOfficialCaCertificate } from "./acceptance-hosted-official-ca.mjs";
+
 const terminalReaderSource = String.raw`
 const { readSync, writeSync } = require("node:fs");
 const bytes = [];
@@ -114,13 +116,10 @@ export async function readHiddenTerminalLine() {
 }
 
 export async function readHostedImportantBatchCaptureSecrets({
-  environment = process.env,
+  fetchCaCertificate = fetchHostedAcceptanceOfficialCaCertificate,
   readPassword = readHiddenTerminalLine,
 } = {}) {
-  const caCertificate = environment.HUAYI_HOSTED_DATABASE_CA_CERTIFICATE;
-  if (typeof caCertificate !== "string") {
-    throw new Error("Hosted important-batch CA certificate is unavailable.");
-  }
+  const caCertificate = await fetchCaCertificate();
   return {
     administratorPassword: await readPassword(),
     caCertificate,

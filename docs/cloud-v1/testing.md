@@ -839,7 +839,8 @@ confirmed Auth user/password method/profile 为 `1/1/2`、google method/Web sess
   在读取 TTY 前拒绝额外参数与继承的 `PGPASSWORD` / `SUPABASE_DB_PASSWORD`。共享提示必须保存完整
   `stty -g`，临时关闭 echo/canonical/ISIG，并以隔离有界 reader 把 Ctrl-C 作为取消字节处理；取消必须恢复
   echo/canonical/ISIG、移除 listener、固定 exit 1，且零 Supabase child。真实 macOS `/usr/bin/expect` 必须
-  覆盖正常零回显、连续两次取消与 exact pnpm package entry，不能只用注入 fake；只以 `shell:false` 调用
+  覆盖正常零回显、连续两次取消与 exact pnpm package entry，不能只用注入 fake；exact package PTY 测试以
+  process-local fake fetch adapter 保持零网络。只以 `shell:false` 调用
   本地 pinned Supabase binary，固定管理员 transaction pooler `6543` 无密码 verify-full URL 与
   `db push --dry-run --skip-vault --db-url` 参数。单命令内部 CA fetch 只允许固定官方 URL、GET、
   `redirect=error`、no-store/no-credentials/no-referrer、10 秒/16 KiB，并拒绝非 200、final URL 漂移、空 body、
@@ -851,7 +852,9 @@ confirmed Auth user/password method/profile 为 `1/1/2`、google method/Web sess
   incident，可能残留的只允许是 `0700`/`0600` 公开 CA 且不得含密码。严格 parser 只能接受 dry-run header、
   连接 marker、唯一 `20260824010000_password_signup_otp_resend.sql` 与 finished marker，extra/missing migration、
   apply-like 或未知文本均 fixed failure 且不反射 secret/raw output。默认测试只能注入 fake fetch/process，
-  不得连接 Hosted；真实运行结果必须另行记录，不能由离线 GREEN 代替；
+  不得连接 Hosted；真实运行结果必须另行记录，不能由离线 GREEN 代替。相同 fixed official CA fetch 必须
+  由 pre/post capture 共用；capture 测试证明 fetch 在隐藏密码前、fetch failure 零 password read，且调用方
+  CA environment 即使存在也不会被使用；
 - 0014 Hosted apply CLI 必须是独立 exact-confirmation 入口，不能由 dry-run 自动进入写入，也不能接受手工
   project/URL/path/migration 参数。它在 TTY 前验证当前 pre-backup/rebuild preflight；同一执行内 dry-run 精确
   唯一 0014 后，在 mutation 前再次验证 clean HEAD/evidence 与 Supabase/API migration mirror 的固定 SHA-256。

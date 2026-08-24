@@ -1870,7 +1870,7 @@ inspection；Phase 86 只实现受审查 writer 与隔离 rebuild，不连接 Su
    `backup:executor:plan|pre:readiness|rebuild:readiness|post:readiness`。两个 plan 零 filesystem/Git/network/
    write；verifier/readiness 只读固定 project/batch/artifacts/runtime，不接受动态 path/project/operation；
 3. **raw backup contract**：未来单独批准的 capture 只允许固定 session pooler `5432`、verify-full
-   administrator、process-scoped secret/CA、repository-pinned PostgreSQL 17、explicit custom-format partial
+   administrator、TTY process-scoped secret、内部 fixed-URL 官方 CA、repository-pinned PostgreSQL 17、explicit custom-format partial
    file、受验证的 at-rest protection、`0700/0600`、fsync/atomic rename/manifest-last 与失败清理。dump 是
    敏感原始备份，不能伪装脱敏或进入 stdout/log/Git；transaction pooler `6543` 与 Supabase CLI filtered
    SQL 不能冒充 postgres-custom；
@@ -1892,7 +1892,9 @@ inspection；Phase 86 只实现受审查 writer 与隔离 rebuild，不连接 Su
    inspect；canonical Docker Hub RepoDigest、macOS current-user socket 与 child env bound 均由回归固定；
 9. **Phase 86 writer**：Fresh RED 三个 module 均以 `ERR_MODULE_NOT_FOUND` 失败。GREEN 后新增 exact-confirmation
    `backup:capture:pre|rebuild|capture:post`；capture 只用无 tag digest runtime、session pooler 5432、TTY 密码、
-   `0600` `.pgpass`/CA read-only mounts、fixed TOC、partial/fsync/hash/atomic rename/manifest-last。rebuild 只用
+   `0600` `.pgpass`/CA read-only mounts、fixed TOC、partial/fsync/hash/atomic rename/manifest-last。后续校准把
+   0014 内既有 fixed official CA fetch 下沉为共享深模块；pre/post 命令先有界获取并严格校验公开 CA，再读取
+   隐藏密码，调用者不再提供 `HUAYI_HOSTED_DATABASE_CA_CERTIFICATE`。rebuild 只用
    `--pull never`/`--network none`/tmpfs PGDATA，精确 14 migration + pinned fictional seed，销毁 scratch 后才写
    evidence。capture 每个 client 另用固定 name/label，timeout/overflow/异常后只删除精确 image+label identity
    并回查不存在；独立审查后再固定 TTY 为 echo-before-prompt + bounded byte reader、process timeout 等待 child

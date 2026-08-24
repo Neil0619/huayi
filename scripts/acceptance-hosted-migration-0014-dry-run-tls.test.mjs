@@ -5,11 +5,11 @@ import { PassThrough } from "node:stream";
 import test from "node:test";
 
 import {
-  fetchHostedMigration0014CaCertificate,
   hostedMigration0014DryRunArgument,
   runHostedMigration0014DryRunCli,
   runHostedMigration0014DryRunProcess,
 } from "./acceptance-hosted-migration-0014-dry-run.mjs";
+import { fetchHostedAcceptanceOfficialCaCertificate } from "./acceptance-hosted-official-ca.mjs";
 
 const officialCaUrl =
   "https://supabase-downloads.s3-ap-southeast-1.amazonaws.com/prod/ssl/prod-ca-2021.crt";
@@ -56,9 +56,9 @@ function createChild() {
   return child;
 }
 
-test("0014 dry-run fetches only the fixed official CA without redirect", async () => {
+test("hosted commands fetch only the fixed official CA without redirect", async () => {
   let observed;
-  const certificate = await fetchHostedMigration0014CaCertificate({
+  const certificate = await fetchHostedAcceptanceOfficialCaCertificate({
     fetchImplementation: async (url, options) => {
       observed = { options, url };
       return createCaFetchResponse([Buffer.from(caCertificate)]);
@@ -75,7 +75,7 @@ test("0014 dry-run fetches only the fixed official CA without redirect", async (
   assert.equal(observed.options.signal instanceof AbortSignal, true);
 });
 
-test("0014 dry-run CA fetch rejects response, redirect, bytes, UTF-8, PEM, or timeout drift", async () => {
+test("hosted official CA fetch rejects response, redirect, bytes, UTF-8, PEM, or timeout drift", async () => {
   const cases = [
     { fetchImplementation: async () => createCaFetchResponse([], { status: 500 }) },
     {
@@ -104,11 +104,31 @@ test("0014 dry-run CA fetch rejects response, redirect, bytes, UTF-8, PEM, or ti
         }),
       timeoutMilliseconds: 1,
     },
+    {
+      fetchImplementation: async () => ({
+        body: {
+          getReader: () => ({
+            async cancel() {
+              throw new Error("private cancel detail");
+            },
+            async read() {
+              throw new Error("private read detail");
+            },
+            releaseLock() {
+              throw new Error("private release detail");
+            },
+          }),
+        },
+        ok: true,
+        status: 200,
+        url: officialCaUrl,
+      }),
+    },
   ];
 
   for (const testCase of cases) {
-    await assert.rejects(fetchHostedMigration0014CaCertificate(testCase), {
-      message: "Hosted 0014 CA download failed.",
+    await assert.rejects(fetchHostedAcceptanceOfficialCaCertificate(testCase), {
+      message: "Hosted acceptance official CA download failed.",
     });
   }
 });

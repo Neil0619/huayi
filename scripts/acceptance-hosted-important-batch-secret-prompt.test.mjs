@@ -7,32 +7,49 @@ import test from "node:test";
 
 import { readHostedImportantBatchCaptureSecrets } from "./acceptance-hosted-important-batch-secret-prompt.mjs";
 
-test("capture secret reader rejects a missing CA before requesting a password", async () => {
+test("capture secret reader fetches the fixed CA before requesting a password", async () => {
+  const events = [];
   let passwordReads = 0;
   await assert.rejects(
     readHostedImportantBatchCaptureSecrets({
-      environment: {},
+      environment: {
+        HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: "must-not-be-used",
+      },
+      fetchCaCertificate: async () => {
+        events.push("fetch-ca");
+        throw new Error("fictional download detail");
+      },
       readPassword: async () => {
         passwordReads += 1;
         return "must-not-run";
       },
     }),
-    /CA certificate is unavailable/u,
+    /fictional download detail/u,
   );
+  assert.deepEqual(events, ["fetch-ca"]);
   assert.equal(passwordReads, 0);
 });
 
-test("capture secret reader accepts the CA only from the fixed environment name and the password only from the terminal reader", async () => {
+test("capture secret reader uses only the fetched CA and terminal password in secret-last order", async () => {
   const caCertificate = "-----BEGIN CERTIFICATE-----\nfictional\n-----END CERTIFICATE-----\n";
+  const events = [];
   const secrets = await readHostedImportantBatchCaptureSecrets({
     environment: {
-      HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: caCertificate,
+      HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: "must-not-be-used",
       PGPASSWORD: "must-not-be-used",
       SUPABASE_DB_PASSWORD: "must-not-be-used",
     },
-    readPassword: async () => "terminal-only-password",
+    fetchCaCertificate: async () => {
+      events.push("fetch-ca");
+      return caCertificate;
+    },
+    readPassword: async () => {
+      events.push("read-password");
+      return "terminal-only-password";
+    },
   });
 
+  assert.deepEqual(events, ["fetch-ca", "read-password"]);
   assert.deepEqual(secrets, {
     administratorPassword: "terminal-only-password",
     caCertificate,
@@ -54,10 +71,8 @@ test(
       helperPath,
       `import { readHostedImportantBatchCaptureSecrets } from ${JSON.stringify(moduleUrl.href)};
 const secrets = await readHostedImportantBatchCaptureSecrets({
-  environment: {
-    HUAYI_HOSTED_DATABASE_CA_CERTIFICATE:
-      "-----BEGIN CERTIFICATE-----\\nfictional\\n-----END CERTIFICATE-----\\n",
-  },
+  fetchCaCertificate: async () =>
+    "-----BEGIN CERTIFICATE-----\\nfictional\\n-----END CERTIFICATE-----\\n",
 });
 process.stdout.write("password-length=" + secrets.administratorPassword.length + "\\n");
 `,

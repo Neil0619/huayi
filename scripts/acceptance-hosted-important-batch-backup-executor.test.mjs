@@ -152,6 +152,9 @@ test("executor plan is deterministic, zero-I/O, and states exact coverage and bl
   assert.match(stdout, /manifest last/u);
   assert.match(stdout, /raw stdout or stderr/u);
   assert.match(stdout, /\.pgpass/u);
+  assert.match(stdout, /fixed official Supabase CA URL/u);
+  assert.match(stdout, /before the hidden password prompt/u);
+  assert.doesNotMatch(stdout, /HUAYI_HOSTED_DATABASE_CA_CERTIFICATE/u);
   assert.match(stdout, /reviewed writer is pinned/u);
   assert.match(stdout, /confirmation-gated/u);
   assert.match(stdout, /--pull never/u);

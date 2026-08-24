@@ -2172,7 +2172,8 @@ typecheck、architecture、build、development blocker、Store release、product
   精确显示 URL 止于 `/postgres`；端口交叉审查的 Fresh RED 又精确显示 actual `5432`、expected `6543`。
   因此“dry-run 不改库”不能证明管理员凭据发往了正确数据库；
 - **单命令接口**：保留用户唯一命令 `pnpm acceptance:hosted:migration:0014:dry-run`，不增加 CA 环境变量或
-  长 shell。密码有效后、Supabase child 前，只从仓库既有固定 Singapore 官方 CA URL 执行 GET；
+  长 shell。后续 secret-last 校准改为先从仓库既有固定 Singapore 官方 CA URL 执行 GET，成功后才显示
+  密码提示；Supabase child 仍只在 CA 与密码都有效后启动；
   `redirect=error`、no-store/no-credentials/no-referrer、10 秒/16 KiB，并要求 HTTP 200、final URL 精确、
   fatal UTF-8 与单一严格 PEM。固定 URL 允许官方 CA 轮换，当前 digest 只作读证而不长期 pin；
 - **连接与清理**：复用 foundation 管理员 transaction pooler `6543`；URL 与 child env 双重固定
@@ -2223,3 +2224,24 @@ typecheck、architecture、build、development blocker、Store release、product
   默认 CA fetch/Supabase CLI，没有连接或修改 Supabase，没有运行真实 dry-run/apply/capture/rebuild 或已暂停
   的 isolated-rebuild diagnostic，没有发送邮件、arm/deploy Vercel 或调用 DeepSeek/模型。pre capture、成功
   rebuild、pre evidence gate、真实 0014 apply、post capture 与 completion 仍须严格按既定顺序分别批准执行。
+
+## 82. Phase 81 pre/post capture 固定官方 CA 单命令校准（2026-08-24）
+
+- **Fresh RED 与根因**：capture secret reader 的旧 interface 强制调用方准备
+  `HUAYI_HOSTED_DATABASE_CA_CERTIFICATE`；新回归注入 fixed-fetch adapter 后精确得到 3 fail / 1 pass，证明
+  旧实现忽略 fetch、继续信任 caller CA，且无法让既有 pnpm 命令自足；
+- **共享深模块**：把 §80 的固定 URL、GET、redirect rejection、no-store/no-credentials/no-referrer、10 秒/
+  16 KiB、HTTP 200/final URL/fatal UTF-8/strict PEM 实现下沉为
+  `acceptance-hosted-official-ca.mjs`。0014 dry-run/apply 与 pre/post capture 共用同一 interface，删除专用
+  fetch 复制，保留 official URL 轮换能力而不长期 pin 某个证书 digest；
+- **secret-last 与命令契约**：`pnpm acceptance:hosted:backup:capture:pre|post` 的名称、exact confirmation、
+  project/phase/session-pooler/digest runtime/evidence 契约均不变。executor readiness 通过后先获取并校验公开
+  CA，成功才读取隐藏管理员密码；fetch failure 为零 password read、零 Docker/数据库 child。调用方 CA env
+  即使存在也不使用；CA 与密码仍分别只进入 `0600` CA/`.pgpass` read-only mount；
+- **离线 GREEN**：共享 CA/TLS、0014 dry-run/apply、secret prompt 与 backup executor 聚焦回归 39/39；exact
+  pnpm Ctrl-C 通过 `NODE_OPTIONS --import` 的 process-local fake fetch adapter 保持真实 macOS PTY 与零网络，
+  继续证明唯一固定失败、exit 1、零 Supabase child。`pnpm verify:macos` 原样 exit 0：Node scripts 343/343、
+  Vitest 478 files / 2,917 passed + 12 skipped、Store coverage 97 files / 481 passed、Playwright 111/111；
+  instructions、format、lint、typecheck、build、architecture、Store release 与 production audit 均通过；
+- **执行边界**：本阶段没有运行默认 fetch、真实 pre/post capture、rebuild、preflight/complete、dry-run/apply，
+  没有读取密码、连接或修改 Supabase、发送邮件、部署或运行模型。真实 evidence 状态不因离线实现而改变。

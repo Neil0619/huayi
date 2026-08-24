@@ -19,11 +19,11 @@ import {
 } from "./acceptance-hosted-important-batch-backup.mjs";
 import { readHiddenTerminalLine } from "./acceptance-hosted-important-batch-secret-prompt.mjs";
 import {
-  fetchHostedMigration0014CaCertificate,
   hostedMigration0014Filename,
   parseHostedMigration0014DryRunOutput,
   runHostedMigration0014DryRunProcess,
 } from "./acceptance-hosted-migration-0014-dry-run.mjs";
+import { fetchHostedAcceptanceOfficialCaCertificate } from "./acceptance-hosted-official-ca.mjs";
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const supabaseCommand = join(repositoryRoot, "node_modules", ".bin", "supabase");
@@ -316,7 +316,7 @@ async function runHostedMigration0014Postflight({ administratorPassword, caCerti
 export async function runHostedMigration0014ApplyCli({
   arguments_ = process.argv.slice(2),
   environment = process.env,
-  fetchCaCertificate = fetchHostedMigration0014CaCertificate,
+  fetchCaCertificate = fetchHostedAcceptanceOfficialCaCertificate,
   readPassword = readHiddenTerminalLine,
   runApply = runHostedMigration0014ApplyProcess,
   runDryRun = runHostedMigration0014DryRunProcess,
@@ -334,9 +334,9 @@ export async function runHostedMigration0014ApplyCli({
       throw new Error(failureMessage);
     }
     if ((await runPreflight()) !== true) throw new Error(failureMessage);
+    const caCertificate = await fetchCaCertificate();
     const administratorPassword = await readPassword();
     if (!passwordIsValid(administratorPassword)) throw new Error(failureMessage);
-    const caCertificate = await fetchCaCertificate();
     const secrets = { administratorPassword, caCertificate };
     const dryRun = await runDryRun(secrets);
     if (dryRun.code !== 0 || !parseHostedMigration0014DryRunOutput(dryRun.stdout)) {
