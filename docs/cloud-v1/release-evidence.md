@@ -1809,3 +1809,36 @@ typecheck、architecture、build、development blocker、Store release、product
   files（2,901 passed / 12 skipped）、Store 481/481、Playwright 111/111、全仓 format/lint/typecheck/
   build/architecture/release/audit。实际 Hosted snapshot、邮件、Cron、DeepSeek、Supabase/Vercel 写入均
   未执行，真实外部门继续 pending。
+
+## 69. Phase 78 API-only one-shot deploy/disarm（2026-08-24）
+
+- **只读基线**：执行前本地 HEAD、upstream 均为
+  `f0ae5acdf8c588090451a7caaf62ebe825a57d9b`，工作树干净，API/Web
+  `deploymentEnabled=false`。Vercel 默认排除 Canceled 的 API/Web 计数为 15/8，in-flight 均为 0；
+  Latest API 为 `39094d0c557b829138ec6f70b6fc838f4594ab9b` /
+  `9jbyfnAvZwpa3Ci7YU6s6asmNZNG`，Latest Web 为
+  `f3feff1252673e715a5624c9539f04d8078a5d4b` / `DU6wE2r9ZLeSSoAMZAbsQihBjC72`；
+- **唯一 API 武装**：arm commit `4f1ce4a458fe138aeee6fb455b2dcc398a55555a` 只修改
+  `apps/api/vercel.json`，Web 始终保持关闭；该提交于 UTC 00:47:17--00:47:20 推送。UTC 00:47:40
+  出现唯一 API Production deployment `6QeRbqxgA88cFXggKekkr2axH9JM`，source 精确等于 arm SHA，
+  首次回读处于 Building/Queued；
+- **记录出现即独立关闭**：没有先等待 Ready、运行 smoke 或推送其他改动；独立 disarm
+  `020e21efa13bafb795d70a369e4512e76c7f7ab6` 同样只修改 `apps/api/vercel.json`，于 UTC
+  00:48:07--00:48:10 推送。该 deployment 于 UTC 00:48:46 Ready，构建时长 37 秒；
+- **零额外 deployment 复核**：UTC 00:49:37 二次回读确认 API 非 Canceled 15→16、Latest 仍为上述
+  Ready deployment，arm source 恰好 1 条、disarm source 0 条、in-flight 0；Web 仍为 8 条且 Latest
+  不变，arm/disarm source 均为 0、in-flight 0。UTC 00:49:57 本地、远端与 upstream 均精确位于 disarm
+  SHA，两份配置均为 `deploymentEnabled=false`，工作树干净；根侧独立复核得到相同计数、Latest、Ready
+  与 disarm 零记录结论，production-app focused 回归 8/8 通过；
+- **公网无写入 smoke**：UTC 00:53:19，custom-domain `GET /health` TLS/HTTP2 200，body 精确为
+  `{"service":"huayi-cloud-api","status":"ok"}` 并返回 HSTS；无 Cookie 且带 exact Web Origin 的
+  `GET /v1/auth/csrf` 精确 HTTP2 401 / `authentication_required`，同时返回 exact
+  `Access-Control-Allow-Origin`、`Access-Control-Allow-Credentials: true` 与 `Vary: Origin`。该探针不
+  写数据库、不发送邮件、不调用 DeepSeek；
+- **边界与下一门**：本轮没有武装 Web，没有修改 Supabase、Custom SMTP、DNS、Vercel environment 或
+  密钥，也没有创建邀请、发送邮件、切换 kill switch 或运行付费模型。Phase 76 API runtime 修复已上线；
+  唯一普通邀请与 scanner-safe OTP/Auth SMTP 仍是下一道外部门，R3-C、Cron、DeepSeek、备份、自然使用
+  与 Windows 最终批次仍保持 pending；
+- **文档审查发现的工具漂移**：实际运行零网络 `acceptance:hosted:deployment --plan` 后确认其输出仍停留在
+  API `39094d0` / 15 条，并仍把已完成的 `/admin` recent-auth/四区复核列为 pending。该 bounded ledger
+  需要后续按 TDD 校准；在修复前不能作为 current authority，也不改变上述 Vercel 双回读和公网 smoke。

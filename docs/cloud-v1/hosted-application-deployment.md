@@ -29,13 +29,14 @@ First Operator 已恢复、complete 并通过 post-completion verifier，最终 
 候选 `3c0af44f73f769da829c4218bf8fc69ef571f133` 经 Web arm
 `b80c7930b8d4a9a87f8c27e500316899adbbdc53` 部署为
 `7zNFzM4LHHGwyKxbwoDLfWoYGfve`，再以 `0e7ef5271b2f97cd9b3743275292e4037bd0f801`
-disarm；其后普通邀请终态 UI 与 Cloud Web UI 又各完成一次 Web-only deploy/disarm。当前默认排除
-Canceled 的 API/Web 视图分别为 15 与 8 条。Latest API 是
-`39094d0c557b829138ec6f70b6fc838f4594ab9b` / `9jbyfnAvZwpa3Ci7YU6s6asmNZNG`，Latest Web 是
+disarm；其后普通邀请终态 UI 与 Cloud Web UI 又各完成一次 Web-only deploy/disarm。Phase 78 随后把
+Phase 76 runtime 候选以 API-only one-shot 部署并立即独立 disarm。当前默认排除 Canceled 的 API/Web
+视图分别为 16 与 8 条。Latest API 是 `4f1ce4a458fe138aeee6fb455b2dcc398a55555a` /
+`6QeRbqxgA88cFXggKekkr2axH9JM`，Latest Web 是
 `f3feff1252673e715a5624c9539f04d8078a5d4b` / `DU6wE2r9ZLeSSoAMZAbsQihBjC72`，两项目当前均为
 `deploymentEnabled=false`。live `/`、`/privacy`、SPA `/admin`、`/practice`、实际 JS asset、安全响应头、
-渲染、公开只读边界与 bundle secret scan 均通过；普通邀请、OTP/Auth SMTP、R3-C、Cron 与 DeepSeek
-应用路径仍待验收。
+渲染、公开只读边界与 bundle secret scan 均通过；Phase 78 API `/health` 与无 Cookie CSRF/CORS 也已
+通过。普通邀请、OTP/Auth SMTP、R3-C、Cron 与 DeepSeek 应用路径仍待验收。
 
 ## 1. 当前事实与目标
 
@@ -54,12 +55,10 @@ Vercel Settings → Functions 当前回读 Fluid 为 Enabled、region 为 `sin1`
 `/index` Function 为 Node.js 24.x、`SIN1`、`≤120s`。90 秒应用 abort 与平台终止的 Observability 区分仍须
 绑定获批的真实 Cloud DeepSeek 应用路径请求，不能由静态配置或空 Observability 页面关闭。
 
-本阶段的当前目标不是重新部署，而是在双项目保持 disarmed 时完成剩余用户/外部门：
+Phase 78 API runtime one-shot 已完成；当前目标是在双项目保持 disarmed 时完成剩余用户/外部门：
 
 ```text
-user enters current password in /admin
-  -> reread all four admin sections and verify permissions
-  -> create one ordinary invitation
+create one ordinary invitation after explicit recipient authorization
   -> scanner-safe repeated GET + explicit OTP POST + Auth SMTP delivery
   -> Web landing + password relogin
   -> real R3-C delivery + duplicate/alert observation
@@ -456,20 +455,26 @@ push 只允许增加 Canceled 审计记录，不得新增非 Canceled deployment
 
 - 已完成且禁止重跑的 13 条 migration、foundation bootstrap、BootstrapInvitation、First Operator
   complete、API/Web deployment 与公开/安全响应头门；
-- Latest API `39094d0c557b829138ec6f70b6fc838f4594ab9b` /
-  `9jbyfnAvZwpa3Ci7YU6s6asmNZNG`，Latest Web
+- Latest API `4f1ce4a458fe138aeee6fb455b2dcc398a55555a` /
+  `6QeRbqxgA88cFXggKekkr2axH9JM`，Latest Web
   `f3feff1252673e715a5624c9539f04d8078a5d4b` / `DU6wE2r9ZLeSSoAMZAbsQihBjC72`；
-- 默认排除 Canceled 的 API/Web 计数分别为 15 与 8，两项目 `deploymentEnabled=false`；历史全状态分布
+- 默认排除 Canceled 的 API/Web 计数分别为 16 与 8，两项目 `deploymentEnabled=false`；历史全状态分布
   只作为各次受控部署检查点，不覆盖当前账本；
 - Vercel Functions 已回读 Fluid Enabled、`sin1`，Latest API `/index` 为 Node.js 24.x、`SIN1`、`≤120s`；
   90 秒应用 abort 与平台终止仍随真实 Cloud DeepSeek 请求验收；
-- 当前唯一依赖链：用户亲自输入 `/admin` 密码 → 重读四区和权限 → 创建一张普通邀请 → scanner-safe
+- 当前唯一依赖链：创建一张普通邀请 → scanner-safe
   repeated GET / 显式 OTP POST / Auth SMTP / Web 落点 / 密码重登 → 真实 R3-C 投递、重复与无正文告警 →
   安装并验证五项 Cron → 受审计关闭 kill switch → 一笔获批的 Cloud DeepSeek 应用路径请求及
   model/usage/price/reservation/UsageLedger 对账 → 恢复 kill switch。
 
-在上述用户/外部门完成前，不重新部署 API/Web，不创建第二个 BootstrapInvitation，不直接创建 Supabase
-用户，不用 SQL 切换 kill switch，不发送产品路径外测试邮件，也不运行 Classic `pnpm smoke:deepseek`。
+Phase 78 文档审查实际运行该命令后发现实现输出仍停留在部署前的 API `39094d0` / 15 条，并仍把已经
+完成的 `/admin` recent-auth/四区复核列为 pending。该 CLI 漂移必须另按 TDD 校准到 6.5 的 current
+authority；在修复前不得把旧输出当作当前部署或依赖链证据。本节上方列表描述目标合同，6.5 记录真实
+current evidence。
+
+`/admin` recent-auth 与四区只读复核已经完成。在上述用户/外部门完成前，不重新部署 API/Web，不创建
+第二个 BootstrapInvitation，不直接创建 Supabase 用户，不用 SQL 切换 kill switch，不发送产品路径外
+测试邮件，也不运行 Classic `pnpm smoke:deepseek`。
 
 ## 6.4 Hosted runtime 安全只读快照
 
@@ -496,6 +501,28 @@ snapshot 是一个 `BEGIN READ ONLY` 聚合事务，输出固定 31 行：
 安装前后快照只能证明当前 catalog/Vault 名称/job/function/ACL，真实 SQL 连续运行两次和五条 HTTP route
 仍需外部验收。snapshot 自身绝不发送邮件、调用 Provider、安装/触发 Cron、切换 kill switch 或写数据库，
 也不能据此提前关闭 6.3 的任何外部门。
+
+## 6.5 Phase 78 API-only one-shot 部署证据
+
+部署前 clean HEAD/upstream 为 `f0ae5acdf8c588090451a7caaf62ebe825a57d9b`，API/Web 均为
+`deploymentEnabled=false` 且 in-flight 为 0；默认非 Canceled 为 15/8。Latest API 是 `39094d0` /
+`9jbyfnAvZwpa3Ci7YU6s6asmNZNG`，Latest Web 是 `f3feff1` / `DU6wE2r9ZLeSSoAMZAbsQihBjC72`。
+
+arm `4f1ce4a458fe138aeee6fb455b2dcc398a55555a` 只修改 `apps/api/vercel.json`。UTC 00:47:40
+唯一 deployment `6QeRbqxgA88cFXggKekkr2axH9JM` 出现，source 精确匹配且仍为 Building/Queued；记录出现后
+没有等待 Ready、运行 smoke 或推送其他改动，独立 disarm
+`020e21efa13bafb795d70a369e4512e76c7f7ab6` 于 UTC 00:48:07--00:48:10 推送。deployment 于
+00:48:46 Ready，构建 37 秒。
+
+UTC 00:49:37 二次回读及根侧独立复核均确认 API 15→16、arm source 恰好 1、disarm source 0、
+in-flight 0；Web 保持 8、Latest 不变、arm/disarm source 均为 0。最终 local/remote/upstream 都在 disarm
+SHA，两份配置为 false，focused production-app 8/8 通过。disarm 后 `/health` 为 TLS/HTTP2 200 与固定
+service/status JSON；无 Cookie Web-origin `/v1/auth/csrf` 为 401 / `authentication_required`，exact
+CORS credential contract 通过。上述 smoke 没有数据库或外部写。
+
+这次部署只关闭 Phase 76 API runtime 上线门，不代表普通邀请、OTP/Auth SMTP、R3-C、Cron、Cloud
+DeepSeek、备份、自然使用或 Windows 已验收。零网络 deployment plan 的旧 Latest/count/pending 文案漂移
+已在 6.3 标记为紧邻 TDD follow-up，不回滚或削弱本节的远端只读证据。
 
 ## 7. TDD 与验收标准
 

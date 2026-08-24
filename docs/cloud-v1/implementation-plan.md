@@ -1763,5 +1763,31 @@ environment 或 deployment，不发送邮件、不调用 DeepSeek；API/Web 始�
    boolean 投影并把调用数收紧为 1–2；SQL 与 CLI/parser 拆分后分别低于 400 行；
 5. **验证与边界**：新增回归 5/5、scripts 245/245、完整 `verify:macos` 通过 476 个 Vitest files
    （2,901 passed / 12 skipped）、Store 481/481、Playwright 111/111、全仓 format/lint/typecheck/build/
-   architecture/release/audit。真实 Hosted snapshot、R3-C、Cron 与 DeepSeek 外部门均未执行；下一阶段先
-   保持双项目 disarmed 提交本工具，再按既有 one-shot 流程部署 Phase 76 API runtime 候选。
+   architecture/release/audit。真实 Hosted snapshot、R3-C、Cron 与 DeepSeek 外部门均未执行；该阶段结束
+   时的下一项是保持双项目 disarmed 提交本工具，再按既有 one-shot 流程部署 Phase 76 API runtime 候选。
+
+### Phase 78：Phase 76 API runtime 的 API-only one-shot 部署（2026-08-24）
+
+影响平台为 `shared API + hosted-acceptance`。只允许 API 在一个短窗口 armed；Web、Supabase、Custom
+SMTP、DNS、environment、密钥、邀请、kill switch 与付费模型均不修改。
+
+1. **部署前只读门**：clean HEAD/upstream 为 `f0ae5acdf8c588090451a7caaf62ebe825a57d9b`，两项目均
+   `deploymentEnabled=false` 且 in-flight 为 0；API/Web 默认非 Canceled 基线为 15/8，Latest 分别为
+   `39094d0` / `9jbyfnAvZwpa3Ci7YU6s6asmNZNG` 与 `f3feff1` /
+   `DU6wE2r9ZLeSSoAMZAbsQihBjC72`；
+2. **唯一 arm**：`4f1ce4a458fe138aeee6fb455b2dcc398a55555a` 只修改 API Vercel policy，并只产生
+   deployment `6QeRbqxgA88cFXggKekkr2axH9JM`；UTC 00:47:40 首次看见记录时 source 已精确匹配，状态仍为
+   Building/Queued；
+3. **先关闭再检查**：记录出现后没有等待 Ready 或运行 smoke，唯一下一次 push 是只恢复 API policy 的
+   独立 disarm `020e21efa13bafb795d70a369e4512e76c7f7ab6`。deployment 随后于 UTC 00:48:46 Ready，
+   构建时长 37 秒；
+4. **退出门**：二次及根侧独立回读均确认 API 15→16、arm source 1、disarm source 0、in-flight 0；Web
+   保持 8、Latest 不变、两个 source 均为 0。最终 local/remote/upstream 均为 disarm，两份配置为 false、
+   工作树干净；production-app focused 8/8 通过；
+5. **公网最小 smoke**：disarm 后 `/health` 精确 TLS/HTTP2 200 与固定 JSON；无 Cookie Web-origin
+   `/v1/auth/csrf` 精确 401、CORS credential contract 与 `authentication_required`。探针零数据库/外部写；
+6. **下一门**：Phase 76 runtime 候选至此上线。继续唯一普通邀请与 scanner-safe OTP/Auth SMTP；R3-C、
+   Cron、Cloud DeepSeek、备份/网络/自然使用及 Windows 最终批次不得提前标记完成；
+7. **审查 follow-up**：零网络 deployment plan 仍输出部署前 API `39094d0` / 15 条，并把已完成的
+   `/admin` recent-auth/四区门列为 pending。下一代码阶段须先以 Fresh RED 锁定新 Latest/count/依赖链，
+   再校准 ledger；本阶段不扩大为脚本修改。

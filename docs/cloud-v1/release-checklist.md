@@ -44,8 +44,10 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       `2D2o6cYZJWSRKLHKQQB7XXxZRAt1`，Web 默认非 Canceled 数 6→7，API 保持 15；独立 disarm
       `636968d` 没有新增非 Canceled deployment。Cloud Web UI 合并后又以 Web-only arm `f3feff1` 只新增
       Ready deployment `DU6wE2r9ZLeSSoAMZAbsQihBjC72`，独立 disarm `d6d901c` 零额外非 Canceled。
-      Latest API 仍为 `39094d0` / `9jbyfnAvZwpa3Ci7YU6s6asmNZNG`，Latest Web 为 `f3feff1` /
-      `DU6wE2r9ZLeSSoAMZAbsQihBjC72`，默认非 Canceled 为 API/Web 15/8，且两项目均为
+      Phase 78 又以 API-only arm `4f1ce4a` 只新增 Ready deployment
+      `6QeRbqxgA88cFXggKekkr2axH9JM`；记录出现后立即推送独立 disarm `020e21e`，该 source 没有新增
+      deployment。Latest API 现为 `4f1ce4a` / `6QeRbqxgA88cFXggKekkr2axH9JM`，Latest Web 仍为
+      `f3feff1` / `DU6wE2r9ZLeSSoAMZAbsQihBjC72`，默认非 Canceled 为 API/Web 16/8，且两项目均为
       `deploymentEnabled=false`。live `/`、
       `/privacy`、`/admin` 与实际 JS asset 已通过精确安全响应头、真实渲染、exact SHA 和 secret scan；
       同轮公共边界只读探针通过，未写 Auth、SMTP、Supabase 或 DeepSeek。用户随后已亲自提交 `/admin`
@@ -220,8 +222,15 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       `"codex/settings-configuration": true`；Web 继续 `deploymentEnabled=false`，没有同时解锁；
 - [x] `apps/api/vercel.json` 显式 `fluid: true`，且唯一 `src/server.ts` Function 的 `maxDuration` 为 120；
 - [x] 配置回归同时证明没有 Vercel Cron、宽泛 Function override 或 legacy `builds`；
-- [x] Vercel Settings → Functions 已回读 Fluid 为 Enabled、region 为 Singapore `sin1`；当前 API deployment
+- [x] Vercel Settings → Functions 已回读 Fluid 为 Enabled、region 为 Singapore `sin1`；此前 API deployment
       `9jbyfnAvZwpa3Ci7YU6s6asmNZNG` 的唯一 `/index` Function 为 Node.js 24.x、`SIN1`、`≤120s`；
+- [x] Phase 78 clean baseline 为 API/Web 15/8 且双关闭；API-only arm `4f1ce4a` 只产生 Ready deployment
+      `6QeRbqxgA88cFXggKekkr2axH9JM`，独立 disarm `020e21e` 零新增。最终 API/Web 为 16/8、in-flight
+      均为 0、Web Latest 不变且两项目均关闭；disarm 后 `/health` 200 与无 Cookie CSRF/CORS 401
+      无写入 smoke 通过；
+- [ ] 以 TDD 校准零网络 `acceptance:hosted:deployment --plan`：Latest/count 必须为 Phase 78 current
+      evidence，依赖链不得再次要求已完成的 `/admin` recent-auth/四区复核；修复前旧输出不是 current
+      authority；
 - [ ] 在获批的真实 Cloud DeepSeek 应用路径请求中用 Observability 区分 90 秒应用 abort 与平台终止；静态
       JSON、Function 资源页或无真实请求的 Observability 页面不能关闭本项。
 

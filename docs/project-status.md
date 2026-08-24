@@ -91,14 +91,16 @@ wire 版本或完成声明。
 audit 仍只允许 `enabled`。这不代表 Store 产品或 Windows 支持被取消，启用时仍须真实 ID、版本和 Chrome
 门禁。
 
-> **当前校准检查点（Phase 77，2026-08-24）**：Hosted Singapore Supabase、Vercel API/Web、同站域名、
-> First Operator、Cloud Web UI 与受控 deploy/disarm 已完成，API/Web 当前默认非 Canceled 为 15/8 且均
+> **当前校准检查点（Phase 78，2026-08-24）**：Hosted Singapore Supabase、Vercel API/Web、同站域名、
+> First Operator、Cloud Web UI 与受控 deploy/disarm 已完成。Phase 76 API runtime 候选已通过唯一
+> API-only one-shot 上线并立即独立 disarm；API/Web 当前默认非 Canceled 为 16/8 且均
 > `deploymentEnabled=false`。真实 `/admin` recent-auth 与四区只读门已通过，kill switch 仍开启；新增的
 > 固定安全 snapshot 可在不手输 opaque ID、不中转秘密/身份/正文的前提下回读 R3-C/Cron/DeepSeek
-> 数据库侧证据。剩余发布链为 API runtime one-shot deploy → 唯一普通邀请与 scanner-safe OTP/Auth SMTP → R3-C 真实投递/
+> 数据库侧证据。剩余发布链为唯一普通邀请与 scanner-safe OTP/Auth SMTP → R3-C 真实投递/
 > 重复/无正文告警 → 五项 Supabase Cron → 受审计 kill switch 与一笔 Cloud DeepSeek 应用路径对账 →
-> 备份/目标网络/自然使用/Store 与 Windows 最终批次。Phase 76 的 runtime 修复尚待 API-only 受控部署，
-> Phase 77 的 snapshot 尚未连接 Hosted；真实外部门未因此关闭。
+> 备份/目标网络/自然使用/Store 与 Windows 最终批次。Phase 77 的 snapshot 尚未连接 Hosted；真实外部
+> 邮件、Cron 与模型门未因此关闭。零网络 deployment plan 仍输出 Phase 78 前的 API Latest/count 和旧
+> `/admin` pending 链，已记为紧邻 TDD follow-up，修复前不能作为 current authority。
 
 > **历史校准检查点（Phase 33）**：Phase 28 已补齐 production 语义重复建议和
 > 可计算 AA token 证据；2026-08-14 完成度源码审计发现的 SubmissionOutbox `api=null` 误清账号绑定
@@ -1731,5 +1733,24 @@ passed; first Operator empty`。候选已提交推送，0012 已实际 push；�
 - TDD 及复审修复 boolean `true/false` 与 `t/f` 漂移，并把 DeepSeek 对账限制为 1–2 个连续 billed call；
   新增测试 5/5、scripts 245/245、完整 macOS 门通过 2,901 passed / 12 skipped、Store 481/481、
   Playwright 111/111；
-- 工具尚未连接真实 Hosted。API/Web 仍双关闭；下一步先提交推送本阶段，再 one-shot 部署 Phase 76 API
-  runtime 修复，之后才创建唯一普通邀请并继续 OTP/Auth SMTP。
+- 工具尚未连接真实 Hosted。该阶段结束时 API/Web 仍双关闭；当时下一步是先提交推送本阶段，再
+  one-shot 部署 Phase 76 API runtime 修复，之后才创建唯一普通邀请并继续 OTP/Auth SMTP。
+
+## Cloud V1 Phase 78 API-only one-shot 部署状态（2026-08-24）
+
+- preflight 在 clean `f0ae5acdf8c588090451a7caaf62ebe825a57d9b` 上确认 local/upstream 一致、双项目
+  `deploymentEnabled=false`、in-flight 为 0；API/Web 默认非 Canceled 为 15/8，Latest 分别为
+  `39094d0` / `9jbyfnAvZwpa3Ci7YU6s6asmNZNG` 与 `f3feff1` /
+  `DU6wE2r9ZLeSSoAMZAbsQihBjC72`；
+- 只修改 API policy 的 arm `4f1ce4a458fe138aeee6fb455b2dcc398a55555a` 产生唯一 Production
+  deployment `6QeRbqxgA88cFXggKekkr2axH9JM`。UTC 00:47:40 记录出现且 source 精确匹配时仍处于
+  Building/Queued，随后没有先运行 smoke，立即推送只修改同一文件的独立 disarm
+  `020e21efa13bafb795d70a369e4512e76c7f7ab6`；
+- deployment 于 UTC 00:48:46 Ready，构建 37 秒。二次与根侧独立回读均确认 API 15→16、arm source
+  1、disarm source 0、in-flight 0；Web 保持 8、Latest 不变、两 source 均为 0。最终 local/remote/upstream
+  都是 disarm SHA，两份配置均为 false，focused production-app 8/8 通过；
+- disarm 后 `/health` 精确 TLS/HTTP2 200 与固定 JSON；无 Cookie、exact Web Origin 的 `/v1/auth/csrf`
+  精确 401 / `authentication_required`，CORS credential headers 正确。全程没有数据库或外部写、邮件、
+  DeepSeek、Supabase/DNS/environment/secret 变更；下一门是唯一普通邀请与 OTP/Auth SMTP；
+- 文档审查实际运行 deployment plan 后发现它仍报告 API `39094d0` / 15 条，并把已完成的 `/admin` 门列为
+  pending；该 CLI 漂移已隔离为后续 TDD 修复，不覆盖本节 current Vercel 证据。

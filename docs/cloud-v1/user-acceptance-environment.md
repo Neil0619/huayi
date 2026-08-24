@@ -261,16 +261,18 @@ RLS，首页仍为 `Healthy`。第 12 条 FirstOperatorBootstrap 与第 13 条�
 均已完成各自 dry-run、明确确认与 actual push。foundation bootstrap 后 Storage 为唯一 private
 `account-exports-acceptance` bucket 且 0 object，application login 与三条价格已建立，kill switch 保持开启；
 First Operator 最终 status 为 `completed`。两个 Vercel project、Git/Branch、custom domain 与 TLS 已建立；
-API 最新受控 source 为 `39094d0`，Web recent-auth arm `3fcc832` 对应 Ready deployment
-`FxRmiGZMzotoqiSmU7hSHfonbeV8`，随后 `8dea25c` disarm；两项目当前 `deploymentEnabled=false`。Tokyo
+Phase 78 API-only arm `4f1ce4a` 对应 Ready deployment `6QeRbqxgA88cFXggKekkr2axH9JM`，独立
+`020e21e` disarm 零新增；Latest Web 为 Cloud Web UI arm `f3feff1` 对应
+`DU6wE2r9ZLeSSoAMZAbsQihBjC72`。默认非 Canceled API/Web 为 16/8，两项目当前
+`deploymentEnabled=false`。Tokyo
 (`ap-northeast-1`) 的 Resend sender domain `notify.acceptance.seen-said.cn` 也已完成 DNS 与 Dashboard
 verified。旧泄露 key 与两把未使用的错误/临时 R3-C key 均已撤销；两把 sending-only/domain-scoped
 SMTP/HTTP key 已分离托管，Supabase Custom SMTP、Auth Site URL/五条 exact redirect、API 21/21 与 Web
-2/2 Production-only environment 均已配置并完成结构回读。API 当前 Latest/Current deployment source 为
-Rotate 后 `7577cdd`，deployment ID 为 `DyqRzj5UMN8BRpSeZyohXprnAkaT`；disarm `00beea8` 没有新增 API/Web
-deployment，两个项目当前均关闭 Git 自动部署。正确 Rotate 后 custom-domain `/health` 已返回 HTTP 200 与
-固定 JSON，无效 session `/v1/quota` 已返回精确 401，关闭 application-role 数据库路径；投递与完整应用
-验收仍未完成。
+2/2 Production-only environment 均已配置并完成结构回读。历史 Rotate 后 source `7577cdd` / deployment
+`DyqRzj5UMN8BRpSeZyohXprnAkaT` 已关闭 application-role 数据库路径；Phase 78 disarm 后 custom-domain
+`/health` 再次返回 TLS/HTTP2 200 与固定 JSON，无 Cookie Web-origin `/v1/auth/csrf` 返回精确 401、
+`authentication_required` 与 exact credentialed CORS。上述均为无写入探针；邮件投递与完整应用验收仍
+未完成。
 
 `.cn` 域名实名认证是启用解析的必需项。验收环境继续使用 Vercel/Supabase 境外托管资源时，ICP备案不
 作为当前启动前置；未来迁入中国大陆服务器、使用中国大陆 CDN 或其他境内接入资源前，必须重新设置备案
