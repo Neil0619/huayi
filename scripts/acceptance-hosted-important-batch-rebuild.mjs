@@ -11,6 +11,7 @@ import {
   hostedImportantBatchPostgresRuntimeReference,
   hostedImportantBatchScratchContainer,
   inspectHostedImportantBatchContainer,
+  isHostedImportantBatchContainerAbsent,
   runHostedImportantBatchProcess,
   settleHostedImportantBatchContainer,
 } from "./acceptance-hosted-important-batch-execution-contract.mjs";
@@ -308,7 +309,7 @@ export async function rebuildHostedImportantBatchScratch({
   const dockerTarget = await resolveDockerTarget();
   assertFixedLocalDockerTarget(dockerTarget);
   const existing = await inspectScratch(dockerTarget, runProcess);
-  if (existing.code !== 1 || existing.stdout !== "") {
+  if (!isHostedImportantBatchContainerAbsent(existing)) {
     throw new Error("Hosted important-batch scratch identity is occupied.");
   }
   await persistHostedImportantBatchRebuild({

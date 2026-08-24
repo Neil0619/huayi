@@ -95,7 +95,8 @@ Edge Functions、environment 或平台密钥。Storage objects 必须先由固�
 3. `psql`、`pg_dump`、`pg_restore` 分别使用固定 name/label，运行前确认同名 identity 不存在。运行结束后
    必须等待 Docker client 真正 `close` 并回查；overflow/timeout/异常路径还必须覆盖最多约 4.9 秒的晚创建
    窗口。只有 digest runtime 与 label 都精确匹配时才可强制删除遗留容器，并再次 inspect 证明不存在；未知
-   同名容器必须失败关闭且不得删除；
+   同名容器必须失败关闭且不得删除。固定 Docker inspect 的 absent 只允许 exit 1 + empty stdout，或 OrbStack
+   已验证的 exit 1 + 精确 `[]\n`；不得对输出做宽松 trim 或接受其它 JSON/空白；
 4. 运行前确认目标文件系统的静态加密/访问控制；不能证明时停止，改用经验证的安全临时介质；
 5. 不转发工具 stdout/stderr，不记录 row、identity、正文、token、secret 或原始数据库错误；
 6. 预创建 `0600` partial，成功关闭后 `fsync`、计算 SHA-256/size、atomic rename 并 `fsync` 目录；canonical

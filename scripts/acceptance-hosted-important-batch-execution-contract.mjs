@@ -111,6 +111,10 @@ export function inspectHostedImportantBatchContainer(dockerTarget, name, runProc
   );
 }
 
+export function isHostedImportantBatchContainerAbsent(result) {
+  return result.code === 1 && (result.stdout === "" || result.stdout === "[]\n");
+}
+
 export async function settleHostedImportantBatchContainer({
   dockerTarget,
   name,
@@ -122,7 +126,7 @@ export async function settleHostedImportantBatchContainer({
   const attempts = waitForLateAppearance ? 50 : 1;
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     const inspected = await inspectHostedImportantBatchContainer(dockerTarget, name, runProcess);
-    if (inspected.code === 1 && inspected.stdout === "") {
+    if (isHostedImportantBatchContainerAbsent(inspected)) {
       if (attempt + 1 === attempts) return true;
       await wait(100);
       continue;
@@ -135,7 +139,7 @@ export async function settleHostedImportantBatchContainer({
     );
     if (removed.code !== 0 || removed.stdout !== `${name}\n`) return false;
     const afterRemoval = await inspectHostedImportantBatchContainer(dockerTarget, name, runProcess);
-    return afterRemoval.code === 1 && afterRemoval.stdout === "";
+    return isHostedImportantBatchContainerAbsent(afterRemoval);
   }
   return true;
 }

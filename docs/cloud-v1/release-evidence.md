@@ -2097,13 +2097,20 @@ typecheck、architecture、build、development blocker、Store release、product
   317/317；全仓 Prettier、ESLint 与全部 workspace typecheck 通过。测试只使用 fake process、fictional
   archive 与本机临时目录，覆盖 secret 隔离、digest-only/无隐式 pull、固定 source set、原子提交、所有失败
   cleanup 与 scratch-destroy-before-manifest；
-- **完整 macOS 门禁**：三项独立审查修复后重新运行 `pnpm verify:macos` 并原样退出 0，覆盖 Node scripts
-  317/317、Vitest 478 files / 2917 tests（12 个预期 skip）、Store coverage 97 files / 481 tests、全 workspace
-  build/architecture、Playwright 111/111、Store release 与 production audit 零已知漏洞；
+- **完整 macOS 门禁**：三项独立审查修复后以及 OrbStack absent inspect 契约修复后均重新运行
+  `pnpm verify:macos` 并原样退出 0；最新一轮覆盖 Node scripts 318/318、Vitest 478 files / 2917 tests
+  （12 个预期 skip）、Store coverage 97 files / 481 tests、全 workspace build/architecture、Playwright
+  111/111、Store release 与 production audit 零已知漏洞；
 - **提交与零部署**：writer 候选以 `231f848`（`feat(build): add hosted backup writer`）提交并推送；Vercel
   Dashboard 只读回查确认 API 最新仍是 source `4f1ce4a` / deployment
   `6QeRbqxgA88cFXggKekkr2axH9JM`，Web 最新仍是 source `9b0860a` / deployment
   `V3NzjTYXtH7fb3WC2P6hpWR1twhb`，本批 push 零新增 deployment；
+- **首次真实 rebuild 的安全失败与修复**：clean `68144c1` 上 readiness 通过，但 exact rebuild 在 scratch
+  start 前 exit 1；固定容器数回查为 0、evidence 不存在、Git 保持 clean。真实 OrbStack absent inspect 为
+  exit 1 + stdout 精确 `[]\n`，旧 guard 只接受 empty stdout。Fresh RED 在 settle、capture 与 rebuild 三处
+  精确失败；共享 strict absent predicate 修复后 focused 17/17、Node scripts 318/318，并继续拒绝空白、无换行
+  `[]`、其它 JSON/文本、exit 0 与未知同名 identity。修复阶段没有运行 Docker/rebuild/capture、连接 Hosted、
+  发送邮件或部署；
 - **明确未执行**：本阶段没有调用三个真实写入口，没有连接 Supabase/Hosted、运行 dump/restore/rebuild、
   生成真实 evidence、应用或 dry-run 0014、发送邮件、部署、调用 DeepSeek，亦未修改 Hosted/DNS/SMTP/
   environment/key。真实 pre/rebuild/post 与两个 evidence gate 仍等待独立授权和运行证据，0014 仍不 ready。

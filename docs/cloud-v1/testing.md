@@ -887,7 +887,8 @@ confirmed Auth user/password method/profile 为 `1/1/2`、google method/Web sess
   ledger；TTY reader 必须在提示前关闭 echo、使用有界 byte reader 且不触发 readline redraw，macOS 真实 PTY
   回归必须证明虚构 marker 零回显；process timeout 必须等待 child `close` 后才返回，capture client 还必须在
   最多约 4.9 秒的 late-create 窗口中，只强制删除精确 name+label+digest 的自身容器并回查不存在；rebuild
-  start race 出现未知同名 identity 时不得删除；既有 final evidence 不得覆盖；
+  start race 出现未知同名 identity 时不得删除；container absent predicate 只接受 exit 1 + empty stdout 或
+  exit 1 + 精确 `[]\n`，必须拒绝空白、无换行 `[]`、其它 JSON/文本与 exit 0；既有 final evidence 不得覆盖；
 - 真实 capture、Storage object export、scratch rebuild、Supabase 连接与 0014 apply 都是另行批准的
   Hosted 门。
 

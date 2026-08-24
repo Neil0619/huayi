@@ -13,6 +13,7 @@ import {
   hostedImportantBatchSessionPoolerHost,
   hostedImportantBatchSessionPoolerPort,
   inspectHostedImportantBatchContainer,
+  isHostedImportantBatchContainerAbsent,
   runHostedImportantBatchProcess,
   settleHostedImportantBatchContainer,
 } from "./acceptance-hosted-important-batch-execution-contract.mjs";
@@ -141,7 +142,7 @@ async function runCaptureContainer({
     identity.name,
     runProcess,
   );
-  if (existing.code !== 1 || existing.stdout !== "") {
+  if (!isHostedImportantBatchContainerAbsent(existing)) {
     throw new Error("Hosted important-batch capture identity is occupied.");
   }
   let result;

@@ -1897,7 +1897,8 @@ inspection；Phase 86 只实现受审查 writer 与隔离 rebuild，不连接 Su
    evidence。capture 每个 client 另用固定 name/label，timeout/overflow/异常后只删除精确 image+label identity
    并回查不存在；独立审查后再固定 TTY 为 echo-before-prompt + bounded byte reader、process timeout 等待 child
    `close`、约 4.9 秒 late-create 稳定窗口，以及 rebuild start race 中未知同名容器永不删除。离线测试只用
-   fake process/fictional archive，本阶段没有运行真实入口；
+   fake process/fictional archive。首次真实 rebuild 又捕获 OrbStack absent inspect 的 exit 1 + `[]\n` 形态；
+   共享 strict predicate 只增加该精确形态并继续拒绝宽松输出，失败尝试未启动 scratch 或生成 evidence；
 10. **动作账本**：executor prerequisite/readiness → pre capture/rebuild → `backup:preflight` → 0014 apply →
     post capture → `backup:complete` → API/Web 串行 deployment。离线 GREEN 不代表两个 evidence gate 真实
     通过，也不关闭 Storage export、backup retention 或 production restore drill。

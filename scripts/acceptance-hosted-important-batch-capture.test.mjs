@@ -55,7 +55,7 @@ test("capture uses only the fixed local Docker target, digest runtime, and priva
   const runProcess = async (command, arguments_) => {
     assert.equal(command, dockerTarget.command);
     if (arguments_[2] === "container" && arguments_[3] === "inspect") {
-      return { code: 1, stdout: "" };
+      return { code: 1, stdout: "[]\n" };
     }
     calls.push({ arguments: [...arguments_], command });
     assert.deepEqual(arguments_.slice(0, 6), [

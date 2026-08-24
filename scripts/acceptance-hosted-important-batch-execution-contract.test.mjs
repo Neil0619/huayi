@@ -8,6 +8,7 @@ import {
   fixedDockerRunArguments,
   hostedImportantBatchPostgresRuntimeReference,
   runHostedImportantBatchProcess,
+  settleHostedImportantBatchContainer,
 } from "./acceptance-hosted-important-batch-execution-contract.mjs";
 
 const dockerTarget = {
@@ -97,4 +98,65 @@ test("timed-out process waits for the killed client to close before reporting co
   assert.equal(resolved, false);
   child.emit("close", null, "SIGKILL");
   assert.deepEqual(await resultPromise, { code: null, stdout: "" });
+});
+
+test("container settle accepts only exact known absent inspect results", async () => {
+  for (const absent of [
+    { code: 1, stdout: "" },
+    { code: 1, stdout: "[]\n" },
+  ]) {
+    let calls = 0;
+    assert.equal(
+      await settleHostedImportantBatchContainer({
+        dockerTarget,
+        name: "fixed-container",
+        runProcess: async () => {
+          calls += 1;
+          return absent;
+        },
+        runtimeIsExact: () => false,
+        wait: async () => undefined,
+      }),
+      true,
+    );
+    assert.equal(calls, 1);
+  }
+
+  for (const rejected of [
+    { code: 1, stdout: "[]" },
+    { code: 1, stdout: " \n" },
+    { code: 1, stdout: "{}\n" },
+    { code: 1, stdout: "private text\n" },
+    { code: 0, stdout: "[]\n" },
+  ]) {
+    assert.equal(
+      await settleHostedImportantBatchContainer({
+        dockerTarget,
+        name: "fixed-container",
+        runProcess: async () => rejected,
+        runtimeIsExact: () => false,
+        wait: async () => undefined,
+      }),
+      false,
+    );
+  }
+
+  let removed = false;
+  assert.equal(
+    await settleHostedImportantBatchContainer({
+      dockerTarget,
+      name: "fixed-container",
+      runProcess: async (_command, arguments_) => {
+        if (arguments_[2] === "rm") {
+          removed = true;
+          return { code: 0, stdout: "fixed-container\n" };
+        }
+        return removed ? { code: 1, stdout: "[]\n" } : { code: 0, stdout: "exact-runtime" };
+      },
+      runtimeIsExact: (source) => source === "exact-runtime",
+      wait: async () => undefined,
+    }),
+    true,
+  );
+  assert.equal(removed, true);
 });

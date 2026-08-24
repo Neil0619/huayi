@@ -27,6 +27,10 @@
   精确应用 14 条 migration 与 hash-pinned fictional seed。只有固定 baseline/chain/runtime/absence contract
   全部通过、scratch 已删除且 inspect 确认不存在后才写 evidence；start race 中出现的未知同名容器必须保留
   并失败关闭，不能无条件 `rm --force`；
+- 首次真实 rebuild 在启动前安全失败：OrbStack 的 absent container inspect 返回 exit 1 + 精确 `[]\n`，旧
+  guard 只接受 exit 1 + empty stdout。共享 absent predicate 现在只接受这两种已验证形态，并同步用于 capture/
+  rebuild pre-start、late settle 与 post-removal；空白、无换行 `[]`、任意 JSON/文本、exit 0 或未知同名 identity
+  继续失败关闭；该次失败未启动 scratch、未生成 evidence；
 - Fresh RED 为 artifacts/capture/rebuild 三个 module 均 `ERR_MODULE_NOT_FOUND`。本阶段只完成离线 fake 与本机
   文件系统测试；没有连接 Hosted、执行 dump/rebuild/restore、生成真实 evidence、应用 0014、发邮件或部署。
 
