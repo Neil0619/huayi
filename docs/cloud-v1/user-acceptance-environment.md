@@ -428,10 +428,10 @@ DNS 或密钥配置。
 
 该历史下一项已经推进：唯一普通邀请已创建并提交密码注册，真实邮件发现 Hosted Email OTP length=8 与
 六位产品契约不一致。用户只授权保存 8→6；独立重新加载回读为 6，expiry 仍 3600，其他
-Auth/SMTP/DNS/environment/secret 未改且未发新邮件。当前下一项改为：完成本机同邀请 resend/0014 验证 →
-完成 11-active/3-disabled platform lock 后，单独批准获取并本机检查全部固定镜像、完成 write executor
-readiness prerequisite（并证明 Storage objects 为零或另行 export）→
-单独批准并完成 pre raw logical dump + migration/fictional-seed rebuild → backup preflight 通过 → 明确批准后
+Auth/SMTP/DNS/environment/secret 未改且未发新邮件。同邀请 resend/0014 本机验证、11-active/3-disabled
+platform lock、固定镜像受控获取/本机检查与 Phase 86 writer 均已完成。当前下一项改为：先独立运行三个只读
+readiness（并证明 Storage objects 为零或另行 export）→ 单独批准并完成 pre raw logical dump +
+migration/fictional-seed rebuild → backup preflight 通过 → 明确批准后
 只应用唯一 0014 → post dump + completion gate → API/Web 严格串行 one-shot deploy/disarm → 再次只读回读
 OTP length=6 → 用户点击重发一封新邮件并完成 scanner-safe 六位 OTP、Web 落点和密码重登。旧 8 位码不得
 截取使用，不得新建第二邀请或删除既有 Auth user。

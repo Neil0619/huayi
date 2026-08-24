@@ -41,8 +41,9 @@ Web-only deployment 与独立 disarm。当前默认排除 Canceled 的 API/Web �
 OTP/Auth SMTP、R3-C、Cron 与 DeepSeek 应用路径仍待验收。Phase 82 已补离线 backup/rebuild 证据门与
 executor readiness；Phase 83 固定了唯一 PostgreSQL 17.6.1.159 OCI index，并把 Docker 限制到本机 Unix
 socket/FileVault gate。Phase 84 已完成 11-active/3-disabled 的完整双平台 image lock 与零网络静态 verifier；
-但全部固定镜像尚未获批获取/本机检查，write executor 仍缺失，故固定失败且零 evidence。CLI cache miss 会
-pull，普通 start 仍禁止。真实 pre dump/rebuild 与 preflight 尚未执行，因而 0014 仍不 ready。
+Phase 85 已受控获取并在固定 OrbStack socket 检查全部 11 个 index-digest reference。Phase 86 已落地受审查
+的原子 capture/rebuild writer 与 confirmation-gated 入口，但本阶段没有执行真实入口或生成 evidence。CLI
+cache miss 会 pull，普通 start 仍禁止；真实 pre dump/rebuild 与 preflight 尚未执行，因而 0014 仍不 ready。
 
 ## 1. 当前事实与目标
 
@@ -572,12 +573,14 @@ project 与 `phase-81-0014` 的零 I/O 计划。
 strict `0700/0600`、size/SHA-256/manifest、clean current Git HEAD，以及从 migration + fictional seed 建立且
 已经销毁 scratch 的 rebuild evidence。`backup:complete` 再要求 post dump 与 migration head 14。
 
-executor 只有 pre/rebuild/post exact readiness，没有 capture/restore/rebuild 写 interface，也不连接 Supabase。
-真实 dump 是敏感原始备份，不是脱敏 artifact；完整 platform image lock 已固定，但仍必须先经单独批准获取并
-本机检查全部 11 镜像、完成 write executor，再在单独批准的
-后续阶段由固定 session-pooler 5432 verify-full administrator 写入 explicit partial，执行 fsync/hash/size/
+executor 的 pre/rebuild/post exact readiness 继续只读；Phase 86 另以三个 exact-confirmation package entrypoint
+隔离 pre capture、rebuild 与 post capture。真实 dump 是敏感原始备份，不是脱敏 artifact；完整 platform
+image lock、11 镜像本机检查与 writer 已固定，但真实入口仍须单独批准。capture 由固定 session-pooler 5432
+verify-full administrator、TTY password 与 `0600` `.pgpass`/CA read-only mount 写入 explicit partial，执行 fsync/hash/size/
 atomic rename/manifest-last，并保持数据库 row、identity、正文、secret 和原始错误不进入 stdout/log。数据库
-archive 不包含 Storage object bytes、global roles 或 Hosted platform config。当前只完成离线控制面，两个
+archive 不包含 Storage object bytes、global roles 或 Hosted platform config。rebuild 使用无 tag digest runtime、
+`--pull never`、`--network none`、tmpfs PGDATA、精确 14 migration 与 pinned fictional seed，先销毁 scratch
+再写 body-free manifest。当前只完成离线实现，两个
 verifier 都没有真实通过，0014 不得描述为 ready。完整 contract 见
 `hosted-important-batch-backup.md`。
 

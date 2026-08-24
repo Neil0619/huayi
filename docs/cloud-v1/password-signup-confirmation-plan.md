@@ -104,8 +104,11 @@ SQL 绕过。
       并把未来密码传递改为 `0600 .pgpass` read-only mount；未启动 daemon、pull/run image 或写 evidence；
 - [x] Phase 84 从 pinned CLI source/config/start gates 派生完整 14-service graph，固定 11 active image 的
       index + amd64/arm64 manifest digest，并证明三项 disabled；静态 verifier 零 Docker/零网络；
-- [ ] 单独批准获取并本机检查全部 11 个固定镜像、完成 write executor，并证明 Storage objects 为零或完成
-      单独 object export；CLI cache miss 会 pull，不得直接运行普通 start，也不得用 filtered SQL 冒充 custom；
+- [x] Phase 85 已按批准获取并本机检查全部 11 个固定镜像；Phase 86 完成 reviewed writer、无 tag digest-only
+      capture、TTY password + `0600` `.pgpass`/CA、atomic evidence，以及 networkless tmpfs scratch 的精确
+      14 migration + pinned fictional seed rebuild；本项未运行真实入口；
+- [ ] 实际 pre capture 必须证明 Storage objects 为零或另行完成 object export；CLI cache miss 会 pull，
+      不得运行普通 start，也不得用 filtered SQL 冒充 custom；
 - [ ] 单独批准并完成 0014 前 raw logical dump 与隔离 scratch 重建，且
       `pnpm acceptance:hosted:backup:preflight` 通过；该门关闭前 0014 不得描述为 ready；
 - [ ] 用户确认后只实际应用唯一 0014，再 API→Web 严格串行 one-shot deploy/disarm；部署完成前不发送

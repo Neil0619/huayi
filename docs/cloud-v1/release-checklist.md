@@ -159,8 +159,8 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       apply；apply 原样执行完整 operations SQL 两次并独立 postflight，错误只输出固定 stage。离线实现不
       代表 Vercel masked secret continuity、真实 SQL 两次、job 周期或 route 已通过；
 - [x] Phase 82 已提供固定 project/batch 的零 I/O backup plan 与离线 preflight/completion verifier；严格
-      校验 clean HEAD/ignored/`0700/0600`/manifest/size/hash/migration head/rebuild cleanup，并且没有
-      capture/restore 写接口。本条只关闭工具缺口，不代表已生成、恢复或重建真实 Hosted backup；
+      校验 clean HEAD/ignored/`0700/0600`/manifest/size/hash/migration head/rebuild cleanup。本条只关闭
+      evidence gate，不代表已生成或重建真实 Hosted backup；
 - [x] Phase 82 executor readiness 审计已用 Fresh RED→GREEN 提供零 I/O plan 与 pre/rebuild/post 三个 exact
       readiness；该阶段本地 PG clients 14.6、缺 pinned PG17 runtime/scratch image/write executor 时固定失败，即使
       fake runtime 全 ready 也不会写 evidence。CLI filtered SQL 不再冒充 postgres-custom；Storage object bytes
@@ -172,9 +172,12 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
 - [x] Phase 84 已从 pinned CLI 2.115.0 source/default/start gates 与仓库 config 派生完整 14-service graph；
       11 个 active exact tag 均固定 index + linux/amd64 + linux/arm64 manifest digest，三项 disabled 也有 gate
       证据。静态 verifier 零 Docker/零网络，local verifier 只有固定 Unix-socket image inspect；
-- [ ] 经单独批准获取并本机检查全部 11 个固定镜像，完成 reviewed write executor，并先证明
-      `storage.objects` 为零，否则另行完成 Storage object export。CLI cache miss 会隐式 pull；这些 prerequisite
-      未关闭前不得运行普通 start、请求真实 capture 或把 0014 描述为 ready；
+- [x] Phase 85 已按单独批准获取并通过固定 OrbStack socket 本机检查全部 11 个固定镜像；Phase 86 已完成
+      reviewed writer 与 exact-confirmation pre/rebuild/post entrypoint，固定 digest-only/`--pull never`、TTY
+      password、`0600` `.pgpass`/CA、TOC、atomic evidence 和 networkless tmpfs scratch。此项是离线实现，
+      不代表真实 capture/rebuild 已运行；普通 `supabase start` 仍禁止；
+- [ ] 实际 pre capture 必须先证明 `storage.objects` 为零，否则另行完成 Storage object export；readiness 与
+      单独批准未满足前不得运行真实入口或把 0014 描述为 ready；
 - [ ] 0014 apply 前由单独批准的真实阶段生成 pre raw logical dump，并从 migration + fictional seed 在隔离
       scratch 重建；`acceptance:hosted:backup:preflight` 必须通过。0014 后生成 post dump 并由
       `acceptance:hosted:backup:complete` 关闭批次；dump 不进入 Git/stdout/log，失败 partial/CA/temp 全清理；

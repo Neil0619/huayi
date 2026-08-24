@@ -62,10 +62,11 @@ test("hosted deployment plan is complete, deterministic, and secret independent"
     "The real /admin password reauthentication and four-section read-only verification are complete",
     "Phase 77 runtime snapshot and Phase 79 controlled Cron tooling are not yet connected to Hosted",
     "Before migration 0014, run pnpm acceptance:hosted:backup:plan and require pnpm acceptance:hosted:backup:preflight to pass",
-    "The complete platform lock classifies 11 active and 3 disabled CLI services and pins every active index plus linux/amd64 and linux/arm64 manifest; all 11 current macOS local image inspections passed through the fixed OrbStack socket, while readiness remains fail-closed because the reviewed writer is pending",
-    "Run pnpm acceptance:hosted:backup:executor:plan and the exact pre/rebuild/post readiness checks only; they perform no database, network, or artifact write",
+    "The complete platform lock classifies 11 active and 3 disabled CLI services and pins every active index plus linux/amd64 and linux/arm64 manifest; all 11 current macOS local image inspections passed through the fixed OrbStack socket, and the reviewed writer is pinned",
+    "Run pnpm acceptance:hosted:backup:executor:plan and the exact pre/rebuild/post readiness checks first; readiness performs no database, network, or artifact write",
+    "After separate approval, run only acceptance:hosted:backup:capture:pre and acceptance:hosted:backup:rebuild; each is exact-confirmation-gated and produces only the fixed ignored evidence",
     "Preflight requires a secure pre-batch logical backup plus migrations-and-fictional-seed rebuild evidence for the clean current candidate",
-    "apply exactly migration 0014 after explicit approval, then deploy API and Web through separate one-shot arm/disarm windows",
+    "Apply exactly migration 0014 after explicit approval; then separately approve acceptance:hosted:backup:capture:post and require acceptance:hosted:backup:complete before deployment",
     "read back Hosted Email OTP length 6 -> user-triggered same-invitation resend -> latest six-digit OTP only",
     "scanner-safe repeated GET -> explicit OTP POST -> Auth SMTP delivery -> Web landing -> password relogin",
     "real R3-C delivery and duplicate/alert observation -> install and verify five Supabase Cron jobs",
@@ -85,7 +86,8 @@ test("hosted deployment plan is complete, deterministic, and secret independent"
     "smtp.resend.com:465 | resend",
     "five Supabase Cron jobs",
     "backup, target-network, natural-use, Store, and Windows final-batch gates remain pending",
-    "current macOS local-only inspection of all 11 locked images passed -> finish the reviewed writer -> separately approve the fixed capture/rebuild executor",
+    "current macOS local-only inspection of all 11 locked images passed -> reviewed writer pinned -> exact readiness -> separately approved pre capture/rebuild",
+    "apply exactly migration 0014 after explicit approval -> separately approved post capture -> acceptance:hosted:backup:complete -> API and Web separate one-shot arm/disarm windows",
   ]) {
     assert.match(plan, new RegExp(expected.replaceAll(/[.*+?^${}()|[\]\\]/gu, "\\$&"), "u"));
   }

@@ -10,7 +10,18 @@ import {
   hostedImportantBatchId,
   readHostedImportantBatchBackupRepositoryState,
 } from "./acceptance-hosted-important-batch-backup.mjs";
+import {
+  captureHostedImportantBatchBackup,
+  hostedImportantBatchCapturePostArgument,
+  hostedImportantBatchCapturePreArgument,
+} from "./acceptance-hosted-important-batch-capture.mjs";
 import { hostedAcceptanceProjectRef } from "./acceptance-hosted-foundation.mjs";
+import { hostedImportantBatchPostgresRuntimeReference } from "./acceptance-hosted-important-batch-execution-contract.mjs";
+import {
+  hostedImportantBatchRebuildArgument,
+  rebuildHostedImportantBatchScratch,
+} from "./acceptance-hosted-important-batch-rebuild.mjs";
+import { readHostedImportantBatchCaptureSecrets } from "./acceptance-hosted-important-batch-secret-prompt.mjs";
 import {
   inspectHostedSupabasePlatformImages,
   readHostedSupabasePlatformImageLock,
@@ -20,7 +31,7 @@ import {
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const pinnedSupabaseCliVersion = "2.115.0";
 const fixedSessionPooler = "aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres";
-const executorImplementationPinned = false;
+const executorImplementationPinned = true;
 const pinnedPostgresImageDigest =
   "sha256:86a2e078779e5bdccda1f6f6c5063aa9779a322d1fface5fb408d051909b230f";
 
@@ -116,31 +127,38 @@ Exact readiness operations:
 - pre capture: ${hostedImportantBatchPreCaptureReadinessArgument}
 - isolated rebuild: ${hostedImportantBatchRebuildReadinessArgument}
 - post capture: ${hostedImportantBatchPostCaptureReadinessArgument}
+Exact confirmation-gated write operations:
+- pre capture: ${hostedImportantBatchCapturePreArgument}
+- isolated rebuild: ${hostedImportantBatchRebuildArgument}
+- post capture: ${hostedImportantBatchCapturePostArgument}
 Connection and process contract:
-- A future executor must use the fixed verify-full administrator session pooler port 5432 at ${fixedSessionPooler}; transaction pooler port 6543 is forbidden for dump/restore.
-- PostgreSQL client commands must run only from ${hostedImportantBatchPostgresImage}; host-installed pg_dump/pg_restore/psql are never trusted.
+- The executor uses the fixed verify-full administrator session pooler port 5432 at ${fixedSessionPooler}; transaction pooler port 6543 is forbidden for dump/restore.
+- PostgreSQL client commands run only from digest reference ${hostedImportantBatchPostgresRuntimeReference}; ${hostedImportantBatchPostgresImage} remains provenance only and is never an execution argument. Host-installed pg_dump/pg_restore/psql are never trusted.
 - The Hosted password is written only to a fixed 0600 temporary .pgpass and mounted read-only; the container receives only the fixed PGPASSFILE path, never PGPASSWORD or a secret-bearing Docker argument. The CA PEM is accepted only from HUAYI_HOSTED_DATABASE_CA_CERTIFICATE, written to a fixed 0600 temporary file, mounted read-only, and exposed only as the fixed PGSSLROOTCERT path.
-- Commands use shell false and fixed argument arrays. Project, database URL, artifact path, phase, migration head, and operation are never caller supplied.
+- Commands use shell false and fixed argument arrays. Project, database URL, artifact path, phase, migration head, and operation are never caller supplied. Execution requires one exact confirmation argument and does not accept a dynamic path, URL, image, or project.
 Capture contract:
 - The pinned PostgreSQL 17 database image is also the only permitted pg_dump/pg_restore/psql runtime. The installed Supabase CLI ${pinnedSupabaseCliVersion} has no custom-format flag and its filtered SQL export must not be labelled postgres-custom.
-- The future full-database custom archive may include accessible application schemas, migration history, Auth database rows, and Storage metadata only after internal fixed coverage checks pass.
+- The full-database custom archive is committed only after internal fixed coverage checks prove application data, migration history, Auth database rows, and Storage metadata are present in the archive TOC.
 - The archive does not include Storage object bytes. It also does not include global roles or hosted platform configuration such as Auth providers, SMTP, DNS, Edge Functions, or environment secrets.
 - Storage object count must be proven zero before capture; otherwise a separately approved Storage object export is required and this batch remains blocked.
 - Create only fixed 0700 directories and fixed 0600 files below the ignored evidence directory. Write a partial file, fsync the closed archive, hash and size it, use atomic rename, fsync its directory, then write the canonical manifest last by the same partial/fsync/atomic sequence.
 - Every failure removes only the fixed partial file, CA file, manifest temporary file, and scratch temporary files. Database rows, identities, secrets, archive contents, and raw stdout or stderr are never logged or reflected.
 Isolated rebuild contract:
-- Start from an empty non-production scratch with a repository-pinned image digest and distinct fixed project identity; never reuse the local acceptance or Hosted database.
+- Start from an empty networkless non-production Supabase PostgreSQL scratch at the digest-only runtime reference and distinct fixed container identity; never reuse the local acceptance or Hosted database.
 - The repository-pinned platform lock classifies all 14 CLI start services for the fixed config: 11 enabled images and three disabled services. Every enabled exact tag pins its OCI/Docker index plus linux/amd64 and linux/arm64 platform manifests.
-- Before any future start, run the static lock verifier and the local-only image inspector. The inspector issues only fixed Unix-socket Docker image-inspect commands against index-digest references; it has no pull, build, run, start, or manifest-network command.
+- Before start, run the static lock verifier and the local-only image inspector. The inspector issues only fixed Unix-socket Docker image-inspect commands against index-digest references; it has no pull, build, run, start, or manifest-network command. The scratch uses --pull never, --network none, one tmpfs PGDATA, and no host or named data volume.
 - Apply exactly the repository migrations through 20260824010000 plus the fictional seed, run fixed bounded migration/runtime/absence contracts, prove Hosted data absent, and destroy scratch before writing the rebuild manifest last.
-Current result: blocked fail-closed. The complete 11-image platform lock exists and this macOS host's local-only image inspection passes, but the reviewed write executor does not exist. Supabase CLI start can pull on a cache miss, so ordinary start remains forbidden; any later execution host must independently pass the same local-only inspector. Readiness uses only the platform-fixed local Unix Docker socket, fixed Docker executable, local image metadata, pinned CLI version, and FileVault status; it cannot pull images, connect to Hosted, or create evidence.
+Current result: the reviewed writer is pinned. Readiness remains read-only and requires the clean candidate, static lock, platform-fixed local Unix Docker socket, all 11 local image identities, pinned CLI version, and FileVault status. The confirmation-gated pre/post capture and isolated rebuild operations are separate; readiness cannot pull images, connect to Hosted, or create evidence. Ordinary Supabase CLI start remains forbidden because it can pull on a cache miss.
 `;
 }
 
 export async function runHostedImportantBatchBackupExecutorCli({
   arguments_ = process.argv.slice(2),
+  captureBackup = captureHostedImportantBatchBackup,
   inspectRuntime = inspectHostedImportantBatchBackupRuntime,
+  readCaptureSecrets = readHostedImportantBatchCaptureSecrets,
   readRepositoryState = readHostedImportantBatchBackupRepositoryState,
+  rebuildScratch = rebuildHostedImportantBatchScratch,
   repositoryRoot: root = repositoryRoot,
   writeError = (value) => process.stderr.write(value),
   writeOutput = (value) => process.stdout.write(value),
@@ -150,11 +168,16 @@ export async function runHostedImportantBatchBackupExecutorCli({
     return 0;
   }
   const argument = arguments_.length === 1 ? arguments_[0] : null;
-  if (
-    argument !== hostedImportantBatchPreCaptureReadinessArgument &&
-    argument !== hostedImportantBatchRebuildReadinessArgument &&
-    argument !== hostedImportantBatchPostCaptureReadinessArgument
-  ) {
+  const operations = new Map([
+    [hostedImportantBatchPreCaptureReadinessArgument, { kind: "readiness", phase: "pre" }],
+    [hostedImportantBatchRebuildReadinessArgument, { kind: "readiness", phase: "rebuild" }],
+    [hostedImportantBatchPostCaptureReadinessArgument, { kind: "readiness", phase: "post" }],
+    [hostedImportantBatchCapturePreArgument, { kind: "capture", phase: "pre" }],
+    [hostedImportantBatchRebuildArgument, { kind: "rebuild", phase: "rebuild" }],
+    [hostedImportantBatchCapturePostArgument, { kind: "capture", phase: "post" }],
+  ]);
+  const operation = operations.get(argument);
+  if (operation === undefined) {
     writeError("Hosted important-batch executor arguments are invalid.\n");
     return 1;
   }
@@ -167,10 +190,32 @@ export async function runHostedImportantBatchBackupExecutorCli({
     if (!runtimeIsReady(runtime)) {
       throw new Error("Hosted important-batch executor runtime is unavailable.");
     }
-    throw new Error("Hosted important-batch executor is not implemented.");
+    if (operation.kind === "readiness") {
+      writeOutput(`Hosted important-batch ${operation.phase} readiness passed.\n`);
+      return 0;
+    }
+    if (operation.kind === "capture") {
+      const secrets = await readCaptureSecrets();
+      await captureBackup({
+        ...secrets,
+        candidateCommit: repositoryState.candidateCommit,
+        phase: operation.phase,
+        repositoryRoot: root,
+      });
+      writeOutput(`Hosted important-batch ${operation.phase} backup captured.\n`);
+      return 0;
+    }
+    await rebuildScratch({
+      candidateCommit: repositoryState.candidateCommit,
+      repositoryRoot: root,
+    });
+    writeOutput("Hosted important-batch isolated rebuild verified and destroyed.\n");
+    return 0;
   } catch {
     writeError(
-      "Hosted important-batch executor readiness failed closed; no operation was performed.\n",
+      operation?.kind === "readiness"
+        ? "Hosted important-batch executor readiness failed closed; no operation was performed.\n"
+        : "Hosted important-batch executor operation failed closed.\n",
     );
     return 1;
   }

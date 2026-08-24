@@ -2059,3 +2059,47 @@ typecheck、architecture、build、development blocker、Store release、product
   Dashboard 只读回查确认 API 最新仍是 source `4f1ce4a` / deployment
   `6QeRbqxgA88cFXggKekkr2axH9JM`，Web 最新仍是 source `9b0860a` / deployment
   `V3NzjTYXtH7fb3WC2P6hpWR1twhb`，本批 push 零新增 deployment。
+
+## 77. Phase 86 Hosted 重要批次 writer 与隔离 rebuild（2026-08-24）
+
+- **Fresh RED**：先新增 artifacts/capture/rebuild 三个行为测试，首次统一运行因三个目标 module 均不存在，
+  精确以 `ERR_MODULE_NOT_FOUND` 失败；没有连接 Hosted、启动 Docker 或先写实现；
+- **原子 evidence writer**：固定 evidence root/project/batch/phase，只创建受限 `0700` 目录和 `0600` 文件。
+  archive 先写 partial，关闭后两次 `fsync` 包围固定 TOC 校验，再计算 size/SHA-256、atomic rename、目录
+  `fsync`；canonical manifest 最后采用同样的 partial/fsync/rename/目录 fsync。失败会移除固定 partial 与
+  本次未完成 final，既有 evidence 永不覆盖；
+- **Hosted capture 边界**：pre/post 只暴露两个 exact-confirmation 参数，固定 Singapore session pooler
+  `5432`、verify-full 管理员、migration head 与 Storage objects 零值检查。实际 argv 只含无 tag 的 PostgreSQL
+  index digest 与 `--pull never`；管理员密码只从 TTY 进入 `0600 .pgpass`，CA 只进入 `0600` 临时文件，两者
+  read-only mount 且不进入 child env/argv/stdout/stderr。custom archive 的固定 TOC 必须同时覆盖 Auth rows、
+  Storage metadata、应用 data 与 migration history；
+- **隔离 rebuild**：固定 scratch name 与 label，`--network none`、无端口、无 bind/named volume，唯一 PGDATA
+  为固定 tmpfs。只从仓库精确 14 条 migration 与 SHA-256 pinned fictional seed 建库；固定 baseline、migration
+  chain、fictional seed、runtime 与 Hosted-data-absence contract 全部通过后，先删除 scratch 并回查不存在，
+  才允许写 body-free rebuild manifest。启动、migration、验证、销毁任一失败都不保留 evidence；
+- **深模块与动作账本**：新增共享 digest-only/local-Docker bounded process contract、capture、artifact writer、
+  rebuild 与 TTY secret reader；executor 从 `executorImplementationPinned=false` 转为受审查 writer，package
+  只增加 pre capture/rebuild/post capture 三个确认入口。Hosted deployment action ledger 继续强制
+  readiness → pre capture/rebuild → backup preflight → 0014 → post capture → completion → API/Web 串行部署；
+- **根任务审查修复**：新增回归先证明旧 TOC matcher 会接受仅包含目标片段的伪造前缀行，再把四条 coverage
+  约束为真实 `pg_restore --list` 完整行；另以 Fresh RED 证明未知 evidence entry 与 verify 期间同尺寸内容变更
+  会被旧 artifact writer 放行，修复为连接数据库前目录精确为空、TOC 前后 size + SHA-256 均一致。原
+  migration/verification failure fixture 实际在 runtime inspect 提前退出，也已校准为真正到达对应 SQL 分支；
+  TTY secret reader 新增注入回归，固定缺 CA 时零 password read，且不得从 `PGPASSWORD` 或
+  `SUPABASE_DB_PASSWORD` 取值。最后一个 Fresh RED 证明 `pg_dump` client timeout 时旧实现无法定位并清理
+  仍在运行的容器；修复后每个 capture step 使用固定 name/label，启动前确认不存在，结束后只删除精确
+  digest+label 的自身 identity 并再次 inspect；独立只读审查随后拦截三项真实缺陷：readline 在 TTY echo
+  关闭后仍 redraw 密码、timeout 杀死 Docker client 后过早返回导致 daemon 可晚创建容器、rebuild start race
+  会无条件删除未知同名容器。修复后 TTY 改为 echo-before-prompt 的有界同步 byte reader，真实 macOS PTY
+  证明虚构 marker 零回显；bounded process 等待 child `close`，capture 覆盖约 4.9 秒 late-create 窗口；
+  rebuild 删除前校验完整 scratch identity；
+- **离线 GREEN**：focused backup/executor/platform-lock/local-Docker/deployment 共 59/59，完整 Node scripts
+  317/317；全仓 Prettier、ESLint 与全部 workspace typecheck 通过。测试只使用 fake process、fictional
+  archive 与本机临时目录，覆盖 secret 隔离、digest-only/无隐式 pull、固定 source set、原子提交、所有失败
+  cleanup 与 scratch-destroy-before-manifest；
+- **完整 macOS 门禁**：三项独立审查修复后重新运行 `pnpm verify:macos` 并原样退出 0，覆盖 Node scripts
+  317/317、Vitest 478 files / 2917 tests（12 个预期 skip）、Store coverage 97 files / 481 tests、全 workspace
+  build/architecture、Playwright 111/111、Store release 与 production audit 零已知漏洞；
+- **明确未执行**：本阶段没有调用三个真实写入口，没有连接 Supabase/Hosted、运行 dump/restore/rebuild、
+  生成真实 evidence、应用或 dry-run 0014、发送邮件、部署、调用 DeepSeek，亦未修改 Hosted/DNS/SMTP/
+  environment/key。真实 pre/rebuild/post 与两个 evidence gate 仍等待独立授权和运行证据，0014 仍不 ready。

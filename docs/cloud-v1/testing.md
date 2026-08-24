@@ -850,8 +850,8 @@ confirmed Auth user/password method/profile 为 `1/1/2`、google method/Web sess
 - Fresh RED 必须先证明仓库没有 fixed backup plan/preflight/completion module；action ledger 缺少 0014 前置
   backup gate 时也必须独立失败，不能先改文档再补正向断言；
 - `backup:plan` 与 `backup:executor:plan` 必须零 filesystem、Git、network 和 write，只输出固定 project/
-  batch/path/权限/清理/依赖契约；根 scripts 只能提供 plan/readiness/preflight/complete，不得在默认门增加
-  capture/restore/rebuild 写入口；
+  batch/path/权限/清理/依赖契约；preflight/complete/readiness 继续只读，capture/rebuild 只能由三个 exact
+  confirmation argument 与 package entrypoint 暴露，不能进入默认门或接受动态 project/path/image/phase；
 - executor pre/rebuild/post readiness 只允许三个 exact argument；检查 clean HEAD/ignored 后只读取 allowlisted
   本地 runtime verdict。唯一 PG17 client 必须是 repository-pinned OCI index。local Docker resolver 必须拒绝
   任何 `DOCKER_HOST`/`DOCKER_CONTEXT`（包括空值），不得读取任意 env socket 或 `HOME`；macOS 从 OS 当前
@@ -864,23 +864,31 @@ confirmed Auth user/password method/profile 为 `1/1/2`、google method/Web sess
   pull/build/run/start/manifest-network verb，且远程 Docker selectors 在任何 child 前被拒绝。Docker Hub
   `RepoDigests` 必须精确匹配同一锁定仓库的 canonical name 与 index digest，不能以 registry alias 或任意
   digest 放行；真实 JSON 使用 platform-lock 模块自身 32 KiB bounded reader，不能被 executor 的短版本输出
-  上限截断。FileVault、local image 或 write executor 任一缺失都固定失败；即使测试或当前真实 runtime 全
-  ready，也必须在 executor 未 pinned 时失败且零 evidence；raw subprocess stdout/stderr 不得转发；
+  上限截断。FileVault、local image 或 pinned writer 任一缺失都固定失败；全部 ready 时 readiness 只回报
+  fixed passed 且零 evidence；raw subprocess stdout/stderr 不得转发；
 - preflight/complete 只允许固定 project `kpadiulxkgckskcfydry`、batch `phase-81-0014` 和固定 artifacts
   路径；拒绝额外 project/path/operation 参数，错误只输出 fixed failure，不反射参数、manifest 或原始错误；
 - evidence fixture 必须覆盖 clean Git HEAD 精确、artifact ignored、目录 `0700`、文件 `0600`、非 symlink、
   exact directory entries、strict manifest keys、dump size/SHA-256，以及 pre `20260823010000` / post
   `20260824010000`；任一 dirty/stale/unignored/insecure/partial/extra/hash mismatch 都失败关闭；
 - rebuild evidence 只允许 `repository-migrations-and-fictional-seed`，要求 candidate/migration head 精确，
-  migration/seed/runtime 全 true、Hosted data absent、scratch destroyed。静态 migration test、dump listing、
-  command exit 0 或手写 manifest 不能替代实际隔离重建；
+  migration/seed/runtime 全 true、Hosted data absent、scratch destroyed。执行器必须使用无 tag digest reference、
+  `--pull never`、`--network none` 与唯一 tmpfs PGDATA，无 host/named volume/port；精确读取 14 migration 和
+  SHA-256 固定 fictional seed，验证完整 Auth/Storage DB baseline、唯一 fictional profile、零 Auth identity/
+  user、零 Storage object、零 invitation/claim，并在 container 删除回查后才写 manifest。静态 migration test、
+  dump listing、command exit 0 或手写 manifest 不能替代实际隔离重建；
 - raw logical dump 是敏感备份，不进入测试 fixture/stdout/log。默认测试只使用不含用户数据的内存 adapter；
   测试必须区分 PG17 full-database custom archive 与 Supabase CLI filtered SQL，且断言 Storage object bytes、
   global roles 和 Hosted platform config 不在 archive 覆盖声明内；
 - 容器化 writer 不得把密码放入 Docker env/argument；测试必须固定 `.pgpass`/CA `0600`、read-only mount、
   `PGPASSFILE`/`PGSSLROOTCERT` 固定 path、partial→fsync→atomic rename→directory fsync→manifest-last 与固定
-  cleanup。完整 writer 落地前 package scripts 不得暴露 capture/rebuild 操作；
-- 真实 capture、Storage object export、restore、scratch rebuild、Supabase 连接与 0014 apply 都是另行批准的
+  cleanup；child env 只含固定 locale（macOS 可由系统附加 `__CF_USER_TEXT_ENCODING`），输出有硬 byte/time
+  上限且 overflow/timeout 失败关闭。固定 TOC 必须包含 Auth users、Storage objects、public profiles 与 migration
+  ledger；TTY reader 必须在提示前关闭 echo、使用有界 byte reader 且不触发 readline redraw，macOS 真实 PTY
+  回归必须证明虚构 marker 零回显；process timeout 必须等待 child `close` 后才返回，capture client 还必须在
+  最多约 4.9 秒的 late-create 窗口中，只强制删除精确 name+label+digest 的自身容器并回查不存在；rebuild
+  start race 出现未知同名 identity 时不得删除；既有 final evidence 不得覆盖；
+- 真实 capture、Storage object export、scratch rebuild、Supabase 连接与 0014 apply 都是另行批准的
   Hosted 门。
 
 ### 4.11 Phase 47 本机验收模拟模型

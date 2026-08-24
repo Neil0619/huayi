@@ -1859,16 +1859,16 @@ Vercel environment 或密钥；实际邮件发送与 0014 远端应用分别等�
 
 ### Phase 82：Hosted 重要批次备份与可重建证据门（2026-08-24）
 
-影响平台为 `shared tooling/docs + hosted-acceptance`。本阶段只关闭离线控制面与执行器就绪度审计缺口，
-不连接 Supabase、执行 dump/restore/rebuild、应用 migration、发送邮件或部署。
+影响平台为 `shared tooling/docs + hosted-acceptance`。Phase 82–85 关闭离线控制面、runtime/image lock 与本机
+inspection；Phase 86 只实现受审查 writer 与隔离 rebuild，不连接 Supabase、不执行真实 dump/rebuild、
+不应用 migration、不发送邮件或部署。
 
 1. **Fresh RED**：新模块测试先以 `ERR_MODULE_NOT_FOUND` 失败；deployment ledger 的独立断言再证明旧
    action chain 缺少 0014 前 backup dependency；最终安全审查另以 dirty worktree case 证明旧 verifier 会
    错误放行脏候选；
 2. **深模块 interface**：固定 `backup:plan|preflight|complete`，并增加
    `backup:executor:plan|pre:readiness|rebuild:readiness|post:readiness`。两个 plan 零 filesystem/Git/network/
-   write；verifier/readiness 只读固定 project/batch/artifacts/runtime，不接受动态 path/project/operation，
-   也不提供 capture/restore/rebuild 写入口；
+   write；verifier/readiness 只读固定 project/batch/artifacts/runtime，不接受动态 path/project/operation；
 3. **raw backup contract**：未来单独批准的 capture 只允许固定 session pooler `5432`、verify-full
    administrator、process-scoped secret/CA、repository-pinned PostgreSQL 17、explicit custom-format partial
    file、受验证的 at-rest protection、`0700/0600`、fsync/atomic rename/manifest-last 与失败清理。dump 是
@@ -1888,9 +1888,16 @@ Vercel environment 或密钥；实际邮件发送与 0014 远端应用分别等�
    `ERR_MODULE_NOT_FOUND` Fresh RED，随后从 pinned CLI source/config/start gates 严格派生 14-service graph，
    固定 11 active image 的 index 与 `linux/amd64`/`linux/arm64` manifest digest，并证明 Realtime、ImgProxy、
    Supavisor 三项 disabled；
-8. **当前 blocker**：静态 lock verifier 零 Docker/零网络，local verifier 只有固定 Unix-socket image inspect，
-   不含 pull/run/start。CLI cache miss 会隐式 pull，因此固定镜像仍需另行批准获取并本机验证；reviewed write
-   executor 也仍缺失。即使 fake runtime 全 ready，readiness 仍因 executor 未 pinned 固定失败且零 evidence；
-9. **动作账本**：executor prerequisite/readiness → pre capture/rebuild → `backup:preflight` → 0014 apply →
-   post capture → `backup:complete` → API/Web 串行 deployment。离线 GREEN 不代表两个 evidence gate 真实
-   通过，也不关闭 Storage export、backup retention 或 production restore drill。
+8. **Phase 85 本机闭环**：11 个 active index digest 已经批准获取并在固定 OrbStack socket 完成 local-only
+   inspect；canonical Docker Hub RepoDigest、macOS current-user socket 与 child env bound 均由回归固定；
+9. **Phase 86 writer**：Fresh RED 三个 module 均以 `ERR_MODULE_NOT_FOUND` 失败。GREEN 后新增 exact-confirmation
+   `backup:capture:pre|rebuild|capture:post`；capture 只用无 tag digest runtime、session pooler 5432、TTY 密码、
+   `0600` `.pgpass`/CA read-only mounts、fixed TOC、partial/fsync/hash/atomic rename/manifest-last。rebuild 只用
+   `--pull never`/`--network none`/tmpfs PGDATA，精确 14 migration + pinned fictional seed，销毁 scratch 后才写
+   evidence。capture 每个 client 另用固定 name/label，timeout/overflow/异常后只删除精确 image+label identity
+   并回查不存在；独立审查后再固定 TTY 为 echo-before-prompt + bounded byte reader、process timeout 等待 child
+   `close`、约 4.9 秒 late-create 稳定窗口，以及 rebuild start race 中未知同名容器永不删除。离线测试只用
+   fake process/fictional archive，本阶段没有运行真实入口；
+10. **动作账本**：executor prerequisite/readiness → pre capture/rebuild → `backup:preflight` → 0014 apply →
+    post capture → `backup:complete` → API/Web 串行 deployment。离线 GREEN 不代表两个 evidence gate 真实
+    通过，也不关闭 Storage export、backup retention 或 production restore drill。

@@ -15,7 +15,13 @@ import {
   hostedImportantBatchBackupArtifactDirectory,
   hostedImportantBatchId,
 } from "./acceptance-hosted-important-batch-backup.mjs";
+import {
+  hostedImportantBatchCapturePostArgument,
+  hostedImportantBatchCapturePreArgument,
+} from "./acceptance-hosted-important-batch-capture.mjs";
+import { hostedImportantBatchPostgresRuntimeReference } from "./acceptance-hosted-important-batch-execution-contract.mjs";
 import { hostedAcceptanceProjectRef } from "./acceptance-hosted-foundation.mjs";
+import { hostedImportantBatchRebuildArgument } from "./acceptance-hosted-important-batch-rebuild.mjs";
 
 const candidateCommit = "0123456789abcdef0123456789abcdef01234567";
 const fixedTestDockerTarget = {
@@ -43,8 +49,21 @@ function unavailableRuntime(overrides = {}) {
   };
 }
 
+function readyRuntime() {
+  return unavailableRuntime({
+    artifactEncryptionReady: true,
+    dockerDaemonReady: true,
+    pinnedPostgres17RuntimeReady: true,
+    pinnedScratchRuntimeReady: true,
+    supabaseCliPinned: true,
+  });
+}
+
 async function runCli({
   arguments_,
+  captureBackup,
+  readCaptureSecrets,
+  rebuildScratch,
   repositoryState = readyRepositoryState(),
   runtime = unavailableRuntime(),
 } = {}) {
@@ -53,6 +72,11 @@ async function runCli({
   let stdout = "";
   const code = await runHostedImportantBatchBackupExecutorCli({
     arguments_,
+    captureBackup:
+      captureBackup ??
+      (async (options) => {
+        calls.push({ capture: options });
+      }),
     inspectRuntime: async () => {
       calls.push("inspect-runtime");
       return runtime;
@@ -61,6 +85,18 @@ async function runCli({
       calls.push("read-repository");
       return repositoryState;
     },
+    readCaptureSecrets:
+      readCaptureSecrets ??
+      (async () => {
+        calls.push("read-secrets");
+        return { administratorPassword: "private-password", caCertificate: "private-ca" };
+      }),
+    rebuildScratch:
+      rebuildScratch ??
+      (async (options) => {
+        calls.push({ rebuild: options });
+      }),
+    repositoryRoot: "/fixed/repository",
     writeError: (value) => {
       stderr += value;
     },
@@ -104,6 +140,7 @@ test("executor plan is deterministic, zero-I/O, and states exact coverage and bl
   assert.match(stdout, /transaction pooler port 6543 is forbidden/u);
   assert.match(stdout, /PostgreSQL 17/u);
   assert.ok(stdout.includes(hostedImportantBatchPostgresImage));
+  assert.ok(stdout.includes(hostedImportantBatchPostgresRuntimeReference));
   assert.match(stdout, /Supabase CLI 2\.115\.0/u);
   assert.match(stdout, /Auth database rows/u);
   assert.match(stdout, /Storage metadata/u);
@@ -115,13 +152,13 @@ test("executor plan is deterministic, zero-I/O, and states exact coverage and bl
   assert.match(stdout, /manifest last/u);
   assert.match(stdout, /raw stdout or stderr/u);
   assert.match(stdout, /\.pgpass/u);
-  assert.match(stdout, /complete 11-image platform lock exists/u);
-  assert.match(stdout, /local-only image inspection passes/u);
-  assert.match(stdout, /reviewed write executor does not exist/u);
-  assert.match(stdout, /blocked fail-closed/u);
+  assert.match(stdout, /reviewed writer is pinned/u);
+  assert.match(stdout, /confirmation-gated/u);
+  assert.match(stdout, /--pull never/u);
+  assert.match(stdout, /--network none/u);
 });
 
-test("package scripts expose only plan and exact readiness checks, not executable capture or rebuild", async () => {
+test("package scripts expose only exact plan, readiness, and confirmation-gated operations", async () => {
   const packageDocument = JSON.parse(
     await readFile(new URL("../package.json", import.meta.url), "utf8"),
   );
@@ -142,9 +179,18 @@ test("package scripts expose only plan and exact readiness checks, not executabl
     packageDocument.scripts["acceptance:hosted:backup:executor:post:readiness"],
     `node scripts/acceptance-hosted-important-batch-backup-executor.mjs ${hostedImportantBatchPostCaptureReadinessArgument}`,
   );
-  assert.equal(packageDocument.scripts["acceptance:hosted:backup:capture:pre"], undefined);
-  assert.equal(packageDocument.scripts["acceptance:hosted:backup:rebuild"], undefined);
-  assert.equal(packageDocument.scripts["acceptance:hosted:backup:capture:post"], undefined);
+  assert.equal(
+    packageDocument.scripts["acceptance:hosted:backup:capture:pre"],
+    `node scripts/acceptance-hosted-important-batch-backup-executor.mjs ${hostedImportantBatchCapturePreArgument}`,
+  );
+  assert.equal(
+    packageDocument.scripts["acceptance:hosted:backup:rebuild"],
+    `node scripts/acceptance-hosted-important-batch-backup-executor.mjs ${hostedImportantBatchRebuildArgument}`,
+  );
+  assert.equal(
+    packageDocument.scripts["acceptance:hosted:backup:capture:post"],
+    `node scripts/acceptance-hosted-important-batch-backup-executor.mjs ${hostedImportantBatchCapturePostArgument}`,
+  );
 });
 
 test("all three exact readiness checks fail closed before any executor or evidence write", async () => {
@@ -165,24 +211,78 @@ test("all three exact readiness checks fail closed before any executor or eviden
   }
 });
 
-test("readiness remains blocked with the complete platform runtime because the writer is unpinned", async () => {
+test("readiness passes only after the clean candidate and complete pinned runtime are proven", async () => {
   const result = await runCli({
     arguments_: [hostedImportantBatchPreCaptureReadinessArgument],
-    runtime: unavailableRuntime({
-      artifactEncryptionReady: true,
-      dockerDaemonReady: true,
-      pinnedPostgres17RuntimeReady: true,
-      pinnedScratchRuntimeReady: true,
-      supabaseCliPinned: true,
+    runtime: readyRuntime(),
+  });
+
+  assert.equal(result.code, 0);
+  assert.equal(result.stdout, "Hosted important-batch pre readiness passed.\n");
+  assert.equal(result.stderr, "");
+});
+
+test("confirmation-gated capture reads secrets only after readiness and passes no dynamic identity", async () => {
+  for (const [argument, phase] of [
+    [hostedImportantBatchCapturePreArgument, "pre"],
+    [hostedImportantBatchCapturePostArgument, "post"],
+  ]) {
+    const result = await runCli({ arguments_: [argument], runtime: readyRuntime() });
+
+    assert.equal(result.code, 0);
+    assert.deepEqual(result.calls.slice(0, 3), [
+      "read-repository",
+      "inspect-runtime",
+      "read-secrets",
+    ]);
+    assert.deepEqual(result.calls[3], {
+      capture: {
+        administratorPassword: "private-password",
+        caCertificate: "private-ca",
+        candidateCommit,
+        phase,
+        repositoryRoot: "/fixed/repository",
+      },
+    });
+    assert.equal(result.stdout, `Hosted important-batch ${phase} backup captured.\n`);
+    assert.equal(result.stderr, "");
+  }
+});
+
+test("confirmation-gated rebuild never requests Hosted secrets and records only fixed success", async () => {
+  const result = await runCli({
+    arguments_: [hostedImportantBatchRebuildArgument],
+    runtime: readyRuntime(),
+  });
+
+  assert.equal(result.code, 0);
+  assert.deepEqual(result.calls, [
+    "read-repository",
+    "inspect-runtime",
+    { rebuild: { candidateCommit, repositoryRoot: "/fixed/repository" } },
+  ]);
+  assert.equal(result.stdout, "Hosted important-batch isolated rebuild verified and destroyed.\n");
+  assert.equal(result.stderr, "");
+});
+
+test("execution failure discards raw secrets and errors and emits one fixed failure", async () => {
+  const sensitive = "private-user@example.test";
+  const result = await runCli({
+    arguments_: [hostedImportantBatchCapturePreArgument],
+    captureBackup: async () => {
+      throw new Error(sensitive);
+    },
+    readCaptureSecrets: async () => ({
+      administratorPassword: sensitive,
+      caCertificate: sensitive,
     }),
+    runtime: readyRuntime(),
   });
 
   assert.equal(result.code, 1);
   assert.equal(result.stdout, "");
-  assert.equal(
-    result.stderr,
-    "Hosted important-batch executor readiness failed closed; no operation was performed.\n",
-  );
+  assert.equal(result.stderr, "Hosted important-batch executor operation failed closed.\n");
+  assert.doesNotMatch(result.stderr, new RegExp(sensitive, "u"));
 });
 
 test("dirty or unignored repository state fails before runtime inspection", async () => {

@@ -6,15 +6,15 @@ Supabase Free 不提供可依赖的自动备份。Hosted 验收环境虽然不�
 identity、邀请与用户学习数据；任何 forward-only migration 或重要部署批次前后都必须留下可恢复证据，不能
 把“migration dry-run 通过”当成备份。
 
-Phase 82–85 交付默认离线、失败关闭的计划、执行器就绪度审计、完整 platform image lock、本机镜像检查与
-证据验证模块：
+Phase 82–86 交付失败关闭的计划、执行器就绪度审计、完整 platform image lock、本机镜像检查、受审查
+writer 与证据验证模块：
 
 - 固定 Supabase project `kpadiulxkgckskcfydry` 和当前批次 `phase-81-0014`；
 - `pnpm acceptance:hosted:backup:plan` 只渲染固定计划，零文件、Git、网络和写入；
 - `pnpm acceptance:hosted:backup:preflight` 只读取本机固定证据目录，验证 0014 前备份和候选空库重建；
 - `pnpm acceptance:hosted:backup:complete` 再要求 0014 后备份，关闭整个重要批次；
 - `pnpm acceptance:hosted:backup:executor:plan` 零 I/O 地列出 pre capture、isolated rebuild、post capture
-  三个固定 operation；对应 `executor:*:readiness` 只做本地 Git/runtime 分类并固定失败关闭；
+  三个固定 operation；对应 `executor:*:readiness` 只做本地 Git/runtime 分类，不连接 Hosted 或生成证据；
 - `pnpm acceptance:hosted:backup:platform-lock:verify` 零 Docker、零网络校验 pinned CLI/config/source provenance、
   14 个 start service 的 11 active + 3 disabled 分类、完整 lock SHA-256 tripwire，以及 active image 的
   index/双平台 manifest digest；
@@ -22,8 +22,9 @@ Phase 82–85 交付默认离线、失败关闭的计划、执行器就绪度审
   执行 `docker image inspect`，没有 pull/build/run/start/registry manifest 命令；当前 macOS 验收机的 11 个
   index-digest reference 已全部检查通过。此前受控获取步骤已按 11 个 index digest 和 `linux/arm64` 下载
   镜像；检查与修复步骤没有追加 pull，整个阶段没有运行镜像；
-- 本阶段没有可执行 capture、restore、scratch rebuild、Supabase connection 或 migration apply 命令，也
-  没有执行真实 dump。
+- Phase 86 新增且只新增三个 exact-confirmation-gated 入口：`backup:capture:pre`、`backup:rebuild` 与
+  `backup:capture:post`。它们不接受 project/path/URL/image/phase 参数；本阶段只完成实现与离线 fake 验证，
+  没有调用任一入口，没有连接 Supabase、运行容器、生成 dump/evidence 或执行 migration。
 
 审计确认当前本机 `pg_dump`/`pg_restore`/`psql` 是 14.6，而 Hosted/仓库目标为 PostgreSQL 17。Phase 83
 已经把 Supabase CLI 2.115.0 对应的数据库镜像固定为
@@ -33,9 +34,11 @@ Phase 82–85 交付默认离线、失败关闭的计划、执行器就绪度审
 Supavisor 分别因显式/默认 gate 为 false 不启动。11 个 exact tag 均锁定 Docker Hub registry 返回的
 index digest 与 `linux/amd64`、`linux/arm64` platform manifest digest。Phase 85 修复了实际 OrbStack socket
 位置与 Docker Hub canonical `RepoDigests` 表达差异；当前 macOS 验收机的 11 个固定镜像已完成 local-only
-inspection，但没有运行镜像，也没有受审查写执行器。真实 capture/restore 必须先关闭剩余前提，再由用户
-明确批准后单独实现和执行。本机检查 GREEN 只证明当前 host 的镜像缓存与 lock 一致，不证明数据库已经备份、
-恢复或重建，其他执行 host 也必须重新检查。
+inspection。Phase 86 已将实际执行 reference 去掉 tag、只保留
+`docker.io/supabase/postgres@sha256:86a2e078779e5bdccda1f6f6c5063aa9779a322d1fface5fb408d051909b230f`，
+并落地受审查 writer；带 `17.6.1.159` 的 reference 仅保留 provenance，不进入 Docker argv。本机检查 GREEN
+与 writer 离线 GREEN 都不证明数据库已经备份、恢复或重建；实际 pre/rebuild/post 仍分别等待明确批准，
+其他执行 host 也必须重新检查。
 
 ## 2. 固定证据目录与权限
 
@@ -58,8 +61,10 @@ artifacts/hosted-important-batch-backups/phase-81-0014/
 另一个 clone 未配置本地 ignore 时失败关闭，不允许为了通过而把 dump 放进跟踪目录。
 
 每个目录只允许上述固定文件。`.partial`、CA、`.pgpass`、临时 restore、stdout capture 或未知文件都会令门
-失败。失败的未来 capture 必须先清理所有局部文件；只有 dump 关闭、计算 SHA-256、核对大小后，才能原子
-写入 manifest。
+失败；写入口必须在连接或启动 scratch 前确认目标 leaf 精确为空。capture/rebuild 在每个正常异常路径都只
+清理固定 partial、CA、`.pgpass`、未完成 final 与自身精确匹配的 container/scratch；只有 dump 关闭并
+`fsync`、固定完整 TOC 行验证，且验证前后的 SHA-256/size 都未变化，再完成 atomic rename 与目录 `fsync`
+后，才能最后原子写入 manifest。既有 final evidence 永不覆盖。
 
 ## 3. 逻辑备份证据
 
@@ -69,36 +74,40 @@ commit、UTC 捕获时间、`verify-full-administrator` 连接 profile、`postgr
 `20260824010000`；manifest 的 candidate commit 必须等于验证时的 Git HEAD，且验证时不能存在 tracked 或
 untracked 的候选漂移。ignored 批次 evidence 不计入工作树漂移。
 
-真实逻辑 dump 是**原始敏感备份**。未来的 full-database custom archive 只有在固定 TOC/只读 contract
-证明后，才能声称包含可访问的应用 schema/data、migration history、Auth 数据库行与 Storage metadata；
+真实逻辑 dump 是**原始敏感备份**。full-database custom archive 只有在固定 TOC/只读 contract
+证明应用 data、migration history、Auth 数据库行与 Storage metadata 的 TABLE DATA entry 都存在后才提交；
 `pg_dump` **不包含 Storage object bytes**，也不包含 cluster/global roles、Hosted Auth provider/SMTP、DNS、
 Edge Functions、environment 或平台密钥。Storage objects 必须先由固定只读 contract 证明为零；若非零，
 必须另行批准并实现 Storage API object export，本批次继续阻塞。archive 不是“脱敏”“匿名化”或可分享的
-发布证据，不得复制到 Git、聊天、工单、测试 fixture、日志或 stdout。未来受控 capture 必须：
+发布证据，不得复制到 Git、聊天、工单、测试 fixture、日志或 stdout。受控 capture 固定为：
 
 1. 只使用固定 project 的 verify-full 管理员 session pooler `5432`；transaction pooler `6543` 禁止用于
    dump/restore；密码只写入固定 `0600` 临时 `.pgpass` 并 read-only mount，容器只得到固定 `PGPASSFILE`
    path，不能收到 `PGPASSWORD` 或 secret-bearing Docker argument；CA 只来自
    `HUAYI_HOSTED_DATABASE_CA_CERTIFICATE`，写入固定 `0600` 临时文件、read-only mount，并只通过固定
    `PGSSLROOTCERT` path 使用；
-2. 以参数数组和 `shell:false` 调用上方 digest-pinned PostgreSQL 17 database image 内的 custom-format
+2. 以参数数组和 `shell:false` 调用无 tag 的 digest-pinned PostgreSQL 17 database image 内的 custom-format
    `pg_dump`，并用显式 fixed `--file` 写入固定目录；本机 14.6 永远不参与，不能冒充兼容；Docker 必须复用
    受控 resolver：macOS 从 OS 当前用户信息派生固定 `~/.orbstack/run/docker.sock` 并只调用
    `/Applications/OrbStack.app/Contents/MacOS/xbin/docker`，Linux 只允许 `/var/run/docker.sock` 与
    `/usr/bin/docker`。不得读取 `HOME` 或任意 env socket；`DOCKER_HOST`/`DOCKER_CONTEXT` 即使为空也必须
    在 spawn 前失败；
-3. 运行前确认目标文件系统的静态加密/访问控制；不能证明时停止，改用经验证的安全临时介质；
-4. 不转发工具 stdout/stderr，不记录 row、identity、正文、token、secret 或原始数据库错误；
-5. 预创建 `0600` partial，成功关闭后 `fsync`、计算 SHA-256/size、atomic rename 并 `fsync` 目录；canonical
+3. `psql`、`pg_dump`、`pg_restore` 分别使用固定 name/label，运行前确认同名 identity 不存在。运行结束后
+   必须等待 Docker client 真正 `close` 并回查；overflow/timeout/异常路径还必须覆盖最多约 4.9 秒的晚创建
+   窗口。只有 digest runtime 与 label 都精确匹配时才可强制删除遗留容器，并再次 inspect 证明不存在；未知
+   同名容器必须失败关闭且不得删除；
+4. 运行前确认目标文件系统的静态加密/访问控制；不能证明时停止，改用经验证的安全临时介质；
+5. 不转发工具 stdout/stderr，不记录 row、identity、正文、token、secret 或原始数据库错误；
+6. 预创建 `0600` partial，成功关闭后 `fsync`、计算 SHA-256/size、atomic rename 并 `fsync` 目录；canonical
    manifest 最后以同样的 partial/fsync/rename 顺序生成；
-6. 无论成功或失败都清理固定 CA、partial、manifest temp 和 scratch temp；成功后只保留 dump 与严格
+7. 无论成功或失败都清理固定 CA、partial、manifest temp 和 scratch temp；成功后只保留 dump 与严格
    manifest。
 
 本地 `supabase db dump --help` 证明 CLI 2.115.0 不提供 custom-format flag；官方 CLI 文档同时说明默认
 dump 无 data/custom roles 且会过滤 Supabase managed schemas。官方 platform restore 指南采用 roles/schema/
-data 三份 SQL，而不是 PostgreSQL custom archive。两种 artifact 不得混称；本阶段保留 custom archive
-contract，但在 pinned image 离线验证、完整 coverage contract 与写执行器落地前失败关闭，不会用看似安全却覆盖不明的 CLI SQL、
-伪匿名 dump 或手写 manifest 代替备份。
+data 三份 SQL，而不是 PostgreSQL custom archive。两种 artifact 不得混称；本 writer 保留 custom archive
+contract，并在 pinned image、完整 coverage contract 或固定 filesystem 步骤任一失败时关闭，不会用覆盖不明
+的 CLI SQL、伪匿名 dump 或手写 manifest 代替备份。
 
 ## 4. migration + fictional seed 重建证据
 
@@ -113,29 +122,33 @@ contract，但在 pinned image 离线验证、完整 coverage contract 与写执
 - Hosted data absent；
 - scratch destroyed。
 
-命令退出 0、`pg_restore --list`、本机已有数据库或一组静态 SQL 测试都不能单独形成该证据。未来真实重建
-工具必须使用固定且不同于 Hosted/本机验收的 project identity、固定无冲突端口与 repository-pinned image
-digest，从空 scratch 开始；只复制仓库 migrations 与虚构 seed，执行完整 migration/seed/固定 bounded
-contract，确认没有 Hosted 数据，并在删除 scratch 后才原子写 manifest。证据不保存表计数、账号、邮箱、
+命令退出 0、`pg_restore --list`、本机已有数据库或一组静态 SQL 测试都不能单独形成该证据。重建工具使用
+固定且不同于 Hosted/本机验收的 container identity、无网络/无端口/无 host 或 named volume 的单一 tmpfs
+PGDATA，以及 repository-pinned digest-only Supabase PostgreSQL 17 runtime，从完整 Auth/Storage database
+baseline 的空 scratch 开始；它精确读取 14 条仓库 migration 与 SHA-256 固定的虚构 seed，逐条应用并记录
+migration ledger，执行 bounded baseline/migration/seed/runtime/absence contract，确认 Auth user/identity、
+Storage object、邀请/claim 与除唯一虚构 profile 外的数据均为空，并在删除 scratch、回查 container 不存在后
+才原子写 manifest。start race 也必须先校验完整 scratch identity；未知同名容器不得删除。证据不保存表计数、账号、邮箱、
 ID、正文或 dump 内容。完整 lock 的 14 个 service gate 精确分类为：Postgres、Logflare、Vector、Kong、
 GoTrue、Mailpit、PostgREST、Storage、Edge Runtime、Postgres Meta、Studio 启动；Realtime 因仓库显式
 `enabled=false`，ImgProxy 因可选 `storage.image_transformation` section 缺失并默认 false，Supavisor 因
 `db.pooler` 缺失并默认 false 而不启动。CLI `supabase start` 在 cache miss 时会主动 pull，因此不能用普通
-start 证明 offline。未来 start 前必须先通过静态 lock verifier 与全部 11 个 index-digest reference 的
-local-only image inspection；当前 macOS 验收机已通过该检查，但 reviewed writer 未 pinned，readiness 仍必须
-失败。其他执行 host 必须独立重跑检查，不能复用本机结论。
+start 证明 offline。writer 不调用普通 `supabase start`；任何 scratch 前必须先通过静态 lock verifier 与
+全部 11 个 index-digest reference 的 local-only image inspection，实际 DB container 再以 `--pull never`、
+`--network none` 和无 tag digest reference 启动。其他执行 host 必须独立重跑检查，不能复用本机结论。
 
 ## 5. Phase 81 动作依赖
 
 0014 的顺序现固定为：
 
 1. 运行零网络 `acceptance:hosted:backup:plan` 与 `acceptance:hosted:backup:executor:plan`；
-2. exact pre/rebuild/post readiness 在静态 platform lock、本机 11 镜像检查或写执行器缺失时必须失败；
-3. 关闭前提并通过独立代码审查/明确授权后，完成 pre raw logical dump 和 migrations+fictional-seed scratch
-   rebuild；
+2. exact pre/rebuild/post readiness 在 clean candidate、静态 platform lock、本机 11 镜像检查、FileVault、
+   pinned CLI 或 writer 任一缺失时必须失败；全部满足时只回报 readiness passed，仍不执行写操作；
+3. 独立代码审查/明确授权后，只运行 `backup:capture:pre` 与 `backup:rebuild`，完成 pre raw logical dump 和
+   migrations+fictional-seed scratch rebuild；
 4. `acceptance:hosted:backup:preflight` 必须通过；
 5. 才能把“用户已批准实际应用唯一 0014”描述为 ready；
-6. 应用后、部署前或同一重要批次关闭前完成 post dump；
+6. 应用后、部署前或同一重要批次关闭前，经独立批准只运行 `backup:capture:post` 完成 post dump；
 7. `acceptance:hosted:backup:complete` 必须通过；
 8. 再按 API→Web 严格串行 one-shot arm/deploy/disarm 继续。
 
@@ -147,10 +160,10 @@ local-only image inspection；当前 macOS 验收机已通过该检查，但 rev
 
 默认离线测试必须证明：
 
-- 两个 plan 不访问 filesystem/Git/network；三个 readiness 只允许固定 operation/project/batch 并且没有
-  capture/restore/rebuild 写入口；
+- 两个 plan 不访问 filesystem/Git/network；三个 readiness 只允许固定 operation/project/batch 且不执行
+  capture/rebuild；三个写入口另以 exact confirmation 隔离；
 - 参数不能注入 project、路径或 operation，错误只输出固定消息；
-- readiness 即使 fake 或当前真实 runtime 全 ready 也必须因 write executor 未 pinned 失败，不得创建 evidence；
+- readiness 只有 clean candidate、完整 runtime 与 pinned writer 全 true 才通过，但不得创建 evidence；
   本地 inspector 只通过 platform-fixed Unix Docker socket 与固定 absolute executable 读取 daemon/local image
   metadata、固定 CLI version 与 FileVault status；macOS path 由当前 OS 用户信息而不是 username/HOME 组成，
   Linux 保留 `/var/run/docker.sock`。selector/env socket、缺失/非 socket target、非 executable 与不支持平台均
@@ -160,10 +173,15 @@ local-only image inspection；当前 macOS 验收机已通过该检查，但 rev
 - preflight/complete 校验固定 project、batch、clean HEAD、ignore、目录/file mode、exact keys、size/hash 和
   pre/post migration head；
 - rebuild manifest 必须是 migrations+fictional-seed、Hosted data absent 且 scratch destroyed；
+- capture tests 必须证明 secret 不进入 argv/child env/log/stdout，只进入固定 `0600` `.pgpass`/CA read-only
+  mounts；TTY 测试还必须证明关闭 echo 发生在提示前、不使用 readline redraw，且 macOS 真实 PTY 中虚构
+  marker 零回显；process timeout 必须等 child `close`，late-create 窗口只能清理精确 identity；rebuild tests
+  必须证明 digest-only、`--pull never`、`--network none`、tmpfs-only、exact 14 migrations、fictional seed、
+  fixed bounded outputs、每种失败 cleanup、未知同名容器不删除与 manifest-after-destroy ordering；
 - 日志和错误不反射 manifest、路径输入、账号、正文或 secret；
 - Hosted deployment action ledger 把 backup preflight 放在 0014 apply 之前。
 
-真实 dump、restore、scratch rebuild、Supabase 连接和 retained-backup 删除仍分别需要批准、运行证据与清理
+真实 dump、scratch rebuild、Supabase 连接和 retained-backup 删除仍分别需要批准、运行证据与清理
 证据；本文件不关闭 Storage object export、Supabase 备份残留期限或正式 production 恢复演练。
 
 ## 7. 官方约束来源

@@ -3,6 +3,33 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-24：Hosted 重要批次 writer 固定为原子归档与隔离重建执行器
+
+- Phase 86 只增加三个 exact-confirmation 写入口：0014 前、后 raw custom archive capture，以及从仓库
+  migration + fictional seed 启动的隔离 rebuild；project、batch、phase、路径、pooler、image 与 migration
+  集合均不能由调用者覆盖，readiness 继续只读且不能隐式进入写操作；
+- 实际 Docker argv 只允许无 tag 的 Supabase PostgreSQL index digest，并固定 `--pull never` 与平台 resolver。
+  `17.6.1.159@digest` 只保留为来源证据；不得使用 tag、普通 `supabase start`、远程 Docker selector、PATH
+  搜索或 host PostgreSQL client；
+- Hosted 管理员密码只从 `/dev/tty` 隐藏读取：先关闭 echo 再显示提示，使用有界同步 byte reader，且不使用会
+  redraw 输入的 readline；密码只进入固定 `0600 .pgpass`。公开 CA 只进入固定 `0600` 文件。两者都以
+  read-only bind mount 暴露固定容器路径，秘密不进入 argv、child env、stdout、stderr 或日志；macOS 真实
+  PTY 回归证明虚构 marker 零回显；
+- archive 与 manifest 均采用固定 partial、文件 `fsync`、hash/size、atomic rename、目录 `fsync`，manifest
+  最后提交；连接前 evidence leaf 必须精确为空，TOC 验证前后的 size 与 SHA-256 必须同时不变。TOC 只接受
+  完整 `pg_restore --list` entry，不接受包含目标片段的任意文本；每条失败路径只清理固定临时项与未完成
+  final，不覆盖既有 evidence；
+- capture 的每个 Docker client 步骤使用固定且不同的 name/label，启动前必须确认 identity 不存在；正常退出、
+  overflow、timeout 或 client 异常后都必须等待 Docker client 真正 `close`，并在最多约 4.9 秒的晚创建窗口中
+  回查。只有 image digest 与 label 精确匹配时才可强制删除遗留容器，并再次 inspect 证明不存在；未知同名
+  容器永不删除；
+- rebuild 只启动 fixed-name、`--network none`、无端口/host volume/named volume、tmpfs PGDATA 的 scratch，
+  精确应用 14 条 migration 与 hash-pinned fictional seed。只有固定 baseline/chain/runtime/absence contract
+  全部通过、scratch 已删除且 inspect 确认不存在后才写 evidence；start race 中出现的未知同名容器必须保留
+  并失败关闭，不能无条件 `rm --force`；
+- Fresh RED 为 artifacts/capture/rebuild 三个 module 均 `ERR_MODULE_NOT_FOUND`。本阶段只完成离线 fake 与本机
+  文件系统测试；没有连接 Hosted、执行 dump/rebuild/restore、生成真实 evidence、应用 0014、发邮件或部署。
+
 ## 2026-08-24：Hosted 本机 Docker 检查按平台固定 socket/executable 并拒绝环境选择器
 
 - `/var/run/docker.sock` 不是 macOS OrbStack 的可靠实际入口。macOS 只允许从 OS 当前用户信息派生的

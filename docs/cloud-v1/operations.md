@@ -203,8 +203,9 @@ Phase 81 已在唯一普通邀请的真实注册邮件中发现 Hosted Email OTP
 `pnpm acceptance:hosted:backup:executor:plan`；executor 已固定唯一 PostgreSQL 17.6.1.159 OCI index，但
 完整 platform lock 现已由 `pnpm acceptance:hosted:backup:platform-lock:verify` 在零 Docker/零网络下校验：
 14 个 CLI start service 精确为 11 active + 3 disabled，active image 同时固定 index 与 amd64/arm64 manifest。
-CLI cache miss 会主动 pull；当前未批准获取/本机检查全部 11 镜像，write executor 也缺失，所以 readiness
-仍固定失败。只有这些 prerequisite 关闭、单独批准的 pre raw logical dump 与
+CLI cache miss 会主动 pull，因此普通 `supabase start` 仍禁止；当前 11 镜像已按 digest 获取并完成本机
+local-only inspection，Phase 86 writer 也已落地，但三个真实入口尚未运行、证据仍不存在。先运行 exact
+readiness；只有其通过且单独批准的 pre raw logical dump 与
 migrations+fictional-seed scratch rebuild 完成、且
 `pnpm acceptance:hosted:backup:preflight` 通过后，才允许应用受审查的 0014 并部署 token-only resend。
 再由仍持有原私密邀请的 Web 自动重发；用户不输入 fragment/token，系统不创建第二邀请或删除 Auth user。
@@ -294,17 +295,18 @@ deploy 只接受精确 `--confirm-local-downtime`。任何失败都停止后续�
   `artifacts/hosted-important-batch-backups/phase-81-0014`，并验证当前工作树干净、Git HEAD、本克隆
   ignored、目录 `0700`、文件 `0600`、exact manifest、dump size/SHA-256 与 pre/post migration head。它不
   连接数据库、不创建备份，也不允许调用者传 project、路径或 operation。
-- 真实 logical dump 是 raw sensitive backup，不能称为脱敏或把它复制到 Git、日志、聊天/工单。未来
-  capture 只允许固定 project/session pooler 5432 的 verify-full 管理员、`0600 .pgpass`/CA read-only mount、
-  digest-pinned PG17 database image、固定本机 Unix Docker socket，
+- 真实 logical dump 是 raw sensitive backup，不能称为脱敏或把它复制到 Git、日志、聊天/工单。capture
+  只允许固定 project/session pooler 5432 的 verify-full 管理员、TTY 输入密码、`0600 .pgpass`/CA read-only
+  mount、无 tag digest-pinned PG17 database image、固定本机 Unix Docker socket，
   显式 custom-format partial、受验证的 at-rest protection、fsync/atomic rename/manifest-last 与完整失败清理；
-  transaction pooler 6543 与 Supabase CLI filtered SQL 不得冒充 postgres-custom。当前只有 fail-closed readiness，
-  没有 capture/restore 根脚本，不能手写 manifest 绕过。
+  transaction pooler 6543 与 Supabase CLI filtered SQL 不得冒充 postgres-custom。只能运行三个 exact-confirmation
+  package entrypoint，不能手写 manifest 或添加动态参数绕过。
 - 数据库 archive 只有 coverage contract 通过后才可声称包含 Auth database rows 与 Storage metadata；它不
   包含 Storage object bytes、global roles 或 Hosted provider/SMTP/DNS/Edge/environment config。先证明
   Storage objects 为零，否则必须单独批准 object export。
-- rebuild evidence 只从仓库 migrations + fictional seed 在隔离非 production scratch 生成，禁止导入 Hosted
-  数据；必须在 migration/runtime/seed 聚合通过、确认 Hosted data absent 且 scratch 已销毁后再落严格
+- rebuild evidence 只从仓库 14 条 migrations + SHA-256 固定 fictional seed 在无网络、无端口、tmpfs-only 的
+  digest-only Supabase PostgreSQL scratch 生成，禁止导入 Hosted 数据；必须在 migration/runtime/seed 聚合
+  通过、确认 Hosted data absent 且 scratch 已销毁后再落严格
   body-free manifest。静态测试、命令退出 0 或 dump listing 不能单独关闭该门。
 - 上线前确认 Supabase point-in-time/备份策略、恢复演练和残留期限，并同步公开隐私政策。
 - 每季度在非生产环境从备份恢复并验证 RLS、行数和不可访问性；恢复样本不得复制真实用户正文到
