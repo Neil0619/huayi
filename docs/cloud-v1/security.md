@@ -406,7 +406,7 @@ owner context、generation/reservation 归属、task 成功或失败终态、价
 ## 9. Chrome Web Store
 
 - Extension 的单一用途是对当前英文内容提供就地翻译/解释，并按用户动作/账号偏好把原始学习采集或
-  生词副本交给同一华译学习工作台；它不上传 compact BYOK result，Web 不提供远程脚本或替换扩展代码。
+  生词副本交给同一语见学习工作台；它不上传 compact BYOK result，Web 不提供远程脚本或替换扩展代码。
 - 所有脚本、wasm、字体和样式随包发布。固定 API origin 只交换数据，不下载可执行逻辑。
 - 登录 Extension 的业务请求除高熵 session token 外，还必须由浏览器提供精确发布
   `chrome-extension://<id>` Origin，并携带 manifest 三段版本。API 在查询 token 归属前验证固定 Origin

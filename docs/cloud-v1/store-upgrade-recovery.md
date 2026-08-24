@@ -67,7 +67,7 @@ type SubmissionOutboxQueuedState = "queued" | "client-upgrade-required";
 ```
 
 仍禁止 payload、sourceText、result、token、idempotency key、HTTP body、URL 或服务器 message。Popup 在
-升级阻塞时显示“请先更新划译；待提交内容仍加密保存在本机”，禁用“重试”、保留二步“清空”；动态状态
+升级阻塞时显示“请先更新语见；待提交内容仍加密保存在本机”，禁用“重试”、保留二步“清空”；动态状态
 继续使用 polite live region。新版本读取为普通 queued 后重试自动恢复可用。
 
 Overlay/Content 不增加消息、DOM 或状态；用户通过现有 Popup 管理聚合队列，避免网页上下文观察账号兼容

@@ -1,4 +1,4 @@
-# 华译 Cloud V1 决策变更记录
+# 语见 Cloud V1 决策变更记录
 
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
@@ -1253,7 +1253,7 @@
 
 - 登录 BYOK import 的 426 不再归类普通 transient；SubmissionOutbox 保留加密正文、session 与原幂等
   键，只在加密 state 内记录触发阻塞的客户端版本，同版本 process 在 fetch 前停止。
-- Popup 严格聚合响应新增 `client-upgrade-required`，只显示条数/最早时间与“更新划译”文案，禁用重试
+- Popup 严格聚合响应新增 `client-upgrade-required`，只显示条数/最早时间与“更新语见”文案，禁用重试
   但保留二步本机清空；Content/Overlay/Options 不获得新 interface。
 - 新客户端版本读取旧阻塞时只解除标记并恢复显式重试，不伪造服务器兼容成功；详细设计与数据兼容
   见 `store-upgrade-recovery.md`。
@@ -1691,12 +1691,12 @@
 - Extension 保留本机 OpenAI/DeepSeek BYOK；Web 只使用平台 DeepSeek V4 Flash。
 - 未登录 BYOK 只做临时查询；登录后的 BYOK/平台分析都上传完整已校验结果并进入 Web 待整理区。
 - Extension Overlay 不承担候选选择、编辑或合并，所有整理与学习活动转到 Web。
-- BYOK 与欧路凭据继续只存本机 DeviceVault；华译 API 不接收或代理。
+- BYOK 与欧路凭据继续只存本机 DeviceVault；语见 API 不接收或代理。
 - 单词进入云端统一管理但不参加 Huayi 复习；Expression 与 SentencePattern 才是主动练习项，原句只
   是 SourceExample。
 - V1 练习包含句子创作和 3–5 轮受约束文字对话，保存完整练习历史，使用透明固定间隔阶梯。
 - 平台全部模型功能共用每 UTC 月默认 1 美元额度；管理后台可以按账号覆盖。
 - 邀请链接不绑定邮箱，72 小时、单次使用；Web 支持 Google 与邮箱密码。
 - Web/API 采用 React+Vite/Hono，Supabase Auth/Postgres 与 Vercel 双项目；服务器可读但正文不进日志。
-- V1 复用现有华译设置页视觉，仅预留语义 token；主题切换延后。
+- V1 复用现有语见设置页视觉，仅预留语义 token；主题切换延后。
 - 工程按阶段实现，但完整功能通过后才一次性向邀请用户开放。

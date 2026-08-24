@@ -48,6 +48,13 @@ const userFacingFiles = [
   "apps/web/src/study-capture-inbox.tsx",
 ];
 
+const cloudPublicBrandDocuments = [
+  "docs/cloud-v1/change-log.md",
+  "docs/cloud-v1/release-trust-surfaces.md",
+  "docs/cloud-v1/security.md",
+  "docs/cloud-v1/store-upgrade-recovery.md",
+];
+
 async function repositoryFile(path) {
   return readFile(new URL(`../${path}`, import.meta.url), "utf8");
 }
@@ -91,5 +98,15 @@ test("uses the new name on every current user-facing product surface", async () 
     const content = (await repositoryFile(path)).replaceAll("&amp;", "&");
     assert.match(content, /语见/u, path);
     assert.match(content, /Seen & Said/u, path);
+  }
+});
+
+test("uses the new Chinese name in authoritative Cloud documentation", async () => {
+  const contents = await Promise.all(
+    cloudPublicBrandDocuments.map(async (path) => [path, await repositoryFile(path)]),
+  );
+
+  for (const [path, content] of contents) {
+    assert.doesNotMatch(content, /划译|华译/u, path);
   }
 });
