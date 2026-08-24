@@ -285,7 +285,7 @@ export function renderHostedImportantBatchBackupPlan() {
 Pinned target: Supabase project ${hostedAcceptanceProjectRef}; batch ${hostedImportantBatchId}.
 Evidence directory: ${hostedImportantBatchBackupArtifactDirectory}
 - This plan performs no filesystem, Git, database, mail, model, or deployment operation.
-- Real capture and restore are not implemented. Run acceptance:hosted:backup:executor:plan for the fail-closed runtime-readiness audit before requesting a separately approved stage.
+- Reviewed capture and rebuild entrypoints are implemented but have not yet completed successfully: acceptance:hosted:backup:capture:pre, acceptance:hosted:backup:rebuild, and acceptance:hosted:backup:capture:post. Hosted dump restore is not implemented. Run acceptance:hosted:backup:executor:plan for the fail-closed runtime-readiness audit before requesting a separately approved stage.
 Future controlled logical-backup contract:
 - Use only the fixed project through a verify-full administrator profile and a process-scoped secret.
 - Use the fixed session pooler on port 5432 with a repository-pinned PostgreSQL 17 runtime. The transaction pooler on 6543 and the Supabase CLI filtered SQL dump are not postgres-custom evidence.

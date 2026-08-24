@@ -23,8 +23,9 @@ writer 与证据验证模块：
   index-digest reference 已全部检查通过。此前受控获取步骤已按 11 个 index digest 和 `linux/arm64` 下载
   镜像；检查与修复步骤没有追加 pull，整个阶段没有运行镜像；
 - Phase 86 新增且只新增三个 exact-confirmation-gated 入口：`backup:capture:pre`、`backup:rebuild` 与
-  `backup:capture:post`。它们不接受 project/path/URL/image/phase 参数；本阶段只完成实现与离线 fake 验证，
-  没有调用任一入口，没有连接 Supabase、运行容器、生成 dump/evidence 或执行 migration。
+  `backup:capture:post`。它们不接受 project/path/URL/image/phase 参数；pre/post capture 尚未调用。exact
+  rebuild 已在两个 clean candidate 上各调用一次，但都在 scratch start 前安全失败；两次均为零 scratch、
+  零 evidence、零 Hosted/Supabase 连接，亦未执行 migration。
 
 审计确认当前本机 `pg_dump`/`pg_restore`/`psql` 是 14.6，而 Hosted/仓库目标为 PostgreSQL 17。Phase 83
 已经把 Supabase CLI 2.115.0 对应的数据库镜像固定为
@@ -37,8 +38,8 @@ index digest 与 `linux/amd64`、`linux/arm64` platform manifest digest。Phase 
 inspection。Phase 86 已将实际执行 reference 去掉 tag、只保留
 `docker.io/supabase/postgres@sha256:86a2e078779e5bdccda1f6f6c5063aa9779a322d1fface5fb408d051909b230f`，
 并落地受审查 writer；带 `17.6.1.159` 的 reference 仅保留 provenance，不进入 Docker argv。本机检查 GREEN
-与 writer 离线 GREEN 都不证明数据库已经备份、恢复或重建；实际 pre/rebuild/post 仍分别等待明确批准，
-其他执行 host 也必须重新检查。
+与 writer 离线 GREEN 都不证明数据库已经备份、恢复或成功重建；实际 pre/post 尚未运行，rebuild 尚未成功，
+三个证据项与两个 evidence gate 均未关闭。其他执行 host 也必须重新检查。
 
 ## 2. 固定证据目录与权限
 
@@ -182,8 +183,9 @@ start 证明 offline。writer 不调用普通 `supabase start`；任何 scratch 
 - 日志和错误不反射 manifest、路径输入、账号、正文或 secret；
 - Hosted deployment action ledger 把 backup preflight 放在 0014 apply 之前。
 
-真实 dump、scratch rebuild、Supabase 连接和 retained-backup 删除仍分别需要批准、运行证据与清理
-证据；本文件不关闭 Storage object export、Supabase 备份残留期限或正式 production 恢复演练。
+真实 dump、成功的 scratch rebuild、Supabase 连接和 retained-backup 删除仍分别需要批准、运行证据与清理
+证据；两次 rebuild 安全失败不形成重建证据。本文件不关闭 Storage object export、Supabase 备份残留期限或
+正式 production 恢复演练。
 
 ## 7. 官方约束来源
 

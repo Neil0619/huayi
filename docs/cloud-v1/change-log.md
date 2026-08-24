@@ -35,8 +35,9 @@
   stdout 精确单个换行 `\n`。共享 predicate 因此只再加入这一种真实形态；empty、`\n`、`[]\n` 之外的空白、
   无换行 `[]`、JSON/文本、exit 0 与未知同名 identity 仍全部拒绝。该次失败同样零 scratch、零 evidence，未
   连接 Hosted、发送邮件或产生 deployment；
-- Fresh RED 为 artifacts/capture/rebuild 三个 module 均 `ERR_MODULE_NOT_FOUND`。本阶段只完成离线 fake 与本机
-  文件系统测试；没有连接 Hosted、执行 dump/rebuild/restore、生成真实 evidence、应用 0014、发邮件或部署。
+- Fresh RED 为 artifacts/capture/rebuild 三个 module 均 `ERR_MODULE_NOT_FOUND`。实现阶段先完成离线 fake 与
+  本机文件系统测试；随后两次 exact rebuild 均在 scratch start 前安全失败，没有成功执行重建，也没有连接
+  Hosted、执行 dump/restore、生成真实 evidence、应用 0014、发邮件或部署。
 
 ## 2026-08-24：Hosted 本机 Docker 检查按平台固定 socket/executable 并拒绝环境选择器
 

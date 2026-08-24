@@ -50,10 +50,11 @@ loopback-only runtime、生成式 secret/bootstrap、受信任 HTTPS Web/API/Sup
   hosted-acceptance 外部门禁，不能被 fake mail、域名验证或配置完成冒充为真实投递完成。
 
 因此当前状态为
-`hosted API deployed; runtime DSN rotated; post-rotation runtime and real acceptance pending`。本机核心学习
-闭环、持续重启和服务端 Store 契约已通过，托管 Auth 与环境结构也已配置；API 当前 `/health` 可用且 Web
-仍未部署，但现有 API deployment 早于 DSN Rotate，不得据此宣称数据库/Provider/Auth 已验收、真实 Chrome
-或 production ready。
+`hosted API/Web deployed and disarmed; important-batch evidence and real acceptance pending`。本机核心学习
+闭环、持续重启和服务端 Store 契约已通过，托管 Auth 与环境结构也已配置；API `/health` 与 Web custom-domain
+入口均已有受控 Ready deployment，最新 source 分别为 `4f1ce4a` 与 `9b0860a`，且两个项目当前都
+`deploymentEnabled=false`。这仍不得被解释为重要批次备份、0014、真实 OTP/Provider、Chrome 或 production
+ready。
 
 ## 3. 推荐拓扑
 

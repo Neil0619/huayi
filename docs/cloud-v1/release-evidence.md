@@ -2116,6 +2116,8 @@ typecheck、architecture、build、development blocker、Store release、product
   exit 1 + stdout 精确单个换行 `\n`。Fresh RED 再次在 settle、capture 与 rebuild 三处精确失败；共享 predicate
   只加入这一种 exact 形态，继续拒绝其它空白、无换行 `[]`、JSON/文本、exit 0 与未知同名 identity。第二次
   失败未启动 scratch、未生成 evidence、未连接 Hosted、未发送邮件、未产生 deployment；
-- **明确未执行**：本阶段没有调用三个真实写入口，没有连接 Supabase/Hosted、运行 dump/restore/rebuild、
-  生成真实 evidence、应用或 dry-run 0014、发送邮件、部署、调用 DeepSeek，亦未修改 Hosted/DNS/SMTP/
-  environment/key。真实 pre/rebuild/post 与两个 evidence gate 仍等待独立授权和运行证据，0014 仍不 ready。
+- **实际执行边界**：pre/post capture 从未调用，Hosted dump/restore、真实 evidence、0014 dry-run/apply、
+  邮件、部署与 DeepSeek 均未执行；但 exact rebuild 已在 clean `68144c1` 与 `b329e97` 上各调用一次，且两次
+  都在 scratch start 前安全失败，零 scratch、零 evidence、零 Hosted/Supabase 连接。当前 pre/post capture、
+  成功的 isolated rebuild 与两个 evidence gate 仍缺运行证据，0014 仍不 ready；Hosted/DNS/SMTP/
+  environment/key 均未修改。

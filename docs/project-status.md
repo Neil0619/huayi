@@ -115,12 +115,14 @@ audit 仍只允许 `enabled`。这不代表 Store 产品或 Windows 支持被取
 > PG client 只有 14.6、`supabase db dump` 2.115.0 不产生 custom archive。Phase 83 已固定唯一 PostgreSQL
 > 17.6.1.159 OCI index；Phase 84 又从 pinned CLI source/config/start gates 派生完整 14-service graph，固定
 > 11 active image 的 index 与 amd64/arm64 manifest digest，并证明 Realtime/ImgProxy/Supavisor disabled。
-> 静态 lock 门零 Docker/零网络且已通过；但镜像尚未获批获取/本机检查，reviewed write executor 也缺失，
-> 三个 exact readiness 因而继续固定失败且零 evidence。CLI cache miss 会 pull，普通 start 仍禁止。
+> 静态 lock 门零 Docker/零网络且已通过；11 个固定镜像已按批准获取并完成 OrbStack local-only inspection，
+> reviewed writer 与三个 exact-confirmation capture/rebuild entrypoint 也已实现。readiness 已在 clean candidate
+> 上通过；其后两次 exact rebuild 均因真实 OrbStack absent-inspect 输出形态在 scratch start 前安全失败，
+> 两次都是零 scratch、零 evidence。CLI cache miss 会 pull，普通 start 仍禁止。
 > 数据库 archive 最多覆盖经过 contract 验证的 Auth rows 与 Storage metadata，不包含 Storage object bytes；
-> objects 非零时必须另行 export。离线工具不提供 capture/restore/rebuild 写入口，也未连接 Supabase；真实 pre
-> evidence 与 preflight 尚未完成，所以 0014 仍不 ready，不能用 dry-run、CLI filtered SQL 或手写 manifest
-> 绕过。
+> objects 非零时必须另行 export。pre/post capture 尚未运行，isolated rebuild 尚未成功，Hosted dump restore
+> 也未实现；真实 pre evidence 与 preflight 尚未完成，所以 0014 仍不 ready，不能用 dry-run、CLI filtered
+> SQL 或手写 manifest 绕过。
 
 > **历史校准检查点（Phase 33）**：Phase 28 已补齐 production 语义重复建议和
 > 可计算 AA token 证据；2026-08-14 完成度源码审计发现的 SubmissionOutbox `api=null` 误清账号绑定

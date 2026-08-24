@@ -98,9 +98,10 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       Store 97 files 481/481 与 Playwright 110/110；
 - [x] 当前 Web 与 Store Extension Playwright 111/111 全绿；测试使用隔离的 4173 Vite 服务，没有改写或
       重启当前 8443 验收环境；
-- [x] 当前 macOS `pnpm verify:macos` 原样退出 0：240/240 Node scripts、476 个 Vitest files（2,901
+- [x] 当前 macOS `pnpm verify:macos` 原样退出 0：318/318 Node scripts、478 个 Vitest files（2,917
       passed / 12 skipped）、Store 97 files 481/481、Playwright 111/111；instructions、format、lint、typecheck、
-      architecture、workspace build、development blocker、Store release、production audit 和 diff 同轮通过；
+      architecture、workspace build、development blocker、Store release、production audit 和 diff 同轮通过。
+      当前候选仍是 `development-blocked`，该门禁通过只证明开发态阻塞集合精确，不代表 release ready；
 - [ ] Windows Node.js 26+ 的 `pnpm verify:windows`、SEA health 与 CI 全绿；Phase 37-B 已在 Windows 11
       build 26220、Node.js 26.7.0 上本地退出 0，109/109 Playwright、SEA 仓库外 health 与 production
       audit 全绿；完整门证据提交 `3aa143c7f60ba52a941f2a2db587bc93819427eb` 已普通 push，但分支无
@@ -175,7 +176,8 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
 - [x] Phase 85 已按单独批准获取并通过固定 OrbStack socket 本机检查全部 11 个固定镜像；Phase 86 已完成
       reviewed writer 与 exact-confirmation pre/rebuild/post entrypoint，固定 digest-only/`--pull never`、TTY
       password、`0600` `.pgpass`/CA、TOC、atomic evidence 和 networkless tmpfs scratch。此项是离线实现，
-      不代表真实 capture/rebuild 已运行；普通 `supabase start` 仍禁止；
+      pre/post capture 尚未运行；两次真实 rebuild 均在 scratch start 前安全失败且未形成 evidence，普通
+      `supabase start` 仍禁止；
 - [ ] 实际 pre capture 必须先证明 `storage.objects` 为零，否则另行完成 Storage object export；readiness 与
       单独批准未满足前不得运行真实入口或把 0014 描述为 ready；
 - [ ] 0014 apply 前由单独批准的真实阶段生成 pre raw logical dump，并从 migration + fictional seed 在隔离

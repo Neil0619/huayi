@@ -205,6 +205,15 @@ test("hosted important-batch plan is deterministic, secret-free, and performs ze
   assert.match(stdout, /raw sensitive logical dump/u);
   assert.match(stdout, /separately approved/u);
   assert.match(stdout, /migration 0014 is not ready/u);
+  assert.doesNotMatch(stdout, /Real capture and restore are not implemented/u);
+  assert.match(
+    stdout,
+    /Reviewed capture and rebuild entrypoints are implemented but have not yet completed successfully/u,
+  );
+  assert.match(stdout, /acceptance:hosted:backup:capture:pre/u);
+  assert.match(stdout, /acceptance:hosted:backup:rebuild/u);
+  assert.match(stdout, /acceptance:hosted:backup:capture:post/u);
+  assert.match(stdout, /Hosted dump restore is not implemented/u);
   assert.doesNotMatch(stdout, new RegExp(secret, "u"));
   assert.doesNotMatch(stdout, /row body|user body|pseudo-anonymized/iu);
 });
