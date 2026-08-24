@@ -55,6 +55,11 @@
 - [x] 保存并重新加载回读 OTP Confirm sign up 模板：正文精确使用一次 `{{ .Token }}` 与一次
       `{{ .RedirectTo }}`，不含 `{{ .ConfirmationURL }}`；Resend tracking 仍 disabled；Custom SMTP 未改，
       本步骤未轮换密钥、未发送邮件；
+- [x] 普通邀请真实邮件暴露 Hosted `mailer_otp_length=8` 漂移；已只把该字段保存为 6，独立重新加载
+      回读为 6，expiration 仍为 3600，且未修改 Site URL、Redirect URLs、模板、Custom SMTP、DNS、
+      环境变量或密钥；新增 status/apply verifier，旧 8 位 OTP 不截取、不继续用于产品确认；
+- [ ] 为当前同一 invitation claim/bound Auth identity 提供受限重发，产生新的六位 OTP；完成前不得
+      创建第二张邀请、删除 Auth user 或把旧 8 位 OTP 截成六位；
 - [x] API-only arm `39094d0` 仅新增 Ready deployment `9jbyfnAvZwpa3Ci7YU6s6asmNZNG`，独立 disarm
       `88c9b09` 未在 API 项目新增 deployment；确认 API 已关闭后，Web arm `b18d804` 仅新增 Ready
       deployment `Bks2JvgrNidQ1CRjmUiwz9RTfhjF`，独立 disarm `2744757` 未在 Web 项目新增
@@ -79,3 +84,21 @@
 
 任何外部写入前重新核对目标。若原邀请已过期，阶段 E 停止并另行设计受保护的破坏性恢复；禁止临时
 SQL 绕过。
+
+## 阶段 F：普通邀请 OTP 位数漂移与同邀请重发
+
+- [x] 真实邮件、Hosted Email provider 与仓库 strict contract 三方回查，确认根因是
+      `mailer_otp_length=8`，不是 Resend 或 UI 截断；
+- [x] 仅把 Hosted `mailer_otp_length` 保存为 6 并独立回读；新增只读 status 与单字段受控 apply；
+- [x] Fresh RED：token-only resend contract/Provider/API/Web、0014 原子 flow 轮换、byte-identical mirror、
+      ACL 与 actual-bundle journey；
+- [x] 最小 GREEN：Web 内存保留 invitation token、StrictMode 独立单飞、API 双限流、Supabase signup
+      resend、0014 同 invitation/claim/bound identity 唯一 flow 轮换；
+- [x] focused/full macOS 门和安全 diff 审查；Windows 继续按最终关键批次统一验证；
+- [ ] 用户确认后只实际应用唯一 0014，再 API→Web 严格串行 one-shot deploy/disarm；部署完成前不发送
+      新邮件；
+- [ ] 系统打开最近的私密邀请，用户点击重发；只接受新邮件的六位 ASCII OTP，scanner GET 零副作用，
+      显式 POST 完成同一 invitation/user，并回读 invitation/user/identity 唯一性。
+
+退出标准：旧 8 位 OTP 不再用于产品确认，重发后旧 flow 失效；同一普通邀请和同一 Auth user 在不要求用户输入 opaque token、不创建
+第二邀请/用户的前提下收到新六位 OTP 并完成注册。

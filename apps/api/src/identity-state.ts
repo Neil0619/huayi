@@ -12,6 +12,7 @@ export interface Invitation {
   tokenHash: string;
 }
 export interface Claim {
+  boundEmail?: string;
   boundUserId?: string;
   expiresAt: Date;
   invitationId: string;

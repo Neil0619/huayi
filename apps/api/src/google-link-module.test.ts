@@ -45,6 +45,7 @@ describe("GoogleLink module", () => {
         },
       }),
       registerPassword: vi.fn(),
+      resendPasswordRegistrationOtp: vi.fn(),
       setPassword: vi.fn(),
       signInWithPassword: vi.fn(),
       verifyPasswordRegistrationOtp: vi.fn(),

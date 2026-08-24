@@ -35,6 +35,9 @@ Auth 用户重建，或把一次性链接藏入前端 fragment，都不能满足
   profile、password method、default quota，消费 invitation/claim/flow，创建 full Web session，并跳转
   `/practice`。
 - email、验证码和密码不得进入 URL、日志、Referer、Storage 或错误响应。
+- 六位不是仅由页面文案约定：Hosted Supabase Auth 的 `mailer_otp_length` 必须精确为 6，并在每次真实
+  邀请注册前由只读门禁回读。Resend 只负责 SMTP 投递，不生成或改写 `{{ .Token }}`；Hosted 漂移为 8
+  时必须停止验收并只修正该字段，不能放宽表单或截取验证码。
 
 ### 2.2 已中断注册恢复
 
@@ -51,7 +54,27 @@ Auth 用户重建，或把一次性链接藏入前端 fragment，都不能满足
 - 任何前置条件不满足都失败关闭，不设置 Cookie、不删除 Auth user、不创建第二个 identity，也不披露账号
   是否存在。若邀请已经过期，则停止并进入另一个明确授权的破坏性恢复流程。
 
-### 2.3 claim 生命周期修正
+### 2.3 未确认注册的同邀请 OTP 重发
+
+- Web 在邀请 claim 成功后只从地址栏清除 fragment，原 invitation token 继续只留在组件内存；StrictMode
+  单飞另用 in-flight ref，不能再通过清空 token 防重。注册最终完成前，token 不进入 DOM、Storage、
+  Cookie、日志或错误文案；成功认证后立即清空。
+- `POST /v1/auth/password/register/resend` 只接受 strict `{invitationToken}`，不要求用户识别/输入 fragment、
+  email、password、旧 OTP 或 flow；响应只含固定 `{accepted:true}`，并使用 `private, no-store`、IP 与
+  invitation 双限流。
+- 新 0014 原子函数以 invitation token hash 定位同一 active invitation，要求恰好一条未 finalization、已
+  绑定 Auth user 的 claim 与恰好一条未消费 invite-registration flow；Auth user 必须尚未确认、只有 email
+  identity，且不存在 profile/method/quota/session/admin/deletion/audit/business data。
+- 函数从 `auth.users` 内部读取规范化 email，不信任客户端 identity 字段；在同一事务内延长同一 claim、
+  把唯一 flow 的 hash/expiry 轮换为新值，旧邮件 flow 立即失效，新 expiry 不超过 invitation 到期时间。
+  不新增 invitation、claim、flow、Auth user 或 identity，只授予 `huayi_context_setter`。
+- 数据库先准备新 flow，API 再调用
+  `auth.resend({type:"signup",email,options:{emailRedirectTo}})`；Provider 失败只留下仍可再次轮换的未完成
+  状态，不补建 profile/session，也不创建第二用户。用户只使用最新邮件的六位 OTP 与 CTA。
+- 已经进入错误状态的浏览器由系统打开最近保存的私密邀请 URL；用户不手工复制 token。claim 因 bound
+  identity 失败后，页面显示“重新发送六位验证码”与“邮箱已确认后继续中断注册”两条恢复路径。
+
+### 2.4 claim 生命周期修正
 
 `claim_invitation` 只能自动清理 `bound_user_id IS NULL` 的过期未完成 claim。已经绑定 Provider identity
 的 claim 即使过期也必须保留，直到原子恢复成功或后续受保护的运维流程处理；否则会丢失唯一恢复证据并
@@ -125,6 +148,14 @@ opaque token。用户在恢复表单提交后，Web 才把内存中的 token 与
 非回显的托管 token source 时才能使用，不是用户验收步骤，也不得要求用户从 URL 手工提取 token。真实
 恢复的权威 continuity gate 是上述 Web → API → 0013 系统管理路径。
 
+### 3.6 OTP 重发 migration
+
+0014 只增加未确认注册的 flow 轮换函数，不修改已应用 0013。API 与 Supabase migration 必须
+byte-identical；函数对 wrong/expired/revoked/consumed invitation、unbound/finalized claim、已确认或多
+identity Auth user、额外 profile/method/quota/session/admin/deletion/audit/business data 全部零写入失败。
+并发请求在 invitation 行锁上串行；每次成功都替换当前唯一 flow，因此只有最后一次成功重发的邮件有效，
+任意时刻数据库仍恰好一条 invitation/claim/flow/Auth user/email identity。
+
 ## 4. 测试与验收
 
 ### 4.1 离线 TDD
@@ -141,7 +172,8 @@ opaque token。用户在恢复表单提交后，Web 才把内存中的 token 与
 
 1. dry-run 并实际推送恢复 migration；migration chain/0013 structure+ACL diagnostic 与 application verifier
    通过。当前 identity/profile 非空，因此 pristine foundation verifier 不适用且不得宣称通过；
-2. 回读五条 Supabase allowlist pattern 与 OTP 模板，确认 Resend tracking disabled；
+2. 回读五条 Supabase allowlist pattern、OTP 模板与 Hosted `mailer_otp_length=6`，确认 Resend tracking
+   disabled；三项证据缺一不可；
 3. 双项目保持 disarmed 时提交并推送受审查候选；随后 API-only arm→产生并记录 deployment→立即独立
    disarm→验证没有额外 deployment；确认 API 已关闭后，Web 才执行同样顺序，任何时刻不得同时 armed；
 4. API/Web 部署必须来自同一受审查候选 lineage，但 arm/disarm 是后续独立提交，因此两次 deployment

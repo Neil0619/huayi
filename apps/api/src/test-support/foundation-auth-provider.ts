@@ -14,6 +14,9 @@ export function createFoundationAuthProvider(): AuthProvider {
     async refreshSession() {
       throw new Error("Not configured by this fake.");
     },
+    resendPasswordRegistrationOtp() {
+      return Promise.resolve();
+    },
     async registerPassword() {
       return {
         authState: {},

@@ -27,6 +27,8 @@ import {
   extensionPairingResponseSchema,
   extensionSessionListResponseSchema,
   identityHttpRoutes,
+  passwordRegistrationResendRequestSchema,
+  passwordRegistrationResendResponseSchema,
   passwordRegistrationResponseSchema,
   passwordRegistrationResumeRequestSchema,
   passwordSignupCallbackFormSchema,
@@ -253,6 +255,19 @@ describe("client authority and secret rejection", () => {
     expect(identityHttpRoutes.claimInvitation).toBe("/v1/invitations/claim");
     expect(identityHttpRoutes.passwordLogin).toBe("/v1/auth/password/login");
     expect(identityHttpRoutes.passwordRegistrationResume).toBe("/v1/auth/password/register/resume");
+    expect(identityHttpRoutes.passwordRegistrationResend).toBe("/v1/auth/password/register/resend");
+    expect(
+      passwordRegistrationResendRequestSchema.parse({ invitationToken: "i".repeat(43) }),
+    ).toEqual({ invitationToken: "i".repeat(43) });
+    expect(passwordRegistrationResendResponseSchema.parse({ accepted: true })).toEqual({
+      accepted: true,
+    });
+    expect(() =>
+      passwordRegistrationResendRequestSchema.parse({
+        email: "learner@example.com",
+        invitationToken: "i".repeat(43),
+      }),
+    ).toThrow();
     expect(
       passwordRegistrationResumeRequestSchema.parse({
         email: "Learner@Example.COM",

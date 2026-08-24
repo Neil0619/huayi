@@ -5,6 +5,8 @@ import {
   exchangeExtensionPairingRequestSchema,
   passwordLoginRequestSchema,
   passwordRegistrationRequestSchema,
+  passwordRegistrationResendRequestSchema,
+  passwordRegistrationResendResponseSchema,
   passwordRegistrationResumeRequestSchema,
   type ApiError,
 } from "@huayi/cloud-contracts";
@@ -159,7 +161,11 @@ export function createCloudFoundationApp(dependencies: CloudFoundationDependenci
       password: input.password,
       redirectTo: `${dependencies.apiOrigin}/v1/auth/password/confirm?flow=${encodeURIComponent(flow.flowId)}`,
     });
-    await dependencies.identity.bindInvitationIdentity(input.claimTicket, pending.userId);
+    await dependencies.identity.bindInvitationIdentity(
+      input.claimTicket,
+      pending.userId,
+      pending.email,
+    );
     if (pending.session === undefined) {
       return context.json({ emailConfirmationRequired: true }, 202);
     }
@@ -198,6 +204,32 @@ export function createCloudFoundationApp(dependencies: CloudFoundationDependenci
       csrfToken: session.csrfToken,
       emailConfirmationRequired: false as const,
     });
+  });
+
+  app.post("/v1/auth/password/register/resend", async (context) => {
+    context.header("Cache-Control", "private, no-store");
+    const input = await strictJson(context, passwordRegistrationResendRequestSchema);
+    const ip = clientIp(context);
+    await enforceRateLimit(dependencies.rateLimiter, {
+      action: "auth.register-resend.ip",
+      limit: 5,
+      subject: ip,
+      windowMs: 3_600_000,
+    });
+    await enforceRateLimit(dependencies.rateLimiter, {
+      action: "auth.register-resend.invitation",
+      limit: 3,
+      subject: input.invitationToken,
+      windowMs: 3_600_000,
+    });
+    const renewal = await dependencies.identity.renewPasswordRegistrationConfirmation(
+      input.invitationToken,
+    );
+    await dependencies.auth.resendPasswordRegistrationOtp({
+      email: renewal.email,
+      redirectTo: `${dependencies.apiOrigin}/v1/auth/password/confirm?flow=${encodeURIComponent(renewal.flowId)}`,
+    });
+    return context.json(passwordRegistrationResendResponseSchema.parse({ accepted: true }), 202);
   });
 
   app.post("/v1/auth/password/login", async (context) => {

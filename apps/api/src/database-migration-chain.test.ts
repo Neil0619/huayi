@@ -17,6 +17,7 @@ const migrationUrls = [
   "0011-security-notification-delivery.sql",
   "0012-first-operator-bootstrap.sql",
   "0013-password-signup-interruption-recovery.sql",
+  "0014-password-signup-otp-resend.sql",
 ].map((name) => new URL(`../migrations/${name}`, import.meta.url));
 
 describe("Cloud V1 current migration chain", () => {

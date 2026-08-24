@@ -6,6 +6,7 @@ import { createInMemoryGoogleLink } from "./in-memory-google-link.js";
 import { createInMemoryGoogleReauthentication } from "./in-memory-google-reauthentication.js";
 import { createInMemoryPasswordLink } from "./in-memory-password-link.js";
 import { createInMemoryPasswordRegistrationRecovery } from "./in-memory-password-registration-recovery.js";
+import { createInMemoryPasswordSignupOtpResend } from "./in-memory-password-signup-otp-resend.js";
 import { createInMemoryWebSessions } from "./in-memory-web-sessions.js";
 import type {
   AccountStatus,
@@ -225,7 +226,7 @@ export function createIdentityModule(options: IdentityModuleOptions) {
     return { expiresAt: claim.expiresAt };
   }
 
-  function bindInvitationIdentity(claimTicket: string, userId: string): void {
+  function bindInvitationIdentity(claimTicket: string, userId: string, email: string): void {
     requireClaimTicket(claimTicket);
     const claim = claims.get(hashSecret(claimTicket, options.pepper));
     if (claim === undefined) throw new CloudFault("invitation_invalid", "Invalid claim ticket.");
@@ -233,6 +234,7 @@ export function createIdentityModule(options: IdentityModuleOptions) {
       throw new CloudFault("invitation_consumed", "The claim is bound to another identity.");
     }
     claim.boundUserId = userId;
+    claim.boundEmail = email.trim().toLowerCase();
   }
 
   function createAuthFlow(claimTicket: string) {
@@ -314,7 +316,7 @@ export function createIdentityModule(options: IdentityModuleOptions) {
       throw new CloudFault("authentication_required", "The authentication flow is invalid.");
     }
     const claimTicket = flow.claimTicket;
-    bindInvitationIdentity(claimTicket, userId);
+    bindInvitationIdentity(claimTicket, userId, email);
     const result = finalizeInvitation(claimTicket, userId, email, method);
     flow.used = true;
     return result;
@@ -328,6 +330,15 @@ export function createIdentityModule(options: IdentityModuleOptions) {
     invitations,
     pepper: options.pepper,
     profiles,
+  });
+  const renewPasswordRegistrationConfirmation = createInMemoryPasswordSignupOtpResend({
+    authFlows,
+    claims,
+    clock: options.clock,
+    invitations,
+    pepper: options.pepper,
+    profiles,
+    secrets: options.secrets,
   });
   const googleReauthentication = createInMemoryGoogleReauthentication({
     authFlows,
@@ -366,6 +377,7 @@ export function createIdentityModule(options: IdentityModuleOptions) {
     passwordLink,
     requireClaimTicket,
     readAuthFlowState,
+    renewPasswordRegistrationConfirmation,
     resumeInterruptedPasswordRegistration,
     saveAuthFlowState,
     setAccountStatus,

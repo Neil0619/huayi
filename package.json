@@ -14,6 +14,8 @@
     "acceptance:hosted:cron:plan": "node scripts/acceptance-hosted-cron.mjs --plan",
     "acceptance:hosted:cron:status": "node scripts/acceptance-hosted-cron.mjs status --status-hosted-supabase-cron-kpadiulxkgckskcfydry",
     "acceptance:hosted:application:verify": "node scripts/acceptance-hosted-application-verify.mjs",
+    "acceptance:hosted:auth:apply": "node scripts/acceptance-hosted-auth-config.mjs apply",
+    "acceptance:hosted:auth:status": "node scripts/acceptance-hosted-auth-config.mjs status --status-hosted-auth-config-kpadiulxkgckskcfydry",
     "acceptance:hosted:application:diagnose": "node scripts/acceptance-hosted-application-diagnose.mjs",
     "acceptance:hosted:deployment": "node scripts/acceptance-hosted-deployment.mjs",
     "acceptance:hosted:operator": "node scripts/acceptance-hosted-first-operator.mjs",

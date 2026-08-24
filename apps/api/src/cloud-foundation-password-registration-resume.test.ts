@@ -62,7 +62,7 @@ describe("Cloud foundation interrupted password registration", () => {
     const invitation = identity.createInvitation("admin-1", 72);
     const claim = identity.claimInvitation(invitation.token);
     identity.createAuthFlow(claim.claimTicket);
-    identity.bindInvitationIdentity(claim.claimTicket, "auth-user-a");
+    identity.bindInvitationIdentity(claim.claimTicket, "auth-user-a", "learner@example.com");
     clock.advance(16 * 60 * 1_000);
 
     const response = await app.request("/v1/auth/password/register/resume", {

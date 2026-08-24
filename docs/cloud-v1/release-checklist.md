@@ -58,7 +58,9 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       会话中读取到一条“已领取”和三条“已撤销”，终态行均无撤销入口且 console error 为零。当前没有
       “可领取”或“已过期”行；active 标签/二步撤销仍须在用户授权收件人并创建唯一普通邀请后验证。
       Phase 80 幂等 bundle 已显示 `Hosted 验收 · 9b0860a` 并通过 recovery copy/secret scan；OTP、
-      真实邮件、Cron 与 DeepSeek 应用路径 smoke 仍未完成，因此本项仍未勾选；
+      真实邮件、Cron 与 DeepSeek 应用路径 smoke 仍未完成。唯一普通邀请随后已提交密码注册并发现 Hosted
+      OTP length=8；用户只授权保存为 6，独立回读 6/expiry 3600 且其他配置未改、未发新邮件。0014 同邀请
+      resend 仍须本机全门、远端 migration、API/Web 串行部署和真实六位 OTP journey，因此本项仍未勾选；
 - [x] 在正确 Rotate 后 exact-SHA `7577cdd` deployment 上通过 DB-backed application-role smoke；
       `GET /health` 为 200，随机无效 session 的 `GET /v1/quota` 为精确 401
       `authentication_required`。deployment ID/SHA/创建时间与 Git 关闭证据已记录，API 未重新武装；
@@ -106,11 +108,12 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       CI 未触发，所以组合项仍不勾选。Phase 46 已把 `3aa143c..15306b4` 的 8 commits / 111 files
       代码范围和随后一个 docs-only 冻结提交纳入第二批候选（自上次 Windows 代码共 9 commits），且 Mac
       完整门已绿；Windows 本地批次已回证，组合项现在仅因 GitHub 双平台 CI 未触发而保持未勾选；
-- [x] 数据库空库/升级 migration、RLS 多租户矩阵和账号删除恢复通过；仓库当前 13 条 migration 的 baseline、
+- [ ] 数据库空库/升级 migration、RLS 多租户矩阵和账号删除恢复通过；远端当前 13 条 migration 的 baseline、
       forward-only API/Supabase 镜像与生产角色回归均通过，实际一次性账号删除完成且重放权限不扩大；远端
       acceptance 已按各自 dry-run 和用户明确确认应用第 12 条 FirstOperatorBootstrap 与第 13 条密码注册中断
       恢复 migration。空身份阶段的修正版 foundation verify 当时通过；当前非空状态不再运行该 pristine 门，
-      First Operator 最终 status 为 `completed`；
+      First Operator 最终 status 为 `completed`。仓库候选已新增第 14 条同邀请 OTP 重发 migration，但尚未
+      dry-run/实际应用和远端 structure+ACL 回读，因此在该门重新关闭前保持未勾选；
 - [x] 当前开发态构建审计确认没有新增秘密、远程代码、动态 endpoint 或危险 HTML；
 - [ ] 正式候选注入公开配置后重新执行完整构建审计，并复核每项 permission/host；
 - [x] fake model/mail/third-party 已按各能力真实定义覆盖成功、失败、取消、超时和额度分支；没有额度或

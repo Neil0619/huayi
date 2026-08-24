@@ -5,6 +5,8 @@ import {
   passwordLoginRequestSchema,
   passwordLoginResponseSchema,
   passwordRegistrationRequestSchema,
+  passwordRegistrationResendRequestSchema,
+  passwordRegistrationResendResponseSchema,
   passwordRegistrationResponseSchema,
   passwordSignupCallbackFormSchema,
   type ApiError,
@@ -18,8 +20,8 @@ const mailOrigin = "https://mail.huayi.invalid";
 const webOrigin = "https://web.huayi.invalid";
 const invitationToken = "i".repeat(32);
 const claimTicket = "c".repeat(32);
-const confirmationFlow = "f".repeat(43);
-const confirmationCode = "123456";
+const originalConfirmationFlow = "f".repeat(43);
+const resentConfirmationFlow = "n".repeat(43);
 const email = "password-learner@example.com";
 const password = "correct horse battery staple";
 const registrationSession = "cloud-e2e-password-registration-session";
@@ -66,6 +68,8 @@ export function createCloudBrowserPasswordAuthenticationAuthority(
   let registration: "confirmed" | "confirmation-pending" | "none" =
     seed === "unregistered-password-login" ? "confirmed" : "none";
   let callback: "available" | "consumed" = "available";
+  let confirmationCode = "123456";
+  let confirmationFlow = originalConfirmationFlow;
   const signInMethods = new Set<"google" | "password">(
     seed === "unregistered-password-login" ? ["google"] : [],
   );
@@ -142,6 +146,31 @@ export function createCloudBrowserPasswordAuthenticationAuthority(
     });
   };
 
+  const handleResend = async (route: Route, hooks: Hooks) => {
+    const request = route.request();
+    const parsed = passwordRegistrationResendRequestSchema.safeParse(cloudRequestBody(request));
+    if (
+      !parsed.success ||
+      request.headers().origin !== webOrigin ||
+      parsed.data.invitationToken !== invitationToken ||
+      invitation !== "claimed" ||
+      registration !== "confirmation-pending" ||
+      callback !== "available"
+    ) {
+      hooks.record(request, "write-invalid");
+      await privateJson(route, 400, cloudErrorBody("invalid_request"));
+      return;
+    }
+    confirmationFlow = resentConfirmationFlow;
+    confirmationCode = "654321";
+    hooks.record(request, "write-valid");
+    await privateJson(
+      route,
+      202,
+      passwordRegistrationResendResponseSchema.parse({ accepted: true }),
+    );
+  };
+
   const handleCallback = async (route: Route, hooks: Hooks) => {
     const request = route.request();
     const contentType = request.headers()["content-type"]?.split(";", 1)[0];
@@ -215,6 +244,10 @@ export function createCloudBrowserPasswordAuthenticationAuthority(
     }
     if (path === "/v1/auth/password/register" && request.method() === "POST") {
       await handleRegistration(route, hooks);
+      return true;
+    }
+    if (path === "/v1/auth/password/register/resend" && request.method() === "POST") {
+      await handleResend(route, hooks);
       return true;
     }
     if (path === "/v1/auth/password/confirm" && request.method() === "GET") {

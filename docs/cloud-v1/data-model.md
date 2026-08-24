@@ -17,7 +17,7 @@ usage feature 和 price version，校验 1–2 条调用及总 cost 后追加 le
 | `user_profiles`                | `user_id`, `email`, status、timezone、daily goal、三项插件偏好、`preferences_revision/updated_at`  | email 为规范投影；偏好默认 platform/manual/enabled；同一 revision 原子更新                                                   |
 | `account_sign_in_methods`      | `owner_user_id`, `method`, `linked_at`                                                             | owner+password/google 唯一；Huayi 登录授权 fence，不保存 provider subject/token                                              |
 | `invitations`                  | `id`, `token_hash`, expiry/consume/revoke、`created_by_kind`, `created_by?`                        | token hash 唯一；operator 必须有 actor，deployment-bootstrap 必须无 actor；消费使用行锁                                      |
-| `invitation_claims`            | `ticket_hash`, `invitation_id`, `expires_at`, `bound_user_id`, `finalized_user_id`                 | 15 分钟短时租约；领取后仍受父邀请撤销与过期约束                                                                              |
+| `invitation_claims`            | `ticket_hash`, invitation、expiry、`bound_user_id/email`、`finalized_user_id`                      | 15 分钟短时租约；领取后仍受父邀请撤销与过期约束                                                                              |
 | `auth_flows`                   | `flow_hash`, `kind`, ticket/owner/session、stage/lease、started/consumed、provider state、expiry   | invite 持票；两种 link 分 purpose 四阶段、单 open flow/30 秒 lease                                                           |
 | `password_recovery_flows`      | flow/owner、stage、加密 provider state、recovery session/CSRF hash、lease、expiry/consumed         | 未登录一次改密权威；每 owner 单 open flow；不产生 Huayi session                                                              |
 | `web_sessions`                 | `id`, `user_id`, access、encrypted refresh、`reauthenticated_at/method`、expiry/revoked            | 普通登录 method=null；显式 reauth 写 password/google；full/data-rights 隔离                                                  |
@@ -28,6 +28,14 @@ usage feature 和 price version，校验 1–2 条调用及总 cost 后追加 le
 `expires_at <= now` 为已过期，其余为可领取。`admin_list_invitations` 只投影上述时间戳与公开 ID/创建时间；
 撤销仍锁定原行并只允许未领取、未撤销记录，claim/finalization 继续同时检查 revoke/expiry。明文 token、
 领取账号与 claim ticket 不进入管理列表。
+
+未确认的密码注册重发不新增表或第二条 flow。0014 为 claim 补充服务端派生的规范 `bound_email`，并让
+`bind_auth_identity` 将同一 Auth user id/email 一起锁定；客户端不能提交或替换该邮箱。
+`renew_interrupted_password_confirmation` 锁定同一 active invitation、唯一 bound unfinished claim 与唯一
+未消费 `invite-registration` flow，并要求 claim email 与 `auth.users` 精确一致、未确认 email identity
+唯一且业务账号数据为零；成功只延长同一 claim 并原子替换同一 flow 的 hash/expiry。新 expiry 最多
+15 分钟且不超过 invitation expiry；旧 flow 立即失效，任意时刻仍恰好一条
+invitation/claim/flow/Auth user/email identity。
 
 该 R3-C 语义已进入当前未发布 baseline 与 `0011-security-notification-delivery.sql`：固定 23 小时 deadline
 小于 Resend 24 小时幂等窗口，最多 8 次；到期为 `failed`，耗尽为 `dead-letter`。claim 先以最多 100 条

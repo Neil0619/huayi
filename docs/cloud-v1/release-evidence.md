@@ -1894,3 +1894,26 @@ typecheck、architecture、build、development blocker、Store release、product
   bundle secret scan 通过。Operator recent-auth 已自然过期，页面正确显示 15 分钟密码重新认证门；本轮
   没有代输密码、创建邀请或发送邮件。真实普通邀请仍等待未注册邮箱，本节不把本机 GREEN 冒充
   OTP/Auth SMTP 已完成。
+
+## 72. Phase 81 Hosted Email OTP 位数漂移修正（2026-08-24）
+
+- **真实故障**：唯一普通邀请提交密码注册后，Supabase Confirm sign up 邮件实际显示 8 位 OTP，而语见
+  strict contract、API confirmation form、Web 文案与本地 config 均固定 6 位；前六位和后六位都不是
+  有效验证码；
+- **根因**：Hosted Supabase Authentication → Email 的 Email OTP length 实际为 8。Resend 仅承担 SMTP
+  投递，不生成或裁剪 `{{ .Token }}`；Phase 72 只回读了 Redirect URLs 与模板，漏掉这一独立 Hosted
+  Auth 值；
+- **受控修正**：用户明确授权“仅修改这一项”后，只把 Hosted Email OTP length 从 8 保存为 6；独立
+  页面重新加载回读为 6，Email OTP expiration 仍为 3600。未修改 Site URL、五条 Redirect URLs、Confirm
+  sign up 模板、Custom SMTP、DNS、环境变量或密钥，也未发送邮件；
+- **漂移防护**：新增 `acceptance:hosted:auth:status|apply`。status 对固定 Singapore project 只读 GET
+  并精确要求 6；apply 需要 exact confirmation、仅 PATCH `mailer_otp_length`，随后重新 GET 验证，且
+  输出不反射 access token；
+- **本机候选验证**：同邀请 resend 与 0014 候选已通过 focused scripts 30/30、focused Vitest 8 files /
+  67 tests、actual Web bundle Playwright 2/2，以及完整 `pnpm verify:macos`；完整门内 Node scripts
+  262/262、Vitest 478 files、Store coverage 97 files / 481 tests、Playwright 111/111、workspace build、
+  architecture、release checks 与 production audit 全部通过。API/Supabase 0014 镜像 byte-identical，
+  `git diff --check` 与 tracked/untracked 敏感值模式扫描通过；
+- **剩余门**：已发出的 8 位 OTP 不会被配置更新转换。当前注册仍须在同一 invitation claim/bound Auth
+  identity 上安全重发新的六位 OTP；该能力完成并受控部署前，不创建第二张邀请、不删除 Auth user、
+  不截取旧码，也不把 OTP/Auth SMTP journey 写成通过。

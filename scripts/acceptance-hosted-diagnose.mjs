@@ -49,6 +49,9 @@ export const hostedDiagnosticPredicateNames = Object.freeze([
   "migration_0012_trigger",
   "migration_0013_recovery_function",
   "migration_0013_recovery_acl",
+  "migration_0014_bound_identity",
+  "migration_0014_resend_function",
+  "migration_0014_resend_acl",
 ]);
 
 function diagnosticPredicates() {
@@ -156,6 +159,38 @@ function diagnosticPredicates() {
       AND NOT has_function_privilege(
         'huayi_runtime',
         'public.resume_interrupted_password_registration(text,uuid,text,text,integer)',
+        'EXECUTE'
+      )`,
+    `EXISTS (
+      SELECT 1
+      FROM information_schema.columns
+      WHERE table_schema = 'public'
+        AND table_name = 'invitation_claims'
+        AND column_name = 'bound_email'
+        AND data_type = 'text'
+    )
+      AND position(
+        'bound_email'
+        IN pg_get_functiondef(
+          to_regprocedure('public.bind_auth_identity(text,uuid)')
+        )
+      ) > 0`,
+    `to_regprocedure(
+      'public.renew_interrupted_password_confirmation(text,text,timestamptz)'
+    ) IS NOT NULL`,
+    `has_function_privilege(
+      'huayi_context_setter',
+      'public.renew_interrupted_password_confirmation(text,text,timestamptz)',
+      'EXECUTE'
+    )
+      AND NOT has_function_privilege(
+        'huayi_business',
+        'public.renew_interrupted_password_confirmation(text,text,timestamptz)',
+        'EXECUTE'
+      )
+      AND NOT has_function_privilege(
+        'huayi_runtime',
+        'public.renew_interrupted_password_confirmation(text,text,timestamptz)',
         'EXECUTE'
       )`,
   ];

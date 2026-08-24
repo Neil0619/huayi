@@ -119,6 +119,36 @@ describe("Supabase Auth provider", () => {
     });
   });
 
+  it("resends only the existing signup confirmation to the rotated flow", async () => {
+    const resend = vi.fn().mockResolvedValue({ data: {}, error: null });
+    const provider = createSupabaseAuthProvider(() => authClient({ resend }));
+
+    await expect(
+      provider.resendPasswordRegistrationOtp({
+        email: "learner@example.com",
+        redirectTo: "https://api.example/v1/auth/password/confirm?flow=rotated-flow",
+      }),
+    ).resolves.toBeUndefined();
+    expect(resend).toHaveBeenCalledWith({
+      email: "learner@example.com",
+      options: {
+        emailRedirectTo: "https://api.example/v1/auth/password/confirm?flow=rotated-flow",
+      },
+      type: "signup",
+    });
+
+    resend.mockResolvedValueOnce({ data: null, error: new Error("provider detail") });
+    await expect(
+      provider.resendPasswordRegistrationOtp({
+        email: "learner@example.com",
+        redirectTo: "https://api.example/v1/auth/password/confirm?flow=another-flow",
+      }),
+    ).rejects.toMatchObject({
+      code: "authentication_required",
+      message: "Email verification could not be resent.",
+    });
+  });
+
   it("refreshes a server-side session before starting manual Google identity linking", async () => {
     const provider = createSupabaseAuthProvider((storage) =>
       authClient({

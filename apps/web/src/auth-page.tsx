@@ -9,6 +9,7 @@ export type AuthApi = Pick<
   | "googleLoginStartUrl"
   | "loginPassword"
   | "registerPassword"
+  | "resendPasswordRegistration"
   | "resumePasswordRegistration"
 >;
 
@@ -34,12 +35,14 @@ export function AuthPage(props: AuthPageProps) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
+  const [emailConfirmationPending, setEmailConfirmationPending] = useState(false);
   const invitationToken = useRef(props.mode === "join" ? props.invitationToken : null);
+  const claimInFlight = useRef(false);
 
   const claim = useCallback(async () => {
     const token = invitationToken.current;
-    if (token === null) return;
-    invitationToken.current = null;
+    if (token === null || claimInFlight.current) return;
+    claimInFlight.current = true;
     setClaimState("loading");
     setError(null);
     try {
@@ -48,9 +51,10 @@ export function AuthPage(props: AuthPageProps) {
       setClaimTicket(result.claimTicket);
       setClaimState("ready");
     } catch {
-      invitationToken.current = token;
       setClaimState("error");
       setError("邀请验证失败。邀请可能已过期、被撤销或已经使用，请确认链接后重试。");
+    } finally {
+      claimInFlight.current = false;
     }
   }, [props.api, props.replaceInvitationUrl]);
 
@@ -68,13 +72,31 @@ export function AuthPage(props: AuthPageProps) {
       setPassword("");
       setClaimTicket(null);
       if (result.emailConfirmationRequired) {
+        setEmailConfirmationPending(true);
         setStatus("注册已提交。请从验证邮件打开确认页，并输入邮件中的六位验证码。");
       } else {
+        invitationToken.current = null;
         setStatus("注册成功，正在进入工作台。");
         props.onAuthenticated("full");
       }
     } catch {
       setError("注册失败，当前邮箱仍已保留。请检查输入或稍后重试。");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const resendRegistration = async () => {
+    const token = invitationToken.current;
+    if (token === null) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await props.api.resendPasswordRegistration(token);
+      setEmailConfirmationPending(true);
+      setStatus("新的六位验证码已发送。请只使用最新邮件中的验证码。");
+    } catch {
+      setError("无法重新发送验证码。请稍后重试，并确认仍在使用原私密邀请。");
     } finally {
       setBusy(false);
     }
@@ -137,6 +159,14 @@ export function AuthPage(props: AuthPageProps) {
                 <button data-retry-invitation onClick={() => void claim()} type="button">
                   重新验证邀请
                 </button>
+                <button
+                  data-resend-registration
+                  disabled={busy}
+                  onClick={() => void resendRegistration()}
+                  type="button"
+                >
+                  {busy ? "正在发送…" : "重新发送六位验证码"}
+                </button>
                 <p>如果你已经点击过确认邮件，可使用原邮箱和密码继续这次中断的注册。</p>
                 <form className="auth-form" onSubmit={(event) => event.preventDefault()}>
                   <label htmlFor="recovery-registration-email">邮箱</label>
@@ -175,6 +205,16 @@ export function AuthPage(props: AuthPageProps) {
           <p aria-live="polite" className="auth-status" role="status">
             {status}
           </p>
+        )}
+        {emailConfirmationPending && claimState !== "error" && (
+          <button
+            data-resend-registration
+            disabled={busy}
+            onClick={() => void resendRegistration()}
+            type="button"
+          >
+            {busy ? "正在发送…" : "重新发送六位验证码"}
+          </button>
         )}
         {props.mode === "join" && claimState === "loading" && (
           <p aria-live="polite" role="status">

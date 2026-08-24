@@ -8,6 +8,8 @@ import { createPostgresWebSession } from "./postgres-web-session.js";
 import { createPostgresSignInMethods } from "./postgres-sign-in-methods.js";
 import { createPostgresPasswordReauthentication } from "./postgres-password-reauthentication.js";
 import { createPostgresPasswordRegistrationRecovery } from "./postgres-password-registration-recovery.js";
+import { createPostgresPasswordSignupOtpResend } from "./postgres-password-signup-otp-resend.js";
+import { createPostgresInvitationIdentity } from "./postgres-invitation-identity.js";
 import { createPostgresGoogleReauthentication } from "./postgres-google-reauthentication.js";
 import { createPostgresGoogleLink } from "./postgres-google-link.js";
 import { createPostgresPasswordLink } from "./postgres-password-link.js";
@@ -45,9 +47,14 @@ export function createPostgresFoundationIdentity(options: PostgresFoundationIden
     options,
     trusted,
   );
+  const renewPasswordRegistrationConfirmation = createPostgresPasswordSignupOtpResend(
+    options,
+    trusted,
+  );
   const googleReauthentication = createPostgresGoogleReauthentication(options, trusted);
   const googleLink = createPostgresGoogleLink(options, trusted);
   const passwordLink = createPostgresPasswordLink(options, trusted);
+  const bindInvitationIdentity = createPostgresInvitationIdentity(options.pepper, trusted);
   async function requireClaimTicket(claimTicket: string) {
     const [claim] = await trusted(
       (sql) => sql<{ expires_at: Date | null }[]>`
@@ -246,15 +253,7 @@ export function createPostgresFoundationIdentity(options: PostgresFoundationIden
       const session = await authenticateWebSession(sessionId);
       return { reauthenticatedAt: session.reauthenticated_at, userId: session.user_id };
     },
-    async bindInvitationIdentity(claimTicket: string, userId: string) {
-      const [result] = await trusted(
-        (sql) => sql<{ id: string | null }[]>`
-        SELECT bind_auth_identity(${hashSecret(claimTicket, options.pepper)}, ${userId})::text AS id
-      `,
-      );
-      if (result?.id === null || result === undefined)
-        throw new CloudFault("invitation_invalid", "Invalid claim.");
-    },
+    bindInvitationIdentity,
     claimInvitation,
     completeAuthFlow,
     async consumeAuthFlow(flowId: string) {
@@ -345,6 +344,7 @@ export function createPostgresFoundationIdentity(options: PostgresFoundationIden
       );
     },
     requireClaimTicket,
+    renewPasswordRegistrationConfirmation,
     resumeInterruptedPasswordRegistration,
     async readAuthFlowState(flowId: string) {
       const [result] = await trusted(

@@ -43,6 +43,7 @@ describe("PasswordLink module", () => {
         },
       }),
       registerPassword: vi.fn(),
+      resendPasswordRegistrationOtp: vi.fn(),
       setPassword: vi
         .fn()
         .mockRejectedValueOnce(new CloudFault("authentication_required", "Password rejected."))

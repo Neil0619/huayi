@@ -1831,3 +1831,27 @@ environment/key，不发送邮件、不调用 DeepSeek、不实际安装或触�
    部署，Web-only arm `9b0860a` 只新增 Ready `V3NzjTYXtH7fb3WC2P6hpWR1twhb`，独立 disarm
    `1d1f567` 零新增。最终 Web/API 为 9/16、无 in-flight、两份配置均为 `false`；Hosted `/admin`、HSTS、
    CSP、exact bundle SHA/recovery copy 与 secret scan 通过。真实邀请仍等待用户授权新邮箱。
+
+### Phase 81：Hosted Email OTP 位数漂移与同邀请重发（2026-08-24）
+
+影响平台为 `shared Web/API + hosted-acceptance`。本阶段不修改 Classic/Store wire、DNS、Custom SMTP、
+Vercel environment 或密钥；实际邮件发送与 0014 远端应用分别等待明确授权，Windows 继续留在关键候选
+批次。
+
+1. **真实根因**：唯一普通邀请注册收到 8 位 OTP，而 Cloud strict contract/Web/API 只接受六位；Hosted
+   `mailer_otp_length=8` 是漂移源，Resend 只投递 `{{ .Token }}`，前六位或后六位都不能替代完整 token；
+2. **单字段修正**：用户只授权 Email OTP length 8→6。Dashboard 保存后以独立重新加载回读 6，expiry
+   保持 3600；Site URL、五条 Redirect URLs、模板、Custom SMTP、DNS、environment、secret 均未改，也
+   未发送新邮件。新增 status/apply guard，apply 只允许 8→6 或幂等 6→6，且比较其他 Auth config 不变；
+3. **Fresh RED → GREEN**：新增 strict token-only resend contract、Supabase signup resend provider、Web
+   内存 token/StrictMode 单飞与 pending/bound-error 两入口、API IP+invitation 双限流，以及 byte-identical
+   0014；API 先轮换同一 claim/唯一 flow，再发最新六位 OTP；
+4. **数据库安全边界**：0014 不修改已应用 0013，只允许 active invitation、唯一 bound unfinished claim、
+   唯一未消费 flow、未确认单 email identity 与零业务账号数据；旧 flow 被替换，数据库不创建第二张
+   invitation/claim/flow/Auth user/identity，函数只授权 context setter；
+5. **本机与发布门**：focused contracts/API/Web/PGlite、脚本、类型检查、完整 macOS 门和安全 diff 全绿后，
+   才请求实际应用唯一 0014；随后 API→Web 严格串行 one-shot deploy/disarm。部署完成且 Hosted Auth status
+   再次为 6 后，才由用户点击重发并发送一封新邮件；
+6. **真实退出门**：最新邮件含精确六位 ASCII OTP，CTA scanner/repeated GET 零副作用，显式 POST 完成
+   原 invitation/bound user；回读 invitation/user/identity 唯一、Web 落点和密码重登。完成前不得运行
+   DeepSeek smoke、Cron 或 R3-C 来绕过该身份门。

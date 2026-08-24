@@ -91,7 +91,7 @@ wire 版本或完成声明。
 audit 仍只允许 `enabled`。这不代表 Store 产品或 Windows 支持被取消，启用时仍须真实 ID、版本和 Chrome
 门禁。
 
-> **当前校准检查点（Phase 80，2026-08-24）**：Hosted Singapore Supabase、Vercel API/Web、同站域名、
+> **当前校准检查点（Phase 81，2026-08-24）**：Hosted Singapore Supabase、Vercel API/Web、同站域名、
 > First Operator、Cloud Web UI 与受控 deploy/disarm 已完成。Phase 76 API runtime 候选已通过唯一
 > API-only one-shot 上线并立即独立 disarm；Phase 80 邀请幂等候选又完成唯一 Web-only 部署与独立
 > disarm，API/Web 当前默认非 Canceled 为 16/9 且均
@@ -105,7 +105,11 @@ audit 仍只允许 `enabled`。这不代表 Store 产品或 Windows 支持被取
 > Latest API `4f1ce4a` / `6QeRbqxgA88cFXggKekkr2axH9JM`，Latest Web `9b0860a` /
 > `V3NzjTYXtH7fb3WC2P6hpWR1twhb`，API/Web 16/9、独立 disarm 零新增与双关闭；
 > current 依赖链从明确授权一个不同于现有 Operator、且账号精确搜索为零的未使用邮箱开始；普通邀请
-> 本身不绑定邮箱，真正的邮箱约束在后续注册/OTP 阶段执行。
+> 本身不绑定邮箱，真正的邮箱约束在后续注册/OTP 阶段执行。唯一普通邀请已进入密码注册，但真实邮件
+> 暴露 Hosted Email OTP length 漂移为 8，而产品/API/Web 只接受 6。该单一 Hosted 值已在明确授权下
+> 保存为 6 并独立回读；expiration 仍为 3600，其他 Supabase/SMTP/DNS/secret 配置未改且未发送新邮件。
+> 旧 8 位码不会自动转换，也不得截取后继续使用；下一门是同一 invitation claim/identity 的受限重发与新六位 OTP，不得创建第二张邀请
+> 或删除 Auth user。
 
 > **历史校准检查点（Phase 33）**：Phase 28 已补齐 production 语义重复建议和
 > 可计算 AA token 证据；2026-08-14 完成度源码审计发现的 SubmissionOutbox `api=null` 误清账号绑定

@@ -48,6 +48,9 @@ test("hosted deployment plan is complete, deterministic, and secret independent"
     "seen-said-acceptance-web | apps/web | vite | pnpm build:vercel | dist",
     "API and Web Git deployment both disable every branch",
     "First Operator is completed and the post-completion verifier passed; do not rerun foundation bootstrap, migration 0012/0013, or BootstrapInvitation",
+    "The only ordinary invitation has already submitted password registration; do not create or revoke another invitation or delete its bound Auth user",
+    "Hosted Email OTP length was corrected only from 8 to 6 and independently reloaded; expiration remains 3600 and no new email has been sent",
+    "Remote migration head remains 13; candidate migration 0014 and the token-only resend route are pending review, deployment, and explicit approval",
     "Current API latest is Ready deployment 6QeRbqxgA88cFXggKekkr2axH9JM at source 4f1ce4a458fe138aeee6fb455b2dcc398a55555a",
     "Current Web latest is Ready deployment V3NzjTYXtH7fb3WC2P6hpWR1twhb at source 9b0860a91940e4f78968b3882af91ef5bf923b8a",
     "Cloud workspace redesign candidate 524a55b35dadfd1e8bd1ef89b0abc2baadf69066 was deployed only through the reviewed arm and followed by disarm d6d901c",
@@ -58,8 +61,8 @@ test("hosted deployment plan is complete, deterministic, and secret independent"
     "/health proves TLS and process startup only; it does not execute SQL or prove the database DSN",
     "The real /admin password reauthentication and four-section read-only verification are complete",
     "Phase 77 runtime snapshot and Phase 79 controlled Cron tooling are not yet connected to Hosted",
-    "authorized recipient must use an unused email distinct from the existing First Operator account",
-    "authorize one unused recipient email distinct from the Operator -> create exactly one ordinary invitation",
+    "apply exactly migration 0014 after explicit approval, then deploy API and Web through separate one-shot arm/disarm windows",
+    "read back Hosted Email OTP length 6 -> user-triggered same-invitation resend -> latest six-digit OTP only",
     "scanner-safe repeated GET -> explicit OTP POST -> Auth SMTP delivery -> Web landing -> password relogin",
     "real R3-C delivery and duplicate/alert observation -> install and verify five Supabase Cron jobs",
     "audited kill-switch disable -> one approved Cloud DeepSeek application-path request -> model/usage/price/reservation/UsageLedger reconciliation -> restore kill switch",
@@ -105,6 +108,8 @@ test("hosted deployment plan is complete, deterministic, and secret independent"
     plan,
     /explicitly authorize one recipient -> create exactly one ordinary invitation/u,
   );
+  assert.doesNotMatch(plan, /authorize one unused recipient email/u);
+  assert.doesNotMatch(plan, /Account search must return zero exact matches/u);
   assert.doesNotMatch(plan, /https:\/\/api\.acceptance\.seen-said\.cn\/\*\*/u);
   assert.doesNotMatch(plan, /flow=\*/u);
 });

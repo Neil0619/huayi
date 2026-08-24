@@ -825,6 +825,16 @@ confirmed Auth user/password method/profile 为 `1/1/2`、google method/Web sess
 - 错误 OTP 返回固定可重试 HTML，不回显 email、OTP、Provider detail；flow 只允许 43 位 Base64URL；
 - migration 回归必须证明 expired unbound claim 可回收并 cascade 旧 flow，expired bound claim 必须保留；
   原子恢复只接受仍有效 invitation、唯一 bound claim/flow、confirmed email identity 与零账号数据；
+- Hosted Auth config gate 必须对固定 Singapore project 只读 GET 并要求
+  `mailer_otp_length=6`；观测到的 8 必须失败。受控 apply 只能 PATCH 该单一字段，随后独立 GET 回读 6，
+  stdout/stderr 不反射 access token；不得以本地 `supabase/config.toml` 或邮件正文测试代替 Hosted 回读；
+- resend contract 必须 strict token-only；API 覆盖额外字段拒绝、IP/invitation 双限流先于数据库与
+  Provider、固定 202/no-store/无 Cookie、Provider 失败可重试且不泄露。Web 覆盖 pending 与 bound-claim
+  error 两个入口、StrictMode 单飞、token 仅驻内存且不进入 DOM/Storage；
+- 0014 migration 必须证明 API/Supabase 镜像 byte-identical、同一过期/未过期 bound claim 都只轮换唯一
+  flow，并回读服务端派生的 `bound_email`；wrong token、claim/Auth email 错配、已确认/多 identity、
+  profile/method/quota/session/admin/deletion/audit 数据、
+  revoked/expired invitation 与 consumed/finalized 状态全部零写入，ACL 只给 context setter；
 - API 恢复必须先做 Provider password proof，再执行原子函数，失败无 Cookie/无 Web session；invitation
   token 不得进入 Provider command。Web 失败保留内存 token/email，成功才清 URL；
 - actual bundle 必须覆盖 scanner/repeated GET confirm、显式 OTP POST、`/practice` Cookie 与之后密码重登；

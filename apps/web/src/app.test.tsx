@@ -63,6 +63,7 @@ it("routes a valid invitation into the real authentication surface", async () =>
     listExtensionSessions: vi.fn(async () => ({ items: [] })),
     loginPassword: vi.fn(async () => ({ access: "full" as const, csrfToken: "s".repeat(32) })),
     registerPassword: vi.fn(async () => ({ emailConfirmationRequired: true as const })),
+    resendPasswordRegistration: vi.fn(async () => ({ accepted: true as const })),
     reauthenticatePassword: vi.fn(async () => ({
       access: "full" as const,
       csrfToken: "r".repeat(32),

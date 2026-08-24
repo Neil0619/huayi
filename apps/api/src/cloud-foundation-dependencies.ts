@@ -31,6 +31,7 @@ interface FoundationIdentity {
   preparePasswordReauthentication: IdentityModule["preparePasswordReauthentication"];
   requireClaimTicket: IdentityModule["requireClaimTicket"];
   readAuthFlowState: IdentityModule["readAuthFlowState"];
+  renewPasswordRegistrationConfirmation: IdentityModule["renewPasswordRegistrationConfirmation"];
   requireRecentAuthentication: IdentityModule["requireRecentAuthentication"];
   resumeInterruptedPasswordRegistration: IdentityModule["resumeInterruptedPasswordRegistration"];
   revokeExtensionSession: IdentityModule["revokeExtensionSession"];

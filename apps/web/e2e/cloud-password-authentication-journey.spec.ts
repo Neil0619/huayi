@@ -84,6 +84,27 @@ test("an invited learner confirms password registration and later signs in again
     (await page.context().cookies(apiOrigin)).some((cookie) => cookie.name === "huayi_session"),
   ).toBe(false);
 
+  const [resendResponse] = await Promise.all([
+    page.waitForResponse(
+      (response) =>
+        response.url() === `${apiOrigin}/v1/auth/password/register/resend` &&
+        response.request().method() === "POST",
+    ),
+    page.getByRole("button", { name: "重新发送六位验证码" }).click(),
+  ]);
+  expect(resendResponse.status()).toBe(202);
+  expect(resendResponse.headers()["cache-control"]).toBe("private, no-store");
+  expect(resendResponse.headers()["set-cookie"]).toBeUndefined();
+  await expect(page.getByRole("status")).toContainText("只使用最新邮件中的验证码");
+  await expect
+    .poll(() =>
+      page.evaluate(
+        (url) => fetch(url).then((response) => response.status),
+        `${apiOrigin}/v1/auth/password/confirm?flow=${"f".repeat(43)}`,
+      ),
+    )
+    .toBe(404);
+
   await page.goto(`${mailOrigin}/inbox`);
   await expect(page.getByRole("heading", { name: "测试邮箱确认", level: 1 })).toBeVisible();
   const [confirmationResponse] = await Promise.all([
@@ -103,7 +124,7 @@ test("an invited learner confirms password registration and later signs in again
     (await page.context().cookies(apiOrigin)).some((cookie) => cookie.name === "huayi_session"),
   ).toBe(false);
   await page.getByLabel("邮箱").fill(email);
-  await page.getByLabel("六位验证码").fill("123456");
+  await page.getByLabel("六位验证码").fill("654321");
   const [callbackResponse] = await Promise.all([
     page.waitForResponse(
       (response) =>
@@ -179,6 +200,12 @@ test("an invited learner confirms password registration and later signs in again
       authenticatedAs: "none",
       method: "POST",
       path: "/v1/auth/password/register",
+      proof: "write-valid",
+    },
+    {
+      authenticatedAs: "none",
+      method: "POST",
+      path: "/v1/auth/password/register/resend",
       proof: "write-valid",
     },
     {

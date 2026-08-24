@@ -22,6 +22,7 @@ function foundation() {
     completeCode: vi.fn(),
     refreshSession: vi.fn(),
     registerPassword: vi.fn(),
+    resendPasswordRegistrationOtp: vi.fn(),
     setPassword: vi.fn(),
     signInWithPassword: vi.fn().mockResolvedValue({
       email: "learner@example.com",

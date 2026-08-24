@@ -36,12 +36,15 @@ Web-only deployment 与独立 disarm。当前默认排除 Canceled 的 API/Web �
 `9b0860a91940e4f78968b3882af91ef5bf923b8a` / `V3NzjTYXtH7fb3WC2P6hpWR1twhb`，两项目当前均为
 `deploymentEnabled=false`。live `/`、`/privacy`、SPA `/admin`、`/practice`、实际 JS asset、安全响应头、
 渲染、公开只读边界与 bundle secret scan 均通过；Phase 78 API `/health` 与无 Cookie CSRF/CORS 也已
-通过。普通邀请、OTP/Auth SMTP、R3-C、Cron 与 DeepSeek 应用路径仍待验收。
+通过。唯一普通邀请已经提交密码注册，但邮件暴露 Hosted OTP length=8 漂移；该单一字段已保存为 6 并
+独立回读，未发送新邮件。仓库候选新增 0014 同邀请重发，远端仍停在 13 条；0014、API/Web 部署、六位
+OTP/Auth SMTP、R3-C、Cron 与 DeepSeek 应用路径仍待验收。
 
 ## 1. 当前事实与目标
 
-Hosted foundation 已在 Supabase project `kpadiulxkgckskcfydry` 完成，仓库与远端 migration head 均为 13
-条，First Operator 为 `completed`。不得再运行 pristine foundation bootstrap、0012/0013、首张
+Hosted foundation 已在 Supabase project `kpadiulxkgckskcfydry` 完成，远端 migration head 为 13 条，
+仓库受审查候选为 14 条，First Operator 为 `completed`。不得再运行 pristine foundation bootstrap、
+0012/0013、首张
 BootstrapInvitation 或 First Operator complete；这些步骤只保留为历史证据。Supabase Auth Site URL、五条
 query-aware redirect、scanner-safe OTP 模板、Custom SMTP、分离的 SMTP/R3-C credential 与 API/Web
 Production environment 已配置；Google 与 Store 仍禁用。配置完成不等于真实邮件投递、R3-C 发送或 Cron
@@ -333,7 +336,9 @@ URL Configuration 固定：
   `/v1/account/sign-in-methods/google:callback`。
 
 Email/password 保持启用、email confirmation 开启、autoconfirm 关闭，密码长度与 Cloud contract 一致为
-12–256。Confirm sign up 模板显示 `{{ .Token }}`，CTA 只用 `{{ .RedirectTo }}`，不得直接链接
+12–256；Email OTP length 必须精确为 6，expiration 保持 3600，并由
+`pnpm acceptance:hosted:auth:status` 在真实注册前只读回读。Confirm sign up 模板显示 `{{ .Token }}`，
+CTA 只用 `{{ .RedirectTo }}`，不得直接链接
 `{{ .ConfirmationURL }}`；否则邮件扫描器可提前消费一次性 token。Custom SMTP 固定
 `smtp.resend.com:465`、username `resend`、独立 SMTP
 key、sender `accounts@notify.acceptance.seen-said.cn` 与品牌名 `语见`。
@@ -454,7 +459,7 @@ push 只允许增加 Canceled 审计记录，不得新增非 Canceled deployment
 
 唯一当前入口是 `pnpm acceptance:hosted:deployment --plan`。它必须保持零网络、零写入，并同时输出：
 
-- 已完成且禁止重跑的 13 条 migration、foundation bootstrap、BootstrapInvitation、First Operator
+- 已完成且禁止重跑的远端 13 条 migration、foundation bootstrap、BootstrapInvitation、First Operator
   complete、API/Web deployment 与公开/安全响应头门；
 - Latest API `4f1ce4a458fe138aeee6fb455b2dcc398a55555a` /
   `6QeRbqxgA88cFXggKekkr2axH9JM`，Latest Web
@@ -463,8 +468,9 @@ push 只允许增加 Canceled 审计记录，不得新增非 Canceled deployment
   只作为各次受控部署检查点，不覆盖当前账本；
 - Vercel Functions 已回读 Fluid Enabled、`sin1`，Latest API `/index` 为 Node.js 24.x、`SIN1`、`≤120s`；
   90 秒应用 abort 与平台终止仍随真实 Cloud DeepSeek 请求验收；
-- 当前唯一依赖链：创建一张普通邀请 → scanner-safe
-  repeated GET / 显式 OTP POST / Auth SMTP / Web 落点 / 密码重登 → 真实 R3-C 投递、重复与无正文告警 →
+- 当前唯一依赖链：对已提交注册的同一普通邀请应用唯一 0014 → 部署 token-only resend → 再次只读确认
+  OTP length=6 → 用户点击重发 → scanner-safe repeated GET / 显式 OTP POST / Auth SMTP / Web 落点 /
+  密码重登 → 真实 R3-C 投递、重复与无正文告警 →
   安装并验证五项 Cron → 受审计关闭 kill switch → 一笔获批的 Cloud DeepSeek 应用路径请求及
   model/usage/price/reservation/UsageLedger 对账 → 恢复 kill switch。
 

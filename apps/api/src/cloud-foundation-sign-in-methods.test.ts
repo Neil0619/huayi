@@ -24,6 +24,7 @@ function foundation() {
       .mockResolvedValue({ authState: {}, redirectUrl: "https://accounts.google.test" }),
     completeCode: vi.fn(),
     registerPassword: vi.fn(),
+    resendPasswordRegistrationOtp: vi.fn(),
     refreshSession: vi.fn(),
     setPassword: vi.fn(),
     signInWithPassword: vi.fn().mockResolvedValue({

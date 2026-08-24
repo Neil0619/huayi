@@ -97,6 +97,18 @@ export function createSupabaseAuthProvider(
       };
     },
 
+    async resendPasswordRegistrationOtp(command) {
+      const { storage } = createSupabaseAuthFlow();
+      const { error } = await createAuthClient(storage).auth.resend({
+        email: command.email,
+        options: { emailRedirectTo: command.redirectTo },
+        type: "signup",
+      });
+      if (error !== null) {
+        throw new CloudFault("authentication_required", "Email verification could not be resent.");
+      }
+    },
+
     async setPassword(command) {
       const flow = createSupabaseAuthFlow(command.authState);
       const { data, error } = await createAuthClient(flow.storage).auth.updateUser({

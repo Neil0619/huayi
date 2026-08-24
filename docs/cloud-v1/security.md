@@ -378,12 +378,24 @@ owner context、generation/reservation 归属、task 成功或失败终态、价
   Storage 或错误响应。
 - OTP 仅在用户显式 `application/x-www-form-urlencoded` POST 后交给 Supabase `verifyOtp(type=email)`；
   GET/reload/prefetch 不调用 Provider 或数据库。错误统一返回无 Provider 细节、输入留空的可重试页面。
+- Hosted `mailer_otp_length` 必须由固定项目只读门禁精确验证为 6；受控修正只允许已观察到的 8→6，PATCH
+  body 只能包含该字段，并在独立 GET 中证明其他 Auth 配置未漂移。不得用整份 config push 覆盖 Site URL、
+  Redirect URLs、模板、SMTP 或 expiry。
+- `POST /v1/auth/password/register/resend` 只接受 Web 内存自动提交的原 invitation token；strict body 不接收
+  email、password、OTP 或 flow，固定响应不披露账号状态。API 在 IP 每小时 5 次、pepper-hashed invitation
+  每小时 3 次门后，先原子轮换同一 claim/flow，再调用 Supabase signup resend；Provider 失败不建
+  profile/session/第二用户，并允许后续受限重试。
 - 确认页 `form-action` 只允许 `'self'` 和精确配置的 Web origin；后者用于允许 API 完成 POST 后跳转
   Web 工作台，禁止通配域名。
 - 已绑定 Provider user 的过期 invitation claim 是恢复证据，不能由普通重新领取删除。恢复同时要求原
   invitation token、Provider 密码证明和数据库精确中断状态；Provider user id/email 只取服务器 session。
 - `resume_interrupted_password_registration` 只授予 context setter，在单事务内检查邀请/claim/flow/Auth
   identity/零账号数据后创建 profile、password method、default quota 并消费旧状态；失败不得部分写入。
+- `renew_interrupted_password_confirmation` 同样只授予 context setter。它只接受 active invitation、唯一
+  bound unfinished claim、唯一未消费 invite-registration flow、未确认且只有 email identity 的 Auth user
+  和零业务账号数据；claim 的 `bound_email` 必须由 `bind_auth_identity` 从 Auth user 服务端派生并与
+  当前 Auth email 精确一致。它只更新同一 claim 的 expiry 并替换同一 flow hash，旧 CTA 立即失效，
+  绝不创建第二 invitation/claim/flow/user/identity。
 - Hosted 恢复不要求用户识别、复制或输入原邀请 token。token 留在原邀请 URL fragment 与 Web 内存，恢复
   提交时由 Web 自动传给 API；API 使用当前 Production pepper 计算 hash，0013 在任何写入前同时要求精确
   `registration-interrupted`、active Bootstrap invitation 与 hash equality。任何错配均失败关闭且零部分

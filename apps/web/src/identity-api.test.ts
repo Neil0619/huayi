@@ -330,6 +330,24 @@ describe("Web identity API", () => {
     expect(api.googleAuthStartUrl).toBe("https://api.huayi.invalid/v1/auth/google/start");
   });
 
+  it("resends signup confirmation with only the memory-held invitation token", async () => {
+    const request = vi.fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>(
+      async () => json({ accepted: true }, 202),
+    );
+    const api = createWebIdentityApi({ apiOrigin: origin, fetch: request });
+
+    await expect(api.resendPasswordRegistration("i".repeat(43))).resolves.toEqual({
+      accepted: true,
+    });
+    expect(request).toHaveBeenCalledWith(new URL("/v1/auth/password/register/resend", origin), {
+      body: JSON.stringify({ invitationToken: "i".repeat(43) }),
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      method: "POST",
+    });
+    expect(String(request.mock.calls[0]?.[0])).not.toContain("i".repeat(43));
+  });
+
   it.each([
     "http://api.huayi.invalid",
     "https://user@api.huayi.invalid",

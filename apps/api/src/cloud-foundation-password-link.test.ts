@@ -29,6 +29,7 @@ function foundation() {
       },
     }),
     registerPassword: vi.fn(),
+    resendPasswordRegistrationOtp: vi.fn(),
     setPassword: vi.fn().mockResolvedValue({
       authState: { "provider-session": "updated-state" },
       userId: "auth-user-a",

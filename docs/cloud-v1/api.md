@@ -53,6 +53,7 @@ type ApiError = {
 | `POST /v1/auth/google/start`             | 发起 Google OAuth      | body 中的 claim ticket；302 到 Supabase/Google             |
 | `GET /v1/auth/csrf`                      | 登录后获取新 CSRF      | HttpOnly Cookie + Web Origin；轮换后返回短时 token         |
 | `POST /v1/auth/password/register`        | 邮箱密码注册           | claim ticket、email、password；要求邮件验证                |
+| `POST /v1/auth/password/register/resend` | 重发注册验证码         | 原 invitation token；固定 202，不接收 email/password/OTP   |
 | `GET /v1/auth/password/confirm`          | 打开邮箱确认表单       | exact 43-char flow；inert HTML，不消费 Provider token      |
 | `POST /v1/auth/password/callback`        | 显式完成邮箱确认       | flow + email + 6 位 OTP；设置 Web Cookie 并跳转工作台      |
 | `POST /v1/auth/password/register/resume` | 恢复已确认但中断的注册 | 原 invitation token + email/password proof；原子完成建档   |

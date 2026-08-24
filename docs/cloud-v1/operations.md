@@ -196,6 +196,12 @@ scanner-safe OTP/Auth SMTP → R3-C 真实投递、重复与无正文告警 → 
 kill-switch 切换、一笔获批 Cloud DeepSeek 应用路径请求和账本对账 → 恢复 kill switch。用户密码、Cookie、
 Token 与 secret 不进入自动化或发布证据。
 
+Phase 81 已在唯一普通邀请的真实注册邮件中发现 Hosted Email OTP length 为 8，而产品契约固定 6。用户只
+授权把该字段保存为 6；独立重新加载确认 6、expiry 仍 3600，其他 Auth/SMTP/DNS/environment/secret 未改
+且未发送新邮件。今后每次真实邀请前先运行 `pnpm acceptance:hosted:auth:status`；它失败时停止，不得截取
+旧码或整份 push Auth config。当前同一 bound identity 必须先应用受审查的 0014 并部署 token-only resend，
+再由仍持有原私密邀请的 Web 自动重发；用户不输入 fragment/token，系统不创建第二邀请或删除 Auth user。
+
 普通 Operator 邀请与 BootstrapInvitation 的丢失处理不同。创建普通邀请后只安全传递一次 fragment，并
 保留非秘密 invitation ID 作为运营引用；不得把 URL 写入工单、日志或证据。若传递前或传递过程中丢失，
 先停止继续创建，在 `/admin` 重新认证并重读邀请列表：目标仍为“可领取”时执行二步撤销，确认列表变为

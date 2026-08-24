@@ -40,6 +40,7 @@ export const identityHttpRoutes = {
   passwordLogin: "/v1/auth/password/login",
   passwordReauthentication: "/v1/auth/reauthenticate/password",
   passwordRegister: "/v1/auth/password/register",
+  passwordRegistrationResend: "/v1/auth/password/register/resend",
   passwordRegistrationResume: "/v1/auth/password/register/resume",
   quota: "/v1/quota",
   extensionPairingCreate: "/v1/extension-pairings",
@@ -118,6 +119,12 @@ export const passwordRegistrationResumeRequestSchema = z.strictObject({
   email: accountEmailSchema,
   invitationToken: opaqueTokenSchema,
   password: passwordSchema,
+});
+export const passwordRegistrationResendRequestSchema = z.strictObject({
+  invitationToken: opaqueTokenSchema,
+});
+export const passwordRegistrationResendResponseSchema = z.strictObject({
+  accepted: z.literal(true),
 });
 export const passwordRegistrationResponseSchema = z.union([
   z.strictObject({ emailConfirmationRequired: z.literal(true) }),

@@ -3,6 +3,18 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-24：Hosted Email OTP 位数是六位产品契约，不再是未验证的 Dashboard 默认值
+
+- 普通邀请真实注册收到 8 位验证码，而 Web/API 表单与 strict contract 只接受 6 位；根因是 Hosted
+  Supabase `mailer_otp_length` 漂移为 8，不是 Resend 改写邮件，也不能以前六位或后六位代替；
+- Cloud V1 继续固定 6 位 ASCII 数字。Hosted 已在用户明确授权下只把 Email OTP length 从 8 保存为 6，
+  独立重新加载回读为 6；Email OTP expiration 保持 3600，本步骤不修改 Site URL、Redirect URLs、邮件
+  模板、Custom SMTP、DNS、环境变量或密钥，也不发送邮件；
+- 新增固定项目、只读优先的 Hosted Auth config verifier。apply 只允许 exact confirmation、只 PATCH
+  `{mailer_otp_length:6}` 并在写后重新 GET；禁止使用会覆盖其他 Auth 设置的整份 config push；
+- 已发出的 8 位 OTP 不会因配置改正而变成 6 位。注册链路必须先提供绑定同一 invitation claim/identity
+  的受限重发能力，再发送新的六位验证码；不得截取旧码、创建第二张邀请或删除 Auth user 绕过。
+
 ## 2026-08-24：普通邀请创建以单飞和同键恢复保证不重复
 
 - 普通邀请仍是不绑定邮箱的一次性链接，但 Hosted 验收的授权收件人必须使用不同于现有 First Operator、

@@ -30,6 +30,7 @@ export interface AuthProvider {
   refreshSession(command: {
     refreshToken: string;
   }): Promise<{ authState: AuthState; session: AuthSession }>;
+  resendPasswordRegistrationOtp(command: { email: string; redirectTo: string }): Promise<void>;
   setPassword(command: {
     authState: AuthState;
     password: string;

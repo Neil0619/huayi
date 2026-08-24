@@ -25,7 +25,7 @@ describe("identity module", () => {
     });
     const invitation = module.createInvitation("admin-1", 72);
     const claim = module.claimInvitation(invitation.token);
-    module.bindInvitationIdentity(claim.claimTicket, "password-user");
+    module.bindInvitationIdentity(claim.claimTicket, "password-user", "learner@example.com");
 
     module.finalizeInvitation(
       claim.claimTicket,
@@ -78,7 +78,7 @@ describe("identity module", () => {
     module.createProfile("existing-user", "existing@example.com", ["password"]);
     const invitation = module.createInvitation("admin-1", 72);
     const claim = module.claimInvitation(invitation.token);
-    module.bindInvitationIdentity(claim.claimTicket, "existing-user");
+    module.bindInvitationIdentity(claim.claimTicket, "existing-user", "learner@example.com");
 
     expect(() =>
       module.finalizeInvitation(
@@ -113,7 +113,7 @@ describe("identity module", () => {
     expect(fulfilled).toHaveLength(1);
     expect(rejected).toHaveLength(1);
     const ticket = fulfilled[0]?.status === "fulfilled" ? fulfilled[0].value.claimTicket : "";
-    module.bindInvitationIdentity(ticket, "user-a");
+    module.bindInvitationIdentity(ticket, "user-a", "learner@example.com");
     expect(module.finalizeInvitation(ticket, "user-a", "user-a@example.com", "password")).toEqual({
       userId: "user-a",
     });
@@ -134,14 +134,14 @@ describe("identity module", () => {
     });
     const invitation = module.createInvitation("admin-1", 72);
     const claim = module.claimInvitation(invitation.token);
-    module.bindInvitationIdentity(claim.claimTicket, "auth-user-a");
+    module.bindInvitationIdentity(claim.claimTicket, "auth-user-a", "learner@example.com");
 
     expect(() =>
       module.finalizeInvitation(claim.claimTicket, "auth-user-b", "user-b@example.com", "password"),
     ).toThrowError(expect.objectContaining({ code: "invitation_invalid" }));
-    expect(() => module.bindInvitationIdentity(claim.claimTicket, "auth-user-b")).toThrowError(
-      expect.objectContaining({ code: "invitation_consumed" }),
-    );
+    expect(() =>
+      module.bindInvitationIdentity(claim.claimTicket, "auth-user-b", "other@example.com"),
+    ).toThrowError(expect.objectContaining({ code: "invitation_consumed" }));
   });
 
   it("exchanges a short-lived auth flow ID for the claim ticket only once", () => {

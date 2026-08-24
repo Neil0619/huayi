@@ -88,8 +88,8 @@ test("hosted foundation is pinned to the Singapore acceptance project and public
     peak: "e4479ddf-f4da-4a75-825a-2b25c1a145cf",
   });
   assert.equal(new Set(Object.values(hostedAcceptancePriceVersionIds)).size, 3);
-  assert.equal(hostedAcceptanceMigrationVersions.at(-1), "20260823010000");
-  assert.equal(hostedAcceptanceMigrationVersions.length, 13);
+  assert.equal(hostedAcceptanceMigrationVersions.at(-1), "20260824010000");
+  assert.equal(hostedAcceptanceMigrationVersions.length, 14);
 });
 
 test("hosted psql always pins verify-full and the temporary CA path", () => {
@@ -294,6 +294,10 @@ test("hosted diagnostic reports only fixed read-only predicate verdicts", async 
   assert.match(sql, /migration_0012_trigger/u);
   assert.match(sql, /migration_0013_recovery_function/u);
   assert.match(sql, /resume_interrupted_password_registration/u);
+  assert.match(sql, /migration_0014_bound_identity/u);
+  assert.match(sql, /bound_email/u);
+  assert.match(sql, /migration_0014_resend_function/u);
+  assert.match(sql, /renew_interrupted_password_confirmation/u);
 
   const stdout = hostedDiagnosticPredicateNames.map((name) => `${name}|t`).join("\n") + "\n";
   const calls = [];

@@ -26,6 +26,7 @@ function api(overrides: Partial<AuthApi> = {}): AuthApi {
     googleLoginStartUrl: "https://api.huayi.invalid/v1/auth/google/login/start",
     loginPassword: vi.fn(async () => ({ access: "full" as const, csrfToken: "s".repeat(32) })),
     registerPassword: vi.fn(async () => ({ emailConfirmationRequired: true as const })),
+    resendPasswordRegistration: vi.fn(async () => ({ accepted: true as const })),
     resumePasswordRegistration: vi.fn(async () => ({
       access: "full" as const,
       csrfToken: "s".repeat(32),
@@ -168,6 +169,50 @@ describe("Web invitation and authentication", () => {
     );
     expect(view.onAuthenticated).not.toHaveBeenCalled();
     expect(view.container.querySelector("[data-google-auth-form]")).toBeNull();
+    expect(view.container.querySelector("[data-resend-registration]")).not.toBeNull();
+  });
+
+  it("resends a six-digit OTP with the memory-held invitation only", async () => {
+    const authApi = api();
+    const view = await render(authApi, { invitationToken: "i".repeat(32), mode: "join" });
+    await act(async () => Promise.resolve());
+    const email = view.container.querySelector<HTMLInputElement>("#registration-email");
+    const password = view.container.querySelector<HTMLInputElement>("#registration-password");
+    if (email === null || password === null) throw new Error("Registration fields missing.");
+    await change(email, "learner@example.com");
+    await change(password, "password long enough");
+    await act(async () =>
+      view.container.querySelector<HTMLButtonElement>("[data-register]")?.click(),
+    );
+    await act(async () =>
+      view.container.querySelector<HTMLButtonElement>("[data-resend-registration]")?.click(),
+    );
+
+    expect(authApi.resendPasswordRegistration).toHaveBeenCalledWith("i".repeat(32));
+    expect(view.container.querySelector("[role='status']")?.textContent).toContain(
+      "新的六位验证码已发送",
+    );
+    expect(view.container.textContent).not.toContain("i".repeat(32));
+    expect(localStorage).toHaveLength(0);
+    expect(sessionStorage).toHaveLength(0);
+  });
+
+  it("resends from a bound-claim error with the original memory-held invitation", async () => {
+    const authApi = api({ claimInvitation: vi.fn().mockRejectedValue(new Error("bound")) });
+    const view = await render(authApi, { invitationToken: "i".repeat(32), mode: "join" });
+    await act(async () => Promise.resolve());
+
+    await act(async () =>
+      view.container.querySelector<HTMLButtonElement>("[data-resend-registration]")?.click(),
+    );
+
+    expect(authApi.resendPasswordRegistration).toHaveBeenCalledWith("i".repeat(32));
+    expect(view.container.querySelector("[role='status']")?.textContent).toContain(
+      "新的六位验证码已发送",
+    );
+    expect(view.container.textContent).not.toContain("i".repeat(32));
+    expect(localStorage).toHaveLength(0);
+    expect(sessionStorage).toHaveLength(0);
   });
 
   it("hides every Google authentication control when the deployment capability is disabled", async () => {
