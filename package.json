@@ -29,6 +29,7 @@
     "acceptance:hosted:backup:plan": "node scripts/acceptance-hosted-important-batch-backup.mjs --plan",
     "acceptance:hosted:backup:preflight": "node scripts/acceptance-hosted-important-batch-backup.mjs --verify-pre-0014-important-batch-backup-kpadiulxkgckskcfydry",
     "acceptance:hosted:backup:rebuild": "node scripts/acceptance-hosted-important-batch-backup-executor.mjs --confirm-rebuild-0014-important-batch-backup-kpadiulxkgckskcfydry",
+    "acceptance:hosted:migration:0014:apply": "node scripts/acceptance-hosted-migration-0014-apply.mjs --confirm-apply-20260824010000-password-signup-otp-resend-kpadiulxkgckskcfydry",
     "acceptance:hosted:migration:0014:dry-run": "node scripts/acceptance-hosted-migration-0014-dry-run.mjs --confirm-dry-run-20260824010000-password-signup-otp-resend-kpadiulxkgckskcfydry",
     "acceptance:hosted:deployment": "node scripts/acceptance-hosted-deployment.mjs",
     "acceptance:hosted:operator": "node scripts/acceptance-hosted-first-operator.mjs",

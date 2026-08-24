@@ -46,7 +46,10 @@ Phase 85 已受控获取并在固定 OrbStack socket 检查全部 11 个 index-d
 cache miss 会 pull，普通 start 仍禁止；真实 pre dump/rebuild 与 preflight 尚未执行，因而 0014 仍不 ready。
 0014 dry-run 的本机候选已补固定官方 CA 的内部有界获取、无 redirect、管理员 transaction pooler `6543`
 verify-full URL/child env 与 `0600` 临时 CA；用户仍只运行一个 pnpm 命令，不准备 CA 环境变量。该离线修复
-尚未替代真实 dry-run 证据。
+尚未替代真实 dry-run 证据。后续实际写入也已收敛到单一
+`pnpm acceptance:hosted:migration:0014:apply`：它绑定 preflight、同执行 exact dry-run、mutation 前
+clean-HEAD/source-hash 重查和写后只读 canonical-chain/0014-contract postflight；该入口尚未真实运行，不能
+绕过 pre evidence，也不能替代 post backup/completion。
 
 ## 1. 当前事实与目标
 
@@ -477,7 +480,8 @@ push 只允许增加 Canceled 审计记录，不得新增非 Canceled deployment
 - Vercel Functions 已回读 Fluid Enabled、`sin1`，Latest API `/index` 为 Node.js 24.x、`SIN1`、`≤120s`；
   90 秒应用 abort 与平台终止仍随真实 Cloud DeepSeek 请求验收；
 - 当前唯一依赖链：单独批准 pre raw logical dump + migrations/fictional-seed rebuild →
-  `acceptance:hosted:backup:preflight` → 对已提交注册的同一普通邀请应用唯一 0014 → post dump +
+  `acceptance:hosted:backup:preflight` → real dry-run →
+  `acceptance:hosted:migration:0014:apply` 对已提交注册的同一普通邀请应用并验证唯一 0014 → post dump +
   `acceptance:hosted:backup:complete` → 部署 token-only resend → 再次只读确认 OTP length=6 → 用户点击重发 →
   scanner-safe repeated GET / 显式 OTP POST / Auth SMTP / Web 落点 /
   密码重登 → 真实 R3-C 投递、重复与无正文告警 →

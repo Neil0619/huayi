@@ -195,6 +195,11 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       结果必须精确为唯一 `20260824010000_password_signup_otp_resend.sql` 和固定未改库成功消息；安全入口已
       实现并通过离线 fake-fetch/process 回归；单命令内部从固定官方 URL 获取 CA，并在管理员 transaction
       pooler `6543` 强制 verify-full，用户不准备 CA env。尚未真实连接 Hosted，因此本项保持未勾选；
+- [ ] preflight 与真实 dry-run 均通过并取得独立写入授权后，只运行
+      `pnpm acceptance:hosted:migration:0014:apply`；入口必须在同一执行内重新 exact dry-run，并在 mutation 前
+      第二次验证 preflight + byte-identical fixed-hash migration mirrors，写后只读验证完整 14-version chain、
+      bound column/check、function identity 与 exact ACL。受控入口已离线实现但尚未连接/修改 Hosted；任何
+      非零 apply 或 postflight 失败均禁止盲目重试；
 - [ ] 在真实 R3-C 收件、重复观测和无正文告警门关闭后，从同一受控来源确认 Vercel/Vault
       `CRON_SECRET` 连续性，运行 Cron status→exact-confirmation apply；要求两次完整事务均成功、postflight
       exact 五 job/零 unmanaged，并观察至少两个周期及 401/5xx/timeout 后恢复；

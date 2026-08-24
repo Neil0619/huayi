@@ -111,8 +111,9 @@ SQL 绕过。
       不得运行普通 start，也不得用 filtered SQL 冒充 custom；
 - [ ] 单独批准并完成 0014 前 raw logical dump 与隔离 scratch 重建，且
       `pnpm acceptance:hosted:backup:preflight` 通过；该门关闭前 0014 不得描述为 ready；
-- [ ] 用户确认后只实际应用唯一 0014，再 API→Web 严格串行 one-shot deploy/disarm；部署完成前不发送
-      新邮件；
+- [ ] 用户确认后只通过 `acceptance:hosted:migration:0014:apply` 实际应用唯一 0014；入口内部再次 exact
+      dry-run、mutation 前重查 preflight/source identity，并以只读 postflight 验证完整 chain/0014 identity/ACL。
+      再按 API→Web 严格串行 one-shot deploy/disarm；部署完成前不发送新邮件；
 - [ ] 0014 应用后完成 post raw logical dump，并由 `pnpm acceptance:hosted:backup:complete` 关闭重要批次；
 - [ ] 系统打开最近的私密邀请，用户点击重发；只接受新邮件的六位 ASCII OTP，scanner GET 零副作用，
       显式 POST 完成同一 invitation/user，并回读 invitation/user/identity 唯一性。

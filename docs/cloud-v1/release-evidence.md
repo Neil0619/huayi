@@ -2189,3 +2189,37 @@ typecheck、architecture、build、development blocker、Store release、product
   响应身份，不作为阻断合法官方轮换的长期 pin；
 - **执行边界**：实现/测试未调用默认 fetch 或 Supabase CLI；未读取真实密码，未连接数据库、修改
   Supabase、发送邮件、部署、arm Vercel、运行模型，也未触碰暂停中的 isolated rebuild 诊断。
+
+## 81. Phase 81 0014 受控 apply 单命令与精确 postflight（2026-08-24）
+
+- **权威顺序与唯一缺口**：`hosted-important-batch-backup.md` 已固定 readiness → pre capture/rebuild →
+  backup preflight → 0014 apply → post capture → completion → API/Web 串行部署；但真实 dry-run 之后仓库只有
+  手工 `supabase db push` 这条越过 evidence、source identity 与 postflight 的缝隙。新增唯一 package 入口
+  `pnpm acceptance:hosted:migration:0014:apply`，不改变 pre/post evidence 尚未生成、因此当前仍不可 apply 的
+  阶段事实；
+- **Fresh RED → GREEN**：首次新增行为测试因 apply 模块不存在而以 `ERR_MODULE_NOT_FOUND` 精确失败；部署动作
+  账本另有 3 pass / 1 fail，证明旧顺序没有 exact apply 入口。实现后审查再以 9 pass / 1 fail 精确证明
+  postflight 尚未绑定约束名、表达式及函数参数/返回列；收紧后 apply + deployment 聚焦测试 14/14 通过；
+- **mutation 前封闭漂移**：同一受控执行先运行 backup preflight，再以隐藏 TTY 密码和固定官方 CA 执行 exact
+  0014 dry-run；mutation 紧前第二次重跑 preflight，并重新校验 Supabase/API 两份 0014 byte-identical 且命中
+  固定 SHA-256。任一 evidence、clean HEAD、migration source 或 dry-run 输出漂移均在 `--yes` apply 前失败；
+- **固定 apply 契约**：只调用仓库 `node_modules/.bin/supabase`，参数固定为
+  `db push --yes --skip-vault --db-url`、Singapore transaction pooler `6543` 与 verify-full；密码只进入该 child
+  的 `PGPASSWORD`，CA 只进入随机私有目录下的 `0600 root.crt`，stdout/stderr/stdin 均不承载数据库输出或
+  secret，timeout、spawn、非零退出和 cleanup failure 都固定失败；
+- **精确只读 postflight**：apply exit 0 后使用 `BEGIN READ ONLY` 回查完整 canonical 14 条 migration chain/head；
+  `invitation_claims.bound_email` 的 nullable `pg_catalog.text`、无 default/identity/generated、唯一固定 check 名、
+  单列 conkey 与规范化表达式；`bind_auth_identity(text,uuid)` 的 SECURITY DEFINER/search_path 与
+  `bound_email` 变更；`renew_interrupted_password_confirmation(text,text,timestamptz)` 的三入参、一 TABLE
+  output、record/set-returning、SECURITY DEFINER/search_path；以及 EXECUTE ACL 恰为 owner +
+  `huayi_context_setter`、均不可转授且 PUBLIC/business/runtime 无权。输出只接受精确 `t\n`；
+- **不安全重试保护**：apply child exit 0 但 postflight 未通过时也绝不输出完成；统一提示
+  `do not retry until remote state is checked`，要求先回查远端状态，避免把“迁移已落库但验证失败”误当作可
+  直接重试；
+- **离线完整门**：`pnpm verify:macos` 首轮原样退出 0：Node scripts 343/343、Vitest 478 files / 2917 pass
+  （12 个预期 skip）、Store coverage 97 files / 481 pass、Playwright 111/111；instructions、Prettier、ESLint、
+  workspace typecheck/build、architecture、Store release 与 production audit 均通过；
+- **执行边界**：本阶段仅运行 fake-process/只读仓库测试与本机完整门；没有读取或索取真实密码，没有调用
+  默认 CA fetch/Supabase CLI，没有连接或修改 Supabase，没有运行真实 dry-run/apply/capture/rebuild 或已暂停
+  的 isolated-rebuild diagnostic，没有发送邮件、arm/deploy Vercel 或调用 DeepSeek/模型。pre capture、成功
+  rebuild、pre evidence gate、真实 0014 apply、post capture 与 completion 仍须严格按既定顺序分别批准执行。

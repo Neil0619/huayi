@@ -852,6 +852,14 @@ confirmed Auth user/password method/profile 为 `1/1/2`、google method/Web sess
   连接 marker、唯一 `20260824010000_password_signup_otp_resend.sql` 与 finished marker，extra/missing migration、
   apply-like 或未知文本均 fixed failure 且不反射 secret/raw output。默认测试只能注入 fake fetch/process，
   不得连接 Hosted；真实运行结果必须另行记录，不能由离线 GREEN 代替；
+- 0014 Hosted apply CLI 必须是独立 exact-confirmation 入口，不能由 dry-run 自动进入写入，也不能接受手工
+  project/URL/path/migration 参数。它在 TTY 前验证当前 pre-backup/rebuild preflight；同一执行内 dry-run 精确
+  唯一 0014 后，在 mutation 前再次验证 clean HEAD/evidence 与 Supabase/API migration mirror 的固定 SHA-256。
+  只有固定 `db push --yes --skip-vault --db-url` child exit 0，且只读 postflight 精确证明完整 canonical 14-version
+  chain、`bound_email` column/check、`bind_auth_identity(text,uuid)` 与
+  `renew_interrupted_password_confirmation(text,text,timestamptz)` 的 SECURITY DEFINER/search path，以及 resend
+  function 只有 owner/context setter EXECUTE，才输出成功。apply 非零或 postflight 漂移必须固定 exit 1 并提示
+  不要重试、先检查远端；默认测试只用 fake adapter，不得执行 Supabase、psql 或网络；
 - API 恢复必须先做 Provider password proof，再执行原子函数，失败无 Cookie/无 Web session；invitation
   token 不得进入 Provider command。Web 失败保留内存 token/email，成功才清 URL；
 - actual bundle 必须覆盖 scanner/repeated GET confirm、显式 OTP POST、`/practice` Cookie 与之后密码重登；

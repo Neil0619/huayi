@@ -149,7 +149,10 @@ start 证明 offline。writer 不调用普通 `supabase start`；任何 scratch 
 3. 独立代码审查/明确授权后，只运行 `backup:capture:pre` 与 `backup:rebuild`，完成 pre raw logical dump 和
    migrations+fictional-seed scratch rebuild；
 4. `acceptance:hosted:backup:preflight` 必须通过；
-5. 才能把“用户已批准实际应用唯一 0014”描述为 ready；
+5. 真实 dry-run 通过且用户独立批准实际写入后，只运行
+   `acceptance:hosted:migration:0014:apply`；该入口在同一执行内重新 dry-run 唯一 0014、mutation 前再次
+   验证 preflight 与固定 migration mirror SHA-256，并在写后用只读事务验证完整 canonical chain、0014
+   column/check/function/ACL；不得手工运行 `supabase db push --yes`；
 6. 应用后、部署前或同一重要批次关闭前，经独立批准只运行 `backup:capture:post` 完成 post dump；
 7. `acceptance:hosted:backup:complete` 必须通过；
 8. 再按 API→Web 严格串行 one-shot arm/deploy/disarm 继续。
@@ -182,6 +185,9 @@ start 证明 offline。writer 不调用普通 `supabase start`；任何 scratch 
   fixed bounded outputs、每种失败 cleanup、未知同名容器不删除与 manifest-after-destroy ordering；
 - 日志和错误不反射 manifest、路径输入、账号、正文或 secret；
 - Hosted deployment action ledger 把 backup preflight 放在 0014 apply 之前。
+- 0014 apply 默认测试必须证明 preflight 在 secret read 前以及 dry-run 后/mutation 前各通过一次；两份 migration
+  mirror byte-identical 且匹配固定 SHA-256，dry-run 只列唯一 0014，apply argv 固定，postflight 以只读事务
+  验证完整 chain 与 0014 identity/ACL。apply 非零或 postflight 失败只能输出固定“不要重试”结果。
 
 真实 dump、成功的 scratch rebuild、Supabase 连接和 retained-backup 删除仍分别需要批准、运行证据与清理
 证据；两次 rebuild 安全失败不形成重建证据。本文件不关闭 Storage object export、Supabase 备份残留期限或

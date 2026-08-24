@@ -3,6 +3,21 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-24：0014 apply 只能通过绑定 preflight、source identity 与 postflight 的单命令
+
+- 实际写入不再允许操作者手工拼接 `supabase db push --yes`。只有 pre raw logical dump、isolated rebuild 与
+  `acceptance:hosted:backup:preflight` 已对同一 clean candidate 通过，并取得独立 apply 授权后，才能运行
+  `pnpm acceptance:hosted:migration:0014:apply`；
+- apply 深模块先验证 preflight，再隐藏读取管理员密码并复用固定 CA/transaction-pooler verify-full 契约；同一
+  执行内必须先 dry-run 出唯一 `20260824010000_password_signup_otp_resend.sql`，mutation 前再次重跑
+  preflight，并校验 Supabase/API 两份 migration byte-identical 且匹配固定 SHA-256，禁止在等待或 dry-run
+  期间静默切换 candidate/source；
+- mutation 只调用仓库 pinned Supabase CLI 的固定 `db push --yes --skip-vault --db-url` 参数。exit 0 后还必须
+  用只读事务验证完整 canonical 14-version chain、`bound_email` column/check、两条 SECURITY DEFINER +
+  `search_path=pg_catalog` function identity，以及 resend function 仅 owner/context setter 可执行的 exact ACL；
+- apply child 非零或 postflight 不精确时不得输出成功，并统一提示“不要重试，先检查远端状态”，避免在远端
+  可能已提交时盲目重复。post capture 与 `backup:complete` 仍是部署前独立后续门，apply 成功不能替代它们。
+
 ## 2026-08-24：0014 dry-run 单命令内部获取固定官方 CA 并强制 transaction-pooler verify-full
 
 - 用户只运行 `pnpm acceptance:hosted:migration:0014:dry-run` 并在 TTY 输入管理员密码；不得再要求复制 CA、

@@ -403,6 +403,11 @@ owner context、generation/reservation 归属、task 成功或失败终态、价
 - Hosted `mailer_otp_length` 必须由固定项目只读门禁精确验证为 6；受控修正只允许已观察到的 8→6，PATCH
   body 只能包含该字段，并在独立 GET 中证明其他 Auth 配置未漂移。不得用整份 config push 覆盖 Site URL、
   Redirect URLs、模板、SMTP 或 expiry。
+- 0014 实际数据库写入只能由 exact-confirmation apply 入口执行。入口必须先通过绑定 clean candidate 的
+  pre-backup/rebuild preflight，同一执行内只 dry-run 唯一 0014，并在 mutation 前重查 evidence 与两份
+  migration mirror 的固定 SHA-256；管理员密码只进入隐藏 TTY 与单一 child 的 `PGPASSWORD`，公开 CA 只进
+  `0600` 临时文件。写后只读 postflight 必须验证完整 migration chain、bound column/check、函数 security
+  identity 与 exact ACL；apply 或 postflight 不确定时固定禁止盲目重试，避免重复 forward migration。
 - `POST /v1/auth/password/register/resend` 只接受 Web 内存自动提交的原 invitation token；strict body 不接收
   email、password、OTP 或 flow，固定响应不披露账号状态。API 在 IP 每小时 5 次、pepper-hashed invitation
   每小时 3 次门后，先原子轮换同一 claim/flow，再调用 Supabase signup resend；Provider 失败不建

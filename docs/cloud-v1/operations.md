@@ -217,6 +217,14 @@ cleanup incident 处理，在重试前人工检查并清理临时目录下固定
 exit 1；它不会获取 CA 或启动 Supabase，也不会被 pnpm 吞掉后误报成功。stdout 只有在严格证明 dry-run、
 唯一 0014 与 finished marker 时才输出固定成功消息。dry-run 不写数据库，也不能代替 pre
 backup/rebuild/preflight 或授权 apply。
+实际 apply 也不得使用手工 Supabase 命令。只有真实 dry-run 已通过、pre capture/rebuild evidence 已生成且
+`pnpm acceptance:hosted:backup:preflight` 对当前 clean HEAD 通过，并取得独立写入授权后，才运行
+`pnpm acceptance:hosted:migration:0014:apply`。该入口在读取秘密前验证 preflight；随后用同一密码/CA 再次
+dry-run 唯一 0014，mutation 前第二次验证 preflight 和固定 migration mirror SHA-256，才调用固定
+`db push --yes --skip-vault --db-url`。apply exit 0 后必须通过只读 postflight，精确证明完整 14 条 canonical
+migration chain、`bound_email` column/check、两条函数 identity 与 exact ACL，才输出固定成功。任何 apply/
+postflight 失败只返回“不要重试，先检查远端状态”；此时禁止盲目重跑。即使成功，仍须另行批准 post capture
+并由 `pnpm acceptance:hosted:backup:complete` 关闭批次后才能部署。
 当前先运行零 I/O 的 `pnpm acceptance:hosted:backup:plan` 与
 `pnpm acceptance:hosted:backup:executor:plan`；executor 已固定唯一 PostgreSQL 17.6.1.159 OCI index，但
 完整 platform lock 现已由 `pnpm acceptance:hosted:backup:platform-lock:verify` 在零 Docker/零网络下校验：
@@ -225,7 +233,8 @@ CLI cache miss 会主动 pull，因此普通 `supabase start` 仍禁止；当前
 local-only inspection，Phase 86 writer 也已落地，但三个真实入口尚未运行、证据仍不存在。先运行 exact
 readiness；只有其通过且单独批准的 pre raw logical dump 与
 migrations+fictional-seed scratch rebuild 完成、且
-`pnpm acceptance:hosted:backup:preflight` 通过后，才允许应用受审查的 0014 并部署 token-only resend。
+`pnpm acceptance:hosted:backup:preflight` 通过后，才允许经受控 apply 入口应用 0014；post capture/completion
+关闭后才能部署 token-only resend。
 再由仍持有原私密邀请的 Web 自动重发；用户不输入 fragment/token，系统不创建第二邀请或删除 Auth user。
 
 普通 Operator 邀请与 BootstrapInvitation 的丢失处理不同。创建普通邀请后只安全传递一次 fragment，并

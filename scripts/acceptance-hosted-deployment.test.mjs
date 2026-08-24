@@ -66,7 +66,7 @@ test("hosted deployment plan is complete, deterministic, and secret independent"
     "Run pnpm acceptance:hosted:backup:executor:plan and the exact pre/rebuild/post readiness checks first; readiness performs no database, network, or artifact write",
     "After separate approval, run only acceptance:hosted:backup:capture:pre and acceptance:hosted:backup:rebuild; each is exact-confirmation-gated and produces only the fixed ignored evidence",
     "Preflight requires a secure pre-batch logical backup plus migrations-and-fictional-seed rebuild evidence for the clean current candidate",
-    "Apply exactly migration 0014 after explicit approval; then separately approve acceptance:hosted:backup:capture:post and require acceptance:hosted:backup:complete before deployment",
+    "After preflight, real dry-run, and explicit approval, run only pnpm acceptance:hosted:migration:0014:apply; it rechecks preflight and migration identity before mutation and verifies the canonical chain/0014 contract after mutation",
     "read back Hosted Email OTP length 6 -> user-triggered same-invitation resend -> latest six-digit OTP only",
     "scanner-safe repeated GET -> explicit OTP POST -> Auth SMTP delivery -> Web landing -> password relogin",
     "real R3-C delivery and duplicate/alert observation -> install and verify five Supabase Cron jobs",
@@ -87,7 +87,7 @@ test("hosted deployment plan is complete, deterministic, and secret independent"
     "five Supabase Cron jobs",
     "backup, target-network, natural-use, Store, and Windows final-batch gates remain pending",
     "current macOS local-only inspection of all 11 locked images passed -> reviewed writer pinned -> exact readiness -> separately approved pre capture/rebuild",
-    "apply exactly migration 0014 after explicit approval -> separately approved post capture -> acceptance:hosted:backup:complete -> API and Web separate one-shot arm/disarm windows",
+    "real dry-run -> pnpm acceptance:hosted:migration:0014:apply -> separately approved post capture -> acceptance:hosted:backup:complete -> API and Web separate one-shot arm/disarm windows",
   ]) {
     assert.match(plan, new RegExp(expected.replaceAll(/[.*+?^${}()|[\]\\]/gu, "\\$&"), "u"));
   }
@@ -121,7 +121,7 @@ test("hosted deployment plan is complete, deterministic, and secret independent"
   assert.doesNotMatch(plan, /flow=\*/u);
   assert.ok(
     plan.indexOf("acceptance:hosted:backup:preflight") <
-      plan.indexOf("apply exactly migration 0014"),
+      plan.indexOf("pnpm acceptance:hosted:migration:0014:apply"),
   );
 });
 
