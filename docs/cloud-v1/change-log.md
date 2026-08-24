@@ -3,6 +3,20 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-24：Hosted Cron 安装必须经受控四阶段工具，不再手贴 SQL
+
+- Hosted acceptance 的五项 Supabase Cron 不再要求用户在 Dashboard 粘贴长 SQL 或输入 job ID。新增固定
+  project-ref 的 plan/status/apply interface；status 复用 verify-full 管理员 adapter，只输出固定安全
+  boolean/stage/count；
+- apply 必须依次完成独立只读 preflight、**完整未改写** operations SQL 第一次事务、同一完整 SQL 第二次
+  事务、独立只读 postflight。禁止剥离 `BEGIN/COMMIT`、把两次合并成一次或只靠静态测试宣称重跑成功；
+  第一次已提交后后续失败不得冒充全局 rollback，只能返回固定 failure stage 并先重读 status；
+- status 只查询 Vault 两个名称，不查询/输出 decrypted value。Vercel Sensitive 值不可回读，因而工具不
+  自动证明 API/Vault `CRON_SECRET` 连续性；exact confirmation 必须建立在同一受控来源的外部连续性和
+  已完成真实 R3-C 收件/重复/无正文告警证据上，缺任一项均停止在只读 status；
+- 离线 fake 只证明控制流、失败关闭与数据最小化；真实两次事务、exact 五 job、至少两周期、五 route 和
+  401/5xx/timeout 恢复仍是独立 Hosted 发布门。
+
 ## 2026-08-24：Hosted 剩余运行门共用固定安全只读快照
 
 - R3-C、Supabase Cron 与 Cloud DeepSeek 的数据库侧验收不得继续依赖用户手工识别或输入 request ID、

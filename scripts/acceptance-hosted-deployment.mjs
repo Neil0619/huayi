@@ -87,7 +87,7 @@ export function renderHostedDeploymentPlan() {
     "- Current deployment resource /index is Node.js 24.x in SIN1 with max duration <=120s.",
     "- The 90-second application abort versus platform termination observation remains paired with the approved Cloud DeepSeek smoke.",
     "Pending user and external gates:",
-    "- Phase 77 runtime snapshot tooling is not yet connected to Hosted.",
+    "- Phase 77 runtime snapshot and Phase 79 controlled Cron tooling are not yet connected to Hosted.",
     "- One explicitly authorized recipient is required before creating exactly one ordinary invitation.",
     "- The ordinary invitation must complete scanner-safe repeated GET, explicit OTP POST, Auth SMTP delivery, Web landing, and password relogin.",
     "- Real R3-C delivery must cover successful delivery, duplicate observation, and the body-free alert receiver.",

@@ -6,6 +6,10 @@
 客户端支持均保留。本阶段不创建 Vercel/Supabase 项目，不购买域名，不配置 DNS、Resend、密钥或真实
 生产环境，也不调用任何外部服务。
 
+2026-08-24 Phase 79 在该既有 SQL 之上增加 Hosted 受控运维工具。工具已完成离线 TDD，但尚未连接真实
+Supabase，也没有安装或触发任何 job；下文“本阶段不创建资源”继续描述这次代码/文档阶段，真实 apply
+仍必须等待 R3-C 产品路径投递、重复观测与无正文告警接收全部通过。
+
 目标是移除 `apps/api/vercel.json` 中 Hobby 不接受的分钟级 Vercel Cron，把五个 HTTPS GET
 触发器放入生产 Supabase 的 `pg_cron + pg_net`。业务 route、`CRON_SECRET` 鉴权、lease/fencing、批次
 上限和幂等状态机都保持不变；开发和 Preview 环境继续只允许人工触发，不自动安装任务。
@@ -62,6 +66,34 @@ SQL 必须满足：
 新值；若同步轮换 API `CRON_SECRET`，先更新 Vault，再更新 API 环境并立即做一次受控人工调用，避免长期
 鉴权失败。
 
+### 3.1 Hosted 受控运维接口
+
+Hosted acceptance 不再要求用户把本文件的长 SQL 粘贴到 Dashboard，也不要求手工输入 job ID：
+
+- `pnpm acceptance:hosted:cron:plan` 是零网络、零写入计划；
+- `pnpm acceptance:hosted:cron:status` 固定 Singapore project ref，复用管理员 transaction pooler、临时
+  CA 文件与 `verify-full`，只运行一个 `BEGIN READ ONLY` 事务；
+- `pnpm acceptance:hosted:cron:apply -- <exact-confirmation>` 只在 project-specific confirmation、数据库
+  preflight 和仓库 SQL 静态合同全部通过后继续。它原样执行完整
+  `apps/api/operations/configure-supabase-cron.sql` 一次，再原样执行第二次，最后用独立只读 status 要求
+  exact 五个 active minute job、函数/ACL/extension 全部一致。
+
+status 只输出固定 boolean、`absent|partial|exact` stage 和 64-bit 非负聚合计数。它只查询
+`vault.secrets.name`，不查询 `vault.decrypted_secrets`，也不输出 Vault 值、Authorization、邮箱、owner、
+正文、request/job ID 或原始错误。preflight 允许“尚未安装”或可由固定 SQL 修复的受管状态，但遇到未知
+`huayi-*` job、额外函数 overload/不可修复 owner/ACL、错误 extension schema、非管理员连接、migration
+漂移、Vault 名称缺失，或 R3-C 数据库侧门不通过时失败关闭。
+
+Vercel Sensitive Environment Variable 不能回读，因此 status **不能**证明当前 API `CRON_SECRET` 与
+Vault 中的值相等。apply 的 exact confirmation 只记录操作者已经从同一个受控秘密源完成 Vercel/Vault
+连续性和真实 R3-C 外部证据，不把人工声明伪装成自动证明；缺该证据不得 apply。数据库侧
+`r3c_sent_count>=1`、零非终态/失败终态和数据合同只是附加门，不能替代真实收件、重复观测或告警接收。
+
+两次 operations SQL 各自保留原来的 `BEGIN; ... COMMIT;`。第一次成功后若第二次或 postflight 失败，
+第一次不会被工具虚构为已回滚；CLI 只报告固定 `first-apply|second-apply|postflight-*` stage，操作者必须
+先重新运行只读 status，再决定重试或停用。operations SQL 自身的失败会在对应事务内回滚，且其固定
+unschedule/schedule 语义保证安全重跑。
+
 ## 4. 运维与恢复
 
 安装前：
@@ -91,7 +123,8 @@ Supabase Free 暂停或额度耗尽会使任务停止。正式发布前必须决
 
 本阶段完成只能标记为“调度适配已实现、真实部署待处理”。正式验收仍需要独立部署任务在受控环境中：
 
-1. 运行 SQL 两次并确认始终恰好五个任务；
+1. 经 exact confirmation 运行受控 apply；证据必须显示完整 SQL 两次均成功，postflight 始终恰好五个
+   任务；
 2. 等待至少两个周期，确认五个 route 均返回预期状态且无 secret/正文泄漏；
 3. 分别制造一次 401、5xx 和网络超时，确认下一周期恢复且业务状态机没有重复费用或越权；
 4. 核对 Vercel Function 时长、调用量与 Supabase Cron/pg_net 诊断；

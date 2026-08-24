@@ -148,6 +148,12 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
 - [x] Phase 77 已提供固定 Singapore project-ref 的 R3-C/Cron/DeepSeek 安全只读 snapshot；只输出 31 个
       bounded boolean/enum/count，不要求手输 opaque ID，也不读取 Vault 值、身份、正文、result 或金额。
       本条只关闭验收工具缺口，不代表已运行真实 Hosted snapshot 或关闭下列外部门；
+- [x] Phase 79 已提供零网络 Cron plan、固定 project-ref 的只读 status/preflight 与 exact-confirmation
+      apply；apply 原样执行完整 operations SQL 两次并独立 postflight，错误只输出固定 stage。离线实现不
+      代表 Vercel masked secret continuity、真实 SQL 两次、job 周期或 route 已通过；
+- [ ] 在真实 R3-C 收件、重复观测和无正文告警门关闭后，从同一受控来源确认 Vercel/Vault
+      `CRON_SECRET` 连续性，运行 Cron status→exact-confirmation apply；要求两次完整事务均成功、postflight
+      exact 五 job/零 unmanaged，并观察至少两个周期及 401/5xx/timeout 后恢复；
 - [ ] 以经批准真实请求核验 Provider 返回模型、usage、90 秒应用 timeout、实际账单与 UsageLedger 一致；
 - [ ] 真实 DeepSeek 语义建议在受控小额度下核验固定 endpoint/model、usage、价格、timeout 和账本；不得
       用离线 fake fetch/authority 代替费用或网络事实；

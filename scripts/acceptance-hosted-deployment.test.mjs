@@ -56,7 +56,7 @@ test("hosted deployment plan is complete, deterministic, and secret independent"
     "Public read-only Web/API, exact Web security-header, historical invitation terminal-state UI, and redesigned workspace gates are complete",
     "/health proves TLS and process startup only; it does not execute SQL or prove the database DSN",
     "The real /admin password reauthentication and four-section read-only verification are complete",
-    "Phase 77 runtime snapshot tooling is not yet connected to Hosted",
+    "Phase 77 runtime snapshot and Phase 79 controlled Cron tooling are not yet connected to Hosted",
     "explicitly authorize one recipient -> create exactly one ordinary invitation",
     "scanner-safe repeated GET -> explicit OTP POST -> Auth SMTP delivery -> Web landing -> password relogin",
     "real R3-C delivery and duplicate/alert observation -> install and verify five Supabase Cron jobs",

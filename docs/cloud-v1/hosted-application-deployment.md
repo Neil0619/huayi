@@ -503,6 +503,31 @@ snapshot 是一个 `BEGIN READ ONLY` 聚合事务，输出固定 31 行：
 仍需外部验收。snapshot 自身绝不发送邮件、调用 Provider、安装/触发 Cron、切换 kill switch 或写数据库，
 也不能据此提前关闭 6.3 的任何外部门。
 
+### 6.4.1 Phase 79 Supabase Cron 受控安装工具
+
+先运行 `pnpm acceptance:hosted:cron:plan`；它不读取环境、不连接网络。R3-C 真实投递、重复观测和无正文
+告警接收完成后，使用既有 non-echo 管理员密码与 verify-full CA wrapper 运行
+`pnpm acceptance:hosted:cron:status`。该命令已经固定 project ref，不接受 job ID、request ID、owner、
+邀请片段或其他 opaque 输入；输出 18 个固定 boolean/stage/count，且 Vault 只查两个名称。
+
+只有 status 的 `cron_preflight_ready=t`，并且操作者已经从同一受控来源建立 Vercel Production
+`CRON_SECRET` 与 Supabase Vault `huayi_cron_secret` 连续性后，才能取得当次 exact confirmation 并运行：
+
+```text
+pnpm acceptance:hosted:cron:apply -- \
+  --confirm-apply-hosted-supabase-cron-after-r3c-and-vercel-continuity-kpadiulxkgckskcfydry
+```
+
+Vercel masked Sensitive 值不可回读；CLI 不宣称自动证明值相等，也不读取/打印 Vault decrypted value。
+因此 continuity 是 apply 前的外部证据门，不是 `cron_vault_names_exact=t` 的同义词。若无法确认同源轮换，
+停止在 status，不安装 job。
+
+apply 固定执行四步：只读 preflight → 仓库完整 operations SQL 第一次事务 → 同一完整 SQL 第二次事务 →
+独立只读 postflight。它不剥离或合并 SQL 的 `BEGIN/COMMIT`，任一步失败只返回固定 stage，不反射 psql
+stdout/stderr。第一次已提交而第二次/postflight 失败时，先重跑 status；不得把它描述为全局 rollback，也
+不得直接粘贴修复 SQL。只有 postflight 同时得到 `cron_installation_state=exact`、fixed jobs `5`、unmanaged
+jobs `0` 和 `cron_installation_exact=t`，才可进入至少两个真实周期与五条 route 的后续验收。
+
 ## 6.5 Phase 78 API-only one-shot 部署证据
 
 部署前 clean HEAD/upstream 为 `f0ae5acdf8c588090451a7caaf62ebe825a57d9b`，API/Web 均为

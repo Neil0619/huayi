@@ -10,6 +10,9 @@
   "scripts": {
     "audit:prod": "pnpm audit --prod --audit-level high",
     "acceptance:hosted:bootstrap": "node scripts/acceptance-hosted-bootstrap.mjs",
+    "acceptance:hosted:cron:apply": "node scripts/acceptance-hosted-cron.mjs apply",
+    "acceptance:hosted:cron:plan": "node scripts/acceptance-hosted-cron.mjs --plan",
+    "acceptance:hosted:cron:status": "node scripts/acceptance-hosted-cron.mjs status --status-hosted-supabase-cron-kpadiulxkgckskcfydry",
     "acceptance:hosted:application:verify": "node scripts/acceptance-hosted-application-verify.mjs",
     "acceptance:hosted:application:diagnose": "node scripts/acceptance-hosted-application-diagnose.mjs",
     "acceptance:hosted:deployment": "node scripts/acceptance-hosted-deployment.mjs",

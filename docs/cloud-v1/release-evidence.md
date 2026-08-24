@@ -1844,3 +1844,24 @@ typecheck、architecture、build、development blocker、Store release、product
   `6QeRbqxgA88cFXggKekkr2axH9JM`、API/Web 16/8、独立 disarm `020e21e` 零新增和双关闭。当前依赖链从
   “明确授权一个收件人→创建唯一普通邀请”开始；Phase 77 snapshot 仍未连接 Hosted，普通邀请/OTP、R3-C、
   Cron、DeepSeek、备份、自然使用与 Windows 最终批次仍 pending。
+
+## 70. Phase 79 Hosted Supabase Cron 受控运维工具（2026-08-24）
+
+- **范围**：只修改 shared scripts/tests/package 与权威文档；未连接 Supabase/Vercel/Resend/DNS，未读取或
+  修改实际 secret/environment，未发送邮件、调用 DeepSeek、安装或触发 Cron；基线保持 Phase 78
+  API/Web 16/8 与双项目 `deploymentEnabled=false`；
+- **Fresh RED**：新增测试先导入尚不存在的 `scripts/acceptance-hosted-cron.mjs`，`node --test` 精确因
+  `ERR_MODULE_NOT_FOUND` 退出 1；
+- **深模块**：plan 零联网；status 固定 Singapore project-ref，以一个 verify-full `BEGIN READ ONLY`
+  事务输出 18 个有序 boolean/stage/count；apply 只接受 exact confirmation，按 preflight→完整 SQL 第一次
+  →完整 SQL 第二次→独立 postflight 执行，且保留两次权威事务边界；
+- **失败关闭**：preflight 在写前拒绝 migration/R3-C/Vault 名称/extension schema/unmanaged job/函数
+  owner-overload-ACL 或 schema 任意额外 ACL edge 漂移；first/second/postflight 任一失败停止并只回固定
+  stage。Vault status 只查名称，stdout/stderr、Authorization、身份、正文和 ID 均不反射；
+- **continuity 边界**：Vercel Sensitive 不可回读，工具没有伪造 API/Vault `CRON_SECRET` 相等证据；真实
+  apply 仍要求同源外部 continuity 与完整 R3-C 门，且第一次已提交后后续失败必须先 status，不能声称
+  自动 rollback；
+- **离线验证**：新回归 10/10，连同 Hosted deployment ledger focused 为 14/14；scripts 255/255、零网络
+  plan、format、lint、全 workspace typecheck、instructions、architecture、development-blocked 与 Store
+  release check 均通过；根任务随后完成 `pnpm verify:macos`，其中 111 条 Playwright E2E、全 workspace
+  build 与 production dependency audit 也通过。真实 status/apply、五 job、两周期与故障恢复仍 pending。

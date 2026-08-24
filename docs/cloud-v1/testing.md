@@ -617,6 +617,28 @@ mirror 与 `git diff --check` 通过；全仓 `format:check` 当时仅被本纵�
 snapshot 仍是只读观察，不会发送邮件、调用 DeepSeek、安装 Cron、切换 kill switch 或替代 Provider/
 Dashboard 证据。
 
+### 4.3.4 Phase 79 Hosted Supabase Cron 受控安装
+
+`scripts/acceptance-hosted-cron.mjs` 是 plan/status/apply 深模块；固定 SQL 放在
+`acceptance-hosted-cron-sql.mjs`，测试只穿过同一外部 interface。三个文件均低于 400 行。Fresh RED
+先由 `acceptance-hosted-cron.test.mjs` 导入不存在的模块并取得 `ERR_MODULE_NOT_FOUND`；GREEN 覆盖：
+
+- plan 零 adapter 调用、project-pinned 与无 secret/身份输出；
+- status 只用一个 verify-full 管理员连接和一个 `BEGIN READ ONLY`，固定解析 18 个 boolean/stage/count；
+  Vault 只读 `vault.secrets.name`，额外、乱序、恶意、越界或 adapter throw 一律固定失败；
+- preflight 在任何写入前核对 13 条 migration、R3-C 已 sent 且零非终态/失败终态、Vault 两个名称、
+  extension schema 可安装、无 unmanaged `huayi-*` job、函数 owner/overload/ACL 可修复，以及
+  `huayi_private` schema 精确 ACL（owner `USAGE+CREATE`、`huayi_context_setter`/`huayi_business` 各
+  `USAGE`，零其他 edge/grant option）；
+- apply 只接受 exact project confirmation，先完成 preflight，再把仓库 operations SQL **完整且未改写**地
+  交给 adapter 两次，每次保留自身事务；第一次失败不进入第二次，第二次失败不进入 postflight；
+- postflight 是独立只读连接，要求 `exact`、5 个 fixed job、0 个 unmanaged job 和总合同 `t`；所有错误
+  只允许固定 stage，原始数据库输出不反射。
+
+离线 fake 只证明控制流和数据最小化，不执行 SQL，也不证明 extension 可安装、Vault 值有效、Vercel
+masked `CRON_SECRET` 连续性、两次真实事务、pg_net 响应或两个周期恢复。后两类证据仍必须在 R3-C 外部门
+关闭并获得 action-time confirmation 后于 Hosted 独立完成。
+
 ### 4.4 Phase 45 Vercel Fluid 与 Function 时长契约
 
 `production-app.test.ts` 解析真实 `apps/api/vercel.json`，必须同时证明 `fluid` 精确为 `true`、唯一

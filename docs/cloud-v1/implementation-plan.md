@@ -1792,3 +1792,24 @@ SMTP、DNS、environment、密钥、邀请、kill switch 与付费模型均不�
    `39094d0` / 15 条和旧 `/admin` pending 链；最小 GREEN 已固定 Latest API `4f1ce4a` /
    `6QeRbqxgA88cFXggKekkr2axH9JM`、API/Web 16/8、独立 disarm `020e21e` 零新增、双关闭，并把依赖链起点
    校准为“明确授权一个收件人→创建唯一普通邀请”。
+
+### Phase 79：Hosted Supabase Cron 受控安装与失败收口（2026-08-24）
+
+影响平台为 `shared scripts/docs + hosted-acceptance`。本阶段不连接或修改 Supabase/Vercel/Resend/DNS/
+environment/key，不发送邮件、不调用 DeepSeek、不实际安装或触发 Cron。
+
+1. **接口**：新增零网络 `cron:plan`、固定 Singapore project-ref 的 `cron:status` 和 exact-confirmation
+   gated `cron:apply`；用户不再粘贴长 SQL 或输入 job/request/owner 等 opaque ID；
+2. **只读 preflight**：一个 verify-full 管理员 `BEGIN READ ONLY` 事务输出 18 个固定
+   boolean/stage/count，核对 migration、R3-C 数据库侧前置、Vault 两个名称、extension schema、受管 job、
+   私有函数 owner/overload/合同/ACL 和 `huayi_private` 精确 schema ACL；不查询 Vault decrypted value，
+   不输出 Authorization/身份/正文/ID/raw error；
+3. **真实两次语义**：apply 必须按顺序运行只读 preflight、完整未改写 operations SQL 第一次、同一完整
+   SQL 第二次、独立只读 postflight；两次各自保留权威 SQL 的 `BEGIN/COMMIT`。第一次失败即停，第二次
+   失败不假装回滚第一次，postflight 只在两次成功后要求 exact 五项；
+4. **continuity 边界**：Vercel Sensitive 不可回读，工具不能自动证明现有 `CRON_SECRET` 与 Vault 值
+   相同。exact confirmation 只允许在同源轮换/受控外部证据和真实 R3-C 收件、重复、告警门完成后取得；
+   `vault_names_exact` 或一条 sent row 不能冒充该证据；
+5. **TDD/验证**：Fresh RED 为模块缺失；离线 GREEN 覆盖零调用 plan、只读 SQL、bounded parser、wrong
+   confirmation/preflight/operations/four-stage failure、完整 SQL 两次和 exact postflight。真实 status/apply、
+   两周期、五 route、401/5xx/timeout 恢复仍保持 pending。

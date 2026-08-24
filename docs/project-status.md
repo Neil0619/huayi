@@ -1759,3 +1759,14 @@ passed; first Operator empty`。候选已提交推送，0012 已实际 push；�
   Fresh RED→GREEN 修复为 Latest API `4f1ce4a` / `6QeRbqxgA88cFXggKekkr2axH9JM`、API/Web 16/8、独立
   disarm `020e21e` 零新增与双关闭，依赖链从明确授权一个收件人并创建唯一普通邀请开始。Phase 77
   snapshot 尚未连接 Hosted，普通邀请/OTP、R3-C、Cron、DeepSeek、备份、自然使用和 Windows 仍 pending。
+
+## Cloud V1 Phase 79 Hosted Supabase Cron 受控工具状态（2026-08-24）
+
+- 新增 `acceptance:hosted:cron:plan|status|apply`：plan 零网络；status 固定 Singapore project ref、
+  verify-full 与单一只读事务，只输出 18 个固定 boolean/stage/count；
+- apply 必须经 exact confirmation，依次运行 preflight、完整 operations SQL 第一次、完整 SQL 第二次和独立
+  postflight。两次各保留原事务；失败只报告固定 stage，不反射数据库输出；
+- Vercel masked `CRON_SECRET` 不可回读，工具不冒充已证明 API/Vault 值连续。真实 apply 继续等待普通邀请/
+  OTP/Auth SMTP 和完整 R3-C 收件、重复、告警门，随后还需两周期与故障恢复验证；
+- Fresh RED 为模块缺失，当前 focused GREEN 10/10。未连接 Supabase/Vercel/Resend/DeepSeek，未安装 Cron，
+  API/Web 仍以 Phase 78 的 16/8、双 `deploymentEnabled=false` 为当前远端基线。
