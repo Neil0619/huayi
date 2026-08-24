@@ -146,6 +146,10 @@ audit 仍只允许 `enabled`。这不代表 Store 产品或 Windows 支持被取
 > runtime-inspection；raw Error/process output、路径、digest、secret 与 environment 均不进入输出。该可观察性
 > 只属于零网络/零写 readiness，capture/rebuild 仍保持原 generic 边界；它没有关闭尚未完成的真实 pre/post
 > capture、成功 isolated rebuild、0014 或 Hosted 部署门。
+> R3-C 离线复审还发现既有 sender 测试只从源码间接声称 20 秒上限，没有证明 timeout factory 参数与
+> RequestInit signal identity。sender 现通过一个默认委托原生 `AbortSignal.timeout` 的窄内部 seam 组合；
+> fake factory 回归精确锁定单次 `20_000` 与同一 signal 传入固定 fetch，且零真实等待/网络。该修复没有
+> 发送邮件或部署，也不替代仍 pending 的真实 Resend 401/5xx/timeout 恢复、收件、重复和无正文告警门。
 
 > **历史校准检查点（Phase 33）**：Phase 28 已补齐 production 语义重复建议和
 > 可计算 AA token 证据；2026-08-14 完成度源码审计发现的 SubmissionOutbox `api=null` 误清账号绑定

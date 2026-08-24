@@ -5,6 +5,8 @@ import { createResendSecurityNotificationSender } from "./resend-security-notifi
 describe("Resend security notification sender", () => {
   it("uses the fixed HTTPS endpoint, template, and notification idempotency key", async () => {
     const requests: { init: RequestInit; input: string }[] = [];
+    const timeoutSignal = new AbortController().signal;
+    const createTimeoutSignal = vi.fn(() => timeoutSignal);
     const fetch = vi.fn(async (input: string, init: RequestInit) => {
       requests.push({ init, input });
       return new Response(JSON.stringify({ id: "provider-message" }), {
@@ -14,6 +16,7 @@ describe("Resend security notification sender", () => {
     });
     const sender = createResendSecurityNotificationSender({
       apiKey: "re_test-only-not-a-real-secret",
+      createTimeoutSignal,
       fetch,
       from: "语见 <security@notify.example.test>",
       replyTo: "support@example.test",
@@ -25,6 +28,8 @@ describe("Resend security notification sender", () => {
     });
 
     expect(fetch).toHaveBeenCalledTimes(1);
+    expect(createTimeoutSignal).toHaveBeenCalledOnce();
+    expect(createTimeoutSignal).toHaveBeenCalledWith(20_000);
     const request = requests[0];
     expect(request?.input).toBe("https://api.resend.com/emails");
     expect(request?.init).toMatchObject({ credentials: "omit", method: "POST", redirect: "error" });
@@ -33,6 +38,7 @@ describe("Resend security notification sender", () => {
       "Content-Type": "application/json",
       "Idempotency-Key": "32000000-0000-0000-0000-000000000001",
     });
+    expect(request?.init.signal).toBe(timeoutSignal);
     expect(JSON.parse(String(request?.init.body))).toEqual({
       from: "语见 <security@notify.example.test>",
       html: expect.stringContaining("密码已重置"),

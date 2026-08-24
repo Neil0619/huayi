@@ -3,6 +3,16 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-25：R3-C Resend sender 的 20 秒取消信号必须可被精确离线证明
+
+- “代码中写了 `AbortSignal.timeout(20_000)`”不能作为可执行回归证据；sender 构造模块必须有一个窄的
+  timeout factory 内部 seam，生产默认仍委托原生 `AbortSignal.timeout`，不改变 HTTP、模板、幂等或错误
+  interface；
+- 回归必须用无真实计时等待的 fake factory，精确证明只以 `20_000` 调用一次，并证明 factory 返回的同一
+  signal 进入固定 Resend fetch 的 `RequestInit.signal`。不得 monkeypatch 全局计时器或发起网络请求；
+- 该证据只关闭 sender 组合层的超时 wiring 缺口，不证明 Hosted Resend 的 401/5xx/timeout 后恢复、真实
+  投递、重复投递观测或无正文告警接收门。
+
 ## 2026-08-24：Hosted 重要批次 readiness 只报告固定首个失败阶段
 
 - pre/rebuild/post readiness 不再把 clean repository 与全部 runtime 缺口压成同一条无法定位的 generic

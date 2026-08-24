@@ -556,8 +556,10 @@ Windows 进入下一冻结候选批次。
 - `security-notification-worker.test.ts` 覆盖固定 23 小时 deadline、8 次上限、终态零 sender、Provider
   已发送但 complete 失败时只以同 notification ID 重放，以及 alert port 只接收固定 reason/count；
 - `resend-security-notification-sender.test.ts` 使用 fake fetch 锁定唯一
-  `https://api.resend.com/emails`、固定模板、20 秒上限、notification ID 幂等 header 与固定失败错误；默认
-  测试不访问网络、不读取真实 key；
+  `https://api.resend.com/emails`、固定模板、notification ID 幂等 header 与固定失败错误；注入的 timeout
+  factory 必须精确只收到 `20_000`，其返回的同一 `AbortSignal` 必须进入该次 fake fetch 的
+  `RequestInit.signal`。测试不等待真实计时器、不访问网络、不读取真实 key；这只证明 sender composition，
+  不能替代 Hosted Resend 的真实 timeout/恢复观测；
 - `security-notification-delivery-migration.test.ts` 与 `database-migration-chain.test.ts` 证明当前 baseline
   后可重放 0002–0011、API/Supabase 0011 byte-identical、超窗为 failed、耗尽为 dead-letter、一次只领取
   一个第 8 次 delivery；

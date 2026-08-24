@@ -11,13 +11,18 @@ const text = `你的语见账号密码已重置。
 const html = `<p>你的语见账号密码已重置。</p><p>如果这是你本人操作，无需采取其他行动。如果不是你本人操作，请立即通过支持邮箱联系我们。</p>`;
 
 export type SecurityNotificationFetch = (input: string, init: RequestInit) => Promise<Response>;
+type CreateTimeoutSignal = (milliseconds: number) => AbortSignal;
 
 export function createResendSecurityNotificationSender(options: {
   apiKey: string;
+  createTimeoutSignal?: CreateTimeoutSignal;
   fetch: SecurityNotificationFetch;
   from: string;
   replyTo: string;
 }): SecurityNotificationSender {
+  const createTimeoutSignal =
+    options.createTimeoutSignal ?? ((milliseconds) => AbortSignal.timeout(milliseconds));
+
   return {
     async sendPasswordResetCompleted(command) {
       const email = accountEmailSchema.parse(command.email);
@@ -41,7 +46,7 @@ export function createResendSecurityNotificationSender(options: {
           },
           method: "POST",
           redirect: "error",
-          signal: AbortSignal.timeout(20_000),
+          signal: createTimeoutSignal(20_000),
         });
       } catch {
         throw new Error("Security notification delivery failed.");

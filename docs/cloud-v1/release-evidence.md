@@ -2306,3 +2306,22 @@ typecheck、architecture、build、development blocker、Store release、product
   481 passed、Playwright 111/111，instructions、format、lint、全部 workspace typecheck/build、architecture、
   development blocker、Store release 与 production audit 全绿，生产依赖零已知漏洞。本阶段不运行真实
   readiness、capture/rebuild、0014 dry-run/apply，不连接外部服务、不发送邮件、不部署或运行模型。
+
+## 86. R3-C Resend sender 精确 20 秒取消信号回归（2026-08-25）
+
+- **证据缺口**：生产 sender 已直接调用 `AbortSignal.timeout(20_000)`，但既有 fake-fetch 测试没有观察
+  timeout factory 参数，也没有断言生成的 signal 是否真正进入本次 RequestInit，因此“20 秒上限”只由
+  源码文本间接支持；
+- **Fresh RED**：在现有 sender interface 注入一个无计时器的 fake timeout factory，要求 exact
+  `20_000` 单次调用和返回 signal identity；旧实现聚焦运行 2 tests / 1 failed，精确失败为 factory
+  `expected ... to be called once, but got 0 times`；
+- **最小 GREEN**：sender 构造模块只增加一个可选内部 factory seam，默认仍委托原生
+  `AbortSignal.timeout(milliseconds)`；固定 Resend fetch 直接使用 `createTimeoutSignal(20_000)` 的返回值。
+  HTTP endpoint/body/header/幂等、固定错误和生产 composition 调用均未改变；
+- **验证与边界**：同一聚焦测试转为 2/2 passed，API strict typecheck/build、目标 Prettier 与
+  `git diff --check` 通过；完整 `pnpm verify:macos` 原样 exit 0，覆盖 Vitest 479 files / 2,922 passed +
+  12 skipped、Store coverage 97 files / 481 passed、Playwright 111/111、instructions、format、lint、全部
+  workspace typecheck/build、architecture、development blocker、Store release 与 production audit，生产
+  依赖零已知漏洞。sender 回归使用 fake fetch/signal，零真实等待、秘密或产品网络；本阶段未发送邮件、
+  连接 Supabase、运行 0014/capture/rebuild、操作 Vercel deployment 或调用模型。真实 Resend
+  401/5xx/timeout 恢复与收件/重复/无正文告警门仍未关闭。
