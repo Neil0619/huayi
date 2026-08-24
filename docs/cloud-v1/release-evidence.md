@@ -2090,7 +2090,7 @@ typecheck、architecture、build、development blocker、Store release、product
   仍在运行的容器；修复后每个 capture step 使用固定 name/label，启动前确认不存在，结束后只删除精确
   digest+label 的自身 identity 并再次 inspect；独立只读审查随后拦截三项真实缺陷：readline 在 TTY echo
   关闭后仍 redraw 密码、timeout 杀死 Docker client 后过早返回导致 daemon 可晚创建容器、rebuild start race
-  会无条件删除未知同名容器。修复后 TTY 改为 echo-before-prompt 的有界同步 byte reader，真实 macOS PTY
+  会无条件删除未知同名容器。修复后 TTY 改为 echo-before-prompt 的隔离有界 byte reader，真实 macOS PTY
   证明虚构 marker 零回显；bounded process 等待 child `close`，capture 覆盖约 4.9 秒 late-create 窗口；
   rebuild 删除前校验完整 scratch identity；
 - **离线 GREEN**：focused backup/executor/platform-lock/local-Docker/deployment 共 59/59，完整 Node scripts
@@ -2129,8 +2129,8 @@ typecheck、architecture、build、development blocker、Store release、product
   Supabase CLI、网络或数据库；
 - **秘密输入边界**：入口只接受固定 project `kpadiulxkgckskcfydry` 与 migration
   `20260824010000_password_signup_otp_resend.sql` 的 exact confirmation。额外/错误参数或调用者环境含
-  `PGPASSWORD` / `SUPABASE_DB_PASSWORD` 时，在 TTY password read 前失败；复用 Phase 86 已通过真实 macOS
-  PTY 验证的 echo-before-prompt、有界同步 byte reader，不使用 readline redraw；
+  `PGPASSWORD` / `SUPABASE_DB_PASSWORD` 时，在 TTY password read 前失败；复用 Phase 86 的共享 TTY
+  reader，不使用 readline redraw；
 - **固定进程契约**：只调用仓库 `node_modules/.bin/supabase`，参数精确为固定 session pooler `5432` 的无密码
   URL 与 `db push --dry-run --skip-vault --db-url`；`shell:false`，child env 只有 `LANG=C`、`LC_ALL=C` 与该
   进程级 `PGPASSWORD`，stdin 忽略、stderr 丢弃、stdout 有 byte/time 上限，密码不进入 argv、URL、日志或
@@ -2144,3 +2144,21 @@ typecheck、architecture、build、development blocker、Store release、product
   Store release 与 production audit 零已知漏洞；全部新进程测试使用 fake child，没有外部 I/O；
 - **当前执行边界**：本节只记录实现与 fake-process GREEN；真实入口尚未运行，Hosted/Supabase 未连接，
   0014 未 dry-run/apply，未发送邮件、未部署、未执行 pre/post capture 或 blocked rebuild diagnosis。
+
+## 79. Phase 81 0014 TTY 取消失败关闭修复（2026-08-24）
+
+- **真实 RED 与根因**：macOS `/usr/bin/expect` 对 exact pnpm package entry 在隐藏密码提示发送 Ctrl-C；旧实现
+  无固定失败消息且 child status 为 `0:0`。直接 Node 对照被 SIGINT 杀死，而 pnpm 在同一前台进程组接收信号
+  后吞掉退出，证明同步 `/dev/tty` read 使脚本无法可靠进入 `finally`/固定失败路径；共享提示同进程第一次
+  取消也直接终止，不能执行第二次提示；
+- **修复边界**：共享提示先保存 exact `stty -g`，临时设置 `-echo -icanon -isig min 1 time 0`；无 secret
+  argv/env/file 的隔离 reader 只经私有 fd 3 返回最多 512 bytes，把 `0x03` 视为取消。父进程等待 reader
+  close 后恢复原终端状态并进入既有固定失败路径；密码仍不进入 stdout/stderr，正常输入不 redraw；
+- **GREEN**：真实 PTY 覆盖 exact package Ctrl-C 后唯一固定失败与 exit 1、零 dry-run/connection 输出；共享
+  helper 连续取消两次均恢复 echo/canonical/ISIG 且 SIGINT listener 差值为 0，正常虚构密码仍零回显。
+  注入测试另证明取消时 `runSupabase` 调用数为 0。聚焦回归 13/13、完整 Node scripts 329/329；
+  `pnpm verify:macos` 原样 exit 0，覆盖 instructions/format/lint/typecheck、Vitest 478 files / 2917 passed
+  （12 个预期 skip）、Store coverage 97 files / 481 passed、workspace build/architecture、Playwright 111/111、
+  Store release 与 production audit 零已知漏洞；
+- **实际执行边界**：只运行离线测试与本机 PTY；没有输入真实密码，没有启动 Supabase CLI、网络、数据库、
+  Hosted、邮件、deployment、migration、capture、rebuild 或模型调用。

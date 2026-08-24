@@ -29,10 +29,12 @@
 - 实际 Docker argv 只允许无 tag 的 Supabase PostgreSQL index digest，并固定 `--pull never` 与平台 resolver。
   `17.6.1.159@digest` 只保留为来源证据；不得使用 tag、普通 `supabase start`、远程 Docker selector、PATH
   搜索或 host PostgreSQL client；
-- Hosted 管理员密码只从 `/dev/tty` 隐藏读取：先关闭 echo 再显示提示，使用有界同步 byte reader，且不使用会
-  redraw 输入的 readline；密码只进入固定 `0600 .pgpass`。公开 CA 只进入固定 `0600` 文件。两者都以
-  read-only bind mount 暴露固定容器路径，秘密不进入 argv、child env、stdout、stderr 或日志；macOS 真实
-  PTY 回归证明虚构 marker 零回显；
+- Hosted 管理员密码只从 `/dev/tty` 隐藏读取：先保存完整 `stty -g` 状态，再关闭 echo/canonical/ISIG 后显示
+  提示，由隔离的有界 reader 从私有 fd 3 返回密码，不使用会 redraw 输入的 readline。Ctrl-C 作为 `0x03`
+  取消并在固定失败前恢复终端，不能由 pnpm 吞掉后误报 exit 0；密码只进入固定 `0600 .pgpass`，公开 CA 只
+  进入固定 `0600` 文件。两者都以 read-only bind mount 暴露固定容器路径，秘密不进入 argv、child env、
+  stdout、stderr 或日志；macOS 真实 PTY 回归证明正常输入零回显、连续取消均恢复 echo/canonical/ISIG，且
+  不遗留 SIGINT listener；
 - archive 与 manifest 均采用固定 partial、文件 `fsync`、hash/size、atomic rename、目录 `fsync`，manifest
   最后提交；连接前 evidence leaf 必须精确为空，TOC 验证前后的 size 与 SHA-256 必须同时不变。TOC 只接受
   完整 `pg_restore --list` entry，不接受包含目标片段的任意文本；每条失败路径只清理固定临时项与未完成

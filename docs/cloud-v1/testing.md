@@ -836,8 +836,11 @@ confirmed Auth user/password method/profile 为 `1/1/2`、google method/Web sess
   profile/method/quota/session/admin/deletion/audit 数据、
   revoked/expired invitation 与 consumed/finalized 状态全部零写入，ACL 只给 context setter；
 - 0014 Hosted dry-run CLI 必须先以 Fresh RED 证明入口不存在；只接受 pinned project/migration confirmation，
-  在读取 TTY 前拒绝额外参数与继承的 `PGPASSWORD` / `SUPABASE_DB_PASSWORD`。复用提示前关闭 echo 的同步
-  有界 byte reader，不使用 readline；只以 `shell:false` 调用本地 pinned Supabase binary，固定 session
+  在读取 TTY 前拒绝额外参数与继承的 `PGPASSWORD` / `SUPABASE_DB_PASSWORD`。共享提示必须保存完整
+  `stty -g`，临时关闭 echo/canonical/ISIG，并以隔离有界 reader 把 Ctrl-C 作为取消字节处理；取消必须恢复
+  echo/canonical/ISIG、移除 listener、固定 exit 1，且零 Supabase child。真实 macOS `/usr/bin/expect` 必须
+  覆盖正常零回显、连续两次取消与 exact pnpm package entry，不能只用注入 fake；只以 `shell:false` 调用
+  本地 pinned Supabase binary，固定 session
   pooler 无密码 URL 与 `db push --dry-run --skip-vault --db-url` 参数，child env 只含固定 locale 与进程级
   `PGPASSWORD`，stderr 丢弃、stdout 有 byte/time 上限且不落盘；严格 parser 只能接受 dry-run header、连接
   marker、唯一 `20260824010000_password_signup_otp_resend.sql` 与 finished marker，extra/missing migration、

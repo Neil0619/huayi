@@ -205,7 +205,9 @@ Phase 81 已在唯一普通邀请的真实注册邮件中发现 Hosted Email OTP
 `SUPABASE_DB_PASSWORD` 后，才从 TTY 隐藏读取管理员密码。它固定调用本仓库 Supabase CLI、session
 pooler `5432`、`db push --dry-run --skip-vault --db-url`，密码只进入该子进程环境，不进入 URL、argv、文件
 或输出；stdout 只有在严格证明 dry-run、唯一 0014 与 finished marker 时才输出固定成功消息，其余一律固定
-失败且不转发原始 stdout/stderr。dry-run 不写数据库，也不能代替 pre backup/rebuild/preflight 或授权 apply。
+失败且不转发原始 stdout/stderr。隐藏提示期间 Ctrl-C 会恢复 echo/canonical/ISIG 后固定 exit 1；它不会启动
+Supabase，也不会被 pnpm 吞掉后误报成功。dry-run 不写数据库，也不能代替 pre backup/rebuild/preflight 或
+授权 apply。
 当前先运行零 I/O 的 `pnpm acceptance:hosted:backup:plan` 与
 `pnpm acceptance:hosted:backup:executor:plan`；executor 已固定唯一 PostgreSQL 17.6.1.159 OCI index，但
 完整 platform lock 现已由 `pnpm acceptance:hosted:backup:platform-lock:verify` 在零 Docker/零网络下校验：

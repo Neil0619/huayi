@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
 import { EventEmitter } from "node:events";
 import { readFile } from "node:fs/promises";
+import { dirname, resolve } from "node:path";
 import { PassThrough } from "node:stream";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 
 import {
   hostedMigration0014DryRunArgument,
@@ -19,6 +22,8 @@ Would push these migrations:
  • 20260824010000_password_signup_otp_resend.sql
 Finished supabase db push.
 `;
+
+const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 test("package exposes only the exact pinned 0014 dry-run entrypoint", async () => {
   const packageDocument = JSON.parse(
@@ -160,6 +165,85 @@ test("0014 dry-run CLI rejects inherited password variables and invalid confirma
     assert.equal(stderr.includes("secret"), false);
   }
 });
+
+test("0014 dry-run CLI fails closed when the hidden password prompt is cancelled", async () => {
+  let processRuns = 0;
+  let stderr = "";
+  const code = await runHostedMigration0014DryRunCli({
+    arguments_: [hostedMigration0014DryRunArgument],
+    environment: {},
+    readPassword: async () => {
+      throw new Error("fictional prompt cancellation detail");
+    },
+    runSupabase: async () => {
+      processRuns += 1;
+      return { code: 0, stdout: validOutput };
+    },
+    writeError: (value) => {
+      stderr += value;
+    },
+    writeOutput: () => assert.fail("must not write stdout"),
+  });
+
+  assert.equal(code, 1);
+  assert.equal(processRuns, 0);
+  assert.equal(stderr, "Hosted 0014 migration dry-run failed closed; database was not modified.\n");
+  assert.equal(stderr.includes("cancellation"), false);
+});
+
+test(
+  "real macOS package entry fails closed when Ctrl-C cancels the hidden password prompt",
+  { skip: process.platform !== "darwin" },
+  async () => {
+    const expectSource = `set timeout 10
+log_user 1
+spawn pnpm acceptance:hosted:migration:0014:dry-run
+expect "Supabase administrator database password: "
+send -- "\\003"
+expect eof
+catch wait result
+puts "HUAYI_CHILD_STATUS=[lindex $result 2]:[lindex $result 3]"
+exit 0
+`;
+    const result = await new Promise((resolveResult) => {
+      const child = spawn("/usr/bin/expect", ["-f", "-"], {
+        cwd: repositoryRoot,
+        env: { LANG: "C", LC_ALL: "C", PATH: process.env.PATH ?? "" },
+        shell: false,
+        stdio: ["pipe", "pipe", "pipe"],
+        windowsHide: true,
+      });
+      let stderr = "";
+      let stdout = "";
+      child.stdout.setEncoding("utf8");
+      child.stderr.setEncoding("utf8");
+      child.stdout.on("data", (chunk) => {
+        stdout += chunk;
+      });
+      child.stderr.on("data", (chunk) => {
+        stderr += chunk;
+      });
+      child.once("close", (code, signal) => resolveResult({ code, signal, stderr, stdout }));
+      child.stdin.end(expectSource);
+    });
+
+    assert.equal(result.code, 0, JSON.stringify(result));
+    assert.equal(result.signal, null);
+    assert.equal(result.stderr, "");
+    assert.match(
+      result.stdout,
+      /Hosted 0014 migration dry-run failed closed; database was not modified\./u,
+    );
+    assert.match(result.stdout, /HUAYI_CHILD_STATUS=0:1/u);
+    assert.equal(
+      result.stdout.match(
+        /Hosted 0014 migration dry-run failed closed; database was not modified\./gu,
+      )?.length,
+      1,
+    );
+    assert.doesNotMatch(result.stdout, /DRY RUN:|Connecting to remote database/u);
+  },
+);
 
 test("0014 dry-run CLI reports one fixed success and never reflects process output or password", async () => {
   let stdout = "";

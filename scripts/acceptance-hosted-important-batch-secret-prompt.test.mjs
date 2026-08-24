@@ -103,3 +103,90 @@ exit [lindex $result 3]
     }
   },
 );
+
+test(
+  "real macOS TTY prompt restores echo and supports repeated Ctrl-C cancellation",
+  { skip: process.platform !== "darwin" },
+  async () => {
+    const root = await mkdtemp(join(tmpdir(), "huayi-hosted-secret-cancel-"));
+    const helperPath = join(root, "prompt-cancel-helper.mjs");
+    const moduleUrl = new URL(
+      "./acceptance-hosted-important-batch-secret-prompt.mjs",
+      import.meta.url,
+    );
+    await writeFile(
+      helperPath,
+      `import { spawnSync } from "node:child_process";
+import { closeSync, openSync } from "node:fs";
+import { readHiddenTerminalLine } from ${JSON.stringify(moduleUrl.href)};
+const initialSignalHandlers = process.listenerCount("SIGINT");
+for (let index = 1; index <= 2; index += 1) {
+  try {
+    await readHiddenTerminalLine();
+    process.stdout.write("unexpected-success-" + index + "\\n");
+  } catch {
+    const descriptor = openSync("/dev/tty", "r+");
+    const status = spawnSync("/bin/stty", ["-a"], {
+      env: { LANG: "C", LC_ALL: "C" },
+      shell: false,
+      stdio: [descriptor, "pipe", "ignore"],
+      windowsHide: true,
+    });
+    closeSync(descriptor);
+    const flags = status.stdout.toString("utf8").split(/\\s+/u);
+    process.stdout.write(
+      "cancelled-" + index + ";echo=" + String(flags.includes("echo")) +
+        ";icanon=" + String(flags.includes("icanon")) +
+        ";isig=" + String(flags.includes("isig")) +
+        ";handlers=" + String(process.listenerCount("SIGINT") - initialSignalHandlers) + "\\n",
+    );
+  }
+}
+`,
+      "utf8",
+    );
+    try {
+      const expectSource = `set timeout 10
+log_user 1
+spawn {${process.execPath}} {${helperPath}}
+expect "Supabase administrator database password: "
+send -- "\\003"
+expect "cancelled-1;echo=true;icanon=true;isig=true;handlers=0"
+expect "Supabase administrator database password: "
+send -- "\\003"
+expect "cancelled-2;echo=true;icanon=true;isig=true;handlers=0"
+expect eof
+catch wait result
+exit [lindex $result 3]
+`;
+      const result = await new Promise((resolveResult) => {
+        const child = spawn("/usr/bin/expect", ["-f", "-"], {
+          env: { LANG: "C", LC_ALL: "C" },
+          shell: false,
+          stdio: ["pipe", "pipe", "pipe"],
+          windowsHide: true,
+        });
+        let stderr = "";
+        let stdout = "";
+        child.stdout.setEncoding("utf8");
+        child.stderr.setEncoding("utf8");
+        child.stdout.on("data", (chunk) => {
+          stdout += chunk;
+        });
+        child.stderr.on("data", (chunk) => {
+          stderr += chunk;
+        });
+        child.once("close", (code, signal) => resolveResult({ code, signal, stderr, stdout }));
+        child.stdin.end(expectSource);
+      });
+      assert.equal(result.code, 0, JSON.stringify(result));
+      assert.equal(result.signal, null);
+      assert.equal(result.stderr, "");
+      assert.match(result.stdout, /cancelled-1;echo=true;icanon=true;isig=true;handlers=0/u);
+      assert.match(result.stdout, /cancelled-2;echo=true;icanon=true;isig=true;handlers=0/u);
+      assert.doesNotMatch(result.stdout, /unexpected-success/u);
+    } finally {
+      await rm(root, { force: true, recursive: true });
+    }
+  },
+);

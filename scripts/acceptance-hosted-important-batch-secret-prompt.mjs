@@ -1,40 +1,111 @@
-import { spawnSync } from "node:child_process";
-import { closeSync, openSync, readSync, writeSync } from "node:fs";
+import { spawn, spawnSync } from "node:child_process";
+import { closeSync, openSync, writeSync } from "node:fs";
 
-function setTerminalEcho(fileDescriptor, enabled) {
-  const result = spawnSync("/bin/stty", [enabled ? "echo" : "-echo"], {
+const terminalReaderSource = String.raw`
+const { readSync, writeSync } = require("node:fs");
+const bytes = [];
+const byte = Buffer.allocUnsafe(1);
+for (;;) {
+  if (readSync(0, byte, 0, 1, null) !== 1) process.exit(2);
+  if (byte[0] === 3) process.exit(130);
+  if (byte[0] === 10 || byte[0] === 13) {
+    writeSync(3, Buffer.from(bytes));
+    process.exit(0);
+  }
+  if (byte[0] === 8 || byte[0] === 127) {
+    if (bytes.length > 0) {
+      const removed = bytes.pop();
+      if ((removed & 0xc0) === 0x80) {
+        while (bytes.length > 0 && (bytes.at(-1) & 0xc0) === 0x80) bytes.pop();
+        if (bytes.length > 0) bytes.pop();
+      }
+    }
+    continue;
+  }
+  if (byte[0] === 21) {
+    bytes.length = 0;
+    continue;
+  }
+  if (bytes.length >= 512) process.exit(2);
+  bytes.push(byte[0]);
+}
+`;
+
+function runTerminalSettings(fileDescriptor, arguments_, captureOutput = false) {
+  const result = spawnSync("/bin/stty", arguments_, {
     env: { LANG: "C", LC_ALL: "C" },
     shell: false,
-    stdio: [fileDescriptor, "ignore", "ignore"],
+    stdio: [fileDescriptor, captureOutput ? "pipe" : "ignore", "ignore"],
     windowsHide: true,
   });
   if (result.status !== 0 || result.signal !== null) {
     throw new Error("Hosted important-batch secret prompt is unavailable.");
   }
+  return captureOutput ? result.stdout.toString("utf8") : "";
 }
 
-function readBoundedLine(fileDescriptor) {
-  const bytes = [];
-  const byte = Buffer.allocUnsafe(1);
-  for (let index = 0; index <= 512; index += 1) {
-    if (readSync(fileDescriptor, byte, 0, 1, null) !== 1) break;
-    if (byte[0] === 10 || byte[0] === 13) return Buffer.from(bytes).toString("utf8");
-    bytes.push(byte[0]);
+function readTerminalState(fileDescriptor) {
+  const state = runTerminalSettings(fileDescriptor, ["-g"], true).trim();
+  if (!/^[a-z0-9:=]+$/iu.test(state)) {
+    throw new Error("Hosted important-batch secret prompt is unavailable.");
   }
-  throw new Error("Hosted important-batch secret prompt is unavailable.");
+  return state;
+}
+
+function startBoundedTerminalReader(fileDescriptor) {
+  const child = spawn(process.execPath, ["--eval", terminalReaderSource], {
+    env: { LANG: "C", LC_ALL: "C" },
+    shell: false,
+    stdio: [fileDescriptor, "ignore", "ignore", "pipe"],
+    windowsHide: true,
+  });
+  const secretPipe = child.stdio[3];
+  const chunks = [];
+  let byteLength = 0;
+  let invalidResult = false;
+  const result = new Promise((resolveResult, rejectResult) => {
+    let settled = false;
+    const reject = () => {
+      if (settled) return;
+      settled = true;
+      rejectResult(new Error("Hosted important-batch secret prompt is unavailable."));
+    };
+    secretPipe.on("data", (chunk) => {
+      byteLength += chunk.length;
+      if (byteLength > 512) {
+        invalidResult = true;
+        chunks.length = 0;
+        child.kill("SIGKILL");
+        return;
+      }
+      chunks.push(chunk);
+    });
+    child.once("error", reject);
+    child.once("close", (code, signal) => {
+      if (settled) return;
+      settled = true;
+      if (invalidResult || code !== 0 || signal !== null) {
+        rejectResult(new Error("Hosted important-batch secret prompt is unavailable."));
+        return;
+      }
+      resolveResult(Buffer.concat(chunks).toString("utf8"));
+    });
+  });
+  return result;
 }
 
 export async function readHiddenTerminalLine() {
   const fileDescriptor = openSync("/dev/tty", "r+");
-  let echoDisabled = false;
+  let terminalState;
   try {
-    setTerminalEcho(fileDescriptor, false);
-    echoDisabled = true;
+    terminalState = readTerminalState(fileDescriptor);
+    runTerminalSettings(fileDescriptor, ["-echo", "-icanon", "-isig", "min", "1", "time", "0"]);
+    const readerResult = startBoundedTerminalReader(fileDescriptor);
     writeSync(fileDescriptor, "Supabase administrator database password: ");
-    return readBoundedLine(fileDescriptor);
+    return await readerResult;
   } finally {
     try {
-      if (echoDisabled) setTerminalEcho(fileDescriptor, true);
+      if (terminalState !== undefined) runTerminalSettings(fileDescriptor, [terminalState]);
     } finally {
       writeSync(fileDescriptor, "\n");
       closeSync(fileDescriptor);
