@@ -193,7 +193,8 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       `acceptance:hosted:backup:complete` 关闭批次；dump 不进入 Git/stdout/log，失败 partial/CA/temp 全清理；
 - [ ] 只通过 `pnpm acceptance:hosted:migration:0014:dry-run` 的固定 confirmation/TTY 入口运行 0014 dry-run，
       结果必须精确为唯一 `20260824010000_password_signup_otp_resend.sql` 和固定未改库成功消息；安全入口已
-      实现并通过离线 fake-process 回归，但尚未真实连接 Hosted，因此本项保持未勾选；
+      实现并通过离线 fake-fetch/process 回归；单命令内部从固定官方 URL 获取 CA，并在管理员 transaction
+      pooler `6543` 强制 verify-full，用户不准备 CA env。尚未真实连接 Hosted，因此本项保持未勾选；
 - [ ] 在真实 R3-C 收件、重复观测和无正文告警门关闭后，从同一受控来源确认 Vercel/Vault
       `CRON_SECRET` 连续性，运行 Cron status→exact-confirmation apply；要求两次完整事务均成功、postflight
       exact 五 job/零 unmanaged，并观察至少两个周期及 401/5xx/timeout 后恢复；

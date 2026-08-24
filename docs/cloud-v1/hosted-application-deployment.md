@@ -44,6 +44,9 @@ socket/FileVault gate。Phase 84 已完成 11-active/3-disabled 的完整双平�
 Phase 85 已受控获取并在固定 OrbStack socket 检查全部 11 个 index-digest reference。Phase 86 已落地受审查
 的原子 capture/rebuild writer 与 confirmation-gated 入口，但本阶段没有执行真实入口或生成 evidence。CLI
 cache miss 会 pull，普通 start 仍禁止；真实 pre dump/rebuild 与 preflight 尚未执行，因而 0014 仍不 ready。
+0014 dry-run 的本机候选已补固定官方 CA 的内部有界获取、无 redirect、管理员 transaction pooler `6543`
+verify-full URL/child env 与 `0600` 临时 CA；用户仍只运行一个 pnpm 命令，不准备 CA 环境变量。该离线修复
+尚未替代真实 dry-run 证据。
 
 ## 1. 当前事实与目标
 

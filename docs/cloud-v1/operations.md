@@ -202,12 +202,21 @@ Phase 81 已在唯一普通邀请的真实注册邮件中发现 Hosted Email OTP
 旧码或整份 push Auth config。0014 的唯一 dry-run 入口已经实现但尚未真实运行：
 `pnpm acceptance:hosted:migration:0014:dry-run` 只接受固定 Singapore project 与
 `20260824010000_password_signup_otp_resend.sql` 的内置 confirmation；拒绝继承的 `PGPASSWORD` /
-`SUPABASE_DB_PASSWORD` 后，才从 TTY 隐藏读取管理员密码。它固定调用本仓库 Supabase CLI、session
-pooler `5432`、`db push --dry-run --skip-vault --db-url`，密码只进入该子进程环境，不进入 URL、argv、文件
-或输出；stdout 只有在严格证明 dry-run、唯一 0014 与 finished marker 时才输出固定成功消息，其余一律固定
-失败且不转发原始 stdout/stderr。隐藏提示期间 Ctrl-C 会恢复 echo/canonical/ISIG 后固定 exit 1；它不会启动
-Supabase，也不会被 pnpm 吞掉后误报成功。dry-run 不写数据库，也不能代替 pre backup/rebuild/preflight 或
-授权 apply。
+`SUPABASE_DB_PASSWORD` 后，才从 TTY 隐藏读取管理员密码。它固定调用本仓库 Supabase CLI、管理员
+transaction pooler `6543`、`db push --dry-run --skip-vault --db-url`；不得借用只供 application 隔离 verifier
+使用的 session pooler `5432`。用户无需准备 CA 环境变量：密码输入有效后、
+Supabase child 启动前，入口内部只从 `hostedAcceptanceCaCertificateUrl` 的固定 Singapore 官方 HTTPS URL
+获取公开 CA；固定 GET、禁止 redirect、10 秒/16 KiB 上限，并要求 200、final URL 精确、fatal UTF-8 与
+单一严格 PEM。固定 URL 支持官方 CA 轮换，不长期 pin 某一次证书 digest。URL 与 child 环境同时强制
+`sslmode/PGSSLMODE=verify-full`，CA 只进入随机私有目录内的 `0600 root.crt` 和 child
+`PGSSLROOTCERT`；密码只进入该 child 的 `PGPASSWORD`，不进入 URL、argv、文件或输出。任何 CA 下载、
+临时文件、spawn、timeout、overflow 或 cleanup 失败都零成功回执并固定失败，不转发原始 stdout/stderr；
+只有临时目录已创建的路线才有可删目标，并一律尝试删除。若 `rm` 自身失败，只能记录 cleanup attempted，不能宣称目录已删：按本机
+cleanup incident 处理，在重试前人工检查并清理临时目录下固定 `huayi-hosted-0014-ca-*` 前缀。该残留若
+存在，只含 `0700` 目录/`0600` 公开 CA，不含密码。隐藏提示期间 Ctrl-C 会恢复 echo/canonical/ISIG 后固定
+exit 1；它不会获取 CA 或启动 Supabase，也不会被 pnpm 吞掉后误报成功。stdout 只有在严格证明 dry-run、
+唯一 0014 与 finished marker 时才输出固定成功消息。dry-run 不写数据库，也不能代替 pre
+backup/rebuild/preflight 或授权 apply。
 当前先运行零 I/O 的 `pnpm acceptance:hosted:backup:plan` 与
 `pnpm acceptance:hosted:backup:executor:plan`；executor 已固定唯一 PostgreSQL 17.6.1.159 OCI index，但
 完整 platform lock 现已由 `pnpm acceptance:hosted:backup:platform-lock:verify` 在零 Docker/零网络下校验：

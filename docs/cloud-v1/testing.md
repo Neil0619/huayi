@@ -840,12 +840,18 @@ confirmed Auth user/password method/profile 为 `1/1/2`、google method/Web sess
   `stty -g`，临时关闭 echo/canonical/ISIG，并以隔离有界 reader 把 Ctrl-C 作为取消字节处理；取消必须恢复
   echo/canonical/ISIG、移除 listener、固定 exit 1，且零 Supabase child。真实 macOS `/usr/bin/expect` 必须
   覆盖正常零回显、连续两次取消与 exact pnpm package entry，不能只用注入 fake；只以 `shell:false` 调用
-  本地 pinned Supabase binary，固定 session
-  pooler 无密码 URL 与 `db push --dry-run --skip-vault --db-url` 参数，child env 只含固定 locale 与进程级
-  `PGPASSWORD`，stderr 丢弃、stdout 有 byte/time 上限且不落盘；严格 parser 只能接受 dry-run header、连接
-  marker、唯一 `20260824010000_password_signup_otp_resend.sql` 与 finished marker，extra/missing migration、
-  apply-like 或未知文本均 fixed failure 且不反射 secret/raw output。默认测试只能注入 fake process，不得
-  连接 Hosted；真实运行结果必须另行记录，不能由离线 GREEN 代替；
+  本地 pinned Supabase binary，固定管理员 transaction pooler `6543` 无密码 verify-full URL 与
+  `db push --dry-run --skip-vault --db-url` 参数。单命令内部 CA fetch 只允许固定官方 URL、GET、
+  `redirect=error`、no-store/no-credentials/no-referrer、10 秒/16 KiB，并拒绝非 200、final URL 漂移、空 body、
+  overflow、非法 UTF-8/PEM 与 timeout；调用者不准备 CA env。child env 精确为固定 locale、进程级
+  `PGPASSWORD`、`PGSSLMODE=verify-full` 与随机私有 `0600` CA path；必须拒绝只供 application 隔离 verifier
+  使用的 session pooler `5432`。stderr 丢弃、stdout 有 byte/time 上限且
+  不落盘；正常/overflow/timeout 以及临时目录创建后的 `writeFile`/spawn 失败都尝试清理；`mkdtemp` 失败没有
+  可删目录，但仍固定失败。`rm` failure 必须证明 cleanup attempted、CLI 固定失败且零成功回执；不得伪称目录已删，真实发生时进入本机 cleanup
+  incident，可能残留的只允许是 `0700`/`0600` 公开 CA 且不得含密码。严格 parser 只能接受 dry-run header、
+  连接 marker、唯一 `20260824010000_password_signup_otp_resend.sql` 与 finished marker，extra/missing migration、
+  apply-like 或未知文本均 fixed failure 且不反射 secret/raw output。默认测试只能注入 fake fetch/process，
+  不得连接 Hosted；真实运行结果必须另行记录，不能由离线 GREEN 代替；
 - API 恢复必须先做 Provider password proof，再执行原子函数，失败无 Cookie/无 Web session；invitation
   token 不得进入 Provider command。Web 失败保留内存 token/email，成功才清 URL；
 - actual bundle 必须覆盖 scanner/repeated GET confirm、显式 OTP POST、`/practice` Cookie 与之后密码重登；

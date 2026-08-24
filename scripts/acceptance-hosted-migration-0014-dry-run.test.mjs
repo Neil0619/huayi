@@ -1,9 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { EventEmitter } from "node:events";
 import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
-import { PassThrough } from "node:stream";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
@@ -13,7 +11,6 @@ import {
   hostedMigration0014SuccessMessage,
   parseHostedMigration0014DryRunOutput,
   runHostedMigration0014DryRunCli,
-  runHostedMigration0014DryRunProcess,
 } from "./acceptance-hosted-migration-0014-dry-run.mjs";
 
 const validOutput = `DRY RUN: migrations will *not* be pushed to the database.
@@ -22,6 +19,8 @@ Would push these migrations:
  • 20260824010000_password_signup_otp_resend.sql
 Finished supabase db push.
 `;
+const caCertificate =
+  "-----BEGIN CERTIFICATE-----\n" + "a".repeat(64) + "\n-----END CERTIFICATE-----\n";
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -37,7 +36,9 @@ test("package exposes only the exact pinned 0014 dry-run entrypoint", async () =
     new URL("./acceptance-hosted-migration-0014-dry-run.mjs", import.meta.url),
     "utf8",
   );
-  assert.doesNotMatch(implementation, /node:fs|writeFile|PGPASSFILE/u);
+  assert.doesNotMatch(implementation, /PGPASSFILE/u);
+  assert.match(implementation, /writeFile\(rootCertificate, certificate/u);
+  assert.match(implementation, /hostedAcceptanceCaCertificateUrl/u);
 });
 
 test("0014 dry-run parser accepts only the exact non-mutating single migration transcript", () => {
@@ -56,92 +57,36 @@ test("0014 dry-run parser accepts only the exact non-mutating single migration t
   }
 });
 
-test("0014 dry-run process uses the pinned local CLI, fixed args, and process-only password", async () => {
-  const child = new EventEmitter();
-  child.stdout = new PassThrough();
-  child.kill = () => true;
-  let observed;
-  const resultPromise = runHostedMigration0014DryRunProcess("fictional-secret", {
-    spawnProcess(command, arguments_, options) {
-      observed = { arguments_, command, options };
-      queueMicrotask(() => {
-        child.stdout.end(validOutput);
-        child.emit("close", 0, null);
-      });
-      return child;
-    },
-  });
-
-  assert.deepEqual(await resultPromise, { code: 0, stdout: validOutput });
-  assert.match(observed.command, /\/node_modules\/\.bin\/supabase$/u);
-  assert.deepEqual(observed.arguments_, [
-    "db",
-    "push",
-    "--dry-run",
-    "--skip-vault",
-    "--db-url",
-    "postgresql://postgres.kpadiulxkgckskcfydry@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres",
-  ]);
-  assert.deepEqual(observed.options.env, {
-    LANG: "C",
-    LC_ALL: "C",
-    PGPASSWORD: "fictional-secret",
-  });
-  assert.equal(observed.options.shell, false);
-  assert.deepEqual(observed.options.stdio, ["ignore", "pipe", "ignore"]);
-  assert.equal(JSON.stringify(observed).includes("fictional-secret"), true);
-  assert.equal(JSON.stringify(observed.arguments_).includes("fictional-secret"), false);
-});
-
-test("0014 dry-run process suppresses overflow and waits for a timed-out child to close", async () => {
-  const overflowChild = new EventEmitter();
-  overflowChild.stdout = new PassThrough();
-  overflowChild.kill = () => true;
-  const overflowPromise = runHostedMigration0014DryRunProcess("fictional-secret", {
-    maxOutputBytes: 8,
-    spawnProcess: () => overflowChild,
-  });
-  overflowChild.stdout.write("123456789");
-  overflowChild.emit("close", null, "SIGKILL");
-  assert.deepEqual(await overflowPromise, { code: null, stdout: "" });
-
-  const timeoutChild = new EventEmitter();
-  timeoutChild.stdout = new PassThrough();
-  let killed = false;
-  timeoutChild.kill = () => {
-    killed = true;
-    return true;
-  };
-  let resolved = false;
-  const timeoutPromise = runHostedMigration0014DryRunProcess("fictional-secret", {
-    spawnProcess: () => timeoutChild,
-    timeoutMilliseconds: 1,
-  }).then((result) => {
-    resolved = true;
-    return result;
-  });
-  await new Promise((resolveWait) => setTimeout(resolveWait, 10));
-  assert.equal(killed, true);
-  assert.equal(resolved, false);
-  timeoutChild.emit("close", null, "SIGKILL");
-  assert.deepEqual(await timeoutPromise, { code: null, stdout: "" });
-});
-
 test("0014 dry-run CLI rejects inherited password variables and invalid confirmation before TTY input", async () => {
   for (const testCase of [
-    { arguments_: [hostedMigration0014DryRunArgument], environment: { PGPASSWORD: "secret" } },
     {
       arguments_: [hostedMigration0014DryRunArgument],
-      environment: { SUPABASE_DB_PASSWORD: "secret" },
+      environment: {
+        PGPASSWORD: "secret",
+      },
     },
-    { arguments_: ["--confirm-wrong-project"], environment: {} },
+    {
+      arguments_: [hostedMigration0014DryRunArgument],
+      environment: {
+        SUPABASE_DB_PASSWORD: "secret",
+      },
+    },
+    {
+      arguments_: ["--confirm-wrong-project"],
+      environment: {},
+    },
     { arguments_: [], environment: {} },
   ]) {
+    let certificateFetches = 0;
     let passwordReads = 0;
     let processRuns = 0;
     let stderr = "";
     const code = await runHostedMigration0014DryRunCli({
       ...testCase,
+      fetchCaCertificate: async () => {
+        certificateFetches += 1;
+        return caCertificate;
+      },
       readPassword: async () => {
         passwordReads += 1;
         return "must-not-run";
@@ -156,6 +101,7 @@ test("0014 dry-run CLI rejects inherited password variables and invalid confirma
       writeOutput: () => assert.fail("must not write stdout"),
     });
     assert.equal(code, 1);
+    assert.equal(certificateFetches, 0);
     assert.equal(passwordReads, 0);
     assert.equal(processRuns, 0);
     assert.equal(
@@ -166,12 +112,47 @@ test("0014 dry-run CLI rejects inherited password variables and invalid confirma
   }
 });
 
-test("0014 dry-run CLI fails closed when the hidden password prompt is cancelled", async () => {
+test("0014 dry-run CLI fails closed when the fixed CA cannot be fetched", async () => {
+  let passwordReads = 0;
   let processRuns = 0;
   let stderr = "";
   const code = await runHostedMigration0014DryRunCli({
     arguments_: [hostedMigration0014DryRunArgument],
     environment: {},
+    fetchCaCertificate: async () => {
+      throw new Error("fictional CA detail");
+    },
+    readPassword: async () => {
+      passwordReads += 1;
+      return "fictional-password";
+    },
+    runSupabase: async () => {
+      processRuns += 1;
+      return { code: 0, stdout: validOutput };
+    },
+    writeError: (value) => {
+      stderr += value;
+    },
+    writeOutput: () => assert.fail("must not write stdout"),
+  });
+  assert.equal(code, 1);
+  assert.equal(passwordReads, 1);
+  assert.equal(processRuns, 0);
+  assert.equal(stderr, "Hosted 0014 migration dry-run failed closed; database was not modified.\n");
+  assert.equal(stderr.includes("fictional"), false);
+});
+
+test("0014 dry-run CLI fails closed when the hidden password prompt is cancelled", async () => {
+  let processRuns = 0;
+  let certificateFetches = 0;
+  let stderr = "";
+  const code = await runHostedMigration0014DryRunCli({
+    arguments_: [hostedMigration0014DryRunArgument],
+    environment: {},
+    fetchCaCertificate: async () => {
+      certificateFetches += 1;
+      return caCertificate;
+    },
     readPassword: async () => {
       throw new Error("fictional prompt cancellation detail");
     },
@@ -186,6 +167,7 @@ test("0014 dry-run CLI fails closed when the hidden password prompt is cancelled
   });
 
   assert.equal(code, 1);
+  assert.equal(certificateFetches, 0);
   assert.equal(processRuns, 0);
   assert.equal(stderr, "Hosted 0014 migration dry-run failed closed; database was not modified.\n");
   assert.equal(stderr.includes("cancellation"), false);
@@ -208,7 +190,11 @@ exit 0
     const result = await new Promise((resolveResult) => {
       const child = spawn("/usr/bin/expect", ["-f", "-"], {
         cwd: repositoryRoot,
-        env: { LANG: "C", LC_ALL: "C", PATH: process.env.PATH ?? "" },
+        env: {
+          LANG: "C",
+          LC_ALL: "C",
+          PATH: process.env.PATH ?? "",
+        },
         shell: false,
         stdio: ["pipe", "pipe", "pipe"],
         windowsHide: true,
@@ -252,9 +238,10 @@ test("0014 dry-run CLI reports one fixed success and never reflects process outp
   const code = await runHostedMigration0014DryRunCli({
     arguments_: [hostedMigration0014DryRunArgument],
     environment: {},
+    fetchCaCertificate: async () => caCertificate,
     readPassword: async () => password,
-    runSupabase: async (receivedPassword) => {
-      assert.equal(receivedPassword, password);
+    runSupabase: async (secrets) => {
+      assert.deepEqual(secrets, { administratorPassword: password, caCertificate });
       return { code: 0, stdout: validOutput };
     },
     writeError: (value) => {
@@ -287,6 +274,7 @@ test("0014 dry-run CLI fails closed on invalid secret or every untrusted process
     const code = await runHostedMigration0014DryRunCli({
       arguments_: [hostedMigration0014DryRunArgument],
       environment: {},
+      fetchCaCertificate: async () => caCertificate,
       readPassword: async () => password,
       runSupabase: async () => {
         processRuns += 1;

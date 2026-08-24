@@ -3,6 +3,21 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-24：0014 dry-run 单命令内部获取固定官方 CA 并强制 transaction-pooler verify-full
+
+- 用户只运行 `pnpm acceptance:hosted:migration:0014:dry-run` 并在 TTY 输入管理员密码；不得再要求复制 CA、
+  拼接长 shell 或准备 `HUAYI_HOSTED_DATABASE_CA_CERTIFICATE`。入口在密码有效后、Supabase child 启动前，
+  只从仓库既有固定 Singapore 官方 CA URL 获取公开证书；
+- CA 获取固定 `GET`、`redirect=error`、no-store/no-credentials/no-referrer、10 秒和 16 KiB 上限，并要求
+  HTTP 200、final URL 精确、fatal UTF-8 与单一严格 PEM。固定 URL 是支持官方 CA 轮换的信任接口，不把
+  某次证书 digest 固化为长期 pin；任一漂移都固定失败且零数据库 child；
+- 管理员 dry-run 复用既有 transaction pooler `6543` URL，不能借用只供 application 隔离 verifier 使用的
+  session pooler `5432`；URL 与 child 环境同时固定 `sslmode/PGSSLMODE=verify-full`。CA 只写入随机 `0700` 临时目录
+  下的 `0600 root.crt` 并通过 `PGSSLROOTCERT` 交给该 child；密码仍只进入进程级 `PGPASSWORD`。正常、
+  overflow、timeout、spawn 或文件失败都尝试清理临时目录并收敛为固定失败，不转发原始细节。`rm` 自身
+  失败时只能证明 cleanup 已尝试：不得报成功，按本机 cleanup incident 处理并在重试前人工清理固定前缀；
+  可能残留的仅是 `0700` 目录内 `0600` 公开 CA，不含密码。
+
 ## 2026-08-24：Production 逻辑备份恢复演练使用临时 Supabase recovery project
 
 - 备份 capture 与 migration+fictional-seed rebuild 不再被视为“真实 archive 可恢复”的证据；production

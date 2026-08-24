@@ -2131,8 +2131,9 @@ typecheck、architecture、build、development blocker、Store release、product
   `20260824010000_password_signup_otp_resend.sql` 的 exact confirmation。额外/错误参数或调用者环境含
   `PGPASSWORD` / `SUPABASE_DB_PASSWORD` 时，在 TTY password read 前失败；复用 Phase 86 的共享 TTY
   reader，不使用 readline redraw；
-- **固定进程契约**：只调用仓库 `node_modules/.bin/supabase`，参数精确为固定 session pooler `5432` 的无密码
-  URL 与 `db push --dry-run --skip-vault --db-url`；`shell:false`，child env 只有 `LANG=C`、`LC_ALL=C` 与该
+- **固定进程契约（已被 §80 校正）**：只调用仓库 `node_modules/.bin/supabase`；本节候选当时把参数固定为
+  session pooler `5432` 的无密码 URL 与 `db push --dry-run --skip-vault --db-url`，后续安全审查确认管理员
+  migration 必须复用 transaction pooler `6543`，`5432` 只允许 application 隔离 verifier。`shell:false`，child env 只有 `LANG=C`、`LC_ALL=C` 与该
   进程级 `PGPASSWORD`，stdin 忽略、stderr 丢弃、stdout 有 byte/time 上限，密码不进入 argv、URL、日志或
   持久文件；
 - **严格结果契约**：只有 stdout 精确包含 dry-run header、连接 marker、唯一 0014 与 finished marker 且
@@ -2162,3 +2163,29 @@ typecheck、architecture、build、development blocker、Store release、product
   Store release 与 production audit 零已知漏洞；
 - **实际执行边界**：只运行离线测试与本机 PTY；没有输入真实密码，没有启动 Supabase CLI、网络、数据库、
   Hosted、邮件、deployment、migration、capture、rebuild 或模型调用。
+
+## 80. Phase 81 0014 transaction-pooler verify-full 单命令修复（2026-08-24）
+
+- **Fresh RED 与根因**：权威安全契约要求 Hosted 管理 CLI 使用 transaction pooler `6543`，并显式加载
+  Supabase CA + hostname 校验；`5432` 只例外用于 application 隔离 verifier。0014 dry-run 旧实现却使用
+  session pooler `5432`，URL 没有 `sslmode=verify-full`，child env 也没有 `PGSSLROOTCERT/PGSSLMODE`。首轮回归
+  精确显示 URL 止于 `/postgres`；端口交叉审查的 Fresh RED 又精确显示 actual `5432`、expected `6543`。
+  因此“dry-run 不改库”不能证明管理员凭据发往了正确数据库；
+- **单命令接口**：保留用户唯一命令 `pnpm acceptance:hosted:migration:0014:dry-run`，不增加 CA 环境变量或
+  长 shell。密码有效后、Supabase child 前，只从仓库既有固定 Singapore 官方 CA URL 执行 GET；
+  `redirect=error`、no-store/no-credentials/no-referrer、10 秒/16 KiB，并要求 HTTP 200、final URL 精确、
+  fatal UTF-8 与单一严格 PEM。固定 URL 允许官方 CA 轮换，当前 digest 只作读证而不长期 pin；
+- **连接与清理**：复用 foundation 管理员 transaction pooler `6543`；URL 与 child env 双重固定
+  verify-full；CA 只进入随机私有目录下的 `0600 root.crt` 和
+  `PGSSLROOTCERT`，密码仍只进 `PGPASSWORD`。正常、overflow、timeout、`mkdtemp`、`writeFile`、spawn 或
+  cleanup 失败都由 CLI 输出同一固定失败；有 child 的 overflow/timeout 路线等待 close，已创建临时目录的
+  路线都尝试清理。`rm` failure 不伪造删除
+  证据：只证明 cleanup attempted，真实发生时进入本机 cleanup incident 并在重试前人工清理固定前缀；
+  可能残留的 `0700`/`0600` 公开 CA 不含密码；
+- **离线 GREEN**：core/TLS 聚焦回归 13/13；两个手写测试文件分别低于 400 行。fixed fetch 测试拒绝
+  status/redirect/body/size/UTF-8/PEM/timeout 漂移，process 测试验证 exact argv/env、0600 内容与删除；
+- **官方 CA 只读证据**：2026-08-24 回查固定 URL 为 HTTP 200、final URL exact、1367 bytes，严格 PEM 正则
+  通过；SHA-256 `700723581420dd1ac98fd7e9ac529f0ef210eadcaf87fc868a3ad7d114c2f3b7` 只记录本次
+  响应身份，不作为阻断合法官方轮换的长期 pin；
+- **执行边界**：实现/测试未调用默认 fetch 或 Supabase CLI；未读取真实密码，未连接数据库、修改
+  Supabase、发送邮件、部署、arm Vercel、运行模型，也未触碰暂停中的 isolated rebuild 诊断。
