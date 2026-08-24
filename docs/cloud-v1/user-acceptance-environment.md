@@ -213,9 +213,11 @@ acceptance 使用 `app.acceptance` / `api.acceptance`，production 以后使用�
 使用带 `acceptance` 的名称，不能与 production 共用数据库、Auth、Storage、OAuth client、secret、
 Provider Key、额度或调度。
 
-Supabase Free 可能因低活动暂停且没有自动备份；验收数据不作为唯一副本，每个重要批次前后执行脱敏
-逻辑 dump，并验证从 migration + seed 重建。Vercel Hobby 只适用于个人、非商业验收；用途变成商业运营
-前必须重新选择套餐。
+Supabase Free 可能因低活动暂停且没有自动备份；验收数据不作为唯一副本，每个重要批次前后执行受控的
+raw sensitive logical dump，并验证从 migration + fictional seed 在隔离 scratch 重建。dump 不是脱敏导出，
+只能进入 ignored 且严格权限的安全目录；离线 evidence verifier 还要求 clean current candidate。真实
+capture/restore 必须单独批准。Vercel Hobby 只适用于个人、非商业验收；用途变成商业运营前必须重新选择
+套餐。
 
 hosted foundation 使用独立 `acceptance:hosted:bootstrap` / `acceptance:hosted:verify`，不能调用任何
 `acceptance:local:*` 或 `supabase/seed.sql`。foundation 固定当前 Singapore project，只建立 application
@@ -427,9 +429,10 @@ DNS 或密钥配置。
 该历史下一项已经推进：唯一普通邀请已创建并提交密码注册，真实邮件发现 Hosted Email OTP length=8 与
 六位产品契约不一致。用户只授权保存 8→6；独立重新加载回读为 6，expiry 仍 3600，其他
 Auth/SMTP/DNS/environment/secret 未改且未发新邮件。当前下一项改为：完成本机同邀请 resend/0014 验证 →
-明确批准后只应用唯一 0014 → API/Web 严格串行 one-shot deploy/disarm → 再次只读回读 OTP length=6 →
-用户点击重发一封新邮件并完成 scanner-safe 六位 OTP、Web 落点和密码重登。旧 8 位码不得截取使用，
-不得新建第二邀请或删除既有 Auth user。
+单独批准并完成 pre raw logical dump + migration/fictional-seed rebuild → backup preflight 通过 → 明确批准后
+只应用唯一 0014 → post dump + completion gate → API/Web 严格串行 one-shot deploy/disarm → 再次只读回读
+OTP length=6 → 用户点击重发一封新邮件并完成 scanner-safe 六位 OTP、Web 落点和密码重登。旧 8 位码不得
+截取使用，不得新建第二邀请或删除既有 Auth user。
 
 ## 10. 官方约束来源
 

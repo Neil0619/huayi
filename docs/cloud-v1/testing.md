@@ -845,6 +845,23 @@ confirmed Auth user/password method/profile 为 `1/1/2`、google method/Web sess
 - `/admin` 密码错误保持表单可重试，固定错误不得含密码或 Provider detail；重新认证成功后 access 仍为
   `forbidden` 时显示统一拒绝页，不能渲染管理控件。测试不读取 Web Storage，且实现不得新增密码存储。
 
+### 4.10.1 Hosted 重要批次备份与可重建证据门
+
+- Fresh RED 必须先证明仓库没有 fixed backup plan/preflight/completion module；action ledger 缺少 0014 前置
+  backup gate 时也必须独立失败，不能先改文档再补正向断言；
+- `backup:plan` 必须零 filesystem、Git、network 和 write，只输出固定 project/batch/path/权限/清理/依赖
+  契约；根 scripts 只能提供 plan/preflight/complete，不得在默认门增加 capture/restore；
+- preflight/complete 只允许固定 project `kpadiulxkgckskcfydry`、batch `phase-81-0014` 和固定 artifacts
+  路径；拒绝额外 project/path/operation 参数，错误只输出 fixed failure，不反射参数、manifest 或原始错误；
+- evidence fixture 必须覆盖 clean Git HEAD 精确、artifact ignored、目录 `0700`、文件 `0600`、非 symlink、
+  exact directory entries、strict manifest keys、dump size/SHA-256，以及 pre `20260823010000` / post
+  `20260824010000`；任一 dirty/stale/unignored/insecure/partial/extra/hash mismatch 都失败关闭；
+- rebuild evidence 只允许 `repository-migrations-and-fictional-seed`，要求 candidate/migration head 精确，
+  migration/seed/runtime 全 true、Hosted data absent、scratch destroyed。静态 migration test、dump listing、
+  command exit 0 或手写 manifest 不能替代实际隔离重建；
+- raw logical dump 是敏感备份，不进入测试 fixture/stdout/log。默认测试只使用不含用户数据的内存 adapter；
+  真实 capture、restore、scratch rebuild、Supabase 连接与 0014 apply 都是另行批准的 Hosted 门。
+
 ### 4.11 Phase 47 本机验收模拟模型
 
 - Fresh RED 必须证明 acceptance fetch 仍固定 `model_unavailable`、phrase trusted assembly 不能保留 strict

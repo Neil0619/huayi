@@ -60,7 +60,9 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       Phase 80 幂等 bundle 已显示 `Hosted 验收 · 9b0860a` 并通过 recovery copy/secret scan；OTP、
       真实邮件、Cron 与 DeepSeek 应用路径 smoke 仍未完成。唯一普通邀请随后已提交密码注册并发现 Hosted
       OTP length=8；用户只授权保存为 6，独立回读 6/expiry 3600 且其他配置未改、未发新邮件。0014 同邀请
-      resend 仍须本机全门、远端 migration、API/Web 串行部署和真实六位 OTP journey，因此本项仍未勾选；
+      resend 已通过本机全门，但实际 0014 前还须 raw logical pre-backup + migrations/fictional-seed rebuild
+      与 backup preflight；其后仍有远端 migration、post-backup、API/Web 串行部署和真实六位 OTP journey，
+      因此本项仍未勾选；
 - [x] 在正确 Rotate 后 exact-SHA `7577cdd` deployment 上通过 DB-backed application-role smoke；
       `GET /health` 为 200，随机无效 session 的 `GET /v1/quota` 为精确 401
       `authentication_required`。deployment ID/SHA/创建时间与 Git 关闭证据已记录，API 未重新武装；
@@ -156,6 +158,12 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
 - [x] Phase 79 已提供零网络 Cron plan、固定 project-ref 的只读 status/preflight 与 exact-confirmation
       apply；apply 原样执行完整 operations SQL 两次并独立 postflight，错误只输出固定 stage。离线实现不
       代表 Vercel masked secret continuity、真实 SQL 两次、job 周期或 route 已通过；
+- [x] Phase 82 已提供固定 project/batch 的零 I/O backup plan 与离线 preflight/completion verifier；严格
+      校验 clean HEAD/ignored/`0700/0600`/manifest/size/hash/migration head/rebuild cleanup，并且没有
+      capture/restore 写接口。本条只关闭工具缺口，不代表已生成、恢复或重建真实 Hosted backup；
+- [ ] 0014 apply 前由单独批准的真实阶段生成 pre raw logical dump，并从 migration + fictional seed 在隔离
+      scratch 重建；`acceptance:hosted:backup:preflight` 必须通过。0014 后生成 post dump 并由
+      `acceptance:hosted:backup:complete` 关闭批次；dump 不进入 Git/stdout/log，失败 partial/CA/temp 全清理；
 - [ ] 在真实 R3-C 收件、重复观测和无正文告警门关闭后，从同一受控来源确认 Vercel/Vault
       `CRON_SECRET` 连续性，运行 Cron status→exact-confirmation apply；要求两次完整事务均成功、postflight
       exact 五 job/零 unmanaged，并观察至少两个周期及 401/5xx/timeout 后恢复；

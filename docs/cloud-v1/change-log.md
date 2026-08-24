@@ -3,6 +3,19 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-24：Hosted 重要 migration 前先关闭备份与可重建证据门
+
+- Supabase Free 无可依赖的自动备份，0014 不能只凭 migration dry-run 与离线测试进入实际 apply。每个
+  重要批次固定需要 pre/post raw logical dump evidence，以及从仓库 migration + fictional seed 在隔离
+  scratch 重建的证据；preflight 必须位于实际 migration apply 之前；
+- raw logical dump 可能包含 Auth、Storage、邀请与业务记录，是严格敏感备份，不再称为“脱敏 dump”。禁止
+  用伪匿名导出、表计数或 `pg_restore --list` 冒充可恢复备份；真实 capture/restore/rebuild 必须单独批准；
+- 新增固定 Singapore project/batch 的离线 plan、preflight 和 completion interface。plan 零 I/O；两个
+  verifier 只读取本机 ignored 窄目录，失败关闭地验证 clean Git HEAD、strict `0700/0600`、普通文件、
+  exact manifest、dump size/SHA-256、migration head、scratch cleanup，且不输出数据库内容或原始错误；
+- 当前只实现控制面和证据格式，没有执行 Supabase 连接、dump、restore、migration apply、邮件或部署。
+  Phase 81 动作账本在 preflight 真实通过前不得再把 0014 描述为 ready。
+
 ## 2026-08-24：Hosted Email OTP 位数是六位产品契约，不再是未验证的 Dashboard 默认值
 
 - 普通邀请真实注册收到 8 位验证码，而 Web/API 表单与 strict contract 只接受 6 位；根因是 Hosted

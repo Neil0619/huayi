@@ -61,6 +61,8 @@ test("hosted deployment plan is complete, deterministic, and secret independent"
     "/health proves TLS and process startup only; it does not execute SQL or prove the database DSN",
     "The real /admin password reauthentication and four-section read-only verification are complete",
     "Phase 77 runtime snapshot and Phase 79 controlled Cron tooling are not yet connected to Hosted",
+    "Before migration 0014, run pnpm acceptance:hosted:backup:plan and require pnpm acceptance:hosted:backup:preflight to pass",
+    "Preflight requires a secure pre-batch logical backup plus migrations-and-fictional-seed rebuild evidence for the clean current candidate",
     "apply exactly migration 0014 after explicit approval, then deploy API and Web through separate one-shot arm/disarm windows",
     "read back Hosted Email OTP length 6 -> user-triggered same-invitation resend -> latest six-digit OTP only",
     "scanner-safe repeated GET -> explicit OTP POST -> Auth SMTP delivery -> Web landing -> password relogin",
@@ -112,6 +114,10 @@ test("hosted deployment plan is complete, deterministic, and secret independent"
   assert.doesNotMatch(plan, /Account search must return zero exact matches/u);
   assert.doesNotMatch(plan, /https:\/\/api\.acceptance\.seen-said\.cn\/\*\*/u);
   assert.doesNotMatch(plan, /flow=\*/u);
+  assert.ok(
+    plan.indexOf("acceptance:hosted:backup:preflight") <
+      plan.indexOf("apply exactly migration 0014"),
+  );
 });
 
 test("hosted deployment environment verifier reuses the production schema and fixed contract", () => {

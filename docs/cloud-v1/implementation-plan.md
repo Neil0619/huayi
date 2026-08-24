@@ -1850,8 +1850,31 @@ Vercel environment 或密钥；实际邮件发送与 0014 远端应用分别等�
    唯一未消费 flow、未确认单 email identity 与零业务账号数据；旧 flow 被替换，数据库不创建第二张
    invitation/claim/flow/Auth user/identity，函数只授权 context setter；
 5. **本机与发布门**：focused contracts/API/Web/PGlite、脚本、类型检查、完整 macOS 门和安全 diff 全绿后，
-   才请求实际应用唯一 0014；随后 API→Web 严格串行 one-shot deploy/disarm。部署完成且 Hosted Auth status
-   再次为 6 后，才由用户点击重发并发送一封新邮件；
+   先完成 Phase 82 的 pre raw logical backup、migration+fictional-seed rebuild 与 preflight，才请求实际应用
+   唯一 0014；post backup/completion 后再 API→Web 严格串行 one-shot deploy/disarm。部署完成且 Hosted Auth
+   status 再次为 6 后，才由用户点击重发并发送一封新邮件；
 6. **真实退出门**：最新邮件含精确六位 ASCII OTP，CTA scanner/repeated GET 零副作用，显式 POST 完成
    原 invitation/bound user；回读 invitation/user/identity 唯一、Web 落点和密码重登。完成前不得运行
    DeepSeek smoke、Cron 或 R3-C 来绕过该身份门。
+
+### Phase 82：Hosted 重要批次备份与可重建证据门（2026-08-24）
+
+影响平台为 `shared tooling/docs + hosted-acceptance`。本阶段只关闭离线控制面缺口，不连接 Supabase、执行
+dump/restore/rebuild、应用 migration、发送邮件或部署。
+
+1. **Fresh RED**：新模块测试先以 `ERR_MODULE_NOT_FOUND` 失败；deployment ledger 的独立断言再证明旧
+   action chain 缺少 0014 前 backup dependency；最终安全审查另以 dirty worktree case 证明旧 verifier 会
+   错误放行脏候选；
+2. **深模块 interface**：固定 `backup:plan|preflight|complete`。plan 零 filesystem/Git/network/write；两个
+   verifier 只读固定 project/batch/artifacts，不接受动态 path/project/operation，也不提供 capture/restore；
+3. **raw backup contract**：未来单独批准的 capture 只允许 verify-full administrator、process-scoped secret、
+   explicit custom-format file、受验证的 at-rest protection、`0700/0600` 与失败清理。dump 是敏感原始备份，
+   不能伪装脱敏或进入 stdout/log/Git；
+4. **evidence verifier**：严格验证 clean current HEAD、Git ignored、目录/文件类型与权限、exact
+   directory/manifest、dump size/SHA-256，以及 pre head `20260823010000` / post head
+   `20260824010000`；dirty/stale/partial/extra/mismatch 全部 fixed failure；
+5. **rebuild contract**：隔离 scratch 只从 repository migrations + fictional seed 重建，不导入 Hosted data；
+   migration/seed/runtime exact、Hosted data absent、scratch destroyed 全部 true 后才允许 body-free manifest；
+6. **动作账本**：pre capture/rebuild → `backup:preflight` → 0014 apply → post capture → `backup:complete` →
+   API/Web 串行 deployment。离线 GREEN 不代表两个 evidence gate 真实通过，也不关闭 backup retention 或
+   production restore drill。

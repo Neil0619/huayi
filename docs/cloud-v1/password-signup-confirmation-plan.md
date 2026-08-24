@@ -95,10 +95,16 @@ SQL 绕过。
 - [x] 最小 GREEN：Web 内存保留 invitation token、StrictMode 独立单飞、API 双限流、Supabase signup
       resend、0014 同 invitation/claim/bound identity 唯一 flow 轮换；
 - [x] focused/full macOS 门和安全 diff 审查；Windows 继续按最终关键批次统一验证；
+- [x] Phase 82 补齐固定项目/批次的离线 backup plan、preflight/completion verifier 与严格 clean HEAD/
+      manifest/权限/hash/migration+fictional-seed rebuild 契约；本项没有连接 Supabase 或生成真实 dump；
+- [ ] 单独批准并完成 0014 前 raw logical dump 与隔离 scratch 重建，且
+      `pnpm acceptance:hosted:backup:preflight` 通过；该门关闭前 0014 不得描述为 ready；
 - [ ] 用户确认后只实际应用唯一 0014，再 API→Web 严格串行 one-shot deploy/disarm；部署完成前不发送
       新邮件；
+- [ ] 0014 应用后完成 post raw logical dump，并由 `pnpm acceptance:hosted:backup:complete` 关闭重要批次；
 - [ ] 系统打开最近的私密邀请，用户点击重发；只接受新邮件的六位 ASCII OTP，scanner GET 零副作用，
       显式 POST 完成同一 invitation/user，并回读 invitation/user/identity 唯一性。
 
-退出标准：旧 8 位 OTP 不再用于产品确认，重发后旧 flow 失效；同一普通邀请和同一 Auth user 在不要求用户输入 opaque token、不创建
-第二邀请/用户的前提下收到新六位 OTP 并完成注册。
+退出标准：pre/post backup 与 migration+fictional-seed rebuild 证据完整；旧 8 位 OTP 不再用于产品确认，
+重发后旧 flow 失效；同一普通邀请和同一 Auth user 在不要求用户输入 opaque token、不创建第二邀请/用户
+的前提下收到新六位 OTP 并完成注册。

@@ -38,7 +38,8 @@ Web-only deployment 与独立 disarm。当前默认排除 Canceled 的 API/Web �
 渲染、公开只读边界与 bundle secret scan 均通过；Phase 78 API `/health` 与无 Cookie CSRF/CORS 也已
 通过。唯一普通邀请已经提交密码注册，但邮件暴露 Hosted OTP length=8 漂移；该单一字段已保存为 6 并
 独立回读，未发送新邮件。仓库候选新增 0014 同邀请重发，远端仍停在 13 条；0014、API/Web 部署、六位
-OTP/Auth SMTP、R3-C、Cron 与 DeepSeek 应用路径仍待验收。
+OTP/Auth SMTP、R3-C、Cron 与 DeepSeek 应用路径仍待验收。Phase 82 已补离线 backup/rebuild 证据门；
+真实 pre dump/rebuild 与 preflight 尚未执行，因而 0014 仍不 ready。
 
 ## 1. 当前事实与目标
 
@@ -468,8 +469,10 @@ push 只允许增加 Canceled 审计记录，不得新增非 Canceled deployment
   只作为各次受控部署检查点，不覆盖当前账本；
 - Vercel Functions 已回读 Fluid Enabled、`sin1`，Latest API `/index` 为 Node.js 24.x、`SIN1`、`≤120s`；
   90 秒应用 abort 与平台终止仍随真实 Cloud DeepSeek 请求验收；
-- 当前唯一依赖链：对已提交注册的同一普通邀请应用唯一 0014 → 部署 token-only resend → 再次只读确认
-  OTP length=6 → 用户点击重发 → scanner-safe repeated GET / 显式 OTP POST / Auth SMTP / Web 落点 /
+- 当前唯一依赖链：单独批准 pre raw logical dump + migrations/fictional-seed rebuild →
+  `acceptance:hosted:backup:preflight` → 对已提交注册的同一普通邀请应用唯一 0014 → post dump +
+  `acceptance:hosted:backup:complete` → 部署 token-only resend → 再次只读确认 OTP length=6 → 用户点击重发 →
+  scanner-safe repeated GET / 显式 OTP POST / Auth SMTP / Web 落点 /
   密码重登 → 真实 R3-C 投递、重复与无正文告警 →
   安装并验证五项 Cron → 受审计关闭 kill switch → 一笔获批的 Cloud DeepSeek 应用路径请求及
   model/usage/price/reservation/UsageLedger 对账 → 恢复 kill switch。
@@ -558,6 +561,18 @@ CORS credential contract 通过。上述 smoke 没有数据库或外部写。
 DeepSeek、备份、自然使用或 Windows 已验收。零网络 deployment plan 的旧 Latest/count/pending 文案漂移
 已按 6.3 的 TDD 合同修复，不回滚或削弱本节的远端只读证据。
 
+## 6.6 Phase 82 重要批次备份与可重建证据门
+
+`pnpm acceptance:hosted:backup:plan` 是固定 Singapore project 与 `phase-81-0014` 的零 I/O 计划。
+`backup:preflight` 只读取本克隆 ignored 的固定 artifacts 目录，要求 pre custom-format raw logical dump、
+strict `0700/0600`、size/SHA-256/manifest、clean current Git HEAD，以及从 migration + fictional seed 建立且
+已经销毁 scratch 的 rebuild evidence。`backup:complete` 再要求 post dump 与 migration head 14。
+
+该模块没有 capture/restore interface，不连接 Supabase。真实 dump 是敏感原始备份，不是脱敏 artifact；
+必须在单独批准的后续阶段由固定 verify-full administrator 写入显式文件，并保持数据库 row、identity、正文、
+secret 和原始错误不进入 stdout/log。当前只完成离线控制面，两个 verifier 都没有真实通过，0014 不得描述为
+ready。完整 contract 见 `hosted-important-batch-backup.md`。
+
 ## 7. TDD 与验收标准
 
 Fresh RED 必须先覆盖：
@@ -566,10 +581,12 @@ Fresh RED 必须先覆盖：
    `git.deploymentEnabled=false`，或 API 缺 `framework=hono`/`regions=sin1`、Web 缺 Vite/build/output；
 2. hosted Web 缺环境/SHA 可见身份，或公网 origin 接受 simulated；
 3. deployment plan 把已经完成的 migration/bootstrap/BootstrapInvitation/First Operator/deployment 当成
-   未来动作，或缺少 current deployment evidence、双 disarm 和剩余用户/外部依赖链；
-4. verifier 输出任何 secret/value，或错误地把 preview 配成 hosted production；
-5. Web bundle 含任一服务端 secret 名/值。
-6. Vercel empty-project bootstrap 缺 exact team scope、name-only create、settings PATCH、双向零 deployment
+   未来动作，或缺少 current deployment evidence、双 disarm、backup preflight 与剩余用户/外部依赖链；
+4. backup plan 发生 I/O、允许动态 project/path/operation，或 preflight 未验证 clean HEAD/ignored/权限/hash/
+   pre migration/rebuild cleanup 就把 0014 描述为 ready；
+5. verifier 输出任何 secret/value，或错误地把 preview 配成 hosted production；
+6. Web bundle 含任一服务端 secret 名/值。
+7. Vercel empty-project bootstrap 缺 exact team scope、name-only create、settings PATCH、双向零 deployment
    检查、Git/link/漂移失败关闭、幂等重跑、固定 status 或 Token/远端错误不回显。
 
 最小 GREEN 提供一个零网络、零写入的 `pnpm acceptance:hosted:deployment --plan`，只输出固定 project、
@@ -594,6 +611,8 @@ schema、secret scan、`git diff --check` 和完整 `pnpm verify:macos`。Hosted
   `/index` 为 Node.js 24.x 且 `≤120s`；90 秒应用 abort 与平台终止另随真实 DeepSeek 请求核验；
 - custom-domain TLS、exact CORS、host-only Secure SameSite=Lax Cookie、CSRF、SSE 与五条 callback 通过；
 - Resend domain/SMTP/R3-C 两把 key、一次真实确认邮件和一次 R3-C 通知通过，无重复投递；
+- 每个重要 migration/deploy 批次有受控 pre/post raw logical dump，且 migration+fictional-seed rebuild、
+  `backup:preflight` 与 `backup:complete` 均对同一 candidate 通过；
 - 五项 Cron 写入、人工触发与有界响应通过；
 - FirstOperatorBootstrap、真实 `/admin` recent-auth 与四区只读复核已完整闭环；明确授权一个收件人后只
   创建唯一普通邀请，完成 scanner-safe OTP/Auth SMTP/password relogin。

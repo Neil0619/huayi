@@ -1917,3 +1917,28 @@ typecheck、architecture、build、development blocker、Store release、product
 - **剩余门**：已发出的 8 位 OTP 不会被配置更新转换。当前注册仍须在同一 invitation claim/bound Auth
   identity 上安全重发新的六位 OTP；该能力完成并受控部署前，不创建第二张邀请、不删除 Auth user、
   不截取旧码，也不把 OTP/Auth SMTP journey 写成通过。
+
+## 73. Phase 82 Hosted 重要批次备份与可重建证据门（2026-08-24）
+
+- **审计缺口**：Supabase Free 没有可依赖的自动备份，但 Phase 81 ledger 仍直接从 0014 apply 开始，把
+  “backup”留到后续发布项；migration dry-run、0014 离线回归或远端 head=13 都不能证明当前验收数据可恢复；
+- **Fresh RED**：先新增深模块接口测试，
+  `node --test scripts/acceptance-hosted-important-batch-backup.test.mjs` 首次以 `ERR_MODULE_NOT_FOUND` 失败；
+  随后给 deployment ledger 增加 pre-0014 依赖断言，旧 plan 因缺
+  `acceptance:hosted:backup:preflight` 及 pre-backup/rebuild 文案再次失败；最终安全审查新增 dirty worktree
+  fixture，旧 verifier 5/6 通过、精确错误放行该 case，补 clean-candidate guard 后转绿；
+- **离线 GREEN**：新增固定 project `kpadiulxkgckskcfydry`、batch `phase-81-0014` 的
+  `acceptance:hosted:backup:plan|preflight|complete`。plan 零 filesystem/Git/network/write；两个 verifier
+  只读本机 fixed artifacts，拒绝动态 project/path/operation，不提供 capture/restore；
+- **证据合同**：pre/post dump 必须位于 ignored 且 `0700/0600` 的固定目录，manifest 与 dump filename/
+  size/SHA-256、clean current HEAD、pre/post migration head 精确；工作树漂移、未知/partial/symlink/权限
+  过宽/未 ignored/stale 一律失败。真实 dump 明确为 raw sensitive backup，不伪装脱敏且不进入
+  stdout/log/Git；
+- **可重建合同**：独立 scratch 只从 repository migrations + fictional seed 重建，manifest 只保存固定布尔与
+  commit/migration head；必须证明 Hosted data absent 并先销毁 scratch。command exit、dump listing、静态
+  migration tests 或手写 manifest 不能关闭该门；
+- **账本接线**：当前顺序改为单独批准 pre capture/rebuild → `backup:preflight` → 0014 apply → post capture →
+  `backup:complete` → API/Web 串行 deploy/disarm。focused 新模块与 ledger tests 10/10，完整 Node scripts
+  268/268、instructions、全仓 format、ESLint 与全部 workspace typecheck 通过；真实 plan 只输出固定合同，
+  实际 preflight 在当前 dirty candidate 且证据不存在的条件下按设计固定失败。真实 dump、restore、scratch
+  rebuild、Supabase connection、0014 apply、邮件与部署均未执行，两个 evidence gate 仍 pending。
