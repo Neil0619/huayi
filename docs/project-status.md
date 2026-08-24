@@ -140,6 +140,12 @@ audit 仍只允许 `enabled`。这不代表 Store 产品或 Windows 支持被取
 > session，不能只用按钮禁用或服务端限流吸收。组件现以一个页面级同步单飞门保护全部账号 mutation，首个
 > 动作在 adapter 前占位、`finally` 释放；claim 仍保持独立单飞。该修复未发送邮件、未部署或修改 Hosted
 > 配置，真实六位 OTP journey 仍须在 0014/备份/部署链关闭后验收。
+> readiness 首次 transient failure 此前只输出同一 generic，无法定位 clean repository、Docker target/
+> daemon、pinned Supabase CLI、FileVault、platform lock 或 local images 中哪一层失败。现已改为单一结构化
+> assessor，按固定优先级只报告首个内部 allowlisted stage，未知 inspector rejection 固定映射为
+> runtime-inspection；raw Error/process output、路径、digest、secret 与 environment 均不进入输出。该可观察性
+> 只属于零网络/零写 readiness，capture/rebuild 仍保持原 generic 边界；它没有关闭尚未完成的真实 pre/post
+> capture、成功 isolated rebuild、0014 或 Hosted 部署门。
 
 > **历史校准检查点（Phase 33）**：Phase 28 已补齐 production 语义重复建议和
 > 可计算 AA token 证据；2026-08-14 完成度源码审计发现的 SubmissionOutbox `api=null` 误清账号绑定

@@ -897,7 +897,11 @@ confirmed Auth user/password method/profile 为 `1/1/2`、google method/Web sess
   `RepoDigests` 必须精确匹配同一锁定仓库的 canonical name 与 index digest，不能以 registry alias 或任意
   digest 放行；真实 JSON 使用 platform-lock 模块自身 32 KiB bounded reader，不能被 executor 的短版本输出
   上限截断。FileVault、local image 或 pinned writer 任一缺失都固定失败；全部 ready 时 readiness 只回报
-  fixed passed 且零 evidence；raw subprocess stdout/stderr 不得转发；
+  fixed passed 且零 evidence；失败诊断必须由一个结构化 seam 按 repository state → Docker target → Docker
+  daemon → Supabase CLI → FileVault → platform lock → local platform images 的固定顺序只选择首项，未分类
+  inspector rejection 只允许固定 `runtime-inspection`。单元回归分别证明 platform lock 与 local images 可区分，
+  CLI 回归证明多失败 deterministic、动态 stage 被拒绝且 raw Error/stdout/stderr、路径、digest、secret、
+  environment 不反射；capture/rebuild 必须继续保持单一 generic failure；
 - preflight/complete 只允许固定 project `kpadiulxkgckskcfydry`、batch `phase-81-0014` 和固定 artifacts
   路径；拒绝额外 project/path/operation 参数，错误只输出 fixed failure，不反射参数、manifest 或原始错误；
 - evidence fixture 必须覆盖 clean Git HEAD 精确、artifact ignored、目录 `0700`、文件 `0600`、非 symlink、

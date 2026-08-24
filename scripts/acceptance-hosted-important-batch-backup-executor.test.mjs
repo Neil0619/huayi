@@ -42,8 +42,11 @@ function unavailableRuntime(overrides = {}) {
   return {
     artifactEncryptionReady: false,
     dockerDaemonReady: false,
+    dockerTargetReady: true,
+    localPlatformImagesReady: false,
     pinnedPostgres17RuntimeReady: false,
     pinnedScratchRuntimeReady: false,
+    platformLockReady: true,
     supabaseCliPinned: true,
     ...overrides,
   };
@@ -53,8 +56,11 @@ function readyRuntime() {
   return unavailableRuntime({
     artifactEncryptionReady: true,
     dockerDaemonReady: true,
+    dockerTargetReady: true,
+    localPlatformImagesReady: true,
     pinnedPostgres17RuntimeReady: true,
     pinnedScratchRuntimeReady: true,
+    platformLockReady: true,
     supabaseCliPinned: true,
   });
 }
@@ -159,6 +165,8 @@ test("executor plan is deterministic, zero-I/O, and states exact coverage and bl
   assert.match(stdout, /confirmation-gated/u);
   assert.match(stdout, /--pull never/u);
   assert.match(stdout, /--network none/u);
+  assert.match(stdout, /first fixed allowlisted stage/u);
+  assert.match(stdout, /Capture and rebuild keep their single generic failure boundary/u);
 });
 
 test("package scripts expose only exact plan, readiness, and confirmation-gated operations", async () => {
@@ -209,7 +217,7 @@ test("all three exact readiness checks fail closed before any executor or eviden
     assert.equal(result.stdout, "");
     assert.equal(
       result.stderr,
-      "Hosted important-batch executor readiness failed closed; no operation was performed.\n",
+      "Hosted important-batch executor readiness failed closed at allowlisted stage docker-daemon; no operation was performed.\n",
     );
   }
 });
@@ -304,7 +312,7 @@ test("dirty or unignored repository state fails before runtime inspection", asyn
     assert.equal(result.stdout, "");
     assert.equal(
       result.stderr,
-      "Hosted important-batch executor readiness failed closed; no operation was performed.\n",
+      "Hosted important-batch executor readiness failed closed at allowlisted stage repository-state; no operation was performed.\n",
     );
   }
 });
@@ -357,7 +365,7 @@ test("runtime diagnostics classify only allowlisted readiness and discard raw pr
   assert.equal(stdout, "");
   assert.equal(
     stderr,
-    "Hosted important-batch executor readiness failed closed; no operation was performed.\n",
+    "Hosted important-batch executor readiness failed closed at allowlisted stage docker-daemon; no operation was performed.\n",
   );
   assert.doesNotMatch(stderr, new RegExp(sensitive, "u"));
 });
@@ -404,8 +412,11 @@ test("runtime inspector uses fixed argument arrays and returns booleans instead 
   assert.deepEqual(runtime, {
     artifactEncryptionReady: true,
     dockerDaemonReady: true,
+    dockerTargetReady: true,
+    localPlatformImagesReady: true,
     pinnedPostgres17RuntimeReady: true,
     pinnedScratchRuntimeReady: true,
+    platformLockReady: true,
     supabaseCliPinned: true,
   });
   assert.equal(JSON.stringify(runtime).includes("86a2e078"), false);
@@ -427,7 +438,14 @@ test("real runtime inspection rejects remote Docker selectors before any command
     });
 
     assert.deepEqual(calls, []);
-    assert.deepEqual(runtime, unavailableRuntime({ supabaseCliPinned: false }));
+    assert.deepEqual(
+      runtime,
+      unavailableRuntime({
+        dockerTargetReady: false,
+        platformLockReady: false,
+        supabaseCliPinned: false,
+      }),
+    );
   } finally {
     if (originalDockerHost === undefined) delete process.env.DOCKER_HOST;
     else process.env.DOCKER_HOST = originalDockerHost;

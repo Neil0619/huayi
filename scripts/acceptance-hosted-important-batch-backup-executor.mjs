@@ -23,6 +23,10 @@ import {
 } from "./acceptance-hosted-important-batch-rebuild.mjs";
 import { readHostedImportantBatchCaptureSecrets } from "./acceptance-hosted-important-batch-secret-prompt.mjs";
 import {
+  assessHostedImportantBatchReadiness,
+  renderHostedImportantBatchReadinessFailure,
+} from "./acceptance-hosted-important-batch-readiness-diagnostic.mjs";
+import {
   inspectHostedSupabasePlatformImages,
   readHostedSupabasePlatformImageLock,
   verifyHostedSupabasePlatformImageLock,
@@ -58,65 +62,64 @@ export async function inspectHostedImportantBatchBackupRuntime({
     return {
       artifactEncryptionReady: false,
       dockerDaemonReady: false,
+      dockerTargetReady: false,
+      localPlatformImagesReady: false,
       pinnedPostgres17RuntimeReady: false,
       pinnedScratchRuntimeReady: false,
+      platformLockReady: false,
       supabaseCliPinned: false,
     };
   }
   const supabaseCommand = join(repositoryRoot, "node_modules", ".bin", "supabase");
-  const [docker, supabase, artifactEncryption, platformImages] = await Promise.all([
-    runInspection(dockerTarget.command, [
+  const inspectProcess = async (command, arguments_) => {
+    try {
+      return await runInspection(command, arguments_);
+    } catch {
+      return { code: null, stdout: "" };
+    }
+  };
+  const [docker, supabase, artifactEncryption, platform] = await Promise.all([
+    inspectProcess(dockerTarget.command, [
       "--host",
       dockerTarget.host,
       "version",
       "--format",
       "{{.Server.Version}}",
     ]),
-    runInspection(supabaseCommand, ["--version"]),
-    runInspection("/usr/bin/fdesetup", ["status"]),
+    inspectProcess(supabaseCommand, ["--version"]),
+    inspectProcess("/usr/bin/fdesetup", ["status"]),
     (async () => {
       try {
         await verifyPlatformLock();
         const lock = await readPlatformLock();
-        return await inspectPlatformImages({
-          lock,
-          resolveDockerTarget: async () => dockerTarget,
-        });
+        try {
+          const images = await inspectPlatformImages({
+            lock,
+            resolveDockerTarget: async () => dockerTarget,
+          });
+          return { imagesReady: images?.ready === true, lockReady: true };
+        } catch {
+          return { imagesReady: false, lockReady: true };
+        }
       } catch {
-        return { ready: false };
+        return { imagesReady: false, lockReady: false };
       }
     })(),
   ]);
+  const localPlatformImagesReady = platform.imagesReady === true;
   return {
     artifactEncryptionReady:
       process.platform === "darwin" &&
       artifactEncryption.code === 0 &&
       artifactEncryption.stdout.trim() === "FileVault is On.",
     dockerDaemonReady: docker.code === 0 && /^\d+\.\d+(?:\.\d+)?$/u.test(docker.stdout.trim()),
-    pinnedPostgres17RuntimeReady: platformImages.ready === true,
-    pinnedScratchRuntimeReady: platformImages.ready === true,
+    dockerTargetReady: true,
+    localPlatformImagesReady,
+    pinnedPostgres17RuntimeReady: localPlatformImagesReady,
+    pinnedScratchRuntimeReady: localPlatformImagesReady,
+    platformLockReady: platform.lockReady === true,
     supabaseCliPinned: supabase.code === 0 && supabase.stdout.trim() === pinnedSupabaseCliVersion,
   };
-}
-
-function repositoryStateIsReady(state) {
-  return (
-    state?.artifactRootIgnored === true &&
-    state.worktreeClean === true &&
-    typeof state.candidateCommit === "string" &&
-    /^[0-9a-f]{40}$/u.test(state.candidateCommit)
-  );
-}
-
-function runtimeIsReady(runtime) {
-  return (
-    runtime?.artifactEncryptionReady === true &&
-    runtime.dockerDaemonReady === true &&
-    runtime.pinnedPostgres17RuntimeReady === true &&
-    runtime.pinnedScratchRuntimeReady === true &&
-    runtime.supabaseCliPinned === true &&
-    executorImplementationPinned
-  );
 }
 
 export function renderHostedImportantBatchBackupExecutorPlan() {
@@ -149,6 +152,7 @@ Isolated rebuild contract:
 - Before start, run the static lock verifier and the local-only image inspector. The inspector issues only fixed Unix-socket Docker image-inspect commands against index-digest references; it has no pull, build, run, start, or manifest-network command. The scratch uses --pull never, --network none, one tmpfs PGDATA, and no host or named data volume.
 - Apply exactly the repository migrations through 20260824010000 plus the fictional seed, run fixed bounded migration/runtime/absence contracts, prove Hosted data absent, and destroy scratch before writing the rebuild manifest last.
 Current result: the reviewed writer is pinned. Readiness remains read-only and requires the clean candidate, static lock, platform-fixed local Unix Docker socket, all 11 local image identities, pinned CLI version, and FileVault status. The confirmation-gated pre/post capture and isolated rebuild operations are separate; readiness cannot pull images, connect to Hosted, or create evidence. Ordinary Supabase CLI start remains forbidden because it can pull on a cache miss.
+Readiness failure output names only the first fixed allowlisted stage: repository state, Docker target, Docker daemon, Supabase CLI, FileVault, platform lock, local platform images, or the fixed runtime-inspection fallback. It never reflects an Error, process output, path, digest, secret, or environment value. Capture and rebuild keep their single generic failure boundary.
 `;
 }
 
@@ -181,15 +185,20 @@ export async function runHostedImportantBatchBackupExecutorCli({
     writeError("Hosted important-batch executor arguments are invalid.\n");
     return 1;
   }
+  const readiness = await assessHostedImportantBatchReadiness({
+    inspectRuntime,
+    readRepositoryState,
+    repositoryRoot: root,
+  });
+  if (!readiness.ready || !executorImplementationPinned) {
+    writeError(
+      operation.kind === "readiness"
+        ? renderHostedImportantBatchReadinessFailure(readiness.failedStage ?? "runtime-inspection")
+        : "Hosted important-batch executor operation failed closed.\n",
+    );
+    return 1;
+  }
   try {
-    const repositoryState = await readRepositoryState(root);
-    if (!repositoryStateIsReady(repositoryState)) {
-      throw new Error("Hosted important-batch executor repository state is invalid.");
-    }
-    const runtime = await inspectRuntime();
-    if (!runtimeIsReady(runtime)) {
-      throw new Error("Hosted important-batch executor runtime is unavailable.");
-    }
     if (operation.kind === "readiness") {
       writeOutput(`Hosted important-batch ${operation.phase} readiness passed.\n`);
       return 0;
@@ -198,7 +207,7 @@ export async function runHostedImportantBatchBackupExecutorCli({
       const secrets = await readCaptureSecrets();
       await captureBackup({
         ...secrets,
-        candidateCommit: repositoryState.candidateCommit,
+        candidateCommit: readiness.candidateCommit,
         phase: operation.phase,
         repositoryRoot: root,
       });
@@ -206,17 +215,13 @@ export async function runHostedImportantBatchBackupExecutorCli({
       return 0;
     }
     await rebuildScratch({
-      candidateCommit: repositoryState.candidateCommit,
+      candidateCommit: readiness.candidateCommit,
       repositoryRoot: root,
     });
     writeOutput("Hosted important-batch isolated rebuild verified and destroyed.\n");
     return 0;
   } catch {
-    writeError(
-      operation?.kind === "readiness"
-        ? "Hosted important-batch executor readiness failed closed; no operation was performed.\n"
-        : "Hosted important-batch executor operation failed closed.\n",
-    );
+    writeError("Hosted important-batch executor operation failed closed.\n");
     return 1;
   }
 }

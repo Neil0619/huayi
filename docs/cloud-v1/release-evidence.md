@@ -2287,3 +2287,22 @@ typecheck、architecture、build、development blocker、Store release、product
 - **执行边界**：本阶段只运行离线 fake adapter、组件测试和仓库门禁；没有调用默认网络、Supabase、0014、
   capture/rebuild、邮件、Vercel deploy/arm 或 DeepSeek/真实模型。真实六位 OTP journey 与部署状态不因该
   本机修复改变。
+
+## 85. Phase 81 important-batch readiness 固定阶段诊断（2026-08-24）
+
+- **Fresh RED 与根因**：新 CLI 回归分别要求 repository-state 与 runtime-inspection 固定阶段；首次运行
+  `node --test scripts/acceptance-hosted-important-batch-readiness-diagnostic.test.mjs` 为 3 tests / 1 pass /
+  2 fail，两处 actual 都仍是旧 generic。根因是 executor 顶层 catch 抹平 repository/runtime 边界，而
+  runtime inspector 又把 Docker target 与 platform lock/local images 聚合成无法回推来源的同组 false；
+- **结构化 GREEN**：独立深模块只返回 frozen `ready/failedStage/candidateCommit`；stage priority 固定为
+  repository state → Docker target → Docker daemon → Supabase CLI → FileVault → platform lock → local
+  platform images，unexpected inspector rejection 只映射为 runtime-inspection。runtime inspector 分别输出
+  target/daemon/CLI/FileVault/lock/local-images boolean，process/lock/image rejection 只降级为 false；
+- **安全边界**：readiness CLI 只渲染内部 allowlist 的首个 stage，拒绝动态 stage，不输出 raw Error、
+  stdout/stderr、路径、digest、secret 或 environment。capture/rebuild 在 readiness 或执行失败时仍只输出
+  `Hosted important-batch executor operation failed closed.`；三个 readiness 保持零网络、零 evidence/数据库写；
+- **离线验证**：聚焦 executor/diagnostic 为 17/17，全部 Node scripts 为 348/348；首轮
+  `pnpm verify:macos` 原样 exit 0，Vitest 479 files / 2,922 passed + 12 skipped、Store coverage 97 files /
+  481 passed、Playwright 111/111，instructions、format、lint、全部 workspace typecheck/build、architecture、
+  development blocker、Store release 与 production audit 全绿，生产依赖零已知漏洞。本阶段不运行真实
+  readiness、capture/rebuild、0014 dry-run/apply，不连接外部服务、不发送邮件、不部署或运行模型。

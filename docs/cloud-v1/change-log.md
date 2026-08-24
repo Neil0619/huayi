@@ -3,6 +3,18 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-24：Hosted 重要批次 readiness 只报告固定首个失败阶段
+
+- pre/rebuild/post readiness 不再把 clean repository 与全部 runtime 缺口压成同一条无法定位的 generic
+  failure；统一深模块必须返回 frozen `ready/failedStage/candidateCommit` 结构，失败阶段只能由内部固定
+  allowlist 产生，不能从 Error、child output、路径、digest、secret 或 environment 派生；
+- 选择顺序固定为 repository state → Docker target → Docker daemon → Supabase CLI → FileVault →
+  platform lock → local platform images；runtime inspector 自身出现未分类 rejection 时只使用固定
+  `runtime-inspection` fallback。多项同时失败只报告首项，保证相同状态得到确定输出；
+- 该诊断只允许用于三个只读 readiness 入口。pre/post capture 与 isolated rebuild 无论在 readiness 还是
+  执行阶段失败，仍只输出原单一 generic failure，不扩大真实写操作的可观察面。readiness 继续零网络、
+  零 evidence/数据库写入，不能隐式进入 capture/rebuild/0014。
+
 ## 2026-08-24：Web 认证 mutation 共用一个同步单飞门
 
 - OTP resend 的专用同步门只阻止同一重发动作重复执行，不能保护仍只依赖 React `busy` 状态的密码注册、
