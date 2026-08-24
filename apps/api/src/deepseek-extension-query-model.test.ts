@@ -23,6 +23,22 @@ function response(content: unknown): Response {
   );
 }
 
+function responseWithoutUsage(content: unknown): Response {
+  return new Response(
+    JSON.stringify({
+      choices: [
+        {
+          finish_reason: "stop",
+          index: 0,
+          message: { content: JSON.stringify(content), role: "assistant" },
+        },
+      ],
+      model: "deepseek-v4-flash",
+    }),
+    { headers: { "Content-Type": "application/json" }, status: 200 },
+  );
+}
+
 describe("DeepSeek ExtensionQuery model", () => {
   it("assembles trusted compact fields and bills the strict provider usage", async () => {
     const fetch = vi.fn<DeepSeekExtensionQueryFetch>(async (_url, init) => {
@@ -107,5 +123,122 @@ describe("DeepSeek ExtensionQuery model", () => {
       ),
     ).rejects.toMatchObject({ code: "model_timeout" });
     expect(providerSignal?.aborted).toBe(true);
+  });
+
+  it("preserves the first billed call when the repair request fails", async () => {
+    const fetch = vi
+      .fn<DeepSeekExtensionQueryFetch>()
+      .mockResolvedValueOnce(response({ wrong: true }))
+      .mockResolvedValueOnce(new Response("provider unavailable", { status: 503 }));
+    const model = createDeepSeekExtensionQueryModel({
+      apiKey: "secret",
+      fetch,
+      prices: {
+        cachedInputMicroUsdPerMillionTokens: 1,
+        inputMicroUsdPerMillionTokens: 2,
+        outputMicroUsdPerMillionTokens: 3,
+      },
+    });
+
+    await expect(
+      model.run(
+        {
+          action: "explain",
+          selectionKind: "sentence",
+          sourceText: "The plan fell through.",
+          sourceType: "web-selection",
+        },
+        "generation-repair-failure",
+      ),
+    ).rejects.toMatchObject({
+      billedCalls: [
+        {
+          costMicroUsd: 2,
+          usage: { cachedInputTokens: 0, inputTokens: 10, outputTokens: 5 },
+        },
+      ],
+      code: "model_unavailable",
+      usage: { cachedInputTokens: 0, inputTokens: 10, outputTokens: 5 },
+      usageCostMicroUsd: 2,
+    });
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("preserves the first billed call when the repair response omits usage", async () => {
+    const fetch = vi
+      .fn<DeepSeekExtensionQueryFetch>()
+      .mockResolvedValueOnce(response({ wrong: true }))
+      .mockResolvedValueOnce(responseWithoutUsage({ wrong: true }));
+    const model = createDeepSeekExtensionQueryModel({
+      apiKey: "secret",
+      fetch,
+      prices: {
+        cachedInputMicroUsdPerMillionTokens: 1,
+        inputMicroUsdPerMillionTokens: 2,
+        outputMicroUsdPerMillionTokens: 3,
+      },
+    });
+
+    await expect(
+      model.run(
+        {
+          action: "explain",
+          selectionKind: "sentence",
+          sourceText: "The plan fell through.",
+          sourceType: "web-selection",
+        },
+        "generation-repair-usage-missing",
+      ),
+    ).rejects.toMatchObject({
+      billedCalls: [
+        {
+          costMicroUsd: 2,
+          usage: { cachedInputTokens: 0, inputTokens: 10, outputTokens: 5 },
+        },
+      ],
+      code: "model_response_invalid",
+      usage: { cachedInputTokens: 0, inputTokens: 10, outputTokens: 5 },
+      usageCostMicroUsd: 2,
+    });
+  });
+
+  it("exposes both billed calls when the repaired output remains invalid", async () => {
+    const fetch = vi.fn<DeepSeekExtensionQueryFetch>(async () => response({ wrong: true }));
+    const model = createDeepSeekExtensionQueryModel({
+      apiKey: "secret",
+      fetch,
+      prices: {
+        cachedInputMicroUsdPerMillionTokens: 1,
+        inputMicroUsdPerMillionTokens: 2,
+        outputMicroUsdPerMillionTokens: 3,
+      },
+    });
+
+    await expect(
+      model.run(
+        {
+          action: "explain",
+          selectionKind: "sentence",
+          sourceText: "The plan fell through.",
+          sourceType: "web-selection",
+        },
+        "generation-invalid-repair",
+      ),
+    ).rejects.toMatchObject({
+      billedCalls: [
+        {
+          costMicroUsd: 2,
+          usage: { cachedInputTokens: 0, inputTokens: 10, outputTokens: 5 },
+        },
+        {
+          costMicroUsd: 2,
+          usage: { cachedInputTokens: 0, inputTokens: 10, outputTokens: 5 },
+        },
+      ],
+      code: "model_output_invalid",
+      usage: { cachedInputTokens: 0, inputTokens: 20, outputTokens: 10 },
+      usageCostMicroUsd: 4,
+    });
+    expect(fetch).toHaveBeenCalledTimes(2);
   });
 });

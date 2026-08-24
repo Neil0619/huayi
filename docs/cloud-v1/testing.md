@@ -647,6 +647,22 @@ Dashboard 证据。
 masked `CRON_SECRET` 连续性、两次真实事务、pg_net 响应或两个周期恢复。后两类证据仍必须在 R3-C 外部门
 关闭并获得 action-time confirmation 后于 Hosted 独立完成。
 
+### 4.3.5 ExtensionQuery Provider 失败计费闭环
+
+- Fresh RED 先让首次 ExtensionQuery strict output 无效、repair 返回 503；错误只有
+  `model_unavailable`，此前已经取得的 billed call、usage 和 cost 全部为 `undefined`。修复后 repair HTTP
+  失败与 repair envelope 缺失 usage 都保留首次 call；两次有严格 usage 但最终输出仍无效则保留两条 call；
+- 第二个 PGlite RED 在 durable dispatch 后直接以无 billed call/usage/cost 失败收尾。旧实现把 ledger 写为
+  cost `0` 且三个 token 都为 `0`；GREEN 通过 owner forced-RLS、精确 reservation/request/status 读取
+  reservation `500`，写 cost `500` 与三个 token `null`，reservation 同事务 settled；
+- module 回归证明 Provider 错误携带的 billed calls/usage/cost 原样进入 store fail command。generation 行先
+  `FOR UPDATE` 并要求 command reservation 等于其持久化 reservation；userA generation 传入 userB 的有效
+  active reservation 必须在通用 settlement 前拒绝。reservation 的只读金额由 business 最小权限读取，
+  真正的 reservation 行锁、active 检查、最多两条 ledger 与原子 settled 仍由既有
+  `settle_quota_reservation` 完成，跨 owner 与重放失败关闭；
+- focused provider/module/PGlite 回归全部离线，不读取真实 key、不发网络请求，也不修改 Hosted 数据库。
+  真实 Provider usage、账单与 reservation 对账继续属于 Hosted DeepSeek smoke 门，不能由 fake 关闭。
+
 ### 4.4 Phase 45 Vercel Fluid 与 Function 时长契约
 
 `production-app.test.ts` 解析真实 `apps/api/vercel.json`，必须同时证明 `fluid` 精确为 `true`、唯一

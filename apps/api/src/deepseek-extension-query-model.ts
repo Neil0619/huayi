@@ -205,7 +205,17 @@ export function createDeepSeekExtensionQueryModel(options: {
             usage: first.usage,
           };
         }
-        const second = await call(first.content);
+        let second: DeepSeekProviderCallResult;
+        try {
+          second = await call(first.content);
+        } catch (error) {
+          if (error instanceof DeepSeekAnalysisModelError) {
+            throw new DeepSeekAnalysisModelError(error.code, firstCost, first.usage, [
+              { costMicroUsd: firstCost, usage: first.usage },
+            ]);
+          }
+          throw error;
+        }
         const secondCost = calculateModelCost(second.usage, prices);
         const repaired = parseContent(second.content, type, input, generationId);
         const usage = addUsage(first.usage, second.usage);

@@ -3,6 +3,19 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-25：ExtensionQuery repair 失败不得丢失已产生费用
+
+- ExtensionQuery 首次 Provider 调用已返回严格 usage、但 JSON 结构需要 repair 时，第二次 HTTP、timeout 或
+  strict envelope 失败必须沿错误对象保留第一次 `billedCalls`、usage 与 cost；不能把已经产生的调用按零
+  成本结算。两次均返回 usage 但 repair 输出仍无效时，两条 billed calls 都进入 failed ledger；
+- 若首次 dispatch 后完全没有可用 usage，例如响应缺失 strict usage 或网络结果不明确，失败结算必须通过
+  owner forced-RLS、精确 reservation/request 绑定读取不可变 reservation 上限，写 token-null failed ledger，
+  不得写零 token/零成本。通用 settlement 继续原子锁定 active reservation，重放不会产生第二条 ledger；
+- terminal settlement 还必须在锁定 owner generation 后，要求 command reservation 与 generation 已持久化的
+  reservation 完全相同；否则即使传入另一个租户的有效 active reservation，也必须在 settlement 前失败关闭；
+- 该修复不改变公开 API、价格、Provider endpoint/model、90 秒 deadline、kill switch、限流或恢复策略。
+  离线测试不调用 DeepSeek、Supabase、Vercel、Resend，也不发送邮件或触发部署。
+
 ## 2026-08-25：五条 Cron 内部路由统一认证并让 401 也禁止缓存
 
 - 五条 Supabase Cron 目标路由不再各自复制 Bearer 比较。共享 `requireCronBearer` seam 必须先设置

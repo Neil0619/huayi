@@ -13,6 +13,24 @@ const userB = "00000000-0000-0000-0000-00000000000b";
 const generationId = "70000000-0000-0000-0000-00000000000a";
 const priceId = "80000000-0000-0000-0000-00000000000a";
 
+function queryCommand(options: { idempotencyKey?: string; requestHash?: string } = {}) {
+  return {
+    expiresAt: new Date("2026-08-13T01:00:00.000Z"),
+    id: generationId,
+    idempotencyKey: options.idempotencyKey ?? "query-key",
+    input: {
+      action: "explain" as const,
+      selectionKind: "sentence" as const,
+      sourceText: "The plan fell through.",
+      sourceType: "web-selection" as const,
+    },
+    leaseExpiresAt: new Date("2026-08-13T00:02:00.000Z"),
+    leaseToken: "lease-token-1",
+    requestHash: options.requestHash ?? "a".repeat(64),
+    userId: userA,
+  };
+}
+
 function query(executor: {
   query<Row>(text: string, parameters?: unknown[]): Promise<{ rows: Row[] }>;
 }): AnalysisQuery {
@@ -77,21 +95,7 @@ describe("Postgres ExtensionQuery authority", () => {
       now: () => now,
       priceVersionId: priceId,
     });
-    const command = {
-      expiresAt: new Date("2026-08-13T01:00:00.000Z"),
-      id: generationId,
-      idempotencyKey: "query-key",
-      input: {
-        action: "explain" as const,
-        selectionKind: "sentence" as const,
-        sourceText: "The plan fell through.",
-        sourceType: "web-selection" as const,
-      },
-      leaseExpiresAt: new Date("2026-08-13T00:02:00.000Z"),
-      leaseToken: "lease-token-1",
-      requestHash: "a".repeat(64),
-      userId: userA,
-    };
+    const command = queryCommand();
     await expect(store.begin(command)).resolves.toMatchObject({ kind: "acquired" });
     await expect(store.begin(command)).resolves.toEqual({ id: generationId, kind: "running" });
     await expect(store.begin({ ...command, requestHash: "b".repeat(64) })).rejects.toMatchObject({
@@ -154,6 +158,101 @@ describe("Postgres ExtensionQuery authority", () => {
       [generationId],
     );
     expect(ledger.rows).toEqual([{ feature: "extension-query" }]);
+  });
+
+  it("conservatively settles the reservation when a dispatched failure has no usage", async () => {
+    const store = createPostgresExtensionQueryStore({
+      database: adapter,
+      ledgerId: () => "a0000000-0000-0000-0000-00000000000a",
+      now: () => now,
+      priceVersionId: priceId,
+    });
+    const command = queryCommand({
+      idempotencyKey: "query-failure-key",
+      requestHash: "c".repeat(64),
+    });
+    await expect(store.begin(command)).resolves.toMatchObject({ kind: "acquired" });
+    const quota = createPostgresAnalysisQuota({
+      database: adapter,
+      expiresAt: () => new Date("2026-08-13T00:05:00.000Z"),
+      id: () => "b0000000-0000-0000-0000-00000000000a",
+      now: () => now,
+      priceVersionId: priceId,
+    });
+    const reservation = await quota.reserve({
+      requestId: generationId,
+      reservedMicroUsd: 500,
+      userId: userA,
+    });
+    await store.attachReservation({
+      id: generationId,
+      leaseToken: command.leaseToken,
+      priceVersionId: priceId,
+      reservationId: reservation.id,
+      userId: userA,
+    });
+    await store.markDispatched({
+      id: generationId,
+      leaseToken: command.leaseToken,
+      userId: userA,
+    });
+    const error = {
+      code: "model_unavailable" as const,
+      message: "The model is temporarily unavailable.",
+      requestId: generationId,
+    };
+    const unrelatedReservationId = "b0000000-0000-0000-0000-00000000000b";
+    await database.query(
+      `INSERT INTO quota_reservations(id,user_id,owner_user_id,request_id,period_start,
+       reserved_micro_usd,status,expires_at) VALUES($1,$2,$2,$3,'2026-08-01T00:00:00Z',
+       400,'active','2026-08-13T00:05:00Z')`,
+      [unrelatedReservationId, userB, "70000000-0000-0000-0000-00000000000b"],
+    );
+    await expect(
+      store.fail({
+        billedCalls: [
+          { costMicroUsd: 23, usage: { cachedInputTokens: 1, inputTokens: 8, outputTokens: 3 } },
+        ],
+        error,
+        id: generationId,
+        leaseToken: command.leaseToken,
+        reservationId: unrelatedReservationId,
+        userId: userA,
+      }),
+    ).rejects.toThrow("query lease lost");
+
+    await expect(
+      store.fail({
+        error,
+        id: generationId,
+        leaseToken: command.leaseToken,
+        reservationId: reservation.id,
+        userId: userA,
+      }),
+    ).resolves.toMatchObject({ type: "query.failed" });
+
+    const rows = await database.query<{
+      cached_input_tokens: string | null;
+      cost_micro_usd: string;
+      input_tokens: string | null;
+      output_tokens: string | null;
+      status: string;
+    }>(
+      `SELECT ledger.cached_input_tokens::text,ledger.cost_micro_usd::text,
+        ledger.input_tokens::text,ledger.output_tokens::text,reservations.status
+       FROM usage_ledger ledger JOIN quota_reservations reservations
+         ON reservations.request_id=ledger.request_id WHERE ledger.request_id=$1`,
+      [generationId],
+    );
+    expect(rows.rows).toEqual([
+      {
+        cached_input_tokens: null,
+        cost_micro_usd: "500",
+        input_tokens: null,
+        output_tokens: null,
+        status: "settled",
+      },
+    ]);
   });
 
   it("hard-deletes expired query input and result while leaving usage ledger authority", async () => {

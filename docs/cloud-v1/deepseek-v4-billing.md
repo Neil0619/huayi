@@ -71,6 +71,9 @@ ExtensionQuery、duplicate suggestion 与 practice task 已有 `dispatched_at`�
   未知字段；该兼容字段不改变 `total_tokens = prompt_tokens + completion_tokens` 不变量。
 - Provider envelope 的 `model` 必须逐字等于 `deepseek-v4-flash`。空值或任意其他非空模型均在解析阶段
   失败关闭，禁止把 Provider 实际返回的其他模型改写成固定模型后继续保存或结算。
+- repair 调用失败时不能丢弃此前已经取得的严格 usage：失败 settlement 只记录已知 billed calls；若首次
+  dispatch 后网络结果不明确或 Provider envelope 缺失严格 usage，无法取得任何 billed call，则按本次
+  reservation 上限写一条 token-null failed ledger。不得用零 token、零成本伪装未知费用。
 
 ## 4. TDD 与验收
 
@@ -93,7 +96,8 @@ GREEN 验收矩阵：
   ledger、reservation settled、单条 usage token/cost 正确、record model metadata 与 ledger 一致；
 - 数据库：三个 UUID 与三项精确价格逐一校验；不匹配零 Provider；ledger 引用固定 UUID；
 - 生命周期：same-key terminal replay、active busy、ready replay、lease fencing、dispatched timeout 保守结算
-  和 quota/kill switch 顺序均无回归。
+  和 quota/kill switch 顺序均无回归；ExtensionQuery 另覆盖 repair HTTP/envelope 失败保留首个 billed call、
+  两次严格输出失败保留两条 call，以及首次 usage 不可用时按 reservation 保守结算。
 
 离线门禁至少包含 focused provider/schedule/production/lifecycle/PGlite、API full、API strict typecheck/build、
 目标 ESLint/Prettier、instructions 与 architecture。真实 DeepSeek、密钥、费用、部署数据库、安装和 Chrome

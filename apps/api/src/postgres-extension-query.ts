@@ -88,6 +88,20 @@ function settlement(command: Parameters<ExtensionQueryStore["complete"]>[0]) {
   );
 }
 
+async function activeReservationCost(
+  query: AnalysisQuery,
+  command: { id: string; reservationId: string; userId: string },
+): Promise<number> {
+  const rows = await query.rows<{ reserved_micro_usd: string }>(
+    `SELECT reserved_micro_usd::text FROM quota_reservations
+     WHERE id=$1 AND owner_user_id=$2 AND request_id=$3 AND status='active'`,
+    [command.reservationId, command.userId, command.id],
+  );
+  const value = Number(rows[0]?.reserved_micro_usd);
+  if (!Number.isSafeInteger(value) || value <= 0) throw new Error("Invalid active reservation.");
+  return value;
+}
+
 export function createPostgresExtensionQueryStore(options: {
   database: AnalysisDatabase;
   ledgerId: () => string;
@@ -109,6 +123,13 @@ export function createPostgresExtensionQueryStore(options: {
       if (row === undefined || row.state !== "running" || row.lease_expires_at <= options.now()) {
         throw new Error("query lease lost");
       }
+      if (row.reservation_id !== command.reservationId) throw new Error("query lease lost");
+      const fallbackCostMicroUsd =
+        "result" in command ||
+        command.billedCalls !== undefined ||
+        command.costMicroUsd !== undefined
+          ? undefined
+          : await activeReservationCost(tenant, command);
       const calls =
         "result" in command
           ? settlement(command)
@@ -119,10 +140,10 @@ export function createPostgresExtensionQueryStore(options: {
               outputTokens: call.usage.outputTokens,
             })) ?? [
               {
-                cachedInputTokens: command.usage?.cachedInputTokens ?? 0,
-                costMicroUsd: command.costMicroUsd ?? 0,
-                inputTokens: command.usage?.inputTokens ?? 0,
-                outputTokens: command.usage?.outputTokens ?? 0,
+                cachedInputTokens: command.usage?.cachedInputTokens ?? null,
+                costMicroUsd: command.costMicroUsd ?? fallbackCostMicroUsd,
+                inputTokens: command.usage?.inputTokens ?? null,
+                outputTokens: command.usage?.outputTokens ?? null,
               },
             ]);
       await trusted.rows(

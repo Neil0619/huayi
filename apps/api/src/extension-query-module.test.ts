@@ -7,6 +7,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { ExtensionQueryStore } from "./extension-query-ports.js";
 import { CloudFault } from "./cloud-fault.js";
+import { DeepSeekAnalysisModelError } from "./deepseek-analysis-protocol.js";
 import { createExtensionQueryModule } from "./extension-query-module.js";
 import { createDeepSeekPriceSchedule } from "./deepseek-price-schedule.js";
 
@@ -189,6 +190,42 @@ describe("ExtensionQuery module", () => {
       collect(await module.prepare({ idempotencyKey: "query-key", input, userId: "user-1" })),
     ).rejects.toThrow("dispatch mark failed");
     expect(model).not.toHaveBeenCalled();
+  });
+
+  it("passes known provider billing through the failed settlement", async () => {
+    const repository = store();
+    const usage = { cachedInputTokens: 1, inputTokens: 8, outputTokens: 3 };
+    const billedCalls = [{ costMicroUsd: 23, usage }];
+    const module = createExtensionQueryModule({
+      ids: () => "generation-1",
+      model: {
+        run: vi.fn(async () => {
+          throw new DeepSeekAnalysisModelError("model_unavailable", 23, usage, billedCalls);
+        }),
+      },
+      now: () => new Date("2026-08-13T00:00:00.000Z"),
+      quota: {
+        reserve: vi.fn(async () => ({ id: "reservation-1" })),
+        summary: () => quota,
+      },
+      reservedCostMicroUsd: () => 500,
+      store: repository,
+    });
+
+    await expect(
+      collect(await module.prepare({ idempotencyKey: "query-key", input, userId: "user-1" })),
+    ).resolves.toEqual([
+      { generationId: "generation-1", type: "query.started" },
+      expect.objectContaining({ type: "query.failed" }),
+    ]);
+    expect(repository.fail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        billedCalls,
+        costMicroUsd: 23,
+        reservationId: "reservation-1",
+        usage,
+      }),
+    );
   });
 
   it("terminalizes quota refusal before dispatch or provider work", async () => {

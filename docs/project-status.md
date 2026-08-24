@@ -1834,3 +1834,16 @@ passed; first Operator empty`。候选已提交推送，0012 已实际 push；�
 - 真实 API/Vault secret continuity、Cron status/apply 两次、exact 五 job、两个周期和 401/5xx/timeout 后
   恢复仍是 Hosted 外部门。本阶段未连接或修改 Supabase/Vault/Cron/Vercel，未发送邮件、部署、调用模型，
   未运行 0014/capture/rebuild；离线结果不得写成 Cron 已安装或真实调度已验收。
+
+## Cloud V1 Phase 89 DeepSeek ExtensionQuery 失败计费状态（2026-08-25）
+
+- 四条生产付费路径的 fixed model/endpoint、90 秒 deadline、三 UUID 分时价格、peak reservation、durable
+  dispatch、settlement/recovery、kill switch、持久限流、body-free error 与 RLS 边界已由当前源码重新审计；
+- 审计修复 ExtensionQuery repair 失败丢失首个 billed call，以及 dispatch 后完全无 usage 时错误按零成本
+  结算。Provider 5/5、module 7/7、PGlite 6/6 focused 全绿；未知 usage 现按 reservation 保守结算并保留
+  token null，已知 repair usage 只按实际 call 结算；
+- 真实 DeepSeek 当前 model/usage、三条 Hosted price row、实际账单、90 秒/abort、kill switch/rate limit 与
+  reservation/ledger 对账仍未验证，状态继续是 `offline implementation closed; hosted DeepSeek smoke pending`；
+- fresh `pnpm verify:macos` 原样 exit 0：Node scripts 348/348、Vitest 479 files / 2,928 passed + 12
+  skipped、Store coverage 97 files / 481 passed、Playwright 111/111，全部静态门、build/release/audit 通过；
+- 本阶段没有真实 Provider、数据库、Vercel、Resend、邮件、部署、0014、capture 或 rebuild 副作用。

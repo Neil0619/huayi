@@ -2356,3 +2356,25 @@ typecheck、architecture、build、development blocker、Store release、product
   401/5xx/timeout 后下一周期恢复、`pg_net` Beta/诊断保留、Vercel Function 观测、暂停/容量/告警与业务
   状态机真实部署幂等仍未验证。本阶段未运行 Hosted Cron/Vault/Supabase/Vercel、未发邮件、未部署、未
   调用模型，也未触碰 0014/capture/rebuild。
+
+## 88. Phase 89 DeepSeek ExtensionQuery 失败计费闭环（2026-08-25）
+
+- **完成矩阵**：四条生产付费路径继续固定 `deepseek-v4-flash`、唯一 endpoint、同一次最多 90 秒、peak
+  reservation、dispatch-time 三 UUID 价格快照、durable dispatch、最多两次调用、exactly-once settlement、
+  lease fencing/recovery、kill switch/60-hourly/300-daily rate limit、body-free error 与 owner/RLS；真实
+  Provider model/usage/账单/价格行仍是外部门，离线 evidence 不替代 smoke；
+- **Provider Fresh RED**：首次 compact output 无效后 repair 返回 503；旧错误虽为
+  `model_unavailable`，但 `billedCalls`、usage 与 cost 全部为 `undefined`。最小 GREEN 只在 repair call 边界
+  重抛同 code 并附首次严格 usage/cost；repair envelope 缺 usage 同样保留首 call，两次严格输出失败保留
+  两条 call。Provider focused 为 5/5；
+- **PGlite Fresh RED**：durable dispatch 后无任何 usage/cost 的 immediate failure 被旧实现写成 cost `0`、
+  三个 token `0`。GREEN 在同一 owner transaction 内按 forced-RLS 与精确 reservation/request/status 读取
+  reservation `500`，最终写 cost `500`、三个 token `null`、reservation `settled`；PGlite focused 6/6；
+- **原子与隔离**：generation 先 `FOR UPDATE`；reservation immutable amount 只经 business SELECT 读取，
+  既有 SECURITY DEFINER settlement 才取得 reservation `FOR UPDATE`、校验 active/调用数/总额并原子写
+  ledger+settled。跨 owner、错 request 和重复 terminal 不能读取或再次结算；module 透传回归 7/7；
+- **执行边界**：所有回归使用 fake HTTP 与 PGlite；未读取真实 key、未调用 DeepSeek、Supabase、Vercel、
+  Resend，未发送邮件、部署或运行 0014/capture/rebuild。fresh `pnpm verify:macos` 原样 exit 0，覆盖 Node
+  scripts 348/348、Vitest 479 files / 2,928 passed + 12 skipped、Store coverage 97 files / 481 passed、
+  Playwright 111/111，以及 instructions、format、lint、全部 workspace typecheck/build、architecture、
+  development blocker、Store release 与 production audit 零已知漏洞。
