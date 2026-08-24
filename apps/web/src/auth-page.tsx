@@ -25,6 +25,19 @@ type AuthPageProps = {
 
 type ClaimState = "error" | "idle" | "loading" | "ready";
 
+function createSingleFlightAction() {
+  let inFlight = false;
+  return async (action: () => Promise<void>): Promise<void> => {
+    if (inFlight) return;
+    inFlight = true;
+    try {
+      await action();
+    } finally {
+      inFlight = false;
+    }
+  };
+}
+
 export function AuthPage(props: AuthPageProps) {
   const [claimState, setClaimState] = useState<ClaimState>(
     props.mode === "join" ? "loading" : "idle",
@@ -38,7 +51,7 @@ export function AuthPage(props: AuthPageProps) {
   const [emailConfirmationPending, setEmailConfirmationPending] = useState(false);
   const invitationToken = useRef(props.mode === "join" ? props.invitationToken : null);
   const claimInFlight = useRef(false);
-  const resendInFlight = useRef(false);
+  const authMutation = useRef(createSingleFlightAction()).current;
 
   const claim = useCallback(async () => {
     const token = invitationToken.current;
@@ -66,81 +79,87 @@ export function AuthPage(props: AuthPageProps) {
   const register = async (event: FormEvent) => {
     event.preventDefault();
     if (claimTicket === null) return;
-    setBusy(true);
-    setError(null);
-    try {
-      const result = await props.api.registerPassword(claimTicket, email, password);
-      setPassword("");
-      setClaimTicket(null);
-      if (result.emailConfirmationRequired) {
-        setEmailConfirmationPending(true);
-        setStatus("注册已提交。请从验证邮件打开确认页，并输入邮件中的六位验证码。");
-      } else {
-        invitationToken.current = null;
-        setStatus("注册成功，正在进入工作台。");
-        props.onAuthenticated("full");
+    await authMutation(async () => {
+      setBusy(true);
+      setError(null);
+      try {
+        const result = await props.api.registerPassword(claimTicket, email, password);
+        setPassword("");
+        setClaimTicket(null);
+        if (result.emailConfirmationRequired) {
+          setEmailConfirmationPending(true);
+          setStatus("注册已提交。请从验证邮件打开确认页，并输入邮件中的六位验证码。");
+        } else {
+          invitationToken.current = null;
+          setStatus("注册成功，正在进入工作台。");
+          props.onAuthenticated("full");
+        }
+      } catch {
+        setError("注册失败，当前邮箱仍已保留。请检查输入或稍后重试。");
+      } finally {
+        setBusy(false);
       }
-    } catch {
-      setError("注册失败，当前邮箱仍已保留。请检查输入或稍后重试。");
-    } finally {
-      setBusy(false);
-    }
+    });
   };
 
   const resendRegistration = async () => {
     const token = invitationToken.current;
-    if (token === null || resendInFlight.current) return;
-    resendInFlight.current = true;
-    setBusy(true);
-    setError(null);
-    try {
-      await props.api.resendPasswordRegistration(token);
-      setEmailConfirmationPending(true);
-      setStatus("新的六位验证码已发送。请只使用最新邮件中的验证码。");
-    } catch {
-      setError("无法重新发送验证码。请稍后重试，并确认仍在使用原私密邀请。");
-    } finally {
-      resendInFlight.current = false;
-      setBusy(false);
-    }
+    if (token === null) return;
+    await authMutation(async () => {
+      setBusy(true);
+      setError(null);
+      try {
+        await props.api.resendPasswordRegistration(token);
+        setEmailConfirmationPending(true);
+        setStatus("新的六位验证码已发送。请只使用最新邮件中的验证码。");
+      } catch {
+        setError("无法重新发送验证码。请稍后重试，并确认仍在使用原私密邀请。");
+      } finally {
+        setBusy(false);
+      }
+    });
   };
 
   const login = async (event: FormEvent) => {
     event.preventDefault();
-    setBusy(true);
-    setError(null);
-    try {
-      const session = await props.api.loginPassword(email, password);
-      setPassword("");
-      setStatus("登录成功，正在进入工作台。");
-      props.onAuthenticated(session.access);
-    } catch {
-      setError("登录失败。请检查邮箱和密码后重试。");
-    } finally {
-      setBusy(false);
-    }
+    await authMutation(async () => {
+      setBusy(true);
+      setError(null);
+      try {
+        const session = await props.api.loginPassword(email, password);
+        setPassword("");
+        setStatus("登录成功，正在进入工作台。");
+        props.onAuthenticated(session.access);
+      } catch {
+        setError("登录失败。请检查邮箱和密码后重试。");
+      } finally {
+        setBusy(false);
+      }
+    });
   };
 
   const resumeRegistration = async () => {
     const token = invitationToken.current;
     if (token === null || claimState !== "error") return;
-    setBusy(true);
-    setError(null);
-    try {
-      const session = await props.api.resumePasswordRegistration(token, email, password);
-      if (session.emailConfirmationRequired) {
-        throw new Error("Interrupted registration did not complete.");
+    await authMutation(async () => {
+      setBusy(true);
+      setError(null);
+      try {
+        const session = await props.api.resumePasswordRegistration(token, email, password);
+        if (session.emailConfirmationRequired) {
+          throw new Error("Interrupted registration did not complete.");
+        }
+        setPassword("");
+        invitationToken.current = null;
+        props.replaceInvitationUrl();
+        setStatus("邮箱已确认，邀请已完成，正在进入工作台。");
+        props.onAuthenticated(session.access);
+      } catch {
+        setError("无法继续完成邀请。请确认邮箱、密码和私密邀请仍然有效后重试。");
+      } finally {
+        setBusy(false);
       }
-      setPassword("");
-      invitationToken.current = null;
-      props.replaceInvitationUrl();
-      setStatus("邮箱已确认，邀请已完成，正在进入工作台。");
-      props.onAuthenticated(session.access);
-    } catch {
-      setError("无法继续完成邀请。请确认邮箱、密码和私密邀请仍然有效后重试。");
-    } finally {
-      setBusy(false);
-    }
+    });
   };
 
   const errorDescription = error === null ? undefined : "auth-form-error";

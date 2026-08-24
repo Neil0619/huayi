@@ -831,8 +831,10 @@ confirmed Auth user/password method/profile 为 `1/1/2`、google method/Web sess
 - resend contract 必须 strict token-only；API 覆盖额外字段拒绝、IP/invitation 双限流先于数据库与
   Provider、固定 202/no-store/无 Cookie、Provider 失败可重试且不泄露。Web 覆盖 pending 与 bound-claim
   error 两个入口、claim StrictMode 单飞、token 仅驻内存且不进入 DOM/Storage；另用 deferred Promise
-  保持首个 resend pending，在同一渲染周期连续点击两次，必须只调用一次 API；不能只断言按钮随后变为
-  disabled，也不能用服务端限流替代客户端单飞；
+  保持首个请求 pending，在同一 render/tick 对 register、login、resume 分别双触发，必须各只调用一次
+  adapter；邀请错误页再以 resend 后立即 resume 的交叉触发证明全部账号 mutation 共用一个同步单飞门，
+  只允许先到动作。既有 resend 双击回归继续必须只调用一次；不能只断言按钮随后变为 disabled，不能为
+  每个动作堆叠专用 ref，也不能用服务端限流替代客户端单飞；
 - 0014 migration 必须证明 API/Supabase 镜像 byte-identical、同一过期/未过期 bound claim 都只轮换唯一
   flow，并回读服务端派生的 `bound_email`；wrong token、claim/Auth email 错配、已确认/多 identity、
   profile/method/quota/session/admin/deletion/audit 数据、

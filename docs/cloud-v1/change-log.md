@@ -3,6 +3,18 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-24：Web 认证 mutation 共用一个同步单飞门
+
+- OTP resend 的专用同步门只阻止同一重发动作重复执行，不能保护仍只依赖 React `busy` 状态的密码注册、
+  密码登录与中断注册恢复，也不能阻止邀请错误页同时触发 resend 和 resume；这些请求分别可能重复建立
+  Auth flow、调用 Provider、绑定身份、恢复邀请或创建 Web session；
+- Web 必须让 register、login、resume 与 resend 共用一个页面级同步单飞门。首个动作在调用 async adapter 前
+  占位，成功或失败后统一释放；同一动作和不同动作在 pending 期间都不能启动第二个 mutation。邀请 claim
+  保持独立单飞，因为它属于页面初始化/重试读取路径，不与已验证后的账号 mutation 共享生命周期；
+- 回归必须对 register/login/resume 分别用 deferred Promise + 同 render/tick 双触发证明只调用一次，并在
+  bound-claim error 页面交叉触发 resend/resume，证明只允许先到动作。既有 resend pending 回归保留；
+  不能堆叠多个 action-specific ref 或把按钮 `disabled`、服务端限流当成同步互斥。
+
 ## 2026-08-24：OTP 重发必须用同步单飞门阻止同渲染周期重复轮换
 
 - React `busy` 状态和按钮 `disabled` 只负责呈现，不能作为异步动作的互斥锁；同一事件循环内的快速

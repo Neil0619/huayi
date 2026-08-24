@@ -62,8 +62,10 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       OTP length=8；用户只授权保存为 6，独立回读 6/expiry 3600 且其他配置未改、未发新邮件。0014 同邀请
       resend 已通过本机全门，但实际 0014 前还须 raw logical pre-backup + migrations/fictional-seed rebuild
       与 backup preflight；其后仍有远端 migration、post-backup、API/Web 串行部署和真实六位 OTP journey，
-      因此本项仍未勾选。后续离线审计又用 deferred Promise 证明同一渲染周期双击 resend 会调用两次；Web
-      已增加同步单飞门及回归，避免连续 flow 轮换和两封只有最新一封有效的邮件；
+      因此本项仍未勾选。后续离线审计先用 deferred Promise 证明同一渲染周期双击 resend 会调用两次；再
+      审查同一页面全部认证动作，证明 register/login/resume 各会同 tick 双发，错误页的 resend 与 resume
+      也可并发。Web 现以一个共享同步单飞门保护全部账号 mutation，避免重复 Auth flow/Provider 调用、身份
+      绑定、邀请恢复、Web session 和邮件副作用；claim 保持独立；
 - [x] 在正确 Rotate 后 exact-SHA `7577cdd` deployment 上通过 DB-backed application-role smoke；
       `GET /health` 为 200，随机无效 session 的 `GET /v1/quota` 为精确 401
       `authentication_required`。deployment ID/SHA/创建时间与 Git 关闭证据已记录，API 未重新武装；

@@ -2264,3 +2264,26 @@ typecheck、architecture、build、development blocker、Store release、product
   DeepSeek/真实模型。`pnpm verify:macos` 原样 exit 0：Node scripts 343/343、Vitest 478 files / 2,918 passed
   - 12 skipped、Store coverage 97 files / 481 passed、Playwright 111/111；instructions、format、lint、typecheck、
     build、architecture、development blocker、Store release 与 production audit 全部通过，生产依赖零已知漏洞。
+
+## 84. Phase 81 Web 认证 mutation 共享同步单飞复审（2026-08-24）
+
+- **审查范围与真实副作用链**：逐一追踪 `AuthPage` 的 register/login/resume 与 resend 到
+  `WebIdentityApi`、Hono handler、Supabase Auth 和 identity repository。register 会依次验证 ticket、写 Auth
+  flow、调用 `signUp`、绑定 identity；resume 会先 Provider 密码登录，再原子恢复邀请并创建 Web session；
+  login 会 Provider 登录、校验已登记 method 并创建 Web session；错误页 resend 则轮换 flow 并请求发信。
+  因此这些动作不是可安全重复的纯读取；
+- **四条 Fresh RED**：新增独立 `auth-page-single-flight.test.tsx`，用 deferred Promise 固定首个请求 pending，
+  并在同一 `act`/render/tick 双触发 register、login、resume；旧实现三条都稳定得到 `called 2 times`。错误页
+  先触发 resend、同 tick 再触发 resume 时两者各调用一次，证明原 resend 专用 ref 不能阻止跨动作竞态；
+  精确 RED 为 1 file / 4 failed；
+- **深而窄的 GREEN seam**：组件只保留一个页面级 `authMutation(action)` interface；它在执行 async action 前
+  同步占位，在 `finally` 统一释放。register/login/resume/resend 全部通过该 seam，删除专用
+  `resendInFlight`；claim 继续使用独立初始化单飞门。相同回归与既有 AuthPage 行为合并为 2 files / 15
+  passed，失败后的登录/恢复重试、token-only resend、StrictMode claim 和 UI busy 文案均保持；
+- **完整候选门**：fresh `pnpm verify:macos` 原样 exit 0；Vitest 479 files / 2,922 passed + 12 skipped、
+  Store coverage 97 files / 481 passed、Playwright 111/111，instructions、format、lint、全部 workspace
+  typecheck/build、architecture、development blocker、Store release 与 production audit 全绿，生产依赖零已知
+  漏洞；
+- **执行边界**：本阶段只运行离线 fake adapter、组件测试和仓库门禁；没有调用默认网络、Supabase、0014、
+  capture/rebuild、邮件、Vercel deploy/arm 或 DeepSeek/真实模型。真实六位 OTP journey 与部署状态不因该
+  本机修复改变。
