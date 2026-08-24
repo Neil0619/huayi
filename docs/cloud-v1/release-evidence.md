@@ -2054,4 +2054,8 @@ typecheck、architecture、build、development blocker、Store release、product
   发送邮件、调用 DeepSeek，或修改 Hosted/DNS/environment/key；
 - **完整门**：`pnpm verify:macos` 原样退出 0，覆盖 Node scripts 289/289、Vitest 478 files / 2917 tests
   （12 个预期 skip）、Store coverage 97 files / 481 tests、build/architecture、Playwright 111/111、Store
-  release 与 production audit 零已知漏洞。
+  release 与 production audit 零已知漏洞；
+- **提交与零部署**：候选以 `2804f3d`（`fix(build): support OrbStack backup inspection`）提交并推送；Vercel
+  Dashboard 只读回查确认 API 最新仍是 source `4f1ce4a` / deployment
+  `6QeRbqxgA88cFXggKekkr2axH9JM`，Web 最新仍是 source `9b0860a` / deployment
+  `V3NzjTYXtH7fb3WC2P6hpWR1twhb`，本批 push 零新增 deployment。
