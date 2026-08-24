@@ -2325,3 +2325,34 @@ typecheck、architecture、build、development blocker、Store release、product
   依赖零已知漏洞。sender 回归使用 fake fetch/signal，零真实等待、秘密或产品网络；本阶段未发送邮件、
   连接 Supabase、运行 0014/capture/rebuild、操作 Vercel deployment 或调用模型。真实 Resend
   401/5xx/timeout 恢复与收件/重复/无正文告警门仍未关闭。
+
+## 87. Phase 88 五项 Cron 深度审计与 401 禁缓存修复（2026-08-25）
+
+- **源码矩阵**：固定 SQL 与 status SQL 逐项一致地定义五个 `* * * * *` job/path、两个 Vault 名、运行时
+  secret 读取、Bearer/Accept header、55 秒 timeout、五路径私有 allowlist、函数/schema ACL 与重复安装前
+  unschedule；五条 API route 的 strict bounded response 分别由共享契约或本地 strict schema 约束。worker/
+  repository 回归覆盖 password recovery 的 dispatch-before-provider 与 ambiguous receipt 不重发、data rights
+  lease/fencing、ExtensionQuery 并发 `SKIP LOCKED`、duplicate suggestion 未 dispatch release/已 dispatch
+  保守结算与唯一 ledger、security notification 的 notification-ID Provider 幂等与 retry fencing；
+- **伪缺口排除**：Hosted postflight 的 `cron_installation_exact` 已由 SQL 联合 extension、Vault 名、jobs、
+  function 与 ACL，不是只检查 count；两次 operations SQL 是两个明确提交的事务，second/postflight 失败后
+  固定 stage + 先 status 再裁决是有意边界，不伪造自动 rollback。真实两个周期与 401/5xx/network-timeout
+  恢复仍必须观察 `cron.job_run_details`/`net._http_response`，不能以 fake adapter 关闭；
+- **Fresh RED 与根因**：五条 route 都在 Bearer 成功后才设置 no-store。新增 missing/wrong Bearer 回归后，
+  focused 精确为 5 files / 12 tests 中 5 failed + 7 passed；五个失败都收到 401，但
+  `cache-control` actual 为 `null`。旧测试只断言状态码，未覆盖认证与缓存策略交叉面；
+- **共享 GREEN seam**：新增唯一 `requireCronBearer`，先固定 `private, no-store`，再校验 exact Bearer 前缀、
+  等长 secret 与 `timingSafeEqual`；五条 route 删除复制逻辑并保留各自固定错误文案。route 回归覆盖 missing/
+  wrong/success，actual production bundle 再逐路证明 401 + no-store；认证失败后的 worker 总调用仍只有成功
+  请求一次。focused route/composition 为 6 files / 20 tests 全绿；
+- **聚合离线证据**：Cron SQL、五 route、production composition 与五类 worker/repository 共 15 files /
+  56 tests 全绿；Hosted plan/status/preflight/apply/postflight 10/10 全绿。测试只使用 PGlite/fake adapter，未
+  访问 Supabase/Vault/Vercel/Resend/DeepSeek；
+- **完整 macOS 门禁**：`pnpm verify:macos` 原样 exit 0，覆盖 instructions/format/lint、全部 workspace
+  typecheck/build、Node scripts 348/348、Vitest 479 files / 2,922 passed + 12 skipped、Store coverage
+  97 files / 481 passed、Playwright 111/111、architecture、development blocker、Store release 与
+  production audit；生产依赖零已知漏洞；
+- **剩余外部门**：API/Vault `CRON_SECRET` 同源连续、真实 status/apply 两次、exact 五 job、至少两个周期、
+  401/5xx/timeout 后下一周期恢复、`pg_net` Beta/诊断保留、Vercel Function 观测、暂停/容量/告警与业务
+  状态机真实部署幂等仍未验证。本阶段未运行 Hosted Cron/Vault/Supabase/Vercel、未发邮件、未部署、未
+  调用模型，也未触碰 0014/capture/rebuild。

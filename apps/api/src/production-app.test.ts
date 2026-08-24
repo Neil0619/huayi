@@ -109,6 +109,17 @@ describe("production API composition", () => {
     expect(app.routes.map((route) => route.path)).toContain("/v1/auth/password/recovery/complete");
     expect(app.routes.map((route) => route.path)).toContain("/internal/password-recovery/run");
     expect(app.routes.map((route) => route.path)).toContain("/internal/security-notifications/run");
+    for (const path of [
+      "/internal/password-recovery/run",
+      "/internal/data-rights/run",
+      "/internal/extension-queries/cleanup",
+      duplicateSuggestionCleanupRoute,
+      "/internal/security-notifications/run",
+    ]) {
+      const unauthorizedCron = await app.request(path);
+      expect(unauthorizedCron.status).toBe(401);
+      expect(unauthorizedCron.headers.get("cache-control")).toBe("private, no-store");
+    }
     expect(app.routes.map((route) => route.path)).toContain("/v1/wordbook-jobs/:id/lease");
     const extensionOrigin = `chrome-extension://${"a".repeat(32)}`;
     const missingOrigin = await app.request("/v1/analyses:stream", {

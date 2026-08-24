@@ -332,7 +332,9 @@ owner context、generation/reservation 归属、task 成功或失败终态、价
 - production 的五个 minute trigger 由 Supabase `pg_cron + pg_net` 调用既有 HTTPS route；私有
   security-definer adapter 只接受五个精确 path，从 Vault 运行时读取 HTTPS API origin 与 32–512 字符
   secret，固定 search_path 且不向 `PUBLIC`、业务角色或 service role 授予执行权。Vercel Hobby 配置不再
-  承载高频 cron；SQL、job 名、轮换和停用边界见 `vercel-hobby-supabase-cron.md`。
+  承载高频 cron；API 五条 route 共用常量时间 Bearer 认证，认证失败和成功都固定
+  `Cache-Control: private, no-store`，401 不调用 worker。SQL、job 名、轮换和停用边界见
+  `vercel-hobby-supabase-cron.md`。
 - Extension SubmissionOutbox 最多 20 条/5 MiB、7 天后硬删除；配对码 10 分钟、邀请 72 小时、
   AccountDataExport 私有对象 ready 后设置 24 小时 expiry、单个下载地址最长 15 分钟。到期先停止签发，
   清理失败只保留内部 key 并告警重试。幂等记录默认保留

@@ -20,7 +20,14 @@ describe("security notification internal route", () => {
       createSecurityNotificationApp({ cronSecret: "s".repeat(32), worker: { runOne } }),
     );
 
-    expect((await app.request(securityNotificationHttpRoutes.run)).status).toBe(401);
+    const missingBearer = await app.request(securityNotificationHttpRoutes.run);
+    expect(missingBearer.status).toBe(401);
+    expect(missingBearer.headers.get("cache-control")).toBe("private, no-store");
+    const wrongBearer = await app.request(securityNotificationHttpRoutes.run, {
+      headers: { authorization: `Bearer ${"x".repeat(32)}` },
+    });
+    expect(wrongBearer.status).toBe(401);
+    expect(wrongBearer.headers.get("cache-control")).toBe("private, no-store");
     const response = await app.request(securityNotificationHttpRoutes.run, {
       headers: { authorization: `Bearer ${"s".repeat(32)}` },
     });

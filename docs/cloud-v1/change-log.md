@@ -3,6 +3,16 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-25：五条 Cron 内部路由统一认证并让 401 也禁止缓存
+
+- 五条 Supabase Cron 目标路由不再各自复制 Bearer 比较。共享 `requireCronBearer` seam 必须先设置
+  `Cache-Control: private, no-store`，再校验固定 `Bearer ` 前缀、等长 secret 与常量时间比较；错误文案仍由
+  各 route 固定，业务 worker interface 与成功响应不变；
+- 缺失或错误 Bearer 的 401 与成功响应同样必须带 `private, no-store`。认证失败不得调用 worker，也不能因
+  header 只在认证成功后设置而留下可缓存错误响应；actual production composition 必须逐一覆盖五条路径；
+- 该修复只关闭 API 认证/缓存交叉缺口，不证明 Vault/API secret 值连续、Cron 已安装、两个真实周期、
+  `pg_net` 的 401/5xx/timeout 后恢复或业务状态机在真实部署中的幂等性。
+
 ## 2026-08-25：R3-C Resend sender 的 20 秒取消信号必须可被精确离线证明
 
 - “代码中写了 `AbortSignal.timeout(20_000)`”不能作为可执行回归证据；sender 构造模块必须有一个窄的

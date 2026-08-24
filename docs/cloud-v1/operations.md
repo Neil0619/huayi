@@ -371,5 +371,8 @@ deploy 只接受精确 `--confirm-local-downtime`。任何失败都停止后续�
   secret、限制精确 path、撤销业务角色执行权，并以固定 job name 重装实现幂等。Vercel
   `vercel.json` 不再声明分钟级 crons；开发/Preview 不自动安装。完整边界、停用与真实验收见
   `vercel-hobby-supabase-cron.md`。
+- 五条内部 route 统一通过 `requireCronBearer` 先固定 `private, no-store`，再做 exact Bearer 与常量时间
+  secret 比较；缺失/错误 secret 的 401 也不可缓存且不进入 worker。该 API 门不替代 Vault/API secret 值
+  连续、`pg_net` response 或真实两个周期的运维证据。
 - Vercel Fluid/Function 时长的仓库契约、应用预算和真实验收见
   `vercel-fluid-function-duration.md`；不得用 Hobby 的 300 秒平台能力放宽 90 秒 Provider deadline。

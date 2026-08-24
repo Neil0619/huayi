@@ -1818,3 +1818,19 @@ passed; first Operator empty`。候选已提交推送，0012 已实际 push；�
   OTP/Auth SMTP 和完整 R3-C 收件、重复、告警门，随后还需两周期与故障恢复验证；
 - Fresh RED 为模块缺失，当前 focused GREEN 10/10。未连接 Supabase/Vercel/Resend/DeepSeek，未安装 Cron，
   API/Web 仍以 Phase 78 的 16/8、双 `deploymentEnabled=false` 为当前远端基线。
+
+## Cloud V1 Phase 88 五项 Cron 离线深审状态（2026-08-25）
+
+- 五个 fixed minute job/path、Vault 两名称、运行时 secret、Bearer/Accept、55 秒 timeout、私有 allowlist、
+  bounded outcome、worker lease/fencing/幂等，以及 Hosted status/apply/partial-failure/postflight 均已由当前
+  源码与聚焦测试重新核对；没有用文档声明替代实现证据；
+- 审计复现五条内部 route 的真实缓存缺口：缺失/错误 Bearer 虽返回 401，却因 no-store 只在认证成功后
+  设置而没有 `Cache-Control`。Fresh RED 为 5 files / 12 tests 中 5 failed；共享 `requireCronBearer` 修复
+  后 route/composition 6 files / 20 tests、Cron/worker 聚合 15 files / 56 tests、Hosted Cron 10/10 全绿；
+- 完整 `pnpm verify:macos` 原样 exit 0：Node scripts 348/348、Vitest 479 files / 2,922 passed + 12 skipped、
+  Store coverage 97 files / 481 passed、Playwright 111/111，且 instructions/format/lint、全部 workspace
+  typecheck/build、architecture、development blocker、Store release 与 production audit 全绿，生产依赖零
+  已知漏洞；
+- 真实 API/Vault secret continuity、Cron status/apply 两次、exact 五 job、两个周期和 401/5xx/timeout 后
+  恢复仍是 Hosted 外部门。本阶段未连接或修改 Supabase/Vault/Cron/Vercel，未发送邮件、部署、调用模型，
+  未运行 0014/capture/rebuild；离线结果不得写成 Cron 已安装或真实调度已验收。

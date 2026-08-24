@@ -1,5 +1,3 @@
-import { timingSafeEqual } from "node:crypto";
-
 import {
   passwordRecoveryAcceptedResponseSchema,
   passwordRecoveryCallbackFormSchema,
@@ -13,6 +11,7 @@ import {
 import { Hono, type Context } from "hono";
 
 import { CloudFault } from "./cloud-fault.js";
+import { requireCronBearer } from "./cron-authentication.js";
 import type { PasswordRecoveryModule } from "./password-recovery-module.js";
 import { enforceRateLimit, type RateLimiter } from "./rate-limiter.js";
 import { strictJson } from "./strict-json.js";
@@ -25,13 +24,6 @@ const confirmationCsp =
 
 function wait(milliseconds: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
-}
-
-function matchesSecret(presented: string | undefined, expected: string): boolean {
-  if (presented === undefined || !presented.startsWith("Bearer ")) return false;
-  const left = Buffer.from(presented.slice("Bearer ".length));
-  const right = Buffer.from(expected);
-  return left.byteLength === right.byteLength && timingSafeEqual(left, right);
 }
 
 function invalidRequest(message: string): CloudFault {
@@ -228,10 +220,7 @@ export function createPasswordRecoveryApp(options: {
   });
 
   app.get(passwordRecoveryHttpRoutes.run, async (context) => {
-    if (!matchesSecret(context.req.header("authorization"), options.cronSecret)) {
-      throw new CloudFault("authentication_required", "Worker authentication is required.");
-    }
-    context.header("Cache-Control", "private, no-store");
+    requireCronBearer(context, options.cronSecret, "Worker authentication is required.");
     return context.json(
       passwordRecoveryRunResponseSchema.parse({ outcome: await options.module.dispatchNext() }),
     );

@@ -453,6 +453,9 @@ timeout 配置上限和三个非 analysis DeepSeek adapter 的实际 abort 没�
 
 - `production-app.test.ts` 同时证明五个内部 worker route 继续挂载，且 `apps/api/vercel.json` 不再声明
   Hobby 不接受的分钟级 `crons`；
+- 五个 route adapter 测试与 actual production composition 逐一路由缺失/错误 Bearer，要求 401、零 worker
+  调用和 `private, no-store`；共享 `requireCronBearer` 负责 exact Bearer、等长常量时间比较与成功/失败共同
+  禁止缓存，避免各 route 漂移；
 - `supabase-cron-operations.test.ts` 对 operations SQL 做无 secret 静态审计：扩展与 schema、Vault key、
   配置失败关闭、security-definer 固定 search_path、五路径 allowlist、角色权限撤销、Bearer/Accept header、
   ≤55 秒 timeout、五个固定 job 以及先取消再安装的重跑去重；
@@ -586,6 +589,9 @@ mirror 与 `git diff --check` 通过；全仓 `format:check` 当时仅被本纵�
 - `supabase-cron-operations.test.ts` 不再只断言“存在一次 unschedule 和五次 schedule”，而是提取
   `WHERE jobname IN (...)` 的 exact 五项有序集合，并要求每个 job/path 同时出现在 allowlist/unschedule 与
   schedule 位置；该静态检查不冒充真实 Supabase 连续执行两次的幂等证据；
+- 五条 Cron route 的共享认证 seam 必须先设置 `private, no-store` 再做 exact Bearer/等长常量时间比较；
+  route focused 与 actual production bundle 均逐条证明缺失/错误 secret 为 401、零 worker 调用且 401 不可
+  缓存。该证据不冒充 Vault/API secret 值连续或真实 `pg_net` 故障恢复；
 - `production-analysis-acceptance.test.ts` 在本机完整 production composition 内核对 durable dispatch、
   request/ledger 的同一价格 UUID、settled reservation、64/0/32 token、实际 cost、单条 succeeded ledger
   和 record model metadata，不再只检查表行数。

@@ -21,18 +21,19 @@ describe("account data rights worker HTTP", () => {
       "/",
       createAccountDataRightsWorkerApp({ cronSecret: "s".repeat(32), worker: { runOne } }),
     );
-    expect((await outer.request("/internal/data-rights/run")).status).toBe(401);
-    expect(
-      (
-        await outer.request("/internal/data-rights/run", {
-          headers: { authorization: `Bearer ${"x".repeat(32)}` },
-        })
-      ).status,
-    ).toBe(401);
+    const missingBearer = await outer.request("/internal/data-rights/run");
+    expect(missingBearer.status).toBe(401);
+    expect(missingBearer.headers.get("cache-control")).toBe("private, no-store");
+    const wrongBearer = await outer.request("/internal/data-rights/run", {
+      headers: { authorization: `Bearer ${"x".repeat(32)}` },
+    });
+    expect(wrongBearer.status).toBe(401);
+    expect(wrongBearer.headers.get("cache-control")).toBe("private, no-store");
     const response = await outer.request("/internal/data-rights/run", {
       headers: { authorization: `Bearer ${"s".repeat(32)}` },
     });
     expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
     expect(await response.json()).toEqual({ deletion: "idle", export: "processed" });
     expect(runOne).toHaveBeenCalledOnce();
   });

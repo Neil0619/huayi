@@ -286,14 +286,14 @@ describe("password recovery HTTP", () => {
 
   it("runs one bounded dispatch only for the fixed CRON bearer", async () => {
     const { app, module } = setup();
-    expect((await app.request("/internal/password-recovery/run")).status).toBe(401);
-    expect(
-      (
-        await app.request("/internal/password-recovery/run", {
-          headers: { authorization: `Bearer ${"x".repeat(32)}` },
-        })
-      ).status,
-    ).toBe(401);
+    const missingBearer = await app.request("/internal/password-recovery/run");
+    expect(missingBearer.status).toBe(401);
+    expect(missingBearer.headers.get("cache-control")).toBe("private, no-store");
+    const wrongBearer = await app.request("/internal/password-recovery/run", {
+      headers: { authorization: `Bearer ${"x".repeat(32)}` },
+    });
+    expect(wrongBearer.status).toBe(401);
+    expect(wrongBearer.headers.get("cache-control")).toBe("private, no-store");
 
     const response = await app.request("/internal/password-recovery/run", {
       headers: { authorization: `Bearer ${"q".repeat(32)}` },

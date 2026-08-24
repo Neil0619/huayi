@@ -25,7 +25,14 @@ describe("duplicate suggestion maintenance HTTP adapter", () => {
       }),
     );
 
-    expect((await outer.request(duplicateSuggestionCleanupRoute)).status).toBe(401);
+    const missingBearer = await outer.request(duplicateSuggestionCleanupRoute);
+    expect(missingBearer.status).toBe(401);
+    expect(missingBearer.headers.get("cache-control")).toBe("private, no-store");
+    const wrongBearer = await outer.request(duplicateSuggestionCleanupRoute, {
+      headers: { authorization: `Bearer ${"x".repeat(32)}` },
+    });
+    expect(wrongBearer.status).toBe(401);
+    expect(wrongBearer.headers.get("cache-control")).toBe("private, no-store");
     const response = await outer.request(duplicateSuggestionCleanupRoute, {
       headers: { authorization: `Bearer ${"s".repeat(32)}` },
     });

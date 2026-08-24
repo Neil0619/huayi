@@ -116,6 +116,8 @@ Supabase Free 暂停或额度耗尽会使任务停止。正式发布前必须决
 离线自动化先取得 Fresh RED，再以最小实现转绿：
 
 - `production-app.test.ts` 证明五个内部 route 保留，同时 `vercel.json` 不再声明 `crons`；
+- 五条 route 共用一个常量时间 Bearer 认证 seam；production composition 与各 route 回归必须同时证明
+  缺失/错误 Bearer 为 401、零 worker 调用，并且 401 与成功响应都固定 `private, no-store`；
 - `supabase-cron-operations.test.ts` 静态审计扩展、Vault、配置失败关闭、私有权限、精确 allowlist、请求
   header、timeout、固定任务集合和重跑去重语义；
 - API full、strict typecheck/build、目标 lint/format、instructions/architecture 必须通过；SQL 没有

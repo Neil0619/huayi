@@ -1,5 +1,3 @@
-import { timingSafeEqual } from "node:crypto";
-
 import {
   accountDataRightsHttpRoutes,
   dataRightsWorkerResponseSchema,
@@ -7,14 +5,7 @@ import {
 import { Hono } from "hono";
 
 import type { AccountDataRightsWorker } from "./account-data-rights-worker.js";
-import { CloudFault } from "./cloud-fault.js";
-
-function matchesSecret(presented: string | undefined, expected: string): boolean {
-  if (presented === undefined || !presented.startsWith("Bearer ")) return false;
-  const left = Buffer.from(presented.slice("Bearer ".length));
-  const right = Buffer.from(expected);
-  return left.byteLength === right.byteLength && timingSafeEqual(left, right);
-}
+import { requireCronBearer } from "./cron-authentication.js";
 
 export function createAccountDataRightsWorkerApp(options: {
   cronSecret: string;
@@ -22,10 +13,7 @@ export function createAccountDataRightsWorkerApp(options: {
 }) {
   const app = new Hono();
   app.get(accountDataRightsHttpRoutes.runWorker, async (context) => {
-    if (!matchesSecret(context.req.header("authorization"), options.cronSecret)) {
-      throw new CloudFault("authentication_required", "Worker authentication is required.");
-    }
-    context.header("Cache-Control", "private, no-store");
+    requireCronBearer(context, options.cronSecret, "Worker authentication is required.");
     return context.json(dataRightsWorkerResponseSchema.parse(await options.worker.runOne()));
   });
   return app;
