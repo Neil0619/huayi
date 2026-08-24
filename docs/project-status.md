@@ -1847,3 +1847,16 @@ passed; first Operator empty`。候选已提交推送，0012 已实际 push；�
 - fresh `pnpm verify:macos` 原样 exit 0：Node scripts 348/348、Vitest 479 files / 2,928 passed + 12
   skipped、Store coverage 97 files / 481 passed、Playwright 111/111，全部静态门、build/release/audit 通过；
 - 本阶段没有真实 Provider、数据库、Vercel、Resend、邮件、部署、0014、capture 或 rebuild 副作用。
+
+## Cloud V1 Phase 90 账号数据权利生命周期加固状态（2026-08-25）
+
+- Phase 90 代码锚点 `9ab2c90` 通过 Fresh RED 复现并修复七项漂移：数据权利错误响应缺少 no-store、logout
+  只接受 full session、受限数据权利页没有退出入口、删除失败重试更换 Idempotency-Key、删除回执错误
+  沿用七天期限、导出对象到期时间从 snapshot 而非 ready 计算，以及 signed URL 未拒绝同源错误 bucket；
+- 修复保持既有深模块与公开状态机：全部数据权利失败响应先设置 `private, no-store`，data-rights session
+  可显式退出；丢响应重试复用同一删除 proof，accepted/logout/新密码会话转换后清除；回执固定 24 小时，
+  对象从 ready 起保留 24 小时，签名 URL 必须命中配置的 private bucket；
+- 根侧 focused 复核 69/69 全绿，独立 `pnpm verify:macos` 原样退出 0。影响平台为 shared + macOS；Windows
+  支持不变并留到最新冻结候选批次验证，macOS 证据不外推为 Windows 完成；
+- 本阶段未修改 migration、连接或写入 Supabase/Storage/Auth，未发送邮件、部署、调用 DeepSeek，也未
+  运行 0014/capture/rebuild。真实 private Storage、Auth 删除、目标浏览器和 Hosted 数据权利旅程仍待验收。

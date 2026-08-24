@@ -53,10 +53,11 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       `deploymentEnabled=false`。live `/`、
       `/privacy`、`/admin` 与实际 JS asset 已通过精确安全响应头、真实渲染、exact SHA 和 secret scan；
       同轮公共边界只读探针通过，未写 Auth、SMTP、Supabase 或 DeepSeek。用户随后已亲自提交 `/admin`
-      密码并通过 Operator 四区只读；邀请区四条历史行暴露“只有 ID/expiry、无状态”的 Web 缺口，尚未
-      创建或撤销普通邀请。新 bundle 已显示 `Hosted 验收 · bb21817`；独立复核在用户仍有效的 recent-auth
+      密码并通过 Operator 四区只读；邀请区四条历史行当时暴露“只有 ID/expiry、无状态”的 Web 缺口，
+      且该次只读检查没有创建或撤销普通邀请。新 bundle 已显示 `Hosted 验收 · bb21817`；独立复核在用户仍有效的 recent-auth
       会话中读取到一条“已领取”和三条“已撤销”，终态行均无撤销入口且 console error 为零。当前没有
-      “可领取”或“已过期”行；active 标签/二步撤销仍须在用户授权收件人并创建唯一普通邀请后验证。
+      “可领取”或“已过期”行；唯一普通邀请后来已经创建并提交密码注册，不得为补测 active 标签或二步
+      撤销再创建第二张邀请。
       Phase 80 幂等 bundle 已显示 `Hosted 验收 · 9b0860a` 并通过 recovery copy/secret scan；OTP、
       真实邮件、Cron 与 DeepSeek 应用路径 smoke 仍未完成。唯一普通邀请随后已提交密码注册并发现 Hosted
       OTP length=8；用户只授权保存为 6，独立回读 6/expiry 3600 且其他配置未改、未发新邮件。0014 同邀请
@@ -96,15 +97,18 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       少项或多项均失败；
 - [ ] 使用已核验的公开候选配置运行 `pnpm check:cloud-release` 并得到 ready；
 - [ ] audit 输入中的候选/API Extension ID 与目标 Chrome Dashboard ID 相同，最低版本不高于候选版本；
-- [x] 当前 macOS 工作树的 instructions、architecture、format、lint、typecheck、unit、API integration
-      全绿；最新 Phase 70 门为 235/235 Node scripts、474/474 Vitest files（2,866 passed / 12 skipped）、
-      Store 97 files 481/481 与 Playwright 110/110；
+- [x] Phase 70 当时 macOS 工作树的 instructions、architecture、format、lint、typecheck、unit、API
+      integration 全绿：235/235 Node scripts、474/474 Vitest files（2,866 passed / 12 skipped）、Store
+      97 files 481/481 与 Playwright 110/110；
 - [x] 当前 Web 与 Store Extension Playwright 111/111 全绿；测试使用隔离的 4173 Vite 服务，没有改写或
       重启当前 8443 验收环境；
-- [x] 当前 macOS `pnpm verify:macos` 原样退出 0：318/318 Node scripts、478 个 Vitest files（2,917
+- [x] Phase 81 当时 macOS `pnpm verify:macos` 原样退出 0：318/318 Node scripts、478 个 Vitest files（2,917
       passed / 12 skipped）、Store 97 files 481/481、Playwright 111/111；instructions、format、lint、typecheck、
       architecture、workspace build、development blocker、Store release、production audit 和 diff 同轮通过。
       当前候选仍是 `development-blocked`，该门禁通过只证明开发态阻塞集合精确，不代表 release ready；
+- [x] Phase 90 代码锚点 `9ab2c90` 的账号数据权利 focused 根侧复核 69/69 全绿，独立完整
+      `pnpm verify:macos` 原样退出 0；影响平台为 shared + macOS，Windows 最新冻结候选批次仍待验证，且
+      离线门不替代真实 Storage、Auth 删除、Hosted 浏览器或部署验收；
 - [ ] Windows Node.js 26+ 的 `pnpm verify:windows`、SEA health 与 CI 全绿；Phase 37-B 已在 Windows 11
       build 26220、Node.js 26.7.0 上本地退出 0，109/109 Playwright、SEA 仓库外 health 与 production
       audit 全绿；完整门证据提交 `3aa143c7f60ba52a941f2a2db587bc93819427eb` 已普通 push，但分支无
@@ -288,8 +292,8 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       无写入 smoke 通过；
 - [x] 已以 Fresh RED→GREEN 校准零网络 `acceptance:hosted:deployment --plan`：Latest/count 精确为
       Phase 78 的 API `4f1ce4a` / `6QeRbqxgA88cFXggKekkr2axH9JM` 与 API/Web 16/8，保留独立 disarm
-      `020e21e` 零新增和双关闭；依赖链不再重复已完成的 `/admin` recent-auth/四区复核，而从明确授权一个
-      收件人并创建唯一普通邀请开始；
+      `020e21e` 零新增和双关闭；当时依赖链不再重复已完成的 `/admin` recent-auth/四区复核，而从明确
+      授权一个收件人并创建唯一普通邀请开始；该唯一邀请现已创建并提交密码注册，后续只继续同一邀请；
 - [ ] 在获批的真实 Cloud DeepSeek 应用路径请求中用 Observability 区分 90 秒应用 abort 与平台终止；静态
       JSON、Function 资源页或无真实请求的 Observability 页面不能关闭本项。
 
@@ -353,13 +357,14 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       Ready deployment `DU6wE2r9ZLeSSoAMZAbsQihBjC72`，独立 disarm `d6d901c` 零额外非 Canceled。
       最终 Web/API 为 8/15 且均 `deploymentEnabled=false`；live `/practice` 已显示 exact arm short SHA、
       七项分组导航和新今日练习空态；
-- [ ] 用户已明确授权不同于 Operator、且账号精确搜索为零的未使用邮箱，并已创建恰好一张普通邀请、
+- [x] 用户已明确授权不同于 Operator、且账号精确搜索为零的未使用邮箱，并已创建恰好一张普通邀请、
       提交密码注册；不得创建第二张邀请或删除其 Auth identity。Phase 80 已离线修复创建双击和模糊响应
-      重复风险：pending 单飞、同一内存 Idempotency-Key 安全恢复、成功后才换键；已部署 bundle 的 active
-      行“可领取”标签与二步撤销入口仍须在不执行撤销的前提下验证。当前先完成 Phase 81 备份/重建、
-      0014、串行部署和同邀请六位 OTP 重发，再验证 scanner/repeated GET 无副作用、显式 OTP POST、Web
-      落点和密码重登；“已过期”live 标签保留到出现真实过期行时验证。真实邮件投递、Cron 和 DeepSeek
-      应用路径 smoke 仍保持 pending，完成管理门前不得运行 DeepSeek 应用路径 smoke。
+      重复风险：pending 单飞、同一内存 Idempotency-Key 安全恢复、成功后才换键；
+- [ ] 保留并继续使用上述同一普通邀请，先完成 Phase 81 备份/重建、0014、串行部署和六位 OTP 重发；
+      再验证 scanner/repeated GET 无副作用、显式 OTP POST、Web 落点和密码重登；已部署 bundle 的 active
+      行“可领取”标签与二步撤销只在同一邀请仍呈 active 时做只读验证，不执行撤销，也不以缺少该瞬时
+      状态阻塞同邀请 OTP 完成；“已过期”live 标签保留到出现真实过期行时验证。真实邮件投递、Cron 和 DeepSeek
+      应用路径 smoke 仍保持 pending。不得为本项创建第二张邀请。
 
 ## 完整 V1
 

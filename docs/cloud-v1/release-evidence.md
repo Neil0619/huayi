@@ -2378,3 +2378,17 @@ typecheck、architecture、build、development blocker、Store release、product
   scripts 348/348、Vitest 479 files / 2,928 passed + 12 skipped、Store coverage 97 files / 481 passed、
   Playwright 111/111，以及 instructions、format、lint、全部 workspace typecheck/build、architecture、
   development blocker、Store release 与 production audit 零已知漏洞。
+
+## 89. Phase 90 账号数据权利生命周期加固（2026-08-25）
+
+- **候选与范围**：Phase 90 代码锚点 `9ab2c90`（`fix(api): harden account data rights lifecycle`）影响
+  shared + macOS；Windows 支持保持，该代码锚点的 Windows 冻结批次验证仍 pending；
+- **Fresh RED**：复现七项真实缺口——数据权利错误响应缺 no-store、logout 只接受 full session、受限
+  页面没有退出入口、删除失败重试更换 Idempotency-Key、删除回执沿用七天、对象 expiry 从 snapshot
+  而非 ready 计算、signed URL 只校验 origin 而未拒绝同源错误 bucket；
+- **GREEN 与复核**：公开错误路径先写 `Cache-Control: private, no-store`，data-rights session 可退出，
+  Web 在丢响应后复用同一删除 proof 并按会话边界清除，删除回执固定 24 小时，对象期限从 ready 计算，
+  URL 绑定配置的 private bucket。根侧 focused 复核 69/69 全绿；独立完整 `pnpm verify:macos` 原样退出 0；
+- **外部门保持**：没有 migration、Supabase/Storage/Auth 外部写、邮件、Vercel deployment、DeepSeek、
+  0014、capture 或 rebuild。真实 private Storage、Auth 删除、Hosted 浏览器旅程和 Windows 候选门仍 pending；
+  现有 API/Web 远端 deployment/disarm 基线未由本次离线修复改变。
