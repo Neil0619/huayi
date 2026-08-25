@@ -108,7 +108,9 @@ SQL 绕过。
       capture、TTY password + `0600` `.pgpass`/CA、atomic evidence，以及 networkless tmpfs scratch 的精确
       14 migration + pinned fictional seed rebuild；后续校准让 Postgres-image readiness 与 lock-pinned
       GoTrue/Storage migration-only runner 分层，runner 只共享 networkless namespace 并使用虚构配置；本项未在
-      该修复后运行真实入口；
+      clean candidate 上运行最终真实入口；固定镜像诊断另确认 seed 顶层配额 `SELECT` 会在 SQL 成功时输出
+      随机 UUID，现已改为匿名块内 `PERFORM` 并更新 seed pin，本机临时 evidence fixture 已证明 seed 静默且
+      final contract 全真，仓库 evidence 仍为空；
 - [x] pre/post capture 已改为单命令内部从固定官方 URL 有界获取严格 PEM CA，CA 成功后才读取隐藏管理员
       密码；用户只运行既有 pnpm 命令，不准备 CA environment。默认测试使用 fake fetch，未连接 Supabase；
 - [x] 2026-08-25 真实 0014 dry-run raw child transcript 通过仓库严格 parser：non-mutating header、remote

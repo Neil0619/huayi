@@ -3,6 +3,17 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-25：fictional seed 必须在严格 psql 执行下保持 stdout 为空
+
+- isolated rebuild 的 SQL runner 同时验证 exit 0 与 stdout 精确为空；`seed.sql` 顶层调用返回 UUID 的
+  `SELECT ensure_current_default_quota(...)` 虽然事务成功，却会把生成的 quota identifier 写入 stdout，因而
+  正确地在 `fictional-seed` 阶段失败关闭；
+- seed 改为事务内匿名块的 `PERFORM`，业务写入、固定虚构身份与 Hosted-data-absence contract 不变，同时
+  更新 seed SHA-256 pin。回归必须同时证明源码不存在该顶层 `SELECT`，并以原固定镜像链路证明 seed exit 0、
+  stdout 为空、final contract 全真、scratch 已销毁；失败时仍保持零 evidence；
+- 本修复不改变 migration、Hosted Supabase、真实备份、邮件、部署、密钥或模型调用，也不放宽 SQL 输出
+  合同。
+
 ## 2026-08-25：isolated rebuild 的 Auth/Storage 基线由固定服务镜像迁移补齐
 
 - 最终 PID 1、`pg_isready` 与 Postgres 镜像自有 `auth.users`/`auth.schema_migrations`、`storage` schema、

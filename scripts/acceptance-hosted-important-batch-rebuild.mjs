@@ -48,7 +48,7 @@ const migrationFiles = Object.freeze([
   "20260823010000_password_signup_interruption_recovery.sql",
   "20260824010000_password_signup_otp_resend.sql",
 ]);
-const seedSha256 = "6defe22d5e21ef4d98f77e2192c1c4c0ad96ec73c964ab897e9a1a63b8003050";
+const seedSha256 = "c9281f541e21f7c59c90bec11f19a0a03ffdf05789ed547bdc9fbc855c2bd6ef";
 
 async function assertRegularBoundedFile(path, maximumBytes) {
   const stats = await lstat(path);

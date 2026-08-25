@@ -126,7 +126,11 @@ audit 仍只允许 `enabled`。这不代表 Store 产品或 Windows 支持被取
 > Storage tables。当前修复候选在最终 postmaster 后先回读 Postgres-image-owned schema，再严格运行
 > lock-pinned GoTrue→Storage migration-only runner；runner 只共享 networkless scratch namespace、经 loopback
 > 使用虚构配置，无 port/mount/pull/Hosted 连接，并新增固定 auth/storage baseline 失败阶段。CLI cache miss 会
-> pull，普通 start 仍禁止；修复后的真实 evidence rebuild 尚未运行。
+> pull，普通 start 仍禁止。该 clean 候选的下一次 exact rebuild 已越过上述基线并精确失败在
+> `fictional-seed`：seed 事务 exit 0，但顶层配额函数 `SELECT` 把随机 UUID 写入 stdout，违反 strict SQL
+> 静默合同。现已改为匿名块内 `PERFORM` 并更新 seed pin；相同固定镜像链路的临时 fixture 已证明 seed
+> stdout 为空、final contract 全真、scratch destroyed，临时 manifest 已删除且仓库 evidence 仍为空。
+> clean candidate 的正式 evidence rebuild 尚未运行。
 > 数据库 archive 最多覆盖经过 contract 验证的 Auth rows 与 Storage metadata，不包含 Storage object bytes；
 > objects 非零时必须另行 export。pre/post capture 尚未运行，isolated rebuild 尚未成功。Production Hosted
 > dump restore drill 的需求、隔离 target、恢复顺序、strict evidence lifecycle、TDD 与季度 cadence 已在

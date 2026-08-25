@@ -958,6 +958,9 @@ confirmed Auth user/password method/profile 为 `1/1/2`、google method/Web sess
   安全拒绝；五分钟上限必须由单调时钟 deadline 与 bounded probe 共同约束，不能只按尝试次数推算；执行边界只映射固定
   `auth-baseline`/`storage-baseline` 等 allowlisted stage，敏感 raw error、SQL 与进程输出不得进入 CLI。
   任意其它 PID、额外输出、缺文件或仅有早期 `pg_isready` 都不得提前执行 baseline；
+- fictional seed 回归必须拒绝顶层 `SELECT ensure_current_default_quota(...)`，要求匿名块内 `PERFORM`；固定
+  镜像链路必须证明 seed exit 0 且 stdout 精确为空，并继续通过 migration、runtime、Hosted-data-absence
+  final contract，不能只检查最终数据或静态 SQL；
 - raw logical dump 是敏感备份，不进入测试 fixture/stdout/log。默认测试只使用不含用户数据的内存 adapter；
   测试必须区分 PG17 full-database custom archive 与 Supabase CLI filtered SQL，且断言 Storage object bytes、
   global roles 和 Hosted platform config 不在 archive 覆盖声明内；

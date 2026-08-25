@@ -7,6 +7,7 @@ import test from "node:test";
 import {
   HostedImportantBatchRebuildStageError,
   hostedImportantBatchRebuildArgument,
+  loadHostedImportantBatchRebuildSources,
   rebuildHostedImportantBatchScratch,
 } from "./acceptance-hosted-important-batch-rebuild.mjs";
 import {
@@ -66,6 +67,16 @@ test("rebuild exposes one fixed confirmation-gated operation", () => {
   for (const serviceOwnedTable of ["auth.identities", "storage.objects", "storage.buckets"]) {
     assert.equal(hostedImportantBatchPostgresImageReadySql.includes(serviceOwnedTable), false);
   }
+});
+
+test("rebuild fictional seed suppresses the generated quota identifier", async () => {
+  const { seed } = await loadHostedImportantBatchRebuildSources(process.cwd());
+
+  assert.doesNotMatch(seed, /SELECT\s+public\.ensure_current_default_quota/u);
+  assert.match(
+    seed,
+    /DO \$\$\s*BEGIN\s*PERFORM public\.ensure_current_default_quota\([\s\S]+?\);\s*END;\s*\$\$;/u,
+  );
 });
 
 test("rebuild runs a networkless digest-only scratch, applies exact migrations and seed, then destroys it", async () => {

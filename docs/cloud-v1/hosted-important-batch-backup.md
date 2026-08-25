@@ -132,8 +132,10 @@ readiness 只接受最终 PID 1、`pg_isready`、`auth.users`/`auth.schema_migra
 admin role；随后依次用 platform lock 中 digest-only GoTrue/Storage 镜像运行 migration-only command。runner
 共享 scratch 的 networkless namespace，只经 loopback 访问 scratch，不开放端口、不挂载 volume/bind、不 pull，
 且只使用固定虚构本地配置。完整 Auth/Storage database baseline 通过后，它精确读取 14 条仓库 migration 与
-SHA-256 固定的虚构 seed，逐条应用并记录
-migration ledger，执行 bounded baseline/migration/seed/runtime/absence contract，确认 Auth user/identity、
+SHA-256 固定的虚构 seed，逐条应用并记录 migration ledger。seed 中会返回 quota identifier 的函数调用必须
+使用匿名块内 `PERFORM`，不得以顶层 `SELECT` 把随机结果写入 stdout；每段 SQL 都必须同时满足 exit 0 与
+stdout 精确为空，不能因为最终数据正确而忽略过程输出漂移。随后执行 bounded
+baseline/migration/seed/runtime/absence contract，确认 Auth user/identity、
 Storage object、邀请/claim 与除唯一虚构 profile 外的数据均为空，并在删除 scratch、回查 container 不存在后
 才原子写 manifest。start race 也必须先校验完整 scratch identity；未知同名容器不得删除。证据不保存表计数、账号、邮箱、
 ID、正文或 dump 内容。完整 lock 的 14 个 service gate 精确分类为：Postgres、Logflare、Vector、Kong、

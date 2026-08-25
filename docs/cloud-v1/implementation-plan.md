@@ -1880,7 +1880,8 @@ inspection；Phase 86 只实现受审查 writer 与隔离 rebuild，不连接 Su
    `20260824010000`；dirty/stale/partial/extra/mismatch 全部 fixed failure；
 5. **rebuild contract**：隔离 scratch 只从 repository migrations + fictional seed 重建，不导入 Hosted data；
    固定独立 project identity/ports、pinned image digest、migration/seed/runtime exact、Hosted data absent、
-   scratch destroyed 全部满足后才允许 body-free manifest；
+   scratch destroyed 全部满足后才允许 body-free manifest；所有 SQL 段必须 exit 0 且 stdout 精确为空，seed
+   调用返回 UUID 的配额函数时必须使用匿名块内 `PERFORM`，不得用顶层 `SELECT` 产生随机过程输出；
 6. **覆盖边界**：full database archive 只有在内部 coverage contract 通过时才可声明包含 Auth database rows
    与 Storage metadata；它不包含 Storage object bytes、global roles 或 Hosted provider/SMTP/DNS/Edge/
    environment config。Storage object 非零时必须另行 export，本批次继续阻塞；

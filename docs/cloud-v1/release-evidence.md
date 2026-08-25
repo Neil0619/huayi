@@ -2497,3 +2497,25 @@ typecheck、architecture、build、development blocker、Store release、product
 - **当前边界**：本节只完成离线实现、fake-process 回归与已批准的本机 networkless diagnosis；修复后的 exact
   rebuild、pre capture/preflight、0014 apply、post capture/completion、邮件、部署与模型均未运行。成功生成
   rebuild manifest 前，0014 仍不 ready。
+
+## 95. Phase 81 fictional seed 静默执行校准（2026-08-25）
+
+- **精确复现**：clean `13dee16` 的 exact networkless rebuild 通过 readiness、Postgres/Auth/Storage baseline、
+  migration ledger 与 14 条 migration，随后固定失败在 allowlisted `fictional-seed`。同一固定镜像链路的
+  有界分类只输出四个 predicate：seed 已执行、exit 0、stdout 非空、failure stage 为 fictional-seed；因此排除
+  role/schema prerequisite、权限/search_path、镜像 architecture 与初始化时序；
+- **根因与 Fresh RED**：`supabase/seed.sql` 顶层 `SELECT public.ensure_current_default_quota(...)` 返回随机
+  quota UUID。事务和写入均成功，但 strict runner 同时要求 stdout 精确为空。源码回归先在旧 seed 上因存在
+  顶层 `SELECT` 变红；
+- **最小 GREEN**：只把该调用改为事务内匿名块的 `PERFORM`，固定虚构 profile/admin/quota 语义不变，并把
+  rebuild 的 seed SHA-256 pin 更新为新内容。focused rebuild 9/9 与全部 important-batch scripts 61/61 通过；
+- **根完整门**：`pnpm verify:macos` 通过 instructions、Prettier、ESLint、typecheck、Node scripts、Vitest
+  480 files / 2,935 passed + 12 skipped、Store coverage 97 files / 481 tests、build、Playwright 111/111、Store
+  release 与 production audit（零已知漏洞）；
+- **真实本机 fixture**：同 digest-only Postgres→GoTrue→Storage、`--pull never`、networkless namespace、零
+  port/bind/volume 的完整链路再次运行，seed exit 0 且 stdout 为空，final migration/seed/runtime/absence
+  contract 全真，scratch destroyed。manifest 仅写入系统临时目录并在同一进程删除；三个固定容器均回查
+  absent，仓库 rebuild evidence 文件仍为 0；
+- **当前边界**：该 fixture 证明修复本身，但不替代 clean candidate 的正式 rebuild evidence。没有连接或修改
+  Hosted Supabase、读取密码、运行 capture/preflight/0014、发送邮件、部署或调用模型；提交 clean candidate 与
+  正式 rebuild 仍待继续。
