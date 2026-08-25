@@ -2539,3 +2539,20 @@ typecheck、architecture、build、development blocker、Store release、product
 - **状态边界**：tracked release evidence 只保留上述历史回执；后续操作状态必须重新运行 `backup:status`，且
   preflight 前要求 `pre_current|t` 与 `rebuild_current|t` 同时成立。旧 manifest 不得覆盖、手改或冒充 current
   candidate evidence。未运行 Hosted write、0014、邮件、部署或 DeepSeek。
+
+## 97. Phase 81 stale rebuild evidence 安全退役生命周期（2026-08-25）
+
+- **发现的设计缺口**：候选推进会让 active rebuild manifest 保持 strict present+valid 但 current=false；writer
+  又正确拒绝非空 leaf。既有合同只禁止覆盖、手改和冒充 current，没有既保留历史证据又释放 active leaf 的
+  受控动作，操作者只能停住或违反证据合同；
+- **Fresh RED → GREEN**：先新增 retirement 行为测试，首次因目标 module 不存在以
+  `ERR_MODULE_NOT_FOUND` 变红；最小实现新增唯一 fixed-confirmation package entrypoint，要求 clean
+  HEAD=upstream、active/history 双 ignore、active batch/leaf exact、strict canonical stale manifest 与
+  `0700/0600`，并拒绝 current/invalid/extra/occupied evidence；
+- **安全移动与失败关闭**：按 stale manifest 的 40-char candidate commit 建立不可覆盖的 clone-local
+  `0700` history namespace，把整个 active rebuild leaf 原子 rename，fsync 两侧目录并保持 manifest `0600`。
+  成功回归通过既有 status 证明 active rebuild absent；rename/fsync fault injection 证明至少保留 active/history
+  中一份 evidence。所有 CLI 失败仅为 bounded fixed output，不反射 manifest body、路径、secret 或 raw error；
+- **执行边界**：测试只使用系统临时目录、虚构 canonical manifest 与注入故障；没有运行真实 retirement/
+  rebuild/capture/0014，没有连接或修改 Hosted、发送邮件、部署或调用模型。retained evidence 删除仍无入口，
+  必须另行设计、批准和留证。

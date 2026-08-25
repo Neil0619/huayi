@@ -89,6 +89,20 @@
   stdout/stderr 或错误；本机 state 固定 `0700/0600`、canonical/atomic 且留在 clone-local ignored artifacts。
   离线 fake fetch/process 只证明控制面合同，不声明真实 Vercel 已执行。
 
+## 2026-08-25：过期 rebuild evidence 必须保留后退役，不能删除或覆盖
+
+- candidate 推进后，active leaf 中 strict valid 但 non-current 的 rebuild manifest 会安全阻止新 writer；原合同
+  只规定“永不覆盖、不得手改”，却没有把旧证据移出 active batch 的受控生命周期，形成可执行性缺口；
+- 新增唯一 fixed-confirmation `acceptance:hosted:backup:rebuild:retire`。它要求 tracked worktree clean、
+  HEAD=upstream、active/history 两个窄 evidence root 均 ignored，并重新严格验证 active batch/leaf exact entries、
+  `0700/0600` 与 canonical manifest；只有 manifest commit 是 40-char 且不等于当前 HEAD 才可继续；
+- stale candidate 目录必须 absent，工具先用原子 mkdir 占用不可覆盖的固定历史命名空间，再把整个 rebuild leaf
+  原子 rename 到 clone-local protected history，并 fsync 两侧目录。成功后 active status 为 absent，retained
+  evidence 仍保持 `0700/0600`；current/invalid/extra/occupied/dirty/upstream/ignore/rename/fsync 任一漂移均固定
+  body-free fail closed，并尽可能保全 active 或 history 中唯一副本。该入口不提供 delete/manual overwrite；
+- Fresh RED 先以 module-not-found 捕获缺口；最小 GREEN 仅使用临时虚构 manifest/fault injection，未运行真实
+  retirement、rebuild、capture、migration、Hosted、邮件、部署或模型。
+
 ## 2026-08-25：重要批次 plan 与 current evidence 状态分离
 
 - `acceptance:hosted:backup:plan` 只描述固定安全合同，不读取 evidence，也不静态声明 capture/rebuild 已成功或

@@ -1,4 +1,5 @@
 .agents/skills/**
 supabase/.temp/**
 artifacts/hosted-important-batch-backups/**
+artifacts/hosted-important-batch-backup-history/**
 artifacts/hosted-vercel-one-shot/**

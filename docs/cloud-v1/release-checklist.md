@@ -201,6 +201,10 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       早期 rebuild 安全失败均未形成 evidence；clean `c61fa0b` 后来正式完成 networkless rebuild、销毁 scratch
       并生成 manifest，作为历史成功检查点。当前 ignored evidence 状态只由 `backup:status` 判定；普通
       `supabase start` 仍禁止；
+- [x] Phase 81 已补 stale rebuild evidence retirement lifecycle：只有 clean HEAD=upstream、active/history
+      双 ignore、strict valid 但 non-current 的唯一 final manifest 才能以 fixed confirmation 原子移入按旧
+      candidate commit 分层的 `0700/0600` clone-local history；current/invalid/extra/occupied/dirty/mismatch 与
+      rename/fsync failure 全部固定失败关闭且不覆盖、不删除证据。此项只实现安全生命周期，未运行真实退役；
 - [ ] 实际 pre capture 必须先证明 `storage.objects` 为零，否则另行完成 Storage object export；readiness 与
       单独批准未满足前不得运行真实入口或把 0014 描述为 ready；
 - [ ] 0014 apply 前由单独批准的真实阶段生成 pre raw logical dump，并为最终 clean candidate 从 migration +

@@ -925,7 +925,12 @@ confirmed Auth user/password method/profile 为 `1/1/2`、google method/Web sess
 - `backup:plan` 不得静态声明 capture/rebuild 当前成功或失败；`backup:status` 必须容忍任意 partial subset，
   对 present evidence 仍执行完整 strict validation，并按 pre/rebuild/post 固定顺序只输出 present/valid/current
   九个布尔 verdict。不得输出 path、timestamp、commit/hash、identity、dump metadata、raw error 或 secret；
-  Prettier ignore 只能窄排除 `artifacts/hosted-important-batch-backups/**`，回归必须拒绝 `artifacts/**`；
+  Prettier ignore 只能窄排除 active `artifacts/hosted-important-batch-backups/**` 与 retained
+  `artifacts/hosted-important-batch-backup-history/**`，回归必须拒绝 `artifacts/**`；
+- stale rebuild retirement 必须要求 clean HEAD=upstream、active/history 双 ignore、active rebuild strict
+  present+valid 且 current=false、exact final manifest 与 `0700/0600`；按 stale 40-char candidate 固定历史
+  目录原子保留整个 leaf，拒绝 current/invalid/extra/destination occupied，并证明 rename/fsync 失败时至少保留
+  一份证据、成功后 active status 为 absent、retained mode 不变且 CLI 只有 bounded fixed output；
 - executor pre/rebuild/post readiness 只允许三个 exact argument；检查 clean HEAD/ignored 后只读取 allowlisted
   本地 runtime verdict。唯一 PG17 client 必须是 repository-pinned OCI index。local Docker resolver 必须拒绝
   任何 `DOCKER_HOST`/`DOCKER_CONTEXT`（包括空值），不得读取任意 env socket 或 `HOME`；macOS 从 OS 当前

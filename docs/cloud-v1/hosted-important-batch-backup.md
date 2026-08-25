@@ -13,6 +13,8 @@ writer 与证据验证模块：
 - `pnpm acceptance:hosted:backup:plan` 只渲染固定计划，零文件、Git、网络和写入；
 - `pnpm acceptance:hosted:backup:status` 只读 partial batch，并按 pre/rebuild/post 固定输出
   present/valid/current 九个布尔 verdict；不输出路径、时间、commit/hash、identity、dump 元数据、错误或秘密；
+- `pnpm acceptance:hosted:backup:rebuild:retire` 只在 clean HEAD=upstream、active/history 两个 evidence root
+  均 ignored，且 active rebuild strict present+valid 但 stale 时，把完整 rebuild leaf 原子保留到固定历史层级；
 - `pnpm acceptance:hosted:backup:preflight` 只读取本机固定证据目录，验证 0014 前备份和候选空库重建；
 - `pnpm acceptance:hosted:backup:complete` 再要求 0014 后备份，关闭整个重要批次；
 - `pnpm acceptance:hosted:backup:executor:plan` 零 I/O 地列出 pre capture、isolated rebuild、post capture
@@ -66,6 +68,27 @@ artifacts/hosted-important-batch-backups/phase-81-0014/
 `hosted-important-batch-backups`、批次和三个子目录必须精确为 `0700`；dump 与 manifest 必须精确为
 `0600`、是普通文件且不是 symlink。验证器同时要求当前候选工作树干净、Git 对批次目录返回 ignored；
 另一个 clone 未配置本地 ignore 时失败关闭，不允许为了通过而把 dump 放进跟踪目录。
+
+候选推进后，strict valid 但 `current=false` 的 rebuild manifest 会阻止 writer 生成当前候选证据。它不能被
+删除、覆盖、手改或复制回 active batch。唯一受控出口是 fixed confirmation 的 `backup:rebuild:retire`：先
+要求 clean HEAD 精确等于 upstream、active/history root 均由本 clone ignore、active batch/leaf 仍是
+`0700/0600` 且 leaf 只有最终 `rebuild-verification.json`，再从 strict manifest 内部读取旧 40 字符 candidate
+commit。工具要求固定历史候选目录尚不存在，以原子 `mkdir` 占位后把整个 active `rebuild` leaf 原子 rename
+至下列 clone-local protected hierarchy，绝不覆盖：
+
+```text
+artifacts/hosted-important-batch-backup-history/
+└── phase-81-0014/
+    └── <stale-candidate-commit>/
+        └── rebuild/
+            └── rebuild-verification.json
+```
+
+history root、batch、candidate 与 retained rebuild 目录保持 `0700`，manifest 保持 `0600`；创建与 rename
+两侧目录均 `fsync`。成功后 active batch 的 status 必须报告 rebuild absent，历史证据仍受保护。invalid/current/
+extra entry/destination occupied/dirty/upstream mismatch/ignore mismatch/rename 或 fsync 失败均只输出固定
+body-free failure；失败时尽可能保留 active 或 history 中至少一份完整 evidence，不执行 delete 或手工覆盖。
+retained history 删除不属于该入口，仍需独立生命周期、批准与证据。
 
 每个目录只允许上述固定文件。`.partial`、CA、`.pgpass`、临时 restore、stdout capture 或未知文件都会令门
 失败；写入口必须在连接或启动 scratch 前确认目标 leaf 精确为空。capture/rebuild 在每个正常异常路径都只
@@ -163,7 +186,9 @@ start 证明 offline。writer 不调用普通 `supabase start`；任何 scratch 
    inspector rejection 仅映射为固定 runtime-inspection。全部满足时只回报 readiness passed，仍不执行写操作；
 3. 独立代码审查/明确授权后，分别运行 `pnpm acceptance:hosted:backup:capture:pre`（在 TTY 输入管理员密码）
    与 `backup:rebuild`。两者是互不依赖的 preflight prerequisite，可按任一顺序完成；只有两份证据都绑定同一
-   clean current candidate 后才进入 preflight。pre capture 不再要求准备 CA environment 或拼接 shell；
+   clean current candidate 后才进入 preflight。若 active rebuild strict valid 但 stale，先运行唯一固定
+   `backup:rebuild:retire` 保留旧 leaf，再为 clean current candidate 重跑 readiness/rebuild；pre capture
+   不再要求准备 CA environment 或拼接 shell；
 4. `acceptance:hosted:backup:preflight` 必须通过；
 5. 真实 dry-run 通过且用户独立批准实际写入后，只运行
    `acceptance:hosted:migration:0014:apply`；该入口在同一执行内重新 dry-run 唯一 0014、mutation 前再次
@@ -200,6 +225,9 @@ start 证明 offline。writer 不调用普通 `supabase start`；任何 scratch 
   tripwire 绑定，合法格式但错误的 digest 也必须失败；
 - status 必须容忍 pre/rebuild/post 的任意 partial subset；存在的证据仍完整执行权限、canonical body、内容与
   candidate 校验，只输出九个固定布尔值。plan 不读取状态，也不得静态宣称 capture/rebuild 成功或失败；
+- retirement 必须用 Fresh RED 覆盖 fixed argument、clean HEAD=upstream、双 ignore、strict stale manifest、
+  `0700/0600`、exact active leaf、occupied destination、atomic whole-leaf rename、目录 fsync、成功后 active
+  status absent，以及 rename/fsync failure 的唯一证据保全；CLI 不得反射 manifest body、路径或 raw error；
 - preflight/complete 校验固定 project、batch、clean HEAD、ignore、目录/file mode、exact keys、size/hash 和
   pre/post migration head；
 - rebuild manifest 必须是 migrations+fictional-seed、Hosted data absent 且 scratch destroyed；
@@ -216,7 +244,7 @@ start 证明 offline。writer 不调用普通 `supabase start`；任何 scratch 
   mirror byte-identical 且匹配固定 SHA-256，dry-run 只列唯一 0014，apply argv 固定，postflight 以只读事务
   验证完整 chain 与 0014 identity/ACL。apply 非零或 postflight 失败只能输出固定“不要重试”结果。
 
-真实 dump、current-candidate scratch rebuild、Supabase 连接和 retained-backup 删除仍分别需要批准、运行证据
+真实 dump、current-candidate scratch rebuild、Supabase 连接和 retained rebuild/backup 删除仍分别需要批准、运行证据
 与清理证据；历史 rebuild 不能替代 `backup:status` 的 current verdict。本文件不关闭 Storage object export、Supabase 备份残留期限或
 正式 production 恢复演练。后者的独立 target、restore order、evidence lifecycle、季度 cadence 与删除门见
 `hosted-logical-backup-restore-drill.md`；它不是 Phase 81/0014 的新增前置条件，只能在当前验收批次关闭并

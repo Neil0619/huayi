@@ -120,6 +120,10 @@ SQL 绕过。
       不得运行普通 start，也不得用 filtered SQL 冒充 custom；
 - [x] clean `c61fa0b` 已完成正式 networkless isolated rebuild、严格 final contract、scratch 销毁和 manifest；
       该项仅记录历史成功检查点，不断言 ignored evidence 当前状态；
+- [x] 候选推进后发现 strict valid stale rebuild 会占用 active leaf，而既有 contract 只禁止覆盖/删除、没有安全
+      退役动作；现新增 fixed-confirmation retirement，在 clean HEAD=upstream、双 ignore、exact `0700/0600`
+      stale manifest 下把整个 leaf 原子移入按旧 candidate commit 固定的 protected history。离线 RED→GREEN
+      覆盖 current/invalid/extra/occupied/rename/fsync failure，未执行真实 evidence 移动；
 - [ ] 单独批准并确保 0014 前 raw logical dump 与最终 clean candidate 的隔离 scratch 重建 evidence 均 current；
       两项独立且可按任一顺序完成，`backup:status` 须同时返回 `pre_current|t` 与 `rebuild_current|t`，随后
       `pnpm acceptance:hosted:backup:preflight` 通过；该门关闭前 0014 不得描述为 ready；
