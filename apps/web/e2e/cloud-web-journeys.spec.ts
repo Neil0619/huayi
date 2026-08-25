@@ -679,6 +679,7 @@ test("a cancelled Shanbay job stays cancelled after its current lease reports la
   await page.goto(`${webOrigin}/words/wordbooks`);
   await page.getByRole("radio", { name: /导出到扇贝/u }).check();
   await page.getByRole("button", { name: "创建任务" }).click();
+  await expect(page.getByRole("heading", { name: "扇贝 · 导出" })).toBeVisible();
   await page.goto(`${storeFixture}?shanbay-cloud`);
   await page.getByTestId("cloud-claim-shanbay").click();
   await expect(page.getByTestId("cloud-status")).toHaveText("shanbay-ready:investigation");

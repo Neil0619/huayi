@@ -212,6 +212,7 @@ test("backup persistence uses the injected directory durability boundary", async
   let syncCount = 0;
 
   await persistHostedImportantBatchBackup({
+    ...portableFilesystemOptions,
     candidateCommit,
     directorySync: async () => {
       syncCount += 1;
