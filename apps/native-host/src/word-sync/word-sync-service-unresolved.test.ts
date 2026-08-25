@@ -2,27 +2,53 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { EudicVocabEntry } from "../wordbook/eudic-client.js";
 import { WordSyncService, type EudicWordSyncClient } from "./word-sync-service.js";
-import { WordSyncStateStore } from "./word-sync-state.js";
+import {
+  createInitialWordSyncState,
+  wordSyncStateSchema,
+  WordSyncStateStore,
+  type WordSyncState,
+} from "./word-sync-state.js";
 
 const temporaryDirectories: string[] = [];
 
 async function createService(
   client: EudicWordSyncClient,
   now: () => Date = () => new Date(2026, 6, 22, 9, 0, 0, 0),
+  stateStore?: WordSyncStateStore,
 ) {
-  const directory = await mkdtemp(join(tmpdir(), "huayi-word-sync-service-"));
-  temporaryDirectories.push(directory);
+  let ownedStateStore = stateStore;
+  if (ownedStateStore === undefined) {
+    const directory = await mkdtemp(join(tmpdir(), "huayi-word-sync-service-"));
+    temporaryDirectories.push(directory);
+    ownedStateStore = new WordSyncStateStore({ path: join(directory, "word-sync-state.json") });
+  }
   return new WordSyncService({
     authorizationReader: { read: async () => "NIS fake" },
     client,
     createBatchId: () => "batch-1",
     now,
-    stateStore: new WordSyncStateStore({ path: join(directory, "word-sync-state.json") }),
+    stateStore: ownedStateStore,
   });
+}
+
+class InMemoryWordSyncStateStore extends WordSyncStateStore {
+  private state = createInitialWordSyncState();
+
+  constructor() {
+    super({ path: "unused-in-memory-word-sync-state.json" });
+  }
+
+  override async load(): Promise<WordSyncState> {
+    return structuredClone(this.state);
+  }
+
+  override async save(state: WordSyncState): Promise<void> {
+    this.state = structuredClone(wordSyncStateSchema.parse(state));
+  }
 }
 
 function entries(count: number, offset = 0): EudicVocabEntry[] {
@@ -184,9 +210,14 @@ describe("WordSyncService unresolved words", () => {
   });
 
   it("fails closed at the official 51-page history boundary", async () => {
-    const service = await createService({
-      listFavoritedWords: async (_authorization, page) => entries(100, page * 100),
-    });
+    const listFavoritedWords = vi.fn(async (_authorization: string, page: number) =>
+      entries(100, page * 100),
+    );
+    const service = await createService(
+      { listFavoritedWords },
+      undefined,
+      new InMemoryWordSyncStateStore(),
+    );
     for (let chunk = 0; chunk < 16; chunk += 1) {
       await service.poll(new AbortController().signal);
     }
@@ -199,5 +230,7 @@ describe("WordSyncService unresolved words", () => {
       pendingCount: 5_100,
       scanInProgress: false,
     });
-  }, 10_000);
+    expect(listFavoritedWords).toHaveBeenCalledTimes(51);
+    expect(listFavoritedWords.mock.calls.at(-1)?.[1]).toBe(50);
+  });
 });
