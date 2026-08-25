@@ -1913,7 +1913,12 @@ inspection；Phase 86 只实现受审查 writer 与隔离 rebuild，不连接 Su
    `--lines=1`，导致 probe 永远 exit 1。Fresh RED 固定真实 argv，最小修复改用 portable `head -n 1`；修复后
    exact rebuild 仍只返回 generic failure。后续诊断候选增加固定内部 stage 状态机，CLI 只能报告
    source-validation 到 evidence-persistence 的 allowlisted stage，raw Error/child output/路径/secret 仍全部
-   丢弃；纯 SQL 契约拆分后主 writer 保持 400 行以下。该候选尚未运行会生成 evidence 的真实 rebuild；
+   丢弃；纯 SQL 契约拆分后主 writer 保持 400 行以下。clean 候选真实重试随后精确到 `baseline`：固定
+   Postgres image 只拥有 `auth.users` 与角色等初始化，不会代替 GoTrue/Storage service migrations。修复候选
+   因而在最终 PID 1/`pg_isready` 后先回读 Postgres-image-owned schema，再以 lock-pinned GoTrue→Storage
+   migration-only runner 共享 `--network none` scratch namespace，经 loopback 补齐服务 schema；runner 不开放
+   端口、挂载 volume/bind、pull 或连接 Hosted，失败分别映射固定 auth/storage baseline stage 并清理。
+   该修复候选尚未运行会生成 evidence 的真实 rebuild；
 10. **动作账本**：executor prerequisite/readiness → pre capture/rebuild → `backup:preflight` → real dry-run →
     `migration:0014:apply`（内部再次 exact dry-run、mutation 前重查 preflight/source identity、写后只读
     postflight）→ post capture → `backup:complete` → API/Web 串行 deployment。禁止手工 `db push --yes`；

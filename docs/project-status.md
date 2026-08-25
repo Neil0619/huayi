@@ -121,7 +121,12 @@ audit 仍只允许 `enabled`。这不代表 Store 产品或 Windows 支持被取
 > 两次都是零 scratch、零 evidence。后续 clean `699d16e` 已让 scratch 启动，但再次暴露镜像初始化竞态：
 > 临时 postmaster 会提前通过 `pg_isready`，最终 PID 1 postmaster 约 170 秒后才完成。Fresh RED 后已改为
 > `postmaster.pid` 精确 `1\n` + `pg_isready` 双判据及五分钟硬上限；真实 evidence rebuild 尚未在该修复的
-> clean candidate 上重试。CLI cache miss 会 pull，普通 start 仍禁止。
+> clean candidate 上重试。随后 clean 候选真实重试已精确失败在 `baseline`，证明 fixed Postgres image
+> initialization 只提供 `auth.users`/角色等 Postgres-owned 基线，不会代替 GoTrue 的 `auth.identities` 与
+> Storage tables。当前修复候选在最终 postmaster 后先回读 Postgres-image-owned schema，再严格运行
+> lock-pinned GoTrue→Storage migration-only runner；runner 只共享 networkless scratch namespace、经 loopback
+> 使用虚构配置，无 port/mount/pull/Hosted 连接，并新增固定 auth/storage baseline 失败阶段。CLI cache miss 会
+> pull，普通 start 仍禁止；修复后的真实 evidence rebuild 尚未运行。
 > 数据库 archive 最多覆盖经过 contract 验证的 Auth rows 与 Storage metadata，不包含 Storage object bytes；
 > objects 非零时必须另行 export。pre/post capture 尚未运行，isolated rebuild 尚未成功。Production Hosted
 > dump restore drill 的需求、隔离 target、恢复顺序、strict evidence lifecycle、TDD 与季度 cadence 已在
@@ -164,7 +169,8 @@ audit 仍只允许 `enabled`。这不代表 Store 产品或 Windows 支持被取
 > rebuild 连续在修复 readiness probe 后仍只返回 generic failure，因此 isolated rebuild 执行阶段也增加内部
 > 固定 allowlist：从 source-validation 到 evidence-persistence 只能报告一个稳定 stage，捕获的 Error、child
 > stdout/stderr、路径、digest、secret 与 environment 仍全部丢弃；capture 继续保持单一 generic 边界。该诊断
-> 尚未证明真实 rebuild 成功，也没有关闭 pre/post capture、0014 或 Hosted 部署门。
+> 随后已把服务基线失败细分为固定 `auth-baseline`/`storage-baseline`，仍未证明真实 rebuild 成功，也没有关闭
+> pre/post capture、0014 或 Hosted 部署门。
 > R3-C 离线复审还发现既有 sender 测试只从源码间接声称 20 秒上限，没有证明 timeout factory 参数与
 > RequestInit signal identity。sender 现通过一个默认委托原生 `AbortSignal.timeout` 的窄内部 seam 组合；
 > fake factory 回归精确锁定单次 `20_000` 与同一 signal 传入固定 fetch，且零真实等待/网络。该修复没有

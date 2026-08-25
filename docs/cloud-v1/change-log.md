@@ -3,6 +3,19 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-25：isolated rebuild 的 Auth/Storage 基线由固定服务镜像迁移补齐
+
+- 最终 PID 1、`pg_isready` 与 Postgres 镜像自有 `auth.users`/`auth.schema_migrations`、`storage` schema、
+  Auth/Storage admin role 只证明 Postgres image initialization 完成；它们不证明 GoTrue 的
+  `auth.identities` 或 Storage 的 `storage.objects`/`storage.buckets` 已建立；
+- rebuild 必须在上述 Postgres-image readiness 后，依次从 repository platform lock 的 digest-only GoTrue 与
+  Storage 镜像运行各自 migration-only command。runner 只共享 `--network none` scratch 的 network namespace，
+  因而仅通过 loopback 连接 scratch；不得增加 port、bind、volume、pull、Hosted 连接或真实 credential；
+- runner identity、image、command、Entrypoint、固定 environment、label、network mode、零 mount 与清理均须
+  精确校验；scratch readiness 同时受尝试次数和真实五分钟单调时钟 deadline 限制。任一失败只报告固定
+  `auth-baseline` 或 `storage-baseline`，销毁 scratch 且保持零 evidence。两项均完成后才执行完整
+  Auth/Storage baseline contract 和仓库 14 条 migration；该调整不授权 capture、0014 apply、邮件或部署。
+
 ## 2026-08-25：0014 真实 dry-run 失败使用固定只读诊断，不再猜密码或回显 CLI
 
 - standalone dry-run 的固定失败不能区分 CA、隐藏输入、数据库连接、Supabase CLI 与严格 transcript；不得
@@ -19,8 +32,9 @@
 - readiness 已能区分本地前置条件，但 confirmation-gated rebuild 仍把 source、scratch、SQL、cleanup 与
   evidence 写入的所有失败压成同一 generic 输出，无法安全定位连续真实失败；rebuild 执行层因此必须维护
   一个内部固定阶段状态机；
-- 对外只允许 source-validation、docker-target、scratch identity/start/runtime/readiness、baseline、migration
-  ledger/application、fictional seed、final contract、scratch destroy、evidence persistence。stage 由代码路径
+- 对外只允许 source-validation、docker-target、scratch identity/start/runtime/readiness、auth/storage
+  baseline、完整 baseline、migration ledger/application、fictional seed、final contract、scratch destroy、
+  evidence persistence。stage 由代码路径
   选择，不能来自 Error message、child stdout/stderr、SQL、路径、digest、secret 或 environment；
 - capture 与 confirmation-gated 操作的前置 readiness failure 继续保持单一 generic 输出。阶段诊断不扩大
   Hosted 权限、不连接网络、不改变 scratch 的 `--network none`/零 mount/零 port 边界，也不授权 0014 apply。

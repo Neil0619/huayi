@@ -5,6 +5,8 @@ export const hostedImportantBatchRebuildFailureStages = Object.freeze([
   "scratch-start",
   "scratch-runtime",
   "scratch-readiness",
+  "auth-baseline",
+  "storage-baseline",
   "baseline",
   "migration-ledger",
   "migration-application",

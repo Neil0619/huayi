@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { lstat, readFile, readdir } from "node:fs/promises";
 import { join } from "node:path";
+import { performance } from "node:perf_hooks";
 
 import { resolveLocalDockerInspectionTarget } from "./acceptance-local-docker-inspection.mjs";
 import { persistHostedImportantBatchRebuild } from "./acceptance-hosted-important-batch-artifacts.mjs";
@@ -10,11 +11,13 @@ import {
   normalizeHostedImportantBatchRebuildStageError,
 } from "./acceptance-hosted-important-batch-rebuild-diagnostic.mjs";
 import {
+  hostedImportantBatchPostgresImageReadySql,
   hostedImportantBatchRebuildBaselineSql,
   hostedImportantBatchRebuildMigrationLedgerSql,
   renderHostedImportantBatchRecordedMigration,
   renderHostedImportantBatchRebuildFinalContractSql,
 } from "./acceptance-hosted-important-batch-rebuild-sql.mjs";
+import { migrateHostedImportantBatchPlatformBaseline } from "./acceptance-hosted-important-batch-platform-baseline.mjs";
 import {
   assertFixedLocalDockerTarget,
   hostedImportantBatchMigrationVersions,
@@ -178,8 +181,10 @@ function scratchRuntimeIsExact(source) {
   }
 }
 
-async function waitForScratch(dockerTarget, runProcess, wait) {
+async function waitForScratch(dockerTarget, runProcess, wait, now) {
+  const deadline = now() + 300_000;
   for (let attempt = 0; attempt < 1_200; attempt += 1) {
+    if (now() >= deadline) break;
     const postmaster = await runProcess(
       dockerTarget.command,
       dockerArguments(dockerTarget, [
@@ -196,6 +201,7 @@ async function waitForScratch(dockerTarget, runProcess, wait) {
       await wait(250);
       continue;
     }
+    if (now() >= deadline) break;
     const ready = await runProcess(
       dockerTarget.command,
       dockerArguments(dockerTarget, [
@@ -210,17 +216,39 @@ async function waitForScratch(dockerTarget, runProcess, wait) {
       ]),
       { maxOutputBytes: 1, timeoutMilliseconds: 5_000 },
     );
-    if (ready.code === 0 && ready.stdout === "") return;
+    if (ready.code !== 0 || ready.stdout !== "") {
+      await wait(250);
+      continue;
+    }
+    if (now() >= deadline) break;
+    try {
+      await runSql(
+        dockerTarget,
+        runProcess,
+        hostedImportantBatchPostgresImageReadySql,
+        "postgres_image_ready|t\n",
+        5_000,
+      );
+      return;
+    } catch {
+      // The fixed image may still be applying its own initialization after pg_isready succeeds.
+    }
     await wait(250);
   }
   throw new Error("Hosted important-batch scratch readiness failed.");
 }
 
-async function runSql(dockerTarget, runProcess, input, expectedOutput = "") {
+async function runSql(
+  dockerTarget,
+  runProcess,
+  input,
+  expectedOutput = "",
+  timeoutMilliseconds = 1_800_000,
+) {
   const result = await runProcess(
     dockerTarget.command,
     dockerArguments(dockerTarget, psqlExecArguments()),
-    { input, maxOutputBytes: 4_096 },
+    { input, maxOutputBytes: 4_096, timeoutMilliseconds },
   );
   if (result.code !== 0 || result.stdout !== expectedOutput) {
     throw new Error("Hosted important-batch scratch SQL failed.");
@@ -241,6 +269,8 @@ async function destroyScratch(dockerTarget, runProcess, wait, waitForLateAppeara
 export async function rebuildHostedImportantBatchScratch({
   candidateCommit,
   loadSources = () => loadHostedImportantBatchRebuildSources(repositoryRoot),
+  migratePlatformBaseline = migrateHostedImportantBatchPlatformBaseline,
+  now = () => performance.now(),
   repositoryRoot,
   resolveDockerTarget = resolveLocalDockerInspectionTarget,
   runProcess = runHostedImportantBatchProcess,
@@ -286,7 +316,18 @@ export async function rebuildHostedImportantBatchScratch({
             throw new Error("Hosted important-batch scratch runtime is invalid.");
           }
           failureStage = "scratch-readiness";
-          await waitForScratch(dockerTarget, runProcess, wait);
+          await waitForScratch(dockerTarget, runProcess, wait, now);
+          await migratePlatformBaseline({
+            dockerTarget,
+            onStage: (stage) => {
+              if (stage !== "auth-baseline" && stage !== "storage-baseline") {
+                throw new Error("Hosted important-batch platform baseline stage is invalid.");
+              }
+              failureStage = stage;
+            },
+            runProcess,
+            wait,
+          });
           failureStage = "baseline";
           await runSql(
             dockerTarget,

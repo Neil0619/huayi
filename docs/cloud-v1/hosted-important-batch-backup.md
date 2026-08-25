@@ -127,8 +127,12 @@ contract，并在 pinned image、完整 coverage contract 或固定 filesystem �
 
 命令退出 0、`pg_restore --list`、本机已有数据库或一组静态 SQL 测试都不能单独形成该证据。重建工具使用
 固定且不同于 Hosted/本机验收的 container identity、无网络/无端口/无 host 或 named volume 的单一 tmpfs
-PGDATA，以及 repository-pinned digest-only Supabase PostgreSQL 17 runtime，从完整 Auth/Storage database
-baseline 的空 scratch 开始；它精确读取 14 条仓库 migration 与 SHA-256 固定的虚构 seed，逐条应用并记录
+PGDATA，以及 repository-pinned digest-only Supabase PostgreSQL 17 runtime，从空 scratch 开始。Postgres-image
+readiness 只接受最终 PID 1、`pg_isready`、`auth.users`/`auth.schema_migrations`、`storage` schema 与两个服务
+admin role；随后依次用 platform lock 中 digest-only GoTrue/Storage 镜像运行 migration-only command。runner
+共享 scratch 的 networkless namespace，只经 loopback 访问 scratch，不开放端口、不挂载 volume/bind、不 pull，
+且只使用固定虚构本地配置。完整 Auth/Storage database baseline 通过后，它精确读取 14 条仓库 migration 与
+SHA-256 固定的虚构 seed，逐条应用并记录
 migration ledger，执行 bounded baseline/migration/seed/runtime/absence contract，确认 Auth user/identity、
 Storage object、邀请/claim 与除唯一虚构 profile 外的数据均为空，并在删除 scratch、回查 container 不存在后
 才原子写 manifest。start race 也必须先校验完整 scratch identity；未知同名容器不得删除。证据不保存表计数、账号、邮箱、
@@ -180,8 +184,9 @@ start 证明 offline。writer 不调用普通 `supabase start`；任何 scratch 
   Linux 保留 `/var/run/docker.sock`。selector/env socket、缺失/非 socket target、非 executable 与不支持平台均
   失败；结构化诊断按固定 priority 只选择首个 stage，且不转发 raw Error/stdout/stderr、路径、digest、secret
   或 environment；capture 继续只输出单一 generic failure。isolated rebuild 一旦进入执行，只能从固定内部
-  allowlist 报告 source-validation、docker-target、scratch identity/start/runtime/readiness、baseline、migration
-  ledger/application、fictional seed、final contract、scratch destroy 或 evidence persistence 中一个 stage，禁止
+  allowlist 报告 source-validation、docker-target、scratch identity/start/runtime/readiness、auth/storage
+  baseline、完整 baseline、migration ledger/application、fictional seed、final contract、scratch destroy 或
+  evidence persistence 中一个 stage，禁止
   使用捕获异常或 child output 生成 stage。静态 lock verifier 必须在零 Docker/
   零 network 下拒绝 CLI/config/env/version override/service/digest 漂移；完整 lock 内容由独立 SHA-256
   tripwire 绑定，合法格式但错误的 digest 也必须失败；
@@ -192,8 +197,9 @@ start 证明 offline。writer 不调用普通 `supabase start`；任何 scratch 
   mounts；TTY 测试还必须证明关闭 echo 发生在提示前、不使用 readline redraw，且 macOS 真实 PTY 中虚构
   marker 零回显；process timeout 必须等 child `close`，late-create 窗口只能清理精确 identity；rebuild tests
   必须证明 digest-only、`--pull never`、`--network none`、tmpfs-only、exact 14 migrations、fictional seed、
-  fixed bounded outputs、BusyBox/GNU 兼容的 `head -n 1` 与精确 `1\n` stdout、每种失败 cleanup、未知同名容器
-  不删除与 manifest-after-destroy ordering；
+  fixed bounded outputs、BusyBox/GNU 兼容的 `head -n 1` 与精确 `1\n` stdout、Postgres-image readiness 竞态、
+  fixed Auth→Storage runner 顺序/network namespace/零 mount、Entrypoint/environment identity、真实五分钟
+  单调时钟 deadline、每种失败 cleanup、未知同名容器不删除与 manifest-after-destroy ordering；
 - 日志和错误不反射 manifest、路径输入、账号、正文或 secret；
 - Hosted deployment action ledger 把 backup preflight 放在 0014 apply 之前。
 - 0014 apply 默认测试必须证明 preflight 在 secret read 前以及 dry-run 后/mutation 前各通过一次；两份 migration

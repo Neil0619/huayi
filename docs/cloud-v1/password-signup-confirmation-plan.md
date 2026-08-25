@@ -106,7 +106,9 @@ SQL 绕过。
       index + amd64/arm64 manifest digest，并证明三项 disabled；静态 verifier 零 Docker/零网络；
 - [x] Phase 85 已按批准获取并本机检查全部 11 个固定镜像；Phase 86 完成 reviewed writer、无 tag digest-only
       capture、TTY password + `0600` `.pgpass`/CA、atomic evidence，以及 networkless tmpfs scratch 的精确
-      14 migration + pinned fictional seed rebuild；本项未运行真实入口；
+      14 migration + pinned fictional seed rebuild；后续校准让 Postgres-image readiness 与 lock-pinned
+      GoTrue/Storage migration-only runner 分层，runner 只共享 networkless namespace 并使用虚构配置；本项未在
+      该修复后运行真实入口；
 - [x] pre/post capture 已改为单命令内部从固定官方 URL 有界获取严格 PEM CA，CA 成功后才读取隐藏管理员
       密码；用户只运行既有 pnpm 命令，不准备 CA environment。默认测试使用 fake fetch，未连接 Supabase；
 - [x] 2026-08-25 真实 0014 dry-run raw child transcript 通过仓库严格 parser：non-mutating header、remote

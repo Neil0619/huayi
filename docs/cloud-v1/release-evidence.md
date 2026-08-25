@@ -2469,3 +2469,31 @@ typecheck、architecture、build、development blocker、Store release、product
 - **待真实分类**：本阶段未读取管理员密码、未运行真实 diagnostic 的 connection/CLI probe，也未连接或
   修改 Hosted、运行 capture/rebuild/apply、发送邮件、部署或调用模型。操作者下一步只运行固定 diagnostic
   并返回五条脱敏 verdict；它不生成 backup evidence 或 apply 授权。
+
+## 94. Phase 81 isolated rebuild 平台服务基线校准（2026-08-25）
+
+- **真实阶段证据与根因**：脱敏阶段候选提交后，clean candidate readiness 通过，exact networkless rebuild
+  精确失败在 allowlisted `baseline`。同 fixed-digest Postgres image 的本机只读 SQL 时间线稳定显示
+  `auth.users` 与 Auth/Storage admin role 已存在，但 `auth.identities`、`storage.objects`、`storage.buckets`
+  始终不存在；延长等待没有变化，排除单纯初始化时间不足。固定 platform lock/source 又确认 GoTrue migration
+  以 `supabase_auth_admin` 执行，Storage migration 以 `supabase_storage_admin` 执行，服务表不是单一 Postgres
+  image 自有初始化；
+- **networkless proof**：一次性本机诊断保持 Postgres `--network none`、零 port/bind/volume，并让 digest-only
+  GoTrue/Storage migration-only runner 依次共享 Postgres container network namespace。两者只经 loopback 使用
+  固定虚构本地配置，完成后 `auth.users`、`auth.identities`、`storage.objects`、`storage.buckets` 与两个服务
+  admin role 六项全部成立；所有诊断容器均按精确 identity 删除并回查 absent；
+- **Fresh RED → GREEN**：新增 platform-baseline 测试先因 module 缺失变红；集成回归再精确证明旧 rebuild
+  未等待 Postgres-image-owned schema、未运行服务 migration，也无法映射 service stage。实现后 readiness 在
+  PID 1 + `pg_isready` 后继续要求 `auth.users`/`auth.schema_migrations`、`storage` schema 与两个 admin role；
+  再严格执行 GoTrue `auth migrate` → Storage `migrate-call.js`。runner 固定 digest/name/label/command/env，
+  `--pull never`、共享 networkless scratch namespace、零 port/bind/volume；成功回查 absent，timeout 只删除精确
+  identity，且 timeout cleanup 还会核对固定 Entrypoint 与 environment identity；未知同名 identity 不删除；
+  readiness 由尝试次数与真实五分钟单调时钟 deadline 双重限制。失败只报告 `auth-baseline` 或
+  `storage-baseline`，销毁 scratch 且零 evidence；
+- **离线验证**：platform baseline + rebuild + executor focused 27/27、全部 important-batch scripts 60/60；完整
+  `pnpm verify:macos` 通过 instructions、Prettier、ESLint、typecheck、Node 368/368、Vitest 480 files / 2,935
+  passed + 12 skipped、Store coverage 97 files / 481 tests、build、Playwright 111/111、Store release 与 production
+  audit（零已知漏洞）。测试只使用 fake process/fictional config，没有运行真实 rebuild/capture/0014；
+- **当前边界**：本节只完成离线实现、fake-process 回归与已批准的本机 networkless diagnosis；修复后的 exact
+  rebuild、pre capture/preflight、0014 apply、post capture/completion、邮件、部署与模型均未运行。成功生成
+  rebuild manifest 前，0014 仍不 ready。

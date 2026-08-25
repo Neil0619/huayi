@@ -437,6 +437,12 @@ migration/fictional-seed rebuild → backup preflight 通过 → 明确批准后
 OTP length=6 → 用户点击重发一封新邮件并完成 scanner-safe 六位 OTP、Web 落点和密码重登。旧 8 位码不得
 截取使用，不得新建第二邀请或删除既有 Auth user。
 
+isolated rebuild 的后续真实诊断已把失败精确到完整 baseline：Postgres image 初始化不包含 GoTrue/Storage
+service-owned tables。当前候选已分层等待 Postgres-image-owned readiness，再以 lock-pinned GoTrue→Storage
+migration-only runner 共享 networkless scratch namespace、经 loopback 补齐服务 schema；runner 无端口、
+mount、pull、Hosted 连接或真实凭据，失败只报告固定 auth/storage baseline stage 并保持零 evidence。修复后的
+exact rebuild 尚未运行，因此上述 preflight/0014/deploy 顺序不变。
+
 ## 10. 官方约束来源
 
 - [Vercel environments](https://vercel.com/docs/deployments/environments)

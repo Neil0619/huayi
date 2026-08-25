@@ -168,6 +168,9 @@ test("executor plan is deterministic, zero-I/O, and states exact coverage and bl
   assert.match(stdout, /confirmation-gated/u);
   assert.match(stdout, /--pull never/u);
   assert.match(stdout, /--network none/u);
+  assert.match(stdout, /GoTrue auth migrate, then Storage migrate-call/u);
+  assert.match(stdout, /shares only the networkless scratch namespace/u);
+  assert.match(stdout, /auth-baseline or storage-baseline/u);
   assert.match(stdout, /first fixed allowlisted stage/u);
   assert.match(stdout, /Capture keeps its single generic failure boundary/u);
   assert.match(stdout, /rebuild that starts execution may name only one internally selected/u);

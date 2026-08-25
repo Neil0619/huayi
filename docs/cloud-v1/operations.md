@@ -251,10 +251,16 @@ migrations+fictional-seed scratch rebuild 完成、且
 关闭后才能部署 token-only resend。
 scratch 使用的 Supabase PostgreSQL 镜像会在 init scripts 完成前启动临时 postmaster；操作入口不得把早期
 `pg_isready` 当作初始化完成。受控 rebuild 使用 BusyBox/GNU 兼容的 `head -n 1`，只在 tmpfs
-`postmaster.pid` 首行精确为 `1` 且随后
-`pg_isready` 成功时进入 baseline，等待最多五分钟，超时或输出不精确均销毁 scratch、保持零 evidence。
+`postmaster.pid` 首行精确为 `1`、随后 `pg_isready` 成功，且固定 SQL 回读 `auth.users`、
+`auth.schema_migrations`、`storage` schema 与两个服务 admin role 均存在时，才完成 Postgres-image
+readiness，等待最多五分钟。之后严格依次运行 platform lock 中 digest-only GoTrue `auth migrate` 与 Storage
+`migrate-call.js`；两个 runner 共享 networkless scratch namespace，只能经 loopback 访问 scratch，禁止端口、
+bind、volume、pull、真实 credential 或 Hosted 网络。再通过包含 `auth.identities`、`storage.objects` 与
+`storage.buckets` 的完整 baseline 后才应用仓库 migration。任一超时、输出或 identity 不精确均清理 runner、
+销毁 scratch 并保持零 evidence。
 执行失败时只允许输出代码路径选择的固定 stage（source validation、Docker target、scratch 生命周期、
-baseline、migration ledger/application、fictional seed、final contract、destroy 或 evidence persistence），不得
+auth/storage baseline、完整 baseline、migration ledger/application、fictional seed、final contract、destroy 或
+evidence persistence），不得
 输出捕获异常、SQL、child stdout/stderr、路径、digest、secret 或 environment。该阶段码用于决定下一条本机
 诊断，不代表 rebuild、backup preflight 或 0014 已通过。
 再由仍持有原私密邀请的 Web 自动重发；用户不输入 fragment/token，系统不创建第二邀请或删除 Auth user。
@@ -354,7 +360,9 @@ deploy 只接受精确 `--confirm-local-downtime`。任何失败都停止后续�
   包含 Storage object bytes、global roles 或 Hosted provider/SMTP/DNS/Edge/environment config。先证明
   Storage objects 为零，否则必须单独批准 object export。
 - rebuild evidence 只从仓库 14 条 migrations + SHA-256 固定 fictional seed 在无网络、无端口、tmpfs-only 的
-  digest-only Supabase PostgreSQL scratch 生成，禁止导入 Hosted 数据；必须在 migration/runtime/seed 聚合
+  digest-only Supabase PostgreSQL scratch 生成，禁止导入 Hosted 数据；固定 GoTrue/Storage migration-only
+  runner 只共享该 scratch 的 network namespace 并使用虚构本地配置，不增加外联能力；必须在
+  platform baseline、migration/runtime/seed 聚合
   通过、确认 Hosted data absent 且 scratch 已销毁后再落严格
   body-free manifest。静态测试、命令退出 0 或 dump listing 不能单独关闭该门。
 - production logical-backup restore drill 以 `hosted-logical-backup-restore-drill.md` 为权威契约。它不是

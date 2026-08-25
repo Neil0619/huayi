@@ -3,6 +3,16 @@ import { hostedImportantBatchMigrationVersions } from "./acceptance-hosted-impor
 const fictionalUserId = "00000000-0000-4000-8000-000000000047";
 const fictionalEmail = "local-acceptance-operator@seen-said.localhost";
 
+export const hostedImportantBatchPostgresImageReadySql = `/* postgres_image_ready */
+SELECT 'postgres_image_ready|' || CASE WHEN
+  to_regclass('auth.users') IS NOT NULL
+  AND to_regclass('auth.schema_migrations') IS NOT NULL
+  AND to_regnamespace('storage') IS NOT NULL
+  AND EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'supabase_auth_admin')
+  AND EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'supabase_storage_admin')
+THEN 't' ELSE 'f' END;
+`;
+
 export const hostedImportantBatchRebuildBaselineSql = `/* baseline_contract */
 SELECT 'baseline_contract|' || CASE WHEN
   to_regclass('auth.users') IS NOT NULL

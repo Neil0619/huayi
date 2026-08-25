@@ -190,9 +190,11 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       证据。静态 verifier 零 Docker/零网络，local verifier 只有固定 Unix-socket image inspect；
 - [x] Phase 85 已按单独批准获取并通过固定 OrbStack socket 本机检查全部 11 个固定镜像；Phase 86 已完成
       reviewed writer 与 exact-confirmation pre/rebuild/post entrypoint，固定 digest-only/`--pull never`、TTY
-      password、`0600` `.pgpass`/CA、TOC、atomic evidence 和 networkless tmpfs scratch。此项是离线实现，
-      pre/post capture 尚未运行；两次真实 rebuild 均在 scratch start 前安全失败且未形成 evidence，普通
-      `supabase start` 仍禁止；
+      password、`0600` `.pgpass`/CA、TOC、atomic evidence 和 networkless tmpfs scratch；后续 isolated rebuild
+      校准又固定 Postgres-image readiness、GoTrue→Storage migration-only runner 顺序、共享 networkless
+      namespace 与 auth/storage failure stage。此项是离线实现，
+      pre/post capture 尚未运行；早期两次真实 rebuild 在 scratch start 前安全失败，后续尝试已依次暴露最终
+      postmaster readiness 与 service-owned baseline 缺口，但均未形成 evidence；普通 `supabase start` 仍禁止；
 - [ ] 实际 pre capture 必须先证明 `storage.objects` 为零，否则另行完成 Storage object export；readiness 与
       单独批准未满足前不得运行真实入口或把 0014 描述为 ready；
 - [ ] 0014 apply 前由单独批准的真实阶段生成 pre raw logical dump，并从 migration + fictional seed 在隔离

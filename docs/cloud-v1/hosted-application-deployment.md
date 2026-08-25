@@ -595,7 +595,9 @@ verify-full administrator、TTY password 与 `0600` `.pgpass`/CA read-only mount
 atomic rename/manifest-last，并保持数据库 row、identity、正文、secret 和原始错误不进入 stdout/log。数据库
 archive 不包含 Storage object bytes、global roles 或 Hosted platform config。rebuild 使用无 tag digest runtime、
 `--pull never`、`--network none`、tmpfs PGDATA、精确 14 migration 与 pinned fictional seed，先销毁 scratch
-再写 body-free manifest。当前只完成离线实现，两个
+再写 body-free manifest。Postgres-image readiness 后另以 lock-pinned GoTrue/Storage migration-only runner 在
+同一 networkless namespace 内经 loopback 补齐服务自有 schema；runner 不增加 port/mount/pull/Hosted
+连接，失败只报告固定 auth/storage baseline stage 并保持零 evidence。当前只完成离线实现，两个
 verifier 都没有真实通过，0014 不得描述为 ready。完整 contract 见
 `hosted-important-batch-backup.md`。
 

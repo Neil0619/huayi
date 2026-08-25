@@ -945,12 +945,18 @@ confirmed Auth user/password method/profile 为 `1/1/2`、google method/Web sess
 - rebuild evidence 只允许 `repository-migrations-and-fictional-seed`，要求 candidate/migration head 精确，
   migration/seed/runtime 全 true、Hosted data absent、scratch destroyed。执行器必须使用无 tag digest reference、
   `--pull never`、`--network none` 与唯一 tmpfs PGDATA，无 host/named volume/port；精确读取 14 migration 和
-  SHA-256 固定 fictional seed，验证完整 Auth/Storage DB baseline、唯一 fictional profile、零 Auth identity/
+  SHA-256 固定 fictional seed。最终 PID 1 与 `pg_isready` 后仍须等待 Postgres-image-owned
+  `auth.users`/`auth.schema_migrations`、`storage` schema 与 Auth/Storage admin role；随后严格依次从 platform
+  lock 的 digest-only GoTrue/Storage image 运行 migration-only command。两个 runner 只能共享 networkless
+  scratch namespace 并经 loopback 使用固定虚构配置，不得 pull、发布端口、挂载 bind/volume 或连接 Hosted。
+  再验证完整 Auth/Storage DB baseline、唯一 fictional profile、零 Auth identity/
   user、零 Storage object、零 invitation/claim，并在 container 删除回查后才写 manifest。静态 migration test、
   dump listing、command exit 0 或手写 manifest 不能替代实际隔离重建。Supabase PostgreSQL 镜像初始化期间的
   临时 postmaster 会提前通过 `pg_isready`；rebuild 必须先以 fixed、BusyBox/GNU 兼容的 `head -n 1` probe
   精确观察 tmpfs `postmaster.pid` 首行为 `1\n`，再要求 `pg_isready`，并在固定五分钟上限内失败关闭。每个
-  执行边界必须以测试证明只映射为固定 allowlisted stage；敏感 raw error、SQL 与进程输出不得进入 CLI。
+  runner 成功/超时/失败/未知同名 identity 必须证明固定顺序、Entrypoint/environment identity、精确清理或
+  安全拒绝；五分钟上限必须由单调时钟 deadline 与 bounded probe 共同约束，不能只按尝试次数推算；执行边界只映射固定
+  `auth-baseline`/`storage-baseline` 等 allowlisted stage，敏感 raw error、SQL 与进程输出不得进入 CLI。
   任意其它 PID、额外输出、缺文件或仅有早期 `pg_isready` 都不得提前执行 baseline；
 - raw logical dump 是敏感备份，不进入测试 fixture/stdout/log。默认测试只使用不含用户数据的内存 adapter；
   测试必须区分 PG17 full-database custom archive 与 Supabase CLI filtered SQL，且断言 Storage object bytes、
