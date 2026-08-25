@@ -193,6 +193,14 @@ test("rebuild waits for the final PID 1 postmaster after early pg_isready succes
         return { code: 0, stdout: `${hostedImportantBatchScratchContainer}\n` };
       }
       if (arguments_[2] === "exec" && arguments_.includes("head")) {
+        assert.deepEqual(arguments_.slice(2), [
+          "exec",
+          hostedImportantBatchScratchContainer,
+          "head",
+          "-n",
+          "1",
+          "/var/lib/postgresql/data/postmaster.pid",
+        ]);
         postmasterChecks += 1;
         finalPostmasterReady = postmasterChecks >= 3;
         return {

@@ -189,7 +189,8 @@ start 证明 offline。writer 不调用普通 `supabase start`；任何 scratch 
   mounts；TTY 测试还必须证明关闭 echo 发生在提示前、不使用 readline redraw，且 macOS 真实 PTY 中虚构
   marker 零回显；process timeout 必须等 child `close`，late-create 窗口只能清理精确 identity；rebuild tests
   必须证明 digest-only、`--pull never`、`--network none`、tmpfs-only、exact 14 migrations、fictional seed、
-  fixed bounded outputs、每种失败 cleanup、未知同名容器不删除与 manifest-after-destroy ordering；
+  fixed bounded outputs、BusyBox/GNU 兼容的 `head -n 1` 与精确 `1\n` stdout、每种失败 cleanup、未知同名容器
+  不删除与 manifest-after-destroy ordering；
 - 日志和错误不反射 manifest、路径输入、账号、正文或 secret；
 - Hosted deployment action ledger 把 backup preflight 放在 0014 apply 之前。
 - 0014 apply 默认测试必须证明 preflight 在 secret read 前以及 dry-run 后/mutation 前各通过一次；两份 migration

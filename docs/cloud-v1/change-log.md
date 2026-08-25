@@ -195,7 +195,10 @@
   `pg_isready`：Supabase 镜像的初始化临时 postmaster 约 250ms 即可连接，完整 init scripts 与最终 PID 1
   postmaster 则约 170 秒才完成。安全诊断容器保持 `--network none`、无端口/挂载并在每次探测后销毁；
   Fresh RED 证明 baseline 会在最终 postmaster 前执行。rebuild 现只接受 `postmaster.pid` 精确 `1\n` 后的
-  `pg_isready`，固定五分钟超时并继续在失败时零 evidence；真实 evidence rebuild 尚待 clean 候选提交后重试；
+  `pg_isready`，固定五分钟超时并继续在失败时零 evidence；clean `8916af5` 的后续 exact rebuild 仍等满
+  五分钟失败，最终 local-only debug 证明真实 PID 文件首行与 `pg_isready` 都正确，但镜像内 BusyBox `head`
+  拒绝 GNU 长选项 `--lines=1`。回归先固定 portable argv 并变红，最小修复改为 `head -n 1`；真实 evidence
+  rebuild 尚待 clean 候选提交后重试；
 - Fresh RED 为 artifacts/capture/rebuild 三个 module 均 `ERR_MODULE_NOT_FOUND`。实现阶段先完成离线 fake 与
   本机文件系统测试；随后两次 exact rebuild 均在 scratch start 前安全失败，没有成功执行重建，也没有连接
   Hosted、执行 dump/restore、生成真实 evidence、应用 0014、发邮件或部署。

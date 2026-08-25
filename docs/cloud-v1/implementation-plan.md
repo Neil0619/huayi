@@ -1908,7 +1908,10 @@ inspection；Phase 86 只实现受审查 writer 与隔离 rebuild，不连接 Su
    去除错误 PGDATA override，但 exact rebuild 又因把初始化临时 postmaster 的早期 `pg_isready` 当成最终
    readiness 而失败关闭。授权的 networkless safe-debug 证明约 250ms 即 `pg_isready`，最终 PID 1 postmaster
    则约 170 秒才启动；Fresh RED 复现 baseline 被提前执行。最小修复要求 `postmaster.pid` 精确 `1\n` +
-   `pg_isready` 双判据并保留五分钟硬上限；修复后尚未运行会生成 evidence 的真实 rebuild；
+   `pg_isready` 双判据并保留五分钟硬上限。clean `8916af5` 上再次等待五分钟仍失败；最终 local-only debug
+   证明 PID 文件路径、精确 `1\n` bytes 与 `pg_isready` 都正确，但镜像内 BusyBox `head` 不接受旧 GNU 长选项
+   `--lines=1`，导致 probe 永远 exit 1。Fresh RED 固定真实 argv，最小修复改用 portable `head -n 1`；修复后
+   尚未运行会生成 evidence 的真实 rebuild；
 10. **动作账本**：executor prerequisite/readiness → pre capture/rebuild → `backup:preflight` → real dry-run →
     `migration:0014:apply`（内部再次 exact dry-run、mutation 前重查 preflight/source identity、写后只读
     postflight）→ post capture → `backup:complete` → API/Web 串行 deployment。禁止手工 `db push --yes`；

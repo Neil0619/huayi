@@ -243,7 +243,8 @@ migrations+fictional-seed scratch rebuild 完成、且
 `pnpm acceptance:hosted:backup:preflight` 通过后，才允许经受控 apply 入口应用 0014；post capture/completion
 关闭后才能部署 token-only resend。
 scratch 使用的 Supabase PostgreSQL 镜像会在 init scripts 完成前启动临时 postmaster；操作入口不得把早期
-`pg_isready` 当作初始化完成。受控 rebuild 只在 tmpfs `postmaster.pid` 首行精确为 `1` 且随后
+`pg_isready` 当作初始化完成。受控 rebuild 使用 BusyBox/GNU 兼容的 `head -n 1`，只在 tmpfs
+`postmaster.pid` 首行精确为 `1` 且随后
 `pg_isready` 成功时进入 baseline，等待最多五分钟，超时或输出不精确均销毁 scratch、保持零 evidence。
 再由仍持有原私密邀请的 Web 自动重发；用户不输入 fragment/token，系统不创建第二邀请或删除 Auth user。
 

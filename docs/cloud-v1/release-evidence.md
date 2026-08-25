@@ -2410,18 +2410,28 @@ typecheck、architecture、build、development blocker、Store release、product
 
 ## 91. Phase 81 isolated rebuild 最终 postmaster readiness 修复（2026-08-25）
 
-- **真实失败与授权边界**：clean `699d16e` 已删除错误 PGDATA override，readiness 与完整 macOS 门通过；
-  随后的 exact rebuild 仍固定失败关闭且没有留下 rebuild evidence。用户随后明确批准继续安全诊断；本阶段
+- **真实失败与授权边界**：clean `699d16e` 已删除错误 PGDATA override，后续修复又等待最终 PID 1
+  postmaster；但 clean `8916af5` 上的 exact rebuild 等满五分钟后仍固定失败关闭，readiness 随后继续通过且
+  rebuild evidence 为空。用户随后明确批准继续安全诊断；本阶段
   只操作本机 OrbStack Unix socket 和既有 fixed-digest PostgreSQL 镜像，所有诊断容器均 `--network none`、
   无端口、无 bind/named volume，并在回读后立即删除；没有连接 Hosted/Supabase/Vercel/Resend/DeepSeek，
   没有读取秘密、运行 capture/0014、发送邮件或部署；
-- **根因证据**：镜像入口会先启动初始化临时 postmaster。local-only probe 在约 250ms 即观察到
+- **前一根因证据**：镜像入口会先启动初始化临时 postmaster。local-only probe 在约 250ms 即观察到
   `pg_isready` 成功，但 Auth/Storage baseline 在旧 15 秒窗口内不成立；有界延长观察显示 init scripts 继续
   正常运行，约 170 秒后才停止临时 server 并以 PID 1 启动最终 PostgreSQL。旧实现因此在临时 server 上
   提前执行 baseline 并主动销毁 scratch，不是镜像退出、网络依赖或 digest/架构错误；
-- **Fresh RED 与最小 GREEN**：新增回归让 `pg_isready` 从第一次就成功，同时让 postmaster PID 依次为临时
+- **最终根因证据**：fixed digest 镜像为 Linux arm64，`Entrypoint=["docker-entrypoint.sh"]`、
+  `Cmd=["postgres","-D","/etc/postgresql"]`、`WorkingDir="/"`、`Volumes=null`。最终 PID 1 为
+  `postgres -D /etc/postgresql`，实际 PID 文件只有 `/var/lib/postgresql/data/postmaster.pid`，首行精确 bytes
+  为 `31 0a`（`1\n`）；同一时刻 `pg_isready` exit 0 且 stdout 为空。镜像内 `head` 是 BusyBox 1.37，项目原
+  probe 的 GNU 长选项 `head --lines=1` 实际 exit 1 且 stdout 为空，而 `head -n 1` exit 0 且 stdout 精确
+  `1\n`。因此旧 probe 在五分钟内永远跳过 `pg_isready`，不是 PID、PGDATA、Docker stdout 或等待时长问题；
+- **Fresh RED 与最小 GREEN**：先前回归让 `pg_isready` 从第一次就成功，同时让 postmaster PID 依次为临时
   值、带额外输出的伪 `1`、最后才是精确 `1\n`；旧实现以 generic rebuild failure 变红。最小修复在每次
   `pg_isready` 前先用固定 bounded `head` 读取 tmpfs `postmaster.pid`，只接受精确 `1\n`，并把总等待固定为
-  五分钟。focused regression 转绿，所有其它 PID/额外输出/缺文件/超时仍失败关闭；
-- **状态边界**：修复阶段没有调用会生成 manifest 的真实 rebuild，evidence 目录继续为空。根任务提交 clean
+  五分钟；最终诊断再固定完整 BusyBox 兼容 argv，旧 `--lines=1` 以 generic rebuild failure 变红，只将参数
+  改为 `head -n 1` 后同一回归转绿。所有其它 PID/额外输出/缺文件/超时仍失败关闭；
+- **状态边界**：最终 debug 容器保持 `--network none`、零端口/volume/bind，验证新 probe 后已按精确
+  image+label identity 删除并回查不存在；没有调用会生成 manifest 的真实 rebuild，evidence 目录继续为空。
+  根任务提交 clean
   candidate 并重跑 readiness 后，才可再次执行唯一 exact rebuild；成功前不得运行 preflight 或 0014 apply。
