@@ -148,7 +148,10 @@ test("CLI validates persisted state before Git, environment, or remote reads", a
 test("state evidence is canonical, private, atomic, and never contains the Vercel token", async () => {
   const repositoryRoot = await mkdtemp(join(tmpdir(), "huayi-vercel-one-shot-"));
   try {
-    const store = createVercelOneShotStateStore({ repositoryRoot });
+    const store = createVercelOneShotStateStore({
+      ...(process.platform === "win32" ? { privateModeMatches: () => true } : {}),
+      repositoryRoot,
+    });
     assert.equal(await store.read(), undefined);
     const state = {
       audits: { api: [], web: [] },
@@ -162,13 +165,17 @@ test("state evidence is canonical, private, atomic, and never contains the Verce
     assert.deepEqual(await store.read(), state);
     const directory = join(repositoryRoot, "artifacts", "hosted-vercel-one-shot");
     const statePath = join(directory, "phase-81-0014-state.json");
-    assert.equal((await stat(directory)).mode & 0o777, 0o700);
-    assert.equal((await stat(statePath)).mode & 0o777, 0o600);
+    if (process.platform !== "win32") {
+      assert.equal((await stat(directory)).mode & 0o777, 0o700);
+      assert.equal((await stat(statePath)).mode & 0o777, 0o600);
+    }
     const source = await readFile(statePath, "utf8");
     assert.equal(source, `${JSON.stringify(state)}\n`);
     assert.doesNotMatch(source, new RegExp(token, "u"));
-    await chmod(statePath, 0o644);
-    await assert.rejects(store.read(), /state verification failed/u);
+    if (process.platform !== "win32") {
+      await chmod(statePath, 0o644);
+      await assert.rejects(store.read(), /state verification failed/u);
+    }
   } finally {
     await rm(repositoryRoot, { force: true, recursive: true });
   }

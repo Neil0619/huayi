@@ -143,9 +143,11 @@ test("restore database channel creates private pgpass and CA then removes both",
     password: "database-secret",
     run: async (channel) => {
       directory = channel.directory;
-      assert.equal((await lstat(channel.directory)).mode & 0o777, 0o700);
-      assert.equal((await lstat(channel.pgpassPath)).mode & 0o777, 0o600);
-      assert.equal((await lstat(channel.caPath)).mode & 0o777, 0o600);
+      if (process.platform !== "win32") {
+        assert.equal((await lstat(channel.directory)).mode & 0o777, 0o700);
+        assert.equal((await lstat(channel.pgpassPath)).mode & 0o777, 0o600);
+        assert.equal((await lstat(channel.caPath)).mode & 0o777, 0o600);
+      }
       assert.match(await readFile(channel.pgpassPath, "utf8"), /database-secret/u);
       assert.equal(JSON.stringify(channel).includes("database-secret"), false);
     },

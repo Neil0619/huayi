@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { basename, dirname } from "node:path";
 import { test } from "node:test";
 
 import {
@@ -164,7 +165,7 @@ test("Git inspection uses a bounded process contract and recognizes one exact ar
   const calls = [];
   const result = await inspectVercelOneShotGit({
     readFile: async (path) => {
-      if (path.endsWith("apps/api/vercel.json")) {
+      if (basename(path) === "vercel.json" && basename(dirname(path)) === "api") {
         return JSON.stringify({
           git: {
             deploymentEnabled: {

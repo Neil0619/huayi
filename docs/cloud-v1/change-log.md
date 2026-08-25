@@ -3,6 +3,20 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-25：干净双平台 CI 固定 workspace build、LF 与 Hosted POSIX 证据边界
+
+- 根脚本测试此前可在开发机因残留 `dist` 通过，但干净 CI 会在导入 API environment 时找不到
+  `@huayi/cloud-contracts/dist`；测试入口现在先以固定 pnpm entry 构建 learning-domain 与
+  cloud-contracts，再运行脚本测试，且 build、script、Vitest 任一失败都停止后续阶段；
+- 仓库新增根 `.gitattributes`，统一文本 checkout 为 LF，避免 Windows 把 migration mirror、seed、平台
+  image lock、ignore fixture 等字节级合同改写为 CRLF；Windows/POSIX 路径断言必须同时接受本机分隔符，
+  声明为 macOS 的 OrbStack target 则明确使用 POSIX path 语义；
+- Hosted backup/restore/Vercel evidence writer 的安全合同仍要求可验证的 `0700/0600` 并在 Windows
+  运行时失败关闭。生产入口固定使用严格 mode verifier；仅测试可注入窄 mode predicate，使 canonical/atomic
+  顺序、process env、path、parser、Docker identity、cleanup 与 lifecycle 继续进入双平台门，只把真实 mode
+  断言和依赖 Windows symlink 权限的变体留给 POSIX 门。本修复不修改 Hosted 数据库、Auth、SMTP、DNS、
+  密钥、邮件或 deployment，也不授权 0014 apply。
+
 ## 2026-08-25：0014 dry-run 严格 transcript 按完整行验证双通道分配
 
 - safe diagnostic 已证明 connection 与 dry-run child 都正常退出，但本次 pinned Supabase CLI 的 stdout 非空、

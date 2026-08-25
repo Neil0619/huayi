@@ -6,6 +6,10 @@ const fileName = "phase-81-0014-state.json";
 const partialName = `${fileName}.partial`;
 const maximumStateBytes = 128_000;
 
+function defaultPrivateModeMatches(stats, expectedMode) {
+  return (stats.mode & 0o777) === expectedMode;
+}
+
 function fail() {
   throw new Error("Hosted Vercel one-shot state verification failed.");
 }
@@ -19,17 +23,17 @@ async function exists(path) {
   }
 }
 
-async function assertPrivateDirectory(path) {
+async function assertPrivateDirectory(path, privateModeMatches) {
   const stats = await exists(path);
-  if (stats === undefined || !stats.isDirectory() || (stats.mode & 0o777) !== 0o700) fail();
+  if (stats === undefined || !stats.isDirectory() || !privateModeMatches(stats, 0o700)) fail();
 }
 
-async function assertPrivateFile(path) {
+async function assertPrivateFile(path, privateModeMatches) {
   const stats = await exists(path);
   if (
     stats === undefined ||
     !stats.isFile() ||
-    (stats.mode & 0o777) !== 0o600 ||
+    !privateModeMatches(stats, 0o600) ||
     !Number.isSafeInteger(stats.size) ||
     stats.size < 3 ||
     stats.size > maximumStateBytes
@@ -47,7 +51,10 @@ async function syncDirectory(path) {
   }
 }
 
-export function createVercelOneShotStateStore({ repositoryRoot = process.cwd() } = {}) {
+export function createVercelOneShotStateStore({
+  privateModeMatches = defaultPrivateModeMatches,
+  repositoryRoot = process.cwd(),
+} = {}) {
   const artifactsRoot = join(repositoryRoot, "artifacts");
   const directory = join(artifactsRoot, directoryName);
   const statePath = join(directory, fileName);
@@ -57,11 +64,11 @@ export function createVercelOneShotStateStore({ repositoryRoot = process.cwd() }
       try {
         const directoryStats = await exists(directory);
         if (directoryStats === undefined) return undefined;
-        await assertPrivateDirectory(directory);
+        await assertPrivateDirectory(directory, privateModeMatches);
         const entries = await readdir(directory);
         if (entries.length === 0) return undefined;
         if (entries.length !== 1 || entries[0] !== fileName) fail();
-        await assertPrivateFile(statePath);
+        await assertPrivateFile(statePath, privateModeMatches);
         const source = await readFile(statePath, "utf8");
         if (Buffer.byteLength(source, "utf8") > maximumStateBytes || !source.endsWith("\n")) fail();
         const state = JSON.parse(source);
@@ -77,10 +84,10 @@ export function createVercelOneShotStateStore({ repositoryRoot = process.cwd() }
         if (Buffer.byteLength(source, "utf8") > maximumStateBytes) fail();
         await mkdir(artifactsRoot, { mode: 0o755 });
         await mkdir(directory, { mode: 0o700 });
-        await assertPrivateDirectory(directory);
+        await assertPrivateDirectory(directory, privateModeMatches);
         const entries = await readdir(directory);
         if (entries.some((entry) => entry !== fileName)) fail();
-        if (entries.includes(fileName)) await assertPrivateFile(statePath);
+        if (entries.includes(fileName)) await assertPrivateFile(statePath, privateModeMatches);
         const handle = await open(partialPath, "wx", 0o600);
         try {
           await handle.chmod(0o600);

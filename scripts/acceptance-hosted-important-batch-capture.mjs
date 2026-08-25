@@ -298,6 +298,7 @@ export async function captureHostedImportantBatchBackup({
   caCertificate,
   candidateCommit,
   phase,
+  persistBackup = persistHostedImportantBatchBackup,
   repositoryRoot,
   resolveDockerTarget = resolveLocalDockerInspectionTarget,
   runProcess = runHostedImportantBatchProcess,
@@ -309,7 +310,7 @@ export async function captureHostedImportantBatchBackup({
   }
   const dockerTarget = await resolveDockerTarget();
   assertFixedLocalDockerTarget(dockerTarget);
-  await persistHostedImportantBatchBackup({
+  await persistBackup({
     candidateCommit,
     phase,
     produceArchive: async ({ archivePartialPath, phaseRoot }) => {

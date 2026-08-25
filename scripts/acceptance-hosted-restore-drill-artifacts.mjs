@@ -27,6 +27,10 @@ const appendTransitions = Object.freeze({
   "target-empty": ["failureVerification", "restoreVerification"],
 });
 
+function defaultPrivateModeMatches(stats, expectedMode) {
+  return (stats.mode & 0o777) === expectedMode;
+}
+
 function fail() {
   throw new Error("Hosted restore-drill artifact store failed.");
 }
@@ -41,25 +45,25 @@ async function pathExists(path) {
   }
 }
 
-async function assertDirectory(path, mode) {
+async function assertDirectory(path, mode, privateModeMatches) {
   const stats = await lstat(path);
-  if (!stats.isDirectory() || (stats.mode & 0o777) !== mode) fail();
+  if (!stats.isDirectory() || !privateModeMatches(stats, mode)) fail();
 }
 
-async function ensureDirectory(path, mode) {
+async function ensureDirectory(path, mode, privateModeMatches) {
   try {
     await mkdir(path, { mode });
   } catch (error) {
     if (error?.code !== "EEXIST") throw error;
   }
-  await assertDirectory(path, mode);
+  await assertDirectory(path, mode, privateModeMatches);
 }
 
-async function readDocument(path) {
+async function readDocument(path, privateModeMatches) {
   const stats = await lstat(path);
   if (
     !stats.isFile() ||
-    (stats.mode & 0o777) !== 0o600 ||
+    !privateModeMatches(stats, 0o600) ||
     !Number.isSafeInteger(stats.size) ||
     stats.size < 3 ||
     stats.size > 16_384
@@ -109,7 +113,11 @@ async function writeDocumentAtomically(directory, name, document) {
   }
 }
 
-export function createHostedRestoreDrillArtifactStore({ expected, repositoryRoot }) {
+export function createHostedRestoreDrillArtifactStore({
+  expected,
+  privateModeMatches = defaultPrivateModeMatches,
+  repositoryRoot,
+}) {
   const secureRoot = join(repositoryRoot, hostedRestoreDrillArtifactRoot);
   const drillRoot = join(secureRoot, expected.drillId);
 
@@ -121,8 +129,8 @@ export function createHostedRestoreDrillArtifactStore({ expected, repositoryRoot
         lifecycle: validateHostedRestoreDrillEvidence({ documents, expected }),
       };
     }
-    await assertDirectory(secureRoot, 0o700);
-    await assertDirectory(drillRoot, 0o700);
+    await assertDirectory(secureRoot, 0o700, privateModeMatches);
+    await assertDirectory(drillRoot, 0o700, privateModeMatches);
     const entries = await readdir(drillRoot);
     const reverse = new Map(Object.entries(evidenceFiles).map(([name, file]) => [file, name]));
     if (
@@ -133,7 +141,10 @@ export function createHostedRestoreDrillArtifactStore({ expected, repositoryRoot
     }
     const documents = {};
     for (const entry of entries) {
-      documents[reverse.get(entry)] = await readDocument(join(drillRoot, entry));
+      documents[reverse.get(entry)] = await readDocument(
+        join(drillRoot, entry),
+        privateModeMatches,
+      );
     }
     return {
       documents,
@@ -148,9 +159,9 @@ export function createHostedRestoreDrillArtifactStore({ expected, repositoryRoot
     const documents = { ...current.documents, [name]: document };
     validateHostedRestoreDrillEvidence({ documents, expected });
     const artifactsRoot = join(repositoryRoot, "artifacts");
-    await ensureDirectory(artifactsRoot, 0o755);
-    await ensureDirectory(secureRoot, 0o700);
-    await ensureDirectory(drillRoot, 0o700);
+    await ensureDirectory(artifactsRoot, 0o755, privateModeMatches);
+    await ensureDirectory(secureRoot, 0o700, privateModeMatches);
+    await ensureDirectory(drillRoot, 0o700, privateModeMatches);
     await writeDocumentAtomically(drillRoot, name, document);
   }
 

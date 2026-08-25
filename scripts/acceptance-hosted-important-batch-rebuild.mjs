@@ -271,6 +271,7 @@ export async function rebuildHostedImportantBatchScratch({
   loadSources = () => loadHostedImportantBatchRebuildSources(repositoryRoot),
   migratePlatformBaseline = migrateHostedImportantBatchPlatformBaseline,
   now = () => performance.now(),
+  persistRebuild = persistHostedImportantBatchRebuild,
   repositoryRoot,
   resolveDockerTarget = resolveLocalDockerInspectionTarget,
   runProcess = runHostedImportantBatchProcess,
@@ -289,7 +290,7 @@ export async function rebuildHostedImportantBatchScratch({
       throw new Error("Hosted important-batch scratch identity is occupied.");
     }
     failureStage = "evidence-persistence";
-    await persistHostedImportantBatchRebuild({
+    await persistRebuild({
       candidateCommit,
       performRebuild: async () => {
         let cleanupRequired = false;

@@ -1,7 +1,8 @@
 import { spawn } from "node:child_process";
 import { stat } from "node:fs/promises";
 import { userInfo } from "node:os";
-import { dirname, isAbsolute, join, resolve } from "node:path";
+import { dirname, resolve } from "node:path";
+import { isAbsolute as isPosixAbsolute, join as joinPosix } from "node:path/posix";
 import { fileURLToPath } from "node:url";
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -61,13 +62,13 @@ function selectFixedLocalDockerPaths(platform, getCurrentUser) {
     if (
       typeof currentUser?.homedir !== "string" ||
       currentUser.homedir.length === 0 ||
-      !isAbsolute(currentUser.homedir)
+      !isPosixAbsolute(currentUser.homedir)
     ) {
       throw new Error("Local Docker inspection target is unavailable.");
     }
     return {
       command: macOsOrbStackDockerExecutable,
-      socket: join(currentUser.homedir, ".orbstack", "run", "docker.sock"),
+      socket: joinPosix(currentUser.homedir, ".orbstack", "run", "docker.sock"),
     };
   }
   if (platform === "linux") {

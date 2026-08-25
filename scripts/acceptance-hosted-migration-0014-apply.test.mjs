@@ -253,8 +253,11 @@ test("0014 repository identity pins byte-identical API and Supabase migration mi
     /Hosted 0014 migration repository identity is invalid\./u,
   );
   assert.equal(reads.length, 2);
-  assert.match(reads[0], /supabase\/migrations\/20260824010000_password_signup_otp_resend\.sql$/u);
-  assert.match(reads[1], /apps\/api\/migrations\/0014-password-signup-otp-resend\.sql$/u);
+  assert.match(
+    reads[0],
+    /supabase[\\/]migrations[\\/]20260824010000_password_signup_otp_resend\.sql$/u,
+  );
+  assert.match(reads[1], /apps[\\/]api[\\/]migrations[\\/]0014-password-signup-otp-resend\.sql$/u);
 });
 
 test("0014 apply never mutates unless the same operation dry-runs exactly one 0014", async () => {
@@ -324,7 +327,7 @@ test("0014 apply process pins --yes, verify-full, and removes its public CA", as
     },
   );
   while (observed === undefined) await new Promise((resolveWait) => setImmediate(resolveWait));
-  assert.match(observed.command, /\/node_modules\/\.bin\/supabase$/u);
+  assert.match(observed.command, /[\\/]node_modules[\\/]\.bin[\\/]supabase$/u);
   assert.deepEqual(observed.arguments_, [
     "db",
     "push",
@@ -345,7 +348,7 @@ test("0014 apply process pins --yes, verify-full, and removes its public CA", as
   assert.equal(observed.options.shell, false);
   assert.deepEqual(observed.options.stdio, ["ignore", "ignore", "ignore"]);
   const caPath = observed.options.env.PGSSLROOTCERT;
-  assert.equal((await stat(caPath)).mode & 0o777, 0o600);
+  if (process.platform !== "win32") assert.equal((await stat(caPath)).mode & 0o777, 0o600);
   child.emit("close", 0, null);
   assert.deepEqual(await resultPromise, { code: 0 });
   await assert.rejects(stat(caPath), { code: "ENOENT" });

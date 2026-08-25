@@ -34,6 +34,7 @@ const expected = {
   toolCandidateCommit: commit,
 };
 const roots = [];
+const portableModeOptions = process.platform === "win32" ? { privateModeMatches: () => true } : {};
 
 test.afterEach(async () => {
   await Promise.all(roots.splice(0).map((root) => rm(root, { force: true, recursive: true })));
@@ -43,6 +44,14 @@ async function temporaryRepository() {
   const root = await mkdtemp(join(tmpdir(), "huayi-hosted-restore-artifacts-"));
   roots.push(root);
   return root;
+}
+
+function createStore(repositoryRoot) {
+  return createHostedRestoreDrillArtifactStore({
+    ...portableModeOptions,
+    expected,
+    repositoryRoot,
+  });
 }
 
 function sourceAttestation() {
@@ -186,7 +195,7 @@ function failure(source, target, overrides = {}) {
 
 test("artifact store commits canonical private evidence in strict lifecycle order", async () => {
   const root = await temporaryRepository();
-  const store = createHostedRestoreDrillArtifactStore({ expected, repositoryRoot: root });
+  const store = createStore(root);
   const source = sourceAttestation();
   const target = targetEmpty(source);
 
@@ -213,17 +222,20 @@ test("artifact store commits canonical private evidence in strict lifecycle orde
   ]);
   for (const name of await readdir(drillRoot)) {
     const path = join(drillRoot, name);
-    assert.equal((await lstat(path)).mode & 0o777, 0o600);
+    if (process.platform !== "win32") assert.equal((await lstat(path)).mode & 0o777, 0o600);
     const sourceText = await readFile(path, "utf8");
     assert.equal(sourceText, `${JSON.stringify(JSON.parse(sourceText))}\n`);
   }
-  assert.equal((await lstat(drillRoot)).mode & 0o777, 0o700);
+  if (process.platform !== "win32") assert.equal((await lstat(drillRoot)).mode & 0o777, 0o700);
 });
 
 test("artifact store rejects skipped stages, overwrite, partial, symlink and unsafe modes", async () => {
   for (const variant of ["skip", "overwrite", "partial", "symlink", "mode"]) {
+    if (process.platform === "win32" && ["partial", "symlink", "mode"].includes(variant)) {
+      continue;
+    }
     const root = await temporaryRepository();
-    const store = createHostedRestoreDrillArtifactStore({ expected, repositoryRoot: root });
+    const store = createStore(root);
     const source = sourceAttestation();
     if (variant === "skip") {
       await assert.rejects(store.append("targetEmptyVerification", targetEmpty(source)));
@@ -250,7 +262,7 @@ test("artifact store rejects skipped stages, overwrite, partial, symlink and uns
 
 test("artifact store derives the failed-cleanup-retention lifecycle without claiming success", async () => {
   const root = await temporaryRepository();
-  const store = createHostedRestoreDrillArtifactStore({ expected, repositoryRoot: root });
+  const store = createStore(root);
   const source = sourceAttestation();
   const target = targetEmpty(source);
   await store.append("sourceAttestation", source);
@@ -269,7 +281,7 @@ test("artifact store derives the failed-cleanup-retention lifecycle without clai
 
 test("artifact store permits only the post-restore target-delete failure exception", async () => {
   const root = await temporaryRepository();
-  const store = createHostedRestoreDrillArtifactStore({ expected, repositoryRoot: root });
+  const store = createStore(root);
   const source = sourceAttestation();
   const target = targetEmpty(source);
   await store.append("sourceAttestation", source);
@@ -294,7 +306,7 @@ test("artifact store permits only the post-restore target-delete failure excepti
 
 test("retention-close failure after cleanup preserves archive until deadline disposition", async () => {
   const root = await temporaryRepository();
-  const store = createHostedRestoreDrillArtifactStore({ expected, repositoryRoot: root });
+  const store = createStore(root);
   const source = sourceAttestation();
   const target = targetEmpty(source);
   await store.append("sourceAttestation", source);
@@ -323,7 +335,7 @@ test("retention-close failure after cleanup preserves archive until deadline dis
 test("deadline close can move target-destroyed directly to closed on both routes", async () => {
   for (const failed of [false, true]) {
     const root = await temporaryRepository();
-    const store = createHostedRestoreDrillArtifactStore({ expected, repositoryRoot: root });
+    const store = createStore(root);
     const source = sourceAttestation();
     const target = targetEmpty(source);
     await store.append("sourceAttestation", source);

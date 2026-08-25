@@ -22,6 +22,10 @@ const rebuildVerdictKeys = Object.freeze([
   "scratchDestroyed",
 ]);
 
+function defaultPrivateModeMatches(stats, expectedMode) {
+  return (stats.mode & 0o777) === expectedMode;
+}
+
 function hashFile(path) {
   return new Promise((resolveHash, reject) => {
     const hash = createHash("sha256");
@@ -42,27 +46,27 @@ async function pathExists(path) {
   }
 }
 
-async function ensureDirectory(path, { secure }) {
+async function ensureDirectory(path, { privateModeMatches, secure }) {
   try {
     await mkdir(path, { mode: secure ? 0o700 : 0o755 });
   } catch (error) {
     if (error?.code !== "EEXIST") throw error;
   }
   const stats = await lstat(path);
-  if (!stats.isDirectory() || (secure && (stats.mode & 0o777) !== 0o700)) {
+  if (!stats.isDirectory() || (secure && !privateModeMatches(stats, 0o700))) {
     throw new Error("Hosted important-batch artifact directory is unsafe.");
   }
 }
 
-async function ensureArtifactDirectory(repositoryRoot, leaf) {
+async function ensureArtifactDirectory(repositoryRoot, leaf, privateModeMatches) {
   const artifactsRoot = join(repositoryRoot, "artifacts");
   const secureRoot = join(repositoryRoot, "artifacts", "hosted-important-batch-backups");
   const batchRoot = join(repositoryRoot, hostedImportantBatchBackupArtifactDirectory);
   const leafRoot = join(batchRoot, leaf);
-  await ensureDirectory(artifactsRoot, { secure: false });
-  await ensureDirectory(secureRoot, { secure: true });
-  await ensureDirectory(batchRoot, { secure: true });
-  await ensureDirectory(leafRoot, { secure: true });
+  await ensureDirectory(artifactsRoot, { privateModeMatches, secure: false });
+  await ensureDirectory(secureRoot, { privateModeMatches, secure: true });
+  await ensureDirectory(batchRoot, { privateModeMatches, secure: true });
+  await ensureDirectory(leafRoot, { privateModeMatches, secure: true });
   return leafRoot;
 }
 
@@ -82,7 +86,7 @@ async function createEmptyPrivateFile(path) {
   }
 }
 
-async function syncPrivateFile(path, { requireContent }) {
+async function syncPrivateFile(path, { privateModeMatches, requireContent }) {
   const handle = await open(path, "r+");
   try {
     await handle.chmod(0o600);
@@ -90,7 +94,7 @@ async function syncPrivateFile(path, { requireContent }) {
     const stats = await handle.stat();
     if (
       !stats.isFile() ||
-      (stats.mode & 0o777) !== 0o600 ||
+      !privateModeMatches(stats, 0o600) ||
       !Number.isSafeInteger(stats.size) ||
       stats.size < (requireContent ? 1 : 0)
     ) {
@@ -142,6 +146,7 @@ export async function persistHostedImportantBatchBackup({
   candidateCommit,
   now = () => new Date(),
   phase,
+  privateModeMatches = defaultPrivateModeMatches,
   produceArchive,
   repositoryRoot,
   verifyArchive,
@@ -150,7 +155,7 @@ export async function persistHostedImportantBatchBackup({
   if (!Object.hasOwn(phaseMigrationHeads, phase)) {
     throw new Error("Hosted important-batch backup phase is invalid.");
   }
-  const phaseRoot = await ensureArtifactDirectory(repositoryRoot, phase);
+  const phaseRoot = await ensureArtifactDirectory(repositoryRoot, phase, privateModeMatches);
   await assertDirectoryEmpty(phaseRoot);
   const archivePath = join(phaseRoot, "database.dump");
   const archivePartialPath = join(phaseRoot, "database.dump.partial");
@@ -170,11 +175,15 @@ export async function persistHostedImportantBatchBackup({
     await createEmptyPrivateFile(archivePartialPath);
     await produceArchive({ archivePartialPath, phaseRoot });
     const beforeVerification = await syncPrivateFile(archivePartialPath, {
+      privateModeMatches,
       requireContent: true,
     });
     const beforeVerificationSha256 = await hashFile(archivePartialPath);
     await verifyArchive({ archivePartialPath });
-    const afterVerification = await syncPrivateFile(archivePartialPath, { requireContent: true });
+    const afterVerification = await syncPrivateFile(archivePartialPath, {
+      privateModeMatches,
+      requireContent: true,
+    });
     const archiveSha256 = await hashFile(archivePartialPath);
     if (
       beforeVerification.size !== afterVerification.size ||
@@ -221,10 +230,11 @@ export async function persistHostedImportantBatchRebuild({
   candidateCommit,
   now = () => new Date(),
   performRebuild,
+  privateModeMatches = defaultPrivateModeMatches,
   repositoryRoot,
 }) {
   assertCandidateCommit(candidateCommit);
-  const rebuildRoot = await ensureArtifactDirectory(repositoryRoot, "rebuild");
+  const rebuildRoot = await ensureArtifactDirectory(repositoryRoot, "rebuild", privateModeMatches);
   await assertDirectoryEmpty(rebuildRoot);
   const manifestPath = join(rebuildRoot, "rebuild-verification.json");
   const partialPath = join(rebuildRoot, "rebuild-verification.json.partial");

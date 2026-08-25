@@ -17,6 +17,14 @@ Windows 默认门禁运行协议、Extension、共享 Provider、Windows Host/�
 POSIX 权限、目录 `fsync`、符号链接或 macOS Keychain 的专属测试只在非 Windows 环境运行。
 这些 macOS 文件在 Windows 仍参与 TypeScript 类型检查和构建。
 
+根脚本测试开始前先在同一进程链中构建 `@huayi/learning-domain` 与
+`@huayi/cloud-contracts`，防止干净 CI 意外复用开发机残留的 `dist`。仓库根
+`.gitattributes` 固定文本 checkout 为 LF；迁移镜像、seed、平台镜像 lock 和 canonical fixture 的
+字节身份不得因 Windows checkout 改写为 CRLF。Hosted backup/restore/Vercel 私密 evidence writer
+要求可验证的 POSIX `0700/0600`，生产入口始终使用严格 mode verifier 并在 Windows 运行时失败关闭；
+测试只能显式注入 mode predicate 以继续覆盖 canonical/atomic 流程、路径、进程、环境、parser、cleanup
+和 lifecycle。仅实际 mode 断言与依赖 Windows symlink 权限的变体不在 Windows 门执行。
+
 自动测试覆盖：
 
 - 发布版本：根包、三个 workspace 包、Manifest、Host health、App Server clientInfo 和欧路

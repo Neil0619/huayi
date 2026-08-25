@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -50,6 +50,32 @@ function fictionalSources() {
 async function successfulPlatformBaseline({ onStage }) {
   onStage("auth-baseline");
   onStage("storage-baseline");
+}
+
+async function persistPortableRebuild({ performRebuild, repositoryRoot }) {
+  const rebuildRoot = join(
+    repositoryRoot,
+    "artifacts",
+    "hosted-important-batch-backups",
+    hostedImportantBatchId,
+    "rebuild",
+  );
+  const manifestPath = join(rebuildRoot, "rebuild-verification.json");
+  await mkdir(rebuildRoot, { recursive: true });
+  try {
+    const verdict = await performRebuild();
+    assert.deepEqual(verdict, {
+      fictionalSeedExact: true,
+      hostedDataAbsent: true,
+      migrationChainExact: true,
+      runtimeContractExact: true,
+      scratchDestroyed: true,
+    });
+    await writeFile(manifestPath, `${JSON.stringify(verdict)}\n`);
+  } catch (error) {
+    await rm(manifestPath, { force: true });
+    throw error;
+  }
 }
 
 test("rebuild exposes one fixed confirmation-gated operation", () => {
@@ -161,6 +187,7 @@ test("rebuild runs a networkless digest-only scratch, applies exact migrations a
 
   await rebuildHostedImportantBatchScratch({
     candidateCommit,
+    persistRebuild: persistPortableRebuild,
     loadSources: async () => fictionalSources(),
     migratePlatformBaseline: async ({ onStage }) => {
       onStage("auth-baseline");
@@ -210,6 +237,7 @@ test("rebuild waits for final PID 1 and Postgres image baseline after early pg_i
   let imageBaselineChecks = 0;
   await rebuildHostedImportantBatchScratch({
     candidateCommit,
+    persistRebuild: persistPortableRebuild,
     loadSources: async () => fictionalSources(),
     migratePlatformBaseline: successfulPlatformBaseline,
     repositoryRoot: root,
@@ -304,6 +332,7 @@ test("rebuild scratch readiness stops at the five-minute wall-clock deadline", a
   await assert.rejects(
     rebuildHostedImportantBatchScratch({
       candidateCommit,
+      persistRebuild: persistPortableRebuild,
       loadSources: async () => fictionalSources(),
       now: () => {
         nowCalls += 1;
@@ -366,6 +395,7 @@ test("rebuild destroys scratch and writes no evidence after any migration or ver
     await assert.rejects(
       rebuildHostedImportantBatchScratch({
         candidateCommit,
+        persistRebuild: persistPortableRebuild,
         loadSources: async () => fictionalSources(),
         migratePlatformBaseline: successfulPlatformBaseline,
         repositoryRoot: root,
@@ -466,6 +496,7 @@ test("rebuild reports fixed platform baseline stages and destroys scratch withou
     await assert.rejects(
       rebuildHostedImportantBatchScratch({
         candidateCommit,
+        persistRebuild: persistPortableRebuild,
         loadSources: async () => fictionalSources(),
         migratePlatformBaseline: async ({ onStage }) => {
           if (failureCase === "dynamic-private-stage") {
@@ -545,6 +576,7 @@ test("rebuild never removes an unknown same-name container created during the st
   await assert.rejects(
     rebuildHostedImportantBatchScratch({
       candidateCommit,
+      persistRebuild: persistPortableRebuild,
       loadSources: async () => fictionalSources(),
       repositoryRoot: root,
       resolveDockerTarget: async () => dockerTarget,
@@ -612,6 +644,7 @@ test("rebuild rejects nonlocal Docker targets and an inexact migration source se
     await assert.rejects(
       rebuildHostedImportantBatchScratch({
         candidateCommit,
+        persistRebuild: persistPortableRebuild,
         loadSources: async () => fictionalSources(),
         repositoryRoot: await temporaryRepository(),
         resolveDockerTarget: async () => dockerTarget,

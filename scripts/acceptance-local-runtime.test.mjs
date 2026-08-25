@@ -145,7 +145,7 @@ test("acceptance migration uses the pinned CLI only between two safe runtime che
   assert.deepEqual(checks, ["verify", "verify"]);
   assert.equal(calls.length, 1);
   assert.equal(calls[0].command, process.execPath);
-  assert.match(calls[0].arguments_[0], /node_modules\/supabase\/dist\/supabase\.js$/u);
+  assert.match(calls[0].arguments_[0], /node_modules[\\/]supabase[\\/]dist[\\/]supabase\.js$/u);
   assert.deepEqual(calls[0].arguments_.slice(1), [
     "migration",
     "up",

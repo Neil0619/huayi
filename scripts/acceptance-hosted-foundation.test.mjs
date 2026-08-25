@@ -676,8 +676,11 @@ test("package scripts expose separate hosted plan, apply and read-only verificat
   );
 });
 
-test("pnpm hosted bootstrap plan uses one argument and remains offline", async () => {
-  const result = await runCommand("pnpm", ["acceptance:hosted:bootstrap", "--plan"]);
+test("hosted bootstrap entrypoint uses one argument and remains offline", async () => {
+  const result = await runCommand(process.execPath, [
+    "scripts/acceptance-hosted-bootstrap.mjs",
+    "--plan",
+  ]);
   assert.equal(result.code, 0);
   assert.match(result.stdout, /no remote changes were made\./u);
   assert.equal(result.stderr, "");

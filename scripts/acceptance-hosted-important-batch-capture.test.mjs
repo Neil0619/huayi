@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -41,6 +41,34 @@ function sourceFromMount(arguments_, destination) {
   );
   assert.ok(mount);
   return /(?:^|,)src=([^,]+)(?:,|$)/u.exec(mount)?.[1];
+}
+
+async function persistPortableBackup({ phase, produceArchive, repositoryRoot, verifyArchive }) {
+  const phaseRoot = join(
+    repositoryRoot,
+    "artifacts",
+    "hosted-important-batch-backups",
+    hostedImportantBatchId,
+    phase,
+  );
+  const archivePartialPath = join(phaseRoot, "database.dump.partial");
+  const archivePath = join(phaseRoot, "database.dump");
+  const manifestPath = join(phaseRoot, "backup-manifest.json");
+  await mkdir(phaseRoot, { recursive: true });
+  try {
+    await writeFile(archivePartialPath, "");
+    await produceArchive({ archivePartialPath, phaseRoot });
+    await verifyArchive({ archivePartialPath });
+    await rename(archivePartialPath, archivePath);
+    await writeFile(manifestPath, "{}\n");
+  } catch (error) {
+    await Promise.all([
+      rm(archivePartialPath, { force: true }),
+      rm(archivePath, { force: true }),
+      rm(manifestPath, { force: true }),
+    ]);
+    throw error;
+  }
 }
 
 test("capture exposes only fixed pre and post operations", () => {
@@ -87,8 +115,10 @@ test("capture uses only the fixed local Docker target, digest runtime, and priva
     if (entrypoint === "psql") {
       const pgpassPath = sourceFromMount(arguments_, "/run/huayi/pgpass");
       const caPath = sourceFromMount(arguments_, "/run/huayi/database-ca.crt");
-      assert.equal((await stat(pgpassPath)).mode & 0o777, 0o600);
-      assert.equal((await stat(caPath)).mode & 0o777, 0o600);
+      if (process.platform !== "win32") {
+        assert.equal((await stat(pgpassPath)).mode & 0o777, 0o600);
+        assert.equal((await stat(caPath)).mode & 0o777, 0o600);
+      }
       assert.equal(await readFile(caPath, "utf8"), caCertificate);
       assert.ok(
         (await readFile(pgpassPath, "utf8")).includes(
@@ -126,6 +156,7 @@ test("capture uses only the fixed local Docker target, digest runtime, and priva
     caCertificate,
     candidateCommit,
     phase: "pre",
+    persistBackup: persistPortableBackup,
     repositoryRoot: root,
     resolveDockerTarget: async () => dockerTarget,
     runProcess,
@@ -155,6 +186,7 @@ test("capture validates the bounded precheck and archive coverage then cleans ev
         caCertificate,
         candidateCommit,
         phase: "pre",
+        persistBackup: persistPortableBackup,
         repositoryRoot: root,
         resolveDockerTarget: async () => dockerTarget,
         runProcess: async (_command, arguments_) =>
@@ -185,6 +217,7 @@ test("capture force-removes its exact labelled container after a timed-out pg_du
       caCertificate,
       candidateCommit,
       phase: "pre",
+      persistBackup: persistPortableBackup,
       repositoryRoot: root,
       resolveDockerTarget: async () => dockerTarget,
       runProcess: async (_command, arguments_) => {
@@ -244,6 +277,7 @@ test("capture never removes an occupied or mismatched container identity", async
         caCertificate,
         candidateCommit,
         phase: "pre",
+        persistBackup: persistPortableBackup,
         repositoryRoot: root,
         resolveDockerTarget: async () => dockerTarget,
         runProcess: async (_command, arguments_) => {
@@ -284,6 +318,7 @@ test("capture rejects prefixed text that only contains the required TOC fragment
       caCertificate,
       candidateCommit,
       phase: "pre",
+      persistBackup: persistPortableBackup,
       repositoryRoot: root,
       resolveDockerTarget: async () => dockerTarget,
       runProcess: async (_command, arguments_) => {

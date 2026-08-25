@@ -127,7 +127,7 @@ function createFakeRuntime({
     }
     if (operation === "cp") {
       const destination = arguments_.at(-1);
-      if (!destination.includes(":")) {
+      if (!destination.startsWith(`${hostedRestoreFictionalTargetContainer}:`)) {
         copiedArchivePath = destination;
         await writeFile(destination, "PGDMPfictional-archive", { mode: 0o600 });
       }

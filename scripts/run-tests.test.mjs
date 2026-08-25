@@ -13,8 +13,16 @@ test("repository tests run explicit script files before Vitest", async () => {
     run: async (step) => calls.push(step),
   });
 
-  assert.deepEqual(calls[0].arguments, ["--test", "scripts/a.test.mjs", "scripts/b.test.mjs"]);
-  assert.deepEqual(calls[1].arguments.slice(1), [
+  assert.deepEqual(calls[0].arguments, [
+    "/fixture/pnpm.cjs",
+    "--filter",
+    "@huayi/learning-domain",
+    "--filter",
+    "@huayi/cloud-contracts",
+    "build",
+  ]);
+  assert.deepEqual(calls[1].arguments, ["--test", "scripts/a.test.mjs", "scripts/b.test.mjs"]);
+  assert.deepEqual(calls[2].arguments.slice(1), [
     "exec",
     "vitest",
     "run",
@@ -26,6 +34,7 @@ test("repository tests run explicit script files before Vitest", async () => {
   ]);
   assert.equal(calls[0].executable, process.execPath);
   assert.equal(calls[1].executable, process.execPath);
+  assert.equal(calls[2].executable, process.execPath);
 });
 
 test("Windows Vitest disables file parallelism at the CLI boundary", async () => {
@@ -53,7 +62,7 @@ test("Windows Vitest disables file parallelism at the CLI boundary", async () =>
   );
 });
 
-test("repository tests stop before Vitest when script tests fail", async () => {
+test("repository tests stop before script tests when dependency builds fail", async () => {
   let calls = 0;
 
   await assert.rejects(
@@ -71,21 +80,54 @@ test("repository tests stop before Vitest when script tests fail", async () => {
   assert.equal(calls, 1);
 });
 
+test("repository tests stop before Vitest when script tests fail", async () => {
+  let calls = 0;
+
+  await assert.rejects(
+    runRepositoryTests({
+      listTests: async () => ["scripts/a.test.mjs"],
+      pnpmEntry: "/fixture/pnpm.cjs",
+      run: async () => {
+        calls += 1;
+        if (calls === 2) throw new Error("fixture failure");
+      },
+    }),
+    /fixture failure/u,
+  );
+
+  assert.equal(calls, 2);
+});
+
 test("repository test modes select exactly one reviewed subcheck", async () => {
   for (const [mode, expectedArguments] of [
-    ["scripts-only", ["--test", "scripts/a.test.mjs"]],
+    [
+      "scripts-only",
+      [
+        [
+          "/fixture/pnpm.cjs",
+          "--filter",
+          "@huayi/learning-domain",
+          "--filter",
+          "@huayi/cloud-contracts",
+          "build",
+        ],
+        ["--test", "scripts/a.test.mjs"],
+      ],
+    ],
     [
       "vitest-only",
       [
-        "/fixture/pnpm.cjs",
-        "exec",
-        "vitest",
-        "run",
-        "--config",
-        "vitest.config.ts",
-        "--passWithNoTests",
-        "--maxWorkers",
-        "4",
+        [
+          "/fixture/pnpm.cjs",
+          "exec",
+          "vitest",
+          "run",
+          "--config",
+          "vitest.config.ts",
+          "--passWithNoTests",
+          "--maxWorkers",
+          "4",
+        ],
       ],
     ],
   ]) {
@@ -97,7 +139,7 @@ test("repository test modes select exactly one reviewed subcheck", async () => {
       pnpmEntry: "/fixture/pnpm.cjs",
       run: async (step) => calls.push(step.arguments),
     });
-    assert.deepEqual(calls, [expectedArguments]);
+    assert.deepEqual(calls, expectedArguments);
   }
 });
 

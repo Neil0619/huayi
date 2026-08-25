@@ -411,7 +411,7 @@ test("runtime inspector uses fixed argument arrays and returns booleans instead 
     resolveDockerTarget: async () => fixedTestDockerTarget,
     runInspection: async (command, arguments_) => {
       calls.push({ arguments: arguments_, command });
-      if (command.endsWith("/node_modules/.bin/supabase")) {
+      if (/[\\/]node_modules[\\/]\.bin[\\/]supabase$/u.test(command)) {
         return { code: 0, stdout: "2.115.0\n" };
       }
       if (command === "/usr/bin/fdesetup") return { code: 0, stdout: "FileVault is On.\n" };
@@ -430,7 +430,7 @@ test("runtime inspector uses fixed argument arrays and returns booleans instead 
     false,
   );
   assert.equal(
-    calls.some((call) => /node_modules\/.bin\/supabase$/u.test(call.command)),
+    calls.some((call) => /node_modules[\\/]\.bin[\\/]supabase$/u.test(call.command)),
     true,
   );
   assert.equal(

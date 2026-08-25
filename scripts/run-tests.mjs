@@ -35,14 +35,30 @@ function resolveTestSteps(scriptTests, pnpmEntry, platform) {
   if (pnpmEntry === undefined || pnpmEntry.length === 0) {
     throw new Error("Repository tests must be started through pnpm.");
   }
+  const dependencyBuildStep = {
+    arguments: [
+      pnpmEntry,
+      "--filter",
+      "@huayi/learning-domain",
+      "--filter",
+      "@huayi/cloud-contracts",
+      "build",
+    ],
+    executable: process.execPath,
+  };
   const scriptStep = {
     arguments: ["--test", ...scriptTests],
     executable: process.execPath,
   };
   if (platform !== "win32") {
-    return [scriptStep, createVitestStep(pnpmEntry, undefined, ["--maxWorkers", "4"])];
+    return [
+      dependencyBuildStep,
+      scriptStep,
+      createVitestStep(pnpmEntry, undefined, ["--maxWorkers", "4"]),
+    ];
   }
   return [
+    dependencyBuildStep,
     scriptStep,
     createVitestStep(pnpmEntry, "store-domain"),
     createVitestStep(pnpmEntry, "learning-domain"),
@@ -83,7 +99,7 @@ export async function runRepositoryTests({
   }
   const steps = resolveTestSteps(scriptTests, pnpmEntry, platform);
   const selected =
-    mode === "scripts-only" ? [steps[0]] : mode === "vitest-only" ? steps.slice(1) : steps;
+    mode === "scripts-only" ? steps.slice(0, 2) : mode === "vitest-only" ? steps.slice(2) : steps;
   for (const step of selected) await run(step);
 }
 

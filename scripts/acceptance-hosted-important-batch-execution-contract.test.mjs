@@ -15,6 +15,7 @@ const dockerTarget = {
   command: "/Applications/OrbStack.app/Contents/MacOS/xbin/docker",
   host: "unix:///Users/fixed/.orbstack/run/docker.sock",
 };
+const posixProcessEnvironmentTest = process.platform === "win32" ? test.skip : test;
 
 test("execution contract accepts only fixed local Unix Docker shapes", () => {
   assert.doesNotThrow(() => assertFixedLocalDockerTarget(dockerTarget));
@@ -50,7 +51,26 @@ test("digest-only Docker run prefix forbids tag and implicit pull", () => {
   );
 });
 
-test("sensitive process adapter exposes only bounded stdout and a fixed child environment", async () => {
+test("sensitive process adapter passes only the fixed child environment to spawn", async () => {
+  const child = new EventEmitter();
+  child.stdout = new PassThrough();
+  child.kill = () => true;
+  let observed;
+  const resultPromise = runHostedImportantBatchProcess("fixed-command", [], {
+    spawnProcess: (command, arguments_, options) => {
+      observed = { arguments_, command, options };
+      return child;
+    },
+  });
+  assert.deepEqual(observed.options.env, { LANG: "C", LC_ALL: "C" });
+  assert.equal(observed.options.shell, false);
+  assert.equal(observed.options.windowsHide, true);
+  child.stdout.end("stage passed\n");
+  child.emit("close", 0, null);
+  assert.deepEqual(await resultPromise, { code: 0, stdout: "stage passed\n" });
+});
+
+posixProcessEnvironmentTest("real child inherits no unreviewed POSIX environment", async () => {
   const environmentResult = await runHostedImportantBatchProcess(process.execPath, [
     "--input-type=module",
     "--eval",
@@ -66,7 +86,9 @@ test("sensitive process adapter exposes only bounded stdout and a fixed child en
       .sort(),
     ["LANG", "LC_ALL"],
   );
+});
 
+test("sensitive process adapter suppresses bounded-output overflow", async () => {
   const overflow = await runHostedImportantBatchProcess(
     process.execPath,
     ["--input-type=module", "--eval", "process.stdout.write('x'.repeat(1024))"],

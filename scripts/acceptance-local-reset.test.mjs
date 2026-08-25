@@ -99,7 +99,7 @@ test("local reset invokes only the pinned local CLI with the repository seed", a
   );
   assert.equal(calls.length, 1);
   assert.equal(calls[0].command, process.execPath);
-  assert.match(calls[0].arguments_[0], /node_modules\/supabase\/dist\/supabase\.js$/u);
+  assert.match(calls[0].arguments_[0], /node_modules[\\/]supabase[\\/]dist[\\/]supabase\.js$/u);
   assert.deepEqual(calls[0].arguments_.slice(1), [
     "db",
     "reset",

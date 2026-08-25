@@ -13,6 +13,7 @@ import { hostedAcceptanceProjectRef } from "./acceptance-hosted-foundation.mjs";
 
 const candidateCommit = "0123456789abcdef0123456789abcdef01234567";
 const temporaryRoots = [];
+const portableModeOptions = process.platform === "win32" ? { privateModeMatches: () => true } : {};
 
 test.afterEach(async () => {
   await Promise.all(
@@ -36,6 +37,7 @@ test("backup persistence commits archive before its canonical manifest and leave
   const archive = Buffer.from("opaque-custom-archive");
 
   await persistHostedImportantBatchBackup({
+    ...portableModeOptions,
     candidateCommit,
     now: () => new Date("2026-08-24T08:00:00.000Z"),
     phase: "pre",
@@ -53,9 +55,11 @@ test("backup persistence commits archive before its canonical manifest and leave
   const phaseRoot = join(batchRoot(root), "pre");
   assert.deepEqual((await readdir(phaseRoot)).sort(), ["backup-manifest.json", "database.dump"]);
   assert.deepEqual(await readFile(join(phaseRoot, "database.dump")), archive);
-  assert.equal((await stat(phaseRoot)).mode & 0o777, 0o700);
-  assert.equal((await stat(join(phaseRoot, "database.dump"))).mode & 0o777, 0o600);
-  assert.equal((await stat(join(phaseRoot, "backup-manifest.json"))).mode & 0o777, 0o600);
+  if (process.platform !== "win32") {
+    assert.equal((await stat(phaseRoot)).mode & 0o777, 0o700);
+    assert.equal((await stat(join(phaseRoot, "database.dump"))).mode & 0o777, 0o600);
+    assert.equal((await stat(join(phaseRoot, "backup-manifest.json"))).mode & 0o777, 0o600);
+  }
   const manifestSource = await readFile(join(phaseRoot, "backup-manifest.json"), "utf8");
   const manifest = JSON.parse(manifestSource);
   assert.equal(manifestSource, `${JSON.stringify(manifest)}\n`);
@@ -81,6 +85,7 @@ test("backup persistence rejects dynamic identity and cleans partial or committe
     const root = await temporaryRepository();
     await assert.rejects(
       persistHostedImportantBatchBackup({
+        ...portableModeOptions,
         candidateCommit,
         phase: "post",
         produceArchive: async ({ archivePartialPath }) => {
@@ -98,6 +103,7 @@ test("backup persistence rejects dynamic identity and cleans partial or committe
 
   await assert.rejects(
     persistHostedImportantBatchBackup({
+      ...portableModeOptions,
       candidateCommit: "wrong",
       phase: "pre",
       produceArchive: async () => undefined,
@@ -116,6 +122,7 @@ test("backup persistence rejects unknown directory entries before producing an a
 
   await assert.rejects(
     persistHostedImportantBatchBackup({
+      ...portableModeOptions,
       candidateCommit,
       phase: "pre",
       produceArchive: async () => {
@@ -135,6 +142,7 @@ test("backup persistence rejects a same-size archive mutation during verificatio
   const root = await temporaryRepository();
   await assert.rejects(
     persistHostedImportantBatchBackup({
+      ...portableModeOptions,
       candidateCommit,
       phase: "pre",
       produceArchive: ({ archivePartialPath }) => writeFile(archivePartialPath, "first"),
@@ -150,6 +158,7 @@ test("rebuild persistence writes its manifest only after scratch destruction is 
   const root = await temporaryRepository();
   const events = [];
   await persistHostedImportantBatchRebuild({
+    ...portableModeOptions,
     candidateCommit,
     now: () => new Date("2026-08-24T08:30:00.000Z"),
     performRebuild: async () => {
@@ -180,6 +189,7 @@ test("rebuild persistence fails closed and removes its partial when any verdict 
   const root = await temporaryRepository();
   await assert.rejects(
     persistHostedImportantBatchRebuild({
+      ...portableModeOptions,
       candidateCommit,
       performRebuild: async () => ({
         fictionalSeedExact: true,

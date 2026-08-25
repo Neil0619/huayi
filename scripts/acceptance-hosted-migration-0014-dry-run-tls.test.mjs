@@ -150,7 +150,7 @@ test("0014 dry-run process pins verify-full to a private temporary CA and remove
   while (observed === undefined) {
     await new Promise((resolveWait) => setImmediate(resolveWait));
   }
-  assert.match(observed.command, /\/node_modules\/\.bin\/supabase$/u);
+  assert.match(observed.command, /[\\/]node_modules[\\/]\.bin[\\/]supabase$/u);
   assert.deepEqual(observed.arguments_, [
     "db",
     "push",
@@ -168,11 +168,14 @@ test("0014 dry-run process pins verify-full to a private temporary CA and remove
   ]);
   assert.equal(observed.options.env.PGPASSWORD, "fictional-secret");
   assert.equal(observed.options.env.PGSSLMODE, "verify-full");
-  assert.match(observed.options.env.PGSSLROOTCERT, /\/huayi-hosted-0014-ca-[^/]+\/root\.crt$/u);
+  assert.match(
+    observed.options.env.PGSSLROOTCERT,
+    /[\\/]huayi-hosted-0014-ca-[^\\/]+[\\/]root\.crt$/u,
+  );
   assert.equal(observed.options.shell, false);
   assert.deepEqual(observed.options.stdio, ["ignore", "pipe", "pipe"]);
   const certificateStats = await stat(observed.options.env.PGSSLROOTCERT);
-  assert.equal(certificateStats.mode & 0o777, 0o600);
+  if (process.platform !== "win32") assert.equal(certificateStats.mode & 0o777, 0o600);
   assert.equal(await readFile(observed.options.env.PGSSLROOTCERT, "utf8"), caCertificate);
 
   child.stdout.end();
