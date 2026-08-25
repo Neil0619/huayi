@@ -27,6 +27,11 @@ adapter，以继续覆盖 canonical/atomic 流程、路径、进程、环境、p
 mode、目录 `fsync` 断言与依赖 Windows symlink 权限的变体不在 Windows 门执行。声明为 macOS 的
 FileVault readiness 测试必须显式注入平台，不得从运行测试的宿主平台推导期望。
 
+非 Windows 的根 Vitest 门按固定顺序分成两个进程：先用 `--project=!api --maxWorkers 4` 运行
+非 API projects，再用 `--project api --maxWorkers 2 --testTimeout 15000 --hookTimeout 15000`
+单独运行 PGlite 密集的 API tests。这个局部资源和超时预算不改变断言、重试或全局 Playwright
+timeout；Windows 继续使用既有逐 project 列表，且不因此新增 API/Web Vitest 步骤。
+
 自动测试覆盖：
 
 - 发布版本：根包、三个 workspace 包、Manifest、Host health、App Server clientInfo 和欧路
@@ -142,6 +147,8 @@ relay 关闭当前站点且消息不携带 URL。fake 不发 HTTP，也不替代
   毫秒窗口；
 - API Key 未配置和授权失败只显示固定安全中文提示，不暴露伪凭据；
 - 320px 窄屏下生词按钮、拖动手柄和关闭按钮均可见且不重叠。
+- 短语解释 journey 在点击后只为该结果卡等待最多 10 秒的 `data-status="result"`，随后再检查
+  最终文本与唯一分析请求；不使用固定 sleep，也不提高全局 Playwright timeout。
 - 本地 YouTube fixture 串起构建后的 MAIN bridge 与 isolated controller，覆盖英语单语／双语、
   正常／剧院／全屏、SPA 换视频、源／译轨失败、可选字幕上下文和 warmup 无字幕数据；并断言
   旧“译”按钮、冻结 picker、“整条字幕”和 30 秒缓冲交互已移除。fixture 会缓存重复源轨，只
@@ -217,7 +224,9 @@ Native Messaging `health` 帧验证 v0.13.0、
 DeepSeek 固定 Provider、`deepseek-v4-flash` 和 `codexVersion: null`，并拒绝 stderr 或额外
 stdout。SEA health 从仓库外临时目录运行，清除 `NODE_PATH` 并使用临时 `LOCALAPPDATA`，确保
 运行时不依赖仓库 `node_modules`。GitHub Actions 的 `macos-quality` 使用 Node 24，
-`windows-quality` 使用 Node 26。
+`windows-quality` 使用 Node 26。Windows job 失败时只保留元素截图断言产生的四个固定
+`lexical-translation` / `lexical-explanation` actual/diff PNG，保留 1 天且缺失即忽略；公开仓库
+不得上传 trace、Playwright report、`test-results` 目录、任意页面截图、日志、请求内容或密钥。
 
 该门禁不包含真实 smoke、Host 安装、Chrome 操作、真实钥匙串、DPAPI、注册表或欧路访问。
 纯逻辑和共享契约要求双平台 CI；系统原语还必须按

@@ -47,3 +47,36 @@ test("cross-platform workflow never performs privileged or paid runtime operatio
   assert.doesNotMatch(workflow, /host:(?:eudic|openai|deepseek|compatible):/);
   assert.doesNotMatch(workflow, /secrets\./);
 });
+
+test("Windows failures retain only four allowlisted lexical screenshot PNGs", async () => {
+  const workflow = await readWorkflow();
+  const windowsVerifyIndex = workflow.indexOf("- run: pnpm verify:windows");
+  const uploadStepIndex = workflow.indexOf(
+    "- name: Upload Windows lexical screenshot diffs on failure",
+  );
+
+  assert.notEqual(windowsVerifyIndex, -1);
+  assert.ok(uploadStepIndex > windowsVerifyIndex);
+
+  const uploadStep = workflow.slice(uploadStepIndex);
+  assert.match(uploadStep, /^- name: Upload Windows lexical screenshot diffs on failure\n/m);
+  assert.match(uploadStep, /^\s{8}if: \$\{\{ failure\(\) \}\}$/m);
+  assert.match(
+    uploadStep,
+    /^\s{8}uses: actions\/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7\.0\.1$/m,
+  );
+  assert.match(uploadStep, /^\s{10}if-no-files-found: ignore$/m);
+  assert.match(uploadStep, /^\s{10}retention-days: 1$/m);
+
+  const uploadedPaths = [...uploadStep.matchAll(/^\s{12}(\*\*\/[^\n]+)$/gm)].map(
+    ([, path]) => path,
+  );
+  assert.deepEqual(uploadedPaths, [
+    "**/lexical-translation-actual.png",
+    "**/lexical-translation-diff.png",
+    "**/lexical-explanation-actual.png",
+    "**/lexical-explanation-diff.png",
+  ]);
+  assert.doesNotMatch(uploadStep, /(?:trace|playwright-report|test-results)/u);
+  assert.doesNotMatch(uploadStep, /(?:\.zip|\.html|\.json)(?:\s|$)/u);
+});

@@ -102,10 +102,12 @@ test("drag selection classifies a phrase and renders lexical explanation", async
   await dragSelect(page, page.getByTestId("phrase-selection"));
 
   await expect(toolbar(page)).toBeVisible();
+  const resultPanel = panel(page);
   await toolbar(page).locator('[data-action="explain"]').click();
 
-  await expect(panel(page)).toContainText("词汇解释结果");
-  await expect(panel(page)).toContainText("同义词");
+  await expect(resultPanel).toHaveAttribute("data-status", "result", { timeout: 10_000 });
+  await expect(resultPanel).toContainText("词汇解释结果");
+  await expect(resultPanel).toContainText("同义词");
   await expectAnalyzeRequest(page, "phrase", "explain");
 });
 

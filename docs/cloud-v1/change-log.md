@@ -3,6 +3,18 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-25：跨平台 CI 以 API 资源批次和最小失败 PNG 收口诊断面
+
+- 非 Windows 根 Vitest 从单进程最多 4 workers 改为精确两个串行进程：先排除 API 运行其余
+  projects，再以 2 workers 和局部 15 秒 test/hook timeout 运行 API/PGlite；这不增加重试、不改变
+  assertions，也不提高全局 Playwright timeout。Windows 仍使用原逐 project 清单，不新增 API/Web；
+- phrase Playwright journey 在操作后等待该 ResultCard 明确进入 `data-status="result"`，最多 10 秒后
+  再断言最终内容和唯一请求，避免用中间文案代替终态或加入固定 sleep；
+- Windows Actions 失败诊断仅上传 lexical translation/explanation 元素截图测试生成的四个固定
+  actual/diff PNG，action 固定完整 SHA、缺失忽略、保留 1 天。公开仓库明确禁止 trace、report、
+  `test-results` 宽目录、其他页面截图、日志和密钥；本变更不触碰 Hosted 数据库、0014、Supabase、
+  Vercel、DNS、密钥、邮件、部署或任何真实 Provider smoke。
+
 ## 2026-08-25：干净双平台 CI 固定 workspace build、LF 与 Hosted POSIX 证据边界
 
 - 根脚本测试此前可在开发机因残留 `dist` 通过，但干净 CI 会在导入 API environment 时找不到

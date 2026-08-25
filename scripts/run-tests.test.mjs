@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { runRepositoryTests } from "./run-tests.mjs";
 
-test("repository tests run explicit script files before Vitest", async () => {
+test("repository tests run explicit script files before two bounded Vitest batches", async () => {
   const calls = [];
 
   await runRepositoryTests({
@@ -29,15 +29,34 @@ test("repository tests run explicit script files before Vitest", async () => {
     "--config",
     "vitest.config.ts",
     "--passWithNoTests",
+    "--project",
+    "!api",
     "--maxWorkers",
     "4",
+  ]);
+  assert.deepEqual(calls[3].arguments.slice(1), [
+    "exec",
+    "vitest",
+    "run",
+    "--config",
+    "vitest.config.ts",
+    "--passWithNoTests",
+    "--project",
+    "api",
+    "--maxWorkers",
+    "2",
+    "--testTimeout",
+    "15000",
+    "--hookTimeout",
+    "15000",
   ]);
   assert.equal(calls[0].executable, process.execPath);
   assert.equal(calls[1].executable, process.execPath);
   assert.equal(calls[2].executable, process.execPath);
+  assert.equal(calls[3].executable, process.execPath);
 });
 
-test("Windows Vitest disables file parallelism at the CLI boundary", async () => {
+test("Windows Vitest sharding remains unchanged and disables native-host file parallelism", async () => {
   const calls = [];
 
   await runRepositoryTests({
@@ -60,6 +79,7 @@ test("Windows Vitest disables file parallelism at the CLI boundary", async () =>
       ["--passWithNoTests", "--project", "store-extension"],
     ],
   );
+  assert.doesNotMatch(calls.flat().join(" "), /(?:^|\s)(?:api|web)(?:\s|$)/u);
 });
 
 test("repository tests stop before script tests when dependency builds fail", async () => {
@@ -98,7 +118,7 @@ test("repository tests stop before Vitest when script tests fail", async () => {
   assert.equal(calls, 2);
 });
 
-test("repository test modes select exactly one reviewed subcheck", async () => {
+test("repository test modes select their reviewed step groups", async () => {
   for (const [mode, expectedArguments] of [
     [
       "scripts-only",
@@ -125,8 +145,27 @@ test("repository test modes select exactly one reviewed subcheck", async () => {
           "--config",
           "vitest.config.ts",
           "--passWithNoTests",
+          "--project",
+          "!api",
           "--maxWorkers",
           "4",
+        ],
+        [
+          "/fixture/pnpm.cjs",
+          "exec",
+          "vitest",
+          "run",
+          "--config",
+          "vitest.config.ts",
+          "--passWithNoTests",
+          "--project",
+          "api",
+          "--maxWorkers",
+          "2",
+          "--testTimeout",
+          "15000",
+          "--hookTimeout",
+          "15000",
         ],
       ],
     ],

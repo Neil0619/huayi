@@ -46,3 +46,15 @@ jobs:
       - name: Install Chrome for Playwright
         run: pnpm exec playwright install chrome
       - run: pnpm verify:windows
+      - name: Upload Windows lexical screenshot diffs on failure
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: windows-lexical-screenshot-diffs
+          path: |
+            **/lexical-translation-actual.png
+            **/lexical-translation-diff.png
+            **/lexical-explanation-actual.png
+            **/lexical-explanation-diff.png
+          if-no-files-found: ignore
+          retention-days: 1

@@ -54,7 +54,15 @@ function resolveTestSteps(scriptTests, pnpmEntry, platform) {
     return [
       dependencyBuildStep,
       scriptStep,
-      createVitestStep(pnpmEntry, undefined, ["--maxWorkers", "4"]),
+      createVitestStep(pnpmEntry, "!api", ["--maxWorkers", "4"]),
+      createVitestStep(pnpmEntry, "api", [
+        "--maxWorkers",
+        "2",
+        "--testTimeout",
+        "15000",
+        "--hookTimeout",
+        "15000",
+      ]),
     ];
   }
   return [

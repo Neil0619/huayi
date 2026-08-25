@@ -78,6 +78,12 @@ health 验证会把 `.exe` 复制到仓库外的临时目录，清除 `NODE_PATH
 产品测试必须离线；生产依赖审计只查询包管理器安全公告，不运行扩展或 Provider/词典请求。真实
 smoke、安装和凭据操作不在两个命令中。
 
+非 Windows 根 Vitest 使用两个串行资源批次：非 API projects 最多 4 workers，API/PGlite 最多
+2 workers 并仅为该批次设置 15 秒 test/hook timeout；Windows 的既有逐 project 命令保持不变。
+Windows Actions job 只有失败时才上传四个固定 lexical ResultCard actual/diff PNG，保留 1 天；不得
+上传 trace、report、`test-results` 宽目录、其他页面截图、日志或凭据。该诊断工件策略不替代目标
+平台验证，也不扩大 CI 权限或网络/密钥边界。
+
 ### 验证节奏：macOS 优先，Windows 按候选批次
 
 双平台门禁是冻结候选、合并和发布的完成要求，不代表每个普通提交后都必须立即切换到 Windows。日常
@@ -122,7 +128,9 @@ SEA 独立 `health`、实际 SEA 安装、精确 HKCU 注册表与 manifest 检�
 
 GitHub Actions 在 `main` push、Pull Request 和手动触发时运行 `macos-quality` 与
 `windows-quality`。两项都必须设为 `main` 必需检查；Actions 固定完整提交 SHA，两个平台都安装
-Chrome。设置分支保护与真实运行结果仍是仓库外发布操作，完成前不得声称发布门已经闭合。
+Chrome。Windows failure artifact 使用固定 action SHA、四 PNG allowlist、1 天保留期和
+`if-no-files-found: ignore`，公开仓库中不保留 trace、页面级失败截图或密钥。设置分支保护与真实
+运行结果仍是仓库外发布操作，完成前不得声称发布门已经闭合。
 
 ## 人工验收与交接
 
