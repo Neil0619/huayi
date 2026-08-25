@@ -416,6 +416,30 @@ owner context、generation/reservation 归属、task 成功或失败终态、价
   migration mirror 的固定 SHA-256；管理员密码只进入隐藏 TTY 与单一 child 的 `PGPASSWORD`，公开 CA 只进
   `0600` 临时文件。写后只读 postflight 必须验证完整 migration chain、bound column/check、函数 security
   identity 与 exact ACL；apply 或 postflight 不确定时固定禁止盲目重试，避免重复 forward migration。
+- apply 返回未验证后只能运行固定 `acceptance:hosted:migration:0014:status`。该入口拒绝继承
+  `PGPASSWORD` / `SUPABASE_DB_PASSWORD`，在内部固定官方 CA、隐藏 TTY 管理员密码、Singapore transaction
+  pooler `6543` 与 verify-full，并只执行一个 `BEGIN READ ONLY` catalog snapshot。只有完整 14-chain + exact
+  0014 artifacts/ACL 才是 `applied-exact`；只有完整 13-chain + 0014 artifacts 全部 absent 才是
+  `pending-exact`；连接、进程、输出、半应用或 catalog 漂移均固定为 `uncertain`，不得反射数据库原始输出，
+  也不得据此重试 apply。
+- `status` 返回 `uncertain` 时只允许固定 `acceptance:hosted:migration:0014:status:diagnose`：沿用 official CA、
+  hidden TTY、transaction pooler `6543`、verify-full、`connect_timeout=10`、30 秒上限和 `BEGIN READ ONLY`，
+  公开输出只能包含 allowlisted psql exit class、output exact、12 个核心 catalog `t/f`、bind/renew 各 10 个
+  固定 ACL 分解 `t/f`、4 个 Data API roles / 全部 public SECURITY DEFINER 函数全局 `t/f` 与 final status。
+  ACL 分解只允许固定的 setter/business/runtime、owner、`PUBLIC`、
+  `anon`、`authenticated`、`service_role` 和 other 类别；数据库 stderr、raw ACL/OID/未知角色名、密码和 URL
+  不得进入输出，函数名也不得输出；诊断结论不授权任何 Hosted 写入。Supabase 既有项目可能自动给
+  public-schema 函数的 API
+  roles 授予 `EXECUTE`，所以 SECURITY DEFINER 函数必须显式验证并撤销这些边，不能只撤销 `PUBLIC`。
+- 真实 6543 ACL 分解已确认 0014 完整应用、Huayi role 权限正确，漂移精确为 `anon`、`authenticated`、
+  `service_role` direct `EXECUTE`，且全体 public SECURITY DEFINER 的 API-role 谓词失败。禁止重跑 0014；
+  只能由 forward-only 0015 在一条事务内从全部现有 public functions 撤销 PUBLIC/三个 API roles，并保留
+  未列入集合的 owner/Huayi direct grants。
+- 后续函数的安全默认必须同时处理两个 scope：owner=`postgres` 的 global default ACL 撤销 PUBLIC 与三个
+  API roles，public per-schema default ACL 再撤销三个 API roles。PostgreSQL 明确 per-schema REVOKE 不能
+  抵消 global PUBLIC default；只执行 schema-scoped PUBLIC revoke 会留下未来函数公共可执行。本阶段不改
+  schema USAGE、Data API 状态、RLS、table ACL 或 role membership。完整 migration、backup 与验收契约见
+  `public-function-acl-hardening.md`。
 - `POST /v1/auth/password/register/resend` 只接受 Web 内存自动提交的原 invitation token；strict body 不接收
   email、password、OTP 或 flow，固定响应不披露账号状态。API 在 IP 每小时 5 次、pepper-hashed invitation
   每小时 3 次门后，先原子轮换同一 claim/flow，再调用 Supabase signup resend；Provider 失败不建

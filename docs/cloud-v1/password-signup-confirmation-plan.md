@@ -124,13 +124,13 @@ SQL 绕过。
       退役动作；现新增 fixed-confirmation retirement，在 clean HEAD=upstream、双 ignore、exact `0700/0600`
       stale manifest 下把整个 leaf 原子移入按旧 candidate commit 固定的 protected history。离线 RED→GREEN
       覆盖 current/invalid/extra/occupied/rename/fsync failure，未执行真实 evidence 移动；
-- [ ] 单独批准并确保 0014 前 raw logical dump 与最终 clean candidate 的隔离 scratch 重建 evidence 均 current；
-      两项独立且可按任一顺序完成，`backup:status` 须同时返回 `pre_current|t` 与 `rebuild_current|t`，随后
-      `pnpm acceptance:hosted:backup:preflight` 通过；该门关闭前 0014 不得描述为 ready；
-- [ ] 用户确认后只通过 `acceptance:hosted:migration:0014:apply` 实际应用唯一 0014；入口内部再次 exact
-      dry-run、mutation 前重查 preflight/source identity，并以只读 postflight 验证完整 chain/0014 identity/ACL。
-      再按 API→Web 严格串行 one-shot deploy/disarm；部署完成前不发送新邮件；
-- [ ] 0014 应用后完成 post raw logical dump，并由 `pnpm acceptance:hosted:backup:complete` 关闭重要批次；
+- [x] 0014 前 raw logical dump、clean candidate 隔离 scratch rebuild、`backup:status` current 与 preflight
+      均已完成，历史 pre 不得覆盖或重捕；
+- [x] 用户确认后只通过 `acceptance:hosted:migration:0014:apply` 实际应用唯一 0014；入口返回 postflight
+      未 verified，后续 6543 只读诊断确认完整 14-chain/objects/Huayi grants，故 0014 禁止重跑；
+- [ ] Supabase 三个 Data API role 的 public-function ACL 漂移必须先由 Phase 91 forward-only 0015 收敛；
+      独立完成 pre-0015/15-chain rebuild/preflight、exact dry-run/apply/postflight 与 post/completion 后，再按
+      API→Web 严格串行 one-shot deploy/disarm；部署完成前不发送新邮件；
 - [ ] 系统打开最近的私密邀请，用户点击重发；只接受新邮件的六位 ASCII OTP，scanner GET 零副作用，
       显式 POST 完成同一 invitation/user，并回读 invitation/user/identity 唯一性。
 

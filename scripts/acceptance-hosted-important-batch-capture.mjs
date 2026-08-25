@@ -3,6 +3,10 @@ import { join } from "node:path";
 
 import { resolveLocalDockerInspectionTarget } from "./acceptance-local-docker-inspection.mjs";
 import { persistHostedImportantBatchBackup } from "./acceptance-hosted-important-batch-artifacts.mjs";
+import {
+  assertHostedImportantBatchArtifactContract,
+  hostedPhase81ArtifactContract,
+} from "./acceptance-hosted-important-batch-contracts.mjs";
 import { hostedAcceptanceProjectRef } from "./acceptance-hosted-foundation.mjs";
 import {
   assertFixedLocalDockerTarget,
@@ -21,10 +25,6 @@ import {
 export const hostedImportantBatchCapturePreArgument = `--confirm-capture-pre-0014-important-batch-backup-${hostedAcceptanceProjectRef}`;
 export const hostedImportantBatchCapturePostArgument = `--confirm-capture-post-0014-important-batch-backup-${hostedAcceptanceProjectRef}`;
 
-const expectedMigrationHeads = Object.freeze({
-  post: "20260824010000",
-  pre: "20260823010000",
-});
 const coveragePatterns = Object.freeze([
   /^\d+;\s+\d+\s+\d+\s+TABLE DATA auth users \S+$/u,
   /^\d+;\s+\d+\s+\d+\s+TABLE DATA storage objects \S+$/u,
@@ -109,8 +109,8 @@ function databaseArguments() {
   ];
 }
 
-function captureContainerIdentity(phase, step) {
-  const label = `phase-81-0014-capture-${phase}-${step}`;
+function captureContainerIdentity(artifactContract, phase, step) {
+  const label = `${artifactContract.captureIdentityPrefix}-capture-${phase}-${step}`;
   return { label, name: `huayi-${label}` };
 }
 
@@ -127,6 +127,7 @@ function captureRuntimeIsExact(source, label) {
 }
 
 async function runCaptureContainer({
+  artifactContract,
   dockerTarget,
   extraArguments,
   options,
@@ -136,7 +137,7 @@ async function runCaptureContainer({
   tailArguments,
   wait,
 }) {
-  const identity = captureContainerIdentity(phase, step);
+  const identity = captureContainerIdentity(artifactContract, phase, step);
   const existing = await inspectHostedImportantBatchContainer(
     dockerTarget,
     identity.name,
@@ -178,8 +179,17 @@ async function runCaptureContainer({
   return result;
 }
 
-async function runDatabaseContract({ caPath, dockerTarget, pgpassPath, phase, runProcess, wait }) {
+async function runDatabaseContract({
+  artifactContract,
+  caPath,
+  dockerTarget,
+  pgpassPath,
+  phase,
+  runProcess,
+  wait,
+}) {
   const result = await runCaptureContainer({
+    artifactContract,
     dockerTarget,
     extraArguments: [
       "--network",
@@ -210,13 +220,16 @@ async function runDatabaseContract({ caPath, dockerTarget, pgpassPath, phase, ru
     ],
     wait,
   });
-  const expected = `migration_head|${expectedMigrationHeads[phase]}\n` + "storage_objects_zero|t\n";
+  const migrationHead =
+    phase === "pre" ? artifactContract.preMigrationHead : artifactContract.postMigrationHead;
+  const expected = `migration_head|${migrationHead}\n` + "storage_objects_zero|t\n";
   if (result.code !== 0 || result.stdout !== expected) {
     throw new Error("Hosted important-batch capture contract failed.");
   }
 }
 
 async function runCustomDump({
+  artifactContract,
   archivePartialPath,
   caPath,
   dockerTarget,
@@ -226,6 +239,7 @@ async function runCustomDump({
   wait,
 }) {
   const result = await runCaptureContainer({
+    artifactContract,
     dockerTarget,
     extraArguments: [
       "--network",
@@ -260,8 +274,16 @@ async function runCustomDump({
   }
 }
 
-async function verifyCustomDump({ archivePartialPath, dockerTarget, phase, runProcess, wait }) {
+async function verifyCustomDump({
+  archivePartialPath,
+  artifactContract,
+  dockerTarget,
+  phase,
+  runProcess,
+  wait,
+}) {
   const result = await runCaptureContainer({
+    artifactContract,
     dockerTarget,
     extraArguments: [
       "--network",
@@ -295,6 +317,7 @@ async function verifyCustomDump({ archivePartialPath, dockerTarget, phase, runPr
 
 export async function captureHostedImportantBatchBackup({
   administratorPassword,
+  artifactContract = hostedPhase81ArtifactContract,
   caCertificate,
   candidateCommit,
   phase,
@@ -304,13 +327,15 @@ export async function captureHostedImportantBatchBackup({
   runProcess = runHostedImportantBatchProcess,
   wait = (milliseconds) => new Promise((resolveWait) => setTimeout(resolveWait, milliseconds)),
 }) {
+  assertHostedImportantBatchArtifactContract(artifactContract);
   assertSecretMaterial(administratorPassword, caCertificate);
-  if (!Object.hasOwn(expectedMigrationHeads, phase)) {
+  if (!new Set(["post", "pre"]).has(phase)) {
     throw new Error("Hosted important-batch capture phase is invalid.");
   }
   const dockerTarget = await resolveDockerTarget();
   assertFixedLocalDockerTarget(dockerTarget);
   await persistBackup({
+    artifactContract,
     candidateCommit,
     phase,
     produceArchive: async ({ archivePartialPath, phaseRoot }) => {
@@ -319,9 +344,18 @@ export async function captureHostedImportantBatchBackup({
       try {
         await writePrivateFile(pgpassPath, pgpassSource(administratorPassword));
         await writePrivateFile(caPath, caCertificate);
-        await runDatabaseContract({ caPath, dockerTarget, pgpassPath, phase, runProcess, wait });
+        await runDatabaseContract({
+          artifactContract,
+          caPath,
+          dockerTarget,
+          pgpassPath,
+          phase,
+          runProcess,
+          wait,
+        });
         await runCustomDump({
           archivePartialPath,
+          artifactContract,
           caPath,
           dockerTarget,
           pgpassPath,
@@ -335,6 +369,13 @@ export async function captureHostedImportantBatchBackup({
     },
     repositoryRoot,
     verifyArchive: ({ archivePartialPath }) =>
-      verifyCustomDump({ archivePartialPath, dockerTarget, phase, runProcess, wait }),
+      verifyCustomDump({
+        archivePartialPath,
+        artifactContract,
+        dockerTarget,
+        phase,
+        runProcess,
+        wait,
+      }),
   });
 }

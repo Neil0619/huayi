@@ -52,10 +52,10 @@ export function renderHostedImportantBatchRecordedMigration(migration) {
 );\n`;
 }
 
-export function renderHostedImportantBatchRebuildFinalContractSql() {
-  const expectedVersions = hostedImportantBatchMigrationVersions
-    .map((version) => `(${sqlLiteral(version)})`)
-    .join(",");
+export function renderHostedImportantBatchRebuildFinalContractSql(
+  migrationVersions = hostedImportantBatchMigrationVersions,
+) {
+  const expectedVersions = migrationVersions.map((version) => `(${sqlLiteral(version)})`).join(",");
   return `/* rebuild_contract */
 WITH expected(version) AS (VALUES ${expectedVersions})
 SELECT 'migration_chain_exact|' || CASE WHEN

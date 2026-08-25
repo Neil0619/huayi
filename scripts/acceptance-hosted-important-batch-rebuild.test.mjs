@@ -95,8 +95,12 @@ test("rebuild exposes one fixed confirmation-gated operation", () => {
   }
 });
 
-test("rebuild fictional seed suppresses the generated quota identifier", async () => {
-  const { seed } = await loadHostedImportantBatchRebuildSources(process.cwd());
+test("historical Phase 81 rebuild refuses the 0015 repository while its seed remains safe", async () => {
+  await assert.rejects(
+    loadHostedImportantBatchRebuildSources(process.cwd()),
+    /migration source set is invalid/u,
+  );
+  const seed = await readFile(join(process.cwd(), "supabase", "seed.sql"), "utf8");
 
   assert.doesNotMatch(seed, /SELECT\s+public\.ensure_current_default_quota/u);
   assert.match(

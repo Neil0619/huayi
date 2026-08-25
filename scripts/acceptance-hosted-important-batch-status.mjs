@@ -44,9 +44,11 @@ async function readSecureDirectoryEntriesIfPresent(evidenceIo, path) {
 }
 
 export async function inspectHostedImportantBatchEvidence({
+  artifactDirectory = hostedImportantBatchBackupArtifactDirectory,
   evidenceIo = realEvidenceIo,
   readRepositoryState: readState = readHostedImportantBatchBackupRepositoryState,
   repositoryRoot: root = repositoryRoot,
+  verifyEvidencePhase = verifyHostedImportantBatchEvidencePhase,
 } = {}) {
   const state = await readState(root);
   if (
@@ -58,7 +60,7 @@ export async function inspectHostedImportantBatchEvidence({
   }
   const empty = () => ({ current: false, present: false, valid: false });
   const status = { post: empty(), pre: empty(), rebuild: empty() };
-  const batchRoot = join(root, hostedImportantBatchBackupArtifactDirectory);
+  const batchRoot = join(root, artifactDirectory);
   if ((await readSecureDirectoryEntriesIfPresent(evidenceIo, dirname(batchRoot))) === null) {
     return status;
   }
@@ -75,7 +77,7 @@ export async function inspectHostedImportantBatchEvidence({
     if (!entries.includes(phase)) continue;
     status[phase].present = true;
     try {
-      const manifest = await verifyHostedImportantBatchEvidencePhase({
+      const manifest = await verifyEvidencePhase({
         batchRoot,
         evidenceIo,
         phase,

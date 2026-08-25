@@ -3,32 +3,19 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { hostedAcceptanceProjectRef } from "./acceptance-hosted-foundation.mjs";
+import { hostedPhase81ArtifactContract } from "./acceptance-hosted-important-batch-contracts.mjs";
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const postgresDigest = "sha256:86a2e078779e5bdccda1f6f6c5063aa9779a322d1fface5fb408d051909b230f";
 
 export const hostedImportantBatchPostgresRuntimeReference = `docker.io/supabase/postgres@${postgresDigest}`;
-export const hostedImportantBatchScratchContainer = "huayi-phase-81-0014-rebuild";
+export const hostedImportantBatchScratchContainer = hostedPhase81ArtifactContract.scratchContainer;
 export const hostedImportantBatchSessionPoolerHost = "aws-0-ap-southeast-1.pooler.supabase.com";
 export const hostedImportantBatchSessionPoolerPort = "5432";
 export const hostedImportantBatchDatabaseName = "postgres";
 export const hostedImportantBatchAdministratorUser = `postgres.${hostedAcceptanceProjectRef}`;
-export const hostedImportantBatchMigrationVersions = Object.freeze([
-  "20260821000000",
-  "20260821010000",
-  "20260821020000",
-  "20260821030000",
-  "20260821040000",
-  "20260821050000",
-  "20260821060000",
-  "20260821070000",
-  "20260821080000",
-  "20260822010000",
-  "20260822020000",
-  "20260822030000",
-  "20260823010000",
-  "20260824010000",
-]);
+export const hostedImportantBatchMigrationVersions =
+  hostedPhase81ArtifactContract.migrationVersions;
 
 export function assertFixedLocalDockerTarget(target) {
   if (

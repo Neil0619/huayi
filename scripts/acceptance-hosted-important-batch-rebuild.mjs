@@ -1,10 +1,11 @@
-import { createHash } from "node:crypto";
-import { lstat, readFile, readdir } from "node:fs/promises";
-import { join } from "node:path";
 import { performance } from "node:perf_hooks";
 
 import { resolveLocalDockerInspectionTarget } from "./acceptance-local-docker-inspection.mjs";
 import { persistHostedImportantBatchRebuild } from "./acceptance-hosted-important-batch-artifacts.mjs";
+import {
+  assertHostedImportantBatchArtifactContract,
+  hostedPhase81ArtifactContract,
+} from "./acceptance-hosted-important-batch-contracts.mjs";
 import { hostedAcceptanceProjectRef } from "./acceptance-hosted-foundation.mjs";
 import {
   HostedImportantBatchRebuildStageError,
@@ -19,10 +20,12 @@ import {
 } from "./acceptance-hosted-important-batch-rebuild-sql.mjs";
 import { migrateHostedImportantBatchPlatformBaseline } from "./acceptance-hosted-important-batch-platform-baseline.mjs";
 import {
+  assertHostedImportantBatchRebuildSources,
+  loadHostedImportantBatchRebuildSources,
+} from "./acceptance-hosted-important-batch-rebuild-sources.mjs";
+import {
   assertFixedLocalDockerTarget,
-  hostedImportantBatchMigrationVersions,
   hostedImportantBatchPostgresRuntimeReference,
-  hostedImportantBatchScratchContainer,
   inspectHostedImportantBatchContainer,
   isHostedImportantBatchContainerAbsent,
   runHostedImportantBatchProcess,
@@ -31,88 +34,18 @@ import {
 
 export const hostedImportantBatchRebuildArgument = `--confirm-rebuild-0014-important-batch-backup-${hostedAcceptanceProjectRef}`;
 export { HostedImportantBatchRebuildStageError };
-
-const migrationFiles = Object.freeze([
-  "20260821000000_cloud_v1_foundation.sql",
-  "20260821010000_account_default_quota.sql",
-  "20260821020000_password_auth_callback_method.sql",
-  "20260821030000_analysis_reservation_fallback.sql",
-  "20260821040000_practice_generation_settlement.sql",
-  "20260821050000_owner_scoped_analysis_export.sql",
-  "20260821060000_analysis_export_owner_wrapper.sql",
-  "20260821070000_extension_pairing_atomic_snapshot.sql",
-  "20260821080000_account_deletion_replay.sql",
-  "20260822010000_quota_lifecycle_and_model_rate_limit.sql",
-  "20260822020000_security_notification_delivery.sql",
-  "20260822030000_first_operator_bootstrap.sql",
-  "20260823010000_password_signup_interruption_recovery.sql",
-  "20260824010000_password_signup_otp_resend.sql",
-]);
-const seedSha256 = "c9281f541e21f7c59c90bec11f19a0a03ffdf05789ed547bdc9fbc855c2bd6ef";
-
-async function assertRegularBoundedFile(path, maximumBytes) {
-  const stats = await lstat(path);
-  if (!stats.isFile() || stats.size < 1 || stats.size > maximumBytes) {
-    throw new Error("Hosted important-batch rebuild source is invalid.");
-  }
-}
-
-export async function loadHostedImportantBatchRebuildSources(repositoryRoot) {
-  const migrationsRoot = join(repositoryRoot, "supabase", "migrations");
-  const actualFiles = (await readdir(migrationsRoot)).sort();
-  if (JSON.stringify(actualFiles) !== JSON.stringify(migrationFiles)) {
-    throw new Error("Hosted important-batch migration source set is invalid.");
-  }
-  const migrations = [];
-  for (const [index, file] of migrationFiles.entries()) {
-    const path = join(migrationsRoot, file);
-    await assertRegularBoundedFile(path, 1_048_576);
-    migrations.push({
-      source: await readFile(path, "utf8"),
-      version: hostedImportantBatchMigrationVersions[index],
-    });
-  }
-  const seedPath = join(repositoryRoot, "supabase", "seed.sql");
-  await assertRegularBoundedFile(seedPath, 65_536);
-  const seed = await readFile(seedPath, "utf8");
-  if (createHash("sha256").update(seed).digest("hex") !== seedSha256) {
-    throw new Error("Hosted important-batch fictional seed is invalid.");
-  }
-  return { migrations, seed };
-}
-
-function assertExactSources(sources) {
-  if (
-    sources === null ||
-    typeof sources !== "object" ||
-    !Array.isArray(sources.migrations) ||
-    sources.migrations.length !== hostedImportantBatchMigrationVersions.length ||
-    typeof sources.seed !== "string" ||
-    sources.seed.length === 0
-  ) {
-    throw new Error("Hosted important-batch rebuild sources are invalid.");
-  }
-  for (const [index, migration] of sources.migrations.entries()) {
-    if (
-      migration?.version !== hostedImportantBatchMigrationVersions[index] ||
-      typeof migration.source !== "string" ||
-      migration.source.length === 0
-    ) {
-      throw new Error("Hosted important-batch rebuild sources are invalid.");
-    }
-  }
-}
+export { loadHostedImportantBatchRebuildSources };
 
 function dockerArguments(target, tail) {
   assertFixedLocalDockerTarget(target);
   return ["--host", target.host, ...tail];
 }
 
-function psqlExecArguments() {
+function psqlExecArguments(artifactContract) {
   return [
     "exec",
     "-i",
-    hostedImportantBatchScratchContainer,
+    artifactContract.scratchContainer,
     "psql",
     "--no-psqlrc",
     "--quiet",
@@ -127,15 +60,15 @@ function psqlExecArguments() {
   ];
 }
 
-async function inspectScratch(dockerTarget, runProcess) {
+async function inspectScratch(artifactContract, dockerTarget, runProcess) {
   return inspectHostedImportantBatchContainer(
     dockerTarget,
-    hostedImportantBatchScratchContainer,
+    artifactContract.scratchContainer,
     runProcess,
   );
 }
 
-async function startScratch(dockerTarget, runProcess) {
+async function startScratch(artifactContract, dockerTarget, runProcess) {
   const result = await runProcess(
     dockerTarget.command,
     dockerArguments(dockerTarget, [
@@ -145,9 +78,9 @@ async function startScratch(dockerTarget, runProcess) {
       "--pull",
       "never",
       "--name",
-      hostedImportantBatchScratchContainer,
+      artifactContract.scratchContainer,
       "--label",
-      "com.seen-said.acceptance=phase-81-0014-rebuild",
+      `com.seen-said.acceptance=${artifactContract.scratchLabel}`,
       "--network",
       "none",
       "--tmpfs",
@@ -163,12 +96,12 @@ async function startScratch(dockerTarget, runProcess) {
   return result;
 }
 
-function scratchRuntimeIsExact(source) {
+function scratchRuntimeIsExact(source, artifactContract) {
   try {
     const inspected = JSON.parse(source);
     return (
       inspected?.Config?.Image === hostedImportantBatchPostgresRuntimeReference &&
-      inspected?.Config?.Labels?.["com.seen-said.acceptance"] === "phase-81-0014-rebuild" &&
+      inspected?.Config?.Labels?.["com.seen-said.acceptance"] === artifactContract.scratchLabel &&
       inspected?.HostConfig?.NetworkMode === "none" &&
       inspected?.HostConfig?.Tmpfs?.["/var/lib/postgresql/data"] ===
         "rw,nosuid,nodev,noexec,size=2147483648,mode=0700" &&
@@ -181,7 +114,7 @@ function scratchRuntimeIsExact(source) {
   }
 }
 
-async function waitForScratch(dockerTarget, runProcess, wait, now) {
+async function waitForScratch(artifactContract, dockerTarget, runProcess, wait, now) {
   const deadline = now() + 300_000;
   for (let attempt = 0; attempt < 1_200; attempt += 1) {
     if (now() >= deadline) break;
@@ -189,7 +122,7 @@ async function waitForScratch(dockerTarget, runProcess, wait, now) {
       dockerTarget.command,
       dockerArguments(dockerTarget, [
         "exec",
-        hostedImportantBatchScratchContainer,
+        artifactContract.scratchContainer,
         "head",
         "-n",
         "1",
@@ -206,7 +139,7 @@ async function waitForScratch(dockerTarget, runProcess, wait, now) {
       dockerTarget.command,
       dockerArguments(dockerTarget, [
         "exec",
-        hostedImportantBatchScratchContainer,
+        artifactContract.scratchContainer,
         "pg_isready",
         "--quiet",
         "--username",
@@ -223,6 +156,7 @@ async function waitForScratch(dockerTarget, runProcess, wait, now) {
     if (now() >= deadline) break;
     try {
       await runSql(
+        artifactContract,
         dockerTarget,
         runProcess,
         hostedImportantBatchPostgresImageReadySql,
@@ -239,6 +173,7 @@ async function waitForScratch(dockerTarget, runProcess, wait, now) {
 }
 
 async function runSql(
+  artifactContract,
   dockerTarget,
   runProcess,
   input,
@@ -247,7 +182,7 @@ async function runSql(
 ) {
   const result = await runProcess(
     dockerTarget.command,
-    dockerArguments(dockerTarget, psqlExecArguments()),
+    dockerArguments(dockerTarget, psqlExecArguments(artifactContract)),
     { input, maxOutputBytes: 4_096, timeoutMilliseconds },
   );
   if (result.code !== 0 || result.stdout !== expectedOutput) {
@@ -255,20 +190,27 @@ async function runSql(
   }
 }
 
-async function destroyScratch(dockerTarget, runProcess, wait, waitForLateAppearance) {
+async function destroyScratch(
+  artifactContract,
+  dockerTarget,
+  runProcess,
+  wait,
+  waitForLateAppearance,
+) {
   return settleHostedImportantBatchContainer({
     dockerTarget,
-    name: hostedImportantBatchScratchContainer,
+    name: artifactContract.scratchContainer,
     runProcess,
-    runtimeIsExact: scratchRuntimeIsExact,
+    runtimeIsExact: (source) => scratchRuntimeIsExact(source, artifactContract),
     wait,
     waitForLateAppearance,
   });
 }
 
 export async function rebuildHostedImportantBatchScratch({
+  artifactContract = hostedPhase81ArtifactContract,
   candidateCommit,
-  loadSources = () => loadHostedImportantBatchRebuildSources(repositoryRoot),
+  loadSources = () => loadHostedImportantBatchRebuildSources(repositoryRoot, artifactContract),
   migratePlatformBaseline = migrateHostedImportantBatchPlatformBaseline,
   now = () => performance.now(),
   persistRebuild = persistHostedImportantBatchRebuild,
@@ -279,18 +221,20 @@ export async function rebuildHostedImportantBatchScratch({
 }) {
   let failureStage = "source-validation";
   try {
+    assertHostedImportantBatchArtifactContract(artifactContract);
     const sources = await loadSources();
-    assertExactSources(sources);
+    assertHostedImportantBatchRebuildSources(sources, artifactContract);
     failureStage = "docker-target";
     const dockerTarget = await resolveDockerTarget();
     assertFixedLocalDockerTarget(dockerTarget);
     failureStage = "scratch-identity";
-    const existing = await inspectScratch(dockerTarget, runProcess);
+    const existing = await inspectScratch(artifactContract, dockerTarget, runProcess);
     if (!isHostedImportantBatchContainerAbsent(existing)) {
       throw new Error("Hosted important-batch scratch identity is occupied.");
     }
     failureStage = "evidence-persistence";
     await persistRebuild({
+      artifactContract,
       candidateCommit,
       performRebuild: async () => {
         let cleanupRequired = false;
@@ -302,7 +246,7 @@ export async function rebuildHostedImportantBatchScratch({
           failureStage = "scratch-start";
           let started;
           try {
-            started = await startScratch(dockerTarget, runProcess);
+            started = await startScratch(artifactContract, dockerTarget, runProcess);
           } catch (error) {
             waitForLateAppearance = true;
             throw error;
@@ -312,13 +256,14 @@ export async function rebuildHostedImportantBatchScratch({
             throw new Error("Hosted important-batch scratch start failed.");
           }
           failureStage = "scratch-runtime";
-          const inspected = await inspectScratch(dockerTarget, runProcess);
-          if (inspected.code !== 0 || !scratchRuntimeIsExact(inspected.stdout)) {
+          const inspected = await inspectScratch(artifactContract, dockerTarget, runProcess);
+          if (inspected.code !== 0 || !scratchRuntimeIsExact(inspected.stdout, artifactContract)) {
             throw new Error("Hosted important-batch scratch runtime is invalid.");
           }
           failureStage = "scratch-readiness";
-          await waitForScratch(dockerTarget, runProcess, wait, now);
+          await waitForScratch(artifactContract, dockerTarget, runProcess, wait, now);
           await migratePlatformBaseline({
+            artifactContract,
             dockerTarget,
             onStage: (stage) => {
               if (stage !== "auth-baseline" && stage !== "storage-baseline") {
@@ -331,28 +276,36 @@ export async function rebuildHostedImportantBatchScratch({
           });
           failureStage = "baseline";
           await runSql(
+            artifactContract,
             dockerTarget,
             runProcess,
             hostedImportantBatchRebuildBaselineSql,
             "baseline_contract|t\n",
           );
           failureStage = "migration-ledger";
-          await runSql(dockerTarget, runProcess, hostedImportantBatchRebuildMigrationLedgerSql);
+          await runSql(
+            artifactContract,
+            dockerTarget,
+            runProcess,
+            hostedImportantBatchRebuildMigrationLedgerSql,
+          );
           failureStage = "migration-application";
           for (const migration of sources.migrations) {
             await runSql(
+              artifactContract,
               dockerTarget,
               runProcess,
               renderHostedImportantBatchRecordedMigration(migration),
             );
           }
           failureStage = "fictional-seed";
-          await runSql(dockerTarget, runProcess, sources.seed);
+          await runSql(artifactContract, dockerTarget, runProcess, sources.seed);
           failureStage = "final-contract";
           await runSql(
+            artifactContract,
             dockerTarget,
             runProcess,
-            renderHostedImportantBatchRebuildFinalContractSql(),
+            renderHostedImportantBatchRebuildFinalContractSql(artifactContract.migrationVersions),
             "migration_chain_exact|t\nfictional_seed_exact|t\nhosted_data_absent|t\nruntime_contract_exact|t\n",
           );
           operationPassed = true;
@@ -363,6 +316,7 @@ export async function rebuildHostedImportantBatchScratch({
             const operationFailureStage = failureStage;
             failureStage = "scratch-destroy";
             scratchDestroyed = await destroyScratch(
+              artifactContract,
               dockerTarget,
               runProcess,
               wait,

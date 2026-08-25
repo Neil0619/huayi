@@ -21,7 +21,7 @@ export const hostedAcceptancePriceVersionIds = Object.freeze({
   peak: "e4479ddf-f4da-4a75-825a-2b25c1a145cf",
 });
 
-export const hostedAcceptanceMigrationVersions = Object.freeze([
+export const hostedAcceptanceMigrationVersionsThrough0014 = Object.freeze([
   "20260821000000",
   "20260821010000",
   "20260821020000",
@@ -36,6 +36,11 @@ export const hostedAcceptanceMigrationVersions = Object.freeze([
   "20260822030000",
   "20260823010000",
   "20260824010000",
+]);
+
+export const hostedAcceptanceMigrationVersions = Object.freeze([
+  ...hostedAcceptanceMigrationVersionsThrough0014,
+  "20260825010000",
 ]);
 
 export const hostedAcceptanceTenantTables = Object.freeze([

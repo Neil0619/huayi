@@ -61,9 +61,10 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       Phase 80 幂等 bundle 已显示 `Hosted 验收 · 9b0860a` 并通过 recovery copy/secret scan；OTP、
       真实邮件、Cron 与 DeepSeek 应用路径 smoke 仍未完成。唯一普通邀请随后已提交密码注册并发现 Hosted
       OTP length=8；用户只授权保存为 6，独立回读 6/expiry 3600 且其他配置未改、未发新邮件。0014 同邀请
-      resend 已通过本机全门，但实际 0014 前还须 raw logical pre-backup + migrations/fictional-seed rebuild
-      与 backup preflight；其后仍有远端 migration、post-backup、API/Web 串行部署和真实六位 OTP journey，
-      因此本项仍未勾选。后续离线审计先用 deferred Promise 证明同一渲染周期双击 resend 会调用两次；再
+      resend 在 pre backup/rebuild/preflight 后已实际写入；6543 只读回读确认第 14 条 chain 与对象完整，
+      但 Supabase 自动给 `anon`、`authenticated`、`service_role` 的函数 `EXECUTE` 使安全 postflight
+      失败。禁止重跑 0014；必须先完成 Phase 91 forward-only 0015 的独立 pre/rebuild/post 批次，之后才有
+      API/Web 串行部署和真实六位 OTP journey，因此本项仍未勾选。后续离线审计先用 deferred Promise 证明同一渲染周期双击 resend 会调用两次；再
       审查同一页面全部认证动作，证明 register/login/resume 各会同 tick 双发，错误页的 resend 与 resume
       也可并发。Web 现以一个共享同步单飞门保护全部账号 mutation，避免重复 Auth flow/Provider 调用、身份
       绑定、邀请恢复、Web session 和邮件副作用；claim 保持独立；
@@ -118,12 +119,15 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       CI 未触发，所以组合项仍不勾选。Phase 46 已把 `3aa143c..15306b4` 的 8 commits / 111 files
       代码范围和随后一个 docs-only 冻结提交纳入第二批候选（自上次 Windows 代码共 9 commits），且 Mac
       完整门已绿；Windows 本地批次已回证，组合项现在仅因 GitHub 双平台 CI 未触发而保持未勾选；
-- [ ] 数据库空库/升级 migration、RLS 多租户矩阵和账号删除恢复通过；远端当前 13 条 migration 的 baseline、
+- [ ] 数据库空库/升级 migration、RLS 多租户矩阵和账号删除恢复通过；远端当前 14 条 migration 的 baseline、
       forward-only API/Supabase 镜像与生产角色回归均通过，实际一次性账号删除完成且重放权限不扩大；远端
       acceptance 已按各自 dry-run 和用户明确确认应用第 12 条 FirstOperatorBootstrap 与第 13 条密码注册中断
       恢复 migration。空身份阶段的修正版 foundation verify 当时通过；当前非空状态不再运行该 pristine 门，
-      First Operator 最终 status 为 `completed`。仓库候选已新增第 14 条同邀请 OTP 重发 migration，但尚未
-      dry-run/实际应用和远端 structure+ACL 回读，因此在该门重新关闭前保持未勾选；
+      First Operator 最终 status 为 `completed`。第 14 条同邀请 OTP 重发 migration 已应用；其结构正确但
+      三个 Supabase Data API role 的 public-function ACL 漂移仍待第 15 条 forward-only hardening 收敛；
+      0015/mirror/控制面/独立备份工具链已在本地通过 focused 回归和完整 macOS 门，但 clean candidate、
+      双平台 CI、Hosted pre、
+      dry-run/实际应用和远端 structure+ACL 回读尚未完成，因此在该门重新关闭前保持未勾选；
 - [x] 当前开发态构建审计确认没有新增秘密、远程代码、动态 endpoint 或危险 HTML；
 - [ ] 正式候选注入公开配置后重新执行完整构建审计，并复核每项 permission/host；
 - [x] fake model/mail/third-party 已按各能力真实定义覆盖成功、失败、取消、超时和额度分支；没有额度或
@@ -205,24 +209,32 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       双 ignore、strict valid 但 non-current 的唯一 final manifest 才能以 fixed confirmation 原子移入按旧
       candidate commit 分层的 `0700/0600` clone-local history；current/invalid/extra/occupied/dirty/mismatch 与
       rename/fsync failure 全部固定失败关闭且不覆盖、不删除证据。此项只实现安全生命周期，未运行真实退役；
-- [ ] 实际 pre capture 必须先证明 `storage.objects` 为零，否则另行完成 Storage object export；readiness 与
-      单独批准未满足前不得运行真实入口或把 0014 描述为 ready；
-- [ ] 0014 apply 前由单独批准的真实阶段生成 pre raw logical dump，并为最终 clean candidate 从 migration +
+- [x] Phase 81 实际 pre capture 已证明 `storage.objects` 为零，并与 14-chain isolated rebuild 一起通过
+      preflight，使唯一 0014 apply 得以执行；该历史 pre 必须保留，不得覆盖或重捕；
+- [x] 0014 apply 前由单独批准的真实阶段生成 pre raw logical dump，并为当时 clean candidate 从 migration +
       fictional seed 在隔离 scratch 重建；两项是可按任一顺序完成的独立 prerequisite，随后
       `backup:status` 必须同时返回 `pre_current|t` 与 `rebuild_current|t`，且
-      `acceptance:hosted:backup:preflight` 必须通过。0014 后生成 post dump 并由
-      `acceptance:hosted:backup:complete` 关闭批次；dump 不进入 Git/stdout/log，失败 partial/CA/temp 全清理；
+      `acceptance:hosted:backup:preflight` 通过。0014 后原 post dump/completion 因 ACL postflight 漂移停止；
+      不得手改旧 evidence 或运行旧 completion；
 - [x] 只通过 `pnpm acceptance:hosted:migration:0014:dry-run` 的固定 confirmation/TTY 入口运行 0014 dry-run，
       结果必须精确为唯一 `20260824010000_password_signup_otp_resend.sql` 和固定未改库成功消息；安全入口已
       实现并通过离线 fake-fetch/process 回归；单命令内部从固定官方 URL 获取 CA，并在管理员 transaction
       pooler `6543` 强制 verify-full，用户不准备 CA env。2026-08-25 用户提供的真实 raw child transcript
       精确含 non-mutating header、remote connection、唯一 0014 与 finished marker，严格 parser 接受并证明
       数据库未修改；未把没有随结果提供的 wrapper 固定成功行冒充为已观察输出；
-- [ ] preflight 与真实 dry-run 均通过并取得独立写入授权后，只运行
+- [x] preflight 与真实 dry-run 均通过并取得独立写入授权后，只运行
       `pnpm acceptance:hosted:migration:0014:apply`；入口必须在同一执行内重新 exact dry-run，并在 mutation 前
       第二次验证 preflight + byte-identical fixed-hash migration mirrors，写后只读验证完整 14-version chain、
-      bound column/check、function identity 与 exact ACL。受控入口已离线实现但尚未连接/修改 Hosted；任何
-      非零 apply 或 postflight 失败均禁止盲目重试；
+      bound column/check、function identity 与 exact ACL。该入口真实返回未 verified；后续固定 6543 诊断已
+      确认 0014 写入与 Huayi grants 正确、仅三个 API-role direct grants 漂移，故 0014 禁止重跑；
+- [ ] Phase 91 docs/TDD/本地完整门已通过；clean candidate 与双平台 CI 后，固定只读 status 必须先返回
+      `pending-exact`，再为 migration head 14 捕获独立 pre-0015 raw backup，并从空 scratch 验证完整 15-chain；
+      pre/rebuild/current/preflight 全真后，分别取得 dry-run 与 apply 明确授权；apply 在 mutation 前必须使用同一
+      secrets 紧邻回查并只接受 `pending-exact`，`applied-exact`/`uncertain` 均零 mutation；只应用唯一
+      `20260825010000_public_function_acl_hardening.sql`；postflight 必须证明 15-chain、所有现有
+      public functions 与 postgres default ACL 均无 PUBLIC/API-role EXECUTE，且 0014 Huayi grants 保留；
+- [ ] Phase 91 应用后捕获 head 15 post backup 并完成新 batch；Phase 81 pre 与 Phase 91 pre/post 全部保留，
+      不伪造 Phase 81 completion；
 - [ ] 在真实 R3-C 收件、重复观测和无正文告警门关闭后，从同一受控来源确认 Vercel/Vault
       `CRON_SECRET` 连续性，运行 Cron status→exact-confirmation apply；要求两次完整事务均成功、postflight
       exact 五 job/零 unmanaged，并观察至少两个周期及 401/5xx/timeout 后恢复；
@@ -371,12 +383,13 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       撤销入口、四区完整、console error 为零，且没有执行管理 mutation；
 - [x] UI 唯一提交 `0fff445` 已合并为 `524a55b`，完整 `verify:macos` 通过；Web-only arm `f3feff1` 只新增
       Ready deployment `DU6wE2r9ZLeSSoAMZAbsQihBjC72`，独立 disarm `d6d901c` 零额外非 Canceled。
-      最终 Web/API 为 8/15 且均 `deploymentEnabled=false`；live `/practice` 已显示 exact arm short SHA、
+      该历史阶段最终 Web/API 为 8/15 且均 `deploymentEnabled=false`；live `/practice` 已显示 exact arm short SHA、
       七项分组导航和新今日练习空态；
 - [x] 用户已明确授权不同于 Operator、且账号精确搜索为零的未使用邮箱，并已创建恰好一张普通邀请、
       提交密码注册；不得创建第二张邀请或删除其 Auth identity。Phase 80 已离线修复创建双击和模糊响应
       重复风险：pending 单飞、同一内存 Idempotency-Key 安全恢复、成功后才换键；
-- [ ] 保留并继续使用上述同一普通邀请，先完成 Phase 81 备份/重建、0014、串行部署和六位 OTP 重发；
+- [ ] 保留并继续使用上述同一普通邀请；Phase 81 pre/rebuild/preflight 与 0014 已完成且禁止重跑，当前先完成
+      Phase 91 pre/rebuild、0015 dry-run/apply/postflight 与 post/completion，之后再串行部署和六位 OTP 重发；
       串行部署必须通过 `acceptance:hosted:deployment:one-shot:*` 可恢复状态机，先固定双关闭 16/9
       baseline，再 API arm/唯一非 Canceled deployment/独立 disarm/Ready/零新增非 Canceled，完成后才允许 Web
       同序；每次 push 对仍 disarmed 的项目最多接受并冻结一条同 SHA Canceled audit；工具离线

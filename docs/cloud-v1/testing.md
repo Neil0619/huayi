@@ -897,6 +897,43 @@ confirmed Auth user/password method/profile 为 `1/1/2`、google method/Web sess
   dry-run thrown error 的固定 allowlisted stage。连接 URL 必须追加 `connect_timeout=10`，psql child 必须有
   15 秒硬上限并在 timeout 后清空输出、删除私有 CA；Supabase CLI code 不能复用 psql code 语义。测试不得
   读取真实密码、连接 Hosted 或反射 fake private detail；
+- 0014 standalone status 必须先以 module-not-found Fresh RED 固定缺口；入口只允许 fixed confirmation，
+  在任何外部工作前拒绝额外参数和继承密码，并按 official CA → hidden TTY → 单一 read-only query 顺序执行。
+  query 固定 Singapore administrator transaction pooler `6543`、verify-full、30 秒 hard timeout 与一个
+  `BEGIN READ ONLY`；parser 只接受单行 `applied_exact` / `pending_exact` / `uncertain`。PGlite catalog
+  回归必须证明 exact 13-chain + 0014 artifacts absent 为 pending、exact 14-chain + column/check/functions/ACL
+  为 applied，并把 ACL 或任一 artifact 漂移归为 uncertain。连接/query/process failure、额外输出和非法密码
+  一律固定 uncertain/exit 1，不反射 raw database/process/secret；默认测试不得连接 Hosted；
+- 0014 status 返回 uncertain 后的 fixed diagnostic 必须以 RED/GREEN 覆盖：固定 package confirmation、拒绝
+  inherited secret、official CA + hidden TTY、transaction pooler `6543` + `connect_timeout=10`、30 秒硬上限和
+  `BEGIN READ ONLY`。PGlite 必须分别证明 exact pending、exact applied、一个 ACL drift，以及 Supabase 自动给
+  `anon`、`authenticated`、`service_role` 授予两个 public-schema 函数 `EXECUTE` 的 Hosted 特有漂移；parser
+  只接受固定顺序的 12 个核心 `name|t/f`、bind/renew 各 10 个 ACL 分解行和 4 个 Data API roles / 全部 public
+  SECURITY DEFINER 函数全局谓词。CLI 只输出 allowlisted query exit class/output exact/catalog
+  predicates/final status，
+  并以注入的 psql `1/2/3/null/other`、非法输出和 thrown private error 证明不会反射秘密或数据库错误；
+  `bind_acl_exact` 仅作辅助安全诊断，不得改变 standalone status 的 applied/pending 条件；测试必须固定该
+  一致性；
+- status/status diagnostic 连接回归必须精确拒绝初版不可用的 `5432` URL，并要求复用既有管理员
+  transaction pooler `6543`；真实 `connection_error` 只能证明连接路径失败，测试和文档均不得把它解释为
+  密码失败或远端对象 absent；
+- apply postflight 必须明确断言 `renew_interrupted_password_confirmation` 的 `prorettype='text'`；该函数为
+  单 OUT-column `RETURNS TABLE(account_email text)`，目录值不是 `record`。此断言必须由 regression test 防止
+  回退；
+- 0015 public-function ACL hardening 必须先以缺 migration/mirror/chain 的 Fresh RED 固定缺口。Supabase
+  default-grant PGlite fixture 必须复现 0014 后三个 API roles 可执行全部 public SECURITY DEFINER；0015 后
+  必须证明全部现有 public functions 对 PUBLIC/三个 API roles 均不可执行，既有 owner/Huayi direct grants
+  保留，bind/renew 仍只允许 owner + context-setter；
+- 默认权限回归必须在 0015 后创建 fictional probe function，证明 owner 可执行而 PUBLIC/anon/authenticated/
+  service_role 均不可执行，并检查 global owner=`postgres` function defaults 不含 PUBLIC/API roles、public
+  per-schema defaults 不含 API roles。测试必须固定 global PUBLIC revoke + public-schema API-role revoke 两个
+  scope；若错误地只使用 `IN SCHEMA public ... FROM PUBLIC`，probe 必须重新暴露并令测试失败；
+- 0015 status/dry-run/apply 与 Phase 91 backup/rebuild 必须延续 fixed confirmation、hidden TTY、official CA、
+  strict transcript、read-only postflight、secret-free failure 和 uncertain 禁止重试契约。pending 精确为
+  14-chain + 已确认 ACL drift；applied 精确为 15-chain + existing/default ACL safe + 0014 Huayi grants preserved；
+  apply 在 mutation 紧前必须用同一 secrets 回查并只接受 pending，applied/uncertain/读取失败均证明零 mutation；
+  Phase 81 pre 与 Phase 91 pre/post 的 batch/head/manifest 不得互换。完整矩阵见
+  `public-function-acl-hardening.md`；
 - 0014 Hosted apply CLI 必须是独立 exact-confirmation 入口，不能由 dry-run 自动进入写入，也不能接受手工
   project/URL/path/migration 参数。它在 TTY 前验证当前 pre-backup/rebuild preflight；同一执行内 dry-run 精确
   唯一 0014 后，在 mutation 前再次验证 clean HEAD/evidence 与 Supabase/API migration mirror 的固定 SHA-256。

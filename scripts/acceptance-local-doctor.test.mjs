@@ -103,6 +103,8 @@ test("local acceptance artifacts stay secret-free and local values stay ignored"
     supabaseSignupRecoveryForward,
     apiSignupResendForward,
     supabaseSignupResendForward,
+    apiAclHardeningForward,
+    supabaseAclHardeningForward,
     seed,
     runtime,
     reset,
@@ -189,6 +191,17 @@ test("local acceptance artifacts stay secret-free and local values stay ignored"
       resolve(repositoryRoot, "supabase/migrations/20260824010000_password_signup_otp_resend.sql"),
       "utf8",
     ),
+    readFile(
+      resolve(repositoryRoot, "apps/api/migrations/0015-public-function-acl-hardening.sql"),
+      "utf8",
+    ),
+    readFile(
+      resolve(
+        repositoryRoot,
+        "supabase/migrations/20260825010000_public_function_acl_hardening.sql",
+      ),
+      "utf8",
+    ),
     readFile(resolve(repositoryRoot, "supabase/seed.sql"), "utf8"),
     readFile(resolve(repositoryRoot, "scripts/acceptance-local-runtime.mjs"), "utf8"),
     readFile(resolve(repositoryRoot, "scripts/acceptance-local-reset.mjs"), "utf8"),
@@ -214,6 +227,7 @@ test("local acceptance artifacts stay secret-free and local values stay ignored"
   assert.equal(supabaseOperatorForward, apiOperatorForward);
   assert.equal(supabaseSignupRecoveryForward, apiSignupRecoveryForward);
   assert.equal(supabaseSignupResendForward, apiSignupResendForward);
+  assert.equal(supabaseAclHardeningForward, apiAclHardeningForward);
   assert.match(runtime, /com\.docker\.network\.bridge\.host_binding_ipv4/u);
   assert.match(runtime, /127\.0\.0\.1/u);
   assert.match(runtime, /--network-id/u);

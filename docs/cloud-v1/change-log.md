@@ -3,6 +3,56 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-25：0014 已应用且 Supabase API-role ACL 漂移改由 forward-only 0015 收敛
+
+- 最终 6543 只读诊断已确认 14-chain、0014 column/check/functions、owner + context-setter direct grants、
+  business/runtime denial 与 PUBLIC absence 全部正确；唯一已定位漂移是 `anon`、`authenticated`、
+  `service_role` 对两个 0014 函数的 direct `EXECUTE`，并且全部 public SECURITY DEFINER 函数的 API-role
+  安全谓词同样失败。因此 0014 已完整应用，禁止重跑、改写或回滚；
+- 新增 Phase 91 / 0015 docs-first 契约。0015 从全部现有 public 函数撤销 PUBLIC 和三个 Data API roles，
+  同时收敛 owner=`postgres` 的 global function default ACL 与 public per-schema API-role default ACL；Huayi
+  direct grants 不在撤销集合内；
+- PostgreSQL 官方文档明确 per-schema default `REVOKE FROM PUBLIC` 不能抵消 global function PUBLIC
+  default；实现必须用 global PUBLIC revoke，再独立撤销 Supabase public-schema API-role grant，不能照搬
+  单条合并 SQL；
+- Hosted Data API 保持关闭且本阶段不修改其配置。关闭状态降低即时暴露面，但不替代数据库最小权限；
+- 0015 apply 除 Phase 91 evidence、唯一 dry-run 与 migration hash 外，还必须在 mutation 紧前使用同一隐藏
+  TTY secrets 回读三态并只接受 `pending-exact`；`applied-exact`、`uncertain` 或回读失败均不得 mutation，避免
+  14-chain 下已出现额外 catalog/ACL 漂移时仍被唯一 dry-run transcript 误授权；
+- 既有 Phase 81 pre-0014 backup 保留为历史恢复点。0015 必须另建 Phase 91 pre/rebuild/post 批次，禁止重捕
+  当前数据库冒充 pre-0014，也禁止手改旧 completion。完整方案见
+  `public-function-acl-hardening.md`。
+
+## 2026-08-25：0014 不确定 apply 后必须用独立只读三态回查，禁止靠 dry-run 猜测
+
+- 0014 apply child 成功后仍可能因 postflight 漂移返回“未验证”；此时再次运行 apply 可能重复 forward
+  migration，而既有 safe diagnostic 只描述 dry-run transcript，不能区分远端已应用、仍待应用或部分漂移；
+- 新增固定 `acceptance:hosted:migration:0014:status` 入口：只从隐藏 TTY 读取管理员密码，内部获取固定官方
+  CA，并以已由 dry-run/apply 验证连通的 Singapore 管理员 transaction pooler `6543` 执行单个 verify-full
+  `BEGIN READ ONLY` 事务并返回
+  `applied-exact`、`pending-exact` 或 `uncertain`；连接、查询、进程、输出或 catalog 漂移一律归为
+  `uncertain` 且禁止重试 apply；
+- `applied-exact` 要求完整 14 条 canonical chain 以及 0014 column/check、两个函数 identity/security 和
+  resend exact ACL；`pending-exact` 要求完整 13 条 chain 且 0014 column/check/resend function 全部不存在、
+  bind function 仍为无 `bound_email` 的旧形态。任何混合状态都不得被描述为 pending。
+- 若三态入口返回 `uncertain`，新增的
+  `acceptance:hosted:migration:0014:status:diagnose` 只读入口按固定顺序分别报告连接/进程分类、输出契约、
+  13/14 migration chain、column/check、bind function + ACL、renew function + ACL 和最终三态；所有字段均为
+  allowlisted 枚举或 `t/f`，不得输出原始 psql/catalog/error。apply postflight 同步把单 OUT-column
+  `RETURNS TABLE` 的 `pg_proc.prorettype` 从错误的 `record` 校准为真实 `text`。
+- 初版 status/status diagnostic 错用只供 application 隔离验证的 session pooler `5432`；真实 diagnostic
+  固定返回 `connection_error`、`output_exact=f` 和全 false 谓词。这只证明该路径在当前环境不可用，不证明
+  密码错误或远端对象不存在。两个只读入口现统一复用既有管理员 transaction pooler `6543`；diagnostic 继续
+  固定 `connect_timeout=10` 和 30 秒进程上限。
+- 修正连接后，真实只读回读证明 14 条 chain、column/check 和两个函数 identity 已应用，但 bind/renew exact
+  ACL 同时失败。根据
+  [Supabase Data API 默认权限契约](https://supabase.com/docs/guides/api/securing-your-api)，既有项目会给
+  `public` schema 新函数自动授予 `anon`、`authenticated`、`service_role` 的 `EXECUTE`；0014 只撤销
+  `PUBLIC`、`huayi_business`、`huayi_runtime`，因此该形状必须先按固定布尔矩阵只读确认，禁止重跑 0014。
+  status diagnostic 扩展为 12 个核心状态、bind/renew 各 10 个 ACL 分解谓词，以及 4 个 Data API roles / 全部
+  public SECURITY DEFINER 函数的全局安全谓词；仍不输出原始 ACL、OID、函数名或未知角色名。只有远端分解
+  结果确认后，才能另行设计独立 forward-only 安全修复 migration。
+
 ## 2026-08-25：Hosted capture 管理员密码下限与 Supabase 契约对齐
 
 - Phase 81 pre backup 的真实管理员密码为 12–31 字符，但 capture 在任何数据库连接或 Docker resolver

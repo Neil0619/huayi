@@ -6,10 +6,17 @@ Supabase Free 不提供可依赖的自动备份。Hosted 验收环境虽然不�
 identity、邀请与用户学习数据；任何 forward-only migration 或重要部署批次前后都必须留下可恢复证据，不能
 把“migration dry-run 通过”当成备份。
 
+2026-08-25 当前校准：Phase 81 pre/rebuild/preflight 后 0014 已实际写入，但 postflight 因 Supabase
+`anon`、`authenticated`、`service_role` 的 public-function `EXECUTE` 漂移而失败。后续 6543 只读诊断已
+确认 0014 结构完整，禁止重跑。`phase-81-0014` 的 pre 仍是不可变 pre-0014 恢复点；不得重新捕获当前
+14-chain 冒充旧 pre，也不得运行旧 post/completion 形成不安全 post-state。修复使用
+`public-function-acl-hardening.md` 定义的 Phase 91 独立 pre-0015/rebuild/post batch。
+
 Phase 82–86 交付失败关闭的计划、执行器就绪度审计、完整 platform image lock、本机镜像检查、受审查
 writer 与证据验证模块：
 
-- 固定 Supabase project `kpadiulxkgckskcfydry` 和当前批次 `phase-81-0014`；
+- 固定 Supabase project `kpadiulxkgckskcfydry` 和当时的 Phase 81 批次 `phase-81-0014`；当前 Phase 91 使用
+  独立 `phase-91-0015-public-function-acl-hardening`，两者不能互换；
 - `pnpm acceptance:hosted:backup:plan` 只渲染固定计划，零文件、Git、网络和写入；
 - `pnpm acceptance:hosted:backup:status` 只读 partial batch，并按 pre/rebuild/post 固定输出
   present/valid/current 九个布尔 verdict；不输出路径、时间、commit/hash、identity、dump 元数据、错误或秘密；
@@ -179,6 +186,9 @@ start 证明 offline。writer 不调用普通 `supabase start`；任何 scratch 
 
 ## 5. Phase 81 动作依赖
 
+以下顺序是 0014 执行前冻结的原始契约。真实执行已到第 5 步并因 ACL postflight 漂移停止；第 6–8 步现被
+Phase 91 取代，不能继续运行旧入口。
+
 0014 的顺序现固定为：
 
 1. 运行零网络 `acceptance:hosted:backup:plan` 与 `acceptance:hosted:backup:executor:plan`；
@@ -195,12 +205,28 @@ start 证明 offline。writer 不调用普通 `supabase start`；任何 scratch 
 5. 真实 dry-run 通过且用户独立批准实际写入后，只运行
    `acceptance:hosted:migration:0014:apply`；该入口在同一执行内重新 dry-run 唯一 0014、mutation 前再次
    验证 preflight 与固定 migration mirror SHA-256，并在写后用只读事务验证完整 canonical chain、0014
-   column/check/function/ACL；不得手工运行 `supabase db push --yes`；
+   column/check/function/ACL；不得手工运行 `supabase db push --yes`。若入口返回“未验证”，不得重跑 apply，
+   只能运行 `pnpm acceptance:hosted:migration:0014:status`：`applied-exact` 才进入 post capture，
+   `pending-exact` 也必须先由代码审查确认失败发生在 mutation 前，`uncertain` 则保持停止并继续只读诊断；
+   `uncertain` 的唯一下一入口是
+   `pnpm acceptance:hosted:migration:0014:status:diagnose`，其固定谓词用于区分连接/SQL/输出失败和 catalog
+   混合状态，但本身不授权 apply 或 post capture；
 6. 应用后、部署前或同一重要批次关闭前，经独立批准只运行
    `pnpm acceptance:hosted:backup:capture:post` 并在 TTY 输入管理员密码完成 post dump；同样不准备 CA
    environment；
 7. `acceptance:hosted:backup:complete` 必须通过；
 8. 再按 API→Web 严格串行 one-shot arm/deploy/disarm 继续。
+
+当前恢复顺序固定为：保留 Phase 81 pre → Phase 91 docs/测试/候选 → Phase 91 pre-0015 + 15-chain
+isolated rebuild → preflight → exact 0015 dry-run/apply/postflight → Phase 91 post/completion → API/Web
+串行 one-shot。Phase 91 与 Phase 81 的目录、batch ID、migration head、manifest 和 completion 不能互换。
+
+Phase 91 使用专属 `acceptance:hosted:phase91:backup:*` 命令面：plan/executor plan/status、三个 readiness、
+capture pre、rebuild、preflight、capture post 与 complete。它固定
+`phase-91-0015-public-function-acl-hardening`，pre head 为 `20260824010000`，rebuild/post head 为
+`20260825010000`；base Phase 81 命令不接受、读取或覆盖 Phase 91 evidence。本地完整门已经通过，但 clean
+candidate 与双平台 CI 尚未形成；在两者完成及分别批准之前不得运行真实 capture 或 Hosted migration。本地
+plan/status/readiness 也不能被描述为已生成恢复点。
 
 缺少、过期、权限过宽、工作树不干净、未 ignored、hash/size 不符、candidate commit 漂移、migration head
 不符、目录含未知文件或 scratch 未销毁时一律固定失败。不得手写 manifest、复制旧批次证据或把 dry-run

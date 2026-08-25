@@ -33,6 +33,10 @@ API 生产数据访问使用 `postgres`，以单个事务表达受控角色切�
 SECURITY DEFINER 函数；禁用 prepared statements 以兼容 Supabase transaction pooler。
 `@supabase/supabase-js` 只封装 Auth PKCE/密码流程，不承担业务表访问。默认离线数据库门禁使用测试
 依赖 PGlite 执行真实迁移与 PostgreSQL 方言，但真实多连接竞争和托管环境仍需独立验证。
+Hosted Data API 保持关闭；数据库 migration 仍必须把 `public` schema 的既有函数和 owner=`postgres` 的
+后续函数默认 ACL 收敛为显式授权：PUBLIC、`anon`、`authenticated`、`service_role` 不自动取得
+`EXECUTE`，Huayi runtime 只通过逐函数最窄 direct grant 调用。per-schema default revoke 不能替代 global
+PUBLIC revoke；完整 Phase 91 契约见 `public-function-acl-hardening.md`。
 
 `AnalysisDatabase` 在交给 `postgres` 驱动前只识别 SQL 中显式 `$N::jsonb` 参数，并把既有 JSON 字符串
 解析一次；这是 driver adapter 的私有规范化，不改变 repository 接口。事务内 `tenant` 每次查询恢复

@@ -9,6 +9,7 @@ import {
   hostedImportantBatchStorageRuntimeReference,
   migrateHostedImportantBatchPlatformBaseline,
 } from "./acceptance-hosted-important-batch-platform-baseline.mjs";
+import { hostedPhase91ArtifactContract } from "./acceptance-hosted-important-batch-contracts.mjs";
 import { hostedImportantBatchScratchContainer } from "./acceptance-hosted-important-batch-execution-contract.mjs";
 
 const dockerTarget = {
@@ -132,6 +133,40 @@ test("platform baseline runs only fixed migration commands inside the networkles
       [hostedImportantBatchStorageBaselineContainer, 2],
     ],
   );
+});
+
+test("platform baseline derives Phase 91 runner isolation from its exact artifact contract", async () => {
+  const runs = [];
+  await migrateHostedImportantBatchPlatformBaseline({
+    artifactContract: hostedPhase91ArtifactContract,
+    dockerTarget,
+    runProcess: async (command, arguments_) => {
+      assert.equal(command, dockerTarget.command);
+      if (arguments_[2] === "container" && arguments_[3] === "inspect") return absent();
+      if (arguments_[2] === "run") {
+        runs.push(arguments_);
+        return { code: 0, stdout: "" };
+      }
+      return { code: 1, stdout: "" };
+    },
+    wait: async () => undefined,
+  });
+
+  assert.equal(runs.length, 2);
+  assert.ok(runs[0].includes("huayi-phase-91-0015-acl-auth-baseline"));
+  assert.ok(runs[0].includes("com.seen-said.acceptance=phase-91-0015-acl-auth-baseline"));
+  assert.ok(runs[1].includes("huayi-phase-91-0015-acl-storage-baseline"));
+  assert.ok(runs[1].includes("com.seen-said.acceptance=phase-91-0015-acl-storage-baseline"));
+  for (const arguments_ of runs) {
+    assert.equal(
+      arguments_[arguments_.indexOf("--network") + 1],
+      "container:huayi-phase-91-0015-acl-rebuild",
+    );
+    assert.equal(
+      arguments_.some((value) => value.includes("phase-81")),
+      false,
+    );
+  }
 });
 
 test("platform baseline removes only an exact timed-out runner and never starts the next runner", async () => {

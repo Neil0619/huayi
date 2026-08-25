@@ -4,16 +4,12 @@ import { lstat, mkdir, open, readdir, rename, rm } from "node:fs/promises";
 import { join } from "node:path";
 
 import {
-  hostedImportantBatchBackupArtifactDirectory,
-  hostedImportantBatchId,
-} from "./acceptance-hosted-important-batch-backup.mjs";
+  assertHostedImportantBatchArtifactContract,
+  hostedPhase81ArtifactContract,
+} from "./acceptance-hosted-important-batch-contracts.mjs";
 import { hostedAcceptanceProjectRef } from "./acceptance-hosted-foundation.mjs";
 
 const commitPattern = /^[0-9a-f]{40}$/u;
-const phaseMigrationHeads = Object.freeze({
-  post: "20260824010000",
-  pre: "20260823010000",
-});
 const rebuildVerdictKeys = Object.freeze([
   "fictionalSeedExact",
   "hostedDataAbsent",
@@ -58,10 +54,10 @@ async function ensureDirectory(path, { privateModeMatches, secure }) {
   }
 }
 
-async function ensureArtifactDirectory(repositoryRoot, leaf, privateModeMatches) {
+async function ensureArtifactDirectory(repositoryRoot, artifactContract, leaf, privateModeMatches) {
   const artifactsRoot = join(repositoryRoot, "artifacts");
   const secureRoot = join(repositoryRoot, "artifacts", "hosted-important-batch-backups");
-  const batchRoot = join(repositoryRoot, hostedImportantBatchBackupArtifactDirectory);
+  const batchRoot = join(repositoryRoot, artifactContract.artifactDirectory);
   const leafRoot = join(batchRoot, leaf);
   await ensureDirectory(artifactsRoot, { privateModeMatches, secure: false });
   await ensureDirectory(secureRoot, { privateModeMatches, secure: true });
@@ -149,6 +145,7 @@ function isoTimestamp(now) {
 }
 
 export async function persistHostedImportantBatchBackup({
+  artifactContract = hostedPhase81ArtifactContract,
   candidateCommit,
   directorySync = syncDirectory,
   now = () => new Date(),
@@ -158,11 +155,17 @@ export async function persistHostedImportantBatchBackup({
   repositoryRoot,
   verifyArchive,
 }) {
+  assertHostedImportantBatchArtifactContract(artifactContract);
   assertCandidateCommit(candidateCommit);
-  if (!Object.hasOwn(phaseMigrationHeads, phase)) {
+  if (!new Set(["post", "pre"]).has(phase)) {
     throw new Error("Hosted important-batch backup phase is invalid.");
   }
-  const phaseRoot = await ensureArtifactDirectory(repositoryRoot, phase, privateModeMatches);
+  const phaseRoot = await ensureArtifactDirectory(
+    repositoryRoot,
+    artifactContract,
+    phase,
+    privateModeMatches,
+  );
   await assertDirectoryEmpty(phaseRoot);
   const archivePath = join(phaseRoot, "database.dump");
   const archivePartialPath = join(phaseRoot, "database.dump.partial");
@@ -205,7 +208,7 @@ export async function persistHostedImportantBatchBackup({
       directory: phaseRoot,
       directorySync,
       document: {
-        batchId: hostedImportantBatchId,
+        batchId: artifactContract.batchId,
         candidateCommit,
         capturedAt: isoTimestamp(now),
         connectionProfile: "verify-full-administrator",
@@ -214,7 +217,8 @@ export async function persistHostedImportantBatchBackup({
         dumpFile: "database.dump",
         dumpFormat: "postgres-custom",
         dumpSha256: archiveSha256,
-        migrationHead: phaseMigrationHeads[phase],
+        migrationHead:
+          phase === "pre" ? artifactContract.preMigrationHead : artifactContract.postMigrationHead,
         phase,
         projectRef: hostedAcceptanceProjectRef,
       },
@@ -235,6 +239,7 @@ export async function persistHostedImportantBatchBackup({
 }
 
 export async function persistHostedImportantBatchRebuild({
+  artifactContract = hostedPhase81ArtifactContract,
   candidateCommit,
   directorySync = syncDirectory,
   now = () => new Date(),
@@ -242,8 +247,14 @@ export async function persistHostedImportantBatchRebuild({
   privateModeMatches = defaultPrivateModeMatches,
   repositoryRoot,
 }) {
+  assertHostedImportantBatchArtifactContract(artifactContract);
   assertCandidateCommit(candidateCommit);
-  const rebuildRoot = await ensureArtifactDirectory(repositoryRoot, "rebuild", privateModeMatches);
+  const rebuildRoot = await ensureArtifactDirectory(
+    repositoryRoot,
+    artifactContract,
+    "rebuild",
+    privateModeMatches,
+  );
   await assertDirectoryEmpty(rebuildRoot);
   const manifestPath = join(rebuildRoot, "rebuild-verification.json");
   const partialPath = join(rebuildRoot, "rebuild-verification.json.partial");
@@ -265,14 +276,14 @@ export async function persistHostedImportantBatchRebuild({
       directory: rebuildRoot,
       directorySync,
       document: {
-        batchId: hostedImportantBatchId,
+        batchId: artifactContract.batchId,
         candidateCommit,
         completedAt: isoTimestamp(now),
         contract: "huayi-hosted-important-batch-rebuild-verification/v1",
         fictionalSeedExact: true,
         hostedDataAbsent: true,
         migrationChainExact: true,
-        migrationHead: "20260824010000",
+        migrationHead: artifactContract.rebuildMigrationHead,
         projectRef: hostedAcceptanceProjectRef,
         rebuildSource: "repository-migrations-and-fictional-seed",
         runtimeContractExact: true,

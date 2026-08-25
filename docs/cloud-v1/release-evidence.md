@@ -2556,3 +2556,97 @@ typecheck、architecture、build、development blocker、Store release、product
 - **执行边界**：测试只使用系统临时目录、虚构 canonical manifest 与注入故障；没有运行真实 retirement/
   rebuild/capture/0014，没有连接或修改 Hosted、发送邮件、部署或调用模型。retained evidence 删除仍无入口，
   必须另行设计、批准和留证。
+
+## 98. Phase 81 0014 不确定 apply 的只读三态状态入口（2026-08-25）
+
+- **缺口与 Fresh RED**：真实 apply 返回固定“未产生 verified completion”，后续 safe diagnostic 只证明
+  connection/dry-run 结果不再匹配 pending transcript，无法区分 migration 已应用、仍待应用或半应用；新增
+  status 行为测试首次因 `acceptance-hosted-migration-0014-status.mjs` 不存在而以
+  `ERR_MODULE_NOT_FOUND` 失败；
+- **最小安全入口**：新增 fixed package confirmation，拒绝继承密码和动态 project/URL；内部顺序固定为
+  official CA → hidden TTY → Singapore administrator transaction pooler `6543` 的 verify-full
+  `BEGIN READ ONLY`。输出只可能是 `applied-exact`、`pending-exact` 或 fail-closed `uncertain`，不反射 raw
+  psql/database/error/password；
+- **catalog 三态证明**：PGlite 真实执行 baseline catalog 后，完整 13-chain 且 column/check/resend function
+  absent、bind function 保持旧形态时返回 pending；应用 byte-identical 0014 并加入第 14 条 ledger 后，完整
+  column/check、bind/resend function identity/security 与 owner/context-setter exact ACL 返回 applied；撤销
+  context-setter ACL 后只返回 uncertain。该回归同时确认单 OUT-column `RETURNS TABLE` 在 `pg_proc` 的
+  `prorettype` 为 `text`，不能错误断言为 `record`；
+- **离线边界与真实回读**：Fresh GREEN 为 Node focused 47/47（其中包含 PGlite catalog 三态）与既有 0014
+  API focused 4/4。随后操作者真实运行固定 status 入口，结果为
+  `Hosted 0014 migration status: uncertain; do not retry apply.`；该结果不证明 applied 或 pending，因此没有重试
+  apply、没有运行 post capture，也没有发送邮件、部署或修改 ignored pre/rebuild evidence。下一步只能运行下述固定
+  只读诊断。
+
+- **uncertain 后的可定位诊断**：为真实 status 的 `uncertain` 新增
+  `acceptance:hosted:migration:0014:status:diagnose`。Fresh RED 同时固定新模块缺失，以及 apply postflight
+  错把单 OUT-column `RETURNS TABLE` 的 `prorettype=text` 断言为 `record`；GREEN 后固定输出 query exit class、
+  output exact、12 个 catalog `t/f` 和 final status。PGlite 覆盖 exact pending、exact applied 与单 ACL drift，
+  注入测试覆盖 psql code `1/2/3/null/other` 和非法/额外输出，均不反射 private detail。本入口与 postflight
+  修复只在本地测试，未运行 Hosted、apply 或 post capture。
+- **真实连接分类与本地修复**：操作者运行 status diagnostic 得到
+  `status_query_exit_class|connection_error`、`status_query_output_exact|f`、12 个 false 谓词和
+  `final_status|uncertain`。该结果仅证明初版固定的 session pooler `5432` 在当前环境不可用；它没有证明密码
+  错误，也没有执行 catalog SQL，因此全 false 不能解释为远端对象 absent。Fresh RED 精确显示两个只读入口
+  actual `5432`、expected 已由管理员 dry-run/apply 验证的 transaction pooler `6543`；最小 GREEN 将两者统一
+  到既有 `hostedAcceptancePoolerUrl`，保留 verify-full/`BEGIN READ ONLY`，diagnostic 另保留
+  `connect_timeout=10` 与 30 秒上限。本地修复阶段没有再次连接 Hosted。
+- **6543 真实 catalog 回读与 ACL 定位缺口**：修复后操作者再次运行固定 status diagnostic，得到
+  `status_query_exit_class|ok`、`status_query_output_exact|t`、14-chain/column/check/bind function/renew
+  function applied predicate 全 true，但 `bind_acl_exact|f`、`renew_acl_exact|f`，最终仍为 `uncertain`。这证明
+  0014 migration ledger 与对象主体已经写入，禁止重跑 0014；它尚不能单独证明具体多余或缺失的授权边。
+- **ACL 分解 Fresh RED/GREEN**：新增 Hosted 自动给 `anon`、`authenticated`、`service_role` 授予函数
+  `EXECUTE` 的 PGlite 复现，初次运行 9 项 status-diagnostic suite 有 7 项失败；实现 12 个核心谓词加
+  bind/renew 各 10 个固定 ACL 分解项及 4 个 Data API roles / 全部 public SECURITY DEFINER 函数全局谓词后
+  9/9 通过。分解只输出 allowlisted `t/f`，不会泄露 raw `proacl`、OID、函数名或未知角色名；尚未运行新的
+  Hosted 回读、数据库写入或 post capture。
+
+## 99. Phase 91 0014 ACL 根因确证与 0015 docs-first 决策（2026-08-25）
+
+- **最终 Hosted 只读回读**：操作者在修复后的 6543 固定入口返回 `status_query_exit_class|ok`、
+  `status_query_output_exact|t`。14-chain、0014 column/check/functions、setter effective、owner + setter
+  direct、business/runtime denied、PUBLIC absent 与 other-role absent 全部为 true；bind/renew 的
+  `anon`、`authenticated`、`service_role` direct-absence 六项均为 false，Data API roles 存在且全部 public
+  SECURITY DEFINER API-role absence 为 false；`final_status|uncertain`；
+- **确定结论**：0014 migration ledger 与结构已经完整应用，禁止重跑、改写或回滚。安全 postflight 失败不
+  是密码、连接、半应用或 Huayi role grant 错误，根因精确为 Supabase API-role function grants；Hosted
+  Data API 仍关闭，未观察到公网 RPC 调用，但数据库最小权限仍未满足；
+- **SQL 语义复核**：PGlite Supabase-default fixture 在 104 个 public SECURITY DEFINER 上复现三个 API
+  roles 全部可执行。只执行 schema-scoped PUBLIC default revoke 后创建 probe，PUBLIC/API roles 仍可执行；
+  PostgreSQL 官方契约说明 per-schema defaults 不能抵消 global PUBLIC default。global PUBLIC/API-role
+  revoke + public per-schema API-role revoke 的组合则让 probe 仅 owner 可执行，并保留 0014 context-setter
+  grants；
+- **docs-first 产物**：新增 `public-function-acl-hardening.md`，冻结 Phase 91 / 0015 的精确 SQL、三态、TDD、
+  备份、dry-run/apply 与验收标准，并同步 README、architecture、security、testing、change-log、deployment、
+  operations、checklist、implementation plan 与 project status；
+- **执行边界**：本阶段只运行本机 PGlite/文档审查与既有 Hosted 只读诊断结果解释。未创建 0015、未连接或
+  修改 Hosted、未运行旧 post capture/completion、未发送邮件、未部署、未运行 DeepSeek/Cron/R3-C；Phase
+  81 pre 保留，下一写入只能在 Phase 91 独立 pre/rebuild/preflight 与用户明确批准后进行。
+
+## 100. Phase 91 0015 本地候选与独立重要批次工具链（2026-08-26）
+
+- **migration Fresh RED → GREEN**：先以缺少 API migration、Supabase mirror 与第 15 条 chain 的失败固定
+  缺口；新增 byte-identical `0015-public-function-acl-hardening.sql`，从全部现有 public functions 撤销
+  PUBLIC/三个 API roles，并同时收敛 owner=`postgres` 的 global function defaults 与 public per-schema
+  API-role defaults。PGlite 复现 0014 后 Supabase grants、证明 schema-only PUBLIC revoke 不足，并验证 0015
+  后 existing/probe/default ACL safe、0014 Huayi grants preserved 和完整 15-chain；
+- **Hosted 控制面 Fresh RED → GREEN**：新增独立 0015 status/dry-run/apply。status 只接受 exact pending
+  14-chain + 已知 drift 或 exact applied 15-chain + existing/default ACL safe + 0014 grants preserved；dry-run
+  只接受唯一 0015 transcript；apply 在 secret 前和 mutation 紧前重查 Phase 91 evidence/source/hash，使用
+  同一 secrets 紧邻回读并只接受 pending-exact 后才 mutation，再只接受 applied-exact read-only postflight。
+  applied/uncertain/读取失败回归均证明零 mutation；参数、继承密码、CA/TTY/process/output 失败固定关闭且不反射；
+- **独立恢复证据链**：新增 `phase-91-0015-public-function-acl-hardening` 的 writer/verifier、pre/post capture、
+  15-file source loader、networkless scratch rebuild、partial status 与 executor。pre 固定 head 14，rebuild/post
+  固定 head 15；Phase 81 loader 会拒绝当前 15-file repo，两个 batch 的目录、container/runner identity、head、
+  manifest 和 package 命令不能互换；
+- **本地证据**：格式化后重新运行 focused Node 控制面 181/181、API/PGlite migration 6/6、拆分后 rebuild
+  23/23，以及 targeted ESLint、Prettier、`git diff --check` 均通过。重建主模块从 403 行拆为 346 行执行器与
+  67 行只读 source 模块；最终审查又将 514 行 0014 diagnostic 拆为 188 行 CLI/parser 与 336 行只读
+  SQL/predicate renderer，将新触及的测试文件拆到 400 行以内，并新增 1 条真实 Phase 91 platform-baseline
+  identity 回归。随后完整 `pnpm verify:macos` 原样退出 0：Node scripts 523/523、首批 Vitest 340 files
+  （2,386 passed / 12 skipped）、API 141 files 554/554、Store coverage 97 files 481/481、Playwright 111/111；
+  instructions、format、lint、typecheck、architecture、workspace build、development blocker、Store release、
+  production audit 和 diff check 同轮通过；
+- **执行边界**：本节没有连接或修改 Hosted，没有读取真实密码，没有运行 Phase 91 capture/status/dry-run/
+  apply/post，没有发送邮件、部署、调用 DeepSeek/Cron/R3-C，也没有 commit/push。下一步是最终 diff 审查、
+  clean candidate 与双平台 CI；之后仍需逐项明确授权。

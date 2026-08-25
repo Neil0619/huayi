@@ -125,6 +125,7 @@ async function migrationForwardMatches(root) {
       "20260823010000_password_signup_interruption_recovery.sql",
     ],
     ["0014-password-signup-otp-resend.sql", "20260824010000_password_signup_otp_resend.sql"],
+    ["0015-public-function-acl-hardening.sql", "20260825010000_public_function_acl_hardening.sql"],
   ];
   try {
     const pairs = await Promise.all(

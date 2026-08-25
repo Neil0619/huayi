@@ -189,6 +189,18 @@ audit 仍只允许 `enabled`。这不代表 Store 产品或 Windows 支持被取
 > fake factory 回归精确锁定单次 `20_000` 与同一 signal 传入固定 fetch，且零真实等待/网络。该修复没有
 > 发送邮件或部署，也不替代仍 pending 的真实 Resend 401/5xx/timeout 恢复、收件、重复和无正文告警门。
 
+> **当前安全校准（Phase 91，2026-08-25）**：Phase 81 pre backup/rebuild/preflight 后，0014 apply 已实际
+> 写入但没有返回 verified completion。最终 6543 只读 ACL 分解确认完整 14-chain、0014 column/check/
+> functions、owner + context-setter direct grant、business/runtime denial 与 PUBLIC absence 全部正确；
+> `anon`、`authenticated`、`service_role` direct grant 和全部 public SECURITY DEFINER 的 API-role 安全
+> 谓词失败。因此 0014 禁止重跑，旧 Phase 81 post capture/completion 保持中断。下一阶段是 docs-first
+> forward-only 0015：收敛全部现有 public-function ACL 与 postgres global/public-schema default ACL，并以
+> 独立 Phase 91 pre-0015/rebuild/post batch 留下两个恢复点。2026-08-26 已完成本地 migration/mirror/chain、
+> status/dry-run/apply、独立 evidence/capture/rebuild/status/executor 的 Fresh RED→GREEN，并通过完整
+> `verify:macos`；clean candidate、双平台 CI 和真实 Hosted pre/status/dry-run/apply/post 仍 pending。Hosted
+> Data API 继续关闭；
+> 当前未运行 Hosted 0015、邮件、部署、DeepSeek、Cron 或 R3-C。
+
 > **历史校准检查点（Phase 33）**：Phase 28 已补齐 production 语义重复建议和
 > 可计算 AA token 证据；2026-08-14 完成度源码审计发现的 SubmissionOutbox `api=null` 误清账号绑定
 > 密文与未计数 `not-configured` 回归也已按 Fresh RED→GREEN 修复。Phase 32 按 `product.md` 七条

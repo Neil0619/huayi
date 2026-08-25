@@ -1,0 +1,12 @@
+BEGIN;
+
+REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA public
+FROM PUBLIC, anon, authenticated, service_role;
+
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres
+REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC, anon, authenticated, service_role;
+
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+REVOKE EXECUTE ON FUNCTIONS FROM anon, authenticated, service_role;
+
+COMMIT;

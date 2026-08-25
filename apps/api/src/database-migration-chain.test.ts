@@ -18,6 +18,7 @@ const migrationUrls = [
   "0012-first-operator-bootstrap.sql",
   "0013-password-signup-interruption-recovery.sql",
   "0014-password-signup-otp-resend.sql",
+  "0015-public-function-acl-hardening.sql",
 ].map((name) => new URL(`../migrations/${name}`, import.meta.url));
 
 describe("Cloud V1 current migration chain", () => {
@@ -28,6 +29,13 @@ describe("Cloud V1 current migration chain", () => {
   it("applies the current baseline followed by every forward migration", async () => {
     database = new PGlite();
     await database.waitReady;
+    await database.exec(`
+      CREATE ROLE anon NOLOGIN;
+      CREATE ROLE authenticated NOLOGIN;
+      CREATE ROLE service_role NOLOGIN;
+      ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+        GRANT EXECUTE ON FUNCTIONS TO anon,authenticated,service_role;
+    `);
 
     for (const migrationUrl of migrationUrls) {
       await expect(database.exec(await readFile(migrationUrl, "utf8"))).resolves.toBeDefined();

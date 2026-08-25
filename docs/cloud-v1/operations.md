@@ -93,10 +93,11 @@ hosted 管理脚本与 Vercel application runtime 固定使用 transaction poole
 `sslmode=require`、关闭 hostname 验证或依赖系统根证书都不满足门禁。SQL 不使用 `pg_stat_ssl` 证明客户端
 TLS：经 Supavisor 时它观察的是 pooler 到 PostgreSQL 的 backend 链路，不是 psql 到 pooler 的客户端链路。
 
-当前仓库脚本在同一事务验证完整 13 条 migration、42 张 public 表、2 张 private 表、33 张 tenant forced
-RLS 表、三个
-NOLOGIN/NOBYPASSRLS 迁移角色，以及 Auth/profile/admin/invitation 空状态。Storage 只允许完全空，或允许
-重跑时已经存在唯一 private `account-exports-acceptance` bucket 且无对象；任何部分状态或额外资源失败。
+当前仓库脚本的 canonical source set 已更新到完整 15 条 migration。首次 foundation bootstrap 的同一事务还
+验证 42 张 public 表、2 张 private 表、33 张 tenant forced RLS 表、三个 NOLOGIN/NOBYPASSRLS 迁移角色，
+以及 Auth/profile/admin/invitation 空状态。当前 Hosted 已是非空 acceptance 状态且尚处于 14-chain→0015 的
+Phase 91 修复窗口，不得重跑 pristine foundation verifier 或 bootstrap。Storage 只允许完全空，或允许重跑时
+已经存在唯一 private `account-exports-acceptance` bucket 且无对象；任何部分状态或额外资源失败。
 随后只建立
 `huayi_hosted_acceptance_login`、三条固定 acceptance 价格 UUID、显式启用的模型 kill switch 和 private
 `account-exports-acceptance` bucket。既有 role 不旋转密码；价格、kill switch 或 bucket 与契约冲突时整笔
@@ -192,11 +193,12 @@ foundation verify 通过。随后 0013 已作为第 13 条 migration 实际应�
 Operator，最终 status 为 `completed`。不得重跑 migration 或 foundation bootstrap，也不得重新发行
 BootstrapInvitation；真实 `/admin` 密码重新认证与四区只读复核也已经完成。
 
-当前操作必须先运行零网络/零写入的 `pnpm acceptance:hosted:deployment --plan` 读取 current action ledger，
-不得沿用 Phase 53 的静态首次部署顺序。账本后的依赖链固定为：明确授权一个收件人并创建唯一普通邀请 →
-scanner-safe OTP/Auth SMTP → R3-C 真实投递、重复与无正文告警 → 五项 Cron → 受审计
-kill-switch 切换、一笔获批 Cloud DeepSeek 应用路径请求和账本对账 → 恢复 kill switch。用户密码、Cookie、
-Token 与 secret 不进入自动化或发布证据。
+当前操作必须先遵循 Phase 91 安全修复链，不得沿用 Phase 53 的静态首次部署顺序，也不得从已经完成的收件人/
+普通邀请步骤重新开始。依赖链固定为：clean candidate + 双平台 CI → 0015 `pending-exact` → Phase 91
+pre/rebuild/preflight → 经分别批准的 0015 dry-run/apply/postflight → Phase 91 post/completion → 零网络/零写入的
+`pnpm acceptance:hosted:deployment --plan` 与 API→Web 串行 one-shot → 同一普通邀请的 scanner-safe OTP/Auth
+SMTP → R3-C 真实投递、重复与无正文告警 → 五项 Cron → 受审计 kill-switch 切换、一笔获批 Cloud DeepSeek
+应用路径请求和账本对账 → 恢复 kill switch。用户密码、Cookie、Token 与 secret 不进入自动化或发布证据。
 
 Phase 81 已在唯一普通邀请的真实注册邮件中发现 Hosted Email OTP length 为 8，而产品契约固定 6。用户只
 授权把该字段保存为 6；独立重新加载确认 6、expiry 仍 3600，其他 Auth/SMTP/DNS/environment/secret 未改
@@ -235,7 +237,9 @@ backup/rebuild/preflight 或授权 apply。
 multiset 是否精确、每个通道 relative order 是否精确，以及最终 transcript predicate。连接失败时 dry-run
 不运行且后七项固定为 false；
 任何异常只显示一个 allowlisted stage。禁止改用 `--debug`、复制原始 stderr 或把 Supabase CLI exit 1 解释成
-psql client-fatal。该诊断不生成备份证据，也不授权 0014 apply。
+psql client-fatal。该诊断不生成备份证据，也不授权 0014 apply。最终 6543 ACL 分解已经确认 0014 完整应用，
+多余权限精确来自 `anon`、`authenticated`、`service_role`；因此下面的 0014 apply 段落只保留为历史
+runbook，不得再次执行。
 实际 apply 也不得使用手工 Supabase 命令。只有真实 dry-run 已通过、pre capture 与 rebuild evidence 已生成且
 `pnpm acceptance:hosted:backup:preflight` 对当前 clean HEAD 通过，并取得独立写入授权后，才运行
 `pnpm acceptance:hosted:migration:0014:apply`。该入口在读取秘密前验证 preflight；随后用同一密码/CA 再次
@@ -244,18 +248,25 @@ dry-run 唯一 0014，mutation 前第二次验证 preflight 和固定 migration 
 migration chain、`bound_email` column/check、两条函数 identity 与 exact ACL，才输出固定成功。任何 apply/
 postflight 失败只返回“不要重试，先检查远端状态”；此时禁止盲目重跑。即使成功，仍须另行批准 post capture
 并由 `pnpm acceptance:hosted:backup:complete` 关闭批次后才能部署。
-当前先运行零 I/O 的 `pnpm acceptance:hosted:backup:plan` 与
-`pnpm acceptance:hosted:backup:executor:plan`；executor 已固定唯一 PostgreSQL 17.6.1.159 OCI index，但
+以下是 **Phase 81 / 0014 已中断批次的历史入口**，不得再作为当前动作运行。当时先运行零 I/O 的
+`pnpm acceptance:hosted:backup:plan` 与 `pnpm acceptance:hosted:backup:executor:plan`；executor 已固定唯一
+PostgreSQL 17.6.1.159 OCI index，但
 完整 platform lock 现已由 `pnpm acceptance:hosted:backup:platform-lock:verify` 在零 Docker/零网络下校验：
 14 个 CLI start service 精确为 11 active + 3 disabled，active image 同时固定 index 与 amd64/arm64 manifest。
 CLI cache miss 会主动 pull，因此普通 `supabase start` 仍禁止；当前 11 镜像已按 digest 获取并完成本机
 local-only inspection，Phase 86 writer 也已落地。tracked runbook 不记录 ignored evidence 是否存在、有效或
 绑定当前 HEAD；只以 `pnpm acceptance:hosted:backup:status` 的固定 verdict 判断。pre/post capture 只需运行
 既有 pnpm 命令并在 TTY 输入管理员密码，内部 CA 获取失败发生在密码提示前；不准备 CA env。
-先运行 exact readiness；只有其通过且单独批准的 pre raw logical dump 与
+当时先运行 exact readiness；只有其通过且单独批准的 pre raw logical dump 与
 migrations+fictional-seed scratch rebuild 完成、且
 `pnpm acceptance:hosted:backup:preflight` 通过后，才允许经受控 apply 入口应用 0014；post capture/completion
-关闭后才能部署 token-only resend。
+关闭后才能部署 token-only resend。真实 Phase 81 已在 0014 postflight ACL 漂移处中断；当前不得运行旧
+post capture/completion。先按 `public-function-acl-hardening.md` 建立 Phase 91 pre-0015/rebuild，应用唯一
+forward-only 0015 并完成 Phase 91 post/completion，之后才能部署 token-only resend。
+Phase 91 只使用 `acceptance:hosted:phase91:backup:*` 专属 plan/status/readiness/capture/rebuild/preflight/
+complete 入口；数据库只使用 `acceptance:hosted:migration:0015:status|dry-run|apply`。不得把 base
+`acceptance:hosted:backup:*` 的 Phase 81 evidence 或命令替换参数后复用。当前本地工具链与完整 macOS 门已
+通过，但 clean candidate、双平台 CI 与真实 pre/status/dry-run/apply/post 均未完成。
 scratch 使用的 Supabase PostgreSQL 镜像会在 init scripts 完成前启动临时 postmaster；操作入口不得把早期
 `pg_isready` 当作初始化完成。受控 rebuild 使用 BusyBox/GNU 兼容的 `head -n 1`，只在 tmpfs
 `postmaster.pid` 首行精确为 `1`、随后 `pg_isready` 成功，且固定 SQL 回读 `auth.users`、
@@ -349,11 +360,13 @@ deploy 只接受精确 `--confirm-local-downtime`。任何失败都停止后续�
 
 ## 备份、导出与删除
 
-- Hosted 重要批次以 `hosted-important-batch-backup.md` 为权威契约。当前 Phase 81/0014 固定顺序是
+- Hosted 重要批次以 `hosted-important-batch-backup.md` 为权威契约。Phase 81/0014 原固定顺序是
   双 plan/executor prerequisite → 单独批准、可按任一顺序完成的 pre capture 与 isolated rebuild →
   `backup:preflight` → migration
   apply → post capture → `backup:complete` → API/Web 串行 deploy/disarm；readiness/preflight 失败时 migration
-  不 ready。
+  不 ready。真实 0014 已应用但 postflight 因 API-role ACL 漂移中断；当前执行顺序由
+  `public-function-acl-hardening.md` 的 Phase 91 pre/rebuild → 0015 → post/completion 接管，旧 0014 apply、
+  post capture 和 completion 禁止重跑。
 - 离线 verifier 只读取
   `artifacts/hosted-important-batch-backups/phase-81-0014`，并验证当前工作树干净、Git HEAD、本克隆
   ignored、目录 `0700`、文件 `0600`、exact manifest、dump size/SHA-256 与 pre/post migration head。它不
@@ -367,12 +380,13 @@ deploy 只接受精确 `--confirm-local-downtime`。任何失败都停止后续�
 - 数据库 archive 只有 coverage contract 通过后才可声称包含 Auth database rows 与 Storage metadata；它不
   包含 Storage object bytes、global roles 或 Hosted provider/SMTP/DNS/Edge/environment config。先证明
   Storage objects 为零，否则必须单独批准 object export。
-- rebuild evidence 只从仓库 14 条 migrations + SHA-256 固定 fictional seed 在无网络、无端口、tmpfs-only 的
-  digest-only Supabase PostgreSQL scratch 生成，禁止导入 Hosted 数据；固定 GoTrue/Storage migration-only
-  runner 只共享该 scratch 的 network namespace 并使用虚构本地配置，不增加外联能力；必须在
-  platform baseline、migration/runtime/seed 聚合
-  通过、确认 Hosted data absent 且 scratch 已销毁后再落严格
-  body-free manifest。静态测试、命令退出 0 或 dump listing 不能单独关闭该门。
+- Phase 81 的既有 rebuild evidence 只从当时仓库 14 条 migrations + SHA-256 固定 fictional seed 在无网络、
+  无端口、tmpfs-only 的 digest-only Supabase PostgreSQL scratch 生成，禁止导入 Hosted 数据；该证据保持不可变
+  历史状态。当前 Phase 91 rebuild 使用专属 batch/命令面和完整 15-chain，不能读取、覆盖或冒充 Phase 81
+  evidence。两者的固定 GoTrue/Storage migration-only runner 都只共享各自 scratch 的 network namespace 并使用
+  虚构本地配置，不增加外联能力；必须在 platform baseline、migration/runtime/seed 聚合通过、确认 Hosted data
+  absent 且 scratch 已销毁后再落严格 body-free manifest。静态测试、命令退出 0 或 dump listing 不能单独关闭
+  该门。
 - production logical-backup restore drill 以 `hosted-logical-backup-restore-drill.md` 为权威契约。它不是
   Phase 81/0014 的新增依赖；当前 Hosted 验收批次关闭并取得独立批准后，才可创建同组织/同区/同 PG major
   的全新临时 recovery project。真实 archive 只能从加密介质流向该隔离 project，禁止复制到 development、

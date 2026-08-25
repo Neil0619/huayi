@@ -6,7 +6,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import {
-  hostedAcceptanceMigrationVersions,
+  hostedAcceptanceMigrationVersionsThrough0014,
   hostedAcceptancePoolerUrl,
   hostedAcceptanceProjectRef,
   requireHostedCaCertificate,
@@ -171,7 +171,7 @@ export async function runHostedMigration0014ApplyProcess(
 }
 
 export function renderHostedMigration0014PostflightSql() {
-  const migrations = sqlTextArray(hostedAcceptanceMigrationVersions);
+  const migrations = sqlTextArray(hostedAcceptanceMigrationVersionsThrough0014);
   return `
 BEGIN READ ONLY;
 SELECT CASE WHEN
@@ -239,7 +239,7 @@ SELECT CASE WHEN
         'text'::regtype::oid
       ]::oid[]
       AND procedure.proretset
-      AND procedure.prorettype = 'record'::regtype
+      AND procedure.prorettype = 'text'::regtype
       AND procedure.prosecdef
       AND procedure.proconfig = ARRAY['search_path=pg_catalog']::text[]
   )

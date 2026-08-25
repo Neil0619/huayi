@@ -1980,3 +1980,36 @@ target 的双租户 FORCE RLS、Auth/Storage metadata、migration/trigger/admin 
 和 source/target 进程内 HMAC count digest 必须 exact，finally 必须精确删除两个身份和临时目录。该实现不读取
 Hosted secret/archive，不写 production evidence，也不验证 managed platform baseline。production adapter、
 真实 Hosted drill 与 retention close 仍 pending。
+
+### Phase 91：Hosted public 函数 ACL forward-only 收敛（2026-08-25）
+
+影响平台为 `shared database/tooling/docs + hosted-acceptance`。真实 6543 只读诊断已确认 0014 完整应用，
+禁止重跑；本阶段不启用 Data API、不发送邮件、不部署、不运行模型，也不修改 Auth/SMTP/DNS/environment/
+secret。完整方案见 `public-function-acl-hardening.md`。
+
+1. **docs-first 与根因冻结**：记录 14-chain/0014 objects/Huayi grants 精确，漂移仅为 Supabase
+   `anon`、`authenticated`、`service_role` 对 public functions 的 direct `EXECUTE`；Data API 当前关闭只
+   降低暴露面，不替代最小权限；
+2. **Fresh RED**：先证明 0015/mirror/chain 缺失；Supabase-default PGlite fixture 精确复现现有 public
+   SECURITY DEFINER 对三个 API roles 可执行，并让错误的 schema-only PUBLIC default revoke 暴露未来
+   fictional probe；
+3. **migration GREEN**：新增 byte-identical 0015，事务内从全部现有 public functions 撤销 PUBLIC/API
+   roles；global owner=`postgres` default 撤销 PUBLIC/API roles，public per-schema default 再撤销 API roles；
+   保留 owner/Huayi direct grants；
+4. **状态与受控入口**：实现 14-chain+已知 drift 的 pending、15-chain+existing/default ACL safe+0014 grants
+   preserved 的 applied，以及其他全部 uncertain；dry-run 只接受唯一 0015，apply 同执行重查 evidence/source/
+   mirror，并在 mutation 紧前使用同一 secrets 只接受 `pending-exact`，随后只读 postflight；任何不确定均零
+   mutation 且禁止重试；
+5. **独立重要批次**：保留 Phase 81 pre-0014。新建
+   `phase-91-0015-public-function-acl-hardening`，依次完成 head-14 pre、15-chain scratch rebuild、preflight、
+   经分别批准的 dry-run/apply、head-15 post/completion；旧 Phase 81 post/completion 不手改、不冒充完成；
+6. **验证与退出**：focused + 完整 macOS 门、shared 双平台 CI、Hosted applied-exact 和 Phase 91 backup
+   completion 全绿后，才恢复 API→Web one-shot 和同邀请六位 OTP journey。
+
+2026-08-26 本地进度：第 1–5 项所需的 migration、版本链、status/dry-run/apply、独立 evidence
+writer/verifier、capture、15-chain networkless rebuild、partial status 与 executor **本地实现**已完成 Fresh
+RED→GREEN；focused Node 控制面 181/181、PGlite migration 6/6、拆分后 rebuild 23/23、targeted
+ESLint/Prettier/diff 与完整 `verify:macos` 均通过。完整门计数为 Node scripts 523/523、非 API Vitest 340 files /
+2,386 passed + 12 skipped、API 141 files / 554 passed、Store 97 files / 481 passed、Playwright 111/111。
+第 6 项的 clean candidate、双平台 CI 和全部 Hosted 动作仍 pending；没有运行 capture、Hosted
+status/dry-run/apply、邮件、部署或模型。

@@ -37,15 +37,17 @@ Web-only deployment 与独立 disarm。当前默认排除 Canceled 的 API/Web �
 `deploymentEnabled=false`。live `/`、`/privacy`、SPA `/admin`、`/practice`、实际 JS asset、安全响应头、
 渲染、公开只读边界与 bundle secret scan 均通过；Phase 78 API `/health` 与无 Cookie CSRF/CORS 也已
 通过。唯一普通邀请已经提交密码注册，但邮件暴露 Hosted OTP length=8 漂移；该单一字段已保存为 6 并
-独立回读，未发送新邮件。仓库候选新增 0014 同邀请重发，远端仍停在 13 条；0014、API/Web 部署、六位
+独立回读，未发送新邮件。0014 同邀请重发已经写入远端并由 6543 只读 catalog 确认为第 14 条 migration；
+其结构与 Huayi role grant 正确，但 Supabase 自动追加的三个 Data API role `EXECUTE` 使安全 postflight
+失败。禁止重跑 0014；下一数据库门改为 Phase 91 forward-only 0015 ACL 收敛。0015、API/Web 部署、六位
 OTP/Auth SMTP、R3-C、Cron 与 DeepSeek 应用路径仍待验收。Phase 82 已补离线 backup/rebuild 证据门与
 executor readiness；Phase 83 固定了唯一 PostgreSQL 17.6.1.159 OCI index，并把 Docker 限制到本机 Unix
 socket/FileVault gate。Phase 84 已完成 11-active/3-disabled 的完整双平台 image lock 与零网络静态 verifier；
 Phase 85 已受控获取并在固定 OrbStack socket 检查全部 11 个 index-digest reference。Phase 86 已落地受审查
 的原子 capture/rebuild writer 与 confirmation-gated 入口；clean `c61fa0b` 曾正式完成 networkless rebuild、
 销毁 scratch 并生成严格 manifest，这是历史成功检查点。CLI cache miss 会 pull，普通 start 仍禁止；tracked
-部署文档不声明 ignored evidence currentness，操作状态只以 `backup:status` 为准。0014 apply 仍必须先通过
-preflight。
+部署文档不声明 ignored evidence currentness，操作状态只以对应 batch status 为准。Phase 81 的 preflight
+已让 0014 apply 进入 mutation；旧 post capture/completion 现因 ACL 漂移中断，不得继续冒充安全 post-state。
 0014 dry-run 的本机候选已补固定官方 CA 的内部有界获取、无 redirect、管理员 transaction pooler `6543`
 verify-full URL/child env 与 `0600` 临时 CA；用户仍只运行一个 pnpm 命令，不准备 CA 环境变量。该离线修复
 随后 2026-08-25 用户提供的真实 raw child transcript 精确包含 non-mutating header、remote connection
@@ -61,13 +63,58 @@ whole-line 双通道候选尚未连接 Hosted 重跑。后续
 实际写入仍已
 收敛到单一
 `pnpm acceptance:hosted:migration:0014:apply`：它绑定 preflight、同执行 exact dry-run、mutation 前
-clean-HEAD/source-hash 重查和写后只读 canonical-chain/0014-contract postflight；该入口尚未真实运行，不能
-绕过 pre evidence，也不能替代 post backup/completion。
+clean-HEAD/source-hash 重查和写后只读 canonical-chain/0014-contract postflight。该入口真实运行后只返回
+“未产生 verified completion”，因此当时既不能声明 migration 已应用，也不能再次运行；后续固定只读诊断已
+确认 0014 完整应用且禁止重跑。该入口不能绕过 pre evidence，也不能替代 post backup/completion。
+
+若 apply child 或 postflight 没有给出 verified completion，禁止直接重试，也不能用 safe diagnostic 的
+dry-run transcript 猜测远端是否已写入。此时唯一运维入口为：
+
+```bash
+unset PGPASSWORD SUPABASE_DB_PASSWORD
+pnpm acceptance:hosted:migration:0014:status
+```
+
+该命令内部下载固定官方 CA，从隐藏 TTY 读取管理员密码，并只通过固定 Singapore 管理员 transaction pooler
+`6543` 执行一个 verify-full `BEGIN READ ONLY` catalog snapshot。它只输出 `applied-exact`、`pending-exact` 或
+`uncertain; do not retry apply` 的固定 verdict，不转发 psql/数据库原始输出。只有 `applied-exact` 能直接继续
+post backup；`pending-exact` 仍需结合 mutation 前阶段证据审查后另行决定；`uncertain` 必须停止。
+
+`uncertain` 后只能继续运行以下固定只读诊断，不得运行 apply 或 post capture：
+
+```bash
+unset PGPASSWORD SUPABASE_DB_PASSWORD
+pnpm acceptance:hosted:migration:0014:status:diagnose
+```
+
+诊断固定输出 `status_query_exit_class`、`status_query_output_exact`、13/14 chain、column/check、bind
+function/ACL、renew function/ACL 的 12 个核心 `t/f`，再输出两个函数各 10 个固定 ACL 分解谓词与
+4 个 Data API roles / 全部 public SECURITY DEFINER 函数的全局谓词，最后输出 `final_status`。分解项只判断
+setter/business/runtime effective privilege、owner/setter direct ACL、
+`PUBLIC`、`anon`、`authenticated`、`service_role` 和其他 direct ACL 是否符合预期；它不改变远端状态，也不
+输出数据库原始值、OID、函数名或未知角色名；
+`connection_error` 区分连接失败，`script_error` 区分只读 SQL 失败，`ok + output_exact=f` 区分输出协议漂移。
+`bind_acl_exact` 是额外的安全观测，不参与现有 status 三态；`final_status` 必须与 standalone status 的
+applied/pending 条件完全一致。
+
+初版 status diagnostic 在 session pooler `5432` 的真实回读为 `connection_error`、`output_exact=f`、全部
+catalog predicate 为 false。该输出只分类连接路径失败，不是密码失败，也不代表远端对象 absent。status 与
+status diagnostic 已改用同一套既有 dry-run/apply 成功使用的管理员 transaction pooler `6543`；后者继续追加
+`connect_timeout=10` 并保留 30 秒进程上限。
+
+修正连接后的最终真实回读为 `ok + output_exact=t`：完整 14-chain、column/check、两个函数 identity、
+owner/context-setter direct grant、business/runtime denial、PUBLIC absence 与 other-role absence 均精确；
+`anon`、`authenticated`、`service_role` direct absence 对 bind/renew 全部为 false，全部 public
+SECURITY DEFINER 的 API-role 安全谓词也为 false。由此 0014 已完整应用，禁止重跑；失败根因精确为
+Supabase API-role default grant。旧 Phase 81 post capture/completion 保持中断，下一写入只能按
+`public-function-acl-hardening.md` 的 Phase 91 新备份批次与 forward-only 0015 另行批准执行。
 
 ## 1. 当前事实与目标
 
-Hosted foundation 已在 Supabase project `kpadiulxkgckskcfydry` 完成，远端 migration head 为 13 条，
-仓库受审查候选为 14 条，First Operator 为 `completed`。不得再运行 pristine foundation bootstrap、
+Hosted foundation 已在 Supabase project `kpadiulxkgckskcfydry` 完成，远端 migration head 为 14 条；
+仓库已完成第 15 条 ACL hardening 的 docs-first、本地实现与完整 macOS 门，但 clean candidate、双平台 CI、
+Phase 91 pre/rebuild/preflight 及 Hosted dry-run/apply/post 尚未完成。First Operator 为 `completed`。
+不得再运行 pristine foundation bootstrap、
 0012/0013、首张
 BootstrapInvitation 或 First Operator complete；这些步骤只保留为历史证据。Supabase Auth Site URL、五条
 query-aware redirect、scanner-safe OTP 模板、Custom SMTP、分离的 SMTP/R3-C credential 与 API/Web
@@ -587,6 +634,11 @@ DeepSeek、备份、自然使用或 Windows 已验收。零网络 deployment pla
 
 ## 6.6 Phase 82 重要批次备份与可重建证据门
 
+本节以下内容保留 Phase 81/0014 原始控制契约。2026-08-25 的真实状态已变为：pre/rebuild/preflight 允许
+0014 apply 执行，0014 已写入，但安全 postflight 因三个 Data API roles 的函数 ACL 漂移失败。不得再运行
+0014 apply、Phase 81 post capture 或旧 completion。Phase 91 将以独立 pre-0015/rebuild/post batch 修复并
+形成最终安全 post-state；完整方案见 `public-function-acl-hardening.md`。
+
 `pnpm acceptance:hosted:backup:plan` 与 `pnpm acceptance:hosted:backup:executor:plan` 是固定 Singapore
 project 与 `phase-81-0014` 的零 I/O 计划；plan 不声明当前执行状态。`backup:status` 是固定 body-free
 只读状态面，只输出 pre/rebuild/post 的 present/valid/current 九个布尔 verdict。
@@ -610,7 +662,9 @@ archive 不包含 Storage object bytes、global roles 或 Hosted platform config
 
 ## 6.7 API→Web 严格串行 one-shot 可执行门
 
-Phase 81 的 post backup/completion 之后，不再只靠人工观察控制 arm 窗口。固定入口为：
+Phase 91 ACL hardening 的 post backup/completion 之后，不再只靠人工观察控制 arm 窗口。旧 Phase 81
+completion 未完成时不得运行下列入口；Phase 91 evidence gate 与 state identity 已在本地同步到独立新
+batch，但真实 pre/rebuild/apply/post/completion 和双平台 CI 尚未完成。固定入口为：
 
 1. `pnpm acceptance:hosted:deployment:one-shot:plan`：零 environment/filesystem/Git/network；
 2. `pnpm acceptance:hosted:deployment:one-shot:preflight`：只读 Vercel/Git，要求 clean HEAD 与 upstream

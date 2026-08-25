@@ -1,11 +1,14 @@
 import {
   assertFixedLocalDockerTarget,
-  hostedImportantBatchScratchContainer,
   inspectHostedImportantBatchContainer,
   isHostedImportantBatchContainerAbsent,
   runHostedImportantBatchProcess,
   settleHostedImportantBatchContainer,
 } from "./acceptance-hosted-important-batch-execution-contract.mjs";
+import {
+  assertHostedImportantBatchArtifactContract,
+  hostedPhase81ArtifactContract,
+} from "./acceptance-hosted-important-batch-contracts.mjs";
 
 const authDigest = "sha256:362659ca70eaa75ba05bbaf963caa84c1c5afe5e8fbf0777e17b830dd5f0f60a";
 const storageDigest = "sha256:97ed68d33417d253a45fe0a70f84324d92250a3e239bf18aa6cf87269dbf6727";
@@ -16,37 +19,39 @@ export const hostedImportantBatchStorageRuntimeReference = `docker.io/supabase/s
 export const hostedImportantBatchAuthBaselineContainer = "huayi-phase-81-0014-auth-baseline";
 export const hostedImportantBatchStorageBaselineContainer = "huayi-phase-81-0014-storage-baseline";
 
-const runnerSpecs = Object.freeze([
-  {
-    command: ["auth", "migrate"],
-    environment: [
-      "GOTRUE_DB_DRIVER=postgres",
-      "GOTRUE_DB_DATABASE_URL=postgresql://supabase_auth_admin@127.0.0.1:5432/postgres?sslmode=disable",
-      "API_EXTERNAL_URL=http://127.0.0.1/auth/v1",
-      "GOTRUE_SITE_URL=http://127.0.0.1",
-      `GOTRUE_JWT_SECRET=${fictionalJwtSecret}`,
-      "GOTRUE_JWT_EXP=3600",
-    ],
-    image: hostedImportantBatchAuthRuntimeReference,
-    label: "phase-81-0014-auth-baseline",
-    name: hostedImportantBatchAuthBaselineContainer,
-    stage: "auth-baseline",
-  },
-  {
-    command: ["/app/dist/scripts/migrate-call.js"],
-    entrypoint: "node",
-    environment: [
-      "DATABASE_URL=postgresql://supabase_storage_admin@127.0.0.1:5432/postgres?sslmode=disable",
-      `PGRST_JWT_SECRET=${fictionalJwtSecret}`,
-    ],
-    image: hostedImportantBatchStorageRuntimeReference,
-    label: "phase-81-0014-storage-baseline",
-    name: hostedImportantBatchStorageBaselineContainer,
-    stage: "storage-baseline",
-  },
-]);
+function createRunnerSpecs(artifactContract) {
+  return [
+    {
+      command: ["auth", "migrate"],
+      environment: [
+        "GOTRUE_DB_DRIVER=postgres",
+        "GOTRUE_DB_DATABASE_URL=postgresql://supabase_auth_admin@127.0.0.1:5432/postgres?sslmode=disable",
+        "API_EXTERNAL_URL=http://127.0.0.1/auth/v1",
+        "GOTRUE_SITE_URL=http://127.0.0.1",
+        `GOTRUE_JWT_SECRET=${fictionalJwtSecret}`,
+        "GOTRUE_JWT_EXP=3600",
+      ],
+      image: hostedImportantBatchAuthRuntimeReference,
+      label: `${artifactContract.platformBaselineIdentityPrefix}-auth-baseline`,
+      name: `huayi-${artifactContract.platformBaselineIdentityPrefix}-auth-baseline`,
+      stage: "auth-baseline",
+    },
+    {
+      command: ["/app/dist/scripts/migrate-call.js"],
+      entrypoint: "node",
+      environment: [
+        "DATABASE_URL=postgresql://supabase_storage_admin@127.0.0.1:5432/postgres?sslmode=disable",
+        `PGRST_JWT_SECRET=${fictionalJwtSecret}`,
+      ],
+      image: hostedImportantBatchStorageRuntimeReference,
+      label: `${artifactContract.platformBaselineIdentityPrefix}-storage-baseline`,
+      name: `huayi-${artifactContract.platformBaselineIdentityPrefix}-storage-baseline`,
+      stage: "storage-baseline",
+    },
+  ];
+}
 
-function runnerRuntimeIsExact(source, spec) {
+function runnerRuntimeIsExact(source, spec, artifactContract) {
   try {
     const inspected = JSON.parse(source);
     const expectedEntrypoint = spec.entrypoint === undefined ? null : [spec.entrypoint];
@@ -65,7 +70,7 @@ function runnerRuntimeIsExact(source, spec) {
       JSON.stringify(inspected?.Config?.Entrypoint) === JSON.stringify(expectedEntrypoint) &&
       environmentIsExact &&
       inspected?.Config?.Labels?.["com.seen-said.acceptance"] === spec.label &&
-      inspected?.HostConfig?.NetworkMode === `container:${hostedImportantBatchScratchContainer}` &&
+      inspected?.HostConfig?.NetworkMode === `container:${artifactContract.scratchContainer}` &&
       (inspected?.HostConfig?.Binds === null || inspected?.HostConfig?.Binds?.length === 0) &&
       Array.isArray(inspected?.Mounts) &&
       inspected.Mounts.length === 0
@@ -75,7 +80,7 @@ function runnerRuntimeIsExact(source, spec) {
   }
 }
 
-function runnerArguments(dockerTarget, spec) {
+function runnerArguments(dockerTarget, spec, artifactContract) {
   const arguments_ = [
     "--host",
     dockerTarget.host,
@@ -88,24 +93,28 @@ function runnerArguments(dockerTarget, spec) {
     "--label",
     `com.seen-said.acceptance=${spec.label}`,
     "--network",
-    `container:${hostedImportantBatchScratchContainer}`,
+    `container:${artifactContract.scratchContainer}`,
   ];
   for (const value of spec.environment) arguments_.push("--env", value);
   if (spec.entrypoint !== undefined) arguments_.push("--entrypoint", spec.entrypoint);
   return [...arguments_, spec.image, ...spec.command];
 }
 
-async function runBaselineRunner({ dockerTarget, runProcess, spec, wait }) {
+async function runBaselineRunner({ artifactContract, dockerTarget, runProcess, spec, wait }) {
   const existing = await inspectHostedImportantBatchContainer(dockerTarget, spec.name, runProcess);
   if (!isHostedImportantBatchContainerAbsent(existing)) {
     throw new Error("Hosted important-batch platform baseline identity is occupied.");
   }
   let result;
   try {
-    result = await runProcess(dockerTarget.command, runnerArguments(dockerTarget, spec), {
-      maxOutputBytes: 256,
-      timeoutMilliseconds: 300_000,
-    });
+    result = await runProcess(
+      dockerTarget.command,
+      runnerArguments(dockerTarget, spec, artifactContract),
+      {
+        maxOutputBytes: 256,
+        timeoutMilliseconds: 300_000,
+      },
+    );
   } catch {
     result = { code: null, stdout: "" };
   }
@@ -113,7 +122,7 @@ async function runBaselineRunner({ dockerTarget, runProcess, spec, wait }) {
     dockerTarget,
     name: spec.name,
     runProcess,
-    runtimeIsExact: (source) => runnerRuntimeIsExact(source, spec),
+    runtimeIsExact: (source) => runnerRuntimeIsExact(source, spec, artifactContract),
     wait,
     waitForLateAppearance: result.code === null,
   });
@@ -123,14 +132,16 @@ async function runBaselineRunner({ dockerTarget, runProcess, spec, wait }) {
 }
 
 export async function migrateHostedImportantBatchPlatformBaseline({
+  artifactContract = hostedPhase81ArtifactContract,
   dockerTarget,
   onStage = () => undefined,
   runProcess = runHostedImportantBatchProcess,
   wait = (milliseconds) => new Promise((resolveWait) => setTimeout(resolveWait, milliseconds)),
 }) {
+  assertHostedImportantBatchArtifactContract(artifactContract);
   assertFixedLocalDockerTarget(dockerTarget);
-  for (const spec of runnerSpecs) {
+  for (const spec of createRunnerSpecs(artifactContract)) {
     onStage(spec.stage);
-    await runBaselineRunner({ dockerTarget, runProcess, spec, wait });
+    await runBaselineRunner({ artifactContract, dockerTarget, runProcess, spec, wait });
   }
 }
