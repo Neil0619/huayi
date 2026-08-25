@@ -217,8 +217,6 @@ async function startScratch(dockerTarget, runProcess) {
       "POSTGRES_HOST_AUTH_METHOD=trust",
       "--env",
       "POSTGRES_DB=postgres",
-      "--env",
-      "PGDATA=/var/lib/postgresql/data/pgdata",
       hostedImportantBatchPostgresRuntimeReference,
     ]),
     { maxOutputBytes: 256 },

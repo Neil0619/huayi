@@ -89,6 +89,10 @@ test("rebuild runs a networkless digest-only scratch, applies exact migrations a
       assert.ok(arguments_.includes("--pull"));
       assert.ok(arguments_.includes("never"));
       assert.ok(arguments_.includes("--tmpfs"));
+      assert.equal(
+        arguments_.some((value) => value.startsWith("PGDATA=")),
+        false,
+      );
       assert.ok(arguments_.includes(hostedImportantBatchPostgresRuntimeReference));
       return { code: 0, stdout: `${hostedImportantBatchScratchContainer}\n` };
     }
