@@ -566,6 +566,8 @@ test("a failed Web Eudic export is explicitly retried and completed", async ({ p
 
   await page.goto(`${webOrigin}/words/wordbooks`);
   await page.getByRole("button", { name: "创建任务" }).click();
+  await expect(page.getByRole("heading", { name: "欧路词典 · 导出" })).toBeVisible();
+  await expect(page.getByText("等待插件处理", { exact: true })).toBeVisible();
   await page.goto(`${storeFixture}?eudic-cloud-failure`);
   await page.getByTestId("cloud-run-wordbook-job").click();
   await expect(page.getByTestId("cloud-status")).toHaveText("wordbook-processed-local:0");
@@ -653,6 +655,8 @@ test("a Shanbay Cloud batch reports an exact partial success to Web", async ({ p
   await page.goto(`${webOrigin}/words/wordbooks`);
   await page.getByRole("radio", { name: /导出到扇贝/u }).check();
   await page.getByRole("button", { name: "创建任务" }).click();
+  await expect(page.getByRole("heading", { name: "扇贝 · 导出" })).toBeVisible();
+  await expect(page.getByText("等待插件处理", { exact: true })).toBeVisible();
   await page.goto(`${storeFixture}?shanbay-cloud`);
   await page.getByTestId("cloud-claim-shanbay").click();
   await expect(page.getByTestId("cloud-status")).toHaveText("shanbay-ready:investigation,evidence");
