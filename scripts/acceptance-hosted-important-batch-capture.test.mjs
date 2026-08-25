@@ -77,6 +77,27 @@ test("capture exposes only fixed pre and post operations", () => {
   assert.match(hostedImportantBatchCapturePostArgument, /^--confirm-capture-post-0014-/u);
 });
 
+test("capture accepts Supabase administrator passwords from 12 through 31 characters", async () => {
+  for (const administratorPassword of ["a".repeat(12), "b".repeat(31)]) {
+    let resolverCalls = 0;
+    await assert.rejects(
+      captureHostedImportantBatchBackup({
+        administratorPassword,
+        caCertificate,
+        candidateCommit,
+        phase: "pre",
+        repositoryRoot: await temporaryRepository(),
+        resolveDockerTarget: async () => {
+          resolverCalls += 1;
+          throw new Error("fictional post-secret-gate stop");
+        },
+      }),
+      /fictional post-secret-gate stop/u,
+    );
+    assert.equal(resolverCalls, 1);
+  }
+});
+
 test("capture uses only the fixed local Docker target, digest runtime, and private mounted files", async () => {
   const root = await temporaryRepository();
   const calls = [];
@@ -365,7 +386,11 @@ test("capture rejects prefixed text that only contains the required TOC fragment
 
 test("capture rejects untrusted Docker targets or malformed secret material before spawning", async () => {
   for (const overrides of [
-    { administratorPassword: "short" },
+    { administratorPassword: "a".repeat(11) },
+    { administratorPassword: "a".repeat(513) },
+    { administratorPassword: "valid-length\0password" },
+    { administratorPassword: "valid-length\rpassword" },
+    { administratorPassword: "valid-length\npassword" },
     { caCertificate: "not-a-certificate" },
     {
       resolveDockerTarget: async () => ({

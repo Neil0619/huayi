@@ -42,7 +42,7 @@ FROM storage.objects;
 function assertSecretMaterial(administratorPassword, caCertificate) {
   if (
     typeof administratorPassword !== "string" ||
-    administratorPassword.length < 32 ||
+    administratorPassword.length < 12 ||
     administratorPassword.length > 512 ||
     /[\0\r\n]/u.test(administratorPassword)
   ) {

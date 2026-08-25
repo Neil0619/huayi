@@ -112,7 +112,9 @@ Edge Functions、environment 或平台密钥。Storage objects 必须先由固�
 发布证据，不得复制到 Git、聊天、工单、测试 fixture、日志或 stdout。受控 capture 固定为：
 
 1. 只使用固定 project 的 verify-full 管理员 session pooler `5432`；transaction pooler `6543` 禁止用于
-   dump/restore；密码只写入固定 `0600` 临时 `.pgpass` 并 read-only mount，容器只得到固定 `PGPASSFILE`
+   dump/restore；管理员数据库密码的本地 shape gate 以 Supabase 建议的至少 12 个字符为下限，并保留
+   512 字符的本地安全上限，同时继续拒绝 NUL、CR 和 LF；这不改变 application 数据库密码的独立 32+
+   字符契约。密码只写入固定 `0600` 临时 `.pgpass` 并 read-only mount，容器只得到固定 `PGPASSFILE`
    path，不能收到 `PGPASSWORD` 或 secret-bearing Docker argument；同一单命令先从固定 Supabase Singapore
    官方 URL 获取公开 CA，强制 GET/no redirect/no credentials/no referrer、10 秒/16 KiB 与严格单一 PEM，
    成功后才显示隐藏密码提示。调用者不准备 CA environment；CA 写入固定 `0600` 临时文件、read-only
@@ -258,3 +260,6 @@ start 证明 offline。writer 不调用普通 `supabase start`；任何 scratch 
   官方可移植流程使用 roles/schema/data 三份 SQL 与 session pooler；
 - [Supabase database backups](https://supabase.com/docs/guides/platform/backups)：数据库备份只包含 Storage
   metadata，不包含 Storage API object bytes。
+- [Supabase Postgres roles](https://supabase.com/docs/guides/database/postgres/roles)：数据库密码建议至少
+  12 个字符；capture 的本地门禁据此采用 12 字符下限，并独立保留 512 字符安全上限，而不是复用应用
+  数据库密码的 32+ 字符边界。

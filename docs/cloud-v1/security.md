@@ -395,6 +395,12 @@ owner context、generation/reservation 归属、task 成功或失败终态、价
   隐私披露未决时失败关闭。完整 lifecycle 与 exact JSON keys 见
   `hosted-logical-backup-restore-drill.md`。
 
+### 7.2 Hosted 重要批次 capture 密码边界
+
+- Hosted pre/post capture 的 Supabase 管理员数据库密码只从隐藏 TTY 读取；本地 shape gate 以 Supabase
+  建议的至少 12 个字符为下限，独立保留 512 字符安全上限，并拒绝 NUL、CR、LF。密码只进入
+  `0600 .pgpass`。该边界不得复用于 application 数据库密码，后者继续保持独立的 32+ 字符契约。
+
 ## 8. 密码注册确认与中断恢复
 
 - Confirm sign up 邮件不得直接链接可被 scanner 消费的 Supabase `ConfirmationURL`；只显示六位 OTP，

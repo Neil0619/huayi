@@ -3,6 +3,17 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-25：Hosted capture 管理员密码下限与 Supabase 契约对齐
+
+- Phase 81 pre backup 的真实管理员密码为 12–31 字符，但 capture 在任何数据库连接或 Docker resolver
+  前错误套用了 application 数据库密码的 32+ 字符门禁，因此只返回通用 fail-closed；这不是密码错误、
+  Supabase 锁定或 Hosted 连接失败；
+- capture 的管理员数据库密码本地 shape gate 改为以 Supabase 建议的至少 12 个字符为下限，并保留
+  512 字符的本地安全上限；继续拒绝 NUL、CR、LF，并继续只写入 `0600 .pgpass`。application 数据库
+  密码的独立 32+ 字符契约、Hosted 数据、备份、migration 与部署均不因本次校准而改变；
+- 回归在实际 capture seam 证明 12 和 31 字符能越过 secret gate，并证明 11、513 与控制字符仍在 spawn
+  前失败关闭；测试只使用虚构秘密，不连接 Hosted。
+
 ## 2026-08-25：跨平台 CI 以 API 资源批次和最小失败 PNG 收口诊断面
 
 - 非 Windows 根 Vitest 从单进程最多 4 workers 改为精确两个串行进程：先排除 API 运行其余
