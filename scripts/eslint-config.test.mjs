@@ -29,7 +29,11 @@ test("excludes only reviewed external and generated subtrees from product qualit
     .flatMap((config) => config.ignores ?? [])
     .filter((pattern) => pattern.startsWith(".agents") || pattern.startsWith("supabase"));
 
-  assert.equal(prettierIgnore.trim(), ".agents/skills/**\nsupabase/.temp/**");
+  assert.equal(
+    prettierIgnore.trim(),
+    ".agents/skills/**\nsupabase/.temp/**\nartifacts/hosted-important-batch-backups/**",
+  );
+  assert.equal(prettierIgnore.includes("artifacts/**"), false);
   assert.deepEqual(eslintReviewedIgnores, [".agents/skills/**", "supabase/.temp/**"]);
   assert.equal(eslintReviewedIgnores.includes(".agents/**"), false);
   assert.equal(eslintReviewedIgnores.includes("supabase/**"), false);

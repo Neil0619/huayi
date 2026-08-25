@@ -42,8 +42,10 @@ OTP/Auth SMTP、R3-C、Cron 与 DeepSeek 应用路径仍待验收。Phase 82 已
 executor readiness；Phase 83 固定了唯一 PostgreSQL 17.6.1.159 OCI index，并把 Docker 限制到本机 Unix
 socket/FileVault gate。Phase 84 已完成 11-active/3-disabled 的完整双平台 image lock 与零网络静态 verifier；
 Phase 85 已受控获取并在固定 OrbStack socket 检查全部 11 个 index-digest reference。Phase 86 已落地受审查
-的原子 capture/rebuild writer 与 confirmation-gated 入口，但本阶段没有执行真实入口或生成 evidence。CLI
-cache miss 会 pull，普通 start 仍禁止；真实 pre dump/rebuild 与 preflight 尚未执行，因而 0014 仍不 ready。
+的原子 capture/rebuild writer 与 confirmation-gated 入口；clean `c61fa0b` 曾正式完成 networkless rebuild、
+销毁 scratch 并生成严格 manifest，这是历史成功检查点。CLI cache miss 会 pull，普通 start 仍禁止；tracked
+部署文档不声明 ignored evidence currentness，操作状态只以 `backup:status` 为准。0014 apply 仍必须先通过
+preflight。
 0014 dry-run 的本机候选已补固定官方 CA 的内部有界获取、无 redirect、管理员 transaction pooler `6543`
 verify-full URL/child env 与 `0600` 临时 CA；用户仍只运行一个 pnpm 命令，不准备 CA 环境变量。该离线修复
 随后 2026-08-25 用户提供的真实 raw child transcript 精确包含 non-mutating header、remote connection
@@ -583,7 +585,8 @@ DeepSeek、备份、自然使用或 Windows 已验收。零网络 deployment pla
 ## 6.6 Phase 82 重要批次备份与可重建证据门
 
 `pnpm acceptance:hosted:backup:plan` 与 `pnpm acceptance:hosted:backup:executor:plan` 是固定 Singapore
-project 与 `phase-81-0014` 的零 I/O 计划。
+project 与 `phase-81-0014` 的零 I/O 计划；plan 不声明当前执行状态。`backup:status` 是固定 body-free
+只读状态面，只输出 pre/rebuild/post 的 present/valid/current 九个布尔 verdict。
 `backup:preflight` 只读取本克隆 ignored 的固定 artifacts 目录，要求 pre custom-format raw logical dump、
 strict `0700/0600`、size/SHA-256/manifest、clean current Git HEAD，以及从 migration + fictional seed 建立且
 已经销毁 scratch 的 rebuild evidence。`backup:complete` 再要求 post dump 与 migration head 14。
@@ -597,8 +600,9 @@ archive 不包含 Storage object bytes、global roles 或 Hosted platform config
 `--pull never`、`--network none`、tmpfs PGDATA、精确 14 migration 与 pinned fictional seed，先销毁 scratch
 再写 body-free manifest。Postgres-image readiness 后另以 lock-pinned GoTrue/Storage migration-only runner 在
 同一 networkless namespace 内经 loopback 补齐服务自有 schema；runner 不增加 port/mount/pull/Hosted
-连接，失败只报告固定 auth/storage baseline stage 并保持零 evidence。当前只完成离线实现，两个
-verifier 都没有真实通过，0014 不得描述为 ready。完整 contract 见
+连接，失败只报告固定 auth/storage baseline stage 并保持零 evidence。clean `c61fa0b` 的正式 rebuild 是历史
+成功检查点，不是当前 evidence 声明。pre capture 与 rebuild 相互独立、可按任一顺序完成；只有 status 同时
+返回 `pre_current|t` 与 `rebuild_current|t` 才能进入 preflight，0014 不得绕过该门。完整 contract 见
 `hosted-important-batch-backup.md`。
 
 ## 7. TDD 与验收标准

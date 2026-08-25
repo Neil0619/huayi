@@ -109,8 +109,8 @@ SQL 绕过。
       14 migration + pinned fictional seed rebuild；后续校准让 Postgres-image readiness 与 lock-pinned
       GoTrue/Storage migration-only runner 分层，runner 只共享 networkless namespace 并使用虚构配置；本项未在
       clean candidate 上运行最终真实入口；固定镜像诊断另确认 seed 顶层配额 `SELECT` 会在 SQL 成功时输出
-      随机 UUID，现已改为匿名块内 `PERFORM` 并更新 seed pin，本机临时 evidence fixture 已证明 seed 静默且
-      final contract 全真，仓库 evidence 仍为空；
+      随机 UUID，现已改为匿名块内 `PERFORM` 并更新 seed pin；本机临时 evidence fixture 当时已证明 seed 静默
+      且 final contract 全真，正式 manifest 尚未在该检查点生成；
 - [x] pre/post capture 已改为单命令内部从固定官方 URL 有界获取严格 PEM CA，CA 成功后才读取隐藏管理员
       密码；用户只运行既有 pnpm 命令，不准备 CA environment。默认测试使用 fake fetch，未连接 Supabase；
 - [x] 2026-08-25 真实 0014 dry-run raw child transcript 通过仓库严格 parser：non-mutating header、remote
@@ -118,7 +118,10 @@ SQL 绕过。
       数据库未修改，且未把未提供的 wrapper 固定成功行写成已观察证据；
 - [ ] 实际 pre capture 必须证明 Storage objects 为零或另行完成 object export；CLI cache miss 会 pull，
       不得运行普通 start，也不得用 filtered SQL 冒充 custom；
-- [ ] 单独批准并完成 0014 前 raw logical dump 与隔离 scratch 重建，且
+- [x] clean `c61fa0b` 已完成正式 networkless isolated rebuild、严格 final contract、scratch 销毁和 manifest；
+      该项仅记录历史成功检查点，不断言 ignored evidence 当前状态；
+- [ ] 单独批准并确保 0014 前 raw logical dump 与最终 clean candidate 的隔离 scratch 重建 evidence 均 current；
+      两项独立且可按任一顺序完成，`backup:status` 须同时返回 `pre_current|t` 与 `rebuild_current|t`，随后
       `pnpm acceptance:hosted:backup:preflight` 通过；该门关闭前 0014 不得描述为 ready；
 - [ ] 用户确认后只通过 `acceptance:hosted:migration:0014:apply` 实际应用唯一 0014；入口内部再次 exact
       dry-run、mutation 前重查 preflight/source identity，并以只读 postflight 验证完整 chain/0014 identity/ACL。

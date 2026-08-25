@@ -430,18 +430,20 @@ DNS 或密钥配置。
 该历史下一项已经推进：唯一普通邀请已创建并提交密码注册，真实邮件发现 Hosted Email OTP length=8 与
 六位产品契约不一致。用户只授权保存 8→6；独立重新加载回读为 6，expiry 仍 3600，其他
 Auth/SMTP/DNS/environment/secret 未改且未发新邮件。同邀请 resend/0014 本机验证、11-active/3-disabled
-platform lock、固定镜像受控获取/本机检查与 Phase 86 writer 均已完成。当前下一项改为：先独立运行三个只读
-readiness（并证明 Storage objects 为零或另行 export）→ 单独批准并完成 pre raw logical dump +
-migration/fictional-seed rebuild → backup preflight 通过 → 明确批准后
+platform lock、固定镜像受控获取/本机检查与 Phase 86 writer 均已完成。clean `c61fa0b` 曾完成一次正式
+networkless rebuild 并生成 strict manifest，这是历史检查点；本 tracked 文档不声明 ignored evidence 当前状态。
+当前动作统一为：先运行 body-free `backup:status`；只有 `pre_current|t` 与 `rebuild_current|t` 同时成立，才可
+进入 backup preflight。两份 evidence 相互独立，可按任一顺序完成；preflight 通过并明确批准后
 只应用唯一 0014 → post dump + completion gate → API/Web 严格串行 one-shot deploy/disarm → 再次只读回读
 OTP length=6 → 用户点击重发一封新邮件并完成 scanner-safe 六位 OTP、Web 落点和密码重登。旧 8 位码不得
 截取使用，不得新建第二邀请或删除既有 Auth user。
 
-isolated rebuild 的后续真实诊断已把失败精确到完整 baseline：Postgres image 初始化不包含 GoTrue/Storage
-service-owned tables。当前候选已分层等待 Postgres-image-owned readiness，再以 lock-pinned GoTrue→Storage
+isolated rebuild 的后续真实诊断曾把失败精确到完整 baseline：Postgres image 初始化不包含 GoTrue/Storage
+service-owned tables。实现现已分层等待 Postgres-image-owned readiness，再以 lock-pinned GoTrue→Storage
 migration-only runner 共享 networkless scratch namespace、经 loopback 补齐服务 schema；runner 无端口、
-mount、pull、Hosted 连接或真实凭据，失败只报告固定 auth/storage baseline stage 并保持零 evidence。修复后的
-exact rebuild 尚未运行，因此上述 preflight/0014/deploy 顺序不变。
+mount、pull、Hosted 连接或真实凭据，失败只报告固定 auth/storage baseline stage。clean `c61fa0b` 的 exact
+rebuild 当时成功且 scratch absent，作为历史检查点；它不声明 ignored evidence 当前状态。操作上只接受
+`backup:status` 的 current verdict，并继续执行既定 preflight/0014/deploy 顺序。
 
 ## 10. 官方约束来源
 

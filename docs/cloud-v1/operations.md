@@ -230,7 +230,7 @@ backup/rebuild/preflight 或授权 apply。
 输出是否精确、dry-run exit class、stdout 是否为空、stderr transcript 是否精确。连接失败时 dry-run 不运行；
 任何异常只显示一个 allowlisted stage。禁止改用 `--debug`、复制原始 stderr 或把 Supabase CLI exit 1 解释成
 psql client-fatal。该诊断不生成备份证据，也不授权 0014 apply。
-实际 apply 也不得使用手工 Supabase 命令。只有真实 dry-run 已通过、pre capture/rebuild evidence 已生成且
+实际 apply 也不得使用手工 Supabase 命令。只有真实 dry-run 已通过、pre capture 与 rebuild evidence 已生成且
 `pnpm acceptance:hosted:backup:preflight` 对当前 clean HEAD 通过，并取得独立写入授权后，才运行
 `pnpm acceptance:hosted:migration:0014:apply`。该入口在读取秘密前验证 preflight；随后用同一密码/CA 再次
 dry-run 唯一 0014，mutation 前第二次验证 preflight 和固定 migration mirror SHA-256，才调用固定
@@ -243,8 +243,9 @@ postflight 失败只返回“不要重试，先检查远端状态”；此时禁
 完整 platform lock 现已由 `pnpm acceptance:hosted:backup:platform-lock:verify` 在零 Docker/零网络下校验：
 14 个 CLI start service 精确为 11 active + 3 disabled，active image 同时固定 index 与 amd64/arm64 manifest。
 CLI cache miss 会主动 pull，因此普通 `supabase start` 仍禁止；当前 11 镜像已按 digest 获取并完成本机
-local-only inspection，Phase 86 writer 也已落地，但三个真实入口尚未运行、证据仍不存在。pre/post capture
-现只需运行既有 pnpm 命令并在 TTY 输入管理员密码，内部 CA 获取失败发生在密码提示前；不准备 CA env。
+local-only inspection，Phase 86 writer 也已落地。tracked runbook 不记录 ignored evidence 是否存在、有效或
+绑定当前 HEAD；只以 `pnpm acceptance:hosted:backup:status` 的固定 verdict 判断。pre/post capture 只需运行
+既有 pnpm 命令并在 TTY 输入管理员密码，内部 CA 获取失败发生在密码提示前；不准备 CA env。
 先运行 exact readiness；只有其通过且单独批准的 pre raw logical dump 与
 migrations+fictional-seed scratch rebuild 完成、且
 `pnpm acceptance:hosted:backup:preflight` 通过后，才允许经受控 apply 入口应用 0014；post capture/completion
@@ -343,7 +344,8 @@ deploy 只接受精确 `--confirm-local-downtime`。任何失败都停止后续�
 ## 备份、导出与删除
 
 - Hosted 重要批次以 `hosted-important-batch-backup.md` 为权威契约。当前 Phase 81/0014 固定顺序是
-  双 plan/executor prerequisite → 单独批准的 pre capture + isolated rebuild → `backup:preflight` → migration
+  双 plan/executor prerequisite → 单独批准、可按任一顺序完成的 pre capture 与 isolated rebuild →
+  `backup:preflight` → migration
   apply → post capture → `backup:complete` → API/Web 串行 deploy/disarm；readiness/preflight 失败时 migration
   不 ready。
 - 离线 verifier 只读取

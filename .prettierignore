@@ -1,2 +1,3 @@
 .agents/skills/**
 supabase/.temp/**
+artifacts/hosted-important-batch-backups/**

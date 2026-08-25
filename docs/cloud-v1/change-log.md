@@ -3,6 +3,18 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-25：重要批次 plan 与 current evidence 状态分离
+
+- `acceptance:hosted:backup:plan` 只描述固定安全合同，不读取 evidence，也不静态声明 capture/rebuild 已成功或
+  未成功；当前执行状态只能由独立只读 `acceptance:hosted:backup:status` 回读；
+- status 容忍 pre/rebuild/post 任意 partial subset，但对每份已存在 evidence 继续严格校验目录/文件权限、
+  canonical manifest、固定 contract、archive size/hash 与 candidate binding；对外只输出每阶段
+  present/valid/current 三个布尔值，禁止路径、时间、commit/hash、identity、dump 元数据、raw error 或秘密；
+- pre raw logical capture 与 migration+fictional-seed isolated rebuild 是相互独立的 preflight prerequisite，
+  可按任一顺序完成；preflight 仍要求两份证据同时绑定同一 clean current candidate。格式工具必须精确排除
+  `artifacts/hosted-important-batch-backups/**`，不能改写 writer 生成的 compact canonical evidence，也不能扩大
+  为忽略全部 `artifacts/**`。
+
 ## 2026-08-25：fictional seed 必须在严格 psql 执行下保持 stdout 为空
 
 - isolated rebuild 的 SQL runner 同时验证 exit 0 与 stdout 精确为空；`seed.sql` 顶层调用返回 UUID 的

@@ -13,6 +13,7 @@ import {
   runHostedImportantBatchBackupCli,
 } from "./acceptance-hosted-important-batch-backup.mjs";
 import { hostedAcceptanceProjectRef } from "./acceptance-hosted-foundation.mjs";
+import { inspectHostedImportantBatchEvidence } from "./acceptance-hosted-important-batch-status.mjs";
 
 const candidateCommit = "0123456789abcdef0123456789abcdef01234567";
 const repositoryRoot = join(process.cwd(), "virtual-hosted-backup-repository");
@@ -206,16 +207,92 @@ test("hosted important-batch plan is deterministic, secret-free, and performs ze
   assert.match(stdout, /separately approved/u);
   assert.match(stdout, /migration 0014 is not ready/u);
   assert.doesNotMatch(stdout, /Real capture and restore are not implemented/u);
-  assert.match(
-    stdout,
-    /Reviewed capture and rebuild entrypoints are implemented but have not yet completed successfully/u,
-  );
+  assert.match(stdout, /acceptance:hosted:backup:status/u);
+  assert.doesNotMatch(stdout, /have not yet completed|not yet succeeded|尚未(?:完成|成功)/iu);
   assert.match(stdout, /acceptance:hosted:backup:capture:pre/u);
   assert.match(stdout, /acceptance:hosted:backup:rebuild/u);
   assert.match(stdout, /acceptance:hosted:backup:capture:post/u);
   assert.match(stdout, /Hosted dump restore is not implemented/u);
   assert.doesNotMatch(stdout, new RegExp(secret, "u"));
   assert.doesNotMatch(stdout, /row body|user body|pseudo-anonymized/iu);
+});
+
+test("status inspection tolerates partial batches and validates present evidence strictly", async () => {
+  const rebuildOnly = createEvidenceFixture();
+  rebuildOnly.directories.get(rebuildOnly.batchRoot).entries = ["rebuild"];
+
+  const current = await inspectHostedImportantBatchEvidence({
+    evidenceIo: rebuildOnly.evidenceIo,
+    readRepositoryState: async () => rebuildOnly.repositoryState,
+    repositoryRoot,
+  });
+  assert.deepEqual(current, {
+    post: { current: false, present: false, valid: false },
+    pre: { current: false, present: false, valid: false },
+    rebuild: { current: true, present: true, valid: true },
+  });
+
+  const dirty = await inspectHostedImportantBatchEvidence({
+    evidenceIo: rebuildOnly.evidenceIo,
+    readRepositoryState: async () => ({
+      ...rebuildOnly.repositoryState,
+      worktreeClean: false,
+    }),
+    repositoryRoot,
+  });
+  assert.deepEqual(dirty.rebuild, { current: false, present: true, valid: true });
+
+  const stale = await inspectHostedImportantBatchEvidence({
+    evidenceIo: rebuildOnly.evidenceIo,
+    readRepositoryState: async () => ({
+      ...rebuildOnly.repositoryState,
+      candidateCommit: "f".repeat(40),
+    }),
+    repositoryRoot,
+  });
+  assert.deepEqual(stale.rebuild, { current: false, present: true, valid: true });
+
+  const malformed = createEvidenceFixture();
+  malformed.directories.get(malformed.batchRoot).entries = ["rebuild"];
+  const manifestPath = join(malformed.batchRoot, "rebuild", "rebuild-verification.json");
+  malformed.files.get(manifestPath).contents = '{"email":"private-user@example.test"}\n';
+  malformed.files.get(manifestPath).size = Buffer.byteLength(
+    malformed.files.get(manifestPath).contents,
+  );
+  const invalid = await inspectHostedImportantBatchEvidence({
+    evidenceIo: malformed.evidenceIo,
+    readRepositoryState: async () => malformed.repositoryState,
+    repositoryRoot,
+  });
+  assert.deepEqual(invalid.rebuild, { current: false, present: true, valid: false });
+});
+
+test("status inspection reports a fully absent batch without weakening directory validation", async () => {
+  const absent = createEvidenceFixture();
+  absent.directories.get(absent.batchRoot).entries = [];
+  assert.deepEqual(
+    await inspectHostedImportantBatchEvidence({
+      evidenceIo: absent.evidenceIo,
+      readRepositoryState: async () => absent.repositoryState,
+      repositoryRoot,
+    }),
+    {
+      post: { current: false, present: false, valid: false },
+      pre: { current: false, present: false, valid: false },
+      rebuild: { current: false, present: false, valid: false },
+    },
+  );
+
+  const unknown = createEvidenceFixture();
+  unknown.directories.get(unknown.batchRoot).entries.push("private-user@example.test");
+  await assert.rejects(
+    inspectHostedImportantBatchEvidence({
+      evidenceIo: unknown.evidenceIo,
+      readRepositoryState: async () => unknown.repositoryState,
+      repositoryRoot,
+    }),
+    /evidence is invalid/u,
+  );
 });
 
 test("package scripts expose only offline plan and evidence verification interfaces", async () => {

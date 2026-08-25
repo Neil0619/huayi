@@ -918,6 +918,10 @@ confirmed Auth user/password method/profile 为 `1/1/2`、google method/Web sess
 - `backup:plan` 与 `backup:executor:plan` 必须零 filesystem、Git、network 和 write，只输出固定 project/
   batch/path/权限/清理/依赖契约；preflight/complete/readiness 继续只读，capture/rebuild 只能由三个 exact
   confirmation argument 与 package entrypoint 暴露，不能进入默认门或接受动态 project/path/image/phase；
+- `backup:plan` 不得静态声明 capture/rebuild 当前成功或失败；`backup:status` 必须容忍任意 partial subset，
+  对 present evidence 仍执行完整 strict validation，并按 pre/rebuild/post 固定顺序只输出 present/valid/current
+  九个布尔 verdict。不得输出 path、timestamp、commit/hash、identity、dump metadata、raw error 或 secret；
+  Prettier ignore 只能窄排除 `artifacts/hosted-important-batch-backups/**`，回归必须拒绝 `artifacts/**`；
 - executor pre/rebuild/post readiness 只允许三个 exact argument；检查 clean HEAD/ignored 后只读取 allowlisted
   本地 runtime verdict。唯一 PG17 client 必须是 repository-pinned OCI index。local Docker resolver 必须拒绝
   任何 `DOCKER_HOST`/`DOCKER_CONTEXT`（包括空值），不得读取任意 env socket 或 `HOME`；macOS 从 OS 当前
@@ -942,6 +946,8 @@ confirmed Auth user/password method/profile 为 `1/1/2`、google method/Web sess
 - evidence fixture 必须覆盖 clean Git HEAD 精确、artifact ignored、目录 `0700`、文件 `0600`、非 symlink、
   exact directory entries、strict manifest keys、dump size/SHA-256，以及 pre `20260823010000` / post
   `20260824010000`；任一 dirty/stale/unignored/insecure/partial/extra/hash mismatch 都失败关闭；
+- pre capture 与 isolated rebuild 是互不依赖、可按任一顺序完成的 prerequisite；preflight 仍须二者同时 valid
+  且 current，不能让一项通过掩盖另一项 absent/stale/invalid；
 - rebuild evidence 只允许 `repository-migrations-and-fictional-seed`，要求 candidate/migration head 精确，
   migration/seed/runtime 全 true、Hosted data absent、scratch destroyed。执行器必须使用无 tag digest reference、
   `--pull never`、`--network none` 与唯一 tmpfs PGDATA，无 host/named volume/port；精确读取 14 migration 和

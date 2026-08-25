@@ -177,11 +177,12 @@ async function readJsonEvidence(evidenceIo, path) {
   }
 }
 
-function assertCommonManifest(document, repositoryState) {
+function assertCommonManifest(document, candidateCommit) {
   if (
     document.projectRef !== hostedAcceptanceProjectRef ||
     document.batchId !== hostedImportantBatchId ||
-    document.candidateCommit !== repositoryState.candidateCommit
+    !/^[0-9a-f]{40}$/u.test(document.candidateCommit) ||
+    (candidateCommit !== undefined && document.candidateCommit !== candidateCommit)
   ) {
     throw new Error("Hosted important-batch evidence is invalid.");
   }
@@ -200,7 +201,7 @@ async function verifyBackupEvidence({ batchRoot, evidenceIo, phase, repositorySt
   });
   const manifest = await readJsonEvidence(evidenceIo, join(phaseRoot, "backup-manifest.json"));
   assertExactKeys(manifest, backupManifestKeys);
-  assertCommonManifest(manifest, repositoryState);
+  assertCommonManifest(manifest, repositoryState?.candidateCommit);
   assertIsoTimestamp(manifest.capturedAt);
   const expectedMigrationHead = phase === "pre" ? preMigrationHead : postMigrationHead;
   const dumpSha256 = await evidenceIo.hashFile(dumpPath);
@@ -221,6 +222,7 @@ async function verifyBackupEvidence({ batchRoot, evidenceIo, phase, repositorySt
   ) {
     throw new Error("Hosted important-batch evidence is invalid.");
   }
+  return manifest;
 }
 
 async function verifyRebuildEvidence({ batchRoot, evidenceIo, repositoryState }) {
@@ -232,7 +234,7 @@ async function verifyRebuildEvidence({ batchRoot, evidenceIo, repositoryState })
     join(rebuildRoot, "rebuild-verification.json"),
   );
   assertExactKeys(manifest, rebuildManifestKeys);
-  assertCommonManifest(manifest, repositoryState);
+  assertCommonManifest(manifest, repositoryState?.candidateCommit);
   assertIsoTimestamp(manifest.completedAt);
   if (
     manifest.contract !== "huayi-hosted-important-batch-rebuild-verification/v1" ||
@@ -246,6 +248,16 @@ async function verifyRebuildEvidence({ batchRoot, evidenceIo, repositoryState })
   ) {
     throw new Error("Hosted important-batch evidence is invalid.");
   }
+  return manifest;
+}
+
+export async function verifyHostedImportantBatchEvidencePhase({ batchRoot, evidenceIo, phase }) {
+  if (!new Set(["post", "pre", "rebuild"]).has(phase)) {
+    throw new Error("Hosted important-batch evidence is invalid.");
+  }
+  return phase === "rebuild"
+    ? verifyRebuildEvidence({ batchRoot, evidenceIo })
+    : verifyBackupEvidence({ batchRoot, evidenceIo, phase });
 }
 
 async function verifyEvidence({ evidenceIo, mode, readState, root }) {
@@ -285,7 +297,7 @@ export function renderHostedImportantBatchBackupPlan() {
 Pinned target: Supabase project ${hostedAcceptanceProjectRef}; batch ${hostedImportantBatchId}.
 Evidence directory: ${hostedImportantBatchBackupArtifactDirectory}
 - This plan performs no filesystem, Git, database, mail, model, or deployment operation.
-- Reviewed capture and rebuild entrypoints are implemented but have not yet completed successfully: acceptance:hosted:backup:capture:pre, acceptance:hosted:backup:rebuild, and acceptance:hosted:backup:capture:post. Hosted dump restore is not implemented. Run acceptance:hosted:backup:executor:plan for the fail-closed runtime-readiness audit before requesting a separately approved stage.
+- Reviewed entrypoints are acceptance:hosted:backup:capture:pre, acceptance:hosted:backup:rebuild, and acceptance:hosted:backup:capture:post. This plan makes no execution-state claim; use acceptance:hosted:backup:status for fixed current-candidate verdicts. Hosted dump restore is not implemented. Run acceptance:hosted:backup:executor:plan for the fail-closed runtime-readiness audit before requesting a separately approved stage.
 Future controlled logical-backup contract:
 - Use only the fixed project through a verify-full administrator profile and a process-scoped secret.
 - Use the fixed session pooler on port 5432 with a repository-pinned PostgreSQL 17 runtime. The transaction pooler on 6543 and the Supabase CLI filtered SQL dump are not postgres-custom evidence.

@@ -2519,3 +2519,23 @@ typecheck、architecture、build、development blocker、Store release、product
 - **当前边界**：该 fixture 证明修复本身，但不替代 clean candidate 的正式 rebuild evidence。没有连接或修改
   Hosted Supabase、读取密码、运行 capture/preflight/0014、发送邮件、部署或调用模型；提交 clean candidate 与
   正式 rebuild 仍待继续。
+
+## 96. Phase 81 current evidence 状态面与正式 rebuild 校准（2026-08-25）
+
+- **正式 rebuild 证据**：clean `c61fa0b` 的 exact networkless rebuild 已通过 Postgres/Auth/Storage baseline、
+  14 条 migration、fictional seed 与 final contract，随后销毁 scratch 并写入 strict canonical rebuild manifest；
+  fixed scratch/Auth/Storage container 均回查 absent。该过程没有连接 Hosted/Supabase、读取管理员密码、运行
+  pre/post capture 或 0014，也没有发送邮件、部署或调用模型；
+- **Fresh RED**：质量门回查证明 `.prettierignore` 未排除 canonical evidence；backup plan 测试仍要求静态
+  “have not yet completed successfully”；仓库没有 body-free status module/entrypoint。新增回归分别以 ignore
+  mismatch、缺 export 与 `ERR_MODULE_NOT_FOUND` 变红；
+- **最小 GREEN**：Prettier 只新增 `artifacts/hosted-important-batch-backups/**`，并由 guard 拒绝扩大成
+  `artifacts/**`。plan 改为 state-neutral；新增 status 对 partial batch 的 present evidence 执行完整 strict
+  validation，并只输出 pre/rebuild/post 的 present/valid/current 九个布尔值；参数、结构或读取异常均固定失败，
+  不反射 path、timestamp、commit/hash、identity、dump metadata、raw error 或 secret；
+- **真实只读回读**：本地 fixed status 在当前修改中的工作树输出 pre/post 均 absent，rebuild present+valid、
+  current=false；这是当时 dirty-worktree 的历史快照，不对后续 ignored evidence 或 HEAD currentness 作任何
+  推断。pre capture 与 isolated rebuild 已明确为可按任一顺序完成的独立 preflight prerequisite；
+- **状态边界**：tracked release evidence 只保留上述历史回执；后续操作状态必须重新运行 `backup:status`，且
+  preflight 前要求 `pre_current|t` 与 `rebuild_current|t` 同时成立。旧 manifest 不得覆盖、手改或冒充 current
+  candidate evidence。未运行 Hosted write、0014、邮件、部署或 DeepSeek。

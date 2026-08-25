@@ -11,6 +11,8 @@ writer 与证据验证模块：
 
 - 固定 Supabase project `kpadiulxkgckskcfydry` 和当前批次 `phase-81-0014`；
 - `pnpm acceptance:hosted:backup:plan` 只渲染固定计划，零文件、Git、网络和写入；
+- `pnpm acceptance:hosted:backup:status` 只读 partial batch，并按 pre/rebuild/post 固定输出
+  present/valid/current 九个布尔 verdict；不输出路径、时间、commit/hash、identity、dump 元数据、错误或秘密；
 - `pnpm acceptance:hosted:backup:preflight` 只读取本机固定证据目录，验证 0014 前备份和候选空库重建；
 - `pnpm acceptance:hosted:backup:complete` 再要求 0014 后备份，关闭整个重要批次；
 - `pnpm acceptance:hosted:backup:executor:plan` 零 I/O 地列出 pre capture、isolated rebuild、post capture
@@ -23,9 +25,12 @@ writer 与证据验证模块：
   index-digest reference 已全部检查通过。此前受控获取步骤已按 11 个 index digest 和 `linux/arm64` 下载
   镜像；检查与修复步骤没有追加 pull，整个阶段没有运行镜像；
 - Phase 86 新增且只新增三个 exact-confirmation-gated 入口：`backup:capture:pre`、`backup:rebuild` 与
-  `backup:capture:post`。它们不接受 project/path/URL/image/phase 参数；pre/post capture 尚未调用。exact
-  rebuild 已在两个 clean candidate 上各调用一次，但都在 scratch start 前安全失败；两次均为零 scratch、
-  零 evidence、零 Hosted/Supabase 连接，亦未执行 migration。
+  `backup:capture:post`。它们不接受 project/path/URL/image/phase 参数。早期 exact rebuild 的安全失败均未形成
+  evidence；clean `c61fa0b` 后来完成过正式 networkless rebuild、销毁 scratch 并生成严格 rebuild manifest，
+  这是历史成功检查点，不是当前 ignored evidence 状态声明；
+- tracked 文档不记录 ignored evidence 是否仍 present/valid/current。当前操作状态只以
+  `pnpm acceptance:hosted:backup:status` 的固定回读为准；进入 preflight 前必须同时得到
+  `pre_current|t` 与 `rebuild_current|t`，不得从 `c61fa0b` 历史或文档措辞推断。
 
 审计确认当前本机 `pg_dump`/`pg_restore`/`psql` 是 14.6，而 Hosted/仓库目标为 PostgreSQL 17。Phase 83
 已经把 Supabase CLI 2.115.0 对应的数据库镜像固定为
@@ -38,8 +43,9 @@ index digest 与 `linux/amd64`、`linux/arm64` platform manifest digest。Phase 
 inspection。Phase 86 已将实际执行 reference 去掉 tag、只保留
 `docker.io/supabase/postgres@sha256:86a2e078779e5bdccda1f6f6c5063aa9779a322d1fface5fb408d051909b230f`，
 并落地受审查 writer；带 `17.6.1.159` 的 reference 仅保留 provenance，不进入 Docker argv。本机检查 GREEN
-与 writer 离线 GREEN 都不证明数据库已经备份、恢复或成功重建；实际 pre/post 尚未运行，rebuild 尚未成功，
-三个证据项与两个 evidence gate 均未关闭。其他执行 host 也必须重新检查。
+与 writer 离线 GREEN 不证明数据库已经备份或恢复；`c61fa0b` 的历史正式 rebuild 只证明该候选当时可从
+repository migrations + fictional seed 重建。任何时点的 evidence currentness 均须由 `backup:status` 回读，
+其他执行 host 也必须独立检查。
 
 ## 2. 固定证据目录与权限
 
@@ -155,9 +161,9 @@ start 证明 offline。writer 不调用普通 `supabase start`；任何 scratch 
    pinned CLI 或 writer 任一缺失时必须失败；失败只报告确定优先级下首个固定 allowlisted stage：repository
    state、Docker target/daemon、Supabase CLI、FileVault、platform lock 或 local platform images；未分类的
    inspector rejection 仅映射为固定 runtime-inspection。全部满足时只回报 readiness passed，仍不执行写操作；
-3. 独立代码审查/明确授权后，只运行 `pnpm acceptance:hosted:backup:capture:pre` 并在 TTY 输入管理员密码，
-   再运行 `backup:rebuild`，完成 pre raw logical dump 和 migrations+fictional-seed scratch rebuild；前者不再
-   要求准备 CA environment 或拼接 shell；
+3. 独立代码审查/明确授权后，分别运行 `pnpm acceptance:hosted:backup:capture:pre`（在 TTY 输入管理员密码）
+   与 `backup:rebuild`。两者是互不依赖的 preflight prerequisite，可按任一顺序完成；只有两份证据都绑定同一
+   clean current candidate 后才进入 preflight。pre capture 不再要求准备 CA environment 或拼接 shell；
 4. `acceptance:hosted:backup:preflight` 必须通过；
 5. 真实 dry-run 通过且用户独立批准实际写入后，只运行
    `acceptance:hosted:migration:0014:apply`；该入口在同一执行内重新 dry-run 唯一 0014、mutation 前再次
@@ -192,6 +198,8 @@ start 证明 offline。writer 不调用普通 `supabase start`；任何 scratch 
   使用捕获异常或 child output 生成 stage。静态 lock verifier 必须在零 Docker/
   零 network 下拒绝 CLI/config/env/version override/service/digest 漂移；完整 lock 内容由独立 SHA-256
   tripwire 绑定，合法格式但错误的 digest 也必须失败；
+- status 必须容忍 pre/rebuild/post 的任意 partial subset；存在的证据仍完整执行权限、canonical body、内容与
+  candidate 校验，只输出九个固定布尔值。plan 不读取状态，也不得静态宣称 capture/rebuild 成功或失败；
 - preflight/complete 校验固定 project、batch、clean HEAD、ignore、目录/file mode、exact keys、size/hash 和
   pre/post migration head；
 - rebuild manifest 必须是 migrations+fictional-seed、Hosted data absent 且 scratch destroyed；
@@ -208,8 +216,8 @@ start 证明 offline。writer 不调用普通 `supabase start`；任何 scratch 
   mirror byte-identical 且匹配固定 SHA-256，dry-run 只列唯一 0014，apply argv 固定，postflight 以只读事务
   验证完整 chain 与 0014 identity/ACL。apply 非零或 postflight 失败只能输出固定“不要重试”结果。
 
-真实 dump、成功的 scratch rebuild、Supabase 连接和 retained-backup 删除仍分别需要批准、运行证据与清理
-证据；两次 rebuild 安全失败不形成重建证据。本文件不关闭 Storage object export、Supabase 备份残留期限或
+真实 dump、current-candidate scratch rebuild、Supabase 连接和 retained-backup 删除仍分别需要批准、运行证据
+与清理证据；历史 rebuild 不能替代 `backup:status` 的 current verdict。本文件不关闭 Storage object export、Supabase 备份残留期限或
 正式 production 恢复演练。后者的独立 target、restore order、evidence lifecycle、季度 cadence 与删除门见
 `hosted-logical-backup-restore-drill.md`；它不是 Phase 81/0014 的新增前置条件，只能在当前验收批次关闭并
 取得独立批准后实施。

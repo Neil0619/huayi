@@ -193,12 +193,15 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       password、`0600` `.pgpass`/CA、TOC、atomic evidence 和 networkless tmpfs scratch；后续 isolated rebuild
       校准又固定 Postgres-image readiness、GoTrue→Storage migration-only runner 顺序、共享 networkless
       namespace 与 auth/storage failure stage。此项是离线实现，
-      pre/post capture 尚未运行；早期两次真实 rebuild 在 scratch start 前安全失败，后续尝试已依次暴露最终
-      postmaster readiness 与 service-owned baseline 缺口，但均未形成 evidence；普通 `supabase start` 仍禁止；
+      早期 rebuild 安全失败均未形成 evidence；clean `c61fa0b` 后来正式完成 networkless rebuild、销毁 scratch
+      并生成 manifest，作为历史成功检查点。当前 ignored evidence 状态只由 `backup:status` 判定；普通
+      `supabase start` 仍禁止；
 - [ ] 实际 pre capture 必须先证明 `storage.objects` 为零，否则另行完成 Storage object export；readiness 与
       单独批准未满足前不得运行真实入口或把 0014 描述为 ready；
-- [ ] 0014 apply 前由单独批准的真实阶段生成 pre raw logical dump，并从 migration + fictional seed 在隔离
-      scratch 重建；`acceptance:hosted:backup:preflight` 必须通过。0014 后生成 post dump 并由
+- [ ] 0014 apply 前由单独批准的真实阶段生成 pre raw logical dump，并为最终 clean candidate 从 migration +
+      fictional seed 在隔离 scratch 重建；两项是可按任一顺序完成的独立 prerequisite，随后
+      `backup:status` 必须同时返回 `pre_current|t` 与 `rebuild_current|t`，且
+      `acceptance:hosted:backup:preflight` 必须通过。0014 后生成 post dump 并由
       `acceptance:hosted:backup:complete` 关闭批次；dump 不进入 Git/stdout/log，失败 partial/CA/temp 全清理；
 - [x] 只通过 `pnpm acceptance:hosted:migration:0014:dry-run` 的固定 confirmation/TTY 入口运行 0014 dry-run，
       结果必须精确为唯一 `20260824010000_password_signup_otp_resend.sql` 和固定未改库成功消息；安全入口已

@@ -1919,8 +1919,11 @@ inspection；Phase 86 只实现受审查 writer 与隔离 rebuild，不连接 Su
    因而在最终 PID 1/`pg_isready` 后先回读 Postgres-image-owned schema，再以 lock-pinned GoTrue→Storage
    migration-only runner 共享 `--network none` scratch namespace，经 loopback 补齐服务 schema；runner 不开放
    端口、挂载 volume/bind、pull 或连接 Hosted，失败分别映射固定 auth/storage baseline stage 并清理。
-   该修复候选尚未运行会生成 evidence 的真实 rebuild；
-10. **动作账本**：executor prerequisite/readiness → pre capture/rebuild → `backup:preflight` → real dry-run →
+   clean `c61fa0b` 后来完成过正式 networkless rebuild、scratch 销毁与严格 manifest，作为历史成功检查点；
+   tracked plan 不声明 ignored evidence currentness，preflight 前只接受 `backup:status` 同时返回
+   `pre_current|t` 与 `rebuild_current|t`；
+10. **动作账本**：executor prerequisite/readiness → pre capture 与 rebuild（两项独立、任一顺序）→
+    `backup:preflight` → real dry-run →
     `migration:0014:apply`（内部再次 exact dry-run、mutation 前重查 preflight/source identity、写后只读
     postflight）→ post capture → `backup:complete` → API/Web 串行 deployment。禁止手工 `db push --yes`；
     离线 GREEN 不代表两个 evidence gate 或远端 migration 真实通过，也不关闭 Storage export、backup retention

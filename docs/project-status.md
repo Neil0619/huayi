@@ -117,22 +117,26 @@ audit 仍只允许 `enabled`。这不代表 Store 产品或 Windows 支持被取
 > 11 active image 的 index 与 amd64/arm64 manifest digest，并证明 Realtime/ImgProxy/Supavisor disabled。
 > 静态 lock 门零 Docker/零网络且已通过；11 个固定镜像已按批准获取并完成 OrbStack local-only inspection，
 > reviewed writer 与三个 exact-confirmation capture/rebuild entrypoint 也已实现。readiness 已在 clean candidate
-> 上通过；其后两次 exact rebuild 均因真实 OrbStack absent-inspect 输出形态在 scratch start 前安全失败，
-> 两次都是零 scratch、零 evidence。后续 clean `699d16e` 已让 scratch 启动，但再次暴露镜像初始化竞态：
+> 上通过；早期 exact rebuild 的真实 OrbStack absent-inspect、postmaster readiness、service-owned baseline 与
+> fictional-seed 静默输出缺口都按 Fresh RED→GREEN 收紧。后续 clean `699d16e` 已让 scratch 启动并暴露初始化竞态：
 > 临时 postmaster 会提前通过 `pg_isready`，最终 PID 1 postmaster 约 170 秒后才完成。Fresh RED 后已改为
-> `postmaster.pid` 精确 `1\n` + `pg_isready` 双判据及五分钟硬上限；真实 evidence rebuild 尚未在该修复的
-> clean candidate 上重试。随后 clean 候选真实重试已精确失败在 `baseline`，证明 fixed Postgres image
+> `postmaster.pid` 精确 `1\n` + `pg_isready` 双判据及五分钟硬上限。随后 clean 候选真实重试精确失败在
+> `baseline`，证明 fixed Postgres image
 > initialization 只提供 `auth.users`/角色等 Postgres-owned 基线，不会代替 GoTrue 的 `auth.identities` 与
 > Storage tables。当前修复候选在最终 postmaster 后先回读 Postgres-image-owned schema，再严格运行
 > lock-pinned GoTrue→Storage migration-only runner；runner 只共享 networkless scratch namespace、经 loopback
 > 使用虚构配置，无 port/mount/pull/Hosted 连接，并新增固定 auth/storage baseline 失败阶段。CLI cache miss 会
 > pull，普通 start 仍禁止。该 clean 候选的下一次 exact rebuild 已越过上述基线并精确失败在
 > `fictional-seed`：seed 事务 exit 0，但顶层配额函数 `SELECT` 把随机 UUID 写入 stdout，违反 strict SQL
-> 静默合同。现已改为匿名块内 `PERFORM` 并更新 seed pin；相同固定镜像链路的临时 fixture 已证明 seed
-> stdout 为空、final contract 全真、scratch destroyed，临时 manifest 已删除且仓库 evidence 仍为空。
-> clean candidate 的正式 evidence rebuild 尚未运行。
+> 静默合同。改为匿名块内 `PERFORM` 并更新 seed pin 后，clean `c61fa0b` 的正式 networkless rebuild 已完成
+> 14 条 migration、fictional seed、final contract、scratch 销毁并生成严格 manifest；这是历史成功检查点。
+> tracked project status 不声称 ignored evidence 当前是否存在、有效或绑定 HEAD；操作状态只由
+> `pnpm acceptance:hosted:backup:status` 回读，preflight 前必须同时为 `pre_current|t` 与
+> `rebuild_current|t`，不得手写或覆盖 manifest。
 > 数据库 archive 最多覆盖经过 contract 验证的 Auth rows 与 Storage metadata，不包含 Storage object bytes；
-> objects 非零时必须另行 export。pre/post capture 尚未运行，isolated rebuild 尚未成功。Production Hosted
+> objects 非零时必须另行 export。pre capture 与 isolated rebuild 是可按任一顺序完成的独立 preflight
+> prerequisite。新增 body-free `backup:status` 只输出 pre/rebuild/post 的 present/valid/
+> current 九个布尔 verdict；plan 不再静态声称 capture/rebuild 的执行状态。Production Hosted
 > dump restore drill 的需求、隔离 target、恢复顺序、strict evidence lifecycle、TDD 与季度 cadence 已在
 > Phase 87 文档冻结，但实现和真实演练仍 pending；它不是 Phase 81/0014 的新增依赖，只能在当前验收批次
 > 关闭并另行批准后执行。0014 dry-run 单命令的后续安全审查又发现旧实现没有显式 CA/hostname 验证；现已
@@ -140,13 +144,13 @@ audit 仍只允许 `enabled`。这不代表 Store 产品或 Windows 支持被取
 > URL+child env 与 `0600` 临时 CA，调用者不再准备 CA env；只供 application 隔离 verifier 使用的 `5432`
 > 不再进入该 migration CLI。实际 apply 也已新增唯一受控入口：同一执行内把 preflight、exact dry-run、
 > mutation 前 clean candidate + fixed migration mirror hash 重查、固定 `--yes` child 与写后只读完整 chain/
-> column/check/function/ACL postflight 串成一个深模块；失败提示明确禁止盲目重试。该入口仅完成离线实现，真实
-> pre evidence 与 preflight 尚未完成，所以 0014 仍不 ready，不能用 dry-run、CLI filtered SQL、手工
-> `db push` 或手写 manifest 绕过。
+> column/check/function/ACL postflight 串成一个深模块；失败提示明确禁止盲目重试。该入口仅完成离线实现；
+> 0014 apply 只接受 `backup:status` 同时返回 `pre_current|t` 与 `rebuild_current|t`，并在 preflight 通过后
+> 继续，不能用 dry-run、CLI filtered SQL、手工 `db push` 或手写 manifest 绕过。
 > 2026-08-25 用户返回的真实 0014 dry-run raw child transcript 已由仓库 strict parser 复核：包含
 > non-mutating header、remote connection marker、唯一 `20260824010000_password_signup_otp_resend.sql`
 > 与 finished marker，因此本次 dry-run 已完成且数据库未修改；未观察到的 wrapper 固定成功行不作为证据。
-> 这项只读证据不替代仍缺失的 pre capture、成功 isolated rebuild 与 backup preflight，也不授权 apply。
+> 这项只读证据不替代 `backup:status` 的 current verdict、backup preflight，也不授权 apply。
 > 随后 standalone wrapper 重试在相同密码提示后固定失败。离线安全探针确认 pinned Supabase CLI 把完整
 > dry-run transcript 写到 `stderr`、`stdout` 为空，而 wrapper 当时只读取 `stdout` 并丢弃 `stderr`；这不是
 > migration 或密码失败。现已让 standalone 与 apply 内部 dry-run 只接受 exit 0 + empty stdout + exact
