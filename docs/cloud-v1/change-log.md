@@ -14,6 +14,8 @@
   actual/diff PNG，action 固定完整 SHA、缺失忽略、保留 1 天。公开仓库明确禁止 trace、report、
   `test-results` 宽目录、其他页面截图、日志和密钥；本变更不触碰 Hosted 数据库、0014、Supabase、
   Vercel、DNS、密钥、邮件、部署或任何真实 Provider smoke。
+- Windows CI 产出的两个 actual PNG 经人工确认内容、布局和滚动位置无意外变化后，用于校准对应
+  `-win32` 元素截图基线；diff PNG 只作诊断，不进入快照，也不放宽像素容差。
 
 ## 2026-08-25：干净双平台 CI 固定 workspace build、LF 与 Hosted POSIX 证据边界
 
