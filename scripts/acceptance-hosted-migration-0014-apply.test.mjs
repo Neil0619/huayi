@@ -195,17 +195,26 @@ test("0014 apply orders preflight, exact dry-run, mutation, and postflight", asy
   });
 });
 
-test("0014 apply accepts the exact mutation preflight transcript from stderr only", async () => {
-  const { dependencies } = createDependencies({
-    runDryRun: async () => ({ code: 0, stderr: validDryRunOutput, stdout: "" }),
-  });
-  const result = await runCli(dependencies);
+test("0014 apply accepts exact single-channel or whole-line distributed preflight", async () => {
+  const splitIndex = validDryRunOutput.indexOf("Would push these migrations:");
+  for (const dryRunResult of [
+    { code: 0, stderr: validDryRunOutput, stdout: "" },
+    { code: 0, stderr: "", stdout: validDryRunOutput },
+    {
+      code: 0,
+      stderr: validDryRunOutput.slice(0, splitIndex),
+      stdout: validDryRunOutput.slice(splitIndex),
+    },
+  ]) {
+    const { dependencies } = createDependencies({ runDryRun: async () => dryRunResult });
+    const result = await runCli(dependencies);
 
-  assert.deepEqual(result, {
-    code: 0,
-    stderr: "",
-    stdout: `${hostedMigration0014ApplySuccessMessage}\n`,
-  });
+    assert.deepEqual(result, {
+      code: 0,
+      stderr: "",
+      stdout: `${hostedMigration0014ApplySuccessMessage}\n`,
+    });
+  }
 });
 
 test("0014 apply rechecks candidate evidence and migration identity immediately before mutation", async () => {

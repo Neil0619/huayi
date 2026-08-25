@@ -154,9 +154,10 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       Phase 81/0014 的新增前置条件；strict lifecycle/artifact、reviewed TOC/order、secret/process/cleanup、
       body-free HMAC 与固定 CLI 的离线控制面已实现；cleanup 后必须先证明 `target-destroyed`，再以独立
       source-retention evidence 进入 `retention-pending`；若 deadline 已到可直接 strict close，未到不得提前
-      删除，且不能由 `verify` 冒充完成；networkless PG17
-      fictional full restore、获批 production adapter、真实 project 操作、Storage bytes 非零分支、retention
-      与首次/季度演练仍 pending；
+      删除，且不能由 `verify` 冒充完成；networkless PG17 fictional full restore 已以两个 fixed-identity、
+      networkless/tmpfs 容器、reviewed custom TOC、双租户/Auth/Storage/RLS/role/HMAC 验证和精确销毁完成，
+      但只证明虚构工具链。获批 production adapter、真实 project 操作、managed Auth/Storage baseline、
+      Storage bytes 非零分支、retention 与首次/季度演练仍 pending；
 
 - [x] R3-C 生产代码已固定使用 Resend HTTPS sender、独立通知 CRON production route/composition 和
       无正文告警 port；provider error、deadline、尝试耗尽及 persistence failure 都不会记录邮箱/owner/

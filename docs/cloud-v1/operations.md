@@ -220,14 +220,20 @@ Supabase child 启动前，入口内部只从 `hostedAcceptanceCaCertificateUrl`
 只有临时目录已创建的路线才有可删目标，并一律尝试删除。若 `rm` 自身失败，只能记录 cleanup attempted，不能宣称目录已删：按本机
 cleanup incident 处理，在重试前人工检查并清理临时目录下固定 `huayi-hosted-0014-ca-*` 前缀。该残留若
 存在，只含 `0700` 目录/`0600` 公开 CA，不含密码。隐藏提示期间 Ctrl-C 会恢复 echo/canonical/ISIG 后固定
-exit 1；公开 CA 已在提示前取得，但不会启动 Supabase，也不会被 pnpm 吞掉后误报成功。stdout 只有在严格证明 dry-run、
-唯一 0014 与 finished marker 时才输出固定成功消息。dry-run 不写数据库，也不能代替 pre
+exit 1；公开 CA 已在提示前取得，但不会启动 Supabase，也不会被 pnpm 吞掉后误报成功。child stdout/stderr
+分别只允许五条固定完整行的 canonical 子序列；跨双通道的 multiset 必须精确包含 dry-run header、connection
+marker、list header、唯一 0014 与 finished marker 各一次，且每个非空通道必须以单一 final newline 结束。
+两个 pipe 的全局实时 interleaving 不可确定，契约只验证每个通道的 relative order，不宣称恢复了全局发送
+顺序。mid-line fragment、CR、blank、ANSI、duplicate/extra/missing/reversed line 或其他 migration 均失败
+关闭；通过后 wrapper 才在自身 stdout 输出固定成功消息。dry-run 不写数据库，也不能代替 pre
 backup/rebuild/preflight 或授权 apply。
 若真实入口只返回固定失败，先运行
 `unset PGPASSWORD SUPABASE_DB_PASSWORD && pnpm acceptance:hosted:migration:0014:diagnose`，并在 TTY
 输入同一个管理员密码。该命令只执行官方 CA GET、固定只读 `SELECT` 与同一个 non-mutating dry-run；连接
-探针同时固定 `connect_timeout=10` 与 15 秒 child 上限。输出只包含五条固定 verdict：连接 exit class、连接
-输出是否精确、dry-run exit class、stdout 是否为空、stderr transcript 是否精确。连接失败时 dry-run 不运行；
+探针同时固定 `connect_timeout=10` 与 15 秒 child 上限。输出只包含九条固定 verdict：连接 exit class、连接
+输出是否精确、dry-run exit class、stdout 是否为空、stdout/stderr 行是否分别属于 allowlist、跨通道行
+multiset 是否精确、每个通道 relative order 是否精确，以及最终 transcript predicate。连接失败时 dry-run
+不运行且后七项固定为 false；
 任何异常只显示一个 allowlisted stage。禁止改用 `--debug`、复制原始 stderr 或把 Supabase CLI exit 1 解释成
 psql client-fatal。该诊断不生成备份证据，也不授权 0014 apply。
 实际 apply 也不得使用手工 Supabase 命令。只有真实 dry-run 已通过、pre capture 与 rebuild evidence 已生成且
@@ -381,11 +387,14 @@ deploy 只接受精确 `--confirm-local-downtime`。任何失败都停止后续�
   再删除 archive/manifest/object export 并留下 body-free disposition evidence；若 cleanup 时 deadline 已到，
   可从 `target-destroyed` 直接 close，但仍不得早于 deadline 或缺 cleanup proof。Supabase backup residual、
   evidence/archive retention 和公开隐私期限尚未由用户确认时停止，不能填写猜测数字。
-- `pnpm acceptance:hosted:restore:plan` 是当前唯一默认可成功的 restore-drill 命令，且零 filesystem/Git/network/
-  write。source verify、target-empty、execute、verify、cleanup、retention verify/close 与 status 都使用固定
+- `pnpm acceptance:hosted:restore:plan` 是 production 控制面的零 filesystem/Git/network/write 命令；独立的
+  `pnpm acceptance:hosted:restore:fictional:verify` 只在本机 fixed digest PostgreSQL 17 中创建两个
+  networkless/tmpfs disposable fixture，生成、恢复并删除 custom archive，不连接 Hosted 或写 production
+  evidence。source verify、target-empty、execute、verify、cleanup、retention verify/close 与 status 都使用固定
   confirmation；`verify` 只接受 `restored-verified`，cleanup 后改用 status/retention contract；
   在 private approved plan 和 reviewed production adapter 安装前固定失败，不能通过 dynamic project/path/env
-  绕过。安装 adapter 与真实运行分别需要再次审查和批准。
+  绕过。fictional 通过不证明 managed Auth/Storage baseline 或真实 archive 可恢复；安装 adapter 与真实运行
+  分别需要再次审查和批准。
 - 账号删除任务超过 1 小时告警，24 小时仍未完成升级为事故；session 撤销必须在请求返回前完成。
 - AccountDataExport 私有对象在 ready 后设置 24 小时 expiry；签名下载最长 15 分钟且不能越过对象到期。
   当前对象存储没有可信“下载完成”回调，因此任务到期先变为不可下载的 expired，再幂等删除对象；清理

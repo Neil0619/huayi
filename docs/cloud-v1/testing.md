@@ -878,9 +878,11 @@ confirmed Auth user/password method/profile 为 `1/1/2`、google method/Web sess
   `redirect=error`、no-store/no-credentials/no-referrer、10 秒/16 KiB，并拒绝非 200、final URL 漂移、空 body、
   overflow、非法 UTF-8/PEM 与 timeout；调用者不准备 CA env。child env 精确为固定 locale、进程级
   `PGPASSWORD`、`PGSSLMODE=verify-full` 与随机私有 `0600` CA path；必须拒绝只供 application 隔离 verifier
-  使用的 session pooler `5432`。stdout/stderr 共享 byte/time 上限，只有 empty stdout + exact stderr
-  transcript 才可成功，且原始双通道内容不得转发或
-  不落盘；正常/overflow/timeout 以及临时目录创建后的 `writeFile`/spawn 失败都尝试清理；`mkdtemp` 失败没有
+  使用的 session pooler `5432`。stdout/stderr 共享 byte/time 上限；成功可由单通道完整 transcript 或双通道
+  完整行分配证明，但每个通道只能是五条 allowlist 的 canonical relative-order 子序列、非空必须精确 final
+  newline，跨通道 multiset 必须每条一次。两个 pipe 的 global interleaving 不可恢复且不作为证明；mid-line、
+  CR、blank、ANSI、duplicate/extra/missing/reversed line 与其他 migration 均拒绝。原始双通道内容不得转发、
+  不得落盘；正常/overflow/timeout 以及临时目录创建后的 `writeFile`/spawn 失败都尝试清理；`mkdtemp` 失败没有
   可删目录，但仍固定失败。`rm` failure 必须证明 cleanup attempted、CLI 固定失败且零成功回执；不得伪称目录已删，真实发生时进入本机 cleanup
   incident，可能残留的只允许是 `0700`/`0600` 公开 CA 且不得含密码。严格 parser 只能接受 dry-run header、
   连接 marker、唯一 `20260824010000_password_signup_otp_resend.sql` 与 finished marker，extra/missing migration、
@@ -888,8 +890,10 @@ confirmed Auth user/password method/profile 为 `1/1/2`、google method/Web sess
   不得连接 Hosted；真实运行结果必须另行记录，不能由离线 GREEN 代替。相同 fixed official CA fetch 必须
   由 pre/post capture 共用；capture 测试证明 fetch 在隐藏密码前、fetch failure 零 password read，且调用方
   CA environment 即使存在也不会被使用；
-- 0014 safe diagnostic 必须先以 fake connection/dry-run 覆盖 exact success、connection failure 后零 CLI、
-  CLI command error、stdout channel drift、stderr transcript drift，以及 arguments/CA/password/connection/
+- 0014 safe diagnostic 必须先以 fake connection/dry-run 覆盖 exact stderr/empty stdout、exact stdout/empty
+  stderr、合法 whole-line 双通道分配，以及 fragment/duplicate/reversed/ANSI/extra/missing/other migration
+  拒绝、connection failure 后零 CLI、CLI command error、transcript drift，并只输出九条 bounded verdict；还
+  必须覆盖 arguments/CA/password/connection/
   dry-run thrown error 的固定 allowlisted stage。连接 URL 必须追加 `connect_timeout=10`，psql child 必须有
   15 秒硬上限并在 timeout 后清空输出、删除私有 CA；Supabase CLI code 不能复用 psql code 语义。测试不得
   读取真实密码、连接 Hosted 或反射 fake private detail；
@@ -1016,8 +1020,13 @@ confirmed Auth user/password method/profile 为 `1/1/2`、google method/Web sess
   ACL/owner 拒绝、target-empty、source binding、secret-env/argv、TTY、私有 CA/`.pgpass`、bounded child、
   unknown identity cleanup、count HMAC、Storage zero/separate-export 与固定 CLI/zero-I/O plan。默认 stage
   adapter 缺失时必须在读取 secret、联网或创建 evidence 前固定失败；approved plan/candidate/source/hash/
-  retention/region/PG major 与 clean HEAD=upstream 任一漂移也必须在 stage 前失败。该组 GREEN 不替代尚未实现的
-  networkless PG17 fictional full restore，也不关闭真实 Hosted 门。
+  retention/region/PG major 与 clean HEAD=upstream 任一漂移也必须在 stage 前失败。新增 fictional integration
+  使用 digest-only PG17 的两个 fixed networkless/tmpfs 容器：source 生成 review-list custom archive，经
+  `0600` 临时文件进入 target，恢复后比较进程内临时 HMAC count digest，并核验双租户 FORCE RLS、Auth
+  relationship、Storage zero-metadata、migration、trigger、admin projection 与 application deny matrix；成功或
+  失败都要求 source/target 精确销毁和临时目录不存在。单元测试用 fake process 覆盖 drift/occupied identity/
+  inherited secret；本机命令完成 actual container 路径。该 GREEN 仍不验证 managed Auth/Storage platform
+  baseline、Storage object bytes、真实 archive 或 Hosted project，不关闭真实 Hosted 门。
 
 ### 4.11 Phase 47 本机验收模拟模型
 

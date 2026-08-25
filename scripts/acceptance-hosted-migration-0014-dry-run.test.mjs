@@ -58,26 +58,37 @@ test("0014 dry-run parser accepts only the exact non-mutating single migration t
   }
 });
 
-test("0014 dry-run CLI accepts the exact Supabase transcript from stderr only", async () => {
-  let stdout = "";
-  let stderr = "";
-  const code = await runHostedMigration0014DryRunCli({
-    arguments_: [hostedMigration0014DryRunArgument],
-    environment: {},
-    fetchCaCertificate: async () => caCertificate,
-    readPassword: async () => "fictional-secret",
-    runSupabase: async () => ({ code: 0, stderr: validOutput, stdout: "" }),
-    writeError: (value) => {
-      stderr += value;
+test("0014 dry-run CLI accepts exact single-channel or whole-line distributed output", async () => {
+  const splitIndex = validOutput.indexOf("Would push these migrations:");
+  for (const processResult of [
+    { code: 0, stderr: validOutput, stdout: "" },
+    { code: 0, stderr: "", stdout: validOutput },
+    {
+      code: 0,
+      stderr: validOutput.slice(0, splitIndex),
+      stdout: validOutput.slice(splitIndex),
     },
-    writeOutput: (value) => {
-      stdout += value;
-    },
-  });
+  ]) {
+    let stdout = "";
+    let stderr = "";
+    const code = await runHostedMigration0014DryRunCli({
+      arguments_: [hostedMigration0014DryRunArgument],
+      environment: {},
+      fetchCaCertificate: async () => caCertificate,
+      readPassword: async () => "fictional-secret",
+      runSupabase: async () => processResult,
+      writeError: (value) => {
+        stderr += value;
+      },
+      writeOutput: (value) => {
+        stdout += value;
+      },
+    });
 
-  assert.equal(code, 0);
-  assert.equal(stdout, `${hostedMigration0014SuccessMessage}\n`);
-  assert.equal(stderr, "");
+    assert.equal(code, 0);
+    assert.equal(stdout, `${hostedMigration0014SuccessMessage}\n`);
+    assert.equal(stderr, "");
+  }
 });
 
 test("0014 dry-run CLI rejects inherited password variables and invalid confirmation before TTY input", async () => {
@@ -325,6 +336,15 @@ test("0014 dry-run CLI fails closed on invalid secret or every untrusted process
     { password: "valid", result: { code: 1, stderr: validOutput, stdout: "" } },
     { password: "valid", result: { code: null, stderr: "", stdout: "" } },
     { password: "valid", result: { code: 0, stderr: validOutput, stdout: "unexpected" } },
+    { password: "valid", result: { code: 0, stderr: validOutput, stdout: validOutput } },
+    {
+      password: "valid",
+      result: {
+        code: 0,
+        stderr: validOutput.slice(5),
+        stdout: validOutput.slice(0, 5),
+      },
+    },
     { password: "valid", result: { code: 0, stderr: `\u001b[31m${validOutput}`, stdout: "" } },
     {
       password: "valid",

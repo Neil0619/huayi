@@ -6,8 +6,8 @@
 `hosted-important-batch-backup.md` 的 pre/post capture 和 migration+fictional-seed rebuild 只能证明归档存在、
 仓库可以从 migration 重建；它们不能证明生产备份可恢复。
 
-本阶段状态为 **offline control plane implemented; approved production adapter, fictional full
-restore and hosted drill pending**。影响范围是
+本阶段状态为 **offline control plane and networkless PG17 fictional full restore implemented;
+approved production adapter and hosted drill pending**。影响范围是
 `shared recovery tooling/docs + hosted production operations + macOS operator host`：
 
 - 这不是 Phase 81 / migration 0014 的新依赖，不改变当前 pre backup、isolated rebuild、preflight、0014、
@@ -23,8 +23,10 @@ restore and hosted drill pending**。影响范围是
 离线控制面已经提供 strict evidence/lifecycle、canonical private artifact store、reviewed TOC/order、TTY secret
 拒绝继承、有界 fixed-client child、私有 CA/`.pgpass`、identity-safe cleanup、body-free HMAC/安全矩阵，以及下文
 固定 package 入口。`restore:plan` 是零 I/O；其他入口在 production source/project/retention/region/PG major
-获批并安装 reviewed adapter 前固定失败关闭，不能通过 CLI 参数、环境变量或手写 JSON 补齐。该状态不证明
-fictional archive 已在 PG17 完整恢复，更不证明真实 Hosted drill 已执行。
+获批并安装 reviewed adapter 前固定失败关闭，不能通过 CLI 参数、环境变量或手写 JSON 补齐。独立入口
+`pnpm acceptance:hosted:restore:fictional:verify` 已在两个 fixed-identity、networkless、tmpfs-only 的
+digest-pinned PostgreSQL 17 容器间完成虚构 custom archive 的生成、TOC 审查、恢复、安全核验与强制销毁；
+它不读取 approved plan、Hosted archive 或 secret，不写 production evidence，更不证明真实 Hosted drill 已执行。
 
 private approved plan exact 绑定 approval reference/time、tool/source full commit、source capture time、migration
 head、archive bytes/SHA-256、manifest/coverage/TOC identity、Storage bytes 分支、retention contract/deadline、target
@@ -400,7 +402,12 @@ external stage 前用批准 deadline fail closed：deadline 前只能 retention 
 
 ## 10. 实施阶段完成定义
 
-当前实现已交付需求/技术方案同步、Fresh RED/GREEN、strict verifier、TOC/order、process/secret/cleanup 与
-body-free verification 控制面。仍须交付 fixed networkless PG17 fictional full restore、获批 production
-source/target adapter、macOS 完整门、Windows shared gate和真实 Hosted 操作；production restore drill 发布项
-保持未关闭，也不改变 Phase 81/0014 当前状态。
+当前实现已交付需求/技术方案同步、Fresh RED/GREEN、strict verifier、TOC/order、process/secret/cleanup、
+body-free verification 控制面与 fixed networkless PG17 fictional full restore。fictional runner 使用两名虚构
+tenant、Auth user/identity、Storage metadata、migration head、trigger/admin projection、FORCE RLS/application
+deny matrix 和进程内临时 HMAC count digest；custom archive 只进入 `0600` 临时文件，任一失败也必须按精确
+identity 删除 source/target 并清空临时目录。它会主动丢弃/重建 disposable fixture 的 Auth/Storage schema，
+因此不验证 Supabase managed platform baseline、控制面设置或 Storage object bytes。
+
+仍须交付获批 production source/target adapter、macOS 完整门、Windows shared gate和真实 Hosted 操作；
+production restore drill 发布项保持未关闭，也不改变 Phase 81/0014 当前状态。

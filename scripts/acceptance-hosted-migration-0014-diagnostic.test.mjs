@@ -57,10 +57,81 @@ test("0014 diagnostic reports only fixed successful predicates", async () => {
 connection_output_exact|t
 dry_run_exit_class|ok
 dry_run_stdout_empty|t
+dry_run_stdout_lines_allowlisted|t
+dry_run_stderr_lines_allowlisted|t
+dry_run_line_multiset_exact|t
+dry_run_channel_relative_order_exact|t
 dry_run_transcript_exact|t
 `,
   );
   assert.doesNotMatch(stdout, /fictional|postgresql|Connecting/u);
+});
+
+test("0014 diagnostic recognizes an exact dry-run transcript emitted on stdout", async () => {
+  let stdout = "";
+  const code = await runHostedMigration0014DiagnosticCli({
+    arguments_: [hostedMigration0014DiagnosticArgument],
+    environment: {},
+    fetchCaCertificate: async () => caCertificate,
+    readPassword: async () => "fictional-password",
+    runConnectionProbe: async () => ({ code: 0, stderr: "", stdout: "connection_ok|t\n" }),
+    runDryRun: async () => ({ code: 0, stderr: "", stdout: validDryRun }),
+    writeError: () => assert.fail("must not report infrastructure failure"),
+    writeOutput: (value) => {
+      stdout += value;
+    },
+  });
+
+  assert.equal(code, 0);
+  assert.equal(
+    stdout,
+    `connection_exit_class|ok
+connection_output_exact|t
+dry_run_exit_class|ok
+dry_run_stdout_empty|f
+dry_run_stdout_lines_allowlisted|t
+dry_run_stderr_lines_allowlisted|t
+dry_run_line_multiset_exact|t
+dry_run_channel_relative_order_exact|t
+dry_run_transcript_exact|t
+`,
+  );
+});
+
+test("0014 diagnostic classifies exact whole-line output distributed across channels", async () => {
+  const splitIndex = validDryRun.indexOf("Would push these migrations:");
+  let stdout = "";
+  const code = await runHostedMigration0014DiagnosticCli({
+    arguments_: [hostedMigration0014DiagnosticArgument],
+    environment: {},
+    fetchCaCertificate: async () => caCertificate,
+    readPassword: async () => "fictional-password",
+    runConnectionProbe: async () => ({ code: 0, stderr: "", stdout: "connection_ok|t\n" }),
+    runDryRun: async () => ({
+      code: 0,
+      stderr: validDryRun.slice(0, splitIndex),
+      stdout: validDryRun.slice(splitIndex),
+    }),
+    writeError: () => assert.fail("must not report infrastructure failure"),
+    writeOutput: (value) => {
+      stdout += value;
+    },
+  });
+
+  assert.equal(code, 0);
+  assert.equal(
+    stdout,
+    `connection_exit_class|ok
+connection_output_exact|t
+dry_run_exit_class|ok
+dry_run_stdout_empty|f
+dry_run_stdout_lines_allowlisted|t
+dry_run_stderr_lines_allowlisted|t
+dry_run_line_multiset_exact|t
+dry_run_channel_relative_order_exact|t
+dry_run_transcript_exact|t
+`,
+  );
 });
 
 test("0014 connection probe pins query and process timeout without exposing the secret", async () => {
@@ -118,6 +189,10 @@ test("0014 diagnostic stops before Supabase dry-run when the fixed connection pr
 connection_output_exact|f
 dry_run_exit_class|not_run
 dry_run_stdout_empty|f
+dry_run_stdout_lines_allowlisted|f
+dry_run_stderr_lines_allowlisted|f
+dry_run_line_multiset_exact|f
+dry_run_channel_relative_order_exact|f
 dry_run_transcript_exact|f
 `,
   );
@@ -127,15 +202,15 @@ dry_run_transcript_exact|f
 test("0014 diagnostic separates CLI failure, output channel drift, and transcript drift", async () => {
   const scenarios = [
     {
-      expected: ["command_error", "t", "f"],
+      expected: ["command_error", "t", "t", "f", "f", "f", "f"],
       result: { code: 1, stderr: "private database error", stdout: "" },
     },
     {
-      expected: ["ok", "f", "t"],
+      expected: ["ok", "f", "f", "t", "f", "f", "f"],
       result: { code: 0, stderr: validDryRun, stdout: "unexpected private output" },
     },
     {
-      expected: ["ok", "t", "f"],
+      expected: ["ok", "t", "t", "f", "f", "f", "f"],
       result: { code: 0, stderr: "private transcript drift", stdout: "" },
     },
   ];
@@ -159,7 +234,11 @@ test("0014 diagnostic separates CLI failure, output channel drift, and transcrip
     assert.deepEqual(lines.slice(2), [
       `dry_run_exit_class|${scenario.expected[0]}`,
       `dry_run_stdout_empty|${scenario.expected[1]}`,
-      `dry_run_transcript_exact|${scenario.expected[2]}`,
+      `dry_run_stdout_lines_allowlisted|${scenario.expected[2]}`,
+      `dry_run_stderr_lines_allowlisted|${scenario.expected[3]}`,
+      `dry_run_line_multiset_exact|${scenario.expected[4]}`,
+      `dry_run_channel_relative_order_exact|${scenario.expected[5]}`,
+      `dry_run_transcript_exact|${scenario.expected[6]}`,
     ]);
     assert.doesNotMatch(stdout, /private|unexpected/u);
   }

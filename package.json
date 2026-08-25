@@ -51,6 +51,7 @@
     "acceptance:hosted:runtime:snapshot": "node scripts/acceptance-hosted-runtime-gates.mjs --snapshot-hosted-runtime-gates-kpadiulxkgckskcfydry",
     "acceptance:hosted:restore:cleanup": "node scripts/acceptance-hosted-restore-drill.mjs cleanup --confirm-hosted-production-restore-drill",
     "acceptance:hosted:restore:execute": "node scripts/acceptance-hosted-restore-drill.mjs execute --confirm-hosted-production-restore-drill",
+    "acceptance:hosted:restore:fictional:verify": "node scripts/acceptance-hosted-restore-drill-fictional.mjs --confirm-networkless-fictional-pg17-full-archive-restore",
     "acceptance:hosted:restore:plan": "node scripts/acceptance-hosted-restore-drill.mjs plan",
     "acceptance:hosted:restore:retention:close": "node scripts/acceptance-hosted-restore-drill.mjs retention-close --confirm-hosted-production-restore-drill",
     "acceptance:hosted:restore:retention:verify": "node scripts/acceptance-hosted-restore-drill.mjs retention-verify --confirm-hosted-production-restore-drill",

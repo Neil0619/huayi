@@ -7,7 +7,7 @@ import {
 } from "./acceptance-hosted-foundation.mjs";
 import { readHiddenTerminalLine } from "./acceptance-hosted-important-batch-secret-prompt.mjs";
 import {
-  parseHostedMigration0014DryRunOutput,
+  classifyHostedMigration0014DryRunTranscript,
   runHostedMigration0014DryRunProcess,
 } from "./acceptance-hosted-migration-0014-dry-run.mjs";
 import { fetchHostedAcceptanceOfficialCaCertificate } from "./acceptance-hosted-official-ca.mjs";
@@ -113,15 +113,24 @@ export async function runHostedMigration0014DiagnosticCli({
       lines.push(
         "dry_run_exit_class|not_run",
         "dry_run_stdout_empty|f",
+        "dry_run_stdout_lines_allowlisted|f",
+        "dry_run_stderr_lines_allowlisted|f",
+        "dry_run_line_multiset_exact|f",
+        "dry_run_channel_relative_order_exact|f",
         "dry_run_transcript_exact|f",
       );
     } else {
       failureStage = "dry-run-process";
       const dryRun = await runDryRun({ administratorPassword, caCertificate });
+      const transcript = classifyHostedMigration0014DryRunTranscript(dryRun);
       lines.push(
         `dry_run_exit_class|${classifyHostedMigration0014CommandExitCode(dryRun.code)}`,
         `dry_run_stdout_empty|${dryRun.stdout === "" ? "t" : "f"}`,
-        `dry_run_transcript_exact|${parseHostedMigration0014DryRunOutput(dryRun.stderr) ? "t" : "f"}`,
+        `dry_run_stdout_lines_allowlisted|${transcript.stdoutLinesAllowlisted ? "t" : "f"}`,
+        `dry_run_stderr_lines_allowlisted|${transcript.stderrLinesAllowlisted ? "t" : "f"}`,
+        `dry_run_line_multiset_exact|${transcript.lineMultisetExact ? "t" : "f"}`,
+        `dry_run_channel_relative_order_exact|${transcript.channelRelativeOrderExact ? "t" : "f"}`,
+        `dry_run_transcript_exact|${transcript.transcriptExact ? "t" : "f"}`,
       );
     }
     writeOutput(`${lines.join("\n")}\n`);

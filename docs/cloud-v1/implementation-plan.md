@@ -1973,5 +1973,10 @@ source-retention evidence 分别表达 `target-destroyed` 和 `retention-pending
 绑定批准时间、tool/source commit、archive/manifest/coverage/TOC、Storage、retention、region/PG major；
 每个 stage 还要求 clean HEAD=upstream 与 ignored evidence root。cleanup 时 deadline 已到可从
 `target-destroyed` 直接 strict close，未到则禁止提前删除。
-production identity/retention 未冻结，所以默认 adapter 不读取 secret、不联网并固定失败；
-networkless PG17 fictional full restore、production adapter、真实 Hosted drill 与 retention close 仍 pending。
+production identity/retention 未冻结，所以默认 adapter 不读取 secret、不联网并固定失败。后续 Fresh RED→GREEN
+已补齐独立 networkless PG17 fictional full restore：两个 fixed `--network none`/tmpfs 容器分别作为 source 与
+target，source 生成 no-owner/no-privileges custom archive，reviewed TOC 通过后才经 `0600` 临时文件恢复；
+target 的双租户 FORCE RLS、Auth/Storage metadata、migration/trigger/admin projection/application deny matrix
+和 source/target 进程内 HMAC count digest 必须 exact，finally 必须精确删除两个身份和临时目录。该实现不读取
+Hosted secret/archive，不写 production evidence，也不验证 managed platform baseline。production adapter、
+真实 Hosted drill 与 retention close 仍 pending。

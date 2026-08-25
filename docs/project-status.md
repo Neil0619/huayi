@@ -142,8 +142,10 @@ audit 仍只允许 `enabled`。这不代表 Store 产品或 Windows 支持被取
 > fixed CLI 的离线控制面已实现；`verify` 只接受 `restored-verified`，target failure 先写 fixed evidence，
 > cleanup/source-retention 依次显式表达 `target-destroyed`/`retention-pending`，且 post-restore failure 只有
 > `target-delete|retention-close` 受限例外；cleanup 时 deadline 已到可直接 strict close，未到不得提前删除。
-> production identity 尚未冻结，因此默认 adapter 固定失败且不读取 secret/
-> 联网。networkless PG17 fictional full restore、production adapter 和真实演练仍 pending；它不是 Phase
+> production identity 尚未冻结，因此默认 adapter 固定失败且不读取 secret/联网。独立的 networkless PG17
+> fictional full restore 已用两个 fixed-identity、networkless/tmpfs 容器完成 custom archive、reviewed TOC、
+> 双租户/Auth/Storage/RLS/role/HMAC 核验和精确销毁；它只证明虚构工具链，不读取 Hosted archive/secret，
+> 不写 production evidence，也不验证 managed platform baseline。production adapter 和真实演练仍 pending；它不是 Phase
 > 81/0014 的新增依赖。0014 dry-run 单命令的后续安全审查又发现旧实现没有显式 CA/hostname 验证；现已
 > 改为内部 fixed-URL/无 redirect/有界严格 PEM CA 获取、管理员 transaction pooler `6543` verify-full
 > URL+child env 与 `0600` 临时 CA，调用者不再准备 CA env；只供 application 隔离 verifier 使用的 `5432`
@@ -156,16 +158,14 @@ audit 仍只允许 `enabled`。这不代表 Store 产品或 Windows 支持被取
 > non-mutating header、remote connection marker、唯一 `20260824010000_password_signup_otp_resend.sql`
 > 与 finished marker，因此本次 dry-run 已完成且数据库未修改；未观察到的 wrapper 固定成功行不作为证据。
 > 这项只读证据不替代 `backup:status` 的 current verdict、backup preflight，也不授权 apply。
-> 随后 standalone wrapper 重试在相同密码提示后固定失败。离线安全探针确认 pinned Supabase CLI 把完整
-> dry-run transcript 写到 `stderr`、`stdout` 为空，而 wrapper 当时只读取 `stdout` 并丢弃 `stderr`；这不是
-> migration 或密码失败。现已让 standalone 与 apply 内部 dry-run 只接受 exit 0 + empty stdout + exact
-> stderr transcript，并继续拒绝混合通道、ANSI、额外输出、overflow 与 timeout；尚未重新连接 Hosted 运行
-> 修复后的 wrapper，也未授权 apply。
-> 修复后的 wrapper 再次真实运行仍只返回 fixed failure，因此新增独立只读诊断入口，把连接探针与 dry-run
-> 分开：管理员 transaction pooler 同时固定 10 秒 connect timeout 与 15 秒进程上限；psql 与 Supabase CLI
-> 使用不同 exit class，异常只输出一个 allowlisted stage，绝不转发 raw output 或 secret。离线 focused 36/36
-> 与完整 `pnpm verify:macos` 已通过；真实诊断仍需操作者在 TTY 输入管理员密码后运行，当前尚未得到分类
-> 结果，不能声称密码错误、migration 漂移或 CLI 漂移。
+> 随后 standalone wrapper 重试在相同密码提示后固定失败。旧诊断先证明 connection 与 dry-run child 都以
+> exit 0 完成、connection output exact，但 stdout 非空且旧 stderr-only transcript predicate 为 false；把完整
+> transcript 兼容到 stdout 或 stderr 单一通道后，真实 wrapper 仍固定失败。因此密码、连接与 child command
+> failure 已排除，但尚不能在“固定完整行分配到两个 pipe”和“额外/漂移行”之间定案。当前候选逐通道只接受五条 allowlist 的
+> canonical relative-order 子序列，并要求跨通道 multiset 每条精确一次；fragment、CR、blank、ANSI、重复、
+> 缺失、倒序、其他 migration、overflow 与 timeout 均拒绝。两个 pipe 的 global interleaving 不可确定且不
+> 声称已恢复。diagnostic 只输出九条 bounded verdict，用于区分 allowlist、multiset 与 relative-order 漂移，
+> 不转发 raw output 或 secret；whole-line 候选尚未连接 Hosted 重跑，也未授权 apply。
 > pre/post capture 随后也复用同一 fixed official CA fetch 深模块：用户只运行既有 pnpm 命令并输入管理员
 > 密码，CA 在密码提示前完成有界严格验证，不再准备 CA environment；本次只完成离线实现与 fake-fetch/
 > 真实 PTY 回归，尚未运行真实 capture 或连接 Supabase。

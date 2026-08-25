@@ -30,6 +30,14 @@ const fixedSupabaseArguments = Object.freeze([
   hostedAcceptancePoolerUrl,
 ]);
 
+const fixedDryRunLines = Object.freeze([
+  "DRY RUN: migrations will *not* be pushed to the database.",
+  "Connecting to remote database...",
+  "Would push these migrations:",
+  ` • ${hostedMigration0014Filename}`,
+  "Finished supabase db push.",
+]);
+
 function passwordIsValid(password) {
   return (
     typeof password === "string" &&
@@ -46,16 +54,61 @@ function environmentHasInheritedPassword(environment) {
 }
 
 export function parseHostedMigration0014DryRunOutput(output) {
-  if (typeof output !== "string") return false;
-  const lines = output.split("\n");
-  if (lines.length !== 6 || lines.at(-1) !== "") return false;
-  return (
-    lines[0] === "DRY RUN: migrations will *not* be pushed to the database." &&
-    lines[1] === "Connecting to remote database..." &&
-    lines[2] === "Would push these migrations:" &&
-    /^(?: )?• 20260824010000_password_signup_otp_resend\.sql$/u.test(lines[3]) &&
-    lines[4] === "Finished supabase db push."
+  return classifyHostedMigration0014DryRunTranscript({ stderr: output, stdout: "" })
+    .transcriptExact;
+}
+
+function classifyDryRunChannel(output) {
+  if (typeof output !== "string") {
+    return { indexes: [], linesAllowlisted: false, orderExact: false };
+  }
+  if (output === "") return { indexes: [], linesAllowlisted: true, orderExact: true };
+  if (!output.endsWith("\n")) {
+    return { indexes: [], linesAllowlisted: false, orderExact: false };
+  }
+
+  const lines = output.slice(0, -1).split("\n");
+  const indexes = [];
+  for (const line of lines) {
+    const index = /^(?: )?• 20260824010000_password_signup_otp_resend\.sql$/u.test(line)
+      ? 3
+      : fixedDryRunLines.indexOf(line);
+    if (index === -1) {
+      return { indexes: [], linesAllowlisted: false, orderExact: false };
+    }
+    indexes.push(index);
+  }
+  return {
+    indexes,
+    linesAllowlisted: true,
+    orderExact: indexes.every((index, position) => position === 0 || indexes[position - 1] < index),
+  };
+}
+
+export function classifyHostedMigration0014DryRunTranscript({ stderr, stdout } = {}) {
+  const stderrClassification = classifyDryRunChannel(stderr);
+  const stdoutClassification = classifyDryRunChannel(stdout);
+  const indexes = [...stderrClassification.indexes, ...stdoutClassification.indexes].sort(
+    (left, right) => left - right,
   );
+  const lineMultisetExact =
+    stderrClassification.linesAllowlisted &&
+    stdoutClassification.linesAllowlisted &&
+    indexes.length === fixedDryRunLines.length &&
+    indexes.every((index, position) => index === position);
+  const channelRelativeOrderExact =
+    stderrClassification.orderExact && stdoutClassification.orderExact;
+  return Object.freeze({
+    channelRelativeOrderExact,
+    lineMultisetExact,
+    stderrLinesAllowlisted: stderrClassification.linesAllowlisted,
+    stdoutLinesAllowlisted: stdoutClassification.linesAllowlisted,
+    transcriptExact: lineMultisetExact && channelRelativeOrderExact,
+  });
+}
+
+export function hasExactHostedMigration0014DryRunTranscript({ stderr, stdout } = {}) {
+  return classifyHostedMigration0014DryRunTranscript({ stderr, stdout }).transcriptExact;
 }
 
 export async function runHostedMigration0014DryRunProcess(
@@ -159,11 +212,7 @@ export async function runHostedMigration0014DryRunCli({
     const password = await readPassword();
     if (!passwordIsValid(password)) throw new Error(failureMessage);
     const result = await runSupabase({ administratorPassword: password, caCertificate });
-    if (
-      result.code !== 0 ||
-      result.stdout !== "" ||
-      !parseHostedMigration0014DryRunOutput(result.stderr)
-    ) {
+    if (result.code !== 0 || !hasExactHostedMigration0014DryRunTranscript(result)) {
       throw new Error(failureMessage);
     }
     writeOutput(`${hostedMigration0014SuccessMessage}\n`);

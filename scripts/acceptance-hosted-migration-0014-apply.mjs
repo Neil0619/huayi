@@ -19,8 +19,8 @@ import {
 } from "./acceptance-hosted-important-batch-backup.mjs";
 import { readHiddenTerminalLine } from "./acceptance-hosted-important-batch-secret-prompt.mjs";
 import {
+  hasExactHostedMigration0014DryRunTranscript,
   hostedMigration0014Filename,
-  parseHostedMigration0014DryRunOutput,
   runHostedMigration0014DryRunProcess,
 } from "./acceptance-hosted-migration-0014-dry-run.mjs";
 import { fetchHostedAcceptanceOfficialCaCertificate } from "./acceptance-hosted-official-ca.mjs";
@@ -339,11 +339,7 @@ export async function runHostedMigration0014ApplyCli({
     if (!passwordIsValid(administratorPassword)) throw new Error(failureMessage);
     const secrets = { administratorPassword, caCertificate };
     const dryRun = await runDryRun(secrets);
-    if (
-      dryRun.code !== 0 ||
-      dryRun.stdout !== "" ||
-      !parseHostedMigration0014DryRunOutput(dryRun.stderr)
-    ) {
+    if (dryRun.code !== 0 || !hasExactHostedMigration0014DryRunTranscript(dryRun)) {
       throw new Error(failureMessage);
     }
     if ((await runPreflight()) !== true) throw new Error(failureMessage);

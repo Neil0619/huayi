@@ -3,6 +3,20 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-25：0014 dry-run 严格 transcript 按完整行验证双通道分配
+
+- safe diagnostic 已证明 connection 与 dry-run child 都正常退出，但本次 pinned Supabase CLI 的 stdout 非空、
+  stderr 不再单独匹配严格 transcript；这不是密码、连接或 migration apply 失败，wrapper 原有
+  `empty stdout + exact stderr` 假设会把成功的 non-mutating dry-run 误报为失败；
+- 单通道兼容候选真实重跑仍固定失败，说明“完整 transcript 独占 stdout 或 stderr”仍是错误假设。严格证明
+  改为逐通道解析完整行：两边只能包含五条固定 allowlist 的子序列，每条预期行跨双通道精确出现一次，
+  每个通道保持 canonical relative order，非空通道必须有精确 final newline。跨两个独立 pipe 的全局实时
+  interleaving 无法可靠恢复，因此不把它声明为已验证；
+- mid-line fragment、CR、blank、ANSI、duplicate/extra/missing/reversed line、其他 migration 或非零 exit
+  继续失败关闭；standalone、safe diagnostic 与 apply 前置 dry-run 共用同一 predicate；
+- 回归只使用脱敏合成 transcript，不读取或反射真实 child 输出，不连接 Hosted、不修改数据库，也不授权
+  0014 apply。真实 wrapper 成功仍须由操作者重新运行固定 dry-run 入口确认。
+
 ## 2026-08-25：Production restore drill 控制面与真实 adapter 分离
 
 - Phase 87 先实现可由默认 macOS/Windows 门离线验证的 strict contract/lifecycle、private canonical artifact、
@@ -19,8 +33,14 @@
   `target-delete|retention-close` 保留受限例外，failure lifecycle 永远优先；
 - cleanup evidence 单独推导 `target-destroyed`，新增 source-retention evidence 后才进入
   `retention-pending`；若 cleanup 时 deadline 已到则允许用严格 disposition 直接 closed，deadline 前禁止 close、
-  到期后禁止新增 retention proof。失败路线保留对应状态和完整时间顺序。真实 adapter、
-  networkless PG17 fictional full restore、Hosted project create/delete 与 retention close 仍为独立待办和批准门。
+  到期后禁止新增 retention proof。失败路线保留对应状态和完整时间顺序；
+- 后续 Fresh RED→GREEN 已加入独立的 networkless PG17 fictional full-archive verifier：它只用 digest-only
+  PostgreSQL 17 镜像，在两个固定 `--network none`、tmpfs-only 容器间生成/复制/恢复 custom archive，严格
+  审查 reviewed TOC，比较进程内临时 HMAC count digest，验证双租户 FORCE RLS、Auth/Storage metadata、
+  admin projection、application deny matrix，并在任何结果后删除两个精确身份和私有临时 archive；
+- fictional verifier 不读取 Hosted archive/secret，不安装 production adapter，不创建 recovery project 或
+  production evidence，也不证明 managed Auth/Storage platform baseline。真实 adapter、Hosted project
+  create/delete、Storage bytes 非零分支与 retention close 仍为独立待办和批准门。
 
 ## 2026-08-25：Vercel API/Web one-shot 必须由可恢复的只读状态机约束
 
