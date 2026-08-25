@@ -21,6 +21,10 @@ import {
   hostedImportantBatchRebuildArgument,
   rebuildHostedImportantBatchScratch,
 } from "./acceptance-hosted-important-batch-rebuild.mjs";
+import {
+  readHostedImportantBatchRebuildFailureStage,
+  renderHostedImportantBatchRebuildFailure,
+} from "./acceptance-hosted-important-batch-rebuild-diagnostic.mjs";
 import { readHostedImportantBatchCaptureSecrets } from "./acceptance-hosted-important-batch-secret-prompt.mjs";
 import {
   assessHostedImportantBatchReadiness,
@@ -152,7 +156,7 @@ Isolated rebuild contract:
 - Before start, run the static lock verifier and the local-only image inspector. The inspector issues only fixed Unix-socket Docker image-inspect commands against index-digest references; it has no pull, build, run, start, or manifest-network command. The scratch uses --pull never, --network none, one tmpfs PGDATA, and no host or named data volume.
 - Apply exactly the repository migrations through 20260824010000 plus the fictional seed, run fixed bounded migration/runtime/absence contracts, prove Hosted data absent, and destroy scratch before writing the rebuild manifest last.
 Current result: the reviewed writer is pinned. Readiness remains read-only and requires the clean candidate, static lock, platform-fixed local Unix Docker socket, all 11 local image identities, pinned CLI version, and FileVault status. The confirmation-gated pre/post capture and isolated rebuild operations are separate; readiness cannot pull images, connect to Hosted, or create evidence. Ordinary Supabase CLI start remains forbidden because it can pull on a cache miss.
-Readiness failure output names only the first fixed allowlisted stage: repository state, Docker target, Docker daemon, Supabase CLI, FileVault, platform lock, local platform images, or the fixed runtime-inspection fallback. It never reflects an Error, process output, path, digest, secret, or environment value. Capture and rebuild keep their single generic failure boundary.
+Readiness failure output names only the first fixed allowlisted stage: repository state, Docker target, Docker daemon, Supabase CLI, FileVault, platform lock, local platform images, or the fixed runtime-inspection fallback. It never reflects an Error, process output, path, digest, secret, or environment value. Capture keeps its single generic failure boundary. A rebuild that starts execution may name only one internally selected fixed stage from source validation through evidence persistence; it never reflects the caught Error or child output.
 `;
 }
 
@@ -220,8 +224,14 @@ export async function runHostedImportantBatchBackupExecutorCli({
     });
     writeOutput("Hosted important-batch isolated rebuild verified and destroyed.\n");
     return 0;
-  } catch {
-    writeError("Hosted important-batch executor operation failed closed.\n");
+  } catch (error) {
+    const rebuildFailureStage =
+      operation.kind === "rebuild" ? readHostedImportantBatchRebuildFailureStage(error) : null;
+    writeError(
+      rebuildFailureStage === null
+        ? "Hosted important-batch executor operation failed closed.\n"
+        : renderHostedImportantBatchRebuildFailure(rebuildFailureStage),
+    );
     return 1;
   }
 }

@@ -246,6 +246,10 @@ scratch 使用的 Supabase PostgreSQL 镜像会在 init scripts 完成前启动�
 `pg_isready` 当作初始化完成。受控 rebuild 使用 BusyBox/GNU 兼容的 `head -n 1`，只在 tmpfs
 `postmaster.pid` 首行精确为 `1` 且随后
 `pg_isready` 成功时进入 baseline，等待最多五分钟，超时或输出不精确均销毁 scratch、保持零 evidence。
+执行失败时只允许输出代码路径选择的固定 stage（source validation、Docker target、scratch 生命周期、
+baseline、migration ledger/application、fictional seed、final contract、destroy 或 evidence persistence），不得
+输出捕获异常、SQL、child stdout/stderr、路径、digest、secret 或 environment。该阶段码用于决定下一条本机
+诊断，不代表 rebuild、backup preflight 或 0014 已通过。
 再由仍持有原私密邀请的 Web 自动重发；用户不输入 fragment/token，系统不创建第二邀请或删除 Auth user。
 
 普通 Operator 邀请与 BootstrapInvitation 的丢失处理不同。创建普通邀请后只安全传递一次 fragment，并

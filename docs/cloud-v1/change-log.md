@@ -3,6 +3,17 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-25：isolated rebuild 执行失败只报告固定脱敏阶段
+
+- readiness 已能区分本地前置条件，但 confirmation-gated rebuild 仍把 source、scratch、SQL、cleanup 与
+  evidence 写入的所有失败压成同一 generic 输出，无法安全定位连续真实失败；rebuild 执行层因此必须维护
+  一个内部固定阶段状态机；
+- 对外只允许 source-validation、docker-target、scratch identity/start/runtime/readiness、baseline、migration
+  ledger/application、fictional seed、final contract、scratch destroy、evidence persistence。stage 由代码路径
+  选择，不能来自 Error message、child stdout/stderr、SQL、路径、digest、secret 或 environment；
+- capture 与 confirmation-gated 操作的前置 readiness failure 继续保持单一 generic 输出。阶段诊断不扩大
+  Hosted 权限、不连接网络、不改变 scratch 的 `--network none`/零 mount/零 port 边界，也不授权 0014 apply。
+
 ## 2026-08-25：Supabase 0014 dry-run 只接受 stderr 上的严格单迁移 transcript
 
 - 仓库 pinned Supabase CLI 的 npm launcher 把底层 CLI 进度原样写到 `stderr`；0014 standalone dry-run

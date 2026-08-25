@@ -179,7 +179,10 @@ start 证明 offline。writer 不调用普通 `supabase start`；任何 scratch 
   metadata、固定 CLI version 与 FileVault status；macOS path 由当前 OS 用户信息而不是 username/HOME 组成，
   Linux 保留 `/var/run/docker.sock`。selector/env socket、缺失/非 socket target、非 executable 与不支持平台均
   失败；结构化诊断按固定 priority 只选择首个 stage，且不转发 raw Error/stdout/stderr、路径、digest、secret
-  或 environment；capture/rebuild 继续只输出单一 generic failure。静态 lock verifier 必须在零 Docker/
+  或 environment；capture 继续只输出单一 generic failure。isolated rebuild 一旦进入执行，只能从固定内部
+  allowlist 报告 source-validation、docker-target、scratch identity/start/runtime/readiness、baseline、migration
+  ledger/application、fictional seed、final contract、scratch destroy 或 evidence persistence 中一个 stage，禁止
+  使用捕获异常或 child output 生成 stage。静态 lock verifier 必须在零 Docker/
   零 network 下拒绝 CLI/config/env/version override/service/digest 漂移；完整 lock 内容由独立 SHA-256
   tripwire 绑定，合法格式但错误的 digest 也必须失败；
 - preflight/complete 校验固定 project、batch、clean HEAD、ignore、目录/file mode、exact keys、size/hash 和

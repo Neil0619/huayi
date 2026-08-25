@@ -5,6 +5,7 @@ import { join } from "node:path";
 import test from "node:test";
 
 import {
+  HostedImportantBatchRebuildStageError,
   hostedImportantBatchRebuildArgument,
   rebuildHostedImportantBatchScratch,
 } from "./acceptance-hosted-important-batch-rebuild.mjs";
@@ -305,6 +306,14 @@ test("rebuild destroys scratch and writes no evidence after any migration or ver
         },
         wait: async () => undefined,
       }),
+      (error) =>
+        error instanceof HostedImportantBatchRebuildStageError &&
+        error.stage ===
+          {
+            destroy: "scratch-destroy",
+            migration: "migration-application",
+            verification: "final-contract",
+          }[failAt],
     );
     const rebuildRoot = join(
       root,
@@ -370,19 +379,25 @@ test("rebuild never removes an unknown same-name container created during the st
 });
 
 test("rebuild rejects nonlocal Docker targets and an inexact migration source set before start", async () => {
-  for (const overrides of [
-    {
-      resolveDockerTarget: async () => ({
-        command: "docker",
-        host: "tcp://private.example.test:2376",
-      }),
-    },
-    {
-      loadSources: async () => ({
-        ...fictionalSources(),
-        migrations: fictionalSources().migrations.slice(1),
-      }),
-    },
+  for (const [expectedStage, overrides] of [
+    [
+      "docker-target",
+      {
+        resolveDockerTarget: async () => ({
+          command: "docker",
+          host: "tcp://private.example.test:2376",
+        }),
+      },
+    ],
+    [
+      "source-validation",
+      {
+        loadSources: async () => ({
+          ...fictionalSources(),
+          migrations: fictionalSources().migrations.slice(1),
+        }),
+      },
+    ],
   ]) {
     let calls = 0;
     await assert.rejects(
@@ -397,6 +412,8 @@ test("rebuild rejects nonlocal Docker targets and an inexact migration source se
         },
         ...overrides,
       }),
+      (error) =>
+        error instanceof HostedImportantBatchRebuildStageError && error.stage === expectedStage,
     );
     assert.equal(calls, 0);
   }

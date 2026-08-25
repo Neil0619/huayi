@@ -205,7 +205,7 @@ test("unexpected runtime inspection rejection maps to one fixed stage without ra
   assert.doesNotMatch(result.stderr, new RegExp(sensitive, "u"));
 });
 
-test("capture and rebuild keep their single generic failure boundary", async () => {
+test("confirmation-gated operations keep one generic pre-execution readiness failure", async () => {
   for (const argument of [
     hostedImportantBatchCapturePreArgument,
     hostedImportantBatchRebuildArgument,

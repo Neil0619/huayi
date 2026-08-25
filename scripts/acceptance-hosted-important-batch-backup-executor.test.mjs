@@ -21,7 +21,10 @@ import {
 } from "./acceptance-hosted-important-batch-capture.mjs";
 import { hostedImportantBatchPostgresRuntimeReference } from "./acceptance-hosted-important-batch-execution-contract.mjs";
 import { hostedAcceptanceProjectRef } from "./acceptance-hosted-foundation.mjs";
-import { hostedImportantBatchRebuildArgument } from "./acceptance-hosted-important-batch-rebuild.mjs";
+import {
+  HostedImportantBatchRebuildStageError,
+  hostedImportantBatchRebuildArgument,
+} from "./acceptance-hosted-important-batch-rebuild.mjs";
 
 const candidateCommit = "0123456789abcdef0123456789abcdef01234567";
 const fixedTestDockerTarget = {
@@ -166,7 +169,8 @@ test("executor plan is deterministic, zero-I/O, and states exact coverage and bl
   assert.match(stdout, /--pull never/u);
   assert.match(stdout, /--network none/u);
   assert.match(stdout, /first fixed allowlisted stage/u);
-  assert.match(stdout, /Capture and rebuild keep their single generic failure boundary/u);
+  assert.match(stdout, /Capture keeps its single generic failure boundary/u);
+  assert.match(stdout, /rebuild that starts execution may name only one internally selected/u);
 });
 
 test("package scripts expose only exact plan, readiness, and confirmation-gated operations", async () => {
@@ -274,6 +278,27 @@ test("confirmation-gated rebuild never requests Hosted secrets and records only 
   ]);
   assert.equal(result.stdout, "Hosted important-batch isolated rebuild verified and destroyed.\n");
   assert.equal(result.stderr, "");
+});
+
+test("rebuild failure exposes only one allowlisted stage and discards the raw error", async () => {
+  const sensitive = "private-user@example.test /private/path sha256:secret";
+  const result = await runCli({
+    arguments_: [hostedImportantBatchRebuildArgument],
+    rebuildScratch: async () => {
+      const error = new HostedImportantBatchRebuildStageError("baseline");
+      error.cause = new Error(sensitive);
+      throw error;
+    },
+    runtime: readyRuntime(),
+  });
+
+  assert.equal(result.code, 1);
+  assert.equal(result.stdout, "");
+  assert.equal(
+    result.stderr,
+    "Hosted important-batch isolated rebuild failed closed at allowlisted stage baseline; Hosted data was not modified.\n",
+  );
+  assert.doesNotMatch(result.stderr, new RegExp(sensitive, "u"));
 });
 
 test("execution failure discards raw secrets and errors and emits one fixed failure", async () => {

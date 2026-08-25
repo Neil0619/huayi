@@ -6,6 +6,16 @@ import { resolveLocalDockerInspectionTarget } from "./acceptance-local-docker-in
 import { persistHostedImportantBatchRebuild } from "./acceptance-hosted-important-batch-artifacts.mjs";
 import { hostedAcceptanceProjectRef } from "./acceptance-hosted-foundation.mjs";
 import {
+  HostedImportantBatchRebuildStageError,
+  normalizeHostedImportantBatchRebuildStageError,
+} from "./acceptance-hosted-important-batch-rebuild-diagnostic.mjs";
+import {
+  hostedImportantBatchRebuildBaselineSql,
+  hostedImportantBatchRebuildMigrationLedgerSql,
+  renderHostedImportantBatchRecordedMigration,
+  renderHostedImportantBatchRebuildFinalContractSql,
+} from "./acceptance-hosted-important-batch-rebuild-sql.mjs";
+import {
   assertFixedLocalDockerTarget,
   hostedImportantBatchMigrationVersions,
   hostedImportantBatchPostgresRuntimeReference,
@@ -17,6 +27,7 @@ import {
 } from "./acceptance-hosted-important-batch-execution-contract.mjs";
 
 export const hostedImportantBatchRebuildArgument = `--confirm-rebuild-0014-important-batch-backup-${hostedAcceptanceProjectRef}`;
+export { HostedImportantBatchRebuildStageError };
 
 const migrationFiles = Object.freeze([
   "20260821000000_cloud_v1_foundation.sql",
@@ -35,81 +46,6 @@ const migrationFiles = Object.freeze([
   "20260824010000_password_signup_otp_resend.sql",
 ]);
 const seedSha256 = "6defe22d5e21ef4d98f77e2192c1c4c0ad96ec73c964ab897e9a1a63b8003050";
-const fictionalUserId = "00000000-0000-4000-8000-000000000047";
-const fictionalEmail = "local-acceptance-operator@seen-said.localhost";
-
-const baselineSql = `/* baseline_contract */
-SELECT 'baseline_contract|' || CASE WHEN
-  to_regclass('auth.users') IS NOT NULL
-  AND to_regclass('auth.identities') IS NOT NULL
-  AND to_regclass('storage.objects') IS NOT NULL
-  AND to_regclass('storage.buckets') IS NOT NULL
-  AND EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'supabase_auth_admin')
-  AND EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'supabase_storage_admin')
-THEN 't' ELSE 'f' END;
-`;
-
-const migrationLedgerSql = `/* migration_ledger_contract */
-CREATE SCHEMA IF NOT EXISTS supabase_migrations;
-CREATE TABLE IF NOT EXISTS supabase_migrations.schema_migrations (
-  version text PRIMARY KEY,
-  statements text[] NOT NULL DEFAULT ARRAY[]::text[],
-  name text
-);
-DO $$
-BEGIN
-  IF (SELECT count(*) FROM supabase_migrations.schema_migrations) <> 0 THEN
-    RAISE EXCEPTION 'scratch migration ledger is not empty';
-  END IF;
-END;
-$$;
-`;
-
-function sqlLiteral(value) {
-  return `'${value.replaceAll("'", "''")}'`;
-}
-
-function finalContractSql() {
-  const expectedVersions = hostedImportantBatchMigrationVersions
-    .map((version) => `(${sqlLiteral(version)})`)
-    .join(",");
-  return `/* rebuild_contract */
-WITH expected(version) AS (VALUES ${expectedVersions})
-SELECT 'migration_chain_exact|' || CASE WHEN
-  (SELECT array_agg(version ORDER BY version) FROM supabase_migrations.schema_migrations) =
-  (SELECT array_agg(version ORDER BY version) FROM expected)
-THEN 't' ELSE 'f' END;
-SELECT 'fictional_seed_exact|' || CASE WHEN
-  (SELECT count(*) FROM public.user_profiles) = 1
-  AND EXISTS (
-    SELECT 1 FROM public.user_profiles
-    WHERE user_id = '${fictionalUserId}' AND owner_user_id = '${fictionalUserId}'
-      AND email = '${fictionalEmail}' AND status = 'active'
-  )
-  AND (SELECT count(*) FROM public.admin_roles) = 1
-  AND EXISTS (
-    SELECT 1 FROM public.admin_roles
-    WHERE user_id = '${fictionalUserId}' AND role = 'operator'
-  )
-THEN 't' ELSE 'f' END;
-SELECT 'hosted_data_absent|' || CASE WHEN
-  (SELECT count(*) FROM auth.users) = 0
-  AND (SELECT count(*) FROM auth.identities) = 0
-  AND (SELECT count(*) FROM storage.objects) = 0
-  AND (SELECT count(*) FROM public.invitations) = 0
-  AND (SELECT count(*) FROM public.invitation_claims) = 0
-  AND NOT EXISTS (
-    SELECT 1 FROM public.user_profiles
-    WHERE user_id <> '${fictionalUserId}' OR email <> '${fictionalEmail}'
-  )
-THEN 't' ELSE 'f' END;
-SELECT 'runtime_contract_exact|' || CASE WHEN
-  to_regprocedure('public.renew_interrupted_password_confirmation(text,text,timestamptz)') IS NOT NULL
-  AND EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'huayi_runtime')
-  AND EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'huayi_business')
-THEN 't' ELSE 'f' END;
-`;
-}
 
 async function assertRegularBoundedFile(path, maximumBytes) {
   const stats = await lstat(path);
@@ -291,14 +227,6 @@ async function runSql(dockerTarget, runProcess, input, expectedOutput = "") {
   }
 }
 
-function recordedMigrationSource(migration) {
-  return `${migration.source}\nINSERT INTO supabase_migrations.schema_migrations (
-  version, statements, name
-) VALUES (
-  ${sqlLiteral(migration.version)}, ARRAY[]::text[], ${sqlLiteral(migration.version)}
-);\n`;
-}
-
 async function destroyScratch(dockerTarget, runProcess, wait, waitForLateAppearance) {
   return settleHostedImportantBatchContainer({
     dockerTarget,
@@ -318,75 +246,105 @@ export async function rebuildHostedImportantBatchScratch({
   runProcess = runHostedImportantBatchProcess,
   wait = (milliseconds) => new Promise((resolveWait) => setTimeout(resolveWait, milliseconds)),
 }) {
-  const sources = await loadSources();
-  assertExactSources(sources);
-  const dockerTarget = await resolveDockerTarget();
-  assertFixedLocalDockerTarget(dockerTarget);
-  const existing = await inspectScratch(dockerTarget, runProcess);
-  if (!isHostedImportantBatchContainerAbsent(existing)) {
-    throw new Error("Hosted important-batch scratch identity is occupied.");
-  }
-  await persistHostedImportantBatchRebuild({
-    candidateCommit,
-    performRebuild: async () => {
-      let cleanupRequired = false;
-      let operationPassed = false;
-      let scratchDestroyed = false;
-      let waitForLateAppearance = false;
-      try {
-        cleanupRequired = true;
-        let started;
+  let failureStage = "source-validation";
+  try {
+    const sources = await loadSources();
+    assertExactSources(sources);
+    failureStage = "docker-target";
+    const dockerTarget = await resolveDockerTarget();
+    assertFixedLocalDockerTarget(dockerTarget);
+    failureStage = "scratch-identity";
+    const existing = await inspectScratch(dockerTarget, runProcess);
+    if (!isHostedImportantBatchContainerAbsent(existing)) {
+      throw new Error("Hosted important-batch scratch identity is occupied.");
+    }
+    failureStage = "evidence-persistence";
+    await persistHostedImportantBatchRebuild({
+      candidateCommit,
+      performRebuild: async () => {
+        let cleanupRequired = false;
+        let operationPassed = false;
+        let scratchDestroyed = false;
+        let waitForLateAppearance = false;
         try {
-          started = await startScratch(dockerTarget, runProcess);
-        } catch (error) {
-          waitForLateAppearance = true;
-          throw error;
-        }
-        waitForLateAppearance = started.code === null;
-        if (started.code !== 0) {
-          throw new Error("Hosted important-batch scratch start failed.");
-        }
-        const inspected = await inspectScratch(dockerTarget, runProcess);
-        if (inspected.code !== 0 || !scratchRuntimeIsExact(inspected.stdout)) {
-          throw new Error("Hosted important-batch scratch runtime is invalid.");
-        }
-        await waitForScratch(dockerTarget, runProcess, wait);
-        await runSql(dockerTarget, runProcess, baselineSql, "baseline_contract|t\n");
-        await runSql(dockerTarget, runProcess, migrationLedgerSql);
-        for (const migration of sources.migrations) {
-          await runSql(dockerTarget, runProcess, recordedMigrationSource(migration));
-        }
-        await runSql(dockerTarget, runProcess, sources.seed);
-        await runSql(
-          dockerTarget,
-          runProcess,
-          finalContractSql(),
-          "migration_chain_exact|t\nfictional_seed_exact|t\nhosted_data_absent|t\nruntime_contract_exact|t\n",
-        );
-        operationPassed = true;
-      } catch {
-        operationPassed = false;
-      } finally {
-        if (cleanupRequired) {
-          scratchDestroyed = await destroyScratch(
+          cleanupRequired = true;
+          failureStage = "scratch-start";
+          let started;
+          try {
+            started = await startScratch(dockerTarget, runProcess);
+          } catch (error) {
+            waitForLateAppearance = true;
+            throw error;
+          }
+          waitForLateAppearance = started.code === null;
+          if (started.code !== 0) {
+            throw new Error("Hosted important-batch scratch start failed.");
+          }
+          failureStage = "scratch-runtime";
+          const inspected = await inspectScratch(dockerTarget, runProcess);
+          if (inspected.code !== 0 || !scratchRuntimeIsExact(inspected.stdout)) {
+            throw new Error("Hosted important-batch scratch runtime is invalid.");
+          }
+          failureStage = "scratch-readiness";
+          await waitForScratch(dockerTarget, runProcess, wait);
+          failureStage = "baseline";
+          await runSql(
             dockerTarget,
             runProcess,
-            wait,
-            waitForLateAppearance,
+            hostedImportantBatchRebuildBaselineSql,
+            "baseline_contract|t\n",
           );
+          failureStage = "migration-ledger";
+          await runSql(dockerTarget, runProcess, hostedImportantBatchRebuildMigrationLedgerSql);
+          failureStage = "migration-application";
+          for (const migration of sources.migrations) {
+            await runSql(
+              dockerTarget,
+              runProcess,
+              renderHostedImportantBatchRecordedMigration(migration),
+            );
+          }
+          failureStage = "fictional-seed";
+          await runSql(dockerTarget, runProcess, sources.seed);
+          failureStage = "final-contract";
+          await runSql(
+            dockerTarget,
+            runProcess,
+            renderHostedImportantBatchRebuildFinalContractSql(),
+            "migration_chain_exact|t\nfictional_seed_exact|t\nhosted_data_absent|t\nruntime_contract_exact|t\n",
+          );
+          operationPassed = true;
+        } catch {
+          operationPassed = false;
+        } finally {
+          if (cleanupRequired) {
+            const operationFailureStage = failureStage;
+            failureStage = "scratch-destroy";
+            scratchDestroyed = await destroyScratch(
+              dockerTarget,
+              runProcess,
+              wait,
+              waitForLateAppearance,
+            );
+            if (scratchDestroyed) {
+              failureStage = operationPassed ? "evidence-persistence" : operationFailureStage;
+            }
+          }
         }
-      }
-      if (!operationPassed || !scratchDestroyed) {
-        throw new Error("Hosted important-batch rebuild failed.");
-      }
-      return {
-        fictionalSeedExact: true,
-        hostedDataAbsent: true,
-        migrationChainExact: true,
-        runtimeContractExact: true,
-        scratchDestroyed: true,
-      };
-    },
-    repositoryRoot,
-  });
+        if (!operationPassed || !scratchDestroyed) {
+          throw new HostedImportantBatchRebuildStageError(failureStage);
+        }
+        return {
+          fictionalSeedExact: true,
+          hostedDataAbsent: true,
+          migrationChainExact: true,
+          runtimeContractExact: true,
+          scratchDestroyed: true,
+        };
+      },
+      repositoryRoot,
+    });
+  } catch (error) {
+    throw normalizeHostedImportantBatchRebuildStageError(failureStage, error);
+  }
 }

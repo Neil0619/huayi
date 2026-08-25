@@ -929,7 +929,8 @@ confirmed Auth user/password method/profile 为 `1/1/2`、google method/Web sess
   daemon → Supabase CLI → FileVault → platform lock → local platform images 的固定顺序只选择首项，未分类
   inspector rejection 只允许固定 `runtime-inspection`。单元回归分别证明 platform lock 与 local images 可区分，
   CLI 回归证明多失败 deterministic、动态 stage 被拒绝且 raw Error/stdout/stderr、路径、digest、secret、
-  environment 不反射；capture/rebuild 必须继续保持单一 generic failure；
+  environment 不反射；capture 与 write-readiness 前置失败保持单一 generic failure，rebuild 执行失败只允许
+  内部固定 stage，不得反射原始异常或 child output；
 - preflight/complete 只允许固定 project `kpadiulxkgckskcfydry`、batch `phase-81-0014` 和固定 artifacts
   路径；拒绝额外 project/path/operation 参数，错误只输出 fixed failure，不反射参数、manifest 或原始错误；
 - evidence fixture 必须覆盖 clean Git HEAD 精确、artifact ignored、目录 `0700`、文件 `0600`、非 symlink、
@@ -942,7 +943,8 @@ confirmed Auth user/password method/profile 为 `1/1/2`、google method/Web sess
   user、零 Storage object、零 invitation/claim，并在 container 删除回查后才写 manifest。静态 migration test、
   dump listing、command exit 0 或手写 manifest 不能替代实际隔离重建。Supabase PostgreSQL 镜像初始化期间的
   临时 postmaster 会提前通过 `pg_isready`；rebuild 必须先以 fixed、BusyBox/GNU 兼容的 `head -n 1` probe
-  精确观察 tmpfs `postmaster.pid` 首行为 `1\n`，再要求 `pg_isready`，并在固定五分钟上限内失败关闭。
+  精确观察 tmpfs `postmaster.pid` 首行为 `1\n`，再要求 `pg_isready`，并在固定五分钟上限内失败关闭。每个
+  执行边界必须以测试证明只映射为固定 allowlisted stage；敏感 raw error、SQL 与进程输出不得进入 CLI。
   任意其它 PID、额外输出、缺文件或仅有早期 `pg_isready` 都不得提前执行 baseline；
 - raw logical dump 是敏感备份，不进入测试 fixture/stdout/log。默认测试只使用不含用户数据的内存 adapter；
   测试必须区分 PG17 full-database custom archive 与 Supabase CLI filtered SQL，且断言 Storage object bytes、

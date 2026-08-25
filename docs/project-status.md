@@ -155,9 +155,11 @@ audit 仍只允许 `enabled`。这不代表 Store 产品或 Windows 支持被取
 > readiness 首次 transient failure 此前只输出同一 generic，无法定位 clean repository、Docker target/
 > daemon、pinned Supabase CLI、FileVault、platform lock 或 local images 中哪一层失败。现已改为单一结构化
 > assessor，按固定优先级只报告首个内部 allowlisted stage，未知 inspector rejection 固定映射为
-> runtime-inspection；raw Error/process output、路径、digest、secret 与 environment 均不进入输出。该可观察性
-> 只属于零网络/零写 readiness，capture/rebuild 仍保持原 generic 边界；它没有关闭尚未完成的真实 pre/post
-> capture、成功 isolated rebuild、0014 或 Hosted 部署门。
+> runtime-inspection；raw Error/process output、路径、digest、secret 与 environment 均不进入输出。后续真实
+> rebuild 连续在修复 readiness probe 后仍只返回 generic failure，因此 isolated rebuild 执行阶段也增加内部
+> 固定 allowlist：从 source-validation 到 evidence-persistence 只能报告一个稳定 stage，捕获的 Error、child
+> stdout/stderr、路径、digest、secret 与 environment 仍全部丢弃；capture 继续保持单一 generic 边界。该诊断
+> 尚未证明真实 rebuild 成功，也没有关闭 pre/post capture、0014 或 Hosted 部署门。
 > R3-C 离线复审还发现既有 sender 测试只从源码间接声称 20 秒上限，没有证明 timeout factory 参数与
 > RequestInit signal identity。sender 现通过一个默认委托原生 `AbortSignal.timeout` 的窄内部 seam 组合；
 > fake factory 回归精确锁定单次 `20_000` 与同一 signal 传入固定 fetch，且零真实等待/网络。该修复没有

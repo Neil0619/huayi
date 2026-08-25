@@ -137,12 +137,12 @@ describe("first Operator bootstrap database protocol", () => {
   it("replaces only an entirely unclaimed invitation and advances one revision", async () => {
     await database.query(`
       SELECT huayi_private.issue_first_operator_invitation(
-        '${invitationA}',repeat('a',43),'2026-08-25T00:00:00Z','2026-08-22T00:00:00Z'
+        '${invitationA}',repeat('a',43),now()+interval '72 hours',now()
       )
     `);
     await database.query(`
       SELECT huayi_private.replace_first_operator_invitation(
-        '${invitationB}',repeat('b',43),'2026-08-25T01:00:00Z','2026-08-22T01:00:00Z'
+        '${invitationB}',repeat('b',43),now()+interval '73 hours',now()+interval '1 hour'
       )
     `);
     await expect(
@@ -165,14 +165,16 @@ describe("first Operator bootstrap database protocol", () => {
       rows: [{ current_invitation_id: invitationB, revision: 2 }],
     });
 
-    await database.query(`
-      SELECT claim_invitation(repeat('b',43),'claim-ticket','2026-08-22T02:00:00Z')
-    `);
+    await expect(
+      database.query(`
+        SELECT claim_invitation(repeat('b',43),'claim-ticket',now()+interval '15 minutes')
+      `),
+    ).resolves.toMatchObject({ rows: [{ claim_invitation: invitationB }] });
     await expect(
       database.query(`
         SELECT huayi_private.replace_first_operator_invitation(
           '41000000-0000-4000-8000-000000000003',repeat('c',43),
-          '2026-08-25T02:00:00Z','2026-08-22T02:00:00Z'
+          now()+interval '74 hours',now()+interval '2 hours'
         )
       `),
     ).rejects.toThrow();

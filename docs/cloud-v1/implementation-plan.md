@@ -1911,7 +1911,9 @@ inspection；Phase 86 只实现受审查 writer 与隔离 rebuild，不连接 Su
    `pg_isready` 双判据并保留五分钟硬上限。clean `8916af5` 上再次等待五分钟仍失败；最终 local-only debug
    证明 PID 文件路径、精确 `1\n` bytes 与 `pg_isready` 都正确，但镜像内 BusyBox `head` 不接受旧 GNU 长选项
    `--lines=1`，导致 probe 永远 exit 1。Fresh RED 固定真实 argv，最小修复改用 portable `head -n 1`；修复后
-   尚未运行会生成 evidence 的真实 rebuild；
+   exact rebuild 仍只返回 generic failure。后续诊断候选增加固定内部 stage 状态机，CLI 只能报告
+   source-validation 到 evidence-persistence 的 allowlisted stage，raw Error/child output/路径/secret 仍全部
+   丢弃；纯 SQL 契约拆分后主 writer 保持 400 行以下。该候选尚未运行会生成 evidence 的真实 rebuild；
 10. **动作账本**：executor prerequisite/readiness → pre capture/rebuild → `backup:preflight` → real dry-run →
     `migration:0014:apply`（内部再次 exact dry-run、mutation 前重查 preflight/source identity、写后只读
     postflight）→ post capture → `backup:complete` → API/Web 串行 deployment。禁止手工 `db push --yes`；

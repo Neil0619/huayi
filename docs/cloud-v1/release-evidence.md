@@ -2435,3 +2435,18 @@ typecheck、architecture、build、development blocker、Store release、product
   image+label identity 删除并回查不存在；没有调用会生成 manifest 的真实 rebuild，evidence 目录继续为空。
   根任务提交 clean
   candidate 并重跑 readiness 后，才可再次执行唯一 exact rebuild；成功前不得运行 preflight 或 0014 apply。
+
+## 92. Phase 81 isolated rebuild 脱敏阶段诊断候选（2026-08-25）
+
+- **新确认的测试根因**：First Operator 邀请替换回归使用固定 `2026-08-25T01:00:00Z` expiry；系统时间越过
+  该时刻后 `claim_invitation` 按生产规则返回 `NULL`，测试却没有断言领取结果，随后错误地期待 replacement
+  被 claim 拒绝。测试改为相对当前事务时间生成 72 小时邀请，并先严格断言返回当前 invitation id；生产
+  migration 未修改，focused Vitest 恢复 8/8；
+- **诊断 Fresh RED → GREEN**：executor 回归先因不存在 `HostedImportantBatchRebuildStageError` export 失败；
+  最小实现新增固定 stage 深模块，并让 rebuild 代码路径自行选择 source-validation、docker-target、scratch
+  identity/start/runtime/readiness、baseline、migration ledger/application、fictional seed、final contract、scratch
+  destroy 或 evidence persistence。CLI 只渲染该 allowlisted stage，raw Error/child output/路径/digest/secret/
+  environment 全部丢弃；capture 与前置 write-readiness 仍 generic；
+- **结构与本机 GREEN**：纯 baseline/ledger/final SQL 契约拆入独立模块，使主 rebuild writer 保持 400 行以下；
+  focused Node 24/24 与 First Operator Vitest 8/8 通过。尚未提交 clean candidate，也尚未运行真实 exact
+  rebuild；本节不证明 isolated rebuild、pre capture/preflight、0014、邮件或部署完成。
