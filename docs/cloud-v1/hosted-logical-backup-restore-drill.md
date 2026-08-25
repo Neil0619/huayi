@@ -6,18 +6,30 @@
 `hosted-important-batch-backup.md` 的 pre/post capture 和 migration+fictional-seed rebuild 只能证明归档存在、
 仓库可以从 migration 重建；它们不能证明生产备份可恢复。
 
-本阶段状态为 **design complete; implementation and hosted drill pending**。影响范围是
+本阶段状态为 **offline control plane implemented; approved production adapter, fictional full
+restore and hosted drill pending**。影响范围是
 `shared recovery tooling/docs + hosted production operations + macOS operator host`：
 
 - 这不是 Phase 81 / migration 0014 的新依赖，不改变当前 pre backup、isolated rebuild、preflight、0014、
   post backup 与串行部署顺序；
-- 只有当前 Hosted 验收批次关闭后，才进入本方案的实现；任何真实项目创建、归档读取、恢复或删除还需要
-  独立、明确批准；
+- 离线控制面实现不依赖当前 Hosted 验收批次；只有该批次关闭后才允许安装 production adapter，任何真实
+  项目创建、归档读取、恢复或删除还需要独立、明确批准；
 - 不把真实 archive 复制到开发库、fixture、日志、聊天、工单、Git 或共享对象存储；
 - 不向 production 恢复，不在 production 上运行验证写入，也不把恢复演练当作回滚 migration；
 - 不配置 DNS、Vercel、Custom SMTP、OAuth、Edge Function、Cron、Provider key 或出站邮件；
 - 数据库 archive 不含 Storage object bytes。object bytes 非零时必须先完成另一个加密 Storage API export/
   restore 契约；不能用 metadata 恢复冒充完整恢复。
+
+离线控制面已经提供 strict evidence/lifecycle、canonical private artifact store、reviewed TOC/order、TTY secret
+拒绝继承、有界 fixed-client child、私有 CA/`.pgpass`、identity-safe cleanup、body-free HMAC/安全矩阵，以及下文
+固定 package 入口。`restore:plan` 是零 I/O；其他入口在 production source/project/retention/region/PG major
+获批并安装 reviewed adapter 前固定失败关闭，不能通过 CLI 参数、环境变量或手写 JSON 补齐。该状态不证明
+fictional archive 已在 PG17 完整恢复，更不证明真实 Hosted drill 已执行。
+
+private approved plan exact 绑定 approval reference/time、tool/source full commit、source capture time、migration
+head、archive bytes/SHA-256、manifest/coverage/TOC identity、Storage bytes 分支、retention contract/deadline、target
+region 与 PostgreSQL 17；target 创建时间必须晚于批准时间。每个非 plan 入口还要求 clean HEAD=upstream、
+ignored evidence root 与 tool commit exact，不能用旧 plan、dirty checkout 或替换 archive 继续。
 
 第一轮 production 演练关闭发布门，之后按季度执行；事故恢复可以额外运行，但不能替代最近一个季度演练。
 验收环境 archive 只有在 future capture contract 同样生成 body-free coverage report/TOC identity 时才可用于
@@ -77,10 +89,17 @@ DNS、Vercel environment、Edge Function、Vault 或 Storage object bytes。恢�
 
 ### 4.1 零写入 plan 与 target-empty proof
 
-未来实现提供固定入口 `restore:plan`、`restore:source:verify`、`restore:target:verify-empty`、
-`restore:execute`、`restore:verify`、`restore:cleanup`、`restore:retention:close`。plan 零 filesystem/Git/network/
-write；其余入口只接受与已生成 drill plan 绑定的 exact confirmation，不接受任意 project、host、URL、path、
-image、schema 或 SQL 参数。
+控制面提供固定入口 `restore:plan`、`restore:source:verify`、`restore:target:verify-empty`、
+`restore:execute`、`restore:verify`、`restore:cleanup`、`restore:retention:verify`、
+`restore:retention:close`。plan 零 filesystem/Git/network/write；其余入口只接受与已生成 drill plan 绑定的
+exact confirmation，不接受任意 project、host、URL、path、image、schema 或 SQL 参数。
+
+仓库 package 名称统一加 `acceptance:hosted:` 前缀，例如
+`acceptance:hosted:restore:plan`。`restore:execute` 必须在同一受控进程内完成 restore 与 body-free verify 后才
+提交 `restore-verification.json`；`restore:verify` 只在 exact file set 推导为 `restored-verified` 时返回 0，
+只重读该 strict evidence、不重放 restore；cleanup 后必须使用 `status` 和 retention contract，不能让
+`verify` 对 `target-destroyed`、`retention-pending`、closed 或任何失败状态返回成功。当前默认 stage adapter
+未安装，因此除 plan 外的入口只返回固定失败；这正是尚未冻结 production identity 时的安全状态。
 
 创建 target 后、任何数据库写入前，管理员以 session pooler `5432`、verify-full 与固定 CA 完成 target-empty
 proof：
@@ -159,9 +178,10 @@ file、非 symlink，canonical single-line JSON + newline，以 `.partial`/fsync
 ```text
 source-attestation.json
 target-empty-verification.json        # target 创建且 empty proof 通过后出现
-restore-verification.json             # 成功路线
-failure-verification.json             # 失败路线；与 restore-verification 互斥
+restore-verification.json             # 成功恢复证据
+failure-verification.json             # 失败路线；只允许下文两种 post-restore 并存例外
 target-cleanup-verification.json      # target absence 回读后出现
+source-retention-verification.json    # cleanup 后证明 source archive 仍按批准期限保留
 source-disposition.json               # retained backup 到期后才出现
 ```
 
@@ -211,6 +231,16 @@ targetDeletionRequested, targetIdentityDigest, temporaryArtifactsRemoved,
 toolCandidateCommit
 ```
 
+`source-retention-verification.json` exact keys：
+
+```text
+contract, drillId, retentionDeadline, retentionVerifiedAt, sourceArchiveRetained,
+sourceAttestationSha256, sourceCandidateCommit, toolCandidateCommit
+```
+
+`sourceArchiveRetained` 必须为 `true`；`retentionVerifiedAt` 必须严格晚于 cleanup、严格早于批准的
+`retentionDeadline`。这份 evidence 只证明 archive 仍在批准保留期，不能证明 archive 已删除。
+
 `source-disposition.json` exact keys：
 
 ```text
@@ -233,26 +263,43 @@ source verify 是 evidence lifecycle 之前的零写入门；失败时不创建 
 `failedStage=target-create` 且 management API 尚未返回 identity 时，failure/cleanup 的
 `targetIdentityDigest` 可为 `null`；其他状态都必须为 64 位 lowercase SHA-256。
 
-六种 document 的 `contract` 分别固定为
+七种 document 的 `contract` 分别固定为
 `huayi-hosted-restore-source-attestation/v1`、`huayi-hosted-restore-target-empty/v1`、
 `huayi-hosted-restore-verification/v1`、`huayi-hosted-restore-target-cleanup/v1`、
-`huayi-hosted-restore-source-disposition/v1` 与 `huayi-hosted-restore-failure/v1`。verifier 从 exact file set
-推导 lifecycle，不信任可手改的 status：
+`huayi-hosted-restore-source-retention/v1`、`huayi-hosted-restore-source-disposition/v1` 与
+`huayi-hosted-restore-failure/v1`。verifier 从 exact file set 推导 lifecycle，不信任可手改的 status：
 
 ```text
 planned -> source-bound -> target-empty -> restored-verified -> target-destroyed
         -> retention-pending -> closed
-        \-> failed-cleanup-pending -> failed-cleaned-retention-pending -> failed-closed
+        \---------------------------------------------> closed  # deadline 已到
+        \-> failed-cleanup-pending -> failed-target-destroyed
+        -> failed-cleaned-retention-pending -> failed-closed
 ```
 
 `restore-in-progress` 只存在于进程内；任何遗留 `.partial` 都使 verifier 失败。成功 evidence 只有在 target
-验证全部通过后写入；失败时先原子写仅含 fixed stage/class 的 `failure-verification.json`，再 cleanup。
+验证全部通过后写入。external stage 必须返回 exact success/failure union，单次结果不能同时含 success 与
+failure，也不能含 raw error；任一已进入 target 相关 stage 的受控失败必须先原子写只含 fixed stage/class、
+target identity digest 和 source/tool/candidate binding 的 `failure-verification.json`，再保持或进入
+`failed-cleanup-pending`。source verify 失败仍在 lifecycle 外零写入。
+`restore-verification.json` 与 failure 通常互斥；唯一受限例外是已经严格完成 restore 后的
+`failedStage=target-delete|retention-close`，且 `failedAt` 必须严格晚于 restore completion、target/source/tool
+binding exact。其他 failure stage 与 restore evidence 并存一律失败。
 `target-cleanup-verification.json` 只有在管理面确认 project 不存在、临时凭据撤销和本机 partial 清空后写入。
-target 已删除但 source archive 尚在已批准 retention deadline 内时，成功路线为 `retention-pending`、失败路线
-为 `failed-cleaned-retention-pending`；到期后删除 archive/manifest/object export 并写
+cleanup evidence 单独只进入 `target-destroyed`，失败路线对应 `failed-target-destroyed`。deadline 尚未来时
+必须再写严格 `source-retention-verification.json`，才分别进入 `retention-pending` 或
+`failed-cleaned-retention-pending`，禁止提前删除；若 cleanup 完成时 deadline 已到，则允许从两个
+`target-destroyed` 状态直接执行 `retention-close`，但 disposition 仍必须绑定 cleanup/source/tool/candidate、
+删除时间不得早于 deadline 且严格晚于 cleanup。`retention-close` 受控失败仅允许在 cleanup 已证明后记录，
+保留 archive 以便安全重试，不能冒充 closed；到期后删除 archive/manifest/object export 并写
 `source-disposition.json`，分别进入 `closed` 或 `failed-closed`。失败路线无法证明 target 删除时保持
 `failed-cleanup-pending` 并升级为事故，不能写伪 cleanup evidence；`failed-closed` 只表示失败操作和敏感残留
 已关闭，永远不算 restore drill 通过。
+
+时间顺序同样是 strict contract：restore completion 严格晚于 target-empty proof；post-restore failure 严格晚于
+restore；cleanup 严格晚于 restore 和已存在 failure；retention verification 严格晚于 cleanup；disposition
+严格晚于 cleanup、可选 retention verification 和已存在 failure，且不得早于 retention deadline。CLI 在调用
+external stage 前用批准 deadline fail closed：deadline 前只能 retention verify，deadline 到达后只能 close。
 
 ## 6. Secret、隐私与审计边界
 
@@ -344,7 +391,7 @@ target 已删除但 source archive 尚在已批准 retention deadline 内时，�
 
 以下是**用户/运营待决项**，本方案不猜测；它们不阻塞当前 Phase 81，但会阻塞首次真实 restore drill：
 
-1. 明确批准当前验收批次关闭后进入实现，并在实现通过后再次批准创建/删除 recovery project；
+1. 离线控制面实现已获准；在 fictional full restore 与完整门通过后，再明确批准创建/删除 recovery project；
 2. 确认 Supabase 组织的临时 project quota/费用、与最终 production source 同区创建能力和本次 Operator；若
    production source 最终不是 Singapore，不得沿用当前 acceptance 的 Singapore 结论；
 3. 确认 production backup retention、Supabase 残留期限、私有 body-free evidence 保留期限/位置和隐私披露；
@@ -353,6 +400,7 @@ target 已删除但 source archive 尚在已批准 retention deadline 内时，�
 
 ## 10. 实施阶段完成定义
 
-后续实现必须同时交付需求/技术方案同步、TDD RED/GREEN evidence、strict verifier、offline fictional restore、
-macOS 完整门与 Windows shared gate；真实 Hosted 操作必须另行批准。文档实现不关闭发布检查表的 production
-restore drill 项，也不改变 Phase 81/0014 当前状态。
+当前实现已交付需求/技术方案同步、Fresh RED/GREEN、strict verifier、TOC/order、process/secret/cleanup 与
+body-free verification 控制面。仍须交付 fixed networkless PG17 fictional full restore、获批 production
+source/target adapter、macOS 完整门、Windows shared gate和真实 Hosted 操作；production restore drill 发布项
+保持未关闭，也不改变 Phase 81/0014 当前状态。

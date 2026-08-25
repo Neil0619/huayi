@@ -96,14 +96,26 @@ function startBoundedTerminalReader(fileDescriptor) {
   return result;
 }
 
-export async function readHiddenTerminalLine() {
+const allowedPrompts = new Set([
+  "Recovery project administrator database password: ",
+  "Source archive administrator database password: ",
+  "Supabase administrator database password: ",
+  "Supabase recovery management token: ",
+]);
+
+export async function readHiddenTerminalLine(
+  prompt = "Supabase administrator database password: ",
+) {
+  if (!allowedPrompts.has(prompt)) {
+    throw new Error("Hosted important-batch secret prompt is unavailable.");
+  }
   const fileDescriptor = openSync("/dev/tty", "r+");
   let terminalState;
   try {
     terminalState = readTerminalState(fileDescriptor);
     runTerminalSettings(fileDescriptor, ["-echo", "-icanon", "-isig", "min", "1", "time", "0"]);
     const readerResult = startBoundedTerminalReader(fileDescriptor);
-    writeSync(fileDescriptor, "Supabase administrator database password: ");
+    writeSync(fileDescriptor, prompt);
     return await readerResult;
   } finally {
     try {

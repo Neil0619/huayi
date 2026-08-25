@@ -1941,9 +1941,9 @@ inspection；Phase 86 只实现受审查 writer 与隔离 rebuild，不连接 Su
 
 ### Phase 87：Hosted production 逻辑备份恢复演练（当前批次关闭后）
 
-影响平台为 `shared recovery tooling/docs + hosted production + macOS operator host`。本阶段先完成方案，不
-改变 Phase 81/0014 顺序；实现只在当前 Hosted 验收批次关闭后开始，真实 project create/restore/delete 另行
-批准。完整方案见 `hosted-logical-backup-restore-drill.md`。
+影响平台为 `shared recovery tooling/docs + hosted production + macOS operator host`。本阶段不改变 Phase
+81/0014 顺序；离线控制面已经开始实现，真实 project create/restore/delete 仍须另行批准。完整方案见
+`hosted-logical-backup-restore-drill.md`。
 
 1. **决策冻结**：真实 target 固定为批准后全新创建、同组织/同区/同 PostgreSQL major、无 Vercel/DNS/
    SMTP/OAuth/Cron/Vault/Edge/Provider 的临时 recovery project；networkless local PG17 只做 fixture/TDD，
@@ -1964,3 +1964,14 @@ inspection；Phase 86 只实现受审查 writer 与隔离 rebuild，不连接 Su
 7. **平台门**：actual v1 只支持受控 macOS OrbStack+FileVault；shared contract 必须通过 macOS/Windows
    gates，但不据此宣称 Windows operator support。若新增 Windows 执行，另做 BitLocker/Docker Desktop
    exact host contract 与实机验证。
+
+当前实现检查点：Fresh RED 已证明 restore modules 缺失；GREEN 已提供 strict lifecycle/document schema、
+`0700/0600` canonical atomic artifact store、reviewed TOC/order、secret-env 拒绝/TTY/private CA+`.pgpass`、
+bounded fixed-client child、unknown-identity-safe cleanup、count HMAC 与 Storage/security verdict，以及九个固定
+package 入口。`verify` 仅接受 `restored-verified`；target-stage 受控失败先持久化 fixed failure，cleanup 与
+source-retention evidence 分别表达 `target-destroyed` 和 `retention-pending`。private approved plan strict
+绑定批准时间、tool/source commit、archive/manifest/coverage/TOC、Storage、retention、region/PG major；
+每个 stage 还要求 clean HEAD=upstream 与 ignored evidence root。cleanup 时 deadline 已到可从
+`target-destroyed` 直接 strict close，未到则禁止提前删除。
+production identity/retention 未冻结，所以默认 adapter 不读取 secret、不联网并固定失败；
+networkless PG17 fictional full restore、production adapter、真实 Hosted drill 与 retention close 仍 pending。

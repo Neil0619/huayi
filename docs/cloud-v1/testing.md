@@ -999,15 +999,25 @@ confirmed Auth user/password method/profile 为 `1/1/2`、google method/Web sess
 - body-free verification 必须证明 source/target count HMAC digest 相同、schema/migration/FORCE RLS exact、
   owner A/B/unknown 隔离、Auth/application direct access deny、admin projection、application role/context deny
   matrix、Storage metadata/bytes 分支与 platform/global untouched；不保存 HMAC key、raw count、identity 或正文；
-- 每个失败 stage 都必须等待 child close，只清理精确 identity，删除 target、revoke credential、删除 partial
-  后才允许 fixed failure evidence。unknown container/project identity 不得删除；target absence 未证明时保持
-  cleanup-pending 并按事故处理；
-- strict artifacts 依次为 source attestation、target-empty、restore 或 failure、target-cleanup、到期后的 source
-  disposition；success/failure 互斥，target 未删或 backup retention 未关闭时不能宣称 drill complete；
+- 每个 target 相关失败 stage 都必须等待 child close，先原子提交 fixed failure evidence，再只清理精确
+  identity、删除 target、revoke credential 和 partial；cleanup evidence 只能在 absence 回读后提交。unknown
+  container/project identity 不得删除；target absence 未证明时保持 cleanup-pending 并按事故处理；
+- strict artifacts 依次为 source attestation、target-empty、restore 或 failure、target-cleanup、source-retention、
+  到期后的 source disposition；cleanup 单独只推导 `target-destroyed`，retention evidence 后才是
+  `retention-pending`；若 cleanup 后 deadline 已到，可直接 disposition，但 before-deadline close 与
+  after-deadline retention verify 均须在 external stage 前失败。restore/failure 通常互斥，只允许 post-restore
+  `target-delete|retention-close` 的受限失败例外；target 未删或 backup retention 未关闭时不能宣称 drill complete；
 - shared parser/process tests 在 macOS 与 Windows 门运行；v1 actual operator host 只在受控 macOS 上以
   FileVault + fixed OrbStack 验证。Windows 产品支持不变，但 shared GREEN 不得冒充 Windows restore operator
   已支持。完整 exact JSON keys、lifecycle 和 acceptance matrix 见
   `hosted-logical-backup-restore-drill.md`。
+- 当前离线控制面回归覆盖七类 evidence exact key/canonical/mode/order、严格 external success/failure union、
+  post-restore 失败受限例外、`target-destroyed` 与完整时间顺序、TOC drift 与
+  ACL/owner 拒绝、target-empty、source binding、secret-env/argv、TTY、私有 CA/`.pgpass`、bounded child、
+  unknown identity cleanup、count HMAC、Storage zero/separate-export 与固定 CLI/zero-I/O plan。默认 stage
+  adapter 缺失时必须在读取 secret、联网或创建 evidence 前固定失败；approved plan/candidate/source/hash/
+  retention/region/PG major 与 clean HEAD=upstream 任一漂移也必须在 stage 前失败。该组 GREEN 不替代尚未实现的
+  networkless PG17 fictional full restore，也不关闭真实 Hosted 门。
 
 ### 4.11 Phase 47 本机验收模拟模型
 

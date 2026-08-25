@@ -3,6 +3,25 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-25：Production restore drill 控制面与真实 adapter 分离
+
+- Phase 87 先实现可由默认 macOS/Windows 门离线验证的 strict contract/lifecycle、private canonical artifact、
+  reviewed TOC/order、secret/process/cleanup 与 body-free HMAC 模块；控制面不把 fixture 或布尔 verdict 冒充
+  Hosted restore；
+- production project/source archive/coverage/retention/region/PG major 尚未冻结，工具不得猜值。除 zero-I/O
+  plan 外，固定 package stage 只有在 private approved plan 与 reviewed adapter 安装后才能执行；默认状态在
+  读 secret、联网、创建 recovery project 或 evidence 前失败关闭；
+- `execute` 必须在同一进程完成 restore + body-free verify 才能原子提交成功 evidence，`verify` 只重读 strict
+  `restored-verified` evidence，不能对 planned/source-bound/target-empty/cleanup/retention/closed 或失败状态
+  返回成功；cleanup 后改由 status/retention contract 管理；
+- 已进入 target stage 的受控失败必须通过无 raw error 的 strict success/failure result union，先原子提交 fixed
+  failure evidence 再保持/进入 cleanup-pending。restore/failure 只为 post-restore
+  `target-delete|retention-close` 保留受限例外，failure lifecycle 永远优先；
+- cleanup evidence 单独推导 `target-destroyed`，新增 source-retention evidence 后才进入
+  `retention-pending`；若 cleanup 时 deadline 已到则允许用严格 disposition 直接 closed，deadline 前禁止 close、
+  到期后禁止新增 retention proof。失败路线保留对应状态和完整时间顺序。真实 adapter、
+  networkless PG17 fictional full restore、Hosted project create/delete 与 retention close 仍为独立待办和批准门。
+
 ## 2026-08-25：Vercel API/Web one-shot 必须由可恢复的只读状态机约束
 
 - 分支 allowlist 只保证项目范围，不能证明一次 push 只产生一次 deployment。Phase 81 的下一轮部署改用

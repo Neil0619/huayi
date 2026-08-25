@@ -138,8 +138,13 @@ audit 仍只允许 `enabled`。这不代表 Store 产品或 Windows 支持被取
 > prerequisite。新增 body-free `backup:status` 只输出 pre/rebuild/post 的 present/valid/
 > current 九个布尔 verdict；plan 不再静态声称 capture/rebuild 的执行状态。Production Hosted
 > dump restore drill 的需求、隔离 target、恢复顺序、strict evidence lifecycle、TDD 与季度 cadence 已在
-> Phase 87 文档冻结，但实现和真实演练仍 pending；它不是 Phase 81/0014 的新增依赖，只能在当前验收批次
-> 关闭并另行批准后执行。0014 dry-run 单命令的后续安全审查又发现旧实现没有显式 CA/hostname 验证；现已
+> Phase 87 文档冻结。strict contract/artifact、reviewed TOC/order、secret/process/cleanup、body-free HMAC 与
+> fixed CLI 的离线控制面已实现；`verify` 只接受 `restored-verified`，target failure 先写 fixed evidence，
+> cleanup/source-retention 依次显式表达 `target-destroyed`/`retention-pending`，且 post-restore failure 只有
+> `target-delete|retention-close` 受限例外；cleanup 时 deadline 已到可直接 strict close，未到不得提前删除。
+> production identity 尚未冻结，因此默认 adapter 固定失败且不读取 secret/
+> 联网。networkless PG17 fictional full restore、production adapter 和真实演练仍 pending；它不是 Phase
+> 81/0014 的新增依赖。0014 dry-run 单命令的后续安全审查又发现旧实现没有显式 CA/hostname 验证；现已
 > 改为内部 fixed-URL/无 redirect/有界严格 PEM CA 获取、管理员 transaction pooler `6543` verify-full
 > URL+child env 与 `0600` 临时 CA，调用者不再准备 CA env；只供 application 隔离 verifier 使用的 `5432`
 > 不再进入该 migration CLI。实际 apply 也已新增唯一受控入口：同一执行内把 preflight、exact dry-run、

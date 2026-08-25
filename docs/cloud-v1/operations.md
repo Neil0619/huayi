@@ -376,9 +376,16 @@ deploy 只接受精确 `--confirm-local-downtime`。任何失败都停止后续�
   Auth rows 与 Storage metadata，以 target-local role/ACL 重建权限；body-free count HMAC、RLS 双租户隔离、
   Auth/admin/application role 与 Storage bytes 门全部通过后删除整个 project。archive 不含 Storage object
   bytes；非零 objects 需要独立加密 export/restore 批准。
-- cleanup 必须回读 project 不存在、凭据撤销、临时文件/container 清空；retained backup 到已批准 deadline
-  后再删除 archive/manifest/object export 并留下 body-free disposition evidence。Supabase backup residual、
+- cleanup 必须回读 project 不存在、凭据撤销、临时文件/container 清空并先进入 `target-destroyed`；随后以
+  独立 retention evidence 证明 archive 仍在批准保留期，才能进入 `retention-pending`。到已批准 deadline 后
+  再删除 archive/manifest/object export 并留下 body-free disposition evidence；若 cleanup 时 deadline 已到，
+  可从 `target-destroyed` 直接 close，但仍不得早于 deadline 或缺 cleanup proof。Supabase backup residual、
   evidence/archive retention 和公开隐私期限尚未由用户确认时停止，不能填写猜测数字。
+- `pnpm acceptance:hosted:restore:plan` 是当前唯一默认可成功的 restore-drill 命令，且零 filesystem/Git/network/
+  write。source verify、target-empty、execute、verify、cleanup、retention verify/close 与 status 都使用固定
+  confirmation；`verify` 只接受 `restored-verified`，cleanup 后改用 status/retention contract；
+  在 private approved plan 和 reviewed production adapter 安装前固定失败，不能通过 dynamic project/path/env
+  绕过。安装 adapter 与真实运行分别需要再次审查和批准。
 - 账号删除任务超过 1 小时告警，24 小时仍未完成升级为事故；session 撤销必须在请求返回前完成。
 - AccountDataExport 私有对象在 ready 后设置 24 小时 expiry；签名下载最长 15 分钟且不能越过对象到期。
   当前对象存储没有可信“下载完成”回调，因此任务到期先变为不可下载的 expired，再幂等删除对象；清理
