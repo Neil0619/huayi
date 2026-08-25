@@ -15,6 +15,10 @@ import {
 
 const candidateCommit = "0123456789abcdef0123456789abcdef01234567";
 const temporaryRoots = [];
+const portableFilesystemOptions =
+  process.platform === "win32"
+    ? { directorySync: async () => undefined, privateModeMatches: () => true }
+    : {};
 
 test.afterEach(async () => {
   await Promise.all(
@@ -36,6 +40,7 @@ test("Phase 91 artifact writer persists independent pre and post heads without P
     { expectedHead: "20260825010000", phase: "post" },
   ]) {
     await persistHostedPhase91Backup({
+      ...portableFilesystemOptions,
       candidateCommit,
       now: () => new Date("2026-08-26T01:02:03.000Z"),
       phase,
@@ -63,6 +68,7 @@ test("Phase 91 artifact writer persists independent pre and post heads without P
 test("Phase 91 artifact writer persists only an exact 0015 rebuild verdict", async () => {
   const root = await temporaryRepository();
   await persistHostedPhase91Rebuild({
+    ...portableFilesystemOptions,
     candidateCommit,
     now: () => new Date("2026-08-26T01:02:03.000Z"),
     performRebuild: async () => ({
@@ -87,6 +93,7 @@ test("Phase 91 artifact writer persists only an exact 0015 rebuild verdict", asy
   const occupied = await temporaryRepository();
   await assert.rejects(
     persistHostedPhase91Rebuild({
+      ...portableFilesystemOptions,
       candidateCommit,
       performRebuild: async () => ({ fictionalSeedExact: true }),
       repositoryRoot: occupied,

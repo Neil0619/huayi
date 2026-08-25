@@ -320,8 +320,10 @@ export async function captureHostedImportantBatchBackup({
   artifactContract = hostedPhase81ArtifactContract,
   caCertificate,
   candidateCommit,
+  directorySync,
   phase,
   persistBackup = persistHostedImportantBatchBackup,
+  privateModeMatches,
   repositoryRoot,
   resolveDockerTarget = resolveLocalDockerInspectionTarget,
   runProcess = runHostedImportantBatchProcess,
@@ -337,7 +339,9 @@ export async function captureHostedImportantBatchBackup({
   await persistBackup({
     artifactContract,
     candidateCommit,
+    directorySync,
     phase,
+    privateModeMatches,
     produceArchive: async ({ archivePartialPath, phaseRoot }) => {
       const pgpassPath = join(phaseRoot, ".capture.pgpass");
       const caPath = join(phaseRoot, ".capture-ca.crt");

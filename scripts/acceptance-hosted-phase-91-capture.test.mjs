@@ -41,6 +41,8 @@ test("Phase 91 capture exposes only its independent fixed pre and post arguments
 });
 
 test("Phase 91 capture binds 14-to-15 heads, distinct container labels, and its own evidence", async () => {
+  let directorySyncs = 0;
+  let privateModeChecks = 0;
   for (const { expectedHead, phase } of [
     { expectedHead: "20260824010000", phase: "pre" },
     { expectedHead: "20260825010000", phase: "post" },
@@ -87,7 +89,14 @@ test("Phase 91 capture binds 14-to-15 heads, distinct container labels, and its 
       administratorPassword: "fictional-administrator-password",
       caCertificate,
       candidateCommit,
+      directorySync: async () => {
+        directorySyncs += 1;
+      },
       phase,
+      privateModeMatches: () => {
+        privateModeChecks += 1;
+        return true;
+      },
       repositoryRoot: root,
       resolveDockerTarget: async () => dockerTarget,
       runProcess,
@@ -101,4 +110,6 @@ test("Phase 91 capture binds 14-to-15 heads, distinct container labels, and its 
     );
     assert.equal(manifest.migrationHead, expectedHead);
   }
+  assert.equal(directorySyncs, 4);
+  assert.equal(privateModeChecks, 10);
 });
