@@ -100,6 +100,9 @@ test("rebuild runs a networkless digest-only scratch, applies exact migrations a
       destroyed = true;
       return { code: 0, stdout: `${hostedImportantBatchScratchContainer}\n` };
     }
+    if (arguments_[2] === "exec" && arguments_.includes("head")) {
+      return { code: 0, stdout: "1\n" };
+    }
     if (arguments_[2] === "exec" && arguments_.includes("pg_isready")) {
       return { code: 0, stdout: "" };
     }
@@ -149,6 +152,80 @@ test("rebuild runs a networkless digest-only scratch, applies exact migrations a
   assert.equal(manifest.scratchDestroyed, true);
 });
 
+test("rebuild waits for the final PID 1 postmaster after early pg_isready success", async () => {
+  const root = await temporaryRepository();
+  let started = false;
+  let destroyed = false;
+  let postmasterChecks = 0;
+  let finalPostmasterReady = false;
+  await rebuildHostedImportantBatchScratch({
+    candidateCommit,
+    loadSources: async () => fictionalSources(),
+    repositoryRoot: root,
+    resolveDockerTarget: async () => dockerTarget,
+    runProcess: async (_command, arguments_, options = {}) => {
+      if (arguments_[2] === "container" && arguments_[3] === "inspect") {
+        if (!started || destroyed) return { code: 1, stdout: "" };
+        return {
+          code: 0,
+          stdout: JSON.stringify({
+            Config: {
+              Image: hostedImportantBatchPostgresRuntimeReference,
+              Labels: { "com.seen-said.acceptance": "phase-81-0014-rebuild" },
+            },
+            HostConfig: {
+              Binds: null,
+              NetworkMode: "none",
+              Tmpfs: {
+                "/var/lib/postgresql/data": "rw,nosuid,nodev,noexec,size=2147483648,mode=0700",
+              },
+            },
+            Mounts: [],
+          }),
+        };
+      }
+      if (arguments_[2] === "run") {
+        started = true;
+        return { code: 0, stdout: "started\n" };
+      }
+      if (arguments_[2] === "rm") {
+        destroyed = true;
+        return { code: 0, stdout: `${hostedImportantBatchScratchContainer}\n` };
+      }
+      if (arguments_[2] === "exec" && arguments_.includes("head")) {
+        postmasterChecks += 1;
+        finalPostmasterReady = postmasterChecks >= 3;
+        return {
+          code: 0,
+          stdout: ["44\n", "1\nextra", "1\n"][postmasterChecks - 1],
+        };
+      }
+      if (arguments_[2] === "exec" && arguments_.includes("pg_isready")) {
+        return { code: 0, stdout: "" };
+      }
+      if (arguments_[2] === "exec" && options.input?.includes("baseline_contract")) {
+        assert.equal(finalPostmasterReady, true);
+        return { code: 0, stdout: "baseline_contract|t\n" };
+      }
+      if (arguments_[2] === "exec" && options.input?.includes("rebuild_contract")) {
+        return {
+          code: 0,
+          stdout:
+            "migration_chain_exact|t\nfictional_seed_exact|t\nhosted_data_absent|t\nruntime_contract_exact|t\n",
+        };
+      }
+      if (arguments_[2] === "exec" && options.input !== undefined) {
+        return { code: 0, stdout: "" };
+      }
+      return { code: 1, stdout: "" };
+    },
+    wait: async () => undefined,
+  });
+
+  assert.equal(postmasterChecks, 3);
+  assert.equal(destroyed, true);
+});
+
 test("rebuild destroys scratch and writes no evidence after any migration or verification failure", async () => {
   for (const failAt of ["migration", "verification", "destroy"]) {
     const root = await temporaryRepository();
@@ -194,6 +271,7 @@ test("rebuild destroys scratch and writes no evidence after any migration or ver
             removed = true;
             return { code: 0, stdout: `${hostedImportantBatchScratchContainer}\n` };
           }
+          if (arguments_.includes("head")) return { code: 0, stdout: "1\n" };
           if (arguments_.includes("pg_isready")) return { code: 0, stdout: "" };
           if (options.input?.includes("baseline_contract")) {
             return { code: 0, stdout: "baseline_contract|t\n" };

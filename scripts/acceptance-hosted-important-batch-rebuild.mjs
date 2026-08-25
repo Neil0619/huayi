@@ -243,7 +243,22 @@ function scratchRuntimeIsExact(source) {
 }
 
 async function waitForScratch(dockerTarget, runProcess, wait) {
-  for (let attempt = 0; attempt < 60; attempt += 1) {
+  for (let attempt = 0; attempt < 1_200; attempt += 1) {
+    const postmaster = await runProcess(
+      dockerTarget.command,
+      dockerArguments(dockerTarget, [
+        "exec",
+        hostedImportantBatchScratchContainer,
+        "head",
+        "--lines=1",
+        "/var/lib/postgresql/data/postmaster.pid",
+      ]),
+      { maxOutputBytes: 16, timeoutMilliseconds: 5_000 },
+    );
+    if (postmaster.code !== 0 || postmaster.stdout !== "1\n") {
+      await wait(250);
+      continue;
+    }
     const ready = await runProcess(
       dockerTarget.command,
       dockerArguments(dockerTarget, [

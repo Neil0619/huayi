@@ -2407,3 +2407,21 @@ typecheck、architecture、build、development blocker、Store release、product
   journey 仍 pending。dry-run 不生成 backup evidence、不使 0014 ready，也不构成 apply 授权；
 - **副作用边界**：本次只记录用户提供的只读回执；文档校准没有连接 Supabase、执行 migration、运行
   capture/rebuild、发送邮件、部署或调用模型，也没有恢复暂停中的 isolated rebuild 诊断。
+
+## 91. Phase 81 isolated rebuild 最终 postmaster readiness 修复（2026-08-25）
+
+- **真实失败与授权边界**：clean `699d16e` 已删除错误 PGDATA override，readiness 与完整 macOS 门通过；
+  随后的 exact rebuild 仍固定失败关闭且没有留下 rebuild evidence。用户随后明确批准继续安全诊断；本阶段
+  只操作本机 OrbStack Unix socket 和既有 fixed-digest PostgreSQL 镜像，所有诊断容器均 `--network none`、
+  无端口、无 bind/named volume，并在回读后立即删除；没有连接 Hosted/Supabase/Vercel/Resend/DeepSeek，
+  没有读取秘密、运行 capture/0014、发送邮件或部署；
+- **根因证据**：镜像入口会先启动初始化临时 postmaster。local-only probe 在约 250ms 即观察到
+  `pg_isready` 成功，但 Auth/Storage baseline 在旧 15 秒窗口内不成立；有界延长观察显示 init scripts 继续
+  正常运行，约 170 秒后才停止临时 server 并以 PID 1 启动最终 PostgreSQL。旧实现因此在临时 server 上
+  提前执行 baseline 并主动销毁 scratch，不是镜像退出、网络依赖或 digest/架构错误；
+- **Fresh RED 与最小 GREEN**：新增回归让 `pg_isready` 从第一次就成功，同时让 postmaster PID 依次为临时
+  值、带额外输出的伪 `1`、最后才是精确 `1\n`；旧实现以 generic rebuild failure 变红。最小修复在每次
+  `pg_isready` 前先用固定 bounded `head` 读取 tmpfs `postmaster.pid`，只接受精确 `1\n`，并把总等待固定为
+  五分钟。focused regression 转绿，所有其它 PID/额外输出/缺文件/超时仍失败关闭；
+- **状态边界**：修复阶段没有调用会生成 manifest 的真实 rebuild，evidence 目录继续为空。根任务提交 clean
+  candidate 并重跑 readiness 后，才可再次执行唯一 exact rebuild；成功前不得运行 preflight 或 0014 apply。

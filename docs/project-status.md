@@ -118,7 +118,10 @@ audit 仍只允许 `enabled`。这不代表 Store 产品或 Windows 支持被取
 > 静态 lock 门零 Docker/零网络且已通过；11 个固定镜像已按批准获取并完成 OrbStack local-only inspection，
 > reviewed writer 与三个 exact-confirmation capture/rebuild entrypoint 也已实现。readiness 已在 clean candidate
 > 上通过；其后两次 exact rebuild 均因真实 OrbStack absent-inspect 输出形态在 scratch start 前安全失败，
-> 两次都是零 scratch、零 evidence。CLI cache miss 会 pull，普通 start 仍禁止。
+> 两次都是零 scratch、零 evidence。后续 clean `699d16e` 已让 scratch 启动，但再次暴露镜像初始化竞态：
+> 临时 postmaster 会提前通过 `pg_isready`，最终 PID 1 postmaster 约 170 秒后才完成。Fresh RED 后已改为
+> `postmaster.pid` 精确 `1\n` + `pg_isready` 双判据及五分钟硬上限；真实 evidence rebuild 尚未在该修复的
+> clean candidate 上重试。CLI cache miss 会 pull，普通 start 仍禁止。
 > 数据库 archive 最多覆盖经过 contract 验证的 Auth rows 与 Storage metadata，不包含 Storage object bytes；
 > objects 非零时必须另行 export。pre/post capture 尚未运行，isolated rebuild 尚未成功。Production Hosted
 > dump restore drill 的需求、隔离 target、恢复顺序、strict evidence lifecycle、TDD 与季度 cadence 已在

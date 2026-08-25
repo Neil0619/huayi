@@ -940,7 +940,10 @@ confirmed Auth user/password method/profile 为 `1/1/2`、google method/Web sess
   `--pull never`、`--network none` 与唯一 tmpfs PGDATA，无 host/named volume/port；精确读取 14 migration 和
   SHA-256 固定 fictional seed，验证完整 Auth/Storage DB baseline、唯一 fictional profile、零 Auth identity/
   user、零 Storage object、零 invitation/claim，并在 container 删除回查后才写 manifest。静态 migration test、
-  dump listing、command exit 0 或手写 manifest 不能替代实际隔离重建；
+  dump listing、command exit 0 或手写 manifest 不能替代实际隔离重建。Supabase PostgreSQL 镜像初始化期间的
+  临时 postmaster 会提前通过 `pg_isready`；rebuild 必须先以 fixed `head` probe 精确观察 tmpfs
+  `postmaster.pid` 首行为 `1\n`，再要求 `pg_isready`，并在固定五分钟上限内失败关闭。任意其它 PID、额外
+  输出、缺文件或仅有早期 `pg_isready` 都不得提前执行 baseline；
 - raw logical dump 是敏感备份，不进入测试 fixture/stdout/log。默认测试只使用不含用户数据的内存 adapter；
   测试必须区分 PG17 full-database custom archive 与 Supabase CLI filtered SQL，且断言 Storage object bytes、
   global roles 和 Hosted platform config 不在 archive 覆盖声明内；

@@ -1904,7 +1904,11 @@ inspection；Phase 86 只实现受审查 writer 与隔离 rebuild，不连接 Su
    共享 strict predicate 只增加该精确形态并继续拒绝宽松输出，失败尝试未启动 scratch 或生成 evidence。clean
    `b329e97` 的第二次真实尝试又捕获连续稳定的 exit 1 + 单个换行 `\n`；Fresh RED 在 settle/capture/rebuild 三处
    精确失败后只加入该 exact 形态，仍拒绝任意其它空白、无换行 `[]`、JSON/文本、exit 0 与未知同名 identity。
-   第二次失败同样零 scratch、零 evidence，且未连接 Hosted、发送邮件或部署；
+   第二次失败同样零 scratch、零 evidence，且未连接 Hosted、发送邮件或部署。后续 clean `699d16e` 候选已
+   去除错误 PGDATA override，但 exact rebuild 又因把初始化临时 postmaster 的早期 `pg_isready` 当成最终
+   readiness 而失败关闭。授权的 networkless safe-debug 证明约 250ms 即 `pg_isready`，最终 PID 1 postmaster
+   则约 170 秒才启动；Fresh RED 复现 baseline 被提前执行。最小修复要求 `postmaster.pid` 精确 `1\n` +
+   `pg_isready` 双判据并保留五分钟硬上限；修复后尚未运行会生成 evidence 的真实 rebuild；
 10. **动作账本**：executor prerequisite/readiness → pre capture/rebuild → `backup:preflight` → real dry-run →
     `migration:0014:apply`（内部再次 exact dry-run、mutation 前重查 preflight/source identity、写后只读
     postflight）→ post capture → `backup:complete` → API/Web 串行 deployment。禁止手工 `db push --yes`；

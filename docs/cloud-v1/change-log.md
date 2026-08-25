@@ -191,6 +191,11 @@
   stdout 精确单个换行 `\n`。共享 predicate 因此只再加入这一种真实形态；empty、`\n`、`[]\n` 之外的空白、
   无换行 `[]`、JSON/文本、exit 0 与未知同名 identity 仍全部拒绝。该次失败同样零 scratch、零 evidence，未
   连接 Hosted、发送邮件或产生 deployment；
+- clean `699d16e` 去除错误 PGDATA override 后，真实 scratch 可以启动，但旧 readiness 只看
+  `pg_isready`：Supabase 镜像的初始化临时 postmaster 约 250ms 即可连接，完整 init scripts 与最终 PID 1
+  postmaster 则约 170 秒才完成。安全诊断容器保持 `--network none`、无端口/挂载并在每次探测后销毁；
+  Fresh RED 证明 baseline 会在最终 postmaster 前执行。rebuild 现只接受 `postmaster.pid` 精确 `1\n` 后的
+  `pg_isready`，固定五分钟超时并继续在失败时零 evidence；真实 evidence rebuild 尚待 clean 候选提交后重试；
 - Fresh RED 为 artifacts/capture/rebuild 三个 module 均 `ERR_MODULE_NOT_FOUND`。实现阶段先完成离线 fake 与
   本机文件系统测试；随后两次 exact rebuild 均在 scratch start 前安全失败，没有成功执行重建，也没有连接
   Hosted、执行 dump/restore、生成真实 evidence、应用 0014、发邮件或部署。
