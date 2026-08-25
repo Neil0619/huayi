@@ -51,6 +51,7 @@ function createCaFetchResponse(chunks, { status = 200, url = officialCaUrl } = {
 
 function createChild() {
   const child = new EventEmitter();
+  child.stderr = new PassThrough();
   child.stdout = new PassThrough();
   child.kill = () => true;
   return child;
@@ -169,14 +170,15 @@ test("0014 dry-run process pins verify-full to a private temporary CA and remove
   assert.equal(observed.options.env.PGSSLMODE, "verify-full");
   assert.match(observed.options.env.PGSSLROOTCERT, /\/huayi-hosted-0014-ca-[^/]+\/root\.crt$/u);
   assert.equal(observed.options.shell, false);
-  assert.deepEqual(observed.options.stdio, ["ignore", "pipe", "ignore"]);
+  assert.deepEqual(observed.options.stdio, ["ignore", "pipe", "pipe"]);
   const certificateStats = await stat(observed.options.env.PGSSLROOTCERT);
   assert.equal(certificateStats.mode & 0o777, 0o600);
   assert.equal(await readFile(observed.options.env.PGSSLROOTCERT, "utf8"), caCertificate);
 
-  child.stdout.end(validOutput);
+  child.stdout.end();
+  child.stderr.end(validOutput);
   child.emit("close", 0, null);
-  assert.deepEqual(await resultPromise, { code: 0, stdout: validOutput });
+  assert.deepEqual(await resultPromise, { code: 0, stderr: validOutput, stdout: "" });
   await assert.rejects(stat(observed.options.env.PGSSLROOTCERT), { code: "ENOENT" });
   assert.equal(JSON.stringify(observed.arguments_).includes("fictional-secret"), false);
 });
@@ -197,9 +199,10 @@ test("0014 dry-run process suppresses overflow and waits for a timed-out child t
   while (!overflowSpawned) {
     await new Promise((resolveWait) => setImmediate(resolveWait));
   }
-  overflowChild.stdout.write("123456789");
+  overflowChild.stdout.write("1234");
+  overflowChild.stderr.write("56789");
   overflowChild.emit("close", null, "SIGKILL");
-  assert.deepEqual(await overflowPromise, { code: null, stdout: "" });
+  assert.deepEqual(await overflowPromise, { code: null, stderr: "", stdout: "" });
 
   const timeoutChild = createChild();
   let killed = false;
@@ -229,7 +232,7 @@ test("0014 dry-run process suppresses overflow and waits for a timed-out child t
   assert.equal(killed, true);
   assert.equal(resolved, false);
   timeoutChild.emit("close", null, "SIGKILL");
-  assert.deepEqual(await timeoutPromise, { code: null, stdout: "" });
+  assert.deepEqual(await timeoutPromise, { code: null, stderr: "", stdout: "" });
 });
 
 test("0014 dry-run CLI fixes every CA temp and spawn failure to one closed result", async () => {

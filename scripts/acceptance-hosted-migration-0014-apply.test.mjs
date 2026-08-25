@@ -59,7 +59,7 @@ function createDependencies(overrides = {}) {
           administratorPassword: "fictional-administrator-password",
           caCertificate,
         });
-        return { code: 0, stdout: validDryRunOutput };
+        return { code: 0, stderr: validDryRunOutput, stdout: "" };
       },
       runPostflight: async (secrets) => {
         calls.push("postflight");
@@ -195,6 +195,19 @@ test("0014 apply orders preflight, exact dry-run, mutation, and postflight", asy
   });
 });
 
+test("0014 apply accepts the exact mutation preflight transcript from stderr only", async () => {
+  const { dependencies } = createDependencies({
+    runDryRun: async () => ({ code: 0, stderr: validDryRunOutput, stdout: "" }),
+  });
+  const result = await runCli(dependencies);
+
+  assert.deepEqual(result, {
+    code: 0,
+    stderr: "",
+    stdout: `${hostedMigration0014ApplySuccessMessage}\n`,
+  });
+});
+
 test("0014 apply rechecks candidate evidence and migration identity immediately before mutation", async () => {
   let preflightCalls = 0;
   let applyCalls = 0;
@@ -205,7 +218,7 @@ test("0014 apply rechecks candidate evidence and migration identity immediately 
       applyCalls += 1;
       return { code: 0 };
     },
-    runDryRun: async () => ({ code: 0, stdout: validDryRunOutput }),
+    runDryRun: async () => ({ code: 0, stderr: validDryRunOutput, stdout: "" }),
     runPostflight: async () => true,
     runPreflight: async () => {
       preflightCalls += 1;
@@ -237,8 +250,13 @@ test("0014 repository identity pins byte-identical API and Supabase migration mi
 
 test("0014 apply never mutates unless the same operation dry-runs exactly one 0014", async () => {
   for (const dryRunResult of [
-    { code: 1, stdout: validDryRunOutput },
-    { code: 0, stdout: validDryRunOutput.replace(hostedMigration0014Filename, "extra.sql") },
+    { code: 1, stderr: validDryRunOutput, stdout: "" },
+    { code: 0, stderr: validDryRunOutput, stdout: "unexpected" },
+    {
+      code: 0,
+      stderr: validDryRunOutput.replace(hostedMigration0014Filename, "extra.sql"),
+      stdout: "",
+    },
   ]) {
     const calls = [];
     const result = await runCli({
@@ -271,7 +289,7 @@ test("0014 apply requires both a successful child and exact read-only postflight
       fetchCaCertificate: async () => caCertificate,
       readPassword: async () => "fictional-administrator-password",
       runApply: async () => ({ code: testCase.applyCode }),
-      runDryRun: async () => ({ code: 0, stdout: validDryRunOutput }),
+      runDryRun: async () => ({ code: 0, stderr: validDryRunOutput, stdout: "" }),
       runPostflight: async () => {
         postflightCalls += 1;
         return testCase.postflight;

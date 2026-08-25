@@ -339,7 +339,11 @@ export async function runHostedMigration0014ApplyCli({
     if (!passwordIsValid(administratorPassword)) throw new Error(failureMessage);
     const secrets = { administratorPassword, caCertificate };
     const dryRun = await runDryRun(secrets);
-    if (dryRun.code !== 0 || !parseHostedMigration0014DryRunOutput(dryRun.stdout)) {
+    if (
+      dryRun.code !== 0 ||
+      dryRun.stdout !== "" ||
+      !parseHostedMigration0014DryRunOutput(dryRun.stderr)
+    ) {
       throw new Error(failureMessage);
     }
     if ((await runPreflight()) !== true) throw new Error(failureMessage);

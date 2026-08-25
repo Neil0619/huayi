@@ -49,6 +49,11 @@ verify-full URL/child env 与 `0600` 临时 CA；用户仍只运行一个 pnpm �
 随后 2026-08-25 用户提供的真实 raw child transcript 精确包含 non-mutating header、remote connection
 marker、唯一 `20260824010000_password_signup_otp_resend.sql` 与 finished marker，已匹配 strict parser；据此
 记录真实 dry-run 完成且数据库未修改，不把未提供的 wrapper 固定成功行写成已观察证据。后续实际写入也已
+发现同一 pinned Supabase CLI 把该 transcript 写到 `stderr`、`stdout` 为空；旧 standalone wrapper 因只读取
+`stdout` 而在成功 child 后误报固定失败。当前候选已修正 standalone 与 apply 内部 mutation preflight：分别
+有界收集双通道，但只接受 exit 0、empty stdout 与 exact stderr transcript；混合通道、ANSI、额外输出、
+overflow、timeout 或 signal 继续失败关闭且不反射 child 输出。修复后的 wrapper 尚未连接 Hosted 重跑。后续
+实际写入仍已
 收敛到单一
 `pnpm acceptance:hosted:migration:0014:apply`：它绑定 preflight、同执行 exact dry-run、mutation 前
 clean-HEAD/source-hash 重查和写后只读 canonical-chain/0014-contract postflight；该入口尚未真实运行，不能

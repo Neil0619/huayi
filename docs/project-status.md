@@ -135,6 +135,11 @@ audit 仍只允许 `enabled`。这不代表 Store 产品或 Windows 支持被取
 > non-mutating header、remote connection marker、唯一 `20260824010000_password_signup_otp_resend.sql`
 > 与 finished marker，因此本次 dry-run 已完成且数据库未修改；未观察到的 wrapper 固定成功行不作为证据。
 > 这项只读证据不替代仍缺失的 pre capture、成功 isolated rebuild 与 backup preflight，也不授权 apply。
+> 随后 standalone wrapper 重试在相同密码提示后固定失败。离线安全探针确认 pinned Supabase CLI 把完整
+> dry-run transcript 写到 `stderr`、`stdout` 为空，而 wrapper 当时只读取 `stdout` 并丢弃 `stderr`；这不是
+> migration 或密码失败。现已让 standalone 与 apply 内部 dry-run 只接受 exit 0 + empty stdout + exact
+> stderr transcript，并继续拒绝混合通道、ANSI、额外输出、overflow 与 timeout；尚未重新连接 Hosted 运行
+> 修复后的 wrapper，也未授权 apply。
 > pre/post capture 随后也复用同一 fixed official CA fetch 深模块：用户只运行既有 pnpm 命令并输入管理员
 > 密码，CA 在密码提示前完成有界严格验证，不再准备 CA environment；本次只完成离线实现与 fake-fetch/
 > 真实 PTY 回归，尚未运行真实 capture 或连接 Supabase。

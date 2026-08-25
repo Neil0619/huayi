@@ -58,6 +58,28 @@ test("0014 dry-run parser accepts only the exact non-mutating single migration t
   }
 });
 
+test("0014 dry-run CLI accepts the exact Supabase transcript from stderr only", async () => {
+  let stdout = "";
+  let stderr = "";
+  const code = await runHostedMigration0014DryRunCli({
+    arguments_: [hostedMigration0014DryRunArgument],
+    environment: {},
+    fetchCaCertificate: async () => caCertificate,
+    readPassword: async () => "fictional-secret",
+    runSupabase: async () => ({ code: 0, stderr: validOutput, stdout: "" }),
+    writeError: (value) => {
+      stderr += value;
+    },
+    writeOutput: (value) => {
+      stdout += value;
+    },
+  });
+
+  assert.equal(code, 0);
+  assert.equal(stdout, `${hostedMigration0014SuccessMessage}\n`);
+  assert.equal(stderr, "");
+});
+
 test("0014 dry-run CLI rejects inherited password variables and invalid confirmation before TTY input", async () => {
   for (const testCase of [
     {
@@ -278,7 +300,7 @@ test("0014 dry-run CLI reports one fixed success and never reflects process outp
     readPassword: async () => password,
     runSupabase: async (secrets) => {
       assert.deepEqual(secrets, { administratorPassword: password, caCertificate });
-      return { code: 0, stdout: validOutput };
+      return { code: 0, stderr: validOutput, stdout: "" };
     },
     writeError: (value) => {
       stderr += value;
@@ -297,12 +319,17 @@ test("0014 dry-run CLI reports one fixed success and never reflects process outp
 
 test("0014 dry-run CLI fails closed on invalid secret or every untrusted process result", async () => {
   const failures = [
-    { password: "", result: { code: 0, stdout: validOutput } },
-    { password: "x".repeat(513), result: { code: 0, stdout: validOutput } },
-    { password: "bad\nsecret", result: { code: 0, stdout: validOutput } },
-    { password: "valid", result: { code: 1, stdout: validOutput } },
-    { password: "valid", result: { code: null, stdout: "" } },
-    { password: "valid", result: { code: 0, stdout: `${validOutput}secret-output\n` } },
+    { password: "", result: { code: 0, stderr: validOutput, stdout: "" } },
+    { password: "x".repeat(513), result: { code: 0, stderr: validOutput, stdout: "" } },
+    { password: "bad\nsecret", result: { code: 0, stderr: validOutput, stdout: "" } },
+    { password: "valid", result: { code: 1, stderr: validOutput, stdout: "" } },
+    { password: "valid", result: { code: null, stderr: "", stdout: "" } },
+    { password: "valid", result: { code: 0, stderr: validOutput, stdout: "unexpected" } },
+    { password: "valid", result: { code: 0, stderr: `\u001b[31m${validOutput}`, stdout: "" } },
+    {
+      password: "valid",
+      result: { code: 0, stderr: `${validOutput}secret-output\n`, stdout: "" },
+    },
   ];
   for (const { password, result } of failures) {
     let processRuns = 0;

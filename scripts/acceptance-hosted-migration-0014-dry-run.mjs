@@ -80,6 +80,8 @@ export async function runHostedMigration0014DryRunProcess(
     });
     return await new Promise((resolveResult) => {
       let settled = false;
+      let outputBytes = 0;
+      let stderr = "";
       let stdout = "";
       let invalidResult = false;
       let timeout;
@@ -99,7 +101,7 @@ export async function runHostedMigration0014DryRunProcess(
           PGSSLROOTCERT: rootCertificate,
         },
         shell: false,
-        stdio: ["ignore", "pipe", "ignore"],
+        stdio: ["ignore", "pipe", "pipe"],
         windowsHide: true,
       });
       timeout = setTimeout(() => {
@@ -107,19 +109,26 @@ export async function runHostedMigration0014DryRunProcess(
         child.kill("SIGKILL");
       }, timeoutMilliseconds);
       child.stdout.setEncoding("utf8");
-      child.stdout.on("data", (chunk) => {
-        if (Buffer.byteLength(stdout) + Buffer.byteLength(chunk) > maxOutputBytes) {
+      child.stderr.setEncoding("utf8");
+      const captureOutput = (channel) => (chunk) => {
+        outputBytes += Buffer.byteLength(chunk);
+        if (outputBytes > maxOutputBytes) {
           invalidResult = true;
+          stderr = "";
           stdout = "";
           child.kill("SIGKILL");
           return;
         }
-        stdout += chunk;
-      });
-      child.once("error", () => finish({ code: null, stdout: "" }));
+        if (channel === "stderr") stderr += chunk;
+        else stdout += chunk;
+      };
+      child.stdout.on("data", captureOutput("stdout"));
+      child.stderr.on("data", captureOutput("stderr"));
+      child.once("error", () => finish({ code: null, stderr: "", stdout: "" }));
       child.once("close", (code, signal) => {
         finish({
           code: invalidResult || signal !== null ? null : code,
+          stderr: invalidResult ? "" : stderr,
           stdout: invalidResult ? "" : stdout,
         });
       });
@@ -150,7 +159,11 @@ export async function runHostedMigration0014DryRunCli({
     const password = await readPassword();
     if (!passwordIsValid(password)) throw new Error(failureMessage);
     const result = await runSupabase({ administratorPassword: password, caCertificate });
-    if (result.code !== 0 || !parseHostedMigration0014DryRunOutput(result.stdout)) {
+    if (
+      result.code !== 0 ||
+      result.stdout !== "" ||
+      !parseHostedMigration0014DryRunOutput(result.stderr)
+    ) {
       throw new Error(failureMessage);
     }
     writeOutput(`${hostedMigration0014SuccessMessage}\n`);

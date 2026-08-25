@@ -3,6 +3,17 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-25：Supabase 0014 dry-run 只接受 stderr 上的严格单迁移 transcript
+
+- 仓库 pinned Supabase CLI 的 npm launcher 把底层 CLI 进度原样写到 `stderr`；0014 standalone dry-run
+  与 apply 内部 mutation preflight 必须按这个真实通道验证，不能继续只读取空的 `stdout` 后把成功命令
+  误判为失败；
+- child runner 必须分别、有界收集 `stdout`/`stderr`，总量共享 128 KiB 上限并继续等待 timeout/overflow
+  child close。只有 exit 0、`stdout` 精确为空且 `stderr` 精确等于 non-mutating header、connection marker、
+  唯一 0014 migration 与 finished marker时才成功；
+- 双通道内容、ANSI、额外行、其他 migration、overflow、timeout、signal 或 spawn error 一律失败关闭。
+  原始 child 输出与密码不得转发到操作者输出；对外仍只使用固定成功或失败文案。
+
 ## 2026-08-25：数据权利失败响应、删除回执与受限会话退出收紧
 
 - 数据权利五条公开 route 必须在认证和 request validation 前设置
