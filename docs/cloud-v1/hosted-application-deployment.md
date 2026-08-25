@@ -605,6 +605,32 @@ archive 不包含 Storage object bytes、global roles 或 Hosted platform config
 返回 `pre_current|t` 与 `rebuild_current|t` 才能进入 preflight，0014 不得绕过该门。完整 contract 见
 `hosted-important-batch-backup.md`。
 
+## 6.7 API→Web 严格串行 one-shot 可执行门
+
+Phase 81 的 post backup/completion 之后，不再只靠人工观察控制 arm 窗口。固定入口为：
+
+1. `pnpm acceptance:hosted:deployment:one-shot:plan`：零 environment/filesystem/Git/network；
+2. `pnpm acceptance:hosted:deployment:one-shot:preflight`：只读 Vercel/Git，要求 clean HEAD 与 upstream
+   完全一致、分支精确、API/Web 两份 policy 均为布尔 `false`、非 Canceled baseline 精确 16/9、latest
+   identity 精确、完整历史（含 Canceled audit）已冻结且全历史零 in-flight；
+3. 只提交并推送 API `vercel.json` 的 exact branch arm 后，运行
+   `...:api:arm:observe`；它要求 arm 是 candidate 的直接子提交、唯一改动为 API config、Web 继续关闭，
+   并观察恰好一条 project/source 精确的新非 Canceled API deployment；Web 可为同一 arm SHA 新增零或一条
+   `CANCELED` audit，该 audit 必须写入 state 并在后续阶段保持不变；
+4. 新记录出现后的唯一提交必须是只恢复 API `false` 的直接子 disarm；运行
+   `...:api:disarm:verify`，要求该唯一 deployment Ready、无 in-flight/额外非 Canceled 记录且双关闭；API/Web
+   各可新增零或一条同 disarm SHA `CANCELED` audit，除此以外 history 不得漂移；
+5. API disarm 证据通过后，Web 才能以 `...:web:arm:observe` → 独立 Web disarm →
+   `...:web:disarm:verify` 完成同序。每次 push 对不应产生正常部署的项目均只容许零或一条同 SHA
+   `CANCELED` audit，并逐步冻结；最终 API/Web 各只新增一条 Ready 非 Canceled deployment 且均关闭。
+
+每一步的安全 state 固定写入 clone-local ignored
+`artifacts/hosted-vercel-one-shot/phase-81-0014-state.json`，目录/文件为 `0700/0600`，内容 canonical、原子
+替换，只含 commit/deployment identity 与 phase，不含 Token、环境变量或响应正文。state 缺失、重复
+preflight、跳序、修改、权限漂移或 partial 文件均失败。`VERCEL_TOKEN` 只进入 GET Authorization header；
+CLI 成功/失败输出固定，不反射 Token、URL、远端正文或 Git 子进程输出。工具不会写 Vercel、修改
+`vercel.json`、部署、commit 或 push；真实执行仍由已批准的独立 Git arm/disarm 提交完成。
+
 ## 7. TDD 与验收标准
 
 Fresh RED 必须先覆盖：
@@ -620,6 +646,9 @@ Fresh RED 必须先覆盖：
 6. Web bundle 含任一服务端 secret 名/值。
 7. Vercel empty-project bootstrap 缺 exact team scope、name-only create、settings PATCH、双向零 deployment
    检查、Git/link/漂移失败关闭、幂等重跑、固定 status 或 Token/远端错误不回显。
+8. Vercel one-shot 缺双关闭 exact baseline、API→Web phase state、单文件直接父子 arm/disarm、唯一 source
+   deployment、Ready/零额外/零 in-flight，或允许 both armed、wrong project/commit、分页/历史漂移；任何
+   failure 输出 Token、远端正文、Git output 或动态 URL 也必须失败。
 
 最小 GREEN 提供一个零网络、零写入的 `pnpm acceptance:hosted:deployment --plan`，只输出固定 project、
 Root/Framework/Build/Output/Node/region、变量名分类、五条 Auth redirect、当前 deployment/disarm 证据、
@@ -633,6 +662,10 @@ Vercel bootstrap 的最小 GREEN 另要求：`plan` 不访问网络且不读取 
 REST，先预检两个 project 再按 API→Web 顺序创建/复用；请求序列、method、query、body 和 Authorization
 位置必须由 fake fetch 精确断言，且任何路径都不存在 deployment POST。API 错误状态不得读取或反射远端
 正文，部分失败后安全重跑必须从空 shell 继续；`status` 只读且输出有界状态。默认自动门不得访问 Vercel。
+
+Vercel one-shot 的最小 GREEN 另要求：plan 零 I/O；stage 仅 GET Vercel 并使用 fake fetch 精确断言 team、
+project、deployment URL/method/header；fake process 精确断言 bounded Git argv、clean/upstream/parent/diff；
+private canonical state 可恢复且不含 Token。默认门只运行 fake，不接触 Vercel，也不执行 arm/disarm/deploy。
 
 离线退出门：focused API/Web/script tests、API/Web full、typecheck/build、Prettier/ESLint、Vercel config
 schema、secret scan、`git diff --check` 和完整 `pnpm verify:macos`。Hosted 退出门另要求：

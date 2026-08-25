@@ -1258,6 +1258,15 @@ idempotency_records`，修复后覆盖创建、练习、历史、删除、词典
   scan 通过。Hosted 上线后仍须以未注册邮箱完成真实 active 行、OTP/Auth SMTP 和密码重登，本地回归
   不能替代该门。
 
+- Phase 81 部署前增加 Vercel serial one-shot 控制面回归：纯状态机覆盖固定 API/Web 16/9 baseline、双
+  disarm、API arm→唯一记录→直接子 disarm→Ready/零额外后才允许 Web 同序；both armed、跳序、wrong
+  project/source/parent 均失败。每个 known push 对仍 disarmed 的项目只允许零或一条同 SHA Canceled audit，
+  接受后写入 state 并冻结；wrong SHA、同 push 多条 audit、audit 变为 ERROR/READY、history mutation、额外
+  non-Canceled/in-flight/unknown state 均失败。runtime 回归用 fake fetch 精确
+  断言五个 GET 与 Bearer header、用 fake process 精确断言 Git argv，远端错误/Token 不反射；state writer
+  另验证 canonical atomic、`0700/0600`、篡改权限失败，以及损坏 state 在 Git/environment/remote read 前失败。
+  该测试不访问 Vercel、不 arm/disarm、不部署。
+
 - Cloud Web 工作台重设计合并后，必须重新执行完整 macOS 门禁和受控 Hosted 部署：先确认 API/Web
   均为 disarmed，再只 arm Web 并等待唯一 deployment 进入终态，随后以独立提交 disarm；disarm
   不得产生第二条 non-canceled deployment，API 全程不得 armed。部署后至少实测 `/practice` 与

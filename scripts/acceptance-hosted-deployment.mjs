@@ -108,7 +108,7 @@ export function renderHostedDeploymentPlan() {
     "Current dependency chain:",
     "- current macOS local-only inspection of all 11 locked images passed -> reviewed writer pinned -> exact readiness -> separately approved pre capture/rebuild",
     "- secure pre-batch logical backup + isolated migrations-and-fictional-seed rebuild -> acceptance:hosted:backup:preflight",
-    "- validated real dry-run retained as read-only evidence -> preflight -> pnpm acceptance:hosted:migration:0014:apply -> separately approved post capture -> acceptance:hosted:backup:complete -> API and Web separate one-shot arm/disarm windows",
+    "- validated real dry-run retained as read-only evidence -> preflight -> pnpm acceptance:hosted:migration:0014:apply -> separately approved post capture -> acceptance:hosted:backup:complete -> executable Vercel one-shot preflight -> API arm/observe/disarm/verify -> Web arm/observe/disarm/verify",
     "- read back Hosted Email OTP length 6 -> user-triggered same-invitation resend -> latest six-digit OTP only",
     "- scanner-safe repeated GET -> explicit OTP POST -> Auth SMTP delivery -> Web landing -> password relogin",
     "- real R3-C delivery and duplicate/alert observation -> install and verify five Supabase Cron jobs",

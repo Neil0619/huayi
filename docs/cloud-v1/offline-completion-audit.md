@@ -284,6 +284,15 @@ AbortSignal、generation 迟到事件抑制和服务器状态复核。实际本�
 470 个 Vitest files（2,841 passed / 12 skipped），以及完整 macOS 聚合门；真实 Resend/DNS/告警、hosted、
 Google/Provider/词典、真实 Chrome、Windows 最新冻结批次、多日用户验收与最终签字仍是 `X`。
 
+### Phase 82 Vercel one-shot 控制面 P1 补强（2026-08-25）
+
+阶段复审发现既有 API/Web arm/disarm 只有文档和人工证据，不能执行性阻止跳过 API 关闭、同时 armed、
+夹带提交或额外 deployment。该离线 P1 已以可恢复只读状态机关闭：固定双关闭 16/9 baseline，绑定 clean
+upstream candidate，逐步要求 API 单文件 arm、唯一 source 非 Canceled 记录、直接子 disarm、Ready/零新增
+非 Canceled，再允许 Web 同序；对每次 push 下仍 disarmed 的项目只接受零或一条同 SHA Canceled audit，写入
+state 后冻结。fake Vercel/Git、private canonical state 与固定安全输出回归覆盖歧义/漂移失败。真实 Vercel 五阶段
+执行仍是 `X`，不得把本机 GREEN 写成已经部署。
+
 ## 14. Phase 49 托管配置输入复审（2026-08-22）
 
 hosted acceptance 的目标拓扑已经冻结为同一根域下不同 Web/API HTTPS origin，但运行时 schema 仍只验证

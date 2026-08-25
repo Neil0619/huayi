@@ -1928,6 +1928,16 @@ inspection；Phase 86 只实现受审查 writer 与隔离 rebuild，不连接 Su
     postflight）→ post capture → `backup:complete` → API/Web 串行 deployment。禁止手工 `db push --yes`；
     离线 GREEN 不代表两个 evidence gate 或远端 migration 真实通过，也不关闭 Storage export、backup retention
     或 production restore drill。
+11. **部署 P1 补强**：人工 one-shot 顺序升级为可执行只读状态机。`deployment:one-shot:preflight` 固定
+    clean/upstream、双 disarm、API/Web 非 Canceled 16/9 baseline、exact latest 与零 in-flight；随后只接受
+    API arm 单文件直接子提交和唯一 source 非 Canceled deployment；同一 push 下仍 disarmed 的项目只允许
+    零或一条同 SHA Canceled audit。独立 disarm 要求 Ready、零新增非 Canceled，API/Web 各只允许零或一条
+    同 disarm SHA Canceled audit；所有获准 audit 写入 state 并在后续阶段冻结。只有
+    API 关闭证据持久化后才允许 Web 以相同两步完成。wrong team/project/branch/commit、both armed、分页或
+    history 漂移、未知 SHA、同 push 多条 audit、额外非 Canceled/未知/in-flight deployment 全部 fixed
+    failure。状态只保存非 secret deployment
+    identity/commit，private canonical atomic file 位于 clone-local ignored artifacts；工具只做 GET/Git 读取，
+    不 arm/disarm/deploy/commit/push。真实 preflight 与五个 transition 仍须在 backup complete 后执行。
 
 ### Phase 87：Hosted production 逻辑备份恢复演练（当前批次关闭后）
 

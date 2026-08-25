@@ -88,7 +88,7 @@ test("hosted deployment plan is complete, deterministic, and secret independent"
     "five Supabase Cron jobs",
     "backup, target-network, natural-use, Store, and Windows final-batch gates remain pending",
     "current macOS local-only inspection of all 11 locked images passed -> reviewed writer pinned -> exact readiness -> separately approved pre capture/rebuild",
-    "validated real dry-run retained as read-only evidence -> preflight -> pnpm acceptance:hosted:migration:0014:apply -> separately approved post capture -> acceptance:hosted:backup:complete -> API and Web separate one-shot arm/disarm windows",
+    "validated real dry-run retained as read-only evidence -> preflight -> pnpm acceptance:hosted:migration:0014:apply -> separately approved post capture -> acceptance:hosted:backup:complete -> executable Vercel one-shot preflight -> API arm/observe/disarm/verify -> Web arm/observe/disarm/verify",
   ]) {
     assert.match(plan, new RegExp(expected.replaceAll(/[.*+?^${}()|[\]\\]/gu, "\\$&"), "u"));
   }

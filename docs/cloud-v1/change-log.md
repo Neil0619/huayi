@@ -3,6 +3,23 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-25：Vercel API/Web one-shot 必须由可恢复的只读状态机约束
+
+- 分支 allowlist 只保证项目范围，不能证明一次 push 只产生一次 deployment。Phase 81 的下一轮部署改用
+  `acceptance:hosted:deployment:one-shot:*` 六个固定入口，把基线、API arm、API 独立 disarm、Web arm、
+  Web 独立 disarm 串为一个不可跳序的本机证据状态机；工具本身不修改 Vercel、Git 或部署；
+- preflight 固定要求 clean HEAD=upstream、exact production branch、API/Web 均为布尔 disarmed、默认非
+  Canceled 基线 16/9、历史 latest identity 精确且无 in-flight。每个 arm 只能是父提交上的单一目标
+  `vercel.json` 修改；armed 目标的新非 Canceled 记录须绑定 arm SHA 且恰好一条；同一 push 下仍 disarmed
+  的项目允许零或一条同 SHA `CANCELED` audit。disarm 必须是 arm 的直接子提交并只恢复同一文件，两个
+  disarmed 项目各只允许零或一条同 disarm SHA `CANCELED` audit、零新增非 Canceled deployment；每条获准
+  audit 立即写入 state 并在后续阶段冻结。API Ready 与双关闭通过后才允许 Web 进入相同顺序；
+- Vercel REST 只允许 exact team/Git project/production deployment 的 GET，分页、project/source/state、
+  history（含既有/已记录 Canceled audit）突变、未知 SHA、同项目同 push 多条 audit、非 Canceled 额外记录或
+  未知字段语义有歧义时失败关闭。Token 只存在于 Authorization header，不进入 state、
+  stdout/stderr 或错误；本机 state 固定 `0700/0600`、canonical/atomic 且留在 clone-local ignored artifacts。
+  离线 fake fetch/process 只证明控制面合同，不声明真实 Vercel 已执行。
+
 ## 2026-08-25：重要批次 plan 与 current evidence 状态分离
 
 - `acceptance:hosted:backup:plan` 只描述固定安全合同，不读取 evidence，也不静态声明 capture/rebuild 已成功或

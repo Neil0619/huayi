@@ -31,7 +31,7 @@ test("excludes only reviewed external and generated subtrees from product qualit
 
   assert.equal(
     prettierIgnore.trim(),
-    ".agents/skills/**\nsupabase/.temp/**\nartifacts/hosted-important-batch-backups/**",
+    ".agents/skills/**\nsupabase/.temp/**\nartifacts/hosted-important-batch-backups/**\nartifacts/hosted-vercel-one-shot/**",
   );
   assert.equal(prettierIgnore.includes("artifacts/**"), false);
   assert.deepEqual(eslintReviewedIgnores, [".agents/skills/**", "supabase/.temp/**"]);

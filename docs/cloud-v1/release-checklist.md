@@ -368,6 +368,10 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       提交密码注册；不得创建第二张邀请或删除其 Auth identity。Phase 80 已离线修复创建双击和模糊响应
       重复风险：pending 单飞、同一内存 Idempotency-Key 安全恢复、成功后才换键；
 - [ ] 保留并继续使用上述同一普通邀请，先完成 Phase 81 备份/重建、0014、串行部署和六位 OTP 重发；
+      串行部署必须通过 `acceptance:hosted:deployment:one-shot:*` 可恢复状态机，先固定双关闭 16/9
+      baseline，再 API arm/唯一非 Canceled deployment/独立 disarm/Ready/零新增非 Canceled，完成后才允许 Web
+      同序；每次 push 对仍 disarmed 的项目最多接受并冻结一条同 SHA Canceled audit；工具离线
+      实现已完成但真实五阶段 transition 尚未执行；
       再验证 scanner/repeated GET 无副作用、显式 OTP POST、Web 落点和密码重登；已部署 bundle 的 active
       行“可领取”标签与二步撤销只在同一邀请仍呈 active 时做只读验证，不执行撤销，也不以缺少该瞬时
       状态阻塞同邀请 OTP 完成；“已过期”live 标签保留到出现真实过期行时验证。真实邮件投递、Cron 和 DeepSeek
