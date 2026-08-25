@@ -20,6 +20,10 @@ function fail() {
   throw new Error("Hosted restore-drill fictional archive failed.");
 }
 
+function defaultPrivateModeMatches(stats, expectedMode) {
+  return (stats.mode & 0o777) === expectedMode;
+}
+
 export function fictionalDockerArguments(target, tail) {
   assertFixedLocalDockerTarget(target);
   return ["--host", target.host, ...tail];
@@ -208,7 +212,12 @@ export async function createFictionalArchive(dockerTarget, runProcess) {
   assertHostedRestoreFictionalToc(listed.stdout);
 }
 
-export async function copyFictionalArchiveToHost(dockerTarget, runProcess, archivePath) {
+export async function copyFictionalArchiveToHost(
+  dockerTarget,
+  runProcess,
+  archivePath,
+  privateModeMatches = defaultPrivateModeMatches,
+) {
   const copied = await runProcess(
     dockerTarget.command,
     fictionalDockerArguments(dockerTarget, [
@@ -225,7 +234,7 @@ export async function copyFictionalArchiveToHost(dockerTarget, runProcess, archi
     !stats.isFile() ||
     stats.size < 6 ||
     stats.size > 67_108_864 ||
-    (stats.mode & 0o777) !== 0o600
+    !privateModeMatches(stats, 0o600)
   ) {
     fail();
   }

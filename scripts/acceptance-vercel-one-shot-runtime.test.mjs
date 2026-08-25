@@ -149,7 +149,9 @@ test("state evidence is canonical, private, atomic, and never contains the Verce
   const repositoryRoot = await mkdtemp(join(tmpdir(), "huayi-vercel-one-shot-"));
   try {
     const store = createVercelOneShotStateStore({
-      ...(process.platform === "win32" ? { privateModeMatches: () => true } : {}),
+      ...(process.platform === "win32"
+        ? { directorySync: async () => undefined, privateModeMatches: () => true }
+        : {}),
       repositoryRoot,
     });
     assert.equal(await store.read(), undefined);
@@ -176,6 +178,25 @@ test("state evidence is canonical, private, atomic, and never contains the Verce
       await chmod(statePath, 0o644);
       await assert.rejects(store.read(), /state verification failed/u);
     }
+  } finally {
+    await rm(repositoryRoot, { force: true, recursive: true });
+  }
+});
+
+test("state evidence uses the injected directory durability boundary", async () => {
+  const repositoryRoot = await mkdtemp(join(tmpdir(), "huayi-vercel-one-shot-sync-"));
+  try {
+    const store = createVercelOneShotStateStore({
+      directorySync: async () => {
+        throw new Error("injected sync failure");
+      },
+      repositoryRoot,
+    });
+
+    await assert.rejects(
+      store.write({ contract: "durability-boundary" }),
+      /state verification failed/u,
+    );
   } finally {
     await rm(repositoryRoot, { force: true, recursive: true });
   }

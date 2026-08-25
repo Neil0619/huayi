@@ -115,7 +115,13 @@ async function syncDirectory(path) {
   }
 }
 
-async function writeCanonicalJsonAtomically({ document, directory, finalPath, partialPath }) {
+async function writeCanonicalJsonAtomically({
+  directory,
+  directorySync,
+  document,
+  finalPath,
+  partialPath,
+}) {
   const handle = await open(partialPath, "wx", 0o600);
   try {
     await handle.chmod(0o600);
@@ -125,7 +131,7 @@ async function writeCanonicalJsonAtomically({ document, directory, finalPath, pa
     await handle.close();
   }
   await rename(partialPath, finalPath);
-  await syncDirectory(directory);
+  await directorySync(directory);
 }
 
 function assertCandidateCommit(candidateCommit) {
@@ -144,6 +150,7 @@ function isoTimestamp(now) {
 
 export async function persistHostedImportantBatchBackup({
   candidateCommit,
+  directorySync = syncDirectory,
   now = () => new Date(),
   phase,
   privateModeMatches = defaultPrivateModeMatches,
@@ -193,9 +200,10 @@ export async function persistHostedImportantBatchBackup({
     }
     await rename(archivePartialPath, archivePath);
     archiveCommitted = true;
-    await syncDirectory(phaseRoot);
+    await directorySync(phaseRoot);
     await writeCanonicalJsonAtomically({
       directory: phaseRoot,
+      directorySync,
       document: {
         batchId: hostedImportantBatchId,
         candidateCommit,
@@ -228,6 +236,7 @@ export async function persistHostedImportantBatchBackup({
 
 export async function persistHostedImportantBatchRebuild({
   candidateCommit,
+  directorySync = syncDirectory,
   now = () => new Date(),
   performRebuild,
   privateModeMatches = defaultPrivateModeMatches,
@@ -254,6 +263,7 @@ export async function persistHostedImportantBatchRebuild({
     }
     await writeCanonicalJsonAtomically({
       directory: rebuildRoot,
+      directorySync,
       document: {
         batchId: hostedImportantBatchId,
         candidateCommit,

@@ -52,6 +52,7 @@ async function syncDirectory(path) {
 }
 
 export function createVercelOneShotStateStore({
+  directorySync = syncDirectory,
   privateModeMatches = defaultPrivateModeMatches,
   repositoryRoot = process.cwd(),
 } = {}) {
@@ -97,7 +98,7 @@ export function createVercelOneShotStateStore({
           await handle.close();
         }
         await rename(partialPath, statePath);
-        await syncDirectory(directory);
+        await directorySync(directory);
       } catch {
         await rm(partialPath, { force: true }).catch(() => undefined);
         fail();

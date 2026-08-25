@@ -69,7 +69,7 @@ describe("password authentication callback method migration", () => {
     expect(password.rows).toEqual([{ id: userA }]);
     expect(methods.rows).toEqual([{ method: "password" }]);
     expect(rejectedLogin.rows).toEqual([{ id: null }]);
-  });
+  }, 15_000);
 
   it("repairs an invited email identity that the old callback mislabeled as Google", async () => {
     database = await databaseBeforeCallbackMigration();

@@ -84,6 +84,7 @@ export async function runHostedRestoreFictionalArchive({
   environment = process.env,
   now = () => performance.now(),
   onStage = () => undefined,
+  privateModeMatches,
   resolveDockerTarget = resolveLocalDockerInspectionTarget,
   runProcess = runHostedImportantBatchProcess,
   wait = (milliseconds) => new Promise((resolveWait) => setTimeout(resolveWait, milliseconds)),
@@ -144,7 +145,7 @@ export async function runHostedRestoreFictionalArchive({
     markStage("archive-create");
     await createFictionalArchive(dockerTarget, runProcess);
     markStage("archive-copy");
-    await copyFictionalArchiveToHost(dockerTarget, runProcess, archivePath);
+    await copyFictionalArchiveToHost(dockerTarget, runProcess, archivePath, privateModeMatches);
     targetCleanup = true;
     markStage("target-start");
     targetLate = await startVerifiedContainer(

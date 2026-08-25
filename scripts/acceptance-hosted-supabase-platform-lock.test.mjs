@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { basename, dirname } from "node:path";
 import test from "node:test";
 
 import {
@@ -97,7 +98,8 @@ test("lock verification fails closed on CLI, config, environment, override, or s
   await assert.rejects(
     verifyHostedSupabasePlatformImageLock({
       environment: {},
-      fileExists: async (path) => String(path).endsWith("supabase/.env.local"),
+      fileExists: async (path) =>
+        basename(String(path)) === ".env.local" && basename(dirname(String(path))) === "supabase",
       readText,
     }),
   );

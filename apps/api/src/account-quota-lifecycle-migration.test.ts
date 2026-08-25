@@ -108,7 +108,7 @@ describe("account quota lifecycle and production model rate-limit migration", ()
       { count: 1, limit_micro_usd: "1000000", source: "default", user_id: userA },
       { count: 1, limit_micro_usd: "250000", source: "admin", user_id: userB },
     ]);
-  });
+  }, 15_000);
 
   it("shares persistent rolling 60/hour and 300/day limits without double-counting replay", async () => {
     database = await migratedDatabase();

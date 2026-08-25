@@ -17,6 +17,7 @@ const dockerTarget = {
   command: "/Applications/OrbStack.app/Contents/MacOS/xbin/docker",
   host: "unix:///Users/fixed/.orbstack/run/docker.sock",
 };
+const portableModeOptions = process.platform === "win32" ? { privateModeMatches: () => true } : {};
 
 const toc = `;
 5; 1259 200 TABLE public profiles postgres
@@ -150,6 +151,7 @@ function createFakeRuntime({
 test("fictional runner restores a custom archive into a second networkless PG17 target", async () => {
   const fake = createFakeRuntime();
   const result = await runHostedRestoreFictionalArchive({
+    ...portableModeOptions,
     environment: {},
     resolveDockerTarget: async () => dockerTarget,
     runProcess: fake.runProcess,
@@ -182,10 +184,29 @@ test("fictional runner restores a custom archive into a second networkless PG17 
   await assert.rejects(access(fake.copiedArchivePath()), { code: "ENOENT" });
 });
 
+test("fictional runner uses the injected private archive-mode boundary", async () => {
+  const fake = createFakeRuntime();
+  let modeChecks = 0;
+
+  await runHostedRestoreFictionalArchive({
+    environment: {},
+    privateModeMatches: () => {
+      modeChecks += 1;
+      return true;
+    },
+    resolveDockerTarget: async () => dockerTarget,
+    runProcess: fake.runProcess,
+    wait: async () => undefined,
+  });
+
+  assert.equal(modeChecks, 1);
+});
+
 test("verification drift fails and still destroys both exact containers and private archive", async () => {
   const fake = createFakeRuntime({ badVerification: true });
   await assert.rejects(
     runHostedRestoreFictionalArchive({
+      ...portableModeOptions,
       environment: {},
       resolveDockerTarget: async () => dockerTarget,
       runProcess: fake.runProcess,
@@ -207,6 +228,7 @@ test("an occupied fixed identity fails before creation and is never deleted", as
   const fake = createFakeRuntime({ occupied: hostedRestoreFictionalSourceContainer });
   await assert.rejects(
     runHostedRestoreFictionalArchive({
+      ...portableModeOptions,
       environment: {},
       resolveDockerTarget: async () => dockerTarget,
       runProcess: fake.runProcess,
@@ -227,6 +249,7 @@ test("inherited Hosted secrets are rejected before Docker inspection", async () 
   let resolved = false;
   await assert.rejects(
     runHostedRestoreFictionalArchive({
+      ...portableModeOptions,
       environment: { PGPASSWORD: "must-not-be-inherited" },
       resolveDockerTarget: async () => {
         resolved = true;
@@ -242,6 +265,7 @@ test("a source start timeout waits for late appearance and removes only the exac
   const fake = createFakeRuntime({ lateSource: true });
   await assert.rejects(
     runHostedRestoreFictionalArchive({
+      ...portableModeOptions,
       environment: {},
       resolveDockerTarget: async () => dockerTarget,
       runProcess: fake.runProcess,
@@ -262,6 +286,7 @@ test("target cleanup rejection cannot prevent the independent source cleanup att
   const fake = createFakeRuntime({ badVerification: true, targetCleanupThrows: true });
   await assert.rejects(
     runHostedRestoreFictionalArchive({
+      ...portableModeOptions,
       environment: {},
       resolveDockerTarget: async () => dockerTarget,
       runProcess: fake.runProcess,

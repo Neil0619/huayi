@@ -54,6 +54,7 @@ const runBoundedInspection = (command, arguments_) =>
 
 export async function inspectHostedImportantBatchBackupRuntime({
   inspectPlatformImages = inspectHostedSupabasePlatformImages,
+  platform = process.platform,
   readPlatformLock = readHostedSupabasePlatformImageLock,
   resolveDockerTarget = resolveLocalDockerInspectionTarget,
   runInspection = runBoundedInspection,
@@ -82,7 +83,7 @@ export async function inspectHostedImportantBatchBackupRuntime({
       return { code: null, stdout: "" };
     }
   };
-  const [docker, supabase, artifactEncryption, platform] = await Promise.all([
+  const [docker, supabase, artifactEncryption, platformInspection] = await Promise.all([
     inspectProcess(dockerTarget.command, [
       "--host",
       dockerTarget.host,
@@ -110,10 +111,10 @@ export async function inspectHostedImportantBatchBackupRuntime({
       }
     })(),
   ]);
-  const localPlatformImagesReady = platform.imagesReady === true;
+  const localPlatformImagesReady = platformInspection.imagesReady === true;
   return {
     artifactEncryptionReady:
-      process.platform === "darwin" &&
+      platform === "darwin" &&
       artifactEncryption.code === 0 &&
       artifactEncryption.stdout.trim() === "FileVault is On.",
     dockerDaemonReady: docker.code === 0 && /^\d+\.\d+(?:\.\d+)?$/u.test(docker.stdout.trim()),
@@ -121,7 +122,7 @@ export async function inspectHostedImportantBatchBackupRuntime({
     localPlatformImagesReady,
     pinnedPostgres17RuntimeReady: localPlatformImagesReady,
     pinnedScratchRuntimeReady: localPlatformImagesReady,
-    platformLockReady: platform.lockReady === true,
+    platformLockReady: platformInspection.lockReady === true,
     supabaseCliPinned: supabase.code === 0 && supabase.stdout.trim() === pinnedSupabaseCliVersion,
   };
 }

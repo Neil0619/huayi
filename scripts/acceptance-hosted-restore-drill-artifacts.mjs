@@ -90,7 +90,7 @@ async function syncDirectory(path) {
   }
 }
 
-async function writeDocumentAtomically(directory, name, document) {
+async function writeDocumentAtomically(directory, name, document, directorySync) {
   const finalPath = join(directory, evidenceFiles[name]);
   const partialPath = `${finalPath}.partial`;
   if ((await pathExists(finalPath)) || (await pathExists(partialPath))) fail();
@@ -105,7 +105,7 @@ async function writeDocumentAtomically(directory, name, document) {
       await handle.close();
     }
     await rename(partialPath, finalPath);
-    await syncDirectory(directory);
+    await directorySync(directory);
     committed = true;
   } finally {
     await rm(partialPath, { force: true });
@@ -114,6 +114,7 @@ async function writeDocumentAtomically(directory, name, document) {
 }
 
 export function createHostedRestoreDrillArtifactStore({
+  directorySync = syncDirectory,
   expected,
   privateModeMatches = defaultPrivateModeMatches,
   repositoryRoot,
@@ -162,7 +163,7 @@ export function createHostedRestoreDrillArtifactStore({
     await ensureDirectory(artifactsRoot, 0o755, privateModeMatches);
     await ensureDirectory(secureRoot, 0o700, privateModeMatches);
     await ensureDirectory(drillRoot, 0o700, privateModeMatches);
-    await writeDocumentAtomically(drillRoot, name, document);
+    await writeDocumentAtomically(drillRoot, name, document, directorySync);
   }
 
   return Object.freeze({ append, read });

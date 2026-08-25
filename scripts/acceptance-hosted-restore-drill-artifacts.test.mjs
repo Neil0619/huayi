@@ -34,7 +34,10 @@ const expected = {
   toolCandidateCommit: commit,
 };
 const roots = [];
-const portableModeOptions = process.platform === "win32" ? { privateModeMatches: () => true } : {};
+const portableFilesystemOptions =
+  process.platform === "win32"
+    ? { directorySync: async () => undefined, privateModeMatches: () => true }
+    : {};
 
 test.afterEach(async () => {
   await Promise.all(roots.splice(0).map((root) => rm(root, { force: true, recursive: true })));
@@ -46,11 +49,12 @@ async function temporaryRepository() {
   return root;
 }
 
-function createStore(repositoryRoot) {
+function createStore(repositoryRoot, overrides = {}) {
   return createHostedRestoreDrillArtifactStore({
-    ...portableModeOptions,
+    ...portableFilesystemOptions,
     expected,
     repositoryRoot,
+    ...overrides,
   });
 }
 
@@ -359,4 +363,17 @@ test("deadline close can move target-destroyed directly to closed on both routes
     await store.append("sourceDisposition", disposition(source));
     assert.equal((await store.read()).lifecycle, failed ? "failed-closed" : "closed");
   }
+});
+
+test("artifact store uses the injected directory durability boundary", async () => {
+  const root = await temporaryRepository();
+  const store = createStore(root, {
+    directorySync: async () => {
+      throw new Error("injected sync failure");
+    },
+  });
+
+  await assert.rejects(store.append("sourceAttestation", sourceAttestation()), {
+    message: "injected sync failure",
+  });
 });

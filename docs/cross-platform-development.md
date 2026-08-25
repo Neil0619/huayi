@@ -33,6 +33,8 @@ CC／切轨、`zh-Hans`、SPA、剧院／全屏、选词和生词本。
 ## 工程规则
 
 - 平台、路径、权限、换行、大小写、进程和环境变量必须显式注入；不要让测试隐式继承开发机。
+- 依赖 POSIX 目录 `fsync` 或权限位的生产 writer 必须固定使用严格实现；Windows 合同测试可注入窄
+  durability/mode seam 复用协调逻辑，但不得提供生产降级路径。
 - Git 文本 checkout 由根 `.gitattributes` 固定为 LF；字节级镜像、hash pin、migration 与 canonical
   fixture 不得依赖操作者平台的默认换行转换。
 - Windows 路径使用 `node:path` 的 `win32` 语义；POSIX 路径使用对应语义。协议和扩展消息不得

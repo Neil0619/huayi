@@ -13,7 +13,10 @@ import { hostedAcceptanceProjectRef } from "./acceptance-hosted-foundation.mjs";
 
 const candidateCommit = "0123456789abcdef0123456789abcdef01234567";
 const temporaryRoots = [];
-const portableModeOptions = process.platform === "win32" ? { privateModeMatches: () => true } : {};
+const portableFilesystemOptions =
+  process.platform === "win32"
+    ? { directorySync: async () => undefined, privateModeMatches: () => true }
+    : {};
 
 test.afterEach(async () => {
   await Promise.all(
@@ -37,7 +40,7 @@ test("backup persistence commits archive before its canonical manifest and leave
   const archive = Buffer.from("opaque-custom-archive");
 
   await persistHostedImportantBatchBackup({
-    ...portableModeOptions,
+    ...portableFilesystemOptions,
     candidateCommit,
     now: () => new Date("2026-08-24T08:00:00.000Z"),
     phase: "pre",
@@ -85,7 +88,7 @@ test("backup persistence rejects dynamic identity and cleans partial or committe
     const root = await temporaryRepository();
     await assert.rejects(
       persistHostedImportantBatchBackup({
-        ...portableModeOptions,
+        ...portableFilesystemOptions,
         candidateCommit,
         phase: "post",
         produceArchive: async ({ archivePartialPath }) => {
@@ -103,7 +106,7 @@ test("backup persistence rejects dynamic identity and cleans partial or committe
 
   await assert.rejects(
     persistHostedImportantBatchBackup({
-      ...portableModeOptions,
+      ...portableFilesystemOptions,
       candidateCommit: "wrong",
       phase: "pre",
       produceArchive: async () => undefined,
@@ -122,7 +125,7 @@ test("backup persistence rejects unknown directory entries before producing an a
 
   await assert.rejects(
     persistHostedImportantBatchBackup({
-      ...portableModeOptions,
+      ...portableFilesystemOptions,
       candidateCommit,
       phase: "pre",
       produceArchive: async () => {
@@ -142,7 +145,7 @@ test("backup persistence rejects a same-size archive mutation during verificatio
   const root = await temporaryRepository();
   await assert.rejects(
     persistHostedImportantBatchBackup({
-      ...portableModeOptions,
+      ...portableFilesystemOptions,
       candidateCommit,
       phase: "pre",
       produceArchive: ({ archivePartialPath }) => writeFile(archivePartialPath, "first"),
@@ -158,7 +161,7 @@ test("rebuild persistence writes its manifest only after scratch destruction is 
   const root = await temporaryRepository();
   const events = [];
   await persistHostedImportantBatchRebuild({
-    ...portableModeOptions,
+    ...portableFilesystemOptions,
     candidateCommit,
     now: () => new Date("2026-08-24T08:30:00.000Z"),
     performRebuild: async () => {
@@ -189,7 +192,7 @@ test("rebuild persistence fails closed and removes its partial when any verdict 
   const root = await temporaryRepository();
   await assert.rejects(
     persistHostedImportantBatchRebuild({
-      ...portableModeOptions,
+      ...portableFilesystemOptions,
       candidateCommit,
       performRebuild: async () => ({
         fictionalSeedExact: true,
@@ -202,4 +205,22 @@ test("rebuild persistence fails closed and removes its partial when any verdict 
     }),
   );
   assert.deepEqual(await readdir(join(batchRoot(root), "rebuild")), []);
+});
+
+test("backup persistence uses the injected directory durability boundary", async () => {
+  const root = await temporaryRepository();
+  let syncCount = 0;
+
+  await persistHostedImportantBatchBackup({
+    candidateCommit,
+    directorySync: async () => {
+      syncCount += 1;
+    },
+    phase: "pre",
+    produceArchive: ({ archivePartialPath }) => writeFile(archivePartialPath, "archive"),
+    repositoryRoot: root,
+    verifyArchive: async () => undefined,
+  });
+
+  assert.equal(syncCount, 2);
 });

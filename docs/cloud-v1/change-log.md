@@ -11,11 +11,13 @@
 - 仓库新增根 `.gitattributes`，统一文本 checkout 为 LF，避免 Windows 把 migration mirror、seed、平台
   image lock、ignore fixture 等字节级合同改写为 CRLF；Windows/POSIX 路径断言必须同时接受本机分隔符，
   声明为 macOS 的 OrbStack target 则明确使用 POSIX path 语义；
-- Hosted backup/restore/Vercel evidence writer 的安全合同仍要求可验证的 `0700/0600` 并在 Windows
-  运行时失败关闭。生产入口固定使用严格 mode verifier；仅测试可注入窄 mode predicate，使 canonical/atomic
-  顺序、process env、path、parser、Docker identity、cleanup 与 lifecycle 继续进入双平台门，只把真实 mode
-  断言和依赖 Windows symlink 权限的变体留给 POSIX 门。本修复不修改 Hosted 数据库、Auth、SMTP、DNS、
-  密钥、邮件或 deployment，也不授权 0014 apply。
+- Hosted backup/restore/Vercel evidence writer 的安全合同仍要求可验证的 `0700/0600` 与目录 `fsync`，
+  并在 Windows 运行时失败关闭。生产入口固定使用严格 mode verifier 和真实 durability adapter；仅测试可
+  注入窄 mode predicate 与 directory-sync adapter，使 canonical/atomic 顺序、process env、path、parser、
+  Docker identity、cleanup 与 lifecycle 继续进入双平台门，只把真实 mode、目录 `fsync` 断言和依赖 Windows
+  symlink 权限的变体留给 POSIX 门。FileVault readiness 与 Supabase override fixture 也显式使用声明平台及
+  本机 path component，不再从 CI 宿主或 POSIX 分隔符推导期望。本修复不修改 Hosted 数据库、Auth、SMTP、
+  DNS、密钥、邮件或 deployment，也不授权 0014 apply。
 
 ## 2026-08-25：0014 dry-run 严格 transcript 按完整行验证双通道分配
 
