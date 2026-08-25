@@ -223,6 +223,13 @@ cleanup incident 处理，在重试前人工检查并清理临时目录下固定
 exit 1；公开 CA 已在提示前取得，但不会启动 Supabase，也不会被 pnpm 吞掉后误报成功。stdout 只有在严格证明 dry-run、
 唯一 0014 与 finished marker 时才输出固定成功消息。dry-run 不写数据库，也不能代替 pre
 backup/rebuild/preflight 或授权 apply。
+若真实入口只返回固定失败，先运行
+`unset PGPASSWORD SUPABASE_DB_PASSWORD && pnpm acceptance:hosted:migration:0014:diagnose`，并在 TTY
+输入同一个管理员密码。该命令只执行官方 CA GET、固定只读 `SELECT` 与同一个 non-mutating dry-run；连接
+探针同时固定 `connect_timeout=10` 与 15 秒 child 上限。输出只包含五条固定 verdict：连接 exit class、连接
+输出是否精确、dry-run exit class、stdout 是否为空、stderr transcript 是否精确。连接失败时 dry-run 不运行；
+任何异常只显示一个 allowlisted stage。禁止改用 `--debug`、复制原始 stderr 或把 Supabase CLI exit 1 解释成
+psql client-fatal。该诊断不生成备份证据，也不授权 0014 apply。
 实际 apply 也不得使用手工 Supabase 命令。只有真实 dry-run 已通过、pre capture/rebuild evidence 已生成且
 `pnpm acceptance:hosted:backup:preflight` 对当前 clean HEAD 通过，并取得独立写入授权后，才运行
 `pnpm acceptance:hosted:migration:0014:apply`。该入口在读取秘密前验证 preflight；随后用同一密码/CA 再次

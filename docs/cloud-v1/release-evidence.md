@@ -2450,3 +2450,22 @@ typecheck、architecture、build、development blocker、Store release、product
 - **结构与本机 GREEN**：纯 baseline/ledger/final SQL 契约拆入独立模块，使主 rebuild writer 保持 400 行以下；
   focused Node 24/24 与 First Operator Vitest 8/8 通过。尚未提交 clean candidate，也尚未运行真实 exact
   rebuild；本节不证明 isolated rebuild、pre capture/preflight、0014、邮件或部署完成。
+
+## 93. Phase 81 0014 真实失败的安全分类入口（2026-08-25）
+
+- **已确认边界**：用户清除两个继承密码变量并重新运行 exact 0014 dry-run，隐藏提示后仍只得到 fixed
+  fail-closed；数据库未修改，但原输出无法判断密码、TLS/连接、CLI exit 或 transcript drift。官方固定 CA
+  随后只读获取成功，本机 pinned Supabase CLI 为 2.115.0；没有据此猜测密码错误；
+- **Fresh RED → GREEN**：新增 exact diagnostic package entry 前先观察 module-not-found RED。实现后独立审查
+  发现 Supabase CLI code 被错误套用 psql 语义、连接探针没有硬超时、throw 仍折叠为 generic；回归转红后
+  分拆 classifier，连接固定 `connect_timeout=10` + 15 秒进程上限，并只报告六个内部 allowlisted failure
+  stage。原始 stdout/stderr、Error、URL、路径、环境和密码一律不输出；
+- **本机 cleanup**：发现 4 个历史 `huayi-hosted-0014-ca-*` 测试残留；逐个验证为 `0700`、仅含一个 119-byte
+  虚构 PEM 后精确删除，回查剩余 0。没有删除未知目录或文件；
+- **验证**：focused foundation/diagnostic/dry-run 36/36；完整 `pnpm verify:macos` 原样 exit 0，覆盖 Node
+  scripts、Vitest 480 files、Store 97 files / 481 tests、Playwright 111/111、instructions/format/lint/typecheck、
+  build/architecture/release/audit，生产依赖零已知漏洞；独立审查 route
+  `961c41a2-3fae-476e-a78a-22849f8fa564` 已按 full-checks 记录通过；
+- **待真实分类**：本阶段未读取管理员密码、未运行真实 diagnostic 的 connection/CLI probe，也未连接或
+  修改 Hosted、运行 capture/rebuild/apply、发送邮件、部署或调用模型。操作者下一步只运行固定 diagnostic
+  并返回五条脱敏 verdict；它不生成 backup evidence 或 apply 授权。

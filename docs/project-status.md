@@ -143,6 +143,11 @@ audit 仍只允许 `enabled`。这不代表 Store 产品或 Windows 支持被取
 > migration 或密码失败。现已让 standalone 与 apply 内部 dry-run 只接受 exit 0 + empty stdout + exact
 > stderr transcript，并继续拒绝混合通道、ANSI、额外输出、overflow 与 timeout；尚未重新连接 Hosted 运行
 > 修复后的 wrapper，也未授权 apply。
+> 修复后的 wrapper 再次真实运行仍只返回 fixed failure，因此新增独立只读诊断入口，把连接探针与 dry-run
+> 分开：管理员 transaction pooler 同时固定 10 秒 connect timeout 与 15 秒进程上限；psql 与 Supabase CLI
+> 使用不同 exit class，异常只输出一个 allowlisted stage，绝不转发 raw output 或 secret。离线 focused 36/36
+> 与完整 `pnpm verify:macos` 已通过；真实诊断仍需操作者在 TTY 输入管理员密码后运行，当前尚未得到分类
+> 结果，不能声称密码错误、migration 漂移或 CLI 漂移。
 > pre/post capture 随后也复用同一 fixed official CA fetch 深模块：用户只运行既有 pnpm 命令并输入管理员
 > 密码，CA 在密码提示前完成有界严格验证，不再准备 CA environment；本次只完成离线实现与 fake-fetch/
 > 真实 PTY 回归，尚未运行真实 capture 或连接 Supabase。

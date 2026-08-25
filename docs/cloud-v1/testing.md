@@ -878,7 +878,8 @@ confirmed Auth user/password method/profile 为 `1/1/2`、google method/Web sess
   `redirect=error`、no-store/no-credentials/no-referrer、10 秒/16 KiB，并拒绝非 200、final URL 漂移、空 body、
   overflow、非法 UTF-8/PEM 与 timeout；调用者不准备 CA env。child env 精确为固定 locale、进程级
   `PGPASSWORD`、`PGSSLMODE=verify-full` 与随机私有 `0600` CA path；必须拒绝只供 application 隔离 verifier
-  使用的 session pooler `5432`。stderr 丢弃、stdout 有 byte/time 上限且
+  使用的 session pooler `5432`。stdout/stderr 共享 byte/time 上限，只有 empty stdout + exact stderr
+  transcript 才可成功，且原始双通道内容不得转发或
   不落盘；正常/overflow/timeout 以及临时目录创建后的 `writeFile`/spawn 失败都尝试清理；`mkdtemp` 失败没有
   可删目录，但仍固定失败。`rm` failure 必须证明 cleanup attempted、CLI 固定失败且零成功回执；不得伪称目录已删，真实发生时进入本机 cleanup
   incident，可能残留的只允许是 `0700`/`0600` 公开 CA 且不得含密码。严格 parser 只能接受 dry-run header、
@@ -887,6 +888,11 @@ confirmed Auth user/password method/profile 为 `1/1/2`、google method/Web sess
   不得连接 Hosted；真实运行结果必须另行记录，不能由离线 GREEN 代替。相同 fixed official CA fetch 必须
   由 pre/post capture 共用；capture 测试证明 fetch 在隐藏密码前、fetch failure 零 password read，且调用方
   CA environment 即使存在也不会被使用；
+- 0014 safe diagnostic 必须先以 fake connection/dry-run 覆盖 exact success、connection failure 后零 CLI、
+  CLI command error、stdout channel drift、stderr transcript drift，以及 arguments/CA/password/connection/
+  dry-run thrown error 的固定 allowlisted stage。连接 URL 必须追加 `connect_timeout=10`，psql child 必须有
+  15 秒硬上限并在 timeout 后清空输出、删除私有 CA；Supabase CLI code 不能复用 psql code 语义。测试不得
+  读取真实密码、连接 Hosted 或反射 fake private detail；
 - 0014 Hosted apply CLI 必须是独立 exact-confirmation 入口，不能由 dry-run 自动进入写入，也不能接受手工
   project/URL/path/migration 参数。它在 TTY 前验证当前 pre-backup/rebuild preflight；同一执行内 dry-run 精确
   唯一 0014 后，在 mutation 前再次验证 clean HEAD/evidence 与 Supabase/API migration mirror 的固定 SHA-256。

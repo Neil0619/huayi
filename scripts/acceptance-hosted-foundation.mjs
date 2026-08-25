@@ -118,11 +118,22 @@ async function spawnHostedPsql({
   environment,
   input,
   rootCertificate,
+  spawnProcess,
+  timeoutMilliseconds,
 }) {
   return new Promise((resolveResult) => {
+    let settled = false;
     let stderr = "";
     let stdout = "";
-    const child = spawn(
+    let timedOut = false;
+    let timeout;
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      resolveResult(result);
+    };
+    const child = spawnProcess(
       "psql",
       [
         "-X",
@@ -143,6 +154,14 @@ async function spawnHostedPsql({
         windowsHide: true,
       },
     );
+    if (timeoutMilliseconds !== undefined) {
+      timeout = setTimeout(() => {
+        timedOut = true;
+        stderr = "";
+        stdout = "";
+        child.kill("SIGKILL");
+      }, timeoutMilliseconds);
+    }
     if (captureOutput) {
       child.stdout.setEncoding("utf8");
       child.stdout.on("data", (chunk) => {
@@ -155,9 +174,13 @@ async function spawnHostedPsql({
         if (stderr.length < 256) stderr += chunk;
       });
     }
-    child.once("error", () => resolveResult({ code: null, stderr: "", stdout: "" }));
+    child.once("error", () => finish({ code: null, stderr: "", stdout: "" }));
     child.once("exit", (code, signal) =>
-      resolveResult({ code: signal === null ? code : null, stderr, stdout }),
+      finish({
+        code: timedOut || signal !== null ? null : code,
+        stderr: timedOut ? "" : stderr,
+        stdout: timedOut ? "" : stdout,
+      }),
     );
     child.stdin.end(input);
   });
@@ -169,6 +192,8 @@ export async function runHostedPsql({
   databaseUrl,
   environment,
   input,
+  spawnProcess = spawn,
+  timeoutMilliseconds,
 }) {
   const directory = await mkdtemp(join(tmpdir(), "huayi-hosted-ca-"));
   const rootCertificate = join(directory, "root.crt");
@@ -185,6 +210,8 @@ export async function runHostedPsql({
       environment,
       input,
       rootCertificate,
+      spawnProcess,
+      timeoutMilliseconds,
     });
   } finally {
     await rm(directory, { force: true, recursive: true });

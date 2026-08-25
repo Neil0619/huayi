@@ -3,6 +3,17 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-25：0014 真实 dry-run 失败使用固定只读诊断，不再猜密码或回显 CLI
+
+- standalone dry-run 的固定失败不能区分 CA、隐藏输入、数据库连接、Supabase CLI 与严格 transcript；不得
+  让操作者反复换密码，也不得通过 `--debug` 或原始 stderr 诊断；
+- 新诊断入口只运行固定官方 CA GET、带 `connect_timeout=10` 的 transaction-pooler `SELECT` 与同一个
+  `db push --dry-run`。psql 同时有 15 秒进程硬上限；Supabase CLI 退出码只分为 ok/command/process，不能
+  套用 psql 的 1/2/3 语义；
+- 对外只输出固定 connection/dry-run predicate，异常只报告 arguments、CA、password prompt/validation、
+  connection probe 或 dry-run process 之一。密码、URL、原始 stdout/stderr、Error、环境和证书路径都不得
+  输出；诊断不授权 apply、邮件或部署。
+
 ## 2026-08-25：isolated rebuild 执行失败只报告固定脱敏阶段
 
 - readiness 已能区分本地前置条件，但 confirmation-gated rebuild 仍把 source、scratch、SQL、cleanup 与
