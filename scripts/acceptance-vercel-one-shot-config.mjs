@@ -2,12 +2,12 @@ export const expectedVercelOneShotBaselines = Object.freeze({
   api: Object.freeze({
     count: 16,
     latestCommit: "4f1ce4a458fe138aeee6fb455b2dcc398a55555a",
-    latestDeploymentId: "6QeRbqxgA88cFXggKekkr2axH9JM",
+    latestDeploymentId: "dpl_6QeRbqxgA88cFXggKekkr2axH9JM",
   }),
   web: Object.freeze({
     count: 9,
     latestCommit: "9b0860a91940e4f78968b3882af91ef5bf923b8a",
-    latestDeploymentId: "V3NzjTYXtH7fb3WC2P6hpWR1twhb",
+    latestDeploymentId: "dpl_V3NzjTYXtH7fb3WC2P6hpWR1twhb",
   }),
 });
 

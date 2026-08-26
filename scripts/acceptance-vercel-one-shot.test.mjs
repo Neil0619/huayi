@@ -21,13 +21,13 @@ function deployment({ id, project, sha, state = "READY", createdAt }) {
 
 const apiBaselineDeployment = deployment({
   createdAt: 100,
-  id: "6QeRbqxgA88cFXggKekkr2axH9JM",
+  id: "dpl_6QeRbqxgA88cFXggKekkr2axH9JM",
   project: "api",
   sha: "4f1ce4a458fe138aeee6fb455b2dcc398a55555a",
 });
 const webBaselineDeployment = deployment({
   createdAt: 100,
-  id: "V3NzjTYXtH7fb3WC2P6hpWR1twhb",
+  id: "dpl_V3NzjTYXtH7fb3WC2P6hpWR1twhb",
   project: "web",
   sha: "9b0860a91940e4f78968b3882af91ef5bf923b8a",
 });
@@ -92,12 +92,12 @@ test("one-shot plan is fixed, offline, and explicit about the serial fail-closed
     api: {
       count: 16,
       latestCommit: "4f1ce4a458fe138aeee6fb455b2dcc398a55555a",
-      latestDeploymentId: "6QeRbqxgA88cFXggKekkr2axH9JM",
+      latestDeploymentId: "dpl_6QeRbqxgA88cFXggKekkr2axH9JM",
     },
     web: {
       count: 9,
       latestCommit: "9b0860a91940e4f78968b3882af91ef5bf923b8a",
-      latestDeploymentId: "V3NzjTYXtH7fb3WC2P6hpWR1twhb",
+      latestDeploymentId: "dpl_V3NzjTYXtH7fb3WC2P6hpWR1twhb",
     },
   });
 });

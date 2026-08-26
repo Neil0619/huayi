@@ -3,6 +3,7 @@ import { basename, dirname } from "node:path";
 import { test } from "node:test";
 
 import {
+  expectedVercelOneShotBaselines,
   inspectVercelOneShotGit,
   readVercelOneShotSnapshot,
   runVercelOneShotCli,
@@ -46,7 +47,7 @@ function rawHistory({ count, latestId, latestSha, projectId, projectName }) {
     ...Array.from({ length: count - 1 }, (_, index) =>
       rawDeployment({
         createdAt: 999 - index,
-        id: `${projectName}-${index}`,
+        id: `dpl_${projectName}-${index}`,
         projectId,
         projectName,
         sha: `${((index + 6) % 10).toString().repeat(40)}`,
@@ -100,7 +101,7 @@ function remoteFixture({ apiHistory, webHistory } = {}) {
     apiHistory ??
     rawHistory({
       count: 16,
-      latestId: "6QeRbqxgA88cFXggKekkr2axH9JM",
+      latestId: "dpl_6QeRbqxgA88cFXggKekkr2axH9JM",
       latestSha: "4f1ce4a458fe138aeee6fb455b2dcc398a55555a",
       projectId: apiProjectId,
       projectName: "seen-said-acceptance-api",
@@ -109,7 +110,7 @@ function remoteFixture({ apiHistory, webHistory } = {}) {
     webHistory ??
     rawHistory({
       count: 9,
-      latestId: "V3NzjTYXtH7fb3WC2P6hpWR1twhb",
+      latestId: "dpl_V3NzjTYXtH7fb3WC2P6hpWR1twhb",
       latestSha: "9b0860a91940e4f78968b3882af91ef5bf923b8a",
       projectId: webProjectId,
       projectName: "seen-said-acceptance-web",
@@ -150,6 +151,17 @@ function remoteFixture({ apiHistory, webHistory } = {}) {
     },
   ];
 }
+
+test("fixed latest identities use canonical Vercel deployment UIDs", () => {
+  assert.equal(
+    expectedVercelOneShotBaselines.api.latestDeploymentId,
+    "dpl_6QeRbqxgA88cFXggKekkr2axH9JM",
+  );
+  assert.equal(
+    expectedVercelOneShotBaselines.web.latestDeploymentId,
+    "dpl_V3NzjTYXtH7fb3WC2P6hpWR1twhb",
+  );
+});
 
 test("Git inspection uses a bounded process contract and recognizes one exact armed project", async () => {
   const repositoryRoot = "/repo";
@@ -209,13 +221,23 @@ test("Git inspection uses a bounded process contract and recognizes one exact ar
   );
 });
 
+test("remote snapshot rejects an unprefixed deployment UID", async () => {
+  const expectations = remoteFixture();
+  expectations[2].body.deployments[0].uid = "6QeRbqxgA88cFXggKekkr2axH9JM";
+  const fake = fakeFetch(expectations);
+  await assert.rejects(
+    readVercelOneShotSnapshot({ fetch_: fake.fetch_, token }),
+    /Hosted Vercel one-shot remote verification failed/u,
+  );
+});
+
 test("remote snapshot is read-only, exact-project scoped, and preserves Canceled audit history", async () => {
   const expectations = remoteFixture();
   const apiResponse = expectations[2].body;
   apiResponse.deployments.push(
     rawDeployment({
       createdAt: 500,
-      id: "api-canceled-audit",
+      id: "dpl_api-canceled-audit",
       projectId: "prj_seen_said_acceptance_api",
       projectName: "seen-said-acceptance-api",
       sha: "c".repeat(40),
@@ -229,7 +251,7 @@ test("remote snapshot is read-only, exact-project scoped, and preserves Canceled
   assert.equal(result.web.length, 9);
   assert.deepEqual(result.api[0], {
     createdAt: 1_000,
-    id: "6QeRbqxgA88cFXggKekkr2axH9JM",
+    id: "dpl_6QeRbqxgA88cFXggKekkr2axH9JM",
     project: "api",
     sha: "4f1ce4a458fe138aeee6fb455b2dcc398a55555a",
     state: "READY",

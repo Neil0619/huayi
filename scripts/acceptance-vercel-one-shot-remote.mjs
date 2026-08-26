@@ -99,7 +99,7 @@ function parseDeployment(raw, specification, projectId) {
   if (
     !isRecord(raw) ||
     typeof raw.uid !== "string" ||
-    !/^[A-Za-z0-9_-]{3,128}$/u.test(raw.uid) ||
+    !/^dpl_[A-Za-z0-9_-]{3,128}$/u.test(raw.uid) ||
     raw.name !== specification.name ||
     raw.projectId !== projectId ||
     raw.target !== "production" ||

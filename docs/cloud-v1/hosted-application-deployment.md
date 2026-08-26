@@ -688,6 +688,10 @@ preflight、跳序、修改、权限漂移或 partial 文件均失败。`VERCEL_
 CLI 成功/失败输出固定，不反射 Token、URL、远端正文或 Git 子进程输出。工具不会写 Vercel、修改
 `vercel.json`、部署、commit 或 push；真实执行仍由已批准的独立 Git arm/disarm 提交完成。
 
+one-shot 远端契约中的 deployment identity 使用 Vercel REST 响应的 canonical `uid`，必须包含 `dpl_`
+前缀；本文件较早历史证据里来自 Dashboard 的短展示 ID 可能省略该前缀，不得直接作为 REST identity
+基线。
+
 ## 7. TDD 与验收标准
 
 Fresh RED 必须先覆盖：
