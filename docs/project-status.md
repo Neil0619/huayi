@@ -227,6 +227,13 @@ audit 仍只允许 `enabled`。这不代表 Store 产品或 Windows 支持被取
 > success 替代。真实 Web session、recent-auth Operator、Hosted key/quota、小额付费请求、实际账单/ledger
 > reconciliation 和 kill-switch live restore 也仍 pending；Cloud V1 与发布没有完成。
 
+> **当前 Hosted DeepSeek executor 设计检查点（2026-08-27）**：已选择正常 Web HTTP 合同 + 私有
+> acceptance authority 的三入口 deep module。request ID 继续由 Analysis module 生成并在
+> `analysis.started` 后原子绑定；single-use/lease/cleanup/receipt 位于仅管理员可访问的 `huayi_private`
+> authority；password Web session、recent-auth、Cookie/CSRF、SSE/status 和 Vercel/账本读取隐藏在
+> production adapters 内。浏览器 DOM 自动化与 acceptance-only 模型 route 均否决。当前只完成设计与实施
+> 顺序，尚未实现 migration、production adapters、真实 executor，亦未连接 Hosted 或产生费用。
+
 > **历史校准检查点（Phase 33）**：Phase 28 已补齐 production 语义重复建议和
 > 可计算 AA token 证据；2026-08-14 完成度源码审计发现的 SubmissionOutbox `api=null` 误清账号绑定
 > 密文与未计数 `not-configured` 回归也已按 Fresh RED→GREEN 修复。Phase 32 按 `product.md` 七条

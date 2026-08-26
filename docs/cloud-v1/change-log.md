@@ -3,6 +3,17 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-27：Hosted DeepSeek one-shot 复用正常 Web 合同
+
+- 真实 executor 采用 `status/execute/recover` 三入口 deep module；调用者不再提供 owner、request、
+  idempotency 或 deployment 等 opaque ID；
+- 正常 password Web session、recent-auth、Cookie/Origin/CSRF、`/v1/analyses:stream` 与 status recovery
+  是唯一 application path。request ID 继续由服务器生成，并在 `analysis.started` 后由私有 acceptance
+  authority 原子绑定；
+- single-use、lease fencing、cleanup-pending 与无正文 receipt 进入仅管理员可访问的 `huayi_private`
+  authority。否决浏览器 DOM 自动化和 acceptance-only 模型 route；本决策只完成设计，不代表 executor、
+  migration、Hosted 请求或付费验收已经完成；
+
 ## 2026-08-26：Hosted Cloud Web DeepSeek 验收改为可恢复的单次受控操作
 
 - Hosted Cloud Web DeepSeek 不再允许把本地 provider smoke 或仅有一个 CLI flag 视作执行授权。控制面必须以

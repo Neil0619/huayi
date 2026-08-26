@@ -55,6 +55,9 @@ Cloud V1 是尚未发布的 Store Edition 云端学习增量。实现和审阅�
 51. [Phase 82 Hosted 重要批次备份与可重建证据契约](hosted-important-batch-backup.md)
 52. [Phase 87 Hosted production 逻辑备份恢复演练方案](hosted-logical-backup-restore-drill.md)
 53. [Phase 91 Hosted public 函数 ACL 收敛方案](public-function-acl-hardening.md)
+54. [Hosted Cloud Web DeepSeek 单次验收执行器设计](hosted-deepseek-one-shot-executor-design.md)
+55. [Hosted Cloud Web DeepSeek 单次验收执行器实施计划](hosted-deepseek-one-shot-executor-plan.md)
+56. [Hosted 验收一页式操作清单](hosted-acceptance-one-page-checklist.md)
 
-根 `CONTEXT.md` 定义领域语言，`docs/adr/0009`–`0023` 记录难以逆转的取舍。需求或技术路线变化先
+根 `CONTEXT.md` 定义领域语言，`docs/adr/0009`–`0024` 记录难以逆转的取舍。需求或技术路线变化先
 更新 `change-log.md` 和对应权威文档，再修改代码。

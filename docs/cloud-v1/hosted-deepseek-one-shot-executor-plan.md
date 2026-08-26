@@ -1,0 +1,87 @@
+# Hosted Cloud Web DeepSeek 单次验收执行器实施计划
+
+影响平台：`shared + hosted-acceptance`。所有默认测试离线、无秘密、无真实模型和费用；真实 Hosted
+执行必须在实现、审查、双平台 CI 与前置 Auth/R3-C/Cron 门完成后另行批准。
+
+## 阶段 A：更新控制面合同（Fresh RED）
+
+- [ ] 先写回归，证明 approval 不再接受 owner/request/idempotency 等 opaque 输入；
+- [ ] 证明 authority 在 mutation 前生成 operation/idempotency，并在 SSE `analysis.started` 后绑定
+      server-generated request ID；
+- [ ] 证明同 key/same payload 的 bind-before-crash recovery 只恢复原 request，零二次 Provider dispatch；
+- [ ] 把 tests 从直接编排 lifecycle/adapter 迁移到 executor 的 `status/execute/recover` interface。
+
+退出标准：旧预选 request ID 合同稳定 RED，新 interface 与设计逐项对应。
+
+## 阶段 B：私有 Postgres authority
+
+- [ ] 新增 forward-only API/Supabase byte-identical migration；
+- [ ] 创建 `huayi_private.hosted_acceptance_operations`、单向 state、lease generation/token hash、唯一
+      non-terminal constraint 和 90 天 retention；
+- [ ] effective-fuse 在 cleanup 逾期时强制按 enabled 读取；不新增第六个 Cron job，不改变 exact 五项
+      Cron 安装合同；
+- [ ] fixed functions 覆盖 claim、arm cleanup、bind request、record settlement、complete、claim cleanup、
+      status 和 retention；
+- [ ] 撤销 PUBLIC/API/business/runtime 权限，只允许管理员数据库入口；
+- [ ] PGlite 回归覆盖并发消费、旧 lease fencing、崩溃窗口、multiple pending、cleanup-pending 不删除和
+      跨租户 request binding 拒绝。
+
+退出标准：authority 可由 production Postgres adapter 与 PGlite adapter 穿过同一内部 seam 验证。
+
+## 阶段 C：正常 Web session adapter
+
+- [ ] 实现 TTY-only 邮箱/密码读取，拒绝 argv/env/file fallback 和控制字符；
+- [ ] 使用现有 password login、CSRF、recent-auth、Operator readback、kill-switch 和 analyses SSE/status
+      合同；
+- [ ] Cookie jar 和凭据仅在内存中，finally normal logout 后主动销毁；不新增 purpose session、特殊 Cookie
+      或 acceptance auth 字段；
+- [ ] 固定 sentence/payload，禁止 title、userContext 和自定义正文；
+- [ ] fake HTTP 回归覆盖 Cookie/CSRF 轮换、401/403、SSE 中断、started-only/status recovery、deadline、
+      ignored abort、logout 失败和零透明重试。
+
+退出标准：没有 acceptance-only 分析 route/header/body，正常 Web 合同是唯一 Provider dispatch 路径。
+
+## 阶段 D：deployment 与 settlement adapters
+
+- [ ] Vercel adapter 固定 team/API/Web project，只读 READY Production identity/in-flight，并校验 live health/
+      release banner；
+- [ ] Postgres receipt reader 只 join 已绑定 request 的 request/reservation/record/metadata/UsageLedger；
+- [ ] 验证一至两条连续 billed call、实际 token/cost、price UUID/slot、reservation、owner delta、候选部署和
+      kill-switch restoration；
+- [ ] 输出 parser 只接受 fixed boolean/count/enum/receipt，不反射 UUID、owner、request、正文或 raw error。
+
+退出标准：legacy/拼接/跨租户/旧 deployment/聚合 usage 等弱证据全部稳定失败关闭。
+
+## 阶段 E：deep module 与 CLI
+
+- [ ] 实现 `status()`、`execute(approval)`、`recover()` 三入口；
+- [ ] CLI 保留零 I/O `plan`，新增固定 `status`、exact-confirmation `execute` 和无 opaque ID 的 `recover`；
+- [ ] 90 秒应用 deadline、10 秒 cleanup、cleanup-first finally、unique pending recovery 和固定 stage 错误；
+- [ ] 新 operation 遇到 cleanup-pending、dirty/unpushed candidate、deployment drift、recent-auth drift、预算
+      不足或非固定输入时零 mutation。
+
+退出标准：interface 之外没有调用者可见的步骤编排；删除 module 会让复杂性回到多个 caller，证明其具有
+实际 depth。
+
+## 阶段 F：离线完整验证与文档
+
+- [ ] focused RED→GREEN、`pnpm test:scripts`、API PGlite、cloud-contracts、format、lint、typecheck、
+      architecture、build 和 `pnpm verify:macos` 全绿；
+- [ ] shared 候选 push 后触发 exact-SHA Cross-platform quality，macOS/Windows 两 job 均 success；
+- [ ] 更新 API/data/security/testing/operations/release checklist/evidence，明确“implemented”不等于真实
+      paid acceptance；
+- [ ] 审查无 secret、远程代码、动态 endpoint、测试后门和 Classic 行为变化。
+
+退出标准：`implemented; target-platform validation pending` 只能在对应 Windows 证据缺失时使用，不能把
+fake/PGlite/Mac 冒充真实 Hosted 请求。
+
+## 阶段 G：真实 Hosted one-shot（独立批准）
+
+- [ ] 前置 exact-SHA CI、同一邀请/Auth、R3-C、Cron、Operator password recent-auth 与小额预算均关闭；
+- [ ] read-only status 为 ready，API/Web 精确 READY 且双 deployment policy 继续 disarmed；
+- [ ] 用户明确批准一次小额 peak reservation 后只运行一次 `execute`；
+- [ ] 验证 model、usage、实际 price、reservation、UsageLedger、90 秒分类和实际账单；
+- [ ] 无论成功失败都证明 kill switch restored；cleanup-pending 时只运行 `recover`，禁止第二次 execute；
+- [ ] 导出脱敏 receipt，完成 retention 与正常 Web 数据清理决定。
+
+退出标准：真实 Web 应用路径、费用事实、账本和恢复全部一致；随后才可关闭 Cloud DeepSeek 发布门。
