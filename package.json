@@ -17,6 +17,8 @@
     "acceptance:hosted:auth:apply": "node scripts/acceptance-hosted-auth-config.mjs apply",
     "acceptance:hosted:auth:diagnose": "node scripts/acceptance-hosted-auth-config.mjs diagnose --diagnose-hosted-auth-config-kpadiulxkgckskcfydry",
     "acceptance:hosted:auth:status": "node scripts/acceptance-hosted-auth-config.mjs status --status-hosted-auth-config-kpadiulxkgckskcfydry",
+    "acceptance:hosted:identity:plan": "node scripts/acceptance-hosted-identity-snapshot.mjs --plan",
+    "acceptance:hosted:identity:snapshot": "node scripts/acceptance-hosted-identity-snapshot.mjs --snapshot-hosted-invitation-auth-account-kpadiulxkgckskcfydry",
     "acceptance:hosted:application:diagnose": "node scripts/acceptance-hosted-application-diagnose.mjs",
     "acceptance:hosted:backup:complete": "node scripts/acceptance-hosted-important-batch-backup.mjs --verify-post-0014-important-batch-backup-kpadiulxkgckskcfydry",
     "acceptance:hosted:backup:capture:post": "node scripts/acceptance-hosted-important-batch-backup-executor.mjs --confirm-capture-post-0014-important-batch-backup-kpadiulxkgckskcfydry",
