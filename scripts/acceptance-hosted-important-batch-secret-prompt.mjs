@@ -5,6 +5,8 @@ import { fetchHostedAcceptanceOfficialCaCertificate } from "./acceptance-hosted-
 
 const terminalReaderSource = String.raw`
 const { readSync, writeSync } = require("node:fs");
+const maximumBytes = Number(process.argv[1]);
+if (![512, 768].includes(maximumBytes)) process.exit(2);
 const bytes = [];
 const byte = Buffer.allocUnsafe(1);
 for (;;) {
@@ -28,7 +30,7 @@ for (;;) {
     bytes.length = 0;
     continue;
   }
-  if (bytes.length >= 512) process.exit(2);
+  if (bytes.length >= maximumBytes) process.exit(2);
   bytes.push(byte[0]);
 }
 `;
@@ -54,8 +56,8 @@ function readTerminalState(fileDescriptor) {
   return state;
 }
 
-function startBoundedTerminalReader(fileDescriptor) {
-  const child = spawn(process.execPath, ["--eval", terminalReaderSource], {
+function startBoundedTerminalReader(fileDescriptor, maximumBytes) {
+  const child = spawn(process.execPath, ["--eval", terminalReaderSource, String(maximumBytes)], {
     env: { LANG: "C", LC_ALL: "C" },
     shell: false,
     stdio: [fileDescriptor, "ignore", "ignore", "pipe"],
@@ -74,7 +76,7 @@ function startBoundedTerminalReader(fileDescriptor) {
     };
     secretPipe.on("data", (chunk) => {
       byteLength += chunk.length;
-      if (byteLength > 512) {
+      if (byteLength > maximumBytes) {
         invalidResult = true;
         chunks.length = 0;
         child.kill("SIGKILL");
@@ -96,17 +98,20 @@ function startBoundedTerminalReader(fileDescriptor) {
   return result;
 }
 
-const allowedPrompts = new Set([
-  "Recovery project administrator database password: ",
-  "Source archive administrator database password: ",
-  "Supabase administrator database password: ",
-  "Supabase recovery management token: ",
+const allowedPromptMaximumBytes = new Map([
+  ["Hosted Operator email: ", 512],
+  ["Hosted Operator password: ", 768],
+  ["Recovery project administrator database password: ", 512],
+  ["Source archive administrator database password: ", 512],
+  ["Supabase administrator database password: ", 512],
+  ["Supabase recovery management token: ", 512],
 ]);
 
 export async function readHiddenTerminalLine(
   prompt = "Supabase administrator database password: ",
 ) {
-  if (!allowedPrompts.has(prompt)) {
+  const maximumBytes = allowedPromptMaximumBytes.get(prompt);
+  if (maximumBytes === undefined) {
     throw new Error("Hosted important-batch secret prompt is unavailable.");
   }
   const fileDescriptor = openSync("/dev/tty", "r+");
@@ -114,7 +119,7 @@ export async function readHiddenTerminalLine(
   try {
     terminalState = readTerminalState(fileDescriptor);
     runTerminalSettings(fileDescriptor, ["-echo", "-icanon", "-isig", "min", "1", "time", "0"]);
-    const readerResult = startBoundedTerminalReader(fileDescriptor);
+    const readerResult = startBoundedTerminalReader(fileDescriptor, maximumBytes);
     writeSync(fileDescriptor, prompt);
     return await readerResult;
   } finally {

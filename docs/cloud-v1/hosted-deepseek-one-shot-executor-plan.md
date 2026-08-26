@@ -65,7 +65,8 @@ Phase 91 的 15-file rebuild/backup evidence 仍只证明 0015；其 loader 必�
 
 ## 阶段 C：正常 Web session adapter
 
-- [ ] 实现 TTY-only 邮箱/密码读取，拒绝 argv/env/file fallback 和控制字符；
+- [x] 实现离线可注入的 TTY-only 邮箱/密码读取层：两项均经 hidden prompt，拒绝非交互 input/output、
+      argv/env/file fallback、非法邮箱/密码与全部 C0/C1 控制字符；返回 frozen non-enumerable 内存对象；
 - [ ] 使用现有 password login、CSRF、recent-auth、Operator readback、kill-switch 和 analyses SSE/status
       合同；
 - [ ] Cookie jar 和凭据仅在内存中，finally normal logout 后主动销毁；不新增 purpose session、特殊 Cookie

@@ -517,6 +517,14 @@ cleanup-pending、completed cleanup 搭配 non-terminal operation，或 operatio
 物理 false。读取不写 authority/runtime/quota 表，不新增 Cron、cleanup mutation、HTTP、网络或 secret seam；
 两张 authority 表继续 forced RLS 与零直权。
 
+Phase C 首个离线切片复用既有隐藏 TTY prompt，只增加两个固定 allowlisted Operator prompt。input/output
+任一不是 interactive TTY 时在读取前失败；邮箱按既有账号合同 trim/lowercase 并校验，密码保持 12–256，
+两项都拒绝 C0/C1 控制字符（含 newline、tab、escape）。返回对象 frozen 且字段 non-enumerable，普通 JSON、
+inspect/snapshot 不携带 credential；所有 prompt/validation failure 统一为固定错误。该层不读 argv、env、
+文件或真实用户 secret，不落库/日志/状态，也尚未建立 Web session 或 production composition。底层 byte
+reader 只对固定 Operator password prompt 使用 768-byte 上限，以完整容纳既有 256-character Unicode
+密码合同；其余既有管理 secret prompt 继续保持 512-byte 上限。
+
 以下不是产品决策，必须以真实环境验证后补入发布材料：Vercel/Supabase 新加坡实际部署与网络延迟、
 Google OAuth 在目标网络的可达性、Supabase 备份残留、DeepSeek 当前模型 ID/价格/JSON 与 usage
 契约、生产 Extension ID、Chrome 数据披露问卷和公开隐私政策 URL。

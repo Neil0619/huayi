@@ -1409,6 +1409,12 @@ session is invalid.`；400 `invalid_request` 表示 runtime 数据库路径未�
   固定 90 秒，cleanup 上限 10 秒；pending cleanup/recovery 必须持久化。执行回执必须绑定部署 SHA/ID 与
   settlement、ledger、post evidence。离线回归只能证明这些控制面契约，不能关闭真实 Web session、recent-auth
   Operator、Hosted key/quota、小额付费请求、实际账单/ledger reconciliation 或 kill-switch live restore；
+- Phase C TTY credential reader 必须以 injected fake TTY/hidden-line 回归证明：input/output 任一非 TTY 时零
+  prompt；邮箱 trim/lowercase、非法/空邮箱与 12–256 外密码拒绝；email/password 的 C0/C1 控制字符全部拒绝；
+  prompt 私有异常统一脱敏；返回值 frozen/non-enumerable 且 JSON/inspect/snapshot 不含两项 credential。既有
+  macOS real-TTY 回归继续证明 hidden input 不回显并在成功/Ctrl-C 后恢复 echo/icanon/isig；这些证据不表示
+  已读取真实 Operator secret、建立 Web session 或完成 Hosted 验收。另以 256 个三字节 Unicode 字符锁定
+  Operator password prompt 的 768-byte 上限，同时保持其余既有管理 secret prompt 的 512-byte 上限；
 - CLI 与 production runtime 都必须使用显式 Supabase CA 与 `verify-full`；API 环境回归拒绝 require/无 TLS、
   非 6543 pooler、错误 project ref、缺失/越界 CA，本机 disabled 模式只接受固定 loopback database DSN；
 - hosted psql 子进程回归必须证明调用方不能覆盖 `PGSSLMODE=verify-full` 与临时 `PGSSLROOTCERT`；diagnostic

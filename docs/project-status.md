@@ -260,6 +260,10 @@ audit 仍只允许 `enabled`。这不代表 Store 产品或 Windows 支持被取
 > 没有连接 Hosted、应用或 dry-run，也没有产生费用。既有 Phase 91 pre/rebuild/post 证据仍严格绑定 0015
 > 和 15-file source set；其 loader 必须拒绝当前 19-file repository。0016–0019 的新 backup/rebuild/status/
 > dry-run/apply 批次尚未设计或执行，不能复用或改写 Phase 91 证据。
+> Phase C 首个离线切片随后新增 injected TTY-only Operator credential reader：邮箱与密码均经既有 hidden
+> prompt，非交互 input/output 在读取前失败，既有邮箱规范化与密码长度合同保持不变，C0/C1 控制字符全部
+> 拒绝；返回对象 frozen/non-enumerable，固定错误与 JSON/inspect 回归不反射 credential。该实现没有读取
+> 真实 TTY/env/argv/file secret，也没有 Web session、HTTP、Hosted、production composition 或 public CLI。
 
 > **历史校准检查点（Phase 33）**：Phase 28 已补齐 production 语义重复建议和
 > 可计算 AA token 证据；2026-08-14 完成度源码审计发现的 SubmissionOutbox `api=null` 误清账号绑定
