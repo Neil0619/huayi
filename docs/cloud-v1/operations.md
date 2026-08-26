@@ -195,9 +195,9 @@ Operator，最终 status 为 `completed`。不得重跑 migration 或 foundation
 BootstrapInvitation；真实 `/admin` 密码重新认证与四区只读复核也已经完成。
 
 Phase 91 status/pre/rebuild/dry-run/apply/post 与 API→Web 串行 one-shot 已执行；不得沿用 Phase 53 的静态首次
-部署顺序，也不得从已经完成的收件人/普通邀请步骤重新开始。当前依赖链固定为：校准并冻结既有 evidence，
-补齐 Phase 91 completion receipt 的解释 → 固定脱敏只读 Hosted snapshot → 收紧模板/redirect 自动门与注册错误
-引导 → 在保留现有账号的前提下决定原邀请恢复或另行批准替代邀请 → scanner-safe 六位 OTP/Auth SMTP → R3-C
+部署顺序，也不得从已经完成的收件人/普通邀请步骤重新开始。Phase 91 等价历史 completion closure 已从不可变
+evidence 独立验证并冻结。当前依赖链固定为：固定脱敏只读 Hosted snapshot → 收紧模板/redirect 自动门与注册
+错误引导 → 在保留现有账号的前提下决定原邀请恢复或另行批准替代邀请 → scanner-safe 六位 OTP/Auth SMTP → R3-C
 真实投递、重复与无正文告警 → 五项 Cron → 受审计 kill-switch 切换、一笔获批 Cloud DeepSeek 应用路径请求
 和账本对账 → 恢复 kill switch → 目标网络、数据权利、双平台 Chrome、外部词库与自然使用/发布收口。用户密码、
 Cookie、Token 与 secret 不进入自动化或发布证据。
@@ -268,12 +268,15 @@ local-only inspection，Phase 86 writer 也已落地。tracked runbook 不记录
 migrations+fictional-seed scratch rebuild 完成、且
 `pnpm acceptance:hosted:backup:preflight` 通过后，才允许经受控 apply 入口应用 0014。真实 Phase 81 已在
 0014 postflight ACL 漂移处中断，旧 post capture/completion 禁止重跑。后续 Phase 91 已建立独立
-pre-0015/rebuild，应用唯一 forward-only 0015、捕获 post，并完成 API→Web one-shot；目前只缺
-Phase 91 completion verifier 的历史成功 receipt。三份 manifest 均不可变且 current=false，不得重捕或手改。
+pre-0015/rebuild，应用唯一 forward-only 0015、捕获 post，并完成 API→Web one-shot。独立
+`acceptance:hosted:phase91:backup:historical:verify` 已在 clean HEAD=upstream 上重验三份 manifest、实际 dump
+hash 与历史 lineage，并返回固定成功输出；原 `backup:complete` 不倒推为当时已运行。三份 manifest 均不可变
+且 current=false，不得重捕或手改。
 Phase 91 只使用 `acceptance:hosted:phase91:backup:*` 专属 plan/status/readiness/capture/rebuild/preflight/
-complete 入口；数据库只使用 `acceptance:hosted:migration:0015:status|dry-run|apply`。不得把 base
+complete/historical:verify 入口；数据库只使用 `acceptance:hosted:migration:0015:status|dry-run|apply`。不得把 base
 `acceptance:hosted:backup:*` 的 Phase 81 evidence 或命令替换参数后复用。当前本地工具链、`2d03bd8`
-macOS/Windows CI 与真实 pre/status/dry-run/apply/post 均已完成；completion receipt 缺口按上一段处理。
+macOS/Windows CI 与真实 pre/status/dry-run/apply/post、`96e19af` 本地历史 closure 均已完成；新增 shared
+脚本的最终双平台候选门继续单列。
 scratch 使用的 Supabase PostgreSQL 镜像会在 init scripts 完成前启动临时 postmaster；操作入口不得把早期
 `pg_isready` 当作初始化完成。受控 rebuild 使用 BusyBox/GNU 兼容的 `head -n 1`，只在 tmpfs
 `postmaster.pid` 首行精确为 `1`、随后 `pg_isready` 成功，且固定 SQL 回读 `auth.users`、
@@ -372,8 +375,8 @@ deploy 只接受精确 `--confirm-local-downtime`。任何失败都停止后续�
   `backup:preflight` → migration
   apply → post capture → `backup:complete` → API/Web 串行 deploy/disarm；readiness/preflight 失败时 migration
   不 ready。真实 0014 已应用但 postflight 因 API-role ACL 漂移中断；当前执行顺序由
-  `public-function-acl-hardening.md` 的 Phase 91 pre/rebuild → 0015 → post/completion 接管，旧 0014 apply、
-  post capture 和 completion 禁止重跑。
+  `public-function-acl-hardening.md` 的 Phase 91 pre/rebuild → 0015 → post → 独立 historical closure 接管，旧
+  0014 apply、post capture 和 completion 禁止重跑。
 - 离线 verifier 只读取
   `artifacts/hosted-important-batch-backups/phase-81-0014`，并验证当前工作树干净、Git HEAD、本克隆
   ignored、目录 `0700`、文件 `0600`、exact manifest、dump size/SHA-256 与 pre/post migration head。它不

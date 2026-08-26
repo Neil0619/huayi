@@ -193,8 +193,10 @@ audit 仍只允许 `enabled`。这不代表 Store 产品或 Windows 支持被取
 > 0015 收敛。固定 status 在写入前返回 `pending-exact`，历史候选 `78bfd05` 已完成 Phase 91 pre backup、
 > 完整 15-chain isolated rebuild 与 scratch 销毁、exact dry-run、唯一 0015 apply/`applied-exact` postflight
 > 及 head-15 post backup。三份 evidence 均 present/valid=true；仓库推进后 current=false，禁止覆盖、手改或
-> 重捕。未观察或持久化 Phase 91 completion verifier 的历史成功 receipt，因此该批次仍保留一个证据关闭
-> 缺口。后续 Vercel preflight 与 API arm/observe → API disarm/verify → Web arm/observe → Web
+> 重捕。后续 `96e19af` 的独立 historical verifier 已在 clean、已推送 HEAD 上重验三份 evidence、实际 dump
+> hash、同一历史 candidate、post 时间边界与 ancestor lineage，并真实返回固定成功输出；Phase 91 已形成
+> 等价历史 completion closure，但不倒推原 `backup:complete` 当时运行。后续 Vercel preflight 与 API
+> arm/observe → API disarm/verify → Web arm/observe → Web
 > disarm/verify 已全部通过，state 为 `complete` 且两个项目均恢复关闭。Hosted Auth 正式 status 已确认 Email
 > OTP length=6；`2d03bd8` 的 macOS/Windows Cross-platform quality 均成功。当前唯一普通邀请的一次 resend
 > 与同邮箱密码 resume 均返回 401，没有发送邮件；这不构成 scanner-safe 六位 OTP journey。下一步先做

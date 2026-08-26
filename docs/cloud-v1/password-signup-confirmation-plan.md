@@ -133,8 +133,9 @@ SQL 绕过。
 - [x] Phase 91 固定 status 已返回 `pending-exact`；历史候选 `78bfd05` 已完成 pre-0015 backup、完整
       15-chain isolated rebuild 与 scratch 销毁、exact dry-run、唯一 0015 apply/`applied-exact` postflight
       及 head-15 post backup。三份 evidence 目前均 present/valid=true、current=false，不得重捕；
-- [ ] Phase 91 completion verifier 的历史成功输出或 receipt 尚未观察/持久化；在不覆盖历史 evidence 的
-      前提下补齐 closure 解释前，不把该批次写成完全关闭；
+- [x] 原 Phase 91 `backup:complete` 的历史成功输出仍未观察；`96e19af` 新增的独立
+      `backup:historical:verify` 已在 clean HEAD=upstream 上重验三份不可变 evidence、实际 dump hash 与历史
+      lineage，真实返回固定成功输出并形成等价 closure；没有覆盖或重捕 evidence；
 - [x] API→Web 严格串行 one-shot 已按 preflight → API arm/observe → API disarm/verify → Web arm/observe →
       Web disarm/verify 完成，最终 state 为 `complete` 且两个项目均恢复关闭；
 - [ ] 先用固定脱敏只读 snapshot 确认 invitation claim、Auth identity 与当前账号状态，再决定保留原账号的

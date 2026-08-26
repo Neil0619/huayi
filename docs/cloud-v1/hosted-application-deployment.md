@@ -69,8 +69,9 @@ clean-HEAD/source-hash 重查和写后只读 canonical-chain/0014-contract postf
 
 2026-08-26 当前执行校准：固定 0015 status 先返回 `pending-exact`；历史候选 `78bfd05` 已完成 Phase 91
 pre backup、15-chain isolated rebuild、exact dry-run、唯一 0015 apply/`applied-exact` postflight 与 post
-backup。三份 evidence 当前均 present/valid=true、current=false；HEAD 推进不授权覆盖或重捕。没有观察或
-持久化 Phase 91 completion verifier 的历史成功 receipt，因此不能把该批次写成完全关闭。随后
+backup。三份 evidence 当前均 present/valid=true、current=false；HEAD 推进不授权覆盖或重捕。后续
+`96e19af` 新增独立 historical verifier，并在 clean、已推送 HEAD 上真实返回固定成功输出，从不可变 evidence
+形成等价 completion closure；原 `backup:complete` 不倒推为当时已运行。随后
 `acceptance:hosted:deployment:one-shot:*` 已按 preflight、API arm/observe、API disarm/verify、Web
 arm/observe、Web disarm/verify 完整执行；安全 state 为 `complete`，两个项目最终均
 `deploymentEnabled=false`。Hosted Auth 正式 status 已确认 Email OTP length 为 6。当前同一普通邀请的
@@ -123,8 +124,9 @@ Supabase API-role default grant。旧 Phase 81 post capture/completion 保持中
 
 Hosted foundation 已在 Supabase project `kpadiulxkgckskcfydry` 完成，远端 migration head 为 15 条；
 第 15 条 ACL hardening 已完成 status/pre/rebuild/dry-run/apply/postflight/post，`2d03bd8` 的 macOS/Windows
-Cross-platform quality 也已通过。Phase 91 completion 的历史成功 receipt 仍缺失，不能因现有 evidence
-`current=false` 而重捕。First Operator 为 `completed`。
+Cross-platform quality 也已通过。Phase 91 等价历史 completion closure 已由 `96e19af` 的独立 verifier 真实
+通过；原 current-HEAD completion 不倒推为已运行，也不能因现有 evidence `current=false` 而重捕。First
+Operator 为 `completed`。
 不得再运行 pristine foundation bootstrap、
 0012/0013、首张
 BootstrapInvitation 或 First Operator complete；这些步骤只保留为历史证据。Supabase Auth Site URL、五条
@@ -676,8 +678,8 @@ archive 不包含 Storage object bytes、global roles 或 Hosted platform config
 
 Phase 91 ACL hardening 的 post backup 之后，本轮不再只靠人工观察控制 arm 窗口。下列固定入口已按顺序真实
 执行；state 最终为 `complete`，API Ready deployment 为 `dpl_AWUiTdYGgmVHZ127xqGAVhQb2zCd`，Web Ready
-deployment 为 `dpl_J6vtHUqfkstdGZ5w1yZJyVbhF6Yc`，两个项目均恢复关闭。Phase 91 completion receipt 的缺失
-仍单独记录，不能用 deployment 成功替代：
+deployment 为 `dpl_J6vtHUqfkstdGZ5w1yZJyVbhF6Yc`，两个项目均恢复关闭。该部署成功没有替代 Phase 91
+completion 证据；后者已经由独立 historical verifier 另行关闭：
 
 1. `pnpm acceptance:hosted:deployment:one-shot:plan`：零 environment/filesystem/Git/network；
 2. `pnpm acceptance:hosted:deployment:one-shot:preflight`：只读 Vercel/Git，要求 clean HEAD 与 upstream

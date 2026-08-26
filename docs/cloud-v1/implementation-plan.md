@@ -2010,16 +2010,20 @@ secret。完整方案见 `public-function-acl-hardening.md`。
 候选 `78bfd05` 已完成 head-14 pre、15-chain rebuild、exact dry-run、唯一 0015 apply/`applied-exact`
 postflight 与 head-15 post。`2d03bd8` 的 macOS/Windows Cross-platform quality 均通过。pre/rebuild/post
 manifest 当前均 present/valid=true、current=false，禁止为 currentness 重捕。Phase 91 唯一剩余关闭缺口是未
-观察或持久化 backup completion 的历史成功 receipt；API→Web one-shot 已另行完整执行并恢复双关闭，不能
-替代该 receipt。
+观察或持久化原 `backup:complete` 的历史成功 receipt。后续 `96e19af` 新增独立
+`acceptance:hosted:phase91:backup:historical:verify`，在 clean HEAD=upstream 上重验三份不可变 evidence、
+实际 dump hash、同一历史 candidate、post 时间边界与 ancestor lineage，真实返回
+`Hosted Phase 91 historical completion evidence passed.`。该固定输出已形成等价历史 closure，且不倒推原
+completion 当时运行；API→Web one-shot 仍是另行完成的双关闭证据。新增 shared 脚本的最终双平台候选门继续
+单列。
 
 ### Phase 92：Hosted invitation/Auth 恢复与剩余发布链（2026-08-26）
 
 影响平台为 `shared + hosted-acceptance`。现有普通账号、学习数据、唯一普通邀请与 Auth user 均默认保留；
 未经单独批准不得创建替代邀请、删除 identity、发送邮件、安装 Cron、切换 kill switch 或调用付费模型。
 
-1. **证据冻结**：校准 Phase 91、one-shot、Hosted Auth 与 401 观测；审查不可变 manifest 能否形成等价历史
-   completion closure，不覆盖或重捕 evidence；
+1. **证据冻结（本地已完成）**：校准 Phase 91、one-shot、Hosted Auth 与 401 观测；用独立历史 verifier 从
+   不可变 manifest 形成等价 completion closure，不覆盖或重捕 evidence；最终候选双平台质量门仍单列；
 2. **脱敏只读 snapshot**：使用固定项目/固定 SQL 与隐藏管理员密码，只输出 invitation/claim/Auth/account 的
    allowlisted 状态与计数，不输出邮箱、UUID、Token、正文或 raw error；
 3. **模板与错误引导门**：自动回读并验证 Confirm sign up 模板只含一次 `{{ .Token }}`、一次

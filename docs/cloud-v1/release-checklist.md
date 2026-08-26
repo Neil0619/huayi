@@ -61,8 +61,8 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       Phase 80 幂等 bundle 已显示 `Hosted 验收 · 9b0860a` 并通过 recovery copy/secret scan；Cron 与
       DeepSeek 应用路径 smoke 仍未完成。唯一普通邀请随后已提交密码注册并发现 Hosted OTP length=8；
       单字段已保存并由正式 status 回读为 6。0014 的 Data API role ACL 漂移已由唯一 forward-only 0015
-      收敛；Phase 91 pre/rebuild/dry-run/apply/post evidence 与 API→Web 严格串行 one-shot 均已执行。由于
-      Phase 91 completion 的历史成功 receipt 未观察/持久化，且同邀请 resend/resume 实际返回 401、没有
+      收敛；Phase 91 pre/rebuild/dry-run/apply/post evidence、等价历史 completion closure 与 API→Web 严格
+      串行 one-shot 均已完成。由于同邀请 resend/resume 实际返回 401、没有
       发送新邮件，六位 OTP journey 仍未通过，因此本项保持未勾选。后续离线审计先用 deferred Promise 证明同一渲染周期双击 resend 会调用两次；再
       审查同一页面全部认证动作，证明 register/login/resume 各会同 tick 双发，错误页的 resend 与 resume
       也可并发。Web 现以一个共享同步单飞门保护全部账号 mutation，避免重复 Auth flow/Provider 调用、身份
@@ -125,8 +125,8 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       First Operator 最终 status 为 `completed`。第 14 条同邀请 OTP 重发 migration 已应用；其结构正确，
       三个 Supabase Data API role 的 public-function ACL 漂移已由第 15 条 forward-only hardening 收敛。
       固定 status、pre/rebuild、exact dry-run、apply/`applied-exact` postflight 与 post backup 已完成；
-      `2d03bd8` 的双平台 CI 也通过。由于 Phase 91 completion 的历史成功 receipt 尚未观察/持久化，数据库
-      总门在完成不可变 evidence 的 closure 审查前仍保持未勾选；
+      `2d03bd8` 的双平台 CI 也通过。`96e19af` 已从不可变 evidence 形成等价历史 closure 并真实返回固定成功
+      输出；新增 shared 脚本的最终双平台候选门尚未执行，因此数据库总门暂不勾选；
 - [x] 当前开发态构建审计确认没有新增秘密、远程代码、动态 endpoint 或危险 HTML；
 - [ ] 正式候选注入公开配置后重新执行完整构建审计，并复核每项 permission/host；
 - [x] fake model/mail/third-party 已按各能力真实定义覆盖成功、失败、取消、超时和额度分支；没有额度或
@@ -233,8 +233,9 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       `applied-exact`；
 - [x] Phase 91 应用后已捕获 head 15 post backup；pre/rebuild/post 均 present/valid=true，并与 Phase 81 pre
       一起保留。仓库推进后它们按预期 current=false，禁止覆盖或重捕；
-- [ ] Phase 91 completion verifier 的历史成功输出或独立 receipt 未观察/持久化。必须先判断能否从不可变
-      manifest 补齐等价 closure 证据；不得伪造 Phase 81 completion，也不得为制造 current=true 重写恢复点；
+- [x] 原 Phase 91 `backup:complete` 的历史成功输出仍未观察；独立 `backup:historical:verify` 已从不可变
+      manifest、实际 dump hash、同一 candidate、post 时间边界与 ancestor lineage 补齐等价 closure，并真实
+      返回固定成功输出；没有伪造 Phase 81 completion，也没有为制造 current=true 重写恢复点；
 - [ ] 在真实 R3-C 收件、重复观测和无正文告警门关闭后，从同一受控来源确认 Vercel/Vault
       `CRON_SECRET` 连续性，运行 Cron status→exact-confirmation apply；要求两次完整事务均成功、postflight
       exact 五 job/零 unmanaged，并观察至少两个周期及 401/5xx/timeout 后恢复；
@@ -389,8 +390,8 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       提交密码注册；不得创建第二张邀请或删除其 Auth identity。Phase 80 已离线修复创建双击和模糊响应
       重复风险：pending 单飞、同一内存 Idempotency-Key 安全恢复、成功后才换键；
 - [ ] 保留并继续使用上述同一普通邀请；Phase 81/0014 禁止重跑，Phase 91 migration 与
-      API→Web one-shot 的真实五阶段 transition 已完成，最终两个项目均恢复关闭。Phase 91 completion receipt
-      的证据解释仍待补齐，但不得为此重捕备份。2026-08-26 在现有 join 错误页只点击一次重发返回 401 且
+      API→Web one-shot 的真实五阶段 transition 已完成，最终两个项目均恢复关闭。Phase 91 等价历史
+      completion closure 也已独立通过，原 backup 不得重捕。2026-08-26 在现有 join 错误页只点击一次重发返回 401 且
       没有发出邮件；同邮箱密码恢复也返回 401。下一步先执行固定脱敏只读 snapshot，确认 invitation claim、
       Auth identity 与账号状态，再决定保留账号的恢复路线；不得继续盲重试、创建第二邀请或删除 Auth user。
       恢复后再验证 scanner/repeated GET 无副作用、显式 OTP POST、Web 落点和密码重登；已部署 bundle 的 active

@@ -10,8 +10,11 @@
 - 不得为了重新得到 current=true 而覆盖、重捕、手改或搬回历史 evidence。completion verifier 的成功输出或
   独立 receipt 缺失时，必须把它记录为单独 closure 缺口，不能用 post capture、migration postflight、部署或
   当前工作树的验证结果替代；
-- 后续先审查不可变 manifest 是否足以形成等价历史 closure 证据；若合同需要新增 receipt，只能以
-  forward-only 的本地证据模型补充，不能改写既有恢复点。
+- 已采用独立 `acceptance:hosted:phase91:backup:historical:verify` 形成等价历史 closure：严格重验三份
+  manifest、实际 dump hash、同一 candidate、post 时间边界，以及该 candidate 仍是 clean、已推送 HEAD 的
+  祖先；原 `backup:complete` 的 current-HEAD 合同保持不变；
+- 历史校验的固定成功输出可以作为 forward-only 证据持久化，但不得倒推旧 `backup:complete` 当时已经运行，
+  也不得借此改写既有恢复点。
 
 ## 2026-08-26：邀请重发或恢复返回 401 时先做脱敏只读状态诊断
 

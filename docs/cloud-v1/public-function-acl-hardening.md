@@ -3,9 +3,10 @@
 状态：0014 已确认完整应用并禁止重跑；0015 已在 Hosted 按唯一 migration 完成 exact dry-run、apply 与
 `applied-exact` postflight。Phase 91 的 pre、15-chain isolated rebuild 与 post evidence 均在历史候选
 `78bfd05` 上存在且有效；API/Web 严格串行 one-shot 也已完成并恢复双关闭。仓库随后推进到 `2d03bd8`，该
-exact SHA 的 macOS/Windows Cross-platform quality 均通过。当前唯一 Phase 91 关闭缺口是没有观察或持久化
-`acceptance:hosted:phase91:backup:complete` 的历史成功回执；现有 evidence 因 HEAD 推进而
-`current=false`，不得覆盖、重捕或把 capture 成功冒充 completion 成功。受影响平台为 `shared`
+exact SHA 的 macOS/Windows Cross-platform quality 均通过。后续 `96e19af` 增加独立历史校验，在 clean、
+已推送 HEAD 上重验三份 evidence 与 Git lineage，并真实返回固定成功输出。因此 Phase 91 已取得等价历史
+completion closure；这不倒推原 `acceptance:hosted:phase91:backup:complete` 当时运行。现有 evidence 因
+HEAD 推进而 `current=false`，不得覆盖、重捕或把 capture 成功冒充原 completion 成功。受影响平台为 `shared`
 （PostgreSQL migration、Hosted 控制面与文档），不改变 macOS / Windows OS integration。
 
 ## 1. 背景与已确认事实
@@ -33,8 +34,9 @@ transaction pooler `6543` 上得到以下确定事实：
 - 三份 evidence 均绑定历史候选 `78bfd05`：pre head 为 `20260824010000`，rebuild/post head 为
   `20260825010000`。当前只读 status 为 present/valid=true、current=false，这是后续候选推进的预期历史
   状态，不授权重新捕获；
-- 未找到 completion verifier 的固定成功输出或独立 receipt。因此本页不把 Phase 91 写成完全关闭；后续只
-  允许先审查能否从不可变 manifest 得到等价历史 closure 证据，不能为了追求 current=true 改写恢复点。
+- 原 `backup:complete` 的历史成功输出仍未观察；独立 `backup:historical:verify` 已严格验证三份 manifest、
+  dump hash、candidate 一致性、post 时间边界与 ancestor lineage，并返回固定成功输出。该等价 closure 已在
+  发布证据中持久化，且没有为了追求 current=true 改写恢复点。
 
 根因是 Supabase 项目给 `public` schema 新函数追加的 API role 默认 `EXECUTE` 与 PostgreSQL 函数默认
 `PUBLIC EXECUTE` 叠加。Supabase 的
@@ -130,8 +132,9 @@ pre-0014，也不能为了让旧 completion 通过而改写它。旧批次保持
   `acceptance:hosted:phase91:backup:executor:post:readiness`；
 - 单独批准的证据写入：`acceptance:hosted:phase91:backup:capture:pre`、
   `acceptance:hosted:phase91:backup:rebuild`、`acceptance:hosted:phase91:backup:capture:post`；
-- 证据门：`acceptance:hosted:phase91:backup:preflight` 与
-  `acceptance:hosted:phase91:backup:complete`；
+- 证据门：`acceptance:hosted:phase91:backup:preflight`、current-HEAD
+  `acceptance:hosted:phase91:backup:complete` 与只读历史
+  `acceptance:hosted:phase91:backup:historical:verify`；
 - Hosted 数据库入口：`acceptance:hosted:migration:0015:status`、
   `acceptance:hosted:migration:0015:dry-run`、`acceptance:hosted:migration:0015:apply`。
 
@@ -199,7 +202,7 @@ ignore、fixed CA、verify-full、无 stdout/stderr 泄露、Storage object byte
 
 - 文档、0015 两份 migration、版本链、local doctor、backup/rebuild、status/dry-run/apply 契约一致；
 - complete quality gate 与双平台 CI 通过，候选 clean 且可追溯；
-- Phase 91 pre/rebuild/preflight、exact dry-run、apply postflight、post/completion 均有固定证据；
+- Phase 91 pre/rebuild/preflight、exact dry-run、apply postflight、post 与等价历史 completion 均有固定证据；
 - Hosted status 为 `applied-exact`，完整 15-chain、现有函数 ACL、default ACL 和 0014 Huayi grants 全部精确；
 - Hosted Data API、Supabase Auth/SMTP、DNS、Vercel、environment、密钥和用户数据均未被本阶段改变；
 - release evidence 明确保留 0014 的真实未验证返回、后续只读确证、0015 修复与两个恢复点，不把任何

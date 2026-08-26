@@ -2667,7 +2667,7 @@ typecheck、architecture、build、development blocker、Store release、product
   配置，也没有发送/重发邮件或创建邀请。诊断修复已提交为 `2d03bd8` 并推送；该 exact SHA 的手动
   Cross-platform quality run `32940041074` 中 macOS 与 Windows job 均成功。
 
-## 102. Phase 91 0015 Hosted 执行与不可变 evidence 关闭缺口（2026-08-26）
+## 102. Phase 91 0015 Hosted 执行与原始 completion 回执缺口（2026-08-26）
 
 - **写前状态与恢复点**：固定只读 status 返回 `pending-exact`。历史候选 `78bfd05` 随后完成 head-14 pre raw
   backup；独立 networkless rebuild 应用完整 15-chain 与 fictional seed、通过 final contract，并在销毁 scratch
@@ -2679,9 +2679,9 @@ typecheck、architecture、build、development blocker、Store release、product
 - **证据回读**：`acceptance:hosted:phase91:backup:status` 现对 pre/rebuild/post 均返回 present=true、
   valid=true、current=false。三份 manifest 均绑定 `78bfd05`；仓库后续推进是 currentness 变化的原因，不使
   历史证据失效，也不授权覆盖、手改或重捕；
-- **关闭缺口**：未观察到 `acceptance:hosted:phase91:backup:complete` 的固定成功输出，仓库也没有独立
-  completion receipt。因此只能写成 migration 与三份恢复证据完成、Phase 91 closure evidence 待解释；不得
-  把 post capture 成功冒充 completion 成功。
+- **原始回执边界**：未观察到 `acceptance:hosted:phase91:backup:complete` 的固定成功输出，仓库当时也没有
+  独立 completion receipt。因此本检查点只能写成 migration 与三份恢复证据完成；不得把 post capture 成功
+  冒充 completion 成功。后续等价历史 closure 见第 105 节。
 
 ## 103. API→Web 严格串行 one-shot 完成（2026-08-26）
 
@@ -2691,8 +2691,8 @@ typecheck、architecture、build、development blocker、Store release、product
 - **Web 窗口**：API 关闭证据冻结后，Web arm `699fbe6` 只产生一条目标 Ready deployment，canonical
   identity 为 `dpl_J6vtHUqfkstdGZ5w1yZJyVbhF6Yc`；直接子 Web disarm `4f8f96b` 通过独立 verify；
 - **终态**：clone-local state 的 phase 为 `complete`，两个项目均恢复
-  `deploymentEnabled=false`，没有 in-flight。该证据只关闭本轮部署窗口，不替代 Phase 91 completion
-  receipt、OTP/Auth SMTP、R3-C、Cron 或 DeepSeek 门。
+  `deploymentEnabled=false`，没有 in-flight。该证据只关闭本轮部署窗口；它没有替代 Phase 91 completion，
+  后者由第 105 节独立关闭。OTP/Auth SMTP、R3-C、Cron 或 DeepSeek 门仍未关闭。
 
 ## 104. 同一普通邀请重发/恢复 401 观测（2026-08-26）
 
@@ -2706,3 +2706,20 @@ typecheck、architecture、build、development blocker、Store release、product
   scanner-safe 六位 OTP journey。下一步先运行固定脱敏只读 Hosted snapshot，确认 invitation、claim、Auth
   identity 与账号状态；随后再收紧模板/redirect 自动门和错误引导，最后决定保留现有账号的原邀请恢复或
   另行批准替代邀请。诊断前禁止继续盲重试、创建第二邀请或删除 Auth user。
+
+## 105. Phase 91 等价历史 completion closure（2026-08-26）
+
+- **独立合同**：提交 `96e19af` 新增
+  `acceptance:hosted:phase91:backup:historical:verify`。原 `backup:complete` 继续要求 manifest candidate 与
+  当前 clean HEAD 精确相同；历史入口没有弱化或替换该门；
+- **严格历史绑定**：新入口重新读取 pre/rebuild/post 三份 canonical manifest，重算两份实际 dump SHA-256，
+  要求三者绑定同一 40 位 candidate，post 时间不早于 pre/rebuild，并要求该 candidate 仍存在且是当前
+  clean、HEAD=upstream 的祖先。目录、文件、权限、大小、migration head 与 exact-entry 约束继续复用原严格
+  verifier；
+- **真实固定输出**：`96e19af` 推送后，工作树精确 clean 且 HEAD=upstream，实际执行
+  `pnpm acceptance:hosted:phase91:backup:historical:verify` 退出 0，并固定返回
+  `Hosted Phase 91 historical completion evidence passed.`。本节把该输出持久化为等价历史 closure；
+- **验证与边界**：提交前完整 `pnpm verify:macos` 退出 0，包含新增脚本回归、141 个 API 测试文件、Store
+  coverage、workspace build、111 条 E2E、Store release 与 production audit。该操作没有连接 Supabase、没有
+  写数据库、没有重捕或改写 evidence，也不声称原 `backup:complete` 在 post capture 后曾经运行。新增 shared
+  脚本的最终 Cross-platform quality 仍需另行批准执行。
