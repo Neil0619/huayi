@@ -41,6 +41,15 @@ Phase A 的离线 seam 已固定为冻结对象上的这三个方法。测试 au
 不完整结果和五秒 deadline 均固定失败关闭。该读取不调用 adapter mutation。direct lifecycle/adapter
 orchestration 只存在于模块闭包和测试 composition root，不再导出给调用者。
 
+Phase A 与 0016 foundation 的离线合同还固定：先捕获并验证 fresh pre-snapshot，之后才允许 claim
+operation；claim 同时钉住固定 payload digest 与 exact API/Web deployment pair。operation 后续私有写入都
+携带 raw claim token 与 lease generation，cleanup 完成写入携带 raw cleanup token 与 claim generation；
+cleanup 以 operation ID 为唯一身份，不另造 JS-only cleanup ID，也不携带或要求持久化 raw idempotency
+key/owner。operation lease 必须覆盖 90 秒应用与随后 10 秒 cleanup 窗口；claim 后快照过期时使用已验证
+lease 终结失败 operation，cleanup arm 已尝试但未能证明关闭时保守进入 cleanup-pending。recovery 完成
+cleanup 时还必须原子终结 operation，使 `status()` 进入 terminal 并释放唯一 non-terminal slot。生产 SQL
+functions 仍未实现这些转换与 fence 校验。
+
 POST 已发出但客户端尚未观察到 `analysis.started` 就发生进程内 transport disconnect 时，执行器不会重发
 POST，而是在同一 bounded application deadline 内，以 authority 已记录的 idempotency key、owner 和固定
 payload digest 调用 reconciliation adapter。只有一条完整且三元组精确匹配的 server request 可被转换为

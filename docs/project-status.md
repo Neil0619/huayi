@@ -236,6 +236,11 @@ audit 仍只允许 `enabled`。这不代表 Store 产品或 Windows 支持被取
 > dispatch receipt 必须先于 HTTP，request ID 只从 `analysis.started` 或 exact-one 对账结果绑定；caller 仅能
 > 取得冻结的 `status/execute/recover` 对象，五秒只读 status 失败关闭，进程内 transport disconnect 只对账
 > 且不重发 POST，cleanup recovery 不接受 opaque ID，ledger ordinal 从 0 起始，成功结果不暴露私有证据。
+> 随后的 Phase A↔0016 合同对齐又把 fresh pre-snapshot 移到 claim 前，claim 钉住固定 payload digest 与
+> exact deployment pair，所有私有写入携带 generation/token，cleanup 不携带 raw idempotency key/owner；
+> claim 后快照过期会终结 operation，lease 覆盖 90 秒应用与 10 秒 cleanup，recovery 完成 cleanup 时原子
+> 终结 operation。新增/既有 one-shot 聚焦 44/44、完整 `pnpm test` 与 `pnpm verify:macos` 111/111 E2E
+> 均通过；这仍只是离线合同，不是 production authority 或 Hosted 执行。
 > Phase B 首个离线切片又新增 byte-identical 0016 API/Supabase migration：两张 private forced-RLS authority
 > 表、唯一 non-terminal operation、单向状态与 generation/token 轮换结构 guard、不可改写证据、90 天
 > retention 字段，以及零 application/runtime/专用 executor 表直权均由 PGlite 覆盖。专用 `NOLOGIN` role

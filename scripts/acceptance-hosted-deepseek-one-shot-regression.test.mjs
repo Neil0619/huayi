@@ -37,7 +37,7 @@ test("one approval is atomically consumed before concurrent callers can dispatch
   assert.equal(results.filter(({ status }) => status === "fulfilled").length, 1);
   assert.equal(results.filter(({ status }) => status === "rejected").length, 1);
   assert.equal(calls.filter((call) => call === "claim-operation").length, 2);
-  assert.equal(calls.filter((call) => call === "pre-snapshot").length, 1);
+  assert.equal(calls.filter((call) => call === "pre-snapshot").length, 2);
   assert.equal(calls.filter((call) => call.startsWith("request:")).length, 1);
 });
 

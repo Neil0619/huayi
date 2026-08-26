@@ -1,10 +1,10 @@
 import {
+  cleanupCompletionReceiptIsValid,
   cleanupLeaseIsValid,
   completionReceiptIsValid,
   deploymentsAreValid,
   hasExactKeys,
   isSafeNonnegativeInteger,
-  operationIdentity,
 } from "./acceptance-hosted-deepseek-one-shot-contract.mjs";
 import { postSnapshotProvesRestoration } from "./acceptance-hosted-deepseek-one-shot-evidence.mjs";
 
@@ -27,11 +27,9 @@ const requiredLifecycleMethods = Object.freeze([
   "markDispatchAttempted",
   "readStatus",
 ]);
-
 function failedClosed() {
   return new Error(failureMessage);
 }
-
 function methodsAreValid(value, methodNames) {
   return (
     typeof value === "object" &&
@@ -40,7 +38,6 @@ function methodsAreValid(value, methodNames) {
     methodNames.every((methodName) => typeof value[methodName] === "function")
   );
 }
-
 function signalIsValid(signal) {
   return (
     signal === undefined ||
@@ -51,7 +48,6 @@ function signalIsValid(signal) {
       typeof signal.removeEventListener === "function")
   );
 }
-
 export function executionDependenciesAreValid({
   adapter,
   clearTimeout_,
@@ -70,7 +66,6 @@ export function executionDependenciesAreValid({
     signal?.aborted !== true
   );
 }
-
 function createDeadline({
   budgetMilliseconds,
   controlBudgetField,
@@ -114,7 +109,6 @@ function createDeadline({
     },
   };
 }
-
 export function createApplicationDeadline(options) {
   return createDeadline({ ...options, controlBudgetField: "applicationBudgetMilliseconds" });
 }
@@ -122,7 +116,6 @@ export function createApplicationDeadline(options) {
 export function createCleanupDeadline(options) {
   return createDeadline({ ...options, controlBudgetField: "cleanupBudgetMilliseconds" });
 }
-
 export function createStatusDeadline(options) {
   return createDeadline({ ...options, controlBudgetField: "statusBudgetMilliseconds" });
 }
@@ -140,7 +133,6 @@ export function statusDependenciesAreValid({
     typeof clearTimeout_ === "function"
   );
 }
-
 function safeStatusFromSnapshot(snapshot) {
   if (
     !hasExactKeys(snapshot, ["authority", "records"]) ||
@@ -216,10 +208,9 @@ export function createCleanupCommand(operationLease, preSnapshot) {
     claimToken: operationLease.claimToken,
     deployments: preSnapshot.deployments,
     desiredKillSwitchEnabled: preSnapshot.killSwitchEnabled,
-    idempotencyKey: operationLease.idempotencyKey,
+    leaseGeneration: operationLease.leaseGeneration,
     observedAt: preSnapshot.observedAt,
     operationId: operationLease.operationId,
-    ownerId: operationLease.ownerId,
   });
 }
 
@@ -244,20 +235,20 @@ export function createReconciliationRequest(identity, payloadDigest) {
 
 export async function completeCleanup({ lifecycle, lease, postSnapshot }) {
   const receipt = await lifecycle.completeCleanup({
-    cleanupId: lease.cleanupId,
+    claimGeneration: lease.claimGeneration,
     cleanupToken: lease.cleanupToken,
     observedAt: postSnapshot.observedAt,
     operationId: lease.operationId,
   });
-  return completionReceiptIsValid(receipt, {
-    cleanupId: lease.cleanupId,
-    status: "completed",
-  });
+  return cleanupCompletionReceiptIsValid(receipt, lease.operationId)
+    ? receipt.operationState
+    : null;
 }
 
 export async function completeOperation({ lifecycle, operationLease, outcome }) {
   const receipt = await lifecycle.completeOperation({
     claimToken: operationLease.claimToken,
+    leaseGeneration: operationLease.leaseGeneration,
     operationId: operationLease.operationId,
     outcome,
   });
@@ -286,7 +277,7 @@ export async function attemptCleanup({
     if (
       !isSafeNonnegativeInteger(startedAt) ||
       !isSafeNonnegativeInteger(deadlineAt) ||
-      !cleanupLeaseIsValid(lease, lease, lease.deployments, deadlineAt)
+      !cleanupLeaseIsValid(lease, lease.deployments, deadlineAt)
     ) {
       return { completed: false, postSnapshot };
     }
@@ -314,8 +305,10 @@ export async function attemptCleanup({
       return { completed: false, postSnapshot };
     }
     if (restorationFailed) return { completed: false, postSnapshot };
-    const completed = await deadline.run(() => completeCleanup({ lifecycle, lease, postSnapshot }));
-    return { completed, postSnapshot };
+    const operationState = await deadline.run(() =>
+      completeCleanup({ lifecycle, lease, postSnapshot }),
+    );
+    return { completed: operationState !== null, operationState, postSnapshot };
   } catch {
     return { completed: false, postSnapshot };
   } finally {
@@ -370,7 +363,6 @@ export async function recoverHostedDeepSeekOneShotCleanup(options = {}) {
       !isSafeNonnegativeInteger(cleanupDeadlineAt) ||
       !cleanupLeaseIsValid(
         cleanupLeaseCandidate,
-        operationIdentity(cleanupLeaseCandidate),
         cleanupLeaseCandidate.deployments,
         cleanupDeadlineAt,
       ) ||
@@ -388,7 +380,9 @@ export async function recoverHostedDeepSeekOneShotCleanup(options = {}) {
       readNowMilliseconds,
       setTimeout_,
     });
-    if (!cleanupAttempt.completed) throw failedClosed();
+    if (!cleanupAttempt.completed || cleanupAttempt.operationState !== "terminal") {
+      throw failedClosed();
+    }
     return Object.freeze({
       killSwitchRestored: true,
       outcome: "restored",

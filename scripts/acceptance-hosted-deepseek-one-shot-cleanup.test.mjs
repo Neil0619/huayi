@@ -41,7 +41,7 @@ test("an invalid operation receipt is never promoted into an unsafe completion",
     }),
     failurePattern,
   );
-  assert.deepEqual(adapterCalls, []);
+  assert.deepEqual(adapterCalls, ["pre-snapshot"]);
   assert.deepEqual(lifecycleCalls, ["claim-operation"]);
 });
 
@@ -68,6 +68,28 @@ test("an invalid cleanup receipt cannot drive a kill-switch mutation or cleanup 
     false,
   );
   assert.equal(lifecycleCalls.includes("complete-cleanup"), false);
+  assert.match(lifecycleCalls.at(-1), /failed-cleanup-pending/u);
+});
+
+test("the operation lease must cover the application and cleanup windows", async () => {
+  const adapterCalls = [];
+  const lifecycleCalls = [];
+  const lifecycle = operationLifecycle({
+    calls: lifecycleCalls,
+    claim: (command) => operationLease(command, { leaseExpiresAt: "2026-08-26T02:11:35.000Z" }),
+  });
+
+  await assert.rejects(
+    orchestrate({ adapter: adapter({ calls: adapterCalls }), approval: approval(), lifecycle }),
+    failurePattern,
+  );
+
+  assert.equal(
+    adapterCalls.some((call) => call.startsWith("kill-switch:")),
+    false,
+  );
+  assert.notEqual(lifecycle.pendingCleanup(), undefined);
+  assert.match(lifecycleCalls.at(-1), /failed-cleanup-pending/u);
 });
 
 for (const shortLease of ["operation", "cleanup"]) {

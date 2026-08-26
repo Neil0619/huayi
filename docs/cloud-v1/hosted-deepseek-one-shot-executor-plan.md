@@ -16,7 +16,11 @@
 
 当前检查点：Phase A 已用离线 lifecycle/fake HTTP 完成 Fresh RED→GREEN；caller 只能取得冻结的
 `status/execute/recover` 对象；进程内 transport disconnect 只允许 exact-one reconciliation，dispatch
-receipt 失败仍可在没有伪造 request evidence 的情况下恢复 fuse。CLI 仍只有零 I/O `plan`。
+receipt 失败仍可在没有伪造 request evidence 的情况下恢复 fuse。fresh pre-snapshot 在 claim 前验证；
+claim 钉住固定 payload digest 与 exact deployment pair；operation/cleanup 私有写入分别携带 generation 与
+raw token；cleanup 沿用 operation ID 且不持久化 raw idempotency key/owner，operation lease 覆盖应用与
+cleanup 完整窗口，claim 后过期会安全终结，cleanup arm 不确定会保守进入 cleanup-pending；recovery 完成
+cleanup 时同步终结 operation。CLI 仍只有零 I/O `plan`。
 
 退出标准：旧预选 request ID 合同稳定 RED，新 interface、bounded status 与零重放 reconciliation 均与设计
 逐项对应。Phase A 已完成；这不表示 Postgres authority、production adapter 或真实 Hosted executor 已实现。

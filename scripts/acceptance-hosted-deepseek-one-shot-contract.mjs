@@ -94,7 +94,8 @@ function deploymentIsValid(deployment) {
   return (
     hasExactKeys(deployment, ["commit", "deploymentId", "state"]) &&
     /^[0-9a-f]{40}$/u.test(deployment.commit) &&
-    isToken(deployment.deploymentId) &&
+    typeof deployment.deploymentId === "string" &&
+    /^dpl_[A-Za-z0-9]+$/u.test(deployment.deploymentId) &&
     deployment.state === "READY"
   );
 }
@@ -217,6 +218,7 @@ export function operationLeaseIsValid(lease, approval, requiredUntilMilliseconds
       "claimToken",
       "idempotencyKey",
       "leaseExpiresAt",
+      "leaseGeneration",
       "maximumReservationMicroUsd",
       "operationId",
       "ownerId",
@@ -225,30 +227,25 @@ export function operationLeaseIsValid(lease, approval, requiredUntilMilliseconds
     lease.candidateCommit === approval.candidateCommit &&
     lease.maximumReservationMicroUsd === approval.maximumReservationMicroUsd &&
     isToken(lease.claimToken) &&
+    isSafePositiveInteger(lease.leaseGeneration) &&
     expiresAt !== null &&
     expiresAt > requiredUntilMilliseconds
   );
 }
 
-export function cleanupLeaseIsValid(lease, identity, deployments, requiredUntilMilliseconds) {
+export function cleanupLeaseIsValid(lease, deployments, requiredUntilMilliseconds) {
   const expiresAt = parseUtcTimestamp(lease?.leaseExpiresAt);
   return (
     hasExactKeys(lease, [
-      "cleanupId",
+      "claimGeneration",
       "cleanupToken",
       "deployments",
       "desiredKillSwitchEnabled",
-      "idempotencyKey",
       "leaseExpiresAt",
       "operationId",
-      "ownerId",
     ]) &&
-    operationIdentityValuesAreValid(lease) &&
-    operationIdentityValuesAreValid(identity) &&
-    lease.idempotencyKey === identity.idempotencyKey &&
-    lease.operationId === identity.operationId &&
-    lease.ownerId === identity.ownerId &&
-    isUuid(lease.cleanupId) &&
+    isUuid(lease.operationId) &&
+    isSafePositiveInteger(lease.claimGeneration) &&
     isToken(lease.cleanupToken) &&
     expiresAt !== null &&
     expiresAt > requiredUntilMilliseconds &&
@@ -311,5 +308,14 @@ export function completionReceiptIsValid(receipt, expected) {
   return (
     hasExactKeys(receipt, Object.keys(expected)) &&
     Object.entries(expected).every(([key, value]) => receipt[key] === value)
+  );
+}
+
+export function cleanupCompletionReceiptIsValid(receipt, operationId) {
+  return (
+    hasExactKeys(receipt, ["operationId", "operationState", "status"]) &&
+    receipt.operationId === operationId &&
+    ["running", "terminal"].includes(receipt.operationState) &&
+    receipt.status === "completed"
   );
 }

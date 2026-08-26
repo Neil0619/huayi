@@ -98,6 +98,7 @@ async function orchestrateHostedDeepSeekOneShot({
   }
 
   let accepted = false;
+  let cleanupArmAttempted = false;
   let cleanupCompleted = false;
   let cleanupLease;
   let identity;
@@ -108,26 +109,37 @@ async function orchestrateHostedDeepSeekOneShot({
   let settlement;
 
   try {
-    const operationLeaseCandidate = await lifecycle.claimOperation({ ...approval });
-    const claimNowMilliseconds = readNowMilliseconds();
-    if (
-      !isSafeNonnegativeInteger(claimNowMilliseconds) ||
-      !operationLeaseIsValid(operationLeaseCandidate, approval, claimNowMilliseconds)
-    ) {
-      throw failedClosed();
-    }
-    operationLease = operationLeaseCandidate;
-    identity = operationIdentity(operationLease);
     preSnapshot = await adapter.capturePreSnapshot();
     const actionNowMilliseconds = readNowMilliseconds();
     if (
       !isSafeNonnegativeInteger(actionNowMilliseconds) ||
-      !operationLeaseIsValid(operationLease, approval, actionNowMilliseconds) ||
       !preSnapshotIsValid(preSnapshot, approval, actionNowMilliseconds, policy) ||
       signal?.aborted === true
     ) {
       throw failedClosed();
     }
+    const operationLeaseCandidate = await lifecycle.claimOperation(
+      Object.freeze({
+        ...approval,
+        deployments: preSnapshot.deployments,
+        payloadDigest: hostedDeepSeekPayloadDigest,
+      }),
+    );
+    if (!operationLeaseIsValid(operationLeaseCandidate, approval, actionNowMilliseconds)) {
+      throw failedClosed();
+    }
+    operationLease = operationLeaseCandidate;
+    identity = operationIdentity(operationLease);
+    const claimNowMilliseconds = readNowMilliseconds();
+    if (
+      !isSafeNonnegativeInteger(claimNowMilliseconds) ||
+      !operationLeaseIsValid(operationLease, approval, claimNowMilliseconds) ||
+      !preSnapshotIsValid(preSnapshot, approval, claimNowMilliseconds, policy) ||
+      signal?.aborted === true
+    ) {
+      throw failedClosed();
+    }
+    cleanupArmAttempted = true;
     const cleanupLeaseCandidate = await lifecycle.armCleanup(
       createCleanupCommand(operationLease, preSnapshot),
     );
@@ -140,14 +152,14 @@ async function orchestrateHostedDeepSeekOneShot({
       !isSafeNonnegativeInteger(deadlineStartMilliseconds) ||
       !isSafeNonnegativeInteger(applicationDeadlineAt) ||
       !isSafeNonnegativeInteger(cleanupLeaseRequiredUntil) ||
-      !operationLeaseIsValid(operationLease, approval, applicationDeadlineAt) ||
+      !operationLeaseIsValid(operationLease, approval, cleanupLeaseRequiredUntil) ||
       !preSnapshotIsValid(preSnapshot, approval, deadlineStartMilliseconds, policy) ||
       !cleanupLeaseIsValid(
         cleanupLeaseCandidate,
-        identity,
         preSnapshot.deployments,
         cleanupLeaseRequiredUntil,
       ) ||
+      cleanupLeaseCandidate.operationId !== identity.operationId ||
       signal?.aborted === true
     ) {
       throw failedClosed();
@@ -166,6 +178,7 @@ async function orchestrateHostedDeepSeekOneShot({
       const dispatchReceipt = await deadline.run(() =>
         lifecycle.markDispatchAttempted({
           claimToken: operationLease.claimToken,
+          leaseGeneration: operationLease.leaseGeneration,
           operationId: operationLease.operationId,
           payloadDigest: hostedDeepSeekPayloadDigest,
         }),
@@ -197,6 +210,7 @@ async function orchestrateHostedDeepSeekOneShot({
         lifecycle.bindRequest({
           claimToken: operationLease.claimToken,
           idempotencyKey: operationLease.idempotencyKey,
+          leaseGeneration: operationLease.leaseGeneration,
           operationId: operationLease.operationId,
           ownerId: operationLease.ownerId,
           requestId: requestHandle.requestId,
@@ -261,7 +275,7 @@ async function orchestrateHostedDeepSeekOneShot({
     if (operationLease !== undefined) {
       const outcome = accepted
         ? "accepted"
-        : cleanupLease !== undefined && !cleanupCompleted
+        : cleanupArmAttempted && !cleanupCompleted
           ? "failed-cleanup-pending"
           : "failed";
       try {

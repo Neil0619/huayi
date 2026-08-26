@@ -150,8 +150,8 @@ test("orchestrator claims once, binds the request, and closes cleanup after rest
   });
 
   assert.deepEqual(calls, [
-    "claim-operation",
     "pre-snapshot",
+    "claim-operation",
     "arm-cleanup",
     "kill-switch:false",
     "mark-dispatch-attempted",
@@ -201,7 +201,10 @@ test("approval and deployed-candidate preflight gates reject before Hosted mutat
       failurePattern,
     );
     assert.deepEqual(adapterCalls, testCase.preRead ? ["pre-snapshot"] : []);
-    assert.equal(lifecycleCalls.includes("arm-cleanup"), false);
+    assert.deepEqual(
+      lifecycleCalls,
+      testCase.claimRead ? ["claim-operation", "complete-operation:failed"] : [],
+    );
     assert.equal(
       adapterCalls.some((call) => call.startsWith("kill-switch:")),
       false,
@@ -230,7 +233,7 @@ test("freshness clock is sampled immediately after pre-snapshot capture", async 
     }),
     failurePattern,
   );
-  assert.equal(readNowCalls, 2);
+  assert.equal(readNowCalls, 1);
   assert.deepEqual(calls, ["pre-snapshot"]);
 });
 

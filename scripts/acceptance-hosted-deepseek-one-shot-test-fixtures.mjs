@@ -11,7 +11,6 @@ export const ownerId = "10000000-0000-4000-8000-000000000001";
 export const operationId = "20000000-0000-4000-8000-000000000002";
 export const requestId = "30000000-0000-4000-8000-000000000003";
 export const priceVersionId = "40000000-0000-4000-8000-000000000004";
-export const cleanupId = "50000000-0000-4000-8000-000000000005";
 export const observedAt = "2026-08-26T02:10:00.000Z";
 export const settlementObservedAt = "2026-08-26T02:10:01.000Z";
 export const postObservedAt = "2026-08-26T02:10:02.000Z";
@@ -42,12 +41,12 @@ export function deployments(overrides = {}) {
   return {
     api: {
       commit: candidateCommit,
-      deploymentId: "dpl_api_candidate_001",
+      deploymentId: "dpl_apiCandidate001",
       state: "READY",
     },
     web: {
       commit: webCommit,
-      deploymentId: "dpl_web_candidate_001",
+      deploymentId: "dpl_webCandidate001",
       state: "READY",
     },
     ...overrides,
@@ -165,6 +164,7 @@ export function operationLease(command = approval(), overrides = {}) {
     claimToken: "claim_token_001",
     idempotencyKey: identity().idempotencyKey,
     leaseExpiresAt,
+    leaseGeneration: 1,
     maximumReservationMicroUsd: command.maximumReservationMicroUsd ?? 500,
     operationId,
     ownerId,
@@ -173,18 +173,16 @@ export function operationLease(command = approval(), overrides = {}) {
 }
 
 export function cleanupLease(
-  command = { ...identity(), deployments: deployments() },
+  command = { deployments: deployments(), operationId },
   overrides = {},
 ) {
   return {
-    cleanupId,
+    claimGeneration: 1,
     cleanupToken: "cleanup_token_001",
     deployments: command.deployments,
     desiredKillSwitchEnabled: true,
-    idempotencyKey: command.idempotencyKey,
     leaseExpiresAt,
     operationId: command.operationId,
-    ownerId: command.ownerId,
     ...overrides,
   };
 }
@@ -239,6 +237,7 @@ export function unsafePreflightCases() {
     },
     {
       approval: approval(),
+      claimRead: true,
       pre: preSnapshot(),
       preRead: true,
       readNowMilliseconds: (() => {
@@ -259,10 +258,11 @@ export function operationLifecycle({
   finishCleanup,
   finishOperation,
   pendingCleanup,
-  statusSnapshot = { authority: "hosted-deepseek-one-shot", records: [] },
+  statusSnapshot,
 } = {}) {
   let claimed = false;
   let pending = pendingCleanup;
+  let operationState = pending === undefined ? "absent" : "cleanup-pending";
   return {
     armCleanup: async (command) => {
       calls.push("arm-cleanup");
@@ -289,22 +289,37 @@ export function operationLifecycle({
       if (claim !== undefined) return claim(command, claimed);
       if (claimed) throw new Error("operation already claimed");
       claimed = true;
+      operationState = "running";
       return operationLease(command);
     },
     completeCleanup: async (command) => {
       calls.push("complete-cleanup");
+      const nextOperationState = operationState === "cleanup-pending" ? "terminal" : operationState;
       const value =
         finishCleanup === undefined
-          ? { cleanupId: command.cleanupId, status: "completed" }
+          ? {
+              operationId: command.operationId,
+              operationState: nextOperationState,
+              status: "completed",
+            }
           : await finishCleanup(command);
-      if (value?.status === "completed") pending = undefined;
+      if (value?.status === "completed") {
+        pending = undefined;
+        operationState = value.operationState;
+      }
       return value;
     },
     completeOperation: async (command) => {
       calls.push(`complete-operation:${command.outcome}`);
-      return finishOperation === undefined
-        ? { operationId: command.operationId, outcome: command.outcome, status: "completed" }
-        : finishOperation(command);
+      const value =
+        finishOperation === undefined
+          ? { operationId: command.operationId, outcome: command.outcome, status: "completed" }
+          : await finishOperation(command);
+      if (value?.status === "completed") {
+        operationState =
+          command.outcome === "failed-cleanup-pending" ? "cleanup-pending" : "terminal";
+      }
+      return value;
     },
     markDispatchAttempted: async (command) => {
       calls.push("mark-dispatch-attempted");
@@ -315,7 +330,13 @@ export function operationLifecycle({
     pendingCleanup: () => pending,
     readStatus: async () => {
       calls.push("read-status");
-      return typeof statusSnapshot === "function" ? statusSnapshot() : statusSnapshot;
+      if (statusSnapshot !== undefined) {
+        return typeof statusSnapshot === "function" ? statusSnapshot() : statusSnapshot;
+      }
+      return {
+        authority: "hosted-deepseek-one-shot",
+        records: operationState === "absent" ? [] : [{ state: operationState }],
+      };
     },
   };
 }

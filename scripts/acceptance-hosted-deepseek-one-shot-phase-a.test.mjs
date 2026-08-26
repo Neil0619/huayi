@@ -9,12 +9,12 @@ import { settlementIsValid } from "./acceptance-hosted-deepseek-one-shot-evidenc
 import {
   createHostedDeepSeekOneShotExecutor,
   hostedDeepSeekOneShotConfirmation,
+  hostedDeepSeekPayloadDigest,
   hostedDeepSeekWebOrigin,
 } from "./acceptance-hosted-deepseek-one-shot.mjs";
 import {
   adapter,
   candidateCommit,
-  cleanupId,
   deployments,
   identity,
   ledgerEntry,
@@ -49,6 +49,7 @@ function phaseAOperationLease() {
     claimToken: "claim_token_001",
     idempotencyKey,
     leaseExpiresAt: "2026-08-26T02:15:00.000Z",
+    leaseGeneration: 1,
     maximumReservationMicroUsd: 500,
     operationId,
     ownerId,
@@ -57,19 +58,18 @@ function phaseAOperationLease() {
 
 function phaseACleanupLease() {
   return {
-    cleanupId,
+    claimGeneration: 1,
     cleanupToken: "cleanup_token_001",
     deployments: phaseADeployments,
     desiredKillSwitchEnabled: true,
-    idempotencyKey,
     leaseExpiresAt: "2026-08-26T02:15:00.000Z",
     operationId,
-    ownerId,
   };
 }
 
 function phaseALifecycle({ calls = [], pendingCleanup = phaseACleanupLease() } = {}) {
   let pending = pendingCleanup;
+  let operationState = pending === undefined ? "absent" : "cleanup-pending";
   return {
     armCleanup: async (command) => {
       calls.push("arm-cleanup");
@@ -89,23 +89,34 @@ function phaseALifecycle({ calls = [], pendingCleanup = phaseACleanupLease() } =
     },
     claimOperation: async (command) => {
       calls.push("claim-operation");
-      assert.deepEqual(command, phaseAApproval);
+      assert.deepEqual(command, {
+        ...phaseAApproval,
+        deployments: phaseADeployments,
+        payloadDigest: hostedDeepSeekPayloadDigest,
+      });
+      operationState = "running";
       return phaseAOperationLease();
     },
     completeCleanup: async (command) => {
       calls.push("complete-cleanup");
       pending = undefined;
-      return { cleanupId: command.cleanupId, status: "completed" };
+      if (operationState === "cleanup-pending") operationState = "terminal";
+      return { operationId: command.operationId, operationState, status: "completed" };
     },
     completeOperation: async (command) => {
       calls.push(`complete-operation:${command.outcome}`);
+      operationState =
+        command.outcome === "failed-cleanup-pending" ? "cleanup-pending" : "terminal";
       return { operationId: command.operationId, outcome: command.outcome, status: "completed" };
     },
     markDispatchAttempted: async (command) => {
       calls.push("mark-dispatch-attempted");
       return { operationId: command.operationId, status: "dispatch-attempted" };
     },
-    readStatus: async () => ({ authority: "hosted-deepseek-one-shot", records: [] }),
+    readStatus: async () => ({
+      authority: "hosted-deepseek-one-shot",
+      records: operationState === "absent" ? [] : [{ state: operationState }],
+    }),
   };
 }
 
@@ -183,8 +194,8 @@ test("Phase A persists dispatch before HTTP, then binds analysis.started and ret
       calls.indexOf("bind-request"),
   );
   assert.deepEqual(calls, [
-    "claim-operation",
     "pre-snapshot",
+    "claim-operation",
     "arm-cleanup",
     "kill-switch:false",
     "mark-dispatch-attempted",
