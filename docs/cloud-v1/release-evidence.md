@@ -2723,3 +2723,23 @@ typecheck、architecture、build、development blocker、Store release、product
   coverage、workspace build、111 条 E2E、Store release 与 production audit。该操作没有连接 Supabase、没有
   写数据库、没有重捕或改写 evidence，也不声称原 `backup:complete` 在 post capture 后曾经运行。新增 shared
   脚本的最终 Cross-platform quality 仍需另行批准执行。
+
+## 106. Hosted Auth 模板门禁与 401 停止恢复引导（2026-08-26）
+
+- **配置门禁 Fresh RED → GREEN**：先以缺少 invitation status 参数、全配置 verifier 与 package 入口的
+  失败固定缺口；新增只读 `acceptance:hosted:auth:invitation:status`，只对固定项目执行一次 Management API
+  GET，要求 Site URL、五条 query-aware Redirect URLs、OTP length/expiration 与 Confirm sign up 模板全部
+  精确。模板固定只有一次 `{{ .Token }}` 与一次 `{{ .RedirectTo }}`，且不含
+  `{{ .ConfirmationURL }}`；失败只输出固定句，不反射配置、凭据或响应正文；
+- **Web 401 Fresh RED → GREEN**：两个回归先证明 resend/resume 401 仍会显示全部恢复控件并诱导继续重试。
+  Web 现只对明确 401 进入停止恢复状态，隐藏重新验证、重发与继续注册三个入口，并用普通中文要求停止
+  点击、联系发送邀请的人检查状态；resume 同时清空内存中的密码。网络或其他非 401 失败继续保留原可重试
+  行为，API 的防枚举错误边界未改变；
+- **验证证据**：Node Auth/deployment 20/20、Web Auth/单飞 17/17 先行通过；新增配置契约与既有
+  deployment plan 的五条 Redirect URL 运行时值逐条一致。随后完整 `pnpm verify:macos` 原样退出 0：
+  Node scripts 551/551、主 Vitest 341 files（2,388 passed / 12 skipped）、API 141 files / 554 tests、Store
+  coverage 97 files / 481 tests、Playwright 111/111；instructions、format、lint、typecheck、architecture、
+  workspace build、development blocker、Store release、production audit 与 diff check 均通过；
+- **执行边界**：本节只修改本地代码、测试和文档，没有连接 Supabase、读取真实 PAT/管理员密码、回读或
+  修改 Hosted 配置、发送邮件、重试邀请、部署、运行 Cron/R3-C/DeepSeek。真实 Hosted 配置回读与身份
+  snapshot 均继续等待各自的单独明确批准。

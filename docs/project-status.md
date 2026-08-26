@@ -200,7 +200,8 @@ audit 仍只允许 `enabled`。这不代表 Store 产品或 Windows 支持被取
 > disarm/verify 已全部通过，state 为 `complete` 且两个项目均恢复关闭。Hosted Auth 正式 status 已确认 Email
 > OTP length=6；`2d03bd8` 的 macOS/Windows Cross-platform quality 均成功。当前唯一普通邀请的一次 resend
 > 与同邮箱密码 resume 均返回 401，没有发送邮件；这不构成 scanner-safe 六位 OTP journey。下一步先做
-> invitation/Auth 脱敏只读 snapshot，再收紧模板/redirect gate 与恢复引导，之后才决定保留现有账号的原邀请
+> invitation/Auth 脱敏只读 snapshot。模板/redirect 只读门禁与 Web 401 停止重试引导已在本地实现并通过
+> 聚焦回归，但尚未连接 Hosted；真实回读须另行批准。快照和配置门通过后，才决定保留现有账号的原邀请
 > 恢复或另行批准替代邀请。R3-C、五项 Cron、Cloud DeepSeek 真实请求、目标网络、数据权利、双平台 Chrome、
 > 外部词库、自然使用与发布收口仍 pending。
 

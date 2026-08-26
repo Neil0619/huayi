@@ -1,6 +1,9 @@
 import { pathToFileURL } from "node:url";
 
+import { verifyHostedInvitationAuthConfiguration } from "./acceptance-hosted-auth-contract.mjs";
 import { hostedAcceptanceProjectRef } from "./acceptance-hosted-foundation.mjs";
+
+export { verifyHostedInvitationAuthConfiguration } from "./acceptance-hosted-auth-contract.mjs";
 
 const managementApiOrigin = "https://api.supabase.com";
 const maximumResponseBytes = 1_000_000;
@@ -9,6 +12,7 @@ const requestTimeoutMilliseconds = 10_000;
 export const hostedAuthConfigStatusArgument = `--status-hosted-auth-config-${hostedAcceptanceProjectRef}`;
 export const hostedAuthConfigApplyConfirmation = `--confirm-hosted-email-otp-length-6-${hostedAcceptanceProjectRef}`;
 export const hostedAuthConfigDiagnosticArgument = `--diagnose-hosted-auth-config-${hostedAcceptanceProjectRef}`;
+export const hostedInvitationAuthConfigStatusArgument = `--status-hosted-invitation-auth-config-${hostedAcceptanceProjectRef}`;
 
 function isRecord(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -183,6 +187,13 @@ function parseOperation(arguments_) {
   }
   if (
     arguments_.length === 2 &&
+    arguments_[0] === "invitation-status" &&
+    arguments_[1] === hostedInvitationAuthConfigStatusArgument
+  ) {
+    return "invitation-status";
+  }
+  if (
+    arguments_.length === 2 &&
     arguments_[0] === "apply" &&
     arguments_[1] === hostedAuthConfigApplyConfirmation
   ) {
@@ -221,6 +232,11 @@ export async function runHostedAuthConfigCli({
       writeOutput("Hosted Auth email OTP length verification passed.\n");
       return 0;
     }
+    if (operation === "invitation-status") {
+      verifyHostedInvitationAuthConfiguration(current);
+      writeOutput("Hosted Auth invitation configuration verification passed.\n");
+      return 0;
+    }
     if (!validCurrentOtpLength(current)) {
       throw new Error("Hosted Auth email OTP length is invalid.");
     }
@@ -248,7 +264,9 @@ export async function runHostedAuthConfigCli({
     writeError(
       operation === "status"
         ? "Hosted Auth email OTP length verification failed.\n"
-        : "Hosted Auth email OTP length update failed.\n",
+        : operation === "invitation-status"
+          ? "Hosted Auth invitation configuration verification failed.\n"
+          : "Hosted Auth email OTP length update failed.\n",
     );
     return 1;
   }

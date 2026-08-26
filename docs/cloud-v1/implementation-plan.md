@@ -2026,9 +2026,9 @@ completion 当时运行；API→Web one-shot 仍是另行完成的双关闭证�
    不可变 manifest 形成等价 completion closure，不覆盖或重捕 evidence；最终候选双平台质量门仍单列；
 2. **脱敏只读 snapshot**：使用固定项目/固定 SQL 与隐藏管理员密码，只输出 invitation/claim/Auth/account 的
    allowlisted 状态与计数，不输出邮箱、UUID、Token、正文或 raw error；
-3. **模板与错误引导门**：自动回读并验证 Confirm sign up 模板只含一次 `{{ .Token }}`、一次
-   `{{ .RedirectTo }}` 且不含 `{{ .ConfirmationURL }}`，Redirect URLs 精确；为 resend/resume 401 增加不泄密、
-   可操作且不诱导盲重试的 Web 回归；
+3. **模板与错误引导门（本地实现完成，Hosted 回读待批准）**：自动回读并验证 Confirm sign up 模板只含
+   一次 `{{ .Token }}`、一次 `{{ .RedirectTo }}` 且不含 `{{ .ConfirmationURL }}`，Redirect URLs 精确；
+   resend/resume 401 现进入停止恢复状态，只给出联系邀请人的单一步骤；
 4. **恢复决策**：若原 claim 可安全恢复，保持同一 invitation/Auth user；若已消费且无法恢复，先保留现有账号，
    再取得对未使用邮箱和替代邀请的单独批准；
 5. **六位 OTP journey**：只发送一次新六位 ASCII OTP，证明 scanner/repeated GET 零副作用、显式 POST、Web

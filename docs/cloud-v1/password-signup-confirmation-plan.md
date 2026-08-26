@@ -58,6 +58,11 @@
 - [x] 普通邀请真实邮件暴露 Hosted `mailer_otp_length=8` 漂移；已只把该字段保存为 6，独立重新加载
       回读为 6，expiration 仍为 3600，且未修改 Site URL、Redirect URLs、模板、Custom SMTP、DNS、
       环境变量或密钥；新增 status/apply verifier，旧 8 位 OTP 不截取、不继续用于产品确认；
+- [x] 新增只读 `acceptance:hosted:auth:invitation:status` 门禁：固定回读同一 Hosted Auth 配置，要求 Site
+      URL、五条 query-aware Redirect URLs、OTP 6/3600 与 scanner-safe Confirm sign up 模板全部精确；输出
+      只有固定成功或失败，不反射模板、Redirect URL、凭据或原始响应。resend/resume 返回 401 后，Web 现
+      隐藏全部恢复操作并明确要求停止重试、联系发送邀请的人；非 401 失败仍保留可重试行为。该门禁尚未
+      连接 Hosted，真实只读回读须另行批准；
 - [ ] 为当前同一 invitation claim/bound Auth identity 完成受限重发并产生新的六位 OTP。2026-08-26 在
       现有 join 错误页明确只点击一次重发，服务端返回 401 且没有发送邮件；使用同一邮箱和用户自持密码
       恢复时也返回 401。该次失败不是六位 OTP journey 通过证据；完成脱敏只读诊断前不得继续盲重试、

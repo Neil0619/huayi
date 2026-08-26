@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 
-import type { WebIdentityApi } from "./identity-api.js";
+import { WebIdentityApiError, type WebIdentityApi } from "./identity-api.js";
 
 export type AuthApi = Pick<
   WebIdentityApi,
@@ -49,6 +49,7 @@ export function AuthPage(props: AuthPageProps) {
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [emailConfirmationPending, setEmailConfirmationPending] = useState(false);
+  const [recoveryStopped, setRecoveryStopped] = useState(false);
   const invitationToken = useRef(props.mode === "join" ? props.invitationToken : null);
   const claimInFlight = useRef(false);
   const authMutation = useRef(createSingleFlightAction()).current;
@@ -59,6 +60,7 @@ export function AuthPage(props: AuthPageProps) {
     claimInFlight.current = true;
     setClaimState("loading");
     setError(null);
+    setRecoveryStopped(false);
     try {
       const result = await props.api.claimInvitation(token);
       props.replaceInvitationUrl();
@@ -112,8 +114,14 @@ export function AuthPage(props: AuthPageProps) {
         await props.api.resendPasswordRegistration(token);
         setEmailConfirmationPending(true);
         setStatus("新的六位验证码已发送。请只使用最新邮件中的验证码。");
-      } catch {
-        setError("无法重新发送验证码。请稍后重试，并确认仍在使用原私密邀请。");
+      } catch (cause) {
+        if (cause instanceof WebIdentityApiError && cause.status === 401) {
+          setRecoveryStopped(true);
+          setStatus(null);
+          setError("没有发送新的验证码。请不要重复点击。请联系发送邀请的人，让对方检查邀请状态。");
+        } else {
+          setError("无法重新发送验证码。请稍后重试，并确认仍在使用原私密邀请。");
+        }
       } finally {
         setBusy(false);
       }
@@ -154,8 +162,17 @@ export function AuthPage(props: AuthPageProps) {
         props.replaceInvitationUrl();
         setStatus("邮箱已确认，邀请已完成，正在进入工作台。");
         props.onAuthenticated(session.access);
-      } catch {
-        setError("无法继续完成邀请。请确认邮箱、密码和私密邀请仍然有效后重试。");
+      } catch (cause) {
+        if (cause instanceof WebIdentityApiError && cause.status === 401) {
+          setPassword("");
+          setRecoveryStopped(true);
+          setStatus(null);
+          setError(
+            "这次注册目前无法继续。请不要重复提交。请联系发送邀请的人，让对方检查邀请状态。",
+          );
+        } else {
+          setError("无法继续完成邀请。请确认邮箱、密码和私密邀请仍然有效后重试。");
+        }
       } finally {
         setBusy(false);
       }
@@ -176,11 +193,14 @@ export function AuthPage(props: AuthPageProps) {
         {error !== null && (
           <div className="alert" id="auth-form-error" role="alert">
             <p>{error}</p>
-            {claimState === "error" && (
+            {claimState === "error" && !recoveryStopped && (
               <>
+                <p>请只选择符合你当前情况的一项，不要连续尝试所有操作。</p>
+                <p>如果你还没有提交注册，请重新验证原邀请。</p>
                 <button data-retry-invitation onClick={() => void claim()} type="button">
                   重新验证邀请
                 </button>
+                <p>如果你已经提交注册，但还没有收到六位验证码，只重新发送一次。</p>
                 <button
                   data-resend-registration
                   disabled={busy}
@@ -189,7 +209,7 @@ export function AuthPage(props: AuthPageProps) {
                 >
                   {busy ? "正在发送…" : "重新发送六位验证码"}
                 </button>
-                <p>如果你已经点击过确认邮件，可使用原邮箱和密码继续这次中断的注册。</p>
+                <p>如果你已经点击过确认邮件，并记得刚设置的密码，可使用原邮箱和密码继续。</p>
                 <form className="auth-form" onSubmit={(event) => event.preventDefault()}>
                   <label htmlFor="recovery-registration-email">邮箱</label>
                   <input
@@ -228,7 +248,7 @@ export function AuthPage(props: AuthPageProps) {
             {status}
           </p>
         )}
-        {emailConfirmationPending && claimState !== "error" && (
+        {emailConfirmationPending && claimState !== "error" && !recoveryStopped && (
           <button
             data-resend-registration
             disabled={busy}
