@@ -6,6 +6,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { hostedAcceptanceProjectRef } from "./acceptance-hosted-foundation.mjs";
+import { inspectHostedPhase91HistoricalRepository } from "./acceptance-hosted-phase-91-repository.mjs";
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const secureArtifactRoot = "artifacts/hosted-important-batch-backups";
@@ -46,6 +47,7 @@ export const hostedPhase91BackupId = "phase-91-0015-public-function-acl-hardenin
 export const hostedPhase91BackupArtifactDirectory = `${secureArtifactRoot}/${hostedPhase91BackupId}`;
 export const hostedPhase91BackupPreflightArgument = `--verify-pre-0015-public-function-acl-hardening-backup-${hostedAcceptanceProjectRef}`;
 export const hostedPhase91BackupCompletionArgument = `--verify-post-0015-public-function-acl-hardening-backup-${hostedAcceptanceProjectRef}`;
+export const hostedPhase91BackupHistoricalCompletionArgument = `--verify-historical-completion-0015-public-function-acl-hardening-backup-${hostedAcceptanceProjectRef}`;
 
 function hashFile(path) {
   return new Promise((resolveHash, reject) => {
@@ -104,6 +106,14 @@ export async function readHostedPhase91BackupRepositoryState(root) {
     candidateCommit,
     worktreeClean: status.code === 0 && status.stdout.length === 0,
   };
+}
+
+function readHostedPhase91HistoricalRepositoryState(root, historicalCandidateCommit) {
+  return inspectHostedPhase91HistoricalRepository({
+    artifactDirectory: hostedPhase91BackupArtifactDirectory,
+    historicalCandidateCommit,
+    repositoryRoot: root,
+  });
 }
 
 function invalidEvidence() {
@@ -289,6 +299,37 @@ async function verifyEvidence({ evidenceIo, mode, readState, root }) {
   }
 }
 
+async function verifyHistoricalCompletion({ evidenceIo, readState, root }) {
+  const artifactRoot = join(root, secureArtifactRoot);
+  const batchRoot = join(root, hostedPhase91BackupArtifactDirectory);
+  await assertSecureDirectory(evidenceIo, artifactRoot);
+  await assertSecureDirectory(evidenceIo, batchRoot);
+  assertExactEntries(await evidenceIo.readdir(batchRoot), ["post", "pre", "rebuild"]);
+  const pre = await verifyBackupEvidence({ batchRoot, evidenceIo, phase: "pre" });
+  const rebuild = await verifyRebuildEvidence({ batchRoot, evidenceIo });
+  const post = await verifyBackupEvidence({ batchRoot, evidenceIo, phase: "post" });
+  if (
+    rebuild.candidateCommit !== pre.candidateCommit ||
+    post.candidateCommit !== pre.candidateCommit ||
+    Date.parse(post.capturedAt) < Date.parse(pre.capturedAt) ||
+    Date.parse(post.capturedAt) < Date.parse(rebuild.completedAt)
+  ) {
+    invalidEvidence();
+  }
+  const state = await readState(root, pre.candidateCommit);
+  if (
+    state.artifactRootIgnored !== true ||
+    !/^[0-9a-f]{40}$/u.test(state.currentCommit) ||
+    state.historicalCandidateCommit !== pre.candidateCommit ||
+    state.historicalCandidateExists !== true ||
+    state.historicalCandidateIsAncestor !== true ||
+    state.upstreamExact !== true ||
+    state.worktreeClean !== true
+  ) {
+    invalidEvidence();
+  }
+}
+
 export function renderHostedPhase91BackupPlan() {
   return `Hosted Phase 91 backup/rebuild plan (zero network / zero write)
 Pinned target: Supabase project ${hostedAcceptanceProjectRef}; batch ${hostedPhase91BackupId}.
@@ -297,6 +338,7 @@ Evidence directory: ${hostedPhase91BackupArtifactDirectory}
 - The independent pre backup requires migration head 20260824010000.
 - The isolated rebuild and post backup require migration head 20260825010000.
 - Preflight requires clean exact-candidate pre and rebuild evidence; completion additionally requires post.
+- Historical completion verifies immutable pre/rebuild/post evidence against a pushed descendant HEAD.
 - This plan performs no filesystem, Git, database, mail, model, deployment, or secret operation.
 `;
 }
@@ -304,6 +346,7 @@ Evidence directory: ${hostedPhase91BackupArtifactDirectory}
 export async function runHostedPhase91BackupCli({
   arguments_ = process.argv.slice(2),
   evidenceIo = realEvidenceIo,
+  readHistoricalRepositoryState = readHostedPhase91HistoricalRepositoryState,
   readRepositoryState = readHostedPhase91BackupRepositoryState,
   repositoryRoot: root = repositoryRoot,
   writeError = (value) => process.stderr.write(value),
@@ -318,17 +361,30 @@ export async function runHostedPhase91BackupCli({
       ? "preflight"
       : arguments_.length === 1 && arguments_[0] === hostedPhase91BackupCompletionArgument
         ? "completion"
-        : null;
+        : arguments_.length === 1 &&
+            arguments_[0] === hostedPhase91BackupHistoricalCompletionArgument
+          ? "historical-completion"
+          : null;
   if (mode === null) {
     writeError("Hosted Phase 91 backup arguments are invalid.\n");
     return 1;
   }
   try {
-    await verifyEvidence({ evidenceIo, mode, readState: readRepositoryState, root });
+    if (mode === "historical-completion") {
+      await verifyHistoricalCompletion({
+        evidenceIo,
+        readState: readHistoricalRepositoryState,
+        root,
+      });
+    } else {
+      await verifyEvidence({ evidenceIo, mode, readState: readRepositoryState, root });
+    }
     writeOutput(
       mode === "preflight"
         ? "Hosted Phase 91 backup preflight evidence passed.\n"
-        : "Hosted Phase 91 backup completion evidence passed.\n",
+        : mode === "completion"
+          ? "Hosted Phase 91 backup completion evidence passed.\n"
+          : "Hosted Phase 91 historical completion evidence passed.\n",
     );
     return 0;
   } catch {
