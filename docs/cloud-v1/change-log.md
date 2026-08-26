@@ -3,6 +3,20 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-26：Hosted runtime/Cron 先绑定来源，再读取秘密和数据库
+
+- Phase 77/79 的旧顺序被明确取代：runtime snapshot 与 Cron status/apply 不再继承数据库密码或要求调用者
+  提供 CA。入口先拒绝环境对象自身拥有 `PGPASSWORD`/`SUPABASE_DB_PASSWORD`，再获取固定官方 CA，
+  最后从 `/dev/tty` 无回显读取 12–512 byte 管理员密码；NUL、CR、LF 一律拒绝；
+- Cron apply 必须在 CA、密码和数据库 preflight 前先验证 operations SQL 精确 SHA-256
+  `09a074addefdf352ff256ff958bb87a6775b911a7da9475ef697b04d2a64d604`，并以有界 Git child 要求
+  worktree clean、`HEAD==upstream`。保留 `BEGIN`/`COMMIT` 与五次 schedule 的浅形状不再构成可信来源；
+- 所有 runtime/Cron psql 固定 30 秒进程上限，Git 固定 10 秒上限；snapshot/status parser 只接受精确 final
+  LF 且拒绝任何 CR。来源或候选门先于 CA/password/DB，之后才进入既有只读 preflight、两次完整 SQL 与
+  独立 postflight；
+- 这些规则只收紧本地控制面，不授权或证明真实 Hosted snapshot/status/apply。实际 Cron apply 仍须等待
+  R3-C 真实收件、重复观测、无正文告警和 Vercel/Vault `CRON_SECRET` 连续性。
+
 ## 2026-08-26：重要批次 currentness 与 completion receipt 分开判定
 
 - pre/rebuild/post manifest 绑定执行时的 clean candidate；后续正常推进 HEAD 会让只读 status 显示

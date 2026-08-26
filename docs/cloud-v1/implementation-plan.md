@@ -1800,19 +1800,32 @@ environment/key，不发送邮件、不调用 DeepSeek、不实际安装或触�
 
 1. **接口**：新增零网络 `cron:plan`、固定 Singapore project-ref 的 `cron:status` 和 exact-confirmation
    gated `cron:apply`；用户不再粘贴长 SQL 或输入 job/request/owner 等 opaque ID；
-2. **只读 preflight**：一个 verify-full 管理员 `BEGIN READ ONLY` 事务输出 18 个固定
+2. **来源/候选门（取代最初顺序）**：apply 在 CA、密码和数据库前先验证 operations SQL 精确 SHA-256、
+   clean worktree 与 `HEAD==upstream`；来源与候选不通过时零 CA fetch、零 prompt、零数据库 I/O；
+3. **只读 preflight**：来源门通过后获取 fixed official CA、从 `/dev/tty` 无回显读取管理员密码，再以一个
+   verify-full 管理员 `BEGIN READ ONLY` 事务输出 18 个固定
    boolean/stage/count，核对 migration、R3-C 数据库侧前置、Vault 两个名称、extension schema、受管 job、
    私有函数 owner/overload/合同/ACL 和 `huayi_private` 精确 schema ACL；不查询 Vault decrypted value，
    不输出 Authorization/身份/正文/ID/raw error；
-3. **真实两次语义**：apply 必须按顺序运行只读 preflight、完整未改写 operations SQL 第一次、同一完整
+4. **真实两次语义**：apply 必须按顺序运行只读 preflight、完整未改写 operations SQL 第一次、同一完整
    SQL 第二次、独立只读 postflight；两次各自保留权威 SQL 的 `BEGIN/COMMIT`。第一次失败即停，第二次
    失败不假装回滚第一次，postflight 只在两次成功后要求 exact 五项；
-4. **continuity 边界**：Vercel Sensitive 不可回读，工具不能自动证明现有 `CRON_SECRET` 与 Vault 值
+5. **continuity 边界**：Vercel Sensitive 不可回读，工具不能自动证明现有 `CRON_SECRET` 与 Vault 值
    相同。exact confirmation 只允许在同源轮换/受控外部证据和真实 R3-C 收件、重复、告警门完成后取得；
    `vault_names_exact` 或一条 sent row 不能冒充该证据；
-5. **TDD/验证**：Fresh RED 为模块缺失；离线 GREEN 覆盖零调用 plan、只读 SQL、bounded parser、wrong
+6. **TDD/验证**：Fresh RED 为模块缺失；离线 GREEN 覆盖零调用 plan、只读 SQL、bounded parser、wrong
    confirmation/preflight/operations/four-stage failure、完整 SQL 两次和 exact postflight。真实 status/apply、
    两周期、五 route、401/5xx/timeout 恢复仍保持 pending。
+
+2026-08-26 的 `1caf9dcf21f24a4410043a8356a9b2a1dbf8f8d6` 明确取代上述 Phase 79 的旧执行
+顺序：apply 现在必须在 CA、TTY 密码和数据库 preflight **之前**先验证 operations SQL 精确 SHA-256
+`09a074addefdf352ff256ff958bb87a6775b911a7da9475ef697b04d2a64d604`、clean worktree 与
+`HEAD==upstream`；Git child 固定 10 秒上限。runtime snapshot 与 Cron status/apply 都先获取固定官方 CA，
+再从 `/dev/tty` 无回显读取 12–512 byte 管理员密码，拒绝 NUL/CR/LF 和环境对象自身含
+`PGPASSWORD`/`SUPABASE_DB_PASSWORD`；全部 psql 固定 30 秒上限，parser 只接受精确 final LF/零 CR。
+transaction 内 `DROP TABLE` 的旧浅形状绕过已由 exact-hash regression 关闭。focused 23/23、零 I/O plan、
+完整 `pnpm verify:macos`、独立 P0/P1/P2 审查与 exact-SHA Cross-platform quality run `32970024964` 双平台
+success 均已通过；加固后没有运行真实 runtime snapshot、Cron status/apply，也没有输入用户秘密。
 
 ### Phase 80：普通邀请唯一创建、同键恢复与动作账本校准（2026-08-24）
 

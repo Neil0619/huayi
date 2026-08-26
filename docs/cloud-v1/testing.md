@@ -629,6 +629,12 @@ mirror 与 `git diff --check` 通过；全仓 `format:check` 当时仅被本纵�
 snapshot 仍是只读观察，不会发送邮件、调用 DeepSeek、安装 Cron、切换 kill switch 或替代 Provider/
 Dashboard 证据。
 
+2026-08-26 安全校准进一步要求 runtime snapshot 在参数和继承 secret 门后先获取固定官方 CA，再从
+`/dev/tty` 无回显读取 12–512 byte 管理员密码；环境对象自身含 `PGPASSWORD` 或
+`SUPABASE_DB_PASSWORD` 时必须在 CA/prompt/network 前失败，即使值为空或 `undefined`。psql 固定 30 秒
+进程上限；31 字段 parser 必须有且只有正常 final LF，并拒绝任何 CR。package entry 回归必须验证失败时
+没有 CA fetch、TTY prompt 或网络调用。
+
 ### 4.3.4 Phase 79 Hosted Supabase Cron 受控安装
 
 `scripts/acceptance-hosted-cron.mjs` 是 plan/status/apply 深模块；固定 SQL 放在
@@ -636,16 +642,26 @@ Dashboard 证据。
 先由 `acceptance-hosted-cron.test.mjs` 导入不存在的模块并取得 `ERR_MODULE_NOT_FOUND`；GREEN 覆盖：
 
 - plan 零 adapter 调用、project-pinned 与无 secret/身份输出；
-- status 只用一个 verify-full 管理员连接和一个 `BEGIN READ ONLY`，固定解析 18 个 boolean/stage/count；
-  Vault 只读 `vault.secrets.name`，额外、乱序、恶意、越界或 adapter throw 一律固定失败；
+- status 在参数/继承 secret 门后按 fixed official CA→hidden `/dev/tty` password→一个 verify-full 管理员
+  `BEGIN READ ONLY` 执行，固定 30 秒 psql 上限并解析 18 个 boolean/stage/count；Vault 只读
+  `vault.secrets.name`，额外、乱序、恶意、越界、缺 final LF、任意 CR 或 adapter throw 一律固定失败；
 - preflight 在任何写入前核对 13 条 migration、R3-C 已 sent 且零非终态/失败终态、Vault 两个名称、
   extension schema 可安装、无 unmanaged `huayi-*` job、函数 owner/overload/ACL 可修复，以及
   `huayi_private` schema 精确 ACL（owner `USAGE+CREATE`、`huayi_context_setter`/`huayi_business` 各
   `USAGE`，零其他 edge/grant option）；
-- apply 只接受 exact project confirmation，先完成 preflight，再把仓库 operations SQL **完整且未改写**地
-  交给 adapter 两次，每次保留自身事务；第一次失败不进入第二次，第二次失败不进入 postflight；
+- apply 只接受 exact project confirmation，并在 CA、密码和数据库之前先要求 operations SQL 的 SHA-256
+  精确为 `09a074addefdf352ff256ff958bb87a6775b911a7da9475ef697b04d2a64d604`、worktree clean 且
+  `HEAD==upstream`；Git child 固定 10 秒上限。随后才按 CA→hidden password→preflight 顺序执行，并把
+  operations SQL **完整且未改写**地交给 adapter 两次，每次保留自身事务；第一次失败不进入第二次，
+  第二次失败不进入 postflight；
 - postflight 是独立只读连接，要求 `exact`、5 个 fixed job、0 个 unmanaged job 和总合同 `t`；所有错误
   只允许固定 stage，原始数据库输出不反射。
+
+这里明确取代 Phase 79 最初的“preflight 后再做静态 operations 检查”顺序。回归必须证明在事务内部插入
+`DROP TABLE`、但仍满足旧 `BEGIN`/`COMMIT`/五次 schedule 浅形状的 SQL 会因精确 hash 不匹配而在 CA、
+prompt 和数据库前拒绝；继承 secret、非法 11/513 byte 或含 NUL/CR/LF 密码也必须失败关闭。候选
+`1caf9dc…` 的相关 focused tests 为 23/23，runtime/Cron plan 为零 I/O，继承 secret 的 package entry 门
+证明零 CA fetch、零 prompt、零 network。
 
 离线 fake 只证明控制流和数据最小化，不执行 SQL，也不证明 extension 可安装、Vault 值有效、Vercel
 masked `CRON_SECRET` 连续性、两次真实事务、pg_net 响应或两个周期恢复。后两类证据仍必须在 R3-C 外部门

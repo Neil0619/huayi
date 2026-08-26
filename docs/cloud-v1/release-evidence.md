@@ -2743,3 +2743,28 @@ typecheck、architecture、build、development blocker、Store release、product
 - **执行边界**：本节只修改本地代码、测试和文档，没有连接 Supabase、读取真实 PAT/管理员密码、回读或
   修改 Hosted 配置、发送邮件、重试邀请、部署、运行 Cron/R3-C/DeepSeek。真实 Hosted 配置回读与身份
   snapshot 均继续等待各自的单独明确批准。
+
+## 107. Hosted runtime snapshot 与 Cron 候选门加固（2026-08-26）
+
+- **候选绑定**：提交 `1caf9dcf21f24a4410043a8356a9b2a1dbf8f8d6`
+  （`fix(build): harden hosted runtime and cron gates`）统一收紧 runtime snapshot 与 Cron status/apply。
+  三个入口都获取固定官方 Supabase CA，随后从 `/dev/tty` 无回显读取管理员密码；环境对象自身拥有
+  `PGPASSWORD` 或 `SUPABASE_DB_PASSWORD` 即失败，密码只接受 12–512 bytes 且拒绝 NUL/CR/LF；
+- **来源先于秘密**：Cron apply 在 CA、prompt 和数据库前验证 operations SQL SHA-256 精确为
+  `09a074addefdf352ff256ff958bb87a6775b911a7da9475ef697b04d2a64d604`，并要求 clean worktree、
+  `HEAD==upstream`。每个 Git child 上限 10 秒；全部 runtime/Cron psql 上限 30 秒。snapshot/status parser
+  只接受 exact final LF 且拒绝任何 CR；该顺序明确取代第 70 节 Phase 79 记录的“先 preflight、后静态
+  operations 检查”；
+- **回归证据**：focused Node 回归 23/23。transaction 内加入 `DROP TABLE`、同时仍满足旧
+  `BEGIN`/`COMMIT`/五次 schedule 浅形状的变体被 exact hash 拒绝；runtime/Cron plan 均证明零 I/O；继承
+  secret 的 package entry 门固定失败且 CA fetch、TTY prompt、network 均为零；
+- **完整本地门**：fresh `pnpm verify:macos` 退出 0，包括 Node scripts 559/559、主 Vitest 341 files
+  （2,388 passed / 12 skipped）、API 141 files / 554 tests、Store coverage 97 files / 481 tests、Playwright
+  111/111，以及 instructions、format、lint、typecheck、architecture、workspace build、development blocker、
+  Store release、production audit 和 diff check；独立审查没有发现 P0/P1/P2；
+- **双平台候选门**：GitHub Cross-platform quality run `32970024964` 的 `headSha` 精确为上述完整提交，
+  `macos-quality` 与 `windows-quality` 均在 2026-08-26 成功；
+- **执行边界**：该提交之后没有运行真实 Hosted runtime snapshot、Cron status 或 Cron apply，也没有输入
+  用户秘密。实际 Cron apply 仍被真实 R3-C 收件/重复/无正文告警与 Vercel/Vault `CRON_SECRET` 连续性
+  阻塞；OTP/R3-C、Cloud Web DeepSeek 付费路径、数据权利、macOS/Windows Chrome、外部词库、自然使用和
+  最终发布审查仍 pending。

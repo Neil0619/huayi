@@ -10,6 +10,10 @@
 Supabase，也没有安装或触发任何 job；下文“本阶段不创建资源”继续描述这次代码/文档阶段，真实 apply
 仍必须等待 R3-C 产品路径投递、重复观测与无正文告警接收全部通过。
 
+2026-08-26 候选 `1caf9dcf21f24a4410043a8356a9b2a1dbf8f8d6` 又收紧了 runtime snapshot 与 Cron
+status/apply 的秘密、来源和进程边界。该候选只完成本地与双平台 CI 门；加固后没有运行真实 Hosted
+runtime snapshot、Cron status 或 Cron apply，也没有输入用户秘密。
+
 目标是移除 `apps/api/vercel.json` 中 Hobby 不接受的分钟级 Vercel Cron，把五个 HTTPS GET
 触发器放入生产 Supabase 的 `pg_cron + pg_net`。业务 route、`CRON_SECRET` 鉴权、lease/fencing、批次
 上限和幂等状态机都保持不变；开发和 Preview 环境继续只允许人工触发，不自动安装任务。
@@ -72,11 +76,20 @@ Hosted acceptance 不再要求用户把本文件的长 SQL 粘贴到 Dashboard�
 
 - `pnpm acceptance:hosted:cron:plan` 是零网络、零写入计划；
 - `pnpm acceptance:hosted:cron:status` 固定 Singapore project ref，复用管理员 transaction pooler、临时
-  CA 文件与 `verify-full`，只运行一个 `BEGIN READ ONLY` 事务；
-- `pnpm acceptance:hosted:cron:apply -- <exact-confirmation>` 只在 project-specific confirmation、数据库
-  preflight 和仓库 SQL 静态合同全部通过后继续。它原样执行完整
+  CA 文件与 `verify-full`，先从固定官方 URL 获取并严格校验 CA，再从 `/dev/tty` 无回显读取管理员密码，
+  最后只运行一个有 30 秒进程上限的 `BEGIN READ ONLY` 事务；
+- `pnpm acceptance:hosted:cron:apply -- <exact-confirmation>` 先验证 project-specific confirmation、operations
+  SQL 的精确 SHA-256
+  `09a074addefdf352ff256ff958bb87a6775b911a7da9475ef697b04d2a64d604`，以及 clean worktree、
+  `HEAD==upstream` 的仓库候选；三个 Git 读取各有 10 秒上限。只有这些来源门先通过，才获取 CA、读取密码
+  并进入数据库 preflight。它原样执行完整
   `apps/api/operations/configure-supabase-cron.sql` 一次，再原样执行第二次，最后用独立只读 status 要求
   exact 五个 active minute job、函数/ACL/extension 全部一致。
+
+status/apply 都拒绝环境对象自身拥有 `PGPASSWORD` 或 `SUPABASE_DB_PASSWORD`，不因值为空或 `undefined`
+而放行；管理员密码按 UTF-8 byte length 接受 12–512 bytes，并拒绝 NUL、CR、LF。全部 runtime/Cron psql
+调用固定 30 秒上限；snapshot/status parser 只接受精确 final LF 且任何 CR 都失败。上述规则不会把密码、
+CA 或数据库错误写入输出。
 
 status 只输出固定 boolean、`absent|partial|exact` stage 和 64-bit 非负聚合计数。它只查询
 `vault.secrets.name`，不查询 `vault.decrypted_secrets`，也不输出 Vault 值、Authorization、邮箱、owner、
@@ -120,8 +133,17 @@ Supabase Free 暂停或额度耗尽会使任务停止。正式发布前必须决
   缺失/错误 Bearer 为 401、零 worker 调用，并且 401 与成功响应都固定 `private, no-store`；
 - `supabase-cron-operations.test.ts` 静态审计扩展、Vault、配置失败关闭、私有权限、精确 allowlist、请求
   header、timeout、固定任务集合和重跑去重语义；
+- Hosted 控制面回归锁定 exact operations SQL hash、clean `HEAD==upstream`、10 秒 Git 与 30 秒 psql
+  上限、official CA→hidden `/dev/tty` 顺序、12–512 byte 密码、继承 secret 拒绝和 strict LF parser；
+  transaction 内插入 `DROP TABLE` 仍保留旧 `BEGIN`/`COMMIT`/五次 schedule 浅形状的变体必须因 hash
+  不匹配失败；
 - API full、strict typecheck/build、目标 lint/format、instructions/architecture 必须通过；SQL 没有
   Prettier parser，以静态契约测试、diff review 和后续真实 Supabase 验收覆盖。
+
+候选 `1caf9dc…` 的 focused 回归 23/23、runtime/Cron 零 I/O plan、继承 secret 的 package entry 失败门、
+完整 `pnpm verify:macos` 与 GitHub Cross-platform quality run `32970024964` 均通过；该 run 的
+`headSha` 精确为上述完整 SHA，`macos-quality` 与 `windows-quality` 均为 success。独立审查没有发现
+P0/P1/P2。自动证据仍不代表真实 Hosted 已连接或 Cron 已安装。
 
 本阶段完成只能标记为“调度适配已实现、真实部署待处理”。正式验收仍需要独立部署任务在受控环境中：
 

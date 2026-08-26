@@ -205,6 +205,18 @@ audit 仍只允许 `enabled`。这不代表 Store 产品或 Windows 支持被取
 > 恢复或另行批准替代邀请。R3-C、五项 Cron、Cloud DeepSeek 真实请求、目标网络、数据权利、双平台 Chrome、
 > 外部词库、自然使用与发布收口仍 pending。
 
+> **当前 Hosted runtime/Cron 候选加固（2026-08-26）**：候选
+> `1caf9dcf21f24a4410043a8356a9b2a1dbf8f8d6` 已把 runtime snapshot 与 Cron status/apply 统一为
+> fixed official CA→hidden `/dev/tty` 管理员密码→30 秒 psql；拒绝继承 `PGPASSWORD`/
+> `SUPABASE_DB_PASSWORD`、不在 12–512 byte 范围或含控制字符的密码，以及非 exact final LF/含 CR 输出。
+> Cron apply 另在任何 CA/password/DB 之前验证 operations SQL 精确 SHA-256、clean worktree 和
+> `HEAD==upstream`，Git 上限
+> 10 秒；事务内部 `DROP TABLE` 的旧浅形状绕过已由回归关闭。focused 23/23、零 I/O plan、完整
+> `pnpm verify:macos`、独立 P0/P1/P2 审查均通过；GitHub Cross-platform quality run `32970024964` 的
+> exact `headSha` 为该完整 SHA，macOS/Windows job 均 success。加固后没有真实运行 Hosted snapshot、Cron
+> status/apply，也没有输入用户秘密；R3-C、Cron continuity/apply、Cloud Web DeepSeek、数据权利、双平台
+> Chrome、外部词库、自然使用和最终发布审查仍 pending。
+
 > **历史校准检查点（Phase 33）**：Phase 28 已补齐 production 语义重复建议和
 > 可计算 AA token 证据；2026-08-14 完成度源码审计发现的 SubmissionOutbox `api=null` 误清账号绑定
 > 密文与未计数 `not-configured` 回归也已按 Fresh RED→GREEN 修复。Phase 32 按 `product.md` 七条
@@ -1872,6 +1884,10 @@ passed; first Operator empty`。候选已提交推送，0012 已实际 push；�
   OTP/Auth SMTP 和完整 R3-C 收件、重复、告警门，随后还需两周期与故障恢复验证；
 - Fresh RED 为模块缺失，当前 focused GREEN 10/10。未连接 Supabase/Vercel/Resend/DeepSeek，未安装 Cron，
   API/Web 仍以 Phase 78 的 16/8、双 `deploymentEnabled=false` 为当前远端基线。
+- 2026-08-26 候选 `1caf9dc…` 已取代最初“先数据库 preflight、后静态检查”的执行顺序：apply 在
+  CA/password/DB 前先验 exact operations hash、clean worktree 与 `HEAD==upstream`；runtime/Cron 统一
+  official CA、hidden `/dev/tty`、12–512 byte 密码、继承 secret 拒绝、30 秒 psql 和 strict LF parser。
+  该加固只通过本地与双平台 CI，没有重新运行真实 Hosted status/apply。
 
 ## Cloud V1 Phase 88 五项 Cron 离线深审状态（2026-08-25）
 
