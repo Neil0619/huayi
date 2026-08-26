@@ -30,6 +30,14 @@ function usageTotalsAreValid(usage) {
   );
 }
 
+function optionalRequestEvidenceIsValid(request) {
+  return (
+    request === null ||
+    (hasExactKeys(request, ["idempotencyKey", "operationId", "ownerId", "requestId"]) &&
+      identitiesMatch(request, request))
+  );
+}
+
 function ledgerEntryIsValid(entry, identity, priceVersionId) {
   return (
     hasExactKeys(entry, [
@@ -48,7 +56,7 @@ function ledgerEntryIsValid(entry, identity, priceVersionId) {
     entry.ownerId === identity.ownerId &&
     entry.requestId === identity.requestId &&
     entry.priceVersionId === priceVersionId &&
-    isSafePositiveInteger(entry.callOrdinal) &&
+    isSafeNonnegativeInteger(entry.callOrdinal) &&
     isSafePositiveInteger(entry.inputTokens) &&
     isSafeNonnegativeInteger(entry.cachedInputTokens) &&
     entry.cachedInputTokens <= entry.inputTokens &&
@@ -97,7 +105,9 @@ export function settlementIsValid(settlement, approval, preSnapshot, identity) {
   ) {
     return false;
   }
-  const ordinals = settlement.ledgerEntries.map(({ callOrdinal }) => callOrdinal).sort();
+  const ordinals = settlement.ledgerEntries
+    .map(({ callOrdinal }) => callOrdinal)
+    .sort((left, right) => left - right);
   const costMicroUsd = settlement.ledgerEntries.reduce(
     (total, entry) => total + entry.costMicroUsd,
     0,
@@ -106,7 +116,7 @@ export function settlementIsValid(settlement, approval, preSnapshot, identity) {
     settlement.ledgerEntries.every((entry) =>
       ledgerEntryIsValid(entry, identity, settlement.priceVersionId),
     ) &&
-    ordinals.every((ordinal, index) => ordinal === index + 1) &&
+    ordinals.every((ordinal, index) => ordinal === index) &&
     new Set(settlement.ledgerEntries.map(({ id }) => id)).size ===
       settlement.ledgerEntries.length &&
     costMicroUsd > 0 &&
@@ -132,8 +142,7 @@ function postSnapshotHasValidShape(snapshot) {
     typeof snapshot.killSwitchEnabled === "boolean" &&
     parseUtcTimestamp(snapshot.observedAt) !== null &&
     usageTotalsAreValid(snapshot.ownerUsage) &&
-    hasExactKeys(snapshot.request, ["idempotencyKey", "operationId", "ownerId", "requestId"]) &&
-    identitiesMatch(snapshot.request, snapshot.request) &&
+    optionalRequestEvidenceIsValid(snapshot.request) &&
     ["active", "none", "released", "settled"].includes(snapshot.reservationStatus) &&
     [0, 1].includes(snapshot.terminalRequestCountDelta)
   );
@@ -151,7 +160,6 @@ export function postSnapshotProvesRestoration(
     observedAt <= nowMilliseconds &&
     nowMilliseconds - observedAt <= freshnessMilliseconds &&
     snapshot.killSwitchEnabled === cleanupLease.desiredKillSwitchEnabled &&
-    identitiesMatch(snapshot.request, cleanupLease) &&
     deploymentsMatch(snapshot.deployments, cleanupLease.deployments)
   );
 }
@@ -174,6 +182,7 @@ export function postSnapshotProvesSuccess(
   preSnapshot,
   settlement,
   cleanupLease,
+  identity,
   nowMilliseconds,
   freshnessMilliseconds,
 ) {
@@ -185,6 +194,7 @@ export function postSnapshotProvesSuccess(
       freshnessMilliseconds,
     ) ||
     snapshot.applicationRequestCountDelta !== 1 ||
+    !identitiesMatch(snapshot.request, identity) ||
     snapshot.reservationStatus !== "settled" ||
     snapshot.terminalRequestCountDelta !== 1 ||
     parseUtcTimestamp(snapshot.observedAt) < parseUtcTimestamp(settlement.observedAt)

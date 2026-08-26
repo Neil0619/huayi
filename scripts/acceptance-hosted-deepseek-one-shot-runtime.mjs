@@ -15,10 +15,12 @@ const requiredAdapterMethods = Object.freeze([
 ]);
 const requiredLifecycleMethods = Object.freeze([
   "armCleanup",
+  "bindRequest",
   "claimCleanup",
   "claimOperation",
   "completeCleanup",
   "completeOperation",
+  "markDispatchAttempted",
 ]);
 
 function failedClosed() {
@@ -125,7 +127,6 @@ export function createCleanupCommand(operationLease, preSnapshot) {
     observedAt: preSnapshot.observedAt,
     operationId: operationLease.operationId,
     ownerId: operationLease.ownerId,
-    requestId: operationLease.requestId,
   });
 }
 
@@ -137,7 +138,6 @@ export function createApplicationRequest(identity, deployments, route) {
     origin: route.origin,
     ownerId: identity.ownerId,
     path: route.path,
-    requestId: identity.requestId,
   });
 }
 

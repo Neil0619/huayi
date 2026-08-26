@@ -5,6 +5,7 @@ import {
 } from "./acceptance-hosted-deepseek-one-shot.mjs";
 
 export const candidateCommit = "1".repeat(40);
+export const webCommit = "2".repeat(40);
 export const ownerId = "10000000-0000-4000-8000-000000000001";
 export const operationId = "20000000-0000-4000-8000-000000000002";
 export const requestId = "30000000-0000-4000-8000-000000000003";
@@ -31,7 +32,6 @@ export function approval(overrides = {}) {
   return {
     candidateCommit,
     confirmation: hostedDeepSeekOneShotConfirmation,
-    ...identity(),
     maximumReservationMicroUsd: 500,
     ...overrides,
   };
@@ -45,7 +45,7 @@ export function deployments(overrides = {}) {
       state: "READY",
     },
     web: {
-      commit: candidateCommit,
+      commit: webCommit,
       deploymentId: "dpl_web_candidate_001",
       state: "READY",
     },
@@ -100,7 +100,7 @@ export function preSnapshot(overrides = {}) {
 export function ledgerEntry(overrides = {}) {
   return {
     cachedInputTokens: 20,
-    callOrdinal: 1,
+    callOrdinal: 0,
     costMicroUsd: 17,
     id: "60000000-0000-4000-8000-000000000006",
     inputTokens: 120,
@@ -155,19 +155,18 @@ export function postSnapshot(overrides = {}) {
 }
 
 export function requestHandle(overrides = {}) {
-  return { ...identity(), ...overrides };
+  return { requestId, type: "analysis.started", ...overrides };
 }
 
-export function operationLease(command = identity(), overrides = {}) {
+export function operationLease(command = approval(), overrides = {}) {
   return {
     candidateCommit: command.candidateCommit ?? candidateCommit,
     claimToken: "claim_token_001",
-    idempotencyKey: command.idempotencyKey,
+    idempotencyKey: identity().idempotencyKey,
     leaseExpiresAt,
     maximumReservationMicroUsd: command.maximumReservationMicroUsd ?? 500,
-    operationId: command.operationId,
-    ownerId: command.ownerId,
-    requestId: command.requestId,
+    operationId,
+    ownerId,
     ...overrides,
   };
 }
@@ -185,7 +184,6 @@ export function cleanupLease(
     leaseExpiresAt,
     operationId: command.operationId,
     ownerId: command.ownerId,
-    requestId: command.requestId,
     ...overrides,
   };
 }
@@ -193,7 +191,7 @@ export function cleanupLease(
 export function unsafePreflightCases() {
   return [
     { approval: approval({ confirmation: "--wrong" }), pre: preSnapshot(), preRead: false },
-    { approval: approval({ operationId: "not-a-uuid" }), pre: preSnapshot(), preRead: false },
+    { approval: approval({ operationId }), pre: preSnapshot(), preRead: false },
     {
       approval: approval({ maximumReservationMicroUsd: 399 }),
       pre: preSnapshot(),
@@ -207,9 +205,7 @@ export function unsafePreflightCases() {
     {
       approval: approval(),
       pre: preSnapshot({
-        deployments: deployments({
-          web: { ...deployments().web, commit: "2".repeat(40) },
-        }),
+        deployments: deployments({ web: { ...deployments().web, commit: "not-a-sha" } }),
       }),
       preRead: true,
     },
@@ -254,9 +250,11 @@ export function unsafePreflightCases() {
 
 export function operationLifecycle({
   arm,
+  bind,
   calls = [],
   claim,
   claimCleanup,
+  dispatch,
   finishCleanup,
   finishOperation,
   pendingCleanup,
@@ -270,10 +268,16 @@ export function operationLifecycle({
       pending = value;
       return value;
     },
-    claimCleanup: async (command) => {
+    bindRequest: async (command) => {
+      calls.push("bind-request");
+      return bind === undefined
+        ? { ...identity({ requestId: command.requestId }), status: "bound" }
+        : bind(command);
+    },
+    claimCleanup: async (...arguments_) => {
       calls.push("claim-cleanup");
-      if (claimCleanup !== undefined) return claimCleanup(command, pending);
-      if (pending === undefined || pending.operationId !== command.operationId) {
+      if (claimCleanup !== undefined) return claimCleanup(arguments_, pending);
+      if (arguments_.length !== 0 || pending === undefined || Array.isArray(pending)) {
         throw new Error("cleanup unavailable");
       }
       return { ...pending, cleanupToken: "recovery_cleanup_token_001" };
@@ -299,6 +303,12 @@ export function operationLifecycle({
       return finishOperation === undefined
         ? { operationId: command.operationId, outcome: command.outcome, status: "completed" }
         : finishOperation(command);
+    },
+    markDispatchAttempted: async (command) => {
+      calls.push("mark-dispatch-attempted");
+      return dispatch === undefined
+        ? { operationId: command.operationId, status: "dispatch-attempted" }
+        : dispatch(command);
     },
     pendingCleanup: () => pending,
   };

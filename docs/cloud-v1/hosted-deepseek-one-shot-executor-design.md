@@ -1,6 +1,7 @@
 # Hosted Cloud Web DeepSeek one-shot executor 设计
 
-状态：Accepted design；尚未实现、部署或执行 Hosted 验收。
+状态：Accepted design；Phase A 离线控制合同基础已实现，私有 authority、production adapters、真实
+executor、部署与 Hosted 验收仍未实现。
 
 日期：2026-08-27
 

@@ -39,36 +39,33 @@ function isUuid(value) {
   return typeof value === "string" && uuidPattern.test(value);
 }
 
-export function operationIdIsValid(value) {
-  return isUuid(value);
-}
-
 function isToken(value) {
   return typeof value === "string" && tokenPattern.test(value);
 }
 
-function identityValuesAreValid(identity) {
+function operationIdentityValuesAreValid(identity) {
   return (
     isRecord(identity) &&
     typeof identity.idempotencyKey === "string" &&
     /^[A-Za-z0-9._:-]{8,128}$/u.test(identity.idempotencyKey) &&
     isUuid(identity.operationId) &&
-    isUuid(identity.ownerId) &&
-    isUuid(identity.requestId)
+    isUuid(identity.ownerId)
   );
 }
 
-function identityIsValid(identity) {
+function operationIdentityIsValid(identity) {
   return (
-    hasExactKeys(identity, ["idempotencyKey", "operationId", "ownerId", "requestId"]) &&
-    identityValuesAreValid(identity)
+    hasExactKeys(identity, ["idempotencyKey", "operationId", "ownerId"]) &&
+    operationIdentityValuesAreValid(identity)
   );
 }
 
 export function identitiesMatch(left, right) {
   return (
-    identityValuesAreValid(left) &&
-    identityValuesAreValid(right) &&
+    operationIdentityValuesAreValid(left) &&
+    operationIdentityValuesAreValid(right) &&
+    isUuid(left.requestId) &&
+    isUuid(right.requestId) &&
     left.idempotencyKey === right.idempotencyKey &&
     left.operationId === right.operationId &&
     left.ownerId === right.ownerId &&
@@ -78,45 +75,35 @@ export function identitiesMatch(left, right) {
 
 export function approvalIsValid(approval, confirmation) {
   return (
-    hasExactKeys(approval, [
-      "candidateCommit",
-      "confirmation",
-      "idempotencyKey",
-      "maximumReservationMicroUsd",
-      "operationId",
-      "ownerId",
-      "requestId",
-    ]) &&
+    hasExactKeys(approval, ["candidateCommit", "confirmation", "maximumReservationMicroUsd"]) &&
     /^[0-9a-f]{40}$/u.test(approval.candidateCommit) &&
     approval.confirmation === confirmation &&
-    isSafePositiveInteger(approval.maximumReservationMicroUsd) &&
-    identityIsValid(operationIdentity(approval))
+    isSafePositiveInteger(approval.maximumReservationMicroUsd)
   );
 }
 
-export function operationIdentity(approval) {
+export function operationIdentity(authority) {
   return Object.freeze({
-    idempotencyKey: approval.idempotencyKey,
-    operationId: approval.operationId,
-    ownerId: approval.ownerId,
-    requestId: approval.requestId,
+    idempotencyKey: authority.idempotencyKey,
+    operationId: authority.operationId,
+    ownerId: authority.ownerId,
   });
 }
 
-function deploymentIsValid(deployment, candidateCommit) {
+function deploymentIsValid(deployment) {
   return (
     hasExactKeys(deployment, ["commit", "deploymentId", "state"]) &&
-    deployment.commit === candidateCommit &&
+    /^[0-9a-f]{40}$/u.test(deployment.commit) &&
     isToken(deployment.deploymentId) &&
     deployment.state === "READY"
   );
 }
 
-export function deploymentsAreValid(deployments, candidateCommit) {
+export function deploymentsAreValid(deployments) {
   return (
     hasExactKeys(deployments, ["api", "web"]) &&
-    deploymentIsValid(deployments.api, candidateCommit) &&
-    deploymentIsValid(deployments.web, candidateCommit) &&
+    deploymentIsValid(deployments.api) &&
+    deploymentIsValid(deployments.web) &&
     deployments.api.deploymentId !== deployments.web.deploymentId
   );
 }
@@ -213,7 +200,7 @@ export function preSnapshotIsValid(snapshot, approval, nowMilliseconds, policy) 
     authorizationIsValid(snapshot.authorization, nowMilliseconds, policy.freshnessMilliseconds) &&
     budgetIsValid(snapshot.budget, approval) &&
     candidateIsValid(snapshot.candidate, approval) &&
-    deploymentsAreValid(snapshot.deployments, approval.candidateCommit) &&
+    deploymentsAreValid(snapshot.deployments) &&
     snapshot.killSwitchEnabled === true &&
     usageTotalsAreValid(snapshot.ownerUsage) &&
     hasExactKeys(snapshot.route, ["origin", "path"]) &&
@@ -233,9 +220,8 @@ export function operationLeaseIsValid(lease, approval, requiredUntilMilliseconds
       "maximumReservationMicroUsd",
       "operationId",
       "ownerId",
-      "requestId",
     ]) &&
-    identitiesMatch(lease, approval) &&
+    operationIdentityIsValid(operationIdentity(lease)) &&
     lease.candidateCommit === approval.candidateCommit &&
     lease.maximumReservationMicroUsd === approval.maximumReservationMicroUsd &&
     isToken(lease.claimToken) &&
@@ -256,9 +242,12 @@ export function cleanupLeaseIsValid(lease, identity, deployments, requiredUntilM
       "leaseExpiresAt",
       "operationId",
       "ownerId",
-      "requestId",
     ]) &&
-    identitiesMatch(lease, identity) &&
+    operationIdentityValuesAreValid(lease) &&
+    operationIdentityValuesAreValid(identity) &&
+    lease.idempotencyKey === identity.idempotencyKey &&
+    lease.operationId === identity.operationId &&
+    lease.ownerId === identity.ownerId &&
     isUuid(lease.cleanupId) &&
     isToken(lease.cleanupToken) &&
     expiresAt !== null &&
@@ -268,10 +257,31 @@ export function cleanupLeaseIsValid(lease, identity, deployments, requiredUntilM
   );
 }
 
-export function requestHandleIsValid(handle, identity) {
+export function dispatchAttemptReceiptIsValid(receipt, operationLease) {
   return (
-    hasExactKeys(handle, ["idempotencyKey", "operationId", "ownerId", "requestId"]) &&
-    identitiesMatch(handle, identity)
+    hasExactKeys(receipt, ["operationId", "status"]) &&
+    receipt.operationId === operationLease.operationId &&
+    receipt.status === "dispatch-attempted"
+  );
+}
+
+export function requestHandleIsValid(handle) {
+  return (
+    hasExactKeys(handle, ["requestId", "type"]) &&
+    isUuid(handle.requestId) &&
+    handle.type === "analysis.started"
+  );
+}
+
+export function requestBindingIsValid(binding, operationLease, requestHandle) {
+  return (
+    hasExactKeys(binding, ["idempotencyKey", "operationId", "ownerId", "requestId", "status"]) &&
+    operationIdentityValuesAreValid(binding) &&
+    binding.idempotencyKey === operationLease.idempotencyKey &&
+    binding.operationId === operationLease.operationId &&
+    binding.ownerId === operationLease.ownerId &&
+    binding.requestId === requestHandle.requestId &&
+    binding.status === "bound"
   );
 }
 

@@ -12,7 +12,6 @@ import {
   identity,
   nowMilliseconds,
   observedAt,
-  operationId,
   operationLifecycle,
   ownerUsage,
   postSnapshot,
@@ -150,12 +149,10 @@ test("failed local restoration leaves a durable lease for cleanup-only recovery"
   const result = await recoverHostedDeepSeekOneShotCleanup({
     adapter: adapter({ calls: recoveryCalls }),
     lifecycle,
-    operationId,
     readNowMilliseconds: () => nowMilliseconds,
   });
   assert.deepEqual(result, {
-    cleanupId: "50000000-0000-4000-8000-000000000005",
-    operationId,
+    killSwitchRestored: true,
     outcome: "restored",
   });
   assert.deepEqual(recoveryCalls, ["kill-switch:true", "post-snapshot"]);
@@ -164,7 +161,6 @@ test("failed local restoration leaves a durable lease for cleanup-only recovery"
     recoverHostedDeepSeekOneShotCleanup({
       adapter: adapter(),
       lifecycle,
-      operationId,
       readNowMilliseconds: () => nowMilliseconds,
     }),
     failurePattern,

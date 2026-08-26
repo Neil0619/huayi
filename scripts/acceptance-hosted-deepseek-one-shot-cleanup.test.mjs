@@ -13,7 +13,6 @@ import {
   approval,
   cleanupLease,
   nowMilliseconds,
-  operationId,
   operationLease,
   operationLifecycle,
   postSnapshot,
@@ -110,7 +109,7 @@ for (const shortLease of ["operation", "cleanup"]) {
   });
 }
 
-test("malformed cleanup operation ids fail before the durable lifecycle is called", async () => {
+test("opaque cleanup operation ids fail before the durable lifecycle is called", async () => {
   const lifecycleCalls = [];
   await assert.rejects(
     recoverHostedDeepSeekOneShotCleanup({
@@ -202,7 +201,6 @@ test("cleanup-only recovery is bounded and never reports a hanging restore as co
       }),
       clearTimeout_: () => undefined,
       lifecycle,
-      operationId,
       readNowMilliseconds: () => nowMilliseconds,
       setTimeout_: (callback, milliseconds) => {
         assert.equal(milliseconds, hostedDeepSeekCleanupBudgetMilliseconds);

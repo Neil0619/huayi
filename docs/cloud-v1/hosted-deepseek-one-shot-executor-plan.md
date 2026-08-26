@@ -5,13 +5,18 @@
 
 ## 阶段 A：更新控制面合同（Fresh RED）
 
-- [ ] 先写回归，证明 approval 不再接受 owner/request/idempotency 等 opaque 输入；
-- [ ] 证明 authority 在 mutation 前生成 operation/idempotency，并在 SSE `analysis.started` 后绑定
+- [x] 先写回归，证明 approval 不再接受 owner/request/idempotency 等 opaque 输入；
+- [x] 证明 authority seam 在 mutation 前生成 operation/idempotency，并在 SSE `analysis.started` 后绑定
       server-generated request ID；
 - [ ] 证明同 key/same payload 的 bind-before-crash recovery 只恢复原 request，零二次 Provider dispatch；
 - [ ] 把 tests 从直接编排 lifecycle/adapter 迁移到 executor 的 `status/execute/recover` interface。
 
-退出标准：旧预选 request ID 合同稳定 RED，新 interface 与设计逐项对应。
+当前检查点：前两项已经用离线 lifecycle/fake HTTP 完成 RED→GREEN，并额外证明 dispatch receipt 失败时可在
+没有伪造 request evidence 的情况下恢复 fuse，以及已绑定 request 的 settlement crash 经无 opaque ID cleanup
+recovery 后不会二次 dispatch。CLI 仍只有零 I/O `plan`。
+
+退出标准：旧预选 request ID 合同稳定 RED，新 interface 与设计逐项对应。后两项未完成前，Phase A 不得
+标记完成。
 
 ## 阶段 B：私有 Postgres authority
 

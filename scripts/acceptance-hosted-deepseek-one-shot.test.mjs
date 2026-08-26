@@ -4,6 +4,7 @@ import test from "node:test";
 
 import {
   hostedDeepSeekApplicationBudgetMilliseconds,
+  hostedDeepSeekAnalysisStreamPath,
   hostedDeepSeekOneShotConfirmation,
   hostedDeepSeekWebOrigin,
   hostedDeepSeekWebPath,
@@ -22,9 +23,7 @@ import {
   ownerUsage,
   postSnapshot,
   preSnapshot,
-  priceVersionId,
   requestHandle,
-  requestId,
   settlement,
   unsafePreflightCases,
 } from "./acceptance-hosted-deepseek-one-shot-test-fixtures.mjs";
@@ -63,14 +62,17 @@ test("DeepSeek plan is fixed, zero-I/O, Cloud-Web-only, and exposes no real exec
     "Classic `pnpm smoke:deepseek` is forbidden",
     "no default real executor",
     "hidden interactive channel",
-    "atomically consume the operation",
-    "same approval can never dispatch twice",
-    "READY Hosted API and Web deployments on that exact SHA",
+    "Approval contains only the candidate commit, exact confirmation, and reservation cap",
+    "authority generates operation and idempotency identities",
+    "independently attested full source SHAs",
     "durably arm a reclaimable cleanup lease",
     "Both validated leases must outlive the complete 90-second mutation window",
+    "persist dispatch-attempted",
+    "bind that server-generated request ID",
+    "never accepts an opaque operation ID",
     "absolute 90-second deadline",
-    "actual price-version UUID",
-    "exact owner-usage delta",
+    "continuous zero-based UsageLedger calls",
+    "exposes no opaque IDs, price UUID, or token-usage details",
   ]) {
     assert.match(stdout, new RegExp(expected.replaceAll(/[.*+?^${}()|[\]\\]/gu, "\\$&"), "u"));
   }
@@ -147,7 +149,9 @@ test("orchestrator claims once, binds the request, and closes cleanup after rest
     "pre-snapshot",
     "arm-cleanup",
     "kill-switch:false",
-    `request:${hostedDeepSeekWebOrigin}${hostedDeepSeekWebPath}`,
+    "mark-dispatch-attempted",
+    `request:${hostedDeepSeekWebOrigin}${hostedDeepSeekAnalysisStreamPath}`,
+    "bind-request",
     "server-settlement",
     "kill-switch:true",
     "post-snapshot",
@@ -156,9 +160,11 @@ test("orchestrator claims once, binds the request, and closes cleanup after rest
   ]);
   assert.deepEqual(invokedRequest, {
     deployments: deployments(),
-    ...identity(),
+    idempotencyKey: identity().idempotencyKey,
+    operationId: identity().operationId,
     origin: hostedDeepSeekWebOrigin,
-    path: hostedDeepSeekWebPath,
+    ownerId: identity().ownerId,
+    path: hostedDeepSeekAnalysisStreamPath,
   });
   assert.deepEqual(Object.keys(invokeControl).sort(), [
     "applicationBudgetMilliseconds",
@@ -171,22 +177,8 @@ test("orchestrator claims once, binds the request, and closes cleanup after rest
   assert.equal(invokeControl.signal.aborted, false);
   assert.equal(settlementControl, invokeControl);
   assert.deepEqual(result, {
-    applicationPath: hostedDeepSeekWebPath,
-    billedCallCount: 1,
-    deadlineClassification: "completed-within-90-seconds",
     killSwitchRestored: true,
     outcome: "accepted",
-    priceVersionId,
-    priceVersionSlot: "off-peak",
-    providerModel: "deepseek-v4-flash",
-    requestCount: 1,
-    requestId,
-    usage: {
-      cachedInputTokens: 20,
-      costMicroUsd: 17,
-      inputTokens: 120,
-      outputTokens: 60,
-    },
   });
 });
 
@@ -281,7 +273,7 @@ test("server evidence must bind deployments, request identity, price UUID, and l
 test("one structure repair is accepted only as two bound ledger calls with exact totals", async () => {
   const secondEntry = ledgerEntry({
     cachedInputTokens: 5,
-    callOrdinal: 2,
+    callOrdinal: 1,
     costMicroUsd: 9,
     id: "a0000000-0000-4000-8000-00000000000a",
     inputTokens: 80,
@@ -305,13 +297,7 @@ test("one structure repair is accepted only as two bound ledger calls with exact
     }),
     approval: approval(),
   });
-  assert.equal(result.billedCallCount, 2);
-  assert.deepEqual(result.usage, {
-    cachedInputTokens: 25,
-    costMicroUsd: 26,
-    inputTokens: 200,
-    outputTokens: 100,
-  });
+  assert.deepEqual(result, { killSwitchRestored: true, outcome: "accepted" });
 });
 
 test("every application, interruption, restoration, and post failure remains fail-closed", async () => {

@@ -232,7 +232,11 @@ audit 仍只允许 `enabled`。这不代表 Store 产品或 Windows 支持被取
 > `analysis.started` 后原子绑定；single-use/lease/cleanup/receipt 位于仅管理员可访问的 `huayi_private`
 > authority；password Web session、recent-auth、Cookie/CSRF、SSE/status 和 Vercel/账本读取隐藏在
 > production adapters 内。浏览器 DOM 自动化与 acceptance-only 模型 route 均否决。当前只完成设计与实施
-> 顺序，尚未实现 migration、production adapters、真实 executor，亦未连接 Hosted 或产生费用。
+> 顺序，以及 Phase A 的离线控制合同基础：approval 已收敛为三字段，authority seam 生成 operation/
+> idempotency，dispatch receipt 必须先于 HTTP，request ID 只从 `analysis.started` 绑定，cleanup recovery 不
+> 接受 opaque ID，ledger ordinal 改为 0 起始，成功结果不暴露私有证据。私有 Postgres authority、同 key
+> pre-bind reconciliation、`status/execute/recover` 深接口、normal Web session adapter、migration 与真实
+> executor 仍未实现；没有连接 Hosted 或产生费用。
 
 > **历史校准检查点（Phase 33）**：Phase 28 已补齐 production 语义重复建议和
 > 可计算 AA token 证据；2026-08-14 完成度源码审计发现的 SubmissionOutbox `api=null` 误清账号绑定
