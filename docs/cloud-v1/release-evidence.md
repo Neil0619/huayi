@@ -2768,3 +2768,20 @@ typecheck、architecture、build、development blocker、Store release、product
   用户秘密。实际 Cron apply 仍被真实 R3-C 收件/重复/无正文告警与 Vercel/Vault `CRON_SECRET` 连续性
   阻塞；OTP/R3-C、Cloud Web DeepSeek 付费路径、数据权利、macOS/Windows Chrome、外部词库、自然使用和
   最终发布审查仍 pending。
+
+## 108. Hosted Cloud Web DeepSeek one-shot 本地候选与 CI 待验收（2026-08-26）
+
+- **候选与离线契约**：已推送 `28f587e9769847777db2ed287851881d81422d03`。CLI 只有零 I/O plan，未提供
+  真实 executor；契约固定原子单次 approval/operation、operation/request/owner/idempotency、90 秒应用
+  deadline、10 秒 cleanup、durable pending cleanup/recovery，以及 deployment SHA/ID 与 settlement/ledger/post
+  evidence 绑定；
+- **本地验证**：TDD focused 24/24、`test:scripts` 583/583 与 fresh `pnpm verify:macos` 均通过；完整 macOS
+  门包含主 Vitest 341 files / 2,388 passed / 12 skipped、API 141 files / 554、Store 97 files / 481、Playwright
+  111/111，以及 build、Store release、production audit 与 diff check；
+- **CI 状态，不作替代推断**：exact-SHA GitHub Actions run `32985730194` 的 attempt 1 是 startup failure，零
+  jobs、零 logs；重跑请求已提交，但在已确认的 GitHub Actions major outage 期间仍 queued，API 尚未生成
+  attempt 2。该瞬时外部状态不是产品事实，也不构成 Windows 验证。旧 `dfbcb8f` 的 exact-SHA run
+  `32982393993` 虽 macOS/Windows success，但发生在本候选审查前，不能代替 `28f587e` 的 Windows CI；
+- **执行边界**：本阶段没有连接 Hosted、运行真实模型、读取秘密、输入 recent-auth Operator 凭据、使用 Hosted
+  key/quota、发起付费请求、操作 kill switch 或生成账单/ledger settlement。Cloud V1 和发布均未完成；上述真实
+  Web session、账单 reconciliation 与 live restore 继续等待逐项明确批准和验收。

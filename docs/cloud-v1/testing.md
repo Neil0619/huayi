@@ -1404,6 +1404,11 @@ session is invalid.`；400 `invalid_request` 表示 runtime 数据库路径未�
 - Cloud DeepSeek 必须在正常邀请注册并 complete Operator 后，由受审计 `/admin` 动作临时关闭 kill switch，
   再经真实 Web session 的应用路径核验 model/usage/价格 UUID/reservation/UsageLedger。Classic
   `pnpm smoke:deepseek`、公开测试 endpoint、直接 Auth 用户或 SQL 绕过均不可作为 hosted 证据；
+- Hosted Cloud Web DeepSeek one-shot 的 CLI 默认只允许零 I/O `plan`：真实 executor 必须另行显式提供，
+  并在一个原子 approval/operation 中固定 operation、request、owner 与 idempotency。应用请求 deadline
+  固定 90 秒，cleanup 上限 10 秒；pending cleanup/recovery 必须持久化。执行回执必须绑定部署 SHA/ID 与
+  settlement、ledger、post evidence。离线回归只能证明这些控制面契约，不能关闭真实 Web session、recent-auth
+  Operator、Hosted key/quota、小额付费请求、实际账单/ledger reconciliation 或 kill-switch live restore；
 - CLI 与 production runtime 都必须使用显式 Supabase CA 与 `verify-full`；API 环境回归拒绝 require/无 TLS、
   非 6543 pooler、错误 project ref、缺失/越界 CA，本机 disabled 模式只接受固定 loopback database DSN；
 - hosted psql 子进程回归必须证明调用方不能覆盖 `PGSSLMODE=verify-full` 与临时 `PGSSLROOTCERT`；diagnostic

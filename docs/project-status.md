@@ -217,6 +217,16 @@ audit 仍只允许 `enabled`。这不代表 Store 产品或 Windows 支持被取
 > status/apply，也没有输入用户秘密；R3-C、Cron continuity/apply、Cloud Web DeepSeek、数据权利、双平台
 > Chrome、外部词库、自然使用和最终发布审查仍 pending。
 
+> **当前 Hosted Cloud Web DeepSeek one-shot 候选（2026-08-26）**：已推送
+> `28f587e9769847777db2ed287851881d81422d03`。其 CLI 只有零 I/O plan，没有真实 executor；离线契约已固定原子
+> approval/operation、operation/request/owner/idempotency、90 秒应用 deadline、10 秒 cleanup、durable pending
+> cleanup/recovery，以及 deployment SHA/ID 与 settlement/ledger/post evidence 绑定。TDD focused 24/24、
+> `test:scripts` 583/583 与 fresh `pnpm verify:macos` 均通过。exact-SHA GitHub Actions run `32985730194` 的
+> attempt 1 startup failure 为零 jobs/零 logs；重跑请求已提交，但在已确认 major outage 期间仍 queued，API
+> 尚未生成 attempt 2。因此 Windows exact-SHA CI 仍 pending，不能用审查前 `dfbcb8f` 的 run `32982393993`
+> success 替代。真实 Web session、recent-auth Operator、Hosted key/quota、小额付费请求、实际账单/ledger
+> reconciliation 和 kill-switch live restore 也仍 pending；Cloud V1 与发布没有完成。
+
 > **历史校准检查点（Phase 33）**：Phase 28 已补齐 production 语义重复建议和
 > 可计算 AA token 证据；2026-08-14 完成度源码审计发现的 SubmissionOutbox `api=null` 误清账号绑定
 > 密文与未计数 `not-configured` 回归也已按 Fresh RED→GREEN 修复。Phase 32 按 `product.md` 七条

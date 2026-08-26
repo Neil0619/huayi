@@ -3,6 +3,16 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-26：Hosted Cloud Web DeepSeek 验收改为可恢复的单次受控操作
+
+- Hosted Cloud Web DeepSeek 不再允许把本地 provider smoke 或仅有一个 CLI flag 视作执行授权。控制面必须以
+  一个原子 approval/operation 固定 operation、request、owner、idempotency，并持久化 pending cleanup/recovery；
+- 应用请求 deadline 固定为 90 秒，cleanup 固定为 10 秒。每次执行都必须把 deployment SHA/ID 与 settlement、
+  ledger、post evidence 绑定，避免事后把不相关部署或账本记录拼接为成功；
+- 默认 CLI 仅提供零 I/O plan，真实 executor 必须另行实现和批准。真实 Hosted Web session、recent-auth
+  Operator、key/quota、小额付费请求、实际账单与 ledger reconciliation、kill-switch live restore 仍是独立
+  验收门；
+
 ## 2026-08-26：Hosted runtime/Cron 先绑定来源，再读取秘密和数据库
 
 - Phase 77/79 的旧顺序被明确取代：runtime snapshot 与 Cron status/apply 不再继承数据库密码或要求调用者

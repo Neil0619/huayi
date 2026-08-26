@@ -109,6 +109,13 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
 - [x] Phase 90 代码锚点 `9ab2c90` 的账号数据权利 focused 根侧复核 69/69 全绿，独立完整
       `pnpm verify:macos` 原样退出 0；影响平台为 shared + macOS，Windows 最新冻结候选批次仍待验证，且
       离线门不替代真实 Storage、Auth 删除、Hosted 浏览器或部署验收；
+- [ ] Hosted Cloud Web DeepSeek one-shot 候选 `28f587e9769847777db2ed287851881d81422d03` 的契约已由
+      focused 24/24、`test:scripts` 583/583 与 fresh `pnpm verify:macos` 关闭；其 exact-SHA Windows CI
+      仍待验收。GitHub Actions run `32985730194` 的 attempt 1 为 startup failure、零 jobs/零 logs；重跑请求
+      已提交，但在已确认的 GitHub Actions major outage 期间仍 queued，API 尚未生成 attempt 2。这是瞬时外部
+      CI 状态，不替代或否定产品门；旧
+      `dfbcb8f` 的 run `32982393993` 虽双平台 success，因在审查前，不能代替本 SHA 的 Windows 证据。真实
+      Web/Operator/付费/账单/kill-switch restore 门也均保持未勾选；
 - [ ] Windows Node.js 26+ 的 `pnpm verify:windows`、SEA health 与 CI 全绿；Phase 37-B 已在 Windows 11
       build 26220、Node.js 26.7.0 上本地退出 0，109/109 Playwright、SEA 仓库外 health 与 production
       audit 全绿；完整门证据提交 `3aa143c7f60ba52a941f2a2db587bc93819427eb` 已普通 push，但分支无
