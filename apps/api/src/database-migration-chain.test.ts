@@ -19,6 +19,7 @@ const migrationUrls = [
   "0013-password-signup-interruption-recovery.sql",
   "0014-password-signup-otp-resend.sql",
   "0015-public-function-acl-hardening.sql",
+  "0016-hosted-deepseek-acceptance-authority.sql",
 ].map((name) => new URL(`../migrations/${name}`, import.meta.url));
 
 describe("Cloud V1 current migration chain", () => {

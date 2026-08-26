@@ -28,12 +28,14 @@ function fictionalSources() {
   };
 }
 
-test("Phase 91 rebuild pins a distinct operation and exact 15-file source set", async () => {
+test("historical Phase 91 rebuild stays pinned to 0015 and refuses the 0016 repository", async () => {
   assert.match(hostedPhase91RebuildArgument, /^--confirm-rebuild-0015-/u);
-  const sources = await loadHostedPhase91RebuildSources(process.cwd());
-  assert.equal(sources.migrations.length, 15);
-  assert.equal(sources.migrations.at(-1)?.version, "20260825010000");
-  assert.match(sources.migrations.at(-1)?.source, /REVOKE EXECUTE ON ALL FUNCTIONS/u);
+  assert.equal(hostedPhase91ArtifactContract.migrationFiles.length, 15);
+  assert.equal(hostedPhase91ArtifactContract.migrationVersions.at(-1), "20260825010000");
+  await assert.rejects(
+    loadHostedPhase91RebuildSources(process.cwd()),
+    /migration source set is invalid/u,
+  );
 });
 
 test("Phase 91 rebuild uses a distinct networkless scratch and records head 0015 only after destroy", async () => {

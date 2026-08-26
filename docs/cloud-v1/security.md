@@ -496,6 +496,12 @@ reason/count 的 alert port；本机模式被固定 localhost origin 限定且�
 真实 Resend 投递与监控接收方验收。acceptance Store Manifest 使用独立固定开发 key/ID 和精确
 host/CSP，不能污染发布 Manifest。完整边界见 `user-acceptance-environment.md`。
 
+Hosted DeepSeek one-shot 的 0016 authority foundation 只创建两张 `huayi_private` forced-RLS 表和一个
+`NOLOGIN NOINHERIT NOBYPASSRLS` 专用 role。PUBLIC、Supabase API roles、business/context-setter/runtime 与
+该专用 role 均无表直权，trigger functions 也对这些角色撤销 execute；receipt 必须先绑定 server request，
+终态证据不可改写。该 role 在后续最小 `SECURITY DEFINER` functions 完成前没有任何执行权限，因此 0016
+本身不构成新的运行时、HTTP 或 Provider 能力。
+
 以下不是产品决策，必须以真实环境验证后补入发布材料：Vercel/Supabase 新加坡实际部署与网络延迟、
 Google OAuth 在目标网络的可达性、Supabase 备份残留、DeepSeek 当前模型 ID/价格/JSON 与 usage
 契约、生产 Extension ID、Chrome 数据披露问卷和公开隐私政策 URL。

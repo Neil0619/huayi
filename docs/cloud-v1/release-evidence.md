@@ -2639,6 +2639,9 @@ typecheck、architecture、build、development blocker、Store release、product
   15-file source loader、networkless scratch rebuild、partial status 与 executor。pre 固定 head 14，rebuild/post
   固定 head 15；Phase 81 loader 会拒绝当前 15-file repo，两个 batch 的目录、container/runner identity、head、
   manifest 和 package 命令不能互换；
+- **2026-08-27 后续边界**：0016 加入 repository 后，Phase 91 变为严格历史批次；其 15-file/head 0015
+  contract 保持不变并主动拒绝当前 16-file source set。尚未建立或执行 0016 的新 backup/rebuild/status/
+  dry-run/apply 批次，不得把 Phase 91 evidence 当作 0016 连续性证明；
 - **本地证据**：格式化后重新运行 focused Node 控制面 181/181、API/PGlite migration 6/6、拆分后 rebuild
   23/23，以及 targeted ESLint、Prettier、`git diff --check` 均通过。重建主模块从 403 行拆为 346 行执行器与
   67 行只读 source 模块；最终审查又将 514 行 0014 diagnostic 拆为 188 行 CLI/parser 与 336 行只读

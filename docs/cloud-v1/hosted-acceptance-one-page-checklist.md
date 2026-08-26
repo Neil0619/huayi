@@ -37,6 +37,8 @@ run 核对 jobs 与 macOS/Windows 结果，不能把排队或旧 SHA 的成功�
   `acceptance:hosted:migration:0015:{dry-run,apply}` 均已完成；不得再次 apply，也不为刷新证据重跑。
 - **Backup capture**：既有 backup 与 Phase 91 的 pre capture、isolated rebuild、post capture evidence
   不得覆盖、删除或重捕；只允许既有只读 status / historical verifier。
+- **0016 边界**：Hosted DeepSeek authority 0016 当前仅有离线 schema/ACL candidate；Phase 91 evidence 只到
+  0015，不能复用。新的 backup/rebuild/status/dry-run/apply 批次尚未批准或执行。
 - **Vercel one-shot**：`acceptance:hosted:deployment:one-shot:preflight` → API arm/observe → API
   disarm/verify → Web arm/observe → Web disarm/verify 已完成，两个项目均已关闭。当前不得重新 arm、disarm
   或部署；未来新候选必须另行审查并重新批准完整串行门，不能只跑其中一步。

@@ -24,8 +24,8 @@ receipt 失败仍可在没有伪造 request evidence 的情况下恢复 fuse。C
 
 ## 阶段 B：私有 Postgres authority
 
-- [ ] 新增 forward-only API/Supabase byte-identical migration；
-- [ ] 创建 `huayi_private.hosted_acceptance_operations`、单向 state、lease generation/token hash、唯一
+- [x] 新增 forward-only API/Supabase byte-identical migration；
+- [x] 创建 `huayi_private.hosted_acceptance_operations`、单向 state、lease generation/token hash、唯一
       non-terminal constraint 和 90 天 retention；
 - [ ] effective-fuse 在 cleanup 逾期时强制按 enabled 读取；不新增第六个 Cron job，不改变 exact 五项
       Cron 安装合同；
@@ -33,11 +33,22 @@ receipt 失败仍可在没有伪造 request evidence 的情况下恢复 fuse。C
       status 和 retention；
 - [ ] 持久化 dispatch idempotency key、owner 与 payload digest；新进程在 dispatch-before-bind 状态只允许
       exact-one reconciliation 并继续原 operation，零第二次 application POST；
-- [ ] 撤销 PUBLIC/API/business/runtime 权限，只允许管理员数据库入口；
+- [x] 撤销 PUBLIC/API/business/runtime 权限，只允许管理员数据库入口；
 - [ ] PGlite 回归覆盖并发消费、旧 lease fencing、崩溃窗口、multiple pending、cleanup-pending 不删除和
       跨租户 request binding 拒绝。
 
 退出标准：authority 可由 production Postgres adapter 与 PGlite adapter 穿过同一内部 seam 验证。
+
+当前检查点：首个 Phase B 离线切片已建立 operation/cleanup 私有表、operation 与 cleanup 的单向
+state guard、generation/token 同步轮换结构 guard、唯一 non-terminal operation、90 天 operation retention、
+强制 RLS 与 owner-only 表权限；API/Supabase migration 已由 byte identity 和 PGlite 并发/约束/ACL 回归
+覆盖。专用
+`NOLOGIN` executor role 目前没有表权限，也尚未获得任何函数执行权限。effective-fuse，以及 claim、arm
+cleanup、bind request、record settlement、complete、claim cleanup、status、retention 与跨进程
+dispatch-before-bind reconciliation 的最小 `SECURITY DEFINER` mutation functions 和真正的 fence-token
+校验仍未实现，不能把本检查点当作 production adapter 或 Hosted executor 已就绪。
+Phase 91 的 15-file rebuild/backup evidence 仍只证明 0015；其 loader 现在必须拒绝当前 16-file repository。
+0016 在任何 Hosted dry-run/apply 前需要新的受控 backup/rebuild 批次，禁止改写或冒用 Phase 91 证据。
 
 ## 阶段 C：正常 Web session adapter
 

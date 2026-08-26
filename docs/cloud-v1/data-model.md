@@ -84,6 +84,15 @@ claim 推导唯一账号，不接收 userId。该记录是部署证据，不是�
 不变量见 `first-operator-bootstrap.md` 与 ADR-0023。首位账号删除前的窄 trigger 清除 record 中的 user UUID
 并保存 deletion time，使账号/角色正常删除但不重新打开 bootstrap。
 
+`huayi_private.hosted_acceptance_operations` 与
+`huayi_private.hosted_acceptance_cleanup_obligations` 只服务 Hosted DeepSeek 单次验收。0016 首切片保存
+approval/payload digest、精确 API/Web deployment pair、operation/cleanup 状态、generation/token hash、
+dispatch/request/receipt 证据与 90 天 retention；partial unique 只允许一个 non-terminal operation。两表
+forced RLS 且对 API/business/runtime 和专用 `NOLOGIN` executor role 均无直权；trigger 只提供单向状态、
+同步轮换与证据不可改写的结构 guard。专用 role 目前没有函数执行权限，claim/bind/settlement/status/
+retention、fence-token 验证、effective-fuse 和 24 小时 opaque-ID 清除仍未实现，不能把表存在解释为可运行
+authority。
+
 `GET /v1/account` 不新增聚合表。它在一个 owner repeatable-read snapshot 中只读取 active
 `user_profiles` 的规范 email 与五项偏好，并读取当前未撤销、未过期的 `extension_sessions` 公开字段；
 最低插件版本来自启动配置。配对确认、

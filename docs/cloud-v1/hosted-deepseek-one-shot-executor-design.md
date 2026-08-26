@@ -1,7 +1,7 @@
 # Hosted Cloud Web DeepSeek one-shot executor 设计
 
-状态：Accepted design；Phase A 离线控制合同已实现，私有 Postgres authority、production adapters、真实
-executor composition root、部署与 Hosted 验收仍未实现。
+状态：Accepted design；Phase A 离线控制合同与 Phase B schema/ACL foundation 已实现；私有 authority
+mutation functions、production adapters、真实 executor composition root、部署与 Hosted 验收仍未实现。
 
 日期：2026-08-27
 
@@ -108,6 +108,12 @@ composition root 注入 production 或 test ports；默认 `run()` 最容易使�
 - cleanup obligation：恢复 kill switch 的独立义务及其 claim generation。
 
 表对 API roles 无 grant；专用 `NOLOGIN` executor role 只能执行最小 `SECURITY DEFINER` 函数。函数固定 `search_path`、校验调用者与 operation，并撤销 `PUBLIC` execute。
+
+2026-08-27 的 0016 forward migration 只完成 schema/ACL foundation：两张 private forced-RLS 表、唯一
+non-terminal operation、单向状态 guard、generation/token 同步轮换 guard、不可改写的 dispatch/request/
+receipt/terminal 证据和 90 天 retention 字段。专用 executor role 当前无表权限也无函数执行权限，因此尚无
+production 可调用 authority；真正的 fence-token 校验、24 小时 opaque-ID 清除和所有状态转换仍必须由后续
+最小 `SECURITY DEFINER` 函数实现。
 
 ### lease、fencing 与顺序
 
