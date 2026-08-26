@@ -3,12 +3,12 @@ import { pathToFileURL } from "node:url";
 import {
   approvalIsValid,
   cleanupLeaseIsValid,
-  deploymentsAreValid,
   dispatchAttemptReceiptIsValid,
   isSafeNonnegativeInteger,
   operationIdentity,
   operationLeaseIsValid,
   preSnapshotIsValid,
+  reconciledRequestHandle,
   requestBindingIsValid,
   requestHandleIsValid,
 } from "./acceptance-hosted-deepseek-one-shot-contract.mjs";
@@ -22,17 +22,23 @@ import {
   createApplicationDeadline,
   createApplicationRequest,
   createCleanupCommand,
+  createReconciliationRequest,
   executionDependenciesAreValid,
+  readHostedDeepSeekOneShotStatus,
+  recoverHostedDeepSeekOneShotCleanup,
 } from "./acceptance-hosted-deepseek-one-shot-runtime.mjs";
 
 export const hostedDeepSeekApplicationBudgetMilliseconds = 90_000;
 export const hostedDeepSeekCleanupBudgetMilliseconds = 10_000;
 export const hostedDeepSeekPreSnapshotFreshnessMilliseconds = 30_000;
+export const hostedDeepSeekStatusBudgetMilliseconds = 5_000;
 export const hostedDeepSeekOneShotConfirmation =
   "--confirm-hosted-cloud-web-deepseek-one-shot-kpadiulxkgckskcfydry";
 export const hostedDeepSeekWebOrigin = "https://app.acceptance.seen-said.cn";
 export const hostedDeepSeekWebPath = "/analysis";
 export const hostedDeepSeekAnalysisStreamPath = "/v1/analyses:stream";
+export const hostedDeepSeekPayloadDigest =
+  "7f260d4d76123414b9664dbd9851cba457fb38899ec4026fcc383c0792a07777";
 
 const failureMessage = "Hosted Cloud Web DeepSeek one-shot failed closed.";
 const policy = Object.freeze({
@@ -53,16 +59,18 @@ export function renderHostedDeepSeekOneShotPlan() {
   return `Hosted Cloud Web DeepSeek one-shot acceptance plan (zero filesystem / zero Git / zero network / zero Hosted write)
 - Attest the fixed Cloud Web page ${hostedDeepSeekWebOrigin}${hostedDeepSeekWebPath}, then send exactly one normal product request to ${hostedDeepSeekAnalysisStreamPath}; Classic \`pnpm smoke:deepseek\` is forbidden.
 - This module has no default real executor and does not infer an admin endpoint, authentication flow, credential source, durable store, or remote response shape. Separately reviewed adapters must use a hidden interactive channel for every credential; no token, key, or password may enter output, argv, or an inherited environment.
+- The only caller seam is status(), execute(approval), and recover(). Status is a read-only authority query with an absolute five-second bound; direct lifecycle and adapter stages remain private.
 - Approval contains only the candidate commit, exact confirmation, and reservation cap. The durable authority generates operation and idempotency identities while atomically consuming the approval; the same approval can never dispatch twice. The server request ID is bound only from analysis.started after dispatch.
 - Require a clean and pushed candidate commit, the exact READY Hosted API/Web deployment pair with independently attested full source SHAs, full Operator access with recent reauthentication, a 30-second pre-snapshot, and a caller-approved peak reservation cap.
 - Before disabling the DeepSeek kill switch, durably arm a reclaimable cleanup lease. Both validated leases must outlive the complete 90-second mutation window. Local and recovery cleanup attempts have an independent absolute 10-second bound; timeout leaves the durable record pending for atomic reclaim without replaying the application request.
 - Before the one Cloud Web HTTP request, persist dispatch-attempted. After its analysis.started event, bind that server-generated request ID before settlement; recovery claims only one unique pending cleanup and never accepts an opaque operation ID.
+- If the POST disconnects before analysis.started, perform one bounded reconciliation by the authority-owned idempotency key, owner, and fixed payload digest. Bind exactly one match, continue settlement, and never POST again; zero, multiple, incomplete, or mismatched results fail closed.
 - The orchestrator owns one absolute 90-second deadline across kill-switch disable, dispatch, binding, and server settlement. Its deadline wins even if an adapter ignores abort. Budget, deadline, and signal are adapter control only; never Web request body or Provider parameters.
 - Accept only fresh private server-authoritative evidence bound to the exact deployment pair and continuous zero-based UsageLedger calls. Public success is fixed and exposes no opaque IDs, price UUID, or token-usage details.
 `;
 }
 
-export async function orchestrateHostedDeepSeekOneShot({
+async function orchestrateHostedDeepSeekOneShot({
   adapter,
   approval,
   clearTimeout_ = clearTimeout,
@@ -159,15 +167,31 @@ export async function orchestrateHostedDeepSeekOneShot({
         lifecycle.markDispatchAttempted({
           claimToken: operationLease.claimToken,
           operationId: operationLease.operationId,
+          payloadDigest: hostedDeepSeekPayloadDigest,
         }),
       );
       if (!dispatchAttemptReceiptIsValid(dispatchReceipt, operationLease)) throw failedClosed();
-      const requestHandle = await deadline.run(() =>
-        adapter.invokeCloudWebAnalysis(
-          createApplicationRequest(identity, preSnapshot.deployments, applicationRoute),
-          deadline.control,
-        ),
-      );
+      let requestHandle;
+      try {
+        requestHandle = await deadline.run(() =>
+          adapter.invokeCloudWebAnalysis(
+            createApplicationRequest(identity, preSnapshot.deployments, applicationRoute),
+            deadline.control,
+          ),
+        );
+      } catch {
+        const reconciliation = await deadline.run(() =>
+          adapter.reconcileDispatchedRequest(
+            createReconciliationRequest(identity, hostedDeepSeekPayloadDigest),
+            deadline.control,
+          ),
+        );
+        requestHandle = reconciledRequestHandle(
+          reconciliation,
+          identity,
+          hostedDeepSeekPayloadDigest,
+        );
+      }
       if (!requestHandleIsValid(requestHandle)) throw failedClosed();
       const requestBinding = await deadline.run(() =>
         lifecycle.bindRequest({
@@ -259,71 +283,46 @@ export async function orchestrateHostedDeepSeekOneShot({
   });
 }
 
-export async function recoverHostedDeepSeekOneShotCleanup(options = {}) {
-  try {
-    if (
-      typeof options !== "object" ||
-      options === null ||
-      Array.isArray(options) ||
-      ["idempotencyKey", "operationId", "ownerId", "requestId"].some((field) =>
-        Object.hasOwn(options, field),
-      )
-    ) {
-      throw failedClosed();
-    }
-    const {
-      adapter,
-      clearTimeout_ = clearTimeout,
-      lifecycle,
-      readNowMilliseconds = Date.now,
-      setTimeout_ = setTimeout,
-    } = options;
-    if (
-      !executionDependenciesAreValid({
-        adapter,
-        clearTimeout_,
-        lifecycle,
-        readNowMilliseconds,
-        setTimeout_,
-      })
-    ) {
-      throw failedClosed();
-    }
-    const cleanupLeaseCandidate = await lifecycle.claimCleanup();
-    const nowMilliseconds = readNowMilliseconds();
-    const cleanupDeadlineAt = nowMilliseconds + hostedDeepSeekCleanupBudgetMilliseconds;
-    if (
-      !isSafeNonnegativeInteger(nowMilliseconds) ||
-      !isSafeNonnegativeInteger(cleanupDeadlineAt) ||
-      !cleanupLeaseIsValid(
-        cleanupLeaseCandidate,
-        operationIdentity(cleanupLeaseCandidate),
-        cleanupLeaseCandidate.deployments,
-        cleanupDeadlineAt,
-      ) ||
-      !deploymentsAreValid(cleanupLeaseCandidate.deployments)
-    ) {
-      throw failedClosed();
-    }
-    const cleanupLease = cleanupLeaseCandidate;
-    const cleanupAttempt = await attemptCleanup({
-      adapter,
-      budgetMilliseconds: hostedDeepSeekCleanupBudgetMilliseconds,
-      clearTimeout_,
-      freshnessMilliseconds: hostedDeepSeekPreSnapshotFreshnessMilliseconds,
-      lease: cleanupLease,
-      lifecycle,
-      readNowMilliseconds,
-      setTimeout_,
-    });
-    if (!cleanupAttempt.completed) throw failedClosed();
-    return Object.freeze({
-      killSwitchRestored: true,
-      outcome: "restored",
-    });
-  } catch {
-    throw failedClosed();
-  }
+export function createHostedDeepSeekOneShotExecutor({
+  adapter,
+  clearTimeout_ = clearTimeout,
+  lifecycle,
+  readNowMilliseconds = Date.now,
+  setTimeout_ = setTimeout,
+  signal,
+} = {}) {
+  const dependencies = Object.freeze({
+    adapter,
+    clearTimeout_,
+    lifecycle,
+    readNowMilliseconds,
+    setTimeout_,
+    signal,
+  });
+  return Object.freeze({
+    async execute(...arguments_) {
+      if (arguments_.length !== 1) throw failedClosed();
+      return orchestrateHostedDeepSeekOneShot({
+        ...dependencies,
+        approval: arguments_[0],
+      });
+    },
+    async recover(...arguments_) {
+      if (arguments_.length !== 0) throw failedClosed();
+      return recoverHostedDeepSeekOneShotCleanup({
+        ...dependencies,
+        budgetMilliseconds: hostedDeepSeekCleanupBudgetMilliseconds,
+        freshnessMilliseconds: hostedDeepSeekPreSnapshotFreshnessMilliseconds,
+      });
+    },
+    async status(...arguments_) {
+      if (arguments_.length !== 0) throw failedClosed();
+      return readHostedDeepSeekOneShotStatus({
+        ...dependencies,
+        budgetMilliseconds: hostedDeepSeekStatusBudgetMilliseconds,
+      });
+    },
+  });
 }
 
 export async function runHostedDeepSeekOneShotCli({

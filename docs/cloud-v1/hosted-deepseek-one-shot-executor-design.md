@@ -1,7 +1,7 @@
 # Hosted Cloud Web DeepSeek one-shot executor 设计
 
-状态：Accepted design；Phase A 离线控制合同基础已实现，私有 authority、production adapters、真实
-executor、部署与 Hosted 验收仍未实现。
+状态：Accepted design；Phase A 离线控制合同已实现，私有 Postgres authority、production adapters、真实
+executor composition root、部署与 Hosted 验收仍未实现。
 
 日期：2026-08-27
 
@@ -35,6 +35,18 @@ terminal，不返回 operation ID；`recover` 只能领取唯一 cleanup-pending
 会话的完整顺序。相同批准只能形成一个 operation；发生错误时返回稳定的分类错误，不能把密钥、Cookie、
 CSRF、输入或模型输出带入错误。网络调用有显式超时，数据库状态转换为常数次往返；不轮询模型之外的
 无界资源。
+
+Phase A 的离线 seam 已固定为冻结对象上的这三个方法。测试 authority 的 `status` 读取最多返回一条已知
+状态记录：零条分类为 absent，一条分类为 ready、running、cleanup-pending 或 terminal；多条、未知状态、
+不完整结果和五秒 deadline 均固定失败关闭。该读取不调用 adapter mutation。direct lifecycle/adapter
+orchestration 只存在于模块闭包和测试 composition root，不再导出给调用者。
+
+POST 已发出但客户端尚未观察到 `analysis.started` 就发生进程内 transport disconnect 时，执行器不会重发
+POST，而是在同一 bounded application deadline 内，以 authority 已记录的 idempotency key、owner 和固定
+payload digest 调用 reconciliation adapter。只有一条完整且三元组精确匹配的 server request 可被转换为
+`analysis.started` handle、绑定并继续 settlement；零条、多条、不完整或错配结果均失败关闭，并继续执行
+cleanup safety。该离线 seam 尚不证明 worker 退出后的跨进程恢复；后者必须由 Phase B 的持久化 authority
+保存 dispatch 三元组并在新进程中对账，且同样禁止第二次 POST。
 
 实现隐藏 SQL 状态机、lease/fencing、SSE 解析、Vercel 证明、Cookie/CSRF、receipt 读取和补偿恢复。生产依赖为 Postgres、Vercel management API、Web HTTP 和受控终端凭据输入；测试 adapter 为内存状态库、虚拟时钟、脚本化 HTTP 和固定部署证明。
 

@@ -3,12 +3,12 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import {
+  createHostedDeepSeekOneShotExecutor,
   hostedDeepSeekApplicationBudgetMilliseconds,
   hostedDeepSeekAnalysisStreamPath,
   hostedDeepSeekOneShotConfirmation,
   hostedDeepSeekWebOrigin,
   hostedDeepSeekWebPath,
-  orchestrateHostedDeepSeekOneShot,
   renderHostedDeepSeekOneShotPlan,
   runHostedDeepSeekOneShotCli,
 } from "./acceptance-hosted-deepseek-one-shot.mjs";
@@ -31,11 +31,12 @@ import {
 const failurePattern = /^Error: Hosted Cloud Web DeepSeek one-shot failed closed\.$/u;
 
 function orchestrate(options = {}) {
-  return orchestrateHostedDeepSeekOneShot({
+  const { approval: executionApproval, ...dependencies } = {
     lifecycle: operationLifecycle(),
     readNowMilliseconds: () => nowMilliseconds,
     ...options,
-  });
+  };
+  return createHostedDeepSeekOneShotExecutor(dependencies).execute(executionApproval);
 }
 
 test("DeepSeek plan is fixed, zero-I/O, Cloud-Web-only, and exposes no real executor", async () => {
@@ -62,6 +63,8 @@ test("DeepSeek plan is fixed, zero-I/O, Cloud-Web-only, and exposes no real exec
     "Classic `pnpm smoke:deepseek` is forbidden",
     "no default real executor",
     "hidden interactive channel",
+    "only caller seam is status(), execute(approval), and recover()",
+    "read-only authority query with an absolute five-second bound",
     "Approval contains only the candidate commit, exact confirmation, and reservation cap",
     "authority generates operation and idempotency identities",
     "independently attested full source SHAs",
@@ -69,6 +72,8 @@ test("DeepSeek plan is fixed, zero-I/O, Cloud-Web-only, and exposes no real exec
     "Both validated leases must outlive the complete 90-second mutation window",
     "persist dispatch-attempted",
     "bind that server-generated request ID",
+    "bounded reconciliation by the authority-owned idempotency key, owner, and fixed payload digest",
+    "never POST again",
     "never accepts an opaque operation ID",
     "absolute 90-second deadline",
     "continuous zero-based UsageLedger calls",
@@ -309,6 +314,7 @@ test("every application, interruption, restoration, and post failure remains fai
       invoke: async () => {
         throw new Error(privateDetail);
       },
+      reconcileDispatch: { complete: true, matches: [] },
     },
     {
       expectedRequests: 1,

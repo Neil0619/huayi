@@ -273,6 +273,28 @@ export function requestHandleIsValid(handle) {
   );
 }
 
+export function reconciledRequestHandle(reconciliation, identity, payloadDigest) {
+  if (
+    !hasExactKeys(reconciliation, ["complete", "matches"]) ||
+    reconciliation.complete !== true ||
+    !Array.isArray(reconciliation.matches) ||
+    reconciliation.matches.length !== 1
+  ) {
+    return null;
+  }
+  const [match] = reconciliation.matches;
+  if (
+    !hasExactKeys(match, ["idempotencyKey", "ownerId", "payloadDigest", "requestId"]) ||
+    match.idempotencyKey !== identity.idempotencyKey ||
+    match.ownerId !== identity.ownerId ||
+    match.payloadDigest !== payloadDigest ||
+    !isUuid(match.requestId)
+  ) {
+    return null;
+  }
+  return Object.freeze({ requestId: match.requestId, type: "analysis.started" });
+}
+
 export function requestBindingIsValid(binding, operationLease, requestHandle) {
   return (
     hasExactKeys(binding, ["idempotencyKey", "operationId", "ownerId", "requestId", "status"]) &&

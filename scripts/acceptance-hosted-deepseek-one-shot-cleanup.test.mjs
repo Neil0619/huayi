@@ -3,10 +3,9 @@ import { setTimeout as delay } from "node:timers/promises";
 import test from "node:test";
 
 import {
+  createHostedDeepSeekOneShotExecutor,
   hostedDeepSeekApplicationBudgetMilliseconds,
   hostedDeepSeekCleanupBudgetMilliseconds,
-  orchestrateHostedDeepSeekOneShot,
-  recoverHostedDeepSeekOneShotCleanup,
 } from "./acceptance-hosted-deepseek-one-shot.mjs";
 import {
   adapter,
@@ -21,10 +20,11 @@ import {
 const failurePattern = /^Error: Hosted Cloud Web DeepSeek one-shot failed closed\.$/u;
 
 function orchestrate(options) {
-  return orchestrateHostedDeepSeekOneShot({
+  const { approval: executionApproval, ...dependencies } = {
     readNowMilliseconds: () => nowMilliseconds,
     ...options,
-  });
+  };
+  return createHostedDeepSeekOneShotExecutor(dependencies).execute(executionApproval);
 }
 
 test("an invalid operation receipt is never promoted into an unsafe completion", async () => {
@@ -111,15 +111,12 @@ for (const shortLease of ["operation", "cleanup"]) {
 
 test("opaque cleanup operation ids fail before the durable lifecycle is called", async () => {
   const lifecycleCalls = [];
-  await assert.rejects(
-    recoverHostedDeepSeekOneShotCleanup({
-      adapter: adapter(),
-      lifecycle: operationLifecycle({ calls: lifecycleCalls }),
-      operationId: "not-a-uuid",
-      readNowMilliseconds: () => nowMilliseconds,
-    }),
-    failurePattern,
-  );
+  const executor = createHostedDeepSeekOneShotExecutor({
+    adapter: adapter(),
+    lifecycle: operationLifecycle({ calls: lifecycleCalls }),
+    readNowMilliseconds: () => nowMilliseconds,
+  });
+  await assert.rejects(executor.recover({ operationId: "not-a-uuid" }), failurePattern);
   assert.deepEqual(lifecycleCalls, []);
 });
 
@@ -187,27 +184,28 @@ test("cleanup-only recovery is bounded and never reports a hanging restore as co
   });
   let cleanupControl;
   let fireCleanupDeadline;
-  const result = await Promise.race([
-    recoverHostedDeepSeekOneShotCleanup({
-      adapter: adapter({
-        calls: adapterCalls,
-        setKillSwitch: async (enabled, control) => {
-          if (enabled) {
-            cleanupControl = control;
-            queueMicrotask(fireCleanupDeadline);
-            return new Promise(() => undefined);
-          }
-        },
-      }),
-      clearTimeout_: () => undefined,
-      lifecycle,
-      readNowMilliseconds: () => nowMilliseconds,
-      setTimeout_: (callback, milliseconds) => {
-        assert.equal(milliseconds, hostedDeepSeekCleanupBudgetMilliseconds);
-        fireCleanupDeadline = callback;
-        return 1;
+  const executor = createHostedDeepSeekOneShotExecutor({
+    adapter: adapter({
+      calls: adapterCalls,
+      setKillSwitch: async (enabled, control) => {
+        if (enabled) {
+          cleanupControl = control;
+          queueMicrotask(fireCleanupDeadline);
+          return new Promise(() => undefined);
+        }
       },
-    }).then(
+    }),
+    clearTimeout_: () => undefined,
+    lifecycle,
+    readNowMilliseconds: () => nowMilliseconds,
+    setTimeout_: (callback, milliseconds) => {
+      assert.equal(milliseconds, hostedDeepSeekCleanupBudgetMilliseconds);
+      fireCleanupDeadline = callback;
+      return 1;
+    },
+  });
+  const result = await Promise.race([
+    executor.recover().then(
       () => "fulfilled",
       () => "rejected",
     ),

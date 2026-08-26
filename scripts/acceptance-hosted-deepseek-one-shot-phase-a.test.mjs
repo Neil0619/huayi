@@ -7,10 +7,9 @@ import {
 } from "./acceptance-hosted-deepseek-one-shot-contract.mjs";
 import { settlementIsValid } from "./acceptance-hosted-deepseek-one-shot-evidence.mjs";
 import {
+  createHostedDeepSeekOneShotExecutor,
   hostedDeepSeekOneShotConfirmation,
   hostedDeepSeekWebOrigin,
-  orchestrateHostedDeepSeekOneShot,
-  recoverHostedDeepSeekOneShotCleanup,
 } from "./acceptance-hosted-deepseek-one-shot.mjs";
 import {
   adapter,
@@ -106,6 +105,7 @@ function phaseALifecycle({ calls = [], pendingCleanup = phaseACleanupLease() } =
       calls.push("mark-dispatch-attempted");
       return { operationId: command.operationId, status: "dispatch-attempted" };
     },
+    readStatus: async () => ({ authority: "hosted-deepseek-one-shot", records: [] }),
   };
 }
 
@@ -166,12 +166,12 @@ test("Phase A settlement accepts only continuous zero-based ledger ordinals", ()
 
 test("Phase A persists dispatch before HTTP, then binds analysis.started and returns no opaque data", async () => {
   const calls = [];
-  const result = await orchestrateHostedDeepSeekOneShot({
+  const executor = createHostedDeepSeekOneShotExecutor({
     adapter: phaseAAdapter(calls),
-    approval: phaseAApproval,
     lifecycle: phaseALifecycle({ calls }),
     readNowMilliseconds: () => nowMilliseconds,
   });
+  const result = await executor.execute(phaseAApproval);
 
   assert.deepEqual(result, { killSwitchRestored: true, outcome: "accepted" });
   assert.ok(
@@ -200,11 +200,12 @@ test("Phase A persists dispatch before HTTP, then binds analysis.started and ret
 
 test("Phase A recovery takes no operation id and fails closed unless one cleanup is claimable", async () => {
   const calls = [];
-  const result = await recoverHostedDeepSeekOneShotCleanup({
+  const executor = createHostedDeepSeekOneShotExecutor({
     adapter: phaseAAdapter(calls),
     lifecycle: phaseALifecycle({ calls }),
     readNowMilliseconds: () => nowMilliseconds,
   });
+  const result = await executor.recover();
   assert.deepEqual(result, { killSwitchRestored: true, outcome: "restored" });
   assert.deepEqual(calls, [
     "claim-cleanup",
@@ -215,28 +216,23 @@ test("Phase A recovery takes no operation id and fails closed unless one cleanup
 
   for (const pendingCleanup of [null, [], [phaseACleanupLease(), phaseACleanupLease()]]) {
     const unsafeCalls = [];
-    await assert.rejects(
-      recoverHostedDeepSeekOneShotCleanup({
-        adapter: phaseAAdapter(unsafeCalls),
-        lifecycle: phaseALifecycle({ calls: unsafeCalls, pendingCleanup }),
-        readNowMilliseconds: () => nowMilliseconds,
-      }),
-      failurePattern,
-    );
+    const unsafeExecutor = createHostedDeepSeekOneShotExecutor({
+      adapter: phaseAAdapter(unsafeCalls),
+      lifecycle: phaseALifecycle({ calls: unsafeCalls, pendingCleanup }),
+      readNowMilliseconds: () => nowMilliseconds,
+    });
+    await assert.rejects(unsafeExecutor.recover(), failurePattern);
     assert.deepEqual(unsafeCalls, ["claim-cleanup"]);
   }
 
   for (const [field, value] of Object.entries(phaseAIdentity)) {
     const opaqueCalls = [];
-    await assert.rejects(
-      recoverHostedDeepSeekOneShotCleanup({
-        adapter: phaseAAdapter(opaqueCalls),
-        lifecycle: phaseALifecycle({ calls: opaqueCalls }),
-        readNowMilliseconds: () => nowMilliseconds,
-        [field]: value,
-      }),
-      failurePattern,
-    );
+    const opaqueExecutor = createHostedDeepSeekOneShotExecutor({
+      adapter: phaseAAdapter(opaqueCalls),
+      lifecycle: phaseALifecycle({ calls: opaqueCalls }),
+      readNowMilliseconds: () => nowMilliseconds,
+    });
+    await assert.rejects(opaqueExecutor.recover({ [field]: value }), failurePattern);
     assert.deepEqual(opaqueCalls, [], field);
   }
 });
@@ -249,26 +245,23 @@ test("Phase A restores the fuse without fabricated request evidence when dispatc
     return { operationId: command.operationId, status: "rejected" };
   };
   const pre = preSnapshot({ deployments: phaseADeployments });
-
-  await assert.rejects(
-    orchestrateHostedDeepSeekOneShot({
-      adapter: phaseAAdapter(calls, {
-        invoke: async () => assert.fail("HTTP must not run after an invalid dispatch receipt."),
-        post: postSnapshot({
-          applicationRequestCountDelta: 0,
-          deployments: phaseADeployments,
-          ownerUsage: pre.ownerUsage,
-          request: null,
-          reservationStatus: "none",
-          terminalRequestCountDelta: 0,
-        }),
+  const executor = createHostedDeepSeekOneShotExecutor({
+    adapter: phaseAAdapter(calls, {
+      invoke: async () => assert.fail("HTTP must not run after an invalid dispatch receipt."),
+      post: postSnapshot({
+        applicationRequestCountDelta: 0,
+        deployments: phaseADeployments,
+        ownerUsage: pre.ownerUsage,
+        request: null,
+        reservationStatus: "none",
+        terminalRequestCountDelta: 0,
       }),
-      approval: phaseAApproval,
-      lifecycle,
-      readNowMilliseconds: () => nowMilliseconds,
     }),
-    failurePattern,
-  );
+    lifecycle,
+    readNowMilliseconds: () => nowMilliseconds,
+  });
+
+  await assert.rejects(executor.execute(phaseAApproval), failurePattern);
 
   assert.equal(
     calls.some((call) => call.startsWith("request:")),
@@ -286,32 +279,30 @@ test("Phase A recovery after a bound-request settlement crash never dispatches a
   const calls = [];
   const lifecycle = phaseALifecycle({ calls });
   let rejectFirstRestore = true;
-
-  await assert.rejects(
-    orchestrateHostedDeepSeekOneShot({
-      adapter: phaseAAdapter(calls, {
-        reconcile: async () => {
-          throw new Error("private settlement interruption");
-        },
-        setKillSwitch: async (enabled) => {
-          if (enabled && rejectFirstRestore) {
-            rejectFirstRestore = false;
-            throw new Error("private first restore interruption");
-          }
-        },
-      }),
-      approval: phaseAApproval,
-      lifecycle,
-      readNowMilliseconds: () => nowMilliseconds,
+  const executionExecutor = createHostedDeepSeekOneShotExecutor({
+    adapter: phaseAAdapter(calls, {
+      reconcile: async () => {
+        throw new Error("private settlement interruption");
+      },
+      setKillSwitch: async (enabled) => {
+        if (enabled && rejectFirstRestore) {
+          rejectFirstRestore = false;
+          throw new Error("private first restore interruption");
+        }
+      },
     }),
-    failurePattern,
-  );
+    lifecycle,
+    readNowMilliseconds: () => nowMilliseconds,
+  });
 
-  const result = await recoverHostedDeepSeekOneShotCleanup({
+  await assert.rejects(executionExecutor.execute(phaseAApproval), failurePattern);
+
+  const recoveryExecutor = createHostedDeepSeekOneShotExecutor({
     adapter: phaseAAdapter(calls),
     lifecycle,
     readNowMilliseconds: () => nowMilliseconds,
   });
+  const result = await recoveryExecutor.recover();
 
   assert.deepEqual(result, { killSwitchRestored: true, outcome: "restored" });
   assert.equal(

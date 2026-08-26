@@ -1,5 +1,6 @@
 import {
   hostedDeepSeekOneShotConfirmation,
+  hostedDeepSeekPayloadDigest,
   hostedDeepSeekWebOrigin,
   hostedDeepSeekWebPath,
 } from "./acceptance-hosted-deepseek-one-shot.mjs";
@@ -258,6 +259,7 @@ export function operationLifecycle({
   finishCleanup,
   finishOperation,
   pendingCleanup,
+  statusSnapshot = { authority: "hosted-deepseek-one-shot", records: [] },
 } = {}) {
   let claimed = false;
   let pending = pendingCleanup;
@@ -311,6 +313,10 @@ export function operationLifecycle({
         : dispatch(command);
     },
     pendingCleanup: () => pending,
+    readStatus: async () => {
+      calls.push("read-status");
+      return typeof statusSnapshot === "function" ? statusSnapshot() : statusSnapshot;
+    },
   };
 }
 
@@ -320,6 +326,17 @@ export function adapter({
   post = postSnapshot(),
   pre = preSnapshot(),
   reconcile = settlement(),
+  reconcileDispatch = {
+    complete: true,
+    matches: [
+      {
+        idempotencyKey: identity().idempotencyKey,
+        ownerId,
+        payloadDigest: hostedDeepSeekPayloadDigest,
+        requestId,
+      },
+    ],
+  },
   setKillSwitch = async () => undefined,
 } = {}) {
   return {
@@ -334,6 +351,12 @@ export function adapter({
     invokeCloudWebAnalysis: async (request, control) => {
       calls.push(`request:${request.origin}${request.path}`);
       return invoke(request, control);
+    },
+    reconcileDispatchedRequest: async (request, control) => {
+      calls.push("reconcile-request");
+      return typeof reconcileDispatch === "function"
+        ? reconcileDispatch(request, control)
+        : reconcileDispatch;
     },
     readServerSettlement: async (handle, control) => {
       calls.push("server-settlement");

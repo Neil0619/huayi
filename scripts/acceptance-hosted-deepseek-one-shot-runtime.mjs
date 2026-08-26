@@ -1,7 +1,10 @@
 import {
   cleanupLeaseIsValid,
   completionReceiptIsValid,
+  deploymentsAreValid,
+  hasExactKeys,
   isSafeNonnegativeInteger,
+  operationIdentity,
 } from "./acceptance-hosted-deepseek-one-shot-contract.mjs";
 import { postSnapshotProvesRestoration } from "./acceptance-hosted-deepseek-one-shot-evidence.mjs";
 
@@ -10,6 +13,7 @@ const requiredAdapterMethods = Object.freeze([
   "capturePostSnapshot",
   "capturePreSnapshot",
   "invokeCloudWebAnalysis",
+  "reconcileDispatchedRequest",
   "readServerSettlement",
   "setModelKillSwitch",
 ]);
@@ -21,6 +25,7 @@ const requiredLifecycleMethods = Object.freeze([
   "completeCleanup",
   "completeOperation",
   "markDispatchAttempted",
+  "readStatus",
 ]);
 
 function failedClosed() {
@@ -118,6 +123,94 @@ export function createCleanupDeadline(options) {
   return createDeadline({ ...options, controlBudgetField: "cleanupBudgetMilliseconds" });
 }
 
+export function createStatusDeadline(options) {
+  return createDeadline({ ...options, controlBudgetField: "statusBudgetMilliseconds" });
+}
+
+export function statusDependenciesAreValid({
+  clearTimeout_,
+  lifecycle,
+  readNowMilliseconds,
+  setTimeout_,
+}) {
+  return (
+    methodsAreValid(lifecycle, ["readStatus"]) &&
+    typeof readNowMilliseconds === "function" &&
+    typeof setTimeout_ === "function" &&
+    typeof clearTimeout_ === "function"
+  );
+}
+
+function safeStatusFromSnapshot(snapshot) {
+  if (
+    !hasExactKeys(snapshot, ["authority", "records"]) ||
+    snapshot.authority !== "hosted-deepseek-one-shot" ||
+    !Array.isArray(snapshot.records) ||
+    snapshot.records.length > 1
+  ) {
+    return null;
+  }
+  if (snapshot.records.length === 0) return Object.freeze({ state: "absent" });
+  const [record] = snapshot.records;
+  if (
+    !hasExactKeys(record, ["state"]) ||
+    !["cleanup-pending", "ready", "running", "terminal"].includes(record.state)
+  ) {
+    return null;
+  }
+  return Object.freeze({ state: record.state });
+}
+
+export async function readHostedDeepSeekOneShotStatus({
+  budgetMilliseconds,
+  clearTimeout_,
+  lifecycle,
+  readNowMilliseconds,
+  setTimeout_,
+}) {
+  let deadline;
+  let failed = false;
+  let status;
+  try {
+    if (
+      !isSafeNonnegativeInteger(budgetMilliseconds) ||
+      budgetMilliseconds === 0 ||
+      !statusDependenciesAreValid({
+        clearTimeout_,
+        lifecycle,
+        readNowMilliseconds,
+        setTimeout_,
+      })
+    ) {
+      throw failedClosed();
+    }
+    const startedAt = readNowMilliseconds();
+    const deadlineAt = startedAt + budgetMilliseconds;
+    if (!isSafeNonnegativeInteger(startedAt) || !isSafeNonnegativeInteger(deadlineAt)) {
+      throw failedClosed();
+    }
+    deadline = createStatusDeadline({
+      budgetMilliseconds,
+      clearTimeout_,
+      deadlineAt,
+      setTimeout_,
+    });
+    status = safeStatusFromSnapshot(
+      await deadline.run(() => lifecycle.readStatus(deadline.control)),
+    );
+    if (status === null) throw failedClosed();
+  } catch {
+    failed = true;
+  }
+  try {
+    deadline?.stop();
+  } catch {
+    failed = true;
+  }
+  if (failed || status === undefined) throw failedClosed();
+  return status;
+}
+
 export function createCleanupCommand(operationLease, preSnapshot) {
   return Object.freeze({
     claimToken: operationLease.claimToken,
@@ -138,6 +231,14 @@ export function createApplicationRequest(identity, deployments, route) {
     origin: route.origin,
     ownerId: identity.ownerId,
     path: route.path,
+  });
+}
+
+export function createReconciliationRequest(identity, payloadDigest) {
+  return Object.freeze({
+    idempotencyKey: identity.idempotencyKey,
+    ownerId: identity.ownerId,
+    payloadDigest,
   });
 }
 
@@ -223,5 +324,76 @@ export async function attemptCleanup({
     } catch {
       // The durable cleanup record stays pending when local timer cleanup fails.
     }
+  }
+}
+
+export async function recoverHostedDeepSeekOneShotCleanup(options = {}) {
+  try {
+    if (
+      typeof options !== "object" ||
+      options === null ||
+      Array.isArray(options) ||
+      ["idempotencyKey", "operationId", "ownerId", "requestId"].some((field) =>
+        Object.hasOwn(options, field),
+      )
+    ) {
+      throw failedClosed();
+    }
+    const {
+      adapter,
+      budgetMilliseconds,
+      clearTimeout_,
+      freshnessMilliseconds,
+      lifecycle,
+      readNowMilliseconds,
+      setTimeout_,
+    } = options;
+    if (
+      !isSafeNonnegativeInteger(budgetMilliseconds) ||
+      budgetMilliseconds === 0 ||
+      !isSafeNonnegativeInteger(freshnessMilliseconds) ||
+      !executionDependenciesAreValid({
+        adapter,
+        clearTimeout_,
+        lifecycle,
+        readNowMilliseconds,
+        setTimeout_,
+      })
+    ) {
+      throw failedClosed();
+    }
+    const cleanupLeaseCandidate = await lifecycle.claimCleanup();
+    const nowMilliseconds = readNowMilliseconds();
+    const cleanupDeadlineAt = nowMilliseconds + budgetMilliseconds;
+    if (
+      !isSafeNonnegativeInteger(nowMilliseconds) ||
+      !isSafeNonnegativeInteger(cleanupDeadlineAt) ||
+      !cleanupLeaseIsValid(
+        cleanupLeaseCandidate,
+        operationIdentity(cleanupLeaseCandidate),
+        cleanupLeaseCandidate.deployments,
+        cleanupDeadlineAt,
+      ) ||
+      !deploymentsAreValid(cleanupLeaseCandidate.deployments)
+    ) {
+      throw failedClosed();
+    }
+    const cleanupAttempt = await attemptCleanup({
+      adapter,
+      budgetMilliseconds,
+      clearTimeout_,
+      freshnessMilliseconds,
+      lease: cleanupLeaseCandidate,
+      lifecycle,
+      readNowMilliseconds,
+      setTimeout_,
+    });
+    if (!cleanupAttempt.completed) throw failedClosed();
+    return Object.freeze({
+      killSwitchRestored: true,
+      outcome: "restored",
+    });
+  } catch {
+    throw failedClosed();
   }
 }

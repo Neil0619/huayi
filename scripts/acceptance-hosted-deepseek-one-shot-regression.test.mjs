@@ -1,10 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import {
-  orchestrateHostedDeepSeekOneShot,
-  recoverHostedDeepSeekOneShotCleanup,
-} from "./acceptance-hosted-deepseek-one-shot.mjs";
+import { createHostedDeepSeekOneShotExecutor } from "./acceptance-hosted-deepseek-one-shot.mjs";
 import {
   adapter,
   approval,
@@ -21,10 +18,11 @@ import {
 const failurePattern = /^Error: Hosted Cloud Web DeepSeek one-shot failed closed\.$/u;
 
 function orchestrate(options) {
-  return orchestrateHostedDeepSeekOneShot({
+  const { approval: executionApproval, ...dependencies } = {
     readNowMilliseconds: () => nowMilliseconds,
     ...options,
-  });
+  };
+  return createHostedDeepSeekOneShotExecutor(dependencies).execute(executionApproval);
 }
 
 test("one approval is atomically consumed before concurrent callers can dispatch twice", async () => {
@@ -146,25 +144,19 @@ test("failed local restoration leaves a durable lease for cleanup-only recovery"
   assert.match(lifecycleCalls.at(-1), /failed-cleanup-pending/u);
 
   const recoveryCalls = [];
-  const result = await recoverHostedDeepSeekOneShotCleanup({
+  const recoveryExecutor = createHostedDeepSeekOneShotExecutor({
     adapter: adapter({ calls: recoveryCalls }),
     lifecycle,
     readNowMilliseconds: () => nowMilliseconds,
   });
+  const result = await recoveryExecutor.recover();
   assert.deepEqual(result, {
     killSwitchRestored: true,
     outcome: "restored",
   });
   assert.deepEqual(recoveryCalls, ["kill-switch:true", "post-snapshot"]);
   assert.equal(lifecycle.pendingCleanup(), undefined);
-  await assert.rejects(
-    recoverHostedDeepSeekOneShotCleanup({
-      adapter: adapter(),
-      lifecycle,
-      readNowMilliseconds: () => nowMilliseconds,
-    }),
-    failurePattern,
-  );
+  await assert.rejects(recoveryExecutor.recover(), failurePattern);
 });
 
 test("post freshness is independently sampled instead of inherited from preflight", async () => {

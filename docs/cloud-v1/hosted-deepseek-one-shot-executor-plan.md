@@ -8,15 +8,19 @@
 - [x] 先写回归，证明 approval 不再接受 owner/request/idempotency 等 opaque 输入；
 - [x] 证明 authority seam 在 mutation 前生成 operation/idempotency，并在 SSE `analysis.started` 后绑定
       server-generated request ID；
-- [ ] 证明同 key/same payload 的 bind-before-crash recovery 只恢复原 request，零二次 Provider dispatch；
-- [ ] 把 tests 从直接编排 lifecycle/adapter 迁移到 executor 的 `status/execute/recover` interface。
+- [x] 证明 POST 后、客户端观察 `analysis.started` 前的进程内 transport disconnect 只对账并绑定原
+      request，cleanup recovery 前后 application POST 总数仍为一；
+- [x] 把 tests 从直接编排 lifecycle/adapter 迁移到 executor 的 `status/execute/recover` interface；
+- [x] 用五秒 bounded authority read 覆盖 absent、ready、running、cleanup-pending、terminal，且 status 零
+      mutation、多条/未知状态失败关闭。
 
-当前检查点：前两项已经用离线 lifecycle/fake HTTP 完成 RED→GREEN，并额外证明 dispatch receipt 失败时可在
-没有伪造 request evidence 的情况下恢复 fuse，以及已绑定 request 的 settlement crash 经无 opaque ID cleanup
-recovery 后不会二次 dispatch。CLI 仍只有零 I/O `plan`。
+当前检查点：Phase A 已用离线 lifecycle/fake HTTP 完成 Fresh RED→GREEN；caller 只能取得冻结的
+`status/execute/recover` 对象；进程内 transport disconnect 只允许 exact-one reconciliation，dispatch
+receipt 失败仍可在没有伪造 request evidence 的情况下恢复 fuse。CLI 仍只有零 I/O `plan`。
 
-退出标准：旧预选 request ID 合同稳定 RED，新 interface 与设计逐项对应。后两项未完成前，Phase A 不得
-标记完成。
+退出标准：旧预选 request ID 合同稳定 RED，新 interface、bounded status 与零重放 reconciliation 均与设计
+逐项对应。Phase A 已完成；这不表示 Postgres authority、production adapter 或真实 Hosted executor 已实现。
+尤其是 worker 退出后的跨进程 dispatch-before-bind 恢复仍属于 Phase B，当前 fake authority 证据不能替代它。
 
 ## 阶段 B：私有 Postgres authority
 
@@ -27,6 +31,8 @@ recovery 后不会二次 dispatch。CLI 仍只有零 I/O `plan`。
       Cron 安装合同；
 - [ ] fixed functions 覆盖 claim、arm cleanup、bind request、record settlement、complete、claim cleanup、
       status 和 retention；
+- [ ] 持久化 dispatch idempotency key、owner 与 payload digest；新进程在 dispatch-before-bind 状态只允许
+      exact-one reconciliation 并继续原 operation，零第二次 application POST；
 - [ ] 撤销 PUBLIC/API/business/runtime 权限，只允许管理员数据库入口；
 - [ ] PGlite 回归覆盖并发消费、旧 lease fencing、崩溃窗口、multiple pending、cleanup-pending 不删除和
       跨租户 request binding 拒绝。
@@ -59,7 +65,7 @@ recovery 后不会二次 dispatch。CLI 仍只有零 I/O `plan`。
 
 ## 阶段 E：deep module 与 CLI
 
-- [ ] 实现 `status()`、`execute(approval)`、`recover()` 三入口；
+- [ ] 把 Phase A 已完成的 `status()`、`execute(approval)`、`recover()` 接入 production composition root；
 - [ ] CLI 保留零 I/O `plan`，新增固定 `status`、exact-confirmation `execute` 和无 opaque ID 的 `recover`；
 - [ ] 90 秒应用 deadline、10 秒 cleanup、cleanup-first finally、unique pending recovery 和固定 stage 错误；
 - [ ] 新 operation 遇到 cleanup-pending、dirty/unpushed candidate、deployment drift、recent-auth drift、预算
