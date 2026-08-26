@@ -175,8 +175,12 @@ role 枚举 Auth 用户。该未发布 bootstrap migration 变更要求开发库
 - `idempotency_records` 继续作为 7 天写入 snapshot；专用 `admin_execute` 只接受固定 admin operation
   allowlist，owner 使用 actorUserId，response 不含 token/secret；不把这些 operation 暴露给通用业务写入；
 - `audit_events` 保持不可变；列表由受控 operator transaction 读取，不向业务 RLS 角色开放全表；
-- `runtime_controls(name=model_kill_switch)` 是 kill switch 唯一权威；`enabled=false` 表示允许平台模型，
-  `enabled=true` 表示阻止新的平台 reservation。Web 文案显示“平台模型已暂停/运行中”，避免反向语义；
+- `runtime_controls(name=model_kill_switch)` 是 kill switch 的唯一物理 mutation 权威；`enabled=true` 会阻止
+  新的平台 reservation。0019 后，reservation gate 与管理摘要统一读取 private effective-fuse：物理行缺失、
+  NULL/异常结构，或 Hosted acceptance cleanup 已进入 cleanup-pending、operation lease 到期/超出 120 秒安全界
+  时均按 enabled 失败关闭；只有物理 `enabled=false` 且无逾期义务，或唯一 running operation 的已 armed
+  cleanup 仍处于 pending 且 lease 未到期时才显示/允许运行。该读取不修改物理行，Web 文案继续显示“平台模型
+  已暂停/运行中”，避免反向语义；
 - `invitations`、quota grant、session/pairing 表沿用现有结构，只补事务约束和幂等 snapshot。
 
 ### 4.3 深模块

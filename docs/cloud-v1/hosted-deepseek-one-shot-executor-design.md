@@ -1,8 +1,8 @@
 # Hosted Cloud Web DeepSeek one-shot executor 设计
 
 状态：Accepted design；Phase A 离线控制合同与 Phase B schema/ACL、retention-scrub structure、严格私有
-status 已实现；私有 authority mutation functions、retention executor、production adapters、真实 executor
-composition root、部署与 Hosted 验收仍未实现。
+status、effective-fuse 已实现；私有 authority mutation functions、retention executor、production adapters、
+真实 executor composition root、部署与 Hosted 验收仍未实现。
 
 日期：2026-08-27
 
@@ -165,6 +165,13 @@ cleanup 使用独立 30 秒 claim 和 10 秒单次外部尝试，避免 operatio
 后续平台模型请求失败关闭；显式 `recover` 再经正常 recent-auth admin HTTP mutation 把物理 runtime
 control 收敛为 enabled。因此 runner 崩溃不会留下可继续放行的窗口，也不会由后台任务在无人监督时读取
 凭据或执行管理 mutation。
+
+0019 把该离线数据库合同接入两个既有读取 seam：新 reservation 与 Operator usage summary。物理
+`runtime_controls` 仍是唯一 mutation 权威；private effective read 不写表。刚 armed 的义务不会立即自锁：
+只有唯一 `running` operation、cleanup 仍为 `pending`、server-time lease 未到期且不晚于 `armed_at + 120s`
+时可继续按物理 `false` 读取；cleanup-pending、expired/claimed/future/超长 lease、completed cleanup 搭配
+non-terminal operation，以及缺失/NULL/未知或多行异常均按 enabled 或以数据库错误失败关闭。它没有新增
+Cron、cleanup mutation、HTTP 或 Provider 能力。
 
 ### retention
 

@@ -94,8 +94,11 @@ forced RLS 且对 API/business/runtime 和专用 `NOLOGIN` executor role 均无�
 receipt/deployment/terminal/safe-error/time evidence；提前、部分、receipt-free、重引入与重复 scrub 均拒绝。
 这只是结构许可，没有 callable retention executor。0018 的 strict private status 只向专用 executor 返回
 `absent|ready|running|cleanup-pending|terminal`，不返回 ID 或证据；multiple/unknown 失败关闭且仍无表直权。
-claim/bind/settlement/retention、fence-token 验证与 effective-fuse 仍未实现，不能把 status 存在解释为可运行
-authority。
+0019 的 private effective-fuse 统一接入 `reserve_quota` 与 Operator usage summary：正常 running operation
+只在 pending cleanup 的 server-time bounded lease 内继续按物理 false 读取；cleanup-pending、过期/超长
+lease、完成 cleanup 搭配非终态 operation，以及缺失、NULL 或异常 control/authority 均按 enabled 失败关闭，
+且读取不修改物理 control 或业务表。claim/bind/settlement/retention 与真正的 fence-token 验证仍未实现，不能
+把这些只读/结构能力解释为可运行 authority。
 
 `GET /v1/account` 不新增聚合表。它在一个 owner repeatable-read snapshot 中只读取 active
 `user_profiles` 的规范 email 与五项偏好，并读取当前未撤销、未过期的 `extension_sessions` 公开字段；

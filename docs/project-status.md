@@ -251,11 +251,14 @@ audit 仍只允许 `enabled`。这不代表 Store 产品或 Windows 支持被取
 > status function：只返回 absent/单一安全状态，multiple/unknown 固定失败，EXECUTE 只授予专用 executor，
 > 两表仍保持 forced RLS 与零直权。claim 未实现：owner 可从唯一 completed first-operator singleton 派生，
 > 但 idempotency-key HMAC 的 secret/context/version/rotation/recovery seam 尚未冻结，不能用普通 digest
-> 冒充 HMAC 或持久化 raw key。effective-fuse、真正的 fence-token 校验、所有私有
+> 冒充 HMAC 或持久化 raw key。byte-identical 0019 已把 private effective-fuse 接入 reservation 与 Operator
+> summary：正常 running + pending cleanup 只在 server-time bounded lease 内继续按物理 false；cleanup-pending、
+> expired/超长 lease、completed cleanup + non-terminal operation 与缺失/NULL/异常 control/authority 均失败
+> 关闭，读取零写入且 helper 对 application/executor 零 execute。真正的 fence-token 校验、所有私有
 > mutation functions、自动 retention、worker 退出后的跨进程 dispatch-before-bind 恢复、normal Web session
-> 与 deployment/settlement adapters、production composition root 和真实 executor 仍未实现。0016–0018
+> 与 deployment/settlement adapters、production composition root 和真实 executor 仍未实现。0016–0019
 > 没有连接 Hosted、应用或 dry-run，也没有产生费用。既有 Phase 91 pre/rebuild/post 证据仍严格绑定 0015
-> 和 15-file source set；其 loader 必须拒绝当前 18-file repository。0016–0018 的新 backup/rebuild/status/
+> 和 15-file source set；其 loader 必须拒绝当前 19-file repository。0016–0019 的新 backup/rebuild/status/
 > dry-run/apply 批次尚未设计或执行，不能复用或改写 Phase 91 证据。
 
 > **历史校准检查点（Phase 33）**：Phase 28 已补齐 production 语义重复建议和

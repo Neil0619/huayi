@@ -1446,9 +1446,9 @@ session is invalid.`；400 `invalid_request` 表示 runtime 数据库路径未�
 - hosted 人工门按 migration dry-run/push、status、真实注册、complete、admin verify、application 越权复验
   和 `/admin` Cookie/CSRF journey 执行。没有这些证据只能标记 implemented，不能标记 hosted ready。
 
-### 4.22 Hosted DeepSeek one-shot authority schema、retention-scrub 与 private status
+### 4.22 Hosted DeepSeek one-shot authority schema、retention-scrub、status 与 effective-fuse
 
-- 0016、0017、0018 API/Supabase forward migrations 必须分别逐字节一致，并在当前 baseline→全部 forward chain
+- 0016、0017、0018、0019 API/Supabase forward migrations 必须分别逐字节一致，并在当前 baseline→全部 forward chain
   中可重放；
 - PGlite 必须证明只允许一个 non-terminal operation，operation/cleanup 状态不可倒退，generation 不能脱离
   token/expiry 单独推进，dispatch/request/receipt/terminal 证据不可弱化或改写；
@@ -1459,10 +1459,14 @@ session is invalid.`；400 `invalid_request` 表示 runtime 数据库路径未�
   全部拒绝，并以不可变 marker 区分已清除与从未绑定；
 - 0018 PGlite 必须证明 status 只返回 absent 或一个 safe enum，multiple/unknown 失败关闭、读取零写入，且
   仅专用 executor 有 execute、所有表继续零直权；
-- 这些测试只证明 schema/ACL/status foundation。没有 mutation functions、fence-token 验证、effective-fuse、
+- 0019 PGlite 必须证明正常 running + pending cleanup 的 bounded lease 不自锁；cleanup-pending、expired、超长
+  lease、completed cleanup + non-terminal operation、缺失/NULL/未知 authority/control 均在 reservation 与
+  Operator summary 两个读取 seam 失败关闭，且拒绝发生在 quota/rate-limit 写入前；private helper 对所有
+  application/executor 角色零 execute、两表仍 forced RLS/零直权、API/Supabase 逐字节一致；
+- 这些测试只证明 schema/ACL/status/effective-fuse foundation。没有 mutation functions、fence-token 验证、
   callable retention executor、跨进程恢复和 Hosted dry-run 时，不得标记 authority、自动清除或真实
   executor 完成。
-- Phase 91 artifact contract 必须保持 15 files/head 0015，并拒绝当前 18-file repository；0016–0018 需要
+- Phase 91 artifact contract 必须保持 15 files/head 0015，并拒绝当前 19-file repository；0016–0019 需要
   新的 backup/rebuild batch，不能通过扩写历史 contract 伪造连续性。
 
 ## 5. 最终人工验收

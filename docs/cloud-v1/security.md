@@ -509,6 +509,14 @@ re-revoked trigger ACL 防止提前、部分、重引入或伪造清除。0017 �
 冒充 idempotency-key HMAC，或落库 raw key；owner 虽可从唯一 completed first-operator singleton 派生，
 HMAC secret/context/version/rotation/recovery seam 仍须先冻结。
 
+0019 新增仅由 owner-defined 数据库函数内部调用的 fixed-search-path `SECURITY DEFINER STABLE`
+effective-fuse；PUBLIC、Supabase API、business/context-setter/runtime 与专用 executor 均无直接 execute。
+它把 `reserve_quota` 与 Operator usage summary 接到同一 fail-closed read：物理 control 缺失/NULL/异常、
+cleanup-pending、completed cleanup 搭配 non-terminal operation，或 operation lease 到期/超过
+`armed_at + 120s` 时按 enabled；唯一 running + pending cleanup 只在 server-time bounded lease 内继续按
+物理 false。读取不写 authority/runtime/quota 表，不新增 Cron、cleanup mutation、HTTP、网络或 secret seam；
+两张 authority 表继续 forced RLS 与零直权。
+
 以下不是产品决策，必须以真实环境验证后补入发布材料：Vercel/Supabase 新加坡实际部署与网络延迟、
 Google OAuth 在目标网络的可达性、Supabase 备份残留、DeepSeek 当前模型 ID/价格/JSON 与 usage
 契约、生产 Extension ID、Chrome 数据披露问卷和公开隐私政策 URL。

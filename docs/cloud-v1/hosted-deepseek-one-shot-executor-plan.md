@@ -33,8 +33,9 @@ cleanup 时同步终结 operation。CLI 仍只有零 I/O `plan`。
       non-terminal constraint 和 90 天 retention；
 - [x] 新增 0017 retention-scrub structure：terminal 满 24 小时后只允许一次同时清除 owner/HMAC/request，
       其余 receipt/deployment/terminal/time evidence 不可改写；不新增 callable retention executor；
-- [ ] effective-fuse 在 cleanup 逾期时强制按 enabled 读取；不新增第六个 Cron job，不改变 exact 五项
-      Cron 安装合同；
+- [x] 0019 effective-fuse 在 cleanup 逾期/异常时强制按 enabled 读取，并接入 reservation 与 Operator summary；
+      正常 running + pending cleanup 仅在 server-time lease 未到期且不超过 armed 后 120 秒时继续放行；
+      不新增第六个 Cron job，不改变 exact 五项 Cron 安装合同；
 - [x] 新增 0018 strict private status：只返回 absent/单一安全状态，multiple/unknown 固定失败关闭，且
       EXECUTE 只授予专用 executor；
 - [ ] fixed functions 覆盖 claim、arm cleanup、bind request、record settlement、complete、claim cleanup、
@@ -55,12 +56,12 @@ safe-error/time evidence；提前、部分、非终态、receipt-free、重引�
 `NOLOGIN` executor role 仍无表权限；0018 只授予它执行严格只读 status，multiple/unknown 均失败关闭，且
 没有 callable retention executor。claim 的 owner 可从唯一 completed first-operator singleton 派生，但
 idempotency-key HMAC 的 secret/context/version/rotation/recovery seam 尚未定义；因此不得以普通 digest
-冒充 HMAC 或持久化 raw key。effective-fuse，以及 claim、arm cleanup、bind request、record settlement、
+冒充 HMAC 或持久化 raw key。claim、arm cleanup、bind request、record settlement、
 complete、claim cleanup、retention 与跨进程 dispatch-before-bind reconciliation 的最小
 `SECURITY DEFINER` mutation functions 和真正的 fence-token 校验仍未实现，不能把本检查点当作
 production adapter 或 Hosted executor 已就绪。
-Phase 91 的 15-file rebuild/backup evidence 仍只证明 0015；其 loader 必须拒绝当前 18-file repository。
-0016–0018 在任何 Hosted dry-run/apply 前需要新的受控 backup/rebuild 批次，禁止改写或冒用 Phase 91 证据。
+Phase 91 的 15-file rebuild/backup evidence 仍只证明 0015；其 loader 必须拒绝当前 19-file repository。
+0016–0019 在任何 Hosted dry-run/apply 前需要新的受控 backup/rebuild 批次，禁止改写或冒用 Phase 91 证据。
 
 ## 阶段 C：正常 Web session adapter
 
