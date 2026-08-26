@@ -856,6 +856,9 @@ confirmed Auth user/password method/profile 为 `1/1/2`、google method/Web sess
 - Hosted Auth config gate 必须对固定 Singapore project 只读 GET 并要求
   `mailer_otp_length=6`；观测到的 8 必须失败。受控 apply 只能 PATCH 该单一字段，随后独立 GET 回读 6，
   stdout/stderr 不反射 access token；不得以本地 `supabase/config.toml` 或邮件正文测试代替 Hosted 回读；
+- diagnostic package 入口必须固定 project/argument，并覆盖无效 Token 零请求、网络失败、HTTP 401、
+  非 JSON、缺字段、6、8 与其他值；输出只能是六个 allowlisted 字段，不能反射 Token、响应正文或错误。
+  diagnostic 以字段承载结果而固定 exit 0，只有 `contract_exact|t` 后重跑正式 status 才能关闭门禁；
 - resend contract 必须 strict token-only；API 覆盖额外字段拒绝、IP/invitation 双限流先于数据库与
   Provider、固定 202/no-store/无 Cookie、Provider 失败可重试且不泄露。Web 覆盖 pending 与 bound-claim
   error 两个入口、claim StrictMode 单飞、token 仅驻内存且不进入 DOM/Storage；另用 deferred Promise

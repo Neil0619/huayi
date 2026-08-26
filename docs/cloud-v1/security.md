@@ -411,6 +411,10 @@ owner context、generation/reservation 归属、task 成功或失败终态、价
 - Hosted `mailer_otp_length` 必须由固定项目只读门禁精确验证为 6；受控修正只允许已观察到的 8→6，PATCH
   body 只能包含该字段，并在独立 GET 中证明其他 Auth 配置未漂移。不得用整份 config push 覆盖 Site URL、
   Redirect URLs、模板、SMTP 或 expiry。
+- status/apply 固定失败后的 Auth config diagnostic 只允许同一固定项目 GET、禁止 redirect、10 秒超时与
+  1,000,000 字节响应上限。它只能输出 Token 格式、请求到达、三位 HTTP 状态、JSON record、
+  `six|eight|other|missing|not_run` OTP 分类和最终契约；无效 Token 必须零请求，任何异常不得反射 Token、原始响应、
+  其他 Auth 字段或底层错误。diagnostic 不得执行 PATCH，也不能替代正式 status 成功证据。
 - 0014 实际数据库写入只能由 exact-confirmation apply 入口执行。入口必须先通过绑定 clean candidate 的
   pre-backup/rebuild preflight，同一执行内只 dry-run 唯一 0014，并在 mutation 前重查 evidence 与两份
   migration mirror 的固定 SHA-256；管理员密码只进入隐藏 TTY 与单一 child 的 `PGPASSWORD`，公开 CA 只进

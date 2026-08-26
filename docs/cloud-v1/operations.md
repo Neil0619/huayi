@@ -203,7 +203,12 @@ SMTP → R3-C 真实投递、重复与无正文告警 → 五项 Cron → 受审
 Phase 81 已在唯一普通邀请的真实注册邮件中发现 Hosted Email OTP length 为 8，而产品契约固定 6。用户只
 授权把该字段保存为 6；独立重新加载确认 6、expiry 仍 3600，其他 Auth/SMTP/DNS/environment/secret 未改
 且未发送新邮件。今后每次真实邀请前先运行 `pnpm acceptance:hosted:auth:status`；它失败时停止，不得截取
-旧码或整份 push Auth config。0014 的唯一 dry-run 入口已经实现。2026-08-25 用户运行真实入口后提供的
+旧码或整份 push Auth config。固定失败文案无法区分本地 PAT、HTTP、响应结构与 OTP 漂移；只能运行
+`pnpm acceptance:hosted:auth:diagnose` 做同一固定 GET。该入口固定输出 Token 格式、请求到达、HTTP 状态、
+JSON record、OTP 长度分类与最终契约六项，不输出原始响应或其他 Auth 配置；诊断完成本身固定 exit 0，
+必须读取 `contract_exact`。`token_format_exact|f` 与 `request_reached|not_run` 表示零网络，不得据此重试
+apply；只有 `otp_length_state|six`、`contract_exact|t` 后再跑正式 status，status 通过才可继续。
+0014 的唯一 dry-run 入口已经实现。2026-08-25 用户运行真实入口后提供的
 Supabase child transcript 精确包含 non-mutating header、remote connection marker、唯一
 `20260824010000_password_signup_otp_resend.sql` 与 finished marker，匹配仓库严格 parser；据此记录本次
 dry-run 已完成且数据库未修改。用户提供的是 raw child transcript，不把未提供的 wrapper 固定成功行写成

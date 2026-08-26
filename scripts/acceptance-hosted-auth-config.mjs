@@ -4,23 +4,29 @@ import { hostedAcceptanceProjectRef } from "./acceptance-hosted-foundation.mjs";
 
 const managementApiOrigin = "https://api.supabase.com";
 const maximumResponseBytes = 1_000_000;
+const requestTimeoutMilliseconds = 10_000;
 
 export const hostedAuthConfigStatusArgument = `--status-hosted-auth-config-${hostedAcceptanceProjectRef}`;
 export const hostedAuthConfigApplyConfirmation = `--confirm-hosted-email-otp-length-6-${hostedAcceptanceProjectRef}`;
+export const hostedAuthConfigDiagnosticArgument = `--diagnose-hosted-auth-config-${hostedAcceptanceProjectRef}`;
 
 function isRecord(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+function validAccessToken(token) {
+  return (
+    typeof token === "string" &&
+    token.length >= 16 &&
+    token.length <= 4_096 &&
+    token.trim() === token &&
+    !/[\r\n\0]/u.test(token)
+  );
+}
+
 function requireAccessToken(environment) {
   const token = environment.SUPABASE_ACCESS_TOKEN;
-  if (
-    typeof token !== "string" ||
-    token.length < 16 ||
-    token.length > 4_096 ||
-    token.trim() !== token ||
-    /[\r\n\0]/u.test(token)
-  ) {
+  if (!validAccessToken(token)) {
     throw new Error("Supabase access token is unavailable.");
   }
   return token;
@@ -47,22 +53,86 @@ async function requestAuthConfiguration({ body, fetch_, method, token }) {
     throw new Error("Supabase Auth configuration request failed.");
   }
   if (!response.ok) throw new Error("Supabase Auth configuration request failed.");
+  const configuration = await parseAuthConfigurationResponse(response);
+  if (configuration === undefined) {
+    throw new Error("Supabase Auth configuration response failed.");
+  }
+  return configuration;
+}
+
+async function parseAuthConfigurationResponse(response) {
   let text;
   try {
     text = await response.text();
   } catch {
-    throw new Error("Supabase Auth configuration response failed.");
+    return undefined;
   }
   if (text.length === 0 || text.length > maximumResponseBytes) {
-    throw new Error("Supabase Auth configuration response failed.");
+    return undefined;
   }
   try {
     const parsed = JSON.parse(text);
-    if (!isRecord(parsed)) throw new Error("invalid");
-    return parsed;
+    return isRecord(parsed) ? parsed : undefined;
   } catch {
-    throw new Error("Supabase Auth configuration response failed.");
+    return undefined;
   }
+}
+
+function diagnosticOutput(result) {
+  return [
+    `token_format_exact|${result.tokenFormatExact}`,
+    `request_reached|${result.requestReached}`,
+    `http_status|${result.httpStatus}`,
+    `response_json_record|${result.responseJsonRecord}`,
+    `otp_length_state|${result.otpLengthState}`,
+    `contract_exact|${result.contractExact}`,
+  ];
+}
+
+async function diagnoseAuthConfiguration({ environment, fetch_ }) {
+  const result = {
+    tokenFormatExact: "f",
+    requestReached: "not_run",
+    httpStatus: "not_run",
+    responseJsonRecord: "not_run",
+    otpLengthState: "not_run",
+    contractExact: "f",
+  };
+  const token = environment.SUPABASE_ACCESS_TOKEN;
+  if (!validAccessToken(token)) return diagnosticOutput(result);
+  result.tokenFormatExact = "t";
+  let response;
+  try {
+    response = await fetch_(authConfigUrl(), {
+      headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
+      method: "GET",
+      redirect: "error",
+      signal: AbortSignal.timeout(requestTimeoutMilliseconds),
+    });
+  } catch {
+    result.requestReached = "f";
+    return diagnosticOutput(result);
+  }
+  result.requestReached = "t";
+  result.httpStatus =
+    Number.isInteger(response.status) && response.status >= 100 && response.status <= 599
+      ? String(response.status)
+      : "invalid";
+  if (response.ok !== true) return diagnosticOutput(result);
+  const configuration = await parseAuthConfigurationResponse(response);
+  result.responseJsonRecord = configuration === undefined ? "f" : "t";
+  if (configuration === undefined) return diagnosticOutput(result);
+  const otpLength = configuration.mailer_otp_length;
+  result.otpLengthState =
+    otpLength === 6
+      ? "six"
+      : otpLength === 8
+        ? "eight"
+        : Object.hasOwn(configuration, "mailer_otp_length")
+          ? "other"
+          : "missing";
+  result.contractExact = result.otpLengthState === "six" ? "t" : "f";
+  return diagnosticOutput(result);
 }
 
 export function verifyHostedAuthConfiguration(configuration) {
@@ -99,6 +169,13 @@ function configurationWithoutOtpLength(configuration) {
 function parseOperation(arguments_) {
   if (
     arguments_.length === 2 &&
+    arguments_[0] === "diagnose" &&
+    arguments_[1] === hostedAuthConfigDiagnosticArgument
+  ) {
+    return "diagnose";
+  }
+  if (
+    arguments_.length === 2 &&
     arguments_[0] === "status" &&
     arguments_[1] === hostedAuthConfigStatusArgument
   ) {
@@ -125,6 +202,16 @@ export async function runHostedAuthConfigCli({
   if (operation === undefined) {
     writeError("Hosted Auth configuration arguments are invalid.\n");
     return 1;
+  }
+  if (operation === "diagnose") {
+    try {
+      const lines = await diagnoseAuthConfiguration({ environment, fetch_ });
+      writeOutput(`${lines.join("\n")}\n`);
+      return 0;
+    } catch {
+      writeError("Hosted Auth configuration diagnostic failed.\n");
+      return 1;
+    }
   }
   try {
     const token = requireAccessToken(environment);

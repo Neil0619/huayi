@@ -2650,3 +2650,18 @@ typecheck、architecture、build、development blocker、Store release、product
 - **执行边界**：本节没有连接或修改 Hosted，没有读取真实密码，没有运行 Phase 91 capture/status/dry-run/
   apply/post，没有发送邮件、部署、调用 DeepSeek/Cron/R3-C，也没有 commit/push。下一步是最终 diff 审查、
   clean candidate 与双平台 CI；之后仍需逐项明确授权。
+
+## 101. Hosted Auth OTP status 凭据诊断与正式回读（2026-08-26）
+
+- **固定失败与根因定位**：首次 status、受控 apply 和 apply 后 status 均只返回固定失败，不能证明远端值或
+  PATCH 结果。新增 `acceptance:hosted:auth:diagnose` 的 Fresh RED 因诊断参数导出缺失而失败；GREEN 后入口
+  只做固定项目 GET，并输出 Token 格式、请求到达、HTTP、JSON record、OTP 分类与最终契约六项；
+- **零网络证据**：操作者在未设置 Supabase PAT 的同一终端首先得到 `token_format_exact|f`、
+  `request_reached|not_run`，其余均 `not_run`/false；这证明该次诊断在本地凭据门停止，不把此前固定失败
+  冒充为 Hosted 配置漂移或已写入证据；
+- **真实只读回读**：操作者随后从 Supabase account token 页面取得 PAT，以终端隐藏输入只导出进程环境，
+  诊断精确返回 Token true、request reached、HTTP 200、JSON record、`otp_length_state|six` 与
+  `contract_exact|t`；紧接着正式 `pnpm acceptance:hosted:auth:status` 返回
+  `Hosted Auth email OTP length verification passed.`，据此关闭本次 OTP length 门；
+- **边界**：没有再次运行 apply，没有把失败 apply 写成成功 mutation，没有显示 PAT 或原始 Auth 配置，也
+  没有发送/重发邮件或创建邀请。诊断入口及测试仍是未提交本地改动，提交、推送和双平台 CI 需分别继续。
