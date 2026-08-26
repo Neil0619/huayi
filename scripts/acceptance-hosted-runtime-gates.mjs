@@ -3,14 +3,16 @@ import { pathToFileURL } from "node:url";
 import {
   hostedAcceptancePoolerUrl,
   hostedAcceptanceProjectRef,
-  requirePostgresPassword,
   runHostedPsql,
 } from "./acceptance-hosted-foundation.mjs";
+import { readHiddenTerminalLine } from "./acceptance-hosted-important-batch-secret-prompt.mjs";
+import { fetchHostedAcceptanceOfficialCaCertificate } from "./acceptance-hosted-official-ca.mjs";
 import { renderHostedRuntimeSnapshotSql } from "./acceptance-hosted-runtime-gates-sql.mjs";
 
 export { renderHostedRuntimeSnapshotSql } from "./acceptance-hosted-runtime-gates-sql.mjs";
 
 export const hostedRuntimeGatesSnapshotArgument = `--snapshot-hosted-runtime-gates-${hostedAcceptanceProjectRef}`;
+const failureMessage = "Hosted runtime snapshot failed.";
 
 const snapshotFields = Object.freeze([
   ["r3c_total", "count"],
@@ -65,9 +67,24 @@ function isValidSnapshotValue(type, value) {
   );
 }
 
+function passwordIsValid(password) {
+  return (
+    typeof password === "string" &&
+    Buffer.byteLength(password) >= 12 &&
+    Buffer.byteLength(password) <= 512 &&
+    !/[\0\r\n]/u.test(password)
+  );
+}
+
+function environmentHasInheritedPassword(environment) {
+  return ["PGPASSWORD", "SUPABASE_DB_PASSWORD"].some((name) =>
+    Object.prototype.hasOwnProperty.call(environment, name),
+  );
+}
+
 export function renderHostedRuntimeGatesPlan() {
   return `Hosted runtime gates plan (zero network / zero write)
-- Use one verify-full administrator connection and one READ ONLY transaction.
+- Fetch the official CA, prompt for the administrator secret without echo, and use one verify-full READ ONLY transaction.
 - Return only fixed booleans, enums, and bounded aggregate counts.
 - Inspect Vault names only; never read credential material or identity/content fields.
 - Select the latest hosted analysis request automatically; no opaque identifier input is needed.
@@ -76,8 +93,16 @@ export function renderHostedRuntimeGatesPlan() {
 }
 
 function parseHostedRuntimeSnapshot(stdout) {
-  if (typeof stdout !== "string" || stdout.length === 0 || stdout.length > 4_096) return null;
-  const lines = stdout.trim().split(/\r?\n/u);
+  if (
+    typeof stdout !== "string" ||
+    stdout.length === 0 ||
+    stdout.length > 4_096 ||
+    !stdout.endsWith("\n") ||
+    stdout.includes("\r")
+  ) {
+    return null;
+  }
+  const lines = stdout.slice(0, -1).split("\n");
   if (lines.length !== snapshotFields.length) return null;
   const snapshot = Object.create(null);
   for (const [index, [expectedName, type]] of snapshotFields.entries()) {
@@ -95,40 +120,67 @@ export function renderHostedRuntimeSnapshot(snapshot) {
   for (const [name, type] of snapshotFields) {
     const value = snapshot?.[name];
     if (!isValidSnapshotValue(type, value)) {
-      throw new Error("Hosted runtime snapshot failed.");
+      throw new Error(failureMessage);
     }
     lines.push(`${name}|${value}`);
   }
   return `${lines.join("\n")}\n`;
 }
 
-export async function readHostedRuntimeSnapshot({
-  arguments_ = process.argv.slice(2),
-  environment = process.env,
-  runPsql = runHostedPsql,
-} = {}) {
-  if (arguments_.length !== 1 || arguments_[0] !== hostedRuntimeGatesSnapshotArgument) {
-    throw new Error("Hosted runtime snapshot arguments are invalid.");
-  }
-  requirePostgresPassword(environment);
+export async function runHostedRuntimeSnapshotQuery(
+  { administratorPassword, caCertificate },
+  { runPsql = runHostedPsql } = {},
+) {
   const result = await runPsql({
     captureOutput: true,
     databaseUrl: hostedAcceptancePoolerUrl,
     environment: {
-      HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: environment.HUAYI_HOSTED_DATABASE_CA_CERTIFICATE,
-      PGPASSWORD: environment.PGPASSWORD,
+      HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: caCertificate,
+      PGPASSWORD: administratorPassword,
     },
     input: renderHostedRuntimeSnapshotSql(),
+    timeoutMilliseconds: 30_000,
   });
-  const snapshot = result.code === 0 ? parseHostedRuntimeSnapshot(result.stdout) : null;
-  if (snapshot === null) throw new Error("Hosted runtime snapshot failed.");
-  return snapshot;
+  return result.code === 0 ? parseHostedRuntimeSnapshot(result.stdout) : null;
+}
+
+export async function readHostedRuntimeSnapshot({
+  arguments_ = process.argv.slice(2),
+  environment = process.env,
+  fetchCaCertificate = fetchHostedAcceptanceOfficialCaCertificate,
+  readPassword = readHiddenTerminalLine,
+  runPsql,
+  runSnapshotQuery = runHostedRuntimeSnapshotQuery,
+} = {}) {
+  try {
+    if (
+      arguments_.length !== 1 ||
+      arguments_[0] !== hostedRuntimeGatesSnapshotArgument ||
+      environmentHasInheritedPassword(environment)
+    ) {
+      throw new Error(failureMessage);
+    }
+    const caCertificate = await fetchCaCertificate();
+    const administratorPassword = await readPassword();
+    if (!passwordIsValid(administratorPassword)) throw new Error(failureMessage);
+    const snapshot = await runSnapshotQuery(
+      { administratorPassword, caCertificate },
+      runPsql === undefined ? undefined : { runPsql },
+    );
+    if (snapshot === null) throw new Error(failureMessage);
+    return snapshot;
+  } catch {
+    throw new Error(failureMessage);
+  }
 }
 
 export async function runHostedRuntimeGatesCli({
   arguments_ = process.argv.slice(2),
   environment = process.env,
-  runPsql = runHostedPsql,
+  fetchCaCertificate = fetchHostedAcceptanceOfficialCaCertificate,
+  readPassword = readHiddenTerminalLine,
+  runPsql,
+  runSnapshotQuery = runHostedRuntimeSnapshotQuery,
   writeError = (value) => process.stderr.write(value),
   writeOutput = (value) => process.stdout.write(value),
 } = {}) {
@@ -137,11 +189,18 @@ export async function runHostedRuntimeGatesCli({
     return 0;
   }
   try {
-    const snapshot = await readHostedRuntimeSnapshot({ arguments_, environment, runPsql });
+    const snapshot = await readHostedRuntimeSnapshot({
+      arguments_,
+      environment,
+      fetchCaCertificate,
+      readPassword,
+      runPsql,
+      runSnapshotQuery,
+    });
     writeOutput(renderHostedRuntimeSnapshot(snapshot));
     return 0;
   } catch {
-    writeError("Hosted runtime snapshot failed.\n");
+    writeError(`${failureMessage}\n`);
     return 1;
   }
 }

@@ -17,46 +17,15 @@ import {
   hostedAcceptanceMigrationVersions,
   hostedAcceptancePoolerUrl,
 } from "./acceptance-hosted-foundation.mjs";
-
-const postgresPassword = "postgres-password";
-const rootCertificate =
-  "-----BEGIN CERTIFICATE-----\n" + "a".repeat(64) + "\n-----END CERTIFICATE-----\n";
-const safeEnvironment = {
-  HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: rootCertificate,
-  PGPASSWORD: postgresPassword,
-};
-const operationsSql = await readFile(
-  new URL("../apps/api/operations/configure-supabase-cron.sql", import.meta.url),
-  "utf8",
-);
-
-function statusValues({ installed = false, ready = true } = {}) {
-  return {
-    administrator_connection_exact: "t",
-    cron_acl_exact: installed ? "t" : "f",
-    cron_extensions_exact: installed ? "t" : "f",
-    cron_extensions_installable: "t",
-    cron_fixed_jobs_count: installed ? "5" : "0",
-    cron_function_contract_exact: installed ? "t" : "f",
-    cron_function_installable: "t",
-    cron_installation_exact: installed ? "t" : "f",
-    cron_installation_state: installed ? "exact" : "absent",
-    cron_jobs_exact: installed ? "t" : "f",
-    cron_preflight_ready: ready ? "t" : "f",
-    cron_unmanaged_jobs_count: "0",
-    cron_vault_names_exact: "t",
-    migration_chain_exact: "t",
-    r3c_contract_exact: "t",
-    r3c_nonterminal_count: "0",
-    r3c_sent_count: "1",
-    r3c_terminal_failure_count: "0",
-  };
-}
-
-function statusOutput(options) {
-  const values = statusValues(options);
-  return hostedCronStatusFieldNames.map((name) => `${name}|${values[name]}`).join("\n") + "\n";
-}
+import {
+  applyDependencies,
+  credentialDependencies,
+  operationsSql,
+  postgresPassword,
+  rootCertificate,
+  safeEnvironment,
+  statusOutput,
+} from "./acceptance-hosted-cron-test-fixtures.mjs";
 
 test("hosted Cron plan is project-pinned, secret-free, zero-network, and zero-write", async () => {
   let calls = 0;
@@ -152,6 +121,7 @@ test("hosted Cron status uses one verify-full administrator read and bounded out
   const status = await readHostedCronStatus({
     arguments_: ["status", hostedCronStatusArgument],
     environment: safeEnvironment,
+    ...credentialDependencies,
     runPsql: async (request) => {
       calls.push(request);
       return { code: 0, stdout: statusOutput() };
@@ -163,6 +133,7 @@ test("hosted Cron status uses one verify-full administrator read and bounded out
   assert.equal(calls[0].databaseUrl, hostedAcceptancePoolerUrl);
   assert.equal(calls[0].environment.PGPASSWORD, postgresPassword);
   assert.equal(calls[0].environment.HUAYI_HOSTED_DATABASE_CA_CERTIFICATE, rootCertificate);
+  assert.equal(calls[0].timeoutMilliseconds, 30_000);
   assert.equal(renderHostedCronStatus(status), statusOutput());
 });
 
@@ -171,6 +142,7 @@ test("hosted Cron status rejects malformed, extra, unsafe, or out-of-range outpu
     readHostedCronStatus({
       arguments_: ["status", hostedCronStatusArgument],
       environment: safeEnvironment,
+      ...credentialDependencies,
       runPsql: async () => ({ code, stdout }),
     });
   const privateValue = "private@example.test";
@@ -197,6 +169,7 @@ test("apply rejects wrong confirmation and failed preflight before fixed SQL", a
     applyHostedCron({
       arguments_: ["apply", "--confirm-wrong-project"],
       environment: safeEnvironment,
+      ...applyDependencies,
       loadOperationsSql: async () => operationsSql,
       runPsql: async () => {
         calls += 1;
@@ -211,6 +184,7 @@ test("apply rejects wrong confirmation and failed preflight before fixed SQL", a
     applyHostedCron({
       arguments_: ["apply", hostedCronApplyConfirmation],
       environment: safeEnvironment,
+      ...applyDependencies,
       loadOperationsSql: async () => operationsSql,
       runPsql: async () => {
         calls += 1;
@@ -222,33 +196,12 @@ test("apply rejects wrong confirmation and failed preflight before fixed SQL", a
   assert.equal(calls, 1);
 });
 
-test("apply validates the repository operation contract before either write", async () => {
-  for (const invalidSql of [
-    "BEGIN; SELECT 1; COMMIT;\n",
-    operationsSql.replace("BEGIN;", "BEGIN;\n\\i private.sql"),
-  ]) {
-    let calls = 0;
-    await assert.rejects(
-      applyHostedCron({
-        arguments_: ["apply", hostedCronApplyConfirmation],
-        environment: safeEnvironment,
-        loadOperationsSql: async () => invalidSql,
-        runPsql: async () => {
-          calls += 1;
-          return { code: 0, stdout: statusOutput() };
-        },
-      }),
-      /operations-contract/u,
-    );
-    assert.equal(calls, 1);
-  }
-});
-
 test("apply executes the complete fixed SQL twice then independently verifies exact five jobs", async () => {
   const calls = [];
   const result = await applyHostedCron({
     arguments_: ["apply", hostedCronApplyConfirmation],
     environment: safeEnvironment,
+    ...applyDependencies,
     loadOperationsSql: async () => operationsSql,
     runPsql: async (request) => {
       calls.push(request);
@@ -261,12 +214,16 @@ test("apply executes the complete fixed SQL twice then independently verifies ex
   assert.deepEqual(result, { outcome: "applied" });
   assert.equal(calls.length, 4);
   assert.equal(calls[0].captureOutput, true);
+  assert.equal(calls[0].timeoutMilliseconds, 30_000);
   assert.equal(calls[0].input, renderHostedCronStatusSql());
   assert.equal(calls[1].captureOutput, false);
+  assert.equal(calls[1].timeoutMilliseconds, 30_000);
   assert.equal(calls[1].input, operationsSql);
   assert.equal(calls[2].captureOutput, false);
+  assert.equal(calls[2].timeoutMilliseconds, 30_000);
   assert.equal(calls[2].input, operationsSql);
   assert.equal(calls[3].captureOutput, true);
+  assert.equal(calls[3].timeoutMilliseconds, 30_000);
   assert.equal(calls[3].input, renderHostedCronStatusSql());
 });
 
@@ -276,6 +233,7 @@ test("apply rejects a successful postflight read that does not prove the exact i
     applyHostedCron({
       arguments_: ["apply", hostedCronApplyConfirmation],
       environment: safeEnvironment,
+      ...applyDependencies,
       loadOperationsSql: async () => operationsSql,
       runPsql: async () => {
         calls += 1;
@@ -299,6 +257,7 @@ test("apply stops at the first failed stage and CLI never reflects raw failures"
       applyHostedCron({
         arguments_: ["apply", hostedCronApplyConfirmation],
         environment: safeEnvironment,
+        ...applyDependencies,
         loadOperationsSql: async () => operationsSql,
         runPsql: async () => {
           calls += 1;
@@ -318,6 +277,7 @@ test("apply stops at the first failed stage and CLI never reflects raw failures"
   const code = await runHostedCronCli({
     arguments_: ["apply", hostedCronApplyConfirmation],
     environment: safeEnvironment,
+    ...applyDependencies,
     loadOperationsSql: async () => operationsSql,
     runPsql: async () => ({ code: 1, stdout: "private@example.test" }),
     writeError: (value) => {
@@ -337,6 +297,7 @@ test("apply stops at the first failed stage and CLI never reflects raw failures"
   const thrownCode = await runHostedCronCli({
     arguments_: ["apply", hostedCronApplyConfirmation],
     environment: safeEnvironment,
+    ...applyDependencies,
     loadOperationsSql: async () => operationsSql,
     runPsql: async () => {
       throw new Error("private@example.test Authorization: Bearer private");

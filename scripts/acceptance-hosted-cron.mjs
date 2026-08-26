@@ -1,14 +1,18 @@
+import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
 
 import {
   hostedAcceptancePoolerUrl,
   hostedAcceptanceProjectRef,
-  requirePostgresPassword,
   runHostedPsql,
 } from "./acceptance-hosted-foundation.mjs";
+import { readHiddenTerminalLine } from "./acceptance-hosted-important-batch-secret-prompt.mjs";
+import { fetchHostedAcceptanceOfficialCaCertificate } from "./acceptance-hosted-official-ca.mjs";
+import { verifyHostedCronRepositoryCandidate } from "./acceptance-hosted-cron-repository.mjs";
 import { renderHostedCronStatusSql } from "./acceptance-hosted-cron-sql.mjs";
 
+export { verifyHostedCronRepositoryCandidate } from "./acceptance-hosted-cron-repository.mjs";
 export { renderHostedCronStatusSql } from "./acceptance-hosted-cron-sql.mjs";
 
 export const hostedCronStatusArgument = `--status-hosted-supabase-cron-${hostedAcceptanceProjectRef}`;
@@ -18,6 +22,8 @@ const operationsUrl = new URL(
   "../apps/api/operations/configure-supabase-cron.sql",
   import.meta.url,
 );
+const operationsSha256 = "09a074addefdf352ff256ff958bb87a6775b911a7da9475ef697b04d2a64d604";
+const psqlTimeoutMilliseconds = 30_000;
 const statusFields = Object.freeze([
   ["administrator_connection_exact", "boolean"],
   ["migration_chain_exact", "boolean"],
@@ -52,6 +58,7 @@ const allowedFailureStages = new Set([
   "preflight-read",
   "preflight-contract",
   "operations-contract",
+  "repository-candidate",
   "first-apply",
   "second-apply",
   "postflight-read",
@@ -74,9 +81,32 @@ function isValidValue(type, value) {
   );
 }
 
+function passwordIsValid(password) {
+  return (
+    typeof password === "string" &&
+    Buffer.byteLength(password) >= 12 &&
+    Buffer.byteLength(password) <= 512 &&
+    !/[\0\r\n]/u.test(password)
+  );
+}
+
+function environmentHasInheritedPassword(environment) {
+  return ["PGPASSWORD", "SUPABASE_DB_PASSWORD"].some((name) =>
+    Object.prototype.hasOwnProperty.call(environment, name),
+  );
+}
+
 function parseHostedCronStatus(stdout) {
-  if (typeof stdout !== "string" || stdout.length === 0 || stdout.length > 2_048) return null;
-  const lines = stdout.trim().split(/\r?\n/u);
+  if (
+    typeof stdout !== "string" ||
+    stdout.length === 0 ||
+    stdout.length > 2_048 ||
+    !stdout.endsWith("\n") ||
+    stdout.includes("\r")
+  ) {
+    return null;
+  }
+  const lines = stdout.slice(0, -1).split("\n");
   if (lines.length !== statusFields.length) return null;
   const status = Object.create(null);
   for (const [index, [expectedName, type]] of statusFields.entries()) {
@@ -89,21 +119,22 @@ function parseHostedCronStatus(stdout) {
   return status;
 }
 
-function databaseEnvironment(environment) {
+function databaseEnvironment({ administratorPassword, caCertificate }) {
   return {
-    HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: environment.HUAYI_HOSTED_DATABASE_CA_CERTIFICATE,
-    PGPASSWORD: environment.PGPASSWORD,
+    HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: caCertificate,
+    PGPASSWORD: administratorPassword,
   };
 }
 
-async function queryHostedCronStatus({ environment, runPsql, stage }) {
+async function queryHostedCronStatus({ runPsql, secrets, stage }) {
   let result;
   try {
     result = await runPsql({
       captureOutput: true,
       databaseUrl: hostedAcceptancePoolerUrl,
-      environment: databaseEnvironment(environment),
+      environment: databaseEnvironment(secrets),
       input: renderHostedCronStatusSql(),
+      timeoutMilliseconds: psqlTimeoutMilliseconds,
     });
   } catch {
     throw new HostedCronStageError(stage);
@@ -114,28 +145,32 @@ async function queryHostedCronStatus({ environment, runPsql, stage }) {
 }
 
 function requireOperationsSql(sql) {
+  const source = Buffer.isBuffer(sql) ? sql : Buffer.from(sql ?? "", "utf8");
+  const text = source.toString("utf8");
   if (
-    typeof sql !== "string" ||
-    sql.length < 1 ||
-    sql.length > 64 * 1_024 ||
-    !/^BEGIN;\s/u.test(sql) ||
-    !/COMMIT;\s*$/u.test(sql) ||
-    (sql.match(/SELECT cron\.schedule\(/gu) ?? []).length !== 5 ||
-    (sql.match(/CREATE OR REPLACE FUNCTION huayi_private\.invoke_cron_path/gu) ?? []).length !==
+    (!Buffer.isBuffer(sql) && typeof sql !== "string") ||
+    source.byteLength < 1 ||
+    source.byteLength > 64 * 1_024 ||
+    createHash("sha256").update(source).digest("hex") !== operationsSha256 ||
+    !/^BEGIN;\s/u.test(text) ||
+    !/COMMIT;\s*$/u.test(text) ||
+    (text.match(/SELECT cron\.schedule\(/gu) ?? []).length !== 5 ||
+    (text.match(/CREATE OR REPLACE FUNCTION huayi_private\.invoke_cron_path/gu) ?? []).length !==
       1 ||
-    /^\s*\\/mu.test(sql)
+    /^\s*\\/mu.test(text)
   ) {
     throw new HostedCronStageError("operations-contract");
   }
-  return sql;
+  return text;
 }
 
 export function renderHostedCronPlan() {
   return `Hosted Supabase Cron plan for ${hostedAcceptanceProjectRef} (zero network / zero write)
-- status uses one verify-full administrator connection and one READ ONLY transaction.
+- status fetches the official CA, prompts without echo, and uses one verify-full administrator READ ONLY transaction.
 - status returns fixed booleans, one fixed enum, and bounded aggregate counts only.
 - status inspects Vault names only; it never selects or prints Vault credential values.
-- apply requires the exact project-specific confirmation after the real R3-C gate passes.
+- apply requires the exact project-specific confirmation and a clean reviewed candidate after the real R3-C gate passes.
+- apply verifies the exact SHA-256-pinned repository operations SQL before secrets or database work.
 - apply runs the complete repository fixed operations SQL twice, preserving both transactions.
 - apply then uses an independent read-only postflight to require exactly five active minute jobs.
 - Vercel Sensitive values cannot be read back; status cannot prove CRON_SECRET value continuity.
@@ -157,18 +192,27 @@ export function renderHostedCronStatus(status) {
 export async function readHostedCronStatus({
   arguments_ = process.argv.slice(2),
   environment = process.env,
+  fetchCaCertificate = fetchHostedAcceptanceOfficialCaCertificate,
+  readPassword = readHiddenTerminalLine,
   runPsql = runHostedPsql,
 } = {}) {
   try {
     if (
       arguments_.length !== 2 ||
       arguments_[0] !== "status" ||
-      arguments_[1] !== hostedCronStatusArgument
+      arguments_[1] !== hostedCronStatusArgument ||
+      environmentHasInheritedPassword(environment)
     ) {
       throw new Error("arguments");
     }
-    requirePostgresPassword(environment);
-    return await queryHostedCronStatus({ environment, runPsql, stage: "status-read" });
+    const caCertificate = await fetchCaCertificate();
+    const administratorPassword = await readPassword();
+    if (!passwordIsValid(administratorPassword)) throw new Error("credentials");
+    return await queryHostedCronStatus({
+      runPsql,
+      secrets: { administratorPassword, caCertificate },
+      stage: "status-read",
+    });
   } catch {
     throw new Error("Hosted Supabase Cron status failed.");
   }
@@ -177,8 +221,11 @@ export async function readHostedCronStatus({
 export async function applyHostedCron({
   arguments_ = process.argv.slice(2),
   environment = process.env,
-  loadOperationsSql = () => readFile(operationsUrl, "utf8"),
+  fetchCaCertificate = fetchHostedAcceptanceOfficialCaCertificate,
+  loadOperationsSql = () => readFile(operationsUrl),
+  readPassword = readHiddenTerminalLine,
   runPsql = runHostedPsql,
+  verifyRepositoryCandidate = verifyHostedCronRepositoryCandidate,
 } = {}) {
   if (
     arguments_.length !== 2 ||
@@ -187,18 +234,8 @@ export async function applyHostedCron({
   ) {
     throw new HostedCronStageError("arguments");
   }
-  try {
-    requirePostgresPassword(environment);
-  } catch {
+  if (environmentHasInheritedPassword(environment)) {
     throw new HostedCronStageError("credentials");
-  }
-  const preflight = await queryHostedCronStatus({
-    environment,
-    runPsql,
-    stage: "preflight-read",
-  });
-  if (preflight.cron_preflight_ready !== "t") {
-    throw new HostedCronStageError("preflight-contract");
   }
 
   let operationsSql;
@@ -208,11 +245,37 @@ export async function applyHostedCron({
     if (error instanceof HostedCronStageError) throw error;
     throw new HostedCronStageError("operations-contract");
   }
+  try {
+    if ((await verifyRepositoryCandidate()) !== true) {
+      throw new HostedCronStageError("repository-candidate");
+    }
+  } catch (error) {
+    if (error instanceof HostedCronStageError) throw error;
+    throw new HostedCronStageError("repository-candidate");
+  }
+  let secrets;
+  try {
+    const caCertificate = await fetchCaCertificate();
+    const administratorPassword = await readPassword();
+    if (!passwordIsValid(administratorPassword)) throw new Error("credentials");
+    secrets = { administratorPassword, caCertificate };
+  } catch {
+    throw new HostedCronStageError("credentials");
+  }
+  const preflight = await queryHostedCronStatus({
+    runPsql,
+    secrets,
+    stage: "preflight-read",
+  });
+  if (preflight.cron_preflight_ready !== "t") {
+    throw new HostedCronStageError("preflight-contract");
+  }
   const sharedWrite = {
     captureOutput: false,
     databaseUrl: hostedAcceptancePoolerUrl,
-    environment: databaseEnvironment(environment),
+    environment: databaseEnvironment(secrets),
     input: operationsSql,
+    timeoutMilliseconds: psqlTimeoutMilliseconds,
   };
   let first;
   try {
@@ -230,8 +293,8 @@ export async function applyHostedCron({
   if (second.code !== 0) throw new HostedCronStageError("second-apply");
 
   const postflight = await queryHostedCronStatus({
-    environment,
     runPsql,
+    secrets,
     stage: "postflight-read",
   });
   if (
@@ -248,8 +311,11 @@ export async function applyHostedCron({
 export async function runHostedCronCli({
   arguments_ = process.argv.slice(2),
   environment = process.env,
+  fetchCaCertificate = fetchHostedAcceptanceOfficialCaCertificate,
   loadOperationsSql,
+  readPassword = readHiddenTerminalLine,
   runPsql = runHostedPsql,
+  verifyRepositoryCandidate = verifyHostedCronRepositoryCandidate,
   writeError = (value) => process.stderr.write(value),
   writeOutput = (value) => process.stdout.write(value),
 } = {}) {
@@ -259,10 +325,24 @@ export async function runHostedCronCli({
   }
   try {
     if (arguments_[0] === "status") {
-      const status = await readHostedCronStatus({ arguments_, environment, runPsql });
+      const status = await readHostedCronStatus({
+        arguments_,
+        environment,
+        fetchCaCertificate,
+        readPassword,
+        runPsql,
+      });
       writeOutput(renderHostedCronStatus(status));
     } else {
-      await applyHostedCron({ arguments_, environment, loadOperationsSql, runPsql });
+      await applyHostedCron({
+        arguments_,
+        environment,
+        fetchCaCertificate,
+        loadOperationsSql,
+        readPassword,
+        runPsql,
+        verifyRepositoryCandidate,
+      });
       writeOutput(
         "Hosted Supabase Cron apply passed: fixed SQL executed twice; exact five jobs verified.\n",
       );

@@ -10,13 +10,14 @@ import {
   renderHostedRuntimeSnapshot,
   renderHostedRuntimeSnapshotSql,
   runHostedRuntimeGatesCli,
+  runHostedRuntimeSnapshotQuery,
 } from "./acceptance-hosted-runtime-gates.mjs";
 import {
   hostedAcceptancePoolerUrl,
   hostedAcceptancePriceVersionIds,
 } from "./acceptance-hosted-foundation.mjs";
 
-const postgresPassword = "postgres-password";
+const postgresPassword = "fictional-postgres-password";
 const rootCertificate =
   "-----BEGIN CERTIFICATE-----\n" + "a".repeat(64) + "\n-----END CERTIFICATE-----\n";
 
@@ -158,9 +159,14 @@ test("hosted runtime snapshot uses one verify-full admin read and normalizes bou
   const calls = [];
   const snapshot = await readHostedRuntimeSnapshot({
     arguments_: [hostedRuntimeGatesSnapshotArgument],
-    environment: {
-      HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: rootCertificate,
-      PGPASSWORD: postgresPassword,
+    environment: {},
+    fetchCaCertificate: async () => {
+      calls.push("ca");
+      return rootCertificate;
+    },
+    readPassword: async () => {
+      calls.push("password");
+      return postgresPassword;
     },
     runPsql: async (request) => {
       calls.push(request);
@@ -168,12 +174,100 @@ test("hosted runtime snapshot uses one verify-full admin read and normalizes bou
     },
   });
 
-  assert.equal(calls.length, 1);
-  assert.equal(calls[0].captureOutput, true);
-  assert.equal(calls[0].databaseUrl, hostedAcceptancePoolerUrl);
-  assert.equal(calls[0].environment.PGPASSWORD, postgresPassword);
-  assert.equal(calls[0].environment.HUAYI_HOSTED_DATABASE_CA_CERTIFICATE, rootCertificate);
+  assert.equal(calls.length, 3);
+  assert.deepEqual(calls.slice(0, 2), ["ca", "password"]);
+  assert.equal(calls[2].captureOutput, true);
+  assert.equal(calls[2].databaseUrl, hostedAcceptancePoolerUrl);
+  assert.equal(calls[2].environment.PGPASSWORD, postgresPassword);
+  assert.equal(calls[2].environment.HUAYI_HOSTED_DATABASE_CA_CERTIFICATE, rootCertificate);
+  assert.equal(calls[2].timeoutMilliseconds, 30_000);
   assert.equal(renderHostedRuntimeSnapshot(snapshot), validSnapshotOutput());
+});
+
+test("hosted runtime query always pins a finite timeout", async () => {
+  let observed;
+  await runHostedRuntimeSnapshotQuery(
+    { administratorPassword: postgresPassword, caCertificate: rootCertificate },
+    {
+      runPsql: async (request) => {
+        observed = request;
+        return { code: 0, stdout: validSnapshotOutput() };
+      },
+    },
+  );
+  assert.equal(observed.timeoutMilliseconds, 30_000);
+});
+
+test("hosted runtime rejects arguments and inherited passwords before external work", async () => {
+  for (const testCase of [
+    { arguments_: [], environment: {} },
+    { arguments_: [hostedRuntimeGatesSnapshotArgument, "extra"], environment: {} },
+    { arguments_: [hostedRuntimeGatesSnapshotArgument], environment: { PGPASSWORD: "secret" } },
+    {
+      arguments_: [hostedRuntimeGatesSnapshotArgument],
+      environment: { SUPABASE_DB_PASSWORD: "secret" },
+    },
+  ]) {
+    const calls = [];
+    const external = async () => {
+      calls.push("external");
+      throw new Error("private-detail");
+    };
+    let stderr = "";
+    let stdout = "";
+    const code = await runHostedRuntimeGatesCli({
+      ...testCase,
+      fetchCaCertificate: external,
+      readPassword: external,
+      runPsql: external,
+      writeError: (value) => {
+        stderr += value;
+      },
+      writeOutput: (value) => {
+        stdout += value;
+      },
+    });
+    assert.deepEqual(calls, []);
+    assert.deepEqual(
+      { code, stderr, stdout },
+      {
+        code: 1,
+        stderr: "Hosted runtime snapshot failed.\n",
+        stdout: "",
+      },
+    );
+  }
+});
+
+test("hosted runtime validates hidden password bytes and reflects no private failure", async () => {
+  for (const password of [
+    "short",
+    "a".repeat(513),
+    "valid-prefix\0suffix",
+    "valid-prefix\rsuffix",
+    "valid-prefix\nsuffix",
+  ]) {
+    let databaseCalls = 0;
+    let stderr = "";
+    const code = await runHostedRuntimeGatesCli({
+      arguments_: [hostedRuntimeGatesSnapshotArgument],
+      environment: {},
+      fetchCaCertificate: async () => rootCertificate,
+      readPassword: async () => password,
+      runPsql: async () => {
+        databaseCalls += 1;
+        throw new Error("private-database-detail");
+      },
+      writeError: (value) => {
+        stderr += value;
+      },
+      writeOutput: () => undefined,
+    });
+    assert.equal(code, 1);
+    assert.equal(databaseCalls, 0);
+    assert.equal(stderr, "Hosted runtime snapshot failed.\n");
+    assert.doesNotMatch(stderr, /private|valid-prefix/u);
+  }
 });
 
 test("hosted runtime snapshot rejects malformed or unexpected database output without reflection", async () => {
@@ -181,10 +275,9 @@ test("hosted runtime snapshot rejects malformed or unexpected database output wi
   const run = (stdout) =>
     readHostedRuntimeSnapshot({
       arguments_: [hostedRuntimeGatesSnapshotArgument],
-      environment: {
-        HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: rootCertificate,
-        PGPASSWORD: postgresPassword,
-      },
+      environment: {},
+      fetchCaCertificate: async () => rootCertificate,
+      readPassword: async () => postgresPassword,
       runPsql: async () => ({ code: 0, stdout }),
     });
 
@@ -210,10 +303,9 @@ test("hosted runtime snapshot rejects malformed or unexpected database output wi
   await assert.rejects(
     readHostedRuntimeSnapshot({
       arguments_: [hostedRuntimeGatesSnapshotArgument],
-      environment: {
-        HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: rootCertificate,
-        PGPASSWORD: postgresPassword,
-      },
+      environment: {},
+      fetchCaCertificate: async () => rootCertificate,
+      readPassword: async () => postgresPassword,
       runPsql: async () => ({ code: 1, stdout: secret }),
     }),
     { message: "Hosted runtime snapshot failed." },
@@ -223,10 +315,9 @@ test("hosted runtime snapshot rejects malformed or unexpected database output wi
   let stderr = "";
   const code = await runHostedRuntimeGatesCli({
     arguments_: [hostedRuntimeGatesSnapshotArgument],
-    environment: {
-      HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: rootCertificate,
-      PGPASSWORD: postgresPassword,
-    },
+    environment: {},
+    fetchCaCertificate: async () => rootCertificate,
+    readPassword: async () => postgresPassword,
     runPsql: async () => ({ code: 0, stdout: `${secret}\n` }),
     writeError: (value) => {
       stderr += value;
