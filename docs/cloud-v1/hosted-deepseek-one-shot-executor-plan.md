@@ -31,6 +31,8 @@ cleanup 时同步终结 operation。CLI 仍只有零 I/O `plan`。
 - [x] 新增 forward-only API/Supabase byte-identical migration；
 - [x] 创建 `huayi_private.hosted_acceptance_operations`、单向 state、lease generation/token hash、唯一
       non-terminal constraint 和 90 天 retention；
+- [x] 新增 0017 retention-scrub structure：terminal 满 24 小时后只允许一次同时清除 owner/HMAC/request，
+      其余 receipt/deployment/terminal/time evidence 不可改写；不新增 callable retention executor；
 - [ ] effective-fuse 在 cleanup 逾期时强制按 enabled 读取；不新增第六个 Cron job，不改变 exact 五项
       Cron 安装合同；
 - [ ] fixed functions 覆盖 claim、arm cleanup、bind request、record settlement、complete、claim cleanup、
@@ -46,13 +48,14 @@ cleanup 时同步终结 operation。CLI 仍只有零 I/O `plan`。
 当前检查点：首个 Phase B 离线切片已建立 operation/cleanup 私有表、operation 与 cleanup 的单向
 state guard、generation/token 同步轮换结构 guard、唯一 non-terminal operation、90 天 operation retention、
 强制 RLS 与 owner-only 表权限；API/Supabase migration 已由 byte identity 和 PGlite 并发/约束/ACL 回归
-覆盖。专用
-`NOLOGIN` executor role 目前没有表权限，也尚未获得任何函数执行权限。effective-fuse，以及 claim、arm
-cleanup、bind request、record settlement、complete、claim cleanup、status、retention 与跨进程
+覆盖。0017 又加入不可变 scrub marker 与一次性三字段原子清除 guard，并保留 receipt/deployment/terminal/
+safe-error/time evidence；提前、部分、非终态、receipt-free、重引入和重复清除均由 PGlite 拒绝。专用
+`NOLOGIN` executor role 仍无表权限或函数执行权限，0017 也没有 callable retention executor。effective-fuse，
+以及 claim、arm cleanup、bind request、record settlement、complete、claim cleanup、status、retention 与跨进程
 dispatch-before-bind reconciliation 的最小 `SECURITY DEFINER` mutation functions 和真正的 fence-token
 校验仍未实现，不能把本检查点当作 production adapter 或 Hosted executor 已就绪。
-Phase 91 的 15-file rebuild/backup evidence 仍只证明 0015；其 loader 现在必须拒绝当前 16-file repository。
-0016 在任何 Hosted dry-run/apply 前需要新的受控 backup/rebuild 批次，禁止改写或冒用 Phase 91 证据。
+Phase 91 的 15-file rebuild/backup evidence 仍只证明 0015；其 loader 必须拒绝当前 17-file repository。
+0016–0017 在任何 Hosted dry-run/apply 前需要新的受控 backup/rebuild 批次，禁止改写或冒用 Phase 91 证据。
 
 ## 阶段 C：正常 Web session adapter
 

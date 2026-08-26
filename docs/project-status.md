@@ -244,12 +244,15 @@ audit 仍只允许 `enabled`。这不代表 Store 产品或 Windows 支持被取
 > Phase B 首个离线切片又新增 byte-identical 0016 API/Supabase migration：两张 private forced-RLS authority
 > 表、唯一 non-terminal operation、单向状态与 generation/token 轮换结构 guard、不可改写证据、90 天
 > retention 字段，以及零 application/runtime/专用 executor 表直权均由 PGlite 覆盖。专用 `NOLOGIN` role
-> 当前没有任何函数执行权限；effective-fuse、真正的 fence-token 校验、所有私有 mutation functions、24 小时
-> opaque-ID 清除、worker 退出后的跨进程 dispatch-before-bind 恢复、normal Web session 与 deployment/
-> settlement adapters、production composition root 和真实 executor 仍未实现。0016 没有连接 Hosted、应用或
-> dry-run，也没有产生费用。既有 Phase 91 pre/rebuild/post 证据仍严格绑定 0015 和 15-file source set；其
-> loader 已改为拒绝当前 16-file repository。0016 的新 backup/rebuild/status/dry-run/apply 批次尚未设计或
-> 执行，不能复用或改写 Phase 91 证据。
+> 当前没有任何函数执行权限。随后 byte-identical 0017 只新增 retention-scrub structure：不可变 marker、
+> terminal 满 24 小时后一次性同时清除 owner/HMAC/request，以及 receipt/deployment/terminal/safe-error/time
+> evidence 保持不变；提前、未来时间、部分、receipt-free、非终态、重引入和重复 scrub 均由独立 PGlite
+> 回归拒绝。0017 没有 callable retention executor。effective-fuse、真正的 fence-token 校验、所有私有
+> mutation functions、自动 retention、worker 退出后的跨进程 dispatch-before-bind 恢复、normal Web session
+> 与 deployment/settlement adapters、production composition root 和真实 executor 仍未实现。0016–0017
+> 没有连接 Hosted、应用或 dry-run，也没有产生费用。既有 Phase 91 pre/rebuild/post 证据仍严格绑定 0015
+> 和 15-file source set；其 loader 必须拒绝当前 17-file repository。0016–0017 的新 backup/rebuild/status/
+> dry-run/apply 批次尚未设计或执行，不能复用或改写 Phase 91 证据。
 
 > **历史校准检查点（Phase 33）**：Phase 28 已补齐 production 语义重复建议和
 > 可计算 AA token 证据；2026-08-14 完成度源码审计发现的 SubmissionOutbox `api=null` 误清账号绑定

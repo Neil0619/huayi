@@ -1,7 +1,8 @@
 # Hosted Cloud Web DeepSeek one-shot executor 设计
 
-状态：Accepted design；Phase A 离线控制合同与 Phase B schema/ACL foundation 已实现；私有 authority
-mutation functions、production adapters、真实 executor composition root、部署与 Hosted 验收仍未实现。
+状态：Accepted design；Phase A 离线控制合同与 Phase B schema/ACL、retention-scrub structure 已实现；
+私有 authority mutation functions、retention executor、production adapters、真实 executor composition
+root、部署与 Hosted 验收仍未实现。
 
 日期：2026-08-27
 
@@ -118,11 +119,14 @@ composition root 注入 production 或 test ports；默认 `run()` 最容易使�
 
 表对 API roles 无 grant；专用 `NOLOGIN` executor role 只能执行最小 `SECURITY DEFINER` 函数。函数固定 `search_path`、校验调用者与 operation，并撤销 `PUBLIC` execute。
 
-2026-08-27 的 0016 forward migration 只完成 schema/ACL foundation：两张 private forced-RLS 表、唯一
+2026-08-27 的 0016 forward migration 完成首个 schema/ACL foundation：两张 private forced-RLS 表、唯一
 non-terminal operation、单向状态 guard、generation/token 同步轮换 guard、不可改写的 dispatch/request/
 receipt/terminal 证据和 90 天 retention 字段。专用 executor role 当前无表权限也无函数执行权限，因此尚无
-production 可调用 authority；真正的 fence-token 校验、24 小时 opaque-ID 清除和所有状态转换仍必须由后续
-最小 `SECURITY DEFINER` 函数实现。
+production 可调用 authority。0017 只新增不可变 `identity_scrubbed_at` 和结构 guard：terminal operation
+满 24 小时后，只允许一次同时清除 owner、idempotency-key HMAC 与 server request ID；receipt digest、部署
+证明、terminal/safe-error/time evidence 保持不变，提前、部分、重引入或第二次 scrub 均失败。0017 没有
+新增 callable retention function 或执行者；真正的 fence-token 校验、所有状态转换和自动 retention 仍必须
+由后续最小 `SECURITY DEFINER` functions 实现。
 
 ### lease、fencing 与顺序
 
@@ -160,7 +164,8 @@ control 收敛为 enabled。因此 runner 崩溃不会留下可继续放行的�
   落库、日志、argv 或继承环境；
 - Cookie、CSRF 和 fence token 只在内存中，绝不持久化；
 - 未完成 cleanup 永不自动清除；
-- owner、idempotency key、server request ID 和 analysis ID 在 cleanup 关闭 24 小时后清除；
+- 0017 只提供 terminal 满 24 小时后原子清除 owner、idempotency-key HMAC 与 server request ID 的结构
+  许可，并用不可变 marker 区分“已清除”与“从未绑定”；当前没有 retention executor，因而不会自动清除；
 - 部署证明、receipt digest、状态事件与安全错误码保留 90 天后删除；
 - 产品 `analysis_requests`、`analysis_records`、quota 和 `usage_ledger` 继续遵守既有产品保留策略，验收器不越权删除用户记录。
 

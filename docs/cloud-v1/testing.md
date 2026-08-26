@@ -1446,17 +1446,22 @@ session is invalid.`；400 `invalid_request` 表示 runtime 数据库路径未�
 - hosted 人工门按 migration dry-run/push、status、真实注册、complete、admin verify、application 越权复验
   和 `/admin` Cookie/CSRF journey 执行。没有这些证据只能标记 implemented，不能标记 hosted ready。
 
-### 4.22 Hosted DeepSeek one-shot authority schema foundation
+### 4.22 Hosted DeepSeek one-shot authority schema 与 retention-scrub foundation
 
-- 0016 API/Supabase forward migration 必须逐字节一致，并在当前 baseline→全部 forward chain 中可重放；
+- 0016、0017 API/Supabase forward migrations 必须分别逐字节一致，并在当前 baseline→全部 forward chain
+  中可重放；
 - PGlite 必须证明只允许一个 non-terminal operation，operation/cleanup 状态不可倒退，generation 不能脱离
   token/expiry 单独推进，dispatch/request/receipt/terminal 证据不可弱化或改写；
 - 两张 private 表必须 forced RLS，PUBLIC、Supabase API roles、business/context-setter/runtime 与专用
   `NOLOGIN` executor role 均无表直权，trigger functions 对这些角色也无 execute；
+- 0017 PGlite 必须证明 terminal 满 24 小时后只允许一次同时清除 owner、idempotency-key HMAC 与 server
+  request ID；提前、未来时间、部分、receipt-free、非终态、重引入、重复 scrub 和 retained evidence 修改
+  全部拒绝，并以不可变 marker 区分已清除与从未绑定；
 - 这些测试只证明 schema/ACL foundation。没有 mutation functions、fence-token 验证、effective-fuse、
-  24 小时清除、跨进程恢复和 Hosted dry-run 时，不得标记 authority 或真实 executor 完成。
-- Phase 91 artifact contract 必须保持 15 files/head 0015，并拒绝当前 16-file repository；0016 需要新的
-  backup/rebuild batch，不能通过扩写历史 contract 伪造连续性。
+  callable retention executor、跨进程恢复和 Hosted dry-run 时，不得标记 authority、自动清除或真实
+  executor 完成。
+- Phase 91 artifact contract 必须保持 15 files/head 0015，并拒绝当前 17-file repository；0016–0017 需要
+  新的 backup/rebuild batch，不能通过扩写历史 contract 伪造连续性。
 
 ## 5. 最终人工验收
 

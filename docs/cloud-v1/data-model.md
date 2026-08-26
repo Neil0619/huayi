@@ -90,8 +90,10 @@ approval/payload digest、精确 API/Web deployment pair、operation/cleanup 状
 dispatch/request/receipt 证据与 90 天 retention；partial unique 只允许一个 non-terminal operation。两表
 forced RLS 且对 API/business/runtime 和专用 `NOLOGIN` executor role 均无直权；trigger 只提供单向状态、
 同步轮换与证据不可改写的结构 guard。专用 role 目前没有函数执行权限，claim/bind/settlement/status/
-retention、fence-token 验证、effective-fuse 和 24 小时 opaque-ID 清除仍未实现，不能把表存在解释为可运行
-authority。
+retention、fence-token 验证与 effective-fuse 仍未实现。0017 新增不可变 `identity_scrubbed_at`：terminal 满
+24 小时后，结构 guard 只允许一次同时清除 owner、idempotency-key HMAC 与 server request ID，并保留
+receipt/deployment/terminal/safe-error/time evidence；提前、部分、receipt-free、重引入与重复 scrub 均拒绝。
+这只是结构许可，没有 callable retention executor，不能把 migration 存在解释为自动清除或可运行 authority。
 
 `GET /v1/account` 不新增聚合表。它在一个 owner repeatable-read snapshot 中只读取 active
 `user_profiles` 的规范 email 与五项偏好，并读取当前未撤销、未过期的 `extension_sessions` 公开字段；
