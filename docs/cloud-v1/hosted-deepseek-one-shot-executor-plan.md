@@ -71,11 +71,17 @@ Phase 91 的 15-file rebuild/backup evidence 仍只证明 0015；其 loader 必�
       合同；
 - [ ] Cookie jar 和凭据仅在内存中，finally normal logout 后主动销毁；不新增 purpose session、特殊 Cookie
       或 acceptance auth 字段；
-- [ ] 固定 sentence/payload，禁止 title、userContext 和自定义正文；
+- [x] 在 Phase A private request builder 固定 normal-Web sentence body，source 只含 `type: manual`，禁止
+      caller/adapter contract 覆盖 title、userContext、selection/source type 或正文；canonical JSON 与既有
+      SHA-256 payload digest 由同一深冻结对象回归绑定；
 - [ ] fake HTTP 回归覆盖 Cookie/CSRF 轮换、401/403、SSE 中断、started-only/status recovery、deadline、
       ignored abort、logout 失败和零透明重试。
 
 退出标准：没有 acceptance-only 分析 route/header/body，正常 Web 合同是唯一 Provider dispatch 路径。
+
+当前检查点：fixed normal-Web request body 已离线接入 Phase A 的唯一
+`invokeCloudWebAnalysis(request, control)` 调用，且没有扩大 `status/execute/recover`、CLI 或 public HTTP
+contract。这只固定请求 body 与 digest，不表示 session/Cookie/CSRF/SSE adapter 或 Hosted 调用已实现。
 
 ## 阶段 D：deployment 与 settlement adapters
 

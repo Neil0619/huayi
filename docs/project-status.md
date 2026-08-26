@@ -264,6 +264,11 @@ audit 仍只允许 `enabled`。这不代表 Store 产品或 Windows 支持被取
 > prompt，非交互 input/output 在读取前失败，既有邮箱规范化与密码长度合同保持不变，C0/C1 控制字符全部
 > 拒绝；返回对象 frozen/non-enumerable，固定错误与 JSON/inspect 回归不反射 credential。该实现没有读取
 > 真实 TTY/env/argv/file secret，也没有 Web session、HTTP、Hosted、production composition 或 public CLI。
+> Phase C 第二个离线切片已把唯一 normal-Web analysis body 接入 Phase A private application request：固定
+> sentence/manual/已审阅正文，body 与 nested source 深冻结且 key 精确，既有 payload digest 直接绑定其
+> canonical JSON。caller extra argument/approval 字段与 adapter override material 均不能改写实际 body；
+> `status/execute/recover`、CLI 和 public HTTP contract 未扩大。该切片仍没有 session/Cookie/CSRF/SSE
+> production adapter、网络、Hosted 或真实模型调用。
 
 > **历史校准检查点（Phase 33）**：Phase 28 已补齐 production 语义重复建议和
 > 可计算 AA token 证据；2026-08-14 完成度源码审计发现的 SubmissionOutbox `api=null` 误清账号绑定

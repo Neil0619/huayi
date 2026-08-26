@@ -1415,6 +1415,11 @@ session is invalid.`；400 `invalid_request` 表示 runtime 数据库路径未�
   macOS real-TTY 回归继续证明 hidden input 不回显并在成功/Ctrl-C 后恢复 echo/icanon/isig；这些证据不表示
   已读取真实 Operator secret、建立 Web session 或完成 Hosted 验收。另以 256 个三字节 Unicode 字符锁定
   Operator password prompt 的 768-byte 上限，同时保持其余既有管理 secret prompt 的 512-byte 上限；
+- Phase C fixed analysis request 回归必须直接验证唯一 normal-Web body 的 exact top-level/source keys、body 与
+  nested source 深冻结、`JSON.stringify(body)` 的 SHA-256 等于 authority 使用的既有 payload digest，并证明
+  caller extra argument/approval fields 与 adapter override material 都不能改变传给
+  `invokeCloudWebAnalysis` 的 body；digest 由 body 直接计算且仍须等于既有固定值，body 不扩大主 executor
+  模块导出面；fake invocation 不访问网络、Hosted 或模型；
 - CLI 与 production runtime 都必须使用显式 Supabase CA 与 `verify-full`；API 环境回归拒绝 require/无 TLS、
   非 6543 pooler、错误 project ref、缺失/越界 CA，本机 disabled 模式只接受固定 loopback database DSN；
 - hosted psql 子进程回归必须证明调用方不能覆盖 `PGSSLMODE=verify-full` 与临时 `PGSSLROOTCERT`；diagnostic

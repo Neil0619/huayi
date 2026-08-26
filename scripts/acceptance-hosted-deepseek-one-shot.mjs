@@ -1,5 +1,6 @@
 import { pathToFileURL } from "node:url";
 
+import { hostedDeepSeekPayloadDigest } from "./acceptance-hosted-deepseek-one-shot-analysis-request.mjs";
 import {
   approvalIsValid,
   cleanupLeaseIsValid,
@@ -37,8 +38,7 @@ export const hostedDeepSeekOneShotConfirmation =
 export const hostedDeepSeekWebOrigin = "https://app.acceptance.seen-said.cn";
 export const hostedDeepSeekWebPath = "/analysis";
 export const hostedDeepSeekAnalysisStreamPath = "/v1/analyses:stream";
-export const hostedDeepSeekPayloadDigest =
-  "7f260d4d76123414b9664dbd9851cba457fb38899ec4026fcc383c0792a07777";
+export { hostedDeepSeekPayloadDigest };
 
 const failureMessage = "Hosted Cloud Web DeepSeek one-shot failed closed.";
 const policy = Object.freeze({

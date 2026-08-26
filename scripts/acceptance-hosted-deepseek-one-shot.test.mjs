@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
+import { hostedDeepSeekAnalysisRequestBody } from "./acceptance-hosted-deepseek-one-shot-analysis-request.mjs";
 import {
   createHostedDeepSeekOneShotExecutor,
   hostedDeepSeekApplicationBudgetMilliseconds,
@@ -131,19 +132,29 @@ test("orchestrator claims once, binds the request, and closes cleanup after rest
   let invokedRequest;
   let invokeControl;
   let settlementControl;
-  const result = await orchestrate({
-    adapter: adapter({
-      calls,
-      invoke: async (request, control) => {
-        invokedRequest = request;
-        invokeControl = control;
-        return requestHandle();
-      },
-      reconcile: async (_handle, control) => {
-        settlementControl = control;
-        return settlement();
-      },
+  const applicationAdapter = adapter({
+    calls,
+    invoke: async (request, control) => {
+      invokedRequest = request;
+      invokeControl = control;
+      return requestHandle();
+    },
+    reconcile: async (_handle, control) => {
+      settlementControl = control;
+      return settlement();
+    },
+  });
+  applicationAdapter.analysisRequestBody = Object.freeze({
+    selectionKind: "passage",
+    source: Object.freeze({
+      title: "override",
+      type: "study-capture",
+      userContext: "override",
     }),
+    sourceText: "override",
+  });
+  const result = await orchestrate({
+    adapter: applicationAdapter,
     approval: approval(),
     lifecycle: operationLifecycle({ calls }),
     signal: externalSignal,
@@ -164,6 +175,7 @@ test("orchestrator claims once, binds the request, and closes cleanup after rest
     "complete-operation:accepted",
   ]);
   assert.deepEqual(invokedRequest, {
+    body: hostedDeepSeekAnalysisRequestBody,
     deployments: deployments(),
     idempotencyKey: identity().idempotencyKey,
     operationId: identity().operationId,
@@ -171,6 +183,7 @@ test("orchestrator claims once, binds the request, and closes cleanup after rest
     ownerId: identity().ownerId,
     path: hostedDeepSeekAnalysisStreamPath,
   });
+  assert.equal(invokedRequest.body, hostedDeepSeekAnalysisRequestBody);
   assert.deepEqual(Object.keys(invokeControl).sort(), [
     "applicationBudgetMilliseconds",
     "deadlineAt",

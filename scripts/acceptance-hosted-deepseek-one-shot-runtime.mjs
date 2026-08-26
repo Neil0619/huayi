@@ -6,6 +6,7 @@ import {
   hasExactKeys,
   isSafeNonnegativeInteger,
 } from "./acceptance-hosted-deepseek-one-shot-contract.mjs";
+import { hostedDeepSeekAnalysisRequestBody } from "./acceptance-hosted-deepseek-one-shot-analysis-request.mjs";
 import { postSnapshotProvesRestoration } from "./acceptance-hosted-deepseek-one-shot-evidence.mjs";
 
 const failureMessage = "Hosted Cloud Web DeepSeek one-shot failed closed.";
@@ -216,6 +217,7 @@ export function createCleanupCommand(operationLease, preSnapshot) {
 
 export function createApplicationRequest(identity, deployments, route) {
   return Object.freeze({
+    body: hostedDeepSeekAnalysisRequestBody,
     deployments,
     idempotencyKey: identity.idempotencyKey,
     operationId: identity.operationId,

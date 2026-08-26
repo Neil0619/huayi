@@ -525,6 +525,13 @@ inspect/snapshot 不携带 credential；所有 prompt/validation failure 统一�
 reader 只对固定 Operator password prompt 使用 768-byte 上限，以完整容纳既有 256-character Unicode
 密码合同；其余既有管理 secret prompt 继续保持 512-byte 上限。
 
+Phase C 的 fixed normal-Web request slice 只允许深冻结的 strict body：`selectionKind=sentence`、source
+只有 `type=manual`，正文固定为已审阅英文句子。private request builder 不接收 body 参数；caller approval
+或 adapter 上的 title、userContext、selection/source type、正文覆盖材料均不能进入实际 application
+request。既有 payload digest 直接由该对象的固定 key order canonical JSON 计算，并由固定 digest 回归
+防止漂移；body 与 nested source 均冻结，且正文不从主 executor 模块额外导出。该切片不新增 HTTP
+route/header、CLI、credential/session、网络或 Hosted 能力。
+
 以下不是产品决策，必须以真实环境验证后补入发布材料：Vercel/Supabase 新加坡实际部署与网络延迟、
 Google OAuth 在目标网络的可达性、Supabase 备份残留、DeepSeek 当前模型 ID/价格/JSON 与 usage
 契约、生产 Extension ID、Chrome 数据披露问卷和公开隐私政策 URL。
