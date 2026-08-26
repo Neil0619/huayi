@@ -21,6 +21,7 @@ const migrationUrls = [
   "0015-public-function-acl-hardening.sql",
   "0016-hosted-deepseek-acceptance-authority.sql",
   "0017-hosted-deepseek-acceptance-retention-scrub.sql",
+  "0018-hosted-deepseek-acceptance-status.sql",
 ].map((name) => new URL(`../migrations/${name}`, import.meta.url));
 
 describe("Cloud V1 current migration chain", () => {

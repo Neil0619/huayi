@@ -499,11 +499,15 @@ host/CSP，不能污染发布 Manifest。完整边界见 `user-acceptance-enviro
 Hosted DeepSeek one-shot 的 0016 authority foundation 创建两张 `huayi_private` forced-RLS 表和一个
 `NOLOGIN NOINHERIT NOBYPASSRLS` 专用 role。PUBLIC、Supabase API roles、business/context-setter/runtime 与
 该专用 role 均无表直权，trigger functions 也对这些角色撤销 execute；receipt 必须先绑定 server request，
-终态证据不可改写。该 role 在后续最小 `SECURITY DEFINER` functions 完成前没有任何执行权限，因此 0016
-本身不构成新的运行时、HTTP 或 Provider 能力。0017 只允许 terminal 满 24 小时后一次性同时清除 owner、
+终态证据不可改写。0016 本身不构成新的运行时、HTTP 或 Provider 能力。0017 只允许 terminal 满 24 小时
+后一次性同时清除 owner、
 idempotency-key HMAC 与 server request ID；不可变 marker、receipt/deployment/terminal/time evidence 和
 re-revoked trigger ACL 防止提前、部分、重引入或伪造清除。0017 不提供 callable retention executor，也不
-产生后台、HTTP 或 Provider 行为。
+产生后台、HTTP 或 Provider 行为。0018 只新增 fixed-search-path `SECURITY DEFINER STABLE` status；它只向
+专用 executor 返回一个安全 enum，multiple/unknown 固定失败，API/business/runtime/PUBLIC 均无 execute，
+专用 executor 也仍无表直权。claim 未实现：不能把 Production pepper 未定义地送入 SQL、用普通 digest
+冒充 idempotency-key HMAC，或落库 raw key；owner 虽可从唯一 completed first-operator singleton 派生，
+HMAC secret/context/version/rotation/recovery seam 仍须先冻结。
 
 以下不是产品决策，必须以真实环境验证后补入发布材料：Vercel/Supabase 新加坡实际部署与网络延迟、
 Google OAuth 在目标网络的可达性、Supabase 备份残留、DeepSeek 当前模型 ID/价格/JSON 与 usage

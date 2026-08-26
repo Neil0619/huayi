@@ -1,8 +1,8 @@
 # Hosted Cloud Web DeepSeek one-shot executor 设计
 
-状态：Accepted design；Phase A 离线控制合同与 Phase B schema/ACL、retention-scrub structure 已实现；
-私有 authority mutation functions、retention executor、production adapters、真实 executor composition
-root、部署与 Hosted 验收仍未实现。
+状态：Accepted design；Phase A 离线控制合同与 Phase B schema/ACL、retention-scrub structure、严格私有
+status 已实现；私有 authority mutation functions、retention executor、production adapters、真实 executor
+composition root、部署与 Hosted 验收仍未实现。
 
 日期：2026-08-27
 
@@ -125,8 +125,16 @@ receipt/terminal 证据和 90 天 retention 字段。专用 executor role 当前
 production 可调用 authority。0017 只新增不可变 `identity_scrubbed_at` 和结构 guard：terminal operation
 满 24 小时后，只允许一次同时清除 owner、idempotency-key HMAC 与 server request ID；receipt digest、部署
 证明、terminal/safe-error/time evidence 保持不变，提前、部分、重引入或第二次 scrub 均失败。0017 没有
-新增 callable retention function 或执行者；真正的 fence-token 校验、所有状态转换和自动 retention 仍必须
-由后续最小 `SECURITY DEFINER` functions 实现。
+新增 callable retention function 或执行者。0018 新增唯一 callable read：
+`huayi_private.read_hosted_acceptance_status()` 以单个 snapshot 只返回 `absent` 或当前安全状态；多个
+non-terminal、未知状态均用固定错误失败关闭，历史 terminal 只按最新 operation 投影为 `terminal`。该
+`SECURITY DEFINER STABLE` function 固定 `search_path`，只授予专用 executor，仍不给任何角色表直权。
+
+初始 claim 暂不实现：`first_operator_bootstrap` 的唯一 completed singleton 可安全派生 owner，但 accepted
+contract 尚未定义 idempotency-key HMAC 的 secret 来源、固定 context/version、轮换连续性，以及新进程如何
+取得 authority-owned raw key。现有 `HUAYI_SECRET_PEPPER` 是 API/部署 secret，不等于已批准的 SQL 输入
+seam；不得用无 key digest 冒充 HMAC，也不得把 raw key 持久化。真正的 fence-token 校验、所有状态转换和
+自动 retention 仍必须由后续最小 `SECURITY DEFINER` functions 实现。
 
 ### lease、fencing 与顺序
 
