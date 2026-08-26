@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { chmod, mkdtemp, readFile, rm, stat } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -178,6 +178,27 @@ test("state evidence is canonical, private, atomic, and never contains the Verce
       await chmod(statePath, 0o644);
       await assert.rejects(store.read(), /state verification failed/u);
     }
+  } finally {
+    await rm(repositoryRoot, { force: true, recursive: true });
+  }
+});
+
+test("state evidence writes beside an existing shared artifacts root", async () => {
+  const repositoryRoot = await mkdtemp(join(tmpdir(), "huayi-vercel-one-shot-existing-root-"));
+  try {
+    const sibling = join(repositoryRoot, "artifacts", "other-evidence");
+    await mkdir(sibling, { recursive: true });
+    const store = createVercelOneShotStateStore({
+      ...(process.platform === "win32"
+        ? { directorySync: async () => undefined, privateModeMatches: () => true }
+        : {}),
+      repositoryRoot,
+    });
+    await store.write({ contract: "shared-artifacts-root" });
+    const nextState = { contract: "existing-private-state-directory" };
+    await store.write(nextState);
+    assert.deepEqual(await store.read(), nextState);
+    assert.equal((await stat(sibling)).isDirectory(), true);
   } finally {
     await rm(repositoryRoot, { force: true, recursive: true });
   }

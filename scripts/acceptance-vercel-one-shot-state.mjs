@@ -42,6 +42,22 @@ async function assertPrivateFile(path, privateModeMatches) {
   }
 }
 
+async function ensureDirectory(path, { expectedMode, privateModeMatches, secure }) {
+  try {
+    await mkdir(path, { mode: expectedMode });
+  } catch (error) {
+    if (error?.code !== "EEXIST") throw error;
+  }
+  const stats = await exists(path);
+  if (
+    stats === undefined ||
+    !stats.isDirectory() ||
+    (secure && !privateModeMatches(stats, expectedMode))
+  ) {
+    fail();
+  }
+}
+
 async function syncDirectory(path) {
   const handle = await open(path, "r");
   try {
@@ -83,9 +99,16 @@ export function createVercelOneShotStateStore({
       try {
         const source = `${JSON.stringify(state)}\n`;
         if (Buffer.byteLength(source, "utf8") > maximumStateBytes) fail();
-        await mkdir(artifactsRoot, { mode: 0o755 });
-        await mkdir(directory, { mode: 0o700 });
-        await assertPrivateDirectory(directory, privateModeMatches);
+        await ensureDirectory(artifactsRoot, {
+          expectedMode: 0o755,
+          privateModeMatches,
+          secure: false,
+        });
+        await ensureDirectory(directory, {
+          expectedMode: 0o700,
+          privateModeMatches,
+          secure: true,
+        });
         const entries = await readdir(directory);
         if (entries.some((entry) => entry !== fileName)) fail();
         if (entries.includes(fileName)) await assertPrivateFile(statePath, privateModeMatches);
