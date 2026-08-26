@@ -2663,5 +2663,46 @@ typecheck、architecture、build、development blocker、Store release、product
   诊断精确返回 Token true、request reached、HTTP 200、JSON record、`otp_length_state|six` 与
   `contract_exact|t`；紧接着正式 `pnpm acceptance:hosted:auth:status` 返回
   `Hosted Auth email OTP length verification passed.`，据此关闭本次 OTP length 门；
-- **边界**：没有再次运行 apply，没有把失败 apply 写成成功 mutation，没有显示 PAT 或原始 Auth 配置，也
-  没有发送/重发邮件或创建邀请。诊断入口及测试仍是未提交本地改动，提交、推送和双平台 CI 需分别继续。
+- **交付与边界**：没有再次运行 apply，没有把失败 apply 写成成功 mutation，没有显示 PAT 或原始 Auth
+  配置，也没有发送/重发邮件或创建邀请。诊断修复已提交为 `2d03bd8` 并推送；该 exact SHA 的手动
+  Cross-platform quality run `32940041074` 中 macOS 与 Windows job 均成功。
+
+## 102. Phase 91 0015 Hosted 执行与不可变 evidence 关闭缺口（2026-08-26）
+
+- **写前状态与恢复点**：固定只读 status 返回 `pending-exact`。历史候选 `78bfd05` 随后完成 head-14 pre raw
+  backup；独立 networkless rebuild 应用完整 15-chain 与 fictional seed、通过 final contract，并在销毁 scratch
+  后写入 manifest；
+- **唯一 migration**：exact dry-run 只列出
+  `20260825010000_public_function_acl_hardening.sql` 且明确数据库未修改。用户另行批准后，受控 apply 只
+  应用上述 migration，并以 `applied-exact` postflight 验证完整 15-chain、现有/default function ACL 与 0014
+  Huayi grants；随后 head-15 post backup 捕获成功；
+- **证据回读**：`acceptance:hosted:phase91:backup:status` 现对 pre/rebuild/post 均返回 present=true、
+  valid=true、current=false。三份 manifest 均绑定 `78bfd05`；仓库后续推进是 currentness 变化的原因，不使
+  历史证据失效，也不授权覆盖、手改或重捕；
+- **关闭缺口**：未观察到 `acceptance:hosted:phase91:backup:complete` 的固定成功输出，仓库也没有独立
+  completion receipt。因此只能写成 migration 与三份恢复证据完成、Phase 91 closure evidence 待解释；不得
+  把 post capture 成功冒充 completion 成功。
+
+## 103. API→Web 严格串行 one-shot 完成（2026-08-26）
+
+- **preflight**：凭据与 Vercel/Git 只读契约通过，基线 state 随后按固定状态机推进；
+- **API 窗口**：API arm `da733e1` 只产生一条目标 Ready deployment，canonical identity 为
+  `dpl_AWUiTdYGgmVHZ127xqGAVhQb2zCd`；直接子 API disarm `b69e8d4` 通过独立 verify；
+- **Web 窗口**：API 关闭证据冻结后，Web arm `699fbe6` 只产生一条目标 Ready deployment，canonical
+  identity 为 `dpl_J6vtHUqfkstdGZ5w1yZJyVbhF6Yc`；直接子 Web disarm `4f8f96b` 通过独立 verify；
+- **终态**：clone-local state 的 phase 为 `complete`，两个项目均恢复
+  `deploymentEnabled=false`，没有 in-flight。该证据只关闭本轮部署窗口，不替代 Phase 91 completion
+  receipt、OTP/Auth SMTP、R3-C、Cron 或 DeepSeek 门。
+
+## 104. 同一普通邀请重发/恢复 401 观测（2026-08-26）
+
+- **页面状态**：现有私密 join 页面先显示邀请验证失败/过期类错误，并提供“重新发送六位验证码”与中断注册
+  恢复入口；浏览器中当前普通账号仍可使用，用户确认其登录邮箱与恢复表单所填邮箱相同；
+- **唯一重发动作**：在用户按动作明确授权后，只点击一次六位验证码重发。HTTP 返回 401，UI 显示失败，且
+  没有收到或发送新邮件；因此不能声称同邀请重发成功；
+- **恢复动作**：用户自行填写邮箱和密码后提交恢复；浏览器观测到两次 resume 请求均为 401，页面继续失败。
+  本证据不记录邮箱、密码、Cookie、invitation/verification token 或响应正文；
+- **结论与下一门**：当前账号可用不等于原 invitation claim/Auth identity 映射已证明，也不等于
+  scanner-safe 六位 OTP journey。下一步先运行固定脱敏只读 Hosted snapshot，确认 invitation、claim、Auth
+  identity 与账号状态；随后再收紧模板/redirect 自动门和错误引导，最后决定保留现有账号的原邀请恢复或
+  另行批准替代邀请。诊断前禁止继续盲重试、创建第二邀请或删除 Auth user。

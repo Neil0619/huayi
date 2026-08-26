@@ -24,7 +24,7 @@ diagnostic 22 个字段与正式 verifier 均已远端通过，Vercel runtime DS
 探针。Provider/Auth、邮件、Cron 和邀请仍未完成。Web 已在后续 Phase 70 得到一条 Ready deployment 并
 立即 disarm；发行邀请前还必须部署 Google fail-closed 与 password callback 校准候选。
 
-2026-08-24 当前校准：上述为 Phase 53--71 的历史推进记录。0013 已作为第 13 条 migration 实际应用；
+2026-08-24 历史校准：上述为 Phase 53--71 的历史推进记录。0013 已作为第 13 条 migration 实际应用；
 First Operator 已恢复、complete 并通过 post-completion verifier，最终 status 为 `completed`。安全响应头
 候选 `3c0af44f73f769da829c4218bf8fc69ef571f133` 经 Web arm
 `b80c7930b8d4a9a87f8c27e500316899adbbdc53` 部署为
@@ -66,6 +66,16 @@ whole-line 双通道候选尚未连接 Hosted 重跑。后续
 clean-HEAD/source-hash 重查和写后只读 canonical-chain/0014-contract postflight。该入口真实运行后只返回
 “未产生 verified completion”，因此当时既不能声明 migration 已应用，也不能再次运行；后续固定只读诊断已
 确认 0014 完整应用且禁止重跑。该入口不能绕过 pre evidence，也不能替代 post backup/completion。
+
+2026-08-26 当前执行校准：固定 0015 status 先返回 `pending-exact`；历史候选 `78bfd05` 已完成 Phase 91
+pre backup、15-chain isolated rebuild、exact dry-run、唯一 0015 apply/`applied-exact` postflight 与 post
+backup。三份 evidence 当前均 present/valid=true、current=false；HEAD 推进不授权覆盖或重捕。没有观察或
+持久化 Phase 91 completion verifier 的历史成功 receipt，因此不能把该批次写成完全关闭。随后
+`acceptance:hosted:deployment:one-shot:*` 已按 preflight、API arm/observe、API disarm/verify、Web
+arm/observe、Web disarm/verify 完整执行；安全 state 为 `complete`，两个项目最终均
+`deploymentEnabled=false`。Hosted Auth 正式 status 已确认 Email OTP length 为 6。当前同一普通邀请的
+一次 resend 与同邮箱密码 resume 均返回 401、没有发送邮件；先做脱敏只读状态诊断，再决定恢复路线，禁止
+盲重试、创建第二邀请或删除现有 Auth user。
 
 若 apply child 或 postflight 没有给出 verified completion，禁止直接重试，也不能用 safe diagnostic 的
 dry-run transcript 猜测远端是否已写入。此时唯一运维入口为：
@@ -111,9 +121,10 @@ Supabase API-role default grant。旧 Phase 81 post capture/completion 保持中
 
 ## 1. 当前事实与目标
 
-Hosted foundation 已在 Supabase project `kpadiulxkgckskcfydry` 完成，远端 migration head 为 14 条；
-仓库已完成第 15 条 ACL hardening 的 docs-first、本地实现与完整 macOS 门，但 clean candidate、双平台 CI、
-Phase 91 pre/rebuild/preflight 及 Hosted dry-run/apply/post 尚未完成。First Operator 为 `completed`。
+Hosted foundation 已在 Supabase project `kpadiulxkgckskcfydry` 完成，远端 migration head 为 15 条；
+第 15 条 ACL hardening 已完成 status/pre/rebuild/dry-run/apply/postflight/post，`2d03bd8` 的 macOS/Windows
+Cross-platform quality 也已通过。Phase 91 completion 的历史成功 receipt 仍缺失，不能因现有 evidence
+`current=false` 而重捕。First Operator 为 `completed`。
 不得再运行 pristine foundation bootstrap、
 0012/0013、首张
 BootstrapInvitation 或 First Operator complete；这些步骤只保留为历史证据。Supabase Auth Site URL、五条
@@ -129,11 +140,12 @@ Vercel Settings → Functions 当前回读 Fluid 为 Enabled、region 为 `sin1`
 `/index` Function 为 Node.js 24.x、`SIN1`、`≤120s`。90 秒应用 abort 与平台终止的 Observability 区分仍须
 绑定获批的真实 Cloud DeepSeek 应用路径请求，不能由静态配置或空 Observability 页面关闭。
 
-Phase 78 API runtime one-shot 已完成；当前目标是在双项目保持 disarmed 时完成剩余用户/外部门：
+最新 API→Web one-shot 已完成；当前目标是在双项目保持 disarmed 时完成剩余用户/外部门：
 
 ```text
-create one ordinary invitation after explicit recipient authorization
-  -> scanner-safe repeated GET + explicit OTP POST + Auth SMTP delivery
+reconcile immutable evidence + run sanitized invitation/Auth snapshot
+  -> recover the existing ordinary invitation/account without blind retries
+  -> scanner-safe repeated GET + explicit six-digit OTP POST + Auth SMTP delivery
   -> Web landing + password relogin
   -> real R3-C delivery + duplicate/alert observation
   -> install and verify five Supabase Cron jobs
@@ -662,9 +674,10 @@ archive 不包含 Storage object bytes、global roles 或 Hosted platform config
 
 ## 6.7 API→Web 严格串行 one-shot 可执行门
 
-Phase 91 ACL hardening 的 post backup/completion 之后，不再只靠人工观察控制 arm 窗口。旧 Phase 81
-completion 未完成时不得运行下列入口；Phase 91 evidence gate 与 state identity 已在本地同步到独立新
-batch，但真实 pre/rebuild/apply/post/completion 和双平台 CI 尚未完成。固定入口为：
+Phase 91 ACL hardening 的 post backup 之后，本轮不再只靠人工观察控制 arm 窗口。下列固定入口已按顺序真实
+执行；state 最终为 `complete`，API Ready deployment 为 `dpl_AWUiTdYGgmVHZ127xqGAVhQb2zCd`，Web Ready
+deployment 为 `dpl_J6vtHUqfkstdGZ5w1yZJyVbhF6Yc`，两个项目均恢复关闭。Phase 91 completion receipt 的缺失
+仍单独记录，不能用 deployment 成功替代：
 
 1. `pnpm acceptance:hosted:deployment:one-shot:plan`：零 environment/filesystem/Git/network；
 2. `pnpm acceptance:hosted:deployment:one-shot:preflight`：只读 Vercel/Git，要求 clean HEAD 与 upstream
@@ -785,8 +798,8 @@ deployment 回读。后续 API 已产生 10 条 Production 记录；application 
 纠正 Vercel DSN Rotate、exact-SHA deployment、立即 disarm 与 DB-backed runtime gate 均已完成。Phase 70
 已完成首条 Ready Web deployment、立即 disarm 与零账号公共 smoke；Phase 71/72 又完成 authentication
 hardening、中断恢复、First Operator complete、recent-auth UI 与安全响应头受控部署，当前 deployment 与
-计数见 6.3。普通邀请、scanner-safe OTP、真实 Auth SMTP/R3-C 投递、Cron 与 DeepSeek 应用路径仍未执行；
-当前下一步只能从用户亲自输入 `/admin` 密码开始。
+计数见 6.3。普通邀请已进入注册，但 scanner-safe 六位 OTP 尚未完成；一次 resend 与 resume 401 且未发信。
+真实 R3-C 投递、Cron 与 DeepSeek 应用路径仍未执行；当前下一步是脱敏只读 invitation/Auth snapshot。
 
 官方约束来源：
 

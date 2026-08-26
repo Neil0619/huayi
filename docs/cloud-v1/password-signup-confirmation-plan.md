@@ -58,7 +58,9 @@
 - [x] 普通邀请真实邮件暴露 Hosted `mailer_otp_length=8` 漂移；已只把该字段保存为 6，独立重新加载
       回读为 6，expiration 仍为 3600，且未修改 Site URL、Redirect URLs、模板、Custom SMTP、DNS、
       环境变量或密钥；新增 status/apply verifier，旧 8 位 OTP 不截取、不继续用于产品确认；
-- [ ] 为当前同一 invitation claim/bound Auth identity 提供受限重发，产生新的六位 OTP；完成前不得
+- [ ] 为当前同一 invitation claim/bound Auth identity 完成受限重发并产生新的六位 OTP。2026-08-26 在
+      现有 join 错误页明确只点击一次重发，服务端返回 401 且没有发送邮件；使用同一邮箱和用户自持密码
+      恢复时也返回 401。该次失败不是六位 OTP journey 通过证据；完成脱敏只读诊断前不得继续盲重试、
       创建第二张邀请、删除 Auth user 或把旧 8 位 OTP 截成六位；
 - [x] API-only arm `39094d0` 仅新增 Ready deployment `9jbyfnAvZwpa3Ci7YU6s6asmNZNG`，独立 disarm
       `88c9b09` 未在 API 项目新增 deployment；确认 API 已关闭后，Web arm `b18d804` 仅新增 Ready
@@ -128,11 +130,17 @@ SQL 绕过。
       均已完成，历史 pre 不得覆盖或重捕；
 - [x] 用户确认后只通过 `acceptance:hosted:migration:0014:apply` 实际应用唯一 0014；入口返回 postflight
       未 verified，后续 6543 只读诊断确认完整 14-chain/objects/Huayi grants，故 0014 禁止重跑；
-- [ ] Supabase 三个 Data API role 的 public-function ACL 漂移必须先由 Phase 91 forward-only 0015 收敛；
-      独立完成 pre-0015/15-chain rebuild/preflight、exact dry-run/apply/postflight 与 post/completion 后，再按
-      API→Web 严格串行 one-shot deploy/disarm；部署完成前不发送新邮件；
-- [ ] 系统打开最近的私密邀请，用户点击重发；只接受新邮件的六位 ASCII OTP，scanner GET 零副作用，
-      显式 POST 完成同一 invitation/user，并回读 invitation/user/identity 唯一性。
+- [x] Phase 91 固定 status 已返回 `pending-exact`；历史候选 `78bfd05` 已完成 pre-0015 backup、完整
+      15-chain isolated rebuild 与 scratch 销毁、exact dry-run、唯一 0015 apply/`applied-exact` postflight
+      及 head-15 post backup。三份 evidence 目前均 present/valid=true、current=false，不得重捕；
+- [ ] Phase 91 completion verifier 的历史成功输出或 receipt 尚未观察/持久化；在不覆盖历史 evidence 的
+      前提下补齐 closure 解释前，不把该批次写成完全关闭；
+- [x] API→Web 严格串行 one-shot 已按 preflight → API arm/observe → API disarm/verify → Web arm/observe →
+      Web disarm/verify 完成，最终 state 为 `complete` 且两个项目均恢复关闭；
+- [ ] 先用固定脱敏只读 snapshot 确认 invitation claim、Auth identity 与当前账号状态，再决定保留原账号的
+      恢复路线。随后只接受新邮件的六位 ASCII OTP，验证 scanner/repeated GET 零副作用、显式 POST 完成
+      同一 invitation/user，并回读 invitation/user/identity 唯一性。现有一次 resend 与两次 resume HTTP
+      请求均为 401，未发送邮件，也未关闭本项。
 
 退出标准：pre/post backup 与 migration+fictional-seed rebuild 证据完整；旧 8 位 OTP 不再用于产品确认，
 重发后旧 flow 失效；同一普通邀请和同一 Auth user 在不要求用户输入 opaque token、不创建第二邀请/用户

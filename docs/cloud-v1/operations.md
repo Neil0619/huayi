@@ -95,8 +95,9 @@ TLS：经 Supavisor 时它观察的是 pooler 到 PostgreSQL 的 backend 链路�
 
 当前仓库脚本的 canonical source set 已更新到完整 15 条 migration。首次 foundation bootstrap 的同一事务还
 验证 42 张 public 表、2 张 private 表、33 张 tenant forced RLS 表、三个 NOLOGIN/NOBYPASSRLS 迁移角色，
-以及 Auth/profile/admin/invitation 空状态。当前 Hosted 已是非空 acceptance 状态且尚处于 14-chain→0015 的
-Phase 91 修复窗口，不得重跑 pristine foundation verifier 或 bootstrap。Storage 只允许完全空，或允许重跑时
+以及 Auth/profile/admin/invitation 空状态。当前 Hosted 已是非空 acceptance 状态且第 15 条 ACL hardening 已
+应用；不得重跑 pristine foundation verifier 或 bootstrap。Phase 91 pre/rebuild/post 是历史候选上的不可变
+恢复证据，当前 HEAD 推进后 `current=false` 不构成重捕理由。Storage 只允许完全空，或允许重跑时
 已经存在唯一 private `account-exports-acceptance` bucket 且无对象；任何部分状态或额外资源失败。
 随后只建立
 `huayi_hosted_acceptance_login`、三条固定 acceptance 价格 UUID、显式启用的模型 kill switch 和 private
@@ -193,12 +194,13 @@ foundation verify 通过。随后 0013 已作为第 13 条 migration 实际应�
 Operator，最终 status 为 `completed`。不得重跑 migration 或 foundation bootstrap，也不得重新发行
 BootstrapInvitation；真实 `/admin` 密码重新认证与四区只读复核也已经完成。
 
-当前操作必须先遵循 Phase 91 安全修复链，不得沿用 Phase 53 的静态首次部署顺序，也不得从已经完成的收件人/
-普通邀请步骤重新开始。依赖链固定为：clean candidate + 双平台 CI → 0015 `pending-exact` → Phase 91
-pre/rebuild/preflight → 经分别批准的 0015 dry-run/apply/postflight → Phase 91 post/completion → 零网络/零写入的
-`pnpm acceptance:hosted:deployment --plan` 与 API→Web 串行 one-shot → 同一普通邀请的 scanner-safe OTP/Auth
-SMTP → R3-C 真实投递、重复与无正文告警 → 五项 Cron → 受审计 kill-switch 切换、一笔获批 Cloud DeepSeek
-应用路径请求和账本对账 → 恢复 kill switch。用户密码、Cookie、Token 与 secret 不进入自动化或发布证据。
+Phase 91 status/pre/rebuild/dry-run/apply/post 与 API→Web 串行 one-shot 已执行；不得沿用 Phase 53 的静态首次
+部署顺序，也不得从已经完成的收件人/普通邀请步骤重新开始。当前依赖链固定为：校准并冻结既有 evidence，
+补齐 Phase 91 completion receipt 的解释 → 固定脱敏只读 Hosted snapshot → 收紧模板/redirect 自动门与注册错误
+引导 → 在保留现有账号的前提下决定原邀请恢复或另行批准替代邀请 → scanner-safe 六位 OTP/Auth SMTP → R3-C
+真实投递、重复与无正文告警 → 五项 Cron → 受审计 kill-switch 切换、一笔获批 Cloud DeepSeek 应用路径请求
+和账本对账 → 恢复 kill switch → 目标网络、数据权利、双平台 Chrome、外部词库与自然使用/发布收口。用户密码、
+Cookie、Token 与 secret 不进入自动化或发布证据。
 
 Phase 81 已在唯一普通邀请的真实注册邮件中发现 Hosted Email OTP length 为 8，而产品契约固定 6。用户只
 授权把该字段保存为 6；独立重新加载确认 6、expiry 仍 3600，其他 Auth/SMTP/DNS/environment/secret 未改
@@ -264,14 +266,14 @@ local-only inspection，Phase 86 writer 也已落地。tracked runbook 不记录
 既有 pnpm 命令并在 TTY 输入管理员密码，内部 CA 获取失败发生在密码提示前；不准备 CA env。
 当时先运行 exact readiness；只有其通过且单独批准的 pre raw logical dump 与
 migrations+fictional-seed scratch rebuild 完成、且
-`pnpm acceptance:hosted:backup:preflight` 通过后，才允许经受控 apply 入口应用 0014；post capture/completion
-关闭后才能部署 token-only resend。真实 Phase 81 已在 0014 postflight ACL 漂移处中断；当前不得运行旧
-post capture/completion。先按 `public-function-acl-hardening.md` 建立 Phase 91 pre-0015/rebuild，应用唯一
-forward-only 0015 并完成 Phase 91 post/completion，之后才能部署 token-only resend。
+`pnpm acceptance:hosted:backup:preflight` 通过后，才允许经受控 apply 入口应用 0014。真实 Phase 81 已在
+0014 postflight ACL 漂移处中断，旧 post capture/completion 禁止重跑。后续 Phase 91 已建立独立
+pre-0015/rebuild，应用唯一 forward-only 0015、捕获 post，并完成 API→Web one-shot；目前只缺
+Phase 91 completion verifier 的历史成功 receipt。三份 manifest 均不可变且 current=false，不得重捕或手改。
 Phase 91 只使用 `acceptance:hosted:phase91:backup:*` 专属 plan/status/readiness/capture/rebuild/preflight/
 complete 入口；数据库只使用 `acceptance:hosted:migration:0015:status|dry-run|apply`。不得把 base
-`acceptance:hosted:backup:*` 的 Phase 81 evidence 或命令替换参数后复用。当前本地工具链与完整 macOS 门已
-通过，但 clean candidate、双平台 CI 与真实 pre/status/dry-run/apply/post 均未完成。
+`acceptance:hosted:backup:*` 的 Phase 81 evidence 或命令替换参数后复用。当前本地工具链、`2d03bd8`
+macOS/Windows CI 与真实 pre/status/dry-run/apply/post 均已完成；completion receipt 缺口按上一段处理。
 scratch 使用的 Supabase PostgreSQL 镜像会在 init scripts 完成前启动临时 postmaster；操作入口不得把早期
 `pg_isready` 当作初始化完成。受控 rebuild 使用 BusyBox/GNU 兼容的 `head -n 1`，只在 tmpfs
 `postmaster.pid` 首行精确为 `1`、随后 `pg_isready` 成功，且固定 SQL 回读 `auth.users`、

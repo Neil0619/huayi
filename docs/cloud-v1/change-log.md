@@ -3,6 +3,24 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-26：重要批次 currentness 与 completion receipt 分开判定
+
+- pre/rebuild/post manifest 绑定执行时的 clean candidate；后续正常推进 HEAD 会让只读 status 显示
+  `current=false`，但不会使严格 present/valid 的历史恢复点失效；
+- 不得为了重新得到 current=true 而覆盖、重捕、手改或搬回历史 evidence。completion verifier 的成功输出或
+  独立 receipt 缺失时，必须把它记录为单独 closure 缺口，不能用 post capture、migration postflight、部署或
+  当前工作树的验证结果替代；
+- 后续先审查不可变 manifest 是否足以形成等价历史 closure 证据；若合同需要新增 receipt，只能以
+  forward-only 的本地证据模型补充，不能改写既有恢复点。
+
+## 2026-08-26：邀请重发或恢复返回 401 时先做脱敏只读状态诊断
+
+- 同一普通邀请的 resend 或 interrupted-registration resume 返回 401，只证明该请求未获授权；不能据此判定
+  邀请已消费、账号损坏、密码错误或六位 OTP 已发送；
+- 现有账号与学习数据优先保留。下一动作必须是固定项目、固定字段、无身份/正文输出的 Hosted snapshot，先
+  确认 invitation claim、Auth identity 与账号状态，再决定原邀请恢复或另行批准替代邀请；
+- 诊断前禁止连续点击、创建第二邀请、删除 Auth user、重置用户数据或把旧 verification link/OTP 当成新流程。
+
 ## 2026-08-25：0014 已应用且 Supabase API-role ACL 漂移改由 forward-only 0015 收敛
 
 - 最终 6543 只读诊断已确认 14-chain、0014 column/check/functions、owner + context-setter direct grants、

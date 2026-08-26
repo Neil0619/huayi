@@ -2006,10 +2006,32 @@ secret。完整方案见 `public-function-acl-hardening.md`。
 6. **验证与退出**：focused + 完整 macOS 门、shared 双平台 CI、Hosted applied-exact 和 Phase 91 backup
    completion 全绿后，才恢复 API→Web one-shot 和同邀请六位 OTP journey。
 
-2026-08-26 本地进度：第 1–5 项所需的 migration、版本链、status/dry-run/apply、独立 evidence
-writer/verifier、capture、15-chain networkless rebuild、partial status 与 executor **本地实现**已完成 Fresh
-RED→GREEN；focused Node 控制面 181/181、PGlite migration 6/6、拆分后 rebuild 23/23、targeted
-ESLint/Prettier/diff 与完整 `verify:macos` 均通过。完整门计数为 Node scripts 523/523、非 API Vitest 340 files /
-2,386 passed + 12 skipped、API 141 files / 554 passed、Store 97 files / 481 passed、Playwright 111/111。
-第 6 项的 clean candidate、双平台 CI 和全部 Hosted 动作仍 pending；没有运行 capture、Hosted
-status/dry-run/apply、邮件、部署或模型。
+2026-08-26 执行进度：第 1–5 项所需实现与本地门已完成；固定 Hosted status 返回 `pending-exact` 后，历史
+候选 `78bfd05` 已完成 head-14 pre、15-chain rebuild、exact dry-run、唯一 0015 apply/`applied-exact`
+postflight 与 head-15 post。`2d03bd8` 的 macOS/Windows Cross-platform quality 均通过。pre/rebuild/post
+manifest 当前均 present/valid=true、current=false，禁止为 currentness 重捕。Phase 91 唯一剩余关闭缺口是未
+观察或持久化 backup completion 的历史成功 receipt；API→Web one-shot 已另行完整执行并恢复双关闭，不能
+替代该 receipt。
+
+### Phase 92：Hosted invitation/Auth 恢复与剩余发布链（2026-08-26）
+
+影响平台为 `shared + hosted-acceptance`。现有普通账号、学习数据、唯一普通邀请与 Auth user 均默认保留；
+未经单独批准不得创建替代邀请、删除 identity、发送邮件、安装 Cron、切换 kill switch 或调用付费模型。
+
+1. **证据冻结**：校准 Phase 91、one-shot、Hosted Auth 与 401 观测；审查不可变 manifest 能否形成等价历史
+   completion closure，不覆盖或重捕 evidence；
+2. **脱敏只读 snapshot**：使用固定项目/固定 SQL 与隐藏管理员密码，只输出 invitation/claim/Auth/account 的
+   allowlisted 状态与计数，不输出邮箱、UUID、Token、正文或 raw error；
+3. **模板与错误引导门**：自动回读并验证 Confirm sign up 模板只含一次 `{{ .Token }}`、一次
+   `{{ .RedirectTo }}` 且不含 `{{ .ConfirmationURL }}`，Redirect URLs 精确；为 resend/resume 401 增加不泄密、
+   可操作且不诱导盲重试的 Web 回归；
+4. **恢复决策**：若原 claim 可安全恢复，保持同一 invitation/Auth user；若已消费且无法恢复，先保留现有账号，
+   再取得对未使用邮箱和替代邀请的单独批准；
+5. **六位 OTP journey**：只发送一次新六位 ASCII OTP，证明 scanner/repeated GET 零副作用、显式 POST、Web
+   落点、密码重登以及 invitation/user/identity 唯一性；
+6. **R3-C 与 Cron**：依次关闭真实收件、重复投递、无正文告警，再安装/回读精确五项 Supabase Cron，观察
+   两个周期及 401/5xx/timeout 后恢复；
+7. **Cloud DeepSeek**：受审计关闭 kill switch，仅执行一笔另行批准的应用路径请求，对账模型/usage/价格/
+   UsageLedger/timeout 后立即恢复 kill switch；
+8. **发布收口**：完成目标网络、数据权利、macOS/Windows Chrome、外部词库、自然使用、恢复演练与最终发布
+   文档/候选门。任何未验证平台继续标为 `implemented; target-platform validation pending`。

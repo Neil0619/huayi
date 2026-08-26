@@ -1,9 +1,11 @@
 # Phase 91 Hosted public 函数 ACL 收敛方案
 
-状态：需求、技术路线、测试与验收契约已校准；0014 已确认完整应用，禁止重跑；0015 的 byte-identical
-migration、版本链、三态 status、dry-run/apply、独立 Phase 91 evidence/capture/rebuild/status/executor 已在本地
-实现并通过 focused 回归与完整 `verify:macos`。clean candidate、双平台 CI 与全部 Hosted
-pre/status/dry-run/apply/post 动作仍未完成；Hosted 0015 尚未 dry-run 或应用。受影响平台为 `shared`
+状态：0014 已确认完整应用并禁止重跑；0015 已在 Hosted 按唯一 migration 完成 exact dry-run、apply 与
+`applied-exact` postflight。Phase 91 的 pre、15-chain isolated rebuild 与 post evidence 均在历史候选
+`78bfd05` 上存在且有效；API/Web 严格串行 one-shot 也已完成并恢复双关闭。仓库随后推进到 `2d03bd8`，该
+exact SHA 的 macOS/Windows Cross-platform quality 均通过。当前唯一 Phase 91 关闭缺口是没有观察或持久化
+`acceptance:hosted:phase91:backup:complete` 的历史成功回执；现有 evidence 因 HEAD 推进而
+`current=false`，不得覆盖、重捕或把 capture 成功冒充 completion 成功。受影响平台为 `shared`
 （PostgreSQL migration、Hosted 控制面与文档），不改变 macOS / Windows OS integration。
 
 ## 1. 背景与已确认事实
@@ -21,6 +23,18 @@ transaction pooler `6543` 上得到以下确定事实：
 - Hosted Data API 目前保持关闭，所以当前没有证据表明这些函数已经从公网 Data API 可达；关闭状态只能降低
   即时暴露面，不能替代数据库最小权限；
 - 0014 是已应用状态，任何再次 apply、回滚或改写 0014 都会破坏 forward-only migration 账本。
+
+### 1.1 2026-08-26 Hosted 执行证据校准
+
+- 固定只读 status 在写入前返回 `pending-exact`；
+- pre backup、15-chain isolated rebuild 与 scratch 销毁均成功，随后 exact dry-run 只列出
+  `20260825010000_public_function_acl_hardening.sql` 且数据库未修改；
+- 受控 apply 只应用上述 migration，并以 `applied-exact` postflight 完成；post backup 随后成功捕获；
+- 三份 evidence 均绑定历史候选 `78bfd05`：pre head 为 `20260824010000`，rebuild/post head 为
+  `20260825010000`。当前只读 status 为 present/valid=true、current=false，这是后续候选推进的预期历史
+  状态，不授权重新捕获；
+- 未找到 completion verifier 的固定成功输出或独立 receipt。因此本页不把 Phase 91 写成完全关闭；后续只
+  允许先审查能否从不可变 manifest 得到等价历史 closure 证据，不能为了追求 current=true 改写恢复点。
 
 根因是 Supabase 项目给 `public` schema 新函数追加的 API role 默认 `EXECUTE` 与 PostgreSQL 函数默认
 `PUBLIC EXECUTE` 叠加。Supabase 的
