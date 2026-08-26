@@ -50,24 +50,16 @@ test("hosted deployment plan is complete, deterministic, and secret independent"
     "First Operator is completed and the post-completion verifier passed; do not rerun foundation bootstrap, migration 0012/0013, or BootstrapInvitation",
     "The only ordinary invitation has already submitted password registration; do not create or revoke another invitation or delete its bound Auth user",
     "Hosted Email OTP length was corrected only from 8 to 6 and independently reloaded; expiration remains 3600 and no new email has been sent",
-    "On 2026-08-25, the real 0014 dry-run child transcript passed the strict parser: the non-mutating header, remote connection marker, exactly 20260824010000_password_signup_otp_resend.sql, and finished marker were present; the database was not modified. The wrapper fixed success line was not part of the supplied evidence and is not claimed",
-    "Remote migration head remains 13; migration 0014 apply and the token-only resend route deployment remain pending backup preflight and explicit approval",
-    "Current API latest is Ready deployment 6QeRbqxgA88cFXggKekkr2axH9JM at source 4f1ce4a458fe138aeee6fb455b2dcc398a55555a",
-    "Current Web latest is Ready deployment V3NzjTYXtH7fb3WC2P6hpWR1twhb at source 9b0860a91940e4f78968b3882af91ef5bf923b8a",
+    "Migration 0014 is historical and must not be rerun; forward-only 0015 is applied-exact, and Phase 91 pre backup, 15-chain isolated rebuild, exact dry-run, unique apply, head-15 post backup, and historical completion verification are complete",
+    "Phase 91 serial Vercel one-shot preflight, API arm/observe/disarm/verify, and Web arm/observe/disarm/verify are complete; both projects remain disarmed",
     "Cloud workspace redesign candidate 524a55b35dadfd1e8bd1ef89b0abc2baadf69066 was deployed only through the reviewed arm and followed by disarm d6d901c",
-    "Phase 78 API-only arm 4f1ce4a458fe138aeee6fb455b2dcc398a55555a produced only deployment 6QeRbqxgA88cFXggKekkr2axH9JM; immediate disarm 020e21efa13bafb795d70a369e4512e76c7f7ab6 produced zero additional deployments",
-    "Phase 80 Web-only arm 9b0860a91940e4f78968b3882af91ef5bf923b8a produced only deployment V3NzjTYXtH7fb3WC2P6hpWR1twhb; immediate disarm 1d1f5675ad461e9692358fd055dcf89973c1c25b produced zero additional deployments",
-    "Default non-Canceled deployment counts are API 16 and Web 9; both projects remain disarmed",
+    "Historical Phase 78 API-only arm 4f1ce4a458fe138aeee6fb455b2dcc398a55555a produced only deployment 6QeRbqxgA88cFXggKekkr2axH9JM; immediate disarm 020e21efa13bafb795d70a369e4512e76c7f7ab6 produced zero additional deployments",
+    "Historical Phase 80 Web-only arm 9b0860a91940e4f78968b3882af91ef5bf923b8a produced only deployment V3NzjTYXtH7fb3WC2P6hpWR1twhb; immediate disarm 1d1f5675ad461e9692358fd055dcf89973c1c25b produced zero additional deployments",
     "Public read-only Web/API, exact Web security-header, historical invitation terminal-state UI, and redesigned workspace gates are complete",
     "/health proves TLS and process startup only; it does not execute SQL or prove the database DSN",
     "The real /admin password reauthentication and four-section read-only verification are complete",
     "Phase 77 runtime snapshot and Phase 79 controlled Cron tooling are not yet connected to Hosted",
-    "Before migration 0014 apply, run pnpm acceptance:hosted:backup:plan and require pnpm acceptance:hosted:backup:preflight to pass",
     "The complete platform lock classifies 11 active and 3 disabled CLI services and pins every active index plus linux/amd64 and linux/arm64 manifest; all 11 current macOS local image inspections passed through the fixed OrbStack socket, and the reviewed writer is pinned",
-    "Run pnpm acceptance:hosted:backup:executor:plan and the exact pre/rebuild/post readiness checks first; readiness performs no database, network, or artifact write",
-    "After separate approval, run only acceptance:hosted:backup:capture:pre and acceptance:hosted:backup:rebuild; each is exact-confirmation-gated and produces only the fixed ignored evidence",
-    "Preflight requires a secure pre-batch logical backup plus migrations-and-fictional-seed rebuild evidence for the clean current candidate",
-    "After preflight and explicit approval, run only pnpm acceptance:hosted:migration:0014:apply; it reruns the exact dry-run, rechecks preflight and migration identity before mutation, and verifies the canonical chain/0014 contract after mutation",
     "read back Hosted Email OTP length 6 -> user-triggered same-invitation resend -> latest six-digit OTP only",
     "scanner-safe repeated GET -> explicit OTP POST -> Auth SMTP delivery -> Web landing -> password relogin",
     "real R3-C delivery and duplicate/alert observation -> install and verify five Supabase Cron jobs",
@@ -86,9 +78,8 @@ test("hosted deployment plan is complete, deterministic, and secret independent"
     `https://api.acceptance.seen-said.cn/v1/account/sign-in-methods/google:callback\\?flow=${opaqueFlowGlob}`,
     "smtp.resend.com:465 | resend",
     "five Supabase Cron jobs",
-    "backup, target-network, natural-use, Store, and Windows final-batch gates remain pending",
-    "current macOS local-only inspection of all 11 locked images passed -> reviewed writer pinned -> exact readiness -> separately approved pre capture/rebuild",
-    "validated real dry-run retained as read-only evidence -> preflight -> pnpm acceptance:hosted:migration:0014:apply -> separately approved post capture -> acceptance:hosted:backup:complete -> executable Vercel one-shot preflight -> API arm/observe/disarm/verify -> Web arm/observe/disarm/verify",
+    "target-network, natural-use, Store, and Windows final-batch gates remain pending",
+    "Do not rerun migration 0014 or 0015, recapture Phase 91 backups for currentness, or replay the completed Vercel one-shot sequence",
   ]) {
     assert.match(plan, new RegExp(expected.replaceAll(/[.*+?^${}()|[\]\\]/gu, "\\$&"), "u"));
   }
@@ -104,6 +95,15 @@ test("hosted deployment plan is complete, deterministic, and secret independent"
     /password registration -> SMTP confirmation -> callback -> complete Operator/u,
   );
   assert.doesNotMatch(plan, /No Auth user, invitation, SMTP, DeepSeek/u);
+  assert.doesNotMatch(plan, /Remote migration head remains 13/u);
+  assert.doesNotMatch(plan, /Current API latest is Ready deployment/u);
+  assert.doesNotMatch(plan, /Current Web latest is Ready deployment/u);
+  assert.doesNotMatch(plan, /Default non-Canceled deployment counts/u);
+  assert.doesNotMatch(plan, /real 0014 dry-run child transcript/u);
+  assert.doesNotMatch(plan, /acceptance:hosted:migration:0014:apply/u);
+  assert.doesNotMatch(plan, /acceptance:hosted:backup:(?:plan|preflight|executor)/u);
+  assert.doesNotMatch(plan, /separately approved pre capture\/rebuild/u);
+  assert.doesNotMatch(plan, /The backup, target-network/u);
   assert.doesNotMatch(
     plan,
     /Current API latest is Ready deployment 9jbyfnAvZwpa3Ci7YU6s6asmNZNG at source 39094d0/u,
@@ -121,8 +121,8 @@ test("hosted deployment plan is complete, deterministic, and secret independent"
   assert.doesNotMatch(plan, /https:\/\/api\.acceptance\.seen-said\.cn\/\*\*/u);
   assert.doesNotMatch(plan, /flow=\*/u);
   assert.ok(
-    plan.indexOf("acceptance:hosted:backup:preflight") <
-      plan.indexOf("pnpm acceptance:hosted:migration:0014:apply"),
+    plan.indexOf("latest six-digit OTP only") <
+      plan.indexOf("scanner-safe repeated GET -> explicit OTP POST"),
   );
 });
 
