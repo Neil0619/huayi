@@ -2,9 +2,11 @@
 
 状态：Accepted design；Phase A 离线控制合同、Phase B 私有 Postgres authority、Phase C 私有 session 与
 normal Web production-shaped HTTP transport、Phase D fenced reconciliation/server-frozen settlement 与
-只读 deployment attestation adapters，以及 Phase E production composition root/CLI 已实现；Hosted
-migration/deployment、受控 secrets 注入和付费验收仍未执行。Phase F 本机完整离线门已通过；当前候选仍待
-commit/push 与 exact-SHA 双平台 CI。
+只读 deployment attestation adapters，以及 Phase E production composition root/CLI 已实现。Phase E/F
+提交 `d9ffb4a03c984d2f94c37031660a146068f31a3a` 的 exact-SHA Cross-platform quality run
+`33076976013` 已由 macOS/Windows 两 job 通过。后续独立 0016–0021 recovery/migration 离线控制面见
+`hosted-deepseek-migration-batch.md`；当前该控制面尚未 commit/push，真实 Hosted migration/deployment、
+受控 secrets 注入和付费验收仍未执行。
 
 日期：2026-08-27
 

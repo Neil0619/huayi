@@ -16,7 +16,8 @@ Phase 82–86 交付失败关闭的计划、执行器就绪度审计、完整 pl
 writer 与证据验证模块：
 
 - 固定 Supabase project `kpadiulxkgckskcfydry` 和当时的 Phase 81 批次 `phase-81-0014`；当前 Phase 91 使用
-  独立 `phase-91-0015-public-function-acl-hardening`，两者不能互换；
+  独立 `phase-91-0015-public-function-acl-hardening`；当前 Hosted DeepSeek 0016–0021 又使用第三个
+  `hosted-deepseek-0016-0021` batch。三者不能互换；
 - `pnpm acceptance:hosted:backup:plan` 只渲染固定计划，零文件、Git、网络和写入；
 - `pnpm acceptance:hosted:backup:status` 只读 partial batch，并按 pre/rebuild/post 固定输出
   present/valid/current 九个布尔 verdict；不输出路径、时间、commit/hash、identity、dump 元数据、错误或秘密；
@@ -55,6 +56,12 @@ inspection。Phase 86 已将实际执行 reference 去掉 tag、只保留
 与 writer 离线 GREEN 不证明数据库已经备份或恢复；`c61fa0b` 的历史正式 rebuild 只证明该候选当时可从
 repository migrations + fictional seed 重建。任何时点的 evidence currentness 均须由 `backup:status` 回读，
 其他执行 host 也必须独立检查。
+
+2026-08-27 的新批次细节以 `hosted-deepseek-migration-batch.md` 为权威：Phase 91 三份 evidence 继续保持
+历史不可变；新 pre head 为 `20260825010000`，rebuild/post head 为 `20260827060000`，source set 精确为
+21 files。离线 writer/rebuild/capture/evidence/status 复用本文件的 `0700/0600`、official CA、verify-full、
+digest-only、networkless scratch、不可覆盖与失败关闭规则，但拥有独立 batch/container/runner/confirmation
+identity。当前只实现控制面，没有运行新 readiness、capture、rebuild、status、dry-run、apply 或 completion。
 
 ## 2. 固定证据目录与权限
 

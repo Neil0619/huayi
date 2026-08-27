@@ -202,15 +202,14 @@ evidence 独立验证并冻结。当前依赖链固定为：固定脱敏只读 H
 和账本对账 → 恢复 kill switch → 目标网络、数据权利、双平台 Chrome、外部词库与自然使用/发布收口。用户密码、
 Cookie、Token 与 secret 不进入自动化或发布证据。
 
-Hosted DeepSeek Phase D 已在提交 `0d49654` 收口 21 条 repository migration source：0021 新增 fenced
-reconciliation、server-frozen settlement receipt 与 bounded retention scrub；该提交的 exact-SHA
-Cross-platform quality run `33072040532` 已由 macOS/Windows 两 job 通过。Phase 91 的 15-file backup/rebuild
-仍是 0015 的历史不可变证据，绝不能授权或证明 0016–0021。Phase E composition root/CLI 已在当前未提交
-候选中离线实现且 fresh `pnpm verify:macos` 已通过，但真实 private-port loader 仍不存在。运行任何新的
-Hosted status、backup、rebuild、dry-run、apply、Vercel attestation、Web 登录或付费请求前，仍必须先提交
-推送 Phase E/F、完成其 exact-SHA 双平台门，再为 21-file batch 单独设计并批准恢复证据和 migration
-流程。当前不得手工调用 0021 functions、拼接 SQL receipt，或把离线 PGlite/fake HTTP 结果记作 Hosted
-验收。
+Hosted DeepSeek Phase E/F 已在提交 `d9ffb4a03c984d2f94c37031660a146068f31a3a` 收口；exact-SHA
+Cross-platform quality run `33076976013` 的 macOS/Windows 两 job 均成功。Phase 91 的 15-file
+backup/rebuild 仍是 0015 的历史不可变证据，绝不能授权或证明 0016–0021。后续独立
+`hosted-deepseek-0016-0021` 离线恢复/migration 控制面按 `hosted-deepseek-migration-batch.md` 固定 pre head
+0015、21-chain rebuild/post、三态 status、六文件 dry-run 与 guarded apply；当前这部分仍是未提交工作树，
+没有新 exact SHA/CI，也没有运行真实 readiness、backup、rebuild、status、dry-run 或 apply。真实
+private-port loader 仍不存在。当前不得手工调用 0021 functions、拼接 SQL receipt，或把离线 PGlite/fake
+HTTP 结果记作 Hosted 验收；新控制面提交推送并完成 exact-SHA 双平台门后，所有真实动作仍须逐项明确批准。
 
 Phase 81 已在唯一普通邀请的真实注册邮件中发现 Hosted Email OTP length 为 8，而产品契约固定 6。用户只
 授权把该字段保存为 6；独立重新加载确认 6、expiry 仍 3600，其他 Auth/SMTP/DNS/environment/secret 未改

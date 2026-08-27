@@ -3,6 +3,17 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-27：Hosted DeepSeek 0016–0021 使用独立恢复与 migration batch
+
+- Phase 91 的 15-file/head 0015 evidence 保持历史不可变，不扩写、不覆盖，也不授权当前 21-file source；
+- 0016–0021 使用独立 `hosted-deepseek-0016-0021` batch，pre 固定 head 0015，networkless rebuild 与 post
+  固定 head 0021；status 只接受 exact 15-chain pending、exact 21-chain applied 或 uncertain；
+- status 的 applied 状态还必须固定 authority role/owner/trigger/SECURITY DEFINER/executor allowlist 与无额外
+  ACL；standalone dry-run 在 secret 前先过 current pre/rebuild evidence 与 pinned CLI。apply 在 mutation 前
+  必须依次通过 current evidence/source、六文件 exact dry-run、第二次本地/CLI gate 与 read-only pending
+  status，写后只接受 applied postflight。本决定只建立离线控制面，不授权 Hosted 连接、备份、migration 或
+  Phase G secret loader；
+
 ## 2026-08-27：Hosted DeepSeek receipt 由数据库冻结并与 live deployment 双向证明
 
 - dispatch-before-bind 的恢复把 exact-one reconciliation 与 authority bind 合并为一个 fenced SQL

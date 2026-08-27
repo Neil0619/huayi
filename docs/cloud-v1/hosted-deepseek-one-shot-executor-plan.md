@@ -155,7 +155,8 @@ Hosted migration、部署或付费请求。直接 package non-plan 入口在 Pha
 
 - [x] focused RED→GREEN、`pnpm test:scripts`、API PGlite、cloud-contracts、format、lint、typecheck、
       architecture、build 和 `pnpm verify:macos` 全绿；
-- [ ] shared 候选 push 后触发 exact-SHA Cross-platform quality，macOS/Windows 两 job 均 success；
+- [x] shared 候选 `d9ffb4a03c984d2f94c37031660a146068f31a3a` 的 exact-SHA
+      Cross-platform quality run `33076976013` 中 macOS/Windows 两 job 均 success；
 - [x] 更新 API/data/security/testing/operations/release checklist/evidence，明确“implemented”不等于真实
       paid acceptance；
 - [x] 审查无 secret、远程代码、动态 endpoint、测试后门和 Classic 行为变化。
@@ -165,14 +166,17 @@ outcome 被误报成功；GREEN 为 Phase E 8/8、完整 one-shot 108/108、scri
 `pnpm verify:macos` 原样通过：主 Vitest 341 files / 2,388 passed / 12 skipped、API/PGlite 151 files / 603、
 Store coverage 97 files / 481、Playwright 111/111，并包含 instructions、format、lint、typecheck、
 architecture、workspace build、development blocker、Store release、production dependency audit 与 diff check。
-当前未提交候选还没有 exact SHA，因此第二项仍保持未勾选；旧 Phase D CI 不能替代本候选。
+Phase E/F 已冻结在上述 exact SHA；旧 Phase D CI 不作为替代证据。后续 21-file recovery/migration 控制面
+是独立未提交阶段，其 CI 状态不得倒推自 Phase E/F。
 
 退出标准：`implemented; target-platform validation pending` 只能在对应 Windows 证据缺失时使用，不能把
 fake/PGlite/Mac 冒充真实 Hosted 请求。
 
 ## 阶段 G：真实 Hosted one-shot（独立批准）
 
-- [ ] 前置 exact-SHA CI、同一邀请/Auth、R3-C、Cron、Operator password recent-auth 与小额预算均关闭；
+- [ ] `hosted-deepseek-migration-batch.md` 的新 pre/rebuild/preflight、0016–0021 exact dry-run/apply、
+      applied postflight、post/completion 与该控制面 exact-SHA CI 均关闭；
+- [ ] 前置同一邀请/Auth、R3-C、Cron、Operator password recent-auth 与小额预算均关闭；
 - [ ] read-only status 为 ready，API/Web 精确 READY 且双 deployment policy 继续 disarmed；
 - [ ] 用户明确批准一次小额 peak reservation 后只运行一次 `execute`；
 - [ ] 验证 model、usage、实际 price、reservation、UsageLedger、90 秒分类和实际账单；

@@ -2811,3 +2811,37 @@ typecheck、architecture、build、development blocker、Store release、product
   non-plan package 入口在该 loader 经独立批准前保持零外部 I/O/零 mutation 失败关闭。当前候选仍未
   commit/push，必须先获得 exact SHA 并完成该 SHA 的 macOS/Windows CI，随后再单独设计和批准 21-file
   migration batch；这些门完成前不得开始真实 one-shot。
+
+## 110. Hosted DeepSeek 0016–0021 recovery/migration 离线控制面（2026-08-27）
+
+- **前序冻结点**：Phase E/F 已提交推送为
+  `d9ffb4a03c984d2f94c37031660a146068f31a3a`；exact-SHA Cross-platform quality run
+  `33076976013` 的 macOS/Windows 两 job 均 success。该证据只关闭 Phase E/F，不替代本节未提交控制面
+  的新 CI，也不构成 Hosted migration 或 Phase G 授权；
+- **排序结论**：Phase 91 的 15-file/head 0015 pre/rebuild/post evidence 保持历史不可变。0016–0021 必须
+  先建立独立 `hosted-deepseek-0016-0021` batch；pre 固定 head 0015，isolated rebuild/post 固定完整
+  21-chain/head 0021。Phase G private loader 不能先于这一恢复/migration 批次；
+- **Fresh RED → GREEN**：先新增两个行为测试入口，原工作树分别因缺少
+  `acceptance-hosted-deepseek-migration-backup.mjs` 与 `...-apply.mjs` 以 `ERR_MODULE_NOT_FOUND` 失败（2/2
+  failed）。最小实现新增独立 contract、writer/capture/rebuild/evidence/status/executor，及 migration
+  status/dry-run/apply；进程级 RED 另证明 child 在 timeout 后不发 `close` 时会悬而不决，修复后新
+  batch/control/status/process focused 19/19 通过；
+- **失败关闭证据**：PGlite 真实执行 15-chain 返回 `pending_exact`，继续完整执行 0016–0021 后返回
+  `applied_exact`；authority role flags/membership、schema/table/function owner、forced RLS、validated receipt
+  constraint、private function SECURITY DEFINER/search path/ACL、executor function allowlist、schema CREATE、
+  guard trigger 或 authority table ACL 任一漂移都返回 `uncertain`。dry-run 只接受按顺序列出六个 fixed
+  migration，并在读取密码或启动外部进程前要求 current pre/rebuild evidence 与 pinned Supabase CLI；apply
+  固定为 preflight → CA/TTY → exact dry-run → 第二次 preflight → read-only pending → mutation → read-only
+  applied postflight。unpushed、dirty、stale/Phase 91 evidence、inherited password、非 pending status 或
+  source/hash 漂移都在写入前失败；
+- **回归扩面**：important-batch、Phase 91、0015、foundation、Cron 与新控制面合并 Node 回归 179/179，
+  完整 `test:scripts` 686/686、API 151 files / 603 tests 全绿；随后 `pnpm verify:macos` 原样退出 0，覆盖主
+  Vitest 341 files / 2,388 passed / 12 skipped、Store coverage 97 files / 481 tests、Playwright 111/111，及
+  instructions/format/lint/typecheck/architecture/build、development blocker、Store release、production audit
+  与 diff check。证明加入第三个 artifact contract 没有扩写 Phase 91、改变 0015 命令面或破坏完整
+  21-file database chain；
+- **未执行与剩余门**：本阶段没有读取真实 secret、连接 Hosted、启动真实 readiness/capture/rebuild、运行
+  status/dry-run/apply、写 migration、部署、登录、切换 kill switch、调用 DeepSeek 或产生费用；也没有
+  commit/push。下一步先 commit/push 并完成该 exact SHA 双平台 CI；之后所有真实命令仍
+  按 `hosted-deepseek-migration-batch.md` 逐项明确批准。batch completion 与其他 Auth/R3-C/Cron/预算门关闭前，
+  Phase G 保持未实现。

@@ -63,7 +63,44 @@ export const hostedPhase91ArtifactContract = Object.freeze({
   scratchLabel: "phase-91-0015-acl-rebuild",
 });
 
-const artifactContracts = new Set([hostedPhase81ArtifactContract, hostedPhase91ArtifactContract]);
+const hostedDeepseekMigrationFiles = Object.freeze([
+  ...hostedPhase91ArtifactContract.migrationFiles,
+  "20260827010000_hosted_deepseek_acceptance_authority.sql",
+  "20260827020000_hosted_deepseek_acceptance_retention_scrub.sql",
+  "20260827030000_hosted_deepseek_acceptance_status.sql",
+  "20260827040000_hosted_deepseek_acceptance_effective_fuse.sql",
+  "20260827050000_hosted_deepseek_acceptance_authority_mutations.sql",
+  "20260827060000_hosted_deepseek_acceptance_evidence.sql",
+]);
+const hostedDeepseekMigrationVersions = Object.freeze([
+  ...hostedPhase91ArtifactContract.migrationVersions,
+  "20260827010000",
+  "20260827020000",
+  "20260827030000",
+  "20260827040000",
+  "20260827050000",
+  "20260827060000",
+]);
+
+export const hostedDeepseekMigrationArtifactContract = Object.freeze({
+  artifactDirectory: "artifacts/hosted-important-batch-backups/hosted-deepseek-0016-0021",
+  batchId: "hosted-deepseek-0016-0021",
+  captureIdentityPrefix: "deepseek-0016-0021",
+  migrationFiles: hostedDeepseekMigrationFiles,
+  migrationVersions: hostedDeepseekMigrationVersions,
+  platformBaselineIdentityPrefix: "deepseek-0016-0021",
+  postMigrationHead: "20260827060000",
+  preMigrationHead: "20260825010000",
+  rebuildMigrationHead: "20260827060000",
+  scratchContainer: "huayi-deepseek-0016-0021-rebuild",
+  scratchLabel: "deepseek-0016-0021-rebuild",
+});
+
+const artifactContracts = new Set([
+  hostedPhase81ArtifactContract,
+  hostedPhase91ArtifactContract,
+  hostedDeepseekMigrationArtifactContract,
+]);
 
 export function assertHostedImportantBatchArtifactContract(contract) {
   if (!artifactContracts.has(contract)) {

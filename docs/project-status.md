@@ -2035,5 +2035,26 @@ passed; first Operator empty`。候选已提交推送，0012 已实际 push；�
 - fresh `pnpm verify:macos` 原样通过：主 Vitest 341 files / 2,388 passed / 12 skipped、API/PGlite 151 files /
   603、Store coverage 97 files / 481、Playwright 111/111，以及 instructions、format、lint、typecheck、
   architecture、workspace build、development blocker、Store release、production dependency audit 与 diff check；
-- 当前仍未 commit/push，因而没有本候选 exact SHA 或双平台 CI。真实 one-shot 仍须先关闭该门，再进入
-  21-file Hosted migration batch 与 Phase G 独立批准。
+- Phase E/F 已提交推送为 `d9ffb4a03c984d2f94c37031660a146068f31a3a`；其 exact-SHA
+  Cross-platform quality run `33076976013` 的 macOS/Windows 两 job 均 success。该证据不外推到后续
+  21-file Hosted migration batch 或 Phase G。
+
+## Cloud V1 Hosted DeepSeek 0016–0021 migration batch 离线状态（2026-08-27）
+
+- 新增独立 `hosted-deepseek-0016-0021` recovery/migration contract：pre 固定 head 0015，networkless rebuild
+  与 post 固定完整 21-chain/head 0021；Phase 91 继续精确保持 15-file 历史身份，不能复用或覆盖；
+- 新增零 I/O backup/executor plan、clean pushed readiness、clone-local evidence writer/verifier/status、独立
+  capture/rebuild 入口；pre/rebuild/post 必须同一 current candidate，scratch 销毁后才写 manifest；
+- 新增 Hosted migration pending/applied/uncertain 三态、只接受按顺序列出六个 migration 的 dry-run parser，
+  以及在 mutation 前夹住两次 local gate、exact dry-run 和 read-only pending status 的 apply；写后只接受
+  read-only applied postflight；
+- Fresh RED 为两个新测试入口均 `ERR_MODULE_NOT_FOUND`；进程级 RED 另证明 child 在 timeout 后不发
+  `close` 时会悬而不决。GREEN 为新 batch/control/status/process 19/19，Hosted
+  batch/Phase 91/0015/foundation/Cron 扩面 179/179，完整 `test:scripts` 686/686，API 151 files / 603 tests；
+  `pnpm verify:macos` 原样退出 0，覆盖主 Vitest 341 files / 2,388 passed / 12 skipped、Store coverage
+  97 files / 481 tests、Playwright 111/111，以及 instructions/format/lint/typecheck/architecture/build、development
+  blocker、Store release、production audit 与 diff check。全部使用 fake process/filesystem 与 PGlite；没有读取
+  真实 secret、连接 Hosted、运行 readiness/capture/rebuild/status/dry-run/apply、部署、登录或调用模型；
+- 本阶段当前仍未 commit/push，没有新 exact SHA/双平台 CI。真实动作必须按
+  `hosted-deepseek-migration-batch.md` 逐项取得批准；batch 完成和其他 Auth/R3-C/Cron/预算门关闭前，不得
+  装配或运行 Phase G private loader。

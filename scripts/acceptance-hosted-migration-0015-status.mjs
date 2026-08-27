@@ -1,8 +1,8 @@
 import { pathToFileURL } from "node:url";
 
 import {
-  hostedAcceptanceMigrationVersions,
   hostedAcceptanceMigrationVersionsThrough0014,
+  hostedAcceptanceMigrationVersionsThrough0015,
   hostedAcceptancePoolerUrl,
   hostedAcceptanceProjectRef,
   runHostedPsql,
@@ -39,7 +39,7 @@ function environmentHasInheritedPassword(environment) {
 }
 
 export function renderHostedMigration0015StatusSql() {
-  const appliedMigrations = sqlTextArray(hostedAcceptanceMigrationVersions);
+  const appliedMigrations = sqlTextArray(hostedAcceptanceMigrationVersionsThrough0015);
   const pendingMigrations = sqlTextArray(hostedAcceptanceMigrationVersionsThrough0014);
   return `
 BEGIN READ ONLY;

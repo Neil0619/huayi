@@ -1542,6 +1542,31 @@ session is invalid.`；400 `invalid_request` 表示 runtime 数据库路径未�
   usage 或模型内容。离线 composition/CLI GREEN 不代表 secrets 已注入、migration 已 apply、已部署或已产生
   付费请求。
 
+### 4.24 Hosted DeepSeek 0016–0021 recovery/migration 控制面
+
+- `hostedDeepseekMigrationArtifactContract` 必须固定独立 batch/path/container/capture identity、pre head 0015
+  与 rebuild/post head 0021；Phase 91 contract 继续精确为 15 files/head 0015，并拒绝当前 21-file repository；
+- 新 source loader 必须只接受完整 21 个 Supabase migration 文件和 pinned fictional seed。isolated rebuild
+  继续使用 digest-only、`--pull never`、networkless/tmpfs scratch；所有 platform/runtime/migration/seed/
+  absence predicate 通过并精确销毁 scratch 后，才可写 canonical manifest；
+- backup plan/executor plan 必须零 I/O；status 只输出九个 fixed boolean。readiness/evidence currentness 都
+  要求 clean pushed HEAD、clone-local ignore 和固定 runtime，unpushed/dirty/stale/Phase 91 evidence 在读取
+  secret 或写入前失败关闭；
+- PGlite 必须真实证明 exact 15-chain + 本批次对象 absent 为 `pending_exact`，完整 21-chain + 非特权/零
+  membership role、精确 owner、forced-RLS tables、启用 trigger、0021 receipt constraint、SECURITY DEFINER
+  private functions 与 executor/external ACL 为 `applied_exact`；禁用 trigger、缺少 executor function grant、
+  任意额外 role table/function privilege、缺 object、额外/缺失 migration 或不精确 catalog 一律
+  `uncertain`；
+- dry-run parser 只接受按顺序列出 0016–0021 六个固定文件的 allowlisted transcript；缺失、额外、换序、CR、
+  output overflow、channel 相对顺序漂移、非零或 signal 都失败关闭；
+- standalone dry-run 在 CA/TTY 前先验证 current pre/rebuild evidence 与本机 Supabase CLI `2.115.0`；apply
+  在 secret 前再验证 current pre/rebuild、CLI 与六组 API/Supabase byte identity/fixed SHA-256，读取 secret 后
+  运行 exact dry-run，再在 mutation 紧前重跑 local gate/CLI 与 read-only pending status。任何非
+  `pending_exact` 都必须证明 apply 调用数为零；写后只接受 read-only `applied_exact` postflight；
+- 默认回归只使用 fake process/filesystem 与 PGlite，不运行真实 readiness/capture/rebuild/status/dry-run/
+  apply，不连接 Hosted、不读取真实 secret、不部署、不登录、不调用模型。shared 候选仍需新的 exact-SHA
+  macOS/Windows CI；该 CI 不替代逐项真实操作批准。
+
 ## 5. 最终人工验收
 
 - 在 production 前先执行 `user-acceptance-environment.md` 的两层验收：本机环境证明从空状态重建、reset、
