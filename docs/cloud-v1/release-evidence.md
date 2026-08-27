@@ -2788,3 +2788,26 @@ typecheck、architecture、build、development blocker、Store release、product
 - **执行边界**：本阶段没有连接 Hosted、运行真实模型、读取秘密、输入 recent-auth Operator 凭据、使用 Hosted
   key/quota、发起付费请求、操作 kill switch 或生成账单/ledger settlement。Cloud V1 和发布均未完成；上述真实
   Web session、账单 reconciliation 与 live restore 继续等待逐项明确批准和验收。
+
+## 109. Hosted DeepSeek Phase E composition 与 Phase F 本机门（2026-08-27）
+
+- **前序冻结点**：Phase D 已在提交 `0d49654` 推送；exact-SHA Cross-platform quality run
+  `33072040532` 的 macOS/Windows 两 job 均 success。该证据只关闭 Phase D，不能外推到当前 Phase E/F
+  未提交工作树；
+- **composition/CLI**：当前候选新增 production composition factory，复用既有 Postgres
+  authority/evidence、normal Web HTTP/session、Vercel attestation 与受控 snapshot ports，对外仍只有冻结的
+  `status/execute/recover`。CLI `plan` 零 I/O；`status` 只输出 exact safe enum，`execute` 只接受 full SHA、
+  正整数 reservation cap 与 exact confirmation，`recover` 不接受 opaque ID；
+- **失败关闭加固**：根侧审查发现 resolved Promise 可能在 private factory 接线错误时打印假成功。Fresh RED
+  证明 undefined、false restore、unknown outcome 或额外字段原先可返回 exit 0；修复后只有 exact
+  `{killSwitchRestored:true,outcome}` allowlist 可打印固定成功文本。另一 production-default 回归证明 status
+  只调用 Postgres authority，不访问 HTTP、snapshot 或 HMAC material；
+- **离线验证**：Phase E 8/8、完整 one-shot 108/108、scripts 667/667。fresh `pnpm verify:macos` 原样通过：
+  主 Vitest 341 files / 2,388 passed / 12 skipped、API/PGlite 151 files / 603、Store coverage 97 files / 481、
+  Playwright 111/111，以及 instructions、format、lint、typecheck、architecture、workspace build、development
+  blocker、Store release、production dependency audit 与 diff check；
+- **未执行与剩余门**：没有读取真实 secret、连接 Hosted、apply 0016–0021、部署、登录、切换 kill switch、
+  调用 DeepSeek 或产生费用。Phase G 所需 private query/snapshot/keyring/credential loader 没有被臆造；direct
+  non-plan package 入口在该 loader 经独立批准前保持零外部 I/O/零 mutation 失败关闭。当前候选仍未
+  commit/push，必须先获得 exact SHA 并完成该 SHA 的 macOS/Windows CI，随后再单独设计和批准 21-file
+  migration batch；这些门完成前不得开始真实 one-shot。

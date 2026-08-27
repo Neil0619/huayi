@@ -567,8 +567,14 @@ cleanup。应用仍为绝对 90 秒、cleanup 为独立 10 秒；arm 后 lease �
 claim 零 login。Phase D 又为 session-free preflight 增加绝对 10 秒 envelope，为 recovery reconciliation/
 settlement 增加绝对 20 秒 evidence envelope；evidence 超时不能跳过后续 cleanup/logout。Vercel adapter 的
 每个固定 GET 独立限制 5 秒并统一脱敏错误；API runtime headers 与 Web build-time meta 只包含 full commit、
-deployment UID 和固定 release channel，不含 token、Cookie 或产品数据。该能力仍只有离线 fake/本机 parser
-证据，尚无 production composition、真实 Cookie/凭据、Hosted 写入或模型调用。
+deployment UID 和固定 release channel，不含 token、Cookie 或产品数据。这些 adapter 仍只有离线 fake/本机
+parser 证据；Phase E 虽已完成 composition，但尚无真实 Cookie/凭据、Hosted 写入或模型调用。
+
+Phase E 把这些既有边界汇聚进 production composition factory，但不提供 secret loader 或新的网络/数据库
+能力。公开对象仍严格只有 `status/execute/recover`，extra opaque arguments 在任何下游调用前失败；execute
+先以五秒只读 status gate 拒绝 ready/running/cleanup-pending，CLI 又严格校验 safe status 与 restored
+outcome，不能把空返回或畸形结果打印为成功。`plan` 零 I/O；Phase G 前 direct non-plan package 入口不读
+argv 中的 secret、环境、文件或 TTY，不构造 adapter，也不触发 mutation。
 
 以下不是产品决策，必须以真实环境验证后补入发布材料：Vercel/Supabase 新加坡实际部署与网络延迟、
 Google OAuth 在目标网络的可达性、Supabase 备份残留、DeepSeek 当前模型 ID/价格/JSON 与 usage

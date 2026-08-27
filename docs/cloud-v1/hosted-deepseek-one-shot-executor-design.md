@@ -1,9 +1,10 @@
 # Hosted Cloud Web DeepSeek one-shot executor 设计
 
 状态：Accepted design；Phase A 离线控制合同、Phase B 私有 Postgres authority、Phase C 私有 session 与
-normal Web production-shaped HTTP transport，以及 Phase D fenced reconciliation/server-frozen settlement
-与只读 deployment attestation adapters 已实现；真实 executor composition root、Hosted migration/deployment
-和付费验收仍未实现。
+normal Web production-shaped HTTP transport、Phase D fenced reconciliation/server-frozen settlement 与
+只读 deployment attestation adapters，以及 Phase E production composition root/CLI 已实现；Hosted
+migration/deployment、受控 secrets 注入和付费验收仍未执行。Phase F 本机完整离线门已通过；当前候选仍待
+commit/push 与 exact-SHA 双平台 CI。
 
 日期：2026-08-27
 
@@ -44,6 +45,13 @@ Phase A 的离线 seam 已固定为冻结对象上的这三个方法。测试 au
 状态记录：零条分类为 absent，一条分类为 ready、running、cleanup-pending 或 terminal；多条、未知状态、
 不完整结果和五秒 deadline 均固定失败关闭。该读取不调用 adapter mutation。direct lifecycle/adapter
 orchestration 只存在于模块闭包和测试 composition root，不再导出给调用者。
+
+Phase E production composition root 只接收受控 private query、snapshot、keyring、credential 和网络能力，
+再组合既有 authority/evidence、normal Web HTTP/session 与 deployment attestation；它不复制 lifecycle
+阶段，也不接受 endpoint/body/operation ID。CLI 只有在 executor 返回 exact
+`{killSwitchRestored:true,outcome}` 安全结果后才打印固定成功文本；undefined、额外字段、false restore 或未知
+outcome 全部映射同一固定失败。真实 private-port loader 留到 Phase G 单独审阅，因此当前 direct non-plan
+package 入口不会猜测环境变量、文件或终端 secret，而是在零 adapter/零外部 I/O/零 mutation 下失败关闭。
 
 Phase A 与 0016 foundation 的离线合同还固定：先捕获并验证 fresh pre-snapshot，之后才允许 claim
 operation；claim 同时钉住固定 payload digest 与 exact API/Web deployment pair。operation 后续私有写入都
@@ -270,8 +278,8 @@ HTTP transport 固定失败且零网络，不能发明 acceptance route。
 
 `capturePreSnapshot()` 仍是 injected、session-free seam；它运行期间不会 login 或 logout。Phase D 已在
 orchestrator 外层固定绝对 10 秒 preflight deadline，并在 Vercel/Web adapter 内给每个管理面和运行时 GET
-独立 5 秒上限；即使 transport 忽略 abort，deadline race 仍先失败关闭。该 adapter 尚未进入 production
-composition root，因此实现完成不等于真实外部读取已执行。
+独立 5 秒上限；即使 transport 忽略 abort，deadline race 仍先失败关闭。Phase E 已把该 adapter 汇聚进
+production composition root，但尚未装配真实 private loader，因此实现完成不等于真实外部读取已执行。
 
 禁止用 direct Provider、Cloud module、SQL mutation 或 Classic smoke 替代上述路径。`/analysis` 是 Web 页面证明，真正的分析 mutation 是 `/v1/analyses:stream`。
 

@@ -558,6 +558,11 @@ headword、可选 contextLine）或 Eudic import page（固定 pageSize=100）�
 固定 Origin、CSRF 与 `Idempotency-Key`。所有成功写入恰好产生一条 `audit_events`，幂等重放不重复
 写审计。严格投影、状态机、cursor 和 kill switch 路由见 `admin-operations.md`。
 
+Hosted DeepSeek one-shot Phase E 只增加仓库内受控 CLI/composition root，不新增公开或 internal HTTP route，
+也不改变上述 password login、password reauth、Operator access、kill-switch、analysis SSE、request status 或
+logout 的 body/header/status 合同。真实 private-port loader 未装配前，direct non-plan 命令在任何 HTTP
+构造前失败关闭；后续 Phase G 也只能调用这里已存在的 normal Web API，不能另造 acceptance admin endpoint。
+
 `GET /v1/quota` 只接受当前 Web HttpOnly Cookie，不接受 Extension Authorization 或客户端 owner，响应
 使用 `Cache-Control: private, no-store`。响应直接使用 strict `QuotaSummary`：`availableMicroUsd` 为
 `max(0, limit-used-reserved)`；`percentUsed` 只按已结算 `used/limit` 计算；已结算使用达到 80% 为

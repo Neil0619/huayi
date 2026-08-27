@@ -113,6 +113,10 @@ evidence delete，cleanup-pending 永不删除，且没有自动调度或新增 
 `reconcile_and_bind_hosted_acceptance_request` 把 exact-one 查找和 bind 放在同一 operation row lock/fence
 内，避免跨进程恢复在查询与绑定之间产生选择窗口。
 
+Phase E composition root 不新增表、列、枚举、持久化 CLI state 或本机 operation ID。它只通过 0018–0021
+既有 private status/authority/evidence functions 访问上述记录；credential、Vercel token、HMAC keyring 与
+raw receipt 不进入新的存储 seam。direct non-plan 命令在 Phase G 注入这些受控能力前固定零数据库 I/O。
+
 `GET /v1/account` 不新增聚合表。它在一个 owner repeatable-read snapshot 中只读取 active
 `user_profiles` 的规范 email 与五项偏好，并读取当前未撤销、未过期的 `extension_sessions` 公开字段；
 最低插件版本来自启动配置。配对确认、

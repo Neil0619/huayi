@@ -290,8 +290,9 @@ audit 仍只允许 `enabled`。这不代表 Store 产品或 Windows 支持被取
 > bounds。started-only 或 started 后中断只允许一次严格 UUID request status read，非 UUID 在构造 URL 前
 > 失败，started 前零 status、零第二 POST；public Web 没有 raw idempotency/owner/payload reconciliation route，因此该 private exact-one port 固定
 > 零网络失败，并由下一段的 Phase D Postgres adapter 承担。该 Phase C 检查点没有真实 Cookie/凭据、网络、
-> Hosted 写、模型调用或付费验收；production composition root 仍属于 Phase E。
-> Phase D 已在当前未发布候选中离线闭合：byte-identical 0021 把 exact-one reconciliation+bind 合并为单个
+> Hosted 写、模型调用或付费验收；在该 Phase C 检查点，production composition root 当时仍属于 Phase E。
+> Phase D 已在 `0d49654` 推送并由 exact-SHA Cross-platform quality run `33072040532` 的 macOS/Windows
+> 两 job 关闭：byte-identical 0021 把 exact-one reconciliation+bind 合并为单个
 > fenced SQL statement，并从产品 request/reservation/terminal record/固定 DeepSeek price/连续 ledger 在
 > Postgres 内构造、哈希和冻结 receipt；旧 caller-supplied digest signature 已删除。receipt JSON 在 24 小时
 > identity scrub 时清除，只保留 digest 与非身份审计证据。strict Postgres adapter 只接受唯一行，并把
@@ -299,8 +300,9 @@ audit 仍只允许 `enabled`。这不代表 Store 产品或 Windows 支持被取
 > 把最新 non-canceled READY deployment 与 API `/health` headers、Web `/analysis` build-time meta 双向核对。
 > orchestrator 新增 10 秒 preflight 与 20 秒 recovery-evidence 绝对 deadline；后者超时仍继续 cleanup/logout。
 > API health JSON 未改变，Web meta 仅含 full SHA、deployment UID 与固定 release channel。该阶段没有新增
-> public route、production composition root、真实 Hosted 访问、migration apply、部署或模型费用；当前 migration
-> source set 为 21，Phase 91 的 15-file 历史证据不能复用。Phase E/F 与 exact-SHA 双平台 CI 仍 pending。
+> public route、真实 Hosted 访问、migration apply、部署或模型费用；当前 migration source set 为 21，
+> Phase 91 的 15-file 历史证据不能复用。Phase E composition/CLI 已在当前未提交候选实现；该候选的 Phase F
+> local full gate 已通过，commit/push 与 exact-SHA 双平台 CI 仍 pending。
 
 > **历史校准检查点（Phase 33）**：Phase 28 已补齐 production 语义重复建议和
 > 可计算 AA token 证据；2026-08-14 完成度源码审计发现的 SubmissionOutbox `api=null` 误清账号绑定
@@ -2015,3 +2017,23 @@ passed; first Operator empty`。候选已提交推送，0012 已实际 push；�
   支持不变并留到最新冻结候选批次验证，macOS 证据不外推为 Windows 完成；
 - 本阶段未修改 migration、连接或写入 Supabase/Storage/Auth，未发送邮件、部署、调用 DeepSeek，也未
   运行 0014/capture/rebuild。真实 private Storage、Auth 删除、目标浏览器和 Hosted 数据权利旅程仍待验收。
+
+## Cloud V1 Hosted DeepSeek one-shot Phase E 状态（2026-08-27）
+
+- 新增 production composition root，把既有 Postgres authority/evidence、normal Web HTTP/session、Vercel
+  deployment attestation 与受控 snapshot ports 汇聚为冻结的 `status/execute/recover` 三入口；没有公开
+  lifecycle stage、opaque ID 或可覆盖 endpoint/body；
+- production `execute` 先跑五秒只读 authority status gate，cleanup-pending/running/ready 在 preflight/claim
+  前失败；candidate、deployment、budget 与固定输入漂移继续由已有验证器在产品 mutation 前失败关闭；
+- CLI 保留零 I/O `plan`，新增 fixed-enum `status`、full-SHA + reservation cap + exact-confirmation
+  `execute`，以及零 opaque 参数的 `recover`。CLI 只接受 exact safe status/restored outcome，畸形 resolved
+  value 不能打印假成功；Phase G 尚未装配 private factory，因此 direct package non-plan 入口固定失败且零
+  外部 I/O/零 mutation；
+- Phase E Fresh RED 为缺失 composition module、旧 CLI 拒绝三个新命令，以及 malformed outcome 被误报成功；
+  GREEN 为 Phase E 8/8、完整 one-shot 108/108、`test:scripts` 667/667。未注入真实 secrets，未连接 Hosted，
+  未 apply 0016–0021、未部署、未发付费请求；
+- fresh `pnpm verify:macos` 原样通过：主 Vitest 341 files / 2,388 passed / 12 skipped、API/PGlite 151 files /
+  603、Store coverage 97 files / 481、Playwright 111/111，以及 instructions、format、lint、typecheck、
+  architecture、workspace build、development blocker、Store release、production dependency audit 与 diff check；
+- 当前仍未 commit/push，因而没有本候选 exact SHA 或双平台 CI。真实 one-shot 仍须先关闭该门，再进入
+  21-file Hosted migration batch 与 Phase G 独立批准。

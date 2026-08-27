@@ -13,7 +13,7 @@ import {
   runHostedDeepSeekOneShotCli,
 } from "./acceptance-hosted-deepseek-one-shot.mjs";
 
-test("DeepSeek plan is fixed, zero-I/O, Cloud-Web-only, and exposes no real executor", async () => {
+test("DeepSeek plan is fixed, zero-I/O, Cloud-Web-only, and does not instantiate production", async () => {
   let stdout = "";
   let stderr = "";
   const privateValue = "sk-private-must-not-appear";
@@ -35,8 +35,8 @@ test("DeepSeek plan is fixed, zero-I/O, Cloud-Web-only, and exposes no real exec
   assert.match(stdout, new RegExp(`${hostedDeepSeekWebOrigin}${hostedDeepSeekWebPath}`, "u"));
   for (const expected of [
     "Classic `pnpm smoke:deepseek` is forbidden",
-    "no default real executor",
-    "hidden interactive channel",
+    "production composition root reuses the reviewed private Postgres authority/evidence",
+    "Plan never creates that root or performs I/O",
     "only caller seam is status(), execute(approval), and recover()",
     "read-only authority query with an absolute five-second bound",
     "Approval contains only the candidate commit, exact confirmation, and reservation cap",
@@ -79,12 +79,26 @@ test("DeepSeek plan is fixed, zero-I/O, Cloud-Web-only, and exposes no real exec
     packageDocument.scripts["acceptance:hosted:deepseek:plan"],
     "node scripts/acceptance-hosted-deepseek-one-shot.mjs plan",
   );
-  assert.equal(packageDocument.scripts["acceptance:hosted:deepseek:run"], undefined);
+  assert.equal(
+    packageDocument.scripts["acceptance:hosted:deepseek:status"],
+    "node scripts/acceptance-hosted-deepseek-one-shot.mjs status",
+  );
+  assert.equal(
+    packageDocument.scripts["acceptance:hosted:deepseek:execute"],
+    "node scripts/acceptance-hosted-deepseek-one-shot.mjs execute",
+  );
+  assert.equal(
+    packageDocument.scripts["acceptance:hosted:deepseek:recover"],
+    "node scripts/acceptance-hosted-deepseek-one-shot.mjs recover",
+  );
 });
 
 test("default CLI fails closed on every non-plan argument without external work", async () => {
   for (const arguments_ of [
     [],
+    ["status"],
+    ["recover"],
+    ["execute", "1".repeat(40), "500", hostedDeepSeekOneShotConfirmation],
     ["run"],
     ["run", hostedDeepSeekOneShotConfirmation],
     ["plan", "extra"],

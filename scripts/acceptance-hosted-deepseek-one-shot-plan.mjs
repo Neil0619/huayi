@@ -1,5 +1,20 @@
 const failureMessage = "Hosted Cloud Web DeepSeek one-shot failed closed.";
 
+function hasExactKeys(value, keys) {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
+  const actual = Object.keys(value).sort();
+  const expected = [...keys].sort();
+  return actual.length === expected.length && actual.every((key, index) => key === expected[index]);
+}
+
+function successfulOutcomeIsValid(value, outcomes) {
+  return (
+    hasExactKeys(value, ["killSwitchRestored", "outcome"]) &&
+    value.killSwitchRestored === true &&
+    outcomes.includes(value.outcome)
+  );
+}
+
 export const hostedDeepSeekOneShotConfirmation =
   "--confirm-hosted-cloud-web-deepseek-one-shot-kpadiulxkgckskcfydry";
 export const hostedDeepSeekWebOrigin = "https://app.acceptance.seen-said.cn";
@@ -9,7 +24,7 @@ export const hostedDeepSeekAnalysisStreamPath = "/v1/analyses:stream";
 export function renderHostedDeepSeekOneShotPlan() {
   return `Hosted Cloud Web DeepSeek one-shot acceptance plan (zero filesystem / zero Git / zero network / zero Hosted write)
 - Attest the fixed Cloud Web page ${hostedDeepSeekWebOrigin}${hostedDeepSeekWebPath}, then send exactly one normal product request to ${hostedDeepSeekAnalysisStreamPath}; Classic \`pnpm smoke:deepseek\` is forbidden.
-- This module has no default real executor and does not infer an admin endpoint, authentication flow, credential source, durable store, or remote response shape. Separately reviewed adapters must use a hidden interactive channel for every credential; no token, key, or password may enter output, argv, or an inherited environment.
+- The production composition root reuses the reviewed private Postgres authority/evidence, fixed Vercel attestation, normal Web HTTP/session, and credential adapters. Plan never creates that root or performs I/O; executable commands must supply its controlled private query, snapshot, keyring, and credential capabilities. No token, key, or password may enter output or argv.
 - The only caller seam is status(), execute(approval), and recover(). Status is a read-only authority query with an absolute five-second bound; direct lifecycle and adapter stages remain private.
 - Approval contains only the candidate commit, exact confirmation, and reservation cap. The durable authority generates operation and idempotency identities while atomically consuming the approval; the same approval can never dispatch twice. The server request ID is bound only from analysis.started after dispatch.
 - Before any login, require a clean and pushed candidate commit, the exact READY Hosted API/Web deployment pair with independently attested full source SHAs, a 30-second session-free pre-snapshot, a caller-approved peak reservation cap, and a valid atomically claimed operation. The preflight owns one absolute 10-second envelope; each fixed deployment management/runtime GET has an independent five-second bound. Invalid preflight or claim performs zero login and zero logout.
@@ -26,6 +41,7 @@ export function renderHostedDeepSeekOneShotPlan() {
 
 export async function runHostedDeepSeekOneShotCli({
   arguments_ = process.argv.slice(2),
+  createProductionExecutor,
   writeError = (value) => process.stderr.write(value),
   writeOutput = (value) => process.stdout.write(value),
 } = {}) {
@@ -33,6 +49,52 @@ export async function runHostedDeepSeekOneShotCli({
     writeOutput(renderHostedDeepSeekOneShotPlan());
     return 0;
   }
-  writeError(`${failureMessage}\n`);
-  return 1;
+  try {
+    if (typeof createProductionExecutor !== "function") throw new Error(failureMessage);
+    if (arguments_.length === 1 && arguments_[0] === "status") {
+      const status = await (await createProductionExecutor()).status();
+      if (
+        !hasExactKeys(status, ["state"]) ||
+        !["absent", "cleanup-pending", "ready", "running", "terminal"].includes(status.state)
+      ) {
+        throw new Error(failureMessage);
+      }
+      writeOutput(`Hosted Cloud Web DeepSeek one-shot status: ${status.state}.\n`);
+      return 0;
+    }
+    if (arguments_.length === 1 && arguments_[0] === "recover") {
+      const outcome = await (await createProductionExecutor()).recover();
+      if (!successfulOutcomeIsValid(outcome, ["accepted", "restored"])) {
+        throw new Error(failureMessage);
+      }
+      writeOutput("Hosted Cloud Web DeepSeek one-shot recovery completed; kill switch restored.\n");
+      return 0;
+    }
+    if (
+      arguments_.length === 4 &&
+      arguments_[0] === "execute" &&
+      /^[0-9a-f]{40}$/u.test(arguments_[1]) &&
+      /^(?:[1-9]\d{0,14})$/u.test(arguments_[2]) &&
+      arguments_[3] === hostedDeepSeekOneShotConfirmation
+    ) {
+      const maximumReservationMicroUsd = Number(arguments_[2]);
+      if (!Number.isSafeInteger(maximumReservationMicroUsd)) throw new Error(failureMessage);
+      const outcome = await (
+        await createProductionExecutor()
+      ).execute({
+        candidateCommit: arguments_[1],
+        confirmation: arguments_[3],
+        maximumReservationMicroUsd,
+      });
+      if (!successfulOutcomeIsValid(outcome, ["accepted"])) throw new Error(failureMessage);
+      writeOutput(
+        "Hosted Cloud Web DeepSeek one-shot accepted; kill switch restored; Web session closed.\n",
+      );
+      return 0;
+    }
+    throw new Error(failureMessage);
+  } catch {
+    writeError(`${failureMessage}\n`);
+    return 1;
+  }
 }

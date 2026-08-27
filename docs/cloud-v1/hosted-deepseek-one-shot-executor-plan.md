@@ -129,24 +129,43 @@ composition root、公开 route、真实 Hosted 网络调用、migration apply �
 
 ## 阶段 E：deep module 与 CLI
 
-- [ ] 把 Phase A 已完成的 `status()`、`execute(approval)`、`recover()` 接入 production composition root；
-- [ ] CLI 保留零 I/O `plan`，新增固定 `status`、exact-confirmation `execute` 和无 opaque ID 的 `recover`；
+- [x] 把 Phase A 已完成的 `status()`、`execute(approval)`、`recover()` 接入 production composition root；
+- [x] CLI 保留零 I/O `plan`，新增固定 `status`、exact-confirmation `execute` 和无 opaque ID 的 `recover`；
 - [x] 内部合同固定共享 10 秒 session establishment、90 秒应用、10 秒 cleanup、独立 10 秒 logout、
       cleanup-first finally、valid-claim-only recovery 和 logout outcome 后终态化；
-- [ ] 新 operation 遇到 cleanup-pending、dirty/unpushed candidate、deployment drift、recent-auth drift、预算
+- [x] 新 operation 遇到 cleanup-pending、dirty/unpushed candidate、deployment drift、recent-auth drift、预算
       不足或非固定输入时零 mutation。
+
+当前检查点：Phase E production composition root 只汇聚既有 Postgres authority/evidence、normal Web
+HTTP/session、Vercel deployment attestation 与受控 snapshot/credential ports，不复制 lifecycle 编排。它在
+`execute` 前先走五秒只读 status gate；`ready`、`running` 或 `cleanup-pending` 均在 preflight、claim、登录和
+产品 mutation 前失败关闭。candidate、deployment、budget 与固定 route/body 仍由 Phase A/C/D 验证器在
+claim 前钉住；recent-auth 失败发生在 arm/fuse/application mutation 前，并只允许 authority 安全终结。
+CLI `plan` 不构造 composition root；`status` 只输出 safe enum，`execute` 只接受 full SHA、正整数上限和
+exact confirmation，`recover` 不接受任何 opaque ID；execute/recover 还必须返回 exact restored outcome 才能
+打印固定成功文本，任何 malformed resolved value 都不能形成假成功证据。Phase E 没有提供 secrets、执行
+Hosted migration、部署或付费请求。直接 package non-plan 入口在 Phase G 装配受控 private factory 前固定
+失败关闭，且不读取环境/终端、不构造 adapter、不产生 mutation；真实 production ports 与 Hosted one-shot
+仍属于 Phase G 的独立批准。
 
 退出标准：interface 之外没有调用者可见的步骤编排；删除 module 会让复杂性回到多个 caller，证明其具有
 实际 depth。
 
 ## 阶段 F：离线完整验证与文档
 
-- [ ] focused RED→GREEN、`pnpm test:scripts`、API PGlite、cloud-contracts、format、lint、typecheck、
+- [x] focused RED→GREEN、`pnpm test:scripts`、API PGlite、cloud-contracts、format、lint、typecheck、
       architecture、build 和 `pnpm verify:macos` 全绿；
 - [ ] shared 候选 push 后触发 exact-SHA Cross-platform quality，macOS/Windows 两 job 均 success；
-- [ ] 更新 API/data/security/testing/operations/release checklist/evidence，明确“implemented”不等于真实
+- [x] 更新 API/data/security/testing/operations/release checklist/evidence，明确“implemented”不等于真实
       paid acceptance；
-- [ ] 审查无 secret、远程代码、动态 endpoint、测试后门和 Classic 行为变化。
+- [x] 审查无 secret、远程代码、动态 endpoint、测试后门和 Classic 行为变化。
+
+当前检查点：Fresh RED 覆盖缺失 composition module、旧 CLI 拒绝三个新命令，以及 malformed resolved
+outcome 被误报成功；GREEN 为 Phase E 8/8、完整 one-shot 108/108、scripts 667/667。fresh
+`pnpm verify:macos` 原样通过：主 Vitest 341 files / 2,388 passed / 12 skipped、API/PGlite 151 files / 603、
+Store coverage 97 files / 481、Playwright 111/111，并包含 instructions、format、lint、typecheck、
+architecture、workspace build、development blocker、Store release、production dependency audit 与 diff check。
+当前未提交候选还没有 exact SHA，因此第二项仍保持未勾选；旧 Phase D CI 不能替代本候选。
 
 退出标准：`implemented; target-platform validation pending` 只能在对应 Windows 证据缺失时使用，不能把
 fake/PGlite/Mac 冒充真实 Hosted 请求。

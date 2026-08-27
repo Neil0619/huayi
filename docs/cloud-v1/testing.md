@@ -1522,6 +1522,26 @@ session is invalid.`；400 `invalid_request` 表示 runtime 数据库路径未�
 - Phase 91 artifact contract 必须保持 15 files/head 0015，并拒绝当前 21-file repository；0016–0021 需要
   新的 backup/rebuild batch，不能通过扩写历史 contract 伪造连续性。
 
+### 4.23 Hosted DeepSeek one-shot Phase E composition root 与 CLI
+
+- production composition contract 必须证明只组合既有 Postgres authority/evidence、normal Web
+  HTTP/session、Vercel deployment attestation 与 snapshot ports，调用者仍只得到冻结的
+  `status/execute/recover` 三入口；
+- `execute` 必须先完成只读 status gate；`ready`、`running`、`cleanup-pending` 均不得进入 preflight 或
+  claim。dirty/unpushed candidate、deployment drift、预算不足与固定输入漂移继续在 claim 前失败，
+  recent-auth 漂移在 arm/fuse/application mutation 前失败并安全终结 authority；
+- CLI `plan` 必须证明 composition factory 调用数为零；`status` 只接受零参数并输出 safe enum，`execute`
+  只接受 full SHA、正整数 reservation cap 与 exact confirmation，`recover` 必须零参数且不接受 opaque ID；
+- `status` 必须只接受 exact `{state}`；`execute/recover` 只有在 private executor 返回 exact
+  `{killSwitchRestored:true,outcome}` 且 outcome 属于入口 allowlist 时才能打印成功。undefined、false restore、
+  未知 outcome 或额外字段全部固定失败，不能把 resolved Promise 误记为恢复完成；
+- Phase G 尚未装配受控 private factory 时，direct package `status/execute/recover` 必须固定失败且零
+  environment/TTY/Git/network/database I/O，不能用一个看似可执行但暗中猜测 secrets/snapshot 的 loader
+  冒充 production readiness；
+- 所有成功和失败输出均为固定文本，不能反射 credential、operation/request/deployment/owner/price UUID、
+  usage 或模型内容。离线 composition/CLI GREEN 不代表 secrets 已注入、migration 已 apply、已部署或已产生
+  付费请求。
+
 ## 5. 最终人工验收
 
 - 在 production 前先执行 `user-acceptance-environment.md` 的两层验收：本机环境证明从空状态重建、reset、
