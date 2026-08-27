@@ -3,42 +3,63 @@ import { pathToFileURL } from "node:url";
 import { hostedDeepSeekPayloadDigest } from "./acceptance-hosted-deepseek-one-shot-analysis-request.mjs";
 import {
   approvalIsValid,
+  authorizationIsValid,
+  cleanupLeaseArmTimeIsValid,
   cleanupLeaseIsValid,
-  dispatchAttemptReceiptIsValid,
   isSafeNonnegativeInteger,
   operationIdentity,
+  operationLeaseFitsCleanupArmWindow,
   operationLeaseIsValid,
   preSnapshotIsValid,
-  reconciledRequestHandle,
-  requestBindingIsValid,
-  requestHandleIsValid,
 } from "./acceptance-hosted-deepseek-one-shot-contract.mjs";
-import {
-  postSnapshotProvesSuccess,
-  settlementIsValid,
-} from "./acceptance-hosted-deepseek-one-shot-evidence.mjs";
+import { postSnapshotProvesSuccess } from "./acceptance-hosted-deepseek-one-shot-evidence.mjs";
 import {
   attemptCleanup,
+  completeCleanup,
   completeOperation,
-  createApplicationDeadline,
-  createApplicationRequest,
   createCleanupCommand,
-  createReconciliationRequest,
   executionDependenciesAreValid,
-  readHostedDeepSeekOneShotStatus,
-  recoverHostedDeepSeekOneShotCleanup,
 } from "./acceptance-hosted-deepseek-one-shot-runtime.mjs";
+import { runHostedDeepSeekOneShotApplication } from "./acceptance-hosted-deepseek-one-shot-application.mjs";
+import {
+  createHostedDeepSeekOneShotExecutorFacade,
+  hostedDeepSeekApplicationBudgetMilliseconds,
+  hostedDeepSeekCleanupBudgetMilliseconds,
+  hostedDeepSeekLogoutBudgetMilliseconds,
+  hostedDeepSeekOperationLeaseMaximumAfterArmMilliseconds,
+  hostedDeepSeekPreSnapshotFreshnessMilliseconds,
+  hostedDeepSeekSessionBudgetMilliseconds,
+  hostedDeepSeekStatusBudgetMilliseconds,
+} from "./acceptance-hosted-deepseek-one-shot-executor.mjs";
+import {
+  attemptHostedDeepSeekNormalWebLogout,
+  establishHostedDeepSeekNormalWebSession,
+} from "./acceptance-hosted-deepseek-one-shot-session.mjs";
+import {
+  hostedDeepSeekAnalysisStreamPath,
+  hostedDeepSeekOneShotConfirmation,
+  hostedDeepSeekWebOrigin,
+  hostedDeepSeekWebPath,
+  renderHostedDeepSeekOneShotPlan,
+  runHostedDeepSeekOneShotCli,
+} from "./acceptance-hosted-deepseek-one-shot-plan.mjs";
 
-export const hostedDeepSeekApplicationBudgetMilliseconds = 90_000;
-export const hostedDeepSeekCleanupBudgetMilliseconds = 10_000;
-export const hostedDeepSeekPreSnapshotFreshnessMilliseconds = 30_000;
-export const hostedDeepSeekStatusBudgetMilliseconds = 5_000;
-export const hostedDeepSeekOneShotConfirmation =
-  "--confirm-hosted-cloud-web-deepseek-one-shot-kpadiulxkgckskcfydry";
-export const hostedDeepSeekWebOrigin = "https://app.acceptance.seen-said.cn";
-export const hostedDeepSeekWebPath = "/analysis";
-export const hostedDeepSeekAnalysisStreamPath = "/v1/analyses:stream";
-export { hostedDeepSeekPayloadDigest };
+export {
+  hostedDeepSeekApplicationBudgetMilliseconds,
+  hostedDeepSeekAnalysisStreamPath,
+  hostedDeepSeekCleanupBudgetMilliseconds,
+  hostedDeepSeekLogoutBudgetMilliseconds,
+  hostedDeepSeekOperationLeaseMaximumAfterArmMilliseconds,
+  hostedDeepSeekOneShotConfirmation,
+  hostedDeepSeekPayloadDigest,
+  hostedDeepSeekPreSnapshotFreshnessMilliseconds,
+  hostedDeepSeekSessionBudgetMilliseconds,
+  hostedDeepSeekStatusBudgetMilliseconds,
+  hostedDeepSeekWebOrigin,
+  hostedDeepSeekWebPath,
+  renderHostedDeepSeekOneShotPlan,
+  runHostedDeepSeekOneShotCli,
+};
 
 const failureMessage = "Hosted Cloud Web DeepSeek one-shot failed closed.";
 const policy = Object.freeze({
@@ -53,21 +74,6 @@ const applicationRoute = Object.freeze({
 
 function failedClosed() {
   return new Error(failureMessage);
-}
-
-export function renderHostedDeepSeekOneShotPlan() {
-  return `Hosted Cloud Web DeepSeek one-shot acceptance plan (zero filesystem / zero Git / zero network / zero Hosted write)
-- Attest the fixed Cloud Web page ${hostedDeepSeekWebOrigin}${hostedDeepSeekWebPath}, then send exactly one normal product request to ${hostedDeepSeekAnalysisStreamPath}; Classic \`pnpm smoke:deepseek\` is forbidden.
-- This module has no default real executor and does not infer an admin endpoint, authentication flow, credential source, durable store, or remote response shape. Separately reviewed adapters must use a hidden interactive channel for every credential; no token, key, or password may enter output, argv, or an inherited environment.
-- The only caller seam is status(), execute(approval), and recover(). Status is a read-only authority query with an absolute five-second bound; direct lifecycle and adapter stages remain private.
-- Approval contains only the candidate commit, exact confirmation, and reservation cap. The durable authority generates operation and idempotency identities while atomically consuming the approval; the same approval can never dispatch twice. The server request ID is bound only from analysis.started after dispatch.
-- Require a clean and pushed candidate commit, the exact READY Hosted API/Web deployment pair with independently attested full source SHAs, full Operator access with recent reauthentication, a 30-second pre-snapshot, and a caller-approved peak reservation cap.
-- Before disabling the DeepSeek kill switch, durably arm a reclaimable cleanup lease. Both validated leases must outlive the complete 90-second mutation window. Local and recovery cleanup attempts have an independent absolute 10-second bound; timeout leaves the durable record pending for atomic reclaim without replaying the application request.
-- Before the one Cloud Web HTTP request, persist dispatch-attempted. After its analysis.started event, bind that server-generated request ID before settlement; recovery claims only one unique pending cleanup and never accepts an opaque operation ID.
-- If the POST disconnects before analysis.started, perform one bounded reconciliation by the authority-owned idempotency key, owner, and fixed payload digest. Bind exactly one match, continue settlement, and never POST again; zero, multiple, incomplete, or mismatched results fail closed.
-- The orchestrator owns one absolute 90-second deadline across kill-switch disable, dispatch, binding, and server settlement. Its deadline wins even if an adapter ignores abort. Budget, deadline, and signal are adapter control only; never Web request body or Provider parameters.
-- Accept only fresh private server-authoritative evidence bound to the exact deployment pair and continuous zero-based UsageLedger calls. Public success is fixed and exposes no opaque IDs, price UUID, or token-usage details.
-`;
 }
 
 async function orchestrateHostedDeepSeekOneShot({
@@ -101,11 +107,15 @@ async function orchestrateHostedDeepSeekOneShot({
   let cleanupArmAttempted = false;
   let cleanupCompleted = false;
   let cleanupLease;
+  let evidenceAccepted = false;
   let identity;
+  let loginEstablished = false;
+  let logoutCompleted = false;
   let operationFailed = false;
   let operationLease;
   let postSnapshot;
   let preSnapshot;
+  let sessionAttempted = false;
   let settlement;
 
   try {
@@ -139,6 +149,32 @@ async function orchestrateHostedDeepSeekOneShot({
     ) {
       throw failedClosed();
     }
+    sessionAttempted = true;
+    const authorization = await establishHostedDeepSeekNormalWebSession({
+      adapter,
+      budgetMilliseconds: hostedDeepSeekSessionBudgetMilliseconds,
+      clearTimeout_,
+      externalSignal: signal,
+      onLoginEstablished: () => {
+        loginEstablished = true;
+      },
+      readNowMilliseconds,
+      setTimeout_,
+    });
+    const authorizationNowMilliseconds = readNowMilliseconds();
+    if (
+      !isSafeNonnegativeInteger(authorizationNowMilliseconds) ||
+      !authorizationIsValid(
+        authorization,
+        authorizationNowMilliseconds,
+        hostedDeepSeekPreSnapshotFreshnessMilliseconds,
+      ) ||
+      !operationLeaseIsValid(operationLease, approval, authorizationNowMilliseconds) ||
+      !preSnapshotIsValid(preSnapshot, approval, authorizationNowMilliseconds, policy) ||
+      signal?.aborted === true
+    ) {
+      throw failedClosed();
+    }
     cleanupArmAttempted = true;
     const cleanupLeaseCandidate = await lifecycle.armCleanup(
       createCleanupCommand(operationLease, preSnapshot),
@@ -147,91 +183,60 @@ async function orchestrateHostedDeepSeekOneShot({
     const applicationDeadlineAt =
       deadlineStartMilliseconds + hostedDeepSeekApplicationBudgetMilliseconds;
     const cleanupLeaseRequiredUntil =
-      applicationDeadlineAt + hostedDeepSeekCleanupBudgetMilliseconds;
+      applicationDeadlineAt +
+      hostedDeepSeekCleanupBudgetMilliseconds +
+      hostedDeepSeekLogoutBudgetMilliseconds;
+    const deadlineRangeIsValid =
+      isSafeNonnegativeInteger(deadlineStartMilliseconds) &&
+      isSafeNonnegativeInteger(applicationDeadlineAt) &&
+      isSafeNonnegativeInteger(cleanupLeaseRequiredUntil);
     if (
-      !isSafeNonnegativeInteger(deadlineStartMilliseconds) ||
-      !isSafeNonnegativeInteger(applicationDeadlineAt) ||
-      !isSafeNonnegativeInteger(cleanupLeaseRequiredUntil) ||
-      !operationLeaseIsValid(operationLease, approval, cleanupLeaseRequiredUntil) ||
-      !preSnapshotIsValid(preSnapshot, approval, deadlineStartMilliseconds, policy) ||
-      !cleanupLeaseIsValid(
+      deadlineRangeIsValid &&
+      cleanupLeaseIsValid(
         cleanupLeaseCandidate,
         preSnapshot.deployments,
         cleanupLeaseRequiredUntil,
+      ) &&
+      cleanupLeaseArmTimeIsValid(
+        cleanupLeaseCandidate,
+        preSnapshot.observedAt,
+        deadlineStartMilliseconds,
+      ) &&
+      cleanupLeaseCandidate.operationId === identity.operationId
+    ) {
+      cleanupLease = cleanupLeaseCandidate;
+    }
+    if (
+      !deadlineRangeIsValid ||
+      !operationLeaseIsValid(operationLease, approval, cleanupLeaseRequiredUntil) ||
+      !operationLeaseFitsCleanupArmWindow(
+        operationLease,
+        cleanupLease,
+        hostedDeepSeekOperationLeaseMaximumAfterArmMilliseconds,
       ) ||
-      cleanupLeaseCandidate.operationId !== identity.operationId ||
+      !preSnapshotIsValid(preSnapshot, approval, deadlineStartMilliseconds, policy) ||
+      cleanupLease === undefined ||
       signal?.aborted === true
     ) {
       throw failedClosed();
     }
-    cleanupLease = cleanupLeaseCandidate;
 
-    const deadline = createApplicationDeadline({
+    const applicationOutcome = await runHostedDeepSeekOneShotApplication({
+      adapter,
+      approval,
+      applicationDeadlineAt,
+      applicationRoute,
       budgetMilliseconds: hostedDeepSeekApplicationBudgetMilliseconds,
       clearTimeout_,
-      deadlineAt: applicationDeadlineAt,
-      externalSignal: signal,
+      identity,
+      lifecycle,
+      operationLease,
+      preSnapshot,
       setTimeout_,
+      signal,
     });
-    try {
-      await deadline.run(() => adapter.setModelKillSwitch(false, deadline.control));
-      const dispatchReceipt = await deadline.run(() =>
-        lifecycle.markDispatchAttempted({
-          claimToken: operationLease.claimToken,
-          leaseGeneration: operationLease.leaseGeneration,
-          operationId: operationLease.operationId,
-          payloadDigest: hostedDeepSeekPayloadDigest,
-        }),
-      );
-      if (!dispatchAttemptReceiptIsValid(dispatchReceipt, operationLease)) throw failedClosed();
-      let requestHandle;
-      try {
-        requestHandle = await deadline.run(() =>
-          adapter.invokeCloudWebAnalysis(
-            createApplicationRequest(identity, preSnapshot.deployments, applicationRoute),
-            deadline.control,
-          ),
-        );
-      } catch {
-        const reconciliation = await deadline.run(() =>
-          adapter.reconcileDispatchedRequest(
-            createReconciliationRequest(identity, hostedDeepSeekPayloadDigest),
-            deadline.control,
-          ),
-        );
-        requestHandle = reconciledRequestHandle(
-          reconciliation,
-          identity,
-          hostedDeepSeekPayloadDigest,
-        );
-      }
-      if (!requestHandleIsValid(requestHandle)) throw failedClosed();
-      const requestBinding = await deadline.run(() =>
-        lifecycle.bindRequest({
-          claimToken: operationLease.claimToken,
-          idempotencyKey: operationLease.idempotencyKey,
-          leaseGeneration: operationLease.leaseGeneration,
-          operationId: operationLease.operationId,
-          ownerId: operationLease.ownerId,
-          requestId: requestHandle.requestId,
-        }),
-      );
-      if (!requestBindingIsValid(requestBinding, operationLease, requestHandle)) {
-        throw failedClosed();
-      }
-      identity = Object.freeze({
-        ...operationIdentity(requestBinding),
-        requestId: requestBinding.requestId,
-      });
-      settlement = await deadline.run(() =>
-        adapter.readServerSettlement(identity, deadline.control),
-      );
-      if (!settlementIsValid(settlement, approval, preSnapshot, identity)) throw failedClosed();
-    } catch {
-      operationFailed = true;
-    } finally {
-      deadline.stop();
-    }
+    identity = applicationOutcome.identity;
+    settlement = applicationOutcome.settlement;
   } catch {
     operationFailed = true;
   } finally {
@@ -242,7 +247,6 @@ async function orchestrateHostedDeepSeekOneShot({
         clearTimeout_,
         freshnessMilliseconds: hostedDeepSeekPreSnapshotFreshnessMilliseconds,
         lease: cleanupLease,
-        lifecycle,
         readNowMilliseconds,
         setTimeout_,
       });
@@ -257,22 +261,57 @@ async function orchestrateHostedDeepSeekOneShot({
       settlement !== undefined &&
       postSnapshot !== undefined
     ) {
-      const postNowMilliseconds = readNowMilliseconds();
-      accepted =
-        isSafeNonnegativeInteger(postNowMilliseconds) &&
-        postSnapshotProvesSuccess(
-          postSnapshot,
-          preSnapshot,
-          settlement,
-          cleanupLease,
-          identity,
-          postNowMilliseconds,
-          hostedDeepSeekPreSnapshotFreshnessMilliseconds,
-        );
-      if (!accepted) operationFailed = true;
+      try {
+        const postNowMilliseconds = readNowMilliseconds();
+        evidenceAccepted =
+          isSafeNonnegativeInteger(postNowMilliseconds) &&
+          postSnapshotProvesSuccess(
+            postSnapshot,
+            preSnapshot,
+            settlement,
+            cleanupLease,
+            identity,
+            postNowMilliseconds,
+            hostedDeepSeekPreSnapshotFreshnessMilliseconds,
+          );
+      } catch {
+        evidenceAccepted = false;
+      }
+      if (!evidenceAccepted) operationFailed = true;
+    }
+
+    if (sessionAttempted) {
+      logoutCompleted = await attemptHostedDeepSeekNormalWebLogout({
+        adapter,
+        budgetMilliseconds: hostedDeepSeekLogoutBudgetMilliseconds,
+        clearTimeout_,
+        readNowMilliseconds,
+        setTimeout_,
+      });
+      if (!logoutCompleted) operationFailed = true;
+    }
+
+    if (cleanupCompleted && cleanupLease !== undefined && postSnapshot !== undefined) {
+      try {
+        cleanupCompleted =
+          (await completeCleanup({
+            lease: cleanupLease,
+            lifecycle,
+            postSnapshot,
+          })) !== null;
+      } catch {
+        cleanupCompleted = false;
+      }
+      if (!cleanupCompleted) operationFailed = true;
     }
 
     if (operationLease !== undefined) {
+      accepted =
+        evidenceAccepted &&
+        cleanupCompleted &&
+        loginEstablished &&
+        logoutCompleted &&
+        !operationFailed;
       const outcome = accepted
         ? "accepted"
         : cleanupArmAttempted && !cleanupCompleted
@@ -305,51 +344,15 @@ export function createHostedDeepSeekOneShotExecutor({
   setTimeout_ = setTimeout,
   signal,
 } = {}) {
-  const dependencies = Object.freeze({
+  return createHostedDeepSeekOneShotExecutorFacade({
     adapter,
+    applicationOrchestrator: orchestrateHostedDeepSeekOneShot,
     clearTimeout_,
     lifecycle,
     readNowMilliseconds,
     setTimeout_,
     signal,
   });
-  return Object.freeze({
-    async execute(...arguments_) {
-      if (arguments_.length !== 1) throw failedClosed();
-      return orchestrateHostedDeepSeekOneShot({
-        ...dependencies,
-        approval: arguments_[0],
-      });
-    },
-    async recover(...arguments_) {
-      if (arguments_.length !== 0) throw failedClosed();
-      return recoverHostedDeepSeekOneShotCleanup({
-        ...dependencies,
-        budgetMilliseconds: hostedDeepSeekCleanupBudgetMilliseconds,
-        freshnessMilliseconds: hostedDeepSeekPreSnapshotFreshnessMilliseconds,
-      });
-    },
-    async status(...arguments_) {
-      if (arguments_.length !== 0) throw failedClosed();
-      return readHostedDeepSeekOneShotStatus({
-        ...dependencies,
-        budgetMilliseconds: hostedDeepSeekStatusBudgetMilliseconds,
-      });
-    },
-  });
-}
-
-export async function runHostedDeepSeekOneShotCli({
-  arguments_ = process.argv.slice(2),
-  writeError = (value) => process.stderr.write(value),
-  writeOutput = (value) => process.stdout.write(value),
-} = {}) {
-  if (arguments_.length === 1 && arguments_[0] === "plan") {
-    writeOutput(renderHostedDeepSeekOneShotPlan());
-    return 0;
-  }
-  writeError(`${failureMessage}\n`);
-  return 1;
 }
 
 if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {

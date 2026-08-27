@@ -8,14 +8,16 @@ import {
   hostedDeepSeekCleanupBudgetMilliseconds,
 } from "./acceptance-hosted-deepseek-one-shot.mjs";
 import {
-  adapter,
   approval,
   cleanupLease,
   nowMilliseconds,
   operationLease,
-  operationLifecycle,
   postSnapshot,
 } from "./acceptance-hosted-deepseek-one-shot-test-fixtures.mjs";
+import {
+  adapter,
+  operationLifecycle,
+} from "./acceptance-hosted-deepseek-one-shot-fake-adapters.mjs";
 
 const failurePattern = /^Error: Hosted Cloud Web DeepSeek one-shot failed closed\.$/u;
 
@@ -71,29 +73,79 @@ test("an invalid cleanup receipt cannot drive a kill-switch mutation or cleanup 
   assert.match(lifecycleCalls.at(-1), /failed-cleanup-pending/u);
 });
 
-test("the operation lease must cover the application and cleanup windows", async () => {
-  const adapterCalls = [];
-  const lifecycleCalls = [];
-  const lifecycle = operationLifecycle({
-    calls: lifecycleCalls,
-    claim: (command) => operationLease(command, { leaseExpiresAt: "2026-08-26T02:11:35.000Z" }),
-  });
+for (const [article, leaseClass, leaseExpiresAt, armedAt] of [
+  ["a", "short", "2026-08-26T02:11:35.000Z", "2026-08-26T02:10:03.000Z"],
+  ["an", "overlong", "2026-08-26T02:12:03.000Z", "2026-08-26T02:10:02.999Z"],
+]) {
+  test(`${article} ${leaseClass} post-arm operation lease closes valid cleanup before logout`, async () => {
+    const adapterCalls = [];
+    const lifecycleCalls = [];
+    const lifecycle = operationLifecycle({
+      arm: (command) => cleanupLease(command, { armedAt }),
+      calls: lifecycleCalls,
+      claim: (command) => operationLease(command, { leaseExpiresAt }),
+      finishCleanup: (command) => ({
+        operationId: command.operationId,
+        operationState: "running",
+        status: "completed",
+      }),
+    });
 
+    await assert.rejects(
+      orchestrate({ adapter: adapter({ calls: adapterCalls }), approval: approval(), lifecycle }),
+      failurePattern,
+    );
+
+    assert.deepEqual(adapterCalls.slice(-3), ["kill-switch:true", "post-snapshot", "logout"]);
+    assert.equal(lifecycle.pendingCleanup(), undefined);
+    assert.deepEqual(lifecycleCalls.slice(-2), ["complete-cleanup", "complete-operation:failed"]);
+  });
+}
+
+test("execute rejects a future server armedAt before application mutation", async () => {
+  const calls = [];
   await assert.rejects(
-    orchestrate({ adapter: adapter({ calls: adapterCalls }), approval: approval(), lifecycle }),
+    orchestrate({
+      adapter: adapter({ calls }),
+      approval: approval(),
+      lifecycle: operationLifecycle({
+        arm: (command) => cleanupLease(command, { armedAt: "2026-08-26T02:10:03.001Z" }),
+        calls,
+      }),
+    }),
     failurePattern,
   );
-
+  assert.equal(calls.includes("kill-switch:false"), false);
   assert.equal(
-    adapterCalls.some((call) => call.startsWith("kill-switch:")),
+    calls.some((call) => call.startsWith("request:")),
     false,
   );
-  assert.notEqual(lifecycle.pendingCleanup(), undefined);
-  assert.match(lifecycleCalls.at(-1), /failed-cleanup-pending/u);
+  assert.equal(calls.filter((call) => call === "logout").length, 1);
+});
+
+test("recovery rejects a future server armedAt before login", async () => {
+  const calls = [];
+  const pendingCleanup = cleanupLease();
+  const executor = createHostedDeepSeekOneShotExecutor({
+    adapter: adapter({ calls }),
+    lifecycle: operationLifecycle({
+      calls,
+      claimCleanup: () => ({
+        ...pendingCleanup,
+        armedAt: "2026-08-26T02:10:03.001Z",
+        cleanupToken: "recovery_cleanup_token_001",
+      }),
+      pendingCleanup,
+    }),
+    readNowMilliseconds: () => nowMilliseconds,
+  });
+
+  await assert.rejects(executor.recover(), failurePattern);
+  assert.deepEqual(calls, ["claim-cleanup"]);
 });
 
 for (const shortLease of ["operation", "cleanup"]) {
-  test(`a slow cleanup handoff rejects a short ${shortLease} lease before mutation`, async () => {
+  test(`a slow cleanup handoff rejects a short ${shortLease} lease before application mutation`, async () => {
     const adapterCalls = [];
     let now = nowMilliseconds;
     await assert.rejects(
@@ -120,10 +172,7 @@ for (const shortLease of ["operation", "cleanup"]) {
       }),
       failurePattern,
     );
-    assert.equal(
-      adapterCalls.some((call) => call.startsWith("kill-switch:")),
-      false,
-    );
+    assert.equal(adapterCalls.includes("kill-switch:false"), false);
     assert.equal(
       adapterCalls.some((call) => call.startsWith("request:")),
       false,
@@ -236,7 +285,13 @@ test("cleanup-only recovery is bounded and never reports a hanging restore as co
   assert.equal(result, "rejected");
   assert.equal(cleanupControl.cleanupBudgetMilliseconds, 10_000);
   assert.equal(cleanupControl.signal.aborted, true);
-  assert.deepEqual(adapterCalls, ["kill-switch:true"]);
+  assert.deepEqual(adapterCalls, [
+    "login-password",
+    "reauthenticate-password",
+    "operator-readback",
+    "kill-switch:true",
+    "logout",
+  ]);
   assert.notEqual(lifecycle.pendingCleanup(), undefined);
   assert.equal(lifecycleCalls.includes("complete-cleanup"), false);
 });

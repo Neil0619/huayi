@@ -532,6 +532,21 @@ request。既有 payload digest 直接由该对象的固定 key order canonical 
 防止漂移；body 与 nested source 均冻结，且正文不从主 executor 模块额外导出。该切片不新增 HTTP
 route/header、CLI、credential/session、网络或 Hosted 能力。
 
+Phase C 的 private session lifecycle 继续保持 public executor 只有 `status/execute/recover`。session-free
+preflight 与有效 operation claim 必须先于任何 login；login→password reauth→Operator readback 共用一个
+绝对 10 秒 envelope。reauth response 的有效 replacement Cookie 在 rotation 校验前即取代旧 Cookie/CSRF；
+partial login/reauth 只保留最新有效 Cookie 作为 logout-only material，旧 material 永不回退。所有
+post-login exit 先尝试 restoration/cleanup，再用不继承 application abort 的独立绝对 10 秒 normal logout；
+无论成功、失败、超时或 adapter 忽略 abort，executor 都同步幂等销毁内存 capability，logout outcome 后才
+durable complete cleanup 与 terminalize operation。logout 私有错误只映射固定失败且不能抑制 durable
+cleanup。应用仍为绝对 90 秒、cleanup 为独立 10 秒；arm 后 lease 必须严格覆盖这 110 秒且不越过 0019 的
+`armed_at + 120s`；private arm receipt 必须提供 server-authoritative `armedAt`，executor 不以 response 后
+的本地时钟放宽该上限，并要求 pre-snapshot `observedAt <= armedAt <=` arm response 后本地时钟。recovery
+在 login 前另拒绝晚于 claim 后采样时钟的 future `armedAt`，再按 session→restore→logout→terminalize 运行；无效
+claim 零 login。该切片仅有 production/fake 可替换的 private seam 与离线 fake，没有真实 Cookie、网络、
+凭据、Hosted 写入或 production HTTP/SSE composition。session-free deployment capture 的 production
+per-call deadline 留在 Phase D，未实现前不得启用真实 executor。
+
 以下不是产品决策，必须以真实环境验证后补入发布材料：Vercel/Supabase 新加坡实际部署与网络延迟、
 Google OAuth 在目标网络的可达性、Supabase 备份残留、DeepSeek 当前模型 ID/价格/JSON 与 usage
 契约、生产 Extension ID、Chrome 数据披露问卷和公开隐私政策 URL。

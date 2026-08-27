@@ -1,8 +1,9 @@
 # Hosted Cloud Web DeepSeek one-shot executor 设计
 
-状态：Accepted design；Phase A 离线控制合同与 Phase B schema/ACL、retention-scrub structure、严格私有
-status、effective-fuse 已实现；私有 authority mutation functions、retention executor、production adapters、
-真实 executor composition root、部署与 Hosted 验收仍未实现。
+状态：Accepted design；Phase A 离线控制合同、Phase B schema/ACL、retention-scrub structure、严格私有
+status、effective-fuse，以及 Phase C 私有 session lifecycle 与内存 adapter 已实现；私有 authority
+mutation functions、retention executor、production HTTP/SSE adapters、真实 executor composition root、
+部署与 Hosted 验收仍未实现。
 
 日期：2026-08-27
 
@@ -32,8 +33,9 @@ type OneShotApproval = {
 
 用法只有“查看安全状态、执行、恢复”。`status` 自动选择 absent、ready、running、cleanup-pending 或
 terminal，不返回 operation ID；`recover` 只能领取唯一 cleanup-pending operation，多条或状态不确定时失败
-关闭。`execute` 持有从批准、部署证明、Operator 登录、开闸、单次请求、服务端 receipt、恢复开关到销毁
-会话的完整顺序。相同批准只能形成一个 operation；发生错误时返回稳定的分类错误，不能把密钥、Cookie、
+关闭。`execute` 持有从批准、session-free 部署证明、operation claim、Operator 登录、开闸、单次请求、
+服务端 receipt、恢复开关到销毁会话的完整顺序。相同批准只能形成一个 operation；发生错误时返回稳定的
+分类错误，不能把密钥、Cookie、
 CSRF、输入或模型输出带入错误。网络调用有显式超时，数据库状态转换为常数次往返；不轮询模型之外的
 无界资源。
 
@@ -46,7 +48,9 @@ Phase A 与 0016 foundation 的离线合同还固定：先捕获并验证 fresh 
 operation；claim 同时钉住固定 payload digest 与 exact API/Web deployment pair。operation 后续私有写入都
 携带 raw claim token 与 lease generation，cleanup 完成写入携带 raw cleanup token 与 claim generation；
 cleanup 以 operation ID 为唯一身份，不另造 JS-only cleanup ID，也不携带或要求持久化 raw idempotency
-key/owner。operation lease 必须覆盖 90 秒应用与随后 10 秒 cleanup 窗口；claim 后快照过期时使用已验证
+key/owner。claim 后的 login→password reauth→Operator readback 共用一个绝对 10 秒 session-establishment
+envelope；arm 后 operation lease 必须严格覆盖 90 秒应用、10 秒 cleanup 与 10 秒 logout 共 110 秒，且
+不能借此越过 0019 的 `armed_at + 120s` 上限。余量不足时在开闸前失败。claim 后快照过期时使用已验证
 lease 终结失败 operation，cleanup arm 已尝试但未能证明关闭时保守进入 cleanup-pending。recovery 完成
 cleanup 时还必须原子终结 operation，使 `status()` 进入 terminal 并释放唯一 non-terminal slot。生产 SQL
 functions 仍未实现这些转换与 fence 校验。
@@ -138,20 +142,29 @@ seam；不得用无 key digest 冒充 HMAC，也不得把 raw key 持久化。�
 
 ### lease、fencing 与顺序
 
-`execute` 领取 120 秒 operation lease；每次续租递增 generation，并返回不可持久化的 fence token。每次状态转换同时校验 operation ID、generation、token hash、前置状态和服务器时间。旧 worker 即使恢复运行也不能写入。
+`execute` 领取最多 120 秒 operation lease；每次续租递增 generation，并返回不可持久化的 fence token。
+每次状态转换同时校验 operation ID、generation、token hash、前置状态和服务器时间。旧 worker 即使恢复
+运行也不能写入。session establishment 在 claim 后、arm 前共用一次绝对 10 秒 deadline；arm 前必须重验
+lease 尚可严格覆盖其后 110 秒。若建立会话耗尽余量，则不 arm、不关闭 fuse，也不续出超过 120 秒的 lease。
+`armCleanup` receipt 必须带 server-authoritative `armedAt`；executor 以该值而非 arm 返回后的本地时钟验证
+`operation.leaseExpiresAt <= armedAt + 120s`，并要求 pre-snapshot `observedAt <= armedAt <=` arm response
+后的本地时钟，避免未来时间或 network RTT 放宽开闸窗口。recovery 同样要求 `armedAt <= claim` 后立即采样
+的本地时钟，未来 arm receipt 在 login 前失败关闭。
 
-cleanup 使用独立 30 秒 claim 和 10 秒单次外部尝试，避免 operation worker 阻塞恢复。以下顺序是硬不变量：
+cleanup recovery 使用 60 秒 claim；其中 session establishment、单次 cleanup 外部尝试和 normal logout
+分别最多 10 秒，给终态写入保留 30 秒余量。以下顺序是硬不变量：
 
-1. 保存 approval、固定输入摘要和部署对；
-2. 建立普通 password Web session 并完成 recent-auth；
-3. 持久化 cleanup obligation；
-4. 关闭 kill switch；
-5. 在发送 HTTP 前原子写入 `dispatch_attempted_at`；
-6. 只发送一次真实 Web analysis POST；
-7. 绑定 server-generated request ID，冻结 receipt；
-8. 恢复 kill switch；
-9. 通过正常 logout 关闭本次 Web session；
-10. 关闭 cleanup obligations 后终结 operation。
+1. session-free 捕获并验证 approval、candidate 与精确 deployment pair；
+2. authority 原子 claim operation；claim 无效时零 login、零 logout；
+3. 在共享 10 秒 envelope 内建立普通 password Web session、password reauth 并 read back Operator；
+4. 持久化 cleanup obligation；
+5. 关闭 kill switch；
+6. 在发送 HTTP 前原子写入 `dispatch_attempted_at`；
+7. 只发送一次真实 Web analysis POST；
+8. 绑定 server-generated request ID，冻结 receipt；
+9. 先尝试恢复 kill switch 并捕获 post evidence；
+10. 以不继承 application abort 的独立 10 秒 deadline 恰好尝试一次 normal logout；
+11. 已知 logout outcome 后才关闭 cleanup obligation，并终结 operation。
 
 `dispatch_attempted_at` 一旦存在，任何 worker 都不得再次发送 application POST。结果不确定时，恢复逻辑通过 authority 查询并绑定既有 server request；无法证明未发送就失败关闭，不用重放换取成功。
 
@@ -194,18 +207,33 @@ dispatch 前生成单次 idempotency key，并把其 HMAC、owner ID 和规范�
 
 验收必须走与产品相同的语义路径：
 
-1. `GET /analysis`，确认 Web route 可达并取得完整 runtime deployment attestation；
-2. 通过现有 password login 建立 secure Cookie session；
-3. password re-auth 获得 recent-auth，服务端轮换 Cookie 与 CSRF；
-4. 调用真实 admin kill-switch HTTP 合同关闭 DeepSeek fuse；
-5. `POST /v1/analyses:stream`，携带 Cookie、`Origin`、轮换后的 CSRF 和 `Idempotency-Key`，消费到一个终态；
-6. 读取私有 server settlement receipt；
-7. 经 admin HTTP 恢复 fuse，再通过正常 Web logout 关闭本次 session。
+1. session-free `GET /analysis`，确认 Web route 可达并取得完整 runtime deployment attestation；
+2. authority 成功 claim operation；
+3. 通过现有 password login 建立 secure Cookie session；
+4. password re-auth 获得 recent-auth，服务端轮换 Cookie 与 CSRF，再 read back Operator authorization；
+5. 调用真实 admin kill-switch HTTP 合同关闭 DeepSeek fuse；
+6. `POST /v1/analyses:stream`，携带 Cookie、`Origin`、轮换后的 CSRF 和 `Idempotency-Key`，消费到一个终态；
+7. 读取私有 server settlement receipt；
+8. 经 admin HTTP 尝试恢复 fuse，再通过正常 Web logout 关闭本次 session；
+9. logout outcome 已知后才完成 durable cleanup 与 operation terminalization。
 
 production adapter 只创建普通 password Web session，不新增 acceptance session 类型、特殊 Cookie 或认证
-字段。Cookie jar 仅在进程内存中；reauth 后立即销毁旧 Cookie/CSRF，finally 调用正常 logout 后销毁全部
-内存值。进程崩溃时不把 session token 写入 authority，也不批量撤销 Operator 的其他 session；残留 session
-只按既有 Web session 到期策略失效，cleanup authority 只负责恢复 kill switch。
+字段。Cookie jar 仅在进程内存中且不从 private adapter 暴露。login transport 的 rejection 必须是
+failure-atomic，表示服务端未创建可用 session；若 response 已带有效 Cookie 但 CSRF 缺失或畸形，则先保留
+该 Cookie 作为 logout-only material，再失败关闭并尝试一次 normal logout。reauth response 只要带有效新
+Cookie，就必须在 rotation 校验前采纳并立即淘汰旧 Cookie/CSRF；新 CSRF 缺失、畸形或未轮换仍失败关闭，
+其后 cleanup 与 logout 只能使用最新可用 material，绝不回退旧 material。
+
+每个 post-login exit 都先尝试 fuse restoration/cleanup，再以独立 signal 和绝对 10 秒 deadline 恰好尝试
+一次 normal logout；application abort 不能取消它。无论 logout 成功、失败、超时或忽略 abort，executor
+随后同步、幂等调用 private `destroySession()` 清除内存 capability，再做 durable cleanup completion 与
+operation terminalization。logout 失败只产生固定失败文本，不能抑制 durable cleanup。进程崩溃时不把
+session token 写入 authority，也不批量撤销 Operator 的其他 session；残留 session 只按既有 Web session
+到期策略失效，cleanup authority 只负责恢复 kill switch。
+
+Phase C 的 `capturePreSnapshot()` 仍是 injected、session-free seam；它运行期间不会 login 或 logout。
+Vercel/Web deployment capture 的 production per-call deadline 属于 Phase D adapter，当前内部合同不把该
+尚未实现的外部步骤冒充为已 bounded。production composition root 在该 deadline 落地前不得启用真实执行。
 
 禁止用 direct Provider、Cloud module、SQL mutation 或 Classic smoke 替代上述路径。`/analysis` 是 Web 页面证明，真正的分析 mutation 是 `/v1/analyses:stream`。
 
@@ -252,11 +280,14 @@ CSRF、authorization、原始 SSE、输入正文、模型输出、usage 明细�
 
 ## 性能与验收不变量
 
-一项 approval 最多一次 application POST 和一次付费 terminal request。每个外部调用有独立 deadline；SSE
-总字节、事件数和单事件大小有上限；receipt 读取为有界索引查询；`recover()` 只用 `SKIP LOCKED` claim
-唯一 pending operation。不得无限重试或把 cleanup 等待与模型调用混为一体。
+一项 approval 最多一次 application POST 和一次付费 terminal request。login、password reauth 与 Operator
+readback 共用一个绝对 10 秒 session-establishment envelope；应用为绝对 90 秒，cleanup 与 logout 各有
+独立绝对 10 秒 envelope。logout 不继承 application signal。SSE 总字节、事件数和单事件大小有上限；
+receipt 读取为有界索引查询；`recover()` 先用 `SKIP LOCKED` claim 唯一 pending operation，claim 无效时零
+login；有效时按 login/reauth/readback→restore/post evidence→logout→durable completion/terminalization
+执行。不得无限重试或把 cleanup 等待与模型调用混为一体。
 
 离线测试必须覆盖 lease 过期、stale fence、每个 crash point、started 前断线 reconciliation、重复
-idempotency、reauth Cookie/CSRF 轮换、receipt ordinal 0 起始、RLS 不变、部署错配、effective-fuse、日志
-敏感词和所有固定终端文本。真实 Hosted 执行只能在这些检查、migration、normal Web session adapter 与
+idempotency、reauth Cookie/CSRF 轮换与 partial response、ignored-abort logout 后同步销毁、receipt ordinal
+0 起始、RLS 不变、部署错配、effective-fuse、日志敏感词和所有固定终端文本。真实 Hosted 执行只能在这些检查、migration、normal Web session adapter 与
 receipt function 均已实现、双平台 CI 通过并单独获批后进行。

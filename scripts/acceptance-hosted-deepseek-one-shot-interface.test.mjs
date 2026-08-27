@@ -6,10 +6,12 @@ import { hostedDeepSeekAnalysisRequestBody as canonicalRequestBody } from "./acc
 import * as oneShotModule from "./acceptance-hosted-deepseek-one-shot.mjs";
 import {
   adapter,
+  operationLifecycle,
+} from "./acceptance-hosted-deepseek-one-shot-fake-adapters.mjs";
+import {
   approval,
   identity,
   nowMilliseconds,
-  operationLifecycle,
   requestId,
 } from "./acceptance-hosted-deepseek-one-shot-test-fixtures.mjs";
 
@@ -325,9 +327,10 @@ test("Phase A rejects zero, multiple, incomplete, or mismatched reconciliation w
     assert.equal(calls.filter((call) => call === "reconcile-request").length, 1);
     assert.equal(calls.includes("bind-request"), false);
     assert.equal(calls.includes("server-settlement"), false);
-    assert.deepEqual(calls.slice(-4), [
+    assert.deepEqual(calls.slice(-5), [
       "kill-switch:true",
       "post-snapshot",
+      "logout",
       "complete-cleanup",
       "complete-operation:failed",
     ]);

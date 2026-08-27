@@ -1420,6 +1420,17 @@ session is invalid.`；400 `invalid_request` 表示 runtime 数据库路径未�
   caller extra argument/approval fields 与 adapter override material 都不能改变传给
   `invokeCloudWebAnalysis` 的 body；digest 由 body 直接计算且仍须等于既有固定值，body 不扩大主 executor
   模块导出面；fake invocation 不访问网络、Hosted 或模型；
+- Phase C private session 回归必须证明 session-free preflight 与 valid claim 先于 login，invalid preflight/
+  claim 均零 login/zero logout；login→password reauth→Operator readback 共用同一绝对 10 秒 control，
+  application/cleanup/logout 分别为 90/10/10 秒，arm 后 lease 严格覆盖 110 秒且不借测试 lease 越过
+  `armed_at + 120s`；测试把 server `armedAt` 与 response 后本地时钟故意错开，证明上限绑定 arm receipt 而
+  不是本地 RTT，并分别证明 execute/recover 的 future `armedAt` 在 application/login 前失败。每个
+  post-login exit 顺序固定 cleanup→独立 logout→durable completion/terminalization；
+  application abort 不传给 logout，ignored-abort logout 到期后同步 destroy capability。adapter 回归另证明
+  成功 rotation 后所有 action/logout 只用 replacement，non-rotating 或 malformed replacement 失败关闭但
+  采用最新有效 Cookie 作 logout-only material，transport rejection failure-atomic。recovery 无有效 cleanup
+  claim 时零 login；有效 claim 的最小剩余窗口必须大于三个 10 秒 envelope，production authority 设计领取
+  60 秒。上述 fake 证据不等于 production HTTP/SSE、真实 session 或 Hosted 验收；
 - CLI 与 production runtime 都必须使用显式 Supabase CA 与 `verify-full`；API 环境回归拒绝 require/无 TLS、
   非 6543 pooler、错误 project ref、缺失/越界 CA，本机 disabled 模式只接受固定 loopback database DSN；
 - hosted psql 子进程回归必须证明调用方不能覆盖 `PGSSLMODE=verify-full` 与临时 `PGSSLROOTCERT`；diagnostic

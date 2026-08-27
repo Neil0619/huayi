@@ -12,8 +12,8 @@ import {
   hostedDeepSeekPayloadDigest,
   hostedDeepSeekWebOrigin,
 } from "./acceptance-hosted-deepseek-one-shot.mjs";
+import { adapter } from "./acceptance-hosted-deepseek-one-shot-fake-adapters.mjs";
 import {
-  adapter,
   candidateCommit,
   deployments,
   identity,
@@ -48,7 +48,7 @@ function phaseAOperationLease() {
     candidateCommit,
     claimToken: "claim_token_001",
     idempotencyKey,
-    leaseExpiresAt: "2026-08-26T02:15:00.000Z",
+    leaseExpiresAt: "2026-08-26T02:12:03.000Z",
     leaseGeneration: 1,
     maximumReservationMicroUsd: 500,
     operationId,
@@ -58,11 +58,12 @@ function phaseAOperationLease() {
 
 function phaseACleanupLease() {
   return {
+    armedAt: "2026-08-26T02:10:03.000Z",
     claimGeneration: 1,
     cleanupToken: "cleanup_token_001",
     deployments: phaseADeployments,
     desiredKillSwitchEnabled: true,
-    leaseExpiresAt: "2026-08-26T02:15:00.000Z",
+    leaseExpiresAt: "2026-08-26T02:12:03.000Z",
     operationId,
   };
 }
@@ -196,6 +197,9 @@ test("Phase A persists dispatch before HTTP, then binds analysis.started and ret
   assert.deepEqual(calls, [
     "pre-snapshot",
     "claim-operation",
+    "login-password",
+    "reauthenticate-password",
+    "operator-readback",
     "arm-cleanup",
     "kill-switch:false",
     "mark-dispatch-attempted",
@@ -204,6 +208,7 @@ test("Phase A persists dispatch before HTTP, then binds analysis.started and ret
     "server-settlement",
     "kill-switch:true",
     "post-snapshot",
+    "logout",
     "complete-cleanup",
     "complete-operation:accepted",
   ]);
@@ -220,8 +225,12 @@ test("Phase A recovery takes no operation id and fails closed unless one cleanup
   assert.deepEqual(result, { killSwitchRestored: true, outcome: "restored" });
   assert.deepEqual(calls, [
     "claim-cleanup",
+    "login-password",
+    "reauthenticate-password",
+    "operator-readback",
     "kill-switch:true",
     "post-snapshot",
+    "logout",
     "complete-cleanup",
   ]);
 
@@ -278,9 +287,10 @@ test("Phase A restores the fuse without fabricated request evidence when dispatc
     calls.some((call) => call.startsWith("request:")),
     false,
   );
-  assert.deepEqual(calls.slice(-4), [
+  assert.deepEqual(calls.slice(-5), [
     "kill-switch:true",
     "post-snapshot",
+    "logout",
     "complete-cleanup",
     "complete-operation:failed",
   ]);

@@ -269,6 +269,22 @@ audit 仍只允许 `enabled`。这不代表 Store 产品或 Windows 支持被取
 > canonical JSON。caller extra argument/approval 字段与 adapter override material 均不能改写实际 body；
 > `status/execute/recover`、CLI 和 public HTTP contract 未扩大。该切片仍没有 session/Cookie/CSRF/SSE
 > production adapter、网络、Hosted 或真实模型调用。
+> Phase C 第三个离线切片已按顺序一致方案闭合 private session lifecycle：session-free preflight 与有效
+> operation claim 在 login 前；login/password reauth/Operator readback 共用一个绝对 10 秒 envelope；
+> application/cleanup/独立 logout 分别为 90/10/10 秒。每个 post-login exit 都先 restoration/cleanup、再
+> normal logout，logout outcome 后才 durable complete cleanup 与 terminalize operation；application abort
+> 不能抑制 logout，ignored-abort timeout 后同步幂等销毁内存 capability。reauth 先采纳 replacement Cookie
+> 再校验 Cookie/CSRF rotation，partial response 只保留最新 Cookie 作 logout-only material，绝不回退旧
+> material；logout 失败只返回固定失败且不阻断 durable cleanup。recovery 无有效 cleanup claim 时零 login，
+> 有效时按 session→restore→logout→terminalize。arm 后 operation lease 必须覆盖 110 秒且不能越过 0019
+> 的 `armed_at + 120s`；private receipt 的 server-authoritative `armedAt` 是该上限唯一基准，不能用本地
+> response 时钟替代。production recovery claim 设计为 60 秒。Fresh lifecycle RED 为 9 tests 中 7 个
+> 预期失败，首轮 material/destroy 安全 RED 为 6 tests 中 5 个预期失败，随后又以 RED 关闭 invalid-clock
+> destroy、server `armedAt`/120 秒上限与 execute/recover future-arm；根侧又以 Fresh RED 关闭 post-evidence
+> clock 异常提前跳过 logout/terminalization 的路径，当前 one-shot 离线聚焦 73/73 全绿。
+> private adapter material 不公开，public executor 仍精确为 `status/execute/recover`。这仍没有 production
+> password/CSRF/SSE transport、真实 Cookie/凭据、网络、Hosted 写、模型调用或付费验收；session-free
+> Vercel/Web capture 的 production per-call deadline 仍属于 Phase D。
 
 > **历史校准检查点（Phase 33）**：Phase 28 已补齐 production 语义重复建议和
 > 可计算 AA token 证据；2026-08-14 完成度源码审计发现的 SubmissionOutbox `api=null` 误清账号绑定

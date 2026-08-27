@@ -7,16 +7,18 @@ import {
   hostedDeepSeekPreSnapshotFreshnessMilliseconds,
 } from "./acceptance-hosted-deepseek-one-shot.mjs";
 import {
-  adapter,
   approval,
   cleanupLease,
   deployments,
   identity,
   nowMilliseconds,
-  operationLifecycle,
   postObservedAt,
   preSnapshot,
 } from "./acceptance-hosted-deepseek-one-shot-test-fixtures.mjs";
+import {
+  adapter,
+  operationLifecycle,
+} from "./acceptance-hosted-deepseek-one-shot-fake-adapters.mjs";
 
 const failurePattern = /^Error: Hosted Cloud Web DeepSeek one-shot failed closed\.$/u;
 

@@ -67,21 +67,33 @@ Phase 91 的 15-file rebuild/backup evidence 仍只证明 0015；其 loader 必�
 
 - [x] 实现离线可注入的 TTY-only 邮箱/密码读取层：两项均经 hidden prompt，拒绝非交互 input/output、
       argv/env/file fallback、非法邮箱/密码与全部 C0/C1 控制字符；返回 frozen non-enumerable 内存对象；
-- [ ] 使用现有 password login、CSRF、recent-auth、Operator readback、kill-switch 和 analyses SSE/status
-      合同；
-- [ ] Cookie jar 和凭据仅在内存中，finally normal logout 后主动销毁；不新增 purpose session、特殊 Cookie
-      或 acceptance auth 字段；
+- [x] 私有 lifecycle 只在 session-free preflight 与 operation claim 均有效后，使用现有 password login、
+      password reauth 与 Operator readback；三步共用一个绝对 10 秒 session-establishment envelope；
+- [x] 私有 Cookie/CSRF adapter 只保存在内存，reauth 先采纳 replacement 再校验 rotation，旧 material 永不
+      回退；partial login/reauth 的有效新 Cookie 只保留作 logout-only material；
+- [x] 所有 post-login exit 先 cleanup、再以不继承 application abort 的独立绝对 10 秒 normal logout；
+      logout outcome 后同步幂等销毁 capability，才 durable complete cleanup / terminalize operation；
+- [ ] 把上述 private seam 接到 production password/CSRF/Operator/kill-switch/analyses SSE/status HTTP
+      transport；不新增 purpose session、特殊 Cookie 或 acceptance auth 字段；
 - [x] 在 Phase A private request builder 固定 normal-Web sentence body，source 只含 `type: manual`，禁止
       caller/adapter contract 覆盖 title、userContext、selection/source type 或正文；canonical JSON 与既有
       SHA-256 payload digest 由同一深冻结对象回归绑定；
-- [ ] fake HTTP 回归覆盖 Cookie/CSRF 轮换、401/403、SSE 中断、started-only/status recovery、deadline、
-      ignored abort、logout 失败和零透明重试。
+- [x] fake session 回归覆盖顺序、claim 前零 login/logout、Cookie/CSRF rotation 与 partial response、
+      application abort、ignored-abort logout、固定 logout 失败、durable cleanup 和 recovery 顺序；
+- [ ] production-shaped fake HTTP 继续覆盖 401/403、SSE 中断、started-only/status recovery 与零透明重试。
 
 退出标准：没有 acceptance-only 分析 route/header/body，正常 Web 合同是唯一 Provider dispatch 路径。
 
 当前检查点：fixed normal-Web request body 已离线接入 Phase A 的唯一
-`invokeCloudWebAnalysis(request, control)` 调用，且没有扩大 `status/execute/recover`、CLI 或 public HTTP
-contract。这只固定请求 body 与 digest，不表示 session/Cookie/CSRF/SSE adapter 或 Hosted 调用已实现。
+`invokeCloudWebAnalysis(request, control)` 调用；private session lifecycle 与内存 adapter 也已按
+preflight→claim→login/reauth/readback→arm/application→cleanup→logout→durable completion/terminalization
+闭合。arm 后必须留出 90 秒 application + 10 秒 cleanup + 10 秒 logout，不能越过 0019 的
+`armed_at + 120s`；私有 arm receipt 带 server-authoritative `armedAt`，executor 禁止用响应后的本地时间
+替代，并拒绝早于 pre-snapshot 或晚于本地 arm response 的值。recovery 也在 login 前拒绝晚于 claim 后
+采样时钟的 `armedAt`。recovery 采用 60 秒 cleanup claim，为三个 10 秒 envelope 后的终态写入保留 30 秒。
+`capturePreSnapshot()` 当前仍是 session-free injected seam，production Vercel/Web per-call deadline 属于
+Phase D，不能冒充为已 bounded。`status/execute/recover`、CLI 与 public HTTP contract 均未扩大；这仍不
+表示 production HTTP/SSE transport、Hosted session 或真实调用已实现。
 
 ## 阶段 D：deployment 与 settlement adapters
 
@@ -98,7 +110,8 @@ contract。这只固定请求 body 与 digest，不表示 session/Cookie/CSRF/SS
 
 - [ ] 把 Phase A 已完成的 `status()`、`execute(approval)`、`recover()` 接入 production composition root；
 - [ ] CLI 保留零 I/O `plan`，新增固定 `status`、exact-confirmation `execute` 和无 opaque ID 的 `recover`；
-- [ ] 90 秒应用 deadline、10 秒 cleanup、cleanup-first finally、unique pending recovery 和固定 stage 错误；
+- [x] 内部合同固定共享 10 秒 session establishment、90 秒应用、10 秒 cleanup、独立 10 秒 logout、
+      cleanup-first finally、valid-claim-only recovery 和 logout outcome 后终态化；
 - [ ] 新 operation 遇到 cleanup-pending、dirty/unpushed candidate、deployment drift、recent-auth drift、预算
       不足或非固定输入时零 mutation。
 

@@ -122,7 +122,7 @@ export function deploymentsMatch(left, right) {
   );
 }
 
-function authorizationIsValid(authorization, nowMilliseconds, freshnessMilliseconds) {
+export function authorizationIsValid(authorization, nowMilliseconds, freshnessMilliseconds) {
   if (
     !hasExactKeys(authorization, ["access", "observedAt", "operator", "reauthenticatedAt"]) ||
     authorization.access !== "full" ||
@@ -185,7 +185,6 @@ export function preSnapshotIsValid(snapshot, approval, nowMilliseconds, policy) 
   return (
     hasExactKeys(snapshot, [
       "authority",
-      "authorization",
       "budget",
       "candidate",
       "deployments",
@@ -198,7 +197,6 @@ export function preSnapshotIsValid(snapshot, approval, nowMilliseconds, policy) 
     observedAt !== null &&
     observedAt <= nowMilliseconds &&
     nowMilliseconds - observedAt <= policy.freshnessMilliseconds &&
-    authorizationIsValid(snapshot.authorization, nowMilliseconds, policy.freshnessMilliseconds) &&
     budgetIsValid(snapshot.budget, approval) &&
     candidateIsValid(snapshot.candidate, approval) &&
     deploymentsAreValid(snapshot.deployments) &&
@@ -233,10 +231,43 @@ export function operationLeaseIsValid(lease, approval, requiredUntilMilliseconds
   );
 }
 
+export function operationLeaseFitsCleanupArmWindow(
+  operationLease,
+  cleanupLease,
+  maximumMilliseconds,
+) {
+  const operationExpiresAt = parseUtcTimestamp(operationLease?.leaseExpiresAt);
+  const cleanupArmedAt = parseUtcTimestamp(cleanupLease?.armedAt);
+  const maximumExpiresAt =
+    cleanupArmedAt === null ? Number.NaN : cleanupArmedAt + maximumMilliseconds;
+  return (
+    isSafePositiveInteger(maximumMilliseconds) &&
+    operationExpiresAt !== null &&
+    cleanupArmedAt !== null &&
+    isSafeNonnegativeInteger(maximumExpiresAt) &&
+    operationExpiresAt <= maximumExpiresAt
+  );
+}
+
+export function cleanupLeaseArmTimeIsValid(lease, earliestObservedAt, latestMilliseconds) {
+  const armedAt = parseUtcTimestamp(lease?.armedAt);
+  const earliestMilliseconds =
+    earliestObservedAt === undefined ? 0 : parseUtcTimestamp(earliestObservedAt);
+  return (
+    armedAt !== null &&
+    earliestMilliseconds !== null &&
+    isSafeNonnegativeInteger(latestMilliseconds) &&
+    earliestMilliseconds <= armedAt &&
+    armedAt <= latestMilliseconds
+  );
+}
+
 export function cleanupLeaseIsValid(lease, deployments, requiredUntilMilliseconds) {
   const expiresAt = parseUtcTimestamp(lease?.leaseExpiresAt);
+  const armedAt = parseUtcTimestamp(lease?.armedAt);
   return (
     hasExactKeys(lease, [
+      "armedAt",
       "claimGeneration",
       "cleanupToken",
       "deployments",
@@ -247,7 +278,9 @@ export function cleanupLeaseIsValid(lease, deployments, requiredUntilMillisecond
     isUuid(lease.operationId) &&
     isSafePositiveInteger(lease.claimGeneration) &&
     isToken(lease.cleanupToken) &&
+    armedAt !== null &&
     expiresAt !== null &&
+    armedAt < expiresAt &&
     expiresAt > requiredUntilMilliseconds &&
     lease.desiredKillSwitchEnabled === true &&
     deploymentsMatch(lease.deployments, deployments)

@@ -2,7 +2,6 @@ import {
   cleanupCompletionReceiptIsValid,
   cleanupLeaseIsValid,
   completionReceiptIsValid,
-  deploymentsAreValid,
   hasExactKeys,
   isSafeNonnegativeInteger,
 } from "./acceptance-hosted-deepseek-one-shot-contract.mjs";
@@ -13,8 +12,13 @@ const failureMessage = "Hosted Cloud Web DeepSeek one-shot failed closed.";
 const requiredAdapterMethods = Object.freeze([
   "capturePostSnapshot",
   "capturePreSnapshot",
+  "destroySession",
   "invokeCloudWebAnalysis",
+  "loginPassword",
+  "logout",
+  "readOperatorAuthorization",
   "reconcileDispatchedRequest",
+  "reauthenticatePassword",
   "readServerSettlement",
   "setModelKillSwitch",
 ]);
@@ -267,7 +271,6 @@ export async function attemptCleanup({
   clearTimeout_,
   freshnessMilliseconds,
   lease,
-  lifecycle,
   readNowMilliseconds,
   setTimeout_,
 }) {
@@ -307,10 +310,7 @@ export async function attemptCleanup({
       return { completed: false, postSnapshot };
     }
     if (restorationFailed) return { completed: false, postSnapshot };
-    const operationState = await deadline.run(() =>
-      completeCleanup({ lifecycle, lease, postSnapshot }),
-    );
-    return { completed: operationState !== null, operationState, postSnapshot };
+    return { completed: true, postSnapshot };
   } catch {
     return { completed: false, postSnapshot };
   } finally {
@@ -319,77 +319,5 @@ export async function attemptCleanup({
     } catch {
       // The durable cleanup record stays pending when local timer cleanup fails.
     }
-  }
-}
-
-export async function recoverHostedDeepSeekOneShotCleanup(options = {}) {
-  try {
-    if (
-      typeof options !== "object" ||
-      options === null ||
-      Array.isArray(options) ||
-      ["idempotencyKey", "operationId", "ownerId", "requestId"].some((field) =>
-        Object.hasOwn(options, field),
-      )
-    ) {
-      throw failedClosed();
-    }
-    const {
-      adapter,
-      budgetMilliseconds,
-      clearTimeout_,
-      freshnessMilliseconds,
-      lifecycle,
-      readNowMilliseconds,
-      setTimeout_,
-    } = options;
-    if (
-      !isSafeNonnegativeInteger(budgetMilliseconds) ||
-      budgetMilliseconds === 0 ||
-      !isSafeNonnegativeInteger(freshnessMilliseconds) ||
-      !executionDependenciesAreValid({
-        adapter,
-        clearTimeout_,
-        lifecycle,
-        readNowMilliseconds,
-        setTimeout_,
-      })
-    ) {
-      throw failedClosed();
-    }
-    const cleanupLeaseCandidate = await lifecycle.claimCleanup();
-    const nowMilliseconds = readNowMilliseconds();
-    const cleanupDeadlineAt = nowMilliseconds + budgetMilliseconds;
-    if (
-      !isSafeNonnegativeInteger(nowMilliseconds) ||
-      !isSafeNonnegativeInteger(cleanupDeadlineAt) ||
-      !cleanupLeaseIsValid(
-        cleanupLeaseCandidate,
-        cleanupLeaseCandidate.deployments,
-        cleanupDeadlineAt,
-      ) ||
-      !deploymentsAreValid(cleanupLeaseCandidate.deployments)
-    ) {
-      throw failedClosed();
-    }
-    const cleanupAttempt = await attemptCleanup({
-      adapter,
-      budgetMilliseconds,
-      clearTimeout_,
-      freshnessMilliseconds,
-      lease: cleanupLeaseCandidate,
-      lifecycle,
-      readNowMilliseconds,
-      setTimeout_,
-    });
-    if (!cleanupAttempt.completed || cleanupAttempt.operationState !== "terminal") {
-      throw failedClosed();
-    }
-    return Object.freeze({
-      killSwitchRestored: true,
-      outcome: "restored",
-    });
-  } catch {
-    throw failedClosed();
   }
 }

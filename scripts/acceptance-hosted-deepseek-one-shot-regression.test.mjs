@@ -3,17 +3,19 @@ import test from "node:test";
 
 import { createHostedDeepSeekOneShotExecutor } from "./acceptance-hosted-deepseek-one-shot.mjs";
 import {
-  adapter,
   approval,
   deployments,
   identity,
   nowMilliseconds,
   observedAt,
-  operationLifecycle,
   ownerUsage,
   postSnapshot,
   preSnapshot,
 } from "./acceptance-hosted-deepseek-one-shot-test-fixtures.mjs";
+import {
+  adapter,
+  operationLifecycle,
+} from "./acceptance-hosted-deepseek-one-shot-fake-adapters.mjs";
 
 const failurePattern = /^Error: Hosted Cloud Web DeepSeek one-shot failed closed\.$/u;
 
@@ -57,8 +59,7 @@ test("the orchestrator deadline wins even when the application adapter ignores a
       clearTimeout_: () => undefined,
       lifecycle: operationLifecycle(),
       setTimeout_: (callback, milliseconds) => {
-        assert.equal(milliseconds, 90_000);
-        fireDeadline = callback;
+        if (milliseconds === 90_000) fireDeadline = callback;
         return 1;
       },
     }),
@@ -81,8 +82,8 @@ test("a deadline between stages prevents the next adapter stage from starting", 
       approval: approval(),
       clearTimeout_: () => undefined,
       lifecycle: operationLifecycle(),
-      setTimeout_: (callback) => {
-        fireDeadline = callback;
+      setTimeout_: (callback, milliseconds) => {
+        if (milliseconds === 90_000) fireDeadline = callback;
         return 1;
       },
     }),
@@ -92,14 +93,13 @@ test("a deadline between stages prevents the next adapter stage from starting", 
     calls.some((call) => call.startsWith("request:")),
     false,
   );
-  assert.deepEqual(calls.slice(-2), ["kill-switch:true", "post-snapshot"]);
+  assert.deepEqual(calls.slice(-3), ["kill-switch:true", "post-snapshot", "logout"]);
 });
 
 test("legacy unbound evidence and an undated post snapshot cannot prove acceptance", async () => {
   const currentPre = preSnapshot();
   const legacyPre = {
     authority: currentPre.authority,
-    authorization: currentPre.authorization,
     budget: currentPre.budget,
     candidate: currentPre.candidate,
     killSwitchEnabled: currentPre.killSwitchEnabled,
@@ -154,7 +154,14 @@ test("failed local restoration leaves a durable lease for cleanup-only recovery"
     killSwitchRestored: true,
     outcome: "restored",
   });
-  assert.deepEqual(recoveryCalls, ["kill-switch:true", "post-snapshot"]);
+  assert.deepEqual(recoveryCalls, [
+    "login-password",
+    "reauthenticate-password",
+    "operator-readback",
+    "kill-switch:true",
+    "post-snapshot",
+    "logout",
+  ]);
   assert.equal(lifecycle.pendingCleanup(), undefined);
   await assert.rejects(recoveryExecutor.recover(), failurePattern);
 });
@@ -179,6 +186,37 @@ test("post freshness is independently sampled instead of inherited from prefligh
     }),
     failurePattern,
   );
+});
+
+test("a post-evidence clock failure still logs out before durable terminalization", async () => {
+  const calls = [];
+  let readsAfterPostSnapshot = 0;
+
+  await assert.rejects(
+    orchestrate({
+      adapter: adapter({
+        calls,
+        destroy: () => calls.push("destroy-session"),
+      }),
+      approval: approval(),
+      lifecycle: operationLifecycle({ calls }),
+      readNowMilliseconds: () => {
+        if (calls.at(-1) === "post-snapshot") {
+          readsAfterPostSnapshot += 1;
+          if (readsAfterPostSnapshot === 2) throw new Error("private clock failure");
+        }
+        return nowMilliseconds;
+      },
+    }),
+    failurePattern,
+  );
+
+  assert.deepEqual(calls.slice(-4), [
+    "logout",
+    "destroy-session",
+    "complete-cleanup",
+    "complete-operation:failed",
+  ]);
 });
 
 test("fresh post evidence must match restoration, identity, deployments, and usage delta", async () => {

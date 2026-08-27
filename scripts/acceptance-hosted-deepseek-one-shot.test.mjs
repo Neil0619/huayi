@@ -1,26 +1,18 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import { hostedDeepSeekAnalysisRequestBody } from "./acceptance-hosted-deepseek-one-shot-analysis-request.mjs";
 import {
   createHostedDeepSeekOneShotExecutor,
-  hostedDeepSeekApplicationBudgetMilliseconds,
   hostedDeepSeekAnalysisStreamPath,
-  hostedDeepSeekOneShotConfirmation,
   hostedDeepSeekWebOrigin,
-  hostedDeepSeekWebPath,
-  renderHostedDeepSeekOneShotPlan,
-  runHostedDeepSeekOneShotCli,
 } from "./acceptance-hosted-deepseek-one-shot.mjs";
 import {
-  adapter,
   approval,
   deployments,
   identity,
   ledgerEntry,
   nowMilliseconds,
-  operationLifecycle,
   ownerUsage,
   postSnapshot,
   preSnapshot,
@@ -28,6 +20,10 @@ import {
   settlement,
   unsafePreflightCases,
 } from "./acceptance-hosted-deepseek-one-shot-test-fixtures.mjs";
+import {
+  adapter,
+  operationLifecycle,
+} from "./acceptance-hosted-deepseek-one-shot-fake-adapters.mjs";
 
 const failurePattern = /^Error: Hosted Cloud Web DeepSeek one-shot failed closed\.$/u;
 
@@ -39,92 +35,6 @@ function orchestrate(options = {}) {
   };
   return createHostedDeepSeekOneShotExecutor(dependencies).execute(executionApproval);
 }
-
-test("DeepSeek plan is fixed, zero-I/O, Cloud-Web-only, and exposes no real executor", async () => {
-  let stdout = "";
-  let stderr = "";
-  const privateValue = "sk-private-must-not-appear";
-  const code = await runHostedDeepSeekOneShotCli({
-    arguments_: ["plan"],
-    environment: { DEEPSEEK_API_KEY: privateValue },
-    writeError: (value) => {
-      stderr += value;
-    },
-    writeOutput: (value) => {
-      stdout += value;
-    },
-  });
-
-  assert.equal(code, 0);
-  assert.equal(stderr, "");
-  assert.equal(stdout, renderHostedDeepSeekOneShotPlan());
-  assert.match(stdout, /zero filesystem \/ zero Git \/ zero network \/ zero Hosted write/u);
-  assert.match(stdout, new RegExp(`${hostedDeepSeekWebOrigin}${hostedDeepSeekWebPath}`, "u"));
-  for (const expected of [
-    "Classic `pnpm smoke:deepseek` is forbidden",
-    "no default real executor",
-    "hidden interactive channel",
-    "only caller seam is status(), execute(approval), and recover()",
-    "read-only authority query with an absolute five-second bound",
-    "Approval contains only the candidate commit, exact confirmation, and reservation cap",
-    "authority generates operation and idempotency identities",
-    "independently attested full source SHAs",
-    "durably arm a reclaimable cleanup lease",
-    "Both validated leases must outlive the complete 90-second mutation window",
-    "persist dispatch-attempted",
-    "bind that server-generated request ID",
-    "bounded reconciliation by the authority-owned idempotency key, owner, and fixed payload digest",
-    "never POST again",
-    "never accepts an opaque operation ID",
-    "absolute 90-second deadline",
-    "continuous zero-based UsageLedger calls",
-    "exposes no opaque IDs, price UUID, or token-usage details",
-  ]) {
-    assert.match(stdout, new RegExp(expected.replaceAll(/[.*+?^${}()|[\]\\]/gu, "\\$&"), "u"));
-  }
-  assert.match(stdout, /adapter control only; never Web request body or Provider parameters/u);
-  assert.doesNotMatch(stdout, new RegExp(privateValue, "u"));
-  assert.equal(hostedDeepSeekApplicationBudgetMilliseconds, 90_000);
-
-  const packageDocument = JSON.parse(
-    await readFile(new URL("../package.json", import.meta.url), "utf8"),
-  );
-  assert.equal(
-    packageDocument.scripts["acceptance:hosted:deepseek:plan"],
-    "node scripts/acceptance-hosted-deepseek-one-shot.mjs plan",
-  );
-  assert.equal(packageDocument.scripts["acceptance:hosted:deepseek:run"], undefined);
-});
-
-test("default CLI fails closed on every non-plan argument without external work", async () => {
-  for (const arguments_ of [
-    [],
-    ["run"],
-    ["run", hostedDeepSeekOneShotConfirmation],
-    ["plan", "extra"],
-  ]) {
-    let stdout = "";
-    let stderr = "";
-    const code = await runHostedDeepSeekOneShotCli({
-      arguments_,
-      environment: { TOKEN: "private-token" },
-      writeError: (value) => {
-        stderr += value;
-      },
-      writeOutput: (value) => {
-        stdout += value;
-      },
-    });
-    assert.deepEqual(
-      { code, stderr, stdout },
-      {
-        code: 1,
-        stderr: "Hosted Cloud Web DeepSeek one-shot failed closed.\n",
-        stdout: "",
-      },
-    );
-  }
-});
 
 test("orchestrator claims once, binds the request, and closes cleanup after restoration", async () => {
   const calls = [];
@@ -163,6 +73,9 @@ test("orchestrator claims once, binds the request, and closes cleanup after rest
   assert.deepEqual(calls, [
     "pre-snapshot",
     "claim-operation",
+    "login-password",
+    "reauthenticate-password",
+    "operator-readback",
     "arm-cleanup",
     "kill-switch:false",
     "mark-dispatch-attempted",
@@ -171,6 +84,7 @@ test("orchestrator claims once, binds the request, and closes cleanup after rest
     "server-settlement",
     "kill-switch:true",
     "post-snapshot",
+    "logout",
     "complete-cleanup",
     "complete-operation:accepted",
   ]);
@@ -281,13 +195,14 @@ test("server evidence must bind deployments, request identity, price UUID, and l
       failurePattern,
     );
     assert.equal(calls.filter((call) => call.startsWith("request:")).length, 1);
-    assert.deepEqual(calls.slice(-4), [
+    assert.deepEqual(calls.slice(-5), [
       "kill-switch:true",
       "post-snapshot",
+      "logout",
       "complete-cleanup",
       "complete-operation:failed",
     ]);
-    assert.match(calls.join(","), /kill-switch:true,post-snapshot,complete-cleanup/u);
+    assert.match(calls.join(","), /kill-switch:true,post-snapshot,logout,complete-cleanup/u);
   }
 });
 
