@@ -27,6 +27,13 @@ adapter，以继续覆盖 canonical/atomic 流程、路径、进程、环境、p
 mode、目录 `fsync` 断言与依赖 Windows symlink 权限的变体不在 Windows 门执行。声明为 macOS 的
 FileVault readiness 测试必须显式注入平台，不得从运行测试的宿主平台推导期望。
 
+Hosted DeepSeek stale backup retirement 的默认测试只使用系统临时目录、虚构 canonical manifest、fake Git
+与注入的 rename/fsync/post-move 故障；不得调用真实 package 入口。回归必须覆盖 exact confirmation、整批
+`pre + rebuild` happy path、current/mixed/malformed/post/unknown/symlink/权限/destination、dirty/unpushed/
+ignore/non-ancestor 拒绝，以及任一故障后 active/history 至少一侧仍有完整单元。另以 fake Git 断言只执行
+HEAD/upstream/status/check-ignore、commit existence 与 ancestor 检查；测试不得读取 TTY/secret、启动 Hosted
+child、运行 capture/rebuild/preflight/migration status/dry-run/apply 或产生网络 I/O。
+
 非 Windows 的根 Vitest 门按固定顺序分成两个进程：先用 `--project=!api --maxWorkers 4` 运行
 非 API projects，再用 `--project api --maxWorkers 2 --testTimeout 15000 --hookTimeout 15000`
 单独运行 PGlite 密集的 API tests。这个局部资源和超时预算不改变断言、重试或全局 Playwright

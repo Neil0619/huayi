@@ -3,6 +3,18 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-28：Hosted DeepSeek stale pre/rebuild 只允许整批不可变退役
+
+- `hosted-deepseek-0016-0021` 的 strict stale `pre + rebuild` 是一个不可拆分恢复单元；禁止删除 dump、覆盖、
+  分别搬运、重捕成 current 或复用 0014 rebuild-only retirement identity；
+- 新的 DeepSeek 专用 exact-confirmation 入口只在 clean pushed HEAD、双窄 root ignored、同一 stale candidate、
+  post absent、严格 `0700/0600` 且历史 commit 存在并为 HEAD ancestor 时，把整个 active batch 原子 rename 到
+  固定 history/batch/stale/evidence 层级；destination occupied、mixed/malformed/symlink/unknown/权限或 Git
+  漂移全部失败关闭；
+- rename 两侧目录必须 `fsync`，history 必须再做严格 evidence 验证；失败后 active/history 至少保留一份完整
+  单元且 retained history 无删除入口。成功只让 active batch 回到可安全重建的 absent 状态，不改变 preflight
+  的 current-candidate 要求，也不授权或执行 Hosted、capture/rebuild/status/dry-run/apply；
+
 ## 2026-08-27：Hosted DeepSeek 0016–0021 使用独立恢复与 migration batch
 
 - Phase 91 的 15-file/head 0015 evidence 保持历史不可变，不扩写、不覆盖，也不授权当前 21-file source；

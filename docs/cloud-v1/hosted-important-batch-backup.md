@@ -104,6 +104,28 @@ extra entry/destination occupied/dirty/upstream mismatch/ignore mismatch/rename 
 body-free failure；失败时尽可能保留 active 或 history 中至少一份完整 evidence，不执行 delete 或手工覆盖。
 retained history 删除不属于该入口，仍需独立生命周期、批准与证据。
 
+Hosted DeepSeek `hosted-deepseek-0016-0021` 不能复用上面的 0014 fixed identity 或只退役 rebuild。它的
+专用 `acceptance:hosted:deepseek:migration:backup:retire` 只接受 active batch 精确为同一 stale candidate
+的 strict `pre + rebuild` 且 `post` absent，再把两份 evidence 作为不可拆分单元原子 rename 到：
+
+```text
+artifacts/hosted-important-batch-backup-history/
+└── hosted-deepseek-0016-0021/
+    └── <stale-candidate-commit>/
+        └── evidence/
+            ├── pre/
+            │   ├── database.dump
+            │   └── backup-manifest.json
+            └── rebuild/
+                └── rebuild-verification.json
+```
+
+专用入口额外要求 stale commit 在 Git 中存在且为 clean pushed HEAD 的 ancestor；history destination 预占、
+目录双侧 `fsync`、历史再验证和失败后至少一侧保留完整单元，均不放宽 `0700/0600`、symlink/unknown-entry
+拒绝或现有 preflight 的 current-candidate 门。成功后 active batch 缺席并可由既有不可覆盖 writer 为当前
+候选重建；它不连接 Hosted、不读取 secret、不运行 capture/rebuild/preflight/status/dry-run/apply。本控制面
+已实现但尚未执行，真实 retirement 仍需单独批准。
+
 每个目录只允许上述固定文件。`.partial`、CA、`.pgpass`、临时 restore、stdout capture 或未知文件都会令门
 失败；写入口必须在连接或启动 scratch 前确认目标 leaf 精确为空。capture/rebuild 在每个正常异常路径都只
 清理固定 partial、CA、`.pgpass`、未完成 final 与自身精确匹配的 container/scratch；只有 dump 关闭并

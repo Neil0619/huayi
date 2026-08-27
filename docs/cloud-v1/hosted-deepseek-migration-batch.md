@@ -67,6 +67,28 @@ pnpm acceptance:hosted:deepseek:migration:backup:status
 它只输出 pre/rebuild/post 的 `present|valid|current` 九个布尔值。`current=true` 还要求 manifest candidate
 等于 clean pushed HEAD；不得输出 path、commit、hash、timestamp、project、batch、secret 或 raw error。
 
+候选推进后，如果 active batch 恰好只含 strict valid、同一 stale candidate 的 `pre + rebuild`，不得删除、
+覆盖或分别搬运。唯一专用出口是下列 exact-confirmation 入口；它是本地敏感 evidence mutation，仍需独立
+批准，且本轮只实现、未执行：
+
+```text
+pnpm acceptance:hosted:deepseek:migration:backup:retire
+```
+
+入口不读取 Hosted、TTY、密码、密钥、Docker 或 migration status。它先要求 clean `HEAD==upstream`、active
+与 history 两个窄 root 均 ignored，严格重验 active batch 只有 `pre/rebuild`、全部 `0700/0600`、两份
+manifest 绑定同一 stale 40 字符 commit，并用 Git 证明该 commit 存在且为当前 HEAD 的 ancestor；current、
+mixed、malformed、post-present、unknown entry、symlink、不安全权限、dirty/unpushed、non-ancestor 或历史
+destination 已占用均在 rename 前失败关闭。
+
+历史固定层级为
+`artifacts/hosted-important-batch-backup-history/hosted-deepseek-0016-0021/<stale>/evidence`。工具先以
+`0700` candidate reservation 防覆盖，再把**整个 active batch** 一次原子 rename 为 `evidence`，对创建与
+rename 两侧目录执行 `fsync`，最后从 history 再次严格验证完整 `pre + rebuild`。成功后 active batch 缺席，
+现有不可覆盖 writer 可为当前 candidate 重新建立安全批次；现有 preflight 的 current-candidate 要求完全不变。
+rename/fsync/post-move validation 失败时不删除 dump：完整单元至少保留在 active 或 history 一侧，固定
+body-free 失败和保留位置可供后续只读审计；history 删除仍无入口。
+
 ## 4. 恢复证据顺序
 
 所有 readiness 与写入入口都要求 clean `HEAD==upstream`、batch path 被 clone-local ignore、固定 Docker

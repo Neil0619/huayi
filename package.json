@@ -28,6 +28,7 @@
     "acceptance:hosted:deepseek:migration:backup:plan": "node scripts/acceptance-hosted-deepseek-migration-backup.mjs --plan",
     "acceptance:hosted:deepseek:migration:backup:preflight": "node scripts/acceptance-hosted-deepseek-migration-backup.mjs --verify-pre-hosted-deepseek-0016-0021-backup-kpadiulxkgckskcfydry",
     "acceptance:hosted:deepseek:migration:backup:rebuild": "node scripts/acceptance-hosted-deepseek-migration-backup-executor.mjs --confirm-rebuild-hosted-deepseek-0016-0021-backup-kpadiulxkgckskcfydry",
+    "acceptance:hosted:deepseek:migration:backup:retire": "node scripts/acceptance-hosted-deepseek-migration-backup-retirement.mjs --confirm-retire-stale-hosted-deepseek-0016-0021-backup-kpadiulxkgckskcfydry",
     "acceptance:hosted:deepseek:migration:backup:status": "node scripts/acceptance-hosted-deepseek-migration-backup-status.mjs --status-hosted-deepseek-0016-0021-backup-kpadiulxkgckskcfydry",
     "acceptance:hosted:deepseek:migration:dry-run": "node scripts/acceptance-hosted-deepseek-migration-dry-run.mjs --confirm-dry-run-hosted-deepseek-0016-0021-kpadiulxkgckskcfydry",
     "acceptance:hosted:deepseek:migration:status": "node scripts/acceptance-hosted-deepseek-migration-status.mjs --status-hosted-deepseek-0016-0021-kpadiulxkgckskcfydry",

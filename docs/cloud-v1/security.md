@@ -401,6 +401,20 @@ owner context、generation/reservation 归属、task 成功或失败终态、价
   建议的至少 12 个字符为下限，独立保留 512 字符安全上限，并拒绝 NUL、CR、LF。密码只进入
   `0600 .pgpass`。该边界不得复用于 application 数据库密码，后者继续保持独立的 32+ 字符契约。
 
+### 7.3 Hosted DeepSeek stale backup 不可变退役边界
+
+- `hosted-deepseek-0016-0021` 的 stale `pre` raw dump 与 matching rebuild evidence 只能作为一个单元保留；
+  不得删除、覆盖、分别搬运、修改 candidate 或复制回 active batch。专用 exact-confirmation 入口不读取
+  Hosted、TTY、密码、Keychain、环境 secret 或数据库状态，只运行有界 Git 与本地 evidence filesystem I/O；
+- mutation 前必须证明 clean `HEAD==upstream`、active/history 窄 root 均 ignored、active 精确只有 strict
+  `pre + rebuild` 且 `post` absent、两份 manifest 同一 stale commit、全部目录/文件为 `0700/0600` 普通对象，
+  并由 Git 证明历史 commit 存在且是当前 HEAD ancestor。current/mixed/malformed/unknown/symlink/non-ancestor
+  或 occupied destination 均失败关闭；
+- 工具以 private candidate reservation 防覆盖，把整个 active batch 一次原子 rename 到固定
+  history/batch/stale/evidence 层级，`fsync` 两侧目录并从 history 再严格验 hash/manifest。失败不得删除 dump，
+  active/history 至少一侧保留完整 evidence；retained history 删除没有入口。成功后的 active absent 只允许
+  既有不可覆盖 writer 为当前 candidate 重新建立 evidence，不降低 current preflight 门。
+
 ## 8. 密码注册确认与中断恢复
 
 - Confirm sign up 邮件不得直接链接可被 scanner 消费的 Supabase `ConfirmationURL`；只显示六位 OTP，
