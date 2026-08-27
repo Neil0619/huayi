@@ -161,7 +161,7 @@ test("freshness clock is sampled immediately after pre-snapshot capture", async 
     }),
     failurePattern,
   );
-  assert.equal(readNowCalls, 1);
+  assert.equal(readNowCalls, 2);
   assert.deepEqual(calls, ["pre-snapshot"]);
 });
 

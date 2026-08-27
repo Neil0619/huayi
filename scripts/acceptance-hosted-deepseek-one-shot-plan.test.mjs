@@ -5,6 +5,8 @@ import test from "node:test";
 import {
   hostedDeepSeekApplicationBudgetMilliseconds,
   hostedDeepSeekOneShotConfirmation,
+  hostedDeepSeekPreflightBudgetMilliseconds,
+  hostedDeepSeekRecoveryEvidenceBudgetMilliseconds,
   hostedDeepSeekWebOrigin,
   hostedDeepSeekWebPath,
   renderHostedDeepSeekOneShotPlan,
@@ -41,6 +43,8 @@ test("DeepSeek plan is fixed, zero-I/O, Cloud-Web-only, and exposes no real exec
     "authority generates operation and idempotency identities",
     "independently attested full source SHAs",
     "session-free pre-snapshot",
+    "preflight owns one absolute 10-second envelope",
+    "independent five-second bound",
     "Invalid preflight or claim performs zero login and zero logout",
     "one absolute 10-second session-establishment envelope",
     "durably arm a reclaimable cleanup lease",
@@ -48,10 +52,13 @@ test("DeepSeek plan is fixed, zero-I/O, Cloud-Web-only, and exposes no real exec
     "server-authoritative armedAt plus 120 seconds",
     "persist dispatch-attempted",
     "bind that server-generated request ID",
-    "bounded reconciliation by the authority-owned idempotency key, owner, and fixed payload digest",
+    "bounded fenced SQL reconciliation by the authority-owned idempotency key, owner, and fixed payload digest",
+    "Reconcile and bind exactly one match atomically",
     "never POST again",
     "never accepts an opaque operation ID",
     "absolute 90-second deadline",
+    "separate absolute 20-second reconciliation/settlement evidence envelope",
+    "caller-selected receipt digests are forbidden",
     "Application abort cannot suppress logout",
     "before durable cleanup completion and operation terminalization",
     "continuous zero-based UsageLedger calls",
@@ -62,6 +69,8 @@ test("DeepSeek plan is fixed, zero-I/O, Cloud-Web-only, and exposes no real exec
   assert.match(stdout, /adapter control only; never Web request body or Provider parameters/u);
   assert.doesNotMatch(stdout, new RegExp(privateValue, "u"));
   assert.equal(hostedDeepSeekApplicationBudgetMilliseconds, 90_000);
+  assert.equal(hostedDeepSeekPreflightBudgetMilliseconds, 10_000);
+  assert.equal(hostedDeepSeekRecoveryEvidenceBudgetMilliseconds, 20_000);
 
   const packageDocument = JSON.parse(
     await readFile(new URL("../package.json", import.meta.url), "utf8"),

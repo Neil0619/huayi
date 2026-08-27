@@ -7,6 +7,7 @@ import {
   createHostedAcceptanceHmacKeyring,
   createHostedDeepSeekPostgresAuthority,
 } from "../../../scripts/acceptance-hosted-deepseek-one-shot-postgres-authority.mjs";
+import { createHostedDeepSeekPostgresEvidence } from "../../../scripts/acceptance-hosted-deepseek-one-shot-postgres-evidence.mjs";
 import {
   createHostedDeepSeekOneShotExecutor,
   hostedDeepSeekOneShotConfirmation,
@@ -23,12 +24,16 @@ const migrationNames = [
   "0018-hosted-deepseek-acceptance-status.sql",
   "0019-hosted-deepseek-acceptance-effective-fuse.sql",
   "0020-hosted-deepseek-acceptance-authority-mutations.sql",
+  "0021-hosted-deepseek-acceptance-evidence.sql",
 ] as const;
 const operationId = "70000000-0000-4000-8000-000000000001";
 const ownerId = "71000000-0000-4000-8000-000000000001";
 const requestId = "72000000-0000-4000-8000-000000000001";
 const invitationId = "73000000-0000-4000-8000-000000000001";
-const priceVersionId = "74000000-0000-4000-8000-000000000001";
+const priceVersionId = "dad0deb1-cbdc-4311-b3ad-b492c7ece757";
+const recordId = "75000000-0000-4000-8000-000000000001";
+const reservationId = "76000000-0000-4000-8000-000000000001";
+const ledgerId = "77000000-0000-4000-8000-000000000001";
 const secondRequestId = "72000000-0000-4000-8000-000000000002";
 const candidateCommit = "b".repeat(40);
 const deployments = Object.freeze({
@@ -129,43 +134,6 @@ function preSnapshot() {
   };
 }
 
-function settlement(identity: {
-  idempotencyKey: string;
-  operationId: string;
-  ownerId: string;
-  requestId: string;
-}) {
-  return {
-    applicationRequestCount: 1,
-    billedCallCount: 1,
-    deadlineClassification: "completed-within-90-seconds",
-    deployments,
-    ledgerEntries: [
-      {
-        cachedInputTokens: 0,
-        callOrdinal: 0,
-        costMicroUsd: 17,
-        id: "75000000-0000-4000-8000-000000000001",
-        inputTokens: 120,
-        outcome: "succeeded",
-        outputTokens: 60,
-        ownerId,
-        priceVersionId,
-        requestId: identity.requestId,
-      },
-    ],
-    model: "deepseek-v4-flash",
-    observedAt: timestamp(),
-    priceVersionId,
-    priceVersionSlot: "off-peak",
-    request: identity,
-    reservationMicroUsd: 40_000,
-    reservationStatus: "settled",
-    settlementSource: "server-authority",
-    terminalState: "completed",
-  };
-}
-
 function restorationSnapshot() {
   return {
     applicationRequestCountDelta: 1,
@@ -175,7 +143,7 @@ function restorationSnapshot() {
     observedAt: timestamp(),
     ownerUsage: {
       cachedInputTokens: 0,
-      costMicroUsd: 17,
+      costMicroUsd: 63,
       inputTokens: 120,
       ledgerEntryCount: 1,
       outputTokens: 60,
@@ -195,6 +163,49 @@ async function expireOperationLease(database: PGlite): Promise<void> {
     WHERE id='${operationId}';
     ALTER TABLE huayi_private.hosted_acceptance_operations
       ENABLE TRIGGER hosted_acceptance_operation_state_guard;
+  `);
+}
+
+async function completeDispatchedAnalysis(database: PGlite): Promise<void> {
+  await database.exec(`
+    INSERT INTO public.model_price_versions(
+      id,provider,model,input_micro_usd_per_million,cached_input_micro_usd_per_million,
+      output_micro_usd_per_million,effective_from
+    ) VALUES (
+      '${priceVersionId}','deepseek','deepseek-v4-flash',220000,7000,660000,
+      '2026-08-16T16:00:00Z'
+    );
+    INSERT INTO public.quota_reservations(
+      id,user_id,owner_user_id,request_id,period_start,reserved_micro_usd,status,
+      expires_at,created_at,updated_at
+    ) VALUES (
+      '${reservationId}','${ownerId}','${ownerId}','${requestId}',
+      date_trunc('month',now()),40000,'settled',now()+interval '1 minute',now(),now()
+    );
+    INSERT INTO public.analysis_records(
+      id,owner_user_id,review_state,source_type,source_text,source_normalized_hash,
+      selection_kind,result,model_metadata,revision,created_at,updated_at
+    ) VALUES (
+      '${recordId}','${ownerId}','pendingReview','manual','private source text',
+      repeat('9',64),'sentence','{}'::jsonb,
+      '{"provider":"deepseek","model":"deepseek-v4-flash","promptVersion":"web-deep-analysis-v2","schemaVersion":2,"inputTokens":120,"outputTokens":60}'::jsonb,
+      1,now(),now()
+    );
+    INSERT INTO public.usage_ledger(
+      id,user_id,owner_user_id,request_id,call_ordinal,period_start,feature,
+      input_tokens,cached_input_tokens,output_tokens,price_version_id,cost_micro_usd,
+      outcome,created_at
+    ) VALUES (
+      '${ledgerId}','${ownerId}','${ownerId}','${requestId}',0,date_trunc('month',now()),
+      'analysis',120,20,60,'${priceVersionId}',63,'succeeded',now()
+    );
+    UPDATE public.analysis_requests
+    SET state='completed',reservation_id='${reservationId}',
+        price_version_id='${priceVersionId}',dispatched_at=now(),
+        terminal_event=jsonb_build_object(
+          'type','analysis.completed','analysis',jsonb_build_object('id','${recordId}')
+        ),updated_at=now()
+    WHERE id='${requestId}';
   `);
 }
 
@@ -279,6 +290,7 @@ describe("Hosted DeepSeek shared-Postgres cross-process recovery", () => {
           priceVersionId,
         ],
       );
+      await completeDispatchedAnalysis(database);
       await expireOperationLease(database);
 
       const restartedAuthority = createHostedDeepSeekPostgresAuthority({
@@ -294,6 +306,7 @@ describe("Hosted DeepSeek shared-Postgres cross-process recovery", () => {
       });
       let reconcileCount = 0;
       let restartedPostCount = 0;
+      const postgresEvidence = createHostedDeepSeekPostgresEvidence({ query });
       const restartedAdapter = {
         capturePostSnapshot: async () => restorationSnapshot(),
         capturePreSnapshot: async () => preSnapshot(),
@@ -305,8 +318,7 @@ describe("Hosted DeepSeek shared-Postgres cross-process recovery", () => {
         loginPassword: async () => undefined,
         logout: async () => undefined,
         readOperatorAuthorization: async () => authorization(),
-        readServerSettlement: async (identity: Parameters<typeof settlement>[0]) =>
-          settlement(identity),
+        readServerSettlement: postgresEvidence.readServerSettlement,
         reauthenticatePassword: async () => undefined,
         reconcileDispatchedRequest: async (request: {
           idempotencyKey: string;

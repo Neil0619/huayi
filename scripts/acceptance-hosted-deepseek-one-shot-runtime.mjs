@@ -122,6 +122,12 @@ export function createApplicationDeadline(options) {
 export function createCleanupDeadline(options) {
   return createDeadline({ ...options, controlBudgetField: "cleanupBudgetMilliseconds" });
 }
+export function createPreflightDeadline(options) {
+  return createDeadline({ ...options, controlBudgetField: "preflightBudgetMilliseconds" });
+}
+export function createRecoveryEvidenceDeadline(options) {
+  return createDeadline({ ...options, controlBudgetField: "recoveryEvidenceBudgetMilliseconds" });
+}
 export function createStatusDeadline(options) {
   return createDeadline({ ...options, controlBudgetField: "statusBudgetMilliseconds" });
 }
@@ -232,9 +238,12 @@ export function createApplicationRequest(identity, deployments, route) {
   });
 }
 
-export function createReconciliationRequest(identity, payloadDigest) {
+export function createReconciliationRequest(identity, payloadDigest, operationLease) {
   return Object.freeze({
+    claimToken: operationLease.claimToken,
     idempotencyKey: identity.idempotencyKey,
+    leaseGeneration: operationLease.leaseGeneration,
+    operationId: operationLease.operationId,
     ownerId: identity.ownerId,
     payloadDigest,
   });

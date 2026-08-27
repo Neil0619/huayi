@@ -235,7 +235,7 @@ export function unsafePreflightCases() {
       pre: preSnapshot(),
       preRead: true,
       readNowMilliseconds: (() => {
-        const values = [nowMilliseconds, Number.NaN];
+        const values = [nowMilliseconds, nowMilliseconds, Number.NaN];
         return () => values.shift();
       })(),
     },

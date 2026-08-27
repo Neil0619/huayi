@@ -44,6 +44,22 @@ it("exposes the service health contract", async () => {
   await expect(response.json()).resolves.toEqual({ service: "huayi-cloud-api", status: "ok" });
 });
 
+it("attests one exact hosted deployment without changing the health body", async () => {
+  const server = createHealthApp({
+    commit: "0123456789abcdef0123456789abcdef01234567",
+    deploymentId: "dpl_7Gw5ZMBpQA8h9GF832KGp7nwbuh3",
+  });
+  const response = await server.request("/health");
+
+  expect(response.status).toBe(200);
+  expect(response.headers.get("x-huayi-deployment-commit")).toBe(
+    "0123456789abcdef0123456789abcdef01234567",
+  );
+  expect(response.headers.get("x-huayi-deployment-id")).toBe("dpl_7Gw5ZMBpQA8h9GF832KGp7nwbuh3");
+  expect(response.headers.get("x-huayi-release-channel")).toBe("hosted-acceptance");
+  await expect(response.json()).resolves.toEqual({ service: "huayi-cloud-api", status: "ok" });
+});
+
 it("keeps Vercel auto-discovery on the production server entrypoint", async () => {
   const recognizedEntrypoint = /^(?:app|index|server)\.(?:cjs|cts|js|jsx|mjs|mts|ts|tsx)$/u;
   const rootCandidates = (await readdir(new URL("../", import.meta.url)))

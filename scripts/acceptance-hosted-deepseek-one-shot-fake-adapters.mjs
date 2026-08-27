@@ -146,9 +146,9 @@ export function adapter({
       calls.push("post-snapshot");
       return typeof post === "function" ? post(control) : post;
     },
-    capturePreSnapshot: async () => {
+    capturePreSnapshot: async (control) => {
       calls.push("pre-snapshot");
-      return typeof pre === "function" ? pre() : pre;
+      return typeof pre === "function" ? pre(control) : pre;
     },
     destroySession: () => destroy(),
     invokeCloudWebAnalysis: async (request, control) => {

@@ -77,7 +77,7 @@ export function createHostedDeepSeekPostgresAuthority({
         operationId: row.operationId,
       });
     },
-    async bindRequest(command) {
+    async bindRequest(command, control) {
       const suppliedVerifier = Object.hasOwn(command, "idempotencyVerifier");
       if (suppliedVerifier && !verifierPattern.test(command.idempotencyVerifier ?? "")) {
         throw failedClosed();
@@ -99,6 +99,7 @@ export function createHostedDeepSeekPostgresAuthority({
             command.idempotencyKey,
             verifier,
           ],
+          control,
         ),
       );
       return Object.freeze({
@@ -273,40 +274,35 @@ export function createHostedDeepSeekPostgresAuthority({
         status: "completed",
       });
     },
-    async markDispatchAttempted(command) {
+    async markDispatchAttempted(command, control) {
       const row = oneRow(
         await query(
           `SELECT huayi_private.mark_hosted_acceptance_dispatch(
              $1,$2,$3,$4
            )::text AS "operationId"`,
           [command.operationId, command.leaseGeneration, command.claimToken, command.payloadDigest],
+          control,
         ),
       );
       return Object.freeze({ operationId: row.operationId, status: "dispatch-attempted" });
     },
-    async readStatus() {
+    async readStatus(control) {
       const row = oneRow(
-        await query(`SELECT huayi_private.read_hosted_acceptance_status() AS state`, []),
+        await query(`SELECT huayi_private.read_hosted_acceptance_status() AS state`, [], control),
       );
       return Object.freeze({
         authority: "hosted-deepseek-one-shot",
         records: row.state === "absent" ? [] : [Object.freeze({ state: row.state })],
       });
     },
-    async recordSettlement(command) {
-      const receiptDigest = stableDigest(command.settlement);
+    async recordSettlement(command, control) {
       const row = oneRow(
         await query(
           `SELECT huayi_private.record_hosted_acceptance_settlement(
-             $1,$2,$3,$4,$5
-           )::text AS "requestId"`,
-          [
-            command.operationId,
-            command.leaseGeneration,
-            command.claimToken,
-            command.requestId,
-            receiptDigest,
-          ],
+             $1,$2,$3,$4
+          )::text AS "requestId"`,
+          [command.operationId, command.leaseGeneration, command.claimToken, command.requestId],
+          control,
         ),
       );
       return Object.freeze({

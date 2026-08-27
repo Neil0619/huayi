@@ -112,6 +112,14 @@ const baseEnvironmentShape = {
   SUPABASE_PUBLISHABLE_KEY: z.string().min(20),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(20),
   SUPABASE_URL: exactHttpsOriginSchema,
+  VERCEL_DEPLOYMENT_ID: z
+    .string()
+    .regex(/^dpl_[A-Za-z0-9_-]{3,128}$/u)
+    .optional(),
+  VERCEL_GIT_COMMIT_SHA: z
+    .string()
+    .regex(/^[0-9a-f]{40}$/u)
+    .optional(),
 } as const;
 
 const resendEnvironmentSchema = z
@@ -157,6 +165,12 @@ const apiEnvironmentSchema = z
   .refine(
     (environment) => environment.HUAYI_API_ORIGIN !== environment.HUAYI_WEB_ORIGIN,
     "API and Web origins must be different.",
+  )
+  .refine(
+    (environment) =>
+      (environment.VERCEL_DEPLOYMENT_ID === undefined) ===
+      (environment.VERCEL_GIT_COMMIT_SHA === undefined),
+    "Vercel deployment identity must be complete.",
   )
   .refine(
     (environment) =>
@@ -219,5 +233,11 @@ export function readApiEnvironment(
     SUPABASE_PUBLISHABLE_KEY: environment.SUPABASE_PUBLISHABLE_KEY,
     SUPABASE_SERVICE_ROLE_KEY: environment.SUPABASE_SERVICE_ROLE_KEY,
     SUPABASE_URL: environment.SUPABASE_URL,
+    ...(environment.VERCEL_DEPLOYMENT_ID === undefined
+      ? {}
+      : { VERCEL_DEPLOYMENT_ID: environment.VERCEL_DEPLOYMENT_ID }),
+    ...(environment.VERCEL_GIT_COMMIT_SHA === undefined
+      ? {}
+      : { VERCEL_GIT_COMMIT_SHA: environment.VERCEL_GIT_COMMIT_SHA }),
   });
 }

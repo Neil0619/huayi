@@ -67,6 +67,7 @@ import { createProductionAccountSettings } from "./production-account-settings.j
 import { createProductionSecurityNotifications } from "./production-security-notifications.js";
 import type { SecurityNotificationFetch } from "./resend-security-notification-sender.js";
 import { createProductionStorePolicy } from "./production-store-capability.js";
+import { createHealthApp, hostedDeploymentIdentityFromEnvironment } from "./health-app.js";
 export function createProductionApp(
   environment: ApiEnvironment,
   options: {
@@ -381,7 +382,7 @@ export function createProductionApp(
       module: externalWordbooks,
     }),
   );
-  app.get("/health", (context) => context.json({ service: "huayi-cloud-api", status: "ok" }));
+  app.route("/", createHealthApp(hostedDeploymentIdentityFromEnvironment(environment)));
   return app;
 }
 export {

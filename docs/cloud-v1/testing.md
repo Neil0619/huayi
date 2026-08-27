@@ -1441,6 +1441,17 @@ session is invalid.`；400 `invalid_request` 表示 runtime 数据库路径未�
   不提供 raw
   idempotency/owner/payload exact-one 查询，因此 HTTP transport 的 private reconciliation port 必须零网络失败；
   Phase B 跨进程 exact-one regression 继续证明该独立 authority seam，不能新增 acceptance route；
+- Phase D migration 回归必须同时覆盖 API/Supabase 0021 byte identity、fenced atomic reconciliation+bind、
+  server-side canonical receipt/digest、1–2 条从 0 连续 ledger、固定 DeepSeek price UUID/slot、token/cost/
+  reservation 重算、跨租户/过期 fence/非连续账本拒绝、旧 caller-digest signature 消失与 exact function ACL；
+  receipt 中不得出现 source text、result 或 raw idempotency key，24 小时 scrub 必须清除临时 receipt JSON 并
+  保留 digest；
+- Phase D adapter 回归必须用 fake query/fetch 证明 Postgres 只接受唯一 strict row，并把 fenced operation
+  generation/token 和 deadline control 传到底层 query；Vercel 固定五次管理面 GET 加 API health/Web HTML
+  两次运行时 GET，每次都有 `AbortSignal`、redirect 拒绝和 body 上限，且拒绝 in-flight、非 READY、full SHA/
+  deployment UID/release-channel 漂移。preflight 10 秒 timeout 必须发生在 authority mutation/login 前；
+  recovery evidence 20 秒 timeout 后仍必须执行 cleanup/post-snapshot/logout。所有数据库/HTTP secret canary
+  只能得到固定错误；这些 fake 证据不表示真实 Hosted endpoints 已读取；
 - CLI 与 production runtime 都必须使用显式 Supabase CA 与 `verify-full`；API 环境回归拒绝 require/无 TLS、
   非 6543 pooler、错误 project ref、缺失/越界 CA，本机 disabled 模式只接受固定 loopback database DSN；
 - hosted psql 子进程回归必须证明调用方不能覆盖 `PGSSLMODE=verify-full` 与临时 `PGSSLROOTCERT`；diagnostic
@@ -1508,7 +1519,7 @@ session is invalid.`；400 `invalid_request` 表示 runtime 数据库路径未�
 - retention 正向证明 scrub/delete 共用 1–100 行总预算、24 小时 scrub、90 天 terminal delete、retained
   receipt evidence，以及 cleanup-pending 永不删除。以上只证明离线 Postgres authority；没有 production
   HTTP adapters、composition root、Hosted dry-run/apply 时，不得标记真实 executor 或 Hosted 验收完成；
-- Phase 91 artifact contract 必须保持 15 files/head 0015，并拒绝当前 20-file repository；0016–0020 需要
+- Phase 91 artifact contract 必须保持 15 files/head 0015，并拒绝当前 21-file repository；0016–0021 需要
   新的 backup/rebuild batch，不能通过扩写历史 contract 伪造连续性。
 
 ## 5. 最终人工验收

@@ -15,8 +15,19 @@ export const supabaseForwardUrl = new URL(
   "../../../supabase/migrations/20260827050000_hosted_deepseek_acceptance_authority_mutations.sql",
   import.meta.url,
 );
+export const evidenceForwardUrl = new URL(
+  "../migrations/0021-hosted-deepseek-acceptance-evidence.sql",
+  import.meta.url,
+);
+export const supabaseEvidenceForwardUrl = new URL(
+  "../../../supabase/migrations/20260827060000_hosted_deepseek_acceptance_evidence.sql",
+  import.meta.url,
+);
 
 const invitationId = "73000000-0000-4000-8000-000000000001";
+const recordId = "75000000-0000-4000-8000-000000000001";
+const reservationId = "76000000-0000-4000-8000-000000000001";
+export const hostedAcceptancePriceVersionId = "dad0deb1-cbdc-4311-b3ad-b492c7ece757";
 const migrationNames = [
   "0001-cloud-v1-foundation.sql",
   "0012-first-operator-bootstrap.sql",
@@ -25,6 +36,7 @@ const migrationNames = [
   "0018-hosted-deepseek-acceptance-status.sql",
   "0019-hosted-deepseek-acceptance-effective-fuse.sql",
   "0020-hosted-deepseek-acceptance-authority-mutations.sql",
+  "0021-hosted-deepseek-acceptance-evidence.sql",
 ] as const;
 
 export async function applyHostedAcceptanceMigrations(database: PGlite): Promise<void> {
@@ -109,4 +121,72 @@ export async function insertAnalysisRequest(
   `,
     [id, idempotencyKey],
   );
+}
+
+export async function seedCompletedAnalysis(
+  database: PGlite,
+  options: { readonly callOrdinals?: readonly number[]; readonly owner?: string } = {},
+): Promise<void> {
+  const requestOwner = options.owner ?? ownerId;
+  const ordinals = options.callOrdinals ?? [0];
+  await database.exec(`
+    INSERT INTO public.model_price_versions(
+      id,provider,model,input_micro_usd_per_million,cached_input_micro_usd_per_million,
+      output_micro_usd_per_million,effective_from
+    ) VALUES (
+      '${hostedAcceptancePriceVersionId}','deepseek','deepseek-v4-flash',220000,7000,660000,
+      '2026-08-16T16:00:00Z'
+    );
+    INSERT INTO public.analysis_requests(
+      id,owner_user_id,idempotency_key,request_hash,unit_count,state,lease_token,
+      lease_expires_at,recovery_ledger_id
+    ) VALUES (
+      '${requestId}','${requestOwner}','recovered-idempotency-key',repeat('c',64),1,
+      'running','product-lease',now()+interval '1 minute',
+      '74000000-0000-4000-8000-000000000001'
+    );
+    INSERT INTO public.quota_reservations(
+      id,user_id,owner_user_id,request_id,period_start,reserved_micro_usd,status,
+      expires_at,created_at,updated_at
+    ) VALUES (
+      '${reservationId}','${requestOwner}','${requestOwner}','${requestId}',
+      date_trunc('month',now()),400,'settled',now()+interval '1 minute',now(),now()
+    );
+    INSERT INTO public.analysis_records(
+      id,owner_user_id,review_state,source_type,source_text,source_normalized_hash,
+      selection_kind,result,model_metadata,revision,created_at,updated_at
+    ) VALUES (
+      '${recordId}','${requestOwner}','pendingReview','manual','private source text',
+      repeat('9',64),'sentence','{}'::jsonb,
+      '{"provider":"deepseek","model":"deepseek-v4-flash","promptVersion":"web-deep-analysis-v2","schemaVersion":2,"inputTokens":120,"outputTokens":60}'::jsonb,
+      1,now(),now()
+    );
+  `);
+  for (const [index, ordinal] of ordinals.entries()) {
+    const inputTokens = ordinals.length === 1 ? 120 : 60;
+    const cachedInputTokens = ordinals.length === 1 ? 20 : 10;
+    const outputTokens = ordinals.length === 1 ? 60 : 30;
+    const costMicroUsd = ordinals.length === 1 ? 63 : 32;
+    await database.exec(`
+      INSERT INTO public.usage_ledger(
+        id,user_id,owner_user_id,request_id,call_ordinal,period_start,feature,
+        input_tokens,cached_input_tokens,output_tokens,price_version_id,cost_micro_usd,
+        outcome,created_at
+      ) VALUES (
+        '77000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}',
+        '${requestOwner}','${requestOwner}','${requestId}',${ordinal},date_trunc('month',now()),
+        'analysis',${inputTokens},${cachedInputTokens},${outputTokens},
+        '${hostedAcceptancePriceVersionId}',${costMicroUsd},'succeeded',now()
+      );
+    `);
+  }
+  await database.exec(`
+    UPDATE public.analysis_requests
+    SET state='completed',reservation_id='${reservationId}',
+        price_version_id='${hostedAcceptancePriceVersionId}',dispatched_at=now(),
+        terminal_event=jsonb_build_object(
+          'type','analysis.completed','analysis',jsonb_build_object('id','${recordId}')
+        ),updated_at=now()
+    WHERE id='${requestId}';
+  `);
 }

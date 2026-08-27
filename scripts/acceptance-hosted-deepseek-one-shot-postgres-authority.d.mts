@@ -19,14 +19,14 @@ export interface HostedAcceptanceHmacKeyring {
 
 export interface HostedDeepSeekPostgresAuthority {
   armCleanup(command: unknown): Promise<unknown>;
-  bindRequest(command: unknown): Promise<unknown>;
+  bindRequest(command: unknown, control?: unknown): Promise<unknown>;
   claimCleanup(): Promise<unknown>;
   claimOperation(command: unknown): Promise<unknown>;
   completeCleanup(command: unknown): Promise<unknown>;
   completeOperation(command: unknown): Promise<unknown>;
-  markDispatchAttempted(command: unknown): Promise<unknown>;
-  readStatus(): Promise<unknown>;
-  recordSettlement(command: unknown): Promise<unknown>;
+  markDispatchAttempted(command: unknown, control?: unknown): Promise<unknown>;
+  readStatus(control?: unknown): Promise<unknown>;
+  recordSettlement(command: unknown, control?: unknown): Promise<unknown>;
   retain(maximumRows?: number): Promise<unknown>;
 }
 
@@ -37,7 +37,7 @@ export function createHostedAcceptanceHmacKeyring(input: {
 
 export function createHostedDeepSeekPostgresAuthority(input: {
   keyring: HostedAcceptanceHmacKeyring;
-  query: (text: string, parameters: unknown[]) => Promise<{ rows: unknown[] }>;
+  query: (text: string, parameters: unknown[], control?: unknown) => Promise<{ rows: unknown[] }>;
   randomBytes_?: (size: number) => Uint8Array;
   randomUUID_?: () => string;
 }): HostedDeepSeekPostgresAuthority;

@@ -35,6 +35,31 @@ function validHostedEnvironment() {
 }
 
 describe("API security environment", () => {
+  it("accepts only one complete Vercel deployment identity pair", () => {
+    const commit = "0123456789abcdef0123456789abcdef01234567";
+    const deploymentId = "dpl_7Gw5ZMBpQA8h9GF832KGp7nwbuh3";
+    expect(
+      parseApiEnvironment({
+        ...validHostedEnvironment(),
+        VERCEL_DEPLOYMENT_ID: deploymentId,
+        VERCEL_GIT_COMMIT_SHA: commit,
+      }),
+    ).toMatchObject({ VERCEL_DEPLOYMENT_ID: deploymentId, VERCEL_GIT_COMMIT_SHA: commit });
+    expect(() =>
+      parseApiEnvironment({ ...validHostedEnvironment(), VERCEL_DEPLOYMENT_ID: deploymentId }),
+    ).toThrow();
+    expect(() =>
+      parseApiEnvironment({ ...validHostedEnvironment(), VERCEL_GIT_COMMIT_SHA: commit }),
+    ).toThrow();
+    expect(() =>
+      parseApiEnvironment({
+        ...validHostedEnvironment(),
+        VERCEL_DEPLOYMENT_ID: "not-a-deployment",
+        VERCEL_GIT_COMMIT_SHA: commit,
+      }),
+    ).toThrow();
+  });
+
   it("keeps Google authentication fail-closed unless explicitly enabled", () => {
     expect(parseApiEnvironment(validHostedEnvironment())).not.toHaveProperty(
       "HUAYI_GOOGLE_AUTHENTICATION",

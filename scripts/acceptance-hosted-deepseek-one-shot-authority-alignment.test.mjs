@@ -161,6 +161,7 @@ test("Phase A terminalizes a claimed operation when the snapshot expires during 
   const calls = [];
   const times = [
     nowMilliseconds,
+    nowMilliseconds,
     nowMilliseconds + hostedDeepSeekPreSnapshotFreshnessMilliseconds + 1,
   ];
   const executor = createHostedDeepSeekOneShotExecutor({

@@ -15,6 +15,7 @@ import {
   operationToken,
   ownerId,
   requestId,
+  seedCompletedAnalysis,
   verifier,
 } from "../test/hosted-deepseek-acceptance-authority-test-helpers.js";
 
@@ -36,27 +37,21 @@ describe("Hosted DeepSeek authority recovery and retention", () => {
       `SELECT * FROM huayi_private.mark_hosted_acceptance_dispatch($1,1,$2,$3)`,
       [operationId, operationToken, "c".repeat(64)],
     );
-    await insertAnalysisRequest(database);
+    await seedCompletedAnalysis(database);
     await database.query(
       `SELECT * FROM huayi_private.bind_hosted_acceptance_request($1,1,$2,$3,$4,$5,$6)`,
       [operationId, operationToken, ownerId, requestId, "recovered-idempotency-key", verifier],
     );
     await database.query(
-      `SELECT * FROM huayi_private.record_hosted_acceptance_settlement($1,1,$2,$3,$4)`,
-      [operationId, operationToken, requestId, "9".repeat(64)],
+      `SELECT * FROM huayi_private.record_hosted_acceptance_settlement($1,1,$2,$3)`,
+      [operationId, operationToken, requestId],
     );
     await expect(
       database.query(
-        `SELECT * FROM huayi_private.record_hosted_acceptance_settlement($1,1,$2,$3,$4)`,
-        [operationId, operationToken, requestId, "9".repeat(64)],
+        `SELECT * FROM huayi_private.record_hosted_acceptance_settlement($1,1,$2,$3)`,
+        [operationId, operationToken, requestId],
       ),
     ).resolves.toBeDefined();
-    await expect(
-      database.query(
-        `SELECT * FROM huayi_private.record_hosted_acceptance_settlement($1,1,$2,$3,$4)`,
-        [operationId, operationToken, requestId, "8".repeat(64)],
-      ),
-    ).rejects.toThrow();
     await database.query(
       `SELECT * FROM huayi_private.complete_hosted_acceptance_cleanup($1,1,$2,now())`,
       [operationId, operationToken],
@@ -285,15 +280,22 @@ describe("Hosted DeepSeek authority recovery and retention", () => {
       operationToken,
       "c".repeat(64),
     ]);
-    await insertAnalysisRequest(database);
+    await seedCompletedAnalysis(database);
     await database.query(
       `SELECT huayi_private.bind_hosted_acceptance_request($1,1,$2,$3,$4,$5,$6)`,
       [operationId, operationToken, ownerId, requestId, "recovered-idempotency-key", verifier],
     );
-    await database.query(
-      `SELECT huayi_private.record_hosted_acceptance_settlement($1,1,$2,$3,$4)`,
-      [operationId, operationToken, requestId, "9".repeat(64)],
-    );
+    await database.query(`SELECT huayi_private.record_hosted_acceptance_settlement($1,1,$2,$3)`, [
+      operationId,
+      operationToken,
+      requestId,
+    ]);
+    const recorded = await database.query<{ receiptDigest: string }>(`
+      SELECT receipt_digest AS "receiptDigest"
+      FROM huayi_private.hosted_acceptance_operations
+      WHERE id='${operationId}'
+    `);
+    const receiptDigest = recorded.rows[0]?.receiptDigest;
     await database.query(`SELECT huayi_private.complete_hosted_acceptance_cleanup($1,1,$2,now())`, [
       operationId,
       operationToken,
@@ -347,17 +349,19 @@ describe("Hosted DeepSeek authority recovery and retention", () => {
     const evidence = await database.query<{
       ownerId: string | null;
       receiptDigest: string;
+      receiptEvidence: Record<string, unknown> | null;
       scrubbed: boolean;
     }>(`
       SELECT
         owner_user_id::text AS "ownerId",
         receipt_digest AS "receiptDigest",
+        receipt_evidence AS "receiptEvidence",
         identity_scrubbed_at IS NOT NULL AS scrubbed
       FROM huayi_private.hosted_acceptance_operations
       WHERE id='${operationId}'
     `);
     expect(evidence.rows).toEqual([
-      { ownerId: null, receiptDigest: "9".repeat(64), scrubbed: true },
+      { ownerId: null, receiptDigest, receiptEvidence: null, scrubbed: true },
     ]);
   });
 });

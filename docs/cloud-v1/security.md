@@ -527,9 +527,13 @@ secret 与 raw key 不写 authority、日志、错误/status/inspect。产品 `a
 不将它复制到 authority。active version 只创建新 operation；retained historical version 只恢复已存在
 operation。错 context/version/key/verifier 或显式损坏 verifier 固定失败，不得回退 active key。
 dispatch-before-bind 恢复只接受 exact-one owner/idempotency/payload 对账；零条、多条、
-错配均失败关闭并继续 cleanup。相同 request+receipt digest 的 settlement 可幂等恢复，不同 digest 拒绝；
-cleanup 已完成而 operation 尚 running 时只依据持久化 dispatch/request/receipt evidence 做 authority
-finalization，零 Web session 或外部调用。arm 不确定但进入 `failed-cleanup-pending` 时会原子补建 pending
+错配均失败关闭并继续 cleanup。0020 的旧 settlement 入口随后由 0021 删除，caller 不再提供 receipt digest。
+0021 在锁定 operation 后，以 generation/token/lease fence 原子对账并绑定唯一 request；settlement function
+只从服务端产品表读取、校验并由 Postgres 生成 canonical receipt 与 SHA-256。重放必须重新得到同一
+receipt/digest，否则失败关闭。临时 receipt JSON 满 24 小时随 identity 一起 scrub，digest 与部署/终态/
+时间证据保留；正文和模型输出从不进入 receipt。cleanup 已完成而 operation 尚 running 时只依据持久化
+dispatch/request/receipt evidence 做 authority finalization，零 Web session 或外部调用。arm 不确定但进入
+`failed-cleanup-pending` 时会原子补建 pending
 cleanup obligation，确保始终存在可恢复义务。0020 的 retention function 让 scrub 与 delete 共用每次
 1–100 行总预算，只 scrub 满 24 小时 terminal identity 并删除满 90 天且 cleanup 已完成的 terminal
 evidence；没有新增 Cron 或 HTTP route。
@@ -560,9 +564,11 @@ cleanup。应用仍为绝对 90 秒、cleanup 为独立 10 秒；arm 后 lease �
 `armed_at + 120s`；private arm receipt 必须提供 server-authoritative `armedAt`，executor 不以 response 后
 的本地时钟放宽该上限，并要求 pre-snapshot `observedAt <= armedAt <=` arm response 后本地时钟。recovery
 在 login 前另拒绝晚于 claim 后采样时钟的 future `armedAt`，再按 session→restore→logout→terminalize 运行；无效
-claim 零 login。该切片仅有 production/fake 可替换的 private seam 与离线 fake，没有真实 Cookie、网络、
-凭据、Hosted 写入或 production HTTP/SSE composition。session-free deployment capture 的 production
-per-call deadline 留在 Phase D，未实现前不得启用真实 executor。
+claim 零 login。Phase D 又为 session-free preflight 增加绝对 10 秒 envelope，为 recovery reconciliation/
+settlement 增加绝对 20 秒 evidence envelope；evidence 超时不能跳过后续 cleanup/logout。Vercel adapter 的
+每个固定 GET 独立限制 5 秒并统一脱敏错误；API runtime headers 与 Web build-time meta 只包含 full commit、
+deployment UID 和固定 release channel，不含 token、Cookie 或产品数据。该能力仍只有离线 fake/本机 parser
+证据，尚无 production composition、真实 Cookie/凭据、Hosted 写入或模型调用。
 
 以下不是产品决策，必须以真实环境验证后补入发布材料：Vercel/Supabase 新加坡实际部署与网络延迟、
 Google OAuth 在目标网络的可达性、Supabase 备份残留、DeepSeek 当前模型 ID/价格/JSON 与 usage

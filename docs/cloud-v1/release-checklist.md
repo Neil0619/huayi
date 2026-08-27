@@ -116,6 +116,10 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       CI 状态，不替代或否定产品门；旧
       `dfbcb8f` 的 run `32982393993` 虽双平台 success，因在审查前，不能代替本 SHA 的 Windows 证据。真实
       Web/Operator/付费/账单/kill-switch restore 门也均保持未勾选；
+- [ ] Hosted DeepSeek Phase D 已在当前工作树实现 0021 server-frozen receipt、fenced reconciliation、只读
+      Vercel/live-runtime attestation 与 preflight/recovery evidence deadlines；它仍缺 Phase E production
+      composition、21-file Hosted migration batch、候选 commit/push 与 exact-SHA macOS/Windows CI，也未执行
+      真实 Web session、付费请求、账本对账或 kill-switch restore，因此发布门保持未勾选；
 - [ ] Windows Node.js 26+ 的 `pnpm verify:windows`、SEA health 与 CI 全绿；Phase 37-B 已在 Windows 11
       build 26220、Node.js 26.7.0 上本地退出 0，109/109 Playwright、SEA 仓库外 health 与 production
       audit 全绿；完整门证据提交 `3aa143c7f60ba52a941f2a2db587bc93819427eb` 已普通 push，但分支无

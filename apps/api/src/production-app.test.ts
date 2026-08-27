@@ -74,11 +74,18 @@ describe("production API composition", () => {
       SUPABASE_PUBLISHABLE_KEY: "publishable-test-key-at-least-20-characters",
       SUPABASE_SERVICE_ROLE_KEY: "service-role-test-key-at-least-20-characters",
       SUPABASE_URL: "https://project.supabase.co",
+      VERCEL_DEPLOYMENT_ID: "dpl_7Gw5ZMBpQA8h9GF832KGp7nwbuh3",
+      VERCEL_GIT_COMMIT_SHA: "0123456789abcdef0123456789abcdef01234567",
     });
 
     const response = await app.request("/health");
 
     expect(response.status).toBe(200);
+    expect(response.headers.get("x-huayi-deployment-commit")).toBe(
+      "0123456789abcdef0123456789abcdef01234567",
+    );
+    expect(response.headers.get("x-huayi-deployment-id")).toBe("dpl_7Gw5ZMBpQA8h9GF832KGp7nwbuh3");
+    expect(response.headers.get("x-huayi-release-channel")).toBe("hosted-acceptance");
     await expect(response.json()).resolves.toEqual({ service: "huayi-cloud-api", status: "ok" });
     expect(app.routes.map((route) => route.path)).toContain("/v1/analyses:stream");
     expect(app.routes.map((route) => route.path)).toContain("/v1/extension-queries:stream");

@@ -3,6 +3,16 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-27：Hosted DeepSeek receipt 由数据库冻结并与 live deployment 双向证明
+
+- dispatch-before-bind 的恢复把 exact-one reconciliation 与 authority bind 合并为一个 fenced SQL
+  statement，不再由进程先选 request ID 再写入；
+- settlement receipt 只从服务端 request/reservation/record/price/ledger 构造，SHA-256 由 Postgres 生成，
+  caller 不再提交 digest；临时 canonical receipt 随 24 小时 identity scrub 清除；
+- deployment preflight 同时核对固定 Vercel management project/history 与 API runtime headers、Web
+  build-time meta，并为 preflight、每次 GET 和 recovery evidence 设置绝对 deadline。该决定不新增公开
+  route，也不授权真实 Hosted 读取、migration apply 或付费请求；
+
 ## 2026-08-27：Hosted DeepSeek authority 采用 versioned HMAC 与 fenced recovery
 
 - raw idempotency key 不进入 authority 表。固定 context、operation UUID 与 versioned keyring 确定性生成

@@ -41,7 +41,9 @@ describe("Hosted DeepSeek acceptance authority mutations", () => {
       "arm_hosted_acceptance_cleanup(uuid,bigint,text,text)",
       "mark_hosted_acceptance_dispatch(uuid,bigint,text,text)",
       "bind_hosted_acceptance_request(uuid,bigint,text,uuid,uuid,text,text)",
-      "record_hosted_acceptance_settlement(uuid,bigint,text,uuid,text)",
+      "reconcile_and_bind_hosted_acceptance_request(uuid,bigint,text,uuid,text,text)",
+      "read_and_freeze_hosted_acceptance_settlement(uuid,bigint,text,uuid)",
+      "record_hosted_acceptance_settlement(uuid,bigint,text,uuid)",
       "complete_hosted_acceptance_operation(uuid,bigint,text,text,text)",
       "claim_hosted_acceptance_cleanup(text,text)",
       "complete_hosted_acceptance_cleanup(uuid,bigint,text,timestamptz)",
@@ -86,6 +88,8 @@ describe("Hosted DeepSeek acceptance authority mutations", () => {
           'arm_hosted_acceptance_cleanup',
           'mark_hosted_acceptance_dispatch',
           'bind_hosted_acceptance_request',
+          'reconcile_and_bind_hosted_acceptance_request',
+          'read_and_freeze_hosted_acceptance_settlement',
           'record_hosted_acceptance_settlement',
           'complete_hosted_acceptance_operation',
           'claim_hosted_acceptance_cleanup',
@@ -104,7 +108,8 @@ describe("Hosted DeepSeek acceptance authority mutations", () => {
         AND procedure.proname IN (
           'hosted_acceptance_token_hash',
           'enforce_hosted_acceptance_operation_state',
-          'enforce_hosted_acceptance_cleanup_state'
+          'enforce_hosted_acceptance_cleanup_state',
+          'enforce_hosted_acceptance_receipt_evidence'
         )
     `);
     expect(helpers.rows).toEqual([{ allowed: false }]);

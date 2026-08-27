@@ -24,6 +24,7 @@ const migrationUrls = [
   "0018-hosted-deepseek-acceptance-status.sql",
   "0019-hosted-deepseek-acceptance-effective-fuse.sql",
   "0020-hosted-deepseek-acceptance-authority-mutations.sql",
+  "0021-hosted-deepseek-acceptance-evidence.sql",
 ].map((name) => new URL(`../migrations/${name}`, import.meta.url));
 
 describe("Cloud V1 current migration chain", () => {

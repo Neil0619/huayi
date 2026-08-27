@@ -59,8 +59,8 @@ owner/raw key/payload，raw key 不写入 authority。bounded retention 以 scru
 24 小时 scrub、90 天 terminal delete 与 cleanup-pending 保留。
 两个独立 executor/authority 实例共享同一 PGlite 的回归证明 dispatch-before-bind 后重启只做 exact-one
 reconciliation，application POST 总数仍为一；零条/多条均失败关闭并完成 cleanup/terminal failure。
-Phase 91 的 15-file rebuild/backup evidence 仍只证明 0015；其 loader 必须拒绝当前 20-file repository。
-0016–0020 在任何 Hosted dry-run/apply 前需要新的受控 backup/rebuild 批次，禁止改写或冒用 Phase 91 证据。
+Phase 91 的 15-file rebuild/backup evidence 仍只证明 0015；其 loader 必须拒绝当前 21-file repository。
+0016–0021 在任何 Hosted dry-run/apply 前需要新的受控 backup/rebuild 批次，禁止改写或冒用 Phase 91 证据。
 
 ## 阶段 C：正常 Web session adapter
 
@@ -92,23 +92,38 @@ preflight→claim→login/reauth/readback→arm/application→cleanup→logout�
 `armed_at + 120s`；私有 arm receipt 带 server-authoritative `armedAt`，executor 禁止用响应后的本地时间
 替代，并拒绝早于 pre-snapshot 或晚于本地 arm response 的值。recovery 也在 login 前拒绝晚于 claim 后
 采样时钟的 `armedAt`。recovery 采用 60 秒 cleanup claim，为三个 10 秒 envelope 后的终态写入保留 30 秒。
-`capturePreSnapshot()` 当前仍是 session-free injected seam，production Vercel/Web per-call deadline 属于
-Phase D，不能冒充为已 bounded。normal Web production-shaped transport 已固定连接既有 password login、
+`capturePreSnapshot()` 仍是 session-free seam；Phase D 已为其 production Vercel/Web adapter 增加绝对
+10 秒 preflight envelope，并为每个管理面/运行时 GET 增加独立 5 秒 deadline。normal Web
+production-shaped transport 已固定连接既有 password login、
 password reauth、Operator access、kill-switch、analysis SSE、request status 和 logout routes；不接受
 endpoint/body 覆盖，不新增 acceptance route/header/session。SSE 只有在已知且严格 UUID 的 server request ID
-后才做一次 bounded status read，started 前断线的 exact-one query 仍由尚未连接的私有 Phase D authority
-adapter 承担。
+后才做一次 bounded status read；started 前断线的 exact-one query 由 Phase D Postgres evidence adapter
+通过 fenced atomic reconciliation+bind 承担。
 `status/execute/recover`、CLI 与 public HTTP contract 均未扩大；这仍不表示 production composition root、
 Hosted session 或真实调用已实现。
 
 ## 阶段 D：deployment 与 settlement adapters
 
-- [ ] Vercel adapter 固定 team/API/Web project，只读 READY Production identity/in-flight，并校验 live health/
+- [x] Vercel adapter 固定 team/API/Web project，只读 READY Production identity/in-flight，并校验 live health/
       release banner；
-- [ ] Postgres receipt reader 只 join 已绑定 request 的 request/reservation/record/metadata/UsageLedger；
-- [ ] 验证一至两条连续 billed call、实际 token/cost、price UUID/slot、reservation、owner delta、候选部署和
+- [x] Postgres receipt reader 只 join 已绑定 request 的 request/reservation/record/metadata/UsageLedger；
+- [x] 验证一至两条连续 billed call、实际 token/cost、price UUID/slot、reservation、owner delta、候选部署和
       kill-switch restoration；
-- [ ] 输出 parser 只接受 fixed boolean/count/enum/receipt，不反射 UUID、owner、request、正文或 raw error。
+- [x] 输出 parser 只接受 fixed boolean/count/enum/receipt，不反射 UUID、owner、request、正文或 raw error。
+
+当前检查点：Phase D 已新增 byte-identical forward-only 0021。dispatch-before-bind recovery 通过一个 fenced
+SQL statement 原子完成 exact-one reconciliation 与 authority bind；settlement 由数据库在同一锁定 operation
+内读取并验证产品 request、reservation、terminal record、固定 DeepSeek price version 与 1–2 条连续 ledger，
+再由 Postgres 生成 canonical JSON 和 SHA-256。caller 不再提交 receipt digest；临时 canonical receipt 满
+24 小时随 identity scrub 清除，只保留 digest/部署/终态/时间证据。进程 adapter 严格解析唯一行并只在内存
+恢复 idempotency key，任何数据库行或异常均映射固定错误。
+
+Vercel adapter 复用固定 team/project/history 读取，拒绝任一 in-flight 状态，要求最新 non-canceled deployment
+为 READY；随后直接读取固定 API `/health` 与 Web `/analysis`，把 API response headers、Web build-time meta
+中的 full SHA/deployment UID/release channel 与管理面逐项交叉核对。API health body 保持不变；Web meta 不含
+secret。preflight 为绝对 10 秒，recovery evidence 为绝对 20 秒；后者超时仍必须继续 cleanup 与 logout。
+现有 post evidence 再验证 owner usage delta 与 kill-switch restoration。Phase D 未添加 production
+composition root、公开 route、真实 Hosted 网络调用、migration apply 或付费模型调用。
 
 退出标准：legacy/拼接/跨租户/旧 deployment/聚合 usage 等弱证据全部稳定失败关闭。
 

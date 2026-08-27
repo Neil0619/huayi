@@ -17,6 +17,7 @@ import {
   attemptCleanup,
   completeCleanup,
   completeOperation,
+  createPreflightDeadline,
   createCleanupCommand,
   executionDependenciesAreValid,
 } from "./acceptance-hosted-deepseek-one-shot-runtime.mjs";
@@ -27,7 +28,9 @@ import {
   hostedDeepSeekCleanupBudgetMilliseconds,
   hostedDeepSeekLogoutBudgetMilliseconds,
   hostedDeepSeekOperationLeaseMaximumAfterArmMilliseconds,
+  hostedDeepSeekPreflightBudgetMilliseconds,
   hostedDeepSeekPreSnapshotFreshnessMilliseconds,
+  hostedDeepSeekRecoveryEvidenceBudgetMilliseconds,
   hostedDeepSeekSessionBudgetMilliseconds,
   hostedDeepSeekStatusBudgetMilliseconds,
 } from "./acceptance-hosted-deepseek-one-shot-executor.mjs";
@@ -50,9 +53,11 @@ export {
   hostedDeepSeekCleanupBudgetMilliseconds,
   hostedDeepSeekLogoutBudgetMilliseconds,
   hostedDeepSeekOperationLeaseMaximumAfterArmMilliseconds,
+  hostedDeepSeekPreflightBudgetMilliseconds,
   hostedDeepSeekOneShotConfirmation,
   hostedDeepSeekPayloadDigest,
   hostedDeepSeekPreSnapshotFreshnessMilliseconds,
+  hostedDeepSeekRecoveryEvidenceBudgetMilliseconds,
   hostedDeepSeekSessionBudgetMilliseconds,
   hostedDeepSeekStatusBudgetMilliseconds,
   hostedDeepSeekWebOrigin,
@@ -115,11 +120,34 @@ async function orchestrateHostedDeepSeekOneShot({
   let operationLease;
   let postSnapshot;
   let preSnapshot;
+  let preflightDeadline;
   let sessionAttempted = false;
   let settlement;
 
   try {
-    preSnapshot = await adapter.capturePreSnapshot();
+    const preflightStartedAt = readNowMilliseconds();
+    const preflightDeadlineAt = preflightStartedAt + hostedDeepSeekPreflightBudgetMilliseconds;
+    if (
+      !isSafeNonnegativeInteger(preflightStartedAt) ||
+      !isSafeNonnegativeInteger(preflightDeadlineAt)
+    ) {
+      throw failedClosed();
+    }
+    preflightDeadline = createPreflightDeadline({
+      budgetMilliseconds: hostedDeepSeekPreflightBudgetMilliseconds,
+      clearTimeout_,
+      deadlineAt: preflightDeadlineAt,
+      externalSignal: signal,
+      setTimeout_,
+    });
+    try {
+      preSnapshot = await preflightDeadline.run(() =>
+        adapter.capturePreSnapshot(preflightDeadline.control),
+      );
+    } finally {
+      preflightDeadline.stop();
+      preflightDeadline = undefined;
+    }
     const actionNowMilliseconds = readNowMilliseconds();
     if (
       !isSafeNonnegativeInteger(actionNowMilliseconds) ||

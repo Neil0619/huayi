@@ -15,6 +15,7 @@ import {
   attemptCleanup,
   completeCleanup,
   completeOperation,
+  createRecoveryEvidenceDeadline,
   createReconciliationRequest,
   executionDependenciesAreValid,
 } from "./acceptance-hosted-deepseek-one-shot-runtime.mjs";
@@ -45,17 +46,21 @@ export async function recoverHostedDeepSeekOneShotCleanup(options = {}) {
       adapter,
       budgetMilliseconds,
       clearTimeout_,
+      evidenceBudgetMilliseconds,
       freshnessMilliseconds,
       lifecycle,
       logoutBudgetMilliseconds,
       readNowMilliseconds,
       sessionBudgetMilliseconds,
       setTimeout_,
+      signal,
     } = options;
     if (
       !isSafeNonnegativeInteger(budgetMilliseconds) ||
       budgetMilliseconds === 0 ||
       !isSafeNonnegativeInteger(freshnessMilliseconds) ||
+      !isSafeNonnegativeInteger(evidenceBudgetMilliseconds) ||
+      evidenceBudgetMilliseconds === 0 ||
       !isSafeNonnegativeInteger(logoutBudgetMilliseconds) ||
       logoutBudgetMilliseconds === 0 ||
       !isSafeNonnegativeInteger(sessionBudgetMilliseconds) ||
@@ -66,6 +71,7 @@ export async function recoverHostedDeepSeekOneShotCleanup(options = {}) {
         lifecycle,
         readNowMilliseconds,
         setTimeout_,
+        signal,
       })
     ) {
       throw failedClosed();
@@ -76,7 +82,11 @@ export async function recoverHostedDeepSeekOneShotCleanup(options = {}) {
     const dispatchRecovery = cleanupClaimCandidate?.dispatchRecovery;
     const nowMilliseconds = readNowMilliseconds();
     const recoveryRequiredUntil =
-      nowMilliseconds + sessionBudgetMilliseconds + budgetMilliseconds + logoutBudgetMilliseconds;
+      nowMilliseconds +
+      sessionBudgetMilliseconds +
+      evidenceBudgetMilliseconds +
+      budgetMilliseconds +
+      logoutBudgetMilliseconds;
     if (
       !isSafeNonnegativeInteger(nowMilliseconds) ||
       !isSafeNonnegativeInteger(recoveryRequiredUntil) ||
@@ -137,17 +147,37 @@ export async function recoverHostedDeepSeekOneShotCleanup(options = {}) {
           throw failedClosed();
         }
         if (dispatchRecovery.dispatchAttempted) {
+          let evidenceDeadline;
           try {
+            const evidenceStartedAt = readNowMilliseconds();
+            const evidenceDeadlineAt = evidenceStartedAt + evidenceBudgetMilliseconds;
+            if (
+              !isSafeNonnegativeInteger(evidenceStartedAt) ||
+              !isSafeNonnegativeInteger(evidenceDeadlineAt)
+            ) {
+              throw failedClosed();
+            }
+            evidenceDeadline = createRecoveryEvidenceDeadline({
+              budgetMilliseconds: evidenceBudgetMilliseconds,
+              clearTimeout_,
+              deadlineAt: evidenceDeadlineAt,
+              externalSignal: signal,
+              setTimeout_,
+            });
             let requestHandle;
             if (dispatchRecovery.requestId === null) {
-              const reconciliation = await adapter.reconcileDispatchedRequest(
-                createReconciliationRequest(
-                  {
-                    idempotencyKey: dispatchRecovery.idempotencyKey,
-                    operationId: dispatchRecovery.operationLease.operationId,
-                    ownerId: dispatchRecovery.operationLease.ownerId,
-                  },
-                  dispatchRecovery.payloadDigest,
+              const reconciliation = await evidenceDeadline.run(() =>
+                adapter.reconcileDispatchedRequest(
+                  createReconciliationRequest(
+                    {
+                      idempotencyKey: dispatchRecovery.idempotencyKey,
+                      operationId: dispatchRecovery.operationLease.operationId,
+                      ownerId: dispatchRecovery.operationLease.ownerId,
+                    },
+                    dispatchRecovery.payloadDigest,
+                    dispatchRecovery.operationLease,
+                  ),
+                  evidenceDeadline.control,
                 ),
               );
               requestHandle = reconciledRequestHandle(
@@ -160,15 +190,20 @@ export async function recoverHostedDeepSeekOneShotCleanup(options = {}) {
                 dispatchRecovery.payloadDigest,
               );
               if (!requestHandleIsValid(requestHandle)) throw failedClosed();
-              const binding = await lifecycle.bindRequest({
-                claimToken: dispatchRecovery.operationLease.claimToken,
-                idempotencyKey: dispatchRecovery.idempotencyKey,
-                idempotencyVerifier: dispatchRecovery.idempotencyVerifier,
-                leaseGeneration: dispatchRecovery.operationLease.leaseGeneration,
-                operationId: dispatchRecovery.operationLease.operationId,
-                ownerId: dispatchRecovery.operationLease.ownerId,
-                requestId: requestHandle.requestId,
-              });
+              const binding = await evidenceDeadline.run(() =>
+                lifecycle.bindRequest(
+                  {
+                    claimToken: dispatchRecovery.operationLease.claimToken,
+                    idempotencyKey: dispatchRecovery.idempotencyKey,
+                    idempotencyVerifier: dispatchRecovery.idempotencyVerifier,
+                    leaseGeneration: dispatchRecovery.operationLease.leaseGeneration,
+                    operationId: dispatchRecovery.operationLease.operationId,
+                    ownerId: dispatchRecovery.operationLease.ownerId,
+                    requestId: requestHandle.requestId,
+                  },
+                  evidenceDeadline.control,
+                ),
+              );
               if (!requestBindingIsValid(binding, dispatchRecovery.operationLease, requestHandle)) {
                 throw failedClosed();
               }
@@ -184,7 +219,13 @@ export async function recoverHostedDeepSeekOneShotCleanup(options = {}) {
               ownerId: dispatchRecovery.operationLease.ownerId,
               requestId: requestHandle.requestId,
             });
-            const settlement = await adapter.readServerSettlement(boundIdentity);
+            const settlement = await evidenceDeadline.run(() =>
+              adapter.readServerSettlement(
+                boundIdentity,
+                evidenceDeadline.control,
+                dispatchRecovery.operationLease,
+              ),
+            );
             const recoverySnapshot = {
               budget: {
                 estimatedPeakReservationMicroUsd: settlement?.reservationMicroUsd,
@@ -205,13 +246,17 @@ export async function recoverHostedDeepSeekOneShotCleanup(options = {}) {
             ) {
               throw failedClosed();
             }
-            const settlementReceipt = await lifecycle.recordSettlement({
-              claimToken: dispatchRecovery.operationLease.claimToken,
-              leaseGeneration: dispatchRecovery.operationLease.leaseGeneration,
-              operationId: dispatchRecovery.operationLease.operationId,
-              requestId: boundIdentity.requestId,
-              settlement,
-            });
+            const settlementReceipt = await evidenceDeadline.run(() =>
+              lifecycle.recordSettlement(
+                {
+                  claimToken: dispatchRecovery.operationLease.claimToken,
+                  leaseGeneration: dispatchRecovery.operationLease.leaseGeneration,
+                  operationId: dispatchRecovery.operationLease.operationId,
+                  requestId: boundIdentity.requestId,
+                },
+                evidenceDeadline.control,
+              ),
+            );
             if (
               !settlementRecordReceiptIsValid(
                 settlementReceipt,
@@ -224,6 +269,8 @@ export async function recoverHostedDeepSeekOneShotCleanup(options = {}) {
             recoveryAccepted = true;
           } catch {
             recoveryFailed = true;
+          } finally {
+            evidenceDeadline?.stop();
           }
         }
       }

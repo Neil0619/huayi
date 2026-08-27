@@ -54,7 +54,10 @@ function createFactoryDependencies({
   applicationAdapter.reconcileDispatchedRequest = async (command, control) => {
     calls.push("reconcile-request");
     assert.deepEqual(command, {
+      claimToken: "claim_token_001",
       idempotencyKey: identity().idempotencyKey,
+      leaseGeneration: 1,
+      operationId: identity().operationId,
       ownerId: identity().ownerId,
       payloadDigest,
     });

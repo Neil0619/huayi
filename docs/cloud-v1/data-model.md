@@ -106,6 +106,12 @@ material。bind 同时精确核对产品 request 的 owner、raw idempotency key
 exact-one reconciliation，completed-cleanup crash gap 只做 authority finalization。bounded retention 的
 1–100 是 scrub 与 delete 共用的单次总预算；它正向支持 terminal 满 24 小时 identity scrub 与满 90 天
 evidence delete，cleanup-pending 永不删除，且没有自动调度或新增 Cron。
+0021 增加临时 `receipt_evidence jsonb`，仅在 request 已绑定且 operation 的 generation/token lease 有效时，
+由 private function 从产品 request、settled reservation、terminal record、固定 price version 与连续
+`usage_ledger` 构造；SHA-256 在 Postgres 内生成，caller 不再提交 digest。receipt 写入后不可改写；满 24
+小时 identity scrub 同时清除它，保留 `receipt_digest` 与 deployment/terminal/time evidence。0021 的
+`reconcile_and_bind_hosted_acceptance_request` 把 exact-one 查找和 bind 放在同一 operation row lock/fence
+内，避免跨进程恢复在查询与绑定之间产生选择窗口。
 
 `GET /v1/account` 不新增聚合表。它在一个 owner repeatable-read snapshot 中只读取 active
 `user_profiles` 的规范 email 与五项偏好，并读取当前未撤销、未过期的 `extension_sessions` 公开字段；

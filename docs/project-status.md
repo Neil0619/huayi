@@ -259,7 +259,7 @@ audit 仍只允许 `enabled`。这不代表 Store 产品或 Windows 支持被取
 > helper 对 executor 也无权且所有 callable functions 均 fixed search_path。Phase B 仍没有 production
 > password/CSRF/SSE/deployment/settlement adapter、composition root 或真实 Hosted executor。0016–0020 没有
 > 连接 Hosted、应用或 dry-run，也没有产生费用。既有 Phase 91 pre/rebuild/post 证据仍严格绑定 0015 和
-> 15-file source set；其 loader 必须拒绝当前 20-file repository。0016–0020 的新 backup/rebuild/status/
+> 15-file source set；其 loader 必须拒绝当前 21-file repository。0016–0021 的新 backup/rebuild/status/
 > dry-run/apply 批次尚未设计或执行，不能复用或改写 Phase 91 证据。
 > Phase C 首个离线切片随后新增 injected TTY-only Operator credential reader：邮箱与密码均经既有 hidden
 > prompt，非交互 input/output 在读取前失败，既有邮箱规范化与密码长度合同保持不变，C0/C1 控制字符全部
@@ -289,9 +289,18 @@ audit 仍只允许 `enabled`。这不代表 Store 产品或 Windows 支持被取
 > endpoint/body/session 覆盖，redirect 固定失败，GET 不发送 CSRF，所有响应与 stream 均有 deadline/size/count
 > bounds。started-only 或 started 后中断只允许一次严格 UUID request status read，非 UUID 在构造 URL 前
 > 失败，started 前零 status、零第二 POST；public Web 没有 raw idempotency/owner/payload reconciliation route，因此该 private exact-one port 固定
-> 零网络失败，留给 Phase D authority adapter。当前仍没有真实 Cookie/凭据、网络、Hosted 写、模型调用或
-> 付费验收；session-free Vercel/Web capture、settlement/reconciliation production adapter 与 composition root
-> 仍属于 Phase D/E。
+> 零网络失败，并由下一段的 Phase D Postgres adapter 承担。该 Phase C 检查点没有真实 Cookie/凭据、网络、
+> Hosted 写、模型调用或付费验收；production composition root 仍属于 Phase E。
+> Phase D 已在当前未发布候选中离线闭合：byte-identical 0021 把 exact-one reconciliation+bind 合并为单个
+> fenced SQL statement，并从产品 request/reservation/terminal record/固定 DeepSeek price/连续 ledger 在
+> Postgres 内构造、哈希和冻结 receipt；旧 caller-supplied digest signature 已删除。receipt JSON 在 24 小时
+> identity scrub 时清除，只保留 digest 与非身份审计证据。strict Postgres adapter 只接受唯一行，并把
+> generation/token/deadline control 传到 query；Vercel adapter 固定 team/API/Web project，拒绝 in-flight，
+> 把最新 non-canceled READY deployment 与 API `/health` headers、Web `/analysis` build-time meta 双向核对。
+> orchestrator 新增 10 秒 preflight 与 20 秒 recovery-evidence 绝对 deadline；后者超时仍继续 cleanup/logout。
+> API health JSON 未改变，Web meta 仅含 full SHA、deployment UID 与固定 release channel。该阶段没有新增
+> public route、production composition root、真实 Hosted 访问、migration apply、部署或模型费用；当前 migration
+> source set 为 21，Phase 91 的 15-file 历史证据不能复用。Phase E/F 与 exact-SHA 双平台 CI 仍 pending。
 
 > **历史校准检查点（Phase 33）**：Phase 28 已补齐 production 语义重复建议和
 > 可计算 AA token 证据；2026-08-14 完成度源码审计发现的 SubmissionOutbox `api=null` 误清账号绑定

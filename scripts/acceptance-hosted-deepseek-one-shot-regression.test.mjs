@@ -71,6 +71,36 @@ test("the orchestrator deadline wins even when the application adapter ignores a
   assert.equal(applicationSignal.aborted, true);
 });
 
+test("preflight owns an absolute deadline before any authority mutation", async () => {
+  let fireDeadline;
+  let preflightControl;
+  const calls = [];
+  await assert.rejects(
+    orchestrate({
+      adapter: adapter({
+        calls,
+        pre: async (control) => {
+          preflightControl = control;
+          if (control === undefined) throw new Error("missing preflight control");
+          queueMicrotask(fireDeadline);
+          return new Promise(() => undefined);
+        },
+      }),
+      approval: approval(),
+      clearTimeout_: () => undefined,
+      lifecycle: operationLifecycle({ calls }),
+      setTimeout_: (callback, milliseconds) => {
+        if (milliseconds === 10_000) fireDeadline = callback;
+        return 1;
+      },
+    }),
+    failurePattern,
+  );
+  assert.equal(preflightControl.signal.aborted, true);
+  assert.equal(calls.includes("claim-operation"), false);
+  assert.equal(calls.includes("login-password"), false);
+});
+
 test("a deadline between stages prevents the next adapter stage from starting", async () => {
   const calls = [];
   let fireDeadline;
@@ -217,6 +247,61 @@ test("a restarted process reconciles dispatch-before-bind exactly once and never
   assert.equal(calls.filter((call) => call === "reconcile-request").length, 1);
   assert.equal(calls.filter((call) => call === "bind-request").length, 1);
   assert.equal(calls.filter((call) => call === "record-settlement").length, 1);
+});
+
+test("recovery evidence timeout still reaches cleanup and logout", async () => {
+  const calls = [];
+  let evidenceControl;
+  let fireDeadline;
+  const restartedOperationLease = operationLease(approval(), {
+    claimToken: "restarted_operation_token_001",
+    leaseGeneration: 2,
+  });
+  const lifecycle = operationLifecycle({
+    calls,
+    claimCleanup: () => ({
+      cleanupLease: {
+        ...cleanupLease(),
+        cleanupToken: "restarted_cleanup_token_001",
+        claimGeneration: 2,
+      },
+      dispatchRecovery: {
+        dispatchAttempted: true,
+        idempotencyKey: restartedOperationLease.idempotencyKey,
+        idempotencyVerifier: "e".repeat(64),
+        observedAt,
+        operationLease: restartedOperationLease,
+        payloadDigest: hostedDeepSeekPayloadDigest,
+        requestId: null,
+        settlementRecorded: false,
+      },
+    }),
+    pendingCleanup: cleanupLease(),
+  });
+  const applicationAdapter = adapter({ calls });
+  applicationAdapter.reconcileDispatchedRequest = async (_request, control) => {
+    calls.push("reconcile-request");
+    evidenceControl = control;
+    if (control === undefined) throw new Error("missing recovery evidence control");
+    queueMicrotask(fireDeadline);
+    return new Promise(() => undefined);
+  };
+  const restarted = createHostedDeepSeekOneShotExecutor({
+    adapter: applicationAdapter,
+    clearTimeout_: () => undefined,
+    lifecycle,
+    readNowMilliseconds: () => nowMilliseconds,
+    setTimeout_: (callback, milliseconds) => {
+      if (milliseconds === 20_000) fireDeadline = callback;
+      return 1;
+    },
+  });
+
+  await assert.rejects(restarted.recover(), failurePattern);
+  assert.equal(evidenceControl.signal.aborted, true);
+  assert.equal(calls.includes("kill-switch:true"), true);
+  assert.equal(calls.includes("post-snapshot"), true);
+  assert.equal(calls.includes("logout"), true);
 });
 
 test("completed cleanup crash recovery finalizes from authority with zero external calls", async () => {

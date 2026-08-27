@@ -1,10 +1,9 @@
 # Hosted Cloud Web DeepSeek one-shot executor 设计
 
-状态：Accepted design；Phase A 离线控制合同、Phase B 私有 Postgres authority（含 versioned HMAC、
-generation/token fencing、bounded retention 与跨进程 dispatch-before-bind recovery），以及 Phase C 私有
-session lifecycle、内存 adapter 与 normal Web production-shaped HTTP/SSE/status transport 已实现；私有
-dispatch-before-bind reconciliation/settlement adapter、真实 executor composition root、部署与 Hosted 验收
-仍未实现。
+状态：Accepted design；Phase A 离线控制合同、Phase B 私有 Postgres authority、Phase C 私有 session 与
+normal Web production-shaped HTTP transport，以及 Phase D fenced reconciliation/server-frozen settlement
+与只读 deployment attestation adapters 已实现；真实 executor composition root、Hosted migration/deployment
+和付费验收仍未实现。
 
 日期：2026-08-27
 
@@ -141,7 +140,9 @@ non-terminal、未知状态均用固定错误失败关闭，历史 terminal 只�
 0020 是只向前的新 migration。它在空 authority guard 后新增固定 `SECURITY DEFINER` mutation functions，
 覆盖 claim、arm、dispatch marker、request bind、settlement、operation/cleanup completion、cleanup claim
 和 bounded retention；全部固定 `search_path`，只授予专用 executor，helpers 对 executor 也无 execute，
-其他 application/API roles 全部拒绝。owner 只从唯一 completed first-operator singleton 派生。
+其他 application/API roles 全部拒绝。owner 只从唯一 completed first-operator singleton 派生。0021 再以
+只向前 migration 删除 caller-digest settlement signature，新增 fenced atomic reconciliation+bind 和
+server-side read+validate+hash+freeze functions；三者同样只授予专用 executor。
 
 idempotency material 使用固定 context
 `huayi.hosted-deepseek-one-shot.idempotency.v1` 和正整数 key version。新 operation 只使用 active version；
@@ -162,8 +163,8 @@ lease 尚可严格覆盖其后 110 秒。若建立会话耗尽余量，则不 ar
 后的本地时钟，避免未来时间或 network RTT 放宽开闸窗口。recovery 同样要求 `armedAt <= claim` 后立即采样
 的本地时钟，未来 arm receipt 在 login 前失败关闭。
 
-cleanup recovery 使用 60 秒 claim；其中 session establishment、单次 cleanup 外部尝试和 normal logout
-分别最多 10 秒，给终态写入保留 30 秒余量。以下顺序是硬不变量：
+cleanup recovery 使用 60 秒 claim；其中 session establishment 10 秒、settlement/reconciliation evidence
+20 秒、单次 cleanup 10 秒和 normal logout 10 秒，给终态写入保留 10 秒余量。以下顺序是硬不变量：
 
 1. session-free 捕获并验证 approval、candidate 与精确 deployment pair；
 2. authority 原子 claim operation；claim 无效时零 login、零 logout；
@@ -177,12 +178,15 @@ cleanup recovery 使用 60 秒 claim；其中 session establishment、单次 cle
 10. 以不继承 application abort 的独立 10 秒 deadline 恰好尝试一次 normal logout；
 11. 已知 logout outcome 后才关闭 cleanup obligation，并终结 operation。
 
-`dispatch_attempted_at` 一旦存在，任何 worker 都不得再次发送 application POST。结果不确定时，恢复逻辑通过 authority 查询并绑定既有 server request；无法证明未发送就失败关闭，不用重放换取成功。
+`dispatch_attempted_at` 一旦存在，任何 worker 都不得再次发送 application POST。结果不确定时，恢复逻辑
+通过 0021 的 fenced SQL 在同一 operation row lock 内原子查询并绑定既有 server request；无法证明唯一匹配
+就失败关闭，不用重放换取成功。
 
 claim cleanup 不抢占未过期的 live operation/cleanup lease；running crash 只在 operation lease 到期后轮换
 generation/token，cleanup-pending 可立即领取。若崩溃发生在 fuse-off、dispatch marker 之前，恢复只做
-cleanup 并以 failed 终结，零 POST。相同 request + receipt digest 的 settlement 重放幂等成功，不同 digest
-拒绝。若 cleanup 已完成但 operation 尚未 terminal，恢复直接依据持久化 dispatch/request/receipt evidence
+cleanup 并以 failed 终结，零 POST。相同 request 的 server-frozen settlement 重放必须重新生成相同
+canonical receipt/digest；caller 无权选择 digest。若 cleanup 已完成但 operation 尚未 terminal，恢复直接
+依据持久化 dispatch/request/receipt evidence
 完成 authority finalization，零 login、reauth、reconcile、cleanup、logout 或 POST。
 
 ### recovery trigger 与 fail-closed
@@ -209,9 +213,9 @@ Cron、cleanup mutation、HTTP 或 Provider 能力。
   落库、日志、argv 或继承环境；
 - Cookie、CSRF 和 fence token 只在内存中，绝不持久化；
 - 未完成 cleanup 永不自动清除；
-- 0020 提供显式、每次 scrub 与 delete 共用 1–100 行总预算的 private retention function：terminal 满
-  24 小时后原子清除 owner、idempotency-key HMAC 与 server request ID，并用不可变 marker 区分“已清除”
-  与“从未绑定”；
+- 0020 提供显式、每次 scrub 与 delete 共用 1–100 行总预算的 private retention function；0021 扩展其
+  scrub，使 terminal 满 24 小时后原子清除 owner、idempotency-key HMAC、server request ID 与临时 canonical
+  receipt，并用不可变 marker 区分“已清除”与“从未绑定”；
 - terminal 且 cleanup 已完成的部署证明、receipt digest、状态事件与安全错误码在 90 天后删除；
 - 未新增 Cron 或自动调度；调用该 bounded function 仍属于后续 production composition/运维入口；
 - 产品 `analysis_requests`、`analysis_records`、quota 和 `usage_ledger` 继续遵守既有产品保留策略，验收器不越权删除用户记录。
@@ -264,26 +268,35 @@ idempotency/owner/digest
 查询 request 的 route，因此 dispatch-before-bind exact-one reconciliation 继续留在私有 authority adapter，
 HTTP transport 固定失败且零网络，不能发明 acceptance route。
 
-Phase C 的 `capturePreSnapshot()` 仍是 injected、session-free seam；它运行期间不会 login 或 logout。
-Vercel/Web deployment capture 的 production per-call deadline 属于 Phase D adapter，当前内部合同不把该
-尚未实现的外部步骤冒充为已 bounded。production composition root 在该 deadline 落地前不得启用真实执行。
+`capturePreSnapshot()` 仍是 injected、session-free seam；它运行期间不会 login 或 logout。Phase D 已在
+orchestrator 外层固定绝对 10 秒 preflight deadline，并在 Vercel/Web adapter 内给每个管理面和运行时 GET
+独立 5 秒上限；即使 transport 忽略 abort，deadline race 仍先失败关闭。该 adapter 尚未进入 production
+composition root，因此实现完成不等于真实外部读取已执行。
 
 禁止用 direct Provider、Cloud module、SQL mutation 或 Classic smoke 替代上述路径。`/analysis` 是 Web 页面证明，真正的分析 mutation 是 `/v1/analyses:stream`。
 
 ## server settlement receipt 与 RLS
 
-成功条件由服务端冻结的 `SettlementReceipt` 决定，而不是 runner 自报。专用私有函数在一个 repeatable-read snapshot 内连接 operation、server request、terminal analysis record、quota reservation、price snapshot 和 `usage_ledger`，验证：
+成功条件由服务端冻结的 `SettlementReceipt` 决定，而不是 runner 自报。0021 专用私有函数锁定并 fence
+operation，在同一数据库 statement 内连接 server request、terminal analysis record、quota reservation、
+price snapshot 和 `usage_ledger`，验证：
 
 - request 为终态且只有一个对应 terminal record；
 - provider 为 DeepSeek，reservation 已 settle；
 - ledger 有 1–2 条，`call_ordinal` 从 0 连续到 `N - 1`，币种、token 与金额一致；
 - receipt 绑定规范输入摘要、server request ID 和精确 deployment pair。
 
-函数将 canonical bytes 与 digest 一次性写入私有 operation；冻结后不可改写。产品 owner projection 继续经过强制 RLS；receipt 函数只授予专用 `NOLOGIN` role，不新增 public/API billing receipt route，也不放宽 RLS。
+函数由 Postgres `jsonb_build_object` 构造 canonical receipt，并以数据库 `digest(..., 'sha256')` 生成 hex
+digest，一次性写入私有 operation；caller 不提供 digest，冻结后不可改写。24 小时 scrub 清除 canonical
+receipt 和身份绑定，只保留 digest 与非身份审计证据。产品 owner projection 继续经过强制 RLS；receipt 函数
+只授予专用 `NOLOGIN` role，不新增 public/API billing receipt route，也不放宽 RLS。
 
 ## deployment identity
 
-可信部署来源是 Vercel management API：固定 team/project、production target、READY 状态、production alias、不可变 deployment UID（`dpl_...`）和完整 source commit SHA。API 与 Web origin 各自返回完整 runtime commit attestation，并与 management API 交叉验证。
+可信部署来源是 Vercel management API：固定 team/project、production target、READY 状态、零 in-flight、
+不可变 deployment UID（`dpl_...`）和完整 source commit SHA。API 固定 `/health` 以 response headers 返回
+commit/UID/release channel；Web 固定 `/analysis` 的 build-time HTML meta 返回同三项。两者都与管理面最新
+non-canceled deployment 交叉验证，redirect、非 200、错误 content type、超限 body 或身份漂移均失败关闭。
 
 API 和 Web 可来自两个分别受控、可审阅的 source SHA；不要求二者 SHA 相同。operation 绑定精确 `(apiDeploymentId, apiSha, webDeploymentId, webSha)`。Git HEAD 只证明本地审阅 lineage，页面显示的短 SHA 不可作为身份。
 

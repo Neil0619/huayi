@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { createViteConfiguration } from "../apps/web/vite.config.ts";
+import {
+  createViteConfiguration,
+  injectHostedDeploymentAttestation,
+} from "../apps/web/vite.config.ts";
 import {
   renderHostedDeploymentPlan,
   runHostedDeploymentCli,
@@ -9,6 +12,7 @@ import {
 } from "./acceptance-hosted-deployment.mjs";
 
 const commit = "0123456789abcdef0123456789abcdef01234567";
+const deploymentId = "dpl_7Gw5ZMBpQA8h9GF832KGp7nwbuh3";
 
 function validHostedEnvironment() {
   return {
@@ -168,17 +172,35 @@ test("hosted deployment CLI never reflects invalid environment values", async ()
 });
 
 test("Vite injects a full Vercel commit only for a valid hosted acceptance build", () => {
-  assert.deepEqual(
+  const hostedConfiguration = createViteConfiguration({
+    VERCEL_DEPLOYMENT_ID: deploymentId,
+    VERCEL_GIT_COMMIT_SHA: commit,
+    VITE_DEPLOYMENT_ENVIRONMENT: "hosted-acceptance",
+  });
+  assert.deepEqual(hostedConfiguration.define, {
+    HUAYI_DEPLOYMENT_COMMIT: JSON.stringify(commit),
+  });
+  assert.throws(() =>
+    createViteConfiguration({ VITE_DEPLOYMENT_ENVIRONMENT: "hosted-acceptance" }),
+  );
+  assert.throws(() =>
     createViteConfiguration({
       VERCEL_GIT_COMMIT_SHA: commit,
       VITE_DEPLOYMENT_ENVIRONMENT: "hosted-acceptance",
-    }).define,
-    { HUAYI_DEPLOYMENT_COMMIT: JSON.stringify(commit) },
-  );
-  assert.throws(() =>
-    createViteConfiguration({ VITE_DEPLOYMENT_ENVIRONMENT: "hosted-acceptance" }),
+    }),
   );
   assert.deepEqual(createViteConfiguration({ VERCEL_GIT_COMMIT_SHA: commit }).define, {
     HUAYI_DEPLOYMENT_COMMIT: JSON.stringify(""),
   });
+  const html = injectHostedDeploymentAttestation(
+    "<!doctype html><html><head><title>语见</title></head><body></body></html>",
+    { commit, deploymentId },
+  );
+  assert.match(html, new RegExp(`<meta name="huayi-deployment-commit" content="${commit}">`, "u"));
+  assert.match(
+    html,
+    new RegExp(`<meta name="huayi-deployment-id" content="${deploymentId}">`, "u"),
+  );
+  assert.match(html, /<meta name="huayi-release-channel" content="hosted-acceptance">/u);
+  assert.equal(injectHostedDeploymentAttestation("<html></html>", undefined), "<html></html>");
 });

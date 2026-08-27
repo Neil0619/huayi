@@ -7,7 +7,9 @@ export const hostedDeepSeekApplicationBudgetMilliseconds = 90_000;
 export const hostedDeepSeekCleanupBudgetMilliseconds = 10_000;
 export const hostedDeepSeekLogoutBudgetMilliseconds = 10_000;
 export const hostedDeepSeekOperationLeaseMaximumAfterArmMilliseconds = 120_000;
+export const hostedDeepSeekPreflightBudgetMilliseconds = 10_000;
 export const hostedDeepSeekPreSnapshotFreshnessMilliseconds = 30_000;
+export const hostedDeepSeekRecoveryEvidenceBudgetMilliseconds = 20_000;
 export const hostedDeepSeekSessionBudgetMilliseconds = 10_000;
 export const hostedDeepSeekStatusBudgetMilliseconds = 5_000;
 
@@ -45,6 +47,7 @@ export function createHostedDeepSeekOneShotExecutorFacade({
       return recoverHostedDeepSeekOneShotCleanup({
         ...dependencies,
         budgetMilliseconds: hostedDeepSeekCleanupBudgetMilliseconds,
+        evidenceBudgetMilliseconds: hostedDeepSeekRecoveryEvidenceBudgetMilliseconds,
         freshnessMilliseconds: hostedDeepSeekPreSnapshotFreshnessMilliseconds,
         logoutBudgetMilliseconds: hostedDeepSeekLogoutBudgetMilliseconds,
         sessionBudgetMilliseconds: hostedDeepSeekSessionBudgetMilliseconds,
