@@ -201,6 +201,7 @@ export async function runHostedDeepseekMigrationDryRunProcess(
             PGPASSWORD: administratorPassword,
             PGSSLMODE: "verify-full",
             PGSSLROOTCERT: rootCertificate,
+            SUPABASE_NO_UPDATE_NOTIFIER: "1",
           },
           shell: false,
           stdio: ["ignore", "pipe", "pipe"],

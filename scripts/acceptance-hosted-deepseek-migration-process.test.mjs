@@ -69,6 +69,7 @@ test("DeepSeek migration dry-run process pins fixed CLI, bounded output, and dis
   child.stderr.emit("data", validDryRunOutput);
   child.emit("close", 0, null);
   assert.deepEqual(await resultPromise, { code: 0, stderr: validDryRunOutput, stdout: "" });
+  assert.equal(actual.options.env.SUPABASE_NO_UPDATE_NOTIFIER, "1");
   await assert.rejects(stat(caPath), { code: "ENOENT" });
 });
 
