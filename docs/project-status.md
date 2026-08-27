@@ -283,9 +283,15 @@ audit 仍只允许 `enabled`。这不代表 Store 产品或 Windows 支持被取
 > 预期失败，首轮 material/destroy 安全 RED 为 6 tests 中 5 个预期失败，随后又以 RED 关闭 invalid-clock
 > destroy、server `armedAt`/120 秒上限与 execute/recover future-arm；根侧又以 Fresh RED 关闭 post-evidence
 > clock 异常提前跳过 logout/terminalization 的路径，当前 one-shot 离线聚焦 73/73 全绿。
-> private adapter material 不公开，public executor 仍精确为 `status/execute/recover`。这仍没有 production
-> password/CSRF/SSE transport、真实 Cookie/凭据、网络、Hosted 写、模型调用或付费验收；session-free
-> Vercel/Web capture 的 production per-call deadline 仍属于 Phase D。
+> private adapter material 不公开，public executor 仍精确为 `status/execute/recover`。Phase C 后续
+> production-shaped transport 已固定连接 normal password login/reauth、Operator read、kill-switch、analysis
+> SSE、已知 request status 与 logout contracts，并复用 `cloud-contracts` strict schemas/SSE decoder；它不接受
+> endpoint/body/session 覆盖，redirect 固定失败，GET 不发送 CSRF，所有响应与 stream 均有 deadline/size/count
+> bounds。started-only 或 started 后中断只允许一次严格 UUID request status read，非 UUID 在构造 URL 前
+> 失败，started 前零 status、零第二 POST；public Web 没有 raw idempotency/owner/payload reconciliation route，因此该 private exact-one port 固定
+> 零网络失败，留给 Phase D authority adapter。当前仍没有真实 Cookie/凭据、网络、Hosted 写、模型调用或
+> 付费验收；session-free Vercel/Web capture、settlement/reconciliation production adapter 与 composition root
+> 仍属于 Phase D/E。
 
 > **历史校准检查点（Phase 33）**：Phase 28 已补齐 production 语义重复建议和
 > 可计算 AA token 证据；2026-08-14 完成度源码审计发现的 SubmissionOutbox `api=null` 误清账号绑定

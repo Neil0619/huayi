@@ -72,14 +72,16 @@ Phase 91 的 15-file rebuild/backup evidence 仍只证明 0015；其 loader 必�
       回退；partial login/reauth 的有效新 Cookie 只保留作 logout-only material；
 - [x] 所有 post-login exit 先 cleanup、再以不继承 application abort 的独立绝对 10 秒 normal logout；
       logout outcome 后同步幂等销毁 capability，才 durable complete cleanup / terminalize operation；
-- [ ] 把上述 private seam 接到 production password/CSRF/Operator/kill-switch/analyses SSE/status HTTP
+- [x] 把上述 private seam 接到 production password/CSRF/Operator/kill-switch/analyses SSE/status HTTP
       transport；不新增 purpose session、特殊 Cookie 或 acceptance auth 字段；
 - [x] 在 Phase A private request builder 固定 normal-Web sentence body，source 只含 `type: manual`，禁止
       caller/adapter contract 覆盖 title、userContext、selection/source type 或正文；canonical JSON 与既有
       SHA-256 payload digest 由同一深冻结对象回归绑定；
 - [x] fake session 回归覆盖顺序、claim 前零 login/logout、Cookie/CSRF rotation 与 partial response、
       application abort、ignored-abort logout、固定 logout 失败、durable cleanup 和 recovery 顺序；
-- [ ] production-shaped fake HTTP 继续覆盖 401/403、SSE 中断、started-only/status recovery 与零透明重试。
+- [x] production-shaped fake HTTP 覆盖 401/403、Cookie/CSRF rotation、SSE 中断、started-only/status
+      recovery、deadline/JSON/SSE bounds 与零透明重试；Phase B 的 exact-one reconciliation regression 继续
+      覆盖私有 authority port，public HTTP transport 对该未连接 port 固定失败且零网络。
 
 退出标准：没有 acceptance-only 分析 route/header/body，正常 Web 合同是唯一 Provider dispatch 路径。
 
@@ -91,8 +93,13 @@ preflight→claim→login/reauth/readback→arm/application→cleanup→logout�
 替代，并拒绝早于 pre-snapshot 或晚于本地 arm response 的值。recovery 也在 login 前拒绝晚于 claim 后
 采样时钟的 `armedAt`。recovery 采用 60 秒 cleanup claim，为三个 10 秒 envelope 后的终态写入保留 30 秒。
 `capturePreSnapshot()` 当前仍是 session-free injected seam，production Vercel/Web per-call deadline 属于
-Phase D，不能冒充为已 bounded。`status/execute/recover`、CLI 与 public HTTP contract 均未扩大；这仍不
-表示 production HTTP/SSE transport、Hosted session 或真实调用已实现。
+Phase D，不能冒充为已 bounded。normal Web production-shaped transport 已固定连接既有 password login、
+password reauth、Operator access、kill-switch、analysis SSE、request status 和 logout routes；不接受
+endpoint/body 覆盖，不新增 acceptance route/header/session。SSE 只有在已知且严格 UUID 的 server request ID
+后才做一次 bounded status read，started 前断线的 exact-one query 仍由尚未连接的私有 Phase D authority
+adapter 承担。
+`status/execute/recover`、CLI 与 public HTTP contract 均未扩大；这仍不表示 production composition root、
+Hosted session 或真实调用已实现。
 
 ## 阶段 D：deployment 与 settlement adapters
 

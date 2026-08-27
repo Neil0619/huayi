@@ -2,8 +2,9 @@
 
 状态：Accepted design；Phase A 离线控制合同、Phase B 私有 Postgres authority（含 versioned HMAC、
 generation/token fencing、bounded retention 与跨进程 dispatch-before-bind recovery），以及 Phase C 私有
-session lifecycle 与内存 adapter 已实现；production HTTP/SSE adapters、真实 executor composition root、
-部署与 Hosted 验收仍未实现。
+session lifecycle、内存 adapter 与 normal Web production-shaped HTTP/SSE/status transport 已实现；私有
+dispatch-before-bind reconciliation/settlement adapter、真实 executor composition root、部署与 Hosted 验收
+仍未实现。
 
 日期：2026-08-27
 
@@ -252,6 +253,16 @@ Cookie，就必须在 rotation 校验前采纳并立即淘汰旧 Cookie/CSRF；�
 operation terminalization。logout 失败只产生固定失败文本，不能抑制 durable cleanup。进程崩溃时不把
 session token 写入 authority，也不批量撤销 Operator 的其他 session；残留 session 只按既有 Web session
 到期策略失效，cleanup authority 只负责恢复 kill switch。
+
+Phase C production-shaped transport 固定连接 acceptance API/Web origin 与既有 password login、password
+reauth、Operator access、kill-switch、analysis stream、request status 和 logout routes。它不接受 endpoint、
+path、header、body 或 session 类型覆盖；Node transport 显式携带 normal Web Cookie、Origin、CSRF 与
+Idempotency-Key，但只把固定 analysis body 发送到 API。SSE 在本地执行 byte/event/single-event bounds；只有
+已经观察到 `analysis.started` 的完整 started-only stream 或 transport interruption 才允许对该严格 UUID
+request ID 做一次 status read，started 前不得访问 status，也不得重发 POST。public Web 没有按
+idempotency/owner/digest
+查询 request 的 route，因此 dispatch-before-bind exact-one reconciliation 继续留在私有 authority adapter，
+HTTP transport 固定失败且零网络，不能发明 acceptance route。
 
 Phase C 的 `capturePreSnapshot()` 仍是 injected、session-free seam；它运行期间不会 login 或 logout。
 Vercel/Web deployment capture 的 production per-call deadline 属于 Phase D adapter，当前内部合同不把该

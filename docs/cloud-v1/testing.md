@@ -1431,6 +1431,16 @@ session is invalid.`；400 `invalid_request` 表示 runtime 数据库路径未�
   采用最新有效 Cookie 作 logout-only material，transport rejection failure-atomic。recovery 无有效 cleanup
   claim 时零 login；有效 claim 的最小剩余窗口必须大于三个 10 秒 envelope，production authority 设计领取
   60 秒。上述 fake 证据不等于 production HTTP/SSE、真实 session 或 Hosted 验收；
+- Phase C production-shaped HTTP 回归必须使用固定 acceptance API/Web origin 与既有 normal password
+  login/reauth、Operator access、kill-switch、analysis stream、request status 和 logout routes，并复用
+  `cloud-contracts` strict schemas/SSE decoder。fake fetch 必须逐项断言 Cookie/Origin/CSRF/Idempotency-Key、
+  Cookie+CSRF rotation、GET 不发送 CSRF、固定 analysis body 不含 operation/owner/deployment，以及所有请求
+  `redirect=error`/`no-referrer`。401/403/redirect、malformed/oversized JSON、SSE byte/event/single-event overflow、
+  started 前中断和 deadline 过期均固定失败且零 retry；完整 started-only 或 started 后 transport interruption
+  只允许对严格 UUID request ID 做一次 status GET，非 UUID 必须在构造 URL 前失败，绝不重发 POST。public Web
+  不提供 raw
+  idempotency/owner/payload exact-one 查询，因此 HTTP transport 的 private reconciliation port 必须零网络失败；
+  Phase B 跨进程 exact-one regression 继续证明该独立 authority seam，不能新增 acceptance route；
 - CLI 与 production runtime 都必须使用显式 Supabase CA 与 `verify-full`；API 环境回归拒绝 require/无 TLS、
   非 6543 pooler、错误 project ref、缺失/越界 CA，本机 disabled 模式只接受固定 loopback database DSN；
 - hosted psql 子进程回归必须证明调用方不能覆盖 `PGSSLMODE=verify-full` 与临时 `PGSSLROOTCERT`；diagnostic
