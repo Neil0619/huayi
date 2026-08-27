@@ -3,6 +3,16 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-27：Hosted DeepSeek authority 采用 versioned HMAC 与 fenced recovery
+
+- raw idempotency key 不进入 authority 表。固定 context、operation UUID 与 versioned keyring 确定性生成
+  material，key version 参与 HMAC domain separation；新 operation 只用 active version，retained historical
+  version 只用于既有 operation recovery；
+- 每个 mutation 以 server-time generation/token fencing 裁决。live lease 不抢占；dispatch marker 后禁止第二
+  次 application POST，跨进程恢复只接受 exact-one reconciliation；
+- cleanup 完成到 operation terminal 之间的 crash gap 只依据持久化 dispatch/request/receipt evidence 做
+  authority finalization，零 Web session/外部调用；retention 为 bounded private function，不新增 Cron；
+
 ## 2026-08-27：Hosted DeepSeek one-shot 复用正常 Web 合同
 
 - 真实 executor 采用 `status/execute/recover` 三入口 deep module；调用者不再提供 owner、request、

@@ -337,6 +337,15 @@ export function requestBindingIsValid(binding, operationLease, requestHandle) {
   );
 }
 
+export function settlementRecordReceiptIsValid(receipt, operationLease, requestId) {
+  return (
+    hasExactKeys(receipt, ["operationId", "requestId", "status"]) &&
+    receipt.operationId === operationLease.operationId &&
+    receipt.requestId === requestId &&
+    receipt.status === "recorded"
+  );
+}
+
 export function completionReceiptIsValid(receipt, expected) {
   return (
     hasExactKeys(receipt, Object.keys(expected)) &&

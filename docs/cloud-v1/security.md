@@ -502,12 +502,10 @@ Hosted DeepSeek one-shot 的 0016 authority foundation 创建两张 `huayi_priva
 终态证据不可改写。0016 本身不构成新的运行时、HTTP 或 Provider 能力。0017 只允许 terminal 满 24 小时
 后一次性同时清除 owner、
 idempotency-key HMAC 与 server request ID；不可变 marker、receipt/deployment/terminal/time evidence 和
-re-revoked trigger ACL 防止提前、部分、重引入或伪造清除。0017 不提供 callable retention executor，也不
-产生后台、HTTP 或 Provider 行为。0018 只新增 fixed-search-path `SECURITY DEFINER STABLE` status；它只向
+re-revoked trigger ACL 防止提前、部分、重引入或伪造清除。0018 只新增 fixed-search-path
+`SECURITY DEFINER STABLE` status；它只向
 专用 executor 返回一个安全 enum，multiple/unknown 固定失败，API/business/runtime/PUBLIC 均无 execute，
-专用 executor 也仍无表直权。claim 未实现：不能把 Production pepper 未定义地送入 SQL、用普通 digest
-冒充 idempotency-key HMAC，或落库 raw key；owner 虽可从唯一 completed first-operator singleton 派生，
-HMAC secret/context/version/rotation/recovery seam 仍须先冻结。
+专用 executor 也仍无表直权。
 
 0019 新增仅由 owner-defined 数据库函数内部调用的 fixed-search-path `SECURITY DEFINER STABLE`
 effective-fuse；PUBLIC、Supabase API、business/context-setter/runtime 与专用 executor 均无直接 execute。
@@ -516,6 +514,25 @@ cleanup-pending、completed cleanup 搭配 non-terminal operation，或 operatio
 `armed_at + 120s` 时按 enabled；唯一 running + pending cleanup 只在 server-time bounded lease 内继续按
 物理 false。读取不写 authority/runtime/quota 表，不新增 Cron、cleanup mutation、HTTP、网络或 secret seam；
 两张 authority 表继续 forced RLS 与零直权。
+
+0020 在空 authority guard 后新增最小 mutation/retention functions。每次 mutation 同时校验 operation ID、
+server-time generation、raw token 的数据库内 hash、状态和 lease；live operation/cleanup lease 不可抢占，
+旧 worker 不能写。arm 只建立 pending cleanup，保持 0019 的 bounded effective-fuse 窗口；dispatch marker
+一旦存在永不重发 application POST。owner 仅从唯一 completed first-operator singleton 派生。
+
+idempotency raw material 由固定 context、operation UUID 与 versioned HMAC keyring 确定性生成，key version
+显式参与 material/verifier 的 HMAC domain separation。authority 表只保存 context/version/verifier；keyring
+secret 与 raw key 不写 authority、日志、错误/status/inspect。产品 `analysis_requests` 仍按正常幂等合同保存
+它收到的 key；private bind 只把恢复出的 raw key 当瞬时 SQL 参数，精确核对 request 的 owner/key/payload，
+不将它复制到 authority。active version 只创建新 operation；retained historical version 只恢复已存在
+operation。错 context/version/key/verifier 或显式损坏 verifier 固定失败，不得回退 active key。
+dispatch-before-bind 恢复只接受 exact-one owner/idempotency/payload 对账；零条、多条、
+错配均失败关闭并继续 cleanup。相同 request+receipt digest 的 settlement 可幂等恢复，不同 digest 拒绝；
+cleanup 已完成而 operation 尚 running 时只依据持久化 dispatch/request/receipt evidence 做 authority
+finalization，零 Web session 或外部调用。arm 不确定但进入 `failed-cleanup-pending` 时会原子补建 pending
+cleanup obligation，确保始终存在可恢复义务。0020 的 retention function 让 scrub 与 delete 共用每次
+1–100 行总预算，只 scrub 满 24 小时 terminal identity 并删除满 90 天且 cleanup 已完成的 terminal
+evidence；没有新增 Cron 或 HTTP route。
 
 Phase C 首个离线切片复用既有隐藏 TTY prompt，只增加两个固定 allowlisted Operator prompt。input/output
 任一不是 interactive TTY 时在读取前失败；邮箱按既有账号合同 trim/lowercase 并校验，密码保持 12–256，

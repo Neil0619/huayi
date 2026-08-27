@@ -1,8 +1,8 @@
 # Hosted Cloud Web DeepSeek one-shot executor 设计
 
-状态：Accepted design；Phase A 离线控制合同、Phase B schema/ACL、retention-scrub structure、严格私有
-status、effective-fuse，以及 Phase C 私有 session lifecycle 与内存 adapter 已实现；私有 authority
-mutation functions、retention executor、production HTTP/SSE adapters、真实 executor composition root、
+状态：Accepted design；Phase A 离线控制合同、Phase B 私有 Postgres authority（含 versioned HMAC、
+generation/token fencing、bounded retention 与跨进程 dispatch-before-bind recovery），以及 Phase C 私有
+session lifecycle 与内存 adapter 已实现；production HTTP/SSE adapters、真实 executor composition root、
 部署与 Hosted 验收仍未实现。
 
 日期：2026-08-27
@@ -32,8 +32,9 @@ type OneShotApproval = {
 ```
 
 用法只有“查看安全状态、执行、恢复”。`status` 自动选择 absent、ready、running、cleanup-pending 或
-terminal，不返回 operation ID；`recover` 只能领取唯一 cleanup-pending operation，多条或状态不确定时失败
-关闭。`execute` 持有从批准、session-free 部署证明、operation claim、Operator 登录、开闸、单次请求、
+terminal，不返回 operation ID；`recover` 只能领取唯一可恢复 candidate：cleanup-pending、lease 已过期的
+running operation，或 cleanup 已完成但 operation 尚未 terminal 的 finalization gap；live lease、多条或状态
+不确定时失败关闭。`execute` 持有从批准、session-free 部署证明、operation claim、Operator 登录、开闸、单次请求、
 服务端 receipt、恢复开关到销毁会话的完整顺序。相同批准只能形成一个 operation；发生错误时返回稳定的
 分类错误，不能把密钥、Cookie、
 CSRF、输入或模型输出带入错误。网络调用有显式超时，数据库状态转换为常数次往返；不轮询模型之外的
@@ -53,14 +54,16 @@ envelope；arm 后 operation lease 必须严格覆盖 90 秒应用、10 秒 clea
 不能借此越过 0019 的 `armed_at + 120s` 上限。余量不足时在开闸前失败。claim 后快照过期时使用已验证
 lease 终结失败 operation，cleanup arm 已尝试但未能证明关闭时保守进入 cleanup-pending。recovery 完成
 cleanup 时还必须原子终结 operation，使 `status()` 进入 terminal 并释放唯一 non-terminal slot。生产 SQL
-functions 仍未实现这些转换与 fence 校验。
+functions 已在 forward-only 0020 实现这些转换与 fence 校验；外部 caller seam 仍只有
+`status/execute/recover`。
 
 POST 已发出但客户端尚未观察到 `analysis.started` 就发生进程内 transport disconnect 时，执行器不会重发
 POST，而是在同一 bounded application deadline 内，以 authority 已记录的 idempotency key、owner 和固定
 payload digest 调用 reconciliation adapter。只有一条完整且三元组精确匹配的 server request 可被转换为
 `analysis.started` handle、绑定并继续 settlement；零条、多条、不完整或错配结果均失败关闭，并继续执行
-cleanup safety。该离线 seam 尚不证明 worker 退出后的跨进程恢复；后者必须由 Phase B 的持久化 authority
-保存 dispatch 三元组并在新进程中对账，且同样禁止第二次 POST。
+cleanup safety。Phase B 另以两个独立 executor/authority 实例共享同一 PGlite authority，证明旧 worker
+停在 dispatch-before-bind 后，新进程以 operation identity 和 retained HMAC version 恢复同一幂等 material，
+只做一次 exact-one reconciliation，application POST 总数仍为一；零条或多条结果失败关闭并完成 cleanup。
 
 实现隐藏 SQL 状态机、lease/fencing、SSE 解析、Vercel 证明、Cookie/CSRF、receipt 读取和补偿恢复。生产依赖为 Postgres、Vercel management API、Web HTTP 和受控终端凭据输入；测试 adapter 为内存状态库、虚拟时钟、脚本化 HTTP 和固定部署证明。
 
@@ -134,11 +137,18 @@ production 可调用 authority。0017 只新增不可变 `identity_scrubbed_at` 
 non-terminal、未知状态均用固定错误失败关闭，历史 terminal 只按最新 operation 投影为 `terminal`。该
 `SECURITY DEFINER STABLE` function 固定 `search_path`，只授予专用 executor，仍不给任何角色表直权。
 
-初始 claim 暂不实现：`first_operator_bootstrap` 的唯一 completed singleton 可安全派生 owner，但 accepted
-contract 尚未定义 idempotency-key HMAC 的 secret 来源、固定 context/version、轮换连续性，以及新进程如何
-取得 authority-owned raw key。现有 `HUAYI_SECRET_PEPPER` 是 API/部署 secret，不等于已批准的 SQL 输入
-seam；不得用无 key digest 冒充 HMAC，也不得把 raw key 持久化。真正的 fence-token 校验、所有状态转换和
-自动 retention 仍必须由后续最小 `SECURITY DEFINER` functions 实现。
+0020 是只向前的新 migration。它在空 authority guard 后新增固定 `SECURITY DEFINER` mutation functions，
+覆盖 claim、arm、dispatch marker、request bind、settlement、operation/cleanup completion、cleanup claim
+和 bounded retention；全部固定 `search_path`，只授予专用 executor，helpers 对 executor 也无 execute，
+其他 application/API roles 全部拒绝。owner 只从唯一 completed first-operator singleton 派生。
+
+idempotency material 使用固定 context
+`huayi.hosted-deepseek-one-shot.idempotency.v1` 和正整数 key version。新 operation 只使用 active version；
+恢复中的既有 operation 可使用 retained historical version，由 operation UUID 确定性重建 raw material，再
+以持久化 verifier 做 timing-safe 验证。key version 显式进入 material 与 verifier 的 HMAC domain
+separation，即使两个 version 意外复用相同 key bytes 也不能互换。错 context/version/key/verifier 固定失败；
+显式提供但格式损坏的 recovery verifier 不得回退到 active key；旧 version 不得创建新 operation。authority
+表、错误、status 和 inspect 都不保存或输出 raw key/keyring secret。
 
 ### lease、fencing 与顺序
 
@@ -168,6 +178,12 @@ cleanup recovery 使用 60 秒 claim；其中 session establishment、单次 cle
 
 `dispatch_attempted_at` 一旦存在，任何 worker 都不得再次发送 application POST。结果不确定时，恢复逻辑通过 authority 查询并绑定既有 server request；无法证明未发送就失败关闭，不用重放换取成功。
 
+claim cleanup 不抢占未过期的 live operation/cleanup lease；running crash 只在 operation lease 到期后轮换
+generation/token，cleanup-pending 可立即领取。若崩溃发生在 fuse-off、dispatch marker 之前，恢复只做
+cleanup 并以 failed 终结，零 POST。相同 request + receipt digest 的 settlement 重放幂等成功，不同 digest
+拒绝。若 cleanup 已完成但 operation 尚未 terminal，恢复直接依据持久化 dispatch/request/receipt evidence
+完成 authority finalization，零 login、reauth、reconcile、cleanup、logout 或 POST。
+
 ### recovery trigger 与 fail-closed
 
 恢复只有两个执行入口：`execute` 的 `finally` 和显式 CLI `recover`。CLI 的 `status` 在任何新 operation 前
@@ -192,16 +208,22 @@ Cron、cleanup mutation、HTTP 或 Provider 能力。
   落库、日志、argv 或继承环境；
 - Cookie、CSRF 和 fence token 只在内存中，绝不持久化；
 - 未完成 cleanup 永不自动清除；
-- 0017 只提供 terminal 满 24 小时后原子清除 owner、idempotency-key HMAC 与 server request ID 的结构
-  许可，并用不可变 marker 区分“已清除”与“从未绑定”；当前没有 retention executor，因而不会自动清除；
-- 部署证明、receipt digest、状态事件与安全错误码保留 90 天后删除；
+- 0020 提供显式、每次 scrub 与 delete 共用 1–100 行总预算的 private retention function：terminal 满
+  24 小时后原子清除 owner、idempotency-key HMAC 与 server request ID，并用不可变 marker 区分“已清除”
+  与“从未绑定”；
+- terminal 且 cleanup 已完成的部署证明、receipt digest、状态事件与安全错误码在 90 天后删除；
+- 未新增 Cron 或自动调度；调用该 bounded function 仍属于后续 production composition/运维入口；
 - 产品 `analysis_requests`、`analysis_records`、quota 和 `usage_ledger` 继续遵守既有产品保留策略，验收器不越权删除用户记录。
 
 ## approval 与 server request ID
 
 `ApprovalRequestId` 是批准系统生成的验收标识；`AnalysisRequestId` 只能取自服务端 `analysis.started` 事件或私有 reconciliation 查询。二者永不假设相等。
 
-dispatch 前生成单次 idempotency key，并把其 HMAC、owner ID 和规范请求摘要写入 operation。首次收到 `analysis.started` 时，authority 以 owner、idempotency key 和请求摘要原子绑定 server request ID；若连接在 started 前断开，recovery 用相同三元组查找服务端已建 request。零匹配表示未证明成功，多匹配或摘要不符表示安全错误。
+dispatch 前生成单次 idempotency key，并把其 HMAC、owner ID 和规范请求摘要写入 operation。首次收到
+`analysis.started` 时，private bind function 以瞬时参数接收 raw key，并精确核对产品
+`analysis_requests` 的 owner、idempotency key 和请求摘要后原子绑定 server request ID；raw key 不写入
+authority 表。若连接在 started 前断开，recovery 用相同三元组查找服务端已建 request。零匹配表示未证明
+成功，多匹配或摘要不符表示安全错误。
 
 ## 真实 Web 路径与 Operator 安全
 

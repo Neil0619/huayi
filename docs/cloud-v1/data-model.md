@@ -92,13 +92,20 @@ forced RLS 且对 API/business/runtime 和专用 `NOLOGIN` executor role 均无�
 同步轮换与证据不可改写的结构 guard。0017 新增不可变 `identity_scrubbed_at`：terminal 满
 24 小时后，结构 guard 只允许一次同时清除 owner、idempotency-key HMAC 与 server request ID，并保留
 receipt/deployment/terminal/safe-error/time evidence；提前、部分、receipt-free、重引入与重复 scrub 均拒绝。
-这只是结构许可，没有 callable retention executor。0018 的 strict private status 只向专用 executor 返回
+0018 的 strict private status 只向专用 executor 返回
 `absent|ready|running|cleanup-pending|terminal`，不返回 ID 或证据；multiple/unknown 失败关闭且仍无表直权。
 0019 的 private effective-fuse 统一接入 `reserve_quota` 与 Operator usage summary：正常 running operation
 只在 pending cleanup 的 server-time bounded lease 内继续按物理 false 读取；cleanup-pending、过期/超长
 lease、完成 cleanup 搭配非终态 operation，以及缺失、NULL 或异常 control/authority 均按 enabled 失败关闭，
-且读取不修改物理 control 或业务表。claim/bind/settlement/retention 与真正的 fence-token 验证仍未实现，不能
-把这些只读/结构能力解释为可运行 authority。
+且读取不修改物理 control 或业务表。0020 在空 authority guard 后加入 fixed-search-path mutation functions：
+claim/arm/dispatch/bind/settlement/operation+cleanup completion/cleanup claim/retention 全部使用 server-time
+generation/token fencing。operation 只保存 versioned HMAC context/version/verifier，不保存 raw key；key
+version 参与 HMAC domain separation，新进程以 operation UUID 和 retained historical version 重建并验证相同
+material。bind 同时精确核对产品 request 的 owner、raw idempotency key 与 payload；raw key 只作为瞬时 SQL
+参数，不写回 authority。arm 保持 cleanup=pending，live lease 不可抢占；dispatch-before-bind 只允许
+exact-one reconciliation，completed-cleanup crash gap 只做 authority finalization。bounded retention 的
+1–100 是 scrub 与 delete 共用的单次总预算；它正向支持 terminal 满 24 小时 identity scrub 与满 90 天
+evidence delete，cleanup-pending 永不删除，且没有自动调度或新增 Cron。
 
 `GET /v1/account` 不新增聚合表。它在一个 owner repeatable-read snapshot 中只读取 active
 `user_profiles` 的规范 email 与五项偏好，并读取当前未撤销、未过期的 `extension_sessions` 公开字段；

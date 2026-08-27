@@ -118,6 +118,14 @@ function phaseALifecycle({ calls = [], pendingCleanup = phaseACleanupLease() } =
       authority: "hosted-deepseek-one-shot",
       records: operationState === "absent" ? [] : [{ state: operationState }],
     }),
+    recordSettlement: async (command) => {
+      calls.push("record-settlement");
+      return {
+        operationId: command.operationId,
+        requestId: command.requestId,
+        status: "recorded",
+      };
+    },
   };
 }
 
@@ -206,6 +214,7 @@ test("Phase A persists dispatch before HTTP, then binds analysis.started and ret
     `request:${hostedDeepSeekWebOrigin}/v1/analyses:stream`,
     "bind-request",
     "server-settlement",
+    "record-settlement",
     "kill-switch:true",
     "post-snapshot",
     "logout",

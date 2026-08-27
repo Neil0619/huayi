@@ -106,6 +106,14 @@ export function operationLifecycle({
         records: operationState === "absent" ? [] : [{ state: operationState }],
       };
     },
+    recordSettlement: async (command) => {
+      calls.push("record-settlement");
+      return {
+        operationId: command.operationId,
+        requestId: command.requestId,
+        status: "recorded",
+      };
+    },
   };
 }
 

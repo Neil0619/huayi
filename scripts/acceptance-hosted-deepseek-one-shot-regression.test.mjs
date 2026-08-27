@@ -4,10 +4,12 @@ import test from "node:test";
 import { createHostedDeepSeekOneShotExecutor } from "./acceptance-hosted-deepseek-one-shot.mjs";
 import {
   approval,
+  cleanupLease,
   deployments,
   identity,
   nowMilliseconds,
   observedAt,
+  operationLease,
   ownerUsage,
   postSnapshot,
   preSnapshot,
@@ -16,6 +18,7 @@ import {
   adapter,
   operationLifecycle,
 } from "./acceptance-hosted-deepseek-one-shot-fake-adapters.mjs";
+import { hostedDeepSeekPayloadDigest } from "./acceptance-hosted-deepseek-one-shot.mjs";
 
 const failurePattern = /^Error: Hosted Cloud Web DeepSeek one-shot failed closed\.$/u;
 
@@ -164,6 +167,99 @@ test("failed local restoration leaves a durable lease for cleanup-only recovery"
   ]);
   assert.equal(lifecycle.pendingCleanup(), undefined);
   await assert.rejects(recoveryExecutor.recover(), failurePattern);
+});
+
+test("a restarted process reconciles dispatch-before-bind exactly once and never POSTs again", async () => {
+  const calls = [];
+  const restartedOperationLease = operationLease(approval(), {
+    claimToken: "restarted_operation_token_001",
+    leaseGeneration: 2,
+  });
+  const recoveryClaim = {
+    cleanupLease: {
+      ...cleanupLease(),
+      cleanupToken: "restarted_cleanup_token_001",
+      claimGeneration: 2,
+    },
+    dispatchRecovery: {
+      dispatchAttempted: true,
+      idempotencyKey: restartedOperationLease.idempotencyKey,
+      idempotencyVerifier: "e".repeat(64),
+      observedAt,
+      operationLease: restartedOperationLease,
+      payloadDigest: hostedDeepSeekPayloadDigest,
+      requestId: null,
+      settlementRecorded: false,
+    },
+  };
+  const lifecycle = operationLifecycle({
+    calls,
+    claimCleanup: () => recoveryClaim,
+    finishCleanup: (command) => ({
+      operationId: command.operationId,
+      operationState: "running",
+      status: "completed",
+    }),
+    pendingCleanup: cleanupLease(),
+  });
+  const restarted = createHostedDeepSeekOneShotExecutor({
+    adapter: adapter({ calls }),
+    lifecycle,
+    readNowMilliseconds: () => nowMilliseconds,
+  });
+
+  const recovered = await restarted.recover();
+  assert.deepEqual(recovered, {
+    killSwitchRestored: true,
+    outcome: "accepted",
+  });
+  assert.equal(calls.filter((call) => call.startsWith("request:")).length, 0);
+  assert.equal(calls.filter((call) => call === "reconcile-request").length, 1);
+  assert.equal(calls.filter((call) => call === "bind-request").length, 1);
+  assert.equal(calls.filter((call) => call === "record-settlement").length, 1);
+});
+
+test("completed cleanup crash recovery finalizes from authority with zero external calls", async () => {
+  const adapterCalls = [];
+  const lifecycleCalls = [];
+  const restartedOperationLease = operationLease(approval(), {
+    claimToken: "restarted_operation_token_001",
+    leaseGeneration: 2,
+  });
+  const lifecycle = operationLifecycle({
+    calls: lifecycleCalls,
+    claimCleanup: () => ({
+      cleanupAlreadyCompleted: true,
+      cleanupLease: {
+        ...cleanupLease(),
+        cleanupToken: "restarted_cleanup_token_001",
+        claimGeneration: 2,
+      },
+      dispatchRecovery: {
+        dispatchAttempted: true,
+        idempotencyKey: restartedOperationLease.idempotencyKey,
+        idempotencyVerifier: "e".repeat(64),
+        observedAt,
+        operationLease: restartedOperationLease,
+        payloadDigest: hostedDeepSeekPayloadDigest,
+        requestId: identity().requestId,
+        settlementRecorded: true,
+      },
+    }),
+    pendingCleanup: cleanupLease(),
+  });
+  const restarted = createHostedDeepSeekOneShotExecutor({
+    adapter: adapter({ calls: adapterCalls }),
+    lifecycle,
+    readNowMilliseconds: () => nowMilliseconds,
+  });
+
+  assert.deepEqual(await restarted.recover(), {
+    killSwitchRestored: true,
+    outcome: "accepted",
+  });
+  assert.deepEqual(adapterCalls, []);
+  assert.deepEqual(lifecycleCalls, ["claim-cleanup", "complete-operation:accepted"]);
 });
 
 test("post freshness is independently sampled instead of inherited from preflight", async () => {

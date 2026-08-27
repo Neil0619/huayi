@@ -241,24 +241,25 @@ audit 仍只允许 `enabled`。这不代表 Store 产品或 Windows 支持被取
 > claim 后快照过期会终结 operation，lease 覆盖 90 秒应用与 10 秒 cleanup，recovery 完成 cleanup 时原子
 > 终结 operation。新增/既有 one-shot 聚焦 44/44、完整 `pnpm test` 与 `pnpm verify:macos` 111/111 E2E
 > 均通过；这仍只是离线合同，不是 production authority 或 Hosted 执行。
-> Phase B 首个离线切片又新增 byte-identical 0016 API/Supabase migration：两张 private forced-RLS authority
-> 表、唯一 non-terminal operation、单向状态与 generation/token 轮换结构 guard、不可改写证据、90 天
-> retention 字段，以及零 application/runtime/专用 executor 表直权均由 PGlite 覆盖。专用 `NOLOGIN` role
-> 当前没有任何函数执行权限。随后 byte-identical 0017 只新增 retention-scrub structure：不可变 marker、
-> terminal 满 24 小时后一次性同时清除 owner/HMAC/request，以及 receipt/deployment/terminal/safe-error/time
-> evidence 保持不变；提前、未来时间、部分、receipt-free、非终态、重引入和重复 scrub 均由独立 PGlite
-> 回归拒绝。0017 没有 callable retention executor。byte-identical 0018 随后新增唯一 strict private
-> status function：只返回 absent/单一安全状态，multiple/unknown 固定失败，EXECUTE 只授予专用 executor，
-> 两表仍保持 forced RLS 与零直权。claim 未实现：owner 可从唯一 completed first-operator singleton 派生，
-> 但 idempotency-key HMAC 的 secret/context/version/rotation/recovery seam 尚未冻结，不能用普通 digest
-> 冒充 HMAC 或持久化 raw key。byte-identical 0019 已把 private effective-fuse 接入 reservation 与 Operator
-> summary：正常 running + pending cleanup 只在 server-time bounded lease 内继续按物理 false；cleanup-pending、
-> expired/超长 lease、completed cleanup + non-terminal operation 与缺失/NULL/异常 control/authority 均失败
-> 关闭，读取零写入且 helper 对 application/executor 零 execute。真正的 fence-token 校验、所有私有
-> mutation functions、自动 retention、worker 退出后的跨进程 dispatch-before-bind 恢复、normal Web session
-> 与 deployment/settlement adapters、production composition root 和真实 executor 仍未实现。0016–0019
-> 没有连接 Hosted、应用或 dry-run，也没有产生费用。既有 Phase 91 pre/rebuild/post 证据仍严格绑定 0015
-> 和 15-file source set；其 loader 必须拒绝当前 19-file repository。0016–0019 的新 backup/rebuild/status/
+> Phase B 已由 byte-identical 0016–0020 API/Supabase forward migrations 离线闭合。0016–0019 保留两张
+> private forced-RLS authority 表、严格 status、retention-scrub structure 与 effective-fuse foundation；0020
+> 在空 authority guard 后加入只授予专用 `NOLOGIN` executor 的 fixed-search-path `SECURITY DEFINER`
+> claim/arm/dispatch/bind/settlement/complete/recovery/retention functions。所有 mutation 均使用 server-time
+> generation/token fencing；arm 保持 cleanup=pending，live lease 不可抢占，pre-dispatch crash 只 cleanup，
+> completed-cleanup crash gap 只做 authority finalization。相同 request+receipt digest 重放幂等，不同 digest
+> 拒绝；24 小时 scrub、90 天 terminal delete、cleanup-pending 保留及 scrub/delete 共用总批次预算已有
+> 正向回归。
+> versioned HMAC keyring 固定 context 且把 key version 纳入 domain separation；authority 只保存
+> version/context/verifier，新 operation 只用 active version，retained historical version 只恢复既有
+> operation。raw key 只作为 bind 的瞬时 SQL 参数精确核对产品 request owner/key/payload，不写 authority、
+> 日志、错误或 inspect；显式损坏 verifier 失败关闭而不回退 active key。
+> 两个独立 executor/authority 实例共享同一 PGlite 的回归证明：第一实例停在 dispatch-before-bind 后，第二
+> 实例在 key rotation 后只做 exact-one reconciliation，旧 verifier 成功绑定，application POST 总数仍为一；
+> 零条/多条均失败关闭但完成 cleanup 与 terminal failure。ACL 回归证明全部非 executor roles 无 EXECUTE、
+> helper 对 executor 也无权且所有 callable functions 均 fixed search_path。Phase B 仍没有 production
+> password/CSRF/SSE/deployment/settlement adapter、composition root 或真实 Hosted executor。0016–0020 没有
+> 连接 Hosted、应用或 dry-run，也没有产生费用。既有 Phase 91 pre/rebuild/post 证据仍严格绑定 0015 和
+> 15-file source set；其 loader 必须拒绝当前 20-file repository。0016–0020 的新 backup/rebuild/status/
 > dry-run/apply 批次尚未设计或执行，不能复用或改写 Phase 91 证据。
 > Phase C 首个离线切片随后新增 injected TTY-only Operator credential reader：邮箱与密码均经既有 hidden
 > prompt，非交互 input/output 在读取前失败，既有邮箱规范化与密码长度合同保持不变，C0/C1 控制字符全部

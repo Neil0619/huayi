@@ -23,8 +23,8 @@ cleanup 完整窗口，claim 后过期会安全终结，cleanup arm 不确定会
 cleanup 时同步终结 operation。CLI 仍只有零 I/O `plan`。
 
 退出标准：旧预选 request ID 合同稳定 RED，新 interface、bounded status 与零重放 reconciliation 均与设计
-逐项对应。Phase A 已完成；这不表示 Postgres authority、production adapter 或真实 Hosted executor 已实现。
-尤其是 worker 退出后的跨进程 dispatch-before-bind 恢复仍属于 Phase B，当前 fake authority 证据不能替代它。
+逐项对应。Phase A 已完成；Postgres authority 与跨进程 dispatch-before-bind 恢复随后由 Phase B 闭合，
+但 production HTTP adapter、composition root 或真实 Hosted executor 仍未实现。
 
 ## 阶段 B：私有 Postgres authority
 
@@ -32,36 +32,35 @@ cleanup 时同步终结 operation。CLI 仍只有零 I/O `plan`。
 - [x] 创建 `huayi_private.hosted_acceptance_operations`、单向 state、lease generation/token hash、唯一
       non-terminal constraint 和 90 天 retention；
 - [x] 新增 0017 retention-scrub structure：terminal 满 24 小时后只允许一次同时清除 owner/HMAC/request，
-      其余 receipt/deployment/terminal/time evidence 不可改写；不新增 callable retention executor；
+      其余 receipt/deployment/terminal/time evidence 不可改写；0020 再提供 bounded private retention function；
 - [x] 0019 effective-fuse 在 cleanup 逾期/异常时强制按 enabled 读取，并接入 reservation 与 Operator summary；
       正常 running + pending cleanup 仅在 server-time lease 未到期且不超过 armed 后 120 秒时继续放行；
       不新增第六个 Cron job，不改变 exact 五项 Cron 安装合同；
 - [x] 新增 0018 strict private status：只返回 absent/单一安全状态，multiple/unknown 固定失败关闭，且
       EXECUTE 只授予专用 executor；
-- [ ] fixed functions 覆盖 claim、arm cleanup、bind request、record settlement、complete、claim cleanup、
+- [x] fixed functions 覆盖 claim、arm cleanup、bind request、record settlement、complete、claim cleanup、
       retention；
-- [ ] 持久化 dispatch idempotency key、owner 与 payload digest；新进程在 dispatch-before-bind 状态只允许
+- [x] 只持久化 versioned HMAC verifier/context/version、owner 与 payload digest，不持久化 raw key；新进程
+      以 operation identity + retained version 重建并验证同一 material，在 dispatch-before-bind 状态只允许
       exact-one reconciliation 并继续原 operation，零第二次 application POST；
 - [x] 撤销 PUBLIC/API/business/runtime 权限，只允许管理员数据库入口；
-- [ ] PGlite 回归覆盖并发消费、旧 lease fencing、崩溃窗口、multiple pending、cleanup-pending 不删除和
+- [x] PGlite 回归覆盖并发消费、旧 lease fencing、崩溃窗口、multiple pending、cleanup-pending 不删除和
       跨租户 request binding 拒绝。
 
 退出标准：authority 可由 production Postgres adapter 与 PGlite adapter 穿过同一内部 seam 验证。
 
-当前检查点：首个 Phase B 离线切片已建立 operation/cleanup 私有表、operation 与 cleanup 的单向
-state guard、generation/token 同步轮换结构 guard、唯一 non-terminal operation、90 天 operation retention、
-强制 RLS 与 owner-only 表权限；API/Supabase migration 已由 byte identity 和 PGlite 并发/约束/ACL 回归
-覆盖。0017 又加入不可变 scrub marker 与一次性三字段原子清除 guard，并保留 receipt/deployment/terminal/
-safe-error/time evidence；提前、部分、非终态、receipt-free、重引入和重复清除均由 PGlite 拒绝。专用
-`NOLOGIN` executor role 仍无表权限；0018 只授予它执行严格只读 status，multiple/unknown 均失败关闭，且
-没有 callable retention executor。claim 的 owner 可从唯一 completed first-operator singleton 派生，但
-idempotency-key HMAC 的 secret/context/version/rotation/recovery seam 尚未定义；因此不得以普通 digest
-冒充 HMAC 或持久化 raw key。claim、arm cleanup、bind request、record settlement、
-complete、claim cleanup、retention 与跨进程 dispatch-before-bind reconciliation 的最小
-`SECURITY DEFINER` mutation functions 和真正的 fence-token 校验仍未实现，不能把本检查点当作
-production adapter 或 Hosted executor 已就绪。
-Phase 91 的 15-file rebuild/backup evidence 仍只证明 0015；其 loader 必须拒绝当前 19-file repository。
-0016–0019 在任何 Hosted dry-run/apply 前需要新的受控 backup/rebuild 批次，禁止改写或冒用 Phase 91 证据。
+当前检查点：Phase B 已由 forward-only 0016–0020 离线闭合。0020 的 fixed-search-path
+`SECURITY DEFINER` functions 使用 server-time generation/token fencing；arm 保持 cleanup=pending，live
+operation/cleanup lease 不可抢占，pre-dispatch crash 只恢复 fuse，completed-cleanup crash gap 只做 authority
+finalization。versioned HMAC keyring 固定 context，新 operation 只用 active version，旧 version 只为既有
+operation recovery 保留，raw material/key 均不进入 authority 或日志。相同 request+receipt digest 可幂等
+恢复，不同 digest 拒绝；key version 参与 HMAC domain separation，bind 精确核对产品 request 的
+owner/raw key/payload，raw key 不写入 authority。bounded retention 以 scrub/delete 共用总预算，正向证明
+24 小时 scrub、90 天 terminal delete 与 cleanup-pending 保留。
+两个独立 executor/authority 实例共享同一 PGlite 的回归证明 dispatch-before-bind 后重启只做 exact-one
+reconciliation，application POST 总数仍为一；零条/多条均失败关闭并完成 cleanup/terminal failure。
+Phase 91 的 15-file rebuild/backup evidence 仍只证明 0015；其 loader 必须拒绝当前 20-file repository。
+0016–0020 在任何 Hosted dry-run/apply 前需要新的受控 backup/rebuild 批次，禁止改写或冒用 Phase 91 证据。
 
 ## 阶段 C：正常 Web session adapter
 

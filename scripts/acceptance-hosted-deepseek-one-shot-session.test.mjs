@@ -134,6 +134,7 @@ test("Phase C claims session-free evidence before login and terminalizes after c
     "request:https://app.acceptance.seen-said.cn/v1/analyses:stream",
     "bind-request",
     "server-settlement",
+    "record-settlement",
     "kill-switch:true",
     "post-snapshot",
     "logout",

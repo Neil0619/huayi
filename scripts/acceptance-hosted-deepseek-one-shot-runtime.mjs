@@ -31,6 +31,7 @@ const requiredLifecycleMethods = Object.freeze([
   "completeOperation",
   "markDispatchAttempted",
   "readStatus",
+  "recordSettlement",
 ]);
 function failedClosed() {
   return new Error(failureMessage);

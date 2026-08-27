@@ -1468,9 +1468,9 @@ session is invalid.`；400 `invalid_request` 表示 runtime 数据库路径未�
 - hosted 人工门按 migration dry-run/push、status、真实注册、complete、admin verify、application 越权复验
   和 `/admin` Cookie/CSRF journey 执行。没有这些证据只能标记 implemented，不能标记 hosted ready。
 
-### 4.22 Hosted DeepSeek one-shot authority schema、retention-scrub、status 与 effective-fuse
+### 4.22 Hosted DeepSeek one-shot Postgres authority、HMAC/fencing 与跨进程恢复
 
-- 0016、0017、0018、0019 API/Supabase forward migrations 必须分别逐字节一致，并在当前 baseline→全部 forward chain
+- 0016、0017、0018、0019、0020 API/Supabase forward migrations 必须分别逐字节一致，并在当前 baseline→全部 forward chain
   中可重放；
 - PGlite 必须证明只允许一个 non-terminal operation，operation/cleanup 状态不可倒退，generation 不能脱离
   token/expiry 单独推进，dispatch/request/receipt/terminal 证据不可弱化或改写；
@@ -1485,10 +1485,20 @@ session is invalid.`；400 `invalid_request` 表示 runtime 数据库路径未�
   lease、completed cleanup + non-terminal operation、缺失/NULL/未知 authority/control 均在 reservation 与
   Operator summary 两个读取 seam 失败关闭，且拒绝发生在 quota/rate-limit 写入前；private helper 对所有
   application/executor 角色零 execute、两表仍 forced RLS/零直权、API/Supabase 逐字节一致；
-- 这些测试只证明 schema/ACL/status/effective-fuse foundation。没有 mutation functions、fence-token 验证、
-  callable retention executor、跨进程恢复和 Hosted dry-run 时，不得标记 authority、自动清除或真实
-  executor 完成。
-- Phase 91 artifact contract 必须保持 15 files/head 0015，并拒绝当前 19-file repository；0016–0019 需要
+- 0020 PGlite 必须证明所有 mutation 都使用 generation/token/server-time fencing，arm 后 effective fuse 仍
+  false，live operation/cleanup lease 不被抢占，pre-dispatch crash 只 cleanup、multiple pending fail closed，
+  NULL completion/retention 拒绝，跨租户 bind 拒绝；ACL 必须覆盖所有非 executor role、helper 对 executor
+  也无 execute、所有 callable functions 均为 SECURITY DEFINER + fixed search_path；
+- HMAC 回归必须覆盖固定 context、active version、historical recovery-only version、rotation 后旧 operation
+  bind、version domain separation、错 context/version/key/verifier 与显式损坏 verifier 失败，以及 authority/
+  SQL error/inspect 无 secret/raw key；bind 必须精确核对产品 request 的 owner/raw key/payload；
+- 两个独立 executor/authority 实例必须共享同一 PGlite：第一实例停在 dispatch-before-bind，第二实例只做
+  exact-one reconciliation，application POST 总数为一；零条/多条均失败关闭但完成 cleanup/terminal failure。
+  settlement 同 request+digest 重放幂等，不同 digest 拒绝；completed-cleanup crash gap 零外部调用终结；
+- retention 正向证明 scrub/delete 共用 1–100 行总预算、24 小时 scrub、90 天 terminal delete、retained
+  receipt evidence，以及 cleanup-pending 永不删除。以上只证明离线 Postgres authority；没有 production
+  HTTP adapters、composition root、Hosted dry-run/apply 时，不得标记真实 executor 或 Hosted 验收完成；
+- Phase 91 artifact contract 必须保持 15 files/head 0015，并拒绝当前 20-file repository；0016–0020 需要
   新的 backup/rebuild batch，不能通过扩写历史 contract 伪造连续性。
 
 ## 5. 最终人工验收

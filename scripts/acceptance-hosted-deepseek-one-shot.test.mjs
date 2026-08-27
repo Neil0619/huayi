@@ -82,6 +82,7 @@ test("orchestrator claims once, binds the request, and closes cleanup after rest
     `request:${hostedDeepSeekWebOrigin}${hostedDeepSeekAnalysisStreamPath}`,
     "bind-request",
     "server-settlement",
+    "record-settlement",
     "kill-switch:true",
     "post-snapshot",
     "logout",
