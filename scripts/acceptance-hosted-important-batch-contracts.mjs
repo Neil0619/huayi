@@ -96,10 +96,29 @@ export const hostedDeepseekMigrationArtifactContract = Object.freeze({
   scratchLabel: "deepseek-0016-0021-rebuild",
 });
 
+export const hostedPhase92ArtifactContract = Object.freeze({
+  artifactDirectory:
+    "artifacts/hosted-important-batch-backups/phase-92-0022-expired-invitation-recovery",
+  batchId: "phase-92-0022-expired-invitation-recovery",
+  captureIdentityPrefix: "phase-92-0022-recovery",
+  migrationFiles: Object.freeze([
+    ...hostedDeepseekMigrationFiles,
+    "20260828010000_password_signup_expired_invitation_recovery.sql",
+  ]),
+  migrationVersions: Object.freeze([...hostedDeepseekMigrationVersions, "20260828010000"]),
+  platformBaselineIdentityPrefix: "phase-92-0022-recovery",
+  postMigrationHead: "20260828010000",
+  preMigrationHead: "20260827060000",
+  rebuildMigrationHead: "20260828010000",
+  scratchContainer: "huayi-phase-92-0022-recovery-rebuild",
+  scratchLabel: "phase-92-0022-recovery-rebuild",
+});
+
 const artifactContracts = new Set([
   hostedPhase81ArtifactContract,
   hostedPhase91ArtifactContract,
   hostedDeepseekMigrationArtifactContract,
+  hostedPhase92ArtifactContract,
 ]);
 
 export function assertHostedImportantBatchArtifactContract(contract) {

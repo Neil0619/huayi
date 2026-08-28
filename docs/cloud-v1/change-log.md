@@ -3,6 +3,24 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-28：过期 ordinary invitation 只续期原注册链
+
+- 脱敏 Hosted snapshot 已确认唯一 ordinary invitation、bound claim 与 invite-registration flow 均过期；
+  绑定 Auth user 未确认、email identity 唯一，且 profile/method/quota/session/learning/blocker 全为零；
+- forward-only 0022 保持 0014 active resend 行为，只在上述精确 ordinary 状态下把原 claim/flow 续到同一
+  最多 15 分钟的确认窗口、把原 invitation 续到最多 30 分钟的重试窗口并轮换原 flow hash；bound claim
+  仍禁止重新领取，首次 Provider 投递失败后仍可立即重试；
+- confirmed/extra identity、deployment-bootstrap、active claim/flow、账号数据、revoked/consumed/finalized、
+  额外 claim/flow 与 wrong token 均零写入。该决定不创建替代邀请或第二 Auth user，也不授权 Hosted
+  migration、部署或邮件；这些外部动作仍分别等待明确批准；
+- 0022 使用独立 `phase-92-0022-expired-invitation-recovery` evidence batch：pre 固定 head 0021，isolated
+  rebuild/post 固定 head 0022，DeepSeek 0016–0021 evidence 保持不可变。status 同时验证完整 authority、
+  函数前后正文指纹、owner/SECURITY DEFINER/search path/ACL；apply 只在双 current preflight、唯一迁移
+  exact dry-run 与 read-only `pending-exact` 后写入，写后只接受 `applied-exact`；
+- 0022 部署复用 API→Web 严格串行 one-shot 合同，但使用独立 `phase-92-0022-state.json`，与历史 Phase 81
+  state 只读共存且互不覆盖。最终只读身份收口除账号合同外还要求 ordinary invitation 总数精确为一且唯一
+  行 consumed；出现第二邀请时不得报告完成。
+
 ## 2026-08-28：Hosted DeepSeek executor membership 按 PostgreSQL 17 creator-control 校准
 
 - 0016–0021 post-apply 脱敏诊断确认 21-chain、authority objects、RLS、trigger、function contract 与 ACL

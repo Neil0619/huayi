@@ -2927,3 +2927,42 @@ typecheck、architecture、build、development blocker、Store release、product
   backup status 的 `current=false` 只表示 dirty HEAD，不推翻刚才的 clean-candidate completion，也不得退役、
   覆盖或重捕该 immutable batch。校准候选尚未 commit/push，exact-SHA macOS/Windows CI 尚未完成；在这些
   代码门关闭前不得把本节证据扩张为 Phase G loader 或真实模型费用授权。
+
+## 114. Phase 92 过期普通邀请恢复与 0022 Hosted 离线控制面（2026-08-28）
+
+- **脱敏事实与安全路线**：只读 identity snapshot 显示唯一普通 invitation、claim 与 registration flow
+  均已过期，Auth user 仍为 unconfirmed，profile、登录方式、额度、会话及全部学习数据均不存在，且 blocker
+  为零。由此固定为恢复同一 invitation/claim/flow 的 `replacement-review` 路线；不得新建第二邀请、第二
+  Auth user 或删除既有身份；
+- **Fresh RED → GREEN**：行为回归先证明原 0014 function 只能轮换仍 active 的 flow，不能恢复上述精确
+  expired ordinary shape；控制面测试又先以缺少 0022 status/dry-run/apply/backup modules 的
+  `ERR_MODULE_NOT_FOUND` 失败。最小实现新增 forward-only 0022，只在 subject、email identity、expired claim、
+  expired flow 与未消费普通 invitation 全部精确时原子复用同一行；claim/flow 只延长 15 分钟，invitation
+  最多延长 30 分钟以允许同一 Provider delivery 的一次受控重试，其他状态零写入；
+- **独立批次证据**：Phase 92 使用新的 `phase-92-0022-expired-invitation-recovery` identity 与独立
+  artifact path；pre 固定 21-chain/head 0021，isolated rebuild/post 固定 22-chain/head 0022。既有 DeepSeek
+  0016–0021 pre/rebuild/post evidence 保持不可变，不能被读取、覆盖或冒充为 Phase 92 evidence；
+- **三态 status 与脱敏诊断**：单一 `BEGIN READ ONLY` snapshot 同时验证完整 migration chain、DeepSeek
+  authority catalog、PostgreSQL 17 executor membership、目标 function 的存在、plpgsql 语言、精确参数与
+  TABLE result、owner、SECURITY DEFINER、search path、前后 source digest，以及 owner/context-setter 直接
+  EXECUTE ACL 和外部角色无权。只有 21-chain + 0014 source 为 `pending-exact`，22-chain + 0022 source 为
+  `applied-exact`；任何部分落库或漂移均为 `uncertain`，diagnostic 只输出固定有序布尔叶；
+- **固定 mutation 顺序**：dry-run 只接受 pinned Supabase CLI 对唯一 0022 文件的 exact transcript，且数据库
+  不修改。apply 固定为 Phase 92 preflight → CA/TTY secret → exact dry-run → 第二次 preflight → read-only
+  pending → 单文件 mutation → read-only applied；dirty/unpushed candidate、inherited password、evidence/source/
+  mirror/hash 漂移、非 pending 状态、timeout 或 postflight 不精确都失败关闭且禁止盲目重试；
+- **独立部署与收口状态**：Phase 92 one-shot 复用既有 API→Web 严格串行状态机，但使用新的
+  `phase-92-0022-state.json`；旧 `phase-81-0014-state.json` 可只读共存而不能被覆盖，目录中任何未知 evidence
+  仍失败关闭。identity snapshot 的 finalization 也已收紧为普通邀请总数精确为一且唯一邀请 consumed；新增
+  PGlite 回归证明即使账号/profile/password/quota 其余条件齐全，出现第二张普通邀请仍返回
+  `account_finalized_exact|f` 与 `safe_route_state|stop-inconsistent`；
+- **Fresh 本机证据**：Phase 92 migration focused 22/22；identity/deployment 组合门 58/58，与
+  DeepSeek/Phase 91/important-batch 相邻回归 132/132；完整 `pnpm verify:macos` 原样退出 0，覆盖 scripts
+  732/732、主 Vitest 341 files / 2,388 passed / 12 skipped、
+  API 152 files / 611、Store coverage 97 files / 481、Playwright 111/111，以及 instructions、format、lint、
+  typecheck、architecture、workspace build、development blocker、Store release 与 production dependency audit
+  （0 个已知漏洞）；
+- **当前边界**：本节没有读取真实 secret、连接 Hosted、捕获或覆盖备份、运行真实 status/dry-run/apply、
+  写数据库、部署、发邮件或创建第二邀请，也没有 commit/push。下一步必须先单独批准当前完整候选的
+  commit/push，再为所得 exact SHA 单独批准 macOS/Windows CI；真实 Phase 92 backup、migration、部署、OTP
+  重发与最终只读收口仍逐项独立批准。

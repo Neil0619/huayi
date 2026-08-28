@@ -104,7 +104,7 @@ test("DeepSeek migration status classifies exact 15-chain pending and 21-chain a
     };
     assert.equal(await readVerdict(), "pending_exact");
 
-    for (const [index, filename] of migrationFiles.slice(15).entries()) {
+    for (const [index, filename] of migrationFiles.slice(15, 21).entries()) {
       await database.exec(
         await readFile(new URL(`../apps/api/migrations/${filename}`, import.meta.url), "utf8"),
       );

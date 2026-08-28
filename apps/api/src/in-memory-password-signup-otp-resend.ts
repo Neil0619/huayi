@@ -23,6 +23,7 @@ export function createInMemoryPasswordSignupOtpResend(
   options: InMemoryPasswordSignupOtpResendOptions,
 ) {
   return function renewPasswordRegistrationConfirmation(invitationToken: string) {
+    const now = options.clock.now();
     const invitation = [...options.invitations.values()].find((candidate) =>
       secretMatches(invitationToken, candidate.tokenHash, options.pepper),
     );
@@ -42,7 +43,6 @@ export function createInMemoryPasswordSignupOtpResend(
       invitation === undefined ||
       invitation.revoked ||
       invitation.consumedBy !== undefined ||
-      invitation.expiresAt <= options.clock.now() ||
       matchingClaims.length !== 1 ||
       claim === undefined ||
       claim.boundUserId === undefined ||
@@ -54,8 +54,12 @@ export function createInMemoryPasswordSignupOtpResend(
     ) {
       throw new CloudFault("authentication_required", "Registration confirmation is unavailable.");
     }
-    const expiresAt = addMilliseconds(options.clock.now(), 15 * 60 * 1_000);
-    if (expiresAt > invitation.expiresAt) {
+    const expiresAt = addMilliseconds(now, 15 * 60 * 1_000);
+    const invitationExpired = invitation.expiresAt <= now;
+    if (
+      (invitationExpired && (claim.expiresAt > now || currentFlow[1].expiresAt > now)) ||
+      (!invitationExpired && expiresAt > invitation.expiresAt)
+    ) {
       throw new CloudFault("authentication_required", "Registration confirmation is unavailable.");
     }
     const flowId = opaqueSecret(options.secrets);
@@ -64,6 +68,9 @@ export function createInMemoryPasswordSignupOtpResend(
     flow.expiresAt = expiresAt;
     options.authFlows.set(hashSecret(flowId, options.pepper), flow);
     claim.expiresAt = expiresAt;
+    if (invitationExpired) {
+      invitation.expiresAt = addMilliseconds(expiresAt, 15 * 60 * 1_000);
+    }
     return { email: claim.boundEmail, expiresAt, flowId };
   };
 }

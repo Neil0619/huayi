@@ -2042,10 +2042,20 @@ completion 当时运行；API→Web one-shot 仍是另行完成的双关闭证�
 3. **模板与错误引导门（本地实现完成，Hosted 回读待批准）**：自动回读并验证 Confirm sign up 模板只含
    一次 `{{ .Token }}`、一次 `{{ .RedirectTo }}` 且不含 `{{ .ConfirmationURL }}`，Redirect URLs 精确；
    resend/resume 401 现进入停止恢复状态，只给出联系邀请人的单一步骤；
-4. **恢复决策**：若原 claim 可安全恢复，保持同一 invitation/Auth user；若已消费且无法恢复，先保留现有账号，
-   再取得对未使用邮箱和替代邀请的单独批准；
-5. **六位 OTP journey**：只发送一次新六位 ASCII OTP，证明 scanner/repeated GET 零副作用、显式 POST、Web
-   落点、密码重登以及 invitation/user/identity 唯一性；
+4. **恢复决策**：2026-08-28 脱敏 snapshot 已确认恰好一张 expired ordinary invitation、一个 bound-expired
+   claim、一个 expired flow、同一 unconfirmed Auth user + 唯一 email identity，且 profile/method/quota/session/
+   learning/blocker 全为零。离线 Fresh RED→GREEN 新增 forward-only 0022：只在该精确状态下把原
+   claim/flow 续到同一最多 15 分钟的确认窗口、invitation 续到最多 30 分钟的 Provider 重试窗口并轮换原
+   flow；不创建替代邀请或第二 Auth user。独立 Phase 92 控制面固定 head-21 pre、完整 22-chain
+   networkless rebuild/head-22 post、三态 status、单文件 exact dry-run、写入前双 preflight、脱敏诊断与
+   applied-exact postflight；历史 DeepSeek evidence 不进入该批次。真实 backup/status/dry-run/apply、部署与
+   邮件仍须分别批准，未执行前该恢复路线只算本地实现；
+5. **独立部署与六位 OTP journey**：Phase 92 复用既有串行部署状态机，但使用独立
+   `phase-92-0022-state.json`；Phase 81 状态只读共存。先完成 API arm/observe/disarm/verify，再完成 Web
+   arm/observe/disarm/verify，每个 commit/push 单独批准。双关闭后只发送一次新六位 ASCII OTP，证明
+   scanner/repeated GET 零副作用、显式 POST、Web 落点、密码重登以及 invitation/user/identity 唯一性；
+   最终只读 snapshot 必须返回 `account_finalized_exact|t` 与 `safe_route_state|account-established`，且
+   finalization 精确要求普通邀请总数为一、唯一邀请 consumed；
 6. **R3-C 与 Cron**：依次关闭真实收件、重复投递、无正文告警，再安装/回读精确五项 Supabase Cron，观察
    两个周期及 401/5xx/timeout 后恢复；
 7. **Cloud DeepSeek**：one-shot production composition 已冻结 `status/execute/recover`，并固定原子

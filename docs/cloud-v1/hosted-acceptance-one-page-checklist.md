@@ -1,24 +1,32 @@
 # Hosted 验收一页式操作清单
 
-> 当前检查点：2026-08-27。Cloud V1 仍是 `implemented; validation pending`，不能开放
+> 当前检查点：2026-08-28。Cloud V1 仍是 `implemented; validation pending`，不能开放
 > production 或宣称 Chrome Web Store 就绪。
 
 ## 现在停在哪里 / 你现在要做什么
 
-现在停在**同一普通邀请与 Auth 账号的脱敏只读诊断**。已有一次重发和两次恢复请求返回 401，
-且没有新邮件；不要再点重发或恢复。下一步先运行：
+现在停在**Phase 92 的 0022 候选提交前**。脱敏 snapshot 已确认同一普通 invitation/claim/flow 均过期、
+同一 Auth user 未确认且零账号数据；已有 401 是旧合同的正确拒绝。forward-only 0022 与独立备份/status/
+dry-run/apply/diagnostic 控制面与独立 Phase 92 API→Web one-shot 状态机已本地实现并验证，但尚未
+commit/push，也没有运行任何真实 Hosted 命令。
+下一步先完成候选提交与 exact-SHA 双平台质量门；随后才按 `operations.md` 逐项批准：
 
 ```text
-pnpm acceptance:hosted:identity:plan
-pnpm acceptance:hosted:identity:snapshot
+pnpm acceptance:hosted:phase92:migration:backup:executor:pre:readiness
+pnpm acceptance:hosted:phase92:migration:backup:capture:pre
+pnpm acceptance:hosted:phase92:migration:backup:rebuild
+pnpm acceptance:hosted:migration:0022:status
+pnpm acceptance:hosted:migration:0022:dry-run
 ```
 
-第一条由 Codex 运行并解释；第二条由用户在 Terminal 运行，并只在无回显提示中输入数据库管理员密码。
-Codex 根据固定状态和计数提出保留现有 invitation/Auth user 的恢复方案，用户再决定是否批准外部写入。
+这些不是一条可连续粘贴的命令块，每一步都需要新的批准和上一阶段的精确成功结果。需要管理员密码的命令
+由用户在普通 macOS Terminal 运行并只在无回显提示中输入；Codex 底部终端不用于密码提示。apply 另行批准，
+且任何 `uncertain` 都先诊断、禁止盲重试。
 
-另一个当前检查点是 exact-SHA GitHub Actions run `32985730194`：2026-08-27 复核仍为
-`queued`、attempt 1、zero jobs。这是 GitHub Actions 故障期间的瞬时状态；服务恢复后必须重新打开该
-run 核对 jobs 与 macOS/Windows 结果，不能把排队或旧 SHA 的成功当本候选通过。
+0022 applied-exact 与 post backup completion 关闭后，部署只使用新的
+`acceptance:hosted:phase92:deployment:one-shot:*` 六个入口，依次为 plan/preflight、API arm observe、API
+disarm verify、Web arm observe、Web disarm verify；每次 arm/disarm commit/push 仍需单独批准。旧
+`acceptance:hosted:deployment:one-shot:*` 和 `phase-81-0014-state.json` 只作历史证据，不得重跑或覆盖。
 
 ## 谁做什么
 
@@ -37,9 +45,9 @@ run 核对 jobs 与 macOS/Windows 结果，不能把排队或旧 SHA 的成功�
   `acceptance:hosted:migration:0015:{dry-run,apply}` 均已完成；不得再次 apply，也不为刷新证据重跑。
 - **Backup capture**：既有 backup 与 Phase 91 的 pre capture、isolated rebuild、post capture evidence
   不得覆盖、删除或重捕；只允许既有只读 status / historical verifier。
-- **0016–0021 边界**：独立 `hosted-deepseek-0016-0021` 离线控制面已实现，但当前未提交工作树没有新的
-  exact SHA/双平台 CI；Phase 91 evidence 只到 0015，不能复用。新 batch 的真实
-  backup/rebuild/status/dry-run/apply 均未批准或执行；固定顺序见 `hosted-deepseek-migration-batch.md`。
+- **0016–0021 边界**：Hosted DeepSeek 0016–0021 已完成 `applied-exact` 与独立 pre/rebuild/post completion；
+  该 batch 保持不可变，不得重跑 apply、覆盖备份或用作 Phase 92 evidence。0022 另用
+  `phase-92-0022-expired-invitation-recovery` batch。
 - **Vercel one-shot**：`acceptance:hosted:deployment:one-shot:preflight` → API arm/observe → API
   disarm/verify → Web arm/observe → Web disarm/verify 已完成，两个项目均已关闭。当前不得重新 arm、disarm
   或部署；未来新候选必须另行审查并重新批准完整串行门，不能只跑其中一步。
@@ -49,14 +57,17 @@ run 核对 jobs 与 macOS/Windows 结果，不能把排队或旧 SHA 的成功�
 
 **去哪里**：Terminal、Supabase 的 Auth 配置状态页面、Hosted Web 的现有 join 页面、当前邀请邮箱。
 
-**做什么**：Codex 先检查 snapshot；若方案允许保留当前账号，用户运行
-`pnpm acceptance:hosted:auth:invitation:status`，只接受一封新邮件中的六位 ASCII OTP。邮件链接可被扫描
-或重复 GET，但只有用户在 Web 显式 POST OTP；完成后退出并用密码重新登录。
+**做什么**：先完成 0022 backup/status/dry-run/apply/post 与 API/Web exact-SHA 部署。随后另行批准一次
+真实 resend，只接受一封新邮件中的六位 ASCII OTP。邮件链接可被扫描或重复 GET，但只有用户在 Web 显式
+POST OTP；完成后退出并用密码重新登录。
 
 **成功标志**：Auth 配置 status 通过；新邮件恰好六位 OTP；重复 GET 零副作用；同一 invitation、user、
-identity 保持唯一；Web 落到 `/practice`，密码重登成功。
+identity 保持唯一；Web 落到 `/practice`，密码重登成功。随后在普通 macOS Terminal 运行
+`pnpm acceptance:hosted:identity:snapshot`，至少得到唯一 invitation consumed、唯一 claim finalized、唯一
+registration flow consumed、`account_finalized_exact|t` 与 `safe_route_state|account-established`；第二张普通
+邀请会使收口失败。
 
-**立即停止条件**：snapshot 不确定、invitation 已过期/消费且无法安全恢复、status 失败、再次 401、没有
+**立即停止条件**：snapshot 不确定、0022 status 为 uncertain、invitation 已消费或无法精确恢复、再次 401、没有
 新邮件、不是六位 OTP、需要第二邀请/删除账号/截取旧八位码、或任何秘密将被记录。
 
 ## 2. R3-C 真实通知

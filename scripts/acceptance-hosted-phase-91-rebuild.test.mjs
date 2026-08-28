@@ -28,13 +28,14 @@ function fictionalSources() {
   };
 }
 
-test("historical Phase 91 rebuild stays pinned to 0015 and refuses the 0016 repository", async () => {
+test("historical Phase 91 rebuild stays pinned to 0015 as later migrations are added", async () => {
   assert.match(hostedPhase91RebuildArgument, /^--confirm-rebuild-0015-/u);
   assert.equal(hostedPhase91ArtifactContract.migrationFiles.length, 15);
   assert.equal(hostedPhase91ArtifactContract.migrationVersions.at(-1), "20260825010000");
-  await assert.rejects(
-    loadHostedPhase91RebuildSources(process.cwd()),
-    /migration source set is invalid/u,
+  const sources = await loadHostedPhase91RebuildSources(process.cwd());
+  assert.deepEqual(
+    sources.migrations.map(({ version }) => version),
+    hostedPhase91ArtifactContract.migrationVersions,
   );
 });
 

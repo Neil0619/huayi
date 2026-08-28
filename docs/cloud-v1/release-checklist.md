@@ -63,7 +63,11 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       单字段已保存并由正式 status 回读为 6。0014 的 Data API role ACL 漂移已由唯一 forward-only 0015
       收敛；Phase 91 pre/rebuild/dry-run/apply/post evidence、等价历史 completion closure 与 API→Web 严格
       串行 one-shot 均已完成。由于同邀请 resend/resume 实际返回 401、没有
-      发送新邮件，六位 OTP journey 仍未通过，因此本项保持未勾选。后续离线审计先用 deferred Promise 证明同一渲染周期双击 resend 会调用两次；再
+      发送新邮件，六位 OTP journey 仍未通过，因此本项保持未勾选。2026-08-28 脱敏 snapshot 已确认唯一
+      ordinary invitation/claim/flow 为 expired/bound-expired/expired，同一 Auth user 未确认、唯一 email
+      identity 且零账号数据/blocker；forward-only 0022 已在本地实现同一 claim/flow 的最多 15 分钟确认
+      窗口、同一 invitation 的最多 30 分钟 Provider 重试窗口与 flow 轮换，Hosted migration、部署和邮件仍
+      未执行。后续离线审计先用 deferred Promise 证明同一渲染周期双击 resend 会调用两次；再
       审查同一页面全部认证动作，证明 register/login/resume 各会同 tick 双发，错误页的 resend 与 resume
       也可并发。Web 现以一个共享同步单飞门保护全部账号 mutation，避免重复 Auth flow/Provider 调用、身份
       绑定、邀请恢复、Web session 和邮件副作用；claim 保持独立；
@@ -144,6 +148,11 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       固定 status、pre/rebuild、exact dry-run、apply/`applied-exact` postflight 与 post backup 已完成；
       `2d03bd8` 的双平台 CI 也通过。`96e19af` 已从不可变 evidence 形成等价历史 closure 并真实返回固定成功
       输出；新增 shared 脚本的最终双平台候选门尚未执行，因此数据库总门暂不勾选；
+- [ ] Phase 92 forward-only 0022 与独立 head-21 pre/22-chain rebuild/head-22 post、三态 status、单文件
+      dry-run、guarded apply、脱敏 diagnostic 控制面已本地实现；尚未 commit/push、没有 exact-SHA 双平台
+      CI，也未运行真实 readiness/backup/rebuild/status/dry-run/apply/post。Phase 92 API→Web 部署使用独立
+      state 且最终 snapshot 强制普通邀请总数为一；上述门逐项完成且部署 exact 后，才可发送一次获批六位
+      OTP 并关闭同一 invitation/user/identity 唯一性验收；
 - [x] 当前开发态构建审计确认没有新增秘密、远程代码、动态 endpoint 或危险 HTML；
 - [ ] 正式候选注入公开配置后重新执行完整构建审计，并复核每项 permission/host；
 - [x] fake model/mail/third-party 已按各能力真实定义覆盖成功、失败、取消、超时和额度分支；没有额度或

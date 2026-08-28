@@ -62,12 +62,16 @@ Auth 用户重建，或把一次性链接藏入前端 fragment，都不能满足
 - `POST /v1/auth/password/register/resend` 只接受 strict `{invitationToken}`，不要求用户识别/输入 fragment、
   email、password、旧 OTP 或 flow；响应只含固定 `{accepted:true}`，并使用 `private, no-store`、IP 与
   invitation 双限流。
-- 新 0014 原子函数以 invitation token hash 定位同一 active invitation，要求恰好一条未 finalization、已
-  绑定 Auth user 的 claim 与恰好一条未消费 invite-registration flow；Auth user 必须尚未确认、只有 email
-  identity，且不存在 profile/method/quota/session/admin/deletion/audit/business data。
+- 0014 原子函数以 invitation token hash 定位同一 active invitation，要求恰好一条未 finalization、已绑定
+  Auth user 的 claim 与恰好一条未消费 invite-registration flow；Auth user 必须尚未确认、只有 email
+  identity，且不存在 profile/method/quota/session/admin/deletion/audit/business data。forward-only 0022
+  保持该路径，并只为同一 ordinary invitation、过期 bound claim 与过期未消费 flow 增加一次受限续期路径。
 - 函数从 `auth.users` 内部读取规范化 email，不信任客户端 identity 字段；在同一事务内延长同一 claim、
-  把唯一 flow 的 hash/expiry 轮换为新值，旧邮件 flow 立即失效，新 expiry 不超过 invitation 到期时间。
-  不新增 invitation、claim、flow、Auth user 或 identity，只授予 `huayi_context_setter`。
+  把唯一 flow 的 hash/expiry 轮换为新值，旧邮件 flow 立即失效。active 路径的新 expiry 不超过原 invitation
+  到期时间；0022 的 expired ordinary 路径把原 claim/flow 续到同一个最多 15 分钟的确认 expiry，并把原
+  invitation 续到比它多 15 分钟、因此最多 30 分钟的重试 expiry。该余量只为首次 Provider 投递失败后的
+  立即重试，不改变 0014 active 路径。两条路径都不新增 invitation、claim、flow、Auth user 或 identity，
+  只授予 `huayi_context_setter`。
 - 数据库先准备新 flow，API 再调用
   `auth.resend({type:"signup",email,options:{emailRedirectTo}})`；Provider 失败只留下仍可再次轮换的未完成
   状态，不补建 profile/session，也不创建第二用户。用户只使用最新邮件的六位 OTP 与 CTA。

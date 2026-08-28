@@ -19,14 +19,23 @@ const otpResendUrl = new URL(
   "../apps/api/migrations/0014-password-signup-otp-resend.sql",
   import.meta.url,
 );
+const expiredRecoveryUrl = new URL(
+  "../apps/api/migrations/0022-password-signup-expired-invitation-recovery.sql",
+  import.meta.url,
+);
 
 const invitationId = "71000000-0000-4000-8000-000000000001";
 const userId = "72000000-0000-4000-8000-000000000001";
 const operatorId = "73000000-0000-4000-8000-000000000001";
 
-async function createDatabase() {
+async function createDatabase({ expiredRecovery = false } = {}) {
   const database = new PGlite();
   await database.waitReady;
+  await database.exec(`
+    CREATE ROLE anon NOLOGIN;
+    CREATE ROLE authenticated NOLOGIN;
+    CREATE ROLE service_role NOLOGIN;
+  `);
   await database.exec(await readFile(baselineUrl, "utf8"));
   await database.exec(`
     CREATE SCHEMA auth;
@@ -43,6 +52,16 @@ async function createDatabase() {
   `);
   await database.exec(await readFile(interruptionRecoveryUrl, "utf8"));
   await database.exec(await readFile(otpResendUrl, "utf8"));
+  await database.exec(`
+    CREATE SCHEMA supabase_migrations;
+    CREATE TABLE supabase_migrations.schema_migrations(version text PRIMARY KEY);
+  `);
+  if (expiredRecovery) {
+    await database.exec(await readFile(expiredRecoveryUrl, "utf8"));
+    await database.exec(`
+      INSERT INTO supabase_migrations.schema_migrations(version) VALUES('20260828010000');
+    `);
+  }
   return database;
 }
 
@@ -55,7 +74,12 @@ async function readSnapshot(database) {
 
 async function seedInvitation(
   database,
-  { authState = "unconfirmed", claimState = "bound-active", finalized = false } = {},
+  {
+    authState = "unconfirmed",
+    claimState = "bound-active",
+    finalized = false,
+    invitationState = "available",
+  } = {},
 ) {
   const invitationConsumed = finalized ? "now()" : "NULL";
   const claimExpiry =
@@ -66,12 +90,15 @@ async function seedInvitation(
   const flowConsumed = finalized ? "now()" : "NULL";
   const finalizedUser = finalized ? `'${userId}'` : "NULL";
   const emailConfirmed = authState === "confirmed" ? "now()" : "NULL";
+  const invitationCreated = invitationState === "expired" ? "now()-interval '2 hours'" : "now()";
+  const invitationExpiry =
+    invitationState === "expired" ? "now()-interval '1 second'" : "now()+interval '1 day'";
   await database.exec(`
     INSERT INTO invitations(
       id,token_hash,expires_at,consumed_at,created_by,created_at
     ) VALUES(
-      '${invitationId}',repeat('i',43),now()+interval '1 day',${invitationConsumed},
-      '${operatorId}',now()
+      '${invitationId}',repeat('i',43),${invitationExpiry},${invitationConsumed},
+      '${operatorId}',${invitationCreated}
     );
     INSERT INTO invitation_claims(
       ticket_hash,invitation_id,expires_at,finalized_user_id,bound_user_id,bound_email
@@ -102,6 +129,7 @@ test("identity snapshot SQL is one repeatable-read read-only transaction with fi
   assert.match(sql, /public\.learning_items/u);
   assert.match(sql, /public\.analysis_records/u);
   assert.match(sql, /public\.practice_sessions/u);
+  assert.match(sql, /version::text = '20260828010000'/u);
   assert.match(sql, /snapshot_rows\(ordinal,field_name,field_value\)/u);
   assert.match(sql, /SELECT field_name \|\| '\|' \|\| field_value AS line/u);
   assert.match(sql, /ROLLBACK;\n$/u);
@@ -170,6 +198,29 @@ test("identity snapshot identifies one eligible six-digit OTP resend without exp
   }
 });
 
+test("identity snapshot exposes expired resend only after the forward recovery capability exists", async () => {
+  for (const expiredRecovery of [false, true]) {
+    const database = await createDatabase({ expiredRecovery });
+    try {
+      await seedInvitation(database, {
+        claimState: "bound-expired",
+        invitationState: "expired",
+      });
+      const snapshot = await readSnapshot(database);
+      assert.equal(snapshot?.latest_invitation_state, "expired");
+      assert.equal(snapshot?.latest_claim_state, "bound-expired");
+      assert.equal(snapshot?.latest_registration_flow_state, "expired");
+      assert.equal(snapshot?.otp_resend_eligible, expiredRecovery ? "t" : "f");
+      assert.equal(
+        snapshot?.safe_route_state,
+        expiredRecovery ? "otp-resend" : "replacement-review",
+      );
+    } finally {
+      await database.close();
+    }
+  }
+});
+
 test("identity snapshot identifies one eligible interrupted confirmed registration", async () => {
   const database = await createDatabase();
   try {
@@ -212,6 +263,41 @@ test("identity snapshot distinguishes an established account from an interrupted
     assert.equal(snapshot?.otp_resend_eligible, "f");
     assert.equal(snapshot?.interrupted_resume_eligible, "f");
     assert.equal(snapshot?.safe_route_state, "account-established");
+  } finally {
+    await database.close();
+  }
+});
+
+test("identity snapshot refuses to finalize when a second ordinary invitation exists", async () => {
+  const database = await createDatabase();
+  try {
+    await seedInvitation(database, { authState: "confirmed", finalized: true });
+    await database.exec(`
+      INSERT INTO user_profiles(user_id,owner_user_id,email,status,timezone,daily_goal)
+      VALUES('${userId}','${userId}','learner@example.com','active','UTC',5);
+      INSERT INTO account_sign_in_methods(owner_user_id,method)
+      VALUES('${userId}','password');
+      INSERT INTO quota_grants(
+        id,user_id,owner_user_id,period_start,period_end,limit_micro_usd,source
+      ) VALUES(
+        '74000000-0000-4000-8000-000000000001','${userId}','${userId}',
+        now()-interval '1 day',now()+interval '29 days',1000000,'default'
+      );
+      INSERT INTO invitations(
+        id,token_hash,expires_at,created_by,created_at
+      ) VALUES(
+        '71000000-0000-4000-8000-000000000002',repeat('j',43),now()-interval '1 hour',
+        '${operatorId}',now()-interval '1 day'
+      );
+    `);
+
+    const snapshot = await readSnapshot(database);
+    assert.equal(snapshot?.ordinary_invitations_total, "2");
+    assert.equal(snapshot?.ordinary_consumed_count, "1");
+    assert.equal(snapshot?.ordinary_expired_count, "1");
+    assert.equal(snapshot?.latest_invitation_state, "consumed");
+    assert.equal(snapshot?.account_finalized_exact, "f");
+    assert.equal(snapshot?.safe_route_state, "stop-inconsistent");
   } finally {
     await database.close();
   }

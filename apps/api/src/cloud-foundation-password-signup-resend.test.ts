@@ -35,7 +35,7 @@ function foundation() {
     unprotectRefreshToken: (token) => token.replace(/^protected:/u, ""),
     webOrigin,
   });
-  return { app, auth, identity, resendPasswordRegistrationOtp };
+  return { app, auth, clock, identity, resendPasswordRegistrationOtp };
 }
 
 async function createPendingRegistration() {
@@ -80,6 +80,49 @@ describe("Cloud foundation password signup OTP resend", () => {
       ),
     });
     expect(current.auth.registerPassword).not.toHaveBeenCalledTimes(2);
+  });
+
+  it("reactivates only the same expired bound invitation for one fresh confirmation window", async () => {
+    const current = await createPendingRegistration();
+    current.clock.advance(72 * 60 * 60 * 1_000 + 1);
+
+    const response = await current.app.request("/v1/auth/password/register/resend", {
+      body: JSON.stringify({ invitationToken: current.invitation.token }),
+      headers: { "content-type": "application/json", "x-vercel-forwarded-for": "198.51.100.8" },
+      method: "POST",
+    });
+
+    expect(response.status).toBe(202);
+    expect(await response.json()).toEqual({ accepted: true });
+    expect(current.resendPasswordRegistrationOtp).toHaveBeenCalledTimes(1);
+    expect(current.auth.registerPassword).toHaveBeenCalledTimes(1);
+
+    const reclaim = await current.app.request("/v1/invitations/claim", {
+      body: JSON.stringify({ invitationToken: current.invitation.token }),
+      headers: { "content-type": "application/json" },
+      method: "POST",
+    });
+    expect(reclaim.status).toBe(409);
+  });
+
+  it("keeps an expired-invitation recovery retryable after a Provider failure", async () => {
+    const current = await createPendingRegistration();
+    current.clock.advance(72 * 60 * 60 * 1_000 + 1);
+    current.resendPasswordRegistrationOtp.mockRejectedValueOnce(new Error("provider detail"));
+    const request = () =>
+      current.app.request("/v1/auth/password/register/resend", {
+        body: JSON.stringify({ invitationToken: current.invitation.token }),
+        headers: {
+          "content-type": "application/json",
+          "x-vercel-forwarded-for": "198.51.100.10",
+        },
+        method: "POST",
+      });
+
+    expect((await request()).status).toBe(400);
+    current.clock.advance(1);
+    expect((await request()).status).toBe(202);
+    expect(current.resendPasswordRegistrationOtp).toHaveBeenCalledTimes(2);
   });
 
   it("rejects an unrelated invitation without sending mail or setting a Cookie", async () => {

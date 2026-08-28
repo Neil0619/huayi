@@ -205,6 +205,13 @@ registration_blockers AS (
       JOIN subject ON subject.user_id = rows.actor_user_id OR subject.user_id = rows.subject_id)
   )::bigint AS total
 ),
+expired_recovery_capability AS (
+  SELECT EXISTS (
+    SELECT 1
+    FROM supabase_migrations.schema_migrations
+    WHERE version::text = '20260828010000'
+  ) AS available
+),
 eligibility AS (
   SELECT
     EXISTS (
@@ -218,8 +225,19 @@ eligibility AS (
       CROSS JOIN email_binding
       CROSS JOIN identity_counts AS identities
       CROSS JOIN registration_blockers AS blockers
-      WHERE invitations.lifecycle_state = 'available'
-        AND invitations.expires_at >= now() + interval '15 minutes'
+      CROSS JOIN expired_recovery_capability AS recovery
+      WHERE (
+        (
+          invitations.lifecycle_state = 'available'
+          AND invitations.expires_at >= now() + interval '15 minutes'
+        )
+        OR (
+          invitations.lifecycle_state = 'expired'
+          AND recovery.available
+          AND claims.expires_at <= now()
+          AND flows.expires_at <= now()
+        )
+      )
         AND claims.bound_user_id IS NOT NULL
         AND claims.finalized_user_id IS NULL
         AND flows.consumed_at IS NULL
@@ -256,13 +274,20 @@ account_state AS (
     JOIN latest_flow AS flows ON flows.ticket_hash = claims.ticket_hash
     JOIN claim_state AS claim_shape ON claim_shape.total = 1
     JOIN flow_state AS flow_shape ON flow_shape.total = 1
+    CROSS JOIN invitation_counts AS invitations_shape
     CROSS JOIN auth_user_state AS auth_state
     CROSS JOIN email_binding
     CROSS JOIN identity_counts AS identities
     CROSS JOIN profile_state AS profile
     CROSS JOIN method_counts AS methods
     CROSS JOIN quota_counts AS quotas
-    WHERE invitations.lifecycle_state = 'consumed'
+    WHERE invitations_shape.total = 1
+      AND invitations_shape.available = 0
+      AND invitations_shape.expired = 0
+      AND invitations_shape.consumed = 1
+      AND invitations_shape.revoked = 0
+      AND invitations_shape.invalid = 0
+      AND invitations.lifecycle_state = 'consumed'
       AND claims.bound_user_id IS NOT NULL
       AND claims.finalized_user_id IS NOT DISTINCT FROM claims.bound_user_id
       AND flows.consumed_at IS NOT NULL

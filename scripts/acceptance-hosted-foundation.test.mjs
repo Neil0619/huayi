@@ -32,6 +32,7 @@ import {
   createHostedPsqlProcessEnvironment,
   hostedAcceptanceApplicationSessionPoolerUrl,
   hostedAcceptanceMigrationVersions,
+  hostedAcceptanceMigrationVersionsThrough0021,
   hostedAcceptanceMigrationVersionsThrough0014,
   hostedAcceptanceMigrationVersionsThrough0015,
   hostedAcceptancePoolerUrl,
@@ -94,8 +95,10 @@ test("hosted foundation is pinned to the Singapore acceptance project and public
   assert.equal(hostedAcceptanceMigrationVersionsThrough0014.length, 14);
   assert.equal(hostedAcceptanceMigrationVersionsThrough0015.at(-1), "20260825010000");
   assert.equal(hostedAcceptanceMigrationVersionsThrough0015.length, 15);
-  assert.equal(hostedAcceptanceMigrationVersions.at(-1), "20260827060000");
-  assert.equal(hostedAcceptanceMigrationVersions.length, 21);
+  assert.equal(hostedAcceptanceMigrationVersionsThrough0021.at(-1), "20260827060000");
+  assert.equal(hostedAcceptanceMigrationVersionsThrough0021.length, 21);
+  assert.equal(hostedAcceptanceMigrationVersions.at(-1), "20260828010000");
+  assert.equal(hostedAcceptanceMigrationVersions.length, 22);
 });
 
 test("hosted psql always pins verify-full and the temporary CA path", () => {

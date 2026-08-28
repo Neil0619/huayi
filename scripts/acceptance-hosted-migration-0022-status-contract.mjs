@@ -1,20 +1,11 @@
-import { pathToFileURL } from "node:url";
-
 import { renderHostedDeepseekExecutorMembershipContractSql } from "./acceptance-hosted-deepseek-executor-membership.mjs";
-import { readHiddenTerminalLine } from "./acceptance-hosted-important-batch-secret-prompt.mjs";
 import {
+  hostedAcceptanceMigrationVersions,
   hostedAcceptanceMigrationVersionsThrough0021,
-  hostedAcceptanceMigrationVersionsThrough0015,
-  hostedAcceptancePoolerUrl,
-  hostedAcceptanceProjectRef,
-  runHostedPsql,
   sqlTextArray,
 } from "./acceptance-hosted-foundation.mjs";
-import { fetchHostedAcceptanceOfficialCaCertificate } from "./acceptance-hosted-official-ca.mjs";
-
-const appliedStatus = "applied_exact";
-const pendingStatus = "pending_exact";
-const uncertainStatus = "uncertain";
+const previousFunctionSourceMd5 = "0db3d5f1b7b31f3998c37bd32f89cc17";
+const appliedFunctionSourceMd5 = "542cb22c148732255513215b331667b1";
 const privateFunctionSignatures = Object.freeze([
   "huayi_private.arm_hosted_acceptance_cleanup(uuid,bigint,text,text)",
   "huayi_private.bind_hosted_acceptance_request(uuid,bigint,text,uuid,uuid,text,text)",
@@ -34,53 +25,40 @@ const privateFunctionSignatures = Object.freeze([
   "huayi_private.record_hosted_acceptance_settlement(uuid,bigint,text,uuid)",
   "huayi_private.retain_hosted_acceptance_evidence(integer)",
 ]);
-const executorFunctionSignatures = Object.freeze([
-  "huayi_private.arm_hosted_acceptance_cleanup(uuid,bigint,text,text)",
-  "huayi_private.bind_hosted_acceptance_request(uuid,bigint,text,uuid,uuid,text,text)",
-  "huayi_private.claim_hosted_acceptance_cleanup(text,text)",
-  "huayi_private.claim_hosted_acceptance_operation(uuid,text,text,bigint,text,text,text,text,text,text,integer,text)",
-  "huayi_private.complete_hosted_acceptance_cleanup(uuid,bigint,text,timestamp with time zone)",
-  "huayi_private.complete_hosted_acceptance_operation(uuid,bigint,text,text,text)",
-  "huayi_private.mark_hosted_acceptance_dispatch(uuid,bigint,text,text)",
-  "huayi_private.read_and_freeze_hosted_acceptance_settlement(uuid,bigint,text,uuid)",
-  "huayi_private.read_hosted_acceptance_status()",
-  "huayi_private.reconcile_and_bind_hosted_acceptance_request(uuid,bigint,text,uuid,text,text)",
-  "huayi_private.record_hosted_acceptance_settlement(uuid,bigint,text,uuid)",
-  "huayi_private.retain_hosted_acceptance_evidence(integer)",
+const nonExecutorFunctionSignatures = new Set([
+  "huayi_private.effective_model_kill_switch_enabled()",
+  "huayi_private.enforce_hosted_acceptance_cleanup_state()",
+  "huayi_private.enforce_hosted_acceptance_operation_state()",
+  "huayi_private.enforce_hosted_acceptance_receipt_evidence()",
+  "huayi_private.hosted_acceptance_token_hash(text)",
+]);
+const executorFunctionSignatures = Object.freeze(
+  privateFunctionSignatures.filter((signature) => !nonExecutorFunctionSignatures.has(signature)),
+);
+
+export const hostedMigration0022StatusPredicateNames = Object.freeze([
+  "migration_chain_0021_exact",
+  "migration_chain_0022_exact",
+  "authority_contract_exact",
+  "function_present_exact",
+  "function_contract_exact",
+  "function_owner_exact",
+  "function_security_definer_exact",
+  "function_search_path_exact",
+  "function_acl_exact",
+  "function_source_0014_exact",
+  "function_source_0022_exact",
+  "pending_state_exact",
+  "applied_state_exact",
 ]);
 
-export const hostedDeepseekMigrationStatusArgument = `--status-hosted-deepseek-0016-0021-${hostedAcceptanceProjectRef}`;
-export const hostedDeepseekMigrationStatusAppliedMessage =
-  "Hosted DeepSeek 0016-0021 migration status: applied-exact.";
-export const hostedDeepseekMigrationStatusPendingMessage =
-  "Hosted DeepSeek 0016-0021 migration status: pending-exact.";
-export const hostedDeepseekMigrationStatusUncertainMessage =
-  "Hosted DeepSeek 0016-0021 migration status: uncertain; do not retry apply.";
-
-function passwordIsValid(password) {
-  return (
-    typeof password === "string" &&
-    Buffer.byteLength(password) >= 12 &&
-    Buffer.byteLength(password) <= 512 &&
-    !/[\0\r\n]/u.test(password)
-  );
-}
-
-function environmentHasInheritedPassword(environment) {
-  return ["PGPASSWORD", "SUPABASE_DB_PASSWORD"].some((name) =>
-    Object.prototype.hasOwnProperty.call(environment, name),
-  );
-}
-
-export function renderHostedDeepseekMigrationStatusSql() {
-  const pendingMigrations = sqlTextArray(hostedAcceptanceMigrationVersionsThrough0015);
-  const appliedMigrations = sqlTextArray(hostedAcceptanceMigrationVersionsThrough0021);
+export function renderHostedMigration0022StateCtes() {
   const expectedFunctions = sqlTextArray(privateFunctionSignatures);
   const executorFunctions = sqlTextArray(executorFunctionSignatures);
   const executorMembershipContract = renderHostedDeepseekExecutorMembershipContractSql();
-  return `
-BEGIN READ ONLY;
-WITH migration_state AS (
+  const versionsThrough0021 = sqlTextArray(hostedAcceptanceMigrationVersionsThrough0021);
+  const versionsThrough0022 = sqlTextArray(hostedAcceptanceMigrationVersions);
+  return `migration_state AS (
   SELECT COALESCE(array_agg(version::text ORDER BY version::text), ARRAY[]::text[]) AS versions
   FROM supabase_migrations.schema_migrations
 ), expected_functions AS (
@@ -105,9 +83,8 @@ WITH migration_state AS (
   WHERE role_entry.rolname = 'huayi_hosted_acceptance_executor'
 ), schema_state AS (
   SELECT count(*) = 1
-    AND bool_and(
-      namespace.nspowner = (SELECT oid FROM pg_roles WHERE rolname = 'postgres')
-    ) AS exact
+    AND bool_and(namespace.nspowner = (SELECT oid FROM pg_roles WHERE rolname = 'postgres'))
+    AS exact
   FROM pg_namespace namespace
   WHERE namespace.nspname = 'huayi_private'
 ), relation_state AS (
@@ -134,16 +111,13 @@ WITH migration_state AS (
 ), constraint_state AS (
   SELECT count(*) = 1 AND bool_and(constraint_entry.convalidated) AS exact
   FROM pg_constraint constraint_entry
-  WHERE constraint_entry.conrelid =
-      to_regclass('huayi_private.hosted_acceptance_operations')
+  WHERE constraint_entry.conrelid = to_regclass('huayi_private.hosted_acceptance_operations')
     AND constraint_entry.conname = 'hosted_acceptance_receipt_evidence_shape'
     AND constraint_entry.contype = 'c'
-), function_state AS (
+), authority_function_state AS (
   SELECT count(*) = ${privateFunctionSignatures.length}
     AND bool_and(function_oid IS NOT NULL)
-    AND bool_and(
-      procedure.proowner = (SELECT oid FROM pg_roles WHERE rolname = 'postgres')
-    )
+    AND bool_and(procedure.proowner = (SELECT oid FROM pg_roles WHERE rolname = 'postgres'))
     AND bool_and(procedure.prosecdef)
     AND bool_and(
       'search_path=pg_catalog, huayi_private' = ANY(
@@ -279,116 +253,147 @@ WITH migration_state AS (
         false
       )
   ) AS exact
-), pending_state AS (
+), authority_state AS (
   SELECT
-    to_regclass('huayi_private.hosted_acceptance_operations') IS NULL
-    AND to_regclass('huayi_private.hosted_acceptance_cleanup_obligations') IS NULL
-    AND NOT EXISTS (
-      SELECT 1 FROM pg_roles WHERE rolname = 'huayi_hosted_acceptance_executor'
-    )
-    AND bool_and(function_oid IS NULL) AS exact
-  FROM expected_functions
-)
-SELECT CASE
-  WHEN migration_state.versions = ${appliedMigrations}
-    AND role_state.exact
+    role_state.exact
     AND schema_state.exact
     AND relation_state.exact
     AND receipt_state.exact
     AND constraint_state.exact
-    AND function_state.exact
+    AND authority_function_state.exact
     AND executor_function_acl.exact
     AND unexpected_function_acl.exact
     AND executor_schema_acl.exact
     AND trigger_state.exact
     AND unexpected_table_acl.exact
     AND external_function_acl.exact
-    AND external_table_acl.exact
-  THEN 'applied_exact'
-  WHEN migration_state.versions = ${pendingMigrations} AND pending_state.exact
-  THEN 'pending_exact'
-  ELSE 'uncertain'
-END
-FROM migration_state
-CROSS JOIN role_state
-CROSS JOIN schema_state
-CROSS JOIN relation_state
-CROSS JOIN receipt_state
-CROSS JOIN constraint_state
-CROSS JOIN function_state
-CROSS JOIN executor_function_acl
-CROSS JOIN unexpected_function_acl
-CROSS JOIN executor_schema_acl
-CROSS JOIN trigger_state
-CROSS JOIN unexpected_table_acl
-CROSS JOIN external_function_acl
-CROSS JOIN external_table_acl
-CROSS JOIN pending_state;
-ROLLBACK;
-`;
-}
-
-export function parseHostedDeepseekMigrationStatusOutput(output) {
-  return new Set(["applied_exact\n", "pending_exact\n", "uncertain\n"]).has(output)
-    ? output.slice(0, -1)
-    : null;
-}
-
-export async function runHostedDeepseekMigrationStatusQuery(
-  { administratorPassword, caCertificate },
-  { runPsql = runHostedPsql } = {},
-) {
-  const result = await runPsql({
-    captureOutput: true,
-    databaseUrl: hostedAcceptancePoolerUrl,
-    environment: {
-      HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: caCertificate,
-      PGPASSWORD: administratorPassword,
-    },
-    input: renderHostedDeepseekMigrationStatusSql(),
-    timeoutMilliseconds: 30_000,
-  });
-  return result.code === 0 ? parseHostedDeepseekMigrationStatusOutput(result.stdout) : null;
-}
-
-export async function runHostedDeepseekMigrationStatusCli({
-  arguments_ = process.argv.slice(2),
-  environment = process.env,
-  fetchCaCertificate = fetchHostedAcceptanceOfficialCaCertificate,
-  readPassword = readHiddenTerminalLine,
-  runStatusQuery = runHostedDeepseekMigrationStatusQuery,
-  writeOutput = (value) => process.stdout.write(value),
-} = {}) {
-  let status = uncertainStatus;
-  try {
-    if (
-      arguments_.length !== 1 ||
-      arguments_[0] !== hostedDeepseekMigrationStatusArgument ||
-      environmentHasInheritedPassword(environment)
-    ) {
-      throw new Error(hostedDeepseekMigrationStatusUncertainMessage);
-    }
-    const caCertificate = await fetchCaCertificate();
-    const administratorPassword = await readPassword();
-    if (!passwordIsValid(administratorPassword)) {
-      throw new Error(hostedDeepseekMigrationStatusUncertainMessage);
-    }
-    status = (await runStatusQuery({ administratorPassword, caCertificate })) ?? uncertainStatus;
-  } catch {
-    status = uncertainStatus;
-  }
-  if (status === appliedStatus) {
-    writeOutput(`${hostedDeepseekMigrationStatusAppliedMessage}\n`);
-    return 0;
-  }
-  if (status === pendingStatus) {
-    writeOutput(`${hostedDeepseekMigrationStatusPendingMessage}\n`);
-    return 0;
-  }
-  writeOutput(`${hostedDeepseekMigrationStatusUncertainMessage}\n`);
-  return 1;
-}
-
-if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  process.exitCode = await runHostedDeepseekMigrationStatusCli();
+    AND external_table_acl.exact AS exact
+  FROM role_state
+  CROSS JOIN schema_state
+  CROSS JOIN relation_state
+  CROSS JOIN receipt_state
+  CROSS JOIN constraint_state
+  CROSS JOIN authority_function_state
+  CROSS JOIN executor_function_acl
+  CROSS JOIN unexpected_function_acl
+  CROSS JOIN executor_schema_acl
+  CROSS JOIN trigger_state
+  CROSS JOIN unexpected_table_acl
+  CROSS JOIN external_function_acl
+  CROSS JOIN external_table_acl
+), target_function AS (
+  SELECT procedure.*
+  FROM pg_proc procedure
+  WHERE procedure.oid = to_regprocedure(
+    'public.renew_interrupted_password_confirmation(text,text,timestamptz)'
+  )
+), target_function_state AS (
+  SELECT
+    count(*) = 1 AS function_present_exact,
+    count(*) = 1
+      AND bool_and(
+        target_function.prokind = 'f'
+        AND language.lanname = 'plpgsql'
+        AND pg_get_function_arguments(target_function.oid) =
+          'invitation_token_hash text, new_flow_hash text, new_expires_at timestamp with time zone'
+        AND pg_get_function_result(target_function.oid) = 'TABLE(account_email text)'
+      ) AS function_contract_exact,
+    count(*) = 1
+      AND bool_and(proowner = (SELECT oid FROM pg_roles WHERE rolname = 'postgres'))
+      AS function_owner_exact,
+    count(*) = 1 AND bool_and(prosecdef) AS function_security_definer_exact,
+    count(*) = 1
+      AND bool_and(proconfig = ARRAY['search_path=pg_catalog']::text[])
+      AS function_search_path_exact,
+    count(*) = 1
+      AND bool_and(md5(prosrc) = '${previousFunctionSourceMd5}')
+      AS function_source_0014_exact,
+    count(*) = 1
+      AND bool_and(md5(prosrc) = '${appliedFunctionSourceMd5}')
+      AS function_source_0022_exact,
+    count(*) = 1
+      AND bool_and(
+        EXISTS (
+          SELECT 1
+          FROM aclexplode(COALESCE(proacl, acldefault('f', proowner))) privilege
+          WHERE privilege.privilege_type = 'EXECUTE'
+            AND privilege.grantee = proowner
+        )
+        AND EXISTS (
+          SELECT 1
+          FROM aclexplode(COALESCE(proacl, acldefault('f', proowner))) privilege
+          WHERE privilege.privilege_type = 'EXECUTE'
+            AND privilege.grantee = COALESCE(
+              (SELECT oid FROM pg_roles WHERE rolname = 'huayi_context_setter'), 0
+            )
+        )
+        AND
+        COALESCE(has_function_privilege(
+          (SELECT oid FROM pg_roles WHERE rolname = 'huayi_context_setter'),
+          target_function.oid,
+          'EXECUTE'
+        ), false)
+        AND NOT COALESCE(has_function_privilege(
+          (SELECT oid FROM pg_roles WHERE rolname = 'anon'), target_function.oid, 'EXECUTE'
+        ), false)
+        AND NOT COALESCE(has_function_privilege(
+          (SELECT oid FROM pg_roles WHERE rolname = 'authenticated'),
+          target_function.oid,
+          'EXECUTE'
+        ), false)
+        AND NOT COALESCE(has_function_privilege(
+          (SELECT oid FROM pg_roles WHERE rolname = 'service_role'),
+          target_function.oid,
+          'EXECUTE'
+        ), false)
+        AND NOT COALESCE(has_function_privilege(
+          (SELECT oid FROM pg_roles WHERE rolname = 'huayi_business'),
+          target_function.oid,
+          'EXECUTE'
+        ), false)
+        AND NOT COALESCE(has_function_privilege(
+          (SELECT oid FROM pg_roles WHERE rolname = 'huayi_runtime'),
+          target_function.oid,
+          'EXECUTE'
+        ), false)
+        AND NOT EXISTS (
+          SELECT 1
+          FROM aclexplode(COALESCE(proacl, acldefault('f', proowner))) privilege
+          WHERE privilege.privilege_type = 'EXECUTE'
+            AND privilege.grantee <> proowner
+            AND privilege.grantee <> COALESCE(
+              (SELECT oid FROM pg_roles WHERE rolname = 'huayi_context_setter'), 0
+            )
+        )
+      ) AS function_acl_exact
+  FROM target_function
+  JOIN pg_language language ON language.oid = target_function.prolang
+), status_state AS (
+  SELECT
+    migration_state.versions = ${versionsThrough0021} AS migration_chain_0021_exact,
+    migration_state.versions = ${versionsThrough0022} AS migration_chain_0022_exact,
+    authority_state.exact AS authority_contract_exact,
+    target_function_state.*,
+    migration_state.versions = ${versionsThrough0021}
+      AND authority_state.exact
+      AND target_function_state.function_present_exact
+      AND target_function_state.function_contract_exact
+      AND target_function_state.function_owner_exact
+      AND target_function_state.function_security_definer_exact
+      AND target_function_state.function_search_path_exact
+      AND target_function_state.function_acl_exact
+      AND target_function_state.function_source_0014_exact AS pending_state_exact,
+    migration_state.versions = ${versionsThrough0022}
+      AND authority_state.exact
+      AND target_function_state.function_present_exact
+      AND target_function_state.function_contract_exact
+      AND target_function_state.function_owner_exact
+      AND target_function_state.function_security_definer_exact
+      AND target_function_state.function_search_path_exact
+      AND target_function_state.function_acl_exact
+      AND target_function_state.function_source_0022_exact AS applied_state_exact
+  FROM migration_state
+  CROSS JOIN authority_state
+  CROSS JOIN target_function_state
+)`;
 }

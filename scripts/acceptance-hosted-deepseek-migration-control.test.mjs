@@ -16,7 +16,7 @@ import {
   runHostedDeepseekMigrationDryRunCli,
 } from "./acceptance-hosted-deepseek-migration-dry-run.mjs";
 import {
-  hostedAcceptanceMigrationVersions,
+  hostedAcceptanceMigrationVersionsThrough0021,
   hostedAcceptanceMigrationVersionsThrough0015,
 } from "./acceptance-hosted-foundation.mjs";
 import { hostedDeepseekMigrationArtifactContract } from "./acceptance-hosted-important-batch-contracts.mjs";
@@ -37,11 +37,11 @@ Finished supabase db push.
 test("current Hosted canonical chain advances to 0021 without changing historical 0015", () => {
   assert.equal(hostedAcceptanceMigrationVersionsThrough0015.length, 15);
   assert.equal(hostedAcceptanceMigrationVersionsThrough0015.at(-1), "20260825010000");
-  assert.equal(hostedAcceptanceMigrationVersions.length, 21);
-  assert.equal(hostedAcceptanceMigrationVersions.at(-1), "20260827060000");
+  assert.equal(hostedAcceptanceMigrationVersionsThrough0021.length, 21);
+  assert.equal(hostedAcceptanceMigrationVersionsThrough0021.at(-1), "20260827060000");
   assert.deepEqual(
     hostedDeepseekMigrationArtifactContract.migrationVersions,
-    hostedAcceptanceMigrationVersions,
+    hostedAcceptanceMigrationVersionsThrough0021,
   );
 });
 

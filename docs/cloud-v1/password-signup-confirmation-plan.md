@@ -143,10 +143,17 @@ SQL 绕过。
       lineage，真实返回固定成功输出并形成等价 closure；没有覆盖或重捕 evidence；
 - [x] API→Web 严格串行 one-shot 已按 preflight → API arm/observe → API disarm/verify → Web arm/observe →
       Web disarm/verify 完成，最终 state 为 `complete` 且两个项目均恢复关闭；
-- [ ] 先用固定脱敏只读 snapshot 确认 invitation claim、Auth identity 与当前账号状态，再决定保留原账号的
-      恢复路线。随后只接受新邮件的六位 ASCII OTP，验证 scanner/repeated GET 零副作用、显式 POST 完成
-      同一 invitation/user，并回读 invitation/user/identity 唯一性。现有一次 resend 与两次 resume HTTP
-      请求均为 401，未发送邮件，也未关闭本项。
+- [x] 固定脱敏只读 snapshot 已确认唯一 ordinary invitation 为 expired、唯一 claim 为 bound-expired、唯一
+      flow 为 expired，同一 Auth user 未确认且只有一个 email identity，profile/method/quota/session/learning/
+      blocker 全为零；现有 resend/resume 的 401 是旧合同的正确拒绝，不是密码或 OTP 位数问题；
+- [ ] forward-only 0022 已在本地以 Fresh RED→GREEN 实现同一 claim/flow 的最多 15 分钟确认窗口、同一
+      invitation 的最多 30 分钟 Provider 重试窗口与 flow 轮换；独立 Phase 92 head-21 pre/22-chain rebuild/
+      head-22 post、三态 status、单文件 exact dry-run、guarded apply 与脱敏 diagnostic 控制面也已完成，且不
+      复用 DeepSeek evidence。API→Web 部署另使用独立 `phase-92-0022-state.json`，不覆盖 Phase 81 state；最终
+      identity snapshot 也要求普通邀请精确为一且唯一行 consumed。仍须逐项批准并执行真实 backup、status、
+      dry-run、apply、API/Web 部署与一次新邮件。随后只接受
+      新邮件的六位 ASCII OTP，验证 scanner/repeated GET 零副作用、显式 POST 完成同一 invitation/user，
+      并回读 invitation/user/identity 唯一性；
 
 退出标准：pre/post backup 与 migration+fictional-seed rebuild 证据完整；旧 8 位 OTP 不再用于产品确认，
 重发后旧 flow 失效；同一普通邀请和同一 Auth user 在不要求用户输入 opaque token、不创建第二邀请/用户

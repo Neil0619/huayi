@@ -15,6 +15,7 @@ import {
   hostedImportantBatchPostgresRuntimeReference,
   hostedImportantBatchScratchContainer,
 } from "./acceptance-hosted-important-batch-execution-contract.mjs";
+import { hostedPhase81ArtifactContract } from "./acceptance-hosted-important-batch-contracts.mjs";
 import { hostedImportantBatchId } from "./acceptance-hosted-important-batch-backup.mjs";
 import { hostedImportantBatchPostgresImageReadySql } from "./acceptance-hosted-important-batch-rebuild-sql.mjs";
 
@@ -34,6 +35,19 @@ test.afterEach(async () => {
 async function temporaryRepository() {
   const root = await mkdtemp(join(tmpdir(), "huayi-hosted-backup-rebuild-"));
   temporaryRoots.push(root);
+  return root;
+}
+
+async function historicalPhase81Repository() {
+  const root = await temporaryRepository();
+  const migrationsRoot = join(root, "supabase", "migrations");
+  await mkdir(migrationsRoot, { recursive: true });
+  for (const file of hostedPhase81ArtifactContract.migrationFiles) {
+    const source = await readFile(join(process.cwd(), "supabase", "migrations", file));
+    await writeFile(join(migrationsRoot, file), source);
+  }
+  const seed = await readFile(join(process.cwd(), "supabase", "seed.sql"));
+  await writeFile(join(root, "supabase", "seed.sql"), seed);
   return root;
 }
 
@@ -95,17 +109,63 @@ test("rebuild exposes one fixed confirmation-gated operation", () => {
   }
 });
 
-test("historical Phase 81 rebuild refuses the 0015 repository while its seed remains safe", async () => {
-  await assert.rejects(
-    loadHostedImportantBatchRebuildSources(process.cwd()),
-    /migration source set is invalid/u,
-  );
+test("historical Phase 81 rebuild stays pinned to 0014 as later migrations are added", async () => {
+  const sources = await loadHostedImportantBatchRebuildSources(process.cwd());
   const seed = await readFile(join(process.cwd(), "supabase", "seed.sql"), "utf8");
 
+  assert.deepEqual(
+    sources.migrations.map(({ version }) => version),
+    hostedPhase81ArtifactContract.migrationVersions,
+  );
   assert.doesNotMatch(seed, /SELECT\s+public\.ensure_current_default_quota/u);
   assert.match(
     seed,
     /DO \$\$\s*BEGIN\s*PERFORM public\.ensure_current_default_quota\([\s\S]+?\);\s*END;\s*\$\$;/u,
+  );
+});
+
+test("historical Phase 81 rebuild accepts only a valid strictly newer migration suffix", async () => {
+  const validRoot = await historicalPhase81Repository();
+  await writeFile(
+    join(validRoot, "supabase", "migrations", "20260825010000_later_migration.sql"),
+    "SELECT 1;\n",
+  );
+  const sources = await loadHostedImportantBatchRebuildSources(validRoot);
+  assert.equal(sources.migrations.length, hostedPhase81ArtifactContract.migrationFiles.length);
+  assert.equal(
+    sources.migrations.at(-1).version,
+    hostedPhase81ArtifactContract.rebuildMigrationHead,
+  );
+
+  const malformedRoot = await historicalPhase81Repository();
+  await writeFile(join(malformedRoot, "supabase", "migrations", "notes.txt"), "not sql\n");
+  await assert.rejects(
+    loadHostedImportantBatchRebuildSources(malformedRoot),
+    /migration source set is invalid/u,
+  );
+
+  const repeatedVersionRoot = await historicalPhase81Repository();
+  await writeFile(
+    join(repeatedVersionRoot, "supabase", "migrations", "20260824010000_repeated_head.sql"),
+    "SELECT 1;\n",
+  );
+  await assert.rejects(
+    loadHostedImportantBatchRebuildSources(repeatedVersionRoot),
+    /migration source set is invalid/u,
+  );
+
+  const missingHistoricalRoot = await historicalPhase81Repository();
+  await rm(
+    join(
+      missingHistoricalRoot,
+      "supabase",
+      "migrations",
+      hostedPhase81ArtifactContract.migrationFiles.at(-1),
+    ),
+  );
+  await assert.rejects(
+    loadHostedImportantBatchRebuildSources(missingHistoricalRoot),
+    /migration source set is invalid/u,
   );
 });
 

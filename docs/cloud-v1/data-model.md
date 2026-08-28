@@ -31,11 +31,15 @@ usage feature 和 price version，校验 1–2 条调用及总 cost 后追加 le
 
 未确认的密码注册重发不新增表或第二条 flow。0014 为 claim 补充服务端派生的规范 `bound_email`，并让
 `bind_auth_identity` 将同一 Auth user id/email 一起锁定；客户端不能提交或替换该邮箱。
-`renew_interrupted_password_confirmation` 锁定同一 active invitation、唯一 bound unfinished claim 与唯一
-未消费 `invite-registration` flow，并要求 claim email 与 `auth.users` 精确一致、未确认 email identity
-唯一且业务账号数据为零；成功只延长同一 claim 并原子替换同一 flow 的 hash/expiry。新 expiry 最多
-15 分钟且不超过 invitation expiry；旧 flow 立即失效，任意时刻仍恰好一条
-invitation/claim/flow/Auth user/email identity。
+`renew_interrupted_password_confirmation` 锁定同一 invitation、唯一 bound unfinished claim 与唯一未消费
+`invite-registration` flow，并要求 claim email 与 `auth.users` 精确一致、未确认 email identity 唯一且业务
+账号数据为零。0014 的 active invitation 行为保持不变：成功只延长同一 claim 并原子替换同一 flow 的
+hash/expiry，新 expiry 最多 15 分钟且不超过 invitation expiry。forward-only 0022 只为
+`created_by_kind='operator'`、invitation/claim/flow 均已过期的同一精确状态增加恢复：把原 claim 与 flow
+续到同一个最多 15 分钟的确认 expiry，把 invitation 续到比它多 15 分钟、因此最多 30 分钟的重试 expiry，
+并轮换原 flow hash。该余量保证首次 Provider 投递失败后可立即重试，又不改变 0014 active 路径；bound
+claim 仍阻止重新 claim，旧 flow 立即失效，任意时刻仍恰好一条 invitation/claim/flow/Auth user/email
+identity。
 
 该 R3-C 语义已进入当前未发布 baseline 与 `0011-security-notification-delivery.sql`：固定 23 小时 deadline
 小于 Resend 24 小时幂等窗口，最多 8 次；到期为 `failed`，耗尽为 `dead-letter`。claim 先以最多 100 条

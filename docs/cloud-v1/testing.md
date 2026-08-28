@@ -886,6 +886,29 @@ confirmed Auth user/password method/profile 为 `1/1/2`、google method/Web sess
   flow，并回读服务端派生的 `bound_email`；wrong token、claim/Auth email 错配、已确认/多 identity、
   profile/method/quota/session/admin/deletion/audit 数据、
   revoked/expired invitation 与 consumed/finalized 状态全部零写入，ACL 只给 context setter；
+- 0022 migration 必须保持 0014 active 路径，并只允许 expired ordinary invitation + expired bound claim +
+  expired 未消费 flow 的精确组合；成功后 claim/flow expiry 相同且最多 15 分钟，invitation expiry 精确多
+  15 分钟且最多 30 分钟，旧 flow hash 消失、Provider 失败后的第二次 flow 轮换成功且重新 claim 仍失败，
+  invitation/claim/flow/Auth user/email identity 数量都保持 1。deployment-bootstrap、active claim/flow、
+  confirmed/extra identity、email 错配、profile 或其他 blocker、revoked/consumed/finalized、额外 claim/flow 与
+  wrong token 均零写入；镜像 byte-identical，ACL 继续只给 context setter 且三个 Data API role 无执行权；
+- 0022 Hosted 控制面必须先以缺失模块 Fresh RED 固定独立 batch/status/dry-run/apply/diagnostic 缺口。
+  Phase 92 artifact contract 固定 head-21 pre、22-file rebuild/head-22 post，与 DeepSeek batch identity/path
+  不同；plan 零 I/O，preflight/completion 只接受同一 clean pushed candidate 的 strict `0700/0600` evidence，
+  executor 在 readiness 前不读 secret，rebuild 永不读取 Hosted password。status 以 PGlite 证明 exact
+  21-chain+旧函数正文为 pending、22-chain+新正文为 applied，authority/ACL/正文任一 drift 为 uncertain；
+  diagnostic 在真实相同 catalog 上输出固定有序布尔 allowlist。dry-run parser 只接受唯一 0022 文件，CLI
+  `2.115.0`、official CA、verify-full `6543`、隐藏 TTY、无继承密码、output/time bound 与 disposable `0600`
+  CA 均固定；timeout 即使 child 不发 close 也必须 settle。apply 必须证明 preflight→dry-run→preflight→
+  pending→apply→applied 顺序，任何 evidence/source/CLI/transcript/status/postflight 失败均为零 mutation 且只
+  输出固定失败；默认测试不得连接 Hosted、读取真实密码、发送邮件或部署；
+- Phase 92 deployment surface 必须使用独立 confirmation 与 `phase-92-0022-state.json`，同时复用既有完整
+  one-shot 状态机。回归必须证明 plan 零 I/O、历史 confirmation 在任何 Git/Vercel/state 工作前被拒绝、
+  Phase 81/92 两份 private canonical state 可共存且互不覆盖、目录未知 entry 失败；不得用新 baseline 放宽
+  既有 API/Web 16/9 与 latest deployment identity；
+- identity snapshot 的 `account_finalized_exact` 必须同时证明普通邀请精确为一且唯一邀请 consumed；PGlite
+  回归先构造其余账号条件全部成立的 finalized 状态，再增加一张较旧 ordinary invitation，结果必须降为
+  `account_finalized_exact|f` 与 `safe_route_state|stop-inconsistent`；
 - 0014 Hosted dry-run CLI 必须先以 Fresh RED 证明入口不存在；只接受 pinned project/migration confirmation，
   在读取 TTY 前拒绝额外参数与继承的 `PGPASSWORD` / `SUPABASE_DB_PASSWORD`。共享提示必须保存完整
   `stty -g`，临时关闭 echo/canonical/ISIG，并以隔离有界 reader 把 Ctrl-C 作为取消字节处理；取消必须恢复

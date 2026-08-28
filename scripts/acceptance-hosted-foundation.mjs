@@ -43,7 +43,7 @@ export const hostedAcceptanceMigrationVersionsThrough0015 = Object.freeze([
   "20260825010000",
 ]);
 
-export const hostedAcceptanceMigrationVersions = Object.freeze([
+export const hostedAcceptanceMigrationVersionsThrough0021 = Object.freeze([
   ...hostedAcceptanceMigrationVersionsThrough0015,
   "20260827010000",
   "20260827020000",
@@ -51,6 +51,11 @@ export const hostedAcceptanceMigrationVersions = Object.freeze([
   "20260827040000",
   "20260827050000",
   "20260827060000",
+]);
+
+export const hostedAcceptanceMigrationVersions = Object.freeze([
+  ...hostedAcceptanceMigrationVersionsThrough0021,
+  "20260828010000",
 ]);
 
 export const hostedAcceptanceTenantTables = Object.freeze([

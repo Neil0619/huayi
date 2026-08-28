@@ -249,7 +249,7 @@ test("DeepSeek status diagnostic distinguishes pending, partial, applied, and dr
     assert.equal(diagnostic.predicates.receipt_column_exact, false);
     assert.equal(diagnostic.predicates.applied_state_exact, false);
 
-    for (const [index, filename] of migrationFiles.slice(16).entries()) {
+    for (const [index, filename] of migrationFiles.slice(16, 21).entries()) {
       await database.exec(
         await readFile(new URL(`../apps/api/migrations/${filename}`, import.meta.url), "utf8"),
       );

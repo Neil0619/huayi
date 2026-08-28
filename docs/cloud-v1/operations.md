@@ -202,6 +202,46 @@ evidence 独立验证并冻结。当前依赖链固定为：固定脱敏只读 H
 和账本对账 → 恢复 kill switch → 目标网络、数据权利、双平台 Chrome、外部词库与自然使用/发布收口。用户密码、
 Cookie、Token 与 secret 不进入自动化或发布证据。
 
+2026-08-28 的固定脱敏 snapshot 已把当前普通注册锁定为：唯一 expired ordinary invitation、唯一
+bound-expired claim、唯一 expired flow、同一未确认 Auth user/唯一 email identity，且账号与学习数据均为零。
+因此不得创建替代邀请或删除 Auth user。forward-only 0022 只允许 API 使用原 invitation token，在该精确
+状态下把原 claim/flow 续到同一最多 15 分钟的确认窗口、invitation 续到最多 30 分钟的 Provider 重试窗口并
+轮换 flow；先完成独立备份、22-chain rebuild、
+只读 pending status、exact dry-run 与受控 apply，随后重新部署 API/Web，最后才单独批准一次 OTP 邮件。
+
+Phase 92 的固定执行顺序如下；每一条真实 Hosted 命令都需要单独批准，且含管理员密码的命令只在普通
+macOS Terminal 中运行：
+
+1. `pnpm acceptance:hosted:phase92:migration:backup:executor:pre:readiness`；
+2. `pnpm acceptance:hosted:phase92:migration:backup:capture:pre`；
+3. `pnpm acceptance:hosted:phase92:migration:backup:executor:rebuild:readiness`；
+4. `pnpm acceptance:hosted:phase92:migration:backup:rebuild`；
+5. `pnpm acceptance:hosted:phase92:migration:backup:preflight`；
+6. `pnpm acceptance:hosted:migration:0022:status`，只接受 `pending-exact`；若为 `uncertain`，只能运行
+   `pnpm acceptance:hosted:migration:0022:status:diagnose`，不得重试 apply；
+7. `pnpm acceptance:hosted:migration:0022:dry-run`，只接受唯一
+   `20260828010000_password_signup_expired_invitation_recovery.sql`；
+8. 再次单独批准后运行 `pnpm acceptance:hosted:migration:0022:apply`；未得到 verified completion 时先回到
+   第 6 步，只读判定状态；
+9. applied-exact 后依次运行
+   `pnpm acceptance:hosted:phase92:migration:backup:executor:post:readiness`、
+   `pnpm acceptance:hosted:phase92:migration:backup:capture:post` 和
+   `pnpm acceptance:hosted:phase92:migration:backup:complete`；
+10. 为同一个 exact SHA 依次运行
+    `pnpm acceptance:hosted:phase92:deployment:one-shot:preflight`，再分别批准 API-only arm
+    commit/push、`api:arm:observe`、API-only disarm commit/push、`api:disarm:verify`、Web-only arm
+    commit/push、`web:arm:observe`、Web-only disarm commit/push 与 `web:disarm:verify`。Phase 92 使用独立
+    `phase-92-0022-state.json`，不得覆盖或续写 Phase 81 one-shot state；
+11. 双项目均验证 disarmed 后，才可单独批准在现有 join 页面点击一次“重新发送六位验证码”。用户只在邮箱
+    与浏览器中读取、提交 OTP，不把 OTP、邮件正文或邀请 fragment 发给 Codex；
+12. 注册完成、退出并用原邮箱密码重新登录后，在普通 macOS Terminal 运行
+    `pnpm acceptance:hosted:identity:snapshot`。收口至少要求唯一普通邀请已 consumed、唯一 claim finalized、
+    唯一 registration flow consumed、Auth user confirmed、email identity/profile/password/quota 精确，且
+    `account_finalized_exact|t`、`safe_route_state|account-established`。任意第二邀请会强制收口失败。
+
+pre/rebuild/post 必须来自同一 clean pushed candidate；Phase 91 与 DeepSeek backup 即使有效，也不能替代
+Phase 92 evidence。任何一步失败都保留原目标和固定错误，不手工拼接 SQL、不盲目重试 apply。
+
 Hosted DeepSeek Phase E/F 已在提交 `d9ffb4a03c984d2f94c37031660a146068f31a3a` 收口；exact-SHA
 Cross-platform quality run `33076976013` 的 macOS/Windows 两 job 均成功。Phase 91 的 15-file
 backup/rebuild 仍是 0015 的历史不可变证据，绝不能授权或证明 0016–0021。后续独立

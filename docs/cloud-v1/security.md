@@ -468,11 +468,15 @@ owner context、generation/reservation 归属、task 成功或失败终态、价
   invitation token、Provider 密码证明和数据库精确中断状态；Provider user id/email 只取服务器 session。
 - `resume_interrupted_password_registration` 只授予 context setter，在单事务内检查邀请/claim/flow/Auth
   identity/零账号数据后创建 profile、password method、default quota 并消费旧状态；失败不得部分写入。
-- `renew_interrupted_password_confirmation` 同样只授予 context setter。它只接受 active invitation、唯一
-  bound unfinished claim、唯一未消费 invite-registration flow、未确认且只有 email identity 的 Auth user
-  和零业务账号数据；claim 的 `bound_email` 必须由 `bind_auth_identity` 从 Auth user 服务端派生并与
-  当前 Auth email 精确一致。它只更新同一 claim 的 expiry 并替换同一 flow hash，旧 CTA 立即失效，
-  绝不创建第二 invitation/claim/flow/user/identity。
+- `renew_interrupted_password_confirmation` 同样只授予 context setter。它只接受唯一 bound unfinished
+  claim、唯一未消费 invite-registration flow、未确认且只有 email identity 的 Auth user 和零业务账号
+  数据；claim 的 `bound_email` 必须由 `bind_auth_identity` 从 Auth user 服务端派生并与当前 Auth email
+  精确一致。active invitation 保持 0014 边界。forward-only 0022 仅允许
+  `created_by_kind='operator'` 且 invitation/claim/flow 都已过期的同一状态，把 claim/flow 续到同一个最多
+  15 分钟的确认 expiry，并把 invitation 续到最多 30 分钟的 Provider 重试 expiry；deployment-bootstrap、
+  active claim/flow、已确认/多 identity、任何账号数据、撤销/消费状态都零写入。函数只替换同一 flow
+  hash，旧 CTA 立即失效，绝不创建第二
+  invitation/claim/flow/user/identity；bound claim 继续阻止重新领取。
 - Hosted 恢复不要求用户识别、复制或输入原邀请 token。token 留在原邀请 URL fragment 与 Web 内存，恢复
   提交时由 Web 自动传给 API；API 使用当前 Production pepper 计算 hash，0013 在任何写入前同时要求精确
   `registration-interrupted`、active Bootstrap invitation 与 hash equality。任何错配均失败关闭且零部分
@@ -605,6 +609,25 @@ dry-run 和 apply 都在 CA/TTY 前验证 current evidence 与 Supabase CLI `2.1
 absence/contract、其余 catalog/ACL 布尔叶和 psql 退出分类，禁止 stderr、raw catalog、OID、未知角色、URL、
 凭据或环境反射；其结论不授权 apply、修复 SQL 或 post backup。本控制面没有装配 Phase G
 keyring/session/Vercel/private query loader，也不新增 HTTP route、Provider 请求或费用能力。
+
+0022 不继承或扩写 DeepSeek 0016–0021 的备份证据。`phase-92-0022-expired-invitation-recovery` 使用独立
+head-21 pre、22-chain networkless rebuild 与 head-22 post；所有 manifest 绑定同一 clean pushed commit，
+私有路径和不可覆盖规则沿用 important-batch 合同。status 在一个 `BEGIN READ ONLY` snapshot 中同时要求
+21-chain authority 对象/角色图/RLS/trigger/function ACL 精确，以及
+`renew_interrupted_password_confirmation(text,text,timestamptz)` 的 owner、SECURITY DEFINER、唯一
+`search_path=pg_catalog`、context-setter-only ACL 和前后正文 MD5 指纹；只有旧指纹+21-chain 为 pending，
+新指纹+22-chain 为 applied，其他全部 uncertain。dry-run 只接受单一 0022 allowlisted transcript；apply 在
+secret 前验证 current evidence、pinned CLI 与双镜像 SHA-256，同一密码会话内执行 exact dry-run、再次
+preflight、read-only pending、唯一写入和 applied postflight。任何不确定结果均禁止盲重试，只能进入固定
+脱敏 diagnostic；diagnostic 仅输出迁移链、authority 聚合、函数合同与 pending/applied 布尔值，不输出
+邮箱、UUID、OID、正文、URL、凭据、原始 catalog 或 child output。
+
+Phase 92 的 Vercel 部署证据不得写入或覆盖 Phase 81 state。两个固定 identity 只能映射到各自 clone-local
+`0600` canonical JSON；共享 `0700` 目录只允许这两个已知文件，未知、partial、symlink、权限漂移或非 canonical
+内容均失败关闭。每个 store 只能读写自己的 identity；one-shot 仍只做 Git/Vercel GET 与状态证据写入，真实
+arm/disarm/deploy 只来自另行批准的单文件 commit/push。注册后的只读 identity snapshot 不输出 email、UUID、
+token 或正文；`account_finalized_exact` 只有在普通邀请总数精确为一、唯一邀请 consumed 且 claim/flow/Auth/
+profile/method/quota 均精确时才可为真。
 
 以下不是产品决策，必须以真实环境验证后补入发布材料：Vercel/Supabase 新加坡实际部署与网络延迟、
 Google OAuth 在目标网络的可达性、Supabase 备份残留、DeepSeek 当前模型 ID/价格/JSON 与 usage

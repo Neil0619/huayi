@@ -1,5 +1,5 @@
 import {
-  hostedAcceptanceMigrationVersions,
+  hostedAcceptanceMigrationVersionsThrough0021,
   hostedAcceptanceMigrationVersionsThrough0015,
   sqlLiteral,
   sqlTextArray,
@@ -126,7 +126,7 @@ export function renderHostedDeepseekMigrationStatusDiagnosticMigrationPredicates
       const versions =
         index === 0
           ? hostedAcceptanceMigrationVersionsThrough0015
-          : hostedAcceptanceMigrationVersions.slice(0, 15 + index);
+          : hostedAcceptanceMigrationVersionsThrough0021.slice(0, 15 + index);
       return `migration_state.versions = ${sqlTextArray(versions)} AS ${name}`;
     })
     .join(",\n    ");
