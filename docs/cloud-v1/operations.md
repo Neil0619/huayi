@@ -231,7 +231,10 @@ macOS Terminal 中运行：
     `pnpm acceptance:hosted:phase92:deployment:one-shot:preflight`，再分别批准 API-only arm
     commit/push、`api:arm:observe`、API-only disarm commit/push、`api:disarm:verify`、Web-only arm
     commit/push、`web:arm:observe`、Web-only disarm commit/push 与 `web:disarm:verify`。Phase 92 使用独立
-    `phase-92-0022-state.json`，不得覆盖或续写 Phase 81 one-shot state；
+    `phase-92-0022-state.json`，不得覆盖或续写 Phase 81 one-shot state；其 preflight 固定要求 Phase 91
+    终态 API/Web 非 Canceled 为 17/10，latest 分别是
+    `da733e172cc5859a4b9aea61c2e87a239e6843ed` / `dpl_AWUiTdYGgmVHZ127xqGAVhQb2zCd` 与
+    `699fbe6c134c0b83347e0de3ce7c76dc4d520790` / `dpl_J6vtHUqfkstdGZ5w1yZJyVbhF6Yc`；
 11. 双项目均验证 disarmed 后，才可单独批准在现有 join 页面点击一次“重新发送六位验证码”。用户只在邮箱
     与浏览器中读取、提交 OTP，不把 OTP、邮件正文或邀请 fragment 发给 Codex；
 12. 注册完成、退出并用原邮箱密码重新登录后，在普通 macOS Terminal 运行

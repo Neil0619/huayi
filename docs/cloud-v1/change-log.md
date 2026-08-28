@@ -18,8 +18,10 @@
   函数前后正文指纹、owner/SECURITY DEFINER/search path/ACL；apply 只在双 current preflight、唯一迁移
   exact dry-run 与 read-only `pending-exact` 后写入，写后只接受 `applied-exact`；
 - 0022 部署复用 API→Web 严格串行 one-shot 合同，但使用独立 `phase-92-0022-state.json`，与历史 Phase 81
-  state 只读共存且互不覆盖。最终只读身份收口除账号合同外还要求 ordinary invitation 总数精确为一且唯一
-  行 consumed；出现第二邀请时不得报告完成。
+  state 只读共存且互不覆盖。Phase 92 的固定输入是 Phase 91 终态：API/Web 非 Canceled 精确 17/10，
+  latest 分别绑定 `da733e1` / `dpl_AWUiTdYGgmVHZ127xqGAVhQb2zCd` 与
+  `699fbe6` / `dpl_J6vtHUqfkstdGZ5w1yZJyVbhF6Yc`；历史 Phase 81 默认 16/9 合同不改写。最终只读身份
+  收口除账号合同外还要求 ordinary invitation 总数精确为一且唯一行 consumed；出现第二邀请时不得报告完成。
 
 ## 2026-08-28：Hosted DeepSeek executor membership 按 PostgreSQL 17 creator-control 校准
 

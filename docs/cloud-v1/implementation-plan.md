@@ -2051,8 +2051,9 @@ completion 当时运行；API→Web one-shot 仍是另行完成的双关闭证�
    applied-exact postflight；历史 DeepSeek evidence 不进入该批次。真实 backup/status/dry-run/apply、部署与
    邮件仍须分别批准，未执行前该恢复路线只算本地实现；
 5. **独立部署与六位 OTP journey**：Phase 92 复用既有串行部署状态机，但使用独立
-   `phase-92-0022-state.json`；Phase 81 状态只读共存。先完成 API arm/observe/disarm/verify，再完成 Web
-   arm/observe/disarm/verify，每个 commit/push 单独批准。双关闭后只发送一次新六位 ASCII OTP，证明
+   `phase-92-0022-state.json`；Phase 81 状态只读共存。preflight 固定重验 Phase 91 终态 API/Web
+   17/10 非 Canceled baseline 与对应 latest deployment identity，不复用历史 Phase 81 的 16/9 固定输入。
+   先完成 API arm/observe/disarm/verify，再完成 Web arm/observe/disarm/verify，每个 commit/push 单独批准。双关闭后只发送一次新六位 ASCII OTP，证明
    scanner/repeated GET 零副作用、显式 POST、Web 落点、密码重登以及 invitation/user/identity 唯一性；
    最终只读 snapshot 必须返回 `account_finalized_exact|t` 与 `safe_route_state|account-established`，且
    finalization 精确要求普通邀请总数为一、唯一邀请 consumed；

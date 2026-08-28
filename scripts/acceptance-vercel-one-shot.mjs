@@ -42,6 +42,7 @@ function normalizeArguments(arguments_) {
 export async function runVercelOneShotCli({
   arguments_ = process.argv.slice(2),
   environment = process.env,
+  expectedBaselines,
   fetch_ = globalThis.fetch,
   inspectGit_ = inspectVercelOneShotGit,
   readSnapshot_ = readVercelOneShotSnapshot,
@@ -67,10 +68,16 @@ export async function runVercelOneShotCli({
   try {
     const state = await stateStore.read();
     if ((stage === "preflight") !== (state === undefined)) throw new Error("invalid state");
-    if (state !== undefined) validateVercelOneShotStoredState(state, stage);
+    if (state !== undefined) validateVercelOneShotStoredState(state, stage, expectedBaselines);
     const git = await inspectGit_({ repositoryRoot });
     const snapshot = await readSnapshot_({ fetch_, token: environment.VERCEL_TOKEN });
-    const nextState = advanceVercelOneShotState({ git, snapshot, stage, state });
+    const nextState = advanceVercelOneShotState({
+      expectedBaselines,
+      git,
+      snapshot,
+      stage,
+      state,
+    });
     await stateStore.write(nextState);
     writeOutput(`Hosted Vercel one-shot gate passed: ${stage}.\n`);
     return 0;

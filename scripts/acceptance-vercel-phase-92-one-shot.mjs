@@ -18,6 +18,18 @@ const stages = new Set([
 
 export const phase92VercelOneShotConfirmation =
   "--confirm-hosted-vercel-phase-92-0022-serial-one-shot-neil0619s-projects";
+export const phase92VercelOneShotBaselines = Object.freeze({
+  api: Object.freeze({
+    count: 17,
+    latestCommit: "da733e172cc5859a4b9aea61c2e87a239e6843ed",
+    latestDeploymentId: "dpl_AWUiTdYGgmVHZ127xqGAVhQb2zCd",
+  }),
+  web: Object.freeze({
+    count: 10,
+    latestCommit: "699fbe6c134c0b83347e0de3ce7c76dc4d520790",
+    latestDeploymentId: "dpl_J6vtHUqfkstdGZ5w1yZJyVbhF6Yc",
+  }),
+});
 
 function normalizeArguments(arguments_) {
   if (arguments_.length === 3 && arguments_[1] === "--") {
@@ -31,9 +43,9 @@ export function renderPhase92VercelOneShotPlan() {
     "Hosted Phase 92 Vercel API/Web serial one-shot gate (zero write plan)",
     "Independent state: artifacts/hosted-vercel-one-shot/phase-92-0022-state.json.",
     "Phase 81 state remains immutable and may coexist in the same private directory.",
-    "The current 16 API / 9 Web non-Canceled baseline is reverified before Phase 92 starts.",
+    "The Phase 91 terminal 17 API / 10 Web non-Canceled baseline is reverified before Phase 92 starts.",
     "Each API/Web arm and disarm remains a separately approved commit and push.",
-    renderVercelOneShotPlan(),
+    renderVercelOneShotPlan(phase92VercelOneShotBaselines),
   ].join("\n");
 }
 
@@ -59,6 +71,7 @@ export async function runPhase92VercelOneShotCli({
   return runVercelOneShotCli({
     ...dependencies,
     arguments_: [stage, vercelOneShotConfirmation],
+    expectedBaselines: phase92VercelOneShotBaselines,
     repositoryRoot,
     stateStore:
       stateStore ??

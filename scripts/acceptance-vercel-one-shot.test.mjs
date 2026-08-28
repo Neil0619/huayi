@@ -102,6 +102,36 @@ test("one-shot plan is fixed, offline, and explicit about the serial fail-closed
   });
 });
 
+test("baseline adapters must preserve the exact fixed contract shape", () => {
+  for (const expectedBaselines of [
+    {},
+    {
+      api: { ...expectedVercelOneShotBaselines.api, count: 0 },
+      web: expectedVercelOneShotBaselines.web,
+    },
+    {
+      api: expectedVercelOneShotBaselines.api,
+      web: { ...expectedVercelOneShotBaselines.web, latestCommit: "wrong" },
+    },
+    {
+      api: expectedVercelOneShotBaselines.api,
+      extra: {},
+      web: expectedVercelOneShotBaselines.web,
+    },
+  ]) {
+    assert.throws(
+      () =>
+        advanceVercelOneShotState({
+          expectedBaselines,
+          git: gitState(),
+          snapshot: snapshot(),
+          stage: "preflight",
+        }),
+      /Hosted Vercel one-shot contract failed/u,
+    );
+  }
+});
+
 test("state machine enforces API then Web with independent disarms and no extra deployment", () => {
   const preflight = advanceVercelOneShotState({
     git: gitState(),

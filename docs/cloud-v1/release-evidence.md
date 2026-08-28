@@ -2956,6 +2956,13 @@ typecheck、architecture、build、development blocker、Store release、product
   仍失败关闭。identity snapshot 的 finalization 也已收紧为普通邀请总数精确为一且唯一邀请 consumed；新增
   PGlite 回归证明即使账号/profile/password/quota 其余条件齐全，出现第二张普通邀请仍返回
   `account_finalized_exact|f` 与 `safe_route_state|stop-inconsistent`；
+- **部署前基线校准（2026-08-29）**：脱敏只读诊断确认短期 Team-scoped credential、唯一 Team 与两个固定
+  project 合同精确，五个 Vercel GET 均为 200；两项目 disarmed、无 in-flight、latest 均为 Ready。真实
+  非 Canceled 已是 API/Web 17/10，latest 精确匹配 Phase 91 arm `da733e1` /
+  `dpl_AWUiTdYGgmVHZ127xqGAVhQb2zCd` 与 `699fbe6` / `dpl_J6vtHUqfkstdGZ5w1yZJyVbhF6Yc`。原 Phase 92
+  wrapper 错把历史 16/9 默认合同当作当前输入，故只在 baseline 门失败；该次诊断没有写 one-shot state、
+  没有 arm/disarm 或创建 deployment。修复让 Phase 92 固定 adapter 贯穿 preflight 与后续 persisted-state
+  transition，同时保留历史共享 16/9 合同不变；
 - **Fresh 本机证据**：Phase 92 migration focused 22/22；identity/deployment 组合门 58/58，与
   DeepSeek/Phase 91/important-batch 相邻回归 132/132；完整 `pnpm verify:macos` 原样退出 0，覆盖 scripts
   732/732、主 Vitest 341 files / 2,388 passed / 12 skipped、

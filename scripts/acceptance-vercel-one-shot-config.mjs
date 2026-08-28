@@ -11,12 +11,12 @@ export const expectedVercelOneShotBaselines = Object.freeze({
   }),
 });
 
-export function renderVercelOneShotPlan() {
+export function renderVercelOneShotPlan(baselines = expectedVercelOneShotBaselines) {
   return [
     "Hosted Vercel API/Web serial one-shot gate (read-only remote verification)",
     "Configured baseline:",
-    "- API non-Canceled baseline: 16",
-    "- Web non-Canceled baseline: 9",
+    `- API non-Canceled baseline: ${baselines.api.count}`,
+    `- Web non-Canceled baseline: ${baselines.web.count}`,
     "Required sequence:",
     "- preflight: clean exact upstream commit; both projects disarmed; exact baseline; zero in-flight",
     "- API arm -> exactly one non-Canceled deployment -> independent API disarm -> Ready and zero extra non-Canceled deployment",

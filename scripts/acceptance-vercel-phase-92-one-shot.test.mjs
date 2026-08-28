@@ -6,16 +6,30 @@ import { test } from "node:test";
 
 import {
   phase92VercelOneShotConfirmation,
+  phase92VercelOneShotBaselines,
   renderPhase92VercelOneShotPlan,
   runPhase92VercelOneShotCli,
 } from "./acceptance-vercel-phase-92-one-shot.mjs";
 import { createVercelOneShotStateStore } from "./acceptance-vercel-one-shot-state.mjs";
 
 const candidate = "1111111111111111111111111111111111111111";
+const apiArm = "2222222222222222222222222222222222222222";
 const token = "vercel-phase-92-test-token";
+const historicalBaselines = {
+  api: {
+    count: 16,
+    latestCommit: "4f1ce4a458fe138aeee6fb455b2dcc398a55555a",
+    latestDeploymentId: "dpl_6QeRbqxgA88cFXggKekkr2axH9JM",
+  },
+  web: {
+    count: 9,
+    latestCommit: "9b0860a91940e4f78968b3882af91ef5bf923b8a",
+    latestDeploymentId: "dpl_V3NzjTYXtH7fb3WC2P6hpWR1twhb",
+  },
+};
 
-function deployment({ createdAt, id, project, sha }) {
-  return { createdAt, id, project, sha, state: "READY" };
+function deployment({ createdAt, id, project, sha, state = "READY" }) {
+  return { createdAt, id, project, sha, state };
 }
 
 function history(project, count, latest) {
@@ -33,6 +47,31 @@ function history(project, count, latest) {
 }
 
 function baselineSnapshot() {
+  return {
+    api: history(
+      "api",
+      17,
+      deployment({
+        createdAt: 100,
+        id: "dpl_AWUiTdYGgmVHZ127xqGAVhQb2zCd",
+        project: "api",
+        sha: "da733e172cc5859a4b9aea61c2e87a239e6843ed",
+      }),
+    ),
+    web: history(
+      "web",
+      10,
+      deployment({
+        createdAt: 100,
+        id: "dpl_J6vtHUqfkstdGZ5w1yZJyVbhF6Yc",
+        project: "web",
+        sha: "699fbe6c134c0b83347e0de3ce7c76dc4d520790",
+      }),
+    ),
+  };
+}
+
+function historicalBaselineSnapshot() {
   return {
     api: history(
       "api",
@@ -57,17 +96,23 @@ function baselineSnapshot() {
   };
 }
 
-function gitState() {
+function gitState({
+  apiArmed = false,
+  changedFile = null,
+  commit = candidate,
+  parent = null,
+  webArmed = false,
+} = {}) {
   return {
-    apiArmed: false,
+    apiArmed,
     apiConfigIdentity: "a".repeat(64),
     branch: "codex/settings-configuration",
-    changedFiles: [],
+    changedFiles: changedFile === null ? [] : [changedFile],
     clean: true,
-    commit: candidate,
-    parent: null,
-    upstreamCommit: candidate,
-    webArmed: false,
+    commit,
+    parent,
+    upstreamCommit: commit,
+    webArmed,
     webConfigIdentity: "b".repeat(64),
   };
 }
@@ -144,30 +189,91 @@ test("Phase 92 plan is zero-I/O and names its independent immutable state", asyn
   assert.equal(stdout, renderPhase92VercelOneShotPlan());
   assert.match(stdout, /phase-92-0022-state\.json/u);
   assert.match(stdout, /Phase 81 state remains immutable/u);
+  assert.match(stdout, /17 API \/ 10 Web non-Canceled baseline/u);
+  assert.doesNotMatch(stdout, /16 API \/ 9 Web non-Canceled baseline/u);
 });
 
-test("Phase 92 preflight uses the shared state machine behind its own confirmation", async () => {
-  let written;
+test("Phase 92 pins the Phase 91 terminal baseline through persisted transitions", async () => {
+  assert.deepEqual(phase92VercelOneShotBaselines, {
+    api: {
+      count: 17,
+      latestCommit: "da733e172cc5859a4b9aea61c2e87a239e6843ed",
+      latestDeploymentId: "dpl_AWUiTdYGgmVHZ127xqGAVhQb2zCd",
+    },
+    web: {
+      count: 10,
+      latestCommit: "699fbe6c134c0b83347e0de3ce7c76dc4d520790",
+      latestDeploymentId: "dpl_J6vtHUqfkstdGZ5w1yZJyVbhF6Yc",
+    },
+  });
+  let state;
   let stdout = "";
-  const code = await runPhase92VercelOneShotCli({
+  const stateStore = {
+    read: async () => state,
+    write: async (value) => {
+      state = value;
+    },
+  };
+  const preflightCode = await runPhase92VercelOneShotCli({
     arguments_: ["preflight", phase92VercelOneShotConfirmation],
     environment: { VERCEL_TOKEN: token },
+    expectedBaselines: historicalBaselines,
     inspectGit_: async () => gitState(),
     readSnapshot_: async () => baselineSnapshot(),
-    stateStore: {
-      read: async () => undefined,
-      write: async (state) => {
-        written = state;
-      },
-    },
+    stateStore,
     writeOutput: (value) => {
       stdout += value;
     },
   });
-  assert.equal(code, 0);
-  assert.equal(written.phase, "preflight-passed");
-  assert.equal(written.candidateCommit, candidate);
+  assert.equal(preflightCode, 0);
+  assert.equal(state.phase, "preflight-passed");
+  assert.equal(state.candidateCommit, candidate);
   assert.equal(stdout, "Hosted Phase 92 Vercel one-shot gate passed: preflight.\n");
+
+  const baseline = baselineSnapshot();
+  const apiDeployment = deployment({
+    createdAt: 200,
+    id: "dpl_phase92_api_arm",
+    project: "api",
+    sha: apiArm,
+    state: "BUILDING",
+  });
+  const observeCode = await runPhase92VercelOneShotCli({
+    arguments_: ["observe-api-arm", phase92VercelOneShotConfirmation],
+    environment: { VERCEL_TOKEN: token },
+    inspectGit_: async () =>
+      gitState({
+        apiArmed: true,
+        changedFile: "apps/api/vercel.json",
+        commit: apiArm,
+        parent: candidate,
+      }),
+    readSnapshot_: async () => ({
+      api: [apiDeployment, ...baseline.api],
+      web: baseline.web,
+    }),
+    stateStore,
+  });
+  assert.equal(observeCode, 0);
+  assert.equal(state.phase, "api-arm-observed");
+});
+
+test("Phase 92 rejects the historical 16/9 baseline without writing state", async () => {
+  let written = false;
+  const code = await runPhase92VercelOneShotCli({
+    arguments_: ["preflight", phase92VercelOneShotConfirmation],
+    environment: { VERCEL_TOKEN: token },
+    inspectGit_: async () => gitState(),
+    readSnapshot_: async () => historicalBaselineSnapshot(),
+    stateStore: {
+      read: async () => undefined,
+      write: async () => {
+        written = true;
+      },
+    },
+  });
+  assert.equal(code, 1);
+  assert.equal(written, false);
 });
 
 test("Phase 92 rejects the historical confirmation before local or remote work", async () => {

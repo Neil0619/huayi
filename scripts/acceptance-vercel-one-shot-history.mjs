@@ -97,9 +97,37 @@ function sameDeployment(left, right, { mutableState = false } = {}) {
   );
 }
 
-export function assertVercelOneShotFixedBaseline(snapshot) {
+export function assertVercelOneShotBaselines(baselines) {
+  if (!hasExactKeys(baselines, ["api", "web"])) fail();
   for (const project of ["api", "web"]) {
-    const expected = expectedVercelOneShotBaselines[project];
+    const expected = baselines[project];
+    if (
+      !hasExactKeys(expected, ["count", "latestCommit", "latestDeploymentId"]) ||
+      !Number.isSafeInteger(expected.count) ||
+      expected.count < 1 ||
+      typeof expected.latestDeploymentId !== "string" ||
+      !/^dpl_[A-Za-z0-9_-]{3,128}$/u.test(expected.latestDeploymentId)
+    ) {
+      fail();
+    }
+    assertVercelOneShotCommit(expected.latestCommit);
+  }
+}
+
+export function assertVercelOneShotFixedBaseline(
+  snapshot,
+  expectedBaselines = expectedVercelOneShotBaselines,
+) {
+  assertVercelOneShotBaselines(expectedBaselines);
+  if (
+    !hasExactKeys(snapshot, ["api", "web"]) ||
+    !Array.isArray(snapshot.api) ||
+    !Array.isArray(snapshot.web)
+  ) {
+    fail();
+  }
+  for (const project of ["api", "web"]) {
+    const expected = expectedBaselines[project];
     const nonCanceled = snapshot[project].filter(({ state }) => state !== "CANCELED");
     if (
       nonCanceled.length !== expected.count ||

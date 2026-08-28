@@ -1370,6 +1370,11 @@ idempotency_records`，修复后覆盖创建、练习、历史、删除、词典
   另验证 canonical atomic、`0700/0600`、篡改权限失败，以及损坏 state 在 Git/environment/remote read 前失败。
   该测试不访问 Vercel、不 arm/disarm、不部署。
 
+- Phase 92 在同一状态机 interface 上使用独立的固定 baseline adapter：API/Web 非 Canceled 为 17/10，
+  latest 精确绑定 Phase 91 的两条 Ready deployment。wrapper 回归同时覆盖 preflight、持久化 state 后的
+  API arm transition、旧 16/9 输入失败且不写 state，以及调用方不能把 Phase 92 的固定 adapter 替换为历史
+  baseline；共享 Phase 81 默认合同与测试继续保持 16/9。全部使用 fake Git/snapshot/state，无 Vercel I/O。
+
 - Cloud Web 工作台重设计合并后，必须重新执行完整 macOS 门禁和受控 Hosted 部署：先确认 API/Web
   均为 disarmed，再只 arm Web 并等待唯一 deployment 进入终态，随后以独立提交 disarm；disarm
   不得产生第二条 non-canceled deployment，API 全程不得 armed。部署后至少实测 `/practice` 与

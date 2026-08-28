@@ -64,7 +64,7 @@ function assertTransitionCommit(git, { changedFile, parent }) {
   }
 }
 
-function assertState(state, phase) {
+function assertState(state, phase, expectedBaselines) {
   const phaseKeys = {
     "api-arm-observed": [
       "apiArmCommit",
@@ -145,7 +145,7 @@ function assertState(state, phase) {
   assertVercelOneShotHistory(state.baseline.web, "web");
   assertVercelOneShotHistory(state.audits.api, "api", { allowEmpty: true, canceledOnly: true });
   assertVercelOneShotHistory(state.audits.web, "web", { allowEmpty: true, canceledOnly: true });
-  assertVercelOneShotFixedBaseline(state.baseline);
+  assertVercelOneShotFixedBaseline(state.baseline, expectedBaselines);
   if (phase !== "preflight-passed") {
     assertVercelOneShotCommit(state.apiArmCommit);
     assertVercelOneShotDeployment(state.apiDeployment, "api");
@@ -239,10 +239,10 @@ function mergeAudits(state, snapshot, additions) {
   return merged;
 }
 
-function preflight({ git, snapshot }) {
+function preflight({ expectedBaselines, git, snapshot }) {
   assertGitPolicy(git, { apiArmed: false, webArmed: false });
   assertVercelOneShotSnapshot(snapshot);
-  assertVercelOneShotFixedBaseline(snapshot);
+  assertVercelOneShotFixedBaseline(snapshot, expectedBaselines);
   return {
     audits: { api: [], web: [] },
     baseline: {
@@ -256,8 +256,8 @@ function preflight({ git, snapshot }) {
   };
 }
 
-function observeApiArm({ git, snapshot, state }) {
-  assertState(state, "preflight-passed");
+function observeApiArm({ expectedBaselines, git, snapshot, state }) {
+  assertState(state, "preflight-passed", expectedBaselines);
   assertGitPolicy(git, { apiArmed: true, webArmed: false });
   assertConfigIdentities(git, state);
   assertTransitionCommit(git, {
@@ -281,8 +281,8 @@ function observeApiArm({ git, snapshot, state }) {
   };
 }
 
-function verifyApiDisarm({ git, snapshot, state }) {
-  assertState(state, "api-arm-observed");
+function verifyApiDisarm({ expectedBaselines, git, snapshot, state }) {
+  assertState(state, "api-arm-observed", expectedBaselines);
   assertGitPolicy(git, { apiArmed: false, webArmed: false });
   assertConfigIdentities(git, state);
   assertTransitionCommit(git, {
@@ -309,8 +309,8 @@ function verifyApiDisarm({ git, snapshot, state }) {
   };
 }
 
-function observeWebArm({ git, snapshot, state }) {
-  assertState(state, "api-disarm-verified");
+function observeWebArm({ expectedBaselines, git, snapshot, state }) {
+  assertState(state, "api-disarm-verified", expectedBaselines);
   assertGitPolicy(git, { apiArmed: false, webArmed: true });
   assertConfigIdentities(git, state);
   assertTransitionCommit(git, {
@@ -335,8 +335,8 @@ function observeWebArm({ git, snapshot, state }) {
   };
 }
 
-function verifyWebDisarm({ git, snapshot, state }) {
-  assertState(state, "web-arm-observed");
+function verifyWebDisarm({ expectedBaselines, git, snapshot, state }) {
+  assertState(state, "web-arm-observed", expectedBaselines);
   assertGitPolicy(git, { apiArmed: false, webArmed: false });
   assertConfigIdentities(git, state);
   assertTransitionCommit(git, {
@@ -370,16 +370,17 @@ const priorPhases = Object.freeze({
   "verify-web-disarm": "web-arm-observed",
 });
 
-export function validateVercelOneShotStoredState(state, stage) {
+export function validateVercelOneShotStoredState(state, stage, expectedBaselines) {
   if (!Object.hasOwn(priorPhases, stage)) fail();
-  assertState(state, priorPhases[stage]);
+  assertState(state, priorPhases[stage], expectedBaselines);
 }
 
-export function advanceVercelOneShotState({ git, snapshot, stage, state }) {
-  if (stage === "preflight" && state === undefined) return preflight({ git, snapshot });
-  if (stage === "observe-api-arm") return observeApiArm({ git, snapshot, state });
-  if (stage === "verify-api-disarm") return verifyApiDisarm({ git, snapshot, state });
-  if (stage === "observe-web-arm") return observeWebArm({ git, snapshot, state });
-  if (stage === "verify-web-disarm") return verifyWebDisarm({ git, snapshot, state });
+export function advanceVercelOneShotState({ expectedBaselines, git, snapshot, stage, state }) {
+  const input = { expectedBaselines, git, snapshot, state };
+  if (stage === "preflight" && state === undefined) return preflight(input);
+  if (stage === "observe-api-arm") return observeApiArm(input);
+  if (stage === "verify-api-disarm") return verifyApiDisarm(input);
+  if (stage === "observe-web-arm") return observeWebArm(input);
+  if (stage === "verify-web-disarm") return verifyWebDisarm(input);
   fail();
 }
