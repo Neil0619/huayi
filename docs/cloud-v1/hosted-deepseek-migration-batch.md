@@ -1,11 +1,13 @@
 # Hosted DeepSeek 0016–0021 migration batch
 
-状态：离线控制面已实现，真实 Hosted 操作未执行。受影响平台为 `shared + macOS operator tooling`；
-Windows 只运行 secret-free contract/CI，本阶段不新增 Windows OS integration。Phase E/F 已冻结在
-`d9ffb4a03c984d2f94c37031660a146068f31a3a`，其
-Cross-platform quality run `33076976013` 的 macOS/Windows job 均成功。本文件描述的是后续 21-file
-migration batch；当前未提交工作树没有新的 exact SHA，也没有授权任何 Hosted status、backup、rebuild、
-dry-run、apply 或 Phase G private loader。
+状态：离线控制面已实现，真实 Hosted migration 未执行。受影响平台为 `shared + macOS operator tooling`；
+Windows 只运行 secret-free contract/CI，本阶段不新增 Windows OS integration。0016–0021 控制面已冻结在
+`703bd05482c32249b99d46afad474c59eca2fa13`，Cross-platform quality run `33082883156` 的
+macOS/Windows job 均成功；dry-run notifier 修复 `4c20d4582ba7601cf4f9a42e936fdfb72492e894`
+也由 run `33091862839` 双平台关闭。随后 immutable retirement 控制面提交
+`691730c9080b8be0b206c86b666a1498b8342cf7` 的 run `33096064279` 为 macOS success、Windows failure；
+失败只落在测试夹具未规范化 Windows 权限位；修复已纳入本次候选并通过完整 macOS 门，replacement exact-SHA
+CI 尚未运行。真实 retirement、migration apply、post capture/completion 与 Phase G private loader 均未执行或授权。
 
 ## 1. 为什么必须先做本批次
 

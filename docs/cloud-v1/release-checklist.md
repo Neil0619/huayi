@@ -118,10 +118,14 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       Web/Operator/付费/账单/kill-switch restore 门也均保持未勾选；
 - [ ] Hosted DeepSeek Phase E/F 已在 `d9ffb4a03c984d2f94c37031660a146068f31a3a` 推送，exact-SHA
       Cross-platform quality run `33076976013` 的 macOS/Windows 两 job 均 success。后续独立 21-file
-      recovery/migration 控制面已用 Fresh RED→GREEN 固定新 batch、pre/rebuild/post evidence、三态 status、
-      six-file dry-run 与 guarded apply，但仍是未提交工作树，没有该阶段 exact-SHA CI；真实
-      backup/rebuild/status/dry-run/apply 和经批准 private-port loader 均未执行，也未运行真实 Web session、
-      付费请求、账本对账或 kill-switch restore，因此发布门保持未勾选；
+      recovery/migration 控制面 `703bd05482c32249b99d46afad474c59eca2fa13` 已由 run `33082883156`
+      双平台关闭，dry-run notifier 修复 `4c20d4582ba7601cf4f9a42e936fdfb72492e894` 也由 run
+      `33091862839` 双平台关闭。immutable retirement 提交
+      `691730c9080b8be0b206c86b666a1498b8342cf7` 的 run `33096064279` 为 macOS success、Windows
+      test-fixture failure；不放宽 production `0700/0600` 门的修复已纳入本次候选并通过完整 macOS 验证，仍待
+      replacement exact-SHA Windows CI。真实 retirement、migration apply/post backup/completion、经批准
+      private-port loader、Web session、付费请求、账本对账与 kill-switch restore 均未完成，因此发布门保持
+      未勾选；
 - [ ] Windows Node.js 26+ 的 `pnpm verify:windows`、SEA health 与 CI 全绿；Phase 37-B 已在 Windows 11
       build 26220、Node.js 26.7.0 上本地退出 0，109/109 Playwright、SEA 仓库外 health 与 production
       audit 全绿；完整门证据提交 `3aa143c7f60ba52a941f2a2db587bc93819427eb` 已普通 push，但分支无

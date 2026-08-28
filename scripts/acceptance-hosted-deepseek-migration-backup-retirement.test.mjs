@@ -1,16 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import {
-  chmod,
-  lstat,
-  mkdir,
-  mkdtemp,
-  readFile,
-  readdir,
-  rm,
-  symlink,
-  writeFile,
-} from "node:fs/promises";
+import { lstat, mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test from "node:test";
@@ -28,6 +18,7 @@ import {
   hostedDeepseekMigrationBackupId,
 } from "./acceptance-hosted-deepseek-migration-backup.mjs";
 import { hostedAcceptanceProjectRef } from "./acceptance-hosted-foundation.mjs";
+import { createEvidenceTestIo } from "./acceptance-hosted-test-evidence-io.mjs";
 
 const currentCommit = "0123456789abcdef0123456789abcdef01234567";
 const staleCommit = "fedcba9876543210fedcba9876543210fedcba98";
@@ -84,14 +75,14 @@ async function createFixture() {
   const rebuild = join(activeBatch, "rebuild");
   await mkdir(pre, { mode: 0o700, recursive: true });
   await mkdir(rebuild, { mode: 0o700 });
-  await chmod(dirname(activeBatch), 0o700);
-  await chmod(activeBatch, 0o700);
   const backup = preManifest();
   await writeFile(join(pre, "database.dump"), backup.dump, { mode: 0o600 });
   await writeFile(join(pre, "backup-manifest.json"), canonical(backup.document), { mode: 0o600 });
   await writeFile(join(rebuild, "rebuild-verification.json"), canonical(rebuildManifest()), {
     mode: 0o600,
   });
+  const modeOverrides = new Map();
+  const evidenceIo = createEvidenceTestIo(modeOverrides);
   const state = {
     activeRootIgnored: true,
     candidateCommit: currentCommit,
@@ -99,7 +90,7 @@ async function createFixture() {
     upstreamExact: true,
     worktreeClean: true,
   };
-  return { activeBatch, pre, rebuild, root, state };
+  return { activeBatch, evidenceIo, modeOverrides, pre, rebuild, root, state };
 }
 
 function retainedPaths(fixture) {
@@ -128,6 +119,7 @@ async function exists(path) {
 async function retire(fixture, overrides = {}) {
   return retireHostedDeepseekMigrationBackup({
     ...portableFilesystemOptions,
+    evidenceIo: fixture.evidenceIo,
     readRepositoryState: async () => fixture.state,
     repositoryRoot: fixture.root,
     verifyHistoricalCommit: async () => true,
@@ -138,6 +130,7 @@ async function retire(fixture, overrides = {}) {
 test("retirement atomically retains stale pre and rebuild as one strict historical unit", async () => {
   const fixture = await createFixture();
   try {
+    assert.equal((await fixture.evidenceIo.lstat(fixture.activeBatch)).mode & 0o777, 0o700);
     const originalPre = await readFile(join(fixture.pre, "backup-manifest.json"), "utf8");
     const originalRebuild = await readFile(
       join(fixture.rebuild, "rebuild-verification.json"),
@@ -157,7 +150,7 @@ test("retirement atomically retains stale pre and rebuild as one strict historic
       originalRebuild,
     );
     for (const directory of [retained.candidateRoot, retained.retainedBatch]) {
-      assert.equal((await lstat(directory)).mode & 0o777, 0o700);
+      assert.equal((await fixture.evidenceIo.lstat(directory)).mode & 0o777, 0o700);
     }
   } finally {
     await rm(fixture.root, { force: true, recursive: true });
@@ -204,7 +197,7 @@ test("retirement rejects current, mixed, malformed, post-present, extra, and sym
 
 test("retirement rejects unsafe permissions, occupied history, and unsafe repository state", async () => {
   const cases = [
-    async (fixture) => chmod(join(fixture.pre, "backup-manifest.json"), 0o644),
+    async (fixture) => fixture.modeOverrides.set(join(fixture.pre, "backup-manifest.json"), 0o644),
     async (fixture) =>
       mkdir(retainedPaths(fixture).candidateRoot, { mode: 0o700, recursive: true }),
     async (fixture) => {

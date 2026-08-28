@@ -2039,7 +2039,7 @@ passed; first Operator empty`。候选已提交推送，0012 已实际 push；�
   Cross-platform quality run `33076976013` 的 macOS/Windows 两 job 均 success。该证据不外推到后续
   21-file Hosted migration batch 或 Phase G。
 
-## Cloud V1 Hosted DeepSeek 0016–0021 migration batch 离线状态（2026-08-27）
+## Cloud V1 Hosted DeepSeek 0016–0021 控制面与 Hosted 推进状态（2026-08-27–28）
 
 - 新增独立 `hosted-deepseek-0016-0021` recovery/migration contract：pre 固定 head 0015，networkless rebuild
   与 post 固定完整 21-chain/head 0021；Phase 91 继续精确保持 15-file 历史身份，不能复用或覆盖；
@@ -2055,6 +2055,13 @@ passed; first Operator empty`。候选已提交推送，0012 已实际 push；�
   97 files / 481 tests、Playwright 111/111，以及 instructions/format/lint/typecheck/architecture/build、development
   blocker、Store release、production audit 与 diff check。全部使用 fake process/filesystem 与 PGlite；没有读取
   真实 secret、连接 Hosted、运行 readiness/capture/rebuild/status/dry-run/apply、部署、登录或调用模型；
-- 本阶段当前仍未 commit/push，没有新 exact SHA/双平台 CI。真实动作必须按
-  `hosted-deepseek-migration-batch.md` 逐项取得批准；batch 完成和其他 Auth/R3-C/Cron/预算门关闭前，不得
-  装配或运行 Phase G private loader。
+- 控制面已提交为 `703bd05482c32249b99d46afad474c59eca2fa13`，exact-SHA run `33082883156` 的
+  macOS/Windows job 均 success；随后真实只读状态最终确认 `pending-exact`，一次 six-file dry-run 在 mutation
+  前因 notifier transcript 漂移失败关闭且数据库未修改；
+- notifier 修复 `4c20d4582ba7601cf4f9a42e936fdfb72492e894` 已由 run `33091862839` 的双平台 job
+  关闭。候选推进后 active `pre + rebuild` 成为 strict stale recovery unit，因此新增 immutable retirement
+  控制面 `691730c9080b8be0b206c86b666a1498b8342cf7`；run `33096064279` 的 macOS 成功，Windows 因
+  测试夹具直接读取 NTFS/POSIX 权限位失败；
+- production retirement 权限门保持严格，测试修复已 Fresh RED→GREEN、纳入本次候选并通过完整
+  `pnpm verify:macos`，仍待 replacement exact-SHA Windows CI。真实 retirement、migration apply、post backup/completion
+  均未执行；batch 完成和其他 Auth/R3-C/Cron/预算门关闭前，不得装配或运行 Phase G private loader。

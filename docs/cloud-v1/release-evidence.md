@@ -2845,3 +2845,40 @@ typecheck、architecture、build、development blocker、Store release、product
   commit/push。下一步先 commit/push 并完成该 exact SHA 双平台 CI；之后所有真实命令仍
   按 `hosted-deepseek-migration-batch.md` 逐项明确批准。batch completion 与其他 Auth/R3-C/Cron/预算门关闭前，
   Phase G 保持未实现。
+
+## 111. Hosted DeepSeek 0016–0021 控制面冻结与 notifier 修复（2026-08-28）
+
+- **控制面候选门**：离线 recovery/migration 控制面已提交为
+  `703bd05482c32249b99d46afad474c59eca2fa13`；Cross-platform quality run `33082883156` 的
+  `macos-quality` 与 `windows-quality` 均 success，关闭第 110 节当时的未提交/双平台 CI 缺口；
+- **真实只读状态边界**：Hosted status 首次返回 `uncertain` 后停止 apply；0015 独立 status 为
+  `applied-exact`，pending-state 脱敏只读诊断证明 executor role、authority/cleanup table 与全部 0016–0021
+  private function 均 absent，随后固定 status 返回 `pending-exact`。这些动作没有写数据库；
+- **dry-run 失败关闭与修复**：经批准的 six-file dry-run 在 mutation 前因 Supabase update notifier transcript
+  漂移失败关闭，固定输出明确数据库未修改。notifier parser 修复提交
+  `4c20d4582ba7601cf4f9a42e936fdfb72492e894`，exact-SHA run `33091862839` 的 macOS/Windows job
+  均 success；该证据只关闭 parser/CI，不替代重新执行 dry-run；
+- **剩余边界**：真实 migration apply、postflight、post backup/completion 与 Phase G 均未执行。候选变化使
+  active `pre + rebuild` 成为 strict stale unit，不能覆盖或重捕，必须先走下一节不可变退役生命周期。
+
+## 112. Hosted DeepSeek immutable retirement 与 Windows fixture 修复（2026-08-28）
+
+- **不可变控制面**：提交 `691730c9080b8be0b206c86b666a1498b8342cf7` 新增专用 exact-confirmation
+  retirement；只接受 clean pushed HEAD 下同一历史祖先 commit 的 strict stale `pre + rebuild`，把整个 active
+  batch 原子 rename 到不可覆盖 history，fsync 两侧并严格复验。current/mixed/post/unknown/symlink、权限、
+  Git 漂移、non-ancestor 或 occupied destination 全部在 mutation 前失败关闭；
+- **首次 exact-SHA CI**：Cross-platform quality run `33096064279` 的 `head_sha` 精确为上述提交；
+  `macos-quality` success，`windows-quality` failure。Windows 的两个失败都先落在测试夹具对真实权限位的读取：
+  happy path 在 `assertPrivateDirectory` 提前拒绝，missing/non-ancestor case 因同一前置失败未调用历史 commit
+  verifier；没有运行 retirement、Hosted、TTY、密码、Docker 或网络；
+- **Fresh RED → GREEN 修复**：本地新增夹具合同断言，首次因 `fixture.evidenceIo` 缺失稳定失败；最小修复抽出
+  23 行 canonical evidence test I/O，为目录/文件提供 `0700/0600` 规范视图并保留 per-path unsafe override，
+  production verifier 和 retirement 脚本未改动。修复后 retirement 9/9、相邻 batch/0014 retirement 12/12、
+  format/lint/typecheck/architecture 与完整 `pnpm verify:macos` 均通过，后者含 Playwright 111/111 和 production
+  dependency audit；
+- **本地 evidence 回读**：修复与文档校准后重新运行 bounded `backup:status`，固定输出为 pre/rebuild
+  `present=true`、`valid=true`、`current=false`，post 三项均 false。该只读快照证明 stale unit 未被移动、覆盖或
+  删除；当前工作树非 clean，因此它不授权 retirement，也不能被用作 current preflight evidence；
+- **当前边界**：测试修复已纳入本次候选，replacement exact-SHA Windows CI 仍缺失；真实 retirement 也未
+  执行。完成 replacement 双平台门后，仍需单独批准真实 retirement，再为当前候选重建 pre/rebuild，不能
+  把本节离线或 CI 证据当成 Hosted migration apply 授权。
