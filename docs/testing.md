@@ -34,6 +34,15 @@ ignore/non-ancestor 拒绝，以及任一故障后 active/history 至少一侧�
 HEAD/upstream/status/check-ignore、commit existence 与 ancestor 检查；测试不得读取 TTY/secret、启动 Hosted
 child、运行 capture/rebuild/preflight/migration status/dry-run/apply 或产生网络 I/O。
 
+Hosted DeepSeek post-apply status diagnostic 的默认测试只使用 fake CA/password/process 与 PGlite。回归必须
+证明固定 package 入口、transaction pooler `6543`、`connect_timeout=10`、30 秒上限、`BEGIN READ ONLY` /
+`ROLLBACK`、严格有序 allowlist parser 和 setup failure stage；真实 catalog 场景必须区分 15-chain pending、
+仅 0016 partial、完整 21-chain applied 与角色漂移。角色回归必须证明零 membership 与唯一
+`postgres`→executor `admin=true / inherit=false / set=false` creator-control 均可通过，而 `SET=true`、
+`INHERIT=true`、错误 ADMIN、其他 member、executor 作为 member 或重复相关边均失败关闭。诊断必须分别输出
+membership absence 与 contract exact 布尔叶；任一 raw stdout/stderr、异常、密码、URL、OID 或未知角色都不得
+进入公开输出；默认门禁不得连接 Hosted，真实诊断仍需独立批准和隐藏 TTY。
+
 非 Windows 的根 Vitest 门按固定顺序分成两个进程：先用 `--project=!api --maxWorkers 4` 运行
 非 API projects，再用 `--project api --maxWorkers 2 --testTimeout 15000 --hookTimeout 15000`
 单独运行 PGlite 密集的 API tests。这个局部资源和超时预算不改变断言、重试或全局 Playwright

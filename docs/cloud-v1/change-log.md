@@ -3,6 +3,20 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-28：Hosted DeepSeek executor membership 按 PostgreSQL 17 creator-control 校准
+
+- 0016–0021 post-apply 脱敏诊断确认 21-chain、authority objects、RLS、trigger、function contract 与 ACL
+  全部精确，旧 status 唯一失败叶为 executor role 的“零 membership”断言；0016 由非 superuser 且具有
+  CREATEROLE 的 Hosted `postgres` 创建 role，PostgreSQL 17 会自动建立
+  `postgres`→executor 的 `admin=true / inherit=false / set=false` creator-control 边；
+- 该边不授予继承或 `SET ROLE`，且与仓库既有 Hosted foundation membership 合同一致。DeepSeek status
+  改为允许零条或唯一一条上述精确边，并继续拒绝 executor 作为 member、其他 member、重复 grantor、
+  `SET=true`、`INHERIT=true`、错误 ADMIN 或任何额外 membership；
+- 诊断保留 `membership_absent` 事实叶并新增 `membership_contract_exact`，从而能区分合法 creator-control
+  与真实角色图漂移。0016–0021 migration 文件和 Hosted 数据库均不修改，不新增 0022，也不授权 apply
+  重试；修正版真实 status 已另行批准并返回 `applied-exact`，同一 `18ec60f` 候选的 post backup 与整批
+  completion 也已分别通过；
+
 ## 2026-08-28：Hosted DeepSeek stale pre/rebuild 只允许整批不可变退役
 
 - `hosted-deepseek-0016-0021` 的 strict stale `pre + rebuild` 是一个不可拆分恢复单元；禁止删除 dump、覆盖、

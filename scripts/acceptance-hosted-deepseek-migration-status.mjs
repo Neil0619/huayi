@@ -1,5 +1,6 @@
 import { pathToFileURL } from "node:url";
 
+import { renderHostedDeepseekExecutorMembershipContractSql } from "./acceptance-hosted-deepseek-executor-membership.mjs";
 import { readHiddenTerminalLine } from "./acceptance-hosted-important-batch-secret-prompt.mjs";
 import {
   hostedAcceptanceMigrationVersions,
@@ -76,6 +77,7 @@ export function renderHostedDeepseekMigrationStatusSql() {
   const appliedMigrations = sqlTextArray(hostedAcceptanceMigrationVersions);
   const expectedFunctions = sqlTextArray(privateFunctionSignatures);
   const executorFunctions = sqlTextArray(executorFunctionSignatures);
+  const executorMembershipContract = renderHostedDeepseekExecutorMembershipContractSql();
   return `
 BEGIN READ ONLY;
 WITH migration_state AS (
@@ -97,11 +99,7 @@ WITH migration_state AS (
       AND NOT role_entry.rolcanlogin
       AND NOT role_entry.rolreplication
       AND NOT role_entry.rolbypassrls
-      AND NOT EXISTS (
-        SELECT 1
-        FROM pg_auth_members membership
-        WHERE membership.roleid = role_entry.oid OR membership.member = role_entry.oid
-      )
+      AND ${executorMembershipContract}
     ) AS exact
   FROM pg_roles role_entry
   WHERE role_entry.rolname = 'huayi_hosted_acceptance_executor'

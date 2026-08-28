@@ -594,11 +594,16 @@ argv 中的 secret、环境、文件或 TTY，不构造 adapter，也不触发 m
 evidence 不进入新 batch；新 pre 固定 head 0015，21-chain networkless rebuild 与 post 固定 head 0021。
 backup evidence 只写 clone-local `0700/0600` 路径且不可覆盖；capture 继续使用 official CA、verify-full 与
 hidden TTY，rebuild 不读取 Hosted secret。真实 status 只公开 applied/pending/uncertain 三态；applied 还要
-证明 authority role 非特权且零 membership、owner/forced RLS/启用 trigger/SECURITY DEFINER/search path、
-executor allowlist 与任意额外 function/table ACL 均精确。standalone dry-run 和 apply 都在 CA/TTY 前验证
-current evidence 与 Supabase CLI `2.115.0`；apply 在任何 mutation 前两次验证 current evidence/source
-identity，并夹住 exact six-file dry-run 与 read-only pending catalog，写后只接受 applied postflight。未知
-状态、child output 或外部错误不反射，继承密码在本地 gate、CA/TTY/网络前拒绝。本控制面没有装配 Phase G
+证明 authority role 非特权，且不存在可继承、可切换或额外 membership；PostgreSQL 17 可选 creator-control
+边只允许唯一 `postgres`→executor 的 `admin=true / inherit=false / set=false`。owner/forced RLS/启用
+trigger/SECURITY DEFINER/search path、executor allowlist 与任意额外 function/table ACL 均精确。standalone
+dry-run 和 apply 都在 CA/TTY 前验证 current evidence 与 Supabase CLI `2.115.0`；apply 在任何 mutation 前
+两次验证 current evidence/source identity，并夹住 exact six-file dry-run 与 read-only pending catalog，写后
+只接受 applied postflight。未知
+状态、child output 或外部错误不反射，继承密码在本地 gate、CA/TTY/网络前拒绝。post-apply `uncertain`
+只能进入固定脱敏只读 diagnostic：单一 snapshot 按 allowlist 输出 migration prefix、membership
+absence/contract、其余 catalog/ACL 布尔叶和 psql 退出分类，禁止 stderr、raw catalog、OID、未知角色、URL、
+凭据或环境反射；其结论不授权 apply、修复 SQL 或 post backup。本控制面没有装配 Phase G
 keyring/session/Vercel/private query loader，也不新增 HTTP route、Provider 请求或费用能力。
 
 以下不是产品决策，必须以真实环境验证后补入发布材料：Vercel/Supabase 新加坡实际部署与网络延迟、

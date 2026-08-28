@@ -115,6 +115,32 @@ test("DeepSeek migration status classifies exact 15-chain pending and 21-chain a
     }
     assert.equal(await readVerdict(), "applied_exact");
 
+    await database.exec(`
+      GRANT huayi_hosted_acceptance_executor TO postgres
+      WITH ADMIN TRUE, INHERIT FALSE, SET FALSE;
+    `);
+    assert.equal(await readVerdict(), "applied_exact");
+
+    await database.exec(`
+      GRANT huayi_hosted_acceptance_executor TO postgres WITH SET TRUE;
+    `);
+    assert.equal(await readVerdict(), "uncertain");
+    await database.exec(`
+      GRANT huayi_hosted_acceptance_executor TO postgres WITH SET FALSE;
+    `);
+    assert.equal(await readVerdict(), "applied_exact");
+
+    await database.exec(`
+      CREATE ROLE hosted_acceptance_membership_rogue NOLOGIN;
+      GRANT huayi_hosted_acceptance_executor TO hosted_acceptance_membership_rogue
+      WITH ADMIN FALSE, INHERIT FALSE, SET FALSE;
+    `);
+    assert.equal(await readVerdict(), "uncertain");
+    await database.exec(`
+      REVOKE huayi_hosted_acceptance_executor FROM hosted_acceptance_membership_rogue;
+    `);
+    assert.equal(await readVerdict(), "applied_exact");
+
     await database.exec("ALTER ROLE huayi_hosted_acceptance_executor SUPERUSER;");
     assert.equal(await readVerdict(), "uncertain");
     await database.exec("ALTER ROLE huayi_hosted_acceptance_executor NOSUPERUSER;");

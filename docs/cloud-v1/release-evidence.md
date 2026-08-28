@@ -2882,3 +2882,48 @@ typecheck、architecture、build、development blocker、Store release、product
 - **当前边界**：测试修复已纳入本次候选，replacement exact-SHA Windows CI 仍缺失；真实 retirement 也未
   执行。完成 replacement 双平台门后，仍需单独批准真实 retirement，再为当前候选重建 pre/rebuild，不能
   把本节离线或 CI 证据当成 Hosted migration apply 授权。
+
+## 113. Hosted DeepSeek post-apply status 与 PostgreSQL 17 membership 校准（2026-08-28）
+
+- **真实 apply 边界**：后续受控流程已完成新的 pre capture、21-chain isolated rebuild、backup preflight、
+  `pending-exact` status 与 exact six-file dry-run。apply 发出后没有产生 verified completion，执行器固定要求
+  禁止重试；独立 post-apply status 随后返回 `uncertain`，因此没有运行 post capture；
+- **脱敏只读事实**：经批准的新 diagnostic 在单一 `BEGIN READ ONLY` snapshot 中返回 query/output exact，
+  `migration_chain_0021_exact=true`，两张 authority table、receipt、三条 trigger、17 个 private function、owner、
+  forced RLS、search path 与全部 table/function ACL 均精确。唯一失败叶是
+  `executor_role_membership_absent=false`；这证明 0016–0021 已落库，不是 pending 或 partial apply；
+- **根因与 Fresh RED**：0016 由 Hosted 非 superuser CREATEROLE `postgres` 创建 executor role；PostgreSQL 17
+  自动建立 `admin=true / inherit=false / set=false` creator-control 边。仓库既有 foundation 合同已正确允许
+  此边，但 DeepSeek status 后续又使用“任何 membership row 均失败”的旧模型。新增回归先在完整 21-chain
+  加入该精确边，稳定得到实际 `uncertain` 而非预期 `applied-exact`；
+- **最小 GREEN 与反向门**：共享 renderer 现只允许零条或唯一 `postgres`→executor creator-control；诊断保留
+  `membership_absent` 并新增 `membership_contract_exact`。合法边通过，`ADMIN=false`、`INHERIT=true`、
+  `SET=true`、其他 member、executor 作为 member、重复相关边仍失败关闭。0016–0021 API/Supabase migration
+  字节未修改，不新增 0022，也没有运行任何修复 SQL或 Hosted 写入；
+- **修正版真实 status**：经单独批准后，在同一工作区运行固定
+  `pnpm acceptance:hosted:deepseek:migration:status`；隐藏密码完成后唯一公开结果为
+  `Hosted DeepSeek 0016-0021 migration status: applied-exact.`。这证明 Hosted 现状满足 21-chain、authority
+  object、ACL 与可选 creator-control 精确合同；此前一次由不可见终端密码提示引起的本地取消只产生
+  fail-closed `uncertain`，未完成凭据输入、未形成远端结论，也未授权或执行 apply 重试；
+- **post readiness**：经单独批准后，先记录 tracked diff 与六个 untracked source/test 文件的 SHA-256，再把
+  本次改动保存为唯一临时 stash；clean pushed HEAD/upstream 均为
+  `18ec60fce394ed049ac9c1f506508905415bde5c` 时，固定 post readiness 原样返回
+  `Hosted DeepSeek migration post readiness passed.`。随后仅应用该 stash，tracked/untracked 指纹逐项相等后
+  才删除临时项；既有历史 stash 未改动，当前改动已全部恢复；
+- **post capture 与 completion**：经单独批准并再次执行同样的指纹保存流程后，backup status 先证明 pre/
+  rebuild 均 `present=true / valid=true / current=true`、post absent，post readiness 再次通过；固定 capture
+  返回 `Hosted DeepSeek migration post backup captured.`。仍在 clean pushed `18ec60f` 下，随后 status 证明
+  pre/rebuild/post 全部 `present=true / valid=true / current=true`，固定 completion 原样返回
+  `Hosted DeepSeek migration backup completion evidence passed.`；
+- **恢复完整性**：completion 后只应用本次唯一临时 stash；tracked diff SHA-256 仍为
+  `8031ac0aa4bcf6fc9ea50e5cd0ad0bb966166d90ff98e7ceabe15df901ccd1be`，六个 untracked 文件的逐项
+  SHA-256 与保存前完全相等，无 staged diff，确认后才删除该 stash；既有历史 stash
+  `d47a6fe35144ef45cc9cd3c58d5f8759cb95b701` 未改动；
+- **本机完整验证**：focused migration/foundation 49/49、`test:scripts` 702/702、fresh
+  `pnpm verify:macos` 原样退出 0；完整门覆盖主 Vitest 341 files / 2,388 passed / 12 skipped、API 151 files /
+  603 tests、Store coverage 97 files / 481 tests、Playwright 111/111、instructions/format/lint/typecheck/
+  architecture/build、Store release 与 production dependency audit（0 个已知漏洞）；
+- **当前边界**：0016–0021 migration 与 `18ec60f` 的 pre/rebuild/post evidence 已完整关闭；恢复当前修复后，
+  backup status 的 `current=false` 只表示 dirty HEAD，不推翻刚才的 clean-candidate completion，也不得退役、
+  覆盖或重捕该 immutable batch。校准候选尚未 commit/push，exact-SHA macOS/Windows CI 尚未完成；在这些
+  代码门关闭前不得把本节证据扩张为 Phase G loader 或真实模型费用授权。

@@ -2048,11 +2048,14 @@ completion 当时运行；API→Web one-shot 仍是另行完成的双关闭证�
    落点、密码重登以及 invitation/user/identity 唯一性；
 6. **R3-C 与 Cron**：依次关闭真实收件、重复投递、无正文告警，再安装/回读精确五项 Supabase Cron，观察
    两个周期及 401/5xx/timeout 后恢复；
-7. **Cloud DeepSeek**：本地 one-shot control plane 已固定原子 approval/operation、operation/request/owner/
-   idempotency、90 秒应用 deadline、10 秒 cleanup、durable pending cleanup/recovery，以及部署 SHA/ID 与
-   settlement/ledger/post evidence 绑定；CLI 仍只有零 I/O plan，无真实 executor。完成 invitation/Auth 门后，
-   由 recent-auth Operator 受审计关闭 kill switch，仅执行一笔另行批准的真实 Web 应用路径请求，对账模型/
-   usage/价格/UsageLedger/实际账单，并在 timeout 或结算后验证 live restore。该外部门与 exact-SHA Windows
-   CI 均未关闭；
+7. **Cloud DeepSeek**：one-shot production composition 已冻结 `status/execute/recover`，并固定原子
+   approval/operation、operation/request/owner/idempotency、90 秒应用 deadline、10 秒 cleanup、durable
+   pending cleanup/recovery，以及部署 SHA/ID 与 settlement/ledger/post evidence 绑定；Phase G private
+   query/keyring/credential loader 尚未装配，因此 direct package non-plan 入口仍零外部 I/O、零 mutation 失败
+   关闭。0016–0021 已实际落库；post-apply diagnostic 证明除 PostgreSQL 17 creator-control membership 旧验证
+   模型外全部精确，修正版真实 status 已返回 `applied-exact`，同一候选的 post backup/completion 已关闭。
+   完成 membership status 校准的 commit/双平台 CI 后，
+   再由 recent-auth Operator 受审计关闭 kill switch，仅执行一笔另行批准的真实 Web 应用路径请求，对账模型/
+   usage/价格/UsageLedger/实际账单，并在 timeout 或结算后验证 live restore；
 8. **发布收口**：完成目标网络、数据权利、macOS/Windows Chrome、外部词库、自然使用、恢复演练与最终发布
    文档/候选门。任何未验证平台继续标为 `implemented; target-platform validation pending`。

@@ -137,13 +137,28 @@ pnpm acceptance:hosted:deepseek:migration:status
 
 - `pending-exact`：migration ledger 精确为 15-chain，专用 executor role、两张 authority table 与所有本批次
   private function 均不存在；
-- `applied-exact`：ledger 精确为 21-chain；专用 role 的非登录/非继承/非特权/零 membership、schema/table/
-  function owner、两张 forced-RLS table、三个启用的 guard trigger、0021 `receipt_evidence`/constraint、全部
-  private function 的 `SECURITY DEFINER`/固定 search path、executor allowlist 与任意额外 function/table ACL
-  均精确；
+- `applied-exact`：ledger 精确为 21-chain；专用 role 非登录/非继承/非特权，且没有任何可继承、可切换或
+  额外 membership。唯一允许的可选成员边是 PostgreSQL 17 为非 superuser CREATEROLE creator 建立的
+  `postgres`→executor creator-control，存在时必须唯一且精确为
+  `admin=true / inherit=false / set=false`；schema/table/function owner、两张 forced-RLS table、三个启用的
+  guard trigger、0021 `receipt_evidence`/constraint、全部 private function 的 `SECURITY DEFINER`/固定
+  search path、executor allowlist 与任意额外 function/table ACL 均精确；
 - `uncertain`：其他任何结构、ACL、chain、连接、进程或输出状态。
 
-`uncertain` 固定失败，绝不授权 apply 或重试。dry-run 另行批准，先重验 current pre/rebuild evidence 与本机
+`uncertain` 固定失败，绝不授权 apply、重试或 post capture。只有另行批准的脱敏只读诊断可以继续：
+
+```text
+pnpm acceptance:hosted:deepseek:migration:status:diagnose
+```
+
+该入口沿用 official CA、隐藏 TTY、transaction pooler `6543`、verify-full、`connect_timeout=10`、30 秒上限
+和单一 `BEGIN READ ONLY` catalog snapshot。公开输出只能包含 allowlisted psql exit class、output exact、
+0015–0021 各 migration prefix、role attributes、membership absence/contract、schema/table/RLS/receipt/trigger、
+17 个固定 private function contract 与 executor/unexpected ACL、aggregate external ACL/state 的 `t/f` 以及
+final status；不得输出数据库 stderr、raw SQL、OID、未知角色、密码、URL 或环境内容。诊断只定位恢复边界，
+不授权任何 Hosted 写入。
+
+dry-run 另行批准，先重验 current pre/rebuild evidence 与本机
 Supabase CLI `2.115.0`，通过后才读取 CA/password；其 transcript 只接受 CLI 精确列出上述六个文件，每个
 channel 内顺序和 allowlisted line multiset 都必须一致：
 

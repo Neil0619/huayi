@@ -2063,5 +2063,15 @@ passed; first Operator empty`。候选已提交推送，0012 已实际 push；�
   控制面 `691730c9080b8be0b206c86b666a1498b8342cf7`；run `33096064279` 的 macOS 成功，Windows 因
   测试夹具直接读取 NTFS/POSIX 权限位失败；
 - production retirement 权限门保持严格，测试修复已 Fresh RED→GREEN、纳入本次候选并通过完整
-  `pnpm verify:macos`，仍待 replacement exact-SHA Windows CI。真实 retirement、migration apply、post backup/completion
-  均未执行；batch 完成和其他 Auth/R3-C/Cron/预算门关闭前，不得装配或运行 Phase G private loader。
+  `pnpm verify:macos`；随后受控流程已完成 retirement、新 pre/rebuild、preflight、`pending-exact` status 与
+  exact six-file dry-run。apply 发出后未返回 verified completion，独立 status 返回 `uncertain`，因此没有重试
+  或捕获 post；
+- post-apply 脱敏只读 diagnostic 已证明 ledger 精确到 0021，authority table/trigger/function/RLS/ACL 全部精确，
+  唯一失败叶为 executor membership absence。根因是 PostgreSQL 17 为非 superuser CREATEROLE creator 自动
+  建立 `admin=true / inherit=false / set=false` 控制边，而 DeepSeek status 错误要求零 catalog row；
+- 本地校准改为只允许零条或唯一安全 creator-control，并拒绝任何可继承、可 `SET ROLE` 或额外边；migration
+  文件与 Hosted 数据库均未修改。focused 49/49、scripts 702/702 与完整 `pnpm verify:macos` 已通过，后者含
+  Playwright 111/111 和 production audit；经单独批准的修正版真实 status 已返回 `applied-exact`。clean
+  pushed `18ec60f` 下 post readiness、capture 与 completion 均已通过，pre/rebuild/post 全部曾证明
+  `present/valid/current=true`，临时保存前后的全部改动指纹一致。当前仍缺校准候选 commit/push 与 exact-SHA
+  双平台 CI；这些门和其他 Auth/R3-C/Cron/预算门关闭前，不得装配或运行 Phase G private loader。

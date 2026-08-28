@@ -32,6 +32,7 @@
     "acceptance:hosted:deepseek:migration:backup:status": "node scripts/acceptance-hosted-deepseek-migration-backup-status.mjs --status-hosted-deepseek-0016-0021-backup-kpadiulxkgckskcfydry",
     "acceptance:hosted:deepseek:migration:dry-run": "node scripts/acceptance-hosted-deepseek-migration-dry-run.mjs --confirm-dry-run-hosted-deepseek-0016-0021-kpadiulxkgckskcfydry",
     "acceptance:hosted:deepseek:migration:status": "node scripts/acceptance-hosted-deepseek-migration-status.mjs --status-hosted-deepseek-0016-0021-kpadiulxkgckskcfydry",
+    "acceptance:hosted:deepseek:migration:status:diagnose": "node scripts/acceptance-hosted-deepseek-migration-status-diagnostic.mjs --diagnose-status-hosted-deepseek-0016-0021-kpadiulxkgckskcfydry",
     "acceptance:hosted:application:verify": "node scripts/acceptance-hosted-application-verify.mjs",
     "acceptance:hosted:auth:apply": "node scripts/acceptance-hosted-auth-config.mjs apply",
     "acceptance:hosted:auth:diagnose": "node scripts/acceptance-hosted-auth-config.mjs diagnose --diagnose-hosted-auth-config-kpadiulxkgckskcfydry",
