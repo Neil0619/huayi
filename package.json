@@ -42,6 +42,7 @@
     "acceptance:hosted:phase92:migration:backup:capture:post": "node scripts/acceptance-hosted-phase-92-migration-backup-executor.mjs --confirm-capture-post-0022-expired-invitation-recovery-backup-kpadiulxkgckskcfydry",
     "acceptance:hosted:phase92:migration:backup:capture:pre": "node scripts/acceptance-hosted-phase-92-migration-backup-executor.mjs --confirm-capture-pre-0022-expired-invitation-recovery-backup-kpadiulxkgckskcfydry",
     "acceptance:hosted:phase92:migration:backup:complete": "node scripts/acceptance-hosted-phase-92-migration-backup.mjs --verify-post-0022-expired-invitation-recovery-backup-kpadiulxkgckskcfydry",
+    "acceptance:hosted:phase92:migration:backup:historical:verify": "node scripts/acceptance-hosted-phase-92-migration-backup.mjs --verify-historical-completion-0022-expired-invitation-recovery-backup-kpadiulxkgckskcfydry",
     "acceptance:hosted:phase92:migration:backup:executor:plan": "node scripts/acceptance-hosted-phase-92-migration-backup-executor.mjs --plan",
     "acceptance:hosted:phase92:migration:backup:executor:post:readiness": "node scripts/acceptance-hosted-phase-92-migration-backup-executor.mjs --readiness-post-0022-expired-invitation-recovery-backup-kpadiulxkgckskcfydry",
     "acceptance:hosted:phase92:migration:backup:executor:pre:readiness": "node scripts/acceptance-hosted-phase-92-migration-backup-executor.mjs --readiness-pre-0022-expired-invitation-recovery-backup-kpadiulxkgckskcfydry",

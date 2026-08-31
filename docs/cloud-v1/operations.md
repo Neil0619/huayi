@@ -235,15 +235,21 @@ macOS Terminal 中运行：
     终态 API/Web 非 Canceled 为 17/10，latest 分别是
     `da733e172cc5859a4b9aea61c2e87a239e6843ed` / `dpl_AWUiTdYGgmVHZ127xqGAVhQb2zCd` 与
     `699fbe6c134c0b83347e0de3ce7c76dc4d520790` / `dpl_J6vtHUqfkstdGZ5w1yZJyVbhF6Yc`；
-11. 双项目均验证 disarmed 后，才可单独批准在现有 join 页面点击一次“重新发送六位验证码”。用户只在邮箱
+11. 最终 Web disarm commit 已推送、工作树干净且 `HEAD==upstream` 后，运行只读
+    `pnpm acceptance:hosted:phase92:migration:backup:historical:verify`。它必须重验原 pre/rebuild/post 的
+    `0700/0600`、dump hash、同一历史 candidate、post 时间边界以及 candidate 为当前 HEAD 的 ancestor；
+    不连接 Hosted、不重捕或改写 evidence，也不倒推原 `backup:complete` 当时是否留下 receipt；
+12. 双项目均验证 disarmed 且第 11 步通过后，才可单独批准在现有 join 页面点击一次“重新发送六位验证码”。用户只在邮箱
     与浏览器中读取、提交 OTP，不把 OTP、邮件正文或邀请 fragment 发给 Codex；
-12. 注册完成、退出并用原邮箱密码重新登录后，在普通 macOS Terminal 运行
+13. 注册完成、退出并用原邮箱密码重新登录后，在普通 macOS Terminal 运行
     `pnpm acceptance:hosted:identity:snapshot`。收口至少要求唯一普通邀请已 consumed、唯一 claim finalized、
     唯一 registration flow consumed、Auth user confirmed、email identity/profile/password/quota 精确，且
     `account_finalized_exact|t`、`safe_route_state|account-established`。任意第二邀请会强制收口失败。
 
 pre/rebuild/post 必须来自同一 clean pushed candidate；Phase 91 与 DeepSeek backup 即使有效，也不能替代
-Phase 92 evidence。任何一步失败都保留原目标和固定错误，不手工拼接 SQL、不盲目重试 apply。
+Phase 92 evidence。migration-time preflight/completion 仍要求 candidate 为当时 current HEAD；后续部署提交
+推进 HEAD 后，`current=false` 不会破坏不可变 evidence，只能由第 11 步的祖先链历史门收口。任何一步失败
+都保留原目标和固定错误，不手工拼接 SQL、不盲目重试 apply。
 
 Hosted DeepSeek Phase E/F 已在提交 `d9ffb4a03c984d2f94c37031660a146068f31a3a` 收口；exact-SHA
 Cross-platform quality run `33076976013` 的 macOS/Windows 两 job 均成功。Phase 91 的 15-file

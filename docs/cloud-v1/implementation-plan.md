@@ -2037,8 +2037,10 @@ completion 当时运行；API→Web one-shot 仍是另行完成的双关闭证�
 
 1. **证据冻结（本地已完成）**：校准 Phase 91、one-shot、Hosted Auth 与 401 观测；用独立历史 verifier 从
    不可变 manifest 形成等价 completion closure，不覆盖或重捕 evidence；最终候选双平台质量门仍单列；
-2. **脱敏只读 snapshot**：使用固定项目/固定 SQL 与隐藏管理员密码，只输出 invitation/claim/Auth/account 的
-   allowlisted 状态与计数，不输出邮箱、UUID、Token、正文或 raw error；
+2. **脱敏只读 snapshot（初始与部署后均已完成，最终收口待注册）**：使用固定项目/固定 SQL 与隐藏管理员
+   密码，只输出 invitation/claim/Auth/account 的 allowlisted 状态与计数，不输出邮箱、UUID、Token、正文或
+   raw error。初始 snapshot 固定了 expired recovery shape；部署后 snapshot 已返回
+   `otp_resend_eligible|t`、`safe_route_state|otp-resend`，但仍为 unconfirmed/零账号数据；
 3. **模板与错误引导门（本地实现完成，Hosted 回读待批准）**：自动回读并验证 Confirm sign up 模板只含
    一次 `{{ .Token }}`、一次 `{{ .RedirectTo }}` 且不含 `{{ .ConfirmationURL }}`，Redirect URLs 精确；
    resend/resume 401 现进入停止恢复状态，只给出联系邀请人的单一步骤；
@@ -2048,13 +2050,18 @@ completion 当时运行；API→Web one-shot 仍是另行完成的双关闭证�
    claim/flow 续到同一最多 15 分钟的确认窗口、invitation 续到最多 30 分钟的 Provider 重试窗口并轮换原
    flow；不创建替代邀请或第二 Auth user。独立 Phase 92 控制面固定 head-21 pre、完整 22-chain
    networkless rebuild/head-22 post、三态 status、单文件 exact dry-run、写入前双 preflight、脱敏诊断与
-   applied-exact postflight；历史 DeepSeek evidence 不进入该批次。真实 backup/status/dry-run/apply、部署与
-   邮件仍须分别批准，未执行前该恢复路线只算本地实现；
+   applied-exact postflight；历史 DeepSeek evidence 不进入该批次。真实 Phase 92 pre/rebuild/preflight、
+   `pending-exact`、单文件 dry-run、apply/`applied-exact`、post capture/completion 已在 `c0579e1` 候选关闭。
+   后续部署提交推进 HEAD 后三份 evidence 为 valid/current=false，禁止重捕；祖先链 historical verifier 已
+   本地实现，待本阶段 commit/push 后在 clean pushed HEAD 上真实运行；
 5. **独立部署与六位 OTP journey**：Phase 92 复用既有串行部署状态机，但使用独立
    `phase-92-0022-state.json`；Phase 81 状态只读共存。preflight 固定重验 Phase 91 终态 API/Web
    17/10 非 Canceled baseline 与对应 latest deployment identity，不复用历史 Phase 81 的 16/9 固定输入。
-   先完成 API arm/observe/disarm/verify，再完成 Web arm/observe/disarm/verify，每个 commit/push 单独批准。双关闭后只发送一次新六位 ASCII OTP，证明
-   scanner/repeated GET 零副作用、显式 POST、Web 落点、密码重登以及 invitation/user/identity 唯一性；
+   API arm/observe/disarm/verify 与 Web arm/observe/disarm/verify 均已按序完成，最终 state 为 `complete`，
+   两项目 Ready 且恢复 disarmed；第二次 Web observe 只触发已完成 transition 的 replay rejection，不推翻
+   首次观测。`5b1e016` exact-SHA 双平台门已通过，但最终 disarm HEAD 与本阶段新候选的 exact-SHA 门仍单列。
+   双关闭后仍只允许发送一次新六位 ASCII OTP，证明 scanner/repeated GET 零副作用、显式 POST、Web 落点、
+   密码重登以及 invitation/user/identity 唯一性；
    最终只读 snapshot 必须返回 `account_finalized_exact|t` 与 `safe_route_state|account-established`，且
    finalization 精确要求普通邀请总数为一、唯一邀请 consumed；
 6. **R3-C 与 Cron**：依次关闭真实收件、重复投递、无正文告警，再安装/回读精确五项 Supabase Cron，观察

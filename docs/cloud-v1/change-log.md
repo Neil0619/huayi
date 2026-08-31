@@ -3,6 +3,16 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-08-31：完整重要批次在部署推进 HEAD 后使用只读历史完成门
+
+- migration mutation 前的 preflight/completion 继续只接受同一 clean pushed current candidate；不得为了
+  让旧 evidence 再次 `current=true` 而覆盖、手改、退役或重捕已完整的 pre/rebuild/post；
+- 后续受控部署提交推进 HEAD 时，strict valid 但 `current=false` 只表示 currentness 变化。批次专用
+  historical completion 重验 exact leaf、canonical manifest、实际 dump hash、同一 candidate、post 时间
+  边界，并要求历史 candidate 存在且为 clean `HEAD==upstream` 的 ancestor；
+- 历史门只读 Git 与 clone-local evidence，不连接 Hosted、不读 secret、不写 state/evidence。它形成等价
+  closure，但不能倒推原 completion 调用当时已产生成功 receipt，也不能替代 mutation 前的 current 门。
+
 ## 2026-08-28：过期 ordinary invitation 只续期原注册链
 
 - 脱敏 Hosted snapshot 已确认唯一 ordinary invitation、bound claim 与 invite-registration flow 均过期；

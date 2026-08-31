@@ -104,6 +104,13 @@ extra entry/destination occupied/dirty/upstream mismatch/ignore mismatch/rename 
 body-free failure；失败时尽可能保留 active 或 history 中至少一份完整 evidence，不执行 delete 或手工覆盖。
 retained history 删除不属于该入口，仍需独立生命周期、批准与证据。
 
+完整 pre/rebuild/post 已在 migration candidate 上关闭、随后仅因受控部署提交推进 HEAD 的批次，不属于上述
+“缺 post 的 stale recovery unit”。`current=false` 只说明它不再满足 mutation 前的 current-candidate 门，
+不能据此退役或重捕。批次专用 historical completion 必须在 clean `HEAD==upstream` 上只读重验三个固定
+leaf、canonical manifest、实际 dump hash、同一历史 candidate、post 时间边界，以及该 candidate 仍存在并为
+当前 HEAD 的 ancestor；它不连接 Hosted、不写 evidence，只形成等价历史 closure，不能伪称原 completion
+调用当时已留下成功 receipt。
+
 Hosted DeepSeek `hosted-deepseek-0016-0021` 不能复用上面的 0014 fixed identity 或只退役 rebuild。它的
 专用 `acceptance:hosted:deepseek:migration:backup:retire` 只接受 active batch 精确为同一 stale candidate
 的 strict `pre + rebuild` 且 `post` absent，再把两份 evidence 作为不可拆分单元原子 rename 到：

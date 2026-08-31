@@ -2075,3 +2075,26 @@ passed; first Operator empty`。候选已提交推送，0012 已实际 push；�
   pushed `18ec60f` 下 post readiness、capture 与 completion 均已通过，pre/rebuild/post 全部曾证明
   `present/valid/current=true`，临时保存前后的全部改动指纹一致。当前仍缺校准候选 commit/push 与 exact-SHA
   双平台 CI；这些门和其他 Auth/R3-C/Cron/预算门关闭前，不得装配或运行 Phase G private loader。
+
+## Cloud V1 Phase 92 0022、部署与 OTP 恢复当前状态（2026-08-31）
+
+- 影响平台为 `shared + macOS + hosted-acceptance`。forward-only 0022 已在 `c0579e1` 候选依次完成独立
+  head-21 pre、22-chain isolated rebuild、backup preflight、`pending-exact` status、唯一 migration dry-run、
+  受控 apply/`applied-exact` 与 head-22 post capture/completion；没有创建第二邀请或第二 Auth user；
+- Phase 92 Vercel 17/10 基线修复 `5b1e016` 的 Cross-platform quality run `33192471143` 已通过。API arm
+  `ca6f5bd`、API disarm `37a54d7`、Web arm `b044dda`、Web disarm `ee83169` 随后按序完成，one-shot state
+  为 `complete`，两个 target 均 Ready、无 in-flight 且配置恢复 disarmed。首次 Web observe 已接受 Ready
+  transition；重复执行只被 state replay guard 拒绝，不推翻首次结果；
+- 部署后脱敏 identity snapshot 仍为唯一 expired invitation、bound-expired claim、expired registration
+  flow、unconfirmed Auth user/唯一 email identity与零 profile/method/quota/session/learning 数据，同时返回
+  `otp_resend_eligible|t`、`interrupted_resume_eligible|f`、`safe_route_state|otp-resend`。真实 OTP 邮件、
+  六位码提交、注册完成、退出/密码重登与 `account-established` final snapshot 尚未执行；
+- 受控部署提交推进 HEAD 后，Phase 92 pre/rebuild/post 仍 present/valid，但按 current-candidate 合同显示
+  `current=false`。本阶段用 Fresh RED→GREEN 新增共享只读 historical verifier：重验 `0700/0600`、exact
+  entries/canonical manifest、实际 dump hash、同一候选、post 时间边界及候选为 clean pushed HEAD ancestor，
+  不连接 Hosted、不读取 secret、不写或重捕 evidence；聚焦回归 6/6 已通过。完整 macOS 离线门初次捕获两项
+  E2E authority/timing 回归，修复后聚焦 2/2 且第二次 `pnpm verify:macos` 原样退出 0，Playwright 111/111；
+- 当前仍不是正式发布完成：本阶段改动尚未 commit/push，真实 historical verifier 必须等 clean pushed HEAD
+  后运行，最终 exact-SHA macOS/Windows CI 也未关闭。上述工程门关闭后，下一项用户参与步骤才是在现有
+  join 页面只点击一次“重新发送六位验证码”；R3-C、五项 Cron、Cloud DeepSeek 应用路径、目标网络、
+  数据权利、双平台 Chrome 与完整发布收口继续 pending。

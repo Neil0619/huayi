@@ -8,6 +8,10 @@ import {
   verifyHostedImportantBatchEvidence,
   verifyHostedImportantBatchEvidencePhase,
 } from "./acceptance-hosted-important-batch-evidence.mjs";
+import {
+  inspectHostedImportantBatchHistoricalRepository,
+  verifyHostedImportantBatchHistoricalEvidence,
+} from "./acceptance-hosted-important-batch-historical-evidence.mjs";
 import { hostedAcceptanceProjectRef } from "./acceptance-hosted-foundation.mjs";
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -17,12 +21,24 @@ export const hostedPhase92MigrationBackupArtifactDirectory =
   hostedPhase92ArtifactContract.artifactDirectory;
 export const hostedPhase92MigrationBackupPreflightArgument = `--verify-pre-0022-expired-invitation-recovery-backup-${hostedAcceptanceProjectRef}`;
 export const hostedPhase92MigrationBackupCompletionArgument = `--verify-post-0022-expired-invitation-recovery-backup-${hostedAcceptanceProjectRef}`;
+export const hostedPhase92MigrationBackupHistoricalCompletionArgument = `--verify-historical-completion-0022-expired-invitation-recovery-backup-${hostedAcceptanceProjectRef}`;
 
 export function readHostedPhase92MigrationBackupRepositoryState(root) {
   return readHostedImportantBatchEvidenceRepositoryState(
     root,
     hostedPhase92MigrationBackupArtifactDirectory,
   );
+}
+
+export function readHostedPhase92MigrationBackupHistoricalRepositoryState(
+  root,
+  historicalCandidateCommit,
+) {
+  return inspectHostedImportantBatchHistoricalRepository({
+    artifactDirectory: hostedPhase92MigrationBackupArtifactDirectory,
+    historicalCandidateCommit,
+    repositoryRoot: root,
+  });
 }
 
 export function verifyHostedPhase92MigrationEvidencePhase(options) {
@@ -40,6 +56,7 @@ Evidence directory: ${hostedPhase92MigrationBackupArtifactDirectory}
 - The independent pre backup requires migration head 20260827060000.
 - The isolated rebuild and post backup require 22 repository migrations through 20260828010000.
 - Preflight requires clean pushed exact-candidate pre and rebuild evidence; completion adds post.
+- Historical completion verifies immutable pre/rebuild/post evidence against a pushed descendant HEAD.
 - This plan performs no filesystem, Git, database, mail, model, deployment, or secret operation.
 `;
 }
@@ -47,6 +64,7 @@ Evidence directory: ${hostedPhase92MigrationBackupArtifactDirectory}
 export async function runHostedPhase92MigrationBackupCli({
   arguments_ = process.argv.slice(2),
   evidenceIo = realHostedImportantBatchEvidenceIo,
+  readHistoricalRepositoryState = readHostedPhase92MigrationBackupHistoricalRepositoryState,
   readRepositoryState = readHostedPhase92MigrationBackupRepositoryState,
   repositoryRoot: root = repositoryRoot,
   writeError = (value) => process.stderr.write(value),
@@ -61,23 +79,37 @@ export async function runHostedPhase92MigrationBackupCli({
       ? "preflight"
       : arguments_.length === 1 && arguments_[0] === hostedPhase92MigrationBackupCompletionArgument
         ? "completion"
-        : null;
+        : arguments_.length === 1 &&
+            arguments_[0] === hostedPhase92MigrationBackupHistoricalCompletionArgument
+          ? "historical-completion"
+          : null;
   if (mode === null) {
     writeError("Hosted Phase 92 migration backup arguments are invalid.\n");
     return 1;
   }
   try {
-    await verifyHostedImportantBatchEvidence({
-      artifactContract: hostedPhase92ArtifactContract,
-      evidenceIo,
-      mode,
-      readRepositoryState,
-      root,
-    });
+    if (mode === "historical-completion") {
+      await verifyHostedImportantBatchHistoricalEvidence({
+        artifactContract: hostedPhase92ArtifactContract,
+        evidenceIo,
+        readRepositoryState: readHistoricalRepositoryState,
+        root,
+      });
+    } else {
+      await verifyHostedImportantBatchEvidence({
+        artifactContract: hostedPhase92ArtifactContract,
+        evidenceIo,
+        mode,
+        readRepositoryState,
+        root,
+      });
+    }
     writeOutput(
       mode === "preflight"
         ? "Hosted Phase 92 migration backup preflight evidence passed.\n"
-        : "Hosted Phase 92 migration backup completion evidence passed.\n",
+        : mode === "completion"
+          ? "Hosted Phase 92 migration backup completion evidence passed.\n"
+          : "Hosted Phase 92 migration historical completion evidence passed.\n",
     );
     return 0;
   } catch {

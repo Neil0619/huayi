@@ -14,6 +14,7 @@ test("a learner completes password recovery only through the latest confirmed ma
   browser,
   page,
 }) => {
+  test.slow();
   const authority = createCloudBrowserAuthority({
     authenticated: false,
     seed: "password-recovery",

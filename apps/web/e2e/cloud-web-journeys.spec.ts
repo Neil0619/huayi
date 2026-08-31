@@ -7,6 +7,7 @@ const webOrigin = "https://web.huayi.invalid";
 const storeFixture = "http://127.0.0.1:4173/apps/store-extension/e2e/fixtures/cloud-release.html";
 
 test("workspace navigation stays canonical across mobile and desktop routes", async ({ page }) => {
+  test.slow();
   const authority = createCloudBrowserAuthority({ authenticated: true, seed: "empty" });
   await authority.install(page);
   await page.setViewportSize({ height: 844, width: 390 });

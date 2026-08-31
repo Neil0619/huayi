@@ -612,7 +612,10 @@ keyring/session/Vercel/private query loader，也不新增 HTTP route、Provider
 
 0022 不继承或扩写 DeepSeek 0016–0021 的备份证据。`phase-92-0022-expired-invitation-recovery` 使用独立
 head-21 pre、22-chain networkless rebuild 与 head-22 post；所有 manifest 绑定同一 clean pushed commit，
-私有路径和不可覆盖规则沿用 important-batch 合同。status 在一个 `BEGIN READ ONLY` snapshot 中同时要求
+私有路径和不可覆盖规则沿用 important-batch 合同。migration-time preflight/completion 只接受该 commit
+仍为 current HEAD；Vercel arm/disarm 推进 HEAD 后，`current=false` 不能授权重捕。历史完成门只读重验
+exact entries、实际 dump hash、同一 candidate、时间边界及其为 clean pushed HEAD ancestor，既不连接 Hosted
+也不修改 evidence。status 在一个 `BEGIN READ ONLY` snapshot 中同时要求
 21-chain authority 对象/角色图/RLS/trigger/function ACL 精确，以及
 `renew_interrupted_password_confirmation(text,text,timestamptz)` 的 owner、SECURITY DEFINER、唯一
 `search_path=pg_catalog`、context-setter-only ACL 和前后正文 MD5 指纹；只有旧指纹+21-chain 为 pending，

@@ -16,6 +16,7 @@ import {
 import {
   hostedPhase92MigrationBackupArtifactDirectory,
   hostedPhase92MigrationBackupCompletionArgument,
+  hostedPhase92MigrationBackupHistoricalCompletionArgument,
   hostedPhase92MigrationBackupId,
   hostedPhase92MigrationBackupPreflightArgument,
   renderHostedPhase92MigrationBackupPlan,
@@ -129,6 +130,7 @@ test("Phase 92 backup plan and package surface expose only fixed operations", as
   assert.match(stdout, /20260827060000/u);
   assert.match(stdout, /20260828010000/u);
   assert.match(stdout, /DeepSeek.+immutable/isu);
+  assert.match(stdout, /Historical completion.+pushed descendant HEAD/isu);
 
   const packageDocument = JSON.parse(
     await readFile(new URL("../package.json", import.meta.url), "utf8"),
@@ -144,6 +146,10 @@ test("Phase 92 backup plan and package surface expose only fixed operations", as
   assert.equal(
     packageDocument.scripts["acceptance:hosted:phase92:migration:backup:complete"],
     `node scripts/acceptance-hosted-phase-92-migration-backup.mjs ${hostedPhase92MigrationBackupCompletionArgument}`,
+  );
+  assert.equal(
+    packageDocument.scripts["acceptance:hosted:phase92:migration:backup:historical:verify"],
+    `node scripts/acceptance-hosted-phase-92-migration-backup.mjs ${hostedPhase92MigrationBackupHistoricalCompletionArgument}`,
   );
   const executor = "node scripts/acceptance-hosted-phase-92-migration-backup-executor.mjs";
   for (const [operation, argument] of [
@@ -170,13 +176,14 @@ test("Phase 92 backup plan and package surface expose only fixed operations", as
   );
 });
 
-test("Phase 92 evidence closes only the exact current pre/rebuild/post batch", async () => {
+test("Phase 92 evidence closes the exact current and immutable historical batch", async () => {
   const repositoryRoot = await createTemporaryRepository();
   const persistBackup = (phase) =>
     persistHostedPhase92MigrationBackup({
       ...portableFilesystemOptions,
       candidateCommit,
-      now: () => new Date("2026-08-28T08:00:00.000Z"),
+      now: () =>
+        new Date(phase === "pre" ? "2026-08-28T08:00:00.000Z" : "2026-08-28T08:02:00.000Z"),
       phase,
       produceArchive: ({ archivePartialPath }) =>
         writeFile(archivePartialPath, `opaque-${phase}-database-dump`),
@@ -203,12 +210,22 @@ test("Phase 92 evidence closes only the exact current pre/rebuild/post batch", a
     upstreamExact: true,
     worktreeClean: true,
   };
+  const historicalRepositoryState = {
+    artifactRootIgnored: true,
+    currentCommit: "89abcdef0123456789abcdef0123456789abcdef",
+    historicalCandidateCommit: candidateCommit,
+    historicalCandidateExists: true,
+    historicalCandidateIsAncestor: true,
+    upstreamExact: true,
+    worktreeClean: true,
+  };
   const runGate = async (argument) => {
     let stderr = "";
     let stdout = "";
     const result = await runHostedPhase92MigrationBackupCli({
       arguments_: [argument],
       evidenceIo: portableEvidenceIo,
+      readHistoricalRepositoryState: async () => historicalRepositoryState,
       readRepositoryState: async () => repositoryState,
       repositoryRoot,
       writeError: (value) => {
@@ -234,6 +251,14 @@ test("Phase 92 evidence closes only the exact current pre/rebuild/post batch", a
     stderr: "",
     stdout: "Hosted Phase 92 migration backup completion evidence passed.\n",
   });
+  assert.deepEqual(await runGate(hostedPhase92MigrationBackupHistoricalCompletionArgument), {
+    code: 0,
+    stderr: "",
+    stdout: "Hosted Phase 92 migration historical completion evidence passed.\n",
+  });
+
+  historicalRepositoryState.historicalCandidateIsAncestor = false;
+  assert.equal((await runGate(hostedPhase92MigrationBackupHistoricalCompletionArgument)).code, 1);
 });
 
 test("Phase 92 executor gates secrets and writes behind pushed readiness", async () => {

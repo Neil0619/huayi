@@ -65,12 +65,13 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       串行 one-shot 均已完成。由于同邀请 resend/resume 实际返回 401、没有
       发送新邮件，六位 OTP journey 仍未通过，因此本项保持未勾选。2026-08-28 脱敏 snapshot 已确认唯一
       ordinary invitation/claim/flow 为 expired/bound-expired/expired，同一 Auth user 未确认、唯一 email
-      identity 且零账号数据/blocker；forward-only 0022 已在本地实现同一 claim/flow 的最多 15 分钟确认
-      窗口、同一 invitation 的最多 30 分钟 Provider 重试窗口与 flow 轮换，Hosted migration、部署和邮件仍
-      未执行。后续离线审计先用 deferred Promise 证明同一渲染周期双击 resend 会调用两次；再
-      审查同一页面全部认证动作，证明 register/login/resume 各会同 tick 双发，错误页的 resend 与 resume
-      也可并发。Web 现以一个共享同步单飞门保护全部账号 mutation，避免重复 Auth flow/Provider 调用、身份
-      绑定、邀请恢复、Web session 和邮件副作用；claim 保持独立；
+      identity 且零账号数据/blocker；forward-only 0022 后续已完成独立 pre/rebuild/preflight、
+      `pending-exact`、单文件 dry-run、apply/`applied-exact` 与 post capture/completion。Phase 92 API→Web
+      one-shot 也已按序完成，最终 state 为 `complete` 且两项目 Ready/disarmed；部署后 snapshot 返回
+      `otp_resend_eligible|t`、`safe_route_state|otp-resend`，但账号仍未确认。历史 evidence 的祖先链
+      verifier 已在本地 Fresh RED→GREEN，尚待 commit/push 后真实运行与最终 exact-SHA 双平台门。Web 的共享
+      同步单飞门继续保护全部账号 mutation；六位 OTP 邮件、注册、退出/密码重登与 final snapshot 未执行，
+      因此本项保持未勾选；
 - [x] 在正确 Rotate 后 exact-SHA `7577cdd` deployment 上通过 DB-backed application-role smoke；
       `GET /health` 为 200，随机无效 session 的 `GET /v1/quota` 为精确 401
       `authentication_required`。deployment ID/SHA/创建时间与 Git 关闭证据已记录，API 未重新武装；
@@ -149,10 +150,11 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       `2d03bd8` 的双平台 CI 也通过。`96e19af` 已从不可变 evidence 形成等价历史 closure 并真实返回固定成功
       输出；新增 shared 脚本的最终双平台候选门尚未执行，因此数据库总门暂不勾选；
 - [ ] Phase 92 forward-only 0022 与独立 head-21 pre/22-chain rebuild/head-22 post、三态 status、单文件
-      dry-run、guarded apply、脱敏 diagnostic 控制面已本地实现；尚未 commit/push、没有 exact-SHA 双平台
-      CI，也未运行真实 readiness/backup/rebuild/status/dry-run/apply/post。Phase 92 API→Web 部署使用独立
-      state 且最终 snapshot 强制普通邀请总数为一；上述门逐项完成且部署 exact 后，才可发送一次获批六位
-      OTP 并关闭同一 invitation/user/identity 唯一性验收；
+      dry-run、guarded apply、脱敏 diagnostic 已实际完成到 `applied-exact`，pre/rebuild/post evidence 也已
+      捕获并关闭。API→Web 独立 state 已到 `complete`，最终 API/Web Ready/disarmed；部署后 snapshot 已到
+      `otp-resend`。本次新增的历史备份 verifier/docs 尚未 commit/push、未在 clean pushed HEAD 真实运行，
+      最终候选也没有 exact-SHA 双平台 CI；唯一邀请的六位 OTP、注册、密码重登及
+      `account-established` final snapshot 仍未完成，因此保持未勾选；
 - [x] 当前开发态构建审计确认没有新增秘密、远程代码、动态 endpoint 或危险 HTML；
 - [ ] 正式候选注入公开配置后重新执行完整构建审计，并复核每项 permission/host；
 - [x] fake model/mail/third-party 已按各能力真实定义覆盖成功、失败、取消、超时和额度分支；没有额度或
@@ -423,9 +425,10 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
 - [ ] 保留并继续使用上述同一普通邀请；Phase 81/0014 禁止重跑，Phase 91 migration 与
       API→Web one-shot 的真实五阶段 transition 已完成，最终两个项目均恢复关闭。Phase 91 等价历史
       completion closure 也已独立通过，原 backup 不得重捕。2026-08-26 在现有 join 错误页只点击一次重发返回 401 且
-      没有发出邮件；同邮箱密码恢复也返回 401。下一步先执行固定脱敏只读 snapshot，确认 invitation claim、
-      Auth identity 与账号状态，再决定保留账号的恢复路线；不得继续盲重试、创建第二邀请或删除 Auth user。
-      恢复后再验证 scanner/repeated GET 无副作用、显式 OTP POST、Web 落点和密码重登；已部署 bundle 的 active
+      没有发出邮件；同邮箱密码恢复也返回 401。Phase 92 0022、备份与 API→Web 双关闭随后已完成；最新脱敏
+      snapshot 固定 `otp_resend_eligible|t`、`safe_route_state|otp-resend`。先提交/推送并在 clean HEAD 运行
+      Phase 92 historical verifier、关闭最终 exact-SHA 双平台门，再在同一 join 页面只点击一次 resend；不得
+      盲重试、创建第二邀请或删除 Auth user。随后验证 scanner/repeated GET 无副作用、显式 OTP POST、Web 落点和密码重登；已部署 bundle 的 active
       行“可领取”标签与二步撤销只在同一邀请仍呈 active 时做只读验证，不执行撤销，也不以缺少该瞬时
       状态阻塞同邀请 OTP 完成；“已过期”live 标签保留到出现真实过期行时验证。真实邮件投递、Cron 和 DeepSeek
       应用路径 smoke 仍保持 pending。不得为本项创建第二张邀请。

@@ -2930,9 +2930,9 @@ typecheck、architecture、build、development blocker、Store release、product
 
 ## 114. Phase 92 过期普通邀请恢复与 0022 Hosted 离线控制面（2026-08-28）
 
-- **脱敏事实与安全路线**：只读 identity snapshot 显示唯一普通 invitation、claim 与 registration flow
+- **脱敏事实与安全路线**：部署前只读 identity snapshot 显示唯一普通 invitation、claim 与 registration flow
   均已过期，Auth user 仍为 unconfirmed，profile、登录方式、额度、会话及全部学习数据均不存在，且 blocker
-  为零。由此固定为恢复同一 invitation/claim/flow 的 `replacement-review` 路线；不得新建第二邀请、第二
+  为零。由此固定为恢复同一 invitation/claim/flow 的初始 `replacement-review` 路线；不得新建第二邀请、第二
   Auth user 或删除既有身份；
 - **Fresh RED → GREEN**：行为回归先证明原 0014 function 只能轮换仍 active 的 flow，不能恢复上述精确
   expired ordinary shape；控制面测试又先以缺少 0022 status/dry-run/apply/backup modules 的
@@ -2951,6 +2951,10 @@ typecheck、architecture、build、development blocker、Store release、product
   不修改。apply 固定为 Phase 92 preflight → CA/TTY secret → exact dry-run → 第二次 preflight → read-only
   pending → 单文件 mutation → read-only applied；dirty/unpushed candidate、inherited password、evidence/source/
   mirror/hash 漂移、非 pending 状态、timeout 或 postflight 不精确都失败关闭且禁止盲目重试；
+- **真实 migration 与备份证据**：`c0579e1` 候选已依次完成 head-21 pre capture、22-chain isolated rebuild、
+  backup preflight、`pending-exact` status、唯一 0022 dry-run、受控 apply/`applied-exact`、post readiness/
+  capture/completion。三份 clone-local evidence 仍 present/valid，且绑定同一历史 candidate；后续部署提交
+  推进 HEAD 后 `current=false` 是预期 currentness 变化，不授权退役、覆盖或重捕；
 - **独立部署与收口状态**：Phase 92 one-shot 复用既有 API→Web 严格串行状态机，但使用新的
   `phase-92-0022-state.json`；旧 `phase-81-0014-state.json` 可只读共存而不能被覆盖，目录中任何未知 evidence
   仍失败关闭。identity snapshot 的 finalization 也已收紧为普通邀请总数精确为一且唯一邀请 consumed；新增
@@ -2963,13 +2967,29 @@ typecheck、architecture、build、development blocker、Store release、product
   wrapper 错把历史 16/9 默认合同当作当前输入，故只在 baseline 门失败；该次诊断没有写 one-shot state、
   没有 arm/disarm 或创建 deployment。修复让 Phase 92 固定 adapter 贯穿 preflight 与后续 persisted-state
   transition，同时保留历史共享 16/9 合同不变；
+- **真实部署与部署后身份状态**：基线修复 `5b1e016` 的 Cross-platform quality run `33192471143` 已由
+  macOS/Windows 双 job 关闭。随后 API arm `ca6f5bd`、API disarm `37a54d7`、Web arm `b044dda` 与 Web
+  disarm `ee83169` 按严格顺序推送；最终 one-shot state 为 `complete`，API/Web target 均 Ready、无 in-flight
+  且配置恢复 disarmed。Web arm 的首次 observe 已接受目标 Ready transition；后续重复运行被 replay guard
+  拒绝，不是第一次观测失败。部署后脱敏 snapshot 返回 `otp_resend_eligible|t` 与
+  `safe_route_state|otp-resend`，同时仍为唯一 expired invitation/bound-expired claim/expired flow、unconfirmed
+  Auth user 和零账号数据；真实 OTP 邮件、注册、退出/密码重登及 final snapshot 尚未执行；
+- **历史备份证据审计与 Fresh RED → GREEN（2026-08-31）**：现有 status 的 pre/rebuild/post 均为
+  present/valid=true、current=false；manifest 候选一致且为当前 HEAD ancestor，dump hash、migration head、
+  rebuild contract 与 `0700/0600` 均保持精确。Fresh RED 先因 Phase 92 wrapper 缺少 historical completion
+  export 失败；新增共享只读 verifier 后 focused 6/6 通过，覆盖 clean pushed descendant、候选存在/祖先、
+  exact entries/hash/时间顺序及所有失败关闭分支。真实 historical 命令必须等本阶段 commit/push 后在干净
+  HEAD 上运行，本地测试通过不能冒充该 receipt；
 - **Fresh 本机证据**：Phase 92 migration focused 22/22；identity/deployment 组合门 58/58，与
-  DeepSeek/Phase 91/important-batch 相邻回归 132/132；完整 `pnpm verify:macos` 原样退出 0，覆盖 scripts
-  732/732、主 Vitest 341 files / 2,388 passed / 12 skipped、
+  DeepSeek/Phase 91/important-batch 相邻回归 132/132。首次完整 `pnpm verify:macos` 在其余门均通过后捕获
+  password recovery 跨 origin 主文档重定向未被 page-level authority 接管，以及 workspace navigation 超出
+  默认 30 秒两项 E2E 回归；改为每个 BrowserContext 只安装一次 Web/API authority，并只为两条完整长旅程
+  使用 `test.slow()` 后，聚焦复验 2/2、第二次完整 `pnpm verify:macos` 原样退出 0，覆盖 scripts 736/736、
+  主 Vitest 341 files / 2,388 passed / 12 skipped、
   API 152 files / 611、Store coverage 97 files / 481、Playwright 111/111，以及 instructions、format、lint、
   typecheck、architecture、workspace build、development blocker、Store release 与 production dependency audit
   （0 个已知漏洞）；
-- **当前边界**：本节没有读取真实 secret、连接 Hosted、捕获或覆盖备份、运行真实 status/dry-run/apply、
-  写数据库、部署、发邮件或创建第二邀请，也没有 commit/push。下一步必须先单独批准当前完整候选的
-  commit/push，再为所得 exact SHA 单独批准 macOS/Windows CI；真实 Phase 92 backup、migration、部署、OTP
-  重发与最终只读收口仍逐项独立批准。
+- **当前边界**：Phase 92 migration、备份与 API→Web 双关闭已完成；本次 2026-08-31 校准没有连接 Hosted、
+  读取 secret、捕获/覆盖备份、部署、发邮件或创建第二邀请，也尚未 commit/push。下一步是提交推送本地
+  historical verifier/docs 候选、在 clean pushed HEAD 运行历史门并为 exact SHA 运行 macOS/Windows CI；
+  随后才由用户在现有 join 页面点击一次 resend 并完成六位 OTP/密码重登/final snapshot。

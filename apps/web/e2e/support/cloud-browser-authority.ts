@@ -1,4 +1,4 @@
-import type { Request, Route } from "@playwright/test";
+import type { BrowserContext, Request, Route } from "@playwright/test";
 import {
   accountResourceSchema,
   quotaSummarySchema,
@@ -83,6 +83,7 @@ const now = "2026-08-13T10:00:00.000Z";
 export function createCloudBrowserAuthority(
   seed: CloudBrowserAuthoritySeed,
 ): CloudBrowserAuthority {
+  const installedContexts = new WeakSet<BrowserContext>();
   let analyses: AnalysisRecord[] =
     seed.seed === "candidate-analysis"
       ? [analysisRecordSchema.parse(contractFixtures.analysis)]
@@ -721,8 +722,9 @@ export function createCloudBrowserAuthority(
 
   return {
     async install(page) {
+      const context = page.context();
       if (seed.authenticated) {
-        await page.context().addCookies([
+        await context.addCookies([
           {
             httpOnly: true,
             name: "huayi_session",
@@ -733,8 +735,11 @@ export function createCloudBrowserAuthority(
           },
         ]);
       }
-      await page.route(`${webOrigin}/**`, serveCloudWebDist);
-      await page.route(`${apiOrigin}/**`, handleApi);
+      if (!installedContexts.has(context)) {
+        await context.route(`${webOrigin}/**`, serveCloudWebDist);
+        await context.route(`${apiOrigin}/**`, handleApi);
+        installedContexts.add(context);
+      }
       await onboarding?.install(page);
       await passwordAuthentication?.install(page);
       await passwordRecovery?.install(page);

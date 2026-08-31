@@ -895,6 +895,10 @@ confirmed Auth user/password method/profile 为 `1/1/2`、google method/Web sess
 - 0022 Hosted 控制面必须先以缺失模块 Fresh RED 固定独立 batch/status/dry-run/apply/diagnostic 缺口。
   Phase 92 artifact contract 固定 head-21 pre、22-file rebuild/head-22 post，与 DeepSeek batch identity/path
   不同；plan 零 I/O，preflight/completion 只接受同一 clean pushed candidate 的 strict `0700/0600` evidence，
+  historical completion 另在部署提交推进 HEAD 后重验 exact pre/rebuild/post entries、canonical manifest、
+  实际 dump hash、同一 candidate 与 post 时间顺序，并只接受该 candidate 仍存在且为 clean pushed 当前
+  HEAD 的 ancestor；dirty/unpushed、候选不存在/非祖先、candidate 不一致、时间倒序或权限漂移均失败关闭，
+  且测试必须证明该入口不连接 Hosted、不读取 secret、不捕获或改写 evidence。
   executor 在 readiness 前不读 secret，rebuild 永不读取 Hosted password。status 以 PGlite 证明 exact
   21-chain+旧函数正文为 pending、22-chain+新正文为 applied，authority/ACL/正文任一 drift 为 uncertain；
   diagnostic 在真实相同 catalog 上输出固定有序布尔 allowlist。dry-run parser 只接受唯一 0022 文件，CLI
