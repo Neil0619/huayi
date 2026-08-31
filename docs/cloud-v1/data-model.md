@@ -410,3 +410,11 @@ active request replay 不重复写，quota 拒绝也不消费限速。事件超�
 - 普通 Google login 使用 `auth_flows.kind=login` 且 ticket_hash=null；callback 只查已存在 profile 与已
   登记 `google` method，不调用 finalize invitation、创建 profile 或补 method。`invite-registration` 保持
   ticket 非空并只登记实际注册 method。
+
+### 过期邀请 token 恢复
+
+forward-only `0023` 只更新目标 `invitations.token_hash`。事务必须锁定目标 invitation，并精确确认唯一
+bound unfinished claim、唯一 unconsumed `invite-registration` flow、未确认 Auth user 与唯一 email identity；
+目标用户的 profile、method、quota、session、admin/deletion/audit 与 learning 数据必须为空。成功写一条
+`invitation.token-recovered` 审计（subject 为 invitation，`safe_details={}`）和不含 token/hash/email 的幂等
+response；同 key 可恢复未知响应，新 key 因该审计证据不能再次轮换。

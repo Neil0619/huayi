@@ -114,11 +114,33 @@ export const hostedPhase92ArtifactContract = Object.freeze({
   scratchLabel: "phase-92-0022-recovery-rebuild",
 });
 
+export const hostedPhase93ArtifactContract = Object.freeze({
+  artifactDirectory:
+    "artifacts/hosted-important-batch-backups/phase-93-0023-invitation-token-recovery",
+  batchId: "phase-93-0023-invitation-token-recovery",
+  captureIdentityPrefix: "phase-93-0023-token-recovery",
+  migrationFiles: Object.freeze([
+    ...hostedPhase92ArtifactContract.migrationFiles,
+    "20260831010000_invitation_token_recovery.sql",
+  ]),
+  migrationVersions: Object.freeze([
+    ...hostedPhase92ArtifactContract.migrationVersions,
+    "20260831010000",
+  ]),
+  platformBaselineIdentityPrefix: "phase-93-0023-token-recovery",
+  postMigrationHead: "20260831010000",
+  preMigrationHead: "20260828010000",
+  rebuildMigrationHead: "20260831010000",
+  scratchContainer: "huayi-phase-93-0023-token-recovery-rebuild",
+  scratchLabel: "phase-93-0023-token-recovery-rebuild",
+});
+
 const artifactContracts = new Set([
   hostedPhase81ArtifactContract,
   hostedPhase91ArtifactContract,
   hostedDeepseekMigrationArtifactContract,
   hostedPhase92ArtifactContract,
+  hostedPhase93ArtifactContract,
 ]);
 
 export function assertHostedImportantBatchArtifactContract(contract) {

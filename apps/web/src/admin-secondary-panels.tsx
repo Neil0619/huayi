@@ -4,9 +4,11 @@ import type {
   AdminAuditEvent,
   CreatedInvitationResponse,
   InvitationResource,
+  RecoveredInvitationTokenResponse,
 } from "@huayi/cloud-contracts";
 
 import type { WebAdminOperationsApi } from "./admin-operations-api.js";
+import { WebIdentityApiError } from "./identity-api.js";
 
 type InvitationLifecycleState = "active" | "consumed" | "expired" | "revoked";
 
@@ -37,7 +39,9 @@ export function AdminSecondaryPanels({
   const [audit, setAudit] = useState<AdminAuditEvent[]>([]);
   const [auditCursor, setAuditCursor] = useState<string | null>(null);
   const [auditError, setAuditError] = useState("");
-  const [invitation, setInvitation] = useState<CreatedInvitationResponse | null>(null);
+  const [invitation, setInvitation] = useState<
+    CreatedInvitationResponse | RecoveredInvitationTokenResponse | null
+  >(null);
   const [invitations, setInvitations] = useState<InvitationResource[]>([]);
   const [invitationCursor, setInvitationCursor] = useState<string | null>(null);
   const [invitationError, setInvitationError] = useState("");
@@ -46,9 +50,15 @@ export function AdminSecondaryPanels({
   const [invitationCreationPending, setInvitationCreationPending] = useState(false);
   const [message, setMessage] = useState("");
   const [revokeId, setRevokeId] = useState<string | null>(null);
+  const [recoveryId, setRecoveryId] = useState<string | null>(null);
+  const [recoveryError, setRecoveryError] = useState("");
+  const [recoveryPending, setRecoveryPending] = useState(false);
+  const [recoveryRetry, setRecoveryRetry] = useState(false);
+  const [recoveredIds, setRecoveredIds] = useState<ReadonlySet<string>>(() => new Set());
   const confirmRef = useRef<HTMLButtonElement>(null);
   const invitationGeneration = useRef(0);
   const invitationCreationPendingRef = useRef(false);
+  const recoveryPendingRef = useRef(false);
   const auditGeneration = useRef(0);
 
   const loadInvitations = useCallback(
@@ -165,6 +175,37 @@ export function AdminSecondaryPanels({
     }
   };
 
+  const recoverToken = async (id: string, retry = false) => {
+    if (recoveryPendingRef.current) return;
+    recoveryPendingRef.current = true;
+    setRecoveryPending(true);
+    setRecoveryError("");
+    setInvitation(null);
+    setMessage(retry ? "正在安全恢复轮换结果…" : "正在轮换同一邀请的私有链接…");
+    try {
+      const recovered = await api.recoverInvitationToken(id, csrfToken, retry);
+      setInvitation(recovered);
+      setRecoveryId(null);
+      setRecoveryRetry(false);
+      setRecoveredIds((current) => new Set(current).add(id));
+      setMessage("私有链接已轮换；旧链接立即失效。新链接仅在当前响应中显示。");
+      await loadAudit();
+    } catch (error) {
+      setMessage("");
+      if (error instanceof WebIdentityApiError) {
+        setRecoveryId(null);
+        setRecoveryRetry(false);
+        setRecoveryError("服务器已拒绝恢复，未修改私有链接。请重新认证并检查邀请状态。");
+      } else {
+        setRecoveryRetry(true);
+        setRecoveryError("轮换结果未知。请只用原请求安全恢复，切勿再次轮换或创建邀请。");
+      }
+    } finally {
+      recoveryPendingRef.current = false;
+      setRecoveryPending(false);
+    }
+  };
+
   return (
     <section className="admin-split">
       <section className="admin-section" aria-labelledby="invitations-title">
@@ -224,6 +265,36 @@ export function AdminSecondaryPanels({
                     撤销
                   </button>
                 )}
+                {lifecycle === "expired" &&
+                  invitationError === "" &&
+                  !recoveryRetry &&
+                  !recoveredIds.has(item.id) && (
+                    <button onClick={() => setRecoveryId(item.id)} type="button">
+                      恢复私有链接
+                    </button>
+                  )}
+                {recoveryId === item.id && lifecycle === "expired" && !recoveryRetry && (
+                  <div
+                    className="admin-confirm"
+                    role="group"
+                    aria-label={`确认恢复邀请 ${item.id}`}
+                  >
+                    <p>
+                      只更新这条过期邀请的私密链接，不会新建邀请或账号；无需输入旧链接。
+                      条件不满足时不会修改任何内容。
+                    </p>
+                    <button
+                      disabled={recoveryPending}
+                      onClick={() => void recoverToken(item.id)}
+                      type="button"
+                    >
+                      确认轮换并显示新链接
+                    </button>
+                    <button onClick={() => setRecoveryId(null)} type="button">
+                      取消
+                    </button>
+                  </div>
+                )}
                 {revokeId === item.id && lifecycle === "active" && (
                   <div
                     className="admin-confirm"
@@ -243,6 +314,20 @@ export function AdminSecondaryPanels({
             );
           })}
         </ul>
+        {recoveryError !== "" && (
+          <div className="alert" role="alert">
+            <p>{recoveryError}</p>
+            {recoveryRetry && recoveryId !== null && (
+              <button
+                disabled={recoveryPending}
+                onClick={() => void recoverToken(recoveryId, true)}
+                type="button"
+              >
+                安全恢复轮换结果
+              </button>
+            )}
+          </div>
+        )}
         {invitations.length === 0 && invitationError === "" && <p>暂无邀请。</p>}
         {invitationCursor !== null && (
           <button onClick={() => void loadInvitations(invitationCursor, true)} type="button">

@@ -635,3 +635,13 @@ profile/method/quota 均精确时才可为真。
 以下不是产品决策，必须以真实环境验证后补入发布材料：Vercel/Supabase 新加坡实际部署与网络延迟、
 Google OAuth 在目标网络的可达性、Supabase 备份残留、DeepSeek 当前模型 ID/价格/JSON 与 usage
 契约、生产 Extension ID、Chrome 数据披露问卷和公开隐私政策 URL。
+
+### Phase 93 invitation token recovery
+
+恢复 token 只在 API module 内以 actor、target、idempotency key 和 request hash 确定性派生；专用派生 key
+由当前 `HUAYI_SECRET_PEPPER` 经固定 domain separation 产生，不依赖可独立轮换的 refresh encryption key。
+Postgres seam 使用同一当前 pepper 保存 hash，因此其连续性与普通邀请本来要求的 token 验证连续性一致。
+明文 token 不进入数据库、审计、幂等 response、列表、日志或诊断。数据库函数为
+`SECURITY DEFINER SET search_path=pg_catalog`，owner 固定 `postgres`，仅
+`huayi_context_setter` 可执行。行锁、幂等锁与一次性 recovery audit 使并发安全；状态或 ACL 漂移均整笔
+回滚。该 invitation 的永久一次性门同时是比按时间计数更严格的 mutation rate boundary。

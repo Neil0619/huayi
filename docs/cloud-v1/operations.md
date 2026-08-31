@@ -503,3 +503,17 @@ deploy 只接受精确 `--confirm-local-downtime`。任何失败都停止后续�
   连续、`pg_net` response 或真实两个周期的运维证据。
 - Vercel Fluid/Function 时长的仓库契约、应用预算和真实验收见
   `vercel-fluid-function-duration.md`；不得用 Hobby 的 300 秒平台能力放宽 90 秒 Provider deadline。
+
+## Phase 93 受控恢复顺序
+
+先完成 0023 pre-backup、隔离 rebuild、dry-run、status `pending-exact`，再经明确批准 apply 并要求
+`applied-exact`，随后捕获 post-backup。只有只读 Hosted identity snapshot 仍证明目标 ordinary invitation
+下的 claim/flow/Auth/email/零账号数据合同精确，Operator 才可在 `/admin` 近期密码认证后按 invitation id
+执行一次恢复。不得重试 resend、创建第二邀请、删除 Auth user、把 token 写入工单，或把新链接显示成功
+当作注册完成；最终仍需单独只读 snapshot 关闭 acceptance gate。
+
+仓库提供 Phase 93 专属的 plan/preflight/readiness/pre-capture/rebuild/status/dry-run/apply/post-capture/
+completion/historical completion 命令，统一位于 `acceptance:hosted:phase93:migration:backup:*` 与
+`acceptance:hosted:migration:0023:*`。`status` 只返回 `pending-exact`、`applied-exact` 或 `uncertain`；
+`uncertain` 必须停止 apply，并仅用 `acceptance:hosted:migration:0023:status:diagnose` 的 allowlisted predicate
+诊断。命令实现和离线测试不等于执行证据；本阶段没有运行任何 Hosted 命令。

@@ -56,6 +56,7 @@ function setup() {
     module: createAdminOperationsModule({
       cursorKey: new Uint8Array(32).fill(1),
       ids: () => "80000000-0000-0000-0000-000000000001",
+      invitationRecoveryTokenKey: new Uint8Array(32).fill(3),
       invitationTokenKey: new Uint8Array(32).fill(2),
       repository,
     }),
@@ -111,5 +112,29 @@ describe("admin operations HTTP app", () => {
       authorization,
       expect.objectContaining({ id: invitationId, type: "revoke-invitation" }),
     );
+  });
+
+  it("routes one invitation token recovery through mutation authentication", async () => {
+    const { app, authenticate, repository } = setup();
+    vi.mocked(repository.execute).mockResolvedValueOnce({
+      id: "80000000-0000-0000-0000-000000000001",
+      recovered: true,
+    });
+    const response = await app.request(
+      "/v1/admin/invitations/80000000-0000-0000-0000-000000000001/token-recovery",
+      {
+        body: "{}",
+        headers: { "Content-Type": "application/json", "Idempotency-Key": "recover-key" },
+        method: "POST",
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    expect(authenticate).toHaveBeenCalledWith(expect.anything(), true);
+    await expect(response.json()).resolves.toMatchObject({
+      invitationPath: expect.stringMatching(/^\/join#[\w-]{43}$/u),
+      recovered: true,
+    });
   });
 });

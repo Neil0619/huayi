@@ -58,6 +58,12 @@ export const hostedAcceptanceMigrationVersions = Object.freeze([
   "20260828010000",
 ]);
 
+export const hostedAcceptanceMigrationVersionsThrough0022 = hostedAcceptanceMigrationVersions;
+export const hostedAcceptanceMigrationVersionsThrough0023 = Object.freeze([
+  ...hostedAcceptanceMigrationVersionsThrough0022,
+  "20260831010000",
+]);
+
 export const hostedAcceptanceTenantTables = Object.freeze([
   "user_profiles",
   "account_sign_in_methods",

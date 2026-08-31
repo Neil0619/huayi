@@ -17,6 +17,7 @@ export const adminActionSchema = z.enum([
   "devices.revoked",
   "invitation.created",
   "invitation.revoked",
+  "invitation.token-recovered",
   "model.kill-switch-set",
   "quota.granted",
   "user.disabled",
@@ -28,6 +29,7 @@ export const adminHttpRoutes = Object.freeze({
   access: "/v1/admin/access",
   auditEvents: "/v1/admin/audit-events",
   invitation: "/v1/admin/invitations/:id",
+  invitationTokenRecovery: "/v1/admin/invitations/:id/token-recovery",
   invitations: "/v1/admin/invitations",
   killSwitch: "/v1/admin/runtime/model-kill-switch",
   usage: "/v1/admin/usage",
@@ -57,6 +59,18 @@ export const createAdminInvitationRequestSchema = z.strictObject({
   expiresInHours: z.number().int().min(1).max(72).optional(),
 });
 export const revokeAdminInvitationRequestSchema = z.strictObject({});
+export const recoverAdminInvitationTokenRequestSchema = z.strictObject({});
+export const recoveredAdminInvitationTokenResponseSchema = z.strictObject({
+  id: resourceIdSchema,
+  recovered: z.literal(true),
+});
+export const recoveredInvitationTokenResponseSchema =
+  recoveredAdminInvitationTokenResponseSchema.extend({
+    invitationPath: z.string().regex(/^\/join#[A-Za-z0-9_-]{43}$/u),
+  });
+export type RecoveredInvitationTokenResponse = z.infer<
+  typeof recoveredInvitationTokenResponseSchema
+>;
 export const revokedAdminInvitationResponseSchema = z.strictObject({
   id: resourceIdSchema,
   revoked: z.literal(true),

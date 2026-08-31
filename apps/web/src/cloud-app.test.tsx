@@ -240,6 +240,7 @@ describe("Web account bootstrap and pairing approval", () => {
       listAuditEvents: vi.fn(),
       listInvitations: vi.fn(),
       listUsers: vi.fn(),
+      recoverInvitationToken: vi.fn(),
       revokeInvitation: vi.fn(),
       revokeUserDevices: vi.fn(),
       setKillSwitch: vi.fn(),

@@ -2077,3 +2077,10 @@ completion 当时运行；API→Web one-shot 仍是另行完成的双关闭证�
    usage/价格/UsageLedger/实际账单，并在 timeout 或结算后验证 live restore；
 8. **发布收口**：完成目标网络、数据权利、macOS/Windows Chrome、外部词库、自然使用、恢复演练与最终发布
    文档/候选门。任何未验证平台继续标为 `implemented; target-platform validation pending`。
+
+### Phase 93：同一普通邀请 token recovery
+
+离线实现包括 0023 双镜像 migration、admin contract/module/Postgres/app seam、Web 最小确认与一次显示、
+Phase 93 backup/capture/rebuild/readiness/completion/historical completion 与 0023 status/diagnostic/dry-run/apply
+控制脚本及回归测试。真实 Hosted backup/status/dry-run/apply、部署和 Operator 操作仍是独立顺序 gate；未
+取得这些执行证据前状态只能是 `implemented; Hosted validation pending`，不得执行真实恢复。

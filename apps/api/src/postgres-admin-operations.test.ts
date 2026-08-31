@@ -6,8 +6,14 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createAdminOperationsModule } from "./admin-operations-module.js";
 import type { AnalysisDatabase, AnalysisQuery } from "./analysis-database.js";
 import { createPostgresAdminOperations } from "./postgres-admin-operations.js";
+import { hashSecret } from "./security.js";
 
 const migrationUrl = new URL("../migrations/0001-cloud-v1-foundation.sql", import.meta.url);
+const otpResendUrl = new URL("../migrations/0014-password-signup-otp-resend.sql", import.meta.url);
+const tokenRecoveryUrl = new URL(
+  "../migrations/0023-invitation-token-recovery.sql",
+  import.meta.url,
+);
 const operator = "00000000-0000-0000-0000-000000000001";
 const account = "00000000-0000-0000-0000-000000000002";
 const outsider = "00000000-0000-0000-0000-000000000003";
@@ -30,7 +36,19 @@ describe("Postgres admin operations", () => {
   beforeEach(async () => {
     database = new PGlite();
     await database.waitReady;
+    await database.exec(`
+      CREATE ROLE anon NOLOGIN;
+      CREATE ROLE authenticated NOLOGIN;
+      CREATE ROLE service_role NOLOGIN;
+    `);
     await database.exec(await readFile(migrationUrl, "utf8"));
+    await database.exec(`
+      CREATE SCHEMA auth;
+      CREATE TABLE auth.users(id uuid PRIMARY KEY,email text,email_confirmed_at timestamptz);
+      CREATE TABLE auth.identities(id text PRIMARY KEY,user_id uuid NOT NULL,provider text NOT NULL);
+    `);
+    await database.exec(await readFile(otpResendUrl, "utf8"));
+    await database.exec(await readFile(tokenRecoveryUrl, "utf8"));
     adapter = {
       async transaction(ownerUserId, operation) {
         return database.transaction(async (transaction) => {
@@ -80,6 +98,7 @@ describe("Postgres admin operations", () => {
       module: createAdminOperationsModule({
         cursorKey: new Uint8Array(32).fill(1),
         ids: () => `80000000-0000-0000-0000-${String(sequence++).padStart(12, "0")}`,
+        invitationRecoveryTokenKey: new Uint8Array(32).fill(3),
         invitationTokenKey: new Uint8Array(32).fill(2),
         repository,
       }),
@@ -143,6 +162,46 @@ describe("Postgres admin operations", () => {
         type: "create-invitation",
       }),
     ).rejects.toMatchObject({ code: "idempotency_conflict" });
+  });
+
+  it("hashes one recovered token with the current pepper and safely replays its path", async () => {
+    const targetUser = "00000000-0000-0000-0000-000000000004";
+    const invitationId = "70000000-0000-0000-0000-000000000001";
+    await database.exec(`
+      INSERT INTO invitations(id,token_hash,expires_at,created_by,created_by_kind,created_at)
+      VALUES('${invitationId}',repeat('o',43),'2026-08-13T05:00:00Z','${operator}',
+        'operator','2026-08-13T03:00:00Z');
+      INSERT INTO invitation_claims(
+        ticket_hash,invitation_id,expires_at,bound_user_id,bound_email,created_at
+      ) VALUES(repeat('c',43),'${invitationId}','2026-08-13T05:00:00Z','${targetUser}',
+        'recover@example.test','2026-08-13T04:00:00Z');
+      INSERT INTO auth_flows(flow_hash,ticket_hash,expires_at,created_at)
+      VALUES(repeat('f',43),repeat('c',43),'2026-08-13T05:00:00Z','2026-08-13T04:00:00Z');
+      INSERT INTO auth.users(id,email,email_confirmed_at)
+      VALUES('${targetUser}','recover@example.test',NULL);
+      INSERT INTO auth.identities(id,user_id,provider)
+      VALUES('recover-email','${targetUser}','email');
+    `);
+    const { authorization, module } = setup();
+    const command = {
+      body: {},
+      id: invitationId,
+      idempotencyKey: "recover-token-1",
+      type: "recover-invitation-token" as const,
+    };
+
+    const first = await module.execute(authorization, command);
+    await expect(module.execute(authorization, command)).resolves.toEqual(first);
+    const token = (first as { invitationPath: string }).invitationPath.slice("/join#".length);
+    const rows = await database.query<{ current_pepper_hash: boolean; old_hash: boolean }>(
+      `SELECT token_hash=$2 AS current_pepper_hash,token_hash=repeat('o',43) AS old_hash
+       FROM invitations WHERE id=$1`,
+      [invitationId, hashSecret(token, "test-pepper")],
+    );
+    expect(rows.rows).toEqual([{ current_pepper_hash: true, old_hash: false }]);
+    expect(
+      JSON.stringify(await database.query("SELECT response FROM idempotency_records")),
+    ).not.toContain(token);
   });
 
   it("projects invitation state and replays one content-free revocation audit", async () => {

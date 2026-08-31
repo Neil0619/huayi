@@ -108,4 +108,72 @@ describe("Web admin operations API", () => {
     expect(new Headers(init?.headers).get("x-csrf-token")).toBe("csrf-token");
     expect(new Headers(init?.headers).get("idempotency-key")).toEqual(expect.any(String));
   });
+
+  it("recovers an ambiguous token rotation with the same bounded request", async () => {
+    const invitationId = "80000000-0000-0000-0000-000000000001";
+    const recovered = {
+      id: invitationId,
+      invitationPath: "/join#abcdefghijklmnopqrstuvwxyzABCDEFGH123456789",
+      recovered: true as const,
+    };
+    const fetch = vi
+      .fn<WebAdminOperationsApiOptions["fetch"]>()
+      .mockRejectedValueOnce(new TypeError("response lost"))
+      .mockResolvedValueOnce(new Response(JSON.stringify(recovered), { status: 200 }));
+    const api = createWebAdminOperationsApi({ apiOrigin: "https://api.huayi.example", fetch });
+
+    await expect(api.recoverInvitationToken(invitationId, "csrf-token")).rejects.toThrow(
+      "response lost",
+    );
+    await expect(api.recoverInvitationToken(invitationId, "csrf-token", true)).resolves.toEqual(
+      recovered,
+    );
+    expect(
+      fetch.mock.calls.map((call) => new Headers(call[1]?.headers).get("idempotency-key")),
+    ).toEqual([expect.any(String), expect.any(String)]);
+    expect(new Headers(fetch.mock.calls[1]?.[1]?.headers).get("idempotency-key")).toBe(
+      new Headers(fetch.mock.calls[0]?.[1]?.headers).get("idempotency-key"),
+    );
+    expect(fetch.mock.calls[0]?.[0]).toEqual(
+      new URL(`https://api.huayi.example/v1/admin/invitations/${invitationId}/token-recovery`),
+    );
+  });
+
+  it("clears token recovery retry state after an explicit server rejection", async () => {
+    const invitationId = "80000000-0000-0000-0000-000000000001";
+    const rejected = new Response(
+      JSON.stringify({
+        error: {
+          code: "revision_conflict",
+          message: "state changed",
+          requestId: "request-1",
+        },
+      }),
+      { status: 409 },
+    );
+    const fetch = vi
+      .fn<WebAdminOperationsApiOptions["fetch"]>()
+      .mockResolvedValueOnce(rejected)
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: invitationId,
+            invitationPath: "/join#abcdefghijklmnopqrstuvwxyzABCDEFGH123456789",
+            recovered: true,
+          }),
+          { status: 200 },
+        ),
+      );
+    const api = createWebAdminOperationsApi({ apiOrigin: "https://api.huayi.example", fetch });
+
+    await expect(api.recoverInvitationToken(invitationId, "csrf-token")).rejects.toMatchObject({
+      code: "revision_conflict",
+    });
+    await expect(api.recoverInvitationToken(invitationId, "csrf-token")).resolves.toMatchObject({
+      recovered: true,
+    });
+    expect(new Headers(fetch.mock.calls[1]?.[1]?.headers).get("idempotency-key")).not.toBe(
+      new Headers(fetch.mock.calls[0]?.[1]?.headers).get("idempotency-key"),
+    );
+  });
 });

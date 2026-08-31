@@ -5,6 +5,7 @@ import {
   adminUserResourceSchema,
   adminUserStatusResponseSchema,
   invitationResourceSchema,
+  recoveredAdminInvitationTokenResponseSchema,
   revokedAdminInvitationResponseSchema,
   revokedAdminUserDevicesResponseSchema,
   type AdminAuditEvent,
@@ -69,20 +70,42 @@ export function createPostgresAdminOperations(options: {
         const operation = `admin.${
           command.type === "create-invitation"
             ? "invitation-create"
-            : command.type === "revoke-invitation"
-              ? "invitation-revoke"
-              : command.type === "set-user-status"
-                ? "user-status"
-                : command.type === "revoke-user-devices"
-                  ? "devices-revoke"
-                  : command.type === "set-user-quota"
-                    ? "quota-set"
-                    : "kill-switch-set"
+            : command.type === "recover-invitation-token"
+              ? "invitation-token-recover"
+              : command.type === "revoke-invitation"
+                ? "invitation-revoke"
+                : command.type === "set-user-status"
+                  ? "user-status"
+                  : command.type === "revoke-user-devices"
+                    ? "devices-revoke"
+                    : command.type === "set-user-quota"
+                      ? "quota-set"
+                      : "kill-switch-set"
         }`;
         const targetId = "id" in command ? command.id : null;
         const payload = payloadFor(command);
         const tokenHash =
-          command.type === "create-invitation" ? hashSecret(command.token, options.pepper) : null;
+          command.type === "create-invitation" || command.type === "recover-invitation-token"
+            ? hashSecret(command.token, options.pepper)
+            : null;
+        if (command.type === "recover-invitation-token") {
+          const rows = await options.database.trusted((query) =>
+            query.rows<{ response: unknown }>(
+              "SELECT admin_recover_expired_invitation_token($1,$2,$3,$4,$5,$6,$7,$8) AS response",
+              [
+                authorization.actorUserId,
+                command.id,
+                command.idempotencyKey,
+                command.requestHash,
+                tokenHash,
+                now,
+                new Date(now.getTime() + IDEMPOTENCY_RETENTION_MS),
+                options.id(),
+              ],
+            ),
+          );
+          return recoveredAdminInvitationTokenResponseSchema.parse(rows[0]?.response);
+        }
         const rows = await options.database.trusted((query) =>
           query.rows<{ response: unknown }>(
             "SELECT admin_execute($1,$2,$3,$4,$5,$6::jsonb,$7,$8,$9,$10,$11) AS response",

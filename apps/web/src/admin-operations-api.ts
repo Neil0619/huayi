@@ -10,6 +10,7 @@ import {
   adminUserStatusResponseSchema,
   apiErrorSchema,
   createdInvitationResponseSchema,
+  recoveredInvitationTokenResponseSchema,
   revokedAdminInvitationResponseSchema,
   revokedAdminUserDevicesResponseSchema,
   type AdminAction,
@@ -68,6 +69,7 @@ export function createWebAdminOperationsApi(options: WebAdminOperationsApiOption
       method,
     });
   let invitationRetryKey: string | null = null;
+  let tokenRecoveryRetry: { id: string; key: string } | null = null;
 
   const createInvitation = async (
     expiresInHours: number,
@@ -129,6 +131,33 @@ export function createWebAdminOperationsApi(options: WebAdminOperationsApiOption
       return adminUserListResponseSchema.parse(
         await (await read(`${url.pathname}${url.search}`)).json(),
       );
+    },
+    async recoverInvitationToken(id: string, csrfToken: string, recover = false) {
+      if (recover) {
+        if (tokenRecoveryRetry === null || tokenRecoveryRetry.id !== id) {
+          throw new TypeError("Invitation token recovery is unavailable.");
+        }
+      } else {
+        if (tokenRecoveryRetry !== null) {
+          throw new TypeError("Invitation token recovery retry is required.");
+        }
+        tokenRecoveryRetry = { id, key: crypto.randomUUID() };
+      }
+      try {
+        const response = await write(
+          path(adminHttpRoutes.invitationTokenRecovery, id),
+          "POST",
+          {},
+          csrfToken,
+          tokenRecoveryRetry.key,
+        );
+        const recovered = recoveredInvitationTokenResponseSchema.parse(await response.json());
+        tokenRecoveryRetry = null;
+        return recovered;
+      } catch (error) {
+        if (error instanceof WebIdentityApiError) tokenRecoveryRetry = null;
+        throw error;
+      }
     },
     async revokeInvitation(id: string, csrfToken: string) {
       const response = await write(path(adminHttpRoutes.invitation, id), "DELETE", {}, csrfToken);

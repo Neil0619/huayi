@@ -602,3 +602,11 @@ logout；deleting 登录失败。`/v1/auth/csrf` 和密码登录 strict 响应�
 内部 `GET /internal/data-rights/run` 只接受 Vercel `CRON_SECRET` bearer，每次最多领取一个 export 和一个
 deletion。响应只含 bounded outcome/count。完整状态机、NDJSON record union 和失败语义见
 `account-data-rights.md`。
+
+## 过期邀请私有链接恢复
+
+`POST /v1/admin/invitations/:id/token-recovery` 接受 strict `{}` 与 `Idempotency-Key`，只允许完整 Web session、
+Operator、受信 Origin/CSRF 和 15 分钟内密码重新认证。成功返回
+`{id,recovered:true,invitationPath:"/join#<43-char-token>"}` 并固定 `private, no-store`。请求不接受旧 token、
+email、user id 或状态覆盖。相同 key/hash 安全重放同一结果；不同 payload 冲突，成功后的新 key 返回
+revision conflict。

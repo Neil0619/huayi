@@ -98,6 +98,9 @@ export function translateAdminError(error: unknown): never {
   if (message.includes("revision conflict")) {
     throw new CloudFault("revision_conflict", "The account state changed.");
   }
+  if (message.includes("invitation token recovery state changed")) {
+    throw new CloudFault("revision_conflict", "The invitation recovery state changed.");
+  }
   if (message.includes("not found")) {
     throw new CloudFault("not_found", "The administrator resource was not found.");
   }

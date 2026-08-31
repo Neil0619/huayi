@@ -360,3 +360,14 @@ Cloud Web UI 重设计已合并为 `524a55b`，并通过 Web-only arm `f3feff1` 
 自然过期，因此准确回到密码重新确认页；登录 session 本身仍有效。下一项必须由 Operator 本人再次输入
 当前密码。自动化不得读取、保存或提交密码，也不得把“曾进入控制台”当作无限期 recent-auth。重新进入后
 先回读四区与邀请列表，再经用户即时确认创建唯一普通邀请。
+
+## 13. Phase 93 过期普通邀请私有链接恢复
+
+邀请列表对 expired 行提供“恢复私有链接”二步确认。命令只按 invitation id 定位，不显示/搜索/接收旧
+token。API 使用既有完整 session、Operator ACL、Origin/CSRF、recent password reauthentication 与
+Idempotency-Key；网络结果未知时只能用原 key 恢复，明确服务器拒绝则清除 retry key。成功后当前页面隐藏
+该行恢复入口并仅显示新的 fragment，刷新后数据库的一次性审计仍会拒绝第二次轮换。
+
+恢复审计 action 为 `invitation.token-recovered`、subject 为 invitation id、safe details 为空；不得把 bound
+Auth user 作为 subject，以免破坏 0022 的 OTP recovery 合同。Hosted 操作前必须另行完成 0023 backup、
+dry-run/status/apply/diagnostic 和最终 identity snapshot，不得从离线测试推断 production 已可执行。

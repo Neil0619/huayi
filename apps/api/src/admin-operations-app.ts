@@ -14,6 +14,7 @@ import {
   listAdminInvitationsQuerySchema,
   listAdminUsersQuerySchema,
   resourceIdSchema,
+  recoveredInvitationTokenResponseSchema,
   revokedAdminInvitationResponseSchema,
   revokedAdminUserDevicesResponseSchema,
 } from "@huayi/cloud-contracts";
@@ -117,6 +118,18 @@ export function createAdminOperationsApp(options: {
           id: resourceIdSchema.parse(context.req.param("id")),
           idempotencyKey: key(context),
           type: "revoke-invitation",
+        }),
+      ),
+    ),
+  );
+  app.post(adminHttpRoutes.invitationTokenRecovery, async (context) =>
+    context.json(
+      recoveredInvitationTokenResponseSchema.parse(
+        await options.module.execute(await authenticate(context, true), {
+          body: await json(context),
+          id: resourceIdSchema.parse(context.req.param("id")),
+          idempotencyKey: key(context),
+          type: "recover-invitation-token",
         }),
       ),
     ),

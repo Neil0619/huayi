@@ -1616,3 +1616,18 @@ session is invalid.`；400 `invalid_request` 表示 runtime 数据库路径未�
 - 经批准验证欧路固定接口和扇贝人工提交，不自动点击、不上传凭据到 Huayi；
 - Chrome Web Store 草稿逐项核验单一用途、权限理由、远程代码、数据问卷、截图和公开隐私政策；公开
   发布仍需独立批准。
+
+## Phase 93 离线验收
+
+- 合同测试固定 route、strict 空请求、43 字符 fragment 与 secret-free response；
+- module/Postgres 测试证明 current pepper hash、旧 hash 立即失效、同 key 安全重放、refresh encryption key
+  独立轮换不改变恢复结果，以及第二 key 零写入；
+- PGlite migration 测试覆盖 expired invitation/claim/flow、unconfirmed email identity、账号数据漂移、NULL
+  输入、ACL/search_path/owner 与 API/Supabase migration byte identity；
+- Web 测试覆盖 Origin/CSRF mutation seam、未知响应同 key 恢复、明确 HTTP 拒绝不保留 retry、双击
+  single-flight、成功后隐藏第二次恢复入口以及只在内存显示新 link；
+- Hosted 控制面离线测试覆盖 23 项 migration manifest、Phase 93 backup artifact/capture/rebuild/readiness/
+  completion/historical completion、0023 单文件 dry-run transcript、apply gate 顺序，以及 PGlite catalog 的
+  `pending-exact`/`applied-exact`/ACL-owner-source drift `uncertain`；
+- 真实 backup/status/dry-run/apply、Operator 重新认证和 join acceptance 必须另行批准，不能由离线 GREEN
+  替代；`uncertain` 不授权重试 apply。

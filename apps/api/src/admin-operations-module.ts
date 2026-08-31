@@ -10,6 +10,7 @@ import {
   listAdminInvitationsQuerySchema,
   listAdminUsersQuerySchema,
   resourceIdSchema,
+  recoverAdminInvitationTokenRequestSchema,
   revokeAdminInvitationRequestSchema,
   revokeAdminUserDevicesRequestSchema,
   setAdminKillSwitchRequestSchema,
@@ -40,6 +41,7 @@ interface Page<T> {
 export type AdminCommand =
   | { body: unknown; idempotencyKey: string; type: "create-invitation" }
   | { body: unknown; id: string; idempotencyKey: string; type: "revoke-invitation" }
+  | { body: unknown; id: string; idempotencyKey: string; type: "recover-invitation-token" }
   | { body: unknown; id: string; idempotencyKey: string; type: "set-user-status" }
   | { body: unknown; id: string; idempotencyKey: string; type: "revoke-user-devices" }
   | { body: unknown; id: string; idempotencyKey: string; type: "set-user-quota" }
@@ -59,6 +61,13 @@ export type AdminRepositoryCommand =
       idempotencyKey: string;
       requestHash: string;
       type: "revoke-invitation" | "revoke-user-devices";
+    }
+  | {
+      id: string;
+      idempotencyKey: string;
+      requestHash: string;
+      token: string;
+      type: "recover-invitation-token";
     }
   | {
       action: "disable" | "enable";
@@ -107,9 +116,13 @@ function digest(operation: string, body: unknown, id?: string): string {
 export function createAdminOperationsModule(options: {
   cursorKey: Uint8Array;
   ids(): string;
+  invitationRecoveryTokenKey: Uint8Array;
   invitationTokenKey: Uint8Array;
   repository: AdminOperationsRepository;
 }) {
+  if (options.invitationRecoveryTokenKey.byteLength < 32) {
+    throw new Error("Invitation recovery token key must contain at least 256 bits.");
+  }
   if (options.invitationTokenKey.byteLength < 32) {
     throw new Error("Invitation token key must contain at least 256 bits.");
   }
@@ -157,6 +170,23 @@ export function createAdminOperationsModule(options: {
           requestHash: digest(command.type, body, id),
           type: command.type,
         });
+      }
+      if (command.type === "recover-invitation-token") {
+        const body = recoverAdminInvitationTokenRequestSchema.parse(command.body);
+        const requestHash = digest(command.type, body, id);
+        const token = createHmac("sha256", options.invitationRecoveryTokenKey)
+          .update(
+            `token-recovery\0${authorization.actorUserId}\0${command.idempotencyKey}\0${requestHash}`,
+          )
+          .digest("base64url");
+        const recovered = (await options.repository.execute(authorization, {
+          id: id ?? "",
+          idempotencyKey: command.idempotencyKey,
+          requestHash,
+          token,
+          type: command.type,
+        })) as Record<string, unknown>;
+        return { ...recovered, invitationPath: `/join#${token}` };
       }
       if (command.type === "revoke-user-devices") {
         const body = revokeAdminUserDevicesRequestSchema.parse(command.body);

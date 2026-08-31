@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import { createAdminOperationsApp } from "./admin-operations-app.js";
 import { createAdminOperationsModule } from "./admin-operations-module.js";
 import type { AnalysisDatabase } from "./analysis-database.js";
@@ -22,9 +24,14 @@ export function createProductionAdminOperations(options: {
   identity: AdminIdentity;
 }) {
   const key = Buffer.from(options.environment.HUAYI_REFRESH_ENCRYPTION_KEY, "base64url");
+  const invitationRecoveryTokenKey = createHash("sha256")
+    .update("huayi.invitation-token-recovery\0")
+    .update(options.environment.HUAYI_SECRET_PEPPER)
+    .digest();
   const module = createAdminOperationsModule({
     cursorKey: key,
     ids: () => crypto.randomUUID(),
+    invitationRecoveryTokenKey,
     invitationTokenKey: key,
     repository: createPostgresAdminOperations({
       database: options.database,

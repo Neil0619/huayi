@@ -2098,3 +2098,17 @@ passed; first Operator empty`。候选已提交推送，0012 已实际 push；�
   后运行，最终 exact-SHA macOS/Windows CI 也未关闭。上述工程门关闭后，下一项用户参与步骤才是在现有
   join 页面只点击一次“重新发送六位验证码”；R3-C、五项 Cron、Cloud DeepSeek 应用路径、目标网络、
   数据权利、双平台 Chrome 与完整发布收口继续 pending。
+
+### Phase 93 invitation token recovery（2026-08-31，未提交）
+
+- 已以离线 TDD 实现 0023 双镜像 migration、Operator admin API/module/Postgres seam 和 Web 二步确认/
+  一次显示；恢复只轮换同一 invitation token hash，不创建 invitation/Auth user/account；
+- 数据库精确锁定 expired invitation/claim/flow 与 unconfirmed single-email identity，账号/session/admin/
+  deletion/audit/learning 漂移均零写入；同 key 可恢复未知响应，恢复派生不依赖 refresh encryption key，
+  第二 key 被一次性审计拒绝；
+- Phase 93 专属 backup readiness/capture/rebuild/status/completion/historical completion 与 0023
+  status/diagnostic/dry-run/apply 控制脚本已离线实现；PGlite catalog 验证精确 pending/applied 及 ACL、owner、
+  source drift 的 `uncertain` 失败关闭；
+- 当前仅为 `implemented; Hosted validation pending`。未连接 Hosted、未发信、未部署、未 commit/push；
+  真实 0023 backup/status/dry-run/apply/diagnostic、exact-SHA CI 与 Operator recovery/registration closure 均待
+  后续门。

@@ -9,6 +9,7 @@ import {
   adminWriteHeadersSchema,
   createAdminInvitationRequestSchema,
   createdInvitationResponseSchema,
+  recoveredInvitationTokenResponseSchema,
   listAdminAuditEventsQuerySchema,
   listAdminUsersQuerySchema,
   setAdminKillSwitchRequestSchema,
@@ -24,6 +25,7 @@ describe("admin operations contracts", () => {
       auditEvents: "/v1/admin/audit-events",
       invitations: "/v1/admin/invitations",
       invitation: "/v1/admin/invitations/:id",
+      invitationTokenRecovery: "/v1/admin/invitations/:id/token-recovery",
       killSwitch: "/v1/admin/runtime/model-kill-switch",
       usage: "/v1/admin/usage",
       userDevices: "/v1/admin/users/:id/devices/revoke",
@@ -124,6 +126,17 @@ describe("admin operations contracts", () => {
         revokedAt: null,
       }).invitationPath,
     ).not.toContain("token=");
+    expect(
+      recoveredInvitationTokenResponseSchema.parse({
+        id: "invitation-1",
+        invitationPath: `/join#${"r".repeat(43)}`,
+        recovered: true,
+      }),
+    ).toEqual({
+      id: "invitation-1",
+      invitationPath: `/join#${"r".repeat(43)}`,
+      recovered: true,
+    });
     expect(() =>
       setAdminKillSwitchRequestSchema.parse({ enabled: true, actorUserId: "x" }),
     ).toThrow();

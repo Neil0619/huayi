@@ -75,6 +75,11 @@ async function setup(
     listAuditEvents: vi.fn(async () => ({ items: [], nextCursor: null })),
     listInvitations: vi.fn(async () => ({ items: [], nextCursor: null })),
     listUsers: vi.fn(async () => ({ items: [user], nextCursor: null })),
+    recoverInvitationToken: vi.fn(async (id: string) => ({
+      id,
+      invitationPath: "/join#recoveredABCDEFGHIJKLMNOPQRSTUVWXYZ12345678",
+      recovered: true as const,
+    })),
     revokeInvitation: vi.fn(async (id: string) => ({ id, revoked: true as const })),
     revokeUserDevices: vi.fn(async () => ({ revokedCount: 2 })),
     setKillSwitch: vi.fn(async (enabled: boolean) => ({
@@ -272,7 +277,42 @@ describe("Admin operations page", () => {
       "已撤销",
       "已过期",
     ]);
-    expect(rows.map((row) => row.querySelectorAll("button").length)).toEqual([1, 0, 0, 0]);
+    expect(rows.map((row) => row.querySelectorAll("button").length)).toEqual([1, 0, 0, 1]);
+  });
+
+  it("confirms one expired invitation token rotation and reveals only the new private link", async () => {
+    const invitation = {
+      consumedAt: null,
+      createdAt: "2026-08-13T06:00:00.000Z",
+      expiresAt: "2026-08-14T06:00:00.000Z",
+      id: "80000000-0000-0000-0000-000000000001",
+      revokedAt: null,
+    };
+    const recoverInvitationToken = vi.fn(async () => ({
+      id: invitation.id,
+      invitationPath: "/join#recoveredABCDEFGHIJKLMNOPQRSTUVWXYZ12345678",
+      recovered: true as const,
+    }));
+    const { container } = await setup({
+      listInvitations: vi.fn(async () => ({ items: [invitation], nextCursor: null })),
+      recoverInvitationToken,
+    });
+
+    await act(async () => button(container, "恢复私有链接").click());
+    expect(container.textContent).toContain("无需输入旧链接");
+    const confirmRecovery = button(container, "确认轮换并显示新链接");
+    await act(async () => {
+      confirmRecovery.click();
+      confirmRecovery.click();
+    });
+
+    expect(recoverInvitationToken).toHaveBeenCalledWith(invitation.id, "csrf-token", false);
+    expect(container.querySelector("output")?.textContent).toBe(
+      "/join#recoveredABCDEFGHIJKLMNOPQRSTUVWXYZ12345678",
+    );
+    expect(container.textContent).toContain("旧链接立即失效");
+    expect(recoverInvitationToken).toHaveBeenCalledTimes(1);
+    expect(container.textContent).not.toContain("恢复私有链接");
   });
 
   it("fails closed for a non-operator without rendering controls", async () => {

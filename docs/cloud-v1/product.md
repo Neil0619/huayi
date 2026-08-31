@@ -261,3 +261,9 @@ hosted acceptance 前准备；这里的“才继续”指 production 子域/cuto
 
 工程可以按依赖顺序分阶段完成，但只有账号、分析、待整理、学习库、生词、外部词典桥接、两种练习、
 额度、导出删除、安全披露和双平台 Chrome 验收全部通过后，才向邀请用户一次性开放完整 V1。
+
+## 7. 过期邀请私有链接恢复
+
+Operator 可在近期密码重新认证后的运营控制台中，为一条过期且尚未完成注册的普通邀请轮换一次私有
+链接。恢复保持 invitation、claim、registration flow、Auth user 与 email identity 不变，不创建邀请或账号，
+也不要求用户识别或输入旧链接。成功响应只显示一次新的 `/join#<token>`；旧链接立即失效。

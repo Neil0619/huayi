@@ -27,7 +27,13 @@ const usage = {
   usageCalls: { failed: 0, succeeded: 0 },
 };
 
-function setup() {
+function setup({
+  invitationRecoveryTokenKey = new Uint8Array(32).fill(3),
+  invitationTokenKey = new Uint8Array(32).fill(2),
+}: {
+  invitationRecoveryTokenKey?: Uint8Array;
+  invitationTokenKey?: Uint8Array;
+} = {}) {
   const repository: AdminOperationsRepository = {
     access: vi.fn(async () => undefined),
     execute: vi.fn(async (_authorization, command) =>
@@ -53,7 +59,8 @@ function setup() {
     module: createAdminOperationsModule({
       cursorKey: new Uint8Array(32).fill(1),
       ids: () => "invitation-1",
-      invitationTokenKey: new Uint8Array(32).fill(2),
+      invitationRecoveryTokenKey,
+      invitationTokenKey,
       repository,
     }),
     repository,
@@ -85,5 +92,54 @@ describe("admin operations module", () => {
     expect(first).toEqual(second);
     expect(first).toMatchObject({ invitationPath: expect.stringMatching(/^\/join#[\w-]{43}$/u) });
     expect(JSON.stringify(vi.mocked(repository.execute).mock.calls)).not.toContain("join#");
+  });
+
+  it("recovers a selected invitation without accepting or exposing its old token", async () => {
+    const { module, repository } = setup();
+    vi.mocked(repository.execute).mockResolvedValueOnce({
+      id: "invitation-1",
+      recovered: true,
+    });
+
+    const recovered = await module.execute(authorization, {
+      body: {},
+      id: "invitation-1",
+      idempotencyKey: "recover-1",
+      type: "recover-invitation-token",
+    });
+
+    expect(recovered).toMatchObject({
+      id: "invitation-1",
+      invitationPath: expect.stringMatching(/^\/join#[\w-]{43}$/u),
+      recovered: true,
+    });
+    expect(repository.execute).toHaveBeenCalledWith(
+      authorization,
+      expect.objectContaining({ id: "invitation-1", token: expect.any(String) }),
+    );
+    expect(JSON.stringify(vi.mocked(repository.execute).mock.calls)).not.toContain("oldToken");
+  });
+
+  it("keeps recovery replay stable when the unrelated refresh encryption key rotates", async () => {
+    const first = setup({ invitationTokenKey: new Uint8Array(32).fill(2) });
+    const rotated = setup({ invitationTokenKey: new Uint8Array(32).fill(4) });
+    vi.mocked(first.repository.execute).mockResolvedValueOnce({
+      id: "invitation-1",
+      recovered: true,
+    });
+    vi.mocked(rotated.repository.execute).mockResolvedValueOnce({
+      id: "invitation-1",
+      recovered: true,
+    });
+    const command = {
+      body: {},
+      id: "invitation-1",
+      idempotencyKey: "recover-1",
+      type: "recover-invitation-token" as const,
+    };
+
+    await expect(first.module.execute(authorization, command)).resolves.toEqual(
+      await rotated.module.execute(authorization, command),
+    );
   });
 });

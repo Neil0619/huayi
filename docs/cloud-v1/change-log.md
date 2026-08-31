@@ -2227,3 +2227,12 @@
 - Web/API 采用 React+Vite/Hono，Supabase Auth/Postgres 与 Vercel 双项目；服务器可读但正文不进日志。
 - V1 复用现有语见设置页视觉，仅预留语义 token；主题切换延后。
 - 工程按阶段实现，但完整功能通过后才一次性向邀请用户开放。
+
+## 2026-08-31：Phase 93 同一 invitation token recovery
+
+- 新增 Operator-only `POST /v1/admin/invitations/:id/token-recovery`，不接受旧 opaque token。
+- 保持同一 invitation/claim/flow/Auth identity，只轮换 current-pepper token hash；旧 link 立即失效。
+- 同一幂等请求可恢复未知响应；一次性 recovery audit 禁止第二次轮换，所有状态漂移零写入。
+- Web 只在当前内存响应显示新 link，不把 token 放入列表、审计、幂等记录或持久状态。
+- 增加 Phase 93 专属 backup 与 0023 status/diagnostic/dry-run/apply 离线控制面；只有真实顺序 gate 的
+  独立批准和执行证据才能把状态从 `Hosted validation pending` 推进。
