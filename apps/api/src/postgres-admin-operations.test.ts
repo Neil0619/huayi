@@ -72,15 +72,16 @@ describe("Postgres admin operations", () => {
       INSERT INTO web_sessions(
         id,user_id,owner_user_id,session_hash,csrf_hash,refresh_ciphertext,expires_at
       ) VALUES('10000000-0000-0000-0000-000000000001','${account}','${account}',
-        'web-hash','csrf-hash','cipher','2026-09-01T00:00:00Z');
+        'web-hash','csrf-hash','cipher',CURRENT_TIMESTAMP + INTERVAL '1 day');
       INSERT INTO extension_sessions(
         id,user_id,owner_user_id,install_id_hash,token_hash,device_label,expires_at
       ) VALUES('20000000-0000-0000-0000-000000000001','${account}','${account}',
-        'install-hash','token-hash','Mac','2026-09-01T00:00:00Z');
+        'install-hash','token-hash','Mac',CURRENT_TIMESTAMP + INTERVAL '1 day');
       INSERT INTO extension_pairings(
         id,user_id,owner_user_id,state_hash,pkce_challenge,install_id_hash,device_label,status,expires_at
       ) VALUES('30000000-0000-0000-0000-000000000001','${account}','${account}',
-        'state-hash','challenge','install-hash','Mac','approved','2026-09-01T00:00:00Z');
+        'state-hash','challenge','install-hash','Mac','approved',
+        CURRENT_TIMESTAMP + INTERVAL '1 day');
     `);
   });
 
