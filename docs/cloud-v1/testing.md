@@ -1638,5 +1638,11 @@ session is invalid.`；400 `invalid_request` 表示 runtime 数据库路径未�
   `not-eligible`，并静态覆盖 0023 检查的全部零记录表；
 - 真实 0023 backup/status/dry-run/apply/post、identity snapshot、Phase 93 Vercel diagnose/one-shot 双关闭与
   recovery readiness 已完成；首次 Operator recovery POST 因陈旧页面 CSRF 以 403 失败关闭且未显示新链接。
-  fresh-CSRF 客户端修复仍需离线门、提交、exact-SHA 双平台 CI、重新部署和 fresh readiness，不能由本地
-  GREEN 替代；Hosted recovery 在这些门关闭前不得重试，`uncertain` 也不授权重试 apply。
+  fresh-CSRF 客户端修复和独立重新部署门随后完成；fresh readiness 后仅恢复一次同一 invitation token，
+  六位 OTP 注册、completion snapshot 与密码重登均已完成。该成功结果不授权再次 recovery/OTP，
+  `uncertain` 也始终不授权重试 apply。
+- post-relogin Web session 诊断以 PGlite 覆盖“目标账号仅有 revoked session + 其他 Operator active”、全局
+  零 active、目标唯一 full active、目标 multiple active、目标 non-full active 与第二 ordinary invitation；
+  CLI 回归固定 19 行顺序、有限 verdict、聚合交叉校验、verify-full/30 秒/read-only transaction、隐藏密码与
+  零 identity/session/token input。离线 GREEN 不替代 Hosted 结果，且任何 well-formed verdict 的进程成功
+  只表示诊断完成，不能被解释为业务成功。

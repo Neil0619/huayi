@@ -2099,7 +2099,7 @@ passed; first Operator empty`。候选已提交推送，0012 已实际 push；�
   join 页面只点击一次“重新发送六位验证码”；R3-C、五项 Cron、Cloud DeepSeek 应用路径、目标网络、
   数据权利、双平台 Chrome 与完整发布收口继续 pending。
 
-### Phase 93 invitation token recovery（2026-09-01，首次 Hosted mutation 403，独立重新部署待执行）
+### Phase 93 invitation token recovery（2026-09-02，账号已建立，post-relogin session 待诊断）
 
 - 已以离线 TDD 实现 0023 双镜像 migration、Operator admin API/module/Postgres seam 和 Web 二步确认/
   一次显示；恢复只轮换同一 invitation token hash，不创建 invitation/Auth user/account；
@@ -2122,8 +2122,15 @@ passed; first Operator empty`。候选已提交推送，0012 已实际 push；�
   原 Idempotency-Key 但获取 fresh CSRF；`882d3d4` 已提交推送，Cross-platform quality run `33499948406`
   的 macOS/Windows job 均通过，但尚未重新部署；
 - 旧 Phase 93 state 已为 `complete`。只读重跑旧 diagnose 确认远端 API/Web 19/12、latest Ready、零
-  in-flight，并因旧 state 非 absent、旧 baseline 仍为 18/11 而按设计失败且零写入。当前离线新增独立
-  fresh-CSRF state、19/12 baseline、历史 completion gate 和脱敏 diagnose，聚焦 7/7 与 fresh
-  `pnpm verify:macos` 均通过；该候选仍未 commit/push。下一步是提交与 exact-SHA 双平台 CI，再执行 fresh
-  diagnose/串行重新部署和 fresh recovery readiness；这些门关闭并取得新的 action-time 批准前，不得重试
-  Hosted recovery。
+  in-flight，并因旧 state 非 absent、旧 baseline 仍为 18/11 而按设计失败且零写入。随后离线新增独立
+  fresh-CSRF state、19/12 baseline、历史 completion gate 和脱敏 diagnose，聚焦 7/7 与
+  `pnpm verify:macos` 均通过；历史 state 未被删除或覆盖；
+- 独立 fresh-CSRF 控制面随后以 `3960389` 提交，fresh diagnose/preflight 与 API/Web
+  arm→observe→disarm→verify 均真实通过；fresh readiness 再次为 `eligible`。Operator 只执行一次恢复并
+  保存新私有链接，用户只重发一次六位码，最终 completion snapshot 为 invitation consumed、claim
+  finalized、flow consumed、confirmed Auth user、active profile/password/quota、
+  `account_finalized_exact|t` 与 `safe_route_state|account-established`，密码退出重登人工通过；
+- 两次 post-relogin snapshot 均仍为 `subject_active_web_session_count|0`，但浏览器能读取认证后的
+  `/practice` 并在 `/admin` 到达 recent-auth 门。新增离线脱敏只读诊断自动锁定唯一 finalized account，固定
+  输出 target/other session 聚合、owner/partition 合同和有限 verdict，用于区分 `subject-active`、
+  `other-active-only` 与 `no-active-session`。当前改动停在提交前；尚未连接 Hosted 或得出根因。

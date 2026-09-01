@@ -546,15 +546,31 @@ job 均为 success。随后只读重跑旧 Phase 93 diagnose 时，credential/Gi
 重新部署必须改用独立 `acceptance:hosted:phase93:fresh-csrf:deployment:one-shot:*` surface 与
 `phase-93-0023-fresh-csrf-state.json`。每个非 plan 阶段先精确验证旧 Phase 93 completion，再以其 Ready
 部署固定新的 19/12 baseline；diagnose 同时要求旧 state complete、新 state absent、Git clean/pushed/
-disarmed、五个只读请求与远端 baseline 全部精确。该控制面当前仅为未提交离线候选，尚未连接 Vercel、
-写新 state、arm/disarm 或部署；fresh `pnpm verify:macos` 已退出 0。提交、exact-SHA 双平台 CI、fresh
-diagnose/preflight 与四段串行门仍需分别关闭，之后才可 fresh recovery-readiness 并请求新的 action-time
-recovery 批准。
+disarmed、五个只读请求与远端 baseline 全部精确。该独立控制面已以 `3960389` 提交；fresh diagnose/
+preflight 与 API arm/observe → disarm/verify、Web arm/observe → disarm/verify 均已按序真实通过，两个项目
+最终均恢复 disarm。fresh recovery-readiness 再次输出全部精确叶与 `eligible_verdict|eligible` 后，Operator
+取得新的 action-time 批准并只确认一次恢复，页面显示的新私有链接由用户保存。
+
+用户随后只用该链接打开同一邀请、只重发一次六位验证码并完成注册。completion snapshot 精确得到唯一
+invitation consumed、claim finalized、registration flow consumed、confirmed Auth user、active profile、
+唯一 password method/current quota、`account_finalized_exact|t` 与
+`safe_route_state|account-established`；密码退出重登的产品旅程也已人工通过。重登后的两次 identity snapshot
+却都得到 `subject_active_web_session_count|0`，而同一浏览器仍可读取需认证的 `/practice`，并在 `/admin`
+进入 Operator recent-auth 门。不得把两侧证据任一方单独解释成“没有登录”或“session 已精确闭环”。
+
+该矛盾只允许通过 `acceptance:hosted:identity:post-relogin:diagnose` 继续只读判定。命令不接受 email、UUID、
+Cookie、session/invitation token；它在一个 verify-full、`REPEATABLE READ READ ONLY` transaction 中自动
+锁定唯一 finalized ordinary-invitation account，只输出全局/subject/other 的固定 session 计数、owner 与
+partition 布尔合同、有限 latest state 和有限 verdict。`subject-active` 表示目标账号数据库侧存在唯一 full
+active session；`other-active-only` 表示活动 session 只属于其他账号；`no-active-session` 表示当前数据库中
+没有活动 session，需继续核对 API runtime database；其他 drift/multiple/non-full verdict 均失败关闭。本
+诊断不写数据库，不要求用户退出当前会话，也不授权任何修复或 mutation。
 
 仓库提供 Phase 93 专属的 plan/preflight/readiness/pre-capture/rebuild/status/dry-run/apply/post-capture/
 completion/historical completion 命令，统一位于 `acceptance:hosted:phase93:migration:backup:*` 与
 `acceptance:hosted:migration:0023:*`。`status` 只返回 `pending-exact`、`applied-exact` 或 `uncertain`；
 `uncertain` 必须停止 apply，并仅用 `acceptance:hosted:migration:0023:status:diagnose` 的 allowlisted predicate
-诊断。上述 0023 migration/backup/identity、Phase 93 Vercel one-shot 双关闭与 recovery readiness 均已有
-真实精确结果；首次 recovery 明确 403 且没有成功证据。fresh-CSRF 修复已 commit/push 且 exact-SHA
-双平台 CI 通过，但独立 19/12 重新部署控制面尚未 commit/push，修复也未重新部署，Hosted recovery 未重试。
+诊断。上述 0023 migration/backup、Phase 93 两轮 Vercel one-shot、fresh recovery readiness、同一邀请
+token recovery、六位 OTP 注册、completion snapshot 与密码重登均已有真实结果。当前唯一未闭环的是
+post-relogin Web session 的 snapshot/API 证据矛盾；先运行上述脱敏只读诊断，禁止为刷新证据再做恢复、
+再发 OTP、创建邀请或删除 session。

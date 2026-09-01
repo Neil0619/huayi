@@ -1,30 +1,26 @@
 # Hosted 验收一页式操作清单
 
-> 当前检查点：2026-09-01。Cloud V1 仍是 `implemented; validation pending`，不能开放
+> 当前检查点：2026-09-02。Cloud V1 仍是 `implemented; validation pending`，不能开放
 > production 或宣称 Chrome Web Store 就绪。
 
 ## 现在停在哪里 / 你现在要做什么
 
-现在停在**Phase 93 deployment/readiness 控制面提交前**。0023 已真实完成 pre/rebuild/dry-run/
-`pending-exact`/apply/`applied-exact`/post/completion，最新脱敏 snapshot 仍精确证明同一 expired ordinary
-invitation/claim/flow、unconfirmed Auth user、唯一 email identity 和零账号数据。新增 Phase 93 独立 Vercel
-one-shot/只读 diagnose 与 recovery-readiness 诊断已离线实现；没有访问 Hosted/Vercel/Supabase、写 state、
-部署或执行 recovery。
-下一步先完成离线全门、commit/push 与 exact-SHA 双平台质量门；随后才逐项批准：
+现在停在**账号已建立、post-relogin Web session 脱敏只读诊断提交前**。0023 backup/migration、两轮 Phase 93
+Vercel 部署、fresh recovery readiness、同一邀请 token recovery、一次六位码重发、注册 completion snapshot
+与密码重登均已有真实结果；`account_finalized_exact|t`、`safe_route_state|account-established`。但重登后的
+两次 snapshot 都显示目标账号活动 Web session 为 0，而同一浏览器仍能读取需认证页面；这项矛盾尚未闭环。
+
+下一步先完成本次离线全门、commit/push 与 exact-SHA 双平台质量门；随后另行批准在普通 macOS Terminal
+只运行一次：
 
 ```text
-pnpm acceptance:hosted:phase93:deployment:one-shot:diagnose
-pnpm acceptance:hosted:phase93:deployment:one-shot:preflight
+pnpm acceptance:hosted:identity:post-relogin:diagnose
 ```
 
-这些不是一条可连续粘贴的命令块，每一步都需要新的批准和上一阶段的精确成功结果。需要管理员密码的命令
-由用户在普通 macOS Terminal 运行并只在无回显提示中输入；Codex 底部终端不用于密码提示。apply 另行批准，
-且任何 `uncertain` 都先诊断、禁止盲重试。
-
-diagnose 与 preflight 精确后，部署只使用 `acceptance:hosted:phase93:deployment:one-shot:*` 独立入口，依次为
-API arm observe、API disarm verify、Web arm observe、Web disarm verify；每次 arm/disarm commit/push 仍需
-单独批准。双关闭后先运行 `acceptance:hosted:phase93:recovery:readiness`，只接受全部叶为 `t` 与
-`eligible_verdict|eligible`。Phase 81/92 state 只作历史证据，不得重跑、覆盖或冒充 Phase 93 state。
+需要管理员密码的命令由用户在普通 macOS Terminal 运行并只在无回显提示中输入；Codex 底部终端不用于密码
+提示。诊断不需要退出当前会话，不接受邮箱、Cookie、UUID 或 token，也不写数据库。结果只用于区分目标账号
+活动 session、其他账号活动 session、当前数据库零活动 session 或合同漂移；禁止为了刷新结果重发 OTP、
+轮换邀请、创建账号或删除 session。
 
 ## 谁做什么
 
@@ -60,7 +56,7 @@ API arm observe、API disarm verify、Web arm observe、Web disarm verify；每�
 POST OTP；完成后退出并用密码重新登录。
 
 **成功标志**：Auth 配置 status 通过；新邮件恰好六位 OTP；重复 GET 零副作用；同一 invitation、user、
-identity 保持唯一；Web 落到 `/practice`，密码重登成功。随后在普通 macOS Terminal 运行
+identity 保持唯一；Web 落到 `/practice`，密码重登成功。该旅程已于 2026-09-02 完成。随后在普通 macOS Terminal 运行
 `pnpm acceptance:hosted:identity:snapshot`，至少得到唯一 invitation consumed、唯一 claim finalized、唯一
 registration flow consumed、`account_finalized_exact|t` 与 `safe_route_state|account-established`；第二张普通
 邀请会使收口失败。

@@ -659,3 +659,11 @@ stage/status，不输出 URL、响应体、token、deployment id 或 commit；�
 Origin/CSRF/Idempotency-Key 保护的 mutation；未知响应重放只复用原幂等键，CSRF 则重新获取。Phase 93
 首次 Hosted recovery 因违反该客户端约束而以 403 失败关闭；没有新私有链接或 recovery 成功证据，修复部署
 和 fresh readiness 前禁止重试。
+
+post-relogin Web session 诊断是独立的只读管理面，不接收 email、UUID、Cookie、session token、invitation
+token 或任意 opaque selector。目标账号只能由数据库内“唯一 ordinary invitation + finalized account”合同
+自动确定；若目标不唯一或账号不精确，固定返回 `target-inconsistent`。诊断在单一 verify-full、
+`REPEATABLE READ READ ONLY` transaction 中仅按 target/other、active/revoked/expired、full/non-full 与
+Operator/non-Operator 统计，并以 owner/partition 自检阻止聚合误导。stdout 仅允许固定有序布尔值、非负
+计数、有限 session state 与有限 verdict；数据库错误、身份、hash、时间、密文、URL 和正文均不得输出。
+诊断成功仅代表报告合同完整，不代表 session 健康，也不授权注销、撤销、修复或重建账号。

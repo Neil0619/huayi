@@ -2256,3 +2256,10 @@
   19/12 terminal baseline 与脱敏 diagnose。所有执行阶段先验证旧 Phase 93 completion，旧/new state 可在
   同一私有目录共存；聚焦 7/7 与 fresh `pnpm verify:macos` 已通过。当前仍是未提交离线候选，提交、双平台
   exact-SHA 门与 Hosted 串行执行继续单列。
+- 独立 fresh-CSRF 重新部署随后完成，fresh readiness 为 `eligible`；经新的 action-time 批准仅恢复一次同一
+  invitation token。用户保存新链接、只重发一次六位码并完成注册；completion snapshot 精确为 consumed/
+  finalized/consumed、confirmed Auth user、active profile/password/quota 与 `account-established`，密码重登也
+  人工通过。
+- 两次 post-relogin identity snapshot 仍显示目标账号活动 Web session 为 0，而浏览器可访问认证页面。新增
+  不接受 identity/session/token input 的只读诊断，以固定 19 行聚合和有限 verdict 区分目标账号 active、
+  其他账号 active、当前数据库零 active 及 owner/partition drift；当前仅离线实现，尚未执行 Hosted。
