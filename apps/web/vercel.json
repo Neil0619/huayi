@@ -3,7 +3,10 @@
   "framework": "vite",
   "buildCommand": "pnpm build:vercel",
   "git": {
-    "deploymentEnabled": false
+    "deploymentEnabled": {
+      "**": false,
+      "codex/settings-configuration": true
+    }
   },
   "headers": [
     {
