@@ -250,8 +250,10 @@ async function deleteHostedCredential({ credentialId, runSecurity }) {
 }
 
 function parseCliArguments(arguments_) {
-  if (arguments_[0] === "--") arguments_ = arguments_.slice(1);
-  const [operation, option, credentialId, ...rest] = arguments_;
+  let normalizedArguments = arguments_[0] === "--" ? arguments_.slice(1) : [...arguments_];
+  const operation = normalizedArguments.shift();
+  if (normalizedArguments[0] === "--") normalizedArguments = normalizedArguments.slice(1);
+  const [option, credentialId, ...rest] = normalizedArguments;
   if (!new Set(["configure", "diagnose", "remove", "rotate", "status"]).has(operation)) {
     return undefined;
   }
@@ -313,6 +315,7 @@ export async function runHostedCredentialsCli({
             recordResult(credentialId, "present", true);
             continue;
           }
+          writeOutput(`credential|${credentialId}|input-required\n`);
           await writeHostedCredential({ credentialId, runSecurity, stderrIsTTY, stdinIsTTY });
           await readHostedCredential(credentialId, { environment, platform, runSecurity });
           recordResult(credentialId, "configured", true);
@@ -353,6 +356,7 @@ export async function runHostedCredentialsCli({
         }
         continue;
       }
+      writeOutput(`credential|${credentialId}|input-required\n`);
       await writeHostedCredential({ credentialId, runSecurity, stderrIsTTY, stdinIsTTY });
       await readHostedCredential(credentialId, { environment, platform, runSecurity });
       recordResult(credentialId, "rotated");

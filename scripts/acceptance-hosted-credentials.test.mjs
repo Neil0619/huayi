@@ -58,6 +58,7 @@ test("hosted credential reads use an absolute security command and never expose 
 
 test("hosted credential configuration delegates hidden input directly to security", async () => {
   const calls = [];
+  const events = [];
   const output = [];
   const code = await runHostedCredentialsCli({
     arguments_: ["configure", "--name", "supabase-management-token"],
@@ -68,7 +69,10 @@ test("hosted credential configuration delegates hidden input directly to securit
       if (request.arguments_[0] === "find-generic-password" && !request.arguments_.includes("-w")) {
         return { code: 44, stderr: "", stdout: "" };
       }
-      if (request.interactive) return { code: 0, stderr: "", stdout: "" };
+      if (request.interactive) {
+        events.push("security-input");
+        return { code: 0, stderr: "", stdout: "" };
+      }
       return {
         code: 0,
         stderr: "",
@@ -77,7 +81,10 @@ test("hosted credential configuration delegates hidden input directly to securit
     },
     stdinIsTTY: true,
     stderrIsTTY: true,
-    writeOutput: (value) => output.push(value),
+    writeOutput: (value) => {
+      output.push(value);
+      events.push(value.trim());
+    },
   });
 
   assert.equal(code, 0);
@@ -100,7 +107,30 @@ test("hosted credential configuration delegates hidden input directly to securit
     calls[1].arguments_.some((value) => Object.values(secrets).includes(value)),
     false,
   );
-  assert.equal(output.join(""), "credential|supabase-management-token|configured\n");
+  assert.equal(
+    output.join(""),
+    "credential|supabase-management-token|input-required\n" +
+      "credential|supabase-management-token|configured\n",
+  );
+  assert.deepEqual(events, [
+    "credential|supabase-management-token|input-required",
+    "security-input",
+    "credential|supabase-management-token|configured",
+  ]);
+});
+
+test("hosted credential package syntax accepts pnpm's separator after the fixed operation", async () => {
+  const output = [];
+  const code = await runHostedCredentialsCli({
+    arguments_: ["status", "--", "--name", "vercel-token"],
+    environment: {},
+    platform: "darwin",
+    runSecurity: async () => ({ code: 44, stderr: "private", stdout: "private" }),
+    writeOutput: (value) => output.push(value),
+  });
+
+  assert.equal(code, 1);
+  assert.equal(output.join(""), "credential|vercel-token|missing\n");
 });
 
 test("hosted credential configure validates existing items before reporting them present", async () => {
@@ -177,7 +207,12 @@ test("multi-account configure reports completed mutations before a later cancell
   });
 
   assert.equal(code, 1);
-  assert.equal(output.join(""), "credential|supabase-admin-db-password|configured\n");
+  assert.equal(
+    output.join(""),
+    "credential|supabase-admin-db-password|input-required\n" +
+      "credential|supabase-admin-db-password|configured\n" +
+      "credential|supabase-application-db-password|input-required\n",
+  );
 });
 
 test("multi-account remove preflights every item before deleting Keychain data", async () => {

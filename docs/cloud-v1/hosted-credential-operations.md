@@ -30,8 +30,10 @@ pnpm acceptance:hosted:credentials:diagnose
 
 `configure` 先检查全部目标 account，并验证已有项确实可读且格式有效；只有完整 preflight 通过后才为
 缺失项调用 `/usr/bin/security add-generic-password ... -w`。秘密由系统命令直接隐藏读取；脚本不取得
-输入参数，也不使用 `-A`。多项配置期间若操作者取消后续系统提示，已经完成的项会立即显示，命令返回
-失败；重新运行会安全跳过并复验这些项，只继续缺失项。可用 `--name` 只处理一项：
+输入参数，也不使用 `-A`。每次系统隐藏提示前先输出固定
+`credential|<account>|input-required`，操作者无需记忆四项顺序。多项配置期间若操作者取消后续系统
+提示，已经完成的项会立即显示，命令返回失败；重新运行会安全跳过并复验这些项，只继续缺失项。可用
+`--name` 只处理一项：
 
 ```bash
 pnpm acceptance:hosted:credentials:configure -- --name vercel-token
