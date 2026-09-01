@@ -58,6 +58,7 @@ function readyRuntime() {
 async function runCli({
   arguments_,
   captureBackup,
+  environment = {},
   readCaptureSecrets,
   rebuildScratch,
   repositoryState = readyRepositoryState(),
@@ -77,6 +78,7 @@ async function runCli({
       calls.push("inspect-runtime");
       return runtime;
     },
+    environment,
     readCaptureSecrets:
       readCaptureSecrets ??
       (async () => {

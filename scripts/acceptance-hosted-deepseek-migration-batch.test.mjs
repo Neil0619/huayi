@@ -268,6 +268,7 @@ test("DeepSeek migration executor requires pushed readiness before secrets or wr
         calls.push("runtime");
         return readyRuntime;
       },
+      environment: {},
       readCaptureSecrets: async () => {
         calls.push("secrets");
         return { administratorPassword: "private", caCertificate: "private" };

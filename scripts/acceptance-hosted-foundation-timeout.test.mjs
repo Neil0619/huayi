@@ -107,7 +107,7 @@ test("hosted psql uses a private pgpass file and removes the whole credential ch
     passwordFileValue,
     String.raw`database.example.test:6543:database:user.name:fictional\:password\\value` + "\n",
   );
-  assert.equal(passwordFileMode, 0o600);
+  if (process.platform !== "win32") assert.equal(passwordFileMode, 0o600);
   await assert.rejects(stat(passwordFile), { code: "ENOENT" });
   await assert.rejects(stat(rootCertificate), { code: "ENOENT" });
 });

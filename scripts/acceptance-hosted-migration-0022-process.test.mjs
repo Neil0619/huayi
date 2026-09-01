@@ -61,7 +61,7 @@ test("0022 dry-run pins bounded CLI output and removes the private CA", async ()
   assert.equal(actual.options.shell, false);
   assert.equal(actual.options.env.PGPASSWORD, undefined);
   const passwordPath = actual.options.env.PGPASSFILE;
-  assert.equal((await stat(passwordPath)).mode & 0o777, 0o600);
+  if (process.platform !== "win32") assert.equal((await stat(passwordPath)).mode & 0o777, 0o600);
   assert.equal(
     await readFile(passwordPath, "utf8"),
     `aws-0-ap-southeast-1.pooler.supabase.com:6543:postgres:postgres.kpadiulxkgckskcfydry:${secrets.administratorPassword}\n`,
@@ -101,7 +101,7 @@ test("0022 apply pins --yes, suppresses output, and removes the private CA", asy
   assert.equal(actual.options.env.SUPABASE_NO_UPDATE_NOTIFIER, "1");
   assert.equal(actual.options.env.PGPASSWORD, undefined);
   const passwordPath = actual.options.env.PGPASSFILE;
-  assert.equal((await stat(passwordPath)).mode & 0o777, 0o600);
+  if (process.platform !== "win32") assert.equal((await stat(passwordPath)).mode & 0o777, 0o600);
   assert.equal(
     await readFile(passwordPath, "utf8"),
     `aws-0-ap-southeast-1.pooler.supabase.com:6543:postgres:postgres.kpadiulxkgckskcfydry:${secrets.administratorPassword}\n`,

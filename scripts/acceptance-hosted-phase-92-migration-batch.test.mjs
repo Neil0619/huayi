@@ -283,6 +283,7 @@ test("Phase 92 executor gates secrets and writes behind pushed readiness", async
         calls.push("runtime");
         return readyRuntime;
       },
+      environment: {},
       readCaptureSecrets: async () => {
         calls.push("secrets");
         return { administratorPassword: "private", caCertificate: "private" };

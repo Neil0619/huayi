@@ -343,7 +343,7 @@ test("0014 apply process pins --yes, verify-full, and removes its public CA", as
   ]);
   assert.equal(observed.options.env.PGPASSWORD, undefined);
   const passwordPath = observed.options.env.PGPASSFILE;
-  assert.equal((await stat(passwordPath)).mode & 0o777, 0o600);
+  if (process.platform !== "win32") assert.equal((await stat(passwordPath)).mode & 0o777, 0o600);
   assert.equal(
     await readFile(passwordPath, "utf8"),
     "aws-0-ap-southeast-1.pooler.supabase.com:6543:postgres:postgres.kpadiulxkgckskcfydry:fictional-secret\n",

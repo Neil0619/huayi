@@ -64,7 +64,7 @@ test("DeepSeek migration dry-run process pins fixed CLI, bounded output, and dis
   assert.equal(actual.options.shell, false);
   assert.equal(actual.options.env.PGPASSWORD, undefined);
   const passwordPath = actual.options.env.PGPASSFILE;
-  assert.equal((await stat(passwordPath)).mode & 0o777, 0o600);
+  if (process.platform !== "win32") assert.equal((await stat(passwordPath)).mode & 0o777, 0o600);
   assert.equal(
     await readFile(passwordPath, "utf8"),
     `aws-0-ap-southeast-1.pooler.supabase.com:6543:postgres:postgres.kpadiulxkgckskcfydry:${secrets.administratorPassword}\n`,
@@ -103,7 +103,7 @@ test("DeepSeek migration apply process pins --yes, suppresses output, and remove
   assert.equal(actual.options.shell, false);
   assert.equal(actual.options.env.PGPASSWORD, undefined);
   const passwordPath = actual.options.env.PGPASSFILE;
-  assert.equal((await stat(passwordPath)).mode & 0o777, 0o600);
+  if (process.platform !== "win32") assert.equal((await stat(passwordPath)).mode & 0o777, 0o600);
   assert.equal(
     await readFile(passwordPath, "utf8"),
     `aws-0-ap-southeast-1.pooler.supabase.com:6543:postgres:postgres.kpadiulxkgckskcfydry:${secrets.administratorPassword}\n`,

@@ -242,6 +242,7 @@ test("Phase 93 executor fails before secrets when readiness is not exact", async
   const calls = [];
   const code = await runHostedPhase93MigrationBackupExecutorCli({
     arguments_: [hostedPhase93MigrationCapturePreArgument],
+    environment: {},
     inspectRuntime: async () => ({
       artifactEncryptionReady: false,
       dockerDaemonReady: false,
