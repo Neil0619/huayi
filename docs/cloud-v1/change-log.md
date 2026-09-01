@@ -2236,3 +2236,9 @@
 - Web 只在当前内存响应显示新 link，不把 token 放入列表、审计、幂等记录或持久状态。
 - 增加 Phase 93 专属 backup 与 0023 status/diagnostic/dry-run/apply 离线控制面；只有真实顺序 gate 的
   独立批准和执行证据才能把状态从 `Hosted validation pending` 推进。
+- 2026-09-01 已完成真实 0023 pre/rebuild/dry-run/`pending-exact`/apply/`applied-exact`/post/completion，随后
+  identity snapshot 仍精确为唯一 expired invitation 与零账号数据；这不等于 API/Web 部署或 token recovery。
+- 新增独立 Phase 93 Vercel one-shot wrapper、confirmation、18/11 candidate baseline、只读 diagnose 与
+  `phase-93-0023-state.json`，Phase 81/92 state 保持不可变；candidate 必须经 fresh Hosted diagnose 证明。
+- 新增不接受 identity/token input 的 recovery-readiness 只读诊断，逐叶镜像 0023 mutation preconditions，
+  仅 exact contract 输出 `eligible`。本次只做离线实现与测试，停在提交前。

@@ -1629,5 +1629,12 @@ session is invalid.`；400 `invalid_request` 表示 runtime 数据库路径未�
 - Hosted 控制面离线测试覆盖 23 项 migration manifest、Phase 93 backup artifact/capture/rebuild/readiness/
   completion/historical completion、0023 单文件 dry-run transcript、apply gate 顺序，以及 PGlite catalog 的
   `pending-exact`/`applied-exact`/ACL-owner-source drift `uncertain`；
-- 真实 backup/status/dry-run/apply、Operator 重新认证和 join acceptance 必须另行批准，不能由离线 GREEN
+- Phase 93 deployment 测试固定独立 confirmation、18/11 candidate baseline、只读 diagnose、五个固定
+  request stage/status、独立 `phase-93-0023-state.json`，并证明 Phase 81/92/93 三份 canonical private state
+  可共存而不覆盖；
+- recovery-readiness 测试先以缺失模块得到真实 RED，再以最终聚焦 17/17 GREEN 证明固定 35 行 allowlist、无 identity
+  input、secret-safe failure、单一 repeatable-read read-only transaction、精确 eligible 与多类 state drift
+  `not-eligible`，并静态覆盖 0023 检查的全部零记录表；
+- 真实 0023 backup/status/dry-run/apply/post 已完成，identity snapshot 也已精确；但 Phase 93 Vercel diagnose/
+  one-shot、recovery readiness、Operator 重新认证和 join acceptance 仍必须另行批准，不能由离线 GREEN
   替代；`uncertain` 不授权重试 apply。

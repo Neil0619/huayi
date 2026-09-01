@@ -2993,3 +2993,27 @@ typecheck、architecture、build、development blocker、Store release、product
   读取 secret、捕获/覆盖备份、部署、发邮件或创建第二邀请，也尚未 commit/push。下一步是提交推送本地
   historical verifier/docs 候选、在 clean pushed HEAD 运行历史门并为 exact SHA 运行 macOS/Windows CI；
   随后才由用户在现有 join 页面点击一次 resend 并完成六位 OTP/密码重登/final snapshot。
+
+## 115. Phase 93 deployment one-shot 与 recovery-readiness 离线控制面（2026-09-01）
+
+- **已关闭的 Hosted 前置证据**：0023 已按顺序完成 pre capture、isolated rebuild、backup preflight、唯一
+  dry-run、`pending-exact`、受控 apply、`applied-exact`、post capture/completion；backup 九项为
+  `present/valid/current=true`。最新 identity snapshot 仍为唯一 expired/bound-expired/expired
+  invitation/claim/flow、unconfirmed Auth user、唯一 email identity 与零账号数据，route 为 `otp-resend`；
+- **Fresh RED → GREEN**：先新增三个测试入口并以缺失 Phase 93 wrapper/diagnostic/readiness modules 得到
+  3/3 `ERR_MODULE_NOT_FOUND` RED；最小实现与两轮复核回归后聚焦 17/17 GREEN；
+- **独立 deployment state**：Phase 93 使用新 confirmation、`phase-93-0023-state.json` 与独立 package
+  surface。Phase 81/92/93 三份 `0600` canonical state 可在同一 `0700` 目录共存，未知文件继续失败关闭。
+  API/Web 18/11、latest Ready `ca6f5bd`/`b044dda` 目前只是由 Phase 92 终态建立的 candidate；只读 diagnose
+  必须 fresh 证明 token/team/project/history/Git/disarmed/state-absent 合同；它只公开五个固定 request
+  stage/status 与 request count，不输出 URL、响应体、token、deployment id、commit 或写 state，才能进入
+  preflight；
+- **recovery-readiness**：固定 plan/diagnostic 不接受 email、UUID、invitation id 或 token，自动选择唯一
+  ordinary invitation，并在单一 verify-full `REPEATABLE READ READ ONLY` transaction 内镜像 0023 的全部
+  stored-state preconditions；runtime actor/request/idempotency/new-token 输入不在这项只读检查内。输出严格为
+  34 个有序 `t|f` 叶和 `eligible|not-eligible`，不包含 identity、token/hash、
+  content 或原始错误；只有全部精确才返回 eligible；
+- **当前边界**：本节实现未访问 Hosted/Vercel/Supabase、未读取 secret、未写 Phase 81/92/93 state、未
+  arm/disarm/deploy、未执行 recovery，且停在 commit/push 前。exact-SHA 双平台 CI、fresh Vercel diagnose、
+  完整串行 one-shot、Hosted readiness、Operator recent-auth/recovery 与 registration closure 全部仍待独立
+  批准和真实证据。

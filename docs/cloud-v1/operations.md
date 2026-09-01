@@ -506,14 +506,31 @@ deploy 只接受精确 `--confirm-local-downtime`。任何失败都停止后续�
 
 ## Phase 93 受控恢复顺序
 
-先完成 0023 pre-backup、隔离 rebuild、dry-run、status `pending-exact`，再经明确批准 apply 并要求
-`applied-exact`，随后捕获 post-backup。只有只读 Hosted identity snapshot 仍证明目标 ordinary invitation
-下的 claim/flow/Auth/email/零账号数据合同精确，Operator 才可在 `/admin` 近期密码认证后按 invitation id
-执行一次恢复。不得重试 resend、创建第二邀请、删除 Auth user、把 token 写入工单，或把新链接显示成功
-当作注册完成；最终仍需单独只读 snapshot 关闭 acceptance gate。
+0023 已依次完成 pre-backup、隔离 rebuild、dry-run、`pending-exact`、经明确批准的 apply、`applied-exact`、
+post-backup 与 completion；pre/rebuild/post 九项均曾为 `present/valid/current=true`。随后 identity snapshot
+再次证明唯一 ordinary invitation/claim/flow 为 expired/bound-expired/expired，同一 Auth user 未确认、唯一
+email identity、零账号数据，且 `safe_route_state|otp-resend`。这些事实只关闭 migration/backup/identity 门，
+尚未证明 Phase 93 API/Web 已部署，也不授权执行恢复。
+
+部署必须使用独立 `acceptance:hosted:phase93:deployment:one-shot:*` surface 和
+`phase-93-0023-state.json`。先运行 `diagnose`，只在其证明 state absent、Git clean/pushed/disarmed、零
+in-flight 且候选 API/Web 18/11 baseline 的 latest Ready 分别精确匹配 `ca6f5bd` 与 `b044dda` 后，才可运行
+preflight；诊断只额外公开五个固定只读 request stage/status 与 request count，不公开 URL、响应体、token、
+deployment id 或 commit。该 18/11 值在代码中仍是由 Phase 92 终态建立的候选，不得用离线测试冒充 fresh
+Hosted 证据。
+随后仍按 API arm/observe → API disarm/verify → Web arm/observe → Web disarm/verify 严格串行，每个
+arm/disarm commit/push 单独批准。Phase 81/92 state 只读共存，不能被读取为 Phase 93 state 或覆盖。
+
+部署双关闭后，先运行 `acceptance:hosted:phase93:recovery:readiness`。该命令不接受 email、UUID、invitation
+id 或 token，自动选择唯一 ordinary invitation，在单一 `REPEATABLE READ READ ONLY` transaction 内镜像
+0023 的 invitation/claim/flow/Auth/email/token-hash、既有 recovery audit 与全部零记录表前置条件，只输出
+固定布尔叶和 `eligible|not-eligible`。只有全部叶精确且 verdict 为 `eligible`，Operator 才可在 `/admin`
+近期密码认证后二步确认执行一次恢复。不得重试 resend、创建第二邀请、删除 Auth user、把 token 写入工单，
+或把新链接显示成功当作注册完成；最终仍需单独只读 snapshot 关闭 acceptance gate。
 
 仓库提供 Phase 93 专属的 plan/preflight/readiness/pre-capture/rebuild/status/dry-run/apply/post-capture/
 completion/historical completion 命令，统一位于 `acceptance:hosted:phase93:migration:backup:*` 与
 `acceptance:hosted:migration:0023:*`。`status` 只返回 `pending-exact`、`applied-exact` 或 `uncertain`；
 `uncertain` 必须停止 apply，并仅用 `acceptance:hosted:migration:0023:status:diagnose` 的 allowlisted predicate
-诊断。命令实现和离线测试不等于执行证据；本阶段没有运行任何 Hosted 命令。
+诊断。上述 0023 migration/backup/identity 命令已有真实精确结果；新增 Phase 93 Vercel diagnose/one-shot 与
+recovery readiness 尚未连接 Hosted、未写 state、未部署、未执行 recovery，也未 commit/push。

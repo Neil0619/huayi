@@ -369,5 +369,8 @@ Idempotency-Key；网络结果未知时只能用原 key 恢复，明确服务器
 该行恢复入口并仅显示新的 fragment，刷新后数据库的一次性审计仍会拒绝第二次轮换。
 
 恢复审计 action 为 `invitation.token-recovered`、subject 为 invitation id、safe details 为空；不得把 bound
-Auth user 作为 subject，以免破坏 0022 的 OTP recovery 合同。Hosted 操作前必须另行完成 0023 backup、
-dry-run/status/apply/diagnostic 和最终 identity snapshot，不得从离线测试推断 production 已可执行。
+Auth user 作为 subject，以免破坏 0022 的 OTP recovery 合同。Hosted mutation 前除 0023 backup、
+dry-run/status/apply/post-backup 和 identity snapshot 外，还必须完成独立 Phase 93 API→Web one-shot 双关闭，
+并运行 `acceptance:hosted:phase93:recovery:readiness`。该只读诊断自动选择唯一 ordinary invitation，不接受
+email、UUID、invitation id 或 token；只有固定 0023 前置叶全部为 `t` 且 `eligible_verdict|eligible` 才允许
+Operator 在 `/admin` 近期密码认证后二步确认。新增实现与离线 GREEN 不等于 Hosted 部署或 mutation 证据。

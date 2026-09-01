@@ -71,7 +71,9 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       `otp_resend_eligible|t`、`safe_route_state|otp-resend`，但账号仍未确认。历史 evidence 的祖先链
       verifier 已在本地 Fresh RED→GREEN，尚待 commit/push 后真实运行与最终 exact-SHA 双平台门。Web 的共享
       同步单飞门继续保护全部账号 mutation；六位 OTP 邮件、注册、退出/密码重登与 final snapshot 未执行，
-      因此本项保持未勾选；
+      因此本项保持未勾选。Phase 93 0023 已真实完成 applied-exact 与 pre/rebuild/post completion，最新
+      identity snapshot 仍精确；但 Phase 93 独立 Vercel diagnose/one-shot、recovery-readiness、Operator
+      mutation 和最终注册收口均未执行，新增控制面也尚未 commit/push，因此仍不能勾选；
 - [x] 在正确 Rotate 后 exact-SHA `7577cdd` deployment 上通过 DB-backed application-role smoke；
       `GET /health` 为 200，随机无效 session 的 `GET /v1/quota` 为精确 401
       `authentication_required`。deployment ID/SHA/创建时间与 Git 关闭证据已记录，API 未重新武装；

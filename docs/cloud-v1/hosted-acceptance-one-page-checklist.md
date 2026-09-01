@@ -1,32 +1,30 @@
 # Hosted 验收一页式操作清单
 
-> 当前检查点：2026-08-28。Cloud V1 仍是 `implemented; validation pending`，不能开放
+> 当前检查点：2026-09-01。Cloud V1 仍是 `implemented; validation pending`，不能开放
 > production 或宣称 Chrome Web Store 就绪。
 
 ## 现在停在哪里 / 你现在要做什么
 
-现在停在**Phase 92 的 0022 候选提交前**。脱敏 snapshot 已确认同一普通 invitation/claim/flow 均过期、
-同一 Auth user 未确认且零账号数据；已有 401 是旧合同的正确拒绝。forward-only 0022 与独立备份/status/
-dry-run/apply/diagnostic 控制面与独立 Phase 92 API→Web one-shot 状态机已本地实现并验证，但尚未
-commit/push，也没有运行任何真实 Hosted 命令。
-下一步先完成候选提交与 exact-SHA 双平台质量门；随后才按 `operations.md` 逐项批准：
+现在停在**Phase 93 deployment/readiness 控制面提交前**。0023 已真实完成 pre/rebuild/dry-run/
+`pending-exact`/apply/`applied-exact`/post/completion，最新脱敏 snapshot 仍精确证明同一 expired ordinary
+invitation/claim/flow、unconfirmed Auth user、唯一 email identity 和零账号数据。新增 Phase 93 独立 Vercel
+one-shot/只读 diagnose 与 recovery-readiness 诊断已离线实现；没有访问 Hosted/Vercel/Supabase、写 state、
+部署或执行 recovery。
+下一步先完成离线全门、commit/push 与 exact-SHA 双平台质量门；随后才逐项批准：
 
 ```text
-pnpm acceptance:hosted:phase92:migration:backup:executor:pre:readiness
-pnpm acceptance:hosted:phase92:migration:backup:capture:pre
-pnpm acceptance:hosted:phase92:migration:backup:rebuild
-pnpm acceptance:hosted:migration:0022:status
-pnpm acceptance:hosted:migration:0022:dry-run
+pnpm acceptance:hosted:phase93:deployment:one-shot:diagnose
+pnpm acceptance:hosted:phase93:deployment:one-shot:preflight
 ```
 
 这些不是一条可连续粘贴的命令块，每一步都需要新的批准和上一阶段的精确成功结果。需要管理员密码的命令
 由用户在普通 macOS Terminal 运行并只在无回显提示中输入；Codex 底部终端不用于密码提示。apply 另行批准，
 且任何 `uncertain` 都先诊断、禁止盲重试。
 
-0022 applied-exact 与 post backup completion 关闭后，部署只使用新的
-`acceptance:hosted:phase92:deployment:one-shot:*` 六个入口，依次为 plan/preflight、API arm observe、API
-disarm verify、Web arm observe、Web disarm verify；每次 arm/disarm commit/push 仍需单独批准。旧
-`acceptance:hosted:deployment:one-shot:*` 和 `phase-81-0014-state.json` 只作历史证据，不得重跑或覆盖。
+diagnose 与 preflight 精确后，部署只使用 `acceptance:hosted:phase93:deployment:one-shot:*` 独立入口，依次为
+API arm observe、API disarm verify、Web arm observe、Web disarm verify；每次 arm/disarm commit/push 仍需
+单独批准。双关闭后先运行 `acceptance:hosted:phase93:recovery:readiness`，只接受全部叶为 `t` 与
+`eligible_verdict|eligible`。Phase 81/92 state 只作历史证据，不得重跑、覆盖或冒充 Phase 93 state。
 
 ## 谁做什么
 

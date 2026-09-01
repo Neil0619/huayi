@@ -625,8 +625,8 @@ preflight、read-only pending、唯一写入和 applied postflight。任何不�
 脱敏 diagnostic；diagnostic 仅输出迁移链、authority 聚合、函数合同与 pending/applied 布尔值，不输出
 邮箱、UUID、OID、正文、URL、凭据、原始 catalog 或 child output。
 
-Phase 92 的 Vercel 部署证据不得写入或覆盖 Phase 81 state。两个固定 identity 只能映射到各自 clone-local
-`0600` canonical JSON；共享 `0700` 目录只允许这两个已知文件，未知、partial、symlink、权限漂移或非 canonical
+Phase 92/93 的 Vercel 部署证据不得写入或覆盖 Phase 81 state。三个固定 identity 只能映射到各自 clone-local
+`0600` canonical JSON；共享 `0700` 目录只允许这三个已知文件，未知、partial、symlink、权限漂移或非 canonical
 内容均失败关闭。每个 store 只能读写自己的 identity；one-shot 仍只做 Git/Vercel GET 与状态证据写入，真实
 arm/disarm/deploy 只来自另行批准的单文件 commit/push。注册后的只读 identity snapshot 不输出 email、UUID、
 token 或正文；`account_finalized_exact` 只有在普通邀请总数精确为一、唯一邀请 consumed 且 claim/flow/Auth/
@@ -645,3 +645,11 @@ Postgres seam 使用同一当前 pepper 保存 hash，因此其连续性与普�
 `SECURITY DEFINER SET search_path=pg_catalog`，owner 固定 `postgres`，仅
 `huayi_context_setter` 可执行。行锁、幂等锁与一次性 recovery audit 使并发安全；状态或 ACL 漂移均整笔
 回滚。该 invitation 的永久一次性门同时是比按时间计数更严格的 mutation rate boundary。
+
+Phase 93 readiness 诊断不接受调用方提供的 identity 或 opaque input；它在 verify-full 管理员连接上的单一
+`REPEATABLE READ READ ONLY` transaction 中自动要求唯一 ordinary invitation，并镜像 0023 的 expired
+invitation/claim/flow、unconfirmed lower-case email user、唯一 email identity、current token-hash 形状、零
+既有 recovery audit 与二十类 subject 记录 absence。输出仅为固定有序 `t|f` 叶与
+`eligible|not-eligible`，不含 email、UUID、token/hash、内容或原始 SQL/catalog error。任何叶漂移均不授权
+mutation。Vercel diagnose 同样只输出计数、状态、candidate-match 布尔值以及五个固定只读 request
+stage/status，不输出 URL、响应体、token、deployment id 或 commit；它不写 Phase 93 state。
