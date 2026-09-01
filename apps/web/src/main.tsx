@@ -80,6 +80,7 @@ if (bootstrap.environment !== undefined) {
     }),
     createWebAdminOperationsApi({
       apiOrigin: environment.VITE_API_ORIGIN,
+      csrfToken: () => fetchCsrfToken(environment.VITE_API_ORIGIN),
       fetch: (input, init) => fetch(input, init),
     }),
     createWebStudyCaptureApi({

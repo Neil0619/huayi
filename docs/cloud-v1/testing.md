@@ -1624,8 +1624,9 @@ session is invalid.`；400 `invalid_request` 表示 runtime 数据库路径未�
   独立轮换不改变恢复结果，以及第二 key 零写入；
 - PGlite migration 测试覆盖 expired invitation/claim/flow、unconfirmed email identity、账号数据漂移、NULL
   输入、ACL/search_path/owner 与 API/Supabase migration byte identity；
-- Web 测试覆盖 Origin/CSRF mutation seam、未知响应同 key 恢复、明确 HTTP 拒绝不保留 retry、双击
-  single-flight、成功后隐藏第二次恢复入口以及只在内存显示新 link；
+- Web 测试覆盖 Origin/CSRF mutation seam、管理员写请求在 fetch 前读取 current CSRF、未知响应以 fresh
+  CSRF 和同一 key 恢复、明确 HTTP 拒绝不保留 retry、双击 single-flight、成功后隐藏第二次恢复入口以及
+  只在内存显示新 link；该回归防止页面缓存 proof 被其他 CSRF bootstrap 轮换后仍用于 recovery；
 - Hosted 控制面离线测试覆盖 23 项 migration manifest、Phase 93 backup artifact/capture/rebuild/readiness/
   completion/historical completion、0023 单文件 dry-run transcript、apply gate 顺序，以及 PGlite catalog 的
   `pending-exact`/`applied-exact`/ACL-owner-source drift `uncertain`；
@@ -1635,6 +1636,7 @@ session is invalid.`；400 `invalid_request` 表示 runtime 数据库路径未�
 - recovery-readiness 测试先以缺失模块得到真实 RED，再以最终聚焦 17/17 GREEN 证明固定 35 行 allowlist、无 identity
   input、secret-safe failure、单一 repeatable-read read-only transaction、精确 eligible 与多类 state drift
   `not-eligible`，并静态覆盖 0023 检查的全部零记录表；
-- 真实 0023 backup/status/dry-run/apply/post 已完成，identity snapshot 也已精确；但 Phase 93 Vercel diagnose/
-  one-shot、recovery readiness、Operator 重新认证和 join acceptance 仍必须另行批准，不能由离线 GREEN
-  替代；`uncertain` 不授权重试 apply。
+- 真实 0023 backup/status/dry-run/apply/post、identity snapshot、Phase 93 Vercel diagnose/one-shot 双关闭与
+  recovery readiness 已完成；首次 Operator recovery POST 因陈旧页面 CSRF 以 403 失败关闭且未显示新链接。
+  fresh-CSRF 客户端修复仍需离线门、提交、exact-SHA 双平台 CI、重新部署和 fresh readiness，不能由本地
+  GREEN 替代；Hosted recovery 在这些门关闭前不得重试，`uncertain` 也不授权重试 apply。

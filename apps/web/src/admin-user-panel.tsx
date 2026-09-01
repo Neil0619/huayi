@@ -6,13 +6,11 @@ import type { WebAdminOperationsApi } from "./admin-operations-api.js";
 
 export function AdminUserPanel({
   api,
-  csrfToken,
   onUpdated,
   onRefresh,
   user,
 }: {
   readonly api: WebAdminOperationsApi;
-  readonly csrfToken: string;
   readonly onUpdated: (user: AdminUserResource) => void;
   readonly onRefresh: () => Promise<boolean>;
   readonly user: AdminUserResource;
@@ -47,7 +45,7 @@ export function AdminUserPanel({
       return;
     }
     await act(async () => {
-      const result = await api.setUserQuota(user.id, limit, user.quota.periodStart, csrfToken);
+      const result = await api.setUserQuota(user.id, limit, user.quota.periodStart);
       onUpdated({ ...user, quota: result.quota });
     }, "账号额度已更新。");
   };
@@ -110,7 +108,7 @@ export function AdminUserPanel({
             disabled={busy}
             onClick={() =>
               void act(async () => {
-                const result = await api.revokeUserDevices(user.id, csrfToken);
+                const result = await api.revokeUserDevices(user.id);
                 onUpdated({
                   ...user,
                   deviceCount: Math.max(0, user.deviceCount - result.revokedCount),
@@ -140,7 +138,7 @@ export function AdminUserPanel({
               void act(
                 async () => {
                   const action = user.status === "active" ? "disable" : "enable";
-                  const result = await api.setUserStatus(user.id, action, csrfToken);
+                  const result = await api.setUserStatus(user.id, action);
                   onUpdated({
                     ...user,
                     status: result.status,

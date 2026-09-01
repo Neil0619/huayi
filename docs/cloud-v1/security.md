@@ -653,3 +653,9 @@ invitation/claim/flow、unconfirmed lower-case email user、唯一 email identit
 `eligible|not-eligible`，不含 email、UUID、token/hash、内容或原始 SQL/catalog error。任何叶漂移均不授权
 mutation。Vercel diagnose 同样只输出计数、状态、candidate-match 布尔值以及五个固定只读 request
 stage/status，不输出 URL、响应体、token、deployment id 或 commit；它不写 Phase 93 state。
+
+`GET /v1/auth/csrf` 会轮换当前 Web session 的唯一 CSRF hash，因此管理员 mutation 不得复用页面载入或
+密码重新认证时缓存的 proof。生产 adapter 必须在每次写请求的同一异步链中先取得 fresh proof、再立即发送
+Origin/CSRF/Idempotency-Key 保护的 mutation；未知响应重放只复用原幂等键，CSRF 则重新获取。Phase 93
+首次 Hosted recovery 因违反该客户端约束而以 403 失败关闭；没有新私有链接或 recovery 成功证据，修复部署
+和 fresh readiness 前禁止重试。

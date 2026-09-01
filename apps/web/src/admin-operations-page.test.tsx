@@ -150,7 +150,7 @@ describe("Admin operations page", () => {
     const confirm = button(container, "确认停用 learner@example.test");
     expect(document.activeElement).toBe(confirm);
     await act(async () => confirm.click());
-    expect(api.setUserStatus).toHaveBeenCalledWith(user.id, "disable", "csrf-token");
+    expect(api.setUserStatus).toHaveBeenCalledWith(user.id, "disable");
     expect(container.textContent).toContain("账号已停用，并撤销其登录与扩展访问。");
   });
 
@@ -162,7 +162,7 @@ describe("Admin operations page", () => {
     const confirm = button(container, "确认停止平台模型请求");
     expect(document.activeElement).toBe(confirm);
     await act(async () => confirm.click());
-    expect(api.setKillSwitch).toHaveBeenCalledWith(true, "csrf-token");
+    expect(api.setKillSwitch).toHaveBeenCalledWith(true);
     expect(container.textContent).toContain("平台模型请求已停止。浏览与 BYOK 不受影响。");
   });
 
@@ -226,7 +226,7 @@ describe("Admin operations page", () => {
     expect(button(container, "创建邀请").disabled).toBe(true);
 
     await act(async () => button(container, "安全恢复邀请结果").click());
-    expect(createInvitation).toHaveBeenLastCalledWith(72, "csrf-token", true);
+    expect(createInvitation).toHaveBeenLastCalledWith(72, true);
     expect(container.querySelector("output")?.textContent).toBe(created.invitationPath);
     expect(button(container, "创建邀请").disabled).toBe(false);
   });
@@ -306,7 +306,7 @@ describe("Admin operations page", () => {
       confirmRecovery.click();
     });
 
-    expect(recoverInvitationToken).toHaveBeenCalledWith(invitation.id, "csrf-token", false);
+    expect(recoverInvitationToken).toHaveBeenCalledWith(invitation.id, false);
     expect(container.querySelector("output")?.textContent).toBe(
       "/join#recoveredABCDEFGHIJKLMNOPQRSTUVWXYZ12345678",
     );
@@ -357,7 +357,7 @@ describe("Admin operations page", () => {
     expect(container.textContent).not.toContain("correct horse battery staple");
 
     await act(async () => button(container, "创建邀请").click());
-    expect(api.createInvitation).toHaveBeenCalledWith(72, "rotated-csrf-token");
+    expect(api.createInvitation).toHaveBeenCalledWith(72);
   });
 
   it("keeps a failed Operator password reauthentication retryable without rendering the password", async () => {
@@ -432,7 +432,7 @@ describe("Admin operations page", () => {
     const confirm = button(container, "确认撤销邀请");
     expect(document.activeElement).toBe(confirm);
     await act(async () => confirm.click());
-    expect(api.revokeInvitation).toHaveBeenCalledWith(invitation.id, "csrf-token");
+    expect(api.revokeInvitation).toHaveBeenCalledWith(invitation.id);
   });
 
   it("clears a one-time path and requires a list reread after an uncertain revoke", async () => {

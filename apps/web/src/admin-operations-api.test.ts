@@ -23,10 +23,16 @@ const usage = {
   usageCalls: { failed: 0, succeeded: 0 },
 };
 
+const csrfToken = async () => "csrf-token";
+
 describe("Web admin operations API", () => {
   it("uses fixed Cookie reads and strictly parses safe metadata", async () => {
     const fetch = vi.fn(async () => new Response(JSON.stringify(usage), { status: 200 }));
-    const api = createWebAdminOperationsApi({ apiOrigin: "https://api.huayi.example", fetch });
+    const api = createWebAdminOperationsApi({
+      apiOrigin: "https://api.huayi.example",
+      csrfToken,
+      fetch,
+    });
     await expect(api.getUsage()).resolves.toEqual(usage);
     expect(fetch).toHaveBeenCalledWith(
       new URL("https://api.huayi.example/v1/admin/usage"),
@@ -50,12 +56,50 @@ describe("Web admin operations API", () => {
         { status: 201 },
       );
     });
-    const api = createWebAdminOperationsApi({ apiOrigin: "https://api.huayi.example", fetch });
-    await api.createInvitation(24, "csrf-token");
+    const api = createWebAdminOperationsApi({
+      apiOrigin: "https://api.huayi.example",
+      csrfToken,
+      fetch,
+    });
+    await api.createInvitation(24);
     const init = vi.mocked(fetch).mock.calls[0]?.[1];
     expect(init).toMatchObject({ credentials: "include", method: "POST" });
     expect(new Headers(init?.headers).get("x-csrf-token")).toBe("csrf-token");
     expect(new Headers(init?.headers).get("idempotency-key")).toEqual(expect.any(String));
+  });
+
+  it("reads the current CSRF proof immediately before an administrator mutation", async () => {
+    const order: string[] = [];
+    const csrfToken = vi.fn(async () => {
+      order.push("csrf");
+      return "fresh-csrf-token";
+    });
+    const fetch = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => {
+      void _input;
+      void _init;
+      order.push("fetch");
+      return new Response(
+        JSON.stringify({
+          consumedAt: null,
+          createdAt: "2026-08-13T06:00:00.000Z",
+          expiresAt: "2026-08-14T06:00:00.000Z",
+          id: "80000000-0000-0000-0000-000000000001",
+          invitationPath: "/join#abcdefghijklmnopqrstuvwxyzABCDEFGH123456789",
+          revokedAt: null,
+        }),
+        { status: 201 },
+      );
+    });
+    const options = { apiOrigin: "https://api.huayi.example", csrfToken, fetch };
+    const api = createWebAdminOperationsApi(options);
+
+    await api.createInvitation(24);
+
+    expect(order).toEqual(["csrf", "fetch"]);
+    expect(csrfToken).toHaveBeenCalledOnce();
+    expect(new Headers(fetch.mock.calls[0]?.[1]?.headers).get("x-csrf-token")).toBe(
+      "fresh-csrf-token",
+    );
   });
 
   it("replays an ambiguous invitation creation with the same idempotency key", async () => {
@@ -72,17 +116,21 @@ describe("Web admin operations API", () => {
       .mockRejectedValueOnce(new TypeError("response lost"))
       .mockResolvedValueOnce(new Response(JSON.stringify(created), { status: 201 }))
       .mockResolvedValueOnce(new Response(JSON.stringify(created), { status: 201 }));
-    const api = createWebAdminOperationsApi({ apiOrigin: "https://api.huayi.example", fetch });
+    const api = createWebAdminOperationsApi({
+      apiOrigin: "https://api.huayi.example",
+      csrfToken,
+      fetch,
+    });
 
-    await expect(api.createInvitation(24, "csrf-token")).rejects.toThrow("response lost");
-    await expect(api.createInvitation(24, "csrf-token", true)).resolves.toEqual(created);
+    await expect(api.createInvitation(24)).rejects.toThrow("response lost");
+    await expect(api.createInvitation(24, true)).resolves.toEqual(created);
 
     const firstKey = new Headers(fetch.mock.calls[0]?.[1]?.headers).get("idempotency-key");
     const retryKey = new Headers(fetch.mock.calls[1]?.[1]?.headers).get("idempotency-key");
     expect(firstKey).toMatch(/^[0-9a-f-]{36}$/u);
     expect(retryKey).toBe(firstKey);
 
-    await api.createInvitation(24, "csrf-token");
+    await api.createInvitation(24);
     const nextAttemptKey = new Headers(fetch.mock.calls[2]?.[1]?.headers).get("idempotency-key");
     expect(nextAttemptKey).not.toBe(firstKey);
   });
@@ -94,9 +142,13 @@ describe("Web admin operations API", () => {
       void init;
       return new Response(JSON.stringify({ id: invitationId, revoked: true }), { status: 200 });
     });
-    const api = createWebAdminOperationsApi({ apiOrigin: "https://api.huayi.example", fetch });
+    const api = createWebAdminOperationsApi({
+      apiOrigin: "https://api.huayi.example",
+      csrfToken,
+      fetch,
+    });
 
-    await expect(api.revokeInvitation(invitationId, "csrf-token")).resolves.toEqual({
+    await expect(api.revokeInvitation(invitationId)).resolves.toEqual({
       id: invitationId,
       revoked: true,
     });
@@ -111,6 +163,10 @@ describe("Web admin operations API", () => {
 
   it("recovers an ambiguous token rotation with the same bounded request", async () => {
     const invitationId = "80000000-0000-0000-0000-000000000001";
+    const recoveryCsrfToken = vi
+      .fn<() => Promise<string>>()
+      .mockResolvedValueOnce("first-fresh-csrf-token")
+      .mockResolvedValueOnce("retry-fresh-csrf-token");
     const recovered = {
       id: invitationId,
       invitationPath: "/join#abcdefghijklmnopqrstuvwxyzABCDEFGH123456789",
@@ -120,20 +176,24 @@ describe("Web admin operations API", () => {
       .fn<WebAdminOperationsApiOptions["fetch"]>()
       .mockRejectedValueOnce(new TypeError("response lost"))
       .mockResolvedValueOnce(new Response(JSON.stringify(recovered), { status: 200 }));
-    const api = createWebAdminOperationsApi({ apiOrigin: "https://api.huayi.example", fetch });
+    const api = createWebAdminOperationsApi({
+      apiOrigin: "https://api.huayi.example",
+      csrfToken: recoveryCsrfToken,
+      fetch,
+    });
 
-    await expect(api.recoverInvitationToken(invitationId, "csrf-token")).rejects.toThrow(
-      "response lost",
-    );
-    await expect(api.recoverInvitationToken(invitationId, "csrf-token", true)).resolves.toEqual(
-      recovered,
-    );
+    await expect(api.recoverInvitationToken(invitationId)).rejects.toThrow("response lost");
+    await expect(api.recoverInvitationToken(invitationId, true)).resolves.toEqual(recovered);
     expect(
       fetch.mock.calls.map((call) => new Headers(call[1]?.headers).get("idempotency-key")),
     ).toEqual([expect.any(String), expect.any(String)]);
     expect(new Headers(fetch.mock.calls[1]?.[1]?.headers).get("idempotency-key")).toBe(
       new Headers(fetch.mock.calls[0]?.[1]?.headers).get("idempotency-key"),
     );
+    expect(
+      fetch.mock.calls.map((call) => new Headers(call[1]?.headers).get("x-csrf-token")),
+    ).toEqual(["first-fresh-csrf-token", "retry-fresh-csrf-token"]);
+    expect(recoveryCsrfToken).toHaveBeenCalledTimes(2);
     expect(fetch.mock.calls[0]?.[0]).toEqual(
       new URL(`https://api.huayi.example/v1/admin/invitations/${invitationId}/token-recovery`),
     );
@@ -164,12 +224,16 @@ describe("Web admin operations API", () => {
           { status: 200 },
         ),
       );
-    const api = createWebAdminOperationsApi({ apiOrigin: "https://api.huayi.example", fetch });
+    const api = createWebAdminOperationsApi({
+      apiOrigin: "https://api.huayi.example",
+      csrfToken,
+      fetch,
+    });
 
-    await expect(api.recoverInvitationToken(invitationId, "csrf-token")).rejects.toMatchObject({
+    await expect(api.recoverInvitationToken(invitationId)).rejects.toMatchObject({
       code: "revision_conflict",
     });
-    await expect(api.recoverInvitationToken(invitationId, "csrf-token")).resolves.toMatchObject({
+    await expect(api.recoverInvitationToken(invitationId)).resolves.toMatchObject({
       recovered: true,
     });
     expect(new Headers(fetch.mock.calls[1]?.[1]?.headers).get("idempotency-key")).not.toBe(

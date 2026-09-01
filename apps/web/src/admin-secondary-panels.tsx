@@ -29,13 +29,7 @@ const invitationLifecycleLabels: Readonly<Record<InvitationLifecycleState, strin
   revoked: "已撤销",
 };
 
-export function AdminSecondaryPanels({
-  api,
-  csrfToken,
-}: {
-  readonly api: WebAdminOperationsApi;
-  readonly csrfToken: string;
-}) {
+export function AdminSecondaryPanels({ api }: { readonly api: WebAdminOperationsApi }) {
   const [audit, setAudit] = useState<AdminAuditEvent[]>([]);
   const [auditCursor, setAuditCursor] = useState<string | null>(null);
   const [auditError, setAuditError] = useState("");
@@ -134,8 +128,8 @@ export function AdminSecondaryPanels({
     setMessage(recover ? "正在安全恢复邀请创建结果…" : "正在创建邀请…");
     try {
       const created = recover
-        ? await api.createInvitation(72, csrfToken, true)
-        : await api.createInvitation(72, csrfToken);
+        ? await api.createInvitation(72, true)
+        : await api.createInvitation(72);
       setInvitation(created);
       setInvitations((current) => [created, ...current.filter((item) => item.id !== created.id)]);
       setInvitationRecoveryAvailable(false);
@@ -161,7 +155,7 @@ export function AdminSecondaryPanels({
     setMessage("");
     setInvitation((current) => (current?.id === id ? null : current));
     try {
-      await api.revokeInvitation(id, csrfToken);
+      await api.revokeInvitation(id);
       setInvitations((current) =>
         current.map((item) =>
           item.id === id ? { ...item, revokedAt: new Date().toISOString() } : item,
@@ -183,7 +177,7 @@ export function AdminSecondaryPanels({
     setInvitation(null);
     setMessage(retry ? "正在安全恢复轮换结果…" : "正在轮换同一邀请的私有链接…");
     try {
-      const recovered = await api.recoverInvitationToken(id, csrfToken, retry);
+      const recovered = await api.recoverInvitationToken(id, retry);
       setInvitation(recovered);
       setRecoveryId(null);
       setRecoveryRetry(false);

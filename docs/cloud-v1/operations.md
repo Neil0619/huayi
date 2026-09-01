@@ -510,7 +510,8 @@ deploy 只接受精确 `--confirm-local-downtime`。任何失败都停止后续�
 post-backup 与 completion；pre/rebuild/post 九项均曾为 `present/valid/current=true`。随后 identity snapshot
 再次证明唯一 ordinary invitation/claim/flow 为 expired/bound-expired/expired，同一 Auth user 未确认、唯一
 email identity、零账号数据，且 `safe_route_state|otp-resend`。这些事实只关闭 migration/backup/identity 门，
-尚未证明 Phase 93 API/Web 已部署，也不授权执行恢复。
+不单独授权执行恢复。此后的 Phase 93 deployment diagnose/preflight、API arm/observe/disarm/verify、Web
+arm/observe/disarm/verify 已按顺序真实通过；两个项目最终均已 disarm。
 
 部署必须使用独立 `acceptance:hosted:phase93:deployment:one-shot:*` surface 和
 `phase-93-0023-state.json`。先运行 `diagnose`，只在其证明 state absent、Git clean/pushed/disarmed、零
@@ -520,6 +521,7 @@ deployment id 或 commit。该 18/11 值在代码中仍是由 Phase 92 终态建
 Hosted 证据。
 随后仍按 API arm/observe → API disarm/verify → Web arm/observe → Web disarm/verify 严格串行，每个
 arm/disarm commit/push 单独批准。Phase 81/92 state 只读共存，不能被读取为 Phase 93 state 或覆盖。
+该完整序列已于 2026-09-01 执行并关闭；再次部署仍必须重新开始 fresh diagnose，不得重放旧 state。
 
 部署双关闭后，先运行 `acceptance:hosted:phase93:recovery:readiness`。该命令不接受 email、UUID、invitation
 id 或 token，自动选择唯一 ordinary invitation，在单一 `REPEATABLE READ READ ONLY` transaction 内镜像
@@ -528,9 +530,17 @@ id 或 token，自动选择唯一 ordinary invitation，在单一 `REPEATABLE RE
 近期密码认证后二步确认执行一次恢复。不得重试 resend、创建第二邀请、删除 Auth user、把 token 写入工单，
 或把新链接显示成功当作注册完成；最终仍需单独只读 snapshot 关闭 acceptance gate。
 
+2026-09-01 的 readiness 已输出全部精确叶与 `eligible_verdict|eligible`。Operator 随后完成密码重新认证并只
+确认一次恢复，但 POST 返回 403；页面显示服务器拒绝且没有新链接。只读部署日志证明 reauthentication 为
+200、recovery preflight 为 204、recovery POST 为 403；源码复核确认管理员页缓存的 CSRF 已被其后的
+`/v1/auth/csrf` 读取轮换。该结果是明确服务器拒绝，不属于可用原 key 恢复的未知响应；不得重试。先完成
+fresh-CSRF 客户端修复的离线门、提交/push、exact-SHA 双平台 CI、API/Web 串行重新部署与 fresh readiness，
+再请求新的 action-time 用户批准。
+
 仓库提供 Phase 93 专属的 plan/preflight/readiness/pre-capture/rebuild/status/dry-run/apply/post-capture/
 completion/historical completion 命令，统一位于 `acceptance:hosted:phase93:migration:backup:*` 与
 `acceptance:hosted:migration:0023:*`。`status` 只返回 `pending-exact`、`applied-exact` 或 `uncertain`；
 `uncertain` 必须停止 apply，并仅用 `acceptance:hosted:migration:0023:status:diagnose` 的 allowlisted predicate
-诊断。上述 0023 migration/backup/identity 命令已有真实精确结果；新增 Phase 93 Vercel diagnose/one-shot 与
-recovery readiness 尚未连接 Hosted、未写 state、未部署、未执行 recovery，也未 commit/push。
+诊断。上述 0023 migration/backup/identity、Phase 93 Vercel one-shot 双关闭与 recovery readiness 均已有
+真实精确结果；首次 recovery 明确 403 且没有成功证据。当前 fresh-CSRF 修复只在本地工作树，未 commit/
+push、未重新部署，也未重试 recovery。

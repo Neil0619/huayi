@@ -2241,4 +2241,11 @@
 - 新增独立 Phase 93 Vercel one-shot wrapper、confirmation、18/11 candidate baseline、只读 diagnose 与
   `phase-93-0023-state.json`，Phase 81/92 state 保持不可变；candidate 必须经 fresh Hosted diagnose 证明。
 - 新增不接受 identity/token input 的 recovery-readiness 只读诊断，逐叶镜像 0023 mutation preconditions，
-  仅 exact contract 输出 `eligible`。本次只做离线实现与测试，停在提交前。
+  仅 exact contract 输出 `eligible`。
+- Phase 93 Vercel diagnose/preflight、API/Web arm→observe→disarm→verify 与 recovery readiness 已真实按序
+  通过。首次 Operator 二步确认只发出一个 recovery POST，但以 403 失败关闭；没有新 link，也没有 token
+  recovery 成功证据，因此未重试。
+- 根因是 Web 管理 adapter 把页面缓存 CSRF 传给 mutation；密码重新认证后的其他 CSRF bootstrap 已轮换
+  session hash。管理 mutation 改为在每次写请求前读取 current CSRF provider；未知响应仍保留原
+  Idempotency-Key，但 retry 也获取 fresh CSRF。该修复当前只在本地工作树，未提交、未部署、未重试 Hosted
+  recovery。

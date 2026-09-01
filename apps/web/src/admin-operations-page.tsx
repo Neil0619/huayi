@@ -173,7 +173,7 @@ export function AdminOperationsPage({
     if (usage === null) return;
     const current = ++usageGeneration.current;
     try {
-      const killSwitch = await api.setKillSwitch(!usage.killSwitch.enabled, activeCsrfToken);
+      const killSwitch = await api.setKillSwitch(!usage.killSwitch.enabled);
       if (current !== usageGeneration.current) return;
       setUsage({ ...usage, killSwitch });
       setConfirmKill(false);
@@ -353,7 +353,6 @@ export function AdminOperationsPage({
             {users.map((user) => (
               <AdminUserPanel
                 api={api}
-                csrfToken={activeCsrfToken}
                 key={user.id}
                 onUpdated={(updated) =>
                   setUsers((current) =>
@@ -372,7 +371,7 @@ export function AdminOperationsPage({
             </button>
           )}
         </section>
-        <AdminSecondaryPanels api={api} csrfToken={activeCsrfToken} />
+        <AdminSecondaryPanels api={api} />
       </div>
     </AdminShell>
   );

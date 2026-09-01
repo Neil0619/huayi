@@ -2099,7 +2099,7 @@ passed; first Operator empty`。候选已提交推送，0012 已实际 push；�
   join 页面只点击一次“重新发送六位验证码”；R3-C、五项 Cron、Cloud DeepSeek 应用路径、目标网络、
   数据权利、双平台 Chrome 与完整发布收口继续 pending。
 
-### Phase 93 invitation token recovery（2026-09-01，控制面候选未提交）
+### Phase 93 invitation token recovery（2026-09-01，首次 Hosted mutation 403，修复未提交）
 
 - 已以离线 TDD 实现 0023 双镜像 migration、Operator admin API/module/Postgres seam 和 Web 二步确认/
   一次显示；恢复只轮换同一 invitation token hash，不创建 invitation/Auth user/account；
@@ -2113,9 +2113,12 @@ passed; first Operator empty`。候选已提交推送，0012 已实际 push；�
   apply、`applied-exact`、post capture/completion；九项 backup status 全部为 `t`。随后 identity snapshot 仍为
   唯一 expired/bound-expired/expired invitation/claim/flow、unconfirmed Auth user、唯一 email identity 与零
   账号/session/learning 数据，`safe_route_state|otp-resend`；
-- 当前新增独立 Phase 93 Vercel one-shot/diagnose（18/11 只作为待 fresh 验证 candidate）和不接受 identity
-  input 的 recovery-readiness 只读诊断；Vercel diagnose 仅新增五个固定 request stage/status，不公开 URL 或
-  响应体。Fresh RED 为 3 个缺失模块入口失败，最终聚焦 17/17 GREEN。这些改动未访问 Hosted/Vercel/
-  Supabase、未写 one-shot state、未部署、未执行 token recovery，且停在 commit/push 前；下一步仍是提交前
-  完整离线门、提交/push、exact-SHA 双平台 CI、fresh Vercel diagnose/串行部署、Hosted readiness，最后才是
-  Operator recovery 与注册收口。
+- Phase 93 Vercel diagnose/preflight、API/Web arm→observe→disarm→verify 已真实按序通过，随后不接受
+  identity input 的 recovery-readiness 输出全部精确叶与 `eligible_verdict|eligible`；
+- Operator 完成密码重新认证并只确认一次 token recovery，但 API POST 返回 403，页面没有显示新链接。
+  只读部署日志与源码确认，后续 CSRF bootstrap 已轮换 session 的唯一 hash，而 Web 管理 adapter 仍透传
+  页面缓存 proof；这是明确服务器拒绝，不是可重放的未知响应，未重试且没有 recovery 成功证据；
+- 当前本地修复让所有管理员 mutation 在发送写请求前读取 current CSRF provider，未知响应 retry 仍复用原
+  Idempotency-Key 但获取 fresh CSRF。下一步是完整离线门、提交/push、exact-SHA 双平台 CI、fresh Vercel
+  diagnose/串行重新部署与 fresh recovery readiness；这些门关闭并取得新的 action-time 批准前，不得重试
+  Hosted recovery。

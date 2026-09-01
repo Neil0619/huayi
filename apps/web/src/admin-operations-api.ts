@@ -20,6 +20,7 @@ import { WebIdentityApiError } from "./identity-api.js";
 
 export interface WebAdminOperationsApiOptions {
   apiOrigin: string;
+  csrfToken(): Promise<string>;
   fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response>;
 }
 
@@ -55,10 +56,10 @@ export function createWebAdminOperationsApi(options: WebAdminOperationsApiOption
     route: string,
     method: "DELETE" | "POST" | "PUT",
     body: unknown,
-    csrfToken: string,
     idempotencyKey: string = crypto.randomUUID(),
-  ) =>
-    request(route, {
+  ) => {
+    const csrfToken = await options.csrfToken();
+    return request(route, {
       body: JSON.stringify(body),
       credentials: "include",
       headers: {
@@ -68,19 +69,15 @@ export function createWebAdminOperationsApi(options: WebAdminOperationsApiOption
       },
       method,
     });
+  };
   let invitationRetryKey: string | null = null;
   let tokenRecoveryRetry: { id: string; key: string } | null = null;
 
-  const createInvitation = async (
-    expiresInHours: number,
-    csrfToken: string,
-    idempotencyKey: string,
-  ) => {
+  const createInvitation = async (expiresInHours: number, idempotencyKey: string) => {
     const response = await write(
       adminHttpRoutes.invitations,
       "POST",
       { expiresInHours },
-      csrfToken,
       idempotencyKey,
     );
     const created = createdInvitationResponseSchema.parse(await response.json());
@@ -92,7 +89,7 @@ export function createWebAdminOperationsApi(options: WebAdminOperationsApiOption
     async access() {
       return adminAccessResponseSchema.parse(await (await read(adminHttpRoutes.access)).json());
     },
-    async createInvitation(expiresInHours: number, csrfToken: string, recover = false) {
+    async createInvitation(expiresInHours: number, recover = false) {
       if (recover) {
         if (invitationRetryKey === null) {
           throw new TypeError("Invitation creation recovery is unavailable.");
@@ -103,7 +100,7 @@ export function createWebAdminOperationsApi(options: WebAdminOperationsApiOption
         }
         invitationRetryKey = crypto.randomUUID();
       }
-      return createInvitation(expiresInHours, csrfToken, invitationRetryKey);
+      return createInvitation(expiresInHours, invitationRetryKey);
     },
     async getUsage() {
       return adminUsageSummarySchema.parse(await (await read(adminHttpRoutes.usage)).json());
@@ -132,7 +129,7 @@ export function createWebAdminOperationsApi(options: WebAdminOperationsApiOption
         await (await read(`${url.pathname}${url.search}`)).json(),
       );
     },
-    async recoverInvitationToken(id: string, csrfToken: string, recover = false) {
+    async recoverInvitationToken(id: string, recover = false) {
       if (recover) {
         if (tokenRecoveryRetry === null || tokenRecoveryRetry.id !== id) {
           throw new TypeError("Invitation token recovery is unavailable.");
@@ -148,7 +145,6 @@ export function createWebAdminOperationsApi(options: WebAdminOperationsApiOption
           path(adminHttpRoutes.invitationTokenRecovery, id),
           "POST",
           {},
-          csrfToken,
           tokenRecoveryRetry.key,
         );
         const recovered = recoveredInvitationTokenResponseSchema.parse(await response.json());
@@ -159,34 +155,27 @@ export function createWebAdminOperationsApi(options: WebAdminOperationsApiOption
         throw error;
       }
     },
-    async revokeInvitation(id: string, csrfToken: string) {
-      const response = await write(path(adminHttpRoutes.invitation, id), "DELETE", {}, csrfToken);
+    async revokeInvitation(id: string) {
+      const response = await write(path(adminHttpRoutes.invitation, id), "DELETE", {});
       return revokedAdminInvitationResponseSchema.parse(await response.json());
     },
-    async revokeUserDevices(id: string, csrfToken: string) {
-      const response = await write(path(adminHttpRoutes.userDevices, id), "POST", {}, csrfToken);
+    async revokeUserDevices(id: string) {
+      const response = await write(path(adminHttpRoutes.userDevices, id), "POST", {});
       return revokedAdminUserDevicesResponseSchema.parse(await response.json());
     },
-    async setKillSwitch(enabled: boolean, csrfToken: string) {
-      const response = await write(adminHttpRoutes.killSwitch, "PUT", { enabled }, csrfToken);
+    async setKillSwitch(enabled: boolean) {
+      const response = await write(adminHttpRoutes.killSwitch, "PUT", { enabled });
       return adminKillSwitchResourceSchema.parse(await response.json());
     },
-    async setUserQuota(id: string, limitMicroUsd: number, periodStart: string, csrfToken: string) {
-      const response = await write(
-        path(adminHttpRoutes.userQuota, id),
-        "PUT",
-        { limitMicroUsd, periodStart },
-        csrfToken,
-      );
+    async setUserQuota(id: string, limitMicroUsd: number, periodStart: string) {
+      const response = await write(path(adminHttpRoutes.userQuota, id), "PUT", {
+        limitMicroUsd,
+        periodStart,
+      });
       return adminUserQuotaResponseSchema.parse(await response.json());
     },
-    async setUserStatus(id: string, action: "disable" | "enable", csrfToken: string) {
-      const response = await write(
-        path(adminHttpRoutes.userStatus, id),
-        "POST",
-        { action },
-        csrfToken,
-      );
+    async setUserStatus(id: string, action: "disable" | "enable") {
+      const response = await write(path(adminHttpRoutes.userStatus, id), "POST", { action });
       return adminUserStatusResponseSchema.parse(await response.json());
     },
   };

@@ -368,9 +368,21 @@ token。API 使用既有完整 session、Operator ACL、Origin/CSRF、recent pas
 Idempotency-Key；网络结果未知时只能用原 key 恢复，明确服务器拒绝则清除 retry key。成功后当前页面隐藏
 该行恢复入口并仅显示新的 fragment，刷新后数据库的一次性审计仍会拒绝第二次轮换。
 
+Web 管理 adapter 不接受组件或页面缓存的 CSRF 作为 mutation 参数。所有管理员 mutation 统一在发送写请求
+前调用当前 CSRF provider；未知响应用同一 Idempotency-Key 恢复时也重新取得当前 CSRF，但不得更换原 key。
+页面持有的 CSRF 只服务于该页面明确建模的密码重新认证，不得继续向邀请、账号、额度、设备或熔断写操作
+透传。
+
 恢复审计 action 为 `invitation.token-recovered`、subject 为 invitation id、safe details 为空；不得把 bound
 Auth user 作为 subject，以免破坏 0022 的 OTP recovery 合同。Hosted mutation 前除 0023 backup、
 dry-run/status/apply/post-backup 和 identity snapshot 外，还必须完成独立 Phase 93 API→Web one-shot 双关闭，
 并运行 `acceptance:hosted:phase93:recovery:readiness`。该只读诊断自动选择唯一 ordinary invitation，不接受
 email、UUID、invitation id 或 token；只有固定 0023 前置叶全部为 `t` 且 `eligible_verdict|eligible` 才允许
 Operator 在 `/admin` 近期密码认证后二步确认。新增实现与离线 GREEN 不等于 Hosted 部署或 mutation 证据。
+
+2026-09-01 的 Phase 93 API/Web one-shot 四段 observe/verify 与 recovery-readiness 已真实通过，readiness 为
+`eligible`。随后 Operator 只点击一次恢复确认；API POST 返回 403，页面明确显示服务器拒绝且没有显示新
+链接。只读 Vercel 请求日志与源码联合确认：密码重新认证成功后，其他 CSRF bootstrap 读取轮换了该 session
+的唯一 hash，而管理员 adapter 仍发送页面缓存的旧 proof。该次请求失败关闭、未证明任何 token 轮换，也
+不得重试。当前 fresh-CSRF 修复仅在本地工作树，仍需提交、双平台 exact-SHA 门、重新部署和 fresh readiness
+后，才可另行批准一次新的 Hosted recovery。
