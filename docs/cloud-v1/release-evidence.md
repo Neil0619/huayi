@@ -3013,7 +3013,25 @@ typecheck、architecture、build、development blocker、Store release、product
   stored-state preconditions；runtime actor/request/idempotency/new-token 输入不在这项只读检查内。输出严格为
   34 个有序 `t|f` 叶和 `eligible|not-eligible`，不包含 identity、token/hash、
   content 或原始错误；只有全部精确才返回 eligible；
-- **当前边界**：本节实现未访问 Hosted/Vercel/Supabase、未读取 secret、未写 Phase 81/92/93 state、未
-  arm/disarm/deploy、未执行 recovery，且停在 commit/push 前。exact-SHA 双平台 CI、fresh Vercel diagnose、
-  完整串行 one-shot、Hosted readiness、Operator recent-auth/recovery 与 registration closure 全部仍待独立
-  批准和真实证据。
+- **真实部署与首次恢复结果**：Phase 93 diagnose/preflight、API/Web arm→observe→disarm→verify 与
+  recovery-readiness 已按序通过，旧 state 最终为 `complete` 且两项目 disarmed。Operator 只确认一次
+  recovery，但 POST 明确返回 403、没有新链接；日志与源码将根因锁定为 Web adapter 继续发送页面缓存的
+  stale CSRF，故没有 token recovery 成功证据且未重试；
+- **fresh-CSRF 修复代码门**：管理 mutation 改为发送前读取 current CSRF provider，未知响应仍复用原
+  Idempotency-Key。提交 `882d3d4` 已推送，Cross-platform quality run `33499948406` 的 macOS/Windows job
+  均 success；该证据只关闭代码门，不证明 Hosted 已重新部署；
+- **旧控制面只读诊断**：旧 diagnose 完整完成五个 200 GET，确认远端 API/Web 19/12 non-Canceled、latest
+  Ready、零 in-flight，但旧 state 已 `complete` 且旧 candidate 仍为 18/11，因此 `contract_exact|f`、
+  `state_write_attempted|f`。这是历史重放保护，不授权删除旧 state、改写旧 baseline 或运行旧 preflight；
+- **独立重新部署 Fresh RED → GREEN**：新增测试先以缺失 fresh-CSRF wrapper 得到
+  `ERR_MODULE_NOT_FOUND` RED；最小实现新增旧 completion 精确验证、新 confirmation、独立
+  `phase-93-0023-fresh-csrf-state.json`、19/12 baseline、七个 package 入口与脱敏 diagnose。聚焦 7/7
+  GREEN，当前真实旧 state 也通过本地 completion 校验，四代 state 共存且未知文件继续失败关闭；
+- **Fresh 本机证据**：`pnpm verify:macos` 原样退出 0，覆盖 instructions/format/lint/typecheck、scripts
+  774/774、主 Vitest 341 files / 2,392 passed / 12 skipped、API 153 files / 620 tests、Store coverage
+  97 files / 481 tests、Playwright 111/111、architecture、workspace build、Store release 与 production
+  dependency audit（0 个已知漏洞）；
+- **当前边界**：fresh-CSRF 重新部署控制面未访问 Hosted/Vercel/Supabase、未读取 secret、未写新 state、
+  未 arm/disarm/deploy、未执行 recovery，并停在 commit/push 前。提交、exact-SHA 双平台 CI、fresh
+  diagnose/preflight、完整串行 one-shot、fresh readiness、Operator action-time recovery 与最终身份 snapshot
+  仍需独立证据。

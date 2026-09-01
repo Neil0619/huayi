@@ -384,5 +384,7 @@ Operator 在 `/admin` 近期密码认证后二步确认。新增实现与离线 
 `eligible`。随后 Operator 只点击一次恢复确认；API POST 返回 403，页面明确显示服务器拒绝且没有显示新
 链接。只读 Vercel 请求日志与源码联合确认：密码重新认证成功后，其他 CSRF bootstrap 读取轮换了该 session
 的唯一 hash，而管理员 adapter 仍发送页面缓存的旧 proof。该次请求失败关闭、未证明任何 token 轮换，也
-不得重试。当前 fresh-CSRF 修复仅在本地工作树，仍需提交、双平台 exact-SHA 门、重新部署和 fresh readiness
-后，才可另行批准一次新的 Hosted recovery。
+不得重试。fresh-CSRF 修复 `882d3d4` 已提交推送且 exact-SHA macOS/Windows CI 通过；旧 Phase 93 one-shot
+state 已为 `complete`，只读诊断确认远端终态为 API/Web 19/12 Ready、零 in-flight，所以旧 18/11 控制面
+不得重放。当前新增独立 fresh-CSRF 19/12 one-shot 控制面仍是未提交离线候选；其提交、双平台门、fresh
+diagnose/preflight、API→Web 双关闭和 fresh readiness 全部完成后，才可另行批准一次新的 Hosted recovery。

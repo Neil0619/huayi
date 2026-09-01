@@ -2099,7 +2099,7 @@ passed; first Operator empty`。候选已提交推送，0012 已实际 push；�
   join 页面只点击一次“重新发送六位验证码”；R3-C、五项 Cron、Cloud DeepSeek 应用路径、目标网络、
   数据权利、双平台 Chrome 与完整发布收口继续 pending。
 
-### Phase 93 invitation token recovery（2026-09-01，首次 Hosted mutation 403，修复未提交）
+### Phase 93 invitation token recovery（2026-09-01，首次 Hosted mutation 403，独立重新部署待执行）
 
 - 已以离线 TDD 实现 0023 双镜像 migration、Operator admin API/module/Postgres seam 和 Web 二步确认/
   一次显示；恢复只轮换同一 invitation token hash，不创建 invitation/Auth user/account；
@@ -2118,7 +2118,12 @@ passed; first Operator empty`。候选已提交推送，0012 已实际 push；�
 - Operator 完成密码重新认证并只确认一次 token recovery，但 API POST 返回 403，页面没有显示新链接。
   只读部署日志与源码确认，后续 CSRF bootstrap 已轮换 session 的唯一 hash，而 Web 管理 adapter 仍透传
   页面缓存 proof；这是明确服务器拒绝，不是可重放的未知响应，未重试且没有 recovery 成功证据；
-- 当前本地修复让所有管理员 mutation 在发送写请求前读取 current CSRF provider，未知响应 retry 仍复用原
-  Idempotency-Key 但获取 fresh CSRF。下一步是完整离线门、提交/push、exact-SHA 双平台 CI、fresh Vercel
-  diagnose/串行重新部署与 fresh recovery readiness；这些门关闭并取得新的 action-time 批准前，不得重试
+- fresh-CSRF 修复让所有管理员 mutation 在发送写请求前读取 current CSRF provider，未知响应 retry 仍复用
+  原 Idempotency-Key 但获取 fresh CSRF；`882d3d4` 已提交推送，Cross-platform quality run `33499948406`
+  的 macOS/Windows job 均通过，但尚未重新部署；
+- 旧 Phase 93 state 已为 `complete`。只读重跑旧 diagnose 确认远端 API/Web 19/12、latest Ready、零
+  in-flight，并因旧 state 非 absent、旧 baseline 仍为 18/11 而按设计失败且零写入。当前离线新增独立
+  fresh-CSRF state、19/12 baseline、历史 completion gate 和脱敏 diagnose，聚焦 7/7 与 fresh
+  `pnpm verify:macos` 均通过；该候选仍未 commit/push。下一步是提交与 exact-SHA 双平台 CI，再执行 fresh
+  diagnose/串行重新部署和 fresh recovery readiness；这些门关闭并取得新的 action-time 批准前，不得重试
   Hosted recovery。

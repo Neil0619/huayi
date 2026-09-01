@@ -2247,5 +2247,12 @@
   recovery 成功证据，因此未重试。
 - 根因是 Web 管理 adapter 把页面缓存 CSRF 传给 mutation；密码重新认证后的其他 CSRF bootstrap 已轮换
   session hash。管理 mutation 改为在每次写请求前读取 current CSRF provider；未知响应仍保留原
-  Idempotency-Key，但 retry 也获取 fresh CSRF。该修复当前只在本地工作树，未提交、未部署、未重试 Hosted
-  recovery。
+  Idempotency-Key，但 retry 也获取 fresh CSRF。修复 `882d3d4` 已提交推送且 Cross-platform quality run
+  `33499948406` 的 macOS/Windows job 均通过；仍未重新部署或重试 Hosted recovery。
+- 旧 Phase 93 diagnose 的只读重跑确认旧 state 已为 `complete`，远端终态已推进到 API/Web 19/12、latest
+  Ready、零 in-flight；旧 18/11 candidate 与 state-absent 门因此按设计失败，且没有写 state。不得删除或
+  覆盖该历史 state，也不得把失败误判为凭据失效。
+- 新增独立 fresh-CSRF redeployment one-shot：新 confirmation、新 `phase-93-0023-fresh-csrf-state.json`、
+  19/12 terminal baseline 与脱敏 diagnose。所有执行阶段先验证旧 Phase 93 completion，旧/new state 可在
+  同一私有目录共存；聚焦 7/7 与 fresh `pnpm verify:macos` 已通过。当前仍是未提交离线候选，提交、双平台
+  exact-SHA 门与 Hosted 串行执行继续单列。

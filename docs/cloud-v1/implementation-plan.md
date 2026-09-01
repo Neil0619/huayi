@@ -2082,5 +2082,12 @@ completion 当时运行；API→Web one-shot 仍是另行完成的双关闭证�
 
 离线实现包括 0023 双镜像 migration、admin contract/module/Postgres/app seam、Web 最小确认与一次显示、
 Phase 93 backup/capture/rebuild/readiness/completion/historical completion 与 0023 status/diagnostic/dry-run/apply
-控制脚本及回归测试。真实 Hosted backup/status/dry-run/apply、部署和 Operator 操作仍是独立顺序 gate；未
-取得这些执行证据前状态只能是 `implemented; Hosted validation pending`，不得执行真实恢复。
+控制脚本及回归测试。真实 0023 migration/backup、首次 API→Web 双关闭与 recovery-readiness 均已完成；
+首次 Operator recovery 明确 403 且零成功证据，未重试。fresh-CSRF 修复 `882d3d4` 已推送并通过 exact-SHA
+macOS/Windows CI，但尚未重新部署。
+
+旧 Phase 93 one-shot state 已是不可重放的 `complete`。重新部署使用独立 fresh-CSRF state 与由该终态固定的
+API/Web 19/12 baseline；每个执行阶段先验证旧 completion，diagnose 还要求新 state absent、Git clean/
+pushed/disarmed、五个只读 Vercel 请求、latest Ready 与零 in-flight 全部精确。该控制面已通过 fresh 本机
+完整门并停在未提交离线候选；完成提交、双平台 CI、fresh diagnose/preflight、API→Web 四段双关闭及 fresh
+readiness 后，才请求新的 action-time recovery 批准，最终仍由只读 identity snapshot 证明 account closure。

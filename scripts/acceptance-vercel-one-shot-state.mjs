@@ -8,6 +8,7 @@ const stateFileNames = Object.freeze({
   [defaultStateIdentity]: "phase-81-0014-state.json",
   "phase-92-0022": "phase-92-0022-state.json",
   "phase-93-0023": "phase-93-0023-state.json",
+  "phase-93-0023-fresh-csrf": "phase-93-0023-fresh-csrf-state.json",
 });
 const allowedStateFileNames = new Set(Object.values(stateFileNames));
 

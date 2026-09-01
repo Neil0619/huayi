@@ -537,10 +537,24 @@ id 或 token，自动选择唯一 ordinary invitation，在单一 `REPEATABLE RE
 fresh-CSRF 客户端修复的离线门、提交/push、exact-SHA 双平台 CI、API/Web 串行重新部署与 fresh readiness，
 再请求新的 action-time 用户批准。
 
+fresh-CSRF 修复已以 `882d3d4` 提交并推送，Cross-platform quality run `33499948406` 的 macOS/Windows
+job 均为 success。随后只读重跑旧 Phase 93 diagnose 时，credential/Git/disarmed/五个 Vercel GET 均精确，
+远端 API/Web 为 19/12 non-Canceled、latest Ready、零 in-flight，但旧 `phase-93-0023-state.json` 已是
+`complete`，旧诊断仍固定 18/11 启动基线，因此按合同返回失败且 `state_write_attempted|f`。这不是凭据或
+部署故障，也不得删除旧 state、改写旧基线或继续旧 preflight。
+
+重新部署必须改用独立 `acceptance:hosted:phase93:fresh-csrf:deployment:one-shot:*` surface 与
+`phase-93-0023-fresh-csrf-state.json`。每个非 plan 阶段先精确验证旧 Phase 93 completion，再以其 Ready
+部署固定新的 19/12 baseline；diagnose 同时要求旧 state complete、新 state absent、Git clean/pushed/
+disarmed、五个只读请求与远端 baseline 全部精确。该控制面当前仅为未提交离线候选，尚未连接 Vercel、
+写新 state、arm/disarm 或部署；fresh `pnpm verify:macos` 已退出 0。提交、exact-SHA 双平台 CI、fresh
+diagnose/preflight 与四段串行门仍需分别关闭，之后才可 fresh recovery-readiness 并请求新的 action-time
+recovery 批准。
+
 仓库提供 Phase 93 专属的 plan/preflight/readiness/pre-capture/rebuild/status/dry-run/apply/post-capture/
 completion/historical completion 命令，统一位于 `acceptance:hosted:phase93:migration:backup:*` 与
 `acceptance:hosted:migration:0023:*`。`status` 只返回 `pending-exact`、`applied-exact` 或 `uncertain`；
 `uncertain` 必须停止 apply，并仅用 `acceptance:hosted:migration:0023:status:diagnose` 的 allowlisted predicate
 诊断。上述 0023 migration/backup/identity、Phase 93 Vercel one-shot 双关闭与 recovery readiness 均已有
-真实精确结果；首次 recovery 明确 403 且没有成功证据。当前 fresh-CSRF 修复只在本地工作树，未 commit/
-push、未重新部署，也未重试 recovery。
+真实精确结果；首次 recovery 明确 403 且没有成功证据。fresh-CSRF 修复已 commit/push 且 exact-SHA
+双平台 CI 通过，但独立 19/12 重新部署控制面尚未 commit/push，修复也未重新部署，Hosted recovery 未重试。

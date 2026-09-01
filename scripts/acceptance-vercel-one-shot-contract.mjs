@@ -375,6 +375,10 @@ export function validateVercelOneShotStoredState(state, stage, expectedBaselines
   assertState(state, priorPhases[stage], expectedBaselines);
 }
 
+export function validateVercelOneShotCompleteState(state, expectedBaselines) {
+  assertState(state, "complete", expectedBaselines);
+}
+
 export function advanceVercelOneShotState({ expectedBaselines, git, snapshot, stage, state }) {
   const input = { expectedBaselines, git, snapshot, state };
   if (stage === "preflight" && state === undefined) return preflight(input);
