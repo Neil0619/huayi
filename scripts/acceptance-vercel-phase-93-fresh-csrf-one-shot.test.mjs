@@ -212,9 +212,13 @@ test("fresh-CSRF preflight requires exact historical completion and current base
   let state;
   const code = await runPhase93FreshCsrfVercelOneShotCli({
     arguments_: ["preflight", phase93FreshCsrfVercelOneShotConfirmation],
-    environment: { VERCEL_TOKEN: token },
+    environment: {},
     historicalStateStore: { read: async () => phase93CompleteState() },
     inspectGit_: async () => gitState(),
+    readCredential: async (credentialId) => {
+      assert.equal(credentialId, "vercel-token");
+      return token;
+    },
     readSnapshot_: async () => freshBaselineSnapshot(),
     stateStore: { read: async () => state, write: async (value) => (state = value) },
   });
@@ -241,10 +245,14 @@ test("fresh-CSRF diagnostic is read-only, sanitized, and proves both generations
   let stdout = "";
   const code = await runPhase93FreshCsrfVercelDiagnosticCli({
     arguments_: [phase93FreshCsrfVercelDiagnosticArgument],
-    environment: { VERCEL_TOKEN: token },
+    environment: {},
     fetch_: async () => ({ status: 200 }),
     historicalStateStore: { read: async () => phase93CompleteState() },
     inspectGit_: async () => gitState(),
+    readCredential: async (credentialId) => {
+      assert.equal(credentialId, "vercel-token");
+      return token;
+    },
     readSnapshot_: tracedFreshSnapshot,
     stateStore: { read: async () => undefined, write: async () => (writes += 1) },
     writeOutput: (value) => (stdout += value),
@@ -281,10 +289,11 @@ test("fresh-CSRF diagnostic fails a drifted historical completion closed", async
   const drifted = { ...phase93CompleteState(), apiDisarmCommit: "f".repeat(40) };
   const code = await runPhase93FreshCsrfVercelDiagnosticCli({
     arguments_: [phase93FreshCsrfVercelDiagnosticArgument],
-    environment: { VERCEL_TOKEN: token },
+    environment: {},
     fetch_: async () => ({ status: 200 }),
     historicalStateStore: { read: async () => drifted },
     inspectGit_: async () => gitState(),
+    readCredential: async () => token,
     readSnapshot_: tracedFreshSnapshot,
     stateStore: { read: async () => undefined },
     writeOutput: (value) => (stdout += value),
@@ -295,6 +304,34 @@ test("fresh-CSRF diagnostic fails a drifted historical completion closed", async
   assert.match(stdout, /^candidate_baseline_exact\|t$/mu);
   assert.match(stdout, /^contract_exact\|f$/mu);
   assert.doesNotMatch(stdout, new RegExp(`${token}|${drifted.apiDisarmCommit}`, "u"));
+});
+
+test("fresh-CSRF diagnostic rejects legacy token environment before credential or remote work", async () => {
+  let credentialReads = 0;
+  let remoteReads = 0;
+  let stdout = "";
+  const code = await runPhase93FreshCsrfVercelDiagnosticCli({
+    arguments_: [phase93FreshCsrfVercelDiagnosticArgument],
+    environment: { VERCEL_TOKEN: token },
+    historicalStateStore: { read: async () => phase93CompleteState() },
+    inspectGit_: async () => gitState(),
+    readCredential: async () => {
+      credentialReads += 1;
+      return token;
+    },
+    readSnapshot_: async () => {
+      remoteReads += 1;
+      return freshBaselineSnapshot();
+    },
+    stateStore: { read: async () => undefined },
+    writeOutput: (value) => (stdout += value),
+  });
+  assert.equal(code, 1);
+  assert.equal(credentialReads, 0);
+  assert.equal(remoteReads, 0);
+  assert.match(stdout, /^token_format_exact\|f$/mu);
+  assert.match(stdout, /^request_count\|0$/mu);
+  assert.doesNotMatch(stdout, new RegExp(token, "u"));
 });
 
 test("fresh-CSRF wrapper rejects a legacy confirmation before any I/O", async () => {

@@ -1,5 +1,9 @@
 import { pathToFileURL } from "node:url";
 
+import {
+  readHostedCredential,
+  rejectLegacyHostedCredentialEnvironment,
+} from "./acceptance-hosted-credentials.mjs";
 import { inspectVercelOneShotGit } from "./acceptance-vercel-one-shot-git.mjs";
 import { readVercelOneShotSnapshot } from "./acceptance-vercel-one-shot-remote.mjs";
 import { createVercelOneShotStateStore } from "./acceptance-vercel-one-shot-state.mjs";
@@ -118,6 +122,7 @@ export async function runPhase93FreshCsrfVercelDiagnosticCli({
   fetch_ = globalThis.fetch,
   historicalStateStore,
   inspectGit_ = inspectVercelOneShotGit,
+  readCredential = readHostedCredential,
   readSnapshot_ = readVercelOneShotSnapshot,
   repositoryRoot = process.cwd(),
   stateStore,
@@ -161,7 +166,14 @@ export async function runPhase93FreshCsrfVercelDiagnosticCli({
   } catch {
     git = undefined;
   }
-  const tokenExact = tokenFormatExact(environment.VERCEL_TOKEN);
+  let token;
+  try {
+    rejectLegacyHostedCredentialEnvironment(environment);
+    token = await readCredential("vercel-token", { environment });
+  } catch {
+    token = undefined;
+  }
+  const tokenExact = tokenFormatExact(token);
   let snapshot;
   let requestCount = 0;
   const requestStatuses = requestStages.map(() => "not_run");
@@ -179,7 +191,7 @@ export async function runPhase93FreshCsrfVercelDiagnosticCli({
   };
   if (tokenExact) {
     try {
-      snapshot = await readSnapshot_({ fetch_: observedFetch, token: environment.VERCEL_TOKEN });
+      snapshot = await readSnapshot_({ fetch_: observedFetch, token });
     } catch {
       snapshot = undefined;
     }

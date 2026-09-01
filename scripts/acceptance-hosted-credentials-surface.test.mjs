@@ -19,6 +19,7 @@ test("Hosted and Vercel scripts contain no infrastructure-secret runtime prompt 
     /PGPASSWORD\s*:/u,
     /SUPABASE_ACCESS_TOKEN\s*:/u,
     /VERCEL_TOKEN\s*:/u,
+    /environment\.(?:PGPASSWORD|SUPABASE_DB_PASSWORD|SUPABASE_ACCESS_TOKEN|VERCEL_TOKEN)/u,
     /password-prompt/u,
     /hidden TTY password/u,
     /prompt for the administrator secret/u,
