@@ -192,8 +192,8 @@ test("0022 status query pins the transaction pooler, CA, timeout, and exact read
   assert.match(observed.databaseUrl, /:6543\/postgres\?sslmode=verify-full$/u);
   assert.deepEqual(observed.environment, {
     HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: caCertificate,
-    PGPASSWORD: "fictional-administrator-password",
   });
+  assert.equal(observed.password, "fictional-administrator-password");
   assert.equal(observed.captureOutput, true);
   assert.equal(observed.timeoutMilliseconds, 30_000);
   assert.equal(observed.input, renderHostedMigration0022StatusSql());

@@ -111,7 +111,7 @@ pnpm acceptance:hosted:deepseek:migration:backup:rebuild
 pnpm acceptance:hosted:deepseek:migration:backup:preflight
 ```
 
-- pre capture 经 official CA、隐藏 TTY password 和 verify-full session pooler `5432` 读取 Hosted，并只接受
+- pre capture 经 official CA、固定管理员 Keychain account 和 verify-full session pooler `5432` 读取 Hosted，并只接受
   head `20260825010000`、`storage.objects=0`；raw custom dump 与 manifest 均为 `0600`，目录为 `0700`；
 - rebuild 只在本地 digest-only、`--pull never`、networkless、tmpfs scratch 中执行完整 21-chain 与 fictional
   seed；它不读取 Hosted password，不导入 Hosted 数据。Auth/Storage/runtime/absence contract 全部通过、所有
@@ -151,7 +151,7 @@ pnpm acceptance:hosted:deepseek:migration:status
 pnpm acceptance:hosted:deepseek:migration:status:diagnose
 ```
 
-该入口沿用 official CA、隐藏 TTY、transaction pooler `6543`、verify-full、`connect_timeout=10`、30 秒上限
+该入口沿用 official CA、固定管理员 Keychain account、transaction pooler `6543`、verify-full、`connect_timeout=10`、30 秒上限
 和单一 `BEGIN READ ONLY` catalog snapshot。公开输出只能包含 allowlisted psql exit class、output exact、
 0015–0021 各 migration prefix、role attributes、membership absence/contract、schema/table/RLS/receipt/trigger、
 17 个固定 private function contract 与 executor/unexpected ACL、aggregate external ACL/state 的 `t/f` 以及
@@ -172,7 +172,7 @@ apply 需要再次独立批准：
 pnpm acceptance:hosted:deepseek:migration:apply
 ```
 
-单一 apply 入口内部固定执行：preflight → CA/hidden password → exact dry-run → 紧邻 mutation 的第二次
+单一 apply 入口内部固定执行：preflight → CA/固定管理员 Keychain account → exact dry-run → 紧邻 mutation 的第二次
 preflight → read-only `pending-exact` → `db push --yes` → read-only `applied-exact` postflight。任一非零、
 timeout、signal、output overflow、source/hash 漂移、stale evidence、applied/uncertain status 或畸形输出均在
 mutation 前失败；mutation 已发出但 completion 未验证时，只能重新运行只读 status，禁止盲重试。

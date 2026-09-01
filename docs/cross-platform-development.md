@@ -11,16 +11,17 @@ Huayi 支持 macOS 与 Windows，但两端的 Native Host 能力不同。代码�
 
 ## 完成矩阵
 
-| 改动类型                                             | 可以在哪个平台实现       | 自动门禁                                        | 目标平台人工验收       |
-| ---------------------------------------------------- | ------------------------ | ----------------------------------------------- | ---------------------- |
-| 协议、Schema、Prompt、HTTP、Extension UI、纯领域逻辑 | 任意                     | macOS 与 Windows                                | 不要求                 |
-| YouTube MAIN bridge 与私有播放器字幕适配             | 任意，使用离线 fixture   | 双平台门禁与 macOS Playwright                   | 发布前两端 Chrome 要求 |
-| macOS Keychain、Codex 进程、launcher、安装/卸载      | 任意，使用 fake 覆盖契约 | 双平台单测与 macOS 门禁                         | 要求 macOS             |
-| Windows DPAPI、PowerShell、注册表、SEA、安装/卸载    | 任意，使用 fake 覆盖契约 | 双平台单测、Windows Node 26 门禁与 SEA health   | 要求 Windows           |
-| 生词同步状态、迁移、词形还原、放弃终态和扇贝页面适配 | 任意，路径/文件行为注入  | 双平台单测、构建、macOS Playwright、Windows SEA | 两端 Chrome 发布前要求 |
-| Native Messaging、版本、帧或共享传输                 | 任意                     | 双平台门禁                                      | 发布前两端都要求       |
-| 真实 Chrome、凭据、Provider smoke                    | 目标平台                 | 禁止进入 CI                                     | 取得用户授权后执行     |
-| 仅某平台可复现的系统缺陷                             | 任意平台可先写回归契约   | 双平台门禁                                      | 最终必须回到问题平台   |
+| 改动类型                                             | 可以在哪个平台实现       | 自动门禁                                         | 目标平台人工验收       |
+| ---------------------------------------------------- | ------------------------ | ------------------------------------------------ | ---------------------- |
+| 协议、Schema、Prompt、HTTP、Extension UI、纯领域逻辑 | 任意                     | macOS 与 Windows                                 | 不要求                 |
+| YouTube MAIN bridge 与私有播放器字幕适配             | 任意，使用离线 fixture   | 双平台门禁与 macOS Playwright                    | 发布前两端 Chrome 要求 |
+| macOS Keychain、Codex 进程、launcher、安装/卸载      | 任意，使用 fake 覆盖契约 | 双平台单测与 macOS 门禁                          | 要求 macOS             |
+| Hosted 运维 Keychain 与共享 consumer                 | 任意，使用 fake store    | 双平台单测、macOS 门禁、Windows unsupported 回归 | 要求 macOS             |
+| Windows DPAPI、PowerShell、注册表、SEA、安装/卸载    | 任意，使用 fake 覆盖契约 | 双平台单测、Windows Node 26 门禁与 SEA health    | 要求 Windows           |
+| 生词同步状态、迁移、词形还原、放弃终态和扇贝页面适配 | 任意，路径/文件行为注入  | 双平台单测、构建、macOS Playwright、Windows SEA  | 两端 Chrome 发布前要求 |
+| Native Messaging、版本、帧或共享传输                 | 任意                     | 双平台门禁                                       | 发布前两端都要求       |
+| 真实 Chrome、凭据、Provider smoke                    | 目标平台                 | 禁止进入 CI                                      | 取得用户授权后执行     |
+| 仅某平台可复现的系统缺陷                             | 任意平台可先写回归契约   | 双平台门禁                                       | 最终必须回到问题平台   |
 
 fake 只能证明输入、输出、错误映射和调用约束，不能证明 Keychain、DPAPI、注册表、进程信号、
 文件权限、SEA 或 Chrome Native Messaging 在真实系统上工作。
@@ -33,6 +34,8 @@ CC／切轨、`zh-Hans`、SPA、剧院／全屏、选词和生词本。
 ## 工程规则
 
 - 平台、路径、权限、换行、大小写、进程和环境变量必须显式注入；不要让测试隐式继承开发机。
+- Hosted 运维凭据的共享 reader/consumer 可在任意平台实现和测试；生产 store 只允许 macOS login
+  Keychain。其他平台必须返回 unsupported，不得回退到 `.env`、环境变量、stdin 或明文文件。
 - 依赖 POSIX 目录 `fsync` 或权限位的生产 writer 必须固定使用严格实现；Windows 合同测试可注入窄
   durability/mode seam 复用协调逻辑，但不得提供生产降级路径。
 - Git 文本 checkout 由根 `.gitattributes` 固定为 LF；字节级镜像、hash pin、migration 与 canonical
@@ -52,6 +55,8 @@ CC／切轨、`zh-Hans`、SPA、剧院／全屏、选词和生词本。
 - 只有不可模拟的真实 OS 原语可以按平台跳过；跳过原因必须写在测试附近，并由目标平台 CI
   或人工验收覆盖。能通过注入验证的逻辑不得按当前 `process.platform` 整体跳过。
 - 默认门禁不得读取真实 Keychain、DPAPI 凭据、注册表秘密、Codex 登录或调用外部 API。
+- Hosted 凭据回归必须注入 fake Keychain/fake process/fake HTTP；macOS 人工验收只证明系统读取与跨新终端
+  持久化，不自动授权 migration、backup、restore、deployment 或真实 smoke。
 - 系统集成、安全边界或安装行为改变时，同步更新本文件、`testing.md`、对应 setup 文档和
   `security.md`。
 

@@ -216,7 +216,8 @@ test("Phase 92 pins the Phase 91 terminal baseline through persisted transitions
   };
   const preflightCode = await runPhase92VercelOneShotCli({
     arguments_: ["preflight", phase92VercelOneShotConfirmation],
-    environment: { VERCEL_TOKEN: token },
+    environment: {},
+    readCredential: async () => token,
     expectedBaselines: historicalBaselines,
     inspectGit_: async () => gitState(),
     readSnapshot_: async () => baselineSnapshot(),
@@ -240,7 +241,8 @@ test("Phase 92 pins the Phase 91 terminal baseline through persisted transitions
   });
   const observeCode = await runPhase92VercelOneShotCli({
     arguments_: ["observe-api-arm", phase92VercelOneShotConfirmation],
-    environment: { VERCEL_TOKEN: token },
+    environment: {},
+    readCredential: async () => token,
     inspectGit_: async () =>
       gitState({
         apiArmed: true,
@@ -262,7 +264,8 @@ test("Phase 92 rejects the historical 16/9 baseline without writing state", asyn
   let written = false;
   const code = await runPhase92VercelOneShotCli({
     arguments_: ["preflight", phase92VercelOneShotConfirmation],
-    environment: { VERCEL_TOKEN: token },
+    environment: {},
+    readCredential: async () => token,
     inspectGit_: async () => gitState(),
     readSnapshot_: async () => historicalBaselineSnapshot(),
     stateStore: {

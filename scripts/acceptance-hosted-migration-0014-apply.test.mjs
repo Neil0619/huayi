@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
-import { stat } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import test from "node:test";
 
 import {
@@ -337,11 +337,17 @@ test("0014 apply process pins --yes, verify-full, and removes its public CA", as
   assert.deepEqual(Object.keys(observed.options.env).sort(), [
     "LANG",
     "LC_ALL",
-    "PGPASSWORD",
+    "PGPASSFILE",
     "PGSSLMODE",
     "PGSSLROOTCERT",
   ]);
-  assert.equal(observed.options.env.PGPASSWORD, "fictional-secret");
+  assert.equal(observed.options.env.PGPASSWORD, undefined);
+  const passwordPath = observed.options.env.PGPASSFILE;
+  assert.equal((await stat(passwordPath)).mode & 0o777, 0o600);
+  assert.equal(
+    await readFile(passwordPath, "utf8"),
+    "aws-0-ap-southeast-1.pooler.supabase.com:6543:postgres:postgres.kpadiulxkgckskcfydry:fictional-secret\n",
+  );
   assert.equal(observed.options.env.PGSSLMODE, "verify-full");
   assert.equal(observed.options.shell, false);
   assert.deepEqual(observed.options.stdio, ["ignore", "ignore", "ignore"]);
@@ -350,5 +356,6 @@ test("0014 apply process pins --yes, verify-full, and removes its public CA", as
   child.emit("close", 0, null);
   assert.deepEqual(await resultPromise, { code: 0 });
   await assert.rejects(stat(caPath), { code: "ENOENT" });
+  await assert.rejects(stat(passwordPath), { code: "ENOENT" });
   assert.equal(JSON.stringify(observed.arguments_).includes("fictional-secret"), false);
 });

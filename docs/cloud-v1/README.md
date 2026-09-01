@@ -59,6 +59,7 @@ Cloud V1 是尚未发布的 Store Edition 云端学习增量。实现和审阅�
 55. [Hosted Cloud Web DeepSeek 单次验收执行器实施计划](hosted-deepseek-one-shot-executor-plan.md)
 56. [Hosted DeepSeek 0016–0021 migration batch](hosted-deepseek-migration-batch.md)
 57. [Hosted 验收一页式操作清单](hosted-acceptance-one-page-checklist.md)
+58. [Hosted 运维凭据持久化](hosted-credential-operations.md)
 
 根 `CONTEXT.md` 定义领域语言，`docs/adr/0009`–`0024` 记录难以逆转的取舍。需求或技术路线变化先
 更新 `change-log.md` 和对应权威文档，再修改代码。

@@ -84,7 +84,7 @@ test("one-shot plan is fixed, offline, and explicit about the serial fail-closed
     "API arm -> exactly one non-Canceled deployment -> independent API disarm",
     "Web cannot arm before API disarm is verified",
     "at most one same-push Canceled audit",
-    "VERCEL_TOKEN is never printed or persisted",
+    "The fixed Vercel Keychain credential is never printed or persisted",
   ]) {
     assert.match(plan, new RegExp(expected.replaceAll(/[.*+?^${}()|[\]\\]/gu, "\\$&"), "u"));
   }

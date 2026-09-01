@@ -2,9 +2,12 @@ import { createHash } from "node:crypto";
 import { pathToFileURL } from "node:url";
 
 import {
+  readHostedCredential,
+  rejectLegacyHostedCredentialEnvironment,
+} from "./acceptance-hosted-credentials.mjs";
+import {
   hostedAcceptancePoolerUrl,
   hostedAcceptanceProjectRef,
-  requirePostgresPassword,
   runHostedPsql,
   sqlLiteral,
 } from "./acceptance-hosted-foundation.mjs";
@@ -76,25 +79,27 @@ COMMIT;
 function databaseEnvironment(environment) {
   return {
     HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: environment.HUAYI_HOSTED_DATABASE_CA_CERTIFICATE,
-    PGPASSWORD: environment.PGPASSWORD,
   };
 }
 
 export async function runPepperContinuityVerification({
   arguments_ = process.argv.slice(2),
   environment = process.env,
+  readCredential = readHostedCredential,
   runPsql = runHostedPsql,
 } = {}) {
   if (arguments_.length !== 1 || arguments_[0] !== pepperContinuityVerificationArgument) {
     throw new Error("Hosted pepper continuity arguments are invalid.");
   }
-  requirePostgresPassword(environment);
+  rejectLegacyHostedCredentialEnvironment(environment);
+  const password = await readCredential("supabase-admin-db-password", { environment });
   const tokenHash = hashInvitation(requireInvitationToken(environment), requirePepper(environment));
   const result = await runPsql({
     captureOutput: true,
     databaseUrl: hostedAcceptancePoolerUrl,
     environment: databaseEnvironment(environment),
     input: renderPepperContinuitySql(tokenHash),
+    password,
   });
   if (result.code !== 0 || result.stdout.trim() !== "t") {
     throw new Error("Hosted pepper continuity verification failed.");

@@ -31,7 +31,8 @@ test("Vercel project plan is offline, deterministic, and secret independent", as
   const plan = renderVercelProjectPlan();
   const code = await runVercelProjectsCli({
     arguments_: ["plan"],
-    environment: { VERCEL_TOKEN: token },
+    environment: {},
+    readCredential: async () => token,
     fetch_: async () => {
       calls += 1;
       throw new Error("network forbidden");
@@ -75,7 +76,8 @@ test("apply creates two name-only shells, freezes settings, rereads, and proves 
 
   const result = await applyVercelProjectShells({
     arguments_: ["apply", vercelProjectsApplyConfirmation],
-    environment: { VERCEL_TOKEN: token },
+    environment: {},
+    readCredential: async () => token,
     fetch_: fake.fetch_,
   });
 
@@ -140,7 +142,8 @@ test("apply rereads a created shell and accepts Vercel's safe source-outside-roo
 
   const result = await applyVercelProjectShells({
     arguments_: ["apply", vercelProjectsApplyConfirmation],
-    environment: { VERCEL_TOKEN: token },
+    environment: {},
+    readCredential: async () => token,
     fetch_: fake.fetch_,
   });
 
@@ -188,7 +191,8 @@ test("apply reuses exact shells without POST and safely repeats the settings PAT
 
   await applyVercelProjectShells({
     arguments_: ["apply", vercelProjectsApplyConfirmation],
-    environment: { VERCEL_TOKEN: token },
+    environment: {},
+    readCredential: async () => token,
     fetch_: fake.fetch_,
   });
 
@@ -274,7 +278,8 @@ test("preflight fails closed on drift, Git linkage, or any existing deployment",
       await assert.rejects(
         applyVercelProjectShells({
           arguments_: ["apply", vercelProjectsApplyConfirmation],
-          environment: { VERCEL_TOKEN: token },
+          environment: {},
+          readCredential: async () => token,
           fetch_: fake.fetch_,
         }),
         /Vercel project preflight failed/u,

@@ -56,7 +56,11 @@ test("sensitive process adapter passes only the fixed child environment to spawn
   child.stdout = new PassThrough();
   child.kill = () => true;
   let observed;
+  let registeredChild;
   const resultPromise = runHostedImportantBatchProcess("fixed-command", [], {
+    registerChild: (value) => {
+      registeredChild = value;
+    },
     spawnProcess: (command, arguments_, options) => {
       observed = { arguments_, command, options };
       return child;
@@ -65,6 +69,7 @@ test("sensitive process adapter passes only the fixed child environment to spawn
   assert.deepEqual(observed.options.env, { LANG: "C", LC_ALL: "C" });
   assert.equal(observed.options.shell, false);
   assert.equal(observed.options.windowsHide, true);
+  assert.equal(registeredChild, child);
   child.stdout.end("stage passed\n");
   child.emit("close", 0, null);
   assert.deepEqual(await resultPromise, { code: 0, stdout: "stage passed\n" });

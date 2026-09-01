@@ -629,11 +629,11 @@ mirror 与 `git diff --check` 通过；全仓 `format:check` 当时仅被本纵�
 snapshot 仍是只读观察，不会发送邮件、调用 DeepSeek、安装 Cron、切换 kill switch 或替代 Provider/
 Dashboard 证据。
 
-2026-08-26 安全校准进一步要求 runtime snapshot 在参数和继承 secret 门后先获取固定官方 CA，再从
-`/dev/tty` 无回显读取 12–512 byte 管理员密码；环境对象自身含 `PGPASSWORD` 或
-`SUPABASE_DB_PASSWORD` 时必须在 CA/prompt/network 前失败，即使值为空或 `undefined`。psql 固定 30 秒
+2026-09-01 安全校准进一步要求 runtime snapshot 在参数和继承 secret 门后先获取固定官方 CA，再从
+固定管理员 Keychain account 读取 12–512 byte 密码；环境对象自身含 `PGPASSWORD` 或
+`SUPABASE_DB_PASSWORD` 时必须在 CA/Keychain/network 前失败，即使值为空或 `undefined`。psql 固定 30 秒
 进程上限；31 字段 parser 必须有且只有正常 final LF，并拒绝任何 CR。package entry 回归必须验证失败时
-没有 CA fetch、TTY prompt 或网络调用。
+没有 CA fetch、Keychain read 或网络调用。
 
 ### 4.3.4 Phase 79 Hosted Supabase Cron 受控安装
 
@@ -642,16 +642,16 @@ Dashboard 证据。
 先由 `acceptance-hosted-cron.test.mjs` 导入不存在的模块并取得 `ERR_MODULE_NOT_FOUND`；GREEN 覆盖：
 
 - plan 零 adapter 调用、project-pinned 与无 secret/身份输出；
-- status 在参数/继承 secret 门后按 fixed official CA→hidden `/dev/tty` password→一个 verify-full 管理员
+- status 在参数/继承 secret 门后按 fixed official CA→固定管理员 Keychain account→一个 verify-full 管理员
   `BEGIN READ ONLY` 执行，固定 30 秒 psql 上限并解析 18 个 boolean/stage/count；Vault 只读
   `vault.secrets.name`，额外、乱序、恶意、越界、缺 final LF、任意 CR 或 adapter throw 一律固定失败；
 - preflight 在任何写入前核对 13 条 migration、R3-C 已 sent 且零非终态/失败终态、Vault 两个名称、
   extension schema 可安装、无 unmanaged `huayi-*` job、函数 owner/overload/ACL 可修复，以及
   `huayi_private` schema 精确 ACL（owner `USAGE+CREATE`、`huayi_context_setter`/`huayi_business` 各
   `USAGE`，零其他 edge/grant option）；
-- apply 只接受 exact project confirmation，并在 CA、密码和数据库之前先要求 operations SQL 的 SHA-256
+- apply 只接受 exact project confirmation，并在 CA、Keychain read 和数据库之前先要求 operations SQL 的 SHA-256
   精确为 `09a074addefdf352ff256ff958bb87a6775b911a7da9475ef697b04d2a64d604`、worktree clean 且
-  `HEAD==upstream`；Git child 固定 10 秒上限。随后才按 CA→hidden password→preflight 顺序执行，并把
+  `HEAD==upstream`；Git child 固定 10 秒上限。随后才按 CA→Keychain password→preflight 顺序执行，并把
   operations SQL **完整且未改写**地交给 adapter 两次，每次保留自身事务；第一次失败不进入第二次，
   第二次失败不进入 postflight；
 - postflight 是独立只读连接，要求 `exact`、5 个 fixed job、0 个 unmanaged job 和总合同 `t`；所有错误
@@ -659,7 +659,7 @@ Dashboard 证据。
 
 这里明确取代 Phase 79 最初的“preflight 后再做静态 operations 检查”顺序。回归必须证明在事务内部插入
 `DROP TABLE`、但仍满足旧 `BEGIN`/`COMMIT`/五次 schedule 浅形状的 SQL 会因精确 hash 不匹配而在 CA、
-prompt 和数据库前拒绝；继承 secret、非法 11/513 byte 或含 NUL/CR/LF 密码也必须失败关闭。候选
+Keychain read 和数据库前拒绝；继承 secret、非法 11/513 byte 或含 NUL/CR/LF 密码也必须失败关闭。候选
 `1caf9dc…` 的相关 focused tests 为 23/23，runtime/Cron plan 为零 I/O，继承 secret 的 package entry 门
 证明零 CA fetch、零 prompt、零 network。
 
@@ -902,8 +902,8 @@ confirmed Auth user/password method/profile 为 `1/1/2`、google method/Web sess
   executor 在 readiness 前不读 secret，rebuild 永不读取 Hosted password。status 以 PGlite 证明 exact
   21-chain+旧函数正文为 pending、22-chain+新正文为 applied，authority/ACL/正文任一 drift 为 uncertain；
   diagnostic 在真实相同 catalog 上输出固定有序布尔 allowlist。dry-run parser 只接受唯一 0022 文件，CLI
-  `2.115.0`、official CA、verify-full `6543`、隐藏 TTY、无继承密码、output/time bound 与 disposable `0600`
-  CA 均固定；timeout 即使 child 不发 close 也必须 settle。apply 必须证明 preflight→dry-run→preflight→
+  `2.115.0`、official CA、verify-full `6543`、固定管理员 Keychain account、无继承密码、output/time bound
+  与 disposable `0600` CA/`.pgpass` 均固定；timeout 即使 child 不发 close 也必须 settle。apply 必须证明 preflight→dry-run→preflight→
   pending→apply→applied 顺序，任何 evidence/source/CLI/transcript/status/postflight 失败均为零 mutation 且只
   输出固定失败；默认测试不得连接 Hosted、读取真实密码、发送邮件或部署；
 - Phase 92 deployment surface 必须使用独立 confirmation 与 `phase-92-0022-state.json`，同时复用既有完整
@@ -914,16 +914,14 @@ confirmed Auth user/password method/profile 为 `1/1/2`、google method/Web sess
   回归先构造其余账号条件全部成立的 finalized 状态，再增加一张较旧 ordinary invitation，结果必须降为
   `account_finalized_exact|f` 与 `safe_route_state|stop-inconsistent`；
 - 0014 Hosted dry-run CLI 必须先以 Fresh RED 证明入口不存在；只接受 pinned project/migration confirmation，
-  在读取 TTY 前拒绝额外参数与继承的 `PGPASSWORD` / `SUPABASE_DB_PASSWORD`。共享提示必须保存完整
-  `stty -g`，临时关闭 echo/canonical/ISIG，并以隔离有界 reader 把 Ctrl-C 作为取消字节处理；取消必须恢复
-  echo/canonical/ISIG、移除 listener、固定 exit 1，且零 Supabase child。真实 macOS `/usr/bin/expect` 必须
-  覆盖正常零回显、连续两次取消与 exact pnpm package entry，不能只用注入 fake；exact package PTY 测试以
-  process-local fake fetch adapter 保持零网络。只以 `shell:false` 调用
+  在读取 Keychain 前拒绝额外参数与继承的 `PGPASSWORD` / `SUPABASE_DB_PASSWORD`。fake Keychain 回归必须
+  覆盖固定 service/account、missing/locked/denied/invalid、无秘密输出和 exact package entry 零网络；只以
+  `shell:false` 调用
   本地 pinned Supabase binary，固定管理员 transaction pooler `6543` 无密码 verify-full URL 与
   `db push --dry-run --skip-vault --db-url` 参数。单命令内部 CA fetch 只允许固定官方 URL、GET、
   `redirect=error`、no-store/no-credentials/no-referrer、10 秒/16 KiB，并拒绝非 200、final URL 漂移、空 body、
-  overflow、非法 UTF-8/PEM 与 timeout；调用者不准备 CA env。child env 精确为固定 locale、进程级
-  `PGPASSWORD`、`PGSSLMODE=verify-full` 与随机私有 `0600` CA path；必须拒绝只供 application 隔离 verifier
+  overflow、非法 UTF-8/PEM 与 timeout；调用者不准备 CA env。密码写入随机私有 `0600 .pgpass`，child env
+  精确为固定 locale、`PGPASSFILE`、`PGSSLMODE=verify-full` 与随机私有 `0600` CA path；必须拒绝只供 application 隔离 verifier
   使用的 session pooler `5432`。stdout/stderr 共享 byte/time 上限；成功可由单通道完整 transcript 或双通道
   完整行分配证明，但每个通道只能是五条 allowlist 的 canonical relative-order 子序列、非空必须精确 final
   newline，跨通道 multiset 必须每条一次。两个 pipe 的 global interleaving 不可恢复且不作为证明；mid-line、
@@ -932,7 +930,7 @@ confirmed Auth user/password method/profile 为 `1/1/2`、google method/Web sess
   可删目录，但仍固定失败。`rm` failure 必须证明 cleanup attempted、CLI 固定失败且零成功回执；不得伪称目录已删，真实发生时进入本机 cleanup
   incident，可能残留的只允许是 `0700`/`0600` 公开 CA 且不得含密码。严格 parser 只能接受 dry-run header、
   连接 marker、唯一 `20260824010000_password_signup_otp_resend.sql` 与 finished marker，extra/missing migration、
-  apply-like 或未知文本均 fixed failure 且不反射 secret/raw output。默认测试只能注入 fake fetch/process，
+  apply-like 或未知文本均 fixed failure 且不反射 secret/raw output。默认测试只能注入 fake Keychain/fetch/process，
   不得连接 Hosted；真实运行结果必须另行记录，不能由离线 GREEN 代替。相同 fixed official CA fetch 必须
   由 pre/post capture 共用；capture 测试证明 fetch 在隐藏密码前、fetch failure 零 password read，且调用方
   CA environment 即使存在也不会被使用；

@@ -75,12 +75,23 @@ reservation 的 `running` 请求，只调用既有恢复函数精确终态化；
 
 ### Hosted acceptance foundation 运行手册
 
+首次使用任何 Hosted/Vercel 运维入口前，在 macOS login Keychain 配置四项固定基础设施凭据：
+
+```bash
+pnpm acceptance:hosted:credentials:configure
+pnpm acceptance:hosted:credentials:status
+pnpm acceptance:hosted:credentials:diagnose
+```
+
+service/account、轮换、删除、非 macOS 行为和授权边界见
+`hosted-credential-operations.md`。凭据 `present/available` 不授权任何远端读取、migration、backup、
+restore、Cron、deployment 或 smoke；各命令原有确认与用户批准门保持不变。
+
 `pnpm acceptance:hosted:bootstrap --plan` 只检查固定执行入口并输出无副作用结论，不连接远端。实际
 foundation 只允许 project ref `kpadiulxkgckskcfydry` 的 Singapore transaction pooler，并要求精确确认参数
-`pnpm acceptance:hosted:bootstrap --confirm-hosted-foundation-kpadiulxkgckskcfydry`。管理员数据库密码只从
-`PGPASSWORD` 读取；新的
-application role 密码只从 `HUAYI_HOSTED_APP_DATABASE_PASSWORD` 读取，均不得放入参数、文档、日志或
-聊天。该密码在 Vercel project 创建后只进入 secret store；脚本不创建本机 secret 文件。
+`pnpm acceptance:hosted:bootstrap --confirm-hosted-foundation-kpadiulxkgckskcfydry`。管理员与 application
+role 密码分别读取固定 Keychain account；不得放入参数、环境、文档、日志或聊天。application 密码在
+Vercel project 创建后仍只进入部署平台 secret store；脚本不创建长期本机 secret 文件。
 
 hosted 管理脚本与 Vercel application runtime 固定使用 transaction pooler `6543`；只有 application
 隔离验证器使用 session pooler `5432`，从而让同一个 psql 连接在两个已提交事务中确定落到同一 backend。
@@ -115,7 +126,7 @@ PostgreSQL 17 下，三个 `NOINHERIT` 成员角色的产品直接边必须各�
 全部失败关闭。bootstrap、管理员 verify 与 diagnostic 共用同一 membership SQL 契约，不再按相关边裸
 总数判断。
 
-写入后使用管理员进程级 `PGPASSWORD` 运行
+写入后使用已配置的管理员 Keychain account 运行
 `pnpm acceptance:hosted:verify --verify-hosted-foundation-kpadiulxkgckskcfydry`。verify 只执行一个只读
 布尔查询并输出固定通过/失败，不显示表计数、UUID 以外的行、密码或 SQL 错误。随后改用 application
 role 密码运行
@@ -137,7 +148,7 @@ application verify 失败时，运行
 `client_tls_verified`、`contract_execution_completed`、`contract_output_valid`、
 `context_execution_completed` 与 `context_output_valid` 用于定位失败层级，不能代替正式 verify。
 
-管理员 verify 失败时，可在相同 CA 与进程级 `PGPASSWORD` 下运行
+管理员 verify 失败时，可在相同 CA 与管理员 Keychain account 下运行
 `node scripts/acceptance-hosted-diagnose.mjs --diagnose-hosted-foundation-kpadiulxkgckskcfydry`。该命令只在
 `BEGIN READ ONLY` 中输出固定顺序的 allowlisted `name|t/f`，不输出 catalog row、grantor、密码或 SQL
 错误；任一 `f` 仅用于定位，不能作为通过证据。完成修复后仍必须重跑正式 verify，不能用 diagnostic
@@ -275,19 +286,20 @@ dry-run 已完成且数据库未修改。用户提供的是 raw child transcript
 已观察证据：
 `pnpm acceptance:hosted:migration:0014:dry-run` 只接受固定 Singapore project 与
 `20260824010000_password_signup_otp_resend.sql` 的内置 confirmation；拒绝继承的 `PGPASSWORD` /
-`SUPABASE_DB_PASSWORD` 后，才从 TTY 隐藏读取管理员密码。它固定调用本仓库 Supabase CLI、管理员
+`SUPABASE_DB_PASSWORD` 后，才读取固定管理员 Keychain account。它固定调用本仓库 Supabase CLI、管理员
 transaction pooler `6543`、`db push --dry-run --skip-vault --db-url`；不得借用只供 application 隔离 verifier
 使用的 session pooler `5432`。用户无需准备 CA 环境变量：密码输入有效后、
 Supabase child 启动前，入口内部只从 `hostedAcceptanceCaCertificateUrl` 的固定 Singapore 官方 HTTPS URL
 获取公开 CA；固定 GET、禁止 redirect、10 秒/16 KiB 上限，并要求 200、final URL 精确、fatal UTF-8 与
 单一严格 PEM。固定 URL 支持官方 CA 轮换，不长期 pin 某一次证书 digest。URL 与 child 环境同时强制
 `sslmode/PGSSLMODE=verify-full`，CA 只进入随机私有目录内的 `0600 root.crt` 和 child
-`PGSSLROOTCERT`；密码只进入该 child 的 `PGPASSWORD`，不进入 URL、argv、文件或输出。任何 CA 下载、
+`PGSSLROOTCERT`；密码只进入同一私有目录的 `0600 .pgpass`，child 仅取得 `PGPASSFILE`，不进入
+URL、argv、环境或输出。任何 CA 下载、
 临时文件、spawn、timeout、overflow 或 cleanup 失败都零成功回执并固定失败，不转发原始 stdout/stderr；
 只有临时目录已创建的路线才有可删目标，并一律尝试删除。若 `rm` 自身失败，只能记录 cleanup attempted，不能宣称目录已删：按本机
 cleanup incident 处理，在重试前人工检查并清理临时目录下固定 `huayi-hosted-0014-ca-*` 前缀。该残留若
-存在，只含 `0700` 目录/`0600` 公开 CA，不含密码。隐藏提示期间 Ctrl-C 会恢复 echo/canonical/ISIG 后固定
-exit 1；公开 CA 已在提示前取得，但不会启动 Supabase，也不会被 pnpm 吞掉后误报成功。child stdout/stderr
+存在，必须按潜在 secret incident 处理，因为目录可能含临时 `.pgpass`；不得读取或打印其内容。Keychain
+缺失、锁定、拒绝或无效时固定失败且不会启动 Supabase。child stdout/stderr
 分别只允许五条固定完整行的 canonical 子序列；跨双通道的 multiset 必须精确包含 dry-run header、connection
 marker、list header、唯一 0014 与 finished marker 各一次，且每个非空通道必须以单一 final newline 结束。
 两个 pipe 的全局实时 interleaving 不可确定，契约只验证每个通道的 relative order，不宣称恢复了全局发送
@@ -295,8 +307,8 @@ marker、list header、唯一 0014 与 finished marker 各一次，且每个非�
 关闭；通过后 wrapper 才在自身 stdout 输出固定成功消息。dry-run 不写数据库，也不能代替 pre
 backup/rebuild/preflight 或授权 apply。
 若真实入口只返回固定失败，先运行
-`unset PGPASSWORD SUPABASE_DB_PASSWORD && pnpm acceptance:hosted:migration:0014:diagnose`，并在 TTY
-输入同一个管理员密码。该命令只执行官方 CA GET、固定只读 `SELECT` 与同一个 non-mutating dry-run；连接
+`unset PGPASSWORD SUPABASE_DB_PASSWORD && pnpm acceptance:hosted:migration:0014:diagnose`。该命令从
+Keychain 读取同一个管理员密码，只执行官方 CA GET、固定只读 `SELECT` 与同一个 non-mutating dry-run；连接
 探针同时固定 `connect_timeout=10` 与 15 秒 child 上限。输出只包含九条固定 verdict：连接 exit class、连接
 输出是否精确、dry-run exit class、stdout 是否为空、stdout/stderr 行是否分别属于 allowlist、跨通道行
 multiset 是否精确、每个通道 relative order 是否精确，以及最终 transcript predicate。连接失败时 dry-run
@@ -320,8 +332,9 @@ PostgreSQL 17.6.1.159 OCI index，但
 14 个 CLI start service 精确为 11 active + 3 disabled，active image 同时固定 index 与 amd64/arm64 manifest。
 CLI cache miss 会主动 pull，因此普通 `supabase start` 仍禁止；当前 11 镜像已按 digest 获取并完成本机
 local-only inspection，Phase 86 writer 也已落地。tracked runbook 不记录 ignored evidence 是否存在、有效或
-绑定当前 HEAD；只以 `pnpm acceptance:hosted:backup:status` 的固定 verdict 判断。pre/post capture 只需运行
-既有 pnpm 命令并在 TTY 输入管理员密码，内部 CA 获取失败发生在密码提示前；不准备 CA env。
+绑定当前 HEAD；只以 `pnpm acceptance:hosted:backup:status` 的固定 verdict 判断。该历史批次执行时的
+pre/post capture 曾要求 TTY 输入管理员密码；当前同一受控消费者已改为固定管理员 Keychain account，
+内部 CA 获取失败发生在 Keychain read 前，且调用方不准备 CA env。
 当时先运行 exact readiness；只有其通过且单独批准的 pre raw logical dump 与
 migrations+fictional-seed scratch rebuild 完成、且
 `pnpm acceptance:hosted:backup:preflight` 通过后，才允许经受控 apply 入口应用 0014。真实 Phase 81 已在

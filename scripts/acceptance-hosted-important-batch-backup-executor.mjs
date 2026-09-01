@@ -26,6 +26,7 @@ import {
   renderHostedImportantBatchRebuildFailure,
 } from "./acceptance-hosted-important-batch-rebuild-diagnostic.mjs";
 import { readHostedImportantBatchCaptureSecrets } from "./acceptance-hosted-important-batch-secret-prompt.mjs";
+import { rejectLegacyHostedCredentialEnvironment } from "./acceptance-hosted-credentials.mjs";
 import {
   assessHostedImportantBatchReadiness,
   renderHostedImportantBatchReadinessFailure,
@@ -142,7 +143,7 @@ Exact confirmation-gated write operations:
 Connection and process contract:
 - The executor uses the fixed verify-full administrator session pooler port 5432 at ${fixedSessionPooler}; transaction pooler port 6543 is forbidden for dump/restore.
 - PostgreSQL client commands run only from digest reference ${hostedImportantBatchPostgresRuntimeReference}; ${hostedImportantBatchPostgresImage} remains provenance only and is never an execution argument. Host-installed pg_dump/pg_restore/psql are never trusted.
-- The executor fetches the CA PEM only from the fixed official Supabase CA URL with redirect rejection, bounded strict PEM validation, and a timeout before the hidden password prompt. The caller prepares no CA environment variable. The Hosted password is written only to a fixed 0600 temporary .pgpass and mounted read-only; the container receives only the fixed PGPASSFILE path, never PGPASSWORD or a secret-bearing Docker argument. The CA is written to a fixed 0600 temporary file, mounted read-only, and exposed only as the fixed PGSSLROOTCERT path.
+- The executor fetches the CA PEM only from the fixed official Supabase CA URL with redirect rejection, bounded strict PEM validation, and a timeout before reading the fixed administrator Keychain account. The caller prepares no CA environment variable. The Hosted password is written only to a fixed 0600 temporary .pgpass and mounted read-only; the container receives only the fixed PGPASSFILE path, never PGPASSWORD or a secret-bearing Docker argument. The CA is written to a fixed 0600 temporary file, mounted read-only, and exposed only as the fixed PGSSLROOTCERT path.
 - Commands use shell false and fixed argument arrays. Project, database URL, artifact path, phase, migration head, and operation are never caller supplied. Execution requires one exact confirmation argument and does not accept a dynamic path, URL, image, or project.
 Capture contract:
 - The pinned PostgreSQL 17 database image is also the only permitted pg_dump/pg_restore/psql runtime. The installed Supabase CLI ${pinnedSupabaseCliVersion} has no custom-format flag and its filtered SQL export must not be labelled postgres-custom.
@@ -165,6 +166,7 @@ Readiness failure output names only the first fixed allowlisted stage: repositor
 export async function runHostedImportantBatchBackupExecutorCli({
   arguments_ = process.argv.slice(2),
   captureBackup = captureHostedImportantBatchBackup,
+  environment = process.env,
   inspectRuntime = inspectHostedImportantBatchBackupRuntime,
   readCaptureSecrets = readHostedImportantBatchCaptureSecrets,
   readRepositoryState = readHostedImportantBatchBackupRepositoryState,
@@ -191,6 +193,14 @@ export async function runHostedImportantBatchBackupExecutorCli({
     writeError("Hosted important-batch executor arguments are invalid.\n");
     return 1;
   }
+  if (operation.kind === "capture") {
+    try {
+      rejectLegacyHostedCredentialEnvironment(environment);
+    } catch {
+      writeError("Hosted important-batch executor operation failed closed.\n");
+      return 1;
+    }
+  }
   const readiness = await assessHostedImportantBatchReadiness({
     inspectRuntime,
     readRepositoryState,
@@ -210,7 +220,7 @@ export async function runHostedImportantBatchBackupExecutorCli({
       return 0;
     }
     if (operation.kind === "capture") {
-      const secrets = await readCaptureSecrets();
+      const secrets = await readCaptureSecrets({ environment });
       await captureBackup({
         ...secrets,
         candidateCommit: readiness.candidateCommit,

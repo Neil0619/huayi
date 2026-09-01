@@ -178,7 +178,8 @@ test("hosted runtime snapshot uses one verify-full admin read and normalizes bou
   assert.deepEqual(calls.slice(0, 2), ["ca", "password"]);
   assert.equal(calls[2].captureOutput, true);
   assert.equal(calls[2].databaseUrl, hostedAcceptancePoolerUrl);
-  assert.equal(calls[2].environment.PGPASSWORD, postgresPassword);
+  assert.equal(calls[2].environment.PGPASSWORD, undefined);
+  assert.equal(calls[2].password, postgresPassword);
   assert.equal(calls[2].environment.HUAYI_HOSTED_DATABASE_CA_CERTIFICATE, rootCertificate);
   assert.equal(calls[2].timeoutMilliseconds, 30_000);
   assert.equal(renderHostedRuntimeSnapshot(snapshot), validSnapshotOutput());

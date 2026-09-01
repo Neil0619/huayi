@@ -1,6 +1,10 @@
 import { pathToFileURL } from "node:url";
 
 import {
+  readHostedCredential,
+  rejectLegacyHostedCredentialEnvironment,
+} from "./acceptance-hosted-credentials.mjs";
+import {
   expectedTeamName,
   expectedTeamSlug,
   renderVercelProjectPlan,
@@ -26,8 +30,7 @@ function isRecord(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function requireToken(environment) {
-  const token = environment.VERCEL_TOKEN;
+function requireToken(token) {
   if (
     typeof token !== "string" ||
     token.length < 16 ||
@@ -268,6 +271,7 @@ export async function applyVercelProjectShells({
   arguments_ = process.argv.slice(2),
   environment = process.env,
   fetch_ = globalThis.fetch,
+  readCredential = readHostedCredential,
 } = {}) {
   arguments_ = normalizeForwardedArguments(arguments_);
   if (
@@ -281,7 +285,8 @@ export async function applyVercelProjectShells({
       "invalid-arguments",
     );
   }
-  const token = requireToken(environment);
+  rejectLegacyHostedCredentialEnvironment(environment);
+  const token = requireToken(await readCredential("vercel-token", { environment }));
   const teamId = await resolveTeam({ fetch_, token });
   const inspections = await inspectProjects({ fetch_, teamId, token });
   for (const inspection of inspections) {
@@ -299,7 +304,7 @@ export async function applyVercelProjectShells({
   };
 }
 
-async function readVercelProjectStatus({ arguments_, environment, fetch_ }) {
+async function readVercelProjectStatus({ arguments_, environment, fetch_, readCredential }) {
   arguments_ = normalizeForwardedArguments(arguments_);
   if (
     arguments_.length !== 2 ||
@@ -312,7 +317,8 @@ async function readVercelProjectStatus({ arguments_, environment, fetch_ }) {
       "invalid-arguments",
     );
   }
-  const token = requireToken(environment);
+  rejectLegacyHostedCredentialEnvironment(environment);
+  const token = requireToken(await readCredential("vercel-token", { environment }));
   const teamId = await resolveTeam({ fetch_, token });
   const inspections = await inspectProjects({ fetch_, teamId, token });
   return inspections.map(({ specification, state }) => ({
@@ -330,6 +336,7 @@ export async function runVercelProjectsCli({
   arguments_ = process.argv.slice(2),
   environment = process.env,
   fetch_ = globalThis.fetch,
+  readCredential = readHostedCredential,
   writeError = (value) => process.stderr.write(value),
   writeOutput = (value) => process.stdout.write(value),
 } = {}) {
@@ -340,13 +347,18 @@ export async function runVercelProjectsCli({
       return 0;
     }
     if (arguments_[0] === "apply") {
-      await applyVercelProjectShells({ arguments_, environment, fetch_ });
+      await applyVercelProjectShells({ arguments_, environment, fetch_, readCredential });
       writeOutput(
         "Vercel empty project bootstrap completed; zero deployments verified. Dashboard verification is pending.\n",
       );
       return 0;
     }
-    const statuses = await readVercelProjectStatus({ arguments_, environment, fetch_ });
+    const statuses = await readVercelProjectStatus({
+      arguments_,
+      environment,
+      fetch_,
+      readCredential,
+    });
     writeOutput(
       [
         "Vercel empty project status:",

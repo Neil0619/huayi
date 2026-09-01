@@ -160,8 +160,8 @@ Edge Functions、environment 或平台密钥。Storage objects 必须先由固�
    字符契约。密码只写入固定 `0600` 临时 `.pgpass` 并 read-only mount，容器只得到固定 `PGPASSFILE`
    path，不能收到 `PGPASSWORD` 或 secret-bearing Docker argument；同一单命令先从固定 Supabase Singapore
    官方 URL 获取公开 CA，强制 GET/no redirect/no credentials/no referrer、10 秒/16 KiB 与严格单一 PEM，
-   成功后才显示隐藏密码提示。调用者不准备 CA environment；CA 写入固定 `0600` 临时文件、read-only
-   mount，并只通过固定 `PGSSLROOTCERT` path 使用；
+   成功后才从固定管理员 Keychain account 读取密码。调用者不准备 CA environment；CA 写入固定 `0600`
+   临时文件、read-only mount，并只通过固定 `PGSSLROOTCERT` path 使用；
 2. 以参数数组和 `shell:false` 调用无 tag 的 digest-pinned PostgreSQL 17 database image 内的 custom-format
    `pg_dump`，并用显式 fixed `--file` 写入固定目录；本机 14.6 永远不参与，不能冒充兼容；Docker 必须复用
    受控 resolver：macOS 从 OS 当前用户信息派生固定 `~/.orbstack/run/docker.sock` 并只调用
@@ -232,8 +232,8 @@ Phase 91 取代，不能继续运行旧入口。
    pinned CLI 或 writer 任一缺失时必须失败；失败只报告确定优先级下首个固定 allowlisted stage：repository
    state、Docker target/daemon、Supabase CLI、FileVault、platform lock 或 local platform images；未分类的
    inspector rejection 仅映射为固定 runtime-inspection。全部满足时只回报 readiness passed，仍不执行写操作；
-3. 独立代码审查/明确授权后，分别运行 `pnpm acceptance:hosted:backup:capture:pre`（在 TTY 输入管理员密码）
-   与 `backup:rebuild`。两者是互不依赖的 preflight prerequisite，可按任一顺序完成；只有两份证据都绑定同一
+3. 独立代码审查/明确授权后，分别运行 `pnpm acceptance:hosted:backup:capture:pre`（从固定管理员
+   Keychain account 读取密码）与 `backup:rebuild`。两者是互不依赖的 preflight prerequisite，可按任一顺序完成；只有两份证据都绑定同一
    clean current candidate 后才进入 preflight。若 active rebuild strict valid 但 stale，先运行唯一固定
    `backup:rebuild:retire` 保留旧 leaf，再为 clean current candidate 重跑 readiness/rebuild；pre capture
    不再要求准备 CA environment 或拼接 shell；
@@ -248,8 +248,8 @@ Phase 91 取代，不能继续运行旧入口。
    `pnpm acceptance:hosted:migration:0014:status:diagnose`，其固定谓词用于区分连接/SQL/输出失败和 catalog
    混合状态，但本身不授权 apply 或 post capture；
 6. 应用后、部署前或同一重要批次关闭前，经独立批准只运行
-   `pnpm acceptance:hosted:backup:capture:post` 并在 TTY 输入管理员密码完成 post dump；同样不准备 CA
-   environment；
+   `pnpm acceptance:hosted:backup:capture:post`，由固定管理员 Keychain account 提供密码并完成 post dump；
+   同样不准备 CA environment；
 7. `acceptance:hosted:backup:complete` 必须通过；
 8. 再按 API→Web 严格串行 one-shot arm/deploy/disarm 继续。
 

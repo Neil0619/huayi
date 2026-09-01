@@ -226,6 +226,24 @@ pnpm host:compatible:key:remove
 专用 Key 的移除只删除 Compatible service/account。普通 `host:uninstall` 不自动删除该专用
 钥匙串项；要完整清理时必须先显式运行上述 key remove。
 
+## 配置 Hosted 运维凭据（仅验收环境操作者）
+
+普通语见用户不需要此步骤。需要运行仓库 Hosted/Vercel 运维工具的 macOS 操作者只在 login Keychain
+一次配置四项固定凭据：
+
+```bash
+pnpm acceptance:hosted:credentials:configure
+pnpm acceptance:hosted:credentials:status
+pnpm acceptance:hosted:credentials:diagnose
+```
+
+输入由 `/usr/bin/security` 直接隐藏读取；不要创建 `.env`，不要设置 `PGPASSWORD`、
+`SUPABASE_DB_PASSWORD`、`SUPABASE_ACCESS_TOKEN`、`VERCEL_TOKEN`，也不要把值粘贴到聊天或命令参数。
+Supabase/Vercel Token 必须由操作者在供应商侧创建为其选定的长期凭据，仓库工具不会生成或静默替换
+短期 Token。若 Keychain 锁定，允许 macOS 正常请求一次解锁；无 TTY、非 macOS、missing、denied 或
+invalid 均失败关闭。完整 account、轮换/删除、消费和远端授权边界见
+`docs/cloud-v1/hosted-credential-operations.md`。
+
 ## 选择模型 Provider
 
 Provider 配置固定写入

@@ -170,7 +170,8 @@ test("Phase 93 preflight accepts only the exact diagnosed candidate baseline", a
   let state;
   const code = await runPhase93VercelOneShotCli({
     arguments_: ["preflight", phase93VercelOneShotConfirmation],
-    environment: { VERCEL_TOKEN: token },
+    environment: {},
+    readCredential: async () => token,
     inspectGit_: async () => gitState(),
     readSnapshot_: async () => baselineSnapshot(),
     stateStore: {
@@ -190,7 +191,8 @@ test("Phase 93 preflight accepts only the exact diagnosed candidate baseline", a
   assert.equal(
     await runPhase93VercelOneShotCli({
       arguments_: ["preflight", phase93VercelOneShotConfirmation],
-      environment: { VERCEL_TOKEN: token },
+      environment: {},
+      readCredential: async () => token,
       inspectGit_: async () => gitState(),
       readSnapshot_: async () => stale,
       stateStore: {
@@ -210,7 +212,8 @@ test("Phase 93 diagnostic is read-only, ordered, sanitized, and proves the candi
   let stdout = "";
   const code = await runPhase93VercelDiagnosticCli({
     arguments_: [phase93VercelDiagnosticArgument],
-    environment: { VERCEL_TOKEN: token },
+    environment: {},
+    readCredential: async () => token,
     fetch_: async () => ({ status: 200 }),
     inspectGit_: async () => gitState(),
     readSnapshot_: readTracedBaselineSnapshot,
@@ -268,7 +271,8 @@ test("Phase 93 diagnostic identifies the failed read-only request without respon
   let stdout = "";
   const code = await runPhase93VercelDiagnosticCli({
     arguments_: [phase93VercelDiagnosticArgument],
-    environment: { VERCEL_TOKEN: token },
+    environment: {},
+    readCredential: async () => token,
     fetch_: async () => ({ status: 403 }),
     inspectGit_: async () => gitState(),
     readSnapshot_: async ({ fetch_ }) => {
@@ -295,7 +299,8 @@ test("Phase 93 diagnostic fails Git equality closed when inspection is unreadabl
   let stdout = "";
   const code = await runPhase93VercelDiagnosticCli({
     arguments_: [phase93VercelDiagnosticArgument],
-    environment: { VERCEL_TOKEN: token },
+    environment: {},
+    readCredential: async () => token,
     fetch_: async () => ({ status: 200 }),
     inspectGit_: async () => {
       throw new Error("private-git-failure");

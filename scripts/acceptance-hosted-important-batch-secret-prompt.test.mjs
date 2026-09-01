@@ -30,34 +30,43 @@ test("capture secret reader fetches the fixed CA before requesting a password", 
   assert.equal(passwordReads, 0);
 });
 
-test("capture secret reader uses only the fetched CA and terminal password in secret-last order", async () => {
+test("capture secret reader uses only the fetched CA and Keychain password in secret-last order", async () => {
   const caCertificate = "-----BEGIN CERTIFICATE-----\nfictional\n-----END CERTIFICATE-----\n";
   const events = [];
   const secrets = await readHostedImportantBatchCaptureSecrets({
-    environment: {
-      HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: "must-not-be-used",
-      PGPASSWORD: "must-not-be-used",
-      SUPABASE_DB_PASSWORD: "must-not-be-used",
-    },
+    environment: {},
     fetchCaCertificate: async () => {
       events.push("fetch-ca");
       return caCertificate;
     },
     readPassword: async () => {
       events.push("read-password");
-      return "terminal-only-password";
+      return "keychain-only-password";
     },
   });
 
   assert.deepEqual(events, ["fetch-ca", "read-password"]);
   assert.deepEqual(secrets, {
-    administratorPassword: "terminal-only-password",
+    administratorPassword: "keychain-only-password",
     caCertificate,
   });
 });
 
+test("capture secret reader rejects legacy environment before CA or Keychain work", async () => {
+  const events = [];
+  await assert.rejects(
+    readHostedImportantBatchCaptureSecrets({
+      environment: { VERCEL_TOKEN: "must-not-be-used" },
+      fetchCaCertificate: async () => events.push("fetch-ca"),
+      readPassword: async () => events.push("read-password"),
+    }),
+    /Hosted plaintext credential environment is forbidden\./u,
+  );
+  assert.deepEqual(events, []);
+});
+
 test(
-  "real macOS TTY prompt does not redraw or echo the hidden password",
+  "real macOS TTY prompt remains available for temporary recovery-project passwords",
   { skip: process.platform !== "darwin" },
   async () => {
     const root = await mkdtemp(join(tmpdir(), "huayi-hosted-secret-prompt-"));
@@ -69,12 +78,11 @@ test(
     );
     await writeFile(
       helperPath,
-      `import { readHostedImportantBatchCaptureSecrets } from ${JSON.stringify(moduleUrl.href)};
-const secrets = await readHostedImportantBatchCaptureSecrets({
-  fetchCaCertificate: async () =>
-    "-----BEGIN CERTIFICATE-----\\nfictional\\n-----END CERTIFICATE-----\\n",
-});
-process.stdout.write("password-length=" + secrets.administratorPassword.length + "\\n");
+      `import { readHiddenTerminalLine } from ${JSON.stringify(moduleUrl.href)};
+const password = await readHiddenTerminalLine(
+  "Recovery project administrator database password: ",
+);
+process.stdout.write("password-length=" + password.length + "\\n");
 `,
       "utf8",
     );
@@ -82,7 +90,7 @@ process.stdout.write("password-length=" + secrets.administratorPassword.length +
       const expectSource = `set timeout 10
 log_user 1
 spawn {${process.execPath}} {${helperPath}}
-expect "Supabase administrator database password: "
+expect "Recovery project administrator database password: "
 send -- "${marker}\\r"
 expect eof
 catch wait result
@@ -137,7 +145,7 @@ import { readHiddenTerminalLine } from ${JSON.stringify(moduleUrl.href)};
 const initialSignalHandlers = process.listenerCount("SIGINT");
 for (let index = 1; index <= 2; index += 1) {
   try {
-    await readHiddenTerminalLine();
+    await readHiddenTerminalLine("Recovery project administrator database password: ");
     process.stdout.write("unexpected-success-" + index + "\\n");
   } catch {
     const descriptor = openSync("/dev/tty", "r+");
@@ -164,10 +172,10 @@ for (let index = 1; index <= 2; index += 1) {
       const expectSource = `set timeout 10
 log_user 1
 spawn {${process.execPath}} {${helperPath}}
-expect "Supabase administrator database password: "
+expect "Recovery project administrator database password: "
 send -- "\\003"
 expect "cancelled-1;echo=true;icanon=true;isig=true;handlers=0"
-expect "Supabase administrator database password: "
+expect "Recovery project administrator database password: "
 send -- "\\003"
 expect "cancelled-2;echo=true;icanon=true;isig=true;handlers=0"
 expect eof

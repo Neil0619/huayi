@@ -7,7 +7,10 @@ import {
   runHostedPsql,
   sqlTextArray,
 } from "./acceptance-hosted-foundation.mjs";
-import { readHiddenTerminalLine } from "./acceptance-hosted-important-batch-secret-prompt.mjs";
+import {
+  readHostedAdministratorPassword,
+  rejectLegacyHostedCredentialEnvironment,
+} from "./acceptance-hosted-credentials.mjs";
 import { fetchHostedAcceptanceOfficialCaCertificate } from "./acceptance-hosted-official-ca.mjs";
 
 const appliedStatus = "applied_exact";
@@ -32,9 +35,12 @@ function passwordIsValid(password) {
 }
 
 function environmentHasInheritedPassword(environment) {
-  return ["PGPASSWORD", "SUPABASE_DB_PASSWORD"].some((name) =>
-    Object.prototype.hasOwnProperty.call(environment, name),
-  );
+  try {
+    rejectLegacyHostedCredentialEnvironment(environment);
+    return false;
+  } catch {
+    return true;
+  }
 }
 
 export function renderHostedMigration0014StatusSql() {
@@ -242,9 +248,9 @@ export async function runHostedMigration0014StatusQuery(
     databaseUrl: hostedAcceptancePoolerUrl,
     environment: {
       HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: caCertificate,
-      PGPASSWORD: administratorPassword,
     },
     input: renderHostedMigration0014StatusSql(),
+    password: administratorPassword,
     timeoutMilliseconds: 30_000,
   });
   if (result.code !== 0) return null;
@@ -255,7 +261,7 @@ export async function runHostedMigration0014StatusCli({
   arguments_ = process.argv.slice(2),
   environment = process.env,
   fetchCaCertificate = fetchHostedAcceptanceOfficialCaCertificate,
-  readPassword = readHiddenTerminalLine,
+  readPassword = readHostedAdministratorPassword,
   runStatusQuery = runHostedMigration0014StatusQuery,
   writeError = (value) => process.stderr.write(value),
   writeOutput = (value) => process.stdout.write(value),
@@ -271,7 +277,7 @@ export async function runHostedMigration0014StatusCli({
       throw new Error(hostedMigration0014StatusUncertainMessage);
     }
     const caCertificate = await fetchCaCertificate();
-    const administratorPassword = await readPassword();
+    const administratorPassword = await readPassword({ environment });
     if (!passwordIsValid(administratorPassword)) {
       throw new Error(hostedMigration0014StatusUncertainMessage);
     }

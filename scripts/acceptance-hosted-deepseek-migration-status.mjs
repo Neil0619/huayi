@@ -1,7 +1,10 @@
 import { pathToFileURL } from "node:url";
 
 import { renderHostedDeepseekExecutorMembershipContractSql } from "./acceptance-hosted-deepseek-executor-membership.mjs";
-import { readHiddenTerminalLine } from "./acceptance-hosted-important-batch-secret-prompt.mjs";
+import {
+  readHostedAdministratorPassword,
+  rejectLegacyHostedCredentialEnvironment,
+} from "./acceptance-hosted-credentials.mjs";
 import {
   hostedAcceptanceMigrationVersionsThrough0021,
   hostedAcceptanceMigrationVersionsThrough0015,
@@ -67,9 +70,12 @@ function passwordIsValid(password) {
 }
 
 function environmentHasInheritedPassword(environment) {
-  return ["PGPASSWORD", "SUPABASE_DB_PASSWORD"].some((name) =>
-    Object.prototype.hasOwnProperty.call(environment, name),
-  );
+  try {
+    rejectLegacyHostedCredentialEnvironment(environment);
+    return false;
+  } catch {
+    return true;
+  }
 }
 
 export function renderHostedDeepseekMigrationStatusSql() {
@@ -343,9 +349,9 @@ export async function runHostedDeepseekMigrationStatusQuery(
     databaseUrl: hostedAcceptancePoolerUrl,
     environment: {
       HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: caCertificate,
-      PGPASSWORD: administratorPassword,
     },
     input: renderHostedDeepseekMigrationStatusSql(),
+    password: administratorPassword,
     timeoutMilliseconds: 30_000,
   });
   return result.code === 0 ? parseHostedDeepseekMigrationStatusOutput(result.stdout) : null;
@@ -355,7 +361,7 @@ export async function runHostedDeepseekMigrationStatusCli({
   arguments_ = process.argv.slice(2),
   environment = process.env,
   fetchCaCertificate = fetchHostedAcceptanceOfficialCaCertificate,
-  readPassword = readHiddenTerminalLine,
+  readPassword = readHostedAdministratorPassword,
   runStatusQuery = runHostedDeepseekMigrationStatusQuery,
   writeOutput = (value) => process.stdout.write(value),
 } = {}) {
@@ -369,7 +375,7 @@ export async function runHostedDeepseekMigrationStatusCli({
       throw new Error(hostedDeepseekMigrationStatusUncertainMessage);
     }
     const caCertificate = await fetchCaCertificate();
-    const administratorPassword = await readPassword();
+    const administratorPassword = await readPassword({ environment });
     if (!passwordIsValid(administratorPassword)) {
       throw new Error(hostedDeepseekMigrationStatusUncertainMessage);
     }

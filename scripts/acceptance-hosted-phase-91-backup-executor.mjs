@@ -22,6 +22,7 @@ import {
   renderHostedImportantBatchReadinessFailure,
 } from "./acceptance-hosted-important-batch-readiness-diagnostic.mjs";
 import { readHostedImportantBatchCaptureSecrets } from "./acceptance-hosted-important-batch-secret-prompt.mjs";
+import { rejectLegacyHostedCredentialEnvironment } from "./acceptance-hosted-credentials.mjs";
 import {
   hostedPhase91RebuildArgument,
   rebuildHostedPhase91Scratch,
@@ -46,7 +47,7 @@ Exact confirmation-gated write operations:
 - isolated rebuild: ${hostedPhase91RebuildArgument}
 - post capture: ${hostedPhase91CapturePostArgument}
 Execution contract:
-- Pre capture requires migration head 20260824010000; post capture requires 20260825010000. Both use the fixed verify-full administrator session pooler port 5432, official CA, hidden TTY password, digest-only PostgreSQL 17 client, zero inherited password, zero reflected child output, and fixed private evidence paths.
+- Pre capture requires migration head 20260824010000; post capture requires 20260825010000. Both use the fixed verify-full administrator session pooler port 5432, official CA, fixed administrator Keychain account, digest-only PostgreSQL 17 client, zero inherited password, zero reflected child output, and fixed private evidence paths.
 - The isolated networkless scratch applies exactly 15 repository migrations through 20260825010000 plus the fictional seed, verifies Auth/Storage/runtime/absence contracts, destroys the scratch, and only then writes its canonical manifest. It has zero Hosted connection and never reads a Hosted password.
 - Readiness proves the clean candidate, clone-local ignore, pinned CLI, FileVault, fixed local Docker target, platform lock, and all local digest identities without pulling, connecting to Hosted, or writing evidence.
 - Phase 81 evidence is immutable and never read, overwritten, or accepted as Phase 91 evidence.
@@ -57,6 +58,7 @@ Current result: this plan reports only the reviewed fixed contract. It does not 
 export async function runHostedPhase91BackupExecutorCli({
   arguments_ = process.argv.slice(2),
   captureBackup = captureHostedPhase91Backup,
+  environment = process.env,
   inspectRuntime = inspectHostedImportantBatchBackupRuntime,
   readCaptureSecrets = readHostedImportantBatchCaptureSecrets,
   readRepositoryState = readHostedPhase91BackupRepositoryState,
@@ -83,6 +85,14 @@ export async function runHostedPhase91BackupExecutorCli({
     writeError("Hosted Phase 91 backup executor arguments are invalid.\n");
     return 1;
   }
+  if (operation.kind === "capture") {
+    try {
+      rejectLegacyHostedCredentialEnvironment(environment);
+    } catch {
+      writeError("Hosted Phase 91 backup executor operation failed closed.\n");
+      return 1;
+    }
+  }
 
   const readiness = await assessHostedImportantBatchReadiness({
     inspectRuntime,
@@ -104,7 +114,7 @@ export async function runHostedPhase91BackupExecutorCli({
       return 0;
     }
     if (operation.kind === "capture") {
-      const secrets = await readCaptureSecrets();
+      const secrets = await readCaptureSecrets({ environment });
       await captureBackup({
         ...secrets,
         candidateCommit: readiness.candidateCommit,

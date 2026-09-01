@@ -93,7 +93,8 @@ test("CLI plan is zero I/O and stage output never reflects token or remote detai
   stderr = "";
   const failureCode = await runVercelOneShotCli({
     arguments_: ["preflight", vercelOneShotConfirmation],
-    environment: { VERCEL_TOKEN: token },
+    environment: {},
+    readCredential: async () => token,
     inspectGit_: async () => {
       throw new Error(remoteSecret);
     },

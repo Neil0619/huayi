@@ -216,6 +216,10 @@ audit 仍只允许 `enabled`。这不代表 Store 产品或 Windows 支持被取
 > exact `headSha` 为该完整 SHA，macOS/Windows job 均 success。加固后没有真实运行 Hosted snapshot、Cron
 > status/apply，也没有输入用户秘密；R3-C、Cron continuity/apply、Cloud Web DeepSeek、数据权利、双平台
 > Chrome、外部词库、自然使用和最终发布审查仍 pending。
+>
+> **后续凭据入口（2026-09-01）**：上述 `/dev/tty` 描述只记录该历史候选当时的实现。当前受控脚本改为
+> 从固定 macOS login Keychain service/account 读取管理员密码，并通过一次性 `0600 .pgpass` 交给数据库
+> child；四项基础设施凭据不再逐命令提示，也不允许从环境变量旁路。凭据可读仍不授权任何远端动作。
 
 > **当前 Hosted Cloud Web DeepSeek one-shot 候选（2026-08-26）**：已推送
 > `28f587e9769847777db2ed287851881d81422d03`。其 CLI 只有零 I/O plan，没有真实 executor；离线契约已固定原子
@@ -1971,9 +1975,10 @@ passed; first Operator empty`。候选已提交推送，0012 已实际 push；�
   OTP/Auth SMTP 和完整 R3-C 收件、重复、告警门，随后还需两周期与故障恢复验证；
 - Fresh RED 为模块缺失，当前 focused GREEN 10/10。未连接 Supabase/Vercel/Resend/DeepSeek，未安装 Cron，
   API/Web 仍以 Phase 78 的 16/8、双 `deploymentEnabled=false` 为当前远端基线。
-- 2026-08-26 候选 `1caf9dc…` 已取代最初“先数据库 preflight、后静态检查”的执行顺序：apply 在
+- 2026-08-26 候选 `1caf9dc…` 已取代最初“先数据库 preflight、后静态检查”的执行顺序：apply 当时在
   CA/password/DB 前先验 exact operations hash、clean worktree 与 `HEAD==upstream`；runtime/Cron 统一
-  official CA、hidden `/dev/tty`、12–512 byte 密码、继承 secret 拒绝、30 秒 psql 和 strict LF parser。
+  official CA、hidden `/dev/tty`、12–512 byte 密码、继承 secret 拒绝、30 秒 psql 和 strict LF parser；
+  2026-09-01 的固定 Keychain/`.pgpass` 入口已取代该取密方式。
   该加固只通过本地与双平台 CI，没有重新运行真实 Hosted status/apply。
 
 ## Cloud V1 Phase 88 五项 Cron 离线深审状态（2026-08-25）

@@ -5,7 +5,10 @@ import {
   hostedAcceptanceProjectRef,
   runHostedPsql,
 } from "./acceptance-hosted-foundation.mjs";
-import { readHiddenTerminalLine } from "./acceptance-hosted-important-batch-secret-prompt.mjs";
+import {
+  readHostedAdministratorPassword,
+  rejectLegacyHostedCredentialEnvironment,
+} from "./acceptance-hosted-credentials.mjs";
 import {
   classifyHostedMigration0014DryRunTranscript,
   runHostedMigration0014DryRunProcess,
@@ -15,7 +18,7 @@ import { fetchHostedAcceptanceOfficialCaCertificate } from "./acceptance-hosted-
 const failureStages = new Set([
   "arguments",
   "ca-fetch",
-  "password-prompt",
+  "credential-read",
   "password-validation",
   "connection-probe",
   "dry-run-process",
@@ -24,9 +27,12 @@ const failureStages = new Set([
 export const hostedMigration0014DiagnosticArgument = `--diagnose-20260824010000-password-signup-otp-resend-${hostedAcceptanceProjectRef}`;
 
 function environmentHasInheritedPassword(environment) {
-  return ["PGPASSWORD", "SUPABASE_DB_PASSWORD"].some((name) =>
-    Object.prototype.hasOwnProperty.call(environment, name),
-  );
+  try {
+    rejectLegacyHostedCredentialEnvironment(environment);
+    return false;
+  } catch {
+    return true;
+  }
 }
 
 function passwordIsValid(password) {
@@ -69,9 +75,9 @@ export async function runHostedMigration0014ConnectionProbe(
     databaseUrl: `${hostedAcceptancePoolerUrl}&connect_timeout=10`,
     environment: {
       HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: caCertificate,
-      PGPASSWORD: administratorPassword,
     },
     input: "SELECT 'connection_ok|t';\n",
+    password: administratorPassword,
     timeoutMilliseconds: 15_000,
   });
 }
@@ -80,7 +86,7 @@ export async function runHostedMigration0014DiagnosticCli({
   arguments_ = process.argv.slice(2),
   environment = process.env,
   fetchCaCertificate = fetchHostedAcceptanceOfficialCaCertificate,
-  readPassword = readHiddenTerminalLine,
+  readPassword = readHostedAdministratorPassword,
   runConnectionProbe = runHostedMigration0014ConnectionProbe,
   runDryRun = runHostedMigration0014DryRunProcess,
   writeError = (value) => process.stderr.write(value),
@@ -97,8 +103,8 @@ export async function runHostedMigration0014DiagnosticCli({
     }
     failureStage = "ca-fetch";
     const caCertificate = await fetchCaCertificate();
-    failureStage = "password-prompt";
-    const administratorPassword = await readPassword();
+    failureStage = "credential-read";
+    const administratorPassword = await readPassword({ environment });
     failureStage = "password-validation";
     if (!passwordIsValid(administratorPassword)) throw new Error(renderFailure(failureStage));
     failureStage = "connection-probe";

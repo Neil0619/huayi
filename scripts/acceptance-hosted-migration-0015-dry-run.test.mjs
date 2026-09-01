@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
-import { stat } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import test from "node:test";
 
 import {
@@ -156,7 +156,13 @@ test("0015 dry-run process pins exact CLI, verify-full CA, bounds output, and cl
     "--db-url",
     "postgresql://postgres.kpadiulxkgckskcfydry@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres?sslmode=verify-full",
   ]);
-  assert.equal(observed.options.env.PGPASSWORD, "fictional-secret");
+  assert.equal(observed.options.env.PGPASSWORD, undefined);
+  const passwordPath = observed.options.env.PGPASSFILE;
+  assert.equal((await stat(passwordPath)).mode & 0o777, 0o600);
+  assert.equal(
+    await readFile(passwordPath, "utf8"),
+    "aws-0-ap-southeast-1.pooler.supabase.com:6543:postgres:postgres.kpadiulxkgckskcfydry:fictional-secret\n",
+  );
   assert.equal(observed.options.env.PGSSLMODE, "verify-full");
   assert.equal(observed.options.shell, false);
   assert.deepEqual(observed.options.stdio, ["ignore", "pipe", "pipe"]);
@@ -166,6 +172,7 @@ test("0015 dry-run process pins exact CLI, verify-full CA, bounds output, and cl
   child.emit("close", 0, null);
   assert.deepEqual(await resultPromise, { code: 0, stderr: validOutput, stdout: "" });
   await assert.rejects(stat(caPath), { code: "ENOENT" });
+  await assert.rejects(stat(passwordPath), { code: "ENOENT" });
 });
 
 test("0015 dry-run CLI emits one fixed success and hides every failure", async () => {

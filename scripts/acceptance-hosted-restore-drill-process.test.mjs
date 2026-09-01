@@ -48,7 +48,7 @@ test("restore secrets reject inherited secret environment before any TTY read", 
   );
 });
 
-test("restore secrets fetch the strict official CA before three fixed hidden prompts", async () => {
+test("restore secrets use Keychain for source and management while target remains hidden", async () => {
   const events = [];
   const result = await readHostedRestoreDrillSecrets({
     environment: {},
@@ -56,26 +56,32 @@ test("restore secrets fetch the strict official CA before three fixed hidden pro
       events.push("ca");
       return "strict-official-ca";
     },
+    readCredential: async (credentialId, options) => {
+      assert.deepEqual(options, { environment: {} });
+      events.push(`credential:${credentialId}`);
+      return `${credentialId}-secret`;
+    },
     readHiddenLine: async (prompt) => {
       events.push(prompt);
-      return `${events.length}-secret`;
+      return "target-secret";
     },
   });
   assert.deepEqual(events, [
     "ca",
-    "Source archive administrator database password: ",
+    "credential:supabase-admin-db-password",
     "Recovery project administrator database password: ",
-    "Supabase recovery management token: ",
+    "credential:supabase-management-token",
   ]);
   assert.equal(result.caCertificate, "strict-official-ca");
+  assert.equal(result.sourceAdministratorPassword, "supabase-admin-db-password-secret");
+  assert.equal(result.targetAdministratorPassword, "target-secret");
+  assert.equal(result.managementToken, "supabase-management-token-secret");
 });
 
-test("restore child uses arrays, bounded output, closed child and only a single scoped token", async () => {
+test("restore child uses arrays, bounded output, and never accepts a plaintext token", async () => {
   const calls = [];
   const command = "/Applications/OrbStack.app/Contents/MacOS/xbin/docker";
   const result = await runHostedRestoreDrillProcess(command, ["projects", "delete"], {
-    managementToken: "management-secret",
-    secretValues: ["management-secret"],
     spawnProcess: (command, arguments_, options) => {
       calls.push({ arguments_, command, options });
       return fakeChild();
@@ -86,9 +92,14 @@ test("restore child uses arrays, bounded output, closed child and only a single 
   assert.deepEqual(calls[0].options.env, {
     LANG: "C",
     LC_ALL: "C",
-    SUPABASE_ACCESS_TOKEN: "management-secret",
   });
-  assert.equal(JSON.stringify(calls[0].arguments_).includes("management-secret"), false);
+  await assert.rejects(
+    runHostedRestoreDrillProcess(command, ["projects", "delete"], {
+      managementToken: "management-secret",
+      secretValues: ["management-secret"],
+      spawnProcess: () => fakeChild(),
+    }),
+  );
 
   assert.throws(() =>
     runHostedRestoreDrillProcess(command, ["--password", "database-secret"], {

@@ -153,7 +153,8 @@ test("0014 connection probe pins query and process timeout without exposing the 
   assert.match(observed.databaseUrl, /sslmode=verify-full&connect_timeout=10$/u);
   assert.equal(observed.timeoutMilliseconds, 15_000);
   assert.equal(observed.input, "SELECT 'connection_ok|t';\n");
-  assert.equal(observed.environment.PGPASSWORD, "fictional-password");
+  assert.equal(observed.environment.PGPASSWORD, undefined);
+  assert.equal(observed.password, "fictional-password");
   assert.equal(JSON.stringify(observed).includes("fictional-password"), true);
   assert.equal(observed.databaseUrl.includes("fictional-password"), false);
 });
@@ -299,7 +300,7 @@ test("0014 diagnostic reports only the fixed stage for thrown private errors", a
       },
     },
     {
-      expected: "password-prompt",
+      expected: "credential-read",
       readPassword: async () => {
         throw new Error("private prompt detail");
       },

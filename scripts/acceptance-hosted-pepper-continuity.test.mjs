@@ -15,8 +15,13 @@ const environment = {
   HUAYI_BOOTSTRAP_INVITATION_TOKEN: "A".repeat(43),
   HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: certificate,
   HUAYI_SECRET_PEPPER: "p".repeat(48),
-  PGPASSWORD: "administrator-password",
 };
+const readCredential = async (credentialId) => {
+  assert.equal(credentialId, "supabase-admin-db-password");
+  return "administrator-password";
+};
+const runVerification = (options) =>
+  runPepperContinuityVerification({ readCredential, ...options });
 
 test("pepper continuity verifies only the live interrupted Bootstrap invitation", async () => {
   const expectedHash = createHash("sha256")
@@ -25,7 +30,7 @@ test("pepper continuity verifies only the live interrupted Bootstrap invitation"
     .update(environment.HUAYI_BOOTSTRAP_INVITATION_TOKEN)
     .digest("base64url");
   const calls = [];
-  const result = await runPepperContinuityVerification({
+  const result = await runVerification({
     arguments_: [pepperContinuityVerificationArgument],
     environment,
     runPsql: async (call) => {
@@ -64,7 +69,7 @@ test("pepper continuity fails closed without leaking a mismatched secret", async
     { code: 1, stderr: "private database error", stdout: "t\n" },
   ]) {
     await assert.rejects(
-      runPepperContinuityVerification({
+      runVerification({
         arguments_: [pepperContinuityVerificationArgument],
         environment,
         runPsql: async () => databaseResult,
@@ -75,7 +80,7 @@ test("pepper continuity fails closed without leaking a mismatched secret", async
 
   let calls = 0;
   await assert.rejects(
-    runPepperContinuityVerification({
+    runVerification({
       arguments_: ["--wrong-project"],
       environment,
       runPsql: async () => {
@@ -86,7 +91,7 @@ test("pepper continuity fails closed without leaking a mismatched secret", async
     /arguments are invalid/u,
   );
   await assert.rejects(
-    runPepperContinuityVerification({
+    runVerification({
       arguments_: [pepperContinuityVerificationArgument],
       environment: { ...environment, HUAYI_BOOTSTRAP_INVITATION_TOKEN: "short" },
       runPsql: async () => {

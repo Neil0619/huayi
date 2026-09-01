@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -8,9 +8,13 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import {
   hostedAcceptancePoolerUrl,
   hostedAcceptanceProjectRef,
+  renderHostedPgpass,
   requireHostedCaCertificate,
 } from "./acceptance-hosted-foundation.mjs";
-import { readHiddenTerminalLine } from "./acceptance-hosted-important-batch-secret-prompt.mjs";
+import {
+  readHostedAdministratorPassword,
+  rejectLegacyHostedCredentialEnvironment,
+} from "./acceptance-hosted-credentials.mjs";
 import {
   hostedMigration0015Filename,
   hasExactHostedMigration0015DryRunTranscript,
@@ -22,12 +26,13 @@ import {
   hostedPhase91BackupPreflightArgument,
   runHostedPhase91BackupCli,
 } from "./acceptance-hosted-phase-91-backup.mjs";
+import { withHostedSignalAwareCleanup } from "./acceptance-hosted-signal-aware-cleanup.mjs";
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const supabaseCommand = join(repositoryRoot, "node_modules", ".bin", "supabase");
 const failureMessage =
   "Hosted 0015 migration apply did not produce verified completion; do not retry until remote state is checked.";
-const realCertificateIo = Object.freeze({ mkdtemp, rm, writeFile });
+const realCertificateIo = Object.freeze({ chmod, mkdtemp, rm, writeFile });
 const migrationSourceSha256 = "a9f17524dfecb4bbf47ffc954e56bb1d3629fe2cd175a0b17af5b47b32d98634";
 const supabaseMigrationPath = join(
   repositoryRoot,
@@ -65,9 +70,12 @@ function passwordIsValid(password) {
 }
 
 function environmentHasInheritedPassword(environment) {
-  return ["PGPASSWORD", "SUPABASE_DB_PASSWORD"].some((name) =>
-    Object.prototype.hasOwnProperty.call(environment, name),
-  );
+  try {
+    rejectLegacyHostedCredentialEnvironment(environment);
+    return false;
+  } catch {
+    return true;
+  }
 }
 
 export async function verifyHostedMigration0015RepositoryIdentity({
@@ -108,64 +116,79 @@ export async function runHostedMigration0015Preflight() {
 
 export async function runHostedMigration0015ApplyProcess(
   { administratorPassword, caCertificate },
-  { certificateIo = realCertificateIo, spawnProcess = spawn, timeoutMilliseconds = 300_000 } = {},
+  {
+    certificateIo = realCertificateIo,
+    process_ = process,
+    spawnProcess = spawn,
+    timeoutMilliseconds = 300_000,
+  } = {},
 ) {
   const certificate = requireHostedCaCertificate({
     HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: caCertificate,
   });
   const certificateDirectory = await certificateIo.mkdtemp(join(tmpdir(), "huayi-hosted-0015-ca-"));
   const rootCertificate = join(certificateDirectory, "root.crt");
-  try {
-    await certificateIo.writeFile(rootCertificate, certificate, {
-      encoding: "utf8",
-      flag: "wx",
-      mode: 0o600,
-    });
-    return await new Promise((resolveResult) => {
-      let settled = false;
-      let timedOut = false;
-      let timeout;
-      const finish = (code) => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timeout);
-        resolveResult({ code });
-      };
-      let child;
-      try {
-        child = spawnProcess(supabaseCommand, fixedSupabaseArguments, {
-          cwd: repositoryRoot,
-          env: {
-            LANG: "C",
-            LC_ALL: "C",
-            PGPASSWORD: administratorPassword,
-            PGSSLMODE: "verify-full",
-            PGSSLROOTCERT: rootCertificate,
-          },
-          shell: false,
-          stdio: ["ignore", "ignore", "ignore"],
-          windowsHide: true,
-        });
-      } catch {
-        finish(null);
-        return;
-      }
-      timeout = setTimeout(() => {
-        timedOut = true;
+  const passwordFile = join(certificateDirectory, ".pgpass");
+  return withHostedSignalAwareCleanup({
+    cleanup: () => certificateIo.rm(certificateDirectory, { force: true, recursive: true }),
+    process_,
+    run: async ({ registerChild }) => {
+      await certificateIo.chmod(certificateDirectory, 0o700);
+      await certificateIo.writeFile(rootCertificate, certificate, {
+        encoding: "utf8",
+        flag: "wx",
+        mode: 0o600,
+      });
+      await certificateIo.writeFile(
+        passwordFile,
+        `${renderHostedPgpass(hostedAcceptancePoolerUrl, administratorPassword)}\n`,
+        { encoding: "utf8", flag: "wx", mode: 0o600 },
+      );
+      return new Promise((resolveResult) => {
+        let settled = false;
+        let timedOut = false;
+        let timeout;
+        const finish = (code) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timeout);
+          resolveResult({ code });
+        };
+        let child;
         try {
-          child.kill("SIGKILL");
+          child = spawnProcess(supabaseCommand, fixedSupabaseArguments, {
+            cwd: repositoryRoot,
+            env: {
+              LANG: "C",
+              LC_ALL: "C",
+              PGPASSFILE: passwordFile,
+              PGSSLMODE: "verify-full",
+              PGSSLROOTCERT: rootCertificate,
+            },
+            shell: false,
+            stdio: ["ignore", "ignore", "ignore"],
+            windowsHide: true,
+          });
+          registerChild(child);
         } catch {
           finish(null);
+          return;
         }
-      }, timeoutMilliseconds);
-      child.once("error", () => finish(null));
-      child.once("close", (code, signal) => {
-        finish(timedOut || signal !== null ? null : code);
+        timeout = setTimeout(() => {
+          timedOut = true;
+          try {
+            child.kill("SIGKILL");
+          } catch {
+            finish(null);
+          }
+        }, timeoutMilliseconds);
+        child.once("error", () => finish(null));
+        child.once("close", (code, signal) => {
+          finish(timedOut || signal !== null ? null : code);
+        });
       });
-    });
-  } finally {
-    await certificateIo.rm(certificateDirectory, { force: true, recursive: true });
-  }
+    },
+  });
 }
 
 export async function runHostedMigration0015Postflight(
@@ -183,7 +206,7 @@ export async function runHostedMigration0015ApplyCli({
   arguments_ = process.argv.slice(2),
   environment = process.env,
   fetchCaCertificate = fetchHostedAcceptanceOfficialCaCertificate,
-  readPassword = readHiddenTerminalLine,
+  readPassword = readHostedAdministratorPassword,
   runApply = runHostedMigration0015ApplyProcess,
   runDryRun = runHostedMigration0015DryRunProcess,
   runPostflight = runHostedMigration0015Postflight,
@@ -202,7 +225,7 @@ export async function runHostedMigration0015ApplyCli({
     }
     if ((await runPreflight()) !== true) throw new Error(failureMessage);
     const caCertificate = await fetchCaCertificate();
-    const administratorPassword = await readPassword();
+    const administratorPassword = await readPassword({ environment });
     if (!passwordIsValid(administratorPassword)) throw new Error(failureMessage);
     const secrets = { administratorPassword, caCertificate };
     const dryRun = await runDryRun(secrets);

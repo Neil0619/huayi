@@ -2,9 +2,12 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { pathToFileURL } from "node:url";
 
 import {
+  readHostedCredential,
+  rejectLegacyHostedCredentialEnvironment,
+} from "./acceptance-hosted-credentials.mjs";
+import {
   hostedAcceptancePoolerUrl,
   hostedAcceptanceProjectRef,
-  requirePostgresPassword,
   runHostedPsql,
   sqlLiteral,
 } from "./acceptance-hosted-foundation.mjs";
@@ -358,7 +361,6 @@ COMMIT;
 function databaseEnvironment(environment) {
   return {
     HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: environment.HUAYI_HOSTED_DATABASE_CA_CERTIFICATE,
-    PGPASSWORD: environment.PGPASSWORD,
   };
 }
 
@@ -368,6 +370,7 @@ export async function runHostedFirstOperator({
   now = () => new Date(),
   randomBytes_ = randomBytes,
   randomUuid = randomUUID,
+  readCredential = readHostedCredential,
   runPsql = runHostedPsql,
 } = {}) {
   if (arguments_.length === 1 && arguments_[0] === "--plan") {
@@ -391,10 +394,12 @@ export async function runHostedFirstOperator({
     throw new Error("Hosted first Operator arguments are invalid.");
   }
 
-  requirePostgresPassword(environment);
+  rejectLegacyHostedCredentialEnvironment(environment);
+  const password = await readCredential("supabase-admin-db-password", { environment });
   const sharedCall = {
     databaseUrl: hostedAcceptancePoolerUrl,
     environment: databaseEnvironment(environment),
+    password,
   };
 
   if (action === "status") {

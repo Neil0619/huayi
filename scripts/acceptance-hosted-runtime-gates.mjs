@@ -5,7 +5,10 @@ import {
   hostedAcceptanceProjectRef,
   runHostedPsql,
 } from "./acceptance-hosted-foundation.mjs";
-import { readHiddenTerminalLine } from "./acceptance-hosted-important-batch-secret-prompt.mjs";
+import {
+  readHostedAdministratorPassword,
+  rejectLegacyHostedCredentialEnvironment,
+} from "./acceptance-hosted-credentials.mjs";
 import { fetchHostedAcceptanceOfficialCaCertificate } from "./acceptance-hosted-official-ca.mjs";
 import { renderHostedRuntimeSnapshotSql } from "./acceptance-hosted-runtime-gates-sql.mjs";
 
@@ -77,14 +80,17 @@ function passwordIsValid(password) {
 }
 
 function environmentHasInheritedPassword(environment) {
-  return ["PGPASSWORD", "SUPABASE_DB_PASSWORD"].some((name) =>
-    Object.prototype.hasOwnProperty.call(environment, name),
-  );
+  try {
+    rejectLegacyHostedCredentialEnvironment(environment);
+    return false;
+  } catch {
+    return true;
+  }
 }
 
 export function renderHostedRuntimeGatesPlan() {
   return `Hosted runtime gates plan (zero network / zero write)
-- Fetch the official CA, prompt for the administrator secret without echo, and use one verify-full READ ONLY transaction.
+- Fetch the official CA, read the fixed administrator Keychain account, and use one verify-full READ ONLY transaction.
 - Return only fixed booleans, enums, and bounded aggregate counts.
 - Inspect Vault names only; never read credential material or identity/content fields.
 - Select the latest hosted analysis request automatically; no opaque identifier input is needed.
@@ -136,9 +142,9 @@ export async function runHostedRuntimeSnapshotQuery(
     databaseUrl: hostedAcceptancePoolerUrl,
     environment: {
       HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: caCertificate,
-      PGPASSWORD: administratorPassword,
     },
     input: renderHostedRuntimeSnapshotSql(),
+    password: administratorPassword,
     timeoutMilliseconds: 30_000,
   });
   return result.code === 0 ? parseHostedRuntimeSnapshot(result.stdout) : null;
@@ -148,7 +154,7 @@ export async function readHostedRuntimeSnapshot({
   arguments_ = process.argv.slice(2),
   environment = process.env,
   fetchCaCertificate = fetchHostedAcceptanceOfficialCaCertificate,
-  readPassword = readHiddenTerminalLine,
+  readPassword = readHostedAdministratorPassword,
   runPsql,
   runSnapshotQuery = runHostedRuntimeSnapshotQuery,
 } = {}) {
@@ -161,7 +167,7 @@ export async function readHostedRuntimeSnapshot({
       throw new Error(failureMessage);
     }
     const caCertificate = await fetchCaCertificate();
-    const administratorPassword = await readPassword();
+    const administratorPassword = await readPassword({ environment });
     if (!passwordIsValid(administratorPassword)) throw new Error(failureMessage);
     const snapshot = await runSnapshotQuery(
       { administratorPassword, caCertificate },
@@ -178,7 +184,7 @@ export async function runHostedRuntimeGatesCli({
   arguments_ = process.argv.slice(2),
   environment = process.env,
   fetchCaCertificate = fetchHostedAcceptanceOfficialCaCertificate,
-  readPassword = readHiddenTerminalLine,
+  readPassword = readHostedAdministratorPassword,
   runPsql,
   runSnapshotQuery = runHostedRuntimeSnapshotQuery,
   writeError = (value) => process.stderr.write(value),

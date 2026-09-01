@@ -40,7 +40,13 @@ export function assertFixedLocalDockerTarget(target) {
 export function runHostedImportantBatchProcess(
   command,
   arguments_,
-  { input, maxOutputBytes = 1_048_576, spawnProcess = spawn, timeoutMilliseconds = 1_800_000 } = {},
+  {
+    input,
+    maxOutputBytes = 1_048_576,
+    registerChild = () => undefined,
+    spawnProcess = spawn,
+    timeoutMilliseconds = 1_800_000,
+  } = {},
 ) {
   return new Promise((resolveResult) => {
     let settled = false;
@@ -61,6 +67,7 @@ export function runHostedImportantBatchProcess(
       stdio: [input === undefined ? "ignore" : "pipe", "pipe", "ignore"],
       windowsHide: true,
     });
+    registerChild(child);
     timeout = setTimeout(() => {
       forcedTermination = true;
       child.kill("SIGKILL");

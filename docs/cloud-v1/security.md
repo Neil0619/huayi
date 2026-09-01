@@ -221,6 +221,12 @@ owner context、generation/reservation 归属、task 成功或失败终态、价
 ## 4. 凭据与 DeviceVault
 
 - 平台密钥仅存在 Vercel API 环境；生产启动校验必需环境变量，但诊断只能列出缺失变量名。
+- Hosted acceptance 运维凭据与部署 runtime secret 分离。Supabase 管理员/application 数据库密码、
+  Supabase management PAT 与 Vercel Token 只存在 macOS login Keychain 的固定 service/account；共享
+  consumer 可注入，其他平台固定 unsupported，禁止 `.env`、环境变量、stdin 或明文文件回退。
+- Hosted Token 只进入本次操作内存与固定 HTTP Authorization header。数据库密码只进入 `0700` 临时目录
+  的 `0600 .pgpass`；子进程只取得 `PGPASSFILE`，成功、失败、timeout 和终止信号后均清理。Keychain
+  `present/available` 不是连接、migration、backup、restore、Cron、deployment 或 smoke 的授权。
 - BYOK 与欧路凭据只存在 Extension DeviceVault，并只发给用户选择的固定供应商 origin。Huayi API
   不接受这些字段，strict schema 会拒绝 `apiKey`、`authorization`、`baseUrl` 和任意 Header。
 - BYOK 模型路由与 Huayi 数据动作分别授权。账号 mode=byok 不代表 Huayi 自动收不到用户主动开启的
@@ -387,9 +393,10 @@ owner context、generation/reservation 归属、task 成功或失败终态、价
   计算的 source/target count digest；不保存逐表计数、email、UUID、object key、正文、token/hash 或 SQL；
 - Storage metadata 属于 database archive；Storage object bytes 始终是独立加密 export/restore。source object
   非零而独立 manifest/bytes 未恢复时，不能声明完整恢复；
-- source/target 管理密码与 management token 只从 TTY 隐藏读取；数据库密码进入固定 `0600 .pgpass`，必要
-  management token 只能进入单一 child 的 process-scoped environment。secret 不进入 argv、parent env、
-  stdout/stderr、日志或 evidence；
+- source 管理密码与 management token 分别读取固定 Keychain account；临时 recovery target 管理密码继续
+  只从专用 TTY 隐藏读取。数据库密码进入固定 `0600 .pgpass`；management token 不进入 child environment，
+  production management adapter 只能经受控 HTTP port 使用。secret 不进入 argv、环境、stdout/stderr、日志
+  或 evidence；
 - 无论成功或失败都必须删除 recovery project、撤销 drill credential、清理精确 container/temp 并回读
   target absent。archive 到已批准 retention deadline 后删除并留下 body-free disposition evidence；期限和
   隐私披露未决时失败关闭。完整 lifecycle 与 exact JSON keys 见
@@ -397,7 +404,7 @@ owner context、generation/reservation 归属、task 成功或失败终态、价
 
 ### 7.2 Hosted 重要批次 capture 密码边界
 
-- Hosted pre/post capture 的 Supabase 管理员数据库密码只从隐藏 TTY 读取；本地 shape gate 以 Supabase
+- Hosted pre/post capture 的 Supabase 管理员数据库密码只从固定 Keychain account 读取；本地 shape gate 以 Supabase
   建议的至少 12 个字符为下限，独立保留 512 字符安全上限，并拒绝 NUL、CR、LF。密码只进入
   `0600 .pgpass`。该边界不得复用于 application 数据库密码，后者继续保持独立的 32+ 字符契约。
 
@@ -431,17 +438,17 @@ owner context、generation/reservation 归属、task 成功或失败终态、价
   其他 Auth 字段或底层错误。diagnostic 不得执行 PATCH，也不能替代正式 status 成功证据。
 - 0014 实际数据库写入只能由 exact-confirmation apply 入口执行。入口必须先通过绑定 clean candidate 的
   pre-backup/rebuild preflight，同一执行内只 dry-run 唯一 0014，并在 mutation 前重查 evidence 与两份
-  migration mirror 的固定 SHA-256；管理员密码只进入隐藏 TTY 与单一 child 的 `PGPASSWORD`，公开 CA 只进
-  `0600` 临时文件。写后只读 postflight 必须验证完整 migration chain、bound column/check、函数 security
+  migration mirror 的固定 SHA-256；管理员密码从固定 Keychain account 读取，只进入 `0600` 临时
+  `.pgpass`，child 只取得 `PGPASSFILE`；公开 CA 只进 `0600` 临时文件。写后只读 postflight 必须验证完整 migration chain、bound column/check、函数 security
   identity 与 exact ACL；apply 或 postflight 不确定时固定禁止盲目重试，避免重复 forward migration。
 - apply 返回未验证后只能运行固定 `acceptance:hosted:migration:0014:status`。该入口拒绝继承
-  `PGPASSWORD` / `SUPABASE_DB_PASSWORD`，在内部固定官方 CA、隐藏 TTY 管理员密码、Singapore transaction
+  `PGPASSWORD` / `SUPABASE_DB_PASSWORD`，在内部固定官方 CA、Keychain 管理员密码、Singapore transaction
   pooler `6543` 与 verify-full，并只执行一个 `BEGIN READ ONLY` catalog snapshot。只有完整 14-chain + exact
   0014 artifacts/ACL 才是 `applied-exact`；只有完整 13-chain + 0014 artifacts 全部 absent 才是
   `pending-exact`；连接、进程、输出、半应用或 catalog 漂移均固定为 `uncertain`，不得反射数据库原始输出，
   也不得据此重试 apply。
 - `status` 返回 `uncertain` 时只允许固定 `acceptance:hosted:migration:0014:status:diagnose`：沿用 official CA、
-  hidden TTY、transaction pooler `6543`、verify-full、`connect_timeout=10`、30 秒上限和 `BEGIN READ ONLY`，
+  Keychain account、transaction pooler `6543`、verify-full、`connect_timeout=10`、30 秒上限和 `BEGIN READ ONLY`，
   公开输出只能包含 allowlisted psql exit class、output exact、12 个核心 catalog `t/f`、bind/renew 各 10 个
   固定 ACL 分解 `t/f`、4 个 Data API roles / 全部 public SECURITY DEFINER 函数全局 `t/f` 与 final status。
   ACL 分解只允许固定的 setter/business/runtime、owner、`PUBLIC`、
@@ -597,14 +604,14 @@ argv 中的 secret、环境、文件或 TTY，不构造 adapter，也不触发 m
 0016–0021 使用 `hosted-deepseek-migration-batch.md` 的独立恢复/migration 安全边界。Phase 91 的 15-file
 evidence 不进入新 batch；新 pre 固定 head 0015，21-chain networkless rebuild 与 post 固定 head 0021。
 backup evidence 只写 clone-local `0700/0600` 路径且不可覆盖；capture 继续使用 official CA、verify-full 与
-hidden TTY，rebuild 不读取 Hosted secret。真实 status 只公开 applied/pending/uncertain 三态；applied 还要
+固定管理员 Keychain account，rebuild 不读取 Hosted secret。真实 status 只公开 applied/pending/uncertain 三态；applied 还要
 证明 authority role 非特权，且不存在可继承、可切换或额外 membership；PostgreSQL 17 可选 creator-control
 边只允许唯一 `postgres`→executor 的 `admin=true / inherit=false / set=false`。owner/forced RLS/启用
 trigger/SECURITY DEFINER/search path、executor allowlist 与任意额外 function/table ACL 均精确。standalone
-dry-run 和 apply 都在 CA/TTY 前验证 current evidence 与 Supabase CLI `2.115.0`；apply 在任何 mutation 前
+dry-run 和 apply 都在 CA/credential read 前验证 current evidence 与 Supabase CLI `2.115.0`；apply 在任何 mutation 前
 两次验证 current evidence/source identity，并夹住 exact six-file dry-run 与 read-only pending catalog，写后
 只接受 applied postflight。未知
-状态、child output 或外部错误不反射，继承密码在本地 gate、CA/TTY/网络前拒绝。post-apply `uncertain`
+状态、child output 或外部错误不反射，继承密码在本地 gate、CA/Keychain/网络前拒绝。post-apply `uncertain`
 只能进入固定脱敏只读 diagnostic：单一 snapshot 按 allowlist 输出 migration prefix、membership
 absence/contract、其余 catalog/ACL 布尔叶和 psql 退出分类，禁止 stderr、raw catalog、OID、未知角色、URL、
 凭据或环境反射；其结论不授权 apply、修复 SQL 或 post backup。本控制面没有装配 Phase G

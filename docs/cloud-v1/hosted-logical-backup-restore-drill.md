@@ -305,10 +305,11 @@ external stage 前用批准 deadline fail closed：deadline 前只能 retention 
 
 ## 6. Secret、隐私与审计边界
 
-- source/target 管理员密码和必要的 management token 只从真实 TTY 隐藏读取；启动前拒绝继承对应 secret
-  env。数据库密码只进入固定 `0600` temporary `.pgpass` 和 read-only mount，CA 进入独立 `0600` file；
-  management token 如必须交给单一 child，只能进入该 child 的 process-scoped environment，不进入 argv、
-  parent env、文件、stdout/stderr 或日志；
+- source 管理员密码和必要的 management token 分别从固定 macOS Keychain account 读取；临时 recovery
+  target 管理员密码仍只从专用真实 TTY 隐藏读取。启动前拒绝继承对应 secret env。数据库密码只进入固定
+  `0600` temporary `.pgpass` 和 read-only mount，CA 进入独立 `0600` file；management token 不进入 child
+  environment，获批 production management adapter 必须只把它交给受控 HTTP port，且不进入 argv、
+  environment、文件、stdout/stderr 或日志；
 - target drill login 使用每次随机 32+ 字符密码，验证结束立即 revoke；source application password、JWT、
   anon/service-role、SMTP/OAuth/Provider secret 永不复制；
 - archive 只从受验证的 encrypted location read-only mount，不能产生 plaintext SQL、解压目录、row sample、

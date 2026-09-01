@@ -145,14 +145,14 @@ test("identity snapshot query pins pooler, verify-full CA, timeout, and read-onl
   assert.match(observed.databaseUrl, /:6543\/postgres\?sslmode=verify-full$/u);
   assert.deepEqual(observed.environment, {
     HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: caCertificate,
-    PGPASSWORD: "fictional-administrator-password",
   });
+  assert.equal(observed.password, "fictional-administrator-password");
   assert.equal(observed.captureOutput, true);
   assert.equal(observed.timeoutMilliseconds, 30_000);
   assert.equal(observed.input, renderHostedIdentitySnapshotSql());
 });
 
-test("identity snapshot fetches CA before hidden password and emits only sanitized rows", async () => {
+test("identity snapshot fetches CA before Keychain read and emits only sanitized rows", async () => {
   const calls = [];
   const result = await runCli({
     fetchCaCertificate: async () => {
@@ -182,6 +182,14 @@ test("identity snapshot rejects arguments and inherited passwords before externa
     {
       arguments_: [hostedIdentitySnapshotArgument],
       environment: { SUPABASE_DB_PASSWORD: "secret" },
+    },
+    {
+      arguments_: [hostedIdentitySnapshotArgument],
+      environment: { SUPABASE_ACCESS_TOKEN: "secret" },
+    },
+    {
+      arguments_: [hostedIdentitySnapshotArgument],
+      environment: { VERCEL_TOKEN: "secret" },
     },
   ]) {
     const calls = [];

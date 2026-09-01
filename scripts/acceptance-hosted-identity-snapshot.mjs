@@ -5,7 +5,10 @@ import {
   hostedAcceptanceProjectRef,
   runHostedPsql,
 } from "./acceptance-hosted-foundation.mjs";
-import { readHiddenTerminalLine } from "./acceptance-hosted-important-batch-secret-prompt.mjs";
+import {
+  readHostedAdministratorPassword,
+  rejectLegacyHostedCredentialEnvironment,
+} from "./acceptance-hosted-credentials.mjs";
 import { fetchHostedAcceptanceOfficialCaCertificate } from "./acceptance-hosted-official-ca.mjs";
 import { renderHostedIdentitySnapshotSql } from "./acceptance-hosted-identity-snapshot-sql.mjs";
 
@@ -80,9 +83,12 @@ function passwordIsValid(password) {
 }
 
 function environmentHasInheritedPassword(environment) {
-  return ["PGPASSWORD", "SUPABASE_DB_PASSWORD"].some((name) =>
-    Object.prototype.hasOwnProperty.call(environment, name),
-  );
+  try {
+    rejectLegacyHostedCredentialEnvironment(environment);
+    return false;
+  } catch {
+    return true;
+  }
 }
 
 export function renderHostedIdentitySnapshotPlan() {
@@ -138,9 +144,9 @@ export async function runHostedIdentitySnapshotQuery(
     databaseUrl: hostedAcceptancePoolerUrl,
     environment: {
       HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: caCertificate,
-      PGPASSWORD: administratorPassword,
     },
     input: renderHostedIdentitySnapshotSql(),
+    password: administratorPassword,
     timeoutMilliseconds: 30_000,
   });
   return result.code === 0 ? parseHostedIdentitySnapshotOutput(result.stdout) : null;
@@ -150,7 +156,7 @@ export async function runHostedIdentitySnapshotCli({
   arguments_ = process.argv.slice(2),
   environment = process.env,
   fetchCaCertificate = fetchHostedAcceptanceOfficialCaCertificate,
-  readPassword = readHiddenTerminalLine,
+  readPassword = readHostedAdministratorPassword,
   runSnapshotQuery = runHostedIdentitySnapshotQuery,
   writeError = (value) => process.stderr.write(value),
   writeOutput = (value) => process.stdout.write(value),
@@ -168,7 +174,7 @@ export async function runHostedIdentitySnapshotCli({
       throw new Error(hostedIdentitySnapshotFailureMessage);
     }
     const caCertificate = await fetchCaCertificate();
-    const administratorPassword = await readPassword();
+    const administratorPassword = await readPassword({ environment });
     if (!passwordIsValid(administratorPassword)) {
       throw new Error(hostedIdentitySnapshotFailureMessage);
     }

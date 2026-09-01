@@ -9,7 +9,10 @@ import {
   hostedDeepseekMigrationStatusDiagnosticPredicateNames as predicateNames,
   renderHostedDeepseekMigrationStatusDiagnosticSql,
 } from "./acceptance-hosted-deepseek-migration-status-diagnostic-sql.mjs";
-import { readHiddenTerminalLine } from "./acceptance-hosted-important-batch-secret-prompt.mjs";
+import {
+  readHostedAdministratorPassword,
+  rejectLegacyHostedCredentialEnvironment,
+} from "./acceptance-hosted-credentials.mjs";
 import { fetchHostedAcceptanceOfficialCaCertificate } from "./acceptance-hosted-official-ca.mjs";
 
 export {
@@ -22,7 +25,7 @@ export const hostedDeepseekMigrationStatusDiagnosticArgument = `--diagnose-statu
 const setupFailureStages = new Set([
   "arguments",
   "ca-fetch",
-  "password-prompt",
+  "credential-read",
   "password-validation",
   "query-process",
 ]);
@@ -36,9 +39,12 @@ const queryExitClasses = new Set([
 ]);
 
 function environmentHasInheritedPassword(environment) {
-  return ["PGPASSWORD", "SUPABASE_DB_PASSWORD"].some((name) =>
-    Object.prototype.hasOwnProperty.call(environment, name),
-  );
+  try {
+    rejectLegacyHostedCredentialEnvironment(environment);
+    return false;
+  } catch {
+    return true;
+  }
 }
 
 function passwordIsValid(password) {
@@ -98,9 +104,9 @@ export async function runHostedDeepseekMigrationStatusDiagnosticQuery(
     databaseUrl: `${hostedAcceptancePoolerUrl}&connect_timeout=10`,
     environment: {
       HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: caCertificate,
-      PGPASSWORD: administratorPassword,
     },
     input: renderHostedDeepseekMigrationStatusDiagnosticSql(),
+    password: administratorPassword,
     timeoutMilliseconds: 30_000,
   });
   const exitClass = classifyHostedDeepseekMigrationStatusDiagnosticExitCode(result.code);
@@ -143,7 +149,7 @@ export async function runHostedDeepseekMigrationStatusDiagnosticCli({
   arguments_ = process.argv.slice(2),
   environment = process.env,
   fetchCaCertificate = fetchHostedAcceptanceOfficialCaCertificate,
-  readPassword = readHiddenTerminalLine,
+  readPassword = readHostedAdministratorPassword,
   runDiagnosticQuery = runHostedDeepseekMigrationStatusDiagnosticQuery,
   writeError = (value) => process.stderr.write(value),
   writeOutput = (value) => process.stdout.write(value),
@@ -159,8 +165,8 @@ export async function runHostedDeepseekMigrationStatusDiagnosticCli({
     }
     failureStage = "ca-fetch";
     const caCertificate = await fetchCaCertificate();
-    failureStage = "password-prompt";
-    const administratorPassword = await readPassword();
+    failureStage = "credential-read";
+    const administratorPassword = await readPassword({ environment });
     failureStage = "password-validation";
     if (!passwordIsValid(administratorPassword)) throw new Error(renderSetupFailure(failureStage));
     failureStage = "query-process";

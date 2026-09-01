@@ -58,7 +58,7 @@ export function renderVercelProjectPlan() {
     "- Prove zero deployments again after each Production Branch save.",
     "- Production-only environment variables remain pending for the later secret stage.",
     "No Git link, deployment, domain, environment variable, or secret is created.",
-    "VERCEL_TOKEN is read only by apply/status and is never printed or persisted.",
+    "The fixed Vercel Keychain credential is read only by apply/status and is never printed or persisted.",
     "",
   ].join("\n");
 }

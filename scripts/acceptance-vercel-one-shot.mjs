@@ -1,6 +1,10 @@
 import { pathToFileURL } from "node:url";
 
 import {
+  readHostedCredential,
+  rejectLegacyHostedCredentialEnvironment,
+} from "./acceptance-hosted-credentials.mjs";
+import {
   advanceVercelOneShotState,
   validateVercelOneShotStoredState,
 } from "./acceptance-vercel-one-shot-contract.mjs";
@@ -45,6 +49,7 @@ export async function runVercelOneShotCli({
   expectedBaselines,
   fetch_ = globalThis.fetch,
   inspectGit_ = inspectVercelOneShotGit,
+  readCredential = readHostedCredential,
   readSnapshot_ = readVercelOneShotSnapshot,
   repositoryRoot = process.cwd(),
   stateStore = createVercelOneShotStateStore({ repositoryRoot }),
@@ -70,7 +75,9 @@ export async function runVercelOneShotCli({
     if ((stage === "preflight") !== (state === undefined)) throw new Error("invalid state");
     if (state !== undefined) validateVercelOneShotStoredState(state, stage, expectedBaselines);
     const git = await inspectGit_({ repositoryRoot });
-    const snapshot = await readSnapshot_({ fetch_, token: environment.VERCEL_TOKEN });
+    rejectLegacyHostedCredentialEnvironment(environment);
+    const token = await readCredential("vercel-token", { environment });
+    const snapshot = await readSnapshot_({ fetch_, token });
     const nextState = advanceVercelOneShotState({
       expectedBaselines,
       git,

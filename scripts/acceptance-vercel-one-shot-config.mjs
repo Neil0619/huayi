@@ -26,7 +26,7 @@ export function renderVercelOneShotPlan(baselines = expectedVercelOneShotBaselin
     "- A disarmed project may add at most one same-push Canceled audit; each accepted audit is frozen for later stages.",
     "- Both projects armed, wrong branch/project/commit, history drift, ambiguity, extra or in-flight deployment fails closed.",
     "- The gate performs read-only Vercel requests; it never arms, disarms, deploys, commits, or pushes.",
-    "- VERCEL_TOKEN is never printed or persisted.",
+    "- The fixed Vercel Keychain credential is never printed or persisted.",
     "",
   ].join("\n");
 }

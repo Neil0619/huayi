@@ -7,7 +7,10 @@ import {
   hostedAcceptanceProjectRef,
   runHostedPsql,
 } from "./acceptance-hosted-foundation.mjs";
-import { readHiddenTerminalLine } from "./acceptance-hosted-important-batch-secret-prompt.mjs";
+import {
+  readHostedAdministratorPassword,
+  rejectLegacyHostedCredentialEnvironment,
+} from "./acceptance-hosted-credentials.mjs";
 import { fetchHostedAcceptanceOfficialCaCertificate } from "./acceptance-hosted-official-ca.mjs";
 import { verifyHostedCronRepositoryCandidate } from "./acceptance-hosted-cron-repository.mjs";
 import { renderHostedCronStatusSql } from "./acceptance-hosted-cron-sql.mjs";
@@ -91,9 +94,12 @@ function passwordIsValid(password) {
 }
 
 function environmentHasInheritedPassword(environment) {
-  return ["PGPASSWORD", "SUPABASE_DB_PASSWORD"].some((name) =>
-    Object.prototype.hasOwnProperty.call(environment, name),
-  );
+  try {
+    rejectLegacyHostedCredentialEnvironment(environment);
+    return false;
+  } catch {
+    return true;
+  }
 }
 
 function parseHostedCronStatus(stdout) {
@@ -119,10 +125,9 @@ function parseHostedCronStatus(stdout) {
   return status;
 }
 
-function databaseEnvironment({ administratorPassword, caCertificate }) {
+function databaseEnvironment({ caCertificate }) {
   return {
     HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: caCertificate,
-    PGPASSWORD: administratorPassword,
   };
 }
 
@@ -134,6 +139,7 @@ async function queryHostedCronStatus({ runPsql, secrets, stage }) {
       databaseUrl: hostedAcceptancePoolerUrl,
       environment: databaseEnvironment(secrets),
       input: renderHostedCronStatusSql(),
+      password: secrets.administratorPassword,
       timeoutMilliseconds: psqlTimeoutMilliseconds,
     });
   } catch {
@@ -166,7 +172,7 @@ function requireOperationsSql(sql) {
 
 export function renderHostedCronPlan() {
   return `Hosted Supabase Cron plan for ${hostedAcceptanceProjectRef} (zero network / zero write)
-- status fetches the official CA, prompts without echo, and uses one verify-full administrator READ ONLY transaction.
+- status fetches the official CA, reads the fixed administrator Keychain account, and uses one verify-full administrator READ ONLY transaction.
 - status returns fixed booleans, one fixed enum, and bounded aggregate counts only.
 - status inspects Vault names only; it never selects or prints Vault credential values.
 - apply requires the exact project-specific confirmation and a clean reviewed candidate after the real R3-C gate passes.
@@ -193,7 +199,7 @@ export async function readHostedCronStatus({
   arguments_ = process.argv.slice(2),
   environment = process.env,
   fetchCaCertificate = fetchHostedAcceptanceOfficialCaCertificate,
-  readPassword = readHiddenTerminalLine,
+  readPassword = readHostedAdministratorPassword,
   runPsql = runHostedPsql,
 } = {}) {
   try {
@@ -206,7 +212,7 @@ export async function readHostedCronStatus({
       throw new Error("arguments");
     }
     const caCertificate = await fetchCaCertificate();
-    const administratorPassword = await readPassword();
+    const administratorPassword = await readPassword({ environment });
     if (!passwordIsValid(administratorPassword)) throw new Error("credentials");
     return await queryHostedCronStatus({
       runPsql,
@@ -223,7 +229,7 @@ export async function applyHostedCron({
   environment = process.env,
   fetchCaCertificate = fetchHostedAcceptanceOfficialCaCertificate,
   loadOperationsSql = () => readFile(operationsUrl),
-  readPassword = readHiddenTerminalLine,
+  readPassword = readHostedAdministratorPassword,
   runPsql = runHostedPsql,
   verifyRepositoryCandidate = verifyHostedCronRepositoryCandidate,
 } = {}) {
@@ -256,7 +262,7 @@ export async function applyHostedCron({
   let secrets;
   try {
     const caCertificate = await fetchCaCertificate();
-    const administratorPassword = await readPassword();
+    const administratorPassword = await readPassword({ environment });
     if (!passwordIsValid(administratorPassword)) throw new Error("credentials");
     secrets = { administratorPassword, caCertificate };
   } catch {
@@ -275,6 +281,7 @@ export async function applyHostedCron({
     databaseUrl: hostedAcceptancePoolerUrl,
     environment: databaseEnvironment(secrets),
     input: operationsSql,
+    password: secrets.administratorPassword,
     timeoutMilliseconds: psqlTimeoutMilliseconds,
   };
   let first;
@@ -313,7 +320,7 @@ export async function runHostedCronCli({
   environment = process.env,
   fetchCaCertificate = fetchHostedAcceptanceOfficialCaCertificate,
   loadOperationsSql,
-  readPassword = readHiddenTerminalLine,
+  readPassword = readHostedAdministratorPassword,
   runPsql = runHostedPsql,
   verifyRepositoryCandidate = verifyHostedCronRepositoryCandidate,
   writeError = (value) => process.stderr.write(value),

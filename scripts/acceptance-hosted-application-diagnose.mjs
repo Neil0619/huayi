@@ -1,6 +1,10 @@
 import { pathToFileURL } from "node:url";
 
 import {
+  readHostedCredential,
+  rejectLegacyHostedCredentialEnvironment,
+} from "./acceptance-hosted-credentials.mjs";
+import {
   parseHostedApplicationContextOutput,
   parseHostedApplicationContractOutput,
   renderHostedApplicationContextSql,
@@ -10,7 +14,6 @@ import {
 import {
   hostedAcceptanceApplicationSessionPoolerUrl,
   hostedAcceptanceProjectRef,
-  requirePostgresPassword,
   runHostedPsql,
 } from "./acceptance-hosted-foundation.mjs";
 
@@ -57,18 +60,20 @@ export function classifyHostedPsqlExitCode(code) {
 export async function diagnoseHostedApplicationLogin({
   arguments_ = process.argv.slice(2),
   environment = process.env,
+  readCredential = readHostedCredential,
   runPsql = runHostedPsql,
 } = {}) {
   if (arguments_.length !== 1 || arguments_[0] !== hostedApplicationDiagnosticArgument) {
     throw new Error("Hosted acceptance application diagnostic arguments are invalid.");
   }
-  requirePostgresPassword(environment);
+  rejectLegacyHostedCredentialEnvironment(environment);
+  const password = await readCredential("supabase-application-db-password", { environment });
   const connection = {
     databaseUrl: hostedAcceptanceApplicationSessionPoolerUrl,
     environment: {
       HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: environment.HUAYI_HOSTED_DATABASE_CA_CERTIFICATE,
-      PGPASSWORD: environment.PGPASSWORD,
     },
+    password,
   };
   const connectionProbe = await runPsql({
     ...connection,

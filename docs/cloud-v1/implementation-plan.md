@@ -1800,9 +1800,9 @@ environment/key，不发送邮件、不调用 DeepSeek、不实际安装或触�
 
 1. **接口**：新增零网络 `cron:plan`、固定 Singapore project-ref 的 `cron:status` 和 exact-confirmation
    gated `cron:apply`；用户不再粘贴长 SQL 或输入 job/request/owner 等 opaque ID；
-2. **来源/候选门（取代最初顺序）**：apply 在 CA、密码和数据库前先验证 operations SQL 精确 SHA-256、
-   clean worktree 与 `HEAD==upstream`；来源与候选不通过时零 CA fetch、零 prompt、零数据库 I/O；
-3. **只读 preflight**：来源门通过后获取 fixed official CA、从 `/dev/tty` 无回显读取管理员密码，再以一个
+2. **来源/候选门（取代最初顺序）**：apply 在 CA、Keychain read 和数据库前先验证 operations SQL 精确 SHA-256、
+   clean worktree 与 `HEAD==upstream`；来源与候选不通过时零 CA fetch、零 Keychain read、零数据库 I/O；
+3. **只读 preflight**：来源门通过后获取 fixed official CA、从固定管理员 Keychain account 读取密码，再以一个
    verify-full 管理员 `BEGIN READ ONLY` 事务输出 18 个固定
    boolean/stage/count，核对 migration、R3-C 数据库侧前置、Vault 两个名称、extension schema、受管 job、
    私有函数 owner/overload/合同/ACL 和 `huayi_private` 精确 schema ACL；不查询 Vault decrypted value，

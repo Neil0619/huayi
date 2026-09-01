@@ -17,15 +17,18 @@ Vercel 部署、fresh recovery readiness、同一邀请 token recovery、一次�
 pnpm acceptance:hosted:identity:post-relogin:diagnose
 ```
 
-需要管理员密码的命令由用户在普通 macOS Terminal 运行并只在无回显提示中输入；Codex 底部终端不用于密码
-提示。诊断不需要退出当前会话，不接受邮箱、Cookie、UUID 或 token，也不写数据库。结果只用于区分目标账号
-活动 session、其他账号活动 session、当前数据库零活动 session 或合同漂移；禁止为了刷新结果重发 OTP、
-轮换邀请、创建账号或删除 session。
+首次使用前，用户在普通 macOS Terminal 运行
+`pnpm acceptance:hosted:credentials:configure`，由系统无回显界面一次配置四项基础设施凭据；之后
+`credentials:status` / `credentials:diagnose` 只输出固定状态，受控消费者直接从 login Keychain 读取，
+不再重复提示管理员数据库密码或 Token。post-relogin 诊断不需要退出当前浏览器会话，不接受邮箱、Cookie、
+UUID 或 token，也不写数据库；结果只用于区分目标账号活动 session、其他账号活动 session、当前数据库零
+活动 session 或合同漂移。禁止为了刷新结果重发 OTP、轮换邀请、创建账号或删除 session。
 
 ## 谁做什么
 
 - **Codex**：运行零网络 plan、检查 Git/SHA 和脱敏输出、准备受控命令、核对证据和更新清单。
-- **用户 · Terminal**：运行会连接 Hosted 或写入的命令；密码只输入无回显 TTY，不放环境变量。
+- **用户 · Terminal**：首次把四项 Hosted 基础设施凭据配置到固定 login Keychain account；运行会连接
+  Hosted 或写入的命令仍逐次获得批准。Operator 登录密码等业务凭据继续只输入专用无回显 TTY。
 - **用户 · 邮箱**：读取新收到的六位 OTP、核对重复邮件和无正文告警；不把邮件正文或 OTP 发给 Codex。
 - **用户 · 浏览器**：在真实 Hosted Web 完成 OTP、登录、产品旅程和 `/admin` recent-auth。
 - **用户 · Dashboard**：只在对应产品的“查看配置状态 / 受控开关 / 账单”页面操作；不猜菜单路径。
@@ -97,8 +100,9 @@ registration flow consumed、`account_finalized_exact|t` 与 `safe_route_state|a
 **去哪里**：Terminal、Hosted Web、`/admin`、Vercel deployment/账单状态页。
 
 **做什么**：先运行 `pnpm acceptance:hosted:deepseek:plan`。真实 executor、exact-SHA 双平台 CI、Auth、R3-C、
-Cron 都通过后，用户另行批准一次小额费用，并在 executor 的无回显提示中输入当前 Operator 密码、Vercel
-token 和数据库管理员密码。executor 使用普通 Web session 与正常 HTTP 合同，独占“登录并 recent-auth →
+Cron 都通过后，用户另行批准一次小额费用，并在 executor 的无回显提示中输入当前 Operator 密码；Vercel
+Token 和数据库管理员密码由受控消费者从固定 Keychain account 读取，不再次提示。executor 使用普通 Web
+session 与正常 HTTP 合同，独占“登录并 recent-auth →
 登记恢复义务 → 临时关闭 kill switch → 发出唯一一笔请求 → 结算 → 恢复 kill switch → logout”的完整顺序；
 用户不要在 `/admin` 手动切换开关，也不要另开浏览器手动发送分析请求。执行前后只比较脱敏 runtime snapshot。
 

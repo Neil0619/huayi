@@ -208,12 +208,13 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       UsageLedger 与模型元数据；
 - [x] Phase 77 已提供固定 Singapore project-ref 的 R3-C/Cron/DeepSeek 安全只读 snapshot；只输出 31 个
       bounded boolean/enum/count，不要求手输 opaque ID，也不读取 Vault 值、身份、正文、result 或金额。
-      `1caf9dc…` 又固定 official CA→hidden `/dev/tty`、12–512 byte 密码、继承 secret 拒绝、30 秒 psql 与
+      `1caf9dc…` 当时固定 official CA→hidden `/dev/tty`、12–512 byte 密码、继承 secret 拒绝、30 秒 psql 与
       strict final LF/零 CR parser。本条只关闭验收工具缺口，不代表已运行真实 Hosted snapshot 或关闭下列
-      外部门；
+      外部门；2026-09-01 起消费者改为固定管理员 Keychain account 与一次性 `0600 .pgpass`；
 - [x] Phase 79 已提供零网络 Cron plan、固定 project-ref 的只读 status/preflight 与 exact-confirmation
       apply；`1caf9dc…` 已取代旧 preflight/static 顺序，在 CA/password/DB 前先要求 operations SQL 精确
-      SHA-256、clean worktree 与 `HEAD==upstream`，Git 上限 10 秒；随后才进入 CA→hidden password→preflight，
+      SHA-256、clean worktree 与 `HEAD==upstream`，Git 上限 10 秒；随后才进入
+      CA→固定管理员 Keychain account→preflight，
       原样执行完整 SQL 两次并独立 postflight。离线实现不代表 Vercel masked secret continuity、真实 SQL
       两次、job 周期或 route 已通过；
 - [x] Phase 82 已提供固定 project/batch 的零 I/O backup plan 与离线 preflight/completion verifier；严格

@@ -167,8 +167,8 @@ test("DeepSeek status diagnostic query is read-only, bounded, and uses the trans
   assert.doesNotMatch(observed.databaseUrl, /:5432\//u);
   assert.deepEqual(observed.environment, {
     HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: caCertificate,
-    PGPASSWORD: "fictional-administrator-password",
   });
+  assert.equal(observed.password, "fictional-administrator-password");
   assert.equal(observed.captureOutput, true);
   assert.equal(observed.timeoutMilliseconds, 30_000);
   assert.equal(observed.input, renderHostedDeepseekMigrationStatusDiagnosticSql());
@@ -362,7 +362,7 @@ test("DeepSeek status diagnostic rejects unsafe setup without reflecting excepti
     {
       arguments_: [hostedDeepseekMigrationStatusDiagnosticArgument],
       environment: {},
-      expectedStage: "password-prompt",
+      expectedStage: "credential-read",
       readPassword: async () => Promise.reject(new Error("private-password")),
     },
     {

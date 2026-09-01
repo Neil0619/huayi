@@ -25,6 +25,17 @@ API 模式只向 OpenAI 发送当前英文选区、最多 2,000 字符上下文�
 句子；若所在容器为中英混合内容且无法提取纯英文句子，语境只退化为原始单词。两条路径都
 不发送 URL、标题、段落上下文或模型输出。
 
+## Hosted 运维凭据
+
+Hosted acceptance 的 Supabase 管理员/application 数据库密码、Supabase management PAT 与 Vercel Token
+只存于 macOS login Keychain 的固定 service/account。共享消费者不得读取 `.env`、明文文件、stdin 或旧
+secret 环境变量；非 macOS 固定 unsupported。Token 只进入内存中的固定 HTTP Authorization header；
+数据库密码进入 `0700` 临时目录内的 `0600 .pgpass`，子进程只接收 `PGPASSFILE`，并在成功、失败、
+timeout 和终止信号后清理。默认测试只使用 fake store/process/HTTP，不访问真实 Keychain 或网络。
+
+Keychain `present/available` 只证明本机读取能力，不授权任何 Hosted/Vercel 读取或变更。完整生命周期、
+固定标识和单独授权门见 [`cloud-v1/hosted-credential-operations.md`](cloud-v1/hosted-credential-operations.md)。
+
 ## Windows DeepSeek 与欧路凭据
 
 Windows 不读取 macOS 钥匙串，也不接收命令参数、环境变量、仓库文件或扩展消息中的秘密。

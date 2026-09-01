@@ -11,6 +11,7 @@ import {
   renderHostedImportantBatchReadinessFailure,
 } from "./acceptance-hosted-important-batch-readiness-diagnostic.mjs";
 import { readHostedImportantBatchCaptureSecrets } from "./acceptance-hosted-important-batch-secret-prompt.mjs";
+import { rejectLegacyHostedCredentialEnvironment } from "./acceptance-hosted-credentials.mjs";
 import { hostedAcceptanceProjectRef } from "./acceptance-hosted-foundation.mjs";
 import {
   hostedPhase93MigrationBackupArtifactDirectory,
@@ -57,6 +58,7 @@ Current result: this plan reports only the reviewed fixed contract and performs 
 export async function runHostedPhase93MigrationBackupExecutorCli({
   arguments_ = process.argv.slice(2),
   captureBackup = captureHostedPhase93MigrationBackup,
+  environment = process.env,
   inspectRuntime = inspectHostedImportantBatchBackupRuntime,
   readCaptureSecrets = readHostedImportantBatchCaptureSecrets,
   readRepositoryState = readHostedPhase93MigrationBackupRepositoryState,
@@ -80,6 +82,14 @@ export async function runHostedPhase93MigrationBackupExecutorCli({
   if (operation === undefined) {
     writeError("Hosted Phase 93 migration backup executor arguments are invalid.\n");
     return 1;
+  }
+  if (operation.kind === "capture") {
+    try {
+      rejectLegacyHostedCredentialEnvironment(environment);
+    } catch {
+      writeError("Hosted Phase 93 migration backup executor operation failed closed.\n");
+      return 1;
+    }
   }
   const readiness = await assessHostedImportantBatchReadiness({
     inspectRuntime,
@@ -106,7 +116,7 @@ export async function runHostedPhase93MigrationBackupExecutorCli({
       return 0;
     }
     if (operation.kind === "capture") {
-      const secrets = await readCaptureSecrets();
+      const secrets = await readCaptureSecrets({ environment });
       await captureBackup({
         ...secrets,
         candidateCommit: readiness.candidateCommit,

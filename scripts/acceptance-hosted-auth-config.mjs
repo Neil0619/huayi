@@ -1,6 +1,10 @@
 import { pathToFileURL } from "node:url";
 
 import { verifyHostedInvitationAuthConfiguration } from "./acceptance-hosted-auth-contract.mjs";
+import {
+  readHostedCredential,
+  rejectLegacyHostedCredentialEnvironment,
+} from "./acceptance-hosted-credentials.mjs";
 import { hostedAcceptanceProjectRef } from "./acceptance-hosted-foundation.mjs";
 
 export { verifyHostedInvitationAuthConfiguration } from "./acceptance-hosted-auth-contract.mjs";
@@ -28,8 +32,7 @@ function validAccessToken(token) {
   );
 }
 
-function requireAccessToken(environment) {
-  const token = environment.SUPABASE_ACCESS_TOKEN;
+function requireAccessToken(token) {
   if (!validAccessToken(token)) {
     throw new Error("Supabase access token is unavailable.");
   }
@@ -93,7 +96,7 @@ function diagnosticOutput(result) {
   ];
 }
 
-async function diagnoseAuthConfiguration({ environment, fetch_ }) {
+async function diagnoseAuthConfiguration({ fetch_, token }) {
   const result = {
     tokenFormatExact: "f",
     requestReached: "not_run",
@@ -102,7 +105,6 @@ async function diagnoseAuthConfiguration({ environment, fetch_ }) {
     otpLengthState: "not_run",
     contractExact: "f",
   };
-  const token = environment.SUPABASE_ACCESS_TOKEN;
   if (!validAccessToken(token)) return diagnosticOutput(result);
   result.tokenFormatExact = "t";
   let response;
@@ -206,6 +208,7 @@ export async function runHostedAuthConfigCli({
   arguments_ = process.argv.slice(2),
   environment = process.env,
   fetch_ = globalThis.fetch,
+  readCredential = readHostedCredential,
   writeError = (value) => process.stderr.write(value),
   writeOutput = (value) => process.stdout.write(value),
 } = {}) {
@@ -216,7 +219,14 @@ export async function runHostedAuthConfigCli({
   }
   if (operation === "diagnose") {
     try {
-      const lines = await diagnoseAuthConfiguration({ environment, fetch_ });
+      rejectLegacyHostedCredentialEnvironment(environment);
+      let token;
+      try {
+        token = await readCredential("supabase-management-token", { environment });
+      } catch {
+        token = undefined;
+      }
+      const lines = await diagnoseAuthConfiguration({ fetch_, token });
       writeOutput(`${lines.join("\n")}\n`);
       return 0;
     } catch {
@@ -225,7 +235,10 @@ export async function runHostedAuthConfigCli({
     }
   }
   try {
-    const token = requireAccessToken(environment);
+    rejectLegacyHostedCredentialEnvironment(environment);
+    const token = requireAccessToken(
+      await readCredential("supabase-management-token", { environment }),
+    );
     const current = await requestAuthConfiguration({ fetch_, method: "GET", token });
     if (operation === "status") {
       verifyHostedAuthConfiguration(current);

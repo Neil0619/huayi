@@ -5,7 +5,10 @@ import {
   hostedAcceptanceProjectRef,
   runHostedPsql,
 } from "./acceptance-hosted-foundation.mjs";
-import { readHiddenTerminalLine } from "./acceptance-hosted-important-batch-secret-prompt.mjs";
+import {
+  readHostedAdministratorPassword,
+  rejectLegacyHostedCredentialEnvironment,
+} from "./acceptance-hosted-credentials.mjs";
 import { fetchHostedAcceptanceOfficialCaCertificate } from "./acceptance-hosted-official-ca.mjs";
 import { renderHostedPhase93RecoveryReadinessSql } from "./acceptance-hosted-phase-93-recovery-readiness-sql.mjs";
 
@@ -67,9 +70,12 @@ function passwordIsValid(password) {
 }
 
 function environmentHasInheritedPassword(environment) {
-  return ["PGPASSWORD", "SUPABASE_DB_PASSWORD"].some((name) =>
-    Object.prototype.hasOwnProperty.call(environment, name),
-  );
+  try {
+    rejectLegacyHostedCredentialEnvironment(environment);
+    return false;
+  } catch {
+    return true;
+  }
 }
 
 export function renderHostedPhase93RecoveryReadinessPlan() {
@@ -130,9 +136,9 @@ export async function runHostedPhase93RecoveryReadinessQuery(
     databaseUrl: hostedAcceptancePoolerUrl,
     environment: {
       HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: caCertificate,
-      PGPASSWORD: administratorPassword,
     },
     input: renderHostedPhase93RecoveryReadinessSql(),
+    password: administratorPassword,
     timeoutMilliseconds: 30_000,
   });
   return result.code === 0 ? parseHostedPhase93RecoveryReadinessOutput(result.stdout) : null;
@@ -142,7 +148,7 @@ export async function runHostedPhase93RecoveryReadinessCli({
   arguments_ = process.argv.slice(2),
   environment = process.env,
   fetchCaCertificate = fetchHostedAcceptanceOfficialCaCertificate,
-  readPassword = readHiddenTerminalLine,
+  readPassword = readHostedAdministratorPassword,
   runReadinessQuery = runHostedPhase93RecoveryReadinessQuery,
   writeError = (value) => process.stderr.write(value),
   writeOutput = (value) => process.stdout.write(value),
@@ -160,7 +166,7 @@ export async function runHostedPhase93RecoveryReadinessCli({
       throw new Error(hostedPhase93RecoveryReadinessFailureMessage);
     }
     const caCertificate = await fetchCaCertificate();
-    const administratorPassword = await readPassword();
+    const administratorPassword = await readPassword({ environment });
     if (!passwordIsValid(administratorPassword)) {
       throw new Error(hostedPhase93RecoveryReadinessFailureMessage);
     }

@@ -1,6 +1,10 @@
 import { pathToFileURL } from "node:url";
 
 import {
+  readHostedCredential,
+  rejectLegacyHostedCredentialEnvironment,
+} from "./acceptance-hosted-credentials.mjs";
+import {
   hostedAcceptanceApplicationRole,
   hostedAcceptanceExportBucket,
   hostedAcceptanceMigrationVersions,
@@ -8,7 +12,6 @@ import {
   hostedAcceptancePriceVersionIds,
   hostedAcceptanceProjectRef,
   hostedAcceptanceTenantTables,
-  requirePostgresPassword,
   runHostedPsql,
   sqlLiteral,
   sqlTextArray,
@@ -17,8 +20,7 @@ import { renderHostedRoleMembershipContractSql } from "./acceptance-hosted-role-
 
 export const hostedBootstrapConfirmation = `--confirm-hosted-foundation-${hostedAcceptanceProjectRef}`;
 
-function requireApplicationPassword(environment) {
-  const password = environment.HUAYI_HOSTED_APP_DATABASE_PASSWORD;
+function requireApplicationPassword(password) {
   if (
     typeof password !== "string" ||
     password.length < 32 ||
@@ -204,6 +206,7 @@ COMMIT;
 export async function bootstrapHostedAcceptance({
   arguments_ = process.argv.slice(2),
   environment = process.env,
+  readCredential = readHostedCredential,
   runPsql = runHostedPsql,
 } = {}) {
   if (arguments_.length !== 1 || !["--plan", hostedBootstrapConfirmation].includes(arguments_[0])) {
@@ -211,16 +214,21 @@ export async function bootstrapHostedAcceptance({
   }
   if (arguments_[0] === "--plan") return "planned";
 
-  requirePostgresPassword(environment);
-  const applicationPassword = requireApplicationPassword(environment);
+  rejectLegacyHostedCredentialEnvironment(environment);
+  const administratorPassword = await readCredential("supabase-admin-db-password", {
+    environment,
+  });
+  const applicationPassword = requireApplicationPassword(
+    await readCredential("supabase-application-db-password", { environment }),
+  );
   const result = await runPsql({
     captureOutput: false,
     databaseUrl: hostedAcceptancePoolerUrl,
     environment: {
       HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: environment.HUAYI_HOSTED_DATABASE_CA_CERTIFICATE,
-      PGPASSWORD: environment.PGPASSWORD,
     },
     input: renderHostedBootstrapSql(applicationPassword),
+    password: administratorPassword,
   });
   if (result.code !== 0) throw new Error("Hosted acceptance foundation bootstrap failed.");
   return "applied";

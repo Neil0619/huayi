@@ -5,7 +5,10 @@ import {
   hostedAcceptanceProjectRef,
   runHostedPsql,
 } from "./acceptance-hosted-foundation.mjs";
-import { readHiddenTerminalLine } from "./acceptance-hosted-important-batch-secret-prompt.mjs";
+import {
+  readHostedAdministratorPassword,
+  rejectLegacyHostedCredentialEnvironment,
+} from "./acceptance-hosted-credentials.mjs";
 import { renderHostedMigration0023StateCtes } from "./acceptance-hosted-migration-0023-status-contract.mjs";
 import { fetchHostedAcceptanceOfficialCaCertificate } from "./acceptance-hosted-official-ca.mjs";
 
@@ -26,9 +29,12 @@ function validPassword(value) {
   );
 }
 function inheritedPassword(environment) {
-  return ["PGPASSWORD", "SUPABASE_DB_PASSWORD"].some((name) =>
-    Object.prototype.hasOwnProperty.call(environment, name),
-  );
+  try {
+    rejectLegacyHostedCredentialEnvironment(environment);
+    return false;
+  } catch {
+    return true;
+  }
 }
 
 export function renderHostedMigration0023StatusSql() {
@@ -57,9 +63,9 @@ export async function runHostedMigration0023StatusQuery(
     databaseUrl: hostedAcceptancePoolerUrl,
     environment: {
       HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: caCertificate,
-      PGPASSWORD: administratorPassword,
     },
     input: renderHostedMigration0023StatusSql(),
+    password: administratorPassword,
     timeoutMilliseconds: 30_000,
   });
   return result.code === 0 ? parseHostedMigration0023StatusOutput(result.stdout) : null;
@@ -69,7 +75,7 @@ export async function runHostedMigration0023StatusCli({
   arguments_ = process.argv.slice(2),
   environment = process.env,
   fetchCaCertificate = fetchHostedAcceptanceOfficialCaCertificate,
-  readPassword = readHiddenTerminalLine,
+  readPassword = readHostedAdministratorPassword,
   runStatusQuery = runHostedMigration0023StatusQuery,
   writeOutput = (value) => process.stdout.write(value),
 } = {}) {
@@ -82,7 +88,7 @@ export async function runHostedMigration0023StatusCli({
     )
       throw new Error("invalid");
     const caCertificate = await fetchCaCertificate();
-    const administratorPassword = await readPassword();
+    const administratorPassword = await readPassword({ environment });
     if (!validPassword(administratorPassword)) throw new Error("invalid");
     status = (await runStatusQuery({ administratorPassword, caCertificate })) ?? "uncertain";
   } catch {

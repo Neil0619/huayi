@@ -1,7 +1,10 @@
 import { pathToFileURL } from "node:url";
 
 import { hostedAcceptanceProjectRef } from "./acceptance-hosted-foundation.mjs";
-import { readHiddenTerminalLine } from "./acceptance-hosted-important-batch-secret-prompt.mjs";
+import {
+  readHostedAdministratorPassword,
+  rejectLegacyHostedCredentialEnvironment,
+} from "./acceptance-hosted-credentials.mjs";
 import {
   runHostedMigration0022DryRunProcess,
   verifyHostedMigration0022SupabaseCli,
@@ -25,9 +28,12 @@ const fixedLines = Object.freeze([
 ]);
 
 function inheritedPassword(environment) {
-  return ["PGPASSWORD", "SUPABASE_DB_PASSWORD"].some((name) =>
-    Object.prototype.hasOwnProperty.call(environment, name),
-  );
+  try {
+    rejectLegacyHostedCredentialEnvironment(environment);
+    return false;
+  } catch {
+    return true;
+  }
 }
 function validSecrets(secrets) {
   return (
@@ -87,7 +93,7 @@ export async function runHostedMigration0023DryRunCli({
   arguments_ = process.argv.slice(2),
   environment = process.env,
   fetchCaCertificate = fetchHostedAcceptanceOfficialCaCertificate,
-  readPassword = readHiddenTerminalLine,
+  readPassword = readHostedAdministratorPassword,
   runPreflight = runHostedMigration0023DryRunPreflight,
   runSupabase = runHostedMigration0022DryRunProcess,
   verifySupabaseCli = verifyHostedMigration0022SupabaseCli,
@@ -106,7 +112,7 @@ export async function runHostedMigration0023DryRunCli({
     }
     const secrets = {
       caCertificate: await fetchCaCertificate(),
-      administratorPassword: await readPassword(),
+      administratorPassword: await readPassword({ environment }),
     };
     if (!validSecrets(secrets)) throw new Error(failureMessage);
     const result = await runSupabase(secrets);

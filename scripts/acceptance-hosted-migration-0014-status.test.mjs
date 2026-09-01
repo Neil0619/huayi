@@ -285,8 +285,8 @@ test("0014 status query pins the known transaction pooler, verify-full CA, timeo
   );
   assert.deepEqual(observed.environment, {
     HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: caCertificate,
-    PGPASSWORD: "fictional-administrator-password",
   });
+  assert.equal(observed.password, "fictional-administrator-password");
   assert.equal(observed.captureOutput, true);
   assert.equal(observed.timeoutMilliseconds, 30_000);
   assert.equal(observed.input, renderHostedMigration0014StatusSql());

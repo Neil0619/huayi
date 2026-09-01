@@ -1,6 +1,10 @@
 import { pathToFileURL } from "node:url";
 
 import {
+  readHostedCredential,
+  rejectLegacyHostedCredentialEnvironment,
+} from "./acceptance-hosted-credentials.mjs";
+import {
   hostedAcceptanceApplicationRole,
   hostedAcceptanceExportBucket,
   hostedAcceptanceMigrationVersions,
@@ -8,7 +12,6 @@ import {
   hostedAcceptancePriceVersionIds,
   hostedAcceptanceProjectRef,
   hostedAcceptanceTenantTables,
-  requirePostgresPassword,
   runHostedPsql,
   sqlLiteral,
   sqlTextArray,
@@ -237,20 +240,22 @@ function parseDiagnosticOutput(stdout) {
 export async function diagnoseHostedAcceptance({
   arguments_ = process.argv.slice(2),
   environment = process.env,
+  readCredential = readHostedCredential,
   runPsql = runHostedPsql,
 } = {}) {
   if (arguments_.length !== 1 || arguments_[0] !== hostedDiagnosticArgument) {
     throw new Error("Hosted acceptance foundation diagnostic failed.");
   }
-  requirePostgresPassword(environment);
+  rejectLegacyHostedCredentialEnvironment(environment);
+  const password = await readCredential("supabase-admin-db-password", { environment });
   const result = await runPsql({
     captureOutput: true,
     databaseUrl: hostedAcceptancePoolerUrl,
     environment: {
       HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: environment.HUAYI_HOSTED_DATABASE_CA_CERTIFICATE,
-      PGPASSWORD: environment.PGPASSWORD,
     },
     input: renderHostedDiagnosticSql(),
+    password,
   });
   if (result.code !== 0) {
     throw new Error("Hosted acceptance foundation diagnostic failed.");

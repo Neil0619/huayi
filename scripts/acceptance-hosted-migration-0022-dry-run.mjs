@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -8,20 +8,25 @@ import { runBoundedLocalInspection } from "./acceptance-local-docker-inspection.
 import {
   hostedAcceptancePoolerUrl,
   hostedAcceptanceProjectRef,
+  renderHostedPgpass,
   requireHostedCaCertificate,
 } from "./acceptance-hosted-foundation.mjs";
-import { readHiddenTerminalLine } from "./acceptance-hosted-important-batch-secret-prompt.mjs";
+import {
+  readHostedAdministratorPassword,
+  rejectLegacyHostedCredentialEnvironment,
+} from "./acceptance-hosted-credentials.mjs";
 import { fetchHostedAcceptanceOfficialCaCertificate } from "./acceptance-hosted-official-ca.mjs";
 import {
   hostedPhase92MigrationBackupPreflightArgument,
   runHostedPhase92MigrationBackupCli,
 } from "./acceptance-hosted-phase-92-migration-backup.mjs";
+import { withHostedSignalAwareCleanup } from "./acceptance-hosted-signal-aware-cleanup.mjs";
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const supabaseCommand = join(repositoryRoot, "node_modules", ".bin", "supabase");
 const pinnedSupabaseCliVersion = "2.115.0";
 const failureMessage = "Hosted 0022 migration dry-run failed closed; database was not modified.";
-const realCertificateIo = Object.freeze({ mkdtemp, rm, writeFile });
+const realCertificateIo = Object.freeze({ chmod, mkdtemp, rm, writeFile });
 
 export const hostedMigration0022Filename =
   "20260828010000_password_signup_expired_invitation_recovery.sql";
@@ -45,9 +50,12 @@ const fixedDryRunLines = Object.freeze([
 ]);
 
 function environmentHasInheritedPassword(environment) {
-  return ["PGPASSWORD", "SUPABASE_DB_PASSWORD"].some((name) =>
-    Object.prototype.hasOwnProperty.call(environment, name),
-  );
+  try {
+    rejectLegacyHostedCredentialEnvironment(environment);
+    return false;
+  } catch {
+    return true;
+  }
 }
 
 function secretsAreValid(secrets) {
@@ -153,6 +161,7 @@ export async function runHostedMigration0022DryRunProcess(
   {
     certificateIo = realCertificateIo,
     maxOutputBytes = 131_072,
+    process_ = process,
     spawnProcess = spawn,
     timeoutMilliseconds = 300_000,
   } = {},
@@ -162,86 +171,96 @@ export async function runHostedMigration0022DryRunProcess(
   });
   const certificateDirectory = await certificateIo.mkdtemp(join(tmpdir(), "huayi-hosted-0022-ca-"));
   const rootCertificate = join(certificateDirectory, "root.crt");
-  try {
-    await certificateIo.writeFile(rootCertificate, certificate, {
-      encoding: "utf8",
-      flag: "wx",
-      mode: 0o600,
-    });
-    return await new Promise((resolveResult) => {
-      let settled = false;
-      let outputBytes = 0;
-      let stderr = "";
-      let stdout = "";
-      let invalidResult = false;
-      let timeout;
-      const finish = (result) => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timeout);
-        resolveResult(result);
-      };
-      let child;
-      try {
-        child = spawnProcess(supabaseCommand, fixedSupabaseArguments, {
-          cwd: repositoryRoot,
-          env: {
-            LANG: "C",
-            LC_ALL: "C",
-            PGPASSWORD: administratorPassword,
-            PGSSLMODE: "verify-full",
-            PGSSLROOTCERT: rootCertificate,
-            SUPABASE_NO_UPDATE_NOTIFIER: "1",
-          },
-          shell: false,
-          stdio: ["ignore", "pipe", "pipe"],
-          windowsHide: true,
-        });
-      } catch {
-        finish({ code: null, stderr: "", stdout: "" });
-        return;
-      }
-      const terminate = () => {
-        invalidResult = true;
-        stderr = "";
-        stdout = "";
+  const passwordFile = join(certificateDirectory, ".pgpass");
+  return withHostedSignalAwareCleanup({
+    cleanup: () => certificateIo.rm(certificateDirectory, { force: true, recursive: true }),
+    process_,
+    run: async ({ registerChild }) => {
+      await certificateIo.chmod(certificateDirectory, 0o700);
+      await certificateIo.writeFile(rootCertificate, certificate, {
+        encoding: "utf8",
+        flag: "wx",
+        mode: 0o600,
+      });
+      await certificateIo.writeFile(
+        passwordFile,
+        `${renderHostedPgpass(hostedAcceptancePoolerUrl, administratorPassword)}\n`,
+        { encoding: "utf8", flag: "wx", mode: 0o600 },
+      );
+      return new Promise((resolveResult) => {
+        let settled = false;
+        let outputBytes = 0;
+        let stderr = "";
+        let stdout = "";
+        let invalidResult = false;
+        let timeout;
+        const finish = (result) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timeout);
+          resolveResult(result);
+        };
+        let child;
         try {
-          child.kill("SIGKILL");
+          child = spawnProcess(supabaseCommand, fixedSupabaseArguments, {
+            cwd: repositoryRoot,
+            env: {
+              LANG: "C",
+              LC_ALL: "C",
+              PGPASSFILE: passwordFile,
+              PGSSLMODE: "verify-full",
+              PGSSLROOTCERT: rootCertificate,
+              SUPABASE_NO_UPDATE_NOTIFIER: "1",
+            },
+            shell: false,
+            stdio: ["ignore", "pipe", "pipe"],
+            windowsHide: true,
+          });
+          registerChild(child);
         } catch {
-          // The process may already have exited; the fixed failure result still wins.
+          finish({ code: null, stderr: "", stdout: "" });
+          return;
         }
-        finish({ code: null, stderr: "", stdout: "" });
-      };
-      timeout = setTimeout(terminate, timeoutMilliseconds);
-      child.stdout.setEncoding("utf8");
-      child.stderr.setEncoding("utf8");
-      const capture = (channel) => (chunk) => {
-        outputBytes += Buffer.byteLength(chunk);
-        if (outputBytes > maxOutputBytes) terminate();
-        else if (channel === "stderr") stderr += chunk;
-        else stdout += chunk;
-      };
-      child.stdout.on("data", capture("stdout"));
-      child.stderr.on("data", capture("stderr"));
-      child.once("error", () => finish({ code: null, stderr: "", stdout: "" }));
-      child.once("close", (code, signal) => {
-        finish({
-          code: invalidResult || signal !== null ? null : code,
-          stderr: invalidResult ? "" : stderr,
-          stdout: invalidResult ? "" : stdout,
+        const terminate = () => {
+          invalidResult = true;
+          stderr = "";
+          stdout = "";
+          try {
+            child.kill("SIGKILL");
+          } catch {
+            // The process may already have exited; the fixed failure result still wins.
+          }
+          finish({ code: null, stderr: "", stdout: "" });
+        };
+        timeout = setTimeout(terminate, timeoutMilliseconds);
+        child.stdout.setEncoding("utf8");
+        child.stderr.setEncoding("utf8");
+        const capture = (channel) => (chunk) => {
+          outputBytes += Buffer.byteLength(chunk);
+          if (outputBytes > maxOutputBytes) terminate();
+          else if (channel === "stderr") stderr += chunk;
+          else stdout += chunk;
+        };
+        child.stdout.on("data", capture("stdout"));
+        child.stderr.on("data", capture("stderr"));
+        child.once("error", () => finish({ code: null, stderr: "", stdout: "" }));
+        child.once("close", (code, signal) => {
+          finish({
+            code: invalidResult || signal !== null ? null : code,
+            stderr: invalidResult ? "" : stderr,
+            stdout: invalidResult ? "" : stdout,
+          });
         });
       });
-    });
-  } finally {
-    await certificateIo.rm(certificateDirectory, { force: true, recursive: true });
-  }
+    },
+  });
 }
 
 export async function runHostedMigration0022DryRunCli({
   arguments_ = process.argv.slice(2),
   environment = process.env,
   fetchCaCertificate = fetchHostedAcceptanceOfficialCaCertificate,
-  readPassword = readHiddenTerminalLine,
+  readPassword = readHostedAdministratorPassword,
   runPreflight = runHostedMigration0022DryRunPreflight,
   runSupabase = runHostedMigration0022DryRunProcess,
   verifySupabaseCli = verifyHostedMigration0022SupabaseCli,
@@ -259,7 +278,7 @@ export async function runHostedMigration0022DryRunCli({
     if ((await runPreflight()) !== true) throw new Error(failureMessage);
     if ((await verifySupabaseCli()) !== true) throw new Error(failureMessage);
     const caCertificate = await fetchCaCertificate();
-    const administratorPassword = await readPassword();
+    const administratorPassword = await readPassword({ environment });
     const secrets = { administratorPassword, caCertificate };
     if (!secretsAreValid(secrets)) throw new Error(failureMessage);
     const result = await runSupabase(secrets);

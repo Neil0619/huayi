@@ -3,6 +3,18 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-09-01：Hosted 基础设施凭据统一持久化到 macOS Keychain
+
+- Hosted/Vercel 运维工具统一使用 service `cn.seen-said.huayi.hosted.acceptance` 下四个固定 account，
+  分别保存 Supabase 管理员/application 数据库密码、Supabase management PAT 与 Vercel Token；共享
+  consumer 保持可注入，非 macOS 固定 unsupported，不回退到环境变量、`.env`、stdin 或明文文件；
+- 新增 configure/status/diagnose/rotate/remove 生命周期入口。配置由 `/usr/bin/security ... -w` 直接隐藏
+  读取，status 不读取值，diagnose 只输出固定状态；工具不生成或静默轮换供应商 Token；
+- 所有数据库 child 从 `PGPASSWORD` 改为 `0700` 临时目录内的 `0600 .pgpass` 与 `PGPASSFILE`，并覆盖
+  成功、失败、timeout 和终止信号清理；Supabase/Vercel Token 只进入本次操作内存和固定 HTTP header；
+- 旧 plaintext secret 环境名在外部工作前失败关闭。凭据可用只证明安全读取能力，不授权 migration、
+  backup、restore、Cron、deployment、真实 smoke 或其他远端动作；这些门继续分别取得明确批准。
+
 ## 2026-08-31：完整重要批次在部署推进 HEAD 后使用只读历史完成门
 
 - migration mutation 前的 preflight/completion 继续只接受同一 clean pushed current candidate；不得为了

@@ -21,6 +21,7 @@ import {
   runHostedImportantBatchProcess,
   settleHostedImportantBatchContainer,
 } from "./acceptance-hosted-important-batch-execution-contract.mjs";
+import { withHostedSignalAwareCleanup } from "./acceptance-hosted-signal-aware-cleanup.mjs";
 
 export const hostedImportantBatchCapturePreArgument = `--confirm-capture-pre-0014-important-batch-backup-${hostedAcceptanceProjectRef}`;
 export const hostedImportantBatchCapturePostArgument = `--confirm-capture-post-0014-important-batch-backup-${hostedAcceptanceProjectRef}`;
@@ -324,6 +325,7 @@ export async function captureHostedImportantBatchBackup({
   phase,
   persistBackup = persistHostedImportantBatchBackup,
   privateModeMatches,
+  process_ = process,
   repositoryRoot,
   resolveDockerTarget = resolveLocalDockerInspectionTarget,
   runProcess = runHostedImportantBatchProcess,
@@ -345,31 +347,37 @@ export async function captureHostedImportantBatchBackup({
     produceArchive: async ({ archivePartialPath, phaseRoot }) => {
       const pgpassPath = join(phaseRoot, ".capture.pgpass");
       const caPath = join(phaseRoot, ".capture-ca.crt");
-      try {
-        await writePrivateFile(pgpassPath, pgpassSource(administratorPassword));
-        await writePrivateFile(caPath, caCertificate);
-        await runDatabaseContract({
-          artifactContract,
-          caPath,
-          dockerTarget,
-          pgpassPath,
-          phase,
-          runProcess,
-          wait,
-        });
-        await runCustomDump({
-          archivePartialPath,
-          artifactContract,
-          caPath,
-          dockerTarget,
-          pgpassPath,
-          phase,
-          runProcess,
-          wait,
-        });
-      } finally {
-        await Promise.all([rm(pgpassPath, { force: true }), rm(caPath, { force: true })]);
-      }
+      await withHostedSignalAwareCleanup({
+        cleanup: () => Promise.all([rm(pgpassPath, { force: true }), rm(caPath, { force: true })]),
+        process_,
+        run: async ({ registerChild, throwIfTerminating }) => {
+          const signalAwareRunProcess = (command, arguments_, options = {}) => {
+            throwIfTerminating();
+            return runProcess(command, arguments_, { ...options, registerChild });
+          };
+          await writePrivateFile(pgpassPath, pgpassSource(administratorPassword));
+          await writePrivateFile(caPath, caCertificate);
+          await runDatabaseContract({
+            artifactContract,
+            caPath,
+            dockerTarget,
+            pgpassPath,
+            phase,
+            runProcess: signalAwareRunProcess,
+            wait,
+          });
+          await runCustomDump({
+            archivePartialPath,
+            artifactContract,
+            caPath,
+            dockerTarget,
+            pgpassPath,
+            phase,
+            runProcess: signalAwareRunProcess,
+            wait,
+          });
+        },
+      });
     },
     repositoryRoot,
     verifyArchive: ({ archivePartialPath }) =>

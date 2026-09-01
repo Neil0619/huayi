@@ -150,8 +150,8 @@ test("0014 status diagnostic replaces the failed 5432 path with the known transa
   assert.doesNotMatch(observed.databaseUrl, /:5432\//u);
   assert.deepEqual(observed.environment, {
     HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: caCertificate,
-    PGPASSWORD: "fictional-administrator-password",
   });
+  assert.equal(observed.password, "fictional-administrator-password");
   assert.equal(observed.captureOutput, true);
   assert.equal(observed.timeoutMilliseconds, 30_000);
   assert.equal(observed.input, renderHostedMigration0014StatusDiagnosticSql());
@@ -270,7 +270,7 @@ test("0014 status diagnostic rejects arguments, inherited passwords, and private
     {
       arguments_: [hostedMigration0014StatusDiagnosticArgument],
       environment: {},
-      expectedStage: "password-prompt",
+      expectedStage: "credential-read",
       readPassword: async () => Promise.reject(new Error("private-password")),
     },
     {

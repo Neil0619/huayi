@@ -311,7 +311,8 @@ test("CLI preflight wires exact Git and remote evidence into token-free private 
   let stdout = "";
   const code = await runVercelOneShotCli({
     arguments_: ["preflight", vercelOneShotConfirmation],
-    environment: { VERCEL_TOKEN: token },
+    environment: {},
+    readCredential: async () => token,
     fetch_: fake.fetch_,
     inspectGit_: async () => ({
       apiArmed: false,

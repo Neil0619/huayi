@@ -38,7 +38,8 @@ test("status is read-only and reports only bounded safe states", async () => {
   let stdout = "";
   const code = await runVercelProjectsCli({
     arguments_: ["status", vercelProjectsStatusArgument],
-    environment: { VERCEL_TOKEN: token },
+    environment: {},
+    readCredential: async () => token,
     fetch_: fake.fetch_,
     writeOutput: (value) => {
       stdout += value;
@@ -65,7 +66,8 @@ test("confirmation, token, team identity, and remote errors fail without secret 
   await assert.rejects(
     applyVercelProjectShells({
       arguments_: ["apply", "--wrong"],
-      environment: { VERCEL_TOKEN: token },
+      environment: {},
+      readCredential: async () => token,
       fetch_: async () => {
         calls += 1;
       },
@@ -75,7 +77,8 @@ test("confirmation, token, team identity, and remote errors fail without secret 
   await assert.rejects(
     applyVercelProjectShells({
       arguments_: ["apply", vercelProjectsApplyConfirmation],
-      environment: { VERCEL_TOKEN: "bad\ntoken" },
+      environment: {},
+      readCredential: async () => "bad\ntoken",
       fetch_: async () => {
         calls += 1;
       },
@@ -89,7 +92,8 @@ test("confirmation, token, team identity, and remote errors fail without secret 
   let stderr = "";
   const code = await runVercelProjectsCli({
     arguments_: ["apply", vercelProjectsApplyConfirmation],
-    environment: { VERCEL_TOKEN: token },
+    environment: {},
+    readCredential: async () => token,
     fetch_: async () => jsonResponse(500, { error: { message: remoteSecret }, token }),
     writeError: (value) => {
       stderr += value;
@@ -118,7 +122,8 @@ test("confirmation, token, team identity, and remote errors fail without secret 
   await assert.rejects(
     applyVercelProjectShells({
       arguments_: ["apply", vercelProjectsApplyConfirmation],
-      environment: { VERCEL_TOKEN: token },
+      environment: {},
+      readCredential: async () => token,
       fetch_: wrongTeam.fetch_,
     }),
     /team scope failed/u,
@@ -138,7 +143,8 @@ test("the documented pnpm separator reaches apply without changing the confirmat
   let stdout = "";
   const code = await runVercelProjectsCli({
     arguments_: ["apply", "--", vercelProjectsApplyConfirmation],
-    environment: { VERCEL_TOKEN: token },
+    environment: {},
+    readCredential: async () => token,
     fetch_: fake.fetch_,
     writeError: (value) => {
       stderr += value;
@@ -162,7 +168,8 @@ test("CLI failures expose only bounded stage, reason, and HTTP status", async ()
   let stderr = "";
   const code = await runVercelProjectsCli({
     arguments_: ["apply", "--", vercelProjectsApplyConfirmation],
-    environment: { VERCEL_TOKEN: token },
+    environment: {},
+    readCredential: async () => token,
     fetch_: async () => jsonResponse(403, { error: { message: remoteSecret }, token }),
     writeError: (value) => {
       stderr += value;
@@ -204,7 +211,8 @@ test("a partial write stops immediately and a rerun can resume from the blank sh
   await assert.rejects(
     applyVercelProjectShells({
       arguments_: ["apply", vercelProjectsApplyConfirmation],
-      environment: { VERCEL_TOKEN: token },
+      environment: {},
+      readCredential: async () => token,
       fetch_: first.fetch_,
     }),
     /request failed/u,
@@ -234,7 +242,8 @@ test("a partial write stops immediately and a rerun can resume from the blank sh
   ]);
   const result = await applyVercelProjectShells({
     arguments_: ["apply", vercelProjectsApplyConfirmation],
-    environment: { VERCEL_TOKEN: token },
+    environment: {},
+    readCredential: async () => token,
     fetch_: rerun.fetch_,
   });
   assert.equal(result.outcome, "applied");

@@ -162,11 +162,17 @@ test("0014 dry-run process pins verify-full to a private temporary CA and remove
   assert.deepEqual(Object.keys(observed.options.env).sort(), [
     "LANG",
     "LC_ALL",
-    "PGPASSWORD",
+    "PGPASSFILE",
     "PGSSLMODE",
     "PGSSLROOTCERT",
   ]);
-  assert.equal(observed.options.env.PGPASSWORD, "fictional-secret");
+  assert.equal(observed.options.env.PGPASSWORD, undefined);
+  const passwordPath = observed.options.env.PGPASSFILE;
+  assert.equal((await stat(passwordPath)).mode & 0o777, 0o600);
+  assert.equal(
+    await readFile(passwordPath, "utf8"),
+    "aws-0-ap-southeast-1.pooler.supabase.com:6543:postgres:postgres.kpadiulxkgckskcfydry:fictional-secret\n",
+  );
   assert.equal(observed.options.env.PGSSLMODE, "verify-full");
   assert.match(
     observed.options.env.PGSSLROOTCERT,
@@ -183,6 +189,7 @@ test("0014 dry-run process pins verify-full to a private temporary CA and remove
   child.emit("close", 0, null);
   assert.deepEqual(await resultPromise, { code: 0, stderr: validOutput, stdout: "" });
   await assert.rejects(stat(observed.options.env.PGSSLROOTCERT), { code: "ENOENT" });
+  await assert.rejects(stat(passwordPath), { code: "ENOENT" });
   assert.equal(JSON.stringify(observed.arguments_).includes("fictional-secret"), false);
 });
 
@@ -239,10 +246,14 @@ test("0014 dry-run process suppresses overflow and waits for a timed-out child t
 });
 
 test("0014 dry-run CLI fixes every CA temp and spawn failure to one closed result", async () => {
-  const cases = ["mkdtemp", "writeFile", "spawn", "rm"];
+  const cases = ["mkdtemp", "chmod", "writeFile", "spawn", "rm"];
   for (const failureStage of cases) {
     const events = [];
     const certificateIo = {
+      async chmod() {
+        events.push("chmod");
+        if (failureStage === "chmod") throw new Error("private chmod detail");
+      },
       async mkdtemp() {
         events.push("mkdtemp");
         if (failureStage === "mkdtemp") throw new Error("private mkdtemp detail");

@@ -2,6 +2,10 @@ import { spawn, spawnSync } from "node:child_process";
 import { closeSync, openSync, writeSync } from "node:fs";
 
 import { fetchHostedAcceptanceOfficialCaCertificate } from "./acceptance-hosted-official-ca.mjs";
+import {
+  readHostedAdministratorPassword,
+  rejectLegacyHostedCredentialEnvironment,
+} from "./acceptance-hosted-credentials.mjs";
 
 const terminalReaderSource = String.raw`
 const { readSync, writeSync } = require("node:fs");
@@ -102,14 +106,9 @@ const allowedPromptMaximumBytes = new Map([
   ["Hosted Operator email: ", 512],
   ["Hosted Operator password: ", 768],
   ["Recovery project administrator database password: ", 512],
-  ["Source archive administrator database password: ", 512],
-  ["Supabase administrator database password: ", 512],
-  ["Supabase recovery management token: ", 512],
 ]);
 
-export async function readHiddenTerminalLine(
-  prompt = "Supabase administrator database password: ",
-) {
+export async function readHiddenTerminalLine(prompt) {
   const maximumBytes = allowedPromptMaximumBytes.get(prompt);
   if (maximumBytes === undefined) {
     throw new Error("Hosted important-batch secret prompt is unavailable.");
@@ -133,12 +132,14 @@ export async function readHiddenTerminalLine(
 }
 
 export async function readHostedImportantBatchCaptureSecrets({
+  environment = process.env,
   fetchCaCertificate = fetchHostedAcceptanceOfficialCaCertificate,
-  readPassword = readHiddenTerminalLine,
+  readPassword = readHostedAdministratorPassword,
 } = {}) {
+  rejectLegacyHostedCredentialEnvironment(environment);
   const caCertificate = await fetchCaCertificate();
   return {
-    administratorPassword: await readPassword(),
+    administratorPassword: await readPassword({ environment }),
     caCertificate,
   };
 }

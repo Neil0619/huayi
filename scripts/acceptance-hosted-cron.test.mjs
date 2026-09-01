@@ -131,7 +131,8 @@ test("hosted Cron status uses one verify-full administrator read and bounded out
   assert.equal(calls.length, 1);
   assert.equal(calls[0].captureOutput, true);
   assert.equal(calls[0].databaseUrl, hostedAcceptancePoolerUrl);
-  assert.equal(calls[0].environment.PGPASSWORD, postgresPassword);
+  assert.equal(calls[0].environment.PGPASSWORD, undefined);
+  assert.equal(calls[0].password, postgresPassword);
   assert.equal(calls[0].environment.HUAYI_HOSTED_DATABASE_CA_CERTIFICATE, rootCertificate);
   assert.equal(calls[0].timeoutMilliseconds, 30_000);
   assert.equal(renderHostedCronStatus(status), statusOutput());

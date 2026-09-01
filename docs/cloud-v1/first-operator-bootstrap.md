@@ -114,7 +114,7 @@ Auth identity、sign-in method 和注册时段 default grant 均属于该账号�
    empty/invited/registering/registration-interrupted/registered/completed/
    completed-operator-deleted/invalid；
 3. `pnpm acceptance:hosted:operator:invite --confirm-first-operator-invitation-kpadiulxkgckskcfydry`：要求
-   管理员 `PGPASSWORD`、官方 CA、与未来 API 完全
+   固定管理员 Keychain account、官方 CA、与未来 API 完全
    相同的 `HUAYI_SECRET_PEPPER`；生成至少 256 位 token，只把完整 `/join#...` URL 显示一次；
 4. `acceptance:hosted:operator:replace`：仅用于输出丢失且尚无 claim/identity 的邀请；
 5. `acceptance:hosted:operator:complete`：用户正常注册后运行；不接受 userId/email；

@@ -4,7 +4,10 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { hostedAcceptanceProjectRef } from "./acceptance-hosted-foundation.mjs";
-import { readHiddenTerminalLine } from "./acceptance-hosted-important-batch-secret-prompt.mjs";
+import {
+  readHostedAdministratorPassword,
+  rejectLegacyHostedCredentialEnvironment,
+} from "./acceptance-hosted-credentials.mjs";
 import { runHostedMigration0022ApplyProcess } from "./acceptance-hosted-migration-0022-apply.mjs";
 import {
   runHostedMigration0022DryRunProcess,
@@ -29,9 +32,12 @@ export const hostedMigration0023ApplyArgument = `--confirm-apply-20260831010000-
 export const hostedMigration0023ApplySuccessMessage = `Supabase migration applied and verified: exactly ${hostedMigration0023Filename}.`;
 
 function inheritedPassword(environment) {
-  return ["PGPASSWORD", "SUPABASE_DB_PASSWORD"].some((name) =>
-    Object.prototype.hasOwnProperty.call(environment, name),
-  );
+  try {
+    rejectLegacyHostedCredentialEnvironment(environment);
+    return false;
+  } catch {
+    return true;
+  }
 }
 function validPassword(value) {
   return (
@@ -91,7 +97,7 @@ export async function runHostedMigration0023ApplyCli({
   arguments_ = process.argv.slice(2),
   environment = process.env,
   fetchCaCertificate = fetchHostedAcceptanceOfficialCaCertificate,
-  readPassword = readHiddenTerminalLine,
+  readPassword = readHostedAdministratorPassword,
   runApply = runHostedMigration0022ApplyProcess,
   runDryRun = runHostedMigration0022DryRunProcess,
   runPostflight = async (secrets) =>
@@ -111,7 +117,7 @@ export async function runHostedMigration0023ApplyCli({
       throw new Error(failureMessage);
     const secrets = {
       caCertificate: await fetchCaCertificate(),
-      administratorPassword: await readPassword(),
+      administratorPassword: await readPassword({ environment }),
     };
     if (!validPassword(secrets.administratorPassword)) throw new Error(failureMessage);
     const dryRun = await runDryRun(secrets);

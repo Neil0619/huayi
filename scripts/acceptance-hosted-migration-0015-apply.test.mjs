@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
-import { stat } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import test from "node:test";
 
 import {
@@ -302,13 +302,20 @@ test("0015 apply process pins --yes, verify-full, no output, and removes CA", as
     "postgresql://postgres.kpadiulxkgckskcfydry@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres?sslmode=verify-full",
   ]);
   assert.equal(observed.options.env.PGSSLMODE, "verify-full");
-  assert.equal(observed.options.env.PGPASSWORD, "fictional-secret");
+  assert.equal(observed.options.env.PGPASSWORD, undefined);
+  const passwordPath = observed.options.env.PGPASSFILE;
+  assert.equal((await stat(passwordPath)).mode & 0o777, 0o600);
+  assert.equal(
+    await readFile(passwordPath, "utf8"),
+    "aws-0-ap-southeast-1.pooler.supabase.com:6543:postgres:postgres.kpadiulxkgckskcfydry:fictional-secret\n",
+  );
   assert.deepEqual(observed.options.stdio, ["ignore", "ignore", "ignore"]);
   const caPath = observed.options.env.PGSSLROOTCERT;
   if (process.platform !== "win32") assert.equal((await stat(caPath)).mode & 0o777, 0o600);
   child.emit("close", 0, null);
   assert.deepEqual(await resultPromise, { code: 0 });
   await assert.rejects(stat(caPath), { code: "ENOENT" });
+  await assert.rejects(stat(passwordPath), { code: "ENOENT" });
 });
 
 test("0015 postflight accepts only the exact applied read-only status", async () => {

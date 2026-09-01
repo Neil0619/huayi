@@ -86,7 +86,7 @@ unset PGPASSWORD SUPABASE_DB_PASSWORD
 pnpm acceptance:hosted:migration:0014:status
 ```
 
-该命令内部下载固定官方 CA，从隐藏 TTY 读取管理员密码，并只通过固定 Singapore 管理员 transaction pooler
+该命令内部下载固定官方 CA，从固定管理员 Keychain account 读取密码，并只通过固定 Singapore 管理员 transaction pooler
 `6543` 执行一个 verify-full `BEGIN READ ONLY` catalog snapshot。它只输出 `applied-exact`、`pending-exact` 或
 `uncertain; do not retry apply` 的固定 verdict，不转发 psql/数据库原始输出。只有 `applied-exact` 能直接继续
 post backup；`pending-exact` 仍需结合 mutation 前阶段证据审查后另行决定；`uncertain` 必须停止。
@@ -246,9 +246,9 @@ deployment 后，才运行 health 与真实 hosted smoke，并准备 Web 解锁�
 
 仓库提供三个固定入口执行上述第 1–2 步，而不要求调用方临时拼接 REST body：
 
-- `pnpm acceptance:vercel:projects:plan`：完全离线，不读取 `VERCEL_TOKEN`；
+- `pnpm acceptance:vercel:projects:plan`：完全离线，不读取 Vercel Keychain account；
 - `pnpm acceptance:vercel:projects:apply -- --confirm-vercel-empty-projects-neil0619s-projects`：只从进程
-  环境读取 `VERCEL_TOKEN`，先用 `GET /v2/teams` 精确匹配 name=`neil0619's projects` 且
+  内存读取固定 `vercel-token` Keychain account，先用 `GET /v2/teams` 精确匹配 name=`neil0619's projects` 且
   slug=`neil0619s-projects` 的 token-scoped team，再预检两个 project，最后才允许写入；
 - `pnpm acceptance:vercel:projects:status -- --status-vercel-empty-projects-neil0619s-projects`：只读回查，
   仅输出 `missing`、`shell-unconfigured` 或 `settings-ready-dashboard-pending` 等有界状态，不输出 team/
@@ -602,7 +602,7 @@ snapshot 是一个 `BEGIN READ ONLY` 聚合事务，输出固定 31 行：
 ### 6.4.1 Phase 79 Supabase Cron 受控安装工具
 
 先运行 `pnpm acceptance:hosted:cron:plan`；它不读取环境、不连接网络。R3-C 真实投递、重复观测和无正文
-告警接收完成后，使用既有 non-echo 管理员密码与 verify-full CA wrapper 运行
+告警接收完成后，使用固定管理员 Keychain account 与 verify-full CA wrapper 运行
 `pnpm acceptance:hosted:cron:status`。该命令已经固定 project ref，不接受 job ID、request ID、owner、
 邀请片段或其他 opaque 输入；输出 18 个固定 boolean/stage/count，且 Vault 只查两个名称。
 
@@ -699,7 +699,8 @@ completion 证据；后者已经由独立 historical verifier 另行关闭：
 每一步的安全 state 固定写入 clone-local ignored
 `artifacts/hosted-vercel-one-shot/phase-81-0014-state.json`，目录/文件为 `0700/0600`，内容 canonical、原子
 替换，只含 commit/deployment identity 与 phase，不含 Token、环境变量或响应正文。state 缺失、重复
-preflight、跳序、修改、权限漂移或 partial 文件均失败。`VERCEL_TOKEN` 只进入 GET Authorization header；
+preflight、跳序、修改、权限漂移或 partial 文件均失败。Vercel Token 只从固定 Keychain account 进入本次
+操作内存与 GET Authorization header；
 CLI 成功/失败输出固定，不反射 Token、URL、远端正文或 Git 子进程输出。工具不会写 Vercel、修改
 `vercel.json`、部署、commit 或 push；真实执行仍由已批准的独立 Git arm/disarm 提交完成。
 

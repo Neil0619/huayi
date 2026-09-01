@@ -5,7 +5,10 @@ import {
   hostedAcceptanceProjectRef,
   runHostedPsql,
 } from "./acceptance-hosted-foundation.mjs";
-import { readHiddenTerminalLine } from "./acceptance-hosted-important-batch-secret-prompt.mjs";
+import {
+  readHostedAdministratorPassword,
+  rejectLegacyHostedCredentialEnvironment,
+} from "./acceptance-hosted-credentials.mjs";
 import {
   hostedMigration0023StatusPredicateNames as predicateNames,
   renderHostedMigration0023StateCtes,
@@ -17,7 +20,7 @@ export const hostedMigration0023StatusDiagnosticArgument = `--diagnose-status-20
 const stages = new Set([
   "arguments",
   "ca-fetch",
-  "password-prompt",
+  "credential-read",
   "password-validation",
   "query-process",
 ]);
@@ -31,9 +34,12 @@ const exitClasses = new Set([
 ]);
 
 function inheritedPassword(environment) {
-  return ["PGPASSWORD", "SUPABASE_DB_PASSWORD"].some((name) =>
-    Object.prototype.hasOwnProperty.call(environment, name),
-  );
+  try {
+    rejectLegacyHostedCredentialEnvironment(environment);
+    return false;
+  } catch {
+    return true;
+  }
 }
 function validPassword(value) {
   return (
@@ -106,9 +112,9 @@ export async function runHostedMigration0023StatusDiagnosticQuery(
     databaseUrl: `${hostedAcceptancePoolerUrl}&connect_timeout=10`,
     environment: {
       HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: caCertificate,
-      PGPASSWORD: administratorPassword,
     },
     input: renderHostedMigration0023StatusDiagnosticSql(),
+    password: administratorPassword,
     timeoutMilliseconds: 30_000,
   });
   const diagnostic =
@@ -144,7 +150,7 @@ export async function runHostedMigration0023StatusDiagnosticCli({
   arguments_ = process.argv.slice(2),
   environment = process.env,
   fetchCaCertificate = fetchHostedAcceptanceOfficialCaCertificate,
-  readPassword = readHiddenTerminalLine,
+  readPassword = readHostedAdministratorPassword,
   runDiagnosticQuery = runHostedMigration0023StatusDiagnosticQuery,
   writeError = (value) => process.stderr.write(value),
   writeOutput = (value) => process.stdout.write(value),
@@ -159,8 +165,8 @@ export async function runHostedMigration0023StatusDiagnosticCli({
       throw new Error("invalid");
     stage = "ca-fetch";
     const caCertificate = await fetchCaCertificate();
-    stage = "password-prompt";
-    const administratorPassword = await readPassword();
+    stage = "credential-read";
+    const administratorPassword = await readPassword({ environment });
     stage = "password-validation";
     if (!validPassword(administratorPassword)) throw new Error("invalid");
     stage = "query-process";

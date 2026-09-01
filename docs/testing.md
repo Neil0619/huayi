@@ -41,7 +41,15 @@ Hosted DeepSeek post-apply status diagnostic 的默认测试只使用 fake CA/pa
 `postgres`→executor `admin=true / inherit=false / set=false` creator-control 均可通过，而 `SET=true`、
 `INHERIT=true`、错误 ADMIN、其他 member、executor 作为 member 或重复相关边均失败关闭。诊断必须分别输出
 membership absence 与 contract exact 布尔叶；任一 raw stdout/stderr、异常、密码、URL、OID 或未知角色都不得
-进入公开输出；默认门禁不得连接 Hosted，真实诊断仍需独立批准和隐藏 TTY。
+进入公开输出；默认门禁不得连接 Hosted，真实诊断仍需独立批准，并从固定管理员 Keychain account 读取。
+
+Hosted 运维凭据测试固定使用 fake Keychain/fake process/fake HTTP，不读取 login Keychain。必须覆盖四个
+固定 account、service、CRUD、`present/missing` status、diagnose 的固定状态、locked/denied/invalid、
+非 macOS unsupported、无 TTY 不回退、legacy plaintext environment 失败关闭和秘密不进入输出/异常。
+数据库 channel 必须覆盖 `.pgpass` 的反斜杠/冒号转义、`0700/0600`、仅 `PGPASSFILE`、成功/失败/timeout/
+`SIGHUP`/`SIGINT`/`SIGTERM` 清理；Hosted/Vercel 生产脚本静态扫描禁止四类基础设施秘密的 runtime prompt
+与 `PGPASSWORD`/Token child environment。真实 Keychain 持久化只在另行批准的 macOS 人工验收中执行，
+且凭据可用不等于允许任何远端动作。
 
 非 Windows 的根 Vitest 门按固定顺序分成两个进程：先用 `--project=!api --maxWorkers 4` 运行
 非 API projects，再用 `--project api --maxWorkers 2 --testTimeout 15000 --hookTimeout 15000`

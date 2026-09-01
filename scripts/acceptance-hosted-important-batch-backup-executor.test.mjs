@@ -65,6 +65,7 @@ function readyRuntime() {
 async function runCli({
   arguments_,
   captureBackup,
+  environment = {},
   readCaptureSecrets,
   rebuildScratch,
   repositoryState = readyRepositoryState(),
@@ -84,6 +85,7 @@ async function runCli({
       calls.push("inspect-runtime");
       return runtime;
     },
+    environment,
     readRepositoryState: async () => {
       calls.push("read-repository");
       return repositoryState;
@@ -156,7 +158,7 @@ test("executor plan is deterministic, zero-I/O, and states exact coverage and bl
   assert.match(stdout, /raw stdout or stderr/u);
   assert.match(stdout, /\.pgpass/u);
   assert.match(stdout, /fixed official Supabase CA URL/u);
-  assert.match(stdout, /before the hidden password prompt/u);
+  assert.match(stdout, /before reading the fixed administrator Keychain account/u);
   assert.doesNotMatch(stdout, /HUAYI_HOSTED_DATABASE_CA_CERTIFICATE/u);
   assert.match(stdout, /reviewed writer is pinned/u);
   assert.match(stdout, /confirmation-gated/u);
@@ -259,6 +261,19 @@ test("confirmation-gated capture reads secrets only after readiness and passes n
     assert.equal(result.stdout, `Hosted important-batch ${phase} backup captured.\n`);
     assert.equal(result.stderr, "");
   }
+});
+
+test("confirmation-gated capture rejects legacy secret environment before readiness", async () => {
+  const result = await runCli({
+    arguments_: [hostedImportantBatchCapturePreArgument],
+    environment: { VERCEL_TOKEN: "private-token" },
+    runtime: readyRuntime(),
+  });
+
+  assert.equal(result.code, 1);
+  assert.deepEqual(result.calls, []);
+  assert.equal(result.stdout, "");
+  assert.equal(result.stderr, "Hosted important-batch executor operation failed closed.\n");
 });
 
 test("confirmation-gated rebuild never requests Hosted secrets and records only fixed success", async () => {

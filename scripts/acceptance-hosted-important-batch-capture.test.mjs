@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { EventEmitter } from "node:events";
+import { existsSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -418,3 +420,73 @@ test("capture rejects untrusted Docker targets or malformed secret material befo
     assert.equal(calls, 0);
   }
 });
+
+for (const signal of ["SIGHUP", "SIGINT", "SIGTERM"]) {
+  test(`capture removes mounted credentials after its child closes and before re-raising ${signal}`, async () => {
+    const root = await temporaryRepository();
+    const phaseRoot = join(
+      root,
+      "artifacts",
+      "hosted-important-batch-backups",
+      hostedImportantBatchId,
+      "pre",
+    );
+    const pgpassPath = join(phaseRoot, ".capture.pgpass");
+    const caPath = join(phaseRoot, ".capture-ca.crt");
+    const process_ = new EventEmitter();
+    process_.pid = 43_000;
+    let childClosed = false;
+    let childKillSignal;
+    let reRaised;
+    process_.kill = (pid, reRaisedSignal) => {
+      assert.equal(childClosed, true);
+      assert.equal(existsSync(pgpassPath), false);
+      assert.equal(existsSync(caPath), false);
+      reRaised = { pid, signal: reRaisedSignal };
+      return true;
+    };
+    let runStarted = false;
+
+    await assert.rejects(
+      captureHostedImportantBatchBackup({
+        administratorPassword: password,
+        caCertificate,
+        candidateCommit,
+        phase: "pre",
+        persistBackup: persistPortableBackup,
+        process_,
+        repositoryRoot: root,
+        resolveDockerTarget: async () => dockerTarget,
+        runProcess: async (_command, arguments_, options = {}) => {
+          if (arguments_[2] === "container" && arguments_[3] === "inspect") {
+            return { code: 1, stdout: "" };
+          }
+          if (runStarted) return { code: 1, stdout: "" };
+          runStarted = true;
+          const child = new EventEmitter();
+          child.kill = (killSignal) => {
+            childKillSignal = killSignal;
+            queueMicrotask(() => {
+              childClosed = true;
+              child.emit("close", null, killSignal);
+            });
+            return true;
+          };
+          options.registerChild(child);
+          queueMicrotask(() => process_.emit(signal));
+          return new Promise((resolveResult) => {
+            child.once("close", () => resolveResult({ code: null, stdout: "" }));
+          });
+        },
+        wait: async () => undefined,
+      }),
+      /Hosted signal-aware cleanup is terminating\./u,
+    );
+
+    assert.equal(childKillSignal, "SIGKILL");
+    assert.deepEqual(reRaised, { pid: 43_000, signal });
+    for (const registeredSignal of ["SIGHUP", "SIGINT", "SIGTERM"]) {
+      assert.equal(process_.listenerCount(registeredSignal), 0);
+    }
+  });
+}

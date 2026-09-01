@@ -141,8 +141,8 @@ test("query pins verify-full, timeout, and one repeatable-read read-only transac
   assert.match(observed.databaseUrl, /:6543\/postgres\?sslmode=verify-full$/u);
   assert.deepEqual(observed.environment, {
     HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: caCertificate,
-    PGPASSWORD: "fictional-administrator-password",
   });
+  assert.equal(observed.password, "fictional-administrator-password");
   assert.equal(observed.captureOutput, true);
   assert.equal(observed.timeoutMilliseconds, 30_000);
   assert.equal(observed.input, renderHostedPostReloginSessionDiagnosticSql());
@@ -161,6 +161,14 @@ test("CLI rejects caller identity, session material, and inherited passwords bef
     {
       arguments_: [hostedPostReloginSessionDiagnosticArgument],
       environment: { SUPABASE_DB_PASSWORD: "secret" },
+    },
+    {
+      arguments_: [hostedPostReloginSessionDiagnosticArgument],
+      environment: { SUPABASE_ACCESS_TOKEN: "secret" },
+    },
+    {
+      arguments_: [hostedPostReloginSessionDiagnosticArgument],
+      environment: { VERCEL_TOKEN: "secret" },
     },
   ]) {
     const calls = [];

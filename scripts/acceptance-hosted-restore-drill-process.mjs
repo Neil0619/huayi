@@ -3,6 +3,10 @@ import { chmod, mkdtemp, open, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+import {
+  readHostedCredential,
+  rejectLegacyHostedCredentialEnvironment,
+} from "./acceptance-hosted-credentials.mjs";
 import { readHiddenTerminalLine } from "./acceptance-hosted-important-batch-secret-prompt.mjs";
 
 const digestPattern = /^[0-9a-f]{64}$/u;
@@ -31,6 +35,11 @@ export function assertHostedRestoreDrillSecretEnvironment(environment) {
   ) {
     fail();
   }
+  try {
+    rejectLegacyHostedCredentialEnvironment(environment);
+  } catch {
+    fail();
+  }
 }
 
 function assertSecret(value) {
@@ -40,18 +49,19 @@ function assertSecret(value) {
 export async function readHostedRestoreDrillSecrets({
   environment = process.env,
   fetchCaCertificate,
+  readCredential = readHostedCredential,
   readHiddenLine = readHiddenTerminalLine,
 } = {}) {
   assertHostedRestoreDrillSecretEnvironment(environment);
   if (typeof fetchCaCertificate !== "function") fail();
   const caCertificate = await fetchCaCertificate();
-  const sourceAdministratorPassword = await readHiddenLine(
-    "Source archive administrator database password: ",
-  );
+  const sourceAdministratorPassword = await readCredential("supabase-admin-db-password", {
+    environment,
+  });
   const targetAdministratorPassword = await readHiddenLine(
     "Recovery project administrator database password: ",
   );
-  const managementToken = await readHiddenLine("Supabase recovery management token: ");
+  const managementToken = await readCredential("supabase-management-token", { environment });
   for (const value of [sourceAdministratorPassword, targetAdministratorPassword, managementToken]) {
     assertSecret(value);
   }
@@ -100,6 +110,7 @@ export function runHostedRestoreDrillProcess(
     extraEnvironment === null ||
     typeof extraEnvironment !== "object" ||
     Object.keys(extraEnvironment).length !== 0 ||
+    managementToken !== undefined ||
     !Number.isSafeInteger(maxOutputBytes) ||
     maxOutputBytes < 1 ||
     maxOutputBytes > 1_048_576 ||
@@ -108,10 +119,6 @@ export function runHostedRestoreDrillProcess(
     timeoutMilliseconds > 1_800_000
   ) {
     return Promise.reject(new Error("Hosted restore-drill process contract failed."));
-  }
-  if (managementToken !== undefined) {
-    assertSecret(managementToken);
-    if (!secretValues.includes(managementToken)) fail();
   }
   return new Promise((resolveResult) => {
     let stdout = "";
@@ -130,7 +137,6 @@ export function runHostedRestoreDrillProcess(
         env: {
           LANG: "C",
           LC_ALL: "C",
-          ...(managementToken === undefined ? {} : { SUPABASE_ACCESS_TOKEN: managementToken }),
         },
         shell: false,
         stdio: ["ignore", "pipe", "ignore"],

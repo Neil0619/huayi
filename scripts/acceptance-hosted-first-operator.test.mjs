@@ -19,12 +19,16 @@ ${"A".repeat(80)}
 const environment = {
   HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: certificate,
   HUAYI_SECRET_PEPPER: "p".repeat(48),
-  PGPASSWORD: "administrator-password",
 };
+const readCredential = async (credentialId) => {
+  assert.equal(credentialId, "supabase-admin-db-password");
+  return "administrator-password";
+};
+const runFirstOperator = (options) => runHostedFirstOperator({ readCredential, ...options });
 
 test("first Operator plan is side-effect free", async () => {
   let calls = 0;
-  const result = await runHostedFirstOperator({
+  const result = await runFirstOperator({
     arguments_: ["--plan"],
     runPsql: async () => {
       calls += 1;
@@ -38,7 +42,7 @@ test("first Operator plan is side-effect free", async () => {
 
 test("first Operator status is read-only and returns only a bounded state", async () => {
   const calls = [];
-  const result = await runHostedFirstOperator({
+  const result = await runFirstOperator({
     arguments_: ["status", firstOperatorStatusArgument],
     environment,
     runPsql: async (call) => {
@@ -91,7 +95,7 @@ test("completed first Operator verification checks the bound account without exp
   assert.doesNotMatch(sql, /SELECT\s+email|operator_user_id::text|finalized_user_id::text/iu);
 
   const calls = [];
-  const result = await runHostedFirstOperator({
+  const result = await runFirstOperator({
     arguments_: ["verify", firstOperatorVerifyArgument],
     environment,
     runPsql: async (call) => {
@@ -110,7 +114,7 @@ test("completed first Operator verification fails closed on any non-true result"
     { code: 1, stderr: "private database error", stdout: "t\n" },
   ]) {
     await assert.rejects(
-      runHostedFirstOperator({
+      runFirstOperator({
         arguments_: ["verify", firstOperatorVerifyArgument],
         environment,
         runPsql: async () => result,
@@ -122,7 +126,7 @@ test("completed first Operator verification fails closed on any non-true result"
 
 test("first Operator invite stores only a keyed hash and returns the fragment URL once", async () => {
   const calls = [];
-  const result = await runHostedFirstOperator({
+  const result = await runFirstOperator({
     arguments_: ["invite", firstOperatorInviteConfirmation],
     environment,
     now: () => new Date("2026-08-22T08:00:00.000Z"),
@@ -145,7 +149,7 @@ test("first Operator invite stores only a keyed hash and returns the fragment UR
 
 test("replacement and completion use separate exact confirmations without a candidate id", async () => {
   const calls = [];
-  await runHostedFirstOperator({
+  await runFirstOperator({
     arguments_: ["replace", firstOperatorReplaceConfirmation],
     environment,
     now: () => new Date("2026-08-22T09:00:00.000Z"),
@@ -156,7 +160,7 @@ test("replacement and completion use separate exact confirmations without a cand
       return { code: 0, stderr: "", stdout: "" };
     },
   });
-  const completed = await runHostedFirstOperator({
+  const completed = await runFirstOperator({
     arguments_: ["complete", firstOperatorCompleteConfirmation],
     environment,
     now: () => new Date("2026-08-22T10:00:00.000Z"),
@@ -180,11 +184,11 @@ test("first Operator writes fail before database access when confirmation or pep
   };
 
   await assert.rejects(
-    runHostedFirstOperator({ arguments_: ["invite", "--wrong"], environment, runPsql }),
+    runFirstOperator({ arguments_: ["invite", "--wrong"], environment, runPsql }),
     /arguments are invalid/u,
   );
   await assert.rejects(
-    runHostedFirstOperator({
+    runFirstOperator({
       arguments_: ["invite", firstOperatorInviteConfirmation],
       environment: { ...environment, HUAYI_SECRET_PEPPER: "short" },
       runPsql,

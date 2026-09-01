@@ -50,6 +50,12 @@ const postgresPassword = "postgres-password";
 const rootCertificate =
   "-----BEGIN CERTIFICATE-----\n" + "a".repeat(64) + "\n-----END CERTIFICATE-----\n";
 
+async function readTestCredential(credentialId) {
+  if (credentialId === "supabase-admin-db-password") return postgresPassword;
+  if (credentialId === "supabase-application-db-password") return applicationPassword;
+  throw new Error("Unexpected credential id.");
+}
+
 function runCommand(command, arguments_) {
   return new Promise((resolveResult) => {
     let stdout = "";
@@ -104,15 +110,14 @@ test("hosted foundation is pinned to the Singapore acceptance project and public
 test("hosted psql always pins verify-full and the temporary CA path", () => {
   assert.deepEqual(
     createHostedPsqlProcessEnvironment({
-      callerEnvironment: {
-        PGPASSWORD: postgresPassword,
-        PGSSLMODE: "disable",
-        PGSSLROOTCERT: "/untrusted/root.crt",
-      },
+      passwordFile: "/private/temporary/.pgpass",
       processEnvironment: {
         LANG: "C.UTF-8",
         LC_ALL: "C.UTF-8",
         PATH: "/usr/bin",
+        PGPASSWORD: postgresPassword,
+        PGSSLMODE: "disable",
+        PGSSLROOTCERT: "/untrusted/root.crt",
       },
       rootCertificate: "/private/temporary/root.crt",
     }),
@@ -120,7 +125,7 @@ test("hosted psql always pins verify-full and the temporary CA path", () => {
       LANG: "C.UTF-8",
       LC_ALL: "C.UTF-8",
       PATH: "/usr/bin",
-      PGPASSWORD: postgresPassword,
+      PGPASSFILE: "/private/temporary/.pgpass",
       PGSSLMODE: "verify-full",
       PGSSLROOTCERT: "/private/temporary/root.crt",
     },
@@ -153,7 +158,7 @@ test("hosted bootstrap plan is side-effect free and apply requires the exact con
   assert.equal(hostedBootstrapConfirmation, "--confirm-hosted-foundation-kpadiulxkgckskcfydry");
 });
 
-test("hosted bootstrap consumes secrets only from the environment and sends fixed SQL over stdin", async () => {
+test("hosted bootstrap reads both Keychain credentials and sends fixed SQL over stdin", async () => {
   const calls = [];
   const runPsql = async (request) => {
     calls.push(request);
@@ -163,16 +168,15 @@ test("hosted bootstrap consumes secrets only from the environment and sends fixe
   await bootstrapHostedAcceptance({
     arguments_: [hostedBootstrapConfirmation],
     environment: {
-      HUAYI_HOSTED_APP_DATABASE_PASSWORD: applicationPassword,
       HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: rootCertificate,
-      PGPASSWORD: postgresPassword,
     },
+    readCredential: readTestCredential,
     runPsql,
   });
 
   assert.equal(calls.length, 1);
   assert.equal(calls[0].databaseUrl, hostedAcceptancePoolerUrl);
-  assert.equal(calls[0].environment.PGPASSWORD, postgresPassword);
+  assert.equal(calls[0].password, postgresPassword);
   assert.equal(calls[0].environment.HUAYI_HOSTED_DATABASE_CA_CERTIFICATE, rootCertificate);
   assert.equal(calls[0].captureOutput, false);
   assert.match(calls[0].input, /CREATE ROLE huayi_hosted_acceptance_login/u);
@@ -268,8 +272,8 @@ test("hosted verification checks migration, roles, forced RLS, prices, bucket an
     arguments_: ["--verify-hosted-foundation-kpadiulxkgckskcfydry"],
     environment: {
       HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: rootCertificate,
-      PGPASSWORD: postgresPassword,
     },
+    readCredential: readTestCredential,
     runPsql: async (request) => {
       calls.push(request);
       return { code: 0, stdout: "t\n" };
@@ -285,8 +289,8 @@ test("hosted verification checks migration, roles, forced RLS, prices, bucket an
       arguments_: ["--verify-hosted-foundation-kpadiulxkgckskcfydry"],
       environment: {
         HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: rootCertificate,
-        PGPASSWORD: postgresPassword,
       },
+      readCredential: readTestCredential,
       runPsql: async () => ({ code: 0, stdout: "f\n" }),
     }),
     /Hosted acceptance foundation verification failed\./u,
@@ -314,8 +318,8 @@ test("hosted diagnostic reports only fixed read-only predicate verdicts", async 
     arguments_: [hostedDiagnosticArgument],
     environment: {
       HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: rootCertificate,
-      PGPASSWORD: postgresPassword,
     },
+    readCredential: readTestCredential,
     runPsql: async (request) => {
       calls.push(request);
       return { code: 0, stdout };
@@ -331,8 +335,8 @@ test("hosted diagnostic reports only fixed read-only predicate verdicts", async 
       arguments_: [hostedDiagnosticArgument],
       environment: {
         HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: rootCertificate,
-        PGPASSWORD: postgresPassword,
       },
+      readCredential: readTestCredential,
       runPsql: async () => ({ code: 0, stdout: "migration_chain|t\nunexpected|f\n" }),
     }),
     /Hosted acceptance foundation diagnostic failed\./u,
@@ -369,8 +373,8 @@ test("hosted application login verifies privileges and context isolation across 
     arguments_: [hostedApplicationVerificationArgument],
     environment: {
       HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: rootCertificate,
-      PGPASSWORD: applicationPassword,
     },
+    readCredential: readTestCredential,
     runPsql: async (request) => {
       calls.push(request);
       if (calls.length === 1) return { code: 0, stdout: "t|t|t|t|t|t\n" };
@@ -382,7 +386,7 @@ test("hosted application login verifies privileges and context isolation across 
   assert.equal(calls[0].captureOutput, true);
   assert.equal(calls[0].databaseUrl, hostedAcceptanceApplicationSessionPoolerUrl);
   assert.equal(calls[0].input, contractSql);
-  assert.equal(calls[0].environment.PGPASSWORD, applicationPassword);
+  assert.equal(calls[0].password, applicationPassword);
   assert.equal(calls[0].environment.HUAYI_HOSTED_DATABASE_CA_CERTIFICATE, rootCertificate);
   assert.equal(calls[1].input, contextSql);
   assert.match(calls[2].input, /SET LOCAL ROLE postgres/u);
@@ -393,8 +397,8 @@ test("hosted application login verifies privileges and context isolation across 
       arguments_: [hostedApplicationVerificationArgument],
       environment: {
         HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: rootCertificate,
-        PGPASSWORD: applicationPassword,
       },
+      readCredential: readTestCredential,
       runPsql: async () => ({ code: 0, stdout: "t|t|t|t|t|f\n" }),
     }),
     /Hosted acceptance application login verification failed\./u,
@@ -406,8 +410,8 @@ test("hosted application login verifies privileges and context isolation across 
       arguments_: [hostedApplicationVerificationArgument],
       environment: {
         HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: rootCertificate,
-        PGPASSWORD: applicationPassword,
       },
+      readCredential: readTestCredential,
       runPsql: async () => {
         mismatchedBackendCalls += 1;
         return mismatchedBackendCalls === 1
@@ -424,8 +428,8 @@ test("hosted application login verifies privileges and context isolation across 
       arguments_: [hostedApplicationVerificationArgument],
       environment: {
         HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: rootCertificate,
-        PGPASSWORD: applicationPassword,
       },
+      readCredential: readTestCredential,
       runPsql: async () => ({ code: 1, stderr: "ERROR:  42501\n", stdout: "" }),
     }),
     /Hosted acceptance application login verification failed\./u,
@@ -473,8 +477,8 @@ test("hosted application diagnostic reports only fixed stage predicates", async 
     arguments_: [hostedApplicationDiagnosticArgument],
     environment: {
       HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: rootCertificate,
-      PGPASSWORD: applicationPassword,
     },
+    readCredential: readTestCredential,
     runPsql: async (request) => {
       calls.push(request);
       if (calls.length === 1) return { code: 0, stderr: "", stdout: "t\n" };
@@ -539,8 +543,8 @@ test("hosted application diagnostic reports only fixed stage predicates", async 
       arguments_: [hostedApplicationDiagnosticArgument],
       environment: {
         HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: rootCertificate,
-        PGPASSWORD: applicationPassword,
       },
+      readCredential: readTestCredential,
       runPsql: async () => {
         failedCalls += 1;
         return { code: scenario.code, stderr: "", stdout: scenario.stdout };
@@ -594,8 +598,8 @@ test("hosted application diagnostic reports only fixed stage predicates", async 
       arguments_: [hostedApplicationDiagnosticArgument],
       environment: {
         HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: rootCertificate,
-        PGPASSWORD: applicationPassword,
       },
+      readCredential: readTestCredential,
       runPsql: async () => scenario.responses[stageCalls++],
     });
     const stageMap = Object.fromEntries(stageResults.map((result) => result.split("|")));

@@ -1,6 +1,10 @@
 import { pathToFileURL } from "node:url";
 
 import {
+  readHostedCredential,
+  rejectLegacyHostedCredentialEnvironment,
+} from "./acceptance-hosted-credentials.mjs";
+import {
   hostedAcceptanceApplicationRole,
   hostedAcceptanceExportBucket,
   hostedAcceptanceMigrationVersions,
@@ -8,7 +12,6 @@ import {
   hostedAcceptancePriceVersionIds,
   hostedAcceptanceProjectRef,
   hostedAcceptanceTenantTables,
-  requirePostgresPassword,
   runHostedPsql,
   sqlTextArray,
 } from "./acceptance-hosted-foundation.mjs";
@@ -82,20 +85,22 @@ SELECT
 export async function verifyHostedAcceptance({
   arguments_ = process.argv.slice(2),
   environment = process.env,
+  readCredential = readHostedCredential,
   runPsql = runHostedPsql,
 } = {}) {
   if (arguments_.length !== 1 || arguments_[0] !== hostedVerificationArgument) {
     throw new Error("Hosted acceptance verification arguments are invalid.");
   }
-  requirePostgresPassword(environment);
+  rejectLegacyHostedCredentialEnvironment(environment);
+  const password = await readCredential("supabase-admin-db-password", { environment });
   const result = await runPsql({
     captureOutput: true,
     databaseUrl: hostedAcceptancePoolerUrl,
     environment: {
       HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: environment.HUAYI_HOSTED_DATABASE_CA_CERTIFICATE,
-      PGPASSWORD: environment.PGPASSWORD,
     },
     input: renderHostedVerificationSql(),
+    password,
   });
   if (result.code !== 0 || result.stdout.trim() !== "t") {
     throw new Error("Hosted acceptance foundation verification failed.");

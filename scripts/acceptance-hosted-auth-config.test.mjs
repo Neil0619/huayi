@@ -33,7 +33,8 @@ test("hosted auth status reads the exact project and fails closed on OTP drift",
   let stderr = "";
   const code = await runHostedAuthConfigCli({
     arguments_: ["status", hostedAuthConfigStatusArgument],
-    environment: { SUPABASE_ACCESS_TOKEN: token },
+    environment: {},
+    readCredential: async () => token,
     fetch_: async (url, options) => {
       requests.push({ options, url });
       return response({ mailer_otp_length: 8 });
@@ -67,7 +68,8 @@ test("hosted auth apply patches only the OTP length and verifies the persisted v
   let stderr = "";
   const code = await runHostedAuthConfigCli({
     arguments_: ["apply", hostedAuthConfigApplyConfirmation],
-    environment: { SUPABASE_ACCESS_TOKEN: token },
+    environment: {},
+    readCredential: async () => token,
     fetch_: async (url, options) => {
       requests.push({ options, url });
       return replies.shift();
@@ -103,7 +105,8 @@ test("hosted auth apply is idempotent when the OTP length is already six", async
   let stdout = "";
   const code = await runHostedAuthConfigCli({
     arguments_: ["apply", hostedAuthConfigApplyConfirmation],
-    environment: { SUPABASE_ACCESS_TOKEN: token },
+    environment: {},
+    readCredential: async () => token,
     fetch_: async (url, options) => {
       requests.push({ options, url });
       return response({ mailer_otp_length: 6 });
@@ -123,7 +126,8 @@ test("hosted auth apply rejects an unobserved OTP length without patching", asyn
   let stderr = "";
   const code = await runHostedAuthConfigCli({
     arguments_: ["apply", hostedAuthConfigApplyConfirmation],
-    environment: { SUPABASE_ACCESS_TOKEN: token },
+    environment: {},
+    readCredential: async () => token,
     fetch_: async (url, options) => {
       requests.push({ options, url });
       return response({ mailer_otp_length: 7 });
@@ -149,7 +153,8 @@ test("hosted auth apply fails closed when another Auth setting drifts", async ()
   let stderr = "";
   const code = await runHostedAuthConfigCli({
     arguments_: ["apply", hostedAuthConfigApplyConfirmation],
-    environment: { SUPABASE_ACCESS_TOKEN: token },
+    environment: {},
+    readCredential: async () => token,
     fetch_: async (url, options) => {
       requests.push({ options, url });
       return replies.shift();
@@ -175,7 +180,8 @@ test("hosted auth CLI rejects wrong confirmations and never reflects tokens", as
   let stderr = "";
   const code = await runHostedAuthConfigCli({
     arguments_: ["apply", "wrong-confirmation"],
-    environment: { SUPABASE_ACCESS_TOKEN: secret },
+    environment: {},
+    readCredential: async () => secret,
     fetch_: async () => {
       throw new Error("must not call fetch");
     },
@@ -206,7 +212,8 @@ test("hosted auth diagnostic classifies HTTP failure without reflecting secrets"
   let stderr = "";
   const code = await runHostedAuthConfigCli({
     arguments_: ["diagnose", hostedAuthConfigDiagnosticArgument],
-    environment: { SUPABASE_ACCESS_TOKEN: secret },
+    environment: {},
+    readCredential: async () => secret,
     fetch_: async (url, options) => {
       requests.push({ options, url });
       return response({ detail: secret }, 401);
@@ -255,7 +262,8 @@ test("hosted auth diagnostic emits only bounded OTP classifications", async () =
     let stdout = "";
     const code = await runHostedAuthConfigCli({
       arguments_: ["diagnose", hostedAuthConfigDiagnosticArgument],
-      environment: { SUPABASE_ACCESS_TOKEN: token },
+      environment: {},
+      readCredential: async () => token,
       fetch_: async () => response(body),
       writeOutput: (value) => {
         stdout += value;
@@ -283,6 +291,7 @@ test("hosted auth diagnostic reports invalid token and response shapes without r
   const invalidTokenCode = await runHostedAuthConfigCli({
     arguments_: ["diagnose", hostedAuthConfigDiagnosticArgument],
     environment: {},
+    readCredential: async () => "short",
     fetch_: async () => {
       fetchCalls += 1;
       throw new Error("must not call fetch");
@@ -310,7 +319,8 @@ test("hosted auth diagnostic reports invalid token and response shapes without r
   stdout = "";
   const invalidResponseCode = await runHostedAuthConfigCli({
     arguments_: ["diagnose", hostedAuthConfigDiagnosticArgument],
-    environment: { SUPABASE_ACCESS_TOKEN: token },
+    environment: {},
+    readCredential: async () => token,
     fetch_: async () => new Response(rawResponse, { status: 200 }),
     writeOutput: (value) => {
       stdout += value;
@@ -337,7 +347,8 @@ test("hosted auth diagnostic classifies network failure without reflecting error
   let stdout = "";
   const code = await runHostedAuthConfigCli({
     arguments_: ["diagnose", hostedAuthConfigDiagnosticArgument],
-    environment: { SUPABASE_ACCESS_TOKEN: token },
+    environment: {},
+    readCredential: async () => token,
     fetch_: async () => {
       throw new Error(secret);
     },

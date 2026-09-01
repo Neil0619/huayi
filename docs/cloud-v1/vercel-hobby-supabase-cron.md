@@ -76,8 +76,8 @@ Hosted acceptance 不再要求用户把本文件的长 SQL 粘贴到 Dashboard�
 
 - `pnpm acceptance:hosted:cron:plan` 是零网络、零写入计划；
 - `pnpm acceptance:hosted:cron:status` 固定 Singapore project ref，复用管理员 transaction pooler、临时
-  CA 文件与 `verify-full`，先从固定官方 URL 获取并严格校验 CA，再从 `/dev/tty` 无回显读取管理员密码，
-  最后只运行一个有 30 秒进程上限的 `BEGIN READ ONLY` 事务；
+  CA 文件与 `verify-full`，先从固定官方 URL 获取并严格校验 CA，再从固定管理员 Keychain account 读取
+  密码，最后只运行一个有 30 秒进程上限的 `BEGIN READ ONLY` 事务；
 - `pnpm acceptance:hosted:cron:apply -- <exact-confirmation>` 先验证 project-specific confirmation、operations
   SQL 的精确 SHA-256
   `09a074addefdf352ff256ff958bb87a6775b911a7da9475ef697b04d2a64d604`，以及 clean worktree、
@@ -87,9 +87,9 @@ Hosted acceptance 不再要求用户把本文件的长 SQL 粘贴到 Dashboard�
   exact 五个 active minute job、函数/ACL/extension 全部一致。
 
 status/apply 都拒绝环境对象自身拥有 `PGPASSWORD` 或 `SUPABASE_DB_PASSWORD`，不因值为空或 `undefined`
-而放行；管理员密码按 UTF-8 byte length 接受 12–512 bytes，并拒绝 NUL、CR、LF。全部 runtime/Cron psql
-调用固定 30 秒上限；snapshot/status parser 只接受精确 final LF 且任何 CR 都失败。上述规则不会把密码、
-CA 或数据库错误写入输出。
+而放行；管理员密码按 UTF-8 byte length 接受 12–512 bytes，并拒绝 NUL、CR、LF。密码只进入一次性
+`0600 .pgpass`，child 只取得 `PGPASSFILE`。全部 runtime/Cron psql 调用固定 30 秒上限；snapshot/status
+parser 只接受精确 final LF 且任何 CR 都失败。上述规则不会把密码、CA 或数据库错误写入输出。
 
 status 只输出固定 boolean、`absent|partial|exact` stage 和 64-bit 非负聚合计数。它只查询
 `vault.secrets.name`，不查询 `vault.decrypted_secrets`，也不输出 Vault 值、Authorization、邮箱、owner、
@@ -134,7 +134,8 @@ Supabase Free 暂停或额度耗尽会使任务停止。正式发布前必须决
 - `supabase-cron-operations.test.ts` 静态审计扩展、Vault、配置失败关闭、私有权限、精确 allowlist、请求
   header、timeout、固定任务集合和重跑去重语义；
 - Hosted 控制面回归锁定 exact operations SQL hash、clean `HEAD==upstream`、10 秒 Git 与 30 秒 psql
-  上限、official CA→hidden `/dev/tty` 顺序、12–512 byte 密码、继承 secret 拒绝和 strict LF parser；
+  上限、official CA→固定管理员 Keychain account 顺序、12–512 byte 密码、继承 secret 拒绝、一次性
+  `0600 .pgpass` 和 strict LF parser；
   transaction 内插入 `DROP TABLE` 仍保留旧 `BEGIN`/`COMMIT`/五次 schedule 浅形状的变体必须因 hash
   不匹配失败；
 - API full、strict typecheck/build、目标 lint/format、instructions/architecture 必须通过；SQL 没有

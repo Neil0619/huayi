@@ -1,7 +1,9 @@
 import { spawn } from "node:child_process";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdtemp, open, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+
+import { withHostedSignalAwareCleanup } from "./acceptance-hosted-signal-aware-cleanup.mjs";
 
 export const hostedAcceptanceProjectRef = "kpadiulxkgckskcfydry";
 export const hostedAcceptancePoolerUrl =
@@ -123,7 +125,7 @@ export function requireHostedCaCertificate(environment) {
 }
 
 export function createHostedPsqlProcessEnvironment({
-  callerEnvironment,
+  passwordFile,
   processEnvironment = process.env,
   rootCertificate,
 }) {
@@ -131,7 +133,7 @@ export function createHostedPsqlProcessEnvironment({
     LANG: processEnvironment.LANG ?? "C",
     LC_ALL: processEnvironment.LC_ALL ?? "C",
     PATH: processEnvironment.PATH ?? "",
-    PGPASSWORD: callerEnvironment.PGPASSWORD,
+    PGPASSFILE: passwordFile,
     PGSSLMODE: "verify-full",
     PGSSLROOTCERT: rootCertificate,
   };
@@ -143,6 +145,8 @@ async function spawnHostedPsql({
   databaseUrl,
   environment,
   input,
+  passwordFile,
+  registerChild,
   rootCertificate,
   spawnProcess,
   timeoutMilliseconds,
@@ -172,7 +176,8 @@ async function spawnHostedPsql({
       ],
       {
         env: createHostedPsqlProcessEnvironment({
-          callerEnvironment: environment,
+          passwordFile,
+          processEnvironment: environment,
           rootCertificate,
         }),
         shell: false,
@@ -180,6 +185,7 @@ async function spawnHostedPsql({
         windowsHide: true,
       },
     );
+    registerChild(child);
     if (timeoutMilliseconds !== undefined) {
       timeout = setTimeout(() => {
         timedOut = true;
@@ -201,7 +207,7 @@ async function spawnHostedPsql({
       });
     }
     child.once("error", () => finish({ code: null, stderr: "", stdout: "" }));
-    child.once("exit", (code, signal) =>
+    child.once("close", (code, signal) =>
       finish({
         code: timedOut || signal !== null ? null : code,
         stderr: timedOut ? "" : stderr,
@@ -218,36 +224,83 @@ export async function runHostedPsql({
   databaseUrl,
   environment,
   input,
+  password,
+  process_ = process,
   spawnProcess = spawn,
   timeoutMilliseconds,
 }) {
-  const directory = await mkdtemp(join(tmpdir(), "huayi-hosted-ca-"));
+  const directory = await mkdtemp(join(tmpdir(), "huayi-hosted-psql-"));
+  await chmod(directory, 0o700);
   const rootCertificate = join(directory, "root.crt");
-  try {
-    await writeFile(rootCertificate, requireHostedCaCertificate(environment), {
-      encoding: "utf8",
-      flag: "wx",
-      mode: 0o600,
-    });
-    return await spawnHostedPsql({
-      captureOutput,
-      captureErrorCode,
-      databaseUrl,
-      environment,
-      input,
-      rootCertificate,
-      spawnProcess,
-      timeoutMilliseconds,
-    });
-  } finally {
-    await rm(directory, { force: true, recursive: true });
-  }
+  const passwordFile = join(directory, ".pgpass");
+  return withHostedSignalAwareCleanup({
+    cleanup: () => rm(directory, { force: true, recursive: true }),
+    process_,
+    run: async ({ registerChild }) => {
+      await writePrivateFile(rootCertificate, requireHostedCaCertificate(environment));
+      await writePrivateFile(
+        passwordFile,
+        `${renderHostedPgpass(databaseUrl, requirePostgresPassword(password))}\n`,
+      );
+      return spawnHostedPsql({
+        captureOutput,
+        captureErrorCode,
+        databaseUrl,
+        environment,
+        input,
+        passwordFile,
+        registerChild,
+        rootCertificate,
+        spawnProcess,
+        timeoutMilliseconds,
+      });
+    },
+  });
 }
 
-export function requirePostgresPassword(environment) {
-  const password = environment.PGPASSWORD;
-  if (typeof password !== "string" || password.length === 0 || password.includes("\0")) {
+export function requirePostgresPassword(password) {
+  if (
+    typeof password !== "string" ||
+    Buffer.byteLength(password) < 1 ||
+    Buffer.byteLength(password) > 512 ||
+    /[\0\r\n]/u.test(password)
+  ) {
     throw new Error("Hosted acceptance database password is unavailable.");
   }
   return password;
+}
+
+function escapePgpassField(value) {
+  return value.replaceAll("\\", "\\\\").replaceAll(":", "\\:");
+}
+
+export function renderHostedPgpass(databaseUrl, password) {
+  let parsed;
+  try {
+    parsed = new URL(databaseUrl);
+  } catch {
+    throw new Error("Hosted acceptance database URL is unavailable.");
+  }
+  const database = decodeURIComponent(parsed.pathname.slice(1));
+  const user = decodeURIComponent(parsed.username);
+  const fields = [parsed.hostname, parsed.port || "5432", database, user];
+  if (
+    parsed.protocol !== "postgresql:" ||
+    parsed.password !== "" ||
+    fields.some((value) => value.length === 0 || value.length > 255 || /[\0\r\n]/u.test(value))
+  ) {
+    throw new Error("Hosted acceptance database URL is unavailable.");
+  }
+  return [...fields, password].map(escapePgpassField).join(":");
+}
+
+async function writePrivateFile(path, value) {
+  const handle = await open(path, "wx", 0o600);
+  try {
+    await handle.chmod(0o600);
+    await handle.writeFile(value, "utf8");
+    await handle.sync();
+  } finally {
+    await handle.close();
+  }
 }

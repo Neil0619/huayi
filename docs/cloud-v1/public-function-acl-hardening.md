@@ -152,7 +152,7 @@ status/dry-run/apply/post 必须等待 clean candidate、双平台 CI 和对应�
 7. 用户另行明确批准后运行唯一 0015 dry-run，只接受精确列出
    `20260825010000_public_function_acl_hardening.sql`；dry-run 不修改数据库；
 8. 用户再次明确批准后运行唯一 apply；同一入口重跑 exact dry-run、紧邻 mutation 重查 clean source / backup
-   evidence / migration mirror hash，并使用同一隐藏 TTY secrets 回读状态且只接受 `pending-exact`；`applied-exact`、
+   evidence / migration mirror hash，并使用同一固定 Keychain secrets 回读状态且只接受 `pending-exact`；`applied-exact`、
    `uncertain`、连接失败或不精确输出全部零 mutation，写后只读 postflight 必须返回 `applied-exact`；
 9. 独立 capture post，要求 head 精确为 `20260825010000`，随后 completion 通过；
 10. Phase 91 post backup 作为 0014→0015 修复后的最终安全 post-state；发布证据同时保留 Phase 81 pre 和

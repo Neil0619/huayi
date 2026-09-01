@@ -75,7 +75,8 @@ test("hosted invitation Auth status is one read-only request with fixed output",
   let stderr = "";
   const code = await runHostedAuthConfigCli({
     arguments_: ["invitation-status", hostedInvitationAuthConfigStatusArgument],
-    environment: { SUPABASE_ACCESS_TOKEN: token },
+    environment: {},
+    readCredential: async () => token,
     fetch_: async (url, options) => {
       requests.push({ options, url });
       return response(invitationAuthConfiguration());
@@ -107,7 +108,8 @@ test("hosted invitation Auth status fails closed without reflecting configuratio
   let stderr = "";
   const code = await runHostedAuthConfigCli({
     arguments_: ["invitation-status", hostedInvitationAuthConfigStatusArgument],
-    environment: { SUPABASE_ACCESS_TOKEN: token },
+    environment: {},
+    readCredential: async () => token,
     fetch_: async () =>
       response(
         invitationAuthConfiguration({

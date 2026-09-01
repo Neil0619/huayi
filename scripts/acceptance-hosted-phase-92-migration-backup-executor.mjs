@@ -11,6 +11,7 @@ import {
   renderHostedImportantBatchReadinessFailure,
 } from "./acceptance-hosted-important-batch-readiness-diagnostic.mjs";
 import { readHostedImportantBatchCaptureSecrets } from "./acceptance-hosted-important-batch-secret-prompt.mjs";
+import { rejectLegacyHostedCredentialEnvironment } from "./acceptance-hosted-credentials.mjs";
 import { hostedAcceptanceProjectRef } from "./acceptance-hosted-foundation.mjs";
 import {
   captureHostedPhase92MigrationBackup,
@@ -46,7 +47,7 @@ Exact confirmation-gated write operations:
 - isolated rebuild: ${hostedPhase92MigrationRebuildArgument}
 - post capture: ${hostedPhase92MigrationCapturePostArgument}
 Execution contract:
-- Pre capture requires head 20260827060000; post capture requires 20260828010000. Both use the fixed verify-full administrator session pooler port 5432, official CA, hidden TTY password, zero inherited password, and fixed private evidence paths.
+- Pre capture requires head 20260827060000; post capture requires 20260828010000. Both use the fixed verify-full administrator session pooler port 5432, official CA, fixed administrator Keychain account, zero inherited password, and fixed private evidence paths.
 - The networkless scratch applies exactly 22 repository migrations through 20260828010000 plus the fictional seed, verifies runtime and absence contracts, destroys scratch, and only then writes a manifest. It has zero Hosted connection and never reads a Hosted password.
 - Readiness proves clean pushed source, clone-local ignore, pinned runtime, FileVault, fixed Docker target, platform lock, and local digest identities without pulling, connecting to Hosted, or writing evidence.
 - DeepSeek 0016-0021 evidence remains immutable and is never read or accepted as Phase 92 evidence.
@@ -57,6 +58,7 @@ Current result: this plan reports only the reviewed fixed contract and performs 
 export async function runHostedPhase92MigrationBackupExecutorCli({
   arguments_ = process.argv.slice(2),
   captureBackup = captureHostedPhase92MigrationBackup,
+  environment = process.env,
   inspectRuntime = inspectHostedImportantBatchBackupRuntime,
   readCaptureSecrets = readHostedImportantBatchCaptureSecrets,
   readRepositoryState = readHostedPhase92MigrationBackupRepositoryState,
@@ -81,6 +83,14 @@ export async function runHostedPhase92MigrationBackupExecutorCli({
   if (operation === undefined) {
     writeError("Hosted Phase 92 migration backup executor arguments are invalid.\n");
     return 1;
+  }
+  if (operation.kind === "capture") {
+    try {
+      rejectLegacyHostedCredentialEnvironment(environment);
+    } catch {
+      writeError("Hosted Phase 92 migration backup executor operation failed closed.\n");
+      return 1;
+    }
   }
 
   const readiness = await assessHostedImportantBatchReadiness({
@@ -109,7 +119,7 @@ export async function runHostedPhase92MigrationBackupExecutorCli({
       return 0;
     }
     if (operation.kind === "capture") {
-      const secrets = await readCaptureSecrets();
+      const secrets = await readCaptureSecrets({ environment });
       await captureBackup({
         ...secrets,
         candidateCommit: readiness.candidateCommit,
