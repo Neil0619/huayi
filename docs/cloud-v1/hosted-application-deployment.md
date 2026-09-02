@@ -708,6 +708,29 @@ one-shot 远端契约中的 deployment identity 使用 Vercel REST 响应的 can
 前缀；本文件较早历史证据里来自 Dashboard 的短展示 ID 可能省略该前缀，不得直接作为 REST identity
 基线。
 
+### 6.8 Phase 94 当前外观 UI 独立部署控制面
+
+当前多外观 UI 不重放 Phase 81、92、93 或 fresh-CSRF 的任一 one-shot state。Phase 94 使用独立
+`artifacts/hosted-vercel-one-shot/phase-94-multi-appearance-ui-state.json`，并在 preflight 与每个后续
+transition 访问 Git、Keychain 或 Vercel 前，先只读验证
+`phase-93-0023-fresh-csrf-state.json` 的 candidate、四个 arm/disarm commit、两份 config identity 与两条
+Ready deployment identity 全部精确。历史 state 只读且保持不可变；新旧五份 state 可在同一私有目录共存，
+不得删除、覆盖、迁移或互换。
+
+Phase 94 固定 API/Web 非 Canceled baseline 为 20/13，latest 分别是 fresh-CSRF 实际 Ready deployment，
+并继续复用完整 API arm/observe → API disarm/verify → Web arm/observe → Web disarm/verify 合同，不提供
+Web-only 快捷路径。入口为：
+
+1. `pnpm acceptance:hosted:phase94:deployment:one-shot:plan`：零环境、文件系统、Git、Keychain 与网络 I/O；
+2. `pnpm acceptance:hosted:phase94:deployment:one-shot:diagnose`：只读区分历史 completion、新 state absent、
+   clean pushed candidate、20/13 count、latest identity/Ready、零 in-flight 与五个固定 GET 状态；输出不含
+   Token、commit、deployment ID、URL 或响应正文；
+3. `...:preflight` 及四个 `...:{api,web}:{arm:observe,disarm:verify}`：使用固定独立 confirmation，逐阶段
+   写入 clone-local state，但本身仍不会修改 Vercel policy、commit、push 或创建 deployment。
+
+控制面、本地 GREEN 或凭据可用均不是部署授权或 Hosted 完成证据。真实 diagnose/preflight、四次独立
+arm/disarm commit 与 push、exact-SHA 双平台 CI 和最终线上回读继续逐项取得明确批准。
+
 ## 7. TDD 与验收标准
 
 Fresh RED 必须先覆盖：

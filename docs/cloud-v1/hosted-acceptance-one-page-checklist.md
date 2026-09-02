@@ -5,15 +5,17 @@
 
 ## 现在停在哪里 / 你现在要做什么
 
-现在停在**账号已建立、post-relogin session 已诊断、当前 UI 候选待独立部署**。0023 backup/migration、两轮
+现在停在**账号已建立、post-relogin session 已诊断、Phase 94 部署控制面本地待提交**。0023 backup/migration、两轮
 Phase 93 Vercel 部署、fresh recovery readiness、同一邀请 token recovery、一次六位码重发、注册 completion
 snapshot 与密码重登均已有真实结果；`account_finalized_exact|t`、`safe_route_state|account-established`。
 正式 post-relogin 诊断已证明目标账号唯一 Web session 已 revoked、活动数为 0，其他三个活动 Web session
 全部属于 Operator，最终 verdict 为 `other-active-only`；此前浏览器页面不是目标账号活动 session 的证据。
 
-当前数据库进程 PATH 修复候选已让正式诊断直接使用 Keychain 且不再提示密码。下一步先完成该候选的离线
-全门、commit/push 与 exact-SHA 双平台质量门；目标账号 session 验收只允许在隔离浏览器上下文重新登录后，
-在普通 macOS Terminal 复跑：
+数据库进程 PATH 修复已本地提交为 `6aee25e`，正式诊断可直接使用 Keychain 且不再提示密码。独立 Phase 94
+控制面已本地实现 20/13 baseline、fresh-CSRF 历史 completion gate、plan/diagnose/preflight 与完整 API→Web
+串行入口，新 state 仍 absent。下一步先完成本阶段离线全门、commit/push 与 exact-SHA 双平台质量门；随后
+真实 diagnose/preflight 和每个 arm/disarm 仍分别批准。目标账号 session 验收只允许在隔离浏览器上下文
+重新登录后，在普通 macOS Terminal 复跑：
 
 ```text
 pnpm acceptance:hosted:identity:post-relogin:diagnose

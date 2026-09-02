@@ -2155,3 +2155,15 @@ passed; first Operator empty`。候选已提交推送，0012 已实际 push；�
   合同全部精确；目标账号恰好一个 Web session 且已 revoked、活动数为 0，其他三个活动 Web session 全部属于
   Operator，最终 `diagnostic_verdict|other-active-only`。因此此前浏览器页面不能证明目标普通账号密码重登后的
   session；不得重发 OTP、轮换邀请或创建账号，下一次只允许在隔离浏览器上下文完成目标账号登录后复跑诊断。
+
+### Phase 94 当前多外观 UI Hosted 部署控制面（2026-09-02，本地候选）
+
+- `6aee25e` 已在本地提交 Hosted `psql` PATH 修复和上述状态同步，尚未推送；正式 post-relogin 诊断已用
+  Keychain 凭据真实证明修复有效，且未再次要求输入密码；
+- 当前多外观 UI 新增独立 `phase-94-multi-appearance-ui` one-shot state，使用 fresh-CSRF exact completion
+  validator 固定历史 candidate、四个 arm/disarm commit、config identities 与两条 Ready deployment；
+- Phase 94 固定当前只读观察的 API/Web 20/13 非 Canceled baseline，并继续完整 API→Web 串行门；不提供
+  Web-only 快捷路径，不删除、覆盖或重放旧四份 state；
+- 聚焦 one-shot 回归 53/53、历史 completion 本地真实验证和零 I/O plan 均通过，新 Phase 94 state 仍 absent。
+  当前控制面尚未 commit/push，也未运行本阶段完整质量门、exact-SHA 双平台 CI、真实 diagnose/preflight 或
+  任一 arm/disarm；这些完成前不能声明当前 UI 已部署。

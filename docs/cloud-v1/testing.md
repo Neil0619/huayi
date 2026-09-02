@@ -1661,3 +1661,16 @@ session is invalid.`；400 `invalid_request` 表示 runtime 数据库路径未�
   CLI 回归固定 19 行顺序、有限 verdict、聚合交叉校验、verify-full/30 秒/read-only transaction、隐藏密码与
   零 identity/session/token input。离线 GREEN 不替代 Hosted 结果，且任何 well-formed verdict 的进程成功
   只表示诊断完成，不能被解释为业务成功。
+
+## Phase 94 当前外观 UI 部署控制面
+
+- 聚焦测试先以缺失 Phase 94 模块获得真实 RED，再固定独立 confirmation、20/13 baseline、fresh-CSRF
+  exact completion verifier、`phase-94-multi-appearance-ui-state.json` 和七个 package 入口；
+- fake 顺序测试完整执行 preflight → API arm/observe → API disarm/verify → Web arm/observe → Web
+  disarm/verify，并证明每个阶段都在 Git、credential 与 Vercel 前验证历史 completion；旧四份 state 与
+  Phase 94 state 同目录共存且互不覆盖；
+- diagnose 测试分别断言 candidate Git、API/Web count、latest identity/Ready、zero in-flight、request 与
+  state predicates；legacy `VERCEL_TOKEN` 在 credential/remote 前失败关闭，所有输出禁止反射 Token、commit、
+  deployment ID、URL、响应正文或任意 state 内容；
+- 默认测试只使用 fake Git、credential、fetch、snapshot 与临时 state store，不读取真实 Keychain、不联网、
+  不创建真实 one-shot state，也不执行 arm/disarm、commit、push 或 deployment。真实执行仍需独立批准。

@@ -2096,5 +2096,15 @@ pushed/disarmed、五个只读 Vercel 请求、latest Ready 与零 in-flight 全
 post-relogin 脱敏只读诊断已真实返回 `other-active-only`：目标账号唯一 Web session 已 revoked、活动数为 0，
 其他三个活动 Web session 全部属于 Operator。该结果证明此前认证页面属于其他活动身份，不能作为目标账号
 密码重登 session 证据；下一次只允许在隔离浏览器上下文登录目标账号后复跑只读诊断，不得重发 OTP、轮换
-邀请或创建账号。当前 `6b6bfe5` 外观/UI 候选已通过 exact-SHA macOS/Windows CI，但尚未部署到 Hosted Web；
-后续部署必须新增独立 one-shot state 和当前远端 baseline，不能删除、覆盖或重放任一 Phase 93 state。
+邀请或创建账号。`6b6bfe5` 外观/UI 候选已通过 exact-SHA macOS/Windows CI，但尚未部署到 Hosted Web。
+
+### Phase 94：当前多外观 UI 独立部署
+
+本地控制面已新增独立 `phase-94-multi-appearance-ui` state、fresh-CSRF exact completion validator、当前
+API/Web 20/13 baseline、零 I/O plan、脱敏只读 diagnose、preflight 与完整 API→Web 四段双关闭入口；旧
+Phase 81/92/93/fresh-CSRF state 保持不可重放并可与新 state 共存。聚焦 one-shot 回归 53/53、真实本地历史
+completion 校验与 plan 已通过，新 state 仍 absent。
+
+该控制面仍是未提交本地候选。下一顺序固定为：完整离线质量门 → commit/push → 新 exact-SHA macOS/Windows
+CI → 真实只读 diagnose → preflight → 分别批准 API arm/observe、API disarm/verify、Web arm/observe、Web
+disarm/verify → 最终线上回读和真实浏览器外观验收。不得用旧 state、旧 confirmation 或 Web-only 路径缩短门。

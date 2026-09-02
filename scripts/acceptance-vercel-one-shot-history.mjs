@@ -132,7 +132,8 @@ export function assertVercelOneShotFixedBaseline(
     if (
       nonCanceled.length !== expected.count ||
       nonCanceled[0].id !== expected.latestDeploymentId ||
-      nonCanceled[0].sha !== expected.latestCommit
+      nonCanceled[0].sha !== expected.latestCommit ||
+      nonCanceled[0].state !== "READY"
     ) {
       fail();
     }

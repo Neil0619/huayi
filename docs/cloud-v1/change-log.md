@@ -3,6 +3,17 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-09-02：当前多外观 UI 使用独立 Phase 94 严格串行部署门
+
+- 已完成的 Phase 81、92、93 与 fresh-CSRF one-shot state 全部保持不可重放；当前多外观 UI 使用独立
+  `phase-94-multi-appearance-ui-state.json`，由 fresh-CSRF exact completion 固定其历史父终态；
+- 当前真实 API/Web 非 Canceled baseline 固定为 20/13，latest Ready identity 来自 fresh-CSRF 实际部署。
+  每个 Phase 94 阶段都必须先验证历史 completion，再验证 clean pushed candidate、双关闭、history 与
+  zero in-flight；
+- 继续复用完整 API arm/observe → API disarm/verify → Web arm/observe → Web disarm/verify 状态机，不新增
+  Web-only 快捷路径。plan 保持零 I/O，diagnose 只读且脱敏；任何远端读取、policy 变更、commit、push 和
+  deployment 仍分别需要明确批准。
+
 ## 2026-09-02：Cloud Web 与 Store Extension 采用 C/G/H/I 四明亮外观
 
 - 全站可交互原型及关键状态 293/293 验收后，生产视觉统一为 C 布局体系；`moon`、`silver`、
