@@ -85,9 +85,31 @@ test("candidate push uses the fixed branch and verifies the exact remote SHA", a
     };
   };
 
-  await pushHostedReleaseCandidate({ candidateSha, repositoryRoot: "/repo", runProcess });
+  await pushHostedReleaseCandidate({
+    candidateSha,
+    environment: {},
+    repositoryRoot: "/repo",
+    runProcess,
+  });
   assert.deepEqual(calls, [
     ["git", ["push", "origin", "HEAD:refs/heads/codex/settings-configuration"]],
     ["git", ["ls-remote", "--exit-code", "origin", "refs/heads/codex/settings-configuration"]],
   ]);
+});
+
+test("candidate push rejects inherited plaintext credentials before invoking Git", async () => {
+  let called = false;
+  await assert.rejects(
+    pushHostedReleaseCandidate({
+      candidateSha,
+      environment: { PGPASSWORD: "runner-image-fixture" },
+      repositoryRoot: "/repo",
+      runProcess: async () => {
+        called = true;
+        return { status: 0, stderr: "", stdout: "" };
+      },
+    }),
+    /Hosted acceptance release Git failed closed/u,
+  );
+  assert.equal(called, false);
 });

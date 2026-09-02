@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import test from "node:test";
@@ -12,6 +12,8 @@ import { createHostedReleaseStateStore } from "./acceptance-hosted-release-state
 
 const candidateSha = "b".repeat(40);
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const portablePrivateModeOptions =
+  process.platform === "win32" ? { privateModeMatches: () => true } : {};
 
 test("release state stays outside repository formatting inputs", async () => {
   const statePath = join(
@@ -28,9 +30,32 @@ test("release state stays outside repository formatting inputs", async () => {
   );
 });
 
+test("release state accepts an injected private-mode policy for non-POSIX test filesystems", async () => {
+  const repositoryRoot = await mkdtemp(join(tmpdir(), "huayi-release-portable-mode-"));
+  const store = createHostedReleaseStateStore({
+    candidateSha,
+    privateModeMatches: () => true,
+    repositoryRoot,
+  });
+  try {
+    await mkdir(store.directory, { mode: 0o755, recursive: true });
+    await chmod(dirname(store.directory), 0o755);
+    await chmod(store.directory, 0o755);
+
+    const release = await store.acquire();
+    await release();
+  } finally {
+    await rm(repositoryRoot, { force: true, recursive: true });
+  }
+});
+
 test("release state store writes canonical private state atomically under the exact release", async () => {
   const repositoryRoot = await mkdtemp(join(tmpdir(), "huayi-release-state-"));
-  const store = createHostedReleaseStateStore({ candidateSha, repositoryRoot });
+  const store = createHostedReleaseStateStore({
+    candidateSha,
+    ...portablePrivateModeOptions,
+    repositoryRoot,
+  });
   const state = createHostedReleaseState({ candidateSha, now: 100 });
 
   const release = await store.acquire();
@@ -38,8 +63,10 @@ test("release state store writes canonical private state atomically under the ex
   await release();
 
   assert.deepEqual(await store.read(), state);
-  assert.equal((await stat(store.directory)).mode & 0o777, 0o700);
-  assert.equal((await stat(store.statePath)).mode & 0o777, 0o600);
+  if (process.platform !== "win32") {
+    assert.equal((await stat(store.directory)).mode & 0o777, 0o700);
+    assert.equal((await stat(store.statePath)).mode & 0o777, 0o600);
+  }
   assert.equal(await readFile(store.statePath, "utf8"), `${JSON.stringify(state)}\n`);
 });
 
@@ -49,6 +76,7 @@ test("release state store lock is exclusive and recoverable only when its owner 
     candidateSha,
     hostname: "test-host",
     isProcessRunning: (pid) => pid === 10,
+    ...portablePrivateModeOptions,
     processId: 10,
     repositoryRoot,
   });
@@ -67,7 +95,11 @@ test("release state store lock is exclusive and recoverable only when its owner 
 
 test("release state store rejects malformed, noncanonical, and cross-candidate state", async () => {
   const repositoryRoot = await mkdtemp(join(tmpdir(), "huayi-release-invalid-"));
-  const store = createHostedReleaseStateStore({ candidateSha, repositoryRoot });
+  const store = createHostedReleaseStateStore({
+    candidateSha,
+    ...portablePrivateModeOptions,
+    repositoryRoot,
+  });
   const release = await store.acquire();
   await store.write(createHostedReleaseState({ candidateSha, now: 100 }));
   await release();

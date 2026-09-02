@@ -27,10 +27,14 @@ function privateMode(actual, expected) {
   return (actual.mode & 0o777) === expected;
 }
 
-async function ensureDirectory(path, mode, secure) {
+async function ensureDirectory(path, mode, secure, privateModeMatches) {
   await mkdir(path, { mode, recursive: true });
   const actual = await stats(path);
-  if (actual === undefined || !actual.isDirectory() || (secure && !privateMode(actual, mode))) {
+  if (
+    actual === undefined ||
+    !actual.isDirectory() ||
+    (secure && !privateModeMatches(actual, mode))
+  ) {
     fail();
   }
 }
@@ -60,6 +64,7 @@ export function createHostedReleaseStateStore({
   candidateSha,
   hostname = readHostname(),
   isProcessRunning = defaultIsProcessRunning,
+  privateModeMatches = privateMode,
   processId = process.pid,
   repositoryRoot = process.cwd(),
 } = {}) {
@@ -73,9 +78,9 @@ export function createHostedReleaseStateStore({
   let lockHeld = false;
 
   async function prepare() {
-    await ensureDirectory(artifactsRoot, 0o755, false);
-    await ensureDirectory(releaseRoot, 0o700, true);
-    await ensureDirectory(directory, 0o700, true);
+    await ensureDirectory(artifactsRoot, 0o755, false, privateModeMatches);
+    await ensureDirectory(releaseRoot, 0o700, true, privateModeMatches);
+    await ensureDirectory(directory, 0o700, true, privateModeMatches);
     await assertKnownEntries(directory);
   }
 
@@ -84,7 +89,7 @@ export function createHostedReleaseStateStore({
     if (
       lockStats === undefined ||
       !lockStats.isFile() ||
-      !privateMode(lockStats, 0o600) ||
+      !privateModeMatches(lockStats, 0o600) ||
       lockStats.size > 4_096
     ) {
       fail();
@@ -145,13 +150,13 @@ export function createHostedReleaseStateStore({
       try {
         const directoryStats = await stats(directory);
         if (directoryStats === undefined) return undefined;
-        if (!directoryStats.isDirectory() || !privateMode(directoryStats, 0o700)) fail();
+        if (!directoryStats.isDirectory() || !privateModeMatches(directoryStats, 0o700)) fail();
         await assertKnownEntries(directory);
         const stateStats = await stats(statePath);
         if (stateStats === undefined) return undefined;
         if (
           !stateStats.isFile() ||
-          !privateMode(stateStats, 0o600) ||
+          !privateModeMatches(stateStats, 0o600) ||
           stateStats.size > maximumStateBytes
         ) {
           fail();
