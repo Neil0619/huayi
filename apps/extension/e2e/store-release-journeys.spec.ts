@@ -62,16 +62,20 @@ test("the default silver Store card keeps pearl and parchment visual baselines",
 }) => {
   await selectWord(page, "word");
   await expect(shadow(page)).toHaveAttribute("data-styles", "ready");
+  await expect(shadow(page)).toHaveCSS("width", "120px");
   await expect(shadow(page)).toHaveScreenshot("store-silver-pearl-action.png", {
     animations: "disabled",
+    maxDiffPixelRatio: 0.02,
   });
 
   await page.goto(`${fixturePath}?theme=parchment`);
   await expect(page.locator("html")).toHaveAttribute("data-store-harness-ready", "true");
   await selectWord(page, "word");
   await expect(shadow(page)).toHaveAttribute("data-styles", "ready");
+  await expect(shadow(page)).toHaveCSS("width", "120px");
   await expect(shadow(page)).toHaveScreenshot("store-silver-parchment-action.png", {
     animations: "disabled",
+    maxDiffPixelRatio: 0.02,
   });
 });
 

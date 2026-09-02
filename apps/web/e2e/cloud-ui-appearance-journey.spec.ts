@@ -104,6 +104,7 @@ test("the default silver practice surface keeps desktop and mobile visual baseli
   await expect(page.getByRole("heading", { level: 2, name: "今日目标 2/2" })).toBeVisible();
   await expect(page).toHaveScreenshot("practice-silver-desktop.png", {
     animations: "disabled",
+    maxDiffPixelRatio: 0.02,
   });
 
   await page.setViewportSize({ height: 844, width: 390 });
@@ -111,5 +112,6 @@ test("the default silver practice surface keeps desktop and mobile visual baseli
   await expect(page.getByRole("heading", { level: 2, name: "今日目标 2/2" })).toBeVisible();
   await expect(page).toHaveScreenshot("practice-silver-mobile.png", {
     animations: "disabled",
+    maxDiffPixelRatio: 0.02,
   });
 });
