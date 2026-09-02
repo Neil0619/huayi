@@ -85,7 +85,6 @@ function harness() {
               key: "HUAYI_STORE_EXTENSION_CAPABILITY",
               target: ["production"],
               type: "encrypted",
-              value: configured ? "enabled" : "disabled",
             },
             ...(configured
               ? [
@@ -94,7 +93,6 @@ function harness() {
                     key: "HUAYI_STORE_EXTENSION_ID",
                     target: ["production"],
                     type: "encrypted",
-                    value: "hoijjhgcckfhbcefoclgbhkgninnkknd",
                   },
                 ]
               : []),
@@ -103,10 +101,33 @@ function harness() {
               key: "HUAYI_MIN_SUPPORTED_EXTENSION_VERSION",
               target: ["production"],
               type: "encrypted",
-              value: "1.0.0",
             },
           ],
           hiddenProductionEnvCount: 0,
+        });
+      }
+      const environmentMatch =
+        /^\/v1\/projects\/seen-said-acceptance-api\/env\/(env_capability|env_extension_id|env_minimum)$/u.exec(
+          url.pathname,
+        );
+      if (environmentMatch !== null) {
+        const values = {
+          env_capability: configured ? "enabled" : "disabled",
+          env_extension_id: "hoijjhgcckfhbcefoclgbhkgninnkknd",
+          env_minimum: "1.0.0",
+        };
+        const keys = {
+          env_capability: "HUAYI_STORE_EXTENSION_CAPABILITY",
+          env_extension_id: "HUAYI_STORE_EXTENSION_ID",
+          env_minimum: "HUAYI_MIN_SUPPORTED_EXTENSION_VERSION",
+        };
+        return jsonResponse({
+          decrypted: true,
+          id: environmentMatch[1],
+          key: keys[environmentMatch[1]],
+          target: ["production"],
+          type: "encrypted",
+          value: values[environmentMatch[1]],
         });
       }
       if (url.pathname === "/v7/deployments") {
@@ -201,6 +222,14 @@ test("Vercel adapter upserts only the three fixed public API capability values",
     },
   ]);
   assert.equal(write.body.includes(token), false);
+  assert.equal(
+    calls.some(
+      ({ method, url }) =>
+        method === "GET" &&
+        url.pathname === "/v1/projects/seen-said-acceptance-api/env/env_extension_id",
+    ),
+    true,
+  );
 });
 
 test("Vercel adapter creates and observes exact-SHA production deployments serially", async () => {

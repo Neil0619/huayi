@@ -43,6 +43,7 @@ const deploymentStates = new Set([
 const inFlightStates = Object.freeze(["BUILDING", "INITIALIZING", "QUEUED"]);
 const commitPattern = /^[0-9a-f]{40}$/u;
 const deploymentPattern = /^dpl_[A-Za-z0-9_-]{3,128}$/u;
+const environmentVariableIdPattern = /^[A-Za-z0-9_-]{1,256}$/u;
 
 function fail() {
   throw new Error("Hosted acceptance release Vercel failed closed.");
@@ -89,14 +90,13 @@ function parseProject(project, kind, teamId) {
   return Object.freeze({ id: project.id, name: project.name, repoId: project.link.repoId });
 }
 
-function exactProductionVariable(variable, desired) {
+function exactProductionVariableMetadata(variable, desired) {
   return (
     record(variable) &&
     typeof variable.id === "string" &&
-    variable.id.length > 0 &&
+    environmentVariableIdPattern.test(variable.id) &&
     variable.key === desired.key &&
     variable.type === desired.type &&
-    variable.value === desired.value &&
     Array.isArray(variable.target) &&
     variable.target.length === 1 &&
     variable.target[0] === "production" &&
@@ -104,13 +104,27 @@ function exactProductionVariable(variable, desired) {
   );
 }
 
-function configurationReady(response) {
+function listedConfiguration(response) {
   if (!record(response) || !Array.isArray(response.envs)) fail();
-  return desiredEnvironment.every((desired) => {
+  const variables = [];
+  for (const desired of desiredEnvironment) {
     const matches = response.envs.filter((variable) => variable?.key === desired.key);
     if (matches.length > 1) fail();
-    return matches.length === 1 && exactProductionVariable(matches[0], desired);
-  });
+    if (matches.length !== 1 || !exactProductionVariableMetadata(matches[0], desired)) {
+      return undefined;
+    }
+    variables.push(Object.freeze({ desired, id: matches[0].id }));
+  }
+  return Object.freeze(variables);
+}
+
+function exactDecryptedProductionVariable(variable, desired, id) {
+  return (
+    exactProductionVariableMetadata(variable, desired) &&
+    variable.id === id &&
+    variable.decrypted === true &&
+    variable.value === desired.value
+  );
 }
 
 function parseDeployment(raw, kind, candidateSha, releaseId, projectId) {
@@ -184,7 +198,7 @@ export function createHostedReleaseVercel({
 
   async function readConfiguration() {
     const { teamId } = await scope();
-    return configurationReady(
+    const variables = listedConfiguration(
       await requestJson({
         fetch_,
         stage: "release-api-environment",
@@ -192,6 +206,20 @@ export function createHostedReleaseVercel({
         url: urlFor(`/v10/projects/${projectSpecifications.api.name}/env`, { teamId }),
       }),
     );
+    if (variables === undefined) return false;
+    for (const { desired, id } of variables) {
+      const variable = await requestJson({
+        fetch_,
+        stage: "release-api-environment-value",
+        token,
+        url: urlFor(
+          `/v1/projects/${projectSpecifications.api.name}/env/${encodeURIComponent(id)}`,
+          { teamId },
+        ),
+      });
+      if (!exactDecryptedProductionVariable(variable, desired, id)) return false;
+    }
+    return true;
   }
 
   async function list({ kind, query }) {
