@@ -75,6 +75,26 @@ pnpm acceptance:hosted:release:status
 用户本人、外部收件箱、付费调用或不可逆远端变更时停下。一次授权只绑定当次 frozen exact SHA；任何
 代码变化都重新进入测试和候选冻结。
 
+### 4.1 首次密码恢复与 Cron 引导
+
+常规 release coordinator 不隐式发送邮件或安装 Cron。首次环境中 Cron 尚未安装时，必须先让用户在
+`/recover` 提交一次恢复请求，再按以下受控接续完成闭环：
+
+```text
+唯一 claimable recovery
+  -> bootstrap provision（Vault -> Vercel Sensitive）
+  -> exact-SHA release complete
+  -> bootstrap recovery（password worker: sent -> idle）
+  -> 用户完成改密
+  -> bootstrap deliver（R3-C worker: sent -> idle）
+  -> 用户确认安全通知
+  -> Cron status/apply -> 至少两个周期
+```
+
+公开 `/recover` 的 202 只证明队列接受；只有 recovery 命令成功及只读 postflight 的 `sent` 才证明
+Supabase Auth 接受发送。重复提交会终结同账号旧 flow，因此操作者不得用反复点击代替 worker 诊断。
+该接续读取既有 Keychain 凭据和 Vault bearer，不新增需要用户记忆的秘密。
+
 ## 5. 凭据与证据
 
 - 四项基础设施凭据只从 macOS login Keychain 读取；不使用 `.env`、命令参数、明文环境变量或聊天。

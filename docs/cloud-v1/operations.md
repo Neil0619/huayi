@@ -121,26 +121,32 @@ release manifest 隔离，不表示已上架，也不安装或替换 Classic Nat
 
 ### Hosted R3-C 与 Cron 同源引导
 
-Vercel Sensitive 值不能解密回读，R3-C/Cron 不再要求操作者手工复制 `CRON_SECRET`。正常密码恢复完成
-路径产生唯一待发送通知后，固定顺序为：
+Vercel Sensitive 值不能解密回读，密码恢复、R3-C 与 Cron 不再要求操作者手工复制 `CRON_SECRET`。
+首次 Cron 尚未安装时，用户先在 `/recover` 只提交一次恢复请求；公开 202 只表示任务已接受，不表示邮件
+已投递。固定顺序为：
 
 ```bash
 pnpm acceptance:hosted:cron:bootstrap:plan
 pnpm acceptance:hosted:cron:bootstrap:provision \
-  --confirm-provision-hosted-cron-secret-after-r3c-pending-kpadiulxkgckskcfydry
+  --confirm-provision-hosted-cron-secret-for-bootstrap-kpadiulxkgckskcfydry
 pnpm acceptance:hosted:release:advance
+pnpm acceptance:hosted:cron:bootstrap:recovery:deliver \
+  --confirm-deliver-hosted-password-recovery-after-secret-release-kpadiulxkgckskcfydry
+# 用户打开最新恢复邮件并完成改密
 pnpm acceptance:hosted:cron:bootstrap:deliver \
   --confirm-deliver-hosted-r3c-after-secret-release-kpadiulxkgckskcfydry
+# 用户确认恰好一封 password-reset-completed 安全通知且无正文告警
 pnpm acceptance:hosted:cron:status
 pnpm acceptance:hosted:cron:apply \
   --confirm-apply-hosted-supabase-cron-after-r3c-and-vercel-continuity-kpadiulxkgckskcfydry
 ```
 
-provision 只在 Cron 精确 absent 时把 Vault 唯一来源送到 Vercel；必须由后续 exact-SHA API deployment
-装载。deliver 要求正常 worker `sent → idle` 并验证数据库终态；若首次调用已成功但响应丢失，安全重跑只
-接受一次 `idle`。用户确认收件箱恰好一封且无正文告警接收后，Cron status 才应为 preflight ready，随后
-apply 执行两次完整事务和独立 postflight。任一步不确定都回到只读 snapshot/status，不能打印 Vault 值、
-手贴 SQL 或盲目重发。
+provision 只接受“R3-C 为空且恰好一个仍有效、可 claim 的 recovery”或“恰好一个可 claim 的 R3-C”，
+并要求 Cron 精确 absent；它把 Vault 唯一来源送到 Vercel，后续 exact-SHA API deployment 才会装载。
+recovery 与 deliver 分别调用正常产品 worker，要求首次 `sent`、重复 `idle` 并以独立只读聚合确认终态；
+already-sent 恢复只做一次 idle 探针，不重发。恢复邮件完成改密后才会产生 R3-C。用户确认最终安全通知
+收件后，Cron status 才应为 preflight ready，随后 apply 执行两次完整事务和独立 postflight。任一步不确定
+都回到只读聚合/status，不能打印 Vault 值、邮箱/flow、手贴 SQL 或盲目重发。
 
 ### Hosted acceptance foundation 运行手册
 

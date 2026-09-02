@@ -361,7 +361,8 @@ transport/wire 或候选冻结时才提前进入 Windows。一个验收周期结
    重新关闭 API Git deployment；确认关闭提交没有产生 API/Web deployment 后，才验证启动、health、
    TLS/CORS/Cookie/SSE/Auth/Storage 与真实 DeepSeek 小额 smoke；全部通过后才单独部署 Web；
 7. 在 Web 部署后完成真实 callback、托管 Auth/Storage、多连接 RLS、session 撤销与备份/重建；
-8. 验收真实邮件、R3-C sender/通知 CRON/告警，再安装五项 Cron；
+8. 首次 Cron absent 时先以唯一 recovery 完成同源 provision→exact-SHA deployment→恢复邮件
+   `sent → idle`，用户改密后再验收 R3-C sender/通知告警，最后安装并观察五项 Cron；
 9. DeepSeek 小额真实验收已获批准但须等待 API health；Google 与 Store/Chrome 仍分别等待后续批准；
 10. 用户跨多日自然使用；每轮按反馈循环修复并部署；
 11. 用户明确签字前不创建 production candidate。

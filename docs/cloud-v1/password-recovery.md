@@ -185,6 +185,12 @@ method 在 request 后改变时直接终态化且零 Provider。worker 在 Provi
 标记 failed，用户可显式重新请求。callback/complete 可以返回统一失败，因为持有邮件或 recovery proof
 的调用者已经处于恢复流程中，但仍不披露具体原因。
 
+Hosted acceptance 首次安装 Cron 前，公开 202 不能被解释为邮件已发送。受控 Cron bootstrap 只在
+R3-C 为空、Cron 精确 absent 且恰好一个未过期 recovery 可 claim 时建立 Vault→Vercel 同源 bearer；
+exact-SHA API deployment Ready 后，一次性 recovery 命令调用本节既有 worker 并要求 `sent → idle`，
+再以只读四计数聚合确认唯一 flow 为 sent。它不绕过本状态机，不读取邮箱/flow 明文，也不对
+dispatch-at 已写入的模糊状态透明重试。
+
 ### 4.3 Provider adapter
 
 - `begin()` 使用 server-created Supabase client、PKCE、`persistSession=true` 和私有内存 storage 调用

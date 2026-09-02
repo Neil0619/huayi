@@ -52,6 +52,10 @@ Hosted 运维凭据测试固定使用 fake Keychain/fake process/fake HTTP，不
 且凭据可用不等于允许任何远端动作。
 Hosted 数据库 consumer 还必须注入 fake official-CA fetch，证明固定 CA 在 Keychain credential 读取前取得、
 传给临时 `0600` root certificate，并且调用方不需要 CA 环境变量；默认门不得下载真实 CA。
+Hosted 首次密码恢复/Cron bootstrap 回归还必须覆盖：R3-C 为空时只接受唯一 claimable recovery；只读
+snapshot 仅有 open/claimable/sent/ambiguous 四个有界计数；provision 后必须经过新 API deployment；
+recovery worker 要求 `sent → idle`，already-sent 仅做一次 `idle`；缺失、过期、dispatch 模糊、partial
+Cron、401/5xx、异常 JSON、继承明文 secret 与输出反射全部失败关闭。默认测试只使用 fake，不发邮件。
 
 非 Windows 的根 Vitest 门按固定顺序分成两个进程：先用 `--project=!api --maxWorkers 4` 运行
 非 API projects，再用 `--project api --maxWorkers 2 --testTimeout 15000 --hookTimeout 15000`

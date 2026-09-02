@@ -150,7 +150,10 @@ test("Cron bootstrap plan is zero-I/O and explains the required release seam", a
   assert.equal(code, 0);
   assert.equal(calls, 0);
   assert.equal(stdout, renderHostedCronBootstrapPlan());
-  assert.match(stdout, /provision -> exact-SHA API release -> deliver/u);
+  assert.match(
+    stdout,
+    /provision -> exact-SHA API release -> recovery -> user password reset -> deliver/u,
+  );
   assert.doesNotMatch(stdout, /must-not-be-read/u);
 });
 
@@ -231,10 +234,13 @@ test("provision rejects a Vercel partial failure even when old metadata already 
   );
 });
 
-test("provision rejects anything except one claimable R3-C notification before writes", async () => {
-  for (const snapshot of [
-    pendingSnapshot({ r3c_total: "0", r3c_pending: "0", r3c_claimable: "0" }),
-    pendingSnapshot({ r3c_failed: "1" }),
+test("provision rejects invalid R3-C or password-recovery bootstrap state before writes", async () => {
+  for (const [snapshot, stage] of [
+    [
+      pendingSnapshot({ r3c_total: "0", r3c_pending: "0", r3c_claimable: "0" }),
+      "password-recovery-pending",
+    ],
+    [pendingSnapshot({ r3c_failed: "1" }), "r3c-pending"],
   ]) {
     const dependencies = sharedDependencies();
     let psqlCalls = 0;
@@ -251,9 +257,15 @@ test("provision rejects anything except one claimable R3-C notification before w
           psqlCalls += 1;
           return { code: 0, stderr: "", stdout: `${cronSecret}\n` };
         },
+        runRecoverySnapshotQuery: async () => ({
+          password_recovery_ambiguous: "0",
+          password_recovery_claimable: "0",
+          password_recovery_open_total: "0",
+          password_recovery_sent: "0",
+        }),
         runSnapshotQuery: async () => snapshot,
       }),
-      /stage: r3c-pending/u,
+      new RegExp(`stage: ${stage}`, "u"),
     );
     assert.equal(psqlCalls, 0);
     assert.equal(fetchCalls, 0);

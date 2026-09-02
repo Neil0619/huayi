@@ -81,13 +81,19 @@ Hosted acceptance 不再要求用户把本文件的长 SQL 粘贴到 Dashboard�
 
 - `pnpm acceptance:hosted:cron:plan` 是零网络、零写入计划；
 - `pnpm acceptance:hosted:cron:bootstrap:plan` 给出固定
-  `provision → exact-SHA API release → deliver → inbox confirmation → apply` 顺序，本身零 I/O；
+  `provision → exact-SHA API release → recovery → 用户改密 → deliver → inbox confirmation → apply`
+  顺序，本身零 I/O；
 - `pnpm acceptance:hosted:cron:bootstrap:provision
---confirm-provision-hosted-cron-secret-after-r3c-pending-kpadiulxkgckskcfydry` 只在恰好一条可 claim 的
-  R3-C 通知且专用 Cron status 精确为 `absent` 时，创建或复用两个固定 Vault 名称；bearer 固定为 64 个
-  小写十六进制字符，只在本进程内送入 Vercel `CRON_SECRET` 的 Production Sensitive upsert。写入响应
-  必须零 failed、恰好一个精确对象，再回读名称/type/target；任何响应不确定都固定失败。成功后必须发布
-  同一 clean exact SHA，环境变更才会进入新 API deployment；
+--confirm-provision-hosted-cron-secret-for-bootstrap-kpadiulxkgckskcfydry` 只在专用 Cron status 精确为
+  `absent`，且状态为“R3-C 为空+恰好一个可 claim recovery”或“恰好一个可 claim R3-C”时，创建或复用
+  两个固定 Vault 名称；bearer 固定为 64 个小写十六进制字符，只在本进程内送入 Vercel
+  `CRON_SECRET` 的 Production Sensitive upsert。写入响应必须零 failed、恰好一个精确对象，再回读
+  名称/type/target；任何响应不确定都固定失败。成功后必须发布同一 clean exact SHA，环境变更才会进入
+  新 API deployment；
+- `pnpm acceptance:hosted:cron:bootstrap:recovery:deliver
+--confirm-deliver-hosted-password-recovery-after-secret-release-kpadiulxkgckskcfydry` 从 Vault 读取同一值，
+  调用密码恢复 worker 并要求 `sent → idle`，随后用不含邮箱、owner、flow 或密文的四项聚合确认唯一
+  recovery 为 sent；already-sent 重跑只接受一次 `idle`；用户随后打开最新邮件并完成改密；
 - `pnpm acceptance:hosted:cron:bootstrap:deliver
 --confirm-deliver-hosted-r3c-after-secret-release-kpadiulxkgckskcfydry` 从 Vault 在有界进程内读取该值，调用
   正常产品 worker 两次并要求 `sent → idle`；若首次响应丢失但数据库已经 sent，重跑只接受一次

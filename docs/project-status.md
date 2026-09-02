@@ -100,8 +100,11 @@ wire 版本或完成声明。
 - Hosted DeepSeek one-shot production loader、独立 Keychain HMAC keyring、authority warmup/no-PII snapshot
   与 Cron through-0023 已部署；尚未执行真实 DeepSeek 请求，本次用户给出的最多 30 次权限仍未消耗。
   当前后续候选把 Cron secret continuity 改为 Vault 同源 provision、exact-SHA release、产品 worker
-  `sent → idle` 的可恢复链，并固化完整迭代发布 SOP；它仍须质量门、commit/push/deploy。R3-C 真实邮件、
-  五项 Cron、Chrome 与跨多日业务验收尚未关闭。
+  `sent → idle` 的可恢复链，并固化完整迭代发布 SOP。真实使用发现首次恢复存在“改密后才允许 provision，
+  但恢复邮件又依赖未安装 Cron”的闭环；当前修复候选允许 R3-C 为空时以唯一 claimable recovery 引导，
+  新增无身份四计数快照和 password worker `sent → idle` 投递，再由用户改密产生 R3-C。本地 macOS 完整
+  质量门已通过；该候选仍须 commit/push/deploy，真实恢复邮件、R3-C、五项 Cron、Chrome 与跨多日业务
+  验收尚未关闭。
 
 ### 2026-09-02：C/G/H/I 全量 UI 实现候选
 

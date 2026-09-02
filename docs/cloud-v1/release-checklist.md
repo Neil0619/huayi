@@ -217,6 +217,9 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       CA→固定管理员 Keychain account→preflight，
       原样执行完整 SQL 两次并独立 postflight。离线实现不代表 Vercel masked secret continuity、真实 SQL
       两次、job 周期或 route 已通过；
+- [x] 首次密码恢复/Cron 引导闭环已补齐：R3-C 为空时 provision 只接受唯一 claimable recovery；新
+      recovery 命令从 Vault 读取 bearer，要求 password worker `sent → idle` 并以无身份四计数确认 sent。
+      这只关闭代码与 SOP 缺口，不代表真实邮件、改密、R3-C 或 Cron 已完成；
 - [x] Phase 82 已提供固定 project/batch 的零 I/O backup plan 与离线 preflight/completion verifier；严格
       校验 clean HEAD/ignored/`0700/0600`/manifest/size/hash/migration head/rebuild cleanup。本条只关闭
       evidence gate，不代表已生成或重建真实 Hosted backup；

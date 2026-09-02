@@ -92,19 +92,20 @@ registration flow consumed、`account_finalized_exact|t` 与 `safe_route_state|a
 
 **去哪里**：Terminal；Vercel 的 Production secret 状态页面；Supabase 的 Vault/Cron 状态页面。
 
-**做什么**：先运行 `pnpm acceptance:hosted:cron:bootstrap:plan`。通过正常密码恢复完成路径产生唯一
-R3-C 待发送项后，运行受控 bootstrap provision；它在 Vault 创建或复用秘密，并直接写入 Vercel
-Sensitive，用户不复制或查看明文。发布同一 exact SHA 后运行 bootstrap deliver，要求产品 worker 返回
-`sent → idle`，用户确认收件箱恰好一封。随后运行 `pnpm acceptance:hosted:cron:status`；只有
+**做什么**：先运行 `pnpm acceptance:hosted:cron:bootstrap:plan`。首次环境先在 `/recover` 只提交一次，
+再运行受控 bootstrap provision；它只接受 R3-C 为空且唯一 recovery 可 claim，在 Vault 创建或复用秘密，
+并直接写入 Vercel Sensitive，用户不复制或查看明文。发布同一 exact SHA 后运行 bootstrap recovery，要求
+密码恢复 worker `sent → idle`；用户完成改密后运行 bootstrap deliver，要求 R3-C worker `sent → idle`，
+并确认收件箱恰好一封安全通知。随后运行 `pnpm acceptance:hosted:cron:status`；只有
 `cron_preflight_ready=t` 才运行带精确确认的 `pnpm acceptance:hosted:cron:apply`，并观察至少两个周期。
 
 **成功标志**：preflight ready；完整 operations SQL 连续两次事务成功；postflight 为 exact 五个 active job、
 零 unmanaged；五条 route 有界响应，并观察 401/5xx/timeout 后恢复。
 
-**立即停止条件**：不是唯一可 claim 的 R3-C、Cron 已是 partial/exact、Vercel upsert 不确定、exact-SHA
-API 尚未 Ready、deliver 不是 sent→idle、用户未收到或收到重复邮件、status 不是 ready、要求读取/打印
-Vault 值、任一事务或 postflight 失败、job 数不为五、或出现 unmanaged job。失败后先重跑只读
-snapshot/status，不粘贴修复 SQL。
+**立即停止条件**：既不是“R3-C 为空+唯一 claimable recovery”也不是“唯一 claimable R3-C”、Cron 已是
+partial/exact、Vercel upsert 不确定、exact-SHA API 尚未 Ready、recovery/deliver 不是 sent→idle、用户未
+收到或收到重复邮件、status 不是 ready、要求读取/打印 Vault 值、任一事务或 postflight 失败、job 数不为
+五、或出现 unmanaged job。失败后先重跑只读 snapshot/status，不粘贴修复 SQL。
 
 ## 4. 一笔 Cloud DeepSeek 应用请求
 

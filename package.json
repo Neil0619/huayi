@@ -14,6 +14,7 @@
     "acceptance:hosted:cron:bootstrap:deliver": "node scripts/acceptance-hosted-cron-bootstrap.mjs deliver",
     "acceptance:hosted:cron:bootstrap:plan": "node scripts/acceptance-hosted-cron-bootstrap.mjs --plan",
     "acceptance:hosted:cron:bootstrap:provision": "node scripts/acceptance-hosted-cron-bootstrap.mjs provision",
+    "acceptance:hosted:cron:bootstrap:recovery:deliver": "node scripts/acceptance-hosted-cron-bootstrap.mjs recovery",
     "acceptance:hosted:cron:plan": "node scripts/acceptance-hosted-cron.mjs --plan",
     "acceptance:hosted:cron:status": "node scripts/acceptance-hosted-cron.mjs status --status-hosted-supabase-cron-kpadiulxkgckskcfydry",
     "acceptance:hosted:store:build": "node scripts/acceptance-hosted-store-build.mjs build",

@@ -6,8 +6,14 @@
 ## 2026-09-02：Hosted Cron bearer 以 Vault 为唯一来源并用产品行为证明连续性
 
 - Vercel Sensitive Environment Variable 不可解密回读，不能再要求用户手工复制、记忆或比较
-  `CRON_SECRET`。受控 provision 只在唯一可 claim 的 R3-C 与 Cron 精确 absent 时创建或复用
-  `huayi_api_origin`/`huayi_cron_secret`，并把同一 bearer 在进程内 upsert 到 API Production Sensitive；
+  `CRON_SECRET`。首次环境不能再要求“先完成密码恢复才 provision”，因为恢复邮件 worker 自身依赖该
+  bearer；受控 provision 现在只接受“唯一可 claim 的密码恢复且 R3-C 为空”或“唯一可 claim 的 R3-C”
+  两种精确状态，并要求 Cron 精确 absent；
+- 首次路径固定为“提交一次恢复 → provision → exact-SHA API release → recovery worker
+  `sent → idle` → 用户完成改密 → R3-C deliver `sent → idle` → 用户确认通知 → Cron apply”。恢复状态
+  只读探针仅输出四个聚合计数，不读取或输出邮箱、flow、owner、密文或 Provider 状态；
+- provision 创建或复用 `huayi_api_origin`/`huayi_cron_secret`，并把同一 bearer 在进程内 upsert 到 API
+  Production Sensitive；
 - 环境 upsert 后必须部署同一 clean exact SHA。受控 deliver 从 Vault 读取同一值，要求正常产品 worker
   首次 `sent`、重复 `idle`，并以独立数据库快照确认 sent；响应丢失后的重跑只允许 already-sent → idle，
   不会重发邮件或轮换 secret；

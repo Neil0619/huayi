@@ -601,12 +601,13 @@ snapshot 是一个 `BEGIN READ ONLY` 聚合事务，输出固定 31 行：
 
 ### 6.4.1 Phase 79 Supabase Cron 受控安装工具
 
-先运行 `pnpm acceptance:hosted:cron:bootstrap:plan`；它不读取环境、不连接网络。正常密码恢复完成路径产生
-唯一可 claim 的 R3-C 通知后，按固定 confirmation 运行 bootstrap provision。它要求 Cron 精确 absent，
+先运行 `pnpm acceptance:hosted:cron:bootstrap:plan`；它不读取环境、不连接网络。首次 Cron absent 时先在
+`/recover` 提交一次请求；provision 只接受“R3-C 为空且唯一 recovery 可 claim”或“唯一 R3-C 可 claim”，
 在 Supabase Vault 创建或复用固定来源，并把相同 bearer 直接 upsert 到 Vercel Production Sensitive；不经
-用户剪贴板、环境变量或输出。随后必须完成同一 exact-SHA API release，才运行 bootstrap deliver；它用同一
-Vault 来源要求正常 worker `sent → idle`，并以独立快照确认 sent 终态。用户仍须确认收件箱恰好一封和无正文
-告警接收。完成后，使用固定管理员 Keychain account 与 verify-full CA wrapper 运行
+用户剪贴板、环境变量或输出。随后必须完成同一 exact-SHA API release，才运行 bootstrap recovery；它用
+同一 Vault 来源要求密码恢复 worker `sent → idle`，并以四项无身份聚合确认 sent。用户完成改密产生 R3-C
+后，再运行 bootstrap deliver，要求通知 worker `sent → idle` 并确认 sent 终态。用户仍须确认收件箱恰好
+一封安全通知和无正文告警接收。完成后，使用固定管理员 Keychain account 与 verify-full CA wrapper 运行
 `pnpm acceptance:hosted:cron:status`。该命令已经固定 project ref，不接受 job ID、request ID、owner、
 邀请片段或其他 opaque 输入；输出 18 个固定 boolean/stage/count，且 Vault 只查两个名称。
 
