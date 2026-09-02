@@ -1,3 +1,4 @@
+import { parseStoreAppearance, type StoreAppearance } from "./appearance.js";
 import { STORE_MESSAGE_VERSION } from "./messages.js";
 import type { StoreDefaultAction, StoreOverlayTheme } from "./settings.js";
 
@@ -15,6 +16,7 @@ export interface StoreSiteToggleRequest {
 export type StoreSitePolicyRequest = StoreSitePolicyQuery | StoreSiteToggleRequest;
 
 export interface StoreSitePolicyResponse {
+  readonly appearance: StoreAppearance;
   readonly defaultAction: StoreDefaultAction;
   readonly enabled: boolean;
   readonly globallyEnabled: boolean;
@@ -97,6 +99,7 @@ export function parseStoreSitePolicyResponse(value: unknown): StoreSitePolicyRes
   if (
     !isRecord(value) ||
     !exactKeys(value, [
+      "appearance",
       "defaultAction",
       "enabled",
       "globallyEnabled",
@@ -117,6 +120,7 @@ export function parseStoreSitePolicyResponse(value: unknown): StoreSitePolicyRes
     throw new TypeError("Store site policy response is invalid.");
   }
   return {
+    appearance: parseStoreAppearance(value.appearance),
     defaultAction: value.defaultAction,
     enabled: value.enabled,
     globallyEnabled: value.globallyEnabled,

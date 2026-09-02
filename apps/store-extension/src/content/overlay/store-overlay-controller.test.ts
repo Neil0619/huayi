@@ -150,35 +150,6 @@ describe("Store selection overlay", () => {
     expect(ports).toHaveLength(3);
   });
 
-  it("uses one panel structure for the selectable pearl and parchment skins", () => {
-    const { controller } = setup();
-    controller.setTheme("pearl");
-    controller.show(reading("investigation", "word"), { bottom: 80, left: 40, top: 60 });
-    const pearl = shadow().querySelector<HTMLElement>(".panel");
-    expect(pearl?.dataset.theme).toBe("pearl");
-    const pearlStructure = pearl?.innerHTML;
-
-    controller.setTheme("parchment");
-    expect(pearl?.dataset.theme).toBe("parchment");
-    controller.show(reading("investigation", "word"), { bottom: 80, left: 40, top: 60 });
-    const parchment = shadow().querySelector<HTMLElement>(".panel");
-    expect(parchment?.dataset.theme).toBe("parchment");
-    expect(parchment?.innerHTML).toBe(pearlStructure);
-  });
-
-  it("loads the packaged Shadow stylesheet and keeps an operable fallback on failure", () => {
-    const { controller } = setup();
-    controller.show(reading("investigation", "word"), { bottom: 80, left: 40, top: 60 });
-    const stylesheet = shadow().querySelector<HTMLLinkElement>("[data-overlay-stylesheet]");
-    const panel = shadow().querySelector<HTMLElement>(".panel");
-    expect(stylesheet?.href).toBe("chrome-extension://test/overlay.css");
-    expect(panel?.dataset.styles).toBe("loading");
-    stylesheet?.dispatchEvent(new Event("error"));
-    expect(panel?.dataset.styles).toBe("fallback");
-    expect(shadow().querySelectorAll("[data-action]")).toHaveLength(2);
-    expect(shadow().querySelector("style")?.textContent).toContain("min-height:40px");
-  });
-
   it.each(["pearl", "parchment"] as const)(
     "never displays the selected text in the %s initial card",
     (theme) => {

@@ -15,6 +15,14 @@ let siteEnabled = true;
 let requestSequence = 0;
 const overlayTheme =
   new URL(window.location.href).searchParams.get("theme") === "parchment" ? "parchment" : "pearl";
+const storedAppearance = window.localStorage.getItem("huayi.store.e2e.appearance");
+const appearance =
+  storedAppearance === "moon" ||
+  storedAppearance === "silver" ||
+  storedAppearance === "champagne" ||
+  storedAppearance === "porcelain"
+    ? storedAppearance
+    : "silver";
 
 function asRecord(value: unknown): Record<string, unknown> {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return {};
@@ -110,6 +118,7 @@ async function sendMessage(value: unknown): Promise<unknown> {
       document.documentElement.dataset.storeHarnessReady = "true";
     }, 0);
     return {
+      appearance,
       defaultAction: "ask",
       enabled: siteEnabled,
       globallyEnabled: true,

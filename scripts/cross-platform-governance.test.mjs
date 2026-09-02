@@ -48,18 +48,18 @@ test("cross-platform workflow never performs privileged or paid runtime operatio
   assert.doesNotMatch(workflow, /secrets\./);
 });
 
-test("Windows failures retain only four allowlisted lexical screenshot PNGs", async () => {
+test("Windows failures retain only allowlisted visual screenshot PNGs", async () => {
   const workflow = await readWorkflow();
   const windowsVerifyIndex = workflow.indexOf("- run: pnpm verify:windows");
   const uploadStepIndex = workflow.indexOf(
-    "- name: Upload Windows lexical screenshot diffs on failure",
+    "- name: Upload Windows visual screenshot diffs on failure",
   );
 
   assert.notEqual(windowsVerifyIndex, -1);
   assert.ok(uploadStepIndex > windowsVerifyIndex);
 
   const uploadStep = workflow.slice(uploadStepIndex);
-  assert.match(uploadStep, /^- name: Upload Windows lexical screenshot diffs on failure\n/m);
+  assert.match(uploadStep, /^- name: Upload Windows visual screenshot diffs on failure\n/m);
   assert.match(uploadStep, /^\s{8}if: \$\{\{ failure\(\) \}\}$/m);
   assert.match(
     uploadStep,
@@ -76,6 +76,14 @@ test("Windows failures retain only four allowlisted lexical screenshot PNGs", as
     "**/lexical-translation-diff.png",
     "**/lexical-explanation-actual.png",
     "**/lexical-explanation-diff.png",
+    "**/practice-silver-desktop-actual.png",
+    "**/practice-silver-desktop-diff.png",
+    "**/practice-silver-mobile-actual.png",
+    "**/practice-silver-mobile-diff.png",
+    "**/store-silver-pearl-action-actual.png",
+    "**/store-silver-pearl-action-diff.png",
+    "**/store-silver-parchment-action-actual.png",
+    "**/store-silver-parchment-action-diff.png",
   ]);
   assert.doesNotMatch(uploadStep, /(?:trace|playwright-report|test-results)/u);
   assert.doesNotMatch(uploadStep, /(?:\.zip|\.html|\.json)(?:\s|$)/u);

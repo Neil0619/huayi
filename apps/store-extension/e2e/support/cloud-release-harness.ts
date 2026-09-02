@@ -586,6 +586,7 @@ async function sendMessage(value: unknown): Promise<unknown> {
       document.documentElement.dataset.storeCloudHarnessReady = "true";
     }, 0);
     return {
+      appearance: "silver",
       defaultAction: "ask",
       enabled: true,
       globallyEnabled: true,

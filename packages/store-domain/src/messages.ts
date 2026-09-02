@@ -9,7 +9,7 @@ import {
 import { MAX_CONTEXT_SENTENCE_LENGTH } from "./normalization.js";
 import { parseSelectionBoundaryEvidence, type SelectionBoundaryEvidence } from "./selection.js";
 
-export const STORE_MESSAGE_VERSION = 4;
+export const STORE_MESSAGE_VERSION = 5;
 
 export interface StoreHandshakeEnvelope {
   readonly messageVersion: number;
@@ -62,7 +62,7 @@ function parseMessageVersion(value: unknown, allowZero: boolean): number {
   return value;
 }
 
-export const STORE_ANALYSIS_PORT_NAME = "huayi-store-analysis-v4";
+export const STORE_ANALYSIS_PORT_NAME = "huayi-store-analysis-v5";
 
 export interface StoreOpenOptionsRequest {
   readonly messageVersion: typeof STORE_MESSAGE_VERSION;

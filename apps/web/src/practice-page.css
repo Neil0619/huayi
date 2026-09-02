@@ -3,20 +3,38 @@
 .dialogue-session,
 .practice-history-filters,
 .practice-history-layout {
-  max-width: 68rem;
+  max-width: var(--workspace-max);
   margin: 0 auto;
   padding: clamp(var(--space-6), 5vw, var(--space-12));
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-lg);
-  background: var(--surface-default);
-  box-shadow: var(--card-shadow);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-stage);
+  background: var(--glass-fill-strong);
+  box-shadow: var(--glass-shadow);
+  backdrop-filter: blur(var(--blur-deep)) saturate(118%);
+}
+
+.practice-queue,
+.practice-session {
+  position: relative;
+  overflow: hidden;
+}
+
+.practice-queue::before,
+.practice-session::before {
+  position: absolute;
+  z-index: -1;
+  background: var(--glass-sheen);
+  content: "";
+  inset: 0;
+  opacity: 0.48;
+  pointer-events: none;
 }
 
 .practice-history-link,
 .practice-history-filters,
 .practice-history-layout,
 .practice-history-page > p {
-  max-width: 68rem;
+  max-width: var(--workspace-max);
   margin-right: auto;
   margin-left: auto;
 }
@@ -32,6 +50,7 @@
 .practice-history-link {
   margin-top: calc(var(--space-4) * -1);
   margin-bottom: var(--space-6);
+  padding-right: var(--space-2);
   text-align: right;
 }
 
@@ -74,10 +93,11 @@
 .practice-history-list,
 .practice-history-detail {
   padding: var(--space-4);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-lg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-card);
   background: var(--surface-default);
   box-shadow: var(--card-shadow);
+  backdrop-filter: blur(var(--glass-blur)) saturate(118%);
 }
 
 .practice-history-list {
@@ -260,17 +280,55 @@
 
 .practice-queue > div {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: var(--space-3);
+}
+
+.practice-queue {
+  display: grid;
+  min-height: 650px;
+  align-items: start;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-template-rows: auto auto 1fr;
+  column-gap: var(--space-3);
+}
+
+.practice-queue > h2 {
+  max-width: 10ch;
+  margin: 0;
+  font-size: clamp(2.65rem, 5vw, 4.75rem);
+  font-weight: 430;
+  grid-column: 1 / 8;
+  letter-spacing: -0.05em;
+  line-height: 1;
+}
+
+.practice-queue > p {
+  max-width: 34rem;
+  margin: var(--space-4) 0 0;
+  color: var(--text-secondary);
+  grid-column: 1 / 8;
+}
+
+.practice-queue > div {
+  align-self: stretch;
+  padding: var(--space-3);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-card);
+  background: var(--surface-glass-soft);
+  grid-column: 8 / -1;
+  grid-row: 1 / 4;
+  backdrop-filter: blur(var(--glass-blur)) saturate(118%);
 }
 
 .practice-queue article,
 .practice-prompt,
 .practice-feedback {
   padding: var(--space-5);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  background: var(--surface-strong);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-card);
+  background: var(--surface-inner);
+  backdrop-filter: blur(var(--glass-blur)) saturate(118%);
 }
 
 .practice-queue article {
@@ -288,12 +346,28 @@
   margin-top: auto;
   border-color: transparent;
   color: var(--text-on-action);
-  background: var(--action-primary);
+  background: var(--button-fill);
+  box-shadow: var(--shadow-control);
 }
 
 .practice-session {
   display: grid;
+  min-height: 600px;
+  align-content: center;
   gap: var(--space-4);
+}
+
+.practice-session > * {
+  width: min(100%, 48rem);
+  margin-right: auto;
+  margin-left: auto;
+}
+
+.practice-session > h2 {
+  font-size: clamp(2.4rem, 5vw, 4.5rem);
+  font-weight: 430;
+  letter-spacing: -0.045em;
+  line-height: 1.05;
 }
 
 .practice-session form,
@@ -306,10 +380,10 @@
   width: 100%;
   min-height: 10rem;
   padding: var(--space-3);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-control);
   color: var(--text-primary);
-  background: var(--surface-strong);
+  background: var(--surface-input);
   font: inherit;
   resize: vertical;
 }
@@ -328,6 +402,24 @@
 }
 
 @media (max-width: 48rem) {
+  .practice-queue,
+  .practice-session,
+  .dialogue-session,
+  .practice-history-filters,
+  .practice-history-layout {
+    padding: var(--space-6);
+    border-radius: var(--radius-card);
+  }
+
+  .practice-queue {
+    display: block;
+    min-height: 0;
+  }
+
+  .practice-queue > div {
+    margin-top: var(--space-6);
+  }
+
   .practice-queue > div {
     grid-template-columns: 1fr;
   }

@@ -1,4 +1,4 @@
-# Huayi Store 1.0 架构
+# 语见 Store Extension 架构
 
 ## 依赖方向
 
@@ -36,7 +36,8 @@ DOM、Chrome、Node.js、Provider SDK、SSE 或数据库 API。Store Extension �
   语境释义，不能携带 `source`；未知字段以及 URL、标题、完整结果或导出目标都会在调用
   `LexiconRepository` 前被拒绝。Service Worker 从 sender URL 推导普通网页或精确 YouTube
   `/watch` 来源，Repository 生成时间与记录 ID。
-- Content Script 和 Worker 先完成版本握手。旧标签页收到不兼容响应后只提示刷新，不发送分析。
+- Content Script 和 Worker 先完成内部消息 v5 版本握手。旧 v4 标签页收到不兼容响应后只提示
+  刷新，不发送分析。
 - 分析期间使用长连接端口承载有界增量；断口即失败，绝不自动重发。
 - 普通网页选择在版本握手成功后才启用。Content Script 独立完成最多 2,000 字符的英文单词、
   短语或句子分类和必要上下文截取；Overlay 使用原生 Shadow DOM、外部点击和 Escape 关闭，且不显示
@@ -52,9 +53,11 @@ DOM、Chrome、Node.js、Provider SDK、SSE 或数据库 API。Store Extension �
 - `OverlayCardSession` 只在当前 Overlay 生命周期中保存翻译、解释各自的成功结果或错误。顶部模式
   切换命中成功缓存时不创建端口；切到未完成模式先取消唯一活动端口。旧端口、旧 requestId 和旧
   presence generation 都不能写回新模式或新选区，关闭或 replacement 直接销毁整个会话。
-- 两套 Overlay 皮肤使用同一 DOM。样式由 Content Script 通过注入的扩展内 URL 加载随包
-  `overlay.css`；Manifest 只允许该资源向 http/https 页面访问。加载前或加载失败时保留最小内联
-  可操作样式，不加载远程 CSS、字体或代码。
+- 四套外观与两种 Overlay 材质使用同一 DOM。样式由 Content Script 通过注入的扩展内 URL 加载
+  随包 `overlay.css`；`data-appearance` 只选择 `moon | silver | champagne | porcelain` 的颜色、
+  光影和材质温度，现有 `data-theme` 只选择 `pearl | parchment` 的通透或柔雾参数。Manifest 只允许
+  该资源向 http/https 页面访问。加载前或加载失败时保留最小内联可操作样式，不加载远程 CSS、
+  字体或代码。外观广播原位更新已打开 Shadow DOM，不销毁卡片、流式内容或输入状态。
 - 分析端口名和每条 start、cancel、update、result、error 消息都携带同一内部协议版本。一个端口
   最多启动一次分析；requestId、selectionKind、Provider 和 targetLanguage 均由 Worker 生成或固定。
   start 消息只能包含动作、选择、必要上下文和句子语境，未知字段一律拒绝。
@@ -62,8 +65,8 @@ DOM、Chrome、Node.js、Provider SDK、SSE 或数据库 API。Store Extension �
 
 ## 存储分区
 
-- `chrome.storage.local`：小型非敏感设置、同意版本、严格 DeviceVault key envelope 和少量加密凭据记录，并限制
-  为可信扩展上下文。
+- `chrome.storage.local`：小型非敏感设置、独立外观键 `huayi.store.appearance.v1`、同意版本、严格
+  DeviceVault key envelope 和少量加密凭据记录，并限制为可信扩展上下文。
 - `chrome.storage.session`：仅在旧 Vault 一次迁移清理期间兼容读取并删除，不再承载运行权限。
 - IndexedDB：逐记录加密的生词，以及独立版本化加密快照中的导入任务、ExportOutbox、租约和
   回执。
@@ -101,6 +104,11 @@ v4，v4 再将这些 host 原子迁移为 Settings v5 `sitePolicy` 的精确 blo
 `enabled` 同时成立才允许外发，旧同意版本不成立。Content Script 只可通过严格版本化消息读取
 `youtubeMode` 与快捷键，Worker 仅向精确 HTTPS YouTube `/watch` sender 返回这些非敏感字段。
 
+整页外观不进入 Settings v6，也不触发设置迁移。`StoreAppearanceRepository` 只读写独立非敏感键
+`huayi.store.appearance.v1`；缺失、非法或读取失败使用 `silver`，写入失败不改写 Settings v6。
+Options 的“常用设置”是唯一外观选择入口，Popup、普通网页 Overlay、YouTube 和扇贝提示从 Worker
+严格响应取得当前外观；Popup 不提供第二个选择器。
+
 Store 1.0 不再提供 Classic 设置包导入或旧密码库迁移 UI。Classic 与 Store 保持独立存储，Store
 先校验整包，再以当前 Settings v5 为基底仅替换兼容的全局、默认动作、站点和 YouTube
 字段，并执行一次存储写入。Provider、同意、凭据和生词不在该转移边界内。
@@ -109,7 +117,7 @@ Store 1.0 不再提供 Classic 设置包导入或旧密码库迁移 UI。Classic
 分析、生词、扇贝和 YouTube 设置入口再次执行策略。普通选择、扇贝与 YouTube controller 在
 isolated world 共享一个非页面可见的生命周期注册表；停用时立即 stop 并关闭 UI，异步迟到结果受
 generation 约束。Popup 只用 active tab ID 把站点操作转交 Content Script，切换前复核 tab ID；
-Provider、同意、全局开关和词卡皮肤仅返回非秘密状态；Popup 不读取凭据存在性、Vault/迁移状态。Options 的全局或 host 变更由 Worker 广播无数据
+Provider、同意、全局开关、整页外观和词卡材质仅返回非秘密状态；Popup 不读取凭据存在性、Vault/迁移状态。Options 的全局或 host 变更由 Worker 广播无数据
 refresh，各页面再以自身 sender 重新查询，不向广播附带规则表。
 
 Options 直接通过可信 `DeviceVault` 读取欧路 Authorization 的存在性并写入/删除固定槽位；
@@ -160,5 +168,5 @@ Store Extension；根级 Vitest `test.projects` 同时运行 Classic 与 Store �
 Overlay 和 YouTube 时应按职责移植，不保留 Native Host transport facade。构建分别限制 all-sites
 content、host-loaded YouTube isolated controller 与 MAIN bridge 的未压缩体积，避免把 Worker/Provider 代码
 带入页面 bundle。
-ClassicParity 完整 ResultCard 的审计预算为普通网页 48 KiB、YouTube isolated controller 64 KiB；
+当前 C/G/H/I 完整 ResultCard 的审计预算为普通网页 56 KiB、YouTube isolated controller 74 KiB；
 门禁继续显式排除 Zod、Provider 和 Service Worker 实现。

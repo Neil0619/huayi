@@ -1,7 +1,7 @@
 .study-inbox-tabs {
   position: static;
   display: flex;
-  max-width: 74rem;
+  max-width: var(--workspace-max);
   justify-content: flex-end;
   gap: var(--space-5);
   margin: 0 auto var(--space-6);

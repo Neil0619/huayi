@@ -104,6 +104,59 @@
         </section>
 
         <section
+          class="card appearance-card"
+          aria-labelledby="appearance-title"
+          data-settings-associated="common"
+          role="region"
+        >
+          <div class="section-heading">
+            <div>
+              <p class="step">界面外观</p>
+              <h2 id="appearance-title">选择你的光线</h2>
+            </div>
+          </div>
+          <p>只保存在当前设备；改变色温、玻璃材质与光影，不改变功能或页面结构。</p>
+          <div class="appearance-grid" role="radiogroup" aria-labelledby="appearance-title">
+            <label class="appearance-option">
+              <input
+                type="radio"
+                name="store-appearance"
+                value="moon"
+                data-store-appearance="moon"
+              />
+              <span><b>去青月白</b><small>月白与深墨蓝</small></span>
+            </label>
+            <label class="appearance-option">
+              <input
+                type="radio"
+                name="store-appearance"
+                value="silver"
+                data-store-appearance="silver"
+              />
+              <span><b>流银镜白</b><small>银白与黛黑石墨</small></span>
+            </label>
+            <label class="appearance-option">
+              <input
+                type="radio"
+                name="store-appearance"
+                value="champagne"
+                data-store-appearance="champagne"
+              />
+              <span><b>香槟晨霜</b><small>乳白与深咖</small></span>
+            </label>
+            <label class="appearance-option">
+              <input
+                type="radio"
+                name="store-appearance"
+                value="porcelain"
+                data-store-appearance="porcelain"
+              />
+              <span><b>霁蓝瓷光</b><small>瓷白与靛蓝</small></span>
+            </label>
+          </div>
+        </section>
+
+        <section
           class="card disclosure"
           aria-labelledby="settings-tab-common"
           data-settings-associated="common"

@@ -4,7 +4,7 @@
 
 - **秘密**：OpenAI API Key、DeepSeek API Key、欧路 Authorization、DeviceVault DEK。
 - **加密个人数据**：WordEntry、ContextObservation、导入任务、导出箱和回执。
-- **非敏感设置**：功能开关、站点规则、YouTube 偏好、已同意的披露版本。
+- **非敏感设置**：功能开关、站点规则、YouTube 偏好、外观、词卡材质、已同意的披露版本。
 - **临时页面数据**：用户当前选择和最多 2,000 字符的必要上下文，只存在于一次分析生命周期。
 
 Huayi 开发者收集零遥测，但这不表示数据永不离开设备：用户同意后，选择和上下文会直接发给
@@ -73,6 +73,11 @@ Store 设置 Schema v6 为欧路和扇贝分别保存 `{ consent, enabled }`，�
 YouTube 模式，v3→v4 默认全局启用且无停用 host，v4→v5 将 `disabledHosts`
 一次性转为默认 allow 的精确 block 规则；每步迁移必须落盘成功，不能只在内存继续。
 
+四套整页外观使用独立非敏感键 `huayi.store.appearance.v1`，不进入 Settings v6、不触发设置迁移，
+也不与账号、Classic 或 Web 同步。非法或不可读取的值固定回退 `silver`；写入失败只保留本页预览并
+显示可见错误，不能改写原 Settings。内部消息 v5 的 Popup、站点策略和 YouTube 设置严格响应只
+增加枚举 `appearance`；旧 v4 Content Script 通过握手进入刷新提示，不继续分析。
+
 Store 不提供 Classic 设置包导入入口，也不读取 Classic storage、Native Host 或平台凭据。
 生词历史只经用户显式发起的欧路导入进入 Store；站点、YouTube 与词卡皮肤偏好重新配置。
 
@@ -80,7 +85,7 @@ Content Script 的站点 query/toggle 请求不能携带 URL 或 hostname；Work
 host，并在付费分析、本地保存、扇贝 claim/resolve 和 YouTube 设置读取前重新校验。站点关闭时，
 isolated-world 生命周期注册表同步停止普通选择、扇贝和 YouTube controller；扇贝迟到 claim 与
 YouTube 迟到 settings 响应都有 generation guard，不能重新写 DOM。Popup 不读取 tab URL，只把
-当前 tab ID 用于 content relay；active tab ID 变化会显示错误并拒绝提交。Popup 契约不读取凭据或 DeviceVault，只返回运行状态、全局开关和词卡皮肤。Options 广播只含固定 refresh 类型，不含规则或
+当前 tab ID 用于 content relay；active tab ID 变化会显示错误并拒绝提交。Popup 契约不读取凭据或 DeviceVault，只返回运行状态、全局开关、外观和词卡材质。Options 广播只含固定 refresh 类型，不含规则或
 页面数据。
 
 YouTube isolated controller 与静态 MAIN bridge 为支持从非播放页进入播放页的 SPA 导航，只随包注入

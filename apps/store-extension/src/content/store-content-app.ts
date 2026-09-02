@@ -30,6 +30,7 @@ export class StoreContentApp {
   }
 
   update(policy: StoreSitePolicyResponse): void {
+    this.overlay.setAppearance(policy.appearance);
     this.overlay.setDefaultAction(policy.defaultAction);
     this.overlay.setTheme(policy.overlayTheme);
   }

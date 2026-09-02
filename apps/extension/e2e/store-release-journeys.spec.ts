@@ -19,6 +19,62 @@ test.beforeEach(async ({ page }) => {
   await expect(page.locator("html")).toHaveAttribute("data-store-harness-ready", "true");
 });
 
+test("the actual Store bundle renders all four appearances without changing card structure", async ({
+  page,
+}) => {
+  test.slow();
+  const appearances = [
+    ["moon", "#29394b"],
+    ["silver", "#24282d"],
+    ["champagne", "#503c31"],
+    ["porcelain", "#304477"],
+  ] as const;
+
+  for (const [appearance, action] of appearances) {
+    await page.evaluate(({ key, value }) => window.localStorage.setItem(key, value), {
+      key: "huayi.store.e2e.appearance",
+      value: appearance,
+    });
+    await page.reload();
+    await expect(page.locator("html")).toHaveAttribute("data-store-harness-ready", "true");
+    await selectWord(page, "word");
+
+    const panel = shadow(page);
+    await expect(panel).toBeVisible();
+    await expect(panel).toHaveAttribute("data-appearance", appearance);
+    await expect(panel).toHaveAttribute("data-theme", "pearl");
+    await expect(panel).toHaveAttribute("data-styles", "ready");
+    expect(
+      await panel.evaluate((element) =>
+        getComputedStyle(element).getPropertyValue("--overlay-action").trim(),
+      ),
+    ).toBe(action);
+    expect(
+      await panel.evaluate((element) => element.scrollWidth - element.clientWidth),
+    ).toBeLessThanOrEqual(0);
+    await page.keyboard.press("Escape");
+    await expect(overlay(page)).toHaveCount(0);
+  }
+});
+
+test("the default silver Store card keeps pearl and parchment visual baselines", async ({
+  page,
+}) => {
+  await selectWord(page, "word");
+  await expect(shadow(page)).toHaveAttribute("data-styles", "ready");
+  await expect(shadow(page)).toHaveScreenshot("store-silver-pearl-action.png", {
+    animations: "disabled",
+  });
+
+  await page.goto(`${fixturePath}?theme=parchment`);
+  await expect(page.locator("html")).toHaveAttribute("data-store-harness-ready", "true");
+  await selectWord(page, "word");
+  await expect(shadow(page)).toHaveAttribute("data-styles", "ready");
+  await expect(shadow(page)).toHaveScreenshot("store-silver-parchment-action.png", {
+    animations: "disabled",
+  });
+});
+
 test("Store selection reaches a strict fake Provider result and saves only bounded fields", async ({
   page,
 }) => {

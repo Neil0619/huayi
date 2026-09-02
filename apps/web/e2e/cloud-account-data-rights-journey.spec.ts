@@ -30,7 +30,7 @@ test("an account owner exports data and permanently deletes the account", async 
       const computed = getComputedStyle(element);
       return { borderColor: computed.borderColor, borderStyle: computed.borderStyle };
     }),
-  ).toEqual({ borderColor: "rgb(138, 57, 71)", borderStyle: "solid" });
+  ).toEqual({ borderColor: "rgba(154, 63, 67, 0.31)", borderStyle: "solid" });
   await expect(page.getByRole("heading", { name: "尚未请求完整数据导出" })).toBeVisible();
   await page.getByRole("button", { name: "请求完整数据导出" }).click();
   await expect(page.getByRole("heading", { name: "正在等待生成" })).toBeVisible();

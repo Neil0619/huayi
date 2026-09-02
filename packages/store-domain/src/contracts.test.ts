@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   STORE_MESSAGE_VERSION,
+  STORE_ANALYSIS_PORT_NAME,
   STORE_NETWORK_CONSENT_VERSION,
   STORE_RECIPIENT_CONSENT_VERSIONS,
   STORE_SETTINGS_SCHEMA_VERSION,
@@ -22,6 +23,11 @@ import {
 } from "./index.js";
 
 describe("Store domain contracts", () => {
+  it("uses the v5 runtime message boundary", () => {
+    expect(STORE_MESSAGE_VERSION).toBe(5);
+    expect(STORE_ANALYSIS_PORT_NAME).toBe("huayi-store-analysis-v5");
+  });
+
   it("accepts a word with multiple bounded context observations", () => {
     const entry = {
       contexts: [

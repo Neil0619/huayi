@@ -8,12 +8,22 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+function overlay(): StoreOverlayController {
+  return {
+    setAppearance: vi.fn(),
+    setDefaultAction: vi.fn(),
+    setTheme: vi.fn(),
+  } as unknown as StoreOverlayController;
+}
+
 describe("Store YouTube SPA integration", () => {
   it("stays inert on a cold non-watch page, activates on SPA watch, and tears down on leave", async () => {
     let watchPage = false;
     const controller = { start: vi.fn(), stop: vi.fn() };
     const createController = vi.fn(() => controller);
+    const storeOverlay = overlay();
     const sendMessage = vi.fn(async () => ({
+      appearance: "porcelain" as const,
       messageVersion: STORE_MESSAGE_VERSION,
       type: "store/content-settings-result",
       youtubeMode: "bilingual",
@@ -24,7 +34,7 @@ describe("Store YouTube SPA integration", () => {
       createRandomId: () => "random-id",
       document,
       isWatchPage: () => watchPage,
-      overlay: {} as StoreOverlayController,
+      overlay: storeOverlay,
       sendMessage,
     });
 
@@ -38,6 +48,7 @@ describe("Store YouTube SPA integration", () => {
     await vi.waitFor(() => expect(controller.start).toHaveBeenCalledOnce());
     expect(sendMessage).toHaveBeenCalledOnce();
     expect(createController).toHaveBeenCalledOnce();
+    expect(storeOverlay.setAppearance).toHaveBeenCalledWith("porcelain");
 
     watchPage = false;
     document.dispatchEvent(new Event("yt-navigate-start"));
@@ -56,7 +67,7 @@ describe("Store YouTube SPA integration", () => {
       createController,
       document,
       isWatchPage: () => true,
-      overlay: {} as StoreOverlayController,
+      overlay: overlay(),
       sendMessage: () =>
         new Promise((resolve) => {
           finishSettings = resolve;
@@ -66,6 +77,7 @@ describe("Store YouTube SPA integration", () => {
     integration.start();
     integration.stop();
     finishSettings?.({
+      appearance: "silver",
       messageVersion: STORE_MESSAGE_VERSION,
       type: "store/content-settings-result",
       youtubeMode: "bilingual",
@@ -84,6 +96,7 @@ describe("Store YouTube SPA integration", () => {
       .fn()
       .mockRejectedValueOnce(new Error("worker starting"))
       .mockResolvedValueOnce({
+        appearance: "silver",
         messageVersion: STORE_MESSAGE_VERSION,
         type: "store/content-settings-result",
         youtubeMode: "bilingual",
@@ -93,7 +106,7 @@ describe("Store YouTube SPA integration", () => {
       createController,
       document,
       isWatchPage: () => true,
-      overlay: {} as StoreOverlayController,
+      overlay: overlay(),
       sendMessage,
     });
 
@@ -114,7 +127,7 @@ describe("Store YouTube SPA integration", () => {
       createController,
       document,
       isWatchPage: () => true,
-      overlay: {} as StoreOverlayController,
+      overlay: overlay(),
       sendMessage,
     });
 
@@ -133,7 +146,7 @@ describe("Store YouTube SPA integration", () => {
       createController: vi.fn(() => ({ start: vi.fn(), stop: vi.fn() })),
       document,
       isWatchPage: () => true,
-      overlay: {} as StoreOverlayController,
+      overlay: overlay(),
       sendMessage,
     });
 
@@ -158,7 +171,7 @@ describe("Store YouTube SPA integration", () => {
       createController: () => controller,
       document,
       isWatchPage: () => true,
-      overlay: {} as StoreOverlayController,
+      overlay: overlay(),
       sendMessage,
     });
 
@@ -168,6 +181,7 @@ describe("Store YouTube SPA integration", () => {
     expect(sendMessage).toHaveBeenCalledOnce();
 
     finishSettings?.({
+      appearance: "champagne",
       messageVersion: STORE_MESSAGE_VERSION,
       type: "store/content-settings-result",
       youtubeMode: "bilingual",

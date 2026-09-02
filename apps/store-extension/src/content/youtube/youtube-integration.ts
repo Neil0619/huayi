@@ -1,6 +1,7 @@
 import {
   STORE_MESSAGE_VERSION,
   parseStoreContentSettingsResponse,
+  type StoreAppearance,
   type StoreKeyboardShortcut,
   type StoreContentSettingsRequest,
   type StoreSitePolicyResponse,
@@ -17,6 +18,7 @@ import {
 } from "./youtube-startup-retry.js";
 
 interface YouTubeController {
+  setAppearance?(appearance: StoreAppearance): void;
   start(): void;
   stop(): void;
 }
@@ -25,6 +27,7 @@ interface YouTubeIntegrationOptions {
   readonly createController?: (
     mode: Exclude<YouTubeMode, "disabled">,
     shortcut: StoreKeyboardShortcut | null,
+    appearance: StoreAppearance,
   ) => YouTubeController;
   readonly createRandomId?: () => string;
   readonly document?: Document;
@@ -37,10 +40,12 @@ interface YouTubeIntegrationOptions {
 
 export class YouTubeIntegration {
   private activation = 0;
+  private appearance: StoreAppearance = "silver";
   private controller: YouTubeController | null = null;
   private readonly createController: (
     mode: Exclude<YouTubeMode, "disabled">,
     shortcut: StoreKeyboardShortcut | null,
+    appearance: StoreAppearance,
   ) => YouTubeController;
   private readonly createRandomId: () => string;
   private readonly documentRef: Document;
@@ -65,7 +70,7 @@ export class YouTubeIntegration {
       );
     this.createController =
       options.createController ??
-      ((mode, shortcut) => {
+      ((mode, shortcut, appearance) => {
         const bridge = new YouTubeBridgeClient({
           capability: this.createRandomId(),
           channel: this.createRandomId(),
@@ -75,6 +80,7 @@ export class YouTubeIntegration {
         return new YouTubeCaptionController({
           bridge,
           document: this.documentRef,
+          appearance,
           mode,
           overlay: this.options.overlay,
           shortcut,
@@ -99,8 +105,11 @@ export class YouTubeIntegration {
   }
 
   update(policy: StoreSitePolicyResponse): void {
+    this.appearance = policy.appearance;
+    this.options.overlay.setAppearance(policy.appearance);
     this.options.overlay.setDefaultAction(policy.defaultAction);
     this.options.overlay.setTheme(policy.overlayTheme);
+    this.controller?.setAppearance?.(policy.appearance);
   }
 
   private readonly handleNavigationFinish = (): void => {
@@ -161,7 +170,13 @@ export class YouTubeIntegration {
     ) {
       return;
     }
-    this.controller = this.createController(response.youtubeMode, response.youtubeShortcut);
+    this.appearance = response.appearance;
+    this.options.overlay.setAppearance(response.appearance);
+    this.controller = this.createController(
+      response.youtubeMode,
+      response.youtubeShortcut,
+      this.appearance,
+    );
     this.controller.start();
   }
 }

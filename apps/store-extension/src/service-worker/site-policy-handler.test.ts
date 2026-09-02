@@ -32,8 +32,10 @@ describe("Store site policy handler", () => {
         { messageVersion: STORE_MESSAGE_VERSION, type: "store/site-policy" },
         "https://EXAMPLE.com/article?private=1",
         { get, setSiteEnabled },
+        async () => "champagne",
       ),
     ).resolves.toEqual({
+      appearance: "champagne",
       defaultAction: "translate",
       enabled: false,
       globallyEnabled: true,
@@ -62,8 +64,9 @@ describe("Store site policy handler", () => {
         },
         "https://sub.example.com/page",
         repository,
+        async () => "silver",
       ),
-    ).resolves.toMatchObject({ enabled: false, host: "sub.example.com" });
+    ).resolves.toMatchObject({ appearance: "silver", enabled: false, host: "sub.example.com" });
     expect(setSiteEnabled).toHaveBeenCalledWith("sub.example.com", false);
 
     await expect(
@@ -76,6 +79,7 @@ describe("Store site policy handler", () => {
         },
         "https://sub.example.com/page",
         repository,
+        async () => "silver",
       ),
     ).resolves.toBeUndefined();
     await expect(
@@ -83,6 +87,7 @@ describe("Store site policy handler", () => {
         { messageVersion: STORE_MESSAGE_VERSION, type: "store/site-policy" },
         "chrome://settings",
         repository,
+        async () => "silver",
       ),
     ).resolves.toBeUndefined();
     expect(setSiteEnabled).toHaveBeenCalledOnce();

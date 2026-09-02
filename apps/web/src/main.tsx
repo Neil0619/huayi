@@ -16,6 +16,7 @@ import { resolveWebBootstrap } from "./public-bootstrap.js";
 import { parsePasswordRecoveryRoute } from "./password-recovery-route.js";
 import { HostedAcceptanceNotice } from "./hosted-acceptance-notice.js";
 import { LocalAcceptanceNotice } from "./local-acceptance-notice.js";
+import { initializeWebAppearance } from "./web-appearance.js";
 import "./styles.css";
 import "./account-quota-page.css";
 import "./account-data-rights-page.css";
@@ -31,6 +32,8 @@ import "./study-inbox.css";
 
 const root = document.getElementById("root");
 if (root === null) throw new Error("Web application root is missing.");
+
+initializeWebAppearance(document.documentElement);
 
 let api;
 let identity;

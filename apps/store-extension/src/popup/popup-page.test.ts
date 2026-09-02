@@ -19,6 +19,7 @@ function element<ElementType extends HTMLElement>(selector: string): ElementType
 
 function status() {
   return {
+    appearance: "silver" as const,
     globallyEnabled: true,
     messageVersion: STORE_MESSAGE_VERSION,
     modelConsentGranted: true,
@@ -30,6 +31,7 @@ function status() {
 
 function site(enabled: boolean) {
   return {
+    appearance: "silver" as const,
     defaultAction: "ask" as const,
     enabled,
     globallyEnabled: true,
@@ -65,6 +67,7 @@ describe("Store PopupPage", () => {
     await page.initialize();
 
     expect(element("[data-provider]").textContent).toBe("DeepSeek");
+    expect(document.documentElement.dataset.appearance).toBe("silver");
     expect(element("[data-model-consent]").textContent).toBe("已允许联网");
     expect(document.querySelector("[data-credential]")).toBeNull();
     expect(document.body.textContent).not.toContain("secret");

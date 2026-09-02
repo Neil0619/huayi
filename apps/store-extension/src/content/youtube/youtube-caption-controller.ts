@@ -1,11 +1,13 @@
+import type { StoreAppearance } from "@huayi/store-domain";
+
 import type { StoreOverlayAnchor } from "../overlay/store-overlay-controller.js";
-import { readStoreSelection } from "../selection/read-selection.js";
 import type { CaptionBridge, CapturedCaptionTrack } from "./youtube-bridge-client.js";
 import { applyYouTubeSelectionBoundary } from "./youtube-selection-boundary.js";
 import type { YouTubeCaptionControllerOptions } from "./youtube-caption-controller-contract.js";
 import { SELECTION_PAUSE, TEMPORARY_PAUSE } from "./youtube-pause-ownership.js";
 import type { YouTubePauseOwnership } from "./youtube-pause-ownership.js";
 import { YouTubeCaptionSelectionGesture } from "./youtube-caption-selection-gesture.js";
+import { readYouTubeCaptionSelection } from "./youtube-caption-selection-reading.js";
 import {
   captureTranslatedCaption,
   waitForTranslatedCaptionRetry,
@@ -29,6 +31,7 @@ import { YouTubeTemporaryTranslationHold } from "./youtube-temporary-translation
 export class YouTubeCaptionController {
   readonly #acceptsUserGesture: (event: Event) => boolean;
   readonly #bridge: CaptionBridge;
+  #appearance: StoreAppearance;
   readonly #dismissalGesture: YouTubeDismissalGesture;
   readonly #documentRef: Document;
   readonly #getVideoId: () => string | null;
@@ -59,6 +62,7 @@ export class YouTubeCaptionController {
   constructor(options: YouTubeCaptionControllerOptions) {
     this.#acceptsUserGesture = options.acceptsUserGesture ?? ((event) => event.isTrusted);
     this.#bridge = options.bridge;
+    this.#appearance = options.appearance ?? "silver";
     this.#documentRef = options.document ?? document;
     this.#getVideoId =
       options.getVideoId ?? (() => videoIdFromYouTubeLocation(this.#documentRef.location));
@@ -79,7 +83,8 @@ export class YouTubeCaptionController {
       commit: () => this.#commitCaptionSelection(),
       document: this.#documentRef,
       getEnglish: () => this.#view?.english ?? null,
-      hasValidSelection: () => this.#hasValidCaptionSelection(),
+      hasValidSelection: () =>
+        readYouTubeCaptionSelection(this.#documentRef, this.#view?.english ?? null) !== null,
       restore: () => this.#render(),
     });
     this.#shortcut = new YouTubeShortcutController(this.#documentRef, {
@@ -141,6 +146,11 @@ export class YouTubeCaptionController {
     this.#observer.disconnect();
     this.#clearSession();
     this.#bridge.destroy();
+  }
+
+  setAppearance(appearance: StoreAppearance): void {
+    this.#appearance = appearance;
+    this.#view?.setAppearance(appearance);
   }
   #scheduleRefresh(): void {
     if (!this.#started) return;
@@ -249,6 +259,7 @@ export class YouTubeCaptionController {
       },
       (holding) => this.#temporaryHold.set("pointer", holding),
       this.#shortcutLabel,
+      this.#appearance,
     );
   }
   readonly #render = (): void => {
@@ -262,45 +273,13 @@ export class YouTubeCaptionController {
         : alignTranslatedSentence(sentence, this.#translated.cues);
     this.#view.render(sentence, translated, this.#translated !== null);
   };
-  #hasValidCaptionSelection(): boolean {
-    if (this.#view === null) return false;
-    const selection = this.#documentRef.defaultView?.getSelection() ?? null;
-    if (selection === null || selection.rangeCount !== 1 || selection.isCollapsed) return false;
-    const range = selection.getRangeAt(0);
-    const text = this.#view.english.firstChild;
-    if (
-      !(text instanceof Text) ||
-      range.startContainer !== text ||
-      range.endContainer !== text ||
-      range.startOffset >= range.endOffset
-    ) {
-      return false;
-    }
-    const reading = readStoreSelection(selection);
-    return reading !== null && reading.context === text.data;
-  }
   #commitCaptionSelection(): void {
-    if (this.#view === null || !this.#hasValidCaptionSelection()) {
+    const selected = readYouTubeCaptionSelection(this.#documentRef, this.#view?.english ?? null);
+    if (selected === null) {
       this.#render();
       return;
     }
-    const selection = this.#documentRef.defaultView?.getSelection();
-    if (selection === null || selection === undefined) {
-      this.#render();
-      return;
-    }
-    const range = selection.getRangeAt(0);
-    const text = this.#view.english.firstChild;
-    if (!(text instanceof Text)) {
-      this.#render();
-      return;
-    }
-    const rect = range.getBoundingClientRect();
-    const reading = readStoreSelection(selection);
-    if (reading === null || reading.context !== text.data) {
-      this.#render();
-      return;
-    }
+    const rect = selected.range.getBoundingClientRect();
     const temporaryOwnership = this.#pauseOwnerships[TEMPORARY_PAUSE];
     const transferred = temporaryOwnership !== null && this.#isCurrentOwnership(temporaryOwnership);
     if (transferred) {
@@ -311,11 +290,15 @@ export class YouTubeCaptionController {
     if (!transferred) this.#pauseVideoFor(SELECTION_PAUSE);
     this.#selectionActive = true;
     const anchor: StoreOverlayAnchor = { bottom: rect.bottom, left: rect.left, top: rect.top };
-    this.#overlay.show(applyYouTubeSelectionBoundary(reading, text.data), anchor, () => {
-      this.#selectionActive = false;
-      this.#render();
-      this.#resumeOwnedVideo(SELECTION_PAUSE);
-    });
+    this.#overlay.show(
+      applyYouTubeSelectionBoundary(selected.reading, selected.text.data),
+      anchor,
+      () => {
+        this.#selectionActive = false;
+        this.#render();
+        this.#resumeOwnedVideo(SELECTION_PAUSE);
+      },
+    );
   }
   readonly #handleVisibilityChange = (): void => {
     this.#shortcut.handleVisibilityChange();

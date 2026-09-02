@@ -24,11 +24,13 @@ describe("Store content site policy relay", () => {
       extensionId: "extension-id",
     };
     const response = {
+      appearance: "silver" as const,
       defaultAction: "ask" as const,
       enabled: false,
       globallyEnabled: true,
       host: "example.com",
       messageVersion: STORE_MESSAGE_VERSION,
+      overlayTheme: "pearl" as const,
       type: "store/site-policy-result" as const,
     };
     const lifecycle = {

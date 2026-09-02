@@ -343,6 +343,18 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
 - [x] `/app`、`/settings/data`、`/privacy` 在桌面与 390px 的实际产物中无横向溢出，危险区边框与隐私
       背景 computed style 有效，焦点可见且公共隐私页零 API。
 
+## C/G/H/I 全量 UI 升级
+
+- [x] 全站原型、关键状态和四套统一布局完成 293/293 验收，主视觉规范已锁定；
+- [x] Web 与 Store 分别完成四外观存储、可访问选择器、严格 Store v5 消息与打开词卡原位换肤；
+- [x] Web 全路由及 Store Popup、Options、词卡、YouTube、Shanbay 全部使用各自三层 Token registry，
+      且 `pearl | parchment` 保持独立材质；
+- [x] 默认 `silver` 全页面 actual-bundle、代表页面四外观、1440/1024/768/390px、键盘、AA、
+      reduced-motion、forced-colors、无横向溢出与无远程资源全部通过；
+- [x] macOS 聚合门通过；
+- [ ] exact-SHA Windows CI 通过；
+- [ ] 真实 macOS/Windows Chrome 安装与人工视觉验收完成；该项需要另行批准。
+
 ## Vercel API 运行时
 
 - [x] 首次 API-only policy 精确为 `"**": false` +

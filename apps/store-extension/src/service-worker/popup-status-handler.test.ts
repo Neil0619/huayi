@@ -27,6 +27,7 @@ describe("Store popup status handler", () => {
         { id: "extension-id", url: "chrome-extension://extension-id/popup.html" },
         "extension-id",
         {
+          getAppearance: async () => "silver",
           getSettings: async () => settings,
           notifySettingsChanged: vi.fn(async () => undefined),
           setGloballyEnabled: vi.fn(async () => undefined),
@@ -34,6 +35,7 @@ describe("Store popup status handler", () => {
         },
       ),
     ).resolves.toEqual({
+      appearance: "silver",
       globallyEnabled: true,
       messageVersion: STORE_MESSAGE_VERSION,
       modelConsentGranted: true,
@@ -45,6 +47,7 @@ describe("Store popup status handler", () => {
 
   it("does not read credentials or answer another extension page", async () => {
     const dependencies = {
+      getAppearance: async () => "moon" as const,
       getSettings: async () => settings,
       notifySettingsChanged: vi.fn(async () => undefined),
       setGloballyEnabled: vi.fn(async () => undefined),
@@ -57,7 +60,7 @@ describe("Store popup status handler", () => {
         "extension-id",
         dependencies,
       ),
-    ).resolves.toMatchObject({ providerId: "deepseek" });
+    ).resolves.toMatchObject({ appearance: "moon", providerId: "deepseek" });
     await expect(
       handlePopupStatusMessage(
         { messageVersion: STORE_MESSAGE_VERSION, type: "store/popup-status" },

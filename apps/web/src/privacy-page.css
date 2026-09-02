@@ -44,8 +44,8 @@
   max-width: 72ch;
   margin: 0 auto;
   padding: var(--privacy-notice-padding);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-lg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-stage);
   background: var(--surface-default);
   box-shadow: var(--card-shadow);
   overflow-wrap: anywhere;
@@ -53,7 +53,8 @@
 
 .privacy-title h1 {
   margin: var(--space-2) 0 var(--space-3);
-  font-size: clamp(2rem, 6vw, 3.5rem);
+  font-size: clamp(3rem, 7vw, 5.8rem);
+  font-weight: 430;
   letter-spacing: -0.045em;
   line-height: 1.03;
   text-wrap: balance;

@@ -85,6 +85,17 @@ wire 版本或完成声明。
 
 ## Cloud V1 当前状态（2026-08-14）
 
+### 2026-09-02：C/G/H/I 全量 UI 实现候选
+
+- 全站 293/293 原型已获批准，生产实现固定为同一 C 布局与四套明亮外观：去青月白 `moon`、
+  流银镜白 `silver`（默认）、香槟晨霜 `champagne`、霁蓝瓷光 `porcelain`；C 使用深墨蓝操作色，
+  G 使用黛黑石墨色。
+- Web 使用独立本地键 `huayi.web.appearance.v1`，Store 使用 `huayi.store.appearance.v1`；两端不做
+  账号同步。Store Settings v6 与现有 `pearl | parchment` 词卡材质不迁移、不改技术值。
+- Cloud Web 与 Store Extension 已形成生产实现候选和实际 bundle 回归；Classic 0.13、Native Host、
+  Cloud API 与数据库未改。当前 macOS 全量门已通过，exact-SHA Windows CI 和另行批准的双平台真实
+  Chrome 人工视觉验收仍待完成，不把本段解释为发布完成。
+
 2026-08-22 hosted 首轮部署已选择 Web-only：新增必填
 `HUAYI_STORE_EXTENSION_CAPABILITY=enabled|disabled`，首轮固定 `disabled` 并省略 Extension ID。API
 从 CORS/路由 composition 移除 Store 专用 surface，混合路由也拒绝 Extension token；完整 Store release

@@ -558,6 +558,23 @@ Phase 44 Fresh RED 为 2 个预期失败 / 7 个基线通过；GREEN 为静态�
 121/121 Node 脚本、447 个 Vitest 文件、Store coverage 97 files / 481 tests 与 Playwright 110/110。
 Windows 进入下一冻结候选批次。
 
+### 4.3a C/G/H/I 全量 UI 升级验收合同
+
+生产实现前的全站原型门已以 293/293 项关闭。实现必须按 TDD 覆盖 Web/Store 外观解析、默认值、非法
+值、存储失败、Web 同源标签页同步、Store 广播和 v4/v5 handshake；外观切换不得改变请求、路由、
+权限、业务状态、流式内容、输入或确认状态。
+
+静态 Token 门必须证明四套外观提供完全相同的 semantic key，Web、Popup、Options、Shadow DOM、
+YouTube 和 Shanbay 引用闭合，页面/组件不直接使用主题 raw color。可计算对比度要求正文与操作文字
+至少 4.5:1，控件边界与焦点至少 3:1，并覆盖 backdrop-filter 不可用、forced-colors 和
+reduced-motion 降级。
+
+actual production bundle 在默认 `silver` 下覆盖全部 Web 路由的桌面与 390px 关键状态；`/practice`、
+认证、危险确认和代表性数据页覆盖四外观。Store 覆盖 Popup、Options、词卡、流式结果、错误、收藏、
+YouTube 与 Shanbay 的四外观及 `pearl | parchment` 两材质。视口固定为 1440、1024、768、390px，
+验证键盘、焦点恢复、无页面级横向溢出、无远程资源和 bundle budget。macOS/Windows 分离视觉基线与
+双平台 CI 都必须通过；真实 Chrome 安装和人工视觉验收仍需另行批准。
+
 ### 4.3.1 R3-C 安全通知生产代码
 
 - `security-notification-worker.test.ts` 覆盖固定 23 小时 deadline、8 次上限、终态零 sender、Provider

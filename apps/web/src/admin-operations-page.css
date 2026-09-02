@@ -1,5 +1,5 @@
 .admin-operations-page {
-  max-width: 74rem;
+  max-width: var(--workspace-max);
   margin: 0 auto;
 }
 
@@ -12,8 +12,8 @@
 .admin-section,
 .admin-gate,
 .admin-user-card {
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-lg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-card);
   background: var(--surface-default);
   box-shadow: var(--card-shadow);
 }
@@ -27,6 +27,7 @@
 .admin-gate {
   max-width: 42rem;
   margin: 10vh auto;
+  border-radius: var(--radius-stage);
 }
 
 .admin-gate form {

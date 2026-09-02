@@ -7,6 +7,37 @@ afterEach(() => {
 });
 
 describe("Store YouTube caption view", () => {
+  it("updates both caption and control appearance markers without rebuilding the view", () => {
+    const player = document.createElement("div");
+    const cc = document.createElement("button");
+    cc.className = "ytp-subtitles-button";
+    player.append(cc);
+    document.body.append(player);
+    const view = new YouTubeCaptionView(
+      document,
+      player,
+      false,
+      () => undefined,
+      () => undefined,
+      "",
+      "moon",
+    );
+    const caption = player.querySelector<HTMLElement>("[data-huayi-store-youtube-subtitles]");
+    const control = player.querySelector<HTMLElement>("[data-huayi-store-youtube-control-host]");
+    const styles = player.querySelector("style")?.textContent ?? "";
+
+    expect(caption?.dataset.appearance).toBe("moon");
+    expect(control?.dataset.appearance).toBe("moon");
+    expect(styles).toContain("#huayi-y[data-appearance=moon]");
+    expect(styles).toContain("#huayi-yc[data-appearance=porcelain]");
+    expect(styles).not.toContain("#67e8f9");
+    view.setAppearance("champagne");
+    expect(player.querySelector("[data-huayi-store-youtube-subtitles]")).toBe(caption);
+    expect(caption?.dataset.appearance).toBe("champagne");
+    expect(control?.dataset.appearance).toBe("champagne");
+    view.destroy();
+  });
+
   it("keeps all pointer and mouse events for both 中 controls inside the Huayi boundary", () => {
     const player = document.createElement("div");
     const cc = document.createElement("button");

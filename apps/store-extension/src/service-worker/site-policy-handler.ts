@@ -2,6 +2,7 @@ import {
   STORE_MESSAGE_VERSION,
   isSiteEnabled,
   parseStoreSitePolicyRequest,
+  type StoreAppearance,
   type StoreSettings,
   type StoreSitePolicyResponse,
 } from "@huayi/store-domain";
@@ -37,6 +38,7 @@ export async function handleSitePolicyMessage(
   value: unknown,
   senderUrl: string | undefined,
   settingsRepository: SiteSettingsRepository,
+  readAppearance: () => Promise<StoreAppearance>,
 ): Promise<StoreSitePolicyResponse | undefined> {
   if (!isSitePolicyMessage(value)) return undefined;
   const host = siteHostFromSenderUrl(senderUrl);
@@ -47,11 +49,12 @@ export async function handleSitePolicyMessage(
   } catch {
     return undefined;
   }
-  const settings = await settingsRepository.get();
+  const [appearance, settings] = await Promise.all([readAppearance(), settingsRepository.get()]);
   if (request.type === "store/site-toggle") {
     await settingsRepository.setSiteEnabled(host, request.enabled);
   }
   return {
+    appearance,
     defaultAction: settings.defaultAction,
     enabled:
       request.type === "store/site-toggle"

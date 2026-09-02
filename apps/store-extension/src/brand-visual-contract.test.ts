@@ -10,46 +10,105 @@ import {
 } from "./content/overlay/overlay-styles.js";
 
 const root = "apps/store-extension";
+const appearances = ["moon", "silver", "champagne", "porcelain"] as const;
+const semanticTokens = [
+  "surface-canvas-solid",
+  "surface-canvas",
+  "surface-glass",
+  "surface-glass-strong",
+  "surface-glass-soft",
+  "surface-inner",
+  "surface-input",
+  "surface-hover",
+  "text-primary",
+  "text-secondary",
+  "text-muted",
+  "text-on-action",
+  "accent",
+  "accent-soft",
+  "action",
+  "action-hover",
+  "border-glass",
+  "border-inner",
+  "border-strong",
+  "focus-ring",
+  "shadow-glass",
+  "shadow-control",
+] as const;
 
 function page(name: string): string {
   return readFileSync(`${root}/pages/${name}`, "utf8");
 }
 
-describe("Huayi Store visual contract", () => {
-  it("keeps Options, Popup, and Overlay on the same cold editorial brand signature", () => {
-    const brandTheme = page("brand-theme.css");
+function block(source: string, selector: string): string {
+  const match = new RegExp(`${selector}\\s*\\{([\\s\\S]*?)\\n\\}`, "u").exec(source);
+  if (match?.[1] === undefined) throw new Error(`Missing CSS block: ${selector}`);
+  return match[1];
+}
 
-    expect(brandTheme).toContain(`--hv: "${HUAYI_VISUAL_SIGNATURE}"`);
-    expect(page("overlay.css")).toContain("#101a2d");
-    expect(page("overlay.css")).toContain("#5878a8");
-    expect(page("overlay.css")).toContain("#8f82bd");
+function themeBlock(source: string, appearance: (typeof appearances)[number]): string {
+  return block(source, `:root\\[data-appearance=["']${appearance}["']\\]`);
+}
+
+function properties(source: string): Map<string, string> {
+  return new Map(
+    Array.from(source.matchAll(/^\s*(--[a-z0-9-]+):\s*([^;]+);/gimu), ([, name, value]) => {
+      if (name === undefined || value === undefined) throw new Error("Invalid CSS property.");
+      return [name, value.trim()];
+    }),
+  );
+}
+
+describe("语见 Store visual contract", () => {
+  it("keeps Options and Popup on the v3 four-appearance registry", () => {
+    const theme = page("brand-theme.css");
+    const expected = semanticTokens.map((token) => `--${token}`).sort();
+
+    expect(theme).toContain(`--hv: "${HUAYI_VISUAL_SIGNATURE}"`);
     expect(page("options.css")).toContain('@import "./brand-theme.css"');
     expect(page("popup.css")).toContain('@import "./brand-theme.css"');
-  });
-
-  it("renders the restrained prism brand mark on every primary surface", () => {
-    expect(page("options.html")).toContain("data-brand-mark");
-    expect(page("popup.html")).toContain("data-brand-mark");
-    expect(page("overlay.css")).toContain(".brand-mark");
-  });
-
-  it("keeps the former warm parchment palette isolated to the selectable theme", () => {
-    for (const warmColor of ["#fffdf8", "#d9d1c2", "#f4eee4", "#a84f34"]) {
-      expect(page("overlay.css").toLowerCase()).toContain(warmColor);
+    for (const appearance of appearances) {
+      expect([...properties(themeBlock(theme, appearance)).keys()].sort(), appearance).toEqual(
+        expected,
+      );
     }
-    expect(page("overlay.css")).toContain('.panel[data-theme="parchment"]');
+  });
+
+  it("locks C to deep navy, G to graphite, and removes the old cyan-violet palette", () => {
+    const theme = page("brand-theme.css");
+    expect(properties(themeBlock(theme, "moon")).get("--action")).toBe("#29394b");
+    expect(properties(themeBlock(theme, "silver")).get("--action")).toBe("#24282d");
+    for (const stylesheet of ["brand-theme.css", "overlay.css", "options.css", "popup.css"]) {
+      expect(page(stylesheet).toLowerCase()).not.toMatch(/#(?:5878a8|8f82bd|625f95)\b/u);
+    }
+  });
+
+  it("keeps pearl and parchment as material-only variants of every appearance", () => {
+    const overlay = page("overlay.css");
+    for (const appearance of appearances) {
+      expect(overlay).toContain(`.panel[data-appearance="${appearance}"]`);
+    }
+    for (const material of ["pearl", "parchment"]) {
+      const keys = [...properties(block(overlay, `.panel\\[data-theme="${material}"\\]`)).keys()];
+      expect(keys.length, material).toBeGreaterThan(0);
+      expect(
+        keys.every((key) => key.startsWith("--material-")),
+        material,
+      ).toBe(true);
+    }
     expect(STORE_OVERLAY_FALLBACK_STYLES).toContain("min-height:40px");
   });
 
-  it("keeps raw palette values out of page component styles and semantic aliases", () => {
-    for (const stylesheet of ["options.css", "options-components.css", "popup.css"]) {
-      expect(page(stylesheet)).not.toMatch(/#[\da-f]{3,8}\b/iu);
-    }
+  it("renders the local glass brand mark on every primary surface", () => {
+    expect(page("options.html")).toContain("data-brand-mark");
+    expect(page("popup.html")).toContain("data-brand-mark");
+    expect(page("brand-theme.css")).toContain(".brand-mark");
+    expect(page("overlay.css")).toContain(".brand-mark");
+  });
 
-    const semanticTokens = page("brand-theme.css")
-      .split("/* Semantic tokens */")[1]
-      ?.split("/* Component tokens */")[0];
-    expect(semanticTokens).toBeDefined();
-    expect(semanticTokens).not.toMatch(/#[\da-f]{3,8}\b/iu);
+  it("keeps theme palette literals out of page component styles", () => {
+    for (const stylesheet of ["options.css", "options-components.css", "popup.css"]) {
+      expect(page(stylesheet)).not.toMatch(/#[\da-f]{3,8}\b|\brgb\(/iu);
+    }
   });
 });

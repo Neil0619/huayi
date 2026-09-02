@@ -97,4 +97,30 @@ describe("Store content selection app", () => {
     expect(controller.show).not.toHaveBeenCalled();
     app.stop();
   });
+
+  it("updates the open overlay material and appearance from one site policy", () => {
+    const controller = {
+      close: vi.fn(),
+      setAppearance: vi.fn(),
+      setDefaultAction: vi.fn(),
+      setTheme: vi.fn(),
+      show: vi.fn(),
+    } as unknown as StoreOverlayController;
+    const app = new StoreContentApp(document, controller);
+
+    app.update({
+      appearance: "porcelain",
+      defaultAction: "explain",
+      enabled: true,
+      globallyEnabled: true,
+      host: "example.com",
+      messageVersion: 5,
+      overlayTheme: "parchment",
+      type: "store/site-policy-result",
+    });
+
+    expect(controller.setAppearance).toHaveBeenCalledWith("porcelain");
+    expect(controller.setDefaultAction).toHaveBeenCalledWith("explain");
+    expect(controller.setTheme).toHaveBeenCalledWith("parchment");
+  });
 });

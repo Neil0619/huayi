@@ -396,7 +396,11 @@ fake clock。客户端通过 HTTP adapter 访问同一用例，不复制领域�
   查询。StudyCapture 的 CaptureInbox 是独立资源列表，不把 pending capture 伪装成 AnalysisRecord。
 - 所有模型文本按纯文本渲染；不使用 `dangerouslySetInnerHTML`，不解析模型生成 HTML/Markdown 中的
   原始标签，不动态导入模型指定资源。
-- UI 基于现有 `brand-theme.css` 提炼三层 token。组件负责可访问行为，页面不得复制颜色和阴影常量。
+- Web 与 Store 各自维护 primitive → semantic → component 三层 token registry，不建立跨包运行时样式
+  依赖。`moon | silver | champagne | porcelain` 只覆盖 semantic token；组件负责可访问行为，页面不得
+  复制颜色和阴影常量，也不得按外观改变 DOM、布局或交互。Web/Store 各自通过独立的当前设备存储键
+  保存选择，Store `pearl | parchment` 仍是正交的词卡材质。精确合同见
+  `seen-said-ui-design-system.md`。
 - Web WorkspaceShell 是登录后页面的 in-process 深 module：discriminated interface 接收 full 会话的
   当前一级区段，或 data-rights-only 受限访问，再接页面 children。implementation 独占品牌顶栏、skip
   link、固定一级 route/order、active 语义和窄屏原生 details；seam 位于 `CloudApp` identity bootstrap 后

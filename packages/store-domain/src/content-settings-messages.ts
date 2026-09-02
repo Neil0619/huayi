@@ -1,3 +1,4 @@
+import { parseStoreAppearance, type StoreAppearance } from "./appearance.js";
 import { STORE_MESSAGE_VERSION } from "./messages.js";
 import type { StoreKeyboardShortcut, YouTubeMode } from "./settings.js";
 
@@ -7,6 +8,7 @@ export interface StoreContentSettingsRequest {
 }
 
 export interface StoreContentSettingsResponse {
+  readonly appearance: StoreAppearance;
   readonly messageVersion: typeof STORE_MESSAGE_VERSION;
   readonly type: "store/content-settings-result";
   readonly youtubeMode: YouTubeMode;
@@ -37,7 +39,7 @@ export function parseStoreContentSettingsRequest(value: unknown): StoreContentSe
 export function parseStoreContentSettingsResponse(value: unknown): StoreContentSettingsResponse {
   if (
     !isRecord(value) ||
-    !exactKeys(value, ["messageVersion", "type", "youtubeMode", "youtubeShortcut"]) ||
+    !exactKeys(value, ["appearance", "messageVersion", "type", "youtubeMode", "youtubeShortcut"]) ||
     value.messageVersion !== STORE_MESSAGE_VERSION ||
     value.type !== "store/content-settings-result"
   ) {
@@ -59,6 +61,7 @@ export function parseStoreContentSettingsResponse(value: unknown): StoreContentS
     throw new TypeError("Store content settings response is invalid.");
   }
   return {
+    appearance: parseStoreAppearance(value.appearance),
     messageVersion: STORE_MESSAGE_VERSION,
     type: "store/content-settings-result",
     youtubeMode:

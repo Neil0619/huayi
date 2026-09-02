@@ -13,16 +13,19 @@ import { createStoreExtensionConfig } from "../vite.config.js";
 // shell, and lexicon reconciliation. The reviewed 52 KiB v4 baseline additionally covers strict
 // typed structured-stream parsing, stable incremental section patching, and partial-error
 // retention. The reviewed 55 KiB Phase 27 baseline adds only the current-card StudyCapture
-// controls and fixed Web-workspace entry. It must still exclude Zod, Provider, and Worker modules.
-const CONTENT_SCRIPT_BASELINE_BYTES = 55 * 1_024;
+// controls and fixed Web-workspace entry. The reviewed 56 KiB C/G/H/I baseline additionally
+// carries one strict appearance field and in-place Shadow DOM appearance updates. It must still
+// exclude Zod, Provider, and Worker modules.
+const CONTENT_SCRIPT_BASELINE_BYTES = 56 * 1_024;
 // The former 55.25 KiB YouTube controller budget covered caption interaction, pause ownership,
 // overlayTheme, and the shared ActionCard. The reviewed 64 KiB ClassicParity baseline includes
 // the same static ResultCard and lexicon lifecycle modules now shared with ordinary pages. The
 // reviewed 68 KiB v4 baseline additionally carries the strict structured-stream parser and
 // partial-error behavior. The reviewed 72 KiB Phase 27 baseline adds the same current-card
-// StudyCapture controls and fixed Web-workspace entry. It remains isolated and must not admit
-// Zod, Provider, or Worker code.
-const YOUTUBE_CONTENT_BASELINE_BYTES = 72 * 1_024;
+// StudyCapture controls and fixed Web-workspace entry. The reviewed 74 KiB C/G/H/I baseline adds
+// strict appearance propagation plus the four local high-contrast control-edge treatments. It
+// remains isolated and must not admit Zod, Provider, or Worker code.
+const YOUTUBE_CONTENT_BASELINE_BYTES = 74 * 1_024;
 const YOUTUBE_MAIN_BASELINE_BYTES = 24 * 1_024;
 const POPUP_BASELINE_BYTES = 32 * 1_024;
 

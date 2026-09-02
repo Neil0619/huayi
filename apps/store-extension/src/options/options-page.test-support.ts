@@ -5,12 +5,14 @@ import type {
   DeviceVault,
   DataRecipient,
   DeviceVaultReadiness,
+  StoreAppearance,
   StoreSettings,
   StoreSettingsRepository,
 } from "@huayi/store-domain";
 import { vi } from "vitest";
 
 import { OptionsPage } from "./options-page.js";
+import type { StoreAppearanceRepository } from "../service-worker/store-appearance.js";
 
 const optionsHtml = readFileSync("apps/store-extension/pages/options.html", "utf8");
 
@@ -52,6 +54,7 @@ export function submit(selector: string): void {
 }
 
 export function createHarness(readiness: DeviceVaultReadiness = "ready"): {
+  appearance: StoreAppearanceRepository;
   page: OptionsPage;
   settings: StoreSettingsRepository;
   vault: DeviceVault;
@@ -78,6 +81,13 @@ export function createHarness(readiness: DeviceVaultReadiness = "ready"): {
     }),
   };
   let currentSettings = structuredClone(defaultSettings);
+  let currentAppearance: StoreAppearance = "silver";
+  const appearance: StoreAppearanceRepository = {
+    get: vi.fn(async () => currentAppearance),
+    set: vi.fn(async (value) => {
+      currentAppearance = value;
+    }),
+  };
   const settings: StoreSettingsRepository = {
     get: vi.fn(async () => structuredClone(currentSettings)),
     grantNetworkConsent: vi.fn(async (grantedAt) => {
@@ -164,11 +174,13 @@ export function createHarness(readiness: DeviceVaultReadiness = "ready"): {
   return {
     notifySitePolicyChanged,
     page: new OptionsPage({
+      appearance,
       notifySitePolicyChanged,
       settings,
       vault,
     }),
     settings,
     vault,
+    appearance,
   };
 }

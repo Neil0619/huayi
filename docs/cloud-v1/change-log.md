@@ -3,6 +3,21 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-09-02：Cloud Web 与 Store Extension 采用 C/G/H/I 四明亮外观
+
+- 全站可交互原型及关键状态 293/293 验收后，生产视觉统一为 C 布局体系；`moon`、`silver`、
+  `champagne`、`porcelain` 只改变 semantic token 的色温、玻璃材质与光影，默认 `silver`，不产生
+  主题专属 DOM、网格、间距、路由或业务行为；
+- Web 和 Store 分别使用 `huayi.web.appearance.v1` 与 `huayi.store.appearance.v1` 在当前设备保存选择，
+  缺失、非法或读取失败时使用 `silver`。Web 不经 URL/Cookie/账号同步；Store 键独立于
+  `StoreSettings` v6；
+- Store 内部消息版本从 4 升至 5，严格 Popup/站点策略/Content 设置响应携带 appearance；打开的
+  Shadow DOM 词卡原位换肤，不关闭流式内容或输入。`pearl | parchment` 技术值继续作为正交材质，
+  不再映射整页外观；
+- 本次只改 shared Cloud Web 与 Store Extension；Classic 0.13、Native Host、Cloud API、数据库、权限、
+  路由与业务状态机保持不变。原型查询参数、模拟状态和控制器不得进入生产 bundle；精确设计与测试
+  权威为 `seen-said-ui-design-system.md`。
+
 ## 2026-09-01：Hosted 基础设施凭据统一持久化到 macOS Keychain
 
 - Hosted/Vercel 运维工具统一使用 service `cn.seen-said.huayi.hosted.acceptance` 下四个固定 account，

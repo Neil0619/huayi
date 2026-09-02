@@ -2,6 +2,7 @@ import {
   STORE_MESSAGE_VERSION,
   isSiteEnabled,
   parseStoreContentSettingsRequest,
+  type StoreAppearance,
   type StoreContentSettingsResponse,
   type StoreSettings,
 } from "@huayi/store-domain";
@@ -39,6 +40,7 @@ export async function handleContentSettingsMessage(
   readSettings: () => Promise<
     Pick<StoreSettings, "globallyEnabled" | "sitePolicy" | "youtubeMode" | "youtubeShortcut">
   >,
+  readAppearance: () => Promise<StoreAppearance>,
 ): Promise<StoreContentSettingsResponse | undefined> {
   if (!isContentSettingsMessage(value)) return undefined;
   const host = trustedYouTubeHost(senderUrl);
@@ -50,7 +52,9 @@ export async function handleContentSettingsMessage(
   }
   const settings = await readSettings();
   if (!isSiteEnabled(settings, host)) return undefined;
+  const appearance = await readAppearance();
   return {
+    appearance,
     messageVersion: STORE_MESSAGE_VERSION,
     type: "store/content-settings-result",
     youtubeMode: settings.youtubeMode,

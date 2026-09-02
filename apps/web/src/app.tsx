@@ -16,12 +16,13 @@ import type { PublicPage } from "./public-bootstrap.js";
 import { PasswordRecoveryPage, type PasswordRecoveryApi } from "./password-recovery-page.js";
 import type { PasswordRecoveryRoute } from "./password-recovery-route.js";
 import { WorkspaceShell } from "./workspace-shell.js";
+import { WebAppearanceController } from "./web-appearance-controller.js";
 
 export function authenticatedLandingPath(access: "data-rights" | "full") {
   return access === "data-rights" ? "/settings/data" : "/practice";
 }
 
-export function App({
+function AppSurface({
   accountApi,
   api,
   identity,
@@ -117,5 +118,13 @@ export function App({
       <h1>学习工作台尚未连接</h1>
       <p role="alert">此构建缺少有效的 API Origin，已停止业务请求。请完成部署配置后重试。</p>
     </main>
+  );
+}
+
+export function App(props: Parameters<typeof AppSurface>[0]) {
+  return (
+    <WebAppearanceController>
+      <AppSurface {...props} />
+    </WebAppearanceController>
   );
 }

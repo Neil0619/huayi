@@ -40,6 +40,7 @@ describe("Store popup status messages", () => {
 
     expect(
       parseStorePopupStatusResponse({
+        appearance: "silver",
         globallyEnabled: true,
         messageVersion: STORE_MESSAGE_VERSION,
         modelConsentGranted: true,
@@ -47,15 +48,27 @@ describe("Store popup status messages", () => {
         providerId: "openai",
         type: "store/popup-status-result",
       }),
-    ).toMatchObject({ providerId: "openai" });
+    ).toMatchObject({ appearance: "silver", providerId: "openai" });
     expect(() =>
       parseStorePopupStatusResponse({
+        appearance: "silver",
         globallyEnabled: true,
         messageVersion: STORE_MESSAGE_VERSION,
         modelConsentGranted: true,
         overlayTheme: "pearl",
         providerId: "openai",
         secret: "sk-do-not-return",
+        type: "store/popup-status-result",
+      }),
+    ).toThrow();
+    expect(() =>
+      parseStorePopupStatusResponse({
+        appearance: "graphite",
+        globallyEnabled: true,
+        messageVersion: STORE_MESSAGE_VERSION,
+        modelConsentGranted: true,
+        overlayTheme: "pearl",
+        providerId: "openai",
         type: "store/popup-status-result",
       }),
     ).toThrow();

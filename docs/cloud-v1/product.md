@@ -231,14 +231,16 @@ V1 面向持有一次性邀请链接的少量中文母语英语学习者。成�
 
 Web 主导航固定为：今日练习、待整理、分析、学习库、生词、分析历史、设置；管理员看到独立管理
 入口。练习历史归入今日练习，外部词典任务归入生词，账号/设备/数据权利归入设置，并由各区段二级
-入口到达，不扩张普通账号一级导航。桌面采用“顶栏 + 左侧导航 + 卡片”，窄屏把导航折叠为顶部选择
-或抽屉；完整会话的学习工作台页面复用同一个 WorkspaceShell。data-rights-only、独立运营、公共、认证、
-恢复和配对页不提前显示完整学习导航。使用系统字体、珍珠灰/冷白背景、低饱和钢蓝动作色、轻边框和
-浅阴影，满足键盘操作、可见焦点、AA 对比度和 reduced-motion。V1 只有这一套皮肤，但全部颜色、圆角、
-间距和阴影必须通过语义 token 使用。Token 依赖固定为 primitive → semantic → component，所有生产
-CSS 引用必须由单一 registry 闭合；允许 `0`、`auto`、断点、结构尺寸和排版值等明确非主题例外，
-不得用例外绕过颜色、间距、圆角或阴影。可执行属性边界与验收见
-`web-design-token-contract.md`。
+入口到达，不扩张普通账号一级导航。所有外观复用一套“顶部品牌栏 + 悬浮玻璃主导航 + 主舞台 +
+右侧队列 + 下方辅助区”的 WorkspaceShell 和响应式结构；data-rights-only、独立运营、公共、认证、
+恢复和配对页不提前显示完整学习导航。
+
+Cloud Web 与 Store Extension 正式提供 `moon | silver | champagne | porcelain` 四套明亮外观，默认
+`silver`，只在当前设备分别保存。四套只覆盖 semantic token 的色温、材质和光影，不改变 DOM、网格、
+间距、路由或交互；Store `pearl | parchment` 继续作为独立词卡材质。全部颜色、圆角、间距和阴影必须
+通过 primitive → semantic → component registry 使用，满足键盘操作、可见焦点、AA、
+reduced-motion、forced-colors 与无 blur 实色降级。唯一生产视觉权威、精确数值和验收合同见
+`seen-said-ui-design-system.md`；`web-design-token-contract.md` 保留其 Token-only 静态约束。
 
 ## 5. 明确不做
 
@@ -247,7 +249,8 @@ CSS 引用必须由单一 registry 闭合；允许 `0`、`auto`、断点、结�
 - 不做平台付费购买、公开注册、多租户组织、协作学习、Web 角色管理或管理员正文检索；
 - 不支持 Firefox、Edge、Safari、原生移动/桌面 App、PDF/OCR 或 Chrome 内部页面；
 - 不做 E2EE、插件端表达/句型学习库、云端与本机词库双向同步或 Classic WordEntry 迁移；
-- 不在 V1 实现换肤 UI，也不采用本轮已否决的企业后台原型。
+- 不提供暗色、跟随系统、账号同步或主题专属页面布局，也不把原型查询参数、状态控制器或模拟数据
+  带入生产代码。
 
 ## 6. 发布标准
 

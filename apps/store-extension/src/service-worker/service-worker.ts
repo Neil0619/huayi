@@ -40,6 +40,7 @@ import { createProductionCloudClients } from "./production-cloud-clients.js";
 import { createCloudSubmissionApi } from "./cloud-submission-api.js";
 import { createCloudWordCopyClient } from "./cloud-word-copy-client.js";
 import { createProductionQueryEngine } from "./production-query-engine.js";
+import { randomUrlSafeId } from "./random-url-safe-id.js";
 import {
   handleContentSettingsMessage,
   isContentSettingsMessage,
@@ -47,6 +48,7 @@ import {
 import { handleLexiconMessage, isStoreLexiconMessage } from "./lexicon-message-handler.js";
 import { handlePopupStatusMessage, isPopupStatusMessage } from "./popup-status-handler.js";
 import { broadcastSettingsRefresh } from "./settings-refresh-broadcaster.js";
+import { createChromeStoreAppearance } from "./store-appearance.js";
 import { createChromeStoreSettings } from "./store-settings.js";
 import { handleStoreMessage } from "./store-message-handler.js";
 import { HUAYI_WEB_WORKSPACE_URL, handleOpenWebWorkspace } from "./web-workspace-handler.js";
@@ -63,6 +65,7 @@ import {
 import { EUDIC_EXPORT_ALARM, WORDBOOK_ALARM_DELAY_MS } from "./wordbook-alarm-runner.js";
 const deviceVault = createProductionDeviceVault();
 const analysisEngine = createProductionAnalysisEngine(deviceVault);
+const storeAppearance = createChromeStoreAppearance(chrome.storage.local);
 const storeSettings = createChromeStoreSettings(chrome.storage.local);
 const lexiconRepository = createProductionLexiconRepository();
 const HUAYI_CLOUD_API_ORIGIN: string | null = null;
@@ -127,13 +130,7 @@ const cloudWordbookBridge =
           authorization: () => deviceVault.getCredential("eudic-authorization"),
         }),
         idempotencyKey: () => crypto.randomUUID(),
-        randomNonce: () => {
-          const bytes = crypto.getRandomValues(new Uint8Array(32));
-          return btoa(String.fromCharCode(...bytes))
-            .replaceAll("+", "-")
-            .replaceAll("/", "_")
-            .replace(/=+$/u, "");
-        },
+        randomNonce: () => randomUrlSafeId(crypto),
         session: () => extensionSessionVault.readSession(),
       });
 const cloudShanbayBridge =
@@ -144,13 +141,7 @@ const cloudShanbayBridge =
           recipientAccessDecision(await storeSettings.get(), "shanbay") === "allowed",
         api: cloudWordbookApi,
         idempotencyKey: () => crypto.randomUUID(),
-        randomId: () => {
-          const bytes = crypto.getRandomValues(new Uint8Array(32));
-          return btoa(String.fromCharCode(...bytes))
-            .replaceAll("+", "-")
-            .replaceAll("/", "_")
-            .replace(/=+$/u, "");
-        },
+        randomId: () => randomUrlSafeId(crypto),
         sessionVault: extensionSessionVault,
         vault: externalWordbookLeaseVault,
       });
@@ -176,6 +167,7 @@ const cloudWordCopy = createCloudWordCopyClient({
   scheduleRetry: scheduleSubmissionOutbox,
 });
 void deviceVault.ensureReady().catch(() => undefined);
+void storeAppearance.get().catch(() => undefined);
 void storeSettings.get().catch(() => undefined);
 function scheduleWordbookAlarm(name: string): void {
   void chrome.alarms.create(name, { when: Date.now() + WORDBOOK_ALARM_DELAY_MS });
@@ -285,6 +277,7 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
   }
   if (isPopupStatusMessage(message)) {
     void handlePopupStatusMessage(message, sender, chrome.runtime.id, {
+      getAppearance: () => storeAppearance.get(),
       getSettings: () => storeSettings.get(),
       notifySettingsChanged: broadcastSettingsRefresh,
       setGloballyEnabled: (enabled) => storeSettings.setGloballyEnabled(enabled),
@@ -295,7 +288,7 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
     return true;
   }
   if (isSitePolicyMessage(message)) {
-    void handleSitePolicyMessage(message, sender.url, storeSettings)
+    void handleSitePolicyMessage(message, sender.url, storeSettings, () => storeAppearance.get())
       .then(sendResponse)
       .catch(() => sendResponse(undefined));
     return true;
@@ -325,7 +318,12 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
     return true;
   }
   if (isContentSettingsMessage(message)) {
-    void handleContentSettingsMessage(message, sender.url, () => storeSettings.get())
+    void handleContentSettingsMessage(
+      message,
+      sender.url,
+      () => storeSettings.get(),
+      () => storeAppearance.get(),
+    )
       .then(sendResponse)
       .catch(() => sendResponse(undefined));
     return true;

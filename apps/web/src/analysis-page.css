@@ -1,9 +1,9 @@
 .analysis-compose-layout {
   display: grid;
-  max-width: 74rem;
+  max-width: var(--workspace-max);
   margin: 0 auto;
-  grid-template-columns: minmax(0, 0.95fr) minmax(20rem, 1.05fr);
-  gap: var(--space-8);
+  grid-template-columns: minmax(0, 7fr) minmax(20rem, 5fr);
+  gap: var(--space-4);
 }
 
 .analysis-compose-card,
@@ -14,15 +14,20 @@
 .analysis-compose-card {
   display: grid;
   gap: var(--space-2);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-lg);
+  min-height: 34rem;
+  align-content: center;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-stage);
   background: var(--surface-default);
   box-shadow: var(--card-shadow);
 }
 
 .analysis-stream-card {
-  padding-top: var(--space-4);
-  border-top: 1px solid var(--border-default);
+  padding: var(--space-6);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-card);
+  background: var(--surface-subtle);
+  box-shadow: var(--card-shadow);
 }
 
 .analysis-compose-card > label,
@@ -38,10 +43,10 @@
 .analysis-compose-card textarea {
   width: 100%;
   padding: var(--space-3);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-control);
   color: var(--text-primary);
-  background: var(--surface-strong);
+  background: var(--surface-input);
   font: inherit;
 }
 

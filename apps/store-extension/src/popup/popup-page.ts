@@ -268,6 +268,7 @@ export class PopupPage {
 
   private render(): void {
     const status = this.status;
+    document.documentElement.dataset.appearance = status?.appearance ?? "silver";
     const provider = status?.providerId === "deepseek" ? "DeepSeek" : "OpenAI";
     element("[data-provider]").textContent = provider;
     element("[data-model-consent]").textContent = status?.modelConsentGranted

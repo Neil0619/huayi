@@ -5,14 +5,20 @@
 
 .account-settings-nav {
   display: flex;
+  padding: var(--space-1);
   margin-bottom: var(--space-8);
-  border-bottom: 1px solid var(--border-default);
-  gap: var(--space-5);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-pill);
+  background: var(--glass-fill);
+  box-shadow: var(--shadow-control);
+  gap: var(--space-1);
+  backdrop-filter: blur(var(--glass-blur)) saturate(118%);
 }
 
 .account-settings-nav a {
   min-height: var(--control-height);
-  padding: var(--space-2) 0;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-pill);
   color: var(--text-secondary);
   font-size: 0.85rem;
   font-weight: 650;
@@ -20,11 +26,8 @@
 }
 
 .account-settings-nav a[aria-current="page"] {
-  margin-bottom: calc(var(--space-hairline) * -1);
-  border-bottom-color: var(--action-primary);
-  border-bottom-style: solid;
-  border-bottom-width: var(--space-hairline);
   color: var(--text-primary);
+  background: var(--surface-inner);
 }
 
 .quota-card,
@@ -33,9 +36,10 @@
 .sign-in-methods-card,
 .quota-metrics div,
 .quota-byok-note {
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-card);
   background: var(--surface-default);
+  box-shadow: var(--card-shadow);
 }
 
 .quota-card {
@@ -94,6 +98,7 @@
 
 .account-preferences-card input {
   min-height: var(--control-height);
+  background: var(--surface-input);
 }
 
 .account-preferences-card .field-hint {
@@ -149,6 +154,7 @@
 
 .sign-in-method-action input {
   min-height: var(--control-height);
+  background: var(--surface-input);
 }
 
 .sign-in-method-action .field-hint {
@@ -180,13 +186,13 @@
 }
 
 .quota-badge-available {
-  background: var(--surface-tint);
-  color: var(--action-primary);
+  background: var(--surface-success);
+  color: var(--text-success);
 }
 
 .quota-badge-warning {
-  background: var(--surface-tint);
-  color: var(--text-primary);
+  background: var(--surface-warning);
+  color: var(--text-warning);
 }
 
 .quota-badge-exhausted {

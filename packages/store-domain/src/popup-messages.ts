@@ -1,3 +1,4 @@
+import { parseStoreAppearance, type StoreAppearance } from "./appearance.js";
 import { STORE_MESSAGE_VERSION } from "./messages.js";
 import type { StoreOverlayTheme } from "./settings.js";
 
@@ -7,6 +8,7 @@ export interface StorePopupStatusRequest {
 }
 
 export interface StorePopupStatusResponse {
+  readonly appearance: StoreAppearance;
   readonly globallyEnabled: boolean;
   readonly messageVersion: typeof STORE_MESSAGE_VERSION;
   readonly modelConsentGranted: boolean;
@@ -52,6 +54,7 @@ export function parseStorePopupStatusResponse(value: unknown): StorePopupStatusR
   if (
     !isRecord(value) ||
     !exactKeys(value, [
+      "appearance",
       "globallyEnabled",
       "messageVersion",
       "modelConsentGranted",
@@ -69,6 +72,7 @@ export function parseStorePopupStatusResponse(value: unknown): StorePopupStatusR
     throw new TypeError("Store popup status response is invalid.");
   }
   return {
+    appearance: parseStoreAppearance(value.appearance),
     globallyEnabled: value.globallyEnabled,
     messageVersion: STORE_MESSAGE_VERSION,
     modelConsentGranted: value.modelConsentGranted,

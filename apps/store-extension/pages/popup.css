@@ -81,11 +81,11 @@ button,
   min-width: var(--control-height);
   min-height: var(--control-height);
   padding: 0;
-  border: 1px solid rgb(255 255 255 / 82%);
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius-sm);
   place-items: center;
   color: var(--text-primary);
-  background: linear-gradient(180deg, var(--surface-default), var(--surface-subtle));
+  background: var(--button-fill);
   box-shadow: var(--control-shadow);
 }
 
@@ -111,8 +111,8 @@ button:hover:not(:disabled) {
 
 button:focus-visible,
 input:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 2px;
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 3px;
 }
 
 button:disabled,
@@ -147,12 +147,11 @@ main {
 
 section {
   padding: var(--space-4);
-  border: 1px solid transparent;
-  border-radius: var(--radius-md);
-  background:
-    linear-gradient(145deg, var(--surface-default), var(--surface-subtle)) padding-box,
-    var(--card-border) border-box;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  background: var(--card-fill);
   box-shadow: var(--card-shadow);
+  backdrop-filter: blur(var(--blur-soft)) saturate(118%);
 }
 
 .cloud-card {

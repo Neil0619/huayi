@@ -29,6 +29,64 @@ describe("Store OptionsPage", () => {
     }
   });
 
+  it("keeps the four approved appearances inside common settings without a fifth category", async () => {
+    renderPage();
+    const { page } = createHarness();
+    await page.initialize();
+
+    expect(document.querySelectorAll("[role='tab']")).toHaveLength(4);
+    const choices = [...document.querySelectorAll<HTMLInputElement>("[data-store-appearance]")];
+    expect(choices.map((choice) => choice.value)).toEqual([
+      "moon",
+      "silver",
+      "champagne",
+      "porcelain",
+    ]);
+    expect(choices.map((choice) => choice.closest("label")?.textContent?.trim())).toEqual([
+      "去青月白月白与深墨蓝",
+      "流银镜白银白与黛黑石墨",
+      "香槟晨霜乳白与深咖",
+      "霁蓝瓷光瓷白与靛蓝",
+    ]);
+    expect(choices.filter((choice) => choice.checked).map((choice) => choice.value)).toEqual([
+      "silver",
+    ]);
+    expect(document.documentElement.dataset.appearance).toBe("silver");
+  });
+
+  it("previews and persists an appearance, then broadcasts it to open content", async () => {
+    renderPage();
+    const { appearance, notifySitePolicyChanged, page } = createHarness();
+    await page.initialize();
+    const choice = element<HTMLInputElement>("[data-store-appearance='champagne']");
+
+    choice.checked = true;
+    choice.dispatchEvent(new Event("change", { bubbles: true }));
+
+    expect(document.documentElement.dataset.appearance).toBe("champagne");
+    await vi.waitFor(() => expect(appearance.set).toHaveBeenCalledWith("champagne"));
+    expect(notifySitePolicyChanged).toHaveBeenCalledOnce();
+    expect(choice.checked).toBe(true);
+  });
+
+  it("keeps the current appearance preview when its independent storage write fails", async () => {
+    renderPage();
+    const { appearance, notifySitePolicyChanged, page } = createHarness();
+    vi.mocked(appearance.set).mockRejectedValueOnce(new Error("disk full"));
+    await page.initialize();
+    const choice = element<HTMLInputElement>("[data-store-appearance='porcelain']");
+
+    choice.checked = true;
+    choice.dispatchEvent(new Event("change", { bubbles: true }));
+
+    await vi.waitFor(() =>
+      expect(element("[data-page-status]").textContent).toBe("本次有效，未能保存"),
+    );
+    expect(document.documentElement.dataset.appearance).toBe("porcelain");
+    expect(choice.checked).toBe(true);
+    expect(notifySitePolicyChanged).not.toHaveBeenCalled();
+  });
+
   it("uses a compact project header with the public GitHub repository", () => {
     renderPage();
     const link = element<HTMLAnchorElement>("[data-github-project]");

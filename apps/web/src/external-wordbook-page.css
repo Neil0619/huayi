@@ -1,17 +1,19 @@
 .wordbook-page {
-  max-width: 74rem;
+  max-width: var(--workspace-max);
   margin: 0 auto;
 }
 
 .wordbook-create,
 .wordbook-job {
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-card);
   background: var(--surface-default);
+  box-shadow: var(--card-shadow);
 }
 
 .wordbook-create {
-  padding: var(--space-4);
+  padding: var(--space-6);
+  border-radius: var(--radius-stage);
 }
 
 .wordbook-create h2 {
@@ -44,8 +46,8 @@
 }
 
 .wordbook-create label:has(input:checked) {
-  border-color: var(--action-primary);
-  background: var(--surface-tint);
+  border-color: var(--border-strong);
+  background: var(--surface-inner);
 }
 
 .wordbook-create label span {

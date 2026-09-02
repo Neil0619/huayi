@@ -41,10 +41,10 @@
   width: 100%;
   min-height: var(--control-height);
   padding: var(--space-2);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-control);
   color: var(--text-primary);
-  background: var(--surface-strong);
+  background: var(--surface-input);
   font: inherit;
 }
 
@@ -66,19 +66,19 @@
   width: 100%;
   min-height: var(--control-height);
   padding: var(--space-2);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-control);
   color: var(--text-primary);
-  background: var(--surface-strong);
+  background: var(--surface-input);
   font: inherit;
 }
 
 .library-layout {
   display: grid;
-  max-width: 74rem;
+  max-width: var(--workspace-max);
   margin: 0 auto;
-  grid-template-columns: minmax(14rem, 20rem) minmax(0, 1fr);
-  gap: var(--space-8);
+  grid-template-columns: minmax(14rem, 4fr) minmax(0, 8fr);
+  gap: var(--space-4);
 }
 
 .library-list,
@@ -89,12 +89,16 @@
 .library-list {
   align-self: start;
   padding: var(--space-2);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-card);
+  background: var(--surface-subtle);
+  box-shadow: var(--shadow-control);
 }
 
 .library-detail {
   padding: clamp(var(--space-6), 4vw, var(--space-10));
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-lg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-stage);
   background: var(--surface-default);
   box-shadow: var(--card-shadow);
 }
@@ -120,8 +124,8 @@
 }
 
 .library-list button[aria-pressed="true"] {
-  border-color: var(--border-default);
-  background: var(--surface-tint);
+  border-color: var(--border-strong);
+  background: var(--surface-inner);
 }
 
 .library-list span,
@@ -222,7 +226,7 @@
   border: 1px solid var(--border-default);
   border-radius: var(--radius-sm);
   color: var(--text-primary);
-  background: var(--surface-strong);
+  background: var(--surface-input);
   font: inherit;
 }
 

@@ -3,6 +3,7 @@ import {
   type AnalysisAction,
   type AnalysisResult,
   type AnalysisUpdate,
+  type StoreAppearance,
   type StoreDefaultAction,
   type StoreAnalysisErrorCode,
   type StoreOverlayTheme,
@@ -19,6 +20,12 @@ import { renderStreamPreview, renderStreamStatus } from "./render-stream-preview
 import { OverlayWordPresence } from "./overlay-word-presence.js";
 import { OverlayStudyCapture } from "./overlay-study-capture.js";
 import { createOverlayPanel } from "./overlay-panel.js";
+import {
+  applyOverlayAppearance,
+  applyOverlayTheme,
+  createOverlayHost,
+  updateOverlayModeControls,
+} from "./overlay-visual-state.js";
 import type {
   ContentAnalysisPort,
   StoreOverlayAnchor,
@@ -33,6 +40,7 @@ export type {
 } from "./overlay-runtime.js";
 export class StoreOverlayController {
   private activePort: ContentAnalysisPort | null = null;
+  private appearance: StoreAppearance = "silver";
   private analysisBody: HTMLElement | null = null;
   private cardSession: OverlayCardSession | null = null;
   private defaultAction: StoreDefaultAction = "ask";
@@ -77,16 +85,11 @@ export class StoreOverlayController {
     this.previousFocus =
       this.document.activeElement instanceof HTMLElement ? this.document.activeElement : null;
 
-    const host = this.document.createElement("div");
-    host.dataset.huayiStoreOverlay = "";
-    host.style.position = "fixed";
-    host.style.zIndex = "2147483647";
-    host.style.left = `${Math.max(8, Math.min(anchor.left, window.innerWidth - 32))}px`;
-    host.style.top = `${Math.max(8, Math.min(anchor.bottom + 8, window.innerHeight - 32))}px`;
-    const shadow = host.attachShadow({ mode: "open" });
+    const { host, shadow } = createOverlayHost(this.document, anchor);
     const view = createOverlayPanel(this.document, this.theme, (action, event) => {
       if (this.acceptsUserGesture(event)) this.start(action);
     });
+    applyOverlayAppearance(host, this.appearance, view.panel);
     this.analysisBody = view.body;
     this.headerActions = view.headerActions;
     this.promoteToResult = view.promoteToResult;
@@ -103,10 +106,14 @@ export class StoreOverlayController {
     this.defaultAction = action;
   }
 
+  setAppearance(appearance: StoreAppearance): void {
+    this.appearance = appearance;
+    applyOverlayAppearance(this.host, appearance);
+  }
+
   setTheme(theme: StoreOverlayTheme): void {
     this.theme = theme;
-    const panel = this.host?.shadowRoot?.querySelector<HTMLElement>(".panel");
-    if (panel !== null && panel !== undefined) panel.dataset.theme = theme;
+    applyOverlayTheme(this.host, theme);
   }
 
   close(reason: StoreOverlayCloseReason = "dismissed"): void {
@@ -326,14 +333,7 @@ export class StoreOverlayController {
   }
 
   private setModeControls(action: AnalysisAction, loading: boolean): void {
-    for (const button of this.host?.shadowRoot?.querySelectorAll<HTMLButtonElement>(
-      "[data-action]",
-    ) ?? []) {
-      const active = button.dataset.action === action;
-      button.disabled = loading && active;
-      button.dataset.active = String(active);
-      button.setAttribute("aria-pressed", String(active));
-    }
+    updateOverlayModeControls(this.host, action, loading);
   }
 
   private stopPort(cancel: boolean): void {

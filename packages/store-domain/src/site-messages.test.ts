@@ -87,6 +87,7 @@ describe("Store site policy messages", () => {
   it("strictly parses a worker-derived policy response", () => {
     expect(
       parseStoreSitePolicyResponse({
+        appearance: "moon",
         defaultAction: "explain",
         enabled: false,
         globallyEnabled: true,
@@ -95,9 +96,15 @@ describe("Store site policy messages", () => {
         overlayTheme: "pearl",
         type: "store/site-policy-result",
       }),
-    ).toMatchObject({ defaultAction: "explain", enabled: false, host: "example.com" });
+    ).toMatchObject({
+      appearance: "moon",
+      defaultAction: "explain",
+      enabled: false,
+      host: "example.com",
+    });
     expect(() =>
       parseStoreSitePolicyResponse({
+        appearance: "moon",
         defaultAction: "ask",
         enabled: true,
         globallyEnabled: true,
@@ -106,6 +113,18 @@ describe("Store site policy messages", () => {
         overlayTheme: "pearl",
         type: "store/site-policy-result",
         url: "https://example.com/private",
+      }),
+    ).toThrow();
+    expect(() =>
+      parseStoreSitePolicyResponse({
+        appearance: "dark",
+        defaultAction: "ask",
+        enabled: true,
+        globallyEnabled: true,
+        host: "example.com",
+        messageVersion: STORE_MESSAGE_VERSION,
+        overlayTheme: "pearl",
+        type: "store/site-policy-result",
       }),
     ).toThrow();
   });

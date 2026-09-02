@@ -16,19 +16,31 @@ describe("Store content settings messages", () => {
     ).toEqual({ messageVersion: STORE_MESSAGE_VERSION, type: "store/content-settings" });
     expect(
       parseStoreContentSettingsResponse({
+        appearance: "porcelain",
         messageVersion: STORE_MESSAGE_VERSION,
         type: "store/content-settings-result",
         youtubeMode: "bilingual",
         youtubeShortcut: { alt: false, code: "KeyK", ctrl: true, meta: false, shift: false },
       }),
     ).toMatchObject({
+      appearance: "porcelain",
       youtubeMode: "bilingual",
       youtubeShortcut: { code: "KeyK" },
     });
     expect(() =>
       parseStoreContentSettingsResponse({
+        appearance: "porcelain",
         messageVersion: STORE_MESSAGE_VERSION,
         providerId: "openai",
+        type: "store/content-settings-result",
+        youtubeMode: "english",
+        youtubeShortcut: null,
+      }),
+    ).toThrow();
+    expect(() =>
+      parseStoreContentSettingsResponse({
+        appearance: "auto",
+        messageVersion: STORE_MESSAGE_VERSION,
         type: "store/content-settings-result",
         youtubeMode: "english",
         youtubeShortcut: null,

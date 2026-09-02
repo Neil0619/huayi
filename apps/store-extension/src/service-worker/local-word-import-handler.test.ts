@@ -13,7 +13,7 @@ describe("local word import privileged handler", () => {
       confirm: vi.fn(),
       preview: vi.fn(async () => ({
         contextCount: 2,
-        messageVersion: STORE_MESSAGE_VERSION as 4,
+        messageVersion: STORE_MESSAGE_VERSION as 5,
         outcome: "preview" as const,
         previewId: "a".repeat(64),
         type: "store/local-word-import-result" as const,
@@ -58,7 +58,7 @@ describe("local word import privileged handler", () => {
         pending: true,
         response: {
           contextCount: 2,
-          messageVersion: STORE_MESSAGE_VERSION as 4,
+          messageVersion: STORE_MESSAGE_VERSION as 5,
           outcome: "progress" as const,
           processedContextCount: 1,
           processedWordCount: 1,

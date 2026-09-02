@@ -5,6 +5,7 @@ import { StoreSiteLifecycle } from "./site-lifecycle-registry.js";
 
 function policy(enabled: boolean) {
   return {
+    appearance: "silver" as const,
     defaultAction: "explain" as const,
     enabled,
     globallyEnabled: true,

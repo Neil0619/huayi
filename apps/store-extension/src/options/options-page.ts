@@ -2,11 +2,13 @@ import type {
   CredentialSlot,
   DataRecipient,
   DeviceVault,
+  StoreAppearance,
   StoreSettings,
   StoreSettingsRepository,
 } from "@huayi/store-domain";
-import { recipientAccessDecision } from "@huayi/store-domain";
+import { parseStoreAppearance, recipientAccessDecision } from "@huayi/store-domain";
 
+import type { StoreAppearanceRepository } from "../service-worker/store-appearance.js";
 import { UserFacingError, userMessage } from "./options-errors.js";
 import { OptionsNonSensitiveControls } from "./options-non-sensitive-controls.js";
 import { OptionsSectionNavigation } from "./options-section-navigation.js";
@@ -18,6 +20,7 @@ const PROVIDER_CREDENTIALS = [
 const DATA_RECIPIENTS = ["eudic", "shanbay"] as const satisfies readonly DataRecipient[];
 
 interface OptionsPageDependencies {
+  readonly appearance: StoreAppearanceRepository;
   readonly lexiconOptions?: {
     initialize(ready: boolean): Promise<void>;
     setReady(ready: boolean): Promise<void>;
@@ -34,6 +37,7 @@ function element<ElementType extends HTMLElement>(selector: string): ElementType
 }
 
 export class OptionsPage {
+  private appearance: StoreAppearance = "silver";
   private busy = false;
   private readonly credentialConfigured = new Map<CredentialSlot, boolean>();
   private readonly nonSensitiveControls: OptionsNonSensitiveControls;
@@ -56,7 +60,10 @@ export class OptionsPage {
     this.render();
     await this.dependencies.lexiconOptions?.initialize(false);
     await this.execute(async () => {
-      this.settings = await this.dependencies.settings.get();
+      [this.appearance, this.settings] = await Promise.all([
+        this.dependencies.appearance.get(),
+        this.dependencies.settings.get(),
+      ]);
       const readiness = await this.dependencies.vault.getReadiness();
       if (readiness !== "ready") {
         throw new UserFacingError(
@@ -69,6 +76,23 @@ export class OptionsPage {
 
   private bindEvents(): void {
     this.nonSensitiveControls.bind();
+    for (const control of document.querySelectorAll<HTMLInputElement>("[data-store-appearance]")) {
+      control.addEventListener("change", (event) => {
+        const input = event.currentTarget as HTMLInputElement;
+        if (!input.checked) return;
+        const appearance = parseStoreAppearance(input.value);
+        this.appearance = appearance;
+        this.applyAppearance();
+        void this.execute(async () => {
+          try {
+            await this.dependencies.appearance.set(appearance);
+          } catch {
+            throw new UserFacingError("本次有效，未能保存");
+          }
+          await (this.dependencies.notifySitePolicyChanged ?? (async () => undefined))();
+        });
+      });
+    }
     for (const recipient of DATA_RECIPIENTS) {
       this.bindButton(
         `[data-recipient-grant='${recipient}']`,
@@ -197,6 +221,7 @@ export class OptionsPage {
   }
 
   private render(): void {
+    this.applyAppearance();
     document.body.setAttribute("aria-busy", String(this.busy));
     element<HTMLElement>("[data-device-vault-ready]").hidden = !this.ready;
     const consented = this.settings?.networkConsent !== null && this.settings !== null;
@@ -204,6 +229,9 @@ export class OptionsPage {
     element<HTMLButtonElement>("[data-grant-consent]").hidden = consented;
     element<HTMLButtonElement>("[data-revoke-consent]").hidden = !consented;
     this.nonSensitiveControls.render(this.settings, this.busy);
+    for (const control of document.querySelectorAll<HTMLInputElement>("[data-store-appearance]")) {
+      control.checked = control.value === this.appearance;
+    }
 
     for (const slot of PROVIDER_CREDENTIALS) {
       const configured = this.credentialConfigured.get(slot) ?? false;
@@ -236,5 +264,9 @@ export class OptionsPage {
       toggle.checked = enabled;
       toggle.disabled = this.busy || !consentCurrent;
     }
+  }
+
+  private applyAppearance(): void {
+    document.documentElement.dataset.appearance = this.appearance;
   }
 }

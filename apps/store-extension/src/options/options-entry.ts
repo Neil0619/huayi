@@ -1,6 +1,7 @@
 import { STORE_MESSAGE_VERSION, parseStoreSitePoliciesChangedResponse } from "@huayi/store-domain";
 
 import { createProductionLexiconRepository } from "../lexicon/browser-lexicon-repository.js";
+import { createChromeStoreAppearance } from "../service-worker/store-appearance.js";
 import { createChromeStoreSettings } from "../service-worker/store-settings.js";
 import { createProductionDeviceVault } from "../vault/browser-device-vault.js";
 import { createProductionWordbookExportEngine } from "../wordbook/production-wordbook-export-engine.js";
@@ -36,6 +37,7 @@ const wordbookOptions = new WordbookOptionsController({
 });
 
 const page = new OptionsPage({
+  appearance: createChromeStoreAppearance(chrome.storage.local),
   lexiconOptions: {
     async initialize(ready) {
       await Promise.all([

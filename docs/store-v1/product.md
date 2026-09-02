@@ -121,16 +121,20 @@ YouTube 停用/英文/双语偏好及可关闭组合快捷键、默认动作、�
 接入严格 Settings v6。站点策略支持默认 allow/block、精确 hostname 与包含子域规则；Popup
 只显示当前 Provider、模型联网同意、当前网站状态及单站开关，不显示任何凭据配置状态，并通过当前标签页 Content
 Script 查询或切换当前 hostname 的精确规则；活动标签页变化时拒绝陈旧操作。全局开关、单站开关
-和词卡皮肤都可从 Popup 快速调整；所有异步保存共用可见错误边界。两套词卡
-复用同一内容结构，只切换视觉变量；ActionCard 不回显选中文本，ResultCard 只显示必要词头或
+和词卡材质都可从 Popup 快速调整；所有异步保存共用可见错误边界。四套明亮外观
+`moon | silver | champagne | porcelain` 在 Options“常用设置”中以带名称的单选卡选择，默认
+`silver`，仅保存在当前扩展设备；Popup 继承当前外观且不提供第二个选择器。两套词卡材质
+`pearl | parchment` 复用同一内容结构，只切换通透与柔雾参数；ActionCard 不回显选中文本，ResultCard 只显示必要词头或
 短语标题而不显示“原文/原句语境”块。选区仍仅用于当前请求、结果校验及用户主动保存的有界语境。
 
 Options 使用渐进式分类而非一次铺开全部配置：默认只显示常用设置，通过可访问的分类导航切换
 密钥、外部词典和本地生词。页头是 64–72px 应用工具栏并提供项目 GitHub 入口；持续生效的全局、
 欧路和扇贝开关使用 switch，一次性风险确认仍使用 checkbox。
-分类切换不得重置已经输入的表单值。Options 与 Popup 使用本地系统字体和同一套三层 CSS token：
-冰灰/冷白表面、蓝黑文字、低饱和钢蓝操作色、冷灰边框与极轻阴影；全部主要文本、控件和焦点态
-保持 AA 对比度，不加载远程字体或代码。
+分类切换不得重置已经输入的表单值。Options、Popup、Shadow DOM Overlay、YouTube 与扇贝提示各自
+使用 Store 包内 `primitive → semantic → component` 三层 CSS token。四套外观只覆盖 semantic
+Token，不改变 DOM、布局、间距或交互；C 使用深墨蓝操作色，G 使用黛黑石墨色，H 使用深咖色，I
+使用靛蓝色。全部主要文本、控件和焦点态保持 AA 对比度，并提供 backdrop-filter 不可用、
+forced-colors 与 reduced-motion 降级，不加载远程字体或代码。
 
 错误必须区分未同意、未配置、鉴权失败、限流、配额、网络、超时、无效响应、取消、版本
 不匹配和本地数据损坏。错误文本不得包含密钥、原始响应、完整页面输入或环境内容。

@@ -1,5 +1,5 @@
 .analysis-history-page {
-  max-width: 74rem;
+  max-width: var(--workspace-max);
   margin: 0 auto;
 }
 
@@ -9,8 +9,8 @@
 .analysis-history-result,
 .analysis-history-candidates li,
 .analysis-history-delete {
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-card);
   background: var(--surface-default);
 }
 
@@ -39,9 +39,9 @@
 .analysis-history-filters select {
   min-height: var(--control-height);
   padding: var(--space-2);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
-  background: var(--surface-strong);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-control);
+  background: var(--surface-input);
 }
 
 .analysis-history-status {
@@ -51,8 +51,8 @@
 
 .analysis-history-layout {
   display: grid;
-  grid-template-columns: minmax(13rem, 19rem) minmax(0, 1fr);
-  gap: var(--space-8);
+  grid-template-columns: minmax(13rem, 4fr) minmax(0, 8fr);
+  gap: var(--space-4);
 }
 
 .analysis-history-list,
@@ -65,8 +65,9 @@
   align-content: start;
   gap: var(--space-2);
   padding: var(--space-2);
-  border-color: transparent;
-  background: transparent;
+  border-color: var(--glass-border);
+  background: var(--surface-subtle);
+  box-shadow: var(--shadow-control);
 }
 
 .analysis-history-list button {
@@ -80,8 +81,8 @@
 }
 
 .analysis-history-list button[aria-pressed="true"] {
-  border-color: var(--border-default);
-  background: var(--surface-tint);
+  border-color: var(--border-strong);
+  background: var(--surface-inner);
 }
 
 .analysis-history-list strong,
@@ -103,7 +104,7 @@
 
 .analysis-history-detail {
   padding: clamp(var(--space-6), 4vw, var(--space-10));
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-stage);
   box-shadow: var(--card-shadow);
 }
 

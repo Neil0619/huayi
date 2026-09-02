@@ -6,7 +6,7 @@ import { handleContentSettingsMessage } from "./content-settings-handler.js";
 const request = { messageVersion: STORE_MESSAGE_VERSION, type: "store/content-settings" };
 
 describe("Store content settings handler", () => {
-  it("returns only YouTube mode to exact HTTPS YouTube content senders", async () => {
+  it("returns only appearance and YouTube presentation settings to exact HTTPS senders", async () => {
     const readSettings = vi.fn(async () => ({
       globallyEnabled: true,
       sitePolicy: { defaultAction: "allow" as const, rules: [] },
@@ -19,18 +19,30 @@ describe("Store content settings handler", () => {
         request,
         "https://www.youtube.com/watch?v=video-1",
         readSettings,
+        async () => "porcelain",
       ),
     ).resolves.toEqual({
+      appearance: "porcelain",
       messageVersion: STORE_MESSAGE_VERSION,
       type: "store/content-settings-result",
       youtubeMode: "bilingual",
       youtubeShortcut: null,
     });
     await expect(
-      handleContentSettingsMessage(request, "https://youtube.example/watch", readSettings),
+      handleContentSettingsMessage(
+        request,
+        "https://youtube.example/watch",
+        readSettings,
+        async () => "porcelain",
+      ),
     ).resolves.toBeUndefined();
     await expect(
-      handleContentSettingsMessage(request, "http://www.youtube.com/watch?v=video-1", readSettings),
+      handleContentSettingsMessage(
+        request,
+        "http://www.youtube.com/watch?v=video-1",
+        readSettings,
+        async () => "porcelain",
+      ),
     ).resolves.toBeUndefined();
     expect(readSettings).toHaveBeenCalledOnce();
   });
@@ -57,6 +69,7 @@ describe("Store content settings handler", () => {
         request,
         "https://www.youtube.com/watch?v=video-1",
         readSettings,
+        async () => "moon",
       ),
     ).resolves.toBeUndefined();
   });

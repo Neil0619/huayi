@@ -2,6 +2,7 @@ import {
   STORE_MESSAGE_VERSION,
   parseStorePopupStatusRequest,
   parseStorePopupPreferenceRequest,
+  type StoreAppearance,
   type StorePopupStatusResponse,
   type StoreSettings,
 } from "@huayi/store-domain";
@@ -12,6 +13,7 @@ interface PopupSender {
 }
 
 interface PopupStatusDependencies {
+  readonly getAppearance: () => Promise<StoreAppearance>;
   readonly getSettings: () => Promise<StoreSettings>;
   readonly notifySettingsChanged: () => Promise<void>;
   readonly setGloballyEnabled: (enabled: boolean) => Promise<void>;
@@ -73,8 +75,12 @@ export async function handlePopupStatusMessage(
   } catch {
     return undefined;
   }
-  const settings = await dependencies.getSettings();
+  const [appearance, settings] = await Promise.all([
+    dependencies.getAppearance(),
+    dependencies.getSettings(),
+  ]);
   return {
+    appearance,
     globallyEnabled: settings.globallyEnabled,
     messageVersion: STORE_MESSAGE_VERSION,
     modelConsentGranted: settings.networkConsent !== null,

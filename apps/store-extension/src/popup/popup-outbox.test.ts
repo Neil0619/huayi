@@ -25,6 +25,7 @@ function cloud() {
 
 function popupStatus() {
   return {
+    appearance: "silver" as const,
     globallyEnabled: true,
     messageVersion: STORE_MESSAGE_VERSION,
     modelConsentGranted: true,
