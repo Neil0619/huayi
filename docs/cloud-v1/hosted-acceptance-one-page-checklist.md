@@ -5,13 +5,15 @@
 
 ## 现在停在哪里 / 你现在要做什么
 
-现在停在**账号已建立、post-relogin Web session 脱敏只读诊断提交前**。0023 backup/migration、两轮 Phase 93
-Vercel 部署、fresh recovery readiness、同一邀请 token recovery、一次六位码重发、注册 completion snapshot
-与密码重登均已有真实结果；`account_finalized_exact|t`、`safe_route_state|account-established`。但重登后的
-两次 snapshot 都显示目标账号活动 Web session 为 0，而同一浏览器仍能读取需认证页面；这项矛盾尚未闭环。
+现在停在**账号已建立、post-relogin session 已诊断、当前 UI 候选待独立部署**。0023 backup/migration、两轮
+Phase 93 Vercel 部署、fresh recovery readiness、同一邀请 token recovery、一次六位码重发、注册 completion
+snapshot 与密码重登均已有真实结果；`account_finalized_exact|t`、`safe_route_state|account-established`。
+正式 post-relogin 诊断已证明目标账号唯一 Web session 已 revoked、活动数为 0，其他三个活动 Web session
+全部属于 Operator，最终 verdict 为 `other-active-only`；此前浏览器页面不是目标账号活动 session 的证据。
 
-下一步先完成本次离线全门、commit/push 与 exact-SHA 双平台质量门；随后另行批准在普通 macOS Terminal
-只运行一次：
+当前数据库进程 PATH 修复候选已让正式诊断直接使用 Keychain 且不再提示密码。下一步先完成该候选的离线
+全门、commit/push 与 exact-SHA 双平台质量门；目标账号 session 验收只允许在隔离浏览器上下文重新登录后，
+在普通 macOS Terminal 复跑：
 
 ```text
 pnpm acceptance:hosted:identity:post-relogin:diagnose
@@ -45,9 +47,9 @@ UUID 或 token，也不写数据库；结果只用于区分目标账号活动 se
 - **0016–0021 边界**：Hosted DeepSeek 0016–0021 已完成 `applied-exact` 与独立 pre/rebuild/post completion；
   该 batch 保持不可变，不得重跑 apply、覆盖备份或用作 Phase 92 evidence。0022 另用
   `phase-92-0022-expired-invitation-recovery` batch。
-- **Vercel one-shot**：`acceptance:hosted:deployment:one-shot:preflight` → API arm/observe → API
-  disarm/verify → Web arm/observe → Web disarm/verify 已完成，两个项目均已关闭。当前不得重新 arm、disarm
-  或部署；未来新候选必须另行审查并重新批准完整串行门，不能只跑其中一步。
+- **Vercel one-shot**：Phase 92、Phase 93 与独立 fresh-CSRF 的 API arm/observe → API disarm/verify →
+  Web arm/observe → Web disarm/verify 均已完成，两个项目均已关闭，历史 state 全部不可重放。当前 UI 候选
+  必须新增独立 state、固定当前真实 baseline 并重新批准完整串行门，不能重跑旧命令或只跑其中一步。
 - **身份**：不得创建第二张普通邀请、删除现有 Auth user、重做 First Operator、bootstrap 或用 SQL 绕过。
 
 ## 1. Auth 与六位 OTP
@@ -62,7 +64,8 @@ POST OTP；完成后退出并用密码重新登录。
 identity 保持唯一；Web 落到 `/practice`，密码重登成功。该旅程已于 2026-09-02 完成。随后在普通 macOS Terminal 运行
 `pnpm acceptance:hosted:identity:snapshot`，至少得到唯一 invitation consumed、唯一 claim finalized、唯一
 registration flow consumed、`account_finalized_exact|t` 与 `safe_route_state|account-established`；第二张普通
-邀请会使收口失败。
+邀请会使收口失败。post-relogin 诊断当前为 `other-active-only`；只允许隔离登录目标账号并复跑诊断，预期
+`subject-active`，不得用新的 OTP、邀请或账号刷新该证据。
 
 **立即停止条件**：snapshot 不确定、0022 status 为 uncertain、invitation 已消费或无法精确恢复、再次 401、没有
 新邮件、不是六位 OTP、需要第二邀请/删除账号/截取旧八位码、或任何秘密将被记录。

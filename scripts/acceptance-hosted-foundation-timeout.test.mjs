@@ -10,6 +10,44 @@ import { runHostedPsql } from "./acceptance-hosted-foundation.mjs";
 const caCertificate =
   "-----BEGIN CERTIFICATE-----\n" + "a".repeat(64) + "\n-----END CERTIFICATE-----\n";
 
+test("hosted psql resolves PATH independently from the partial hosted environment", async () => {
+  const child = new EventEmitter();
+  child.stdin = new PassThrough();
+  child.kill = () => true;
+  let childEnvironment;
+
+  const result = await runHostedPsql({
+    captureOutput: false,
+    databaseUrl: "postgresql://postgres@fictional.invalid/postgres?sslmode=verify-full",
+    environment: { HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: caCertificate },
+    input: "SELECT true;\n",
+    password: "fictional-password",
+    processEnvironment: {
+      LANG: "C.UTF-8",
+      LC_ALL: "C.UTF-8",
+      PATH: "/trusted/psql/bin",
+      PGPASSWORD: "must-not-reach-the-child",
+      SUPABASE_DB_PASSWORD: "must-not-reach-the-child",
+    },
+    spawnProcess: (_command, _arguments, options) => {
+      childEnvironment = options.env;
+      queueMicrotask(() => child.emit("close", 0, null));
+      return child;
+    },
+  });
+
+  assert.deepEqual(result, { code: 0, stderr: "", stdout: "" });
+  assert.equal(childEnvironment.PATH, "/trusted/psql/bin");
+  assert.deepEqual(Object.keys(childEnvironment).sort(), [
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "PGPASSFILE",
+    "PGSSLMODE",
+    "PGSSLROOTCERT",
+  ]);
+});
+
 test("hosted psql optional process timeout kills the child and removes its private CA", async () => {
   const child = new EventEmitter();
   child.stdin = new PassThrough();

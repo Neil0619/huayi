@@ -143,9 +143,9 @@ async function spawnHostedPsql({
   captureErrorCode,
   captureOutput,
   databaseUrl,
-  environment,
   input,
   passwordFile,
+  processEnvironment,
   registerChild,
   rootCertificate,
   spawnProcess,
@@ -177,7 +177,7 @@ async function spawnHostedPsql({
       {
         env: createHostedPsqlProcessEnvironment({
           passwordFile,
-          processEnvironment: environment,
+          processEnvironment,
           rootCertificate,
         }),
         shell: false,
@@ -226,6 +226,7 @@ export async function runHostedPsql({
   input,
   password,
   process_ = process,
+  processEnvironment = process.env,
   spawnProcess = spawn,
   timeoutMilliseconds,
 }) {
@@ -246,9 +247,9 @@ export async function runHostedPsql({
         captureOutput,
         captureErrorCode,
         databaseUrl,
-        environment,
         input,
         passwordFile,
+        processEnvironment,
         registerChild,
         rootCertificate,
         spawnProcess,

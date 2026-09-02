@@ -351,8 +351,7 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       且 `pearl | parchment` 保持独立材质；
 - [x] 默认 `silver` 全页面 actual-bundle、代表页面四外观、1440/1024/768/390px、键盘、AA、
       reduced-motion、forced-colors、无横向溢出与无远程资源全部通过；
-- [x] macOS 聚合门通过；
-- [ ] exact-SHA Windows CI 通过；
+- [x] 当前 `6b6bfe5` exact-SHA Cross-platform quality run `33583832406` 的 macOS/Windows job 均通过；
 - [ ] 真实 macOS/Windows Chrome 安装与人工视觉验收完成；该项需要另行批准。
 
 ## Vercel API 运行时

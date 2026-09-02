@@ -2115,7 +2115,7 @@ passed; first Operator empty`。候选已提交推送，0012 已实际 push；�
   join 页面只点击一次“重新发送六位验证码”；R3-C、五项 Cron、Cloud DeepSeek 应用路径、目标网络、
   数据权利、双平台 Chrome 与完整发布收口继续 pending。
 
-### Phase 93 invitation token recovery（2026-09-02，账号已建立，post-relogin session 待诊断）
+### Phase 93 invitation token recovery（2026-09-02，账号已建立，post-relogin session 已诊断）
 
 - 已以离线 TDD 实现 0023 双镜像 migration、Operator admin API/module/Postgres seam 和 Web 二步确认/
   一次显示；恢复只轮换同一 invitation token hash，不创建 invitation/Auth user/account；
@@ -2136,7 +2136,7 @@ passed; first Operator empty`。候选已提交推送，0012 已实际 push；�
   页面缓存 proof；这是明确服务器拒绝，不是可重放的未知响应，未重试且没有 recovery 成功证据；
 - fresh-CSRF 修复让所有管理员 mutation 在发送写请求前读取 current CSRF provider，未知响应 retry 仍复用
   原 Idempotency-Key 但获取 fresh CSRF；`882d3d4` 已提交推送，Cross-platform quality run `33499948406`
-  的 macOS/Windows job 均通过，但尚未重新部署；
+  的 macOS/Windows job 均通过；后续独立 fresh-CSRF 部署序列也已完成；
 - 旧 Phase 93 state 已为 `complete`。只读重跑旧 diagnose 确认远端 API/Web 19/12、latest Ready、零
   in-flight，并因旧 state 非 absent、旧 baseline 仍为 18/11 而按设计失败且零写入。随后离线新增独立
   fresh-CSRF state、19/12 baseline、历史 completion gate 和脱敏 diagnose，聚焦 7/7 与
@@ -2147,6 +2147,11 @@ passed; first Operator empty`。候选已提交推送，0012 已实际 push；�
   finalized、flow consumed、confirmed Auth user、active profile/password/quota、
   `account_finalized_exact|t` 与 `safe_route_state|account-established`，密码退出重登人工通过；
 - 两次 post-relogin snapshot 均仍为 `subject_active_web_session_count|0`，但浏览器能读取认证后的
-  `/practice` 并在 `/admin` 到达 recent-auth 门。新增离线脱敏只读诊断自动锁定唯一 finalized account，固定
-  输出 target/other session 聚合、owner/partition 合同和有限 verdict，用于区分 `subject-active`、
-  `other-active-only` 与 `no-active-session`。当前改动停在提交前；尚未连接 Hosted 或得出根因。
+  `/practice` 并在 `/admin` 到达 recent-auth 门。脱敏只读诊断已由 `8ed3145` 提交并通过双平台质量门；
+- 2026-09-02 首次用持久化 Keychain 凭据运行正式诊断时，发现 Hosted `psql` 进程错误地从只含 CA 的
+  Hosted 输入环境继承 `PATH`，导致本机已安装的 `psql` 仍以固定失败结果退出。当前修复候选把 CA/凭据输入
+  与真实进程环境分离，子进程仍只获得固定 allowlist；聚焦回归 18/18 通过；
+- 修复后同一正式只读诊断不再请求密码并退出 0：migration、唯一普通邀请、目标账号和 session owner/partition
+  合同全部精确；目标账号恰好一个 Web session 且已 revoked、活动数为 0，其他三个活动 Web session 全部属于
+  Operator，最终 `diagnostic_verdict|other-active-only`。因此此前浏览器页面不能证明目标普通账号密码重登后的
+  session；不得重发 OTP、轮换邀请或创建账号，下一次只允许在隔离浏览器上下文完成目标账号登录后复跑诊断。
