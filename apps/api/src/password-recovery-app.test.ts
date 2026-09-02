@@ -148,7 +148,7 @@ describe("password recovery HTTP", () => {
     expect(response.headers.get("cache-control")).toBe("private, no-store");
     expect(response.headers.get("referrer-policy")).toBe("no-referrer");
     expect(response.headers.get("content-security-policy")).toBe(
-      "default-src 'none'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
+      `default-src 'none'; form-action 'self' ${webOrigin}; base-uri 'none'; frame-ancestors 'none'`,
     );
     expect(response.headers.get("set-cookie")).toBeNull();
     const html = await response.text();
@@ -175,6 +175,9 @@ describe("password recovery HTTP", () => {
     expect(response.status).toBe(302);
     expect(response.headers.get("location")).toBe(`${webOrigin}/recover?continue=1`);
     expect(response.headers.get("cache-control")).toBe("private, no-store");
+    expect(response.headers.get("content-security-policy")).toBe(
+      `default-src 'none'; form-action 'self' ${webOrigin}; base-uri 'none'; frame-ancestors 'none'`,
+    );
     expect(response.headers.get("referrer-policy")).toBe("no-referrer");
     expect(response.headers.get("set-cookie")).toBe(
       `huayi_password_recovery=${recoverySessionId}; HttpOnly; Secure; SameSite=Lax; ` +

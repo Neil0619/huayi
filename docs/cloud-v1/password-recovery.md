@@ -80,10 +80,11 @@ HttpOnly recovery Cookie 和一次性 CSRF。
 
 五个公开响应都固定 `Cache-Control: private, no-store`；confirm/callback 另固定
 `Referrer-Policy: no-referrer`。confirm HTML 固定 CSP
-`default-src 'none'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'`，不加载脚本、图片、字体或
-第三方资源；GET 不读取 flow state、不交换 code、不设置 Cookie。start 的 202 不设置 recovery/Web Cookie，
-不返回 flow、过期时间、账号存在性或 Provider 结果。callback 的成功和预期失败都只跳转固定 HTTPS
-`/recover?continue=1`；flow/code 只短暂存在于 API callback URL，不进入 Web URL。
+`default-src 'none'; form-action 'self' <exact Web origin>; base-uri 'none'; frame-ancestors 'none'`；精确
+Web origin 只允许 Chrome 跟随 API callback 的固定跨子域 302，不使用 wildcard。页面不加载脚本、图片、
+字体或第三方资源；GET 不读取 flow state、不交换 code、不设置 Cookie。start 的 202 不设置 recovery/Web
+Cookie，不返回 flow、过期时间、账号存在性或 Provider 结果。callback 的成功和预期失败都只跳转固定
+HTTPS `/recover?continue=1`；flow/code 只短暂存在于 API callback URL，不进入 Web URL。
 
 recovery Cookie 名为 `huayi_password_recovery`，属性固定为
 `HttpOnly; Secure; SameSite=Lax; Path=/v1/auth/password/recovery; Max-Age=900`。部署必须保证 Web 与 API
@@ -408,7 +409,8 @@ email scanner 行为、secure-password-change 配置、Cookie same-site/domain/T
    覆盖 390px/reduced-motion、另一浏览器消费最新邮件、GET confirm 零副作用、旧邮件/replay 统一失败、
    purpose Cookie、全 Web/Extension session 归零、单通知、旧密码失败和新密码显式重登。route-fulfilled
    fake HTTPS 文档在 Chromium 中是 opaque origin，因此邮件确认上下文仅为提交表单启用 `bypassCSP`；测试
-   仍逐项断言生产 `form-action 'self'` CSP/no-store/no-referrer header，HTTP 单元另验证 exact HTML；
+   仍逐项断言生产 `form-action 'self' <exact Web origin>` CSP/no-store/no-referrer header，HTTP 单元另验证
+   exact HTML；
 6. **R5 离线总审与目标验收（离线审查已完成，目标验收 pending）**：Web 184/184、完整 Playwright
    105/105、`check:instructions`、workspace typecheck/build、`pnpm test`、目标 ESLint/Prettier 与
    `git diff --check` 通过。根级 `format:check` 仍被既有 70 个文件阻塞，根级 `lint` 仍被既有

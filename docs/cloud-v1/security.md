@@ -90,9 +90,10 @@ owner context、generation/reservation 归属、task 成功或失败终态、价
   自动重发，以满足统一响应时间并避免邮件轰炸。安全通知使用独立 120 秒 lease 和有界退避；sender 必须
   用 outbox notification ID 做厂商幂等键，避免邮件成功而本地 complete 失败后的重复投递。完整矩阵见
   `password-recovery.md`。
-- 恢复邮件 GET 不直接交换 Provider code，而只返回无脚本/外链、CSP 限定 `form-action 'self'` 的惰性确认
-  页；用户显式 POST exact flow+code 表单后才消费单次 code。confirm/callback 均 no-store/no-referrer，
-  目标固定，降低邮件 scanner 抢先消费和 Referer 泄漏风险。
+- 恢复邮件 GET 不直接交换 Provider code，而只返回无脚本/外链、CSP 将 `form-action` 限定为
+  `'self'` 与精确配置的 Web origin 的惰性确认页；后者只允许 Chrome 跟随 API callback 到 Web 的固定
+  302。用户显式 POST exact flow+code 表单后才消费单次 code。confirm/callback 均
+  no-store/no-referrer，目标固定，降低邮件 scanner 抢先消费和 Referer 泄漏风险。
 - Web Cookie 使用随机不透明 ID；会话固定攻击通过登录后轮换 ID 防止。CSRF 同时校验固定 Web Origin
   与随机 token；OAuth callback 只把 HttpOnly session Cookie 带回 API origin，再由固定 Web Origin
   调用无缓存 bootstrap 原子轮换 CSRF hash。CORS 只允许固定 Web origin 携带 Cookie；Extension 使用

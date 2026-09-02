@@ -19,8 +19,10 @@ import { strictJson } from "./strict-json.js";
 const recoveryCookieName = "huayi_password_recovery";
 const recoveryCookiePath = "/v1/auth/password/recovery";
 const recoveryCookieAttributes = `HttpOnly; Secure; SameSite=Lax; Path=${recoveryCookiePath}`;
-const confirmationCsp =
-  "default-src 'none'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'";
+
+function confirmationCsp(webOrigin: string): string {
+  return `default-src 'none'; form-action 'self' ${new URL(webOrigin).origin}; base-uri 'none'; frame-ancestors 'none'`;
+}
 
 function wait(milliseconds: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
@@ -165,7 +167,7 @@ export function createPasswordRecoveryApp(options: {
 
   app.get(passwordRecoveryHttpRoutes.confirm, (context) => {
     context.header("Cache-Control", "private, no-store");
-    context.header("Content-Security-Policy", confirmationCsp);
+    context.header("Content-Security-Policy", confirmationCsp(options.webOrigin));
     context.header("Referrer-Policy", "no-referrer");
     const input = exactQuery(context, passwordRecoveryConfirmQuerySchema);
     return context.html(confirmationPage(input.flow, input.code));
@@ -173,6 +175,7 @@ export function createPasswordRecoveryApp(options: {
 
   app.post(passwordRecoveryHttpRoutes.callback, async (context) => {
     context.header("Cache-Control", "private, no-store");
+    context.header("Content-Security-Policy", confirmationCsp(options.webOrigin));
     context.header("Referrer-Policy", "no-referrer");
     const input = await exactForm(context, passwordRecoveryCallbackFormSchema);
     try {
