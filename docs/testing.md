@@ -56,6 +56,9 @@ Hosted 首次密码恢复/Cron bootstrap 回归还必须覆盖：R3-C 为空时�
 snapshot 仅有 open/claimable/sent/ambiguous 四个有界计数；provision 后必须经过新 API deployment；
 recovery worker 要求 `sent → idle`，already-sent 仅做一次 `idle`；缺失、过期、dispatch 模糊、partial
 Cron、401/5xx、异常 JSON、继承明文 secret 与输出反射全部失败关闭。默认测试只使用 fake，不发邮件。
+Supabase recovery adapter 必须回归 `TokenHash` 只在显式 POST 后交给 `verifyOtp(type=recovery)`，不依赖
+300 秒 PKCE flow state；Hosted Auth 模板门必须只允许一个 `RedirectTo` 和一个 `TokenHash`、零
+`ConfirmationURL`，apply 只能从已知旧模板做单字段更新并重新回读，输出不得反射模板或 token。
 
 非 Windows 的根 Vitest 门按固定顺序分成两个进程：先用 `--project=!api --maxWorkers 4` 运行
 非 API projects，再用 `--project api --maxWorkers 2 --testTimeout 15000 --hookTimeout 15000`

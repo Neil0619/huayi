@@ -2,7 +2,7 @@
 
 ## 1. 状态与全局校准
 
-影响平台为 `shared`。当前产品已实现邀请密码注册、邮件确认、密码登录、登录后近期重认证、
+影响平台为 `shared + macOS`（共享 Auth 逻辑与 macOS Hosted 运维）。当前产品已实现邀请密码注册、邮件确认、密码登录、登录后近期重认证、
 Google→password 显式绑定，以及 PasswordRecovery 的离线 Web 入口与浏览器验收。
 `privacy-policy.md` 已声明邮件提供商用于密码恢复，
 `account-sign-in-methods.md` 又明确恢复必须是未登录、email-enumeration-safe、purpose-bound temporary
@@ -10,22 +10,23 @@ session，不能复用已登录 identity-link flow。本方案补齐这项独立
 `R3-C production notification code offline implemented; real Resend/DNS delivery and R5
 target-platform validation pending`。
 
-2026-08-14 复核的 Supabase 官方行为是：`resetPasswordForEmail` 支持 PKCE，并把用户带回配置的固定
-redirect URL；回调 code 必须与同一 PKCE flow 的 verifier 一起交换，code 短时且单次；更新密码仍要求
-一个已验证的 Provider session。官方“同一浏览器”限制针对 verifier 保存在浏览器 storage 的默认客户端
-形态；Huayi 将 verifier 加密保存在服务端 flow，因此推断邮件链接可在另一浏览器建立新的 purpose
-session，但仍必须携带同一短时 flow+code。生产 redirect 应使用精确路径，不使用通配目标。参考：
+2026-09-02 真实 Hosted 日志推翻了原先“服务端保存 verifier 可支持 30 分钟跨浏览器恢复”的推断：
+Supabase Auth 的 PKCE flow state 默认仅 300 秒，且 Hosted Management API 不暴露该时长配置；邮件在
+发出约 9 分钟后打开时，`/verify` 虽 303，但随后的 code exchange 以 `flow_state_expired` 失败。恢复改为
+Supabase 官方支持的 `TokenHash` 邮件模板与服务端 `verifyOtp(type=recovery)`；GET 仍只到语见惰性确认页，
+用户显式 POST 后才消费 token hash，成功后仍只取得受限 Provider recovery session。生产 redirect 使用
+精确路径，不使用通配目标。参考：
 
 - [Supabase resetPasswordForEmail](https://supabase.com/docs/reference/javascript/auth-resetpasswordforemail)
 - [Supabase password reset guide](https://supabase.com/docs/guides/auth/passwords#resetting-a-password)
-- [Supabase PKCE flow](https://supabase.com/docs/guides/auth/sessions/pkce-flow)
+- [Supabase password reset token-hash example](https://supabase.com/docs/guides/auth/passwords#resetting-a-password)
 - [Supabase redirect URLs](https://supabase.com/docs/guides/auth/redirect-urls)
 - [Supabase PKCE email-link scanner guidance](https://supabase.com/docs/guides/troubleshooting/pkce-flow-errors-cannot-parse-response-or-zgotmplz-in-magic-link-emails-433665)
 - [OWASP Forgot Password Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Forgot_Password_Cheat_Sheet.html)
 
-Huayi Web 继续不直接持有 Supabase client、access token、refresh token 或 PKCE verifier。Provider
-session 和 PKCE state 只在 API adapter 与加密临时记录中流转；浏览器只得到短时、purpose-scoped、
-HttpOnly recovery Cookie 和一次性 CSRF。
+语见 Web 继续不直接持有 Supabase client、access token 或 refresh token。邮件 token hash 只短暂经过
+API confirm URL 与显式 POST，并由 no-store/no-referrer 页面约束；Provider session 只在 API adapter 与
+加密临时记录中流转。浏览器只得到短时、purpose-scoped、HttpOnly recovery Cookie 和一次性 CSRF。
 
 ## 2. 产品需求与非目标
 
@@ -35,7 +36,7 @@ HttpOnly recovery Cookie 和一次性 CSRF。
 2. 无论邮箱不存在、账号不是 active、未登记 password method，还是符合条件并已请求邮件，页面都只
    显示同一文案：“如果该邮箱可恢复，我们已发送邮件”；
 3. 用户可在能够安全访问该邮箱的浏览器打开邮件链接。链接先到固定 API 惰性确认页；只有用户显式点击
-   “继续重置密码”后才 POST callback、交换 code，并在该浏览器建立 recovery session，随后进入 Web
+   “继续重置密码”后才 POST callback、验证 token hash，并在该浏览器建立 recovery session，随后进入 Web
    `/recover?continue=1`，不直接创建 Huayi 登录 session；
 4. Web 以短时 recovery Cookie 读取恢复状态，要求两次输入相同、至少 12、最多 256 字符的新密码；客户端
    只向 API 发送一份匹配后的 password。成功后清除密码输入、recovery Cookie 和所有既有 Huayi Web/
@@ -60,10 +61,10 @@ HttpOnly recovery Cookie 和一次性 CSRF。
 
 - 不提供账号查找、邮箱更换、验证码输入登录、magic link 登录、Google identity 恢复或解绑；
 - 不在 Web local/session storage、URL fragment、公开 JSON 或日志保存 provider token、flow secret、
-  PKCE verifier、新密码或完整邮箱；
+  token hash、新密码或完整邮箱；
 - 不用 Supabase service-role 管理员改密绕过 authenticated recovery session；
-- 不要求发起 start 的浏览器保存 PKCE verifier；verifier 由 API 加密保存。邮件链接是短时 bearer proof，
-  用户必须像保护一次性登录链接一样保护它；
+- 不要求发起 start 的浏览器保存 Provider state。邮件 token hash 是短时 bearer proof，用户必须像保护
+  一次性登录链接一样保护它；
 - 不把 fake mail、PGlite 或 actual bundle 解释成真实 Supabase、邮件投递、域名 Cookie 或双平台 Chrome
   证据。
 
@@ -106,13 +107,13 @@ Web /recover
   -> always 202 accepted; no Cookie
   -> eligible owner only: atomically create hashed requested flow
   -> trusted worker marks dispatch before Provider resetPasswordForEmail
-  -> save encrypted PKCE/provider state as sent; never retry ambiguous dispatch
+  -> save a sent receipt; never retry ambiguous dispatch
 
 user explicitly opens the latest email in a browser
   -> GET API recovery/confirm?flow=<opaque>&code=<opaque>
   -> inert no-store/no-referrer page; user explicitly POSTs exact flow+code form
   -> POST API recovery/callback
-  -> exchange code with protected state
+  -> verify the recovery token hash and retain only the returned Provider session
   -> verify owner userId + normalized email + active/password method
   -> rotate one recovery-session hash + CSRF hash
   -> Set-Cookie purpose-scoped; 302 fixed Web /recover?continue=1
@@ -194,10 +195,11 @@ dispatch-at 已写入的模糊状态透明重试。
 
 ### 4.3 Provider adapter
 
-- `begin()` 使用 server-created Supabase client、PKCE、`persistSession=true` 和私有内存 storage 调用
-  `resetPasswordForEmail(email,{redirectTo})`，只返回 storage state；
-- `exchange()` 使用保存的 state 调用 `exchangeCodeForSession(code)`，要求 session/user/email 全部存在，
-  再返回更新后的 state；
+- `begin()` 使用 server-created Supabase client 和私有内存 storage 调用
+  `resetPasswordForEmail(email,{redirectTo})`；邮件模板只把 `RedirectTo` 与 `TokenHash` 组合到惰性语见
+  confirm URL，不使用会先进入 Supabase GET `/verify` 的 `ConfirmationURL`；
+- `exchange()` 不依赖 Supabase PKCE flow state，而在用户显式 POST 后调用
+  `verifyOtp({token_hash:code,type:"recovery"})`，要求 session/user/email 全部存在，再返回更新后的 state；
 - `updatePassword()` 只用恢复 session 的 auth state 调用 `updateUser({password})`，不使用 service role；
 - adapter 将 Provider error 全部映射为固定 `authentication_required`，不得把 error/message/status 写入
   公共响应或普通日志；
@@ -212,7 +214,7 @@ dispatch-at 已写入的模糊状态透明重试。
 | `flow_hash`                        | 主键；邮件 callback 中 opaque flow ID 的 keyed hash               |
 | `owner_user_id`                    | 仅由规范 email+active profile+password method 的 trusted 查询确定 |
 | `stage`                            | requested、sent、verified、provider-updated、completed、failed    |
-| `provider_state_ciphertext`        | PKCE verifier、Provider recovery/refresh session 的加密状态       |
+| `provider_state_ciphertext`        | Provider recovery/refresh session 的加密状态                      |
 | `callback_flow_ciphertext`         | worker 构造固定 callback 所需的 flow secret 加密值                |
 | `recovery_session_hash`            | callback 后浏览器 purpose Cookie 的 keyed hash；可空、唯一        |
 | `csrf_hash`                        | session GET 轮换的短时 CSRF keyed hash；可空                      |
@@ -346,8 +348,8 @@ Provider 更新成功到 `provider-updated` 提交之间存在不可消除的跨
 
 - Provider fake 固定 worker begin→callback exchange→complete update 顺序，证明 dispatch mark 先于 begin、
   state 加密后才持久化、密码只出现在 update 调用；
-- Supabase adapter 覆盖 `resetPasswordForEmail` 精确 redirect、PKCE storage、exchange/update 严格 user/email
-  投影和全部错误收敛；
+- Supabase adapter 覆盖 `resetPasswordForEmail` 精确 redirect、token-hash verify/update 严格 user/email
+  投影和全部错误收敛；Hosted Auth 门覆盖旧 `ConfirmationURL` 到精确 scanner-safe 模板的单字段更新与回读；
 - 内存与 PGlite 覆盖每 owner 单 open flow、30/15 分钟 expiry、callback 单次、30 秒 complete lease、过期
   接管、旧 lease fencing、provider-updated 恢复；worker 另覆盖单次 claim、dispatch 后崩溃零透明重发、
   新请求使旧邮件失效；
@@ -374,7 +376,7 @@ Provider 更新成功到 `provider-updated` 提交之间存在不可消除的跨
 全量 `pnpm test`、`pnpm test:e2e`、instructions、architecture 和 diff check。不得访问真实 Supabase、邮件、
 Google、部署、Chrome 安装或付费服务。
 
-目标环境另行批准后验证：Supabase PKCE recovery、精确 redirect allowlist、邮件模板与投递/重复链接、
+目标环境另行批准后验证：Supabase token-hash recovery、精确 redirect allowlist、邮件模板与投递/重复链接、
 email scanner 行为、secure-password-change 配置、Cookie same-site/domain/TLS、Vercel no-store、通知重试与
 告警、真实 session 失效，以及 macOS/Windows Chrome。未完成前状态最多为
 `implemented; target-platform validation pending`。
@@ -384,7 +386,7 @@ email scanner 行为、secure-password-change 配置、Cookie same-site/domain/T
 1. **R0 文档与审查（已完成）**：同步产品/API/数据/安全/测试/计划/变更记录；固定枚举安全与不创建
    Huayi session；
 2. **R1 contracts + Provider seam（离线已完成）**：RED→GREEN 增加五条公开 route 的 strict 输入/输出、
-   internal bounded outcome 和独立三操作 Provider port；Supabase adapter 使用共享的逐 flow PKCE storage，
+   internal bounded outcome 和独立三操作 Provider port；Supabase adapter 使用逐请求私有 storage，
    固定 exact redirect，严格投影规范邮箱/user ID，并把异常、Provider error 和畸形 identity 收敛到同一
    `authentication_required`。focused 证据为 contracts 5/5、Supabase recovery+既有 auth adapter 8/8；
    完整包证据为 contracts 62/62、API 327/327，双方 typecheck 与目标 Prettier/ESLint 均通过；

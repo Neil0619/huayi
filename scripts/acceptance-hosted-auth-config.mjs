@@ -1,13 +1,21 @@
 import { pathToFileURL } from "node:url";
 
-import { verifyHostedInvitationAuthConfiguration } from "./acceptance-hosted-auth-contract.mjs";
+import {
+  hostedPasswordRecoveryTemplate,
+  verifyHostedInvitationAuthConfiguration,
+  verifyHostedLegacyPasswordRecoveryAuthConfiguration,
+  verifyHostedPasswordRecoveryAuthConfiguration,
+} from "./acceptance-hosted-auth-contract.mjs";
 import {
   readHostedCredential,
   rejectLegacyHostedCredentialEnvironment,
 } from "./acceptance-hosted-credentials.mjs";
 import { hostedAcceptanceProjectRef } from "./acceptance-hosted-foundation.mjs";
 
-export { verifyHostedInvitationAuthConfiguration } from "./acceptance-hosted-auth-contract.mjs";
+export {
+  verifyHostedInvitationAuthConfiguration,
+  verifyHostedPasswordRecoveryAuthConfiguration,
+} from "./acceptance-hosted-auth-contract.mjs";
 
 const managementApiOrigin = "https://api.supabase.com";
 const maximumResponseBytes = 1_000_000;
@@ -17,6 +25,8 @@ export const hostedAuthConfigStatusArgument = `--status-hosted-auth-config-${hos
 export const hostedAuthConfigApplyConfirmation = `--confirm-hosted-email-otp-length-6-${hostedAcceptanceProjectRef}`;
 export const hostedAuthConfigDiagnosticArgument = `--diagnose-hosted-auth-config-${hostedAcceptanceProjectRef}`;
 export const hostedInvitationAuthConfigStatusArgument = `--status-hosted-invitation-auth-config-${hostedAcceptanceProjectRef}`;
+export const hostedPasswordRecoveryAuthConfigStatusArgument = `--status-hosted-password-recovery-auth-config-${hostedAcceptanceProjectRef}`;
+export const hostedPasswordRecoveryAuthConfigApplyConfirmation = `--confirm-hosted-password-recovery-auth-config-${hostedAcceptanceProjectRef}`;
 
 function isRecord(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -172,6 +182,12 @@ function configurationWithoutOtpLength(configuration) {
   return copy;
 }
 
+function configurationWithoutPasswordRecoveryTemplate(configuration) {
+  const copy = { ...configuration };
+  delete copy.mailer_templates_recovery_content;
+  return copy;
+}
+
 function parseOperation(arguments_) {
   if (
     arguments_.length === 2 &&
@@ -193,6 +209,20 @@ function parseOperation(arguments_) {
     arguments_[1] === hostedInvitationAuthConfigStatusArgument
   ) {
     return "invitation-status";
+  }
+  if (
+    arguments_.length === 2 &&
+    arguments_[0] === "password-recovery-status" &&
+    arguments_[1] === hostedPasswordRecoveryAuthConfigStatusArgument
+  ) {
+    return "password-recovery-status";
+  }
+  if (
+    arguments_.length === 2 &&
+    arguments_[0] === "password-recovery-apply" &&
+    arguments_[1] === hostedPasswordRecoveryAuthConfigApplyConfirmation
+  ) {
+    return "password-recovery-apply";
   }
   if (
     arguments_.length === 2 &&
@@ -250,6 +280,38 @@ export async function runHostedAuthConfigCli({
       writeOutput("Hosted Auth invitation configuration verification passed.\n");
       return 0;
     }
+    if (operation === "password-recovery-status") {
+      verifyHostedPasswordRecoveryAuthConfiguration(current);
+      writeOutput("Hosted Auth password recovery configuration verification passed.\n");
+      return 0;
+    }
+    if (operation === "password-recovery-apply") {
+      try {
+        verifyHostedPasswordRecoveryAuthConfiguration(current);
+        writeOutput(
+          "Hosted Auth password recovery configuration is already exact; no update was required.\n",
+        );
+        return 0;
+      } catch {
+        verifyHostedLegacyPasswordRecoveryAuthConfiguration(current);
+      }
+      await requestAuthConfiguration({
+        body: { mailer_templates_recovery_content: hostedPasswordRecoveryTemplate },
+        fetch_,
+        method: "PATCH",
+        token,
+      });
+      const persisted = await requestAuthConfiguration({ fetch_, method: "GET", token });
+      verifyHostedPasswordRecoveryAuthConfiguration(persisted);
+      if (
+        canonicalJson(configurationWithoutPasswordRecoveryTemplate(current)) !==
+        canonicalJson(configurationWithoutPasswordRecoveryTemplate(persisted))
+      ) {
+        throw new Error("Hosted Auth configuration changed outside password recovery.");
+      }
+      writeOutput("Hosted Auth password recovery configuration updated and verified.\n");
+      return 0;
+    }
     if (!validCurrentOtpLength(current)) {
       throw new Error("Hosted Auth email OTP length is invalid.");
     }
@@ -279,7 +341,11 @@ export async function runHostedAuthConfigCli({
         ? "Hosted Auth email OTP length verification failed.\n"
         : operation === "invitation-status"
           ? "Hosted Auth invitation configuration verification failed.\n"
-          : "Hosted Auth email OTP length update failed.\n",
+          : operation === "password-recovery-status"
+            ? "Hosted Auth password recovery configuration verification failed.\n"
+            : operation === "password-recovery-apply"
+              ? "Hosted Auth password recovery configuration update failed.\n"
+              : "Hosted Auth email OTP length update failed.\n",
     );
     return 1;
   }

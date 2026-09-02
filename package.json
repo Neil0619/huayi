@@ -96,6 +96,8 @@
     "acceptance:hosted:auth:apply": "node scripts/acceptance-hosted-auth-config.mjs apply",
     "acceptance:hosted:auth:diagnose": "node scripts/acceptance-hosted-auth-config.mjs diagnose --diagnose-hosted-auth-config-kpadiulxkgckskcfydry",
     "acceptance:hosted:auth:invitation:status": "node scripts/acceptance-hosted-auth-config.mjs invitation-status --status-hosted-invitation-auth-config-kpadiulxkgckskcfydry",
+    "acceptance:hosted:auth:password-recovery:apply": "node scripts/acceptance-hosted-auth-config.mjs password-recovery-apply --confirm-hosted-password-recovery-auth-config-kpadiulxkgckskcfydry",
+    "acceptance:hosted:auth:password-recovery:status": "node scripts/acceptance-hosted-auth-config.mjs password-recovery-status --status-hosted-password-recovery-auth-config-kpadiulxkgckskcfydry",
     "acceptance:hosted:auth:status": "node scripts/acceptance-hosted-auth-config.mjs status --status-hosted-auth-config-kpadiulxkgckskcfydry",
     "acceptance:hosted:credentials:configure": "node scripts/acceptance-hosted-credentials.mjs configure",
     "acceptance:hosted:credentials:diagnose": "node scripts/acceptance-hosted-credentials.mjs diagnose",

@@ -87,6 +87,12 @@ wire 版本或完成声明。
 
 ### 2026-09-02：Hosted acceptance Store 与可恢复发布候选
 
+- 真实密码恢复复测已定位两个独立问题：当前 Cron 精确 absent，页面 202 只创建 `requested` flow 而不会
+  自动发信；上一封真实邮件在发出约 9 分钟后打开，Supabase Auth 日志记录 `/token` 422
+  `flow_state_expired`。根因是 Supabase PKCE flow state 默认 300 秒但语见宣称 recovery flow 30 分钟；
+  本地候选改为官方 `TokenHash + verifyOtp(type=recovery)`，并增加旧模板到 scanner-safe 模板的精确
+  Hosted status/apply 门。当前仅为本地候选，尚未授权修改 Auth 配置、push 或发布，也未补发新邮件。
+
 - Phase 94 已完成且旧 state 不可重放；后续常规协调器已把 Store capability、API→Web exact-SHA 发布与
   最终远端回读推进到 `cc620a41384b4d2481ec3f55d4886e1c06252f9d`。API/Web 均 Ready、运行时
   attestation 通过且项目保持 disarmed。

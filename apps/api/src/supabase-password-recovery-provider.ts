@@ -20,18 +20,19 @@ export function createSupabasePasswordRecoveryProvider(
           { redirectTo: command.redirectTo },
         );
         if (error !== null) throw passwordRecoveryFailure();
-        return { authState: flow.state() };
+        return { authState: {} };
       } catch {
         throw passwordRecoveryFailure();
       }
     },
 
     async exchange(command) {
-      const flow = createSupabaseAuthFlow(command.authState);
+      const flow = createSupabaseAuthFlow();
       try {
-        const { data, error } = await createAuthClient(flow.storage).auth.exchangeCodeForSession(
-          command.code,
-        );
+        const { data, error } = await createAuthClient(flow.storage).auth.verifyOtp({
+          token_hash: command.code,
+          type: "recovery",
+        });
         const email = accountEmailSchema.safeParse(data.user?.email);
         const userId = resourceIdSchema.safeParse(data.user?.id);
         if (error !== null || data.session === null || !email.success || !userId.success) {

@@ -124,10 +124,11 @@ fake clock。客户端通过 HTTP adapter 访问同一用例，不复制领域�
     缺 `VITE_GOOGLE_AUTHENTICATION=enabled` 时不渲染注册、登录、link 或 Google reauth 动作。离线 E2E
     由专用构建显式启用，两端生产部署必须同批配置并验证。
 11. PasswordRecovery 使用独立深模块、独立表与 purpose-scoped HttpOnly Cookie：公开 start 统一 202，
-    只有 active+password method 才入队；trusted worker 在外部调用前耐久标记 dispatch 后启动 Supabase
-    PKCE，公开请求不等待 Provider。callback 只建立一次改密 session，complete 成功撤销全部 Huayi
+    只有 active+password method 才入队；trusted worker 在外部调用前耐久标记 dispatch 后请求 Supabase
+    恢复邮件，公开请求不等待 Provider。邮件用 `RedirectTo + TokenHash` 进入惰性确认页，显式 POST 后由
+    `verifyOtp(type=recovery)` 建立一次改密 session，complete 成功撤销全部 Huayi
     sessions并要求重登，不能派生 full/data-rights session或新增 method。独立三操作 Provider port、共享
-    逐 flow Supabase PKCE storage 与 adapter 已在 R1 实现；深模块、内存与 Postgres/forced-RLS 状态机已
+    逐请求 Supabase Auth storage 与 adapter 已在 R1 实现；深模块、内存与 Postgres/forced-RLS 状态机已
     在 R2 建立；R3-A production HTTP/dispatch、R3-B notification outbox lease/retry、R3-C Resend
     sender/23 小时幂等窗口/8 次上限/独立 CRON/无正文告警 port 与 R4 Web/actual bundle 已离线实现。
     hosted acceptance 的真实 DNS/verified sender、分离 SMTP/HTTP key、Supabase Custom SMTP 与 API R3-C

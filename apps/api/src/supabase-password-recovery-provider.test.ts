@@ -7,12 +7,11 @@ function authClient(methods: Record<string, unknown>) {
 }
 
 describe("Supabase password recovery provider", () => {
-  it("starts recovery with an exact redirect and returns only per-flow PKCE state", async () => {
+  it("starts recovery with an exact redirect without retaining an unused PKCE verifier", async () => {
     const resetPasswordForEmail = vi.fn();
-    const provider = createSupabasePasswordRecoveryProvider((storage) =>
+    const provider = createSupabasePasswordRecoveryProvider(() =>
       authClient({
         resetPasswordForEmail: resetPasswordForEmail.mockImplementation(async () => {
-          await storage.setItem("pkce-code-verifier", "verifier-value");
           return { data: {}, error: null };
         }),
       }),
@@ -23,19 +22,18 @@ describe("Supabase password recovery provider", () => {
         email: "learner@example.com",
         redirectTo: "https://api.example/v1/auth/password/recovery/confirm?flow=opaque-flow",
       }),
-    ).resolves.toEqual({ authState: { "pkce-code-verifier": "verifier-value" } });
+    ).resolves.toEqual({ authState: {} });
     expect(resetPasswordForEmail).toHaveBeenCalledWith("learner@example.com", {
       redirectTo: "https://api.example/v1/auth/password/recovery/confirm?flow=opaque-flow",
     });
   });
 
-  it("restores recovery state for code exchange and returns a strict normalized identity", async () => {
+  it("verifies the email token hash without depending on Supabase PKCE flow state", async () => {
+    const verifyOtp = vi.fn();
     const provider = createSupabasePasswordRecoveryProvider((storage) =>
       authClient({
-        exchangeCodeForSession: vi.fn(async (code) => {
-          expect(code).toBe("provider-code");
-          expect(await storage.getItem("pkce-code-verifier")).toBe("verifier-value");
-          await storage.removeItem("pkce-code-verifier");
+        verifyOtp: verifyOtp.mockImplementation(async (input) => {
+          expect(input).toEqual({ token_hash: "provider-token-hash", type: "recovery" });
           await storage.setItem("provider-session", "recovery-session");
           return {
             data: {
@@ -50,14 +48,15 @@ describe("Supabase password recovery provider", () => {
 
     await expect(
       provider.exchange({
-        authState: { "pkce-code-verifier": "verifier-value" },
-        code: "provider-code",
+        authState: {},
+        code: "provider-token-hash",
       }),
     ).resolves.toEqual({
       authState: { "provider-session": "recovery-session" },
       email: "learner@example.com",
       userId: "auth-user-a",
     });
+    expect(verifyOtp).toHaveBeenCalledOnce();
   });
 
   it("updates a password only through restored recovery state", async () => {
@@ -102,7 +101,7 @@ describe("Supabase password recovery provider", () => {
     );
     const exchangeFailure = createSupabasePasswordRecoveryProvider(() =>
       authClient({
-        exchangeCodeForSession: vi.fn().mockResolvedValue({
+        verifyOtp: vi.fn().mockResolvedValue({
           data: { session: null, user: { email: "learner@example.com", id: "auth-user-a" } },
           error: null,
         }),

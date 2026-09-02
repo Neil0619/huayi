@@ -98,6 +98,9 @@ registration flow consumed、`account_finalized_exact|t` 与 `safe_route_state|a
 密码恢复 worker `sent → idle`；用户完成改密后运行 bootstrap deliver，要求 R3-C worker `sent → idle`，
 并确认收件箱恰好一封安全通知。随后运行 `pnpm acceptance:hosted:cron:status`；只有
 `cron_preflight_ready=t` 才运行带精确确认的 `pnpm acceptance:hosted:cron:apply`，并观察至少两个周期。
+发送恢复邮件前还必须运行 `pnpm acceptance:hosted:auth:password-recovery:status`；若旧模板待迁移，只能在
+单独批准后运行 `pnpm acceptance:hosted:auth:password-recovery:apply`，再回读 status。公开 202 只表示请求
+已安全受理；Cron absent 的首次引导阶段必须由 bootstrap recovery 明确投递，不能把入队当成已发信。
 
 **成功标志**：preflight ready；完整 operations SQL 连续两次事务成功；postflight 为 exact 五个 active job、
 零 unmanaged；五条 route 有界响应，并观察 401/5xx/timeout 后恢复。

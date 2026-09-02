@@ -3,6 +3,17 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-09-02：密码恢复改用 scanner-safe TokenHash，移除 300 秒 PKCE flow 依赖
+
+- Hosted Auth 日志证明恢复邮件发出约 9 分钟后，Supabase `/verify` 303 之后的 code exchange 以
+  `flow_state_expired` 失败；Supabase Auth 默认 PKCE flow state 为 300 秒，而语见 recovery flow 为
+  30 分钟，Hosted Management API 也不暴露该时长配置，原有效期契约因此不成立；
+- 恢复邮件模板改为精确 `RedirectTo + TokenHash`，不再使用 `ConfirmationURL`。GET 仍为 inert
+  no-store/no-referrer 确认页，只有用户显式 POST 后才由 API 调用 `verifyOtp(type=recovery)`；邮件扫描器
+  打开 GET 不消费 token hash，浏览器仍只取得 15 分钟 purpose Cookie，不能得到语见登录会话；
+- 新增 Hosted Auth recovery status/apply 门。apply 只允许从已观测的旧默认模板做单字段替换并在回读中
+  证明其他 Auth 配置未变；模板可用不代表自动投递，首次验收 Cron absent 时公开 202 仍只表示入队。
+
 ## 2026-09-02：Hosted Cron bearer 以 Vault 为唯一来源并用产品行为证明连续性
 
 - Vercel Sensitive Environment Variable 不可解密回读，不能再要求用户手工复制、记忆或比较
