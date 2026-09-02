@@ -36,6 +36,8 @@ CC／切轨、`zh-Hans`、SPA、剧院／全屏、选词和生词本。
 - 平台、路径、权限、换行、大小写、进程和环境变量必须显式注入；不要让测试隐式继承开发机。
 - Hosted 运维凭据的共享 reader/consumer 可在任意平台实现和测试；生产 store 只允许 macOS login
   Keychain。其他平台必须返回 unsupported，不得回退到 `.env`、环境变量、stdin 或明文文件。
+- Hosted 数据库 consumer 的公开 CA 获取是共享 HTTP 合同：固定官方 URL、有界响应、严格 PEM，并在 fake
+  fetch 下做双平台回归；操作者不配置 CA 环境变量，真实下载与 Keychain 读取只在获批 macOS 运维中执行。
 - 依赖 POSIX 目录 `fsync` 或权限位的生产 writer 必须固定使用严格实现；Windows 合同测试可注入窄
   durability/mode seam 复用协调逻辑，但不得提供生产降级路径。
 - Git 文本 checkout 由根 `.gitattributes` 固定为 LF；字节级镜像、hash pin、migration 与 canonical

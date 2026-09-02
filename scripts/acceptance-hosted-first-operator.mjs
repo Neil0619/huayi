@@ -11,6 +11,7 @@ import {
   runHostedPsql,
   sqlLiteral,
 } from "./acceptance-hosted-foundation.mjs";
+import { fetchHostedAcceptanceOfficialCaCertificate } from "./acceptance-hosted-official-ca.mjs";
 
 export const firstOperatorStatusArgument = `--status-first-operator-${hostedAcceptanceProjectRef}`;
 export const firstOperatorVerifyArgument = `--verify-completed-first-operator-${hostedAcceptanceProjectRef}`;
@@ -358,15 +359,16 @@ COMMIT;
 `;
 }
 
-function databaseEnvironment(environment) {
+function databaseEnvironment(caCertificate) {
   return {
-    HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: environment.HUAYI_HOSTED_DATABASE_CA_CERTIFICATE,
+    HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: caCertificate,
   };
 }
 
 export async function runHostedFirstOperator({
   arguments_ = process.argv.slice(2),
   environment = process.env,
+  fetchCaCertificate = fetchHostedAcceptanceOfficialCaCertificate,
   now = () => new Date(),
   randomBytes_ = randomBytes,
   randomUuid = randomUUID,
@@ -395,10 +397,11 @@ export async function runHostedFirstOperator({
   }
 
   rejectLegacyHostedCredentialEnvironment(environment);
+  const caCertificate = await fetchCaCertificate();
   const password = await readCredential("supabase-admin-db-password", { environment });
   const sharedCall = {
     databaseUrl: hostedAcceptancePoolerUrl,
-    environment: databaseEnvironment(environment),
+    environment: databaseEnvironment(caCertificate),
     password,
   };
 

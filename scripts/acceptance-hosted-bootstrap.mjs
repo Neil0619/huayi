@@ -16,6 +16,7 @@ import {
   sqlLiteral,
   sqlTextArray,
 } from "./acceptance-hosted-foundation.mjs";
+import { fetchHostedAcceptanceOfficialCaCertificate } from "./acceptance-hosted-official-ca.mjs";
 import { renderHostedRoleMembershipContractSql } from "./acceptance-hosted-role-memberships.mjs";
 
 export const hostedBootstrapConfirmation = `--confirm-hosted-foundation-${hostedAcceptanceProjectRef}`;
@@ -206,6 +207,7 @@ COMMIT;
 export async function bootstrapHostedAcceptance({
   arguments_ = process.argv.slice(2),
   environment = process.env,
+  fetchCaCertificate = fetchHostedAcceptanceOfficialCaCertificate,
   readCredential = readHostedCredential,
   runPsql = runHostedPsql,
 } = {}) {
@@ -215,6 +217,7 @@ export async function bootstrapHostedAcceptance({
   if (arguments_[0] === "--plan") return "planned";
 
   rejectLegacyHostedCredentialEnvironment(environment);
+  const caCertificate = await fetchCaCertificate();
   const administratorPassword = await readCredential("supabase-admin-db-password", {
     environment,
   });
@@ -225,7 +228,7 @@ export async function bootstrapHostedAcceptance({
     captureOutput: false,
     databaseUrl: hostedAcceptancePoolerUrl,
     environment: {
-      HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: environment.HUAYI_HOSTED_DATABASE_CA_CERTIFICATE,
+      HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: caCertificate,
     },
     input: renderHostedBootstrapSql(applicationPassword),
     password: administratorPassword,

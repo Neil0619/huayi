@@ -239,6 +239,8 @@ pnpm acceptance:hosted:credentials:diagnose
 
 输入由 `/usr/bin/security` 直接隐藏读取；不要创建 `.env`，不要设置 `PGPASSWORD`、
 `SUPABASE_DB_PASSWORD`、`SUPABASE_ACCESS_TOKEN`、`VERCEL_TOKEN`，也不要把值粘贴到聊天或命令参数。
+Hosted 数据库工具会自行从固定 Supabase 官方地址获取并校验公开 CA；不要设置或保存
+`HUAYI_HOSTED_DATABASE_CA_CERTIFICATE`。
 Supabase/Vercel Token 必须由操作者在供应商侧创建为其选定的长期凭据，仓库工具不会生成或静默替换
 短期 Token。若 Keychain 锁定，允许 macOS 正常请求一次解锁；无 TTY、非 macOS、missing、denied 或
 invalid 均失败关闭。完整 account、轮换/删除、消费和远端授权边界见

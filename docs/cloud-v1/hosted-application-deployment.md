@@ -601,8 +601,12 @@ snapshot 是一个 `BEGIN READ ONLY` 聚合事务，输出固定 31 行：
 
 ### 6.4.1 Phase 79 Supabase Cron 受控安装工具
 
-先运行 `pnpm acceptance:hosted:cron:plan`；它不读取环境、不连接网络。R3-C 真实投递、重复观测和无正文
-告警接收完成后，使用固定管理员 Keychain account 与 verify-full CA wrapper 运行
+先运行 `pnpm acceptance:hosted:cron:bootstrap:plan`；它不读取环境、不连接网络。正常密码恢复完成路径产生
+唯一可 claim 的 R3-C 通知后，按固定 confirmation 运行 bootstrap provision。它要求 Cron 精确 absent，
+在 Supabase Vault 创建或复用固定来源，并把相同 bearer 直接 upsert 到 Vercel Production Sensitive；不经
+用户剪贴板、环境变量或输出。随后必须完成同一 exact-SHA API release，才运行 bootstrap deliver；它用同一
+Vault 来源要求正常 worker `sent → idle`，并以独立快照确认 sent 终态。用户仍须确认收件箱恰好一封和无正文
+告警接收。完成后，使用固定管理员 Keychain account 与 verify-full CA wrapper 运行
 `pnpm acceptance:hosted:cron:status`。该命令已经固定 project ref，不接受 job ID、request ID、owner、
 邀请片段或其他 opaque 输入；输出 18 个固定 boolean/stage/count，且 Vault 只查两个名称。
 
@@ -610,13 +614,13 @@ snapshot 是一个 `BEGIN READ ONLY` 聚合事务，输出固定 31 行：
 `CRON_SECRET` 与 Supabase Vault `huayi_cron_secret` 连续性后，才能取得当次 exact confirmation 并运行：
 
 ```text
-pnpm acceptance:hosted:cron:apply -- \
+pnpm acceptance:hosted:cron:apply \
   --confirm-apply-hosted-supabase-cron-after-r3c-and-vercel-continuity-kpadiulxkgckskcfydry
 ```
 
-Vercel masked Sensitive 值不可回读；CLI 不宣称自动证明值相等，也不读取/打印 Vault decrypted value。
-因此 continuity 是 apply 前的外部证据门，不是 `cron_vault_names_exact=t` 的同义词。若无法确认同源轮换，
-停止在 status，不安装 job。
+Vercel masked Sensitive 值不可解密回读；CLI 不读取/打印 Vault decrypted value。连续性由“同一 Vault
+来源 upsert → 新 deployment → API 鉴权成功并真实发送 → 重复 idle”证明，不把 masked metadata 或
+`cron_vault_names_exact=t` 冒充为值比较。若该链或真实收件证据不完整，停止在 status，不安装 job。
 
 apply 固定执行四步：只读 preflight → 仓库完整 operations SQL 第一次事务 → 同一完整 SQL 第二次事务 →
 独立只读 postflight。它不剥离或合并 SQL 的 `BEGIN/COMMIT`，任一步失败只返回固定 stage，不反射 psql

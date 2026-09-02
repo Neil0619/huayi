@@ -12,6 +12,7 @@ import {
   sqlLiteral,
 } from "./acceptance-hosted-foundation.mjs";
 import { renderFirstOperatorStatusSql } from "./acceptance-hosted-first-operator.mjs";
+import { fetchHostedAcceptanceOfficialCaCertificate } from "./acceptance-hosted-official-ca.mjs";
 
 export const pepperContinuityVerificationArgument = `--verify-hosted-pepper-continuity-${hostedAcceptanceProjectRef}`;
 
@@ -76,15 +77,16 @@ COMMIT;
 `;
 }
 
-function databaseEnvironment(environment) {
+function databaseEnvironment(caCertificate) {
   return {
-    HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: environment.HUAYI_HOSTED_DATABASE_CA_CERTIFICATE,
+    HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: caCertificate,
   };
 }
 
 export async function runPepperContinuityVerification({
   arguments_ = process.argv.slice(2),
   environment = process.env,
+  fetchCaCertificate = fetchHostedAcceptanceOfficialCaCertificate,
   readCredential = readHostedCredential,
   runPsql = runHostedPsql,
 } = {}) {
@@ -92,12 +94,13 @@ export async function runPepperContinuityVerification({
     throw new Error("Hosted pepper continuity arguments are invalid.");
   }
   rejectLegacyHostedCredentialEnvironment(environment);
-  const password = await readCredential("supabase-admin-db-password", { environment });
   const tokenHash = hashInvitation(requireInvitationToken(environment), requirePepper(environment));
+  const caCertificate = await fetchCaCertificate();
+  const password = await readCredential("supabase-admin-db-password", { environment });
   const result = await runPsql({
     captureOutput: true,
     databaseUrl: hostedAcceptancePoolerUrl,
-    environment: databaseEnvironment(environment),
+    environment: databaseEnvironment(caCertificate),
     input: renderPepperContinuitySql(tokenHash),
     password,
   });

@@ -58,6 +58,8 @@ Keychain 锁定时允许 macOS 正常要求一次解锁；无 TTY 时配置/轮�
 - 数据库密码不进入 argv、URL、父/子进程环境、日志、异常、状态文件或测试 snapshot。数据库调用
   创建 `0700` 临时目录和 `0600` `.pgpass`/CA，子进程只取得 `PGPASSFILE`、`PGSSLROOTCERT` 与
   固定 TLS/locale 环境；成功、失败、timeout、`SIGHUP`、`SIGINT` 和 `SIGTERM` 均清理整个目录。
+  公开 CA 由每个 consumer 从固定 Supabase Singapore 官方 URL 有界获取并严格校验；操作者不配置
+  `HUAYI_HOSTED_DATABASE_CA_CERTIFICATE`，该值也不进入 Keychain。
 - capture/restore 的容器数据库通道继续使用同一 `0600 .pgpass` 原则。临时 recovery project 密码
   不复用长期 source 管理员密码。Supabase management PAT 不进入 Docker child environment；未来
   production restore 管理 adapter 必须使用受控 HTTP port。

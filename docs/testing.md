@@ -50,6 +50,8 @@ Hosted 运维凭据测试固定使用 fake Keychain/fake process/fake HTTP，不
 `SIGHUP`/`SIGINT`/`SIGTERM` 清理；Hosted/Vercel 生产脚本静态扫描禁止四类基础设施秘密的 runtime prompt
 与 `PGPASSWORD`/Token child environment。真实 Keychain 持久化只在另行批准的 macOS 人工验收中执行，
 且凭据可用不等于允许任何远端动作。
+Hosted 数据库 consumer 还必须注入 fake official-CA fetch，证明固定 CA 在 Keychain credential 读取前取得、
+传给临时 `0600` root certificate，并且调用方不需要 CA 环境变量；默认门不得下载真实 CA。
 
 非 Windows 的根 Vitest 门按固定顺序分成两个进程：先用 `--project=!api --maxWorkers 4` 运行
 非 API projects，再用 `--project api --maxWorkers 2 --testTimeout 15000 --hookTimeout 15000`

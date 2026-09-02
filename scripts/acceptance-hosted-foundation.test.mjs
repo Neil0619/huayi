@@ -49,6 +49,7 @@ const applicationPassword = "app-password-".padEnd(40, "a");
 const postgresPassword = "postgres-password";
 const rootCertificate =
   "-----BEGIN CERTIFICATE-----\n" + "a".repeat(64) + "\n-----END CERTIFICATE-----\n";
+const fetchCaCertificate = async () => rootCertificate;
 
 async function readTestCredential(credentialId) {
   if (credentialId === "supabase-admin-db-password") return postgresPassword;
@@ -167,9 +168,8 @@ test("hosted bootstrap reads both Keychain credentials and sends fixed SQL over 
 
   await bootstrapHostedAcceptance({
     arguments_: [hostedBootstrapConfirmation],
-    environment: {
-      HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: rootCertificate,
-    },
+    environment: {},
+    fetchCaCertificate,
     readCredential: readTestCredential,
     runPsql,
   });
@@ -270,9 +270,8 @@ test("hosted verification checks migration, roles, forced RLS, prices, bucket an
   const calls = [];
   await verifyHostedAcceptance({
     arguments_: ["--verify-hosted-foundation-kpadiulxkgckskcfydry"],
-    environment: {
-      HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: rootCertificate,
-    },
+    environment: {},
+    fetchCaCertificate,
     readCredential: readTestCredential,
     runPsql: async (request) => {
       calls.push(request);
@@ -287,9 +286,8 @@ test("hosted verification checks migration, roles, forced RLS, prices, bucket an
   await assert.rejects(
     verifyHostedAcceptance({
       arguments_: ["--verify-hosted-foundation-kpadiulxkgckskcfydry"],
-      environment: {
-        HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: rootCertificate,
-      },
+      environment: {},
+      fetchCaCertificate,
       readCredential: readTestCredential,
       runPsql: async () => ({ code: 0, stdout: "f\n" }),
     }),
@@ -316,9 +314,8 @@ test("hosted diagnostic reports only fixed read-only predicate verdicts", async 
   const calls = [];
   const result = await diagnoseHostedAcceptance({
     arguments_: [hostedDiagnosticArgument],
-    environment: {
-      HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: rootCertificate,
-    },
+    environment: {},
+    fetchCaCertificate,
     readCredential: readTestCredential,
     runPsql: async (request) => {
       calls.push(request);
@@ -329,13 +326,13 @@ test("hosted diagnostic reports only fixed read-only predicate verdicts", async 
   assert.equal(calls.length, 1);
   assert.equal(calls[0].captureOutput, true);
   assert.equal(calls[0].databaseUrl, hostedAcceptancePoolerUrl);
+  assert.equal(calls[0].environment.HUAYI_HOSTED_DATABASE_CA_CERTIFICATE, rootCertificate);
 
   await assert.rejects(
     diagnoseHostedAcceptance({
       arguments_: [hostedDiagnosticArgument],
-      environment: {
-        HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: rootCertificate,
-      },
+      environment: {},
+      fetchCaCertificate,
       readCredential: readTestCredential,
       runPsql: async () => ({ code: 0, stdout: "migration_chain|t\nunexpected|f\n" }),
     }),
@@ -371,9 +368,8 @@ test("hosted application login verifies privileges and context isolation across 
   const calls = [];
   await verifyHostedApplicationLogin({
     arguments_: [hostedApplicationVerificationArgument],
-    environment: {
-      HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: rootCertificate,
-    },
+    environment: {},
+    fetchCaCertificate,
     readCredential: readTestCredential,
     runPsql: async (request) => {
       calls.push(request);
@@ -395,9 +391,8 @@ test("hosted application login verifies privileges and context isolation across 
   await assert.rejects(
     verifyHostedApplicationLogin({
       arguments_: [hostedApplicationVerificationArgument],
-      environment: {
-        HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: rootCertificate,
-      },
+      environment: {},
+      fetchCaCertificate,
       readCredential: readTestCredential,
       runPsql: async () => ({ code: 0, stdout: "t|t|t|t|t|f\n" }),
     }),
@@ -408,9 +403,8 @@ test("hosted application login verifies privileges and context isolation across 
   await assert.rejects(
     verifyHostedApplicationLogin({
       arguments_: [hostedApplicationVerificationArgument],
-      environment: {
-        HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: rootCertificate,
-      },
+      environment: {},
+      fetchCaCertificate,
       readCredential: readTestCredential,
       runPsql: async () => {
         mismatchedBackendCalls += 1;
@@ -426,9 +420,8 @@ test("hosted application login verifies privileges and context isolation across 
   await assert.rejects(
     verifyHostedApplicationLogin({
       arguments_: [hostedApplicationVerificationArgument],
-      environment: {
-        HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: rootCertificate,
-      },
+      environment: {},
+      fetchCaCertificate,
       readCredential: readTestCredential,
       runPsql: async () => ({ code: 1, stderr: "ERROR:  42501\n", stdout: "" }),
     }),
@@ -475,9 +468,8 @@ test("hosted application diagnostic reports only fixed stage predicates", async 
   const calls = [];
   const results = await diagnoseHostedApplicationLogin({
     arguments_: [hostedApplicationDiagnosticArgument],
-    environment: {
-      HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: rootCertificate,
-    },
+    environment: {},
+    fetchCaCertificate,
     readCredential: readTestCredential,
     runPsql: async (request) => {
       calls.push(request);
@@ -541,9 +533,8 @@ test("hosted application diagnostic reports only fixed stage predicates", async 
     let failedCalls = 0;
     const failed = await diagnoseHostedApplicationLogin({
       arguments_: [hostedApplicationDiagnosticArgument],
-      environment: {
-        HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: rootCertificate,
-      },
+      environment: {},
+      fetchCaCertificate,
       readCredential: readTestCredential,
       runPsql: async () => {
         failedCalls += 1;
@@ -596,9 +587,8 @@ test("hosted application diagnostic reports only fixed stage predicates", async 
     let stageCalls = 0;
     const stageResults = await diagnoseHostedApplicationLogin({
       arguments_: [hostedApplicationDiagnosticArgument],
-      environment: {
-        HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: rootCertificate,
-      },
+      environment: {},
+      fetchCaCertificate,
       readCredential: readTestCredential,
       runPsql: async () => scenario.responses[stageCalls++],
     });

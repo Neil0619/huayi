@@ -14,6 +14,11 @@ Supabase，也没有安装或触发任何 job；下文“本阶段不创建资�
 status/apply 的秘密、来源和进程边界。该候选只完成本地与双平台 CI 门；加固后没有运行真实 Hosted
 runtime snapshot、Cron status 或 Cron apply，也没有输入用户秘密。
 
+2026-09-02 当前候选进一步把 Vercel/Vault 连续性收敛为可恢复的受控引导：Supabase Vault 是唯一秘密
+来源，Vercel Sensitive Production 变量只接收同一值；工具不要求用户复制、记忆或查看
+`CRON_SECRET`。该候选仍须先通过质量门和 exact-SHA 发布，真实通知、Cron 安装与周期观察不得由离线
+测试提前宣称完成。
+
 目标是移除 `apps/api/vercel.json` 中 Hobby 不接受的分钟级 Vercel Cron，把五个 HTTPS GET
 触发器放入生产 Supabase 的 `pg_cron + pg_net`。业务 route、`CRON_SECRET` 鉴权、lease/fencing、批次
 上限和幂等状态机都保持不变；开发和 Preview 环境继续只允许人工触发，不自动安装任务。
@@ -75,10 +80,23 @@ SQL 必须满足：
 Hosted acceptance 不再要求用户把本文件的长 SQL 粘贴到 Dashboard，也不要求手工输入 job ID：
 
 - `pnpm acceptance:hosted:cron:plan` 是零网络、零写入计划；
+- `pnpm acceptance:hosted:cron:bootstrap:plan` 给出固定
+  `provision → exact-SHA API release → deliver → inbox confirmation → apply` 顺序，本身零 I/O；
+- `pnpm acceptance:hosted:cron:bootstrap:provision
+--confirm-provision-hosted-cron-secret-after-r3c-pending-kpadiulxkgckskcfydry` 只在恰好一条可 claim 的
+  R3-C 通知且专用 Cron status 精确为 `absent` 时，创建或复用两个固定 Vault 名称；bearer 固定为 64 个
+  小写十六进制字符，只在本进程内送入 Vercel `CRON_SECRET` 的 Production Sensitive upsert。写入响应
+  必须零 failed、恰好一个精确对象，再回读名称/type/target；任何响应不确定都固定失败。成功后必须发布
+  同一 clean exact SHA，环境变更才会进入新 API deployment；
+- `pnpm acceptance:hosted:cron:bootstrap:deliver
+--confirm-deliver-hosted-r3c-after-secret-release-kpadiulxkgckskcfydry` 从 Vault 在有界进程内读取该值，调用
+  正常产品 worker 两次并要求 `sent → idle`；若首次响应丢失但数据库已经 sent，重跑只接受一次
+  `idle`。随后独立快照必须证明唯一通知已进入 sent 终态。工具从不输出 bearer；用户仍须亲自确认只收
+  到一封安全通知；
 - `pnpm acceptance:hosted:cron:status` 固定 Singapore project ref，复用管理员 transaction pooler、临时
   CA 文件与 `verify-full`，先从固定官方 URL 获取并严格校验 CA，再从固定管理员 Keychain account 读取
   密码，最后只运行一个有 30 秒进程上限的 `BEGIN READ ONLY` 事务；
-- `pnpm acceptance:hosted:cron:apply -- <exact-confirmation>` 先验证 project-specific confirmation、operations
+- `pnpm acceptance:hosted:cron:apply <exact-confirmation>` 先验证 project-specific confirmation、operations
   SQL 的精确 SHA-256
   `09a074addefdf352ff256ff958bb87a6775b911a7da9475ef697b04d2a64d604`，以及 clean worktree、
   `HEAD==upstream` 的仓库候选；三个 Git 读取各有 10 秒上限。只有这些来源门先通过，才获取 CA、读取密码
@@ -97,9 +115,10 @@ status 只输出固定 boolean、`absent|partial|exact` stage 和 64-bit 非负�
 `huayi-*` job、额外函数 overload/不可修复 owner/ACL、错误 extension schema、非管理员连接、migration
 漂移、Vault 名称缺失，或 R3-C 数据库侧门不通过时失败关闭。
 
-Vercel Sensitive Environment Variable 不能回读，因此 status **不能**证明当前 API `CRON_SECRET` 与
-Vault 中的值相等。apply 的 exact confirmation 只记录操作者已经从同一个受控秘密源完成 Vercel/Vault
-连续性和真实 R3-C 外部证据，不把人工声明伪装成自动证明；缺该证据不得 apply。数据库侧
+Vercel Sensitive Environment Variable 不能解密回读，因此 status **不能**通过比较明文证明当前 API
+`CRON_SECRET` 与 Vault 值相等。bootstrap 以“同一 Vault 值完成 Vercel upsert → 后续 deployment → API
+鉴权成功并真实发送 → 重复调用 idle”的产品行为证明连续性，不把 masked metadata 当成值证明。apply 的
+exact confirmation 只记录该链和真实收件证据已经完成；缺任一项不得 apply。数据库侧
 `r3c_sent_count>=1`、零非终态/失败终态和数据合同只是附加门，不能替代真实收件、重复观测或告警接收。
 
 两次 operations SQL 各自保留原来的 `BEGIN; ... COMMIT;`。第一次成功后若第二次或 postflight 失败，
@@ -112,9 +131,10 @@ unschedule/schedule 语义保证安全重跑。
 安装前：
 
 1. 确认正式 API origin 已启用 HTTPS，且不带尾随路径；
-2. 在 Supabase Vault 分别创建 `huayi_api_origin` 与 `huayi_cron_secret`；
-3. 确认 API production 环境持有相同 `CRON_SECRET`；
-4. 以管理员执行运维 SQL，并查询 `cron.job`，确认固定五项、schedule 均为 `* * * * *`。
+2. 通过正常密码恢复完成路径产生恰好一条可 claim 的 R3-C 通知；
+3. 运行 bootstrap provision，发布同一 exact SHA，再运行 deliver；用户确认一封且仅一封真实邮件；
+4. 运行 status，要求 `cron_preflight_ready=t`；
+5. 用精确 confirmation 执行 apply，并确认固定五项、schedule 均为 `* * * * *`。
 
 停用时按固定 job name 调用 `cron.unschedule`；不要删除业务数据、lease 或 ledger。调度中断后恢复只需重装
 任务，worker 会从数据库状态继续处理。观测 `cron.job_run_details` 和 `net._http_response` 时只能记录 job、

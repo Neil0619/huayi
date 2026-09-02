@@ -17,14 +17,18 @@ const certificate = `-----BEGIN CERTIFICATE-----
 ${"A".repeat(80)}
 -----END CERTIFICATE-----`;
 const environment = {
-  HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: certificate,
   HUAYI_SECRET_PEPPER: "p".repeat(48),
 };
 const readCredential = async (credentialId) => {
   assert.equal(credentialId, "supabase-admin-db-password");
   return "administrator-password";
 };
-const runFirstOperator = (options) => runHostedFirstOperator({ readCredential, ...options });
+const runFirstOperator = (options) =>
+  runHostedFirstOperator({
+    fetchCaCertificate: async () => certificate,
+    readCredential,
+    ...options,
+  });
 
 test("first Operator plan is side-effect free", async () => {
   let calls = 0;
@@ -54,6 +58,7 @@ test("first Operator status is read-only and returns only a bounded state", asyn
   assert.deepEqual(result, { outcome: "status", status: "registered" });
   assert.equal(calls.length, 1);
   assert.equal(calls[0].captureOutput, true);
+  assert.equal(calls[0].environment.HUAYI_HOSTED_DATABASE_CA_CERTIFICATE, certificate);
   assert.match(calls[0].input, /first_operator_bootstrap/u);
   assert.doesNotMatch(calls[0].input, /token_hash|operator_user_id::text/u);
 });

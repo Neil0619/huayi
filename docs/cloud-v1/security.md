@@ -528,6 +528,14 @@ reason/count 的 alert port；本机模式被固定 localhost origin 限定且�
 真实 Resend 投递与监控接收方验收。acceptance Store Manifest 使用独立固定开发 key/ID 和精确
 host/CSP，不能污染发布 Manifest。完整边界见 `user-acceptance-environment.md`。
 
+Hosted Cron bootstrap 不新增第五个本机凭据，也不让操作者经聊天、终端参数、环境变量或剪贴板处理中转
+`CRON_SECRET`。管理员连接在 Supabase Vault 内创建或复用固定 64 位小写十六进制 bearer；值只在有界
+本地进程内进入 Vercel 环境管理请求，以及后续 API worker 的 Authorization header。Vercel Sensitive
+值不可解密回读，因此结构回读只验证唯一 key/type/Production target，值连续性必须由同一 Vault 来源
+完成 upsert 后的新 deployment 接受鉴权、真实 worker 返回 `sent` 且重复返回 `idle` 来证明。所有错误
+只输出固定 stage；数据库/Vercel/HTTP 原始响应、bearer、Token 和邮件身份不得进入日志或 state。该行为
+证据仍不替代用户真实收件与无正文告警接收方验收，也不自动授权 Cron apply。
+
 Hosted DeepSeek one-shot 的 0016 authority foundation 创建两张 `huayi_private` forced-RLS 表和一个
 `NOLOGIN NOINHERIT NOBYPASSRLS` 专用 role。PUBLIC、Supabase API roles、business/context-setter/runtime 与
 该专用 role 均无表直权，trigger functions 也对这些角色撤销 execute；receipt 必须先绑定 server request，

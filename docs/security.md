@@ -32,6 +32,9 @@ Hosted acceptance 的 Supabase 管理员/application 数据库密码、Supabase 
 secret 环境变量；非 macOS 固定 unsupported。Token 只进入内存中的固定 HTTP Authorization header；
 数据库密码进入 `0700` 临时目录内的 `0600 .pgpass`，子进程只接收 `PGPASSFILE`，并在成功、失败、
 timeout 和终止信号后清理。默认测试只使用 fake store/process/HTTP，不访问真实 Keychain 或网络。
+数据库 TLS CA 不是操作者凭据：所有 Hosted 数据库消费者都从固定 Supabase Singapore 官方 URL 有界获取
+并严格校验 PEM，再写入同一临时目录；不接受或要求终端持久化
+`HUAYI_HOSTED_DATABASE_CA_CERTIFICATE`。Vercel application runtime 的部署期 CA 配置保持独立。
 
 Keychain `present/available` 只证明本机读取能力，不授权任何 Hosted/Vercel 读取或变更。完整生命周期、
 固定标识和单独授权门见 [`cloud-v1/hosted-credential-operations.md`](cloud-v1/hosted-credential-operations.md)。

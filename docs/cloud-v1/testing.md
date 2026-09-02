@@ -684,6 +684,24 @@ Keychain read 和数据库前拒绝；继承 secret、非法 11/513 byte 或含 
 masked `CRON_SECRET` 连续性、两次真实事务、pg_net 响应或两个周期恢复。后两类证据仍必须在 R3-C 外部门
 关闭并获得 action-time confirmation 后于 Hosted 独立完成。
 
+2026-09-02 新增的 `acceptance-hosted-cron-bootstrap*.mjs` 把此前人工 secret continuity 门收敛为三个
+窄模块：主控制流、纯 SQL renderer 和 Vercel adapter。默认测试只使用 fake Keychain、psql、Cron status、
+runtime snapshot 与 HTTP，必须覆盖：
+
+- plan 零 I/O；provision 先验证 clean repository candidate、唯一 claimable R3-C 和专用 Cron
+  `installation_state=absent`/零 fixed/零 unmanaged，再创建或复用固定 Vault source；Vault 已存在的重试
+  仍允许，partial/exact Cron 在任何写入前拒绝；
+- Vercel upsert 固定 team/project、`upsert=true`、Production-only Sensitive 和唯一 `CRON_SECRET`；201
+  response 必须 `failed=[]` 且恰好一个精确 created 对象，再回读唯一 metadata。旧变量已经存在时，部分
+  failure 不能因 metadata 看似正确而误报成功；
+- deliver 只从 Vault 读取严格 64 位小写十六进制值，正常路径要求 `sent → idle` 与 sent postflight；首次
+  响应丢失后的 already-sent 重跑只调用一次并要求 idle；
+- 继承明文 credential、无 TTY fallback、错误 CA/password、异常 stdout、HTTP/JSON/状态漂移和 secret
+  泄漏全部失败关闭。测试不得连接真实 Keychain、Supabase、Vercel 或 Resend，也不得发送邮件。
+
+真实验收必须另行按固定顺序运行 provision → exact-SHA API release → deliver → 用户收件确认 → Cron
+status/apply；离线 GREEN 不能提前关闭其中任何一步。
+
 ### 4.3.5 ExtensionQuery Provider 失败计费闭环
 
 - Fresh RED 先让首次 ExtensionQuery strict output 无效、repair 返回 503；错误只有

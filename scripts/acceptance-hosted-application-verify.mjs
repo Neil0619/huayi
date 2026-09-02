@@ -10,6 +10,7 @@ import {
   hostedAcceptanceProjectRef,
   runHostedPsql,
 } from "./acceptance-hosted-foundation.mjs";
+import { fetchHostedAcceptanceOfficialCaCertificate } from "./acceptance-hosted-official-ca.mjs";
 
 export const hostedApplicationVerificationArgument = `--verify-hosted-application-login-${hostedAcceptanceProjectRef}`;
 
@@ -108,6 +109,7 @@ export function renderHostedForbiddenRoleSql() {
 export async function verifyHostedApplicationLogin({
   arguments_ = process.argv.slice(2),
   environment = process.env,
+  fetchCaCertificate = fetchHostedAcceptanceOfficialCaCertificate,
   readCredential = readHostedCredential,
   runPsql = runHostedPsql,
 } = {}) {
@@ -115,11 +117,12 @@ export async function verifyHostedApplicationLogin({
     throw new Error("Hosted acceptance application login verification arguments are invalid.");
   }
   rejectLegacyHostedCredentialEnvironment(environment);
+  const caCertificate = await fetchCaCertificate();
   const password = await readCredential("supabase-application-db-password", { environment });
   const connection = {
     databaseUrl: hostedAcceptanceApplicationSessionPoolerUrl,
     environment: {
-      HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: environment.HUAYI_HOSTED_DATABASE_CA_CERTIFICATE,
+      HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: caCertificate,
     },
     password,
   };

@@ -13,7 +13,6 @@ ${"A".repeat(80)}
 -----END CERTIFICATE-----`;
 const environment = {
   HUAYI_BOOTSTRAP_INVITATION_TOKEN: "A".repeat(43),
-  HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: certificate,
   HUAYI_SECRET_PEPPER: "p".repeat(48),
 };
 const readCredential = async (credentialId) => {
@@ -21,7 +20,11 @@ const readCredential = async (credentialId) => {
   return "administrator-password";
 };
 const runVerification = (options) =>
-  runPepperContinuityVerification({ readCredential, ...options });
+  runPepperContinuityVerification({
+    fetchCaCertificate: async () => certificate,
+    readCredential,
+    ...options,
+  });
 
 test("pepper continuity verifies only the live interrupted Bootstrap invitation", async () => {
   const expectedHash = createHash("sha256")
@@ -55,6 +58,7 @@ test("pepper continuity verifies only the live interrupted Bootstrap invitation"
   );
   assert.doesNotMatch(calls[0].input, new RegExp(environment.HUAYI_SECRET_PEPPER, "u"));
   assert.equal("HUAYI_BOOTSTRAP_INVITATION_TOKEN" in calls[0].environment, false);
+  assert.equal(calls[0].environment.HUAYI_HOSTED_DATABASE_CA_CERTIFICATE, certificate);
   assert.equal("HUAYI_SECRET_PEPPER" in calls[0].environment, false);
 });
 

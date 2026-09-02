@@ -15,6 +15,7 @@ import {
   runHostedPsql,
   sqlTextArray,
 } from "./acceptance-hosted-foundation.mjs";
+import { fetchHostedAcceptanceOfficialCaCertificate } from "./acceptance-hosted-official-ca.mjs";
 import { renderHostedRoleMembershipContractSql } from "./acceptance-hosted-role-memberships.mjs";
 
 export const hostedVerificationArgument = `--verify-hosted-foundation-${hostedAcceptanceProjectRef}`;
@@ -85,6 +86,7 @@ SELECT
 export async function verifyHostedAcceptance({
   arguments_ = process.argv.slice(2),
   environment = process.env,
+  fetchCaCertificate = fetchHostedAcceptanceOfficialCaCertificate,
   readCredential = readHostedCredential,
   runPsql = runHostedPsql,
 } = {}) {
@@ -92,12 +94,13 @@ export async function verifyHostedAcceptance({
     throw new Error("Hosted acceptance verification arguments are invalid.");
   }
   rejectLegacyHostedCredentialEnvironment(environment);
+  const caCertificate = await fetchCaCertificate();
   const password = await readCredential("supabase-admin-db-password", { environment });
   const result = await runPsql({
     captureOutput: true,
     databaseUrl: hostedAcceptancePoolerUrl,
     environment: {
-      HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: environment.HUAYI_HOSTED_DATABASE_CA_CERTIFICATE,
+      HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: caCertificate,
     },
     input: renderHostedVerificationSql(),
     password,

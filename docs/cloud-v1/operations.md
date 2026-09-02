@@ -75,6 +75,9 @@ reservation 的 `running` 请求，只调用既有恢复函数精确终态化；
 
 ### Hosted acceptance 自动发布 SOP
 
+完整的迭代、测试、候选冻结、发布、恢复与交付边界以
+[`hosted-iteration-release-sop.md`](hosted-iteration-release-sop.md) 为当前入口。本节保留协调器的执行细节。
+
 Hosted acceptance 的常规代码发布由一个可恢复协调器串行完成，入口固定为：
 
 ```bash
@@ -95,9 +98,10 @@ workflow。只有同一 SHA 的 macOS/Windows job 都成功后，协调器才把
 每个边界写入 ignored 的
 `artifacts/hosted-release/hosted-acceptance-<candidate-sha>/state.json`；目录为 `0700`、文件为 `0600`，
 只包含 SHA、release/workflow/deployment ID 与 phase，不含 Token、环境变量或响应正文。在
-CI dispatch、环境 upsert 或 deployment create 这类“请求可能已成功但本机尚未记账”的边界中断后，
-普通 `advance` 必须失败，只有 `recover` 可通过 release metadata 查找唯一既有远端对象并续跑；找不到
-或找到多个都失败关闭，不能盲目重发。
+CI dispatch、环境 upsert 或 deployment create 这类“请求可能已成功但本机尚未记账”的边界发生响应错误时，
+同一次 `advance` 会先做最长一分钟的只读精确身份对账；只在找到唯一同 release/SHA 对象或环境值精确一致
+时自动续跑，绝不重发不确定写入。进程真正中断、证据仍不可见或找到多个时才失败并保留不确定 phase，
+随后只有 `recover` 可继续对账，不能盲目重跑 `advance`。
 
 该协调器不执行 migration、backup、Cron、DeepSeek 请求或 Chrome 旅程，也不把部署完成解释为业务验收
 完成。Vercel Token 只从 login Keychain 进入 Authorization header；任何旧明文 secret 环境变量都在外联
@@ -114,6 +118,29 @@ pnpm acceptance:hosted:store:status
 `apps/store-extension/dist`。页面显示的 ID 必须为 `hoijjhgcckfhbcefoclgbhkgninnkknd`；再登录
 `https://app.acceptance.seen-said.cn` 并按 Web 配对流程连接。该 acceptance profile 与 Chrome Web Store
 release manifest 隔离，不表示已上架，也不安装或替换 Classic Native Host。
+
+### Hosted R3-C 与 Cron 同源引导
+
+Vercel Sensitive 值不能解密回读，R3-C/Cron 不再要求操作者手工复制 `CRON_SECRET`。正常密码恢复完成
+路径产生唯一待发送通知后，固定顺序为：
+
+```bash
+pnpm acceptance:hosted:cron:bootstrap:plan
+pnpm acceptance:hosted:cron:bootstrap:provision \
+  --confirm-provision-hosted-cron-secret-after-r3c-pending-kpadiulxkgckskcfydry
+pnpm acceptance:hosted:release:advance
+pnpm acceptance:hosted:cron:bootstrap:deliver \
+  --confirm-deliver-hosted-r3c-after-secret-release-kpadiulxkgckskcfydry
+pnpm acceptance:hosted:cron:status
+pnpm acceptance:hosted:cron:apply \
+  --confirm-apply-hosted-supabase-cron-after-r3c-and-vercel-continuity-kpadiulxkgckskcfydry
+```
+
+provision 只在 Cron 精确 absent 时把 Vault 唯一来源送到 Vercel；必须由后续 exact-SHA API deployment
+装载。deliver 要求正常 worker `sent → idle` 并验证数据库终态；若首次调用已成功但响应丢失，安全重跑只
+接受一次 `idle`。用户确认收件箱恰好一封且无正文告警接收后，Cron status 才应为 preflight ready，随后
+apply 执行两次完整事务和独立 postflight。任一步不确定都回到只读 snapshot/status，不能打印 Vault 值、
+手贴 SQL 或盲目重发。
 
 ### Hosted acceptance foundation 运行手册
 
@@ -137,9 +164,8 @@ Vercel project 创建后仍只进入部署平台 secret store；脚本不创建�
 
 hosted 管理脚本与 Vercel application runtime 固定使用 transaction pooler `6543`；只有 application
 隔离验证器使用 session pooler `5432`，从而让同一个 psql 连接在两个已提交事务中确定落到同一 backend。
-两类命令行 DSN 均固定 `/postgres?sslmode=verify-full`。命令行从 Supabase 官方 Singapore CA 地址读取 PEM；
-0014 dry-run/apply 与重要批次 pre/post capture 由共享 fixed-URL 模块内部获取，调用者不准备 CA environment，
-其他既有管理脚本仍由受控 wrapper 传入 `HUAYI_HOSTED_DATABASE_CA_CERTIFICATE`。脚本只把 CA 写入权限
+两类命令行 DSN 均固定 `/postgres?sslmode=verify-full`。所有 Hosted 数据库 consumer 都由共享 fixed-URL
+模块从 Supabase 官方 Singapore CA 地址有界读取并严格校验 PEM，调用者不准备 CA environment。脚本只把 CA 写入权限
 `0600` 的临时 root certificate，强制 `PGSSLMODE=verify-full` 与 `PGSSLROOTCERT`，并在退出时删除；调用者
 不能降级。Vercel 运行时使用
 `HUAYI_DATABASE_TLS_CA_BASE64`，由 postgres.js 显式设置 CA 与 `rejectUnauthorized=true`。只设置

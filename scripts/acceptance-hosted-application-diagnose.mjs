@@ -16,6 +16,7 @@ import {
   hostedAcceptanceProjectRef,
   runHostedPsql,
 } from "./acceptance-hosted-foundation.mjs";
+import { fetchHostedAcceptanceOfficialCaCertificate } from "./acceptance-hosted-official-ca.mjs";
 
 export const hostedApplicationDiagnosticArgument = `--diagnose-hosted-application-login-${hostedAcceptanceProjectRef}`;
 
@@ -60,6 +61,7 @@ export function classifyHostedPsqlExitCode(code) {
 export async function diagnoseHostedApplicationLogin({
   arguments_ = process.argv.slice(2),
   environment = process.env,
+  fetchCaCertificate = fetchHostedAcceptanceOfficialCaCertificate,
   readCredential = readHostedCredential,
   runPsql = runHostedPsql,
 } = {}) {
@@ -67,11 +69,12 @@ export async function diagnoseHostedApplicationLogin({
     throw new Error("Hosted acceptance application diagnostic arguments are invalid.");
   }
   rejectLegacyHostedCredentialEnvironment(environment);
+  const caCertificate = await fetchCaCertificate();
   const password = await readCredential("supabase-application-db-password", { environment });
   const connection = {
     databaseUrl: hostedAcceptanceApplicationSessionPoolerUrl,
     environment: {
-      HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: environment.HUAYI_HOSTED_DATABASE_CA_CERTIFICATE,
+      HUAYI_HOSTED_DATABASE_CA_CERTIFICATE: caCertificate,
     },
     password,
   };

@@ -80,10 +80,18 @@ export async function runHostedReleaseOrchestrator({
     const bindCi = async ({ allowDispatch }) => {
       let run = await ci.find({ candidateSha, releaseId });
       if (run === undefined && allowDispatch) {
-        await ci.dispatch({ candidateSha, releaseId });
+        try {
+          await ci.dispatch({ candidateSha, releaseId });
+        } catch {
+          // A dispatch can reach GitHub before the local response fails. Reconcile by identity only.
+        }
         for (let attempt = 0; attempt < 13 && run === undefined; attempt += 1) {
           if (attempt > 0) await sleep(5_000);
-          run = await ci.find({ candidateSha, releaseId });
+          try {
+            run = await ci.find({ candidateSha, releaseId });
+          } catch {
+            // A bounded retry remains read-only and never dispatches a duplicate.
+          }
         }
       }
       if (run === undefined) fail();
@@ -91,9 +99,44 @@ export async function runHostedReleaseOrchestrator({
     };
     const bindDeployment = async (kind) => {
       let deployment = await vercel.find({ candidateSha, kind, releaseId });
-      deployment ??= await vercel.create({ candidateSha, kind, releaseId });
+      if (deployment === undefined) {
+        try {
+          deployment = await vercel.create({ candidateSha, kind, releaseId });
+        } catch {
+          // A deployment can be created before the local response fails. Reconcile by alias only.
+        }
+        for (let attempt = 0; attempt < 13 && deployment === undefined; attempt += 1) {
+          if (attempt > 0) await sleep(5_000);
+          try {
+            deployment = await vercel.find({ candidateSha, kind, releaseId });
+          } catch {
+            // A bounded retry remains read-only and never creates a duplicate.
+          }
+        }
+      }
+      if (deployment === undefined) fail();
       const field = kind === "api" ? "apiDeploymentId" : "webDeploymentId";
       await advance(`${kind}-running`, { [field]: deployment.id });
+    };
+    const configureApi = async () => {
+      let inspection = await vercel.inspect();
+      if (!inspection.configurationReady) {
+        try {
+          await vercel.configure();
+        } catch {
+          // An upsert can commit before the local response fails. Reconcile exact values in place.
+        }
+      }
+      for (let attempt = 0; attempt < 13; attempt += 1) {
+        if (attempt > 0) await sleep(5_000);
+        try {
+          inspection = await vercel.inspect();
+          if (inspection.configurationReady) return;
+        } catch {
+          // A bounded retry remains read-only and never repeats the upsert.
+        }
+      }
+      fail();
     };
 
     while (state.phase !== "complete") {
@@ -128,17 +171,13 @@ export async function runHostedReleaseOrchestrator({
         case "ci-passed":
           await inspectCandidate(true);
           await advance("api-configuring");
-          await vercel.configure();
-          if (!(await vercel.inspect()).configurationReady) fail();
+          await configureApi();
           await advance("api-configured");
           break;
-        case "api-configuring": {
-          const inspection = await vercel.inspect();
-          if (!inspection.configurationReady) await vercel.configure();
-          if (!(await vercel.inspect()).configurationReady) fail();
+        case "api-configuring":
+          await configureApi();
           await advance("api-configured");
           break;
-        }
         case "api-configured":
           await inspectCandidate(true);
           await advance("api-deploying");

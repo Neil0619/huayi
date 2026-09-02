@@ -87,17 +87,21 @@ wire 版本或完成声明。
 
 ### 2026-09-02：Hosted acceptance Store 与可恢复发布候选
 
-- Phase 94 已以 exact SHA 完成 API→Web 部署、最终远端回读和双项目 disarm；当前 upstream/HEAD 为
-  `f562416344690678b8c92b625e8aa7100d66605a`。旧 Phase 94 state 不可重放。
-- 当前本地工作树新增 Hosted acceptance-only Store profile，固定 ID
+- Phase 94 已完成且旧 state 不可重放；后续常规协调器已把 Store capability、API→Web exact-SHA 发布与
+  最终远端回读推进到 `cc620a41384b4d2481ec3f55d4886e1c06252f9d`。API/Web 均 Ready、运行时
+  attestation 通过且项目保持 disarmed。
+- Hosted acceptance-only Store profile 已进入上述部署，固定 ID
   `hoijjhgcckfhbcefoclgbhkgninnkknd`、固定 API/Web origin，并保持 Chrome Web Store release manifest 不变；
   真实 Chrome 加载、配对与普通网页/YouTube 旅程尚未执行。
-- 当前本地工作树新增可恢复 release plan/status/advance/recover：完整 macOS 门 → 精确候选 push → 同一
+- 可恢复 release plan/status/advance/recover 已在真实发布中闭环：完整 macOS 门 → 精确候选 push → 同一
   SHA/Release ID 的 macOS+Windows CI → 固定 API capability → API Ready → Web Ready → runtime postflight。
-  这批改动尚未 commit、push 或部署，远端 capability 仍 disabled，不能按当前 Hosted 使用 Store。
+  Store capability 已 enabled，本机 `apps/store-extension/dist` 构建/status 通过；真实 Chrome 加载与配对
+  仍待当前 Mac 解锁后的人工旅程。
 - Hosted DeepSeek one-shot production loader、独立 Keychain HMAC keyring、authority warmup/no-PII snapshot
-  与 Cron through-0023 修复也在同一本地候选中；尚未执行真实 DeepSeek 请求，本次用户给出的最多 30 次
-  权限仍未消耗。R3-C 真实邮件、五项 Cron、Chrome、目标账号 session 与跨多日业务验收仍未关闭。
+  与 Cron through-0023 已部署；尚未执行真实 DeepSeek 请求，本次用户给出的最多 30 次权限仍未消耗。
+  当前后续候选把 Cron secret continuity 改为 Vault 同源 provision、exact-SHA release、产品 worker
+  `sent → idle` 的可恢复链，并固化完整迭代发布 SOP；它仍须质量门、commit/push/deploy。R3-C 真实邮件、
+  五项 Cron、Chrome 与跨多日业务验收尚未关闭。
 
 ### 2026-09-02：C/G/H/I 全量 UI 实现候选
 

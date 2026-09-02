@@ -157,6 +157,87 @@ test("recover reconciles an already dispatched CI run without dispatching a dupl
   assert.equal(setup.calls.includes("ci-dispatch"), false);
 });
 
+test("advance reconciles a CI dispatch that succeeded remotely before the local error", async () => {
+  const setup = harness(undefined);
+  let dispatchAttempted = false;
+  setup.ci.dispatch = async () => {
+    setup.calls.push("ci-dispatch");
+    dispatchAttempted = true;
+    throw new Error("connection closed after dispatch");
+  };
+  setup.ci.find = async () => {
+    setup.calls.push("ci-find");
+    return dispatchAttempted ? { conclusion: null, id: 101, status: "queued" } : undefined;
+  };
+
+  const completed = await runHostedReleaseOrchestrator({
+    candidateSha,
+    mode: "advance",
+    sleep: async () => undefined,
+    ...setup,
+  });
+
+  assert.equal(completed.phase, "complete");
+  assert.equal(setup.calls.filter((call) => call === "ci-dispatch").length, 1);
+});
+
+test("advance reconciles API configuration that became exact before the local error", async () => {
+  const setup = harness(undefined);
+  let configurationReady = false;
+  setup.vercel.configure = async () => {
+    setup.calls.push("api-configure");
+    configurationReady = true;
+    throw new Error("connection closed after configuration");
+  };
+  setup.vercel.inspect = async () => {
+    setup.calls.push("vercel-inspect");
+    return {
+      configurationReady,
+      noInFlightDeployments: true,
+      projectsReady: true,
+    };
+  };
+
+  const completed = await runHostedReleaseOrchestrator({
+    candidateSha,
+    mode: "advance",
+    sleep: async () => undefined,
+    ...setup,
+  });
+
+  assert.equal(completed.phase, "complete");
+  assert.equal(setup.calls.filter((call) => call === "api-configure").length, 1);
+});
+
+test("advance reconciles an API deployment created before the local error", async () => {
+  const setup = harness(undefined);
+  let apiCreateAttempted = false;
+  setup.vercel.create = async ({ kind }) => {
+    setup.calls.push(`${kind}-create`);
+    if (kind === "api") {
+      apiCreateAttempted = true;
+      throw new Error("connection closed after deployment create");
+    }
+    return { id: `dpl_${kind}_release_123`, state: "QUEUED" };
+  };
+  setup.vercel.find = async ({ kind }) => {
+    setup.calls.push(`${kind}-find`);
+    return kind === "api" && apiCreateAttempted
+      ? { id: "dpl_api_release_123", state: "QUEUED" }
+      : undefined;
+  };
+
+  const completed = await runHostedReleaseOrchestrator({
+    candidateSha,
+    mode: "advance",
+    sleep: async () => undefined,
+    ...setup,
+  });
+
+  assert.equal(completed.phase, "complete");
+  assert.equal(setup.calls.filter((call) => call === "api-create").length, 1);
+});
+
 test("ordinary advance refuses to guess from a pre-existing uncertainty state", async () => {
   let state = createHostedReleaseState({ candidateSha, now: 1 });
   for (const phase of ["local-quality-passed", "candidate-pushed", "ci-dispatching"]) {
