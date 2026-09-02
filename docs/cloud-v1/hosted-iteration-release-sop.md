@@ -26,8 +26,8 @@ Chrome 人工旅程仍是独立业务门。它们可由各自受控工具接续�
    `codex/settings-configuration`、`HEAD` 唯一且两个 Vercel 项目 disarmed。候选 SHA 一旦获准发布便不可
    amend、squash 或混入新改动；变更 SHA 必须形成新候选。
 6. **自动发布**：一次 exact-SHA 发布授权后，由协调器串行完成本机完整门、精确 push、同一 SHA/Release
-   ID 的 macOS+Windows GitHub CI、固定 Store capability 配置、API Ready、Web Ready 和 runtime
-   attestation。API/Web 不并行，不依赖 Vercel Git 自动部署。
+   ID 的 macOS+Windows GitHub CI、完整门之后的 Hosted Store 专用包重建与审计、固定 Store capability
+   配置、API Ready、Web Ready 和 runtime attestation。API/Web 不并行，不依赖 Vercel Git 自动部署。
 7. **交付**：回读状态必须为 `complete`，记录候选 SHA、CI run、API/Web deployment、运行时 attestation、
    已运行测试和仍需人工完成的业务门。部署完成只表示该代码候选可供验收，不等于业务功能已验收。
 

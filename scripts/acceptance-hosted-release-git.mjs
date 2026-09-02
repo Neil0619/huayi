@@ -105,16 +105,18 @@ export async function runHostedReleaseLocalQuality({
     if (actualPlatform !== "darwin") fail();
     const childEnvironment = hostedReleaseChildEnvironment(environment);
     const executable = typeof environment.npm_execpath === "string" ? process.execPath : "pnpm";
-    const arguments_ =
-      typeof environment.npm_execpath === "string"
-        ? [environment.npm_execpath, "verify:macos"]
-        : ["verify:macos"];
-    const result = await runProcess(executable, arguments_, {
-      cwd: repositoryRoot,
-      environment: childEnvironment,
-      inherit: true,
-    });
-    if (result?.status !== 0) fail();
+    for (const script of ["verify:macos", "acceptance:hosted:store:build"]) {
+      const arguments_ =
+        typeof environment.npm_execpath === "string"
+          ? [environment.npm_execpath, script]
+          : [script];
+      const result = await runProcess(executable, arguments_, {
+        cwd: repositoryRoot,
+        environment: childEnvironment,
+        inherit: true,
+      });
+      if (result?.status !== 0) fail();
+    }
   } catch {
     fail();
   }

@@ -51,7 +51,7 @@ test("Git inspection binds one clean disarmed candidate and allows only local-ah
   assert.equal(calls.at(-1).arguments_.join(" "), "merge-base --is-ancestor @{upstream} HEAD");
 });
 
-test("local quality runs the complete macOS gate without forwarding plaintext credentials", async () => {
+test("local quality finishes the complete macOS gate with an audited Hosted Store package", async () => {
   const calls = [];
   await runHostedReleaseLocalQuality({
     actualPlatform: "darwin",
@@ -68,9 +68,34 @@ test("local quality runs the complete macOS gate without forwarding plaintext cr
     },
   });
 
-  assert.deepEqual(calls[0].arguments_, ["/tool/pnpm.cjs", "verify:macos"]);
-  assert.equal(calls[0].options.environment.UNRELATED_SECRET, undefined);
-  assert.equal(calls[0].options.environment.VERCEL_TOKEN, undefined);
+  assert.deepEqual(
+    calls.map(({ arguments_ }) => arguments_),
+    [
+      ["/tool/pnpm.cjs", "verify:macos"],
+      ["/tool/pnpm.cjs", "acceptance:hosted:store:build"],
+    ],
+  );
+  for (const call of calls) {
+    assert.equal(call.options.environment.UNRELATED_SECRET, undefined);
+    assert.equal(call.options.environment.VERCEL_TOKEN, undefined);
+  }
+});
+
+test("local quality fails closed when the Hosted Store package cannot be built", async () => {
+  const calls = [];
+  await assert.rejects(
+    runHostedReleaseLocalQuality({
+      actualPlatform: "darwin",
+      environment: { PATH: "/bin:/usr/bin" },
+      repositoryRoot: "/repo",
+      runProcess: async (_command, arguments_) => {
+        calls.push(arguments_);
+        return { status: arguments_[0] === "verify:macos" ? 0 : 1, stderr: "", stdout: "" };
+      },
+    }),
+    /Hosted acceptance release Git failed closed/u,
+  );
+  assert.deepEqual(calls, [["verify:macos"], ["acceptance:hosted:store:build"]]);
 });
 
 test("candidate push uses the fixed branch and verifies the exact remote SHA", async () => {
