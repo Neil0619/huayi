@@ -65,7 +65,7 @@ test("the default silver Store card keeps pearl and parchment visual baselines",
   await expect(shadow(page)).toHaveCSS("width", "120px");
   await expect(shadow(page)).toHaveScreenshot("store-silver-pearl-action.png", {
     animations: "disabled",
-    maxDiffPixelRatio: 0.02,
+    maxDiffPixels: 200,
   });
 
   await page.goto(`${fixturePath}?theme=parchment`);
@@ -75,7 +75,7 @@ test("the default silver Store card keeps pearl and parchment visual baselines",
   await expect(shadow(page)).toHaveCSS("width", "120px");
   await expect(shadow(page)).toHaveScreenshot("store-silver-parchment-action.png", {
     animations: "disabled",
-    maxDiffPixelRatio: 0.02,
+    maxDiffPixels: 200,
   });
 });
 
