@@ -1,13 +1,32 @@
 import assert from "node:assert/strict";
 import { mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
+
+import { getFileInfo } from "prettier";
 
 import { createHostedReleaseState } from "./acceptance-hosted-release-contract.mjs";
 import { createHostedReleaseStateStore } from "./acceptance-hosted-release-state.mjs";
 
 const candidateSha = "b".repeat(40);
+const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+
+test("release state stays outside repository formatting inputs", async () => {
+  const statePath = join(
+    repositoryRoot,
+    "artifacts",
+    "hosted-release",
+    `hosted-acceptance-${candidateSha}`,
+    "state.json",
+  );
+
+  assert.equal(
+    (await getFileInfo(statePath, { ignorePath: join(repositoryRoot, ".prettierignore") })).ignored,
+    true,
+  );
+});
 
 test("release state store writes canonical private state atomically under the exact release", async () => {
   const repositoryRoot = await mkdtemp(join(tmpdir(), "huayi-release-state-"));
