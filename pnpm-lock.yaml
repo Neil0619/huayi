@@ -31,6 +31,9 @@ importers:
       jsdom:
         specifier: ^26.1.0
         version: 26.1.0
+      postgres:
+        specifier: 3.4.9
+        version: 3.4.9
       prettier:
         specifier: ^3.6.2
         version: 3.9.5

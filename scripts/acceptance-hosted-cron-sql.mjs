@@ -1,10 +1,10 @@
 import {
-  hostedAcceptanceMigrationVersions,
+  hostedAcceptanceMigrationVersionsThrough0023,
   sqlTextArray,
 } from "./acceptance-hosted-foundation.mjs";
 
 export function renderHostedCronStatusSql() {
-  const migrations = sqlTextArray(hostedAcceptanceMigrationVersions);
+  const migrations = sqlTextArray(hostedAcceptanceMigrationVersionsThrough0023);
   return `BEGIN READ ONLY;
 
 \\set cron_fixed_jobs_count 0

@@ -1674,3 +1674,25 @@ session is invalid.`；400 `invalid_request` 表示 runtime 数据库路径未�
   deployment ID、URL、响应正文或任意 state 内容；
 - 默认测试只使用 fake Git、credential、fetch、snapshot 与临时 state store，不读取真实 Keychain、不联网、
   不创建真实 one-shot state，也不执行 arm/disarm、commit、push 或 deployment。真实执行仍需独立批准。
+
+## Hosted acceptance Store 与可恢复自动发布
+
+- Store profile 回归证明固定公开 key 派生唯一 acceptance ID、host permission/CSP/API/Web origin 精确，且
+  默认 release profile 的 manifest 和 bundle 不受污染；构建脚本只接受 `build|status`，未知 profile、
+  缺失产物或 identity 漂移失败关闭；
+- Git/CI 回归证明候选必须是 clean、当前固定分支、API/Web disarmed，push 只允许 `HEAD` 到固定远端分支；
+  手工 Cross-platform quality 必须带 `candidate_sha + release_id`，两个 job checkout 同一 SHA 并在执行前
+  自证，重复/错误 SHA 或多个匹配 run 失败；
+- release contract/state 回归覆盖固定 phase、unknown/secret 字段拒绝、`0700/0600`、canonical atomic write、
+  exclusive lock、dead same-host lock recovery 与 uncertainty phase；编排回归覆盖 local gate → push → CI →
+  API config → API deploy/Ready → Web deploy/Ready → postflight，恢复只能复用唯一既有远端对象；
+- Vercel adapter 默认使用 fake fetch，精确断言 team/project/repo/branch、三个固定 capability 值、Token 只在
+  header、exact-SHA deployment body、API→Web 串行、零 in-flight 与运行时 attestation；默认测试不读取真实
+  Keychain、不联网、不 push、不 upsert 环境变量，也不创建 deployment；
+- Hosted DeepSeek production loader 的默认测试使用 fake Keychain/process/HTTP 与 PGlite，覆盖独立 HMAC
+  keyring 的创建/历史版本保留、Postgres authority、无 PII snapshot、峰值 reservation、失败恢复和秘密不
+  泄漏；真实 `execute` / `recover` 继续是单独收费与远端写入门。Cron source manifest 回归固定 through-0023，
+  不允许已应用的 0023 被误报为未知 schema；
+- 本地候选先运行 focused tests 与完整 `pnpm verify:macos`。真正 release 必须在 push 后由同一 release ID 的
+  Cross-platform quality 取得最新 macOS/Windows 成功；真实 Chrome 加载/配对、R3-C、Cron 和 DeepSeek
+  业务旅程均是部署后的独立人工门，不能由 fake tests 或 deployment `complete` 代替。

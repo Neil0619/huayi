@@ -2100,11 +2100,10 @@ post-relogin 脱敏只读诊断已真实返回 `other-active-only`：目标账�
 
 ### Phase 94：当前多外观 UI 独立部署
 
-本地控制面已新增独立 `phase-94-multi-appearance-ui` state、fresh-CSRF exact completion validator、当前
-API/Web 20/13 baseline、零 I/O plan、脱敏只读 diagnose、preflight 与完整 API→Web 四段双关闭入口；旧
-Phase 81/92/93/fresh-CSRF state 保持不可重放并可与新 state 共存。聚焦 one-shot 回归 53/53、真实本地历史
-completion 校验与 plan 已通过，新 state 仍 absent。
+独立 `phase-94-multi-appearance-ui` state、fresh-CSRF exact completion validator、API/Web 20/13 baseline、
+零 I/O plan、脱敏只读 diagnose、preflight 与完整 API→Web 四段双关闭入口均已完成。`421e593` 控制提交后，
+API arm `33c9bda` → API disarm `9f789cb` → Web arm `993fb43` → Web disarm `f562416` 已按序取得真实
+observe/verify 与最终线上回读；两个项目均恢复 disarmed，state 为不可重放的 `complete`。
 
-该控制面仍是未提交本地候选。下一顺序固定为：完整离线质量门 → commit/push → 新 exact-SHA macOS/Windows
-CI → 真实只读 diagnose → preflight → 分别批准 API arm/observe、API disarm/verify、Web arm/observe、Web
-disarm/verify → 最终线上回读和真实浏览器外观验收。不得用旧 state、旧 confirmation 或 Web-only 路径缩短门。
+后续 Hosted acceptance 普通发布不得用旧 state、旧 confirmation 或 Web-only 路径重放 Phase 94；改用
+绑定 clean exact SHA 的可恢复 release coordinator。真实浏览器外观与业务旅程仍是部署证据之外的人工门。

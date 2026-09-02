@@ -244,6 +244,27 @@ Supabase/Vercel Token 必须由操作者在供应商侧创建为其选定的长�
 invalid 均失败关闭。完整 account、轮换/删除、消费和远端授权边界见
 `docs/cloud-v1/hosted-credential-operations.md`。
 
+## 使用 Hosted acceptance Store Extension（验收环境）
+
+这不是 Chrome Web Store 安装，也不会替换 Classic 0.13 Native Host。只有 Hosted acceptance 的 exact-SHA
+API/Web release 完成后，才在同一仓库提交构建独立验收 profile：
+
+```bash
+pnpm acceptance:hosted:store:build
+pnpm acceptance:hosted:store:status
+```
+
+在 Chrome 打开 `chrome://extensions`，开启开发者模式，选择“加载已解压的扩展程序”，加载当前仓库的
+`apps/store-extension/dist`。Chrome 显示的 ID 必须精确为
+`hoijjhgcckfhbcefoclgbhkgninnkknd`；否则立即移除错误加载项并检查是否选择了错误目录或 profile。随后登录
+`https://app.acceptance.seen-said.cn`，从 Web 发起一次配对，在扩展中完成交换。不要加载
+`manifest.release.json` 冒充 Hosted 客户端，也不要把 acceptance dist 提交或用于商店上传。
+
+普通验收用户不运行部署协调器。操作者在一个 clean、已提交、API/Web disarmed 的候选上先运行
+`pnpm acceptance:hosted:release:plan` / `...:status`；只有取得该候选 push 与 Hosted deployment 的明确批准
+后才运行 `...:advance`。中断后先运行 status，仅当状态落在不确定远端边界时使用 `...:recover`；禁止盲目
+重跑 advance。完整顺序与恢复合同见 `docs/cloud-v1/operations.md`。
+
 ## 选择模型 Provider
 
 Provider 配置固定写入

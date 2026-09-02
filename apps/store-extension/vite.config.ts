@@ -16,8 +16,18 @@ const PAGE_ASSETS = {
   popup: ["popup.html", "popup.css", "brand-theme.css"],
 } as const;
 const SHARED_CONTENT_ASSETS = ["overlay.css"] as const;
+type StoreBuildProfile = "hosted-acceptance" | "release";
 
-function copyManifest(): Plugin {
+const HOSTED_ACCEPTANCE_API_ORIGIN = "https://api.acceptance.seen-said.cn";
+const HOSTED_ACCEPTANCE_WEB_WORKSPACE_URL = "https://app.acceptance.seen-said.cn/app";
+
+function storeBuildProfile(value: string | undefined): StoreBuildProfile {
+  if (value === undefined || value === "release") return "release";
+  if (value === "hosted-acceptance") return value;
+  throw new Error("Store Extension build profile is invalid.");
+}
+
+function copyManifest(buildProfile: StoreBuildProfile): Plugin {
   let buildOutputDirectory = outputDirectory;
   return {
     name: "copy-store-manifest",
@@ -27,7 +37,12 @@ function copyManifest(): Plugin {
     async closeBundle() {
       await mkdir(buildOutputDirectory, { recursive: true });
       await copyFile(
-        resolve(extensionRoot, "manifest.json"),
+        resolve(
+          extensionRoot,
+          buildProfile === "hosted-acceptance"
+            ? "manifest.hosted-acceptance.json"
+            : "manifest.json",
+        ),
         resolve(buildOutputDirectory, "manifest.json"),
       );
       await Promise.all(
@@ -57,13 +72,27 @@ function copyPageAssets(page: "options" | "popup"): Plugin {
   };
 }
 
-export function createStoreExtensionConfig(mode: string): UserConfig {
+export function createStoreExtensionConfig(
+  mode: string,
+  requestedBuildProfile?: string,
+): UserConfig {
+  const buildProfile = storeBuildProfile(
+    requestedBuildProfile ?? process.env.HUAYI_STORE_BUILD_PROFILE,
+  );
   const isContentBuild = mode === "content";
   const isOptionsBuild = mode === "options";
   const isPopupBuild = mode === "popup";
   const isYouTubeContentBuild = mode === "youtube-content";
   const isYouTubeMainBuild = mode === "youtube-main";
   return {
+    define: {
+      HUAYI_CLOUD_API_ORIGIN_BUILD_VALUE: JSON.stringify(
+        buildProfile === "hosted-acceptance" ? HOSTED_ACCEPTANCE_API_ORIGIN : null,
+      ),
+      HUAYI_WEB_WORKSPACE_URL_BUILD_VALUE: JSON.stringify(
+        buildProfile === "hosted-acceptance" ? HOSTED_ACCEPTANCE_WEB_WORKSPACE_URL : null,
+      ),
+    },
     resolve: {
       alias: workspaceAliases,
     },
@@ -111,7 +140,7 @@ export function createStoreExtensionConfig(mode: string): UserConfig {
         ? [copyPageAssets("options")]
         : isPopupBuild
           ? [copyPageAssets("popup")]
-          : [copyManifest()],
+          : [copyManifest(buildProfile)],
   };
 }
 

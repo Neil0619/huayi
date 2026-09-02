@@ -26,6 +26,7 @@ import {
 import { createExtensionSessionVault } from "./extension-session-vault.js";
 import { createExtensionPreferenceCache } from "./extension-preference-cache.js";
 import { createExternalWordbookLeaseVault } from "./external-wordbook-lease-vault.js";
+import { HUAYI_CLOUD_API_ORIGIN, HUAYI_WEB_WORKSPACE_URL } from "./cloud-build-profile.js";
 import { createProductionLocalWordImportRuntime } from "./production-local-word-import-runtime.js";
 import { createSubmissionOutbox } from "./submission-outbox.js";
 import {
@@ -51,7 +52,7 @@ import { broadcastSettingsRefresh } from "./settings-refresh-broadcaster.js";
 import { createChromeStoreAppearance } from "./store-appearance.js";
 import { createChromeStoreSettings } from "./store-settings.js";
 import { handleStoreMessage } from "./store-message-handler.js";
-import { HUAYI_WEB_WORKSPACE_URL, handleOpenWebWorkspace } from "./web-workspace-handler.js";
+import { handleOpenWebWorkspace } from "./web-workspace-handler.js";
 import { handleShanbayMessage } from "./shanbay-message-handler.js";
 import {
   handleSitePolicyMessage,
@@ -68,7 +69,6 @@ const analysisEngine = createProductionAnalysisEngine(deviceVault);
 const storeAppearance = createChromeStoreAppearance(chrome.storage.local);
 const storeSettings = createChromeStoreSettings(chrome.storage.local);
 const lexiconRepository = createProductionLexiconRepository();
-const HUAYI_CLOUD_API_ORIGIN: string | null = null;
 const STORE_CLIENT_VERSION = chrome.runtime.getManifest().version;
 const cloudClients = createProductionCloudClients(
   HUAYI_CLOUD_API_ORIGIN,

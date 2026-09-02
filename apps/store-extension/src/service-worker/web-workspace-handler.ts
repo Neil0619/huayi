@@ -4,8 +4,6 @@ import {
   type StoreOpenWebWorkspaceResponse,
 } from "@huayi/store-domain";
 
-export const HUAYI_WEB_WORKSPACE_URL: string | null = null;
-
 export async function handleOpenWebWorkspace(
   message: unknown,
   senderId: string | undefined,

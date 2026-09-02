@@ -728,8 +728,33 @@ Web-only 快捷路径。入口为：
 3. `...:preflight` 及四个 `...:{api,web}:{arm:observe,disarm:verify}`：使用固定独立 confirmation，逐阶段
    写入 clone-local state，但本身仍不会修改 Vercel policy、commit、push 或创建 deployment。
 
-控制面、本地 GREEN 或凭据可用均不是部署授权或 Hosted 完成证据。真实 diagnose/preflight、四次独立
-arm/disarm commit 与 push、exact-SHA 双平台 CI 和最终线上回读继续逐项取得明确批准。
+该历史控制面现已完成：`421e593` 控制提交之后，API arm `33c9bda` → API disarm `9f789cb` → Web arm
+`993fb43` → Web disarm `f562416` 已按序推送并完成真实 observe/verify，最终线上回读通过且两个项目恢复
+`deploymentEnabled=false`。Phase 94 state 已是不可重放的 `complete`；后续发布不得再次调用本节入口。
+
+### 6.9 常规 Hosted acceptance exact-SHA 发布协调器
+
+Phase 94 完整收口并保持 API/Web `deploymentEnabled=false` 后，后续普通验收版本不重放旧 one-shot
+state，也不再以四次 arm/disarm 提交推进。仓库使用 `acceptance:hosted:release:{plan,status,advance,recover}`
+绑定一个 `hosted-acceptance-<40-char-sha>` release ID，并把以下步骤作为同一可恢复状态机：
+
+1. clean/disarmed 当前提交 → 本机完整 macOS 门；
+2. 只推送该提交 → 以必填 `candidate_sha`、`release_id` 派发唯一 Cross-platform quality run；
+3. 同一 SHA 的 macOS/Windows job 全绿 → 只 upsert API 的 Store capability、最低版本和固定 Extension ID；
+4. 用 GitHub `repoId + branch + exact sha` 创建 API production deployment，Ready 后才创建 Web；
+5. 回读 exact deployment metadata、API release headers、固定 Extension origin CORS 和 Web release meta 后
+   才进入 `complete`。
+
+状态只保存在 clone-local 私有目录；每个可能产生远端副作用的请求前先写 uncertainty phase。中断后
+`recover` 只认同一 release ID/candidate SHA 的唯一 workflow 或 deployment，不能新建第二份来掩盖不确定
+结果。协调器不运行数据库迁移、备份、Cron、真实 Provider 或浏览器操作；这些继续使用各自批准、证据与
+恢复合同。环境变量更新只影响后续 deployment，因此配置完成后必须仍按 API→Web 创建新部署并做运行时
+证明。
+
+Hosted Store 使用独立 `manifest.hosted-acceptance.json` 和构建 profile：API/Web origin 固定为
+`api.acceptance.seen-said.cn` / `app.acceptance.seen-said.cn`，公开 manifest key 派生稳定 ID
+`hoijjhgcckfhbcefoclgbhkgninnkknd`。release manifest 不获得 Hosted host permission/CSP，也不能把该开发
+profile 当成 Chrome Web Store 候选。
 
 ## 7. TDD 与验收标准
 

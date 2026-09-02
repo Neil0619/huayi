@@ -22,6 +22,17 @@ test("workflow assertions normalize Windows checkout line endings", () => {
 test("cross-platform workflow runs both offline platform gates with pinned runtimes", async () => {
   const workflow = await readWorkflow();
 
+  assert.match(workflow, /^run-name: Cross-platform quality \/ /m);
+  assert.match(workflow, /^\s{4}inputs:$/m);
+  assert.match(workflow, /^\s{6}candidate_sha:$/m);
+  assert.match(workflow, /^\s{6}release_id:$/m);
+  assert.match(workflow, /ref: \$\{\{ inputs\.candidate_sha \|\| github\.sha \}\}/);
+  assert.equal(workflow.match(/run: node scripts\/assert-ci-candidate\.mjs/g)?.length, 2);
+  assert.match(workflow, /inputs\.release_id \|\| github\.ref_name/);
+  assert.match(
+    workflow,
+    /cancel-in-progress: \$\{\{ github\.event_name != 'workflow_dispatch' \}\}/,
+  );
   assert.match(workflow, /^permissions:\n\s{2}contents: read$/m);
   assert.match(workflow, /^\s{2}macos-quality:$/m);
   assert.match(workflow, /^\s{4}runs-on: macos-latest$/m);
@@ -46,6 +57,7 @@ test("cross-platform workflow never performs privileged or paid runtime operatio
   assert.doesNotMatch(workflow, /host:uninstall/);
   assert.doesNotMatch(workflow, /host:(?:eudic|openai|deepseek|compatible):/);
   assert.doesNotMatch(workflow, /secrets\./);
+  assert.doesNotMatch(workflow, /VERCEL_TOKEN|SUPABASE_ACCESS_TOKEN|DEEPSEEK_API_KEY/);
 });
 
 test("Windows failures retain only allowlisted visual screenshot PNGs", async () => {

@@ -344,8 +344,15 @@ function auditExecutable(path, contents, violations) {
 
 export async function auditStoreRelease(
   repositoryRoot,
-  { expectedCsp = EXPECTED_CSP, expectedHosts = EXPECTED_HOSTS } = {},
+  {
+    expectedCsp = EXPECTED_CSP,
+    expectedHosts = EXPECTED_HOSTS,
+    sourceManifestName = "manifest.json",
+  } = {},
 ) {
+  if (!new Set(["manifest.hosted-acceptance.json", "manifest.json"]).has(sourceManifestName)) {
+    throw new Error("Store release source manifest is invalid.");
+  }
   const root = resolve(repositoryRoot);
   const extensionRoot = resolve(root, "apps/store-extension");
   const dist = resolve(extensionRoot, "dist");
@@ -365,7 +372,7 @@ export async function auditStoreRelease(
       violations.push(`${expected}: required package artifact is missing.`);
   }
 
-  const sourceManifestText = await readFile(resolve(extensionRoot, "manifest.json"), "utf8");
+  const sourceManifestText = await readFile(resolve(extensionRoot, sourceManifestName), "utf8");
   const packagedManifestText = await readFile(resolve(dist, "manifest.json"), "utf8");
   const sourceManifest = parseJson(sourceManifestText, "Store source manifest", violations);
   const packagedManifest = parseJson(packagedManifestText, "Store packaged manifest", violations);

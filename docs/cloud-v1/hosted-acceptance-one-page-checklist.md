@@ -5,16 +5,18 @@
 
 ## 现在停在哪里 / 你现在要做什么
 
-现在停在**账号已建立、post-relogin session 已诊断、Phase 94 部署控制面本地待提交**。0023 backup/migration、两轮
+现在停在**账号已建立、Phase 94 已完成并双关闭、新 Store/自动发布候选仍仅在本地**。0023 backup/migration、两轮
 Phase 93 Vercel 部署、fresh recovery readiness、同一邀请 token recovery、一次六位码重发、注册 completion
 snapshot 与密码重登均已有真实结果；`account_finalized_exact|t`、`safe_route_state|account-established`。
 正式 post-relogin 诊断已证明目标账号唯一 Web session 已 revoked、活动数为 0，其他三个活动 Web session
 全部属于 Operator，最终 verdict 为 `other-active-only`；此前浏览器页面不是目标账号活动 session 的证据。
 
-数据库进程 PATH 修复已本地提交为 `6aee25e`，正式诊断可直接使用 Keychain 且不再提示密码。独立 Phase 94
-控制面已本地实现 20/13 baseline、fresh-CSRF 历史 completion gate、plan/diagnose/preflight 与完整 API→Web
-串行入口，新 state 仍 absent。下一步先完成本阶段离线全门、commit/push 与 exact-SHA 双平台质量门；随后
-真实 diagnose/preflight 和每个 arm/disarm 仍分别批准。目标账号 session 验收只允许在隔离浏览器上下文
+Phase 94 已完成 exact-SHA API→Web 上线、最终回读和双项目 disarm，旧 state 不得重放。新候选已在本地实现
+固定 Hosted Store ID/profile、直接消费 Keychain 的 DeepSeek production loader，以及可恢复的
+plan/status/advance/recover 发布协调器；但尚未 commit、push、运行新双平台 CI 或部署，Hosted Store
+capability 仍 disabled。下一步先完成本地全门并冻结候选，再单独批准本次 push/deployment；协调器会等待
+同一 SHA 的 macOS/Windows CI 后串行部署 API→Web。部署后才加载真实 Chrome、配对并依次关闭下面的业务门。
+目标账号 session 验收只允许在隔离浏览器上下文
 重新登录后，在普通 macOS Terminal 复跑：
 
 ```text
@@ -49,9 +51,9 @@ UUID 或 token，也不写数据库；结果只用于区分目标账号活动 se
 - **0016–0021 边界**：Hosted DeepSeek 0016–0021 已完成 `applied-exact` 与独立 pre/rebuild/post completion；
   该 batch 保持不可变，不得重跑 apply、覆盖备份或用作 Phase 92 evidence。0022 另用
   `phase-92-0022-expired-invitation-recovery` batch。
-- **Vercel one-shot**：Phase 92、Phase 93 与独立 fresh-CSRF 的 API arm/observe → API disarm/verify →
-  Web arm/observe → Web disarm/verify 均已完成，两个项目均已关闭，历史 state 全部不可重放。当前 UI 候选
-  必须新增独立 state、固定当前真实 baseline 并重新批准完整串行门，不能重跑旧命令或只跑其中一步。
+- **Vercel one-shot**：Phase 92、Phase 93、独立 fresh-CSRF 与 Phase 94 的 API arm/observe → API
+  disarm/verify → Web arm/observe → Web disarm/verify 均已完成，两个项目均已关闭，历史 state 全部不可
+  重放。后续普通候选只使用新的 release coordinator/state，不能调用旧命令或只重跑其中一步。
 - **身份**：不得创建第二张普通邀请、删除现有 Auth user、重做 First Operator、bootstrap 或用 SQL 绕过。
 
 ## 1. Auth 与六位 OTP

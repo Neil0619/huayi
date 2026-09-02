@@ -30,9 +30,11 @@ loopback-only runtime、生成式 secret/bootstrap、受信任 HTTPS Web/API/Sup
   migration 的前向升级也已实际完成；
 - API 的 host-only `Secure; SameSite=Lax` session Cookie 与两个独立 Vercel project URL 不能组成可靠的
   跨站浏览器会话；把 Cookie 改为 `SameSite=None` 会引入第三方 Cookie 依赖，不作为修复；
-- Store acceptance build 与 API/Web/CSP 配置已经具备，服务器侧 ExtensionQuery、StudyCapture、
-  CloudWordCopy 和断开已在 production 本机服务实际通过；真实 Chrome 安装、vault、离线 outbox、UI、
-  普通网页/YouTube 与稳定发布 Extension ID 仍待手工验收；
+- Store acceptance build 已使用独立公开 key 固定 ID
+  `hoijjhgcckfhbcefoclgbhkgninnkknd`，并精确绑定 Hosted API/Web/host/CSP；服务器侧 ExtensionQuery、
+  StudyCapture、CloudWordCopy 和断开已在 production 本机服务实际通过。该 profile 与 release manifest
+  隔离，但新候选尚未 commit/push/deploy，远端 capability 仍 disabled；真实 Chrome 加载、vault、离线
+  outbox、UI、配对、普通网页/YouTube 仍待手工验收；
 - bootstrap `0001` 与 `0002`–`0011` 均已有 API/Supabase 镜像并在不重置当前库的前提下真实前向升级；
   `0009` 已改为可在 current baseline 后重放，完整链有自动测试和真实 Supabase 空库证据。固定虚构 seed
   与 destructive reset 已真实重建；仍待发布前 production rollback 演练；
@@ -50,11 +52,11 @@ loopback-only runtime、生成式 secret/bootstrap、受信任 HTTPS Web/API/Sup
   hosted-acceptance 外部门禁，不能被 fake mail、域名验证或配置完成冒充为真实投递完成。
 
 因此当前状态为
-`hosted API/Web deployed and disarmed; important-batch evidence and real acceptance pending`。本机核心学习
-闭环、持续重启和服务端 Store 契约已通过，托管 Auth 与环境结构也已配置；API `/health` 与 Web custom-domain
-入口均已有受控 Ready deployment，最新 source 分别为 `4f1ce4a` 与 `9b0860a`，且两个项目当前都
-`deploymentEnabled=false`。这仍不得被解释为重要批次备份、0014、真实 OTP/Provider、Chrome 或 production
-ready。
+`Phase 94 deployed and disarmed; Store/release candidate local; real acceptance pending`。本机核心学习闭环、
+持续重启和服务端 Store 契约已通过，托管 Auth 与环境结构也已配置；Phase 94 API/Web 已完成受控 Ready
+deployment 与最终回读，两个项目当前仍 `deploymentEnabled=false`。新候选只有在本地全门、提交、精确
+SHA 双平台 CI、明确批准和 API→Web 串行部署完成后才能启用 Hosted Store；这仍不得被解释为真实通知、
+Cron、DeepSeek、Chrome、Chrome Web Store 或 production ready。
 
 ## 3. 推荐拓扑
 

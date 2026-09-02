@@ -77,19 +77,19 @@ test("DeepSeek plan is fixed, zero-I/O, Cloud-Web-only, and does not instantiate
   );
   assert.equal(
     packageDocument.scripts["acceptance:hosted:deepseek:plan"],
-    "node scripts/acceptance-hosted-deepseek-one-shot.mjs plan",
+    "node scripts/acceptance-hosted-deepseek-one-shot-cli.mjs plan",
   );
   assert.equal(
     packageDocument.scripts["acceptance:hosted:deepseek:status"],
-    "node scripts/acceptance-hosted-deepseek-one-shot.mjs status",
+    "node scripts/acceptance-hosted-deepseek-one-shot-cli.mjs status",
   );
   assert.equal(
     packageDocument.scripts["acceptance:hosted:deepseek:execute"],
-    "node scripts/acceptance-hosted-deepseek-one-shot.mjs execute",
+    "node scripts/acceptance-hosted-deepseek-one-shot-cli.mjs execute",
   );
   assert.equal(
     packageDocument.scripts["acceptance:hosted:deepseek:recover"],
-    "node scripts/acceptance-hosted-deepseek-one-shot.mjs recover",
+    "node scripts/acceptance-hosted-deepseek-one-shot-cli.mjs recover",
   );
 });
 

@@ -83,6 +83,12 @@ health 验证会把 `.exe` 复制到仓库外的临时目录，清除 `NODE_PATH
 产品测试必须离线；生产依赖审计只查询包管理器安全公告，不运行扩展或 Provider/词典请求。真实
 smoke、安装和凭据操作不在两个命令中。
 
+Hosted acceptance 常规发布的 workflow_dispatch 额外要求 `candidate_sha` 和 `release_id`，两个 job 都用
+该 SHA checkout 并在质量门前自证，不能依赖触发时分支 HEAD。macOS login Keychain 与发布协调器只属于
+macOS 操作者集成；其共享合同必须用 fake credential/process/HTTP 在两平台验证。发布协调器先本地运行
+`verify:macos`，push 后等待同一 release/SHA 的 macOS 与 Windows job 全绿，才允许继续 API→Web 部署。
+Windows job 未通过时状态停在 CI，不得以旧 Windows 结果、macOS 结果或重派不同 SHA 继续发布。
+
 非 Windows 根 Vitest 使用两个串行资源批次：非 API projects 最多 4 workers，API/PGlite 最多
 2 workers 并仅为该批次设置 15 秒 test/hook timeout；Windows 的既有逐 project 命令保持不变。
 Windows Actions job 只有失败时才上传四个固定 lexical ResultCard actual/diff PNG，保留 1 天；不得

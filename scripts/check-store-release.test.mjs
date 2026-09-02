@@ -116,6 +116,34 @@ test("release audit accepts one explicitly reviewed Cloud API host without chang
   });
 });
 
+test("release audit can bind an acceptance package to its separate reviewed source manifest", async () => {
+  await withReleaseFixture(async (root, distDirectory) => {
+    const apiOrigin = "https://api.acceptance.seen-said.cn";
+    const acceptanceManifest = {
+      ...manifest,
+      content_security_policy: {
+        extension_pages: `${manifest.content_security_policy.extension_pages} ${apiOrigin}`,
+      },
+      host_permissions: [...manifest.host_permissions, `${apiOrigin}/*`],
+      key: "public-development-key",
+    };
+    await writeFile(
+      join(root, "apps/store-extension/manifest.hosted-acceptance.json"),
+      JSON.stringify(acceptanceManifest),
+    );
+    await writeFile(join(distDirectory, "manifest.json"), JSON.stringify(acceptanceManifest));
+
+    assert.deepEqual(
+      await auditStoreRelease(root, {
+        expectedCsp: acceptanceManifest.content_security_policy.extension_pages,
+        expectedHosts: acceptanceManifest.host_permissions,
+        sourceManifestName: "manifest.hosted-acceptance.json",
+      }),
+      [],
+    );
+  });
+});
+
 test("release audit rejects extra artifacts, remote executable code, and Classic markers", async () => {
   await withReleaseFixture(async (root, distDirectory) => {
     await writeFile(join(distDirectory, "host-installer.js"), "nativeMessaging codex");

@@ -227,6 +227,13 @@ owner context、generation/reservation 归属、task 成功或失败终态、价
 - Hosted Token 只进入本次操作内存与固定 HTTP Authorization header。数据库密码只进入 `0700` 临时目录
   的 `0600 .pgpass`；子进程只取得 `PGPASSFILE`，成功、失败、timeout 和终止信号后均清理。Keychain
   `present/available` 不是连接、migration、backup、restore、Cron、deployment 或 smoke 的授权。
+- Hosted DeepSeek one-shot 的 HMAC keyring 使用同一 Keychain service 下独立的内部 account
+  `deepseek-one-shot-hmac-keyring`，不从数据库密码、PAT 或 Vercel Token 派生。keyring 只保存 active 与有界
+  retained version，执行器可在明确 execute 时首次创建，recover 缺失时失败关闭，status 不读取密钥。
+- Hosted release state 只允许固定 candidate/release/workflow/deployment identity 与 phase，不保存凭据、
+  URL、远端正文或环境值。Vercel Token 仅在当前进程 HTTP header 中；质量门子进程获得显式 allowlist
+  environment，不继承数据库密码、PAT、Token 或 Provider key。acceptance Store manifest/profile 与公开
+  release manifest 分离，后者不得获得 Hosted origin 权限或 acceptance key。
 - BYOK 与欧路凭据只存在 Extension DeviceVault，并只发给用户选择的固定供应商 origin。Huayi API
   不接受这些字段，strict schema 会拒绝 `apiKey`、`authorization`、`baseUrl` 和任意 Header。
 - BYOK 模型路由与 Huayi 数据动作分别授权。账号 mode=byok 不代表 Huayi 自动收不到用户主动开启的

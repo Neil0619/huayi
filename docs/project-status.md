@@ -85,6 +85,20 @@ wire 版本或完成声明。
 
 ## Cloud V1 当前状态（2026-08-14）
 
+### 2026-09-02：Hosted acceptance Store 与可恢复发布候选
+
+- Phase 94 已以 exact SHA 完成 API→Web 部署、最终远端回读和双项目 disarm；当前 upstream/HEAD 为
+  `f562416344690678b8c92b625e8aa7100d66605a`。旧 Phase 94 state 不可重放。
+- 当前本地工作树新增 Hosted acceptance-only Store profile，固定 ID
+  `hoijjhgcckfhbcefoclgbhkgninnkknd`、固定 API/Web origin，并保持 Chrome Web Store release manifest 不变；
+  真实 Chrome 加载、配对与普通网页/YouTube 旅程尚未执行。
+- 当前本地工作树新增可恢复 release plan/status/advance/recover：完整 macOS 门 → 精确候选 push → 同一
+  SHA/Release ID 的 macOS+Windows CI → 固定 API capability → API Ready → Web Ready → runtime postflight。
+  这批改动尚未 commit、push 或部署，远端 capability 仍 disabled，不能按当前 Hosted 使用 Store。
+- Hosted DeepSeek one-shot production loader、独立 Keychain HMAC keyring、authority warmup/no-PII snapshot
+  与 Cron through-0023 修复也在同一本地候选中；尚未执行真实 DeepSeek 请求，本次用户给出的最多 30 次
+  权限仍未消耗。R3-C 真实邮件、五项 Cron、Chrome、目标账号 session 与跨多日业务验收仍未关闭。
+
 ### 2026-09-02：C/G/H/I 全量 UI 实现候选
 
 - 全站 293/293 原型已获批准，生产实现固定为同一 C 布局与四套明亮外观：去青月白 `moon`、
@@ -2156,14 +2170,13 @@ passed; first Operator empty`。候选已提交推送，0012 已实际 push；�
   Operator，最终 `diagnostic_verdict|other-active-only`。因此此前浏览器页面不能证明目标普通账号密码重登后的
   session；不得重发 OTP、轮换邀请或创建账号，下一次只允许在隔离浏览器上下文完成目标账号登录后复跑诊断。
 
-### Phase 94 当前多外观 UI Hosted 部署控制面（2026-09-02，本地候选）
+### Phase 94 当前多外观 UI Hosted 部署控制面（2026-09-02，已完成）
 
-- `6aee25e` 已在本地提交 Hosted `psql` PATH 修复和上述状态同步，尚未推送；正式 post-relogin 诊断已用
-  Keychain 凭据真实证明修复有效，且未再次要求输入密码；
-- 当前多外观 UI 新增独立 `phase-94-multi-appearance-ui` one-shot state，使用 fresh-CSRF exact completion
-  validator 固定历史 candidate、四个 arm/disarm commit、config identities 与两条 Ready deployment；
-- Phase 94 固定当前只读观察的 API/Web 20/13 非 Canceled baseline，并继续完整 API→Web 串行门；不提供
-  Web-only 快捷路径，不删除、覆盖或重放旧四份 state；
-- 聚焦 one-shot 回归 53/53、历史 completion 本地真实验证和零 I/O plan 均通过，新 Phase 94 state 仍 absent。
-  当前控制面尚未 commit/push，也未运行本阶段完整质量门、exact-SHA 双平台 CI、真实 diagnose/preflight 或
-  任一 arm/disarm；这些完成前不能声明当前 UI 已部署。
+- `6aee25e` 的 Hosted `psql` PATH 修复与 `421e593` 的独立 Phase 94 控制面均已提交推送；正式
+  post-relogin 诊断使用 Keychain 且未再次要求输入数据库密码或 Token；
+- Phase 94 使用独立 `phase-94-multi-appearance-ui` one-shot state 和 fresh-CSRF exact completion validator，
+  固定 20/13 baseline；历史 Phase 81/92/93/fresh-CSRF state 未删除、覆盖或重放；
+- API arm `33c9bda` → API disarm `9f789cb` → Web arm `993fb43` → Web disarm `f562416` 已按完整串行门
+  执行，API/Web 均取得目标 Ready deployment、最终回读、零 in-flight 和 disarmed；
+- 当前 HEAD/upstream 精确为 `f562416344690678b8c92b625e8aa7100d66605a`。Phase 94 state 已 complete，
+  不得再次 diagnose/preflight、重放 arm/disarm 或把旧 state 用于后续普通发布。

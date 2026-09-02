@@ -14,7 +14,7 @@ import {
   runHostedCronCli,
 } from "./acceptance-hosted-cron.mjs";
 import {
-  hostedAcceptanceMigrationVersions,
+  hostedAcceptanceMigrationVersionsThrough0023,
   hostedAcceptancePoolerUrl,
 } from "./acceptance-hosted-foundation.mjs";
 import {
@@ -95,9 +95,10 @@ test("hosted Cron status SQL is one read-only transaction with fixed safe aggreg
   assert.match(sql, /function_safety\.installable[\s\S]*schema_acl\.contract_exact/u);
   assert.match(sql, /\\if :cron_catalog_ready/u);
   assert.match(sql, /\\if :vault_catalog_ready/u);
-  for (const migration of hostedAcceptanceMigrationVersions) {
+  for (const migration of hostedAcceptanceMigrationVersionsThrough0023) {
     assert.match(sql, new RegExp(migration, "u"));
   }
+  assert.match(sql, /20260831010000/u);
   for (const name of hostedCronStatusFieldNames) {
     assert.match(sql, new RegExp(`'${name}'`, "u"));
   }

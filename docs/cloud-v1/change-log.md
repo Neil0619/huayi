@@ -3,6 +3,20 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-09-02：Hosted acceptance 固定 Store 身份并采用可恢复 exact-SHA 发布
+
+- Hosted Store 使用独立公开 manifest key、固定 ID `hoijjhgcckfhbcefoclgbhkgninnkknd` 和 acceptance-only
+  API/Web origin/host/CSP；release manifest 保持无 Hosted 权限，开发加载不等于 Chrome Web Store 发布；
+- 常规验收发布绑定一个 clean candidate SHA 和确定性 release ID，先本机完整门，再 push 并派发同 SHA 的
+  macOS/Windows workflow；双平台全绿后只配置固定 Store capability，严格串行 API→Web exact-SHA 部署和
+  runtime attestation；
+- 编排状态以私有 canonical 文件在 mutation boundary 前持久化。中断后的 recover 只复用同 release/SHA 的
+  唯一 workflow/deployment，不盲目重发；migration、backup、Cron、真实 DeepSeek 与 Chrome 旅程仍是独立
+  批准和验收门；
+- DeepSeek one-shot 生产入口改为直接消费固定 Hosted Keychain 凭据，并使用独立可保留历史版本的 HMAC
+  keyring；数据库 authority 先 warm up 再诊断，Cron manifest 前移到 through-0023。默认测试全部使用 fake
+  Keychain/process/HTTP 或 PGlite，不读取真实钥匙串、不联网。
+
 ## 2026-09-02：当前多外观 UI 使用独立 Phase 94 严格串行部署门
 
 - 已完成的 Phase 81、92、93 与 fresh-CSRF one-shot state 全部保持不可重放；当前多外观 UI 使用独立

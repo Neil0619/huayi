@@ -73,6 +73,48 @@ production 状态机；它不配置或调用真实 Provider。hosted acceptance/
 必须保留各自 Operator 控制和失败关闭策略。若分析失败后数据库出现租约已过期、未 dispatch、未
 reservation 的 `running` 请求，只调用既有恢复函数精确终态化；不得 reset、删账号或手工伪造完成记录。
 
+### Hosted acceptance 自动发布 SOP
+
+Hosted acceptance 的常规代码发布由一个可恢复协调器串行完成，入口固定为：
+
+```bash
+pnpm acceptance:hosted:release:plan
+pnpm acceptance:hosted:release:status
+pnpm acceptance:hosted:release:advance
+pnpm acceptance:hosted:release:recover
+```
+
+`plan` 为零 I/O；`status` 只读当前 clean candidate 与 clone-local state。`advance` 是需要单独明确批准的
+远端变更：它绑定当前 `codex/settings-configuration` 的唯一 clean commit，运行完整
+`pnpm verify:macos`，只推送该 SHA，再以 `candidate_sha + release_id` 派发唯一 Cross-platform quality
+workflow。只有同一 SHA 的 macOS/Windows job 都成功后，协调器才把 Hosted API 的三个固定公开能力值
+设置为 Store `1.0.0` / enabled / 固定 acceptance Extension ID，然后严格按 API Ready → Web Ready 顺序
+创建 exact-SHA production deployment，最后回读两个 deployment identity、API health、Extension CORS
+和 Web deployment metadata。不会并行部署 API/Web，也不会依赖 Vercel Git 自动部署。
+
+每个边界写入 ignored 的
+`artifacts/hosted-release/hosted-acceptance-<candidate-sha>/state.json`；目录为 `0700`、文件为 `0600`，
+只包含 SHA、release/workflow/deployment ID 与 phase，不含 Token、环境变量或响应正文。在
+CI dispatch、环境 upsert 或 deployment create 这类“请求可能已成功但本机尚未记账”的边界中断后，
+普通 `advance` 必须失败，只有 `recover` 可通过 release metadata 查找唯一既有远端对象并续跑；找不到
+或找到多个都失败关闭，不能盲目重发。
+
+该协调器不执行 migration、backup、Cron、DeepSeek 请求或 Chrome 旅程，也不把部署完成解释为业务验收
+完成。Vercel Token 只从 login Keychain 进入 Authorization header；任何旧明文 secret 环境变量都在外联
+前失败。首次真实发布前仍需提交本地候选并取得本次 push/deployment 的明确批准。
+
+发布完成后，验收用户在同一 exact SHA 运行：
+
+```bash
+pnpm acceptance:hosted:store:build
+pnpm acceptance:hosted:store:status
+```
+
+随后在 Chrome `chrome://extensions` 开启开发者模式，选择“加载已解压的扩展程序”，加载
+`apps/store-extension/dist`。页面显示的 ID 必须为 `hoijjhgcckfhbcefoclgbhkgninnkknd`；再登录
+`https://app.acceptance.seen-said.cn` 并按 Web 配对流程连接。该 acceptance profile 与 Chrome Web Store
+release manifest 隔离，不表示已上架，也不安装或替换 Classic Native Host。
+
 ### Hosted acceptance foundation 运行手册
 
 首次使用任何 Hosted/Vercel 运维入口前，在 macOS login Keychain 配置四项固定基础设施凭据：
