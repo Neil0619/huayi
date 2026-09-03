@@ -37,6 +37,9 @@ const stateV1Keys = Object.freeze([
   "webDeploymentId",
 ]);
 const stateV2Keys = Object.freeze([...stateV1Keys, "releaseAttemptId"]);
+const stateV3Keys = Object.freeze([...stateV2Keys, "provenance"]);
+const ordinaryReleaseProvenance = "ordinary-release";
+export const hostedCronBootstrapReleaseProvenance = "cron-bootstrap-provision";
 
 function fail() {
   throw new Error("Hosted acceptance release state failed closed.");
@@ -81,13 +84,18 @@ function evidenceIsValid(state, phaseIndex) {
 
 export function validateHostedReleaseState(state) {
   try {
-    const expectedKeys = state?.schemaVersion === 1 ? stateV1Keys : stateV2Keys;
+    const expectedKeys =
+      state?.schemaVersion === 1
+        ? stateV1Keys
+        : state?.schemaVersion === 2
+          ? stateV2Keys
+          : stateV3Keys;
     if (
       typeof state !== "object" ||
       state === null ||
       Array.isArray(state) ||
       Object.keys(state).sort().join("|") !== [...expectedKeys].sort().join("|") ||
-      ![1, 2].includes(state.schemaVersion) ||
+      ![1, 2, 3].includes(state.schemaVersion) ||
       state.branch !== hostedReleaseBranch ||
       typeof state.candidateSha !== "string" ||
       !commitPattern.test(state.candidateSha) ||
@@ -99,7 +107,13 @@ export function validateHostedReleaseState(state) {
     ) {
       fail();
     }
-    if (state.schemaVersion === 2 && !validHostedReleaseAttemptId(state.releaseAttemptId)) fail();
+    if (state.schemaVersion >= 2 && !validHostedReleaseAttemptId(state.releaseAttemptId)) fail();
+    if (
+      state.schemaVersion === 3 &&
+      ![ordinaryReleaseProvenance, hostedCronBootstrapReleaseProvenance].includes(state.provenance)
+    ) {
+      fail();
+    }
     const phaseIndex = hostedReleasePhases.indexOf(state.phase);
     if (phaseIndex < 0 || !evidenceIsValid(state, phaseIndex)) fail();
     return Object.freeze({ ...state });
@@ -108,7 +122,7 @@ export function validateHostedReleaseState(state) {
   }
 }
 
-export function createHostedReleaseState({ candidateSha, now, releaseAttemptId }) {
+function createCurrentHostedReleaseState({ candidateSha, now, provenance, releaseAttemptId }) {
   return validateHostedReleaseState({
     apiDeploymentId: null,
     branch: hostedReleaseBranch,
@@ -116,11 +130,30 @@ export function createHostedReleaseState({ candidateSha, now, releaseAttemptId }
     ciRunId: null,
     createdAt: now,
     phase: "candidate-recorded",
+    provenance,
     releaseAttemptId,
     releaseId: releaseIdForCandidate(candidateSha),
-    schemaVersion: 2,
+    schemaVersion: 3,
     updatedAt: now,
     webDeploymentId: null,
+  });
+}
+
+export function createHostedReleaseState({ candidateSha, now, releaseAttemptId }) {
+  return createCurrentHostedReleaseState({
+    candidateSha,
+    now,
+    provenance: ordinaryReleaseProvenance,
+    releaseAttemptId,
+  });
+}
+
+export function createHostedCronBootstrapReleaseState({ candidateSha, now, releaseAttemptId }) {
+  return createCurrentHostedReleaseState({
+    candidateSha,
+    now,
+    provenance: hostedCronBootstrapReleaseProvenance,
+    releaseAttemptId,
   });
 }
 

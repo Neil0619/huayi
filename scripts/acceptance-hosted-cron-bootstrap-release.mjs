@@ -1,6 +1,7 @@
 import {
+  createHostedCronBootstrapReleaseState,
   createHostedReleaseAttemptId,
-  createHostedReleaseState,
+  hostedCronBootstrapReleaseProvenance,
   hostedReleaseBranch,
   validateHostedReleaseState,
 } from "./acceptance-hosted-release-contract.mjs";
@@ -63,9 +64,10 @@ export async function createHostedCronBootstrapReleaseGate({
         if (!exactCandidate(current, candidateSha)) fail();
         const state = validateHostedReleaseState(await stateStore.read());
         if (
-          state.schemaVersion !== 2 ||
+          state.schemaVersion !== 3 ||
           state.candidateSha !== candidateSha ||
-          state.phase !== "complete"
+          state.phase !== "complete" ||
+          state.provenance !== hostedCronBootstrapReleaseProvenance
         ) {
           fail();
         }
@@ -89,7 +91,7 @@ export async function createHostedCronBootstrapReleaseGate({
         if (typeof release !== "function" || (await stateStore.read()) !== undefined) fail();
         const current = await inspectCandidate({ repositoryRoot });
         if (!exactCandidate(current, candidateSha)) fail();
-        const state = createHostedReleaseState({
+        const state = createHostedCronBootstrapReleaseState({
           candidateSha,
           now: now(),
           releaseAttemptId: createReleaseAttemptId(),

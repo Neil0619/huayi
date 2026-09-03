@@ -65,8 +65,8 @@ export function renderHostedCronBootstrapPlan() {
 - Requires either one claimable password recovery before the first reset or one claimable R3-C notification, with no installed Cron surface.
 - Fixed order: provision -> exact-SHA API release -> recovery -> user password reset -> deliver -> user inbox confirmation -> Cron apply.
 - Provision creates or reuses one 64-character lowercase-hex Vault bearer, sends it only in memory to Vercel Sensitive Production configuration, and never prints it.
-- Provision reserves an unused exact-SHA schema-v2 release state with a random attempt identity after the environment upsert.
-- The release force-creates attempt-bound deployments; delivery freshly attests their IDs before reading Vault, and rejects legacy state.
+- Provision reserves an unused exact-SHA schema-v3 release state with cron-bootstrap-provision provenance and a random attempt identity after the environment upsert.
+- The release force-creates attempt-bound deployments; delivery freshly attests their IDs before reading Vault, and rejects ordinary or legacy state.
 - Recovery and deliver read the bearer into bounded process memory, run the normal product worker twice, and require sent then idle to prove idempotent handling.
 `;
 }

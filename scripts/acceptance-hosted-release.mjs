@@ -28,7 +28,7 @@ export function renderHostedReleasePlan() {
     "2. Run the complete local macOS quality gate, then push only that candidate.",
     "3. Dispatch one release-ID-bound Cross-platform quality run for macOS and Windows.",
     "4. Enable the fixed acceptance Store capability without reading or replacing other variables.",
-    "5. Persist a random release attempt and force-create the exact candidate on API then Web.",
+    "5. Persist a random release attempt with ordinary-release provenance, then force-create the exact candidate on API and Web.",
     "6. Reconcile only that attempt, then attest both deployment IDs and Extension CORS.",
     "7. Persist every boundary under artifacts/hosted-release/<release-id>/state.json.",
     "Interrupted mutation boundaries require recover; ordinary advance never guesses.",

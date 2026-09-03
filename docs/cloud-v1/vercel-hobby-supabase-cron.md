@@ -89,15 +89,17 @@ Hosted acceptance 不再要求用户把本文件的长 SQL 粘贴到 Dashboard�
   两个固定 Vault 名称；bearer 固定为 64 个小写十六进制字符，只在本进程内送入 Vercel
   `CRON_SECRET` 的 Production Sensitive upsert。写入响应必须零 failed、恰好一个精确对象，再回读
   名称/type/target；任何响应不确定都固定失败。provision 持有该 clean/pushed/disarmed exact SHA 的 release
-  lock，要求此前不存在任何 release state，并只在 upsert 成功后写带随机 `releaseAttemptId` 的 schema-v2
-  `candidate-recorded`；随后必须从该 state 以 `forceNew=1` 新建 metadata 精确匹配该 attempt 的 API
+  lock，要求此前不存在任何 release state，并只在 upsert 成功后写带随机 `releaseAttemptId` 且
+  `provenance=cron-bootstrap-provision` 的 schema-v3 `candidate-recorded`；随后必须从该 state 以
+  `forceNew=1` 新建 metadata 精确匹配该 attempt 的 API
   deployment，旧 `complete` 或另一个 clone 发现的旧同 SHA/release deployment 都不能复用；只有 create
   响应丢失后才按 attempt 回读对账；
 - `pnpm acceptance:hosted:cron:bootstrap:recovery:deliver
 --confirm-deliver-hosted-password-recovery-after-secret-release-kpadiulxkgckskcfydry` 从 Vault 读取同一值，
   调用密码恢复 worker 并要求 `sent → idle`，随后用不含邮箱、owner、flow 或密文的四项聚合确认唯一
-  recovery 为 sent；执行前必须重新核对同一 SHA 的 attempt-bearing schema-v2 release 已 `complete` 且公开
-  API/Web runtime attestation 通过，缺失/未完成/漂移/legacy state 在读取 Vault 前失败；already-sent 重跑
+  recovery 为 sent；执行前必须重新核对同一 SHA 的 bootstrap-provenance schema-v3 release 已 `complete`
+  且公开 API/Web runtime attestation 通过，缺失/未完成/漂移/普通 release/legacy schema-v1/v2 state 在读取
+  Vault 前失败；already-sent 重跑
   只接受一次 `idle`；用户随后打开最新邮件并完成改密；
 - `pnpm acceptance:hosted:cron:bootstrap:deliver
 --confirm-deliver-hosted-r3c-after-secret-release-kpadiulxkgckskcfydry` 从 Vault 在有界进程内读取该值，调用

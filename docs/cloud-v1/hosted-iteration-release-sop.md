@@ -94,12 +94,14 @@ pnpm acceptance:hosted:release:status
 
 公开 `/recover` 的 202 只证明队列接受；只有 recovery 命令成功及只读 postflight 的 `sent` 才证明
 Supabase Auth 接受发送。重复提交会终结同账号旧 flow，因此操作者不得用反复点击代替 worker 诊断。
-provision 持有 release lock 直到 Vercel upsert 成功并原子写入带随机 `releaseAttemptId` 的 schema-v2
-`candidate-recorded`；同一 SHA 已有任何 release state（尤其旧 `complete`）时都在 Vault/Vercel 写入前失败，
+provision 持有 release lock 直到 Vercel upsert 成功并原子写入带随机 `releaseAttemptId` 且
+`provenance=cron-bootstrap-provision` 的 schema-v3 `candidate-recorded`；同一 SHA 已有任何 release state
+（尤其旧 `complete`）时都在 Vault/Vercel 写入前失败，
 必须使用新的冻结候选。后续 deployment 的 metadata 必须精确匹配该 attempt；即使另一个 clone 没有本地
 state，也不能复用 upsert 前的旧同 SHA/release deployment。recovery 与 R3-C deliver 都重新核对 fixed branch、
-clean、pushed/upstream、disarmed 与同 SHA attempt-bearing `complete` state，并在读取 Keychain/Vault 前执行
-公开 runtime attestation。schema-v1 complete 仍可供旧 release status 只读显示，但不能通过 bootstrap delivery。
+clean、pushed/upstream、disarmed 与同 SHA bootstrap-provenance schema-v3 `complete` state，并在读取
+Keychain/Vault 前执行公开 runtime attestation。普通 release 以及 schema-v1/v2 complete 仍可供 release
+status 只读显示，但不能通过 bootstrap delivery。
 该接续读取既有 Keychain 凭据和 Vault bearer，不新增需要用户记忆的秘密。
 
 ## 5. 凭据与证据

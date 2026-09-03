@@ -21,6 +21,7 @@ test("release plan is zero-I/O and distinguishes deployment from independent bus
   assert.equal(output, renderHostedReleasePlan());
   assert.match(output, /exact candidate SHA/u);
   assert.match(output, /random release attempt/u);
+  assert.match(output, /ordinary-release provenance/u);
   assert.match(output, /force-create/u);
   assert.match(output, /does not run migrations, Cron, DeepSeek, or Chrome journeys/u);
   assert.doesNotMatch(output, /must-not-read/u);

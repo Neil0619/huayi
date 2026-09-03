@@ -25,11 +25,13 @@
   只读探针仅输出四个聚合计数，不读取或输出邮箱、flow、owner、密文或 Provider 状态；
 - provision 创建或复用 `huayi_api_origin`/`huayi_cron_secret`，并把同一 bearer 在进程内 upsert 到 API
   Production Sensitive；provision 同时占用该 clean/pushed/disarmed exact SHA 的 release lock，要求此前没有
-  release state，并只在 upsert 成功后原子写入带随机 `releaseAttemptId` 的 schema-v2
+  release state，并只在 upsert 成功后原子写入带随机 `releaseAttemptId` 且
+  `provenance=cron-bootstrap-provision` 的 schema-v3
   `candidate-recorded`；
 - 环境 upsert 后必须由同一 state 部署同一 clean exact SHA；API/Web deployment metadata 必须精确绑定该
   attempt，不能把 clone-local state 缺失时发现的旧同 SHA/release deployment 当成本次创建。受控 deliver
-  只接受 attempt-bearing schema-v2 `complete` 并重新通过 API/Web runtime attestation，再从 Vault 读取同一值，
+  只接受 bootstrap-provenance schema-v3 `complete` 并重新通过 API/Web runtime attestation，再从 Vault
+  读取同一值；普通 release 与 legacy schema-v1/v2 state 仅保留 status 兼容，
   要求正常产品 worker 首次 `sent`、重复 `idle`，并以独立数据库快照确认 sent；响应丢失后的重跑只允许
   already-sent → idle，
   不会重发邮件或轮换 secret；

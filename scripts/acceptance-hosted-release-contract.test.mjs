@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  createHostedCronBootstrapReleaseState,
   createHostedReleaseAttemptId,
   createHostedReleaseState,
   hostedReleaseConfirmation,
@@ -44,8 +45,9 @@ test("release identity and acceptance capability are fixed by the exact candidat
 
 test("release state advances only through the fixed state machine", () => {
   const state = createHostedReleaseState({ candidateSha, now: 100, releaseAttemptId });
-  assert.equal(state.schemaVersion, 2);
+  assert.equal(state.schemaVersion, 3);
   assert.equal(state.releaseAttemptId, releaseAttemptId);
+  assert.equal(state.provenance, "ordinary-release");
   assert.equal(state.phase, "candidate-recorded");
   const local = transitionHostedReleaseState(state, {
     now: 101,
@@ -62,12 +64,24 @@ test("release state advances only through the fixed state machine", () => {
   );
 });
 
+test("Cron bootstrap release state records provision provenance", () => {
+  const state = createHostedCronBootstrapReleaseState({
+    candidateSha,
+    now: 100,
+    releaseAttemptId,
+  });
+
+  assert.equal(state.schemaVersion, 3);
+  assert.equal(state.provenance, "cron-bootstrap-provision");
+});
+
 test("release state rejects unknown fields, secrets, and invalid stage evidence", () => {
   const state = createHostedReleaseState({ candidateSha, now: 100, releaseAttemptId });
   for (const invalid of [
     { ...state, token: "private" },
     { ...state, candidateSha: "bad" },
     { ...state, releaseAttemptId: `hosted-attempt-${"z".repeat(32)}` },
+    { ...state, provenance: "cron-bootstrap" },
     { ...state, ciRunId: 123 },
     { ...state, apiDeploymentId: "dpl_private" },
     { ...state, phase: "complete" },
@@ -89,6 +103,24 @@ test("release state preserves read compatibility for a legacy schema-v1 completi
     phase: "complete",
     releaseId: `hosted-acceptance-${candidateSha}`,
     schemaVersion: 1,
+    updatedAt: 200,
+    webDeploymentId: "dpl_web_legacy_123",
+  };
+
+  assert.deepEqual(validateHostedReleaseState(legacy), legacy);
+});
+
+test("release state preserves read compatibility for an attempt-bearing schema-v2 completion", () => {
+  const legacy = {
+    apiDeploymentId: "dpl_api_legacy_123",
+    branch: "codex/settings-configuration",
+    candidateSha,
+    ciRunId: 42,
+    createdAt: 100,
+    phase: "complete",
+    releaseAttemptId,
+    releaseId: `hosted-acceptance-${candidateSha}`,
+    schemaVersion: 2,
     updatedAt: 200,
     webDeploymentId: "dpl_web_legacy_123",
   };

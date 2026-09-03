@@ -54,9 +54,10 @@ Hosted 数据库 consumer 还必须注入 fake official-CA fetch，证明固定 
 传给临时 `0600` root certificate，并且调用方不需要 CA 环境变量；默认门不得下载真实 CA。
 Hosted 首次密码恢复/Cron bootstrap 回归还必须覆盖：R3-C 为空时只接受唯一 claimable recovery；只读
 snapshot 仅有 open/claimable/sent/ambiguous 四个有界计数；provision 必须锁定此前没有 release state 的
-clean/pushed/disarmed exact SHA，upsert 成功后才写带随机 `releaseAttemptId` 的 schema-v2
-`candidate-recorded`；release 必须用 `forceNew=1` 先 create，只有响应丢失后才按 attempt 对账并忽略旧
-deployment；recovery 必须要求该 state 完整推进到 `complete`，拒绝 legacy schema-v1 complete，并在读取
+clean/pushed/disarmed exact SHA，upsert 成功后才写带随机 `releaseAttemptId` 且
+`provenance=cron-bootstrap-provision` 的 schema-v3 `candidate-recorded`；release 必须用 `forceNew=1` 先
+create，只有响应丢失后才按 attempt 对账并忽略旧 deployment；recovery 必须要求该 state 完整推进到
+`complete`，拒绝普通 release 以及 legacy schema-v1/v2 complete，并在读取
 Vault 前重新 attestation 新 API/Web deployment；
 recovery worker 要求 `sent → idle`，already-sent 仅做一次 `idle`；缺失、过期、dispatch 模糊、partial
 Cron、401/5xx、异常 JSON、继承明文 secret 与输出反射全部失败关闭。默认测试只使用 fake，不发邮件。

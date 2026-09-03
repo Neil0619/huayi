@@ -751,15 +751,16 @@ state，也不再以四次 arm/disarm 提交推进。仓库使用 `acceptance:ho
 5. 回读 exact deployment metadata、API release headers、固定 Extension origin CORS 和 Web release meta 后
    才进入 `complete`。
 
-状态只保存在 clone-local 私有目录；schema-v2 state 还持久化随机非秘密 release attempt ID，既有
-schema-v1 complete 仍可供 status 只读显示。每个可能产生远端副作用的请求前先写 uncertainty phase。中断后
+状态只保存在 clone-local 私有目录；schema-v3 state 还持久化随机非秘密 release attempt ID 和
+`ordinary-release` / `cron-bootstrap-provision` provenance，既有 schema-v1/v2 complete 仍可供 status 只读
+显示。每个可能产生远端副作用的请求前先写 uncertainty phase。中断后
 `recover` 只认同一 release ID/candidate SHA/release attempt 的唯一 workflow 或 deployment，不能新建第二份
 来掩盖不确定结果。协调器不运行数据库迁移、备份、Cron、真实 Provider 或浏览器操作；这些继续使用各自
 批准、证据与恢复合同。deployment 正常路径必须先用 `forceNew=1` 尝试 create；只有 create 响应可能丢失后
 才按 attempt metadata 对账，不能先查找并复用历史部署。环境变量更新只影响后续 deployment，因此配置完成
-后必须仍按 API→Web 创建新部署并做运行时证明。Hosted Cron bootstrap delivery 只接受 attempt-bearing
-schema-v2
-complete state，不把 legacy complete 当作新环境的部署证据。
+后必须仍按 API→Web 创建新部署并做运行时证明。Hosted Cron bootstrap delivery 只接受
+bootstrap-provenance schema-v3 complete state，不把普通 release 或 legacy schema-v1/v2 complete 当作新环境
+的部署证据。
 
 Hosted Store 使用独立 `manifest.hosted-acceptance.json` 和构建 profile：API/Web origin 固定为
 `api.acceptance.seen-said.cn` / `app.acceptance.seen-said.cn`，公开 manifest key 派生稳定 ID

@@ -31,6 +31,14 @@ function legacyCompleteState() {
   };
 }
 
+function legacyAttemptCompleteState() {
+  return {
+    ...legacyCompleteState(),
+    releaseAttemptId,
+    schemaVersion: 2,
+  };
+}
+
 test("release state stays outside repository formatting inputs", async () => {
   const statePath = join(
     repositoryRoot,
@@ -124,7 +132,7 @@ test("release state store rejects malformed, noncanonical, and cross-candidate s
   await assert.rejects(store.read(), /Hosted acceptance release state failed closed/u);
 });
 
-test("release status can still read an existing schema-v1 complete state", async () => {
+test("release status can still read existing schema-v1 and schema-v2 complete states", async () => {
   const repositoryRoot = await mkdtemp(join(tmpdir(), "huayi-release-legacy-state-"));
   const store = createHostedReleaseStateStore({
     candidateSha,
@@ -134,9 +142,10 @@ test("release status can still read an existing schema-v1 complete state", async
   try {
     const release = await store.acquire();
     await release();
-    await writeFile(store.statePath, `${JSON.stringify(legacyCompleteState())}\n`, { mode: 0o600 });
-
-    assert.deepEqual(await store.read(), legacyCompleteState());
+    for (const state of [legacyCompleteState(), legacyAttemptCompleteState()]) {
+      await writeFile(store.statePath, `${JSON.stringify(state)}\n`, { mode: 0o600 });
+      assert.deepEqual(await store.read(), state);
+    }
   } finally {
     await rm(repositoryRoot, { force: true, recursive: true });
   }
