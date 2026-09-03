@@ -26,28 +26,16 @@ describe("Store overlay cloud workspace entry", () => {
     document.body.textContent = "";
   });
 
-  it("keeps candidate editing in Web and opens it through a parameter-free trusted command", async () => {
+  it("does not append a misleading Web-workspace footer to a completed result", () => {
     const { controller, openWebWorkspace, ports } = setup();
     controller.show(reading("early stages", "phrase"), { bottom: 80, left: 40, top: 60 });
     click("[data-action='translate']");
     completePhraseResult(ports);
 
-    expect(shadow().textContent).toContain("整理与收藏在 Web 完成");
+    expect(shadow().querySelector(".cloud-workspace")).toBeNull();
+    expect(shadow().textContent).not.toContain("整理与收藏在 Web 完成");
+    expect(shadow().querySelector("[data-open-web-workspace]")).toBeNull();
     expect(shadow().querySelector("[data-candidate-form]")).toBeNull();
-    click("[data-open-web-workspace]");
-    await Promise.resolve();
-    expect(openWebWorkspace).toHaveBeenCalledWith();
-  });
-
-  it("shows a stable cloud-entry error when the release URL is not configured", async () => {
-    const { controller, openWebWorkspace, ports } = setup();
-    openWebWorkspace.mockRejectedValueOnce(new Error("not configured"));
-    controller.show(reading("early stages", "phrase"), { bottom: 80, left: 40, top: 60 });
-    click("[data-action='translate']");
-    completePhraseResult(ports);
-    click("[data-open-web-workspace]");
-    await Promise.resolve();
-    await Promise.resolve();
-    expect(shadow().querySelector("[role='alert']")?.textContent).toContain("暂时无法打开 Web");
+    expect(openWebWorkspace).not.toHaveBeenCalled();
   });
 });

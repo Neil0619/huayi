@@ -10,9 +10,28 @@ export function createOverlayHost(
   host.dataset.huayiStoreOverlay = "";
   host.style.position = "fixed";
   host.style.zIndex = "2147483647";
-  host.style.left = `${Math.max(8, Math.min(anchor.left, window.innerWidth - 32))}px`;
-  host.style.top = `${Math.max(8, Math.min(anchor.bottom + 8, window.innerHeight - 32))}px`;
+  host.style.left = `${anchor.left}px`;
+  host.style.top = `${anchor.bottom + 8}px`;
   return { host, shadow: host.attachShadow({ mode: "open" }) };
+}
+
+export function positionOverlayHost(host: HTMLElement, anchor: StoreOverlayAnchor): void {
+  const view = host.ownerDocument.defaultView;
+  if (view === null) return;
+  const bounds = host.getBoundingClientRect();
+  const gutter = 8;
+  const left = Math.max(
+    gutter,
+    Math.min(anchor.left - bounds.width / 2, view.innerWidth - bounds.width - gutter),
+  );
+  const below = anchor.bottom + gutter;
+  const above = anchor.top - bounds.height - gutter;
+  const top =
+    below + bounds.height <= view.innerHeight - gutter
+      ? below
+      : Math.max(gutter, Math.min(above, view.innerHeight - bounds.height - gutter));
+  host.style.left = `${left}px`;
+  host.style.top = `${top}px`;
 }
 
 export function applyOverlayAppearance(

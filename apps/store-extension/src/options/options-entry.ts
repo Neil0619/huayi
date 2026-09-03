@@ -1,4 +1,9 @@
-import { STORE_MESSAGE_VERSION, parseStoreSitePoliciesChangedResponse } from "@huayi/store-domain";
+import {
+  STORE_MESSAGE_VERSION,
+  parseStoreOpenWebWorkspaceResponse,
+  parseStoreSitePoliciesChangedResponse,
+  type StoreOpenWebWorkspaceRequest,
+} from "@huayi/store-domain";
 
 import { createProductionLexiconRepository } from "../lexicon/browser-lexicon-repository.js";
 import { createChromeStoreAppearance } from "../service-worker/store-appearance.js";
@@ -61,6 +66,14 @@ const page = new OptionsPage({
         type: "store/site-policies-changed",
       }),
     );
+  },
+  openWebWorkspace: async () => {
+    const message: StoreOpenWebWorkspaceRequest = {
+      messageVersion: STORE_MESSAGE_VERSION,
+      type: "store/open-web-workspace",
+    };
+    const response = parseStoreOpenWebWorkspaceResponse(await chrome.runtime.sendMessage(message));
+    if (!response.opened) throw new Error("Web workspace is not configured.");
   },
   settings: createChromeStoreSettings(chrome.storage.local),
   vault,

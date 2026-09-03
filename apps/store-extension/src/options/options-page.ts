@@ -26,6 +26,7 @@ interface OptionsPageDependencies {
     setReady(ready: boolean): Promise<void>;
   };
   readonly notifySitePolicyChanged?: () => Promise<void>;
+  readonly openWebWorkspace?: () => Promise<void>;
   readonly settings: StoreSettingsRepository;
   readonly vault: DeviceVault;
 }
@@ -76,6 +77,20 @@ export class OptionsPage {
 
   private bindEvents(): void {
     this.nonSensitiveControls.bind();
+    this.bindButton(
+      "[data-open-web-workspace]",
+      async () => {
+        if (this.dependencies.openWebWorkspace === undefined) {
+          throw new UserFacingError("暂时无法打开语见云端，请稍后重试。");
+        }
+        try {
+          await this.dependencies.openWebWorkspace();
+        } catch {
+          throw new UserFacingError("暂时无法打开语见云端，请稍后重试。");
+        }
+      },
+      "",
+    );
     for (const control of document.querySelectorAll<HTMLInputElement>("[data-store-appearance]")) {
       control.addEventListener("change", (event) => {
         const input = event.currentTarget as HTMLInputElement;
@@ -236,6 +251,9 @@ export class OptionsPage {
     for (const slot of PROVIDER_CREDENTIALS) {
       const configured = this.credentialConfigured.get(slot) ?? false;
       element(`[data-credential-status='${slot}']`).textContent = configured ? "已配置" : "未配置";
+      element<HTMLInputElement>(`[data-credential-input='${slot}']`).placeholder = configured
+        ? "••••••••"
+        : "";
       element<HTMLButtonElement>(`[data-credential-delete='${slot}']`).disabled =
         this.busy || !configured;
     }

@@ -42,12 +42,13 @@ export class StoreContentApp {
       return;
     }
     const rangeWithRect = reading.range as Range & {
-      getBoundingClientRect?: () => { bottom: number; left: number; top: number };
+      getBoundingClientRect?: () => { bottom: number; left: number; right?: number; top: number };
     };
     const rect = rangeWithRect.getBoundingClientRect?.();
+    const selectionCenter = rect === undefined ? 12 : (rect.left + (rect.right ?? rect.left)) / 2;
     const anchor: StoreOverlayAnchor = {
       bottom: rect?.bottom ?? 24,
-      left: pointerLeft === undefined || pointerLeft <= 0 ? (rect?.left ?? 12) : pointerLeft,
+      left: pointerLeft === undefined || pointerLeft <= 0 ? selectionCenter : pointerLeft,
       top: rect?.top ?? 12,
     };
     this.overlay.show(reading, anchor);

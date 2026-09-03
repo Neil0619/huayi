@@ -104,6 +104,23 @@
         </section>
 
         <section
+          class="card cloud-account-entry"
+          data-cloud-account-entry
+          data-settings-associated="common"
+          role="region"
+          aria-labelledby="cloud-account-title"
+        >
+          <div class="section-heading">
+            <div>
+              <p class="step">语见云端</p>
+              <h2 id="cloud-account-title">继续你的学习工作台</h2>
+            </div>
+            <button type="button" class="primary" data-open-web-workspace>登录语见云端</button>
+          </div>
+          <p>登录后可在 Web 工作台整理分析、复习生词并管理云端学习数据。</p>
+        </section>
+
+        <section
           class="card appearance-card"
           aria-labelledby="appearance-title"
           data-settings-associated="common"
@@ -157,32 +174,6 @@
         </section>
 
         <section
-          class="card disclosure"
-          aria-labelledby="settings-tab-common"
-          data-settings-associated="common"
-          role="region"
-        >
-          <div class="section-heading">
-            <div>
-              <p class="step">隐私与费用</p>
-              <h2 id="network-title">模型联网许可</h2>
-            </div>
-            <span class="pill" data-consent-state>尚未同意联网</span>
-          </div>
-          <div data-network-disclosure>
-            <p>
-              同意后，只有当你主动发起分析时，选中的英文和上下文才会发送到你选择的 OpenAI 或
-              DeepSeek。请求会使用你自行提供的密钥，并可能产生服务商费用。
-            </p>
-            <p>语见不会发送完整页面、浏览历史或本地生词，也不会自动重试付费请求。</p>
-          </div>
-          <div class="actions">
-            <button type="button" class="primary" data-grant-consent>我已了解并同意联网</button>
-            <button type="button" class="danger" data-revoke-consent hidden>撤回联网同意</button>
-          </div>
-        </section>
-
-        <section
           class="card"
           aria-labelledby="settings-tab-common"
           data-settings-associated="common"
@@ -192,6 +183,36 @@
             <div>
               <p class="step">分析偏好</p>
               <h2 id="provider-title">模型与划词动作</h2>
+            </div>
+          </div>
+          <div
+            class="network-consent-block"
+            data-network-consent
+            role="region"
+            aria-labelledby="network-title"
+          >
+            <div class="network-consent-heading">
+              <div>
+                <h3 id="network-title">首次联网确认</h3>
+                <p data-network-summary>
+                  总开关只决定是否显示语见；此确认用于允许把你主动选择的英文和必要上下文发送给模型服务商。
+                </p>
+              </div>
+              <span class="pill" data-consent-state>尚未同意联网</span>
+            </div>
+            <details data-network-disclosure>
+              <summary>查看发送范围与费用</summary>
+              <p>
+                只有当你主动发起分析时，选中的英文和上下文才会发送到你选择的 OpenAI 或
+                DeepSeek。请求会使用你自行提供的密钥，并可能产生服务商费用。
+              </p>
+              <p>语见不会发送完整页面、浏览历史或本地生词，也不会自动重试付费请求。</p>
+              <button type="button" class="danger quiet-danger" data-revoke-consent hidden>
+                撤回联网同意
+              </button>
+            </details>
+            <div class="actions">
+              <button type="button" class="primary" data-grant-consent>同意联网分析</button>
             </div>
           </div>
           <label class="field compact">
@@ -209,7 +230,7 @@
               <option value="translate">直接翻译</option>
               <option value="explain">直接解释</option>
             </select>
-            <small>选择“每次询问”会先显示翻译和解释按钮；其他选项会直接开始对应分析。</small>
+            <small>选择“每次询问”会先显示解释和翻译按钮；其他选项会直接开始对应分析。</small>
           </label>
         </section>
 
@@ -258,11 +279,12 @@
             <div class="section-heading">
               <div>
                 <p class="step">03 · 外部词典数据</p>
-                <h2 id="recipients-title">分别决定每个接收方</h2>
+                <h2 id="recipients-title">选择外部词典去向</h2>
               </div>
             </div>
             <p>
-              同意与启用彼此独立。新保存的词只会排入当时已同意且已启用的目标；以后启用不会补发旧词。
+              每个词典都要先确认数据范围，再用开关决定是否接收以后保存的新词。关闭后不会补发旧词，
+              也不会删除已经写入外部词典的数据。
             </p>
             <div class="recipient-grid">
               <article class="recipient-card" data-recipient-card="eudic">
@@ -270,24 +292,32 @@
                   <h3>欧路词典</h3>
                   <span class="pill" data-recipient-state="eudic">尚未同意</span>
                 </div>
-                <p><b>接收方：</b>欧路词典（Eudic）。</p>
-                <p>
-                  <b>字段：</b>导入会读取欧路词头；导出会发送词头、原句和语境释义。不会发送页面
-                  URL、 标题、完整模型结果或模型密钥。
-                </p>
-                <p>
-                  <b>费用：</b>语见不收费；欧路账户、API
-                  限额或费用由欧路规则决定。<b>远端保留：</b>数据提交后由欧路保存，本地删除不会删除欧路副本。
-                </p>
+                <details data-recipient-disclosure>
+                  <summary>欧路数据范围与撤回</summary>
+                  <p><b>接收方：</b>欧路词典（Eudic）。</p>
+                  <p>
+                    <b>字段：</b>导入会读取欧路词头；导出会发送词头、原句和语境释义。不会发送页面
+                    URL、标题、完整模型结果或模型密钥。
+                  </p>
+                  <p>
+                    <b>费用：</b>语见不收费；欧路账户、API
+                    限额或费用由欧路规则决定。<b>远端保留：</b>数据提交后由欧路保存，本地删除不会删除欧路副本。
+                  </p>
+                  <button
+                    class="danger quiet-danger"
+                    type="button"
+                    data-recipient-revoke="eudic"
+                    hidden
+                  >
+                    撤回欧路数据同意
+                  </button>
+                </details>
                 <div class="actions">
                   <button class="primary" type="button" data-recipient-grant="eudic">
-                    同意欧路数据说明
-                  </button>
-                  <button class="danger" type="button" data-recipient-revoke="eudic" hidden>
-                    撤回欧路同意
+                    确认欧路数据范围
                   </button>
                   <label class="switch-field compact-switch">
-                    <span>启用欧路导入与新词导出</span>
+                    <span>同步到欧路词典</span>
                     <input type="checkbox" role="switch" data-recipient-enabled="eudic" disabled />
                   </label>
                 </div>
@@ -297,25 +327,33 @@
                   <h3>扇贝单词</h3>
                   <span class="pill" data-recipient-state="shanbay">尚未同意</span>
                 </div>
-                <p><b>接收方：</b>扇贝单词页面。</p>
-                <p>
-                  <b>字段：</b
-                  >语见会把词头预填到扇贝批量输入框；不会自动点击最终提交，也不会发送原句、
-                  语境释义、页面 URL 或任何密钥。
-                </p>
-                <p>
-                  <b>服务费用：</b
-                  >语见不收费；扇贝账户或服务费用由扇贝规则决定。<b>远端保留：</b>你确认提交后由扇贝保存，本地删除不会删除扇贝副本。
-                </p>
+                <details data-recipient-disclosure>
+                  <summary>扇贝数据范围与撤回</summary>
+                  <p><b>接收方：</b>扇贝单词页面。</p>
+                  <p>
+                    <b>字段：</b
+                    >语见会把词头预填到扇贝批量输入框；不会自动点击最终提交，也不会发送原句、
+                    语境释义、页面 URL 或任何密钥。
+                  </p>
+                  <p>
+                    <b>服务费用：</b
+                    >语见不收费；扇贝账户或服务费用由扇贝规则决定。<b>远端保留：</b>你确认提交后由扇贝保存，本地删除不会删除扇贝副本。
+                  </p>
+                  <button
+                    class="danger quiet-danger"
+                    type="button"
+                    data-recipient-revoke="shanbay"
+                    hidden
+                  >
+                    撤回扇贝数据同意
+                  </button>
+                </details>
                 <div class="actions">
                   <button class="primary" type="button" data-recipient-grant="shanbay">
-                    同意扇贝数据说明
-                  </button>
-                  <button class="danger" type="button" data-recipient-revoke="shanbay" hidden>
-                    撤回扇贝同意
+                    确认扇贝数据范围
                   </button>
                   <label class="switch-field compact-switch">
-                    <span>启用新词扇贝导出与页面预填</span>
+                    <span>预填到扇贝单词</span>
                     <input
                       type="checkbox"
                       role="switch"
@@ -489,15 +527,15 @@
               </p>
             </div>
             <div class="subsection" data-cloud-wordbook-authority hidden>
-              <h3>任务由语见云端统一管理</h3>
+              <h3>同步任务在 Web 管理</h3>
               <p>
-                请在 Web 学习工作台的“外部词典”页面创建、查看、重试或取消任务。插件只执行云端租约，
-                不再建立本地正式导入或导出队列。
+                插件负责安全保存凭据并执行同步；创建、查看、重试或取消任务，请前往 Web
+                工作台的“外部词典”。
               </p>
             </div>
             <div class="subsection">
               <h3>欧路 Authorization · <b data-eudic-auth-status>未配置</b></h3>
-              <p>授权会加密保存，只显示配置状态，不会回显或通过页面消息传递。</p>
+              <p>已配置时输入框显示圆点占位；只有输入新值并保存，才会覆盖现有授权。</p>
               <label class="field compact">
                 <span>新的完整 Authorization</span>
                 <input type="password" autocomplete="off" data-eudic-auth-input />

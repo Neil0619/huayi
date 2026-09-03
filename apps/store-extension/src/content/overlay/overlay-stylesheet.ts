@@ -5,6 +5,7 @@ export function attachOverlayStyles(
   shadow: ShadowRoot,
   panel: HTMLElement,
   href: string,
+  onSettled?: () => void,
 ): void {
   const fallback = document.createElement("style");
   fallback.textContent = STORE_OVERLAY_FALLBACK_STYLES;
@@ -15,9 +16,11 @@ export function attachOverlayStyles(
   panel.dataset.styles = "loading";
   stylesheet.addEventListener("load", () => {
     panel.dataset.styles = "ready";
+    onSettled?.();
   });
   stylesheet.addEventListener("error", () => {
     panel.dataset.styles = "fallback";
+    onSettled?.();
   });
   shadow.append(fallback, stylesheet, panel);
 }

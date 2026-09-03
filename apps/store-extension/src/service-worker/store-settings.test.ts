@@ -19,12 +19,12 @@ function area(initial?: unknown): ChromeSettingsStorageArea & {
 }
 
 describe("Chrome Store settings", () => {
-  it("defaults to no consent and restricts storage to trusted contexts", async () => {
+  it("defaults new installs to translation, no consent, and trusted-context storage", async () => {
     const local = area();
     const settings = createChromeStoreSettings(local);
 
     await expect(settings.get()).resolves.toEqual({
-      defaultAction: "ask",
+      defaultAction: "translate",
       globallyEnabled: true,
       networkConsent: null,
       overlayTheme: "pearl",
@@ -42,6 +42,28 @@ describe("Chrome Store settings", () => {
     expect(local.setAccessLevel).toHaveBeenCalledWith({ accessLevel: "TRUSTED_CONTEXTS" });
   });
 
+  it("preserves an existing explicit ask preference", async () => {
+    const settings = createChromeStoreSettings(
+      area({
+        defaultAction: "ask",
+        globallyEnabled: true,
+        networkConsent: null,
+        overlayTheme: "pearl",
+        providerId: "openai",
+        recipientAccess: {
+          eudic: { consent: null, enabled: false },
+          shanbay: { consent: null, enabled: false },
+        },
+        schemaVersion: 6,
+        sitePolicy: { defaultAction: "allow", rules: [] },
+        youtubeMode: "english",
+        youtubeShortcut: null,
+      }),
+    );
+
+    await expect(settings.get()).resolves.toMatchObject({ defaultAction: "ask" });
+  });
+
   it("persists an explicit consent receipt and fixed provider without losing either", async () => {
     const local = area();
     const settings = createChromeStoreSettings(local);
@@ -50,7 +72,7 @@ describe("Chrome Store settings", () => {
     await settings.grantNetworkConsent(new Date("2026-08-11T01:00:00.000Z"));
 
     await expect(settings.get()).resolves.toEqual({
-      defaultAction: "ask",
+      defaultAction: "translate",
       globallyEnabled: true,
       networkConsent: { grantedAt: "2026-08-11T01:00:00.000Z", version: 1 },
       overlayTheme: "pearl",
@@ -71,6 +93,7 @@ describe("Chrome Store settings", () => {
     const settings = createChromeStoreSettings(local);
 
     await expect(settings.get()).resolves.toMatchObject({
+      defaultAction: "ask",
       providerId: "deepseek",
       recipientAccess: {
         eudic: { consent: null, enabled: false },
@@ -99,6 +122,7 @@ describe("Chrome Store settings", () => {
     const local = area(v2);
 
     await expect(createChromeStoreSettings(local).get()).resolves.toMatchObject({
+      defaultAction: "ask",
       schemaVersion: 6,
       youtubeMode: "english",
     });
@@ -200,6 +224,7 @@ describe("Chrome Store settings", () => {
     const local = area(v3);
 
     await expect(createChromeStoreSettings(local).get()).resolves.toMatchObject({
+      defaultAction: "ask",
       globallyEnabled: true,
       schemaVersion: 6,
       sitePolicy: { defaultAction: "allow", rules: [] },

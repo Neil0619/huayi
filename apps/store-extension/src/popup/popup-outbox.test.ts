@@ -81,6 +81,7 @@ it("shows sanitized queued metadata, retries, and requires two-step local clear"
   await page.initialize();
 
   expect(element("[data-submission-outbox-state]").textContent).toContain("2 条学习采集等待提交");
+  expect(element<HTMLElement>(".outbox-actions").hidden).toBe(false);
   expect(document.body.textContent).not.toContain("sourceText");
   element<HTMLButtonElement>("[data-submission-outbox-retry]").click();
   await vi.waitFor(() => expect(element("[data-popup-status]").textContent).toContain("自动重试"));
@@ -99,6 +100,7 @@ it("shows sanitized queued metadata, retries, and requires two-step local clear"
   await vi.waitFor(() =>
     expect(element("[data-submission-outbox-state]").textContent).toBe("没有待提交学习采集"),
   );
+  expect(element<HTMLElement>(".outbox-actions").hidden).toBe(true);
   expect(sendRuntimeMessage).toHaveBeenCalledWith({
     messageVersion: STORE_MESSAGE_VERSION,
     type: "store/submission-outbox-clear",
@@ -128,6 +130,7 @@ it("renders fail-closed states without enabling queue actions", async () => {
     await page.initialize();
     expect(element<HTMLButtonElement>("[data-submission-outbox-retry]").disabled).toBe(true);
     expect(element<HTMLButtonElement>("[data-submission-outbox-clear]").disabled).toBe(true);
+    expect(element<HTMLElement>(".outbox-actions").hidden).toBe(true);
   }
 });
 
@@ -166,6 +169,7 @@ it("shows an adapter-missing queue as encrypted locally with clear but no retry"
   expect(element("[data-submission-outbox-state]").textContent).toContain("加密保存在本机");
   expect(element<HTMLButtonElement>("[data-submission-outbox-retry]").disabled).toBe(true);
   expect(element<HTMLButtonElement>("[data-submission-outbox-clear]").disabled).toBe(false);
+  expect(element<HTMLElement>(".outbox-actions").hidden).toBe(false);
   expect(document.body.textContent).not.toContain("sourceText");
 
   const clear = element<HTMLButtonElement>("[data-submission-outbox-clear]");
@@ -205,10 +209,12 @@ it("announces an upgrade block while preserving only the local clear action", as
   expect(element("[data-submission-outbox-state]").textContent).toContain("加密保存在本机");
   expect(element<HTMLButtonElement>("[data-submission-outbox-retry]").disabled).toBe(true);
   expect(element<HTMLButtonElement>("[data-submission-outbox-clear]").disabled).toBe(false);
+  expect(element<HTMLElement>(".outbox-actions").hidden).toBe(false);
   expect(document.body.textContent).not.toContain("1.0.0");
   expect(document.body.textContent).not.toContain("sourceText");
   expect(element("[data-submission-outbox-state]").getAttribute("aria-live")).toBe("polite");
-  expect(popupCss).toContain("@media (max-width: 359px)");
+  expect(popupCss).toContain("width: 380px;");
+  expect(popupCss).not.toContain("@media (max-width: 359px)");
   expect(popupCss).toContain("@media (prefers-reduced-motion: reduce)");
   expect(popupCss).toContain('strong[data-state="client-upgrade-required"]');
 });

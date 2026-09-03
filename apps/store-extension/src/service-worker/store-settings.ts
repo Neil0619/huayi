@@ -30,7 +30,7 @@ export interface ChromeSettingsStorageArea {
 }
 
 const DEFAULT_SETTINGS: StoreSettings = {
-  defaultAction: "ask",
+  defaultAction: "translate",
   globallyEnabled: true,
   networkConsent: null,
   overlayTheme: "pearl",
@@ -44,6 +44,8 @@ const DEFAULT_SETTINGS: StoreSettings = {
   youtubeMode: "english",
   youtubeShortcut: null,
 };
+
+const LEGACY_DEFAULT_ACTION: StoreDefaultAction = "ask";
 
 const legacySettingsSchema = z.strictObject({
   networkConsent: z
@@ -280,7 +282,7 @@ class ChromeStoreSettings implements StoreSettingsRepository {
       const { disabledHosts, ...retained } = versionFour.data;
       const migrated: StoreSettings = {
         ...retained,
-        defaultAction: DEFAULT_SETTINGS.defaultAction,
+        defaultAction: LEGACY_DEFAULT_ACTION,
         overlayTheme: DEFAULT_SETTINGS.overlayTheme,
         schemaVersion: STORE_SETTINGS_SCHEMA_VERSION,
         sitePolicy: {
@@ -299,7 +301,7 @@ class ChromeStoreSettings implements StoreSettingsRepository {
     const versionThree = versionThreeSettingsSchema.safeParse(persisted);
     if (versionThree.success) {
       const migrated: StoreSettings = {
-        defaultAction: DEFAULT_SETTINGS.defaultAction,
+        defaultAction: LEGACY_DEFAULT_ACTION,
         globallyEnabled: true,
         overlayTheme: DEFAULT_SETTINGS.overlayTheme,
         ...versionThree.data,
@@ -313,7 +315,7 @@ class ChromeStoreSettings implements StoreSettingsRepository {
     const versionTwo = versionTwoSettingsSchema.safeParse(persisted);
     if (versionTwo.success) {
       const migrated: StoreSettings = {
-        defaultAction: DEFAULT_SETTINGS.defaultAction,
+        defaultAction: LEGACY_DEFAULT_ACTION,
         globallyEnabled: true,
         overlayTheme: DEFAULT_SETTINGS.overlayTheme,
         ...versionTwo.data,
@@ -328,7 +330,7 @@ class ChromeStoreSettings implements StoreSettingsRepository {
     const legacy = legacySettingsSchema.safeParse(persisted);
     if (!legacy.success) throw current.error;
     const migrated: StoreSettings = {
-      defaultAction: DEFAULT_SETTINGS.defaultAction,
+      defaultAction: LEGACY_DEFAULT_ACTION,
       globallyEnabled: true,
       networkConsent: legacy.data.networkConsent,
       overlayTheme: DEFAULT_SETTINGS.overlayTheme,

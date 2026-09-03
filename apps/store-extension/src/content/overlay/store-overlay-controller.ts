@@ -14,6 +14,7 @@ import { parseContentAnalysisMessage } from "../content-analysis-parser.js";
 import { MAX_PREVIEW_CHARACTERS, resultMatchesAction } from "./overlay-analysis-guards.js";
 import { renderDisconnectedError, renderOverlayError } from "./overlay-error-view.js";
 import { OverlayCardSession, type OverlayModeState } from "./overlay-card-session.js";
+import { OverlayInteractionLifecycle } from "./overlay-interaction-lifecycle.js";
 import { attachOverlayStyles } from "./overlay-stylesheet.js";
 import { renderCachedResult } from "./render-cached-result.js";
 import { renderStreamPreview, renderStreamStatus } from "./render-stream-preview.js";
@@ -49,6 +50,7 @@ export class StoreOverlayController {
   private lastSequence = -1;
   private onDismiss: (() => void) | null = null;
   private previousFocus: HTMLElement | null = null;
+  private readonly interaction: OverlayInteractionLifecycle;
   private readonly wordPresence: OverlayWordPresence;
   private readonly studyCapture: OverlayStudyCapture;
   private readonly preview = new Map<
@@ -69,6 +71,9 @@ export class StoreOverlayController {
     private readonly runtime: StoreOverlayRuntime,
     private readonly acceptsUserGesture: (event: Event) => boolean = (event) => event.isTrusted,
   ) {
+    this.interaction = new OverlayInteractionLifecycle(document, this.acceptsUserGesture, () =>
+      this.close(),
+    );
     this.wordPresence = new OverlayWordPresence(runtime);
     this.studyCapture = new OverlayStudyCapture({
       acceptsUserGesture: this.acceptsUserGesture,
@@ -93,12 +98,17 @@ export class StoreOverlayController {
     this.analysisBody = view.body;
     this.headerActions = view.headerActions;
     this.promoteToResult = view.promoteToResult;
-    attachOverlayStyles(this.document, shadow, view.panel, this.runtime.overlayStylesheetUrl());
+    attachOverlayStyles(
+      this.document,
+      shadow,
+      view.panel,
+      this.runtime.overlayStylesheetUrl(),
+      () => this.interaction.position(),
+    );
     (this.document.body ?? this.document.documentElement).append(host);
     this.host = host;
+    this.interaction.start(host, anchor);
     shadow.querySelector<HTMLButtonElement>("[data-action]")?.focus();
-    this.document.addEventListener("keydown", this.onDocumentKeyDown, true);
-    this.document.addEventListener("pointerdown", this.onDocumentPointerDown, true);
     if (this.defaultAction !== "ask") this.start(this.defaultAction);
   }
 
@@ -125,6 +135,7 @@ export class StoreOverlayController {
     const activation = this.cardSession.activate(action);
     if (activation.cancelled !== null) this.stopPort(true);
     this.promoteToResult?.();
+    this.interaction.position();
     this.setModeControls(action, activation.state.status === "loading");
     if (!activation.shouldStart) {
       this.renderModeState(action, activation.state);
@@ -237,12 +248,14 @@ export class StoreOverlayController {
     if (this.analysisBody === null) return;
     delete this.analysisBody.dataset.resultType;
     renderStreamPreview(this.analysisBody, this.preview, this.previewSections);
+    this.interaction.position();
   }
 
   private renderStatus(): void {
     if (this.analysisBody === null) return;
     delete this.analysisBody.dataset.resultType;
     renderStreamStatus(this.analysisBody);
+    this.interaction.position();
   }
 
   private renderModeState(action: AnalysisAction, state: OverlayModeState): void {
@@ -278,12 +291,12 @@ export class StoreOverlayController {
       body: this.analysisBody,
       headerActions: this.headerActions,
       presence: this.wordPresence,
-      openWebWorkspace: () => this.runtime.openWebWorkspace(),
       result,
       saveWord: (request) => this.runtime.saveWord(request),
       sentence: this.selection.sentenceContext ?? this.selection.selection,
     });
     this.studyCapture.render(this.analysisBody, this.selection);
+    this.interaction.position();
   }
 
   private finishWithError(action: AnalysisAction, code: StoreAnalysisErrorCode): void {
@@ -312,6 +325,7 @@ export class StoreOverlayController {
       },
     });
     if (this.selection !== null) this.studyCapture.render(this.analysisBody, this.selection);
+    this.interaction.position();
   }
 
   private disconnected(port: ContentAnalysisPort, action: AnalysisAction): void {
@@ -330,6 +344,7 @@ export class StoreOverlayController {
       },
       this.preview.size > 0 || this.previewSections.size > 0,
     );
+    this.interaction.position();
   }
 
   private setModeControls(action: AnalysisAction, loading: boolean): void {
@@ -358,8 +373,7 @@ export class StoreOverlayController {
     const hadOverlay = this.host !== null;
     const onDismiss = this.onDismiss;
     this.stopPort(true);
-    this.document.removeEventListener("keydown", this.onDocumentKeyDown, true);
-    this.document.removeEventListener("pointerdown", this.onDocumentPointerDown, true);
+    this.interaction.stop();
     this.host?.remove();
     this.host = null;
     this.analysisBody = null;
@@ -377,22 +391,4 @@ export class StoreOverlayController {
     if (hadOverlay && reason !== "replacement") this.document.getSelection()?.removeAllRanges();
     if (hadOverlay && reason === "dismissed") onDismiss?.();
   }
-
-  private readonly onDocumentKeyDown = (event: KeyboardEvent): void => {
-    if (event.key !== "Escape" || this.host === null) return;
-    event.preventDefault();
-    event.stopPropagation();
-    this.close();
-  };
-
-  private readonly onDocumentPointerDown = (event: PointerEvent): void => {
-    if (
-      this.host === null ||
-      event.composedPath().includes(this.host) ||
-      !this.acceptsUserGesture(event)
-    ) {
-      return;
-    }
-    this.close();
-  };
 }

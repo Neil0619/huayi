@@ -293,15 +293,15 @@ export class PopupPage {
     element("[data-cloud-session-state]").textContent = this.cloudUnavailable
       ? "状态读取失败"
       : cloudStatus === "not-configured"
-        ? "此构建尚未配置云端"
+        ? "此安装包未接入语见云端"
         : cloudStatus === "connected"
-          ? "已连接"
+          ? "已登录并连接"
           : cloudStatus === "pairing"
-            ? "等待网页批准"
+            ? "请在网页完成登录"
             : cloudStatus === "expired"
-              ? "会话已过期"
-              : "尚未连接";
-    cloudAction.textContent = cloudStatus === "connected" ? "断开此设备" : "连接";
+              ? "登录已过期"
+              : "尚未登录";
+    cloudAction.textContent = cloudStatus === "connected" ? "断开此设备" : "登录并连接";
     cloudAction.disabled =
       this.busy ||
       this.cloudUnavailable ||
@@ -316,13 +316,13 @@ export class PopupPage {
         : null;
     const unconfiguredLabel =
       submissionOutbox?.state === "not-configured" && "count" in submissionOutbox
-        ? `此构建尚未配置云端提交；${submissionOutbox.count} 条学习采集仍加密保存在本机（最早 ${submissionOutbox.oldestQueuedAt.slice(0, 10)}）`
+        ? `此安装包未接入云端提交；${submissionOutbox.count} 条学习采集仍加密保存在本机（最早 ${submissionOutbox.oldestQueuedAt.slice(0, 10)}）`
         : null;
     const outboxLabel = element("[data-submission-outbox-state]");
     outboxLabel.textContent = this.submissionOutboxUnavailable
       ? "待提交学习采集状态读取失败"
       : outboxState === "not-configured"
-        ? (unconfiguredLabel ?? "此构建尚未配置云端提交")
+        ? (unconfiguredLabel ?? "此安装包未接入云端提交")
         : outboxState === "upload-disabled"
           ? "模型联网同意已关闭"
           : outboxState === "session-unavailable"
@@ -339,6 +339,7 @@ export class PopupPage {
       (outboxState === "not-configured" &&
         submissionOutbox !== null &&
         "count" in submissionOutbox);
+    element<HTMLElement>(".outbox-actions").hidden = !hasStored;
     element<HTMLButtonElement>("[data-submission-outbox-retry]").disabled =
       this.busy || outboxState !== "queued";
     const clear = element<HTMLButtonElement>("[data-submission-outbox-clear]");

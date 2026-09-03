@@ -155,6 +155,7 @@
 
 .field small {
   color: var(--text-secondary);
+  font-size: 0.9rem;
   line-height: 1.6;
 }
 
@@ -271,6 +272,7 @@
 
 .appearance-option small {
   color: var(--text-secondary);
+  font-size: 0.9rem;
 }
 
 .appearance-option:has(input:checked) {
@@ -381,7 +383,67 @@
 
 .switch-field small {
   color: var(--text-secondary);
+  font-size: 0.9rem;
   font-weight: 400;
+}
+
+details[data-network-disclosure],
+details[data-recipient-disclosure] {
+  margin: var(--space-3) 0;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--surface-subtle);
+}
+
+details[data-network-disclosure] > summary,
+details[data-recipient-disclosure] > summary {
+  padding: var(--space-3) 0;
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: 0.9375rem;
+  font-weight: 700;
+}
+
+details[data-network-disclosure] > summary + p,
+details[data-recipient-disclosure] > summary + p {
+  margin-top: 0;
+}
+
+.cloud-account-entry .section-heading {
+  align-items: center;
+}
+
+.network-consent-block {
+  margin-bottom: var(--space-5);
+  padding: var(--space-4);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--surface-subtle);
+}
+
+.network-consent-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.network-consent-heading h3 {
+  margin: 0 0 var(--space-1);
+}
+
+.network-consent-heading p {
+  max-width: 680px;
+  margin: 0;
+}
+
+.quiet-danger {
+  min-height: 36px;
+  margin-bottom: var(--space-3);
+  padding: 6px 10px;
+  box-shadow: none;
+  font-size: 0.875rem;
 }
 
 .switch-field input[role="switch"] {
@@ -484,6 +546,7 @@
   }
 
   .section-heading,
+  .network-consent-heading,
   .recipient-grid,
   .split,
   .credential-row,

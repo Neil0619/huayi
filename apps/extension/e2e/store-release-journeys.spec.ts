@@ -79,6 +79,49 @@ test("the default silver Store card keeps pearl and parchment visual baselines",
   });
 });
 
+test("the narrow action card centers on the selection", async ({ page }) => {
+  await page.setViewportSize({ height: 360, width: 320 });
+  const target = page.getByTestId("word");
+  await target.evaluate((element) => {
+    element.style.position = "fixed";
+    element.style.left = "140px";
+    element.style.top = "96px";
+  });
+  await selectWord(page, "word");
+
+  const targetBounds = await target.boundingBox();
+  const panelBounds = await shadow(page).boundingBox();
+  if (targetBounds === null || panelBounds === null) {
+    throw new Error("The selection and Store action card must have measurable bounds.");
+  }
+  expect(
+    Math.abs(targetBounds.x + targetBounds.width / 2 - (panelBounds.x + panelBounds.width / 2)),
+  ).toBeLessThanOrEqual(4);
+});
+
+test("the expanded Store result clamps to a short narrow viewport", async ({ page }) => {
+  await page.setViewportSize({ height: 260, width: 320 });
+  const target = page.getByTestId("word");
+  await target.evaluate((element) => {
+    element.style.position = "fixed";
+    element.style.right = "0";
+    element.style.bottom = "4px";
+  });
+  await selectWord(page, "word");
+  await shadow(page).locator('[data-action="translate"]').click();
+  await expect(shadow(page)).toContainText("调查");
+
+  const bounds = await shadow(page).boundingBox();
+  if (bounds === null) throw new Error("The Store result card must have measurable bounds.");
+  expect(bounds.x).toBeGreaterThanOrEqual(8);
+  expect(bounds.y).toBeGreaterThanOrEqual(8);
+  expect(bounds.x + bounds.width).toBeLessThanOrEqual(312.5);
+  expect(bounds.y + bounds.height).toBeLessThanOrEqual(252.5);
+  expect(
+    await shadow(page).evaluate((element) => element.scrollHeight > element.clientHeight),
+  ).toBe(true);
+});
+
 test("Store selection reaches a strict fake Provider result and saves only bounded fields", async ({
   page,
 }) => {

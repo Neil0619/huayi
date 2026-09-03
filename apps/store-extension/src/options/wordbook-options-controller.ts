@@ -173,6 +173,9 @@ export class WordbookOptionsController {
   private async refreshCredential(): Promise<void> {
     this.configured = (await this.dependencies.vault.getCredential("eudic-authorization")) !== null;
     element("[data-eudic-auth-status]").textContent = this.configured ? "已配置" : "未配置";
+    element<HTMLInputElement>("[data-eudic-auth-input]").placeholder = this.configured
+      ? "••••••••"
+      : "";
   }
 
   private async importAction(type: StoreWordbookRequest["type"]): Promise<void> {

@@ -1,6 +1,20 @@
+import { readFileSync } from "node:fs";
+
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createHarness, element, renderPage } from "./options-page.test-support.js";
+
+const optionsComponentsCss = readFileSync(
+  "apps/store-extension/pages/options-components.css",
+  "utf8",
+);
+
+function hasReadableHelpSize(selector: string): boolean {
+  return new RegExp(
+    `${selector}\\s*\\{[^}]*font-size:\\s*(?:0\\.(?:8[7-9]|9\\d*)rem|1rem|1em|1[45]px|inherit)`,
+    "isu",
+  ).test(optionsComponentsCss);
+}
 
 afterEach(() => {
   document.documentElement.replaceChildren(
@@ -105,7 +119,8 @@ describe("Store OptionsPage", () => {
     expect(document.body.textContent).toContain("启用范围");
     expect(document.body.textContent).toContain("在所有网站启用");
     expect(document.body.textContent).toContain("单独关闭的网站");
-    expect(document.body.textContent).toContain("模型联网许可");
+    expect(document.body.textContent).toContain("首次联网确认");
+    expect(document.body.textContent).not.toContain("模型联网许可");
     expect(document.body.textContent).toContain("模型与划词动作");
     expect(document.body.textContent).toContain("YouTube 字幕");
     expect(document.body.textContent).not.toContain("hostname");
@@ -117,6 +132,78 @@ describe("Store OptionsPage", () => {
     }
     expect(document.querySelector("[data-restore-confirm]")).toBeNull();
     expect(document.querySelector("[data-plaintext-risk]")).toBeNull();
+  });
+
+  it("keeps secondary help readable or available through native disclosure controls", () => {
+    renderPage();
+
+    const globalSize = hasReadableHelpSize("(?:^|\\n)\\s*small");
+    const unreadable = Array.from(document.querySelectorAll("small")).filter((help) => {
+      if (help.closest("details") !== null || globalSize) return false;
+      if (help.closest(".appearance-option") !== null) {
+        return !hasReadableHelpSize("\\.appearance-option small");
+      }
+      if (help.closest(".switch-field") !== null) {
+        return !hasReadableHelpSize("\\.switch-field small");
+      }
+      return !hasReadableHelpSize("\\.field small");
+    });
+
+    expect(unreadable).toEqual([]);
+  });
+
+  it("collapses long network detail without dropping consent semantics", () => {
+    renderPage();
+
+    const network = element<HTMLDetailsElement>("details[data-network-disclosure]");
+    const consent = element<HTMLElement>("[data-network-consent]");
+    const providerCard = element("#provider-title").closest("section");
+    expect(providerCard?.contains(consent)).toBe(true);
+    expect(element("[data-network-summary]").textContent).toContain("总开关");
+    expect(element("[data-network-summary]").textContent).toContain("发送");
+    expect(network.querySelector("summary")?.textContent).toMatch(/发送|联网/u);
+    expect(network.contains(element("[data-revoke-consent]"))).toBe(true);
+    for (const required of [
+      "选中的英文和上下文",
+      "OpenAI",
+      "DeepSeek",
+      "自行提供的密钥",
+      "服务商费用",
+      "完整页面",
+      "浏览历史",
+      "本地生词",
+      "不会自动重试",
+    ]) {
+      expect(network.textContent).toContain(required);
+    }
+  });
+
+  it("collapses each recipient detail without dropping consent semantics", () => {
+    renderPage();
+
+    for (const recipient of ["eudic", "shanbay"] as const) {
+      const disclosure = element<HTMLDetailsElement>(
+        `[data-recipient-card='${recipient}'] details[data-recipient-disclosure]`,
+      );
+      expect(disclosure.querySelector("summary")?.textContent).toMatch(/数据|说明/u);
+      for (const required of ["接收方", "字段", "费用", "远端保留"]) {
+        expect(disclosure.textContent).toContain(required);
+      }
+      expect(disclosure.contains(element(`[data-recipient-revoke='${recipient}']`))).toBe(true);
+    }
+    expect(document.body.textContent).toContain("先确认数据范围，再用开关");
+  });
+
+  it("offers one clear cloud login entry from common settings", () => {
+    renderPage();
+
+    const entry = element<HTMLElement>("[data-cloud-account-entry]");
+    expect(
+      entry.closest("[data-settings-associated='common'], [data-settings-section='common']"),
+    ).not.toBeNull();
+    const action = element<HTMLButtonElement>("[data-open-web-workspace]");
+    expect(action.textContent).toMatch(/登录.*语见云端/u);
+    expect(action.getAttribute("type")).toBe("button");
   });
 
   it("shows only common settings by default and switches categories without resetting fields", async () => {
@@ -276,7 +363,9 @@ describe("Store OptionsPage", () => {
 
     expect(document.body.textContent).not.toContain("sk-existing-secret");
     expect(element("[data-credential-status='openai-api-key']").textContent).toBe("已配置");
-    expect(element<HTMLInputElement>("[data-credential-input='openai-api-key']").value).toBe("");
+    const configuredOpenAi = element<HTMLInputElement>("[data-credential-input='openai-api-key']");
+    expect(configuredOpenAi.value).toBe("");
+    expect(configuredOpenAi.placeholder).toBe("••••••••");
 
     const input = element<HTMLInputElement>("[data-credential-input='deepseek-api-key']");
     input.value = "sk-new-secret";
@@ -286,6 +375,7 @@ describe("Store OptionsPage", () => {
     expect(element("[data-page-status]").textContent).toBe("");
     expect(vault.setCredential).toHaveBeenCalledWith("deepseek-api-key", "sk-new-secret");
     expect(input.value).toBe("");
+    expect(input.placeholder).toBe("••••••••");
     expect(document.body.textContent).not.toContain("sk-new-secret");
 
     element<HTMLButtonElement>("[data-credential-delete='openai-api-key']").click();
@@ -293,6 +383,7 @@ describe("Store OptionsPage", () => {
     expect(vault.deleteCredential).toHaveBeenCalledOnce();
     expect(element("[data-page-status]").textContent).toBe("");
     expect(vault.deleteCredential).toHaveBeenCalledWith("openai-api-key");
+    expect(configuredOpenAi.placeholder).toBe("");
   });
 
   it("uses one busy/error boundary, rolls back settings, and reports stable Chinese errors", async () => {

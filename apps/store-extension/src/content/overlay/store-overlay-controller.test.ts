@@ -27,7 +27,12 @@ describe("Store selection overlay", () => {
     expect(shadow().querySelector("[data-brand-mark]")).toBeNull();
     expect(shadow().querySelector("[data-selection]")).toBeNull();
     expect(shadow().textContent).not.toContain(selection);
-    expect(shadow().querySelectorAll("[data-action]")).toHaveLength(2);
+    expect(
+      Array.from(
+        shadow().querySelectorAll<HTMLElement>("[data-action]"),
+        (action) => action.dataset.action,
+      ),
+    ).toEqual(["explain", "translate"]);
     expect(shadow().querySelector("[data-close]")).toBeNull();
   });
 
@@ -176,7 +181,7 @@ describe("Store selection overlay", () => {
     expect(shadow().querySelector(".brand-mark")).toBeNull();
     expect(shadow().querySelector(".eyebrow")).toBeNull();
     expect(shadow().querySelectorAll("[data-action]")).toHaveLength(2);
-    expect(panel?.textContent).toBe("翻译解释");
+    expect(panel?.textContent).toBe("解释翻译");
   });
 
   it("starts the trusted migrated default action without hiding the manual choices", () => {
@@ -326,6 +331,24 @@ describe("Store selection overlay", () => {
 
     expect(document.querySelector("[data-huayi-store-overlay]")).toBeNull();
     expect(selection.rangeCount).toBe(0);
+    expect(onDismiss).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    ["window resize", window, "resize"],
+    ["page or nested document scroll", document, "scroll"],
+  ] as const)("dismisses the stale overlay on %s", (_label, target, eventType) => {
+    const { controller } = setup();
+    const onDismiss = vi.fn();
+    controller.show(
+      reading("investigation", "word"),
+      { bottom: 80, left: 160, top: 60 },
+      onDismiss,
+    );
+
+    target.dispatchEvent(new Event(eventType));
+
+    expect(document.querySelector("[data-huayi-store-overlay]")).toBeNull();
     expect(onDismiss).toHaveBeenCalledOnce();
   });
 

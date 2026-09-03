@@ -62,6 +62,12 @@ describe("Store wordbook Options controller", () => {
 
     expect(document.body.textContent).not.toContain("private-eudic-value");
     expect(document.querySelector("[data-eudic-auth-status]")?.textContent).toBe("已配置");
+    expect(document.querySelector<HTMLInputElement>("[data-eudic-auth-input]")?.placeholder).toBe(
+      "••••••••",
+    );
+    expect(document.body.textContent).toContain("同步任务在 Web 管理");
+    expect(document.body.textContent).toContain("输入框显示圆点占位");
+    expect(document.body.textContent).not.toContain("任务由语见云端统一管理");
     expect(document.querySelector("[data-eudic-import-progress]")?.textContent).toContain(
       "不是完整导入",
     );

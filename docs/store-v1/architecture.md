@@ -94,8 +94,9 @@ WordbookExportEngine 以一个 DEK 经独立 HKDF info 派生的 AES-256-GCM 密
 事务外解密、校验和重加密，再以短事务做 revision CAS。任务使用随机 token 认领，只有持有当前
 租约的执行者能写回；过期租约可被新 Worker 回收，迟到回执不能覆盖新状态。
 
-Store 设置以严格版本化单记录保存。缺少记录时 Provider 固定为 OpenAI、YouTube 默认为英文模式、
-模型联网同意未授予，欧路和扇贝也都未同意且停用，站点策略默认全局启用且 allow。只有
+Store 设置以严格版本化单记录保存。缺少记录时 Provider 固定为 OpenAI、划词默认直接翻译、
+YouTube 默认为英文模式、模型联网同意未授予，欧路和扇贝也都未同意且停用，站点策略默认全局
+启用且 allow。已有 Settings v6 的显式默认动作原样保留，旧版本迁移继续使用 `ask`。只有
 可信扩展页面可以写入 Provider 和带时间戳的披露版本，Content Script 不具备存储访问权。设置
 v1 补齐两个关闭的词典目标，v2 补齐 `youtubeMode`，v3 迁移到全局开关与精确停用 host 的
 v4，v4 再将这些 host 原子迁移为 Settings v5 `sitePolicy` 的精确 block 规则。v6 在 v5 上增加严格 `overlayTheme`，旧记录默认迁移为 `pearl`。v5 以

@@ -276,7 +276,7 @@ describe("Store PopupPage", () => {
     await page.initialize();
 
     const action = element<HTMLButtonElement>("[data-cloud-session-action]");
-    expect(element("[data-cloud-session-state]").textContent).toBe("此构建尚未配置云端");
+    expect(element("[data-cloud-session-state]").textContent).toBe("此安装包未接入语见云端");
     expect(action.disabled).toBe(true);
 
     configured = true;
@@ -291,7 +291,7 @@ describe("Store PopupPage", () => {
     const configuredAction = element<HTMLButtonElement>("[data-cloud-session-action]");
     configuredAction.click();
     await vi.waitFor(() =>
-      expect(element("[data-cloud-session-state]").textContent).toBe("等待网页批准"),
+      expect(element("[data-cloud-session-state]").textContent).toBe("请在网页完成登录"),
     );
     expect(sendRuntimeMessage).toHaveBeenCalledWith({
       messageVersion: STORE_MESSAGE_VERSION,
@@ -319,7 +319,7 @@ describe("Store PopupPage", () => {
     );
     element<HTMLButtonElement>("[data-cloud-session-action]").click();
     await vi.waitFor(() =>
-      expect(element("[data-cloud-session-state]").textContent).toBe("尚未连接"),
+      expect(element("[data-cloud-session-state]").textContent).toBe("尚未登录"),
     );
   });
 
@@ -353,6 +353,6 @@ describe("Store PopupPage", () => {
         "暂时无法安全断开；本机会话仍保留，请联网后重试。",
       ),
     );
-    expect(element("[data-cloud-session-state]").textContent).toBe("已连接");
+    expect(element("[data-cloud-session-state]").textContent).toBe("已登录并连接");
   });
 });

@@ -289,7 +289,12 @@ export class YouTubeCaptionController {
     this.#temporaryHold.clear();
     if (!transferred) this.#pauseVideoFor(SELECTION_PAUSE);
     this.#selectionActive = true;
-    const anchor: StoreOverlayAnchor = { bottom: rect.bottom, left: rect.left, top: rect.top };
+    const selectionRight = Number.isFinite(rect.right) ? rect.right : rect.left;
+    const anchor: StoreOverlayAnchor = {
+      bottom: rect.bottom,
+      left: (rect.left + selectionRight) / 2,
+      top: rect.top,
+    };
     this.#overlay.show(
       applyYouTubeSelectionBoundary(selected.reading, selected.text.data),
       anchor,

@@ -38,8 +38,8 @@ export function createOverlayPanel(
   const modes = document.createElement("div");
   modes.className = "mode-actions";
   modes.append(
-    actionButton(document, "翻译", "translate", onAction),
     actionButton(document, "解释", "explain", onAction),
+    actionButton(document, "翻译", "translate", onAction),
   );
   const headerActions = document.createElement("div");
   headerActions.className = "header-actions";
