@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 const fixturePath = "/apps/store-extension/e2e/fixtures/release.html";
+const crossPlatformChineseGlyphDiffRatio = 0.06;
 
 async function selectWord(page: Page, testId: string): Promise<void> {
   await page.getByTestId(testId).dblclick();
@@ -12,6 +13,32 @@ function overlay(page: Page) {
 
 function shadow(page: Page) {
   return overlay(page).locator("section.panel");
+}
+
+async function expectActionCardContract(page: Page, theme: "pearl" | "parchment"): Promise<void> {
+  const panel = shadow(page);
+  const actions = panel.locator(".mode-actions > [data-action]");
+
+  await expect(panel).toHaveAttribute("data-theme", theme);
+  expect(
+    await panel.evaluate((element) =>
+      getComputedStyle(element).getPropertyValue("--material-blur").trim(),
+    ),
+  ).toBe(theme === "pearl" ? "34px" : "22px");
+  await expect(panel).toHaveCSS("width", "120px");
+  await expect(panel).toHaveCSS("border-radius", "13px");
+  await expect(panel.locator(".action-header")).toHaveCSS("padding", "6px");
+  await expect(panel.locator(".mode-actions")).toHaveCSS("gap", "4px");
+  await expect(actions).toHaveCount(2);
+  await expect(actions.nth(0)).toHaveAttribute("data-action", "explain");
+  await expect(actions.nth(0)).toHaveText("解释");
+  await expect(actions.nth(1)).toHaveAttribute("data-action", "translate");
+  await expect(actions.nth(1)).toHaveText("翻译");
+  await expect(actions.nth(0)).toHaveCSS("min-height", "32px");
+  await expect(actions.nth(0)).toHaveCSS("border-radius", "8px");
+  await expect(actions.nth(0)).toHaveCSS("color", "rgb(37, 41, 46)");
+  await expect(actions.nth(0)).toHaveCSS("background-color", "rgba(255, 255, 255, 0.62)");
+  await expect(actions.nth(0)).toHaveCSS("font-size", "14px");
 }
 
 test.beforeEach(async ({ page }) => {
@@ -57,25 +84,25 @@ test("the actual Store bundle renders all four appearances without changing card
   }
 });
 
-test("the default silver Store card keeps pearl and parchment visual baselines", async ({
+test("the default silver Store card keeps explain-first behavior and visual baselines", async ({
   page,
 }) => {
   await selectWord(page, "word");
   await expect(shadow(page)).toHaveAttribute("data-styles", "ready");
-  await expect(shadow(page)).toHaveCSS("width", "120px");
+  await expectActionCardContract(page, "pearl");
   await expect(shadow(page)).toHaveScreenshot("store-silver-pearl-action.png", {
     animations: "disabled",
-    maxDiffPixels: 200,
+    maxDiffPixelRatio: crossPlatformChineseGlyphDiffRatio,
   });
 
   await page.goto(`${fixturePath}?theme=parchment`);
   await expect(page.locator("html")).toHaveAttribute("data-store-harness-ready", "true");
   await selectWord(page, "word");
   await expect(shadow(page)).toHaveAttribute("data-styles", "ready");
-  await expect(shadow(page)).toHaveCSS("width", "120px");
+  await expectActionCardContract(page, "parchment");
   await expect(shadow(page)).toHaveScreenshot("store-silver-parchment-action.png", {
     animations: "disabled",
-    maxDiffPixels: 200,
+    maxDiffPixelRatio: crossPlatformChineseGlyphDiffRatio,
   });
 });
 
