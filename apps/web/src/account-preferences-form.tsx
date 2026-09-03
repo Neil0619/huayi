@@ -50,9 +50,9 @@ export function AccountPreferencesForm({
       setRevision(saved.revision);
       setStudyCaptureMode(saved.studyCaptureMode);
       setTimezone(saved.timezone);
-      setStatus("账号偏好已保存，并将同步到所有已关联插件。");
+      setStatus("设置已保存，并将同步到已连接的扩展。");
     } catch {
-      setError("保存失败，草稿已保留；请刷新 revision 或检查输入后重试。");
+      setError("保存失败，你刚才的修改已保留。请刷新页面后重试。");
     } finally {
       setSaving(false);
     }
@@ -60,11 +60,13 @@ export function AccountPreferencesForm({
 
   return (
     <section aria-labelledby="preferences-heading" className="account-preferences-card">
-      <h2 id="preferences-heading">账号与插件偏好</h2>
-      <p>三项插件设置对账号下所有已关联插件生效；不会自动迁移或删除任何本机 BYOK Key。</p>
+      <h2 id="preferences-heading">学习与扩展偏好</h2>
+      <p>
+        这些设置会同步到你已连接的语见扩展，只影响今后的分析和收录；不会改动扩展中已有的模型密钥或生词。
+      </p>
       <form onSubmit={(event) => void save(event)}>
         <label>
-          IANA 时区
+          所在时区
           <input
             autoComplete="off"
             maxLength={100}
@@ -74,8 +76,9 @@ export function AccountPreferencesForm({
             value={timezone}
           />
         </label>
+        <p className="field-hint">用于判断“今天”和安排每日练习，例如 Asia/Shanghai。</p>
         <label>
-          插件查询模型
+          扩展使用哪种模型
           <select
             name="extensionQueryModelMode"
             onChange={(event) =>
@@ -85,13 +88,13 @@ export function AccountPreferencesForm({
             }
             value={extensionQueryModelMode}
           >
-            <option value="platform">使用 Web 平台额度</option>
-            <option value="byok">使用各插件本机 BYOK Key</option>
+            <option value="platform">使用语见提供的模型</option>
+            <option value="byok">使用扩展中配置的模型密钥</option>
           </select>
         </label>
-        <p className="field-hint">平台模式适合没有模型 Key 的用户；不会自动切换或回退。</p>
+        <p className="field-hint">两种方式不会在失败时自动切换。</p>
         <label>
-          查询后加入待学习区
+          分析后如何加入待整理
           <select
             name="studyCaptureMode"
             onChange={(event) =>
@@ -101,12 +104,12 @@ export function AccountPreferencesForm({
             }
             value={studyCaptureMode}
           >
-            <option value="manual">手动加入（默认）</option>
-            <option value="automatic">自动加入，并允许当前浮层撤销</option>
+            <option value="manual">由我手动加入（推荐）</option>
+            <option value="automatic">自动加入，可在当前结果中撤销</option>
           </select>
         </label>
         <label>
-          云端单词副本
+          新收藏的生词是否同步到网页
           <select
             name="cloudWordCopyMode"
             onChange={(event) =>
@@ -116,13 +119,12 @@ export function AccountPreferencesForm({
             }
             value={cloudWordCopyMode}
           >
-            <option value="enabled">保存未来新增词的云端副本（默认）</option>
-            <option value="disabled">仅保存在各插件本机</option>
+            <option value="enabled">同步到语见网页（默认）</option>
+            <option value="disabled">只保存在当前扩展</option>
           </select>
         </label>
-        <p className="field-hint">例如 Asia/Shanghai、Europe/London 或 UTC。</p>
         <label>
-          每日目标
+          每日练习目标
           <input
             inputMode="numeric"
             max={100}
@@ -135,7 +137,7 @@ export function AccountPreferencesForm({
           />
         </label>
         <button disabled={saving} type="submit">
-          {saving ? "正在保存…" : "保存账号偏好"}
+          {saving ? "正在保存…" : "保存设置"}
         </button>
       </form>
       {error !== "" && <p role="alert">{error}</p>}

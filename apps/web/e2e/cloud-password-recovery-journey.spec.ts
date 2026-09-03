@@ -41,7 +41,8 @@ test("a learner completes password recovery only through the latest confirmed ma
     expect(response.status()).toBe(202);
     expect(response.headers()["cache-control"]).toBe("private, no-store");
     expect(response.headers()["set-cookie"]).toBeUndefined();
-    await expect(page.getByRole("status")).toContainText("如果该邮箱可恢复");
+    await expect(page.getByRole("status")).toContainText("恢复请求已提交");
+    await expect(page.getByRole("status")).toContainText("几分钟内收到邮件");
     await expect(page.getByLabel("邮箱")).toHaveValue("");
   }
   expect(

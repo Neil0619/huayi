@@ -116,6 +116,7 @@
   --button-fill: var(--action);
   --button-fill-hover: var(--action-hover);
   --button-text: var(--text-on-action);
+  --acceptance-notice-height: 42px;
   --glass-radius: var(--radius-card);
   --glass-blur: var(--blur-soft);
   --glass-fill: var(--surface-glass);
@@ -382,6 +383,8 @@ body::before {
   z-index: 30;
   top: 0;
   display: flex;
+  min-height: var(--acceptance-notice-height);
+  box-sizing: border-box;
   flex-wrap: wrap;
   justify-content: center;
   gap: var(--space-3);
@@ -529,6 +532,9 @@ button:disabled {
   box-shadow: var(--shadow-control);
   backdrop-filter: blur(var(--blur-clear)) saturate(118%);
 }
+body:has(.acceptance-environment-notice) .workspace-navigation {
+  top: calc(var(--acceptance-notice-height) + var(--space-3));
+}
 .workspace-navigation > summary {
   display: none;
 }
@@ -629,10 +635,10 @@ main {
 .page-heading h1 {
   max-width: 14ch;
   margin-top: var(--space-2);
-  font-size: clamp(3rem, 5.7vw, 5.15rem);
-  font-weight: 430;
-  letter-spacing: -0.055em;
-  line-height: 0.98;
+  font-size: clamp(2.25rem, 3.6vw, 3.75rem);
+  font-weight: 500;
+  letter-spacing: -0.04em;
+  line-height: 1.05;
 }
 .workspace-section-nav {
   display: flex;
@@ -941,6 +947,10 @@ main {
   max-width: var(--workspace-max);
   margin: 0 auto var(--space-5);
 }
+.device-sessions-page {
+  max-width: 64rem;
+  margin: 0 auto;
+}
 .device-note {
   padding: var(--space-4);
   border-left: 3px solid var(--focus-ring);
@@ -1041,6 +1051,9 @@ main {
 }
 
 @media (max-width: 48rem) {
+  .acceptance-environment-notice {
+    position: relative;
+  }
   .app-shell {
     display: block;
   }
@@ -1074,6 +1087,9 @@ main {
     width: calc(100% - var(--space-5));
     border-radius: var(--radius-card);
   }
+  body:has(.acceptance-environment-notice) .workspace-navigation {
+    top: calc(var(--space-16) + var(--space-3));
+  }
   .workspace-navigation > summary {
     display: block;
     min-height: var(--control-height);
@@ -1106,7 +1122,7 @@ main {
     margin-top: var(--space-3);
   }
   .page-heading h1 {
-    font-size: clamp(2.75rem, 16vw, 3.55rem);
+    font-size: clamp(2.25rem, 10vw, 3rem);
   }
   .inbox-layout {
     grid-template-columns: 1fr;

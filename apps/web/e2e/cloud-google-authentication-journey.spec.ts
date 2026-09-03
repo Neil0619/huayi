@@ -115,7 +115,7 @@ test("a disabled Google account receives only a data-rights session", async ({ p
   expect(callback.headers()["cache-control"]).toBe("private, no-store");
   expect(callback.headers()["referrer-policy"]).toBe("no-referrer");
   await expect(page).toHaveURL(`${webOrigin}/settings/data`);
-  await expect(page.getByRole("heading", { level: 1, name: "导出与永久删除" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "导出与删除账号" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "待分析" })).toHaveCount(0);
   expect(authority.snapshot().webSessionCount).toBe(1);
 });

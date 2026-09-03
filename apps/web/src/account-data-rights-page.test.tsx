@@ -51,7 +51,8 @@ describe("Web account data rights", () => {
   it("loads an honest empty state and creates one export", async () => {
     const rightsApi = api();
     const container = await render(rightsApi);
-    expect(container.querySelector("h1")?.textContent).toBe("导出与永久删除");
+    expect(container.querySelector("h1")?.textContent).toBe("导出与删除账号");
+    expect(container.querySelector("[aria-current='page']")?.textContent).toContain("数据与账号");
     expect(container.textContent).toContain("尚未请求完整数据导出");
     await act(async () =>
       container.querySelector<HTMLButtonElement>("[data-create-export]")?.click(),

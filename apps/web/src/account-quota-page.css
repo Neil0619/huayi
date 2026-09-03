@@ -16,8 +16,11 @@
 }
 
 .account-settings-nav a {
+  display: flex;
   min-height: var(--control-height);
+  align-items: center;
   padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius-pill);
   color: var(--text-secondary);
   font-size: 0.85rem;
@@ -26,8 +29,10 @@
 }
 
 .account-settings-nav a[aria-current="page"] {
+  border-color: var(--border-strong);
   color: var(--text-primary);
   background: var(--surface-inner);
+  font-weight: 800;
 }
 
 .quota-card,

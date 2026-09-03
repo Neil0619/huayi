@@ -24,7 +24,7 @@ test("an account owner exports data and permanently deletes the account", async 
   await authority.install(page);
 
   await page.goto(`${webOrigin}/settings/data`);
-  await expect(page.getByRole("heading", { name: "导出与永久删除", level: 1 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "导出与删除账号", level: 1 })).toBeVisible();
   expect(
     await page.locator(".danger-zone").evaluate((element) => {
       const computed = getComputedStyle(element);

@@ -145,7 +145,9 @@ describe("Web pasted-English analysis", () => {
     await act(async () => container.querySelector<HTMLFormElement>("form")?.requestSubmit());
     await settle();
 
-    expect(container.querySelector("[role='alert']")?.textContent).toContain("模型暂时不可用");
+    expect(container.querySelector("[role='alert']")?.textContent).toContain(
+      "模型服务尚未开放或暂时不可用",
+    );
     expect(sourceText.value).toBe("Retry this sentence.");
     await act(async () =>
       container.querySelector<HTMLButtonElement>("[data-retry-analysis]")?.click(),

@@ -107,6 +107,7 @@ export function CloudApp({
   );
   const [preferencesRevision, setPreferencesRevision] = useState(1);
   const [studyCaptureMode, setStudyCaptureMode] = useState<"automatic" | "manual">("manual");
+  const [operator, setOperator] = useState(false);
   const [state, setState] = useState<ViewState>("loading");
 
   useEffect(() => {
@@ -150,6 +151,26 @@ export function CloudApp({
       active = false;
     };
   }, [identity, pairingId]);
+
+  useEffect(() => {
+    if (
+      adminApi === undefined ||
+      pairingId !== undefined ||
+      sessionAccess !== "full" ||
+      state !== "pending"
+    ) {
+      setOperator(false);
+      return;
+    }
+    let active = true;
+    void adminApi
+      .access()
+      .then(() => active && setOperator(true))
+      .catch(() => active && setOperator(false));
+    return () => {
+      active = false;
+    };
+  }, [adminApi, pairingId, sessionAccess, state]);
 
   const approve = async (event: FormEvent) => {
     event.preventDefault();
@@ -228,6 +249,7 @@ export function CloudApp({
           setState("signed-out");
         }}
         showAccountNavigation={showAccountNavigation}
+        showOperatorNavigation={operator}
       />
     );
     if (sessionAccess === "data-rights")
@@ -247,15 +269,21 @@ export function CloudApp({
     else if (page === "account" && accountApi !== undefined)
       content = (
         <AccountQuotaPage
-          adminApi={adminApi}
           api={accountApi}
           csrfToken={csrfToken}
           googleAuthenticationEnabled={googleAuthenticationEnabled}
           onCsrfTokenChanged={setCsrfToken}
+          showOperatorNavigation={operator}
         />
       );
     else if (page === "devices")
-      content = <DeviceSessionsPage api={identity} csrfToken={csrfToken} />;
+      content = (
+        <DeviceSessionsPage
+          api={identity}
+          csrfToken={csrfToken}
+          showOperatorNavigation={operator}
+        />
+      );
     else if (page === "analysis" && analysisApi !== undefined)
       content = <PasteAnalysisPage api={analysisApi} />;
     else if (page === "history" && historyApi !== undefined)

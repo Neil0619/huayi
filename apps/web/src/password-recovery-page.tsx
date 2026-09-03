@@ -66,7 +66,9 @@ export function PasswordRecoveryPage({
     try {
       await api.requestPasswordRecovery(email);
       setEmail("");
-      setStatus("如果该邮箱可恢复，我们已发送邮件。请在邮件中确认后继续。");
+      setStatus(
+        "恢复请求已提交。如果该邮箱可以恢复，你会在几分钟内收到邮件；请使用最新一封邮件继续。",
+      );
     } catch {
       setError("暂时无法提交密码恢复请求。请检查邮箱或稍后重试。");
     } finally {

@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { WordEntryDetailResponse } from "@huayi/cloud-contracts";
 
 import { WordLibraryPage } from "./word-library-page.js";
-import type { WebWordLibraryApi } from "./word-library-api.js";
+import { WebWordLibraryApiError, type WebWordLibraryApi } from "./word-library-api.js";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -158,6 +158,77 @@ describe("Web word library", () => {
     );
     expect(words.deleteWord).toHaveBeenCalledOnce();
     expect(words.listWords).toHaveBeenCalledTimes(2);
+  });
+
+  it("confirms a saved note after the write response is lost", async () => {
+    const saved = { ...word, notes: "我的草稿", revision: 2 };
+    const words = api({
+      getWord: vi
+        .fn<WebWordLibraryApi["getWord"]>()
+        .mockResolvedValueOnce(detail)
+        .mockResolvedValueOnce({ ...detail, word: saved }),
+      patchWord: vi.fn(async () => {
+        throw new Error("response lost");
+      }),
+    });
+    const container = await render(words);
+    await act(async () => container.querySelector<HTMLButtonElement>("[data-open-word]")?.click());
+    const notes = container.querySelector<HTMLTextAreaElement>("[name='notes']");
+    if (notes === null) throw new Error("Notes input missing.");
+    await input(notes, "我的草稿");
+    await act(async () => container.querySelector<HTMLButtonElement>("[data-save-notes]")?.click());
+
+    expect(container.querySelector("[role='alert']")).toBeNull();
+    expect(container.querySelector(".word-status")?.textContent).toContain("备注已保存");
+    expect(words.getWord).toHaveBeenCalledTimes(2);
+  });
+
+  it("confirms a deleted word after the write response is lost", async () => {
+    const words = api({
+      deleteWord: vi.fn(async () => {
+        throw new Error("response lost");
+      }),
+      getWord: vi
+        .fn<WebWordLibraryApi["getWord"]>()
+        .mockResolvedValueOnce(detail)
+        .mockRejectedValueOnce(new WebWordLibraryApiError("not_found")),
+      listWords: vi
+        .fn<WebWordLibraryApi["listWords"]>()
+        .mockResolvedValueOnce({ items: [word], nextCursor: null })
+        .mockResolvedValueOnce({ items: [], nextCursor: null }),
+    });
+    const container = await render(words);
+    await act(async () => container.querySelector<HTMLButtonElement>("[data-open-word]")?.click());
+    await act(async () =>
+      container.querySelector<HTMLButtonElement>("[data-delete-word]")?.click(),
+    );
+    await act(async () =>
+      container.querySelector<HTMLButtonElement>("[data-confirm-delete]")?.click(),
+    );
+
+    expect(container.querySelector("[role='alert']")).toBeNull();
+    expect(container.querySelector(".word-status")?.textContent).toContain("词条及其语境已删除");
+    expect(container.querySelector("[data-confirm-delete]")).toBeNull();
+  });
+
+  it("mentions external dictionary history only for the matching server conflict", async () => {
+    const words = api({
+      deleteWord: vi.fn(async () => {
+        throw new WebWordLibraryApiError("word_entry_in_use");
+      }),
+    });
+    const container = await render(words);
+    await act(async () => container.querySelector<HTMLButtonElement>("[data-open-word]")?.click());
+    await act(async () =>
+      container.querySelector<HTMLButtonElement>("[data-delete-word]")?.click(),
+    );
+    expect(container.textContent).toContain("已同步到外部词典的副本不会随之删除");
+    await act(async () =>
+      container.querySelector<HTMLButtonElement>("[data-confirm-delete]")?.click(),
+    );
+
+    expect(container.querySelector("[role='alert']")?.textContent).toContain("曾参与外部词典同步");
+    expect(container.querySelector("[role='alert']")?.textContent).not.toContain("外部任务");
   });
 
   it("reports a saved note honestly when the following server reread fails", async () => {

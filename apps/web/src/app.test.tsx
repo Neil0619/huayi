@@ -14,6 +14,49 @@ it("starts a full workspace session from today's practice", () => {
   expect(authenticatedLandingPath("data-rights")).toBe("/settings/data");
 });
 
+it("navigates within the authenticated workspace without bootstrapping the session again", async () => {
+  history.replaceState(null, "", "/practice");
+  const bootstrap = vi.fn(async () => ({ access: "full" as const, csrfToken: "s".repeat(32) }));
+  const identity = {
+    approvePairing: vi.fn<IdentityApi["approvePairing"]>(),
+    bootstrap,
+    claimInvitation: vi.fn<AuthApi["claimInvitation"]>(),
+    createAccountDataExport: vi.fn<IdentityApi["createAccountDataExport"]>(),
+    deleteAccount: vi.fn<IdentityApi["deleteAccount"]>(),
+    downloadAccountDataExport: vi.fn<IdentityApi["downloadAccountDataExport"]>(),
+    getAccountPreferences: vi.fn<IdentityApi["getAccountPreferences"]>(),
+    getCurrentAccountDataExport: vi.fn<IdentityApi["getCurrentAccountDataExport"]>(),
+    getPairing: vi.fn<IdentityApi["getPairing"]>(),
+    googleAuthStartUrl: "https://api.huayi.invalid/v1/auth/google/start",
+    googleLoginStartUrl: "https://api.huayi.invalid/v1/auth/google/login/start",
+    listExtensionSessions: vi.fn<IdentityApi["listExtensionSessions"]>(),
+    loginPassword: vi.fn<AuthApi["loginPassword"]>(),
+    logout: vi.fn<IdentityApi["logout"]>(),
+    registerPassword: vi.fn<AuthApi["registerPassword"]>(),
+    reauthenticatePassword: vi.fn<IdentityApi["reauthenticatePassword"]>(),
+    resendPasswordRegistration: vi.fn<AuthApi["resendPasswordRegistration"]>(),
+    resumePasswordRegistration: vi.fn<AuthApi["resumePasswordRegistration"]>(),
+    retryAccountDataExport: vi.fn<IdentityApi["retryAccountDataExport"]>(),
+    revokeExtensionSession: vi.fn<IdentityApi["revokeExtensionSession"]>(),
+  } satisfies AuthApi & IdentityApi;
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  await act(async () => root.render(<App identity={identity} page="practice" />));
+  await act(async () => Promise.resolve());
+
+  const words = container.querySelector<HTMLAnchorElement>("a[href='/words']");
+  await act(async () => words?.click());
+
+  expect(location.pathname).toBe("/words");
+  expect(words?.getAttribute("aria-current")).toBe("page");
+  expect(bootstrap).toHaveBeenCalledOnce();
+  expect(container.textContent).not.toContain("正在确认登录状态");
+
+  await act(async () => root.unmount());
+  history.replaceState(null, "", "/");
+});
+
 it("fails closed when the production API origin is unavailable", async () => {
   const container = document.createElement("div");
   document.body.append(container);

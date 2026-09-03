@@ -59,6 +59,9 @@ describe("Web account device sessions", () => {
 
     expect(container.querySelector("[role='status']")?.textContent).toContain("正在载入设备");
     await act(async () => pending.resolve({ items: [] }));
+    expect(container.querySelector(".device-sessions-page")).not.toBeNull();
+    expect(container.textContent).toContain("在这里断开设备");
+    expect(container.textContent).not.toContain("Popup");
     expect(container.querySelector("h2")?.textContent).toContain("没有已连接的扩展设备");
     expect(container.querySelector("ul")).toBeNull();
   });
@@ -80,7 +83,7 @@ describe("Web account device sessions", () => {
     expect(deviceApi.listExtensionSessions).toHaveBeenCalledTimes(2);
     expect(container.querySelector("ul")?.textContent).toContain("Writing laptop");
     expect(container.textContent).toContain("尚未使用");
-    expect(container.textContent).toContain("只删除本机凭据，不等同于服务器撤销");
+    expect(container.textContent).toContain("只在扩展中选择“断开本机”");
   });
 
   it("requires confirmation, revokes on the server, and announces success", async () => {
@@ -93,12 +96,12 @@ describe("Web account device sessions", () => {
     );
     const confirm = container.querySelector<HTMLButtonElement>("[data-confirm-revoke]");
     expect(confirm).toBe(document.activeElement);
-    expect(container.textContent).toContain("这会立即撤销服务器上的云端授权");
+    expect(container.textContent).toContain("需要重新连接才能再次访问账号");
     await act(async () => confirm?.click());
 
     expect(deviceApi.revokeExtensionSession).toHaveBeenCalledWith("session-1", "c".repeat(32));
     expect(container.querySelector("[role='status']")?.textContent).toContain(
-      "已撤销 Writing laptop 的服务器会话",
+      "已断开 Writing laptop",
     );
     expect(container.querySelector("ul")).toBeNull();
     expect(container.querySelector("h2")).toBe(document.activeElement);
@@ -119,7 +122,7 @@ describe("Web account device sessions", () => {
       container.querySelector<HTMLButtonElement>("[data-confirm-revoke]")?.click(),
     );
 
-    expect(container.querySelector("[role='alert']")?.textContent).toContain("服务器撤销失败");
+    expect(container.querySelector("[role='alert']")?.textContent).toContain("断开失败");
     expect(container.querySelector("ul")?.textContent).toContain("Writing laptop");
   });
 });

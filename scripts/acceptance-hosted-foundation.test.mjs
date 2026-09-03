@@ -647,7 +647,7 @@ test("package scripts expose separate hosted plan, apply and read-only verificat
   );
   assert.equal(
     packageDocument.scripts["acceptance:hosted:application:diagnose"],
-    "node scripts/acceptance-hosted-application-diagnose.mjs",
+    "node scripts/acceptance-hosted-application-diagnose.mjs --diagnose-hosted-application-login-kpadiulxkgckskcfydry",
   );
   assert.equal(
     packageDocument.scripts["acceptance:hosted:operator"],
@@ -655,7 +655,7 @@ test("package scripts expose separate hosted plan, apply and read-only verificat
   );
   assert.equal(
     packageDocument.scripts["acceptance:hosted:operator:status"],
-    "node scripts/acceptance-hosted-first-operator.mjs status",
+    "node scripts/acceptance-hosted-first-operator.mjs status --status-first-operator-kpadiulxkgckskcfydry",
   );
   assert.equal(
     packageDocument.scripts["acceptance:hosted:operator:invite"],

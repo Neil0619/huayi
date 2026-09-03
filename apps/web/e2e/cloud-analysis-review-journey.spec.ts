@@ -26,7 +26,7 @@ test("a pasted analysis streams into Inbox and becomes a server-reread learning 
   });
 
   await page.goto(`${webOrigin}/analysis`);
-  await expect(page.getByRole("heading", { level: 1, name: "粘贴英文分析" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "英文分析" })).toBeVisible();
   await page.getByLabel("英文内容").fill(sourceText);
   await page.getByLabel("来源标题（可选）").fill("Writing notes");
   const streamResponse = page.waitForResponse(

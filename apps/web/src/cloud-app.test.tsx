@@ -160,6 +160,49 @@ describe("Web account bootstrap and pairing approval", () => {
     );
   });
 
+  it("keeps the operator entry and active settings tab consistent across settings pages", async () => {
+    const identity = api();
+    const adminApi = {
+      access: vi.fn(async () => ({ role: "operator" as const })),
+      createInvitation: vi.fn<WebAdminOperationsApi["createInvitation"]>(),
+      getUsage: vi.fn<WebAdminOperationsApi["getUsage"]>(),
+      listAuditEvents: vi.fn<WebAdminOperationsApi["listAuditEvents"]>(),
+      listInvitations: vi.fn<WebAdminOperationsApi["listInvitations"]>(),
+      listUsers: vi.fn<WebAdminOperationsApi["listUsers"]>(),
+      recoverInvitationToken: vi.fn<WebAdminOperationsApi["recoverInvitationToken"]>(),
+      revokeInvitation: vi.fn<WebAdminOperationsApi["revokeInvitation"]>(),
+      revokeUserDevices: vi.fn<WebAdminOperationsApi["revokeUserDevices"]>(),
+      setKillSwitch: vi.fn<WebAdminOperationsApi["setKillSwitch"]>(),
+      setUserQuota: vi.fn<WebAdminOperationsApi["setUserQuota"]>(),
+      setUserStatus: vi.fn<WebAdminOperationsApi["setUserStatus"]>(),
+    } satisfies WebAdminOperationsApi;
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+    await act(async () =>
+      root.render(<CloudApp adminApi={adminApi} identity={identity} page="devices" />),
+    );
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(
+      container.querySelector("nav[aria-label='账号设置'] [aria-current='page']")?.textContent,
+    ).toContain("扩展设备");
+    expect(container.querySelector("a[href='/admin']")?.textContent).toBe("运营控制台");
+
+    await act(async () =>
+      root.render(<CloudApp adminApi={adminApi} identity={identity} page="data" />),
+    );
+    await act(async () => Promise.resolve());
+    expect(
+      container.querySelector("nav[aria-label='账号设置'] [aria-current='page']")?.textContent,
+    ).toContain("数据与账号");
+    expect(container.querySelector("a[href='/admin']")?.textContent).toBe("运营控制台");
+    expect(adminApi.access).toHaveBeenCalledOnce();
+  });
+
   it("routes an authenticated account to the pasted-analysis page", async () => {
     const identity = api();
     const analysisApi: PasteAnalysisApi = {
@@ -181,7 +224,7 @@ describe("Web account bootstrap and pairing approval", () => {
     );
     await act(async () => Promise.resolve());
 
-    expect(container.querySelector("h1")?.textContent).toBe("粘贴英文分析");
+    expect(container.querySelector("h1")?.textContent).toBe("英文分析");
     expect(container.querySelector("[aria-current='page']")?.textContent).toBe("分析");
   });
 
@@ -227,7 +270,7 @@ describe("Web account bootstrap and pairing approval", () => {
     );
     await act(async () => Promise.resolve());
 
-    expect(container.querySelector("h1")?.textContent).toBe("账号与平台额度");
+    expect(container.querySelector("h1")?.textContent).toBe("账号与用量");
     expect(container.querySelector("[aria-current='page']")?.textContent).toContain("设置");
   });
 
@@ -334,7 +377,7 @@ describe("Web account bootstrap and pairing approval", () => {
     );
     await act(async () => Promise.resolve());
 
-    expect(container.querySelector("h1")?.textContent).toBe("导出与永久删除");
+    expect(container.querySelector("h1")?.textContent).toBe("导出与删除账号");
     expect(container.querySelector("nav[aria-label='主导航']")).toBeNull();
     expect(container.querySelector("nav[aria-label='账号设置']")).toBeNull();
   });
@@ -368,6 +411,6 @@ describe("Web account bootstrap and pairing approval", () => {
 
     expect(identity.deleteAccount).toHaveBeenCalledOnce();
     expect(container.querySelector("h1")?.textContent).toBe("需要先登录");
-    expect(container.textContent).not.toContain("导出与永久删除");
+    expect(container.textContent).not.toContain("导出与删除账号");
   });
 });

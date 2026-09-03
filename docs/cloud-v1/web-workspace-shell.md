@@ -40,8 +40,8 @@ approved/error 状态和独立 `/admin` 运营面不使用完整 WorkspaceShell�
 7. 设置 → `/settings/account`。
 
 当前区段的链接使用 `aria-current="page"` 并指向 `#main-content`；其他链接必须使用上面的绝对路径。
-Operator 入口不是一级导航第八项。只有 `/settings/account` 已经通过服务器 authority 验证后，才在
-账号设置二级导航显示“运营控制台”→`/admin`；独立运营面提供返回工作台的明确链接。
+Operator 入口不是一级导航第八项。当前登录通过服务器 authority 验证后，三个账号设置子页面使用
+同一二级导航并一致显示“运营控制台”→`/admin`；独立运营面提供返回工作台的明确链接。
 
 子页面归入已有一级区段：练习历史属于“今日练习”，外部词典任务属于“生词”，三个账号子页面属于
 “设置”。练习页继续以页内链接进入练习历史；生词和外部词典页面增加同一组二级文字导航；设置页面
@@ -83,8 +83,10 @@ wrapper；测试通过 WorkspaceShell interface 验证行为。
 
 ### 3.2 数据与路由
 
-无新请求、状态、数据结构或 route parser。所有 href 都使用现有 production route；页面切换仍是普通
-同源顶层导航，不在本阶段引入客户端 router。Operator 可见性继续使用既有服务器 access 结果。
+无新请求、持久状态或数据结构。所有 href 仍使用现有 production route 并支持直接打开；已登录工作台
+使用 History API 在同一 React 树内切换这些既有页面，浏览器前进/后退同步页面状态，避免每次一级或
+二级导航都重新 bootstrap 登录会话。不增加第三方客户端 router。Operator 可见性继续使用既有服务器
+access 结果，并在同一工作台会话中复用。
 
 ## 4. TDD 与验收
 

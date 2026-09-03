@@ -46,6 +46,12 @@ describe("account preferences form", () => {
       ),
     );
 
+    expect(container.querySelector("h2")?.textContent).toBe("学习与扩展偏好");
+    expect(container.textContent).toContain("使用语见提供的模型");
+    expect(container.textContent).toContain("新收藏的生词是否同步到网页");
+    expect(container.textContent).not.toContain("BYOK");
+    expect(container.textContent).not.toContain("IANA");
+
     const timezone = container.querySelector<HTMLInputElement>("[name='timezone']");
     const dailyGoal = container.querySelector<HTMLInputElement>("[name='dailyGoal']");
     expect(timezone?.value).toBe("UTC");
@@ -73,8 +79,8 @@ describe("account preferences form", () => {
       studyCaptureMode: "manual",
       timezone: "Asia/Shanghai",
     });
-    expect(container.querySelector("[role='status']")?.textContent).toContain("已保存");
-    expect(container.textContent).toContain("所有已关联插件");
+    expect(container.querySelector("[role='status']")?.textContent).toContain("设置已保存");
+    expect(container.textContent).toContain("已连接的扩展");
   });
 
   it("retains the draft after a save error", async () => {
@@ -97,6 +103,8 @@ describe("account preferences form", () => {
       container.querySelector<HTMLButtonElement>("button[type='submit']")?.click(),
     );
     expect(container.querySelector("[role='alert']")?.textContent).toContain("保存失败");
+    expect(container.querySelector("[role='alert']")?.textContent).toContain("修改已保留");
+    expect(container.querySelector("[role='alert']")?.textContent).not.toContain("revision");
     expect(timezone?.value).toBe("Asia/Tokyo");
   });
 });

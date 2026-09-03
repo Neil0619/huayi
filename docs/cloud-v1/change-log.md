@@ -2347,3 +2347,16 @@
 - 两次 post-relogin identity snapshot 仍显示目标账号活动 Web session 为 0，而浏览器可访问认证页面。新增
   不接受 identity/session/token input 的只读诊断，以固定 19 行聚合和有限 verdict 区分目标账号 active、
   其他账号 active、当前数据库零 active 及 owner/partition drift；当前仅离线实现，尚未执行 Hosted。
+
+## 2026-09-03：Hosted 工作台导航、写入确认与设置文案修正
+
+- 已登录工作台保留可直接访问的 production URL，同时以原生 History API 在同一 React 树中切换页面；
+  一级、二级导航不再为每次点击重新执行登录 bootstrap，前进和后退仍恢复正确当前项。
+- 生词备注和删除在 mutation 响应不确定时进行一次只读权威回读：备注值相同或词条已不存在时按真实
+  服务器结果完成 UI；只有精确 `word_entry_in_use` 才解释外部词典同步历史保护。
+- 账号设置三个子页面复用同一二级导航和 Operator 可见性；用户标签改为“账号与用量 / 扩展设备 /
+  数据与账号”，并统一内容宽度、明确当前项。
+- 页面主标题缩小，Hosted 验收条与粘性主导航使用固定堆叠偏移；静态额度标题不再在初次载入后自动
+  获得焦点，键盘操作的 focus ring 仍保留。
+- 密码恢复 202 响应只表述为“请求已提交”，不再误称邮件已经发送；实际投递仍由服务器队列与定时
+  worker 权威完成。

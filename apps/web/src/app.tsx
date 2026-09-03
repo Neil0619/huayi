@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+
 import { InboxApp, type InboxApi } from "./inbox-app.js";
 import { CloudApp, type CloudPage, type IdentityApi } from "./cloud-app.js";
 import { AuthPage, type AuthApi, type AuthRoute } from "./auth-page.js";
@@ -20,6 +22,25 @@ import { WebAppearanceController } from "./web-appearance-controller.js";
 
 export function authenticatedLandingPath(access: "data-rights" | "full") {
   return access === "data-rights" ? "/settings/data" : "/practice";
+}
+
+const workspacePages = new Map<string, CloudPage>([
+  ["/admin", "admin"],
+  ["/analysis", "analysis"],
+  ["/app", "inbox"],
+  ["/history", "history"],
+  ["/library", "library"],
+  ["/practice", "practice"],
+  ["/practice/history", "practice-history"],
+  ["/settings/account", "account"],
+  ["/settings/data", "data"],
+  ["/settings/devices", "devices"],
+  ["/words", "words"],
+  ["/words/wordbooks", "wordbooks"],
+]);
+
+export function cloudPageFromPathname(pathname: string): CloudPage | undefined {
+  return workspacePages.get(pathname);
 }
 
 function AppSurface({
@@ -122,9 +143,72 @@ function AppSurface({
 }
 
 export function App(props: Parameters<typeof AppSurface>[0]) {
+  const [page, setPage] = useState<CloudPage>(
+    () => props.page ?? cloudPageFromPathname(location.pathname) ?? "inbox",
+  );
+  const workspaceNavigationEnabled =
+    props.identity !== undefined &&
+    props.authRoute === undefined &&
+    props.passwordRecoveryRoute === undefined &&
+    props.publicPage === undefined &&
+    props.pairingId === undefined;
+
+  useEffect(() => {
+    if (props.page !== undefined) setPage(props.page);
+  }, [props.page]);
+
+  useEffect(() => {
+    if (!workspaceNavigationEnabled) return;
+    const navigate = (event: MouseEvent) => {
+      if (
+        event.defaultPrevented ||
+        event.button !== 0 ||
+        event.altKey ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.shiftKey ||
+        !(event.target instanceof Element)
+      ) {
+        return;
+      }
+      const anchor = event.target.closest<HTMLAnchorElement>("a[href]");
+      if (
+        anchor === null ||
+        anchor.download !== "" ||
+        (anchor.target !== "" && anchor.target !== "_self")
+      ) {
+        return;
+      }
+      const destination = new URL(anchor.href, location.href);
+      const nextPage = cloudPageFromPathname(destination.pathname);
+      if (
+        destination.origin !== location.origin ||
+        nextPage === undefined ||
+        destination.hash !== ""
+      ) {
+        return;
+      }
+      event.preventDefault();
+      history.pushState(null, "", `${destination.pathname}${destination.search}`);
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+      setPage(nextPage);
+    };
+    const restore = () => {
+      const restored = cloudPageFromPathname(location.pathname);
+      if (restored !== undefined) setPage(restored);
+    };
+    document.addEventListener("click", navigate);
+    window.addEventListener("popstate", restore);
+    return () => {
+      document.removeEventListener("click", navigate);
+      window.removeEventListener("popstate", restore);
+    };
+  }, [workspaceNavigationEnabled]);
+
   return (
     <WebAppearanceController>
-      <AppSurface {...props} />
+      <AppSurface {...props} page={workspaceNavigationEnabled ? page : props.page} />
     </WebAppearanceController>
   );
 }

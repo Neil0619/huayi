@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { ExtensionSessionResource } from "@huayi/cloud-contracts";
 
+import { AccountSettingsNavigation } from "./account-settings-navigation.js";
 import type { WebIdentityApi } from "./identity-api.js";
 
 export type DeviceSessionsApi = Pick<
@@ -12,6 +13,7 @@ export type DeviceSessionsApi = Pick<
 interface DeviceSessionsPageProps {
   readonly api: DeviceSessionsApi;
   readonly csrfToken: string;
+  readonly showOperatorNavigation?: boolean | undefined;
 }
 
 type LoadState = "empty" | "error" | "loading" | "ready";
@@ -23,7 +25,11 @@ function formatTime(value: string): string {
   }).format(new Date(value));
 }
 
-export function DeviceSessionsPage({ api, csrfToken }: DeviceSessionsPageProps) {
+export function DeviceSessionsPage({
+  api,
+  csrfToken,
+  showOperatorNavigation = false,
+}: DeviceSessionsPageProps) {
   const [sessions, setSessions] = useState<ExtensionSessionResource[]>([]);
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [error, setError] = useState<string | null>(null);
@@ -67,33 +73,26 @@ export function DeviceSessionsPage({ api, csrfToken }: DeviceSessionsPageProps) 
       setSessions(remaining);
       setLoadState(remaining.length === 0 ? "empty" : "ready");
       setConfirmingId(null);
-      setStatus(`已撤销 ${session.deviceLabel} 的服务器会话。`);
+      setStatus(`已断开 ${session.deviceLabel}。`);
     } catch {
-      setError("服务器撤销失败，设备会话仍然有效，请稍后重试。");
+      setError("断开失败，该设备仍可访问账号，请稍后重试。");
     } finally {
       setBusyId(null);
     }
   };
 
   return (
-    <>
+    <div className="device-sessions-page">
       <header className="page-heading">
         <div>
           <p className="eyebrow">ACCOUNT SECURITY</p>
           <h1>扩展设备</h1>
         </div>
-        <p>查看并撤销由服务器管理的扩展授权。</p>
+        <p>查看哪些扩展已连接到此账号，并随时断开。</p>
       </header>
-      <nav aria-label="账号设置" className="account-settings-nav">
-        <a href="/settings/account">账号与额度</a>
-        <a aria-current="page" href="/settings/devices">
-          扩展设备
-        </a>
-        <a href="/settings/data">数据权利</a>
-      </nav>
+      <AccountSettingsNavigation active="devices" showOperatorNavigation={showOperatorNavigation} />
       <p className="device-note">
-        这里的撤销会使服务器会话立即失效。扩展 Popup
-        的“本机断开”只删除本机凭据，不等同于服务器撤销。
+        在这里断开设备，会立即停止该扩展访问你的语见账号。只在扩展中选择“断开本机”，不会影响这里的授权。
       </p>
       {status !== null && (
         <p aria-live="polite" role="status">
@@ -145,18 +144,18 @@ export function DeviceSessionsPage({ api, csrfToken }: DeviceSessionsPageProps) 
                       </dd>
                     </div>
                     <div>
-                      <dt>会话到期</dt>
+                      <dt>授权到期</dt>
                       <dd>{formatTime(session.expiresAt)}</dd>
                     </div>
                   </dl>
                 </div>
                 {confirmingId === session.id ? (
                   <div
-                    aria-label={`确认撤销 ${session.deviceLabel}`}
+                    aria-label={`确认断开 ${session.deviceLabel}`}
                     className="revocation-confirmation"
                     role="group"
                   >
-                    <p>这会立即撤销服务器上的云端授权。确定继续吗？</p>
+                    <p>断开后，该扩展需要重新连接才能再次访问账号。确定断开吗？</p>
                     <div className="form-actions">
                       <button
                         className="danger-button"
@@ -166,7 +165,7 @@ export function DeviceSessionsPage({ api, csrfToken }: DeviceSessionsPageProps) 
                         ref={confirmButton}
                         type="button"
                       >
-                        确认撤销
+                        确认断开
                       </button>
                       <button
                         disabled={busyId === session.id}
@@ -184,7 +183,7 @@ export function DeviceSessionsPage({ api, csrfToken }: DeviceSessionsPageProps) 
                     onClick={() => setConfirmingId(session.id)}
                     type="button"
                   >
-                    撤销服务器会话
+                    断开设备
                   </button>
                 )}
               </li>
@@ -192,6 +191,6 @@ export function DeviceSessionsPage({ api, csrfToken }: DeviceSessionsPageProps) 
           </ul>
         </section>
       )}
-    </>
+    </div>
   );
 }

@@ -1,6 +1,6 @@
 import { act } from "react";
 import { createRoot } from "react-dom/client";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { WorkspaceShell, type WorkspaceSection } from "./workspace-shell.js";
 
@@ -84,6 +84,32 @@ describe("WorkspaceShell", () => {
       ).toHaveLength(1);
       container.remove();
     }
+  });
+
+  it("closes the mobile navigation after choosing another workspace page", async () => {
+    let narrow = false;
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      value: vi.fn(() => ({
+        addEventListener: vi.fn(),
+        get matches() {
+          return narrow;
+        },
+        media: "(max-width: 48rem)",
+        onchange: null,
+        removeEventListener: vi.fn(),
+      })),
+    });
+    const container = await render("inbox");
+    const disclosure = container.querySelector<HTMLDetailsElement>(".workspace-navigation");
+    const practiceLink = container.querySelector<HTMLAnchorElement>("a[href='/practice']");
+    practiceLink?.addEventListener("click", (event) => event.preventDefault());
+
+    expect(disclosure?.open).toBe(true);
+    narrow = true;
+    await act(async () => practiceLink?.click());
+
+    expect(disclosure?.open).toBe(false);
   });
 
   it("withholds the full navigation from a data-rights-only session", async () => {

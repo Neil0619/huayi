@@ -177,6 +177,20 @@ describe("Web design token contract", () => {
 });
 
 describe("Web responsive style contract", () => {
+  it("keeps workspace headings compact enough for long Chinese labels", () => {
+    expect(styles).toMatch(
+      /\.page-heading h1\s*\{[^}]*font-size:\s*clamp\(2\.25rem,\s*3\.6vw,\s*3\.75rem\)/isu,
+    );
+    expect(styles).not.toContain("font-size: clamp(3rem, 5.7vw, 5.15rem)");
+  });
+
+  it("stacks hosted acceptance and workspace navigation without overlap", () => {
+    expect(styles).toContain("--acceptance-notice-height: 42px");
+    expect(styles).toMatch(
+      /body:has\(\.acceptance-environment-notice\)\s+\.workspace-navigation\s*\{[^}]*top:\s*calc\(/isu,
+    );
+  });
+
   it("keeps the App Shell on semantic tokens at the narrow-screen boundary", () => {
     expect(styles).toContain("/* Primitive tokens */");
     expect(styles).toContain("/* Semantic tokens */");

@@ -57,7 +57,7 @@ describe("Web password recovery page", () => {
     sessionStorage.clear();
   });
 
-  it("submits one labelled email, clears it, and shows only the uniform acceptance", async () => {
+  it("submits one labelled email, clears it, and describes queued delivery honestly", async () => {
     const recoveryApi = api();
     const view = await render(recoveryApi);
     const email = view.container.querySelector<HTMLInputElement>("#recovery-email");
@@ -71,8 +71,12 @@ describe("Web password recovery page", () => {
     expect(recoveryApi.requestPasswordRecovery).toHaveBeenCalledWith("learner@example.com");
     expect(email.value).toBe("");
     expect(view.container.querySelector("[role='status']")?.textContent).toContain(
-      "如果该邮箱可恢复，我们已发送邮件",
+      "恢复请求已提交",
     );
+    expect(view.container.querySelector("[role='status']")?.textContent).toContain(
+      "几分钟内收到邮件",
+    );
+    expect(view.container.textContent).not.toContain("我们已发送邮件");
     expect(view.container.textContent).not.toContain("learner@example.com");
     expect(localStorage).toHaveLength(0);
     expect(sessionStorage).toHaveLength(0);

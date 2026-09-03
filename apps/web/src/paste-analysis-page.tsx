@@ -33,7 +33,7 @@ function failureMessage(code: string | undefined) {
     case "model_output_invalid":
       return "模型没有返回可用的完整结构，请重试。输入内容已保留。";
     case "model_unavailable":
-      return "模型暂时不可用，请稍后重试。输入内容已保留。";
+      return "模型服务尚未开放或暂时不可用。输入内容已保留；服务恢复后可直接重试。";
     default:
       return "分析未能完成，请检查网络后重试。输入内容已保留。";
   }
@@ -198,7 +198,7 @@ export function PasteAnalysisPage({
       <header className="page-heading">
         <div>
           <p className="eyebrow">ANALYSIS</p>
-          <h1>粘贴英文分析</h1>
+          <h1>英文分析</h1>
         </div>
         <p>粘贴你主动选择的英文；只有完整结果会进入待整理。</p>
       </header>

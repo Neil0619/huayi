@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { AccountDataExportJobResource, AccountDeletionResponse } from "@huayi/cloud-contracts";
 
+import { AccountSettingsNavigation } from "./account-settings-navigation.js";
+
 export interface AccountDataRightsApi {
   createAccountDataExport(): Promise<AccountDataExportJobResource>;
   deleteAccount(): Promise<AccountDeletionResponse>;
@@ -28,10 +30,12 @@ export function AccountDataRightsPage({
   api,
   onSessionEnded,
   showAccountNavigation = true,
+  showOperatorNavigation = false,
 }: {
   readonly api: AccountDataRightsApi;
   readonly onSessionEnded: () => void;
   readonly showAccountNavigation?: boolean | undefined;
+  readonly showOperatorNavigation?: boolean | undefined;
 }) {
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState(false);
@@ -55,7 +59,7 @@ export function AccountDataRightsPage({
       setLoadState("ready");
     } catch {
       if (current !== generation.current) return;
-      setError("无法载入数据权利状态，请检查网络后重试。");
+      setError("无法载入导出与账号状态，请检查网络后重试。");
       setLoadState("error");
     }
   }, [api]);
@@ -146,25 +150,22 @@ export function AccountDataRightsPage({
       <div className="account-data-rights-page">
         <header className="page-heading">
           <div>
-            <p className="eyebrow">DATA RIGHTS</p>
-            <h1>导出与永久删除</h1>
+            <p className="eyebrow">DATA &amp; ACCOUNT</p>
+            <h1>导出与删除账号</h1>
           </div>
-          <p>取得完整账号数据，或发起不可撤销的账号删除。</p>
+          <p>下载你的语见数据，或在确认后永久删除账号。</p>
         </header>
         {showAccountNavigation && (
-          <nav aria-label="账号设置" className="account-settings-nav">
-            <a href="/settings/account">账号与额度</a>
-            <a href="/settings/devices">扩展设备</a>
-            <a aria-current="page" href="/settings/data">
-              数据权利
-            </a>
-          </nav>
+          <AccountSettingsNavigation
+            active="data"
+            showOperatorNavigation={showOperatorNavigation}
+          />
         )}
         <p aria-atomic="true" aria-live="polite" role="status">
           {message}
         </p>
         {error !== "" && <p role="alert">{error}</p>}
-        {loadState === "loading" && <p role="status">正在载入数据权利状态…</p>}
+        {loadState === "loading" && <p role="status">正在载入导出与账号状态…</p>}
         {loadState === "error" && (
           <button onClick={() => void load()} type="button">
             重新载入

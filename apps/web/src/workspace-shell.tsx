@@ -114,6 +114,14 @@ export function WorkspaceShell(props: WorkspaceShellProps) {
                       aria-current={current ? "page" : undefined}
                       href={current ? "#main-content" : item.href}
                       key={item.section}
+                      onClick={() => {
+                        if (
+                          typeof window.matchMedia === "function" &&
+                          window.matchMedia(narrowNavigationQuery).matches
+                        ) {
+                          setNavigationOpen(false);
+                        }
+                      }}
                     >
                       <span aria-hidden="true" data-navigation-index={item.index} />
                       <span>{item.label}</span>

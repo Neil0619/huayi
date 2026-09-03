@@ -116,8 +116,8 @@ describe("Web account platform quota", () => {
     expect(container.querySelector("[role='status']")?.textContent).toContain("正在载入账号额度");
 
     await act(async () => pending.resolve(available));
-    expect(container.querySelector("h1")?.textContent).toBe("账号与平台额度");
-    expect(container.querySelector("#quota-heading")).toBe(document.activeElement);
+    expect(container.querySelector("h1")?.textContent).toBe("账号与用量");
+    expect(container.querySelector("#quota-heading")).not.toBe(document.activeElement);
     expect(container.querySelector("progress")?.getAttribute("value")).toBe("20");
     expect(container.textContent).toContain("US$1.00");
     expect(container.textContent).toContain("已使用US$0.20");

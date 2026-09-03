@@ -3,9 +3,36 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from "react"
 import type { WordEntryCore, WordEntryDetailResponse } from "@huayi/cloud-contracts";
 
 import { ManualWordForm } from "./manual-word-form.js";
-import type { WebWordLibraryApi } from "./word-library-api.js";
+import { WebWordLibraryApiError, type WebWordLibraryApi } from "./word-library-api.js";
 
 type LoadState = "empty" | "error" | "loading" | "ready";
+
+function saveErrorMessage(error: unknown): string {
+  if (error instanceof WebWordLibraryApiError) {
+    if (error.code === "revision_conflict") {
+      return "词条已在其他页面或设备更新。你的备注草稿仍保留，请重新打开词条后再保存。";
+    }
+    if (error.code === "authentication_required") {
+      return "登录状态已失效。你的备注草稿仍保留，请重新登录后再保存。";
+    }
+  }
+  return "未能确认备注是否保存。已保留了备注草稿，请检查网络后重试。";
+}
+
+function deleteErrorMessage(error: unknown): string {
+  if (error instanceof WebWordLibraryApiError) {
+    if (error.code === "word_entry_in_use") {
+      return "这个词条曾参与外部词典同步。为保留当时的同步记录，服务器不能删除它；外部词典中的副本不会受到影响。";
+    }
+    if (error.code === "revision_conflict") {
+      return "词条已在其他页面或设备更新。请重新打开词条后再删除。";
+    }
+    if (error.code === "authentication_required") {
+      return "登录状态已失效，请重新登录后再删除。";
+    }
+  }
+  return "未能确认词条是否删除。请检查网络后重新载入生词列表。";
+}
 
 export function WordLibraryPage({
   api,
@@ -123,11 +150,13 @@ export function WordLibraryPage({
 
   const save = async () => {
     if (detail === null) return;
+    const wordId = detail.word.id;
+    const requestedNotes = notes.trim() === "" ? null : notes;
     setError("");
     try {
       const word = await api.patchWord(
-        detail.word.id,
-        { expectedRevision: detail.word.revision, notes: notes.trim() === "" ? null : notes },
+        wordId,
+        { expectedRevision: detail.word.revision, notes: requestedNotes },
         idempotencyKey(),
       );
       setDetail((current) => (current === null ? null : { ...current, word }));
@@ -143,31 +172,56 @@ export function WordLibraryPage({
         return;
       }
       setStatus("备注已保存，并已重新读取服务器词条。");
-    } catch {
-      setError("无法保存备注，已保留了备注草稿。请重试。");
+    } catch (caught) {
+      try {
+        const verified = await api.getWord(wordId, { contextLimit: 20 });
+        if ((verified.word.notes ?? null) === requestedNotes) {
+          setDetail(verified);
+          setItems((current) =>
+            current.map((entry) => (entry.id === verified.word.id ? verified.word : entry)),
+          );
+          if (!(await load(undefined, true, true))) {
+            setError("备注已保存，但暂时无法刷新生词列表。草稿已保留。");
+          }
+          setStatus("备注已保存，并已从服务器确认。");
+          return;
+        }
+      } catch {
+        // An uncertain write is resolved only by an authoritative matching reread.
+      }
+      setError(saveErrorMessage(caught));
     }
   };
 
   const remove = async () => {
     if (detail === null) return;
-    setError("");
-    try {
-      await api.deleteWord(
-        detail.word.id,
-        { expectedRevision: detail.word.revision },
-        idempotencyKey(),
-      );
+    const wordId = detail.word.id;
+    const finishRemoval = async () => {
       setConfirming(false);
       setDetail(null);
-      setItems((current) => current.filter((entry) => entry.id !== detail.word.id));
+      setItems((current) => current.filter((entry) => entry.id !== wordId));
       if (!(await load(undefined, true))) {
         setError("词条已经删除，但暂时无法刷新生词列表。你可以稍后重试载入。");
-        setStatus("词条及其语境已删除；其他学习数据没有改变。");
-        return;
       }
       setStatus("词条及其语境已删除；其他学习数据没有改变。");
-    } catch {
-      setError("无法删除词条。若它已进入外部词典任务，需要先保留该任务历史。");
+    };
+    setError("");
+    try {
+      await api.deleteWord(wordId, { expectedRevision: detail.word.revision }, idempotencyKey());
+      await finishRemoval();
+    } catch (caught) {
+      try {
+        await api.getWord(wordId, { contextLimit: 20 });
+      } catch (verificationError) {
+        if (
+          verificationError instanceof WebWordLibraryApiError &&
+          verificationError.code === "not_found"
+        ) {
+          await finishRemoval();
+          return;
+        }
+      }
+      setError(deleteErrorMessage(caught));
     }
   };
 
@@ -293,7 +347,7 @@ export function WordLibraryPage({
                       </button>
                     ) : (
                       <>
-                        <p>确认删除词条和全部语境？外部任务已引用时服务器会拒绝。</p>
+                        <p>确认删除这个词条和全部语境？已同步到外部词典的副本不会随之删除。</p>
                         <button
                           data-confirm-delete
                           onClick={() => void remove()}

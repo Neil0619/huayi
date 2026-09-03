@@ -38,9 +38,18 @@ test("workspace navigation stays canonical across mobile and desktop routes", as
     "分析历史",
     "设置",
   ]);
+  const bootstrapCount = authority
+    .snapshot()
+    .requestFacts.filter((fact) => fact.method === "GET" && fact.path === "/v1/auth/csrf").length;
   await navigation.getByRole("link", { name: "今日练习" }).click();
   await expect(page).toHaveURL(`${webOrigin}/practice`);
   await expect(page.getByRole("heading", { level: 1, name: "今日练习" })).toBeVisible();
+  await expect(navigation).toBeHidden();
+  expect(
+    authority
+      .snapshot()
+      .requestFacts.filter((fact) => fact.method === "GET" && fact.path === "/v1/auth/csrf").length,
+  ).toBe(bootstrapCount);
 
   await page.goto(`${webOrigin}/words/wordbooks`);
   const wordSummary = page.locator(".workspace-navigation > summary");
@@ -64,6 +73,28 @@ test("workspace navigation stays canonical across mobile and desktop routes", as
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
     true,
   );
+  const stickyGeometry = await page.evaluate(async () => {
+    const notice = document.createElement("div");
+    notice.className = "acceptance-environment-notice";
+    notice.dataset.e2eAcceptanceNotice = "true";
+    notice.textContent = "Hosted 验收";
+    document.body.prepend(notice);
+    document.body.style.minHeight = "2000px";
+    window.scrollTo(0, 800);
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    const navigationRect = document.querySelector(".workspace-navigation")?.getBoundingClientRect();
+    const noticeRect = notice.getBoundingClientRect();
+    return {
+      navigationTop: navigationRect?.top ?? -1,
+      noticeBottom: noticeRect.bottom,
+    };
+  });
+  expect(stickyGeometry.navigationTop).toBeGreaterThanOrEqual(stickyGeometry.noticeBottom - 1);
+  await page.evaluate(() => {
+    document.querySelector("[data-e2e-acceptance-notice]")?.remove();
+    document.body.style.minHeight = "";
+    window.scrollTo(0, 0);
+  });
 
   await page.goto(`${webOrigin}/app`);
   await expect(inboxTabs).toBeVisible();
@@ -89,6 +120,59 @@ test("workspace navigation stays canonical across mobile and desktop routes", as
       true,
     );
   }
+});
+
+test("settings pages keep one centered layout and clearly mark the current section", async ({
+  page,
+}) => {
+  const authority = createCloudBrowserAuthority({
+    authenticated: true,
+    seed: "password-only-sign-in-methods",
+  });
+  await authority.install(page);
+  await page.setViewportSize({ height: 900, width: 1280 });
+  await page.goto(`${webOrigin}/settings/account`);
+
+  const settingsNavigation = page.getByRole("navigation", { name: "账号设置" });
+  await expect(settingsNavigation.getByRole("link")).toHaveText([
+    "账号与用量",
+    "扩展设备",
+    "数据与账号",
+  ]);
+  const bootstrapCount = authority
+    .snapshot()
+    .requestFacts.filter((fact) => fact.method === "GET" && fact.path === "/v1/auth/csrf").length;
+
+  for (const [label, path, title, selector] of [
+    ["账号与用量", "/settings/account", "账号与用量", ".account-quota-page"],
+    ["扩展设备", "/settings/devices", "扩展设备", ".device-sessions-page"],
+    ["数据与账号", "/settings/data", "导出与删除账号", ".account-data-rights-page"],
+  ] as const) {
+    if (page.url() !== `${webOrigin}${path}`) {
+      await settingsNavigation.getByRole("link", { name: label }).click();
+    }
+    await expect(page).toHaveURL(`${webOrigin}${path}`);
+    await expect(page.getByRole("heading", { level: 1, name: title })).toBeVisible();
+    await expect(
+      page.getByRole("navigation", { name: "账号设置" }).getByRole("link", { name: label }),
+    ).toHaveAttribute("aria-current", "page");
+    expect(
+      await page.locator(selector).evaluate((element) => {
+        const rect = element.getBoundingClientRect();
+        return {
+          centered: Math.abs(rect.left - (window.innerWidth - rect.width) / 2) < 2,
+          fitsViewport: document.documentElement.scrollWidth <= window.innerWidth,
+          width: rect.width,
+        };
+      }),
+    ).toMatchObject({ centered: true, fitsViewport: true, width: 1024 });
+  }
+
+  expect(
+    authority
+      .snapshot()
+      .requestFacts.filter((fact) => fact.method === "GET" && fact.path === "/v1/auth/csrf").length,
+  ).toBe(bootstrapCount);
 });
 
 test("word tools open from the keyboard and preserve focus after manual collection", async ({

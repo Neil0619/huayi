@@ -1,7 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
-import { App, authenticatedLandingPath } from "./app.js";
+import { App, authenticatedLandingPath, cloudPageFromPathname } from "./app.js";
 import { parseAuthRoute } from "./auth-route.js";
 import { createWebAnalysisApi } from "./analysis-api.js";
 import { fetchCsrfToken } from "./csrf-token.js";
@@ -104,30 +104,7 @@ if (bootstrap.environment !== undefined) {
 const pairingMatch = /^\/pair-extension\/([A-Za-z0-9_-]{1,128})$/u.exec(location.pathname);
 const authRoute = parseAuthRoute(location.pathname, location.hash);
 const passwordRecoveryRoute = parsePasswordRecoveryRoute(location.pathname, location.search);
-const page =
-  location.pathname === "/settings/account"
-    ? "account"
-    : location.pathname === "/admin"
-      ? "admin"
-      : location.pathname === "/settings/data"
-        ? "data"
-        : location.pathname === "/settings/devices"
-          ? "devices"
-          : location.pathname === "/analysis"
-            ? "analysis"
-            : location.pathname === "/practice"
-              ? "practice"
-              : location.pathname === "/practice/history"
-                ? "practice-history"
-                : location.pathname === "/words"
-                  ? "words"
-                  : location.pathname === "/words/wordbooks"
-                    ? "wordbooks"
-                    : location.pathname === "/history"
-                      ? "history"
-                      : location.pathname === "/library"
-                        ? "library"
-                        : "inbox";
+const page = cloudPageFromPathname(location.pathname) ?? "inbox";
 
 createRoot(root).render(
   <StrictMode>

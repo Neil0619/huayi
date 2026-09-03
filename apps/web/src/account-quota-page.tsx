@@ -7,8 +7,8 @@ import type {
 } from "@huayi/cloud-contracts";
 
 import type { WebIdentityApi } from "./identity-api.js";
-import type { WebAdminOperationsApi } from "./admin-operations-api.js";
 import { AccountPreferencesForm } from "./account-preferences-form.js";
+import { AccountSettingsNavigation } from "./account-settings-navigation.js";
 import { SignInMethodsPanel, type SignInMethodsApi } from "./sign-in-methods-panel.js";
 
 export type AccountQuotaApi = Pick<
@@ -42,24 +42,22 @@ function warning(quota: QuotaSummary): string {
 
 export function AccountQuotaPage({
   api,
-  adminApi,
   csrfToken,
   googleAuthenticationEnabled = false,
   onCsrfTokenChanged,
+  showOperatorNavigation = false,
 }: {
   readonly api: AccountQuotaApi;
-  readonly adminApi?: Pick<WebAdminOperationsApi, "access"> | undefined;
   readonly csrfToken: string;
   readonly googleAuthenticationEnabled?: boolean | undefined;
   readonly onCsrfTokenChanged: (csrfToken: string) => void;
+  readonly showOperatorNavigation?: boolean | undefined;
 }) {
   const [error, setError] = useState("");
   const [account, setAccount] = useState<AccountResource | null>(null);
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [quota, setQuota] = useState<QuotaSummary | null>(null);
-  const [operator, setOperator] = useState(false);
   const generation = useRef(0);
-  const summaryHeading = useRef<HTMLHeadingElement>(null);
   const preferencesApi = useMemo(
     () => ({
       updateAccountPreferences: (input: AccountPreferencesRequest) =>
@@ -89,44 +87,26 @@ export function AccountQuotaPage({
   }, [api]);
 
   useEffect(() => void load(), [load]);
-  useEffect(() => {
-    let active = true;
-    void adminApi
-      ?.access()
-      .then(() => active && setOperator(true))
-      .catch(() => undefined);
-    return () => {
-      active = false;
-    };
-  }, [adminApi]);
   useEffect(
     () => () => {
       generation.current += 1;
     },
     [],
   );
-  useEffect(() => {
-    if (loadState === "ready") summaryHeading.current?.focus();
-  }, [loadState]);
-
   return (
     <>
       <div className="account-quota-page">
         <header className="page-heading">
           <div>
-            <p className="eyebrow">ACCOUNT &amp; ALLOWANCE</p>
-            <h1>账号与平台额度</h1>
+            <p className="eyebrow">ACCOUNT &amp; USAGE</p>
+            <h1>账号与用量</h1>
           </div>
-          <p>查看服务器计算的当前 UTC 月度平台模型额度。</p>
+          <p>管理登录方式和学习偏好，并查看本月语见模型用量。</p>
         </header>
-        <nav aria-label="账号设置" className="account-settings-nav">
-          <a aria-current="page" href="/settings/account">
-            账号与额度
-          </a>
-          <a href="/settings/devices">扩展设备</a>
-          <a href="/settings/data">数据权利</a>
-          {operator && <a href="/admin">运营控制台</a>}
-        </nav>
+        <AccountSettingsNavigation
+          active="account"
+          showOperatorNavigation={showOperatorNavigation}
+        />
         {loadState === "loading" && (
           <p aria-live="polite" role="status">
             正在载入账号额度…
@@ -162,9 +142,7 @@ export function AccountQuotaPage({
             <section aria-labelledby="quota-heading" className="quota-card">
               <div className="quota-heading-row">
                 <div>
-                  <h2 id="quota-heading" ref={summaryHeading} tabIndex={-1}>
-                    本月平台模型额度
-                  </h2>
+                  <h2 id="quota-heading">本月平台模型额度</h2>
                   <p>
                     UTC 月度周期：{date(quota.periodStart)} 至 {date(quota.periodEnd)}
                     （结束时刻不含）
