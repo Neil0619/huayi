@@ -2209,7 +2209,12 @@ passed; first Operator empty`。候选已提交推送，0012 已实际 push；�
 - 当前只读回读确认 Auth 密码恢复配置通过、R3-C 全空且合同精确、Cron 为 `absent`，未安装 job、未调用
   DeepSeek、未改变 kill switch。由于 bootstrap provision 必须占用尚无 release state 的 clean/pushed SHA，
   已完成的普通 `4bd44ed` release 不得改写成 bootstrap provenance；
-- 下一步仅允许从本节形成的新 clean candidate 开始：exact-SHA 双平台 CI 通过后，在 `/recover` 只提交一条
-  新请求，再按 `provision → fresh exact-SHA API release → recovery sent/idle → 用户用不同密码改密 → R3-C
-sent/idle → 收件确认 → Cron apply` 推进。任何唯一 claimable、deployment attempt 或收件证据不精确时立即
-  停止，不能先安装 Cron。
+- 本节形成的 `e74968af337ee98caeef5d1d75c7c20a595e6308` 随后完成普通 Hosted release；exact-SHA
+  quality run `33781919985` 的 macOS/Windows job 均成功，新 API deployment
+  `dpl_DFABJmqQKkC1eptEkXXZn1GnKZa5` 与 Web deployment
+  `dpl_HGTHtoRFhtnFokxXc93kcCqEywUH` 已通过 runtime attestation；
+- 用户只提交一次新的 `/recover` 请求后，脱敏只读快照精确为 open `1`、claimable `1`、sent `0`、
+  ambiguous `0`。下一步仅允许从本次状态回读形成的新 clean candidate 开始，按
+  `provision → fresh exact-SHA API release → recovery sent/idle → 用户用不同密码改密 → R3-C sent/idle →
+收件确认 → Cron apply` 推进。任何唯一 claimable、deployment attempt 或收件证据不精确时立即停止，
+  不能先安装 Cron。
