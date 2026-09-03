@@ -2193,3 +2193,23 @@ passed; first Operator empty`。候选已提交推送，0012 已实际 push；�
   执行，API/Web 均取得目标 Ready deployment、最终回读、零 in-flight 和 disarmed；
 - 当前 HEAD/upstream 精确为 `f562416344690678b8c92b625e8aa7100d66605a`。Phase 94 state 已 complete，
   不得再次 diagnose/preflight、重放 arm/disarm 或把旧 state 用于后续普通发布。
+
+### Phase 95 Hosted 密码恢复与 Cron bootstrap 当前状态（2026-09-04，进行中）
+
+- 持久化 Hosted 凭据、release-attempt provenance 与 Cron bootstrap 的 provision 后 fresh API deployment
+  时序缺口已完成离线回归；`bfca2b9` 的首轮普通 Hosted release 与后续 `4bd44ed` 密码恢复提示修复均已
+  完成 Store、API→Web 串行部署和 runtime attestation；
+- `4bd44ed6119c04a5e3e7f16b4c53710ac98b0317` 的 exact-SHA quality run `33777436321` 中 macOS 与
+  Windows job 均成功；普通 release state 为 schema-v3 `complete`，API deployment
+  `dpl_HDf5YoQMF7SeGZJxS8ykrB7iCLFL` 与 Web deployment
+  `dpl_A4mpMGuwEwv7fPqkSNwRvyUJG4jE` 均通过运行时证明；
+- Hosted 改密失败的脱敏只读证据为 Provider 拒绝与当前密码相同的新密码；数据库仍保持 verified，未改密、
+  未撤销 session、未生成 R3-C，不能把失败页面冒充为恢复完成。Web 已明确提示新密码必须不同，但 API
+  继续把 `same_password` 与其他 Provider 失败统一收敛为 `authentication_required`；
+- 当前只读回读确认 Auth 密码恢复配置通过、R3-C 全空且合同精确、Cron 为 `absent`，未安装 job、未调用
+  DeepSeek、未改变 kill switch。由于 bootstrap provision 必须占用尚无 release state 的 clean/pushed SHA，
+  已完成的普通 `4bd44ed` release 不得改写成 bootstrap provenance；
+- 下一步仅允许从本节形成的新 clean candidate 开始：exact-SHA 双平台 CI 通过后，在 `/recover` 只提交一条
+  新请求，再按 `provision → fresh exact-SHA API release → recovery sent/idle → 用户用不同密码改密 → R3-C
+sent/idle → 收件确认 → Cron apply` 推进。任何唯一 claimable、deployment attempt 或收件证据不精确时立即
+  停止，不能先安装 Cron。
