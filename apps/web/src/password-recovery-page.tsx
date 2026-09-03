@@ -145,7 +145,9 @@ export function PasswordRecoveryPage({
         )}
         {view === "request" && (
           <>
-            <p className="auth-intro">输入账号邮箱。无论账号是否可恢复，页面都会显示相同结果。</p>
+            <p className="auth-intro">
+              输入登录邮箱。为保护账号，无论邮箱是否存在，页面都会显示相同结果。
+            </p>
             <form className="auth-form" onSubmit={(event) => void requestRecovery(event)}>
               <label htmlFor="recovery-email">邮箱</label>
               <input
@@ -207,12 +209,10 @@ export function PasswordRecoveryPage({
             重新发起密码恢复
           </button>
         )}
-        <p className="auth-footer">
+        <nav aria-label="密码恢复辅助链接" className="auth-footer password-recovery-footer">
           <a href="/login">返回登录</a>
-        </p>
-        <p className="auth-footer">
           <a href="/privacy">隐私说明</a>
-        </p>
+        </nav>
       </section>
     </main>
   );

@@ -177,6 +177,21 @@ describe("Web design token contract", () => {
 });
 
 describe("Web responsive style contract", () => {
+  it("keeps the password recovery heading subordinate to the form", () => {
+    expect(styles).toMatch(
+      /#password-recovery-heading\s*\{[^}]*font-size:\s*clamp\([^,]+,[^,]+,\s*2(?:\.25)?rem\)/isu,
+    );
+  });
+
+  it("lays out password recovery utility links in one wrapping row", () => {
+    expect(styles).toMatch(
+      /\.password-recovery-footer\s*\{[^}]*display:\s*flex[^}]*flex-wrap:\s*wrap/isu,
+    );
+    expect(styles).toMatch(
+      /\.password-recovery-footer a\s*\{[^}]*color:\s*var\(--text-primary\)[^}]*text-decoration:\s*none/isu,
+    );
+  });
+
   it("keeps workspace headings compact enough for long Chinese labels", () => {
     expect(styles).toMatch(
       /\.page-heading h1\s*\{[^}]*font-size:\s*clamp\(2\.25rem,\s*3\.6vw,\s*3\.75rem\)/isu,

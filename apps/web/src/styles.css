@@ -879,6 +879,9 @@ main {
   letter-spacing: -0.05em;
   line-height: 1;
 }
+#password-recovery-heading {
+  font-size: clamp(2rem, 7vw, 2.25rem);
+}
 .auth-card > .alert {
   margin: 0 0 var(--space-4);
   padding: var(--space-4);
@@ -941,6 +944,28 @@ main {
 .auth-footer {
   margin: var(--space-5) 0 0;
   font-size: 0.875rem;
+}
+.password-recovery-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+}
+.password-recovery-footer a {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-pill);
+  color: var(--text-primary);
+  background: var(--surface-subtle);
+  font-weight: 700;
+  text-decoration: none;
+}
+.password-recovery-footer a:hover {
+  color: var(--action-primary);
+  border-color: var(--border-strong);
+  background: var(--surface-hover);
 }
 .device-note,
 .device-sessions {

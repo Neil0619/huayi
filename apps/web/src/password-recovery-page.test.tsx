@@ -57,6 +57,27 @@ describe("Web password recovery page", () => {
     sessionStorage.clear();
   });
 
+  it("uses concise recovery copy that explains the uniform response", async () => {
+    const view = await render(api());
+    const introduction = view.container.querySelector(".auth-intro")?.textContent ?? "";
+
+    expect(introduction).toContain("登录邮箱");
+    expect(introduction).toContain("为保护账号");
+    expect(introduction).toContain("邮箱是否存在");
+    expect(introduction.length).toBeLessThanOrEqual(52);
+  });
+
+  it("groups the recovery utility links into one compact footer", async () => {
+    const view = await render(api());
+
+    const footer = view.container.querySelector("nav.password-recovery-footer");
+    expect(footer?.getAttribute("aria-label")).toBe("密码恢复辅助链接");
+    expect(
+      Array.from(footer?.querySelectorAll("a") ?? [], (link) => link.textContent?.trim()),
+    ).toEqual(["返回登录", "隐私说明"]);
+    expect(view.container.querySelectorAll(".auth-footer")).toHaveLength(1);
+  });
+
   it("submits one labelled email, clears it, and describes queued delivery honestly", async () => {
     const recoveryApi = api();
     const view = await render(recoveryApi);
