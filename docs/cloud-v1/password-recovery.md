@@ -38,9 +38,10 @@ API confirm URL 与显式 POST，并由 no-store/no-referrer 页面约束；Prov
 3. 用户可在能够安全访问该邮箱的浏览器打开邮件链接。链接先到固定 API 惰性确认页；只有用户显式点击
    “继续重置密码”后才 POST callback、验证 token hash，并在该浏览器建立 recovery session，随后进入 Web
    `/recover?continue=1`，不直接创建 Huayi 登录 session；
-4. Web 以短时 recovery Cookie 读取恢复状态，要求两次输入相同、至少 12、最多 256 字符的新密码；客户端
-   只向 API 发送一份匹配后的 password。成功后清除密码输入、recovery Cookie 和所有既有 Huayi Web/
-   Extension sessions，再要求用户从 `/login` 重新登录；
+4. Web 以短时 recovery Cookie 读取恢复状态，要求两次输入相同、至少 12、最多 256 字符且不同于当前
+   密码的新密码；客户端只向 API 发送一份匹配后的 password。Web 在提交前明确提示“不能与当前密码
+   相同”，统一完成失败也提醒改用不同密码并稍后重试，但不根据 Provider 错误分支。成功后清除密码
+   输入、recovery Cookie 和所有既有 Huayi Web/Extension sessions，再要求用户从 `/login` 重新登录；
 5. 过期、重复、旧邮件、错误 code/flow、错误 Origin/CSRF、账号状态变化或 Provider user 不匹配，都
    显示同一可重新发起的恢复失败，不回显账号、method、Provider 或 token 细节；
 6. 成功修改密码产生一条耐久的安全通知任务；邮件发送失败不回滚已完成的改密与会话撤销，但发布前
@@ -201,8 +202,9 @@ dispatch-at 已写入的模糊状态透明重试。
 - `exchange()` 不依赖 Supabase PKCE flow state，而在用户显式 POST 后调用
   `verifyOtp({token_hash:code,type:"recovery"})`，要求 session/user/email 全部存在，再返回更新后的 state；
 - `updatePassword()` 只用恢复 session 的 auth state 调用 `updateUser({password})`，不使用 service role；
-- adapter 将 Provider error 全部映射为固定 `authentication_required`，不得把 error/message/status 写入
-  公共响应或普通日志；
+- adapter 将 Provider error（包括 `same_password`）全部映射为固定 `authentication_required`，不得把
+  error/message/status 写入公共响应或普通日志；Web 只陈述产品恒真约束，不把统一错误反推为某个
+  Provider 原因；
 - production composition 逐请求创建 Auth client，禁止模块级共享 user-specific storage。
 
 ## 5. 数据结构与状态机

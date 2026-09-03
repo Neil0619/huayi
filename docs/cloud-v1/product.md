@@ -42,7 +42,8 @@ V1 面向持有一次性邀请链接的少量中文母语英语学习者。成�
   相同邮箱静默合并。
 - 已登记 password method 的 active 账号可从公开恢复页请求密码恢复；无论邮箱不存在、账号状态或登录
   方式不符合条件，公开响应和文案都相同。邮件证明只取得一次改密能力，不创建 Huayi session；成功后
-  撤销全部 Web/Extension sessions，并要求用户重新登录。完整边界见 `password-recovery.md`。
+  撤销全部 Web/Extension sessions，并要求用户重新登录。新密码必须与当前密码不同；Web 在提交前明确
+  这项约束，但服务端不公开 Provider 错误分类。完整边界见 `password-recovery.md`。
 - Web 提供设备列表，用户可以撤销任一 Extension 会话；管理员可以停用账号，但不能浏览学习正文。
 - Web 设备撤销使指定服务器 session 立即失效；Extension Popup 的“断开此设备”先用当前 token 只撤销
   自身服务器 session，204 后才清账号绑定本机状态。网络失败保留原状态并提示重试，不冒充断开；两者

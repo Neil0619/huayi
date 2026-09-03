@@ -98,7 +98,9 @@ export function PasswordRecoveryPage({
       setView("success");
       onCompleted();
     } catch {
-      setError("无法完成密码恢复。请检查输入，或重新发起恢复后再试。");
+      setError(
+        "无法完成密码恢复。请确认新密码与当前密码不同并稍后重试；若链接已打开较久，请重新发起恢复。",
+      );
     } finally {
       setBusy(false);
     }
@@ -197,7 +199,7 @@ export function PasswordRecoveryPage({
               value={confirmation}
             />
             <p className="field-help" id="recovery-password-help">
-              请输入 12 至 256 个字符；两次输入必须完全相同。
+              请输入 12 至 256 个字符，且不能与当前密码相同；两次输入必须完全相同。
             </p>
             <button className="primary-button" data-complete-recovery disabled={busy} type="submit">
               {busy ? "正在更新…" : "更新密码"}

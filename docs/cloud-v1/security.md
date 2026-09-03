@@ -85,9 +85,11 @@ owner context、generation/reservation 归属、task 成功或失败终态、价
   recovery Cookie；该 Cookie 只能读取无身份字段的 CSRF/expiry 并完成一次改密，不能读取账号资源或变成
   Huayi session。complete 在 Provider 前锁定 owner/status/method/Origin/CSRF/lease，Provider user/email
   必须匹配；成功清 Cookie、撤销全部 Huayi Web/Extension sessions并写耐久安全通知。日志不含 email/hash、
-  flow/code、Cookie/CSRF、auth state、Provider error 或密码。start 不等待外部网络，有效且未限速的 202
-  固定至少 250ms handler floor；trusted worker 在发信前耐久标记 dispatch，可能已发信的丢失任务不得
-  自动重发，以满足统一响应时间并避免邮件轰炸。安全通知使用独立 120 秒 lease 和有界退避；sender 必须
+  flow/code、Cookie/CSRF、auth state、Provider error 或密码。Web 可预先陈述“新密码必须与当前密码
+  不同”这一恒真约束，但 `same_password` 仍与其他 Provider 失败统一收敛，不能形成密码相等性探测信号。
+  start 不等待外部网络，有效且未限速的 202 固定至少 250ms handler floor；trusted worker 在发信前耐久
+  标记 dispatch，可能已发信的丢失任务不得自动重发，以满足统一响应时间并避免邮件轰炸。安全通知使用
+  独立 120 秒 lease 和有界退避；sender 必须
   用 outbox notification ID 做厂商幂等键，避免邮件成功而本地 complete 失败后的重复投递。完整矩阵见
   `password-recovery.md`。
 - 恢复邮件模板不得使用会先消费 Supabase PKCE flow 的 `ConfirmationURL`；只允许精确

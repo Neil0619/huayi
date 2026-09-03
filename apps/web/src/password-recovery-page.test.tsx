@@ -2,6 +2,7 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { WebIdentityApiError } from "./identity-api.js";
 import { PasswordRecoveryPage, type PasswordRecoveryApi } from "./password-recovery-page.js";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -189,5 +190,33 @@ describe("Web password recovery page", () => {
       invalid.container.querySelector<HTMLButtonElement>("[data-restart-recovery]")?.click(),
     );
     expect(invalid.container.querySelector("#recovery-email")).not.toBeNull();
+  });
+
+  it("explains before and after a failed attempt that the new password must be different", async () => {
+    const recoveryApi = api({
+      completePasswordRecovery: vi.fn(async () => {
+        throw new WebIdentityApiError("authentication_required", 401);
+      }),
+    });
+    const view = await render(recoveryApi, { clearUrl: true, continuation: true });
+    await act(async () => Promise.resolve());
+    const password = view.container.querySelector<HTMLInputElement>("#recovery-password");
+    const confirmation = view.container.querySelector<HTMLInputElement>(
+      "#recovery-password-confirmation",
+    );
+    if (password === null || confirmation === null) throw new Error("Password fields missing.");
+    expect(view.container.querySelector("#recovery-password-help")?.textContent).toContain(
+      "不能与当前密码相同",
+    );
+    await change(password, "correct horse battery staple");
+    await change(confirmation, "correct horse battery staple");
+    await act(async () =>
+      view.container.querySelector<HTMLButtonElement>("[data-complete-recovery]")?.click(),
+    );
+
+    expect(view.container.querySelector("[role='alert']")?.textContent).toContain(
+      "确认新密码与当前密码不同",
+    );
+    expect(password.value).toBe("correct horse battery staple");
   });
 });

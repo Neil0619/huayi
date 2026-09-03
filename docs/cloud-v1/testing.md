@@ -75,8 +75,10 @@
 - PasswordRecovery：strict start/confirm/callback/session/complete contracts；unknown/Google-only/disabled/deleting/
   eligible 的 start 统一 202/no-store，非 eligible 零 flow/dispatch，eligible 公开请求也零 Provider；邮件
   worker 必须先耐久 dispatch，回执不明确不得自动重发。Supabase fake 固定 PKCE begin→exchange→update
-  与同 owner user/email。内存/PGlite 覆盖独立状态机、30/15 分钟 expiry、30 秒 lease、callback/complete
-  replay、provider-updated 恢复、forced RLS、全部 Huayi session 撤销和单条安全通知。Web actual
+  与同 owner user/email；结构化 `same_password` 仍必须丢弃原始 detail 并收敛到统一
+  `authentication_required`。内存/PGlite 覆盖独立状态机、30/15 分钟 expiry、30 秒 lease、callback/complete
+  replay、provider-updated 恢复、forced RLS、全部 Huayi session 撤销和单条安全通知。Web 单元必须固定
+  提交前“不能与当前密码相同”的帮助文本，以及统一失败后改用不同密码并稍后重试的提示。Web actual
   bundle 覆盖登录入口、统一 start、用户显式 fake mail、inert confirm→显式 callback、一次改密、旧 session
   失效与显式重登；新浏览器可消费最新邮件，过期/旧邮件/重复链接统一失败且 DOM/Storage/snapshot
   零秘密。详见 `password-recovery.md`；R1 strict contracts 5/5、Supabase recovery 与既有 auth adapter

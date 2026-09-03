@@ -1,3 +1,4 @@
+import { AuthApiError } from "@supabase/supabase-js";
 import { describe, expect, it, vi } from "vitest";
 
 import { createSupabasePasswordRecoveryProvider } from "./supabase-password-recovery-provider.js";
@@ -86,6 +87,27 @@ describe("Supabase password recovery provider", () => {
     expect(updateUser).toHaveBeenCalledWith({ password: "correct horse battery staple" });
   });
 
+  it("keeps a reused-password provider detail inside the safe recovery failure", async () => {
+    const provider = createSupabasePasswordRecoveryProvider(() =>
+      authClient({
+        updateUser: vi.fn().mockResolvedValue({
+          data: { user: null },
+          error: new AuthApiError("New password should be different", 422, "same_password"),
+        }),
+      }),
+    );
+
+    await expect(
+      provider.updatePassword({
+        authState: { "provider-session": "recovery-session" },
+        password: "correct horse battery staple",
+      }),
+    ).rejects.toMatchObject({
+      code: "authentication_required",
+      message: "Password recovery could not be completed.",
+    });
+  });
+
   it("converges provider errors and malformed provider identities on one safe failure", async () => {
     const expectedFault = {
       code: "authentication_required",
@@ -112,6 +134,14 @@ describe("Supabase password recovery provider", () => {
         updateUser: vi.fn().mockResolvedValue({ data: { user: null }, error: null }),
       }),
     );
+    const weakPasswordFailure = createSupabasePasswordRecoveryProvider(() =>
+      authClient({
+        updateUser: vi.fn().mockResolvedValue({
+          data: { user: null },
+          error: new AuthApiError("Provider password detail", 422, "weak_password"),
+        }),
+      }),
+    );
 
     await expect(
       beginFailure.begin({ email: "learner@example.com", redirectTo: "https://api.example/fixed" }),
@@ -121,6 +151,12 @@ describe("Supabase password recovery provider", () => {
     ).rejects.toMatchObject(expectedFault);
     await expect(
       updateFailure.updatePassword({ authState: {}, password: "correct horse battery staple" }),
+    ).rejects.toMatchObject(expectedFault);
+    await expect(
+      weakPasswordFailure.updatePassword({
+        authState: {},
+        password: "correct horse battery staple",
+      }),
     ).rejects.toMatchObject(expectedFault);
   });
 });
