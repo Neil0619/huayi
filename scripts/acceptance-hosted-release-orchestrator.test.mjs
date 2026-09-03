@@ -8,6 +8,7 @@ import {
 import { runHostedReleaseOrchestrator } from "./acceptance-hosted-release-orchestrator.mjs";
 
 const candidateSha = "1".repeat(40);
+const releaseAttemptId = `hosted-attempt-${"1".repeat(32)}`;
 
 function memoryStore(initial) {
   let state = initial;
@@ -47,6 +48,7 @@ function harness(initialState) {
   });
   return {
     calls,
+    createReleaseAttemptId: () => releaseAttemptId,
     ci: {
       async dispatch() {
         calls.push("ci-dispatch");
@@ -132,7 +134,7 @@ test("advance runs local quality, exact CI, API, Web, and postflight in strict o
 });
 
 test("recover reconciles an already dispatched CI run without dispatching a duplicate", async () => {
-  let state = createHostedReleaseState({ candidateSha, now: 1 });
+  let state = createHostedReleaseState({ candidateSha, now: 1, releaseAttemptId });
   for (const phase of ["local-quality-passed", "candidate-pushed", "ci-dispatching"]) {
     state = transitionHostedReleaseState(state, { now: state.updatedAt + 1, phase });
   }
@@ -212,7 +214,8 @@ test("advance reconciles API configuration that became exact before the local er
 test("advance reconciles an API deployment created before the local error", async () => {
   const setup = harness(undefined);
   let apiCreateAttempted = false;
-  setup.vercel.create = async ({ kind }) => {
+  setup.vercel.create = async ({ kind, releaseAttemptId: actualAttemptId }) => {
+    assert.equal(actualAttemptId, releaseAttemptId);
     setup.calls.push(`${kind}-create`);
     if (kind === "api") {
       apiCreateAttempted = true;
@@ -220,7 +223,8 @@ test("advance reconciles an API deployment created before the local error", asyn
     }
     return { id: `dpl_${kind}_release_123`, state: "QUEUED" };
   };
-  setup.vercel.find = async ({ kind }) => {
+  setup.vercel.find = async ({ kind, releaseAttemptId: actualAttemptId }) => {
+    assert.equal(actualAttemptId, releaseAttemptId);
     setup.calls.push(`${kind}-find`);
     return kind === "api" && apiCreateAttempted
       ? { id: "dpl_api_release_123", state: "QUEUED" }
@@ -236,10 +240,11 @@ test("advance reconciles an API deployment created before the local error", asyn
 
   assert.equal(completed.phase, "complete");
   assert.equal(setup.calls.filter((call) => call === "api-create").length, 1);
+  assert.ok(setup.calls.indexOf("api-create") < setup.calls.indexOf("api-find"));
 });
 
 test("ordinary advance refuses to guess from a pre-existing uncertainty state", async () => {
-  let state = createHostedReleaseState({ candidateSha, now: 1 });
+  let state = createHostedReleaseState({ candidateSha, now: 1, releaseAttemptId });
   for (const phase of ["local-quality-passed", "candidate-pushed", "ci-dispatching"]) {
     state = transitionHostedReleaseState(state, { now: state.updatedAt + 1, phase });
   }

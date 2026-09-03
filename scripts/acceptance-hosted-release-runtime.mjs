@@ -1,4 +1,7 @@
-import { hostedReleaseExtensionId } from "./acceptance-hosted-release-contract.mjs";
+import {
+  hostedReleaseExtensionId,
+  validHostedReleaseAttemptId,
+} from "./acceptance-hosted-release-contract.mjs";
 
 const commitPattern = /^[0-9a-f]{40}$/u;
 const deploymentPattern = /^dpl_[A-Za-z0-9_-]{3,128}$/u;
@@ -32,6 +35,7 @@ export function createHostedReleaseRuntime({ fetch_ = globalThis.fetch } = {}) {
   async function runtimeFetch(url, init = {}) {
     const response = await fetch_(url, {
       ...init,
+      cache: "no-store",
       redirect: "error",
       signal: AbortSignal.timeout(10_000),
     });
@@ -40,10 +44,11 @@ export function createHostedReleaseRuntime({ fetch_ = globalThis.fetch } = {}) {
   }
 
   return Object.freeze({
-    async attest({ apiDeploymentId, candidateSha, webDeploymentId }) {
+    async attest({ apiDeploymentId, candidateSha, releaseAttemptId, webDeploymentId }) {
       try {
         if (
           !commitPattern.test(candidateSha) ||
+          !validHostedReleaseAttemptId(releaseAttemptId) ||
           !deploymentPattern.test(apiDeploymentId) ||
           !deploymentPattern.test(webDeploymentId) ||
           apiDeploymentId === webDeploymentId

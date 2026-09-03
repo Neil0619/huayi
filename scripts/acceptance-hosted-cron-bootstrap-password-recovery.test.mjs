@@ -67,6 +67,7 @@ function json(value, status = 200) {
 
 function sharedDependencies() {
   const credentialCalls = [];
+  const releaseCalls = [];
   return {
     credentialCalls,
     environment: {},
@@ -78,6 +79,16 @@ function sharedDependencies() {
       throw new Error("Unexpected credential.");
     },
     readCronStatus: async () => absentCronStatus(),
+    releaseCalls,
+    releaseGate: {
+      async attestCompleted() {
+        releaseCalls.push("attest");
+      },
+      async provision(operation) {
+        releaseCalls.push("provision");
+        return operation();
+      },
+    },
     runSnapshotQuery: async () => emptyR3cSnapshot(),
     verifyRepositoryCandidate: async () => true,
   };
@@ -144,6 +155,41 @@ test("provision accepts one claimable password recovery before R3-C exists", asy
 
   assert.deepEqual(result, { outcome: "provisioned" });
   assert.deepEqual(dependencies.credentialCalls, ["supabase-admin-db-password", "vercel-token"]);
+  assert.deepEqual(dependencies.releaseCalls, ["provision"]);
+});
+
+test("provision rejects prior release evidence before Vault or Vercel writes", async () => {
+  let externalCalls = 0;
+  await assert.rejects(
+    provisionHostedCronSecret({
+      arguments_: ["provision", hostedCronProvisionConfirmation],
+      environment: {},
+      fetch_: async () => {
+        externalCalls += 1;
+        throw new Error("must not fetch");
+      },
+      fetchCaCertificate: async () => {
+        externalCalls += 1;
+        throw new Error("must not fetch CA");
+      },
+      readCredential: async () => {
+        externalCalls += 1;
+        throw new Error("must not read credentials");
+      },
+      releaseGate: {
+        async provision() {
+          throw new Error("old complete release");
+        },
+      },
+      runPsql: async () => {
+        externalCalls += 1;
+        throw new Error("must not connect");
+      },
+      verifyRepositoryCandidate: async () => true,
+    }),
+    /stage: release/u,
+  );
+  assert.equal(externalCalls, 0);
 });
 
 test("password-recovery delivery uses the Vault source and proves sent then idle", async () => {
@@ -166,6 +212,7 @@ test("password-recovery delivery uses the Vault source and proves sent then idle
 
   assert.deepEqual(result, { outcome: "recovery-delivered" });
   assert.deepEqual(dependencies.credentialCalls, ["supabase-admin-db-password"]);
+  assert.deepEqual(dependencies.releaseCalls, ["attest"]);
   assert.equal(fetchCalls.length, 2);
   for (const call of fetchCalls) {
     assert.equal(call.url, "https://api.acceptance.seen-said.cn/internal/password-recovery/run");
@@ -173,6 +220,40 @@ test("password-recovery delivery uses the Vault source and proves sent then idle
     assert.equal(call.init.redirect, "error");
     assert.equal(call.init.headers.Authorization, `Bearer ${cronSecret}`);
   }
+});
+
+test("password-recovery delivery rejects release evidence before Vault or worker I/O", async () => {
+  let externalCalls = 0;
+  await assert.rejects(
+    deliverHostedPasswordRecovery({
+      arguments_: ["recovery", hostedCronPasswordRecoveryConfirmation],
+      environment: {},
+      fetch_: async () => {
+        externalCalls += 1;
+        throw new Error("must not fetch");
+      },
+      fetchCaCertificate: async () => {
+        externalCalls += 1;
+        throw new Error("must not fetch CA");
+      },
+      readCredential: async () => {
+        externalCalls += 1;
+        throw new Error("must not read credentials");
+      },
+      releaseGate: {
+        async attestCompleted() {
+          throw new Error("missing, incomplete, or mismatched release");
+        },
+      },
+      runPsql: async () => {
+        externalCalls += 1;
+        throw new Error("must not connect");
+      },
+      verifyRepositoryCandidate: async () => true,
+    }),
+    /stage: release/u,
+  );
+  assert.equal(externalCalls, 0);
 });
 
 test("password-recovery delivery treats an already-sent flow as one idle-only probe", async () => {

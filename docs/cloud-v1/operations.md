@@ -142,8 +142,13 @@ pnpm acceptance:hosted:cron:apply \
 ```
 
 provision 只接受“R3-C 为空且恰好一个仍有效、可 claim 的 recovery”或“恰好一个可 claim 的 R3-C”，
-并要求 Cron 精确 absent；它把 Vault 唯一来源送到 Vercel，后续 exact-SHA API deployment 才会装载。
-recovery 与 deliver 分别调用正常产品 worker，要求首次 `sent`、重复 `idle` 并以独立只读聚合确认终态；
+并要求 Cron 精确 absent；它要求当前 clean/pushed/disarmed exact SHA 尚无 release state，持有 release lock
+完成 Vault→Vercel upsert 后才写带随机 `releaseAttemptId` 的 schema-v2 `candidate-recorded`。后续 release
+必须从该 state 以 `forceNew=1` 新建 metadata 精确匹配该 attempt 的 exact-SHA API deployment 并推进到
+`complete`；旧同 SHA/release deployment 不匹配 attempt，不能复用；只有 create 响应丢失后才按 attempt
+回读对账。recovery 与 deliver 只接受 attempt-bearing schema-v2 complete，并在读取 Vault 前重新核对同一
+SHA 与 runtime attestation；legacy schema-v1 complete 仅保留 release status 只读兼容。随后分别调用正常
+产品 worker，要求首次 `sent`、重复 `idle` 并以独立只读聚合确认终态；
 already-sent 恢复只做一次 idle 探针，不重发。恢复邮件完成改密后才会产生 R3-C。用户确认最终安全通知
 收件后，Cron status 才应为 preflight ready，随后 apply 执行两次完整事务和独立 postflight。任一步不确定
 都回到只读聚合/status，不能打印 Vault 值、邮箱/flow、手贴 SQL 或盲目重发。

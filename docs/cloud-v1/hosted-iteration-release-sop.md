@@ -82,8 +82,9 @@ pnpm acceptance:hosted:release:status
 
 ```text
 唯一 claimable recovery
-  -> bootstrap provision（Vault -> Vercel Sensitive）
-  -> exact-SHA release complete
+  -> bootstrap provision（锁定无既有 release state 的 exact SHA；Vault -> Vercel Sensitive）
+  -> 同一 state 的 exact-SHA release complete（必须新建 API deployment）
+  -> fresh runtime attestation
   -> bootstrap recovery（password worker: sent -> idle）
   -> 用户完成改密
   -> bootstrap deliver（R3-C worker: sent -> idle）
@@ -93,14 +94,22 @@ pnpm acceptance:hosted:release:status
 
 公开 `/recover` 的 202 只证明队列接受；只有 recovery 命令成功及只读 postflight 的 `sent` 才证明
 Supabase Auth 接受发送。重复提交会终结同账号旧 flow，因此操作者不得用反复点击代替 worker 诊断。
+provision 持有 release lock 直到 Vercel upsert 成功并原子写入带随机 `releaseAttemptId` 的 schema-v2
+`candidate-recorded`；同一 SHA 已有任何 release state（尤其旧 `complete`）时都在 Vault/Vercel 写入前失败，
+必须使用新的冻结候选。后续 deployment 的 metadata 必须精确匹配该 attempt；即使另一个 clone 没有本地
+state，也不能复用 upsert 前的旧同 SHA/release deployment。recovery 与 R3-C deliver 都重新核对 fixed branch、
+clean、pushed/upstream、disarmed 与同 SHA attempt-bearing `complete` state，并在读取 Keychain/Vault 前执行
+公开 runtime attestation。schema-v1 complete 仍可供旧 release status 只读显示，但不能通过 bootstrap delivery。
 该接续读取既有 Keychain 凭据和 Vault bearer，不新增需要用户记忆的秘密。
 
 ## 5. 凭据与证据
 
 - 四项基础设施凭据只从 macOS login Keychain 读取；不使用 `.env`、命令参数、明文环境变量或聊天。
 - 数据库密码只经权限 `0600` 的临时 `.pgpass` 进入 child；Token 只在本进程内进入固定 HTTP header。
-- release state 只保存 SHA、确定性 release ID、workflow/deployment ID 和 phase，权限固定 `0700/0600`。
-- CI dispatch、环境 upsert 或 deployment create 遇到响应丢失时，只按 exact SHA/release identity 有界回读；
+- release state 只保存 SHA、确定性 release ID、随机非秘密 release attempt ID、workflow/deployment ID 和
+  phase，权限固定 `0700/0600`。
+- deployment 必须先以 `forceNew=1` 尝试 create；只有请求可能已成功但响应丢失时，才按 exact
+  SHA/release/attempt identity 有界回读，不能先查找并复用历史部署；
   找不到唯一证据就失败关闭。
 - 最终交付报告必须区分“代码通过”“deployment complete”“业务旅程通过”和“production ready”，不得互相
   代替。

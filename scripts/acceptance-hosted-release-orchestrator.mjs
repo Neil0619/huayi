@@ -1,7 +1,9 @@
 import {
+  createHostedReleaseAttemptId,
   createHostedReleaseState,
   releaseIdForCandidate,
   transitionHostedReleaseState,
+  validateHostedReleaseState,
 } from "./acceptance-hosted-release-contract.mjs";
 
 const uncertaintyPhases = new Set([
@@ -36,6 +38,7 @@ function methods(value, names) {
 export async function runHostedReleaseOrchestrator({
   candidateSha,
   ci,
+  createReleaseAttemptId = createHostedReleaseAttemptId,
   git,
   mode,
   now = Date.now,
@@ -48,6 +51,7 @@ export async function runHostedReleaseOrchestrator({
     const releaseId = releaseIdForCandidate(candidateSha);
     if (
       !["advance", "recover"].includes(mode) ||
+      typeof createReleaseAttemptId !== "function" ||
       typeof now !== "function" ||
       typeof sleep !== "function" ||
       !methods(stateStore, ["acquire", "read", "write"]) ||
@@ -63,12 +67,19 @@ export async function runHostedReleaseOrchestrator({
       if (mode !== "advance") fail();
       const candidate = await git.inspect();
       if (!candidateMatches(candidate, candidateSha)) fail();
-      state = createHostedReleaseState({ candidateSha, now: now() });
+      state = createHostedReleaseState({
+        candidateSha,
+        now: now(),
+        releaseAttemptId: createReleaseAttemptId(),
+      });
       await stateStore.write(state);
-    } else if (mode === "advance" && uncertaintyPhases.has(state.phase)) {
-      fail();
+    } else {
+      state = validateHostedReleaseState(state);
+      if (state.schemaVersion === 1 && state.phase !== "complete") fail();
+      if (mode === "advance" && uncertaintyPhases.has(state.phase)) fail();
     }
     if (state.candidateSha !== candidateSha || state.releaseId !== releaseId) fail();
+    const releaseAttemptId = state.releaseAttemptId;
 
     const advance = async (phase, evidence = {}) => {
       state = transitionHostedReleaseState(state, { ...evidence, now: now(), phase });
@@ -97,18 +108,25 @@ export async function runHostedReleaseOrchestrator({
       if (run === undefined) fail();
       await advance("ci-running", { ciRunId: run.id });
     };
-    const bindDeployment = async (kind) => {
-      let deployment = await vercel.find({ candidateSha, kind, releaseId });
-      if (deployment === undefined) {
+    const bindDeployment = async (kind, { allowCreate }) => {
+      let deployment;
+      if (allowCreate) {
         try {
-          deployment = await vercel.create({ candidateSha, kind, releaseId });
+          deployment = await vercel.create({ candidateSha, kind, releaseAttemptId, releaseId });
         } catch {
-          // A deployment can be created before the local response fails. Reconcile by alias only.
+          // A deployment can be created before the local response fails. Reconcile by attempt only.
         }
+      }
+      if (deployment === undefined) {
         for (let attempt = 0; attempt < 13 && deployment === undefined; attempt += 1) {
           if (attempt > 0) await sleep(5_000);
           try {
-            deployment = await vercel.find({ candidateSha, kind, releaseId });
+            deployment = await vercel.find({
+              candidateSha,
+              kind,
+              releaseAttemptId,
+              releaseId,
+            });
           } catch {
             // A bounded retry remains read-only and never creates a duplicate.
           }
@@ -181,32 +199,34 @@ export async function runHostedReleaseOrchestrator({
         case "api-configured":
           await inspectCandidate(true);
           await advance("api-deploying");
-          await bindDeployment("api");
+          await bindDeployment("api", { allowCreate: true });
           break;
         case "api-deploying":
-          await bindDeployment("api");
+          await bindDeployment("api", { allowCreate: false });
           break;
         case "api-running":
           await vercel.wait({
             candidateSha,
             deploymentId: state.apiDeploymentId,
             kind: "api",
+            releaseAttemptId,
             releaseId,
           });
           await advance("api-ready");
           break;
         case "api-ready":
           await advance("web-deploying");
-          await bindDeployment("web");
+          await bindDeployment("web", { allowCreate: true });
           break;
         case "web-deploying":
-          await bindDeployment("web");
+          await bindDeployment("web", { allowCreate: false });
           break;
         case "web-running":
           await vercel.wait({
             candidateSha,
             deploymentId: state.webDeploymentId,
             kind: "web",
+            releaseAttemptId,
             releaseId,
           });
           await advance("postflight");
@@ -215,6 +235,7 @@ export async function runHostedReleaseOrchestrator({
           await vercel.attest({
             apiDeploymentId: state.apiDeploymentId,
             candidateSha,
+            releaseAttemptId,
             webDeploymentId: state.webDeploymentId,
           });
           await advance("complete");

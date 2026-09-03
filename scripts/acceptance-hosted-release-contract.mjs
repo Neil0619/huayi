@@ -1,3 +1,5 @@
+import { randomBytes } from "node:crypto";
+
 export const hostedReleaseConfirmation = "--confirm-hosted-acceptance-release";
 export const hostedReleaseExtensionId = "hoijjhgcckfhbcefoclgbhkgninnkknd";
 export const hostedReleaseBranch = "codex/settings-configuration";
@@ -21,7 +23,8 @@ export const hostedReleasePhases = Object.freeze([
 
 const commitPattern = /^[0-9a-f]{40}$/u;
 const deploymentPattern = /^dpl_[A-Za-z0-9_-]{3,128}$/u;
-const stateKeys = Object.freeze([
+const releaseAttemptPattern = /^hosted-attempt-[0-9a-f]{32}$/u;
+const stateV1Keys = Object.freeze([
   "apiDeploymentId",
   "branch",
   "candidateSha",
@@ -33,6 +36,7 @@ const stateKeys = Object.freeze([
   "updatedAt",
   "webDeploymentId",
 ]);
+const stateV2Keys = Object.freeze([...stateV1Keys, "releaseAttemptId"]);
 
 function fail() {
   throw new Error("Hosted acceptance release state failed closed.");
@@ -41,6 +45,21 @@ function fail() {
 export function releaseIdForCandidate(candidateSha) {
   if (typeof candidateSha !== "string" || !commitPattern.test(candidateSha)) fail();
   return `hosted-acceptance-${candidateSha}`;
+}
+
+export function createHostedReleaseAttemptId({ randomBytes_ = randomBytes } = {}) {
+  try {
+    if (typeof randomBytes_ !== "function") fail();
+    const entropy = randomBytes_(16);
+    if (!Buffer.isBuffer(entropy) || entropy.length !== 16) fail();
+    return `hosted-attempt-${entropy.toString("hex")}`;
+  } catch {
+    fail();
+  }
+}
+
+export function validHostedReleaseAttemptId(value) {
+  return typeof value === "string" && releaseAttemptPattern.test(value);
 }
 
 function evidenceIsValid(state, phaseIndex) {
@@ -62,12 +81,13 @@ function evidenceIsValid(state, phaseIndex) {
 
 export function validateHostedReleaseState(state) {
   try {
+    const expectedKeys = state?.schemaVersion === 1 ? stateV1Keys : stateV2Keys;
     if (
       typeof state !== "object" ||
       state === null ||
       Array.isArray(state) ||
-      Object.keys(state).sort().join("|") !== [...stateKeys].sort().join("|") ||
-      state.schemaVersion !== 1 ||
+      Object.keys(state).sort().join("|") !== [...expectedKeys].sort().join("|") ||
+      ![1, 2].includes(state.schemaVersion) ||
       state.branch !== hostedReleaseBranch ||
       typeof state.candidateSha !== "string" ||
       !commitPattern.test(state.candidateSha) ||
@@ -79,6 +99,7 @@ export function validateHostedReleaseState(state) {
     ) {
       fail();
     }
+    if (state.schemaVersion === 2 && !validHostedReleaseAttemptId(state.releaseAttemptId)) fail();
     const phaseIndex = hostedReleasePhases.indexOf(state.phase);
     if (phaseIndex < 0 || !evidenceIsValid(state, phaseIndex)) fail();
     return Object.freeze({ ...state });
@@ -87,7 +108,7 @@ export function validateHostedReleaseState(state) {
   }
 }
 
-export function createHostedReleaseState({ candidateSha, now }) {
+export function createHostedReleaseState({ candidateSha, now, releaseAttemptId }) {
   return validateHostedReleaseState({
     apiDeploymentId: null,
     branch: hostedReleaseBranch,
@@ -95,8 +116,9 @@ export function createHostedReleaseState({ candidateSha, now }) {
     ciRunId: null,
     createdAt: now,
     phase: "candidate-recorded",
+    releaseAttemptId,
     releaseId: releaseIdForCandidate(candidateSha),
-    schemaVersion: 1,
+    schemaVersion: 2,
     updatedAt: now,
     webDeploymentId: null,
   });

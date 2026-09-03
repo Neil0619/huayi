@@ -109,6 +109,7 @@ function vercelFetch(calls, { upsertResponse } = {}) {
 
 function sharedDependencies() {
   const credentialCalls = [];
+  const releaseCalls = [];
   return {
     credentialCalls,
     environment: {},
@@ -120,6 +121,16 @@ function sharedDependencies() {
       throw new Error("Unexpected credential.");
     },
     readCronStatus: async () => absentCronStatus(),
+    releaseCalls,
+    releaseGate: {
+      async attestCompleted() {
+        releaseCalls.push("attest");
+      },
+      async provision(operation) {
+        releaseCalls.push("provision");
+        return operation();
+      },
+    },
     verifyRepositoryCandidate: async () => true,
   };
 }
@@ -154,6 +165,8 @@ test("Cron bootstrap plan is zero-I/O and explains the required release seam", a
     stdout,
     /provision -> exact-SHA API release -> recovery -> user password reset -> deliver/u,
   );
+  assert.match(stdout, /random attempt identity/u);
+  assert.match(stdout, /force-creates attempt-bound deployments/u);
   assert.doesNotMatch(stdout, /must-not-be-read/u);
 });
 
@@ -192,6 +205,7 @@ test("provision creates or reuses one Vault source and upserts Vercel without di
 
   assert.deepEqual(result, { outcome: "provisioned" });
   assert.deepEqual(dependencies.credentialCalls, ["supabase-admin-db-password", "vercel-token"]);
+  assert.deepEqual(dependencies.releaseCalls, ["provision"]);
   assert.equal(psqlCalls.length, 1);
   assert.equal(psqlCalls[0].captureOutput, true);
   assert.equal(psqlCalls[0].password, administratorPassword);
@@ -317,6 +331,7 @@ test("deliver uses the Vault source twice and proves sent then idle plus termina
 
   assert.deepEqual(result, { outcome: "delivered" });
   assert.deepEqual(dependencies.credentialCalls, ["supabase-admin-db-password"]);
+  assert.deepEqual(dependencies.releaseCalls, ["attest"]);
   assert.equal(fetchCalls.length, 2);
   for (const call of fetchCalls) {
     assert.equal(
@@ -386,6 +401,9 @@ test("Cron bootstrap CLI exposes only a fixed failure stage", async () => {
     fetchCaCertificate: async () => caCertificate,
     readCredential: async () => administratorPassword,
     readCronStatus: async () => absentCronStatus(),
+    releaseGate: {
+      attestCompleted: () => Promise.resolve(),
+    },
     runPsql: async () => ({ code: 1, stderr: privateValue, stdout: privateValue }),
     runSnapshotQuery: async () => pendingSnapshot(),
     verifyRepositoryCandidate: async () => true,

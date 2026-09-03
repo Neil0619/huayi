@@ -29,6 +29,7 @@ import {
   renderReadVaultSourceSql,
 } from "./acceptance-hosted-cron-bootstrap-sql.mjs";
 import { readHostedCronStatus } from "./acceptance-hosted-cron.mjs";
+import { createHostedCronBootstrapReleaseGate } from "./acceptance-hosted-cron-bootstrap-release.mjs";
 import { verifyHostedCronRepositoryCandidate } from "./acceptance-hosted-cron-repository.mjs";
 import { hostedAcceptanceProjectRef, runHostedPsql } from "./acceptance-hosted-foundation.mjs";
 import { fetchHostedAcceptanceOfficialCaCertificate } from "./acceptance-hosted-official-ca.mjs";
@@ -53,6 +54,7 @@ const knownStages = new Set([
   "password-recovery-postflight",
   "r3c-pending",
   "repository-candidate",
+  "release",
   "vault-read",
   "vault-write",
   "vercel",
@@ -63,7 +65,8 @@ export function renderHostedCronBootstrapPlan() {
 - Requires either one claimable password recovery before the first reset or one claimable R3-C notification, with no installed Cron surface.
 - Fixed order: provision -> exact-SHA API release -> recovery -> user password reset -> deliver -> user inbox confirmation -> Cron apply.
 - Provision creates or reuses one 64-character lowercase-hex Vault bearer, sends it only in memory to Vercel Sensitive Production configuration, and never prints it.
-- A Vercel environment change affects only a later deployment; deliver therefore fails closed until the approved release is READY.
+- Provision reserves an unused exact-SHA schema-v2 release state with a random attempt identity after the environment upsert.
+- The release force-creates attempt-bound deployments; delivery freshly attests their IDs before reading Vault, and rejects legacy state.
 - Recovery and deliver read the bearer into bounded process memory, run the normal product worker twice, and require sent then idle to prove idempotent handling.
 `;
 }
@@ -75,6 +78,8 @@ export async function provisionHostedCronSecret({
   fetchCaCertificate = fetchHostedAcceptanceOfficialCaCertificate,
   readCredential = readHostedCredential,
   readCronStatus = readHostedCronStatus,
+  releaseGate,
+  repositoryRoot = process.cwd(),
   runPsql = runHostedPsql,
   runRecoverySnapshotQuery = runHostedPasswordRecoveryBootstrapSnapshotQuery,
   runSnapshotQuery = runHostedRuntimeSnapshotQuery,
@@ -93,48 +98,61 @@ export async function provisionHostedCronSecret({
     fail("credentials");
   }
   await requireRepositoryCandidate(verifyRepositoryCandidate);
-  const secrets = await readInfrastructure({ environment, fetchCaCertificate, readCredential });
-  const snapshot = await readSnapshot(secrets, runSnapshotQuery);
-  if (!pendingR3c(snapshot)) {
-    if (!emptyR3c(snapshot)) fail("r3c-pending");
-    let recoverySnapshot;
-    try {
-      recoverySnapshot = await runRecoverySnapshotQuery(secrets, { runPsql });
-    } catch {
-      fail("password-recovery-pending");
-    }
-    if (!claimablePasswordRecovery(recoverySnapshot)) {
-      fail("password-recovery-pending");
-    }
-  }
-  await requireCronAbsent({ environment, readCronStatus, runPsql, secrets });
-  let cronSecret;
   try {
-    cronSecret = parseCronSecret(
-      await runPsql({
-        ...databaseRequest(secrets),
-        captureOutput: true,
-        input: renderEnsureVaultSourceSql(),
-      }),
-      "vault-write",
-    );
+    releaseGate ??= await createHostedCronBootstrapReleaseGate({ fetch_, repositoryRoot });
   } catch (error) {
     if (error instanceof HostedCronBootstrapError) throw error;
-    fail("vault-write");
-  }
-  let token;
-  try {
-    token = await readCredential("vercel-token", { environment });
-    if (!validSecret(token, { maximum: 4_096, minimum: 16 })) fail("credentials");
-  } catch {
-    fail("credentials");
+    fail("release");
   }
   try {
-    await upsertHostedCronSecret({ cronSecret, fetch_, token });
-  } catch {
-    fail("vercel");
+    return await releaseGate.provision(async () => {
+      const secrets = await readInfrastructure({ environment, fetchCaCertificate, readCredential });
+      const snapshot = await readSnapshot(secrets, runSnapshotQuery);
+      if (!pendingR3c(snapshot)) {
+        if (!emptyR3c(snapshot)) fail("r3c-pending");
+        let recoverySnapshot;
+        try {
+          recoverySnapshot = await runRecoverySnapshotQuery(secrets, { runPsql });
+        } catch {
+          fail("password-recovery-pending");
+        }
+        if (!claimablePasswordRecovery(recoverySnapshot)) {
+          fail("password-recovery-pending");
+        }
+      }
+      await requireCronAbsent({ environment, readCronStatus, runPsql, secrets });
+      let cronSecret;
+      try {
+        cronSecret = parseCronSecret(
+          await runPsql({
+            ...databaseRequest(secrets),
+            captureOutput: true,
+            input: renderEnsureVaultSourceSql(),
+          }),
+          "vault-write",
+        );
+      } catch (error) {
+        if (error instanceof HostedCronBootstrapError) throw error;
+        fail("vault-write");
+      }
+      let token;
+      try {
+        token = await readCredential("vercel-token", { environment });
+        if (!validSecret(token, { maximum: 4_096, minimum: 16 })) fail("credentials");
+      } catch {
+        fail("credentials");
+      }
+      try {
+        await upsertHostedCronSecret({ cronSecret, fetch_, token });
+      } catch {
+        fail("vercel");
+      }
+      return Object.freeze({ outcome: "provisioned" });
+    });
+  } catch (error) {
+    if (error instanceof HostedCronBootstrapError) throw error;
+    fail("release");
   }
-  return Object.freeze({ outcome: "provisioned" });
 }
 
 export async function deliverHostedPasswordRecovery({
@@ -144,6 +162,8 @@ export async function deliverHostedPasswordRecovery({
   fetchCaCertificate = fetchHostedAcceptanceOfficialCaCertificate,
   readCredential = readHostedCredential,
   readCronStatus = readHostedCronStatus,
+  releaseGate,
+  repositoryRoot = process.cwd(),
   runPsql = runHostedPsql,
   runRecoverySnapshotQuery = runHostedPasswordRecoveryBootstrapSnapshotQuery,
   runSnapshotQuery = runHostedRuntimeSnapshotQuery,
@@ -162,6 +182,12 @@ export async function deliverHostedPasswordRecovery({
     fail("credentials");
   }
   await requireRepositoryCandidate(verifyRepositoryCandidate);
+  try {
+    releaseGate ??= await createHostedCronBootstrapReleaseGate({ fetch_, repositoryRoot });
+    await releaseGate.attestCompleted();
+  } catch {
+    fail("release");
+  }
   const secrets = await readInfrastructure({ environment, fetchCaCertificate, readCredential });
   if (!emptyR3c(await readSnapshot(secrets, runSnapshotQuery))) fail("r3c-pending");
   let before;
@@ -222,6 +248,8 @@ export async function deliverHostedR3cNotification({
   fetchCaCertificate = fetchHostedAcceptanceOfficialCaCertificate,
   readCredential = readHostedCredential,
   readCronStatus = readHostedCronStatus,
+  releaseGate,
+  repositoryRoot = process.cwd(),
   runPsql = runHostedPsql,
   runSnapshotQuery = runHostedRuntimeSnapshotQuery,
   verifyRepositoryCandidate = verifyHostedCronRepositoryCandidate,
@@ -239,6 +267,12 @@ export async function deliverHostedR3cNotification({
     fail("credentials");
   }
   await requireRepositoryCandidate(verifyRepositoryCandidate);
+  try {
+    releaseGate ??= await createHostedCronBootstrapReleaseGate({ fetch_, repositoryRoot });
+    await releaseGate.attestCompleted();
+  } catch {
+    fail("release");
+  }
   const secrets = await readInfrastructure({ environment, fetchCaCertificate, readCredential });
   const before = await readSnapshot(secrets, runSnapshotQuery);
   const alreadySent = sentR3c(before);

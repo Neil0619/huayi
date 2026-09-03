@@ -2,6 +2,7 @@ import {
   hostedReleaseBranch,
   hostedReleaseExtensionId,
   releaseIdForCandidate,
+  validHostedReleaseAttemptId,
 } from "./acceptance-hosted-release-contract.mjs";
 import { createHostedReleaseRuntime } from "./acceptance-hosted-release-runtime.mjs";
 import { expectedTeamName, expectedTeamSlug } from "./acceptance-vercel-projects-config.mjs";
@@ -60,6 +61,15 @@ function validToken(token) {
     token.length <= 4_096 &&
     token.trim() === token &&
     !/[\0\r\n]/u.test(token)
+  );
+}
+
+function validDeploymentIdentity({ candidateSha, kind, releaseAttemptId, releaseId }) {
+  return (
+    Object.hasOwn(projectSpecifications, kind) &&
+    commitPattern.test(candidateSha) &&
+    validHostedReleaseAttemptId(releaseAttemptId) &&
+    releaseId === releaseIdForCandidate(candidateSha)
   );
 }
 
@@ -127,7 +137,7 @@ function exactDecryptedProductionVariable(variable, desired, id) {
   );
 }
 
-function parseDeployment(raw, kind, candidateSha, releaseId, projectId) {
+function parseDeployment(raw, kind, candidateSha, releaseAttemptId, releaseId, projectId) {
   if (
     !record(raw) ||
     typeof raw.uid !== "string" ||
@@ -139,6 +149,7 @@ function parseDeployment(raw, kind, candidateSha, releaseId, projectId) {
     !record(raw.meta) ||
     raw.meta.githubCommitSha !== candidateSha ||
     raw.meta.huayiCandidateSha !== candidateSha ||
+    raw.meta.huayiReleaseAttemptId !== releaseAttemptId ||
     raw.meta.huayiReleaseId !== releaseId
   ) {
     fail();
@@ -254,14 +265,8 @@ export function createHostedReleaseVercel({
     return true;
   }
 
-  async function find({ candidateSha, kind, releaseId }) {
-    if (
-      !Object.hasOwn(projectSpecifications, kind) ||
-      !commitPattern.test(candidateSha) ||
-      releaseId !== releaseIdForCandidate(candidateSha)
-    ) {
-      fail();
-    }
+  async function find({ candidateSha, kind, releaseAttemptId, releaseId }) {
+    if (!validDeploymentIdentity({ candidateSha, kind, releaseAttemptId, releaseId })) fail();
     const { projects } = await scope();
     const raw = await list({
       kind,
@@ -270,12 +275,20 @@ export function createHostedReleaseVercel({
     const matches = raw.filter(
       (deployment) =>
         deployment?.meta?.huayiCandidateSha === candidateSha &&
+        deployment?.meta?.huayiReleaseAttemptId === releaseAttemptId &&
         deployment?.meta?.huayiReleaseId === releaseId,
     );
     if (matches.length > 1) fail();
     return matches.length === 0
       ? undefined
-      : parseDeployment(matches[0], kind, candidateSha, releaseId, projects[kind].id);
+      : parseDeployment(
+          matches[0],
+          kind,
+          candidateSha,
+          releaseAttemptId,
+          releaseId,
+          projects[kind].id,
+        );
   }
 
   return Object.freeze({
@@ -312,10 +325,9 @@ export function createHostedReleaseVercel({
       }
     },
     find,
-    async create({ candidateSha, kind, releaseId }) {
+    async create({ candidateSha, kind, releaseAttemptId, releaseId }) {
       try {
-        const existing = await find({ candidateSha, kind, releaseId });
-        if (existing !== undefined) return existing;
+        if (!validDeploymentIdentity({ candidateSha, kind, releaseAttemptId, releaseId })) fail();
         if (!(await readConfiguration()) || !(await noInFlight())) fail();
         const { projects, teamId } = await scope();
         const response = await requestJson({
@@ -326,7 +338,11 @@ export function createHostedReleaseVercel({
               sha: candidateSha,
               type: "github",
             },
-            meta: { huayiCandidateSha: candidateSha, huayiReleaseId: releaseId },
+            meta: {
+              huayiCandidateSha: candidateSha,
+              huayiReleaseAttemptId: releaseAttemptId,
+              huayiReleaseId: releaseId,
+            },
             name: projects[kind].name,
             project: projects[kind].id,
             target: "production",
@@ -335,7 +351,7 @@ export function createHostedReleaseVercel({
           method: "POST",
           stage: `release-create-${kind}`,
           token,
-          url: urlFor("/v13/deployments", { teamId }),
+          url: urlFor("/v13/deployments", { forceNew: 1, teamId }),
         });
         if (
           typeof response.id !== "string" ||
@@ -350,11 +366,16 @@ export function createHostedReleaseVercel({
         fail();
       }
     },
-    async wait({ candidateSha, deploymentId, kind, releaseId }) {
+    async wait({ candidateSha, deploymentId, kind, releaseAttemptId, releaseId }) {
       try {
         if (!deploymentPattern.test(deploymentId)) fail();
         for (let attempt = 0; attempt < 241; attempt += 1) {
-          const deployment = await find({ candidateSha, kind, releaseId });
+          const deployment = await find({
+            candidateSha,
+            kind,
+            releaseAttemptId,
+            releaseId,
+          });
           if (deployment === undefined || deployment.id !== deploymentId) {
             await sleep(15_000);
             continue;

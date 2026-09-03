@@ -20,7 +20,8 @@ test("release plan is zero-I/O and distinguishes deployment from independent bus
   assert.equal(code, 0);
   assert.equal(output, renderHostedReleasePlan());
   assert.match(output, /exact candidate SHA/u);
-  assert.match(output, /API then Web/u);
+  assert.match(output, /random release attempt/u);
+  assert.match(output, /force-create/u);
   assert.match(output, /does not run migrations, Cron, DeepSeek, or Chrome journeys/u);
   assert.doesNotMatch(output, /must-not-read/u);
 });

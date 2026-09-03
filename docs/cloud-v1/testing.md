@@ -690,15 +690,21 @@ masked `CRON_SECRET` 连续性、两次真实事务、pg_net 响应或两个周�
 
 - plan 零 I/O；provision 先验证 clean repository candidate、专用 Cron
   `installation_state=absent`/零 fixed/零 unmanaged，以及“唯一 claimable R3-C”或“R3-C 精确为空且唯一
-  claimable recovery”，再创建或复用固定 Vault source；Vault 已存在的重试仍允许，partial/exact Cron
-  在任何写入前拒绝；
+  claimable recovery”，并在同一 exact SHA release lock 内要求无既有 state，再创建或复用固定 Vault
+  source；Vercel upsert 成功后才原子写带注入式随机 `releaseAttemptId` 的 schema-v2 `candidate-recorded`，
+  Vault 已存在的重试仍允许，旧 complete release 与 partial/exact Cron 都在 Vault/Vercel 写入前拒绝；
 - Vercel upsert 固定 team/project、`upsert=true`、Production-only Sensitive 和唯一 `CRON_SECRET`；201
   response 必须 `failed=[]` 且恰好一个精确 created 对象，再回读唯一 metadata。旧变量已经存在时，部分
   failure 不能因 metadata 看似正确而误报成功；
 - recovery snapshot 是 `BEGIN READ ONLY`，只输出 open/claimable/sent/ambiguous 四个有界计数；不得输出
   邮箱、owner、flow、PKCE/provider state 或密文；
-- recovery 与 R3-C deliver 都只从 Vault 读取严格 64 位小写十六进制值，正常路径要求 `sent → idle` 与
-  sent postflight；首次响应丢失后的 already-sent 重跑只调用一次并要求 idle；
+- release 的 Vercel create 必须设置 `forceNew=1`；正常路径不得在 create 前 find，只有 create 响应丢失
+  才按同一 attempt 对账，并忽略 pre-provision 的旧同 SHA/release deployment；recovery 与 R3-C deliver
+  都只接受 fixed branch 上同一 clean/pushed/disarmed SHA 的 attempt-bearing schema-v2 state 已由新 API/Web
+  deployment 推进到 `complete`，并在读取 Vault 前重新
+  通过 runtime attestation；schema-v1 complete 仍可只读 status，但 bootstrap delivery 必须拒绝；之后只从
+  Vault 读取严格 64 位小写十六进制值，正常路径要求 `sent → idle` 与 sent postflight；首次响应丢失后的
+  already-sent 重跑只调用一次并要求 idle；
 - 继承明文 credential、无 TTY fallback、错误 CA/password、异常 stdout、HTTP/JSON/状态漂移和 secret
   泄漏全部失败关闭。测试不得连接真实 Keychain、Supabase、Vercel 或 Resend，也不得发送邮件。
 

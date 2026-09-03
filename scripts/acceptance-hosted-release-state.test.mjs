@@ -11,9 +11,25 @@ import { createHostedReleaseState } from "./acceptance-hosted-release-contract.m
 import { createHostedReleaseStateStore } from "./acceptance-hosted-release-state.mjs";
 
 const candidateSha = "b".repeat(40);
+const releaseAttemptId = `hosted-attempt-${"c".repeat(32)}`;
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const portablePrivateModeOptions =
   process.platform === "win32" ? { privateModeMatches: () => true } : {};
+
+function legacyCompleteState() {
+  return {
+    apiDeploymentId: "dpl_api_legacy_123",
+    branch: "codex/settings-configuration",
+    candidateSha,
+    ciRunId: 42,
+    createdAt: 100,
+    phase: "complete",
+    releaseId: `hosted-acceptance-${candidateSha}`,
+    schemaVersion: 1,
+    updatedAt: 200,
+    webDeploymentId: "dpl_web_legacy_123",
+  };
+}
 
 test("release state stays outside repository formatting inputs", async () => {
   const statePath = join(
@@ -56,7 +72,7 @@ test("release state store writes canonical private state atomically under the ex
     ...portablePrivateModeOptions,
     repositoryRoot,
   });
-  const state = createHostedReleaseState({ candidateSha, now: 100 });
+  const state = createHostedReleaseState({ candidateSha, now: 100, releaseAttemptId });
 
   const release = await store.acquire();
   await store.write(state);
@@ -101,9 +117,27 @@ test("release state store rejects malformed, noncanonical, and cross-candidate s
     repositoryRoot,
   });
   const release = await store.acquire();
-  await store.write(createHostedReleaseState({ candidateSha, now: 100 }));
+  await store.write(createHostedReleaseState({ candidateSha, now: 100, releaseAttemptId }));
   await release();
 
   await writeFile(store.statePath, `${JSON.stringify({ candidateSha })}\n`, { mode: 0o600 });
   await assert.rejects(store.read(), /Hosted acceptance release state failed closed/u);
+});
+
+test("release status can still read an existing schema-v1 complete state", async () => {
+  const repositoryRoot = await mkdtemp(join(tmpdir(), "huayi-release-legacy-state-"));
+  const store = createHostedReleaseStateStore({
+    candidateSha,
+    ...portablePrivateModeOptions,
+    repositoryRoot,
+  });
+  try {
+    const release = await store.acquire();
+    await release();
+    await writeFile(store.statePath, `${JSON.stringify(legacyCompleteState())}\n`, { mode: 0o600 });
+
+    assert.deepEqual(await store.read(), legacyCompleteState());
+  } finally {
+    await rm(repositoryRoot, { force: true, recursive: true });
+  }
 });

@@ -5,6 +5,8 @@ import { createHostedReleaseVercel } from "./acceptance-hosted-release-vercel.mj
 
 const candidateSha = "f".repeat(40);
 const releaseId = `hosted-acceptance-${candidateSha}`;
+const releaseAttemptId = `hosted-attempt-${"a".repeat(32)}`;
+const oldReleaseAttemptId = `hosted-attempt-${"b".repeat(32)}`;
 const token = "fictional-vercel-token-value";
 const teamId = "team_seen_said";
 const projectIds = {
@@ -40,19 +42,25 @@ function project(kind) {
   };
 }
 
-function deployment(kind, state = "READY") {
+function deployment(
+  kind,
+  state = "READY",
+  attemptId = releaseAttemptId,
+  deploymentId = deploymentIds[kind],
+) {
   return {
     createdAt: 1_788_330_000_000,
     meta: {
       githubCommitSha: candidateSha,
       huayiCandidateSha: candidateSha,
+      huayiReleaseAttemptId: attemptId,
       huayiReleaseId: releaseId,
     },
     name: `seen-said-acceptance-${kind}`,
     projectId: projectIds[kind],
     readyState: state,
     target: "production",
-    uid: deploymentIds[kind],
+    uid: deploymentId,
   };
 }
 
@@ -62,7 +70,13 @@ function harness() {
   let configured = false;
   const fetch_ = async (input, init = {}) => {
     const url = new URL(String(input));
-    calls.push({ body: init.body, headers: init.headers, method: init.method ?? "GET", url });
+    calls.push({
+      body: init.body,
+      cache: init.cache,
+      headers: init.headers,
+      method: init.method ?? "GET",
+      url,
+    });
     if (url.origin === "https://api.vercel.com") {
       assert.equal(init.headers.Authorization, `Bearer ${token}`);
       if (url.pathname === "/v2/teams") {
@@ -181,7 +195,7 @@ function harness() {
     }
     throw new Error(`unexpected URL: ${url.href}`);
   };
-  return { calls, fetch_ };
+  return { calls, deployed, fetch_ };
 }
 
 test("Vercel adapter upserts only the three fixed public API capability values", async () => {
@@ -237,14 +251,15 @@ test("Vercel adapter creates and observes exact-SHA production deployments seria
   const vercel = createHostedReleaseVercel({ fetch_, sleep: async () => undefined, token });
   await vercel.configure();
   for (const kind of ["api", "web"]) {
-    assert.equal(await vercel.find({ candidateSha, kind, releaseId }), undefined);
-    const created = await vercel.create({ candidateSha, kind, releaseId });
+    assert.equal(await vercel.find({ candidateSha, kind, releaseAttemptId, releaseId }), undefined);
+    const created = await vercel.create({ candidateSha, kind, releaseAttemptId, releaseId });
     assert.equal(created.id, deploymentIds[kind]);
     assert.deepEqual(
       await vercel.wait({
         candidateSha,
         deploymentId: deploymentIds[kind],
         kind,
+        releaseAttemptId,
         releaseId,
       }),
       { id: deploymentIds[kind], state: "READY" },
@@ -264,17 +279,53 @@ test("Vercel adapter creates and observes exact-SHA production deployments seria
     })),
   );
   assert.deepEqual(
+    writes.map(({ url }) => url.searchParams.get("forceNew")),
+    ["1", "1"],
+  );
+  assert.deepEqual(
     writes.map(({ body }) => JSON.parse(body).meta),
-    ["api", "web"].map(() => ({ huayiCandidateSha: candidateSha, huayiReleaseId: releaseId })),
+    ["api", "web"].map(() => ({
+      huayiCandidateSha: candidateSha,
+      huayiReleaseAttemptId: releaseAttemptId,
+      huayiReleaseId: releaseId,
+    })),
+  );
+});
+
+test("Vercel adapter ignores a pre-provision deployment from an older release attempt", async () => {
+  const { calls, deployed, fetch_ } = harness();
+  deployed.set("api", deployment("api", "READY", oldReleaseAttemptId, "dpl_api_old_123"));
+  const vercel = createHostedReleaseVercel({ fetch_, sleep: async () => undefined, token });
+  await vercel.configure();
+
+  assert.equal(
+    await vercel.find({ candidateSha, kind: "api", releaseAttemptId, releaseId }),
+    undefined,
+  );
+  assert.deepEqual(
+    await vercel.create({ candidateSha, kind: "api", releaseAttemptId, releaseId }),
+    { id: deploymentIds.api, state: "QUEUED" },
+  );
+  assert.equal(
+    calls.filter(({ method, url }) => method === "POST" && url.pathname === "/v13/deployments")
+      .length,
+    1,
   );
 });
 
 test("Vercel postflight binds both runtime surfaces and the extension CORS origin", async () => {
-  const { fetch_ } = harness();
+  const { calls, fetch_ } = harness();
   const vercel = createHostedReleaseVercel({ fetch_, token });
   await vercel.attest({
     apiDeploymentId: deploymentIds.api,
     candidateSha,
+    releaseAttemptId,
     webDeploymentId: deploymentIds.web,
   });
+  assert.deepEqual(
+    calls
+      .filter(({ url }) => url.origin.endsWith("acceptance.seen-said.cn"))
+      .map(({ cache }) => cache),
+    ["no-store", "no-store", "no-store"],
+  );
 });

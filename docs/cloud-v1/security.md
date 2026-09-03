@@ -232,7 +232,8 @@ owner context、generation/reservation 归属、task 成功或失败终态、价
 - Hosted DeepSeek one-shot 的 HMAC keyring 使用同一 Keychain service 下独立的内部 account
   `deepseek-one-shot-hmac-keyring`，不从数据库密码、PAT 或 Vercel Token 派生。keyring 只保存 active 与有界
   retained version，执行器可在明确 execute 时首次创建，recover 缺失时失败关闭，status 不读取密钥。
-- Hosted release state 只允许固定 candidate/release/workflow/deployment identity 与 phase，不保存凭据、
+- Hosted release state 只允许固定 candidate/release、随机非秘密 attempt、workflow/deployment identity 与 phase，
+  不保存凭据、
   URL、远端正文或环境值。Vercel Token 仅在当前进程 HTTP header 中；质量门子进程获得显式 allowlist
   environment，不继承数据库密码、PAT、Token 或 Provider key。acceptance Store manifest/profile 与公开
   release manifest 分离，后者不得获得 Hosted origin 权限或 acceptance key。
@@ -534,8 +535,14 @@ Hosted Cron bootstrap 不新增第五个本机凭据，也不让操作者经聊�
 `CRON_SECRET`。管理员连接在 Supabase Vault 内创建或复用固定 64 位小写十六进制 bearer；值只在有界
 本地进程内进入 Vercel 环境管理请求，以及后续 API worker 的 Authorization header。Vercel Sensitive
 值不可解密回读，因此结构回读只验证唯一 key/type/Production target，值连续性必须由同一 Vault 来源
-完成 upsert 后的新 deployment 接受鉴权、真实 worker 返回 `sent` 且重复返回 `idle` 来证明。首次环境
-允许在 R3-C 为空且恰好一个 recovery 可 claim 时 provision，再用相同 bearer 投递恢复邮件；只读门仅
+完成 upsert 后的新 deployment 接受鉴权、真实 worker 返回 `sent` 且重复返回 `idle` 来证明。provision
+必须在 release lock 内拒绝已有 state，并只在 upsert 成功后写带随机 `releaseAttemptId` 的 schema-v2
+`candidate-recorded`。API/Web deployment 必须设置 `forceNew=1`，其 metadata 必须精确匹配该 attempt；
+另一个 clone 即使缺少本地 state，也不能把 upsert 前的旧同 SHA/release deployment 绑定到本次 state，且
+只有 create 响应丢失后才允许按 attempt 对账。delivery 在读取 Vault 前只接受同一
+clean/pushed/disarmed SHA 的 attempt-bearing schema-v2 `complete`，并要求 API/Web runtime attestation 通过；
+legacy schema-v1 complete 只能用于 release status 兼容。首次环境允许在 R3-C 为空且恰好一个 recovery 可
+claim 时 provision，再用相同 bearer 投递恢复邮件；只读门仅
 返回 open/claimable/sent/ambiguous 四个计数，禁止返回邮箱、owner、flow、PKCE/provider state 或密文。
 所有错误只输出固定 stage；数据库/Vercel/HTTP 原始响应、bearer、Token 和邮件身份不得进入日志或
 state。该行为证据仍不替代用户真实收件与无正文告警接收方验收，也不自动授权 Cron apply。
