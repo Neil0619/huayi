@@ -57,6 +57,61 @@ async function click(element: Element | null) {
 }
 
 describe("StudyInbox", () => {
+  it("shows an analysis in progress when returning to the default inbox", async () => {
+    const detail = {
+      capture: { ...capture, status: "analyzing" },
+      latestAnalysis: null,
+      activeAnalysisRequest: { requestId: "request-1", state: "running" },
+    };
+    const api = {
+      analyzeCapture: vi.fn(),
+      getCapture: vi.fn(async () => detail),
+      listCaptures: vi.fn(async (query: { status: string }) => ({
+        items: query.status === "analyzing" ? [detail] : [],
+        nextCursor: null,
+      })),
+    };
+    const container = await renderInbox(api);
+    expect(container.textContent).toContain(capture.sourceText);
+    expect(container.textContent).toContain("分析中");
+    expect(container.querySelector("[data-recheck-analysis]")).not.toBeNull();
+    expect(api.analyzeCapture).not.toHaveBeenCalled();
+  });
+
+  it.each(["stream", "recovery"])(
+    "keeps the failed capture and error visible after %s completion",
+    async (failurePath) => {
+      const detail = { capture, latestAnalysis: null };
+      const failure = {
+        code: "model_output_invalid",
+        message: "Invalid output.",
+        requestId: "request-1",
+      };
+      const api = {
+        analyzeCapture: vi.fn(async function* () {
+          yield { requestId: "request-1", type: "analysis.started" as const, unitCount: 1 };
+          if (failurePath === "stream") yield { error: failure, type: "analysis.failed" as const };
+        }),
+        getAnalysisRequestStatus: vi.fn(async () => ({
+          error: failure,
+          requestId: "request-1",
+          state: "failed",
+        })),
+        getCapture: vi.fn(async () => detail),
+        listCaptures: vi.fn(async () => ({ items: [detail], nextCursor: null })),
+      };
+      const container = await renderInbox(api);
+      await click(container.querySelector("[data-analyze-capture]"));
+      expect(container.querySelector("[role=alert]")?.textContent).toContain("原文已保留");
+      expect(container.textContent).not.toContain("服务器正在生成");
+      expect(container.textContent).toContain(capture.sourceText);
+      expect(container.querySelector<HTMLButtonElement>("[data-analyze-capture]")?.disabled).toBe(
+        false,
+      );
+      expect(api.analyzeCapture).toHaveBeenCalledTimes(1);
+    },
+  );
+
   it("loads captures, saves edits, and starts explicit analysis", async () => {
     const detail = { capture, latestAnalysis: null };
     const api = {

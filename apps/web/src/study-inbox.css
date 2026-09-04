@@ -36,6 +36,29 @@
   resize: vertical;
 }
 
+.study-capture-shell > button {
+  margin-bottom: var(--space-4);
+}
+
+.study-capture-form,
+.study-capture-form > label {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.study-capture-form {
+  margin-top: var(--space-5);
+  gap: var(--space-5);
+}
+
+.study-capture-form :is(input, select, textarea) {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: var(--control-height);
+  padding: var(--space-3);
+}
+
 @media (max-width: 48rem) {
   .study-inbox-tabs {
     justify-content: flex-start;

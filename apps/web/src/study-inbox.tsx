@@ -14,9 +14,9 @@ export function StudyInbox({
   readonly reviewApi: InboxApi;
 }) {
   const [tab, setTab] = useState<"capture" | "review">("capture");
-  const [captureStatus, setCaptureStatus] = useState<StudyCaptureStatus>("pending");
+  const [captureStatus, setCaptureStatus] = useState<StudyCaptureStatus>("unfinished");
   const selectTab = (next: typeof tab) => {
-    if (next !== tab) setCaptureStatus("pending");
+    if (next !== tab) setCaptureStatus("unfinished");
     setTab(next);
   };
   const tabs = (
@@ -55,6 +55,7 @@ export function StudyInbox({
                 setCaptureStatus(event.currentTarget.value as StudyCaptureStatus)
               }
             >
+              <option value="unfinished">待分析与分析中</option>
               <option value="pending">待分析</option>
               <option value="analyzing">分析中</option>
               <option value="analyzed">已分析</option>

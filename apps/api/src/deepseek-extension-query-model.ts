@@ -17,6 +17,7 @@ import {
 import type { z } from "zod/v3";
 
 import type { ExtensionQueryModel } from "./extension-query-ports.js";
+import { deepSeekQueryExample } from "./deepseek-output-examples.js";
 import {
   DEEPSEEK_PLATFORM_ENDPOINT,
   DEEPSEEK_PLATFORM_MODEL,
@@ -72,7 +73,10 @@ function resultType(input: ExtensionQueryRequest): ResultType {
   return input.action === "translate" ? "translate-passage" : "explain-sentence";
 }
 
-function instructions(type: ResultType): string {
+function instructions(
+  type: ResultType,
+  selectionKind: ExtensionQueryRequest["selectionKind"],
+): string {
   return [
     "You are Huayi's compact English query engine for Chinese learners.",
     "Return exactly one strict JSON object, without Markdown or commentary.",
@@ -81,12 +85,13 @@ function instructions(type: ResultType): string {
     `Return only these semantic fields: ${fieldGuides[type]}.`,
     `The type field must be ${type}. Do not return requestId, sourceText, URL, owner, model, quota, or provider fields.`,
     "Use empty arrays or omit optional fields instead of inventing content.",
+    deepSeekQueryExample(type, selectionKind),
   ].join("\n");
 }
 
 function requestBody(input: ExtensionQueryRequest, type: ResultType, repair?: string): string {
   const messages = [
-    { content: instructions(type), role: "system" },
+    { content: instructions(type, input.selectionKind), role: "system" },
     {
       content: `UNTRUSTED_INPUT_BEGIN\n${JSON.stringify(input)}\nUNTRUSTED_INPUT_END`,
       role: "user",

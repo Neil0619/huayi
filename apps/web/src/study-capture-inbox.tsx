@@ -4,7 +4,9 @@ import type { StudyCaptureDetailResponse } from "@huayi/cloud-contracts";
 import type { WebStudyCaptureApi } from "./study-capture-api.js";
 import { StudyCaptureDetailPanel } from "./study-capture-detail-panel.js";
 
-export type StudyCaptureStatus = "analyzed" | "analyzing" | "pending";
+export type StudyCaptureStatus = "analyzed" | "analyzing" | "pending" | "unfinished";
+
+const captureStatusLabels = { pending: "待分析", analyzing: "分析中", analyzed: "已分析" };
 
 export function StudyCaptureInbox({
   api,
@@ -57,24 +59,40 @@ export function StudyCaptureInbox({
     [api, applyDetail],
   );
 
-  const load = useCallback(async () => {
-    const generation = ++listGeneration.current;
-    setState("loading");
-    setError(null);
-    try {
-      const response = await api.listCaptures({ status: captureStatus });
-      if (generation !== listGeneration.current) return;
-      setItems(response.items);
-      setState(response.items.length === 0 ? "empty" : "ready");
-      if (response.items[0] !== undefined) await open(response.items[0].capture.id);
-      else setDetail(null);
-    } catch {
-      if (generation === listGeneration.current) {
-        setState("error");
-        setError("暂时无法载入待分析内容，请检查网络后重试。");
+  const load = useCallback(
+    async (preferredId?: string) => {
+      const generation = ++listGeneration.current;
+      setState("loading");
+      setError(null);
+      try {
+        const statuses =
+          captureStatus === "unfinished" ? (["pending", "analyzing"] as const) : [captureStatus];
+        const responses = await Promise.all(statuses.map((status) => api.listCaptures({ status })));
+        if (generation !== listGeneration.current) return;
+        const captures = new Map<string, StudyCaptureDetailResponse>();
+        for (const item of responses.flatMap((response) => response.items)) {
+          const previous = captures.get(item.capture.id);
+          if (previous === undefined || previous.capture.revision < item.capture.revision) {
+            captures.set(item.capture.id, item);
+          }
+        }
+        const loaded = [...captures.values()].sort((a, b) =>
+          b.capture.updatedAt.localeCompare(a.capture.updatedAt),
+        );
+        setItems(loaded);
+        setState(loaded.length === 0 ? "empty" : "ready");
+        const selected = loaded.find((item) => item.capture.id === preferredId) ?? loaded[0];
+        if (selected !== undefined) await open(selected.capture.id);
+        else setDetail(null);
+      } catch {
+        if (generation === listGeneration.current) {
+          setState("error");
+          setError("暂时无法载入待分析内容，请检查网络后重试。");
+        }
       }
-    }
-  }, [api, captureStatus, open]);
+    },
+    [api, captureStatus, open],
+  );
 
   useEffect(() => {
     void load();
@@ -150,8 +168,11 @@ export function StudyCaptureInbox({
         if (event.type === "analysis.failed") {
           terminal = true;
           setActiveRequestId(null);
-          setError("深度分析未完成；首次分析已恢复为待分析，重新分析会保留之前结果。");
-          await load();
+          setStatus(null);
+          await load(detail.capture.id);
+          if (generation === analysisGeneration.current) {
+            setError("深度分析失败，原文已保留，可稍后重试；重新分析失败时会保留之前的结果。");
+          }
           return;
         }
       }
@@ -161,6 +182,7 @@ export function StudyCaptureInbox({
       if (requestId !== null && !(caught instanceof DOMException && caught.name === "AbortError")) {
         await recoverRequest(requestId, generation);
       } else if (!(caught instanceof DOMException && caught.name === "AbortError")) {
+        setStatus(null);
         setError("分析连接中断。服务器可能仍在处理，请稍后刷新状态，勿自动重复扣费。");
       }
     } finally {
@@ -181,8 +203,11 @@ export function StudyCaptureInbox({
         onAnalyzed?.();
       } else if (request.state === "failed") {
         setActiveRequestId(null);
-        setError("深度分析未完成；首次分析已恢复为待分析，重新分析会保留之前结果。");
-        await load();
+        setStatus(null);
+        await load(detail?.capture.id);
+        if (generation === analysisGeneration.current) {
+          setError("深度分析失败，原文已保留，可稍后重试；重新分析失败时会保留之前的结果。");
+        }
       } else {
         setActiveRequestId(requestId);
         setStatus("服务器仍在处理同一次分析；请稍后检查，不会自动发起新的模型请求。");
@@ -226,6 +251,13 @@ export function StudyCaptureInbox({
 
   return (
     <div className="study-capture-shell">
+      <button
+        disabled={busy || state === "loading"}
+        onClick={() => void load(detail?.capture.id)}
+        type="button"
+      >
+        刷新列表
+      </button>
       {status !== null && (
         <p aria-live="polite" role="status">
           {status}
@@ -253,7 +285,8 @@ export function StudyCaptureInbox({
         <div className="inbox-layout">
           <aside aria-label="待分析采集" className="analysis-list">
             <h2 ref={listHeading} tabIndex={-1}>
-              待分析 {items.length}
+              {captureStatus === "unfinished" ? "未完成" : captureStatusLabels[captureStatus]}{" "}
+              {items.length}
             </h2>
             {items.map((item) => (
               <button
@@ -264,6 +297,7 @@ export function StudyCaptureInbox({
               >
                 <strong>{item.capture.title ?? item.capture.kind}</strong>
                 <span>{item.capture.sourceText}</span>
+                <small>{captureStatusLabels[item.capture.status]}</small>
               </button>
             ))}
           </aside>

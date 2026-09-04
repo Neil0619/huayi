@@ -30,7 +30,7 @@ export function StudyCaptureDetailPanel(props: Props) {
         <p>遇到 {capture.captureCount} 次</p>
         <h2>{capture.sourceText}</h2>
       </header>
-      <form onSubmit={props.onSubmit}>
+      <form className="study-capture-form" onSubmit={props.onSubmit}>
         <label>
           类型
           <select
