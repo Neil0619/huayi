@@ -2206,7 +2206,7 @@ passed; first Operator empty`。候选已提交推送，0012 已实际 push；�
 - Hosted 改密失败的脱敏只读证据为 Provider 拒绝与当前密码相同的新密码；数据库仍保持 verified，未改密、
   未撤销 session、未生成 R3-C，不能把失败页面冒充为恢复完成。Web 已明确提示新密码必须不同，但 API
   继续把 `same_password` 与其他 Provider 失败统一收敛为 `authentication_required`；
-- 当前只读回读确认 Auth 密码恢复配置通过、R3-C 全空且合同精确、Cron 为 `absent`，未安装 job、未调用
+- 当时只读回读确认 Auth 密码恢复配置通过、R3-C 全空且合同精确、Cron 为 `absent`，未安装 job、未调用
   DeepSeek、未改变 kill switch。由于 bootstrap provision 必须占用尚无 release state 的 clean/pushed SHA，
   已完成的普通 `4bd44ed` release 不得改写成 bootstrap provenance；
 - 本节形成的 `e74968af337ee98caeef5d1d75c7c20a595e6308` 随后完成普通 Hosted release；exact-SHA
@@ -2214,7 +2214,22 @@ passed; first Operator empty`。候选已提交推送，0012 已实际 push；�
   `dpl_DFABJmqQKkC1eptEkXXZn1GnKZa5` 与 Web deployment
   `dpl_HGTHtoRFhtnFokxXc93kcCqEywUH` 已通过 runtime attestation；
 - 用户只提交一次新的 `/recover` 请求后，脱敏只读快照精确为 open `1`、claimable `1`、sent `0`、
-  ambiguous `0`。下一步仅允许从本次状态回读形成的新 clean candidate 开始，按
+  ambiguous `0`。由该状态形成 clean candidate，并按
   `provision → fresh exact-SHA API release → recovery sent/idle → 用户用不同密码改密 → R3-C sent/idle →
-收件确认 → Cron apply` 推进。任何唯一 claimable、deployment attempt 或收件证据不精确时立即停止，
-  不能先安装 Cron。
+收件确认 → Cron apply` 推进；任何唯一 claimable、deployment attempt 或收件证据不精确时立即停止；
+- `92289c4f1a763f0a5cec28a18e4fd8416ead2fa2` 的 bootstrap-provenance schema-v3 release 已 complete，
+  exact-SHA CI `33787744185` 两平台成功，fresh API `dpl_xw8HuxaWZec6S1C3CEAL76ECBHXg` 与 Web
+  `dpl_6gtzeCGRs7aWDa4yKDPdag4p5Zyp` 均通过 runtime attestation。首个恢复请求在 CI 期间过期，投递
+  在发送前停止；用户重新提交后，恢复 worker 的 `sent → idle` 与独立 sent `1`/ambiguous `0` 回读通过；
+- 用户已确认改密并成功登录。只读证明恢复 open `0`、完成流程与通知精确关联 `1`、残留恢复授权 `0`；
+  R3-C 随后完成 `sent → idle`，独立回读 sent `1`、attempts `1`、pending/failed/dead-letter 均 `0`，
+  用户已确认仅收到一封本次改密安全通知；
+- 修复前的 Hosted Cron 前检为 `f`，根因是 status 校验保留旧版四条 schema ACL，而正式 0016 migration 已新增
+  executor USAGE。只读差分确认实际五条合法权限、零未知项和零 grant option。本地修复以完整
+  migration/PGlite 回归证明精确五条通过、旧四条与越权仍拒绝；不改数据库权限或 operations SQL，
+  本地验收阶段按当时批准停在提交/推送前；
+- Fresh RED 确认合法五条被拒绝、旧四条误通过；修复后相关回归 70/70，本地 `pnpm verify:macos`
+  完整通过（Node scripts 964、API 621、Store coverage 512、E2E 120，生产依赖审计无已知漏洞）。截至本地
+  验收时，新候选尚未提交/推送，双平台 exact-SHA CI 与 Hosted 前检复验未运行；
+- Cron 仍为 `absent`，尚未 apply 或观察周期；无正文告警接收和故障恢复仍未由本次成功邮件证明。
+  本次本地修复不重新 provision/deploy/send，不调用模型或更改 kill switch。

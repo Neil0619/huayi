@@ -128,6 +128,13 @@ status 只输出固定 boolean、`absent|partial|exact` stage 和 64-bit 非负�
 `huayi-*` job、额外函数 overload/不可修复 owner/ACL、错误 extension schema、非管理员连接、migration
 漂移、Vault 名称缺失，或 R3-C 数据库侧门不通过时失败关闭。
 
+through-0023 的 schema ACL 必须精确为五条：owner 的 `USAGE/CREATE`，以及
+`huayi_context_setter`、`huayi_business`、`huayi_hosted_acceptance_executor` 各一条 `USAGE`，
+全部无 grant option。最后一项由正式 0016 migration 引入；旧版四条判定会错误拒绝完整 migration
+链，也会误接收缺少 executor 权限的旧状态。校验器只修正读取合同，不执行 GRANT/REVOKE，不改
+operations SQL 或扩大 adapter 执行权限；未知角色、同数量的角色替换、额外 CREATE、缺项和 grant
+option 仍失败关闭。
+
 Vercel Sensitive Environment Variable 不能解密回读，因此 status **不能**通过比较明文证明当前 API
 `CRON_SECRET` 与 Vault 值相等。bootstrap 以“同一 Vault 值完成 Vercel upsert → 后续 deployment → API
 鉴权成功并真实发送 → 重复调用 idle”的产品行为证明连续性，不把 masked metadata 当成值证明。apply 的
@@ -171,6 +178,9 @@ Supabase Free 暂停或额度耗尽会使任务停止。正式发布前必须决
   `0600 .pgpass` 和 strict LF parser；
   transaction 内插入 `DROP TABLE` 仍保留旧 `BEGIN`/`COMMIT`/五次 schedule 浅形状的变体必须因 hash
   不匹配失败；
+- schema ACL 回归必须在离线 PGlite 执行完整 0001–0023 migration，再运行生产 status SQL 中的实际
+  schema ACL 谓词；不能只用正则或手写成功快照证明权限兼容性。合法五条通过，旧四条、同数量替换、
+  未知/PUBLIC/anon/authenticated/service_role 授权、缺项、CREATE 和 grant option 漂移都必须拒绝；
 - API full、strict typecheck/build、目标 lint/format、instructions/architecture 必须通过；SQL 没有
   Prettier parser，以静态契约测试、diff review 和后续真实 Supabase 验收覆盖。
 

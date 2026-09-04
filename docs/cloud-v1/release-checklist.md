@@ -276,8 +276,10 @@ hosted/production 邀请或宣称 Chrome Web Store 就绪。受控 `local-accept
       返回固定成功输出；没有伪造 Phase 81 completion，也没有为制造 current=true 重写恢复点；
 - [ ] 在真实 R3-C 收件、重复观测和无正文告警门关闭后，从同一受控来源确认 Vercel/Vault
       `CRON_SECRET` 连续性，运行 Cron status→exact-confirmation apply；要求两次完整事务均成功、postflight
-      exact 五 job/零 unmanaged，并观察至少两个周期及 401/5xx/timeout 后恢复。`1caf9dc…` 后没有运行真实
-      runtime snapshot、Cron status/apply，也没有输入用户秘密；
+      exact 五 job/零 unmanaged，并观察至少两个周期及 401/5xx/timeout 后恢复。`92289c4…` 已完成
+      bootstrap 同源发布、恢复及 R3-C 的 sent/idle，用户确认改密登录与唯一安全通知收件；只读 Cron
+      前检发现旧四条 schema ACL 校验与正式五条权限不一致，本地修复已通过离线全门。Cron 仍 absent，告警
+      接收、apply、周期与故障恢复尚未验收；
 - [ ] 以经批准真实请求核验 Provider 返回模型、usage、90 秒应用 timeout、实际账单与 UsageLedger 一致；
 - [ ] 真实 DeepSeek 语义建议在受控小额度下核验固定 endpoint/model、usage、价格、timeout 和账本；不得
       用离线 fake fetch/authority 代替费用或网络事实；

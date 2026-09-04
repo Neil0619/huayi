@@ -87,10 +87,14 @@ test("hosted Cron status SQL is one read-only transaction with fixed safe aggreg
   assert.match(sql, /FROM cron\.job/u);
   assert.match(sql, /huayi_private\.invoke_cron_path/u);
   assert.match(sql, /proowner=\(SELECT oid FROM pg_roles WHERE rolname=current_user\)/u);
-  assert.match(sql, /schema_acl AS \([\s\S]*SELECT count\(\*\)=4/u);
+  assert.match(sql, /schema_acl AS \([\s\S]*SELECT count\(\*\)=5/u);
   assert.match(sql, /count\(\*\) FILTER \(WHERE acl\.is_grantable\)=0/u);
   assert.match(sql, /role\.rolname='huayi_context_setter'[\s\S]*privilege_type='USAGE'/u);
   assert.match(sql, /role\.rolname='huayi_business'[\s\S]*privilege_type='USAGE'/u);
+  assert.match(
+    sql,
+    /role\.rolname='huayi_hosted_acceptance_executor'[\s\S]*privilege_type='USAGE'/u,
+  );
   assert.match(sql, /function_acl\.contract_exact AND schema_acl\.contract_exact/u);
   assert.match(sql, /function_safety\.installable[\s\S]*schema_acl\.contract_exact/u);
   assert.match(sql, /\\if :cron_catalog_ready/u);

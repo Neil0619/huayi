@@ -162,7 +162,7 @@ function_safety AS (
     ) AS installable
 ),
 schema_acl AS (
-  SELECT count(*)=4
+  SELECT count(*)=5
     AND count(*) FILTER (WHERE acl.is_grantable)=0
     AND count(*) FILTER (WHERE acl.grantee=namespace.nspowner
       AND acl.privilege_type='USAGE')=1
@@ -171,6 +171,8 @@ schema_acl AS (
     AND count(*) FILTER (WHERE role.rolname='huayi_context_setter'
       AND acl.privilege_type='USAGE')=1
     AND count(*) FILTER (WHERE role.rolname='huayi_business'
+      AND acl.privilege_type='USAGE')=1
+    AND count(*) FILTER (WHERE role.rolname='huayi_hosted_acceptance_executor'
       AND acl.privilege_type='USAGE')=1 AS contract_exact
   FROM pg_namespace AS namespace
   CROSS JOIN LATERAL aclexplode(

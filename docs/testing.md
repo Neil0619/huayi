@@ -61,6 +61,11 @@ create，只有响应丢失后才按 attempt 对账并忽略旧 deployment；rec
 Vault 前重新 attestation 新 API/Web deployment；
 recovery worker 要求 `sent → idle`，already-sent 仅做一次 `idle`；缺失、过期、dispatch 模糊、partial
 Cron、401/5xx、异常 JSON、继承明文 secret 与输出反射全部失败关闭。默认测试只使用 fake，不发邮件。
+Hosted Cron schema ACL 回归使用离线 PGlite 执行完整 0001–0023 migration，并从正式 status SQL 提取
+实际 schema ACL 谓词运行，覆盖 owner 两条权限及 context-setter/business/executor 各一条 USAGE。
+必须同时拒绝缺少 executor 的旧四条状态、同数量未知角色或 CREATE 替换、额外授权、缺项和 grant
+option；不得通过删除合法 0016 权限或放宽数量/角色匹配修复 preflight。该回归不启动 pg_cron/pg_net，
+不证明真实 job 已安装；正式 apply 和两个周期仍是独立 Hosted 门。
 Supabase recovery adapter 必须回归 `TokenHash` 只在显式 POST 后交给 `verifyOtp(type=recovery)`，不依赖
 300 秒 PKCE flow state；Hosted Auth 模板门必须只允许一个 `RedirectTo` 和一个 `TokenHash`、零
 `ConfirmationURL`，apply 只能从已知旧模板做单字段更新并重新回读，输出不得反射模板或 token。
