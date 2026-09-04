@@ -1,9 +1,6 @@
-import { mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import { PassThrough } from "node:stream";
 
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { HostEvent } from "@huayi/protocol";
 
@@ -23,24 +20,6 @@ import type {
   ProcessRunResult,
   ProcessRunner,
 } from "./runtime/codex-process.js";
-import type { EudicFetch } from "./wordbook/eudic-client.js";
-import { EudicOperationExecutor } from "./wordbook/eudic-operation-executor.js";
-
-const temporaryDirectories: string[] = [];
-
-afterEach(async () => {
-  await Promise.all(
-    temporaryDirectories
-      .splice(0)
-      .map((directory) => rm(directory, { force: true, recursive: true })),
-  );
-});
-
-async function createTemporaryWordSyncStatePath(): Promise<string> {
-  const directory = await mkdtemp(join(tmpdir(), "huayi-main-word-sync-"));
-  temporaryDirectories.push(directory);
-  return join(directory, "word-sync-state.json");
-}
 
 class HealthDispatcher implements RequestDispatcher {
   dispatch(_message: unknown, emit: (event: HostEvent) => void): void {
@@ -290,72 +269,6 @@ describe("native host bootstrap", () => {
       ["login", "status"],
     ]);
     expect(requests.some((request) => request.arguments[0] === "mcp")).toBe(false);
-    dispatcher.dispose();
-  });
-
-  it("injects one Eudic operation executor into macOS wordbook and word-sync services", async () => {
-    const eudicAuthorizationReader = {
-      read: vi.fn(async () => "Bearer fixture"),
-    };
-    const eudicOperationExecutor = new EudicOperationExecutor({
-      authorizationReader: eudicAuthorizationReader,
-    });
-    const executeEudicOperation = vi.spyOn(eudicOperationExecutor, "execute");
-    const eudicFetch = vi.fn<EudicFetch>(async (url) => {
-      const body =
-        url.includes("/vocab_entries") || url.includes("/words?")
-          ? { data: [], message: "" }
-          : { data: [] };
-      return new Response(JSON.stringify(body), {
-        headers: { "Content-Type": "application/json" },
-        status: 200,
-      });
-    });
-    const wordSyncStatePath = await createTemporaryWordSyncStatePath();
-    const dispatcher = createNativeHostDispatcher({
-      codexExecutable: "/opt/codex",
-      environment: { HOME: "/Users/tester" },
-      errorOutput: new PassThrough(),
-      eudicAuthorizationReader,
-      eudicFetch,
-      eudicOperationExecutor,
-      processRunner: {
-        run: vi.fn(async () => {
-          throw new Error("Process runner must not run.");
-        }),
-      },
-      schemaDirectory: "/tmp/schemas",
-      workingDirectory: "/tmp/work",
-      wordSyncNow: () => new Date(2026, 7, 9, 12, 0, 0, 0),
-      wordSyncStatePath,
-    });
-    const events: HostEvent[] = [];
-
-    dispatcher.dispatch(
-      {
-        language: "en",
-        requestId: "check-shared-macos",
-        schemaVersion: 7,
-        type: "check-word",
-        word: "investigation",
-      },
-      (event) => events.push(event),
-    );
-    await vi.waitFor(() => expect(events.some((event) => event.type === "word-status")).toBe(true));
-    dispatcher.dispatch(
-      { requestId: "sync-shared-macos", schemaVersion: 7, type: "word-sync-poll" },
-      (event) => events.push(event),
-    );
-    await vi.waitFor(() =>
-      expect(
-        events.some(
-          (event) => event.type === "word-sync-status" && event.requestId === "sync-shared-macos",
-        ),
-      ).toBe(true),
-    );
-
-    expect(executeEudicOperation).toHaveBeenCalledTimes(2);
-    expect(eudicAuthorizationReader.read).toHaveBeenCalledTimes(2);
     dispatcher.dispose();
   });
 });

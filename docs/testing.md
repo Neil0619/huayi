@@ -17,6 +17,12 @@ Windows 默认门禁运行协议、Extension、共享 Provider、Windows Host/�
 POSIX 权限、目录 `fsync`、符号链接或 macOS Keychain 的专属测试只在非 Windows 环境运行。
 这些 macOS 文件在 Windows 仍参与 TypeScript 类型检查和构建。
 
+Native Host bootstrap 的共享 Eudic 回归保留真实 dispatcher、状态文件原子写入与结果回读，仅注入
+fake 授权和 HTTP。测试夹具直接等待成功或错误终态，忽略进度事件，不使用 `vi.waitFor` 默认一秒
+窗口判定真实文件 I/O 是否完成；销毁时必须先 abort 并等待已开始的 poll 收尾，再删除临时目录。
+macOS/Windows 都覆盖首轮写入延迟 1.2 秒、持久化错误终态和 abort 后写入不重建已清理目录，
+不得用增大重试次数、跳过 Windows 或 mock 掉持久化代替这些回归。
+
 根脚本测试开始前先在同一进程链中构建 `@huayi/learning-domain` 与
 `@huayi/cloud-contracts`，防止干净 CI 意外复用开发机残留的 `dist`。仓库根
 `.gitattributes` 固定文本 checkout 为 LF；迁移镜像、seed、平台镜像 lock 和 canonical fixture 的
