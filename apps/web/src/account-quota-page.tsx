@@ -8,7 +8,8 @@ import type {
 
 import type { WebIdentityApi } from "./identity-api.js";
 import { AccountPreferencesForm } from "./account-preferences-form.js";
-import { AccountSettingsNavigation } from "./account-settings-navigation.js";
+import { AccountSettingsLayout } from "./account-settings-layout.js";
+import { HelpTip } from "./help-tip.js";
 import { SignInMethodsPanel, type SignInMethodsApi } from "./sign-in-methods-panel.js";
 
 export type AccountQuotaApi = Pick<
@@ -94,19 +95,13 @@ export function AccountQuotaPage({
     [],
   );
   return (
-    <>
+    <AccountSettingsLayout active="account" showOperatorNavigation={showOperatorNavigation}>
       <div className="account-quota-page">
         <header className="page-heading">
           <div>
-            <p className="eyebrow">ACCOUNT &amp; USAGE</p>
             <h1>账号与用量</h1>
           </div>
-          <p>管理登录方式和学习偏好，并查看本月语见模型用量。</p>
         </header>
-        <AccountSettingsNavigation
-          active="account"
-          showOperatorNavigation={showOperatorNavigation}
-        />
         {loadState === "loading" && (
           <p aria-live="polite" role="status">
             正在载入账号额度…
@@ -134,7 +129,7 @@ export function AccountQuotaPage({
                   <dd>{account.extensionSessions.length}</dd>
                 </div>
                 <div>
-                  <dt>最低兼容版本</dt>
+                  <dt>插件最低版本</dt>
                   <dd>{account.minSupportedExtensionVersion}</dd>
                 </div>
               </dl>
@@ -144,8 +139,10 @@ export function AccountQuotaPage({
                 <div>
                   <h2 id="quota-heading">本月平台模型额度</h2>
                   <p>
-                    UTC 月度周期：{date(quota.periodStart)} 至 {date(quota.periodEnd)}
-                    （结束时刻不含）
+                    本期：{date(quota.periodStart)} 至 {date(quota.periodEnd)}
+                    <HelpTip label="额度周期说明">
+                      额度按 UTC 月度周期计算，到下期开始时重置。
+                    </HelpTip>
                   </p>
                 </div>
                 <strong className={`quota-badge quota-badge-${quota.warning}`}>
@@ -174,7 +171,7 @@ export function AccountQuotaPage({
                   <dd>{money(quota.usedMicroUsd)}</dd>
                 </div>
                 <div>
-                  <dt>预留中</dt>
+                  <dt>处理中</dt>
                   <dd>{money(quota.reservedMicroUsd)}</dd>
                 </div>
                 <div>
@@ -188,13 +185,12 @@ export function AccountQuotaPage({
                   <p>当前账号不能发起平台模型请求，但仍可查看和管理已有学习数据。</p>
                 </div>
               )}
-              <aside className="quota-byok-note">
-                <h3>BYOK 不计入平台额度</h3>
-                <p>
-                  本机 BYOK 不计入上述使用量。即使平台额度用完，BYOK
-                  查询仍可继续；浏览、手动录入和已有数据也不会被停用。
-                </p>
-              </aside>
+              <p className="quota-byok-help">
+                自备密钥不计入额度
+                <HelpTip label="自备密钥费用说明">
+                  插件使用你自己的模型密钥时，费用由对应服务商收取。平台额度用完后，仍可浏览和手动录入内容。
+                </HelpTip>
+              </p>
             </section>
             <SignInMethodsPanel
               api={api}
@@ -206,6 +202,6 @@ export function AccountQuotaPage({
           </>
         )}
       </div>
-    </>
+    </AccountSettingsLayout>
   );
 }

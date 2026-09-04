@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { AccountDataExportJobResource, AccountDeletionResponse } from "@huayi/cloud-contracts";
 
-import { AccountSettingsNavigation } from "./account-settings-navigation.js";
+import { AccountSettingsLayout } from "./account-settings-layout.js";
 
 export interface AccountDataRightsApi {
   createAccountDataExport(): Promise<AccountDataExportJobResource>;
@@ -146,21 +146,17 @@ export function AccountDataRightsPage({
   };
 
   return (
-    <>
+    <AccountSettingsLayout
+      active="data"
+      showNavigation={showAccountNavigation}
+      showOperatorNavigation={showOperatorNavigation}
+    >
       <div className="account-data-rights-page">
         <header className="page-heading">
           <div>
-            <p className="eyebrow">DATA &amp; ACCOUNT</p>
             <h1>导出与删除账号</h1>
           </div>
-          <p>下载你的语见数据，或在确认后永久删除账号。</p>
         </header>
-        {showAccountNavigation && (
-          <AccountSettingsNavigation
-            active="data"
-            showOperatorNavigation={showOperatorNavigation}
-          />
-        )}
         <p aria-atomic="true" aria-live="polite" role="status">
           {message}
         </p>
@@ -276,6 +272,6 @@ export function AccountDataRightsPage({
           )}
         </section>
       </div>
-    </>
+    </AccountSettingsLayout>
   );
 }

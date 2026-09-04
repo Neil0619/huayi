@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useCallback, useEffect, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 
 import { AppearanceSelector, appearanceLabels } from "./appearance-selector.js";
 import {
@@ -12,10 +13,20 @@ import {
   type WebAppearance,
 } from "./web-appearance.js";
 
+const AppearanceMenuContext = createContext<{
+  readonly setTarget: (target: HTMLDivElement | null) => void;
+} | null>(null);
+
+export function WorkspaceAppearanceMenu() {
+  const context = useContext(AppearanceMenuContext);
+  return <div className="workspace-appearance" ref={context?.setTarget} />;
+}
+
 export function WebAppearanceController({ children }: { readonly children: ReactNode }) {
   const [storage] = useState(getWebAppearanceStorage);
   const [appearance, setAppearance] = useState<WebAppearance>(() => readWebAppearance(storage));
   const [saveMessage, setSaveMessage] = useState("");
+  const [menuTarget, setMenuTarget] = useState<HTMLDivElement | null>(null);
 
   useEffect(() => {
     applyWebAppearance(document.documentElement, appearance);
@@ -43,16 +54,26 @@ export function WebAppearanceController({ children }: { readonly children: React
     [storage],
   );
 
+  const menu = (
+    <details
+      className="appearance-menu"
+      onKeyDown={(event) => {
+        if (event.key !== "Escape") return;
+        event.currentTarget.open = false;
+        event.currentTarget.querySelector("summary")?.focus();
+      }}
+    >
+      <summary>外观 · {appearanceLabels[appearance]}</summary>
+      <AppearanceSelector onChange={selectAppearance} value={appearance} />
+    </details>
+  );
   return (
-    <>
-      <details className="appearance-menu">
-        <summary>外观 · {appearanceLabels[appearance]}</summary>
-        <AppearanceSelector onChange={selectAppearance} value={appearance} />
-      </details>
+    <AppearanceMenuContext.Provider value={{ setTarget: setMenuTarget }}>
+      {menuTarget === null ? menu : createPortal(menu, menuTarget)}
       {children}
       <p aria-atomic="true" aria-live="polite" className="appearance-save-status">
         {saveMessage}
       </p>
-    </>
+    </AppearanceMenuContext.Provider>
   );
 }

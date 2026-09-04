@@ -189,10 +189,8 @@ export function AnalysisHistoryPage({
       <div className="analysis-history-page">
         <header className="page-heading">
           <div>
-            <p className="eyebrow">ANALYSIS HISTORY</p>
             <h1>分析历史</h1>
           </div>
-          <p>归档与整理状态彼此独立；这里不重新编辑候选。</p>
         </header>
         <details className="history-tools utility-disclosure">
           <summary>筛选记录</summary>

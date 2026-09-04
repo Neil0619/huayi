@@ -204,10 +204,8 @@ export function PracticePage({
     <>
       <header className="page-heading">
         <div>
-          <p className="eyebrow">TODAY</p>
           <h1>今日练习</h1>
         </div>
-        <p>先完成句子创作反馈，再用“不会／勉强／掌握”更新排期。</p>
       </header>
       <p className="practice-history-link">
         <a href="/practice/history">查看练习历史</a>

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { ExtensionSessionResource } from "@huayi/cloud-contracts";
 
-import { AccountSettingsNavigation } from "./account-settings-navigation.js";
+import { AccountSettingsLayout } from "./account-settings-layout.js";
 import type { WebIdentityApi } from "./identity-api.js";
 
 export type DeviceSessionsApi = Pick<
@@ -82,115 +82,113 @@ export function DeviceSessionsPage({
   };
 
   return (
-    <div className="device-sessions-page">
-      <header className="page-heading">
-        <div>
-          <p className="eyebrow">ACCOUNT SECURITY</p>
-          <h1>扩展设备</h1>
-        </div>
-        <p>查看哪些扩展已连接到此账号，并随时断开。</p>
-      </header>
-      <AccountSettingsNavigation active="devices" showOperatorNavigation={showOperatorNavigation} />
-      <p className="device-note">
-        在这里断开设备，会立即停止该扩展访问你的语见账号。只在扩展中选择“断开本机”，不会影响这里的授权。
-      </p>
-      {status !== null && (
-        <p aria-live="polite" role="status">
-          {status}
-        </p>
-      )}
-      {error !== null && (
-        <div className="alert" role="alert">
-          <p>{error}</p>
-          {loadState === "error" && (
-            <button data-retry-devices onClick={() => void load()} type="button">
-              重新载入
-            </button>
-          )}
-        </div>
-      )}
-      {loadState === "loading" && (
-        <p aria-live="polite" role="status">
-          正在载入设备…
-        </p>
-      )}
-      {loadState === "empty" && (
-        <section className="empty-state">
-          <h2 ref={listHeading} tabIndex={-1}>
-            没有已连接的扩展设备
-          </h2>
-          <p>从扩展发起配对并在 Web 明确批准后，设备会出现在这里。</p>
-        </section>
-      )}
-      {loadState === "ready" && (
-        <section aria-labelledby="device-list-heading" className="device-sessions">
-          <h2 id="device-list-heading" ref={listHeading} tabIndex={-1}>
-            已连接设备 {sessions.length}
-          </h2>
-          <ul className="device-list">
-            {sessions.map((session) => (
-              <li className="device-card" key={session.id}>
-                <div>
-                  <h3>{session.deviceLabel}</h3>
-                  <dl className="device-meta">
-                    <div>
-                      <dt>添加时间</dt>
-                      <dd>{formatTime(session.createdAt)}</dd>
-                    </div>
-                    <div>
-                      <dt>最近使用</dt>
-                      <dd>
-                        {session.lastUsedAt === null ? "尚未使用" : formatTime(session.lastUsedAt)}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt>授权到期</dt>
-                      <dd>{formatTime(session.expiresAt)}</dd>
-                    </div>
-                  </dl>
-                </div>
-                {confirmingId === session.id ? (
-                  <div
-                    aria-label={`确认断开 ${session.deviceLabel}`}
-                    className="revocation-confirmation"
-                    role="group"
-                  >
-                    <p>断开后，该扩展需要重新连接才能再次访问账号。确定断开吗？</p>
-                    <div className="form-actions">
-                      <button
-                        className="danger-button"
-                        data-confirm-revoke
-                        disabled={busyId === session.id}
-                        onClick={() => void revoke(session)}
-                        ref={confirmButton}
-                        type="button"
-                      >
-                        确认断开
-                      </button>
-                      <button
-                        disabled={busyId === session.id}
-                        onClick={() => setConfirmingId(null)}
-                        type="button"
-                      >
-                        取消
-                      </button>
-                    </div>
+    <AccountSettingsLayout active="devices" showOperatorNavigation={showOperatorNavigation}>
+      <div className="device-sessions-page">
+        <header className="page-heading">
+          <div>
+            <h1>扩展设备</h1>
+          </div>
+        </header>
+        {status !== null && (
+          <p aria-live="polite" role="status">
+            {status}
+          </p>
+        )}
+        {error !== null && (
+          <div className="alert" role="alert">
+            <p>{error}</p>
+            {loadState === "error" && (
+              <button data-retry-devices onClick={() => void load()} type="button">
+                重新载入
+              </button>
+            )}
+          </div>
+        )}
+        {loadState === "loading" && (
+          <p aria-live="polite" role="status">
+            正在载入设备…
+          </p>
+        )}
+        {loadState === "empty" && (
+          <section className="empty-state">
+            <h2 ref={listHeading} tabIndex={-1}>
+              没有已连接的扩展设备
+            </h2>
+            <p>从扩展发起配对并在 Web 明确批准后，设备会出现在这里。</p>
+          </section>
+        )}
+        {loadState === "ready" && (
+          <section aria-labelledby="device-list-heading" className="device-sessions">
+            <h2 id="device-list-heading" ref={listHeading} tabIndex={-1}>
+              已连接设备 {sessions.length}
+            </h2>
+            <ul className="device-list">
+              {sessions.map((session) => (
+                <li className="device-card" key={session.id}>
+                  <div>
+                    <h3>{session.deviceLabel}</h3>
+                    <dl className="device-meta">
+                      <div>
+                        <dt>添加时间</dt>
+                        <dd>{formatTime(session.createdAt)}</dd>
+                      </div>
+                      <div>
+                        <dt>最近使用</dt>
+                        <dd>
+                          {session.lastUsedAt === null
+                            ? "尚未使用"
+                            : formatTime(session.lastUsedAt)}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>授权到期</dt>
+                        <dd>{formatTime(session.expiresAt)}</dd>
+                      </div>
+                    </dl>
                   </div>
-                ) : (
-                  <button
-                    className="danger-button"
-                    data-request-revoke={session.id}
-                    onClick={() => setConfirmingId(session.id)}
-                    type="button"
-                  >
-                    断开设备
-                  </button>
-                )}
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-    </div>
+                  {confirmingId === session.id ? (
+                    <div
+                      aria-label={`确认断开 ${session.deviceLabel}`}
+                      className="revocation-confirmation"
+                      role="group"
+                    >
+                      <p>断开后，该扩展需要重新连接才能再次访问账号。确定断开吗？</p>
+                      <div className="form-actions">
+                        <button
+                          className="danger-button"
+                          data-confirm-revoke
+                          disabled={busyId === session.id}
+                          onClick={() => void revoke(session)}
+                          ref={confirmButton}
+                          type="button"
+                        >
+                          确认断开
+                        </button>
+                        <button
+                          disabled={busyId === session.id}
+                          onClick={() => setConfirmingId(null)}
+                          type="button"
+                        >
+                          取消
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      className="danger-button"
+                      data-request-revoke={session.id}
+                      onClick={() => setConfirmingId(session.id)}
+                      type="button"
+                    >
+                      断开设备
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+      </div>
+    </AccountSettingsLayout>
   );
 }

@@ -197,10 +197,8 @@ export function PasteAnalysisPage({
     <>
       <header className="page-heading">
         <div>
-          <p className="eyebrow">ANALYSIS</p>
           <h1>英文分析</h1>
         </div>
-        <p>粘贴你主动选择的英文；只有完整结果会进入待整理。</p>
       </header>
       <div className="analysis-compose-layout">
         <form className="analysis-compose-card" onSubmit={submit}>
@@ -303,9 +301,7 @@ export function PasteAnalysisPage({
           )}
           {state === "waiting" && (
             <div>
-              <p role="status">
-                {statusNotice ?? "服务器仍在处理；不会在此伪造完成结果或自动重复分析。"}
-              </p>
+              <p role="status">{statusNotice ?? "分析仍在处理中，请稍后检查状态。"}</p>
               {error !== null && (
                 <p className="analysis-error" role="alert">
                   {error}

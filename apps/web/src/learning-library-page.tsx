@@ -181,12 +181,10 @@ export function LearningLibraryPage({ api }: { readonly api: LearningLibraryApi 
     <>
       <header className="page-heading">
         <div>
-          <p className="eyebrow">LIBRARY</p>
           <h1 ref={heading} tabIndex={-1}>
             学习库
           </h1>
         </div>
-        <p>浏览、维护和归档已确认的表达与句型；排期与练习记录由云端持续保留。</p>
       </header>
       <details className="library-tools utility-disclosure">
         <summary>筛选与收录</summary>

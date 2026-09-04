@@ -240,10 +240,8 @@ export function WordLibraryPage({
       <div className="word-page">
         <header className="page-heading">
           <div>
-            <p className="eyebrow">WORD LIBRARY</p>
             <h1>生词</h1>
           </div>
-          <p>浏览和整理云端词条与语境；这里不建立单词复习计划。</p>
         </header>
         <nav aria-label="生词设置" className="workspace-section-nav">
           <a aria-current="page" href="#main-content">

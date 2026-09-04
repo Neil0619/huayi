@@ -1,0 +1,312 @@
+.app-shell > .topbar {
+  position: sticky;
+  z-index: 25;
+  top: 0;
+  display: flex;
+  width: min(var(--workspace-max), calc(100% - var(--space-12)));
+  min-height: 64px;
+  margin: 0 auto;
+  padding: var(--space-2) 0;
+  gap: var(--space-3);
+  background: var(--surface-canvas-solid);
+}
+body:has(.acceptance-environment-notice) .app-shell > .topbar {
+  top: var(--acceptance-notice-height);
+}
+.topbar .brand-mark {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+}
+.topbar .brand-lockup {
+  flex-shrink: 0;
+}
+.workspace-appearance {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.app-shell .topbar .brand-lockup > span {
+  font-size: 10px;
+}
+.app-shell .topbar .workspace-navigation {
+  position: static;
+  min-width: 0;
+  width: auto;
+  min-height: 44px;
+  flex: 1;
+  border: 0;
+  margin: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+.topbar .sidebar {
+  padding: 0;
+  gap: 0;
+}
+.topbar .sidebar a {
+  min-height: 40px;
+  padding: var(--space-2) var(--space-3);
+}
+.topbar .sidebar a span {
+  font-size: 14px;
+  letter-spacing: 0;
+  color: inherit;
+}
+.topbar .appearance-menu {
+  position: relative;
+  top: auto;
+  right: auto;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+.topbar .appearance-menu > summary {
+  font-size: 14px;
+  box-shadow: none;
+}
+.app-shell > main {
+  width: min(var(--workspace-max), calc(100% - var(--space-12)));
+  padding: var(--space-6) 0 var(--space-16);
+  margin: 0 auto;
+  font-size: 15px;
+}
+.app-shell .page-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin: 0 0 var(--space-3);
+  padding: 0;
+}
+.app-shell .page-heading h1 {
+  max-width: none;
+  margin: 0;
+  line-height: 1.35;
+  font-weight: 650;
+  letter-spacing: 0;
+}
+.app-shell .page-heading > p {
+  display: none;
+}
+.app-shell .page-heading .eyebrow {
+  display: none;
+}
+.app-shell p[role="status"]:empty {
+  display: none;
+}
+.app-shell .empty-state {
+  padding: var(--space-6);
+}
+.app-shell .empty-state h2 {
+  margin: 0;
+  font-size: 20px;
+}
+.app-shell .empty-state p {
+  margin: var(--space-2) 0 var(--space-3);
+}
+.app-shell a:not(.sidebar a) {
+  color: var(--action-primary);
+}
+.account-settings-layout {
+  display: grid;
+  grid-template-columns: 208px minmax(0, 1fr);
+  gap: var(--space-6);
+  align-items: start;
+}
+.account-settings-content {
+  min-width: 0;
+}
+.account-settings-content > div {
+  max-width: none;
+  margin: 0;
+}
+.account-settings-disclosure {
+  position: sticky;
+  top: calc(var(--space-20) + var(--space-4));
+}
+body:has(.acceptance-environment-notice) .account-settings-disclosure {
+  top: calc(var(--acceptance-notice-height) + var(--space-20) + var(--space-4));
+}
+.account-settings-disclosure > summary {
+  display: none;
+}
+.account-settings-nav {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  box-shadow: none;
+}
+.account-settings-nav a {
+  border-color: transparent;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+}
+.study-inbox-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+.study-inbox-tabs {
+  margin: 0;
+  justify-content: flex-start;
+  border: 0;
+}
+.study-inbox-tabs button {
+  min-height: 40px;
+  font-size: 15px;
+}
+.capture-status-filter {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-secondary);
+}
+.capture-status-filter select {
+  min-height: 40px;
+  padding: var(--space-1) var(--space-3);
+  color: var(--text-primary);
+  background: var(--surface-input);
+}
+.study-capture-shell > .empty-state {
+  max-width: none;
+}
+.app-shell .practice-queue {
+  display: block;
+  min-height: 0;
+  padding: var(--space-6);
+}
+.app-shell .practice-queue > h2 {
+  max-width: none;
+  margin: 0;
+  font-size: 24px;
+  line-height: 1.4;
+}
+.app-shell .practice-queue > p {
+  margin: var(--space-2) 0 var(--space-4);
+}
+.app-shell .practice-queue > div {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+}
+.app-shell .practice-queue article {
+  padding: var(--space-5);
+}
+.app-shell .practice-queue .dialogue-starter {
+  display: block;
+  margin-top: var(--space-5);
+}
+.app-shell .practice-session {
+  min-height: 0;
+  padding: var(--space-6);
+}
+.app-shell .practice-session > h2 {
+  font-size: 28px;
+}
+.help-tip {
+  display: inline-flex;
+  vertical-align: middle;
+  margin-left: var(--space-2);
+}
+.help-tip > button {
+  display: grid;
+  width: 24px;
+  min-height: 24px;
+  padding: 0;
+  place-items: center;
+  border-radius: var(--radius-pill);
+  box-shadow: none;
+  font-size: 14px;
+}
+.help-tip-content {
+  position: fixed;
+  z-index: 60;
+  inset: auto;
+  width: max-content;
+  max-width: min(340px, calc(100vw - var(--space-6)));
+  margin: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  background: var(--surface-canvas-solid);
+  box-shadow: var(--shadow-control);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.6;
+}
+.quota-byok-help {
+  margin: var(--space-3) 0 0;
+  color: var(--text-secondary);
+}
+@media (max-width: 70rem) {
+  .topbar .brand-lockup > span {
+    display: none;
+  }
+  .topbar .appearance-menu > summary {
+    font-size: 0;
+  }
+  .topbar .appearance-menu > summary::before {
+    content: "外观";
+    font-size: 14px;
+  }
+  .topbar .sidebar a {
+    padding-inline: var(--space-2);
+  }
+}
+@media (max-width: 48rem) {
+  .app-shell .practice-queue > div {
+    grid-template-columns: 1fr;
+  }
+  .app-shell > .topbar {
+    flex-wrap: wrap;
+    width: 100%;
+    padding: var(--space-3) var(--space-4);
+    gap: var(--space-2);
+  }
+  body:has(.acceptance-environment-notice) .app-shell > .topbar {
+    top: 0;
+  }
+  .app-shell .topbar .workspace-navigation {
+    flex: 0 0 100%;
+    order: 3;
+  }
+  .topbar .workspace-navigation > summary {
+    min-height: 36px;
+    padding: var(--space-1) 0;
+    font-size: 14px;
+  }
+  .topbar .sidebar {
+    align-items: stretch;
+  }
+  .topbar .appearance-selector {
+    width: min(25rem, calc(100vw - var(--space-8)));
+  }
+  .app-shell > main {
+    width: calc(100% - var(--space-8));
+    padding-top: var(--space-6);
+  }
+  .account-settings-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-4);
+  }
+  .account-settings-disclosure {
+    position: static;
+  }
+  .account-settings-disclosure > summary {
+    display: block;
+    cursor: pointer;
+    padding: var(--space-3);
+    border: 1px solid var(--border-inner);
+    border-radius: var(--radius-sm);
+  }
+  .account-settings-disclosure:not([open]) > nav {
+    display: none;
+  }
+}

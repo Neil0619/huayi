@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { WorkspaceShell, type WorkspaceSection } from "./workspace-shell.js";
+import { WebAppearanceController } from "./web-appearance-controller.js";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -42,6 +43,22 @@ async function render(section: WorkspaceSection) {
 }
 
 describe("WorkspaceShell", () => {
+  it("keeps brand, primary navigation and the sole appearance control in one header", async () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    await act(async () =>
+      createRoot(container).render(
+        <WebAppearanceController>
+          <WorkspaceShell access="full" activeSection="inbox">
+            <h1>待整理</h1>
+          </WorkspaceShell>
+        </WebAppearanceController>,
+      ),
+    );
+    expect(container.querySelectorAll(".appearance-menu")).toHaveLength(1);
+    expect(container.querySelector(".topbar nav[aria-label='主导航']")).not.toBeNull();
+    expect(container.querySelector(".topbar .appearance-menu")).not.toBeNull();
+  });
   it("owns the exact seven-item primary navigation contract", async () => {
     const container = await render("library");
     const navigation = container.querySelector("nav[aria-label='主导航']");

@@ -247,7 +247,7 @@ describe("Web pasted-English analysis", () => {
     await act(async () => container.querySelector<HTMLFormElement>("form")?.requestSubmit());
     await settle();
 
-    expect(container.querySelector("[role='status']")?.textContent).toContain("服务器仍在处理");
+    expect(container.querySelector("[role='status']")?.textContent).toContain("分析仍在处理中");
     expect(container.querySelector("[data-open-inbox]")).toBeNull();
     expect(container.querySelector<HTMLButtonElement>("button[type='submit']")?.disabled).toBe(
       true,

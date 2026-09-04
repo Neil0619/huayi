@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
+import { WorkspaceAppearanceMenu } from "./web-appearance-controller.js";
 
 export type WorkspaceSection =
   "analysis" | "history" | "inbox" | "library" | "practice" | "settings" | "words";
@@ -87,52 +88,52 @@ export function WorkspaceShell(props: WorkspaceShellProps) {
           <strong>语见</strong>
           <span>Seen &amp; Said</span>
         </div>
-        <p>{props.access === "full" ? "个人语言工作台" : "账号数据权利"}</p>
+        {props.access === "full" && (
+          <details
+            className="workspace-navigation"
+            onToggle={(event) => {
+              if (
+                typeof window.matchMedia === "function" &&
+                window.matchMedia(narrowNavigationQuery).matches
+              ) {
+                setNavigationOpen(event.currentTarget.open);
+              }
+            }}
+            open={navigationOpen}
+          >
+            <summary>主导航 · {active?.label}</summary>
+            <nav aria-label="主导航" className="sidebar">
+              {navigationGroups.map((group) => (
+                <section aria-label={group.label} data-navigation-group key={group.label}>
+                  <p aria-hidden="true">{group.label}</p>
+                  {group.items.map((item) => {
+                    const current = item.section === props.activeSection;
+                    return (
+                      <a
+                        aria-current={current ? "page" : undefined}
+                        href={current ? "#main-content" : item.href}
+                        key={item.section}
+                        onClick={() => {
+                          if (
+                            typeof window.matchMedia === "function" &&
+                            window.matchMedia(narrowNavigationQuery).matches
+                          ) {
+                            setNavigationOpen(false);
+                          }
+                        }}
+                      >
+                        <span aria-hidden="true" data-navigation-index={item.index} />
+                        <span>{item.label}</span>
+                      </a>
+                    );
+                  })}
+                </section>
+              ))}
+            </nav>
+          </details>
+        )}
+        <WorkspaceAppearanceMenu />
       </header>
-      {props.access === "full" && (
-        <details
-          className="workspace-navigation"
-          onToggle={(event) => {
-            if (
-              typeof window.matchMedia === "function" &&
-              window.matchMedia(narrowNavigationQuery).matches
-            ) {
-              setNavigationOpen(event.currentTarget.open);
-            }
-          }}
-          open={navigationOpen}
-        >
-          <summary>主导航 · {active?.label}</summary>
-          <nav aria-label="主导航" className="sidebar">
-            {navigationGroups.map((group) => (
-              <section aria-label={group.label} data-navigation-group key={group.label}>
-                <p aria-hidden="true">{group.label}</p>
-                {group.items.map((item) => {
-                  const current = item.section === props.activeSection;
-                  return (
-                    <a
-                      aria-current={current ? "page" : undefined}
-                      href={current ? "#main-content" : item.href}
-                      key={item.section}
-                      onClick={() => {
-                        if (
-                          typeof window.matchMedia === "function" &&
-                          window.matchMedia(narrowNavigationQuery).matches
-                        ) {
-                          setNavigationOpen(false);
-                        }
-                      }}
-                    >
-                      <span aria-hidden="true" data-navigation-index={item.index} />
-                      <span>{item.label}</span>
-                    </a>
-                  );
-                })}
-              </section>
-            ))}
-          </nav>
-        </details>
-      )}
       <main id="main-content" tabIndex={-1}>
         {props.children}
       </main>

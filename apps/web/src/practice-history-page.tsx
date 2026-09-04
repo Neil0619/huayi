@@ -151,12 +151,10 @@ export function PracticeHistoryPage({
     <>
       <header className="page-heading">
         <div>
-          <p className="eyebrow">PRACTICE HISTORY</p>
           <h1 ref={heading} tabIndex={-1}>
             练习历史
           </h1>
         </div>
-        <p>浏览正式练习记录；删除历史不会回退学习项排期。</p>
       </header>
       <p>
         <a href="/practice">返回今日练习</a>

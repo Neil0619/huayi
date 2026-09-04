@@ -193,9 +193,7 @@ describe("Web responsive style contract", () => {
   });
 
   it("keeps workspace headings compact enough for long Chinese labels", () => {
-    expect(styles).toMatch(
-      /\.page-heading h1\s*\{[^}]*font-size:\s*clamp\(2\.25rem,\s*3\.6vw,\s*3\.75rem\)/isu,
-    );
+    expect(styles).toMatch(/\.page-heading h1\s*\{[^}]*font-size:\s*28px/isu);
     expect(styles).not.toContain("font-size: clamp(3rem, 5.7vw, 5.15rem)");
   });
 

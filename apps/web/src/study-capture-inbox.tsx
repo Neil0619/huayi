@@ -4,12 +4,16 @@ import type { StudyCaptureDetailResponse } from "@huayi/cloud-contracts";
 import type { WebStudyCaptureApi } from "./study-capture-api.js";
 import { StudyCaptureDetailPanel } from "./study-capture-detail-panel.js";
 
+export type StudyCaptureStatus = "analyzed" | "analyzing" | "pending";
+
 export function StudyCaptureInbox({
   api,
+  captureStatus,
   createIdempotencyKey = () => crypto.randomUUID(),
   onAnalyzed,
 }: {
   readonly api: WebStudyCaptureApi;
+  readonly captureStatus: StudyCaptureStatus;
   readonly createIdempotencyKey?: () => string;
   readonly onAnalyzed?: () => void;
 }) {
@@ -23,9 +27,6 @@ export function StudyCaptureInbox({
   const [kind, setKind] = useState<"phrase" | "sentence" | "passage">("sentence");
   const [title, setTitle] = useState("");
   const [userContext, setUserContext] = useState("");
-  const [captureStatus, setCaptureStatus] = useState<"analyzed" | "analyzing" | "pending">(
-    "pending",
-  );
   const [activeRequestId, setActiveRequestId] = useState<string | null>(null);
   const listGeneration = useRef(0);
   const detailGeneration = useRef(0);
@@ -212,11 +213,11 @@ export function StudyCaptureInbox({
       setItems(remaining);
       setDetail(null);
       setState(remaining.length === 0 ? "empty" : "ready");
-      setStatus("StudyCapture 已删除。");
+      setStatus("采集已删除。");
       listHeading.current?.focus();
       if (remaining[0] !== undefined) await open(remaining[0].capture.id);
     } catch {
-      setError("删除失败：这条采集可能已经开始分析或 revision 已变化。");
+      setError("内容已更新或正在分析，请刷新后重试删除。");
       setConfirmDelete(false);
     } finally {
       setBusy(false);
@@ -225,13 +226,6 @@ export function StudyCaptureInbox({
 
   return (
     <div className="study-capture-shell">
-      <header className="page-heading">
-        <div>
-          <p className="eyebrow">STUDY INBOX</p>
-          <h1>待分析</h1>
-        </div>
-        <p>这里只保存原始学习意图；深度分析由你在 Web 明确启动。</p>
-      </header>
       {status !== null && (
         <p aria-live="polite" role="status">
           {status}
@@ -251,20 +245,10 @@ export function StudyCaptureInbox({
       {state === "empty" && (
         <section className="empty-state">
           <h2>还没有待分析内容</h2>
-          <p>可从插件浮层手动加入，或在设置中开启句子/段落自动加入。</p>
+          <p>在网页划词后加入待整理，或直接粘贴内容开始分析。</p>
+          <a href="/analysis">粘贴并分析 →</a>
         </section>
       )}
-      <label className="capture-status-filter">
-        显示状态
-        <select
-          value={captureStatus}
-          onChange={(event) => setCaptureStatus(event.currentTarget.value as typeof captureStatus)}
-        >
-          <option value="pending">待分析</option>
-          <option value="analyzing">分析中</option>
-          <option value="analyzed">已分析</option>
-        </select>
-      </label>
       {state === "ready" && (
         <div className="inbox-layout">
           <aside aria-label="待分析采集" className="analysis-list">

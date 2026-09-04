@@ -29,6 +29,7 @@ export interface InboxApi {
 }
 
 interface InboxAppProps {
+  readonly embedded?: boolean;
   readonly api: InboxApi;
   readonly createIdempotencyKey?: () => string;
 }
@@ -40,7 +41,11 @@ function errorCode(error: unknown): string | undefined {
   return typeof error.code === "string" ? error.code : undefined;
 }
 
-export function InboxApp({ api, createIdempotencyKey = () => crypto.randomUUID() }: InboxAppProps) {
+export function InboxApp({
+  api,
+  createIdempotencyKey = () => crypto.randomUUID(),
+  embedded = false,
+}: InboxAppProps) {
   const [analyses, setAnalyses] = useState<AnalysisRecord[]>([]);
   const [detail, setDetail] = useState<AnalysisRecord | null>(null);
   const [drafts, setDrafts] = useState<CandidateDraft[]>([]);
@@ -121,7 +126,7 @@ export function InboxApp({ api, createIdempotencyKey = () => crypto.randomUUID()
     } catch (caught) {
       setError(
         errorCode(caught) === "exact_duplicate"
-          ? "已有完全相同的学习项。系统保留了当前编辑与选择；精确查重入口接通后，请显式选择合并目标。"
+          ? "学习库中已有相同内容。当前编辑已保留，请取消重复项后再收藏。"
           : "整理提交失败，当前编辑与选择已保留，请稍后重试。",
       );
     } finally {
@@ -146,13 +151,11 @@ export function InboxApp({ api, createIdempotencyKey = () => crypto.randomUUID()
 
   return (
     <>
-      <header className="page-heading">
-        <div>
-          <p className="eyebrow">INBOX</p>
-          <h1>待整理</h1>
-        </div>
-        <p>把分析候选编辑成你真正想复用的表达与句型。</p>
-      </header>
+      {!embedded && (
+        <header className="page-heading">
+          <h1>待收藏</h1>
+        </header>
+      )}
       {status !== null && (
         <p aria-live="polite" role="status">
           {status}
@@ -177,6 +180,7 @@ export function InboxApp({ api, createIdempotencyKey = () => crypto.randomUUID()
         <section className="empty-state">
           <h2>待整理箱已经清空</h2>
           <p>新的完整分析会出现在这里。</p>
+          <a href="/analysis">开始分析 →</a>
         </section>
       )}
       {loadState === "ready" && (

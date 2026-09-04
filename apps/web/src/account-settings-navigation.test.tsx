@@ -23,6 +23,9 @@ describe("account settings navigation", () => {
     );
 
     expect(container.querySelector("[aria-current='page']")?.textContent).toBe(label);
+    expect(container.querySelector(".account-settings-disclosure summary")?.textContent).toContain(
+      label,
+    );
     expect(container.querySelector<HTMLAnchorElement>("a[href='/admin']")?.textContent).toBe(
       "运营控制台",
     );

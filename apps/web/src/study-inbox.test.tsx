@@ -139,6 +139,8 @@ describe("StudyInbox", () => {
       patchCapture: vi.fn(),
     });
     expect(container.textContent).toContain("还没有待分析内容");
+    expect(container.querySelectorAll("h1")).toHaveLength(1);
+    expect(container.querySelector(".study-inbox-toolbar .capture-status-filter")).not.toBeNull();
     expect(container.querySelector("nav[aria-label='主导航']")).toBeNull();
     await click(
       [...container.querySelectorAll("[role=tab]")].find((item) => item.textContent === "待收藏") ??
@@ -147,5 +149,21 @@ describe("StudyInbox", () => {
     await act(async () => Promise.resolve());
     expect(container.textContent).toContain("待整理箱已经清空");
     expect(container.querySelector("nav[aria-label='主导航']")).toBeNull();
+  });
+
+  it("keeps tab buttons and keyboard focus stable across both classifications", async () => {
+    const container = await renderInbox({
+      listCaptures: vi.fn(async () => ({ items: [], nextCursor: null })),
+    });
+    const tabs = [...container.querySelectorAll<HTMLButtonElement>("[role=tab]")];
+    for (const name of ["待收藏", "待分析"]) {
+      const tab = tabs.find((item) => item.textContent === name);
+      if (tab === undefined) throw new Error("Missing inbox tab.");
+      tab.focus();
+      await click(tab);
+      expect(document.activeElement).toBe(tab);
+      expect(tab.isConnected).toBe(true);
+      expect(tab.getAttribute("aria-selected")).toBe("true");
+    }
   });
 });

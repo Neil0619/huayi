@@ -60,7 +60,7 @@ describe("Web account device sessions", () => {
     expect(container.querySelector("[role='status']")?.textContent).toContain("正在载入设备");
     await act(async () => pending.resolve({ items: [] }));
     expect(container.querySelector(".device-sessions-page")).not.toBeNull();
-    expect(container.textContent).toContain("在这里断开设备");
+    expect(container.querySelector(".account-settings-layout")).not.toBeNull();
     expect(container.textContent).not.toContain("Popup");
     expect(container.querySelector("h2")?.textContent).toContain("没有已连接的扩展设备");
     expect(container.querySelector("ul")).toBeNull();
@@ -83,7 +83,7 @@ describe("Web account device sessions", () => {
     expect(deviceApi.listExtensionSessions).toHaveBeenCalledTimes(2);
     expect(container.querySelector("ul")?.textContent).toContain("Writing laptop");
     expect(container.textContent).toContain("尚未使用");
-    expect(container.textContent).toContain("只在扩展中选择“断开本机”");
+    expect(container.textContent).not.toContain("只在扩展中选择“断开本机”");
   });
 
   it("requires confirmation, revokes on the server, and announces success", async () => {

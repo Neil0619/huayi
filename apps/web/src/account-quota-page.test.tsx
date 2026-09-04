@@ -106,7 +106,7 @@ describe("Web account platform quota", () => {
     expect(getAccountPreferences).not.toHaveBeenCalled();
     expect(container.textContent).toContain("learner@example.com");
     expect(container.textContent).toContain("有效扩展设备0");
-    expect(container.textContent).toContain("最低兼容版本1.0.0");
+    expect(container.textContent).toContain("插件最低版本1.0.0");
     expect(container.textContent).toContain("密码已绑定");
   });
 
@@ -121,10 +121,13 @@ describe("Web account platform quota", () => {
     expect(container.querySelector("progress")?.getAttribute("value")).toBe("20");
     expect(container.textContent).toContain("US$1.00");
     expect(container.textContent).toContain("已使用US$0.20");
-    expect(container.textContent).toContain("预留中US$0.10");
+    expect(container.textContent).toContain("处理中US$0.10");
     expect(container.textContent).toContain("剩余US$0.70");
-    expect(container.textContent).toContain("UTC 月度周期");
-    expect(container.textContent).toContain("本机 BYOK 不计入");
+    await act(async () =>
+      container.querySelector<HTMLButtonElement>("[aria-label='额度周期说明']")?.click(),
+    );
+    expect(document.querySelector("[role='tooltip']")?.textContent).toContain("UTC 月度周期");
+    expect(container.textContent).toContain("自备密钥不计入额度");
   });
 
   it.each([
@@ -154,7 +157,10 @@ describe("Web account platform quota", () => {
     const container = await render({ getQuota: vi.fn(async () => quota) });
     await act(async () => Promise.resolve());
     expect(container.querySelector("[role='status']")?.textContent).toContain(message);
-    expect(container.textContent).toContain("BYOK 查询仍可继续");
+    expect(
+      container.querySelector<HTMLButtonElement>("[aria-label='自备密钥费用说明']")?.disabled,
+    ).toBe(false);
+    expect(container.textContent).toContain("自备密钥不计入额度");
   });
 
   it("shows a truthful empty allowance when no grant is configured", async () => {

@@ -153,9 +153,9 @@ describe("Web pending-review workspace", () => {
     await act(async () => form?.requestSubmit());
 
     expect(container.querySelector("[role='alert']")?.textContent).toContain(
-      "已有完全相同的学习项",
+      "学习库中已有相同内容",
     );
-    expect(container.querySelector("[role='alert']")?.textContent).toContain("保留了当前编辑");
+    expect(container.querySelector("[role='alert']")?.textContent).toContain("当前编辑已保留");
     expect(input(container, "表达").value).toBe("to speak frankly");
     expect(container.querySelector<HTMLInputElement>("[data-candidate-selected]")?.checked).toBe(
       true,

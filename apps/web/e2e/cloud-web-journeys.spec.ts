@@ -101,12 +101,12 @@ test("workspace navigation stays canonical across mobile and desktop routes", as
   await expect(inboxTabs).toHaveCSS("position", "static");
   const desktopTabs = await inboxTabs.boundingBox();
   const desktopHeading = await page
-    .getByRole("heading", { level: 1, name: "待分析" })
+    .getByRole("heading", { level: 1, name: "待整理" })
     .boundingBox();
   expect(desktopTabs).not.toBeNull();
   expect(desktopHeading).not.toBeNull();
-  expect((desktopTabs?.y ?? 0) + (desktopTabs?.height ?? 0)).toBeLessThanOrEqual(
-    desktopHeading?.y ?? 0,
+  expect((desktopHeading?.y ?? 0) + (desktopHeading?.height ?? 0)).toBeLessThanOrEqual(
+    desktopTabs?.y ?? 0,
   );
 
   await page.setViewportSize({ height: 900, width: 769 });
@@ -122,7 +122,7 @@ test("workspace navigation stays canonical across mobile and desktop routes", as
   }
 });
 
-test("settings pages keep one centered layout and clearly mark the current section", async ({
+test("settings pages keep a centered sidebar layout and clearly mark the current section", async ({
   page,
 }) => {
   const authority = createCloudBrowserAuthority({
@@ -159,13 +159,24 @@ test("settings pages keep one centered layout and clearly mark the current secti
     expect(
       await page.locator(selector).evaluate((element) => {
         const rect = element.getBoundingClientRect();
+        const layout = document.querySelector(".account-settings-layout")?.getBoundingClientRect();
+        const navigation = document.querySelector(".account-settings-nav")?.getBoundingClientRect();
+        if (!layout || !navigation) throw new Error("Expected settings sidebar layout.");
         return {
-          centered: Math.abs(rect.left - (window.innerWidth - rect.width) / 2) < 2,
+          centered: Math.abs(layout.left - (window.innerWidth - layout.width) / 2) < 2,
           fitsViewport: document.documentElement.scrollWidth <= window.innerWidth,
+          sidebarWidth: navigation.width,
+          gap: rect.left - navigation.right,
           width: rect.width,
         };
       }),
-    ).toMatchObject({ centered: true, fitsViewport: true, width: 1024 });
+    ).toMatchObject({
+      centered: true,
+      fitsViewport: true,
+      sidebarWidth: 208,
+      gap: 24,
+      width: 1000,
+    });
   }
 
   expect(
@@ -289,7 +300,7 @@ test("actual Web bundle confirms one candidate and rereads it from the learning 
   await authority.install(page);
 
   await page.goto(`${webOrigin}/app`);
-  await expect(page.getByRole("heading", { name: "待分析", level: 1 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "待整理", level: 1 })).toBeVisible();
   await page.getByRole("tab", { name: "待收藏" }).click();
   await expect(page.getByRole("heading", { name: "待整理", level: 1 })).toBeVisible();
   await page.getByRole("textbox", { exact: true, name: "表达" }).fill("to be completely frank");
@@ -780,9 +791,7 @@ test("a cancelled Shanbay job stays cancelled after its current lease reports la
   await webPage.getByRole("button", { name: "取消任务…" }).click();
   await webPage.getByRole("button", { name: "确认取消" }).click();
   await expect(webPage.getByText("已取消", { exact: true })).toBeVisible();
-  await expect(webPage.getByRole("status")).toHaveText(
-    "任务已取消；已提交的回执不会被伪装成撤回。",
-  );
+  await expect(webPage.getByRole("status")).toHaveText("任务已取消；已同步的内容会保留。");
 
   await page.getByTestId("cloud-confirm-shanbay").click();
   await expect(page.getByTestId("cloud-status")).toHaveText("shanbay-confirmed");

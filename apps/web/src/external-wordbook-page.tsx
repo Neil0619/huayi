@@ -141,9 +141,7 @@ export function ExternalWordbookPage({
         : api.cancelJob(job.id, { expectedRevision: job.revision }, idempotencyKey()));
       setItems((current) => current.map((item) => (item.id === updated.id ? updated : item)));
       setConfirmingId(null);
-      setStatus(
-        action === "retry" ? "任务已重新排队。" : "任务已取消；已提交的回执不会被伪装成撤回。",
-      );
+      setStatus(action === "retry" ? "任务已重新排队。" : "任务已取消；已同步的内容会保留。");
       if (!(await load(undefined, true))) {
         setError(
           action === "retry"
@@ -165,10 +163,8 @@ export function ExternalWordbookPage({
       <div className="wordbook-page">
         <header className="page-heading">
           <div>
-            <p className="eyebrow">EXTERNAL WORDBOOKS</p>
             <h1>外部词典任务</h1>
           </div>
-          <p>云端保存任务状态；配对插件在本机调用欧路词典或扇贝，并回传最小结果。</p>
         </header>
         <nav aria-label="生词设置" className="workspace-section-nav">
           <a href="/words">生词</a>
