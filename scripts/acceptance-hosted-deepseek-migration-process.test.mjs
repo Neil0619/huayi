@@ -8,6 +8,7 @@ import {
   hostedDeepseekMigrationFilenames,
   runHostedDeepseekMigrationDryRunProcess,
 } from "./acceptance-hosted-deepseek-migration-dry-run.mjs";
+import { registerMigrationTimeoutTests } from "./acceptance-hosted-migration-timeout-test-support.mjs";
 
 const caCertificate =
   "-----BEGIN CERTIFICATE-----\n" + "a".repeat(64) + "\n-----END CERTIFICATE-----\n";
@@ -117,31 +118,9 @@ test("DeepSeek migration apply process pins --yes, suppresses output, and remove
   await assert.rejects(stat(passwordPath), { code: "ENOENT" });
 });
 
-test("DeepSeek migration processes fail closed without waiting for child close after timeout", async () => {
-  for (const killResult of [false, true]) {
-    for (const { piped, runProcess } of [
-      { piped: true, runProcess: runHostedDeepseekMigrationDryRunProcess },
-      { piped: false, runProcess: runHostedDeepseekMigrationApplyProcess },
-    ]) {
-      const child = createChild({ piped, kill: () => killResult });
-      let observed;
-      const resultPromise = runProcess(secrets, {
-        spawnProcess(command, arguments_, options) {
-          observed = { arguments_, command, options };
-          return child;
-        },
-        timeoutMilliseconds: 1,
-      });
-      const actual = await waitForObservation(() => observed);
-      const result = await Promise.race([
-        resultPromise,
-        new Promise((resolveWait) => setTimeout(() => resolveWait("still-running"), 50)),
-      ]);
-      if (result === "still-running") child.emit("close", null, "SIGKILL");
-      await resultPromise;
-      assert.notEqual(result, "still-running");
-      assert.equal(result.code, null);
-      await assert.rejects(stat(actual.options.env.PGSSLROOTCERT), { code: "ENOENT" });
-    }
-  }
+registerMigrationTimeoutTests({
+  label: "DeepSeek",
+  runApply: runHostedDeepseekMigrationApplyProcess,
+  runDryRun: runHostedDeepseekMigrationDryRunProcess,
+  secrets,
 });

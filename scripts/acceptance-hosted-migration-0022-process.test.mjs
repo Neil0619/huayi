@@ -5,6 +5,7 @@ import test from "node:test";
 
 import { runHostedMigration0022ApplyProcess } from "./acceptance-hosted-migration-0022-apply.mjs";
 import { runHostedMigration0022DryRunProcess } from "./acceptance-hosted-migration-0022-dry-run.mjs";
+import { registerMigrationTimeoutTests } from "./acceptance-hosted-migration-timeout-test-support.mjs";
 
 const caCertificate =
   "-----BEGIN CERTIFICATE-----\n" + "a".repeat(64) + "\n-----END CERTIFICATE-----\n";
@@ -114,31 +115,9 @@ test("0022 apply pins --yes, suppresses output, and removes the private CA", asy
   await assert.rejects(stat(passwordPath), { code: "ENOENT" });
 });
 
-test("0022 migration processes settle immediately after timeout even without child close", async () => {
-  for (const killResult of [false, true]) {
-    for (const { piped, runProcess } of [
-      { piped: true, runProcess: runHostedMigration0022DryRunProcess },
-      { piped: false, runProcess: runHostedMigration0022ApplyProcess },
-    ]) {
-      const child = createChild({ piped, kill: () => killResult });
-      let observed;
-      const resultPromise = runProcess(secrets, {
-        spawnProcess(command, arguments_, options) {
-          observed = { arguments_, command, options };
-          return child;
-        },
-        timeoutMilliseconds: 1,
-      });
-      const actual = await waitForObservation(() => observed);
-      const result = await Promise.race([
-        resultPromise,
-        new Promise((resolveWait) => setTimeout(() => resolveWait("still-running"), 50)),
-      ]);
-      if (result === "still-running") child.emit("close", null, "SIGKILL");
-      await resultPromise;
-      assert.notEqual(result, "still-running");
-      assert.equal(result.code, null);
-      await assert.rejects(stat(actual.options.env.PGSSLROOTCERT), { code: "ENOENT" });
-    }
-  }
+registerMigrationTimeoutTests({
+  label: "0022",
+  runApply: runHostedMigration0022ApplyProcess,
+  runDryRun: runHostedMigration0022DryRunProcess,
+  secrets,
 });

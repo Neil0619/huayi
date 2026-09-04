@@ -27,6 +27,9 @@ DeepSeek health、独立欧路操作及真实状态回读断言。
 legacy re-audit 是包含四次 save、七次原子写入的磁盘集成旅程，仅该 suite 与清理 hook 使用
 15 秒预算，覆盖每次真实 save 延迟 1.5 秒后仍能完成单词探针、接受和全量重排，并用新 store
 回读持久状态。超时不取消 async 旅程，夹具必须等待整个旅程结束再删除目录，不得只等当前 save。
+Hosted DeepSeek/0022 migration 的子进程超时回归等待包含真实凭据清理的操作完成，不使用 50 毫秒
+墙钟竞速代替子进程生命周期断言。矩阵覆盖 kill 返回 false/true、清理延迟 0/100 毫秒，以及
+dry-run/apply 均无 child close 仍返回失败、清空捕获输出并移除 CA、pgpass 和整个临时目录。
 
 根脚本测试开始前先在同一进程链中构建 `@huayi/learning-domain` 与
 `@huayi/cloud-contracts`，防止干净 CI 意外复用开发机残留的 `dist`。仓库根
