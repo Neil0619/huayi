@@ -22,6 +22,11 @@ fake 授权和 HTTP。测试夹具直接等待成功或错误终态，忽略进�
 窗口判定真实文件 I/O 是否完成；销毁时必须先 abort 并等待已开始的 poll 收尾，再删除临时目录。
 macOS/Windows 都覆盖首轮写入延迟 1.2 秒、持久化错误终态和 abort 后写入不重建已清理目录，
 不得用增大重试次数、跳过 Windows 或 mock 掉持久化代替这些回归。
+默认分支与 Windows DeepSeek bootstrap 必须使用同一终态/清理夹具；Windows 分支另保留
+DeepSeek health、独立欧路操作及真实状态回读断言。
+legacy re-audit 是包含四次 save、七次原子写入的磁盘集成旅程，仅该 suite 与清理 hook 使用
+15 秒预算，覆盖每次真实 save 延迟 1.5 秒后仍能完成单词探针、接受和全量重排，并用新 store
+回读持久状态。超时不取消 async 旅程，夹具必须等待整个旅程结束再删除目录，不得只等当前 save。
 
 根脚本测试开始前先在同一进程链中构建 `@huayi/learning-domain` 与
 `@huayi/cloud-contracts`，防止干净 CI 意外复用开发机残留的 `dist`。仓库根
