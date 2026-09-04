@@ -30,6 +30,7 @@ import "./admin-operations-page.css";
 import "./privacy-page.css";
 import "./study-inbox.css";
 import "./workspace-layout.css";
+import "./pairing-approval.css";
 
 const root = document.getElementById("root");
 if (root === null) throw new Error("Web application root is missing.");

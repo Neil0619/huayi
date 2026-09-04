@@ -18,24 +18,28 @@ test("pairing approval atomically selects preferences and reloads from approved 
   await authority.install(page);
 
   await page.goto(`${webOrigin}/pair-extension/${pairingId}`);
-  await expect(page.getByRole("heading", { name: "批准扩展设备" })).toBeVisible();
-  await expect(page.getByText(/最小选区.*最多保留一小时/u)).toBeVisible();
-  await expect(page.getByText(/标题、视频 ID/u)).toBeVisible();
-  await expect(page.getByText(/BYOK Key 与精简结果不会发送给语见/u)).toBeVisible();
-  await expect(page.getByText(/StudyCapture 原始学习意图/u)).toBeVisible();
-  await expect(page.getByText(/CloudWordCopy 单词副本/u)).toBeVisible();
-  await expect(page.getByText(/三项选择相互独立/u)).toBeVisible();
+  await expect(page.getByRole("heading", { name: "连接语见插件" })).toBeVisible();
+  await expect(page.getByText(/账号的所有已连接插件/u)).toBeVisible();
+  await expect(page.getByText(/计入账号额度/u)).toBeVisible();
+  await expect(page.getByText(/最多保留一小时/u)).toBeHidden();
+  await page.getByText("数据与隐私详情", { exact: true }).click();
+  await expect(page.getByText(/所选英文及必要语境.*最多保留一小时/u)).toBeVisible();
+  await expect(page.getByText(/密钥和该次查询结果不会发送给语见/u)).toBeVisible();
+  await expect(page.getByText(/不会上传页面地址、标题、视频编号或完整页面/u)).toBeVisible();
   await expect(page.getByLabel("插件查询模型")).toHaveValue("platform");
-  await expect(page.getByLabel("待学习采集")).toHaveValue("manual");
-  await expect(page.getByLabel("云端单词副本")).toHaveValue("enabled");
+  await expect(page.getByLabel("句子与段落收集")).toHaveValue("manual");
+  await expect(page.getByLabel("生词云端保存")).toHaveValue("enabled");
 
-  const submit = page.getByRole("button", { name: "批准此设备" });
-  await page.getByLabel("设备名称").fill(deviceLabel);
+  const submit = page.getByRole("button", { name: "确认连接" });
+  await page.getByLabel("设备名称", { exact: true }).fill(deviceLabel);
   await page.getByLabel("插件查询模型").selectOption("byok");
-  await page.getByLabel("待学习采集").selectOption("automatic");
-  await page.getByLabel("云端单词副本").selectOption("disabled");
+  await page.getByLabel("句子与段落收集").selectOption("automatic");
+  await page.getByLabel("生词云端保存").selectOption("disabled");
+  await expect(page.getByText(/费用由服务商收取/u)).toBeVisible();
+  await expect(page.getByText(/不会自动开始深度分析/u)).toBeVisible();
+  await expect(page.getByText(/已有云端生词不受影响/u)).toBeVisible();
   await expect(submit).toBeDisabled();
-  await page.getByLabel("我了解并同意上述语见云端同步").check();
+  await page.getByLabel("我同意连接设备并应用以上偏好").check();
   await expect(submit).toBeEnabled();
   await submit.click();
 
@@ -45,7 +49,7 @@ test("pairing approval atomically selects preferences and reloads from approved 
 
   await page.reload();
   await expect(page.getByRole("heading", { name: "设备配对已批准" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "批准此设备" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "确认连接" })).toHaveCount(0);
 
   const snapshot = authority.snapshot();
   expect(

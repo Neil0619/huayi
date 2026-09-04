@@ -37,9 +37,7 @@ function api(overrides: Partial<DeviceSessionsApi> = {}): DeviceSessionsApi {
 async function render(deviceApi: DeviceSessionsApi) {
   const container = document.createElement("div");
   document.body.append(container);
-  await act(async () =>
-    createRoot(container).render(<DeviceSessionsPage api={deviceApi} csrfToken={"c".repeat(32)} />),
-  );
+  await act(async () => createRoot(container).render(<DeviceSessionsPage api={deviceApi} />));
   return container;
 }
 
@@ -99,7 +97,7 @@ describe("Web account device sessions", () => {
     expect(container.textContent).toContain("需要重新连接才能再次访问账号");
     await act(async () => confirm?.click());
 
-    expect(deviceApi.revokeExtensionSession).toHaveBeenCalledWith("session-1", "c".repeat(32));
+    expect(deviceApi.revokeExtensionSession).toHaveBeenCalledWith("session-1");
     expect(container.querySelector("[role='status']")?.textContent).toContain(
       "已断开 Writing laptop",
     );

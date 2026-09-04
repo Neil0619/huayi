@@ -12,7 +12,6 @@ export type DeviceSessionsApi = Pick<
 
 interface DeviceSessionsPageProps {
   readonly api: DeviceSessionsApi;
-  readonly csrfToken: string;
   readonly showOperatorNavigation?: boolean | undefined;
 }
 
@@ -27,7 +26,6 @@ function formatTime(value: string): string {
 
 export function DeviceSessionsPage({
   api,
-  csrfToken,
   showOperatorNavigation = false,
 }: DeviceSessionsPageProps) {
   const [sessions, setSessions] = useState<ExtensionSessionResource[]>([]);
@@ -68,14 +66,14 @@ export function DeviceSessionsPage({
     setBusyId(session.id);
     setError(null);
     try {
-      await api.revokeExtensionSession(session.id, csrfToken);
+      await api.revokeExtensionSession(session.id);
       const remaining = sessions.filter((candidate) => candidate.id !== session.id);
       setSessions(remaining);
       setLoadState(remaining.length === 0 ? "empty" : "ready");
       setConfirmingId(null);
       setStatus(`已断开 ${session.deviceLabel}。`);
     } catch {
-      setError("断开失败，该设备仍可访问账号，请稍后重试。");
+      setError("断开失败，请重试或刷新列表核实设备状态。");
     } finally {
       setBusyId(null);
     }
@@ -87,6 +85,7 @@ export function DeviceSessionsPage({
         <header className="page-heading">
           <div>
             <h1>扩展设备</h1>
+            <p>每次重新关联都会生成一条连接记录，可按添加时间和最近使用时间识别旧连接。</p>
           </div>
         </header>
         {status !== null && (
@@ -177,6 +176,7 @@ export function DeviceSessionsPage({
                     <button
                       className="danger-button"
                       data-request-revoke={session.id}
+                      disabled={busyId !== null}
                       onClick={() => setConfirmingId(session.id)}
                       type="button"
                     >

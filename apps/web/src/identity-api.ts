@@ -15,7 +15,6 @@ import {
   currentAccountDataExportResponseSchema,
   downloadAccountDataExportResponseSchema,
   extensionPairingResponseSchema,
-  extensionSessionListResponseSchema,
   googleLinkStartRequestSchema,
   googleLinkStartResponseSchema,
   googleReauthenticationStartRequestSchema,
@@ -44,6 +43,8 @@ import {
   type ApiError,
 } from "@huayi/cloud-contracts";
 
+import { createWebExtensionSessionsApi } from "./extension-sessions-api.js";
+
 export class WebIdentityApiError extends Error {
   constructor(
     readonly code: ApiError["error"]["code"] | "unknown",
@@ -62,13 +63,6 @@ export interface WebIdentityApiOptions {
 function pairingPath(route: string, pairingId: string): string {
   if (!/^[A-Za-z0-9_-]{1,128}$/u.test(pairingId)) throw new TypeError("Pairing ID is invalid.");
   return route.replace(":id", encodeURIComponent(pairingId));
-}
-
-function sessionPath(route: string, sessionId: string): string {
-  if (!/^[A-Za-z0-9_-]{1,128}$/u.test(sessionId)) {
-    throw new TypeError("Extension session ID is invalid.");
-  }
-  return route.replace(":id", encodeURIComponent(sessionId));
 }
 
 function resourcePath(route: string, id: string): string {
@@ -99,7 +93,16 @@ export function createWebIdentityApi(options: WebIdentityApiOptions) {
       response.status,
     );
   };
+  const bootstrap = async () => {
+    const response = await request(identityHttpRoutes.csrf, {
+      credentials: "include",
+      headers: { Accept: "application/json" },
+    });
+    return csrfTokenResponseSchema.parse(await response.json());
+  };
   return {
+    ...createWebExtensionSessionsApi(request),
+    bootstrap,
     async completePasswordRecovery(password: string, csrfToken: string): Promise<void> {
       const input = passwordRecoveryCompleteRequestSchema.parse({ password });
       const csrf = passwordRecoverySessionResponseSchema.shape.csrfToken.parse(csrfToken);
@@ -154,25 +157,16 @@ export function createWebIdentityApi(options: WebIdentityApiOptions) {
       );
       return downloadAccountDataExportResponseSchema.parse(await response.json());
     },
-    async approvePairing(
-      pairingId: string,
-      input: ApproveExtensionPairingRequest,
-      csrfToken: string,
-    ): Promise<void> {
+    async approvePairing(pairingId: string, input: ApproveExtensionPairingRequest): Promise<void> {
       const parsed = approveExtensionPairingRequestSchema.parse(input);
-      await request(pairingPath(identityHttpRoutes.extensionPairingApprove, pairingId), {
+      const path = pairingPath(identityHttpRoutes.extensionPairingApprove, pairingId);
+      const { csrfToken } = await bootstrap();
+      await request(path, {
         body: JSON.stringify(parsed),
         credentials: "include",
         headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken },
         method: "POST",
       });
-    },
-    async bootstrap() {
-      const response = await request(identityHttpRoutes.csrf, {
-        credentials: "include",
-        headers: { Accept: "application/json" },
-      });
-      return csrfTokenResponseSchema.parse(await response.json());
     },
     async getAccountPreferences() {
       const response = await request(identityHttpRoutes.accountPreferences, {
@@ -243,13 +237,6 @@ export function createWebIdentityApi(options: WebIdentityApiOptions) {
         method: "POST",
       });
       return passwordLinkResponseSchema.parse(await response.json());
-    },
-    async listExtensionSessions() {
-      const response = await request(identityHttpRoutes.extensionSessions, {
-        credentials: "include",
-        headers: { Accept: "application/json" },
-      });
-      return extensionSessionListResponseSchema.parse(await response.json());
     },
     async logout(csrfToken: string): Promise<void> {
       const csrf = csrfTokenResponseSchema.parse({ access: "data-rights", csrfToken }).csrfToken;
@@ -359,14 +346,6 @@ export function createWebIdentityApi(options: WebIdentityApiOptions) {
         method: "PATCH",
       });
       return accountPreferencesResponseSchema.parse(await response.json());
-    },
-    async revokeExtensionSession(sessionId: string, csrfToken: string): Promise<void> {
-      const csrf = csrfTokenResponseSchema.parse({ access: "full", csrfToken }).csrfToken;
-      await request(sessionPath(identityHttpRoutes.extensionSession, sessionId), {
-        credentials: "include",
-        headers: { "X-CSRF-Token": csrf },
-        method: "DELETE",
-      });
     },
     async startGoogleLink(csrfToken: string) {
       const input = googleLinkStartRequestSchema.parse({});

@@ -214,9 +214,10 @@ describe("Web identity API", () => {
   });
 
   it("approves only a strict pairing through Cookie, Origin, and CSRF", async () => {
-    const request = vi.fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>(
-      async () => new Response(null, { status: 204 }),
-    );
+    const request = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(json({ access: "full", csrfToken: "c".repeat(32) }))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }));
     const api = createWebIdentityApi({ apiOrigin: origin, fetch: request });
 
     const input = {
@@ -226,7 +227,7 @@ describe("Web identity API", () => {
       extensionQueryModelMode: "platform" as const,
       studyCaptureMode: "manual" as const,
     };
-    await api.approvePairing("pairing-1", input, "c".repeat(32));
+    await api.approvePairing("pairing-1", input);
     expect(request).toHaveBeenCalledWith(
       new URL("/v1/extension-pairings/pairing-1/approve", origin),
       expect.objectContaining({
@@ -238,8 +239,10 @@ describe("Web identity API", () => {
         method: "POST",
       }),
     );
-    expect(JSON.parse(String(request.mock.calls[0]?.[1]?.body))).toEqual(input);
-    await expect(api.approvePairing("../escape", input, "c".repeat(32))).rejects.toThrow();
+    expect(JSON.parse(String(request.mock.calls[1]?.[1]?.body))).toEqual(input);
+    const before = request.mock.calls.length;
+    await expect(api.approvePairing("../escape", input)).rejects.toThrow();
+    expect(request).toHaveBeenCalledTimes(before);
   });
 
   it("lists strict account-owned device sessions with the Web Cookie", async () => {
@@ -267,17 +270,20 @@ describe("Web identity API", () => {
   });
 
   it("revokes one validated server session through Cookie, Origin, and CSRF", async () => {
-    const request = vi.fn(async () => new Response(null, { status: 204 }));
+    const request = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(json({ access: "full", csrfToken: "c".repeat(32) }))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }));
     const api = createWebIdentityApi({ apiOrigin: origin, fetch: request });
 
-    await api.revokeExtensionSession("session-1", "c".repeat(32));
+    await api.revokeExtensionSession("session-1");
     expect(request).toHaveBeenCalledWith(new URL("/v1/extension-sessions/session-1", origin), {
       credentials: "include",
       headers: { "X-CSRF-Token": "c".repeat(32) },
       method: "DELETE",
     });
     const before = request.mock.calls.length;
-    await expect(api.revokeExtensionSession("../escape", "c".repeat(32))).rejects.toThrow();
+    await expect(api.revokeExtensionSession("../escape")).rejects.toThrow();
     expect(request).toHaveBeenCalledTimes(before);
   });
 

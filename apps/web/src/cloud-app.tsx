@@ -22,6 +22,7 @@ import { AccountDataRightsPage } from "./account-data-rights-page.js";
 import { AdminOperationsPage } from "./admin-operations-page.js";
 import type { WebAdminOperationsApi } from "./admin-operations-api.js";
 import { WorkspaceShell, type WorkspaceSection } from "./workspace-shell.js";
+import { PairingApprovalForm } from "./pairing-approval-form.js";
 
 export type IdentityApi = Pick<
   WebIdentityApi,
@@ -101,7 +102,7 @@ export function CloudApp({
   const [sessionAccess, setSessionAccess] = useState<"data-rights" | "full">("full");
   const [cloudUploadConsent, setCloudUploadConsent] = useState(false);
   const [cloudWordCopyMode, setCloudWordCopyMode] = useState<"disabled" | "enabled">("enabled");
-  const [deviceLabel, setDeviceLabel] = useState("");
+  const [deviceLabel, setDeviceLabel] = useState("我的 Chrome 浏览器");
   const [extensionQueryModelMode, setExtensionQueryModelMode] = useState<"byok" | "platform">(
     "platform",
   );
@@ -176,17 +177,13 @@ export function CloudApp({
     event.preventDefault();
     if (pairingId === undefined || !cloudUploadConsent) return;
     try {
-      await identity.approvePairing(
-        pairingId,
-        {
-          cloudWordCopyMode,
-          deviceLabel,
-          expectedPreferencesRevision: preferencesRevision,
-          extensionQueryModelMode,
-          studyCaptureMode,
-        },
-        csrfToken,
-      );
+      await identity.approvePairing(pairingId, {
+        cloudWordCopyMode,
+        deviceLabel,
+        expectedPreferencesRevision: preferencesRevision,
+        extensionQueryModelMode,
+        studyCaptureMode,
+      });
       setState("approved");
     } catch {
       setState("error");
@@ -277,13 +274,7 @@ export function CloudApp({
         />
       );
     else if (page === "devices")
-      content = (
-        <DeviceSessionsPage
-          api={identity}
-          csrfToken={csrfToken}
-          showOperatorNavigation={operator}
-        />
-      );
+      content = <DeviceSessionsPage api={identity} showOperatorNavigation={operator} />;
     else if (page === "analysis" && analysisApi !== undefined)
       content = <PasteAnalysisPage api={analysisApi} />;
     else if (page === "history" && historyApi !== undefined)
@@ -317,81 +308,18 @@ export function CloudApp({
     );
   }
   return (
-    <main className="configuration-error" id="main-content">
-      <span aria-hidden="true" className="brand-mark" />
-      <p className="eyebrow">SEEN & SAID</p>
-      <h1>批准扩展设备</h1>
-      <p>仅在你刚刚从语见扩展发起配对时继续。</p>
-      <p>
-        连接后，platform 查询只发送最小选区，正文与精简结果最多保留一小时且不进入待整理或分析历史。
-        BYOK Key 与精简结果不会发送给语见。StudyCapture 原始学习意图和 CloudWordCopy 单词副本是由
-        下面账号偏好分别控制的云端动作，三项选择相互独立；页面 URL、标题、视频 ID
-        和完整页面不会上传。
-      </p>
-      <form onSubmit={(event) => void approve(event)}>
-        <label htmlFor="device-label">设备名称</label>
-        <input
-          autoComplete="off"
-          id="device-label"
-          maxLength={100}
-          name="deviceLabel"
-          onChange={(event) => setDeviceLabel(event.currentTarget.value)}
-          required
-          value={deviceLabel}
-        />
-        <label>
-          插件查询模型
-          <select
-            name="extensionQueryModelMode"
-            onChange={(event) =>
-              setExtensionQueryModelMode(event.currentTarget.value as "byok" | "platform")
-            }
-            value={extensionQueryModelMode}
-          >
-            <option value="platform">使用 Web 平台额度</option>
-            <option value="byok">使用各插件本机 BYOK Key</option>
-          </select>
-        </label>
-        <label>
-          待学习采集
-          <select
-            name="studyCaptureMode"
-            onChange={(event) =>
-              setStudyCaptureMode(event.currentTarget.value as "automatic" | "manual")
-            }
-            value={studyCaptureMode}
-          >
-            <option value="manual">手动加入</option>
-            <option value="automatic">查询后自动加入</option>
-          </select>
-        </label>
-        <label>
-          云端单词副本
-          <select
-            name="cloudWordCopyMode"
-            onChange={(event) =>
-              setCloudWordCopyMode(event.currentTarget.value as "disabled" | "enabled")
-            }
-            value={cloudWordCopyMode}
-          >
-            <option value="enabled">复制未来新增词</option>
-            <option value="disabled">仅保存在各插件本机</option>
-          </select>
-        </label>
-        <label>
-          <input
-            checked={cloudUploadConsent}
-            name="cloudUploadConsent"
-            onChange={(event) => setCloudUploadConsent(event.currentTarget.checked)}
-            required
-            type="checkbox"
-          />
-          我了解并同意上述语见云端同步
-        </label>
-        <button disabled={!cloudUploadConsent} type="submit">
-          批准此设备
-        </button>
-      </form>
-    </main>
+    <PairingApprovalForm
+      approve={approve}
+      cloudUploadConsent={cloudUploadConsent}
+      cloudWordCopyMode={cloudWordCopyMode}
+      deviceLabel={deviceLabel}
+      extensionQueryModelMode={extensionQueryModelMode}
+      setCloudUploadConsent={setCloudUploadConsent}
+      setCloudWordCopyMode={setCloudWordCopyMode}
+      setDeviceLabel={setDeviceLabel}
+      setExtensionQueryModelMode={setExtensionQueryModelMode}
+      setStudyCaptureMode={setStudyCaptureMode}
+      studyCaptureMode={studyCaptureMode}
+    />
   );
 }

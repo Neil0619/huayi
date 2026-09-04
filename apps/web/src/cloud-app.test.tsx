@@ -107,33 +107,30 @@ describe("Web account bootstrap and pairing approval", () => {
   it("loads a pending pairing and approves an explicit device label", async () => {
     const identity = api();
     const container = await render(identity);
-    expect(container.textContent).toContain("最小选区");
+    expect(container.textContent).toContain("所选英文及必要语境");
     expect(container.textContent).toContain("最多保留一小时");
-    expect(container.textContent).toContain("标题、视频 ID");
-    expect(container.textContent).toContain("BYOK Key 与精简结果不会发送给语见");
-    expect(container.textContent).toContain("StudyCapture 原始学习意图");
-    expect(container.textContent).toContain("CloudWordCopy 单词副本");
-    expect(container.textContent).toContain("三项选择相互独立");
+    expect(container.textContent).toContain("不会上传页面地址、标题、视频编号或完整页面");
+    expect(container.textContent).toContain("密钥和该次查询结果不会发送给语见");
+    expect(container.textContent).toContain("内容收集、生词保存仍分别按你的选择执行");
+    expect(container.textContent).toContain("此账号的所有已连接插件");
+    expect(container.textContent).not.toMatch(/BYOK|StudyCapture|CloudWordCopy|platform/u);
     const field = container.querySelector<HTMLInputElement>("input[name='deviceLabel']");
     const consent = container.querySelector<HTMLInputElement>("input[name='cloudUploadConsent']");
     if (field === null) throw new Error("Device label input is missing.");
+    expect(field.value).toBe("我的 Chrome 浏览器");
     if (consent === null) throw new Error("Cloud upload consent is missing.");
     await change(field, "Writing laptop");
     const submit = container.querySelector<HTMLButtonElement>("button[type='submit']");
     expect(submit?.disabled).toBe(true);
     await act(async () => consent.click());
     await act(async () => submit?.click());
-    expect(identity.approvePairing).toHaveBeenCalledWith(
-      "pairing-1",
-      {
-        cloudWordCopyMode: "enabled",
-        deviceLabel: "Writing laptop",
-        expectedPreferencesRevision: 1,
-        extensionQueryModelMode: "platform",
-        studyCaptureMode: "manual",
-      },
-      "c".repeat(32),
-    );
+    expect(identity.approvePairing).toHaveBeenCalledWith("pairing-1", {
+      cloudWordCopyMode: "enabled",
+      deviceLabel: "Writing laptop",
+      expectedPreferencesRevision: 1,
+      extensionQueryModelMode: "platform",
+      studyCaptureMode: "manual",
+    });
     expect(container.querySelector("[role='status']")?.textContent).toContain("已批准");
   });
 

@@ -1,0 +1,110 @@
+.pairing-page {
+  padding: var(--space-20) var(--space-4) var(--space-8);
+}
+.pairing-card {
+  width: min(100%, 560px);
+  margin: 0 auto;
+  padding: var(--space-6);
+  font-size: 14px;
+  line-height: 1.6;
+}
+.pairing-brand {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--space-5) / 2);
+  font-weight: 700;
+}
+.pairing-card h1 {
+  margin: var(--space-4) 0 var(--space-2);
+  font-size: 28px;
+  line-height: 1.3;
+  letter-spacing: -0.02em;
+}
+.pairing-intro,
+.pairing-scope,
+.pairing-field p,
+.pairing-privacy p {
+  margin: 0;
+  color: var(--text-secondary);
+}
+.pairing-form {
+  display: grid;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+.pairing-field {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-1);
+}
+.pairing-field-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.pairing-field label,
+.pairing-preferences legend {
+  font-weight: 650;
+}
+.pairing-field input,
+.pairing-field select {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-control);
+  color: var(--text-primary);
+  background: var(--surface-input);
+  font: inherit;
+}
+.pairing-preferences {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-3);
+  margin: 0;
+  padding: var(--space-3) 0 0;
+  border: 0;
+  border-top: 1px solid var(--border-default);
+}
+.pairing-preferences legend {
+  padding: 0 var(--space-2) 0 0;
+}
+.pairing-scope {
+  margin-top: calc(var(--space-3) / -2);
+}
+.pairing-privacy summary {
+  display: list-item;
+  min-height: 44px;
+  padding: calc(var(--space-5) / 2) 0;
+  cursor: pointer;
+  color: var(--text-secondary);
+}
+.pairing-privacy p + p {
+  margin-top: var(--space-2);
+}
+.pairing-consent {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  gap: calc(var(--space-5) / 2);
+  cursor: pointer;
+}
+.pairing-consent input {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  accent-color: var(--accent);
+}
+.pairing-card .primary-button {
+  min-height: 44px;
+}
+@media (min-width: 640px) {
+  .pairing-page {
+    padding-top: var(--space-12);
+  }
+  .pairing-card {
+    padding: var(--space-6) var(--space-8);
+  }
+}
