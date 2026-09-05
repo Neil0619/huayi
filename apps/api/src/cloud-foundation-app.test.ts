@@ -73,43 +73,62 @@ function foundation(rateLimiter?: RateLimiter) {
 }
 
 describe("Cloud foundation HTTP adapter", () => {
-  it("allows only reviewed Web and Extension origins to preflight the client version header", async () => {
-    const { app } = foundation();
-    const request = (requestOrigin: string) =>
-      app.request("/v1/analyses:stream", {
+  it.each(["/v1/analyses:stream", "/v2/learning-tasks", "/v2/practice-workspace/start"])(
+    "allows only reviewed Web and Extension origins to preflight %s",
+    async (path) => {
+      const { app } = foundation();
+      const request = (requestOrigin: string) =>
+        app.request(path, {
+          headers: {
+            "access-control-request-headers": "authorization,x-huayi-client-version",
+            "access-control-request-method": "POST",
+            origin: requestOrigin,
+          },
+          method: "OPTIONS",
+        });
+      const extensionOrigin = `chrome-extension://${"a".repeat(32)}`;
+      const accepted = await request(extensionOrigin);
+      expect(accepted.status).toBe(204);
+      expect(accepted.headers.get("access-control-allow-origin")).toBe(extensionOrigin);
+      expect(accepted.headers.get("access-control-allow-headers")).toContain(
+        "X-Huayi-Client-Version",
+      );
+      expect(accepted.headers.get("access-control-allow-headers")).toContain("Authorization");
+      expect(
+        (await request(`chrome-extension://${"b".repeat(32)}`)).headers.get(
+          "access-control-allow-origin",
+        ),
+      ).toBeNull();
+
+      const patch = await app.request("/v1/learning-items/item-1", {
         headers: {
-          "access-control-request-headers": "authorization,x-huayi-client-version",
-          "access-control-request-method": "POST",
-          origin: requestOrigin,
+          "access-control-request-headers": "content-type,idempotency-key,if-match,x-csrf-token",
+          "access-control-request-method": "PATCH",
+          origin,
         },
         method: "OPTIONS",
       });
-    const extensionOrigin = `chrome-extension://${"a".repeat(32)}`;
-    const accepted = await request(extensionOrigin);
-    expect(accepted.status).toBe(204);
-    expect(accepted.headers.get("access-control-allow-origin")).toBe(extensionOrigin);
-    expect(accepted.headers.get("access-control-allow-headers")).toContain(
-      "X-Huayi-Client-Version",
-    );
-    expect(accepted.headers.get("access-control-allow-headers")).toContain("Authorization");
-    expect(
-      (await request(`chrome-extension://${"b".repeat(32)}`)).headers.get(
-        "access-control-allow-origin",
-      ),
-    ).toBeNull();
+      expect(patch.status).toBe(204);
+      expect(patch.headers.get("access-control-allow-origin")).toBe(origin);
+      expect(patch.headers.get("access-control-allow-methods")).toContain("PATCH");
+      expect(patch.headers.get("access-control-expose-headers")).toContain("Content-Disposition");
+    },
+  );
 
-    const patch = await app.request("/v1/learning-items/item-1", {
-      headers: {
-        "access-control-request-headers": "content-type,idempotency-key,if-match,x-csrf-token",
-        "access-control-request-method": "PATCH",
-        origin,
-      },
+  it("exposes v2 authentication failures to the reviewed Web origin while keeping workers private", async () => {
+    const { app } = foundation();
+    app.get("/v2/learning-tasks", () => {
+      throw new CloudFault("authentication_required", "Web session proof is required.");
+    });
+    const response = await app.request("/v2/learning-tasks", { headers: { origin } });
+    expect(response.status).toBe(401);
+    expect(response.headers.get("access-control-allow-origin")).toBe(origin);
+    expect(response.headers.get("access-control-allow-credentials")).toBe("true");
+    const worker = await app.request("/internal/learning-tasks/run", {
+      headers: { origin, "access-control-request-method": "GET" },
       method: "OPTIONS",
     });
-    expect(patch.status).toBe(204);
-    expect(patch.headers.get("access-control-allow-origin")).toBe(origin);
-    expect(patch.headers.get("access-control-allow-methods")).toContain("PATCH");
-    expect(patch.headers.get("access-control-expose-headers")).toContain("Content-Disposition");
+    expect(worker.headers.get("access-control-allow-origin")).toBeNull();
   });
 
   it("returns only the authenticated Web account's strict quota projection", async () => {

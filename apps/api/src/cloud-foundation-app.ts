@@ -67,26 +67,25 @@ export function createCloudFoundationApp(dependencies: CloudFoundationDependenci
     context.header("X-Request-Id", id);
   });
 
-  app.use(
-    "/v1/*",
-    cors({
-      allowHeaders: [
-        "Authorization",
-        "Content-Type",
-        "Idempotency-Key",
-        "If-Match",
-        "X-CSRF-Token",
-        "X-Huayi-Client-Version",
-      ],
-      allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-      credentials: true,
-      exposeHeaders: ["Content-Disposition"],
-      origin:
-        dependencies.extensionOrigin === undefined
-          ? [dependencies.webOrigin]
-          : [dependencies.webOrigin, dependencies.extensionOrigin],
-    }),
-  );
+  const clientCors = cors({
+    allowHeaders: [
+      "Authorization",
+      "Content-Type",
+      "Idempotency-Key",
+      "If-Match",
+      "X-CSRF-Token",
+      "X-Huayi-Client-Version",
+    ],
+    allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    credentials: true,
+    exposeHeaders: ["Content-Disposition"],
+    origin:
+      dependencies.extensionOrigin === undefined
+        ? [dependencies.webOrigin]
+        : [dependencies.webOrigin, dependencies.extensionOrigin],
+  });
+  app.use("/v1/*", clientCors);
+  app.use("/v2/*", clientCors);
 
   const clientIp = (context: Context) =>
     context.req.header("x-vercel-forwarded-for") ?? "unavailable";
