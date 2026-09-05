@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import type { ModelExecution } from "./model-execution.js";
 
 import {
   duplicateSuggestionsResponseSchema,
@@ -32,7 +33,7 @@ const providerSuggestionsSchema = z
   )
   .max(10);
 
-export interface DuplicateSuggestionCommand {
+export interface DuplicateSuggestionCommand extends ModelExecution {
   candidates: LearningItemDetailResponse[];
   idempotencyKey: string;
   ownerUserId: string;
@@ -94,10 +95,13 @@ export interface DuplicateSuggestionGenerationRepository {
 }
 
 export interface DuplicateSuggestionProvider {
-  generate(input: {
-    candidates: { alias: string; content: LearningItemContent }[];
-    source: { content: LearningItemContent };
-  }): Promise<{ billedCalls: AnalysisBilledCall[]; suggestions: unknown }>;
+  generate(
+    input: {
+      candidates: { alias: string; content: LearningItemContent }[];
+      source: { content: LearningItemContent };
+    },
+    execution?: ModelExecution,
+  ): Promise<{ billedCalls: AnalysisBilledCall[]; suggestions: unknown }>;
 }
 
 type DuplicateSuggestionProviderErrorCode = "model_output_invalid" | "model_unavailable";
@@ -212,13 +216,20 @@ export function createPaidDuplicateSuggestionGenerator(options: {
           dispatchPricing === undefined || options.providerForPricing === undefined
             ? options.provider
             : options.providerForPricing(dispatchPricing);
-        const generated = await provider.generate({
-          candidates: aliases.map(({ alias, candidate }) => ({
-            alias,
-            content: candidate.item.content,
-          })),
-          source: { content: source.item.content },
-        });
+        const generated = await provider.generate(
+          {
+            candidates: aliases.map(({ alias, candidate }) => ({
+              alias,
+              content: candidate.item.content,
+            })),
+            source: { content: source.item.content },
+          },
+          {
+            ...(command.signal ? { signal: command.signal } : {}),
+            ...(command.beforeDispatch ? { beforeDispatch: command.beforeDispatch } : {}),
+            ...(command.onTiming ? { onTiming: command.onTiming } : {}),
+          },
+        );
         billedCalls = billedCallsSchema.parse(generated.billedCalls);
         const suggestions = providerSuggestionsSchema.parse(generated.suggestions);
         const candidatesByAlias = new Map(

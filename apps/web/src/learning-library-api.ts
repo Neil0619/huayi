@@ -1,3 +1,4 @@
+import { createWebLearningTasks } from "./learning-task-api.js";
 import {
   apiErrorSchema,
   createLearningItemRequestSchema,
@@ -70,6 +71,13 @@ export function createWebLearningLibraryApi(options: {
       }),
     );
   return {
+    tasks: createWebLearningTasks({
+      ...options,
+      csrfToken: async () => {
+        if (!options.csrfToken) throw new Error("Account verification is required.");
+        return options.csrfToken();
+      },
+    }),
     async archiveLearningItem(
       id: string,
       input: LearningItemArchiveRequest,

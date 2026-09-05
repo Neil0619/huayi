@@ -9,11 +9,8 @@ import { WebAppearanceController } from "./web-appearance-controller.js";
 
 const expectedNavigation = [
   ["今日练习", "/practice"],
-  ["待整理", "/app"],
-  ["分析", "/analysis"],
+  ["收集箱", "/app"],
   ["学习库", "/library"],
-  ["生词", "/words"],
-  ["分析历史", "/history"],
   ["设置", "/settings/account"],
 ] as const;
 
@@ -59,7 +56,7 @@ describe("WorkspaceShell", () => {
     expect(container.querySelector(".topbar nav[aria-label='主导航']")).not.toBeNull();
     expect(container.querySelector(".topbar .appearance-menu")).not.toBeNull();
   });
-  it("owns the exact seven-item primary navigation contract", async () => {
+  it("owns the exact four-item primary navigation contract", async () => {
     const container = await render("library");
     const navigation = container.querySelector("nav[aria-label='主导航']");
     const links = [...(navigation?.querySelectorAll<HTMLAnchorElement>("a") ?? [])];
@@ -79,17 +76,12 @@ describe("WorkspaceShell", () => {
     const container = await render("practice");
     const groups = [...container.querySelectorAll<HTMLElement>("[data-navigation-group]")];
 
-    expect(groups.map((group) => group.getAttribute("aria-label"))).toEqual([
-      "开始",
-      "积累",
-      "回看",
-      "账户",
-    ]);
+    expect(groups.map((group) => group.getAttribute("aria-label"))).toEqual(["学习与账户"]);
     expect(
       [...container.querySelectorAll("[data-navigation-index]")].map((index) =>
         index.getAttribute("data-navigation-index"),
       ),
-    ).toEqual(["01", "02", "03", "04", "05", "06", "07"]);
+    ).toEqual(["01", "02", "03", "04"]);
     expect(container.querySelector(".topbar")?.textContent).toContain("Seen & Said");
   });
 

@@ -1,3 +1,6 @@
+import { billedProviderError } from "./deepseek-provider-error.js";
+import { modelDeadline } from "./model-execution.js";
+import { createTextModelPreview } from "./text-model-preview.js";
 import {
   calculateModelCost,
   analysisContentSchema,
@@ -36,12 +39,13 @@ export type {
   DeepSeekAnalysisModelErrorCode,
 };
 
-const PROMPT_VERSION = "web-deep-analysis-v2.1";
+const PROMPT_VERSION = "web-deep-analysis-v2.2";
 const SCHEMA_VERSION = 2;
 const DEFAULT_TIMEOUT_MS = 90_000;
 const MAXIMUM_TIMEOUT_MS = 90_000;
 
 const privateAnalysisOutputSchema = z.strictObject({
+  previewZh: z.string().trim().min(1).max(1000).optional(),
   candidates: z.array(candidateSchema).max(200),
   result: webDeepAnalysisSchema,
 });
@@ -141,16 +145,24 @@ export function createDeepSeekAnalysisModel(options: DeepSeekAnalysisModelOption
 
   return {
     async analyze(command) {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), timeoutMs);
+      const controller = modelDeadline(timeoutMs, command.signal);
+      let firstToken = false;
+      const preview = createTextModelPreview(new Set(["previewZh"]), command);
+      const prices = await resolvePrices(options);
       const call = async (repairContent?: string): Promise<DeepSeekProviderCallResult> => {
+        try {
+          await command.beforeDispatch?.();
+          controller.signal.throwIfAborted();
+        } catch {
+          throw new DeepSeekAnalysisModelError("model_unavailable", 0);
+        }
         let response: DeepSeekAnalysisFetchResponse;
         try {
           response = await providerFetch(DEEPSEEK_PLATFORM_ENDPOINT, {
             body: buildDeepSeekAnalysisRequest(command.input, command.sentences, repairContent),
             credentials: "omit",
             headers: {
-              Accept: "application/json",
+              Accept: "text/event-stream, application/json",
               Authorization: `Bearer ${options.apiKey}`,
               "Content-Type": "application/json",
             },
@@ -173,16 +185,32 @@ export function createDeepSeekAnalysisModel(options: DeepSeekAnalysisModelOption
           throw new DeepSeekAnalysisModelError("model_unavailable");
         }
         if (
-          response.headers.get("content-type")?.split(";", 1)[0]?.trim().toLowerCase() !==
-          "application/json"
+          !["application/json", "text/event-stream"].includes(
+            response.headers.get("content-type")?.split(";", 1)[0]?.trim().toLowerCase() ?? "",
+          )
         ) {
           throw new DeepSeekAnalysisModelError("model_response_invalid");
         }
-        return parseDeepSeekAnalysisResponse(response, controller.signal);
+        const result = await parseDeepSeekAnalysisResponse(
+          response,
+          controller.signal,
+          (text) => {
+            if (repairContent === undefined) preview(text);
+          },
+          () => {
+            if (!firstToken) {
+              firstToken = true;
+              command.onTiming?.("provider-first-token");
+            }
+          },
+        ).catch((error: unknown) => {
+          throw billedProviderError(error, prices);
+        });
+        command.onTiming?.(repairContent === undefined ? "generation-complete" : "repair-complete");
+        return result;
       };
 
       try {
-        const prices = await resolvePrices(options);
         const first = await call();
         const firstContent = trustedContent(
           first.content,
@@ -195,7 +223,6 @@ export function createDeepSeekAnalysisModel(options: DeepSeekAnalysisModelOption
           return {
             billedCalls: [{ costMicroUsd, usage: first.usage }],
             content: firstContent,
-            preview: "正在分析。",
             usage: first.usage,
             usageCostMicroUsd: costMicroUsd,
           };
@@ -206,17 +233,10 @@ export function createDeepSeekAnalysisModel(options: DeepSeekAnalysisModelOption
         };
         let second: DeepSeekProviderCallResult;
         try {
+          command.onTiming?.("repair-start");
           second = await call(first.content);
         } catch (error) {
-          if (error instanceof DeepSeekAnalysisModelError) {
-            throw new DeepSeekAnalysisModelError(
-              error.code,
-              firstBilledCall.costMicroUsd,
-              first.usage,
-              [firstBilledCall],
-            );
-          }
-          throw error;
+          throw billedProviderError(error, prices, [firstBilledCall]);
         }
         const usage = addUsage(first.usage, second.usage);
         const billedCalls = [first, second].map((providerCall) => ({
@@ -241,12 +261,11 @@ export function createDeepSeekAnalysisModel(options: DeepSeekAnalysisModelOption
         return {
           billedCalls,
           content: repairedContent,
-          preview: "正在分析。",
           usage,
           usageCostMicroUsd,
         };
       } finally {
-        clearTimeout(timeout);
+        controller.dispose();
       }
     },
   };

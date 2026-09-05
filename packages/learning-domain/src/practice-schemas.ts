@@ -67,9 +67,18 @@ export const practiceSessionItemSchema = z
   });
 export type PracticeSessionItem = z.infer<typeof practiceSessionItemSchema>;
 
+export const practiceWorkspaceStateSchema = z.strictObject({
+  phase: z.enum(["active", "paused", "ended", "skipped"]),
+  mode: z.enum(["guided", "free"]),
+  draft: z.string().max(4000),
+  draftRevision: z.number().int().nonnegative(),
+  controlRevision: z.number().int().nonnegative().optional(),
+});
+
 export const practiceSessionSchema = z
   .strictObject({
     ...resourceFields,
+    workspace: practiceWorkspaceStateSchema.optional(),
     attempts: z.array(practiceAttemptSchema).max(5).optional(),
     dialoguePlan: dialoguePlanSchema.optional(),
     finalFeedback: textSchema.optional(),

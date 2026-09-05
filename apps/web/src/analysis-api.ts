@@ -1,3 +1,4 @@
+import { createWebLearningTasks } from "./learning-task-api.js";
 import {
   apiErrorSchema,
   analysisHistoryResponseSchema,
@@ -70,6 +71,7 @@ export function createWebAnalysisApi(options: WebAnalysisApiOptions) {
     );
   };
   return {
+    tasks: createWebLearningTasks(options),
     async archiveAnalysis(id: string, expectedRevision: number, idempotencyKey: string) {
       return analysisRecordSchema.parse(
         await mutation(analysisHttpRoutes.archive, id, expectedRevision, idempotencyKey),
@@ -124,9 +126,10 @@ export function createWebAnalysisApi(options: WebAnalysisApiOptions) {
         ),
       );
     },
-    async listPending() {
+    async listPending(query?: { cursor?: string }) {
       const endpoint = url(analysisHttpRoutes.history);
       endpoint.searchParams.set("reviewState", "pendingReview");
+      if (query?.cursor) endpoint.searchParams.set("cursor", query.cursor);
       return analysisHistoryResponseSchema.parse(
         await requireSuccess(await options.fetch(endpoint, { credentials: "include" })),
       );

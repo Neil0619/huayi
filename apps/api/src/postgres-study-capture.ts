@@ -315,7 +315,7 @@ export function createPostgresStudyCapture(
           if (row.revision !== command.input.expectedRevision) {
             throw new CloudFault("revision_conflict", "StudyCapture revision changed.");
           }
-          if (row.status !== "pending") {
+          if (row.status === "analyzing") {
             throw new CloudFault("study_capture_in_use", "StudyCapture is already being analyzed.");
           }
           if (command.input.kind !== undefined && command.input.kind !== row.selection_kind) {

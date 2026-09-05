@@ -1,3 +1,6 @@
+import { billedProviderError } from "./deepseek-provider-error.js";
+import { createQueryModelPreview } from "./query-model-preview.js";
+import { modelDeadline } from "./model-execution.js";
 import {
   calculateModelCost,
   extensionQueryRequestSchema,
@@ -84,7 +87,7 @@ function instructions(
     "All explanations and meanings are Simplified Chinese; English example fields stay English.",
     `Return only these semantic fields: ${fieldGuides[type]}.`,
     `The type field must be ${type}. Do not return requestId, sourceText, URL, owner, model, quota, or provider fields.`,
-    "Use empty arrays or omit optional fields instead of inventing content.",
+    "Include all required fields shown in the example. Required lists must contain at least one relevant complete entry; omit optional fields when they do not apply.",
     deepSeekQueryExample(type, selectionKind),
   ].join("\n");
 }
@@ -107,11 +110,12 @@ function requestBody(input: ExtensionQueryRequest, type: ResultType, repair?: st
     max_tokens: input.selectionKind === "passage" ? 8_192 : 4_096,
     messages,
     model: DEEPSEEK_PLATFORM_MODEL,
-    reasoning_effort: "high",
+    reasoning_effort: "low",
     response_format: { type: "json_object" },
-    stream: false,
+    stream: true,
+    stream_options: { include_usage: true },
     temperature: 0,
-    thinking: { type: "enabled" },
+    thinking: { type: "disabled" },
   });
 }
 
@@ -161,19 +165,38 @@ export function createDeepSeekExtensionQueryModel(options: {
     throw new DeepSeekAnalysisModelError("model_unavailable");
   }
   return {
-    async run(rawInput, generationId) {
+    async run(rawInput, generationId, execution = {}) {
       const input = extensionQueryRequestSchema.parse(rawInput);
       const type = resultType(input);
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), timeoutMs);
+      const controller = modelDeadline(timeoutMs, execution.signal);
+      let firstToken = false,
+        firstDisplay = false;
+      const preview = createQueryModelPreview({
+        requestId: generationId,
+        type,
+        shape: privateSchemas[type].shape,
+        emit: (update) => {
+          if (!firstDisplay) {
+            firstDisplay = true;
+            execution.onTiming?.("first-display-field");
+          }
+          execution.onPreview?.(update);
+        },
+      });
       const call = async (repair?: string): Promise<DeepSeekProviderCallResult> => {
+        try {
+          await execution.beforeDispatch?.();
+          controller.signal.throwIfAborted();
+        } catch {
+          throw new DeepSeekAnalysisModelError("model_unavailable", 0);
+        }
         let response: DeepSeekAnalysisFetchResponse;
         try {
           response = await providerFetch(DEEPSEEK_PLATFORM_ENDPOINT, {
             body: requestBody(input, type, repair),
             credentials: "omit",
             headers: {
-              Accept: "application/json",
+              Accept: "text/event-stream, application/json",
               Authorization: `Bearer ${options.apiKey}`,
               "Content-Type": "application/json",
             },
@@ -191,12 +214,29 @@ export function createDeepSeekExtensionQueryModel(options: {
           throw new DeepSeekAnalysisModelError("model_unavailable");
         }
         if (
-          response.headers.get("content-type")?.split(";", 1)[0]?.trim().toLowerCase() !==
-          "application/json"
+          !["application/json", "text/event-stream"].includes(
+            response.headers.get("content-type")?.split(";", 1)[0]?.trim().toLowerCase() ?? "",
+          )
         ) {
           throw new DeepSeekAnalysisModelError("model_response_invalid");
         }
-        return parseDeepSeekAnalysisResponse(response, controller.signal);
+        const result = await parseDeepSeekAnalysisResponse(
+          response,
+          controller.signal,
+          (text) => {
+            if (repair === undefined) preview(text);
+          },
+          () => {
+            if (!firstToken) {
+              firstToken = true;
+              execution.onTiming?.("provider-first-token");
+            }
+          },
+        ).catch((error: unknown) => {
+          throw billedProviderError(error, prices);
+        });
+        execution.onTiming?.(repair === undefined ? "generation-complete" : "repair-complete");
+        return result;
       };
       try {
         const first = await call();
@@ -212,14 +252,12 @@ export function createDeepSeekExtensionQueryModel(options: {
         }
         let second: DeepSeekProviderCallResult;
         try {
+          execution.onTiming?.("repair-start");
           second = await call(first.content);
         } catch (error) {
-          if (error instanceof DeepSeekAnalysisModelError) {
-            throw new DeepSeekAnalysisModelError(error.code, firstCost, first.usage, [
-              { costMicroUsd: firstCost, usage: first.usage },
-            ]);
-          }
-          throw error;
+          throw billedProviderError(error, prices, [
+            { costMicroUsd: firstCost, usage: first.usage },
+          ]);
         }
         const secondCost = calculateModelCost(second.usage, prices);
         const repaired = parseContent(second.content, type, input, generationId);
@@ -243,7 +281,7 @@ export function createDeepSeekExtensionQueryModel(options: {
           usage,
         };
       } finally {
-        clearTimeout(timeout);
+        controller.dispose();
       }
     },
   };

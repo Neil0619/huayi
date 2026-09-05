@@ -9,7 +9,7 @@ export class FakeAnalysisModel implements AnalysisModel {
   constructor(readonly content: unknown) {}
 
   async analyze(command: Parameters<AnalysisModel["analyze"]>[0]) {
-    this.requests.push(structuredClone(command));
+    this.requests.push(structuredClone({ input: command.input, sentences: command.sentences }));
     if (this.failure !== undefined) throw this.failure;
     return {
       content: this.content,

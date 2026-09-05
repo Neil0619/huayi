@@ -64,7 +64,7 @@ export async function requireDialogueState(
     type: string;
   }>(
     `SELECT type,status,pending_generation,revision FROM practice_sessions
-      WHERE id=$1 FOR UPDATE`,
+      WHERE id=$1 AND COALESCE(to_jsonb(practice_sessions)#>>'{workspace_state,phase}','active') IN ('active','paused') FOR UPDATE`,
     [sessionId],
   );
   const row = rows[0];

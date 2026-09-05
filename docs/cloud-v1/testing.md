@@ -15,6 +15,9 @@
 
 ## 2. 自动测试分层
 
+2026-09-05 即时查询/学习工作台的分批回归、性能口径和部署依赖见
+[即时查询与学习工作台](instant-query-learning-workspace.md)。本机模拟时延和真实模型 P50/P95 必须分别报告。
+
 ### `packages/learning-domain`
 
 - Expression/SentencePattern 判别联合、字段长度、未知字段与槽位引用；

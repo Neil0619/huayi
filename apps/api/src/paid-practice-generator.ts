@@ -2,6 +2,7 @@ import { z } from "zod/v3";
 
 import type { AnalysisBilledCall } from "./analysis-ports.js";
 import type { DeepSeekPriceSnapshot } from "./deepseek-price-schedule.js";
+import type { ModelExecution } from "./model-execution.js";
 
 const textSchema = z.string().trim().min(1).max(4_000);
 export const practiceGenerationOutputSchema = z.discriminatedUnion("kind", [
@@ -30,7 +31,7 @@ export const practiceGenerationOutputSchema = z.discriminatedUnion("kind", [
 export type PracticeGenerationOutput = z.infer<typeof practiceGenerationOutputSchema>;
 export type PracticeGenerationKind = PracticeGenerationOutput["kind"];
 
-export interface PracticeGenerationCommand {
+export interface PracticeGenerationCommand extends ModelExecution {
   generationId: string;
   input: Record<string, unknown>;
   kind: PracticeGenerationKind;
@@ -66,7 +67,7 @@ export interface PracticeGenerationRepository {
 }
 
 export interface PracticeProvider {
-  generate(command: Pick<PracticeGenerationCommand, "input" | "kind">): Promise<{
+  generate(command: Pick<PracticeGenerationCommand, "input" | "kind"> & ModelExecution): Promise<{
     billedCalls: AnalysisBilledCall[];
     output: unknown;
   }>;
@@ -110,6 +111,10 @@ export function createPaidPracticeGenerator(options: {
             ? options.provider
             : options.providerForPricing(dispatchPricing);
         const generated = await provider.generate({
+          ...(command.beforeDispatch ? { beforeDispatch: command.beforeDispatch } : {}),
+          ...(command.signal ? { signal: command.signal } : {}),
+          ...(command.onPreview ? { onPreview: command.onPreview } : {}),
+          ...(command.onTiming ? { onTiming: command.onTiming } : {}),
           input: command.input,
           kind: command.kind,
         });

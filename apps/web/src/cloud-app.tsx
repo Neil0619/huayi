@@ -275,6 +275,8 @@ export function CloudApp({
       );
     else if (page === "devices")
       content = <DeviceSessionsPage api={identity} showOperatorNavigation={operator} />;
+    else if (page === "analysis" && inboxApi !== undefined)
+      content = <StudyInbox captureApi={inboxApi} reviewApi={inboxApi} pasteDefault />;
     else if (page === "analysis" && analysisApi !== undefined)
       content = <PasteAnalysisPage api={analysisApi} />;
     else if (page === "history" && historyApi !== undefined)

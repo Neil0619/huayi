@@ -5,6 +5,7 @@ import {
   type ModelPrice,
 } from "@huayi/cloud-contracts";
 import { z } from "zod/v3";
+import { modelDeadline } from "./model-execution.js";
 
 import type { AnalysisBilledCall } from "./analysis-ports.js";
 import {
@@ -86,7 +87,8 @@ function requestBody(input: z.infer<typeof inputSchema>): string {
     model: DEEPSEEK_PLATFORM_MODEL,
     reasoning_effort: "high",
     response_format: { type: "json_object" },
-    stream: false,
+    stream: true,
+    stream_options: { include_usage: true },
     temperature: 0,
     thinking: { type: "enabled" },
   });
@@ -123,7 +125,7 @@ export function createDeepSeekDuplicateSuggestionProvider(
   }
   const providerFetch = options.fetch ?? defaultFetch;
   return {
-    async generate(rawInput) {
+    async generate(rawInput, execution = {}) {
       let input: z.infer<typeof inputSchema>;
       let prices: ModelPrice;
       try {
@@ -134,16 +136,21 @@ export function createDeepSeekDuplicateSuggestionProvider(
       } catch {
         throw new DuplicateSuggestionProviderError("model_unavailable");
       }
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), timeoutMs);
+      const controller = modelDeadline(timeoutMs, execution.signal);
       try {
+        try {
+          await execution.beforeDispatch?.();
+          controller.signal.throwIfAborted();
+        } catch {
+          throw new DuplicateSuggestionProviderError("model_unavailable", []);
+        }
         let response: DeepSeekAnalysisFetchResponse;
         try {
           response = await providerFetch(DEEPSEEK_PLATFORM_ENDPOINT, {
             body: requestBody(input),
             credentials: "omit",
             headers: {
-              Accept: "application/json",
+              Accept: "text/event-stream, application/json",
               Authorization: `Bearer ${options.apiKey}`,
               "Content-Type": "application/json",
             },
@@ -164,19 +171,35 @@ export function createDeepSeekDuplicateSuggestionProvider(
           throw new DuplicateSuggestionProviderError("model_unavailable");
         }
         if (
-          response.headers.get("content-type")?.split(";", 1)[0]?.trim().toLowerCase() !==
-          "application/json"
+          !["application/json", "text/event-stream"].includes(
+            response.headers.get("content-type")?.split(";", 1)[0]?.trim().toLowerCase() ?? "",
+          )
         ) {
           throw new DuplicateSuggestionProviderError("model_unavailable");
         }
         let parsed;
         try {
-          parsed = await parseDeepSeekAnalysisResponse(response, controller.signal);
+          let first = true;
+          parsed = await parseDeepSeekAnalysisResponse(
+            response,
+            controller.signal,
+            () => undefined,
+            () => {
+              if (first) {
+                first = false;
+                execution.onTiming?.("provider-first-token");
+              }
+            },
+          );
+          execution.onTiming?.("generation-complete");
         } catch (error) {
           throw new DuplicateSuggestionProviderError(
             error instanceof DeepSeekAnalysisModelError && error.code === "model_output_invalid"
               ? "model_output_invalid"
               : "model_unavailable",
+            error instanceof DeepSeekAnalysisModelError && error.usage
+              ? [{ costMicroUsd: calculateModelCost(error.usage, prices), usage: error.usage }]
+              : undefined,
           );
         }
         const billedCall: AnalysisBilledCall = {
@@ -189,7 +212,7 @@ export function createDeepSeekDuplicateSuggestionProvider(
         }
         return { billedCalls: [billedCall], suggestions: output.suggestions };
       } finally {
-        clearTimeout(timeout);
+        controller.dispose();
       }
     },
   };

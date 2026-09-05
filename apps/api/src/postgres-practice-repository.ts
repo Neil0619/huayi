@@ -43,12 +43,12 @@ export function createPostgresPracticeRepository(database: AnalysisDatabase): Pr
         );
         const current = await tenant.rows<{ id: string }>(
           `SELECT id::text FROM practice_sessions
-            WHERE status IN ('active','awaiting-feedback') OR
+            WHERE COALESCE(to_jsonb(practice_sessions)#>>'{workspace_state,phase}','active')='active' AND (status IN ('active','awaiting-feedback') OR
               (status='completed' AND EXISTS (
                 SELECT 1 FROM practice_session_items links
                 WHERE links.session_id=practice_sessions.id AND links.rating IS NULL
               ))
-            ORDER BY created_at,id LIMIT 1`,
+            ) ORDER BY created_at,id LIMIT 1`,
         );
         const currentSession =
           current[0] === undefined ? null : await loadSession(tenant, current[0].id);
@@ -61,7 +61,12 @@ export function createPostgresPracticeRepository(database: AnalysisDatabase): Pr
         if (currentItems.some((item) => item === null)) {
           throw new CloudFault("not_found", "Practice item not found.");
         }
+        const progress = await tenant.rows<{ count: number }>(
+          `SELECT count(DISTINCT links.learning_item_id)::integer AS count FROM practice_session_items links JOIN practice_sessions sessions ON sessions.id=links.session_id WHERE links.rating IS NOT NULL AND (COALESCE((to_jsonb(links)->>'rated_at')::timestamptz,sessions.completed_at) AT TIME ZONE $2)::date=$1::date`,
+          [date, profile.timezone],
+        );
         return dailyPracticeQueueResponseSchema.parse({
+          completedToday: progress[0]?.count ?? 0,
           currentItems,
           currentSession,
           dailyGoal: profile.daily_goal,
@@ -93,7 +98,11 @@ export function createPostgresPracticeRepository(database: AnalysisDatabase): Pr
           command.sessionId,
         ]);
         const session = await loadSession(tenant, command.sessionId);
-        if (session.status !== "completed" || session.finalFeedback === undefined) {
+        if (
+          (session.workspace && session.workspace.phase !== "active") ||
+          session.status !== "completed" ||
+          session.finalFeedback === undefined
+        ) {
           throw new CloudFault("revision_conflict", "Practice feedback is not complete.");
         }
         if (

@@ -9,6 +9,8 @@ import {
 import { createHash } from "node:crypto";
 
 import { CloudFault } from "./cloud-fault.js";
+import { modelEvents } from "./model-events.js";
+import type { ModelExecution } from "./model-execution.js";
 import type {
   ExtensionQueryModel,
   ExtensionQueryQuota,
@@ -52,6 +54,7 @@ async function* replay(...events: ExtensionQueryEvent[]): AsyncIterable<Extensio
 
 export function createExtensionQueryModule(dependencies: Dependencies) {
   async function prepare(command: {
+    execution?: ModelExecution;
     idempotencyKey: string;
     input: ExtensionQueryRequest;
     userId: string;
@@ -117,7 +120,12 @@ export function createExtensionQueryModule(dependencies: Dependencies) {
 
   async function* execute(context: {
     claim: { id: string; kind: "acquired"; leaseToken: string };
-    command: { idempotencyKey: string; input: ExtensionQueryRequest; userId: string };
+    command: {
+      execution?: ModelExecution;
+      idempotencyKey: string;
+      input: ExtensionQueryRequest;
+      userId: string;
+    };
     input: ExtensionQueryRequest;
     reservation: { id: string };
     started: ExtensionQueryEvent;
@@ -136,7 +144,20 @@ export function createExtensionQueryModule(dependencies: Dependencies) {
         dispatchPricing === undefined || dependencies.modelForPricing === undefined
           ? dependencies.model
           : dependencies.modelForPricing(dispatchPricing);
-      const generated = await model.run(context.input, context.claim.id);
+      const generated = yield* modelEvents((emit: (event: ExtensionQueryEvent) => void) =>
+        model.run(context.input, context.claim.id, {
+          ...context.command.execution,
+          onPreview: (update) =>
+            emit(
+              extensionQueryEventSchema.parse({
+                generationId: context.claim.id,
+                type: "query.preview-v2",
+                version: 2,
+                update,
+              }),
+            ),
+        }),
+      );
       const result = storeAnalysisResultSchema.parse(generated.result);
       yield await dependencies.store.complete({
         ...(generated.billedCalls === undefined ? {} : { billedCalls: generated.billedCalls }),

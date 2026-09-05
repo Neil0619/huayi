@@ -31,11 +31,8 @@ const preferences = {
 };
 const expectedPrimaryNavigation = [
   ["今日练习", "/practice"],
-  ["待整理", "/app"],
-  ["分析", "/analysis"],
+  ["收集箱", "/app"],
   ["学习库", "/library"],
-  ["生词", "/words"],
-  ["分析历史", "/history"],
   ["设置", "/settings/account"],
 ] as const;
 
@@ -222,7 +219,7 @@ describe("Web account bootstrap and pairing approval", () => {
     await act(async () => Promise.resolve());
 
     expect(container.querySelector("h1")?.textContent).toBe("英文分析");
-    expect(container.querySelector("[aria-current='page']")?.textContent).toBe("分析");
+    expect(container.querySelector("[aria-current='page']")?.textContent).toBe("收集箱");
   });
 
   it("routes an authenticated account to the strict quota page", async () => {
@@ -332,7 +329,7 @@ describe("Web account bootstrap and pairing approval", () => {
     await act(async () => Promise.resolve());
 
     expect(container.querySelector("h1")?.textContent).toBe("分析历史");
-    expect(container.querySelector("[aria-current='page']")?.textContent).toBe("分析历史");
+    expect(container.querySelector("[aria-current='page']")?.textContent).toBe("收集箱");
   });
 
   it("routes an authenticated account to external wordbook jobs", async () => {
@@ -357,7 +354,7 @@ describe("Web account bootstrap and pairing approval", () => {
     expect(container.querySelector("h1")?.textContent).toBe("外部词典任务");
     expect(
       container.querySelector("nav[aria-label='主导航'] [aria-current='page']")?.textContent,
-    ).toBe("生词");
+    ).toBe("学习库");
     expect(
       container.querySelector("nav[aria-label='生词设置'] [aria-current='page']")?.textContent,
     ).toBe("外部词典");

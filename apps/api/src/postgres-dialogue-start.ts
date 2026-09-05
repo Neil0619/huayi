@@ -33,9 +33,9 @@ export async function reserveDialogueStart(database: AnalysisDatabase, command: 
       type: string;
     }>(
       `SELECT id::text,type,pending_generation,current_generation_id::text FROM practice_sessions
-        WHERE status IN ('active','awaiting-feedback') OR
+        WHERE COALESCE(to_jsonb(practice_sessions)#>>'{workspace_state,phase}','active')='active' AND (status IN ('active','awaiting-feedback') OR
         (status='completed' AND EXISTS (SELECT 1 FROM practice_session_items links
-          WHERE links.session_id=practice_sessions.id AND links.rating IS NULL)) LIMIT 1
+          WHERE links.session_id=practice_sessions.id AND links.rating IS NULL))) LIMIT 1
         FOR UPDATE`,
     );
     const current = active[0];

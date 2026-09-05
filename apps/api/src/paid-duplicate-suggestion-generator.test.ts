@@ -141,13 +141,16 @@ describe("paid duplicate suggestion generator", () => {
       },
     );
     expect(order).toEqual(["reserved", "dispatch-durable", "provider-called", "completed-settled"]);
-    expect(model.generate).toHaveBeenCalledWith({
-      candidates: [
-        { alias: "candidate-1", content: view("item-2").item.content },
-        { alias: "candidate-2", content: view("item-3", 2).item.content },
-      ],
-      source: { content: view("item-1", 3).item.content },
-    });
+    expect(model.generate).toHaveBeenCalledWith(
+      {
+        candidates: [
+          { alias: "candidate-1", content: view("item-2").item.content },
+          { alias: "candidate-2", content: view("item-3", 2).item.content },
+        ],
+        source: { content: view("item-1", 3).item.content },
+      },
+      {},
+    );
     expect(store.begin).toHaveBeenCalledWith(
       expect.objectContaining({
         candidateAliases: [

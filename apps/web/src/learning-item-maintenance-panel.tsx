@@ -1,3 +1,4 @@
+import { useDuplicateSuggestions } from "./use-duplicate-suggestions.js";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 
 import type {
@@ -20,6 +21,7 @@ type MaintenanceApi = Pick<
   | "patchLearningItem"
   | "previewLearningItemMerge"
   | "restoreLearningItem"
+  | "tasks"
   | "suggestLearningItemDuplicates"
 >;
 
@@ -127,17 +129,22 @@ export function LearningItemMaintenancePanel({
     });
   };
 
-  const suggest = () => {
-    void run(async (activeGeneration) => {
-      const response = await api.suggestLearningItemDuplicates(
-        detail.item.id,
-        { expectedRevision: detail.item.revision },
-        idempotencyKey(),
-      );
-      if (activeGeneration !== generation.current) return;
+  const duplicateTask = useDuplicateSuggestions({
+    api,
+    itemId: detail.item.id,
+    revision: detail.item.revision,
+    key: idempotencyKey,
+    completed(response) {
       setSuggestions(response);
       setStatus(response.suggestions.length === 0 ? "没有发现语义重复候选。" : "已载入重复候选。");
-    });
+    },
+    failed(caught) {
+      setError(errorMessage(caught));
+    },
+  });
+  const suggest = () => {
+    setError(null);
+    void duplicateTask.start();
   };
 
   const openPreview = (candidate: LearningItemDetailResponse) => {
@@ -224,11 +231,26 @@ export function LearningItemMaintenancePanel({
         onEdit={() => setEditing(true)}
         onRestore={restore}
         onSuggest={suggest}
+        suggesting={duplicateTask.pending}
         pending={pending}
       />
       <p aria-live="polite" className="sr-only">
         {status}
       </p>
+      {duplicateTask.pending && (
+        <p role="status">
+          正在后台查找语义重复，可以继续编辑或浏览。
+          {duplicateTask.task && (
+            <button
+              onClick={() => void duplicateTask.cancel()}
+              disabled={duplicateTask.task.state === "cancelling"}
+              type="button"
+            >
+              {duplicateTask.task.state === "cancelling" ? "等待停止确认…" : "停止查重"}
+            </button>
+          )}
+        </p>
+      )}
       {error !== null && <p role="alert">{error}</p>}
       {editing && (
         <LearningItemEditForm

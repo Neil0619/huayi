@@ -1,5 +1,8 @@
 # Phase 23 平台练习生成与额度结算方案
 
+2026-09-05：本文保留计费、turn-first、耐久输出和 once-only 排期权威；当前后台调度、自由造句、
+草稿与暂停恢复见 [即时查询与学习工作台](instant-query-learning-workspace.md)。
+
 ## 1. 问题与目标
 
 Cloud V1 的句子创作和受约束对话已经具备 PracticeSession、PracticeAttempt、turn-first、generation
@@ -37,7 +40,7 @@ PracticeSession 是学习过程权威；PlatformGeneration 是可计费生成权
 - session 保存题目、答案、对话、反馈和自评；
 - generation task 保存一次调用的 kind、dispatch/结算状态、临时严格输出和额度关联；
 - session/attempt 只持有当前 generation task ID，不持有 token usage、价格或 Provider 原始响应；
-- generation `ready` 后即使 worker 在领域完成前崩溃，新显式 retry 也重放耐久输出，不再调用 Provider；
+- generation `ready` 后即使 worker 在领域完成前崩溃，补偿 worker 也只重放已计费耐久输出，不再调用 Provider；
 - generation `applied` 后清除临时输出，长期正文只保留在既有 PracticeSession authority。
 
 ### 2.2 公开 pending 状态
@@ -49,7 +52,8 @@ sentence-prompt | dialogue-start | assistant-turn | final-feedback
 ```
 
 句子题目与对话开场都先创建 `awaiting-feedback` session，再调用模型；尚未生成时 `prompt` 省略。Web
-刷新后通过 DailyPracticeQueue 恢复同一 session，显示“题目尚未完成”，且只提供显式重试按钮。不得使用
+刷新后先显示今日总览，由用户选择恢复同一 session。显示“题目尚未完成”时同时提供输入框、重试、
+自由造句、换项和退出；暂停不撤销已排队作答。不得使用
 `Generation pending.` 等占位正文伪装题目。
 
 句子答案仍先持久化 PracticeAttempt；对话用户 turn 仍先持久化。Provider 失败不删除这些输入，也不自动

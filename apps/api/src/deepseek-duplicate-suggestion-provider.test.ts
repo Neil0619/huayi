@@ -87,7 +87,7 @@ describe("DeepSeek duplicate suggestion provider", () => {
     expect(init).toMatchObject({
       credentials: "omit",
       headers: {
-        Accept: "application/json",
+        Accept: "text/event-stream, application/json",
         Authorization: "Bearer test-platform-key-that-is-never-logged",
         "Content-Type": "application/json",
       },
@@ -101,7 +101,8 @@ describe("DeepSeek duplicate suggestion provider", () => {
       model: "deepseek-v4-flash",
       reasoning_effort: "high",
       response_format: { type: "json_object" },
-      stream: false,
+      stream: true,
+      stream_options: { include_usage: true },
       temperature: 0,
       thinking: { type: "enabled" },
     });

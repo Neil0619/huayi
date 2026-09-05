@@ -18,6 +18,7 @@ function primary(item: DailyPracticeQueueResponse["items"][number]) {
 
 export function DialoguePracticePanel({
   api,
+  draftControl,
   idempotencyKey,
   onRecover,
   onSession,
@@ -25,6 +26,7 @@ export function DialoguePracticePanel({
   session,
 }: {
   readonly api: PracticePageApi;
+  readonly draftControl?: { value: string; setValue(text: string): void };
   readonly idempotencyKey: () => string;
   readonly onRecover: () => Promise<PracticeSession | null>;
   readonly onSession: (session: PracticeSession) => void;
@@ -33,7 +35,9 @@ export function DialoguePracticePanel({
 }) {
   const [busy, setBusy] = useState(false);
   const [details, setDetails] = useState<LearningItemDetailResponse[]>([]);
-  const [draft, setDraft] = useState("");
+  const [localDraft, setLocalDraft] = useState("");
+  const draft = draftControl?.value ?? localDraft;
+  const setDraft = draftControl?.setValue ?? setLocalDraft;
   const [error, setError] = useState<string | null>(null);
   const [ratings, setRatings] = useState<Record<string, Rating>>({});
   const [selected, setSelected] = useState<string[]>([]);

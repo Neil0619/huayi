@@ -9,6 +9,7 @@ import {
   type PracticeSession,
 } from "@huayi/cloud-contracts";
 
+import type { ModelExecution } from "./model-execution.js";
 import { CloudFault } from "./cloud-fault.js";
 import type { PaidPracticeGenerator } from "./paid-practice-generator.js";
 import type { PracticeItem } from "./practice-module.js";
@@ -153,9 +154,12 @@ export function createDialoguePracticeModule(options: {
     key: string,
     operation: "practice.dialogue-turn" | "practice.dialogue-assistant-retry",
     requestHash: string,
+    execution: ModelExecution,
   ) => {
+    execution.onSession?.(claim.session);
     if (!claim.claimed) return practiceSessionResponseSchema.parse(claim.session);
     const generated = await options.generator.generate({
+      ...execution,
       generationId: claim.generationId,
       input: {
         items: modelItems(await itemsFor(ownerUserId, claim.session)),
@@ -186,7 +190,13 @@ export function createDialoguePracticeModule(options: {
   };
 
   return {
-    async finish(ownerUserId: string, sessionId: string, key: string, input: unknown) {
+    async finish(
+      ownerUserId: string,
+      sessionId: string,
+      key: string,
+      input: unknown,
+      execution: ModelExecution = {},
+    ) {
       const request = finishPracticeSessionRequestSchema.parse(input);
       const command = mutation(ownerUserId, sessionId, key, request);
       const claim = await options.repository.beginFinish({
@@ -195,9 +205,11 @@ export function createDialoguePracticeModule(options: {
         generationId: options.id(),
         ...lease(),
       });
+      execution.onSession?.(claim.session);
       if (!claim.claimed) return practiceSessionResponseSchema.parse(claim.session);
       const items = await itemsFor(ownerUserId, claim.session);
       const generated = await options.generator.generate({
+        ...execution,
         generationId: claim.generationId,
         input: {
           items: modelItems(items),
@@ -237,7 +249,13 @@ export function createDialoguePracticeModule(options: {
         }),
       );
     },
-    async retryAssistant(ownerUserId: string, sessionId: string, key: string, input: unknown) {
+    async retryAssistant(
+      ownerUserId: string,
+      sessionId: string,
+      key: string,
+      input: unknown,
+      execution: ModelExecution = {},
+    ) {
       const request = retryDialogueAssistantRequestSchema.parse(input);
       const command = mutation(ownerUserId, sessionId, key, request);
       return generateAssistant(
@@ -251,9 +269,15 @@ export function createDialoguePracticeModule(options: {
         key,
         "practice.dialogue-assistant-retry",
         command.requestHash,
+        execution,
       );
     },
-    async startDialogue(ownerUserId: string, key: string, input: unknown) {
+    async startDialogue(
+      ownerUserId: string,
+      key: string,
+      input: unknown,
+      execution: ModelExecution = {},
+    ) {
       const request = startDialogueSessionRequestSchema.parse(input);
       const items = await options.repository.findItems(ownerUserId, request.itemIds);
       if (items.length !== request.itemIds.length) {
@@ -267,8 +291,10 @@ export function createDialoguePracticeModule(options: {
         generationId: options.id(),
         ...lease(),
       });
+      execution.onSession?.(claim.session);
       if (!claim.claimed) return practiceSessionResponseSchema.parse(claim.session);
       const generated = await options.generator.generate({
+        ...execution,
         generationId: claim.generationId,
         input: { items: modelItems(items) },
         kind: "dialogue-start",
@@ -295,7 +321,13 @@ export function createDialoguePracticeModule(options: {
         }),
       );
     },
-    async submitTurn(ownerUserId: string, sessionId: string, key: string, input: unknown) {
+    async submitTurn(
+      ownerUserId: string,
+      sessionId: string,
+      key: string,
+      input: unknown,
+      execution: ModelExecution = {},
+    ) {
       const request = submitDialogueTurnRequestSchema.parse(input);
       const command = mutation(ownerUserId, sessionId, key, request);
       return generateAssistant(
@@ -311,6 +343,7 @@ export function createDialoguePracticeModule(options: {
         key,
         "practice.dialogue-turn",
         command.requestHash,
+        execution,
       );
     },
   };

@@ -1,5 +1,6 @@
 import type {
   CreateLearningItemRequest,
+  LearningTaskClient,
   DeleteLearningItemResponse,
   DeleteLearningItemRequest,
   DuplicateSuggestionsRequest,
@@ -15,6 +16,7 @@ import type {
 } from "@huayi/cloud-contracts";
 
 export interface LearningLibraryApi {
+  tasks?: LearningTaskClient;
   archiveLearningItem(
     id: string,
     input: LearningItemArchiveRequest,

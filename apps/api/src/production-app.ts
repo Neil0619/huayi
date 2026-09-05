@@ -9,11 +9,7 @@ import {
 import { createAnalysisApp } from "./analysis-app.js";
 import { createPostgresAnalysisDatabase } from "./analysis-database.js";
 import type { ApiEnvironment } from "./environment.js";
-import {
-  authenticateProductionAnalysisRequest,
-  authenticateProductionPrincipalRequest,
-  createProductionAnalysisAuthenticator,
-} from "./production-principal-authentication.js";
+import { createProductionAnalysisAuthenticator } from "./production-principal-authentication.js";
 import { createPostgresFoundationIdentity } from "./postgres-foundation-identity.js";
 import { createProductionExtensionSessionDisconnect } from "./production-extension-session-disconnect.js";
 import { createProductionRuntimeSql } from "./production-runtime-sql.js";
@@ -57,7 +53,11 @@ import {
 import { createProductionPasswordRecovery } from "./production-password-recovery.js";
 import { authenticateWebAccountRequest } from "./web-account-authentication.js";
 import { createProductionAccountDataRights } from "./production-account-data-rights.js";
-import { createProductionExtensionQuery } from "./production-extension-query.js";
+import { createProductionLearningTasks } from "./production-learning-tasks.js";
+import {
+  createProductionExtensionQuery,
+  createProductionExtensionQueryModule,
+} from "./production-extension-query.js";
 import { createProductionAnalysis } from "./production-analysis.js";
 import { createProductionDeepSeekPricing } from "./production-deepseek-pricing.js";
 import type { DeepSeekAnalysisFetch } from "./deepseek-analysis-protocol.js";
@@ -163,6 +163,15 @@ export function createProductionApp(
     now: () => systemClock.now(),
     repository: createPostgresDialoguePracticeRepository(analysisDatabase),
   });
+  const query = createProductionExtensionQueryModule({
+    database: analysisDatabase,
+    environment,
+    identity,
+    policy: extensionPolicy,
+    pricing,
+    quota,
+    ...(options.providerFetch ? { fetch: options.providerFetch } : {}),
+  });
   const app = createCloudFoundationApp({
     apiOrigin: environment.HUAYI_API_ORIGIN,
     auth,
@@ -180,6 +189,18 @@ export function createProductionApp(
     unprotectTransientAuthState: protector.unprotect,
     webOrigin: environment.HUAYI_WEB_ORIGIN,
   });
+  const learningTasks = createProductionLearningTasks({
+    database: analysisDatabase,
+    environment,
+    identity,
+    policy: extensionPolicy,
+    analysis,
+    query,
+    practice,
+    dialogue: dialoguePractice,
+    maintenance: libraryMaintenance,
+  });
+  app.route("/", learningTasks);
   app.route(
     "/",
     createProductionPasswordRecovery({
@@ -288,6 +309,7 @@ export function createProductionApp(
     app.route(
       "/",
       createProductionExtensionQuery({
+        module: query,
         database: analysisDatabase,
         environment,
         ...(options.providerFetch === undefined ? {} : { fetch: options.providerFetch }),
@@ -301,25 +323,10 @@ export function createProductionApp(
   app.route(
     "/",
     createAnalysisApp({
-      async authenticate(context) {
-        const authorization = context.req.header("authorization");
-        const cookie = context.req.header("cookie");
-        const clientVersion = context.req.header("x-huayi-client-version");
-        const csrf = context.req.header("x-csrf-token");
-        const origin = context.req.header("origin");
-        return authenticateProductionAnalysisRequest(
-          identity,
-          {
-            ...(authorization === undefined ? {} : { authorization }),
-            ...(cookie === undefined ? {} : { cookie }),
-            ...(clientVersion === undefined ? {} : { clientVersion }),
-            ...(csrf === undefined ? {} : { csrf }),
-            method: context.req.method,
-            ...(origin === undefined ? {} : { origin }),
-          },
-          extensionPolicy,
-        );
-      },
+      authenticate: (context) =>
+        authenticateProductionContextRequest(identity, context, extensionPolicy).then(
+          (principal) => principal.userId,
+        ),
       module: analysis,
     }),
   );
@@ -360,25 +367,8 @@ export function createProductionApp(
   app.route(
     "/",
     createExternalWordbookApp({
-      async authenticate(context) {
-        const authorization = context.req.header("authorization");
-        const cookie = context.req.header("cookie");
-        const clientVersion = context.req.header("x-huayi-client-version");
-        const csrf = context.req.header("x-csrf-token");
-        const origin = context.req.header("origin");
-        return authenticateProductionPrincipalRequest(
-          identity,
-          {
-            ...(authorization === undefined ? {} : { authorization }),
-            ...(cookie === undefined ? {} : { cookie }),
-            ...(clientVersion === undefined ? {} : { clientVersion }),
-            ...(csrf === undefined ? {} : { csrf }),
-            method: context.req.method,
-            ...(origin === undefined ? {} : { origin }),
-          },
-          extensionPolicy,
-        );
-      },
+      authenticate: (context) =>
+        authenticateProductionContextRequest(identity, context, extensionPolicy),
       module: externalWordbooks,
     }),
   );

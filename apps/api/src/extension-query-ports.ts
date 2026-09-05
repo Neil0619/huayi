@@ -5,13 +5,18 @@ import type {
   ModelUsage,
   QuotaSummary,
   StoreAnalysisResult,
+  AnalysisUpdate,
 } from "@huayi/cloud-contracts";
 import type { DeepSeekPriceSnapshot } from "./deepseek-price-schedule.js";
+import type { ModelExecution } from "./model-execution.js";
 
 export interface ExtensionQueryModel {
   run(
     input: ExtensionQueryRequest,
     generationId: string,
+    execution?: Omit<ModelExecution, "onPreview"> & {
+      readonly onPreview?: (update: AnalysisUpdate) => void;
+    },
   ): Promise<{
     billedCalls?: readonly { costMicroUsd: number; usage: ModelUsage }[];
     costMicroUsd: number;

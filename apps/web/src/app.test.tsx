@@ -45,6 +45,7 @@ it("navigates within the authenticated workspace without bootstrapping the sessi
   await act(async () => root.render(<App identity={identity} page="practice" />));
   await act(async () => Promise.resolve());
 
+  await act(async () => container.querySelector<HTMLAnchorElement>("a[href='/library']")?.click());
   const words = container.querySelector<HTMLAnchorElement>("a[href='/words']");
   await act(async () => words?.click());
 

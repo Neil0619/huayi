@@ -78,12 +78,14 @@ export function createPostgresSentencePromptOperations(
             FROM practice_sessions sessions
             JOIN practice_session_items links ON links.session_id=sessions.id
             LEFT JOIN practice_generation_tasks tasks ON tasks.id=sessions.current_generation_id
-            WHERE sessions.status IN ('active','awaiting-feedback') OR
+            WHERE (($1::uuid IS NULL AND COALESCE(to_jsonb(sessions)#>>'{workspace_state,phase}','active')='active') OR
+              ($1::uuid=sessions.id AND COALESCE(to_jsonb(sessions)#>>'{workspace_state,phase}','active') IN ('active','paused'))) AND (sessions.status IN ('active','awaiting-feedback') OR
               (sessions.status='completed' AND EXISTS (
                 SELECT 1 FROM practice_session_items unrated
                 WHERE unrated.session_id=sessions.id AND unrated.rating IS NULL
               ))
-            ORDER BY sessions.created_at,sessions.id LIMIT 1 FOR UPDATE OF sessions`,
+            ) ORDER BY sessions.created_at,sessions.id LIMIT 1 FOR UPDATE OF sessions`,
+          [command.targetSessionId ?? null],
         );
         const current = active[0];
         if (current !== undefined) {
@@ -189,6 +191,11 @@ export function createPostgresSentencePromptOperations(
             session: claimed,
           };
         }
+        if (command.targetSessionId)
+          throw new CloudFault(
+            "revision_conflict",
+            "The requested practice is no longer available.",
+          );
         const activeRequestedItem = await requireActivePracticeItem(tenant, command.itemId, {
           lock: true,
         });
@@ -275,8 +282,18 @@ export function createPostgresSentencePromptOperations(
                   generationId,
                 ],
               );
+        if (generationId)
+          await tenant.rows(
+            `UPDATE practice_sessions SET current_generation_id=NULL,generation_lease_token=NULL,generation_lease_expires_at=NULL
+          WHERE id=$1 AND current_generation_id=$2 AND COALESCE(to_jsonb(practice_sessions)#>>'{workspace_state,mode}','guided')='free'`,
+            [command.sessionId, generationId],
+          );
         const session = await loadPracticeSession(tenant, command.sessionId);
-        if (updated[0] === undefined && session.prompt !== command.prompt) {
+        if (
+          updated[0] === undefined &&
+          session.prompt !== command.prompt &&
+          session.workspace?.mode !== "free"
+        ) {
           throw new CloudFault("revision_conflict", "Practice prompt generation changed.");
         }
         await tenant.rows(

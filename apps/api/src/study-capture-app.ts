@@ -56,6 +56,20 @@ export function createStudyCaptureApp(options: {
       }
     });
   });
+  app.post("/v2/study-captures", async (context) => {
+    const owner = await options.authenticateWeb(context);
+    const headers = writeHeadersSchema.parse({
+      "idempotency-key": context.req.header("idempotency-key"),
+    });
+    const input = studyCaptureCreateRequestSchema.parse(await context.req.json<unknown>());
+    context.header("Cache-Control", "private, no-store");
+    return context.json(
+      studyCaptureCreateResponseSchema.parse(
+        await options.module.create(owner, input, headers["idempotency-key"]),
+      ),
+      201,
+    );
+  });
   app.post(studyCaptureHttpRoutes.create, async (context) => {
     const owner = await options.authenticateCreate(context);
     const headers = writeHeadersSchema.safeParse({

@@ -32,6 +32,8 @@ import {
 import { createAnalysisHistoryModule } from "./analysis-history-module.js";
 import { createCandidateConfirmationModule } from "./candidate-confirmation-module.js";
 import { CloudFault } from "./cloud-fault.js";
+import { modelEvents } from "./model-events.js";
+import type { ModelExecution } from "./model-execution.js";
 import type { DeepSeekPriceSchedule, DeepSeekPriceSnapshot } from "./deepseek-price-schedule.js";
 import { replaceCandidateAliases } from "./analysis-candidate-ids.js";
 import { assembleTrustedContent } from "./analysis-trusted-content.js";
@@ -88,6 +90,7 @@ export function createAnalysisModule(dependencies: AnalysisDependencies) {
 
   async function prepareAnalysis(
     command: {
+      execution?: ModelExecution;
       idempotencyKey: string;
       input: StartAnalysisRequest;
       userId: string;
@@ -198,7 +201,12 @@ export function createAnalysisModule(dependencies: AnalysisDependencies) {
 
   async function* executeAcquired(context: {
     claim: Extract<Awaited<ReturnType<AnalysisRequestLifecycle["begin"]>>, { kind: "acquired" }>;
-    command: { idempotencyKey: string; input: StartAnalysisRequest; userId: string };
+    command: {
+      execution?: ModelExecution;
+      idempotencyKey: string;
+      input: StartAnalysisRequest;
+      userId: string;
+    };
     input: StartAnalysisRequest;
     reservation: { id: string };
     sentences: SegmentedSentence[];
@@ -223,7 +231,22 @@ export function createAnalysisModule(dependencies: AnalysisDependencies) {
         dispatchPricing === undefined || dependencies.modelForPricing === undefined
           ? dependencies.model
           : dependencies.modelForPricing(dispatchPricing);
-      const generated = await model.analyze({ input, sentences });
+      const generated = yield* modelEvents((emit: (event: AnalysisEvent) => void) =>
+        model.analyze({
+          ...command.execution,
+          input,
+          sentences,
+          onPreview: (preview) =>
+            emit(
+              analysisEventSchema.parse({
+                requestId: claim.requestId,
+                section: "overall",
+                text: preview.text,
+                type: "analysis.preview",
+              }),
+            ),
+        }),
+      );
       const actualCostMicroUsd = generated.billedCalls?.reduce(
         (total, call) => total + call.costMicroUsd,
         0,
@@ -295,6 +318,7 @@ export function createAnalysisModule(dependencies: AnalysisDependencies) {
   }
 
   async function* startPlatformAnalysis(command: {
+    execution?: ModelExecution;
     idempotencyKey: string;
     input: StartAnalysisRequest;
     userId: string;
@@ -303,6 +327,7 @@ export function createAnalysisModule(dependencies: AnalysisDependencies) {
   }
 
   async function preparePlatformAnalysis(command: {
+    execution?: ModelExecution;
     idempotencyKey: string;
     input: StartAnalysisRequest;
     userId: string;
@@ -311,6 +336,7 @@ export function createAnalysisModule(dependencies: AnalysisDependencies) {
   }
 
   async function prepareStudyCaptureAnalysis(command: {
+    execution?: ModelExecution;
     captureId: string;
     idempotencyKey: string;
     input: unknown;
@@ -331,7 +357,12 @@ export function createAnalysisModule(dependencies: AnalysisDependencies) {
       sourceText: detail.capture.sourceText,
     });
     return prepareAnalysis(
-      { idempotencyKey: command.idempotencyKey, input, userId: command.userId },
+      {
+        ...(command.execution ? { execution: command.execution } : {}),
+        idempotencyKey: command.idempotencyKey,
+        input,
+        userId: command.userId,
+      },
       {
         captureId: command.captureId,
         expectedRevision: request.expectedRevision,

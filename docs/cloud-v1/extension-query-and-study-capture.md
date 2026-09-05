@@ -6,6 +6,9 @@
 不再把构建能力缺失误判为授权撤回或账号失效；本回归已按文档校准→Fresh RED→GREEN 完成。Cloud
 V1 尚未发布，真实服务与目标平台验证仍单列 pending。
 
+2026-09-05：即时缓存、后台执行、四入口和连续收集流程已更新，详见
+[即时查询与学习工作台](instant-query-learning-workspace.md)。下文 Phase 27 保留原有数据边界，当前交互以该文和 product.md 为准。
+
 ## 1. 目标与边界
 
 Store Edition 是一个产品、两个客户端：
@@ -37,7 +40,7 @@ V1 仍不做单词 SRS、语义采集去重、插件查询历史、自动深度�
 
 - 新账号和首次配对默认 `ExtensionQueryModelMode=platform`，适合没有 API Key 的普通用户。
 - 插件查询经固定 Huayi API 使用平台模型并消耗账号 UsageAllowance；用户不选择 Provider 或模型。
-- 平台查询产生临时 ExtensionQueryGeneration，结果只用于当前 ResultCard，不进入 AnalysisRecord、
+- 平台查询产生临时 ExtensionQueryGeneration，结果用于当前及短期缓存恢复的 ResultCard，不进入 AnalysisRecord、
   ReviewInbox 或分析历史。
 - 平台模式离线时查询失败关闭，不自动改用 BYOK。
 
@@ -71,8 +74,8 @@ V1 仍不做单词 SRS、语义采集去重、插件查询历史、自动深度�
 
 - 首次配对页在批准前展示三项当前值，并允许用户在同一个原子批准动作中修改。
 - 配对 exchange 返回 session 与偏好快照；Service Worker 后续通过 Extension-only GET 同步。
-- 已关联插件在每次新查询、StudyCapture 或 CloudWordCopy 前先尝试有界同步；API 可达时必须采用最新
-  revision，API 不可达时只使用仍与有效 session 绑定的缓存。缓存为 byok 时可离线查询；缓存为 platform
+- 已关联插件先使用有效 session 绑定的偏好摘要，5 分钟 TTL 到期时后台合并刷新；偏好修订只影响后续请求，
+  明确鉴权失败立即清除，迟到响应不得恢复旧会话。缓存为 byok 时可离线查询；缓存为 platform
   时查询失败关闭。同步失败本身不得把本次请求切到另一模型路径。
 - 缓存与 extension session 绑定并由 Service Worker 独占。断开、换号、session 失效时清除。
 - Web 更新使用 revision、`If-Match`、CSRF、Origin 和 Idempotency-Key，避免多个标签页静默覆盖。
@@ -89,7 +92,7 @@ V1 仍不做单词 SRS、语义采集去重、插件查询历史、自动深度�
 - 句子/段落：自然翻译、主干结构、最多 6 个关键表达和上下文作用；
 - 结果保持 ClassicParity 的翻译/解释模式、流式 section、错误与重试，不显示 Provider 差异。
 
-ExtensionQueryResult 只属于当前 CardSession。BYOK 不上传结果；平台结果在服务器最多保留一小时用于
+ExtensionQueryResult 可由受信任会话缓存跨 CardSession 短期复用。BYOK 不上传结果；平台结果在服务器最多保留一小时用于
 同一请求恢复和幂等重放，之后删除正文与结果，只保留无正文 UsageLedger。
 
 插件模型输入最小化：
@@ -193,7 +196,7 @@ create/exact-hit ──> pending ──explicit analyze──> analyzing ──s
   最新投影，不能把它退回 pending；
 - capture 的公开投影从其关联 AnalysisRecord 按 `(createdAt,id)` 得出最新记录，旧记录继续位于分析历史；
   插件重复采集永不触发 reanalysis；
-- `StudyInbox` 是一个导航入口，包含“待分析” CaptureInbox 与“待收藏” ReviewInbox 两个 tab。
+- `StudyInbox` 是一个导航入口，将 CaptureInbox 与关联 ReviewInbox 呈现为同一内容的连续步骤，保留两种记录。
 
 ### 5.5 删除关系
 
@@ -386,7 +389,7 @@ Web manual request 不再接受 action、word、Provider、model、quota 或 use
 - `/settings/account` 增加三项插件偏好；额度卡保持独立，明确平台查询/Web 分析/练习共用额度，BYOK
   不计入。
 - `/pair-extension/:id` 在同意字段/接收方披露旁展示三项值；批准后再创建 extension session。
-- `/app` 的 StudyInbox 使用“待分析/待收藏”tab。待分析可编辑 title/context/kind、运行分析、失败重试、
+- `/app` 的 StudyInbox 使用连续收集流程。待分析可编辑 title/context/kind、运行分析、失败重试、
   二次确认删除；待收藏继续使用现有 Candidate 编辑/确认。
 - `/analysis` 只显示内容、可选标题和 kind，不再显示 action；明确将使用平台额度。
 - ResultCard 的学习动作不承担候选编辑。它只显示加入状态、当前卡撤销和 Web 入口。
@@ -454,7 +457,7 @@ Web manual request 不再接受 action、word、Provider、model、quota 或 use
 
 - 设置默认值、保存冲突保留草稿、全设备说明、无设备 override；
 - pairing 三项选择、原子 approve conflict、接收方披露；
-- StudyInbox 两个 tab、capture loading/empty/error/pagination、kind 修正、分析/retry/reanalysis warning；
+- StudyInbox 连续步骤、capture loading/empty/error/pagination、kind 修正、分析/retry/reanalysis warning；
 - pending delete 与 analysis delete 默认勾选/取消勾选/非最新行为、确认焦点和 live region；
 - manual analysis 无 action/word，严格教学结果、GeneratedExample 标签、候选确认；
 - 320px 单列、键盘、可见焦点、AA、reduced-motion、迟到 list/detail/generation 抑制。

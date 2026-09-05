@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import type { ModelExecution } from "./model-execution.js";
 
 import {
   canonicalKeyForContent,
@@ -165,6 +166,7 @@ export function createLearningLibraryMaintenance(options: {
       id: string,
       idempotencyKey: string,
       input: { expectedRevision: number },
+      execution: ModelExecution = {},
     ): Promise<DuplicateSuggestionsResponse> {
       const request = duplicateSuggestionsRequestSchema.parse(input);
       const context = await options.repository.suggestionContext(
@@ -173,6 +175,7 @@ export function createLearningLibraryMaintenance(options: {
         request.expectedRevision,
       );
       const command: DuplicateSuggestionCommand = {
+        ...execution,
         candidates: context.candidates,
         idempotencyKey,
         ownerUserId,

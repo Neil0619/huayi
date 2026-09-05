@@ -1,3 +1,4 @@
+import { practiceStatus } from "./practice-status.js";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 
 import type {
@@ -10,13 +11,6 @@ import type { PracticeHistoryPageApi } from "./practice-history-page-api.js";
 import { PracticeHistoryDetail } from "./practice-history-detail.js";
 
 type LoadState = "empty" | "error" | "loading" | "ready";
-
-const statusText = {
-  active: "进行中",
-  "awaiting-feedback": "等待生成或反馈",
-  completed: "已完成",
-  failed: "未完成",
-};
 
 function sessionTitle(summary: PracticeHistorySummary) {
   return summary.type === "sentence-creation" ? "句子创作" : "受约束对话";
@@ -222,7 +216,7 @@ export function PracticeHistoryPage({
               >
                 <strong>{sessionTitle(item)}</strong>
                 <span>
-                  {statusText[item.status]} · {dateText(item)}
+                  {practiceStatus(item.status, item.workspacePhase)} · {dateText(item)}
                 </span>
                 <small>
                   {item.items.length} 个学习项

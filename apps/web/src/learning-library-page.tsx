@@ -336,6 +336,14 @@ export function LearningLibraryPage({ api }: { readonly api: LearningLibraryApi 
                   {primaryText(detail)}
                 </h2>
                 <p>{meaning(detail)}</p>
+                {detail.archivedAt === null && (
+                  <a
+                    className="primary"
+                    href={`/practice?item=${encodeURIComponent(detail.item.id)}`}
+                  >
+                    练习这条内容
+                  </a>
+                )}
                 <p>{detail.item.content.usageZh}</p>
                 <p>{scheduleText(detail)}</p>
                 <p>

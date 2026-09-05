@@ -11,6 +11,7 @@ import type { PracticeHistoryRepository } from "./practice-history-module.js";
 import { loadPracticeSession } from "./postgres-practice-view.js";
 
 interface SummaryRow {
+  workspace_phase: string | null;
   completed_at: Date | null;
   created_at: Date;
   id: string;
@@ -22,6 +23,7 @@ interface SummaryRow {
 }
 
 const summarySql = `SELECT sessions.id::text,sessions.type,sessions.status,sessions.revision,
+  to_jsonb(sessions)#>>'{workspace_state,phase}' AS workspace_phase,
   sessions.created_at,sessions.updated_at,sessions.completed_at,
   COALESCE((SELECT jsonb_agg(jsonb_strip_nulls(jsonb_build_object(
     'itemId',links.learning_item_id::text,'learningItemDeletedAt',CASE
@@ -35,6 +37,7 @@ const summarySql = `SELECT sessions.id::text,sessions.type,sessions.status,sessi
 
 function mapSummary(row: SummaryRow): PracticeHistorySummary {
   return practiceHistorySummarySchema.parse({
+    ...(row.workspace_phase ? { workspacePhase: row.workspace_phase } : {}),
     completedAt: row.completed_at?.toISOString() ?? null,
     createdAt: row.created_at.toISOString(),
     id: row.id,

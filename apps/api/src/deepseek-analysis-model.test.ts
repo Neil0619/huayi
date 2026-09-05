@@ -186,7 +186,8 @@ describe("DeepSeek platform analysis model", () => {
       model: DEEPSEEK_PLATFORM_MODEL,
       reasoning_effort: "high",
       response_format: { type: "json_object" },
-      stream: false,
+      stream: true,
+      stream_options: { include_usage: true },
       temperature: 0,
       thinking: { type: "enabled" },
     });

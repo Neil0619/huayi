@@ -68,9 +68,10 @@ describe("DeepSeek practice provider", () => {
     expect(body).toMatchObject({
       max_tokens: 1_024,
       model: "deepseek-v4-flash",
-      reasoning_effort: "high",
+      reasoning_effort: "low",
+      stream: true,
       response_format: { type: "json_object" },
-      thinking: { type: "enabled" },
+      thinking: { type: "disabled" },
     });
     expect(init?.body).not.toContain("ownerUserId");
     expect(init?.body).not.toContain("generationId");

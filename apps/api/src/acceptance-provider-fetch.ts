@@ -1,5 +1,6 @@
 import { dailyPracticeQueueItemSchema, extensionQueryRequestSchema } from "@huayi/cloud-contracts";
 import { z } from "zod/v3";
+import { simulatedProviderResponse } from "./acceptance-provider-response.js";
 
 import {
   DEEPSEEK_PLATFORM_ENDPOINT,
@@ -26,11 +27,12 @@ const providerRequestSchema = z.strictObject({
     .min(2)
     .max(3),
   model: z.literal(DEEPSEEK_PLATFORM_MODEL),
-  reasoning_effort: z.literal("high"),
+  reasoning_effort: z.enum(["high", "low"]),
   response_format: z.strictObject({ type: z.literal("json_object") }),
-  stream: z.literal(false),
+  stream: z.boolean(),
+  stream_options: z.strictObject({ include_usage: z.literal(true) }).optional(),
   temperature: z.literal(0),
-  thinking: z.strictObject({ type: z.literal("enabled") }),
+  thinking: z.strictObject({ type: z.enum(["enabled", "disabled"]) }),
 });
 const analysisInputSchema = z.strictObject({
   selectionKind: z.enum(["phrase", "sentence", "passage"]),
@@ -117,6 +119,7 @@ function analysisOutput(rawInput: unknown) {
   } as const;
   if (input.selectionKind === "phrase") {
     return {
+      previewZh: `${SIMULATED_MARKER}先理解原文，再选择可以复用的表达。`,
       candidates: [candidate],
       result: {
         analysisUnitId: "u1",
@@ -131,6 +134,7 @@ function analysisOutput(rawInput: unknown) {
     };
   }
   return {
+    previewZh: `${SIMULATED_MARKER}先理解原文，再选择可以复用的表达。`,
     candidates: [candidate],
     result: {
       overall: {
@@ -320,7 +324,7 @@ function assertRequest(url: string, init: DeepSeekAnalysisFetchInit) {
   if (
     Object.keys(init.headers).length !== 3 ||
     Object.keys(headers).length !== 3 ||
-    headers.accept !== "application/json" ||
+    !["application/json", "text/event-stream, application/json"].includes(headers.accept ?? "") ||
     headers["content-type"] !== "application/json" ||
     headers.authorization !== `Bearer ${LOCAL_ACCEPTANCE_PROVIDER_KEY}`
   ) {
@@ -336,7 +340,11 @@ function assertRequest(url: string, init: DeepSeekAnalysisFetchInit) {
   ) {
     throw invalidRequest();
   }
-  return { rawInput: parseUntrustedInput(user.content), system: system.content };
+  return {
+    rawInput: parseUntrustedInput(user.content),
+    system: system.content,
+    stream: parsed.stream,
+  };
 }
 
 export async function acceptanceProviderFetch(
@@ -346,27 +354,7 @@ export async function acceptanceProviderFetch(
   try {
     const request = assertRequest(url, init);
     const content = simulatedContent(request.system, request.rawInput);
-    return new Response(
-      JSON.stringify({
-        choices: [
-          {
-            finish_reason: "stop",
-            index: 0,
-            message: { content: JSON.stringify(content), role: "assistant" },
-          },
-        ],
-        id: "local-acceptance-simulated-response",
-        model: DEEPSEEK_PLATFORM_MODEL,
-        object: "chat.completion",
-        usage: {
-          completion_tokens: 32,
-          prompt_cache_hit_tokens: 0,
-          prompt_tokens: 64,
-          total_tokens: 96,
-        },
-      }),
-      { headers: { "content-type": "application/json" }, status: 200 },
-    );
+    return simulatedProviderResponse(content, request.stream);
   } catch {
     throw invalidRequest();
   }

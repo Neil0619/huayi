@@ -1,5 +1,8 @@
+import { createWebLearningTasks } from "./learning-task-api.js";
 import {
   apiErrorSchema,
+  studyCaptureCreateRequestSchema,
+  studyCaptureCreateResponseSchema,
   analysisHttpRoutes,
   analysisRequestStatusSchema,
   createAnalysisSseDecoder,
@@ -68,6 +71,24 @@ export function createWebStudyCaptureApi(options: Options) {
     });
   };
   return {
+    tasks: createWebLearningTasks(options),
+    async createCapture(
+      input: ReturnType<typeof studyCaptureCreateRequestSchema.parse>,
+      key: string,
+    ) {
+      return studyCaptureCreateResponseSchema.parse(
+        await execute(new URL("/v2/study-captures", options.apiOrigin), {
+          method: "POST",
+          credentials: "include",
+          body: JSON.stringify(studyCaptureCreateRequestSchema.parse(input)),
+          headers: {
+            "Content-Type": "application/json",
+            "Idempotency-Key": key,
+            "X-CSRF-Token": await options.csrfToken(),
+          },
+        }),
+      );
+    },
     async *analyzeCapture(
       id: string,
       input: ReturnType<typeof studyCaptureAnalyzeRequestSchema.parse>,
@@ -172,4 +193,6 @@ export function createWebStudyCaptureApi(options: Options) {
   };
 }
 
-export type WebStudyCaptureApi = ReturnType<typeof createWebStudyCaptureApi>;
+type CaptureApi = ReturnType<typeof createWebStudyCaptureApi>;
+export type WebStudyCaptureApi = Omit<CaptureApi, "tasks" | "createCapture"> &
+  Partial<Pick<CaptureApi, "tasks" | "createCapture">>;

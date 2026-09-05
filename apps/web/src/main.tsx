@@ -30,6 +30,7 @@ import "./admin-operations-page.css";
 import "./privacy-page.css";
 import "./study-inbox.css";
 import "./workspace-layout.css";
+import "./learning-workspace.css";
 import "./pairing-approval.css";
 
 const root = document.getElementById("root");

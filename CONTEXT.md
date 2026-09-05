@@ -44,7 +44,7 @@ _Avoid_: 启动卡、扁平结果列表、原句卡片
 
 **ExtensionQueryResult（插件查询结果）**:
 Store Extension 为当前阅读场景生成并在 ResultCard 展示的精简翻译或解释产物；平台模型与 BYOK 使用
-相同产品结构，模型来源不会改变浮层的详细程度。它只属于当前 CardSession，不会自动成为
+相同产品结构，模型来源不会改变浮层的详细程度。它用于 CardSession，并可在受信任的短期 QueryResultCache 中复用，不会自动成为
 AnalysisRecord、分析历史或待收藏内容。
 _Avoid_: Web 深度分析、AnalysisRecord、模型原始响应
 
@@ -60,20 +60,23 @@ _Avoid_: AnalysisRecord、StudyCapture、长期查询历史
 _Avoid_: 模型输出类型、不可修改标签、仅按词数分类
 
 **CardDismissal（词卡关闭）**:
-用户点击或轻触词卡外部，或者按下 `Esc`，结束当前 ActionCard、分析过程、错误状态或 ResultCard；
-词卡本身不显示关闭按钮。关闭同时取消未完成请求、清除选区，并只恢复词卡实际拥有的媒体暂停。
-_Avoid_: X 按钮、标题栏关闭、仅隐藏面板
+用户点击卡外、关闭按钮或按 Esc 结束当前显示，释放选区并恢复词卡实际拥有的媒体暂停。关闭只断开
+订阅；停止生成是独立动作，等待服务器确认。滚动和换皮肤不会关闭词卡。
+_Avoid_: 取消生成、清空结果缓存、页面滚动
 
 **CardSession（词卡会话）**:
-一次有效划词从 ActionCard 出现到词卡关闭的临时交互范围；顶部始终提供翻译与解释切换，已经成功
-加载的模式结果只在本次会话内缓存，切回时不重复请求。词卡关闭即销毁全部模式结果，下一次划词
-建立新的会话。
-_Avoid_: 分析历史、跨选区缓存、持久结果缓存
+一次划词显示期间的交互范围；翻译/解释切换与局部展示状态属于它，生成与成功结果缓存不依赖其存活。
+_Avoid_: 分析历史、生成权威
+
+**QueryResultCache（即时结果缓存）**:
+Service Worker 在受信任会话存储管理的成功查询缓存，最多 30 条、30 分钟、2 MiB。身份包含账号会话、
+原文、必要上下文、选区类型、模式和配置版本；同输入进行中请求合并，失败或半成品不构成成功缓存。
+_Avoid_: 学习库、永久历史、页面存储、跨账号复用
 
 **CardModeSwitch（词卡模式切换）**:
-CardSession 顶部单行工具栏中的翻译与解释入口；它与品牌、生词状态共享一行。切换到已完成模式时
-立即显示会话缓存，切换到未完成模式时取消当前请求并只启动新请求。
-_Avoid_: 结果区操作按钮、底部页签、并行分析请求
+切换翻译/解释的显示订阅，已有结果直接复用；没有结果时加入或启动对应输入的请求。离开当前模式不
+取消其后台生成。外观仅改变渲染，不改变查询身份。
+_Avoid_: 跨模式自动回退、底部页签
 
 **DiagnosticEvent（诊断事件）**:
 一次产品失败的本地、脱敏、结构化记录，只包含版本、时间、稳定错误码、允许列出的失败层级和有限
@@ -136,9 +139,9 @@ Web 深度分析记录中可被用户整理成 Expression 或 SentencePattern �
 WordEntry 只通过独立生词流程创建，不由 WebDeepAnalysis 产生 WordCandidate。
 _Avoid_: 自动收藏、草稿学习项、模型标签
 
-**StudyInbox（待整理）**:
-Web 中处理 StudyCapture 与 AnalysisRecord 的统一工作入口；它分别呈现“待分析”和“待收藏”，但不会
-把两种资源合并为同一种记录。
+**StudyInbox（收集箱）**:
+Web 中将 StudyCapture 和关联 AnalysisRecord 展示为同一内容连续步骤的入口：保存原文、后台分析、
+选择表达/句型、加入学习库。两类记录保持各自权威，分析历史归入此入口。
 _Avoid_: 单一记录队列、通知收件箱、学习库
 
 **CaptureInbox（待分析）**:
@@ -199,6 +202,17 @@ _Avoid_: 来源例句、用户语料、自动收藏内容
 **PracticeSession（练习会话）**:
 围绕一个或多个学习项完成的一次句子创作或受约束文字对话，以及其最终反馈和用户自评。
 _Avoid_: 聊天历史、单词背诵、模型评分
+
+**PracticeWorkspace（练习工作状态）**:
+PracticeSession 的 active/paused/ended/skipped 阶段、guided/free 模式和草稿。controlRevision、draftRevision
+与作答 revision 分离；暂停释放占用但不撤销排队作答，自由模式不调用出题模型，结束和跳过不推进排期。
+_Avoid_: 题目生成状态、掌握度
+
+**LearningTask（学习后台任务）**:
+持久调度、订阅游标、进度、取消及诊断的共同外壳。业务结果仍由 QueryGeneration、AnalysisRecord、
+PracticeSession 或查重权威保存。任务关闭订阅不取消执行；已派发且结果不明进入 unknown，只能对账，
+不能自动再次调用模型。
+_Avoid_: 模型计费权威、浏览器 Promise、pg_net 队列表
 
 **PracticeAttempt（练习作答）**:
 用户在句子创作练习中提交的一次答案；它在模型反馈前也必须属于练习会话的正式记录。

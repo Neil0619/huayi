@@ -16,27 +16,13 @@ const navigationGroups: readonly {
   readonly label: string;
 }[] = [
   {
-    label: "开始",
+    label: "学习与账户",
     items: [
       { href: "/practice", index: "01", label: "今日练习", section: "practice" },
-      { href: "/app", index: "02", label: "待整理", section: "inbox" },
-      { href: "/analysis", index: "03", label: "分析", section: "analysis" },
+      { href: "/app", index: "02", label: "收集箱", section: "inbox" },
+      { href: "/library", index: "03", label: "学习库", section: "library" },
+      { href: "/settings/account", index: "04", label: "设置", section: "settings" },
     ],
-  },
-  {
-    label: "积累",
-    items: [
-      { href: "/library", index: "04", label: "学习库", section: "library" },
-      { href: "/words", index: "05", label: "生词", section: "words" },
-    ],
-  },
-  {
-    label: "回看",
-    items: [{ href: "/history", index: "06", label: "分析历史", section: "history" }],
-  },
-  {
-    label: "账户",
-    items: [{ href: "/settings/account", index: "07", label: "设置", section: "settings" }],
   },
 ];
 
@@ -71,9 +57,17 @@ export function WorkspaceShell(props: WorkspaceShellProps) {
     media.addEventListener("change", update);
     return () => media.removeEventListener("change", update);
   }, []);
+  const selectedSection =
+    props.access === "full"
+      ? props.activeSection === "analysis" || props.activeSection === "history"
+        ? "inbox"
+        : props.activeSection === "words"
+          ? "library"
+          : props.activeSection
+      : undefined;
   const active =
     props.access === "full"
-      ? navigation.find((item) => item.section === props.activeSection)
+      ? navigation.find((item) => item.section === selectedSection)
       : undefined;
   return (
     <div
@@ -107,7 +101,7 @@ export function WorkspaceShell(props: WorkspaceShellProps) {
                 <section aria-label={group.label} data-navigation-group key={group.label}>
                   <p aria-hidden="true">{group.label}</p>
                   {group.items.map((item) => {
-                    const current = item.section === props.activeSection;
+                    const current = item.section === selectedSection;
                     return (
                       <a
                         aria-current={current ? "page" : undefined}
@@ -135,6 +129,26 @@ export function WorkspaceShell(props: WorkspaceShellProps) {
         <WorkspaceAppearanceMenu />
       </header>
       <main id="main-content" tabIndex={-1}>
+        {props.access === "full" && selectedSection === "inbox" && (
+          <nav aria-label="收集箱导航" className="workspace-subnav">
+            <a href="/app">收集箱</a>
+            <a href="/app?paste=1">粘贴原文</a>
+            <a href="/history">分析历史</a>
+          </nav>
+        )}
+        {props.access === "full" && selectedSection === "library" && (
+          <nav aria-label="学习库导航" className="workspace-subnav">
+            <a
+              aria-current={props.activeSection === "library" ? "page" : undefined}
+              href="/library"
+            >
+              表达与句型
+            </a>
+            <a aria-current={props.activeSection === "words" ? "page" : undefined} href="/words">
+              生词
+            </a>
+          </nav>
+        )}
         {props.children}
       </main>
     </div>

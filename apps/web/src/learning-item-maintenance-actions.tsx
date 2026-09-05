@@ -9,6 +9,7 @@ export function LearningItemMaintenanceActions({
   onRestore,
   onSuggest,
   pending,
+  suggesting = false,
 }: {
   readonly archived: boolean;
   readonly canHardDelete: boolean;
@@ -18,6 +19,7 @@ export function LearningItemMaintenanceActions({
   readonly onRestore: () => void;
   readonly onSuggest: () => void;
   readonly pending: boolean;
+  readonly suggesting?: boolean;
 }) {
   const [confirmArchive, setConfirmArchive] = useState(false);
   const confirmArchiveButton = useRef<HTMLButtonElement>(null);
@@ -46,7 +48,7 @@ export function LearningItemMaintenanceActions({
           <button disabled={pending} onClick={onEdit} type="button">
             编辑
           </button>
-          <button disabled={pending} onClick={onSuggest} type="button">
+          <button disabled={pending || suggesting} onClick={onSuggest} type="button">
             查找语义重复
           </button>
           <button

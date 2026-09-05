@@ -236,8 +236,15 @@ describe("Web sentence practice", () => {
     });
     const container = await render(practiceApi);
 
+    expect(container.textContent).toContain("继续上次练习");
+    expect(container.querySelector("[name='answer']")).toBeNull();
+    await act(async () =>
+      Array.from(container.querySelectorAll("button"))
+        .find((button) => button.textContent?.includes("继续上次练习"))
+        ?.click(),
+    );
     expect(container.textContent).toContain("题目尚未完成");
-    expect(container.textContent).toContain("不会自动再次调用模型");
+    expect(container.querySelector("[name='answer']")).not.toBeNull();
     expect(container.textContent).not.toContain("Generation pending");
     expect(practiceApi.startSentence).not.toHaveBeenCalled();
 
@@ -261,6 +268,11 @@ describe("Web sentence practice", () => {
       })),
     });
     const container = await render(practiceApi);
+    await act(async () =>
+      Array.from(container.querySelectorAll("button"))
+        .find((button) => button.textContent?.includes("继续上次练习"))
+        ?.click(),
+    );
     expect(container.textContent).toContain("反馈尚未完成");
     expect(container.textContent).not.toContain("开始句子创作");
     expect(container.querySelector<HTMLTextAreaElement>("[name='answer']")).toBeNull();
@@ -279,6 +291,11 @@ describe("Web sentence practice", () => {
       })),
     });
     const container = await render(practiceApi);
+    await act(async () =>
+      Array.from(container.querySelectorAll("button"))
+        .find((button) => button.textContent?.includes("继续上次练习"))
+        ?.click(),
+    );
     expect(container.textContent).toContain("准确、自然");
     expect(container.textContent).toContain("To be frank, this works.");
     expect(container.querySelector("[data-rating='mastered']")).not.toBeNull();

@@ -1,11 +1,6 @@
+import { practiceStatus } from "./practice-status.js";
 import type { PracticeHistoryDetailResponse, PracticeHistorySummary } from "@huayi/cloud-contracts";
 
-const statusText = {
-  active: "进行中",
-  "awaiting-feedback": "等待生成或反馈",
-  completed: "已完成",
-  failed: "未完成",
-};
 const ratingText = { effortful: "勉强", forgot: "不会", mastered: "掌握" };
 
 function itemLabel(
@@ -26,7 +21,7 @@ export function PracticeHistoryDetail({
   return (
     <>
       <p>
-        状态：{statusText[session.status]} ·{" "}
+        状态：{practiceStatus(session.status, session.workspace?.phase)} ·{" "}
         {detail.completedAt === null
           ? "尚未完成"
           : `完成于 ${new Date(detail.completedAt).toLocaleString("zh-CN")}`}

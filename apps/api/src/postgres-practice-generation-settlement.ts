@@ -47,12 +47,15 @@ export async function settleFailedPracticeGeneration(
   if (task.reservation_id !== command.reservationId) {
     throw new CloudFault("revision_conflict", "Practice reservation changed.");
   }
-  const calls = command.billedCalls ?? [
-    {
-      costMicroUsd: Number(task.reserved_micro_usd),
-      usage: { cachedInputTokens: 0, inputTokens: 0, outputTokens: 0 },
-    },
-  ];
+  const calls =
+    command.billedCalls?.length === 0
+      ? [{ costMicroUsd: 0, usage: { cachedInputTokens: 0, inputTokens: 0, outputTokens: 0 } }]
+      : (command.billedCalls ?? [
+          {
+            costMicroUsd: Number(task.reserved_micro_usd),
+            usage: { cachedInputTokens: 0, inputTokens: 0, outputTokens: 0 },
+          },
+        ]);
   const totalCost = calls.reduce((sum, call) => sum + call.costMicroUsd, 0);
   if (calls.length < 1 || calls.length > 2 || totalCost > Number(task.reserved_micro_usd)) {
     throw new CloudFault("revision_conflict", "Practice settlement is invalid.");

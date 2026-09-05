@@ -12,6 +12,7 @@ import {
   type PracticeSession,
 } from "@huayi/cloud-contracts";
 
+import type { ModelExecution } from "./model-execution.js";
 import { CloudFault } from "./cloud-fault.js";
 import type { PaidPracticeGenerator } from "./paid-practice-generator.js";
 
@@ -24,6 +25,7 @@ export interface PracticeRepository {
       generationLeaseToken: string;
       generationId: string;
       itemId: string;
+      targetSessionId?: string;
     },
   ): Promise<PracticePromptClaim>;
   beginFeedbackRetry(
@@ -139,7 +141,9 @@ export function createPracticeModule(options: {
     idempotencyKey: string,
     operation: "practice.attempt" | "practice.feedback-retry",
     requestHash: string,
+    execution: ModelExecution,
   ) => {
+    execution.onSession?.(claimed.session);
     if (!claimed.claimed) return practiceSessionResponseSchema.parse(claimed.session);
     const attempt = claimed.session.attempts?.at(-1);
     if (attempt === undefined) throw new CloudFault("invalid_request", "Practice attempt missing.");
@@ -147,6 +151,7 @@ export function createPracticeModule(options: {
       throw new CloudFault("invalid_request", "Practice prompt missing.");
     }
     const generated = await options.generator.generate({
+      ...execution,
       generationId: claimed.generationId,
       input: {
         answer: attempt.answer,
@@ -200,6 +205,7 @@ export function createPracticeModule(options: {
       attemptId: string,
       idempotencyKey: string,
       input: unknown,
+      execution: ModelExecution = {},
     ) {
       const request = retryPracticeFeedbackRequestSchema.parse(input);
       const claimed = await options.repository.beginFeedbackRetry({
@@ -217,9 +223,16 @@ export function createPracticeModule(options: {
         idempotencyKey,
         "practice.feedback-retry",
         hash(request),
+        execution,
       );
     },
-    async startSentence(ownerUserId: string, idempotencyKey: string, input: unknown) {
+    async startSentence(
+      ownerUserId: string,
+      idempotencyKey: string,
+      input: unknown,
+      execution: ModelExecution = {},
+      targetSessionId?: string,
+    ) {
       const request = startSentenceSessionRequestSchema.parse(input);
       const sessionId = options.id();
       const generationId = options.id();
@@ -230,9 +243,12 @@ export function createPracticeModule(options: {
         generationLeaseToken: options.id(),
         generationId,
         itemId: request.itemId,
+        ...(targetSessionId ? { targetSessionId } : {}),
       });
+      execution.onSession?.(claimed.session);
       if (!claimed.claimed) return practiceSessionResponseSchema.parse(claimed.session);
       const generated = await options.generator.generate({
+        ...execution,
         generationId: claimed.generationId,
         input: { itemContent: claimed.item.item.content },
         kind: "sentence-prompt",
@@ -258,6 +274,7 @@ export function createPracticeModule(options: {
       sessionId: string,
       idempotencyKey: string,
       input: unknown,
+      execution: ModelExecution = {},
     ) {
       const request = submitPracticeAttemptRequestSchema.parse(input);
       const claimed = await options.repository.recordAttempt({
@@ -276,6 +293,7 @@ export function createPracticeModule(options: {
         idempotencyKey,
         "practice.attempt",
         hash(request),
+        execution,
       );
     },
   };

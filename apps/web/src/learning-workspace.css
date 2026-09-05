@@ -1,0 +1,180 @@
+.workspace-subnav,
+.practice-session-actions,
+.practice-resume {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
+}
+.workspace-subnav a {
+  padding: var(--space-2);
+}
+.practice-resume h3 {
+  flex-basis: 100%;
+}
+.practice-overview {
+  display: grid;
+  gap: var(--space-4);
+}
+.practice-overview .practice-queue {
+  display: block;
+  min-height: 0;
+  padding: var(--space-6);
+}
+.practice-overview .practice-queue > div {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.practice-overview .practice-queue article {
+  gap: var(--space-3);
+}
+.practice-overview .practice-queue article button {
+  margin-top: 0;
+}
+.practice-overview .practice-queue > a {
+  display: inline-block;
+  margin-top: var(--space-4);
+}
+.practice-session-actions {
+  position: sticky;
+  top: var(--space-2);
+  z-index: 3;
+  padding: var(--space-3);
+  background: var(--surface-strong);
+  border-radius: var(--radius-md);
+}
+.practice-generation,
+.collection-paste {
+  padding: var(--space-5);
+  margin-bottom: var(--space-5);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-card);
+  background: var(--surface-inner);
+}
+.collection-workspace .page-heading {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-4);
+}
+.collection-workspace .study-inbox-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
+}
+.collection-workspace
+  :is(label:not(.collection-candidate-choice), .collection-paste, details[open]) {
+  display: grid;
+  gap: var(--space-2);
+}
+.collection-workspace label {
+  margin-block: var(--space-3);
+}
+.collection-workspace :is(input, select, textarea) {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-control);
+  color: var(--text-primary);
+  background: var(--surface-input);
+  font: inherit;
+}
+.collection-workspace input[type="checkbox"] {
+  width: auto;
+}
+.collection-workspace textarea {
+  min-height: 6rem;
+  resize: vertical;
+}
+.collection-workspace textarea[name="sourceText"] {
+  min-height: 9rem;
+}
+.collection-workspace .analysis-list button {
+  display: grid;
+  width: 100%;
+  gap: var(--space-2);
+  text-align: left;
+}
+.collection-workspace .analysis-list strong {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.collection-workspace :is(.analysis-detail, .analysis-list, .collection-review),
+.practice-session > * {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.collection-review {
+  margin-top: var(--space-5);
+}
+.collection-completed {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+.collection-completed :is(h3, p) {
+  flex-basis: 100%;
+}
+.collection-workspace :is(.analysis-previews, .deep-analysis-reading) {
+  line-height: 1.75;
+}
+.collection-workspace .analysis-previews p,
+.model-preview {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 48rem) {
+  .practice-session-actions {
+    position: static;
+  }
+  .practice-session-actions button {
+    flex: 1 1 40%;
+  }
+  .collection-workspace .inbox-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .collection-workspace .analysis-list {
+    display: flex;
+    overflow-x: auto;
+    gap: var(--space-2);
+    padding-bottom: var(--space-3);
+  }
+  .collection-workspace .analysis-list button {
+    min-width: 12rem;
+    max-width: 18rem;
+  }
+}
+
+.collection-candidate {
+  padding: var(--space-4);
+  margin-block: var(--space-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+}
+.collection-workspace .collection-candidate-choice {
+  display: flex;
+  align-items: start;
+  gap: var(--space-3);
+}
+.collection-candidate-choice input {
+  margin-top: var(--space-1);
+}
+.collection-candidate-choice span {
+  display: grid;
+  gap: var(--space-2);
+}
+.collection-candidate small {
+  color: var(--text-secondary);
+}

@@ -50,7 +50,7 @@ export function createPostgresSentenceFeedbackOperations(
           return { claimed: false, item, session: restored };
         }
         const sessions = await tenant.rows<{ revision: number; status: string }>(
-          "SELECT status,revision FROM practice_sessions WHERE id=$1 FOR UPDATE",
+          "SELECT status,revision FROM practice_sessions WHERE id=$1 AND COALESCE(to_jsonb(practice_sessions)#>>'{workspace_state,phase}','active') IN ('active','paused') FOR UPDATE",
           [command.sessionId],
         );
         if (
@@ -226,7 +226,7 @@ export function createPostgresSentenceFeedbackOperations(
           return { claimed: false, item, session: restored };
         }
         const sessions = await tenant.rows<{ revision: number; status: string }>(
-          "SELECT status,revision FROM practice_sessions WHERE id=$1 FOR UPDATE",
+          "SELECT status,revision FROM practice_sessions WHERE id=$1 AND COALESCE(to_jsonb(practice_sessions)#>>'{workspace_state,phase}','active') IN ('active','paused') FOR UPDATE",
           [command.sessionId],
         );
         if (sessions[0]?.status !== "active" || sessions[0].revision !== command.expectedRevision) {

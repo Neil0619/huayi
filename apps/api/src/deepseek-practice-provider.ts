@@ -1,3 +1,5 @@
+import { modelDeadline } from "./model-execution.js";
+import { createTextModelPreview } from "./text-model-preview.js";
 import {
   calculateModelCost,
   dailyPracticeQueueItemSchema,
@@ -122,11 +124,12 @@ function requestBody(kind: PracticeGenerationKind, input: unknown, repair?: stri
     max_tokens: outputLimitByKind[kind],
     messages,
     model: DEEPSEEK_PLATFORM_MODEL,
-    reasoning_effort: "high",
+    reasoning_effort: "low",
     response_format: { type: "json_object" },
-    stream: false,
+    stream: true,
+    stream_options: { include_usage: true },
     temperature: 0,
-    thinking: { type: "enabled" },
+    thinking: { type: kind.endsWith("feedback") ? "enabled" : "disabled" },
   });
   if (new TextEncoder().encode(body).byteLength > MAXIMUM_REQUEST_BYTES) {
     throw new PracticeProviderError("model_output_invalid");
@@ -164,16 +167,26 @@ export function createDeepSeekPracticeProvider(
       const prices = modelPriceSchema.parse(
         typeof options.prices === "function" ? await options.prices() : options.prices,
       );
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), timeoutMs);
+      const controller = modelDeadline(timeoutMs, command.signal);
+      let firstToken = false;
+      const preview = createTextModelPreview(
+        new Set(["prompt", "feedback", "assistantTurn", "opener", "summary"]),
+        command,
+      );
       const call = async (repair?: string) => {
+        try {
+          await command.beforeDispatch?.();
+          controller.signal.throwIfAborted();
+        } catch {
+          throw new PracticeProviderError("model_unavailable", []);
+        }
         let response: DeepSeekAnalysisFetchResponse;
         try {
           response = await providerFetch(DEEPSEEK_PLATFORM_ENDPOINT, {
             body: requestBody(command.kind, input, repair),
             credentials: "omit",
             headers: {
-              Accept: "application/json",
+              Accept: "text/event-stream, application/json",
               Authorization: `Bearer ${options.apiKey}`,
               "Content-Type": "application/json",
             },
@@ -193,18 +206,36 @@ export function createDeepSeekPracticeProvider(
           throw new PracticeProviderError("model_unavailable");
         }
         if (
-          response.headers.get("content-type")?.split(";", 1)[0]?.trim().toLowerCase() !==
-          "application/json"
+          !["application/json", "text/event-stream"].includes(
+            response.headers.get("content-type")?.split(";", 1)[0]?.trim().toLowerCase() ?? "",
+          )
         ) {
           throw new PracticeProviderError("model_unavailable");
         }
         try {
-          return await parseDeepSeekAnalysisResponse(response, controller.signal);
+          const result = await parseDeepSeekAnalysisResponse(
+            response,
+            controller.signal,
+            (text) => {
+              if (repair === undefined) preview(text);
+            },
+            () => {
+              if (!firstToken) {
+                firstToken = true;
+                command.onTiming?.("provider-first-token");
+              }
+            },
+          );
+          command.onTiming?.(repair === undefined ? "generation-complete" : "repair-complete");
+          return result;
         } catch (error) {
           throw new PracticeProviderError(
             error instanceof DeepSeekAnalysisModelError && error.code === "model_output_invalid"
               ? "model_output_invalid"
               : "model_unavailable",
+            error instanceof DeepSeekAnalysisModelError && error.usage
+              ? [{ costMicroUsd: calculateModelCost(error.usage, prices), usage: error.usage }]
+              : undefined,
           );
         }
       };
@@ -218,9 +249,16 @@ export function createDeepSeekPracticeProvider(
         if (firstOutput !== null) return { billedCalls: [firstBilled], output: firstOutput };
         let second;
         try {
+          command.onTiming?.("repair-start");
           second = await call(first.content);
-        } catch {
-          throw new PracticeProviderError("model_unavailable", [firstBilled]);
+        } catch (error) {
+          throw new PracticeProviderError(
+            error instanceof PracticeProviderError ? error.stableErrorCode : "model_unavailable",
+            [
+              firstBilled,
+              ...(error instanceof PracticeProviderError ? (error.billedCalls ?? []) : []),
+            ],
+          );
         }
         const secondBilled: AnalysisBilledCall = {
           costMicroUsd: calculateModelCost(second.usage, prices),
@@ -232,7 +270,7 @@ export function createDeepSeekPracticeProvider(
         }
         return { billedCalls: [firstBilled, secondBilled], output: secondOutput };
       } finally {
-        clearTimeout(timeout);
+        controller.dispose();
       }
     },
   };

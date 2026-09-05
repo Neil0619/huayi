@@ -1,4 +1,8 @@
-import { storeAnalysisResultSchema, studyCaptureSchema } from "@huayi/learning-domain";
+import {
+  analysisUpdateSchema,
+  storeAnalysisResultSchema,
+  studyCaptureSchema,
+} from "@huayi/learning-domain";
 import { z } from "zod/v3";
 
 import {
@@ -35,6 +39,12 @@ export const extensionQueryRequestSchema = z
 export type ExtensionQueryRequest = z.infer<typeof extensionQueryRequestSchema>;
 
 export const extensionQueryEventSchema = z.discriminatedUnion("type", [
+  z.strictObject({
+    generationId: resourceIdSchema,
+    type: z.literal("query.preview-v2"),
+    version: z.literal(2),
+    update: analysisUpdateSchema,
+  }),
   z.strictObject({ generationId: resourceIdSchema, type: z.literal("query.started") }),
   z.strictObject({
     generationId: resourceIdSchema,

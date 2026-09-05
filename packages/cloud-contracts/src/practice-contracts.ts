@@ -44,6 +44,7 @@ export const dailyPracticeQueueItemSchema = z.strictObject({
 });
 export const dailyPracticeQueueResponseSchema = z
   .strictObject({
+    completedToday: z.number().int().nonnegative().optional(),
     currentItems: z.array(dailyPracticeQueueItemSchema).max(3),
     currentSession: practiceSessionSchema.nullable(),
     dailyGoal: z.number().int().min(1).max(100),
@@ -122,6 +123,7 @@ export const listPracticeSessionsQuerySchema = z.strictObject({
 export type ListPracticeSessionsQuery = z.infer<typeof listPracticeSessionsQuerySchema>;
 export const practiceHistorySummarySchema = z
   .strictObject({
+    workspacePhase: z.enum(["active", "paused", "ended", "skipped"]).optional(),
     completedAt: z.string().datetime({ offset: true }).nullable(),
     createdAt: z.string().datetime({ offset: true }),
     id: resourceIdSchema,

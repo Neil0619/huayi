@@ -13,6 +13,7 @@ import type {
   AnalysisContent,
 } from "@huayi/cloud-contracts";
 import type { DeepSeekPriceSnapshot } from "./deepseek-price-schedule.js";
+import type { ModelExecution } from "./model-execution.js";
 
 export interface SegmentedSentence {
   analysisUnitId: string;
@@ -24,10 +25,12 @@ export interface AnalysisBilledCall {
   usage: ModelUsage;
 }
 export interface AnalysisModel {
-  analyze(command: {
-    input: StartAnalysisRequest;
-    sentences: readonly SegmentedSentence[];
-  }): Promise<{
+  analyze(
+    command: ModelExecution & {
+      input: StartAnalysisRequest;
+      sentences: readonly SegmentedSentence[];
+    },
+  ): Promise<{
     billedCalls?: readonly AnalysisBilledCall[];
     content: unknown;
     preview?: string;

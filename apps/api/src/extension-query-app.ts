@@ -38,6 +38,25 @@ export function createExtensionQueryApp(options: {
     return streamSSE(context, async (stream) => {
       let id = 0;
       for await (const event of events) {
+        if (
+          event.type === "query.preview-v2" &&
+          !context.req.header("accept")?.includes("version=2")
+        ) {
+          if (event.update.type !== "delta") continue;
+          id += 1;
+          await stream.writeSSE({
+            data: JSON.stringify({
+              generationId: event.generationId,
+              section: event.update.section,
+              sequence: event.update.sequence,
+              text: event.update.text,
+              type: "query.preview",
+            }),
+            event: "query",
+            id: String(id),
+          });
+          continue;
+        }
         id += 1;
         await stream.writeSSE({ data: JSON.stringify(event), event: "query", id: String(id) });
       }

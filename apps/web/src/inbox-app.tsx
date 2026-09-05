@@ -20,7 +20,9 @@ export interface InboxApi {
     idempotencyKey: string,
   ): Promise<ConfirmCandidatesResponse>;
   getAnalysis(id: string): Promise<AnalysisRecord>;
-  listPending(): Promise<{ items: AnalysisRecord[]; nextCursor: string | null }>;
+  listPending(query?: {
+    cursor?: string;
+  }): Promise<{ items: AnalysisRecord[]; nextCursor: string | null }>;
   processNothingToSave(
     id: string,
     expectedRevision: number,

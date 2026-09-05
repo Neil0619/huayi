@@ -1,5 +1,6 @@
 export {
   analysisContentSchema,
+  analysisUpdateSchema,
   lexicalExplanationResultSchema,
   lexicalTranslationResultSchema,
   normalizeWhitespaceAndQuotes,
@@ -8,4 +9,5 @@ export {
   wordExplanationResultSchema,
   wordTranslationResultSchema,
   type AnalysisContent,
+  type AnalysisUpdate,
 } from "@huayi/learning-domain";

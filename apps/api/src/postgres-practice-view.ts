@@ -9,6 +9,7 @@ import { CloudFault } from "./cloud-fault.js";
 import type { PracticeItem } from "./practice-module.js";
 
 interface SessionRow {
+  workspace_state: unknown;
   created_at: Date;
   dialogue_plan: unknown;
   final_feedback: string | null;
@@ -90,7 +91,7 @@ export async function loadPracticeSession(
   const rows = await query.rows<SessionRow>(
     `SELECT id::text,type,status,prompt,dialogue_plan,final_feedback,item_feedbacks,
       pending_generation,revision,created_at,updated_at
-      FROM practice_sessions WHERE id=$1`,
+      ,to_jsonb(practice_sessions)->'workspace_state' AS workspace_state FROM practice_sessions WHERE id=$1`,
     [sessionId],
   );
   const row = rows[0];
@@ -126,6 +127,7 @@ export async function loadPracticeSession(
             submittedAt: attempt.submitted_at.toISOString(),
           })),
         }),
+    ...(row.workspace_state == null ? {} : { workspace: row.workspace_state }),
     createdAt: row.created_at.toISOString(),
     ...(row.dialogue_plan === null ? {} : { dialoguePlan: row.dialogue_plan }),
     ...(row.final_feedback === null ? {} : { finalFeedback: row.final_feedback }),
