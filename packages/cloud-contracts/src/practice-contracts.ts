@@ -209,3 +209,19 @@ export const practiceHttpRoutes = Object.freeze({
   submitAttempt: "/v1/practice/sessions/:id/attempts",
   submitTurn: "/v1/practice/sessions/:id/turns",
 });
+
+// Workspace metadata is explicit so strict v1 clients keep their original response shape.
+export const practiceHttpRoutesV2 = Object.freeze({
+  dailyQueue: "/v2/practice/daily-queue",
+  finish: "/v2/practice/sessions/:id/finish",
+  historyDelete: "/v2/practice/sessions/:id",
+  historyDetail: "/v2/practice/sessions/:id",
+  historyList: "/v2/practice/sessions",
+  rate: "/v2/practice/sessions/:id/ratings",
+  retryAssistant: "/v2/practice/sessions/:id/retry-assistant-turn",
+  retryFeedback: "/v2/practice/sessions/:id/attempts/:attemptId/retry-feedback",
+  startDialogue: "/v2/practice/dialogue-sessions",
+  startSentence: "/v2/practice/sentence-sessions",
+  submitAttempt: "/v2/practice/sessions/:id/attempts",
+  submitTurn: "/v2/practice/sessions/:id/turns",
+});

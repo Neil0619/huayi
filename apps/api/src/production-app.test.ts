@@ -96,6 +96,20 @@ describe("production API composition", () => {
     expect(app.routes.map((route) => route.path)).toContain("/v1/practice/daily-queue");
     expect(app.routes.map((route) => route.path)).toContain("/v1/practice/dialogue-sessions");
     expect(app.routes.map((route) => route.path)).toContain("/v1/practice/sessions/:id/turns");
+    for (const version of ["v1", "v2"]) {
+      const queue = await app.request(`/${version}/practice/daily-queue`);
+      expect(queue.status).toBe(401);
+      const withoutCsrf = await app.request(`/${version}/practice/sentence-sessions`, {
+        method: "POST",
+        headers: {
+          cookie: "huayi_session=session-without-mutation-proof",
+          "content-type": "application/json",
+          "idempotency-key": "start-practice-1",
+        },
+        body: JSON.stringify({ itemId: "item-1" }),
+      });
+      expect(withoutCsrf.status).toBe(403);
+    }
     expect(app.routes.map((route) => route.path)).toContain("/v1/words");
     expect(app.routes.map((route) => route.path)).toContain("/v1/account/preferences");
     expect(app.routes.map((route) => route.path)).toContain("/v1/account");

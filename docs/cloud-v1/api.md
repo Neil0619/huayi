@@ -432,6 +432,11 @@ durable reservation/dispatch、调用后实际/保守 ledger 结算均不可绕�
 | `GET /v1/practice/sessions/:id`                                     | 查看完整造句或对话练习                                 |
 | `DELETE /v1/practice/sessions/:id`                                  | 删除已完成练习；删除不回滚排期                         |
 
+练习工作台通过同名 `/v2/practice/*` 路由读取和提交，保留相同的 Cookie、CSRF、幂等键、版本校验与
+业务权威。只有 v2 响应包含今日进度 `completedToday`、会话 `workspace` 和历史摘要
+`workspacePhase`；旧 `/v1/practice/*` 响应不增加这些字段，以兼容仍在运行、严格校验响应的旧 Web
+标签页。版本投影只发生在 HTTP 输出，不删除保存的草稿或工作状态。
+
 一个对话 round 指“一次用户回复及随后的助手回复”；开场消息不计 round，共完成 3–5 个 round。
 活跃会话同时最多一个，`active | awaiting-feedback` 都占用该名额。句子题目先创建
 `pendingGeneration=sentence-prompt` 的持久 session；句子答案先以 PracticeAttempt 原子保存并把 session

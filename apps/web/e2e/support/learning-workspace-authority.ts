@@ -283,7 +283,7 @@ export function createLearningWorkspaceAuthority() {
           }
           return json(route, task);
         }
-        if (path === "/v1/practice/daily-queue")
+        if (path === "/v2/practice/daily-queue")
           return json(route, {
             completedToday: ratings,
             currentSession: null,

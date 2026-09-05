@@ -48,6 +48,9 @@ describe("Web practice API", () => {
       { answer: "My sentence.", expectedRevision: 1 },
       "attempt-1",
     );
+    expect(String(fetch.mock.calls[0]?.[0])).toBe(
+      "https://api.huayi.invalid/v2/practice/daily-queue",
+    );
     expect(fetch.mock.calls[0]?.[1]).toEqual({ credentials: "include" });
     expect(fetch.mock.calls[2]?.[1]).toMatchObject({
       credentials: "include",
@@ -135,10 +138,10 @@ describe("Web practice API", () => {
       "dialogue-turn",
     );
     expect(String(fetch.mock.calls[0]?.[0])).toBe(
-      "https://api.huayi.invalid/v1/practice/dialogue-sessions",
+      "https://api.huayi.invalid/v2/practice/dialogue-sessions",
     );
     expect(String(fetch.mock.calls[1]?.[0])).toBe(
-      "https://api.huayi.invalid/v1/practice/sessions/session-1/turns",
+      "https://api.huayi.invalid/v2/practice/sessions/session-1/turns",
     );
     await expect(api.startDialogue(["item-1", "item-1"], "duplicate")).rejects.toThrow();
     expect(fetch).toHaveBeenCalledTimes(2);
@@ -190,9 +193,9 @@ describe("Web practice API", () => {
     await api.getPracticeHistory("session-1");
     await api.deletePracticeHistory("session-1", { expectedRevision: 2 }, "delete-1");
     expect(fetch.mock.calls.map((call) => new URL(String(call[0])).pathname)).toEqual([
-      "/v1/practice/sessions",
-      "/v1/practice/sessions/session-1",
-      "/v1/practice/sessions/session-1",
+      "/v2/practice/sessions",
+      "/v2/practice/sessions/session-1",
+      "/v2/practice/sessions/session-1",
     ]);
     expect(fetch.mock.calls[2]?.[1]).toMatchObject({
       credentials: "include",

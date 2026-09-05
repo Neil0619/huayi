@@ -7,7 +7,7 @@ import {
   deletePracticeSessionRequestSchema,
   deletePracticeSessionResponseSchema,
   finishPracticeSessionRequestSchema,
-  practiceHttpRoutes,
+  practiceHttpRoutesV2 as practiceHttpRoutes,
   practiceHistoryDetailResponseSchema,
   practiceHistoryListResponseSchema,
   practiceRatingsRequestSchema,

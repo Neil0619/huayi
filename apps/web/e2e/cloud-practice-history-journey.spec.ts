@@ -48,7 +48,7 @@ test("completed practice history deletes without removing learning items or sche
   expect(snapshot.requestFacts).toContainEqual({
     authenticatedAs: "web",
     method: "DELETE",
-    path: "/v1/practice/sessions/practice-history-dialogue",
+    path: "/v2/practice/sessions/practice-history-dialogue",
     proof: "write-valid",
   });
   expect(JSON.stringify(snapshot)).not.toContain(privateReply);

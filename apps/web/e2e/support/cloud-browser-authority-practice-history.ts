@@ -168,7 +168,7 @@ export function createCloudBrowserPracticeHistoryAuthority() {
   const handle = async (route: Route, hooks: Hooks): Promise<boolean> => {
     const request = route.request();
     const url = new URL(request.url());
-    if (url.pathname === "/v1/practice/daily-queue" && request.method() === "GET") {
+    if (url.pathname === "/v2/practice/daily-queue" && request.method() === "GET") {
       hooks.record(request, "read");
       await hooks.json(
         route,
@@ -190,7 +190,7 @@ export function createCloudBrowserPracticeHistoryAuthority() {
       await hooks.json(route, 200, learningDetail(item[1] === "practice-item-1" ? 0 : 1));
       return true;
     }
-    if (url.pathname === "/v1/practice/sessions" && request.method() === "GET") {
+    if (url.pathname === "/v2/practice/sessions" && request.method() === "GET") {
       const query = listPracticeSessionsQuerySchema.safeParse(cloudQueryObject(url));
       if (!query.success) {
         await hooks.reject(route, 400, "invalid_request", "read");
@@ -224,7 +224,7 @@ export function createCloudBrowserPracticeHistoryAuthority() {
       );
       return true;
     }
-    if (url.pathname === `/v1/practice/sessions/${sessionId}` && request.method() === "GET") {
+    if (url.pathname === `/v2/practice/sessions/${sessionId}` && request.method() === "GET") {
       if (!historyPresent) {
         await hooks.reject(route, 404, "not_found", "read");
         return true;
@@ -244,7 +244,7 @@ export function createCloudBrowserPracticeHistoryAuthority() {
       );
       return true;
     }
-    if (url.pathname === `/v1/practice/sessions/${sessionId}` && request.method() === "DELETE") {
+    if (url.pathname === `/v2/practice/sessions/${sessionId}` && request.method() === "DELETE") {
       const parsed = deletePracticeSessionRequestSchema.safeParse(cloudRequestBody(request));
       if (!parsed.success) {
         await hooks.reject(route, 400, "invalid_request");

@@ -239,7 +239,7 @@ export function createCloudBrowserPracticeAuthority(seed: PracticeAuthoritySeed)
       );
       return true;
     }
-    if (path === "/v1/practice/daily-queue" && request.method() === "GET") {
+    if (path === "/v2/practice/daily-queue" && request.method() === "GET") {
       hooks.record(request, "read");
       await hooks.json(route, 200, queue());
       return true;
@@ -250,7 +250,7 @@ export function createCloudBrowserPracticeAuthority(seed: PracticeAuthoritySeed)
       await hooks.json(route, 200, detail(item[1] === "practice-item-1" ? 0 : 1));
       return true;
     }
-    if (path === "/v1/practice/sentence-sessions" && request.method() === "POST") {
+    if (path === "/v2/practice/sentence-sessions" && request.method() === "POST") {
       const parsed = startSentenceSessionRequestSchema.safeParse(requestBody(request));
       await mutate(route, hooks, parsed, undefined, () => {
         providerCalls += 1;
@@ -264,7 +264,7 @@ export function createCloudBrowserPracticeAuthority(seed: PracticeAuthoritySeed)
       });
       return true;
     }
-    if (path === "/v1/practice/dialogue-sessions" && request.method() === "POST") {
+    if (path === "/v2/practice/dialogue-sessions" && request.method() === "POST") {
       const parsed = startDialogueSessionRequestSchema.safeParse(requestBody(request));
       await mutate(route, hooks, parsed, undefined, () => {
         providerCalls += 1;
@@ -272,7 +272,7 @@ export function createCloudBrowserPracticeAuthority(seed: PracticeAuthoritySeed)
       });
       return true;
     }
-    const attempt = /^\/v1\/practice\/sessions\/([^/]+)\/attempts$/u.exec(path);
+    const attempt = /^\/v2\/practice\/sessions\/([^/]+)\/attempts$/u.exec(path);
     if (attempt?.[1] !== undefined && request.method() === "POST") {
       const parsed = submitPracticeAttemptRequestSchema.safeParse(requestBody(request));
       await mutate(
@@ -301,7 +301,7 @@ export function createCloudBrowserPracticeAuthority(seed: PracticeAuthoritySeed)
       );
       return true;
     }
-    const turn = /^\/v1\/practice\/sessions\/([^/]+)\/turns$/u.exec(path);
+    const turn = /^\/v2\/practice\/sessions\/([^/]+)\/turns$/u.exec(path);
     if (turn?.[1] !== undefined && request.method() === "POST") {
       const parsed = submitDialogueTurnRequestSchema.safeParse(requestBody(request));
       await mutate(
@@ -336,7 +336,7 @@ export function createCloudBrowserPracticeAuthority(seed: PracticeAuthoritySeed)
       );
       return true;
     }
-    const finish = /^\/v1\/practice\/sessions\/([^/]+)\/finish$/u.exec(path);
+    const finish = /^\/v2\/practice\/sessions\/([^/]+)\/finish$/u.exec(path);
     if (finish?.[1] !== undefined && request.method() === "POST") {
       const parsed = finishPracticeSessionRequestSchema.safeParse(requestBody(request));
       await mutate(
@@ -360,7 +360,7 @@ export function createCloudBrowserPracticeAuthority(seed: PracticeAuthoritySeed)
       );
       return true;
     }
-    const ratings = /^\/v1\/practice\/sessions\/([^/]+)\/ratings$/u.exec(path);
+    const ratings = /^\/v2\/practice\/sessions\/([^/]+)\/ratings$/u.exec(path);
     if (ratings?.[1] !== undefined && request.method() === "POST") {
       const parsed = practiceRatingsRequestSchema.safeParse(requestBody(request));
       await mutate(
