@@ -481,6 +481,10 @@ fake clock。客户端通过 HTTP adapter 访问同一用例，不复制领域�
   deadline、公开 API、lease 或账本；完整契约见 `vercel-fluid-function-duration.md`。
 - API 日志只包含 request ID、route、稳定错误码、时延、模型/价格版本、token 和 micro-USD；正文、
   可选标题、答案、模型响应、凭据、session 和 reasoning 均不得进入日志或错误监控。
+- 插件平台模型的私有输出约束由现有结果 Schema 投影，固定当前请求的结果类型和 selectionKind；
+  首次请求携带嵌套结构、必填字段、枚举和长度约束，语言及音标组合约束继续显式说明并严格校验。
+  结构失败保留有界、脱敏的字段路径和固定原因码，同时交给既有一次修复请求与按生成 UUID 关联的
+  服务端诊断。该诊断仅使用 security.md 规定的额外白名单，不持久化模型原文或改变公开错误合同。
 - 运营指标只保留无正文聚合：请求成功率、结构修复率、延迟分位、费用、额度拒绝和 session 撤销。
 - API 以必填 `HUAYI_STORE_EXTENSION_CAPABILITY=enabled|disabled` 决定是否组合 Store surface；disabled
   从 CORS/专用路由移除 Extension 并在 identity 查询前拒绝 token。enabled 才使用

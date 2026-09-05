@@ -320,6 +320,12 @@ owner context、generation/reservation 归属、task 成功或失败终态、价
 - 允许日志字段：request ID、route name、客户端版本、稳定错误码、状态、时延、模型/价格版本、token
   数和 micro-USD。禁止 sourceText、title、answer、turn、result、prompt、cookie、token、email 明文、
   URL、第三方响应和堆栈中的请求对象。
+- 插件平台查询的输出校验诊断额外允许服务端生成 UUID、固定结果类型、initial/repair 尝试、固定
+  json/schema/assembled-result 阶段及最多 8 条字段路径和原因码。字段路径仅来自受信任 Schema，
+  数组索引与路径深度有界；未知键名、实际字段值、Zod message/received/keys 和 JSON 解析异常均不写日志。
+  诊断沿用生成编号关联，不写入公开查询事件或数据库正文。日志写入失败不改变修复、结果或计费。
+  同一份脱敏校验反馈只在既有一次结构修复中提供给 Provider；原始无效输出以有界 JSON 字符串标记为
+  不可信数据，不作为系统指令。修复后仍执行完整 Schema 校验，不增加自动调用次数。
 - 错误监控发送前使用白名单序列化；禁止自动捕获 request body、breadcrumb 输入或 DOM replay。
 - 管理页只有运营元数据，不实现正文搜索、代登录或任意 SQL。紧急排障依赖 request ID 和无正文指标。
 - 审计记录管理员的邀请、启停、额度和设备撤销动作，不记录秘密或用户正文。
