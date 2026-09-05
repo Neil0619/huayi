@@ -20,7 +20,7 @@ describe("Store overlay word presence", () => {
     expect(checking).toMatchObject({ disabled: true, textContent: "生词" });
     expect(checking?.dataset.saveState).toBe("checking");
     expect(checking?.closest(".header")).not.toBeNull();
-    expect(shadow().querySelector("[data-close]")).toBeNull();
+    expect(shadow().querySelector("[data-close]")?.getAttribute("aria-label")).toBe("关闭解释卡片");
     expect(shadow().querySelector(".eyebrow")?.textContent).toBe("SEEN & SAID");
     ports[0]?.receive({
       messageVersion: STORE_MESSAGE_VERSION,

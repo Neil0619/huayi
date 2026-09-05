@@ -13,7 +13,13 @@
         <div>
           <h1>语见</h1>
           <p class="analysis-summary" data-analysis-summary>
-            <span data-provider>OpenAI</span> · <span data-model-consent>模型联网未开启</span>
+            <span data-provider>OpenAI</span>
+            <span
+              data-model-consent
+              role="img"
+              tabindex="0"
+              aria-label="正在读取模型联网许可"
+            ></span>
           </p>
         </div>
       </div>
@@ -31,9 +37,11 @@
         <button
           class="icon-button"
           type="button"
-          data-toggle-overlay-theme
-          aria-label="切换词卡皮肤"
-          title="切换词卡皮肤"
+          data-toggle-appearance
+          aria-label="选择外观"
+          aria-expanded="false"
+          aria-controls="popup-appearance"
+          title="选择外观"
         >
           <svg aria-hidden="true" viewBox="0 0 24 24">
             <path
@@ -60,7 +68,27 @@
         </button>
       </div>
     </header>
-    <p class="status" data-popup-status data-tone="neutral" role="status" aria-live="polite"></p>
+    <div
+      class="popup-appearance"
+      id="popup-appearance"
+      data-popup-appearance
+      role="group"
+      aria-label="外观主题"
+      hidden
+    >
+      <button type="button" data-popup-theme="moon" aria-pressed="false">去青月白</button>
+      <button type="button" data-popup-theme="silver" aria-pressed="true">流银镜白</button>
+      <button type="button" data-popup-theme="champagne" aria-pressed="false">香槟晨霜</button>
+      <button type="button" data-popup-theme="porcelain" aria-pressed="false">霁蓝瓷光</button>
+    </div>
+    <p
+      class="status"
+      data-popup-status
+      data-tone="neutral"
+      role="status"
+      aria-live="polite"
+      tabindex="-1"
+    ></p>
     <main>
       <section aria-labelledby="site-title">
         <div class="site-copy">
@@ -78,34 +106,31 @@
           />
         </label>
       </section>
-      <section class="cloud-card" aria-labelledby="cloud-title">
+      <section class="cloud-card" aria-label="账号连接">
         <div class="cloud-row">
-          <div class="site-copy">
-            <span class="section-label" id="cloud-title">云端账户</span>
-            <strong data-cloud-session-state>正在读取连接状态…</strong>
-          </div>
+          <span data-cloud-session-state role="status">正在读取账号…</span>
           <button class="text-button" type="button" data-cloud-session-action disabled>连接</button>
         </div>
-        <div class="outbox-row" aria-labelledby="outbox-title">
-          <div class="site-copy outbox-copy">
-            <span class="section-label" id="outbox-title">待提交学习采集</span>
-            <strong data-submission-outbox-state role="status" aria-live="polite" tabindex="-1">
-              正在读取待提交状态…
-            </strong>
-          </div>
-          <div class="outbox-actions" aria-label="待提交学习采集操作">
-            <button class="text-button" type="button" data-submission-outbox-retry disabled>
-              重试
-            </button>
-            <button
-              class="text-button danger-button"
-              type="button"
-              data-submission-outbox-clear
-              disabled
-            >
-              清空
-            </button>
-          </div>
+      </section>
+      <section class="outbox-row" aria-labelledby="outbox-title" hidden>
+        <div class="site-copy outbox-copy">
+          <span class="section-label" id="outbox-title">待上传</span>
+          <strong data-submission-outbox-state role="status" aria-live="polite" tabindex="-1">
+            正在读取待提交状态…
+          </strong>
+        </div>
+        <div class="outbox-actions" aria-label="待上传内容操作">
+          <button class="text-button" type="button" data-submission-outbox-retry disabled>
+            重试
+          </button>
+          <button
+            class="text-button danger-button"
+            type="button"
+            data-submission-outbox-clear
+            disabled
+          >
+            清空
+          </button>
         </div>
       </section>
     </main>

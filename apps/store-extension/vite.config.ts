@@ -5,21 +5,28 @@ import { fileURLToPath } from "node:url";
 import { defineConfig, type Plugin, type UserConfig } from "vite";
 
 const extensionRoot = dirname(fileURLToPath(import.meta.url));
-const outputDirectory = resolve(extensionRoot, "dist");
 const workspaceAliases = {
   "@huayi/cloud-contracts": resolve(extensionRoot, "../../packages/cloud-contracts/src/index.ts"),
   "@huayi/learning-domain": resolve(extensionRoot, "../../packages/learning-domain/src/index.ts"),
   "@huayi/store-domain": resolve(extensionRoot, "../../packages/store-domain/src/index.ts"),
 };
 const PAGE_ASSETS = {
-  options: ["options.html", "options.css", "options-components.css", "brand-theme.css"],
-  popup: ["popup.html", "popup.css", "brand-theme.css"],
+  options: [
+    "options.html",
+    "options.css",
+    "options-components.css",
+    "brand-theme.css",
+    "page-ui.css",
+    "options-site-rules.css",
+  ],
+  popup: ["popup.html", "popup.css", "brand-theme.css", "page-ui.css"],
 } as const;
 const SHARED_CONTENT_ASSETS = ["overlay.css"] as const;
 type StoreBuildProfile = "hosted-acceptance" | "release";
 
 const HOSTED_ACCEPTANCE_API_ORIGIN = "https://api.acceptance.seen-said.cn";
-const HOSTED_ACCEPTANCE_WEB_WORKSPACE_URL = "https://app.acceptance.seen-said.cn/app";
+const HOSTED_ACCEPTANCE_WEB_ORIGIN = "https://app.acceptance.seen-said.cn";
+const HOSTED_ACCEPTANCE_WEB_WORKSPACE_URL = `${HOSTED_ACCEPTANCE_WEB_ORIGIN}/app`;
 
 function storeBuildProfile(value: string | undefined): StoreBuildProfile {
   if (value === undefined || value === "release") return "release";
@@ -27,7 +34,7 @@ function storeBuildProfile(value: string | undefined): StoreBuildProfile {
   throw new Error("Store Extension build profile is invalid.");
 }
 
-function copyManifest(buildProfile: StoreBuildProfile): Plugin {
+function copyManifest(buildProfile: StoreBuildProfile, outputDirectory: string): Plugin {
   let buildOutputDirectory = outputDirectory;
   return {
     name: "copy-store-manifest",
@@ -54,7 +61,7 @@ function copyManifest(buildProfile: StoreBuildProfile): Plugin {
   };
 }
 
-function copyPageAssets(page: "options" | "popup"): Plugin {
+function copyPageAssets(page: "options" | "popup", outputDirectory: string): Plugin {
   let pageOutputDirectory = outputDirectory;
   return {
     name: "copy-store-options-assets",
@@ -79,6 +86,11 @@ export function createStoreExtensionConfig(
   const buildProfile = storeBuildProfile(
     requestedBuildProfile ?? process.env.HUAYI_STORE_BUILD_PROFILE,
   );
+  // Keep the paired hosted install at its existing path; offline builds must never replace it.
+  const outputDirectory = resolve(
+    extensionRoot,
+    buildProfile === "hosted-acceptance" ? "dist" : "dist-release",
+  );
   const isContentBuild = mode === "content";
   const isOptionsBuild = mode === "options";
   const isPopupBuild = mode === "popup";
@@ -91,6 +103,9 @@ export function createStoreExtensionConfig(
       ),
       HUAYI_WEB_WORKSPACE_URL_BUILD_VALUE: JSON.stringify(
         buildProfile === "hosted-acceptance" ? HOSTED_ACCEPTANCE_WEB_WORKSPACE_URL : null,
+      ),
+      HUAYI_WEB_ORIGIN_BUILD_VALUE: JSON.stringify(
+        buildProfile === "hosted-acceptance" ? HOSTED_ACCEPTANCE_WEB_ORIGIN : null,
       ),
     },
     resolve: {
@@ -137,10 +152,10 @@ export function createStoreExtensionConfig(
     plugins: isContentBuild
       ? []
       : isOptionsBuild
-        ? [copyPageAssets("options")]
+        ? [copyPageAssets("options", outputDirectory)]
         : isPopupBuild
-          ? [copyPageAssets("popup")]
-          : [copyManifest(buildProfile)],
+          ? [copyPageAssets("popup", outputDirectory)]
+          : [copyManifest(buildProfile, outputDirectory)],
   };
 }
 

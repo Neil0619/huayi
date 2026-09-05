@@ -216,7 +216,10 @@ export async function collectArchitectureViolations(repositoryRoot) {
         !specifier.startsWith(".") &&
         specifier !== "zod" &&
         specifier !== "zod/v3" &&
-        !(rule.root === "packages/store-domain/src" && specifier === "@huayi/learning-domain")
+        !(
+          rule.root === "packages/store-domain/src" &&
+          (specifier === "@huayi/learning-domain" || specifier === "tldts")
+        )
       ) {
         const domainName =
           rule.root === "packages/learning-domain/src" ? "Learning domain" : "Store domain";

@@ -2,7 +2,10 @@ import type { ExtensionQueryEvent } from "@huayi/cloud-contracts";
 import type { AnalysisRequest } from "@huayi/store-domain";
 import { describe, expect, it, vi } from "vitest";
 
-import { CloudExtensionQueryError } from "./cloud-extension-query-api.js";
+import {
+  CloudExtensionQueryError,
+  createCloudExtensionQueryApi,
+} from "./cloud-extension-query-api.js";
 import { createPlatformAnalysisEngine } from "./platform-analysis-engine.js";
 
 const request: AnalysisRequest = {
@@ -17,6 +20,27 @@ const request: AnalysisRequest = {
 const signal = new AbortController().signal;
 
 describe("platform analysis engine", () => {
+  it.each([
+    [401, "cloud-session-required"],
+    [403, "cloud-access-denied"],
+    [426, "version-mismatch"],
+  ])(
+    "maps query HTTP %s to account guidance instead of a model key error",
+    async (status, code) => {
+      const engine = createPlatformAnalysisEngine({
+        api: createCloudExtensionQueryApi({
+          apiOrigin: "https://api.huayi.invalid",
+          clientVersion: "1.0.0",
+          fetch: async () => new Response(null, { status: Number(status) }),
+        }),
+        readSession: async () => ({ token: "s".repeat(32) }),
+        sourceType: "web-selection",
+      });
+      await expect(engine.analyze(request, signal, () => undefined)).rejects.toMatchObject({
+        code,
+      });
+    },
+  );
   it("maps a platform completion to the local compact result without sending provider fields", async () => {
     const start = vi.fn(async function* (input: unknown) {
       expect(input).toEqual({

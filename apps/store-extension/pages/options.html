@@ -6,6 +6,7 @@
     <title>语见设置 · Seen &amp; Said</title>
     <link rel="stylesheet" href="options.css" />
     <link rel="stylesheet" href="options-components.css" />
+    <link rel="stylesheet" href="options-site-rules.css" />
   </head>
   <body aria-busy="false">
     <header class="settings-toolbar">
@@ -17,6 +18,9 @@
       </div>
       <div class="toolbar-meta">
         <p class="status" data-page-status data-tone="neutral" role="status" aria-live="polite"></p>
+        <span class="account-state" data-cloud-session-state role="status"></span>
+        <button type="button" data-cloud-session-action disabled>登录</button>
+        <button type="button" data-open-web-workspace>学习工作台</button>
         <a
           class="github-link"
           data-github-project
@@ -46,6 +50,16 @@
           type="button"
         >
           常用设置
+        </button>
+        <button
+          aria-controls="settings-sites"
+          aria-selected="false"
+          data-settings-nav="sites"
+          id="settings-tab-sites"
+          role="tab"
+          type="button"
+        >
+          网站管理
         </button>
         <button
           aria-controls="settings-credentials"
@@ -98,26 +112,71 @@
             >
             <input type="checkbox" role="switch" data-global-enabled />
           </label>
-          <p>你也可以在 Popup 中单独关闭当前网站。页面地址、标题和浏览历史不会写入设置。</p>
-          <h3>单独关闭的网站</h3>
-          <ul class="host-list" data-disabled-hosts></ul>
+          <button type="button" class="inline-link" data-open-site-management>
+            管理网站规则 →
+          </button>
         </section>
-
         <section
-          class="card cloud-account-entry"
-          data-cloud-account-entry
-          data-settings-associated="common"
-          role="region"
-          aria-labelledby="cloud-account-title"
+          class="card"
+          data-settings-section="sites"
+          id="settings-sites"
+          role="tabpanel"
+          aria-labelledby="settings-tab-sites"
+          hidden
         >
           <div class="section-heading">
-            <div>
-              <p class="step">语见云端</p>
-              <h2 id="cloud-account-title">继续你的学习工作台</h2>
-            </div>
-            <button type="button" class="primary" data-open-web-workspace>登录语见云端</button>
+            <h2>网站管理</h2>
+            <span data-site-rule-count></span>
           </div>
-          <p>登录后可在 Web 工作台整理分析、复习生词并管理云端学习数据。</p>
+          <form data-site-rule-form class="site-rule-form">
+            <label class="field site-rule-host"
+              ><span>域名或网址</span
+              ><input
+                type="text"
+                data-site-rule-host
+                placeholder="例如 ersoft.cn"
+                autocomplete="off"
+                required
+            /></label>
+            <label class="field"
+              ><span>匹配范围</span
+              ><select data-site-rule-scope>
+                <option value="exact">仅此域名</option>
+                <option value="subdomains">包含所有子域名</option>
+              </select></label
+            >
+            <label class="field"
+              ><span>操作</span
+              ><select data-site-rule-action>
+                <option value="block">关闭</option>
+                <option value="allow">单独开启</option>
+              </select></label
+            >
+            <div class="actions">
+              <button type="submit" class="primary" data-site-rule-save>添加规则</button
+              ><button type="button" data-site-rule-cancel hidden>取消</button>
+            </div>
+            <p data-site-rule-preview class="site-rule-preview" aria-live="polite"></p>
+          </form>
+          <div class="site-rule-toolbar">
+            <input
+              type="search"
+              data-site-rule-search
+              aria-label="搜索网站规则"
+              placeholder="搜索域名"
+            />
+            <select data-site-rule-filter aria-label="筛选网站规则">
+              <option value="all">全部</option>
+              <option value="block">关闭</option>
+              <option value="allow">单独开启</option>
+            </select>
+          </div>
+          <ul class="host-list" data-site-rules></ul>
+          <div class="actions site-rule-pagination" data-site-rule-pagination hidden>
+            <button type="button" data-site-rule-prev>上一页</button
+            ><span data-site-rule-page></span
+            ><button type="button" data-site-rule-next>下一页</button>
+          </div>
         </section>
 
         <section
@@ -132,7 +191,6 @@
               <h2 id="appearance-title">选择你的光线</h2>
             </div>
           </div>
-          <p>只保存在当前设备；改变色温、玻璃材质与光影，不改变功能或页面结构。</p>
           <div class="appearance-grid" role="radiogroup" aria-labelledby="appearance-title">
             <label class="appearance-option">
               <input
@@ -194,9 +252,6 @@
             <div class="network-consent-heading">
               <div>
                 <h3 id="network-title">首次联网确认</h3>
-                <p data-network-summary>
-                  总开关只决定是否显示语见；此确认用于允许把你主动选择的英文和必要上下文发送给模型服务商。
-                </p>
               </div>
               <span class="pill" data-consent-state>尚未同意联网</span>
             </div>
@@ -215,23 +270,25 @@
               <button type="button" class="primary" data-grant-consent>同意联网分析</button>
             </div>
           </div>
-          <label class="field compact">
-            <span>模型服务商</span>
-            <select data-provider>
+          <div class="field compact">
+            <span><label for="model-provider">模型服务商</label></span>
+            <select id="model-provider" data-provider>
               <option value="openai">OpenAI</option>
               <option value="deepseek">DeepSeek</option>
             </select>
-            <small>一次分析只使用选定的服务商；失败时不会改用另一家，也不会自动重试。</small>
-          </label>
-          <label class="field compact">
-            <span>划词后的默认动作</span>
-            <select data-default-action>
+            <small data-help-note="模型服务商说明">查询使用你选择的服务商及本机密钥。</small>
+          </div>
+          <div class="field compact">
+            <span><label for="selection-default-action">划词后的默认动作</label></span>
+            <select id="selection-default-action" data-default-action>
               <option value="ask">每次询问</option>
               <option value="translate">直接翻译</option>
               <option value="explain">直接解释</option>
             </select>
-            <small>选择“每次询问”会先显示解释和翻译按钮；其他选项会直接开始对应分析。</small>
-          </label>
+            <small data-help-note="划词动作说明"
+              >“每次询问”先显示翻译与解释入口；其他选项会在划词后直接开始查询。</small
+            >
+          </div>
         </section>
 
         <section
@@ -246,21 +303,22 @@
               <h2 id="youtube-title">YouTube 字幕</h2>
             </div>
           </div>
-          <label class="field compact">
-            <span>默认字幕模式</span>
-            <select data-youtube-mode>
+          <div class="field compact">
+            <span><label for="youtube-default-mode">默认字幕模式</label></span>
+            <select id="youtube-default-mode" data-youtube-mode>
               <option value="disabled">停用语见字幕</option>
               <option value="english">英文（可手动切换双语）</option>
               <option value="bilingual">默认双语</option>
             </select>
-            <small>
-              仅在标准 YouTube 录播页面且已打开英文字幕时运行。语见不会发送或保存视频地址、标题
-              或视频 ID。
-            </small>
-          </label>
+            <small data-help-note="字幕模式说明"
+              >先在 YouTube 录播视频中打开英文字幕，再选择语见的显示方式。</small
+            >
+          </div>
           <div class="subsection">
             <h3>YouTube 临时双语快捷键</h3>
-            <p>按住组合键时临时显示中文字幕；输入框聚焦或页面有选区时不会抢占按键。</p>
+            <p data-help-note="临时双语快捷键说明">
+              按住组合键时显示中文，松开恢复英文。输入文字或划词时不触发。
+            </p>
             <div class="actions">
               <button type="button" data-youtube-shortcut>已关闭</button>
               <button type="button" data-youtube-shortcut-clear>关闭快捷键</button>
@@ -282,10 +340,6 @@
                 <h2 id="recipients-title">选择外部词典去向</h2>
               </div>
             </div>
-            <p>
-              每个词典都要先确认数据范围，再用开关决定是否接收以后保存的新词。关闭后不会补发旧词，
-              也不会删除已经写入外部词典的数据。
-            </p>
             <div class="recipient-grid">
               <article class="recipient-card" data-recipient-card="eudic">
                 <div class="section-heading">
@@ -377,11 +431,10 @@
         >
           <div class="section-heading">
             <div>
-              <p class="step">04 · Provider 密钥</p>
-              <h2 id="credentials-title">加密保存在本机</h2>
+              <h2 id="credentials-title">模型密钥</h2>
             </div>
           </div>
-          <p>页面只显示是否已配置，不会回显或导出已有密钥。保存新值会覆盖旧值。</p>
+          <p data-help-note="密钥保存说明">密钥加密保存在本机。输入并保存新密钥会替换原密钥。</p>
           <div data-device-vault-ready>
             <div class="credential-row">
               <label class="field">
@@ -451,10 +504,12 @@
                 正在读取
               </p>
             </div>
-            <p data-local-delete-disclosure>删除只影响本地词条，不会删除欧路或扇贝中的远端数据。</p>
+            <p data-help-note="本机生词说明" data-local-delete-disclosure>
+              这里保存当前插件的生词，与学习工作台独立管理。
+            </p>
             <form class="actions" data-lexicon-search-form>
               <label class="field compact">
-                <span>搜索规范词条</span>
+                <span>搜索生词</span>
                 <input type="search" data-lexicon-search autocomplete="off" />
               </label>
               <button type="submit">搜索</button>
@@ -467,7 +522,7 @@
             <div class="subsection word-list-export">
               <div>
                 <h3>导出词表</h3>
-                <p>下载 UTF-8 文本文件，每行一个词。文件不包含语境、释义、来源或时间。</p>
+                <p data-help-note="词表导出说明">下载纯文本词表，每行一个词，不包含释义和语境。</p>
               </div>
               <button type="button" data-word-list-export>下载词表</button>
             </div>
@@ -475,9 +530,8 @@
             <div class="subsection local-word-import" data-local-word-import-panel hidden>
               <div>
                 <h3>导入本机生词到 Web</h3>
-                <p>
-                  先预览本机词条与语境数量，再确认一次。无语境词条也会创建；本机数据不会删除，Web
-                  现有笔记不会被覆盖。
+                <p data-help-note="导入生词说明">
+                  先预览，再确认导入学习工作台。本机生词保留，已有笔记不会被覆盖。
                 </p>
                 <p data-local-word-import-summary hidden></p>
                 <p
@@ -516,6 +570,11 @@
                 <p class="step">06 · 外部词典</p>
                 <h2 id="wordbook-title">外部词典连接</h2>
               </div>
+              <div data-cloud-wordbook-authority hidden>
+                <button type="button" class="inline-link" data-open-web-wordbooks>
+                  管理同步任务 →
+                </button>
+              </div>
               <p
                 class="pill"
                 data-wordbook-status
@@ -526,16 +585,11 @@
                 正在读取
               </p>
             </div>
-            <div class="subsection" data-cloud-wordbook-authority hidden>
-              <h3>同步任务在 Web 管理</h3>
-              <p>
-                插件负责安全保存凭据并执行同步；创建、查看、重试或取消任务，请前往 Web
-                工作台的“外部词典”。
-              </p>
-            </div>
             <div class="subsection">
               <h3>欧路 Authorization · <b data-eudic-auth-status>未配置</b></h3>
-              <p>已配置时输入框显示圆点占位；只有输入新值并保存，才会覆盖现有授权。</p>
+              <p data-help-note="欧路授权说明">
+                在欧路获取 Authorization 后粘贴到这里。保存新授权会替换原授权。
+              </p>
               <label class="field compact">
                 <span>新的完整 Authorization</span>
                 <input type="password" autocomplete="off" data-eudic-auth-input />

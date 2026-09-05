@@ -39,6 +39,7 @@ export default tseslint.config(
   {
     ignores: [
       "**/dist/**",
+      "**/dist-release/**",
       "**/coverage/**",
       ".agents/skills/**",
       ".worktrees/**",

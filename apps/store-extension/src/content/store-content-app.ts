@@ -1,12 +1,13 @@
-import type {
-  StoreOverlayController,
-  StoreOverlayAnchor,
-} from "./overlay/store-overlay-controller.js";
+import type { StoreOverlayController } from "./overlay/store-overlay-controller.js";
 import type { StoreSitePolicyResponse } from "@huayi/store-domain";
 import { readStoreSelection } from "./selection/read-selection.js";
+import {
+  selectionOverlayAnchor,
+  type SelectionPointer,
+} from "./overlay/selection-overlay-anchor.js";
 
 export class StoreContentApp {
-  private started = false;
+  #started = false;
 
   constructor(
     private readonly document: Document,
@@ -15,17 +16,17 @@ export class StoreContentApp {
   ) {}
 
   start(): void {
-    if (this.started) return;
-    this.started = true;
-    this.document.addEventListener("mouseup", this.onPointerSelection);
-    this.document.addEventListener("keyup", this.onKeyboardSelection);
+    if (this.#started) return;
+    this.#started = true;
+    this.document.addEventListener("mouseup", this.#onPointerSelection);
+    this.document.addEventListener("keyup", this.#onKeyboardSelection);
   }
 
   stop(): void {
-    if (!this.started) return;
-    this.started = false;
-    this.document.removeEventListener("mouseup", this.onPointerSelection);
-    this.document.removeEventListener("keyup", this.onKeyboardSelection);
+    if (!this.#started) return;
+    this.#started = false;
+    this.document.removeEventListener("mouseup", this.#onPointerSelection);
+    this.document.removeEventListener("keyup", this.#onKeyboardSelection);
     this.overlay.close();
   }
 
@@ -35,26 +36,16 @@ export class StoreContentApp {
     this.overlay.setTheme(policy.overlayTheme);
   }
 
-  private showCurrentSelection(pointerLeft?: number): void {
+  #showCurrentSelection(pointer?: SelectionPointer): void {
     const reading = readStoreSelection(this.document.getSelection());
     if (reading === null) {
       this.overlay.close();
       return;
     }
-    const rangeWithRect = reading.range as Range & {
-      getBoundingClientRect?: () => { bottom: number; left: number; right?: number; top: number };
-    };
-    const rect = rangeWithRect.getBoundingClientRect?.();
-    const selectionCenter = rect === undefined ? 12 : (rect.left + (rect.right ?? rect.left)) / 2;
-    const anchor: StoreOverlayAnchor = {
-      bottom: rect?.bottom ?? 24,
-      left: pointerLeft === undefined || pointerLeft <= 0 ? selectionCenter : pointerLeft,
-      top: rect?.top ?? 12,
-    };
-    this.overlay.show(reading, anchor);
+    this.overlay.show(reading, selectionOverlayAnchor(reading.range, pointer));
   }
 
-  private cameFromOverlay(event: Event): boolean {
+  #cameFromOverlay(event: Event): boolean {
     return event
       .composedPath()
       .some(
@@ -65,15 +56,15 @@ export class StoreContentApp {
       );
   }
 
-  private readonly onPointerSelection = (event: MouseEvent): void => {
-    if (!this.acceptsUserGesture(event) || this.cameFromOverlay(event)) return;
-    this.showCurrentSelection(event.clientX);
+  readonly #onPointerSelection = (event: MouseEvent): void => {
+    if (!this.acceptsUserGesture(event) || this.#cameFromOverlay(event)) return;
+    this.#showCurrentSelection({ x: event.clientX, y: event.clientY });
   };
 
-  private readonly onKeyboardSelection = (event: KeyboardEvent): void => {
-    if (!this.acceptsUserGesture(event) || event.key === "Escape" || this.cameFromOverlay(event)) {
+  readonly #onKeyboardSelection = (event: KeyboardEvent): void => {
+    if (!this.acceptsUserGesture(event) || event.key === "Escape" || this.#cameFromOverlay(event)) {
       return;
     }
-    this.showCurrentSelection();
+    this.#showCurrentSelection();
   };
 }

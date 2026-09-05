@@ -31,7 +31,7 @@ export function positionOverlayHost(host: HTMLElement, anchor: StoreOverlayAncho
       ? below
       : Math.max(gutter, Math.min(above, view.innerHeight - bounds.height - gutter));
   host.style.left = `${left}px`;
-  host.style.top = `${top}px`;
+  host.style.top = `${Math.max(gutter, top)}px`;
 }
 
 export function applyOverlayAppearance(
@@ -54,6 +54,8 @@ export function updateOverlayModeControls(
   action: AnalysisAction,
   loading: boolean,
 ): void {
+  const stop = host?.shadowRoot?.querySelector<HTMLButtonElement>("[data-stop]");
+  if (stop) stop.hidden = !loading;
   for (const button of host?.shadowRoot?.querySelectorAll<HTMLButtonElement>("[data-action]") ??
     []) {
     const active = button.dataset.action === action;

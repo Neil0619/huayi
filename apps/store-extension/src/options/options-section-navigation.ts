@@ -1,4 +1,4 @@
-const SECTION_IDS = ["common", "credentials", "wordbooks", "lexicon"] as const;
+const SECTION_IDS = ["common", "sites", "credentials", "wordbooks", "lexicon"] as const;
 
 type SectionId = (typeof SECTION_IDS)[number];
 
@@ -26,6 +26,10 @@ export class OptionsSectionNavigation {
   private active: SectionId = "common";
 
   initialize(): void {
+    document.querySelector("[data-open-site-management]")?.addEventListener("click", () => {
+      this.select("sites");
+      navigationButton("sites").focus();
+    });
     for (const id of SECTION_IDS) {
       const button = navigationButton(id);
       button.addEventListener("click", () => this.select(id));

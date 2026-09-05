@@ -116,9 +116,7 @@ describe("Lexicon options controller", () => {
 
     expect(element("[data-lexicon-list]").textContent).toContain("investigation");
     expect(element("[data-lexicon-list]").textContent).toContain("The investigation began.");
-    expect(element("[data-local-delete-disclosure]").textContent).toContain(
-      "不会删除欧路或扇贝中的远端数据",
-    );
+    expect(element("[data-local-delete-disclosure]").textContent).toContain("与学习工作台独立管理");
 
     element<HTMLInputElement>("[data-lexicon-search]").value = "Invest";
     submit("[data-lexicon-search-form]");

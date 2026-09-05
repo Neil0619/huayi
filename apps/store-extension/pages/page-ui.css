@@ -1,0 +1,62 @@
+[hidden] {
+  display: none !important;
+}
+
+.help-tip {
+  display: inline-flex;
+  vertical-align: middle;
+  margin-left: 6px;
+}
+.help-tip > button {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
+  min-height: 24px;
+  padding: 0;
+  border: 1px solid var(--border-default);
+  border-radius: 50%;
+  color: var(--text-secondary);
+  background: var(--surface-subtle);
+  box-shadow: none;
+  font-size: 14px;
+  line-height: 1;
+}
+.help-content {
+  position: fixed;
+  inset: auto;
+  width: max-content;
+  max-width: min(320px, calc(100vw - 16px));
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  color: var(--text-primary);
+  background: var(--surface-canvas-solid);
+  box-shadow: var(--card-shadow);
+  font:
+    400 14px/1.65 "Avenir Next",
+    "PingFang SC",
+    sans-serif;
+  text-align: left;
+  letter-spacing: normal;
+  white-space: normal;
+  z-index: 100;
+}
+.account-state {
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+.account-state:empty {
+  display: none;
+}
+.inline-link {
+  min-height: 36px;
+  padding: 4px 0;
+  border: 0;
+  color: var(--action-primary);
+  background: transparent;
+  box-shadow: none;
+  font-size: 14px;
+}

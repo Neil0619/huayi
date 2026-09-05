@@ -65,6 +65,32 @@ test("architecture check rejects platform imports and production dependency cycl
   );
 });
 
+test("Store domain permits only the public offline suffix parser, not new platform dependencies", async () => {
+  await withFixture(
+    {
+      "packages/store-domain/src/suffix.ts":
+        'import { parse } from "tldts";\nexport const domain = parse("example.com");\n',
+      "packages/store-domain/src/unsafe.ts":
+        'import "node:url";\nimport "axios";\nimport "tldts/internal";\n',
+      "packages/learning-domain/src/suffix.ts": 'import "tldts";\n',
+    },
+    async (root) => {
+      const violations = await collectArchitectureViolations(root);
+      assert.equal(
+        violations.filter((value) => value.startsWith("packages/store-domain/src/suffix.ts:"))
+          .length,
+        0,
+      );
+      for (const dependency of ["node:url", "axios", "tldts/internal"]) {
+        assert.ok(violations.some((value) => value.includes(`(${dependency})`)));
+      }
+      assert.ok(
+        violations.some((value) => value.startsWith("packages/learning-domain/src/suffix.ts:")),
+      );
+    },
+  );
+});
+
 test("architecture check enforces Cloud package direction and platform-neutral learning domain", async () => {
   await withFixture(
     {

@@ -21,6 +21,7 @@ const pendingSchema = z.strictObject({
 const sessionSchema = z.strictObject({
   expiresAt: z.string().datetime({ offset: true }),
   preferences: extensionPreferencesResponseSchema,
+  preferencesSyncedAt: z.number().int().nonnegative().optional(),
   token: z.string().min(32).max(2_048),
 });
 const installIdSchema = z.string().regex(/^[A-Za-z0-9_-]{32,128}$/u);

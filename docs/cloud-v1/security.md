@@ -108,6 +108,15 @@ owner context、generation/reservation 归属、task 成功或失败终态、价
   同样使用 DeviceVault DEK 下的独立严格 envelope 持久化；通用 CredentialSlot 不新增 session 槽，
   避免 Options 获得读取能力。公开轮询不返回 consumed、设备标签或 token；exchange 成功后轮询为
   not_found。
+- Popup 与 Options 共用受限的 `store/cloud-session-*` 入口，不从 Web 复制 Cookie 或登录凭据。
+  “管理同步任务”只允许 `store/open-web-workspace` 的固定可选目标 `wordbooks`，映射到已验证 HTTPS
+  工作台 origin 的 `/words/wordbooks`，拒绝任意 URL、未知字段和其他扩展 sender。内部消息仍为
+  v5，旧消息省略目标继续打开既有工作台入口；不新增 Chrome 权限。
+- 外观／网站规则刷新广播只接受当前扩展精确的 `/options.html` 或 `/popup.html`，拒绝 query、fragment、
+  其他页面和网页 sender；广播只携带重新读取信号，不携带域名、页面内容或设置值。
+- 手动网站规则只存 URL 解析后的规范域名，不存 path/query/userinfo；输入 URL 不发起网络请求。
+  离线公共后缀表阻止对 `com`、`co.uk`、`github.io` 等后缀整体建规则；IP 与 localhost 只支持精确匹配。
+  全局停用始终优先于单站例外，现有配置格式、256 条限制及本机历史规则保持不变。
 - 配对审批页在签发 session 前展示并可修改三项账号插件偏好，再分别披露：platform 查询会发送最小
   选区并最多保留一小时；StudyCapture/CloudWordCopy 只在对应设置/动作下发送；BYOK result/Key、页面
   URL、标题、视频 ID 与完整页面不发送 Huayi。批准与偏好 revision 在同一事务提交。
@@ -508,9 +517,15 @@ owner context、generation/reservation 归属、task 成功或失败终态、价
 - Extension 的单一用途是对当前英文内容提供就地翻译/解释，并按用户动作/账号偏好把原始学习采集或
   生词副本交给同一语见学习工作台；它不上传 compact BYOK result，Web 不提供远程脚本或替换扩展代码。
 - 所有脚本、wasm、字体和样式随包发布。固定 API origin 只交换数据，不下载可执行逻辑。
-- 登录 Extension 的业务请求除高熵 session token 外，还必须由浏览器提供精确发布
-  `chrome-extension://<id>` Origin，并携带 manifest 三段版本。API 在查询 token 归属前验证固定 Origin
-  与最低版本；Origin/版本只是 defense-in-depth，不能替代 token。不得接受通配 Extension Origin。
+- 登录 Extension 的业务请求除高熵 session token 外，还必须提供精确发布的
+  `chrome-extension://<id>` Origin，并携带 manifest 三段版本。Chrome 扩展的 GET 不自动附加 Origin，
+  Service Worker 从自己的受信 `location.origin` 补齐；不接受页面或消息参数指定 Origin。API 在查询
+  token 归属前继续验证固定 Origin 与最低版本；Origin/版本只是 defense-in-depth，不能替代 token，
+  不得接受通配 Extension Origin。401 清理失效会话；403/426 阻止本次操作并显示访问/版本提示，
+  不把它们当成 BYOK 缺少密钥，也不删除仍在本机的会话。
+- 配对、断开及偏好快照提交共用同一 vault 的本地串行边界。偏好请求返回时重新比较 token，旧账号的
+  成功或 401 响应不得覆盖/清除新关联，也不得在断开后恢复旧会话。重新打开确认页复用未过期的
+  pairing/PKCE；仅明确的 not_found 或过期清理 pending，瞬态错误保留原证明。
 - Store capability 是必填的 fail-closed 部署开关。`disabled` 必须没有 Extension ID，并从 CORS、配对/
   设备和 Store 专用 production composition 移除 Extension surface；混合路由也在 identity 查询前拒绝
   任意 Extension authorization。`enabled` 才允许配置精确 ID，不能以占位 ID 模拟禁用。
@@ -704,3 +719,13 @@ token 或任意 opaque selector。目标账号只能由数据库内“唯一 ord
 Operator/non-Operator 统计，并以 owner/partition 自检阻止聚合误导。stdout 仅允许固定有序布尔值、非负
 计数、有限 session state 与有限 verdict；数据库错误、身份、hash、时间、密文、URL 和正文均不得输出。
 诊断成功仅代表报告合同完整，不代表 session 健康，也不授权注销、撤销、修复或重建账号。
+
+### Store 本地更新与配对页说明
+
+Hosted 验收安装保持原 `dist` 路径、公钥和 Extension ID；普通 build/E2E 与候选审计固定使用
+`dist-release`，不得用不同身份产物覆盖已配对安装。扩展的外观、服务商、网站规则、DeviceVault、
+安装标识与加密配对会话仍保存在原 `storage.local`，不新建云端密钥备份、跨扩展读取或权限。
+Chrome 卸载后的本地配置恢复不在此保证内；不能将同一公钥复用于未授权的不同云端环境。
+
+配对页用通俗文案和分行控件呈现，但仍继承当前账号三项偏好及 revision，保留未勾选的明确授权。
+发送范围、费用及账号级影响在操作旁展示；详细保留期和隐私说明可展开阅读，不改变上传与安全断开合同。

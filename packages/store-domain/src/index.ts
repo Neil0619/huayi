@@ -12,6 +12,7 @@ export * from "./popup-messages.js";
 export * from "./selection.js";
 export * from "./settings.js";
 export * from "./site-messages.js";
+export * from "./site-rules.js";
 export * from "./submission-outbox-messages.js";
 export * from "./study-capture-messages.js";
 export * from "./vault.js";

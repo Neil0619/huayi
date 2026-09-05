@@ -16,55 +16,55 @@ export interface OverlayModeActivation {
 const idle = (): OverlayModeState => ({ status: "idle" });
 
 export class OverlayCardSession {
-  private active: AnalysisAction | null = null;
-  private readonly states: Record<AnalysisAction, OverlayModeState> = {
+  #active: AnalysisAction | null = null;
+  readonly #states: Record<AnalysisAction, OverlayModeState> = {
     explain: idle(),
     translate: idle(),
   };
 
   activate(action: AnalysisAction): OverlayModeActivation {
     const cancelled =
-      this.active !== null &&
-      this.active !== action &&
-      this.states[this.active].status === "loading"
-        ? this.active
+      this.#active !== null &&
+      this.#active !== action &&
+      this.#states[this.#active].status === "loading"
+        ? this.#active
         : null;
-    if (cancelled !== null) this.states[cancelled] = idle();
-    this.active = action;
-    const current = this.states[action];
+    if (cancelled !== null) this.#states[cancelled] = idle();
+    this.#active = action;
+    const current = this.#states[action];
     if (current.status !== "idle") {
       return { cancelled, shouldStart: false, state: current };
     }
     const loading: OverlayModeState = { status: "loading" };
-    this.states[action] = loading;
+    this.#states[action] = loading;
     return { cancelled, shouldStart: true, state: loading };
   }
 
   currentAction(): AnalysisAction | null {
-    return this.active;
+    return this.#active;
   }
 
   complete(action: AnalysisAction, result: AnalysisResult): void {
-    if (this.active === action && this.states[action].status === "loading") {
-      this.states[action] = { result, status: "ready" };
+    if (this.#active === action && this.#states[action].status === "loading") {
+      this.#states[action] = { result, status: "ready" };
     }
   }
 
   fail(action: AnalysisAction, code: StoreAnalysisErrorCode): void {
-    if (this.active === action) {
-      this.states[action] = { code, status: "error" };
+    if (this.#active === action) {
+      this.#states[action] = { code, status: "error" };
     }
   }
 
   disconnect(action: AnalysisAction): void {
-    if (this.active === action && this.states[action].status === "loading") {
-      this.states[action] = { status: "disconnected" };
+    if (this.#active === action && this.#states[action].status === "loading") {
+      this.#states[action] = { status: "disconnected" };
     }
   }
 
   retry(action: AnalysisAction): void {
-    if (this.states[action].status === "error" || this.states[action].status === "disconnected") {
-      this.states[action] = idle();
+    if (this.#states[action].status === "error" || this.#states[action].status === "disconnected") {
+      this.#states[action] = idle();
     }
   }
 }

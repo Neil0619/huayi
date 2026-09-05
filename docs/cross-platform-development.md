@@ -88,6 +88,10 @@ health 验证会把 `.exe` 复制到仓库外的临时目录，清除 `NODE_PATH
 产品测试必须离线；生产依赖审计只查询包管理器安全公告，不运行扩展或 Provider/词典请求。真实
 smoke、安装和凭据操作不在两个命令中。
 
+Store 的普通 build/E2E 产物为 `apps/store-extension/dist-release`；Hosted 验收包继续保留
+`apps/store-extension/dist` 及固定公钥。两个平台都应验证普通门禁不会改写 Hosted 身份，且同 ID 原地
+重载保留配置；卸载或改变 ID 不属于配置迁移。离线 fake-storage 重启测试不替代真实 Chrome 重载验收。
+
 Hosted acceptance 常规发布的 workflow_dispatch 额外要求 `candidate_sha` 和 `release_id`，两个 job 都用
 该 SHA checkout 并在质量门前自证，不能依赖触发时分支 HEAD。macOS login Keychain 与发布协调器只属于
 macOS 操作者集成；其共享合同必须用 fake credential/process/HTTP 在两平台验证。发布协调器先本地运行
@@ -172,3 +176,13 @@ Remaining risk: <OS primitive not yet exercised>
 
 发布前要求两个 CI job 全绿；触及平台系统集成时完成人工清单；Host、Extension、协议和版本
 保持同步；所有真实 smoke 仍需单独授权。
+
+### Store 设备关联与查询修复（2026-09-04）
+
+Status: `implemented; target-platform validation pending`。影响 `shared`：Store 自身的账号请求头、
+会话状态和错误消息解析；Classic wire v7、Native Host 与安装器未改动。macOS 已通过 Store/domain
+642 项回归、Web/API 15 项定向回归、7 项离线浏览器检查及相关类型/lint/构建检查。
+
+Windows 发布前仍须运行 `pnpm verify:windows`，并在获准更新的同一 Store 扩展上人工复核：
+关闭批准页后可重新打开；批准后设置页及时显示“断开”；平台翻译不误报缺密钥或丢失关联；
+断开后不会被晚到的旧请求恢复。双平台 CI 和真实账号/模型链路仍未验证，未使用废弃的 Windows Codex 项目。

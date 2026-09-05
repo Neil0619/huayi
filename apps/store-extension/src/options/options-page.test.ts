@@ -17,6 +17,7 @@ function hasReadableHelpSize(selector: string): boolean {
 }
 
 afterEach(() => {
+  window.dispatchEvent(new Event("pagehide"));
   document.documentElement.replaceChildren(
     document.createElement("head"),
     document.createElement("body"),
@@ -29,8 +30,8 @@ describe("Store OptionsPage", () => {
     renderPage();
 
     const tabs = Array.from(document.querySelectorAll<HTMLButtonElement>("[role='tab']"));
-    expect(tabs).toHaveLength(4);
-    expect(document.querySelectorAll("[role='tabpanel']")).toHaveLength(4);
+    expect(tabs).toHaveLength(5);
+    expect(document.querySelectorAll("[role='tabpanel']")).toHaveLength(5);
     expect(document.querySelector("[data-settings-nav='migration']")).toBeNull();
     expect(document.querySelector("[data-import-classic-settings]")).toBeNull();
     for (const tab of tabs) {
@@ -43,12 +44,12 @@ describe("Store OptionsPage", () => {
     }
   });
 
-  it("keeps the four approved appearances inside common settings without a fifth category", async () => {
+  it("keeps four appearances inside common settings and website rules in their own category", async () => {
     renderPage();
     const { page } = createHarness();
     await page.initialize();
 
-    expect(document.querySelectorAll("[role='tab']")).toHaveLength(4);
+    expect(document.querySelectorAll("[role='tab']")).toHaveLength(5);
     const choices = [...document.querySelectorAll<HTMLInputElement>("[data-store-appearance]")];
     expect(choices.map((choice) => choice.value)).toEqual([
       "moon",
@@ -83,7 +84,7 @@ describe("Store OptionsPage", () => {
     expect(choice.checked).toBe(true);
   });
 
-  it("keeps the current appearance preview when its independent storage write fails", async () => {
+  it("restores the saved appearance when its independent storage write fails", async () => {
     renderPage();
     const { appearance, notifySitePolicyChanged, page } = createHarness();
     vi.mocked(appearance.set).mockRejectedValueOnce(new Error("disk full"));
@@ -94,10 +95,12 @@ describe("Store OptionsPage", () => {
     choice.dispatchEvent(new Event("change", { bubbles: true }));
 
     await vi.waitFor(() =>
-      expect(element("[data-page-status]").textContent).toBe("本次有效，未能保存"),
+      expect(element("[data-page-status]").textContent).toBe(
+        "未能保存外观，已恢复原主题，请重试。",
+      ),
     );
-    expect(document.documentElement.dataset.appearance).toBe("porcelain");
-    expect(choice.checked).toBe(true);
+    expect(document.documentElement.dataset.appearance).toBe("silver");
+    expect(choice.checked).toBe(false);
     expect(notifySitePolicyChanged).not.toHaveBeenCalled();
   });
 
@@ -118,7 +121,7 @@ describe("Store OptionsPage", () => {
 
     expect(document.body.textContent).toContain("启用范围");
     expect(document.body.textContent).toContain("在所有网站启用");
-    expect(document.body.textContent).toContain("单独关闭的网站");
+    expect(document.body.textContent).toContain("网站管理");
     expect(document.body.textContent).toContain("首次联网确认");
     expect(document.body.textContent).not.toContain("模型联网许可");
     expect(document.body.textContent).toContain("模型与划词动作");
@@ -152,6 +155,21 @@ describe("Store OptionsPage", () => {
     expect(unreadable).toEqual([]);
   });
 
+  it("keeps already accepted disclosures collapsed after loading settings", async () => {
+    renderPage();
+    const { page, settings } = createHarness();
+    await settings.grantNetworkConsent(new Date());
+    await settings.grantRecipientConsent("eudic", new Date());
+    await settings.grantRecipientConsent("shanbay", new Date());
+    await page.initialize();
+    expect(element<HTMLDetailsElement>("[data-network-disclosure]").open).toBe(false);
+    for (const detail of document.querySelectorAll<HTMLDetailsElement>(
+      "[data-recipient-disclosure]",
+    )) {
+      expect(detail.open).toBe(false);
+    }
+  });
+
   it("collapses long network detail without dropping consent semantics", () => {
     renderPage();
 
@@ -159,8 +177,7 @@ describe("Store OptionsPage", () => {
     const consent = element<HTMLElement>("[data-network-consent]");
     const providerCard = element("#provider-title").closest("section");
     expect(providerCard?.contains(consent)).toBe(true);
-    expect(element("[data-network-summary]").textContent).toContain("总开关");
-    expect(element("[data-network-summary]").textContent).toContain("发送");
+    expect(document.querySelector("[data-network-summary]")).toBeNull();
     expect(network.querySelector("summary")?.textContent).toMatch(/发送|联网/u);
     expect(network.contains(element("[data-revoke-consent]"))).toBe(true);
     for (const required of [
@@ -191,18 +208,15 @@ describe("Store OptionsPage", () => {
       }
       expect(disclosure.contains(element(`[data-recipient-revoke='${recipient}']`))).toBe(true);
     }
-    expect(document.body.textContent).toContain("先确认数据范围，再用开关");
+    expect(document.body.textContent).not.toContain("同意与启用彼此独立");
   });
 
-  it("offers one clear cloud login entry from common settings", () => {
+  it("offers a compact account connection entry in the toolbar without a promotion card", () => {
     renderPage();
 
-    const entry = element<HTMLElement>("[data-cloud-account-entry]");
-    expect(
-      entry.closest("[data-settings-associated='common'], [data-settings-section='common']"),
-    ).not.toBeNull();
-    const action = element<HTMLButtonElement>("[data-open-web-workspace]");
-    expect(action.textContent).toMatch(/登录.*语见云端/u);
+    expect(document.querySelector("[data-cloud-account-entry]")).toBeNull();
+    const action = element<HTMLButtonElement>(".settings-toolbar [data-cloud-session-action]");
+    expect(action.textContent).toBe("登录");
     expect(action.getAttribute("type")).toBe("button");
   });
 
@@ -288,14 +302,14 @@ describe("Store OptionsPage", () => {
     });
   });
 
-  it("updates the global policy and removes only listed disabled hosts", async () => {
+  it("updates the global policy and removes one rule from independent site management", async () => {
     renderPage();
     const { notifySitePolicyChanged, page, settings } = createHarness();
     await page.initialize();
 
     const global = element<HTMLInputElement>("[data-global-enabled]");
     expect(global.checked).toBe(true);
-    expect(element("[data-disabled-hosts]").textContent).toContain("blocked.example");
+    expect(element("[data-site-rules]").textContent).toContain("blocked.example");
     global.checked = false;
     global.dispatchEvent(new Event("change"));
     await vi.waitFor(() => {
@@ -303,13 +317,16 @@ describe("Store OptionsPage", () => {
       expect(notifySitePolicyChanged).toHaveBeenCalledOnce();
     });
 
-    element<HTMLButtonElement>("[data-enable-host='blocked.example']").click();
+    element<HTMLButtonElement>("[data-open-site-management]").click();
+    element<HTMLButtonElement>("[data-site-rule-delete]").click();
     await vi.waitFor(() => {
-      expect(settings.setSiteEnabled).toHaveBeenCalledWith("blocked.example", true);
-      expect(element("[data-disabled-hosts]").textContent).not.toContain("blocked.example");
+      expect(settings.removeSiteRule).toHaveBeenCalledWith(
+        expect.objectContaining({ hostname: "blocked.example", includeSubdomains: false }),
+      );
+      expect(element("[data-site-rules]").textContent).not.toContain("blocked.example");
       expect(notifySitePolicyChanged).toHaveBeenCalledTimes(2);
     });
-    expect(element("[data-disabled-hosts]").textContent).toContain("news.example");
+    expect(element("[data-site-rules]").textContent).toContain("news.example");
   });
 
   it("shows per-recipient disclosure and keeps consent separate from enablement", async () => {

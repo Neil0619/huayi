@@ -2,6 +2,7 @@ import {
   STORE_MESSAGE_VERSION,
   parseStoreOpenWebWorkspaceRequest,
   type StoreOpenWebWorkspaceResponse,
+  type StoreOpenWebWorkspaceRequest,
 } from "@huayi/store-domain";
 
 export async function handleOpenWebWorkspace(
@@ -12,8 +13,9 @@ export async function handleOpenWebWorkspace(
   createTab: (properties: { url: string }) => Promise<unknown>,
 ): Promise<StoreOpenWebWorkspaceResponse | undefined> {
   if (senderId !== extensionId) return undefined;
+  let request: StoreOpenWebWorkspaceRequest;
   try {
-    parseStoreOpenWebWorkspaceRequest(message);
+    request = parseStoreOpenWebWorkspaceRequest(message);
   } catch {
     return undefined;
   }
@@ -34,7 +36,12 @@ export async function handleOpenWebWorkspace(
   if (workspace.protocol !== "https:" || workspace.username !== "" || workspace.password !== "") {
     return undefined;
   }
-  await createTab({ url: workspace.href });
+  await createTab({
+    url:
+      request.destination === "wordbooks"
+        ? new URL("/words/wordbooks", workspace).href
+        : workspace.href,
+  });
   return {
     messageVersion: STORE_MESSAGE_VERSION,
     opened: true,

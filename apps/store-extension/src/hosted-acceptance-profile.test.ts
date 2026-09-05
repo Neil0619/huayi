@@ -11,6 +11,7 @@ import { describe, expect, it } from "vitest";
 import acceptanceManifest from "../manifest.hosted-acceptance.json" with { type: "json" };
 import releaseManifest from "../manifest.json" with { type: "json" };
 import { createStoreExtensionConfig } from "../vite.config.js";
+import { loadPackagedWorker } from "./packaged-worker.test-support.js";
 
 const apiOrigin = "https://api.acceptance.seen-said.cn";
 const webWorkspaceUrl = "https://app.acceptance.seen-said.cn/app";
@@ -55,6 +56,26 @@ describe("Hosted acceptance Store profile", () => {
       expect(serviceWorker).toContain(webWorkspaceUrl);
       expect(serviceWorker).not.toContain("HUAYI_CLOUD_API_ORIGIN_BUILD_VALUE");
       expect(serviceWorker).not.toContain("HUAYI_WEB_WORKSPACE_URL_BUILD_VALUE");
+      expect(serviceWorker).not.toContain("HUAYI_WEB_ORIGIN_BUILD_VALUE");
+
+      const worker = loadPackagedWorker(serviceWorker, extensionId);
+      await expect(worker.send("store/cloud-session-status")).resolves.toMatchObject({
+        status: "disconnected",
+      });
+      expect(worker.requests).toEqual([]);
+      await expect(worker.send("store/cloud-session-start")).resolves.toMatchObject({
+        status: "pairing",
+      });
+      expect(worker.requests).toEqual([
+        { method: "POST", url: `${apiOrigin}/v1/extension-pairings` },
+      ]);
+      expect(worker.openedUrls).toEqual([
+        "https://app.acceptance.seen-said.cn/pair-extension/packaged-pairing",
+      ]);
+      await expect(worker.send("store/open-web-workspace")).resolves.toMatchObject({
+        opened: true,
+      });
+      expect(worker.openedUrls.at(-1)).toBe(webWorkspaceUrl);
     } finally {
       await rm(outputDirectory, { force: true, recursive: true });
     }

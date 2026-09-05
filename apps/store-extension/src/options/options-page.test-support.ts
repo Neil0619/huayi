@@ -9,6 +9,7 @@ import type {
   StoreSettings,
   StoreSettingsRepository,
 } from "@huayi/store-domain";
+import { sameStoreSiteRule, upsertStoreSiteRule } from "@huayi/store-domain";
 import { vi } from "vitest";
 
 import { OptionsPage } from "./options-page.js";
@@ -160,6 +161,21 @@ export function createHarness(readiness: DeviceVaultReadiness = "ready"): {
               left.hostname.localeCompare(right.hostname) ||
               Number(left.includeSubdomains) - Number(right.includeSubdomains),
           ),
+        },
+      };
+    }),
+    upsertSiteRule: vi.fn(async (rule, previous) => {
+      currentSettings = {
+        ...currentSettings,
+        sitePolicy: upsertStoreSiteRule(currentSettings.sitePolicy, rule, previous),
+      };
+    }),
+    removeSiteRule: vi.fn(async (key) => {
+      currentSettings = {
+        ...currentSettings,
+        sitePolicy: {
+          ...currentSettings.sitePolicy,
+          rules: currentSettings.sitePolicy.rules.filter((rule) => !sameStoreSiteRule(rule, key)),
         },
       };
     }),

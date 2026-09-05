@@ -50,3 +50,16 @@ test("workspace builds stop at the first failure", async () => {
     "apps/extension",
   ]);
 });
+
+test("ordinary workspace builds cannot inherit the installed hosted profile", async () => {
+  const environment = { HUAYI_STORE_BUILD_PROFILE: "hosted-acceptance", PATH: "/fixture/bin" };
+  const calls = [];
+  await runWorkspaceBuilds(async (directory, buildEnvironment) => {
+    calls.push({ directory, environment: buildEnvironment });
+  }, environment);
+  assert.deepEqual(
+    calls.find(({ directory }) => directory === "apps/store-extension")?.environment,
+    { ...environment, HUAYI_STORE_BUILD_PROFILE: "release" },
+  );
+  assert.equal(environment.HUAYI_STORE_BUILD_PROFILE, "hosted-acceptance");
+});

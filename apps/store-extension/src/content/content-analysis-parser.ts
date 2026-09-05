@@ -78,6 +78,7 @@ const wordForm = object({
   sentenceRoleZh: optional(text(500)),
 });
 const SECTION_RULES: Readonly<Record<string, Rule>> = {
+  "key-expressions": array(object({ meaningZh: text(500), text: text(300) }), 6, 1),
   "base-form": text(120),
   collocations: array(collocation, 3, 1),
   "common-meanings": commonMeanings,
@@ -142,7 +143,7 @@ const RESULT_RULES: Readonly<Record<string, Rule>> = {
   }),
   "translate-passage": object({
     ...sourceFields,
-    selectionKind: enumeration("sentence"),
+    selectionKind: enumeration("sentence", "passage"),
     translationZh: text(4_000),
     type: enumeration("translate-passage"),
   }),
@@ -151,7 +152,7 @@ const RESULT_RULES: Readonly<Record<string, Rule>> = {
     contextRole: text(4_000),
     keyExpressions: array(object({ meaningZh: text(500), text: text(300) }), 6, 1),
     mainStructure: text(4_000),
-    selectionKind: enumeration("sentence"),
+    selectionKind: enumeration("sentence", "passage"),
     translationZh: text(4_000),
     type: enumeration("explain-sentence"),
   }),
@@ -160,6 +161,8 @@ const RESULT_RULES: Readonly<Record<string, Rule>> = {
 const errorCode = enumeration(
   "busy",
   "cancelled",
+  "cloud-access-denied",
+  "cloud-session-required",
   "consent-required",
   "credential-missing",
   "internal-error",
@@ -246,9 +249,10 @@ export function parseContentAnalysisMessage(value: unknown): StoreAnalysisServer
   }
   if (
     value.type !== "store/analysis-error" ||
-    Object.keys(value).length !== 4 ||
+    Object.keys(value).length !== (value.diagnosticId === undefined ? 4 : 5) ||
+    !(value.diagnosticId === undefined || text(64)(value.diagnosticId)) ||
     Object.keys(value).some(
-      (key) => !["code", "messageVersion", "requestId", "type"].includes(key),
+      (key) => !["code", "diagnosticId", "messageVersion", "requestId", "type"].includes(key),
     ) ||
     !errorCode(value.code) ||
     !(value.requestId === null || text(64)(value.requestId))

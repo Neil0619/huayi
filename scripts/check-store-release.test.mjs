@@ -56,6 +56,8 @@ const expectedFiles = [
   "manifest.json",
   "options.css",
   "options-components.css",
+  "options-site-rules.css",
+  "page-ui.css",
   "options.html",
   "options.js",
   "overlay.css",
@@ -67,10 +69,10 @@ const expectedFiles = [
   "youtube-main.js",
 ];
 
-async function withReleaseFixture(run) {
+async function withReleaseFixture(run, outputName = "dist-release") {
   const root = await mkdtemp(join(tmpdir(), "huayi-store-release-"));
   const sourceDirectory = join(root, "apps/store-extension");
-  const distDirectory = join(sourceDirectory, "dist");
+  const distDirectory = join(sourceDirectory, outputName);
   await mkdir(distDirectory, { recursive: true });
   try {
     for (const file of expectedFiles) {
@@ -141,7 +143,7 @@ test("release audit can bind an acceptance package to its separate reviewed sour
       }),
       [],
     );
-  });
+  }, "dist");
 });
 
 test("release audit rejects extra artifacts, remote executable code, and Classic markers", async () => {

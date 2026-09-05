@@ -68,20 +68,20 @@ describe("Store PopupPage", () => {
 
     expect(element("[data-provider]").textContent).toBe("DeepSeek");
     expect(document.documentElement.dataset.appearance).toBe("silver");
-    expect(element("[data-model-consent]").textContent).toBe("已允许联网");
+    expect(element("[data-model-consent]").getAttribute("aria-label")).toBe("已允许模型联网");
     expect(document.querySelector("[data-credential]")).toBeNull();
     expect(document.body.textContent).not.toContain("secret");
     expect(element<HTMLButtonElement>("[data-open-options]").getAttribute("aria-label")).toBe(
       "打开设置",
     );
-    expect(
-      element<HTMLButtonElement>("[data-toggle-overlay-theme]").getAttribute("aria-label"),
-    ).toBe("切换词卡皮肤");
+    expect(element<HTMLButtonElement>("[data-toggle-appearance]").getAttribute("aria-label")).toBe(
+      "选择外观",
+    );
     expect(element<HTMLInputElement>("[data-global-enabled]").checked).toBe(true);
     expect(document.querySelector(".global-control")).toBeNull();
     expect(document.querySelector("[data-analysis-card]")).toBeNull();
     expect(element("[data-analysis-summary]").textContent?.replace(/\s+/gu, " ").trim()).toBe(
-      "DeepSeek · 已允许联网",
+      "DeepSeek",
     );
     expect(document.querySelector("[data-popup-status]")?.textContent).toBe("");
     expect(element<HTMLInputElement>("[data-global-enabled]").getAttribute("role")).toBe("switch");
@@ -100,7 +100,7 @@ describe("Store PopupPage", () => {
     expect(element<HTMLInputElement>("[data-site-enabled]").checked).toBe(false);
   });
 
-  it("updates the global switch and overlay skin through exact popup runtime messages", async () => {
+  it("updates the global switch while the palette persists the shared four-theme appearance", async () => {
     renderPage();
     const sendRuntimeMessage = vi
       .fn()
@@ -118,7 +118,12 @@ describe("Store PopupPage", () => {
       })
       .mockResolvedValueOnce({ ...status(), globallyEnabled: false })
       .mockResolvedValueOnce({ ...status(), globallyEnabled: false, overlayTheme: "parchment" });
+    const appearance = {
+      get: vi.fn(async () => "silver" as const),
+      set: vi.fn(async () => undefined),
+    };
     const page = new PopupPage({
+      appearance,
       openOptionsPage: vi.fn(async () => undefined),
       queryActiveTab: vi.fn(async () => ({ id: 7 })),
       sendRuntimeMessage,
@@ -137,13 +142,12 @@ describe("Store PopupPage", () => {
     });
     expect(element<HTMLInputElement>("[data-site-enabled]").disabled).toBe(true);
 
-    element<HTMLButtonElement>("[data-toggle-overlay-theme]").click();
-    await vi.waitFor(() => expect(document.body.dataset.overlayTheme).toBe("parchment"));
-    expect(sendRuntimeMessage).toHaveBeenNthCalledWith(5, {
-      messageVersion: STORE_MESSAGE_VERSION,
-      overlayTheme: "parchment",
-      type: "store/popup-overlay-theme",
-    });
+    element<HTMLButtonElement>("[data-popup-theme='moon']").click();
+    await vi.waitFor(() => expect(document.documentElement.dataset.appearance).toBe("moon"));
+    expect(appearance.set).toHaveBeenCalledWith("moon");
+    expect(sendRuntimeMessage).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: "store/popup-overlay-theme" }),
+    );
   });
 
   it("shows a stale-tab error and refuses to toggle another active tab", async () => {
@@ -187,7 +191,7 @@ describe("Store PopupPage", () => {
     expect(element("[data-popup-status]").textContent).toBe("");
     expect(element("[data-site-host]").textContent).toBe("当前标签页不支持语见");
     expect(element("[data-provider]").textContent).toBe("DeepSeek");
-    expect(element("[data-model-consent]").textContent).toBe("已允许联网");
+    expect(element("[data-model-consent]").getAttribute("aria-label")).toBe("已允许模型联网");
     expect(document.querySelector("[data-credential]")).toBeNull();
     expect(element<HTMLInputElement>("[data-site-enabled]").disabled).toBe(true);
   });
@@ -276,7 +280,7 @@ describe("Store PopupPage", () => {
     await page.initialize();
 
     const action = element<HTMLButtonElement>("[data-cloud-session-action]");
-    expect(element("[data-cloud-session-state]").textContent).toBe("此安装包未接入语见云端");
+    expect(element("[data-cloud-session-state]").textContent).toBe("此安装包不支持账号连接");
     expect(action.disabled).toBe(true);
 
     configured = true;
@@ -291,13 +295,14 @@ describe("Store PopupPage", () => {
     const configuredAction = element<HTMLButtonElement>("[data-cloud-session-action]");
     configuredAction.click();
     await vi.waitFor(() =>
-      expect(element("[data-cloud-session-state]").textContent).toBe("请在网页完成登录"),
+      expect(element("[data-cloud-session-state]").textContent).toBe("等待网页确认关联"),
     );
     expect(sendRuntimeMessage).toHaveBeenCalledWith({
       messageVersion: STORE_MESSAGE_VERSION,
       type: "store/cloud-session-start",
     });
-    expect(configuredAction.disabled).toBe(true);
+    expect(configuredAction.disabled).toBe(false);
+    expect(configuredAction.textContent).toBe("重新打开");
 
     sendRuntimeMessage.mockImplementation(async (message: unknown) => {
       const type = (message as { type?: string }).type;
@@ -314,12 +319,10 @@ describe("Store PopupPage", () => {
       sendTabMessage: vi.fn(),
     });
     await connectedPage.initialize();
-    expect(element<HTMLButtonElement>("[data-cloud-session-action]").textContent).toBe(
-      "断开此设备",
-    );
+    expect(element<HTMLButtonElement>("[data-cloud-session-action]").textContent).toBe("断开");
     element<HTMLButtonElement>("[data-cloud-session-action]").click();
     await vi.waitFor(() =>
-      expect(element("[data-cloud-session-state]").textContent).toBe("尚未登录"),
+      expect(element("[data-cloud-session-state]").textContent).toBe("未连接账号"),
     );
   });
 
@@ -350,9 +353,9 @@ describe("Store PopupPage", () => {
     element<HTMLButtonElement>("[data-cloud-session-action]").click();
     await vi.waitFor(() =>
       expect(element("[data-popup-status]").textContent).toBe(
-        "暂时无法安全断开；本机会话仍保留，请联网后重试。",
+        "暂时无法安全断开，连接仍保留。请联网后重试。",
       ),
     );
-    expect(element("[data-cloud-session-state]").textContent).toBe("已登录并连接");
+    expect(element("[data-cloud-session-state]").textContent).toBe("已连接语见云端");
   });
 });

@@ -160,6 +160,13 @@ export function previewTextSection(
 
 export function previewStructuredSection(update: SectionUpdate): ResultSection | null {
   switch (update.section) {
+    case "key-expressions":
+      return entries(
+        "key-expressions",
+        "关键表达",
+        "pairs",
+        update.value.map((item) => [item.text, item.meaningZh]),
+      );
     case "pronunciation":
       return text("pronunciation", "音标", pronunciationText(update.value));
     case "contextual-sense":

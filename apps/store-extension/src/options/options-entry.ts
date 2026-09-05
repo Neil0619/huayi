@@ -6,7 +6,12 @@ import {
 } from "@huayi/store-domain";
 
 import { createProductionLexiconRepository } from "../lexicon/browser-lexicon-repository.js";
-import { createChromeStoreAppearance } from "../service-worker/store-appearance.js";
+import {
+  createChromeStoreAppearance,
+  STORE_APPEARANCE_STORAGE_KEY,
+} from "../service-worker/store-appearance.js";
+import { CloudAccountControls } from "../page-ui/cloud-account-controls.js";
+import { subscribeToCloudSession } from "../page-ui/cloud-session-updates.js";
 import { createChromeStoreSettings } from "../service-worker/store-settings.js";
 import { createProductionDeviceVault } from "../vault/browser-device-vault.js";
 import { createProductionWordbookExportEngine } from "../wordbook/production-wordbook-export-engine.js";
@@ -41,8 +46,9 @@ const wordbookOptions = new WordbookOptionsController({
   vault,
 });
 
+const appearance = createChromeStoreAppearance(chrome.storage.local);
 const page = new OptionsPage({
-  appearance: createChromeStoreAppearance(chrome.storage.local),
+  appearance,
   lexiconOptions: {
     async initialize(ready) {
       await Promise.all([
@@ -67,8 +73,9 @@ const page = new OptionsPage({
       }),
     );
   },
-  openWebWorkspace: async () => {
+  openWebWorkspace: async (destination) => {
     const message: StoreOpenWebWorkspaceRequest = {
+      ...(destination ? { destination } : {}),
       messageVersion: STORE_MESSAGE_VERSION,
       type: "store/open-web-workspace",
     };
@@ -79,4 +86,29 @@ const page = new OptionsPage({
   vault,
 });
 
-void page.initialize().catch(() => undefined);
+const account = new CloudAccountControls({
+  subscribe: subscribeToCloudSession,
+  sendMessage: (message) => chrome.runtime.sendMessage(message),
+  reportError: (message) => {
+    const status = document.querySelector<HTMLElement>("[data-page-status]");
+    if (status) {
+      status.textContent = message;
+      status.dataset.tone = "error";
+    }
+  },
+});
+void page
+  .initialize()
+  .finally(() => account.initialize())
+  .catch(() => undefined);
+const onStorageChanged = (changes: Record<string, chrome.storage.StorageChange>, area: string) => {
+  if (area === "local" && STORE_APPEARANCE_STORAGE_KEY in changes) {
+    void appearance.get().then((value) => page.refreshAppearance(value));
+  }
+};
+chrome.storage.onChanged.addListener(onStorageChanged);
+window.addEventListener(
+  "pagehide",
+  () => chrome.storage.onChanged.removeListener(onStorageChanged),
+  { once: true },
+);

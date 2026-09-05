@@ -67,7 +67,7 @@ export class LexiconOptionsController {
       element("[data-lexicon-list]").replaceChildren();
       return;
     }
-    await this.execute(() => this.load(undefined), "生词本已加载。");
+    await this.execute(() => this.load(undefined), "");
   }
 
   private bindEvents(): void {
@@ -77,14 +77,14 @@ export class LexiconOptionsController {
         this.search = element<HTMLInputElement>("[data-lexicon-search]").value.trim();
         await this.load(undefined);
       },
-      "搜索结果已更新。",
+      "",
     );
     this.bindButton(
       "[data-lexicon-next]",
       async () => {
         if (this.nextCursor !== null) await this.load(this.nextCursor);
       },
-      "下一页已加载。",
+      "",
     );
     this.bindButton("[data-word-list-export]", () => this.exportWordList(), "词表已下载。");
   }
@@ -140,6 +140,7 @@ export class LexiconOptionsController {
     }
     element<HTMLButtonElement>("[data-lexicon-next]").disabled =
       this.busy || this.nextCursor === null;
+    element<HTMLButtonElement>("[data-lexicon-next]").hidden = this.nextCursor === null;
   }
 
   private renderEntry(entry: WordEntry): HTMLElement {

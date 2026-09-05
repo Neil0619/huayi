@@ -27,11 +27,12 @@ function resolvePnpmInvocation(directory) {
   };
 }
 
-async function runWorkspace(directory) {
+async function runWorkspace(directory, environment) {
   const invocation = resolvePnpmInvocation(directory);
   await new Promise((resolvePromise, reject) => {
     const child = spawn(invocation.executable, invocation.arguments, {
       cwd: repositoryRoot,
+      env: environment,
       shell: false,
       stdio: "inherit",
     });
@@ -43,9 +44,14 @@ async function runWorkspace(directory) {
   });
 }
 
-export async function runWorkspaceBuilds(run = runWorkspace) {
+export async function runWorkspaceBuilds(run = runWorkspace, environment = process.env) {
   for (const directory of workspaceBuildDirectories) {
-    await run(directory);
+    await run(
+      directory,
+      directory === "apps/store-extension"
+        ? { ...environment, HUAYI_STORE_BUILD_PROFILE: "release" }
+        : environment,
+    );
   }
 }
 

@@ -28,6 +28,7 @@ describe("privileged cloud-session handler", () => {
         manager,
         runtimeId: "extension-id",
         schedulePoll: vi.fn(),
+        syncPreferences: vi.fn(),
         sender: { id: "extension-id", url: "chrome-extension://extension-id/popup.html" },
       }),
     ).resolves.toMatchObject({ status: "pairing", type: "store/cloud-session-result" });
@@ -37,6 +38,7 @@ describe("privileged cloud-session handler", () => {
         manager,
         runtimeId: "extension-id",
         schedulePoll: vi.fn(),
+        syncPreferences: vi.fn(),
         sender: { id: "extension-id", url: "chrome-extension://extension-id/content.js" },
       }),
     ).resolves.toBeUndefined();
@@ -51,6 +53,7 @@ describe("privileged cloud-session handler", () => {
           manager: { continuePairing: vi.fn(), disconnect: vi.fn(), start, status: vi.fn() },
           runtimeId: "extension-id",
           schedulePoll: vi.fn(),
+          syncPreferences: vi.fn(),
           sender: { id: "extension-id", url: "chrome-extension://extension-id/options.html" },
         },
       ),

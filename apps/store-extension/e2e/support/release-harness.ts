@@ -141,7 +141,7 @@ async function sendMessage(value: unknown): Promise<unknown> {
 Reflect.set(globalThis, "chrome", {
   runtime: {
     connect: (): FakeAnalysisPort => new FakeAnalysisPort(),
-    getURL: (path: string): string => `/apps/store-extension/dist/${path}`,
+    getURL: (path: string): string => `/apps/store-extension/dist-release/${path}`,
     id: extensionId,
     onMessage: {
       addListener: (listener: RuntimeListener): void => {
@@ -181,5 +181,5 @@ document.querySelector("[data-testid='disable-site']")?.addEventListener("click"
 });
 
 const packagedContentScript = document.createElement("script");
-packagedContentScript.src = "/apps/store-extension/dist/content-script.js";
+packagedContentScript.src = "/apps/store-extension/dist-release/content-script.js";
 document.head.append(packagedContentScript);

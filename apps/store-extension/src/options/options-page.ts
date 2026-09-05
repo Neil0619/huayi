@@ -12,6 +12,8 @@ import type { StoreAppearanceRepository } from "../service-worker/store-appearan
 import { UserFacingError, userMessage } from "./options-errors.js";
 import { OptionsNonSensitiveControls } from "./options-non-sensitive-controls.js";
 import { OptionsSectionNavigation } from "./options-section-navigation.js";
+import { SiteRulesOptionsController } from "./site-rules-options-controller.js";
+import { bindPageHelp } from "../page-ui/page-help.js";
 
 const PROVIDER_CREDENTIALS = [
   "openai-api-key",
@@ -26,7 +28,7 @@ interface OptionsPageDependencies {
     setReady(ready: boolean): Promise<void>;
   };
   readonly notifySitePolicyChanged?: () => Promise<void>;
-  readonly openWebWorkspace?: () => Promise<void>;
+  readonly openWebWorkspace?: (destination?: "wordbooks") => Promise<void>;
   readonly settings: StoreSettingsRepository;
   readonly vault: DeviceVault;
 }
@@ -43,10 +45,19 @@ export class OptionsPage {
   private readonly credentialConfigured = new Map<CredentialSlot, boolean>();
   private readonly nonSensitiveControls: OptionsNonSensitiveControls;
   private readonly sectionNavigation = new OptionsSectionNavigation();
+  private readonly siteRules: SiteRulesOptionsController;
   private ready = false;
   private settings: StoreSettings | null = null;
 
   constructor(private readonly dependencies: OptionsPageDependencies) {
+    this.siteRules = new SiteRulesOptionsController({
+      settings: dependencies.settings,
+      execute: (operation) => void this.execute(operation),
+      refresh: async () => {
+        await this.refreshSettings();
+        await dependencies.notifySitePolicyChanged?.();
+      },
+    });
     this.nonSensitiveControls = new OptionsNonSensitiveControls({
       execute: (operation, success) => void this.execute(operation, success),
       notifySitePolicyChanged: dependencies.notifySitePolicyChanged ?? (async () => undefined),
@@ -57,6 +68,9 @@ export class OptionsPage {
 
   async initialize(): Promise<void> {
     this.sectionNavigation.initialize();
+    const disposeHelp = bindPageHelp(document);
+    window.addEventListener("pagehide", disposeHelp, { once: true });
+    this.siteRules.bind();
     this.bindEvents();
     this.render();
     await this.dependencies.lexiconOptions?.initialize(false);
@@ -91,18 +105,34 @@ export class OptionsPage {
       },
       "",
     );
+    this.bindButton(
+      "[data-open-web-wordbooks]",
+      async () => {
+        if (!this.dependencies.openWebWorkspace)
+          throw new UserFacingError("此安装包不支持云端任务管理。");
+        try {
+          await this.dependencies.openWebWorkspace("wordbooks");
+        } catch {
+          throw new UserFacingError("无法打开同步任务，请稍后重试。");
+        }
+      },
+      "",
+    );
     for (const control of document.querySelectorAll<HTMLInputElement>("[data-store-appearance]")) {
       control.addEventListener("change", (event) => {
         const input = event.currentTarget as HTMLInputElement;
         if (!input.checked) return;
         const appearance = parseStoreAppearance(input.value);
+        const previous = this.appearance;
         this.appearance = appearance;
         this.applyAppearance();
         void this.execute(async () => {
           try {
             await this.dependencies.appearance.set(appearance);
           } catch {
-            throw new UserFacingError("本次有效，未能保存");
+            this.appearance = previous;
+            this.applyAppearance();
+            throw new UserFacingError("未能保存外观，已恢复原主题，请重试。");
           }
           await (this.dependencies.notifySitePolicyChanged ?? (async () => undefined))();
         });
@@ -240,6 +270,8 @@ export class OptionsPage {
     document.body.setAttribute("aria-busy", String(this.busy));
     element<HTMLElement>("[data-device-vault-ready]").hidden = !this.ready;
     const consented = this.settings?.networkConsent !== null && this.settings !== null;
+    if (this.settings !== null && !consented)
+      element<HTMLDetailsElement>("[data-network-disclosure]").open = true;
     element("[data-consent-state]").textContent = consented ? "已同意联网" : "尚未同意联网";
     element<HTMLButtonElement>("[data-grant-consent]").hidden = consented;
     element<HTMLButtonElement>("[data-revoke-consent]").hidden = !consented;
@@ -260,9 +292,13 @@ export class OptionsPage {
     for (const control of document.querySelectorAll<
       HTMLInputElement | HTMLButtonElement | HTMLSelectElement
     >("button, input, select")) {
-      if (control.matches("[data-credential-delete]")) continue;
+      if (
+        control.matches("[data-credential-delete], [data-cloud-session-action], [data-help-toggle]")
+      )
+        continue;
       control.disabled = this.busy;
     }
+    this.siteRules.render(this.settings, this.busy);
 
     for (const recipient of DATA_RECIPIENTS) {
       const decision =
@@ -270,6 +306,10 @@ export class OptionsPage {
           ? "consent-required"
           : recipientAccessDecision(this.settings, recipient);
       const consentCurrent = decision !== "consent-required";
+      if (this.settings !== null && !consentCurrent)
+        element<HTMLButtonElement>(`[data-recipient-grant='${recipient}']`)
+          .closest("details")
+          ?.setAttribute("open", "");
       const enabled = decision === "allowed";
       element(`[data-recipient-state='${recipient}']`).textContent = !consentCurrent
         ? "尚未同意"
@@ -286,5 +326,13 @@ export class OptionsPage {
 
   private applyAppearance(): void {
     document.documentElement.dataset.appearance = this.appearance;
+  }
+
+  refreshAppearance(appearance: StoreAppearance): void {
+    this.appearance = appearance;
+    this.applyAppearance();
+    for (const control of document.querySelectorAll<HTMLInputElement>("[data-store-appearance]")) {
+      control.checked = control.value === appearance;
+    }
   }
 }

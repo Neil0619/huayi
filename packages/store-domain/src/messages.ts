@@ -70,6 +70,7 @@ export interface StoreOpenOptionsRequest {
 }
 
 export interface StoreOpenWebWorkspaceRequest {
+  readonly destination?: "wordbooks";
   readonly messageVersion: typeof STORE_MESSAGE_VERSION;
   readonly type: "store/open-web-workspace";
 }
@@ -90,12 +91,17 @@ export type StoreOpenWebWorkspaceResponse =
 export function parseStoreOpenWebWorkspaceRequest(value: unknown): StoreOpenWebWorkspaceRequest {
   if (
     !isRecord(value) ||
-    !hasExactlyKeys(value, ["messageVersion", "type"]) ||
+    !(
+      hasExactlyKeys(value, ["messageVersion", "type"]) ||
+      (hasExactlyKeys(value, ["destination", "messageVersion", "type"]) &&
+        value.destination === "wordbooks")
+    ) ||
     value.type !== "store/open-web-workspace"
   ) {
     throw new TypeError("Store open-Web-workspace request is invalid.");
   }
   return {
+    ...(value.destination === "wordbooks" ? { destination: "wordbooks" as const } : {}),
     messageVersion: parseCurrentVersion(value.messageVersion),
     type: "store/open-web-workspace",
   };
@@ -157,6 +163,8 @@ export type StoreAnalysisClientMessage = StoreAnalysisStartMessage | StoreAnalys
 export type StoreAnalysisErrorCode =
   | "busy"
   | "cancelled"
+  | "cloud-access-denied"
+  | "cloud-session-required"
   | "consent-required"
   | "credential-missing"
   | "internal-error"
@@ -181,6 +189,7 @@ export type StoreAnalysisServerMessage =
     }
   | {
       readonly code: StoreAnalysisErrorCode;
+      readonly diagnosticId?: string;
       readonly messageVersion: typeof STORE_MESSAGE_VERSION;
       readonly requestId: string | null;
       readonly type: "store/analysis-error";
@@ -243,6 +252,8 @@ export function parseAnalysisClientMessage(value: unknown): StoreAnalysisClientM
 const STORE_ANALYSIS_ERROR_CODES: readonly StoreAnalysisErrorCode[] = [
   "busy",
   "cancelled",
+  "cloud-access-denied",
+  "cloud-session-required",
   "consent-required",
   "credential-missing",
   "internal-error",
@@ -280,7 +291,12 @@ export function parseAnalysisServerMessage(value: unknown): StoreAnalysisServerM
   }
   if (
     value.type !== "store/analysis-error" ||
-    !hasExactlyKeys(value, ["code", "messageVersion", "requestId", "type"]) ||
+    !hasExactlyKeys(
+      value,
+      value.diagnosticId === undefined
+        ? ["code", "messageVersion", "requestId", "type"]
+        : ["code", "diagnosticId", "messageVersion", "requestId", "type"],
+    ) ||
     typeof value.code !== "string" ||
     !STORE_ANALYSIS_ERROR_CODES.includes(value.code as StoreAnalysisErrorCode)
   ) {
@@ -288,6 +304,9 @@ export function parseAnalysisServerMessage(value: unknown): StoreAnalysisServerM
   }
   return {
     code: value.code as StoreAnalysisErrorCode,
+    ...(value.diagnosticId === undefined
+      ? {}
+      : { diagnosticId: parseRequestId(value.diagnosticId) }),
     messageVersion,
     requestId: value.requestId === null ? null : parseRequestId(value.requestId),
     type: "store/analysis-error",

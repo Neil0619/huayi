@@ -20,14 +20,14 @@ export function isSitePoliciesChangedMessage(value: unknown): boolean {
   );
 }
 
-function isExactOptionsSender(sender: ExtensionSender, extensionId: string): boolean {
+function isExactSettingsPageSender(sender: ExtensionSender, extensionId: string): boolean {
   if (sender.id !== extensionId || sender.url === undefined) return false;
   try {
     const url = new URL(sender.url);
     return (
       url.protocol === "chrome-extension:" &&
       url.hostname === extensionId &&
-      url.pathname === "/options.html" &&
+      (url.pathname === "/options.html" || url.pathname === "/popup.html") &&
       url.search === "" &&
       url.hash === ""
     );
@@ -42,7 +42,7 @@ export async function handleSitePoliciesChanged(
   extensionId: string,
   broadcast: (message: StoreSiteRelayMessage) => Promise<void>,
 ): Promise<StoreSitePoliciesChangedResponse | undefined> {
-  if (!isSitePoliciesChangedMessage(value) || !isExactOptionsSender(sender, extensionId)) {
+  if (!isSitePoliciesChangedMessage(value) || !isExactSettingsPageSender(sender, extensionId)) {
     return undefined;
   }
   try {

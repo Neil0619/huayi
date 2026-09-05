@@ -1,20 +1,26 @@
 import {
   STORE_MESSAGE_VERSION,
-  parseCloudSessionResponse,
+  parseStoreAppearance,
   parseSubmissionOutboxResponse,
   parseStorePopupStatusResponse,
   parseStoreSitePolicyResponse,
   type StorePopupStatusResponse,
   type StoreSitePolicyResponse,
-  type CloudSessionResponse,
+  type StoreAppearance,
   type SubmissionOutboxResponse,
 } from "@huayi/store-domain";
+import { CloudAccountControls } from "../page-ui/cloud-account-controls.js";
+import type { StoreAppearanceRepository } from "../service-worker/store-appearance.js";
+import { renderPopupOutbox } from "./popup-outbox-view.js";
 
 interface ActiveTab {
   readonly id: number;
 }
 
 interface PopupPageDependencies {
+  readonly appearance?: StoreAppearanceRepository;
+  readonly subscribeToCloudSession?: (onChanged: () => void) => () => void;
+  readonly notifySettingsChanged?: () => Promise<void>;
   readonly openOptionsPage: () => Promise<void>;
   readonly queryActiveTab: () => Promise<ActiveTab | null>;
   readonly sendRuntimeMessage: (message: unknown) => Promise<unknown>;
@@ -22,6 +28,7 @@ interface PopupPageDependencies {
 }
 
 class PopupPageError extends Error {}
+type PopupOperation = "appearance" | "global" | "site" | "outbox" | "options";
 
 function isMissingContentReceiver(error: unknown): boolean {
   return error instanceof Error && error.message.includes("Receiving end does not exist");
@@ -35,9 +42,9 @@ function element<ElementType extends HTMLElement>(selector: string): ElementType
 
 export class PopupPage {
   private activeTabId: number | null = null;
-  private busy = false;
-  private cloudSession: CloudSessionResponse | null = null;
-  private cloudUnavailable = false;
+  private readonly busy = new Set<PopupOperation>();
+  private appearance: StoreAppearance | null = null;
+  private appearanceRevision = 0;
   private focusOutboxAfterRender = false;
   private outboxClearConfirmation = false;
   private sitePolicy: StoreSitePolicyResponse | null = null;
@@ -50,81 +57,99 @@ export class PopupPage {
 
   async initialize(): Promise<void> {
     element<HTMLButtonElement>("[data-open-options]").addEventListener("click", () => {
-      void this.execute(async () => this.openOptions());
+      void this.execute("options", async () => this.openOptions());
     });
     element<HTMLInputElement>("[data-site-enabled]").addEventListener("change", (event) => {
       const enabled = (event.currentTarget as HTMLInputElement).checked;
-      void this.execute(async () => this.toggleSite(enabled));
+      void this.execute("site", async () => this.toggleSite(enabled));
     });
     element<HTMLInputElement>("[data-global-enabled]").addEventListener("change", (event) => {
       const enabled = (event.currentTarget as HTMLInputElement).checked;
-      void this.execute(async () => this.toggleGlobal(enabled));
+      void this.execute("global", async () => this.toggleGlobal(enabled));
     });
-    element<HTMLButtonElement>("[data-toggle-overlay-theme]").addEventListener("click", () => {
-      void this.execute(async () => this.toggleOverlayTheme());
+    const paletteToggle = element<HTMLButtonElement>("[data-toggle-appearance]");
+    const palette = element("[data-popup-appearance]");
+    paletteToggle.addEventListener("click", () => {
+      palette.hidden = !palette.hidden;
+      paletteToggle.setAttribute("aria-expanded", String(!palette.hidden));
     });
-    element<HTMLButtonElement>("[data-cloud-session-action]").addEventListener("click", () => {
-      void this.execute(async () => this.toggleCloudSession());
+    palette.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape") return;
+      palette.hidden = true;
+      paletteToggle.setAttribute("aria-expanded", "false");
+      paletteToggle.focus();
+    });
+    for (const button of document.querySelectorAll<HTMLButtonElement>("[data-popup-theme]")) {
+      button.addEventListener("click", () => {
+        void this.execute("appearance", () =>
+          this.changeAppearance(parseStoreAppearance(button.dataset.popupTheme)),
+        );
+      });
+    }
+    const account = new CloudAccountControls({
+      ...(this.dependencies.subscribeToCloudSession
+        ? { subscribe: this.dependencies.subscribeToCloudSession }
+        : {}),
+      sendMessage: this.dependencies.sendRuntimeMessage,
+      reportError: (message) => this.setPageStatus(message, "error"),
+      onChanged: async () => {
+        await this.readSubmissionOutbox();
+        this.render();
+      },
     });
     element<HTMLButtonElement>("[data-submission-outbox-retry]").addEventListener("click", () => {
-      void this.execute(async () => this.retrySubmissionOutbox());
+      void this.execute("outbox", async () => this.retrySubmissionOutbox());
     });
     element<HTMLButtonElement>("[data-submission-outbox-clear]").addEventListener("click", () => {
       if (!this.outboxClearConfirmation) {
         this.outboxClearConfirmation = true;
-        this.setPageStatus("再次点击只清空本机待提交学习采集。", "neutral");
+        this.setPageStatus(
+          "再次点击将清空本机待上传的采集与生词，云端已有记录不受影响。",
+          "neutral",
+        );
         this.render();
         return;
       }
-      void this.execute(async () => this.clearSubmissionOutbox());
+      void this.execute("outbox", async () => this.clearSubmissionOutbox());
     });
-    await this.execute(async () => {
-      const [status, tab, cloudSession, submissionOutbox] = await Promise.all([
-        this.dependencies.sendRuntimeMessage({
-          messageVersion: STORE_MESSAGE_VERSION,
-          type: "store/popup-status",
-        }),
-        this.dependencies.queryActiveTab(),
-        this.dependencies
-          .sendRuntimeMessage({
+    const appearanceRevision = this.appearanceRevision;
+    await Promise.all([
+      this.dependencies.appearance?.get().then((appearance) => {
+        if (appearanceRevision === this.appearanceRevision) this.applyAppearance(appearance);
+      }),
+      this.execute("global", async () => {
+        this.status = parseStorePopupStatusResponse(
+          await this.dependencies.sendRuntimeMessage({
             messageVersion: STORE_MESSAGE_VERSION,
-            type: "store/cloud-session-status",
-          })
-          .then((value) => parseCloudSessionResponse(value))
-          .catch(() => null),
-        this.dependencies
-          .sendRuntimeMessage({
-            messageVersion: STORE_MESSAGE_VERSION,
-            type: "store/submission-outbox-status",
-          })
-          .then((value) => parseSubmissionOutboxResponse(value))
-          .catch(() => null),
-      ]);
-      this.status = parseStorePopupStatusResponse(status);
-      this.cloudSession = cloudSession;
-      this.cloudUnavailable = cloudSession === null;
-      this.submissionOutbox = submissionOutbox;
-      this.submissionOutboxUnavailable = submissionOutbox === null;
-      if (tab === null) {
-        this.unsupportedTab = true;
-        return;
-      }
-      this.activeTabId = tab.id;
-      try {
-        this.sitePolicy = parseStoreSitePolicyResponse(
-          await this.dependencies.sendTabMessage(tab.id, {
-            messageVersion: STORE_MESSAGE_VERSION,
-            type: "store/popup-site-policy",
+            type: "store/popup-status",
           }),
         );
-      } catch (error) {
-        if (isMissingContentReceiver(error)) {
+      }),
+      account.initialize(),
+      this.execute("outbox", () => this.readSubmissionOutbox()),
+      this.execute("site", async () => {
+        const tab = await this.dependencies.queryActiveTab();
+        if (tab === null) {
           this.unsupportedTab = true;
           return;
         }
-        throw error;
-      }
-    });
+        this.activeTabId = tab.id;
+        try {
+          this.sitePolicy = parseStoreSitePolicyResponse(
+            await this.dependencies.sendTabMessage(tab.id, {
+              messageVersion: STORE_MESSAGE_VERSION,
+              type: "store/popup-site-policy",
+            }),
+          );
+        } catch (error) {
+          if (isMissingContentReceiver(error)) {
+            this.unsupportedTab = true;
+            return;
+          }
+          throw error;
+        }
+      }),
+    ]);
   }
 
   private async toggleSite(enabled: boolean): Promise<void> {
@@ -152,38 +177,24 @@ export class PopupPage {
     );
   }
 
-  private async toggleOverlayTheme(): Promise<void> {
-    if (this.status === null) throw new PopupPageError("词卡皮肤状态尚未就绪。");
-    const overlayTheme = this.status.overlayTheme === "pearl" ? "parchment" : "pearl";
-    this.status = parseStorePopupStatusResponse(
-      await this.dependencies.sendRuntimeMessage({
-        messageVersion: STORE_MESSAGE_VERSION,
-        overlayTheme,
-        type: "store/popup-overlay-theme",
-      }),
-    );
+  applyAppearance(appearance: StoreAppearance): void {
+    this.appearanceRevision += 1;
+    this.appearance = appearance;
+    if (this.status) this.status = { ...this.status, appearance };
+    this.render();
   }
 
-  private async toggleCloudSession(): Promise<void> {
-    if (this.cloudSession === null) throw new PopupPageError("云端连接状态尚未就绪。");
-    const type =
-      this.cloudSession.status === "connected"
-        ? "store/cloud-session-disconnect"
-        : "store/cloud-session-start";
+  private async changeAppearance(appearance: StoreAppearance): Promise<void> {
+    if (!this.dependencies.appearance) return;
+    const previous = this.appearance ?? this.status?.appearance ?? "silver";
+    this.applyAppearance(appearance);
     try {
-      this.cloudSession = parseCloudSessionResponse(
-        await this.dependencies.sendRuntimeMessage({
-          messageVersion: STORE_MESSAGE_VERSION,
-          type,
-        }),
-      );
-    } catch (error) {
-      if (type === "store/cloud-session-disconnect") {
-        throw new PopupPageError("暂时无法安全断开；本机会话仍保留，请联网后重试。");
-      }
-      throw error;
+      await this.dependencies.appearance.set(appearance);
+    } catch {
+      this.applyAppearance(previous);
+      throw new PopupPageError("未能保存外观，已恢复原主题，请重试。");
     }
-    await this.readSubmissionOutbox();
+    await this.dependencies.notifySettingsChanged?.();
   }
 
   private async readSubmissionOutbox(): Promise<void> {
@@ -216,7 +227,7 @@ export class PopupPage {
       case "retry-pending":
         return "暂时仍无法提交，稍后会自动重试。";
       case "submitted":
-        return "已提交到云端待整理。";
+        return "已提交到收集箱。";
       case "session-invalid":
         return "云端连接已失效，待提交学习采集已清除。";
       case "discarded":
@@ -235,7 +246,7 @@ export class PopupPage {
     );
     this.outboxClearConfirmation = false;
     this.focusOutboxAfterRender = true;
-    return "只清除了本机待提交学习采集，云端已有记录不受影响。";
+    return "已清空本机待上传内容，云端已有记录不受影响。";
   }
 
   private async openOptions(): Promise<void> {
@@ -246,108 +257,79 @@ export class PopupPage {
     }
   }
 
-  private async execute(operation: () => Promise<unknown>): Promise<void> {
-    if (this.busy) return;
-    this.busy = true;
+  private async execute(scope: PopupOperation, operation: () => Promise<unknown>): Promise<void> {
+    if (this.busy.has(scope)) return;
+    this.busy.add(scope);
     this.setPageStatus("", "neutral");
     this.render();
     try {
       const result = await operation();
       const message = typeof result === "string" ? result : undefined;
-      this.setPageStatus(message ?? "", message === undefined ? "neutral" : "success");
+      if (message !== undefined) this.setPageStatus(message, "success");
     } catch (error) {
       this.setPageStatus(
         error instanceof PopupPageError ? error.message : "扩展状态读取失败，请稍后重试。",
         "error",
       );
     } finally {
-      this.busy = false;
+      this.busy.delete(scope);
       this.render();
     }
   }
 
   private render(): void {
     const status = this.status;
-    document.documentElement.dataset.appearance = status?.appearance ?? "silver";
+    const appearance = this.appearance ?? status?.appearance ?? "silver";
+    document.documentElement.dataset.appearance = appearance;
     const provider = status?.providerId === "deepseek" ? "DeepSeek" : "OpenAI";
     element("[data-provider]").textContent = provider;
-    element("[data-model-consent]").textContent = status?.modelConsentGranted
-      ? "已允许联网"
-      : "模型联网未开启";
+    const consent = element("[data-model-consent]");
+    const consentLabel =
+      status === null
+        ? "正在读取模型联网许可"
+        : !status.globallyEnabled
+          ? "语见已停用"
+          : status.modelConsentGranted
+            ? "已允许模型联网"
+            : "未允许模型联网";
+    consent.textContent = "";
+    consent.setAttribute("aria-label", consentLabel);
+    consent.title = consentLabel;
+    consent.dataset.state =
+      status === null || !status.globallyEnabled
+        ? "inactive"
+        : status.modelConsentGranted
+          ? "allowed"
+          : "blocked";
     const toggle = element<HTMLInputElement>("[data-site-enabled]");
     toggle.checked = this.sitePolicy?.enabled ?? false;
     toggle.disabled =
-      this.busy || this.sitePolicy === null || this.status?.globallyEnabled === false;
+      this.busy.has("site") ||
+      this.sitePolicy === null ||
+      this.status === null ||
+      !this.status.globallyEnabled;
     const globalToggle = element<HTMLInputElement>("[data-global-enabled]");
     globalToggle.checked = status?.globallyEnabled ?? false;
-    globalToggle.disabled = this.busy || status === null;
-    element<HTMLButtonElement>("[data-toggle-overlay-theme]").disabled =
-      this.busy || status === null;
+    globalToggle.disabled = this.busy.has("global") || status === null;
+    element<HTMLButtonElement>("[data-toggle-appearance]").disabled = this.busy.has("appearance");
+    for (const button of document.querySelectorAll<HTMLButtonElement>("[data-popup-theme]")) {
+      button.setAttribute("aria-pressed", String(button.dataset.popupTheme === appearance));
+      button.disabled = this.busy.has("appearance");
+    }
     document.body.dataset.overlayTheme = status?.overlayTheme ?? "pearl";
     element("[data-site-host]").textContent = this.unsupportedTab
       ? "当前标签页不支持语见"
       : (this.sitePolicy?.host ?? "正在读取当前页面…");
-    document.body.setAttribute("aria-busy", String(this.busy));
-    const cloudAction = element<HTMLButtonElement>("[data-cloud-session-action]");
-    const cloudStatus = this.cloudSession?.status;
-    element("[data-cloud-session-state]").textContent = this.cloudUnavailable
-      ? "状态读取失败"
-      : cloudStatus === "not-configured"
-        ? "此安装包未接入语见云端"
-        : cloudStatus === "connected"
-          ? "已登录并连接"
-          : cloudStatus === "pairing"
-            ? "请在网页完成登录"
-            : cloudStatus === "expired"
-              ? "登录已过期"
-              : "尚未登录";
-    cloudAction.textContent = cloudStatus === "connected" ? "断开此设备" : "登录并连接";
-    cloudAction.disabled =
-      this.busy ||
-      this.cloudUnavailable ||
-      cloudStatus === undefined ||
-      cloudStatus === "not-configured" ||
-      cloudStatus === "pairing";
-    const submissionOutbox = this.submissionOutbox;
-    const outboxState = submissionOutbox?.state;
-    const queuedLabel =
-      submissionOutbox?.state === "queued"
-        ? `${submissionOutbox.count} 条学习采集等待提交（最早 ${submissionOutbox.oldestQueuedAt.slice(0, 10)}）`
-        : null;
-    const unconfiguredLabel =
-      submissionOutbox?.state === "not-configured" && "count" in submissionOutbox
-        ? `此安装包未接入云端提交；${submissionOutbox.count} 条学习采集仍加密保存在本机（最早 ${submissionOutbox.oldestQueuedAt.slice(0, 10)}）`
-        : null;
-    const outboxLabel = element("[data-submission-outbox-state]");
-    outboxLabel.textContent = this.submissionOutboxUnavailable
-      ? "待提交学习采集状态读取失败"
-      : outboxState === "not-configured"
-        ? (unconfiguredLabel ?? "此安装包未接入云端提交")
-        : outboxState === "upload-disabled"
-          ? "模型联网同意已关闭"
-          : outboxState === "session-unavailable"
-            ? "连接云端后可提交"
-            : outboxState === "client-upgrade-required"
-              ? "请先更新语见；待提交学习采集仍加密保存在本机"
-              : queuedLabel !== null
-                ? queuedLabel
-                : "没有待提交学习采集";
-    outboxLabel.dataset.state = outboxState ?? "unavailable";
-    const hasStored =
-      outboxState === "client-upgrade-required" ||
-      outboxState === "queued" ||
-      (outboxState === "not-configured" &&
-        submissionOutbox !== null &&
-        "count" in submissionOutbox);
-    element<HTMLElement>(".outbox-actions").hidden = !hasStored;
-    element<HTMLButtonElement>("[data-submission-outbox-retry]").disabled =
-      this.busy || outboxState !== "queued";
-    const clear = element<HTMLButtonElement>("[data-submission-outbox-clear]");
-    clear.textContent = this.outboxClearConfirmation ? "确认清空" : "清空";
-    clear.disabled = this.busy || !hasStored;
+    document.body.setAttribute("aria-busy", "false");
+    renderPopupOutbox(
+      this.submissionOutbox,
+      this.submissionOutboxUnavailable,
+      this.busy.has("outbox"),
+      this.outboxClearConfirmation,
+    );
     if (this.focusOutboxAfterRender) {
       this.focusOutboxAfterRender = false;
-      outboxLabel.focus();
+      element("[data-popup-status]").focus();
     }
   }
 

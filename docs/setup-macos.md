@@ -258,9 +258,24 @@ pnpm acceptance:hosted:store:status
 
 在 Chrome 打开 `chrome://extensions`，开启开发者模式，选择“加载已解压的扩展程序”，加载当前仓库的
 `apps/store-extension/dist`。Chrome 显示的 ID 必须精确为
-`hoijjhgcckfhbcefoclgbhkgninnkknd`；否则立即移除错误加载项并检查是否选择了错误目录或 profile。随后登录
-`https://app.acceptance.seen-said.cn`，从 Web 发起一次配对，在扩展中完成交换。不要加载
-`manifest.release.json` 冒充 Hosted 客户端，也不要把 acceptance dist 提交或用于商店上传。
+`hoijjhgcckfhbcefoclgbhkgninnkknd`；若不一致，先保留旧扩展，核对加载路径与 profile，不要先卸载。
+随后从扩展“登录”发起配对，在 `https://app.acceptance.seen-said.cn` 确认；已有网页登录会复用。不要加载
+普通 release 包冒充 Hosted 客户端，也不要把 acceptance dist 提交或用于商店上传。
+
+以后更新只运行上述 Hosted build/status，再对同一个扩展点击“重新加载”，不要移除后重新安装。
+重新加载扩展后还要刷新正在测试的网页，使已有标签页替换旧内容脚本；只发布 Web/API 或运行普通构建
+不会更新这个已安装目录。即时查询交付前，针对该目录运行离线回归：
+
+```bash
+HUAYI_STORE_E2E_PACKAGE_PROFILE=hosted pnpm exec vitest run --project store-extension apps/store-extension/src/packaged-query-streaming.test.ts
+HUAYI_STORE_E2E_PACKAGE_PROFILE=hosted pnpm exec playwright test apps/store-extension/e2e/packaged-query-interaction.spec.ts
+```
+
+这些检查执行实际打包代码，以模拟网络响应验证增量、重开缓存和滚动，不会调用真实模型。
+固定 manifest 公钥保持同一 ID；当前配置、模型密钥、欧路授权和配对保存在该扩展的本地存储中。
+普通 `pnpm build` 和浏览器测试只生成 `apps/store-extension/dist-release`，不会覆盖已安装的 Hosted 目录。
+`dist-release` 是不接云端的独立测试产物，不用于替换已配对安装；也不要将同一 ID 用于其他服务环境。
+Chrome 卸载扩展会清除其本地存储，重新安装不能自动找回旧配置；网页登录也不备份这些本机密钥。
 
 普通验收用户不运行部署协调器。操作者在一个 clean、已提交、API/Web disarmed 的候选上先运行
 `pnpm acceptance:hosted:release:plan` / `...:status`；只有取得该候选 push 与 Hosted deployment 的明确批准

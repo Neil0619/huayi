@@ -40,7 +40,7 @@ function buildExtensionFixtures(): Plugin {
         "popup",
         "background",
       ]) {
-        await build(createStoreExtensionConfig(mode));
+        await build(createStoreExtensionConfig(mode, "release"));
       }
       const previousApiOrigin = process.env.VITE_API_ORIGIN;
       const previousGoogleAuthentication = process.env.VITE_GOOGLE_AUTHENTICATION;

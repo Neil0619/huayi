@@ -119,6 +119,10 @@ pnpm acceptance:hosted:store:status
 `https://app.acceptance.seen-said.cn` 并按 Web 配对流程连接。该 acceptance profile 与 Chrome Web Store
 release manifest 隔离，不表示已上架，也不安装或替换 Classic Native Host。
 
+已安装者只对现有条目“重新加载”，不再卸载／新增加载项。Hosted 固定保留 `dist` 路径和原 manifest
+公钥；普通 workspace build 与 E2E 固定写入独立的 `dist-release`，不能覆盖该安装。身份或路径不符时
+先保留旧扩展并核验，不要先删除：卸载会清除扩展本地数据，包括本机密钥，无法由网页登录恢复。
+
 ### Hosted R3-C 与 Cron 同源引导
 
 Vercel Sensitive 值不能解密回读，密码恢复、R3-C 与 Cron 不再要求操作者手工复制 `CRON_SECRET`。

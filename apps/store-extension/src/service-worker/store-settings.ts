@@ -4,7 +4,10 @@ import {
   overlayThemeSchema,
   providerIdSchema,
   recipientAccessDecision,
+  sameStoreSiteRule,
   siteHostnameSchema,
+  upsertStoreSiteRule,
+  normalizeStoreSiteRule,
   STORE_NETWORK_CONSENT_VERSION,
   STORE_RECIPIENT_CONSENT_VERSIONS,
   STORE_SETTINGS_SCHEMA_VERSION,
@@ -14,6 +17,8 @@ import {
   type DataRecipient,
   type StoreSettings,
   type StoreSettingsRepository,
+  type StoreSiteRule,
+  type StoreSiteRuleKey,
   type StoreDefaultAction,
   type StoreKeyboardShortcut,
   type StoreOverlayTheme,
@@ -210,22 +215,31 @@ class ChromeStoreSettings implements StoreSettingsRepository {
 
   setSiteEnabled(host: string, enabled: boolean): Promise<void> {
     return this.exclusive(async () => {
-      const parsedHost = siteHostnameSchema.parse(host);
+      const rule: StoreSiteRule = {
+        action: enabled ? "allow" : "block",
+        hostname: siteHostnameSchema.parse(host),
+        includeSubdomains: false,
+      };
       const current = await this.read();
-      const rules = [
-        ...current.sitePolicy.rules.filter(
-          (rule) => rule.hostname !== parsedHost || rule.includeSubdomains,
-        ),
-        {
-          action: enabled ? ("allow" as const) : ("block" as const),
-          hostname: parsedHost,
-          includeSubdomains: false,
-        },
-      ].sort(
-        (left, right) =>
-          left.hostname.localeCompare(right.hostname) ||
-          Number(left.includeSubdomains) - Number(right.includeSubdomains),
-      );
+      await this.write({ ...current, sitePolicy: upsertStoreSiteRule(current.sitePolicy, rule) });
+    });
+  }
+
+  upsertSiteRule(rule: StoreSiteRule, previous?: StoreSiteRuleKey): Promise<void> {
+    return this.exclusive(async () => {
+      const current = await this.read();
+      const normalized = normalizeStoreSiteRule(rule, (value) => new URL(value));
+      await this.write({
+        ...current,
+        sitePolicy: upsertStoreSiteRule(current.sitePolicy, normalized, previous),
+      });
+    });
+  }
+
+  removeSiteRule(key: StoreSiteRuleKey): Promise<void> {
+    return this.exclusive(async () => {
+      const current = await this.read();
+      const rules = current.sitePolicy.rules.filter((rule) => !sameStoreSiteRule(rule, key));
       await this.write({ ...current, sitePolicy: { ...current.sitePolicy, rules } });
     });
   }

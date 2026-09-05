@@ -21,6 +21,37 @@ function stream(events: readonly unknown[]): Response {
 }
 
 describe("cloud ExtensionQuery API", () => {
+  it("distinguishes a server model shutdown from a transport failure", async () => {
+    const api = createCloudExtensionQueryApi({
+      apiOrigin: "https://api.huayi.example",
+      clientVersion: "1.0.0",
+      fetch: vi.fn(async () =>
+        Response.json(
+          {
+            error: {
+              code: "model_unavailable",
+              message: "Model generation is disabled.",
+              requestId: "query-1",
+            },
+          },
+          { status: 503 },
+        ),
+      ),
+    });
+    const query = api.start(
+      {
+        action: "translate",
+        selectionKind: "sentence",
+        sourceText: "The plan fell through.",
+        sourceType: "web-selection",
+      },
+      "query-key-1",
+      "s".repeat(32),
+    );
+
+    await expect(query[Symbol.asyncIterator]().next()).rejects.toMatchObject({ kind: "permanent" });
+  });
+
   it("sends only the strict query intent and parses the bounded stream", async () => {
     const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       void input;

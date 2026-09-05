@@ -3,6 +3,8 @@ import { createCloudIdentityApi } from "./cloud-identity-api.js";
 import { createCloudStudyCaptureApi } from "./cloud-study-capture-api.js";
 import { createCloudWordCopyApi } from "./cloud-word-copy-api.js";
 import { createCloudExtensionQueryApi } from "./cloud-extension-query-api.js";
+import { createCloudTaskQueryApi } from "./cloud-task-query-api.js";
+import type { QueryTaskJournal } from "./query-task-journal.js";
 
 function releaseOrigin(value: string | null): string | null {
   if (value === null) return null;
@@ -25,6 +27,7 @@ export function createProductionCloudClients(
   apiOrigin: string | null,
   clientVersion: string,
   fetchRequest: typeof fetch,
+  journal?: QueryTaskJournal,
 ) {
   const origin = releaseOrigin(apiOrigin);
   if (origin === null) {
@@ -37,11 +40,13 @@ export function createProductionCloudClients(
     };
   }
   return {
-    extensionQueries: createCloudExtensionQueryApi({
-      apiOrigin: origin,
-      clientVersion,
-      fetch: fetchRequest,
-    }),
+    extensionQueries: journal
+      ? createCloudTaskQueryApi({ apiOrigin: origin, clientVersion, fetch: fetchRequest, journal })
+      : createCloudExtensionQueryApi({
+          apiOrigin: origin,
+          clientVersion,
+          fetch: fetchRequest,
+        }),
     identity: createCloudIdentityApi({
       apiOrigin: origin,
       clientVersion,

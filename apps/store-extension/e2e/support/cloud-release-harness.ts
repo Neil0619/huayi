@@ -35,6 +35,7 @@ import type { SubmissionOutboxState } from "../../src/service-worker/submission-
 import { siteHostFromSenderUrl } from "../../src/service-worker/site-policy-handler.js";
 import { handleStudyCaptureMessage } from "../../src/service-worker/study-capture-handler.js";
 import { createProductionQueryEngine } from "../../src/service-worker/production-query-engine.js";
+import { createQueryCache } from "../../src/service-worker/query-cache.js";
 import { handleLexiconMessage } from "../../src/service-worker/lexicon-message-handler.js";
 import { LocalWordImportOptionsController } from "../../src/options/local-word-import-options-controller.js";
 import { BrowserWordbookExportEngine } from "../../src/wordbook/browser-wordbook-export-engine.js";
@@ -269,9 +270,12 @@ const localWordImportRuntime = createProductionLocalWordImportRuntime({
   },
 });
 const queryEngine = createProductionQueryEngine({
+  cache: createQueryCache({ storage: { read: async () => [], write: async () => undefined } }),
+  credentials: { getCredential: async () => "offline-fixture-key" },
   byok: engine,
   cloudApi: extensionQueryApi,
   preferences: {
+    invalidate: async () => undefined,
     read: async () => preferences,
     sync: async () => preferences,
   },
@@ -640,7 +644,7 @@ Reflect.set(globalThis, "chrome", {
       if (name !== STORE_ANALYSIS_PORT_NAME) throw new Error("Unexpected Store port.");
       return connectAnalysis();
     },
-    getURL: (path: string) => `/apps/store-extension/dist/${path}`,
+    getURL: (path: string) => `/apps/store-extension/dist-release/${path}`,
     id: extensionId,
     onMessage: {
       addListener: (listener: RuntimeListener) => runtimeListeners.push(listener),
@@ -692,5 +696,5 @@ if (eudicImportFixture && optionsController !== null) {
 }
 
 const packagedContentScript = document.createElement("script");
-packagedContentScript.src = "/apps/store-extension/dist/content-script.js";
+packagedContentScript.src = "/apps/store-extension/dist-release/content-script.js";
 document.head.append(packagedContentScript);

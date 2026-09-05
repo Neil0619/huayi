@@ -94,7 +94,7 @@ describe("query router", () => {
     });
 
     await expect(router.analyze(request, signal, () => undefined)).rejects.toMatchObject({
-      code: "credential-missing",
+      code: "cloud-session-required",
     });
     expect(byok.analyze).not.toHaveBeenCalled();
     expect(platform.analyze).not.toHaveBeenCalled();

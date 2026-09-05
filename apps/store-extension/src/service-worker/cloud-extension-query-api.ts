@@ -12,6 +12,7 @@ import { extensionSessionHeaders } from "../cloud/extension-session-headers.js";
 
 export type CloudExtensionQueryFailure =
   | "authentication"
+  | "forbidden"
   | "client-upgrade-required"
   | "invalid-response"
   | "permanent"
@@ -19,7 +20,10 @@ export type CloudExtensionQueryFailure =
   | "transient";
 
 export class CloudExtensionQueryError extends Error {
-  constructor(readonly kind: CloudExtensionQueryFailure) {
+  constructor(
+    readonly kind: CloudExtensionQueryFailure,
+    readonly diagnosticId?: string,
+  ) {
     super(`Huayi ExtensionQuery request failed: ${kind}.`);
     this.name = "CloudExtensionQueryError";
   }
@@ -47,13 +51,17 @@ function strictOrigin(value: string): URL {
 }
 
 async function failure(response: Response): Promise<CloudExtensionQueryError> {
-  if (response.status === 401 || response.status === 403) {
+  if (response.status === 401) {
     return new CloudExtensionQueryError("authentication");
   }
+  if (response.status === 403) return new CloudExtensionQueryError("forbidden");
   if (response.status === 426) return new CloudExtensionQueryError("client-upgrade-required");
   const parsed = apiErrorSchema.safeParse(await response.json().catch(() => undefined));
   if (parsed.success && parsed.data.error.code === "quota_exhausted") {
     return new CloudExtensionQueryError("quota-exhausted");
+  }
+  if (parsed.success && parsed.data.error.code === "model_unavailable") {
+    return new CloudExtensionQueryError("permanent");
   }
   if ([408, 425, 429].includes(response.status) || response.status >= 500) {
     return new CloudExtensionQueryError("transient");
@@ -82,10 +90,12 @@ async function* decode(response: Response): AsyncIterable<ExtensionQueryEvent> {
       buffer += decoder.decode(chunk.value, { stream: true });
       total += chunk.value.byteLength;
       if (total > 2 * 1_024 * 1_024) throw new Error("ExtensionQuery stream exceeded its limit.");
-      let boundary = buffer.indexOf("\n\n");
+      let boundary = buffer.search(/\r?\n\r?\n/u);
       while (boundary >= 0) {
         const envelope = buffer.slice(0, boundary).replaceAll("\r\n", "\n");
-        buffer = buffer.slice(boundary + 2);
+        buffer = buffer.slice(
+          boundary + (buffer.slice(boundary).match(/^\r?\n\r?\n/u)?.[0].length ?? 2),
+        );
         const fields = new Map<string, string>();
         for (const line of envelope.split("\n")) {
           const separator = line.indexOf(":");
@@ -105,7 +115,7 @@ async function* decode(response: Response): AsyncIterable<ExtensionQueryEvent> {
         }
         expectedId += 1;
         yield extensionQueryEventSchema.parse(JSON.parse(fields.get("data") ?? "") as unknown);
-        boundary = buffer.indexOf("\n\n");
+        boundary = buffer.search(/\r?\n\r?\n/u);
       }
     }
     buffer += decoder.decode();
@@ -136,7 +146,7 @@ export function createCloudExtensionQueryApi(options: Options) {
           credentials: "omit",
           headers: {
             ...extensionSessionHeaders(sessionToken, options.clientVersion),
-            Accept: "text/event-stream",
+            Accept: "text/event-stream;version=2",
             "Content-Type": "application/json",
             "Idempotency-Key": idempotencyKeySchema.parse(idempotencyKey),
           },

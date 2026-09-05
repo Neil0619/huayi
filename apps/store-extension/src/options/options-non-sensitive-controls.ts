@@ -63,7 +63,7 @@ export class OptionsNonSensitiveControls {
     element<HTMLButtonElement>("[data-youtube-shortcut]").textContent = shortcutLabel(
       settings?.youtubeShortcut ?? null,
     );
-    this.renderExactBlockedHosts(settings, busy);
+    element<HTMLInputElement>("[data-global-enabled]").disabled = busy;
   }
 
   private bindGlobalToggle(): void {
@@ -133,40 +133,5 @@ export class OptionsNonSensitiveControls {
   private async refreshSitePolicy(): Promise<void> {
     await this.dependencies.refreshSettings();
     await this.dependencies.notifySitePolicyChanged();
-  }
-
-  private renderExactBlockedHosts(settings: StoreSettings | null, busy: boolean): void {
-    const list = element<HTMLUListElement>("[data-disabled-hosts]");
-    list.replaceChildren();
-    const hosts =
-      settings?.sitePolicy.rules
-        .filter((rule) => rule.action === "block" && !rule.includeSubdomains)
-        .map((rule) => rule.hostname) ?? [];
-    if (hosts.length === 0) {
-      const empty = document.createElement("li");
-      empty.textContent = "没有单独停用的网站。";
-      list.append(empty);
-      return;
-    }
-    for (const host of hosts) list.append(this.hostItem(host, busy));
-  }
-
-  private hostItem(host: string, busy: boolean): HTMLLIElement {
-    const item = document.createElement("li");
-    const label = document.createElement("code");
-    label.textContent = host;
-    const button = document.createElement("button");
-    button.type = "button";
-    button.textContent = "重新启用";
-    button.dataset.enableHost = host;
-    button.disabled = busy;
-    button.addEventListener("click", () => {
-      this.dependencies.execute(async () => {
-        await this.dependencies.settings.setSiteEnabled(host, true);
-        await this.refreshSitePolicy();
-      }, `已在 ${host} 重新启用语见。`);
-    });
-    item.append(label, button);
-    return item;
   }
 }

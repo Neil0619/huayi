@@ -5,6 +5,31 @@ import { STORE_MESSAGE_VERSION } from "@huayi/store-domain";
 import { handleOpenWebWorkspace } from "./web-workspace-handler.js";
 
 describe("Store Web workspace entry", () => {
+  it("maps only the named wordbooks destination to the trusted origin", async () => {
+    const createTab = vi.fn(async () => undefined);
+    const request = {
+      messageVersion: STORE_MESSAGE_VERSION,
+      type: "store/open-web-workspace",
+      destination: "wordbooks",
+    };
+    await handleOpenWebWorkspace(
+      request,
+      "trusted-id",
+      "trusted-id",
+      "https://huayi.invalid/app",
+      createTab,
+    );
+    expect(createTab).toHaveBeenCalledWith({ url: "https://huayi.invalid/words/wordbooks" });
+    createTab.mockClear();
+    await handleOpenWebWorkspace(
+      { ...request, destination: "https://attacker.invalid" },
+      "trusted-id",
+      "trusted-id",
+      "https://huayi.invalid/app",
+      createTab,
+    );
+    expect(createTab).not.toHaveBeenCalled();
+  });
   it("opens only the injected release-owned Web route without requiring tabs permission", async () => {
     const createTab = vi.fn(async () => undefined);
 

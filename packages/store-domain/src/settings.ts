@@ -106,15 +106,23 @@ export const storeSettingsSchema = z.strictObject({
 });
 export type StoreSettings = z.infer<typeof storeSettingsSchema>;
 
+export function canonicalStoreSiteHostname(hostname: string): string {
+  const host = hostname.toLowerCase();
+  return host.endsWith("..") ? host : host.replace(/\.$/u, "");
+}
+
 export function evaluateSiteAction(
   settings: Pick<StoreSettings, "globallyEnabled" | "sitePolicy">,
   host: string,
 ): StoreSiteAction {
   if (!settings.globallyEnabled) return "block";
+  const canonicalHost = canonicalStoreSiteHostname(host);
   const matches = settings.sitePolicy.rules
+    .map((rule) => ({ ...rule, hostname: canonicalStoreSiteHostname(rule.hostname) }))
     .filter(
       (rule) =>
-        host === rule.hostname || (rule.includeSubdomains && host.endsWith(`.${rule.hostname}`)),
+        canonicalHost === rule.hostname ||
+        (rule.includeSubdomains && canonicalHost.endsWith(`.${rule.hostname}`)),
     )
     .sort(
       (left, right) =>
@@ -157,6 +165,11 @@ export interface StoreSettingsRepository {
   setGloballyEnabled(enabled: boolean): Promise<void>;
   setOverlayTheme(theme: StoreOverlayTheme): Promise<void>;
   setSiteEnabled(host: string, enabled: boolean): Promise<void>;
+  upsertSiteRule(
+    rule: StoreSiteRule,
+    previous?: Pick<StoreSiteRule, "hostname" | "includeSubdomains">,
+  ): Promise<void>;
+  removeSiteRule(key: Pick<StoreSiteRule, "hostname" | "includeSubdomains">): Promise<void>;
   setYoutubeMode(mode: YouTubeMode): Promise<void>;
   setYoutubeShortcut(shortcut: StoreKeyboardShortcut | null): Promise<void>;
 }

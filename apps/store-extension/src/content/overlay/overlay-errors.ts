@@ -6,49 +6,30 @@ export interface OverlayErrorPresentation {
   readonly retry: boolean;
 }
 
-const PRESENTATIONS: Readonly<Record<StoreAnalysisErrorCode, OverlayErrorPresentation>> = {
-  busy: { message: "已有分析正在进行，请稍后再试。", optionsAction: false, retry: true },
-  cancelled: { message: "分析已取消。", optionsAction: false, retry: true },
-  "consent-required": {
-    message: "分析前需要先阅读并同意数据传输说明。",
-    optionsAction: true,
-    retry: true,
-  },
-  "credential-missing": {
-    message: "当前模型服务尚未配置密钥。",
-    optionsAction: true,
-    retry: true,
-  },
-  "internal-error": { message: "扩展暂时无法完成分析。", optionsAction: false, retry: true },
-  "invalid-request": {
-    message: "所选内容无法分析，请重新选择。",
-    optionsAction: false,
-    retry: false,
-  },
-  "invalid-response": { message: "模型返回了无效响应。", optionsAction: false, retry: true },
-  "network-error": {
-    message: "网络连接失败，请检查网络后重试。",
-    optionsAction: false,
-    retry: true,
-  },
-  "provider-error": {
-    message: "模型服务返回错误，请稍后重试。",
-    optionsAction: false,
-    retry: true,
-  },
-  "quota-exhausted": {
-    message: "平台模型额度已用完，请前往 Web 端查看额度或切换为自备 Key。",
-    optionsAction: false,
-    retry: false,
-  },
-  timeout: { message: "分析请求超时，请手动重试。", optionsAction: false, retry: true },
-  "version-mismatch": {
-    message: "扩展已更新，请刷新当前页面后再试。",
-    optionsAction: false,
-    retry: false,
-  },
+const PRESENTATIONS: Readonly<
+  Record<StoreAnalysisErrorCode, readonly [message: string, optionsAction: boolean, retry: boolean]>
+> = {
+  busy: ["已有分析正在进行，请稍后再试。", false, true],
+  cancelled: ["分析已取消。", false, true],
+  "cloud-access-denied": [
+    "账号服务拒绝了此插件的请求。请确认使用最新的语见插件后重试。",
+    true,
+    true,
+  ],
+  "cloud-session-required": ["账号关联已失效，请打开设置重新连接。", true, true],
+  "consent-required": ["分析前需要先阅读并同意数据传输说明。", true, true],
+  "credential-missing": ["当前模型服务尚未配置密钥。", true, true],
+  "internal-error": ["扩展暂时无法完成分析。", false, true],
+  "invalid-request": ["所选内容无法分析，请重新选择。", false, false],
+  "invalid-response": ["模型返回了无效响应。", false, true],
+  "network-error": ["网络连接失败，请检查网络后重试。", false, true],
+  "provider-error": ["模型服务返回错误，请稍后重试。", false, true],
+  "quota-exhausted": ["平台模型额度已用完，请前往 Web 端查看额度或切换为自备 Key。", false, false],
+  timeout: ["分析请求超时，请手动重试。", false, true],
+  "version-mismatch": ["请更新语见插件并刷新当前页面后重试。", false, false],
 };
 
 export function overlayErrorPresentation(code: StoreAnalysisErrorCode): OverlayErrorPresentation {
-  return PRESENTATIONS[code];
+  const [message, optionsAction, retry] = PRESENTATIONS[code];
+  return { message, optionsAction, retry };
 }

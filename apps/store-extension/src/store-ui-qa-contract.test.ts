@@ -29,10 +29,9 @@ describe("Store UI QA contract", () => {
   it("lets the narrow popup reflow without forced overflow or empty height", () => {
     const body = block(popupStyles, "body");
 
-    expect(body).toMatch(/width:\s*380px/iu);
-    expect(body).not.toMatch(/\b(?:min|max)-width:/iu);
+    expect(body).toMatch(/width:\s*340px/iu);
+    expect(body).toMatch(/min-width:\s*340px/iu);
     expect(body).not.toMatch(/min-height:/iu);
-    expect(popupStyles).not.toMatch(/body\s*\{[^}]*min-width:/isu);
     expect(popupStyles).toMatch(
       /\.popup-header\s*\{[^}]*(?:flex-wrap:\s*wrap|grid-template-columns:)/isu,
     );
@@ -46,7 +45,7 @@ describe("Store UI QA contract", () => {
     const label = block(popupStyles, "\\.section-label");
 
     expect(firstPixels(summary, "font-size")).toBeGreaterThanOrEqual(14);
-    expect(summary).toMatch(/white-space:\s*normal/iu);
+    expect(summary).toMatch(/white-space:\s*nowrap/iu);
     expect(summary).not.toMatch(/text-overflow:\s*ellipsis/iu);
     const tracking = /letter-spacing:\s*(\d+(?:\.\d+)?)em/iu.exec(label)?.[1];
     expect(tracking).toBeDefined();
@@ -77,7 +76,7 @@ describe("Store UI QA contract", () => {
     expect(firstPixels(list, "gap")).toBeLessThanOrEqual(6);
     expect(block(overlayStyles, "\\.panel")).toMatch(/width:\s*min\(3[5-8]\dpx/iu);
     expect(block(overlayStyles, '\\[data-result-layout="pairs"\\] \\.result-entry')).toMatch(
-      /max-content/iu,
+      /minmax\(0,\s*1fr\) minmax\(0,\s*1fr\)/iu,
     );
   });
 

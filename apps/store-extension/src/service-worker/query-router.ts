@@ -27,7 +27,7 @@ export function createQueryRouter(options: QueryRouterOptions): AnalysisEngine {
       const cached = await options.readPreferences();
       const current = await options.syncPreferences();
       if (cached?.extensionQueryModelMode === "platform" && current === null) {
-        throw new BrowserAnalysisError("credential-missing");
+        throw new BrowserAnalysisError("cloud-session-required");
       }
       const mode = current?.extensionQueryModelMode ?? "byok";
       const pinnedEngine = mode === "platform" ? options.platform : options.byok;

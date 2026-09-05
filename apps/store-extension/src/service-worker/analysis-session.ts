@@ -24,6 +24,7 @@ export interface AnalysisSessionPort {
 
 export interface AnalysisSessionDependencies {
   readonly analysisEngine: AnalysisEngine;
+  readonly cancelAnalysis?: (requestId: string) => void;
   readonly createRequestId: () => string;
   readonly getSettings: () => Promise<StoreSettings>;
   readonly siteHost: string | null;
@@ -31,12 +32,15 @@ export interface AnalysisSessionDependencies {
 
 const PUBLIC_ENGINE_ERROR_CODES: readonly StoreAnalysisErrorCode[] = [
   "cancelled",
+  "cloud-access-denied",
+  "cloud-session-required",
   "credential-missing",
   "invalid-response",
   "network-error",
   "provider-error",
   "quota-exhausted",
   "timeout",
+  "version-mismatch",
 ];
 
 function isVersionMismatch(message: unknown): boolean {
@@ -68,11 +72,12 @@ export function createAnalysisSession(
     }
   };
 
-  const fail = (code: StoreAnalysisErrorCode): void => {
+  const fail = (code: StoreAnalysisErrorCode, diagnosticId?: string): void => {
     if (terminal || closed) return;
     terminal = true;
     post({
       code,
+      ...(diagnosticId ? { diagnosticId } : {}),
       messageVersion: STORE_MESSAGE_VERSION,
       requestId,
       type: "store/analysis-error",
@@ -88,6 +93,10 @@ export function createAnalysisSession(
       return;
     }
     if (parsed.type === "store/analysis-cancel") {
+      if (requestId !== null && dependencies.cancelAnalysis) {
+        dependencies.cancelAnalysis(requestId);
+        return;
+      }
       abortController?.abort();
       fail("cancelled");
       return;
@@ -159,7 +168,7 @@ export function createAnalysisSession(
     } catch (error) {
       if (closed || terminal) return;
       if (error instanceof BrowserAnalysisError && PUBLIC_ENGINE_ERROR_CODES.includes(error.code)) {
-        fail(error.code);
+        fail(error.code, error.diagnosticId);
       } else if (abortController.signal.aborted) {
         fail("cancelled");
       } else {

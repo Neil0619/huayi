@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@huayi/learning-domain": "workspace:*",
+    "tldts": "6.1.86",
     "zod": "^4.0.5"
   }
 }

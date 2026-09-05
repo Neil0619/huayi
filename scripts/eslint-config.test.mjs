@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import { ESLint } from "eslint";
 
 import eslintConfig, { filenamePlugin } from "../eslint.config.mjs";
 
@@ -21,6 +22,19 @@ test("accepts kebab-case TypeScript filenames on Windows and POSIX", () => {
 
 test("rejects a non-kebab-case filename", () => {
   assert.equal(reportsFor("C:\\repo\\src\\WindowsEudicCredential.ts").length, 1);
+});
+
+test("ignores both Store build outputs while continuing to lint handwritten source", async () => {
+  const eslint = new ESLint();
+  assert.equal(await eslint.isPathIgnored("apps/store-extension/dist/service-worker.js"), true);
+  assert.equal(
+    await eslint.isPathIgnored("apps/store-extension/dist-release/service-worker.js"),
+    true,
+  );
+  assert.equal(
+    await eslint.isPathIgnored("apps/store-extension/src/service-worker/service-worker.ts"),
+    false,
+  );
 });
 
 test("excludes only reviewed external and generated subtrees from product quality gates", async () => {

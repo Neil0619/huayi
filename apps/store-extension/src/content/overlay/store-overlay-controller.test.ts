@@ -33,7 +33,7 @@ describe("Store selection overlay", () => {
         (action) => action.dataset.action,
       ),
     ).toEqual(["explain", "translate"]);
-    expect(shadow().querySelector("[data-close]")).toBeNull();
+    expect(shadow().activeElement).toBeNull();
   });
 
   it("keeps the two modes in the single header row and caches each completed result", () => {
@@ -89,7 +89,7 @@ describe("Store selection overlay", () => {
     expect(shadow().querySelector("[data-result-type='explain-word']")).not.toBeNull();
   });
 
-  it("cancels only the loading mode and keeps completed and failed modes isolated", () => {
+  it("detaches the loading mode and keeps completed and failed modes isolated", () => {
     const { controller, ports } = setup();
     controller.show(reading("investigation", "word"), { bottom: 80, left: 40, top: 60 });
     click("[data-action='translate']");
@@ -126,7 +126,8 @@ describe("Store selection overlay", () => {
     click("[data-retry]");
     expect(ports).toHaveLength(3);
     click("[data-action='translate']");
-    expect(ports[2]?.postMessage).toHaveBeenLastCalledWith({
+    expect(ports[2]?.disconnect).toHaveBeenCalledOnce();
+    expect(ports[2]?.postMessage).not.toHaveBeenCalledWith({
       messageVersion: STORE_MESSAGE_VERSION,
       type: "store/analysis-cancel",
     });
@@ -138,7 +139,8 @@ describe("Store selection overlay", () => {
     controller.show(reading("investigation", "word"), { bottom: 80, left: 40, top: 60 });
     click("[data-action='translate']");
     click("[data-action='explain']");
-    expect(ports[0]?.postMessage).toHaveBeenLastCalledWith({
+    expect(ports[0]?.disconnect).toHaveBeenCalledOnce();
+    expect(ports[0]?.postMessage).not.toHaveBeenCalledWith({
       messageVersion: STORE_MESSAGE_VERSION,
       type: "store/analysis-cancel",
     });
@@ -297,12 +299,13 @@ describe("Store selection overlay", () => {
     expect(shadow().querySelector("[role='alert']")?.textContent).toContain("扩展暂时无法完成分析");
   });
 
-  it("cancels on close and new selection without auto-retry", () => {
+  it("detaches on close and new selection without cancelling background generation", () => {
     const { controller, ports } = setup();
     controller.show(reading("investigation", "word"), { bottom: 80, left: 40, top: 60 });
     click("[data-action='translate']");
     controller.show(reading("evidence", "word"), { bottom: 120, left: 60, top: 100 });
-    expect(ports[0]?.postMessage).toHaveBeenLastCalledWith({
+    expect(ports[0]?.disconnect).toHaveBeenCalledOnce();
+    expect(ports[0]?.postMessage).not.toHaveBeenCalledWith({
       messageVersion: STORE_MESSAGE_VERSION,
       type: "store/analysis-cancel",
     });
@@ -310,7 +313,8 @@ describe("Store selection overlay", () => {
 
     click("[data-action='translate']");
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
-    expect(ports[1]?.postMessage).toHaveBeenLastCalledWith({
+    expect(ports[1]?.disconnect).toHaveBeenCalledOnce();
+    expect(ports[1]?.postMessage).not.toHaveBeenCalledWith({
       messageVersion: STORE_MESSAGE_VERSION,
       type: "store/analysis-cancel",
     });
@@ -337,7 +341,7 @@ describe("Store selection overlay", () => {
   it.each([
     ["window resize", window, "resize"],
     ["page or nested document scroll", document, "scroll"],
-  ] as const)("dismisses the stale overlay on %s", (_label, target, eventType) => {
+  ] as const)("keeps the overlay visible and repositions it on %s", (_label, target, eventType) => {
     const { controller } = setup();
     const onDismiss = vi.fn();
     controller.show(
@@ -348,8 +352,8 @@ describe("Store selection overlay", () => {
 
     target.dispatchEvent(new Event(eventType));
 
-    expect(document.querySelector("[data-huayi-store-overlay]")).toBeNull();
-    expect(onDismiss).toHaveBeenCalledOnce();
+    expect(document.querySelector("[data-huayi-store-overlay]")).not.toBeNull();
+    expect(onDismiss).not.toHaveBeenCalled();
   });
 
   it("does not dismiss for pointerdown inside the shadow overlay", () => {
@@ -419,7 +423,9 @@ describe("Store selection overlay", () => {
   });
 
   it.each([
-    ["version-mismatch", "扩展已更新"],
+    ["version-mismatch", "更新语见插件"],
+    ["cloud-session-required", "重新连接"],
+    ["cloud-access-denied", "拒绝"],
     ["network-error", "网络连接失败"],
   ] as const)("renders a stable %s message", (code, expected) => {
     const { controller, ports } = setup();

@@ -160,6 +160,9 @@ importers:
       "@huayi/learning-domain":
         specifier: workspace:*
         version: link:../learning-domain
+      tldts:
+        specifier: 6.1.86
+        version: 6.1.86
       zod:
         specifier: ^4.0.5
         version: 4.4.3

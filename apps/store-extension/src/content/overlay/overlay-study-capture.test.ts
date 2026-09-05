@@ -51,7 +51,7 @@ describe("current-card StudyCapture action", () => {
       expectedRevision: 1,
       type: "store/study-capture-undo-remote",
     });
-    expect(document.body.textContent).toContain("加入待学习");
+    expect(document.body.textContent).toContain("加入收集箱");
   });
 
   it("keeps phrase manual and drops undo state when the card resets", async () => {

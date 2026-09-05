@@ -5,10 +5,12 @@ import type {
   AnalysisUpdate,
   StoreSettings,
 } from "@huayi/store-domain";
-import { STORE_MESSAGE_VERSION } from "@huayi/store-domain";
+import { STORE_MESSAGE_VERSION, parseAnalysisServerMessage } from "@huayi/store-domain";
 import { describe, expect, it, vi } from "vitest";
 
 import { createAnalysisSession, type AnalysisSessionPort } from "./analysis-session.js";
+import { BrowserAnalysisError } from "../analysis/analysis-error.js";
+import { overlayErrorPresentation } from "../content/overlay/overlay-errors.js";
 
 function port(): AnalysisSessionPort & {
   readonly messages: unknown[];
@@ -64,6 +66,34 @@ async function settle(): Promise<void> {
 }
 
 describe("Store analysis session", () => {
+  it.each([
+    ["cloud-session-required", "重新连接"],
+    ["cloud-access-denied", "拒绝"],
+    ["version-mismatch", "更新"],
+  ] as const)(
+    "delivers %s through the public message to the matching overlay guidance",
+    async (code, guidance) => {
+      const sessionPort = port();
+      createAnalysisSession(sessionPort, {
+        analysisEngine: {
+          analyze: async () => {
+            throw new BrowserAnalysisError(code);
+          },
+        },
+        createRequestId: () => "trusted-request-1",
+        getSettings: async () => settings(),
+        siteHost: "example.com",
+      });
+      sessionPort.receive(start());
+      await settle();
+      const error = sessionPort.messages
+        .map(parseAnalysisServerMessage)
+        .find((message) => message.type === "store/analysis-error");
+      expect(error).toMatchObject({ code });
+      expect(overlayErrorPresentation(code).message).toContain(guidance);
+      expect(overlayErrorPresentation(code).message).not.toContain("未配置密钥");
+    },
+  );
   it("pins trusted settings, derives trusted metadata, and streams one engine invocation", async () => {
     const requests: AnalysisRequest[] = [];
     const engine: AnalysisEngine = {

@@ -159,6 +159,27 @@ describe("Store SW cloud session manager", () => {
     await expect(manager.start()).resolves.toEqual({ status: "not-configured" });
   });
 
+  it.each([
+    "https://app.huayi.invalid/app",
+    "http://app.huayi.invalid",
+    "https://user:password@app.huayi.invalid",
+    "https://app.huayi.invalid?redirect=elsewhere",
+    "https://app.huayi.invalid#fragment",
+    "not a URL",
+  ])("does not normalize an unsafe pairing origin into an accepted one: %s", async (webOrigin) => {
+    const manager = createCloudSessionManager({
+      api: {} as never,
+      clearSubmissions: vi.fn(),
+      crypto: globalThis.crypto,
+      open: vi.fn(),
+      randomBytes: (length) => new Uint8Array(length),
+      vault: {} as never,
+      webOrigin,
+    });
+    await expect(manager.status()).resolves.toEqual({ status: "not-configured" });
+    await expect(manager.start()).resolves.toEqual({ status: "not-configured" });
+  });
+
   it("clears an expired encrypted session instead of reporting connected", async () => {
     const clearSession = vi.fn(async () => undefined);
     const manager = createCloudSessionManager({

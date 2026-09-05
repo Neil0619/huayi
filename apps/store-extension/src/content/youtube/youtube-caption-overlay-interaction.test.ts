@@ -157,8 +157,9 @@ function beginCaptionDrag(harness: ReturnType<typeof fixture>, pointerId = 7): H
 
 function escapeFromOverlay(): void {
   const host = document.querySelector<HTMLElement>("[data-huayi-store-overlay]");
-  const target = host?.shadowRoot?.activeElement;
-  if (!(target instanceof HTMLElement)) throw new Error("Expected a focused overlay action.");
+  expect(host).not.toBeNull();
+  expect(host?.shadowRoot?.activeElement).toBeNull();
+  const target = document;
   target.dispatchEvent(
     new KeyboardEvent("keydown", {
       bubbles: true,

@@ -11,21 +11,24 @@ import {
 import type { StoreOverlayRuntime } from "./overlay-runtime.js";
 
 export class OverlayWordPresence {
-  private generation = 0;
-  private headword: string | null = null;
-  private value: boolean | null = null;
+  #generation = 0;
+  #headword: string | null = null;
+  #value: boolean | null = null;
 
-  constructor(private readonly runtime: StoreOverlayRuntime) {}
+  readonly #runtime: StoreOverlayRuntime;
+  constructor(runtime: StoreOverlayRuntime) {
+    this.#runtime = runtime;
+  }
 
   reset(): void {
-    this.generation += 1;
-    this.headword = null;
-    this.value = null;
+    this.#generation += 1;
+    this.#headword = null;
+    this.#value = null;
   }
 
   valueFor(rawHeadword: string): boolean | null {
     try {
-      return this.headword === normalizeHeadword(rawHeadword) ? this.value : null;
+      return this.#headword === normalizeHeadword(rawHeadword) ? this.#value : null;
     } catch {
       return false;
     }
@@ -33,9 +36,9 @@ export class OverlayWordPresence {
 
   markPresent(rawHeadword: string): void {
     try {
-      this.generation += 1;
-      this.headword = normalizeHeadword(rawHeadword);
-      this.value = true;
+      this.#generation += 1;
+      this.#headword = normalizeHeadword(rawHeadword);
+      this.#value = true;
     } catch {
       // A successful save request can only contain a valid normalized headword.
     }
@@ -48,27 +51,27 @@ export class OverlayWordPresence {
     } catch {
       return;
     }
-    const generation = ++this.generation;
-    this.headword = headword;
-    this.value = null;
+    const generation = ++this.#generation;
+    this.#headword = headword;
+    this.#value = null;
     if (actions.querySelector(".lexicon-save") === null) {
       actions.prepend(createWordLexiconCheckingAction(actions.ownerDocument));
     }
-    void this.runtime
+    void this.#runtime
       .queryWordPresence({
         headword,
         messageVersion: STORE_MESSAGE_VERSION,
         type: "store/lexicon-presence",
       })
       .then((raw) => {
-        if (generation !== this.generation || this.headword !== headword) return;
+        if (generation !== this.#generation || this.#headword !== headword) return;
         const response = parseStoreLexiconResponse(raw);
-        this.value = response.type === "store/lexicon-presence-result" && response.present;
-        updateWordLexiconPresence(actions, this.value);
+        this.#value = response.type === "store/lexicon-presence-result" && response.present;
+        updateWordLexiconPresence(actions, this.#value);
       })
       .catch(() => {
-        if (generation !== this.generation || this.headword !== headword) return;
-        this.value = false;
+        if (generation !== this.#generation || this.#headword !== headword) return;
+        this.#value = false;
         updateWordLexiconPresence(actions, false);
       });
   }

@@ -186,6 +186,14 @@ Cloud V1 Phase 37-B 只做离线候选门和 SEA health 时，先完整阅读
 候选祖先、Fresh 结果、修复边界、证据模板和普通 push 流程执行。不要恢复已废弃的 windows-codex
 项目，也不要把离线门授权扩大为安装、真实 Chrome、凭据或 Provider/词典 smoke。
 
+## Store Hosted 验收包更新
+
+Store 与上方 Classic Native Host 安装相互独立。已获相应安装授权时，运行
+`pnpm acceptance:hosted:store:build` 和 `pnpm acceptance:hosted:store:status`，加载
+`apps/store-extension/dist`；Hosted ID 应为 `hoijjhgcckfhbcefoclgbhkgninnkknd`。以后只重新构建并在
+现有条目点击“重新加载”，保留 ID 与配置，不要先卸载。普通 build/E2E 输出到 `dist-release`，不覆盖
+Hosted 安装；该离线包不能替代云端包。真实重载、配对与 Windows 视觉验收需在 Windows 另行完成。
+
 ## 官方接口依据
 
 - [Chrome Native Messaging](https://developer.chrome.com/docs/extensions/develop/concepts/native-messaging)

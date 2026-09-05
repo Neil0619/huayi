@@ -258,7 +258,7 @@ async function auditStore(root, api, web, minSupportedExtensionVersion, violatio
   }
   if (api !== null && expectedWorkspace !== null) {
     const bundle = await readFile(
-      resolve(root, "apps/store-extension/dist/service-worker.js"),
+      resolve(root, "apps/store-extension/dist-release/service-worker.js"),
       "utf8",
     );
     if (!bundle.includes(api.origin) || !bundle.includes(expectedWorkspace)) {

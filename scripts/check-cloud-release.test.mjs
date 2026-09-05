@@ -25,6 +25,8 @@ const expectedFiles = [
   "manifest.json",
   "options.css",
   "options-components.css",
+  "options-site-rules.css",
+  "page-ui.css",
   "options.html",
   "options.js",
   "overlay.css",
@@ -112,7 +114,7 @@ async function createFixture() {
           : file.endsWith(".html")
             ? '<script type="module" src="./local.js"></script>'
             : "/* packaged */";
-    await write(root, `apps/store-extension/dist/${file}`, contents);
+    await write(root, `apps/store-extension/dist-release/${file}`, contents);
   }
   await write(
     root,
@@ -315,7 +317,7 @@ test("Cloud release audit compares candidate and minimum versions as numeric tri
     const candidateManifest = { ...manifest(), version: "1.10.2" };
     const manifestText = JSON.stringify(candidateManifest);
     await write(root, "apps/store-extension/manifest.json", manifestText);
-    await write(root, "apps/store-extension/dist/manifest.json", manifestText);
+    await write(root, "apps/store-extension/dist-release/manifest.json", manifestText);
 
     assert.deepEqual(
       await auditCloudRelease(root, {
@@ -344,7 +346,7 @@ test("Cloud release audit fails closed on package, runtime, Web, policy, and dis
       "script-src 'self'; object-src 'self'; connect-src https://api.openai.com https://api.deepseek.com https://api.frdic.com";
     const manifestText = JSON.stringify(unsafeManifest);
     await write(root, "apps/store-extension/manifest.json", manifestText);
-    await write(root, "apps/store-extension/dist/manifest.json", manifestText);
+    await write(root, "apps/store-extension/dist-release/manifest.json", manifestText);
     await write(
       root,
       "apps/store-extension/src/service-worker/service-worker.ts",
@@ -355,7 +357,11 @@ test("Cloud release audit fails closed on package, runtime, Web, policy, and dis
       "apps/store-extension/src/service-worker/web-workspace-handler.ts",
       'export const HUAYI_WEB_WORKSPACE_URL: string | null = "https://wrong.invalid/app";',
     );
-    await write(root, "apps/store-extension/dist/service-worker.js", "/* no release origins */");
+    await write(
+      root,
+      "apps/store-extension/dist-release/service-worker.js",
+      "/* no release origins */",
+    );
     await write(
       root,
       "apps/web/dist/index.html",
@@ -438,7 +444,7 @@ test("fixture helper keeps source and packaged manifests identical before mutati
   await withFixture(async (root) => {
     assert.equal(
       await readFile(join(root, "apps/store-extension/manifest.json"), "utf8"),
-      await readFile(join(root, "apps/store-extension/dist/manifest.json"), "utf8"),
+      await readFile(join(root, "apps/store-extension/dist-release/manifest.json"), "utf8"),
     );
   });
 });

@@ -6,6 +6,7 @@ import {
 } from "@huayi/store-domain";
 
 import type { CloudSessionManager } from "./cloud-session-manager.js";
+import type { ExtensionPreferenceCache } from "./extension-preference-cache.js";
 
 export const CLOUD_PAIRING_POLL_ALARM = "huayi-cloud-pairing-poll";
 export const CLOUD_PAIRING_POLL_DELAY_MS = 5_000;
@@ -14,6 +15,7 @@ interface CloudSessionHandlerOptions {
   readonly manager: CloudSessionManager;
   readonly runtimeId: string;
   readonly schedulePoll: () => void;
+  readonly syncPreferences: ExtensionPreferenceCache["sync"];
   readonly sender: {
     readonly id?: string | undefined;
     readonly url?: string | undefined;
@@ -66,7 +68,14 @@ export async function handleCloudSessionMessage(
   if (request.type === "store/cloud-session-disconnect") {
     return response(await options.manager.disconnect());
   }
-  const state = await options.manager.status();
+  const cached = await options.manager.status();
+  if (cached.status === "connected") {
+    // Sync outside the manager's session lock. The cache compares session tokens
+    // before clearing a revoked credential, so a late response cannot erase a new account.
+    void options.syncPreferences().catch(() => undefined);
+    return response(cached);
+  }
+  const state = cached.status === "pairing" ? await options.manager.continuePairing() : cached;
   if (state.status === "pairing") options.schedulePoll();
   return response(state);
 }

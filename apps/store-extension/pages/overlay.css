@@ -6,6 +6,8 @@
   box-sizing: border-box;
 }
 .panel {
+  display: flex;
+  flex-direction: column;
   --overlay-text: #25292e;
   --overlay-secondary: #464d54;
   --overlay-muted: #5d666e;
@@ -27,7 +29,7 @@
     inset 0 1px rgb(255 255 255 / 76%);
   max-height: min(620px, calc(100dvh - 16px));
   width: min(368px, calc(100vw - 16px));
-  overflow: auto;
+  overflow: hidden;
   border: 1px solid var(--material-border);
   border-radius: 28px;
   color: var(--overlay-text);
@@ -170,16 +172,28 @@
   font-size: 14px;
 }
 .header {
-  position: sticky;
-  z-index: 2;
-  top: 0;
-  display: grid;
-  grid-template-columns: auto auto auto minmax(0, 1fr);
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   padding: 10px 12px;
   border-bottom: 1px solid var(--overlay-border);
   background: var(--overlay-inner);
+}
+.header-actions:empty {
+  display: none;
+}
+.header > [data-close],
+.header > [data-stop] {
+  min-height: 32px;
+  padding: 3px 7px;
+}
+.header > [data-close] {
+  margin-left: auto;
+}
+.header > [hidden] {
+  display: none;
 }
 .header-actions {
   display: flex;
@@ -229,6 +243,9 @@ button:focus-visible {
   outline: 2px solid var(--overlay-focus);
   outline-offset: 2px;
 }
+button:focus:not(:focus-visible) {
+  outline: none;
+}
 button:disabled {
   cursor: default;
   opacity: 0.62;
@@ -256,7 +273,19 @@ button:disabled {
   background: var(--overlay-action);
 }
 .body {
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  overflow-wrap: anywhere;
   padding: 0 14px 14px;
+}
+.footer {
+  flex: none;
+  padding: 0 14px 12px;
+}
+.footer:empty {
+  display: none;
 }
 .body:empty {
   display: none;
@@ -374,8 +403,13 @@ button:disabled {
   list-style: none;
 }
 .result-entry {
+  min-width: 0;
   display: grid;
   gap: 3px;
+}
+.result-entry > * {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .result-entry-lead {
   display: flex;
@@ -386,7 +420,7 @@ button:disabled {
   color: var(--overlay-secondary);
 }
 [data-result-layout="pairs"] .result-entry {
-  grid-template-columns: minmax(96px, max-content) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 12px 16px;
 }
 [data-result-layout="details"] .result-entry {

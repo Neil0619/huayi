@@ -1,3 +1,4 @@
+import { createProductionQueryStorage } from "./production-query-storage.js";
 import {
   STORE_ANALYSIS_PORT_NAME,
   STORE_MESSAGE_VERSION,
@@ -11,8 +12,6 @@ import { createProductionLexiconRepository } from "../lexicon/browser-lexicon-re
 import { createProductionDeviceVault } from "../vault/browser-device-vault.js";
 import { createChromeVaultStorageAdapter } from "../vault/chrome-vault-storage.js";
 import { StoreEudicClient } from "../wordbook/eudic-client.js";
-import { createAnalysisSession } from "./analysis-session.js";
-import { analysisSourceTypeFromSenderUrl } from "./analysis-source-type.js";
 import { createCloudSessionManager } from "./cloud-session-manager.js";
 import { clearCloudAccountData } from "./cloud-account-data-clearer.js";
 import { shouldRetryCloudWordbookRequest } from "./cloud-wordbook-api.js";
@@ -26,7 +25,7 @@ import {
 import { createExtensionSessionVault } from "./extension-session-vault.js";
 import { createExtensionPreferenceCache } from "./extension-preference-cache.js";
 import { createExternalWordbookLeaseVault } from "./external-wordbook-lease-vault.js";
-import { HUAYI_CLOUD_API_ORIGIN, HUAYI_WEB_WORKSPACE_URL } from "./cloud-build-profile.js";
+import * as cloudBuildProfile from "./cloud-build-profile.js";
 import { createProductionLocalWordImportRuntime } from "./production-local-word-import-runtime.js";
 import { createSubmissionOutbox } from "./submission-outbox.js";
 import {
@@ -40,7 +39,7 @@ import { handleStudyCaptureMessage } from "./study-capture-handler.js";
 import { createProductionCloudClients } from "./production-cloud-clients.js";
 import { createCloudSubmissionApi } from "./cloud-submission-api.js";
 import { createCloudWordCopyClient } from "./cloud-word-copy-client.js";
-import { createProductionQueryEngine } from "./production-query-engine.js";
+import { createProductionQuerySession } from "./production-query-session.js";
 import { randomUrlSafeId } from "./random-url-safe-id.js";
 import {
   handleContentSettingsMessage,
@@ -54,11 +53,7 @@ import { createChromeStoreSettings } from "./store-settings.js";
 import { handleStoreMessage } from "./store-message-handler.js";
 import { handleOpenWebWorkspace } from "./web-workspace-handler.js";
 import { handleShanbayMessage } from "./shanbay-message-handler.js";
-import {
-  handleSitePolicyMessage,
-  isSitePolicyMessage,
-  siteHostFromSenderUrl,
-} from "./site-policy-handler.js";
+import { handleSitePolicyMessage, isSitePolicyMessage } from "./site-policy-handler.js";
 import {
   handleSitePoliciesChanged,
   isSitePoliciesChangedMessage,
@@ -70,10 +65,15 @@ const storeAppearance = createChromeStoreAppearance(chrome.storage.local);
 const storeSettings = createChromeStoreSettings(chrome.storage.local);
 const lexiconRepository = createProductionLexiconRepository();
 const STORE_CLIENT_VERSION = chrome.runtime.getManifest().version;
+const extensionSessionStorageAdapter = createChromeVaultStorageAdapter(chrome.storage);
+const { queryTaskJournal, queryCache } = createProductionQueryStorage(
+  extensionSessionStorageAdapter,
+);
 const cloudClients = createProductionCloudClients(
-  HUAYI_CLOUD_API_ORIGIN,
+  cloudBuildProfile.HUAYI_CLOUD_API_ORIGIN,
   STORE_CLIENT_VERSION,
   (input, init) => fetch(input, init),
+  queryTaskJournal,
 );
 const cloudSubmissionApi =
   cloudClients.studyCaptures === null || cloudClients.wordCopies === null
@@ -82,7 +82,7 @@ const cloudSubmissionApi =
         studyCaptures: cloudClients.studyCaptures,
         wordCopies: cloudClients.wordCopies,
       });
-const extensionSessionStorageAdapter = createChromeVaultStorageAdapter(chrome.storage);
+
 const extensionSessionVault = createExtensionSessionVault({
   crypto: globalThis.crypto,
   deviceVault,
@@ -154,7 +154,7 @@ const cloudSessionManager = createCloudSessionManager({
   },
   randomBytes: (length) => globalThis.crypto.getRandomValues(new Uint8Array(length)),
   vault: extensionSessionVault,
-  webOrigin: HUAYI_WEB_WORKSPACE_URL,
+  webOrigin: cloudBuildProfile.HUAYI_WEB_ORIGIN,
 });
 const extensionPreferenceCache = createExtensionPreferenceCache({
   api: cloudClients.identity,
@@ -194,6 +194,8 @@ const localWordImportRuntime = createProductionLocalWordImportRuntime({
   storage: extensionSessionStorageAdapter,
 });
 async function clearAccountData(): Promise<void> {
+  await queryTaskJournal.clear();
+  await queryCache.clear();
   await clearCloudAccountData(submissionOutbox, externalWordbookLeaseVault, localWordImportRuntime);
 }
 chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) => {
@@ -244,6 +246,7 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
       manager: cloudSessionManager,
       runtimeId: chrome.runtime.id,
       schedulePoll: scheduleCloudPairingPoll,
+      syncPreferences: extensionPreferenceCache.sync,
       sender,
     })
       .then(sendResponse)
@@ -255,7 +258,7 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
       message,
       sender.id,
       chrome.runtime.id,
-      HUAYI_WEB_WORKSPACE_URL,
+      cloudBuildProfile.HUAYI_WEB_WORKSPACE_URL,
       (properties) => chrome.tabs.create(properties),
     )
       .then(sendResponse)
@@ -382,16 +385,13 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 
 chrome.runtime.onConnect.addListener((port) => {
   if (port.name !== STORE_ANALYSIS_PORT_NAME) return;
-  createAnalysisSession(port, {
-    analysisEngine: createProductionQueryEngine({
-      byok: analysisEngine,
-      cloudApi: cloudClients.extensionQueries,
-      preferences: extensionPreferenceCache,
-      sessionVault: extensionSessionVault,
-      sourceType: analysisSourceTypeFromSenderUrl(port.sender?.url),
-    }),
-    createRequestId: () => crypto.randomUUID(),
+  createProductionQuerySession(port, {
+    cache: queryCache,
+    credentials: deviceVault,
+    byok: analysisEngine,
+    cloudApi: cloudClients.extensionQueries,
+    preferences: extensionPreferenceCache,
+    sessionVault: extensionSessionVault,
     getSettings: () => storeSettings.get(),
-    siteHost: siteHostFromSenderUrl(port.sender?.url),
   });
 });

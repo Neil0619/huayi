@@ -1,4 +1,5 @@
 import {
+  canonicalStoreSiteHostname,
   STORE_MESSAGE_VERSION,
   isSiteEnabled,
   parseStoreSitePolicyRequest,
@@ -27,7 +28,7 @@ export function siteHostFromSenderUrl(senderUrl: string | undefined): string | n
   try {
     const url = new URL(senderUrl);
     if (url.protocol !== "http:" && url.protocol !== "https:") return null;
-    const host = url.hostname.toLowerCase();
+    const host = canonicalStoreSiteHostname(url.hostname);
     return host.length >= 1 && host.length <= 253 ? host : null;
   } catch {
     return null;

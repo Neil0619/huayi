@@ -11,6 +11,8 @@ const EXPECTED_FILES = new Set([
   "manifest.json",
   "options.css",
   "options-components.css",
+  "options-site-rules.css",
+  "page-ui.css",
   "options.html",
   "options.js",
   "overlay.css",
@@ -355,7 +357,10 @@ export async function auditStoreRelease(
   }
   const root = resolve(repositoryRoot);
   const extensionRoot = resolve(root, "apps/store-extension");
-  const dist = resolve(extensionRoot, "dist");
+  const dist = resolve(
+    extensionRoot,
+    sourceManifestName === "manifest.hosted-acceptance.json" ? "dist" : "dist-release",
+  );
   const violations = [];
   let files;
   try {

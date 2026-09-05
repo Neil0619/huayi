@@ -1,0 +1,123 @@
+.site-rule-form {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) minmax(140px, auto) 110px;
+  gap: 12px;
+  align-items: end;
+}
+.site-rule-form > .actions {
+  grid-column: 1 / -1;
+}
+.site-rule-preview {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+.site-rule-preview:empty {
+  display: none;
+}
+.site-rule-toolbar {
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+}
+.site-rule-toolbar input {
+  max-width: 360px;
+}
+.site-rule-toolbar select {
+  width: 150px;
+}
+.host-list li {
+  gap: 16px;
+}
+.host-list li > div:first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.site-rule-scope {
+  display: block;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+.host-list .actions {
+  flex-shrink: 0;
+}
+.host-list button {
+  min-height: 36px;
+  padding: 6px 10px;
+  box-shadow: none;
+  font-size: 14px;
+}
+.site-rule-pagination {
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+.actions[data-lexicon-search-form] {
+  align-items: end;
+}
+[data-lexicon-search-form] .field {
+  flex: 1;
+  max-width: 360px;
+}
+[data-lexicon-search-form] input,
+[data-lexicon-search-form] button {
+  height: 44px;
+}
+[data-cloud-wordbook-authority] {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+[data-wordbook-status]:empty {
+  display: none;
+}
+[data-lexicon-status]:empty {
+  display: none;
+}
+.muted,
+.field small,
+.switch-field small,
+.appearance-option small {
+  font-size: 14px;
+}
+@media (max-width: 760px) {
+  .settings-layout {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    width: calc(100% - 32px);
+  }
+  .settings-navigation {
+    position: static;
+    display: flex;
+    flex-wrap: wrap;
+    padding: 8px;
+  }
+  .settings-navigation .navigation-label {
+    display: none;
+  }
+  .settings-navigation button {
+    width: auto;
+  }
+  .site-rule-form {
+    grid-template-columns: 1fr 1fr;
+  }
+  .site-rule-host {
+    grid-column: 1 / -1;
+  }
+  .host-list li {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .recipient-grid,
+  .split {
+    grid-template-columns: 1fr;
+  }
+  .appearance-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .toolbar-meta {
+    flex-wrap: wrap;
+    flex-direction: row;
+    justify-content: flex-end;
+  }
+}

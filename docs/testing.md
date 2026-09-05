@@ -186,12 +186,17 @@ timeout；Windows 继续使用既有逐 project 列表，且不因此新增 API/
 Vite fixture 串起真实 Content Script、Service Worker 消息处理、请求协调器和 fake Native
 Host。Playwright 覆盖：
 
-Store fixture 先生成完整候选 `apps/store-extension/dist`，再在真实 Chrome 页面中加载打包后的
+Store fixture 固定使用 release profile，先生成完整候选 `apps/store-extension/dist-release`，再在隔离的 Chrome 页面中加载打包后的
 `content-script.js`，并在脚本执行前安装严格 fake Chrome runtime/analysis port。它验证普通网页
 选择到严格 Provider 结果、本地生词消息字段、Provider 失败不自动重试、用户手动重试，以及 Popup
 relay 关闭当前站点且消息不携带 URL。actual bundle 还逐一验证四套外观的语义操作色、同一词卡
 DOM、零卡片横向溢出和独立 `pearl | parchment` 材质。fake 不发 HTTP，也不替代发布前真实扩展
 加载和第三方验收。
+
+普通 workspace build 同样固定为 release；它与 Hosted 验收安装的 `apps/store-extension/dist` 隔离。
+构建回归在临时目录生成两套真实产物，检查完整普通构建不会改写 Hosted manifest/key 或 Worker。
+重启回归复用 fake `storage.local`、每次丢弃 `storage.session`，执行实际打包 Worker 三次，确认外观、
+服务商、全部三类加密凭据、站点规则、安装标识及有效配对会话保留；不读取本机 Chrome 数据。
 
 - 单词翻译/解释在最终卡片前显示至少两个独立增量；
 - 单词翻译固定验证音标置顶、词性与释义合并、常用短语、易混词以及没有原文例句/独立词性；
@@ -319,3 +324,14 @@ fail-closed 行为。Windows CI 会实际产出并运行 SEA `.exe` 的 health �
   解密；
 - 单词、短语、句子和段落成功，欧路查词/加词成功，Codex/其他模型 Provider 命令明确拒绝；
 - 重复安装保留两份凭据，卸载不触碰其他 Native Messaging Host。
+
+## Store 配对与查询失败回归（2026-09-04）
+
+`cloud-pairing-recovery.test.ts` 使用真实加密 session vault 覆盖前台交换、重新打开、重复交换、
+断开竞争、已消费配对和暂时断网。`cloud-query-session-recovery.test.ts` 组合实际 identity client、
+偏好缓存和 query router，验证 Origin 与 401/403/426；`extension-preference-session-lifecycle.test.ts`
+验证旧偏好响应不能复活断开的会话或覆盖新账号。分析 session 与实际 overlay 测试分别覆盖两侧消息解析。
+
+本机命令：`pnpm exec vitest run --project store-extension --project store-domain`，结果 642/642。
+关联 Web/API 定向测试 15/15，`interface-layout.spec.ts`、`pairing-layout.spec.ts` 与
+`cloud-pairing-approval-journey.spec.ts` 共 7/7。真实模型、用户 Chrome 配对与 Windows 完整门禁未执行。

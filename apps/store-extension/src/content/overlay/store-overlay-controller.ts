@@ -22,6 +22,13 @@ import { OverlayWordPresence } from "./overlay-word-presence.js";
 import { OverlayStudyCapture } from "./overlay-study-capture.js";
 import { createOverlayPanel } from "./overlay-panel.js";
 import {
+  disconnectAnalysisPort,
+  requestAnalysisStop,
+  measureQueryPresentation,
+  showQueryDiagnostic,
+  restoreQueryFocus,
+} from "./overlay-runtime.js";
+import {
   applyOverlayAppearance,
   applyOverlayTheme,
   createOverlayHost,
@@ -40,355 +47,354 @@ export type {
   StoreOverlayRuntime,
 } from "./overlay-runtime.js";
 export class StoreOverlayController {
-  private activePort: ContentAnalysisPort | null = null;
-  private appearance: StoreAppearance = "silver";
-  private analysisBody: HTMLElement | null = null;
-  private cardSession: OverlayCardSession | null = null;
-  private defaultAction: StoreDefaultAction = "ask";
-  private host: HTMLElement | null = null;
-  private headerActions: HTMLElement | null = null;
-  private lastSequence = -1;
-  private onDismiss: (() => void) | null = null;
-  private previousFocus: HTMLElement | null = null;
-  private readonly interaction: OverlayInteractionLifecycle;
-  private readonly wordPresence: OverlayWordPresence;
-  private readonly studyCapture: OverlayStudyCapture;
-  private readonly preview = new Map<
-    Extract<AnalysisUpdate, { type: "delta" }>["section"],
-    string
-  >();
-  private readonly previewSections = new Map<
+  #activePort: ContentAnalysisPort | null = null;
+  #appearance: StoreAppearance = "silver";
+  #analysisBody: HTMLElement | null = null;
+  #footer: HTMLElement | null = null;
+  #cardSession: OverlayCardSession | null = null;
+  #defaultAction: StoreDefaultAction = "ask";
+  #host: HTMLElement | null = null;
+  #headerActions: HTMLElement | null = null;
+  #lastSequence = -1;
+  #onDismiss: (() => void) | null = null;
+  #previousFocus: HTMLElement | null = null;
+  readonly #interaction: OverlayInteractionLifecycle;
+  readonly #wordPresence: OverlayWordPresence;
+  readonly #studyCapture: OverlayStudyCapture;
+  readonly #preview = new Map<Extract<AnalysisUpdate, { type: "delta" }>["section"], string>();
+  readonly #previewSections = new Map<
     Extract<AnalysisUpdate, { type: "section" }>["section"],
     Extract<AnalysisUpdate, { type: "section" }>
   >();
-  private promoteToResult: (() => void) | null = null;
-  private remoteRequestId: string | null = null;
-  private selection: StoreSelectionReading | null = null;
-  private theme: StoreOverlayTheme = "pearl";
+  #promoteToResult: (() => void) | null = null;
+  #remoteRequestId: string | null = null;
+  #selection: StoreSelectionReading | null = null;
+  #theme: StoreOverlayTheme = "pearl";
+  readonly #document: Document;
+  readonly #runtime: StoreOverlayRuntime;
+  readonly #acceptsUserGesture: (event: Event) => boolean;
 
   constructor(
-    private readonly document: Document,
-    private readonly runtime: StoreOverlayRuntime,
-    private readonly acceptsUserGesture: (event: Event) => boolean = (event) => event.isTrusted,
+    document: Document,
+    runtime: StoreOverlayRuntime,
+    acceptsUserGesture: (event: Event) => boolean = (event) => event.isTrusted,
   ) {
-    this.interaction = new OverlayInteractionLifecycle(document, this.acceptsUserGesture, () =>
+    this.#document = document;
+    this.#runtime = runtime;
+    this.#acceptsUserGesture = acceptsUserGesture;
+    this.#interaction = new OverlayInteractionLifecycle(document, this.#acceptsUserGesture, () =>
       this.close(),
     );
-    this.wordPresence = new OverlayWordPresence(runtime);
-    this.studyCapture = new OverlayStudyCapture({
-      acceptsUserGesture: this.acceptsUserGesture,
+    this.#wordPresence = new OverlayWordPresence(runtime);
+    this.#studyCapture = new OverlayStudyCapture({
+      acceptsUserGesture: this.#acceptsUserGesture,
       send: (request) => runtime.studyCapture(request),
     });
   }
 
   show(selection: StoreSelectionReading, anchor: StoreOverlayAnchor, onDismiss?: () => void): void {
-    this.removeOverlay("replacement");
-    this.selection = selection;
-    this.studyCapture.reset();
-    this.cardSession = new OverlayCardSession();
-    this.onDismiss = onDismiss ?? null;
-    this.previousFocus =
-      this.document.activeElement instanceof HTMLElement ? this.document.activeElement : null;
+    this.#removeOverlay("replacement");
+    this.#selection = selection;
+    this.#studyCapture.reset();
+    this.#cardSession = new OverlayCardSession();
+    this.#onDismiss = onDismiss ?? null;
+    this.#previousFocus =
+      this.#document.activeElement instanceof HTMLElement ? this.#document.activeElement : null;
 
-    const { host, shadow } = createOverlayHost(this.document, anchor);
-    const view = createOverlayPanel(this.document, this.theme, (action, event) => {
-      if (this.acceptsUserGesture(event)) this.start(action);
-    });
-    applyOverlayAppearance(host, this.appearance, view.panel);
-    this.analysisBody = view.body;
-    this.headerActions = view.headerActions;
-    this.promoteToResult = view.promoteToResult;
+    const { host, shadow } = createOverlayHost(this.#document, anchor);
+    const view = createOverlayPanel(
+      this.#document,
+      this.#theme,
+      (action, event) => {
+        if (this.#acceptsUserGesture(event)) this.#start(action);
+      },
+      () => this.close(),
+      () => requestAnalysisStop(this.#activePort, this.#analysisBody),
+    );
+    applyOverlayAppearance(host, this.#appearance, view.panel);
+    this.#analysisBody = view.body;
+    this.#footer = view.footer;
+    this.#headerActions = view.headerActions;
+    this.#promoteToResult = view.promoteToResult;
     attachOverlayStyles(
-      this.document,
+      this.#document,
       shadow,
       view.panel,
-      this.runtime.overlayStylesheetUrl(),
-      () => this.interaction.position(),
+      this.#runtime.overlayStylesheetUrl(),
+      () => this.#interaction.position(),
     );
-    (this.document.body ?? this.document.documentElement).append(host);
-    this.host = host;
-    this.interaction.start(host, anchor);
-    shadow.querySelector<HTMLButtonElement>("[data-action]")?.focus();
-    if (this.defaultAction !== "ask") this.start(this.defaultAction);
+    (this.#document.body ?? this.#document.documentElement).append(host);
+    this.#host = host;
+    this.#interaction.start(host, anchor, selection.range);
+    if (this.#defaultAction !== "ask") this.#start(this.#defaultAction);
   }
 
   setDefaultAction(action: StoreDefaultAction): void {
-    this.defaultAction = action;
+    this.#defaultAction = action;
   }
 
   setAppearance(appearance: StoreAppearance): void {
-    this.appearance = appearance;
-    applyOverlayAppearance(this.host, appearance);
+    this.#appearance = appearance;
+    applyOverlayAppearance(this.#host, appearance);
   }
 
   setTheme(theme: StoreOverlayTheme): void {
-    this.theme = theme;
-    applyOverlayTheme(this.host, theme);
+    this.#theme = theme;
+    applyOverlayTheme(this.#host, theme);
   }
 
   close(reason: StoreOverlayCloseReason = "dismissed"): void {
-    this.removeOverlay(reason);
+    this.#removeOverlay(reason);
   }
 
-  private start(action: AnalysisAction): void {
-    if (this.selection === null || this.host === null || this.cardSession === null) return;
-    const activation = this.cardSession.activate(action);
-    if (activation.cancelled !== null) this.stopPort(true);
-    this.promoteToResult?.();
-    this.interaction.position();
-    this.setModeControls(action, activation.state.status === "loading");
+  #start(action: AnalysisAction): void {
+    if (this.#selection === null || this.#host === null || this.#cardSession === null) return;
+    const activation = this.#cardSession.activate(action);
+    if (activation.cancelled !== null) this.#stopPort(false);
+    this.#promoteToResult?.();
+    this.#interaction.position();
+    updateOverlayModeControls(this.#host, action, activation.state.status === "loading");
     if (!activation.shouldStart) {
-      this.renderModeState(action, activation.state);
+      this.#renderModeState(action, activation.state);
       return;
     }
-    this.stopPort(true);
-    this.lastSequence = -1;
-    this.preview.clear();
-    this.previewSections.clear();
-    this.remoteRequestId = null;
+    this.#stopPort(false);
+    this.#lastSequence = -1;
+    this.#preview.clear();
+    this.#previewSections.clear();
+    this.#remoteRequestId = null;
     if (
-      this.selection.selectionKind === "word" &&
-      this.headerActions !== null &&
-      this.headerActions.querySelector(".lexicon-save") === null
+      this.#selection.selectionKind === "word" &&
+      this.#headerActions !== null &&
+      this.#headerActions.querySelector(".lexicon-save") === null
     ) {
-      this.wordPresence.query(this.selection.selection, this.headerActions);
+      this.#wordPresence.query(this.#selection.selection, this.#headerActions);
     }
-    this.renderStatus();
-    this.studyCapture.startAutomatic(this.selection);
+    this.#renderStatus();
+    this.#studyCapture.startAutomatic(this.#selection);
 
     let port: ContentAnalysisPort;
     try {
-      port = this.runtime.connectAnalysis();
-      this.activePort = port;
-      port.onMessage.addListener((message) => this.receive(port, action, message));
-      port.onDisconnect.addListener(() => this.disconnected(port, action));
+      port = this.#runtime.connectAnalysis();
+      this.#activePort = port;
+      port.onMessage.addListener((message) => this.#receive(port, action, message));
+      port.onDisconnect.addListener(() => this.#disconnected(port, action));
       port.postMessage({
         action,
-        boundaryEvidence: this.selection.boundaryEvidence,
+        boundaryEvidence: this.#selection.boundaryEvidence,
         messageVersion: STORE_MESSAGE_VERSION,
-        selection: this.selection.selection,
-        sentenceContext: this.selection.sentenceContext,
+        selection: this.#selection.selection,
+        sentenceContext: this.#selection.sentenceContext,
         type: "store/analysis-start",
       });
     } catch {
-      this.activePort = null;
-      this.finishWithError(action, "internal-error");
+      this.#activePort = null;
+      this.#finishWithError(action, "internal-error");
     }
   }
 
-  private receive(port: ContentAnalysisPort, action: AnalysisAction, value: unknown): void {
-    if (port !== this.activePort || this.cardSession?.currentAction() !== action) return;
+  #receive(port: ContentAnalysisPort, action: AnalysisAction, value: unknown): void {
+    if (port !== this.#activePort || this.#cardSession?.currentAction() !== action) return;
     let message;
     try {
       message = parseContentAnalysisMessage(value);
     } catch {
-      this.finishWithError(action, "invalid-response");
+      this.#finishWithError(action, "invalid-response");
       return;
     }
     if (message.type === "store/analysis-error") {
       if (
         message.requestId !== null &&
-        this.remoteRequestId !== null &&
-        message.requestId !== this.remoteRequestId
+        this.#remoteRequestId !== null &&
+        message.requestId !== this.#remoteRequestId
       ) {
-        this.finishWithError(action, "invalid-response");
+        this.#finishWithError(action, "invalid-response");
         return;
       }
-      this.finishWithError(action, message.code);
+      this.#finishWithError(action, message.code);
+      showQueryDiagnostic(this.#analysisBody, message.diagnosticId);
       return;
     }
     if (message.type === "store/analysis-update") {
+      measureQueryPresentation(this.#document, performance.now());
       const { update } = message;
-      if (this.remoteRequestId !== null && update.requestId !== this.remoteRequestId) {
-        this.finishWithError(action, "invalid-response");
+      if (this.#remoteRequestId !== null && update.requestId !== this.#remoteRequestId) {
+        this.#finishWithError(action, "invalid-response");
         return;
       }
-      this.remoteRequestId = update.requestId;
+      this.#remoteRequestId = update.requestId;
       if (update.type === "progress") {
-        this.renderStatus();
+        this.#renderStatus();
         return;
       }
-      if (update.sequence <= this.lastSequence) {
-        this.finishWithError(action, "invalid-response");
+      if (update.sequence <= this.#lastSequence) {
+        this.#finishWithError(action, "invalid-response");
         return;
       }
-      this.lastSequence = update.sequence;
+      this.#lastSequence = update.sequence;
       if (update.type === "delta") {
-        const current = this.preview.get(update.section) ?? "";
-        const total = Array.from(this.preview.values()).reduce((sum, text) => sum + text.length, 0);
+        const current = this.#preview.get(update.section) ?? "";
+        const total = Array.from(this.#preview.values()).reduce(
+          (sum, text) => sum + text.length,
+          0,
+        );
         if (total + update.text.length > MAX_PREVIEW_CHARACTERS) {
-          this.finishWithError(action, "invalid-response");
+          this.#finishWithError(action, "invalid-response");
           return;
         }
-        this.preview.set(update.section, current + update.text);
+        this.#preview.set(update.section, current + update.text);
       } else {
-        this.previewSections.set(update.section, update);
+        this.#previewSections.set(update.section, update);
       }
-      this.renderPreview();
+      this.#renderPreview();
       return;
     }
     if (
-      this.selection === null ||
-      message.result.sourceText !== this.selection.selection ||
-      message.result.selectionKind !== this.selection.selectionKind ||
+      this.#selection === null ||
+      message.result.sourceText !== this.#selection.selection ||
+      message.result.selectionKind !== this.#selection.selectionKind ||
       !resultMatchesAction(message.result.type, action) ||
-      (this.remoteRequestId !== null && message.result.requestId !== this.remoteRequestId)
+      (this.#remoteRequestId !== null && message.result.requestId !== this.#remoteRequestId)
     ) {
-      this.finishWithError(action, "invalid-response");
+      this.#finishWithError(action, "invalid-response");
       return;
     }
-    this.remoteRequestId = message.result.requestId;
-    this.stopPort(false);
-    this.cardSession?.complete(action, message.result);
-    this.setModeControls(action, false);
-    this.renderReady(message.result);
+    this.#remoteRequestId = message.result.requestId;
+    this.#stopPort(false);
+    this.#cardSession?.complete(action, message.result);
+    updateOverlayModeControls(this.#host, action, false);
+    this.#renderReady(message.result);
   }
 
-  private renderPreview(): void {
-    if (this.analysisBody === null) return;
-    delete this.analysisBody.dataset.resultType;
-    renderStreamPreview(this.analysisBody, this.preview, this.previewSections);
-    this.interaction.position();
+  #renderPreview(): void {
+    if (this.#analysisBody === null) return;
+    delete this.#analysisBody.dataset.resultType;
+    renderStreamPreview(this.#analysisBody, this.#preview, this.#previewSections);
+    this.#interaction.position();
   }
 
-  private renderStatus(): void {
-    if (this.analysisBody === null) return;
-    delete this.analysisBody.dataset.resultType;
-    renderStreamStatus(this.analysisBody);
-    this.interaction.position();
+  #renderStatus(): void {
+    if (this.#analysisBody === null) return;
+    delete this.#analysisBody.dataset.resultType;
+    renderStreamStatus(this.#analysisBody);
+    this.#interaction.position();
   }
 
-  private renderModeState(action: AnalysisAction, state: OverlayModeState): void {
+  #renderModeState(action: AnalysisAction, state: OverlayModeState): void {
     if (state.status === "ready") {
-      this.renderReady(state.result);
+      this.#renderReady(state.result);
       return;
     }
     if (state.status === "error") {
-      this.renderError(action, state.code);
+      this.#renderError(action, state.code);
       return;
     }
-    if (state.status === "disconnected" && this.analysisBody !== null) {
-      delete this.analysisBody.dataset.resultType;
+    if (state.status === "disconnected" && this.#analysisBody !== null) {
+      delete this.#analysisBody.dataset.resultType;
       renderDisconnectedError(
-        this.analysisBody,
-        this.acceptsUserGesture,
+        this.#analysisBody,
+        this.#acceptsUserGesture,
         () => {
-          this.cardSession?.retry(action);
-          this.start(action);
+          this.#cardSession?.retry(action);
+          this.#start(action);
         },
-        this.preview.size > 0 || this.previewSections.size > 0,
+        this.#preview.size > 0 || this.#previewSections.size > 0,
       );
       return;
     }
-    this.renderStatus();
+    this.#renderStatus();
   }
 
-  private renderReady(result: AnalysisResult): void {
-    if (this.analysisBody === null || this.selection === null) return;
-    if (this.headerActions === null) return;
+  #renderReady(result: AnalysisResult): void {
+    if (this.#analysisBody === null || this.#selection === null) return;
+    if (this.#headerActions === null) return;
     renderCachedResult({
-      acceptsUserGesture: this.acceptsUserGesture,
-      body: this.analysisBody,
-      headerActions: this.headerActions,
-      presence: this.wordPresence,
+      acceptsUserGesture: this.#acceptsUserGesture,
+      body: this.#analysisBody,
+      headerActions: this.#headerActions,
+      presence: this.#wordPresence,
       result,
-      saveWord: (request) => this.runtime.saveWord(request),
-      sentence: this.selection.sentenceContext ?? this.selection.selection,
+      saveWord: (request) => this.#runtime.saveWord(request),
+      sentence: this.#selection.sentenceContext ?? this.#selection.selection,
     });
-    this.studyCapture.render(this.analysisBody, this.selection);
-    this.interaction.position();
+    if (this.#footer) this.#studyCapture.render(this.#footer, this.#selection);
+    this.#interaction.position();
   }
 
-  private finishWithError(action: AnalysisAction, code: StoreAnalysisErrorCode): void {
-    this.stopPort(false);
-    this.cardSession?.fail(action, code);
-    this.setModeControls(action, false);
-    this.renderError(action, code);
+  #finishWithError(action: AnalysisAction, code: StoreAnalysisErrorCode): void {
+    this.#stopPort(false);
+    this.#cardSession?.fail(action, code);
+    updateOverlayModeControls(this.#host, action, false);
+    this.#renderError(action, code);
   }
 
-  private renderError(action: AnalysisAction, code: StoreAnalysisErrorCode): void {
-    if (this.analysisBody === null) return;
-    delete this.analysisBody.dataset.resultType;
+  #renderError(action: AnalysisAction, code: StoreAnalysisErrorCode): void {
+    if (this.#analysisBody === null) return;
+    delete this.#analysisBody.dataset.resultType;
     renderOverlayError({
-      acceptsUserGesture: this.acceptsUserGesture,
-      body: this.analysisBody,
+      acceptsUserGesture: this.#acceptsUserGesture,
+      body: this.#analysisBody,
       code,
-      onOpenOptions: () => this.runtime.openOptions(),
+      onOpenOptions: () => this.#runtime.openOptions(),
       onOpenOptionsError: () => {
-        this.cardSession?.fail(action, "internal-error");
-        this.renderError(action, "internal-error");
+        this.#cardSession?.fail(action, "internal-error");
+        this.#renderError(action, "internal-error");
       },
-      preservePreview: this.preview.size > 0 || this.previewSections.size > 0,
+      preservePreview: this.#preview.size > 0 || this.#previewSections.size > 0,
       onRetry: () => {
-        this.cardSession?.retry(action);
-        this.start(action);
+        this.#cardSession?.retry(action);
+        this.#start(action);
       },
     });
-    if (this.selection !== null) this.studyCapture.render(this.analysisBody, this.selection);
-    this.interaction.position();
+    if (this.#selection && this.#footer) this.#studyCapture.render(this.#footer, this.#selection);
+    this.#interaction.position();
   }
 
-  private disconnected(port: ContentAnalysisPort, action: AnalysisAction): void {
-    if (port !== this.activePort) return;
-    this.activePort = null;
-    this.cardSession?.disconnect(action);
-    this.setModeControls(action, false);
-    if (this.analysisBody === null) return;
-    delete this.analysisBody.dataset.resultType;
+  #disconnected(port: ContentAnalysisPort, action: AnalysisAction): void {
+    if (port !== this.#activePort) return;
+    this.#activePort = null;
+    this.#cardSession?.disconnect(action);
+    updateOverlayModeControls(this.#host, action, false);
+    if (this.#analysisBody === null) return;
+    delete this.#analysisBody.dataset.resultType;
     renderDisconnectedError(
-      this.analysisBody,
-      this.acceptsUserGesture,
+      this.#analysisBody,
+      this.#acceptsUserGesture,
       () => {
-        this.cardSession?.retry(action);
-        this.start(action);
+        this.#cardSession?.retry(action);
+        this.#start(action);
       },
-      this.preview.size > 0 || this.previewSections.size > 0,
+      this.#preview.size > 0 || this.#previewSections.size > 0,
     );
-    this.interaction.position();
+    this.#interaction.position();
   }
 
-  private setModeControls(action: AnalysisAction, loading: boolean): void {
-    updateOverlayModeControls(this.host, action, loading);
-  }
-
-  private stopPort(cancel: boolean): void {
-    const port = this.activePort;
+  #stopPort(cancel: boolean): void {
+    const port = this.#activePort;
     if (port === null) return;
-    this.activePort = null;
-    if (cancel) {
-      try {
-        port.postMessage({ messageVersion: STORE_MESSAGE_VERSION, type: "store/analysis-cancel" });
-      } catch {
-        // Disconnect still gives the Service Worker a cancellation signal.
-      }
-    }
-    try {
-      port.disconnect();
-    } catch {
-      // The port is already disconnected.
-    }
+    this.#activePort = null;
+    disconnectAnalysisPort(port, cancel);
   }
 
-  private removeOverlay(reason: StoreOverlayCloseReason | "replacement"): void {
-    const hadOverlay = this.host !== null;
-    const onDismiss = this.onDismiss;
-    this.stopPort(true);
-    this.interaction.stop();
-    this.host?.remove();
-    this.host = null;
-    this.analysisBody = null;
-    this.cardSession = null;
-    this.headerActions = null;
-    this.promoteToResult = null;
-    this.selection = null;
-    this.onDismiss = null;
-    this.wordPresence.reset();
-    this.studyCapture.reset();
-    if (reason !== "replacement" && this.previousFocus?.isConnected === true) {
-      this.previousFocus.focus();
-    }
-    this.previousFocus = null;
-    if (hadOverlay && reason !== "replacement") this.document.getSelection()?.removeAllRanges();
+  #removeOverlay(reason: StoreOverlayCloseReason | "replacement"): void {
+    const hadOverlay = this.#host !== null;
+    const onDismiss = this.#onDismiss;
+    this.#stopPort(false);
+    this.#interaction.stop();
+    this.#host?.remove();
+    this.#host = null;
+    this.#analysisBody = null;
+    this.#footer = null;
+    this.#cardSession = null;
+    this.#headerActions = null;
+    this.#promoteToResult = null;
+    this.#selection = null;
+    this.#onDismiss = null;
+    this.#wordPresence.reset();
+    this.#studyCapture.reset();
+    restoreQueryFocus(this.#previousFocus, reason !== "replacement");
+    this.#previousFocus = null;
+    if (hadOverlay && reason !== "replacement") this.#document.getSelection()?.removeAllRanges();
     if (hadOverlay && reason === "dismissed") onDismiss?.();
   }
 }

@@ -2,6 +2,7 @@ import type { AnalysisAction, StoreOverlayTheme } from "@huayi/store-domain";
 
 interface OverlayPanel {
   readonly body: HTMLElement;
+  readonly footer: HTMLElement;
   readonly headerActions: HTMLElement;
   readonly panel: HTMLElement;
   readonly promoteToResult: () => void;
@@ -25,6 +26,8 @@ export function createOverlayPanel(
   document: Document,
   theme: StoreOverlayTheme,
   onAction: (action: AnalysisAction, event: Event) => void,
+  onClose: () => void,
+  onStop: () => void,
 ): OverlayPanel {
   const panel = document.createElement("section");
   panel.className = "panel";
@@ -43,15 +46,31 @@ export function createOverlayPanel(
   );
   const headerActions = document.createElement("div");
   headerActions.className = "header-actions";
+  const close = document.createElement("button");
+  close.type = "button";
+  close.textContent = "×";
+  close.dataset.close = "";
+  close.setAttribute("aria-label", "关闭解释卡片");
+  close.title = "关闭（Esc）；生成将在后台继续";
+  close.addEventListener("click", onClose);
+  const stop = document.createElement("button");
+  stop.type = "button";
+  stop.textContent = "停止";
+  stop.dataset.stop = "";
+  stop.hidden = true;
+  stop.addEventListener("click", onStop);
   header.append(modes);
 
   const body = document.createElement("div");
   body.className = "body";
   body.dataset.analysisBody = "";
   body.setAttribute("aria-live", "polite");
-  panel.append(header, body);
+  const footer = document.createElement("div");
+  footer.className = "footer";
+  panel.append(header, body, footer);
   return {
     body,
+    footer,
     headerActions,
     panel,
     promoteToResult: () => {
@@ -65,7 +84,7 @@ export function createOverlayPanel(
       brand.textContent = "SEEN & SAID";
       panel.dataset.card = "result";
       header.className = "header";
-      header.replaceChildren(mark, brand, modes, headerActions);
+      header.replaceChildren(mark, brand, modes, headerActions, stop, close);
     },
   };
 }

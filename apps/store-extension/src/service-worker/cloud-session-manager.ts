@@ -1,5 +1,6 @@
-import type { CloudIdentityApi } from "./cloud-identity-api.js";
+import { CloudIdentityApiError, type CloudIdentityApi } from "./cloud-identity-api.js";
 import type { ExtensionSessionVault } from "./extension-session-vault.js";
+import { withCloudSessionLock } from "./cloud-session-lock.js";
 
 type CloudSessionState =
   | { readonly expiresAt: string; readonly status: "connected" | "pairing" }
@@ -73,7 +74,7 @@ export function createCloudSessionManager(options: CloudSessionManagerOptions) {
     }
     return { expiresAt: pending.expiresAt, status: "pairing" };
   };
-  return {
+  const actions = {
     async continuePairing(): Promise<CloudSessionState> {
       const dependencies = configured();
       if (dependencies === null) return { status: "not-configured" };
@@ -83,7 +84,20 @@ export function createCloudSessionManager(options: CloudSessionManagerOptions) {
         await options.vault.clearPending();
         return { status: "expired" };
       }
-      const pairing = await dependencies.api.getPairing(pending.id);
+      let pairing;
+      try {
+        pairing = await dependencies.api.getPairing(pending.id);
+      } catch (error) {
+        if (
+          error instanceof CloudIdentityApiError &&
+          error.status === 404 &&
+          error.code === "not_found"
+        ) {
+          await options.vault.clearPending();
+          return { status: "expired" };
+        }
+        throw error;
+      }
       if (pairing.status === "pending") return { expiresAt: pairing.expiresAt, status: "pairing" };
       if (pairing.status === "expired") {
         await options.vault.clearPending();
@@ -119,6 +133,20 @@ export function createCloudSessionManager(options: CloudSessionManagerOptions) {
     async start(): Promise<CloudSessionState> {
       const dependencies = configured();
       if (dependencies === null) return { status: "not-configured" };
+      const current = await status();
+      if (current.status === "connected") return current;
+      if (current.status === "pairing") {
+        const resumed = await actions.continuePairing();
+        if (resumed.status === "connected") return resumed;
+        if (resumed.status === "pairing") {
+          const pending = await options.vault.readPending();
+          if (pending === null) return status();
+          await options.open(
+            new URL(`/pair-extension/${pending.id}`, dependencies.webOrigin).toString(),
+          );
+          return resumed;
+        }
+      }
       const verifier = base64Url(options.randomBytes(32));
       const state = base64Url(options.randomBytes(32));
       const installId = await options.vault.getOrCreateInstallId();
@@ -142,6 +170,16 @@ export function createCloudSessionManager(options: CloudSessionManagerOptions) {
       return { expiresAt: pairing.expiresAt, status: "pairing" };
     },
     status,
+  };
+  // Popup, options and alarms share one worker. Keep single-use exchanges and
+  // revocation ordered so a late exchange cannot recreate a disconnected session.
+  const serialize = (operation: () => Promise<CloudSessionState>) =>
+    withCloudSessionLock(options.vault, operation);
+  return {
+    continuePairing: () => serialize(actions.continuePairing),
+    disconnect: () => serialize(actions.disconnect),
+    start: () => serialize(actions.start),
+    status: () => serialize(status),
   };
 }
 
