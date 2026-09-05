@@ -9,7 +9,7 @@ const sourceText = "Wildfire in southern Spain leaves at least 12 dead and 23 mi
 for (const width of [390, 1440]) {
   test(`capture failure retains the original and readable controls at ${width}px`, async ({
     page,
-  }) => {
+  }, testInfo) => {
     const authority = createCloudBrowserAuthority({ authenticated: true, seed: "empty" });
     await authority.install(page);
     let analyzing = true;
@@ -74,9 +74,10 @@ for (const width of [390, 1440]) {
     await expect(page.getByRole("heading", { name: sourceText })).toBeVisible();
     await expect(page.getByRole("button", { name: "开始深度分析" })).toBeEnabled();
     expect(generationCalls).toBe(0);
+    await page.getByText("标题与学习上下文", { exact: true }).click();
     const boxes = await page
       .locator(
-        ".study-capture-form input, .study-capture-form select, .study-capture-form textarea",
+        ".analysis-detail details input, .analysis-detail details select, .analysis-detail details textarea",
       )
       .evaluateAll((elements) =>
         elements.map((element) => {
@@ -95,7 +96,7 @@ for (const width of [390, 1440]) {
     ).toBeLessThanOrEqual(0);
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.screenshot({
-      path: `artifacts/hosted-analysis-repair-20260904/capture-${width}.png`,
+      path: testInfo.outputPath(`capture-${width}.png`),
       fullPage: true,
     });
   });

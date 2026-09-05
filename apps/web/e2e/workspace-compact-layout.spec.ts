@@ -13,7 +13,7 @@ test("inbox content and account sidebar stay compact in all four themes", async 
     await page.goto(`${origin}/app`);
     await page.evaluate((value) => localStorage.setItem("huayi.web.appearance.v1", value), theme);
     await page.reload();
-    await expect(page.getByRole("heading", { name: "还没有待分析内容" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "从一句你想学会使用的话开始" })).toBeVisible();
     await page.evaluate(() => {
       const notice = document.createElement("div");
       notice.className = "acceptance-environment-notice";
@@ -32,17 +32,15 @@ test("inbox content and account sidebar stay compact in all four themes", async 
     expect(layout.filterInToolbar).toBe(true);
     await expect(page).toHaveScreenshot(`inbox-${theme}.png`, { animations: "disabled" });
   }
-  const reviewTab = page.getByRole("tab", { name: "待收藏", exact: true });
-  await reviewTab.focus();
-  await page.keyboard.press("Enter");
-  await expect(reviewTab).toBeFocused();
-  await expect(reviewTab).toHaveAttribute("aria-selected", "true");
-  const captureTab = page.getByRole("tab", { name: "待分析", exact: true });
-  await captureTab.focus();
-  await page.keyboard.press("Space");
-  await expect(captureTab).toBeFocused();
-  await expect(captureTab).toHaveAttribute("aria-selected", "true");
-  await expect(page.getByRole("heading", { name: "还没有待分析内容" })).toBeVisible();
+  const filter = page.getByRole("combobox", { name: "显示内容" });
+  await filter.focus();
+  await filter.press("Home");
+  await filter.press("ArrowDown");
+  await expect(filter).toBeFocused();
+  await expect(filter).toHaveValue("all");
+  await filter.press("ArrowDown");
+  await expect(filter).toHaveValue("待分析");
+  await expect(page.getByRole("heading", { name: "从一句你想学会使用的话开始" })).toBeVisible();
   await page.goto(`${origin}/settings/account`);
   await expect(page.getByRole("heading", { name: "当前账号" })).toBeVisible();
   const navigation = await page.getByRole("navigation", { name: "账号设置" }).boundingBox();

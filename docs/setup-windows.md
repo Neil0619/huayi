@@ -46,6 +46,10 @@ Executable Application 构建 `apps/native-host/dist/windows/huayi-native-host.e
 上执行；验证器会从仓库外临时目录运行复制的 `.exe`，不使用仓库 `node_modules`，并把
 `LOCALAPPDATA` 指向临时 fixture。macOS 的 fake 测试不能替你产出或验收 Windows `.exe`。
 
+若本次修改涉及 Cloud Web 源码，还需执行 `pnpm exec vitest run --project web`。Chrome
+离线 E2E 使用隔离的测试页面与 API 夹具；它不会替代已加载插件的人工验收。Windows 截图
+缺失或变化时，先确认行为断言并审查实际截图，再更新对应基线；不要直接放宽像素阈值。
+
 ## 2. 在 Chrome 加载扩展
 
 1. 打开 `chrome://extensions`。

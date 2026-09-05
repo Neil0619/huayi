@@ -17,8 +17,12 @@
   display: grid;
   gap: var(--space-4);
 }
+.practice-overview :is(h2, h3, p) {
+  margin: 0;
+}
 .practice-overview .practice-queue {
   display: block;
+  width: 100%;
   min-height: 0;
   padding: var(--space-6);
 }
@@ -61,12 +65,26 @@
   align-items: center;
   gap: var(--space-4);
 }
-.collection-workspace .study-inbox-toolbar {
+.collection-workspace .page-heading > div {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-3);
-  margin-bottom: var(--space-5);
+}
+.collection-workspace .page-heading p {
+  margin: 0;
+  color: var(--text-secondary);
+}
+.collection-workspace .study-inbox-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+.collection-workspace .study-inbox-toolbar > a {
+  margin-left: auto;
 }
 .collection-workspace
   :is(label:not(.collection-candidate-choice), .collection-paste, details[open]) {
@@ -75,6 +93,15 @@
 }
 .collection-workspace label {
   margin-block: var(--space-3);
+}
+.collection-workspace .study-inbox-toolbar label {
+  display: flex;
+  align-items: center;
+  margin: 0;
+  white-space: nowrap;
+}
+.collection-workspace .study-inbox-toolbar select {
+  width: auto;
 }
 .collection-workspace :is(input, select, textarea) {
   box-sizing: border-box;
@@ -133,6 +160,12 @@
 .model-preview {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+@media (min-width: 48rem) {
+  .collection-workspace :is(.page-heading, .study-inbox-toolbar) :is(button, select) {
+    min-height: 40px;
+    padding-block: var(--space-1);
+  }
 }
 @media (max-width: 48rem) {
   .practice-session-actions {

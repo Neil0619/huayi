@@ -8,6 +8,7 @@ export class OverlayInteractionLifecycle {
   #rangeOrigin: { readonly left: number; readonly top: number } | null = null;
   #scrollX = 0;
   #scrollY = 0;
+  #listeners: AbortController | null = null;
 
   readonly #document: Document;
 
@@ -33,14 +34,17 @@ export class OverlayInteractionLifecycle {
     const bounds = range?.getBoundingClientRect?.();
     this.#rangeOrigin =
       bounds && (bounds.width || bounds.height) ? { left: bounds.left, top: bounds.top } : null;
-    this.#scrollX = this.#document.defaultView?.scrollX ?? 0;
-    this.#scrollY = this.#document.defaultView?.scrollY ?? 0;
-    this.#document.addEventListener("keydown", this.#onDocumentKeyDown, true);
-    this.#document.addEventListener("pointerdown", this.#onDocumentPointerDown, true);
-    this.#document.addEventListener("scroll", this.#onViewportChange, true);
-    this.#document.defaultView?.addEventListener("resize", this.#onViewportChange);
-    this.#document.defaultView?.visualViewport?.addEventListener("resize", this.#onViewportChange);
-    this.#document.defaultView?.visualViewport?.addEventListener("scroll", this.#onViewportChange);
+    const view = this.#document.defaultView;
+    this.#scrollX = view?.scrollX ?? 0;
+    this.#scrollY = view?.scrollY ?? 0;
+    this.#listeners = new (view?.AbortController ?? AbortController)();
+    const options = { capture: true, signal: this.#listeners.signal };
+    this.#document.addEventListener("keydown", this.#onDocumentKeyDown, options);
+    this.#document.addEventListener("pointerdown", this.#onDocumentPointerDown, options);
+    this.#document.addEventListener("scroll", this.#onViewportChange, options);
+    view?.addEventListener("resize", this.#onViewportChange, options);
+    view?.visualViewport?.addEventListener("resize", this.#onViewportChange, options);
+    view?.visualViewport?.addEventListener("scroll", this.#onViewportChange, options);
     this.position();
   }
 
@@ -48,39 +52,23 @@ export class OverlayInteractionLifecycle {
     if (this.#host !== null && this.#anchor !== null) {
       const view = this.#document.defaultView;
       const bounds = this.#range?.getBoundingClientRect?.();
-      const offsetY = (view?.scrollY ?? 0) - this.#scrollY;
-      const offsetX = (view?.scrollX ?? 0) - this.#scrollX;
-      positionOverlayHost(
-        this.#host,
-        bounds && (bounds.width || bounds.height) && this.#rangeOrigin
-          ? {
-              // Track document/container movement without replacing the user's mouse anchor.
-              left: this.#anchor.left + bounds.left - this.#rangeOrigin.left,
-              top: this.#anchor.top + bounds.top - this.#rangeOrigin.top,
-              bottom: this.#anchor.bottom + bounds.top - this.#rangeOrigin.top,
-            }
-          : {
-              left: this.#anchor.left - offsetX,
-              top: this.#anchor.top - offsetY,
-              bottom: this.#anchor.bottom - offsetY,
-            },
-      );
+      // Track document/container movement without replacing the user's mouse anchor.
+      const origin = bounds && (bounds.width || bounds.height) ? this.#rangeOrigin : null;
+      const offsetX =
+        origin && bounds ? bounds.left - origin.left : this.#scrollX - (view?.scrollX ?? 0);
+      const offsetY =
+        origin && bounds ? bounds.top - origin.top : this.#scrollY - (view?.scrollY ?? 0);
+      positionOverlayHost(this.#host, {
+        left: this.#anchor.left + offsetX,
+        top: this.#anchor.top + offsetY,
+        bottom: this.#anchor.bottom + offsetY,
+      });
     }
   }
 
   stop(): void {
-    this.#document.removeEventListener("keydown", this.#onDocumentKeyDown, true);
-    this.#document.removeEventListener("pointerdown", this.#onDocumentPointerDown, true);
-    this.#document.removeEventListener("scroll", this.#onViewportChange, true);
-    this.#document.defaultView?.removeEventListener("resize", this.#onViewportChange);
-    this.#document.defaultView?.visualViewport?.removeEventListener(
-      "resize",
-      this.#onViewportChange,
-    );
-    this.#document.defaultView?.visualViewport?.removeEventListener(
-      "scroll",
-      this.#onViewportChange,
-    );
+    this.#listeners?.abort();
+    this.#listeners = null;
     this.#host = null;
     this.#anchor = null;
     this.#range = undefined;

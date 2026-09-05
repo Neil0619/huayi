@@ -4,6 +4,7 @@ import type { GoogleAuthenticationSeed } from "./cloud-browser-authority-google-
 import type { PracticeAuthoritySeed } from "./cloud-browser-authority-practice.js";
 
 export interface CloudBrowserAuthoritySeed {
+  readonly holdLearningTasks?: boolean;
   readonly authenticated: boolean;
   readonly seed:
     | "candidate-analysis"
@@ -50,6 +51,7 @@ export interface CloudBrowserAuthoritySnapshot {
 }
 
 export interface CloudBrowserAuthority {
+  completeLearningTasks(): void;
   install(page: Page): Promise<void>;
   markLearningItemPracticed(id: string): void;
   snapshot(): CloudBrowserAuthoritySnapshot;

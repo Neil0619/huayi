@@ -144,9 +144,17 @@ test("the expanded Store result clamps to a short narrow viewport", async ({ pag
   expect(bounds.y).toBeGreaterThanOrEqual(8);
   expect(bounds.x + bounds.width).toBeLessThanOrEqual(312.5);
   expect(bounds.y + bounds.height).toBeLessThanOrEqual(252.5);
-  expect(
-    await shadow(page).evaluate((element) => element.scrollHeight > element.clientHeight),
-  ).toBe(true);
+  const panel = shadow(page);
+  const body = panel.locator(".body");
+  expect(await body.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true);
+  const headerBefore = await panel.locator(".header").boundingBox();
+  const footerBefore = await panel.locator(".footer").boundingBox();
+  await body.evaluate((element) => {
+    element.scrollTop = element.scrollHeight;
+  });
+  expect(await body.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+  expect(await panel.locator(".header").boundingBox()).toEqual(headerBefore);
+  expect(await panel.locator(".footer").boundingBox()).toEqual(footerBefore);
 });
 
 test("Store selection reaches a strict fake Provider result and saves only bounded fields", async ({

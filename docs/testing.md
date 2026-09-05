@@ -17,6 +17,23 @@ Windows 默认门禁运行协议、Extension、共享 Provider、Windows Host/�
 POSIX 权限、目录 `fsync`、符号链接或 macOS Keychain 的专属测试只在非 Windows 环境运行。
 这些 macOS 文件在 Windows 仍参与 TypeScript 类型检查和构建。
 
+Windows 的 backup retirement 链接拒绝回归使用临时目录内的真实 junction，并用 `lstat`
+确认链接身份；不要求管理员符号链接权限，也不跳过失败关闭断言。0023 状态与 Cron ACL 的
+历史迁移夹具固定执行并逐项核对 0001–0023，新增迁移不得改变历史状态的测试输入。
+Store profile 隔离测试连续执行七次真实 Vite 构建，仅该集成测试使用 30 秒预算；产物大小
+上限、默认单测超时和断言保持不变。
+Store 覆盖率门最多并行四个进程，避免 V8 覆盖率与多个真实 Vite 构建争用 Windows 资源；
+保留默认单测时限及四项 85% 覆盖率门槛。
+
+Cloud 浏览器夹具通过 `/v2/learning-tasks` 的真实契约模拟任务快照、增量事件与完成输出，
+继续验证 CSRF、幂等冲突和服务器回读；所有领域处理仍在内存中完成。旧分析请求的恢复入口
+必须覆盖运行中、失败、完成三种状态，并证明只检查原请求、不重复生成。Windows 截图应在
+Chrome 下逐张审查；布局宽度、首屏位置、键盘和滚动断言通过后才更新对应 `win32` 基线。
+涉及 Web 源码的 Windows 修复需额外执行 `pnpm exec vitest run --project web`，因为 Windows
+根单测列表不包含 Web project。
+Web Vitest 显式采用当前 jsdom window 的 Storage，避免 Node 26 原生 Storage 全局量遮蔽
+浏览器实现；回归覆盖 local/session 隔离和 `StorageEvent.storageArea` 的同对象身份。
+
 Native Host bootstrap 的共享 Eudic 回归保留真实 dispatcher、状态文件原子写入与结果回读，仅注入
 fake 授权和 HTTP。测试夹具直接等待成功或错误终态，忽略进度事件，不使用 `vi.waitFor` 默认一秒
 窗口判定真实文件 I/O 是否完成；销毁时必须先 abort 并等待已开始的 poll 收尾，再删除临时目录。

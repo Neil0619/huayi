@@ -19,6 +19,29 @@ const viewports = [
   { height: 844, width: 390 },
 ] as const;
 
+test("practice overview uses the available width and keeps its first action near the heading", async ({
+  page,
+}) => {
+  const authority = createCloudBrowserAuthority({ authenticated: true, seed: "dialogue-practice" });
+  await authority.install(page);
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(`${webOrigin}/practice`);
+    await expect(page.locator(".practice-queue article")).toHaveCount(2);
+    const overview = await page.locator(".practice-overview").boundingBox();
+    const queue = await page.locator(".practice-queue").boundingBox();
+    expect(overview).not.toBeNull();
+    expect(queue?.width).toBeGreaterThanOrEqual((overview?.width ?? 0) - 1);
+    const first = await page.locator(".practice-queue article").nth(0).boundingBox();
+    const second = await page.locator(".practice-queue article").nth(1).boundingBox();
+    if (width === 1440) expect(second?.y).toBe(first?.y);
+    else expect(second?.y).toBeGreaterThan(first?.y ?? 0);
+    expect(
+      (await page.getByRole("button", { name: "引导造句" }).first().boundingBox())?.y,
+    ).toBeLessThan(600);
+  }
+});
+
 test("approved appearances keep one production layout across responsive viewports", async ({
   page,
 }) => {
@@ -81,12 +104,12 @@ test("the production selector persists keyboard changes without changing practic
   await silver.press("ArrowRight");
   await expect(page.getByRole("radio", { name: "香槟晨霜" })).toBeChecked();
   await expect(page.locator("html")).toHaveAttribute("data-appearance", "champagne");
-  await expect(page.getByRole("heading", { level: 2, name: "今日目标 2/2" })).toBeVisible();
+  await expect(page.getByText("今日已练习 0 / 2 项", { exact: true })).toBeVisible();
   await expect(page.getByRole("checkbox", { name: "to be completely frank" })).not.toBeChecked();
 
   await page.reload();
   await expect(page.locator("html")).toHaveAttribute("data-appearance", "champagne");
-  await expect(page.getByRole("heading", { level: 2, name: "今日目标 2/2" })).toBeVisible();
+  await expect(page.getByText("今日已练习 0 / 2 项", { exact: true })).toBeVisible();
   await expect(page.getByRole("checkbox", { name: "to be completely frank" })).not.toBeChecked();
 });
 
@@ -101,7 +124,7 @@ test("the default silver practice surface keeps desktop and mobile visual baseli
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.setViewportSize({ height: 1_000, width: 1_440 });
   await page.goto(`${webOrigin}/practice`);
-  await expect(page.getByRole("heading", { level: 2, name: "今日目标 2/2" })).toBeVisible();
+  await expect(page.getByText("今日已练习 0 / 2 项", { exact: true })).toBeVisible();
   await expect(page).toHaveScreenshot("practice-silver-desktop.png", {
     animations: "disabled",
     maxDiffPixelRatio: 0.02,
@@ -109,7 +132,7 @@ test("the default silver practice surface keeps desktop and mobile visual baseli
 
   await page.setViewportSize({ height: 844, width: 390 });
   await page.reload();
-  await expect(page.getByRole("heading", { level: 2, name: "今日目标 2/2" })).toBeVisible();
+  await expect(page.getByText("今日已练习 0 / 2 项", { exact: true })).toBeVisible();
   await expect(page).toHaveScreenshot("practice-silver-mobile.png", {
     animations: "disabled",
     maxDiffPixelRatio: 0.02,

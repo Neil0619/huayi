@@ -13,31 +13,18 @@ test("workspace navigation stays canonical across mobile and desktop routes", as
   await page.setViewportSize({ height: 844, width: 390 });
 
   await page.goto(`${webOrigin}/app`);
-  const inboxTabs = page.getByRole("tablist", { name: "待整理分类" });
+  const inboxTabs = page.locator(".study-inbox-toolbar");
   await expect(inboxTabs).toBeVisible();
-  expect(
-    await inboxTabs.evaluate((element) => {
-      const computed = getComputedStyle(element);
-      return { borderRadius: computed.borderRadius, gap: computed.gap };
-    }),
-  ).toEqual({ borderRadius: "0px", gap: "20px" });
+  await expect(page.getByRole("combobox", { name: "显示内容" })).toBeVisible();
   const summary = page.locator(".workspace-navigation > summary");
   const navigation = page.getByRole("navigation", { name: "主导航" });
-  await expect(summary).toContainText("待整理");
+  await expect(summary).toContainText("收集箱");
   await expect(summary).toBeVisible();
   await expect(navigation).toBeHidden();
   await summary.focus();
   await summary.press("Enter");
   await expect(navigation).toBeVisible();
-  await expect(navigation.getByRole("link")).toHaveText([
-    "今日练习",
-    "待整理",
-    "分析",
-    "学习库",
-    "生词",
-    "分析历史",
-    "设置",
-  ]);
+  await expect(navigation.getByRole("link")).toHaveText(["今日练习", "收集箱", "学习库", "设置"]);
   const bootstrapCount = authority
     .snapshot()
     .requestFacts.filter((fact) => fact.method === "GET" && fact.path === "/v1/auth/csrf").length;
@@ -53,10 +40,10 @@ test("workspace navigation stays canonical across mobile and desktop routes", as
 
   await page.goto(`${webOrigin}/words/wordbooks`);
   const wordSummary = page.locator(".workspace-navigation > summary");
-  await expect(wordSummary).toHaveText("主导航 · 生词");
+  await expect(wordSummary).toHaveText("主导航 · 学习库");
   await wordSummary.click();
   await expect(
-    page.getByRole("navigation", { name: "主导航" }).getByRole("link", { name: "生词" }),
+    page.getByRole("navigation", { name: "主导航" }).getByRole("link", { name: "学习库" }),
   ).toHaveAttribute("aria-current", "page");
   const wordNavigation = page.getByRole("navigation", { name: "生词设置" });
   await expect(wordNavigation.getByRole("link", { name: "外部词典" })).toHaveAttribute(
@@ -101,7 +88,7 @@ test("workspace navigation stays canonical across mobile and desktop routes", as
   await expect(inboxTabs).toHaveCSS("position", "static");
   const desktopTabs = await inboxTabs.boundingBox();
   const desktopHeading = await page
-    .getByRole("heading", { level: 1, name: "待整理" })
+    .getByRole("heading", { level: 1, name: "收集箱" })
     .boundingBox();
   expect(desktopTabs).not.toBeNull();
   expect(desktopHeading).not.toBeNull();
@@ -300,13 +287,12 @@ test("actual Web bundle confirms one candidate and rereads it from the learning 
   await authority.install(page);
 
   await page.goto(`${webOrigin}/app`);
-  await expect(page.getByRole("heading", { name: "待整理", level: 1 })).toBeVisible();
-  await page.getByRole("tab", { name: "待收藏" }).click();
-  await expect(page.getByRole("heading", { name: "待整理", level: 1 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "收集箱", level: 1 })).toBeVisible();
+  await page.getByText("编辑内容与标签", { exact: true }).click();
   await page.getByRole("textbox", { exact: true, name: "表达" }).fill("to be completely frank");
   await page.getByLabel("标签（逗号分隔）").fill("writing, conversation");
-  await page.getByRole("button", { name: "确认所选候选" }).click();
-  await expect(page.getByRole("heading", { name: "待整理箱已经清空" })).toBeVisible();
+  await page.getByRole("button", { name: "加入学习库", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "已整理到学习库" })).toBeVisible();
 
   await page.getByRole("link", { name: "学习库" }).click();
   await expect(page).toHaveURL(`${webOrigin}/library`);
@@ -395,7 +381,7 @@ test("packaged Store content captures a sentence and Web explicitly deep-analyze
   await panel.locator('[data-action="translate"]').click();
   await expect(panel).toContainText("调查整个冬天都在持续");
   await panel.locator("[data-study-capture-create]").click();
-  await expect(panel).toContainText("已加入待学习");
+  await expect(panel).toContainText("已加入收集箱");
   await expect(page.getByTestId("cloud-status")).toHaveText("created");
 
   expect(authority.snapshot().requestFacts).toContainEqual({
@@ -413,17 +399,18 @@ test("packaged Store content captures a sentence and Web explicitly deep-analyze
     }),
   ).toBeVisible();
   await page.getByRole("button", { name: "开始深度分析" }).click();
-  await expect(page.getByRole("tab", { name: "待收藏", selected: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "选择你想学会使用的表达与句型" })).toBeVisible();
   await expect(
     page.getByRole("heading", {
       name: "The investigation remained active all winter.",
       level: 2,
     }),
   ).toBeVisible();
+  await page.getByText("编辑内容与标签", { exact: true }).click();
   await page.getByRole("textbox", { exact: true, name: "表达" }).fill("to be completely frank");
   await page.getByLabel("标签（逗号分隔）").fill("investigation, writing");
-  await page.getByRole("button", { name: "确认所选候选" }).click();
-  await expect(page.getByRole("heading", { name: "待整理箱已经清空" })).toBeVisible();
+  await page.getByRole("button", { name: "加入学习库", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "已整理到学习库" })).toBeVisible();
   await page.getByRole("link", { name: "学习库" }).click();
   await expect(page.getByRole("button", { name: /to be completely frank/u })).toBeVisible();
   expect(authority.snapshot()).toMatchObject({
@@ -458,8 +445,7 @@ test("platform query uses the production router but creates no analysis or captu
   });
 
   await page.goto(`${webOrigin}/app`);
-  await page.getByRole("tab", { name: "待收藏" }).click();
-  await expect(page.getByRole("heading", { name: "待整理箱已经清空" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "从一句你想学会使用的话开始" })).toBeVisible();
 });
 
 test("platform quota exhaustion never falls back to the local BYOK engine", async ({ page }) => {
@@ -902,9 +888,9 @@ test("automatic StudyCapture offers created-only current-card undo", async ({ pa
   await page.getByTestId("cloud-sentence").click({ clickCount: 3 });
   const panel = page.locator("[data-huayi-store-overlay]").locator("section.panel");
   await panel.locator('[data-action="translate"]').click();
-  await expect(panel).toContainText("已加入待学习");
+  await expect(panel).toContainText("已加入收集箱");
   await panel.locator("[data-study-capture-undo]").click();
-  await expect(panel).toContainText("保存原句，稍后在 Web 深度分析");
+  await expect(panel).toContainText("保存原句，稍后到收集箱分析");
   await expect(page.getByTestId("cloud-status")).toHaveText("undone");
   expect(authority.snapshot()).toMatchObject({ captureCount: 0 });
   expect(authority.snapshot().requestFacts).toContainEqual({
@@ -925,7 +911,7 @@ test("an exact automatic recapture is existing and exposes no undo", async ({ pa
   await sentence.click({ clickCount: 3 });
   let panel = page.locator("[data-huayi-store-overlay]").locator("section.panel");
   await panel.locator('[data-action="translate"]').click();
-  await expect(panel).toContainText("已加入待学习");
+  await expect(panel).toContainText("已加入收集箱");
   await page.keyboard.press("Escape");
 
   await sentence.click({ clickCount: 3 });
@@ -947,7 +933,7 @@ test("a current-card undo fails closed after another page advances the capture r
   await page.getByTestId("cloud-sentence").click({ clickCount: 3 });
   const originalPanel = page.locator("[data-huayi-store-overlay]").locator("section.panel");
   await originalPanel.locator('[data-action="translate"]').click();
-  await expect(originalPanel).toContainText("已加入待学习");
+  await expect(originalPanel).toContainText("已加入收集箱");
 
   const secondPage = await context.newPage();
   await authority.install(secondPage);

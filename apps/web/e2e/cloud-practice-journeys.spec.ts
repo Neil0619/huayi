@@ -14,12 +14,14 @@ test("pending sentence practice retries explicitly, completes feedback, and upda
   await authority.install(page);
 
   await page.goto(`${webOrigin}/practice`);
+  await expect(page.getByRole("heading", { name: "把读过的表达，用在自己的话里" })).toBeVisible();
+  await page.getByRole("button", { name: /继续上次练习/u }).click();
   await expect(page.getByRole("heading", { name: "题目尚未完成" })).toBeVisible();
   await page.waitForTimeout(250);
   expect(authority.snapshot().practiceProviderCallCount).toBe(0);
 
   await page.getByRole("button", { name: "重试生成题目" }).click();
-  await expect(page.getByRole("heading", { name: "任务" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "你的任务" })).toBeVisible();
   await page
     .getByRole("textbox", { name: "你的英文句子" })
     .fill("To be completely frank, this plan needs more evidence.");

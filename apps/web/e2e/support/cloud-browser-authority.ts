@@ -62,6 +62,7 @@ import { createCloudBrowserStudyCaptureAuthority } from "./cloud-browser-authori
 import { createCloudBrowserSignInMethodsAuthority } from "./cloud-browser-authority-sign-in-methods.js";
 import { createCloudBrowserWordAuthority } from "./cloud-browser-authority-words.js";
 import { createCloudBrowserWordbookAuthority } from "./cloud-browser-authority-wordbooks.js";
+import { createCloudBrowserTaskAuthority } from "./cloud-browser-authority-tasks.js";
 
 const apiOrigin = "https://api.huayi.invalid";
 const webOrigin = "https://web.huayi.invalid";
@@ -95,6 +96,7 @@ export function createCloudBrowserAuthority(
   let items: LearningItemDetailResponse[] = duplicateSuggestions.seedItems();
   const importCount = 0;
   const facts: CloudBrowserRequestFact[] = [];
+  const tasks = createCloudBrowserTaskAuthority(seed.holdLearningTasks);
   const replays = new Map<string, CloudStoredReplay>();
   const hasEmptyPracticeQueue =
     seed.seed === "google-authentication" ||
@@ -176,6 +178,7 @@ export function createCloudBrowserAuthority(
   };
 
   const record = (request: Request, proof: CloudBrowserRequestFact["proof"]) => {
+    if (tasks.isInternal(request)) return;
     const url = new URL(request.url());
     facts.push({
       authenticatedAs: authentication(request),
@@ -512,6 +515,19 @@ export function createCloudBrowserAuthority(
       return;
     }
     if (
+      await tasks.handle(route, { dispatch: handleApi, json, record, reject, writeProof: webProof })
+    )
+      return;
+    if (
+      url.pathname === "/v2/practice-workspace" &&
+      request.method() === "GET" &&
+      practice === null
+    ) {
+      record(request, "read");
+      await json(route, 200, []);
+      return;
+    }
+    if (
       await signInMethods.handleApi(route, {
         json,
         mutationProof: webMutationProof,
@@ -607,7 +623,13 @@ export function createCloudBrowserAuthority(
       return;
     if (
       practice !== null &&
-      (await practice.handle(route, { json, record, reject, writeProof: webProof }))
+      (await practice.handle(route, {
+        json,
+        record,
+        reject,
+        writeProof: webProof,
+        mutationProof: webMutationProof,
+      }))
     ) {
       return;
     }
@@ -721,6 +743,7 @@ export function createCloudBrowserAuthority(
   };
 
   return {
+    completeLearningTasks: tasks.complete,
     async install(page) {
       const context = page.context();
       if (seed.authenticated) {

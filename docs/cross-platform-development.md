@@ -59,6 +59,10 @@ CC／切轨、`zh-Hans`、SPA、剧院／全屏、选词和生词本。
   权限时显式 `chmod`，在 Windows 不得依赖 POSIX mode。
 - 只有不可模拟的真实 OS 原语可以按平台跳过；跳过原因必须写在测试附近，并由目标平台 CI
   或人工验收覆盖。能通过注入验证的逻辑不得按当前 `process.platform` 整体跳过。
+- 链接拒绝测试可在 Windows 临时目录内创建 junction，并以 `lstat` 验证真实链接身份；不要
+  因普通用户没有符号链接权限而跳过通用路径安全合同。平台截图只更新本机审查过的基线。
+- Windows 修复如果涉及 Web 源码，须在 `verify:windows` 外补跑 Web Vitest project；本机通过
+  不代表 macOS 已验证，Hosted 构建通过也不代表远端迁移、部署或人工插件验收已完成。
 - 默认门禁不得读取真实 Keychain、DPAPI 凭据、注册表秘密、Codex 登录或调用外部 API。
 - Hosted 凭据回归必须注入 fake Keychain/fake process/fake HTTP；macOS 人工验收只证明系统读取与跨新终端
   持久化，不自动授权 migration、backup、restore、deployment 或真实 smoke。

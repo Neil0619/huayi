@@ -12,6 +12,7 @@ import {
   studyCaptureDetailResponseSchema,
   studyCaptureListQuerySchema,
   studyCaptureListResponseSchema,
+  studyCapturePatchRequestSchema,
   type AnalysisRecord,
   type ApiError,
   type StudyCaptureDetailResponse,
@@ -58,7 +59,10 @@ function completedAnalysis(detail: StudyCaptureDetailResponse, ordinal: number):
       })),
     },
     selectionKind: detail.capture.kind,
-    source: { type: "study-capture" },
+    source: {
+      type: "study-capture",
+      ...(detail.capture.title ? { title: detail.capture.title } : {}),
+    },
     sourceText: detail.capture.sourceText,
     studyCaptureId: detail.capture.id,
     updatedAt: now,
@@ -80,14 +84,20 @@ export function createCloudBrowserStudyCaptureAuthority() {
     async handle(route: Route, context: StudyCaptureAuthorityContext): Promise<boolean> {
       const request = route.request();
       const url = new URL(request.url());
-      if (!url.pathname.startsWith("/v1/study-captures")) return false;
+      if (!url.pathname.startsWith("/v1/study-captures") && url.pathname !== "/v2/study-captures")
+        return false;
 
-      if (url.pathname === "/v1/study-captures" && request.method() === "POST") {
+      if (
+        ["/v1/study-captures", "/v2/study-captures"].includes(url.pathname) &&
+        request.method() === "POST"
+      ) {
         const parsed = studyCaptureCreateRequestSchema.safeParse(cloudRequestBody(request));
         const key = request.headers()["idempotency-key"];
         if (
-          context.authentication(request) !== "extension" ||
-          request.headers()["x-huayi-client-version"] !== "1.0.0" ||
+          (url.pathname === "/v2/study-captures"
+            ? context.authentication(request) !== "web" || context.writeProof(request) === null
+            : context.authentication(request) !== "extension" ||
+              request.headers()["x-huayi-client-version"] !== "1.0.0") ||
           !parsed.success ||
           !idempotencyKeySchema.safeParse(key).success
         ) {
@@ -287,6 +297,39 @@ export function createCloudBrowserStudyCaptureAuthority() {
         return true;
       }
       const detailMatch = /^\/v1\/study-captures\/([^/]+)$/u.exec(url.pathname);
+      if (detailMatch?.[1] && request.method() === "PATCH") {
+        const detail = captures.find((value) => value.capture.id === detailMatch[1]);
+        const parsed = studyCapturePatchRequestSchema.safeParse(cloudRequestBody(request));
+        if (
+          !detail ||
+          !parsed.success ||
+          context.writeProof(request, parsed.data.expectedRevision) === null
+        ) {
+          await context.reject(route, 403, "forbidden");
+          return true;
+        }
+        if (detail.capture.revision !== parsed.data.expectedRevision) {
+          await context.reject(route, 409, "revision_conflict");
+          return true;
+        }
+        const { expectedRevision, ...metadata } = parsed.data;
+        detail.capture = studyCaptureDetailResponseSchema.parse({
+          ...detail,
+          capture: {
+            ...detail.capture,
+            ...metadata,
+            title: metadata.title === null ? undefined : (metadata.title ?? detail.capture.title),
+            userContext:
+              metadata.userContext === null
+                ? undefined
+                : (metadata.userContext ?? detail.capture.userContext),
+            revision: expectedRevision + 1,
+          },
+        }).capture;
+        context.record(request, "write-valid");
+        await context.json(route, 200, detail);
+        return true;
+      }
       if (detailMatch?.[1] !== undefined && request.method() === "GET") {
         const detail = captures.find(
           (candidate) => candidate.capture.id === decodeURIComponent(detailMatch[1] ?? ""),

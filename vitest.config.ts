@@ -115,6 +115,7 @@ export default defineConfig({
           include: ["apps/web/src/**/*.test.ts", "apps/web/src/**/*.test.tsx"],
           name: "web",
           root: ".",
+          setupFiles: ["scripts/vitest-browser-storage-setup.ts"],
         },
       },
     ],

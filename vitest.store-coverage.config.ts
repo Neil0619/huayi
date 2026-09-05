@@ -21,6 +21,9 @@ export default defineConfig({
     },
   },
   test: {
+    // V8 coverage plus concurrent real Vite builds can starve Windows workers.
+    // Bound resource use without changing test deadlines or coverage thresholds.
+    maxWorkers: 4,
     coverage: {
       all: true,
       enabled: true,

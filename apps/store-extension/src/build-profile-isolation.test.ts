@@ -53,5 +53,7 @@ describe("Store build profile isolation", () => {
     } finally {
       await rm(directory, { recursive: true, force: true });
     }
-  });
+    // Seven real Vite builds run serially against shared output directories. Keep their
+    // integration budget local instead of inheriting the five-second unit-test limit.
+  }, 30_000);
 });

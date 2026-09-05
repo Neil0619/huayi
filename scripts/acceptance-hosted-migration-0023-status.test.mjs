@@ -39,8 +39,16 @@ async function createPendingDatabase() {
     CREATE ROLE authenticated NOLOGIN;
     CREATE ROLE service_role NOLOGIN;
   `);
-  const migrationFiles = (await readdir(new URL("../apps/api/migrations", import.meta.url))).sort();
-  assert.equal(migrationFiles.length, hostedAcceptanceMigrationVersionsThrough0023.length);
+  // Preserve both historical catalogs when later migrations are added to the repository.
+  const migrationFiles = (await readdir(new URL("../apps/api/migrations", import.meta.url)))
+    .filter((filename) => /^\d{4}-.+\.sql$/u.test(filename) && filename.slice(0, 4) <= "0023")
+    .sort();
+  assert.deepEqual(
+    migrationFiles.map((filename) => filename.slice(0, 4)),
+    hostedAcceptanceMigrationVersionsThrough0023.map((_, index) =>
+      String(index + 1).padStart(4, "0"),
+    ),
+  );
   for (const filename of migrationFiles.slice(0, -1)) {
     await database.exec(
       await readFile(new URL(`../apps/api/migrations/${filename}`, import.meta.url), "utf8"),

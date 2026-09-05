@@ -240,7 +240,17 @@ export function CollectionWorkspace({
                   >
                     {capture.status === "analyzed" ? "重新分析" : "开始深度分析"}
                   </button>
-                  {generating && (
+                  {!job && selected.capture?.activeAnalysisRequest && (
+                    <button
+                      data-recheck-analysis
+                      disabled={state.busy}
+                      onClick={() => void state.recover()}
+                      type="button"
+                    >
+                      检查同一次分析
+                    </button>
+                  )}
+                  {generating && job && (
                     <button
                       disabled={job?.state === "cancelling"}
                       onClick={() => void state.cancel()}

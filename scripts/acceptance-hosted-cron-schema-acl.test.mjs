@@ -21,9 +21,15 @@ async function createDatabase() {
       CREATE ROLE unexpected_cron_role NOLOGIN;
     `);
     const filenames = (await readdir(migrationsUrl))
-      .filter((filename) => filename.endsWith(".sql"))
+      // This catalog models the deployed through-0023 contract, not future migrations.
+      .filter((filename) => /^\d{4}-.+\.sql$/u.test(filename) && filename.slice(0, 4) <= "0023")
       .sort();
-    assert.equal(filenames.length, hostedAcceptanceMigrationVersionsThrough0023.length);
+    assert.deepEqual(
+      filenames.map((filename) => filename.slice(0, 4)),
+      hostedAcceptanceMigrationVersionsThrough0023.map((_, index) =>
+        String(index + 1).padStart(4, "0"),
+      ),
+    );
     for (const filename of filenames) {
       await database.exec(await readFile(new URL(filename, migrationsUrl), "utf8"));
     }

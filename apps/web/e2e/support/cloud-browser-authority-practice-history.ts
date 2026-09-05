@@ -175,6 +175,7 @@ export function createCloudBrowserPracticeHistoryAuthority() {
         200,
         dailyPracticeQueueResponseSchema.parse({
           currentItems: [],
+          completedToday: 2,
           currentSession: null,
           dailyGoal: 2,
           date: "2026-08-13",

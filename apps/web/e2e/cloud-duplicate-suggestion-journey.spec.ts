@@ -36,7 +36,7 @@ test("actual Web bundle suggests, previews, and explicitly confirms a server-rer
       {
         authenticatedAs: "web",
         method: "POST",
-        path: "/v1/learning-items/item-source/duplicate-suggestions",
+        path: "/v2/learning-tasks",
         proof: "write-valid",
       },
       {
@@ -68,7 +68,7 @@ test("actual Web bundle suggests, previews, and explicitly confirms a server-rer
     "learning-duplicate-suggestions-v1",
     "raw output",
     "reservation",
-    "task",
+    "practice_generation_tasks",
   ]) {
     expect(publicEvidence).not.toContain(privateValue);
   }

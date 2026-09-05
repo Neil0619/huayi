@@ -7,6 +7,7 @@ import {
   learningItemDetailResponseSchema,
   practiceRatingsRequestSchema,
   practiceSessionResponseSchema,
+  practiceWorkspaceDraftSchema,
   quotaSummarySchema,
   startDialogueSessionRequestSchema,
   startSentenceSessionRequestSchema,
@@ -26,6 +27,7 @@ interface Hooks {
   record(request: Request, proof: "read" | "write-valid"): void;
   reject(route: Route, status: number, code: ApiError["error"]["code"]): Promise<void>;
   writeProof(request: Request, revision?: number): string | null;
+  mutationProof(request: Request, revision?: number): boolean;
 }
 
 const now = "2026-08-13T10:00:00.000Z";
@@ -112,6 +114,7 @@ function pendingSentence(): PracticeSession {
     revision: 1,
     status: "awaiting-feedback",
     turns: [],
+    workspace: { phase: "active", mode: "guided", draft: "", draftRevision: 0, controlRevision: 0 },
     type: "sentence-creation",
     updatedAt: now,
   });
@@ -165,6 +168,7 @@ export function createCloudBrowserPracticeAuthority(seed: PracticeAuthoritySeed)
               queueItems.find((candidate) => candidate.item.id === entry.itemId),
             ),
       currentSession: session,
+      completedToday: session?.items.filter((item) => item.rating !== undefined).length ?? 0,
       dailyGoal: 2,
       date: "2026-08-13",
       items: seed === "empty-practice" ? [] : queueItems,
@@ -204,6 +208,45 @@ export function createCloudBrowserPracticeAuthority(seed: PracticeAuthoritySeed)
   const handle = async (route: Route, hooks: Hooks): Promise<boolean> => {
     const request = route.request();
     const path = new URL(request.url()).pathname;
+    if (path === "/v2/practice-workspace" && request.method() === "GET") {
+      hooks.record(request, "read");
+      await hooks.json(route, 200, session ? [session] : []);
+      return true;
+    }
+    if (session && path === `/v2/practice-workspace/${session.id}` && request.method() === "GET") {
+      hooks.record(request, "read");
+      await hooks.json(route, 200, session);
+      return true;
+    }
+    if (
+      session &&
+      path === `/v2/practice-workspace/${session.id}/draft` &&
+      request.method() === "POST"
+    ) {
+      const parsed = practiceWorkspaceDraftSchema.safeParse(requestBody(request));
+      if (!parsed.success || !hooks.mutationProof(request)) {
+        await hooks.reject(route, 403, "forbidden");
+        return true;
+      }
+      if (parsed.data.expectedDraftRevision !== (session.workspace?.draftRevision ?? 0)) {
+        await hooks.reject(route, 409, "revision_conflict");
+        return true;
+      }
+      session = practiceSessionResponseSchema.parse({
+        ...session,
+        workspace: {
+          phase: "active",
+          mode: "guided",
+          controlRevision: 0,
+          ...session.workspace,
+          draft: parsed.data.draft,
+          draftRevision: parsed.data.expectedDraftRevision + 1,
+        },
+      });
+      hooks.record(request, "write-valid");
+      await hooks.json(route, 200, session);
+      return true;
+    }
     if (path === "/v1/account/preferences" && request.method() === "GET") {
       hooks.record(request, "read");
       await hooks.json(

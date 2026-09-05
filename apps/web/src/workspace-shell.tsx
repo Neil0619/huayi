@@ -129,7 +129,7 @@ export function WorkspaceShell(props: WorkspaceShellProps) {
         <WorkspaceAppearanceMenu />
       </header>
       <main id="main-content" tabIndex={-1}>
-        {props.access === "full" && selectedSection === "inbox" && (
+        {props.access === "full" && props.activeSection === "history" && (
           <nav aria-label="收集箱导航" className="workspace-subnav">
             <a href="/app">收集箱</a>
             <a href="/app?paste=1">粘贴原文</a>

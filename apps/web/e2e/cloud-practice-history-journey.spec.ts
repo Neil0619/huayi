@@ -56,10 +56,10 @@ test("completed practice history deletes without removing learning items or sche
 
   await page.getByRole("link", { name: "返回今日练习" }).click();
   await expect(page).toHaveURL(`${webOrigin}/practice`);
-  await expect(page.getByRole("heading", { name: "今日目标 2/2" })).toBeVisible();
+  await expect(page.getByText("今日已练习 2 / 2 项", { exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "to be completely frank" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "It is worth {action}" })).toBeVisible();
-  await expect(page.getByText("DUE", { exact: true })).toHaveCount(2);
+  await expect(page.getByText("到期复习", { exact: true })).toHaveCount(2);
   expect(await page.locator("body").textContent()).not.toContain(privateReply);
   expect(await page.locator("body").textContent()).not.toContain(privateFeedback);
   expect(await page.evaluate(() => [localStorage.length, sessionStorage.length])).toEqual([0, 0]);

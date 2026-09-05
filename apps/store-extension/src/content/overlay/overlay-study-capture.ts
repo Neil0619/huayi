@@ -7,6 +7,12 @@ import {
 
 import type { StoreSelectionReading } from "../selection/read-selection.js";
 
+const failedResponse: StoreStudyCaptureResponse = {
+  messageVersion: STORE_MESSAGE_VERSION,
+  outcome: "failed",
+  type: "store/study-capture-result",
+};
+
 interface OverlayStudyCaptureOptions {
   readonly acceptsUserGesture: (event: Event) => boolean;
   readonly send: (request: StoreStudyCaptureRequest) => Promise<unknown>;
@@ -99,11 +105,7 @@ export class OverlayStudyCapture {
       this.#state = response.outcome === "skipped" ? null : response;
     } catch {
       if (generation !== this.#generation) return;
-      this.#state = parseStoreStudyCaptureResponse({
-        messageVersion: STORE_MESSAGE_VERSION,
-        outcome: "failed",
-        type: "store/study-capture-result",
-      });
+      this.#state = failedResponse;
     }
     if (this.#body !== null && this.#selection !== null) this.render(this.#body, this.#selection);
   }
@@ -128,21 +130,10 @@ export class OverlayStudyCapture {
     try {
       const response = parseStoreStudyCaptureResponse(await this.#options.send(request));
       if (generation !== this.#generation) return;
-      this.#state =
-        response.outcome === "undone"
-          ? null
-          : parseStoreStudyCaptureResponse({
-              messageVersion: STORE_MESSAGE_VERSION,
-              outcome: "failed",
-              type: "store/study-capture-result",
-            });
+      this.#state = response.outcome === "undone" ? null : failedResponse;
     } catch {
       if (generation !== this.#generation) return;
-      this.#state = parseStoreStudyCaptureResponse({
-        messageVersion: STORE_MESSAGE_VERSION,
-        outcome: "failed",
-        type: "store/study-capture-result",
-      });
+      this.#state = failedResponse;
     }
     if (this.#body !== null && this.#selection !== null) this.render(this.#body, this.#selection);
   }

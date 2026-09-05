@@ -180,7 +180,11 @@ test("retirement rejects current, mixed, malformed, post-present, extra, and sym
     async (fixture) => {
       const path = join(fixture.pre, "database.dump");
       await rm(path);
-      await symlink(join(fixture.root, "outside"), path);
+      const target = join(fixture.root, "outside");
+      // A real Windows junction exercises lstat rejection without symlink privileges.
+      if (process.platform === "win32") await mkdir(target);
+      await symlink(target, path, process.platform === "win32" ? "junction" : "file");
+      assert.equal((await lstat(path)).isSymbolicLink(), true);
     },
   ];
   for (const arrange of cases) {

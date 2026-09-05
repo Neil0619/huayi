@@ -3,6 +3,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";
 import {
   analysisRecordSchema,
+  analysisRequestStatusSchema,
   confirmCandidatesResponseSchema,
   contractFixtures,
   LearningTaskError,
@@ -249,3 +250,69 @@ it("offers paste capture when empty without introducing a second primary navigat
   expect(view.textContent).toContain("粘贴第一条原文");
   expect(view.querySelector("nav[aria-label=主导航]")).toBeNull();
 });
+
+it.each(["running", "failed", "completed"] as const)(
+  "recovers a pre-task analysis in %s state without starting another generation",
+  async (state) => {
+    const running: StudyCaptureDetailResponse = {
+      ...detail,
+      capture: { ...detail.capture, status: "analyzing", revision: 2 },
+      activeAnalysisRequest: { requestId: "legacy-request", state: "running" },
+    };
+    const f = setup({
+      listCaptures: vi.fn(async (query) => ({
+        items: query.status === "analyzing" ? [running] : [],
+        nextCursor: null,
+      })),
+      getAnalysisRequestStatus: vi.fn(async () =>
+        analysisRequestStatusSchema.parse({
+          state,
+          requestId: "legacy-request",
+          ...(state === "completed" ? { analysisId: analysis.id } : {}),
+          ...(state === "failed"
+            ? {
+                error: {
+                  code: "model_output_invalid",
+                  message: "Invalid model output",
+                  requestId: "legacy-request",
+                },
+              }
+            : {}),
+        }),
+      ),
+      getCapture: vi.fn(async (): Promise<StudyCaptureDetailResponse> =>
+        state === "running"
+          ? running
+          : {
+              ...detail,
+              capture: {
+                ...detail.capture,
+                status: state === "completed" ? "analyzed" : "pending",
+                revision: 3,
+              },
+              latestAnalysis:
+                state === "completed"
+                  ? {
+                      id: analysis.id,
+                      createdAt: date,
+                      revision: analysis.revision,
+                      reviewState: analysis.reviewState,
+                    }
+                  : null,
+            },
+      ),
+    });
+    const view = await render(f);
+    expect(view.querySelector<HTMLButtonElement>("[data-analyze-capture]")?.disabled).toBe(true);
+    await click(view, "[data-recheck-analysis]");
+    expect(view.textContent).toContain(detail.capture.sourceText);
+    if (state === "failed")
+      expect(view.querySelector("[role=alert]")?.textContent).toContain("原文已保留");
+    if (state === "completed") expect(view.textContent).toContain("选择你想学会使用的表达与句型");
+    expect(view.querySelector<HTMLButtonElement>("[data-analyze-capture]")?.disabled).toBe(
+      state === "running",
+    );
+    expect(f.tasks.submit).not.toHaveBeenCalled();
+    expect(f.api.analyzeCapture).not.toHaveBeenCalled();
+  },
+);

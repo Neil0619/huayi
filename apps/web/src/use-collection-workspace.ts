@@ -18,6 +18,8 @@ export function useCollectionWorkspace(
   const [analyses, setAnalyses] = useState<AnalysisRecord[]>([]);
   const [jobs, setJobs] = useState<LearningTaskSnapshot[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const selectedIdRef = useRef(selectedId);
+  selectedIdRef.current = selectedId;
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -238,6 +240,26 @@ export function useCollectionWorkspace(
         setStatus("已请求停止，正在等待服务器确认。");
       }
     });
+  const recover = () =>
+    act(async () => {
+      const current = selected?.capture;
+      const requestId = current?.activeAnalysisRequest?.requestId;
+      if (!current || !requestId || selected.task) return;
+      const result = await api.getAnalysisRequestStatus(requestId);
+      mergeCapture(await api.getCapture(current.capture.id));
+      if (result.state === "completed") mergeAnalysis(await review.getAnalysis(result.analysisId));
+      if (selectedIdRef.current !== current.capture.id) return;
+      if (result.state === "failed") {
+        setStatus("");
+        setError("深度分析失败，原文已保留，可稍后重试；重新分析失败时会保留之前的结果。");
+      } else {
+        setStatus(
+          result.state === "running"
+            ? "服务器仍在处理同一次分析，请稍后检查。"
+            : "分析已完成，请选择要练习的表达或句型。",
+        );
+      }
+    });
   const more = () =>
     act(async () => {
       for (const [category, cursor] of Object.entries(cursors)) {
@@ -273,6 +295,7 @@ export function useCollectionWorkspace(
       act(() => analyze(entry, metadata)),
     paste,
     cancel,
+    recover,
     remove,
     more,
     hasMore: Object.values(cursors).some(Boolean),
