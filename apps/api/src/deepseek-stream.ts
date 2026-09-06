@@ -3,6 +3,27 @@ import type { ModelUsage } from "@huayi/cloud-contracts";
 import { DeepSeekAnalysisModelError } from "./deepseek-provider-error.js";
 import { parseDeepSeekUsage } from "./deepseek-provider-usage.js";
 
+type StreamFailureStage =
+  | "missing-body"
+  | "read"
+  | "utf8"
+  | "wire-limit"
+  | "frame-limit"
+  | "sse-line"
+  | "frame-json"
+  | "frame-schema"
+  | "stream-identity"
+  | "usage"
+  | "after-done"
+  | "after-finish"
+  | "incomplete-terminal"
+  | "non-stop-finish";
+
+type StreamDiagnosticSink = (diagnostic: {
+  event: "deepseek_stream_failed";
+  stage: StreamFailureStage;
+}) => void;
+
 const eventSchema = z.object({
   id: z.string().min(1).max(256),
   model: z.literal("deepseek-v4-flash"),
@@ -31,9 +52,28 @@ export async function readDeepSeekStream(
   signal: AbortSignal,
   onDelta: (text: string) => void,
   onToken: () => void = () => undefined,
+  diagnosticSink: StreamDiagnosticSink = (diagnostic) => console.warn(diagnostic),
 ): Promise<{ content: string; usage: ModelUsage }> {
-  if (!response.body) throw new DeepSeekAnalysisModelError("model_response_invalid");
-  const reader = response.body.getReader();
+  // Stages are source literals only; never inspect errors or untrusted model fields for logs.
+  function warn(stage: StreamFailureStage): void {
+    if (signal.aborted) return;
+    try {
+      diagnosticSink({ event: "deepseek_stream_failed", stage });
+    } catch {
+      /* Diagnostics must not change stream results or billing receipts. */
+    }
+  }
+  if (!response.body) {
+    warn("missing-body");
+    throw new DeepSeekAnalysisModelError("model_response_invalid");
+  }
+  let reader: ReadableStreamDefaultReader<Uint8Array>;
+  try {
+    reader = response.body.getReader();
+  } catch (error) {
+    warn("read");
+    throw error;
+  }
   const decoder = new TextDecoder("utf-8", { fatal: true });
   let bytes = 0,
     pending = "",
@@ -42,6 +82,7 @@ export async function readDeepSeekStream(
   let id: string | undefined, created: number | undefined, finish: string | undefined;
   let usage: ModelUsage | undefined,
     done = false;
+  let stage: StreamFailureStage | undefined;
   let rejectAbort: (error: unknown) => void = () => undefined;
   const aborted = new Promise<never>((_resolve, reject) => {
     rejectAbort = reject;
@@ -52,6 +93,7 @@ export async function readDeepSeekStream(
   if (signal.aborted) abort();
   function frame(): void {
     if (data.length === 0) return;
+    stage = "after-done";
     if (done) throw new DeepSeekAnalysisModelError("model_response_invalid");
     const raw = data.join("\n");
     data = [];
@@ -59,7 +101,11 @@ export async function readDeepSeekStream(
       done = true;
       return;
     }
-    const event = eventSchema.parse(JSON.parse(raw));
+    stage = "frame-json";
+    const parsed: unknown = JSON.parse(raw);
+    stage = "frame-schema";
+    const event = eventSchema.parse(parsed);
+    stage = "stream-identity";
     if (
       (id !== undefined && event.id !== id) ||
       (created !== undefined && event.created !== created)
@@ -68,10 +114,14 @@ export async function readDeepSeekStream(
     }
     id = event.id;
     created = event.created;
+    stage = "usage";
     if (event.usage !== null && event.usage !== undefined) usage = parseDeepSeekUsage(event.usage);
     const choice = event.choices[0];
     if (!choice) return;
+    stage = "after-finish";
     if (finish !== undefined) throw new DeepSeekAnalysisModelError("model_response_invalid");
+    // Consumer callback failures are not provider parse/read failures.
+    stage = undefined;
     if (choice.delta.content || choice.delta.reasoning_content) onToken();
     if (choice.delta.content) {
       content += choice.delta.content;
@@ -86,25 +136,32 @@ export async function readDeepSeekStream(
         break;
       const line = pending.slice(0, ending);
       pending = pending.slice(ending + (pending.slice(ending, ending + 2) === "\r\n" ? 2 : 1));
+      stage = "sse-line";
       if (line === "") frame();
       else if (line.startsWith("data:")) data.push(line.slice(line[5] === " " ? 6 : 5));
       else if (!line.startsWith(":"))
         throw new DeepSeekAnalysisModelError("model_response_invalid");
     }
+    stage = "frame-limit";
     if (pending.length > 65_536 || data.join("").length > 65_536)
       throw new DeepSeekAnalysisModelError("model_response_invalid");
   }
   try {
     for (;;) {
+      stage = "read";
       const chunk = await Promise.race([reader.read(), aborted]);
       if (chunk.done) break;
       bytes += chunk.value.byteLength;
+      stage = "wire-limit";
       if (bytes > 2 * 1024 * 1024) throw new DeepSeekAnalysisModelError("model_response_invalid");
+      stage = "utf8";
       pending += decoder.decode(chunk.value, { stream: true });
       consume();
     }
+    stage = "utf8";
     pending += decoder.decode();
     consume(true);
+    stage = "incomplete-terminal";
     if (
       !done ||
       !id ||
@@ -116,10 +173,13 @@ export async function readDeepSeekStream(
     ) {
       throw new DeepSeekAnalysisModelError("model_response_invalid", undefined, usage);
     }
+    stage = "non-stop-finish";
     if (finish !== "stop")
       throw new DeepSeekAnalysisModelError("model_output_invalid", undefined, usage);
     return { content, usage };
   } catch (error) {
+    if (stage && !(error instanceof DeepSeekAnalysisModelError && error.code === "model_timeout"))
+      warn(stage);
     if (error instanceof DeepSeekAnalysisModelError)
       throw error.usage || !usage
         ? error
