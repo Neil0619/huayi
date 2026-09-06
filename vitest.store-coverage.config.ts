@@ -21,9 +21,9 @@ export default defineConfig({
     },
   },
   test: {
-    // V8 coverage plus concurrent real Vite builds can starve Windows workers.
-    // Bound resource use without changing test deadlines or coverage thresholds.
-    maxWorkers: 4,
+    // Four instrumented workers can exhaust real Vite builds' deadlines on Windows.
+    // Limit concurrent builds while retaining every test and the existing time/coverage limits.
+    maxWorkers: 2,
     coverage: {
       all: true,
       enabled: true,
