@@ -25,7 +25,7 @@ afterEach(() => vi.restoreAllMocks());
 
 it.each([
   ["missing-body", () => new Response(null)],
-  ["wire-limit", () => new Response(new Uint8Array(2 * 1024 * 1024 + 1))],
+  ["wire-limit", () => new Response(new Uint8Array(8 * 1024 * 1024 + 1))],
   ["frame-limit", () => new Response(`data: ${"x".repeat(65_536)}`)],
   ["utf8", () => new Response(new Uint8Array([0xff]))],
   ["sse-line", () => new Response(`${secret}\n\n`)],
@@ -101,7 +101,7 @@ it.each([
   ["frame-json", `data: {${secret}\n\n`],
   ["usage", frame({ usage: { ...usage, total_tokens: 31 } })],
   ["incomplete-terminal", ""],
-  ["wire-limit", "x".repeat(2 * 1024 * 1024 + 1)],
+  ["wire-limit", "x".repeat(8 * 1024 * 1024 + 1)],
 ] as const)("preserves %s failure and known usage when the sink throws", async (stage, tail) => {
   const response = () =>
     new Response(

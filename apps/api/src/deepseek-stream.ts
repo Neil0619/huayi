@@ -8,6 +8,7 @@ type StreamFailureStage =
   | "read"
   | "utf8"
   | "wire-limit"
+  | "content-limit"
   | "frame-limit"
   | "sse-line"
   | "frame-json"
@@ -23,6 +24,12 @@ type StreamDiagnosticSink = (diagnostic: {
   event: "deepseek_stream_failed";
   stage: StreamFailureStage;
 }) => void;
+
+// SSE repeats the response envelope for each token, including discarded reasoning.
+// Give transport overhead its own bound; retained answer text stays independently limited.
+const MAXIMUM_WIRE_BYTES = 8 * 1024 * 1024;
+const MAXIMUM_CONTENT_CHARACTERS = 1024 * 1024;
+const MAXIMUM_FRAME_CHARACTERS = 65_536;
 
 const eventSchema = z.object({
   id: z.string().min(1).max(256),
@@ -83,6 +90,7 @@ export async function readDeepSeekStream(
   let usage: ModelUsage | undefined,
     done = false;
   let stage: StreamFailureStage | undefined;
+  let dataCharacters = 0;
   let rejectAbort: (error: unknown) => void = () => undefined;
   const aborted = new Promise<never>((_resolve, reject) => {
     rejectAbort = reject;
@@ -97,6 +105,7 @@ export async function readDeepSeekStream(
     if (done) throw new DeepSeekAnalysisModelError("model_response_invalid");
     const raw = data.join("\n");
     data = [];
+    dataCharacters = 0;
     if (raw === "[DONE]") {
       done = true;
       return;
@@ -124,7 +133,11 @@ export async function readDeepSeekStream(
     stage = undefined;
     if (choice.delta.content || choice.delta.reasoning_content) onToken();
     if (choice.delta.content) {
+      stage = "content-limit";
+      if (content.length + choice.delta.content.length > MAXIMUM_CONTENT_CHARACTERS)
+        throw new DeepSeekAnalysisModelError("model_response_invalid");
       content += choice.delta.content;
+      stage = undefined;
       onDelta(choice.delta.content);
     }
     if (choice.finish_reason !== null) finish = choice.finish_reason;
@@ -136,14 +149,23 @@ export async function readDeepSeekStream(
         break;
       const line = pending.slice(0, ending);
       pending = pending.slice(ending + (pending.slice(ending, ending + 2) === "\r\n" ? 2 : 1));
+      stage = "frame-limit";
+      if (line.length > MAXIMUM_FRAME_CHARACTERS)
+        throw new DeepSeekAnalysisModelError("model_response_invalid");
       stage = "sse-line";
       if (line === "") frame();
-      else if (line.startsWith("data:")) data.push(line.slice(line[5] === " " ? 6 : 5));
-      else if (!line.startsWith(":"))
+      else if (line.startsWith("data:")) {
+        const value = line.slice(line[5] === " " ? 6 : 5);
+        dataCharacters += value.length + (data.length > 0 ? 1 : 0);
+        stage = "frame-limit";
+        if (dataCharacters > MAXIMUM_FRAME_CHARACTERS)
+          throw new DeepSeekAnalysisModelError("model_response_invalid");
+        data.push(value);
+      } else if (!line.startsWith(":"))
         throw new DeepSeekAnalysisModelError("model_response_invalid");
     }
     stage = "frame-limit";
-    if (pending.length > 65_536 || data.join("").length > 65_536)
+    if (pending.length > MAXIMUM_FRAME_CHARACTERS)
       throw new DeepSeekAnalysisModelError("model_response_invalid");
   }
   try {
@@ -153,7 +175,8 @@ export async function readDeepSeekStream(
       if (chunk.done) break;
       bytes += chunk.value.byteLength;
       stage = "wire-limit";
-      if (bytes > 2 * 1024 * 1024) throw new DeepSeekAnalysisModelError("model_response_invalid");
+      if (bytes > MAXIMUM_WIRE_BYTES)
+        throw new DeepSeekAnalysisModelError("model_response_invalid");
       stage = "utf8";
       pending += decoder.decode(chunk.value, { stream: true });
       consume();
