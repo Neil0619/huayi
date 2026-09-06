@@ -60,63 +60,95 @@ test("cross-platform workflow never performs privileged or paid runtime operatio
   assert.doesNotMatch(workflow, /VERCEL_TOKEN|SUPABASE_ACCESS_TOKEN|DEEPSEEK_API_KEY/);
 });
 
-test("Windows failures retain only allowlisted visual screenshot PNGs", async () => {
-  const workflow = await readWorkflow();
-  const windowsVerifyIndex = workflow.indexOf("- run: pnpm verify:windows");
-  const uploadStepIndex = workflow.indexOf(
-    "- name: Upload Windows visual screenshot diffs on failure",
-  );
+for (const [platform, label] of [
+  ["macos", "macOS"],
+  ["windows", "Windows"],
+]) {
+  test(`${label} failures retain only allowlisted visual screenshot PNGs`, async () => {
+    const workflow = await readWorkflow();
+    const verifyIndex = workflow.indexOf(`- run: pnpm verify:${platform}`);
+    const uploadStepIndex = workflow.indexOf(
+      `- name: Upload ${label} visual screenshot diffs on failure`,
+    );
 
-  assert.notEqual(windowsVerifyIndex, -1);
-  assert.ok(uploadStepIndex > windowsVerifyIndex);
+    assert.notEqual(verifyIndex, -1);
+    assert.ok(uploadStepIndex > verifyIndex);
 
-  const uploadStep = workflow.slice(uploadStepIndex);
-  assert.match(uploadStep, /^- name: Upload Windows visual screenshot diffs on failure\n/m);
-  assert.match(uploadStep, /^\s{8}if: \$\{\{ failure\(\) \}\}$/m);
-  assert.match(
-    uploadStep,
-    /^\s{8}uses: actions\/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7\.0\.1$/m,
-  );
-  assert.match(uploadStep, /^\s{10}if-no-files-found: ignore$/m);
-  assert.match(uploadStep, /^\s{10}retention-days: 1$/m);
+    const uploadStep = workflow.slice(uploadStepIndex).split("\n  windows-quality:")[0];
+    assert.match(
+      uploadStep,
+      new RegExp(`^- name: Upload ${label} visual screenshot diffs on failure\n`, "m"),
+    );
+    assert.match(uploadStep, /^\s{8}if: \$\{\{ failure\(\) \}\}$/m);
+    assert.match(
+      uploadStep,
+      /^\s{8}uses: actions\/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7\.0\.1$/m,
+    );
+    assert.match(uploadStep, /^\s{10}if-no-files-found: ignore$/m);
+    assert.match(uploadStep, /^\s{10}retention-days: 1$/m);
 
-  const uploadedPaths = [...uploadStep.matchAll(/^\s{12}(\*\*\/[^\n]+)$/gm)].map(
-    ([, path]) => path,
-  );
-  assert.deepEqual(uploadedPaths, [
-    "**/lexical-translation-actual.png",
-    "**/lexical-translation-diff.png",
-    "**/lexical-explanation-actual.png",
-    "**/lexical-explanation-diff.png",
-    "**/practice-silver-desktop-actual.png",
-    "**/practice-silver-desktop-diff.png",
-    "**/practice-silver-mobile-actual.png",
-    "**/practice-silver-mobile-diff.png",
-    "**/inbox-moon-actual.png",
-    "**/inbox-moon-diff.png",
-    "**/inbox-silver-actual.png",
-    "**/inbox-silver-diff.png",
-    "**/inbox-champagne-actual.png",
-    "**/inbox-champagne-diff.png",
-    "**/inbox-porcelain-actual.png",
-    "**/inbox-porcelain-diff.png",
-    "**/settings-desktop-actual.png",
-    "**/settings-desktop-diff.png",
-    "**/settings-mobile-actual.png",
-    "**/settings-mobile-diff.png",
-    "**/settings-common-1440-actual.png",
-    "**/settings-common-1440-diff.png",
-    "**/settings-common-390-actual.png",
-    "**/settings-common-390-diff.png",
-    "**/settings-lexicon-1440-actual.png",
-    "**/settings-lexicon-1440-diff.png",
-    "**/settings-lexicon-390-actual.png",
-    "**/settings-lexicon-390-diff.png",
-    "**/store-silver-pearl-action-actual.png",
-    "**/store-silver-pearl-action-diff.png",
-    "**/store-silver-parchment-action-actual.png",
-    "**/store-silver-parchment-action-diff.png",
-  ]);
-  assert.doesNotMatch(uploadStep, /(?:trace|playwright-report|test-results)/u);
-  assert.doesNotMatch(uploadStep, /(?:\.zip|\.html|\.json)(?:\s|$)/u);
-});
+    const uploadedPaths = [...uploadStep.matchAll(/^\s{12}(\*\*\/[^\n]+)$/gm)].map(
+      ([, path]) => path,
+    );
+    assert.deepEqual(uploadedPaths, [
+      "**/lexical-translation-actual.png",
+      "**/lexical-translation-diff.png",
+      "**/lexical-explanation-actual.png",
+      "**/lexical-explanation-diff.png",
+      "**/practice-silver-desktop-actual.png",
+      "**/practice-silver-desktop-diff.png",
+      "**/practice-silver-mobile-actual.png",
+      "**/practice-silver-mobile-diff.png",
+      "**/inbox-moon-actual.png",
+      "**/inbox-moon-diff.png",
+      "**/inbox-silver-actual.png",
+      "**/inbox-silver-diff.png",
+      "**/inbox-champagne-actual.png",
+      "**/inbox-champagne-diff.png",
+      "**/inbox-porcelain-actual.png",
+      "**/inbox-porcelain-diff.png",
+      "**/settings-desktop-actual.png",
+      "**/settings-desktop-diff.png",
+      "**/settings-mobile-actual.png",
+      "**/settings-mobile-diff.png",
+      "**/settings-common-1440-actual.png",
+      "**/settings-common-1440-diff.png",
+      "**/settings-common-390-actual.png",
+      "**/settings-common-390-diff.png",
+      "**/settings-lexicon-1440-actual.png",
+      "**/settings-lexicon-1440-diff.png",
+      "**/settings-lexicon-390-actual.png",
+      "**/settings-lexicon-390-diff.png",
+      "**/popup-moon-actual.png",
+      "**/popup-moon-diff.png",
+      "**/popup-silver-actual.png",
+      "**/popup-silver-diff.png",
+      "**/popup-champagne-actual.png",
+      "**/popup-champagne-diff.png",
+      "**/popup-porcelain-actual.png",
+      "**/popup-porcelain-diff.png",
+      "**/pairing-moon-1440-actual.png",
+      "**/pairing-moon-1440-diff.png",
+      "**/pairing-moon-390-actual.png",
+      "**/pairing-moon-390-diff.png",
+      "**/pairing-silver-1440-actual.png",
+      "**/pairing-silver-1440-diff.png",
+      "**/pairing-silver-390-actual.png",
+      "**/pairing-silver-390-diff.png",
+      "**/pairing-champagne-1440-actual.png",
+      "**/pairing-champagne-1440-diff.png",
+      "**/pairing-champagne-390-actual.png",
+      "**/pairing-champagne-390-diff.png",
+      "**/pairing-porcelain-1440-actual.png",
+      "**/pairing-porcelain-1440-diff.png",
+      "**/pairing-porcelain-390-actual.png",
+      "**/pairing-porcelain-390-diff.png",
+      "**/store-silver-pearl-action-actual.png",
+      "**/store-silver-pearl-action-diff.png",
+      "**/store-silver-parchment-action-actual.png",
+      "**/store-silver-parchment-action-diff.png",
+    ]);
+    assert.doesNotMatch(uploadStep, /(?:trace|playwright-report|test-results)/u);
+    assert.doesNotMatch(uploadStep, /(?:\.zip|\.html|\.json)(?:\s|$)/u);
+  });
+}

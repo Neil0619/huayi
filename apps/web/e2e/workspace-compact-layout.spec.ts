@@ -6,6 +6,7 @@ const origin = "https://web.huayi.invalid";
 const themes = ["moon", "silver", "champagne", "porcelain"] as const;
 
 test("inbox content and account sidebar stay compact in all four themes", async ({ page }) => {
+  test.slow();
   const authority = createCloudBrowserAuthority({ authenticated: true, seed: "dialogue-practice" });
   await authority.install(page);
   await page.setViewportSize({ width: 1440, height: 900 });

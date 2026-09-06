@@ -90,7 +90,7 @@ test("the default silver Store card keeps explain-first behavior and visual base
   await selectWord(page, "word");
   await expect(shadow(page)).toHaveAttribute("data-styles", "ready");
   await expectActionCardContract(page, "pearl");
-  await expect(shadow(page)).toHaveScreenshot("store-silver-pearl-action.png", {
+  await expect.soft(shadow(page)).toHaveScreenshot("store-silver-pearl-action.png", {
     animations: "disabled",
     maxDiffPixelRatio: crossPlatformChineseGlyphDiffRatio,
   });
@@ -100,7 +100,7 @@ test("the default silver Store card keeps explain-first behavior and visual base
   await selectWord(page, "word");
   await expect(shadow(page)).toHaveAttribute("data-styles", "ready");
   await expectActionCardContract(page, "parchment");
-  await expect(shadow(page)).toHaveScreenshot("store-silver-parchment-action.png", {
+  await expect.soft(shadow(page)).toHaveScreenshot("store-silver-parchment-action.png", {
     animations: "disabled",
     maxDiffPixelRatio: crossPlatformChineseGlyphDiffRatio,
   });

@@ -83,7 +83,7 @@ test("340px popup fits all four themes and keeps actionable queue failures visib
     expect(layout.width).toBe(340);
     expect(layout.overflow).toBeLessThanOrEqual(0);
     expect(layout.overlap).toBeLessThan(0);
-    await expect(page.locator("body")).toHaveScreenshot(`popup-${theme}.png`, {
+    await expect.soft(page.locator("body")).toHaveScreenshot(`popup-${theme}.png`, {
       animations: "disabled",
     });
     await page.getByRole("button", { name: "霁蓝瓷光" }).click();

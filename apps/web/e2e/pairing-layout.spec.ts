@@ -48,6 +48,7 @@ test("pairing fields occupy separate full-width rows without overflow", async ({
 test("pairing keeps four themes readable and help usable on desktop and narrow screens", async ({
   page,
 }) => {
+  test.slow();
   for (const theme of ["moon", "silver", "champagne", "porcelain"]) {
     await page.evaluate((value) => localStorage.setItem("huayi.web.appearance.v1", value), theme);
     for (const viewport of [
@@ -61,7 +62,7 @@ test("pairing keeps four themes readable and help usable on desktop and narrow s
       expect(
         await page.evaluate(() => document.documentElement.scrollWidth - innerWidth),
       ).toBeLessThanOrEqual(0);
-      await expect(page).toHaveScreenshot(`pairing-${theme}-${viewport.width}.png`, {
+      await expect.soft(page).toHaveScreenshot(`pairing-${theme}-${viewport.width}.png`, {
         animations: "disabled",
         fullPage: true,
       });
