@@ -43,7 +43,7 @@ export type {
   DeepSeekAnalysisModelErrorCode,
 };
 
-const PROMPT_VERSION = "web-deep-analysis-v2.4";
+const PROMPT_VERSION = "web-deep-analysis-v2.5";
 const SCHEMA_VERSION = 2;
 const DEFAULT_TIMEOUT_MS = 90_000;
 const MAXIMUM_TIMEOUT_MS = 90_000;
@@ -127,7 +127,8 @@ function trustedContent(
     };
   }
   const content = analysisContentSchema.safeParse({
-    candidates: parsed.data.candidates,
+    // Array position owns global order; provider ordinals may restart for each unit.
+    candidates: parsed.data.candidates.map((candidate, ordinal) => ({ ...candidate, ordinal })),
     modelMetadata: {
       inputTokens: usage.inputTokens,
       model: DEEPSEEK_PLATFORM_MODEL,

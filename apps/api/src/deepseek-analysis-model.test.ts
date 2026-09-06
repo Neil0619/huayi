@@ -198,7 +198,7 @@ describe("DeepSeek platform analysis model", () => {
         inputTokens: 100,
         model: DEEPSEEK_PLATFORM_MODEL,
         outputTokens: 200,
-        promptVersion: "web-deep-analysis-v2.4",
+        promptVersion: "web-deep-analysis-v2.5",
         provider: "deepseek",
       },
       sourceText: contractFixtures.startAnalysisRequest.sourceText,
@@ -257,7 +257,7 @@ describe("DeepSeek platform analysis model", () => {
         modelMetadata: {
           inputTokens: 150,
           outputTokens: 300,
-          promptVersion: "web-deep-analysis-v2.4",
+          promptVersion: "web-deep-analysis-v2.5",
         },
       });
     },
