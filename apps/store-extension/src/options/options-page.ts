@@ -276,6 +276,9 @@ export class OptionsPage {
     element<HTMLButtonElement>("[data-grant-consent]").hidden = consented;
     element<HTMLButtonElement>("[data-revoke-consent]").hidden = !consented;
     this.nonSensitiveControls.render(this.settings, this.busy);
+    for (const row of document.querySelectorAll<HTMLElement>("[data-credential-provider]")) {
+      row.hidden = row.dataset.credentialProvider !== (this.settings?.providerId ?? "openai");
+    }
     for (const control of document.querySelectorAll<HTMLInputElement>("[data-store-appearance]")) {
       control.checked = control.value === this.appearance;
     }

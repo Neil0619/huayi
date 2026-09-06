@@ -30,6 +30,94 @@ const response = (parts: string[], size?: number) =>
     }),
   );
 
+const lineBoundaries = [
+  ["complete LF", "\n", undefined],
+  ["complete CR", "\r", undefined],
+  ["complete CRLF", "\r\n", undefined],
+  ["split before LF", "\n", 0],
+  ["split before CR", "\r", 0],
+  ["split before CRLF", "\r\n", 0],
+  ["split after LF", "\n", 1],
+  ["split after CR", "\r", 1],
+  ["split between CR and LF", "\r\n", 1],
+] as const;
+const lineParts = (line: string, ending: string, split: number | undefined) => {
+  const text = line + ending + ending;
+  return split === undefined
+    ? [text]
+    : [text.slice(0, line.length + split), text.slice(line.length + split)];
+};
+
+it.each(lineBoundaries)("accepts an exactly 64 KiB line with %s", async (_name, ending, split) => {
+  const line = event({ content: "visible answer" }).slice(0, -2).padEnd(65_536, " ");
+  const onDelta = vi.fn();
+  const diagnostic = vi.fn();
+  const result = await readDeepSeekStream(
+    response([...lineParts(line, ending, split), terminal]),
+    new AbortController().signal,
+    onDelta,
+    vi.fn(),
+    diagnostic,
+  );
+  expect(result).toEqual({
+    content: "visible answer",
+    usage: { cachedInputTokens: 0, inputTokens: 10, outputTokens: 8192 },
+  });
+  expect(onDelta.mock.calls).toEqual([["visible answer"]]);
+  expect(diagnostic).not.toHaveBeenCalled();
+});
+
+it.each(lineBoundaries)(
+  "rejects a line one character above 64 KiB with %s, retaining usage and cancelling",
+  async (_name, ending, split) => {
+    const line = event({ content: "untrusted overflow" }).slice(0, -2).padEnd(65_537, " ");
+    const onDelta = vi.fn();
+    const diagnostic = vi.fn();
+    const cancel = vi.fn();
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(encoder.encode(event({ content: "accepted" }, "stop")));
+        for (const part of lineParts(line, ending, split)) controller.enqueue(encoder.encode(part));
+      },
+      cancel,
+    });
+    await expect(
+      readDeepSeekStream(
+        new Response(body),
+        new AbortController().signal,
+        onDelta,
+        vi.fn(),
+        diagnostic,
+      ),
+    ).rejects.toMatchObject({
+      code: "model_response_invalid",
+      usage: { cachedInputTokens: 0, inputTokens: 10, outputTokens: 8192 },
+    });
+    expect(onDelta.mock.calls).toEqual([["accepted"]]);
+    expect(diagnostic.mock.calls).toEqual([
+      [{ event: "deepseek_stream_failed", stage: "frame-limit" }],
+    ]);
+    expect(cancel).toHaveBeenCalledOnce();
+  },
+);
+
+it("accepts an exactly 64 KiB comment ending with CR at EOF", async () => {
+  const diagnostic = vi.fn();
+  await expect(
+    readDeepSeekStream(
+      response([event({ content: "answer" }), terminal, ":".padEnd(65_536, " ") + "\r"]),
+      new AbortController().signal,
+      vi.fn(),
+      vi.fn(),
+      diagnostic,
+    ),
+  ).resolves.toEqual({
+    content: "answer",
+    usage: { cachedInputTokens: 0, inputTokens: 10, outputTokens: 8192 },
+  });
+  expect(diagnostic).not.toHaveBeenCalled();
+});
+
 it.each([undefined, 8192])(
   "accepts a complete thinking stream above 2 MiB with chunk size %s without exposing reasoning",
   async (size) => {

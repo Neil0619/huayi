@@ -1,4 +1,4 @@
-import { act } from "react";
+import { act, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { describe, expect, it, vi } from "vitest";
 
@@ -159,23 +159,27 @@ async function render(
   practiceApi: PracticePageApi,
   session: ReturnType<typeof dialogue> | null,
   onRecover: () => Promise<ReturnType<typeof dialogue> | null> = async () => null,
+  controlledDraft = false,
 ) {
   const container = document.createElement("div");
   document.body.append(container);
   const onSession = vi.fn();
   const root = createRoot(container);
-  await act(async () =>
-    root.render(
+  function Harness() {
+    const [value, setValue] = useState("");
+    return (
       <DialoguePracticePanel
         api={practiceApi}
+        {...(controlledDraft ? { draftControl: { value, setValue } } : {})}
         idempotencyKey={() => "key-1"}
         onRecover={onRecover}
         onSession={onSession}
         queue={{ ...queue, currentItems: session === null ? [] : targets, currentSession: session }}
         session={session}
-      />,
-    ),
-  );
+      />
+    );
+  }
+  await act(async () => root.render(<Harness />));
   await act(async () => Promise.resolve());
   return { container, onSession, root };
 }
@@ -255,6 +259,72 @@ describe("constrained dialogue panel", () => {
       second.container.querySelector<HTMLFormElement>("[data-dialogue-turn-form]")?.requestSubmit(),
     );
     expect(secondTextarea.value).toBe("Keep this draft.");
+  });
+
+  it.each([
+    ["completed", false],
+    ["recovered", false],
+    ["completed", true],
+    ["recovered", true],
+  ] as const)(
+    "preserves newer input after a %s reply with controlled draft %s",
+    async (outcome, controlled) => {
+      let complete: ((value: ReturnType<typeof dialogue>) => void) | undefined;
+      let reject: ((error: Error) => void) | undefined;
+      const submitTurn = vi.fn(
+        () =>
+          new Promise<ReturnType<typeof dialogue>>((resolve, reject_) => {
+            complete = resolve;
+            reject = reject_;
+          }),
+      );
+      const pending = dialogue("pending-assistant");
+      const rendered = await render(
+        api({ submitTurn }),
+        dialogue("active"),
+        async () => pending,
+        controlled,
+      );
+      const textarea =
+        rendered.container.querySelector<HTMLTextAreaElement>("[name='dialogue-turn']");
+      if (!textarea) throw new Error("Dialogue textarea missing.");
+      await act(async () => change(textarea, "To be frank, I prefer plan B."));
+      await act(async () =>
+        rendered.container
+          .querySelector<HTMLFormElement>("[data-dialogue-turn-form]")
+          ?.requestSubmit(),
+      );
+      expect(submitTurn).toHaveBeenCalledOnce();
+      await act(async () => change(textarea, "As a result, I would also suggest a backup plan."));
+      await act(async () => {
+        if (outcome === "completed") complete?.(pending);
+        else reject?.(new Error("lost response"));
+      });
+      expect(rendered.onSession).toHaveBeenCalledWith(pending);
+      expect(textarea.value).toBe("As a result, I would also suggest a backup plan.");
+      await act(async () => rendered.root.unmount());
+    },
+  );
+
+  it("retains a draft when recovery returns a different session with the same reply", async () => {
+    const recovered = { ...dialogue("pending-assistant"), id: "session-other" };
+    const rendered = await render(
+      api({ submitTurn: vi.fn(async () => Promise.reject(new Error("lost"))) }),
+      dialogue("active"),
+      async () => recovered,
+      true,
+    );
+    const textarea = rendered.container.querySelector<HTMLTextAreaElement>("textarea");
+    if (textarea === null) throw new Error("Dialogue textarea missing.");
+    await act(async () => change(textarea, "To be frank, I prefer plan B."));
+    await act(async () =>
+      rendered.container
+        .querySelector<HTMLFormElement>("[data-dialogue-turn-form]")
+        ?.requestSubmit(),
+    );
+    expect(rendered.onSession).not.toHaveBeenCalled();
+    expect(textarea.value).toBe("To be frank, I prefer plan B.");
+    await act(async () => rendered.root.unmount());
   });
 
   it("reveals per-item feedback and sources only after completion, then rates all items", async () => {

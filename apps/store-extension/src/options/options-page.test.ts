@@ -124,7 +124,8 @@ describe("Store OptionsPage", () => {
     expect(document.body.textContent).toContain("网站管理");
     expect(document.body.textContent).toContain("首次联网确认");
     expect(document.body.textContent).not.toContain("模型联网许可");
-    expect(document.body.textContent).toContain("模型与划词动作");
+    expect(document.body.textContent).toContain("模型与密钥");
+    expect(document.body.textContent).toContain("划词动作");
     expect(document.body.textContent).toContain("YouTube 字幕");
     expect(document.body.textContent).not.toContain("hostname");
     expect(element<HTMLInputElement>("[data-global-enabled]").getAttribute("role")).toBe("switch");
@@ -175,7 +176,7 @@ describe("Store OptionsPage", () => {
 
     const network = element<HTMLDetailsElement>("details[data-network-disclosure]");
     const consent = element<HTMLElement>("[data-network-consent]");
-    const providerCard = element("#provider-title").closest("section");
+    const providerCard = element("#credentials-title").closest("section");
     expect(providerCard?.contains(consent)).toBe(true);
     expect(document.querySelector("[data-network-summary]")).toBeNull();
     expect(network.querySelector("summary")?.textContent).toMatch(/发送|联网/u);

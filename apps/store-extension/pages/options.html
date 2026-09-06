@@ -69,7 +69,7 @@
           role="tab"
           type="button"
         >
-          密钥
+          模型与密钥
         </button>
         <button
           aria-controls="settings-wordbooks"
@@ -240,43 +240,8 @@
           <div class="section-heading">
             <div>
               <p class="step">分析偏好</p>
-              <h2 id="provider-title">模型与划词动作</h2>
+              <h2 id="selection-title">划词动作</h2>
             </div>
-          </div>
-          <div
-            class="network-consent-block"
-            data-network-consent
-            role="region"
-            aria-labelledby="network-title"
-          >
-            <div class="network-consent-heading">
-              <div>
-                <h3 id="network-title">首次联网确认</h3>
-              </div>
-              <span class="pill" data-consent-state>尚未同意联网</span>
-            </div>
-            <details data-network-disclosure>
-              <summary>查看发送范围与费用</summary>
-              <p>
-                只有当你主动发起分析时，选中的英文和上下文才会发送到你选择的 OpenAI 或
-                DeepSeek。请求会使用你自行提供的密钥，并可能产生服务商费用。
-              </p>
-              <p>语见不会发送完整页面、浏览历史或本地生词，也不会自动重试付费请求。</p>
-              <button type="button" class="danger quiet-danger" data-revoke-consent hidden>
-                撤回联网同意
-              </button>
-            </details>
-            <div class="actions">
-              <button type="button" class="primary" data-grant-consent>同意联网分析</button>
-            </div>
-          </div>
-          <div class="field compact">
-            <span><label for="model-provider">模型服务商</label></span>
-            <select id="model-provider" data-provider>
-              <option value="openai">OpenAI</option>
-              <option value="deepseek">DeepSeek</option>
-            </select>
-            <small data-help-note="模型服务商说明">查询使用你选择的服务商及本机密钥。</small>
           </div>
           <div class="field compact">
             <span><label for="selection-default-action">划词后的默认动作</label></span>
@@ -431,12 +396,47 @@
         >
           <div class="section-heading">
             <div>
-              <h2 id="credentials-title">模型密钥</h2>
+              <h2 id="credentials-title">模型与密钥</h2>
             </div>
           </div>
           <p data-help-note="密钥保存说明">密钥加密保存在本机。输入并保存新密钥会替换原密钥。</p>
+          <div
+            class="network-consent-block"
+            data-network-consent
+            role="region"
+            aria-labelledby="network-title"
+          >
+            <div class="network-consent-heading">
+              <div>
+                <h3 id="network-title">首次联网确认</h3>
+              </div>
+              <span class="pill" data-consent-state>尚未同意联网</span>
+            </div>
+            <details data-network-disclosure>
+              <summary>查看发送范围与费用</summary>
+              <p>
+                只有当你主动发起分析时，选中的英文和上下文才会发送到你选择的 OpenAI 或
+                DeepSeek。请求会使用你自行提供的密钥，并可能产生服务商费用。
+              </p>
+              <p>语见不会发送完整页面、浏览历史或本地生词，也不会自动重试付费请求。</p>
+              <button type="button" class="danger quiet-danger" data-revoke-consent hidden>
+                撤回联网同意
+              </button>
+            </details>
+            <div class="actions">
+              <button type="button" class="primary" data-grant-consent>同意联网分析</button>
+            </div>
+          </div>
+          <div class="field compact">
+            <span><label for="model-provider">模型服务商</label></span>
+            <select id="model-provider" data-provider>
+              <option value="openai">OpenAI</option>
+              <option value="deepseek">DeepSeek</option>
+            </select>
+            <small data-help-note="模型服务商说明">查询使用你选择的服务商及本机密钥。</small>
+          </div>
           <div data-device-vault-ready>
-            <div class="credential-row">
+            <div class="credential-row" data-credential-provider="openai">
               <label class="field">
                 <span>OpenAI API Key · <b data-credential-status="openai-api-key">未配置</b></span>
                 <input
@@ -453,7 +453,7 @@
                 </button>
               </div>
             </div>
-            <div class="credential-row">
+            <div class="credential-row" data-credential-provider="deepseek" hidden>
               <label class="field">
                 <span
                   >DeepSeek API Key · <b data-credential-status="deepseek-api-key">未配置</b></span

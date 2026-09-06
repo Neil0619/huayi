@@ -123,6 +123,11 @@ select:hover:not(:disabled) {
   margin-top: var(--space-3);
 }
 
+[data-settings-section="credentials"] .credential-row {
+  max-width: 560px;
+  grid-template-columns: minmax(0, 1fr);
+}
+
 h1,
 h2,
 h3,

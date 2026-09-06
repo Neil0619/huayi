@@ -45,7 +45,7 @@ test("excludes only reviewed external and generated subtrees from product qualit
 
   assert.equal(
     prettierIgnore.trim(),
-    ".agents/skills/**\nsupabase/.temp/**\nartifacts/hosted-important-batch-backups/**\nartifacts/hosted-important-batch-backup-history/**\nartifacts/hosted-vercel-one-shot/**\nartifacts/hosted-release/**",
+    ".agents/skills/**\nsupabase/.temp/**\nartifacts/hosted-important-batch-backups/**\nartifacts/hosted-important-batch-backup-history/**\nartifacts/hosted-vercel-one-shot/**\nartifacts/hosted-release/**\nartifacts/query-learning-refinement-20260905/popup-latency.json\nartifacts/query-learning-refinement-20260905/query-latency.json",
   );
   assert.equal(prettierIgnore.includes("artifacts/**"), false);
   assert.deepEqual(eslintReviewedIgnores, [".agents/skills/**", "supabase/.temp/**"]);

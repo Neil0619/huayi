@@ -3,6 +3,39 @@ import { expect, test } from "@playwright/test";
 const fixture = "/apps/store-extension/e2e/fixtures/interface.html";
 const themes = ["moon", "silver", "champagne", "porcelain"] as const;
 
+test("configures model access and its key together at both settings widths", async ({
+  page,
+}, testInfo) => {
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(`${fixture}?page=options`);
+    await expect(page.locator("html")).toHaveAttribute("data-interface-ready", "true");
+    await expect(page.getByLabel("模型服务商", { exact: true })).toBeHidden();
+    await expect(page.getByLabel("划词后的默认动作", { exact: true })).toBeVisible();
+    await page.getByRole("tab", { name: "模型与密钥", exact: true }).click();
+    await expect(page.locator("[data-network-consent]")).toBeVisible();
+    const provider = page.getByLabel("模型服务商", { exact: true });
+    await provider.selectOption("deepseek");
+    const key = page.getByLabel("新的 DeepSeek API Key", { exact: true });
+    await expect(key).toBeVisible();
+    await expect(page.getByLabel("新的 OpenAI API Key", { exact: true })).toBeHidden();
+    await expect(page.getByLabel("划词后的默认动作", { exact: true })).toBeHidden();
+    const selectorBox = await provider.boundingBox();
+    const keyBox = await key.boundingBox();
+    if (selectorBox === null || keyBox === null) throw new Error("Model fields are missing");
+    expect(keyBox.y - selectorBox.y - selectorBox.height).toBeLessThanOrEqual(100);
+    expect(Math.abs(keyBox.x - selectorBox.x)).toBeLessThanOrEqual(1);
+    await key.fill("offline-deepseek-key");
+    await page.getByRole("button", { name: "加密保存", exact: true }).click();
+    await expect(key).toHaveValue("");
+    await expect(key).toHaveAttribute("placeholder", "••••••••");
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth - innerWidth),
+    ).toBeLessThanOrEqual(0);
+    await page.screenshot({ path: testInfo.outputPath(`model-settings-${width}.png`) });
+  }
+});
+
 test("Eudic credential actions leave room for the focused input at both widths", async ({
   page,
 }, testInfo) => {
@@ -74,7 +107,9 @@ test("settings align search controls and expose help without overflowing at eith
     await page.goto(`${fixture}?page=options`);
     await expect(page.locator("html")).toHaveAttribute("data-interface-ready", "true");
     await expect(page.locator("[data-network-disclosure]")).not.toHaveAttribute("open");
-    await expect(page).toHaveScreenshot(`settings-common-${width}.png`, { animations: "disabled" });
+    await expect.soft(page).toHaveScreenshot(`settings-common-${width}.png`, {
+      animations: "disabled",
+    });
     await page.getByRole("tab", { name: "本地生词" }).click();
     const input = await page.locator("[data-lexicon-search-form] input").boundingBox();
     const button = await page.locator("[data-lexicon-search-form] button").boundingBox();
@@ -82,7 +117,7 @@ test("settings align search controls and expose help without overflowing at eith
     expect(button).not.toBeNull();
     expect(Math.abs((input?.y ?? 0) - (button?.y ?? 0))).toBeLessThanOrEqual(1);
     expect(input?.height).toBe(button?.height);
-    await expect(page).toHaveScreenshot(`settings-lexicon-${width}.png`, {
+    await expect.soft(page).toHaveScreenshot(`settings-lexicon-${width}.png`, {
       animations: "disabled",
     });
     await page.getByRole("button", { name: "本机生词说明" }).focus();

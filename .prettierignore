@@ -4,3 +4,5 @@ artifacts/hosted-important-batch-backups/**
 artifacts/hosted-important-batch-backup-history/**
 artifacts/hosted-vercel-one-shot/**
 artifacts/hosted-release/**
+artifacts/query-learning-refinement-20260905/popup-latency.json
+artifacts/query-learning-refinement-20260905/query-latency.json

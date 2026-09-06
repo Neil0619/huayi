@@ -30,15 +30,19 @@ test("inbox content and account sidebar stay compact in all four themes", async 
     expect(layout.headingSize).toBe("28px");
     expect(layout.overflow).toBeLessThanOrEqual(0);
     expect(layout.filterInToolbar).toBe(true);
-    await expect(page).toHaveScreenshot(`inbox-${theme}.png`, { animations: "disabled" });
+    await expect.soft(page).toHaveScreenshot(`inbox-${theme}.png`, { animations: "disabled" });
   }
   const filter = page.getByRole("combobox", { name: "显示内容" });
   await filter.focus();
-  await filter.press("Home");
-  await filter.press("ArrowDown");
+  await filter.press("Tab");
+  await expect(page.getByRole("button", { name: "刷新列表", exact: true })).toBeFocused();
+  await page.keyboard.press("Shift+Tab");
   await expect(filter).toBeFocused();
+  // Chrome on macOS does not commit native select popup choices through headless arrow keys.
+  await filter.selectOption("all");
   await expect(filter).toHaveValue("all");
-  await filter.press("ArrowDown");
+  await expect(filter).toBeFocused();
+  await filter.selectOption("待分析");
   await expect(filter).toHaveValue("待分析");
   await expect(page.getByRole("heading", { name: "从一句你想学会使用的话开始" })).toBeVisible();
   await page.goto(`${origin}/settings/account`);
@@ -46,7 +50,7 @@ test("inbox content and account sidebar stay compact in all four themes", async 
   const navigation = await page.getByRole("navigation", { name: "账号设置" }).boundingBox();
   expect(Math.round(navigation?.width ?? 0)).toBe(208);
   expect((await page.locator(".account-summary-card").boundingBox())?.y).toBeLessThanOrEqual(240);
-  await expect(page).toHaveScreenshot("settings-desktop.png", { animations: "disabled" });
+  await expect.soft(page).toHaveScreenshot("settings-desktop.png", { animations: "disabled" });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.reload();
   await expect(page.getByRole("heading", { name: "当前账号" })).toBeVisible();
@@ -56,5 +60,5 @@ test("inbox content and account sidebar stay compact in all four themes", async 
   expect(
     await page.evaluate(() => document.documentElement.scrollWidth - innerWidth),
   ).toBeLessThanOrEqual(0);
-  await expect(page).toHaveScreenshot("settings-mobile.png", { animations: "disabled" });
+  await expect.soft(page).toHaveScreenshot("settings-mobile.png", { animations: "disabled" });
 });

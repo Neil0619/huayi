@@ -39,7 +39,14 @@ export function DialoguePracticePanel({
   const [details, setDetails] = useState<LearningItemDetailResponse[]>([]);
   const [localDraft, setLocalDraft] = useState("");
   const draft = draftControl?.value ?? localDraft;
-  const setDraft = draftControl?.setValue ?? setLocalDraft;
+  const draftEditRevision = useRef(0);
+  const setDraft = (text: string) => {
+    draftEditRevision.current += 1;
+    (draftControl?.setValue ?? setLocalDraft)(text);
+  };
+  const clearSubmittedDraft = (revision: number) => {
+    if (draftEditRevision.current === revision) setDraft("");
+  };
   const [error, setError] = useState<string | null>(null);
   const [ratings, setRatings] = useState<Record<string, Rating>>({});
   const [status, setStatus] = useState("");
@@ -74,6 +81,7 @@ export function DialoguePracticePanel({
   }, [getLearningItem, session]);
   const run = async (operation: () => Promise<PracticeSession>, success: string) => {
     const generation = ++requestGeneration.current;
+    const submittedDraftRevision = draftEditRevision.current;
     setBusy(true);
     setError(null);
     try {
@@ -87,11 +95,11 @@ export function DialoguePracticePanel({
         setError(learningTaskFeedback(cause, "practice"));
         const recovered = await onRecover().catch(() => null);
         if (generation !== requestGeneration.current) return false;
-        if (recovered?.type === "dialogue" && recovered.id === session?.id) onSession(recovered);
-        const lastUserTurn = [...(recovered?.turns ?? [])]
-          .reverse()
-          .find((turn) => turn.role === "user");
-        if (lastUserTurn?.content === draft.trim()) setDraft("");
+        if (recovered?.type === "dialogue" && recovered.id === session?.id) {
+          onSession(recovered);
+          const lastUserTurn = [...recovered.turns].reverse().find((turn) => turn.role === "user");
+          if (lastUserTurn?.content === draft.trim()) clearSubmittedDraft(submittedDraftRevision);
+        }
       }
       return false;
     } finally {
@@ -127,6 +135,7 @@ export function DialoguePracticePanel({
   const submit = (event: FormEvent) => {
     event.preventDefault();
     if (draft.trim() === "") return;
+    const submittedDraftRevision = draftEditRevision.current;
     void run(
       () =>
         api.submitTurn(
@@ -136,7 +145,7 @@ export function DialoguePracticePanel({
         ),
       "你的回复已保存；助手回复已更新。",
     ).then((completed) => {
-      if (completed) setDraft("");
+      if (completed) clearSubmittedDraft(submittedDraftRevision);
     });
   };
 

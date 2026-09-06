@@ -173,7 +173,9 @@ export async function readDeepSeekStream(
         throw new DeepSeekAnalysisModelError("model_response_invalid");
     }
     stage = "frame-limit";
-    if (pending.length > MAXIMUM_FRAME_CHARACTERS)
+    // A trailing CR is held only to detect CRLF; it is not part of the pending line.
+    const pendingLineCharacters = pending.length - (pending.endsWith("\r") ? 1 : 0);
+    if (pendingLineCharacters > MAXIMUM_FRAME_CHARACTERS)
       throw new DeepSeekAnalysisModelError("model_response_invalid");
   }
   function rejectTerminal(failureStage: StreamFailureStage): never {

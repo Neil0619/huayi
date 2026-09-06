@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Locator } from "@playwright/test";
 
 import { createCloudBrowserAuthority } from "./support/cloud-browser-authority.js";
 
@@ -19,26 +19,54 @@ const viewports = [
   { height: 844, width: 390 },
 ] as const;
 
-test("practice overview uses the available width and keeps its first action near the heading", async ({
+async function bounds(locator: Locator) {
+  const box = await locator.boundingBox();
+  if (box === null) throw new Error("Expected practice element to have a rendered box.");
+  return box;
+}
+
+test("practice overview uses dense full-width rows and keeps its first action in view", async ({
   page,
 }) => {
   const authority = createCloudBrowserAuthority({ authenticated: true, seed: "dialogue-practice" });
   await authority.install(page);
-  for (const width of [1440, 390]) {
-    await page.setViewportSize({ width, height: 900 });
+  for (const viewport of [viewports[0], viewports[3]]) {
+    await page.setViewportSize(viewport);
     await page.goto(`${webOrigin}/practice`);
-    await expect(page.locator(".practice-queue article")).toHaveCount(2);
-    const overview = await page.locator(".practice-overview").boundingBox();
-    const queue = await page.locator(".practice-queue").boundingBox();
-    expect(overview).not.toBeNull();
-    expect(queue?.width).toBeGreaterThanOrEqual((overview?.width ?? 0) - 1);
-    const first = await page.locator(".practice-queue article").nth(0).boundingBox();
-    const second = await page.locator(".practice-queue article").nth(1).boundingBox();
-    if (width === 1440) expect(second?.y).toBe(first?.y);
-    else expect(second?.y).toBeGreaterThan(first?.y ?? 0);
-    expect(
-      (await page.getByRole("button", { name: "引导造句" }).first().boundingBox())?.y,
-    ).toBeLessThan(600);
+    const rows = page.locator(".practice-item-row");
+    await expect(rows).toHaveCount(2);
+    const overview = await bounds(page.locator(".practice-overview"));
+    const heading = await bounds(page.locator(".page-heading"));
+    const panel = await bounds(page.getByRole("region", { name: "开始新练习" }));
+    const sidebar = await bounds(page.getByRole("complementary", { name: "继续练习" }));
+    const items = await bounds(page.getByLabel("今日学习项", { exact: true }));
+    const first = await bounds(rows.nth(0));
+    const second = await bounds(rows.nth(1));
+    expect(overview.width).toBeGreaterThanOrEqual(heading.width - 1);
+    expect(first.width).toBeGreaterThanOrEqual(items.width - 1);
+    expect(second.width).toBeGreaterThanOrEqual(items.width - 1);
+    expect(second.x).toBe(first.x);
+    expect(second.y).toBeGreaterThanOrEqual(first.y + first.height - 1);
+    expect(second.y - first.y - first.height).toBeLessThanOrEqual(1);
+    for (const row of [first, second]) {
+      expect(row.height).toBeLessThanOrEqual(viewport.width === 1440 ? 150 : 180);
+    }
+    if (viewport.width === 1440) {
+      expect(panel.width).toBeGreaterThanOrEqual(overview.width * 0.7);
+      expect(first.width).toBeGreaterThan(650);
+      expect(sidebar.x).toBeGreaterThan(panel.x + panel.width);
+      expect(sidebar.y).toBe(panel.y);
+      expect(sidebar.x + sidebar.width).toBeCloseTo(overview.x + overview.width, 0);
+    } else {
+      expect(panel.width).toBeGreaterThanOrEqual(overview.width - 1);
+      expect(sidebar.width).toBeGreaterThanOrEqual(panel.width - 1);
+      expect(sidebar.y).toBeGreaterThanOrEqual(panel.y + panel.height);
+    }
+    const firstAction = page.getByRole("button", { name: "引导造句", exact: true }).first();
+    await expect(firstAction).toBeInViewport({ ratio: 1 });
+    const action = await bounds(firstAction);
+    expect(action.y + action.height).toBeLessThanOrEqual(viewport.height);
+    expect(await page.evaluate(() => window.scrollY)).toBe(0);
   }
 });
 
@@ -70,20 +98,28 @@ test("approved appearances keep one production layout across responsive viewport
       const contract = await page.evaluate(() => {
         const root = getComputedStyle(document.documentElement);
         const heading = document.querySelector(".page-heading");
-        const queue = document.querySelector(".practice-queue");
-        if (heading === null || queue === null) throw new Error("Practice layout is incomplete.");
+        const panel = document.querySelector(".practice-main-panel");
+        if (heading === null || panel === null) throw new Error("Practice layout is incomplete.");
         return {
           action: root.getPropertyValue("--action").trim(),
           headingWidth: Math.round(heading.getBoundingClientRect().width),
           overflow: document.documentElement.scrollWidth - window.innerWidth,
-          queueWidth: Math.round(queue.getBoundingClientRect().width),
+          panelWidth: Math.round(panel.getBoundingClientRect().width),
         };
       });
 
       expect(contract.action).toBe(appearance.action);
       expect(contract.overflow).toBeLessThanOrEqual(0);
       expect(contract.headingWidth).toBeGreaterThan(0);
-      expect(contract.queueWidth).toBeGreaterThan(0);
+      expect(contract.panelWidth).toBeGreaterThanOrEqual(
+        contract.headingWidth * (viewport.width === 1440 ? 0.7 : 0.99),
+      );
+      await expect(page.locator(".practice-item-row")).toHaveCount(2);
+      await expect(page.getByRole("button", { name: "造句练习", exact: true })).toHaveAttribute(
+        "aria-pressed",
+        "true",
+      );
+      await expect(page.getByRole("checkbox")).toHaveCount(0);
     }
   }
 });
@@ -98,6 +134,22 @@ test("the production selector persists keyboard changes without changing practic
   await authority.install(page);
   await page.goto(`${webOrigin}/practice`);
 
+  const sentenceMode = page.getByRole("button", { name: "造句练习", exact: true });
+  const dialogueMode = page.getByRole("button", { name: "情境对话", exact: true });
+  const choice = page.getByRole("checkbox", { name: "to be completely frank", exact: true });
+  const startDialogue = page.getByRole("button", { name: "开始对话", exact: true });
+  await expect(sentenceMode).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("checkbox")).toHaveCount(0);
+  await expect(startDialogue).toHaveCount(0);
+  await dialogueMode.click();
+  await expect(dialogueMode).toHaveAttribute("aria-pressed", "true");
+  await expect(sentenceMode).toHaveAttribute("aria-pressed", "false");
+  await expect(page.getByRole("button", { name: "引导造句", exact: true })).toHaveCount(0);
+  await expect(choice).not.toBeChecked();
+  await expect(startDialogue).toBeDisabled();
+  await choice.check();
+  await expect(startDialogue).toBeEnabled();
+
   await page.locator(".appearance-menu > summary").click();
   const silver = page.getByRole("radio", { name: "流银镜白" });
   await silver.focus();
@@ -105,12 +157,24 @@ test("the production selector persists keyboard changes without changing practic
   await expect(page.getByRole("radio", { name: "香槟晨霜" })).toBeChecked();
   await expect(page.locator("html")).toHaveAttribute("data-appearance", "champagne");
   await expect(page.getByText("今日已练习 0 / 2 项", { exact: true })).toBeVisible();
-  await expect(page.getByRole("checkbox", { name: "to be completely frank" })).not.toBeChecked();
+  await expect(dialogueMode).toHaveAttribute("aria-pressed", "true");
+  await expect(choice).toBeChecked();
+  await expect(startDialogue).toBeEnabled();
+  await expect(page.getByText("已选 1 / 3 项", { exact: true })).toBeVisible();
 
   await page.reload();
   await expect(page.locator("html")).toHaveAttribute("data-appearance", "champagne");
   await expect(page.getByText("今日已练习 0 / 2 项", { exact: true })).toBeVisible();
-  await expect(page.getByRole("checkbox", { name: "to be completely frank" })).not.toBeChecked();
+  await expect(sentenceMode).toHaveAttribute("aria-pressed", "true");
+  await expect(dialogueMode).toHaveAttribute("aria-pressed", "false");
+  await expect(page.getByRole("checkbox")).toHaveCount(0);
+  await expect(startDialogue).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "引导造句", exact: true })).toHaveCount(2);
+  await dialogueMode.click();
+  await expect(choice).not.toBeChecked();
+  await expect(startDialogue).toBeDisabled();
+  expect(authority.snapshot().practiceProviderCallCount).toBe(0);
+  expect(authority.snapshot().requestFacts.filter((fact) => fact.method !== "GET")).toEqual([]);
 });
 
 test("the default silver practice surface keeps desktop and mobile visual baselines", async ({
@@ -125,7 +189,7 @@ test("the default silver practice surface keeps desktop and mobile visual baseli
   await page.setViewportSize({ height: 1_000, width: 1_440 });
   await page.goto(`${webOrigin}/practice`);
   await expect(page.getByText("今日已练习 0 / 2 项", { exact: true })).toBeVisible();
-  await expect(page).toHaveScreenshot("practice-silver-desktop.png", {
+  await expect.soft(page).toHaveScreenshot("practice-silver-desktop.png", {
     animations: "disabled",
     maxDiffPixelRatio: 0.02,
   });
@@ -133,7 +197,7 @@ test("the default silver practice surface keeps desktop and mobile visual baseli
   await page.setViewportSize({ height: 844, width: 390 });
   await page.reload();
   await expect(page.getByText("今日已练习 0 / 2 项", { exact: true })).toBeVisible();
-  await expect(page).toHaveScreenshot("practice-silver-mobile.png", {
+  await expect.soft(page).toHaveScreenshot("practice-silver-mobile.png", {
     animations: "disabled",
     maxDiffPixelRatio: 0.02,
   });
