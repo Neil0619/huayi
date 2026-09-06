@@ -29,7 +29,7 @@ describe("platform model prompt contracts", () => {
     ["sentence", 8_192, 16_384],
     ["passage", 8_192, 16_384],
   ] as const)(
-    "keeps low thinking and the two-call reservation within the %s budget",
+    "disables thinking for initial and repair requests within the %s two-call budget",
     (selectionKind, outputLimit, reservedOutputTokens) => {
       const input = { ...contractFixtures.startAnalysisRequest, selectionKind };
       const sentences = [{ analysisUnitId: "u1", ordinal: 0, sourceText: input.sourceText }];
@@ -39,7 +39,10 @@ describe("platform model prompt contracts", () => {
           max_tokens: outputLimit,
           reasoning_effort: "low",
           response_format: { type: "json_object" },
-          thinking: { type: "enabled" },
+          stream: true,
+          stream_options: { include_usage: true },
+          temperature: 0,
+          thinking: { type: "disabled" },
         });
       }
       expect(deepSeekMaximumUsage(input)).toEqual({

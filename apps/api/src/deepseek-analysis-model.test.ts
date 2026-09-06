@@ -189,7 +189,7 @@ describe("DeepSeek platform analysis model", () => {
       stream: true,
       stream_options: { include_usage: true },
       temperature: 0,
-      thinking: { type: "enabled" },
+      thinking: { type: "disabled" },
     });
     expect(JSON.stringify(result)).not.toContain("never expose this reasoning");
     expect(result.usageCostMicroUsd).toBe(490);
@@ -198,51 +198,70 @@ describe("DeepSeek platform analysis model", () => {
         inputTokens: 100,
         model: DEEPSEEK_PLATFORM_MODEL,
         outputTokens: 200,
-        promptVersion: "web-deep-analysis-v2.3",
+        promptVersion: "web-deep-analysis-v2.4",
         provider: "deepseek",
       },
       sourceText: contractFixtures.startAnalysisRequest.sourceText,
     });
   });
 
-  it("makes exactly one structure-only repair and aggregates both calls", async () => {
-    const fetch = vi
-      .fn<DeepSeekAnalysisFetch>()
-      .mockResolvedValueOnce(
-        providerResponse({ candidates: [], result: {} }, { reasoning: "first reasoning" }),
-      )
-      .mockResolvedValueOnce(
-        providerResponse(privateOutput(), {
-          reasoning: "repair reasoning",
-          usage: { cached: 0, input: 50, output: 100 },
-        }),
-      );
+  it.each(["phrase", "sentence", "passage"] as const)(
+    "makes one nonthinking structure-only repair for %s and aggregates both calls",
+    async (selectionKind) => {
+      const fetch = vi
+        .fn<DeepSeekAnalysisFetch>()
+        .mockResolvedValueOnce(
+          providerResponse({ candidates: [], result: {} }, { reasoning: "first reasoning" }),
+        )
+        .mockResolvedValueOnce(
+          providerResponse(selectionKind === "phrase" ? privatePhraseOutput() : privateOutput(), {
+            reasoning: "repair reasoning",
+            usage: { cached: 0, input: 50, output: 100 },
+          }),
+        );
 
-    const result = await createFixture(fetch).analyze({
-      input: contractFixtures.startAnalysisRequest,
-      sentences: [{ analysisUnitId: "u1", ordinal: 0, sourceText: "To be frank, this works." }],
-    });
+      const result = await createFixture(fetch).analyze({
+        input: { ...contractFixtures.startAnalysisRequest, selectionKind },
+        sentences: [{ analysisUnitId: "u1", ordinal: 0, sourceText: "To be frank, this works." }],
+      });
 
-    expect(fetch).toHaveBeenCalledTimes(2);
-    const repairBody = fetch.mock.calls[1]?.[1].body ?? "";
-    expect(repairBody).toContain("Repair structure only");
-    expect(repairBody).not.toContain("first reasoning");
-    expect(repairBody).not.toContain("repair reasoning");
-    expect(result.usageCostMicroUsd).toBe(740);
-    expect(result.billedCalls).toEqual([
-      {
-        costMicroUsd: 490,
-        usage: { cachedInputTokens: 20, inputTokens: 100, outputTokens: 200 },
-      },
-      {
-        costMicroUsd: 250,
-        usage: { cachedInputTokens: 0, inputTokens: 50, outputTokens: 100 },
-      },
-    ]);
-    expect(result.content).toMatchObject({
-      modelMetadata: { inputTokens: 150, outputTokens: 300 },
-    });
-  });
+      expect(fetch).toHaveBeenCalledTimes(2);
+      for (const [, init] of fetch.mock.calls) {
+        expect(JSON.parse(init.body)).toMatchObject({
+          max_tokens: selectionKind === "phrase" ? 4_096 : 8_192,
+          model: DEEPSEEK_PLATFORM_MODEL,
+          reasoning_effort: "low",
+          response_format: { type: "json_object" },
+          stream: true,
+          stream_options: { include_usage: true },
+          temperature: 0,
+          thinking: { type: "disabled" },
+        });
+      }
+      const repairBody = fetch.mock.calls[1]?.[1].body ?? "";
+      expect(repairBody).toContain("Repair structure only");
+      expect(repairBody).not.toContain("first reasoning");
+      expect(repairBody).not.toContain("repair reasoning");
+      expect(result.usageCostMicroUsd).toBe(740);
+      expect(result.billedCalls).toEqual([
+        {
+          costMicroUsd: 490,
+          usage: { cachedInputTokens: 20, inputTokens: 100, outputTokens: 200 },
+        },
+        {
+          costMicroUsd: 250,
+          usage: { cachedInputTokens: 0, inputTokens: 50, outputTokens: 100 },
+        },
+      ]);
+      expect(result.content).toMatchObject({
+        modelMetadata: {
+          inputTokens: 150,
+          outputTokens: 300,
+          promptVersion: "web-deep-analysis-v2.4",
+        },
+      });
+    },
+  );
 
   it("fails closed after one invalid repair while preserving priced failure usage", async () => {
     const fetch = vi

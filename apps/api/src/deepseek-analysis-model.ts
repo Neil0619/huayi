@@ -39,7 +39,7 @@ export type {
   DeepSeekAnalysisModelErrorCode,
 };
 
-const PROMPT_VERSION = "web-deep-analysis-v2.3";
+const PROMPT_VERSION = "web-deep-analysis-v2.4";
 const SCHEMA_VERSION = 2;
 const DEFAULT_TIMEOUT_MS = 90_000;
 const MAXIMUM_TIMEOUT_MS = 90_000;

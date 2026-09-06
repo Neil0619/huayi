@@ -127,7 +127,7 @@ export function buildDeepSeekAnalysisRequest(
     stream: true,
     stream_options: { include_usage: true },
     temperature: 0,
-    thinking: { type: "enabled" },
+    thinking: { type: "disabled" },
   });
   if (new TextEncoder().encode(body).byteLength > MAXIMUM_REQUEST_BYTES) {
     throw new DeepSeekAnalysisModelError("model_response_invalid");
