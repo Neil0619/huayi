@@ -1,4 +1,5 @@
 import type { WebEnvironment } from "./environment.js";
+import { WorkspaceAppearanceMenu } from "./web-appearance-controller.js";
 import {
   ProductionPrivacyContact,
   ProductionPrivacyDetails,
@@ -49,7 +50,10 @@ export function PrivacyPage({
             <small>Seen &amp; Said</small>
           </span>
         </a>
-        <a href="/login">返回登录</a>
+        <div className="privacy-header-actions">
+          <a href="/login">返回登录</a>
+          <WorkspaceAppearanceMenu />
+        </div>
       </header>
 
       <main id="privacy-content">

@@ -5,12 +5,32 @@
 
 .privacy-header {
   display: flex;
+  flex-wrap: wrap;
   max-width: 72rem;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-4);
   margin: 0 auto;
   padding: var(--space-5) var(--space-8);
+}
+
+.privacy-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.privacy-header-actions > a {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.privacy-header .appearance-menu {
+  position: relative;
+  top: auto;
+  right: auto;
 }
 
 .privacy-header a {
@@ -53,10 +73,10 @@
 
 .privacy-title h1 {
   margin: var(--space-2) 0 var(--space-3);
-  font-size: clamp(3rem, 7vw, 5.8rem);
+  font-size: clamp(1.75rem, 3vw, 2.5rem);
   font-weight: 430;
   letter-spacing: -0.045em;
-  line-height: 1.03;
+  line-height: 1.25;
   text-wrap: balance;
   word-break: keep-all;
 }
@@ -125,6 +145,11 @@
   .privacy-header {
     align-items: flex-start;
     padding: var(--space-4);
+  }
+
+  .privacy-header-actions {
+    width: 100%;
+    justify-content: space-between;
   }
 
   .privacy-page main {

@@ -81,9 +81,12 @@ describe("Hosted acceptance Store profile", () => {
     }
   });
 
-  it("rejects every unknown build profile instead of accepting endpoint input", () => {
-    expect(() => createStoreExtensionConfig("background", "production")).toThrow(
-      /Store Extension build profile is invalid/u,
-    );
-  });
+  it.each(["production-canary", "Production", "https://api.seen-said.cn"])(
+    "rejects unknown build profile %s instead of accepting endpoint input",
+    (profile) => {
+      expect(() => createStoreExtensionConfig("background", profile)).toThrow(
+        /Store Extension build profile is invalid/u,
+      );
+    },
+  );
 });
