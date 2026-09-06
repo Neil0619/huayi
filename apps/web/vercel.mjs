@@ -12,39 +12,43 @@ if (process.env.VITE_API_ORIGIN !== undefined && process.env.VITE_API_ORIGIN !==
   throw new Error("Web deployment configuration is invalid.");
 }
 
+// Resolve the entire header collection at build time. An inline partially computed header
+// exposed its key without a value to Vercel's pre-build Git deployment validation.
+const securityHeaders = [
+  {
+    source: "/(.*)",
+    headers: [
+      {
+        key: "Content-Security-Policy",
+        value: [
+          "default-src 'self'",
+          "base-uri 'none'",
+          "object-src 'none'",
+          "frame-ancestors 'none'",
+          "frame-src 'none'",
+          "worker-src 'none'",
+          "script-src 'self'",
+          "style-src 'self'",
+          "font-src 'self'",
+          "img-src 'self' data:",
+          `connect-src 'self' ${apiOrigin}`,
+          `form-action 'self' ${apiOrigin} ${supabaseOrigin}${production ? "" : " https://accounts.google.com"}`,
+          "manifest-src 'self'",
+          "upgrade-insecure-requests",
+        ].join("; "),
+      },
+      { key: "Referrer-Policy", value: "no-referrer" },
+      { key: "X-Content-Type-Options", value: "nosniff" },
+      { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+    ],
+  },
+];
+
 export const config = {
   framework: "vite",
   buildCommand: "pnpm build:vercel",
   git: { deploymentEnabled: false },
-  headers: [
-    {
-      source: "/(.*)",
-      headers: [
-        {
-          key: "Content-Security-Policy",
-          value: [
-            "default-src 'self'",
-            "base-uri 'none'",
-            "object-src 'none'",
-            "frame-ancestors 'none'",
-            "frame-src 'none'",
-            "worker-src 'none'",
-            "script-src 'self'",
-            "style-src 'self'",
-            "font-src 'self'",
-            "img-src 'self' data:",
-            `connect-src 'self' ${apiOrigin}`,
-            `form-action 'self' ${apiOrigin} ${supabaseOrigin}${production ? "" : " https://accounts.google.com"}`,
-            "manifest-src 'self'",
-            "upgrade-insecure-requests",
-          ].join("; "),
-        },
-        { key: "Referrer-Policy", value: "no-referrer" },
-        { key: "X-Content-Type-Options", value: "nosniff" },
-        { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
-      ],
-    },
-  ],
+  headers: securityHeaders,
   outputDirectory: "dist",
   rewrites: [{ source: "/(.*)", destination: "/index.html" }],
 };

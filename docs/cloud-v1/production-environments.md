@@ -51,6 +51,9 @@ Web 使用 `VITE_DEPLOYMENT_ENVIRONMENT`，API 使用 `HUAYI_DEPLOYMENT_ENVIRONM
 Web 使用 Vercel 官方支持的 [programmatic configuration](https://vercel.com/docs/project-configuration/vercel-ts)，
 同一项目仅保留 `vercel.mjs`。测试渠道保留原来的四项安全响应头；正式 CSP 只允许正式 API 与
 `pxqqgxfumovegbcxnmzb.supabase.co` 登录跳转。未知渠道和跨环境 API 配置直接失败。
+动态响应头以完整集合引用放入 `config`，避免构建前只提取到 header 的 key、遗漏计算后的 value。
+本地分别检查静态可见结构和两个渠道的实际执行结果；远端发布后仍须逐项核对 HTTP 安全响应头，
+不能用本地结构检查代替 Vercel 部署及线上回读。
 历史 `acceptance-vercel-one-shot-*` 回执继续绑定原候选的 JSON 配置，不用于此次发布。
 
 本人及朋友使用的扩展通过 `pnpm production:store:build` 构建并检查，`pnpm production:store:status`

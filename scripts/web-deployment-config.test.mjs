@@ -1,11 +1,62 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
+import ts from "typescript";
 
 import { readWebDeploymentConfig } from "./web-deployment-config.mjs";
+
+// Git deployment intake happens before programmatic config execution. Model the conservative
+// literal-only boundary here: computed expressions remain unavailable until the build. This is
+// a source-structure guard, not a replacement for the provider's actual deployment validation.
+function literalConfigValue(node) {
+  if (ts.isStringLiteral(node)) return node.text;
+  if (node.kind === ts.SyntaxKind.TrueKeyword) return true;
+  if (node.kind === ts.SyntaxKind.FalseKeyword) return false;
+  if (ts.isArrayLiteralExpression(node)) return node.elements.map(literalConfigValue);
+  if (ts.isObjectLiteralExpression(node)) {
+    return Object.fromEntries(
+      node.properties.flatMap((property) => {
+        if (!ts.isPropertyAssignment(property)) return [];
+        const value = literalConfigValue(property.initializer);
+        return value === undefined ? [] : [[property.name.text, value]];
+      }),
+    );
+  }
+  return undefined;
+}
+
+test("pre-build config never exposes a response header without its computed value", async () => {
+  const source = ts.createSourceFile(
+    "vercel.mjs",
+    await readFile("apps/web/vercel.mjs", "utf8"),
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.JS,
+  );
+  const declaration = source.statements
+    .filter(ts.isVariableStatement)
+    .filter((statement) =>
+      statement.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword),
+    )
+    .flatMap((statement) => [...statement.declarationList.declarations])
+    .find((item) => item.name.getText(source) === "config");
+  assert(declaration?.initializer);
+  const config = literalConfigValue(declaration.initializer);
+  assert.equal(config.framework, "vite");
+  assert.equal(config.buildCommand, "pnpm build:vercel");
+  assert.deepEqual(config.git, { deploymentEnabled: false });
+  assert.equal(config.outputDirectory, "dist");
+  for (const rule of config.headers ?? []) {
+    assert.equal(typeof rule.source, "string");
+    for (const header of rule.headers) {
+      assert.equal(typeof header.key, "string");
+      assert.equal(typeof header.value, "string", `${header.key} is incomplete before the build`);
+    }
+  }
+});
 
 test("actual Web deployment config isolates CSP origins and preserves routing and security headers", async () => {
   const acceptance = await readWebDeploymentConfig(process.cwd(), "hosted-acceptance");
