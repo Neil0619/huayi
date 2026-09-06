@@ -1,0 +1,371 @@
+.practice-overview {
+  display: grid;
+  gap: var(--space-5);
+}
+.practice-overview :is(h2, h3, h4, p) {
+  margin: 0;
+}
+.practice-intro {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-5);
+}
+.practice-intro h2 {
+  font-size: 20px;
+  line-height: 1.5;
+}
+.practice-intro p {
+  margin-top: var(--space-1);
+  color: var(--text-secondary);
+}
+.practice-daily-progress {
+  display: grid;
+  flex-shrink: 0;
+  gap: var(--space-2);
+  font-size: 13px;
+}
+.practice-daily-progress progress {
+  width: 100%;
+  height: 6px;
+  accent-color: var(--action-primary);
+}
+.practice-overview-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 304px;
+  align-items: start;
+  gap: var(--space-5);
+}
+.practice-main-panel,
+.practice-resume-panel {
+  min-width: 0;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-card);
+  background: var(--surface-inner);
+}
+.practice-main-panel {
+  padding: var(--space-5);
+}
+.practice-mode-switch {
+  display: flex;
+  gap: var(--space-2);
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--border-default);
+}
+.practice-mode-switch button {
+  min-width: 112px;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+.practice-mode-switch button[aria-pressed="true"],
+.practice-item-actions .practice-primary {
+  background: var(--button-fill);
+  color: var(--text-on-action);
+  border-color: transparent;
+}
+.practice-mode-intro {
+  display: grid;
+  gap: var(--space-2);
+  padding-block: var(--space-4);
+}
+.practice-mode-intro h3,
+.practice-panel-heading h3 {
+  font-size: 17px;
+}
+.practice-mode-intro p,
+.practice-resume-hint {
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.65;
+}
+.practice-list-toolbar {
+  display: flex;
+  align-items: end;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+.practice-list-toolbar label {
+  display: grid;
+  gap: var(--space-1);
+  font-size: 13px;
+}
+.practice-list-toolbar .practice-search {
+  flex: 1;
+  min-width: 0;
+}
+.practice-list-toolbar :is(input, select) {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-control);
+  background: var(--surface-input);
+  color: var(--text-primary);
+  font: inherit;
+}
+.practice-items {
+  display: grid;
+}
+.practice-item-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-width: 0;
+  padding: var(--space-4) 0;
+  border-top: 1px solid var(--border-default);
+}
+.practice-item-content {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+  gap: var(--space-1);
+  overflow-wrap: anywhere;
+}
+.practice-item-content > strong {
+  font-size: 18px;
+  font-weight: 650;
+  line-height: 1.4;
+}
+.practice-item-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.dialogue-targets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.dialogue-targets span {
+  padding: var(--space-1) var(--space-2);
+  background: var(--surface-subtle);
+  border-radius: var(--radius-sm);
+}
+.practice-item-meta > span + span::before {
+  content: "·";
+  margin-right: var(--space-2);
+}
+.practice-item-meaning {
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.practice-item-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: var(--space-2);
+}
+.practice-item-actions button {
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  font-size: 14px;
+  box-shadow: none;
+  white-space: nowrap;
+}
+.practice-list-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border-default);
+  font-size: 13px;
+}
+.practice-list-footer nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.practice-list-footer button {
+  min-height: 44px;
+  padding: var(--space-2);
+  box-shadow: none;
+  font-size: 13px;
+}
+.practice-item-choice {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  cursor: pointer;
+}
+.practice-item-choice input {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--action-primary);
+}
+.practice-item-row[data-selected="true"] {
+  background: var(--surface-hover);
+}
+.practice-main-panel .dialogue-starter {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.dialogue-start-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+.practice-main-panel .dialogue-start-toolbar button {
+  width: auto;
+  min-width: 128px;
+  margin: 0;
+  background: var(--button-fill);
+  color: var(--text-on-action);
+}
+.dialogue-selected-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.dialogue-selected-items:not(:empty) {
+  margin-bottom: var(--space-3);
+}
+.dialogue-selected-items button {
+  min-height: 44px;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  padding: var(--space-2) var(--space-3);
+  font-size: 13px;
+  box-shadow: none;
+}
+.practice-resume-panel {
+  padding: var(--space-4);
+}
+.practice-panel-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+.practice-panel-heading > span {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.practice-resume-hint {
+  font-size: 13px;
+}
+.practice-resume-item {
+  display: grid;
+  gap: var(--space-2);
+  padding-block: var(--space-4);
+  border-bottom: 1px solid var(--border-default);
+}
+.practice-resume-item h4 {
+  font-size: 16px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.practice-resume-excerpt {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.practice-resume-footer {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+.practice-resume-footer time {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+.practice-resume-footer button {
+  min-height: 44px;
+  padding: var(--space-2);
+  font-size: 13px;
+  box-shadow: none;
+}
+.practice-resume-panel > a {
+  display: inline-block;
+  margin-top: var(--space-4);
+  font-size: 13px;
+}
+.practice-show-saved {
+  width: 100%;
+  margin-top: var(--space-3);
+  box-shadow: none;
+}
+.practice-no-matches {
+  padding: var(--space-5) 0;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+@media (max-width: 68rem) {
+  .practice-overview-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .practice-resume-items {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+    gap: var(--space-4);
+  }
+}
+@media (max-width: 48rem) {
+  .practice-intro {
+    display: grid;
+    gap: var(--space-3);
+  }
+  .practice-intro h2 {
+    font-size: 18px;
+  }
+  .practice-daily-progress {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+  }
+  .practice-daily-progress progress {
+    flex: 1;
+    min-width: 0;
+  }
+  .practice-main-panel {
+    padding: var(--space-3);
+  }
+  .practice-mode-switch button {
+    flex: 1;
+    min-width: 0;
+  }
+  .practice-item-row {
+    flex-wrap: wrap;
+    gap: var(--space-3);
+  }
+  .practice-item-actions {
+    width: 100%;
+  }
+  .practice-item-actions button {
+    flex: 1;
+  }
+  .practice-list-toolbar {
+    flex-wrap: wrap;
+  }
+  .practice-list-toolbar .practice-search {
+    flex-basis: 0;
+  }
+  .practice-list-toolbar > label:not(.practice-search) {
+    width: 108px;
+  }
+  .practice-list-toolbar select {
+    flex: 1;
+  }
+}

@@ -64,6 +64,7 @@ test("three-round dialogue returns per-item feedback and rates every item atomic
   await authority.install(page);
 
   await page.goto(`${webOrigin}/practice`);
+  await page.getByRole("button", { name: "情境对话", exact: true }).click();
   await page.getByRole("checkbox", { name: "to be completely frank" }).check();
   await page.getByRole("checkbox", { name: "It is worth {action}" }).check();
   await page.getByRole("button", { name: "开始对话" }).click();

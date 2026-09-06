@@ -9,6 +9,7 @@ import {
 import type { WebStudyCaptureApi } from "./study-capture-api.js";
 import type { InboxApi } from "./inbox-app.js";
 import { collectionEntries, type CollectionEntry } from "./collection-model.js";
+import { learningTaskFeedback } from "./learning-task-feedback.js";
 export function useCollectionWorkspace(
   api: WebStudyCaptureApi,
   review: InboxApi,
@@ -100,14 +101,17 @@ export function useCollectionWorkspace(
     };
   }, [review, selected?.capture?.latestAnalysis?.id, selected?.analysis?.id, mergeAnalysis]);
   const taskId = selected?.task?.id;
+  const taskCaptureId = selected?.capture?.capture.id;
   useEffect(() => {
     setPreview("");
     if (!taskId || !api.tasks) return;
     const controller = new AbortController();
     const client = api.tasks;
+    let terminalFailure = false;
     void (async () => {
       try {
         for await (const event of client.watch(taskId, controller.signal, (snapshot) => {
+          terminalFailure = snapshot.state === "failed" || snapshot.state === "cancelled";
           if (!controller.signal.aborted)
             setJobs((values) => [snapshot, ...values.filter((value) => value.id !== snapshot.id)]);
         })) {
@@ -124,16 +128,19 @@ export function useCollectionWorkspace(
           }
         }
       } catch (cause) {
-        if (!controller.signal.aborted)
-          setError(
-            cause instanceof LearningTaskError && cause.code === "cancelled"
-              ? "生成已停止，原文已保留。"
-              : `分析未完成，原文已保留。${cause instanceof LearningTaskError && cause.diagnosticId ? `诊断编号：${cause.diagnosticId}` : ""}`,
-          );
+        if (controller.signal.aborted) return;
+        if (terminalFailure && taskCaptureId) {
+          const capture = await api.getCapture(taskCaptureId).catch(() => null);
+          if (controller.signal.aborted) return;
+          if (capture) mergeCapture(capture);
+        }
+        if (selectedIdRef.current !== taskCaptureId) return;
+        setStatus("");
+        setError(learningTaskFeedback(cause, "analysis"));
       }
     })();
     return () => controller.abort();
-  }, [api, taskId, mergeAnalysis, mergeCapture]);
+  }, [api, taskId, taskCaptureId, mergeAnalysis, mergeCapture]);
   useEffect(() => {
     if (!api.tasks || !jobs.some((job) => ["queued", "running", "cancelling"].includes(job.state)))
       return;
@@ -167,6 +174,10 @@ export function useCollectionWorkspace(
   ) => {
     if (!entry.capture || !api.tasks) throw new Error("Background analysis is unavailable.");
     let current = entry.capture;
+    if (entry.task?.state === "failed" || entry.task?.state === "cancelled") {
+      current = await api.getCapture(entry.id);
+      mergeCapture(current);
+    }
     if (
       current.capture.status !== "analyzing" &&
       (current.capture.kind !== metadata.kind ||

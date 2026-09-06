@@ -13,7 +13,7 @@ import { PracticeHistoryDetail } from "./practice-history-detail.js";
 type LoadState = "empty" | "error" | "loading" | "ready";
 
 function sessionTitle(summary: PracticeHistorySummary) {
-  return summary.type === "sentence-creation" ? "句子创作" : "受约束对话";
+  return summary.type === "sentence-creation" ? "句子创作" : "情境对话";
 }
 
 function dateText(summary: PracticeHistorySummary) {
@@ -163,7 +163,7 @@ export function PracticeHistoryPage({
           >
             <option value="">全部</option>
             <option value="sentence-creation">句子创作</option>
-            <option value="dialogue">受约束对话</option>
+            <option value="dialogue">情境对话</option>
           </select>
         </label>
         <label>
@@ -240,7 +240,7 @@ export function PracticeHistoryPage({
             ) : (
               <>
                 <h2 ref={detailHeading} tabIndex={-1}>
-                  {detail.session.type === "sentence-creation" ? "句子创作详情" : "受约束对话详情"}
+                  {detail.session.type === "sentence-creation" ? "句子创作详情" : "情境对话详情"}
                 </h2>
                 <PracticeHistoryDetail detail={detail} />
                 {(detail.session.status === "completed" || detail.session.status === "failed") && (

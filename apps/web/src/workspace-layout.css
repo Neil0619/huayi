@@ -70,6 +70,11 @@ body:has(.acceptance-environment-notice) .app-shell > .topbar {
   margin: 0 auto;
   font-size: 15px;
 }
+/* The skip-link target remains focusable without framing the whole workspace. */
+.app-shell > main:focus,
+.app-shell :is(h1, h2, h3, h4)[tabindex="-1"]:focus {
+  outline: none;
+}
 .app-shell .page-heading {
   display: flex;
   flex-wrap: wrap;

@@ -293,7 +293,7 @@ describe("Web sentence practice", () => {
     const container = await render(practiceApi);
     await act(async () =>
       Array.from(container.querySelectorAll("button"))
-        .find((button) => button.textContent?.includes("继续上次练习"))
+        .find((button) => button.textContent?.includes("查看反馈并自评"))
         ?.click(),
     );
     expect(container.textContent).toContain("准确、自然");

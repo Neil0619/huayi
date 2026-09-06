@@ -23,8 +23,8 @@ test("completed practice history deletes without removing learning items or sche
   await page.getByRole("button", { name: "应用筛选" }).click();
   await expect(page.getByRole("heading", { name: "记录 1" })).toBeVisible();
 
-  await page.getByRole("button", { name: /受约束对话/u }).click();
-  await expect(page.getByRole("heading", { name: "受约束对话详情" })).toBeFocused();
+  await page.getByRole("button", { name: /情境对话/u }).click();
+  await expect(page.getByRole("heading", { name: "情境对话详情" })).toBeFocused();
   await expect(page.getByText("项目同事")).toBeVisible();
   await expect(page.getByText("讨论方案是否具备足够证据。")).toBeVisible();
   await expect(page.getByText(privateReply)).toBeVisible();
@@ -57,9 +57,15 @@ test("completed practice history deletes without removing learning items or sche
   await page.getByRole("link", { name: "返回今日练习" }).click();
   await expect(page).toHaveURL(`${webOrigin}/practice`);
   await expect(page.getByText("今日已练习 2 / 2 项", { exact: true })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "to be completely frank" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "It is worth {action}" })).toBeVisible();
-  await expect(page.getByText("到期复习", { exact: true })).toHaveCount(2);
+  await expect(
+    page.locator(".practice-item-content").getByText("to be completely frank", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.locator(".practice-item-content").getByText("It is worth {action}", { exact: true }),
+  ).toBeVisible();
+  await expect(page.locator(".practice-items").getByText("到期复习", { exact: true })).toHaveCount(
+    2,
+  );
   expect(await page.locator("body").textContent()).not.toContain(privateReply);
   expect(await page.locator("body").textContent()).not.toContain(privateFeedback);
   expect(await page.evaluate(() => [localStorage.length, sessionStorage.length])).toEqual([0, 0]);

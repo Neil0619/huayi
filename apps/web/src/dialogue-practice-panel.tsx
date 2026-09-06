@@ -6,6 +6,8 @@ import type {
   PracticeSession,
 } from "@huayi/cloud-contracts";
 
+import { DialoguePracticeStarter } from "./dialogue-practice-starter.js";
+import { learningTaskFeedback } from "./learning-task-feedback.js";
 import type { PracticePageApi } from "./practice-page-api.js";
 
 type Rating = "effortful" | "forgot" | "mastered";
@@ -40,7 +42,6 @@ export function DialoguePracticePanel({
   const setDraft = draftControl?.setValue ?? setLocalDraft;
   const [error, setError] = useState<string | null>(null);
   const [ratings, setRatings] = useState<Record<string, Rating>>({});
-  const [selected, setSelected] = useState<string[]>([]);
   const [status, setStatus] = useState("");
   const feedbackHeading = useRef<HTMLHeadingElement>(null);
   const requestGeneration = useRef(0);
@@ -51,22 +52,26 @@ export function DialoguePracticePanel({
     },
     [],
   );
+  const getLearningItem = api.getLearningItem;
   useEffect(() => {
-    if (session?.type !== "dialogue" || session.status !== "completed") return;
-    const generation = ++requestGeneration.current;
-    void Promise.all(session.items.map((item) => api.getLearningItem(item.itemId))).then(
+    if (session?.type !== "dialogue") return;
+    let live = true;
+    void Promise.all(session.items.map((item) => getLearningItem(item.itemId))).then(
       (loaded) => {
-        if (generation !== requestGeneration.current) return;
+        if (!live) return;
         setDetails(loaded);
-        feedbackHeading.current?.focus();
+        if (session.status === "completed") feedbackHeading.current?.focus();
       },
       () => {
-        if (generation === requestGeneration.current) {
-          setError("逐项反馈已完成，但来源例句暂时无法载入。");
+        if (live) {
+          setError("学习项详情暂时无法载入，可以稍后刷新查看。");
         }
       },
     );
-  }, [api, session]);
+    return () => {
+      live = false;
+    };
+  }, [getLearningItem, session]);
   const run = async (operation: () => Promise<PracticeSession>, success: string) => {
     const generation = ++requestGeneration.current;
     setBusy(true);
@@ -75,14 +80,14 @@ export function DialoguePracticePanel({
       const next = await operation();
       if (generation !== requestGeneration.current) return false;
       onSession(next);
-      setStatus(
-        next.status === "awaiting-feedback" ? "请求仍在处理中；没有启动第二次模型调用。" : success,
-      );
+      setStatus(next.status === "awaiting-feedback" ? "内容已保存，正在准备下一步。" : success);
       return true;
-    } catch {
+    } catch (cause) {
       if (generation === requestGeneration.current) {
-        setError("请求未完成；已提交的对话内容仍以服务器记录为准，请显式重试。");
-        const recovered = await onRecover();
+        setError(learningTaskFeedback(cause, "practice"));
+        const recovered = await onRecover().catch(() => null);
+        if (generation !== requestGeneration.current) return false;
+        if (recovered?.type === "dialogue" && recovered.id === session?.id) onSession(recovered);
         const lastUserTurn = [...(recovered?.turns ?? [])]
           .reverse()
           .find((turn) => turn.role === "user");
@@ -96,42 +101,14 @@ export function DialoguePracticePanel({
 
   if (session === null) {
     return (
-      <section className="dialogue-starter">
-        <h2>受约束对话</h2>
-        <p>选择 1–3 个今日学习项；对话进行 3–5 轮，结束后统一查看反馈。</p>
-        <fieldset disabled={busy}>
-          <legend>选择对话练习项</legend>
-          {queue.items.map((item) => (
-            <label key={item.item.id}>
-              <input
-                checked={selected.includes(item.item.id)}
-                disabled={!selected.includes(item.item.id) && selected.length >= 3}
-                onChange={(event) => {
-                  const checked = event.currentTarget.checked;
-                  setSelected((current) =>
-                    checked
-                      ? [...current, item.item.id]
-                      : current.filter((id) => id !== item.item.id),
-                  );
-                }}
-                type="checkbox"
-              />
-              {primary(item)}
-            </label>
-          ))}
-        </fieldset>
-        <button
-          data-start-dialogue
-          disabled={busy || selected.length === 0}
-          onClick={() =>
-            void run(() => api.startDialogue(selected, idempotencyKey()), "对话情境与开场已生成。")
-          }
-          type="button"
-        >
-          {busy ? "正在生成…" : "开始对话"}
-        </button>
-        {error !== null && <p role="alert">{error}</p>}
-      </section>
+      <DialoguePracticeStarter
+        queue={queue}
+        busy={busy}
+        error={error}
+        onStart={(selected) =>
+          void run(() => api.startDialogue(selected, idempotencyKey()), "对话情境与开场已生成。")
+        }
+      />
     );
   }
   if (session.type !== "dialogue") return null;
@@ -142,7 +119,9 @@ export function DialoguePracticePanel({
   const waitingFinal = session.pendingGeneration === "final-feedback";
   const rated = session.items.every((item) => item.rating !== undefined);
   const currentItems = session.items.map((sessionItem) =>
-    [...queue.currentItems, ...queue.items].find((item) => item.item.id === sessionItem.itemId),
+    [...queue.currentItems, ...queue.items, ...details].find(
+      (item) => item.item.id === sessionItem.itemId,
+    ),
   );
 
   const submit = (event: FormEvent) => {
@@ -163,8 +142,14 @@ export function DialoguePracticePanel({
 
   return (
     <section className="dialogue-session">
-      <p className="eyebrow">CONSTRAINED DIALOGUE · {rounds}/5 ROUNDS</p>
-      <h2>受约束对话</h2>
+      <p className="eyebrow">情境对话 · 已回复 {rounds} / 5 轮</p>
+      <h2>情境对话</h2>
+      <p className="dialogue-targets">
+        试着用上：
+        {currentItems.map((item, index) => (
+          <span key={session.items[index]?.itemId}>{item ? primary(item) : "学习项正在载入"}</span>
+        ))}
+      </p>
       {session.dialoguePlan !== undefined && (
         <dl className="dialogue-plan">
           <div>
@@ -237,7 +222,7 @@ export function DialoguePracticePanel({
           </h3>
           <p>
             {waitingStart ? "学习项选择已保存" : "你的回复已经保存"}
-            ；系统不会自动发起第二次模型调用。
+            。可以稍后回来继续，也可以重试。
           </p>
           <button
             data-retry-dialogue
@@ -321,7 +306,7 @@ export function DialoguePracticePanel({
                       },
                       idempotencyKey(),
                     ),
-                  "所有学习项的自评与排期已原子更新。",
+                  "自评已保存，复习排期已更新。",
                 );
               }}
             >

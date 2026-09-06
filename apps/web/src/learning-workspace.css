@@ -1,6 +1,5 @@
 .workspace-subnav,
-.practice-session-actions,
-.practice-resume {
+.practice-session-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -9,38 +8,6 @@
 }
 .workspace-subnav a {
   padding: var(--space-2);
-}
-.practice-resume h3 {
-  flex-basis: 100%;
-}
-.practice-overview {
-  display: grid;
-  gap: var(--space-4);
-}
-.practice-overview :is(h2, h3, p) {
-  margin: 0;
-}
-.practice-overview .practice-queue {
-  display: block;
-  width: 100%;
-  min-height: 0;
-  padding: var(--space-6);
-}
-.practice-overview .practice-queue > div {
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
-  padding: 0;
-  border: 0;
-  background: transparent;
-}
-.practice-overview .practice-queue article {
-  gap: var(--space-3);
-}
-.practice-overview .practice-queue article button {
-  margin-top: 0;
-}
-.practice-overview .practice-queue > a {
-  display: inline-block;
-  margin-top: var(--space-4);
 }
 .practice-session-actions {
   position: sticky;

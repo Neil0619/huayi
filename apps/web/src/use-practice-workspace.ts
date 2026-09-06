@@ -1,7 +1,6 @@
 import { measureLearningPresentation } from "./learning-ui-timing.js";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  LearningTaskError,
   type DailyPracticeQueueResponse,
   type LearningItemDetailResponse,
   type LearningTaskCommand,
@@ -11,6 +10,8 @@ import {
 } from "@huayi/cloud-contracts";
 import type { PracticePageApi } from "./practice-page-api.js";
 import { usePracticeDraft } from "./use-practice-draft.js";
+import { pauseOtherPractice } from "./pause-other-practice.js";
+import { learningTaskFeedback } from "./learning-task-feedback.js";
 
 export function usePracticeWorkspace(api: PracticePageApi, key: () => string) {
   const [queue, setQueue] = useState<DailyPracticeQueueResponse | null>(null);
@@ -34,6 +35,7 @@ export function usePracticeWorkspace(api: PracticePageApi, key: () => string) {
   }, []);
   const load = useCallback(async () => {
     setLoading(true);
+    setError("");
     try {
       const response = await api.dailyQueue();
       const requested = new URLSearchParams(window.location.search).get("item");
@@ -68,7 +70,7 @@ export function usePracticeWorkspace(api: PracticePageApi, key: () => string) {
   }, [load]);
   useEffect(() => {
     setDetail(null);
-    if (session?.status !== "completed" || session.type !== "sentence-creation") return;
+    if (session?.type !== "sentence-creation") return;
     let live = true;
     const id = session.items[0]?.itemId;
     if (id)
@@ -119,24 +121,36 @@ export function usePracticeWorkspace(api: PracticePageApi, key: () => string) {
     } catch (cause) {
       if (current === generation.current && !controller.signal.aborted) {
         setTask(null);
-        setError(
-          `生成未完成，已保存的内容和草稿会保留。${cause instanceof LearningTaskError && cause.diagnosticId ? `诊断编号：${cause.diagnosticId}` : ""}`,
-        );
+        setError(learningTaskFeedback(cause, "practice"));
       }
+      throw cause;
     }
     controller.signal.throwIfAborted();
     if (!latest) throw new Error("Practice has not started yet.");
     return latest;
   };
-  const run = async (command: LearningTaskCommand, fallback: () => Promise<PracticeSession>) => {
+  const run = async (
+    command: LearningTaskCommand,
+    fallback: () => Promise<PracticeSession>,
+    prepare?: () => Promise<void>,
+  ) => {
+    if (mutation.current) throw new Error("Practice operation is already pending.");
+    mutation.current = true;
+    setBusy(true);
     setError("");
-    if (!api.tasks) {
-      const result = await fallback();
-      install(result);
-      return result;
+    try {
+      await prepare?.();
+      if (!api.tasks) {
+        const result = await fallback();
+        install(result);
+        return result;
+      }
+      const snapshot = await api.tasks.submit(command, key());
+      return subscribe(snapshot);
+    } finally {
+      mutation.current = false;
+      setBusy(false);
     }
-    const snapshot = await api.tasks.submit(command, key());
-    return subscribe(snapshot);
   };
   const act = async (operation: () => Promise<unknown>) => {
     if (mutation.current) return;
@@ -145,8 +159,8 @@ export function usePracticeWorkspace(api: PracticePageApi, key: () => string) {
     setError("");
     try {
       await operation();
-    } catch {
-      setError("操作未完成，当前内容已保留，可以重试。");
+    } catch (cause) {
+      setError(learningTaskFeedback(cause, "practice"));
     } finally {
       mutation.current = false;
       setBusy(false);
@@ -155,17 +169,7 @@ export function usePracticeWorkspace(api: PracticePageApi, key: () => string) {
   const start = (itemId: string, mode: "guided" | "free" = "guided") =>
     act(async () => {
       if (api.workspace) {
-        const existing = resumable.find((item) => (item.workspace?.phase ?? "active") === "active");
-        if (existing)
-          await api.workspace.control(
-            existing.id,
-            {
-              action: "pause",
-              expectedRevision: existing.revision,
-              expectedControlRevision: existing.workspace?.controlRevision ?? 0,
-            },
-            key(),
-          );
+        await pauseOtherPractice(api.workspace, key);
         const ready = await api.workspace.start({ itemId, mode }, key());
         install(ready);
         if (mode === "free") {
@@ -230,6 +234,7 @@ export function usePracticeWorkspace(api: PracticePageApi, key: () => string) {
   const resume = (saved: PracticeSession) =>
     act(async () => {
       let next = api.workspace ? await api.workspace.get(saved.id) : saved;
+      await pauseOtherPractice(api.workspace, key, next.id);
       if (next.workspace?.phase === "paused" && api.workspace)
         next = await api.workspace.control(
           next.id,
@@ -327,10 +332,16 @@ export function usePracticeWorkspace(api: PracticePageApi, key: () => string) {
     });
   const dialogueApi: PracticePageApi = {
     ...api,
-    startDialogue: (itemIds, idempotencyKey) =>
-      run({ version: 2, kind: "dialogue-start", input: { itemIds } }, () =>
-        api.startDialogue(itemIds, idempotencyKey),
-      ),
+    startDialogue: async (itemIds, idempotencyKey) => {
+      const current = activeSession.current;
+      const retrying =
+        current?.type === "dialogue" && current.pendingGeneration === "dialogue-start";
+      return run(
+        { version: 2, kind: "dialogue-start", input: { itemIds } },
+        () => api.startDialogue(itemIds, idempotencyKey),
+        () => pauseOtherPractice(api.workspace, key, retrying ? current.id : undefined),
+      );
+    },
     submitTurn: (sessionId, input, idempotencyKey) =>
       run({ version: 2, kind: "dialogue-turn", sessionId, input }, () =>
         api.submitTurn(sessionId, input, idempotencyKey),

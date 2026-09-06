@@ -238,7 +238,11 @@ export function CollectionWorkspace({
                     onClick={() => void state.analyze(selected, draft)}
                     type="button"
                   >
-                    {capture.status === "analyzed" ? "重新分析" : "开始深度分析"}
+                    {job?.state === "failed"
+                      ? "重试深度分析"
+                      : capture.status === "analyzed"
+                        ? "重新分析"
+                        : "开始深度分析"}
                   </button>
                   {!job && selected.capture?.activeAnalysisRequest && (
                     <button

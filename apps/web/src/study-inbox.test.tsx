@@ -62,14 +62,16 @@ function setup(overrides: Partial<WebStudyCaptureApi> = {}, reviews: Partial<Inb
     list: vi.fn(async (): Promise<LearningTaskSnapshot[]> => []),
     get: vi.fn(async () => job),
     cancel: vi.fn(async () => ({ ...job, state: "cancelled" as const })),
-    watch: vi.fn(async function* (): AsyncIterable<LearningTaskPayload> {
-      yield {
-        type: "analysis.preview" as const,
-        requestId: "request-1",
-        text: "先理解原文",
-        section: "overall" as const,
-      };
-    }),
+    watch: vi.fn<NonNullable<WebStudyCaptureApi["tasks"]>["watch"]>(
+      async function* (): AsyncIterable<LearningTaskPayload> {
+        yield {
+          type: "analysis.preview" as const,
+          requestId: "request-1",
+          text: "先理解原文",
+          section: "overall" as const,
+        };
+      },
+    ),
   };
   const api: WebStudyCaptureApi = {
     tasks,
@@ -196,6 +198,84 @@ it.each(["model_output_invalid", "outcome_unknown"])(
     expect(view.querySelector("[role=alert]")?.textContent).toContain("原文已保留");
     expect(view.textContent).toContain("diagnostic-1");
     expect(view.textContent).toContain(detail.capture.sourceText);
+    expect(view.querySelector("[role=alert]")?.textContent).toContain(
+      code === "model_output_invalid"
+        ? "AI 返回的分析内容不完整或格式不正确"
+        : "正在核对同一次分析",
+    );
+    expect(f.tasks.submit).toHaveBeenCalledTimes(1);
+  },
+);
+it.each(["failed", "cancelled"] as const)(
+  "refreshes a %s reanalysis before explicit retry and preserves unsaved metadata",
+  async (state) => {
+    const original: StudyCaptureDetailResponse = {
+      ...detail,
+      capture: { ...detail.capture, status: "analyzed" },
+      latestAnalysis: {
+        id: analysis.id,
+        createdAt: date,
+        revision: analysis.revision,
+        reviewState: analysis.reviewState,
+      },
+    };
+    let finishRefresh: (value: StudyCaptureDetailResponse) => void = () => undefined;
+    const refreshed = { ...original, capture: { ...original.capture, revision: 3 } };
+    const f = setup({
+      listCaptures: vi.fn(async (query) => ({
+        items: query.status === "analyzed" ? [original] : [],
+        nextCursor: null,
+      })),
+      getCapture: vi.fn(
+        () =>
+          new Promise<StudyCaptureDetailResponse>((resolve) => {
+            finishRefresh = resolve;
+          }),
+      ),
+      patchCapture: vi.fn(async (_id, input) => ({
+        ...refreshed,
+        capture: { ...refreshed.capture, title: input.title ?? undefined, revision: 4 },
+      })),
+    });
+    f.tasks.watch.mockImplementation(async function* (_id, _signal, onSnapshot) {
+      yield { type: "analysis.preview", requestId: "request-1", text: "预览", section: "overall" };
+      onSnapshot?.({ ...job, state });
+      throw new LearningTaskError(
+        state === "failed" ? "model_output_invalid" : "cancelled",
+        "diag-1",
+      );
+    });
+    const view = await render(f);
+    await click(view, "[data-analyze-capture]");
+    await change(view, "[name=title]", "Unsaved title");
+    await act(async () => finishRefresh(refreshed));
+    expect(f.api.getCapture).toHaveBeenCalledWith("capture-1");
+    expect(f.api.patchCapture).not.toHaveBeenCalled();
+    expect(view.querySelector<HTMLInputElement>("[name=title]")?.value).toBe("Unsaved title");
+    expect(view.querySelector("[role=alert]")?.textContent).toContain("diag-1");
+    const terminalStatus = view.querySelector("[role=status]")?.textContent;
+    expect(f.tasks.submit).toHaveBeenCalledTimes(1);
+    f.api.getCapture = vi.fn(async () => refreshed);
+    f.tasks.submit.mockResolvedValue({ ...job, id: "task-2" });
+    f.tasks.watch.mockImplementation(async function* () {
+      yield* [];
+    });
+    await click(view, "[data-analyze-capture]");
+    expect(f.api.patchCapture).toHaveBeenCalledWith(
+      "capture-1",
+      expect.objectContaining({ expectedRevision: 3, title: "Unsaved title" }),
+      "write-key",
+    );
+    expect(f.tasks.submit).toHaveBeenLastCalledWith(
+      {
+        version: 2,
+        kind: "capture-analysis",
+        captureId: "capture-1",
+        input: { expectedRevision: 4, intent: "reanalysis" },
+      },
+      "write-key",
+    );
+    expect(terminalStatus).toBeUndefined();
   },
 );
 it("requires a second confirmation before deleting an original", async () => {

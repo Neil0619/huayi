@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { DailyPracticeQueueResponse } from "@huayi/cloud-contracts";
+import { PracticeOverview } from "./practice-overview.js";
 import { DialoguePracticePanel } from "./dialogue-practice-panel.js";
 import type { PracticePageApi } from "./practice-page-api.js";
 import { usePracticeWorkspace } from "./use-practice-workspace.js";
@@ -36,9 +37,11 @@ export function PracticePage({
   useEffect(() => {
     if (session?.status === "completed") feedbackHeading.current?.focus();
   }, [session?.status]);
-  const target = [...(queue?.items ?? []), ...(queue?.currentItems ?? [])].find(
-    (item) => item.item.id === session?.items[0]?.itemId,
-  );
+  const target = [
+    ...(queue?.items ?? []),
+    ...(queue?.currentItems ?? []),
+    ...(state.detail ? [state.detail] : []),
+  ].find((item) => item.item.id === session?.items[0]?.itemId);
   const rated = session?.items.every((item) => item.rating !== undefined);
   const pending = session?.pendingGeneration === "sentence-prompt";
   const generating = task !== null && ["queued", "running", "cancelling"].includes(task.state);
@@ -63,74 +66,7 @@ export function PracticePage({
         </div>
       )}
       {session === null && queue && (
-        <section className="practice-overview">
-          <h2>把读过的表达，用在自己的话里</h2>
-          <p>选择一项练习。引导造句会提供中文场景；自由造句可以立即开始。</p>
-          <p>
-            今日已练习 {queue.completedToday ?? 0} / {queue.dailyGoal} 项
-          </p>
-          {state.resumable.length > 0 && (
-            <section className="practice-resume">
-              <h3>上次的练习与草稿</h3>
-              {state.resumable.map((saved, index) => (
-                <button
-                  disabled={busy}
-                  key={saved.id}
-                  onClick={() => void state.resume(saved)}
-                  type="button"
-                >
-                  {index === 0 ? "继续上次练习" : "恢复练习"} ·{" "}
-                  {saved.type === "dialogue" ? "对话" : "造句"}
-                  {saved.workspace?.draft ? " · 有草稿" : ""}
-                </button>
-              ))}
-            </section>
-          )}
-          {queue.items.length === 0 ? (
-            <section className="empty-state">
-              <h3>今天没有待练习内容</h3>
-              <p>从学习库选择表达或句型，或者先到收集箱整理原文。</p>
-              <a href="/library">选择学习项</a> <a href="/app">打开收集箱</a>
-            </section>
-          ) : (
-            <section className="practice-queue">
-              <h3>选择今天要用的表达或句型</h3>
-              <div>
-                {queue.items.map((item) => (
-                  <article key={item.item.id}>
-                    <p>{item.schedule.level === -1 ? "新学习项" : "到期复习"}</p>
-                    <h3>{primary(item)}</h3>
-                    <p>{meaning(item)}</p>
-                    <button
-                      data-start-practice
-                      disabled={busy}
-                      onClick={() => void state.start(item.item.id)}
-                      type="button"
-                    >
-                      引导造句
-                    </button>
-                    <button
-                      disabled={busy || !api.workspace}
-                      onClick={() => void state.start(item.item.id, "free")}
-                      type="button"
-                    >
-                      自由造句
-                    </button>
-                  </article>
-                ))}
-              </div>
-              <a href="/library">从学习库选择其他内容</a>
-            </section>
-          )}
-          <DialoguePracticePanel
-            api={state.dialogueApi}
-            idempotencyKey={idempotencyKey}
-            onRecover={state.load}
-            onSession={state.install}
-            queue={queue}
-            session={null}
-          />
-        </section>
+        <PracticeOverview api={api} state={state} idempotencyKey={idempotencyKey} />
       )}
       {session !== null && (
         <nav aria-label="本次练习操作" className="practice-session-actions">

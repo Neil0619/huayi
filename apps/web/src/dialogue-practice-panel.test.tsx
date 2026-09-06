@@ -217,7 +217,7 @@ describe("constrained dialogue panel", () => {
     expect(onSession).toHaveBeenCalledWith(pending);
 
     const pendingRender = await render(practiceApi, pending);
-    expect(pendingRender.container.textContent).toContain("不会自动发起第二次");
+    expect(pendingRender.container.textContent).toContain("你的回复已经保存");
     await act(async () =>
       pendingRender.container.querySelector<HTMLButtonElement>("[data-retry-dialogue]")?.click(),
     );
