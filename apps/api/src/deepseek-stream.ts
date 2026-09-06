@@ -17,7 +17,15 @@ type StreamFailureStage =
   | "usage"
   | "after-done"
   | "after-finish"
-  | "incomplete-terminal"
+  | "missing-done"
+  | "missing-identity"
+  | "missing-usage"
+  | "pending-terminal"
+  | "unterminated-frame"
+  | "missing-finish"
+  | "empty-content"
+  | "token-limit-empty-content"
+  | "token-limit-with-content"
   | "non-stop-finish";
 
 type StreamDiagnosticSink = (diagnostic: {
@@ -168,6 +176,10 @@ export async function readDeepSeekStream(
     if (pending.length > MAXIMUM_FRAME_CHARACTERS)
       throw new DeepSeekAnalysisModelError("model_response_invalid");
   }
+  function rejectTerminal(failureStage: StreamFailureStage): never {
+    stage = failureStage;
+    throw new DeepSeekAnalysisModelError("model_response_invalid", undefined, usage);
+  }
   try {
     for (;;) {
       stage = "read";
@@ -184,19 +196,17 @@ export async function readDeepSeekStream(
     stage = "utf8";
     pending += decoder.decode();
     consume(true);
-    stage = "incomplete-terminal";
-    if (
-      !done ||
-      !id ||
-      !usage ||
-      content === "" ||
-      pending.trim() !== "" ||
-      data.length > 0 ||
-      !finish
-    ) {
-      throw new DeepSeekAnalysisModelError("model_response_invalid", undefined, usage);
-    }
-    stage = "non-stop-finish";
+    // Diagnose token exhaustion only after all structural terminal checks pass.
+    // Empty content retains its original response error, even with a length finish.
+    if (!done) rejectTerminal("missing-done");
+    if (!id) rejectTerminal("missing-identity");
+    if (!usage) rejectTerminal("missing-usage");
+    if (pending.trim() !== "") rejectTerminal("pending-terminal");
+    if (data.length > 0) rejectTerminal("unterminated-frame");
+    if (!finish) rejectTerminal("missing-finish");
+    if (content === "")
+      rejectTerminal(finish === "length" ? "token-limit-empty-content" : "empty-content");
+    stage = finish === "length" ? "token-limit-with-content" : "non-stop-finish";
     if (finish !== "stop")
       throw new DeepSeekAnalysisModelError("model_output_invalid", undefined, usage);
     return { content, usage };

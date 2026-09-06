@@ -35,13 +35,94 @@ it.each([
   ["usage", () => new Response(frame({ usage: { ...usage, [secret]: secret } }))],
   ["after-done", () => new Response(frame() + finished + done + frame())],
   ["after-finish", () => new Response(frame() + finished + frame())],
-  ["incomplete-terminal", () => new Response(frame() + finished)],
+  ["missing-done", () => new Response(frame() + finished)],
 ] as const)("reports only the fixed %s stage once", async (stage, response) => {
   const sink = vi.fn();
   await expect(read(response(), sink)).rejects.toMatchObject({ code: "model_response_invalid" });
   expect(sink.mock.calls).toEqual([[{ event: "deepseek_stream_failed", stage }]]);
   expect(JSON.stringify(sink.mock.calls)).not.toContain(secret);
 });
+
+it.each([false, true])(
+  "distinguishes length termination with content=%s while preserving errors and usage",
+  async (hasContent) => {
+    const onDelta = vi.fn();
+    const onToken = vi.fn();
+    const sink = vi.fn();
+    const response = () =>
+      new Response(
+        frame({
+          choices: [
+            {
+              index: 0,
+              delta: hasContent ? { content: secret } : { reasoning_content: secret },
+              finish_reason: "length",
+            },
+          ],
+        }) +
+          frame({
+            choices: [],
+            usage: { prompt_tokens: 863, completion_tokens: 8192, total_tokens: 9055 },
+          }) +
+          done,
+      );
+    const expected = {
+      code: hasContent ? "model_output_invalid" : "model_response_invalid",
+      usage: { cachedInputTokens: 0, inputTokens: 863, outputTokens: 8192 },
+    };
+    await expect(
+      readDeepSeekStream(response(), controller().signal, onDelta, onToken, sink),
+    ).rejects.toMatchObject(expected);
+    expect(onDelta.mock.calls).toEqual(hasContent ? [[secret]] : []);
+    expect(onToken).toHaveBeenCalledOnce();
+    expect(sink.mock.calls).toEqual([
+      [
+        {
+          event: "deepseek_stream_failed",
+          stage: hasContent ? "token-limit-with-content" : "token-limit-empty-content",
+        },
+      ],
+    ]);
+    expect(JSON.stringify(sink.mock.calls)).not.toContain(secret);
+    await expect(
+      read(
+        response(),
+        vi.fn(() => {
+          throw new Error(secret);
+        }),
+      ),
+    ).rejects.toMatchObject(expected);
+  },
+);
+
+it("distinguishes empty stop output from token-limit termination", async () => {
+  const sink = vi.fn();
+  await expect(read(new Response(finished + done), sink)).rejects.toMatchObject({
+    code: "model_response_invalid",
+    usage: receipt,
+  });
+  expect(sink.mock.calls).toEqual([[{ event: "deepseek_stream_failed", stage: "empty-content" }]]);
+});
+
+it.each([
+  ["missing-done", finished.replace('"stop"', '"length"')],
+  ["missing-identity", done],
+  ["missing-usage", frame({ choices: [{ index: 0, delta: {}, finish_reason: "length" }] }) + done],
+  ["pending-terminal", finished.replace('"stop"', '"length"') + done + `data: ${secret}`],
+  ["unterminated-frame", finished.replace('"stop"', '"length"') + done + `data: ${secret}\n`],
+  ["missing-finish", frame({ usage }) + done],
+  ["missing-finish", finished.replace('"stop"', '""') + done],
+] as const)(
+  "prioritizes structural %s failure over terminal content or finish",
+  async (stage, text) => {
+    const sink = vi.fn();
+    await expect(read(new Response(text), sink)).rejects.toMatchObject({
+      code: "model_response_invalid",
+    });
+    expect(sink.mock.calls).toEqual([[{ event: "deepseek_stream_failed", stage }]]);
+    expect(JSON.stringify(sink.mock.calls)).not.toContain(secret);
+  },
+);
 
 it("reports a non-stop finish without logging its untrusted reason or losing usage", async () => {
   const sink = vi.fn();
@@ -92,15 +173,13 @@ it("uses console.warn by default with only the fixed event and stage", async () 
   await expect(
     readDeepSeekStream(new Response(frame()), controller().signal, vi.fn()),
   ).rejects.toMatchObject({ code: "model_response_invalid" });
-  expect(warn.mock.calls).toEqual([
-    [{ event: "deepseek_stream_failed", stage: "incomplete-terminal" }],
-  ]);
+  expect(warn.mock.calls).toEqual([[{ event: "deepseek_stream_failed", stage: "missing-done" }]]);
 });
 
 it.each([
   ["frame-json", `data: {${secret}\n\n`],
   ["usage", frame({ usage: { ...usage, total_tokens: 31 } })],
-  ["incomplete-terminal", ""],
+  ["missing-done", ""],
   ["wire-limit", "x".repeat(8 * 1024 * 1024 + 1)],
 ] as const)("preserves %s failure and known usage when the sink throws", async (stage, tail) => {
   const response = () =>
