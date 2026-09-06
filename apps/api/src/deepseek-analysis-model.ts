@@ -1,4 +1,8 @@
 import { billedProviderError } from "./deepseek-provider-error.js";
+import {
+  reportDeepSeekAnalysisOutputInvalid,
+  type AnalysisValidationAttempt,
+} from "./deepseek-analysis-diagnostics.js";
 import { modelDeadline } from "./model-execution.js";
 import { createTextModelPreview } from "./text-model-preview.js";
 import {
@@ -93,19 +97,27 @@ function trustedContent(
   input: StartAnalysisRequest,
   sentences: readonly SegmentedSentence[],
   usage: ModelUsage,
+  attempt: AnalysisValidationAttempt,
 ): unknown {
   let json: unknown;
   try {
     json = JSON.parse(rawContent);
   } catch {
+    reportDeepSeekAnalysisOutputInvalid("json", attempt);
     return null;
   }
   const parsed = privateAnalysisOutputSchema.safeParse(json);
-  if (!parsed.success) return null;
+  if (!parsed.success) {
+    reportDeepSeekAnalysisOutputInvalid("output-schema", attempt, parsed.error.issues);
+    return null;
+  }
   const parsedResult = parsed.data.result;
   let result: unknown = parsedResult;
   if ("sentences" in parsedResult) {
-    if (parsedResult.sentences.length !== sentences.length) return null;
+    if (parsedResult.sentences.length !== sentences.length) {
+      reportDeepSeekAnalysisOutputInvalid("unit-count", attempt);
+      return null;
+    }
     result = {
       ...parsedResult,
       sentences: parsedResult.sentences.map((sentence, index) => ({
@@ -132,7 +144,11 @@ function trustedContent(
       .digest("hex"),
     sourceText: input.sourceText,
   });
-  return content.success ? content.data : null;
+  if (!content.success) {
+    reportDeepSeekAnalysisOutputInvalid("content-schema", attempt, content.error.issues);
+    return null;
+  }
+  return content.data;
 }
 
 export function createDeepSeekAnalysisModel(options: DeepSeekAnalysisModelOptions): AnalysisModel {
@@ -217,6 +233,7 @@ export function createDeepSeekAnalysisModel(options: DeepSeekAnalysisModelOption
           command.input,
           command.sentences,
           first.usage,
+          "first",
         );
         if (firstContent !== null) {
           const costMicroUsd = calculateModelCost(first.usage, prices);
@@ -249,6 +266,7 @@ export function createDeepSeekAnalysisModel(options: DeepSeekAnalysisModelOption
           command.input,
           command.sentences,
           usage,
+          "repair",
         );
         if (repairedContent === null) {
           throw new DeepSeekAnalysisModelError(
