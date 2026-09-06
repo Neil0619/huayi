@@ -1,10 +1,12 @@
-import { readdir, readFile } from "node:fs/promises";
-import { dirname, relative, resolve, sep } from "node:path";
+import { readFile } from "node:fs/promises";
+import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import ts from "typescript";
+import { createHash } from "node:crypto";
 
 import { auditStoreRelease } from "./check-store-release.mjs";
+import { readStoreCloudBuild, storeProfilePaths } from "./store-cloud-build.mjs";
+import { auditWebRelease } from "./web-release-audit.mjs";
 
 const BASE_STORE_HOSTS = [
   "https://api.openai.com/*",
@@ -15,16 +17,6 @@ const BASE_CONNECT_SOURCES = [
   "https://api.openai.com",
   "https://api.deepseek.com",
   "https://api.frdic.com",
-];
-const SERVER_SECRET_MARKERS = [
-  "CRON_SECRET",
-  "HUAYI_DATABASE_URL",
-  "HUAYI_DATABASE_TLS_CA_BASE64",
-  "HUAYI_DEEPSEEK_API_KEY",
-  "HUAYI_REFRESH_ENCRYPTION_KEY",
-  "HUAYI_RESEND_API_KEY",
-  "HUAYI_SECRET_PEPPER",
-  "SUPABASE_SERVICE_ROLE_KEY",
 ];
 const LEGACY_DISCLOSURE_MARKERS = ["端到端加密的本地生词本", "无账户、默认遥测或自有后端"];
 const PHASE_27_DISCLOSURES = [
@@ -56,6 +48,7 @@ const SAFE_MESSAGES = {
   "release-config-min-extension-version":
     "Cloud release minimum Extension version is missing or invalid.",
   "release-config-privacy-url": "Cloud release privacy URL is missing or invalid.",
+  "release-config-profile": "Production Web and Store release profiles must be selected together.",
   "release-config-store-capability":
     "Cloud Store release requires the enabled Store Extension capability.",
   "release-config-web-origin": "Cloud release Web origin is missing or invalid.",
@@ -125,6 +118,12 @@ function compareVersions(left, right) {
 }
 
 function configurationEvidence(configuration, violations) {
+  if (
+    (configuration.releaseChannel === "production") !==
+    (configuration.storeBuildProfile === "production")
+  ) {
+    violations.push(violation("release-config-profile"));
+  }
   const api = candidateOrigin(configuration.apiOrigin);
   const web = candidateOrigin(configuration.webOrigin);
   if (api === null) violations.push(violation("release-config-api-origin"));
@@ -175,52 +174,13 @@ function configurationEvidence(configuration, violations) {
   return { api, minSupportedExtensionVersion, privacy, web };
 }
 
-function stringConstant(source, name) {
-  const parsed = ts.createSourceFile("candidate.ts", source, ts.ScriptTarget.Latest, true);
-  let result;
-  const visit = (node) => {
-    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.name.text === name) {
-      result =
-        node.initializer !== undefined &&
-        (ts.isStringLiteral(node.initializer) ||
-          ts.isNoSubstitutionTemplateLiteral(node.initializer))
-          ? node.initializer.text
-          : null;
-    }
-    ts.forEachChild(node, visit);
-  };
-  visit(parsed);
-  return result;
-}
-
-function toPosix(value) {
-  return value.split(sep).join("/");
-}
-
-async function listFiles(directory, base = directory) {
-  const entries = await readdir(directory, { withFileTypes: true });
-  const files = await Promise.all(
-    entries.map((entry) => {
-      const path = resolve(directory, entry.name);
-      return entry.isDirectory() ? listFiles(path, base) : [toPosix(relative(base, path))];
-    }),
-  );
-  return files.flat().sort();
-}
-
-function hasRemoteOrInlineCode(index) {
-  return (
-    /(?:src|href)\s*=\s*["'](?:https?:)?\/\//iu.test(index) ||
-    /<script\b(?![^>]*\bsrc\s*=)[^>]*>/iu.test(index) ||
-    /\son[a-z]+\s*=/iu.test(index)
-  );
-}
-
-async function auditStore(root, api, web, minSupportedExtensionVersion, violations) {
+async function auditStore(root, api, web, minSupportedExtensionVersion, violations, configuration) {
+  const profile = configuration.storeBuildProfile ?? "release";
+  const paths = storeProfilePaths(profile);
   let candidateVersion = null;
   try {
     const manifest = JSON.parse(
-      await readFile(resolve(root, "apps/store-extension/manifest.json"), "utf8"),
+      await readFile(resolve(root, "apps/store-extension", paths.manifest), "utf8"),
     );
     candidateVersion = strictVersion(manifest.version);
   } catch {
@@ -233,32 +193,56 @@ async function auditStore(root, api, web, minSupportedExtensionVersion, violatio
   ) {
     violations.push(violation("store-client-version-policy"));
   }
-  const serviceWorkerSource = await readFile(
-    resolve(root, "apps/store-extension/src/service-worker/service-worker.ts"),
-    "utf8",
-  );
-  const workspaceSource = await readFile(
-    resolve(root, "apps/store-extension/src/service-worker/web-workspace-handler.ts"),
-    "utf8",
-  );
-  const sourceApi = stringConstant(serviceWorkerSource, "HUAYI_CLOUD_API_ORIGIN");
-  const sourceWorkspace = stringConstant(workspaceSource, "HUAYI_WEB_WORKSPACE_URL");
-  if (api === null || sourceApi !== api.origin) violations.push(violation("store-api-origin"));
+  const build = readStoreCloudBuild(root, profile);
+  if (api === null || !build.apiConsumed || build.apiOrigin !== api.origin) {
+    violations.push(violation("store-api-origin"));
+  }
   const expectedWorkspace = web === null ? null : `${web.origin}/app`;
-  if (expectedWorkspace === null || sourceWorkspace !== expectedWorkspace) {
+  if (
+    expectedWorkspace === null ||
+    !build.workspaceConsumed ||
+    build.workspaceUrl !== expectedWorkspace ||
+    build.webOrigin !== web?.origin
+  ) {
     violations.push(violation("store-web-workspace-url"));
+  }
+  if (profile === "production") {
+    const manifest = JSON.parse(
+      await readFile(resolve(root, "apps/store-extension", paths.manifest), "utf8"),
+    );
+    const key =
+      typeof manifest.key === "string" ? Buffer.from(manifest.key, "base64") : Buffer.alloc(0);
+    const alphabet = "abcdefghijklmnop";
+    const extensionId = [...createHash("sha256").update(key).digest().subarray(0, 16)]
+      .flatMap((byte) => [alphabet[byte >> 4], alphabet[byte & 15]])
+      .join("");
+    if (
+      key.byteLength < 128 ||
+      key.toString("base64") !== manifest.key ||
+      extensionId !== configuration.extensionId
+    ) {
+      violations.push(violation("release-config-extension-id"));
+    }
   }
   const expectedHosts = api === null ? BASE_STORE_HOSTS : [...BASE_STORE_HOSTS, `${api.origin}/*`];
   const expectedCsp = `script-src 'self'; object-src 'self'; connect-src ${[
     ...BASE_CONNECT_SOURCES,
     ...(api === null ? [] : [api.origin]),
   ].join(" ")}`;
-  if ((await auditStoreRelease(root, { expectedCsp, expectedHosts })).length > 0) {
+  if (
+    (
+      await auditStoreRelease(root, {
+        expectedCsp,
+        expectedHosts,
+        sourceManifestName: paths.manifest,
+      })
+    ).length > 0
+  ) {
     violations.push(violation("store-package"));
   }
   if (api !== null && expectedWorkspace !== null) {
     const bundle = await readFile(
-      resolve(root, "apps/store-extension/dist-release/service-worker.js"),
+      resolve(root, "apps/store-extension", paths.directory, "service-worker.js"),
       "utf8",
     );
     if (!bundle.includes(api.origin) || !bundle.includes(expectedWorkspace)) {
@@ -267,39 +251,9 @@ async function auditStore(root, api, web, minSupportedExtensionVersion, violatio
   }
 }
 
-async function auditWeb(root, violations) {
-  const dist = resolve(root, "apps/web/dist");
-  const files = await listFiles(dist);
-  const contents = await Promise.all(
-    files.map(async (file) => ({ file, text: await readFile(resolve(dist, file), "utf8") })),
-  );
-  const index = contents.find((entry) => entry.file === "index.html")?.text ?? "";
-  if (hasRemoteOrInlineCode(index)) violations.push(violation("web-remote-code"));
-  if (
-    contents.some((entry) => SERVER_SECRET_MARKERS.some((marker) => entry.text.includes(marker)))
-  ) {
-    violations.push(violation("web-server-secret"));
-  }
-  const bundle = contents.map((entry) => entry.text).join("\n");
-  if (
-    !bundle.includes("语见 Cloud V1 隐私说明") ||
-    !bundle.includes("Chrome Web Store User Data Policy")
-  ) {
-    violations.push(violation("web-privacy-artifact"));
-  }
-  const vercel = JSON.parse(await readFile(resolve(root, "apps/web/vercel.json"), "utf8"));
-  if (
-    !Array.isArray(vercel.rewrites) ||
-    !vercel.rewrites.some(
-      (rewrite) => rewrite?.source === "/(.*)" && rewrite?.destination === "/index.html",
-    )
-  ) {
-    violations.push(violation("web-privacy-artifact"));
-  }
-}
-
-async function auditMaterials(root, api, web, privacy, violations) {
-  const policy = await readFile(resolve(root, "docs/cloud-v1/privacy-policy.md"), "utf8");
+async function auditMaterials(root, api, web, privacy, violations, profile, releaseChannel) {
+  const suffix = releaseChannel === "production" ? "-production" : "";
+  const policy = await readFile(resolve(root, `docs/cloud-v1/privacy-policy${suffix}.md`), "utf8");
   if (/(?:草案|预发布|待补|待确认|待核验|待公布)/u.test(policy)) {
     violations.push(violation("privacy-not-final"));
   }
@@ -314,7 +268,7 @@ async function auditMaterials(root, api, web, privacy, violations) {
   if (policyFacts.some((fact) => !fact.test(policy))) {
     violations.push(violation("privacy-required-facts"));
   }
-  const listing = await readFile(resolve(root, "docs/cloud-v1/store-listing.md"), "utf8");
+  const listing = await readFile(resolve(root, `docs/cloud-v1/store-listing${suffix}.md`), "utf8");
   const publicMaterials = `${policy}\n${listing}`;
   if (PHASE_27_DISCLOSURES.some((fact) => !fact.test(publicMaterials))) {
     violations.push(violation("phase-27-disclosure-required"));
@@ -323,7 +277,10 @@ async function auditMaterials(root, api, web, privacy, violations) {
     violations.push(violation("phase-27-legacy-import"));
   }
   const manifest = JSON.parse(
-    await readFile(resolve(root, "apps/store-extension/manifest.json"), "utf8"),
+    await readFile(
+      resolve(root, "apps/store-extension", storeProfilePaths(profile).manifest),
+      "utf8",
+    ),
   );
   const required = [
     ...(Array.isArray(manifest.permissions) ? manifest.permissions : []),
@@ -349,9 +306,19 @@ export async function auditCloudRelease(repositoryRoot, configuration) {
     configuration,
     violations,
   );
-  await auditStore(root, api, web, minSupportedExtensionVersion, violations);
-  await auditWeb(root, violations);
-  await auditMaterials(root, api, web, privacy, violations);
+  await auditStore(root, api, web, minSupportedExtensionVersion, violations, configuration);
+  for (const code of await auditWebRelease(root, configuration.releaseChannel)) {
+    violations.push(violation(code));
+  }
+  await auditMaterials(
+    root,
+    api,
+    web,
+    privacy,
+    violations,
+    configuration.storeBuildProfile,
+    configuration.releaseChannel,
+  );
   const deduplicated = [...new Map(violations.map((item) => [item.code, item])).values()].sort(
     (left, right) => left.code.localeCompare(right.code),
   );
@@ -379,7 +346,9 @@ async function main() {
     extensionId: process.env.HUAYI_RELEASE_EXTENSION_ID,
     minSupportedExtensionVersion: process.env.HUAYI_MIN_SUPPORTED_EXTENSION_VERSION,
     privacyUrl: process.env.HUAYI_RELEASE_PRIVACY_URL,
+    releaseChannel: process.env.HUAYI_RELEASE_ENVIRONMENT,
     storeExtensionCapability: process.env.HUAYI_STORE_EXTENSION_CAPABILITY,
+    storeBuildProfile: process.env.HUAYI_STORE_BUILD_PROFILE,
     webOrigin: process.env.HUAYI_RELEASE_WEB_ORIGIN,
   });
   if (process.argv[2] === "development-blocked") {

@@ -198,6 +198,14 @@ Store 与上方 Classic Native Host 安装相互独立。已获相应安装授�
 现有条目点击“重新加载”，保留 ID 与配置，不要先卸载。普通 build/E2E 输出到 `dist-release`，不覆盖
 Hosted 安装；该离线包不能替代云端包。真实重载、配对与 Windows 视觉验收需在 Windows 另行完成。
 
+## 个人正式版扩展
+
+正式环境上线且获得相应安装确认后，在项目目录运行 `pnpm production:store:build`，加载
+`apps/store-extension/dist-production`；`pnpm production:store:status` 只检查现有包。
+正式 ID 为 `enlolhfodncfnleiihkjanhmnfbgeggh`，与 Hosted 独立，可同时保留并分别配对。
+构建脚本通过 Node 执行 pnpm 入口，不依赖 POSIX 环境变量命令。离线构建不代替 Windows 实际加载、
+配对与浏览器验收；该包尚不代表 Chrome Web Store 发布。
+
 ## 官方接口依据
 
 - [Chrome Native Messaging](https://developer.chrome.com/docs/extensions/develop/concepts/native-messaging)

@@ -1,6 +1,7 @@
 // @vitest-environment node
 
 import { readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 
 import { describe, expect, it } from "vitest";
 
@@ -10,10 +11,11 @@ const privacyPage = readFileSync("apps/web/src/privacy-page.tsx", "utf8");
 const webPackage = JSON.parse(readFileSync("apps/web/package.json", "utf8")) as {
   scripts?: Record<string, string>;
 };
-const webVercel = JSON.parse(readFileSync("apps/web/vercel.json", "utf8")) as Record<
-  string,
-  unknown
->;
+const webVercel = JSON.parse(
+  execFileSync(process.execPath, ["scripts/web-deployment-config.mjs", "hosted-acceptance"], {
+    encoding: "utf8",
+  }),
+) as Record<string, unknown>;
 const manifest = JSON.parse(readFileSync("apps/store-extension/manifest.json", "utf8")) as Record<
   string,
   unknown

@@ -60,4 +60,36 @@ describe("Public privacy page", () => {
       "#privacy-content",
     );
   });
+
+  it("shows the production maintainer and actual hosting limits only for production", async () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    await act(async () =>
+      createRoot(container).render(<PrivacyPage deploymentEnvironment="production" />),
+    );
+
+    expect(container.textContent).toContain("Neil");
+    expect(container.querySelector('a[href="mailto:niu0619@gmail.com"]')).not.toBeNull();
+    expect(container.textContent).toContain("本人及受邀朋友");
+    expect(container.textContent).toContain("新加坡");
+    expect(container.textContent).toContain("东京");
+    expect(container.textContent).toContain("不承诺供应商全部备份副本的固定清除天数");
+    expect(container.textContent).toContain("24 小时内删除");
+    expect(container.textContent).toContain("Google 登录未启用");
+    expect(container.textContent).not.toContain("预发布");
+    expect(container.textContent).not.toContain("正式发布前仍需补齐");
+    expect(container.textContent).not.toContain("备份保留 30 天");
+    expect(container.querySelector("script, iframe, img")).toBeNull();
+  });
+
+  it("keeps the acceptance notice distinct from the production policy", async () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    await act(async () =>
+      createRoot(container).render(<PrivacyPage deploymentEnvironment="hosted-acceptance" />),
+    );
+    expect(container.textContent).toContain("预发布");
+    expect(container.textContent).toContain("正式发布前仍需补齐");
+    expect(container.textContent).not.toContain("本人及受邀朋友");
+  });
 });

@@ -92,6 +92,27 @@ test("release audit accepts only the reviewed self-contained package", async () 
   });
 });
 
+test("release audit binds a production package to its own source and output directory", async () => {
+  await withReleaseFixture(async (root, distDirectory) => {
+    await writeFile(
+      join(root, "apps/store-extension/manifest.production.json"),
+      JSON.stringify(manifest),
+    );
+    assert.deepEqual(
+      await auditStoreRelease(root, { sourceManifestName: "manifest.production.json" }),
+      [],
+    );
+    await writeFile(
+      join(distDirectory, "manifest.json"),
+      JSON.stringify({ ...manifest, name: "drift" }),
+    );
+    assert.notDeepEqual(
+      await auditStoreRelease(root, { sourceManifestName: "manifest.production.json" }),
+      [],
+    );
+  }, "dist-production");
+});
+
 test("release audit accepts one explicitly reviewed Cloud API host without changing defaults", async () => {
   await withReleaseFixture(async (root, distDirectory) => {
     const apiOrigin = "https://api.huayi.production";

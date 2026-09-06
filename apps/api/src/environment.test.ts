@@ -35,6 +35,71 @@ function validHostedEnvironment() {
 }
 
 describe("API security environment", () => {
+  it("keeps the explicit acceptance profile bound to its existing database", () => {
+    const environment = {
+      ...validHostedEnvironment(),
+      HUAYI_API_ORIGIN: "https://api.acceptance.seen-said.cn",
+      HUAYI_WEB_ORIGIN: "https://app.acceptance.seen-said.cn",
+      HUAYI_DATABASE_URL:
+        "postgresql://app.kpadiulxkgckskcfydry:secret@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres?sslmode=verify-full",
+      SUPABASE_URL: "https://kpadiulxkgckskcfydry.supabase.co",
+      HUAYI_DEPLOYMENT_ENVIRONMENT: "hosted-acceptance",
+      VERCEL_DEPLOYMENT_ID: "dpl_acceptance123",
+      VERCEL_GIT_COMMIT_SHA: "0123456789abcdef0123456789abcdef01234567",
+    };
+    expect(parseApiEnvironment(environment)).toMatchObject({
+      HUAYI_DEPLOYMENT_ENVIRONMENT: "hosted-acceptance",
+    });
+    expect(() =>
+      parseApiEnvironment({
+        ...environment,
+        HUAYI_DATABASE_URL: validHostedEnvironment().HUAYI_DATABASE_URL,
+        SUPABASE_URL: validHostedEnvironment().SUPABASE_URL,
+      }),
+    ).toThrow();
+  });
+
+  it("requires an explicit production channel, isolated origins, and deployment identity", () => {
+    const environment = {
+      ...validHostedEnvironment(),
+      HUAYI_API_ORIGIN: "https://api.seen-said.cn",
+      HUAYI_WEB_ORIGIN: "https://app.seen-said.cn",
+      HUAYI_DEPLOYMENT_ENVIRONMENT: "production",
+      HUAYI_DATABASE_URL:
+        "postgresql://app.pxqqgxfumovegbcxnmzb:secret@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres?sslmode=verify-full",
+      SUPABASE_URL: "https://pxqqgxfumovegbcxnmzb.supabase.co",
+      HUAYI_STORE_EXTENSION_ID: "enlolhfodncfnleiihkjanhmnfbgeggh",
+      VERCEL_DEPLOYMENT_ID: "dpl_production123",
+      VERCEL_GIT_COMMIT_SHA: "0123456789abcdef0123456789abcdef01234567",
+    };
+    expect(parseApiEnvironment(environment)).toMatchObject({
+      HUAYI_DEPLOYMENT_ENVIRONMENT: "production",
+    });
+    expect(readApiEnvironment(environment)).toMatchObject({
+      HUAYI_DEPLOYMENT_ENVIRONMENT: "production",
+    });
+    for (const override of [
+      { HUAYI_API_ORIGIN: "https://api.acceptance.seen-said.cn" },
+      { HUAYI_WEB_ORIGIN: "https://app.acceptance.seen-said.cn" },
+      { HUAYI_DEPLOYMENT_ENVIRONMENT: undefined },
+      { HUAYI_DEPLOYMENT_ENVIRONMENT: "hosted-acceptance" },
+      { HUAYI_DEPLOYMENT_ENVIRONMENT: "preview" },
+      { HUAYI_STORE_EXTENSION_ID: "hoijjhgcckfhbcefoclgbhkgninnkknd" },
+      {
+        HUAYI_DATABASE_URL: validHostedEnvironment().HUAYI_DATABASE_URL,
+        SUPABASE_URL: validHostedEnvironment().SUPABASE_URL,
+      },
+      { VERCEL_DEPLOYMENT_ID: undefined, VERCEL_GIT_COMMIT_SHA: undefined },
+      {
+        HUAYI_DATABASE_URL:
+          "postgresql://app.kpadiulxkgckskcfydry:secret@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres?sslmode=verify-full",
+        SUPABASE_URL: "https://kpadiulxkgckskcfydry.supabase.co",
+      },
+    ]) {
+      expect(() => parseApiEnvironment({ ...environment, ...override })).toThrow();
+    }
+  });
+
   it("accepts only one complete Vercel deployment identity pair", () => {
     const commit = "0123456789abcdef0123456789abcdef01234567";
     const deploymentId = "dpl_7Gw5ZMBpQA8h9GF832KGp7nwbuh3";

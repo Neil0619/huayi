@@ -3,9 +3,11 @@ import { Hono, type Hono as HonoApp } from "hono";
 export interface HostedDeploymentIdentity {
   commit: string;
   deploymentId: string;
+  releaseChannel?: "hosted-acceptance" | "production";
 }
 
 interface HostedDeploymentEnvironment {
+  readonly HUAYI_DEPLOYMENT_ENVIRONMENT?: "hosted-acceptance" | "production" | undefined;
   readonly VERCEL_DEPLOYMENT_ID?: string | undefined;
   readonly VERCEL_GIT_COMMIT_SHA?: string | undefined;
 }
@@ -17,8 +19,12 @@ export function hostedDeploymentHeaders(
   identity?: HostedDeploymentIdentity,
 ): Readonly<Record<string, string>> {
   if (identity === undefined) return Object.freeze({});
+  const releaseChannel = identity.releaseChannel ?? "hosted-acceptance";
   if (
-    Object.keys(identity).sort().join("|") !== "commit|deploymentId" ||
+    !["commit|deploymentId", "commit|deploymentId|releaseChannel"].includes(
+      Object.keys(identity).sort().join("|"),
+    ) ||
+    !["hosted-acceptance", "production"].includes(releaseChannel) ||
     !commitPattern.test(identity.commit) ||
     !deploymentIdPattern.test(identity.deploymentId)
   ) {
@@ -27,7 +33,7 @@ export function hostedDeploymentHeaders(
   return Object.freeze({
     "x-huayi-deployment-commit": identity.commit,
     "x-huayi-deployment-id": identity.deploymentId,
-    "x-huayi-release-channel": "hosted-acceptance",
+    "x-huayi-release-channel": releaseChannel,
   });
 }
 
@@ -38,11 +44,15 @@ export function hostedDeploymentIdentityFromEnvironment(
     environment.VERCEL_DEPLOYMENT_ID === undefined ||
     environment.VERCEL_GIT_COMMIT_SHA === undefined
   ) {
+    if (environment.HUAYI_DEPLOYMENT_ENVIRONMENT !== undefined) {
+      throw new TypeError("Explicit deployment environment requires a complete identity.");
+    }
     return undefined;
   }
   return Object.freeze({
     commit: environment.VERCEL_GIT_COMMIT_SHA,
     deploymentId: environment.VERCEL_DEPLOYMENT_ID,
+    releaseChannel: environment.HUAYI_DEPLOYMENT_ENVIRONMENT ?? "hosted-acceptance",
   });
 }
 

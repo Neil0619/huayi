@@ -88,6 +88,7 @@ const localAcceptanceDatabaseUrlSchema = z
 
 const baseEnvironmentShape = {
   HUAYI_API_ORIGIN: exactHttpsOriginSchema,
+  HUAYI_DEPLOYMENT_ENVIRONMENT: z.enum(["hosted-acceptance", "production"]).optional(),
   HUAYI_DATABASE_URL: z.string().startsWith("postgresql://").min(32),
   HUAYI_DEEPSEEK_API_KEY: z.string().min(20),
   HUAYI_DEEPSEEK_LEGACY_PRICE_VERSION_ID: z.string().uuid(),
@@ -155,6 +156,34 @@ const localAcceptanceEnvironmentSchema = z
 
 const apiEnvironmentSchema = z
   .union([resendEnvironmentSchema, localAcceptanceEnvironmentSchema])
+  .refine((environment) => {
+    const channel = environment.HUAYI_DEPLOYMENT_ENVIRONMENT;
+    const productionApi = "https://api.seen-said.cn";
+    const productionWeb = "https://app.seen-said.cn";
+    const acceptanceSupabase = "https://kpadiulxkgckskcfydry.supabase.co";
+    if (channel === undefined) {
+      return (
+        environment.HUAYI_API_ORIGIN !== productionApi &&
+        environment.HUAYI_WEB_ORIGIN !== productionWeb
+      );
+    }
+    if (
+      environment.VERCEL_DEPLOYMENT_ID === undefined ||
+      environment.VERCEL_GIT_COMMIT_SHA === undefined ||
+      environment.HUAYI_SECURITY_NOTIFICATION_MODE !== "resend"
+    ) {
+      return false;
+    }
+    return channel === "production"
+      ? environment.HUAYI_API_ORIGIN === productionApi &&
+          environment.HUAYI_WEB_ORIGIN === productionWeb &&
+          environment.SUPABASE_URL === "https://pxqqgxfumovegbcxnmzb.supabase.co" &&
+          (environment.HUAYI_STORE_EXTENSION_CAPABILITY === "disabled" ||
+            environment.HUAYI_STORE_EXTENSION_ID === "enlolhfodncfnleiihkjanhmnfbgeggh")
+      : environment.HUAYI_API_ORIGIN === "https://api.acceptance.seen-said.cn" &&
+          environment.HUAYI_WEB_ORIGIN === "https://app.acceptance.seen-said.cn" &&
+          environment.SUPABASE_URL === acceptanceSupabase;
+  }, "Deployment channel requires its isolated origins and complete identity.")
   .refine(
     (environment) =>
       environment.HUAYI_STORE_EXTENSION_CAPABILITY === "enabled"
@@ -201,6 +230,9 @@ export function readApiEnvironment(
 ): ApiEnvironment {
   return parseApiEnvironment({
     HUAYI_API_ORIGIN: environment.HUAYI_API_ORIGIN,
+    ...(environment.HUAYI_DEPLOYMENT_ENVIRONMENT === undefined
+      ? {}
+      : { HUAYI_DEPLOYMENT_ENVIRONMENT: environment.HUAYI_DEPLOYMENT_ENVIRONMENT }),
     HUAYI_DATABASE_URL: environment.HUAYI_DATABASE_URL,
     ...(environment.HUAYI_SECURITY_NOTIFICATION_MODE === "resend"
       ? { HUAYI_DATABASE_TLS_CA_BASE64: environment.HUAYI_DATABASE_TLS_CA_BASE64 }

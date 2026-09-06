@@ -21,6 +21,20 @@ test("CI candidate assertion accepts the exact checked-out SHA and bounded relea
   assert.deepEqual(calls, [["git", ["rev-parse", "HEAD"]]]);
 });
 
+test("production CI identity is accepted only for the same checked-out candidate", async () => {
+  for (const checkedOut of [candidate, "2".repeat(40)]) {
+    const result = assertCiCandidate({
+      environment: {
+        HUAYI_CI_CANDIDATE_SHA: candidate,
+        HUAYI_CI_RELEASE_ID: `production-${candidate}`,
+      },
+      runProcess: async () => ({ status: 0, stderr: "", stdout: `${checkedOut}\n` }),
+    });
+    if (checkedOut === candidate) await result;
+    else await assert.rejects(result, /Cross-platform candidate verification failed/u);
+  }
+});
+
 test("CI candidate assertion fails closed for missing, malformed, or mismatched inputs", async () => {
   for (const environment of [
     {},

@@ -173,6 +173,7 @@ test("hosted deployment CLI never reflects invalid environment values", async ()
 
 test("Vite injects a full Vercel commit only for a valid hosted acceptance build", () => {
   const hostedConfiguration = createViteConfiguration({
+    VITE_API_ORIGIN: "https://api.acceptance.seen-said.cn",
     VERCEL_DEPLOYMENT_ID: deploymentId,
     VERCEL_GIT_COMMIT_SHA: commit,
     VITE_DEPLOYMENT_ENVIRONMENT: "hosted-acceptance",
@@ -203,4 +204,29 @@ test("Vite injects a full Vercel commit only for a valid hosted acceptance build
   );
   assert.match(html, /<meta name="huayi-release-channel" content="hosted-acceptance">/u);
   assert.equal(injectHostedDeploymentAttestation("<html></html>", undefined), "<html></html>");
+});
+
+test("Vite attests production separately and rejects incomplete or crossed build identities", () => {
+  const environment = {
+    VITE_DEPLOYMENT_ENVIRONMENT: "production",
+    VITE_API_ORIGIN: "https://api.seen-said.cn",
+    VERCEL_GIT_COMMIT_SHA: commit,
+    VERCEL_DEPLOYMENT_ID: deploymentId,
+  };
+  const configuration = createViteConfiguration(environment);
+  const plugin = configuration.plugins[0];
+  const html = plugin.transformIndexHtml("<html><head></head><body></body></html>");
+  assert.match(html, /<meta name="huayi-release-channel" content="production">/u);
+  assert.doesNotMatch(html, /hosted-acceptance/u);
+  assert.deepEqual(configuration.define, { HUAYI_DEPLOYMENT_COMMIT: JSON.stringify(commit) });
+  for (const override of [
+    { VITE_API_ORIGIN: "https://api.acceptance.seen-said.cn" },
+    { VITE_API_ORIGIN: undefined },
+    { VERCEL_GIT_COMMIT_SHA: undefined },
+    { VERCEL_DEPLOYMENT_ID: undefined },
+    { VITE_DEPLOYMENT_ENVIRONMENT: undefined },
+    { VITE_DEPLOYMENT_ENVIRONMENT: "preview" },
+  ]) {
+    assert.throws(() => createViteConfiguration({ ...environment, ...override }));
+  }
 });

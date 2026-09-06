@@ -14,7 +14,7 @@ import type { WebExternalWordbookApi } from "./external-wordbook-api.js";
 import type { WebAdminOperationsApi } from "./admin-operations-api.js";
 import type { WebStudyCaptureApi } from "./study-capture-api.js";
 import { PrivacyPage } from "./privacy-page.js";
-import type { PublicPage } from "./public-bootstrap.js";
+import type { PublicPage, WebBootstrap } from "./public-bootstrap.js";
 import { PasswordRecoveryPage, type PasswordRecoveryApi } from "./password-recovery-page.js";
 import type { PasswordRecoveryRoute } from "./password-recovery-route.js";
 import { WorkspaceShell } from "./workspace-shell.js";
@@ -54,6 +54,7 @@ function AppSurface({
   page,
   pairingId,
   publicPage,
+  publicDeploymentEnvironment,
   passwordRecoveryApi,
   passwordRecoveryRoute,
   replaceRecoveryUrl = () => history.replaceState(null, "", "/recover"),
@@ -80,12 +81,14 @@ function AppSurface({
   readonly page?: CloudPage | undefined;
   readonly pairingId?: string | undefined;
   readonly publicPage?: PublicPage | undefined;
+  readonly publicDeploymentEnvironment?: WebBootstrap["publicDeploymentEnvironment"];
   readonly passwordRecoveryApi?: PasswordRecoveryApi | undefined;
   readonly passwordRecoveryRoute?: PasswordRecoveryRoute | undefined;
   readonly replaceInvitationUrl?: (() => void) | undefined;
   readonly replaceRecoveryUrl?: (() => void) | undefined;
 }) {
-  if (publicPage === "privacy") return <PrivacyPage />;
+  if (publicPage === "privacy")
+    return <PrivacyPage deploymentEnvironment={publicDeploymentEnvironment} />;
   if (passwordRecoveryApi !== undefined && passwordRecoveryRoute !== undefined) {
     return (
       <PasswordRecoveryPage

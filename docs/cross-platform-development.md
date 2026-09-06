@@ -38,6 +38,10 @@ CC／切轨、`zh-Hans`、SPA、剧院／全屏、选词和生词本。
   Keychain。其他平台必须返回 unsupported，不得回退到 `.env`、环境变量、stdin 或明文文件。
 - Hosted 数据库 consumer 的公开 CA 获取是共享 HTTP 合同：固定官方 URL、有界响应、严格 PEM，并在 fake
   fetch 下做双平台回归；操作者不配置 CA 环境变量，真实下载与 Keychain 读取只在获批 macOS 运维中执行。
+- 正式环境初始化凭据使用独立 Keychain service。`production-credentials` 的隔离、隐藏输入和重复配置
+  保留行为使用 fake process 在双平台验证；真实保存和读取只能在操作者 macOS 上验收。
+- 个人正式版 Store 使用独立 `production` profile、`dist-production` 和固定 ID；构建及包审计属于
+  shared 离线门，两个平台都必须通过。真实 Chrome 安装和配对仍分别在目标平台确认。
 - Hosted 首次密码恢复/Cron 引导的状态判断、HTTP worker 与严格 parser 属于 shared 合同，必须在 macOS
   和 Windows 以 fake database/HTTP/credential 验证；真实 Vault、Vercel、Keychain 与邮件投递只在获批
   macOS 运维机执行，Windows 不新增凭据或明文回退。
@@ -193,3 +197,8 @@ Status: `implemented; target-platform validation pending`。影响 `shared`：St
 Windows 发布前仍须运行 `pnpm verify:windows`，并在获准更新的同一 Store 扩展上人工复核：
 关闭批准页后可重新打开；批准后设置页及时显示“断开”；平台翻译不误报缺密钥或丢失关联；
 断开后不会被晚到的旧请求恢复。双平台 CI 和真实账号/模型链路仍未验证，未使用废弃的 Windows Codex 项目。
+
+正式密钥生成与现有 Hosted 内部 keyring 共用的 macOS 保存端口增加真实系统命令回归：
+只运行 `security -i` 的帮助命令，验证 Node socket 输入兼容性，不访问实际 Keychain 条目。
+Windows 跳过这一个 macOS 系统原语，其余序列化、失败关闭、隔离和进程测试在双平台运行。
+正式初始化另有本机生成与完整回读验收，不能用 CI 的虚构密钥结果代替。

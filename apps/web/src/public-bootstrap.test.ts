@@ -7,6 +7,18 @@ describe("public Web bootstrap", () => {
     expect(resolveWebBootstrap("/privacy", {})).toEqual({ publicPage: "privacy" });
   });
 
+  it("selects the public privacy channel without requiring authentication or API configuration", () => {
+    for (const channel of ["production", "hosted-acceptance"]) {
+      expect(resolveWebBootstrap("/privacy", { VITE_DEPLOYMENT_ENVIRONMENT: channel })).toEqual({
+        publicPage: "privacy",
+        publicDeploymentEnvironment: channel,
+      });
+    }
+    expect(
+      resolveWebBootstrap("/privacy", { VITE_DEPLOYMENT_ENVIRONMENT: "unrecognized" }),
+    ).toEqual({ publicPage: "privacy" });
+  });
+
   it("keeps unknown and near-match routes behind strict environment parsing", () => {
     expect(resolveWebBootstrap("/privacy/", {})).toEqual({});
     expect(resolveWebBootstrap("/app", {})).toEqual({});

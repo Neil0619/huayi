@@ -543,6 +543,14 @@ owner context、generation/reservation 归属、task 成功或失败终态、价
 
 ## 10. 发布前未决的外部事实
 
+个人及朋友使用同样保留测试与正式资源隔离。显式发布渠道同时约束 Web/API 地址、完整版本身份与
+Supabase 项目关系；正式配置拒绝既有验收数据库。具体变量、当前兼容行为与未完成的正式门禁见
+[测试与正式环境](production-environments.md)。运行时校验不证明云资源已创建或正式发布已完成。
+
+正式 Store 固定使用独立公钥/ID `enlolhfodncfnleiihkjanhmnfbgeggh` 和正式 API/Web，输出到
+`dist-production`；API 正式渠道拒绝将 Hosted ID 配为正式客户端。两个扩展的浏览器存储、设备配对与
+本地密钥独立，更新一个构建不能覆盖另一个输出目录。公钥只固定手动加载身份，不保存私钥。
+
 隔离验收环境是 production 前的强制安全门：local 只绑定 loopback 受信任 HTTPS，hosted acceptance
 使用独立数据库/Auth/Storage/OAuth client/secret/Provider Key/额度且不复制 production 数据。hosted
 acceptance 首选自有根域下的同站 Web/API 子域并保持精确 CORS/Origin/CSRF；无域名时才通过单一 gateway

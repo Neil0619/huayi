@@ -3,6 +3,7 @@ import { join } from "node:path";
 
 import { rejectLegacyHostedCredentialEnvironment } from "./acceptance-hosted-credentials.mjs";
 import { hostedReleaseBranch } from "./acceptance-hosted-release-contract.mjs";
+import { readWebDeploymentConfig } from "./web-deployment-config.mjs";
 import {
   hostedReleaseChildEnvironment,
   runHostedReleaseProcess,
@@ -47,18 +48,19 @@ function isDisarmed(source) {
 
 export async function inspectHostedReleaseGit({
   readFile = readFileFromDisk,
+  readWebConfig = readWebDeploymentConfig,
   repositoryRoot = process.cwd(),
   runProcess = runHostedReleaseProcess,
 } = {}) {
   try {
-    const [root, branch, status, candidate, upstream, apiSource, webSource] = await Promise.all([
+    const [root, branch, status, candidate, upstream, apiSource, webConfig] = await Promise.all([
       runGit(runProcess, repositoryRoot, ["rev-parse", "--show-toplevel"]),
       runGit(runProcess, repositoryRoot, ["symbolic-ref", "--quiet", "--short", "HEAD"]),
       runGit(runProcess, repositoryRoot, ["status", "--porcelain=v1", "--untracked-files=normal"]),
       runGit(runProcess, repositoryRoot, ["rev-parse", "HEAD"]),
       runGit(runProcess, repositoryRoot, ["rev-parse", "@{upstream}"]),
       readFile(join(repositoryRoot, "apps/api/vercel.json"), "utf8"),
-      readFile(join(repositoryRoot, "apps/web/vercel.json"), "utf8"),
+      readWebConfig(repositoryRoot, "hosted-acceptance"),
     ]);
     const actualRoot = line(root, /^\/.+/u);
     const actualBranch = line(branch, /^[A-Za-z0-9._/-]{1,200}$/u);
@@ -69,7 +71,7 @@ export async function inspectHostedReleaseGit({
       actualBranch !== hostedReleaseBranch ||
       status !== "" ||
       !isDisarmed(apiSource) ||
-      !isDisarmed(webSource)
+      webConfig?.git?.deploymentEnabled !== false
     ) {
       fail();
     }

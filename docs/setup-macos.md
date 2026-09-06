@@ -246,6 +246,40 @@ Supabase/Vercel Token 必须由操作者在供应商侧创建为其选定的长�
 invalid 均失败关闭。完整 account、轮换/删除、消费和远端授权边界见
 `docs/cloud-v1/hosted-credential-operations.md`。
 
+## 配置正式环境初始化凭据
+
+正式环境操作者在项目根目录运行 `pnpm production:credentials:configure`，按顺序在系统隐藏提示中
+输入正式项目的 Supabase management token 和创建项目时保存的数据库管理员密码。不要将值放进
+聊天、命令参数或环境变量。Token 在供应商侧限制为正式项目和初始化所需权限，并设置到期时间。
+
+工具使用独立 Keychain service `cn.seen-said.huayi.production`，不会覆盖验收凭据；重复执行会验证并
+保留已存在的正式凭据。输入完成后运行 `pnpm production:credentials:status`，两项应为 `present`。
+该状态只表示本机保存成功，远端项目身份和权限仍需另外核对。工具仅支持 macOS；Windows 无明文回退。
+只配置其中一项时可追加 `--name supabase-management-token` 或 `--name supabase-admin-db-password`。
+管理令牌必须以 `sbp_` 开头，不能填入数据库密码或项目 API key；两种凭据的系统输入都不显示字符。
+若保存错了某一项，仅运行 `pnpm production:credentials:rotate --name supabase-management-token`
+（或对应数据库密码 account）重新输入。轮换必须明确一项，不支持无参数批量覆盖。
+
+正式运行时的外部 key 也保存在同一独立 service，但必须逐项指定，不加入上述默认初始化提示：
+
+```bash
+pnpm production:credentials:configure --name deepseek-api-key
+pnpm production:credentials:configure --name resend-smtp-key
+pnpm production:credentials:configure --name resend-notification-key
+```
+
+DeepSeek 使用单独创建的正式 key。两份 Resend key 分别用于 Supabase Auth SMTP 和 API 安全通知，
+均选择 Sending access 并限制到 `notify.seen-said.cn`，不要复用验收 key 或选择 Full access。
+命令只保存本机凭据；不会配置云端 SMTP、调用模型或发送邮件。逐项检查时使用
+`pnpm production:credentials:status --name <上述 account>`；默认 status 仍只检查两项初始化凭据。
+
+## 个人正式版扩展
+
+正式环境上线并完成相应浏览器安装确认后，使用 `pnpm production:store:build` 构建并检查独立包，
+`pnpm production:store:status` 只读取检查结果。加载目录为 `apps/store-extension/dist-production`，
+ID 固定为 `enlolhfodncfnleiihkjanhmnfbgeggh`，可以和 Hosted 测试版同时保留。
+正式版单独配对正式账号；它不继承测试版的数据、设备配对或本地密钥，不属于 Chrome Web Store 发布。
+
 ## 使用 Hosted acceptance Store Extension（验收环境）
 
 这不是 Chrome Web Store 安装，也不会替换 Classic 0.13 Native Host。只有 Hosted acceptance 的 exact-SHA
@@ -688,3 +722,9 @@ Host 文件都会保留以便重试。卸载不会自动删除
 `pnpm host:compatible:key:remove`。卸载不会删除 Chrome 父目录、其他 Native Messaging 清单或
 上述精确项之外的钥匙串项。若只想升级或重装，请重复执行安装命令，不要先卸载，这样所有
 钥匙串项都会保留。
+
+正式运行密钥由发布配置流程调用 `loadProductionRuntimeSecrets({ createIfMissing: true })` 首次生成，保存在
+独立 Keychain service 的 `runtime-generated-secrets-v1` 条目；平时只读，缺失或损坏时失败关闭。
+自动生成内容通过 `/usr/bin/security -i` 的标准输入传入十六进制数据，并逐项完整回读，避免系统密码
+提示对长内容的截断。秘密不进入进程参数、环境、临时文件或输出。操作者输入的管理令牌和数据库
+密码仍使用原来的系统隐藏提示。

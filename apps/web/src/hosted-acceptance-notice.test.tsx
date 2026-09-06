@@ -16,4 +16,15 @@ describe("hosted acceptance notice", () => {
   it("renders nothing without a validated hosted commit", () => {
     expect(renderToStaticMarkup(<HostedAcceptanceNotice />)).toBe("");
   });
+
+  it("does not label a production build as hosted acceptance", () => {
+    expect(
+      renderToStaticMarkup(
+        <HostedAcceptanceNotice
+          commit="0123456789abcdef0123456789abcdef01234567"
+          environment="production"
+        />,
+      ),
+    ).toBe("");
+  });
 });

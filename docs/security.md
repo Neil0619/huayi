@@ -39,6 +39,15 @@ timeout 和终止信号后清理。默认测试只使用 fake store/process/HTTP
 Keychain `present/available` 只证明本机读取能力，不授权任何 Hosted/Vercel 读取或变更。完整生命周期、
 固定标识和单独授权门见 [`cloud-v1/hosted-credential-operations.md`](cloud-v1/hosted-credential-operations.md)。
 
+正式环境初始化凭据固定使用 `cn.seen-said.huayi.production`，默认仅处理
+`supabase-management-token` 和 `supabase-admin-db-password`。操作者直接在 macOS 系统隐藏提示中
+输入；脚本不接收秘密参数、环境变量或文件，普通配置保留现有凭据；只有明确指定 account 的 `rotate`
+才会替换对应本机项。管理 Token 校验 `sbp_` 前缀，防止误填数据库密码。状态命令只检查存在性，消费者在内存中
+读取并校验值；错误仅返回固定信息。它与验收 Keychain service 独立，不代表已配置云端运行时密钥。
+正式 `deepseek-api-key`、`resend-smtp-key` 和 `resend-notification-key` 必须明确指定 account 后配置，
+校验对应供应商前缀且不接收明文环境变量。两份 Resend key 应分别限制为正式邮件域的 Sending access，
+保存 key 不授权发信、模型调用或扩大供应商权限；部署时仍核对实际目标和所需权限。
+
 ## Windows DeepSeek 与欧路凭据
 
 Windows 不读取 macOS 钥匙串，也不接收命令参数、环境变量、仓库文件或扩展消息中的秘密。
@@ -436,3 +445,8 @@ macOS 文件固定为当前用户 `0600`，Windows 继承 `%LOCALAPPDATA%` 用�
 旧版完成词只迁移为 `legacy-completed`，不声称已经进入扇贝。历史全量再审计默认只读；确认
 探针命令只能重新排队一个由用户确认已存在于扇贝的词。只有该词没有出现在扇贝拒绝残留中，
 Host 才记录探针已接受并允许确认全量重新入队；否则保持其余旧状态不变。
+
+正式环境的应用数据库密码、会话加密密钥、pepper 与 Cron secret 独立随机生成，保存在
+`cn.seen-said.huayi.production/runtime-generated-secrets-v1`，不从验收环境或管理凭据派生。
+程序保存长密钥内容使用系统 `security -i`，只在丢弃输出的 stdin 中发送十六进制数据，随后完整回读；
+不通过 argv、环境、文件或日志传递，也不自动覆盖损坏或已有条目。

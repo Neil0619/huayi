@@ -112,7 +112,10 @@ const page = cloudPageFromPathname(location.pathname) ?? "inbox";
 
 createRoot(root).render(
   <StrictMode>
-    <HostedAcceptanceNotice commit={bootstrap.environment?.VITE_DEPLOYMENT_COMMIT} />
+    <HostedAcceptanceNotice
+      commit={bootstrap.environment?.VITE_DEPLOYMENT_COMMIT}
+      environment={bootstrap.environment?.VITE_DEPLOYMENT_ENVIRONMENT}
+    />
     <LocalAcceptanceNotice mode={acceptanceModel === "simulated" ? "simulated" : undefined} />
     <App
       api={api}
@@ -127,6 +130,7 @@ createRoot(root).render(
       passwordRecoveryApi={identity}
       passwordRecoveryRoute={passwordRecoveryRoute}
       publicPage={bootstrap.publicPage}
+      publicDeploymentEnvironment={bootstrap.publicDeploymentEnvironment}
       replaceInvitationUrl={() => history.replaceState(null, "", "/join")}
       replaceRecoveryUrl={() => history.replaceState(null, "", "/recover")}
     />

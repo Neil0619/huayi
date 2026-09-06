@@ -150,7 +150,7 @@ test("keyring rejects unsupported platforms and malformed or inaccessible Keycha
   }
 });
 
-test("prompt runner sends the secret only through a discarded pseudo-terminal input pipe", async () => {
+test("keychain writer sends long secret data only through discarded interactive stdin", async () => {
   const child = new EventEmitter();
   child.stdin = new PassThrough();
   child.kill = () => true;
@@ -176,16 +176,14 @@ test("prompt runner sends the secret only through a discarded pseudo-terminal in
   const result = await resultPromise;
 
   assert.deepEqual(result, { code: 0 });
-  assert.equal(invocation.command, "/usr/bin/script");
-  assert.deepEqual(invocation.arguments_.slice(0, 4), [
-    "-q",
-    "-e",
-    "/dev/null",
-    "/usr/bin/security",
-  ]);
+  assert.equal(invocation.command, "/usr/bin/security");
+  assert.deepEqual(invocation.arguments_, ["-i"]);
   assert.deepEqual(invocation.options.stdio, ["pipe", "ignore", "ignore"]);
   assert.equal(invocation.options.shell, false);
   assert.equal(JSON.stringify(invocation).includes(secret), false);
   assert.equal(JSON.stringify(invocation.options.env).includes("must-not-propagate"), false);
-  assert.equal(Buffer.concat(received).toString("utf8"), `${secret}\n`);
+  assert.equal(
+    Buffer.concat(received).toString("utf8"),
+    `"add-generic-password" "-s" "${hostedCredentialService}" -X ${Buffer.from(secret).toString("hex")}\n`,
+  );
 });

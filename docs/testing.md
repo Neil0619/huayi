@@ -81,6 +81,12 @@ Hosted 运维凭据测试固定使用 fake Keychain/fake process/fake HTTP，不
 `SIGHUP`/`SIGINT`/`SIGTERM` 清理；Hosted/Vercel 生产脚本静态扫描禁止四类基础设施秘密的 runtime prompt
 与 `PGPASSWORD`/Token child environment。真实 Keychain 持久化只在另行批准的 macOS 人工验收中执行，
 且凭据可用不等于允许任何远端动作。
+正式环境 `production-credentials.test.mjs` 使用独立 fake Keychain，证明配置正式凭据不会读取或覆盖
+验收凭据、重复配置保留旧值、无 TTY/Windows/明文环境变量失败关闭，且日志和异常不包含秘密。
+轮换回归必须证明只替换指定的正式 account；误填数据库密码的管理令牌必须校验失败。
+三项外部运行 key 的回归必须证明只有显式 account 才触发输入、供应商前缀不混用，且默认初始化
+仍只处理两项 Supabase 凭据；fake 测试不证明供应商侧的域名权限或云端配置已完成。
+默认测试不写真实 Keychain；真实 macOS 隐藏输入及保存后的读取仍需人工验收。
 Hosted 数据库 consumer 还必须注入 fake official-CA fetch，证明固定 CA 在 Keychain credential 读取前取得、
 传给临时 `0600` root certificate，并且调用方不需要 CA 环境变量；默认门不得下载真实 CA。
 Hosted 首次密码恢复/Cron bootstrap 回归还必须覆盖：R3-C 为空时只接受唯一 claimable recovery；只读
@@ -211,6 +217,9 @@ DOM、零卡片横向溢出和独立 `pearl | parchment` 材质。fake 不发 HT
 加载和第三方验收。
 
 普通 workspace build 同样固定为 release；它与 Hosted 验收安装的 `apps/store-extension/dist` 隔离。
+正式 `production` profile 单独生成 `dist-production`，固定公钥/ID 与正式 API/Web；配置测试对六个入口
+检查三个目录分离，并实际编译正式 Worker 验证只有正式地址。发布检查编译真正的 `cloud-build-profile.ts`，
+核对消费者调用与最终包，不能再读取已删除的旧内联常量，也不能仅靠包中出现某个 URL 判定可用。
 构建回归在临时目录生成两套真实产物，检查完整普通构建不会改写 Hosted manifest/key 或 Worker。
 重启回归复用 fake `storage.local`、每次丢弃 `storage.session`，执行实际打包 Worker 三次，确认外观、
 服务商、全部三类加密凭据、站点规则、安装标识及有效配对会话保留；不读取本机 Chrome 数据。
@@ -352,3 +361,8 @@ fail-closed 行为。Windows CI 会实际产出并运行 SEA `.exe` 的 health �
 本机命令：`pnpm exec vitest run --project store-extension --project store-domain`，结果 642/642。
 关联 Web/API 定向测试 15/15，`interface-layout.spec.ts`、`pairing-layout.spec.ts` 与
 `cloud-pairing-approval-journey.spec.ts` 共 7/7。真实模型、用户 Chrome 配对与 Windows 完整门禁未执行。
+
+正式运行密钥回归见 `scripts/production-runtime-credentials.test.mjs`；覆盖独立生成、只读失败、
+旧值保护、损坏状态与写入不确定性。`scripts/macos-keychain-prompt.test.mjs` 覆盖长 Unicode 内容
+无损传输，以及 macOS 系统 `security -i` 对 Node stdin 的实际兼容性；该本机检查仅查看命令帮助，
+不读取或创建 Keychain 条目。真实正式密钥生成与回读单独保存在发布回执中。

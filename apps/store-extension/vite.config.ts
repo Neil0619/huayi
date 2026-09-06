@@ -22,15 +22,31 @@ const PAGE_ASSETS = {
   popup: ["popup.html", "popup.css", "brand-theme.css", "page-ui.css"],
 } as const;
 const SHARED_CONTENT_ASSETS = ["overlay.css"] as const;
-type StoreBuildProfile = "hosted-acceptance" | "release";
-
-const HOSTED_ACCEPTANCE_API_ORIGIN = "https://api.acceptance.seen-said.cn";
-const HOSTED_ACCEPTANCE_WEB_ORIGIN = "https://app.acceptance.seen-said.cn";
-const HOSTED_ACCEPTANCE_WEB_WORKSPACE_URL = `${HOSTED_ACCEPTANCE_WEB_ORIGIN}/app`;
+const buildProfiles = {
+  release: {
+    apiOrigin: null,
+    webOrigin: null,
+    directory: "dist-release",
+    manifest: "manifest.json",
+  },
+  "hosted-acceptance": {
+    apiOrigin: "https://api.acceptance.seen-said.cn",
+    webOrigin: "https://app.acceptance.seen-said.cn",
+    directory: "dist",
+    manifest: "manifest.hosted-acceptance.json",
+  },
+  production: {
+    apiOrigin: "https://api.seen-said.cn",
+    webOrigin: "https://app.seen-said.cn",
+    directory: "dist-production",
+    manifest: "manifest.production.json",
+  },
+} as const;
+type StoreBuildProfile = keyof typeof buildProfiles;
 
 function storeBuildProfile(value: string | undefined): StoreBuildProfile {
   if (value === undefined || value === "release") return "release";
-  if (value === "hosted-acceptance") return value;
+  if (value === "hosted-acceptance" || value === "production") return value;
   throw new Error("Store Extension build profile is invalid.");
 }
 
@@ -44,12 +60,7 @@ function copyManifest(buildProfile: StoreBuildProfile, outputDirectory: string):
     async closeBundle() {
       await mkdir(buildOutputDirectory, { recursive: true });
       await copyFile(
-        resolve(
-          extensionRoot,
-          buildProfile === "hosted-acceptance"
-            ? "manifest.hosted-acceptance.json"
-            : "manifest.json",
-        ),
+        resolve(extensionRoot, buildProfiles[buildProfile].manifest),
         resolve(buildOutputDirectory, "manifest.json"),
       );
       await Promise.all(
@@ -87,10 +98,8 @@ export function createStoreExtensionConfig(
     requestedBuildProfile ?? process.env.HUAYI_STORE_BUILD_PROFILE,
   );
   // Keep the paired hosted install at its existing path; offline builds must never replace it.
-  const outputDirectory = resolve(
-    extensionRoot,
-    buildProfile === "hosted-acceptance" ? "dist" : "dist-release",
-  );
+  const profile = buildProfiles[buildProfile];
+  const outputDirectory = resolve(extensionRoot, profile.directory);
   const isContentBuild = mode === "content";
   const isOptionsBuild = mode === "options";
   const isPopupBuild = mode === "popup";
@@ -98,15 +107,11 @@ export function createStoreExtensionConfig(
   const isYouTubeMainBuild = mode === "youtube-main";
   return {
     define: {
-      HUAYI_CLOUD_API_ORIGIN_BUILD_VALUE: JSON.stringify(
-        buildProfile === "hosted-acceptance" ? HOSTED_ACCEPTANCE_API_ORIGIN : null,
-      ),
+      HUAYI_CLOUD_API_ORIGIN_BUILD_VALUE: JSON.stringify(profile.apiOrigin),
       HUAYI_WEB_WORKSPACE_URL_BUILD_VALUE: JSON.stringify(
-        buildProfile === "hosted-acceptance" ? HOSTED_ACCEPTANCE_WEB_WORKSPACE_URL : null,
+        profile.webOrigin === null ? null : `${profile.webOrigin}/app`,
       ),
-      HUAYI_WEB_ORIGIN_BUILD_VALUE: JSON.stringify(
-        buildProfile === "hosted-acceptance" ? HOSTED_ACCEPTANCE_WEB_ORIGIN : null,
-      ),
+      HUAYI_WEB_ORIGIN_BUILD_VALUE: JSON.stringify(profile.webOrigin),
     },
     resolve: {
       alias: workspaceAliases,

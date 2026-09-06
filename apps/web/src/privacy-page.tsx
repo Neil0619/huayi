@@ -1,3 +1,10 @@
+import type { WebEnvironment } from "./environment.js";
+import {
+  ProductionPrivacyContact,
+  ProductionPrivacyDetails,
+  productionPrivacyNotice,
+} from "./production-privacy-details.js";
+
 const POLICY_LINKS = [
   {
     href: "https://developer.chrome.com/docs/webstore/program-policies/privacy",
@@ -23,7 +30,12 @@ export const privacyNotice: PrivacyNotice = {
   releaseStatus: "pre-release",
 };
 
-export function PrivacyPage() {
+export function PrivacyPage({
+  deploymentEnvironment,
+}: {
+  deploymentEnvironment?: WebEnvironment["VITE_DEPLOYMENT_ENVIRONMENT"];
+} = {}) {
+  const production = deploymentEnvironment === "production";
   return (
     <div className="privacy-page">
       <a className="skip-link" href="#privacy-content">
@@ -43,10 +55,13 @@ export function PrivacyPage() {
       <main id="privacy-content">
         <article className="privacy-notice">
           <header className="privacy-title">
-            <p className="eyebrow">PUBLIC TRUST · PRE-RELEASE</p>
+            <p className="eyebrow">
+              {production ? "PRIVACY · SEEN & SAID" : "PUBLIC TRUST · PRE-RELEASE"}
+            </p>
             <h1>语见 Cloud V1 隐私说明</h1>
             <p className="privacy-status" role="status">
-              预发布隐私说明 · 最后更新 {privacyNotice.effectiveDate}
+              {production ? "正式站隐私说明" : "预发布隐私说明"} · 最后更新{" "}
+              {production ? productionPrivacyNotice.effectiveDate : privacyNotice.effectiveDate}
             </p>
             <p>
               语见帮助中文英语学习者理解主动选择的英文，并把用户主动提交的结果连接到同一学习、整理与
@@ -54,19 +69,27 @@ export function PrivacyPage() {
             </p>
           </header>
 
-          <aside className="privacy-callout" aria-labelledby="prerelease-title">
-            <h2 id="prerelease-title">正式发布前仍需补齐</h2>
-            <p>
-              运营主体、联系方式、实际部署区域和备份残留期限仍待真实环境与发布责任人确认。语见不会
-              用占位值或猜测数字伪装正式政策；这些事实补齐前不会开放邀请或提交商店。
-            </p>
-            <p>未成年人适用规则、适用法律和争议处理方式也必须在正式发布前由责任人确认。</p>
-          </aside>
+          {production ? (
+            <ProductionPrivacyDetails />
+          ) : (
+            <aside className="privacy-callout" aria-labelledby="prerelease-title">
+              <h2 id="prerelease-title">正式发布前仍需补齐</h2>
+              <p>
+                运营主体、联系方式、实际部署区域和备份残留期限仍待真实环境与发布责任人确认。语见不会
+                用占位值或猜测数字伪装正式政策；这些事实补齐前不会开放邀请或提交商店。
+              </p>
+              <p>未成年人适用规则、适用法律和争议处理方式也必须在正式发布前由责任人确认。</p>
+            </aside>
+          )}
 
           <section aria-labelledby="data-title">
             <h2 id="data-title">我们处理的数据</h2>
             <ul>
-              <li>账号资料：邮箱、Google 基础身份、邀请状态、设备标签和安全会话元数据。</li>
+              <li>
+                {production
+                  ? "账号资料：邮箱、邀请状态、设备标签和安全会话元数据。"
+                  : "账号资料：邮箱、Google 基础身份、邀请状态、设备标签和安全会话元数据。"}
+              </li>
               <li>
                 学习内容：主动选择的英文与必要上下文、可选来源标题、模型分析、候选、单词、表达、
                 句型、标签、练习题、回答、对话、反馈和自评。
@@ -91,7 +114,11 @@ export function PrivacyPage() {
               </li>
               <li>DeepSeek 接收 platform 查询、Web 分析、建议和练习所需的最小英文与固定指令。</li>
               <li>Supabase 与 Vercel 承载身份、数据库、私有导出对象、API 和 Web。</li>
-              <li>Google 只用于用户选择的登录；邮件提供商用于验证、恢复和安全通知。</li>
+              <li>
+                {production
+                  ? "Google 登录未启用；Resend 用于验证、恢复和安全通知。"
+                  : "Google 只用于用户选择的登录；邮件提供商用于验证、恢复和安全通知。"}
+              </li>
               <li>
                 Eudic 与 Shanbay 只在用户显式创建任务时接收最小词条数据；Shanbay 最终提交仍由用户
                 点击。
@@ -125,10 +152,19 @@ export function PrivacyPage() {
                 用量账本。
               </li>
               <li>用户可以删除符合安全边界的单条记录、导出词表，或请求完整账号数据导出。</li>
-              <li>账号删除立即撤销会话，主数据库内容在 24 小时内删除；备份残留期限仍待核验。</li>
+              <li>
+                账号删除立即撤销会话，主数据库内容在 24 小时内删除
+                {production ? "。" : "；备份残留期限仍待核验。"}
+              </li>
               <li>完整账号导出 ready 后 24 小时过期，每个签名下载地址最长 15 分钟。</li>
               <li>Extension 待提交箱最多 20 条、5 MiB、7 天过期，用户可提前清空。</li>
             </ul>
+            {production && (
+              <p>
+                {productionPrivacyNotice.backupRetention} 如需进一步的删除协助，请联系{" "}
+                <ProductionPrivacyContact />。
+              </p>
+            )}
             <p>
               撤回语见数据联网同意后，Extension 停止 platform 查询、StudyCapture、CloudWordCopy 和
               云端外部词典任务，并清除尚未提交的账号绑定正文；既有云端数据仍可浏览、导出或删除，
@@ -139,8 +175,8 @@ export function PrivacyPage() {
           <section aria-labelledby="google-title">
             <h2 id="google-title">Google 数据与 Limited Use</h2>
             <p>
-              Google 只用于用户主动选择的登录；语见不读取 Google Drive、Gmail、联系人或其他 Google
-              产品资料。
+              {production ? "正式站 Google 登录未启用；" : "Google 只用于用户主动选择的登录；"}
+              语见不读取 Google Drive、Gmail、联系人或其他 Google 产品资料。
             </p>
             <p lang="en">
               The use of information received from Google APIs will adhere to the Chrome Web Store
@@ -161,8 +197,15 @@ export function PrivacyPage() {
             <h2 id="security-title">安全、费用与政策变化</h2>
             <p>
               传输使用 TLS，Cloud 数据以账号和数据库 RLS 隔离。平台模型使用账号额度；BYOK 与第三方
-              费用由用户和对应供应商结算。任何系统都无法保证绝对安全，正式发布前会补充安全联系与
-              事故通知方式。
+              费用由用户和对应供应商结算。
+              {production ? (
+                <>
+                  安全问题请联系 <ProductionPrivacyContact />
+                  ；影响账号的事故通过账号邮箱通知。
+                </>
+              ) : (
+                "任何系统都无法保证绝对安全，正式发布前会补充安全联系与事故通知方式。"
+              )}
             </p>
             <p>
               实质改变数据种类、触发条件、接收方、用途或保留规则时，语见会先更新本页和商店披露，

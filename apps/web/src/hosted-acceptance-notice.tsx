@@ -1,5 +1,11 @@
-export function HostedAcceptanceNotice({ commit }: { readonly commit?: string | undefined }) {
-  if (commit === undefined) return null;
+export function HostedAcceptanceNotice({
+  commit,
+  environment = "hosted-acceptance",
+}: {
+  readonly commit?: string | undefined;
+  readonly environment?: "hosted-acceptance" | "production" | undefined;
+}) {
+  if (commit === undefined || environment !== "hosted-acceptance") return null;
   return (
     <aside className="acceptance-environment-notice" data-deployment-commit={commit} role="status">
       <strong>Hosted 验收 · {commit.slice(0, 7)}</strong>

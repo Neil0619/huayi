@@ -36,6 +36,7 @@ test("Git inspection binds one clean disarmed candidate and allows only local-ah
   assert.deepEqual(
     await inspectHostedReleaseGit({
       readFile,
+      readWebConfig: () => ({ git: { deploymentEnabled: false } }),
       repositoryRoot: "/repo",
       runProcess: fakeGit(outputs, calls),
     }),

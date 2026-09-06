@@ -4,7 +4,7 @@ import { pathToFileURL } from "node:url";
 
 const execFileAsync = promisify(execFile);
 const commitPattern = /^[0-9a-f]{40}$/u;
-const releasePattern = /^hosted-acceptance-([0-9a-f]{40})$/u;
+const releasePattern = /^(?:hosted-acceptance|production)-([0-9a-f]{40})$/u;
 const failureMessage = "Cross-platform candidate verification failed.";
 
 function fail() {

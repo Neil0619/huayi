@@ -2,6 +2,26 @@ import { expect, it } from "vitest";
 
 import { parseWebEnvironment } from "./environment.js";
 
+it("binds production to its own API and a validated commit", () => {
+  const environment = {
+    VITE_API_ORIGIN: "https://api.seen-said.cn",
+    VITE_DEPLOYMENT_COMMIT: "0123456789abcdef0123456789abcdef01234567",
+    VITE_DEPLOYMENT_ENVIRONMENT: "production",
+  };
+  expect(parseWebEnvironment(environment)).toEqual(environment);
+  for (const override of [
+    { VITE_API_ORIGIN: "https://api.acceptance.seen-said.cn" },
+    { VITE_DEPLOYMENT_ENVIRONMENT: "hosted-acceptance" },
+    { VITE_DEPLOYMENT_ENVIRONMENT: undefined },
+    { VITE_DEPLOYMENT_COMMIT: undefined },
+    { VITE_DEPLOYMENT_COMMIT: "0123456" },
+    { VITE_ACCEPTANCE_MODEL: "simulated" },
+  ]) {
+    expect(() => parseWebEnvironment({ ...environment, ...override })).toThrow();
+  }
+  expect(() => parseWebEnvironment({ VITE_API_ORIGIN: environment.VITE_API_ORIGIN })).toThrow();
+});
+
 it("accepts the API origin without contacting it", () => {
   expect(parseWebEnvironment({ VITE_API_ORIGIN: "https://api.huayi.example" })).toEqual({
     VITE_API_ORIGIN: "https://api.huayi.example",

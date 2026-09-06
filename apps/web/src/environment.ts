@@ -29,7 +29,7 @@ const webEnvironmentSchema = z
       .string()
       .regex(/^[0-9a-f]{40}$/u)
       .optional(),
-    VITE_DEPLOYMENT_ENVIRONMENT: z.literal("hosted-acceptance").optional(),
+    VITE_DEPLOYMENT_ENVIRONMENT: z.enum(["hosted-acceptance", "production"]).optional(),
     VITE_GOOGLE_AUTHENTICATION: z.literal("enabled").optional(),
   })
   .strict()
@@ -45,20 +45,25 @@ const webEnvironmentSchema = z
         message: "The simulated model is restricted to local acceptance.",
       });
     }
-    const hasHostedField =
+    const hasDeploymentField =
       environment.VITE_DEPLOYMENT_ENVIRONMENT !== undefined ||
-      environment.VITE_DEPLOYMENT_COMMIT !== undefined;
+      environment.VITE_DEPLOYMENT_COMMIT !== undefined ||
+      environment.VITE_API_ORIGIN === "https://api.seen-said.cn";
+    const expectedApiOrigin =
+      environment.VITE_DEPLOYMENT_ENVIRONMENT === "production"
+        ? "https://api.seen-said.cn"
+        : "https://api.acceptance.seen-said.cn";
     if (
-      hasHostedField &&
-      (environment.VITE_DEPLOYMENT_ENVIRONMENT !== "hosted-acceptance" ||
+      hasDeploymentField &&
+      (environment.VITE_DEPLOYMENT_ENVIRONMENT === undefined ||
         environment.VITE_DEPLOYMENT_COMMIT === undefined ||
-        environment.VITE_API_ORIGIN !== "https://api.acceptance.seen-said.cn" ||
+        environment.VITE_API_ORIGIN !== expectedApiOrigin ||
         environment.VITE_ACCEPTANCE_MODEL !== undefined ||
         environment.VITE_GOOGLE_AUTHENTICATION !== undefined)
     ) {
       context.addIssue({
         code: "custom",
-        message: "Hosted acceptance requires its exact origin and deployment identity.",
+        message: "Deployment environment requires its exact origin and deployment identity.",
       });
     }
   });

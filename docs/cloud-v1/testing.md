@@ -1378,14 +1378,16 @@ idempotency_records`，修复后覆盖创建、练习、历史、删除、词典
 
 ### 4.19a Hosted Web 安全响应头回归
 
-- 发布材料测试必须精确锁定 `apps/web/vercel.json` 的全 path header rule；缺 CSP、
+- 发布材料测试必须精确锁定 `apps/web/vercel.mjs` 实际生成的全 path header rule；缺 CSP、
   `Referrer-Policy=no-referrer`、`X-Content-Type-Options=nosniff` 或禁止 camera/microphone/geolocation 的
   `Permissions-Policy` 任一项都失败；
 - CSP 必须锁定 `default-src 'self'`、`base-uri/object/frame-ancestors/frame-src/worker-src` 的拒绝边界，
   只允许同源 script/style/font/manifest、`data:` 图片、acceptance exact API origin 的 connect/form，以及
   form redirect 需要的 exact Supabase project/Google account origin；禁止 `*`，Provider 不得进入
-  script/connect，也不为尚未冻结的 production origin/project 猜值；
-- Fresh RED 必须证明旧 `vercel.json` 的 `headers` 缺失；GREEN 只改静态配置。离线通过不代表线上生效；
+  script/connect。正式 profile 只允许 `api.seen-said.cn` 和独立项目 `pxqqgxfumovegbcxnmzb`，不得
+  包含验收域或验收数据库；跨环境、未知 profile 和实际候选配置读取必须有离线回归；
+- 旧静态 CSP 缺失的回归继续保留精确断言；新增配置测试执行候选的实际 `vercel.mjs`，不能只解析旧 JSON。
+  离线通过不代表线上生效；
   下一次 Web-only arm/deploy/disarm 后必须对 `/`、`/privacy`、SPA 深路径和静态 asset 回读四个响应头，
   再跑密码登录、Google disabled、API credentialed fetch 与原生表单/跳转回归。COOP 保持未配置，除非另有
   popup/redirect 兼容性设计与浏览器证据。

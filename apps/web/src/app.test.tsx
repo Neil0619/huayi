@@ -74,6 +74,19 @@ it("renders public privacy without API or identity composition", async () => {
   expect(container.textContent).not.toContain("缺少有效的 API Origin");
 });
 
+it("passes the production privacy channel through the application without an API", async () => {
+  const container = document.createElement("div");
+  document.body.append(container);
+  await act(async () =>
+    createRoot(container).render(
+      <App publicPage="privacy" publicDeploymentEnvironment="production" />,
+    ),
+  );
+  expect(container.textContent).toContain("Neil");
+  expect(container.textContent).not.toContain("缺少有效的 API Origin");
+  expect(container.textContent).not.toContain("预发布");
+});
+
 it("routes a valid invitation into the real authentication surface", async () => {
   const claimInvitation = vi.fn(async () => ({
     claimTicket: "c".repeat(32),

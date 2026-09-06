@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { readFile, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 import test from "node:test";
 
 import {
@@ -10,176 +9,16 @@ import {
   auditCloudRelease,
 } from "./check-cloud-release.mjs";
 
-const apiOrigin = "https://api.huayi.production";
-const webOrigin = "https://learn.huayi.production";
-const privacyUrl = `${webOrigin}/privacy`;
-const extensionId = "abcdefghijklmnopabcdefghijklmnop";
-const baseHosts = [
-  "https://api.openai.com/*",
-  "https://api.deepseek.com/*",
-  "https://api.frdic.com/*",
-];
-const expectedFiles = [
-  "brand-theme.css",
-  "content-script.js",
-  "manifest.json",
-  "options.css",
-  "options-components.css",
-  "options-site-rules.css",
-  "page-ui.css",
-  "options.html",
-  "options.js",
-  "overlay.css",
-  "popup.css",
-  "popup.html",
-  "popup.js",
-  "service-worker.js",
-  "youtube-content.js",
-  "youtube-main.js",
-];
-
-function manifest() {
-  const connectSources = [
-    "https://api.openai.com",
-    "https://api.deepseek.com",
-    "https://api.frdic.com",
-    apiOrigin,
-  ].join(" ");
-  return {
-    action: { default_popup: "popup.html" },
-    background: { service_worker: "service-worker.js", type: "module" },
-    content_scripts: [
-      {
-        all_frames: false,
-        js: ["content-script.js"],
-        matches: ["http://*/*", "https://*/*"],
-        run_at: "document_idle",
-      },
-      {
-        all_frames: false,
-        js: ["youtube-content.js"],
-        matches: ["https://youtube.com/*", "https://www.youtube.com/*", "https://m.youtube.com/*"],
-        run_at: "document_idle",
-      },
-      {
-        all_frames: false,
-        js: ["youtube-main.js"],
-        matches: ["https://youtube.com/*", "https://www.youtube.com/*", "https://m.youtube.com/*"],
-        run_at: "document_start",
-        world: "MAIN",
-      },
-    ],
-    content_security_policy: {
-      extension_pages: `script-src 'self'; object-src 'self'; connect-src ${connectSources}`,
-    },
-    host_permissions: [...baseHosts, `${apiOrigin}/*`],
-    incognito: "not_allowed",
-    manifest_version: 3,
-    name: "Huayi Cloud",
-    options_ui: { open_in_tab: true, page: "options.html" },
-    permissions: ["alarms", "storage", "unlimitedStorage"],
-    version: "1.0.0",
-    web_accessible_resources: [
-      { matches: ["http://*/*", "https://*/*"], resources: ["overlay.css"] },
-    ],
-  };
-}
-
-const configuration = {
-  apiExtensionId: extensionId,
+import {
   apiOrigin,
-  extensionId,
-  minSupportedExtensionVersion: "1.0.0",
-  privacyUrl,
-  storeExtensionCapability: "enabled",
+  baseHosts,
   webOrigin,
-};
-
-async function write(directory, path, contents) {
-  const target = join(directory, path);
-  await mkdir(dirname(target), { recursive: true });
-  await writeFile(target, contents);
-}
-
-async function createFixture() {
-  const root = await mkdtemp(join(tmpdir(), "huayi-cloud-release-"));
-  const storeManifest = JSON.stringify(manifest());
-  await write(root, "apps/store-extension/manifest.json", storeManifest);
-  for (const file of expectedFiles) {
-    const contents =
-      file === "manifest.json"
-        ? storeManifest
-        : file === "service-worker.js"
-          ? `const api=${JSON.stringify(apiOrigin)};const web=${JSON.stringify(`${webOrigin}/app`)};`
-          : file.endsWith(".html")
-            ? '<script type="module" src="./local.js"></script>'
-            : "/* packaged */";
-    await write(root, `apps/store-extension/dist-release/${file}`, contents);
-  }
-  await write(
-    root,
-    "apps/store-extension/src/service-worker/service-worker.ts",
-    `const HUAYI_CLOUD_API_ORIGIN: string | null = ${JSON.stringify(apiOrigin)};`,
-  );
-  await write(
-    root,
-    "apps/store-extension/src/service-worker/web-workspace-handler.ts",
-    `export const HUAYI_WEB_WORKSPACE_URL: string | null = ${JSON.stringify(`${webOrigin}/app`)};`,
-  );
-  await write(
-    root,
-    "apps/web/dist/index.html",
-    '<link rel="stylesheet" href="/assets/index.css"><script type="module" src="/assets/index.js"></script>',
-  );
-  await write(
-    root,
-    "apps/web/dist/assets/index.js",
-    "语见 Cloud V1 隐私说明 Chrome Web Store User Data Policy Limited Use requirements",
-  );
-  await write(root, "apps/web/dist/assets/index.css", "body{color:#101a2d}");
-  await write(
-    root,
-    "apps/web/vercel.json",
-    JSON.stringify({ rewrites: [{ destination: "/index.html", source: "/(.*)" }] }),
-  );
-  await write(
-    root,
-    "docs/cloud-v1/privacy-policy.md",
-    [
-      "# 语见 Cloud V1 隐私说明",
-      "Chrome Web Store User Data Policy Limited Use requirements",
-      "Cloud V1 不是端到端加密产品，华译服务器可读学习内容。",
-      "BYOK 与欧路凭据只保存在本机。",
-      "三项账号偏好对关联设备同步；平台与 BYOK 不自动互相回退。",
-      "StudyCapture 只提交原始学习意图；本机词库与 CloudWordCopy 是相互独立的副本。",
-      "用户可完整账号导出，删除账号后主数据库内容在 24 小时内删除。",
-      "运营主体 Huayi；联系方式 privacy@huayi.production；新加坡区域；备份保留 30 天。",
-    ].join("\n"),
-  );
-  await write(
-    root,
-    "docs/cloud-v1/store-listing.md",
-    [
-      "# Huayi Cloud listing",
-      "alarms storage unlimitedStorage",
-      "api.openai.com api.deepseek.com api.frdic.com api.huayi.production",
-      apiOrigin,
-      webOrigin,
-      privacyUrl,
-      "Huayi API 账号与服务器可读 Cloud 学习内容；BYOK 凭据只在本机。",
-    ].join("\n"),
-  );
-  return root;
-}
-
-async function withFixture(run) {
-  const root = await createFixture();
-  try {
-    await run(root);
-  } finally {
-    await rm(root, { force: true, recursive: true });
-  }
-}
+  extensionId,
+  configuration,
+  manifest,
+  withFixture,
+  write,
+} from "./cloud-release-fixture.mjs";
 
 function codes(result) {
   return result.violations.map((violation) => violation.code);
@@ -258,6 +97,32 @@ test("Cloud release audit accepts one self-consistent offline candidate", async 
   });
 });
 
+test("Cloud release audit validates compiled profile exports instead of merely trusting build defines", async () => {
+  await withFixture(async (root) => {
+    await write(
+      root,
+      "apps/store-extension/src/service-worker/cloud-build-profile.ts",
+      "export const HUAYI_CLOUD_API_ORIGIN = null; export const HUAYI_WEB_WORKSPACE_URL = null; export const HUAYI_WEB_ORIGIN = null;",
+    );
+    const result = await auditCloudRelease(root, configuration);
+    assert.deepEqual(codes(result), ["store-api-origin", "store-web-workspace-url"]);
+  });
+});
+
+test("Cloud release audit rejects unused profile values even when the package contains the expected URLs", async () => {
+  await withFixture(async (root) => {
+    await write(
+      root,
+      "apps/store-extension/src/service-worker/service-worker.ts",
+      'import * as profile from "./cloud-build-profile.js"; createProductionCloudClients(null); handleOpenWebWorkspace(message, sender, runtime, null);',
+    );
+    assert.deepEqual(codes(await auditCloudRelease(root, configuration)), [
+      "store-api-origin",
+      "store-web-workspace-url",
+    ]);
+  });
+});
+
 test("Cloud release audit reports missing public configuration without echoing values", async () => {
   await withFixture(async (root) => {
     const result = await auditCloudRelease(root, {});
@@ -275,6 +140,34 @@ test("Cloud release audit reports missing public configuration without echoing v
     );
     assert.equal(JSON.stringify(result).includes(apiOrigin), false);
     assert.equal(JSON.stringify(result).includes(webOrigin), false);
+  });
+});
+
+test("Cloud release audit inspects the selected production profile from the candidate checkout", async () => {
+  await withFixture(async (root) => {
+    for (const name of ["privacy-policy", "store-listing"]) {
+      await write(
+        root,
+        `docs/cloud-v1/${name}-production.md`,
+        await readFile(join(root, `docs/cloud-v1/${name}.md`), "utf8"),
+      );
+    }
+    await write(
+      root,
+      "apps/web/vercel.mjs",
+      [
+        'if (process.env.VITE_DEPLOYMENT_ENVIRONMENT !== "production") throw new Error("wrong profile");',
+        'export const config = { rewrites: [{ source: "/(.*)", destination: "/index.html" }] };',
+      ].join("\n"),
+    );
+    assert.deepEqual(
+      codes(await auditCloudRelease(root, { ...configuration, releaseChannel: "production" })),
+      ["release-config-profile"],
+    );
+    await assert.rejects(
+      auditCloudRelease(root, { ...configuration, releaseChannel: "hosted-acceptance" }),
+      { message: "Web deployment configuration is invalid." },
+    );
   });
 });
 

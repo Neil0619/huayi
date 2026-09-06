@@ -3,6 +3,7 @@ import { randomBytes } from "node:crypto";
 
 import { createHostedAcceptanceHmacKeyring } from "./acceptance-hosted-deepseek-one-shot-hmac.mjs";
 import { hostedCredentialService, runSecurityCommand } from "./acceptance-hosted-credentials.mjs";
+import { renderMacosKeychainInput } from "./macos-keychain-prompt.mjs";
 
 export const hostedDeepSeekAcceptanceKeyringAccount = "deepseek-one-shot-hmac-keyring";
 export const hostedDeepSeekAcceptanceKeyringContract =
@@ -176,16 +177,12 @@ export function runHostedKeychainPromptCommand({
     };
     let child;
     try {
-      child = spawnProcess(
-        "/usr/bin/script",
-        ["-q", "-e", "/dev/null", "/usr/bin/security", ...arguments_],
-        {
-          env: safeEnvironment(environment),
-          shell: false,
-          stdio: ["pipe", "ignore", "ignore"],
-          windowsHide: true,
-        },
-      );
+      child = spawnProcess("/usr/bin/security", ["-i"], {
+        env: safeEnvironment(environment),
+        shell: false,
+        stdio: ["pipe", "ignore", "ignore"],
+        windowsHide: true,
+      });
       if (typeof child?.stdin?.end !== "function" || typeof child?.once !== "function") {
         try {
           child?.kill?.("SIGKILL");
@@ -212,7 +209,7 @@ export function runHostedKeychainPromptCommand({
     child.once("close", (code, signal) =>
       finish({ code: timedOut || signal !== null ? null : code }),
     );
-    child.stdin.end(`${value}\n`);
+    child.stdin.end(renderMacosKeychainInput(arguments_, value));
   });
 }
 
