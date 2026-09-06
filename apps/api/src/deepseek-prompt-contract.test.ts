@@ -7,6 +7,7 @@ import {
 import { describe, expect, it } from "vitest";
 
 import { buildDeepSeekAnalysisRequest } from "./deepseek-analysis-protocol.js";
+import { deepSeekMaximumUsage } from "./deepseek-analysis-model.js";
 import { createDeepSeekExtensionQueryModel } from "./deepseek-extension-query-model.js";
 
 function outputExample(body: string) {
@@ -23,6 +24,31 @@ function outputExample(body: string) {
 }
 
 describe("platform model prompt contracts", () => {
+  it.each([
+    ["phrase", 4_096, 8_192],
+    ["sentence", 8_192, 16_384],
+    ["passage", 8_192, 16_384],
+  ] as const)(
+    "keeps low thinking and the two-call reservation within the %s budget",
+    (selectionKind, outputLimit, reservedOutputTokens) => {
+      const input = { ...contractFixtures.startAnalysisRequest, selectionKind };
+      const sentences = [{ analysisUnitId: "u1", ordinal: 0, sourceText: input.sourceText }];
+      for (const repairContent of [undefined, '{"result":{}}']) {
+        const request = JSON.parse(buildDeepSeekAnalysisRequest(input, sentences, repairContent));
+        expect(request).toMatchObject({
+          max_tokens: outputLimit,
+          reasoning_effort: "low",
+          response_format: { type: "json_object" },
+          thinking: { type: "enabled" },
+        });
+      }
+      expect(deepSeekMaximumUsage(input)).toEqual({
+        inputTokens: 65_536,
+        outputTokens: reservedOutputTokens,
+      });
+    },
+  );
+
   it.each(["phrase", "sentence", "passage"] as const)(
     "specifies a valid nested deep analysis for %s",
     (selectionKind) => {

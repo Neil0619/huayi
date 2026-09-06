@@ -142,6 +142,12 @@ SSE 每个 token 重复封装元数据，且包含丢弃的 reasoning；传输�
 限制为 1 Mi 字符，单行及累计 data 帧限制为 64 Ki 字符。完整帧和拆分帧使用相同限制，仍须取得
 合法 usage、`stop` 和 `[DONE]` 才能成功。请求 token、超时、费用与结构修复次数保持不变。
 
+同一原文进一步复现 `token-limit-empty-content`：高强度思考用尽 8192 token，结束为 `length`，
+且没有正文。Web 深度分析保持 thinking enabled，改为 `reasoning_effort: low`，为交互分析保留
+正文输出空间；提示版本为 `web-deep-analysis-v2.3`。短语 4096、句子/段落 8192 token 上限、
+最多两次调用的费用预留、90 秒期限及完整结构校验保持不变。结束诊断仅用固定标签区分空正文、
+预算耗尽与缺少结束数据，不记录具体模型内容。
+
 批次依次完成 popup/浮层症状回归、模型/队列回归、收集箱/练习闭环。主要回归入口：
 
 - `popup-responsive`、偏好刷新/撤销/迟到响应、query-cache、query-task-journal、overlay controller/stop；

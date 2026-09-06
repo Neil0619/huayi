@@ -184,7 +184,7 @@ describe("DeepSeek platform analysis model", () => {
     expect(body).toMatchObject({
       max_tokens: 8_192,
       model: DEEPSEEK_PLATFORM_MODEL,
-      reasoning_effort: "high",
+      reasoning_effort: "low",
       response_format: { type: "json_object" },
       stream: true,
       stream_options: { include_usage: true },
@@ -198,6 +198,7 @@ describe("DeepSeek platform analysis model", () => {
         inputTokens: 100,
         model: DEEPSEEK_PLATFORM_MODEL,
         outputTokens: 200,
+        promptVersion: "web-deep-analysis-v2.3",
         provider: "deepseek",
       },
       sourceText: contractFixtures.startAnalysisRequest.sourceText,

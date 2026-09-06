@@ -122,7 +122,7 @@ export function buildDeepSeekAnalysisRequest(
     max_tokens: deepSeekOutputLimit(input),
     messages,
     model: DEEPSEEK_PLATFORM_MODEL,
-    reasoning_effort: "high",
+    reasoning_effort: "low",
     response_format: { type: "json_object" },
     stream: true,
     stream_options: { include_usage: true },
