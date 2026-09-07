@@ -181,3 +181,176 @@ body:has(.acceptance-environment-notice) .practice-session-actions {
 .collection-candidate small {
   color: var(--text-secondary);
 }
+
+.deep-analysis-reading {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-5);
+  margin-block: var(--space-5) var(--space-6);
+  overflow-wrap: anywhere;
+}
+.deep-analysis-reading :is(h3, h4, h5, p, blockquote, figure) {
+  margin: 0;
+}
+.deep-analysis-reading :is(p, blockquote) {
+  white-space: pre-wrap;
+}
+.analysis-reading-overview,
+.analysis-reading-sentences {
+  display: grid;
+  gap: var(--space-3);
+}
+.deep-analysis-reading h3 {
+  font-size: 1rem;
+}
+.analysis-reading-translation {
+  font-size: 1.0625rem;
+  line-height: 1.85;
+}
+.analysis-reading-context {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+.analysis-reading-context > summary {
+  width: fit-content;
+  padding-block: var(--space-2);
+  cursor: pointer;
+}
+.analysis-reading-context > div {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-left: 2px solid var(--border-default);
+}
+.collection-workspace .analysis-reading-sentence[open] {
+  display: block;
+}
+.analysis-reading-sentence {
+  min-width: 0;
+  border-block-start: 1px solid var(--border-default);
+}
+.analysis-reading-sentence > summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--space-3);
+  padding-block: var(--space-4);
+  cursor: pointer;
+  list-style: none;
+}
+.analysis-reading-sentence > summary::-webkit-details-marker {
+  display: none;
+}
+.deep-analysis-reading summary:focus-visible {
+  outline: 2px solid var(--text-primary);
+  outline-offset: 3px;
+  border-radius: var(--radius-sm);
+}
+.analysis-reading-number {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  padding-top: var(--space-1);
+}
+.analysis-reading-source {
+  font-weight: 600;
+  line-height: 1.7;
+}
+.analysis-reading-toggle {
+  display: flex;
+  gap: var(--space-2);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  white-space: nowrap;
+  padding-top: var(--space-1);
+}
+.analysis-reading-collapse,
+.analysis-reading-sentence[open] .analysis-reading-expand {
+  display: none;
+}
+.analysis-reading-sentence[open] .analysis-reading-collapse {
+  display: inline;
+}
+.analysis-reading-sentence[open] .analysis-reading-toggle > [aria-hidden] {
+  transform: rotate(180deg);
+}
+.analysis-reading-sentence-body {
+  display: grid;
+  gap: var(--space-4);
+  padding-bottom: var(--space-5);
+}
+.analysis-reading-sentence-translation {
+  color: var(--text-secondary);
+  font-size: 0.9375rem;
+}
+.analysis-reading-sentence-translation > span {
+  display: block;
+  font-size: 0.75rem;
+  margin-bottom: var(--space-1);
+}
+.analysis-reading-groups {
+  display: grid;
+  gap: var(--space-3);
+}
+.analysis-teaching-group {
+  min-width: 0;
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--surface-inner);
+}
+.deep-analysis-reading h4 {
+  margin-bottom: var(--space-3);
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  letter-spacing: 0.06em;
+}
+.analysis-teaching-points {
+  display: grid;
+  gap: var(--space-4);
+}
+.analysis-teaching-point {
+  display: grid;
+  gap: var(--space-2);
+}
+.deep-analysis-reading h5 {
+  font-size: 0.9375rem;
+}
+.analysis-teaching-evidence {
+  padding: var(--space-2) var(--space-3);
+  border-left: 3px solid var(--text-secondary);
+  background: var(--surface-input);
+  font-size: 1.0625rem;
+  font-weight: 600;
+}
+.analysis-teaching-pitfall {
+  padding-left: var(--space-3);
+  border-left: 2px solid var(--border-default);
+  font-size: 0.875rem;
+}
+.analysis-teaching-pitfall > strong,
+.analysis-teaching-example > figcaption {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+.analysis-teaching-example {
+  display: grid;
+  gap: var(--space-1);
+  padding-top: var(--space-2);
+  font-size: 0.9375rem;
+}
+.analysis-reading-secondary {
+  color: var(--text-secondary);
+}
+@media (max-width: 48rem) {
+  .analysis-reading-sentence > summary {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: var(--space-2);
+  }
+  .analysis-reading-toggle {
+    grid-column: 2;
+    padding-top: 0;
+  }
+  .analysis-teaching-group {
+    padding: var(--space-3);
+  }
+}
