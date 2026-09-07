@@ -36,6 +36,26 @@ const point = {
 describe("deep analysis reading hierarchy", () => {
   beforeEach(() => document.body.replaceChildren());
 
+  it("shows a matching expression title and original quote only once", async () => {
+    const analysis = passage();
+    if (analysis.result.type !== "sentence-passage-analysis-v2")
+      throw new Error("Expected passage");
+    const sentence = analysis.result.sentences[0];
+    if (!sentence) throw new Error("Expected sentence");
+    sentence.sourceText = "They tried to contain the fire.";
+    sentence.expressions = [
+      { label: "contain the fire", evidenceText: "contain the fire", explanationZh: "控制火势。" },
+    ];
+    const container = await render(analysis);
+    const card = [...container.querySelectorAll(".analysis-teaching-point")].find((node) =>
+      node.textContent?.includes("控制火势。"),
+    );
+    expect(card?.textContent?.match(/contain the fire/gu)).toHaveLength(1);
+    expect(card?.querySelector("h5.analysis-teaching-evidence")?.textContent).toBe(
+      "contain the fire",
+    );
+  });
+
   it.each([
     [
       "这条新闻说，西班牙南部的一场野火已导致至少12人死亡、23人失踪。",

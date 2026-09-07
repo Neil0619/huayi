@@ -67,7 +67,7 @@ function readingRecord(headline = false) {
   ];
   sentence.expressions = [
     {
-      label: "控制火势",
+      label: "contain the fire",
       evidenceText: "contain the fire",
       explanationZh: "contain 与 fire 搭配，表示控制火势、阻止蔓延。",
     },
@@ -152,6 +152,7 @@ for (const width of [390, 1440]) {
       await page.keyboard.press("Enter");
       await expect(summary).toContainText("收起解析");
       await expect(reading.getByText("to have been caused", { exact: true })).toBeVisible();
+      await expect(reading.getByText("contain the fire", { exact: true })).toHaveCount(1);
       await expect(reading.getByText("生成示例", { exact: true })).toBeVisible();
       await expect(reading.getByText("易错提醒", { exact: true })).toBeVisible();
       const style = await reading
