@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 
-import type { WebIdentityApi } from "./identity-api.js";
+import { WebIdentityApiError, type WebIdentityApi } from "./identity-api.js";
 import type { PasswordRecoveryRoute } from "./password-recovery-route.js";
 
 export type PasswordRecoveryApi = Pick<
@@ -8,7 +8,8 @@ export type PasswordRecoveryApi = Pick<
   "completePasswordRecovery" | "getPasswordRecoverySession" | "requestPasswordRecovery"
 >;
 
-type RecoveryView = "complete" | "failed" | "loading" | "request" | "success";
+type RecoveryView = "complete" | "failed" | "loading" | "request" | "sent" | "success";
+const resendDelaySeconds = 120;
 
 export function PasswordRecoveryPage({
   api,
@@ -29,6 +30,10 @@ export function PasswordRecoveryPage({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
+  const [resendAt, setResendAt] = useState(0);
+  const [remainingSeconds, setRemainingSeconds] = useState(0);
+  const requestEmail = useRef("");
+  const mutationPending = useRef(false);
   const sessionRequested = useRef(false);
   const urlCleared = useRef(false);
   const heading = useRef<HTMLHeadingElement>(null);
@@ -53,31 +58,65 @@ export function PasswordRecoveryPage({
   }, [api, replaceRecoveryUrl, route.clearUrl, route.continuation]);
 
   useEffect(() => {
-    if (view === "complete" || view === "failed" || view === "success") {
+    if (view !== "request" && view !== "loading") {
       heading.current?.focus();
     }
   }, [view]);
 
-  const requestRecovery = async (event: FormEvent) => {
-    event.preventDefault();
+  useEffect(() => {
+    if (resendAt === 0) return;
+    const update = () =>
+      setRemainingSeconds(Math.max(0, Math.ceil((resendAt - Date.now()) / 1000)));
+    update();
+    const timer = window.setInterval(update, 1000);
+    return () => window.clearInterval(timer);
+  }, [resendAt]);
+
+  const startResendDelay = () => {
+    setResendAt(Date.now() + resendDelaySeconds * 1000);
+    setRemainingSeconds(resendDelaySeconds);
+  };
+
+  const requestRecovery = async (resend = false) => {
+    if (
+      mutationPending.current ||
+      (resend && (Date.now() < resendAt || requestEmail.current === ""))
+    )
+      return;
+    mutationPending.current = true;
     setBusy(true);
     setError(null);
     setStatus(null);
     try {
-      await api.requestPasswordRecovery(email);
+      const submittedEmail = resend ? requestEmail.current : email;
+      await api.requestPasswordRecovery(submittedEmail);
+      requestEmail.current = submittedEmail;
       setEmail("");
+      startResendDelay();
       setStatus(
-        "恢复请求已提交。如果该邮箱可以恢复，你会在几分钟内收到邮件；请使用最新一封邮件继续。",
+        "恢复请求已提交。如果该邮箱可以恢复，邮件通常会在几分钟内到达。请前往邮箱查看，也请检查垃圾邮件。",
       );
-    } catch {
-      setError("暂时无法提交密码恢复请求。请检查邮箱或稍后重试。");
+      setView("sent");
+    } catch (failure) {
+      if (failure instanceof WebIdentityApiError && failure.code === "rate_limited") {
+        startResendDelay();
+        setError("恢复请求过于频繁。请先检查已收到的邮件，稍后再试；每小时最多可提交 3 次。");
+      } else {
+        setError(
+          resend
+            ? "暂时无法重新发送。请先查看之前的邮件，稍后再试。"
+            : "暂时无法提交密码恢复请求，请稍后重试。",
+        );
+      }
     } finally {
+      mutationPending.current = false;
       setBusy(false);
     }
   };
 
   const completeRecovery = async (event: FormEvent) => {
     event.preventDefault();
+    if (mutationPending.current) return;
     setError(null);
     setStatus(null);
     if (password !== confirmation) {
@@ -88,6 +127,7 @@ export function PasswordRecoveryPage({
       setError("新密码必须为 12 至 256 个字符。");
       return;
     }
+    mutationPending.current = true;
     setBusy(true);
     try {
       await api.completePasswordRecovery(password, csrfToken);
@@ -97,11 +137,14 @@ export function PasswordRecoveryPage({
       setStatus("密码已更新。请使用新密码重新登录。");
       setView("success");
       onCompleted();
-    } catch {
+    } catch (failure) {
       setError(
-        "无法完成密码恢复。请确认新密码与当前密码不同并稍后重试；若链接已打开较久，请重新发起恢复。",
+        failure instanceof WebIdentityApiError && failure.code === "invalid_request"
+          ? "新密码不符合要求。请输入与当前密码不同的密码，并满足密码长度要求，然后重新提交。"
+          : "无法完成密码恢复。请确认新密码与当前密码不同并稍后重试；若链接已打开较久，请重新发起恢复。",
       );
     } finally {
+      mutationPending.current = false;
       setBusy(false);
     }
   };
@@ -112,10 +155,18 @@ export function PasswordRecoveryPage({
     setConfirmation("");
     setError(null);
     setStatus(null);
+    requestEmail.current = "";
     setView("request");
   };
 
-  const title = view === "complete" ? "设置新密码" : view === "success" ? "密码已更新" : "恢复密码";
+  const title =
+    view === "complete"
+      ? "设置新密码"
+      : view === "success"
+        ? "密码已更新"
+        : view === "sent"
+          ? "请查收恢复邮件"
+          : "恢复密码";
   const errorDescription = error === null ? undefined : "password-recovery-error";
 
   return (
@@ -126,7 +177,7 @@ export function PasswordRecoveryPage({
         <h1
           id="password-recovery-heading"
           ref={heading}
-          tabIndex={view === "complete" || view === "failed" || view === "success" ? -1 : undefined}
+          tabIndex={view !== "request" && view !== "loading" ? -1 : undefined}
         >
           {title}
         </h1>
@@ -150,7 +201,13 @@ export function PasswordRecoveryPage({
             <p className="auth-intro">
               输入登录邮箱。为保护账号，无论邮箱是否存在，页面都会显示相同结果。
             </p>
-            <form className="auth-form" onSubmit={(event) => void requestRecovery(event)}>
+            <form
+              className="auth-form"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void requestRecovery();
+              }}
+            >
               <label htmlFor="recovery-email">邮箱</label>
               <input
                 aria-describedby={errorDescription}
@@ -164,13 +221,50 @@ export function PasswordRecoveryPage({
               <button
                 className="primary-button"
                 data-request-recovery
-                disabled={busy}
+                disabled={busy || remainingSeconds > 0}
                 type="submit"
               >
-                {busy ? "正在提交…" : "发送恢复邮件"}
+                {busy
+                  ? "正在提交…"
+                  : remainingSeconds > 0
+                    ? `${remainingSeconds} 秒后可重试`
+                    : "发送恢复邮件"}
               </button>
             </form>
           </>
+        )}
+        {view === "sent" && (
+          <div className="auth-form">
+            <p className="field-help">
+              请耐心等待。重新发送后，之前邮件中的恢复链接将失效，请使用最新一封邮件。
+            </p>
+            <a className="primary-button" href="/login">
+              返回登录
+            </a>
+            <button
+              data-resend-recovery
+              disabled={busy || remainingSeconds > 0}
+              onClick={() => void requestRecovery(true)}
+              type="button"
+            >
+              {busy
+                ? "正在重新提交…"
+                : remainingSeconds > 0
+                  ? `${remainingSeconds} 秒后可重新发送`
+                  : "重新发送恢复邮件"}
+            </button>
+            <button
+              disabled={busy}
+              onClick={() => {
+                const previousEmail = requestEmail.current;
+                restart();
+                setEmail(previousEmail);
+              }}
+              type="button"
+            >
+              修改邮箱
+            </button>
+          </div>
         )}
         {view === "complete" && (
           <form className="auth-form" onSubmit={(event) => void completeRecovery(event)}>
@@ -181,7 +275,10 @@ export function PasswordRecoveryPage({
               id="recovery-password"
               maxLength={256}
               minLength={12}
-              onChange={(event) => setPassword(event.currentTarget.value)}
+              onChange={(event) => {
+                setPassword(event.currentTarget.value);
+                setError(null);
+              }}
               required
               type="password"
               value={password}
@@ -193,7 +290,10 @@ export function PasswordRecoveryPage({
               id="recovery-password-confirmation"
               maxLength={256}
               minLength={12}
-              onChange={(event) => setConfirmation(event.currentTarget.value)}
+              onChange={(event) => {
+                setConfirmation(event.currentTarget.value);
+                setError(null);
+              }}
               required
               type="password"
               value={confirmation}
@@ -212,7 +312,7 @@ export function PasswordRecoveryPage({
           </button>
         )}
         <nav aria-label="密码恢复辅助链接" className="auth-footer password-recovery-footer">
-          <a href="/login">返回登录</a>
+          {view !== "sent" && <a href="/login">返回登录</a>}
           <a href="/privacy">隐私说明</a>
         </nav>
       </section>

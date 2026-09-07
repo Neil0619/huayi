@@ -10,10 +10,11 @@ import type { CloudFoundationDependencies } from "./cloud-foundation-dependencie
 import { CloudFault } from "./cloud-fault.js";
 import { enforceRateLimit } from "./rate-limiter.js";
 import { isEmailFirstSignup, signupUnavailable } from "./password-signup-state.js";
-
-function confirmationCsp(webOrigin: string): string {
-  return `default-src 'none'; form-action 'self' ${new URL(webOrigin).origin}; base-uri 'none'; frame-ancestors 'none'`;
-}
+import {
+  authConfirmationCsp,
+  escapeAuthHtml,
+  renderAuthConfirmationPage,
+} from "./auth-confirmation-page.js";
 
 function invalidRequest(message: string): CloudFault {
   return new CloudFault("invalid_request", message);
@@ -56,39 +57,22 @@ async function exactForm<T>(context: Context, schema: { parse(value: unknown): T
   );
 }
 
-function escapeHtml(value: string): string {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;");
-}
-
-function confirmationPage(flow: string, retry = false): string {
-  return `<!doctype html>
-<html lang="zh-CN">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>确认语见邮箱</title>
-  </head>
-  <body>
-    <main>
-      <h1>确认语见邮箱</h1>
-      ${retry ? '<p role="alert">验证未完成。请检查邮箱和验证码后重试；若验证码已使用，请返回原邀请继续中断注册。</p>' : ""}
-      <p>输入验证邮件中的六位验证码。打开此页面不会自动使用验证码。</p>
+function confirmationPage(flow: string, webOrigin: string, retry = false): string {
+  return renderAuthConfirmationPage({
+    title: "确认语见邮箱",
+    introduction: "输入验证邮件中的六位验证码，完成邮箱验证。打开此页面不会自动使用验证码。",
+    webOrigin,
+    body: `${retry ? '<p class="alert" role="alert">验证未完成。请检查邮箱和验证码后重试；若验证码已使用，请返回原邀请继续中断注册。</p>' : ""}
       <form method="post" action="${passwordSignupConfirmationHttpRoutes.callback}">
-        <input type="hidden" name="flow" value="${escapeHtml(flow)}">
+        <input type="hidden" name="flow" value="${escapeAuthHtml(flow)}">
         <label for="email">邮箱</label>
         <input id="email" name="email" type="email" autocomplete="email" required>
         <label for="token">六位验证码</label>
         <input id="token" name="token" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" minlength="6" maxlength="6" required>
         <button type="submit">确认邮箱并继续</button>
       </form>
-    </main>
-  </body>
-</html>`;
+    `,
+  });
 }
 
 export function createPasswordSignupConfirmationApp(dependencies: CloudFoundationDependencies) {
@@ -96,17 +80,17 @@ export function createPasswordSignupConfirmationApp(dependencies: CloudFoundatio
 
   app.get(passwordSignupConfirmationHttpRoutes.confirm, async (context) => {
     context.header("Cache-Control", "private, no-store");
-    context.header("Content-Security-Policy", confirmationCsp(dependencies.webOrigin));
+    context.header("Content-Security-Policy", authConfirmationCsp(dependencies.webOrigin));
     context.header("Referrer-Policy", "no-referrer");
     const input = exactQuery(context, passwordSignupConfirmQuerySchema);
     if (await isEmailFirstSignup(dependencies, input.flow))
       return context.redirect(`${dependencies.webOrigin}/join`, 302);
-    return context.html(confirmationPage(input.flow));
+    return context.html(confirmationPage(input.flow, dependencies.webOrigin));
   });
 
   app.post(passwordSignupConfirmationHttpRoutes.callback, async (context) => {
     context.header("Cache-Control", "private, no-store");
-    context.header("Content-Security-Policy", confirmationCsp(dependencies.webOrigin));
+    context.header("Content-Security-Policy", authConfirmationCsp(dependencies.webOrigin));
     context.header("Referrer-Policy", "no-referrer");
     if (new URL(context.req.url).search !== "") {
       throw invalidRequest("The password confirmation form is invalid.");
@@ -142,7 +126,7 @@ export function createPasswordSignupConfirmationApp(dependencies: CloudFoundatio
       return context.redirect(`${dependencies.webOrigin}/practice`, 302);
     } catch (error) {
       if (!(error instanceof CloudFault) || error.code !== "authentication_required") throw error;
-      return context.html(confirmationPage(input.flow, true), 400);
+      return context.html(confirmationPage(input.flow, dependencies.webOrigin, true), 400);
     }
   });
 

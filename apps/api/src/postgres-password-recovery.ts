@@ -218,6 +218,20 @@ export function createPostgresPasswordRecovery(options: PostgresPasswordRecovery
       );
     },
 
+    async releaseCompletion(flowId, leaseId) {
+      const [result] = await options.database.trusted((trusted) =>
+        trusted.rows<{ released: boolean | null }>(
+          "SELECT release_password_recovery_completion($1,$2,$3) AS released",
+          [
+            hashSecret(flowId, options.pepper),
+            hashSecret(leaseId, options.pepper),
+            options.clock.now(),
+          ],
+        ),
+      );
+      requireSaved(result?.released);
+    },
+
     async saveProviderUpdated(flowId, leaseId, providerUserId, protectedProviderState) {
       const [result] = await options.database.trusted((trusted) =>
         trusted.rows<{ saved: boolean | null }>(

@@ -201,6 +201,10 @@ export function createCloudBrowserPasswordRecoveryAuthority() {
       await reject(route, 403, "forbidden");
       return;
     }
+    if (parsed.data.password === currentPassword) {
+      await reject(route, 400, "invalid_request");
+      return;
+    }
     currentPassword = parsed.data.password;
     recoverySessionActive = false;
     extensionSessionCount = 0;

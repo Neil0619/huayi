@@ -15,14 +15,15 @@ import { requireCronBearer } from "./cron-authentication.js";
 import type { PasswordRecoveryModule } from "./password-recovery-module.js";
 import { enforceRateLimit, type RateLimiter } from "./rate-limiter.js";
 import { strictJson } from "./strict-json.js";
+import {
+  authConfirmationCsp,
+  escapeAuthHtml,
+  renderAuthConfirmationPage,
+} from "./auth-confirmation-page.js";
 
 const recoveryCookieName = "huayi_password_recovery";
 const recoveryCookiePath = "/v1/auth/password/recovery";
 const recoveryCookieAttributes = `HttpOnly; Secure; SameSite=Lax; Path=${recoveryCookiePath}`;
-
-function confirmationCsp(webOrigin: string): string {
-  return `default-src 'none'; form-action 'self' ${new URL(webOrigin).origin}; base-uri 'none'; frame-ancestors 'none'`;
-}
 
 function wait(milliseconds: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
@@ -69,35 +70,18 @@ async function exactForm<T>(context: Context, schema: { parse(value: unknown): T
   );
 }
 
-function escapeHtml(value: string): string {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;");
-}
-
-function confirmationPage(flow: string, code: string): string {
-  return `<!doctype html>
-<html lang="zh-CN">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>继续重置密码</title>
-  </head>
-  <body>
-    <main>
-      <h1>继续重置密码</h1>
-      <p>只有在你主动发起密码恢复时，才继续下一步。</p>
-      <form method="post" action="${passwordRecoveryHttpRoutes.callback}">
-        <input type="hidden" name="flow" value="${escapeHtml(flow)}">
-        <input type="hidden" name="code" value="${escapeHtml(code)}">
+function confirmationPage(flow: string, code: string, webOrigin: string): string {
+  return renderAuthConfirmationPage({
+    title: "继续重置密码",
+    introduction: "只有在你主动发起密码恢复时，才继续下一步。确认后即可设置新的登录密码。",
+    webOrigin,
+    body: `<form method="post" action="${passwordRecoveryHttpRoutes.callback}">
+        <input type="hidden" name="flow" value="${escapeAuthHtml(flow)}">
+        <input type="hidden" name="code" value="${escapeAuthHtml(code)}">
         <button type="submit">继续重置密码</button>
       </form>
-    </main>
-  </body>
-</html>`;
+      <p class="field-help">如果不是你发起的操作，可以直接关闭此页。</p>`,
+  });
 }
 
 function recoverySessionCookie(context: Context): string | undefined {
@@ -167,15 +151,15 @@ export function createPasswordRecoveryApp(options: {
 
   app.get(passwordRecoveryHttpRoutes.confirm, (context) => {
     context.header("Cache-Control", "private, no-store");
-    context.header("Content-Security-Policy", confirmationCsp(options.webOrigin));
+    context.header("Content-Security-Policy", authConfirmationCsp(options.webOrigin));
     context.header("Referrer-Policy", "no-referrer");
     const input = exactQuery(context, passwordRecoveryConfirmQuerySchema);
-    return context.html(confirmationPage(input.flow, input.code));
+    return context.html(confirmationPage(input.flow, input.code, options.webOrigin));
   });
 
   app.post(passwordRecoveryHttpRoutes.callback, async (context) => {
     context.header("Cache-Control", "private, no-store");
-    context.header("Content-Security-Policy", confirmationCsp(options.webOrigin));
+    context.header("Content-Security-Policy", authConfirmationCsp(options.webOrigin));
     context.header("Referrer-Policy", "no-referrer");
     const input = await exactForm(context, passwordRecoveryCallbackFormSchema);
     try {

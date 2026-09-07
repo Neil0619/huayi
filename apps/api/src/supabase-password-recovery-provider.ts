@@ -1,7 +1,11 @@
 import { accountEmailSchema, resourceIdSchema } from "@huayi/cloud-contracts";
+import { isAuthApiError, isAuthWeakPasswordError } from "@supabase/supabase-js";
 
 import { CloudFault } from "./cloud-fault.js";
-import type { PasswordRecoveryProvider } from "./password-recovery-provider.js";
+import {
+  PasswordRecoveryPasswordRejected,
+  type PasswordRecoveryProvider,
+} from "./password-recovery-provider.js";
 import { createSupabaseAuthFlow, type SupabaseAuthClientFactory } from "./supabase-auth-flow.js";
 
 function passwordRecoveryFailure(): CloudFault {
@@ -54,10 +58,18 @@ export function createSupabasePasswordRecoveryProvider(
         const { data, error } = await createAuthClient(flow.storage).auth.updateUser({
           password: command.password,
         });
+        if (
+          (isAuthApiError(error) || isAuthWeakPasswordError(error)) &&
+          [400, 422].includes(error.status ?? 0) &&
+          (error.code === "same_password" || error.code === "weak_password")
+        ) {
+          throw new PasswordRecoveryPasswordRejected();
+        }
         const userId = resourceIdSchema.safeParse(data.user?.id);
         if (error !== null || !userId.success) throw passwordRecoveryFailure();
         return { authState: flow.state(), userId: userId.data };
-      } catch {
+      } catch (error) {
+        if (error instanceof PasswordRecoveryPasswordRejected) throw error;
         throw passwordRecoveryFailure();
       }
     },

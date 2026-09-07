@@ -928,6 +928,18 @@ main {
   background: var(--button-fill);
   box-shadow: var(--shadow-control);
 }
+.auth-card a.primary-button {
+  display: flex;
+  min-height: var(--control-height);
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  font-weight: 700;
+  text-align: center;
+  text-decoration: none;
+}
 .auth-card .primary-button:hover {
   color: var(--text-on-action);
   background: var(--button-fill-hover);

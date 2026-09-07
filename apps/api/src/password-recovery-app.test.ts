@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { createHash } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
 
 import type { PasswordRecoveryModule } from "./password-recovery-module.js";
@@ -50,6 +51,24 @@ function setup() {
 }
 
 describe("password recovery HTTP", () => {
+  it("serves a branded confirmation card with only its exact inline stylesheet allowed", async () => {
+    const { app, module } = setup();
+    const response = await app.request(
+      `/v1/auth/password/recovery/confirm?flow=${flow}&code=${code}`,
+    );
+    const html = await response.text();
+    expect(html).toContain('class="auth-card"');
+    expect(html).toContain("SEEN &amp; SAID");
+    const styles = html.match(/<style>([^]*?)<\/style>/)?.[1];
+    expect(styles).toBeDefined();
+    const hash = createHash("sha256")
+      .update(styles ?? "")
+      .digest("base64");
+    expect(response.headers.get("content-security-policy")).toContain(`style-src 'sha256-${hash}'`);
+    expect(html).not.toMatch(/<script|<link|\son\w+=/i);
+    expect(module.callback).not.toHaveBeenCalled();
+  });
+
   it("normalizes a strict start request behind separate hourly IP and email buckets", async () => {
     const { app, consume, module } = setup();
     const response = await app.request("/v1/auth/password/recovery", {
@@ -147,7 +166,11 @@ describe("password recovery HTTP", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("private, no-store");
     expect(response.headers.get("referrer-policy")).toBe("no-referrer");
-    expect(response.headers.get("content-security-policy")).toBe(
+    expect(
+      response.headers
+        .get("content-security-policy")
+        ?.replace(/; style-src 'sha256-[A-Za-z0-9+/=]+'/u, ""),
+    ).toBe(
       `default-src 'none'; form-action 'self' ${webOrigin}; base-uri 'none'; frame-ancestors 'none'`,
     );
     expect(response.headers.get("set-cookie")).toBeNull();
@@ -175,7 +198,11 @@ describe("password recovery HTTP", () => {
     expect(response.status).toBe(302);
     expect(response.headers.get("location")).toBe(`${webOrigin}/recover?continue=1`);
     expect(response.headers.get("cache-control")).toBe("private, no-store");
-    expect(response.headers.get("content-security-policy")).toBe(
+    expect(
+      response.headers
+        .get("content-security-policy")
+        ?.replace(/; style-src 'sha256-[A-Za-z0-9+/=]+'/u, ""),
+    ).toBe(
       `default-src 'none'; form-action 'self' ${webOrigin}; base-uri 'none'; frame-ancestors 'none'`,
     );
     expect(response.headers.get("referrer-policy")).toBe("no-referrer");

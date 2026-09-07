@@ -13,7 +13,7 @@ const newPassword = "replacement horse battery staple";
 test("a learner completes password recovery only through the latest confirmed mail", async ({
   browser,
   page,
-}) => {
+}, testInfo) => {
   test.slow();
   const authority = createCloudBrowserAuthority({
     authenticated: false,
@@ -21,6 +21,7 @@ test("a learner completes password recovery only through the latest confirmed ma
   });
   await page.setViewportSize({ height: 844, width: 390 });
   await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.clock.install();
   await authority.install(page);
 
   await page.goto(`${webOrigin}/login`);
@@ -29,21 +30,43 @@ test("a learner completes password recovery only through the latest confirmed ma
   await expect(page.getByRole("heading", { level: 1, name: "恢复密码" })).toBeVisible();
 
   for (let index = 0; index < 2; index += 1) {
-    await page.getByLabel("邮箱").fill(email);
+    if (index === 0) await page.getByLabel("邮箱").fill(email);
+    else await page.clock.fastForward(120_001);
     const [response] = await Promise.all([
       page.waitForResponse(
         (candidate) =>
           candidate.url() === `${apiOrigin}/v1/auth/password/recovery` &&
           candidate.request().method() === "POST",
       ),
-      page.getByRole("button", { name: "发送恢复邮件" }).click(),
+      page
+        .getByRole("button", {
+          name: index === 0 ? "发送恢复邮件" : "重新发送恢复邮件",
+          exact: true,
+        })
+        .click(),
     ]);
     expect(response.status()).toBe(202);
     expect(response.headers()["cache-control"]).toBe("private, no-store");
     expect(response.headers()["set-cookie"]).toBeUndefined();
     await expect(page.getByRole("status")).toContainText("恢复请求已提交");
-    await expect(page.getByRole("status")).toContainText("几分钟内收到邮件");
-    await expect(page.getByLabel("邮箱")).toHaveValue("");
+    await expect(page.getByRole("status")).toContainText("几分钟内到达");
+    await expect(page.getByRole("heading", { name: "请查收恢复邮件" })).toBeVisible();
+    await expect(page.getByLabel("邮箱")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /重新发送/ })).toBeDisabled();
+    await expect(page.getByRole("link", { name: "返回登录" })).toBeVisible();
+    if (index === 0) {
+      await expect(page.getByRole("heading", { name: "请查收恢复邮件" })).toBeFocused();
+      await page.screenshot({
+        path: testInfo.outputPath("recovery-sent-mobile.png"),
+        fullPage: true,
+      });
+      await page.setViewportSize({ width: 1280, height: 900 });
+      await page.screenshot({
+        path: testInfo.outputPath("recovery-sent-desktop.png"),
+        fullPage: true,
+      });
+      await page.setViewportSize({ width: 390, height: 844 });
+    }
   }
   expect(
     (await page.context().cookies(recoveryCookieUrl)).some(
@@ -166,6 +189,13 @@ test("a learner completes password recovery only through the latest confirmed ma
   ).toBe(completeFactsBeforeMismatch);
   await expect(passwordInput).toHaveValue(newPassword);
 
+  await passwordInput.fill(oldPassword);
+  await confirmationInput.fill(oldPassword);
+  await recoveryPage.getByRole("button", { name: "更新密码" }).click();
+  await expect(recoveryPage.getByRole("alert")).toContainText("请输入与当前密码不同");
+  expect(authority.snapshot().securityNotificationCount).toBe(0);
+  await passwordInput.fill(newPassword);
+  await expect(recoveryPage.getByRole("alert")).toHaveCount(0);
   await confirmationInput.fill(newPassword);
   const [completeResponse] = await Promise.all([
     recoveryPage.waitForResponse(

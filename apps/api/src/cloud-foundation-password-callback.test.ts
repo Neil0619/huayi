@@ -73,7 +73,11 @@ describe("Cloud foundation password signup confirmation", () => {
     expect(repeated.status).toBe(200);
     expect(first.headers.get("cache-control")).toBe("private, no-store");
     expect(first.headers.get("referrer-policy")).toBe("no-referrer");
-    expect(first.headers.get("content-security-policy")).toBe(
+    expect(
+      first.headers
+        .get("content-security-policy")
+        ?.replace(/; style-src 'sha256-[A-Za-z0-9+/=]+'/u, ""),
+    ).toBe(
       `default-src 'none'; form-action 'self' ${webOrigin}; base-uri 'none'; frame-ancestors 'none'`,
     );
     expect(await first.text()).toContain('name="token"');

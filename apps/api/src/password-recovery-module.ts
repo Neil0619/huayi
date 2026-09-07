@@ -1,7 +1,10 @@
 import { z } from "zod/v3";
 
 import type { AuthState } from "./auth-provider.js";
-import type { PasswordRecoveryProvider } from "./password-recovery-provider.js";
+import {
+  PasswordRecoveryPasswordRejected,
+  type PasswordRecoveryProvider,
+} from "./password-recovery-provider.js";
 
 type Awaitable<Value> = Promise<Value> | Value;
 
@@ -47,6 +50,7 @@ export interface PasswordRecoveryRepository {
   markDispatched(flowId: string, leaseId: string): Awaitable<void>;
   readProviderState(flowId: string): Awaitable<string>;
   readSession(recoverySessionId: string, origin: string): Awaitable<RecoverySession>;
+  releaseCompletion(flowId: string, leaseId: string): Awaitable<void>;
   request(command: { email: string; ipBucket: string }): Awaitable<void>;
   saveProviderUpdated(
     flowId: string,
@@ -97,12 +101,21 @@ export function createPasswordRecoveryModule(options: {
         command.csrfToken,
       );
       if (continuation.stage === "verified") {
-        const updated = await options.provider.updatePassword({
-          authState: parseAuthState(
-            options.unprotectTransientAuthState(continuation.protectedProviderState),
-          ),
-          password: command.password,
-        });
+        const updated = await options.provider
+          .updatePassword({
+            authState: parseAuthState(
+              options.unprotectTransientAuthState(continuation.protectedProviderState),
+            ),
+            password: command.password,
+          })
+          .catch(async (error: unknown) => {
+            // Only a definite password-policy rejection permits an immediate new attempt.
+            // An unknown provider outcome retains the lease to fence concurrent updates.
+            if (error instanceof PasswordRecoveryPasswordRejected) {
+              await options.repository.releaseCompletion(continuation.flowId, continuation.leaseId);
+            }
+            throw error;
+          });
         await options.repository.saveProviderUpdated(
           continuation.flowId,
           continuation.leaseId,

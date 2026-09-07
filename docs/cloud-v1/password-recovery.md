@@ -34,13 +34,15 @@ API confirm URL 与显式 POST，并由 no-store/no-referrer 页面约束；Prov
 
 1. `/login` 提供“忘记密码？”链接；公开 `/recover` 页面可提交规范邮箱；
 2. 无论邮箱不存在、账号不是 active、未登记 password method，还是符合条件并已请求邮件，页面都只
-   显示同一文案：“如果该邮箱可恢复，我们已发送邮件”；
+   进入相同的“请查收恢复邮件”页面，说明请求已提交、符合恢复条件时邮件通常几分钟内到达，
+   并提醒查看垃圾邮件。隐藏邮箱输入，提供返回登录、120 秒后重新发送和修改邮箱入口；
+   重发只使用当前页面内存中的已提交邮箱，并明确提醒旧链接会失效；
 3. 用户可在能够安全访问该邮箱的浏览器打开邮件链接。链接先到固定 API 惰性确认页；只有用户显式点击
    “继续重置密码”后才 POST callback、验证 token hash，并在该浏览器建立 recovery session，随后进入 Web
    `/recover?continue=1`，不直接创建 Huayi 登录 session；
 4. Web 以短时 recovery Cookie 读取恢复状态，要求两次输入相同、至少 12、最多 256 字符且不同于当前
    密码的新密码；客户端只向 API 发送一份匹配后的 password。Web 在提交前明确提示“不能与当前密码
-   相同”，统一完成失败也提醒改用不同密码并稍后重试，但不根据 Provider 错误分支。成功后清除密码
+   相同”。Provider 明确拒绝新密码时，用户可立即修改输入重试；未知失败仍使用统一提示。成功后清除密码
    输入、recovery Cookie 和所有既有 Huayi Web/Extension sessions，再要求用户从 `/login` 重新登录；
 5. 过期、重复、旧邮件、错误 code/flow、错误 Origin/CSRF、账号状态变化或 Provider user 不匹配，都
    显示同一可重新发起的恢复失败，不回显账号、method、Provider 或 token 细节；
@@ -71,19 +73,20 @@ API confirm URL 与显式 POST，并由 no-store/no-referrer 页面约束；Prov
 
 ## 3. 公共 HTTP 契约
 
-| Method/path                                | 公开行为                                                       |
-| ------------------------------------------ | -------------------------------------------------------------- |
-| `POST /v1/auth/password/recovery`          | strict `{email}`；总是 202 `{accepted:true}`，符合条件才发信   |
-| `GET /v1/auth/password/recovery/confirm`   | `flow`+`code`；只渲染惰性本地确认页，不消费 code               |
-| `POST /v1/auth/password/recovery/callback` | exact form `flow`+`code`；单次 exchange；固定 302 Web recovery |
-| `GET /v1/auth/password/recovery/session`   | recovery Cookie+Web Origin；返回短时 `{csrfToken,expiresAt}`   |
-| `POST /v1/auth/password/recovery/complete` | Cookie+Origin+CSRF+strict `{password}`；成功 204 并清 Cookie   |
-| `GET /internal/password-recovery/run`      | CRON bearer；每次有界领取一个待发邮件 flow                     |
+| Method/path                                | 公开行为                                                                   |
+| ------------------------------------------ | -------------------------------------------------------------------------- |
+| `POST /v1/auth/password/recovery`          | strict `{email}`；有效未限速请求统一 202 `{accepted:true}`，符合条件才发信 |
+| `GET /v1/auth/password/recovery/confirm`   | `flow`+`code`；只渲染惰性本地确认页，不消费 code                           |
+| `POST /v1/auth/password/recovery/callback` | exact form `flow`+`code`；单次 exchange；固定 302 Web recovery             |
+| `GET /v1/auth/password/recovery/session`   | recovery Cookie+Web Origin；返回短时 `{csrfToken,expiresAt}`               |
+| `POST /v1/auth/password/recovery/complete` | Cookie+Origin+CSRF+strict `{password}`；成功 204 并清 Cookie               |
+| `GET /internal/password-recovery/run`      | CRON bearer；每次有界领取一个待发邮件 flow                                 |
 
 五个公开响应都固定 `Cache-Control: private, no-store`；confirm/callback 另固定
 `Referrer-Policy: no-referrer`。confirm HTML 固定 CSP
-`default-src 'none'; form-action 'self' <exact Web origin>; base-uri 'none'; frame-ancestors 'none'`；精确
-Web origin 只允许 Chrome 跟随 API callback 的固定跨子域 302，不使用 wildcard。页面不加载脚本、图片、
+`default-src 'none'; style-src 'sha256-<static stylesheet hash>'; form-action 'self' <exact Web origin>; base-uri 'none'; frame-ancestors 'none'`；精确
+Web origin 只允许 Chrome 跟随 API callback 的固定跨子域 302，不使用 wildcard。恢复确认页与旧注册
+确认页共用站点风格的玻璃卡片和响应式表单；仅允许精确哈希匹配的本地静态样式。页面不加载脚本、图片、
 字体或第三方资源；GET 不读取 flow state、不交换 code、不设置 Cookie。start 的 202 不设置 recovery/Web
 Cookie，不返回 flow、过期时间、账号存在性或 Provider 结果。callback 的成功和预期失败都只跳转固定
 HTTPS `/recover?continue=1`；flow/code 只短暂存在于 API callback URL，不进入 Web URL。
@@ -96,7 +99,9 @@ Idempotency-Key：它由 recovery session、CSRF、数据库 stage 与 lease 提
 
 公共错误继续复用：非法 JSON/字段为 400 `invalid_request`，无效 recovery proof 为统一 401
 `authentication_required`，错误 Origin/CSRF 为 403 `forbidden`，限速为 429 `rate_limited`。不得新增
-`account_not_found`、`password_method_missing` 或 Provider 原始错误。
+`account_not_found`、`password_method_missing` 或 Provider 原始错误。只有持有有效恢复 proof 的 complete
+调用遇到明确 `same_password` / `weak_password` 拒绝时，返回固定 400 `invalid_request`，不区分二者
+或转发 Provider 文本。start 不提供此信号。
 
 ## 4. 技术路线与深模块
 
@@ -202,9 +207,9 @@ dispatch-at 已写入的模糊状态透明重试。
 - `exchange()` 不依赖 Supabase PKCE flow state，而在用户显式 POST 后调用
   `verifyOtp({token_hash:code,type:"recovery"})`，要求 session/user/email 全部存在，再返回更新后的 state；
 - `updatePassword()` 只用恢复 session 的 auth state 调用 `updateUser({password})`，不使用 service role；
-- adapter 将 Provider error（包括 `same_password`）全部映射为固定 `authentication_required`，不得把
-  error/message/status 写入公共响应或普通日志；Web 只陈述产品恒真约束，不把统一错误反推为某个
-  Provider 原因；
+- adapter 仅将真实 Supabase `AuthApiError` / `AuthWeakPasswordError`、400/422 状态且 code 为
+  `same_password` / `weak_password` 的明确拒绝标记为可修正错误；其余 Provider 失败统一映射为
+  `authentication_required`。不得把原始 error/message/status 写入公共响应或普通日志；
 - production composition 逐请求创建 Auth client，禁止模块级共享 user-specific storage。
 
 ## 5. 数据结构与状态机
@@ -313,6 +318,11 @@ Provider 更新成功到 `provider-updated` 提交之间存在不可消除的跨
 显式重试时可再次提交其当前输入，Provider 调用仍必须核对同一 user ID。`provider-updated` 已提交但最终
 事务失败时，重试跳过 Provider，直接撤销 Huayi sessions、写通知并完成。
 
+0028 只为明确的新密码拒绝增加释放 completion lease 的能力，不改变 flow/browser/CSRF 或到期时间。
+释放必须匹配同一 flow 的当前未过期 lease，且 stage 仍为 verified；旧 lease、过期 capability、
+provider-updated 均不能释放。网络异常或 Provider 结果不确定时保留原 lease，禁止透明重复改密。
+SQL 仅向 `huayi_context_setter` 授权，显式撤销 PUBLIC、Supabase 三角色及业务/runtime 角色权限。
+
 ## 6. 安全、隐私与运维约束
 
 - start 每 IP 每小时最多 10 次、每个 keyed normalized-email bucket 每小时最多 3 次；429 只反映调用者
@@ -322,7 +332,7 @@ Provider 更新成功到 `provider-updated` 提交之间存在不可消除的跨
   测试固定 floor，不声称密码学不可区分；发布前另以实际部署分布复核预算是否需要提高；
 - callback code/flow 单次、短时、精确 redirect；响应禁止缓存和 Referer。Web 首次读取 session 后立即
   `history.replaceState("/recover")` 清除固定 `continue=1` 标记；
-- 邮件 GET confirm 不消费 code，只显示本地、无脚本/外链的显式 POST 按钮；这降低邮件 scanner 造成的
+- 邮件 GET confirm 不消费 code，只显示本地、无脚本/外部资源的显式 POST 按钮；这降低邮件 scanner 造成的
   提前消费风险。callback 只接受恰好两个字段的 form-urlencoded POST，拒绝 JSON、额外/重复字段；
 - complete 在 Provider 前再次锁定 flow、profile active、password method、browser expiry、Origin、CSRF
   与 lease；Provider user ID 再次匹配 owner，任何失败都不创建 Huayi session；
@@ -351,7 +361,7 @@ Provider 更新成功到 `provider-updated` 提交之间存在不可消除的跨
 - Provider fake 固定 worker begin→callback exchange→complete update 顺序，证明 dispatch mark 先于 begin、
   state 加密后才持久化、密码只出现在 update 调用；
 - Supabase adapter 覆盖 `resetPasswordForEmail` 精确 redirect、token-hash verify/update 严格 user/email
-  投影和全部错误收敛；Hosted Auth 门覆盖旧 `ConfirmationURL` 到精确 scanner-safe 模板的单字段更新与回读；
+  投影、已知密码拒绝与未知错误的分类；Hosted Auth 门覆盖旧 `ConfirmationURL` 到精确 scanner-safe 模板的单字段更新与回读；
 - 内存与 PGlite 覆盖每 owner 单 open flow、30/15 分钟 expiry、callback 单次、30 秒 complete lease、过期
   接管、旧 lease fencing、provider-updated 恢复；worker 另覆盖单次 claim、dispatch 后崩溃零透明重发、
   新请求使旧邮件失效；
@@ -364,8 +374,10 @@ Provider 更新成功到 `provider-updated` 提交之间存在不可消除的跨
 - `/login` 可键盘访问“忘记密码”，`/recover` email/new-password/confirm-password 使用正确 label/
   autocomplete，两次密码不匹配在客户端拒绝且零 API；统一 status/alert、提交时禁用、失败保留可修正
   输入、成功清空密码；
-- start 202 不导航、不登录、不在 DOM/Storage/snapshot 回显 email；fake mailbox 必须由用户显式点击；
-- actual confirm GET 必须停在惰性 API 页面，用户点击后 callback 才处理 Cookie/302；valid continue 显示
+- start 202 切换查收邮件视图、不登录、不在 DOM/Storage/snapshot 回显 email；120 秒内禁用重发，
+  并发点击只提交一次；429 保留输入并提示频率限制；fake mailbox 必须由用户显式点击；
+- 实际 API 确认页另通过本地 HTTP + 浏览器验证样式哈希、CSP、移动端布局与零自动 POST；
+  路由拦截的 fake mailbox 旅程不能替代该验证。confirm GET 必须停在惰性 API 页面，用户点击后 callback 才处理 Cookie/302；valid continue 显示
   新密码；新浏览器打开最新邮件同样只能取得一次改密 session，过期/旧邮件/replay 显示统一重新发起；
 - complete 后 authority 中全部 Web/Extension session 归零、通知 count=1，Web 返回 `/login`，旧 Cookie
   不能访问 `/app`，新密码必须经一次显式登录才取得新 session；

@@ -25,6 +25,13 @@ describe("Postgres PasswordRecovery repository", () => {
     database = new PGlite();
     await database.waitReady;
     await database.exec(await readFile(migrationUrl, "utf8"));
+    await database.exec("CREATE ROLE anon; CREATE ROLE authenticated; CREATE ROLE service_role;");
+    await database.exec(
+      await readFile(
+        new URL("../migrations/0028-password-recovery-correctable-retry.sql", import.meta.url),
+        "utf8",
+      ),
+    );
     await database.exec(`
       INSERT INTO user_profiles(user_id,owner_user_id,email,status,timezone,daily_goal)
       VALUES ('${userId}','${userId}','learner@example.test','active','UTC',5);
@@ -98,13 +105,26 @@ describe("Postgres PasswordRecovery repository", () => {
       session.csrfToken,
     );
     expect(completion).toMatchObject({ flowId: dispatch?.flowId, stage: "verified" });
+    await repository.releaseCompletion(completion.flowId, completion.leaseId);
+    const retried = await repository.claimCompletion(
+      browser.recoverySessionId,
+      "https://app.huayi.example",
+      session.csrfToken,
+    );
+    await expect(
+      repository.releaseCompletion(completion.flowId, completion.leaseId),
+    ).rejects.toMatchObject({ code: "authentication_required" });
+    expect(retried.leaseId).not.toBe(completion.leaseId);
     await repository.saveProviderUpdated(
-      completion.flowId,
-      completion.leaseId,
+      retried.flowId,
+      retried.leaseId,
       userId,
       "protected-updated-state",
     );
-    await repository.complete(completion.flowId, completion.leaseId);
+    await expect(
+      repository.releaseCompletion(retried.flowId, retried.leaseId),
+    ).rejects.toMatchObject({ code: "authentication_required" });
+    await repository.complete(retried.flowId, retried.leaseId);
 
     const state = await query(database).rows<{
       active_sessions: number;

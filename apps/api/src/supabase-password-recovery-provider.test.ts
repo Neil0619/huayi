@@ -1,4 +1,4 @@
-import { AuthApiError } from "@supabase/supabase-js";
+import { AuthApiError, AuthWeakPasswordError } from "@supabase/supabase-js";
 import { describe, expect, it, vi } from "vitest";
 
 import { createSupabasePasswordRecoveryProvider } from "./supabase-password-recovery-provider.js";
@@ -8,6 +8,27 @@ function authClient(methods: Record<string, unknown>) {
 }
 
 describe("Supabase password recovery provider", () => {
+  it.each([
+    new AuthApiError("private provider detail", 422, "same_password"),
+    new AuthWeakPasswordError("private provider detail", 422, ["length"]),
+  ])(
+    "identifies definite password-policy rejections without exposing provider details",
+    async (error) => {
+      const provider = createSupabasePasswordRecoveryProvider(() =>
+        authClient({
+          updateUser: vi.fn(async () => ({ data: { user: null }, error })),
+        }),
+      );
+      await expect(
+        provider.updatePassword({ authState: {}, password: "password rejected by provider" }),
+      ).rejects.toMatchObject({
+        code: "invalid_request",
+        name: "PasswordRecoveryPasswordRejected",
+        message: "The new password does not meet the password requirements.",
+      });
+    },
+  );
+
   it("starts recovery with an exact redirect without retaining an unused PKCE verifier", async () => {
     const resetPasswordForEmail = vi.fn();
     const provider = createSupabasePasswordRecoveryProvider(() =>
@@ -87,7 +108,7 @@ describe("Supabase password recovery provider", () => {
     expect(updateUser).toHaveBeenCalledWith({ password: "correct horse battery staple" });
   });
 
-  it("keeps a reused-password provider detail inside the safe recovery failure", async () => {
+  it("keeps a reused-password provider detail inside a correctable recovery failure", async () => {
     const provider = createSupabasePasswordRecoveryProvider(() =>
       authClient({
         updateUser: vi.fn().mockResolvedValue({
@@ -103,12 +124,12 @@ describe("Supabase password recovery provider", () => {
         password: "correct horse battery staple",
       }),
     ).rejects.toMatchObject({
-      code: "authentication_required",
-      message: "Password recovery could not be completed.",
+      code: "invalid_request",
+      message: "The new password does not meet the password requirements.",
     });
   });
 
-  it("converges provider errors and malformed provider identities on one safe failure", async () => {
+  it("distinguishes definite password rejection from unknown provider failures", async () => {
     const expectedFault = {
       code: "authentication_required",
       message: "Password recovery could not be completed.",
@@ -157,6 +178,9 @@ describe("Supabase password recovery provider", () => {
         authState: {},
         password: "correct horse battery staple",
       }),
-    ).rejects.toMatchObject(expectedFault);
+    ).rejects.toMatchObject({
+      code: "invalid_request",
+      message: "The new password does not meet the password requirements.",
+    });
   });
 });

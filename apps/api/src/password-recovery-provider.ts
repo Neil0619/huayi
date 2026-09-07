@@ -1,4 +1,12 @@
 import type { AuthState } from "./auth-provider.js";
+import { CloudFault } from "./cloud-fault.js";
+
+export class PasswordRecoveryPasswordRejected extends CloudFault {
+  constructor() {
+    super("invalid_request", "The new password does not meet the password requirements.");
+    this.name = "PasswordRecoveryPasswordRejected";
+  }
+}
 
 export interface PasswordRecoveryIdentity {
   authState: AuthState;

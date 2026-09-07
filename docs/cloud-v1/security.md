@@ -91,17 +91,22 @@ owner context、generation/reservation 归属、task 成功或失败终态、价
   Huayi session。complete 在 Provider 前锁定 owner/status/method/Origin/CSRF/lease，Provider user/email
   必须匹配；成功清 Cookie、撤销全部 Huayi Web/Extension sessions并写耐久安全通知。日志不含 email/hash、
   flow/code、Cookie/CSRF、auth state、Provider error 或密码。Web 可预先陈述“新密码必须与当前密码
-  不同”这一恒真约束，但 `same_password` 仍与其他 Provider 失败统一收敛，不能形成密码相等性探测信号。
+  不同”这一恒真约束。仅有效恢复 proof 下的 `same_password` / `weak_password` 明确拒绝共用固定
+  `invalid_request`，不区分二者，也不回显 Provider 细节；未知错误仍统一失败。0028 只允许可信上下文
+  释放同一 verified flow 的当前未过期 completion lease，保留 browser/CSRF/expiry；旧 lease、
+  provider-updated 与未知调用结果不得释放。再次提交仍执行完整 owner/status/method/Origin/CSRF 校验。
   start 不等待外部网络，有效且未限速的 202 固定至少 250ms handler floor；trusted worker 在发信前耐久
   标记 dispatch，可能已发信的丢失任务不得自动重发，以满足统一响应时间并避免邮件轰炸。安全通知使用
   独立 120 秒 lease 和有界退避；sender 必须
   用 outbox notification ID 做厂商幂等键，避免邮件成功而本地 complete 失败后的重复投递。完整矩阵见
   `password-recovery.md`。
 - 恢复邮件模板不得使用会先消费 Supabase PKCE flow 的 `ConfirmationURL`；只允许精确
-  `RedirectTo + TokenHash` 到语见 GET。GET 不直接验证 Provider token hash，而只返回无脚本/外链、CSP 将 `form-action` 限定为
+  `RedirectTo + TokenHash` 到语见 GET。GET 不直接验证 Provider token hash，而只返回无脚本/外部资源、CSP 将 `form-action` 限定为
   `'self'` 与精确配置的 Web origin 的惰性确认页；后者只允许 Chrome 跟随 API callback 到 Web 的固定
   302。用户显式 POST exact flow+code 表单后才调用 `verifyOtp(type=recovery)` 消费单次 token hash。confirm/callback 均
-  no-store/no-referrer，目标固定，降低邮件 scanner 抢先消费和 Referer 泄漏风险。
+  no-store/no-referrer，目标固定，降低邮件 scanner 抢先消费和 Referer 泄漏风险。恢复确认与旧注册
+  确认页只允许 SHA-256 哈希精确匹配的静态内联样式，动态文本必须 HTML 转义；不开放 unsafe-inline、
+  脚本、远程字体或第三方资源。
 - Web Cookie 使用随机不透明 ID；会话固定攻击通过登录后轮换 ID 防止。CSRF 同时校验固定 Web Origin
   与随机 token；OAuth callback 只把 HttpOnly session Cookie 带回 API origin，再由固定 Web Origin
   调用无缓存 bootstrap 原子轮换 CSRF hash。CORS 只允许固定 Web origin 携带 Cookie；Extension 使用

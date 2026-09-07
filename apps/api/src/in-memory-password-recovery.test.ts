@@ -1,9 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
+import { AuthApiError } from "@supabase/supabase-js";
 
 import { createInMemoryPasswordRecovery } from "./in-memory-password-recovery.js";
 import { createPasswordRecoveryModule } from "./password-recovery-module.js";
 import type { PasswordRecoveryProvider } from "./password-recovery-provider.js";
 import { DeterministicSecrets, MutableClock } from "./test-support/security-fakes.js";
+import { createSupabasePasswordRecoveryProvider } from "./supabase-password-recovery-provider.js";
 
 function setup() {
   const clock = new MutableClock("2026-08-14T10:00:00.000Z");
@@ -50,6 +52,64 @@ function setup() {
 }
 
 describe("in-memory PasswordRecovery state machine", () => {
+  it("allows a different password immediately after the provider rejects the current password", async () => {
+    const { recovery, provider, notified, revoked } = setup();
+    const updateUser = vi
+      .fn()
+      .mockResolvedValueOnce({
+        data: { user: null },
+        error: new AuthApiError("same password", 422, "same_password"),
+      })
+      .mockResolvedValueOnce({ data: { user: { id: "auth-user-a" } }, error: null });
+    provider.updatePassword = createSupabasePasswordRecoveryProvider(
+      () => ({ auth: { updateUser } }) as never,
+    ).updatePassword;
+    await recovery.request({ email: "learner@example.com", ipBucket: "ip-a" });
+    await recovery.dispatchNext();
+    const redirectTo = vi.mocked(provider.begin).mock.calls[0]?.[0].redirectTo;
+    const flowId = new URL(redirectTo ?? "").searchParams.get("flow") ?? "";
+    const browser = await recovery.callback({ code: "provider-code", flowId });
+    const command = {
+      csrfToken: browser.csrfToken,
+      origin: "https://app.huayi.example",
+      recoverySessionId: browser.recoverySessionId,
+    };
+    await expect(
+      recovery.complete({ ...command, password: "the existing long password" }),
+    ).rejects.toThrow();
+    expect(notified).toEqual([]);
+    expect(revoked).toEqual([]);
+    await expect(
+      recovery.complete({ ...command, password: "a different long password" }),
+    ).resolves.toBeUndefined();
+    expect(updateUser).toHaveBeenCalledTimes(2);
+    expect(notified).toEqual(["auth-user-a"]);
+    expect(revoked).toEqual(["auth-user-a"]);
+  });
+
+  it("keeps the completion lease when the provider outcome is unknown", async () => {
+    const { recovery, provider, notified, revoked } = setup();
+    vi.mocked(provider.updatePassword).mockRejectedValue(new Error("connection lost"));
+    await recovery.request({ email: "learner@example.com", ipBucket: "ip-a" });
+    await recovery.dispatchNext();
+    const redirectTo = vi.mocked(provider.begin).mock.calls[0]?.[0].redirectTo;
+    const flowId = new URL(redirectTo ?? "").searchParams.get("flow") ?? "";
+    const browser = await recovery.callback({ code: "provider-code", flowId });
+    const command = {
+      csrfToken: browser.csrfToken,
+      origin: "https://app.huayi.example",
+      recoverySessionId: browser.recoverySessionId,
+      password: "a different long password",
+    };
+    await expect(recovery.complete(command)).rejects.toThrow();
+    await expect(recovery.complete(command)).rejects.toMatchObject({
+      code: "authentication_required",
+    });
+    expect(provider.updatePassword).toHaveBeenCalledOnce();
+    expect(notified).toEqual([]);
+    expect(revoked).toEqual([]);
+  });
+
   it("queues only an eligible password owner and makes only the newest flow usable", async () => {
     const { provider, recovery, repository } = setup();
 

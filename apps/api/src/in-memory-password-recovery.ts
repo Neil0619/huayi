@@ -282,6 +282,24 @@ export function createInMemoryPasswordRecovery(options: {
       return { csrfToken, expiresAt: flow.browserExpiresAt as Date };
     },
 
+    releaseCompletion(flowId, leaseId) {
+      const flow = findFlow(flowId);
+      if (
+        flow === undefined ||
+        flow.stage !== "verified" ||
+        flow.completionLeaseHash === undefined ||
+        flow.completionLeaseExpiresAt === undefined ||
+        flow.completionLeaseExpiresAt <= options.clock.now() ||
+        flow.browserExpiresAt === undefined ||
+        flow.browserExpiresAt <= options.clock.now() ||
+        flow.expiresAt <= options.clock.now() ||
+        !secretMatches(leaseId, flow.completionLeaseHash, options.pepper)
+      )
+        throw unavailable();
+      delete flow.completionLeaseHash;
+      delete flow.completionLeaseExpiresAt;
+    },
+
     request({ email }) {
       const normalizedEmail = email.trim().toLowerCase();
       const eligible = options.findEligibleAccount(normalizedEmail);

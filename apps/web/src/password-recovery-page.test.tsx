@@ -1,6 +1,6 @@
 import { act } from "react";
-import { createRoot } from "react-dom/client";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createRoot, type Root } from "react-dom/client";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { WebIdentityApiError } from "./identity-api.js";
 import { PasswordRecoveryPage, type PasswordRecoveryApi } from "./password-recovery-page.js";
@@ -8,6 +8,13 @@ import { PasswordRecoveryPage, type PasswordRecoveryApi } from "./password-recov
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const csrfToken = "c".repeat(32);
+const roots: Root[] = [];
+afterEach(async () => {
+  await act(async () => {
+    for (const root of roots.splice(0)) root.unmount();
+  });
+  vi.useRealTimers();
+});
 
 function api(overrides: Partial<PasswordRecoveryApi> = {}): PasswordRecoveryApi {
   return {
@@ -29,8 +36,10 @@ async function render(
   document.body.append(container);
   const onCompleted = vi.fn();
   const replaceRecoveryUrl = vi.fn();
+  const root = createRoot(container);
+  roots.push(root);
   await act(async () =>
-    createRoot(container).render(
+    root.render(
       <PasswordRecoveryPage
         api={recoveryApi}
         onCompleted={onCompleted}
@@ -79,7 +88,7 @@ describe("Web password recovery page", () => {
     expect(view.container.querySelectorAll(".auth-footer")).toHaveLength(1);
   });
 
-  it("submits one labelled email, clears it, and describes queued delivery honestly", async () => {
+  it("replaces the email form with a clear check-mail step and a resend cooldown", async () => {
     const recoveryApi = api();
     const view = await render(recoveryApi);
     const email = view.container.querySelector<HTMLInputElement>("#recovery-email");
@@ -91,13 +100,15 @@ describe("Web password recovery page", () => {
     );
 
     expect(recoveryApi.requestPasswordRecovery).toHaveBeenCalledWith("learner@example.com");
-    expect(email.value).toBe("");
+    expect(view.container.querySelector("#recovery-email")).toBeNull();
+    expect(view.container.querySelector("h1")?.textContent).toBe("请查收恢复邮件");
+    expect(
+      view.container.querySelector<HTMLButtonElement>("[data-resend-recovery]")?.disabled,
+    ).toBe(true);
     expect(view.container.querySelector("[role='status']")?.textContent).toContain(
       "恢复请求已提交",
     );
-    expect(view.container.querySelector("[role='status']")?.textContent).toContain(
-      "几分钟内收到邮件",
-    );
+    expect(view.container.querySelector("[role='status']")?.textContent).toContain("几分钟");
     expect(view.container.textContent).not.toContain("我们已发送邮件");
     expect(view.container.textContent).not.toContain("learner@example.com");
     expect(localStorage).toHaveLength(0);
@@ -116,6 +127,53 @@ describe("Web password recovery page", () => {
     expect(view.container.textContent).not.toContain(csrfToken);
     expect(localStorage).toHaveLength(0);
     expect(sessionStorage).toHaveLength(0);
+  });
+
+  it("resends the original email only after the cooldown without restoring an empty form", async () => {
+    vi.useFakeTimers();
+    const recoveryApi = api();
+    const view = await render(recoveryApi);
+    const email = view.container.querySelector<HTMLInputElement>("#recovery-email");
+    if (!email) throw Error("Email field missing");
+    await change(email, "learner@example.com");
+    await act(async () =>
+      view.container.querySelector<HTMLButtonElement>("[data-request-recovery]")?.click(),
+    );
+    const resend = view.container.querySelector<HTMLButtonElement>("[data-resend-recovery]");
+    expect(resend?.disabled).toBe(true);
+    await act(async () => {
+      vi.advanceTimersByTime(120000);
+    });
+    expect(resend?.disabled).toBe(false);
+    await act(async () => {
+      resend?.click();
+      resend?.click();
+    });
+    expect(recoveryApi.requestPasswordRecovery).toHaveBeenCalledTimes(2);
+    expect(recoveryApi.requestPasswordRecovery).toHaveBeenLastCalledWith("learner@example.com");
+    expect(view.container.querySelector("#recovery-email")).toBeNull();
+    expect(resend?.disabled).toBe(true);
+  });
+
+  it("explains request limits and retains correctable email on a failed submission", async () => {
+    const view = await render(
+      api({
+        requestPasswordRecovery: vi
+          .fn()
+          .mockRejectedValue(new WebIdentityApiError("rate_limited", 429)),
+      }),
+    );
+    const email = view.container.querySelector<HTMLInputElement>("#recovery-email");
+    if (!email) throw Error("Email field missing");
+    await change(email, "learner@example.com");
+    await act(async () =>
+      view.container.querySelector<HTMLButtonElement>("[data-request-recovery]")?.click(),
+    );
+    expect(view.container.querySelector("[role=alert]")?.textContent).toContain(
+      "每小时最多可提交 3 次",
+    );
+    expect(email.value).toBe("learner@example.com");
+    expect(view.container.querySelector("h1")?.textContent).toBe("恢复密码");
   });
 
   it("rejects mismatched passwords locally, then submits one matching password and leaves for login", async () => {
