@@ -115,7 +115,7 @@ describe("analysis HTTP slice", () => {
         headers: {
           "Content-Type": "application/json",
           "Idempotency-Key": key,
-          "If-Match": `"${expectedRevision}"`,
+          "X-Huayi-Revision": `"${expectedRevision}"`,
         },
         method,
       });
@@ -165,7 +165,7 @@ describe("analysis HTTP slice", () => {
       headers: {
         "Content-Type": "application/json",
         "Idempotency-Key": "confirm-mismatch",
-        "If-Match": '"2"',
+        "X-Huayi-Revision": '"2"',
       },
       method: "POST",
     });
@@ -176,7 +176,7 @@ describe("analysis HTTP slice", () => {
       headers: {
         "Content-Type": "application/json",
         "Idempotency-Key": "confirm-ok",
-        "If-Match": '"1"',
+        "X-Huayi-Revision": '"1"',
       },
       method: "POST",
     });

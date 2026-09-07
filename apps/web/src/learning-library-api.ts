@@ -14,7 +14,7 @@ import {
   learningItemHttpRoutes,
   learningItemListResponseSchema,
   learningItemMergeResponseSchema,
-  learningItemMutationHeadersSchema,
+  revisionWriteHttpHeadersSchema,
   listLearningItemsQuerySchema,
   mergeLearningItemsRequestSchema,
   mergePreviewResponseSchema,
@@ -84,7 +84,7 @@ export function createWebLearningLibraryApi(options: {
       idempotencyKey: string,
     ) {
       const request = learningItemArchiveRequestSchema.parse(input);
-      const headers = learningItemMutationHeadersSchema.parse({
+      const headers = revisionWriteHttpHeadersSchema.parse({
         "idempotency-key": idempotencyKey,
         "if-match": `"${request.expectedRevision}"`,
       });
@@ -133,7 +133,7 @@ export function createWebLearningLibraryApi(options: {
     },
     async patchLearningItem(id: string, input: PatchLearningItemRequest, idempotencyKey: string) {
       const request = patchLearningItemRequestSchema.parse(input);
-      const headers = learningItemMutationHeadersSchema.parse({
+      const headers = revisionWriteHttpHeadersSchema.parse({
         "idempotency-key": idempotencyKey,
         "if-match": `"${request.expectedRevision}"`,
       });
@@ -143,7 +143,7 @@ export function createWebLearningLibraryApi(options: {
     },
     async deleteLearningItem(id: string, input: DeleteLearningItemRequest, idempotencyKey: string) {
       const request = deleteLearningItemRequestSchema.parse(input);
-      const headers = learningItemMutationHeadersSchema.parse({
+      const headers = revisionWriteHttpHeadersSchema.parse({
         "idempotency-key": idempotencyKey,
         "if-match": `"${request.expectedRevision}"`,
       });
@@ -181,7 +181,7 @@ export function createWebLearningLibraryApi(options: {
       idempotencyKey: string,
     ) {
       const request = learningItemArchiveRequestSchema.parse(input);
-      const headers = learningItemMutationHeadersSchema.parse({
+      const headers = revisionWriteHttpHeadersSchema.parse({
         "idempotency-key": idempotencyKey,
         "if-match": `"${request.expectedRevision}"`,
       });
@@ -195,7 +195,7 @@ export function createWebLearningLibraryApi(options: {
       idempotencyKey: string,
     ) {
       const request = mergeLearningItemsRequestSchema.parse(input);
-      const headers = learningItemMutationHeadersSchema.parse({
+      const headers = revisionWriteHttpHeadersSchema.parse({
         "idempotency-key": idempotencyKey,
         "if-match": `"${request.sourceRevision}"`,
       });

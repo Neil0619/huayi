@@ -73,6 +73,7 @@ export function createCloudFoundationApp(dependencies: CloudFoundationDependenci
       "Content-Type",
       "Idempotency-Key",
       "If-Match",
+      "X-Huayi-Revision",
       "X-CSRF-Token",
       "X-Huayi-Client-Version",
     ],

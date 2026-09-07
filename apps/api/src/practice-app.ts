@@ -23,6 +23,7 @@ import {
 import { Hono, type Context } from "hono";
 
 import { CloudFault } from "./cloud-fault.js";
+import { readRevisionHeader } from "./revision-header.js";
 import type { DialoguePracticeModule } from "./dialogue-practice-module.js";
 import type { PracticeModule } from "./practice-module.js";
 import type { PracticeHistoryModule } from "./practice-history-module.js";
@@ -47,13 +48,13 @@ function createHeaders(context: Context) {
 function mutationHeaders(context: Context, expectedRevision: number) {
   const parsed = revisionWriteHeadersSchema.safeParse({
     "idempotency-key": context.req.header("idempotency-key"),
-    "if-match": context.req.header("if-match"),
+    "if-match": readRevisionHeader(context),
   });
   if (!parsed.success) {
-    throw new CloudFault("invalid_request", "Idempotency-Key and If-Match are required.");
+    throw new CloudFault("invalid_request", "Idempotency-Key and revision proof are required.");
   }
   if (Number(parsed.data["if-match"].slice(1, -1)) !== expectedRevision) {
-    throw new CloudFault("invalid_request", "If-Match must match expectedRevision.");
+    throw new CloudFault("invalid_request", "Revision header must match expectedRevision.");
   }
   return parsed.data["idempotency-key"];
 }

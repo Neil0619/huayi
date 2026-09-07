@@ -328,7 +328,7 @@ export function createWebIdentityApi(options: WebIdentityApiOptions) {
           headers: {
             "Content-Type": "application/json",
             "Idempotency-Key": crypto.randomUUID(),
-            "If-Match": `"${expectedRevision}"`,
+            "X-Huayi-Revision": `"${expectedRevision}"`,
             "X-CSRF-Token": csrfTokenResponseSchema.parse({ access: "full", csrfToken }).csrfToken,
           },
           method: "POST",

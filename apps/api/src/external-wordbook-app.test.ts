@@ -137,7 +137,7 @@ describe("external wordbook job HTTP", () => {
       headers: {
         "content-type": "application/json",
         "idempotency-key": "cancel-1",
-        "if-match": '"2"',
+        "x-huayi-revision": '"2"',
       },
       method: "POST",
     });

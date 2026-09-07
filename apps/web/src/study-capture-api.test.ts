@@ -17,6 +17,28 @@ const capture = {
 };
 
 describe("Web StudyCapture API", () => {
+  it("returns a saved title through a proxy that evaluates HTTP entity preconditions", async () => {
+    let persisted = { ...capture, title: "" };
+    const api = createWebStudyCaptureApi({
+      apiOrigin: "https://api.huayi.example",
+      csrfToken: async () => "csrf-token",
+      fetch: async (_url, init) => {
+        const input = JSON.parse(String(init?.body)) as { title: string };
+        persisted = { ...persisted, title: input.title, revision: 2 };
+        // The production proxy rejected the response after the write had committed.
+        if (new Headers(init?.headers).has("If-Match")) {
+          return new Response("PRECONDITION_FAILED", { status: 412 });
+        }
+        return Response.json({ capture: persisted, latestAnalysis: null });
+      },
+    });
+
+    await expect(
+      api.patchCapture("capture-1", { expectedRevision: 1, title: "Useful" }, "patch-key"),
+    ).resolves.toMatchObject({ capture: { revision: 2, title: "Useful" } });
+    expect(persisted).toMatchObject({ revision: 2, title: "Useful" });
+  });
+
   it("uses Cookie GET filters and CSRF/revision proof for patch", async () => {
     const fetch = vi
       .fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>()
@@ -42,7 +64,7 @@ describe("Web StudyCapture API", () => {
     expect(patchInit).toMatchObject({ credentials: "include", method: "PATCH" });
     expect(patchInit?.headers).toMatchObject({
       "Idempotency-Key": "patch-key",
-      "If-Match": '"1"',
+      "X-Huayi-Revision": '"1"',
       "X-CSRF-Token": "csrf-token",
     });
   });
@@ -88,7 +110,7 @@ describe("Web StudyCapture API", () => {
     });
     expect(init?.headers).toMatchObject({
       "Idempotency-Key": "analysis-key",
-      "If-Match": '"1"',
+      "X-Huayi-Revision": '"1"',
       "X-CSRF-Token": "csrf-token",
     });
   });

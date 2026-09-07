@@ -40,6 +40,8 @@ CC／切轨、`zh-Hans`、SPA、剧院／全屏、选词和生词本。
   fetch 下做双平台回归；操作者不配置 CA 环境变量，真实下载与 Keychain 读取只在获批 macOS 运维中执行。
 - 正式环境初始化凭据使用独立 Keychain service。`production-credentials` 的隔离、隐藏输入和重复配置
   保留行为使用 fake process 在双平台验证；真实保存和读取只能在操作者 macOS 上验收。
+- Cloud Web/API/Store 的应用版本请求头属于 shared HTTP 合同：使用 `X-Huayi-Revision`，兼容旧输入，
+  两个平台均验证版本冲突、幂等和代理响应回归；真实 Hosted 域名的请求结果另行回读。
 - 个人正式版 Store 使用独立 `production` profile、`dist-production` 和固定 ID；构建及包审计属于
   shared 离线门，两个平台都必须通过。真实 Chrome 安装和配对仍分别在目标平台确认。
 - Hosted 首次密码恢复/Cron 引导的状态判断、HTTP worker 与严格 parser 属于 shared 合同，必须在 macOS
@@ -65,8 +67,8 @@ CC／切轨、`zh-Hans`、SPA、剧院／全屏、选词和生词本。
   或人工验收覆盖。能通过注入验证的逻辑不得按当前 `process.platform` 整体跳过。
 - 链接拒绝测试可在 Windows 临时目录内创建 junction，并以 `lstat` 验证真实链接身份；不要
   因普通用户没有符号链接权限而跳过通用路径安全合同。平台截图只更新本机审查过的基线。
-- Windows 修复如果涉及 Web 源码，须在 `verify:windows` 外补跑 Web Vitest project；本机通过
-  不代表 macOS 已验证，Hosted 构建通过也不代表远端迁移、部署或人工插件验收已完成。
+- 两个平台的门禁必须包含 API 和 Web Vitest projects；本机通过不代表另一平台已验证，
+  Hosted 构建通过也不代表远端迁移、部署或人工插件验收已完成。
 - 默认门禁不得读取真实 Keychain、DPAPI 凭据、注册表秘密、Codex 登录或调用外部 API。
 - Hosted 凭据回归必须注入 fake Keychain/fake process/fake HTTP；macOS 人工验收只证明系统读取与跨新终端
   持久化，不自动授权 migration、backup、restore、deployment 或真实 smoke。
@@ -107,7 +109,8 @@ macOS 操作者集成；其共享合同必须用 fake credential/process/HTTP �
 Windows job 未通过时状态停在 CI，不得以旧 Windows 结果、macOS 结果或重派不同 SHA 继续发布。
 
 非 Windows 根 Vitest 使用两个串行资源批次：非 API projects 最多 4 workers，API/PGlite 最多
-2 workers 并仅为该批次设置 15 秒 test/hook timeout；Windows 的既有逐 project 命令保持不变。
+2 workers 并仅为该批次设置 15 秒 test/hook timeout。Windows 串行运行全部 9 个 projects，
+Native Host 禁用文件并行，Web 最多 4 workers，API 使用相同的 2 workers 和 15 秒超时。
 macOS 与 Windows Actions job 只有失败时才上传固定离线 fixture 的 actual/diff PNG，范围为 lexical ResultCard、
 练习桌面/移动端、四种主题的收集箱、账号设置桌面/移动端、Store 常用设置/本地生词双宽度及两种
 Store action，以及四种主题的弹窗和双宽度插件连接页，共 56 个固定文件名，

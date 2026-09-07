@@ -66,14 +66,14 @@ describe("word library routes", () => {
     await expect(detail.json()).resolves.toMatchObject({ word: { id: "word-1" } });
   });
 
-  it("requires matching If-Match for mutation", async () => {
+  it("requires matching application revision for mutation", async () => {
     const server = app();
     const deletion = await server.request("/v1/words/word-1", {
       body: JSON.stringify({ expectedRevision: 1 }),
       headers: {
         "content-type": "application/json",
         "idempotency-key": "delete-1",
-        "if-match": '"1"',
+        "x-huayi-revision": '"1"',
       },
       method: "DELETE",
     });

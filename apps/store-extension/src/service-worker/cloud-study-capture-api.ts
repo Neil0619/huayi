@@ -110,7 +110,7 @@ export function createCloudStudyCaptureApi(options: CloudStudyCaptureApiOptions)
             ...headers(sessionToken),
             "Content-Type": "application/json",
             "Idempotency-Key": key,
-            "If-Match": `"${expectedRevision}"`,
+            "X-Huayi-Revision": `"${expectedRevision}"`,
           },
           method: "DELETE",
         },

@@ -187,7 +187,7 @@ DeepSeek、生产价格行、部署、安装或 Chrome。
   五类 output、item alias 重绑、一回结构修复、两次实际调用分别计费、reasoning/原始错误丢弃。production
   composition 缺价格、模型或 quota 配置时必须 fail closed；全部默认测试离线。
 - 账号偏好：五项 strict Web projection、三项 Extension projection、platform/manual/enabled defaults、
-  revision/If-Match/idempotency、pairing 原子选择与 exchange snapshot；PGlite forced RLS/cross-owner，Web
+  body expectedRevision 冲突、pairing 原子选择与 exchange snapshot；PGlite forced RLS/cross-owner，Web
   草稿冲突，Store session-bound cache/断开清理和无逐设备 override；DeviceDisconnect 另覆盖 singular
   self-revoke、旧版本仍可退出、统一 204、远端先于本机清理、网络失败零本机变化和其他设备保持有效，
   完整矩阵见 `extension-session-disconnect.md`。
@@ -264,7 +264,7 @@ timeout 配置上限和三个非 analysis DeepSeek adapter 的实际 abort 没�
   reviewState 独立、
   nothing-to-save、归档/恢复、二次确认删除、mutation 后 server reread、写入成功但刷新失败的诚实状态，
   以及迟到 list/detail/action 抑制、焦点、loading/empty/error/retry；adapter 回归继续证明 Cookie、CSRF、
-  Idempotency-Key 与 If-Match。actual bundle 另须从 production `/history` 覆盖 StudyCapture-linked record 的
+  Idempotency-Key 与 X-Huayi-Revision。actual bundle 另须从 production `/history` 覆盖 StudyCapture-linked record 的
   五类筛选子集、无技术 ID 的语义详情、process→archive→restore 的服务器 revision 链、默认勾选
   capture 的两步删除、
   server reread 空态、390px 与公开 snapshot 脱敏；完整矩阵见 `analysis-history-acceptance.md`。
@@ -339,7 +339,7 @@ timeout 配置上限和三个非 analysis DeepSeek adapter 的实际 abort 没�
   本机 disconnect 只证明删除本地秘密，不替代服务端撤销测试；
 - PairingApproval actual bundle 必须从 production `/pair-extension/:id` 读取 pending pairing 与 revisioned
   三项偏好，验证完整披露、设备标签、consent gate、Cookie/Origin/CSRF strict approve body，并在 reload
-  后仅以 GET approved 恢复；approve 恰好一次且不使用 Idempotency-Key/If-Match，不创建 session/token，
+  后仅以 GET approved 恢复；approve 恰好一次且不使用 Idempotency-Key/X-Huayi-Revision，不创建 session/token，
   完整矩阵见 `pairing-approval-acceptance.md`；
 - 当前账号聚合：strict AccountResource 拒绝旧 consent/status 与秘密字段；active/full Cookie + no-store；
   owner repeatable-read snapshot 返回 email、五项偏好、稳定排序的未撤销/未过期设备和公开最低版本；
@@ -1739,3 +1739,14 @@ session is invalid.`；400 `invalid_request` 表示 runtime 数据库路径未�
 - 本地候选先运行 focused tests 与完整 `pnpm verify:macos`。真正 release 必须在 push 后由同一 release ID 的
   Cross-platform quality 取得最新 macOS/Windows 成功；真实 Chrome 加载/配对、R3-C、Cron 和 DeepSeek
   业务旅程均是部署后的独立人工门，不能由 fake tests 或 deployment `complete` 代替。
+
+## 托管代理的版本请求头回归
+
+原症状是原文标题已提交，但代理将响应替换为无 CORS 的 `412 PRECONDITION_FAILED`，导致页面不再提交分析。
+Web 回归模拟写入后拒绝 HTTP entity precondition 的代理；浏览器 authority 同样拒绝真实请求中的
+`If-Match`，完整覆盖带标题保存、学习库、练习与账号操作。API 同时覆盖新应用头、旧客户端、重复头冲突、
+格式错误、body 不匹配、旧 revision 和幂等重放。双平台完整 CI 后，还需在真实正式域名复查保存后分析
+继续执行；离线代理 fixture 不能替代实际 Vercel 回读。
+
+收集箱回归同时覆盖已确认分析的刷新：旧 completed task 只含不可变快照，不能覆盖服务器更高 revision 的
+reviewed 状态；缺少最新完整记录时按当前 summary 再读取，避免重复显示已加入学习库的候选。

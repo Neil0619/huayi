@@ -76,7 +76,7 @@ describe("Store Cloud analysis API", () => {
     expect(fetch.mock.calls[1]?.[1]?.headers).toMatchObject({
       Authorization: `HuayiExtension ${"s".repeat(43)}`,
       "Idempotency-Key": "archive-key",
-      "If-Match": '"1"',
+      "X-Huayi-Revision": '"1"',
     });
     expect(fetch.mock.calls[2]?.[1]).toMatchObject({ credentials: "omit", method: "DELETE" });
   });
@@ -124,7 +124,7 @@ describe("Store Cloud analysis API", () => {
     expect(fetch.mock.calls[0]?.[1]?.headers).toMatchObject({
       Authorization: `HuayiExtension ${"s".repeat(43)}`,
       "Idempotency-Key": "confirm-key",
-      "If-Match": '"1"',
+      "X-Huayi-Revision": '"1"',
     });
     expect(String(fetch.mock.calls[0]?.[0])).toContain("/analyses/analysis-1/candidates:confirm");
     expect(JSON.parse(String(fetch.mock.calls[0]?.[1]?.body))).toEqual(request);

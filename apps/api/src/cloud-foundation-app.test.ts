@@ -8,68 +8,15 @@ import {
   quotaSummarySchema,
 } from "@huayi/cloud-contracts";
 
-import { createAccountQuotaApp } from "./account-quota-app.js";
-import { createCloudFoundationApp } from "./cloud-foundation-app.js";
 import { CloudFault } from "./cloud-fault.js";
-import { createIdentityModule } from "./identity-module.js";
-import { createQuotaModule } from "./quota-module.js";
-import { createInMemoryRateLimiter, type RateLimiter } from "./rate-limiter.js";
+import { createCloudFoundationTestContext, origin } from "./test-support/cloud-foundation-http.js";
 
-import { DeterministicSecrets, MutableClock } from "./test-support/security-fakes.js";
-import { createFoundationAuthProvider } from "./test-support/foundation-auth-provider.js";
-
-const origin = "https://app.huayi.example";
-
-function foundation(rateLimiter?: RateLimiter) {
-  const clock = new MutableClock("2026-08-12T00:00:00.000Z");
-  const identity = createIdentityModule({
-    clock,
-    pepper: "test-pepper-at-least-32-characters",
-    secrets: new DeterministicSecrets(),
-    webOrigin: origin,
-  });
-  const auth = createFoundationAuthProvider();
-  vi.spyOn(auth, "beginGoogle");
-  vi.spyOn(auth, "registerPassword");
-  vi.spyOn(auth, "signInWithPassword");
-  const quota = createQuotaModule({ clock });
-  const app = createCloudFoundationApp({
-    apiOrigin: "https://api.huayi.example",
-    auth,
-    extensionOrigin: `chrome-extension://${"a".repeat(32)}`,
-    identity,
-    passwordLink: identity.passwordLink,
-    googleLink: identity.googleLink,
-    googleAuthenticationEnabled: true,
-    protectRefreshToken: (token) => `protected:${token}`,
-    protectTransientAuthState: (state) => state,
-    rateLimiter: rateLimiter ?? createInMemoryRateLimiter(clock),
-    unprotectRefreshToken: (token) => token.replace(/^protected:/u, ""),
-    unprotectTransientAuthState: (state) => state,
-    webOrigin: origin,
-  });
-  app.route(
-    "/",
-    createAccountQuotaApp({
-      async authenticate(context) {
-        const sessionId = context.req
-          .header("cookie")
-          ?.match(/(?:^|;\s*)huayi_session=([^;]+)/u)?.[1];
-        if (sessionId === undefined) {
-          throw new CloudFault("authentication_required", "Web session proof is required.");
-        }
-        return (await identity.authenticateWebSession(sessionId)).userId;
-      },
-      quota,
-    }),
-  );
-  return {
-    app,
-    auth,
-    clock,
-    identity,
-    quota,
-  };
+function foundation(...args: Parameters<typeof createCloudFoundationTestContext>) {
+  const context = createCloudFoundationTestContext(...args);
+  vi.spyOn(context.auth, "beginGoogle");
+  vi.spyOn(context.auth, "registerPassword");
+  vi.spyOn(context.auth, "signInWithPassword");
+  return context;
 }
 
 describe("Cloud foundation HTTP adapter", () => {
@@ -102,7 +49,8 @@ describe("Cloud foundation HTTP adapter", () => {
 
       const patch = await app.request("/v1/learning-items/item-1", {
         headers: {
-          "access-control-request-headers": "content-type,idempotency-key,if-match,x-csrf-token",
+          "access-control-request-headers":
+            "content-type,idempotency-key,x-huayi-revision,x-csrf-token",
           "access-control-request-method": "PATCH",
           origin,
         },
@@ -111,6 +59,7 @@ describe("Cloud foundation HTTP adapter", () => {
       expect(patch.status).toBe(204);
       expect(patch.headers.get("access-control-allow-origin")).toBe(origin);
       expect(patch.headers.get("access-control-allow-methods")).toContain("PATCH");
+      expect(patch.headers.get("access-control-allow-headers")).toContain("X-Huayi-Revision");
       expect(patch.headers.get("access-control-expose-headers")).toContain("Content-Disposition");
     },
   );

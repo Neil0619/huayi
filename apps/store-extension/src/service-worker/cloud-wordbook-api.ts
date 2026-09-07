@@ -10,7 +10,7 @@ import {
   wordbookLeaseRequestSchema,
   wordbookLeaseResponseSchema,
   wordbookJobResourceSchema,
-  wordbookJobRevisionHeadersSchema,
+  revisionWriteHttpHeadersSchema,
   wordbookJobRevisionRequestSchema,
   wordbookJobWriteHeadersSchema,
   wordbookReceiptResponseSchema,
@@ -172,7 +172,7 @@ export function createCloudWordbookApi(options: {
       sessionToken: string,
     ) {
       const parsed = wordbookJobRevisionRequestSchema.parse(input);
-      const headers = wordbookJobRevisionHeadersSchema.parse({
+      const headers = revisionWriteHttpHeadersSchema.parse({
         "idempotency-key": idempotencyKey,
         "if-match": `"${parsed.expectedRevision}"`,
       });

@@ -63,7 +63,7 @@ export function createWebAnalysisApi(options: WebAnalysisApiOptions) {
         headers: {
           "Content-Type": "application/json",
           "Idempotency-Key": idempotencyKey,
-          "If-Match": `"${expectedRevision}"`,
+          "X-Huayi-Revision": `"${expectedRevision}"`,
           "X-CSRF-Token": csrfToken,
         },
         method,

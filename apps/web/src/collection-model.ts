@@ -26,9 +26,19 @@ export function collectionEntries(
       );
       const completed =
         task?.output?.type === "analysis.completed" ? task.output.analysis : undefined;
+      const pointer =
+        completed &&
+        (!capture.latestAnalysis || completed.createdAt > capture.latestAnalysis.createdAt)
+          ? completed
+          : capture.latestAnalysis;
+      const current = [...analyses, completed]
+        .filter(
+          (record): record is AnalysisRecord => record !== undefined && record.id === pointer?.id,
+        )
+        .sort((a, b) => b.revision - a.revision)[0];
+      // A task output is an immutable snapshot. A newer server revision must be fetched again.
       const analysis =
-        analyses.find((item) => item.id === (completed?.id ?? capture.latestAnalysis?.id)) ??
-        completed;
+        current && pointer && current.revision >= pointer.revision ? current : undefined;
       return {
         id: capture.capture.id,
         sourceText: capture.capture.sourceText,

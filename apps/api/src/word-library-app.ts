@@ -17,16 +17,17 @@ import {
 import { Hono, type Context } from "hono";
 
 import { CloudFault } from "./cloud-fault.js";
+import { readRevisionHeader } from "./revision-header.js";
 import type { WordLibraryModule } from "./word-library-module.js";
 import type { WordListExport } from "./word-list-export.js";
 
 function headers(context: Context, revision: number) {
   const parsed = wordEntryMutationHeadersSchema.parse({
     "idempotency-key": context.req.header("idempotency-key"),
-    "if-match": context.req.header("if-match"),
+    "if-match": readRevisionHeader(context),
   });
   if (Number(parsed["if-match"].slice(1, -1)) !== revision) {
-    throw new CloudFault("invalid_request", "If-Match must match expectedRevision.");
+    throw new CloudFault("invalid_request", "Revision header must match expectedRevision.");
   }
   return parsed["idempotency-key"];
 }

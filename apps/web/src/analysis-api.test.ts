@@ -137,7 +137,7 @@ describe("Web analysis API", () => {
     expect(fetch.mock.calls[1]?.[1]).toMatchObject({ credentials: "include", method: "POST" });
     expect(fetch.mock.calls[1]?.[1]?.headers).toMatchObject({
       "Idempotency-Key": "archive-key",
-      "If-Match": '"1"',
+      "X-Huayi-Revision": '"1"',
       "X-CSRF-Token": "csrf-token",
     });
     expect(fetch.mock.calls[2]?.[1]).toMatchObject({ method: "DELETE" });
@@ -187,7 +187,7 @@ describe("Web analysis API", () => {
     );
     expect(fetch.mock.calls[0]?.[1]?.headers).toMatchObject({
       "Idempotency-Key": "confirm-key",
-      "If-Match": '"1"',
+      "X-Huayi-Revision": '"1"',
       "X-CSRF-Token": "csrf-token",
     });
     expect(String(fetch.mock.calls[0]?.[0])).toContain("/analyses/analysis-1/candidates:confirm");

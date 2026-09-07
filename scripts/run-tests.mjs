@@ -75,6 +75,15 @@ function resolveTestSteps(scriptTests, pnpmEntry, platform) {
     createVitestStep(pnpmEntry, "native-host", ["--no-file-parallelism"]),
     createVitestStep(pnpmEntry, "extension"),
     createVitestStep(pnpmEntry, "store-extension"),
+    createVitestStep(pnpmEntry, "web", ["--maxWorkers", "4"]),
+    createVitestStep(pnpmEntry, "api", [
+      "--maxWorkers",
+      "2",
+      "--testTimeout",
+      "15000",
+      "--hookTimeout",
+      "15000",
+    ]),
   ];
 }
 

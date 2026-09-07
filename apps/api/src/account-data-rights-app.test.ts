@@ -97,7 +97,7 @@ describe("account data rights HTTP", () => {
     const { outer } = server();
     const mismatch = await outer.request(`/v1/account-data-exports/${job.id}/retry`, {
       body: JSON.stringify({ expectedRevision: 1 }),
-      headers: { ...proofHeaders, "if-match": '"2"' },
+      headers: { ...proofHeaders, "x-huayi-revision": '"2"' },
       method: "POST",
     });
     expect(mismatch.status).toBe(400);
@@ -105,7 +105,7 @@ describe("account data rights HTTP", () => {
 
     const retried = await outer.request(`/v1/account-data-exports/${job.id}/retry`, {
       body: JSON.stringify({ expectedRevision: 1 }),
-      headers: { ...proofHeaders, "if-match": '"1"' },
+      headers: { ...proofHeaders, "x-huayi-revision": '"1"' },
       method: "POST",
     });
     expect(retried.status).toBe(200);

@@ -64,7 +64,7 @@ export function createWebStudyCaptureApi(options: Options) {
       headers: {
         "Content-Type": "application/json",
         "Idempotency-Key": headers["idempotency-key"],
-        "If-Match": headers["if-match"],
+        "X-Huayi-Revision": headers["if-match"],
         "X-CSRF-Token": csrf,
       },
       method,
@@ -106,7 +106,7 @@ export function createWebStudyCaptureApi(options: Options) {
             Accept: "text/event-stream",
             "Content-Type": "application/json",
             "Idempotency-Key": idempotencyKey,
-            "If-Match": `"${parsed.expectedRevision}"`,
+            "X-Huayi-Revision": `"${parsed.expectedRevision}"`,
             "X-CSRF-Token": csrf,
           },
           method: "POST",

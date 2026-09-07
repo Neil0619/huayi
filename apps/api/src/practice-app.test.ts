@@ -149,7 +149,7 @@ describe("practice HTTP", () => {
       headers: {
         "content-type": "application/json",
         "idempotency-key": "rate-1",
-        "if-match": '"2"',
+        "x-huayi-revision": '"2"',
       },
       method: "POST",
     });
@@ -161,7 +161,7 @@ describe("practice HTTP", () => {
         headers: {
           "content-type": "application/json",
           "idempotency-key": "retry-1",
-          "if-match": '"2"',
+          "x-huayi-revision": '"2"',
         },
         method: "POST",
       },
@@ -178,7 +178,7 @@ describe("practice HTTP", () => {
       headers: {
         "content-type": "application/json",
         "idempotency-key": "delete-1",
-        "if-match": '"3"',
+        "x-huayi-revision": '"3"',
       },
       method: "DELETE",
     });
@@ -188,7 +188,7 @@ describe("practice HTTP", () => {
       headers: {
         "content-type": "application/json",
         "idempotency-key": "delete-2",
-        "if-match": '"2"',
+        "x-huayi-revision": '"2"',
       },
       method: "DELETE",
     });

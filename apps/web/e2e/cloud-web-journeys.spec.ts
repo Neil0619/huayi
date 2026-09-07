@@ -1057,7 +1057,7 @@ test("browser authority rejects missing proof and preserves strict replay semant
       const headers = {
         "content-type": "application/json",
         "idempotency-key": "cloud-e2e-replay-key-000000000000",
-        "if-match": '"1"',
+        "x-huayi-revision": '"1"',
         "x-csrf-token": csrf.csrfToken,
       };
       const submit = (body: unknown) =>

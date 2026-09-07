@@ -17,6 +17,7 @@ import { streamSSE } from "hono/streaming";
 
 import type { AnalysisModule } from "./analysis-module.js";
 import { CloudFault } from "./cloud-fault.js";
+import { readRevisionHeader } from "./revision-header.js";
 
 interface Dependencies {
   authenticate(context: Context): Promise<string> | string;
@@ -34,10 +35,10 @@ async function json(context: Context): Promise<unknown> {
 function mutationHeaders(context: Context) {
   const parsed = revisionWriteHeadersSchema.safeParse({
     "idempotency-key": context.req.header("idempotency-key"),
-    "if-match": context.req.header("if-match"),
+    "if-match": readRevisionHeader(context),
   });
   if (!parsed.success) {
-    throw new CloudFault("invalid_request", "Idempotency-Key and If-Match are required.");
+    throw new CloudFault("invalid_request", "Idempotency-Key and revision proof are required.");
   }
   return {
     expectedRevision: Number(parsed.data["if-match"].slice(1, -1)),
@@ -47,7 +48,7 @@ function mutationHeaders(context: Context) {
 
 function requireMatchingRevision(headerRevision: number, bodyRevision: number) {
   if (headerRevision !== bodyRevision) {
-    throw new CloudFault("invalid_request", "If-Match must match expectedRevision.");
+    throw new CloudFault("invalid_request", "Revision header must match expectedRevision.");
   }
 }
 
