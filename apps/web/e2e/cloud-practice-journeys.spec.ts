@@ -92,6 +92,32 @@ test("three-round dialogue returns per-item feedback and rates every item atomic
   await expect(page.getByText("所有自评已保存，排期已更新。")).toBeVisible();
   expect(authority.snapshot().practiceProviderCallCount).toBe(5);
 
+  const endPractice = page.getByRole("button", { name: "结束本次练习", exact: true });
+  for (const hosted of [false, true]) {
+    if (hosted) {
+      await page.evaluate(() => {
+        const notice = document.createElement("div");
+        notice.className = "acceptance-environment-notice";
+        notice.textContent = "Hosted 验收环境";
+        document.body.prepend(notice);
+      });
+    }
+    for (const width of [1440, 840, 390]) {
+      await page.setViewportSize({ width, height: 760 });
+      await page.getByRole("heading", { name: "对话反馈", exact: true }).scrollIntoViewIfNeeded();
+      if (width === 390) await endPractice.scrollIntoViewIfNeeded();
+      expect(
+        await endPractice.evaluate((button) => {
+          const rect = button.getBoundingClientRect();
+          const hit = document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2);
+          return hit !== null && button.contains(hit);
+        }),
+        `The practice controls must remain clickable at ${width}px with hosted notice ${hosted}`,
+      ).toBe(true);
+      await endPractice.click({ trial: true });
+    }
+  }
+
   await page.goto(`${webOrigin}/settings/account`);
   await expect(page.getByRole("progressbar", { name: "平台额度已使用 50%" })).toBeVisible();
 });

@@ -117,6 +117,7 @@
   --button-fill-hover: var(--action-hover);
   --button-text: var(--text-on-action);
   --acceptance-notice-height: 42px;
+  --workspace-topbar-height: var(--space-16);
   --glass-radius: var(--radius-card);
   --glass-blur: var(--blur-soft);
   --glass-fill: var(--surface-glass);
