@@ -6,6 +6,7 @@ import {
   addMilliseconds,
   hashSecret,
   opaqueSecret,
+  webSessionCsrfToken,
   type Clock,
   type SecretSource,
 } from "./security.js";
@@ -64,7 +65,7 @@ export function createPostgresGoogleLink(
 
     async complete(flowId, sessionId, providerUserId, refreshCiphertext) {
       const newSessionId = opaqueSecret(options.secrets);
-      const csrfToken = opaqueSecret(options.secrets);
+      const csrfToken = webSessionCsrfToken(newSessionId, options.pepper);
       const expiresAt = addMilliseconds(options.clock.now(), 30 * 24 * 60 * 60 * 1_000);
       const [session] = await trusted(
         (sql) => sql<{ access_scope: "full"; id: string }[]>`

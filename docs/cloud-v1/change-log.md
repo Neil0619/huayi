@@ -3,6 +3,18 @@
 本文件记录需求与技术方向的实质变化。每项变更必须同步到受影响的权威文档和 ADR；实现状态不在
 这里记录。
 
+## 2026-09-07：Web CSRF proof 绑定登录会话并允许并发 bootstrap
+
+- 今日练习的自动保存与提交可同时调用 CSRF bootstrap；每次读取轮换唯一 hash 会使合法请求被 403
+  拒绝，多标签页也存在同样竞争。客户端只合并一次请求不足以覆盖独立 API 实例和其他标签页；
+- Web proof 改为服务端 HMAC-SHA256 派生，绑定随机 session ID、独立用途前缀及现有 pepper，数据库只
+  保存 hash。同一 session 内稳定，重新登录、重新认证或身份绑定产生新 session 时换 proof；
+- 继续校验固定 Origin、Cookie、到期、撤销、账号状态与权限；bootstrap 不刷新有效期或 recent-auth。
+  旧 session 在首次 bootstrap 原子同步 hash；保留既有数据库函数和公开响应结构，无数据库迁移。
+  密码恢复的独立短期 purpose session 不属于本次变更；
+- 依据 [OWASP CSRF 防护说明](https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html)
+  的每会话 token 与服务端验证原则；具体安全边界见 `security.md`。
+
 ## 2026-09-04：插件与学习工作台采用紧凑布局和渐进帮助
 
 - Popup 固定 340px，调色板统一控制 Store 四套外观，设置失败恢复原主题；联网指示灯仅表示许可，

@@ -6,6 +6,7 @@ import {
   hashSecret,
   opaqueSecret,
   secretMatches,
+  webSessionCsrfToken,
   type Clock,
   type SecretSource,
 } from "./security.js";
@@ -37,7 +38,7 @@ export function createInMemoryWebSessions(options: InMemoryWebSessionOptions) {
     const access = status === "active" ? ("full" as const) : ("data-rights" as const);
     if (email !== undefined) options.profileEmails.set(userId, email.trim().toLowerCase());
     const sessionId = opaqueSecret(options.secrets);
-    const csrfToken = opaqueSecret(options.secrets);
+    const csrfToken = webSessionCsrfToken(sessionId, options.pepper);
     const expiresAt = addMilliseconds(options.clock.now(), 30 * 24 * 60 * 60 * 1_000);
     sessions.set(hashSecret(sessionId, options.pepper), {
       access,
@@ -269,11 +270,11 @@ export function createInMemoryWebSessions(options: InMemoryWebSessionOptions) {
     return replacement;
   }
 
-  function rotateWebCsrf(sessionId: string) {
+  function bootstrapWebCsrf(sessionId: string) {
     const session = sessions.get(hashSecret(sessionId, options.pepper));
     const authentication = authenticateDataRightsSession(sessionId);
     if (session === undefined) throw new CloudFault("authentication_required", "Invalid session.");
-    const csrfToken = opaqueSecret(options.secrets);
+    const csrfToken = webSessionCsrfToken(sessionId, options.pepper);
     session.csrfHash = hashSecret(csrfToken, options.pepper);
     return { access: authentication.access, csrfToken };
   }
@@ -302,7 +303,7 @@ export function createInMemoryWebSessions(options: InMemoryWebSessionOptions) {
     requireRecentAuthentication,
     revokeAllWebSessions,
     revokeWebSession,
-    rotateWebCsrf,
+    bootstrapWebCsrf,
     rotateWebSession,
   };
 }

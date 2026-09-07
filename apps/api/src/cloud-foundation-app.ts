@@ -146,7 +146,7 @@ export function createCloudFoundationApp(dependencies: CloudFoundationDependenci
     if (sessionId === undefined || context.req.header("origin") !== dependencies.webOrigin) {
       throw new CloudFault("authentication_required", "Web session proof is required.");
     }
-    const csrf = await dependencies.identity.rotateWebCsrf(sessionId);
+    const csrf = await dependencies.identity.bootstrapWebCsrf(sessionId);
     context.header("Cache-Control", "private, no-store");
     return context.json(csrf);
   });

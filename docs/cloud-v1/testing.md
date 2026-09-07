@@ -98,6 +98,10 @@
 - Google start：严格 JSON 兼容与原生表单 302 都覆盖；表单缺失、重复、额外、过长/非法字段和错误
   Content-Type 必须在 provider 调用前失败，序列化调用记录不包含 claim ticket；
 - Web 会话：Cookie 属性、CSRF、Origin、轮换、登出、账号停用与重新认证；
+- 并发 CSRF：`web-csrf-concurrency.test.ts` 通过真实 HTTP 路由、两个独立 API identity 实例和 PGlite
+  迁移函数，重现草稿自动保存、作答任务提交及第三个标签页 bootstrap 的交错；旧实现返回 403，修复后
+  草稿与任务均持久化，幂等重放不新增任务。另覆盖初始登录 proof、密码重新认证、旧随机 token 升级、
+  错误 Origin/缺失 Cookie、跨会话 proof、到期、撤销与 data-rights 隔离；内存 identity 保持相同契约。
 - Extension：PKCE、错误 verifier、码猜测限速、过期、并发 exchange、设备撤销；
 - 多租户：对每张用户表验证账户 A 不能通过 API 或 RLS 读写账户 B，并证明客户端 userId 不能设置
   事务账号上下文、业务连接没有 BYPASSRLS；

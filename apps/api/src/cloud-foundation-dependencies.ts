@@ -36,7 +36,7 @@ interface FoundationIdentity {
   resumeInterruptedPasswordRegistration: IdentityModule["resumeInterruptedPasswordRegistration"];
   revokeExtensionSession: IdentityModule["revokeExtensionSession"];
   revokeWebSession: IdentityModule["revokeWebSession"];
-  rotateWebCsrf: IdentityModule["rotateWebCsrf"];
+  bootstrapWebCsrf: IdentityModule["bootstrapWebCsrf"];
   saveAuthFlowState: IdentityModule["saveAuthFlowState"];
 }
 
