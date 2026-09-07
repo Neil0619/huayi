@@ -15,6 +15,7 @@ interface FoundationIdentity {
   bindInvitationIdentity: IdentityModule["bindInvitationIdentity"];
   claimInvitation: IdentityModule["claimInvitation"];
   completeAuthFlow: IdentityModule["completeAuthFlow"];
+  comparePasswordSignupState: IdentityModule["comparePasswordSignupState"];
   completeGoogleReauthentication: IdentityModule["completeGoogleReauthentication"];
   completePasswordReauthentication: IdentityModule["completePasswordReauthentication"];
   consumeAuthFlow: IdentityModule["consumeAuthFlow"];
@@ -31,6 +32,7 @@ interface FoundationIdentity {
   preparePasswordReauthentication: IdentityModule["preparePasswordReauthentication"];
   requireClaimTicket: IdentityModule["requireClaimTicket"];
   readAuthFlowState: IdentityModule["readAuthFlowState"];
+  readPasswordSignupState: IdentityModule["readPasswordSignupState"];
   renewPasswordRegistrationConfirmation: IdentityModule["renewPasswordRegistrationConfirmation"];
   requireRecentAuthentication: IdentityModule["requireRecentAuthentication"];
   resumeInterruptedPasswordRegistration: IdentityModule["resumeInterruptedPasswordRegistration"];

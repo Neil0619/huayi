@@ -22,6 +22,7 @@ import { createPasswordReauthenticationApp } from "./password-reauthentication-a
 import { createPasswordLinkApp } from "./password-link-app.js";
 import { createPasswordLinkModule } from "./password-link-module.js";
 import { createPasswordSignupConfirmationApp } from "./password-signup-confirmation-app.js";
+import { createPasswordSignupApp } from "./password-signup-app.js";
 import { enforceRateLimit } from "./rate-limiter.js";
 import { webSessionCookie } from "./web-session-cookie.js";
 import { strictJson } from "./strict-json.js";
@@ -139,6 +140,7 @@ export function createCloudFoundationApp(dependencies: CloudFoundationDependenci
   );
 
   app.route("/", createPasswordSignupConfirmationApp(dependencies));
+  app.route("/", createPasswordSignupApp(dependencies));
 
   app.get("/v1/auth/csrf", async (context) => {
     const sessionId = webSessionCookie(context);

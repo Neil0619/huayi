@@ -14,5 +14,6 @@ describe("Web authentication routes", () => {
   it("recognizes the password login route without an invitation", () => {
     expect(parseAuthRoute("/login", "")).toEqual({ mode: "login" });
     expect(parseAuthRoute("/app", "")).toBeUndefined();
+    expect(parseAuthRoute("/join", "")).toEqual({ mode: "signup" });
   });
 });

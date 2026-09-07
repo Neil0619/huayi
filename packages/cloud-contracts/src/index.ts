@@ -12,6 +12,7 @@ export * from "./learning-domain-exports.js";
 export * from "./practice-contracts.js";
 export * from "./password-recovery-contracts.js";
 export * from "./password-signup-confirmation-contracts.js";
+export * from "./password-signup-contracts.js";
 export * from "./word-contracts.js";
 
 export { StreamingJsonTokenizer, type TopLevelJsonUpdate } from "./streaming-json-tokenizer.js";

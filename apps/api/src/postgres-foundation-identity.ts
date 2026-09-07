@@ -9,6 +9,8 @@ import { createPostgresSignInMethods } from "./postgres-sign-in-methods.js";
 import { createPostgresPasswordReauthentication } from "./postgres-password-reauthentication.js";
 import { createPostgresPasswordRegistrationRecovery } from "./postgres-password-registration-recovery.js";
 import { createPostgresPasswordSignupOtpResend } from "./postgres-password-signup-otp-resend.js";
+import { createPostgresPasswordSignupState } from "./postgres-password-signup-state.js";
+import { createPostgresAuthFlowState } from "./postgres-auth-flow-state.js";
 import { createPostgresInvitationIdentity } from "./postgres-invitation-identity.js";
 import { createPostgresGoogleReauthentication } from "./postgres-google-reauthentication.js";
 import { createPostgresGoogleLink } from "./postgres-google-link.js";
@@ -255,6 +257,8 @@ export function createPostgresFoundationIdentity(options: PostgresFoundationIden
     },
     bindInvitationIdentity,
     claimInvitation,
+    ...createPostgresPasswordSignupState(options, trusted),
+    ...createPostgresAuthFlowState(options, trusted),
     completeAuthFlow,
     async consumeAuthFlow(flowId: string) {
       const [result] = await trusted(
@@ -346,17 +350,6 @@ export function createPostgresFoundationIdentity(options: PostgresFoundationIden
     requireClaimTicket,
     renewPasswordRegistrationConfirmation,
     resumeInterruptedPasswordRegistration,
-    async readAuthFlowState(flowId: string) {
-      const [result] = await trusted(
-        (sql) => sql<{ state: string | null }[]>`
-        SELECT read_auth_flow_state(${hashSecret(flowId, options.pepper)}) AS state
-      `,
-      );
-      if (result?.state === null || result === undefined) {
-        throw new CloudFault("authentication_required", "The authentication flow is invalid.");
-      }
-      return result.state;
-    },
     async revokeExtensionSession(userId: string, sessionId: string) {
       const [result] = await trusted(
         (sql) => sql<{ revoked: boolean | null }[]>`
@@ -384,16 +377,6 @@ export function createPostgresFoundationIdentity(options: PostgresFoundationIden
         throw new CloudFault("authentication_required", "The Web session is invalid.");
       }
       return { access: session.access_scope, csrfToken };
-    },
-    async saveAuthFlowState(flowId: string, state: string) {
-      const [result] = await trusted(
-        (sql) => sql<{ saved: boolean | null }[]>`
-        SELECT save_auth_flow_state(${hashSecret(flowId, options.pepper)}, ${state}) AS saved
-      `,
-      );
-      if (result?.saved !== true) {
-        throw new CloudFault("authentication_required", "The authentication flow is invalid.");
-      }
     },
   };
 }

@@ -937,6 +937,59 @@ main {
   border-left: 3px solid var(--focus-ring);
   background: var(--surface-subtle);
 }
+.auth-steps {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: 0;
+  margin: var(--space-5) 0;
+  list-style: none;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+.auth-steps li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.auth-steps li[aria-current="step"] {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+.auth-steps span {
+  display: grid;
+  flex-shrink: 0;
+  width: 1.4rem;
+  height: 1.4rem;
+  place-items: center;
+  border: 1px solid var(--border-default);
+  border-radius: 50%;
+}
+.auth-steps [aria-current="step"] span {
+  border-color: var(--focus-ring);
+  background: var(--surface-subtle);
+}
+.auth-step-title {
+  margin: 0 0 var(--space-3);
+  font-size: 1.3rem;
+}
+.auth-signup-email {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+.auth-signup-email strong {
+  display: block;
+  margin-top: var(--space-1);
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+.password-signup .alert {
+  padding: var(--space-3);
+}
+.auth-resend {
+  width: 100%;
+  margin-top: var(--space-3);
+}
 .field-help {
   margin: 0 0 var(--space-2);
   font-size: 0.8rem;

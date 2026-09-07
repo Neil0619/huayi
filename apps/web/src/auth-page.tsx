@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 
 import { WebIdentityApiError, type WebIdentityApi } from "./identity-api.js";
+import { PasswordSignupForm } from "./password-signup-form.js";
+import type { PasswordSignupApi } from "./password-signup-api.js";
 
 export type AuthApi = Pick<
   WebIdentityApi,
@@ -11,10 +13,12 @@ export type AuthApi = Pick<
   | "registerPassword"
   | "resendPasswordRegistration"
   | "resumePasswordRegistration"
->;
+> &
+  PasswordSignupApi;
 
 export type AuthRoute =
-  { readonly invitationToken: string; readonly mode: "join" } | { readonly mode: "login" };
+  | { readonly invitationToken: string; readonly mode: "join" }
+  | { readonly mode: "login" | "signup" };
 
 type AuthPageProps = {
   readonly api: AuthApi;
@@ -77,32 +81,6 @@ export function AuthPage(props: AuthPageProps) {
   useEffect(() => {
     if (props.mode === "join") void claim();
   }, [claim, props.mode]);
-
-  const register = async (event: FormEvent) => {
-    event.preventDefault();
-    if (claimTicket === null) return;
-    await authMutation(async () => {
-      setBusy(true);
-      setError(null);
-      try {
-        const result = await props.api.registerPassword(claimTicket, email, password);
-        setPassword("");
-        setClaimTicket(null);
-        if (result.emailConfirmationRequired) {
-          setEmailConfirmationPending(true);
-          setStatus("注册已提交。请从验证邮件打开确认页，并输入邮件中的六位验证码。");
-        } else {
-          invitationToken.current = null;
-          setStatus("注册成功，正在进入工作台。");
-          props.onAuthenticated("full");
-        }
-      } catch {
-        setError("注册失败，当前邮箱仍已保留。请检查输入或稍后重试。");
-      } finally {
-        setBusy(false);
-      }
-    });
-  };
 
   const resendRegistration = async () => {
     const token = invitationToken.current;
@@ -186,7 +164,7 @@ export function AuthPage(props: AuthPageProps) {
       <section className="auth-card" aria-labelledby="auth-heading">
         <span aria-hidden="true" className="brand-mark" />
         <p className="eyebrow">SEEN & SAID</p>
-        <h1 id="auth-heading">{props.mode === "join" ? "接受学习邀请" : "登录语见"}</h1>
+        <h1 id="auth-heading">{props.mode === "login" ? "登录语见" : "接受学习邀请"}</h1>
         <p className="auth-intro" lang="en">
           Turn what you see into what you can say.
         </p>
@@ -248,29 +226,28 @@ export function AuthPage(props: AuthPageProps) {
             {status}
           </p>
         )}
-        {emailConfirmationPending && claimState !== "error" && !recoveryStopped && (
-          <button
-            data-resend-registration
-            disabled={busy}
-            onClick={() => void resendRegistration()}
-            type="button"
-          >
-            {busy ? "正在发送…" : "重新发送六位验证码"}
-          </button>
+        {props.mode === "signup" && (
+          <PasswordSignupForm
+            api={props.api}
+            claimTicket={null}
+            onAuthenticated={props.onAuthenticated}
+          />
         )}
         {props.mode === "join" && claimState === "loading" && (
           <p aria-live="polite" role="status">
             正在验证邀请…
           </p>
         )}
-        {props.mode === "join" && claimState === "ready" && claimTicket !== null && (
+        {props.mode === "join" && claimState === "ready" && (
           <>
-            <p className="auth-intro">
-              {props.googleAuthenticationEnabled
-                ? "邀请已验证。选择一种方式创建账号。"
-                : "邀请已验证。使用邮箱创建账号。"}
-            </p>
-            {props.googleAuthenticationEnabled && (
+            {!emailConfirmationPending && (
+              <p className="auth-intro">
+                {props.googleAuthenticationEnabled
+                  ? "邀请已验证。选择一种方式创建账号。"
+                  : "邀请已验证。使用邮箱创建账号。"}
+              </p>
+            )}
+            {props.googleAuthenticationEnabled && claimTicket !== null && (
               <>
                 <form
                   acceptCharset="UTF-8"
@@ -288,35 +265,15 @@ export function AuthPage(props: AuthPageProps) {
                 </div>
               </>
             )}
-            <form className="auth-form" onSubmit={(event) => void register(event)}>
-              <label htmlFor="registration-email">邮箱</label>
-              <input
-                aria-describedby={errorDescription}
-                autoComplete="email"
-                id="registration-email"
-                onChange={(event) => setEmail(event.currentTarget.value)}
-                required
-                type="email"
-                value={email}
-              />
-              <label htmlFor="registration-password">密码</label>
-              <input
-                aria-describedby="registration-password-help"
-                autoComplete="new-password"
-                id="registration-password"
-                minLength={12}
-                onChange={(event) => setPassword(event.currentTarget.value)}
-                required
-                type="password"
-                value={password}
-              />
-              <p className="field-help" id="registration-password-help">
-                至少 12 个字符。密码只发送到固定 API，不由 Web 保存。
-              </p>
-              <button className="primary-button" data-register disabled={busy} type="submit">
-                {busy ? "正在注册…" : "使用邮箱注册"}
-              </button>
-            </form>
+            <PasswordSignupForm
+              api={props.api}
+              claimTicket={claimTicket}
+              onAuthenticated={props.onAuthenticated}
+              onStarted={() => {
+                setClaimTicket(null);
+                setEmailConfirmationPending(true);
+              }}
+            />
           </>
         )}
         {props.mode === "login" && (
@@ -370,7 +327,7 @@ export function AuthPage(props: AuthPageProps) {
           </>
         )}
         <p className="auth-footer">
-          {props.mode === "join" ? (
+          {props.mode !== "login" ? (
             <a href="/login">已有账号？直接登录</a>
           ) : (
             "新账号只能通过有效邀请创建。"

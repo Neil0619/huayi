@@ -14,6 +14,7 @@ export interface Invitation {
 export interface Claim {
   boundEmail?: string;
   boundUserId?: string;
+  createdAt: Date;
   expiresAt: Date;
   invitationId: string;
   ticketHash: string;

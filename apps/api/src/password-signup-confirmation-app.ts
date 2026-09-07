@@ -9,6 +9,7 @@ import { createCloudWebSession } from "./cloud-authentication-session.js";
 import type { CloudFoundationDependencies } from "./cloud-foundation-dependencies.js";
 import { CloudFault } from "./cloud-fault.js";
 import { enforceRateLimit } from "./rate-limiter.js";
+import { isEmailFirstSignup, signupUnavailable } from "./password-signup-state.js";
 
 function confirmationCsp(webOrigin: string): string {
   return `default-src 'none'; form-action 'self' ${new URL(webOrigin).origin}; base-uri 'none'; frame-ancestors 'none'`;
@@ -93,11 +94,13 @@ function confirmationPage(flow: string, retry = false): string {
 export function createPasswordSignupConfirmationApp(dependencies: CloudFoundationDependencies) {
   const app = new Hono();
 
-  app.get(passwordSignupConfirmationHttpRoutes.confirm, (context) => {
+  app.get(passwordSignupConfirmationHttpRoutes.confirm, async (context) => {
     context.header("Cache-Control", "private, no-store");
     context.header("Content-Security-Policy", confirmationCsp(dependencies.webOrigin));
     context.header("Referrer-Policy", "no-referrer");
     const input = exactQuery(context, passwordSignupConfirmQuerySchema);
+    if (await isEmailFirstSignup(dependencies, input.flow))
+      return context.redirect(`${dependencies.webOrigin}/join`, 302);
     return context.html(confirmationPage(input.flow));
   });
 
@@ -109,6 +112,7 @@ export function createPasswordSignupConfirmationApp(dependencies: CloudFoundatio
       throw invalidRequest("The password confirmation form is invalid.");
     }
     const input = await exactForm(context, passwordSignupCallbackFormSchema);
+    if (await isEmailFirstSignup(dependencies, input.flow)) throw signupUnavailable();
     const ipBucket = context.req.header("x-vercel-forwarded-for") ?? "unavailable";
     await enforceRateLimit(dependencies.rateLimiter, {
       action: "password-signup.confirm.ip",

@@ -413,6 +413,13 @@ active request replay 不重复写，quota 拒绝也不消费限速。事件超�
 
 ### 过期邀请 token 恢复
 
+新的邮箱优先注册由 forward-only `0026` 复用 `auth_flows.provider_state_ciphertext`，不增加表或列。
+密文保存 browser proof hash、专用 CSRF、绑定 claim/email/user、阶段与验证后的 Provider state；密码只保存
+用于防止竞争覆盖的 hash，不保存密码或 OTP。`read_password_signup_state` 只读有效邀请下的未完成进度；
+`compare_password_signup_state` 按 flow → claim → invitation 锁序做密文 CAS，并把 claim/flow 续到最多
+15 分钟，硬上限为原 claim 创建后 24 小时与原邀请到期时间。两函数只授予 context setter；完成仍使用
+既有 `complete_auth_flow(...,'password')` 原子建档。恢复不修改原邀请期限或创建第二个账号。
+
 forward-only `0023` 只更新目标 `invitations.token_hash`。事务必须锁定目标 invitation，并精确确认唯一
 bound unfinished claim、唯一 unconsumed `invite-registration` flow、未确认 Auth user 与唯一 email identity；
 目标用户的 profile、method、quota、session、admin/deletion/audit 与 learning 数据必须为空。成功写一条

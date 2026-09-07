@@ -93,14 +93,20 @@ describe("Supabase Auth provider", () => {
   });
 
   it("verifies password registration only from an explicit email OTP submission", async () => {
-    const verifyOtp = vi.fn().mockResolvedValue({
-      data: {
-        session: { refresh_token: "refresh" },
-        user: { email: "Learner@Example.COM", id: "auth-user-a" },
-      },
-      error: null,
+    const verifyOtp = vi.fn();
+    const provider = createSupabaseAuthProvider((storage) => {
+      verifyOtp.mockImplementation(async () => {
+        await storage.setItem("provider-session", "verified-state");
+        return {
+          data: {
+            session: { refresh_token: "refresh" },
+            user: { email: "Learner@Example.COM", id: "auth-user-a" },
+          },
+          error: null,
+        };
+      });
+      return authClient({ verifyOtp });
     });
-    const provider = createSupabaseAuthProvider(() => authClient({ verifyOtp }));
 
     await expect(
       provider.verifyPasswordRegistrationOtp({
@@ -108,6 +114,7 @@ describe("Supabase Auth provider", () => {
         token: "123456",
       }),
     ).resolves.toEqual({
+      authState: { "provider-session": "verified-state" },
       email: "learner@example.com",
       refreshToken: "refresh",
       userId: "auth-user-a",

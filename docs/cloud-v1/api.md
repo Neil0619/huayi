@@ -52,7 +52,12 @@ type ApiError = {
 | `POST /v1/invitations/claim`             | 验证并预占邀请         | invitation token；返回短时 claim ticket，不创建业务账号    |
 | `POST /v1/auth/google/start`             | 发起 Google OAuth      | body 中的 claim ticket；302 到 Supabase/Google             |
 | `GET /v1/auth/csrf`                      | 登录后获取新 CSRF      | HttpOnly Cookie + Web Origin；轮换后返回短时 token         |
-| `POST /v1/auth/password/register`        | 邮箱密码注册           | claim ticket、email、password；要求邮件验证                |
+| `POST /v1/auth/password/signup/start`    | 发起邮箱注册           | claim ticket、email；202，设置专用注册 Cookie              |
+| `GET /v1/auth/password/signup/session`   | 恢复注册进度           | 注册 Cookie + Origin；规范 email、step、CSRF               |
+| `POST /v1/auth/password/signup/verify`   | 站内验证邮箱           | 注册 Cookie + Origin + CSRF；仅六位 token                  |
+| `POST /v1/auth/password/signup/resend`   | 站内重发验证码         | 同上，strict 空对象；使用服务端绑定邮箱                    |
+| `POST /v1/auth/password/signup/complete` | 设置密码并完成注册     | 同上，仅 password；完成后设置 Web Cookie                   |
+| `POST /v1/auth/password/register`        | 兼容旧邮箱密码注册     | claim ticket、email、password；要求邮件验证                |
 | `POST /v1/auth/password/register/resend` | 重发注册验证码         | 原 invitation token；固定 202，不接收 email/password/OTP   |
 | `GET /v1/auth/password/confirm`          | 打开邮箱确认表单       | exact 43-char flow；inert HTML，不消费 Provider token      |
 | `POST /v1/auth/password/callback`        | 显式完成邮箱确认       | flow + email + 6 位 OTP；设置 Web Cookie 并跳转工作台      |
@@ -67,7 +72,13 @@ type ApiError = {
 | `POST /v1/account/export`                | 创建导出               | 返回 export job；完成后给短时签名下载地址                  |
 | `POST /v1/account/delete`                | 删除账号               | 重新认证证明与确认字符串；立即撤销会话并返回 job           |
 
-密码注册 202/200 与密码登录 200 响应都使用 `Cache-Control: private, no-store`。注册 202 只返回
+新 Web 使用 `/signup/*`：start/session/verify 的 strict 响应为 `{email,step,csrfToken}`，step 只可为
+`verify-email|set-password`；邮箱在服务端绑定，后续请求不接受 email、owner、flow 或跳转目标。
+verify 成功只保存加密 Provider state；complete 才设置密码、核对身份、原子完成邀请并创建 Web session。
+全部请求要求固定 Web Origin、无 query、禁止缓存，POST 只接受 strict JSON。新流程的邮件 GET 只跳转
+固定 Web `/join`，旧 callback 拒绝该流程。详细 Cookie、恢复窗口及限流见 `email-first-password-signup.md`。
+
+旧密码注册 202/200 与密码登录 200 响应都使用 `Cache-Control: private, no-store`。旧注册 202 只返回
 `{emailConfirmationRequired:true}`，不设置 Web Cookie。邮件显示六位 OTP，CTA 只进入 inert
 `GET /v1/auth/password/confirm?flow=<43-char>`；安全扫描器或重复 GET 不调用 Provider、不消费 flow。
 用户显式提交 exact form 到 `POST /v1/auth/password/callback` 后才调用 email OTP verification，以

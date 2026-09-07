@@ -7,6 +7,7 @@ import { createInMemoryGoogleReauthentication } from "./in-memory-google-reauthe
 import { createInMemoryPasswordLink } from "./in-memory-password-link.js";
 import { createInMemoryPasswordRegistrationRecovery } from "./in-memory-password-registration-recovery.js";
 import { createInMemoryPasswordSignupOtpResend } from "./in-memory-password-signup-otp-resend.js";
+import { createInMemoryPasswordSignupState } from "./in-memory-password-signup-state.js";
 import { createInMemoryWebSessions } from "./in-memory-web-sessions.js";
 import type {
   AccountStatus,
@@ -169,6 +170,7 @@ export function createIdentityModule(options: IdentityModuleOptions) {
     const ticketHash = hashSecret(claimTicket, options.pepper);
     invitation.claimedByHash = ticketHash;
     const claim = {
+      createdAt: options.clock.now(),
       expiresAt: addMilliseconds(options.clock.now(), 15 * 60 * 1_000),
       invitationId: invitation.id,
       ticketHash,
@@ -359,6 +361,7 @@ export function createIdentityModule(options: IdentityModuleOptions) {
   }
 
   return {
+    ...createInMemoryPasswordSignupState({ ...options, authFlows, claims, invitations }),
     ...extensionIdentity,
     ...googleReauthentication,
     ...webIdentity,

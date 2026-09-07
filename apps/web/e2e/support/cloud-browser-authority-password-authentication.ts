@@ -14,6 +14,7 @@ import {
 
 import { cloudCors, cloudErrorBody, cloudRequestBody } from "./cloud-browser-authority-request.js";
 import type { CloudBrowserRequestFact } from "./cloud-browser-authority-types.js";
+import { createCloudBrowserPasswordSignupAuthority } from "./cloud-browser-authority-password-signup.js";
 
 const apiOrigin = "https://api.huayi.invalid";
 const mailOrigin = "https://mail.huayi.invalid";
@@ -73,6 +74,21 @@ export function createCloudBrowserPasswordAuthenticationAuthority(
   const signInMethods = new Set<"google" | "password">(
     seed === "unregistered-password-login" ? ["google"] : [],
   );
+  const handleSignup = createCloudBrowserPasswordSignupAuthority({
+    claimTicket,
+    email,
+    password,
+    isClaimed: () => invitation === "claimed",
+    onStarted: () => {
+      registration = "confirmation-pending";
+    },
+    onCompleted: () => {
+      invitation = "consumed";
+      registration = "confirmed";
+      callback = "consumed";
+      signInMethods.add("password");
+    },
+  });
 
   const handleClaim = async (route: Route, hooks: Hooks) => {
     const request = route.request();
@@ -236,6 +252,7 @@ export function createCloudBrowserPasswordAuthenticationAuthority(
   };
 
   const handleApi = async (route: Route, hooks: Hooks): Promise<boolean> => {
+    if (await handleSignup(route, hooks)) return true;
     const request = route.request();
     const path = new URL(request.url()).pathname;
     if (path === "/v1/invitations/claim" && request.method() === "POST") {

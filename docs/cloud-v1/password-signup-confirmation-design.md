@@ -1,5 +1,8 @@
 # 密码注册确认与中断恢复设计
 
+2026-09-07：新 Web 注册已改为站内验证后设置密码，当前行为见
+[邮箱优先注册](email-first-password-signup.md)。下文保留旧 `/register`、邮件确认表单与历史恢复路径的设计依据。
+
 ## 1. 背景与已确认故障
 
 Hosted acceptance 首次真实密码注册进入了可重复的部分成功状态：Supabase `auth.users` 与 email

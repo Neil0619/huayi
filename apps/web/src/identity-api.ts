@@ -44,6 +44,7 @@ import {
 } from "@huayi/cloud-contracts";
 
 import { createWebExtensionSessionsApi } from "./extension-sessions-api.js";
+import { createWebPasswordSignupApi } from "./password-signup-api.js";
 
 export class WebIdentityApiError extends Error {
   constructor(
@@ -101,6 +102,7 @@ export function createWebIdentityApi(options: WebIdentityApiOptions) {
     return csrfTokenResponseSchema.parse(await response.json());
   };
   return {
+    ...createWebPasswordSignupApi(request),
     ...createWebExtensionSessionsApi(request),
     bootstrap,
     async completePasswordRecovery(password: string, csrfToken: string): Promise<void> {

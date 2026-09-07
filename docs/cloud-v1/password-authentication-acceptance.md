@@ -1,5 +1,8 @@
 # PasswordAuthentication 生产入口验收方案
 
+2026-09-07：新注册顺序及当前 actual-bundle 验收见
+[邮箱优先注册](email-first-password-signup.md)。下文旧邮件 callback 旅程保留为历史兼容验收依据。
+
 ## 1. 状态与校准结论
 
 影响平台为 `shared`。产品、架构和安全文档要求：新账号必须先持有效邀请，密码注册必须完成邮箱验证；

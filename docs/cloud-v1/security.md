@@ -35,7 +35,12 @@ owner context、generation/reservation 归属、task 成功或失败终态、价
   callback、link 与 reauthentication 路由；Web 只有显式 `VITE_GOOGLE_AUTHENTICATION=enabled` 才显示对应
   动作。缺失/未知值失败关闭，API 在 rate-limit、flow、Cookie 和 Provider 前返回固定 404。两端不能单边
   启用；hosted acceptance 首轮保持缺失并继续让 Supabase Google Provider disabled。
-- 密码注册 202 不设置 Web Cookie；邮箱确认 callback 成功前不得进入工作台。密码确认与 Google 使用
+- 新邮箱注册使用独立 HttpOnly/Secure/SameSite=Lax `huayi_signup` Cookie，Path 限定 `/v1/auth/password/signup`；
+  它不具备 Web 登录或业务权限。邮箱证明与 Provider session 加密保存在 auth flow，JS 只收到规范邮箱、
+  步骤与专用 CSRF；验证码、密码与确认密码只留在页面内存。只有验证成功并设置密码后才完成邀请、
+  登记 password method、签发 Web session。原浏览器最多恢复 24 小时且不超过原邀请有效期；每次写入
+  通过密文 CAS 续期短 claim，不放宽撤销、消费、身份绑定与密码竞争保护。见 ADR-0026。
+- 旧密码注册 202 不设置 Web Cookie；邮箱确认 callback 成功前不得进入工作台。密码确认与 Google 使用
   不同固定 callback，由服务端路由确定并向数据库显式传递 `password|google`，不得从上游邮箱或 query
   猜测 method。密码注册/登录响应统一 `Cache-Control: private, no-store`，登录失败使用相同认证错误，
   不暴露账号存在性或 provider 细节。

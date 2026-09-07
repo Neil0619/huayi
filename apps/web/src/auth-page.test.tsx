@@ -1,6 +1,6 @@
 import { act, StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AuthPage, type AuthApi } from "./auth-page.js";
 
@@ -25,6 +25,17 @@ function api(overrides: Partial<AuthApi> = {}): AuthApi {
     googleAuthStartUrl: "https://api.huayi.invalid/v1/auth/google/start",
     googleLoginStartUrl: "https://api.huayi.invalid/v1/auth/google/login/start",
     loginPassword: vi.fn(async () => ({ access: "full" as const, csrfToken: "s".repeat(32) })),
+    startPasswordSignup: vi.fn<AuthApi["startPasswordSignup"]>().mockResolvedValue({
+      csrfToken: "s".repeat(43),
+      email: "learner@example.com",
+      step: "verify-email",
+    }),
+    getPasswordSignupSession: vi.fn<AuthApi["getPasswordSignupSession"]>(),
+    verifyPasswordSignup: vi.fn<AuthApi["verifyPasswordSignup"]>(),
+    resendPasswordSignup: vi
+      .fn<AuthApi["resendPasswordSignup"]>()
+      .mockResolvedValue({ accepted: true }),
+    completePasswordSignup: vi.fn<AuthApi["completePasswordSignup"]>(),
     registerPassword: vi.fn(async () => ({ emailConfirmationRequired: true as const })),
     resendPasswordRegistration: vi.fn(async () => ({ accepted: true as const })),
     resumePasswordRegistration: vi.fn(async () => ({
@@ -146,49 +157,51 @@ describe("Web invitation and authentication", () => {
     expect(view.replaceInvitationUrl).toHaveBeenCalledOnce();
   });
 
-  it("registers with labelled fields and announces email confirmation without fake sign-in", async () => {
-    const authApi = api();
+  afterEach(() => vi.useRealTimers());
+
+  async function beginEmailSignup(authApi: AuthApi) {
     const view = await render(authApi, { invitationToken: "i".repeat(32), mode: "join" });
-    await act(async () => Promise.resolve());
     const email = view.container.querySelector<HTMLInputElement>("#registration-email");
-    const password = view.container.querySelector<HTMLInputElement>("#registration-password");
-    if (email === null || password === null) throw new Error("Registration fields missing.");
+    if (email === null) throw new Error("Email field missing.");
+    expect(view.container.querySelector("input[type=password]")).toBeNull();
     await change(email, "learner@example.com");
-    await change(password, "password long enough");
     await act(async () =>
       view.container.querySelector<HTMLButtonElement>("[data-register]")?.click(),
     );
+    return view;
+  }
 
-    expect(authApi.registerPassword).toHaveBeenCalledWith(
-      "c".repeat(32),
-      "learner@example.com",
-      "password long enough",
+  async function finishResendCooldown() {
+    for (let second = 0; second < 60; second++)
+      await act(async () => vi.advanceTimersByTime(1_000));
+  }
+
+  it("starts with email only and shows the inline OTP without fake sign-in", async () => {
+    const authApi = api();
+    const view = await beginEmailSignup(authApi);
+    expect(authApi.startPasswordSignup).toHaveBeenCalledWith("c".repeat(32), "learner@example.com");
+    expect(view.container.querySelector("[role='status']")?.textContent).toContain(
+      "请输入邮件中的六位验证码",
     );
-    expect(view.container.querySelector("[role='status']")?.textContent).toBe(
-      "注册已提交。请从验证邮件打开确认页，并输入邮件中的六位验证码。",
-    );
+    expect(view.container.querySelector("#registration-otp")).not.toBeNull();
+    expect(view.container.querySelector("input[type=email]")).toBeNull();
     expect(view.onAuthenticated).not.toHaveBeenCalled();
     expect(view.container.querySelector("[data-google-auth-form]")).toBeNull();
-    expect(view.container.querySelector("[data-resend-registration]")).not.toBeNull();
   });
 
-  it("resends a six-digit OTP with the memory-held invitation only", async () => {
+  it("resends through the current signup proof after the cooldown", async () => {
+    vi.useFakeTimers();
     const authApi = api();
-    const view = await render(authApi, { invitationToken: "i".repeat(32), mode: "join" });
-    await act(async () => Promise.resolve());
-    const email = view.container.querySelector<HTMLInputElement>("#registration-email");
-    const password = view.container.querySelector<HTMLInputElement>("#registration-password");
-    if (email === null || password === null) throw new Error("Registration fields missing.");
-    await change(email, "learner@example.com");
-    await change(password, "password long enough");
-    await act(async () =>
-      view.container.querySelector<HTMLButtonElement>("[data-register]")?.click(),
+    const view = await beginEmailSignup(authApi);
+    expect(view.container.querySelector<HTMLButtonElement>("[data-resend-signup]")?.disabled).toBe(
+      true,
     );
+    await finishResendCooldown();
     await act(async () =>
-      view.container.querySelector<HTMLButtonElement>("[data-resend-registration]")?.click(),
+      view.container.querySelector<HTMLButtonElement>("[data-resend-signup]")?.click(),
     );
-
-    expect(authApi.resendPasswordRegistration).toHaveBeenCalledWith("i".repeat(32));
+    expect(authApi.resendPasswordSignup).toHaveBeenCalledWith("s".repeat(43));
+    expect(authApi.resendPasswordRegistration).not.toHaveBeenCalled();
     expect(view.container.querySelector("[role='status']")?.textContent).toContain(
       "新的六位验证码已发送",
     );
@@ -197,29 +210,19 @@ describe("Web invitation and authentication", () => {
     expect(sessionStorage).toHaveLength(0);
   });
 
-  it("sends only one OTP resend while the first same-render request is pending", async () => {
+  it("sends only one inline resend while the first same-render request is pending", async () => {
+    vi.useFakeTimers();
     const pending = deferred<{ accepted: true }>();
-    const resendPasswordRegistration = vi.fn(() => pending.promise);
-    const authApi = api({ resendPasswordRegistration });
-    const view = await render(authApi, { invitationToken: "i".repeat(32), mode: "join" });
-    await act(async () => Promise.resolve());
-    const email = view.container.querySelector<HTMLInputElement>("#registration-email");
-    const password = view.container.querySelector<HTMLInputElement>("#registration-password");
-    if (email === null || password === null) throw new Error("Registration fields missing.");
-    await change(email, "learner@example.com");
-    await change(password, "password long enough");
-    await act(async () =>
-      view.container.querySelector<HTMLButtonElement>("[data-register]")?.click(),
-    );
-
-    const resend = view.container.querySelector<HTMLButtonElement>("[data-resend-registration]");
+    const resendPasswordSignup = vi.fn(() => pending.promise);
+    const view = await beginEmailSignup(api({ resendPasswordSignup }));
+    await finishResendCooldown();
+    const resend = view.container.querySelector<HTMLButtonElement>("[data-resend-signup]");
     if (resend === null) throw new Error("Resend control missing.");
     act(() => {
       resend.click();
       resend.click();
     });
-
-    expect(resendPasswordRegistration).toHaveBeenCalledOnce();
+    expect(resendPasswordSignup).toHaveBeenCalledOnce();
     await act(async () => pending.resolve({ accepted: true }));
   });
 

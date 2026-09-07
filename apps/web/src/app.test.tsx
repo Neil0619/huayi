@@ -32,6 +32,17 @@ it("navigates within the authenticated workspace without bootstrapping the sessi
     listExtensionSessions: vi.fn<IdentityApi["listExtensionSessions"]>(),
     loginPassword: vi.fn<AuthApi["loginPassword"]>(),
     logout: vi.fn<IdentityApi["logout"]>(),
+    startPasswordSignup: vi.fn<AuthApi["startPasswordSignup"]>().mockResolvedValue({
+      csrfToken: "s".repeat(43),
+      email: "learner@example.com",
+      step: "verify-email",
+    }),
+    getPasswordSignupSession: vi.fn<AuthApi["getPasswordSignupSession"]>(),
+    verifyPasswordSignup: vi.fn<AuthApi["verifyPasswordSignup"]>(),
+    resendPasswordSignup: vi
+      .fn<AuthApi["resendPasswordSignup"]>()
+      .mockResolvedValue({ accepted: true }),
+    completePasswordSignup: vi.fn<AuthApi["completePasswordSignup"]>(),
     registerPassword: vi.fn<AuthApi["registerPassword"]>(),
     reauthenticatePassword: vi.fn<IdentityApi["reauthenticatePassword"]>(),
     resendPasswordRegistration: vi.fn<AuthApi["resendPasswordRegistration"]>(),
@@ -120,6 +131,17 @@ it("routes a valid invitation into the real authentication surface", async () =>
     listExtensionSessions: vi.fn(async () => ({ items: [] })),
     loginPassword: vi.fn(async () => ({ access: "full" as const, csrfToken: "s".repeat(32) })),
     logout: vi.fn(async () => undefined),
+    startPasswordSignup: vi.fn<AuthApi["startPasswordSignup"]>().mockResolvedValue({
+      csrfToken: "s".repeat(43),
+      email: "learner@example.com",
+      step: "verify-email",
+    }),
+    getPasswordSignupSession: vi.fn<AuthApi["getPasswordSignupSession"]>(),
+    verifyPasswordSignup: vi.fn<AuthApi["verifyPasswordSignup"]>(),
+    resendPasswordSignup: vi
+      .fn<AuthApi["resendPasswordSignup"]>()
+      .mockResolvedValue({ accepted: true }),
+    completePasswordSignup: vi.fn<AuthApi["completePasswordSignup"]>(),
     registerPassword: vi.fn(async () => ({ emailConfirmationRequired: true as const })),
     resendPasswordRegistration: vi.fn(async () => ({ accepted: true as const })),
     reauthenticatePassword: vi.fn(async () => ({

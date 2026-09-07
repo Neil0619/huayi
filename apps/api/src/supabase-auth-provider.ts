@@ -133,9 +133,9 @@ export function createSupabaseAuthProvider(
       };
     },
 
-    async verifyPasswordRegistrationOtp(command): Promise<AuthSession> {
-      const { storage } = createSupabaseAuthFlow();
-      const { data, error } = await createAuthClient(storage).auth.verifyOtp({
+    async verifyPasswordRegistrationOtp(command) {
+      const flow = createSupabaseAuthFlow();
+      const { data, error } = await createAuthClient(flow.storage).auth.verifyOtp({
         email: command.email,
         token: command.token,
         type: "email",
@@ -144,6 +144,7 @@ export function createSupabaseAuthProvider(
         throw new CloudFault("authentication_required", "Email verification could not finish.");
       }
       return {
+        authState: flow.state(),
         email: accountEmailSchema.parse(data.user.email),
         refreshToken: data.session.refresh_token,
         userId: data.user.id,

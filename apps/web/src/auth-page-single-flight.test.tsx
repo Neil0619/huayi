@@ -23,6 +23,17 @@ function api(overrides: Partial<AuthApi> = {}): AuthApi {
     googleAuthStartUrl: "https://api.huayi.invalid/v1/auth/google/start",
     googleLoginStartUrl: "https://api.huayi.invalid/v1/auth/google/login/start",
     loginPassword: vi.fn(async () => ({ access: "full" as const, csrfToken: "s".repeat(32) })),
+    startPasswordSignup: vi.fn<AuthApi["startPasswordSignup"]>().mockResolvedValue({
+      csrfToken: "s".repeat(43),
+      email: "learner@example.com",
+      step: "verify-email",
+    }),
+    getPasswordSignupSession: vi.fn<AuthApi["getPasswordSignupSession"]>(),
+    verifyPasswordSignup: vi.fn<AuthApi["verifyPasswordSignup"]>(),
+    resendPasswordSignup: vi
+      .fn<AuthApi["resendPasswordSignup"]>()
+      .mockResolvedValue({ accepted: true }),
+    completePasswordSignup: vi.fn<AuthApi["completePasswordSignup"]>(),
     registerPassword: vi.fn(async () => ({ emailConfirmationRequired: true as const })),
     resendPasswordRegistration: vi.fn(async () => ({ accepted: true as const })),
     resumePasswordRegistration: vi.fn(async () => ({
@@ -69,29 +80,33 @@ describe("Web authentication single-flight actions", () => {
   });
 
   it("submits only one registration while the first same-render request is pending", async () => {
-    const pending = deferred<{ emailConfirmationRequired: true }>();
-    const registerPassword = vi.fn(() => pending.promise);
-    const container = await renderPage(api({ registerPassword }), {
+    const pending = deferred<{ csrfToken: string; email: string; step: "verify-email" }>();
+    const startPasswordSignup = vi.fn(() => pending.promise);
+    const container = await renderPage(api({ startPasswordSignup }), {
       invitationToken: "i".repeat(32),
       mode: "join",
     });
     await act(async () => Promise.resolve());
     const email = container.querySelector<HTMLInputElement>("#registration-email");
-    const password = container.querySelector<HTMLInputElement>("#registration-password");
     const submit = container.querySelector<HTMLButtonElement>("[data-register]");
-    if (email === null || password === null || submit === null) {
+    if (email === null || submit === null) {
       throw new Error("Registration controls missing.");
     }
     await change(email, "learner@example.com");
-    await change(password, "password long enough");
 
     act(() => {
       submit.click();
       submit.click();
     });
 
-    expect(registerPassword).toHaveBeenCalledOnce();
-    await act(async () => pending.resolve({ emailConfirmationRequired: true }));
+    expect(startPasswordSignup).toHaveBeenCalledOnce();
+    await act(async () =>
+      pending.resolve({
+        csrfToken: "s".repeat(43),
+        email: "learner@example.com",
+        step: "verify-email",
+      }),
+    );
   });
 
   it("submits only one login while the first same-render request is pending", async () => {

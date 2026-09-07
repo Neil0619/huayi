@@ -16,6 +16,17 @@ function api(overrides: Partial<AuthApi> = {}): AuthApi {
     googleAuthStartUrl: "https://api.huayi.invalid/v1/auth/google/start",
     googleLoginStartUrl: "https://api.huayi.invalid/v1/auth/google/login/start",
     loginPassword: vi.fn(async () => ({ access: "full" as const, csrfToken: "s".repeat(32) })),
+    startPasswordSignup: vi.fn<AuthApi["startPasswordSignup"]>().mockResolvedValue({
+      csrfToken: "s".repeat(43),
+      email: "learner@example.com",
+      step: "verify-email",
+    }),
+    getPasswordSignupSession: vi.fn<AuthApi["getPasswordSignupSession"]>(),
+    verifyPasswordSignup: vi.fn<AuthApi["verifyPasswordSignup"]>(),
+    resendPasswordSignup: vi
+      .fn<AuthApi["resendPasswordSignup"]>()
+      .mockResolvedValue({ accepted: true }),
+    completePasswordSignup: vi.fn<AuthApi["completePasswordSignup"]>(),
     registerPassword: vi.fn(async () => ({ emailConfirmationRequired: true as const })),
     resendPasswordRegistration: vi.fn(async () => ({ accepted: true as const })),
     resumePasswordRegistration: vi.fn(async () => ({
