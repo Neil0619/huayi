@@ -138,7 +138,7 @@ export function createCloudBrowserAuthority(
   const extensionQueries = createCloudBrowserExtensionQueryAuthority({
     quotaExhausted: seed.seed === "platform-query-quota",
   });
-  const studyCaptures = createCloudBrowserStudyCaptureAuthority();
+  const studyCaptures = createCloudBrowserStudyCaptureAuthority(() => analyses);
   const signInMethods = createCloudBrowserSignInMethodsAuthority(
     seed.seed === "password-only-sign-in-methods" ||
       seed.seed === "google-only-sign-in-methods" ||

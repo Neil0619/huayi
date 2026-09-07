@@ -1750,3 +1750,9 @@ Web 回归模拟写入后拒绝 HTTP entity precondition 的代理；浏览器 a
 
 收集箱回归同时覆盖已确认分析的刷新：旧 completed task 只含不可变快照，不能覆盖服务器更高 revision 的
 reviewed 状态；缺少最新完整记录时按当前 summary 再读取，避免重复显示已加入学习库的候选。
+
+流式发布的 250ms 时限使用可控时钟覆盖 worker flush 与 SSE polling，避免把共享 CI 机器的数据库执行时间
+混入调度契约；将 flush 延迟到 300ms 的负向验证必须失败。PGlite 集成继续验证逐字节正文在 Provider
+结束前可读、页面离开后恢复且不重复调用，以及取消与租约互斥；测试在失败路径也必须结束流和 worker。
+浏览器 authority 的 capture list/detail 与真实 SQL 一样读取最新 analysis revision/reviewState，刷新断言
+必须等待该次响应，不能把刷新前尚未消失的已整理视图当成通过证据。
