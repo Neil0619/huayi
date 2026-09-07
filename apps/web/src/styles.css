@@ -76,6 +76,7 @@
     inset 0 1px rgb(255 255 255 / 72%);
   --shadow-control: 0 14px 32px rgb(29 33 37 / 20%), inset 0 1px rgb(255 255 255 / 42%);
   --surface-danger: var(--danger-surface);
+  --surface-danger-soft: var(--danger-fill);
   --surface-success: var(--success-fill);
   --surface-warning: var(--warning-fill);
   --text-danger: var(--danger-text);
@@ -935,7 +936,9 @@ main {
   align-items: center;
   justify-content: center;
   padding: var(--space-2) var(--space-4);
-  border: 1px solid transparent;
+  border-width: 1px;
+  border-style: solid;
+  border-color: transparent;
   border-radius: var(--radius-control);
   font-weight: 700;
   text-align: center;

@@ -52,6 +52,7 @@ function api(overrides: Partial<IdentityApi> = {}): IdentityApi {
     deleteAccount: vi.fn(),
     downloadAccountDataExport: vi.fn(),
     getCurrentAccountDataExport: vi.fn(async () => ({ job: null })),
+    getAccount: vi.fn().mockRejectedValue(new Error("Profile unavailable in this fixture.")),
     getAccountPreferences: vi.fn(async () => preferences),
     getPairing: vi.fn(async () => pairing),
     listExtensionSessions: vi.fn(async () => ({ items: [] })),
@@ -98,6 +99,7 @@ describe("Web account bootstrap and pairing approval", () => {
     expect(container.querySelector("h1")?.textContent).toContain("需要先登录");
     expect(container.querySelector("[role='status']")?.textContent).toContain("当前会话无效");
     expect(container.querySelector<HTMLAnchorElement>("a")?.pathname).toBe("/login");
+    expect(container.querySelector("a.primary-button")?.textContent).toBe("前往登录");
     expect(container.querySelector("form")).toBeNull();
   });
 

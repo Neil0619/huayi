@@ -161,3 +161,33 @@ pnpm check:architecture
 - Web strict typecheck/build、目标 ESLint/Prettier、instructions、architecture、diff check 和最终
   `pnpm verify:macos` 均通过。本证据不包含 Windows、真实 Provider/词典、安装、Chrome、邮件、域名、
   DNS、Resend 或部署。
+
+## 8. 2026-09-07：账户入口与登录按钮反馈修复
+
+影响平台为 `shared` Web UI。既有外壳仅提供外观入口，用户无法从顶栏识别当前账户或快速退出；
+失效会话卡片的“前往登录”则使用未应用按钮样式的普通链接。该链接现在沿用登录表单的 primary
+button token，保留真实 `/login` 导航。
+
+`CloudApp` 在已确认的工作台会话内组合 `WorkspaceAccountMenu`，并作为 `accountMenu` 传给
+`WorkspaceShell`。菜单和唯一外观入口一起保留在顶栏右侧；普通页面切换不卸载账户菜单，也不重复
+读取身份。完整会话使用既有 `GET /v1/account` 的邮箱显示当前账户，不新增 API 或本地持久化身份；
+资料读取失败时显示明确状态，并保留设置、退出能力。
+
+- 完整会话菜单提供“账号与用量”→`/settings/account`、“扩展设备”→`/settings/devices`、
+  “数据与账号”→`/settings/data` 和“退出登录”；不新增运营链接或推断管理员权限。
+- data-rights 会话不请求普通账户资料，只显示受限会话标识、数据与账号入口和退出；公共、登录、
+  恢复、配对和独立运营页面不挂载账户菜单。
+- 退出复用既有 `POST /v1/auth/logout`、当前会话 CSRF token 和凭据契约；等待中禁止重复提交，
+  失败保留工作台并允许重试，服务端确认成功后清除工作台视图及内存 CSRF。
+- 菜单具有明确的 trigger/menu 关联，支持打开后首项聚焦、方向键、Home/End、Escape 归还焦点、
+  Tab 离开、外部点击与焦点离开关闭；普通设置导航继续复用现有 History API。
+- 窄屏邮箱在按钮中省略、在菜单中完整换行；外观弹层保持视口内定位。账户菜单与 Hosted 提示条
+  不相交，保留四种主题与 44px 触控高度。
+- 失效会话等独立页面的外观控件位于 Hosted 横幅之后的正常文档流，右对齐且给主卡片保留间距；
+  不再假定横幅只有一行，也不改变工作台内的外观 portal 布局。新增 390/1440px 浏览器断言先复现
+  控件 top 12/16px 与横幅 bottom 79.1875/42px 重叠，再验证四种主题均避开横幅和主卡片。
+
+本次 Fresh RED 为登录按钮断言和账户菜单的 5 个行为回归失败；随后同一断言转绿。离线 actual-bundle
+浏览器回归覆盖四主题及 320、390、768、769、1280、1440px 的菜单、登录按钮、键盘导航、设置跳转
+和退出请求，并保存 390/1440px 截图。相关 Web 类型、lint、格式及 token 检查一并执行；不据此声称
+Windows 完整验收、真实账户退出或线上发布完成。

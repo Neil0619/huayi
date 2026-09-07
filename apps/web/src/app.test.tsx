@@ -24,6 +24,7 @@ it("navigates within the authenticated workspace without bootstrapping the sessi
     createAccountDataExport: vi.fn<IdentityApi["createAccountDataExport"]>(),
     deleteAccount: vi.fn<IdentityApi["deleteAccount"]>(),
     downloadAccountDataExport: vi.fn<IdentityApi["downloadAccountDataExport"]>(),
+    getAccount: vi.fn().mockRejectedValue(new Error("Profile unavailable in this fixture.")),
     getAccountPreferences: vi.fn<IdentityApi["getAccountPreferences"]>(),
     getCurrentAccountDataExport: vi.fn<IdentityApi["getCurrentAccountDataExport"]>(),
     getPairing: vi.fn<IdentityApi["getPairing"]>(),
@@ -110,6 +111,7 @@ it("routes a valid invitation into the real authentication surface", async () =>
     deleteAccount: vi.fn(),
     downloadAccountDataExport: vi.fn(),
     getCurrentAccountDataExport: vi.fn(async () => ({ job: null })),
+    getAccount: vi.fn().mockRejectedValue(new Error("Profile unavailable in this fixture.")),
     getAccountPreferences: vi.fn(async () => ({
       cloudWordCopyMode: "enabled" as const,
       dailyGoal: 3,

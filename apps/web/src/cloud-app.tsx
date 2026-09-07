@@ -25,6 +25,7 @@ import { AdminOperationsPage } from "./admin-operations-page.js";
 import type { WebAdminOperationsApi } from "./admin-operations-api.js";
 import { WorkspaceShell, type WorkspaceSection } from "./workspace-shell.js";
 import { PairingApprovalForm } from "./pairing-approval-form.js";
+import { WorkspaceAccountMenu } from "./workspace-account-menu.js";
 
 export type IdentityApi = Pick<
   WebIdentityApi,
@@ -34,6 +35,7 @@ export type IdentityApi = Pick<
   | "deleteAccount"
   | "downloadAccountDataExport"
   | "getCurrentAccountDataExport"
+  | "getAccount"
   | "getAccountPreferences"
   | "getPairing"
   | "listExtensionSessions"
@@ -211,7 +213,9 @@ export function CloudApp({
         <p className="eyebrow">SEEN & SAID</p>
         <h1>需要先登录</h1>
         <p role="status">当前会话无效。请前往登录页后重试。</p>
-        <a href="/login">前往登录</a>
+        <a className="primary-button" href="/login">
+          前往登录
+        </a>
       </main>
     );
   }
@@ -234,6 +238,18 @@ export function CloudApp({
       </main>
     );
   if (pairingId === undefined) {
+    const endSession = () => {
+      setCsrfToken("");
+      setState("signed-out");
+    };
+    const accountMenu = (
+      <WorkspaceAccountMenu
+        access={sessionAccess}
+        api={identity}
+        csrfToken={csrfToken}
+        onSessionEnded={endSession}
+      />
+    );
     const dataRightsPage = (showAccountNavigation: boolean) => (
       <AccountDataRightsPage
         api={{
@@ -246,16 +262,17 @@ export function CloudApp({
           retryAccountDataExport: (exportId, revision) =>
             identity.retryAccountDataExport(exportId, revision, csrfToken),
         }}
-        onSessionEnded={() => {
-          setCsrfToken("");
-          setState("signed-out");
-        }}
+        onSessionEnded={endSession}
         showAccountNavigation={showAccountNavigation}
         showOperatorNavigation={operator}
       />
     );
     if (sessionAccess === "data-rights")
-      return <WorkspaceShell access="data-rights">{dataRightsPage(false)}</WorkspaceShell>;
+      return (
+        <WorkspaceShell access="data-rights" accountMenu={accountMenu}>
+          {dataRightsPage(false)}
+        </WorkspaceShell>
+      );
     if (page === "error-logs" && adminApi && errorLogsApi)
       return (
         <AdminErrorLogsPage
@@ -320,7 +337,11 @@ export function CloudApp({
         );
 
     return (
-      <WorkspaceShell access="full" activeSection={workspaceSection(page)}>
+      <WorkspaceShell
+        access="full"
+        activeSection={workspaceSection(page)}
+        accountMenu={accountMenu}
+      >
         {content}
       </WorkspaceShell>
     );

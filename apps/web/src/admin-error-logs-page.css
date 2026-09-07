@@ -71,12 +71,12 @@
   font-weight: 700;
 }
 .error-log-level-error {
-  color: var(--danger-text);
-  background: var(--danger-fill);
+  color: var(--text-danger);
+  background: var(--surface-danger-soft);
 }
 .error-log-level-warn {
-  color: var(--warning-text);
-  background: var(--warning-fill);
+  color: var(--text-warning);
+  background: var(--surface-warning);
 }
 .error-log-status {
   font-variant-numeric: tabular-nums;

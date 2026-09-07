@@ -36,7 +36,7 @@ function navigationStartsOpen(): boolean {
   );
 }
 
-type WorkspaceShellProps =
+type WorkspaceShellProps = { readonly accountMenu?: ReactNode } & (
   | {
       readonly access: "data-rights";
       readonly children: ReactNode;
@@ -45,7 +45,8 @@ type WorkspaceShellProps =
       readonly access: "full";
       readonly activeSection: WorkspaceSection;
       readonly children: ReactNode;
-    };
+    }
+);
 
 export function WorkspaceShell(props: WorkspaceShellProps) {
   const [navigationOpen, setNavigationOpen] = useState(navigationStartsOpen);
@@ -126,7 +127,10 @@ export function WorkspaceShell(props: WorkspaceShellProps) {
             </nav>
           </details>
         )}
-        <WorkspaceAppearanceMenu />
+        <div className="workspace-header-actions">
+          <WorkspaceAppearanceMenu />
+          {props.accountMenu}
+        </div>
       </header>
       <main id="main-content" tabIndex={-1}>
         {props.access === "full" && props.activeSection === "history" && (
