@@ -73,7 +73,7 @@ export function createCloudBrowserPairingApprovalAuthority() {
       if (
         !hooks.mutationProof(request) ||
         headers["idempotency-key"] !== undefined ||
-        headers["if-match"] !== undefined
+        headers["x-huayi-revision"] !== undefined
       ) {
         await hooks.reject(route, 403, "forbidden");
         return true;

@@ -1,4 +1,6 @@
 import { createCloudFoundationApp } from "./cloud-foundation-app.js";
+import { createDiagnosticProviderFetch } from "./diagnostic-provider-fetch.js";
+import { createProductionDiagnostics } from "./production-diagnostics.js";
 import { createAccountQuotaApp } from "./account-quota-app.js";
 import { createAccountPreferencesApp } from "./account-preferences-app.js";
 import { createExtensionPreferencesApp } from "./extension-preferences-app.js";
@@ -75,6 +77,7 @@ export function createProductionApp(
     securityNotificationFetch?: SecurityNotificationFetch;
   } = {},
 ) {
+  const providerFetch = createDiagnosticProviderFetch(options.providerFetch);
   const extensionPolicy = createProductionStorePolicy(environment);
   const protector = createSecretProtector({
     key: Buffer.from(environment.HUAYI_REFRESH_ENCRYPTION_KEY, "base64url"),
@@ -100,13 +103,20 @@ export function createProductionApp(
     sql,
   });
   const analysisDatabase = createPostgresAnalysisDatabase(sql);
+  const diagnostics = createProductionDiagnostics({
+    database: analysisDatabase,
+    environment,
+    identity,
+    policy: extensionPolicy,
+    rateLimiter,
+  });
   const authenticateWebAnalysis = createProductionAnalysisAuthenticator(identity, extensionPolicy);
   const pricing = createProductionDeepSeekPricing(environment);
   const accountPreferences = createPostgresAccountPreferences(analysisDatabase);
   const { analysis, quota, studyCaptures } = createProductionAnalysis({
     database: analysisDatabase,
     environment,
-    ...(options.providerFetch === undefined ? {} : { fetch: options.providerFetch }),
+    fetch: providerFetch,
     pricing,
   });
   const library = createLearningLibraryModule({
@@ -117,7 +127,7 @@ export function createProductionApp(
   const duplicateSuggestions = createProductionDuplicateSuggestions({
     apiKey: environment.HUAYI_DEEPSEEK_API_KEY,
     database: analysisDatabase,
-    ...(options.providerFetch === undefined ? {} : { fetch: options.providerFetch }),
+    fetch: providerFetch,
     pricing,
   });
   const libraryMaintenance = createLearningLibraryMaintenance({
@@ -128,7 +138,7 @@ export function createProductionApp(
   const practiceGenerator = createProductionPracticeGenerator({
     apiKey: environment.HUAYI_DEEPSEEK_API_KEY,
     database: analysisDatabase,
-    ...(options.providerFetch === undefined ? {} : { fetch: options.providerFetch }),
+    fetch: providerFetch,
     pricing,
     quota,
   });
@@ -170,9 +180,13 @@ export function createProductionApp(
     policy: extensionPolicy,
     pricing,
     quota,
-    ...(options.providerFetch ? { fetch: options.providerFetch } : {}),
+    fetch: providerFetch,
   });
   const app = createCloudFoundationApp({
+    diagnostics: diagnostics.write,
+    ...(environment.VERCEL_GIT_COMMIT_SHA
+      ? { diagnosticRelease: environment.VERCEL_GIT_COMMIT_SHA }
+      : {}),
     apiOrigin: environment.HUAYI_API_ORIGIN,
     auth,
     ...(extensionPolicy.capability === "enabled"
@@ -190,6 +204,7 @@ export function createProductionApp(
     webOrigin: environment.HUAYI_WEB_ORIGIN,
   });
   const learningTasks = createProductionLearningTasks({
+    purgeDiagnostics: diagnostics.purge,
     database: analysisDatabase,
     environment,
     identity,
@@ -201,6 +216,7 @@ export function createProductionApp(
     maintenance: libraryMaintenance,
   });
   app.route("/", learningTasks);
+  app.route("/", diagnostics.app);
   app.route(
     "/",
     createProductionPasswordRecovery({
@@ -312,7 +328,7 @@ export function createProductionApp(
         module: query,
         database: analysisDatabase,
         environment,
-        ...(options.providerFetch === undefined ? {} : { fetch: options.providerFetch }),
+        fetch: providerFetch,
         identity,
         policy: extensionPolicy,
         pricing,

@@ -6,7 +6,7 @@ import {
   resourceIdSchema,
   wordbookJobListResponseSchema,
   wordbookJobResourceSchema,
-  wordbookJobRevisionHeadersSchema,
+  revisionWriteHttpHeadersSchema,
   wordbookJobRevisionRequestSchema,
   wordbookJobWriteHeadersSchema,
   wordEntryHttpRoutes,
@@ -51,7 +51,7 @@ export function createWebExternalWordbookApi(options: {
     idempotencyKey: string,
   ) => {
     const request = wordbookJobRevisionRequestSchema.parse(input);
-    const headers = wordbookJobRevisionHeadersSchema.parse({
+    const headers = revisionWriteHttpHeadersSchema.parse({
       "idempotency-key": idempotencyKey,
       "if-match": `"${request.expectedRevision}"`,
     });

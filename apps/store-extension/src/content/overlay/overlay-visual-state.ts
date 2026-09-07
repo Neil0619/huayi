@@ -55,7 +55,10 @@ export function updateOverlayModeControls(
   loading: boolean,
 ): void {
   const stop = host?.shadowRoot?.querySelector<HTMLButtonElement>("[data-stop]");
-  if (stop) stop.hidden = !loading;
+  if (stop) {
+    stop.hidden = !loading;
+    stop.disabled = false;
+  }
   for (const button of host?.shadowRoot?.querySelectorAll<HTMLButtonElement>("[data-action]") ??
     []) {
     const active = button.dataset.action === action;

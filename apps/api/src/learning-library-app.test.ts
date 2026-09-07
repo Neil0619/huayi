@@ -129,7 +129,7 @@ describe("learning library HTTP", () => {
       headers: {
         "content-type": "application/json",
         "idempotency-key": "patch-1",
-        "if-match": '"1"',
+        "x-huayi-revision": '"1"',
       },
       method: "PATCH",
     });
@@ -139,7 +139,7 @@ describe("learning library HTTP", () => {
       headers: {
         "content-type": "application/json",
         "idempotency-key": "patch-1",
-        "if-match": '"2"',
+        "x-huayi-revision": '"2"',
       },
       method: "PATCH",
     });
@@ -176,7 +176,7 @@ describe("learning library HTTP", () => {
 
     const revisionHeader = await app("user-a").request(path, {
       ...request,
-      headers: { ...request.headers, "if-match": '"1"' },
+      headers: { ...request.headers, "x-huayi-revision": '"1"' },
     });
     expect(revisionHeader.status).toBe(400);
   });
@@ -185,7 +185,7 @@ describe("learning library HTTP", () => {
     const headers = {
       "content-type": "application/json",
       "idempotency-key": "archive-1",
-      "if-match": '"1"',
+      "x-huayi-revision": '"1"',
     };
     const archived = await app("user-a").request("/v1/learning-items/item-1/archive", {
       body: JSON.stringify({ expectedRevision: 1 }),
@@ -198,7 +198,7 @@ describe("learning library HTTP", () => {
     });
     const restored = await app("user-a").request("/v1/learning-items/item-1/restore", {
       body: JSON.stringify({ expectedRevision: 2 }),
-      headers: { ...headers, "idempotency-key": "restore-1", "if-match": '"2"' },
+      headers: { ...headers, "idempotency-key": "restore-1", "x-huayi-revision": '"2"' },
       method: "POST",
     });
     expect(restored.status).toBe(200);

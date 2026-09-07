@@ -179,6 +179,22 @@
           </div>
         </section>
 
+        <section class="card" aria-labelledby="diagnostic-title" data-settings-associated="common">
+          <h2 id="diagnostic-title">帮助发现错误</h2>
+          <label class="switch-field">
+            <span>自动上传错误诊断</span>
+            <input type="checkbox" role="switch" data-diagnostic-consent disabled />
+          </label>
+          <p>
+            开启后，连接语见账号的插件会自动向语见服务上传错误码、阶段、状态码、耗时、版本和关联编号。不会上传原文、网页地址、模型回答或密钥。
+          </p>
+          <p>
+            断网时最多暂存 100 条、保留 24 小时；服务端日志保留 30
+            天，仅管理员可见。关闭后清除本机待上传日志，不影响模型使用。
+          </p>
+          <p data-diagnostic-status role="status" aria-live="polite"></p>
+        </section>
+
         <section
           class="card appearance-card"
           aria-labelledby="appearance-title"

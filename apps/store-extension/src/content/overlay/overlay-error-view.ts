@@ -39,6 +39,7 @@ function renderErrorView(
     readonly code: StoreAnalysisErrorCode | typeof DISCONNECTED;
   },
 ): void {
+  options.body.querySelector("[data-stop-status]")?.remove();
   const presentation =
     options.code === DISCONNECTED
       ? { message: "分析连接已中断，请手动重试。", optionsAction: false, retry: true }

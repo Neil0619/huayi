@@ -3,6 +3,7 @@ import type { IdentityModule } from "./identity-module.js";
 import type { GoogleLinkRepository } from "./google-link-module.js";
 import type { PasswordLinkRepository } from "./password-link-module.js";
 import type { RateLimiter } from "./rate-limiter.js";
+import type { DiagnosticWriter } from "./diagnostic-context.js";
 
 type Awaitable<T> = Promise<T> | T;
 interface FoundationIdentity {
@@ -38,11 +39,13 @@ interface FoundationIdentity {
   resumeInterruptedPasswordRegistration: IdentityModule["resumeInterruptedPasswordRegistration"];
   revokeExtensionSession: IdentityModule["revokeExtensionSession"];
   revokeWebSession: IdentityModule["revokeWebSession"];
-  rotateWebCsrf: IdentityModule["rotateWebCsrf"];
+  bootstrapWebCsrf: IdentityModule["bootstrapWebCsrf"];
   saveAuthFlowState: IdentityModule["saveAuthFlowState"];
 }
 
 export interface CloudFoundationDependencies {
+  diagnostics?: DiagnosticWriter;
+  diagnosticRelease?: string;
   apiOrigin: string;
   auth: AuthProvider;
   extensionOrigin?: string;

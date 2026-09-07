@@ -100,7 +100,9 @@ export function createCloudBrowserDuplicateSuggestionAuthority(active: boolean, 
     const headers = request.headers();
     const parsedHeaders = duplicateSuggestionsHeadersSchema.safeParse({
       "idempotency-key": headers["idempotency-key"],
-      ...(headers["if-match"] === undefined ? {} : { "if-match": headers["if-match"] }),
+      ...(headers["x-huayi-revision"] === undefined
+        ? {}
+        : { "if-match": headers["x-huayi-revision"] }),
     });
     const key = dependencies.webProof(request);
     if (!parsed.success || !parsedHeaders.success) {

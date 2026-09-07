@@ -1,5 +1,6 @@
 import {
   STORE_MESSAGE_VERSION,
+  type AnalysisCancellationSignal,
   type AnalysisEngine,
   type AnalysisResult,
   type StoreAnalysisClientMessage,
@@ -12,6 +13,7 @@ import {
   type ContentAnalysisPort,
 } from "../../src/content/overlay/store-overlay-controller.js";
 import { readStoreSelection } from "../../src/content/selection/read-selection.js";
+import { wordQueryResult } from "./word-query-fixture.js";
 
 const settings: StoreSettings = {
   defaultAction: "ask",
@@ -40,9 +42,32 @@ const cache = createQueryCache({
 let calls = 0;
 let finish: () => void = () => undefined;
 let openedAt = 0;
+function waitForQueryCompletion(signal: AnalysisCancellationSignal): Promise<void> {
+  const observable = signal as Partial<AbortSignal>;
+  return new Promise<void>((resolve) => {
+    const done = () => {
+      observable.removeEventListener?.("abort", done);
+      resolve();
+    };
+    finish = done;
+    if (signal.aborted) done();
+    else observable.addEventListener?.("abort", done, { once: true });
+  });
+}
 const engine: AnalysisEngine = {
   async analyze(request, _signal, update) {
     document.body.dataset.calls = String(++calls);
+    if (request.selectionKind === "word") {
+      update?.({
+        type: "section",
+        requestId: request.requestId,
+        sequence: 1,
+        section: "confusable-words",
+        value: wordQueryResult.confusableWords,
+      });
+      await waitForQueryCompletion(_signal);
+      return { ...wordQueryResult, requestId: request.requestId, sourceText: request.selection };
+    }
     const keyExpressions = [
       {
         text: "Andalusia's regional leader Juanma Moreno has said",
@@ -63,9 +88,17 @@ const engine: AnalysisEngine = {
       section: "key-expressions",
       value: keyExpressions,
     });
-    await new Promise<void>((resolve) => {
-      finish = resolve;
-    });
+    const translation = ["Juanma", " ", "Moreno 表示至少十二人遇难。"];
+    for (const [index, text] of translation.entries()) {
+      update?.({
+        type: "delta",
+        requestId: request.requestId,
+        sequence: index + 3,
+        section: "translation",
+        text,
+      });
+    }
+    await waitForQueryCompletion(_signal);
     const result: AnalysisResult =
       request.action === "translate"
         ? {
@@ -73,7 +106,7 @@ const engine: AnalysisEngine = {
             requestId: request.requestId,
             selectionKind: "sentence",
             sourceText: request.selection,
-            translationZh: "至少十二人遇难。",
+            translationZh: translation.join(""),
           }
         : {
             type: "explain-sentence",
@@ -81,7 +114,7 @@ const engine: AnalysisEngine = {
             selectionKind: "sentence",
             sourceText: request.selection,
             mainStructure: "主语与谓语。".repeat(50),
-            translationZh: "至少十二人遇难。",
+            translationZh: translation.join(""),
             keyExpressions,
             contextRole: "新闻中补充信息来源。",
           };

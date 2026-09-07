@@ -243,7 +243,19 @@
     "test:store:coverage": "vitest run --config vitest.store-coverage.config.ts",
     "typecheck": "node scripts/run-workspace-typechecks.mjs",
     "verify:macos": "node scripts/run-platform-verification.mjs darwin",
-    "verify:windows": "node scripts/run-platform-verification.mjs win32"
+    "verify:windows": "node scripts/run-platform-verification.mjs win32",
+    "acceptance:hosted:combined:migration:backup:capture:post": "node scripts/acceptance-hosted-combined-migration-backup-executor.mjs --confirm-capture-post-0026-0027-0028-backup-kpadiulxkgckskcfydry",
+    "acceptance:hosted:combined:migration:backup:capture:pre": "node scripts/acceptance-hosted-combined-migration-backup-executor.mjs --confirm-capture-pre-0026-0027-0028-backup-kpadiulxkgckskcfydry",
+    "acceptance:hosted:combined:migration:backup:complete": "node scripts/acceptance-hosted-combined-migration-backup.mjs --verify-post-0026-0027-0028-backup-kpadiulxkgckskcfydry",
+    "acceptance:hosted:combined:migration:backup:historical:verify": "node scripts/acceptance-hosted-combined-migration-backup.mjs --verify-historical-completion-0026-0027-0028-backup-kpadiulxkgckskcfydry",
+    "acceptance:hosted:combined:migration:backup:executor:plan": "node scripts/acceptance-hosted-combined-migration-backup-executor.mjs --plan",
+    "acceptance:hosted:combined:migration:backup:executor:post:readiness": "node scripts/acceptance-hosted-combined-migration-backup-executor.mjs --readiness-post-0026-0027-0028-backup-kpadiulxkgckskcfydry",
+    "acceptance:hosted:combined:migration:backup:executor:pre:readiness": "node scripts/acceptance-hosted-combined-migration-backup-executor.mjs --readiness-pre-0026-0027-0028-backup-kpadiulxkgckskcfydry",
+    "acceptance:hosted:combined:migration:backup:executor:rebuild:readiness": "node scripts/acceptance-hosted-combined-migration-backup-executor.mjs --readiness-rebuild-0026-0027-0028-backup-kpadiulxkgckskcfydry",
+    "acceptance:hosted:combined:migration:backup:plan": "node scripts/acceptance-hosted-combined-migration-backup.mjs --plan",
+    "acceptance:hosted:combined:migration:backup:preflight": "node scripts/acceptance-hosted-combined-migration-backup.mjs --verify-pre-0026-0027-0028-backup-kpadiulxkgckskcfydry",
+    "acceptance:hosted:combined:migration:backup:rebuild": "node scripts/acceptance-hosted-combined-migration-backup-executor.mjs --confirm-rebuild-0026-0027-0028-backup-kpadiulxkgckskcfydry",
+    "acceptance:hosted:combined:migration:backup:status": "node scripts/acceptance-hosted-combined-migration-backup-status.mjs --status-0026-0027-0028-backup-kpadiulxkgckskcfydry"
   },
   "devDependencies": {
     "@eslint/js": "^9.30.1",

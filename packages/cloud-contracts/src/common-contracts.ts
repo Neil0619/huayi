@@ -26,6 +26,11 @@ export const revisionWriteHeadersSchema = z.strictObject({
   "idempotency-key": idempotencyKeySchema,
   "if-match": z.string().regex(/^"[1-9]\d*"$/u),
 });
+// The normalized proof keeps the v1 shape; HTTP clients must not send it as an entity precondition.
+export const revisionWriteHttpHeadersSchema = revisionWriteHeadersSchema.transform((proof) => ({
+  "idempotency-key": proof["idempotency-key"],
+  "x-huayi-revision": proof["if-match"],
+}));
 
 export const apiErrorCodeSchema = z.enum([
   "invalid_request",

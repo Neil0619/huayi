@@ -21,16 +21,17 @@ import {
 import { Hono, type Context } from "hono";
 
 import { CloudFault } from "./cloud-fault.js";
+import { readRevisionHeader } from "./revision-header.js";
 import type { LearningLibraryModule } from "./learning-library-module.js";
 import type { LearningLibraryMaintenance } from "./learning-library-maintenance.js";
 
 function mutationHeaders(context: Context, expectedRevision: number) {
   const headers = learningItemMutationHeadersSchema.parse({
     "idempotency-key": context.req.header("idempotency-key"),
-    "if-match": context.req.header("if-match"),
+    "if-match": readRevisionHeader(context),
   });
   if (Number(headers["if-match"].slice(1, -1)) !== expectedRevision) {
-    throw new CloudFault("invalid_request", "If-Match must match expectedRevision.");
+    throw new CloudFault("invalid_request", "Revision header must match expectedRevision.");
   }
   return headers;
 }
@@ -115,7 +116,7 @@ export function createLearningLibraryApp(options: {
   app.post(learningItemHttpRoutes.duplicateSuggestions, async (context) => {
     context.header("Cache-Control", "private, no-store");
     const ownerUserId = await options.authenticate(context);
-    const ifMatch = context.req.header("if-match");
+    const ifMatch = readRevisionHeader(context);
     const headers = duplicateSuggestionsHeadersSchema.parse({
       "idempotency-key": context.req.header("idempotency-key"),
       ...(ifMatch === undefined ? {} : { "if-match": ifMatch }),

@@ -4,6 +4,8 @@ export * from "./admin-operations-contracts.js";
 export * from "./analysis-contracts.js";
 export * from "./analysis-sse-decoder.js";
 export * from "./common-contracts.js";
+export * from "./diagnostics.js";
+export * from "./diagnostic-issues.js";
 export * from "./external-wordbook-contracts.js";
 export * from "./extension-learning-contracts.js";
 export * from "./fixtures.js";

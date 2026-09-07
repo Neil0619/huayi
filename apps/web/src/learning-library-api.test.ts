@@ -184,7 +184,7 @@ describe("Web learning library API", () => {
       credentials: "include",
       headers: expect.objectContaining({
         "idempotency-key": "patch-1",
-        "if-match": '"1"',
+        "x-huayi-revision": '"1"',
         "x-csrf-token": "csrf-proof",
       }),
       method: "PATCH",
@@ -197,14 +197,14 @@ describe("Web learning library API", () => {
       method: "POST",
     });
     expect(fetch.mock.calls[4]?.[1]).toMatchObject({
-      headers: expect.objectContaining({ "if-match": '"2"' }),
+      headers: expect.objectContaining({ "x-huayi-revision": '"2"' }),
       method: "POST",
     });
     expect(fetch.mock.calls[5]?.[1]).toMatchObject({
       body: JSON.stringify({ expectedRevision: 2 }),
       headers: expect.objectContaining({
         "idempotency-key": "archive-1",
-        "if-match": '"2"',
+        "x-huayi-revision": '"2"',
       }),
       method: "POST",
     });
@@ -212,7 +212,7 @@ describe("Web learning library API", () => {
       body: JSON.stringify({ expectedRevision: 3 }),
       headers: expect.objectContaining({
         "idempotency-key": "restore-1",
-        "if-match": '"3"',
+        "x-huayi-revision": '"3"',
       }),
       method: "POST",
     });

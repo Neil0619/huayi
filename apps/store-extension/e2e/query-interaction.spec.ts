@@ -50,7 +50,7 @@ test("keeps focus, readable streaming, scroll position and cached results across
   await page.evaluate(() => window.scrollTo(0, 400));
   await expect(panel).toBeVisible();
   expect((await panel.boundingBox())?.y).toBeGreaterThanOrEqual(0);
-  await panel.locator("[data-close]").click();
+  await page.mouse.click(880, 680);
   await page.evaluate(() => {
     const f = window.queryFixture;
     f.setDefault();

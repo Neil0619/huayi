@@ -75,9 +75,23 @@ function encodeSse(events: readonly unknown[]) {
     .join("");
 }
 
-export function createCloudBrowserStudyCaptureAuthority() {
+export function createCloudBrowserStudyCaptureAuthority(readAnalyses: () => AnalysisRecord[]) {
   let captures: StudyCaptureDetailResponse[] = [];
   const createReplays = new Map<string, unknown>();
+  const currentDetail = (detail: StudyCaptureDetailResponse): StudyCaptureDetailResponse => {
+    const analysis = readAnalyses().find((record) => record.id === detail.latestAnalysis?.id);
+    if (!analysis) return detail;
+    // Production joins the current analysis row on every capture read; task outputs stay immutable.
+    return {
+      ...detail,
+      latestAnalysis: {
+        id: analysis.id,
+        createdAt: analysis.createdAt,
+        revision: analysis.revision,
+        reviewState: analysis.reviewState,
+      },
+    };
+  };
 
   return {
     count: () => captures.length,
@@ -225,7 +239,10 @@ export function createCloudBrowserStudyCaptureAuthority() {
         await context.json(
           route,
           200,
-          studyCaptureListResponseSchema.parse({ items: visible, nextCursor: null }),
+          studyCaptureListResponseSchema.parse({
+            items: visible.map(currentDetail),
+            nextCursor: null,
+          }),
         );
         return true;
       }
@@ -327,7 +344,7 @@ export function createCloudBrowserStudyCaptureAuthority() {
           },
         }).capture;
         context.record(request, "write-valid");
-        await context.json(route, 200, detail);
+        await context.json(route, 200, currentDetail(detail));
         return true;
       }
       if (detailMatch?.[1] !== undefined && request.method() === "GET") {
@@ -338,7 +355,9 @@ export function createCloudBrowserStudyCaptureAuthority() {
         await context.json(
           route,
           detail === undefined ? 404 : 200,
-          detail ?? { error: { code: "not_found", message: "Not found", requestId: "e2e" } },
+          detail
+            ? currentDetail(detail)
+            : { error: { code: "not_found", message: "Not found", requestId: "e2e" } },
         );
         return true;
       }

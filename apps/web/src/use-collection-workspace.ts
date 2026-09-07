@@ -99,7 +99,13 @@ export function useCollectionWorkspace(
     return () => {
       live = false;
     };
-  }, [review, selected?.capture?.latestAnalysis?.id, selected?.analysis?.id, mergeAnalysis]);
+  }, [
+    review,
+    selected?.capture?.latestAnalysis?.id,
+    selected?.capture?.latestAnalysis?.revision,
+    selected?.analysis?.id,
+    mergeAnalysis,
+  ]);
   const taskId = selected?.task?.id;
   const taskCaptureId = selected?.capture?.capture.id;
   useEffect(() => {

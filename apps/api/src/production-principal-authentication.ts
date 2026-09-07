@@ -1,5 +1,6 @@
 import type { Context } from "hono";
 
+import { setDiagnosticContext } from "./diagnostic-context.js";
 import { CloudFault } from "./cloud-fault.js";
 
 export interface ProductionIdentityAuthentication {
@@ -101,7 +102,10 @@ export async function authenticateProductionPrincipalRequest(
     if (!supported(headers.clientVersion, policy.minSupportedExtensionVersion)) {
       throw new CloudFault("client_upgrade_required", "The Extension must be upgraded.");
     }
-    return { kind: "extension", userId: (await identity.authenticateExtension(token)).userId };
+    return {
+      kind: "extension",
+      userId: diagnosticUser((await identity.authenticateExtension(token)).userId),
+    };
   }
   const session = headers.cookie
     ?.split(";")
@@ -117,9 +121,18 @@ export async function authenticateProductionPrincipalRequest(
     }
     return {
       kind: "web",
-      userId: (await identity.authenticateWebMutation(session, headers.origin, headers.csrf))
-        .userId,
+      userId: diagnosticUser(
+        (await identity.authenticateWebMutation(session, headers.origin, headers.csrf)).userId,
+      ),
     };
   }
-  return { kind: "web", userId: (await identity.authenticateWebSession(session)).userId };
+  return {
+    kind: "web",
+    userId: diagnosticUser((await identity.authenticateWebSession(session)).userId),
+  };
+}
+
+function diagnosticUser(userId: string): string {
+  setDiagnosticContext({ userId });
+  return userId;
 }

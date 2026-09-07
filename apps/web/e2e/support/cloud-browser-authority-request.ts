@@ -14,7 +14,7 @@ export function cloudCors(origin: string | undefined) {
     ? {
         "access-control-allow-credentials": "true",
         "access-control-allow-headers":
-          "authorization, content-type, idempotency-key, if-match, x-csrf-token, x-huayi-client-version",
+          "authorization, content-type, idempotency-key, if-match, x-huayi-revision, x-csrf-token, x-huayi-client-version",
         "access-control-allow-methods": "DELETE, GET, OPTIONS, PATCH, POST",
         "access-control-allow-origin": origin,
         vary: "Origin",

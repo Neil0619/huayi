@@ -5,7 +5,7 @@ import {
   writeHeadersSchema,
 } from "@huayi/cloud-contracts";
 import { Hono, type Context } from "hono";
-import { streamSSE } from "hono/streaming";
+import { streamSSE, captureDiagnosticPayload } from "./diagnostic-stream.js";
 
 import { CloudFault } from "./cloud-fault.js";
 import type { ExtensionQueryModule } from "./extension-query-module.js";
@@ -38,6 +38,7 @@ export function createExtensionQueryApp(options: {
     return streamSSE(context, async (stream) => {
       let id = 0;
       for await (const event of events) {
+        captureDiagnosticPayload(event);
         if (
           event.type === "query.preview-v2" &&
           !context.req.header("accept")?.includes("version=2")

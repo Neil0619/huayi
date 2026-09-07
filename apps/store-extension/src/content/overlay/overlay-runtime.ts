@@ -56,6 +56,7 @@ export function requestAnalysisStop(
 ): void {
   if (!port || !body) return;
   const message = body.ownerDocument.createElement("p");
+  message.dataset.stopStatus = "";
   message.setAttribute("role", "status");
   message.textContent = "正在停止，请等待服务器确认；也可以关闭此卡片。";
   try {

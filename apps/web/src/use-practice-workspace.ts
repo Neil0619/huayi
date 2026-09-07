@@ -246,6 +246,7 @@ export function usePracticeWorkspace(api: PracticePageApi, key: () => string) {
           key(),
         );
       install(next);
+      setStatus("已恢复这次练习。");
       if (api.tasks) {
         const jobs = await api.tasks.list();
         const running = jobs.find(

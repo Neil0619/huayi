@@ -1,3 +1,5 @@
+import { captureDiagnostic } from "./diagnostic-context.js";
+import { safeDiagnosticIssues } from "@huayi/cloud-contracts";
 import type { z } from "zod/v3";
 
 export type AnalysisValidationStage = "json" | "output-schema" | "unit-count" | "content-schema";
@@ -157,6 +159,15 @@ export function reportDeepSeekAnalysisOutputInvalid(
       }
     }
     visit(issues, 0);
+    captureDiagnostic({
+      code: "model_output_invalid",
+      stage,
+      attempt,
+      provider: "deepseek",
+      severity: "warn",
+      issues: safeDiagnosticIssues(safeIssues),
+      issuesTruncated: truncated || safeIssues.length > 8,
+    });
     sink({
       event: "deepseek_analysis_output_invalid",
       stage,

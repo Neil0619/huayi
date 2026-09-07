@@ -7,7 +7,7 @@ import {
   resourceIdSchema,
 } from "@huayi/cloud-contracts";
 import { Hono, type Context } from "hono";
-import { streamSSE } from "hono/streaming";
+import { streamSSE } from "./diagnostic-stream.js";
 import { CloudFault } from "./cloud-fault.js";
 import { requireCronBearer } from "./cron-authentication.js";
 import type { LearningTaskStore } from "./learning-task-store.js";

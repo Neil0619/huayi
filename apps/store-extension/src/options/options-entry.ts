@@ -20,8 +20,10 @@ import { LocalWordImportOptionsController } from "./local-word-import-options-co
 import { OptionsPage } from "./options-page.js";
 import { createBrowserTextFileAdapter } from "./text-file-adapter.js";
 import { WordbookOptionsController } from "./wordbook-options-controller.js";
+import { initializeDiagnosticSettings } from "./diagnostic-settings-control.js";
 
 const vault = createProductionDeviceVault();
+void initializeDiagnosticSettings(document, chrome.storage.local);
 const lexicon = createProductionLexiconRepository();
 const wordbook = createProductionWordbookExportEngine(vault, lexicon);
 const files = createBrowserTextFileAdapter({ document, url: URL });

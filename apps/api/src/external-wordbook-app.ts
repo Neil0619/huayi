@@ -16,6 +16,7 @@ import {
 import { Hono, type Context } from "hono";
 
 import { CloudFault } from "./cloud-fault.js";
+import { readRevisionHeader } from "./revision-header.js";
 import type { ExternalWordbookModule } from "./external-wordbook-module.js";
 
 export interface ExternalWordbookPrincipal {
@@ -44,10 +45,10 @@ function createKey(context: Context): string {
 function revisionKey(context: Context, expectedRevision: number): string {
   const headers = wordbookJobRevisionHeadersSchema.parse({
     "idempotency-key": context.req.header("idempotency-key"),
-    "if-match": context.req.header("if-match"),
+    "if-match": readRevisionHeader(context),
   });
   if (Number(headers["if-match"].slice(1, -1)) !== expectedRevision) {
-    throw new CloudFault("invalid_request", "If-Match must match expectedRevision.");
+    throw new CloudFault("invalid_request", "Revision header must match expectedRevision.");
   }
   return headers["idempotency-key"];
 }

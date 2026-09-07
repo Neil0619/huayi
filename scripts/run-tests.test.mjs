@@ -56,7 +56,7 @@ test("repository tests run explicit script files before two bounded Vitest batch
   assert.equal(calls[3].executable, process.execPath);
 });
 
-test("Windows Vitest sharding remains unchanged and disables native-host file parallelism", async () => {
+test("Windows runs every Vitest project with bounded Web/API and serial native-host files", async () => {
   const calls = [];
 
   await runRepositoryTests({
@@ -68,18 +68,19 @@ test("Windows Vitest sharding remains unchanged and disables native-host file pa
   });
 
   assert.deepEqual(
-    calls.map((arguments_) => arguments_.slice(-3)),
+    calls.map((arguments_) => arguments_.slice(arguments_.indexOf("--project") + 1)),
     [
-      ["--passWithNoTests", "--project", "store-domain"],
-      ["--passWithNoTests", "--project", "learning-domain"],
-      ["--passWithNoTests", "--project", "cloud-contracts"],
-      ["--passWithNoTests", "--project", "protocol"],
-      ["--project", "native-host", "--no-file-parallelism"],
-      ["--passWithNoTests", "--project", "extension"],
-      ["--passWithNoTests", "--project", "store-extension"],
+      ["store-domain"],
+      ["learning-domain"],
+      ["cloud-contracts"],
+      ["protocol"],
+      ["native-host", "--no-file-parallelism"],
+      ["extension"],
+      ["store-extension"],
+      ["web", "--maxWorkers", "4"],
+      ["api", "--maxWorkers", "2", "--testTimeout", "15000", "--hookTimeout", "15000"],
     ],
   );
-  assert.doesNotMatch(calls.flat().join(" "), /(?:^|\s)(?:api|web)(?:\s|$)/u);
 });
 
 test("repository tests stop before script tests when dependency builds fail", async () => {

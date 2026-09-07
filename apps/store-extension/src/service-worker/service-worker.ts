@@ -1,12 +1,10 @@
 import { createProductionQueryStorage } from "./production-query-storage.js";
 import {
-  STORE_ANALYSIS_PORT_NAME,
   STORE_MESSAGE_VERSION,
   parseCloudSessionRequest,
   parseStoreOpenOptionsRequest,
   recipientAccessDecision,
 } from "@huayi/store-domain";
-
 import { createProductionAnalysisEngine } from "../analysis/production-analysis-engine.js";
 import { createProductionLexiconRepository } from "../lexicon/browser-lexicon-repository.js";
 import { createProductionDeviceVault } from "../vault/browser-device-vault.js";
@@ -39,7 +37,8 @@ import { handleStudyCaptureMessage } from "./study-capture-handler.js";
 import { createProductionCloudClients } from "./production-cloud-clients.js";
 import { createCloudSubmissionApi } from "./cloud-submission-api.js";
 import { createCloudWordCopyClient } from "./cloud-word-copy-client.js";
-import { createProductionQuerySession } from "./production-query-session.js";
+import { installProductionQueryConnections } from "./production-query-connections.js";
+import { createProductionStoreDiagnostics } from "./production-diagnostics.js";
 import { randomUrlSafeId } from "./random-url-safe-id.js";
 import {
   handleContentSettingsMessage,
@@ -82,7 +81,6 @@ const cloudSubmissionApi =
         studyCaptures: cloudClients.studyCaptures,
         wordCopies: cloudClients.wordCopies,
       });
-
 const extensionSessionVault = createExtensionSessionVault({
   crypto: globalThis.crypto,
   deviceVault,
@@ -92,6 +90,11 @@ const extensionSessionVault = createExtensionSessionVault({
     write: (key, value) => extensionSessionStorageAdapter.writePersistent(key, value),
   },
 });
+const diagnostics = createProductionStoreDiagnostics(
+  cloudBuildProfile.HUAYI_CLOUD_API_ORIGIN,
+  extensionSessionVault,
+  STORE_CLIENT_VERSION,
+);
 const submissionOutboxVault = createSubmissionOutboxVault({
   crypto: globalThis.crypto,
   deviceVault,
@@ -194,6 +197,7 @@ const localWordImportRuntime = createProductionLocalWordImportRuntime({
   storage: extensionSessionStorageAdapter,
 });
 async function clearAccountData(): Promise<void> {
+  await diagnostics.clear().catch(() => undefined);
   await queryTaskJournal.clear();
   await queryCache.clear();
   await clearCloudAccountData(submissionOutbox, externalWordbookLeaseVault, localWordImportRuntime);
@@ -352,7 +356,6 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
   sendResponse(response);
   return false;
 });
-
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === CLOUD_PAIRING_POLL_ALARM) {
     void cloudSessionManager
@@ -383,15 +386,14 @@ chrome.alarms.onAlarm.addListener((alarm) => {
   }
 });
 
-chrome.runtime.onConnect.addListener((port) => {
-  if (port.name !== STORE_ANALYSIS_PORT_NAME) return;
-  createProductionQuerySession(port, {
-    cache: queryCache,
-    credentials: deviceVault,
-    byok: analysisEngine,
-    cloudApi: cloudClients.extensionQueries,
-    preferences: extensionPreferenceCache,
-    sessionVault: extensionSessionVault,
-    getSettings: () => storeSettings.get(),
-  });
+installProductionQueryConnections({
+  cache: queryCache,
+  credentials: deviceVault,
+  byok: analysisEngine,
+  cloudApi: cloudClients.extensionQueries,
+  preferences: extensionPreferenceCache,
+  sessionVault: extensionSessionVault,
+  getSettings: () => storeSettings.get(),
+  diagnostics,
+  clientVersion: STORE_CLIENT_VERSION,
 });

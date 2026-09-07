@@ -11,7 +11,7 @@ import { WebIdentityApiError, type WebIdentityApi } from "./identity-api.js";
 export type AdminReauthenticationApi = Pick<WebIdentityApi, "reauthenticatePassword">;
 type LoadState = "denied" | "error" | "loading" | "ready" | "reauthentication";
 
-function AdminShell({ children }: { readonly children: ReactNode }) {
+export function AdminShell({ children }: { readonly children: ReactNode }) {
   return (
     <div className="operator-shell">
       <a className="skip-link" href="#main-content">
@@ -227,6 +227,9 @@ export function AdminOperationsPage({
   return (
     <AdminShell>
       <div className="admin-operations-page">
+        <nav aria-label="运营页面">
+          <a href="/admin/error-logs">报错日志</a>
+        </nav>
         <header className="page-heading">
           <div>
             <p className="eyebrow">OPERATIONS · METADATA ONLY</p>

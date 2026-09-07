@@ -1,3 +1,5 @@
+import { createDiagnosticQueryEngine } from "./diagnostic-query-engine.js";
+import type { DiagnosticOutbox } from "./diagnostic-outbox.js";
 import type { AnalysisEngine, DeviceVault } from "@huayi/store-domain";
 
 import { BrowserAnalysisError } from "../analysis/analysis-error.js";
@@ -10,6 +12,8 @@ import type { QueryCache } from "./query-cache.js";
 import { queryIdentity } from "./query-cache-storage.js";
 
 interface Options {
+  readonly diagnostics?: DiagnosticOutbox;
+  readonly clientVersion?: string;
   readonly byok: AnalysisEngine;
   readonly cache: QueryCache;
   readonly credentials: Pick<DeviceVault, "getCredential">;
@@ -73,7 +77,20 @@ export function createProductionQueryEngine(options: Options): AnalysisEngine {
             : null,
       });
       try {
-        const result = await options.cache.analyze(scope, router, request, signal, onUpdate);
+        const result = await options.cache.analyze(
+          scope,
+          options.diagnostics && options.clientVersion
+            ? createDiagnosticQueryEngine(
+                router,
+                options.diagnostics,
+                options.clientVersion,
+                mode === "platform" ? "platform" : request.providerId,
+              )
+            : router,
+          request,
+          signal,
+          onUpdate,
+        );
         const current = await options.sessionVault.readSession();
         if (
           current?.token !== session?.token ||

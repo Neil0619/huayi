@@ -108,11 +108,15 @@ owner context、generation/reservation 归属、task 成功或失败终态、价
   确认页只允许 SHA-256 哈希精确匹配的静态内联样式，动态文本必须 HTML 转义；不开放 unsafe-inline、
   脚本、远程字体或第三方资源。
 - Web Cookie 使用随机不透明 ID；会话固定攻击通过登录后轮换 ID 防止。CSRF 同时校验固定 Web Origin
-  与随机 token；OAuth callback 只把 HttpOnly session Cookie 带回 API origin，再由固定 Web Origin
-  调用无缓存 bootstrap 原子轮换 CSRF hash。CORS 只允许固定 Web origin 携带 Cookie；Extension 使用
+  与会话绑定的不可预测 token：用服务端 pepper、独立用途前缀及随机 session ID 做 HMAC-SHA256，
+  返回值不包含 session ID，数据库仍只存 token hash。登录、重新认证和身份绑定签发新 session 时同步换
+  token；同一 session 的无缓存 bootstrap 保持 token 稳定，避免并发写入或其他标签页使已发请求失效。
+  旧随机 token 的 session 首次 bootstrap 通过既有受控函数原子同步 hash，无需迁移；该函数仍检查
+  账号状态、access scope、撤销与到期，不能恢复已失效 session。OAuth callback 只把 HttpOnly session
+  Cookie 带回 API origin，再由固定 Web Origin 获取 proof。CORS 只允许固定 Web origin 携带 Cookie；Extension 使用
   独立 token 认证，不依赖浏览器凭据 CORS。允许方法与公开路由严格对齐，包括 Web 学习项和账号偏好
-  所需的 PATCH；只额外暴露下载契约需要的固定 `Content-Disposition` 响应头，不暴露认证或内部头。
-  预检通过不替代 Cookie、Origin、CSRF、If-Match 和幂等校验。
+  所需的 PATCH；仅暴露下载使用的 `Content-Disposition` 和用于诊断关联的 `X-Request-Id`，不暴露认证或内部头。
+  预检通过不替代 Cookie、Origin、CSRF、X-Huayi-Revision 和幂等校验。
 - 配对采用 state + PKCE，批准页显示请求设备，授权码单次且 10 分钟过期。Extension token 只在
   Worker 和专用加密 ExtensionSessionVault 内出现，Content Script 无法读取。pending state/verifier
   同样使用 DeviceVault DEK 下的独立严格 envelope 持久化；通用 CredentialSlot 不新增 session 槽，
@@ -148,8 +152,8 @@ owner context、generation/reservation 归属、task 成功或失败终态、价
 - 额度读取只接受 Web HttpOnly Cookie，经固定 Web origin 的 credentialed CORS 调用；Extension token、
   query/body owner、客户端时间都不能取得或改变投影。响应 `private, no-store` 且只含 bounded 数值、
   UTC 周期和 warning，不含 ledger 行、request ID、模型正文或账号标识。BYOK 不进入云端额度账本。
-- 账号偏好完整 GET 只接受 Web Cookie；PATCH 还必须通过固定 Origin、CSRF、Idempotency-Key、If-Match
-  与 body revision。owner 从 session 取得且不在请求/响应出现；Postgres 在 forced-RLS owner transaction
+- 账号偏好完整 GET 只接受 Web Cookie；PATCH 还必须通过固定 Origin、CSRF
+  与 body expectedRevision。owner 从 session 取得且不在请求/响应出现；Postgres 在 forced-RLS owner transaction
   内读写。Extension Authorization 只能访问单独的三项插件偏好只读投影，不能写设置或读取练习偏好。
 - 每张用户内容表启用并测试 RLS；普通业务连接使用专用 `NO BYPASSRLS` 角色，事务账号上下文只能
   由 API 从 session 设置。service role 只在 API 环境中执行 Auth 管理，不用于普通业务 SQL，也不
@@ -164,14 +168,14 @@ owner context、generation/reservation 归属、task 成功或失败终态、价
 - 学习库创建要求 HttpOnly Cookie、固定 Web Origin、CSRF 与 strict `Idempotency-Key`；正文不得携带
   owner、revision、排期或来源。受控幂等函数只额外允许固定 `learning.create` operation，PUBLIC/业务
   角色仍无执行权；tenant transaction/RLS 原子写 item、level -1 排期和规范化标签。
-- 学习库 patch/delete/merge confirm 同样要求 Cookie、Origin、CSRF、Idempotency-Key、If-Match 与 body
+- 学习库 patch/delete/merge confirm 同样要求 Cookie、Origin、CSRF、Idempotency-Key、X-Huayi-Revision 与 body
   revision；受控幂等 allowlist 只有 `learning.patch|delete|merge`。owner/current/type/revisions、练习引用
   和 source level 均在同一 RLS transaction 重验；冲突响应不返回 practice session 或引用计数。删除后
   重放来自严格快照。语义模型只见 server-owned bounded 候选，输出不能注入 item/owner/provider 字段。
   语义 request 表 forced RLS 且撤销 business role 全部直访；只有固定 search_path、owner-context 校验的
   definer transitions 可 reserve/dispatch/terminal/cleanup。dispatch 前过期零账本释放，dispatch 后过期按
   预留上限保守结算且不重发。公开 suggestion route 要求 active/full Cookie、固定 Origin、CSRF 与专用
-  strict `Idempotency-Key`，拒绝 `If-Match` 和客户端候选；相同 owner/key 的 terminal replay 先于新价格
+  strict `Idempotency-Key`，拒绝 `X-Huayi-Revision` 和客户端候选；相同 owner/key 的 terminal replay 先于新价格
   预检，只有新 generation 才执行 price→kill/quota→reservation→dispatch→Provider。独立 cleanup route
   只接受常量时间比较的 `CRON_SECRET` bearer、固定 no-store，并只返回最多 100 的安全计数。
 - 练习 GET/mutation 同样只从 Cookie session 得 owner；mutation 要求固定 Origin、CSRF、Idempotency-Key
@@ -730,11 +734,11 @@ invitation/claim/flow、unconfirmed lower-case email user、唯一 email identit
 mutation。Vercel diagnose 同样只输出计数、状态、candidate-match 布尔值以及五个固定只读 request
 stage/status，不输出 URL、响应体、token、deployment id 或 commit；它不写 Phase 93 state。
 
-`GET /v1/auth/csrf` 会轮换当前 Web session 的唯一 CSRF hash，因此管理员 mutation 不得复用页面载入或
-密码重新认证时缓存的 proof。生产 adapter 必须在每次写请求的同一异步链中先取得 fresh proof、再立即发送
-Origin/CSRF/Idempotency-Key 保护的 mutation；未知响应重放只复用原幂等键，CSRF 则重新获取。Phase 93
-首次 Hosted recovery 因违反该客户端约束而以 403 失败关闭；没有新私有链接或 recovery 成功证据，修复部署
-和 fresh readiness 前禁止重试。
+`GET /v1/auth/csrf` 返回当前有效 session 的稳定 proof，并重新检查服务端 access。管理员 adapter 继续在
+写请求前 bootstrap，避免登录或重新认证已换 session 后复用旧 proof；同一 session 内的并发 bootstrap
+不再互相覆盖。Origin/CSRF/Idempotency-Key 校验保持独立，未知响应重放只复用原幂等键，不能自动重做
+业务副作用。历史 Phase 93 首次 Hosted recovery 曾因 bootstrap 轮换唯一 hash 而以 403 失败关闭；该旧版
+行为和当时待验收证据不代表当前 token 生命周期。
 
 post-relogin Web session 诊断是独立的只读管理面，不接收 email、UUID、Cookie、session token、invitation
 token 或任意 opaque selector。目标账号只能由数据库内“唯一 ordinary invitation + finalized account”合同

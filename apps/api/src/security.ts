@@ -1,4 +1,4 @@
-import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 
 export interface Clock {
   now(): Date;
@@ -17,6 +17,15 @@ export function opaqueSecret(source: SecretSource, bytes = 32): string {
 
 export function hashSecret(secret: string, pepper: string): string {
   return createHash("sha256").update(pepper).update("\0").update(secret).digest("base64url");
+}
+
+export function webSessionCsrfToken(sessionId: string, pepper: string): string {
+  // A shared session must keep one proof across parallel requests and API instances.
+  // Domain separation prevents reusing any session lookup hash as mutation proof.
+  return createHmac("sha256", pepper)
+    .update("huayi:web-session-csrf:v1\0")
+    .update(sessionId)
+    .digest("base64url");
 }
 
 export function secretMatches(candidate: string, expectedHash: string, pepper: string): boolean {

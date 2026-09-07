@@ -1,3 +1,4 @@
+import { setDiagnosticContext } from "./diagnostic-context.js";
 import { billedProviderError } from "./deepseek-provider-error.js";
 import {
   reportDeepSeekAnalysisOutputInvalid,
@@ -162,6 +163,7 @@ export function createDeepSeekAnalysisModel(options: DeepSeekAnalysisModelOption
 
   return {
     async analyze(command) {
+      setDiagnosticContext({ operation: "analysis" });
       const controller = modelDeadline(timeoutMs, command.signal);
       let firstToken = false;
       const preview = createTextModelPreview(new Set(["previewZh"]), command);

@@ -138,7 +138,7 @@ export function createCloudBrowserAuthority(
   const extensionQueries = createCloudBrowserExtensionQueryAuthority({
     quotaExhausted: seed.seed === "platform-query-quota",
   });
-  const studyCaptures = createCloudBrowserStudyCaptureAuthority();
+  const studyCaptures = createCloudBrowserStudyCaptureAuthority(() => analyses);
   const signInMethods = createCloudBrowserSignInMethodsAuthority(
     seed.seed === "password-only-sign-in-methods" ||
       seed.seed === "google-only-sign-in-methods" ||
@@ -195,8 +195,8 @@ export function createCloudBrowserAuthority(
       headers.origin !== webOrigin ||
       ![csrfToken, signInMethods.csrfToken()].includes(headers["x-csrf-token"] ?? "") ||
       (revision === undefined
-        ? headers["if-match"] !== undefined
-        : headers["if-match"] !== `"${revision}"`)
+        ? headers["x-huayi-revision"] !== undefined
+        : headers["x-huayi-revision"] !== `"${revision}"`)
     ) {
       return false;
     }
@@ -409,6 +409,11 @@ export function createCloudBrowserAuthority(
     const headers = cloudCors(request.headers().origin);
     if (request.method() === "OPTIONS") {
       await route.fulfill({ headers: headers ?? {}, status: headers === null ? 403 : 204 });
+      return;
+    }
+    // Hosted proxies evaluate If-Match against HTTP entity tags, not application revisions.
+    if (request.headers()["if-match"] !== undefined) {
+      await route.fulfill({ status: 412, body: "PRECONDITION_FAILED" });
       return;
     }
     if (onboarding !== null && (await onboarding.handleApi(route, { json, record, reject }))) {

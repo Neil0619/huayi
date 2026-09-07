@@ -160,7 +160,7 @@ export async function* readProviderSse(options: ProviderStreamOptions): AsyncIte
       } catch {
         // Ignore cleanup failure.
       }
-      throw new BrowserAnalysisError("provider-error");
+      throw new BrowserAnalysisError("provider-error", undefined, response.status);
     }
     if (response.body === null || !isEventStream(response.headers)) {
       try {

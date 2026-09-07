@@ -4,7 +4,7 @@
   top: 0;
   display: flex;
   width: min(var(--workspace-max), calc(100% - var(--space-12)));
-  min-height: 64px;
+  min-height: var(--workspace-topbar-height);
   margin: 0 auto;
   padding: var(--space-2) 0;
   gap: var(--space-3);

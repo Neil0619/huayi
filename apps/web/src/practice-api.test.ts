@@ -56,7 +56,7 @@ describe("Web practice API", () => {
       credentials: "include",
       headers: expect.objectContaining({
         "idempotency-key": "attempt-1",
-        "if-match": '"1"',
+        "x-huayi-revision": '"1"',
         "x-csrf-token": "csrf-proof",
       }),
       method: "POST",
@@ -201,7 +201,7 @@ describe("Web practice API", () => {
       credentials: "include",
       headers: expect.objectContaining({
         "idempotency-key": "delete-1",
-        "if-match": '"2"',
+        "x-huayi-revision": '"2"',
         "x-csrf-token": "csrf-proof",
       }),
       method: "DELETE",

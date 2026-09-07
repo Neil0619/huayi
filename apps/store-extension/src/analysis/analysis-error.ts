@@ -31,6 +31,7 @@ export class BrowserAnalysisError extends Error {
   constructor(
     code: BrowserAnalysisErrorCode,
     readonly diagnosticId?: string,
+    readonly httpStatus?: number,
   ) {
     super(PUBLIC_MESSAGES[code]);
     this.name = "BrowserAnalysisError";

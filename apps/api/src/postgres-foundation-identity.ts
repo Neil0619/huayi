@@ -20,6 +20,7 @@ import {
   hashSecret,
   opaqueSecret,
   secretMatches,
+  webSessionCsrfToken,
   type Clock,
   type SecretSource,
 } from "./security.js";
@@ -363,9 +364,9 @@ export function createPostgresFoundationIdentity(options: PostgresFoundationIden
         (sql) => sql`SELECT revoke_web_session(${hashSecret(sessionId, options.pepper)})`,
       );
     },
-    async rotateWebCsrf(sessionId: string) {
+    async bootstrapWebCsrf(sessionId: string) {
       const session = await authenticateDataRightsSession(sessionId);
-      const csrfToken = opaqueSecret(options.secrets);
+      const csrfToken = webSessionCsrfToken(sessionId, options.pepper);
       const [result] = await trusted(
         (sql) => sql<{ rotated: boolean | null }[]>`
         SELECT rotate_web_csrf(

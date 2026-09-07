@@ -1,3 +1,4 @@
+import { captureDiagnostic } from "./diagnostic-context.js";
 import { z } from "zod/v3";
 import type { ModelUsage } from "@huayi/cloud-contracts";
 import { DeepSeekAnalysisModelError } from "./deepseek-provider-error.js";
@@ -73,6 +74,12 @@ export async function readDeepSeekStream(
   function warn(stage: StreamFailureStage): void {
     if (signal.aborted) return;
     try {
+      captureDiagnostic({
+        code: "model_response_invalid",
+        stage,
+        provider: "deepseek",
+        severity: "warn",
+      });
       diagnosticSink({ event: "deepseek_stream_failed", stage });
     } catch {
       /* Diagnostics must not change stream results or billing receipts. */

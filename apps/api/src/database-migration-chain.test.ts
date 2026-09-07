@@ -30,6 +30,8 @@ const migrationUrls = [
   "0024-durable-learning-tasks.sql",
   "0025-practice-workspace.sql",
   "0026-email-first-password-signup.sql",
+  "0027-error-diagnostics.sql",
+  "0028-password-recovery-correctable-retry.sql",
 ].map((name) => new URL(`../migrations/${name}`, import.meta.url));
 
 describe("Cloud V1 current migration chain", () => {
@@ -54,6 +56,7 @@ describe("Cloud V1 current migration chain", () => {
     for (const signature of [
       "read_password_signup_state(text)",
       "compare_password_signup_state(text,text,text)",
+      "release_password_recovery_completion(text,text,timestamptz)",
     ]) {
       expect(
         (

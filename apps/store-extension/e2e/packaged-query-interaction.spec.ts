@@ -73,12 +73,14 @@ test("packaged cards survive small wheel deltas and dock when their selection le
   expect((await panel.boundingBox())?.y).toBeGreaterThanOrEqual(0);
 });
 
-test("packaged content displays allowed increments before completion and retains completed content on reopen", async ({
+test("packaged content preserves whitespace increments through completion and cached reopen", async ({
   page,
 }) => {
   const panel = page.locator("[data-huayi-store-overlay]");
   await panel.locator("[data-action=explain]").click();
   await expect(panel).toContainText("主语与谓语已经可以阅读。");
+  await expect(panel).toContainText("Juanma Moreno 表示至少十二人遇难。");
+  await expect(panel.locator("[data-retry]")).toHaveCount(0);
   await expect(panel.locator("[data-stop]")).toBeVisible();
   await expect(page.locator("body")).toHaveAttribute("data-calls", "1");
   await expect(panel).not.toContainText("新闻中补充信息来源。");
@@ -89,10 +91,54 @@ test("packaged content displays allowed increments before completion and retains
     .locator(".panel")
     .evaluate((element) => element.scrollWidth - element.clientWidth);
   expect(overflow).toBeLessThanOrEqual(1);
-  await panel.locator("[data-close]").click();
+  await page.mouse.click(880, 680);
   await expect(panel).toHaveCount(0);
   await page.locator("#original").click({ clickCount: 3 });
   await panel.locator("[data-action=explain]").click();
   await expect(panel).toContainText("新闻中补充信息来源。");
   await expect(page.locator("body")).toHaveAttribute("data-calls", "1");
+});
+
+test("packaged stop confirmation clears pending guidance and enables stop for a retry", async ({
+  page,
+}) => {
+  const panel = page.locator("[data-huayi-store-overlay]");
+  await panel.locator("[data-action=explain]").click();
+  await expect(panel).toContainText("Juanma Moreno 表示至少十二人遇难。");
+  await panel.locator("[data-stop]").click();
+  await expect(panel).toContainText("分析已取消。");
+  await expect(panel).not.toContainText("等待服务器确认");
+  await expect(panel).toContainText("主语与谓语已经可以阅读。");
+  await panel.locator("[data-retry]").click();
+  await expect(page.locator("body")).toHaveAttribute("data-calls", "2");
+  await expect(panel.locator("[data-stop]")).toBeVisible();
+  await expect(panel.locator("[data-stop]")).toBeEnabled();
+  await page.evaluate(() => window.queryFixture.finish());
+  await expect(panel).toContainText("新闻中补充信息来源。");
+  await expect(panel.locator("[data-stop]")).toBeHidden();
+});
+
+test("packaged word cards give comparisons full width and dismiss outside without a close button", async ({
+  page,
+}, testInfo) => {
+  await page.keyboard.press("Escape");
+  await page.locator("#original").evaluate((element) => {
+    element.textContent = "reasoning";
+  });
+  await page.locator("#original").click({ clickCount: 3 });
+  const panel = page.locator("[data-huayi-store-overlay]");
+  await panel.locator("[data-action=translate]").click();
+  await expect(panel.locator("[data-result-layout=comparisons] .result-entry")).toHaveCount(2);
+  await page.evaluate(() => window.queryFixture.finish());
+  await expect(panel.locator("[data-stop]")).toBeHidden();
+  await expect(panel.locator("[data-close]")).toHaveCount(0);
+  expect((await panel.locator(".header").boundingBox())?.height).toBeLessThan(65);
+  const comparisons = panel.locator("[data-result-layout=comparisons]");
+  const width = (await comparisons.boundingBox())?.width ?? Infinity;
+  for (const detail of await comparisons.locator(".result-entry-detail").all()) {
+    expect((await detail.boundingBox())?.width).toBeGreaterThanOrEqual(width - 1);
+  }
+  await panel.screenshot({ path: testInfo.outputPath("word-card.png") });
+  await page.mouse.click(880, 680);
+  await expect(panel).toHaveCount(0);
 });

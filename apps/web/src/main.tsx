@@ -1,3 +1,5 @@
+import { createWebErrorLogsApi } from "./admin-error-logs-api.js";
+import "./admin-error-logs-page.css";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
@@ -40,6 +42,7 @@ if (root === null) throw new Error("Web application root is missing.");
 initializeWebAppearance(document.documentElement);
 
 let api;
+let errorLogsApi;
 let identity;
 const acceptanceModel = import.meta.env.VITE_ACCEPTANCE_MODEL;
 const deploymentEnvironment = import.meta.env.VITE_DEPLOYMENT_ENVIRONMENT;
@@ -58,6 +61,10 @@ const bootstrap = resolveWebBootstrap(location.pathname, {
 });
 if (bootstrap.environment !== undefined) {
   const environment = bootstrap.environment;
+  errorLogsApi = createWebErrorLogsApi({
+    apiOrigin: environment.VITE_API_ORIGIN,
+    fetch: (input, init) => fetch(input, init),
+  });
   const analysisApi = createWebAnalysisApi({
     apiOrigin: environment.VITE_API_ORIGIN,
     csrfToken: () => fetchCsrfToken(environment.VITE_API_ORIGIN),
@@ -119,6 +126,7 @@ createRoot(root).render(
     <LocalAcceptanceNotice mode={acceptanceModel === "simulated" ? "simulated" : undefined} />
     <App
       api={api}
+      errorLogsApi={errorLogsApi}
       accountApi={identity}
       authRoute={authRoute}
       googleAuthenticationEnabled={bootstrap.environment?.VITE_GOOGLE_AUTHENTICATION === "enabled"}

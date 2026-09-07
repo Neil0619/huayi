@@ -18,6 +18,7 @@ import {
   listAnalysesQuerySchema,
   listResponseSchema,
   revisionWriteHeadersSchema,
+  revisionWriteHttpHeadersSchema,
   practiceRatingsRequestSchema,
   startAnalysisRequestSchema,
   upsertWordRequestSchema,
@@ -43,6 +44,15 @@ import {
 } from "./index.js";
 
 describe("/v1 public contracts", () => {
+  it("transports validated application revisions without HTTP entity preconditions", () => {
+    expect(
+      revisionWriteHttpHeadersSchema.parse({ "idempotency-key": "write-1", "if-match": '"3"' }),
+    ).toEqual({ "idempotency-key": "write-1", "x-huayi-revision": '"3"' });
+    expect(() =>
+      revisionWriteHttpHeadersSchema.parse({ "idempotency-key": "write-1", "if-match": "3" }),
+    ).toThrow();
+  });
+
   it("publishes stable analysis HTTP seams and shared fixtures", () => {
     expect(analysisHttpRoutes.start).toBe("/v1/analyses:stream");
     expect(analysisHttpRoutes.process).toBe("/v1/analyses/:id/process");

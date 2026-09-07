@@ -1,3 +1,4 @@
+import { setDiagnosticContext } from "./diagnostic-context.js";
 import { billedProviderError } from "./deepseek-provider-error.js";
 import { createQueryModelPreview } from "./query-model-preview.js";
 import { modelDeadline } from "./model-execution.js";
@@ -130,6 +131,7 @@ export function createDeepSeekExtensionQueryModel(options: {
   }
   return {
     async run(rawInput, generationId, execution = {}) {
+      setDiagnosticContext({ generationId, operation: "instant-query" });
       const input = extensionQueryRequestSchema.parse(rawInput);
       const contract = createQueryOutputContract(input);
       const controller = modelDeadline(timeoutMs, execution.signal);

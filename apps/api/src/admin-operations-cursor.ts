@@ -8,7 +8,7 @@ import { CloudFault } from "./cloud-fault.js";
 const payloadSchema = z.strictObject({
   createdAt: z.string().datetime({ offset: true }),
   id: resourceIdSchema,
-  kind: z.enum(["audit", "invitations", "users"]),
+  kind: z.enum(["audit", "invitations", "users", "error-logs"]),
   version: z.literal(1),
 });
 const envelopeSchema = z.strictObject({
@@ -24,7 +24,7 @@ function sign(key: Uint8Array, payload: string): string {
 export function createAdminOperationsCursor(key: Uint8Array) {
   if (key.byteLength < 32) throw new Error("Admin cursor key must contain at least 256 bits.");
   return {
-    decode(value: string, kind: "audit" | "invitations" | "users") {
+    decode(value: string, kind: "audit" | "invitations" | "users" | "error-logs") {
       try {
         const decoded = Buffer.from(value, "base64url");
         if (decoded.toString("base64url") !== value) throw new Error("Non-canonical cursor.");
@@ -43,7 +43,10 @@ export function createAdminOperationsCursor(key: Uint8Array) {
         throw new CloudFault("invalid_request", "The admin cursor is invalid.");
       }
     },
-    encode(kind: "audit" | "invitations" | "users", boundary: { createdAt: string; id: string }) {
+    encode(
+      kind: "audit" | "invitations" | "users" | "error-logs",
+      boundary: { createdAt: string; id: string },
+    ) {
       const payload = JSON.stringify(payloadSchema.parse({ ...boundary, kind, version: 1 }));
       return Buffer.from(JSON.stringify({ mac: sign(key, payload), payload })).toString(
         "base64url",

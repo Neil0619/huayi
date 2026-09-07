@@ -1,3 +1,4 @@
+import { captureDiagnostic } from "./diagnostic-context.js";
 import { calculateModelCost, type ModelPrice, type ModelUsage } from "@huayi/cloud-contracts";
 import type { AnalysisBilledCall } from "./analysis-ports.js";
 export type DeepSeekAnalysisModelErrorCode =
@@ -18,6 +19,7 @@ export class DeepSeekAnalysisModelError extends Error {
     super("The platform model request failed.");
     this.name = "DeepSeekAnalysisModelError";
     this.code = code;
+    captureDiagnostic({ code, stage: "model", provider: "deepseek", severity: "warn" });
     if (usageCostMicroUsd !== undefined) this.usageCostMicroUsd = usageCostMicroUsd;
     if (usage !== undefined) this.usage = usage;
     if (billedCalls !== undefined) this.billedCalls = billedCalls;

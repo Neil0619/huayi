@@ -1,4 +1,6 @@
+import { captureDiagnostic } from "./diagnostic-context.js";
 import {
+  safeDiagnosticIssues,
   lexicalExplanationResultSchema,
   lexicalTranslationResultSchema,
   passageTranslationResultSchema,
@@ -215,6 +217,16 @@ export function reportQueryOutputFailure(
   write: (record: QueryOutputDiagnostic) => void = (record) => console.warn(record),
 ): void {
   try {
+    captureDiagnostic({
+      code: "model_output_invalid",
+      stage: failure.stage === "assembled-result" ? "output-schema" : failure.stage,
+      generationId,
+      attempt: attempt === "initial" ? "first" : "repair",
+      severity: "warn",
+      provider: "deepseek",
+      issues: safeDiagnosticIssues(failure.issues),
+      issuesTruncated: failure.issuesTruncated || failure.issues.length > 8,
+    });
     write({
       event: "extension-query-output-invalid",
       // The live value is a server UUID, never page/model content. Reject unexpected identifiers.

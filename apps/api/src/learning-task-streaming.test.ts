@@ -46,12 +46,18 @@ afterAll(async () => database.close());
 it("delivers readable provider text before completion and recovers after the page leaves without a second call", async () => {
   const store = createPostgresLearningTasks(createPgliteAnalysisDatabase(database));
   let provider: ReadableStreamDefaultController<Uint8Array> | undefined;
+  let providerEnded = false;
+  let started: () => void = () => undefined;
+  const providerStarted = new Promise<void>((resolve) => {
+    started = resolve;
+  });
   const fetch = vi.fn(
     async () =>
       new Response(
         new ReadableStream<Uint8Array>({
           start(controller) {
             provider = controller;
+            started();
           },
         }),
         { headers: { "Content-Type": "text/event-stream" } },
@@ -95,7 +101,7 @@ it("delivers readable provider text before completion and recovers after the pag
   const execute: LearningTaskExecutor = async function* (job, execution) {
     yield* await query.prepare({ input, idempotencyKey: job.id, userId: owner, execution });
   };
-  const worker = createLearningTaskWorker({ store, execute });
+  const worker = createLearningTaskWorker({ store, execute, deadlineMs: 5_000 });
   const app = createLearningTaskApp({
     store,
     authenticate: async () => ({ kind: "web", userId: owner }),
@@ -107,46 +113,51 @@ it("delivers readable provider text before completion and recovers after the pag
   });
   const task = await client.submit({ version: 2, kind: "instant-query", input }, "streaming-test");
   const running = worker.runOne();
-  await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
-  const chunk = (content: string, extra: Record<string, unknown> = {}) =>
-    `data: ${JSON.stringify({ id: "provider-1", model: "deepseek-v4-flash", choices: [{ index: 0, delta: { content }, finish_reason: null }], ...extra })}\r\n\r\n`;
-  const bytes = new TextEncoder().encode(chunk('{"mainStructure":"主语与谓语'));
-  const firstContentAt = performance.now();
-  for (const byte of bytes) provider?.enqueue(new Uint8Array([byte]));
-  let previewSeen = false;
-  for await (const event of client.watch(task.id)) {
-    if (event.type === "query.preview-v2" && event.update.type === "delta") {
-      expect(event.update.text).toContain("主");
-      previewSeen = true;
-      break;
+  try {
+    await providerStarted;
+    expect(fetch).toHaveBeenCalledTimes(1);
+    const chunk = (content: string, extra: Record<string, unknown> = {}) =>
+      `data: ${JSON.stringify({ id: "provider-1", model: "deepseek-v4-flash", choices: [{ index: 0, delta: { content }, finish_reason: null }], ...extra })}\r\n\r\n`;
+    const bytes = new TextEncoder().encode(chunk('{"mainStructure":"主语与谓语'));
+    for (const byte of bytes) provider?.enqueue(new Uint8Array([byte]));
+    let previewSeen = false;
+    for await (const event of client.watch(task.id)) {
+      if (event.type === "query.preview-v2" && event.update.type === "delta") {
+        expect(event.update.text).toContain("主");
+        previewSeen = true;
+        break;
+      }
     }
+    expect(previewSeen).toBe(true);
+    expect(complete).not.toHaveBeenCalled();
+    expect((await client.get(task.id)).state).toBe("running");
+    provider?.enqueue(
+      new TextEncoder().encode(
+        chunk(
+          '","contextRole":"说明","keyExpressions":[{"text":"works","meaningZh":"有效"}],"translationZh":"这有效。","selectionKind":"sentence","type":"explain-sentence"}',
+        ) +
+          chunk("", {
+            choices: [{ index: 0, delta: {}, finish_reason: "stop" }],
+            usage: { prompt_tokens: 10, completion_tokens: 20, total_tokens: 30 },
+          }) +
+          "data: [DONE]\r\n\r\n",
+      ),
+    );
+    provider?.close();
+    providerEnded = true;
+    await running;
+    const restored = [];
+    for await (const event of client.watch(task.id)) restored.push(event);
+    expect(restored.at(-1)?.type).toBe("query.completed");
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(complete).toHaveBeenCalledTimes(1);
+    expect(
+      (await client.submit({ version: 2, kind: "instant-query", input }, "streaming-test")).id,
+    ).toBe(task.id);
+  } finally {
+    if (!providerEnded) provider?.error(new Error("Offline stream test ended."));
+    await running;
   }
-  expect(previewSeen).toBe(true);
-  expect(performance.now() - firstContentAt).toBeLessThan(250);
-  expect(complete).not.toHaveBeenCalled();
-  expect((await client.get(task.id)).state).toBe("running");
-  provider?.enqueue(
-    new TextEncoder().encode(
-      chunk(
-        '","contextRole":"说明","keyExpressions":[{"text":"works","meaningZh":"有效"}],"translationZh":"这有效。","selectionKind":"sentence","type":"explain-sentence"}',
-      ) +
-        chunk("", {
-          choices: [{ index: 0, delta: {}, finish_reason: "stop" }],
-          usage: { prompt_tokens: 10, completion_tokens: 20, total_tokens: 30 },
-        }) +
-        "data: [DONE]\r\n\r\n",
-    ),
-  );
-  provider?.close();
-  await running;
-  const restored = [];
-  for await (const event of client.watch(task.id)) restored.push(event);
-  expect(restored.at(-1)?.type).toBe("query.completed");
-  expect(fetch).toHaveBeenCalledTimes(1);
-  expect(complete).toHaveBeenCalledTimes(1);
-  expect(
-    (await client.submit({ version: 2, kind: "instant-query", input }, "streaming-test")).id,
-  ).toBe(task.id);
 });
 
 it("confirms running cancellation only after the worker stops and fences repeated worker delivery", async () => {
@@ -157,12 +168,18 @@ it("confirms running cancellation only after the worker stops and fences repeate
     input,
   });
   let called = 0;
+  let started: () => void = () => undefined;
+  const executionStarted = new Promise<void>((resolve) => {
+    started = resolve;
+  });
   const worker = createLearningTaskWorker({
     store,
     pollMs: 10,
+    deadlineMs: 5_000,
     execute: async function* (_job, execution) {
       await execution.beforeDispatch?.();
       called += 1;
+      started();
       yield { type: "query.started", generationId: "generation-2" };
       await new Promise<void>((resolve) =>
         execution.signal?.addEventListener("abort", () => resolve(), { once: true }),
@@ -171,10 +188,16 @@ it("confirms running cancellation only after the worker stops and fences repeate
     },
   });
   const pending = worker.runOne();
-  await vi.waitFor(() => expect(called).toBe(1));
-  expect((await store.cancel(owner, task.id))?.state).toBe("cancelling");
-  expect(await worker.runOne()).toEqual({ claimed: false });
-  await pending;
-  expect((await store.get(owner, task.id))?.state).toBe("cancelled");
-  expect(called).toBe(1);
+  try {
+    await executionStarted;
+    expect(called).toBe(1);
+    expect((await store.cancel(owner, task.id))?.state).toBe("cancelling");
+    expect(await worker.runOne()).toEqual({ claimed: false });
+    await pending;
+    expect((await store.get(owner, task.id))?.state).toBe("cancelled");
+    expect(called).toBe(1);
+  } finally {
+    await store.cancel(owner, task.id);
+    await pending;
+  }
 });

@@ -12,7 +12,7 @@ import {
   wordEntryDetailResponseSchema,
   wordEntryHttpRoutes,
   wordEntryListResponseSchema,
-  wordEntryMutationHeadersSchema,
+  revisionWriteHttpHeadersSchema,
   type ApiError,
   type DeleteWordEntryRequest,
   type ListWordEntriesQuery,
@@ -56,7 +56,7 @@ export function createWebWordLibraryApi(options: {
     request: { expectedRevision: number },
     key: string,
   ) => {
-    const headers = wordEntryMutationHeadersSchema.parse({
+    const headers = revisionWriteHttpHeadersSchema.parse({
       "idempotency-key": key,
       "if-match": `"${request.expectedRevision}"`,
     });

@@ -60,6 +60,44 @@ describe("Store overlay streaming", () => {
     expect(shadow().querySelector("[data-loading-skeleton]")).toBeNull();
   });
 
+  it("completes the Astra explanation when a translation space arrives in its own chunk", () => {
+    const { controller, ports } = setup();
+    const sourceText =
+      "To calibrate you all on which reasoning effort to use for Astra, know that GPT-6 Astra on low performs better than GPT-5.6 Sol on high.";
+    const chunks = ["为了让你们对 Astra", " ", "使用何种推理努力程度达成一致认识。"];
+    controller.show(reading(sourceText, "sentence"), { bottom: 80, left: 40, top: 60 });
+    click("[data-action='explain']");
+    for (const [sequence, text] of chunks.entries()) {
+      ports[0]?.receive({
+        messageVersion: STORE_MESSAGE_VERSION,
+        type: "store/analysis-update",
+        update: { requestId: "request-1", section: "translation", sequence, type: "delta", text },
+      });
+      expect(shadow().textContent).not.toContain("模型返回了无效响应");
+      expect(shadow().querySelector("[data-retry]")).toBeNull();
+    }
+    expect(shadow().textContent).toContain(chunks.join(""));
+    ports[0]?.receive({
+      messageVersion: STORE_MESSAGE_VERSION,
+      type: "store/analysis-result",
+      result: {
+        requestId: "request-1",
+        sourceText,
+        type: "explain-sentence",
+        selectionKind: "sentence",
+        mainStructure: "不定式短语作目的状语，主句为祈使句，后接宾语从句。",
+        keyExpressions: [{ text: "reasoning effort", meaningZh: "推理努力程度" }],
+        translationZh: chunks.join(""),
+        contextRole: "说明不同模型在不同推理设置下的性能对比。",
+      },
+    });
+    expect(shadow().querySelector("[data-analysis-body]")?.getAttribute("data-result-type")).toBe(
+      "explain-sentence",
+    );
+    expect(shadow().textContent).toContain("说明不同模型在不同推理设置下的性能对比。");
+    expect(ports).toHaveLength(1);
+  });
+
   it.each(["error", "disconnect"] as const)(
     "keeps validated partial sections when a stream ends with %s",
     (ending) => {

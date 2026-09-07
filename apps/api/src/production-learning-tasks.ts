@@ -30,10 +30,16 @@ export function createProductionLearningTasks(options: {
   practice: PracticeModule;
   dialogue: DialoguePracticeModule;
   maintenance: LearningLibraryMaintenance;
+  purgeDiagnostics?: () => Promise<void>;
 }) {
   const store = createPostgresLearningTasks(options.database);
   const worker = createLearningTaskWorker({
-    recover: createPracticeTaskRecovery(options.database),
+    recover: async () => {
+      await options.purgeDiagnostics?.().catch(() => {
+        console.error('{"level":"error","event":"diagnostics_cleanup_failed"}');
+      });
+      await createPracticeTaskRecovery(options.database)();
+    },
     store,
     execute: createLearningTaskExecutor(options),
   });

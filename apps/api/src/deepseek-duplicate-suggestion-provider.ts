@@ -1,3 +1,4 @@
+import { captureDiagnostic, setDiagnosticContext } from "./diagnostic-context.js";
 import {
   calculateModelCost,
   dailyPracticeQueueItemSchema,
@@ -126,6 +127,7 @@ export function createDeepSeekDuplicateSuggestionProvider(
   const providerFetch = options.fetch ?? defaultFetch;
   return {
     async generate(rawInput, execution = {}) {
+      setDiagnosticContext({ operation: "duplicate-suggestions" });
       let input: z.infer<typeof inputSchema>;
       let prices: ModelPrice;
       try {
@@ -163,6 +165,12 @@ export function createDeepSeekDuplicateSuggestionProvider(
           throw new DuplicateSuggestionProviderError("model_unavailable");
         }
         if (response.status !== 200) {
+          captureDiagnostic({
+            code: "model_unavailable",
+            stage: "http",
+            httpStatus: response.status,
+            provider: "deepseek",
+          });
           try {
             await response.body?.cancel();
           } catch {

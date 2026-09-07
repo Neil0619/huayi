@@ -66,6 +66,19 @@ test("a pasted original streams through a durable task and becomes a server-rere
   await page.getByLabel("标签（逗号分隔）").fill("writing, conversation");
   await page.getByRole("button", { name: "加入学习库", exact: true }).click();
   await expect(page.getByRole("heading", { name: "已整理到学习库" })).toBeVisible();
+  const refreshed = page.waitForResponse(
+    (response) =>
+      new URL(response.url()).pathname === "/v1/study-captures" &&
+      new URL(response.url()).searchParams.get("status") === "analyzed" &&
+      response.request().method() === "GET",
+  );
+  await page.getByRole("button", { name: "刷新列表", exact: true }).click();
+  expect(await (await refreshed).json()).toMatchObject({
+    items: [{ latestAnalysis: { reviewState: "reviewed", revision: 2 } }],
+  });
+  await expect(page.getByRole("button", { name: "刷新列表", exact: true })).toBeEnabled();
+  await expect(page.getByRole("heading", { name: "已整理到学习库" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "加入学习库", exact: true })).toHaveCount(0);
 
   await page.locator(".workspace-navigation > summary").click();
   await page.getByRole("link", { name: "学习库" }).click();

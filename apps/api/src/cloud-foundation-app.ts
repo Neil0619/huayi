@@ -26,6 +26,11 @@ import { createPasswordSignupApp } from "./password-signup-app.js";
 import { enforceRateLimit } from "./rate-limiter.js";
 import { webSessionCookie } from "./web-session-cookie.js";
 import { strictJson } from "./strict-json.js";
+import {
+  captureDiagnostic,
+  diagnosticClientVersion,
+  runDiagnosticScope,
+} from "./diagnostic-context.js";
 
 export interface CloudFoundationVariables {
   requestId: string;
@@ -64,7 +69,21 @@ export function createCloudFoundationApp(dependencies: CloudFoundationDependenci
   app.use("*", async (context, next) => {
     const id = crypto.randomUUID();
     context.set("requestId", id);
-    await next();
+    if (
+      dependencies.diagnostics &&
+      !context.req.path.includes("diagnostics") &&
+      context.req.path !== "/v1/admin/error-logs"
+    ) {
+      await runDiagnosticScope(
+        {
+          requestId: id,
+          write: dependencies.diagnostics,
+          ...(dependencies.diagnosticRelease ? { release: dependencies.diagnosticRelease } : {}),
+          ...diagnosticClientVersion(context.req.header("x-huayi-client-version")),
+        },
+        next,
+      );
+    } else await next();
     context.header("X-Request-Id", id);
   });
 
@@ -74,12 +93,13 @@ export function createCloudFoundationApp(dependencies: CloudFoundationDependenci
       "Content-Type",
       "Idempotency-Key",
       "If-Match",
+      "X-Huayi-Revision",
       "X-CSRF-Token",
       "X-Huayi-Client-Version",
     ],
     allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     credentials: true,
-    exposeHeaders: ["Content-Disposition"],
+    exposeHeaders: ["Content-Disposition", "X-Request-Id"],
     origin:
       dependencies.extensionOrigin === undefined
         ? [dependencies.webOrigin]
@@ -103,6 +123,12 @@ export function createCloudFoundationApp(dependencies: CloudFoundationDependenci
       error instanceof CloudFault
         ? error
         : new CloudFault("invalid_request", "The request could not be completed.");
+    captureDiagnostic({
+      code: error instanceof CloudFault ? error.code : "internal_error",
+      stage: "http",
+      severity: error instanceof CloudFault && errorStatus(error.code) < 500 ? "warn" : "error",
+      httpStatus: errorStatus(fault.code),
+    });
     const body: ApiError = {
       error: { code: fault.code, message: fault.message, requestId: context.get("requestId") },
     };
@@ -147,7 +173,7 @@ export function createCloudFoundationApp(dependencies: CloudFoundationDependenci
     if (sessionId === undefined || context.req.header("origin") !== dependencies.webOrigin) {
       throw new CloudFault("authentication_required", "Web session proof is required.");
     }
-    const csrf = await dependencies.identity.rotateWebCsrf(sessionId);
+    const csrf = await dependencies.identity.bootstrapWebCsrf(sessionId);
     context.header("Cache-Control", "private, no-store");
     return context.json(csrf);
   });

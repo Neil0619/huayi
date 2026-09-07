@@ -101,6 +101,10 @@
 - Google start：严格 JSON 兼容与原生表单 302 都覆盖；表单缺失、重复、额外、过长/非法字段和错误
   Content-Type 必须在 provider 调用前失败，序列化调用记录不包含 claim ticket；
 - Web 会话：Cookie 属性、CSRF、Origin、轮换、登出、账号停用与重新认证；
+- 并发 CSRF：`web-csrf-concurrency.test.ts` 通过真实 HTTP 路由、两个独立 API identity 实例和 PGlite
+  迁移函数，重现草稿自动保存、作答任务提交及第三个标签页 bootstrap 的交错；旧实现返回 403，修复后
+  草稿与任务均持久化，幂等重放不新增任务。另覆盖初始登录 proof、密码重新认证、旧随机 token 升级、
+  错误 Origin/缺失 Cookie、跨会话 proof、到期、撤销与 data-rights 隔离；内存 identity 保持相同契约。
 - Extension：PKCE、错误 verifier、码猜测限速、过期、并发 exchange、设备撤销；
 - 多租户：对每张用户表验证账户 A 不能通过 API 或 RLS 读写账户 B，并证明客户端 userId 不能设置
   事务账号上下文、业务连接没有 BYPASSRLS；
@@ -190,7 +194,7 @@ DeepSeek、生产价格行、部署、安装或 Chrome。
   五类 output、item alias 重绑、一回结构修复、两次实际调用分别计费、reasoning/原始错误丢弃。production
   composition 缺价格、模型或 quota 配置时必须 fail closed；全部默认测试离线。
 - 账号偏好：五项 strict Web projection、三项 Extension projection、platform/manual/enabled defaults、
-  revision/If-Match/idempotency、pairing 原子选择与 exchange snapshot；PGlite forced RLS/cross-owner，Web
+  body expectedRevision 冲突、pairing 原子选择与 exchange snapshot；PGlite forced RLS/cross-owner，Web
   草稿冲突，Store session-bound cache/断开清理和无逐设备 override；DeviceDisconnect 另覆盖 singular
   self-revoke、旧版本仍可退出、统一 204、远端先于本机清理、网络失败零本机变化和其他设备保持有效，
   完整矩阵见 `extension-session-disconnect.md`。
@@ -267,7 +271,7 @@ timeout 配置上限和三个非 analysis DeepSeek adapter 的实际 abort 没�
   reviewState 独立、
   nothing-to-save、归档/恢复、二次确认删除、mutation 后 server reread、写入成功但刷新失败的诚实状态，
   以及迟到 list/detail/action 抑制、焦点、loading/empty/error/retry；adapter 回归继续证明 Cookie、CSRF、
-  Idempotency-Key 与 If-Match。actual bundle 另须从 production `/history` 覆盖 StudyCapture-linked record 的
+  Idempotency-Key 与 X-Huayi-Revision。actual bundle 另须从 production `/history` 覆盖 StudyCapture-linked record 的
   五类筛选子集、无技术 ID 的语义详情、process→archive→restore 的服务器 revision 链、默认勾选
   capture 的两步删除、
   server reread 空态、390px 与公开 snapshot 脱敏；完整矩阵见 `analysis-history-acceptance.md`。
@@ -342,7 +346,7 @@ timeout 配置上限和三个非 analysis DeepSeek adapter 的实际 abort 没�
   本机 disconnect 只证明删除本地秘密，不替代服务端撤销测试；
 - PairingApproval actual bundle 必须从 production `/pair-extension/:id` 读取 pending pairing 与 revisioned
   三项偏好，验证完整披露、设备标签、consent gate、Cookie/Origin/CSRF strict approve body，并在 reload
-  后仅以 GET approved 恢复；approve 恰好一次且不使用 Idempotency-Key/If-Match，不创建 session/token，
+  后仅以 GET approved 恢复；approve 恰好一次且不使用 Idempotency-Key/X-Huayi-Revision，不创建 session/token，
   完整矩阵见 `pairing-approval-acceptance.md`；
 - 当前账号聚合：strict AccountResource 拒绝旧 consent/status 与秘密字段；active/full Cookie + no-store；
   owner repeatable-read snapshot 返回 email、五项偏好、稳定排序的未撤销/未过期设备和公开最低版本；
@@ -1742,3 +1746,40 @@ session is invalid.`；400 `invalid_request` 表示 runtime 数据库路径未�
 - 本地候选先运行 focused tests 与完整 `pnpm verify:macos`。真正 release 必须在 push 后由同一 release ID 的
   Cross-platform quality 取得最新 macOS/Windows 成功；真实 Chrome 加载/配对、R3-C、Cron 和 DeepSeek
   业务旅程均是部署后的独立人工门，不能由 fake tests 或 deployment `complete` 代替。
+
+## 托管代理的版本请求头回归
+
+原症状是原文标题已提交，但代理将响应替换为无 CORS 的 `412 PRECONDITION_FAILED`，导致页面不再提交分析。
+Web 回归模拟写入后拒绝 HTTP entity precondition 的代理；浏览器 authority 同样拒绝真实请求中的
+`If-Match`，完整覆盖带标题保存、学习库、练习与账号操作。API 同时覆盖新应用头、旧客户端、重复头冲突、
+格式错误、body 不匹配、旧 revision 和幂等重放。双平台完整 CI 后，还需在真实正式域名复查保存后分析
+继续执行；离线代理 fixture 不能替代实际 Vercel 回读。
+
+收集箱回归同时覆盖已确认分析的刷新：旧 completed task 只含不可变快照，不能覆盖服务器更高 revision 的
+reviewed 状态；缺少最新完整记录时按当前 summary 再读取，避免重复显示已加入学习库的候选。
+
+流式发布的 250ms 时限使用可控时钟覆盖 worker flush 与 SSE polling，避免把共享 CI 机器的数据库执行时间
+混入调度契约；将 flush 延迟到 300ms 的负向验证必须失败。PGlite 集成继续验证逐字节正文在 Provider
+结束前可读、页面离开后恢复且不重复调用，以及取消与租约互斥；测试在失败路径也必须结束流和 worker。
+浏览器 authority 的 capture list/detail 与真实 SQL 一样读取最新 analysis revision/reviewState，刷新断言
+必须等待该次响应，不能把刷新前尚未消失的已整理视图当成通过证据。
+
+## 真实练习中的中文引导与恢复状态
+
+生产实测发现引导造句只返回英文的泛化要求，造句反馈也只有英文。DeepSeek 练习适配器现在明确要求
+中文的具体日常场景、沟通目标和教学反馈，保留英文对话及英文示例。提供方边界检查各教学字段含中文；
+不合要求时只复用既有的一次修复额度，两次调用均照常记账，仍不合要求则失败关闭。此检查不改历史
+会话读取契约，也不能代替真实场景质量验收。回归覆盖四类教学输出的英文拒绝、中文与英文示例混排、
+英文对话不误修复，以及修复耗尽后的账单。
+
+暂停后恢复同一练习必须替换旧的“练习已暂停”提示；组件回归执行真实的暂停、恢复交互并检查提示，
+保证可作答页面不再同时报告已暂停。
+
+## 练习长页的固定操作条
+
+真实三轮对话完成并滚动到反馈时，原操作条固定在距顶部 8px 的位置，受到 64px 主导航遮挡，
+“结束本次练习”的实际点击落在主导航上。操作条现在使用与主导航一致的高度 token，并加上可选
+Hosted 验收横幅的高度。浏览器回归完成三轮对话和自评后滚动，在 1440px、840px 窗口及有／无
+验收横幅的组合下检查按钮中心的真实命中元素，并执行 Playwright 点击可操作性检查；390px 移动端
+保留非固定操作条，回滚到操作条后也必须可点击。该回归在修复前明确失败，不以按钮存在或可见
+冒充可点击。

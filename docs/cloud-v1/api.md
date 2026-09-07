@@ -6,11 +6,17 @@
 - 成功资源含 `id`、`revision`、`createdAt`、`updatedAt`。列表使用 `items` 与可空 `nextCursor`，默认
   20、最大 100；cursor 为带签名的不透明值。
 - 各资源显式声明的可重放 mutation 必须带不超过 128 字符的 `Idempotency-Key`；编辑、归档、恢复和
-  删除通常还需 `If-Match: "<revision>"`。认证、邀请、pairing approval 与一次性 auth/link flow 使用
+  删除通常还需 `X-Huayi-Revision: "<revision>"`。认证、邀请、pairing approval 与一次性 auth/link flow 使用
   各自的短时状态机和读取恢复语义，不伪造 replay header。
 - 本轮不新增公开路由或响应字段。练习开始、反馈、评分和历史契约保持不变；内部生成完成只有在 task、
   usage ledger 与 quota reservation 同一事务全部终态化后才返回成功，失败不会把内部权限错误暴露给
   Web。
+- 当前 Web/Store 使用 `X-Huayi-Revision: "<revision>"` 传递应用版本，不发送 HTTP `If-Match`。
+  线上已复现代理在写入提交后以 `412 PRECONDITION_FAILED` 替换响应；`Cache-Control: private, no-store`
+  也不能避免该行为。API 继续接受旧客户端的 quoted `If-Match`，两种头同时出现且值不同则拒绝；
+  缺失、格式错误、与 body 不一致和数据库旧版本的拒绝规则保持不变。旧客户端在该代理上仍应升级。
+  `revisionWriteHeadersSchema` 保留 v1 内部规范化形状；客户端使用 `revisionWriteHttpHeadersSchema`
+  将已验证的证明转换为应用请求头。显式禁止版本头的操作同时拒绝两种版本头。
 - 每个响应含 `X-Request-Id`。错误 envelope：
 
 ```ts
@@ -47,30 +53,30 @@ type ApiError = {
 
 ## 2. 认证与账号
 
-| Method/path                              | 用途                   | 关键输入/输出                                              |
-| ---------------------------------------- | ---------------------- | ---------------------------------------------------------- |
-| `POST /v1/invitations/claim`             | 验证并预占邀请         | invitation token；返回短时 claim ticket，不创建业务账号    |
-| `POST /v1/auth/google/start`             | 发起 Google OAuth      | body 中的 claim ticket；302 到 Supabase/Google             |
-| `GET /v1/auth/csrf`                      | 登录后获取新 CSRF      | HttpOnly Cookie + Web Origin；轮换后返回短时 token         |
-| `POST /v1/auth/password/signup/start`    | 发起邮箱注册           | claim ticket、email；202，设置专用注册 Cookie              |
-| `GET /v1/auth/password/signup/session`   | 恢复注册进度           | 注册 Cookie + Origin；规范 email、step、CSRF               |
-| `POST /v1/auth/password/signup/verify`   | 站内验证邮箱           | 注册 Cookie + Origin + CSRF；仅六位 token                  |
-| `POST /v1/auth/password/signup/resend`   | 站内重发验证码         | 同上，strict 空对象；使用服务端绑定邮箱                    |
-| `POST /v1/auth/password/signup/complete` | 设置密码并完成注册     | 同上，仅 password；完成后设置 Web Cookie                   |
-| `POST /v1/auth/password/register`        | 兼容旧邮箱密码注册     | claim ticket、email、password；要求邮件验证                |
-| `POST /v1/auth/password/register/resend` | 重发注册验证码         | 原 invitation token；固定 202，不接收 email/password/OTP   |
-| `GET /v1/auth/password/confirm`          | 打开邮箱确认表单       | exact 43-char flow；inert HTML，不消费 Provider token      |
-| `POST /v1/auth/password/callback`        | 显式完成邮箱确认       | flow + email + 6 位 OTP；设置 Web Cookie 并跳转工作台      |
-| `POST /v1/auth/password/register/resume` | 恢复已确认但中断的注册 | 原 invitation token + email/password proof；原子完成建档   |
-| `POST /v1/auth/password/login`           | 已注册账号登录         | email、password；设置 Web Cookie                           |
-| `POST /v1/auth/password/recovery`        | 请求密码恢复           | email；统一 202 accepted，不披露账号或 method              |
-| `POST /v1/auth/logout`                   | 撤销当前 Web session   | CSRF；204                                                  |
-| `GET /v1/account`                        | 当前账号聚合           | Cookie；email/preferences/有效 extension sessions/最低版本 |
-| `GET /v1/account/preferences`            | 当前账号偏好           | Cookie；练习偏好、三项插件偏好、revision/updatedAt         |
-| `PATCH /v1/account/preferences`          | 更新账号偏好           | Cookie + Origin + CSRF + revision/idempotency proof        |
-| `GET /v1/extension-preferences`          | 插件偏好投影           | Extension proof；三项插件偏好、revision/updatedAt          |
-| `POST /v1/account/export`                | 创建导出               | 返回 export job；完成后给短时签名下载地址                  |
-| `POST /v1/account/delete`                | 删除账号               | 重新认证证明与确认字符串；立即撤销会话并返回 job           |
+| Method/path                              | 用途                   | 关键输入/输出                                                |
+| ---------------------------------------- | ---------------------- | ------------------------------------------------------------ |
+| `POST /v1/invitations/claim`             | 验证并预占邀请         | invitation token；返回短时 claim ticket，不创建业务账号      |
+| `POST /v1/auth/google/start`             | 发起 Google OAuth      | body 中的 claim ticket；302 到 Supabase/Google               |
+| `GET /v1/auth/csrf`                      | 获取当前会话 CSRF      | HttpOnly Cookie + Web Origin；同一有效 session 内 token 稳定 |
+| `POST /v1/auth/password/signup/start`    | 发起邮箱注册           | claim ticket、email；202，设置专用注册 Cookie                |
+| `GET /v1/auth/password/signup/session`   | 恢复注册进度           | 注册 Cookie + Origin；规范 email、step、CSRF                 |
+| `POST /v1/auth/password/signup/verify`   | 站内验证邮箱           | 注册 Cookie + Origin + CSRF；仅六位 token                    |
+| `POST /v1/auth/password/signup/resend`   | 站内重发验证码         | 同上，strict 空对象；使用服务端绑定邮箱                      |
+| `POST /v1/auth/password/signup/complete` | 设置密码并完成注册     | 同上，仅 password；完成后设置 Web Cookie                     |
+| `POST /v1/auth/password/register`        | 兼容旧邮箱密码注册     | claim ticket、email、password；要求邮件验证                  |
+| `POST /v1/auth/password/register/resend` | 重发注册验证码         | 原 invitation token；固定 202，不接收 email/password/OTP     |
+| `GET /v1/auth/password/confirm`          | 打开邮箱确认表单       | exact 43-char flow；inert HTML，不消费 Provider token        |
+| `POST /v1/auth/password/callback`        | 显式完成邮箱确认       | flow + email + 6 位 OTP；设置 Web Cookie 并跳转工作台        |
+| `POST /v1/auth/password/register/resume` | 恢复已确认但中断的注册 | 原 invitation token + email/password proof；原子完成建档     |
+| `POST /v1/auth/password/login`           | 已注册账号登录         | email、password；设置 Web Cookie                             |
+| `POST /v1/auth/password/recovery`        | 请求密码恢复           | email；统一 202 accepted，不披露账号或 method                |
+| `POST /v1/auth/logout`                   | 撤销当前 Web session   | CSRF；204                                                    |
+| `GET /v1/account`                        | 当前账号聚合           | Cookie；email/preferences/有效 extension sessions/最低版本   |
+| `GET /v1/account/preferences`            | 当前账号偏好           | Cookie；练习偏好、三项插件偏好、revision/updatedAt           |
+| `PATCH /v1/account/preferences`          | 更新账号偏好           | Cookie + Origin + CSRF + body expectedRevision               |
+| `GET /v1/extension-preferences`          | 插件偏好投影           | Extension proof；三项插件偏好、revision/updatedAt            |
+| `POST /v1/account/export`                | 创建导出               | 返回 export job；完成后给短时签名下载地址                    |
+| `POST /v1/account/delete`                | 删除账号               | 重新认证证明与确认字符串；立即撤销会话并返回 job             |
 
 新 Web 使用 `/signup/*`：start/session/verify 的 strict 响应为 `{email,step,csrfToken}`，step 只可为
 `verify-email|set-password`；邮箱在服务端绑定，后续请求不接受 email、owner、flow 或跳转目标。
@@ -122,7 +128,7 @@ session Cookie 和固定 Origin 调用 `/v1/auth/csrf`，原子轮换服务端 h
 账号偏好是 `user_profiles` 的窄投影，不包含 owner：IANA timezone、dailyGoal 1–100、
 `extensionQueryModelMode=platform|byok`、`studyCaptureMode=manual|automatic`、
 `cloudWordCopyMode=enabled|disabled`、revision 与 updatedAt。GET/PATCH 在 forced-RLS transaction 中执行；
-PATCH 是至少一个字段的 strict partial，并要求 Idempotency-Key、quoted If-Match 和 body expectedRevision。
+PATCH 是至少一个字段的 strict partial，以 body expectedRevision 做乐观并发检查；此接口不使用幂等或版本请求头。
 真实变化只推进一次 revision；重放不推进。修改只影响后续查询/采集/收藏/每日队列，不改变已开始请求、
 PracticeSession 或两端既有数据。Extension GET 只返回三项插件偏好及 revision/time。
 
@@ -189,7 +195,7 @@ body 或 Idempotency-Key；固定 Extension Origin、严格 token shape 与合�
 `extension-session-disconnect.md`。
 
 approve body 含 deviceLabel、三项插件偏好和 expectedPreferencesRevision；请求要求 Web Cookie、Origin
-与 CSRF。它是 pending→approved 的一次性转换，不使用 Idempotency-Key/If-Match 或 mutation replay；
+与 CSRF。它是 pending→approved 的一次性转换，不使用 Idempotency-Key/X-Huayi-Revision 或 mutation replay；
 丢失 204 后客户端通过 GET pairing 读取 approved 恢复。偏好未变化时只批准，变化时与 pairing approval
 在同一事务写入；revision conflict 不批准 pairing，也不创建 session。exchange strict response 在
 session token 之外返回偏好快照，供 SW 建立与 session 绑定的本机 cache。
@@ -308,7 +314,7 @@ DELETE 只允许 pending、无 active generation/analysis 且 revision 未变化
 Cookie/Origin/CSRF，并在 UI 二次确认。网络失败可由本机 SubmissionOutbox 保留 POST；本机 queued item
 尚未提交时由 SW 直接移除而不调用 DELETE。
 
-analyze 要求 `Idempotency-Key`、`If-Match` 与 strict `{ expectedRevision, intent: initial|reanalysis }`，
+analyze 要求 `Idempotency-Key`、`X-Huayi-Revision` 与 strict `{ expectedRevision, intent: initial|reanalysis }`，
 返回与 manual 分析相同的 SSE event。详情可额外返回脱敏
 `activeAnalysisRequest:{ requestId,state:"running" }` 供刷新后检查同一次请求；不得返回 lease、reservation、
 Provider 或幂等内部字段。首次失败恢复 pending，reanalysis 失败保持 analyzed 和此前 latest。
@@ -329,7 +335,7 @@ Provider 或幂等内部字段。首次失败恢复 pending，reanalysis 失败�
 只匹配来源正文/标题的字面文本，`%`、`_` 和 `\\` 不作为通配符。`archived=true` 只返回归档记录。
 
 `process` 的 V1 outcome 仅为 `nothing-to-save`。process/archive/restore/delete 均要求
-`Idempotency-Key`、`If-Match: "<revision>"`，且 JSON 中 `expectedRevision` 必须与 header 一致；旧 revision
+`Idempotency-Key`、`X-Huayi-Revision: "<revision>"`，且 JSON 中 `expectedRevision` 必须与 header 一致；旧 revision
 返回 409 `revision_conflict` 且无副作用。同 owner、operation、key、request hash 原子重放严格响应，
 不同请求重用 key 返回 409 `idempotency_conflict`。delete 的响应为 `{ id, deleted: true }`，记录删除后
 仍可凭同 key 重放；已复制的 SourceExample 保留正文快照并将 `analysisId` 置空。删除 body 另可含
@@ -364,7 +370,7 @@ contract、adapter 与 encrypted analysis-import item 在 Phase 27 迁移阶段�
 `create | merge:<targetId>` 决策。候选只能是 Expression/SentencePattern 并创建或合并 LearningItem；
 WordEntry 使用独立 words 接口。批量中任何一项校验失败则整个事务失败，不产生部分收藏。请求同时要求
 `Idempotency-Key` 与匹配 analysis revision 的
-`If-Match`；同 key/同 analysis path/同 body 重放首次严格响应，同 key 的 path 或 body 改变返回
+`X-Huayi-Revision`；同 key/同 analysis path/同 body 重放首次严格响应，同 key 的 path 或 body 改变返回
 `idempotency_conflict`，旧 revision 返回 `revision_conflict`。同 owner/type/规范键已存在时，`create`
 返回 409 `exact_duplicate`，客户端必须
 显式改选 `merge:<targetId>`；merge 只能指向同 owner、同类型、同规范键目标。
@@ -399,10 +405,10 @@ peak 上限创建 reservation，再在 durable dispatch transition 以可信 UTC
 HTTP response 不新增价格、usage 或内部 task 字段。
 
 `POST /v1/learning-items` 接受 strict create request，仅使用 Web HttpOnly Cookie、可信 Origin、CSRF 与
-`Idempotency-Key`，不需要 `If-Match`。同 owner/operation/key/body hash 优先重放完整 detail view；
+`Idempotency-Key`，不需要 `X-Huayi-Revision`。同 owner/operation/key/body hash 优先重放完整 detail view；
 同 key 不同 body 返回 `idempotency_conflict`。tenant transaction 原子创建 LearningItem、level -1
 ScheduleState、规范化复用标签及 join；同 owner/type/canonical key 返回 409 `exact_duplicate`。
-PATCH/DELETE/merge confirm 要求 Cookie、可信 Origin、CSRF、`Idempotency-Key`、quoted `If-Match`
+PATCH/DELETE/merge confirm 要求 Cookie、可信 Origin、CSRF、`Idempotency-Key`、quoted `X-Huayi-Revision`
 与 body `expectedRevision`（merge 为 source revision）一致；相同 operation/key/hash 从删除前严格响应
 快照重放，不同 body 为 `idempotency_conflict`。PATCH 不允许改变 item type，会重新计算 canonical key，
 精确重复返回 `exact_duplicate`；标签按规范键复用。
@@ -457,7 +463,7 @@ tenant transaction 中建立，Provider dispatch 前还必须完成额度预留�
 `claimed|reserved` 尚无外部副作用，租约过期可安全接管；`dispatched` 已可能计费，过期后只能保守结算并
 abandoned，不能透明调用第二次；`ready` 严格输出可以零调用重放并应用。反馈完成后才允许 ratings；相同
 ratings 幂等重放，不同 ratings 冲突且排期不重复推进。对话 start、user turn、assistant retry 与 finish
-都使用 `Idempotency-Key`；session mutation 还必须携带匹配 `If-Match`。普通 replay 只返回既有 pending
+都使用 `Idempotency-Key`；session mutation 还必须携带匹配 `X-Huayi-Revision`。普通 replay 只返回既有 pending
 或 terminal 投影，新 Provider 调用必须来自用户显式动作的新 key。production 只经已验证的额度、结算、
 fencing 与固定 DeepSeek Provider 组合；非法/缺失运行配置 fail-closed。完整恢复矩阵见
 `paid-practice-generation.md`。
@@ -475,7 +481,7 @@ LearningItem expression `text` 或 sentence-pattern `template`；已擦除 item 
 “学习项已删除”。不得以 item ID 作为显示 fallback，也不返回 owner、生成/反馈 lease、token、内部
 prompt reservation 或幂等记录。
 
-DELETE 必须同时携带 Cookie、固定 Origin、CSRF、`Idempotency-Key`、`If-Match` 与 body 中相同的
+DELETE 必须同时携带 Cookie、固定 Origin、CSRF、`Idempotency-Key`、`X-Huayi-Revision` 与 body 中相同的
 `expectedRevision`。只有 status=completed|failed 且不存在 pending generation/反馈 worker lease 的会话
 可删；active、awaiting-feedback 或 worker 占用统一返回 409 `practice_session_in_use`，不披露内部状态。
 已评分与未评分的 completed 会话均可删。成功响应为 `{ id, deleted: true }`；删除后的同 key/同 body 从
@@ -527,7 +533,7 @@ receivedAt，固定 `sourceType=extension-collection`，按同一 canonical/cont
 Idempotency-Key，相同 batch key 重放，不同 batch 仍按 canonical word 与共同本机 context hash 收敛。
 两条写入路径都不覆盖 Web notes，也不改变插件本机词库。
 
-PATCH/DELETE 必须携带 Cookie、固定 Origin、CSRF、`Idempotency-Key`、quoted `If-Match` 与 body 中匹配的
+PATCH/DELETE 必须携带 Cookie、固定 Origin、CSRF、`Idempotency-Key`、quoted `X-Huayi-Revision` 与 body 中匹配的
 `expectedRevision`，path ID 进入请求 hash。PATCH body 只有 `notes: string|null`，null 清除；ContextObservation
 保持不可变。DELETE 只有在不存在 ExternalWordbookItem 引用时级联 word contexts；有引用统一返回 409
 `word_entry_in_use`，不披露任务状态或数量。删除后的同 key/同 body 从严格响应 snapshot 重放，不同 body
@@ -598,7 +604,7 @@ UTC 月返回 0 limit/used/reserved/available、100% 和 exhausted。BYOK 不进
 | `POST /v1/account-deletion`                      | 最近认证后创建删除任务、撤销全部 session 并清除当前 Cookie |
 
 所有 POST 都要求可信 Origin、CSRF；create/retry/deletion 还要求 Idempotency-Key，retry 携带匹配
-If-Match/body revision。export resource 只返回 id/state/formatVersion/recordCount?/byteLength?/expiresAt?/
+X-Huayi-Revision/body revision。export resource 只返回 id/state/formatVersion/recordCount?/byteLength?/expiresAt?/
 stableError?/revision/timestamps，不返回 owner/object key/hash/lease。download URL 只出现在单次
 `private, no-store` 响应。删除 body 固定 `{confirmation:"delete-account"}`，返回 202
 `{accepted:true,requestedAt}`；账号进入 deleting 后普通认证失败关闭。

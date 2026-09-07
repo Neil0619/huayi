@@ -56,7 +56,7 @@ export function createWebPracticeApi(options: {
           headers: {
             "content-type": "application/json",
             "idempotency-key": key,
-            ...(revision === undefined ? {} : { "if-match": `"${revision}"` }),
+            ...(revision === undefined ? {} : { "x-huayi-revision": `"${revision}"` }),
             "x-csrf-token": await options.csrfToken(),
           },
           method: "POST",
@@ -72,7 +72,7 @@ export function createWebPracticeApi(options: {
           headers: {
             "content-type": "application/json",
             "idempotency-key": key,
-            "if-match": `"${revision}"`,
+            "x-huayi-revision": `"${revision}"`,
             "x-csrf-token": await options.csrfToken(),
           },
           method: "DELETE",

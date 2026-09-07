@@ -5,7 +5,15 @@ import {
   type LearningTaskSnapshot,
 } from "@huayi/cloud-contracts";
 import type { LearningTaskExecutor } from "./learning-task-executor.js";
+import { captureDiagnosticPayload } from "./diagnostic-stream.js";
 import type { LearningTaskStore } from "./learning-task-store.js";
+import {
+  captureDiagnostic,
+  discardCancelledTaskDiagnostics,
+  diagnosticCode,
+  diagnosticOperation,
+  setDiagnosticContext,
+} from "./diagnostic-context.js";
 
 function failureCode(error: unknown): NonNullable<LearningTaskSnapshot["error"]>["code"] {
   const value =
@@ -39,6 +47,11 @@ export function createLearningTaskWorker(options: {
       await options.recover?.();
       const job = await options.store.claim();
       if (!job) return { claimed: false };
+      setDiagnosticContext({
+        taskId: job.id,
+        userId: job.ownerUserId,
+        operation: diagnosticOperation(job.command.kind),
+      });
       const controller = new AbortController();
       const started = performance.now();
       const timings: Record<string, number> = {
@@ -110,6 +123,7 @@ export function createLearningTaskWorker(options: {
           },
         })) {
           output = learningTaskPayloadSchema.parse(event);
+          captureDiagnosticPayload(output);
           pending.push(output);
           if (pending.length >= 128) flush();
         }
@@ -132,7 +146,10 @@ export function createLearningTaskWorker(options: {
       timingVersion += 1;
       flush();
       await writes;
-      if (lost || writeError) return { claimed: true, id: job.id, state: "unknown" };
+      if (lost || writeError) {
+        captureDiagnostic({ code: "outcome_unknown", stage: "task" });
+        return { claimed: true, id: job.id, state: "unknown" };
+      }
       // A final saved result wins a racing cancellation; otherwise acknowledge cancellation only now.
       const state =
         terminal(output) === "completed"
@@ -144,8 +161,13 @@ export function createLearningTaskWorker(options: {
                 ? "unknown"
                 : "failed"
               : terminal(output);
-      if (state === "cancelled") error = { code: "cancelled", diagnosticId: job.id };
+      if (state === "cancelled") {
+        error = { code: "cancelled", diagnosticId: job.id };
+        discardCancelledTaskDiagnostics();
+      }
       if (state === "unknown") error = { code: "outcome_unknown", diagnosticId: job.id };
+      if (state === "failed" || state === "unknown")
+        captureDiagnostic({ code: diagnosticCode(error?.code), stage: "task" });
       await options.store.finish(job, state, output, error);
       return { claimed: true, id: job.id, state };
     },

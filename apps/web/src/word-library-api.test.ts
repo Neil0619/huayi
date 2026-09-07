@@ -53,7 +53,7 @@ describe("Web word library API", () => {
       credentials: "include",
       headers: expect.objectContaining({
         "idempotency-key": "patch-1",
-        "if-match": '"1"',
+        "x-huayi-revision": '"1"',
         "x-csrf-token": "csrf-proof",
       }),
       method: "PATCH",

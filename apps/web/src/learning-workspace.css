@@ -11,11 +11,14 @@
 }
 .practice-session-actions {
   position: sticky;
-  top: var(--space-2);
+  top: calc(var(--workspace-topbar-height) + var(--space-2));
   z-index: 3;
   padding: var(--space-3);
   background: var(--surface-strong);
   border-radius: var(--radius-md);
+}
+body:has(.acceptance-environment-notice) .practice-session-actions {
+  top: calc(var(--acceptance-notice-height) + var(--workspace-topbar-height) + var(--space-2));
 }
 .practice-generation,
 .collection-paste {

@@ -1,5 +1,6 @@
 import { STORE_MESSAGE_VERSION, type DeviceVault, type StoreAppearance } from "@huayi/store-domain";
 import { OptionsPage } from "../../src/options/options-page.js";
+import { initializeDiagnosticSettings } from "../../src/options/diagnostic-settings-control.js";
 import { PopupPage } from "../../src/popup/popup-page.js";
 import { CloudAccountControls } from "../../src/page-ui/cloud-account-controls.js";
 import { createChromeStoreSettings } from "../../src/service-worker/store-settings.js";
@@ -97,6 +98,16 @@ if (mode === "popup") {
   if (!query.has("slowAccount")) await initialized;
 } else {
   const values: Record<string, unknown> = {};
+  await initializeDiagnosticSettings(document, {
+    get: async (key) => ({ [key]: values[key] }),
+    set: async (value) => {
+      Object.assign(values, value);
+    },
+    remove: async (keys) => {
+      for (const key of typeof keys === "string" ? [keys] : keys)
+        Reflect.deleteProperty(values, key);
+    },
+  });
   const settings = createChromeStoreSettings({
     get: async (key) => ({ [key]: values[key] }),
     set: async (value) => {

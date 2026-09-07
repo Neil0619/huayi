@@ -158,7 +158,7 @@ export function createCloudBrowserTaskAuthority(hold = false) {
           const input = job.command.input;
           const headers = { ...job.request.headers() };
           if ("expectedRevision" in input && job.command.kind !== "duplicate-suggestions")
-            headers["if-match"] = `"${input.expectedRevision}"`;
+            headers["x-huayi-revision"] = `"${input.expectedRevision}"`;
           const internal = new Proxy(job.request, {
             get(target, property) {
               if (property === "url") return () => new URL(operation(job.command), url.origin).href;

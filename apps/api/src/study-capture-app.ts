@@ -14,9 +14,10 @@ import {
   writeHeadersSchema,
 } from "@huayi/cloud-contracts";
 import { Hono, type Context } from "hono";
-import { streamSSE } from "hono/streaming";
+import { streamSSE, captureDiagnosticPayload } from "./diagnostic-stream.js";
 
 import { CloudFault } from "./cloud-fault.js";
+import { readRevisionHeader } from "./revision-header.js";
 import type { StudyCaptureModule } from "./study-capture-module.js";
 import type { AnalysisModule } from "./analysis-module.js";
 
@@ -32,12 +33,12 @@ export function createStudyCaptureApp(options: {
     const owner = await options.authenticateWeb(context);
     const headers = revisionWriteHeadersSchema.safeParse({
       "idempotency-key": context.req.header("idempotency-key"),
-      "if-match": context.req.header("if-match"),
+      "if-match": readRevisionHeader(context),
     });
     if (!headers.success) throw new CloudFault("invalid_request", "Write proof is required.");
     const input = studyCaptureAnalyzeRequestSchema.parse(await context.req.json());
     if (Number(headers.data["if-match"].slice(1, -1)) !== input.expectedRevision) {
-      throw new CloudFault("invalid_request", "If-Match must match expectedRevision.");
+      throw new CloudFault("invalid_request", "Revision header must match expectedRevision.");
     }
     if (options.analysis === undefined) {
       throw new CloudFault("model_unavailable", "StudyCapture analysis is not configured.");
@@ -51,6 +52,7 @@ export function createStudyCaptureApp(options: {
     return streamSSE(context, async (stream) => {
       let id = 0;
       for await (const event of events) {
+        captureDiagnosticPayload(event);
         id += 1;
         await stream.writeSSE({ data: JSON.stringify(event), event: "analysis", id: String(id) });
       }
@@ -95,13 +97,13 @@ export function createStudyCaptureApp(options: {
     const owner = await options.authenticateDelete(context);
     const headers = revisionWriteHeadersSchema.safeParse({
       "idempotency-key": context.req.header("idempotency-key"),
-      "if-match": context.req.header("if-match"),
+      "if-match": readRevisionHeader(context),
     });
     if (!headers.success) throw new CloudFault("invalid_request", "Write proof is required.");
     const input = studyCaptureDeleteRequestSchema.parse(await context.req.json());
     const headerRevision = Number(headers.data["if-match"].slice(1, -1));
     if (headerRevision !== input.expectedRevision) {
-      throw new CloudFault("invalid_request", "If-Match must match expectedRevision.");
+      throw new CloudFault("invalid_request", "Revision header must match expectedRevision.");
     }
     return context.json(
       studyCaptureDeleteResponseSchema.parse(
@@ -134,12 +136,12 @@ export function createStudyCaptureApp(options: {
     const owner = await options.authenticateWeb(context);
     const headers = revisionWriteHeadersSchema.safeParse({
       "idempotency-key": context.req.header("idempotency-key"),
-      "if-match": context.req.header("if-match"),
+      "if-match": readRevisionHeader(context),
     });
     if (!headers.success) throw new CloudFault("invalid_request", "Write proof is required.");
     const input = studyCapturePatchRequestSchema.parse(await context.req.json());
     if (Number(headers.data["if-match"].slice(1, -1)) !== input.expectedRevision) {
-      throw new CloudFault("invalid_request", "If-Match must match expectedRevision.");
+      throw new CloudFault("invalid_request", "Revision header must match expectedRevision.");
     }
     return context.json(
       studyCapturePatchResponseSchema.parse(

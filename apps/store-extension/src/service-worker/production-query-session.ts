@@ -3,6 +3,7 @@ import { createAnalysisSession, type AnalysisSessionPort } from "./analysis-sess
 import { analysisSourceTypeFromSenderUrl } from "./analysis-source-type.js";
 import { createProductionQueryEngine } from "./production-query-engine.js";
 import { siteHostFromSenderUrl } from "./site-policy-handler.js";
+import type { DiagnosticOutbox } from "./diagnostic-outbox.js";
 
 type QueryOptions = Parameters<typeof createProductionQueryEngine>[0];
 
@@ -12,13 +13,16 @@ export function createProductionQuerySession(
   },
   options: Omit<QueryOptions, "sourceType"> & {
     readonly getSettings: () => Promise<StoreSettings>;
+    readonly diagnostics?: DiagnosticOutbox;
+    readonly clientVersion?: string;
   },
 ): void {
+  const engine = createProductionQueryEngine({
+    ...options,
+    sourceType: analysisSourceTypeFromSenderUrl(port.sender?.url),
+  });
   createAnalysisSession(port, {
-    analysisEngine: createProductionQueryEngine({
-      ...options,
-      sourceType: analysisSourceTypeFromSenderUrl(port.sender?.url),
-    }),
+    analysisEngine: engine,
     createRequestId: () => crypto.randomUUID(),
     cancelAnalysis: (requestId) => options.cache.cancel(requestId),
     getSettings: options.getSettings,

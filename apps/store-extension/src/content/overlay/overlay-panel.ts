@@ -26,7 +26,6 @@ export function createOverlayPanel(
   document: Document,
   theme: StoreOverlayTheme,
   onAction: (action: AnalysisAction, event: Event) => void,
-  onClose: () => void,
   onStop: () => void,
 ): OverlayPanel {
   const panel = document.createElement("section");
@@ -46,13 +45,6 @@ export function createOverlayPanel(
   );
   const headerActions = document.createElement("div");
   headerActions.className = "header-actions";
-  const close = document.createElement("button");
-  close.type = "button";
-  close.textContent = "×";
-  close.dataset.close = "";
-  close.setAttribute("aria-label", "关闭解释卡片");
-  close.title = "关闭（Esc）；生成将在后台继续";
-  close.addEventListener("click", onClose);
   const stop = document.createElement("button");
   stop.type = "button";
   stop.textContent = "停止";
@@ -84,7 +76,7 @@ export function createOverlayPanel(
       brand.textContent = "SEEN & SAID";
       panel.dataset.card = "result";
       header.className = "header";
-      header.replaceChildren(mark, brand, modes, headerActions, stop, close);
+      header.replaceChildren(mark, brand, modes, headerActions, stop);
     },
   };
 }

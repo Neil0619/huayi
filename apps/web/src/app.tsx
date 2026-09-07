@@ -1,3 +1,4 @@
+import type { WebErrorLogsApi } from "./admin-error-logs-api.js";
 import { useEffect, useState } from "react";
 
 import { InboxApp, type InboxApi } from "./inbox-app.js";
@@ -26,6 +27,7 @@ export function authenticatedLandingPath(access: "data-rights" | "full") {
 
 const workspacePages = new Map<string, CloudPage>([
   ["/admin", "admin"],
+  ["/admin/error-logs", "error-logs"],
   ["/analysis", "analysis"],
   ["/app", "inbox"],
   ["/history", "history"],
@@ -44,6 +46,7 @@ export function cloudPageFromPathname(pathname: string): CloudPage | undefined {
 }
 
 function AppSurface({
+  errorLogsApi,
   accountApi,
   api,
   identity,
@@ -60,6 +63,7 @@ function AppSurface({
   replaceRecoveryUrl = () => history.replaceState(null, "", "/recover"),
   replaceInvitationUrl = () => history.replaceState(null, "", "/join"),
 }: {
+  readonly errorLogsApi?: WebErrorLogsApi | undefined;
   readonly accountApi?: AccountQuotaApi | undefined;
   readonly api?:
     | (InboxApi &
@@ -115,6 +119,7 @@ function AppSurface({
       <CloudApp
         accountApi={accountApi}
         adminApi={api}
+        errorLogsApi={errorLogsApi}
         analysisApi={api}
         historyApi={api}
         identity={identity}

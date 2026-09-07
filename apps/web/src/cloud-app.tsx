@@ -1,3 +1,5 @@
+import { AdminErrorLogsPage } from "./admin-error-logs-page.js";
+import type { WebErrorLogsApi } from "./admin-error-logs-api.js";
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 
 import type { WebIdentityApi } from "./identity-api.js";
@@ -43,6 +45,7 @@ export type IdentityApi = Pick<
 export type CloudPage =
   | "account"
   | "admin"
+  | "error-logs"
   | "analysis"
   | "data"
   | "devices"
@@ -68,6 +71,7 @@ function workspaceSection(page: CloudPage): WorkspaceSection {
 }
 
 export function CloudApp({
+  errorLogsApi,
   accountApi,
   adminApi,
   analysisApi,
@@ -83,6 +87,7 @@ export function CloudApp({
   page = "inbox",
   pairingId,
 }: {
+  errorLogsApi?: WebErrorLogsApi | undefined;
   accountApi?: AccountQuotaApi | undefined;
   adminApi?: WebAdminOperationsApi | undefined;
   analysisApi?: PasteAnalysisApi | undefined;
@@ -251,6 +256,17 @@ export function CloudApp({
     );
     if (sessionAccess === "data-rights")
       return <WorkspaceShell access="data-rights">{dataRightsPage(false)}</WorkspaceShell>;
+    if (page === "error-logs" && adminApi && errorLogsApi)
+      return (
+        <AdminErrorLogsPage
+          api={errorLogsApi}
+          access={adminApi.access}
+          onReauthenticate={async (password) => {
+            const auth = await identity.reauthenticatePassword(password, csrfToken);
+            setCsrfToken(auth.csrfToken);
+          }}
+        />
+      );
     if (page === "admin" && adminApi !== undefined)
       return (
         <AdminOperationsPage

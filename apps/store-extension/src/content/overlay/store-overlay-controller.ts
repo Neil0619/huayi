@@ -108,7 +108,6 @@ export class StoreOverlayController {
       (action, event) => {
         if (this.#acceptsUserGesture(event)) this.#start(action);
       },
-      () => this.close(),
       () => requestAnalysisStop(this.#activePort, this.#analysisBody),
     );
     applyOverlayAppearance(host, this.#appearance, view.panel);

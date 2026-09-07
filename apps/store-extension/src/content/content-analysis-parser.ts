@@ -202,7 +202,8 @@ export function parseContentAnalysisMessage(value: unknown): StoreAnalysisServer
         "translation",
       ),
       sequence: integer(0),
-      text: text(4_096),
+      // A valid stream fragment can be only whitespace between two content chunks.
+      text: (value) => typeof value === "string" && value.length >= 1 && value.length <= 4_096,
       type: enumeration("delta"),
     });
     const sectionRule =

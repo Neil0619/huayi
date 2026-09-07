@@ -60,7 +60,7 @@ describe("Web external wordbook API", () => {
     await api.cancelJob(job.id, { expectedRevision: 1 }, "cancel-1");
     for (const call of fetch.mock.calls) {
       expect(call[1]).toMatchObject({
-        headers: expect.objectContaining({ "if-match": '"1"' }),
+        headers: expect.objectContaining({ "x-huayi-revision": '"1"' }),
         method: "POST",
       });
     }

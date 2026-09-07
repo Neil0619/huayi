@@ -184,13 +184,9 @@
 .header-actions:empty {
   display: none;
 }
-.header > [data-close],
 .header > [data-stop] {
   min-height: 32px;
   padding: 3px 7px;
-}
-.header > [data-close] {
-  margin-left: auto;
 }
 .header > [hidden] {
   display: none;
@@ -387,6 +383,8 @@ button:disabled {
 }
 .result-badge {
   display: inline-block;
+  flex-shrink: 0;
+  white-space: nowrap;
   margin-right: 7px;
   padding: 2px 6px;
   border-radius: 999px;
@@ -405,6 +403,7 @@ button:disabled {
 .result-entry {
   min-width: 0;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 3px;
 }
 .result-entry > * {
@@ -428,7 +427,7 @@ button:disabled {
   gap: 12px;
 }
 [data-result-layout="comparisons"] {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
 }
 .result-entry-detail {
   font-size: 14px;
@@ -466,9 +465,6 @@ button:disabled {
   display: none;
 }
 @media (max-width: 380px) {
-  [data-result-layout="comparisons"] {
-    grid-template-columns: 1fr;
-  }
   [data-result-layout="pairs"] .result-entry,
   [data-result-layout="details"] .result-entry {
     grid-template-columns: 1fr;

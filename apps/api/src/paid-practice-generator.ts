@@ -1,3 +1,8 @@
+import {
+  captureDiagnostic,
+  setDiagnosticContext,
+  setDiagnosticOperationIfAbsent,
+} from "./diagnostic-context.js";
 import { z } from "zod/v3";
 
 import type { AnalysisBilledCall } from "./analysis-ports.js";
@@ -95,6 +100,18 @@ export function createPaidPracticeGenerator(options: {
 }) {
   return {
     async generate(command: PracticeGenerationCommand): Promise<PracticeGenerationOutput | null> {
+      setDiagnosticOperationIfAbsent(
+        command.kind === "sentence-prompt"
+          ? "sentence-start"
+          : command.kind === "sentence-feedback"
+            ? "sentence-submit"
+            : command.kind === "dialogue-start"
+              ? "dialogue-start"
+              : command.kind === "dialogue-assistant"
+                ? "dialogue-turn"
+                : "dialogue-finish",
+      );
+      setDiagnosticContext({ generationId: command.generationId, userId: command.ownerUserId });
       const acquired = await options.repository.acquire(command);
       if (acquired.kind === "pending") return null;
       if (acquired.kind === "ready") return practiceGenerationOutputSchema.parse(acquired.output);
@@ -135,6 +152,16 @@ export function createPaidPracticeGenerator(options: {
       } catch (error) {
         const providerFailure = error instanceof PracticeProviderError ? error : undefined;
         const failureCalls = billedCalls ?? providerFailure?.billedCalls;
+        if (!command.signal?.aborted)
+          captureDiagnostic({
+            code:
+              providerFailure?.stableErrorCode ??
+              (error instanceof z.ZodError || error instanceof PracticeOutputValidationError
+                ? "model_output_invalid"
+                : "model_unavailable"),
+            stage: "model",
+            provider: "deepseek",
+          });
         await options.repository.fail({
           ...command,
           ...(failureCalls === undefined ? {} : { billedCalls: failureCalls }),
