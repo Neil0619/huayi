@@ -174,6 +174,18 @@ it("restores the last keystroke after refresh even if the server draft save has 
   );
   expect(f.tasks.submit).not.toHaveBeenCalled();
 });
+it("replaces the paused message when the same practice is resumed", async () => {
+  const f = setup();
+  const view = await render(f.api);
+  await click(view, "继续上次练习");
+  await click(view, "暂停练习");
+  expect(view.textContent).toContain("练习已暂停，草稿已保存。");
+  await click(view, "继续上次练习");
+  expect(view.querySelector("[name=answer]")).not.toBeNull();
+  expect(view.textContent).not.toContain("练习已暂停，草稿已保存。");
+  expect(view.textContent).toContain("已恢复这次练习。");
+  expect(f.tasks.submit).not.toHaveBeenCalled();
+});
 it("makes an explicitly chosen library item available without generating a task on entry", async () => {
   const f = setup();
   window.history.replaceState(null, "", `/practice?item=${target.item.id}`);
