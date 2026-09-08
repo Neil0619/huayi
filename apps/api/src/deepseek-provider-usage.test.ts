@@ -1,3 +1,4 @@
+import { compactAnalysisFixture } from "./test-support/compact-analysis-fixture.js";
 import { contractFixtures } from "@huayi/cloud-contracts";
 import { describe, expect, it, vi } from "vitest";
 
@@ -73,19 +74,22 @@ describe("DeepSeek provider usage compatibility", () => {
   });
 
   it("returns a deep analysis with the same provider usage envelope", async () => {
-    const fetch = vi.fn(async () =>
-      response({
-        candidates: contractFixtures.analysis.candidates,
-        result: contractFixtures.analysis.result,
-      }),
-    );
+    const fetch = vi.fn(async () => response(compactAnalysisFixture()));
     const model = createDeepSeekAnalysisModel({ apiKey: "test-key", fetch, prices });
     const generated = await model.analyze({
       input: contractFixtures.startAnalysisRequest,
       sentences: [{ analysisUnitId: "u1", ordinal: 0, sourceText: "To be frank, this works." }],
     });
 
-    expect(generated.content).toMatchObject({ result: contractFixtures.analysis.result });
+    expect(generated.content).toMatchObject({
+      result: {
+        ...contractFixtures.analysis.result,
+        sentences: contractFixtures.analysis.result.sentences.map((s) => ({
+          ...s,
+          candidateIds: ["c1"],
+        })),
+      },
+    });
     expect(generated.usage).toEqual({ cachedInputTokens: 40, inputTokens: 100, outputTokens: 30 });
     expect(fetch).toHaveBeenCalledTimes(1);
   });

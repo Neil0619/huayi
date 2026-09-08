@@ -118,8 +118,10 @@ export function useCollectionWorkspace(
       try {
         for await (const event of client.watch(taskId, controller.signal, (snapshot) => {
           terminalFailure = snapshot.state === "failed" || snapshot.state === "cancelled";
-          if (!controller.signal.aborted)
+          if (!controller.signal.aborted) {
+            if (terminalFailure) setPreview("");
             setJobs((values) => [snapshot, ...values.filter((value) => value.id !== snapshot.id)]);
+          }
         })) {
           if (controller.signal.aborted) return;
           measureLearningPresentation("analysis", performance.now());

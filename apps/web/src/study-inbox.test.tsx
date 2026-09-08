@@ -253,6 +253,8 @@ it.each(["failed", "cancelled"] as const)(
     expect(f.api.patchCapture).not.toHaveBeenCalled();
     expect(view.querySelector<HTMLInputElement>("[name=title]")?.value).toBe("Unsaved title");
     expect(view.querySelector("[role=alert]")?.textContent).toContain("diag-1");
+    expect(view.querySelector(".analysis-previews")).toBeNull();
+    expect(view.textContent).toContain("上一次已完成的解析仍保留");
     const terminalStatus = view.querySelector("[role=status]")?.textContent;
     expect(f.tasks.submit).toHaveBeenCalledTimes(1);
     f.api.getCapture = vi.fn(async () => refreshed);
@@ -396,3 +398,70 @@ it.each(["running", "failed", "completed"] as const)(
     expect(f.api.analyzeCapture).not.toHaveBeenCalled();
   },
 );
+
+it("shows a useful empty-suggestions state while keeping the completed reading", async () => {
+  if (analysis.result.type !== "sentence-passage-analysis-v2")
+    throw new Error("Expected passage fixture.");
+  const emptyAnalysis = analysisRecordSchema.parse({
+    ...analysis,
+    candidates: [],
+    result: {
+      ...analysis.result,
+      sentences: analysis.result.sentences.map((s) => ({ ...s, candidateIds: [] })),
+    },
+  });
+  const completedCapture: StudyCaptureDetailResponse = {
+    ...detail,
+    capture: { ...detail.capture, status: "analyzed" },
+    latestAnalysis: {
+      id: emptyAnalysis.id,
+      createdAt: date,
+      revision: emptyAnalysis.revision,
+      reviewState: "pendingReview",
+    },
+  };
+  const f = setup(
+    {
+      listCaptures: vi.fn(async (query) => ({
+        items: query.status === "analyzed" ? [completedCapture] : [],
+        nextCursor: null,
+      })),
+    },
+    {
+      listPending: vi.fn(async () => ({ items: [emptyAnalysis], nextCursor: null })),
+      getAnalysis: vi.fn(async () => emptyAnalysis),
+    },
+  );
+  const view = await render(f);
+  expect(view.textContent).toContain("本次没有合适的学习建议");
+  expect(view.textContent).toContain("自然译文");
+  expect([...view.querySelectorAll("button")].some((b) => b.textContent === "加入学习库")).toBe(
+    false,
+  );
+  expect(f.tasks.submit).not.toHaveBeenCalled();
+});
+
+it("explains a timeout and never labels a stopped preview as ongoing generation", async () => {
+  const f = setup();
+  f.tasks.watch.mockImplementation(async function* (_id, _signal, onSnapshot) {
+    yield {
+      type: "analysis.preview",
+      requestId: "request-1",
+      text: "unfinished",
+      section: "overall",
+    };
+    onSnapshot?.({
+      ...job,
+      state: "failed",
+      error: { code: "model_timeout", diagnosticId: "timeout-1" },
+    });
+    throw new LearningTaskError("model_timeout", "timeout-1");
+  });
+  const view = await render(f);
+  await click(view, "[data-analyze-capture]");
+  expect(view.querySelector("[role=alert]")?.textContent).toContain("分析超时");
+  expect(view.textContent).toContain("原文已保留");
+  expect(view.querySelector(".analysis-previews")).toBeNull();
+  expect(view.querySelector<HTMLButtonElement>("[data-analyze-capture]")?.disabled).toBe(false);
+  expect(f.tasks.submit).toHaveBeenCalledTimes(1);
+});

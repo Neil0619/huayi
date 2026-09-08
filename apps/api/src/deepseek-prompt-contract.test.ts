@@ -1,12 +1,8 @@
-import {
-  contractFixtures,
-  storeAnalysisResultSchema,
-  webDeepAnalysisSchema,
-  candidateSchema,
-} from "@huayi/cloud-contracts";
+import { contractFixtures, storeAnalysisResultSchema } from "@huayi/cloud-contracts";
 import { describe, expect, it } from "vitest";
 
 import { buildDeepSeekAnalysisRequest } from "./deepseek-analysis-protocol.js";
+import { privateAnalysisOutputSchema } from "./deepseek-analysis-private-output.js";
 import { deepSeekMaximumUsage } from "./deepseek-analysis-model.js";
 import { createDeepSeekExtensionQueryModel } from "./deepseek-extension-query-model.js";
 
@@ -59,17 +55,23 @@ describe("platform model prompt contracts", () => {
       const body = buildDeepSeekAnalysisRequest(input, [
         { analysisUnitId: "u1", ordinal: 0, sourceText: input.sourceText },
       ]);
-      const example = outputExample(body);
-      expect(webDeepAnalysisSchema.safeParse(example.result).success).toBe(true);
-      expect(example.candidates.length).toBeGreaterThan(0);
-      for (const candidate of example.candidates)
-        expect(candidateSchema.safeParse(candidate).success).toBe(true);
+      const system =
+        (JSON.parse(body) as { messages: { content: string }[] }).messages[0]?.content ?? "";
+      const exampleLine = system.split(
+        "Shape example for a DIFFERENT input; do not reuse its content for the actual input:\n",
+      )[1];
+      expect(exampleLine).toBeDefined();
+      const example = privateAnalysisOutputSchema(selectionKind).parse(
+        JSON.parse(exampleLine ?? "null"),
+      );
+      const candidates =
+        "sentences" in example.result
+          ? example.result.sentences.flatMap((sentence) => sentence.candidates)
+          : example.result.candidates;
+      expect(candidates.length).toBeGreaterThan(0);
+      expect(example.previewZh).toBeTruthy();
       if (selectionKind !== "phrase")
-        expect(
-          example.candidates.some(
-            (candidate: { type: string }) => candidate.type === "sentence-pattern",
-          ),
-        ).toBe(true);
+        expect(candidates.some((candidate) => candidate.type === "sentence_pattern")).toBe(true);
     },
   );
 

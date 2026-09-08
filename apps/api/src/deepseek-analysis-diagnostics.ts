@@ -10,6 +10,15 @@ interface SafeIssue {
   code: string;
   rule?: string;
 }
+interface RepairIssue extends SafeIssue {
+  location?: (string | number)[];
+}
+export interface AnalysisRepairFeedback {
+  stage: AnalysisValidationStage;
+  issues: RepairIssue[];
+  truncated: boolean;
+  jsonErrorOffset?: number;
+}
 interface AnalysisDiagnostic {
   event: "deepseek_analysis_output_invalid";
   stage: AnalysisValidationStage;
@@ -48,6 +57,7 @@ const KNOWN_FIELDS = new Set([
   "generatedExample",
   "label",
   "sourceText",
+  "sourceValues",
   "overall",
   "contextAndToneZh",
   "understandingZh",
@@ -90,6 +100,7 @@ const KNOWN_CODES = new Set([
 ]);
 // Only exact source-authored refinement messages can select a fixed label; messages are never emitted.
 const CUSTOM_RULES = new Map([
+  ["Exact source fragment required.", "exact-source-fragment"],
   ["Slot names must be unique.", "slot-names-unique"],
   ["Template placeholders must reference declared slots.", "template-slot-reference"],
   ["Every slot must appear in the template.", "slot-used-in-template"],
@@ -114,10 +125,13 @@ export function reportDeepSeekAnalysisOutputInvalid(
   issues: readonly z.ZodIssue[] = [],
   sink: (diagnostic: AnalysisDiagnostic) => void = (diagnostic) =>
     console.warn(JSON.stringify(diagnostic)),
-): void {
+): AnalysisRepairFeedback {
+  let feedback: AnalysisRepairFeedback = { stage, issues: [], truncated: true };
   try {
     const safeIssues: SafeIssue[] = [];
+    const repairIssues: RepairIssue[] = [];
     const seen = new Set<string>();
+    const logged = new Set<string>();
     let visited = 0;
     let truncated = false;
     function visit(items: readonly z.ZodIssue[], depth: number): void {
@@ -138,14 +152,33 @@ export function reportDeepSeekAnalysisOutputInvalid(
         };
         const rule = item.code === "custom" ? CUSTOM_RULES.get(item.message) : undefined;
         if (rule !== undefined) safe.rule = rule;
-        const key = JSON.stringify(safe);
+        // The repair provider already has the source and prior output. Preserve only bounded
+        // schema-owned array positions there; operational diagnostics remain redacted.
+        const hasLocation =
+          item.path.length <= MAXIMUM_PATH_SEGMENTS &&
+          item.path.some((part) => typeof part === "number") &&
+          item.path.every((part) =>
+            typeof part === "number"
+              ? Number.isSafeInteger(part) && part >= 0 && part < 1000
+              : KNOWN_FIELDS.has(part),
+          );
+        const repair: RepairIssue = {
+          ...safe,
+          ...(hasLocation ? { location: [...item.path] } : {}),
+        };
+        const key = JSON.stringify(repair);
         if (!seen.has(key)) {
-          if (safeIssues.length >= MAXIMUM_ISSUES) {
+          if (repairIssues.length >= MAXIMUM_ISSUES) {
             truncated = true;
             return;
           }
-          safeIssues.push(safe);
+          repairIssues.push(repair);
           seen.add(key);
+          const logKey = JSON.stringify(safe);
+          if (!logged.has(logKey)) {
+            safeIssues.push(safe);
+            logged.add(logKey);
+          }
         }
         if (item.code !== "invalid_union") continue;
         if (depth >= MAXIMUM_UNION_DEPTH) {
@@ -159,6 +192,7 @@ export function reportDeepSeekAnalysisOutputInvalid(
       }
     }
     visit(issues, 0);
+    feedback = { stage, issues: repairIssues, truncated };
     captureDiagnostic({
       code: "model_output_invalid",
       stage,
@@ -178,4 +212,19 @@ export function reportDeepSeekAnalysisOutputInvalid(
   } catch {
     // A diagnostic failure must not interrupt the existing repair, error or billing path.
   }
+  return feedback;
+}
+
+/** Extract only a bounded numeric location; never propagate the engine error message. */
+export function analysisJsonErrorOffset(error: unknown, contentLength: number): number | undefined {
+  if (!(error instanceof SyntaxError) || !Number.isSafeInteger(contentLength) || contentLength < 0)
+    return undefined;
+  const match = / at position ([0-9]{1,7})(?: \(line [0-9]+ column [0-9]+\))?$/u.exec(
+    error.message,
+  );
+  if (match === null) return undefined;
+  const offset = Number(match[1]);
+  return Number.isSafeInteger(offset) && offset >= 0 && offset <= Math.min(contentLength, 1_048_576)
+    ? offset
+    : undefined;
 }

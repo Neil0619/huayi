@@ -18,6 +18,11 @@ export function learningTaskFeedback(cause: unknown, activity: "analysis" | "pra
     quota_exhausted: `本期平台额度不足，${saved}。请到设置查看额度。`,
     rate_limited: `请求较多，请稍后重试。${saved}。`,
     model_unavailable: `AI 服务暂时不可用，${saved}。请稍后重试。`,
+    model_timeout:
+      activity === "analysis"
+        ? `本次分析超时，${saved}。可以稍后重试，或把长段落拆成较短内容。`
+        : `本次生成超时，${saved}。请重试当前步骤。`,
+    model_response_invalid: `AI 服务返回异常，${saved}。请稍后重试。`,
     revision_conflict: `练习状态已更新，${saved}。请返回列表重新打开这次练习。`,
   };
   const message = messages[code] ?? `连接暂时中断，${saved}。请刷新查看已有结果后再重试。`;

@@ -1,3 +1,4 @@
+import { compactAnalysisFixture as output } from "./test-support/compact-analysis-fixture.js";
 import { contractFixtures, webDeepAnalysisSchema } from "@huayi/cloud-contracts";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod/v3";
@@ -14,12 +15,7 @@ const command = {
   input: contractFixtures.startAnalysisRequest,
   sentences: [{ analysisUnitId: "u1", ordinal: 0, sourceText: "To be frank, this works." }],
 };
-function output() {
-  return structuredClone({
-    candidates: [...contractFixtures.analysis.candidates],
-    result: contractFixtures.analysis.result,
-  });
-}
+
 function response(content: unknown): Response {
   return new Response(
     JSON.stringify({
@@ -230,7 +226,7 @@ describe("safe Web analysis output diagnostics", () => {
 
 describe("Web model diagnostic integration", () => {
   it.each(["json", "output-schema", "unit-count", "content-schema"] as const)(
-    "reports %s for first and repair while preserving both billed calls",
+    "reports unrecoverable %s for first and repair while preserving both billed calls",
     async (stage) => {
       const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
       const content = output();
@@ -240,12 +236,18 @@ describe("Web model diagnostic integration", () => {
           : stage === "output-schema"
             ? { candidates: [], result: {} }
             : content;
-      const sentences = stage === "unit-count" ? [] : command.sentences;
-      if (stage === "content-schema") content.candidates = [];
+      const sentences = command.sentences;
+      if (stage === "unit-count")
+        content.result.sentences.push(...structuredClone(content.result.sentences));
+      const input =
+        stage === "content-schema"
+          ? { ...command.input, source: { ...command.input.source, title: "private".repeat(100) } }
+          : command.input;
       const fetch = vi.fn(async () => response(invalid));
       await expect(
         createDeepSeekAnalysisModel({ apiKey: "never-log-key", fetch, prices }).analyze({
           ...command,
+          input,
           sentences,
         }),
       ).rejects.toMatchObject({

@@ -1,3 +1,7 @@
+import {
+  compactAnalysisFixture as privateOutput,
+  compactPhraseFixture as privatePhraseOutput,
+} from "./test-support/compact-analysis-fixture.js";
 import { contractFixtures } from "@huayi/cloud-contracts";
 import { describe, expect, it, vi } from "vitest";
 
@@ -59,41 +63,6 @@ function providerResponse(
     }),
     { headers: { "content-type": "application/json" }, status: 200 },
   );
-}
-
-function privateOutput() {
-  return {
-    candidates: contractFixtures.analysis.candidates,
-    result: contractFixtures.analysis.result,
-  };
-}
-
-function privatePhraseOutput() {
-  return {
-    candidates: [
-      {
-        analysisUnitId: "u1",
-        id: "candidate-1",
-        ordinal: 0,
-        payload: {
-          meaningZh: "坦率地说",
-          text: "to be frank",
-          type: "expression",
-          usageZh: "用于直接表达个人意见。",
-        },
-        type: "expression",
-      },
-    ],
-    result: {
-      analysisUnitId: "u1",
-      candidateIds: ["candidate-1"],
-      contextualMeaningZh: "这里用于引出坦率意见。",
-      structureAndCollocationZh: ["固定表达。"],
-      translationZh: "坦率地说",
-      type: "phrase-analysis-v2",
-      usageNotes: [],
-    },
-  };
 }
 
 function createFixture(fetch: DeepSeekAnalysisFetch) {
@@ -198,7 +167,7 @@ describe("DeepSeek platform analysis model", () => {
         inputTokens: 100,
         model: DEEPSEEK_PLATFORM_MODEL,
         outputTokens: 200,
-        promptVersion: "web-deep-analysis-v2.5",
+        promptVersion: "web-deep-analysis-v2.11-balanced",
         provider: "deepseek",
       },
       sourceText: contractFixtures.startAnalysisRequest.sourceText,
@@ -214,10 +183,13 @@ describe("DeepSeek platform analysis model", () => {
           providerResponse({ candidates: [], result: {} }, { reasoning: "first reasoning" }),
         )
         .mockResolvedValueOnce(
-          providerResponse(selectionKind === "phrase" ? privatePhraseOutput() : privateOutput(), {
-            reasoning: "repair reasoning",
-            usage: { cached: 0, input: 50, output: 100 },
-          }),
+          providerResponse(
+            selectionKind === "phrase" ? privatePhraseOutput("To be frank") : privateOutput(),
+            {
+              reasoning: "repair reasoning",
+              usage: { cached: 0, input: 50, output: 100 },
+            },
+          ),
         );
 
       const result = await createFixture(fetch).analyze({
@@ -257,7 +229,7 @@ describe("DeepSeek platform analysis model", () => {
         modelMetadata: {
           inputTokens: 150,
           outputTokens: 300,
-          promptVersion: "web-deep-analysis-v2.5",
+          promptVersion: "web-deep-analysis-v2.11-balanced",
         },
       });
     },
