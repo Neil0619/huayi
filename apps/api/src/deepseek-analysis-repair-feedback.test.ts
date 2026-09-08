@@ -6,6 +6,7 @@ import {
   type DeepSeekAnalysisFetch,
 } from "./deepseek-analysis-model.js";
 import type { z } from "zod/v3";
+import { trustedDeepSeekAnalysisContent } from "./deepseek-analysis-private-output.js";
 import {
   analysisJsonErrorOffset,
   reportDeepSeekAnalysisOutputInvalid,
@@ -227,32 +228,50 @@ describe("Web analysis repair feedback", () => {
     expect(result.usageCostMicroUsd).toBe(980);
   });
 
-  it("passes safe domain rule feedback while keeping non-source expressions rejected", async () => {
+  it("keeps exact repair feedback available while product recovery excludes non-source suggestions", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    const fetch = vi
-      .fn<DeepSeekAnalysisFetch>()
-      .mockResolvedValueOnce(
-        response({
-          ...validOutput(),
-          result: {
-            ...validOutput().result,
-            sentences: validOutput().result.sentences.map((s) => ({
-              ...s,
-              candidates: s.candidates.map((c) => ({ ...c, text: "foreign exact quote" })),
-            })),
-          },
-        }),
-      )
-      .mockResolvedValueOnce(response(validOutput()));
-    await createDeepSeekAnalysisModel({ apiKey: "test-key", fetch, prices }).analyze(command);
-    const detail = feedback(repairMessage(fetch.mock.calls[1]?.[1].body ?? ""));
-    expect(detail).toMatchObject({ stage: "content-schema" });
-    expect(detail.issues).toContainEqual(
+    const invalid = {
+      ...validOutput(),
+      result: {
+        ...validOutput().result,
+        sentences: validOutput().result.sentences.map((s) => ({
+          ...s,
+          candidates: s.candidates.map((c) => ({ ...c, text: "foreign exact quote" })),
+        })),
+      },
+    };
+    const strict = trustedDeepSeekAnalysisContent(
+      JSON.stringify(invalid),
+      command.input,
+      command.sentences,
+      { inputTokens: 100, outputTokens: 200, cachedInputTokens: 20 },
+      "first",
+    );
+    expect(strict.feedback?.issues).toContainEqual(
       expect.objectContaining({
         code: "custom",
         path: ["result", "sentences", "*", "candidates", "*", "text"],
+        location: ["result", "sentences", 0, "candidates", 0, "text"],
+        rule: "exact-source-fragment",
       }),
     );
+    const repair = buildDeepSeekAnalysisRequest(
+      command.input,
+      command.sentences,
+      JSON.stringify(invalid),
+      strict.feedback,
+    );
+    expect(feedback(repairMessage(repair))).toEqual(strict.feedback);
+    const fetch = vi.fn<DeepSeekAnalysisFetch>().mockResolvedValueOnce(response(invalid));
+    const generated = await createDeepSeekAnalysisModel({
+      apiKey: "test-key",
+      fetch,
+      prices,
+    }).analyze(command);
+    expect(generated.content).toMatchObject({ candidates: [] });
+    expect(generated.usageCostMicroUsd).toBe(490);
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify(generated.content)).not.toContain("foreign exact quote");
   });
 
   it("keeps adversarial prior output JSON quoted and bounded as explicitly untrusted data", () => {

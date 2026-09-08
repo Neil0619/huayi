@@ -266,7 +266,7 @@ function practiceOutput(kind: PracticeKind, rawInput: unknown) {
 }
 
 function simulatedContent(system: string, rawInput: unknown) {
-  if (system.includes("Return one JSON object only. Put previewZh first, followed by result.")) {
+  if (system.includes("Put previewZh first, followed by result.")) {
     return analysisOutput(rawInput);
   }
   if (system.includes("Huayi's compact English query engine")) {

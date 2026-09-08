@@ -73,6 +73,10 @@ const examples = {
                   descriptionZh: "过去分词及必要补足成分，如 sent to the wrong address",
                 },
               ],
+              sourceValues: [
+                { name: "subject", text: "Your parcel" },
+                { name: "pastParticiplePhrase", text: "sent to the wrong address" },
+              ],
               functionZh: "推测某对象先前遭遇了某个动作",
               usageZh:
                 "seems 表示当前的推测；完成被动部分表示被认为先于判断的动作。槽中保留必要的宾语、补语或地点等成分。",

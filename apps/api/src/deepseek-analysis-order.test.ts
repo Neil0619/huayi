@@ -92,7 +92,7 @@ describe("trusted DeepSeek candidate order", () => {
     expect(generated.usageCostMicroUsd).toBe(256);
   });
   it.each(["analysisUnitId", "id", "ordinal", "candidateIds", "modelMetadata"])(
-    "rejects injected %s rather than silently overwriting it",
+    "discards the whole candidate containing injected %s without adopting its identity",
     async (key) => {
       const output = privateOutput([2, 2]);
       const invalid = {
@@ -108,12 +108,22 @@ describe("trusted DeepSeek candidate order", () => {
       const fetch = vi.fn<DeepSeekAnalysisFetch>(async () =>
         simulatedProviderResponse(invalid, false),
       );
-      await expect(model(fetch).analyze(command)).rejects.toMatchObject({
-        code: "model_output_invalid",
-        billedCalls: [billedCall, billedCall],
-        usageCostMicroUsd: 256,
-      });
-      expect(fetch).toHaveBeenCalledTimes(2);
+      const generated = await model(fetch).analyze(command);
+      const content = analysisContentSchema.parse(generated.content);
+      expect(content.candidates).toEqual([]);
+      if (content.result.type !== "sentence-passage-analysis-v2")
+        throw new Error("Expected sentence result.");
+      expect(content.result.sentences.map((row) => [row.analysisUnitId, row.candidateIds])).toEqual(
+        [
+          ["u1", []],
+          ["u2", []],
+        ],
+      );
+      expect(content.sourceText).toBe(command.input.sourceText);
+      expect(JSON.stringify(content)).not.toContain("untrusted");
+      expect(generated.billedCalls).toEqual([billedCall]);
+      expect(generated.usageCostMicroUsd).toBe(128);
+      expect(fetch).toHaveBeenCalledTimes(1);
     },
   );
   it("rejects the obsolete provider-controlled global references without a private-format fallback", async () => {

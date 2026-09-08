@@ -85,8 +85,12 @@ export function CollectionReview({
             void confirm();
           }}
         >
-          <h3>选择你想学会使用的表达与句型</h3>
-          <p>勾选并加入学习库后，就可以造句或对话。</p>
+          <h3>{drafts.length ? "选择你想学会使用的表达与句型" : "原文解读已保留"}</h3>
+          <p>
+            {drafts.length
+              ? "勾选并加入学习库后，就可以造句或对话。"
+              : "本次没有合适的学习建议。你可以查看解读、点击上方重新分析，或将这条标为无需学习。"}
+          </p>
           {drafts.map((draft, index) => (
             <CollectionCandidate
               key={draft.candidate.id}
@@ -104,9 +108,11 @@ export function CollectionReview({
             />
           ))}
           <div className="form-actions">
-            <button disabled={busy || !drafts.some((draft) => draft.selected)} type="submit">
-              加入学习库
-            </button>
+            {drafts.length > 0 && (
+              <button disabled={busy || !drafts.some((draft) => draft.selected)} type="submit">
+                加入学习库
+              </button>
+            )}
             <button
               disabled={busy}
               onClick={() => {

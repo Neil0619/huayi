@@ -179,13 +179,17 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+function invalidMessage(part: "response" | "update" | "result" | "error"): never {
+  throw new TypeError(`Store analysis ${part} is invalid.`);
+}
+
 export function parseContentAnalysisMessage(value: unknown): StoreAnalysisServerMessage {
   if (!isRecord(value) || value.messageVersion !== STORE_MESSAGE_VERSION) {
-    throw new TypeError("Store analysis response is invalid.");
+    invalidMessage("response");
   }
   if (value.type === "store/analysis-update") {
     if (!isRecord(value.update)) {
-      throw new TypeError("Store analysis update is invalid.");
+      invalidMessage("update");
     }
     const progress = object({
       requestId: text(64),
@@ -222,19 +226,19 @@ export function parseContentAnalysisMessage(value: unknown): StoreAnalysisServer
           });
     const updateRule =
       value.update.type === "progress" ? progress : value.update.type === "delta" ? delta : section;
-    if (updateRule === undefined) throw new TypeError("Store analysis update is invalid.");
+    if (updateRule === undefined) invalidMessage("update");
     if (
       !validates(value.update, updateRule) ||
       Object.keys(value).length !== 3 ||
       Object.keys(value).some((key) => !["messageVersion", "type", "update"].includes(key))
     ) {
-      throw new TypeError("Store analysis update is invalid.");
+      invalidMessage("update");
     }
     return value as unknown as StoreAnalysisServerMessage;
   }
   if (value.type === "store/analysis-result") {
     if (!isRecord(value.result)) {
-      throw new TypeError("Store analysis result is invalid.");
+      invalidMessage("result");
     }
     const rule =
       typeof value.result.type === "string" ? RESULT_RULES[value.result.type] : undefined;
@@ -244,7 +248,7 @@ export function parseContentAnalysisMessage(value: unknown): StoreAnalysisServer
       Object.keys(value).length !== 3 ||
       Object.keys(value).some((key) => !["messageVersion", "result", "type"].includes(key))
     ) {
-      throw new TypeError("Store analysis result is invalid.");
+      invalidMessage("result");
     }
     return value as unknown as StoreAnalysisServerMessage;
   }
@@ -258,7 +262,7 @@ export function parseContentAnalysisMessage(value: unknown): StoreAnalysisServer
     !errorCode(value.code) ||
     !(value.requestId === null || text(64)(value.requestId))
   ) {
-    throw new TypeError("Store analysis error is invalid.");
+    invalidMessage("error");
   }
   return value as unknown as StoreAnalysisServerMessage;
 }

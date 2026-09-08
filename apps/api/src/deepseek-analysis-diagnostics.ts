@@ -10,9 +10,12 @@ interface SafeIssue {
   code: string;
   rule?: string;
 }
+interface RepairIssue extends SafeIssue {
+  location?: (string | number)[];
+}
 export interface AnalysisRepairFeedback {
   stage: AnalysisValidationStage;
-  issues: SafeIssue[];
+  issues: RepairIssue[];
   truncated: boolean;
   jsonErrorOffset?: number;
 }
@@ -54,6 +57,7 @@ const KNOWN_FIELDS = new Set([
   "generatedExample",
   "label",
   "sourceText",
+  "sourceValues",
   "overall",
   "contextAndToneZh",
   "understandingZh",
@@ -96,6 +100,7 @@ const KNOWN_CODES = new Set([
 ]);
 // Only exact source-authored refinement messages can select a fixed label; messages are never emitted.
 const CUSTOM_RULES = new Map([
+  ["Exact source fragment required.", "exact-source-fragment"],
   ["Slot names must be unique.", "slot-names-unique"],
   ["Template placeholders must reference declared slots.", "template-slot-reference"],
   ["Every slot must appear in the template.", "slot-used-in-template"],
@@ -124,7 +129,9 @@ export function reportDeepSeekAnalysisOutputInvalid(
   let feedback: AnalysisRepairFeedback = { stage, issues: [], truncated: true };
   try {
     const safeIssues: SafeIssue[] = [];
+    const repairIssues: RepairIssue[] = [];
     const seen = new Set<string>();
+    const logged = new Set<string>();
     let visited = 0;
     let truncated = false;
     function visit(items: readonly z.ZodIssue[], depth: number): void {
@@ -145,14 +152,33 @@ export function reportDeepSeekAnalysisOutputInvalid(
         };
         const rule = item.code === "custom" ? CUSTOM_RULES.get(item.message) : undefined;
         if (rule !== undefined) safe.rule = rule;
-        const key = JSON.stringify(safe);
+        // The repair provider already has the source and prior output. Preserve only bounded
+        // schema-owned array positions there; operational diagnostics remain redacted.
+        const hasLocation =
+          item.path.length <= MAXIMUM_PATH_SEGMENTS &&
+          item.path.some((part) => typeof part === "number") &&
+          item.path.every((part) =>
+            typeof part === "number"
+              ? Number.isSafeInteger(part) && part >= 0 && part < 1000
+              : KNOWN_FIELDS.has(part),
+          );
+        const repair: RepairIssue = {
+          ...safe,
+          ...(hasLocation ? { location: [...item.path] } : {}),
+        };
+        const key = JSON.stringify(repair);
         if (!seen.has(key)) {
-          if (safeIssues.length >= MAXIMUM_ISSUES) {
+          if (repairIssues.length >= MAXIMUM_ISSUES) {
             truncated = true;
             return;
           }
-          safeIssues.push(safe);
+          repairIssues.push(repair);
           seen.add(key);
+          const logKey = JSON.stringify(safe);
+          if (!logged.has(logKey)) {
+            safeIssues.push(safe);
+            logged.add(logKey);
+          }
         }
         if (item.code !== "invalid_union") continue;
         if (depth >= MAXIMUM_UNION_DEPTH) {
@@ -166,7 +192,7 @@ export function reportDeepSeekAnalysisOutputInvalid(
       }
     }
     visit(issues, 0);
-    feedback = { stage, issues: safeIssues, truncated };
+    feedback = { stage, issues: repairIssues, truncated };
     captureDiagnostic({
       code: "model_output_invalid",
       stage,

@@ -10,12 +10,10 @@ import {
   type ModelUsage,
   type StartAnalysisRequest,
 } from "@huayi/cloud-contracts";
+import { privatePatternSchema, sourceBackedPattern } from "./deepseek-analysis-template-source.js";
 type Candidate = AnalysisContent["candidates"][number];
 const expressionSchema = candidateSchema.options[0].shape.payload;
-const learningItemContentSchema = z.union([
-  expressionSchema,
-  candidateSchema.options[1].shape.payload,
-]);
+const learningItemContentSchema = z.union([expressionSchema, privatePatternSchema]);
 import type { SegmentedSentence } from "./analysis-ports.js";
 import {
   analysisJsonErrorOffset,
@@ -42,6 +40,55 @@ export function privateAnalysisOutputSchema(kind: StartAnalysisRequest["selectio
     previewZh: z.string().trim().min(1).max(1000),
     result: kind === "phrase" ? phrase : passage,
   });
+}
+
+/** Only items inside optional teaching/suggestion arrays may be omitted. Required fields,
+ * unknown outer keys and original array bounds remain subject to the same strict schema.
+ */
+export function recoverDeepSeekAnalysisShape(
+  json: unknown,
+  kind: StartAnalysisRequest["selectionKind"],
+) {
+  const omitted = { teachingPoints: 0, candidates: 0 };
+  const recoverArray = (schema: z.ZodArray<z.ZodType<unknown>>, group: keyof typeof omitted) => {
+    let array = z.array(z.unknown());
+    if (schema._def.minLength !== null) array = array.min(schema._def.minLength.value);
+    if (schema._def.maxLength !== null) array = array.max(schema._def.maxLength.value);
+    if (schema._def.exactLength !== null) array = array.length(schema._def.exactLength.value);
+    return array.transform((values) =>
+      values.flatMap((value) => {
+        const checked = schema.element.safeParse(value);
+        if (checked.success) return [checked.data];
+        omitted[group] += 1;
+        return [];
+      }),
+    );
+  };
+  const result =
+    kind === "phrase"
+      ? phrase.extend({
+          usageNotes: recoverArray(phrase.shape.usageNotes, "teachingPoints"),
+          candidates: recoverArray(phrase.shape.candidates, "candidates"),
+        })
+      : passage.extend({
+          sentences: z
+            .array(
+              sentence.extend({
+                structure: recoverArray(sentence.shape.structure, "teachingPoints"),
+                grammar: recoverArray(sentence.shape.grammar, "teachingPoints"),
+                expressions: recoverArray(sentence.shape.expressions, "teachingPoints"),
+                languageNotes: recoverArray(sentence.shape.languageNotes, "teachingPoints"),
+                candidates: recoverArray(sentence.shape.candidates, "candidates"),
+              }),
+            )
+            .min(1)
+            .max(40),
+        });
+  const parsed = privateAnalysisOutputSchema(kind)
+    .extend({ result })
+    .pipe(privateAnalysisOutputSchema(kind))
+    .safeParse(json);
+  return { parsed, omitted };
 }
 
 export function trustedDeepSeekAnalysisContent(
@@ -94,8 +141,24 @@ export function trustedDeepSeekAnalysisContent(
           exact(point.evidenceText, [...base, group, i, "evidenceText"]);
       });
     }
-    const candidateIds = row.candidates.map((payload, i) => {
-      if (payload.type === "expression") exact(payload.text, [...base, "candidates", i, "text"]);
+    const candidateIds = row.candidates.flatMap((candidate, i) => {
+      let payload: Candidate["payload"];
+      if (candidate.type === "expression") {
+        exact(candidate.text, [...base, "candidates", i, "text"]);
+        payload = candidate;
+      } else {
+        const checkedPattern = sourceBackedPattern(candidate, unit.sourceText);
+        if (checkedPattern.issues) {
+          issues.push(
+            ...checkedPattern.issues.map((issue) => ({
+              ...issue,
+              path: [...base, "candidates", i, ...issue.path],
+            })),
+          );
+          return [];
+        }
+        payload = checkedPattern.payload;
+      }
       const ordinal = candidates.length,
         id = `c${ordinal + 1}`;
       candidates.push(
@@ -103,7 +166,7 @@ export function trustedDeepSeekAnalysisContent(
           ? { analysisUnitId: unit.analysisUnitId, id, ordinal, payload, type: "expression" }
           : { analysisUnitId: unit.analysisUnitId, id, ordinal, payload, type: "sentence-pattern" },
       );
-      return id;
+      return [id];
     });
     const { candidates: privateCandidates, ...teaching } = row;
     void privateCandidates;
@@ -125,7 +188,7 @@ export function trustedDeepSeekAnalysisContent(
     modelMetadata: {
       provider: "deepseek",
       model: "deepseek-v4-flash",
-      promptVersion: "web-deep-analysis-v2.7-compact",
+      promptVersion: "web-deep-analysis-v2.11-balanced",
       schemaVersion: 2,
       inputTokens: usage.inputTokens,
       outputTokens: usage.outputTokens,

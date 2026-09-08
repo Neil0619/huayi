@@ -226,7 +226,7 @@ describe("safe Web analysis output diagnostics", () => {
 
 describe("Web model diagnostic integration", () => {
   it.each(["json", "output-schema", "unit-count", "content-schema"] as const)(
-    "reports %s for first and repair while preserving both billed calls",
+    "reports unrecoverable %s for first and repair while preserving both billed calls",
     async (stage) => {
       const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
       const content = output();
@@ -239,12 +239,15 @@ describe("Web model diagnostic integration", () => {
       const sentences = command.sentences;
       if (stage === "unit-count")
         content.result.sentences.push(...structuredClone(content.result.sentences));
-      if (stage === "content-schema" && content.result.sentences[0]?.candidates[0])
-        content.result.sentences[0].candidates[0].text = "foreign exact quote";
+      const input =
+        stage === "content-schema"
+          ? { ...command.input, source: { ...command.input.source, title: "private".repeat(100) } }
+          : command.input;
       const fetch = vi.fn(async () => response(invalid));
       await expect(
         createDeepSeekAnalysisModel({ apiKey: "never-log-key", fetch, prices }).analyze({
           ...command,
+          input,
           sentences,
         }),
       ).rejects.toMatchObject({

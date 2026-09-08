@@ -1,7 +1,7 @@
 import { setDiagnosticContext } from "./diagnostic-context.js";
 import { billedProviderError } from "./deepseek-provider-error.js";
 import type { AnalysisRepairFeedback } from "./deepseek-analysis-diagnostics.js";
-import { trustedDeepSeekAnalysisContent } from "./deepseek-analysis-private-output.js";
+import { readDeepSeekAnalysisContent } from "./deepseek-analysis-recovery.js";
 import { hasCompleteAnalysisSource } from "./analysis-segmentation.js";
 import { modelDeadline } from "./model-execution.js";
 import { createTextModelPreview } from "./text-model-preview.js";
@@ -172,7 +172,7 @@ export function createDeepSeekAnalysisModel(options: DeepSeekAnalysisModelOption
 
       try {
         const first = await call();
-        const firstContent = trustedDeepSeekAnalysisContent(
+        const firstContent = readDeepSeekAnalysisContent(
           first.content,
           command.input,
           command.sentences,
@@ -205,7 +205,7 @@ export function createDeepSeekAnalysisModel(options: DeepSeekAnalysisModelOption
           usage: providerCall.usage,
         }));
         const usageCostMicroUsd = billedCalls.reduce((total, item) => total + item.costMicroUsd, 0);
-        const repairedContent = trustedDeepSeekAnalysisContent(
+        const repairedContent = readDeepSeekAnalysisContent(
           second.content,
           command.input,
           command.sentences,

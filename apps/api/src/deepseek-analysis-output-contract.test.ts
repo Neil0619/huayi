@@ -251,7 +251,18 @@ describe("compact analysis output contract", () => {
       base = ["result", "sentences", "*", "candidates"];
     expect(at(schema, ...base).maxItems).toBe(20);
     checkFields(candidateSchema.options[0].shape.payload, at(schema, ...base, "*", 0), schema);
-    checkFields(candidateSchema.options[1].shape.payload, at(schema, ...base, "*", 1), schema);
+    const patternSchema = at(schema, ...base, "*", 1);
+    const { sourceValues, ...publicProperties } = patternSchema.properties ?? {};
+    expect(sourceValues).toMatchObject({ type: "array", minItems: 1 });
+    checkFields(
+      candidateSchema.options[1].shape.payload,
+      {
+        ...patternSchema,
+        properties: publicProperties,
+        required: patternSchema.required?.filter((name) => name !== "sourceValues") ?? [],
+      },
+      schema,
+    );
     expect(at(schema, ...base, "*", 0, "text").maxLength).toBe(500);
     expect(at(schema, ...base, "*", 1, "slots")).toMatchObject({ minItems: 1, maxItems: 12 });
     expect(at(schema, ...base, "*", 1, "slots", "*", "name").pattern).toBe(
@@ -260,6 +271,7 @@ describe("compact analysis output contract", () => {
     const pattern = {
       type: "sentence_pattern",
       template: "{subject} acts.",
+      sourceValues: [{ name: "subject", text: "She" }],
       slots: [{ name: "subject", descriptionZh: "主语" }],
       functionZh: "描述动作",
       usageZh: "陈述事实。",

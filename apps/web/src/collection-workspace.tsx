@@ -295,9 +295,12 @@ export function CollectionWorkspace({
             {job?.state === "unknown" && (
               <p role="alert">正在核对同一次生成的结果，请稍后刷新。诊断编号：{job.id}</p>
             )}
+            {selected.analysis && job && ["failed", "cancelled"].includes(job.state) && (
+              <p>上一次已完成的解析仍保留在下方。</p>
+            )}
             {state.preview && (
               <section className="analysis-previews" aria-label="实时分析预览" aria-live="polite">
-                <h3>正在理解原文</h3>
+                <h3>{state.error ? "尚未完成的预览" : "正在理解原文"}</h3>
                 <p>{state.preview}</p>
               </section>
             )}
