@@ -21,10 +21,15 @@ test("collects two originals, completes analysis after leaving, learns, writes, 
   await expect(page.getByRole("heading", { name: "选择你想学会使用的表达与句型" })).toBeVisible();
   expect(authority.facts().calls).toBe(2);
   await expect(page.locator(".collection-candidate-choice")).toContainText("at least");
-  await expect(page.locator(".analysis-reading")).toContainText("至少我们可以再试一次。");
+  const translation = page
+    .getByRole("region", { name: "原文解析", exact: true })
+    .locator(".analysis-reading-translation");
+  await expect(translation).toHaveText("至少我们可以再试一次。");
+  await expect(translation).toBeVisible();
   await page.getByRole("button", { name: /To be frank, this works\./u }).click();
   await expect(page.locator(".collection-candidate-choice")).toContainText("to be frank");
-  await expect(page.locator(".analysis-reading")).toContainText("坦率地说，这很有效。");
+  await expect(translation).toHaveText("坦率地说，这很有效。");
+  await expect(translation).toBeVisible();
   await page.screenshot({
     path: "artifacts/query-learning-refinement-20260905/collection-desktop.png",
     fullPage: true,

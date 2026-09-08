@@ -38,7 +38,9 @@ test("pending sentence practice retries explicitly, completes feedback, and upda
 
   await page.goto(`${webOrigin}/settings/account`);
   await expect(page.getByRole("heading", { name: "当前账号" })).toBeVisible();
-  await expect(page.getByText("learner@example.com")).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "当前账号", exact: true }).getByText("learner@example.com"),
+  ).toBeVisible();
   await expect(page.getByText("Chrome on Mac")).toHaveCount(0);
   await expect(page.getByText("1.0.0", { exact: true })).toBeVisible();
   await expect(page.getByText("有效扩展设备").locator("..")).toContainText("1");
