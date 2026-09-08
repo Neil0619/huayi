@@ -74,6 +74,7 @@ export function loadPackagedWorker(
         ): Promise<T> => operation(),
       },
     },
+    performance,
     setTimeout,
     structuredClone,
     fetch: async (input: URL, init?: RequestInit) => {
@@ -102,7 +103,7 @@ export function loadPackagedWorker(
         },
         onMessage: { addListener: (listener: MessageListener) => listeners.push(listener) },
       },
-      storage,
+      storage: { ...storage, onChanged: noListener },
       tabs: {
         create: async ({ url }: { readonly url: string }) => {
           openedUrls.push(url);
