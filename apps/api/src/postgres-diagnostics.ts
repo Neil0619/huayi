@@ -7,7 +7,7 @@ import { createAdminOperationsCursor } from "./admin-operations-cursor.js";
 import type { AdminAuthorization } from "./admin-operations-module.js";
 import type { AnalysisDatabase } from "./analysis-database.js";
 import type { DiagnosticWriter } from "./diagnostic-context.js";
-import { requireRecent, translateAdminError } from "./postgres-admin-operations-support.js";
+import { translateAdminError } from "./postgres-admin-operations-support.js";
 
 export function createPostgresDiagnostics(database: AnalysisDatabase, key: Uint8Array) {
   const cursor = createAdminOperationsCursor(key);
@@ -31,7 +31,6 @@ export function createPostgresDiagnostics(database: AnalysisDatabase, key: Uint8
       await database.trusted((query) => query.rows("SELECT purge_error_diagnostics()"));
     },
     async list(authorization: AdminAuthorization, filters: DiagnosticQuery) {
-      requireRecent(authorization, new Date());
       const boundary = filters.cursor ? cursor.decode(filters.cursor, "error-logs") : null;
       const limit = filters.limit ?? 30;
       try {

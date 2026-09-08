@@ -2,78 +2,54 @@ import { contractFixtures } from "@huayi/cloud-contracts";
 import { describe, expect, it, vi } from "vitest";
 
 import { createAnalysisModule } from "./analysis-module.js";
-import { createInMemoryAnalysisRequestLifecycle } from "./analysis-request-lifecycle.js";
-import {
-  createInMemoryAnalysisCommitter,
-  createInMemoryAnalysisRepository,
-} from "./analysis-repository.js";
-import { FakeAnalysisModel, FakeAnalysisQuota } from "./test-support/analysis-fakes.js";
-import { createFakeStudyCaptureReader } from "./test-support/analysis-study-capture-fake.js";
-import { MutableClock } from "./test-support/security-fakes.js";
+import { createInMemoryAnalysisCommitter } from "./analysis-repository.js";
 import { CloudFault } from "./cloud-fault.js";
-import { createDeepSeekPriceSchedule } from "./deepseek-price-schedule.js";
-
-function fixture(
-  content: unknown = {
-    candidates: contractFixtures.analysis.candidates,
-    modelMetadata: contractFixtures.analysis.modelMetadata,
-    result: contractFixtures.analysis.result,
-  },
-  withDispatchPricing = false,
-  failCommit = false,
-) {
-  const model = new FakeAnalysisModel(content);
-  const dispatchModel = new FakeAnalysisModel(content);
-  const quota = new FakeAnalysisQuota();
-  const repository = createInMemoryAnalysisRepository();
-  const clock = new MutableClock("2026-08-12T10:00:00.000Z");
-  const lifecycle = createInMemoryAnalysisRequestLifecycle({ now: () => clock.now() });
-  const markDispatched = vi.fn(async () => undefined);
-  const pricing = createDeepSeekPriceSchedule({
-    legacy: "10000000-0000-4000-8000-000000000001",
-    offPeak: "10000000-0000-4000-8000-000000000002",
-    peak: "10000000-0000-4000-8000-000000000003",
-  });
-  const requestLifecycle = withDispatchPricing ? { ...lifecycle, markDispatched } : lifecycle;
-  const baseCommitter = createInMemoryAnalysisCommitter(repository, quota, lifecycle);
-  const module = createAnalysisModule({
-    clock,
-    committer: failCommit
-      ? {
-          ...baseCommitter,
-          async complete() {
-            throw new Error("database commit failed");
-          },
-        }
-      : baseCommitter,
-    cursorKey: new Uint8Array(32).fill(7),
-    ids: (() => {
-      let value = 0;
-      return () => `generated-${++value}`;
-    })(),
-    model,
-    ...(withDispatchPricing ? { modelForPricing: () => dispatchModel, pricing } : {}),
-    quota,
-    requestLifecycle,
-    repository,
-    studyCaptures: createFakeStudyCaptureReader(),
-  });
-  return {
-    clock,
-    dispatchModel,
-    lifecycle,
-    markDispatched,
-    model,
-    module,
-    pricing,
-    quota,
-    repository,
-  };
-}
+import { analysisModuleFixture as fixture } from "./test-support/analysis-module-fixture.js";
 
 describe("analysis module", () => {
+  it("rejects more than 40 source units before creating a request or reserving quota", async () => {
+    const { module, quota, model } = fixture();
+    await expect(
+      module.preparePlatformAnalysis({
+        idempotencyKey: "too-many-units",
+        userId: "user-a",
+        input: {
+          ...contractFixtures.startAnalysisRequest,
+          sourceText: Array.from({ length: 41 }, (_, i) => `Line ${i}.`).join(" "),
+        },
+      }),
+    ).rejects.toMatchObject({ code: "invalid_request" });
+    expect(quota.operations).toEqual([]);
+    expect(model.requests).toEqual([]);
+    expect(await module.getRequestStatus("user-a", "generated-1")).toBeNull();
+  });
+
+  it("keeps punctuated phrases as one complete source unit and started count", async () => {
+    const { module, model } = fixture();
+    const events = [];
+    for await (const event of module.startPlatformAnalysis({
+      idempotencyKey: "one-phrase",
+      userId: "user-a",
+      input: {
+        ...contractFixtures.startAnalysisRequest,
+        selectionKind: "phrase",
+        sourceText: "No. 5",
+      },
+    }))
+      events.push(event);
+    expect(events[0]).toMatchObject({ type: "analysis.started", unitCount: 1 });
+    expect(model.requests[0]?.sentences).toEqual([
+      { analysisUnitId: "u1", ordinal: 0, sourceText: "No. 5" },
+    ]);
+  });
+
   it("pins dispatch pricing before selecting the model and settlement version", async () => {
-    const { dispatchModel, markDispatched, model, module, pricing } = fixture(undefined, true);
+    const { dispatchModel, markDispatched, model, module, pricing } = fixture(
+      undefined,
+      true,
+      false,
+      vi.fn(async () => undefined),
+    );
 
     for await (const event of module.startPlatformAnalysis({
       idempotencyKey: "dispatch-price",

@@ -111,7 +111,7 @@ it("collects failed and abandoned tasks even when the original worker left no lo
     ).rows,
   ).toEqual([{ code: "outcome_unknown", task: operator }]);
 });
-it("serves validated pages and rejects stale administrator authentication", async () => {
+it("serves validated pages with an old operator session and rejects non-operators", async () => {
   await db.query("SELECT record_error_diagnostics($1,$2::jsonb)", [
     owner,
     JSON.stringify([event, { ...event, id: operator }]),
@@ -134,5 +134,10 @@ it("serves validated pages and rejects stale administrator authentication", asyn
       { ...auth, reauthenticatedAt: new Date(Date.now() - 16 * 60_000) },
       { days: "7" },
     ),
-  ).rejects.toThrow("Recent operator authentication");
+  ).resolves.toMatchObject({ summary: { events: 2 } });
+  await expect(
+    repository().list({ ...auth, actorUserId: owner }, { days: "7" }),
+  ).rejects.toMatchObject({ code: "forbidden" });
+  await db.query("DELETE FROM admin_roles WHERE user_id=$1", [operator]);
+  await expect(repository().list(auth, { days: "7" })).rejects.toMatchObject({ code: "forbidden" });
 });

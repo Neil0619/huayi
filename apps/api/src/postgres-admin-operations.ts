@@ -13,7 +13,7 @@ import {
   type InvitationResource,
 } from "@huayi/cloud-contracts";
 
-import type { AdminAuthorization, AdminOperationsRepository } from "./admin-operations-module.js";
+import type { AdminOperationsRepository } from "./admin-operations-module.js";
 import type { AnalysisDatabase } from "./analysis-database.js";
 import { CloudFault } from "./cloud-fault.js";
 import {
@@ -39,12 +39,8 @@ export function createPostgresAdminOperations(options: {
   now(): Date;
   pepper: string;
 }): AdminOperationsRepository {
-  const authorized = async <T>(
-    authorization: AdminAuthorization,
-    operation: (now: Date) => Promise<T>,
-  ): Promise<T> => {
+  const withAdminErrors = async <T>(operation: (now: Date) => Promise<T>): Promise<T> => {
     const now = options.now();
-    requireRecent(authorization, now);
     try {
       return await operation(now);
     } catch (error) {
@@ -54,7 +50,7 @@ export function createPostgresAdminOperations(options: {
 
   return {
     async access(authorization) {
-      return authorized(authorization, async () => {
+      return withAdminErrors(async () => {
         const rows = await options.database.trusted((database) =>
           database.rows<{ role: string | null }>("SELECT require_admin_operator($1) AS role", [
             authorization.actorUserId,
@@ -66,7 +62,8 @@ export function createPostgresAdminOperations(options: {
       });
     },
     async execute(authorization, command) {
-      return authorized(authorization, async (now) => {
+      return withAdminErrors(async (now) => {
+        requireRecent(authorization, now);
         const operation = `admin.${
           command.type === "create-invitation"
             ? "invitation-create"
@@ -169,7 +166,7 @@ export function createPostgresAdminOperations(options: {
     },
 
     async listAuditEvents(authorization, query) {
-      return authorized(authorization, async () => {
+      return withAdminErrors(async () => {
         const rows = await options.database.trusted((database) =>
           database.rows<{
             action: string;
@@ -201,7 +198,7 @@ export function createPostgresAdminOperations(options: {
     },
 
     async listInvitations(authorization, query) {
-      return authorized(authorization, async () => {
+      return withAdminErrors(async () => {
         const rows = await options.database.trusted((database) =>
           database.rows<{
             consumed_at: Date | string | null;
@@ -230,7 +227,7 @@ export function createPostgresAdminOperations(options: {
     },
 
     async listUsers(authorization, query) {
-      return authorized(authorization, async (now) => {
+      return withAdminErrors(async (now) => {
         const range = currentUtcPeriod(now);
         const rows = await options.database.trusted((database) =>
           database.rows<UserRow>("SELECT * FROM admin_list_users($1,$2,$3,$4,$5,$6,$7,$8)", [
@@ -259,7 +256,7 @@ export function createPostgresAdminOperations(options: {
     },
 
     async usage(authorization) {
-      return authorized(authorization, async (now) => {
+      return withAdminErrors(async (now) => {
         const range = currentUtcPeriod(now);
         const rows = await options.database.trusted((database) =>
           database.rows<UsageRow>("SELECT * FROM admin_usage_summary($1,$2,$3)", [

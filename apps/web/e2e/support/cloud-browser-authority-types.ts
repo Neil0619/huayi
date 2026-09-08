@@ -4,6 +4,7 @@ import type { GoogleAuthenticationSeed } from "./cloud-browser-authority-google-
 import type { PracticeAuthoritySeed } from "./cloud-browser-authority-practice.js";
 
 export interface CloudBrowserAuthoritySeed {
+  readonly operatorSessionNeedsVerification?: boolean;
   readonly holdLearningTasks?: boolean;
   readonly authenticated: boolean;
   readonly seed:

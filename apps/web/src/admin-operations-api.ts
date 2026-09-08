@@ -100,7 +100,14 @@ export function createWebAdminOperationsApi(options: WebAdminOperationsApiOption
         }
         invitationRetryKey = crypto.randomUUID();
       }
-      return createInvitation(expiresInHours, invitationRetryKey);
+      try {
+        return await createInvitation(expiresInHours, invitationRetryKey);
+      } catch (error) {
+        if (!recover && error instanceof WebIdentityApiError && error.code === "forbidden") {
+          invitationRetryKey = null;
+        }
+        throw error;
+      }
     },
     async getUsage() {
       return adminUsageSummarySchema.parse(await (await read(adminHttpRoutes.usage)).json());
@@ -151,7 +158,13 @@ export function createWebAdminOperationsApi(options: WebAdminOperationsApiOption
         tokenRecoveryRetry = null;
         return recovered;
       } catch (error) {
-        if (error instanceof WebIdentityApiError) tokenRecoveryRetry = null;
+        if (
+          !recover &&
+          error instanceof WebIdentityApiError &&
+          error.status < 500 &&
+          error.code !== "unknown"
+        )
+          tokenRecoveryRetry = null;
         throw error;
       }
     },

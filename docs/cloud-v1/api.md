@@ -125,12 +125,16 @@ Web 即使收到成功正文也不能校验文件契约。Web 随后以 HttpOnly
 session Cookie 和固定 Origin 调用 `/v1/auth/csrf`，原子轮换服务端 hash 后取得 token；长期 token
 不进入 OAuth query。
 
-账号偏好是 `user_profiles` 的窄投影，不包含 owner：IANA timezone、dailyGoal 1–100、
+账号偏好是 `user_profiles` 的窄投影，不包含 owner：timezone（固定 `Asia/Shanghai`）、dailyGoal 1–100、
 `extensionQueryModelMode=platform|byok`、`studyCaptureMode=manual|automatic`、
 `cloudWordCopyMode=enabled|disabled`、revision 与 updatedAt。GET/PATCH 在 forced-RLS transaction 中执行；
 PATCH 是至少一个字段的 strict partial，以 body expectedRevision 做乐观并发检查；此接口不使用幂等或版本请求头。
 真实变化只推进一次 revision；重放不推进。修改只影响后续查询/采集/收藏/每日队列，不改变已开始请求、
 PracticeSession 或两端既有数据。Extension GET 只返回三项插件偏好及 revision/time。
+
+Web 不再提交 timezone。为兼容旧客户端，PATCH 仍接受有效的 IANA timezone，但统一保存为
+`Asia/Shanghai`；GET、账号 profile 与导出返回相同的有效时区。服务端每日队列和完成进度直接使用
+北京时间，不依赖旧账号的 timezone 存储值；注册和注册中断恢复也固定保存北京时间，无需批量迁移旧数据。
 
 `GET /v1/account` 只接受 active/full Web Cookie，并在 owner repeatable-read snapshot 内再次要求 profile
 仍为 active，再返回规范 email、嵌套完整 AccountPreferences、未撤销且未过期并按 `(createdAt,id)` 排序的 ExtensionSessionResource，以及
@@ -436,7 +440,7 @@ durable reservation/dispatch、调用后实际/保守 ledger 结算均不可绕�
 
 | Method/path                                                         | 用途                                                   |
 | ------------------------------------------------------------------- | ------------------------------------------------------ |
-| `GET /v1/practice/daily-queue`                                      | 按服务器时钟与账号时区返回到期优先、新项补足的目标队列 |
+| `GET /v1/practice/daily-queue`                                      | 按服务器时钟与北京时间返回到期优先、新项补足的目标队列 |
 | `POST /v1/practice/sentence-sessions`                               | 从指定 1 个学习项生成句子创作题                        |
 | `POST /v1/practice/dialogue-sessions`                               | 从指定 1–3 个学习项生成角色、任务、结束条件与开场消息  |
 | `POST /v1/practice/sessions/:id/turns`                              | 先保存用户 turn，再生成下一条情境角色 turn             |
@@ -560,7 +564,7 @@ headword、可选 contextLine）或 Eudic import page（固定 pageSize=100）�
 | Method/path                                         | 用途                                                                   |
 | --------------------------------------------------- | ---------------------------------------------------------------------- |
 | `GET /v1/quota`                                     | 当前 UTC 周期、limit/used/reserved micro-USD、percent 和 warning state |
-| `GET /v1/admin/access`                              | 证明当前近期认证账号具有 Operator 角色                                 |
+| `GET /v1/admin/access`                              | 证明当前完整 Web 会话账号具有 Operator 角色                            |
 | `GET /v1/admin/invitations` / `POST` / `DELETE :id` | 列举、创建、撤销邀请；创建时只返回一次明文 URL                         |
 | `GET /v1/admin/users`                               | 仅 email、状态、额度和设备数，不含正文                                 |
 | `POST /v1/admin/users/:id/status`                   | `{action: "enable"                                                     | "disable"}`，状态与会话撤销 |
@@ -576,8 +580,8 @@ headword、可选 contextLine）或 Eudic import page（固定 pageSize=100）�
 只用于显示，不能授权写入。同一 Idempotency-Key 与相同 request hash 重放相同撤销响应且不重复审计；
 响应丢失后先重新 GET，不能用新建邀请代替状态确认。
 
-管理员 GET 必须验证 active/full Web session、`admin_roles` 和最近重新认证时间；mutation 还必须验证
-固定 Origin、CSRF 与 `Idempotency-Key`。所有成功写入恰好产生一条 `audit_events`，幂等重放不重复
+管理员 GET 必须验证 active/full Web session 和 `admin_roles.role=operator`，不要求近期重新认证；
+mutation 还必须验证 15 分钟内重新认证、固定 Origin、CSRF 与 `Idempotency-Key`。所有成功写入恰好产生一条 `audit_events`，幂等重放不重复
 写审计。严格投影、状态机、cursor 和 kill switch 路由见 `admin-operations.md`。
 
 Hosted DeepSeek one-shot Phase E 只增加仓库内受控 CLI/composition root，不新增公开或 internal HTTP route，

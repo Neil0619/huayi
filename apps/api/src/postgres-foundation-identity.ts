@@ -4,6 +4,7 @@ import type { Sql, TransactionSql } from "postgres";
 import type { ApproveExtensionPairingRequest, ExtensionPreferences } from "@huayi/cloud-contracts";
 
 import { CloudFault } from "./cloud-fault.js";
+import { accountLearningTimezone } from "./account-learning-timezone.js";
 import { createPostgresWebSession } from "./postgres-web-session.js";
 import { createPostgresSignInMethods } from "./postgres-sign-in-methods.js";
 import { createPostgresPasswordReauthentication } from "./postgres-password-reauthentication.js";
@@ -122,7 +123,7 @@ export function createPostgresFoundationIdentity(options: PostgresFoundationIden
     const [result] = await trusted(
       (sql) => sql<{ id: string | null }[]>`
       SELECT complete_auth_flow(
-        ${hashSecret(flow, options.pepper)}, ${user}, ${email}, 'UTC', 5, ${method}
+        ${hashSecret(flow, options.pepper)}, ${user}, ${email}, ${accountLearningTimezone}, 5, ${method}
       )::text AS id
     `,
     );

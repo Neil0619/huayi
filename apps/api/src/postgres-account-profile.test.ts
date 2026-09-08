@@ -55,7 +55,7 @@ describe("Postgres current account profile", () => {
       user_id,owner_user_id,email,status,timezone,daily_goal,extension_query_model_mode,
       study_capture_mode,cloud_word_copy_mode,preferences_revision,updated_at
     ) VALUES
-      ('${userA}','${userA}','a@example.test','active','Asia/Shanghai',6,'byok','automatic',
+      ('${userA}','${userA}','a@example.test','active','America/Los_Angeles',6,'byok','automatic',
        'disabled',4,'2026-08-13T10:00:00.000Z'),
       ('${userB}','${userB}','b@example.test','active','UTC',3,'platform','manual',
        'enabled',1,'2026-08-13T09:00:00.000Z');

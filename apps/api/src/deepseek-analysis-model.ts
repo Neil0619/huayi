@@ -1,27 +1,20 @@
 import { setDiagnosticContext } from "./diagnostic-context.js";
 import { billedProviderError } from "./deepseek-provider-error.js";
-import {
-  reportDeepSeekAnalysisOutputInvalid,
-  type AnalysisValidationAttempt,
-} from "./deepseek-analysis-diagnostics.js";
+import type { AnalysisRepairFeedback } from "./deepseek-analysis-diagnostics.js";
+import { trustedDeepSeekAnalysisContent } from "./deepseek-analysis-private-output.js";
+import { hasCompleteAnalysisSource } from "./analysis-segmentation.js";
 import { modelDeadline } from "./model-execution.js";
 import { createTextModelPreview } from "./text-model-preview.js";
 import {
   calculateModelCost,
-  analysisContentSchema,
-  candidateSchema,
   modelPriceSchema,
   modelUsageSchema,
-  normalizeWhitespaceAndQuotes,
-  webDeepAnalysisSchema,
   type ModelPrice,
   type ModelUsage,
   type StartAnalysisRequest,
 } from "@huayi/cloud-contracts";
-import { createHash } from "node:crypto";
-import { z } from "zod/v3";
 
-import type { AnalysisModel, SegmentedSentence } from "./analysis-ports.js";
+import type { AnalysisModel } from "./analysis-ports.js";
 import {
   buildDeepSeekAnalysisRequest,
   DEEPSEEK_PLATFORM_ENDPOINT,
@@ -44,16 +37,8 @@ export type {
   DeepSeekAnalysisModelErrorCode,
 };
 
-const PROMPT_VERSION = "web-deep-analysis-v2.5";
-const SCHEMA_VERSION = 2;
 const DEFAULT_TIMEOUT_MS = 90_000;
 const MAXIMUM_TIMEOUT_MS = 90_000;
-
-const privateAnalysisOutputSchema = z.strictObject({
-  previewZh: z.string().trim().min(1).max(1000).optional(),
-  candidates: z.array(candidateSchema).max(200),
-  result: webDeepAnalysisSchema,
-});
 
 interface DeepSeekAnalysisModelOptions {
   apiKey: string;
@@ -93,66 +78,6 @@ function addUsage(first: ModelUsage, second: ModelUsage): ModelUsage {
   });
 }
 
-function trustedContent(
-  rawContent: string,
-  input: StartAnalysisRequest,
-  sentences: readonly SegmentedSentence[],
-  usage: ModelUsage,
-  attempt: AnalysisValidationAttempt,
-): unknown {
-  let json: unknown;
-  try {
-    json = JSON.parse(rawContent);
-  } catch {
-    reportDeepSeekAnalysisOutputInvalid("json", attempt);
-    return null;
-  }
-  const parsed = privateAnalysisOutputSchema.safeParse(json);
-  if (!parsed.success) {
-    reportDeepSeekAnalysisOutputInvalid("output-schema", attempt, parsed.error.issues);
-    return null;
-  }
-  const parsedResult = parsed.data.result;
-  let result: unknown = parsedResult;
-  if ("sentences" in parsedResult) {
-    if (parsedResult.sentences.length !== sentences.length) {
-      reportDeepSeekAnalysisOutputInvalid("unit-count", attempt);
-      return null;
-    }
-    result = {
-      ...parsedResult,
-      sentences: parsedResult.sentences.map((sentence, index) => ({
-        ...sentence,
-        ...sentences[index],
-      })),
-    };
-  }
-  const content = analysisContentSchema.safeParse({
-    // Array position owns global order; provider ordinals may restart for each unit.
-    candidates: parsed.data.candidates.map((candidate, ordinal) => ({ ...candidate, ordinal })),
-    modelMetadata: {
-      inputTokens: usage.inputTokens,
-      model: DEEPSEEK_PLATFORM_MODEL,
-      outputTokens: usage.outputTokens,
-      promptVersion: PROMPT_VERSION,
-      provider: "deepseek",
-      schemaVersion: SCHEMA_VERSION,
-    },
-    result,
-    selectionKind: input.selectionKind,
-    source: input.source,
-    sourceNormalizedHash: createHash("sha256")
-      .update(normalizeWhitespaceAndQuotes(input.sourceText))
-      .digest("hex"),
-    sourceText: input.sourceText,
-  });
-  if (!content.success) {
-    reportDeepSeekAnalysisOutputInvalid("content-schema", attempt, content.error.issues);
-    return null;
-  }
-  return content.data;
-}
-
 export function createDeepSeekAnalysisModel(options: DeepSeekAnalysisModelOptions): AnalysisModel {
   if (options.apiKey.trim() === "") throw new DeepSeekAnalysisModelError("model_unavailable");
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
@@ -164,11 +89,27 @@ export function createDeepSeekAnalysisModel(options: DeepSeekAnalysisModelOption
   return {
     async analyze(command) {
       setDiagnosticContext({ operation: "analysis" });
+      if (!hasCompleteAnalysisSource(command.input, command.sentences)) {
+        throw new DeepSeekAnalysisModelError("model_output_invalid", 0);
+      }
+      const firstBody = buildDeepSeekAnalysisRequest(command.input, command.sentences);
+      const prices = await resolvePrices(options);
       const controller = modelDeadline(timeoutMs, command.signal);
       let firstToken = false;
       const preview = createTextModelPreview(new Set(["previewZh"]), command);
-      const prices = await resolvePrices(options);
-      const call = async (repairContent?: string): Promise<DeepSeekProviderCallResult> => {
+      const call = async (
+        repairContent?: string,
+        feedback?: AnalysisRepairFeedback,
+      ): Promise<DeepSeekProviderCallResult> => {
+        const body =
+          repairContent === undefined
+            ? firstBody
+            : buildDeepSeekAnalysisRequest(
+                command.input,
+                command.sentences,
+                repairContent,
+                feedback,
+              );
         try {
           await command.beforeDispatch?.();
           controller.signal.throwIfAborted();
@@ -178,7 +119,7 @@ export function createDeepSeekAnalysisModel(options: DeepSeekAnalysisModelOption
         let response: DeepSeekAnalysisFetchResponse;
         try {
           response = await providerFetch(DEEPSEEK_PLATFORM_ENDPOINT, {
-            body: buildDeepSeekAnalysisRequest(command.input, command.sentences, repairContent),
+            body,
             credentials: "omit",
             headers: {
               Accept: "text/event-stream, application/json",
@@ -231,18 +172,18 @@ export function createDeepSeekAnalysisModel(options: DeepSeekAnalysisModelOption
 
       try {
         const first = await call();
-        const firstContent = trustedContent(
+        const firstContent = trustedDeepSeekAnalysisContent(
           first.content,
           command.input,
           command.sentences,
           first.usage,
           "first",
         );
-        if (firstContent !== null) {
+        if (firstContent.feedback === undefined) {
           const costMicroUsd = calculateModelCost(first.usage, prices);
           return {
             billedCalls: [{ costMicroUsd, usage: first.usage }],
-            content: firstContent,
+            content: firstContent.content,
             usage: first.usage,
             usageCostMicroUsd: costMicroUsd,
           };
@@ -254,7 +195,7 @@ export function createDeepSeekAnalysisModel(options: DeepSeekAnalysisModelOption
         let second: DeepSeekProviderCallResult;
         try {
           command.onTiming?.("repair-start");
-          second = await call(first.content);
+          second = await call(first.content, firstContent.feedback);
         } catch (error) {
           throw billedProviderError(error, prices, [firstBilledCall]);
         }
@@ -264,14 +205,14 @@ export function createDeepSeekAnalysisModel(options: DeepSeekAnalysisModelOption
           usage: providerCall.usage,
         }));
         const usageCostMicroUsd = billedCalls.reduce((total, item) => total + item.costMicroUsd, 0);
-        const repairedContent = trustedContent(
+        const repairedContent = trustedDeepSeekAnalysisContent(
           second.content,
           command.input,
           command.sentences,
           usage,
           "repair",
         );
-        if (repairedContent === null) {
+        if (repairedContent.feedback !== undefined) {
           throw new DeepSeekAnalysisModelError(
             "model_output_invalid",
             usageCostMicroUsd,
@@ -281,7 +222,7 @@ export function createDeepSeekAnalysisModel(options: DeepSeekAnalysisModelOption
         }
         return {
           billedCalls,
-          content: repairedContent,
+          content: repairedContent.content,
           usage,
           usageCostMicroUsd,
         };

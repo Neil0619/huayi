@@ -21,6 +21,7 @@ import { LocalAcceptanceNotice } from "./local-acceptance-notice.js";
 import { initializeWebAppearance } from "./web-appearance.js";
 import "./styles.css";
 import "./account-quota-page.css";
+import "./account-preferences-form.css";
 import "./account-data-rights-page.css";
 import "./analysis-page.css";
 import "./analysis-history-page.css";

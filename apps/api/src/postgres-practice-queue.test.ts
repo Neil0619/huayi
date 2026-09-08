@@ -69,22 +69,72 @@ describe("Postgres practice queue", () => {
   });
   afterEach(async () => database.close());
 
-  it("uses the profile timezone/day goal and due-first stable owner queue", async () => {
+  it.each(["Asia/Shanghai", "UTC", "America/Los_Angeles", "Asia/Tokyo"])(
+    "uses Beijing midnight and due-first order with a legacy %s profile",
+    async (timezone) => {
+      await database.query("UPDATE user_profiles SET timezone=$2 WHERE user_id=$1", [
+        userA,
+        timezone,
+      ]);
+      const repository = createPostgresPracticeRepository(adapter);
+      await expect(repository.dailyQueue(userA, "2026-08-13T15:59:59.000Z")).resolves.toMatchObject(
+        {
+          currentItems: [],
+          currentSession: null,
+          date: "2026-08-13",
+          dailyGoal: 2,
+          items: [{ item: { id: dueItem } }, { item: { id: newItem } }],
+          timezone: "Asia/Shanghai",
+        },
+      );
+      await expect(repository.dailyQueue(userA, "2026-08-13T16:00:00.000Z")).resolves.toMatchObject(
+        {
+          date: "2026-08-14",
+          items: [{ item: { id: dueItem } }, { item: { id: tomorrowItem } }],
+        },
+      );
+      await expect(repository.dailyQueue(userB, "2026-08-13T15:59:59.000Z")).rejects.toMatchObject({
+        code: "forbidden",
+      });
+    },
+  );
+
+  it("counts self-ratings on the Beijing day even when an old profile stores UTC", async () => {
+    for (const file of ["0024-durable-learning-tasks.sql", "0025-practice-workspace.sql"]) {
+      await database.exec(
+        await readFile(new URL(`../migrations/${file}`, import.meta.url), "utf8"),
+      );
+    }
+    await database.query("UPDATE user_profiles SET timezone='UTC' WHERE user_id=$1", [userA]);
+    const completed = [
+      { item: dueItem, id: "90000000-0000-0000-0000-000000000001", at: "2026-08-13T15:59:59Z" },
+      { item: newItem, id: "90000000-0000-0000-0000-000000000002", at: "2026-08-13T16:00:00Z" },
+      {
+        item: tomorrowItem,
+        id: "90000000-0000-0000-0000-000000000003",
+        at: "2026-08-13T16:00:01Z",
+      },
+    ];
+    for (const entry of completed) {
+      await database.query(
+        "INSERT INTO practice_sessions(id,owner_user_id,type,status,completed_at) VALUES($1,$2,'sentence-creation','completed',$3)",
+        [entry.id, userA, entry.at],
+      );
+      await database.query(
+        "INSERT INTO practice_session_items(session_id,learning_item_id,owner_user_id,position,rating,schedule_before,rated_at) VALUES($1,$2,$3,0,'mastered','{}',$4)",
+        [entry.id, entry.item, userA, entry.at],
+      );
+    }
     const repository = createPostgresPracticeRepository(adapter);
-    await expect(repository.dailyQueue(userA, "2026-08-13T15:59:59.000Z")).resolves.toMatchObject({
-      currentItems: [],
-      currentSession: null,
+    await expect(repository.dailyQueue(userA, "2026-08-13T15:59:59Z")).resolves.toMatchObject({
+      completedToday: 1,
       date: "2026-08-13",
-      dailyGoal: 2,
-      items: [{ item: { id: dueItem } }, { item: { id: newItem } }],
       timezone: "Asia/Shanghai",
     });
-    await expect(repository.dailyQueue(userA, "2026-08-13T16:00:00.000Z")).resolves.toMatchObject({
+    await expect(repository.dailyQueue(userA, "2026-08-13T16:00:01Z")).resolves.toMatchObject({
+      completedToday: 2,
       date: "2026-08-14",
-      items: [{ item: { id: dueItem } }, { item: { id: tomorrowItem } }],
-    });
-    await expect(repository.dailyQueue(userB, "2026-08-13T15:59:59.000Z")).rejects.toMatchObject({
-      code: "forbidden",
+      timezone: "Asia/Shanghai",
     });
   });
 });

@@ -10,6 +10,12 @@ interface SafeIssue {
   code: string;
   rule?: string;
 }
+export interface AnalysisRepairFeedback {
+  stage: AnalysisValidationStage;
+  issues: SafeIssue[];
+  truncated: boolean;
+  jsonErrorOffset?: number;
+}
 interface AnalysisDiagnostic {
   event: "deepseek_analysis_output_invalid";
   stage: AnalysisValidationStage;
@@ -114,7 +120,8 @@ export function reportDeepSeekAnalysisOutputInvalid(
   issues: readonly z.ZodIssue[] = [],
   sink: (diagnostic: AnalysisDiagnostic) => void = (diagnostic) =>
     console.warn(JSON.stringify(diagnostic)),
-): void {
+): AnalysisRepairFeedback {
+  let feedback: AnalysisRepairFeedback = { stage, issues: [], truncated: true };
   try {
     const safeIssues: SafeIssue[] = [];
     const seen = new Set<string>();
@@ -159,6 +166,7 @@ export function reportDeepSeekAnalysisOutputInvalid(
       }
     }
     visit(issues, 0);
+    feedback = { stage, issues: safeIssues, truncated };
     captureDiagnostic({
       code: "model_output_invalid",
       stage,
@@ -178,4 +186,19 @@ export function reportDeepSeekAnalysisOutputInvalid(
   } catch {
     // A diagnostic failure must not interrupt the existing repair, error or billing path.
   }
+  return feedback;
+}
+
+/** Extract only a bounded numeric location; never propagate the engine error message. */
+export function analysisJsonErrorOffset(error: unknown, contentLength: number): number | undefined {
+  if (!(error instanceof SyntaxError) || !Number.isSafeInteger(contentLength) || contentLength < 0)
+    return undefined;
+  const match = / at position ([0-9]{1,7})(?: \(line [0-9]+ column [0-9]+\))?$/u.exec(
+    error.message,
+  );
+  if (match === null) return undefined;
+  const offset = Number(match[1]);
+  return Number.isSafeInteger(offset) && offset >= 0 && offset <= Math.min(contentLength, 1_048_576)
+    ? offset
+    : undefined;
 }

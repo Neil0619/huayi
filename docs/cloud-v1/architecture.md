@@ -215,7 +215,7 @@ fake clock。客户端通过 HTTP adapter 访问同一用例，不复制领域�
 - 所有写请求带 `Idempotency-Key`。服务端按 `(owner_user_id, operation, key)` 保存请求 hash 和结果；
   相同 key/相同 payload 返回原结果，不同 payload 返回冲突。
 - 编辑/归档/恢复/删除使用 expected revision 或 `If-Match`；过期 revision 返回 `revision_conflict`。
-- AccountPreferences 把 timezone/dailyGoal 与三项插件偏好放在同一 owner revision 下。Web PATCH、首次
+- AccountPreferences 保留固定北京时间的 timezone 兼容字段，dailyGoal 与三项插件偏好放在同一 owner revision 下。Web PATCH、首次
   pairing approve 和 Extension projection 复用同一深模块；插件缓存与 session 绑定，不能成为第二权威。
 - StudyCapture 用 `(owner,kind,normalized_sha256)` 唯一键收敛，命中后比较规范全文防止 hash collision。
   同幂等 key 重放不增加计数；新的 occurrence key 才原子推进 lastCapturedAt/captureCount/revision。
@@ -260,7 +260,7 @@ fake clock。客户端通过 HTTP adapter 访问同一用例，不复制领域�
   quota 表读取权。这样跨月访问自动续期，价格、kill switch 或 reserve 失败后的 terminalization 仍能
   生成严格额度摘要，不会回退到历史月或因第二次权限错误留下永久 `running` 请求。
 - 主动练习深模块把队列选择、PracticeAttempt、反馈租约和排期推进隐藏在 Postgres repository 后。队列
-  用服务器时钟与账号 timezone 计算本地日边界，due 项按 created/id 稳定优先，再用 level -1 新项补
+  用服务器时钟与固定的 Asia/Shanghai 计算本地日边界，忽略账号旧 timezone，due 项按 created/id 稳定优先，再用 level -1 新项补
   dailyGoal；浏览器不提交日期。响应同时携带匹配的 current session/item，使 active、awaiting-feedback
   与 completed-but-unrated 都能刷新恢复。
   答案事务先落库再调用模型；initial/retry 共用 attempt lease，completion/failure 均以 token fencing。
@@ -355,7 +355,7 @@ fake clock。客户端通过 HTTP adapter 访问同一用例，不复制领域�
 - `GET /v1/quota` 复用平台生成的 `AnalysisQuota.summary(userId)` 深模块：Hono 只从 Web Cookie session
   取得 userId，production adapter 从 current grant、append-only ledger 与 active reservation 计算一次
   strict server projection。Hono 与 Web HTTP adapter 都再次 strict parse，客户端不提交时间或 owner。
-  `/settings/account` 同时通过窄 `GET/PATCH /v1/account/preferences` 投影 timezone、dailyGoal、三项插件
+  `/settings/account` 同时通过窄 `GET/PATCH /v1/account/preferences` 投影固定北京时间的 timezone、dailyGoal、三项插件
   偏好、revision 与 updatedAt；Postgres adapter 在 owner forced-RLS transaction 内读写，mutation 使用
   Web Cookie + Origin + CSRF + Idempotency-Key + If-Match。只读 `AccountProfileModule.read(owner)` 在一个
   repeatable-read snapshot 中聚合规范 email、同一完整偏好结构和有效 Extension session，再附加已校验
@@ -424,8 +424,8 @@ fake clock。客户端通过 HTTP adapter 访问同一用例，不复制领域�
 - Web `/settings/account` 在同一登录 bootstrap 后以 Cookie GET 读取 strict QuotaSummary，显示 UTC 周期、
   limit/used/reserved/available/percent/warning；0 grant 是可见空配置而不是客户端默认值。页面明确 BYOK
   不计入并且 exhausted 只影响平台模型，使用局部 loading/error/retry/live 状态且不缓存额度权威。练习
-  偏好表单独立读取 strict `{timezone,dailyGoal}`；失败保留草稿，成功只采用服务器响应，新设置由后续
-  daily queue 的服务器时钟/时区计算消费，不在浏览器改写现有 session。
+  偏好表单独立读取 strict AccountPreferences，只允许编辑 dailyGoal 与三项扩展偏好；失败保留草稿，
+  成功只采用服务器响应。daily queue 统一按服务器时钟和北京时间计算，不在浏览器改写现有 session。
 - Web `/join#<token>` 从不发送给服务器的 fragment 读取 token，通过 identity adapter 以 JSON body
   领取邀请并使用 `no-referrer`，成功后用 `replaceState` 清除地址栏
   token。claim ticket 仅存在于页面组件状态；密码注册继续走 Cookie 响应，Google 注册用固定 API

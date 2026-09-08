@@ -156,48 +156,59 @@ describe("Web account bootstrap and pairing approval", () => {
     );
   });
 
-  it("keeps the operator entry and active settings tab consistent across settings pages", async () => {
-    const identity = api();
-    const adminApi = {
-      access: vi.fn(async () => ({ role: "operator" as const })),
-      createInvitation: vi.fn<WebAdminOperationsApi["createInvitation"]>(),
-      getUsage: vi.fn<WebAdminOperationsApi["getUsage"]>(),
-      listAuditEvents: vi.fn<WebAdminOperationsApi["listAuditEvents"]>(),
-      listInvitations: vi.fn<WebAdminOperationsApi["listInvitations"]>(),
-      listUsers: vi.fn<WebAdminOperationsApi["listUsers"]>(),
-      recoverInvitationToken: vi.fn<WebAdminOperationsApi["recoverInvitationToken"]>(),
-      revokeInvitation: vi.fn<WebAdminOperationsApi["revokeInvitation"]>(),
-      revokeUserDevices: vi.fn<WebAdminOperationsApi["revokeUserDevices"]>(),
-      setKillSwitch: vi.fn<WebAdminOperationsApi["setKillSwitch"]>(),
-      setUserQuota: vi.fn<WebAdminOperationsApi["setUserQuota"]>(),
-      setUserStatus: vi.fn<WebAdminOperationsApi["setUserStatus"]>(),
-    } satisfies WebAdminOperationsApi;
-    const container = document.createElement("div");
-    document.body.append(container);
-    const root = createRoot(container);
-    await act(async () =>
-      root.render(<CloudApp adminApi={adminApi} identity={identity} page="devices" />),
-    );
-    await act(async () => {
-      await Promise.resolve();
-      await Promise.resolve();
-    });
+  it.each([true, false])(
+    "shows operator navigation only after server proof: %s",
+    async (allowed) => {
+      const identity = api();
+      const adminApi = {
+        access: vi.fn(async () => {
+          if (!allowed) throw new WebIdentityApiError("forbidden", 403);
+          return { role: "operator" as const };
+        }),
+        createInvitation: vi.fn<WebAdminOperationsApi["createInvitation"]>(),
+        getUsage: vi.fn<WebAdminOperationsApi["getUsage"]>(),
+        listAuditEvents: vi.fn<WebAdminOperationsApi["listAuditEvents"]>(),
+        listInvitations: vi.fn<WebAdminOperationsApi["listInvitations"]>(),
+        listUsers: vi.fn<WebAdminOperationsApi["listUsers"]>(),
+        recoverInvitationToken: vi.fn<WebAdminOperationsApi["recoverInvitationToken"]>(),
+        revokeInvitation: vi.fn<WebAdminOperationsApi["revokeInvitation"]>(),
+        revokeUserDevices: vi.fn<WebAdminOperationsApi["revokeUserDevices"]>(),
+        setKillSwitch: vi.fn<WebAdminOperationsApi["setKillSwitch"]>(),
+        setUserQuota: vi.fn<WebAdminOperationsApi["setUserQuota"]>(),
+        setUserStatus: vi.fn<WebAdminOperationsApi["setUserStatus"]>(),
+      } satisfies WebAdminOperationsApi;
+      const container = document.createElement("div");
+      document.body.append(container);
+      const root = createRoot(container);
+      await act(async () =>
+        root.render(<CloudApp adminApi={adminApi} identity={identity} page="devices" />),
+      );
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+      });
 
-    expect(
-      container.querySelector("nav[aria-label='账号设置'] [aria-current='page']")?.textContent,
-    ).toContain("扩展设备");
-    expect(container.querySelector("a[href='/admin']")?.textContent).toBe("运营控制台");
+      expect(
+        container.querySelector("nav[aria-label='账号设置'] [aria-current='page']")?.textContent,
+      ).toContain("扩展设备");
+      expect(container.querySelector("a[href='/admin']")?.textContent).toBe(
+        allowed ? "运营控制台" : undefined,
+      );
 
-    await act(async () =>
-      root.render(<CloudApp adminApi={adminApi} identity={identity} page="data" />),
-    );
-    await act(async () => Promise.resolve());
-    expect(
-      container.querySelector("nav[aria-label='账号设置'] [aria-current='page']")?.textContent,
-    ).toContain("数据与账号");
-    expect(container.querySelector("a[href='/admin']")?.textContent).toBe("运营控制台");
-    expect(adminApi.access).toHaveBeenCalledOnce();
-  });
+      await act(async () =>
+        root.render(<CloudApp adminApi={adminApi} identity={identity} page="data" />),
+      );
+      await act(async () => Promise.resolve());
+      expect(
+        container.querySelector("nav[aria-label='账号设置'] [aria-current='page']")?.textContent,
+      ).toContain("数据与账号");
+      expect(container.querySelector("a[href='/admin']")?.textContent).toBe(
+        allowed ? "运营控制台" : undefined,
+      );
+      expect(adminApi.access).toHaveBeenCalledOnce();
+      expect(identity.reauthenticatePassword).not.toHaveBeenCalled();
+    },
+  );
 
   it("routes an authenticated account to the pasted-analysis page", async () => {
     const identity = api();
@@ -270,15 +281,17 @@ describe("Web account bootstrap and pairing approval", () => {
     expect(container.querySelector("[aria-current='page']")?.textContent).toContain("设置");
   });
 
-  it("uses the bootstrapped CSRF token to reauthenticate a stale admin session", async () => {
+  it("uses bootstrapped and rotated CSRF only for operator-requested sensitive verification", async () => {
     const identity = api();
     const adminApi: WebAdminOperationsApi = {
-      access: vi.fn(async () => Promise.reject(new WebIdentityApiError("forbidden", 403))),
+      access: vi.fn(async () => ({ role: "operator" as const })),
       createInvitation: vi.fn(),
-      getUsage: vi.fn(),
-      listAuditEvents: vi.fn(),
-      listInvitations: vi.fn(),
-      listUsers: vi.fn(),
+      getUsage: vi.fn(async () => {
+        throw new Error("offline");
+      }),
+      listAuditEvents: vi.fn(async () => ({ items: [], nextCursor: null })),
+      listInvitations: vi.fn(async () => ({ items: [], nextCursor: null })),
+      listUsers: vi.fn(async () => ({ items: [], nextCursor: null })),
       recoverInvitationToken: vi.fn(),
       revokeInvitation: vi.fn(),
       revokeUserDevices: vi.fn(),
@@ -295,6 +308,13 @@ describe("Web account bootstrap and pairing approval", () => {
     );
     await act(async () => Promise.resolve());
 
+    expect(container.querySelector("input[type='password']")).toBeNull();
+    expect(identity.reauthenticatePassword).not.toHaveBeenCalled();
+    const open = [...container.querySelectorAll("button")].find(
+      (button) => button.textContent === "验证敏感操作",
+    );
+    if (!open) throw new Error("Sensitive verification control is missing.");
+    await act(async () => open.click());
     const password = container.querySelector<HTMLInputElement>("#admin-current-password");
     if (password === null) throw new Error("Operator password input is missing.");
     await change(password, "correct horse battery staple");
@@ -307,7 +327,19 @@ describe("Web account bootstrap and pairing approval", () => {
       "c".repeat(32),
     );
     expect(container.textContent).not.toContain("correct horse battery staple");
-    expect(container.querySelector("h1")?.textContent).toBe("无法进入运营控制台");
+    expect(container.querySelector("h1")?.textContent).toBe("运营控制台");
+    await act(async () => open.click());
+    const nextPassword = container.querySelector<HTMLInputElement>("#admin-current-password");
+    if (!nextPassword) throw new Error("Sensitive verification input is missing.");
+    await change(nextPassword, "correct horse battery staple");
+    await act(async () =>
+      container.querySelector<HTMLFormElement>("[data-admin-reauthentication]")?.requestSubmit(),
+    );
+    expect(identity.reauthenticatePassword).toHaveBeenLastCalledWith(
+      "correct horse battery staple",
+      "r".repeat(32),
+    );
+    expect(adminApi.createInvitation).not.toHaveBeenCalled();
   });
 
   it("routes an authenticated account to analysis history", async () => {

@@ -6,6 +6,7 @@ import {
 } from "@huayi/cloud-contracts";
 
 import type { AnalysisDatabase, AnalysisQuery } from "./analysis-database.js";
+import { accountLearningTimezone } from "./account-learning-timezone.js";
 import {
   learningLibraryViewSql,
   mapLearningLibraryView,
@@ -194,10 +195,9 @@ export function createPostgresAccountDataExportSource(database: AnalysisDatabase
             extension_query_model_mode: "byok" | "platform";
             preferences_revision: number;
             study_capture_mode: "automatic" | "manual";
-            timezone: string;
             updated_at: Date;
           }>(
-            `SELECT timezone,daily_goal,extension_query_model_mode,study_capture_mode,
+            `SELECT daily_goal,extension_query_model_mode,study_capture_mode,
              cloud_word_copy_mode,preferences_revision,created_at,updated_at
              FROM user_profiles WHERE user_id=$1`,
             [ownerUserId],
@@ -213,7 +213,7 @@ export function createPostgresAccountDataExportSource(database: AnalysisDatabase
             recordType: "account-preferences",
             revision: profile.preferences_revision,
             studyCaptureMode: profile.study_capture_mode,
-            timezone: profile.timezone,
+            timezone: accountLearningTimezone,
             updatedAt: profile.updated_at.toISOString(),
           }),
         ];

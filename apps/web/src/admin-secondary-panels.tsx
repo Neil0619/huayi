@@ -139,11 +139,16 @@ export function AdminSecondaryPanels({ api }: { readonly api: WebAdminOperations
           ? "邀请已创建。链接仅在当前响应中显示，请立即安全传递。"
           : "邀请已创建，但列表刷新失败；一次性链接仍可立即使用。",
       );
-    } catch {
+    } catch (error) {
       setMessage("");
-      setInvitationRecoveryAvailable(true);
+      const forbidden = error instanceof WebIdentityApiError && error.code === "forbidden";
+      setInvitationRecoveryAvailable(recover || !forbidden);
       setInvitationCreationError(
-        "邀请创建结果未知，可能已经创建。请使用原请求安全恢复结果，切勿重复创建。",
+        forbidden
+          ? recover
+            ? "本次恢复被拒绝，先前创建结果仍未知。请验证敏感操作后使用原请求安全恢复。"
+            : "服务器已拒绝创建邀请。请验证敏感操作后手动重试。"
+          : "邀请创建结果未知，可能已经创建。请使用原请求安全恢复结果，切勿重复创建。",
       );
     } finally {
       invitationCreationPendingRef.current = false;
@@ -186,13 +191,20 @@ export function AdminSecondaryPanels({ api }: { readonly api: WebAdminOperations
       await loadAudit();
     } catch (error) {
       setMessage("");
-      if (error instanceof WebIdentityApiError) {
+      if (
+        !retry &&
+        error instanceof WebIdentityApiError &&
+        error.status < 500 &&
+        error.code !== "unknown"
+      ) {
         setRecoveryId(null);
         setRecoveryRetry(false);
-        setRecoveryError("服务器已拒绝恢复，未修改私有链接。请重新认证并检查邀请状态。");
+        setRecoveryError("服务器已拒绝恢复，未修改私有链接。请验证敏感操作并检查邀请状态。");
       } else {
         setRecoveryRetry(true);
-        setRecoveryError("轮换结果未知。请只用原请求安全恢复，切勿再次轮换或创建邀请。");
+        setRecoveryError(
+          "轮换结果仍未知。请验证敏感操作后只用原请求安全恢复，切勿再次轮换或创建邀请。",
+        );
       }
     } finally {
       recoveryPendingRef.current = false;
@@ -222,13 +234,15 @@ export function AdminSecondaryPanels({ api }: { readonly api: WebAdminOperations
         {invitationCreationError !== "" && (
           <div className="alert" role="alert">
             <p>{invitationCreationError}</p>
-            <button
-              disabled={invitationCreationPending}
-              onClick={() => void create(true)}
-              type="button"
-            >
-              安全恢复邀请结果
-            </button>
+            {invitationRecoveryAvailable && (
+              <button
+                disabled={invitationCreationPending}
+                onClick={() => void create(true)}
+                type="button"
+              >
+                安全恢复邀请结果
+              </button>
+            )}
           </div>
         )}
         {invitationError !== "" && (

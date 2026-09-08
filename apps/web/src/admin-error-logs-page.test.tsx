@@ -66,12 +66,16 @@ it("does not fetch private logs when operator authentication is denied", async (
   });
   expect(container.textContent).toContain("没有查看报错日志的权限");
   expect(listErrorLogs).not.toHaveBeenCalled();
+  expect(container.querySelector("input[type='password']")).toBeNull();
 });
-it("removes already displayed logs when administrator access expires", async () => {
+it.each([
+  ["forbidden", 403],
+  ["authentication_required", 401],
+] as const)("removes already displayed logs after %s", async (code, status) => {
   const access = vi.fn(async () => undefined);
   await renderPage({ api: { listErrorLogs: async () => response }, access });
   expect(container.textContent).toContain("provider-error");
-  access.mockRejectedValueOnce(new WebIdentityApiError("forbidden", 403));
+  access.mockRejectedValueOnce(new WebIdentityApiError(code, status));
   const refresh = [...container.querySelectorAll("button")].find(
     (button) => button.textContent === "刷新",
   );
@@ -79,4 +83,17 @@ it("removes already displayed logs when administrator access expires", async () 
   await act(async () => refresh.click());
   expect(container.textContent).toContain("没有查看报错日志的权限");
   expect(container.textContent).not.toContain("provider-error");
+});
+
+it("immediately denies a forbidden log read even if access just succeeded", async () => {
+  await renderPage({
+    access: async () => undefined,
+    api: {
+      listErrorLogs: async () => {
+        throw new WebIdentityApiError("forbidden", 403);
+      },
+    },
+  });
+  expect(container.textContent).toContain("没有查看报错日志的权限");
+  expect(container.querySelector("input[type='password']")).toBeNull();
 });

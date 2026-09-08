@@ -3,13 +3,14 @@ import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNod
 import type { AdminUsageSummary, AdminUserResource } from "@huayi/cloud-contracts";
 
 import type { WebAdminOperationsApi } from "./admin-operations-api.js";
+import { useAdminReadAccess } from "./admin-read-access.js";
 import { AdminReauthenticationGate } from "./admin-reauthentication-gate.js";
 import { AdminUserPanel } from "./admin-user-panel.js";
 import { AdminSecondaryPanels } from "./admin-secondary-panels.js";
 import { WebIdentityApiError, type WebIdentityApi } from "./identity-api.js";
 
 export type AdminReauthenticationApi = Pick<WebIdentityApi, "reauthenticatePassword">;
-type LoadState = "denied" | "error" | "loading" | "ready" | "reauthentication";
+type LoadState = "denied" | "error" | "loading" | "ready";
 
 export function AdminShell({ children }: { readonly children: ReactNode }) {
   return (
@@ -35,7 +36,7 @@ export function AdminShell({ children }: { readonly children: ReactNode }) {
 }
 
 export function AdminOperationsPage({
-  api,
+  api: sourceApi,
   csrfToken,
   onCsrfTokenChanged,
   reauthenticationApi,
@@ -61,37 +62,36 @@ export function AdminOperationsPage({
   const usageGeneration = useRef(0);
   const userGeneration = useRef(0);
 
-  const load = useCallback(
-    async (afterReauthentication = false) => {
-      const current = ++generation.current;
-      setState("loading");
-      setMessage("");
-      setUsageError("");
-      setUserError("");
-      try {
-        await api.access();
-        const [nextUsage, nextUsers] = await Promise.allSettled([api.getUsage(), api.listUsers()]);
-        if (generation.current !== current) return;
-        if (nextUsage.status === "fulfilled") setUsage(nextUsage.value);
-        else setUsageError("运营概览载入失败。");
-        if (nextUsers.status === "fulfilled") {
-          setUsers(nextUsers.value.items);
-          setUserCursor(nextUsers.value.nextCursor);
-        } else setUserError("账号列表载入失败。");
-        setState("ready");
-      } catch (error) {
-        if (generation.current !== current) return;
-        if (error instanceof WebIdentityApiError && error.code === "forbidden") {
-          setState(
-            !afterReauthentication && reauthenticationApi !== undefined
-              ? "reauthentication"
-              : "denied",
-          );
-        } else setState("error");
-      }
-    },
-    [api, reauthenticationApi],
-  );
+  const denyAccess = useCallback(() => {
+    generation.current += 1;
+    setState("denied");
+  }, []);
+  const api = useAdminReadAccess(sourceApi, denyAccess);
+
+  const load = useCallback(async () => {
+    const current = ++generation.current;
+    setState("loading");
+    setMessage("");
+    setUsageError("");
+    setUserError("");
+    try {
+      await api.access();
+      const [nextUsage, nextUsers] = await Promise.allSettled([api.getUsage(), api.listUsers()]);
+      if (generation.current !== current) return;
+      if (nextUsage.status === "fulfilled") setUsage(nextUsage.value);
+      else setUsageError("运营概览载入失败。");
+      if (nextUsers.status === "fulfilled") {
+        setUsers(nextUsers.value.items);
+        setUserCursor(nextUsers.value.nextCursor);
+      } else setUserError("账号列表载入失败。");
+      setState("ready");
+    } catch (error) {
+      if (generation.current !== current) return;
+      if (error instanceof WebIdentityApiError && error.code === "forbidden") {
+        setState("denied");
+      } else setState("error");
+    }
+  }, [api]);
 
   useEffect(() => void load(), [load]);
   useEffect(() => setActiveCsrfToken(csrfToken), [csrfToken]);
@@ -103,7 +103,7 @@ export function AdminOperationsPage({
     const session = await reauthenticationApi.reauthenticatePassword(password, activeCsrfToken);
     setActiveCsrfToken(session.csrfToken);
     onCsrfTokenChanged?.(session.csrfToken);
-    await load(true);
+    await api.access();
   };
 
   const filterUsers = async (event: FormEvent) => {
@@ -195,14 +195,6 @@ export function AdminOperationsPage({
     }
   };
 
-  if (state === "reauthentication") {
-    return (
-      <AdminShell>
-        <AdminReauthenticationGate onReauthenticate={reauthenticate} />
-      </AdminShell>
-    );
-  }
-
   if (state !== "ready") {
     return (
       <AdminShell>
@@ -211,8 +203,8 @@ export function AdminOperationsPage({
           <h1>{state === "loading" ? "正在确认 Operator 权限" : "无法进入运营控制台"}</h1>
           <p role={state === "loading" ? "status" : undefined}>
             {state === "loading"
-              ? "正在验证完整 Web 会话、角色与近期认证…"
-              : "需要 Operator 角色、完整 Web 会话和 15 分钟内的重新认证。"}
+              ? "正在验证登录状态与管理员权限…"
+              : "当前账号没有管理员权限，或登录状态已失效。"}
           </p>
           {state === "error" && (
             <button onClick={() => void load()} type="button">
@@ -227,16 +219,21 @@ export function AdminOperationsPage({
   return (
     <AdminShell>
       <div className="admin-operations-page">
-        <nav aria-label="运营页面">
-          <a href="/admin/error-logs">报错日志</a>
-        </nav>
-        <header className="page-heading">
+        <header className="page-heading admin-page-heading">
           <div>
             <p className="eyebrow">OPERATIONS · METADATA ONLY</p>
             <h1>运营控制台</h1>
+            <p className="admin-page-description">
+              仅显示账号、额度、设备数和无正文审计；不提供内容浏览或身份模拟。
+            </p>
           </div>
-          <p>仅显示账号、额度、设备数和无正文审计；不提供内容浏览或身份模拟。</p>
+          <nav aria-label="运营页面" className="admin-page-navigation">
+            <a href="/admin/error-logs">报错日志</a>
+          </nav>
         </header>
+        {reauthenticationApi !== undefined && (
+          <AdminReauthenticationGate onReauthenticate={reauthenticate} />
+        )}
         <p aria-live="polite" className="admin-live" role="status">
           {message}
         </p>
@@ -312,24 +309,28 @@ export function AdminOperationsPage({
             onSubmit={(event) => void filterUsers(event)}
             role="search"
           >
-            <label htmlFor="admin-email-query">邮箱搜索</label>
-            <input
-              id="admin-email-query"
-              maxLength={320}
-              onChange={(event) => setQuery(event.currentTarget.value)}
-              value={query}
-            />
-            <label htmlFor="admin-status">状态</label>
-            <select
-              id="admin-status"
-              onChange={(event) => setStatus(event.currentTarget.value as typeof status)}
-              value={status}
-            >
-              <option value="">全部</option>
-              <option value="active">active</option>
-              <option value="disabled">disabled</option>
-              <option value="deleting">deleting</option>
-            </select>
+            <div className="admin-filter-field">
+              <label htmlFor="admin-email-query">邮箱搜索</label>
+              <input
+                id="admin-email-query"
+                maxLength={320}
+                onChange={(event) => setQuery(event.currentTarget.value)}
+                value={query}
+              />
+            </div>
+            <div className="admin-filter-field">
+              <label htmlFor="admin-status">状态</label>
+              <select
+                id="admin-status"
+                onChange={(event) => setStatus(event.currentTarget.value as typeof status)}
+                value={status}
+              >
+                <option value="">全部</option>
+                <option value="active">active</option>
+                <option value="disabled">disabled</option>
+                <option value="deleting">deleting</option>
+              </select>
+            </div>
             <button type="submit">筛选账号</button>
           </form>
           {userError !== "" && (

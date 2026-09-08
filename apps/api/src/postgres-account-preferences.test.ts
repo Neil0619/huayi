@@ -60,7 +60,7 @@ describe("Postgres account preferences", () => {
       extensionQueryModelMode: "platform",
       revision: 1,
       studyCaptureMode: "manual",
-      timezone: "UTC",
+      timezone: "Asia/Shanghai",
     });
     await expect(
       preferences.update(userA, {
@@ -81,10 +81,24 @@ describe("Postgres account preferences", () => {
       extensionQueryModelMode: "platform",
       revision: 1,
       studyCaptureMode: "manual",
-      timezone: "Asia/Tokyo",
+      timezone: "Asia/Shanghai",
     });
     await expect(
       preferences.update(userA, { dailyGoal: 8, expectedRevision: 1 }),
     ).rejects.toMatchObject({ code: "revision_conflict" });
+  });
+
+  it("normalizes legacy timezone writes and persists Beijing time when saving preferences", async () => {
+    const preferences = createPostgresAccountPreferences(adapter);
+    await expect(
+      preferences.update(userA, {
+        expectedRevision: 1,
+        timezone: "Pacific/Honolulu",
+      }),
+    ).resolves.toMatchObject({ dailyGoal: 3, revision: 2, timezone: "Asia/Shanghai" });
+    await preferences.update(userB, { dailyGoal: 8, expectedRevision: 1 });
+    expect(
+      (await database.query("SELECT timezone FROM user_profiles ORDER BY user_id")).rows,
+    ).toEqual([{ timezone: "Asia/Shanghai" }, { timezone: "Asia/Shanghai" }]);
   });
 });

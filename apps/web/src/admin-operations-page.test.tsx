@@ -315,6 +315,32 @@ describe("Admin operations page", () => {
     expect(container.textContent).not.toContain("恢复私有链接");
   });
 
+  it("keeps uncertain token rotation recovery available after a later forbidden response", async () => {
+    const invitation = {
+      consumedAt: null,
+      createdAt: "2026-08-13T06:00:00.000Z",
+      expiresAt: "2026-08-14T06:00:00.000Z",
+      id: "80000000-0000-0000-0000-000000000001",
+      revokedAt: null,
+    };
+    const recoverInvitationToken = vi
+      .fn<WebAdminOperationsApi["recoverInvitationToken"]>()
+      .mockRejectedValueOnce(new TypeError("response lost"))
+      .mockRejectedValueOnce(new WebIdentityApiError("forbidden", 403));
+    const { container } = await setup({
+      listInvitations: vi.fn(async () => ({ items: [invitation], nextCursor: null })),
+      recoverInvitationToken,
+    });
+    await act(async () => button(container, "恢复私有链接").click());
+    await act(async () => button(container, "确认轮换并显示新链接").click());
+    await act(async () => button(container, "安全恢复轮换结果").click());
+    expect(container.textContent).toContain("轮换结果仍未知");
+    expect(container.textContent).not.toContain("未修改私有链接");
+    expect(button(container, "安全恢复轮换结果")).toBeTruthy();
+    expect(recoverInvitationToken).toHaveBeenLastCalledWith(invitation.id, true);
+    expect(recoverInvitationToken).toHaveBeenCalledTimes(2);
+  });
+
   it("fails closed for a non-operator without rendering controls", async () => {
     const { container } = await setup({
       access: vi.fn(async () => Promise.reject(new Error("forbidden"))),
@@ -323,77 +349,134 @@ describe("Admin operations page", () => {
     expect(container.textContent).not.toContain("创建邀请");
   });
 
-  it("password-reauthenticates a stale Operator session before loading and creating an invitation", async () => {
-    const access = vi
-      .fn<WebAdminOperationsApi["access"]>()
-      .mockRejectedValueOnce(new WebIdentityApiError("forbidden", 403))
-      .mockResolvedValue({ role: "operator" });
+  it("denies forbidden reads immediately without offering a password form", async () => {
+    const reauthenticatePassword = vi.fn();
+    const { api, container } = await setup(
+      {
+        access: vi.fn(async () => {
+          throw new WebIdentityApiError("forbidden", 403);
+        }),
+      },
+      { onCsrfTokenChanged: vi.fn(), reauthenticatePassword },
+    );
+    expect(container.querySelector("h1")?.textContent).toBe("无法进入运营控制台");
+    expect(container.querySelector("input[type='password']")).toBeNull();
+    expect(container.textContent).not.toContain("验证敏感操作");
+    expect(api.getUsage).not.toHaveBeenCalled();
+    expect(reauthenticatePassword).not.toHaveBeenCalled();
+  });
+
+  it.each(["getUsage", "listUsers", "listInvitations", "listAuditEvents"] as const)(
+    "denies a forbidden or expired-session %s read after access succeeds",
+    async (method) => {
+      for (const [code, status] of [
+        ["forbidden", 403],
+        ["authentication_required", 401],
+      ] as const) {
+        const { container } = await setup({
+          [method]: vi.fn(async () => {
+            throw new WebIdentityApiError(code, status);
+          }),
+        });
+        expect(container.querySelector("h1")?.textContent).toBe("无法进入运营控制台");
+        expect(container.textContent).not.toContain("learner@example.test");
+        expect(container.querySelector("input[type='password']")).toBeNull();
+      }
+    },
+  );
+
+  it("offers password confirmation only after explicit operator action and preserves unknown invitations", async () => {
+    const createInvitation = vi.fn(async () => {
+      throw new TypeError("response lost");
+    });
     const reauthenticatePassword = vi.fn(async () => ({
       access: "full" as const,
       csrfToken: "rotated-csrf-token",
     }));
     const onCsrfTokenChanged = vi.fn();
     const { api, container } = await setup(
-      { access },
+      { createInvitation },
       { onCsrfTokenChanged, reauthenticatePassword },
     );
-
-    expect(container.querySelector("h1")?.textContent).toBe("重新确认 Operator 身份");
+    expect(container.querySelector("h1")?.textContent).toBe("运营控制台");
+    expect(container.querySelector("input[type='password']")).toBeNull();
+    expect(reauthenticatePassword).not.toHaveBeenCalled();
+    await act(async () => button(container, "创建邀请").click());
+    expect(container.textContent).toContain("邀请创建结果未知");
+    await act(async () => button(container, "验证敏感操作").click());
     const password = container.querySelector<HTMLInputElement>("#admin-current-password");
-    expect(password?.getAttribute("autocomplete")).toBe("current-password");
     if (password === null) throw new Error("Operator password input is missing.");
+    expect(password.autocomplete).toBe("current-password");
     await change(password, "correct horse battery staple");
     await act(async () =>
       container.querySelector<HTMLFormElement>("[data-admin-reauthentication]")?.requestSubmit(),
     );
-
     expect(reauthenticatePassword).toHaveBeenCalledWith(
       "correct horse battery staple",
       "csrf-token",
     );
     expect(onCsrfTokenChanged).toHaveBeenCalledWith("rotated-csrf-token");
-    expect(access).toHaveBeenCalledTimes(2);
-    expect(container.querySelector("h1")?.textContent).toBe("运营控制台");
-    expect(container.textContent).not.toContain("correct horse battery staple");
-
-    await act(async () => button(container, "创建邀请").click());
-    expect(api.createInvitation).toHaveBeenCalledWith(72);
+    expect(api.access).toHaveBeenCalledTimes(2);
+    expect(container.querySelector("input[type='password']")).toBeNull();
+    expect(container.textContent).toContain("验证完成");
+    expect(container.textContent).toContain("邀请创建结果未知");
+    expect(button(container, "创建邀请").disabled).toBe(true);
+    expect(createInvitation).toHaveBeenCalledTimes(1);
+    await act(async () => button(container, "安全恢复邀请结果").click());
+    expect(createInvitation).toHaveBeenLastCalledWith(72, true);
   });
 
-  it("keeps a failed Operator password reauthentication retryable without rendering the password", async () => {
-    const access = vi.fn(async () => Promise.reject(new WebIdentityApiError("forbidden", 403)));
+  it("keeps failed confirmation retryable and denies a role revoked during verification", async () => {
     const reauthenticatePassword = vi
       .fn()
       .mockRejectedValueOnce(new Error("provider password detail"))
       .mockResolvedValueOnce({ access: "full" as const, csrfToken: "rotated-csrf-token" });
-    const { container } = await setup(
-      { access },
+    const { api, container } = await setup(
+      {},
       { onCsrfTokenChanged: vi.fn(), reauthenticatePassword },
     );
+    await act(async () => button(container, "验证敏感操作").click());
     const password = container.querySelector<HTMLInputElement>("#admin-current-password");
     if (password === null) throw new Error("Operator password input is missing.");
     await change(password, "correct horse battery staple");
     await act(async () =>
       container.querySelector<HTMLFormElement>("[data-admin-reauthentication]")?.requestSubmit(),
     );
-
-    expect(container.querySelector("[role='alert']")?.textContent).toContain(
-      "密码确认失败，请检查后重试",
-    );
-    expect(container.textContent).not.toContain("correct horse battery staple");
-    expect(password.value).toBe("correct horse battery staple");
-    expect(button(container, "重新确认并进入").disabled).toBe(false);
-
+    expect(container.textContent).toContain("密码确认失败，请检查后重试");
+    expect(container.textContent).not.toContain("provider password detail");
+    expect(button(container, "确认敏感操作").disabled).toBe(false);
+    vi.mocked(api.access).mockRejectedValueOnce(new WebIdentityApiError("forbidden", 403));
     await act(async () =>
       container.querySelector<HTMLFormElement>("[data-admin-reauthentication]")?.requestSubmit(),
     );
     expect(reauthenticatePassword).toHaveBeenCalledTimes(2);
-    expect(reauthenticatePassword).toHaveBeenLastCalledWith(
-      "correct horse battery staple",
-      "csrf-token",
-    );
     expect(container.querySelector("h1")?.textContent).toBe("无法进入运营控制台");
-    expect(container.textContent).not.toContain("correct horse battery staple");
+    expect(container.querySelector("input[type='password']")).toBeNull();
+  });
+
+  it("treats an initial invitation forbidden as a confirmed denial with manual retry", async () => {
+    const createInvitation = vi.fn(async () => {
+      throw new WebIdentityApiError("forbidden", 403);
+    });
+    const { container } = await setup({ createInvitation });
+    await act(async () => button(container, "创建邀请").click());
+    expect(container.textContent).toContain("服务器已拒绝创建邀请");
+    expect(container.textContent).not.toContain("邀请创建结果未知");
+    expect(button(container, "创建邀请").disabled).toBe(false);
+    expect(createInvitation).toHaveBeenCalledTimes(1);
+  });
+
+  it("preserves an unknown invitation when a recovery attempt is forbidden", async () => {
+    const createInvitation = vi
+      .fn<WebAdminOperationsApi["createInvitation"]>()
+      .mockRejectedValueOnce(new TypeError("response lost"))
+      .mockRejectedValueOnce(new WebIdentityApiError("forbidden", 403));
+    const { container } = await setup({ createInvitation });
+    await act(async () => button(container, "创建邀请").click());
+    await act(async () => button(container, "安全恢复邀请结果").click());
+    expect(container.textContent).toContain("创建结果仍未知");
+    expect(button(container, "创建邀请").disabled).toBe(true);
+    expect(button(container, "安全恢复邀请结果")).toBeTruthy();
   });
 
   it("keeps confirmed account and usage panels when invitation loading fails", async () => {

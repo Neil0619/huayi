@@ -2,6 +2,7 @@ import { accountResourceSchema, type AccountResource } from "@huayi/cloud-contra
 
 import type { AnalysisDatabase } from "./analysis-database.js";
 import type { AccountProfileModule } from "./account-profile-app.js";
+import { accountLearningTimezone } from "./account-learning-timezone.js";
 import { CloudFault } from "./cloud-fault.js";
 
 interface ProfileRow {
@@ -11,7 +12,6 @@ interface ProfileRow {
   extension_query_model_mode: "byok" | "platform";
   preferences_revision: number;
   study_capture_mode: "automatic" | "manual";
-  timezone: string;
   updated_at: Date;
 }
 
@@ -35,7 +35,7 @@ export function createPostgresAccountProfile(options: {
       return options.database.snapshot(ownerUserId, async ({ tenant }) => {
         const profile = (
           await tenant.rows<ProfileRow>(
-            `SELECT email,timezone,daily_goal,extension_query_model_mode,study_capture_mode,
+            `SELECT email,daily_goal,extension_query_model_mode,study_capture_mode,
                cloud_word_copy_mode,preferences_revision,updated_at
              FROM user_profiles WHERE user_id=$1 AND status='active'`,
             [ownerUserId],
@@ -65,7 +65,7 @@ export function createPostgresAccountProfile(options: {
             extensionQueryModelMode: profile.extension_query_model_mode,
             revision: profile.preferences_revision,
             studyCaptureMode: profile.study_capture_mode,
-            timezone: profile.timezone,
+            timezone: accountLearningTimezone,
             updatedAt: profile.updated_at.toISOString(),
           },
         });

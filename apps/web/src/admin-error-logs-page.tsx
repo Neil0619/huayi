@@ -7,7 +7,6 @@ import {
 } from "@huayi/cloud-contracts";
 import type { WebErrorLogsApi } from "./admin-error-logs-api.js";
 import { AdminShell } from "./admin-operations-page.js";
-import { AdminReauthenticationGate } from "./admin-reauthentication-gate.js";
 import { WebIdentityApiError } from "./identity-api.js";
 
 const sources = { api: "语见服务", store: "本机插件", web: "网页" };
@@ -85,25 +84,21 @@ function ErrorRecord({ record }: { record: DiagnosticRecord }) {
 export function AdminErrorLogsPage({
   api,
   access,
-  onReauthenticate,
 }: {
   api: WebErrorLogsApi;
   access: () => Promise<unknown>;
-  onReauthenticate?: ((password: string) => Promise<void>) | undefined;
 }) {
   const [query, setQuery] = useState<DiagnosticQuery>({ days: "7" });
   const [draft, setDraft] = useState({ days: "7", source: "", severity: "", reference: "" });
   const [data, setData] = useState<DiagnosticList | null>(null);
-  const [state, setState] = useState<"loading" | "ready" | "error" | "denied" | "reauthentication">(
-    "loading",
-  );
+  const [state, setState] = useState<"loading" | "ready" | "error" | "denied">("loading");
   const [message, setMessage] = useState("");
   const [refresh, setRefresh] = useState(true);
   const [busy, setBusy] = useState(false);
   const [updated, setUpdated] = useState("");
   const generation = useRef(0);
   const load = useCallback(
-    async (cursor?: string, reauthenticated = false) => {
+    async (cursor?: string) => {
       const version = ++generation.current;
       setBusy(true);
       setMessage("");
@@ -121,17 +116,16 @@ export function AdminErrorLogsPage({
         if (version !== generation.current) return;
         setData(null);
         setState(
-          error instanceof WebIdentityApiError && error.code === "forbidden"
-            ? onReauthenticate && !reauthenticated
-              ? "reauthentication"
-              : "denied"
+          error instanceof WebIdentityApiError &&
+            (error.code === "forbidden" || error.code === "authentication_required")
+            ? "denied"
             : "error",
         );
       } finally {
         if (version === generation.current) setBusy(false);
       }
     },
-    [access, api, query, onReauthenticate],
+    [access, api, query],
   );
   useEffect(() => {
     void load();
@@ -169,16 +163,9 @@ export function AdminErrorLogsPage({
             <h1>报错日志</h1>
             <p>自动汇集服务端和已授权插件的错误，按编号定位每次失败。</p>
           </div>
-          <a href="/admin">返回运营概览</a>
+          {state === "ready" && <a href="/admin">返回运营概览</a>}
         </header>
-        {state === "reauthentication" && onReauthenticate ? (
-          <AdminReauthenticationGate
-            onReauthenticate={async (password) => {
-              await onReauthenticate(password);
-              await load(undefined, true);
-            }}
-          />
-        ) : state === "denied" ? (
+        {state === "denied" ? (
           <p role="alert">没有查看报错日志的权限</p>
         ) : state === "error" ? (
           <section className="admin-gate">

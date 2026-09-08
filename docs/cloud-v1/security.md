@@ -344,15 +344,20 @@ owner context、generation/reservation 归属、task 成功或失败终态、价
 - 管理页只有运营元数据，不实现正文搜索、代登录或任意 SQL。紧急排障依赖 request ID 和无正文指标。
 - 审计记录管理员的邀请、启停、额度和设备撤销动作，不记录秘密或用户正文。
 - 普通邀请的一次性 fragment 只在创建响应后的组件内存显示。链接丢失时不得从数据库、日志或幂等
-  snapshot 还原明文；Operator 重新认证后只读取白名单生命周期时间戳，撤销对应“可领取”邀请，再按需
+  snapshot 还原明文；Operator 可直接读取白名单生命周期时间戳，近期重新认证后撤销对应“可领取”邀请，再按需
   创建新邀请。无法唯一定位时先撤销所有可能受影响的可领取邀请，不能留下未知有效链接。确认发起撤销
   当前邀请时立即清除组件内的一次性输出；响应不确定时先重读权威状态，期间不再显示撤销按钮。已领取、
   已撤销和已过期项也不提供撤销按钮。
-- Operator GET 只接受 active/full Cookie session、显式 operator role 和 15 分钟内重新认证；mutation 另
-  要求固定 Origin、CSRF 与 Idempotency-Key。DataRightsSession 和 Extension token 不能访问管理端。
-- `/admin` 对首次统一 `forbidden` 只提供既有 password reauthentication，不在客户端推断是角色缺失还是
-  recent-auth 过期。密码只存在于受控输入和组件内存，不进入 URL、日志、状态文案或 Web Storage；成功
-  必须轮换 CSRF 并重新请求服务端 access，第二次仍拒绝即显示统一无权限页，不得绕过 API 安全门。
+- Operator GET（包括角色查询和报错日志）只接受 active/full Cookie session 与显式
+  `admin_roles.role=operator`，不要求近期重新认证。mutation 额外要求 15 分钟内重新认证、固定 Origin、
+  CSRF 与 Idempotency-Key。DataRightsSession 和 Extension token 不能访问管理端；邮箱不参与角色授权。
+- `/admin` 和日志页收到 GET `forbidden` 即关闭管理内容，不引导普通账号输入密码。管理员入口只在
+  服务端 access 成功后展示；导航显隐不能替代每个管理 SQL 函数独立执行的 `require_admin_operator`。
+- 只有已通过 access 的 `/admin` 才提供默认收起的“验证敏感操作”，用户主动打开后输入当前账号登录密码。
+  密码只存在于受控输入和组件内存，不进入 URL、日志、状态文案或 Web Storage；验证成功轮换 session/CSRF
+  并重新请求 access，角色被撤销时关闭管理内容。验证本身不重放写请求，也不重建邀请面板或丢弃未知结果。
+  初次邀请创建被明确拒绝可在验证后手动重试；先前结果未知的创建或 token 轮换只能用原幂等键恢复，
+  后续恢复收到 403 不能证明先前未执行，不能清除恢复键或重新创建。
   邀请 token 由服务端 secret 与 actor/key/strict request hash 派生，数据库只保存 hash；幂等 snapshot
   和审计都不得保存明文 token。停用只能 active→disabled，并原子撤销 Web/Extension session 与未完成 pairing；deleting
   不能由管理端恢复，Operator 不能停用自己。

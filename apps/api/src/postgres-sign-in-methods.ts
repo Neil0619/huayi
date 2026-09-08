@@ -2,6 +2,7 @@ import type { SignInMethod } from "@huayi/cloud-contracts";
 import type { TransactionSql } from "postgres";
 
 import { CloudFault } from "./cloud-fault.js";
+import { accountLearningTimezone } from "./account-learning-timezone.js";
 import { hashSecret } from "./security.js";
 
 type TrustedQuery = <T>(operation: (sql: TransactionSql) => Promise<T>) => Promise<T>;
@@ -28,7 +29,7 @@ export function createPostgresSignInMethods(options: { pepper: string }, trusted
       const [result] = await trusted(
         (sql) => sql<{ id: string | null }[]>`
         SELECT finalize_invitation(
-          ${hashSecret(claimTicket, options.pepper)}, ${userId}, ${email}, 'UTC', 5, ${method}
+          ${hashSecret(claimTicket, options.pepper)}, ${userId}, ${email}, ${accountLearningTimezone}, 5, ${method}
         )::text AS id
       `,
       );

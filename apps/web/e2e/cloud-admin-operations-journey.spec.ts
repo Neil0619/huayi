@@ -79,7 +79,7 @@ test("an operator manages metadata through the actual console", async ({ page })
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
-test("a signed-in non-operator reauthenticates once before admin metadata is denied", async ({
+test("a signed-in non-operator is denied immediately without a password detour", async ({
   page,
 }) => {
   const authority = createCloudBrowserAuthority({
@@ -97,13 +97,10 @@ test("a signed-in non-operator reauthenticates once before admin metadata is den
   await authority.install(page);
 
   await page.goto(`${webOrigin}/admin`);
-  await expect(
-    page.getByRole("heading", { name: "重新确认 Operator 身份", level: 1 }),
-  ).toBeVisible();
-  await page.getByLabel("当前密码").fill("correct horse battery staple");
-  await page.getByRole("button", { name: "重新确认并进入" }).click();
   await expect(page.getByRole("heading", { name: "无法进入运营控制台" })).toBeVisible();
-  expect(accessStatuses.length).toBeGreaterThanOrEqual(2);
+  await expect(page.locator("input[type='password']")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "验证敏感操作" })).toHaveCount(0);
+  expect(accessStatuses.length).toBeGreaterThanOrEqual(1);
   expect(accessStatuses.every((status) => status === 403)).toBe(true);
   await expect(page.getByText(learnerEmail)).toHaveCount(0);
   await expect(page.getByRole("button", { name: "创建邀请" })).toHaveCount(0);
@@ -118,14 +115,45 @@ test("a signed-in non-operator reauthenticates once before admin metadata is den
   ).toBe(true);
   expect(
     snapshot.requestFacts.filter((fact) => fact.path === "/v1/auth/reauthenticate/password"),
-  ).toEqual([
-    {
-      authenticatedAs: "web",
-      method: "POST",
-      path: "/v1/auth/reauthenticate/password",
-      proof: "write-valid",
-    },
-  ]);
+  ).toEqual([]);
   expect(await page.evaluate(() => [localStorage.length, sessionStorage.length])).toEqual([0, 0]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+test("an old operator session enters directly and verifies only before manually retrying a sensitive write", async ({
+  page,
+}) => {
+  const authority = createCloudBrowserAuthority({
+    authenticated: true,
+    seed: "operator-console",
+    operatorSessionNeedsVerification: true,
+  });
+  await authority.install(page);
+  await page.goto(`${webOrigin}/admin`);
+  await expect(page.getByRole("heading", { name: "运营控制台", level: 1 })).toBeVisible();
+  await expect(page.getByText(learnerEmail)).toBeVisible();
+  await expect(page.locator("input[type='password']")).toHaveCount(0);
+  await page.getByRole("button", { name: "创建邀请", exact: true }).click();
+  await expect(page.getByText(/服务器已拒绝创建邀请/)).toBeVisible();
+  await page.getByRole("button", { name: "验证敏感操作", exact: true }).click();
+  await page.getByLabel("当前账号登录密码", { exact: true }).fill("correct horse battery staple");
+  await page.getByRole("button", { name: "确认敏感操作", exact: true }).click();
+  await expect(page.getByText(/验证完成/)).toBeVisible();
+  await expect(page.locator("input[type='password']")).toHaveCount(0);
+  await expect(page.locator("output")).toHaveCount(0);
+  expect(
+    authority
+      .snapshot()
+      .requestFacts.filter(
+        (fact) => fact.method === "POST" && fact.path === "/v1/admin/invitations",
+      ),
+  ).toHaveLength(1);
+  await page.getByRole("button", { name: "创建邀请", exact: true }).click();
+  await expect(page.locator("output")).toHaveText(`/join#${invitationToken}`);
+  expect(
+    authority
+      .snapshot()
+      .requestFacts.filter((fact) => fact.path === "/v1/auth/reauthenticate/password"),
+  ).toHaveLength(1);
+  expect(await page.evaluate(() => [localStorage.length, sessionStorage.length])).toEqual([0, 0]);
 });

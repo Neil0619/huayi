@@ -162,8 +162,8 @@ export async function loadPracticeSession(
 }
 
 export async function requireActiveProfile(query: AnalysisQuery, ownerUserId: string) {
-  const rows = await query.rows<{ daily_goal: number; status: string; timezone: string }>(
-    "SELECT status,timezone,daily_goal FROM user_profiles WHERE user_id=$1",
+  const rows = await query.rows<{ daily_goal: number; status: string }>(
+    "SELECT status,daily_goal FROM user_profiles WHERE user_id=$1",
     [ownerUserId],
   );
   if (rows[0]?.status !== "active") throw new CloudFault("forbidden", "Account is not active.");

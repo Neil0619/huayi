@@ -1,3 +1,4 @@
+import { compactAnalysisFixture as output } from "./test-support/compact-analysis-fixture.js";
 import { contractFixtures, webDeepAnalysisSchema } from "@huayi/cloud-contracts";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod/v3";
@@ -14,12 +15,7 @@ const command = {
   input: contractFixtures.startAnalysisRequest,
   sentences: [{ analysisUnitId: "u1", ordinal: 0, sourceText: "To be frank, this works." }],
 };
-function output() {
-  return structuredClone({
-    candidates: [...contractFixtures.analysis.candidates],
-    result: contractFixtures.analysis.result,
-  });
-}
+
 function response(content: unknown): Response {
   return new Response(
     JSON.stringify({
@@ -240,8 +236,11 @@ describe("Web model diagnostic integration", () => {
           : stage === "output-schema"
             ? { candidates: [], result: {} }
             : content;
-      const sentences = stage === "unit-count" ? [] : command.sentences;
-      if (stage === "content-schema") content.candidates = [];
+      const sentences = command.sentences;
+      if (stage === "unit-count")
+        content.result.sentences.push(...structuredClone(content.result.sentences));
+      if (stage === "content-schema" && content.result.sentences[0]?.candidates[0])
+        content.result.sentences[0].candidates[0].text = "foreign exact quote";
       const fetch = vi.fn(async () => response(invalid));
       await expect(
         createDeepSeekAnalysisModel({ apiKey: "never-log-key", fetch, prices }).analyze({

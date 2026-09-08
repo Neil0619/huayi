@@ -1,16 +1,14 @@
 import { analysisContentSchema, contractFixtures } from "@huayi/cloud-contracts";
 import { describe, expect, it, vi } from "vitest";
-
 import { simulatedProviderResponse } from "./acceptance-provider-response.js";
 import {
   createDeepSeekAnalysisModel,
   type DeepSeekAnalysisFetch,
 } from "./deepseek-analysis-model.js";
-
-const sentences = [
-  { analysisUnitId: "u1", ordinal: 0, sourceText: "To be frank, this works." },
-  { analysisUnitId: "u2", ordinal: 1, sourceText: "To be frank, this helps." },
-];
+import { compactAnalysisFixture } from "./test-support/compact-analysis-fixture.js";
+const sentences = ["To be frank, this works.", "To be frank, this helps."].map(
+  (sourceText, ordinal) => ({ sourceText, ordinal, analysisUnitId: `u${ordinal + 1}` }),
+);
 const command = {
   input: {
     ...contractFixtures.startAnalysisRequest,
@@ -18,32 +16,25 @@ const command = {
   },
   sentences,
 };
-const usage = { cachedInputTokens: 0, inputTokens: 64, outputTokens: 32 };
-const billedCall = { costMicroUsd: 128, usage };
-
-function privateOutput(ordinals: number[]) {
-  const candidates = ordinals.map((ordinal, index) => ({
-    ...contractFixtures.analysis.candidates[0],
-    analysisUnitId: index < 2 ? "u1" : "u2",
-    id: ["candidate-z", "candidate-a", "candidate-y", "candidate-b"][index] ?? "candidate-extra",
-    ordinal,
-    payload: { ...contractFixtures.analysis.candidates[0].payload, usageZh: `用法 ${index + 1}。` },
-  }));
+const usage = { cachedInputTokens: 0, inputTokens: 64, outputTokens: 32 },
+  billedCall = { costMicroUsd: 128, usage };
+function privateOutput(counts: number[]) {
+  const base = compactAnalysisFixture();
   return {
-    candidates,
+    ...base,
     result: {
-      ...contractFixtures.analysis.result,
-      sentences: sentences.map((sentence) => ({
-        ...contractFixtures.analysis.result.sentences[0],
-        ...sentence,
-        candidateIds: candidates
-          .filter((c) => c.analysisUnitId === sentence.analysisUnitId)
-          .map((c) => c.id),
+      ...base.result,
+      sentences: sentences.map((_s, unit) => ({
+        ...base.result.sentences[0],
+        candidates: Array.from({ length: counts[unit] ?? 0 }, (_, index) => ({
+          ...contractFixtures.analysis.candidates[0].payload,
+          text: "To be frank",
+          usageZh: `用法 ${unit + 1}-${index + 1}。`,
+        })),
       })),
     },
   };
 }
-
 function model(fetch: DeepSeekAnalysisFetch) {
   return createDeepSeekAnalysisModel({
     apiKey: "offline-test-key",
@@ -55,85 +46,67 @@ function model(fetch: DeepSeekAnalysisFetch) {
     },
   });
 }
-
 function expectPreserved(content: unknown, output: ReturnType<typeof privateOutput>) {
-  const parsed = analysisContentSchema.parse(content);
-  expect(parsed.candidates.map((candidate) => candidate.ordinal)).toEqual([0, 1, 2, 3]);
-  expect(parsed.candidates).toEqual(
-    output.candidates.map((candidate, ordinal) => ({ ...candidate, ordinal })),
-  );
-  expect(parsed.result).toEqual(output.result);
+  const parsed = analysisContentSchema.parse(content),
+    payloads = output.result.sentences.flatMap((s) => s.candidates);
+  expect(parsed.candidates.map((c) => c.ordinal)).toEqual(payloads.map((_p, i) => i));
+  expect(parsed.candidates.map((c) => c.payload)).toEqual(payloads);
+  let ordinal = 0;
+  expect(parsed.result).toEqual({
+    ...output.result,
+    type: "sentence-passage-analysis-v2",
+    sentences: output.result.sentences.map(({ candidates, ...teaching }, i) => ({
+      ...teaching,
+      ...sentences[i],
+      candidateIds: candidates.map(() => `c${++ordinal}`),
+    })),
+  });
 }
 
-describe("DeepSeek candidate order canonicalization", () => {
-  it.each<[string, number[]]>([
-    ["one-based", [1, 2, 3, 4]],
-    ["non-contiguous and descending", [9, 2, 199, 4]],
-    ["per-unit reset", [0, 1, 0, 1]],
+describe("trusted DeepSeek candidate order", () => {
+  it.each([
+    [2, 2],
+    [3, 1],
+    [0, 4],
   ])(
-    "accepts %s ordinals in one call without changing candidates or unit references",
-    async (_name, ordinals) => {
-      const output = privateOutput(ordinals);
-      const fetch = vi.fn<DeepSeekAnalysisFetch>(async () =>
-        simulatedProviderResponse(output, false),
-      );
-      const result = await model(fetch).analyze(command);
-      expectPreserved(result.content, output);
+    "derives global contiguous order across local arrays %j without changing payloads",
+    async (...counts) => {
+      const output = privateOutput(counts),
+        fetch = vi.fn<DeepSeekAnalysisFetch>(async () => simulatedProviderResponse(output, false));
+      const generated = await model(fetch).analyze(command);
+      expectPreserved(generated.content, output);
       expect(fetch).toHaveBeenCalledTimes(1);
-      expect(result.billedCalls).toEqual([billedCall]);
+      expect(generated.billedCalls).toEqual([billedCall]);
     },
   );
-
-  it("canonicalizes repair ordinals after an unrelated malformed first response within two calls", async () => {
-    const output = privateOutput([1, 2, 1, 2]);
+  it("derives the same order after one malformed first response and bills both calls", async () => {
+    const output = privateOutput([2, 2]);
     const fetch = vi
       .fn<DeepSeekAnalysisFetch>()
-      .mockResolvedValueOnce(simulatedProviderResponse({ candidates: [], result: {} }, false))
+      .mockResolvedValueOnce(simulatedProviderResponse({ result: {} }, false))
       .mockResolvedValueOnce(simulatedProviderResponse(output, false));
-    const result = await model(fetch).analyze(command);
-    expectPreserved(result.content, output);
+    const generated = await model(fetch).analyze(command);
+    expectPreserved(generated.content, output);
     expect(fetch).toHaveBeenCalledTimes(2);
-    expect(result.billedCalls).toEqual([billedCall, billedCall]);
-    expect(result.usageCostMicroUsd).toBe(256);
+    expect(generated.billedCalls).toEqual([billedCall, billedCall]);
+    expect(generated.usageCostMicroUsd).toBe(256);
   });
-
-  it.each(["duplicate ids", "unknown reference", "wrong unit"])(
-    "still rejects and bills %s",
-    async (fault) => {
-      const output = privateOutput([1, 2, 1, 2]);
-      if (fault === "duplicate ids" && output.candidates[1] && output.candidates[0]) {
-        output.candidates[1].id = output.candidates[0].id;
-        const unit = output.result.sentences[0];
-        if (unit) unit.candidateIds = [output.candidates[0].id];
-      }
-      if (fault === "unknown reference")
-        output.result.sentences[0]?.candidateIds.push("candidate-unknown");
-      if (fault === "wrong unit" && output.candidates[0])
-        output.candidates[0].analysisUnitId = "u2";
-      const fetch = vi.fn<DeepSeekAnalysisFetch>(async () =>
-        simulatedProviderResponse(output, false),
-      );
-      await expect(model(fetch).analyze(command)).rejects.toMatchObject({
-        code: "model_output_invalid",
-        billedCalls: [billedCall, billedCall],
-        usageCostMicroUsd: 256,
-      });
-      expect(fetch).toHaveBeenCalledTimes(2);
-    },
-  );
-
-  it.each([undefined, -1, 0.5, 200])(
-    "does not mask invalid private ordinal %s",
-    async (ordinal) => {
-      const output = privateOutput([0, 1, 2, 3]);
-      const invalidOutput = {
+  it.each(["analysisUnitId", "id", "ordinal", "candidateIds", "modelMetadata"])(
+    "rejects injected %s rather than silently overwriting it",
+    async (key) => {
+      const output = privateOutput([2, 2]);
+      const invalid = {
         ...output,
-        candidates: output.candidates.map((candidate, index) =>
-          index === 0 ? { ...candidate, ordinal } : candidate,
-        ),
+        result: {
+          ...output.result,
+          sentences: output.result.sentences.map((s) => ({
+            ...s,
+            candidates: s.candidates.map((p) => ({ ...p, [key]: "untrusted" })),
+          })),
+        },
       };
       const fetch = vi.fn<DeepSeekAnalysisFetch>(async () =>
-        simulatedProviderResponse(invalidOutput, false),
+        simulatedProviderResponse(invalid, false),
       );
       await expect(model(fetch).analyze(command)).rejects.toMatchObject({
         code: "model_output_invalid",
@@ -143,4 +116,18 @@ describe("DeepSeek candidate order canonicalization", () => {
       expect(fetch).toHaveBeenCalledTimes(2);
     },
   );
+  it("rejects the obsolete provider-controlled global references without a private-format fallback", async () => {
+    const legacy = {
+      candidates: contractFixtures.analysis.candidates,
+      result: contractFixtures.analysis.result,
+    };
+    const fetch = vi.fn<DeepSeekAnalysisFetch>(async () =>
+      simulatedProviderResponse(legacy, false),
+    );
+    await expect(model(fetch).analyze(command)).rejects.toMatchObject({
+      code: "model_output_invalid",
+      usageCostMicroUsd: 256,
+    });
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
 });

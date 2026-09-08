@@ -2,6 +2,7 @@ import { accountPreferencesResponseSchema, type AccountPreferences } from "@huay
 
 import type { AnalysisDatabase } from "./analysis-database.js";
 import type { AccountPreferencesRepository } from "./account-preferences-app.js";
+import { accountLearningTimezone } from "./account-learning-timezone.js";
 import { CloudFault } from "./cloud-fault.js";
 
 interface PreferencesRow {
@@ -10,11 +11,10 @@ interface PreferencesRow {
   extension_query_model_mode: "byok" | "platform";
   preferences_revision: number;
   study_capture_mode: "automatic" | "manual";
-  timezone: string;
   updated_at: Date;
 }
 
-const projection = `timezone,daily_goal,extension_query_model_mode,study_capture_mode,
+const projection = `daily_goal,extension_query_model_mode,study_capture_mode,
   cloud_word_copy_mode,preferences_revision,updated_at`;
 
 function project(row: PreferencesRow | undefined): AccountPreferences {
@@ -25,7 +25,7 @@ function project(row: PreferencesRow | undefined): AccountPreferences {
     extensionQueryModelMode: row.extension_query_model_mode,
     revision: row.preferences_revision,
     studyCaptureMode: row.study_capture_mode,
-    timezone: row.timezone,
+    timezone: accountLearningTimezone,
     updatedAt: row.updated_at.toISOString(),
   });
 }
@@ -51,7 +51,7 @@ export function createPostgresAccountPreferences(
         const row = (
           await tenant.rows<PreferencesRow>(
             `UPDATE user_profiles SET
-                 timezone=COALESCE($2,timezone), daily_goal=COALESCE($3,daily_goal),
+                 timezone=$2, daily_goal=COALESCE($3,daily_goal),
                  extension_query_model_mode=COALESCE($4,extension_query_model_mode),
                  study_capture_mode=COALESCE($5,study_capture_mode),
                  cloud_word_copy_mode=COALESCE($6,cloud_word_copy_mode),
@@ -59,7 +59,7 @@ export function createPostgresAccountPreferences(
                WHERE user_id=$1 AND preferences_revision=$7 RETURNING ${projection}`,
             [
               ownerUserId,
-              preferences.timezone ?? null,
+              accountLearningTimezone,
               preferences.dailyGoal ?? null,
               preferences.extensionQueryModelMode ?? null,
               preferences.studyCaptureMode ?? null,

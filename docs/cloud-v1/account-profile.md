@@ -51,6 +51,7 @@ type AccountResource = {
 - `email` 复用规范化 `accountEmailSchema`；
 - `preferences` 直接复用 `accountPreferencesResponseSchema`，包含 timezone、dailyGoal、
   extensionQueryModelMode、studyCaptureMode、cloudWordCopyMode、revision、updatedAt；
+- timezone 是兼容字段，统一返回 `Asia/Shanghai`，不再读取旧账号保存的其他时区；
 - `extensionSessions` 最多 100 项，按 `(createdAt,id)` 升序；每项只含 id、deviceLabel、createdAt、
   lastUsedAt、expiresAt；
 - `minSupportedExtensionVersion` 复用安全整数三段版本 schema，不接受前导零、两段版本或超安全整数；

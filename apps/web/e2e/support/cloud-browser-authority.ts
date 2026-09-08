@@ -144,7 +144,9 @@ export function createCloudBrowserAuthority(
       seed.seed === "google-only-sign-in-methods" ||
       seed.seed === "stale-password-sign-in-methods"
       ? seed.seed
-      : null,
+      : seed.seed === "operator-console"
+        ? "password-only-sign-in-methods"
+        : null,
   );
   const words = createCloudBrowserWordAuthority();
   const wordbooks = createCloudBrowserWordbookAuthority(words);
@@ -459,6 +461,9 @@ export function createCloudBrowserAuthority(
     if (
       await adminOperations.handle(route, {
         authentication,
+        recentAuthentication: (request) =>
+          !seed.operatorSessionNeedsVerification ||
+          (request.headers().cookie ?? "").includes("huayi_session=cloud-e2e-linked-web-session"),
         json,
         record,
         reject,

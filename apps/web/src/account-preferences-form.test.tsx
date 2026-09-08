@@ -52,12 +52,11 @@ describe("account preferences form", () => {
     expect(container.textContent).not.toContain("BYOK");
     expect(container.textContent).not.toContain("IANA");
 
-    const timezone = container.querySelector<HTMLInputElement>("[name='timezone']");
     const dailyGoal = container.querySelector<HTMLInputElement>("[name='dailyGoal']");
-    expect(timezone?.value).toBe("UTC");
+    expect(container.querySelector("[name='timezone']")).toBeNull();
+    expect(container.textContent).toContain("统一按北京时间安排每日练习");
     expect(dailyGoal?.value).toBe("3");
-    if (timezone === null || dailyGoal === null) throw new Error("Expected preference controls.");
-    await change(timezone, "Asia/Shanghai");
+    if (dailyGoal === null) throw new Error("Expected daily goal control.");
     await change(dailyGoal, "5");
     const modelMode = container.querySelector<HTMLSelectElement>(
       "[name='extensionQueryModelMode']",
@@ -77,7 +76,6 @@ describe("account preferences form", () => {
       expectedRevision: 1,
       extensionQueryModelMode: "byok",
       studyCaptureMode: "manual",
-      timezone: "Asia/Shanghai",
     });
     expect(container.querySelector("[role='status']")?.textContent).toContain("设置已保存");
     expect(container.textContent).toContain("已连接的扩展");
@@ -96,15 +94,15 @@ describe("account preferences form", () => {
         <AccountPreferencesForm api={api} initialPreferences={current} />,
       ),
     );
-    const timezone = container.querySelector<HTMLInputElement>("[name='timezone']");
-    if (timezone === null) throw new Error("Expected timezone control.");
-    await change(timezone, "Asia/Tokyo");
+    const dailyGoal = container.querySelector<HTMLInputElement>("[name='dailyGoal']");
+    if (dailyGoal === null) throw new Error("Expected daily goal control.");
+    await change(dailyGoal, "8");
     await act(async () =>
       container.querySelector<HTMLButtonElement>("button[type='submit']")?.click(),
     );
     expect(container.querySelector("[role='alert']")?.textContent).toContain("保存失败");
     expect(container.querySelector("[role='alert']")?.textContent).toContain("修改已保留");
     expect(container.querySelector("[role='alert']")?.textContent).not.toContain("revision");
-    expect(timezone?.value).toBe("Asia/Tokyo");
+    expect(dailyGoal.value).toBe("8");
   });
 });

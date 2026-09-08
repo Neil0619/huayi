@@ -188,7 +188,7 @@ callback 只接受已经存在且状态为 active/disabled 的同 ID profile，�
 JSON object，以 LF 结束：
 
 1. `manifest`：schemaVersion=1、exportedAt、product=`huayi-cloud`；
-2. `account-preferences`：timezone、dailyGoal、extensionQueryModelMode、studyCaptureMode、
+2. `account-preferences`：timezone（有效值固定 `Asia/Shanghai`）、dailyGoal、extensionQueryModelMode、studyCaptureMode、
    cloudWordCopyMode、revision、createdAt/updatedAt；
 3. `account-sign-in-methods`：按 password、google 固定顺序导出 1–2 项 method 与 linkedAt，不含 Auth
    identity ID、subject、email、token 或 owner；

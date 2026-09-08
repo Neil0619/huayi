@@ -1,6 +1,7 @@
 import type { TransactionSql } from "postgres";
 
 import { CloudFault } from "./cloud-fault.js";
+import { accountLearningTimezone } from "./account-learning-timezone.js";
 import { hashSecret } from "./security.js";
 
 interface PostgresPasswordRegistrationRecoveryOptions {
@@ -19,7 +20,7 @@ export function createPostgresPasswordRegistrationRecovery(
     const [result] = await trusted(
       (sql) => sql<{ id: string | null }[]>`
         SELECT resume_interrupted_password_registration(
-          ${hashSecret(invitationToken, options.pepper)},${userId},${email},'UTC',5
+          ${hashSecret(invitationToken, options.pepper)},${userId},${email},${accountLearningTimezone},5
         )::text AS id
       `,
     );

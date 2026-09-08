@@ -274,16 +274,7 @@ export function CloudApp({
         </WorkspaceShell>
       );
     if (page === "error-logs" && adminApi && errorLogsApi)
-      return (
-        <AdminErrorLogsPage
-          api={errorLogsApi}
-          access={adminApi.access}
-          onReauthenticate={async (password) => {
-            const auth = await identity.reauthenticatePassword(password, csrfToken);
-            setCsrfToken(auth.csrfToken);
-          }}
-        />
-      );
+      return <AdminErrorLogsPage api={errorLogsApi} access={adminApi.access} />;
     if (page === "admin" && adminApi !== undefined)
       return (
         <AdminOperationsPage

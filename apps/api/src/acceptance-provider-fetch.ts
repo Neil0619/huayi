@@ -36,17 +36,8 @@ const providerRequestSchema = z.strictObject({
 });
 const analysisInputSchema = z.strictObject({
   selectionKind: z.enum(["phrase", "sentence", "passage"]),
-  sentences: z
-    .array(
-      z.strictObject({
-        analysisUnitId: z.string().regex(/^u(?:[1-9]|[1-3]\d|40)$/u),
-        ordinal: z.number().int().min(0).max(39),
-        sourceText: textSchema.max(2_000),
-      }),
-    )
-    .min(1)
-    .max(40),
-  sourceText: textSchema.max(2_000),
+  units: z.array(textSchema.max(2_000)).min(1).max(40),
+  learnerContext: textSchema.max(1000).optional(),
 });
 const aliasedItemSchema = z.strictObject({
   content: itemContentSchema,
@@ -105,53 +96,41 @@ function parseUntrustedInput(message: string): unknown {
 function analysisOutput(rawInput: unknown) {
   const input = analysisInputSchema.parse(rawInput);
   const candidate = {
-    analysisUnitId: "u1",
-    id: "candidate-1",
-    ordinal: 0,
-    payload: {
-      meaningZh: `${SIMULATED_MARKER}示例含义，仅用于本机流程验收。`,
-      register: "neutral",
-      text: boundedExpression(input.sourceText),
-      type: "expression",
-      usageZh: `${SIMULATED_MARKER}示例用法，不代表真实模型建议。`,
-    },
+    meaningZh: `${SIMULATED_MARKER}示例含义，仅用于本机流程验收。`,
+    register: "neutral",
+    text: boundedExpression(input.units[0] ?? ""),
     type: "expression",
+    usageZh: `${SIMULATED_MARKER}示例用法，不代表真实模型建议。`,
   } as const;
   if (input.selectionKind === "phrase") {
     return {
       previewZh: `${SIMULATED_MARKER}先理解原文，再选择可以复用的表达。`,
-      candidates: [candidate],
       result: {
-        analysisUnitId: "u1",
-        candidateIds: [candidate.id],
+        candidates: [candidate],
         contextualMeaningZh: `${SIMULATED_MARKER}这是固定的语境义演示。`,
         register: "neutral",
         structureAndCollocationZh: [`${SIMULATED_MARKER}这是固定的结构与搭配演示。`],
         translationZh: `${SIMULATED_MARKER}示例翻译。`,
-        type: "phrase-analysis-v2",
         usageNotes: [],
       },
     };
   }
   return {
     previewZh: `${SIMULATED_MARKER}先理解原文，再选择可以复用的表达。`,
-    candidates: [candidate],
     result: {
       overall: {
         contextAndToneZh: `${SIMULATED_MARKER}这是固定的语气演示。`,
         translationZh: `${SIMULATED_MARKER}示例翻译。`,
         understandingZh: `${SIMULATED_MARKER}这是固定的整体理解演示。`,
       },
-      sentences: input.sentences.map((sentence, index) => ({
-        ...sentence,
-        candidateIds: index === 0 ? [candidate.id] : [],
+      sentences: input.units.map((_sentence, index) => ({
+        candidates: index === 0 ? [candidate] : [],
         expressions: [],
         grammar: [],
         languageNotes: [],
         structure: [],
         translationZh: `${SIMULATED_MARKER}第 ${index + 1} 个分析单元的示例翻译。`,
       })),
-      type: "sentence-passage-analysis-v2",
     },
   };
 }
@@ -287,7 +266,7 @@ function practiceOutput(kind: PracticeKind, rawInput: unknown) {
 }
 
 function simulatedContent(system: string, rawInput: unknown) {
-  if (system.includes("You analyze English for a Chinese learner.")) {
+  if (system.includes("Return one JSON object only. Put previewZh first, followed by result.")) {
     return analysisOutput(rawInput);
   }
   if (system.includes("Huayi's compact English query engine")) {

@@ -7,7 +7,7 @@ Web production bundle 的 Operator/非 Operator 离线 journey 并完成复审�
 
 ## 1. 目标与范围
 
-本阶段让具有显式 `operator` 角色且刚完成身份验证的 Operator 在 Web `/admin`：
+本阶段让具有显式 `operator` 角色和 active/full Web 会话的 Operator 在 Web `/admin`：
 
 1. 查看账号、邀请、当前 UTC 月聚合用量和 OperationalAuditEvent；
 2. 创建或撤销邀请，且创建成功时只显示一次邀请 fragment URL；
@@ -37,8 +37,8 @@ Phase 19 分为三个可独立验收的纵向切片：
 Operator 是普通 `HuayiAccount` 加显式 `admin_roles.role=operator`，不是绕过业务规则的超级用户。
 权限固定为：
 
-- 管理 GET：要求 active/full Web session、operator role、最近认证不超过 15 分钟；GET 不要求 CSRF；
-- 管理 mutation：在上述条件外还要求固定 Web Origin、CSRF 和 `Idempotency-Key`；
+- 管理 GET（含 access、usage、账号、邀请、审计和报错日志）：要求 active/full Web session 和 operator role；不要求近期认证或 CSRF；
+- 管理 mutation：额外要求 15 分钟内重新认证、固定 Web Origin、CSRF 和 `Idempotency-Key`；
 - `DataRightsSession`、Extension session、过期 session 或缺少角色都不能访问 `/v1/admin/*`；
 - production 只通过受控 Postgres module 读取白名单投影；Supabase service role 不用于管理页查询。
 
@@ -203,16 +203,21 @@ Web 只依赖更窄的 `AdminConsoleApi`，不能获得 SQL、role mutation、se
 
 ## 5. Web `/admin`
 
-页面固定四区：运营概览、账号、邀请、审计。首次统一 `forbidden` 不能让客户端区分非 Operator 与
-近期认证过期，因此先显示密码重新认证门；重新认证后服务端仍拒绝才显示统一无权限页面。页面不通过
-隐藏导航作为授权，Operator 入口只在服务器证明角色后显示。
+页面固定四区：运营概览、账号、邀请、审计。有效完整会话与显式 Operator 角色足以进入和读取，
+不显示第二次密码表单。管理 GET `forbidden` 直接显示无权限并关闭内容；页面不通过隐藏导航作为授权，
+Operator 入口只在服务器证明角色后显示。角色唯一权威是既有 `admin_roles`，不按邮箱授权、不新增角色或迁移。
+
+已通过 access 的页面提供默认收起的“验证敏感操作”。用户主动打开后使用当前账号登录密码验证；成功轮换
+session/CSRF 并重读 access，保持现有面板和未知请求状态，不自动重放任何写操作。敏感写操作过期时，
+可通过该入口验证后手动重试；若先前创建/轮换结果未知，后续 403 不改变其未知状态，必须使用原键安全恢复。
 
 - loading/empty/error/retry 分区独立；一个区失败不清空其他已确认数据；
 - 账号按 email/status 筛选并分页；详情卡只显示公开资源；
 - 停用、设备撤销、邀请撤销、kill switch 都要求二步确认；停用明确说明会退出所有设备；
 - 额度编辑使用 micro-USD 的人民币/美元文案换算只作显示，提交仍是整数 micro-USD；
 - 创建邀请期间按钮单飞并禁用；同一次尝试的随机幂等键只保存在组件内存，响应不确定时只能用同一键
-  恢复同一邀请/path，不能生成新键重试；成功后才清除该键；
+  恢复同一邀请/path，不能生成新键重试；成功后清除该键。首次创建被明确 forbidden 拒绝时可以清除，
+  后续恢复被拒绝时仍保留未知结果和原键；
 - 创建邀请成功后 path 只保存在当前组件内存，明确“仅显示一次”；开始新尝试会先清除旧 path，用户
   离开/刷新即丢弃；
 - 邀请列表始终显示四态标签，只为“可领取”项显示二步撤销；确认发起撤销当前刚创建项时立即从组件
@@ -243,7 +248,8 @@ Web 只依赖更窄的 `AdminConsoleApi`，不能获得 SQL、role mutation、se
 
 - schema 拒绝 owner、正文、token、URL（创建 response 的固定 fragment path 除外）、未知字段和非有限数；
 - cursor 篡改、跨 users/invitations/audit 复用、非法 filter 在 SQL 前失败；
-- operator 角色缺失、认证超过 15 分钟、data-rights/Extension session、GET 伪造 CSRF 都不能授权；
+- operator 角色缺失、data-rights/Extension session 都不能授权；GET 伪造 CSRF 不能代替角色，
+  认证超过 15 分钟的有效 Operator 会话可以读，但不能执行 mutation；
 - 管理 mutation 缺 Origin/CSRF/key、same key 不同 path/body、重复响应和并发重复写；
 - disable/enable 状态矩阵、自停用、deleting、session/pairing 撤销数量与单一 audit；
 - quota current/future period 校验、kill switch reserve 阻断/恢复、无 grant 和零分母 usage；
@@ -268,9 +274,8 @@ Web 只依赖更窄的 `AdminConsoleApi`，不能获得 SQL、role mutation、se
   `write-valid` request fact；
 - 刷新后一次性邀请 fragment 必须从 DOM 消失，不能进入 Web Storage 或公开 snapshot；用户/运营正文、
   Cookie、CSRF、幂等键和请求 body 同样不得进入公开证据；
-- 非 Operator 使用有效 full Cookie 访问 `/admin` 时，首次 access 固定 403 并显示统一密码重新认证门；
-  密码重新认证成功、CSRF 轮换后再次 access 仍固定 403，页面才显示统一拒绝视图，且全程不得请求
-  usage/users/invitations/audit；
+- 非 Operator 使用有效 full Cookie 访问 `/admin` 时，首次 access 403 立即显示拒绝视图，
+  不出现密码表单，也不请求 usage/users/invitations/audit 或密码重新认证；
 - 两条 journey 均覆盖 390px、reduced-motion、无横向溢出和空 Web Storage。它们只证明离线 bundle/
   adapter 组合，不替代真实 Operator 角色、部署 Cookie、告警或备份恢复演练。
 
@@ -285,9 +290,9 @@ Web 只依赖更窄的 `AdminConsoleApi`，不能获得 SQL、role mutation、se
 5. contracts/API/Web full tests、workspace typecheck/build、architecture/instructions/diff 和受影响 lint/format
    通过；
 6. 新增手写 source 小于 400 行，production 缺配置继续 fail closed。
-7. actual Web Operator journey 重读四区并完成筛选、停用、邀请和 kill switch；非 Operator 在首次
-   access 403 后只得到统一重新认证门，成功重新认证但再次 access 403 后失败关闭，且一次性邀请/正文/
-   秘密不进入持久化或公开证据。
+7. actual Web Operator journey 重读四区并完成筛选、停用、邀请和 kill switch；旧会话直接进入，敏感
+   写操作仍需验证并手动重试；非 Operator 在首次 access 403 后失败关闭，不提供密码入口。一次性邀请/
+   正文/秘密不进入持久化或公开证据。
 8. 邀请列表明确显示四态，丢失一次性链接可通过撤销对应可领取项安全收口；撤销响应丢失以 GET 恢复，
    不要求 token、不重复审计，也不扩大数据库角色权限。
 
@@ -301,7 +306,7 @@ Web 只依赖更窄的 `AdminConsoleApi`，不能获得 SQL、role mutation、se
   route、write header 与资源专用 cursor 输入；账号登录邮箱已进入 profile 与 AccountDataExport account
   record，ADR-0017 记录该投影边界。
 - API 已由单一 `AdminOperationsModule` 组合 Hono 和 Postgres adapter；旧 foundation admin HTTP route
-  已移除，旧非幂等 Postgres function 不再授予运行角色。新 adapter 强制 Operator + 15 分钟近期认证，
+  已移除，旧非幂等 Postgres function 不再授予运行角色。新 adapter 的 GET 强制 Operator，mutation 另要求 15 分钟近期认证，
   管理 GET 使用 Cookie，mutation 另要求 Origin、CSRF 和 Idempotency-Key。
 - bootstrap `0001` 新增 profile email 约束与 admin list/usage/execute functions；停用在同事务撤销 Web/
   Extension sessions、过期 pending/approved pairing 并只写一条审计。quota 只接受当前或未来 UTC 月首日，
@@ -388,3 +393,11 @@ Operator 在 `/admin` 近期密码认证后二步确认。新增实现与离线 
 state 已为 `complete`，只读诊断确认远端终态为 API/Web 19/12 Ready、零 in-flight，所以旧 18/11 控制面
 不得重放。当前新增独立 fresh-CSRF 19/12 one-shot 控制面仍是未提交离线候选；其提交、双平台门、fresh
 diagnose/preflight、API→Web 双关闭和 fresh readiness 全部完成后，才可另行批准一次新的 Hosted recovery。
+
+### 2026-09-08 角色准入与敏感操作验证分离
+
+当前准入以本文第 2、5、8 节为准：完整有效 Web 会话与既有 operator 角色直接访问控制台及报错日志。
+以上历史验收记录中的“进入前先重新认证”描述旧版本行为，不再作为当前准入契约。所有读取仍由 SQL
+独立检查 `require_admin_operator`；敏感 mutation 保留近期验证、Origin、CSRF、角色、幂等和审计门禁。
+无需修改数据库或发放角色。当前离线回归覆盖旧角色会话读取、普通角色与撤销角色拒绝、主动敏感验证、
+CSRF 轮换、验证后重新检查角色，以及未知邀请结果不自动重放、不丢失原幂等键。

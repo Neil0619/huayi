@@ -7,6 +7,7 @@ import {
 } from "@huayi/cloud-contracts";
 
 import type { AnalysisDatabase } from "./analysis-database.js";
+import { accountLearningTimezone } from "./account-learning-timezone.js";
 import { CloudFault } from "./cloud-fault.js";
 import type { PracticeRepository } from "./practice-module.js";
 import {
@@ -30,7 +31,7 @@ export function createPostgresPracticeRepository(database: AnalysisDatabase): Pr
         const profile = await requireActive(tenant, ownerUserId);
         const localDates = await tenant.rows<{ date: string }>(
           "SELECT (($1::timestamptz AT TIME ZONE $2)::date)::text AS date",
-          [now, profile.timezone],
+          [now, accountLearningTimezone],
         );
         const date = localDates[0]?.date;
         if (date === undefined) throw new CloudFault("invalid_request", "Local date unavailable.");
@@ -39,7 +40,7 @@ export function createPostgresPracticeRepository(database: AnalysisDatabase): Pr
             (schedule.level>=0 AND schedule.due_at < (($1::date + 1)::timestamp AT TIME ZONE $2)))
             ORDER BY CASE WHEN schedule.level=-1 THEN 1 ELSE 0 END,items.created_at,items.id
             LIMIT $3`,
-          [date, profile.timezone, profile.daily_goal],
+          [date, accountLearningTimezone, profile.daily_goal],
         );
         const current = await tenant.rows<{ id: string }>(
           `SELECT id::text FROM practice_sessions
@@ -63,7 +64,7 @@ export function createPostgresPracticeRepository(database: AnalysisDatabase): Pr
         }
         const progress = await tenant.rows<{ count: number }>(
           `SELECT count(DISTINCT links.learning_item_id)::integer AS count FROM practice_session_items links JOIN practice_sessions sessions ON sessions.id=links.session_id WHERE links.rating IS NOT NULL AND (COALESCE((to_jsonb(links)->>'rated_at')::timestamptz,sessions.completed_at) AT TIME ZONE $2)::date=$1::date`,
-          [date, profile.timezone],
+          [date, accountLearningTimezone],
         );
         return dailyPracticeQueueResponseSchema.parse({
           completedToday: progress[0]?.count ?? 0,
@@ -72,7 +73,7 @@ export function createPostgresPracticeRepository(database: AnalysisDatabase): Pr
           dailyGoal: profile.daily_goal,
           date,
           items: rows.map(mapItem),
-          timezone: profile.timezone,
+          timezone: accountLearningTimezone,
         });
       });
     },

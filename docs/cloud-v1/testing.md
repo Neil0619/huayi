@@ -29,7 +29,7 @@
   不覆盖用户核心字段；WordEntry 通过独立 words 流程测试；
 - SelectionKind 覆盖可信 SubtitleSentence、普通 DOM 句界、无标点短台词、phrase 与跨句 passage；
 - StudyCapture NFKC/引号/空白规范化、大小写/标点保留、kind 隔离和 hash collision fail closed；
-- 固定排期：新项、不会、勉强、掌握、60 天上限和用户时区边界；
+- 固定排期：新项、不会、勉强、掌握、60 天上限和北京时间换日边界；旧账号时区不影响队列与进度；
 - 一次对话内同一 item 只计一次；重复自评结果幂等；
 - micro-USD 价格计算、缓存/非缓存输入、输出、上限与整数舍入。
 
@@ -181,7 +181,7 @@ DeepSeek、生产价格行、部署、安装或 Chrome。
   清墓碑和 export 排除墓碑。Web/actual bundle 覆盖归档→独立不可逆确认→抹除→历史删除；完整矩阵见
   `learning-item-erasure.md`；
 - 练习：题目、答案延迟揭示、对话 3–5 轮、中途无纠错、最终反馈、排期原子推进；
-- 最小句子练习：服务器时钟+profile timezone 换日、due-first created/id 稳定顺序、新项补 dailyGoal、
+- 最小句子练习：服务器时钟+固定 Asia/Shanghai 换日、due-first created/id 稳定顺序、新项补 dailyGoal、
   active account/tenant 隔离；答案先持久化、awaiting-feedback 占 active、模型失败保留答案、显式 retry、
   lease 活跃抑制/过期接管/旧 token fencing；反馈后才能 rating，同 rating 重放、不同 rating 冲突且
   schedule 只推进一次。Web 覆盖 loading/empty/error/retry、丢失提交响应后重读权威、三种未完成状态恢复、
@@ -1675,7 +1675,7 @@ session is invalid.`；400 `invalid_request` 表示 runtime 数据库路径未�
 - macOS 与 Windows 真实 Chrome 分别验证 Web 配对三项偏好、普通网页、YouTube、退出/撤销、BYOK、
   本地凭据、平台查询、StudyCapture/当前卡撤销、两个 Inbox、本机/云端生词、离线 outbox 恢复和更新后
   旧标签失败关闭；
-- Web 在目标网络验证 Google OAuth 与邮箱密码后备路径、SSE、时区队列、导出下载和账号删除；
+- Web 在目标网络验证 Google OAuth 与邮箱密码后备路径、SSE、北京时间每日队列、导出下载和账号删除；
 - 经批准验证 DeepSeek 当前模型 ID、JSON、stream、usage、价格和超时；不得用一次真实 smoke 替代 fake
   回归；
 - 经批准验证欧路固定接口和扇贝人工提交，不自动点击、不上传凭据到 Huayi；

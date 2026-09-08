@@ -106,7 +106,7 @@ describe("Postgres admin operations", () => {
     };
   }
 
-  it("projects only operator-safe metadata and enforces operator plus recent authentication", async () => {
+  it("projects only operator-safe metadata and enforces the operator role", async () => {
     const { authorization, module } = setup();
     await expect(module.access(authorization)).resolves.toEqual({ role: "operator" });
     await expect(
@@ -125,9 +125,30 @@ describe("Postgres admin operations", () => {
       code: "forbidden",
     });
     const stale = setup(operator, new Date("2026-08-13T05:44:59.999Z"));
-    await expect(stale.module.access(stale.authorization)).rejects.toMatchObject({
-      code: "forbidden",
+    await expect(stale.module.access(stale.authorization)).resolves.toEqual({ role: "operator" });
+    await expect(stale.module.listUsers(stale.authorization, {})).resolves.toMatchObject({
+      items: expect.arrayContaining([expect.objectContaining({ id: account })]),
     });
+    await expect(stale.module.listInvitations(stale.authorization, {})).resolves.toEqual({
+      items: [],
+      nextCursor: null,
+    });
+    await expect(stale.module.listAuditEvents(stale.authorization, {})).resolves.toEqual({
+      items: [],
+      nextCursor: null,
+    });
+    await expect(stale.module.usage(stale.authorization)).resolves.toMatchObject({
+      accounts: { total: 3 },
+    });
+    const unauthorized = setup(outsider, new Date(0));
+    for (const read of [
+      () => unauthorized.module.access(unauthorized.authorization),
+      () => unauthorized.module.listUsers(unauthorized.authorization, {}),
+      () => unauthorized.module.listInvitations(unauthorized.authorization, {}),
+      () => unauthorized.module.listAuditEvents(unauthorized.authorization, {}),
+      () => unauthorized.module.usage(unauthorized.authorization),
+    ])
+      await expect(read()).rejects.toMatchObject({ code: "forbidden" });
     await expect(
       database.transaction(async (transaction) => {
         await transaction.exec("SET LOCAL ROLE huayi_context_setter");

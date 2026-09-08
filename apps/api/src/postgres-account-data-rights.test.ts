@@ -220,7 +220,7 @@ describe("Postgres account data rights", () => {
         recordType: "account-preferences",
         revision: 3,
         studyCaptureMode: "automatic",
-        timezone: "UTC",
+        timezone: "Asia/Shanghai",
       }),
       {
         methods: [{ linkedAt: "2026-08-12T00:05:00.000Z", method: "password" }],

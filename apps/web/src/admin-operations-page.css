@@ -3,6 +3,61 @@
   margin: 0 auto;
 }
 
+.admin-page-heading {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  margin-bottom: var(--space-5);
+}
+
+.admin-page-heading .admin-page-description {
+  max-width: 64ch;
+  margin-top: var(--space-3);
+  color: var(--text-secondary);
+  font-size: 0.9375rem;
+  line-height: 1.7;
+}
+
+.admin-page-navigation {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.admin-live:empty {
+  display: none;
+}
+
+.admin-sensitive-auth {
+  margin-bottom: var(--space-5);
+}
+
+.admin-sensitive-auth-toggle {
+  min-height: 36px;
+  padding: var(--space-1) var(--space-3);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.admin-sensitive-auth .admin-gate {
+  max-width: 36rem;
+  margin: var(--space-4) 0;
+  border-radius: var(--radius-md);
+}
+
+.admin-sensitive-auth .admin-gate p {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+.admin-sensitive-auth .admin-gate input {
+  min-width: 0;
+  padding: var(--space-2) var(--space-3);
+  color: var(--text-primary);
+  background: var(--surface-input);
+  font-weight: 400;
+}
+
 .admin-live {
   min-height: 1.5rem;
   color: var(--text-secondary);
@@ -92,14 +147,17 @@
 .admin-metrics dt,
 .admin-user-facts dt {
   color: var(--text-secondary);
-  font-weight: 700;
+  font-size: 0.875rem;
+  font-weight: 500;
 }
 
 .admin-metrics dd,
 .admin-user-facts dd {
   margin: var(--space-1) 0 0;
   font-size: 1.2rem;
-  font-weight: 800;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
 }
 
 .admin-filter {
@@ -109,8 +167,32 @@
   gap: var(--space-2) var(--space-3);
 }
 
-.admin-filter label:first-of-type {
-  grid-column: 1;
+.admin-filter-field {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-2);
+}
+
+.admin-filter-field label {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.admin-filter-field input,
+.admin-filter-field select {
+  width: 100%;
+  min-width: 0;
+  padding: var(--space-2) var(--space-3);
+  color: var(--text-primary);
+  background: var(--surface-input);
+  font-weight: 400;
+}
+
+.admin-user-card h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
 }
 
 .admin-filter input,
@@ -137,7 +219,7 @@
   border-radius: var(--radius-pill);
   background: var(--surface-tint);
   font-size: 0.75rem;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .admin-status-disabled,
@@ -236,6 +318,11 @@
 }
 
 @media (max-width: 42rem) {
+  .admin-page-heading {
+    grid-template-columns: 1fr;
+    gap: var(--space-4);
+  }
+
   .admin-section-heading,
   .admin-user-card > header,
   .admin-actions,
@@ -248,10 +335,6 @@
   .admin-filter,
   .admin-user-facts {
     grid-template-columns: 1fr;
-  }
-
-  .admin-filter label:first-of-type {
-    grid-column: auto;
   }
 }
 

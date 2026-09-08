@@ -21,7 +21,7 @@ import type {
   StudyCaptureReader,
 } from "./analysis-ports.js";
 import type { Clock } from "./security.js";
-import { segmentSentences } from "./analysis-segmentation.js";
+import { analysisSourceUnits } from "./analysis-segmentation.js";
 import { ANALYSIS_GENERATION_LEASE_MS } from "./analysis-timeouts.js";
 import {
   modelUsageFromError,
@@ -98,7 +98,7 @@ export function createAnalysisModule(dependencies: AnalysisDependencies) {
     capture?: CaptureContext,
   ): Promise<AsyncIterable<AnalysisEvent>> {
     const input = startAnalysisRequestSchema.parse(command.input);
-    const sentences = segmentSentences(input.sourceText);
+    const sentences = analysisSourceUnits(input);
     const requestId = dependencies.ids();
     const leaseToken = dependencies.ids();
     const recoveryLedgerId = dependencies.ids();

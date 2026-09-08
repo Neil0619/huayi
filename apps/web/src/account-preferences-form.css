@@ -1,0 +1,105 @@
+.account-preferences-card > p {
+  max-width: 68ch;
+  color: var(--text-secondary);
+  line-height: 1.7;
+}
+
+.account-preferences-card form {
+  display: grid;
+  margin-top: var(--space-6);
+  gap: var(--space-6);
+}
+
+.preferences-group {
+  min-width: 0;
+  margin: 0;
+  padding: var(--space-4) var(--space-5) var(--space-5);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--surface-subtle);
+}
+
+.preferences-group legend {
+  padding: 0 var(--space-2);
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.preferences-group-intro {
+  margin: 0 0 var(--space-4);
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+.preference-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(16rem, 0.95fr);
+  align-items: center;
+  padding: var(--space-4) 0;
+  border-top: 1px solid var(--border-default);
+  gap: var(--space-3) var(--space-6);
+}
+
+.preference-row:last-child {
+  padding-bottom: 0;
+}
+
+.account-preferences-card label {
+  display: block;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.account-preferences-card input,
+.account-preferences-card select {
+  width: 100%;
+  min-width: 0;
+  min-height: var(--control-height);
+  padding: var(--space-2) var(--space-3);
+  color: var(--text-primary);
+  background: var(--surface-input);
+  font-size: 1rem;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+.account-preferences-card .field-hint {
+  margin: var(--space-1) 0 0;
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  line-height: 1.6;
+}
+
+.preferences-save-row {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.preferences-save-row button {
+  color: var(--button-text);
+  background: var(--button-fill);
+}
+
+.preferences-save-row button:hover {
+  color: var(--button-text);
+  background: var(--button-fill-hover);
+}
+
+@media (max-width: 60rem) {
+  .preference-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 36rem) {
+  .preferences-group {
+    padding: var(--space-3);
+  }
+
+  .preferences-save-row button {
+    width: 100%;
+  }
+}

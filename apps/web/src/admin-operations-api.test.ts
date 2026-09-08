@@ -240,4 +240,61 @@ describe("Web admin operations API", () => {
       new Headers(fetch.mock.calls[0]?.[1]?.headers).get("idempotency-key"),
     );
   });
+  it("clears an initial forbidden invitation request so verification permits manual retry", async () => {
+    const fetch = vi
+      .fn<WebAdminOperationsApiOptions["fetch"]>()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            error: { code: "forbidden", message: "denied", requestId: "request-1" },
+          }),
+          { status: 403 },
+        ),
+      )
+      .mockRejectedValueOnce(new TypeError("second request reached server"));
+    const api = createWebAdminOperationsApi({
+      apiOrigin: "https://api.huayi.example",
+      csrfToken,
+      fetch,
+    });
+    await expect(api.createInvitation(24)).rejects.toMatchObject({ code: "forbidden" });
+    await expect(api.createInvitation(24)).rejects.toThrow("second request reached server");
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it.each(["invitation", "token rotation"])(
+    "retains the original key after uncertain %s recovery is forbidden",
+    async (kind) => {
+      const fetch = vi
+        .fn<WebAdminOperationsApiOptions["fetch"]>()
+        .mockRejectedValueOnce(new TypeError("response lost"))
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({
+              error: { code: "forbidden", message: "denied", requestId: "request-1" },
+            }),
+            { status: 403 },
+          ),
+        )
+        .mockRejectedValueOnce(new TypeError("still unknown"));
+      const api = createWebAdminOperationsApi({
+        apiOrigin: "https://api.huayi.example",
+        csrfToken,
+        fetch,
+      });
+      const send = (retry = false) =>
+        kind === "invitation"
+          ? api.createInvitation(24, retry)
+          : api.recoverInvitationToken("80000000-0000-0000-0000-000000000001", retry);
+      await expect(send()).rejects.toThrow("response lost");
+      await expect(send(true)).rejects.toMatchObject({ code: "forbidden" });
+      await expect(send()).rejects.toThrow(/recovery.*required/iu);
+      await expect(send(true)).rejects.toThrow("still unknown");
+      const keys = fetch.mock.calls.map((call) =>
+        new Headers(call[1]?.headers).get("idempotency-key"),
+      );
+      expect(keys).toHaveLength(3);
+      expect(new Set(keys).size).toBe(1);
+    },
+  );
 });

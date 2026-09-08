@@ -6,6 +6,7 @@ for (const width of [390, 1440]) {
     const authority = createCloudBrowserAuthority({
       authenticated: true,
       seed: "operator-console",
+      operatorSessionNeedsVerification: true,
     });
     await page.setViewportSize({ width, height: 900 });
     await authority.install(page);
@@ -71,6 +72,7 @@ for (const width of [390, 1440]) {
     await page.getByRole("link", { name: "报错日志", exact: true }).click();
     await expect(page.getByRole("heading", { name: "报错日志", exact: true })).toBeVisible();
     await expect(page.locator(".error-log-record")).toHaveCount(1);
+    await expect(page.locator("input[type='password']")).toHaveCount(0);
     await page.getByText("查看定位信息", { exact: true }).click();
     await expect(page.getByText(event.requestId, { exact: true })).toBeVisible();
     await expect(page.getByText("candidates.*.ordinal · custom · candidate-order")).toBeVisible();
@@ -84,3 +86,25 @@ for (const width of [390, 1440]) {
     expect(requests.at(-1)?.searchParams.get("source")).toBe("store");
   });
 }
+
+test("a non-operator cannot enter error logs and is never asked for another password", async ({
+  page,
+}) => {
+  const authority = createCloudBrowserAuthority({
+    authenticated: true,
+    seed: "password-only-sign-in-methods",
+  });
+  await authority.install(page);
+  await page.goto("https://web.huayi.invalid/admin/error-logs");
+  await expect(page.getByText("没有查看报错日志的权限", { exact: true })).toBeVisible();
+  await expect(page.locator("input[type='password']")).toHaveCount(0);
+  await expect(page.locator(".error-log-record")).toHaveCount(0);
+  expect(
+    authority
+      .snapshot()
+      .requestFacts.filter(
+        (fact) =>
+          fact.path === "/v1/admin/error-logs" || fact.path === "/v1/auth/reauthenticate/password",
+      ),
+  ).toEqual([]);
+});

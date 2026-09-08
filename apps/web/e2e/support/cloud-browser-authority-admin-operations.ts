@@ -38,6 +38,7 @@ const periodStart = "2026-08-01T00:00:00.000Z";
 const periodEnd = "2026-09-01T00:00:00.000Z";
 
 interface AdminAuthorityContext {
+  readonly recentAuthentication: (request: Request) => boolean;
   readonly authentication: (request: Request) => CloudBrowserAuthenticatedAs;
   readonly json: (route: Route, status: number, body: unknown) => Promise<void>;
   readonly record: (request: Request, proof: CloudBrowserRequestFact["proof"]) => void;
@@ -207,6 +208,11 @@ export function createCloudBrowserAdminOperationsAuthority(operator: boolean) {
           200,
           adminAuditEventListResponseSchema.parse({ items, nextCursor: null }),
         );
+        return true;
+      }
+
+      if (request.method() !== "GET" && !context.recentAuthentication(request)) {
+        await context.reject(route, 403, "forbidden", "write-valid");
         return true;
       }
 
