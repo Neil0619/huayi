@@ -201,16 +201,7 @@ export function AccountQuotaPage({
               onCsrfTokenChanged={onCsrfTokenChanged}
             />
             <AccountPreferencesForm api={preferencesApi} initialPreferences={account.preferences} />
-            {api.approveWechatBinding && (
-              <WechatBindingPanel
-                email={account.email}
-                csrfToken={csrfToken}
-                approve={api.approveWechatBinding}
-                reauthenticate={api.reauthenticatePassword}
-                onCsrfTokenChanged={onCsrfTokenChanged}
-                google={googleAuthenticationEnabled ? api.startGoogleReauthentication : undefined}
-              />
-            )}
+            {api.approveWechatBinding && <WechatBindingPanel email={account.email} />}
           </>
         )}
       </div>

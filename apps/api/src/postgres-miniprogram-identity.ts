@@ -64,6 +64,21 @@ export function createPostgresMiniProgramIdentity(options: {
       const status = await call("SELECT wechat_binding_status($1) AS value", [hash(ticket)]);
       return { status: status === "pending" || status === "approved" ? status : "expired" };
     },
+    async loginAndLink(ticket, authenticatedUserId) {
+      const token = opaqueSecret(systemSecrets);
+      const value = await call("SELECT complete_wechat_password_binding($1,$2,$3,$4) AS value", [
+        hash(ticket),
+        authenticatedUserId,
+        crypto.randomUUID(),
+        hash(token),
+      ]);
+      if (typeof value !== "object" || value === null)
+        throw new CloudFault(
+          "authentication_required",
+          "Account login or linking could not be completed.",
+        );
+      return miniProgramSessionSchema.parse({ ...value, token });
+    },
     async approveBinding(code, webSessionHash, userId) {
       required(
         await call("SELECT approve_wechat_binding($1,$2,$3) AS value", [

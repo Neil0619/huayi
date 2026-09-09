@@ -62,7 +62,8 @@ describe("public product pages", () => {
     await act(async () => root.render(<App publicPage="guide" />));
     expect(container.querySelectorAll("h1")).toHaveLength(1);
     expect(container.textContent).toContain("微信账号可以独立使用");
-    expect(container.textContent).toContain("账号与额度");
+    expect(container.textContent).toContain("登录并关联");
+    expect(container.textContent).not.toContain("一次性绑定码");
     expect(container.textContent).toContain("首版不合并两个独立账号的记录");
     expect(container.textContent).toContain("保存原文不会调用模型");
     expect(container.querySelector('a[href="/"]')).not.toBeNull();

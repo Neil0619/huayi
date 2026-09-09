@@ -20,6 +20,7 @@ function fixture() {
     onboard: vi.fn(async () => session),
     bindingStatus: vi.fn(async () => ({ status: "pending" as const })),
     approveBinding: vi.fn(async () => undefined),
+    loginAndLink: vi.fn(async () => session),
     authenticate: vi.fn(async () => ({
       userId: "owner",
       reauthenticatedAt: new Date(),
@@ -35,12 +36,18 @@ function fixture() {
   };
   const exchange = vi.fn(async () => ({ appId: "wx-test", openId: "trusted-subject" }));
   const webAuthenticate = vi.fn(async () => "web-owner");
+  const signIn = vi.fn(async () => ({
+    userId: "web-owner",
+    email: "friend@example.com",
+    refreshToken: "offline-refresh",
+  }));
   const app = new Hono();
   app.onError((_error, context) => context.json({ error: "denied" }, 403));
   app.route(
     "/",
     createWechatApp({
       identity,
+      auth: { signInWithPassword: signIn },
       provider: { exchange },
       authenticateWeb: webAuthenticate,
       pepper: "pepper",
@@ -53,9 +60,65 @@ function fixture() {
       headers: { "content-type": "application/json", ...headers },
       body: JSON.stringify(data),
     });
-  return { app, identity, exchange, webAuthenticate, post };
+  return { app, identity, exchange, webAuthenticate, post, signIn };
 }
 describe("WeChat HTTP boundary", () => {
+  const credentials = {
+    ticket: "t".repeat(43),
+    email: "friend@example.com",
+    password: "correct horse battery staple",
+    confirmed: true,
+  };
+  it("links only the provider-authenticated owner and never exposes a Web refresh token", async () => {
+    const f = fixture();
+    const response = await f.post("binding/login", credentials);
+    expect(response.status).toBe(200);
+    expect(f.signIn).toHaveBeenCalledWith({
+      email: credentials.email,
+      password: credentials.password,
+    });
+    expect(f.identity.loginAndLink).toHaveBeenCalledWith(credentials.ticket, "web-owner");
+    expect(await response.text()).not.toMatch(/offline-refresh|password|csrf/);
+    expect(f.webAuthenticate).not.toHaveBeenCalled();
+    expect((await f.post("binding/login", { ...credentials, userId: "victim" })).status).toBe(403);
+    expect((await f.post("binding/login", { ...credentials, confirmed: false })).status).toBe(403);
+    expect(f.signIn).toHaveBeenCalledOnce();
+  });
+  it("rejects expired tickets before contacting the password provider and hides provider errors", async () => {
+    const f = fixture();
+    vi.mocked(f.identity.bindingStatus).mockResolvedValueOnce({ status: "expired" });
+    expect((await f.post("binding/login", credentials)).status).toBe(403);
+    expect(f.signIn).not.toHaveBeenCalled();
+    f.signIn.mockRejectedValueOnce(new Error("private provider response"));
+    const failed = await f.post("binding/login", credentials);
+    expect(failed.status).toBe(403);
+    expect(await failed.text()).not.toContain("private provider response");
+    expect(f.identity.loginAndLink).not.toHaveBeenCalled();
+  });
+  it.each(["ip", "email", "ticket"])(
+    "limits password attempts independently by %s",
+    async (bucket) => {
+      const f = fixture();
+      for (let attempt = 0; attempt < 6; attempt++) {
+        const response = await f.post(
+          "binding/login",
+          {
+            ...credentials,
+            email:
+              bucket === "email"
+                ? attempt % 2
+                  ? " FRIEND@EXAMPLE.COM "
+                  : credentials.email
+                : `friend${attempt}@example.com`,
+            ticket: bucket === "ticket" ? credentials.ticket : String(attempt).repeat(43),
+          },
+          { "x-vercel-forwarded-for": bucket === "ip" ? "192.0.2.1" : `192.0.2.${attempt + 1}` },
+        );
+        expect(response.status).toBe(attempt === 5 ? 403 : 200);
+      }
+      expect(f.signIn).toHaveBeenCalledTimes(5);
+    },
+  );
   it("exchanges server-side proof and creates no account until explicit onboarding", async () => {
     const f = fixture();
     const response = await f.post("login", { code: "one-use" });

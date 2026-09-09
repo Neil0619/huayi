@@ -1,7 +1,38 @@
 import { describe, expect, it, vi } from "vitest";
 import { createSessionManager } from "./session-manager";
+import { deferred } from "../components/draft-test-support";
 const account = { id: "00000000-0000-4000-8000-000000000001", email: null, linkedToWeb: false };
 describe("memory-only WeChat session", () => {
+  it("starts fresh WeChat login after clearing an in-flight login, without an old finally clearing the new request", async () => {
+    const old = deferred<string>();
+    const fresh = deferred<string>();
+    const code = vi.fn().mockReturnValueOnce(old.promise).mockReturnValueOnce(fresh.promise);
+    const manager = createSessionManager({
+      code,
+      remember: vi.fn(),
+      remembered: () => false,
+      request: async () => ({
+        state: "onboarding",
+        ticket: "t".repeat(43),
+        bindingCode: "ABCDEF0123",
+        expiresAt: "2099-09-10T00:00:00Z",
+      }),
+    });
+    const first = manager.login();
+    const firstOutcome = Promise.allSettled([first]);
+    manager.clear();
+    const second = manager.login();
+    const secondOutcome = Promise.allSettled([second]);
+    old.resolve("old-code");
+    await firstOutcome;
+    const third = manager.login();
+    const thirdOutcome = Promise.allSettled([third]);
+    fresh.resolve("new-code");
+    expect(await secondOutcome).toMatchObject([{ status: "fulfilled" }]);
+    expect(await thirdOutcome).toMatchObject([{ status: "fulfilled" }]);
+    expect(code).toHaveBeenCalledTimes(2);
+    expect(manager.getSnapshot().onboarding?.ticket).toBe("t".repeat(43));
+  });
   it("renews an expired bearer once, without saving tokens or reusing a revoked login", async () => {
     let now = Date.parse("2026-09-09T00:00:00Z");
     let exchanges = 0;

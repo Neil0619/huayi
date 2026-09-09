@@ -65,10 +65,25 @@ owner context、generation/reservation 归属、task 成功或失败终态、价
   中保留 15 分钟；数据库 flow 绑定 purpose/owner/session 且 continue 只能启动一次。callback user 不同会
   消费 flow但保留旧 session；同一 user 才原子写新 encrypted refresh/session/CSRF。flow/code/state/token
   不进入 Web URL、Storage、日志或公开响应。
-- 身份绑定不把“普通登录发生在 15 分钟内”视为 recent-auth proof。Web session 内部另存
+- Google/密码登录方式绑定不把“普通登录发生在 15 分钟内”视为 recent-auth proof。Web session 内部另存
   `reauthenticated_method`：普通登录/邀请为 null，显式 password/Google reauth 才写对应值。Google link
   必须同时要求新鲜 password provenance，设置 password 必须要求新鲜 Google provenance；字段不进入
   Cookie、公开响应、账号导出或日志。
+- 微信首次关联采用小程序内邮箱密码登录：`POST /v1/auth/wechat/binding/login` 只接受严格的
+  `{ticket,email,password,confirmed:true}`。有效微信临时 ticket 与现有密码 Provider 返回的 user ID
+  共同证明关联；不能按邮箱推导 owner、创建 profile 或补登记登录方式。IP、规范邮箱摘要和 ticket 摘要
+  分别限制每分钟 5 次，错误密码、失效凭证和归属冲突统一认证失败，不泄露 Provider 细节。
+- `0031` 的受控函数原子锁定 ticket、微信身份、active profile 和已登记 password method，等待锁后重新
+  检查过期时间，拒绝已消费凭证、不同网页确认者和任一端已有微信关联。仅新增微信身份、微信会话并消费
+  ticket，不新建 Web 会话、刷新额度、复制记录或授予 recent-auth 权限。PUBLIC、business、Supabase API
+  角色不能执行该函数；仅 context-setter 可调用。
+- 微信关联兼容接口允许已有 active/full Web 会话直接确认，不再要求密码/Google recent-auth；Cookie、
+  Origin、CSRF、显式同意、过期与唯一归属检查保留。此例外不放宽 Google/密码登录方式绑定、导出下载
+  或注销的近期验证要求。新版网页只引导在小程序登录并关联，不再收集绑定码或二次验证密码。
+- 关联登录密码只存在组件和单次 TLS POST/Provider 调用内存中，提交、返回、页面隐藏时清空，卸载后不保留；
+  不写设备存储、URL、Cookie、日志或数据库。Provider refresh token 不返回小程序、不持久化。客户端在
+  关联响应及账号回读前后校验账号 epoch 和原 ticket；退出或重新获取 ticket 后拒绝旧响应。未知提交结果
+  通过重新微信登录回读已建立身份，不自动重放密码。
 - Google manual link 以数据库 unique open-flow 和 30 秒 hashed lease 串行化 refresh generation；lease、
   clear refresh/access token 不进入 URL、Cookie、公开 schema 或日志。refresh 成功后必须先在同一事务
   替换 encrypted refresh 并保存 protected Auth state，之后才允许 manual link；callback 只读已保存的

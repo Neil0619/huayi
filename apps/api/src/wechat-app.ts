@@ -5,12 +5,14 @@ import {
   miniProgramLoginRequestSchema,
   miniProgramLoginResponseSchema,
   miniProgramOnboardingRequestSchema,
+  miniProgramPasswordBindingRequestSchema,
   miniProgramRoutes,
   miniProgramSessionSchema,
   miniProgramTicketRequestSchema,
 } from "@huayi/cloud-contracts";
 import { Hono, type Context } from "hono";
 import { CloudFault } from "./cloud-fault.js";
+import type { AuthProvider } from "./auth-provider.js";
 import { miniProgramToken } from "./miniprogram-authentication.js";
 import type { MiniProgramIdentity } from "./miniprogram-identity.js";
 import { enforceRateLimit, type RateLimiter } from "./rate-limiter.js";
@@ -22,6 +24,7 @@ import type { WechatProvider } from "./wechat-provider.js";
 export function createWechatApp(options: {
   identity: MiniProgramIdentity;
   provider: WechatProvider;
+  auth: Pick<AuthProvider, "signInWithPassword">;
   pepper: string;
   authenticateWeb(context: Context): Promise<string>;
   rateLimiter: RateLimiter;
@@ -49,6 +52,41 @@ export function createWechatApp(options: {
     const { ticket, mode } = await strictJson(context, miniProgramOnboardingRequestSchema);
     return context.json(
       miniProgramSessionSchema.parse(await options.identity.onboard(ticket, mode)),
+    );
+  });
+  app.post(miniProgramRoutes.loginAndLink, async (context) => {
+    const input = await strictJson(context, miniProgramPasswordBindingRequestSchema);
+    for (const [action, subject] of [
+      ["ip", context.req.header("x-vercel-forwarded-for") ?? "unavailable"],
+      ["email", hashSecret(input.email, options.pepper)],
+      ["ticket", hashSecret(input.ticket, options.pepper)],
+    ] as const) {
+      await enforceRateLimit(options.rateLimiter, {
+        action: `wechat-password-binding-${action}`,
+        subject,
+        limit: 5,
+        windowMs: 60_000,
+      });
+    }
+    if ((await options.identity.bindingStatus(input.ticket)).status === "expired")
+      throw new CloudFault(
+        "authentication_required",
+        "Account login or linking could not be completed.",
+      );
+    let userId: string;
+    try {
+      ({ userId } = await options.auth.signInWithPassword({
+        email: input.email,
+        password: input.password,
+      }));
+    } catch {
+      throw new CloudFault(
+        "authentication_required",
+        "Account login or linking could not be completed.",
+      );
+    }
+    return context.json(
+      miniProgramSessionSchema.parse(await options.identity.loginAndLink(input.ticket, userId)),
     );
   });
   app.post(miniProgramRoutes.bindingStatus, async (context) => {

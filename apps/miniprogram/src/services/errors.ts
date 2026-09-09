@@ -5,10 +5,15 @@ export class MiniError extends Error {
 }
 const messages: Record<string, string> = {
   authentication_required: "请重新微信登录，已保存的内容仍会保留。",
+  account_link_unavailable:
+    "账号密码或关联凭证不可用。请核对语见邮箱和登录密码；若仍失败，请重新微信登录。已开通的两个账号暂不支持合并。密码已清空。",
+  account_link_unknown:
+    "关联结果尚未确认，密码已清空。请先重新微信登录；若关联已成功，将直接进入原账号。",
   forbidden: "身份验证已失效，或此操作需要再次确认。",
   network_error: "连接中断。输入已保留，请检查网络后重试。",
   quota_exhausted: "本月额度不足。原文与草稿已保留，可稍后继续。",
   rate_limited: "操作较频繁，请稍后重试。",
+  operation_in_progress: "已有开通操作正在进行，请等待结果后再尝试。",
   revision_conflict: "这条记录已在其他设备更新。请刷新后核对，当前输入仍保留。",
   exact_duplicate: "学习库已有相同内容，请搜索已有条目后继续整理。",
   generation_busy: "已有任务进行中，请继续当前任务。",

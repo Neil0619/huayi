@@ -2,7 +2,7 @@
 import { act, createElement } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { miniProgramRoutes } from "@huayi/cloud-contracts";
-import { button, deferred, mount } from "../../components/draft-test-support";
+import { button, deferred, input, mount } from "../../components/draft-test-support";
 import { session } from "../../services/session";
 import { MiniError } from "../../services/errors";
 import login from "./index";
@@ -12,17 +12,19 @@ const fake = vi.hoisted(() => ({
   code: vi.fn(),
   privacy: vi.fn(),
   done: vi.fn(),
+  hide: vi.fn(),
+  storage: vi.fn(),
 }));
 vi.mock("@tarojs/taro", () => ({
   useDidShow: vi.fn(),
-  useDidHide: vi.fn(),
+  useDidHide: fake.hide,
   default: {
     login: fake.code,
     requirePrivacyAuthorize: fake.privacy,
     switchTab: fake.done,
     getCurrentPages: () => [{ route: "pages/login/index" }],
     getStorageSync: () => "silver",
-    setStorageSync: vi.fn(),
+    setStorageSync: fake.storage,
     setClipboardData: vi.fn(),
     eventCenter: { on: vi.fn(), off: vi.fn() },
   },
@@ -63,7 +65,8 @@ beforeEach(() => {
   fake.code.mockResolvedValue({ code: "wx-code" });
   fake.request.mockImplementation(async (path: string) => {
     if (path === miniProgramRoutes.login) return onboarding;
-    if (path === miniProgramRoutes.onboard) return authenticated;
+    if (path === miniProgramRoutes.onboard || path === miniProgramRoutes.loginAndLink)
+      return authenticated;
     if (path === miniProgramRoutes.account) return account;
     return { status: "pending" };
   });
@@ -91,8 +94,8 @@ it("shows missing configuration before requesting privacy consent or WeChat logi
 it("requests privacy consent and allows independent onboarding after choosing and returning from linking", async () => {
   await enterLink();
   expect(fake.privacy).toHaveBeenCalledOnce();
-  expect(view.container.textContent).toContain("账号与额度 → 微信小程序关联");
-  expect(view.container.textContent).toContain(onboarding.bindingCode);
+  expect(view.container.textContent).toContain("登录并关联");
+  expect(view.container.textContent).not.toContain(onboarding.bindingCode);
   await click("返回选择开通方式");
   expect(view.container.textContent).toContain("选择开通方式");
   await click("直接开始使用");
@@ -104,59 +107,97 @@ it("requests privacy consent and allows independent onboarding after choosing an
   expect(fake.done).toHaveBeenCalledWith({ url: "/pages/today/index" });
 });
 
-it.each(["pending", "expired"] as const)(
-  "clears a %s notice after successfully obtaining a new binding code",
-  async (status) => {
-    await enterLink();
-    fake.request.mockResolvedValueOnce({ status });
-    await click("我已在网页确认");
-    const notice = status === "expired" ? "绑定码已过期" : "尚未收到网页确认";
-    expect(view.container.textContent).toContain(notice);
-    const exchange = deferred<unknown>();
-    fake.request.mockReturnValueOnce(exchange.promise);
-    await click("重新获取绑定码");
-    expect(button(view.container, "重新获取绑定码").disabled).toBe(true);
-    await act(async () =>
-      exchange.resolve({ ...onboarding, ticket: "n".repeat(43), bindingCode: "ABCDEF1234" }),
-    );
-    expect(view.container.textContent).toContain("ABCDEF1234");
-    expect(view.container.textContent).not.toContain(onboarding.bindingCode);
-    expect(view.container.textContent).not.toContain(notice);
-    await click("返回选择开通方式");
-    await click("直接开始使用");
-    expect(fake.request).toHaveBeenCalledWith(miniProgramRoutes.onboard, {
-      method: "POST",
-      data: { ticket: "n".repeat(43), mode: "independent" },
-    });
-  },
-);
+function fillCredentials() {
+  input(view.container, " Friend@Example.com ", "input:first-of-type");
+  input(view.container, "correct horse battery staple", "input:nth-of-type(2)");
+}
 
-it("keeps the old ticket recoverable after a failed code exchange and can return to independent use", async () => {
+it("logs in and links once with visible consent, clearing the password immediately", async () => {
   await enterLink();
-  fake.request.mockRejectedValueOnce(new MiniError("network_error"));
-  await click("重新获取绑定码");
-  expect(view.container.textContent).toContain("连接中断");
-  expect(view.container.textContent).toContain(onboarding.bindingCode);
-  expect(button(view.container, "重新获取绑定码").disabled).toBe(false);
-  await click("返回选择开通方式");
-  expect(view.container.textContent).not.toContain("连接中断");
-  await click("直接开始使用");
+  expect(button(view.container, "登录并关联").disabled).toBe(true);
+  expect(view.container.querySelectorAll("input")[1]?.type).toBe("password");
+  fillCredentials();
+  const response = deferred<unknown>();
+  fake.request.mockReturnValueOnce(response.promise);
+  await click("登录并关联");
+  expect(view.container.querySelectorAll("input")[1]?.value).toBe("");
+  expect(button(view.container, "正在登录并关联…").disabled).toBe(true);
+  expect(fake.request).toHaveBeenCalledWith(miniProgramRoutes.loginAndLink, {
+    method: "POST",
+    data: {
+      ticket: onboarding.ticket,
+      email: "friend@example.com",
+      password: "correct horse battery staple",
+      confirmed: true,
+    },
+  });
+  await act(async () => response.resolve(authenticated));
+  expect(fake.done).toHaveBeenCalledOnce();
+  expect(fake.storage.mock.calls).toEqual([["seen-said:remember-login", true]]);
+  expect(fake.request.mock.calls.some(([path]) => path === miniProgramRoutes.bindingStatus)).toBe(
+    false,
+  );
+});
+
+it("keeps the email and shows an actionable login error without another verification prompt", async () => {
+  await enterLink();
+  fillCredentials();
+  fake.request.mockRejectedValueOnce(new MiniError("authentication_required"));
+  await click("登录并关联");
+  expect(view.container.textContent).toContain("账号密码或关联凭证不可用");
+  expect(view.container.querySelectorAll("input")[0]?.value).toContain("Friend@Example.com");
+  expect(view.container.querySelectorAll("input")[1]?.value).toBe("");
+  expect(fake.done).not.toHaveBeenCalled();
+  input(view.container, "correct horse battery staple", "input:nth-of-type(2)");
+  await click("登录并关联");
   expect(fake.done).toHaveBeenCalledOnce();
 });
 
-it("shows a failed binding lookup with retry and return controls, then completes an approved binding", async () => {
+it("recovers an uncertain linking result through WeChat login without automatically replaying credentials", async () => {
   await enterLink();
+  fillCredentials();
   fake.request.mockRejectedValueOnce(new MiniError("network_error"));
-  await click("我已在网页确认");
-  expect(view.container.textContent).toContain("连接中断");
-  expect(button(view.container, "返回选择开通方式").disabled).toBe(false);
-  fake.request.mockResolvedValueOnce({ status: "approved" });
-  await click("我已在网页确认");
+  await click("登录并关联");
+  expect(view.container.textContent).toContain("关联结果尚未确认");
+  expect(view.container.querySelectorAll("input")[1]?.value).toBe("");
+  expect(
+    fake.request.mock.calls.filter(([path]) => path === miniProgramRoutes.loginAndLink),
+  ).toHaveLength(1);
+  fake.request.mockResolvedValueOnce(authenticated);
+  await click("重新微信登录");
+  expect(fake.done).toHaveBeenCalledOnce();
+});
+
+it("refreshes an expired ticket and can return to independent use without retaining the password", async () => {
+  await enterLink();
+  fillCredentials();
+  const response = deferred<unknown>();
+  fake.request.mockReturnValueOnce(response.promise);
+  await click("重新微信登录");
+  expect(button(view.container, "重新微信登录").disabled).toBe(true);
+  expect(view.container.querySelectorAll("input")[1]?.value).toBe("");
+  await act(async () => response.resolve({ ...onboarding, ticket: "n".repeat(43) }));
+  await click("返回选择开通方式");
+  await click("直接开始使用");
   expect(fake.request).toHaveBeenCalledWith(miniProgramRoutes.onboard, {
     method: "POST",
-    data: { ticket: onboarding.ticket, mode: "linked" },
+    data: { ticket: "n".repeat(43), mode: "independent" },
   });
   expect(fake.done).toHaveBeenCalledOnce();
+});
+
+it("clears password on hide and on returning from linking", async () => {
+  await enterLink();
+  fillCredentials();
+  await act(async () => {
+    for (const [hide] of fake.hide.mock.calls) hide();
+  });
+  expect(view.container.querySelectorAll("input")[1]?.value).toBe("");
+  fillCredentials();
+  await click("返回选择开通方式");
+  await click("关联已有语见账号");
+  expect(view.container.querySelectorAll("input")[1]?.value).toBe("");
+  expect(fake.storage).not.toHaveBeenCalled();
 });
 
 it("recovers an expired independent ticket by redoing WeChat login from the opening chooser", async () => {

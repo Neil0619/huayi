@@ -174,7 +174,7 @@ describe("mini-program journeys on the complete current migration chain", () => 
     ]);
   });
 
-  it("requires explicit recent Web confirmation, shares one owner without copying records, and revokes both identity types on linked-account deletion", async () => {
+  it("accepts ordinary Web confirmation, shares one owner, and keeps recent authentication for data rights", async () => {
     const f = (fixture = await createMiniProgramJourneyFixture());
     const existing = await f.seedWebAccount();
     const unrelated = await f.seedWebAccount();
@@ -191,15 +191,7 @@ describe("mini-program journeys on the complete current migration chain", () => 
       { ticket: start.ticket, mode: "linked" },
       401,
     );
-    await jsonRequest(
-      f,
-      miniProgramRoutes.approveBinding,
-      originalWeb,
-      { bindingCode: start.bindingCode, confirmed: true },
-      401,
-    );
-    const web = await reauthenticateWeb(f, originalWeb);
-    await readStatus(f, "/v2/words", originalWeb, 401);
+    let web = originalWeb;
     await jsonRequest(
       f,
       miniProgramRoutes.approveBinding,
@@ -271,6 +263,8 @@ describe("mini-program journeys on the complete current migration chain", () => 
       { archived: true, expectedRevision: 1 },
       404,
     );
+    web = await reauthenticateWeb(f, web);
+    await readStatus(f, "/v2/words", originalWeb, 401);
     const exported = await exportWords(f, web, [originalWord.word.id, miniWord.word.id]);
     const contentPath = `/v1/miniprogram/data-exports/${exported.id}/content`;
     await readStatus(f, contentPath, mini, 403);

@@ -53,6 +53,18 @@ type ApiError = {
 
 ## 2. 认证与账号
 
+微信首次关联使用 `POST /v1/auth/wechat/binding/login`，严格 JSON 为
+`{ticket,email,password,confirmed:true}`。ticket 来自当前微信登录的 onboarding 响应；邮箱按已有登录
+规则规范化，密码使用同一长度约束。成功返回 `{state:"authenticated",token,expiresAt}`，随后用
+`Authorization: HuayiMiniProgram <token>` 读取 `/v1/miniprogram/account`。不设置 Web Cookie，不返回
+Provider refresh token，不自动创建业务账号或合并已有账号。错误密码、过期、重放、停用/删除或关联冲突
+统一 401 `authentication_required`；独立 IP/邮箱摘要/ticket 摘要桶每分钟最多 5 次，超限 429
+`rate_limited`；所有响应禁止缓存。结果未知时重新微信登录恢复，不能自动重放密码。
+
+旧 `POST /v1/auth/wechat/binding/approve` 仍接受 `{bindingCode,confirmed:true}` 和 active/full Web
+Cookie + Origin + CSRF；0031 起不再要求近期密码/Google 验证。该兼容接口不放宽其他敏感操作的近期验证。
+新版客户端直接登录关联，发布顺序为 0031 → API → 更新 Web 和实际 weapp 包。
+
 | Method/path                              | 用途                   | 关键输入/输出                                                |
 | ---------------------------------------- | ---------------------- | ------------------------------------------------------------ |
 | `POST /v1/invitations/claim`             | 验证并预占邀请         | invitation token；返回短时 claim ticket，不创建业务账号      |

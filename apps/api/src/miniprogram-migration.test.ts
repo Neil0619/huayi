@@ -17,6 +17,7 @@ describe("WeChat account authority", () => {
   it.each([
     ["0029-wechat-miniprogram.sql", "20260909010000_wechat_miniprogram.sql"],
     ["0030-word-archive.sql", "20260909020000_word_archive.sql"],
+    ["0031-wechat-password-binding.sql", "20260909030000_wechat_password_binding.sql"],
   ])("keeps both migration tracks identical: %s", async (api, supabase) => {
     expect(
       await readFile(new URL(`../../../supabase/migrations/${supabase}`, import.meta.url), "utf8"),
@@ -81,6 +82,7 @@ describe("WeChat account authority", () => {
     for (const signature of [
       "begin_wechat_login(text,text,text,text,uuid,text)",
       "complete_wechat_onboarding(text,text,uuid,uuid,text)",
+      "complete_wechat_password_binding(text,uuid,uuid,text)",
       "wechat_binding_status(text)",
       "approve_wechat_binding(text,text,uuid)",
       "authenticate_miniprogram_session(text)",

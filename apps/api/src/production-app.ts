@@ -98,6 +98,7 @@ export function createProductionApp(
   const analysisDatabase = createPostgresAnalysisDatabase(sql);
   const miniProgram = createProductionMiniProgram({
     environment,
+    auth,
     database: analysisDatabase,
     rateLimiter,
     authenticateWeb: (context) => authenticateWebAccountRequest(identity, context),

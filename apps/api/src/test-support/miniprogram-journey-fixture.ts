@@ -38,17 +38,18 @@ export async function createMiniProgramJourneyFixture() {
   const mini = createPostgresMiniProgramIdentity({ database, pepper: journeyPepper });
   const providerAccounts = new Map<string, string>();
   const rateLimiter = createInMemoryRateLimiter(systemClock);
+  const auth = {
+    ...createFoundationAuthProvider(),
+    async signInWithPassword(input: { email: string; password: string }) {
+      const userId = providerAccounts.get(input.email);
+      if (!userId || input.password !== journeyPassword)
+        throw new CloudFault("authentication_required", "Invalid test provider proof.");
+      return { userId, email: input.email, refreshToken: "offline-refresh" };
+    },
+  };
   const app = createCloudFoundationApp({
     apiOrigin: "https://api.example.test",
-    auth: {
-      ...createFoundationAuthProvider(),
-      async signInWithPassword(input) {
-        const userId = providerAccounts.get(input.email);
-        if (!userId || input.password !== journeyPassword)
-          throw new CloudFault("authentication_required", "Invalid test provider proof.");
-        return { userId, email: input.email, refreshToken: "offline-refresh" };
-      },
-    },
+    auth,
     identity: web,
     googleLink: web.googleLink,
     passwordLink: web.passwordLink,
@@ -62,6 +63,7 @@ export async function createMiniProgramJourneyFixture() {
     "/",
     createWechatApp({
       identity: mini,
+      auth,
       provider: { exchange: async (code) => ({ appId: "wx0123456789abcdef", openId: code }) },
       pepper: journeyPepper,
       authenticateWeb: (context) => authenticateWebAccountRequest(web, context),

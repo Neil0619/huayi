@@ -114,6 +114,7 @@ interface FieldProps {
   value: string;
   maxlength: number;
   disabled?: boolean;
+  password?: boolean;
   onBlur?: () => void;
   onInput: (event: { detail: { value: string } }) => void;
 }
@@ -122,6 +123,7 @@ function field(tag: "textarea" | "input", props: FieldProps) {
     value: props.value,
     maxLength: props.maxlength < 0 ? undefined : props.maxlength,
     disabled: props.disabled,
+    ...(tag === "input" && props.password ? { type: "password" } : {}),
     onBlur: props.onBlur,
     onChange: () => undefined,
     onInput: (event: { currentTarget: { value: string } }) =>

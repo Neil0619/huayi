@@ -1,6 +1,6 @@
 import { z } from "zod/v3";
 
-import { accountEmailSchema } from "./account-contracts.js";
+import { accountEmailSchema, passwordLoginRequestSchema } from "./account-contracts.js";
 import { resourceIdSchema } from "./common-contracts.js";
 
 const proofSchema = z.string().regex(/^[A-Za-z0-9_-]{43}$/u);
@@ -9,6 +9,7 @@ export const miniProgramRoutes = {
   onboard: "/v1/auth/wechat/onboard",
   bindingStatus: "/v1/auth/wechat/binding/status",
   approveBinding: "/v1/auth/wechat/binding/approve",
+  loginAndLink: "/v1/auth/wechat/binding/login",
   reauthenticate: "/v1/auth/wechat/reauthenticate",
   logout: "/v1/auth/wechat/logout",
   account: "/v1/miniprogram/account",
@@ -39,6 +40,12 @@ export const miniProgramOnboardingRequestSchema = z.strictObject({
 });
 export const miniProgramBindingApprovalSchema = z.strictObject({
   bindingCode: z.string().regex(/^[A-F0-9]{10}$/u),
+  confirmed: z.literal(true),
+});
+export const miniProgramPasswordBindingRequestSchema = z.strictObject({
+  ticket: proofSchema,
+  email: accountEmailSchema,
+  password: passwordLoginRequestSchema.shape.password,
   confirmed: z.literal(true),
 });
 export const miniProgramBindingStatusSchema = z.strictObject({

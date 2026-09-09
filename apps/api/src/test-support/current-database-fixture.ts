@@ -34,6 +34,7 @@ export const currentMigrationNames = [
   "0028-password-recovery-correctable-retry.sql",
   "0029-wechat-miniprogram.sql",
   "0030-word-archive.sql",
+  "0031-wechat-password-binding.sql",
 ] as const;
 
 /** Every test owns this in-memory database; never connects to an existing service. */

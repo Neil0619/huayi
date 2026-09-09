@@ -16,6 +16,7 @@ export interface MiniProgramIdentity {
   onboard(ticket: string, mode: "independent" | "linked"): Promise<MiniProgramSession>;
   bindingStatus(ticket: string): Promise<{ status: "pending" | "approved" | "expired" }>;
   approveBinding(code: string, webSessionHash: string, userId: string): Promise<void>;
+  loginAndLink(ticket: string, authenticatedUserId: string): Promise<MiniProgramSession>;
   authenticate(token: string): Promise<MiniProgramAuthentication>;
   reauthenticate(token: string, proof: WechatProof): Promise<void>;
   revoke(token: string): Promise<void>;
