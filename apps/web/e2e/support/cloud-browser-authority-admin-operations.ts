@@ -165,7 +165,7 @@ export function createCloudBrowserAdminOperationsAuthority(operator: boolean) {
         }
         const items = users().filter(
           (user) =>
-            (parsed.data.query === undefined || user.email.includes(parsed.data.query)) &&
+            (parsed.data.query === undefined || user.email?.includes(parsed.data.query) === true) &&
             (parsed.data.status === undefined || user.status === parsed.data.status),
         );
         context.record(request, "read");

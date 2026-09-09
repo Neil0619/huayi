@@ -101,6 +101,11 @@ const baseEnvironmentShape = {
     }),
   HUAYI_SECRET_PEPPER: z.string().min(32),
   HUAYI_GOOGLE_AUTHENTICATION: z.literal("enabled").optional(),
+  HUAYI_WECHAT_APP_ID: z
+    .string()
+    .regex(/^wx[0-9a-f]{16}$/u)
+    .optional(),
+  HUAYI_WECHAT_APP_SECRET: z.string().min(20).max(256).optional(),
   HUAYI_STORE_EXTENSION_CAPABILITY: z.enum(["enabled", "disabled"]),
   HUAYI_STORE_EXTENSION_ID: z
     .string()
@@ -156,6 +161,12 @@ const localAcceptanceEnvironmentSchema = z
 
 const apiEnvironmentSchema = z
   .union([resendEnvironmentSchema, localAcceptanceEnvironmentSchema])
+  .refine(
+    (environment) =>
+      (environment.HUAYI_WECHAT_APP_ID === undefined) ===
+      (environment.HUAYI_WECHAT_APP_SECRET === undefined),
+    "WeChat AppID and secret must be configured together.",
+  )
   .refine((environment) => {
     const channel = environment.HUAYI_DEPLOYMENT_ENVIRONMENT;
     const productionApi = "https://api.seen-said.cn";
@@ -243,6 +254,12 @@ export function readApiEnvironment(
     HUAYI_DEEPSEEK_PEAK_PRICE_VERSION_ID: environment.HUAYI_DEEPSEEK_PEAK_PRICE_VERSION_ID,
     HUAYI_REFRESH_ENCRYPTION_KEY: environment.HUAYI_REFRESH_ENCRYPTION_KEY,
     HUAYI_SECRET_PEPPER: environment.HUAYI_SECRET_PEPPER,
+    ...(environment.HUAYI_WECHAT_APP_ID === undefined
+      ? {}
+      : { HUAYI_WECHAT_APP_ID: environment.HUAYI_WECHAT_APP_ID }),
+    ...(environment.HUAYI_WECHAT_APP_SECRET === undefined
+      ? {}
+      : { HUAYI_WECHAT_APP_SECRET: environment.HUAYI_WECHAT_APP_SECRET }),
     ...(environment.HUAYI_GOOGLE_AUTHENTICATION === undefined
       ? {}
       : { HUAYI_GOOGLE_AUTHENTICATION: environment.HUAYI_GOOGLE_AUTHENTICATION }),

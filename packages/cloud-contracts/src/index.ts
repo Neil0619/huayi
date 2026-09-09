@@ -24,3 +24,6 @@ export * from "./learning-tasks.js";
 export * from "./learning-task-client.js";
 
 export * from "./practice-workspace.js";
+export * from "./miniprogram-contracts.js";
+export * from "./learning-task-sse-decoder.js";
+export * from "./word-catalog-contracts.js";

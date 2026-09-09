@@ -15,6 +15,9 @@ import {
 } from "./supabase-account-data-authority.js";
 import { Hono } from "hono";
 import { webSessionCookie } from "./web-session-cookie.js";
+import type { MiniProgramIdentity } from "./miniprogram-identity.js";
+import { miniProgramToken } from "./miniprogram-authentication.js";
+import { createMiniProgramExportApp } from "./miniprogram-export-app.js";
 
 interface DataRightsIdentity {
   authenticateDataRightsMutation(
@@ -35,6 +38,7 @@ export function createProductionAccountDataRights(options: {
   database: AnalysisDatabase;
   environment: ApiEnvironment;
   identity: DataRightsIdentity;
+  miniProgram?: MiniProgramIdentity;
 }) {
   const authority = createSupabaseAccountDataAuthority({
     bucket: options.environment.HUAYI_ACCOUNT_EXPORT_BUCKET,
@@ -53,15 +57,41 @@ export function createProductionAccountDataRights(options: {
     signedUrls: authority.signedUrls,
   });
   const app = new Hono();
+  if (options.miniProgram)
+    app.route(
+      "/",
+      createMiniProgramExportApp({
+        identity: options.miniProgram,
+        module,
+        storageOrigin: options.environment.SUPABASE_URL,
+        bucket: options.environment.HUAYI_ACCOUNT_EXPORT_BUCKET,
+      }),
+    );
   app.route(
     "/",
     createAccountDataRightsApp({
-      authenticate: (context) =>
-        authenticateDataRightsRequest(options.identity, context, (sessionId) =>
+      authenticate: async (context) => {
+        if (context.req.header("authorization") !== undefined && options.miniProgram) {
+          const auth = await options.miniProgram.authenticate(
+            miniProgramToken(context.req.header("authorization")),
+          );
+          return {
+            ownerUserId: auth.userId,
+            reauthenticatedAt: auth.reauthenticatedAt,
+            requestSessionHash: auth.sessionHash,
+          };
+        }
+        return authenticateDataRightsRequest(options.identity, context, (sessionId) =>
           hashSecret(sessionId, options.environment.HUAYI_SECRET_PEPPER),
-        ),
+        );
+      },
       module,
       requestSessionProof: (context) => {
+        if (context.req.header("authorization") !== undefined && options.miniProgram)
+          return hashSecret(
+            miniProgramToken(context.req.header("authorization")),
+            options.environment.HUAYI_SECRET_PEPPER,
+          );
         const sessionId = webSessionCookie(context);
         if (sessionId === undefined) return "missing-session";
         return hashSecret(sessionId, options.environment.HUAYI_SECRET_PEPPER);

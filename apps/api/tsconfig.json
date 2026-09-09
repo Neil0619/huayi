@@ -8,6 +8,6 @@
     "strict": true,
     "types": ["node"]
   },
-  "exclude": ["src/**/*.test.ts"],
+  "exclude": ["src/**/*.test.ts", "src/test-support/**"],
   "include": ["src/**/*.ts"]
 }

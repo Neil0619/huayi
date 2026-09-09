@@ -1,6 +1,6 @@
 import { parseWebEnvironment, type WebEnvironment } from "./environment.js";
 
-export type PublicPage = "privacy";
+export type PublicPage = "home" | "guide" | "privacy";
 
 export interface WebBootstrap {
   environment?: WebEnvironment;
@@ -12,10 +12,18 @@ export function resolveWebBootstrap(
   pathname: string,
   environment: Record<string, string | undefined>,
 ): WebBootstrap {
-  if (pathname === "/privacy") {
+  const publicPage =
+    pathname === "/"
+      ? "home"
+      : pathname === "/guide"
+        ? "guide"
+        : pathname === "/privacy"
+          ? "privacy"
+          : undefined;
+  if (publicPage !== undefined) {
     const channel = environment.VITE_DEPLOYMENT_ENVIRONMENT;
     return {
-      publicPage: "privacy",
+      publicPage,
       ...(channel === "production" || channel === "hosted-acceptance"
         ? { publicDeploymentEnvironment: channel }
         : {}),

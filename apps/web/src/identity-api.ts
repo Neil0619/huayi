@@ -1,3 +1,4 @@
+import { createWebWechatBindingApi } from "./wechat-binding-api.js";
 import {
   apiErrorSchema,
   accountResourceSchema,
@@ -102,6 +103,7 @@ export function createWebIdentityApi(options: WebIdentityApiOptions) {
     return csrfTokenResponseSchema.parse(await response.json());
   };
   return {
+    ...createWebWechatBindingApi(request),
     ...createWebPasswordSignupApi(request),
     ...createWebExtensionSessionsApi(request),
     bootstrap,

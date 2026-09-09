@@ -11,6 +11,7 @@ export const workspaceBuildDirectories = Object.freeze([
   "packages/store-domain",
   "apps/api",
   "apps/web",
+  "apps/miniprogram",
   "apps/extension",
   "apps/native-host",
   "apps/store-extension",

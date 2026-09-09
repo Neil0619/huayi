@@ -15,6 +15,7 @@ import {
 import { loadPracticeSession } from "./postgres-practice-view.js";
 
 interface WordRow {
+  archived_at: Date | null;
   canonical_key: string;
   created_at: Date;
   headword: string;
@@ -144,7 +145,8 @@ async function studyCaptures(query: AnalysisQuery): Promise<AccountDataExportRec
 
 async function words(query: AnalysisQuery): Promise<AccountDataExportRecord[]> {
   const rows = await query.rows<WordRow>(
-    `SELECT id::text,headword,canonical_key,notes,revision,created_at,updated_at
+    `SELECT id::text,headword,canonical_key,notes,revision,created_at,updated_at,
+       (to_jsonb(word_entries)->>'archived_at')::timestamptz AS archived_at
      FROM word_entries ORDER BY created_at,id`,
   );
   const result: AccountDataExportRecord[] = [];
@@ -157,6 +159,7 @@ async function words(query: AnalysisQuery): Promise<AccountDataExportRecord[]> {
     result.push(
       accountDataExportRecordSchema.parse({
         recordType: "word",
+        ...(row.archived_at ? { archivedAt: row.archived_at.toISOString() } : {}),
         word: {
           canonicalKey: row.canonical_key,
           contexts: contexts.map((context) => ({

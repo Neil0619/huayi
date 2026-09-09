@@ -46,7 +46,11 @@ function server() {
   };
   const inner = createExternalWordbookApp({
     authenticate: (context) => ({
-      kind: context.req.header("authorization") === undefined ? "web" : "extension",
+      kind: context.req.header("authorization")?.startsWith("HuayiMiniProgram")
+        ? "miniprogram"
+        : context.req.header("authorization") === undefined
+          ? "web"
+          : "extension",
       userId: "user-1",
     }),
     module: createExternalWordbookModule({
@@ -74,6 +78,20 @@ function server() {
 }
 
 describe("external wordbook job HTTP", () => {
+  it("allows mini-program status reads but refuses desktop job mutations", async () => {
+    const { outer, repository } = server();
+    const headers = { authorization: "HuayiMiniProgram test", "content-type": "application/json" };
+    expect((await outer.request("/v1/wordbook-jobs", { headers })).status).toBe(200);
+    for (const path of [
+      "/v1/wordbook-jobs",
+      `/v1/wordbook-jobs/${job.id}/retry`,
+      `/v1/wordbook-jobs/${job.id}/cancel`,
+    ])
+      expect((await outer.request(path, { method: "POST", headers, body: "{}" })).status).toBe(403);
+    expect(repository.create).not.toHaveBeenCalled();
+    expect(repository.retry).not.toHaveBeenCalled();
+    expect(repository.cancel).not.toHaveBeenCalled();
+  });
   it("allows Web list/create but reserves leasing for the paired Extension", async () => {
     const { outer } = server();
     expect((await outer.request("/v1/wordbook-jobs?target=eudic")).status).toBe(200);

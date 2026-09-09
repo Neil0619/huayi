@@ -3,6 +3,18 @@ import { describe, expect, it } from "vitest";
 import { resolveWebBootstrap } from "./public-bootstrap.js";
 
 describe("public Web bootstrap", () => {
+  it("opens the home and guide without API configuration or identity bootstrap", () => {
+    expect(resolveWebBootstrap("/", {})).toEqual({ publicPage: "home" });
+    expect(resolveWebBootstrap("/guide", {})).toEqual({ publicPage: "guide" });
+    expect(
+      resolveWebBootstrap("/", {
+        VITE_API_ORIGIN: "invalid",
+        VITE_DEPLOYMENT_ENVIRONMENT: "production",
+      }),
+    ).toEqual({ publicPage: "home", publicDeploymentEnvironment: "production" });
+    expect(resolveWebBootstrap("/guide/", {})).toEqual({});
+  });
+
   it("resolves exact privacy before requiring an API origin", () => {
     expect(resolveWebBootstrap("/privacy", {})).toEqual({ publicPage: "privacy" });
   });

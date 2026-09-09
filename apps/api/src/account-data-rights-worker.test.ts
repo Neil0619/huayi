@@ -166,46 +166,56 @@ describe("account data rights worker", () => {
     expect(repository.claimExport).not.toHaveBeenCalled();
   });
 
-  it("advances deletion in fixed object, database, and Auth order", async () => {
-    const calls: string[] = [];
-    const repository: AccountDataRightsWorkerRepository = {
-      claimDeletion: vi.fn(async () => ({
-        exportObjectKeys: ["account-exports/export-1.ndjson"],
-        jobId: "deletion-1",
-        leaseToken: "lease-1",
-        stage: "requested" as const,
-        subjectUserId: "user-1",
-      })),
-      claimExport: vi.fn(async () => null),
-      completeExport: vi.fn(),
-      failDeletion: vi.fn(),
-      failExport: vi.fn(),
-      finishAuthDeletion: vi.fn(async () => {
-        calls.push("completed");
-      }),
-      finishDatabaseDeletion: vi.fn(async () => {
-        calls.push("database");
-      }),
-      finishExportDeletion: vi.fn(async () => {
-        calls.push("exports");
-      }),
-    };
-    const worker = createAccountDataRightsWorker({
-      authority: {
-        deleteAuthUser: vi.fn(async () => {
-          calls.push("auth");
+  it.each([true, false])(
+    "advances deletion in fixed order for external Auth=%s",
+    async (deleteAuthUser) => {
+      const calls: string[] = [];
+      const repository: AccountDataRightsWorkerRepository = {
+        claimDeletion: vi.fn(async () => ({
+          exportObjectKeys: ["account-exports/export-1.ndjson"],
+          jobId: "deletion-1",
+          leaseToken: "lease-1",
+          stage: "requested" as const,
+          subjectUserId: "user-1",
+          deleteAuthUser,
+        })),
+        claimExport: vi.fn(async () => null),
+        completeExport: vi.fn(),
+        failDeletion: vi.fn(),
+        failExport: vi.fn(),
+        finishAuthDeletion: vi.fn(async () => {
+          calls.push("completed");
         }),
-        deleteObjects: vi.fn(async () => {
-          calls.push("objects");
+        finishDatabaseDeletion: vi.fn(async () => {
+          calls.push("database");
         }),
-        upload: vi.fn(),
-      },
-      exportSource: { records: vi.fn() },
-      now: () => new Date("2026-08-13T01:00:00.000Z"),
-      repository,
-    });
+        finishExportDeletion: vi.fn(async () => {
+          calls.push("exports");
+        }),
+      };
+      const worker = createAccountDataRightsWorker({
+        authority: {
+          deleteAuthUser: vi.fn(async () => {
+            calls.push("auth");
+          }),
+          deleteObjects: vi.fn(async () => {
+            calls.push("objects");
+          }),
+          upload: vi.fn(),
+        },
+        exportSource: { records: vi.fn() },
+        now: () => new Date("2026-08-13T01:00:00.000Z"),
+        repository,
+      });
 
-    await expect(worker.runOne()).resolves.toEqual({ deletion: "processed", export: "idle" });
-    expect(calls).toEqual(["objects", "exports", "database", "auth", "completed"]);
-  });
+      await expect(worker.runOne()).resolves.toEqual({ deletion: "processed", export: "idle" });
+      expect(calls).toEqual([
+        "objects",
+        "exports",
+        "database",
+        ...(deleteAuthUser ? ["auth"] : []),
+        "completed",
+      ]);
+    },
+  );
 });

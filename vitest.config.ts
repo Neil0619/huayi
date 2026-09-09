@@ -25,6 +25,15 @@ export default defineConfig({
   test: {
     projects: [
       {
+        resolve: { alias: cloudAlias },
+        test: {
+          environment: "node",
+          include: ["apps/miniprogram/src/**/*.test.ts"],
+          name: "miniprogram",
+          root: ".",
+        },
+      },
+      {
         test: {
           environment: "node",
           include: ["packages/protocol/src/**/*.test.ts"],

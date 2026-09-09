@@ -12,7 +12,7 @@ const MAX_REAUTHENTICATION_AGE_MS = 15 * 60 * 1_000;
 export interface UserRow {
   created_at: Date | string;
   device_count: number | string;
-  email: string;
+  email: string | null;
   id: string;
   limit_micro_usd: number | string;
   reserved_micro_usd: number | string;

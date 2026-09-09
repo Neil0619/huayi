@@ -82,7 +82,7 @@ export type AdminInvitationListResponse = z.infer<typeof adminInvitationListResp
 export const adminUserResourceSchema = z.strictObject({
   createdAt: instantSchema,
   deviceCount: safeIntegerSchema,
-  email: accountEmailSchema,
+  email: accountEmailSchema.nullable(),
   id: resourceIdSchema,
   quota: quotaSummarySchema,
   status: z.enum(["active", "disabled", "deleting"]),

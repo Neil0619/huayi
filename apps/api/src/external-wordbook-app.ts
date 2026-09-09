@@ -20,7 +20,7 @@ import { readRevisionHeader } from "./revision-header.js";
 import type { ExternalWordbookModule } from "./external-wordbook-module.js";
 
 export interface ExternalWordbookPrincipal {
-  kind: "extension" | "web";
+  kind: "extension" | "web" | "miniprogram";
   userId: string;
 }
 
@@ -59,6 +59,10 @@ function requireExtension(principal: ExternalWordbookPrincipal): string {
   }
   return principal.userId;
 }
+function requireDesktopControl(principal: ExternalWordbookPrincipal) {
+  if (principal.kind === "miniprogram")
+    throw new CloudFault("forbidden", "Manage bridge jobs on the Web or desktop Extension.");
+}
 
 export function createExternalWordbookApp(options: {
   authenticate(context: Context): ExternalWordbookPrincipal | Promise<ExternalWordbookPrincipal>;
@@ -84,6 +88,7 @@ export function createExternalWordbookApp(options: {
   });
   app.post(externalWordbookHttpRoutes.create, async (context) => {
     const principal = await options.authenticate(context);
+    requireDesktopControl(principal);
     const input = createWordbookJobRequestSchema.parse(await body(context));
     return context.json(
       wordbookJobResourceSchema.parse(
@@ -121,6 +126,7 @@ export function createExternalWordbookApp(options: {
   ] as const) {
     app.post(route, async (context) => {
       const principal = await options.authenticate(context);
+      requireDesktopControl(principal);
       const input = wordbookJobRevisionRequestSchema.parse(await body(context));
       return context.json(
         wordbookJobResourceSchema.parse(

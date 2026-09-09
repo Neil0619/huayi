@@ -1,9 +1,10 @@
+import { createPgliteAnalysisDatabase } from "./test-support/postgres-analysis-database.js";
 import { readFile } from "node:fs/promises";
 
 import { PGlite } from "@electric-sql/pglite";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import type { AnalysisDatabase, AnalysisQuery } from "./analysis-database.js";
+import type { AnalysisDatabase } from "./analysis-database.js";
 import { createAccountDataRightsModule } from "./account-data-rights-module.js";
 import { createPostgresAccountDataRights } from "./postgres-account-data-rights.js";
 import { createAccountDataRightsWorker } from "./account-data-rights-worker.js";
@@ -45,15 +46,6 @@ const completedQueryEvent = {
   type: "query.completed",
 };
 
-function query(executor: {
-  query<Row>(text: string, parameters?: unknown[]): Promise<{ rows: Row[] }>;
-}): AnalysisQuery {
-  return {
-    rows: async <Row>(text: string, parameters = []) =>
-      (await executor.query<Row>(text, [...parameters])).rows,
-  };
-}
-
 describe("Postgres account data rights", () => {
   let database: PGlite;
   let adapter: AnalysisDatabase;
@@ -62,34 +54,10 @@ describe("Postgres account data rights", () => {
     database = new PGlite();
     await database.waitReady;
     await database.exec(await readFile(migrationUrl, "utf8"));
-    adapter = {
-      async transaction(ownerUserId, operation) {
-        return database.transaction(async (transaction) => {
-          await transaction.exec("SET LOCAL ROLE huayi_context_setter");
-          await transaction.query("SELECT huayi_private.set_owner_context($1)", [ownerUserId]);
-          return operation({
-            tenant: {
-              rows: async (text, parameters) => {
-                await transaction.exec("SET LOCAL ROLE huayi_business");
-                return query(transaction).rows(text, parameters);
-              },
-            },
-            trusted: {
-              rows: async (text, parameters) => {
-                await transaction.exec("SET LOCAL ROLE huayi_context_setter");
-                return query(transaction).rows(text, parameters);
-              },
-            },
-          });
-        });
-      },
-      async trusted(operation) {
-        return database.transaction(async (transaction) => {
-          await transaction.exec("SET LOCAL ROLE huayi_context_setter");
-          return operation(query(transaction));
-        });
-      },
-    };
+    await database.exec(
+      await readFile(new URL("../migrations/0029-wechat-miniprogram.sql", import.meta.url), "utf8"),
+    );
+    adapter = createPgliteAnalysisDatabase(database);
     nextId = 1;
     await database.exec(`
       INSERT INTO user_profiles(
@@ -374,7 +342,7 @@ describe("Postgres account data rights", () => {
       },
       now: () => new Date("2026-08-13T01:00:00.000Z"),
       repository: createPostgresAccountDataRightsWorker(adapter, {
-        clock: new MutableClock("2026-08-13T01:00:00.000Z"),
+        clock: new MutableClock(new Date().toISOString()),
         pepper: "test-pepper-with-at-least-thirty-two-characters",
         secrets: new DeterministicSecrets(),
       }),

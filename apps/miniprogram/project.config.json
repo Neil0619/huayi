@@ -1,0 +1,9 @@
+{
+  "appid": "touristappid",
+  "projectname": "seen-said-miniprogram",
+  "compileType": "miniprogram",
+  "miniprogramRoot": "./",
+  "libVersion": "3.7.0",
+  "setting": { "urlCheck": true, "es6": true, "minified": true, "postcss": true },
+  "description": "语见 · Seen & Said。真实联调前配置本人 AppID 与合法 HTTPS 域名。"
+}

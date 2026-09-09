@@ -2,7 +2,7 @@ import { createPracticeTaskRecovery } from "./practice-task-recovery.js";
 import { Hono } from "hono";
 import { createPracticeWorkspace } from "./practice-workspace.js";
 import { createPracticeWorkspaceApp } from "./practice-workspace-app.js";
-import { authenticateWebAccountRequest } from "./web-account-authentication.js";
+import { authenticateLearningAccountRequest } from "./miniprogram-authentication.js";
 import type { AnalysisDatabase } from "./analysis-database.js";
 import type { AnalysisModule } from "./analysis-module.js";
 import type { DialoguePracticeModule } from "./dialogue-practice-module.js";
@@ -39,6 +39,7 @@ export function createProductionLearningTasks(options: {
         console.error('{"level":"error","event":"diagnostics_cleanup_failed"}');
       });
       await createPracticeTaskRecovery(options.database)();
+      await options.database.trusted((query) => query.rows("SELECT prune_miniprogram_auth()"));
     },
     store,
     execute: createLearningTaskExecutor(options),
@@ -47,7 +48,7 @@ export function createProductionLearningTasks(options: {
   app.route(
     "/",
     createPracticeWorkspaceApp({
-      authenticate: (context) => authenticateWebAccountRequest(options.identity, context),
+      authenticate: (context) => authenticateLearningAccountRequest(options.identity, context),
       workspace: createPracticeWorkspace(options.database),
     }),
   );

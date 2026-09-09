@@ -15,6 +15,8 @@ import type { WebExternalWordbookApi } from "./external-wordbook-api.js";
 import type { WebAdminOperationsApi } from "./admin-operations-api.js";
 import type { WebStudyCaptureApi } from "./study-capture-api.js";
 import { PrivacyPage } from "./privacy-page.js";
+import { HomePage } from "./home-page.js";
+import { GuidePage } from "./guide-page.js";
 import type { PublicPage, WebBootstrap } from "./public-bootstrap.js";
 import { PasswordRecoveryPage, type PasswordRecoveryApi } from "./password-recovery-page.js";
 import type { PasswordRecoveryRoute } from "./password-recovery-route.js";
@@ -91,6 +93,8 @@ function AppSurface({
   readonly replaceInvitationUrl?: (() => void) | undefined;
   readonly replaceRecoveryUrl?: (() => void) | undefined;
 }) {
+  if (publicPage === "home") return <HomePage />;
+  if (publicPage === "guide") return <GuidePage />;
   if (publicPage === "privacy")
     return <PrivacyPage deploymentEnvironment={publicDeploymentEnvironment} />;
   if (passwordRecoveryApi !== undefined && passwordRecoveryRoute !== undefined) {

@@ -15,6 +15,7 @@ export function AdminUserPanel({
   readonly onRefresh: () => Promise<boolean>;
   readonly user: AdminUserResource;
 }) {
+  const label = user.email ?? `微信用户 ${user.id.slice(0, 8)}`;
   const [busy, setBusy] = useState(false);
   const [confirm, setConfirm] = useState<"devices" | "status" | null>(null);
   const [message, setMessage] = useState("");
@@ -54,7 +55,7 @@ export function AdminUserPanel({
     <article className="admin-user-card">
       <header>
         <div>
-          <h3>{user.email}</h3>
+          <h3>{label}</h3>
           <p>{user.id}</p>
         </div>
         <span className={`admin-status admin-status-${user.status}`}>{user.status}</span>
@@ -98,11 +99,7 @@ export function AdminUserPanel({
         )}
       </div>
       {confirm === "devices" && (
-        <div
-          className="admin-confirm"
-          role="group"
-          aria-label={`确认撤销 ${user.email} 的扩展设备`}
-        >
+        <div className="admin-confirm" role="group" aria-label={`确认撤销 ${label} 的扩展设备`}>
           <p>这会撤销该账号全部 Extension session，不影响 Web 会话。</p>
           <button
             disabled={busy}
@@ -126,10 +123,10 @@ export function AdminUserPanel({
         </div>
       )}
       {confirm === "status" && (
-        <div className="admin-confirm" role="group" aria-label={`确认更改 ${user.email} 状态`}>
+        <div className="admin-confirm" role="group" aria-label={`确认更改 ${label} 状态`}>
           <p>
             {user.status === "active"
-              ? "停用会撤销 Web、Extension 会话并使未完成配对过期。"
+              ? "停用会撤销网页、小程序和扩展会话，并使未完成的关联过期。"
               : "启用只恢复账号状态，不恢复旧会话。"}
           </p>
           <button
@@ -153,7 +150,7 @@ export function AdminUserPanel({
             ref={confirmRef}
             type="button"
           >
-            {user.status === "active" ? `确认停用 ${user.email}` : `确认启用 ${user.email}`}
+            {user.status === "active" ? `确认停用 ${label}` : `确认启用 ${label}`}
           </button>
           <button disabled={busy} onClick={() => setConfirm(null)} type="button">
             取消

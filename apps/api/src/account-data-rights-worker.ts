@@ -13,6 +13,7 @@ export interface ExportClaim {
   ownerUserId: string;
 }
 export interface DeletionClaim {
+  deleteAuthUser: boolean;
   exportObjectKeys: string[];
   jobId: string;
   leaseToken: string;
@@ -138,7 +139,7 @@ export function createAccountDataRightsWorker(options: {
         await options.repository.finishDatabaseDeletion(claim);
         stage = "database-deleted";
       }
-      await options.authority.deleteAuthUser(claim.subjectUserId);
+      if (claim.deleteAuthUser) await options.authority.deleteAuthUser(claim.subjectUserId);
       await options.repository.finishAuthDeletion(claim);
       return "processed";
     } catch {

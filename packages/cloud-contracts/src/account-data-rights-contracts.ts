@@ -108,6 +108,8 @@ export const accountDataExportRecordSchema = z.union([
   }),
   z.strictObject({
     ...accountSignInMethodsResponseSchema.shape,
+    // A pure WeChat account has no password or Google Web sign-in method.
+    methods: z.union([accountSignInMethodsResponseSchema.shape.methods, z.tuple([])]),
     recordType: z.literal("account-sign-in-methods"),
   }),
   z.strictObject({
@@ -167,7 +169,11 @@ export const accountDataExportRecordSchema = z.union([
     recordType: z.literal("learning-item"),
     schedule: scheduleStateSchema,
   }),
-  z.strictObject({ recordType: z.literal("word"), word: wordEntrySchema }),
+  z.strictObject({
+    recordType: z.literal("word"),
+    word: wordEntrySchema,
+    archivedAt: z.string().datetime({ offset: true }).nullable().optional(),
+  }),
   z.strictObject({
     recordType: z.literal("practice-session"),
     session: practiceSessionSchema,

@@ -1,0 +1,144 @@
+.public-site {
+  min-height: 100vh;
+  color: var(--text-primary);
+  background: var(--surface-canvas);
+  isolation: isolate;
+  overflow-wrap: anywhere;
+}
+
+body:has(.public-site) {
+  min-width: 0;
+}
+
+.public-site .skip-link:not(:focus) {
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.site-header,
+.site-main,
+.site-footer {
+  width: min(100%, 80rem);
+  margin: 0 auto;
+  padding-inline: clamp(var(--space-5), 5vw, var(--space-16));
+}
+
+.site-header {
+  display: flex;
+  min-height: 6.5rem;
+  align-items: center;
+  gap: var(--space-6);
+  padding-block: var(--space-5);
+}
+
+.site-brand {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+.site-brand .brand-mark {
+  width: 2.25rem;
+  height: 2.25rem;
+  flex: 0 0 auto;
+}
+
+.site-brand > span:last-child {
+  display: grid;
+  gap: var(--space-hairline);
+}
+
+.site-brand strong {
+  font-size: 1.15rem;
+}
+.site-brand small {
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+}
+.site-navigation {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-2) var(--space-6);
+}
+.site-navigation a,
+.site-footer nav a,
+.site-text-link,
+.site-entry-status a {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.3em;
+}
+.site-navigation a {
+  text-decoration: none;
+}
+.site-navigation a:hover,
+.site-navigation a[aria-current="page"],
+.site-text-link:hover {
+  color: var(--action-hover);
+}
+.site-navigation .site-login {
+  color: var(--text-primary);
+}
+.site-header .appearance-menu {
+  position: relative;
+  inset: auto;
+}
+.site-header .workspace-appearance {
+  flex-shrink: 0;
+}
+.site-main {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+.public-site section {
+  scroll-margin-top: 2rem;
+}
+.site-eyebrow {
+  margin: 0 0 var(--space-5);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 650;
+  letter-spacing: 0.14em;
+}
+.site-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-6);
+  padding-block: var(--space-10) var(--space-8);
+  border-top: 1px solid var(--border-strong);
+}
+.site-footer strong {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+.site-footer p {
+  margin: var(--space-3) 0 0;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  line-height: 1.8;
+}
+.site-footer nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-6);
+}
+.site-footer .site-personal {
+  width: 100%;
+  margin-top: 0;
+}

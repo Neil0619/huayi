@@ -2,8 +2,10 @@ import type { Context } from "hono";
 
 import { setDiagnosticContext } from "./diagnostic-context.js";
 import { CloudFault } from "./cloud-fault.js";
+import { miniProgramToken } from "./miniprogram-token.js";
 
 export interface ProductionIdentityAuthentication {
+  authenticateMiniProgram?(token: string): Promise<{ userId: string }>;
   authenticateExtension(token: string): Promise<{ userId: string }>;
   authenticateWebMutation(
     sessionId: string,
@@ -70,6 +72,15 @@ export function createProductionAnalysisAuthenticator(
   policy: ExtensionRequestPolicy,
 ): (context: Context) => Promise<string> {
   return (context) => {
+    const authorization = context.req.header("authorization");
+    if (authorization !== undefined) {
+      const token = miniProgramToken(authorization);
+      if (!identity.authenticateMiniProgram)
+        throw new CloudFault("forbidden", "Mini-program access is disabled.");
+      return identity
+        .authenticateMiniProgram(token)
+        .then((result) => diagnosticUser(result.userId));
+    }
     const cookie = context.req.header("cookie");
     const csrf = context.req.header("x-csrf-token");
     const origin = context.req.header("origin");
@@ -90,7 +101,16 @@ export async function authenticateProductionPrincipalRequest(
   identity: ProductionIdentityAuthentication,
   headers: ProductionPrincipalHeaders,
   policy: ExtensionRequestPolicy,
-): Promise<{ kind: "extension" | "web"; userId: string }> {
+): Promise<{ kind: "extension" | "web" | "miniprogram"; userId: string }> {
+  if (headers.authorization?.startsWith("HuayiMiniProgram")) {
+    const token = miniProgramToken(headers.authorization);
+    if (!identity.authenticateMiniProgram)
+      throw new CloudFault("forbidden", "Mini-program access is disabled.");
+    return {
+      kind: "miniprogram",
+      userId: diagnosticUser((await identity.authenticateMiniProgram(token)).userId),
+    };
+  }
   if (headers.authorization !== undefined) {
     if (policy.capability === "disabled") {
       throw new CloudFault("forbidden", "Extension access is disabled.");

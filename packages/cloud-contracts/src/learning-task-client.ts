@@ -1,7 +1,6 @@
 import { apiErrorSchema, idempotencyKeySchema, resourceIdSchema } from "./common-contracts.js";
 import {
   learningTaskCommandSchema,
-  learningTaskEventSchema,
   learningTaskSnapshotSchema,
   learningTaskRoutes,
   type LearningTaskCommand,
@@ -10,14 +9,9 @@ import {
 } from "./learning-tasks.js";
 import { z } from "zod/v3";
 
-export class LearningTaskError extends Error {
-  constructor(
-    readonly code: string,
-    readonly diagnosticId?: string,
-  ) {
-    super(`Learning task failed: ${code}.`);
-  }
-}
+import { LearningTaskError } from "./learning-task-error.js";
+import { createLearningTaskSseDecoder } from "./learning-task-sse-decoder.js";
+export { LearningTaskError };
 export interface LearningTaskTransport {
   request(path: string, init: RequestInit): Promise<Response>;
 }
@@ -94,7 +88,7 @@ export function createLearningTaskClient(transport: LearningTaskTransport) {
             throw new LearningTaskError("invalid_response", id);
           const reader = response.body.getReader();
           const decoder = new TextDecoder("utf-8", { fatal: true });
-          let buffer = "";
+          const frames = createLearningTaskSseDecoder(id, cursor);
           let bytes = 0;
           const abort = () => {
             void reader.cancel().catch(() => undefined);
@@ -104,56 +98,22 @@ export function createLearningTaskClient(transport: LearningTaskTransport) {
             while (!signal?.aborted) {
               const chunk = await reader.read();
               if (chunk.done) {
-                buffer += decoder.decode();
+                frames.push(decoder.decode());
                 break;
               }
               bytes += chunk.value.byteLength;
               if (bytes > 4 * 1024 * 1024) throw new LearningTaskError("invalid_response", id);
-              buffer += decoder.decode(chunk.value, { stream: true });
-              let boundary = buffer.search(/\r?\n\r?\n/u);
-              while (boundary >= 0) {
-                const frame = buffer.slice(0, boundary).replaceAll("\r\n", "\n");
-                buffer = buffer.slice(
-                  boundary + (buffer.slice(boundary).match(/^\r?\n\r?\n/u)?.[0].length ?? 2),
-                );
-                const fields = new Map<string, string>();
-                for (const line of frame.split("\n")) {
-                  if (line.startsWith(":")) continue;
-                  const colon = line.indexOf(":");
-                  const key = line.slice(0, colon);
-                  if (colon < 0 || fields.has(key) || !["event", "data", "id"].includes(key))
-                    throw new LearningTaskError("invalid_response", id);
-                  fields.set(key, line.slice(colon + 1).replace(/^ /u, ""));
-                }
-                if (fields.get("event") === "learning-task") {
-                  const event = learningTaskEventSchema.parse(
-                    JSON.parse(fields.get("data") ?? "") as unknown,
-                  );
-                  if (
-                    event.taskId !== id ||
-                    String(event.cursor) !== fields.get("id") ||
-                    event.cursor > cursor + 1
-                  )
-                    throw new LearningTaskError("invalid_response", id);
-                  if (event.cursor > cursor) {
-                    cursor = event.cursor;
-                    lastPayload = event.payload;
-                    yield event.payload;
-                  }
-                  retries = 0;
-                } else if (fields.get("event") === "task-status") {
-                  snapshot = learningTaskSnapshotSchema.parse(
-                    JSON.parse(fields.get("data") ?? "") as unknown,
-                  );
-                  if (snapshot.id !== id || snapshot.cursor < cursor)
-                    throw new LearningTaskError("invalid_response", id);
+              for (const frame of frames.push(decoder.decode(chunk.value, { stream: true }))) {
+                if (frame.kind === "event") {
+                  cursor = frame.event.cursor;
+                  lastPayload = frame.event.payload;
+                  yield frame.event.payload;
+                } else {
+                  snapshot = frame.snapshot;
                   onSnapshot?.(snapshot);
-                  retries = 0;
-                } else if (fields.size > 0) throw new LearningTaskError("invalid_response", id);
-                boundary = buffer.search(/\r?\n\r?\n/u);
+                }
+                retries = 0;
               }
-              if (buffer.length > 2 * 1024 * 1024)
-                throw new LearningTaskError("invalid_response", id);
               if (snapshot && terminal(snapshot) && cursor >= snapshot.cursor) break;
             }
           } finally {
@@ -172,7 +132,8 @@ export function createLearningTaskClient(transport: LearningTaskTransport) {
               );
             return;
           }
-          if (buffer !== "" || !snapshot) throw new TypeError("Task subscription interrupted");
+          frames.finish();
+          if (!snapshot) throw new TypeError("Task subscription interrupted");
         } catch (error) {
           if (signal?.aborted) break;
           if (!(error instanceof TypeError) || retries >= 2) throw error;

@@ -11,12 +11,14 @@ import { AccountPreferencesForm } from "./account-preferences-form.js";
 import { AccountSettingsLayout } from "./account-settings-layout.js";
 import { HelpTip } from "./help-tip.js";
 import { SignInMethodsPanel, type SignInMethodsApi } from "./sign-in-methods-panel.js";
+import { WechatBindingPanel } from "./wechat-binding-panel.js";
 
 export type AccountQuotaApi = Pick<
   WebIdentityApi,
   "getAccount" | "getQuota" | "updateAccountPreferences"
 > &
-  SignInMethodsApi;
+  SignInMethodsApi &
+  Partial<Pick<WebIdentityApi, "approveWechatBinding">>;
 type LoadState = "error" | "loading" | "ready";
 
 function money(microUsd: number): string {
@@ -199,6 +201,16 @@ export function AccountQuotaPage({
               onCsrfTokenChanged={onCsrfTokenChanged}
             />
             <AccountPreferencesForm api={preferencesApi} initialPreferences={account.preferences} />
+            {api.approveWechatBinding && (
+              <WechatBindingPanel
+                email={account.email}
+                csrfToken={csrfToken}
+                approve={api.approveWechatBinding}
+                reauthenticate={api.reauthenticatePassword}
+                onCsrfTokenChanged={onCsrfTokenChanged}
+                google={googleAuthenticationEnabled ? api.startGoogleReauthentication : undefined}
+              />
+            )}
           </>
         )}
       </div>

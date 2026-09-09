@@ -10,6 +10,7 @@ const SOURCE_ROOTS = [
   "apps/store-extension/src",
   "apps/api/src",
   "apps/web/src",
+  "apps/miniprogram/src",
   "packages/protocol/src",
   "packages/store-domain/src",
   "packages/learning-domain/src",
@@ -20,6 +21,7 @@ const CYCLE_AND_SIZE_ROOTS = [
   "packages/store-domain/src",
   "apps/api/src",
   "apps/web/src",
+  "apps/miniprogram/src",
   "packages/learning-domain/src",
   "packages/cloud-contracts/src",
 ];
@@ -33,6 +35,7 @@ const PACKAGE_RULES = [
   },
   { allowedHuayi: new Set(["@huayi/cloud-contracts"]), root: "apps/api/src" },
   { allowedHuayi: new Set(["@huayi/cloud-contracts"]), root: "apps/web/src" },
+  { allowedHuayi: new Set(["@huayi/cloud-contracts"]), root: "apps/miniprogram/src" },
   { allowedHuayi: new Set(), root: "packages/protocol/src" },
   { allowedHuayi: new Set(["@huayi/learning-domain"]), root: "packages/store-domain/src" },
   { allowedHuayi: new Set(), root: "packages/learning-domain/src" },

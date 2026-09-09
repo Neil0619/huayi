@@ -1,3 +1,5 @@
+import { createWordCatalogApp } from "./word-catalog-app.js";
+import { createProductionLearningLibrary } from "./production-learning-library.js";
 import { createCloudFoundationApp } from "./cloud-foundation-app.js";
 import { createDiagnosticProviderFetch } from "./diagnostic-provider-fetch.js";
 import { createProductionDiagnostics } from "./production-diagnostics.js";
@@ -19,14 +21,7 @@ import { createProductionAdminOperations } from "./production-admin-operations.j
 import { createPostgresAccountPreferences } from "./postgres-account-preferences.js";
 import { createStudyCaptureApp } from "./study-capture-app.js";
 import { createLearningLibraryApp } from "./learning-library-app.js";
-import { createLearningLibraryModule } from "./learning-library-module.js";
-import { createLearningLibraryMaintenance } from "./learning-library-maintenance.js";
-import { createPostgresLearningLibrary } from "./postgres-learning-library.js";
-import { createPostgresLearningLibraryMaintenance } from "./postgres-learning-library-maintenance.js";
-import {
-  createProductionDuplicateSuggestionMaintenance,
-  createProductionDuplicateSuggestions,
-} from "./production-duplicate-suggestions.js";
+import { createProductionDuplicateSuggestionMaintenance } from "./production-duplicate-suggestions.js";
 export { duplicateSuggestionCleanupRoute } from "./duplicate-suggestion-maintenance-app.js";
 import { createPracticeApp } from "./practice-app.js";
 import { createDialoguePracticeModule } from "./dialogue-practice-module.js";
@@ -35,12 +30,8 @@ import { createPracticeHistoryModule } from "./practice-history-module.js";
 import { createPostgresPracticeHistory } from "./postgres-practice-history.js";
 import { createPostgresPracticeRepository } from "./postgres-practice-repository.js";
 import { createPostgresDialoguePracticeRepository } from "./postgres-dialogue-practice-repository.js";
-import { createPostgresWordLibrary } from "./postgres-word-library.js";
-import { createPostgresExternalWordbook } from "./postgres-external-wordbook.js";
 import { createExternalWordbookApp } from "./external-wordbook-app.js";
-import { createExternalWordbookModule } from "./external-wordbook-module.js";
 import { createWordLibraryApp } from "./word-library-app.js";
-import { createWordLibraryModule } from "./word-library-module.js";
 import {
   createPostgresWordListExportRepository,
   createWordListExport,
@@ -54,6 +45,8 @@ import {
 } from "./supabase-auth-provider.js";
 import { createProductionPasswordRecovery } from "./production-password-recovery.js";
 import { authenticateWebAccountRequest } from "./web-account-authentication.js";
+import { authenticateLearningAccountRequest } from "./miniprogram-authentication.js";
+import { createProductionMiniProgram } from "./production-miniprogram.js";
 import { createProductionAccountDataRights } from "./production-account-data-rights.js";
 import { createProductionLearningTasks } from "./production-learning-tasks.js";
 import {
@@ -103,6 +96,15 @@ export function createProductionApp(
     sql,
   });
   const analysisDatabase = createPostgresAnalysisDatabase(sql);
+  const miniProgram = createProductionMiniProgram({
+    environment,
+    database: analysisDatabase,
+    rateLimiter,
+    authenticateWeb: (context) => authenticateWebAccountRequest(identity, context),
+  });
+  const learningIdentity = miniProgram
+    ? { ...identity, authenticateMiniProgram: miniProgram.identity.authenticate }
+    : identity;
   const diagnostics = createProductionDiagnostics({
     database: analysisDatabase,
     environment,
@@ -110,7 +112,10 @@ export function createProductionApp(
     policy: extensionPolicy,
     rateLimiter,
   });
-  const authenticateWebAnalysis = createProductionAnalysisAuthenticator(identity, extensionPolicy);
+  const authenticateWebAnalysis = createProductionAnalysisAuthenticator(
+    learningIdentity,
+    extensionPolicy,
+  );
   const pricing = createProductionDeepSeekPricing(environment);
   const accountPreferences = createPostgresAccountPreferences(analysisDatabase);
   const { analysis, quota, studyCaptures } = createProductionAnalysis({
@@ -119,22 +124,13 @@ export function createProductionApp(
     fetch: providerFetch,
     pricing,
   });
-  const library = createLearningLibraryModule({
-    cursorKey: Buffer.from(environment.HUAYI_REFRESH_ENCRYPTION_KEY, "base64url"),
-    now: () => systemClock.now(),
-    repository: createPostgresLearningLibrary(analysisDatabase),
-  });
-  const duplicateSuggestions = createProductionDuplicateSuggestions({
-    apiKey: environment.HUAYI_DEEPSEEK_API_KEY,
-    database: analysisDatabase,
-    fetch: providerFetch,
-    pricing,
-  });
-  const libraryMaintenance = createLearningLibraryMaintenance({
-    duplicateSuggestions,
-    now: () => systemClock.now(),
-    repository: createPostgresLearningLibraryMaintenance(analysisDatabase),
-  });
+  const { library, libraryMaintenance, words, externalWordbooks, wordCatalog } =
+    createProductionLearningLibrary({
+      database: analysisDatabase,
+      environment,
+      fetch: providerFetch,
+      pricing,
+    });
   const practiceGenerator = createProductionPracticeGenerator({
     apiKey: environment.HUAYI_DEEPSEEK_API_KEY,
     database: analysisDatabase,
@@ -152,20 +148,6 @@ export function createProductionApp(
     cursorKey: Buffer.from(environment.HUAYI_REFRESH_ENCRYPTION_KEY, "base64url"),
     now: () => systemClock.now(),
     repository: createPostgresPracticeHistory(analysisDatabase),
-  });
-  const words = createWordLibraryModule({
-    cursorKey: Buffer.from(environment.HUAYI_REFRESH_ENCRYPTION_KEY, "base64url"),
-    ids: () => crypto.randomUUID(),
-    now: () => systemClock.now(),
-    repository: createPostgresWordLibrary(analysisDatabase),
-  });
-  const externalWordbooks = createExternalWordbookModule({
-    cursorKey: Buffer.from(environment.HUAYI_REFRESH_ENCRYPTION_KEY, "base64url"),
-    ids: () => crypto.randomUUID(),
-    leaseDurationMs: 120_000,
-    leaseKey: Buffer.from(environment.HUAYI_REFRESH_ENCRYPTION_KEY, "base64url"),
-    now: () => systemClock.now(),
-    repository: createPostgresExternalWordbook(analysisDatabase),
   });
   const dialoguePractice = createDialoguePracticeModule({
     generator: practiceGenerator,
@@ -207,7 +189,7 @@ export function createProductionApp(
     purgeDiagnostics: diagnostics.purge,
     database: analysisDatabase,
     environment,
-    identity,
+    identity: learningIdentity,
     policy: extensionPolicy,
     analysis,
     query,
@@ -216,6 +198,7 @@ export function createProductionApp(
     maintenance: libraryMaintenance,
   });
   app.route("/", learningTasks);
+  if (miniProgram) app.route("/", miniProgram.app);
   app.route("/", diagnostics.app);
   app.route(
     "/",
@@ -254,12 +237,17 @@ export function createProductionApp(
   );
   app.route(
     "/",
-    createProductionAccountDataRights({ database: analysisDatabase, environment, identity }),
+    createProductionAccountDataRights({
+      database: analysisDatabase,
+      environment,
+      identity,
+      ...(miniProgram ? { miniProgram: miniProgram.identity } : {}),
+    }),
   );
   app.route(
     "/",
     createAccountQuotaApp({
-      authenticate: (context) => authenticateWebAccountRequest(identity, context),
+      authenticate: (context) => authenticateLearningAccountRequest(learningIdentity, context),
       quota,
     }),
   );
@@ -274,7 +262,7 @@ export function createProductionApp(
   app.route(
     "/",
     createAccountPreferencesApp({
-      authenticate: (context) => authenticateWebAccountRequest(identity, context),
+      authenticate: (context) => authenticateLearningAccountRequest(learningIdentity, context),
       repository: accountPreferences,
     }),
   );
@@ -304,10 +292,10 @@ export function createProductionApp(
       authenticateCreate: (context) =>
         authenticateProductionExtensionRequest(identity, context, extensionPolicy),
       authenticateDelete: (context) =>
-        authenticateProductionContextRequest(identity, context, extensionPolicy).then(
+        authenticateProductionContextRequest(learningIdentity, context, extensionPolicy).then(
           (principal) => principal.userId,
         ),
-      authenticateWeb: (context) => authenticateWebAccountRequest(identity, context),
+      authenticateWeb: (context) => authenticateLearningAccountRequest(learningIdentity, context),
       module: studyCaptures,
     }),
   );
@@ -340,7 +328,7 @@ export function createProductionApp(
     "/",
     createAnalysisApp({
       authenticate: (context) =>
-        authenticateProductionContextRequest(identity, context, extensionPolicy).then(
+        authenticateProductionContextRequest(learningIdentity, context, extensionPolicy).then(
           (principal) => principal.userId,
         ),
       module: analysis,
@@ -384,9 +372,13 @@ export function createProductionApp(
     "/",
     createExternalWordbookApp({
       authenticate: (context) =>
-        authenticateProductionContextRequest(identity, context, extensionPolicy),
+        authenticateProductionContextRequest(learningIdentity, context, extensionPolicy),
       module: externalWordbooks,
     }),
+  );
+  app.route(
+    "/",
+    createWordCatalogApp({ authenticate: authenticateWebAnalysis, catalog: wordCatalog, words }),
   );
   app.route("/", createHealthApp(hostedDeploymentIdentityFromEnvironment(environment)));
   return app;

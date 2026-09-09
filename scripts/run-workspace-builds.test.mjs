@@ -22,6 +22,7 @@ test("workspace builds run serially in dependency order", async () => {
     "packages/store-domain",
     "apps/api",
     "apps/web",
+    "apps/miniprogram",
     "apps/extension",
     "apps/native-host",
     "apps/store-extension",
@@ -47,6 +48,7 @@ test("workspace builds stop at the first failure", async () => {
     "packages/store-domain",
     "apps/api",
     "apps/web",
+    "apps/miniprogram",
     "apps/extension",
   ]);
 });

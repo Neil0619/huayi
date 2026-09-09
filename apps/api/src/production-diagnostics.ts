@@ -29,8 +29,19 @@ export function createProductionDiagnostics(options: {
     app: createDiagnosticsApp({
       ...repository,
       rateLimiter: options.rateLimiter,
-      authenticateClient: (context) =>
-        authenticateProductionContextRequest(options.identity, context, options.policy),
+      authenticateClient: async (context) => {
+        const principal = await authenticateProductionContextRequest(
+          options.identity,
+          context,
+          options.policy,
+        );
+        if (principal.kind === "miniprogram")
+          throw new CloudFault(
+            "forbidden",
+            "Client diagnostics require a Web or Extension session.",
+          );
+        return { kind: principal.kind, userId: principal.userId };
+      },
       async authenticateAdmin(context) {
         const session = webSessionCookie(context);
         if (!session) throw new CloudFault("authentication_required", "A Web session is required.");

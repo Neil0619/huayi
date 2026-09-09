@@ -1,0 +1,40 @@
+# Template only: replace every REPLACE_* value on the mainland access host.
+# Include in the http {} context. Do not log query strings, bodies, or bearer headers.
+log_format mini_access '$remote_addr $request_method $uri $status $request_time';
+server {
+    listen 443 ssl;
+    server_name REPLACE_FILED_MINI_API_HOST;
+    ssl_certificate REPLACE_CERTIFICATE_PATH;
+    ssl_certificate_key REPLACE_CERTIFICATE_KEY_PATH;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    access_log /var/log/nginx/seen-said-mini.log mini_access;
+    client_max_body_size 2m;
+    resolver REPLACE_TRUSTED_DNS_IP valid=60s;
+    set $seen_said_upstream https://api.acceptance.seen-said.cn;
+
+    location ~ ^/(v1|v2)/ {
+        proxy_pass $seen_said_upstream$request_uri;
+        proxy_ssl_server_name on;
+        proxy_ssl_name api.acceptance.seen-said.cn;
+        proxy_ssl_verify on;
+        proxy_ssl_trusted_certificate /etc/ssl/certs/ca-certificates.crt;
+        proxy_http_version 1.1;
+        proxy_set_header Host api.acceptance.seen-said.cn;
+        proxy_set_header Connection "";
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header Authorization $http_authorization;
+        proxy_set_header Idempotency-Key $http_idempotency_key;
+        proxy_set_header X-Huayi-Revision $http_x_huayi_revision;
+        proxy_cache off;
+        proxy_buffering off;
+        proxy_request_buffering off;
+        gzip off;
+        proxy_connect_timeout 10s;
+        proxy_read_timeout 90s;
+        proxy_send_timeout 90s;
+        add_header Cache-Control "private, no-store" always;
+        add_header X-Accel-Buffering no always;
+    }
+    location / { return 404; }
+}

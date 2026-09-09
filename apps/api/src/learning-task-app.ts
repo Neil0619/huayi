@@ -13,7 +13,7 @@ import { requireCronBearer } from "./cron-authentication.js";
 import type { LearningTaskStore } from "./learning-task-store.js";
 
 interface Principal {
-  kind: "extension" | "web";
+  kind: "extension" | "web" | "miniprogram";
   userId: string;
 }
 export function createLearningTaskApp(options: {
@@ -26,7 +26,11 @@ export function createLearningTaskApp(options: {
   const detail = async (principal: Principal, id: string) => {
     resourceIdSchema.parse(id);
     const snapshot = await options.store.get(principal.userId, id);
-    if (!snapshot || (principal.kind === "extension" && snapshot.kind !== "instant-query")) {
+    if (
+      !snapshot ||
+      (principal.kind === "extension" && snapshot.kind !== "instant-query") ||
+      (principal.kind === "miniprogram" && snapshot.kind === "instant-query")
+    ) {
       throw new CloudFault("not_found", "Task not found.");
     }
     return snapshot;
@@ -36,6 +40,8 @@ export function createLearningTaskApp(options: {
     const input = learningTaskCommandSchema.parse(await context.req.json<unknown>());
     if (principal.kind === "extension" && input.kind !== "instant-query")
       throw new CloudFault("forbidden", "Use the Web learning workspace.");
+    if (principal.kind === "miniprogram" && input.kind === "instant-query")
+      throw new CloudFault("forbidden", "Instant query requires an Extension.");
     const headers = idempotencyKeySchema.parse(context.req.header("idempotency-key"));
     context.header("Cache-Control", "private, no-store");
     return context.json(
@@ -51,6 +57,7 @@ export function createLearningTaskApp(options: {
     return context.json(
       (await options.store.list(principal.userId))
         .filter((task) => principal.kind !== "extension" || task.kind === "instant-query")
+        .filter((task) => principal.kind !== "miniprogram" || task.kind !== "instant-query")
         .map((task) => learningTaskSnapshotSchema.parse(task)),
     );
   });

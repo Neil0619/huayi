@@ -8,6 +8,8 @@ const configFiles = [
   "playwright.config.ts",
   "vitest*.config.ts",
   "**/vite.config.ts",
+  "apps/miniprogram/config/index.ts",
+  "apps/miniprogram/src/app.config.ts",
 ];
 
 export const filenamePlugin = {
@@ -54,7 +56,7 @@ export default tseslint.config(
   ...tseslint.configs.strict,
   ...tseslint.configs.stylistic,
   {
-    files: ["**/*.mjs"],
+    files: ["**/*.mjs", "**/*.cjs"],
     languageOptions: {
       globals: globals.node,
     },

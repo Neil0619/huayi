@@ -54,6 +54,15 @@ export function createPostgresAccountDataRightsWorker(
             subject_user_id: string;
           }>("SELECT * FROM claim_account_deletion($1,$2)", [proof.hash, proof.expiresAt])
         )[0];
+        if (row === undefined) return null;
+        const required = (
+          await query.rows<{ required: boolean | null }>(
+            "SELECT miniprogram_deletion_auth_required($1,$2) required",
+            [row.job_id, proof.hash],
+          )
+        )[0]?.required;
+        if (typeof required !== "boolean")
+          throw new Error("Account deletion identity snapshot is unavailable.");
         return row === undefined
           ? null
           : {
@@ -62,6 +71,7 @@ export function createPostgresAccountDataRightsWorker(
               leaseToken: proof.token,
               stage: row.stage,
               subjectUserId: row.subject_user_id,
+              deleteAuthUser: required,
             };
       });
     },
