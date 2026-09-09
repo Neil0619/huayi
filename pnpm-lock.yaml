@@ -65,8 +65,8 @@ importers:
         specifier: 2.112.3
         version: 2.112.3
       hono:
-        specifier: ^4.9.8
-        version: 4.13.1
+        specifier: 4.13.5
+        version: 4.13.5
       postgres:
         specifier: 3.4.9
         version: 3.4.9
@@ -6093,10 +6093,10 @@ packages:
         integrity: sha512-CW/pPvSOFIRsosbwxrYaE9ERmpTo5fbTqL7wCvuCFlqW1Bmb1K5fXsY7yiH95rmlr4rVuA7UXHbM/cIXQ6AXwg==,
       }
 
-  hono@4.13.1:
+  hono@4.13.5:
     resolution:
       {
-        integrity: sha512-kdJoFVv2xmayw6cY09H7AbMJMt8Jn5jdlEdXsP7AGBdF2DIptVlKlOLKXP41yPip4/a3yQPv9gVcJYI8YY04dw==,
+        integrity: sha512-O6+/eCYRkzzzy0rPWwKLiGBR1nFuUPZynnwjxN1MBA62NNqbT0wQEzQyK2gSO5yDIDB336sXQleAhOHrzlYyKw==,
       }
     engines: { node: ">=16.9.0" }
 
@@ -14194,7 +14194,7 @@ snapshots:
 
   hls.js@1.7.2: {}
 
-  hono@4.13.1: {}
+  hono@4.13.5: {}
 
   hpack.js@2.1.6:
     dependencies:

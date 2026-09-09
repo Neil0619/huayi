@@ -16,7 +16,7 @@
     "@huayi/cloud-contracts": "workspace:*",
     "@huayi/learning-domain": "workspace:*",
     "@supabase/supabase-js": "2.112.3",
-    "hono": "^4.9.8",
+    "hono": "4.13.5",
     "postgres": "3.4.9",
     "zod": "^4.0.5"
   },
