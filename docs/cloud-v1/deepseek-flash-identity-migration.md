@@ -23,7 +23,19 @@ Hosted 配置中的模型密钥为不可回读的 sensitive 变量，尚未确�
 历史结算/回放测试仍保留旧模型数据。
 
 本次保留各流程 thinking 设置、最多两次 Provider 调用（至多一次结构修复）、严格 usage/cost 校验、
-durable dispatch 及固定费用快照，不增加透明重试。Classic、Native Host 和 Store BYOK 不在迁移范围。
+durable dispatch 及固定费用快照，不增加透明重试。首轮 Cloud 迁移不包含 Classic、Native Host 或 Store BYOK。
+
+## Store BYOK 兼容修复
+
+同日后续用户确认测试插件未关联账号，使用本机 DeepSeek。Store BYOK 的请求及 SSE 校验仍共用旧
+`deepseek-v4-flash` 常量；使用上述独立记录的 `deepseek-flash` 响应身份运行 BrowserAnalysisEngine，
+可复现句子翻译的 `invalid-response`。这条路径直接请求 DeepSeek，Cloud API 部署不会更新它。
+
+Store 的 `provider-requests.ts` 改用 `deepseek-flash`，SSE 仍按同一常量严格校验；查询缓存与云任务
+日志的配置身份也引用该常量。独立字面量响应夹具覆盖句子和段落翻译、请求身份、未知模型拒绝及
+流中途模型变化拒绝，避免测试与实现共用常量而漏掉真实供应商的身份变化。没有增加模型回退、调用次数、
+thinking 或权限，也没有重写历史记录。此修复需要重新构建并加载实际 Store 插件；Classic 与 Native Host
+仍不在此次修复范围，生产 API 发布和价格配置仍需独立执行与验收。
 
 ## 2026-09-10 定价依据与内部配额参考估值
 

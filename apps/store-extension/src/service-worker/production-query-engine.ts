@@ -3,6 +3,7 @@ import type { DiagnosticOutbox } from "./diagnostic-outbox.js";
 import type { AnalysisEngine, DeviceVault } from "@huayi/store-domain";
 
 import { BrowserAnalysisError } from "../analysis/analysis-error.js";
+import { DEEPSEEK_MODEL } from "../analysis/provider-requests.js";
 import type { CloudExtensionQueryApi } from "./cloud-extension-query-api.js";
 import type { ExtensionPreferenceCache } from "./extension-preference-cache.js";
 import type { ExtensionSessionVault } from "./extension-session-vault.js";
@@ -68,7 +69,7 @@ export function createProductionQueryEngine(options: Options): AnalysisEngine {
         mode,
         revision: preferences?.revision ?? 0,
         source: options.sourceType,
-        configuration: "query-stream-v2:deepseek-v4-flash",
+        configuration: `query-stream-v2:${DEEPSEEK_MODEL}`,
         credential:
           mode === "byok"
             ? await options.credentials.getCredential(

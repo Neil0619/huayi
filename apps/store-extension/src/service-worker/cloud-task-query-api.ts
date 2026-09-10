@@ -3,6 +3,7 @@ import {
   LearningTaskError,
   extensionQueryEventSchema,
 } from "@huayi/cloud-contracts";
+import { DEEPSEEK_MODEL } from "../analysis/provider-requests.js";
 import { extensionSessionHeaders } from "../cloud/extension-session-headers.js";
 import {
   CloudExtensionQueryError,
@@ -22,7 +23,7 @@ export function createCloudTaskQueryApi(options: {
       const identity = await queryIdentity({
         token,
         input,
-        config: "query-stream-v2:deepseek-v4-flash",
+        config: `query-stream-v2:${DEEPSEEK_MODEL}`,
       });
       const client = createLearningTaskClient({
         request: (path, init) =>
