@@ -7,7 +7,7 @@ const usage = { prompt_tokens: 10, completion_tokens: 20, total_tokens: 30 };
 const receipt = { cachedInputTokens: 0, inputTokens: 10, outputTokens: 20 };
 const event = (extra: Record<string, unknown> = {}) => ({
   id: secret,
-  model: "deepseek-v4-flash",
+  model: "deepseek-flash",
   choices: [{ index: 0, delta: { content: secret }, finish_reason: null }],
   ...extra,
 });

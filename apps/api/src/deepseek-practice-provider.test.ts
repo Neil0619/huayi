@@ -47,7 +47,7 @@ function response(content: unknown, inputTokens = 100, outputTokens = 50) {
           },
         },
       ],
-      model: "deepseek-v4-flash",
+      model: "deepseek-flash",
       usage: {
         completion_tokens: outputTokens,
         prompt_cache_hit_tokens: 0,
@@ -192,7 +192,7 @@ describe("DeepSeek practice provider", () => {
     const body = JSON.parse(init?.body ?? "{}") as Record<string, unknown>;
     expect(body).toMatchObject({
       max_tokens: 1_024,
-      model: "deepseek-v4-flash",
+      model: "deepseek-flash",
       reasoning_effort: "low",
       stream: true,
       response_format: { type: "json_object" },

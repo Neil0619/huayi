@@ -15,8 +15,9 @@ import { deepSeekAnalysisExample } from "./deepseek-output-examples.js";
 import { deepSeekAnalysisTeaching } from "./deepseek-analysis-teaching.js";
 import { reviewedAnalysisGrammarNotes } from "./deepseek-analysis-reference.js";
 import { deepSeekAnalysisOutputContract } from "./deepseek-analysis-output-contract.js";
+import { DEEPSEEK_PLATFORM_MODEL } from "./deepseek-model-identity.js";
 
-export const DEEPSEEK_PLATFORM_MODEL = "deepseek-v4-flash";
+export { DEEPSEEK_PLATFORM_MODEL } from "./deepseek-model-identity.js";
 export const DEEPSEEK_PLATFORM_ENDPOINT = "https://api.deepseek.com/chat/completions";
 
 const MAXIMUM_REQUEST_BYTES = 64 * 1_024;

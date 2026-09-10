@@ -8,6 +8,28 @@ const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const environmentPath = resolve(repositoryRoot, ".env.acceptance.local");
 const databaseContainer = "supabase_db_seen-and-said-local-acceptance";
 const studioContainer = "supabase_studio_seen-and-said-local-acceptance";
+const priceIdKeys = Object.freeze({
+  legacyPriceVersionId: "HUAYI_DEEPSEEK_LEGACY_PRICE_VERSION_ID",
+  offPeakPriceVersionId: "HUAYI_DEEPSEEK_OFF_PEAK_PRICE_VERSION_ID",
+  peakPriceVersionId: "HUAYI_DEEPSEEK_PEAK_PRICE_VERSION_ID",
+  latestOffPeakPriceVersionId: "HUAYI_DEEPSEEK_20260910_OFF_PEAK_PRICE_VERSION_ID",
+  latestPeakPriceVersionId: "HUAYI_DEEPSEEK_20260910_PEAK_PRICE_VERSION_ID",
+});
+
+function assertLocalPriceIds(values) {
+  const ids = Object.keys(priceIdKeys).map((key) => values[key]);
+  if (
+    ids.some(
+      (id) => typeof id !== "string" || !/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/iu.test(id),
+    ) ||
+    new Set(ids).size !== 5
+  )
+    throw new Error("Local acceptance price IDs are invalid.");
+}
+
+function newLocalPriceIds(id = randomUUID) {
+  return Object.fromEntries(Object.keys(priceIdKeys).map((key) => [key, id()]));
+}
 
 function runCommand(command, arguments_, { input } = {}) {
   return new Promise((resolveResult) => {
@@ -51,6 +73,7 @@ function encodedDatabaseUrl(password) {
 }
 
 export function renderAcceptanceEnvironment(values) {
+  assertLocalPriceIds(values);
   return [
     "# Generated for local acceptance only. Never commit or share this file.",
     "HUAYI_API_ORIGIN=https://api.acceptance.localhost:8444",
@@ -68,9 +91,7 @@ export function renderAcceptanceEnvironment(values) {
     `HUAYI_STORE_EXTENSION_ID=${"a".repeat(32)}`,
     "HUAYI_MIN_SUPPORTED_EXTENSION_VERSION=1.0.0",
     "HUAYI_ACCOUNT_EXPORT_BUCKET=account-exports-acceptance",
-    `HUAYI_DEEPSEEK_LEGACY_PRICE_VERSION_ID=${values.legacyPriceVersionId}`,
-    `HUAYI_DEEPSEEK_OFF_PEAK_PRICE_VERSION_ID=${values.offPeakPriceVersionId}`,
-    `HUAYI_DEEPSEEK_PEAK_PRICE_VERSION_ID=${values.peakPriceVersionId}`,
+    ...Object.entries(priceIdKeys).map(([key, name]) => `${name}=${values[key]}`),
     "",
   ].join("\n");
 }
@@ -96,6 +117,10 @@ async function existingGeneratedValues() {
     if (error?.code === "ENOENT") return null;
     throw error;
   }
+  return readAcceptanceGeneratedValues(contents);
+}
+
+export function readAcceptanceGeneratedValues(contents, id = randomUUID) {
   const environment = parseEnvironment(contents);
   const databaseUrl = new URL(environment.get("HUAYI_DATABASE_URL") ?? "");
   const required = (name) => {
@@ -105,12 +130,24 @@ async function existingGeneratedValues() {
     }
     return value;
   };
+  const hasLatestOffPeak = environment.has(priceIdKeys.latestOffPeakPriceVersionId);
+  const hasLatestPeak = environment.has(priceIdKeys.latestPeakPriceVersionId);
+  if (hasLatestOffPeak !== hasLatestPeak) {
+    throw new Error("Local acceptance environment is invalid.");
+  }
+  for (const key of ["legacyPriceVersionId", "offPeakPriceVersionId", "peakPriceVersionId"]) {
+    required(priceIdKeys[key]);
+  }
+  // The old three IDs belong to deepseek-v4-flash. An old local file gets five new IDs;
+  // never relabel its immutable rows. A complete new file reuses its IDs on every rerun.
+  const prices = hasLatestOffPeak
+    ? Object.fromEntries(Object.entries(priceIdKeys).map(([key, name]) => [key, required(name)]))
+    : newLocalPriceIds(id);
+  assertLocalPriceIds(prices);
   return {
+    ...prices,
     cronSecret: required("CRON_SECRET"),
     databasePassword: decodeURIComponent(databaseUrl.password),
-    legacyPriceVersionId: required("HUAYI_DEEPSEEK_LEGACY_PRICE_VERSION_ID"),
-    offPeakPriceVersionId: required("HUAYI_DEEPSEEK_OFF_PEAK_PRICE_VERSION_ID"),
-    peakPriceVersionId: required("HUAYI_DEEPSEEK_PEAK_PRICE_VERSION_ID"),
     pepper: required("HUAYI_SECRET_PEPPER"),
     refreshEncryptionKey: required("HUAYI_REFRESH_ENCRYPTION_KEY"),
   };
@@ -118,11 +155,9 @@ async function existingGeneratedValues() {
 
 function newGeneratedValues() {
   return {
+    ...newLocalPriceIds(),
     cronSecret: randomBytes(32).toString("base64url"),
     databasePassword: randomBytes(24).toString("base64url"),
-    legacyPriceVersionId: randomUUID(),
-    offPeakPriceVersionId: randomUUID(),
-    peakPriceVersionId: randomUUID(),
     pepper: randomBytes(32).toString("base64url"),
     refreshEncryptionKey: randomBytes(32).toString("base64url"),
   };
@@ -133,6 +168,7 @@ function sqlLiteral(value) {
 }
 
 export function bootstrapSql(values) {
+  assertLocalPriceIds(values);
   const password = sqlLiteral(values.databasePassword);
   return `
 DO $$
@@ -149,19 +185,27 @@ INSERT INTO public.model_price_versions (
   id, provider, model, input_micro_usd_per_million,
   cached_input_micro_usd_per_million, output_micro_usd_per_million, effective_from
 ) VALUES
-  (${sqlLiteral(values.legacyPriceVersionId)}, 'deepseek', 'deepseek-v4-flash', 140000, 2800, 280000, '2026-08-16T15:59:59Z'),
-  (${sqlLiteral(values.offPeakPriceVersionId)}, 'deepseek', 'deepseek-v4-flash', 220000, 7000, 660000, '2026-08-16T16:00:00Z'),
-  (${sqlLiteral(values.peakPriceVersionId)}, 'deepseek', 'deepseek-v4-flash', 440000, 14000, 1320000, '2026-08-16T16:00:01Z')
+  (${sqlLiteral(values.legacyPriceVersionId)}, 'deepseek', 'deepseek-flash', 140000, 2800, 280000, '2026-08-16T15:59:59Z'),
+  (${sqlLiteral(values.offPeakPriceVersionId)}, 'deepseek', 'deepseek-flash', 220000, 7000, 660000, '2026-08-16T16:00:00Z'),
+  (${sqlLiteral(values.peakPriceVersionId)}, 'deepseek', 'deepseek-flash', 440000, 14000, 1320000, '2026-08-16T16:00:01Z'),
+  (${sqlLiteral(values.latestOffPeakPriceVersionId)}, 'deepseek', 'deepseek-flash', 149081, 2982, 596323, '2026-09-10T04:00:00Z'),
+  (${sqlLiteral(values.latestPeakPriceVersionId)}, 'deepseek', 'deepseek-flash', 298162, 5964, 1192646, '2026-09-10T06:00:00Z')
 ON CONFLICT (id) DO NOTHING;
 
 SELECT public.require_model_price_version(
-  ${sqlLiteral(values.legacyPriceVersionId)}, 'deepseek', 'deepseek-v4-flash', 140000, 2800, 280000
+  ${sqlLiteral(values.legacyPriceVersionId)}, 'deepseek', 'deepseek-flash', 140000, 2800, 280000
 );
 SELECT public.require_model_price_version(
-  ${sqlLiteral(values.offPeakPriceVersionId)}, 'deepseek', 'deepseek-v4-flash', 220000, 7000, 660000
+  ${sqlLiteral(values.offPeakPriceVersionId)}, 'deepseek', 'deepseek-flash', 220000, 7000, 660000
 );
 SELECT public.require_model_price_version(
-  ${sqlLiteral(values.peakPriceVersionId)}, 'deepseek', 'deepseek-v4-flash', 440000, 14000, 1320000
+  ${sqlLiteral(values.peakPriceVersionId)}, 'deepseek', 'deepseek-flash', 440000, 14000, 1320000
+);
+SELECT public.require_model_price_version(
+  ${sqlLiteral(values.latestOffPeakPriceVersionId)}, 'deepseek', 'deepseek-flash', 149081, 2982, 596323
+);
+SELECT public.require_model_price_version(
+  ${sqlLiteral(values.latestPeakPriceVersionId)}, 'deepseek', 'deepseek-flash', 298162, 5964, 1192646
 );
 
 INSERT INTO public.runtime_controls (name, enabled)

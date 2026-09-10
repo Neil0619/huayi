@@ -152,7 +152,7 @@ describe("DeepSeek platform analysis model", () => {
     const body = JSON.parse(init?.body ?? "{}") as Record<string, unknown>;
     expect(body).toMatchObject({
       max_tokens: 8_192,
-      model: DEEPSEEK_PLATFORM_MODEL,
+      model: "deepseek-flash",
       reasoning_effort: "low",
       response_format: { type: "json_object" },
       stream: true,
@@ -165,7 +165,7 @@ describe("DeepSeek platform analysis model", () => {
     expect(result.content).toMatchObject({
       modelMetadata: {
         inputTokens: 100,
-        model: DEEPSEEK_PLATFORM_MODEL,
+        model: "deepseek-flash",
         outputTokens: 200,
         promptVersion: "web-deep-analysis-v2.11-balanced",
         provider: "deepseek",

@@ -22,7 +22,7 @@ describe("reviewed analysis reference selection", () => {
     expect(body.messages[0]?.content).toContain("不能断言 Y 是唯一条件");
     expect(body.messages[0]?.content).not.toContain(source);
     expect(body.messages[1]?.content).toContain(source);
-    expect(body.model).toBe("deepseek-v4-flash");
+    expect(body.model).toBe("deepseek-flash");
     expect(body.thinking.type).toBe("disabled");
   });
 

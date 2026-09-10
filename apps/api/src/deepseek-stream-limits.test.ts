@@ -7,7 +7,7 @@ const event = (delta: Record<string, string> = {}, finish: string | null = null)
     id: "provider-stream-" + "a".repeat(120),
     object: "chat.completion.chunk",
     created: 1_788_659_700,
-    model: "deepseek-v4-flash",
+    model: "deepseek-flash",
     choices: [{ index: 0, delta, finish_reason: finish }],
     ...(finish
       ? { usage: { prompt_tokens: 10, completion_tokens: 8192, total_tokens: 8202 } }

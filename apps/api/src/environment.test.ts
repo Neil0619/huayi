@@ -18,6 +18,8 @@ function validHostedEnvironment() {
     HUAYI_DEEPSEEK_LEGACY_PRICE_VERSION_ID: "10000000-0000-4000-8000-000000000001",
     HUAYI_DEEPSEEK_OFF_PEAK_PRICE_VERSION_ID: "10000000-0000-4000-8000-000000000002",
     HUAYI_DEEPSEEK_PEAK_PRICE_VERSION_ID: "10000000-0000-4000-8000-000000000003",
+    HUAYI_DEEPSEEK_20260910_OFF_PEAK_PRICE_VERSION_ID: "10000000-0000-4000-8000-000000000004",
+    HUAYI_DEEPSEEK_20260910_PEAK_PRICE_VERSION_ID: "10000000-0000-4000-8000-000000000005",
     HUAYI_MIN_SUPPORTED_EXTENSION_VERSION: "1.0.0",
     HUAYI_REFRESH_ENCRYPTION_KEY: Buffer.alloc(32, 1).toString("base64url"),
     HUAYI_RESEND_API_KEY: "re_test-only-not-a-real-secret",
@@ -35,6 +37,28 @@ function validHostedEnvironment() {
 }
 
 describe("API security environment", () => {
+  const datedPriceIds = {
+    HUAYI_DEEPSEEK_20260910_OFF_PEAK_PRICE_VERSION_ID: "10000000-0000-4000-8000-000000000004",
+    HUAYI_DEEPSEEK_20260910_PEAK_PRICE_VERSION_ID: "10000000-0000-4000-8000-000000000005",
+  };
+
+  it("reads both dated tariff IDs into the production configuration", () => {
+    expect(readApiEnvironment({ ...validHostedEnvironment(), ...datedPriceIds })).toMatchObject(
+      datedPriceIds,
+    );
+  });
+
+  it.each(Object.keys(datedPriceIds))("fails closed without a unique valid %s", (field) => {
+    const environment = { ...validHostedEnvironment(), ...datedPriceIds };
+    expect(() => readApiEnvironment({ ...environment, [field]: undefined })).toThrow();
+    expect(() => readApiEnvironment({ ...environment, [field]: "invalid" })).toThrow();
+    for (const [otherField, id] of Object.entries(environment)) {
+      if (otherField.endsWith("PRICE_VERSION_ID") && otherField !== field) {
+        expect(() => readApiEnvironment({ ...environment, [field]: id })).toThrow();
+      }
+    }
+  });
+
   it("keeps the explicit acceptance profile bound to its existing database", () => {
     const environment = {
       ...validHostedEnvironment(),
@@ -187,6 +211,8 @@ describe("API security environment", () => {
         HUAYI_DEEPSEEK_LEGACY_PRICE_VERSION_ID: "10000000-0000-4000-8000-000000000001",
         HUAYI_DEEPSEEK_OFF_PEAK_PRICE_VERSION_ID: "10000000-0000-4000-8000-000000000002",
         HUAYI_DEEPSEEK_PEAK_PRICE_VERSION_ID: "10000000-0000-4000-8000-000000000003",
+        HUAYI_DEEPSEEK_20260910_OFF_PEAK_PRICE_VERSION_ID: "10000000-0000-4000-8000-000000000004",
+        HUAYI_DEEPSEEK_20260910_PEAK_PRICE_VERSION_ID: "10000000-0000-4000-8000-000000000005",
         HUAYI_REFRESH_ENCRYPTION_KEY: Buffer.alloc(32, 1).toString("base64url"),
         HUAYI_SECRET_PEPPER: "a-secure-test-pepper-with-32-characters",
         HUAYI_STORE_EXTENSION_ID: "a".repeat(32),
@@ -207,6 +233,8 @@ describe("API security environment", () => {
         HUAYI_DEEPSEEK_LEGACY_PRICE_VERSION_ID: "not-a-uuid",
         HUAYI_DEEPSEEK_OFF_PEAK_PRICE_VERSION_ID: "10000000-0000-4000-8000-000000000002",
         HUAYI_DEEPSEEK_PEAK_PRICE_VERSION_ID: "10000000-0000-4000-8000-000000000003",
+        HUAYI_DEEPSEEK_20260910_OFF_PEAK_PRICE_VERSION_ID: "10000000-0000-4000-8000-000000000004",
+        HUAYI_DEEPSEEK_20260910_PEAK_PRICE_VERSION_ID: "10000000-0000-4000-8000-000000000005",
         HUAYI_REFRESH_ENCRYPTION_KEY: "too-short",
         HUAYI_RESEND_API_KEY: "invalid",
         HUAYI_SECRET_PEPPER: "short",
@@ -257,6 +285,8 @@ describe("API security environment", () => {
       HUAYI_DEEPSEEK_LEGACY_PRICE_VERSION_ID: "10000000-0000-4000-8000-000000000001",
       HUAYI_DEEPSEEK_OFF_PEAK_PRICE_VERSION_ID: "10000000-0000-4000-8000-000000000002",
       HUAYI_DEEPSEEK_PEAK_PRICE_VERSION_ID: "10000000-0000-4000-8000-000000000003",
+      HUAYI_DEEPSEEK_20260910_OFF_PEAK_PRICE_VERSION_ID: "10000000-0000-4000-8000-000000000004",
+      HUAYI_DEEPSEEK_20260910_PEAK_PRICE_VERSION_ID: "10000000-0000-4000-8000-000000000005",
       HUAYI_MIN_SUPPORTED_EXTENSION_VERSION: "1.0.0",
       HUAYI_REFRESH_ENCRYPTION_KEY: Buffer.alloc(32, 1).toString("base64url"),
       HUAYI_SECRET_PEPPER: "a-secure-test-pepper-with-32-characters",

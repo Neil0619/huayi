@@ -1,3 +1,4 @@
+import { DEEPSEEK_PLATFORM_MODEL } from "./deepseek-model-identity.js";
 import { captureDiagnostic } from "./diagnostic-context.js";
 import { z } from "zod/v3";
 import type { ModelUsage } from "@huayi/cloud-contracts";
@@ -42,7 +43,7 @@ const MAXIMUM_FRAME_CHARACTERS = 65_536;
 
 const eventSchema = z.object({
   id: z.string().min(1).max(256),
-  model: z.literal("deepseek-v4-flash"),
+  model: z.literal(DEEPSEEK_PLATFORM_MODEL),
   created: z.number().int().optional(),
   choices: z
     .array(

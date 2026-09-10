@@ -1,5 +1,9 @@
 # DeepSeek V4 Flash usage 与分时计费校准
 
+本文保留 2026-08 的历史实现与价格快照；2026-09-10 起的 Cloud 模型身份和 CNY 内部配额参考估值见
+[DeepSeek Flash 模型身份迁移](./deepseek-flash-identity-migration.md)。以下旧身份、三 UUID 与价格描述
+不作为新候选配置或新模型官方美元费率依据。
+
 ## 1. 范围与官方事实
 
 影响平台为 `shared + macOS + Windows`；只修改 Cloud V1 API 的平台模型 adapter、服务端价格选择和

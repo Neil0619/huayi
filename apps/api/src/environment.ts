@@ -94,6 +94,8 @@ const baseEnvironmentShape = {
   HUAYI_DEEPSEEK_LEGACY_PRICE_VERSION_ID: z.string().uuid(),
   HUAYI_DEEPSEEK_OFF_PEAK_PRICE_VERSION_ID: z.string().uuid(),
   HUAYI_DEEPSEEK_PEAK_PRICE_VERSION_ID: z.string().uuid(),
+  HUAYI_DEEPSEEK_20260910_OFF_PEAK_PRICE_VERSION_ID: z.string().uuid(),
+  HUAYI_DEEPSEEK_20260910_PEAK_PRICE_VERSION_ID: z.string().uuid(),
   HUAYI_REFRESH_ENCRYPTION_KEY: z
     .string()
     .refine((value) => Buffer.from(value, "base64url").byteLength === 32, {
@@ -218,7 +220,9 @@ const apiEnvironmentSchema = z
         environment.HUAYI_DEEPSEEK_LEGACY_PRICE_VERSION_ID,
         environment.HUAYI_DEEPSEEK_OFF_PEAK_PRICE_VERSION_ID,
         environment.HUAYI_DEEPSEEK_PEAK_PRICE_VERSION_ID,
-      ]).size === 3,
+        environment.HUAYI_DEEPSEEK_20260910_OFF_PEAK_PRICE_VERSION_ID,
+        environment.HUAYI_DEEPSEEK_20260910_PEAK_PRICE_VERSION_ID,
+      ]).size === 5,
     "DeepSeek price version ids must be unique.",
   )
   .refine((environment) => {
@@ -252,6 +256,10 @@ export function readApiEnvironment(
     HUAYI_DEEPSEEK_LEGACY_PRICE_VERSION_ID: environment.HUAYI_DEEPSEEK_LEGACY_PRICE_VERSION_ID,
     HUAYI_DEEPSEEK_OFF_PEAK_PRICE_VERSION_ID: environment.HUAYI_DEEPSEEK_OFF_PEAK_PRICE_VERSION_ID,
     HUAYI_DEEPSEEK_PEAK_PRICE_VERSION_ID: environment.HUAYI_DEEPSEEK_PEAK_PRICE_VERSION_ID,
+    HUAYI_DEEPSEEK_20260910_OFF_PEAK_PRICE_VERSION_ID:
+      environment.HUAYI_DEEPSEEK_20260910_OFF_PEAK_PRICE_VERSION_ID,
+    HUAYI_DEEPSEEK_20260910_PEAK_PRICE_VERSION_ID:
+      environment.HUAYI_DEEPSEEK_20260910_PEAK_PRICE_VERSION_ID,
     HUAYI_REFRESH_ENCRYPTION_KEY: environment.HUAYI_REFRESH_ENCRYPTION_KEY,
     HUAYI_SECRET_PEPPER: environment.HUAYI_SECRET_PEPPER,
     ...(environment.HUAYI_WECHAT_APP_ID === undefined

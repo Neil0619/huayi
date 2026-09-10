@@ -80,7 +80,7 @@ describe("Postgres duplicate suggestion repository", () => {
         '{"type":"expression","text":"private","meaningZh":"私有","usageZh":"私有。"}',1);
     INSERT INTO model_price_versions(id,provider,model,input_micro_usd_per_million,
       cached_input_micro_usd_per_million,output_micro_usd_per_million,effective_from)
-    VALUES('${priceId}','deepseek','deepseek-v4-flash',2,1,3,now());
+    VALUES('${priceId}','deepseek','deepseek-flash',2,1,3,now());
     INSERT INTO quota_grants(id,user_id,owner_user_id,period_start,period_end,limit_micro_usd,source)
     VALUES
       ('90000000-0000-0000-0000-00000000000a','${userA}','${userA}',
@@ -105,7 +105,7 @@ describe("Postgres duplicate suggestion repository", () => {
         outputMicroUsdPerMillionTokens: 3,
       },
       priceVersionId: priceId,
-      providerModel: "deepseek-v4-flash",
+      providerModel: "deepseek-flash",
       reservationId: () => `b0000000-0000-4000-8000-${String(++nextOrdinal).padStart(12, "0")}`,
     });
   }

@@ -48,7 +48,7 @@ function response(content: unknown, inputTokens = 100, outputTokens = 50) {
           },
         },
       ],
-      model: "deepseek-v4-flash",
+      model: "deepseek-flash",
       usage: {
         completion_tokens: outputTokens,
         prompt_cache_hit_tokens: 0,
@@ -98,7 +98,7 @@ describe("DeepSeek duplicate suggestion provider", () => {
     const body = JSON.parse(init?.body ?? "{}") as Record<string, unknown>;
     expect(body).toMatchObject({
       max_tokens: 2_048,
-      model: "deepseek-v4-flash",
+      model: "deepseek-flash",
       reasoning_effort: "high",
       response_format: { type: "json_object" },
       stream: true,

@@ -1,24 +1,27 @@
 import { readFile } from "node:fs/promises";
 
-import { calculateModelCost } from "@huayi/cloud-contracts";
+import { calculateConservativeReservation, calculateModelCost } from "@huayi/cloud-contracts";
 import { PGlite } from "@electric-sql/pglite";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   acceptanceProviderFetch,
   LOCAL_ACCEPTANCE_PROVIDER_KEY,
 } from "./acceptance-provider-fetch.js";
 import type { AnalysisDatabase, AnalysisQuery } from "./analysis-database.js";
-import { createDeepSeekPriceSchedule } from "./deepseek-price-schedule.js";
+import { deepSeekMaximumUsage } from "./deepseek-analysis-model.js";
 import { DEEPSEEK_PLATFORM_MODEL } from "./deepseek-analysis-protocol.js";
 import type { ApiEnvironment } from "./environment.js";
 import { createProductionAnalysis } from "./production-analysis.js";
+import { createProductionDeepSeekPricing } from "./production-deepseek-pricing.js";
 
 const migrationUrl = new URL("../migrations/0001-cloud-v1-foundation.sql", import.meta.url);
 const userId = "00000000-0000-0000-0000-00000000000a";
 const legacyPriceId = "10000000-0000-0000-0000-000000000001";
 const offPeakPriceId = "10000000-0000-0000-0000-000000000002";
 const peakPriceId = "10000000-0000-0000-0000-000000000003";
+const latestOffPeakPriceId = "10000000-0000-4000-8000-000000000004";
+const latestPeakPriceId = "10000000-0000-4000-8000-000000000005";
 
 function query(executor: {
   query<Row>(text: string, parameters?: unknown[]): Promise<{ rows: Row[] }>;
@@ -32,8 +35,12 @@ function query(executor: {
 describe("production analysis with the local acceptance provider", () => {
   let database: PGlite;
   let adapter: AnalysisDatabase;
+  let onReservationAttached: () => void;
 
   beforeEach(async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-09-10T03:59:59.998Z"));
+    onReservationAttached = () => undefined;
     database = new PGlite();
     await database.waitReady;
     await database.exec(await readFile(migrationUrl, "utf8"));
@@ -61,7 +68,14 @@ describe("production analysis with the local acceptance provider", () => {
       async trusted(operation) {
         return database.transaction(async (transaction) => {
           await transaction.exec("SET LOCAL ROLE huayi_context_setter");
-          return operation(query(transaction));
+          const base = query(transaction);
+          return operation({
+            async rows<Row>(text: string, parameters: readonly unknown[] = []) {
+              const result = await base.rows<Row>(text, parameters);
+              if (text.includes("attach_analysis_reservation")) onReservationAttached();
+              return result;
+            },
+          });
         });
       },
     };
@@ -71,12 +85,16 @@ describe("production analysis with the local acceptance provider", () => {
       INSERT INTO model_price_versions (id,provider,model,input_micro_usd_per_million,
         cached_input_micro_usd_per_million,output_micro_usd_per_million,effective_from)
       VALUES
-        ('${legacyPriceId}','deepseek','deepseek-v4-flash',140000,2800,280000,
+        ('${legacyPriceId}','deepseek','deepseek-flash',140000,2800,280000,
           '2026-08-16T15:59:59Z'),
-        ('${offPeakPriceId}','deepseek','deepseek-v4-flash',220000,7000,660000,
+        ('${offPeakPriceId}','deepseek','deepseek-flash',220000,7000,660000,
           '2026-08-16T16:00:00Z'),
-        ('${peakPriceId}','deepseek','deepseek-v4-flash',440000,14000,1320000,
-          '2026-08-16T16:00:01Z');
+        ('${peakPriceId}','deepseek','deepseek-flash',440000,14000,1320000,
+          '2026-08-16T16:00:01Z'),
+        ('${latestOffPeakPriceId}','deepseek','deepseek-flash',149081,2982,596323,
+          '2026-09-10T04:00:00Z'),
+        ('${latestPeakPriceId}','deepseek','deepseek-flash',298162,5964,1192646,
+          '2026-09-10T06:00:00Z');
       INSERT INTO quota_grants (id,user_id,owner_user_id,period_start,period_end,
         limit_micro_usd,source)
       VALUES ('20000000-0000-0000-0000-000000000001','${userId}','${userId}',
@@ -87,146 +105,225 @@ describe("production analysis with the local acceptance provider", () => {
     `);
   });
 
-  afterEach(async () => database.close());
-
-  it("persists and settles one passage through the complete production composition", async () => {
-    const environment = {
-      CRON_SECRET: "c".repeat(32),
-      HUAYI_ACCOUNT_EXPORT_BUCKET: "account-exports-acceptance",
-      HUAYI_API_ORIGIN: "https://api.acceptance.localhost:8444",
-      HUAYI_DATABASE_URL: "postgresql://huayi_acceptance_login:acceptance@127.0.0.1:54322/postgres",
-      HUAYI_DEEPSEEK_API_KEY: LOCAL_ACCEPTANCE_PROVIDER_KEY,
-      HUAYI_DEEPSEEK_LEGACY_PRICE_VERSION_ID: legacyPriceId,
-      HUAYI_DEEPSEEK_OFF_PEAK_PRICE_VERSION_ID: offPeakPriceId,
-      HUAYI_DEEPSEEK_PEAK_PRICE_VERSION_ID: peakPriceId,
-      HUAYI_MIN_SUPPORTED_EXTENSION_VERSION: "1.0.0",
-      HUAYI_REFRESH_ENCRYPTION_KEY: Buffer.alloc(32, 1).toString("base64url"),
-      HUAYI_SECRET_PEPPER: "p".repeat(32),
-      HUAYI_SECURITY_NOTIFICATION_MODE: "disabled-local-acceptance",
-      HUAYI_STORE_EXTENSION_CAPABILITY: "enabled",
-      HUAYI_STORE_EXTENSION_ID: "a".repeat(32),
-      HUAYI_WEB_ORIGIN: "https://app.acceptance.localhost:8443",
-      SUPABASE_PUBLISHABLE_KEY: "publishable-local-acceptance",
-      SUPABASE_SERVICE_ROLE_KEY: "service-role-local-acceptance",
-      SUPABASE_URL: "https://supabase.acceptance.localhost:8445",
-    } satisfies ApiEnvironment;
-    const pricing = createDeepSeekPriceSchedule({
-      legacy: legacyPriceId,
-      offPeak: offPeakPriceId,
-      peak: peakPriceId,
-    });
-    const { analysis } = createProductionAnalysis({
-      database: adapter,
-      environment,
-      fetch: acceptanceProviderFetch,
-      pricing,
-    });
-    const sourceText =
-      "The project team reviewed the draft carefully before sharing it with everyone.";
-    const events = [];
-
-    for await (const event of analysis.startPlatformAnalysis({
-      idempotencyKey: "production-acceptance-passage",
-      input: { selectionKind: "passage", source: { type: "manual" }, sourceText },
-      userId,
-    })) {
-      events.push(event);
+  afterEach(async () => {
+    try {
+      await database.close();
+    } finally {
+      vi.useRealTimers();
     }
+  });
 
-    expect(events.at(-1)?.type).toBe("analysis.completed");
-    const state = await database.query<{
-      active_reservations: number;
-      candidates: number;
-      completed_requests: number;
-      records: number;
-      settled_reservations: number;
-      usage_rows: number;
-    }>(`SELECT
+  it.each([
+    [
+      "2026-09-10T03:59:59.998Z",
+      "2026-09-10T03:59:59.999Z",
+      "2026-09-10T04:00:00.000Z",
+      peakPriceId,
+      72,
+    ],
+    [
+      "2026-09-10T03:59:59.999Z",
+      "2026-09-10T04:00:00.000Z",
+      "2026-09-10T04:00:00.001Z",
+      latestOffPeakPriceId,
+      30,
+    ],
+    [
+      "2026-09-10T05:59:59.998Z",
+      "2026-09-10T05:59:59.999Z",
+      "2026-09-10T06:00:00.000Z",
+      latestOffPeakPriceId,
+      30,
+    ],
+    [
+      "2026-09-10T05:59:59.999Z",
+      "2026-09-10T06:00:00.000Z",
+      "2026-09-10T06:00:00.001Z",
+      latestPeakPriceId,
+      59,
+    ],
+  ] as const)(
+    "reserves at %s, pins dispatch at %s, and settles at %s",
+    async (reservedAt, dispatchedAt, settledAt, expectedPriceId, expectedCostMicroUsd) => {
+      vi.setSystemTime(new Date(reservedAt));
+      onReservationAttached = () => {
+        expect(new Date().toISOString()).toBe(reservedAt);
+        vi.setSystemTime(new Date(dispatchedAt));
+      };
+      const environment = {
+        CRON_SECRET: "c".repeat(32),
+        HUAYI_ACCOUNT_EXPORT_BUCKET: "account-exports-acceptance",
+        HUAYI_API_ORIGIN: "https://api.acceptance.localhost:8444",
+        HUAYI_DATABASE_URL:
+          "postgresql://huayi_acceptance_login:acceptance@127.0.0.1:54322/postgres",
+        HUAYI_DEEPSEEK_API_KEY: LOCAL_ACCEPTANCE_PROVIDER_KEY,
+        HUAYI_DEEPSEEK_LEGACY_PRICE_VERSION_ID: legacyPriceId,
+        HUAYI_DEEPSEEK_OFF_PEAK_PRICE_VERSION_ID: offPeakPriceId,
+        HUAYI_DEEPSEEK_PEAK_PRICE_VERSION_ID: peakPriceId,
+        HUAYI_DEEPSEEK_20260910_OFF_PEAK_PRICE_VERSION_ID: "10000000-0000-4000-8000-000000000004",
+        HUAYI_DEEPSEEK_20260910_PEAK_PRICE_VERSION_ID: "10000000-0000-4000-8000-000000000005",
+        HUAYI_MIN_SUPPORTED_EXTENSION_VERSION: "1.0.0",
+        HUAYI_REFRESH_ENCRYPTION_KEY: Buffer.alloc(32, 1).toString("base64url"),
+        HUAYI_SECRET_PEPPER: "p".repeat(32),
+        HUAYI_SECURITY_NOTIFICATION_MODE: "disabled-local-acceptance",
+        HUAYI_STORE_EXTENSION_CAPABILITY: "enabled",
+        HUAYI_STORE_EXTENSION_ID: "a".repeat(32),
+        HUAYI_WEB_ORIGIN: "https://app.acceptance.localhost:8443",
+        SUPABASE_PUBLISHABLE_KEY: "publishable-local-acceptance",
+        SUPABASE_SERVICE_ROLE_KEY: "service-role-local-acceptance",
+        SUPABASE_URL: "https://supabase.acceptance.localhost:8445",
+      } satisfies ApiEnvironment;
+      const pricing = createProductionDeepSeekPricing(environment);
+      const providerFetch = vi.fn(async (...args: Parameters<typeof acceptanceProviderFetch>) => {
+        const state = await database.query<{ price_version_id: string; status: string }>(
+          `SELECT request.price_version_id::text,reservation.status
+         FROM analysis_requests request JOIN quota_reservations reservation
+         ON reservation.id=request.reservation_id`,
+        );
+        expect(state.rows).toEqual([{ price_version_id: expectedPriceId, status: "active" }]);
+        vi.setSystemTime(new Date(settledAt));
+        return acceptanceProviderFetch(...args);
+      });
+      const { analysis } = createProductionAnalysis({
+        database: adapter,
+        environment,
+        fetch: providerFetch,
+        pricing,
+      });
+      const sourceText =
+        "The project team reviewed the draft carefully before sharing it with everyone.";
+      const events = [];
+
+      for await (const event of analysis.startPlatformAnalysis({
+        idempotencyKey: "production-acceptance-passage",
+        input: { selectionKind: "passage", source: { type: "manual" }, sourceText },
+        userId,
+      })) {
+        events.push(event);
+      }
+
+      expect(events.at(-1)?.type).toBe("analysis.completed");
+      const state = await database.query<{
+        active_reservations: number;
+        candidates: number;
+        completed_requests: number;
+        records: number;
+        settled_reservations: number;
+        usage_rows: number;
+      }>(`SELECT
       (SELECT count(*)::integer FROM analysis_records) records,
       (SELECT count(*)::integer FROM analysis_candidates) candidates,
       (SELECT count(*)::integer FROM usage_ledger) usage_rows,
       (SELECT count(*)::integer FROM analysis_requests WHERE state='completed') completed_requests,
       (SELECT count(*)::integer FROM quota_reservations WHERE status='settled') settled_reservations,
       (SELECT count(*)::integer FROM quota_reservations WHERE status='active') active_reservations`);
-    expect(state.rows[0]).toEqual({
-      active_reservations: 0,
-      candidates: 1,
-      completed_requests: 1,
-      records: 1,
-      settled_reservations: 1,
-      usage_rows: 1,
-    });
+      expect(state.rows[0]).toEqual({
+        active_reservations: 0,
+        candidates: 1,
+        completed_requests: 1,
+        records: 1,
+        settled_reservations: 1,
+        usage_rows: 1,
+      });
 
-    const request = (
-      await database.query<{
-        dispatched_at: Date;
-        id: string;
-        price_version_id: string;
-        reservation_id: string;
-        state: string;
-        terminal_type: string;
-      }>(`SELECT id::text,state,dispatched_at,price_version_id::text,reservation_id::text,
+      const request = (
+        await database.query<{
+          dispatched_at: Date;
+          id: string;
+          price_version_id: string;
+          reservation_id: string;
+          state: string;
+          terminal_type: string;
+        }>(`SELECT id::text,state,dispatched_at,price_version_id::text,reservation_id::text,
         terminal_event->>'type' AS terminal_type FROM analysis_requests`)
-    ).rows[0];
-    if (request === undefined) throw new Error("Missing production analysis request.");
-    expect(request).toMatchObject({ state: "completed", terminal_type: "analysis.completed" });
-    expect(request.dispatched_at).toBeInstanceOf(Date);
-    const dispatchPricing = pricing.at(request.dispatched_at);
-    expect(request.price_version_id).toBe(dispatchPricing.priceVersionId);
+      ).rows[0];
+      if (request === undefined) throw new Error("Missing production analysis request.");
+      expect(request).toMatchObject({ state: "completed", terminal_type: "analysis.completed" });
+      expect(request.dispatched_at).toBeInstanceOf(Date);
+      expect(request.dispatched_at.toISOString()).toBe(dispatchedAt);
+      const dispatchPricing = pricing.at(request.dispatched_at);
+      expect(request.price_version_id).toBe(dispatchPricing.priceVersionId);
+      expect(request.price_version_id).toBe(expectedPriceId);
 
-    const reservation = (
-      await database.query<{
-        id: string;
-        request_id: string;
-        reserved_micro_usd: string;
-        status: string;
-      }>("SELECT id::text,request_id::text,reserved_micro_usd::text,status FROM quota_reservations")
-    ).rows[0];
-    if (reservation === undefined) throw new Error("Missing production quota reservation.");
-    expect(reservation.request_id).toBe(request.id);
-    expect(reservation.id).toBe(request.reservation_id);
-    expect(reservation.status).toBe("settled");
+      const reservation = (
+        await database.query<{
+          id: string;
+          request_id: string;
+          reserved_micro_usd: string;
+          status: string;
+        }>(
+          "SELECT id::text,request_id::text,reserved_micro_usd::text,status FROM quota_reservations",
+        )
+      ).rows[0];
+      if (reservation === undefined) throw new Error("Missing production quota reservation.");
+      expect(reservation.request_id).toBe(request.id);
+      expect(reservation.id).toBe(request.reservation_id);
+      expect(reservation.status).toBe("settled");
 
-    const ledger = (
-      await database.query<{
-        cached_input_tokens: number;
-        call_ordinal: number;
-        cost_micro_usd: string;
-        feature: string;
-        input_tokens: number;
-        outcome: string;
-        output_tokens: number;
-        price_version_id: string;
-        request_id: string;
-      }>(`SELECT request_id::text,call_ordinal,feature,input_tokens,cached_input_tokens,
+      const ledger = (
+        await database.query<{
+          cached_input_tokens: number;
+          call_ordinal: number;
+          cost_micro_usd: string;
+          feature: string;
+          input_tokens: number;
+          outcome: string;
+          output_tokens: number;
+          price_version_id: string;
+          request_id: string;
+        }>(`SELECT request_id::text,call_ordinal,feature,input_tokens,cached_input_tokens,
         output_tokens,price_version_id::text,cost_micro_usd::text,outcome FROM usage_ledger`)
-    ).rows[0];
-    if (ledger === undefined) throw new Error("Missing production usage ledger entry.");
-    const expectedUsage = { cachedInputTokens: 0, inputTokens: 64, outputTokens: 32 };
-    const expectedCost = calculateModelCost(expectedUsage, dispatchPricing.prices);
-    expect(ledger).toEqual({
-      cached_input_tokens: expectedUsage.cachedInputTokens,
-      call_ordinal: 0,
-      cost_micro_usd: String(expectedCost),
-      feature: "analysis",
-      input_tokens: expectedUsage.inputTokens,
-      outcome: "succeeded",
-      output_tokens: expectedUsage.outputTokens,
-      price_version_id: request.price_version_id,
-      request_id: request.id,
-    });
-    expect(Number(reservation.reserved_micro_usd)).toBeGreaterThanOrEqual(expectedCost);
+      ).rows[0];
+      if (ledger === undefined) throw new Error("Missing production usage ledger entry.");
+      const expectedUsage = { cachedInputTokens: 0, inputTokens: 64, outputTokens: 32 };
+      const expectedCost = calculateModelCost(expectedUsage, dispatchPricing.prices);
+      // Independent values: ceil(64 * input / 1M) + ceil(32 * output / 1M).
+      expect(expectedCost).toBe(expectedCostMicroUsd);
+      expect(ledger).toEqual({
+        cached_input_tokens: expectedUsage.cachedInputTokens,
+        call_ordinal: 0,
+        cost_micro_usd: String(expectedCost),
+        feature: "analysis",
+        input_tokens: expectedUsage.inputTokens,
+        outcome: "succeeded",
+        output_tokens: expectedUsage.outputTokens,
+        price_version_id: request.price_version_id,
+        request_id: request.id,
+      });
+      expect(Number(reservation.reserved_micro_usd)).toBeGreaterThanOrEqual(expectedCost);
+      expect(Number(reservation.reserved_micro_usd)).toBe(
+        calculateConservativeReservation(
+          deepSeekMaximumUsage({
+            selectionKind: "passage",
+            source: { type: "manual" },
+            sourceText,
+          }),
+          pricing.reservation.prices,
+        ),
+      );
+      expect(pricing.reservation.priceVersionId).toBe(peakPriceId);
 
-    const record = (
-      await database.query<{ model_metadata: unknown }>(
-        "SELECT model_metadata FROM analysis_records",
-      )
-    ).rows[0];
-    expect(record?.model_metadata).toMatchObject({
-      inputTokens: expectedUsage.inputTokens,
-      model: DEEPSEEK_PLATFORM_MODEL,
-      outputTokens: expectedUsage.outputTokens,
-      provider: "deepseek",
-    });
-  });
+      const record = (
+        await database.query<{ model_metadata: unknown }>(
+          "SELECT model_metadata FROM analysis_records",
+        )
+      ).rows[0];
+      expect(record?.model_metadata).toMatchObject({
+        inputTokens: expectedUsage.inputTokens,
+        model: DEEPSEEK_PLATFORM_MODEL,
+        outputTokens: expectedUsage.outputTokens,
+        provider: "deepseek",
+      });
+      const replayEvents = [];
+      for await (const event of analysis.startPlatformAnalysis({
+        idempotencyKey: "production-acceptance-passage",
+        input: { selectionKind: "passage", source: { type: "manual" }, sourceText },
+        userId,
+      }))
+        replayEvents.push(event);
+      expect(replayEvents).toEqual([events.at(-1)]);
+      expect(providerFetch).toHaveBeenCalledTimes(1);
+      expect((await database.query("SELECT * FROM usage_ledger")).rows).toHaveLength(1);
+    },
+  );
 });

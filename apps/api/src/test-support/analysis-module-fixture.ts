@@ -33,6 +33,8 @@ export function analysisModuleFixture(
     legacy: "10000000-0000-4000-8000-000000000001",
     offPeak: "10000000-0000-4000-8000-000000000002",
     peak: "10000000-0000-4000-8000-000000000003",
+    latestOffPeak: "10000000-0000-4000-8000-000000000004",
+    latestPeak: "10000000-0000-4000-8000-000000000005",
   });
   const requestLifecycle = withDispatchPricing ? { ...lifecycle, markDispatched } : lifecycle;
   const baseCommitter = createInMemoryAnalysisCommitter(repository, quota, lifecycle);

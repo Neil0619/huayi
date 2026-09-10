@@ -117,7 +117,7 @@ it("delivers readable provider text before completion and recovers after the pag
     await providerStarted;
     expect(fetch).toHaveBeenCalledTimes(1);
     const chunk = (content: string, extra: Record<string, unknown> = {}) =>
-      `data: ${JSON.stringify({ id: "provider-1", model: "deepseek-v4-flash", choices: [{ index: 0, delta: { content }, finish_reason: null }], ...extra })}\r\n\r\n`;
+      `data: ${JSON.stringify({ id: "provider-1", model: "deepseek-flash", choices: [{ index: 0, delta: { content }, finish_reason: null }], ...extra })}\r\n\r\n`;
     const bytes = new TextEncoder().encode(chunk('{"mainStructure":"主语与谓语'));
     for (const byte of bytes) provider?.enqueue(new Uint8Array([byte]));
     let previewSeen = false;

@@ -18,6 +18,8 @@ const pricing = createDeepSeekPriceSchedule({
   legacy: "10000000-0000-4000-8000-000000000002",
   offPeak: "10000000-0000-4000-8000-000000000003",
   peak: priceVersionId,
+  latestOffPeak: "10000000-0000-4000-8000-000000000004",
+  latestPeak: "10000000-0000-4000-8000-000000000005",
 });
 
 function view(id: string): LearningItemDetailResponse {
@@ -47,7 +49,7 @@ function providerResponse() {
           },
         },
       ],
-      model: "deepseek-v4-flash",
+      model: "deepseek-flash",
       usage: {
         completion_tokens: 50,
         prompt_cache_hit_tokens: 0,
@@ -158,7 +160,7 @@ describe("production duplicate suggestion composition", () => {
       expect.arrayContaining([
         priceVersionId,
         "deepseek",
-        "deepseek-v4-flash",
+        "deepseek-flash",
         pricing.reservation.prices.inputMicroUsdPerMillionTokens,
         pricing.reservation.prices.cachedInputMicroUsdPerMillionTokens,
         pricing.reservation.prices.outputMicroUsdPerMillionTokens,
