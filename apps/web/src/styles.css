@@ -393,6 +393,7 @@ body::before {
   color: var(--text-on-action);
 }
 button,
+a.button-link,
 input,
 select,
 textarea {
@@ -409,13 +410,15 @@ a {
     color var(--duration-fast);
 }
 button,
+a.button-link,
 input,
 select,
 textarea {
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-control);
 }
-button {
+button,
+a.button-link {
   min-height: var(--control-height);
   padding: var(--space-2) var(--space-5);
   color: var(--text-primary);
@@ -423,15 +426,24 @@ button {
   cursor: pointer;
   font-weight: 650;
 }
-button:hover {
+button:hover,
+a.button-link:hover {
   border-color: var(--focus-ring);
   color: var(--text-primary);
   background: var(--surface-hover);
   transform: translateY(-1px);
 }
-button:active {
+button:active,
+a.button-link:active {
   background: var(--surface-inner);
   transform: translateY(0);
+}
+a.button-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  text-decoration: none;
 }
 button:disabled {
   cursor: not-allowed;

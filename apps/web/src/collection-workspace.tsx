@@ -152,7 +152,9 @@ export function CollectionWorkspace({
         <button onClick={() => void state.load()} type="button">
           刷新列表
         </button>
-        <a href="/history">分析历史</a>
+        <a className="button-link" href="/history">
+          分析历史
+        </a>
       </div>
       {state.status && <p role="status">{state.status}</p>}
       {state.error && (
@@ -189,6 +191,24 @@ export function CollectionWorkspace({
             </button>
           )}
         </aside>
+        {state.reviewComplete && (
+          <section
+            className="empty-state collection-completed"
+            aria-labelledby="review-complete-heading"
+          >
+            <h2 id="review-complete-heading">
+              {state.hasMore ? "当前列表没有待选择的学习内容" : "没有待选择的学习内容"}
+            </h2>
+            <p>
+              {state.hasMore
+                ? "还有内容未载入，可载入更多查看，或先去练习。"
+                : "可以去练习已加入学习库的内容。"}
+            </p>
+            <a className="button-link" href="/practice">
+              去练习
+            </a>
+          </section>
+        )}
         {selected && (
           <section className="analysis-detail">
             <header>
@@ -311,14 +331,7 @@ export function CollectionWorkspace({
                 analysis={selected.analysis}
                 api={reviewApi}
                 idempotencyKey={createIdempotencyKey}
-                onSaved={state.mergeAnalysis}
-                onContinue={() => {
-                  const next = visible.find(
-                    (entry) => entry.id !== selected.id && collectionStatus(entry) !== "已整理",
-                  );
-                  if (next) state.select(next.id);
-                  else setPasteOpen(true);
-                }}
+                onSaved={(record) => state.completeReview(selected.id, record)}
               />
             )}
           </section>

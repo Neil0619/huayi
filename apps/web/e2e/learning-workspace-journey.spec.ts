@@ -36,7 +36,19 @@ test("collects two originals, completes analysis after leaving, learns, writes, 
   });
   await page.locator("[data-candidate-selected]").first().check();
   await page.getByRole("button", { name: "加入学习库", exact: true }).click();
-  await page.getByRole("link", { name: "立即练习", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { level: 2, name: "At least we can try again.", exact: true }),
+  ).toBeVisible();
+  await expect(page.locator(".analysis-list [aria-pressed=true]")).toContainText(
+    "At least we can try again.",
+  );
+  await expect(page.locator(".collection-candidate-choice")).toContainText("at least");
+  await expect(page.locator(".collection-completed")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "继续整理", exact: true })).toHaveCount(0);
+  await page
+    .getByRole("navigation", { name: "主导航" })
+    .getByRole("link", { name: "今日练习", exact: true })
+    .click();
   await expect(page.getByRole("heading", { name: "把读过的表达，用在自己的话里" })).toBeVisible();
   await page.getByRole("button", { name: "自由造句", exact: true }).first().click();
   expect(authority.facts().calls).toBe(2);

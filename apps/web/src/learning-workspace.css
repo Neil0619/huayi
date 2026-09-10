@@ -120,7 +120,7 @@ body:has(.acceptance-environment-notice) .practice-session-actions {
   align-items: center;
   gap: var(--space-3);
 }
-.collection-completed :is(h3, p) {
+.collection-completed :is(h2, h3, p) {
   flex-basis: 100%;
 }
 .collection-workspace :is(.analysis-previews, .deep-analysis-reading) {
@@ -132,7 +132,7 @@ body:has(.acceptance-environment-notice) .practice-session-actions {
   overflow-wrap: anywhere;
 }
 @media (min-width: 48rem) {
-  .collection-workspace :is(.page-heading, .study-inbox-toolbar) :is(button, select) {
+  .collection-workspace :is(.page-heading, .study-inbox-toolbar) :is(button, select, .button-link) {
     min-height: 40px;
     padding-block: var(--space-1);
   }

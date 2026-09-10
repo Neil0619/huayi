@@ -13,7 +13,6 @@ export function CollectionReview({
   api,
   idempotencyKey,
   onSaved,
-  onContinue,
   draftCache,
 }: {
   draftCache: Map<string, CandidateDraft[]>;
@@ -21,7 +20,6 @@ export function CollectionReview({
   api: InboxApi;
   idempotencyKey(): string;
   onSaved(analysis: AnalysisRecord): void;
-  onContinue(): void;
 }) {
   const [drafts, setDrafts] = useState<CandidateDraft[]>(
     () => draftCache.get(analysis.id) ?? initialCandidateDrafts(analysis),
@@ -29,10 +27,8 @@ export function CollectionReview({
   const mutation = useRef(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [savedIds, setSavedIds] = useState<string[]>([]);
   useEffect(() => {
     setDrafts(draftCache.get(analysis.id) ?? initialCandidateDrafts(analysis));
-    setSavedIds([]);
     setError("");
   }, [analysis.id]);
   const confirm = async () => {
@@ -51,7 +47,6 @@ export function CollectionReview({
         { analysisRevision: analysis.revision, confirmations: selected.map(confirmationForDraft) },
         idempotencyKey(),
       );
-      setSavedIds(response.results.map((result) => result.item.id));
       onSaved(response.analysis);
     } catch {
       setError("保存未完成，当前选择和编辑已保留。请检查是否已有相同学习项后重试。");
@@ -67,16 +62,10 @@ export function CollectionReview({
       {analysis.reviewState === "reviewed" ? (
         <section className="collection-completed">
           <h3>已整理到学习库</h3>
-          <p>接下来可以立即练习，也可以继续整理其他原文。</p>
-          <a
-            className="primary"
-            href={savedIds[0] ? `/practice?item=${encodeURIComponent(savedIds[0])}` : "/practice"}
-          >
+          <p>可以前往练习，使用已加入学习库的内容。</p>
+          <a className="button-link" href="/practice">
             立即练习
           </a>
-          <button onClick={onContinue} type="button">
-            继续整理
-          </button>
         </section>
       ) : (
         <form

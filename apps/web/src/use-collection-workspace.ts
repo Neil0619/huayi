@@ -8,7 +8,7 @@ import {
 } from "@huayi/cloud-contracts";
 import type { WebStudyCaptureApi } from "./study-capture-api.js";
 import type { InboxApi } from "./inbox-app.js";
-import { collectionEntries, type CollectionEntry } from "./collection-model.js";
+import { collectionEntries, collectionStatus, type CollectionEntry } from "./collection-model.js";
 import { learningTaskFeedback } from "./learning-task-feedback.js";
 export function useCollectionWorkspace(
   api: WebStudyCaptureApi,
@@ -18,7 +18,8 @@ export function useCollectionWorkspace(
   const [captures, setCaptures] = useState<StudyCaptureDetailResponse[]>([]);
   const [analyses, setAnalyses] = useState<AnalysisRecord[]>([]);
   const [jobs, setJobs] = useState<LearningTaskSnapshot[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  // undefined is initial/unselected; null is an explicitly completed review queue.
+  const [selectedId, setSelectedId] = useState<string | null | undefined>(undefined);
   const selectedIdRef = useRef(selectedId);
   selectedIdRef.current = selectedId;
   const [loading, setLoading] = useState(true);
@@ -32,6 +33,8 @@ export function useCollectionWorkspace(
     () => collectionEntries(captures, analyses, jobs),
     [captures, analyses, jobs],
   );
+  const entriesRef = useRef(entries);
+  entriesRef.current = entries;
   const selected = entries.find((entry) => entry.id === selectedId);
   const mergeAnalysis = useCallback(
     (record: AnalysisRecord) =>
@@ -74,7 +77,7 @@ export function useCollectionWorkspace(
         analyzed: analyzed.nextCursor,
         review: reviews.nextCursor,
       });
-      setSelectedId((id) => id ?? all[0]?.capture.id ?? reviews.items[0]?.id ?? null);
+      setSelectedId((id) => (id !== undefined ? id : (all[0]?.capture.id ?? reviews.items[0]?.id)));
     } catch {
       setError("收集箱暂时无法载入，请重试。");
     } finally {
@@ -294,12 +297,28 @@ export function useCollectionWorkspace(
         }
       }
     });
+  const completeReview = (entryId: string, record: AnalysisRecord) => {
+    mergeAnalysis(record);
+    if (selectedIdRef.current !== entryId) return;
+    const next = entriesRef.current.find(
+      (entry) => entry.id !== entryId && collectionStatus(entry) === "待选择学习内容",
+    );
+    setSelectedId(next?.id ?? null);
+    setStatus("");
+    setPreview("");
+  };
+  // Loading another page or refreshing may reveal more review-ready content.
+  useEffect(() => {
+    if (selectedId !== null) return;
+    const next = entries.find((entry) => collectionStatus(entry) === "待选择学习内容");
+    if (next) setSelectedId(next.id);
+  }, [entries, selectedId]);
   const remove = () =>
     act(async () => {
       if (!selected?.capture) return;
       await api.deleteCapture(selected.id, selected.capture.capture.revision, key());
       setCaptures((values) => values.filter((value) => value.capture.id !== selected.id));
-      setSelectedId(entries.find((entry) => entry.id !== selected.id)?.id ?? null);
+      setSelectedId(entries.find((entry) => entry.id !== selected.id)?.id);
     });
   return {
     entries,
@@ -318,8 +337,10 @@ export function useCollectionWorkspace(
     remove,
     more,
     hasMore: Object.values(cursors).some(Boolean),
-    mergeAnalysis,
+    completeReview,
+    reviewComplete: selectedId === null,
     select(id: string) {
+      selectedIdRef.current = id;
       setSelectedId(id);
       setError("");
       setStatus("");
