@@ -49,7 +49,9 @@ export function PracticePage({
     <>
       <header className="page-heading">
         <h1>今日练习</h1>
-        <a href="/practice/history">练习历史</a>
+        <a className="button-link" href="/practice/history">
+          练习历史
+        </a>
       </header>
       <p aria-live="polite" role="status">
         {state.status}

@@ -16,6 +16,8 @@ test("pairing approval atomically selects preferences and reloads from approved 
   await page.setViewportSize({ height: 844, width: 390 });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await authority.install(page);
+  await page.clock.install();
+  await page.clock.pauseAt(new Date());
 
   await page.goto(`${webOrigin}/pair-extension/${pairingId}`);
   await expect(page.getByRole("heading", { name: "连接语见插件" })).toBeVisible();
@@ -44,12 +46,26 @@ test("pairing approval atomically selects preferences and reloads from approved 
   await submit.click();
 
   await expect(page.getByRole("heading", { name: "设备配对已批准" })).toBeVisible();
-  await expect(page.getByRole("status")).toContainText("扩展设备已批准，可以返回扩展。");
+  await expect(page.getByRole("status")).toContainText("3 秒后自动进入学习平台");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 
   await page.reload();
   await expect(page.getByRole("heading", { name: "设备配对已批准" })).toBeVisible();
   await expect(page.getByRole("button", { name: "确认连接" })).toHaveCount(0);
+  await expect(page.getByRole("status")).toContainText("3 秒后自动进入学习平台");
+  await expect(page.getByRole("link", { name: "立即进入学习平台" })).toHaveAttribute(
+    "href",
+    "/practice",
+  );
+  await page.clock.runFor(1000);
+  await expect(page.getByRole("status")).toContainText("2 秒后自动进入学习平台");
+  await page.clock.runFor(1000);
+  await expect(page.getByRole("status")).toContainText("1 秒后自动进入学习平台");
+  await page.clock.runFor(999);
+  await expect(page).toHaveURL(`${webOrigin}/pair-extension/${pairingId}`);
+  await page.clock.runFor(1);
+  await expect(page).toHaveURL(`${webOrigin}/practice`);
+  await expect(page.getByRole("heading", { name: "今日练习", exact: true })).toBeVisible();
 
   const snapshot = authority.snapshot();
   expect(

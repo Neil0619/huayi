@@ -25,6 +25,7 @@ import { AdminOperationsPage } from "./admin-operations-page.js";
 import type { WebAdminOperationsApi } from "./admin-operations-api.js";
 import { WorkspaceShell, type WorkspaceSection } from "./workspace-shell.js";
 import { PairingApprovalForm } from "./pairing-approval-form.js";
+import { PairingApprovedPage } from "./pairing-approved-page.js";
 import { WorkspaceAccountMenu } from "./workspace-account-menu.js";
 
 export type IdentityApi = Pick<
@@ -219,15 +220,7 @@ export function CloudApp({
       </main>
     );
   }
-  if (state === "approved")
-    return (
-      <main className="configuration-error" id="main-content">
-        <span aria-hidden="true" className="brand-mark" />
-        <p className="eyebrow">SEEN & SAID</p>
-        <h1>设备配对已批准</h1>
-        <p role="status">扩展设备已批准，可以返回扩展。</p>
-      </main>
-    );
+  if (state === "approved") return <PairingApprovedPage />;
   if (state === "error")
     return (
       <main className="configuration-error" id="main-content">

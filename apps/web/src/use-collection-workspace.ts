@@ -226,6 +226,7 @@ export function useCollectionWorkspace(
     sourceText: string,
     metadata: { title: string; userContext: string; kind: "phrase" | "sentence" | "passage" },
     start: boolean,
+    onAnalysisAccepted?: () => void,
   ) =>
     act(async () => {
       if (!api.createCapture) throw new Error("Capture is unavailable.");
@@ -247,12 +248,13 @@ export function useCollectionWorkspace(
       }
       mergeCapture(current);
       setSelectedId(current.capture.id);
-      if (start)
+      if (start) {
         await analyze(
           { id: current.capture.id, title: metadata.title, sourceText, capture: current },
           metadata,
         );
-      else setStatus("已加入收集箱。选择开始深度分析时才会生成学习内容。");
+        onAnalysisAccepted?.();
+      } else setStatus("已加入收集箱。选择开始深度分析时才会生成学习内容。");
     });
   const cancel = () =>
     act(async () => {

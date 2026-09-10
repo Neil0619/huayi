@@ -28,6 +28,7 @@ export function CollectionWorkspace({
   );
   const [source, setSource] = useState("");
   const [pasteMeta, setPasteMeta] = useState<Metadata>(empty);
+  const pasteRevision = useRef(0);
   const [metadata, setMetadata] = useState<Record<string, Metadata>>({});
   const reviewDrafts = useRef(new Map<string, CandidateDraft[]>());
   const [deleting, setDeleting] = useState<string | null>(null);
@@ -69,9 +70,18 @@ export function CollectionWorkspace({
       {pasteOpen && (
         <form
           className="collection-paste"
+          onChange={() => {
+            pasteRevision.current += 1;
+          }}
           onSubmit={(event) => {
             event.preventDefault();
-            void state.paste(source, pasteMeta, true);
+            const submittedRevision = pasteRevision.current;
+            void state.paste(source, pasteMeta, true, () => {
+              // A later edit belongs to the next draft, even if its text matches this submission.
+              if (pasteRevision.current !== submittedRevision) return;
+              setSource("");
+              setPasteMeta((current) => ({ ...current, title: "", userContext: "" }));
+            });
           }}
         >
           <label>
