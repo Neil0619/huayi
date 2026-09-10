@@ -27,7 +27,7 @@
   --overlay-shadow:
     0 28px 72px rgb(38 54 69 / 18%), 0 7px 22px rgb(38 54 69 / 9%),
     inset 0 1px rgb(255 255 255 / 76%);
-  max-height: min(620px, calc(100dvh - 16px));
+  max-height: min(620px, calc(100dvh - 16px), var(--overlay-available-height, 100dvh));
   width: min(368px, calc(100vw - 16px));
   overflow: hidden;
   border: 1px solid var(--material-border);
@@ -371,6 +371,25 @@ button:disabled {
 .result-section p {
   margin: 0;
   white-space: pre-wrap;
+}
+.structure-clause {
+  color: var(--overlay-secondary);
+  line-height: 1.75;
+}
+.structure-clause + .structure-clause {
+  margin-top: 10px;
+}
+.structure-clause[data-structure-main] {
+  padding-left: 9px;
+  border-left: 2px solid var(--overlay-accent);
+}
+.structure-label {
+  color: var(--overlay-text);
+  font-weight: 700;
+}
+.structure-quote {
+  color: var(--overlay-text);
+  font-weight: 500;
 }
 .result-callout {
   margin: 0 -2px 2px;

@@ -1,8 +1,10 @@
 import type { StoreOverlayAnchor } from "./overlay-runtime.js";
-import { positionOverlayHost } from "./overlay-visual-state.js";
+import { positionOverlayHost, type OverlayPlacementSide } from "./overlay-visual-state.js";
 
 export class OverlayInteractionLifecycle {
   #anchor: StoreOverlayAnchor | null = null;
+  #result = false;
+  #side: OverlayPlacementSide | null = null;
   #host: HTMLElement | null = null;
   #range: Range | undefined;
   #rangeOrigin: { readonly left: number; readonly top: number } | null = null;
@@ -48,6 +50,12 @@ export class OverlayInteractionLifecycle {
     this.position();
   }
 
+  beginResult(): void {
+    this.#result = true;
+    this.#side = null;
+    this.position();
+  }
+
   position(): void {
     if (this.#host !== null && this.#anchor !== null) {
       const view = this.#document.defaultView;
@@ -58,15 +66,21 @@ export class OverlayInteractionLifecycle {
         origin && bounds ? bounds.left - origin.left : this.#scrollX - (view?.scrollX ?? 0);
       const offsetY =
         origin && bounds ? bounds.top - origin.top : this.#scrollY - (view?.scrollY ?? 0);
-      positionOverlayHost(this.#host, {
-        left: this.#anchor.left + offsetX,
-        top: this.#anchor.top + offsetY,
-        bottom: this.#anchor.bottom + offsetY,
-      });
+      this.#side = positionOverlayHost(
+        this.#host,
+        {
+          left: this.#anchor.left + offsetX,
+          top: this.#anchor.top + offsetY,
+          bottom: this.#anchor.bottom + offsetY,
+        },
+        this.#result ? { side: this.#side } : undefined,
+      );
     }
   }
 
   stop(): void {
+    this.#result = false;
+    this.#side = null;
     this.#listeners?.abort();
     this.#listeners = null;
     this.#host = null;
@@ -76,7 +90,10 @@ export class OverlayInteractionLifecycle {
   }
 
   readonly #onViewportChange = (event: Event): void => {
-    if (this.#host && !event.composedPath().includes(this.#host)) this.position();
+    if (this.#host && !event.composedPath().includes(this.#host)) {
+      this.#side = null;
+      this.position();
+    }
   };
 
   readonly #onDocumentKeyDown = (event: KeyboardEvent): void => {
