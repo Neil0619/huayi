@@ -31,7 +31,7 @@ function response(content: unknown): Response {
       ],
       created: 1,
       id: "never-log-provider-id",
-      model: "deepseek-v4-flash",
+      model: "deepseek-flash",
       object: "chat.completion",
       usage: {
         completion_tokens: 200,

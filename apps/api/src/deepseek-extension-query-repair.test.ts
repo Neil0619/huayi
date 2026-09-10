@@ -37,7 +37,7 @@ const word = {
 
 function stream(content: string): Response {
   const data = (choices: unknown[], usage?: unknown) =>
-    `data: ${JSON.stringify({ id: "provider-1", model: "deepseek-v4-flash", choices, usage })}\n\n`;
+    `data: ${JSON.stringify({ id: "provider-1", model: "deepseek-flash", choices, usage })}\n\n`;
   return new Response(
     data([{ index: 0, delta: { content }, finish_reason: null }]) +
       data([{ index: 0, delta: {}, finish_reason: "stop" }], {

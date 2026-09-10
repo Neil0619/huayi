@@ -28,6 +28,8 @@ function validHostedEnvironment() {
     HUAYI_DEEPSEEK_LEGACY_PRICE_VERSION_ID: "8a7c5397-dbba-4e28-bc0d-107c4d04c3c3",
     HUAYI_DEEPSEEK_OFF_PEAK_PRICE_VERSION_ID: "dad0deb1-cbdc-4311-b3ad-b492c7ece757",
     HUAYI_DEEPSEEK_PEAK_PRICE_VERSION_ID: "e4479ddf-f4da-4a75-825a-2b25c1a145cf",
+    HUAYI_DEEPSEEK_20260910_OFF_PEAK_PRICE_VERSION_ID: "bcb225cf-c0e2-4f32-9ac2-49e1c1472f83",
+    HUAYI_DEEPSEEK_20260910_PEAK_PRICE_VERSION_ID: "c9d8d956-421b-42f4-bf1e-91479ae663c0",
     HUAYI_MIN_SUPPORTED_EXTENSION_VERSION: "1.0.0",
     HUAYI_REFRESH_ENCRYPTION_KEY: Buffer.alloc(32, 7).toString("base64url"),
     HUAYI_RESEND_API_KEY: "re_hosted-test-not-real",
@@ -144,6 +146,12 @@ test("hosted deployment environment verifier reuses the production schema and fi
       HUAYI_STORE_EXTENSION_ID: "abcdefghijklmnopabcdefghijklmnop",
     },
     { HUAYI_GOOGLE_AUTHENTICATION: "enabled" },
+    { HUAYI_DEEPSEEK_20260910_OFF_PEAK_PRICE_VERSION_ID: undefined },
+    { HUAYI_DEEPSEEK_20260910_PEAK_PRICE_VERSION_ID: undefined },
+    {
+      HUAYI_DEEPSEEK_20260910_PEAK_PRICE_VERSION_ID:
+        validHostedEnvironment().HUAYI_DEEPSEEK_20260910_OFF_PEAK_PRICE_VERSION_ID,
+    },
   ]) {
     assert.throws(() =>
       verifyHostedDeploymentEnvironment({ ...validHostedEnvironment(), ...mutation }),

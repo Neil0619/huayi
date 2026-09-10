@@ -89,7 +89,7 @@ describe("compact analysis boundary", () => {
     expect(content.modelMetadata).toMatchObject({
       promptVersion: "web-deep-analysis-v2.11-balanced",
       schemaVersion: 2,
-      model: "deepseek-v4-flash",
+      model: "deepseek-flash",
     });
   });
 

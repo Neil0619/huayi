@@ -1,3 +1,4 @@
+import { DEEPSEEK_PLATFORM_MODEL } from "./deepseek-model-identity.js";
 import { createHash } from "node:crypto";
 import { z } from "zod/v3";
 import {
@@ -187,7 +188,7 @@ export function trustedDeepSeekAnalysisContent(
       .digest("hex"),
     modelMetadata: {
       provider: "deepseek",
-      model: "deepseek-v4-flash",
+      model: DEEPSEEK_PLATFORM_MODEL,
       promptVersion: "web-deep-analysis-v2.11-balanced",
       schemaVersion: 2,
       inputTokens: usage.inputTokens,

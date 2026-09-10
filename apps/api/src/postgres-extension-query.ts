@@ -1,3 +1,4 @@
+import { DEEPSEEK_PLATFORM_MODEL } from "./deepseek-model-identity.js";
 import {
   extensionQueryEventSchema,
   extensionQueryGenerationSchema,
@@ -308,7 +309,7 @@ export function createPostgresExtensionQueryStore(options: {
             if (command.pricing !== undefined) {
               await trusted.rows("SELECT require_model_price_version($1,'deepseek',$2,$3,$4,$5)", [
                 command.pricing.priceVersionId,
-                "deepseek-v4-flash",
+                DEEPSEEK_PLATFORM_MODEL,
                 command.pricing.prices.inputMicroUsdPerMillionTokens,
                 command.pricing.prices.cachedInputMicroUsdPerMillionTokens,
                 command.pricing.prices.outputMicroUsdPerMillionTokens,

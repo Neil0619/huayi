@@ -16,7 +16,7 @@ function response(content: unknown): Response {
           message: { content: JSON.stringify(content), role: "assistant" },
         },
       ],
-      model: "deepseek-v4-flash",
+      model: "deepseek-flash",
       usage: { completion_tokens: 5, prompt_tokens: 10, total_tokens: 15 },
     }),
     { headers: { "Content-Type": "application/json" }, status: 200 },
@@ -33,13 +33,70 @@ function responseWithoutUsage(content: unknown): Response {
           message: { content: JSON.stringify(content), role: "assistant" },
         },
       ],
-      model: "deepseek-v4-flash",
+      model: "deepseek-flash",
     }),
     { headers: { "Content-Type": "application/json" }, status: 200 },
   );
 }
 
 describe("DeepSeek ExtensionQuery model", () => {
+  it("completes the reported subtitle with the current Flash stream identity and usage", async () => {
+    const sourceText = "Not for any new products, but for what's going on behind the scenes.";
+    const output = {
+      contextRole: "说明关注的对象",
+      keyExpressions: [{ meaningZh: "幕后", text: "behind the scenes" }],
+      mainStructure: "Not for A, but for B；省略主句的对比结构",
+      selectionKind: "sentence",
+      translationZh: "不是为了什么新产品，而是为了了解幕后正在发生的事情。",
+      type: "explain-sentence",
+    };
+    const fetch = vi.fn<DeepSeekExtensionQueryFetch>(async () => {
+      const frame = (choices: unknown[], usage?: unknown) =>
+        `data: ${JSON.stringify({ id: "subtitle-response", model: "deepseek-flash", choices, usage })}\n\n`;
+      return new Response(
+        frame([{ index: 0, delta: { content: JSON.stringify(output) }, finish_reason: null }]) +
+          frame([{ index: 0, delta: {}, finish_reason: "stop" }], {
+            prompt_tokens: 10,
+            prompt_cache_hit_tokens: 4,
+            completion_tokens: 5,
+            total_tokens: 15,
+          }) +
+          "data: [DONE]\n\n",
+        { headers: { "Content-Type": "text/event-stream" } },
+      );
+    });
+    const generated = await createDeepSeekExtensionQueryModel({
+      apiKey: "fixture",
+      fetch,
+      prices: {
+        cachedInputMicroUsdPerMillionTokens: 1,
+        inputMicroUsdPerMillionTokens: 2,
+        outputMicroUsdPerMillionTokens: 3,
+      },
+    }).run(
+      { action: "explain", selectionKind: "sentence", sourceText, sourceType: "web-selection" },
+      "subtitle-generation",
+    );
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+    const body = JSON.parse(fetch.mock.calls[0]?.[1].body ?? "{}") as {
+      messages: { content: string }[];
+    };
+    expect(body).toMatchObject({
+      model: "deepseek-flash",
+      stream: true,
+      thinking: { type: "disabled" },
+      stream_options: { include_usage: true },
+    });
+    expect(body.messages.at(-1)?.content).toContain(sourceText);
+    expect(generated.result).toEqual({ ...output, requestId: "subtitle-generation", sourceText });
+    const usage = { cachedInputTokens: 4, inputTokens: 10, outputTokens: 5 };
+    expect(generated.usage).toEqual(usage);
+    // Each nonzero token category is rounded up independently.
+    expect(generated.costMicroUsd).toBe(3);
+    expect(generated.billedCalls).toEqual([{ costMicroUsd: 3, usage }]);
+  });
+
   it("assembles trusted compact fields and bills the strict provider usage", async () => {
     const fetch = vi.fn<DeepSeekExtensionQueryFetch>(async (_url, init) => {
       const body = JSON.parse(init.body) as { messages: { content: string }[] };

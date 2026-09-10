@@ -2,7 +2,7 @@ import { expect, it, vi } from "vitest";
 import { readDeepSeekStream } from "./deepseek-stream.js";
 
 const chunk = (content: string, extra: Record<string, unknown> = {}) =>
-  `data: ${JSON.stringify({ id: "provider-1", model: "deepseek-v4-flash", choices: [{ index: 0, delta: { content }, finish_reason: null }], ...extra })}\r\n\r\n`;
+  `data: ${JSON.stringify({ id: "provider-1", model: "deepseek-flash", choices: [{ index: 0, delta: { content }, finish_reason: null }], ...extra })}\r\n\r\n`;
 const end =
   chunk("", {
     choices: [{ index: 0, delta: {}, finish_reason: "stop" }],
@@ -48,7 +48,7 @@ it.each(["missing-terminal", "wrong-model", "truncated", "duplicate-terminal"])(
   async (fault) => {
     let content = chunk("data") + end;
     if (fault === "missing-terminal") content = chunk("data");
-    if (fault === "wrong-model") content = content.replaceAll("deepseek-v4-flash", "wrong-model");
+    if (fault === "wrong-model") content = content.replaceAll("deepseek-flash", "wrong-model");
     if (fault === "truncated") content = content.replace('"stop"', '"length"');
     if (fault === "duplicate-terminal") content += end;
     await expect(

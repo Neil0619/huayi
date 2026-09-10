@@ -40,7 +40,7 @@ function response(content: unknown) {
           },
         },
       ],
-      model: "deepseek-v4-flash",
+      model: "deepseek-flash",
       usage: {
         prompt_tokens: 100,
         completion_tokens: 200,

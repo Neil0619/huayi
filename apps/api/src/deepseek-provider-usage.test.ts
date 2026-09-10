@@ -31,7 +31,7 @@ function response(content: unknown, overrides: object = {}) {
         message: { content: JSON.stringify(content), role: "assistant" },
       },
     ],
-    model: "deepseek-v4-flash",
+    model: "deepseek-flash",
     usage: { ...usage, ...overrides },
   });
 }

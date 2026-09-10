@@ -96,6 +96,8 @@ describe("Postgres analysis request lifecycle", () => {
       legacy: "31000000-0000-4000-8000-000000000001",
       offPeak: "31000000-0000-4000-8000-000000000002",
       peak: "31000000-0000-4000-8000-000000000003",
+      latestOffPeak: "10000000-0000-4000-8000-000000000004",
+      latestPeak: "10000000-0000-4000-8000-000000000005",
     });
     const dispatchedAt = new Date("2026-08-17T04:00:00.000Z");
     const pricing = schedule.at(dispatchedAt);
@@ -113,7 +115,7 @@ describe("Postgres analysis request lifecycle", () => {
     await database.exec(`INSERT INTO model_price_versions(id,provider,model,
       input_micro_usd_per_million,cached_input_micro_usd_per_million,
       output_micro_usd_per_million,effective_from)
-      VALUES('${pricing.priceVersionId}','deepseek','deepseek-v4-flash',
+      VALUES('${pricing.priceVersionId}','deepseek','deepseek-flash',
       ${pricing.prices.inputMicroUsdPerMillionTokens},
       ${pricing.prices.cachedInputMicroUsdPerMillionTokens},
       ${pricing.prices.outputMicroUsdPerMillionTokens},'2026-08-16T16:00:00Z');
