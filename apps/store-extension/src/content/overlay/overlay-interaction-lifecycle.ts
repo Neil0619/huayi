@@ -1,10 +1,9 @@
 import type { StoreOverlayAnchor } from "./overlay-runtime.js";
-import { positionOverlayHost, type OverlayPlacementSide } from "./overlay-visual-state.js";
+import { positionOverlayHost, type OverlayPlacement } from "./overlay-visual-state.js";
 
 export class OverlayInteractionLifecycle {
   #anchor: StoreOverlayAnchor | null = null;
-  #result = false;
-  #side: OverlayPlacementSide | null = null;
+  #placement: OverlayPlacement;
   #host: HTMLElement | null = null;
   #range: Range | undefined;
   #rangeOrigin: { readonly left: number; readonly top: number } | null = null;
@@ -51,8 +50,7 @@ export class OverlayInteractionLifecycle {
   }
 
   beginResult(): void {
-    this.#result = true;
-    this.#side = null;
+    this.#placement = null;
     this.position();
   }
 
@@ -66,21 +64,20 @@ export class OverlayInteractionLifecycle {
         origin && bounds ? bounds.left - origin.left : this.#scrollX - (view?.scrollX ?? 0);
       const offsetY =
         origin && bounds ? bounds.top - origin.top : this.#scrollY - (view?.scrollY ?? 0);
-      this.#side = positionOverlayHost(
+      this.#placement = positionOverlayHost(
         this.#host,
         {
           left: this.#anchor.left + offsetX,
           top: this.#anchor.top + offsetY,
           bottom: this.#anchor.bottom + offsetY,
         },
-        this.#result ? { side: this.#side } : undefined,
+        this.#placement,
       );
     }
   }
 
   stop(): void {
-    this.#result = false;
-    this.#side = null;
+    this.#placement = undefined;
     this.#listeners?.abort();
     this.#listeners = null;
     this.#host = null;
@@ -91,7 +88,7 @@ export class OverlayInteractionLifecycle {
 
   readonly #onViewportChange = (event: Event): void => {
     if (this.#host && !event.composedPath().includes(this.#host)) {
-      this.#side = null;
+      if (this.#placement !== undefined) this.#placement = null;
       this.position();
     }
   };

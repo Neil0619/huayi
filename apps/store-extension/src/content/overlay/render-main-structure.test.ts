@@ -85,6 +85,19 @@ describe("sentence structure presentation", () => {
     }
   });
 
+  it.each(["\n", "\r\n", "\t\n  "])(
+    "does not label a leading blank clause as the main structure: %j",
+    (whitespace) => {
+      const text = `${whitespace}主句为“we agree”。`;
+      const section = render(text);
+      expect([...section.querySelectorAll("p")].map((item) => item.textContent)).toEqual([
+        whitespace,
+        "主句为“we agree”。",
+      ]);
+      expect(section.querySelector("[data-structure-main]")).toBeNull();
+    },
+  );
+
   it("uses the same presentation for the final result and leaves other prose alone", () => {
     const spec = resultSections({
       requestId: "request-1",

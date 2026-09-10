@@ -15,15 +15,16 @@ export function createOverlayHost(
   return { host, shadow: host.attachShadow({ mode: "open" }) };
 }
 
-export type OverlayPlacementSide = "above" | "below" | "viewport";
+// Undefined keeps the compact action card; null chooses a side for a newly promoted result.
+export type OverlayPlacement = "above" | "below" | "viewport" | null | undefined;
 
 export function positionOverlayHost(
   host: HTMLElement,
   anchor: StoreOverlayAnchor,
-  resultPlacement?: { readonly side: OverlayPlacementSide | null },
-): OverlayPlacementSide | null {
+  side?: OverlayPlacement,
+): OverlayPlacement {
   const view = host.ownerDocument.defaultView;
-  if (view === null) return null;
+  if (view === null) return side;
   const viewport = view.visualViewport;
   const gutter = 8;
   const viewportLeft = (viewport?.offsetLeft ?? 0) + gutter;
@@ -33,13 +34,11 @@ export function positionOverlayHost(
   const clampY = (value: number): number => Math.max(viewportTop, Math.min(value, viewportBottom));
   const below = clampY(anchor.bottom + gutter);
   const above = clampY(anchor.top - gutter);
-  let side: OverlayPlacementSide | null = null;
-  if (resultPlacement !== undefined) {
+  if (side !== undefined) {
     const belowSpace = viewportBottom - below;
     const aboveSpace = above - viewportTop;
     // Reserve a useful reading area before the first delta, rather than fitting only the skeleton.
     // If neither side has room, overlap the selection to keep the body readable in short windows.
-    side = resultPlacement.side;
     if (side === null) {
       side =
         Math.max(belowSpace, aboveSpace) < 300 ? "viewport" : belowSpace >= 300 ? "below" : "above";
@@ -60,7 +59,7 @@ export function positionOverlayHost(
   const top =
     side === "viewport"
       ? viewportTop
-      : side === "below" || (side === null && below + bounds.height <= viewportBottom)
+      : side === "below" || (side === undefined && below + bounds.height <= viewportBottom)
         ? below
         : above - bounds.height;
   host.style.left = `${left}px`;
