@@ -4,6 +4,7 @@ import {
   assembleLearningRecommendations,
   assembleSentenceStructure,
   candidateSchema,
+  completeExpressionSourceRefs,
   learningAdviceSchema,
   normalizeWhitespaceAndQuotes,
   phraseAnalysisSchema,
@@ -74,7 +75,7 @@ function at<T>(path: (string | number)[], operation: () => T): T {
   }
 }
 
-/** Strict native assembly. Invalid optional advice cannot be silently rebound or promoted. */
+/** Strict native assembly; complete expression evidence only from its trusted source unit. */
 export function readStructuredAnalysisContent(
   rawContent: string,
   input: StartAnalysisGenerationRequest,
@@ -127,7 +128,23 @@ export function readStructuredAnalysisContent(
           });
           const entry: RecommendationCandidate = {
             candidate,
-            ...(learningAdvice === undefined ? {} : { advice: learningAdvice }),
+            ...(learningAdvice === undefined
+              ? {}
+              : {
+                  advice:
+                    payload.type === "expression"
+                      ? {
+                          ...learningAdvice,
+                          sourceRefs: at(["learningAdvice", "sourceRefs"], () =>
+                            completeExpressionSourceRefs(
+                              unit.sourceText,
+                              payload.text,
+                              learningAdvice.sourceRefs,
+                            ),
+                          ),
+                        }
+                      : learningAdvice,
+                }),
             ...(raw.type === "sentence_pattern" ? { sourceValues: raw.sourceValues } : {}),
           };
           // Validate advice at its private input location before aggregate checks reorder it.

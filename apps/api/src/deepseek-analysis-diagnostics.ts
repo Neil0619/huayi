@@ -118,6 +118,10 @@ const KNOWN_CODES = new Set([
 // Only exact source-authored refinement messages can select a fixed label; messages are never emitted.
 const CUSTOM_RULES = new Map([
   ["Exact source fragment required.", "exact-source-fragment"],
+  [
+    "Evidence must contain the candidate expression in its own source unit.",
+    "recommendation-source-expression",
+  ],
   ["The example must use the candidate expression.", "recommendation-example-expression"],
   [
     "Example values must reconstruct the complete example exactly.",

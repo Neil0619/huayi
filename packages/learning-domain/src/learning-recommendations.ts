@@ -10,6 +10,7 @@ import {
   sourceFragmentReferenceSchema,
   sourceSpanSchema,
   validateSourceSpans,
+  type SourceFragmentReference,
   type SourceSpan,
 } from "./source-fragments.js";
 
@@ -91,6 +92,27 @@ function containsExpression(
     index = text.indexOf(expression, index + 1);
   }
   return false;
+}
+
+/** Complete private expression evidence from its own source; never rescue invalid references. */
+export function completeExpressionSourceRefs(
+  source: string,
+  expression: string,
+  sourceRefs: unknown,
+): SourceFragmentReference[] {
+  const text = candidateSchema.options[0].shape.payload.shape.text.parse(expression);
+  const references = learningAdviceSchema.shape.sourceRefs.parse(sourceRefs);
+  const spans = resolveSourceFragments(source, references);
+  if (spans.some((span) => containsExpression(source, text, span.start, span.end)))
+    return references;
+  let occurrence = 0;
+  let start = source.indexOf(text);
+  while (start >= 0) {
+    occurrence += 1;
+    if (containsExpression(source, text, start, start + text.length)) return [{ text, occurrence }];
+    start = source.indexOf(text, start + 1);
+  }
+  return invalid([], "Evidence must contain the candidate expression in its own source unit.");
 }
 
 function checkExpression(
