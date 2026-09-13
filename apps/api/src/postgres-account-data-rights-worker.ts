@@ -86,7 +86,7 @@ export function createPostgresAccountDataRightsWorker(
             format_version: number;
             object_key: string;
           }>(
-            "SELECT id::text,owner_user_id::text,format_version,object_key FROM claim_account_export_v3($1,$2)",
+            "SELECT id::text,owner_user_id::text,format_version,object_key FROM claim_account_export_v4($1,$2)",
             [proof.hash, proof.expiresAt],
           )
         )[0];

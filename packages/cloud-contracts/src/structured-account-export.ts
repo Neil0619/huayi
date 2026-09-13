@@ -12,11 +12,13 @@ import {
   type AccountDataExportRecord,
 } from "./account-data-rights-contracts.js";
 import { practiceTeachingDetailSchema } from "./practice-teaching.js";
+import { practiceReferenceArchiveSchema } from "./practice-reference.js";
 
 export const accountDataExportFormatVersionSchema = z.union([
   z.literal(1),
   z.literal(2),
   z.literal(3),
+  z.literal(4),
 ]);
 export type AccountDataExportFormatVersion = z.infer<typeof accountDataExportFormatVersionSchema>;
 export const accountDataExportFormatRequestSchema = z.strictObject({
@@ -99,12 +101,55 @@ export const accountDataExportRecordV3Schema = z.union([
   nativeRecords[9],
   teachingRecord,
 ]);
+/** Format 4 includes the saved reference and explicit view facts, without private generation state. */
+export const accountDataExportRecordV4Schema = z.union([
+  nativeRecords[0].extend({ schemaVersion: z.literal(4) }),
+  nativeRecords[1],
+  nativeRecords[2],
+  nativeRecords[3],
+  nativeRecords[4],
+  nativeRecords[5],
+  nativeRecords[6],
+  nativeRecords[7],
+  nativeRecords[8],
+  nativeRecords[9],
+  teachingRecord
+    .innerType()
+    .extend({ reference: practiceReferenceArchiveSchema.nullable() })
+    .superRefine(({ session, teaching, reference }, context) => {
+      const checked = practiceTeachingDetailSchema.safeParse({ version: 1, session, teaching });
+      if (!checked.success) for (const issue of checked.error.issues) context.addIssue(issue);
+      if (
+        reference &&
+        (session.type !== "sentence-creation" ||
+          session.items.some((item) => item.learningItemDeletedAt))
+      )
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "An erased or non-sentence target cannot retain a reference.",
+        });
+    }),
+]);
 export const accountDataExportRecordReadSchema = z.union([
   accountDataExportRecordSchema,
   accountDataExportRecordV2Schema,
   accountDataExportRecordV3Schema,
+  accountDataExportRecordV4Schema,
 ]);
 export type AccountDataExportRecordRead = z.infer<typeof accountDataExportRecordReadSchema>;
+
+export function projectAccountDataExportRecordForV3(value: AccountDataExportRecordRead) {
+  const record = accountDataExportRecordReadSchema.parse(value);
+  if (record.recordType === "manifest")
+    return accountDataExportRecordV3Schema.parse({ ...record, schemaVersion: 3 });
+  if (record.recordType === "practice-session")
+    return accountDataExportRecordV3Schema.parse({
+      recordType: record.recordType,
+      session: record.session,
+      teaching: "teaching" in record ? record.teaching : null,
+    });
+  return accountDataExportRecordV3Schema.parse(record);
+}
 
 export function projectAccountDataExportRecordForV2(value: AccountDataExportRecordRead) {
   const record = accountDataExportRecordReadSchema.parse(value);

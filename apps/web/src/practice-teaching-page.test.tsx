@@ -58,6 +58,39 @@ it("opts into teaching and hides chooser English when on-demand practice is sele
   );
 });
 
+it("keeps the task and answer focused while each character is autosaved", async () => {
+  vi.useFakeTimers();
+  try {
+    const detail = teachingFixture();
+    if (!detail.teaching) throw new Error("Missing fixture teaching.");
+    detail.teaching.hintPolicy = "shown";
+    const f = teachingPageFixture(detail);
+    const rendered = await renderPractice(f.api);
+    root = rendered.root;
+    await press(rendered.view, "继续上次练习");
+    const panel = rendered.view.querySelector(".practice-session");
+    const input = panel?.querySelector<HTMLTextAreaElement>("[name=answer]");
+    input?.focus();
+    const reads = vi.mocked(f.teaching.get).mock.calls.length;
+    vi.mocked(f.teaching.get).mockImplementation(() => new Promise(() => undefined));
+
+    for (const answer of ["I", "I ", "I p"]) {
+      await typeAnswer(rendered.view, answer);
+      await act(async () => vi.advanceTimersByTimeAsync(300));
+      expect(panel?.querySelector("h2")?.textContent).toBe("to be frank");
+      expect(panel?.textContent).toContain(detail.session.prompt);
+      expect(panel?.textContent).not.toContain("正在读取练习信息");
+      expect(document.activeElement).toBe(input);
+      expect(input?.value).toBe(answer);
+      expect(f.current().session.workspace?.draft).toBe(answer);
+    }
+    expect(f.teaching.get).toHaveBeenCalledTimes(reads);
+    expect(f.api.submitAttempt).not.toHaveBeenCalled();
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
 it("shows one ready point, saved answer history, and a rewrite prefill without advancing a rating", async () => {
   const detail = teachingFixture(true);
   const f = teachingPageFixture(detail);

@@ -89,6 +89,7 @@ export function createCloudFoundationApp(dependencies: CloudFoundationDependenci
 
   const clientCors = cors({
     allowHeaders: [
+      "Accept",
       "Authorization",
       "Content-Type",
       "Idempotency-Key",

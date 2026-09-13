@@ -9,6 +9,8 @@ import {
   projectAccountDataExportRecordForLegacy,
   projectAccountDataExportRecordForV2,
   accountDataExportRecordV3Schema,
+  accountDataExportRecordV4Schema,
+  projectAccountDataExportRecordForV3,
 } from "./index.js";
 
 const time = "2026-09-13T00:00:00.000Z";
@@ -130,6 +132,45 @@ it("rejects mismatched attempt metadata and cannot export an erased target snaps
   ).toBe(false);
   expect(
     accountDataExportRecordReadSchema.safeParse({
+      ...record,
+      session: {
+        ...record.session,
+        items: record.session.items.map((item) => ({ ...item, learningItemDeletedAt: time })),
+      },
+    }).success,
+  ).toBe(false);
+});
+
+it("includes reference and view facts in v4 while projecting exact frozen v1-v3 records", () => {
+  const old = practiceRecord();
+  const record = {
+    ...old,
+    reference: {
+      version: 1,
+      result: {
+        sentence: "I need at least two days.",
+        translationZh: "我至少需要两天。",
+        usageNoteZh: "说明时间下限。",
+      },
+      views: [{ ordinal: 1, viewedAt: time }],
+    },
+  };
+  expect(accountDataExportRecordV4Schema.parse(record)).toEqual(record);
+  expect(accountDataExportRecordV3Schema.safeParse(record).success).toBe(false);
+  expect(
+    projectAccountDataExportRecordForV3(accountDataExportRecordReadSchema.parse(record)),
+  ).toEqual(old);
+  expect(
+    projectAccountDataExportRecordForV2(accountDataExportRecordReadSchema.parse(record)),
+  ).toEqual({ recordType: old.recordType, session: old.session });
+  expect(
+    accountDataExportRecordV4Schema.safeParse({
+      ...record,
+      reference: { ...record.reference, generationId: "private" },
+    }).success,
+  ).toBe(false);
+  expect(
+    accountDataExportRecordV4Schema.safeParse({
       ...record,
       session: {
         ...record.session,

@@ -94,7 +94,7 @@ export function AccountDataRightsPage({
     setBusy(true);
     setError("");
     try {
-      const created = await api.createAccountDataExport(3);
+      const created = await api.createAccountDataExport(4);
       if (current !== generation.current) return;
       setJob(created);
       setMessage("完整数据导出请求已提交。");
@@ -215,7 +215,7 @@ export function AccountDataRightsPage({
                 <p>
                   格式版本：v{job.formatVersion}；任务版本：{job.revision}
                 </p>
-                {job.formatVersion !== 3 && (
+                {job.formatVersion !== 4 && (
                   <p>此文件使用兼容格式，不含提示记录与结构化反馈；重试仍使用其原有格式。</p>
                 )}
                 {job.state === "ready" && (

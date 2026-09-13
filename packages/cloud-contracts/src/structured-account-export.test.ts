@@ -41,7 +41,7 @@ describe("explicit account export format", () => {
       ).toThrow();
     }
     for (const input of [
-      { formatVersion: 4 },
+      { formatVersion: 5 },
       { formatVersion: "2" },
       { formatVersion: null },
       { formatVersion: 2, ownerUserId: "another-owner" },

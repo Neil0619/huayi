@@ -4,6 +4,7 @@ import {
   accountDataExportRecordSchema,
   accountDataExportRecordV2Schema,
   accountDataExportRecordV3Schema,
+  accountDataExportRecordV4Schema,
 } from "@huayi/cloud-contracts";
 import { describe, expect, it, vi } from "vitest";
 import { createAccountDataRightsWorker } from "./account-data-rights-worker.js";
@@ -56,7 +57,7 @@ describe("versioned account export serialization", () => {
     expect(upload).not.toHaveBeenCalled();
     expect(completeExport).not.toHaveBeenCalled();
   });
-  it.each([1, 2, 3] as const)(
+  it.each([1, 2, 3, 4] as const)(
     "pins the NDJSON manifest and each record to stored format %s",
     async (formatVersion) => {
       const analysis = { recordType: "analysis" as const, analysis: structuredAnalysisFixture() };
@@ -117,7 +118,9 @@ describe("versioned account export serialization", () => {
           ? accountDataExportRecordSchema
           : formatVersion === 2
             ? accountDataExportRecordV2Schema
-            : accountDataExportRecordV3Schema;
+            : formatVersion === 3
+              ? accountDataExportRecordV3Schema
+              : accountDataExportRecordV4Schema;
       exported.forEach((record) => schema.parse(record));
       expect(exported[0]).toMatchObject({ recordType: "manifest", schemaVersion: formatVersion });
       if (formatVersion !== 1) expect(exported.slice(1)).toEqual(records);

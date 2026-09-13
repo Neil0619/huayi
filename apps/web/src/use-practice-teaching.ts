@@ -44,8 +44,21 @@ export function usePracticeTeaching(
     setLoading(true);
     setError("");
     try {
-      const next = await api.get(active.id);
-      if (ticket === revision.current) accept(next, active.id);
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        const next = await api.get(active.id);
+        if (ticket !== revision.current) return;
+        try {
+          accept(next, active.id);
+          break;
+        } catch (cause) {
+          if (
+            attempt > 0 ||
+            !(cause instanceof LearningTaskError) ||
+            cause.code !== "revision_conflict"
+          )
+            throw cause;
+        }
+      }
     } catch {
       if (ticket === revision.current)
         setError("练习详情暂时未能读取。已保存的作答和反馈仍可查看。");
@@ -64,14 +77,7 @@ export function usePracticeTeaching(
     return () => {
       revision.current += 1;
     };
-  }, [
-    api,
-    session?.id,
-    session?.revision,
-    session?.workspace?.controlRevision,
-    session?.workspace?.draftRevision,
-    refresh,
-  ]);
+  }, [api, session?.id, session?.revision, session?.workspace?.controlRevision, refresh]);
   const data = detail && session && practiceTeachingMatches(detail, session) ? detail : null;
   return {
     data,

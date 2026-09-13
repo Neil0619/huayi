@@ -1,5 +1,6 @@
 import { createWebPracticeWorkspace } from "./practice-workspace-api.js";
 import { createWebPracticeTeaching } from "./practice-teaching-api.js";
+import { createWebPracticeReference } from "./practice-reference-api.js";
 import { createWebLearningTasks } from "./learning-task-api.js";
 import type { PracticePageApi } from "./practice-page-api.js";
 import {
@@ -103,6 +104,7 @@ export function createWebPracticeApi(options: {
     tasks: createWebLearningTasks(options),
     workspace: createWebPracticeWorkspace(options),
     teaching: createWebPracticeTeaching(options),
+    reference: createWebPracticeReference(options),
     async dailyQueue() {
       dailyQueueQuerySchema.parse({});
       const endpoint = new URL(practiceHttpRoutes.dailyQueue, options.apiOrigin);

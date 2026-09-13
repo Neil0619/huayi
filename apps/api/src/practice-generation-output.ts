@@ -2,11 +2,14 @@ import { z } from "zod/v3";
 import {
   formatPracticeTeachingFeedback,
   practiceTeachingFeedbackSchema,
+  practiceReferenceResultSchema,
+  dailyPracticeQueueItemSchema,
 } from "@huayi/cloud-contracts";
 
 const textSchema = z.string().trim().min(1).max(4_000);
 export const practiceGenerationOutputSchema = z
   .discriminatedUnion("kind", [
+    practiceReferenceResultSchema.extend({ kind: z.literal("sentence-reference") }),
     z.strictObject({ kind: z.literal("sentence-prompt"), prompt: textSchema }),
     z.strictObject({
       feedback: textSchema,
@@ -60,6 +63,14 @@ export function parsePracticeGenerationOutput(
 ) {
   const output = practiceGenerationOutputSchema.parse(value);
   if (output.kind !== command.kind) throw new PracticeOutputValidationError();
+  if (output.kind === "sentence-reference") {
+    const content = dailyPracticeQueueItemSchema.shape.item.shape.content.parse(
+      command.input["itemContent"],
+    );
+    const target = content.type === "expression" ? content.text : content.template;
+    const normalize = (value: string) => value.toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
+    if (normalize(target) === normalize(output.sentence)) throw new PracticeOutputValidationError();
+  }
   if (output.kind === "sentence-feedback") {
     const teaching = command.input["teachingContract"] === "practice-teaching-v1";
     if (teaching !== (output.teachingFeedback !== undefined))

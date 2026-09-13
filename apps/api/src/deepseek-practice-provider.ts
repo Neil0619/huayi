@@ -27,6 +27,7 @@ const MAXIMUM_REQUEST_BYTES = 64 * 1_024;
 const MAXIMUM_REPAIR_CHARACTERS = 16_000;
 const DEFAULT_TIMEOUT_MS = 90_000;
 const outputLimitByKind: Record<PracticeGenerationKind, number> = {
+  "sentence-reference": 1_024,
   "dialogue-assistant": 1_024,
   "dialogue-final-feedback": 4_096,
   "dialogue-start": 2_048,

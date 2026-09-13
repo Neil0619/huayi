@@ -4,6 +4,7 @@ import type { usePracticeWorkspace } from "./use-practice-workspace.js";
 import { PracticeNextStep } from "./practice-next-step.js";
 import { PracticeAttemptsReview, PracticeFeedback } from "./practice-teaching-feedback.js";
 import { practiceItemTitle, practiceItemMeaning } from "./practice-item-list.js";
+import { PracticeReferenceCard } from "./practice-reference-card.js";
 
 type State = ReturnType<typeof usePracticeWorkspace>;
 export function SentencePracticePanel({
@@ -16,12 +17,25 @@ export function SentencePracticePanel({
   const { session, busy, task, teaching } = state;
   const feedbackHeading = useRef<HTMLHeadingElement>(null);
   const answerField = useRef<HTMLTextAreaElement>(null);
+  const focusedStep = useRef<string | null>(null);
   const data = teaching.data?.teaching;
   useEffect(() => {
-    if (session?.status === "completed") feedbackHeading.current?.focus();
-    else if (session?.status === "active" && (data?.round.ordinal ?? 0) > 0)
-      answerField.current?.focus();
-  }, [session?.status, data?.round.ordinal]);
+    if (!session) {
+      focusedStep.current = null;
+      return;
+    }
+    const step =
+      session.status === "completed"
+        ? `${session.id}:feedback`
+        : session.status === "active" && data?.round.ordinal !== undefined
+          ? `${session.id}:answer:${data.round.ordinal}`
+          : null;
+    // A temporary teaching reread does not start another round or move user focus.
+    if (!step || focusedStep.current === step) return;
+    focusedStep.current = step;
+    if (session.status === "completed") feedbackHeading.current?.focus();
+    else if ((data?.round.ordinal ?? 0) > 0) answerField.current?.focus();
+  }, [session?.id, session?.status, data?.round.ordinal]);
   if (session?.type !== "sentence-creation") return null;
   const pending = session.pendingGeneration === "sentence-prompt";
   const generating = task !== null && ["queued", "running", "cancelling"].includes(task.state);
@@ -127,6 +141,12 @@ export function SentencePracticePanel({
         )}
         {data?.round.hintViewedAt && <p className="practice-hint-fact">本轮已记录查看提示。</p>}
       </div>
+      {session.status === "active" && !pending && (
+        <PracticeReferenceCard
+          reference={state.reference}
+          disabled={busy || generating || unknown || state.draft.conflict}
+        />
+      )}
       {(session.status === "active" || pending) && (
         <form
           data-attempt-form
@@ -167,6 +187,7 @@ export function SentencePracticePanel({
             disabled={
               busy ||
               generating ||
+              state.reference.loading ||
               pending ||
               unknown ||
               state.draft.conflict ||

@@ -24,6 +24,7 @@ export const diagnosticOperationSchema = z.enum([
   "sentence-start",
   "sentence-submit",
   "sentence-feedback-retry",
+  "sentence-reference",
   "dialogue-start",
   "dialogue-turn",
   "dialogue-retry",

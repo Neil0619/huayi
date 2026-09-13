@@ -58,6 +58,14 @@ export function createPracticeApiScope(source: PracticePageApi) {
           },
         }
       : {}),
+    ...(source.reference
+      ? {
+          reference: {
+            get: wrap((api) => required(api.reference).get),
+            reveal: wrap((api) => required(api.reference).reveal),
+          },
+        }
+      : {}),
     ...(source.tasks
       ? {
           tasks: {

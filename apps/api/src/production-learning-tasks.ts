@@ -4,6 +4,9 @@ import { createPracticeWorkspace } from "./practice-workspace.js";
 import { createPracticeWorkspaceApp } from "./practice-workspace-app.js";
 import { createPracticeTeaching } from "./practice-teaching.js";
 import { createPracticeTeachingApp } from "./practice-teaching-app.js";
+import { createPracticeReference } from "./practice-reference.js";
+import { createPracticeReferenceApp } from "./practice-reference-app.js";
+import type { PaidPracticeGenerator } from "./paid-practice-generator.js";
 import { authenticateLearningAccountRequest } from "./miniprogram-authentication.js";
 import type { AnalysisDatabase } from "./analysis-database.js";
 import type { AnalysisModule } from "./analysis-module.js";
@@ -32,9 +35,11 @@ export function createProductionLearningTasks(options: {
   practice: PracticeModule;
   dialogue: DialoguePracticeModule;
   maintenance: LearningLibraryMaintenance;
+  generator: PaidPracticeGenerator;
   purgeDiagnostics?: () => Promise<void>;
 }) {
   const store = createPostgresLearningTasks(options.database);
+  const reference = createPracticeReference(options.database, options.generator);
   const worker = createLearningTaskWorker({
     recover: async () => {
       await options.purgeDiagnostics?.().catch(() => {
@@ -44,9 +49,16 @@ export function createProductionLearningTasks(options: {
       await options.database.trusted((query) => query.rows("SELECT prune_miniprogram_auth()"));
     },
     store,
-    execute: createLearningTaskExecutor(options),
+    execute: createLearningTaskExecutor({ ...options, reference }),
   });
   const app = new Hono();
+  app.route(
+    "/",
+    createPracticeReferenceApp({
+      authenticate: (context) => authenticateLearningAccountRequest(options.identity, context),
+      reference,
+    }),
+  );
   app.route(
     "/",
     createPracticeTeachingApp({

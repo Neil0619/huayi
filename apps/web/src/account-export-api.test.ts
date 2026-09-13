@@ -5,7 +5,7 @@ import { accountDataExportJobReadResourceSchema } from "@huayi/cloud-contracts";
 
 const time = "2026-09-13T00:00:00.000Z";
 const csrf = "c".repeat(43);
-const job = (formatVersion = 3) => ({
+const job = (formatVersion = 4) => ({
   id: "export-id",
   formatVersion,
   revision: 1,
@@ -27,15 +27,15 @@ it("explicitly requests a full teaching export and pins create/current/retry/dow
     );
   });
   const api = createWebIdentityApi({ apiOrigin: "https://api.example.test", fetch });
-  expect((await api.createAccountDataExport(csrf, 3)).formatVersion).toBe(3);
-  expect((await api.getCurrentAccountDataExport(3)).job?.formatVersion).toBe(3);
-  await api.retryAccountDataExport("export-id", 1, csrf, 3);
-  await api.downloadAccountDataExport("export-id", csrf, 3);
+  expect((await api.createAccountDataExport(csrf, 4)).formatVersion).toBe(4);
+  expect((await api.getCurrentAccountDataExport(4)).job?.formatVersion).toBe(4);
+  await api.retryAccountDataExport("export-id", 1, csrf, 4);
+  await api.downloadAccountDataExport("export-id", csrf, 4);
   expect(requests.map((r) => [r.path, r.input?.body && JSON.parse(String(r.input.body))])).toEqual([
-    ["/v1/account-data-exports", { formatVersion: 3 }],
-    ["/v1/account-data-exports/current?formatVersion=3", undefined],
-    ["/v1/account-data-exports/export-id/retry", { expectedRevision: 1, formatVersion: 3 }],
-    ["/v1/account-data-exports/export-id/download-url", { formatVersion: 3 }],
+    ["/v1/account-data-exports", { formatVersion: 4 }],
+    ["/v1/account-data-exports/current?formatVersion=4", undefined],
+    ["/v1/account-data-exports/export-id/retry", { expectedRevision: 1, formatVersion: 4 }],
+    ["/v1/account-data-exports/export-id/download-url", { formatVersion: 4 }],
   ]);
   for (const request of requests) expect(request.input?.credentials).toBe("include");
 });
@@ -49,7 +49,7 @@ it("keeps default format 1 request bytes and rejects a server format mismatch", 
   expect(fetch.mock.calls[0]?.[1]).toMatchObject({ body: "{}" });
   await expect(api.createAccountDataExport(csrf, 3)).rejects.toThrow();
 });
-it("keeps an existing active compatibility job visible across the three formats", async () => {
+it("keeps an existing active compatibility job visible across the four formats", async () => {
   const active = accountDataExportJobReadResourceSchema.parse(job(2));
   const failed = accountDataExportJobReadResourceSchema.parse({
     ...job(),
@@ -57,9 +57,9 @@ it("keeps an existing active compatibility job visible across the three formats"
     stableErrorCode: "export-build-failed",
     createdAt: "2026-09-14T00:00:00Z",
   });
-  const read = vi.fn(async (format: 1 | 2 | 3) => ({
+  const read = vi.fn(async (format: 1 | 2 | 3 | 4) => ({
     job: format === 2 ? active : format === 3 ? failed : null,
   }));
   expect(await readLatestAccountExport(read)).toEqual({ job: active });
-  expect(read.mock.calls.map((call) => call[0])).toEqual([1, 2, 3]);
+  expect(read.mock.calls.map((call) => call[0])).toEqual([1, 2, 3, 4]);
 });

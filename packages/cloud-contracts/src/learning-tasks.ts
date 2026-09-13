@@ -6,6 +6,7 @@ import {
   studyCaptureAnalyzeRequestSchema,
 } from "./extension-learning-contracts.js";
 import { resourceIdSchema } from "./common-contracts.js";
+import { practiceReferenceRequestSchema } from "./practice-reference.js";
 import {
   duplicateSuggestionsRequestSchema,
   duplicateSuggestionsResponseSchema,
@@ -78,6 +79,12 @@ export const learningTaskCommandSchema = z.discriminatedUnion("kind", [
     kind: z.literal("duplicate-suggestions"),
     itemId: resourceIdSchema,
     input: duplicateSuggestionsRequestSchema,
+  }),
+  z.strictObject({
+    version,
+    kind: z.literal("sentence-reference"),
+    sessionId: resourceIdSchema,
+    input: practiceReferenceRequestSchema,
   }),
 ]);
 export type LearningTaskCommand = z.infer<typeof learningTaskCommandSchema>;

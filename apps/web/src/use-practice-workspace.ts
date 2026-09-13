@@ -14,8 +14,13 @@ import { usePracticeNavigation } from "./use-practice-navigation.js";
 import { learningTaskFeedback } from "./learning-task-feedback.js";
 
 import { createPracticeApiScope } from "./practice-api-scope.js";
-import { isResumablePractice, mergePracticeSession } from "./practice-session-state.js";
+import {
+  isResumablePractice,
+  mergePracticeSession,
+  practiceGenerationStatus,
+} from "./practice-session-state.js";
 import { usePracticeTeaching } from "./use-practice-teaching.js";
+import { usePracticeReference } from "./use-practice-reference.js";
 
 export function usePracticeWorkspace(source: PracticePageApi, key: () => string) {
   const scope = useMemo(() => createPracticeApiScope(source), [source]);
@@ -129,15 +134,7 @@ export function usePracticeWorkspace(source: PracticePageApi, key: () => string)
       if (current === generation.current) {
         setTask(null);
         setPreview("");
-        setStatus(
-          latest?.pendingGeneration
-            ? "题目尚未完成，可以重试或自由造句。"
-            : latest?.status === "completed"
-              ? latest.items.every((item) => item.rating !== undefined)
-                ? "反馈已完成，本次自评已保留。"
-                : "反馈已完成，请自评。"
-              : "题目已生成，可以开始作答。",
-        );
+        setStatus(practiceGenerationStatus(snapshot.kind, latest));
       }
     } catch (cause) {
       if (current === generation.current && !controller.signal.aborted) {
@@ -150,6 +147,16 @@ export function usePracticeWorkspace(source: PracticePageApi, key: () => string)
     if (!latest) throw new Error("Practice has not started yet.");
     return latest;
   };
+  const reference = usePracticeReference({
+    api,
+    session,
+    current: activeSession,
+    ordinal: teaching.data?.teaching?.round.ordinal ?? session?.attempts?.length ?? 0,
+    task,
+    key,
+    install,
+    subscribe,
+  });
   const run = async (
     command: LearningTaskCommand,
     fallback: () => Promise<PracticeSession>,
@@ -345,6 +352,7 @@ export function usePracticeWorkspace(source: PracticePageApi, key: () => string)
     queue,
     session,
     teaching,
+    reference,
     hintPolicy,
     setHintPolicy,
     teachingAction: (action: "rewrite" | "reveal-hint") =>

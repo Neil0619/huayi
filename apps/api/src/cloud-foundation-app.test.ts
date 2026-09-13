@@ -20,6 +20,30 @@ function foundation(...args: Parameters<typeof createCloudFoundationTestContext>
 }
 
 describe("Cloud foundation HTTP adapter", () => {
+  it.each(["/v1/analyses?reviewState=pendingReview", "/v2/learning-tasks"])(
+    "allows a negotiated Accept header in a browser preflight for %s",
+    async (path) => {
+      const { app } = foundation();
+      const response = await app.request(path, {
+        method: "OPTIONS",
+        headers: {
+          origin,
+          "access-control-request-method": "GET",
+          "access-control-request-headers": "accept",
+        },
+      });
+      expect(response.status).toBe(204);
+      expect(response.headers.get("access-control-allow-origin")).toBe(origin);
+      expect(response.headers.get("access-control-allow-credentials")).toBe("true");
+      expect(
+        response.headers
+          .get("access-control-allow-headers")
+          ?.toLowerCase()
+          .split(",")
+          .map((header) => header.trim()),
+      ).toContain("accept");
+    },
+  );
   it.each(["/v1/analyses:stream", "/v2/learning-tasks", "/v2/practice-workspace/start"])(
     "allows only reviewed Web and Extension origins to preflight %s",
     async (path) => {

@@ -3,6 +3,9 @@
 2026-09-05：本文保留计费、turn-first、耐久输出和 once-only 排期权威；当前后台调度、自由造句、
 草稿与暂停恢复见 [即时查询与学习工作台](instant-query-learning-workspace.md)。
 
+2026-09-13：新增按需生成并保存的造句参考，继续使用本生成/计费权威，详见
+[造句参考表达](practice-reference.md)。
+
 ## 1. 问题与目标
 
 Cloud V1 的句子创作和受约束对话已经具备 PracticeSession、PracticeAttempt、turn-first、generation

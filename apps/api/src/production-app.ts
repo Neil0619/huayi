@@ -187,6 +187,7 @@ export function createProductionApp(
     webOrigin: environment.HUAYI_WEB_ORIGIN,
   });
   const learningTasks = createProductionLearningTasks({
+    generator: practiceGenerator,
     purgeDiagnostics: diagnostics.purge,
     database: analysisDatabase,
     environment,

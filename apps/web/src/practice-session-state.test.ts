@@ -56,11 +56,18 @@ it("does not replace a newer saved draft when model completion arrives", () => {
   });
 });
 
-it("only binds teaching to the same session and all three current versions", () => {
+it("binds teaching to business and control state independently of autosaved drafts", () => {
   const detail = teachingFixture();
+  if (!detail.session.workspace) throw new Error("Missing fixture workspace.");
   expect(practiceTeachingMatches(detail, detail.session)).toBe(true);
   expect(practiceTeachingMatches(detail, { ...detail.session, id: "other-session" })).toBe(false);
   expect(practiceTeachingMatches(detail, { ...detail.session, revision: 5 })).toBe(false);
+  expect(
+    practiceTeachingMatches(detail, {
+      ...detail.session,
+      workspace: { ...detail.session.workspace, controlRevision: 1 },
+    }),
+  ).toBe(false);
   expect(
     practiceTeachingMatches(detail, {
       ...detail.session,
@@ -72,7 +79,7 @@ it("only binds teaching to the same session and all three current versions", () 
         draftRevision: 1,
       },
     }),
-  ).toBe(false);
+  ).toBe(true);
 });
 
 it("keeps a rated active rewrite resumable and excludes a rated finished round", () => {

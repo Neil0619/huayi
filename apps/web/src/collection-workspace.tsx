@@ -180,7 +180,7 @@ export function CollectionWorkspace({
         </div>
       )}
       {state.loading && <p role="status">正在载入收集箱…</p>}
-      {!state.loading && state.entries.length === 0 && (
+      {!state.loading && !state.error && state.entries.length === 0 && (
         <section className="empty-state">
           <h2>从一句你想学会使用的话开始</h2>
           <p>在网页查询后加入收集箱，或在这里粘贴原文。</p>

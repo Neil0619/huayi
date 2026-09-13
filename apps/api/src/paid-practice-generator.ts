@@ -86,15 +86,17 @@ export function createPaidPracticeGenerator(options: {
   return {
     async generate(command: PracticeGenerationCommand): Promise<PracticeGenerationOutput | null> {
       setDiagnosticOperationIfAbsent(
-        command.kind === "sentence-prompt"
-          ? "sentence-start"
-          : command.kind === "sentence-feedback"
-            ? "sentence-submit"
-            : command.kind === "dialogue-start"
-              ? "dialogue-start"
-              : command.kind === "dialogue-assistant"
-                ? "dialogue-turn"
-                : "dialogue-finish",
+        command.kind === "sentence-reference"
+          ? "sentence-reference"
+          : command.kind === "sentence-prompt"
+            ? "sentence-start"
+            : command.kind === "sentence-feedback"
+              ? "sentence-submit"
+              : command.kind === "dialogue-start"
+                ? "dialogue-start"
+                : command.kind === "dialogue-assistant"
+                  ? "dialogue-turn"
+                  : "dialogue-finish",
       );
       setDiagnosticContext({ generationId: command.generationId, userId: command.ownerUserId });
       const acquired = await options.repository.acquire(command);

@@ -32,6 +32,11 @@ const dialogueSessionSchema = z.strictObject({
     .max(11),
 });
 export const inputSchemaByKind = {
+  "sentence-reference": z.strictObject({
+    itemContent: itemContentSchema,
+    prompt: z.string().trim().min(1).max(4000),
+    mode: z.enum(["guided", "free"]),
+  }),
   "dialogue-assistant": z.strictObject({
     items: z.array(itemSchema).min(1).max(3),
     session: dialogueSessionSchema,
@@ -58,6 +63,8 @@ export const inputSchemaByKind = {
 
 export function practiceInstructions(kind: PracticeGenerationKind, input: Record<string, unknown>) {
   const guidance = {
+    "sentence-reference":
+      "Give one complete natural English sentence that fulfills the supplied saved Chinese task, its role and communication goal, using the target expression or fully filled sentence pattern. In free mode choose a concrete everyday situation. Include a Simplified Chinese translation and one short usage note. Do not assess the learner, change the task, merely repeat the target phrase, leave placeholder slots, or invent a source quotation. This is one possible reference, not the only correct answer.",
     "sentence-prompt":
       "Write prompt in Simplified Chinese. Describe one concrete everyday situation with a role and a communication goal, then ask for one English sentence using the supplied expression or pattern. Do not merely ask the learner to make a sentence, and do not supply the English answer.",
     "sentence-feedback":
@@ -70,6 +77,8 @@ export function practiceInstructions(kind: PracticeGenerationKind, input: Record
       "Write summary and every item feedback in Simplified Chinese. Assess only what the learner actually said, explain each target item's use, and give concise actionable advice. Keep any quoted or improved example sentences in English.",
   }[kind];
   const output = {
+    "sentence-reference":
+      "Return exactly {kind:'sentence-reference',sentence:string,translationZh:string,usageNoteZh:string}; sentence max 500 characters, translationZh max 1000, usageNoteZh max 500.",
     "dialogue-assistant": "Return exactly {kind:'dialogue-assistant',assistantTurn:string}.",
     "dialogue-final-feedback":
       "Return exactly {kind:'dialogue-final-feedback',summary:string,itemFeedbacks:[{itemAlias,feedback}]}; cover every supplied alias exactly once.",
@@ -101,6 +110,8 @@ export function practiceInstructions(kind: PracticeGenerationKind, input: Record
 function hasChineseGuidance(output: PracticeGenerationOutput) {
   const chinese = (text: string) => /\p{Script=Han}/u.test(text);
   switch (output.kind) {
+    case "sentence-reference":
+      return chinese(output.translationZh) && chinese(output.usageNoteZh);
     case "sentence-prompt":
       return chinese(output.prompt);
     case "sentence-feedback":

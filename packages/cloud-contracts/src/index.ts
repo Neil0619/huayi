@@ -34,5 +34,6 @@ export * from "./structured-learning-tasks.js";
 export * from "./structured-account-export.js";
 export * from "./platform-generation-identity.js";
 export * from "./structured-task-client.js";
+export * from "./practice-reference.js";
 
 export { createStructuredAnalysisSseDecoder } from "./structured-analysis-sse-decoder.js";

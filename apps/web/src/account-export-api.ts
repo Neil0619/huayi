@@ -29,7 +29,7 @@ export async function readLatestAccountExport(
     format: AccountDataExportFormatVersion,
   ) => Promise<{ job: AccountDataExportJobReadResource | null }>,
 ) {
-  const responses = await Promise.all(([1, 2, 3] as const).map(read));
+  const responses = await Promise.all(([1, 2, 3, 4] as const).map(read));
   const jobs = responses.flatMap((value) => (value.job ? [value.job] : []));
   const active = (value: AccountDataExportJobReadResource) =>
     ["pending", "running", "ready"].includes(value.state) ? 1 : 0;

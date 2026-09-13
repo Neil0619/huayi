@@ -116,6 +116,22 @@ describe("DeepSeek practice provider", () => {
   });
   it.each([
     {
+      kind: "sentence-reference" as const,
+      input: { ...input, prompt: "向同事坦率说明需要更多时间。", mode: "guided" },
+      english: {
+        kind: "sentence-reference",
+        sentence: "To be frank, I need more time to finish this report.",
+        translationZh: "I need more time.",
+        usageNoteZh: "State your opinion frankly.",
+      },
+      chinese: {
+        kind: "sentence-reference",
+        sentence: "To be frank, I need more time to finish this report.",
+        translationZh: "坦白说，我需要更多时间完成这份报告。",
+        usageNoteZh: "用 to be frank 引出真实想法。",
+      },
+    },
+    {
       kind: "sentence-prompt" as const,
       input: {
         itemContent: {

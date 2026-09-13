@@ -4,6 +4,7 @@ import { practiceGenerationOutputSchema } from "./paid-practice-generator.js";
 import { createPostgresPracticeRepository } from "./postgres-practice-repository.js";
 import { createPostgresDialoguePracticeRepository } from "./postgres-dialogue-practice-repository.js";
 import { loadPracticeSession } from "./postgres-practice-view.js";
+import { createPostgresPracticeReference } from "./postgres-practice-reference.js";
 interface Recovery {
   task_id: string;
   owner_id: string;
@@ -20,6 +21,7 @@ interface Recovery {
 export function createPracticeTaskRecovery(database: AnalysisDatabase) {
   const practice = createPostgresPracticeRepository(database);
   const dialogue = createPostgresDialoguePracticeRepository(database);
+  const reference = createPostgresPracticeReference(database);
   return async () => {
     const ready = await database.trusted((query) =>
       query.rows<Recovery>("SELECT * FROM huayi_private.ready_learning_task_recoveries()"),
@@ -37,6 +39,13 @@ export function createPracticeTaskRecovery(database: AnalysisDatabase) {
       try {
         const output = practiceGenerationOutputSchema.parse(item.output);
         switch (output.kind) {
+          case "sentence-reference": {
+            if (item.operation !== "practice.reference") continue;
+            const { kind, ...result } = output;
+            void kind;
+            await reference.complete({ ...common, result });
+            break;
+          }
           case "sentence-prompt":
             await practice.completeSentencePrompt({ ...common, prompt: output.prompt });
             break;

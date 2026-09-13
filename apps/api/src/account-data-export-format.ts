@@ -8,5 +8,6 @@ export function accountDataExportQueryFormat(
   if (value === undefined || value === "1") return 1;
   if (value === "2") return 2;
   if (value === "3") return 3;
+  if (value === "4") return 4;
   throw new CloudFault("invalid_request", "Unsupported account export format.");
 }

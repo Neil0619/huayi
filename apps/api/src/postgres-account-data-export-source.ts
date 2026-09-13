@@ -16,6 +16,7 @@ import {
 import { loadPracticeSession } from "./postgres-practice-view.js";
 import { loadPracticeTeaching } from "./postgres-practice-teaching-view.js";
 import { readStoredQueryRequest } from "./generation-snapshot.js";
+import { referenceStateSchema } from "./practice-reference-state.js";
 
 interface WordRow {
   archived_at: Date | null;
@@ -196,7 +197,7 @@ export function createPostgresAccountDataExportSource(database: AnalysisDatabase
       formatVersion: AccountDataExportFormatVersion = 2,
     ): Promise<AccountDataExportRecordRead[]> {
       accountDataExportFormatVersionSchema.parse(formatVersion);
-      if (formatVersion === 3 && !database.snapshot)
+      if (formatVersion >= 3 && !database.snapshot)
         throw new Error("Teaching export requires a repeatable-read snapshot.");
       const snapshot = database.snapshot?.bind(database) ?? database.transaction.bind(database);
       return snapshot(ownerUserId, async ({ tenant, trusted }) => {
@@ -278,13 +279,30 @@ export function createPostgresAccountDataExportSource(database: AnalysisDatabase
           "SELECT id::text FROM practice_sessions ORDER BY created_at,id",
         );
         for (const { id } of sessions) {
-          if (formatVersion === 3) {
+          if (formatVersion >= 3) {
             const { session, teaching } = await loadPracticeTeaching(tenant, id);
+            const raw =
+              formatVersion === 4
+                ? (
+                    await tenant.rows<{ reference_state: unknown }>(
+                      "SELECT reference_state FROM practice_sessions WHERE id=$1",
+                      [id],
+                    )
+                  )[0]?.reference_state
+                : null;
+            const state = raw == null ? null : referenceStateSchema.parse(raw);
             records.push(
               accountDataExportRecordReadSchema.parse({
                 recordType: "practice-session",
                 session,
                 teaching,
+                ...(formatVersion === 4
+                  ? {
+                      reference: state?.result
+                        ? { version: 1, result: state.result, views: state.views }
+                        : null,
+                    }
+                  : {}),
               }),
             );
             continue;

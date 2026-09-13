@@ -6,6 +6,7 @@ import {
   accountDataExportRecordSchema,
   accountDataExportRecordV2Schema,
   accountDataExportRecordV3Schema,
+  accountDataExportRecordV4Schema,
 } from "@huayi/cloud-contracts";
 import { createPgliteAnalysisDatabase } from "./test-support/postgres-analysis-database.js";
 import { createAccountDataRightsModule } from "./account-data-rights-module.js";
@@ -146,7 +147,7 @@ describe("durable account export format", () => {
       ).rows,
     ).toEqual([{ state: "failed", revision: 1 }]);
   });
-  it.each([1, 2, 3] as const)(
+  it.each([1, 2, 3, 4] as const)(
     "keeps format %s consistent from create and replay through worker, JSON and mini download",
     async (formatVersion) => {
       const { adapter, module, signed, app, post, workerRepository } = setup();
@@ -204,7 +205,9 @@ describe("durable account export format", () => {
           ? accountDataExportRecordSchema
           : formatVersion === 2
             ? accountDataExportRecordV2Schema
-            : accountDataExportRecordV3Schema;
+            : formatVersion === 3
+              ? accountDataExportRecordV3Schema
+              : accountDataExportRecordV4Schema;
       const records = new TextDecoder()
         .decode(stored)
         .trimEnd()
@@ -265,7 +268,7 @@ describe("durable account export format", () => {
     },
   );
 
-  it.each([2, 3] as const)(
+  it.each([2, 3, 4] as const)(
     "retries format %s only with matching format, revision and owner",
     async (formatVersion) => {
       const { post, workerRepository } = setup();

@@ -26,6 +26,18 @@ it("loads a single continuous collection and never starts a model on entry", asy
   expect(f.tasks.submit).not.toHaveBeenCalled();
   expect(f.api.analyzeCapture).not.toHaveBeenCalled();
 });
+it("shows a failed load without claiming the collection is empty, and recovers on refresh", async () => {
+  const f = setup();
+  vi.mocked(f.review.listPending).mockRejectedValueOnce(new Error("Failed list"));
+  const view = await render(f);
+  expect(view.querySelector("[role=alert]")?.textContent).toBe("收集箱暂时无法载入，请重试。");
+  expect(view.textContent).not.toContain("从一句你想学会使用的话开始");
+  const refresh = [...view.querySelectorAll("button")].find((b) => b.textContent === "刷新列表");
+  await act(async () => refresh?.click());
+  expect(view.querySelector("[role=alert]")).toBeNull();
+  expect(view.querySelectorAll("aside button")).toHaveLength(1);
+  expect(f.tasks.submit).not.toHaveBeenCalled();
+});
 it("saves edited metadata before queuing explicit analysis and keeps navigation enabled", async () => {
   const f = setup();
   const view = await render(f);

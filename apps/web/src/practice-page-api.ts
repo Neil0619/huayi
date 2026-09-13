@@ -1,6 +1,7 @@
 import type { LearningTaskClient } from "@huayi/cloud-contracts";
 import type { WebPracticeWorkspace } from "./practice-workspace-api.js";
 import type { WebPracticeTeaching } from "./practice-teaching-api.js";
+import type { WebPracticeReference } from "./practice-reference-api.js";
 import type {
   DailyPracticeQueueResponse,
   LearningItemDetailResponse,
@@ -12,6 +13,7 @@ export interface PracticePageApi {
   tasks?: LearningTaskClient;
   workspace?: WebPracticeWorkspace;
   teaching?: WebPracticeTeaching;
+  reference?: WebPracticeReference;
   dailyQueue(): Promise<DailyPracticeQueueResponse>;
   finish(
     sessionId: string,

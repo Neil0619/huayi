@@ -175,6 +175,12 @@ export function createPostgresSentenceFeedbackOperations(
           !["active", "paused"].includes(current.phase)
         )
           throw new CloudFault("revision_conflict", "Practice session revision changed.");
+        const open = await tenant.rows(
+          "SELECT id FROM practice_generation_tasks WHERE session_id=$1 AND state IN ('claimed','reserved','dispatched','ready') LIMIT 1",
+          [command.sessionId],
+        );
+        if (open.length)
+          throw new CloudFault("generation_busy", "Another practice generation is in progress.");
         if (!(await insertTeachingAttempt(tenant, command)))
           await tenant.rows(
             `INSERT INTO practice_attempts(id,session_id,owner_user_id,answer,submitted_at,feedback_lease_token,feedback_lease_expires_at)
