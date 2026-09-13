@@ -6,6 +6,7 @@ export {
   structuredAnalysisRecordSchema,
   assembleLearningRecommendations,
   completeExpressionSourceRefs,
+  completePatternSourceRefs,
   assembleSentenceStructure,
   assembleSentenceExplanationResult,
   sentenceExplanationDraftSchema,

@@ -115,6 +115,39 @@ export function completeExpressionSourceRefs(
   return invalid([], "Evidence must contain the candidate expression in its own source unit.");
 }
 
+/** Complete private pattern evidence only after validating its original same-unit references. */
+export function completePatternSourceRefs(
+  source: string,
+  pattern: unknown,
+  sourceValues: unknown,
+  sourceRefs: unknown,
+): SourceFragmentReference[] {
+  const references = learningAdviceSchema.shape.sourceRefs.parse(sourceRefs);
+  const spans = resolveSourceFragments(source, references);
+  const rendered = renderPatternWithValues(pattern, sourceValues);
+  if (
+    spans.some(
+      (span) =>
+        span.text.includes(rendered) ||
+        (span.end === source.length && sourcePatternFragment(rendered, span.text) !== undefined),
+    )
+  )
+    return references;
+  const text = sourcePatternFragment(rendered, source);
+  if (text === undefined)
+    return invalid([], "Evidence must include the exact reconstructed sentence pattern.");
+  // The headline exception is valid only at the unit's end, even when its text repeats earlier.
+  const start = text === rendered ? source.indexOf(text) : source.length - text.length;
+  let occurrence = 1;
+  for (
+    let index = source.indexOf(text);
+    index >= 0 && index < start;
+    index = source.indexOf(text, index + 1)
+  )
+    occurrence += 1;
+  return [{ text, occurrence }];
+}
+
 function checkExpression(
   candidate: Candidate,
   source: string,

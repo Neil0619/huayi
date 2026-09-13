@@ -124,6 +124,10 @@ const CUSTOM_RULES = new Map([
   ],
   ["The example must use the candidate expression.", "recommendation-example-expression"],
   [
+    "Evidence must include the exact reconstructed sentence pattern.",
+    "recommendation-source-pattern",
+  ],
+  [
     "Example values must reconstruct the complete example exactly.",
     "recommendation-example-template",
   ],

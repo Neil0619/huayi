@@ -5,6 +5,7 @@ import {
   assembleSentenceStructure,
   candidateSchema,
   completeExpressionSourceRefs,
+  completePatternSourceRefs,
   learningAdviceSchema,
   normalizeWhitespaceAndQuotes,
   phraseAnalysisSchema,
@@ -85,7 +86,7 @@ function collectCandidateIssue(issues: z.ZodIssue[], operation: () => string): s
   }
 }
 
-/** Strict native assembly; complete expression evidence only from its trusted source unit. */
+/** Strict native assembly; complete candidate evidence only from its trusted source unit. */
 export function readStructuredAnalysisContent(
   rawContent: string,
   input: StartAnalysisGenerationRequest,
@@ -143,19 +144,23 @@ export function readStructuredAnalysisContent(
               ...(learningAdvice === undefined
                 ? {}
                 : {
-                    advice:
-                      payload.type === "expression"
-                        ? {
-                            ...learningAdvice,
-                            sourceRefs: at(["learningAdvice", "sourceRefs"], () =>
-                              completeExpressionSourceRefs(
-                                unit.sourceText,
-                                payload.text,
-                                learningAdvice.sourceRefs,
-                              ),
+                    advice: {
+                      ...learningAdvice,
+                      sourceRefs: at(["learningAdvice", "sourceRefs"], () =>
+                        payload.type === "expression"
+                          ? completeExpressionSourceRefs(
+                              unit.sourceText,
+                              payload.text,
+                              learningAdvice.sourceRefs,
+                            )
+                          : completePatternSourceRefs(
+                              unit.sourceText,
+                              payload,
+                              raw.type === "sentence_pattern" ? raw.sourceValues : undefined,
+                              learningAdvice.sourceRefs,
                             ),
-                          }
-                        : learningAdvice,
+                      ),
+                    },
                   }),
               ...(raw.type === "sentence_pattern" ? { sourceValues: raw.sourceValues } : {}),
             };
