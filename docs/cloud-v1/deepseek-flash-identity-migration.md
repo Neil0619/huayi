@@ -126,3 +126,19 @@ dispatch 时固定快照的语义不变。
 本地回归把实际 `buildProductionEnvironment` 的合成凭据输出连同完整合成 Vercel 部署身份交给
 `parseApiEnvironment`，覆盖五个必填且互异的 UUID，并连接实际生产定价消费者核对五档固定数值。
 凭据读取器和发布适配器没有行为修改；空配置初始化、完整精确环境匹配和原有发布门禁继续保留。
+
+## 2026-09-14 正式 Store BYOK 响应身份补齐
+
+正式插件发布核验发现 Store BYOK 的请求常量和 SSE 严格解析器仍固定旧模型名。未关联账号的插件
+默认使用 BYOK，因此 Cloud API 的身份修复不能覆盖此路径。对浏览器实际分析引擎的离线回放确认：
+返回 `model=deepseek-flash` 的合法分片响应被旧解析器拒绝。原测试从实现常量生成响应，未暴露此差异。
+
+本次把 Store BYOK 的请求与响应校验统一固定为 `deepseek-flash`，仍使用既有官方 endpoint、非思考
+JSON 流和单次请求边界。逐字节 UTF-8/SSE 回归改用独立字面量；旧模型名、Pro、空值和其他模型的新响应
+继续拒绝，不放宽结构校验、不自动回退。现有任务 journal 和短期缓存身份保持兼容，不丢弃正在恢复的
+任务；Classic/Native Host 的冻结协议不在此次修改范围。
+
+2026-09-14 只读核验的 [DeepSeek 官方模型说明](https://api-docs.deepseek.com/quick_start/pricing/)
+明确 `deepseek-flash` 对应 DeepSeek-V4.1-Flash；旧请求名已成为由该模型处理的兼容别名。这是新增的
+官方文档证据，补充上文 2026-09-10 当时仅核实 API 返回 ID 的证据边界。此补丁未新增真实模型调用、
+数据库写入或部署；生产发布与正式插件安装仍须各自验收。

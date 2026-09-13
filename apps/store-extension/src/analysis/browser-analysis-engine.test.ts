@@ -163,6 +163,7 @@ function deepSeekChunk(
   content: string | null,
   role: "assistant" | null,
   finishReason: string | null,
+  model: string = DEEPSEEK_MODEL,
 ): string {
   return sse(undefined, {
     choices: [
@@ -175,18 +176,18 @@ function deepSeekChunk(
     ],
     created: 1,
     id: "chat-1",
-    model: DEEPSEEK_MODEL,
+    model,
     object: "chat.completion.chunk",
   });
 }
 
-function deepSeekStream(text: string): string {
+function deepSeekStream(text: string, model: string = DEEPSEEK_MODEL): string {
   const split = Math.floor(text.length / 2);
   return [
-    deepSeekChunk("", "assistant", null),
-    deepSeekChunk(text.slice(0, split), null, null),
-    deepSeekChunk(text.slice(split), null, null),
-    deepSeekChunk(null, null, "stop"),
+    deepSeekChunk("", "assistant", null, model),
+    deepSeekChunk(text.slice(0, split), null, null, model),
+    deepSeekChunk(text.slice(split), null, null, model),
+    deepSeekChunk(null, null, "stop", model),
     sse(undefined, "[DONE]"),
   ].join("");
 }
@@ -264,7 +265,9 @@ describe("BrowserAnalysisEngine", () => {
   });
 
   it("uses the pinned DeepSeek provider and handles fragmented UTF-8 SSE", async () => {
-    const bytes = encoder.encode(deepSeekStream('{"translationZh":"你好🌍。"}'));
+    // The actual response uses the canonical name even for retired request aliases.
+    // Keep this literal independent of the implementation's pinned request constant.
+    const bytes = encoder.encode(deepSeekStream('{"translationZh":"你好🌍。"}', "deepseek-flash"));
     const chunks = Array.from(bytes, (byte) => new Uint8Array([byte]));
     const fetch = vi.fn<ProviderFetch>(async () => response(chunks));
     const { result } = await analyze("deepseek", fetch);
@@ -275,13 +278,24 @@ describe("BrowserAnalysisEngine", () => {
     expect(init.headers.Authorization).toBe("Bearer deep-key");
     expect(JSON.parse(init.body)).toMatchObject({
       max_tokens: 4096,
-      model: DEEPSEEK_MODEL,
+      model: "deepseek-flash",
       response_format: { type: "json_object" },
       stream: true,
       temperature: 0,
       thinking: { type: "disabled" },
     });
   });
+
+  it.each(["deepseek-v4-flash", "deepseek-v4-pro", "deepseek-chat", "", "other-model"])(
+    "rejects a noncanonical DeepSeek response model %s without fallback",
+    async (model) => {
+      const fetch = vi.fn<ProviderFetch>(async () =>
+        response([encoder.encode(deepSeekStream('{"translationZh":"你好。"}', model))]),
+      );
+      await expect(analyze("deepseek", fetch)).rejects.toMatchObject({ code: "invalid-response" });
+      expect(fetch).toHaveBeenCalledTimes(1);
+    },
+  );
 
   it.each([
     ["unknown event", sse("response.tool_call", {})],

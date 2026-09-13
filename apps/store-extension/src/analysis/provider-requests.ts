@@ -10,7 +10,7 @@ import { jsonSchemaFor, type ModelResultType } from "./model-contracts.js";
 export const OPENAI_RESPONSES_ENDPOINT = "https://api.openai.com/v1/responses";
 export const OPENAI_MODEL = "gpt-5.6-luna";
 export const DEEPSEEK_CHAT_ENDPOINT = "https://api.deepseek.com/chat/completions";
-export const DEEPSEEK_MODEL = "deepseek-v4-flash";
+export const DEEPSEEK_MODEL = "deepseek-flash";
 
 const EXAMPLES: Readonly<Record<ModelResultType, object>> = {
   "explain-lexical": {

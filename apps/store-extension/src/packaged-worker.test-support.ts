@@ -61,6 +61,7 @@ export function loadPackagedWorker(
     URL,
     atob,
     btoa,
+    clearInterval,
     clearTimeout,
     crypto: webcrypto,
     indexedDB: new IDBFactory(),
@@ -75,15 +76,17 @@ export function loadPackagedWorker(
       },
     },
     performance,
+    setInterval,
     setTimeout,
     structuredClone,
-    fetch: async (input: URL, init?: RequestInit) => {
-      requests.push({ method: init?.method, url: input.href });
-      if (input.pathname === "/v1/extension-preferences" && options.preferencesResponse) {
+    fetch: async (input: string | URL, init?: RequestInit) => {
+      const url = new URL(input);
+      requests.push({ method: init?.method, url: url.href });
+      if (url.pathname === "/v1/extension-preferences" && options.preferencesResponse) {
         return options.preferencesResponse();
       }
-      if (options.request) return options.request(input, init);
-      if (input.pathname !== "/v1/extension-pairings" || init?.method !== "POST") {
+      if (options.request) return options.request(url, init);
+      if (url.pathname !== "/v1/extension-pairings" || init?.method !== "POST") {
         throw new Error("Unexpected offline worker request.");
       }
       return Response.json({
