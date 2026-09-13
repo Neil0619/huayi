@@ -288,11 +288,14 @@ test("actual Web bundle confirms one candidate and rereads it from the learning 
 
   await page.goto(`${webOrigin}/app`);
   await expect(page.getByRole("heading", { name: "收集箱", level: 1 })).toBeVisible();
+  await page.getByRole("tab", { name: "学习内容", exact: true }).click();
+  await page.getByText("全部候选", { exact: false }).click();
   await page.getByText("编辑内容与标签", { exact: true }).click();
   await page.getByRole("textbox", { exact: true, name: "表达" }).fill("to be completely frank");
   await page.getByLabel("标签（逗号分隔）").fill("writing, conversation");
+  await page.locator("[data-candidate-selected]").first().check();
   await page.getByRole("button", { name: "加入学习库", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "已整理到学习库" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "没有待选择的学习内容" })).toBeVisible();
 
   await page.getByRole("link", { name: "学习库" }).click();
   await expect(page).toHaveURL(`${webOrigin}/library`);
@@ -399,6 +402,7 @@ test("packaged Store content captures a sentence and Web explicitly deep-analyze
     }),
   ).toBeVisible();
   await page.getByRole("button", { name: "开始深度分析" }).click();
+  await page.getByRole("tab", { name: "学习内容", exact: true }).click();
   await expect(page.getByRole("heading", { name: "选择你想学会使用的表达与句型" })).toBeVisible();
   await expect(
     page.getByRole("heading", {
@@ -406,11 +410,13 @@ test("packaged Store content captures a sentence and Web explicitly deep-analyze
       level: 2,
     }),
   ).toBeVisible();
+  await page.getByText("全部候选", { exact: false }).click();
   await page.getByText("编辑内容与标签", { exact: true }).click();
   await page.getByRole("textbox", { exact: true, name: "表达" }).fill("to be completely frank");
   await page.getByLabel("标签（逗号分隔）").fill("investigation, writing");
+  await page.locator("[data-candidate-selected]").first().check();
   await page.getByRole("button", { name: "加入学习库", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "已整理到学习库" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "没有待选择的学习内容" })).toBeVisible();
   await page.getByRole("link", { name: "学习库" }).click();
   await expect(page.getByRole("button", { name: /to be completely frank/u })).toBeVisible();
   expect(authority.snapshot()).toMatchObject({

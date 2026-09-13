@@ -51,7 +51,7 @@ test("a pasted original streams through a durable task and becomes a server-rere
     version: 2,
     kind: "capture-analysis",
     captureId: "capture-1",
-    input: { expectedRevision: 2, intent: "initial" },
+    input: { expectedRevision: 2, intent: "initial", outputContract: "structured-teaching-v1" },
   });
   await expect(page.getByLabel("实时分析预览")).toContainText("正在识别可复用表达。");
   expect(authority.snapshot()).toMatchObject({ captureCount: 1, analysisCount: 0, itemCount: 0 });
@@ -61,9 +61,12 @@ test("a pasted original streams through a durable task and becomes a server-rere
   await page.goto(`${webOrigin}/app`);
   await expect(page).toHaveURL(`${webOrigin}/app`);
   await expect(page.getByRole("heading", { level: 2, name: sourceText })).toBeVisible();
+  await page.getByRole("tab", { name: "学习内容", exact: true }).click();
+  await page.getByText("全部候选", { exact: false }).click();
   await page.getByText("编辑内容与标签", { exact: true }).click();
   await page.getByRole("textbox", { exact: true, name: "表达" }).fill("to be completely frank");
   await page.getByLabel("标签（逗号分隔）").fill("writing, conversation");
+  await page.locator("[data-candidate-selected]").first().check();
   await page.getByRole("button", { name: "加入学习库", exact: true }).click();
   await expect(page.getByRole("heading", { name: "没有待选择的学习内容" })).toBeVisible();
   await expect(page.getByRole("link", { name: "去练习", exact: true })).toHaveAttribute(
@@ -115,11 +118,15 @@ test("a pasted original streams through a durable task and becomes a server-rere
         ...(body as Record<string, unknown>),
         captureId: "capture-changed",
       });
-      return [replay.status, conflict.status];
+      const contractConflict = await submit({
+        ...(body as Record<string, unknown>),
+        input: { expectedRevision: 2, intent: "initial" },
+      });
+      return [replay.status, conflict.status, contractConflict.status];
     },
     { body: startBody, proof: startProof },
   );
-  expect(replayStatuses).toEqual([202, 409]);
+  expect(replayStatuses).toEqual([202, 409, 409]);
 
   const snapshot = authority.snapshot();
   expect(snapshot).toMatchObject({ analysisCount: 1, importCount: 0, itemCount: 1 });

@@ -52,6 +52,12 @@ for (const width of [390, 1440])
     });
     await page.setViewportSize({ width, height: 920 });
     await page.goto("https://web.huayi.invalid/app");
+    await expect(page.getByRole("tab", { name: "译文", exact: true })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    await expect(page.getByRole("tabpanel")).toHaveCount(1);
+    await page.getByRole("tab", { name: "深度解析", exact: true }).click();
     const units = page.locator("[data-native-unit]");
     await expect(units).toHaveCount(2);
     await expect(page.locator("[data-core-fragment]")).toHaveText([
@@ -65,6 +71,16 @@ for (const width of [390, 1440])
     await page.keyboard.press("Enter");
     await expect(modifier).toHaveAttribute("open", "");
     await expect(modifier).toContainText("修饰主干 1");
+    expect(
+      await page.locator(".native-teaching-unit .analysis-reading-number").evaluateAll((numbers) =>
+        numbers.map((number) => {
+          const range = document.createRange();
+          range.selectNodeContents(number);
+          return range.getClientRects().length;
+        }),
+      ),
+    ).toEqual([1, 1]);
+    await page.getByRole("tab", { name: "学习内容", exact: true }).click();
     const recommended = page.locator("[data-recommendation]");
     await expect(recommended).toHaveCount(2);
     await expect(recommended.first()).toHaveAttribute(
@@ -74,12 +90,32 @@ for (const width of [390, 1440])
     await expect(page.locator("[data-candidate-selected]:checked")).toHaveCount(0);
     const remaining = page.locator("[data-remaining-candidates]");
     await expect(remaining).not.toHaveAttribute("open");
-    await expect(recommended.first().getByText("原文依据", { exact: true })).toBeVisible();
+    await expect(page.locator(".recommendation-evidence")).toHaveCount(0);
+    await expect(recommended.first().locator("[data-recommendation-advice]")).not.toHaveAttribute(
+      "open",
+    );
     await expect(recommended.first().getByText("生成示例", { exact: true })).toBeVisible();
+    await page.screenshot({
+      path: testInfo.outputPath(`native-learning-compact-${width}.png`),
+      fullPage: true,
+    });
     await recommended.first().getByText("编辑内容与标签", { exact: true }).click();
     await recommended.first().getByLabel("表达", { exact: true }).fill("meet there later");
     await recommended.first().getByLabel("标签（逗号分隔）").fill("friends");
     await recommended.first().locator("[data-candidate-selected]").first().check();
+    await recommended
+      .first()
+      .getByLabel("表达", { exact: true })
+      .evaluate((node) => node.setAttribute("data-preserved", "yes"));
+    await page.getByRole("tab", { name: "译文", exact: true }).click();
+    await page.getByRole("tab", { name: "学习内容", exact: true }).click();
+    await expect(recommended.first().getByLabel("表达", { exact: true })).toHaveAttribute(
+      "data-preserved",
+      "yes",
+    );
+    await expect(recommended.first().getByLabel("表达", { exact: true })).toHaveValue(
+      "meet there later",
+    );
     await remaining.locator(":scope > summary").click();
     const unselected = remaining.locator(".collection-candidate").first();
     await unselected.getByText("编辑内容与标签", { exact: true }).click();
@@ -90,12 +126,17 @@ for (const width of [390, 1440])
     await expect(page.locator("[data-recommendation]")).toHaveCount(0);
     await page.locator("aside[aria-label='收集内容'] button").first().click();
     await page.getByRole("button", { name: "刷新列表", exact: true }).click();
+    await expect(page.getByRole("tab", { name: "译文", exact: true })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    await page.getByRole("tab", { name: "学习内容", exact: true }).click();
     await expect(recommended.first().locator("[data-candidate-selected]").first()).toBeChecked();
     await recommended.first().getByText("编辑内容与标签", { exact: true }).click();
     await expect(recommended.first().getByLabel("表达", { exact: true })).toHaveValue(
       "meet there later",
     );
-    await expect(recommended.first().getByRole("blockquote")).toHaveText("meet there");
+    await expect(recommended.first().getByRole("blockquote")).toHaveCount(0);
     await page.getByRole("button", { name: "加入学习库", exact: true }).click();
     await expect(page.getByRole("alert")).toContainText("当前选择和编辑已保留");
     expect(submissions[0]?.confirmations).toEqual([
@@ -108,15 +149,6 @@ for (const width of [390, 1440])
     expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(
       false,
     );
-    expect(
-      await page.locator(".native-teaching-unit .analysis-reading-number").evaluateAll((numbers) =>
-        numbers.map((number) => {
-          const range = document.createRange();
-          range.selectNodeContents(number);
-          return range.getClientRects().length;
-        }),
-      ),
-    ).toEqual([1, 1]);
     await page.evaluate(() => {
       if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
       window.scrollTo(0, 0);

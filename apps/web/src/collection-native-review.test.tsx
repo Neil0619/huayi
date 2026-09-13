@@ -51,8 +51,10 @@ it("shows source-backed recommendations in server order and folds remaining cand
   expect(view.querySelectorAll<HTMLInputElement>("input:checked")).toHaveLength(0);
   expect(view.querySelector<HTMLDetailsElement>("[data-remaining-candidates]")?.open).toBe(false);
   for (const node of recommended) {
-    expect(node.querySelector<HTMLDetailsElement>("[data-recommendation-advice]")?.open).toBe(true);
-    expect(node.textContent).toContain("原文依据");
+    expect(node.querySelector<HTMLDetailsElement>("[data-recommendation-advice]")?.open).toBe(
+      false,
+    );
+    expect(node.textContent).not.toContain("原文依据");
     expect(node.textContent).toContain("生成示例");
   }
   expect(

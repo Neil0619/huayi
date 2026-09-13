@@ -1,5 +1,4 @@
-import { DeepAnalysisReading } from "./deep-analysis-reading.js";
-import { NativeSentenceReading } from "./native-sentence-reading.js";
+import { CollectionAnalysisTabs } from "./collection-analysis-tabs.js";
 import { useRef, useState } from "react";
 import type { WebStudyCaptureApi } from "./study-capture-api.js";
 import type { InboxApi } from "./inbox-app.js";
@@ -341,23 +340,19 @@ export function CollectionWorkspace({
                 <p>{state.preview}</p>
               </section>
             )}
-            {selected.analysis?.result.type === "sentence-passage-analysis-v3" && (
-              <DeepAnalysisReading analysis={selected.analysis} showNativeSentences={false} />
-            )}
-            {units.length > 0 && (
-              <NativeSentenceReading key={`reading:${selected.id}`} units={units} />
-            )}
-            {selected.analysis && (
-              <CollectionReview
-                showReading={selected.analysis.result.type !== "sentence-passage-analysis-v3"}
-                draftCache={reviewDrafts.current}
-                key={selected.analysis.id}
-                analysis={selected.analysis}
-                api={reviewApi}
-                idempotencyKey={createIdempotencyKey}
-                onSaved={(record) => state.completeReview(selected.id, record)}
-              />
-            )}
+            <CollectionAnalysisTabs key={selected.id} analysis={selected.analysis} units={units}>
+              {selected.analysis && (
+                <CollectionReview
+                  showReading={false}
+                  draftCache={reviewDrafts.current}
+                  key={selected.analysis.id}
+                  analysis={selected.analysis}
+                  api={reviewApi}
+                  idempotencyKey={createIdempotencyKey}
+                  onSaved={(record) => state.completeReview(selected.id, record)}
+                />
+              )}
+            </CollectionAnalysisTabs>
           </section>
         )}
       </div>

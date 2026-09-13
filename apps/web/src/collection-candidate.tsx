@@ -12,7 +12,7 @@ export function CollectionCandidate({
   index: number;
   onChange(draft: CandidateDraft): void;
 }) {
-  const [adviceOpen, setAdviceOpen] = useState(true);
+  const [adviceOpen, setAdviceOpen] = useState(false);
   const content = draft.candidate.payload;
   const text = content.type === "expression" ? content.text : content.template;
   const meaning = content.type === "expression" ? content.meaningZh : content.functionZh;
@@ -35,6 +35,13 @@ export function CollectionCandidate({
         </span>
       </label>
       {recommendation && (
+        <section className="analysis-teaching-example">
+          <h5>生成示例</h5>
+          <p lang="en">{recommendation.generatedExample.sourceText}</p>
+          <p>{recommendation.generatedExample.translationZh}</p>
+        </section>
+      )}
+      {recommendation && (
         <details
           data-recommendation-advice
           open={adviceOpen}
@@ -43,20 +50,6 @@ export function CollectionCandidate({
           <summary>适用场景与推荐理由</summary>
           <p>{recommendation.useWhenZh}</p>
           <p>{recommendation.reasonZh}</p>
-          <section className="recommendation-evidence">
-            <h5>原文依据</h5>
-            <p className="field-help">以下引用对应分析时的原始候选。</p>
-            {recommendation.sourceEvidence.map((span) => (
-              <blockquote key={`${span.start}-${span.end}`} lang="en">
-                {span.text}
-              </blockquote>
-            ))}
-          </section>
-          <section className="analysis-teaching-example">
-            <h5>生成示例</h5>
-            <p lang="en">{recommendation.generatedExample.sourceText}</p>
-            <p>{recommendation.generatedExample.translationZh}</p>
-          </section>
         </details>
       )}
       <details>

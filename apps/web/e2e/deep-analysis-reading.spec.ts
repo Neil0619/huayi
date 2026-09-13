@@ -145,6 +145,7 @@ for (const width of [390, 1440]) {
       await expect(reading.getByText(understanding, { exact: true })).toBeVisible();
       await expect(reading.getByText(/新闻报道采用审慎语气/u)).toBeVisible();
       await page.keyboard.press("Enter");
+      await page.getByRole("tab", { name: "深度解析", exact: true }).click();
       const summary = reading.locator(".analysis-reading-sentence > summary").first();
       await expect(summary).toContainText("01");
       await expect(summary).toContainText(firstSentence);

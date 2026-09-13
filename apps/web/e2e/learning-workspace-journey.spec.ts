@@ -19,22 +19,26 @@ test("collects two originals, completes analysis after leaving, learns, writes, 
   await page.goto(`${origin}/practice`);
   authority.complete();
   await page.goto(`${origin}/app`);
+  await page.getByRole("tab", { name: "学习内容", exact: true }).click();
   await expect(page.getByRole("heading", { name: "选择你想学会使用的表达与句型" })).toBeVisible();
   expect(authority.facts().calls).toBe(2);
-  await expect(page.locator(".collection-candidate-choice")).toContainText("at least");
+  await expect(page.locator(".collection-candidate-choice")).toContainText("At least");
+  await page.getByRole("tab", { name: "译文", exact: true }).click();
   const translation = page
     .getByRole("region", { name: "原文解析", exact: true })
     .locator(".analysis-reading-translation");
   await expect(translation).toHaveText("至少我们可以再试一次。");
   await expect(translation).toBeVisible();
   await page.getByRole("button", { name: /To be frank, this works\./u }).click();
-  await expect(page.locator(".collection-candidate-choice")).toContainText("to be frank");
+  await expect(page.locator(".collection-candidate-choice")).toContainText("To be frank");
   await expect(translation).toHaveText("坦率地说，这很有效。");
   await expect(translation).toBeVisible();
   await page.screenshot({
     path: testInfo.outputPath("collection-desktop.png"),
     fullPage: true,
   });
+  await page.getByRole("tab", { name: "学习内容", exact: true }).click();
+  await page.getByText("全部候选", { exact: false }).click();
   await page.locator("[data-candidate-selected]").first().check();
   await page.getByRole("button", { name: "加入学习库", exact: true }).click();
   await expect(
@@ -43,7 +47,7 @@ test("collects two originals, completes analysis after leaving, learns, writes, 
   await expect(page.locator(".analysis-list [aria-pressed=true]")).toContainText(
     "At least we can try again.",
   );
-  await expect(page.locator(".collection-candidate-choice")).toContainText("at least");
+  await expect(page.locator(".collection-candidate-choice")).toContainText("At least");
   await expect(page.locator(".collection-completed")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "继续整理", exact: true })).toHaveCount(0);
   await page

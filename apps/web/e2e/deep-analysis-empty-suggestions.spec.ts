@@ -73,6 +73,7 @@ for (const width of [390, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto("https://web.huayi.invalid/app");
     await expect(page.getByRole("region", { name: "原文解析" })).toContainText(translation);
+    await page.getByRole("tab", { name: "学习内容", exact: true }).click();
     await expect(page.getByRole("heading", { name: "原文解读已保留" })).toBeVisible();
     await expect(page.getByText(/本次没有合适的学习建议/u)).toBeVisible();
     await expect(page.getByRole("button", { name: "加入学习库", exact: true })).toHaveCount(0);

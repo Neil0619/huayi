@@ -4,16 +4,20 @@ import {
   contractFixtures,
   confirmCandidatesRequestSchema,
   confirmCandidatesResponseSchema,
-  learningTaskCommandSchema,
+  confirmCandidatesReadResponseSchema,
+  learningTaskCommandReadSchema,
   practiceSessionResponseSchema,
+  practiceTeachingDetailSchema,
+  practiceReferenceDetailSchema,
   studyCaptureCreateResponseSchema,
-  type AnalysisRecord,
-  type LearningTaskPayload,
-  type LearningTaskSnapshot,
+  type AnalysisRecordRead,
+  type LearningTaskPayloadRead,
+  type LearningTaskSnapshotRead,
   type PracticeSession,
   type StudyCaptureDetailResponse,
 } from "@huayi/cloud-contracts";
 import { createCloudBrowserAuthority } from "./cloud-browser-authority.js";
+import { structuredFixtureAnalysis } from "./cloud-browser-authority-tasks.js";
 import { cloudCors } from "./cloud-browser-authority-request.js";
 
 const date = "2026-09-05T00:00:00.000Z";
@@ -34,9 +38,9 @@ const schedule = { consecutiveMastered: 0, dueAt: null, level: -1 as const };
 export function createLearningWorkspaceAuthority() {
   const base = createCloudBrowserAuthority({ authenticated: true, seed: "empty" });
   const captures: StudyCaptureDetailResponse[] = [];
-  const analyses: AnalysisRecord[] = [];
-  const tasks: LearningTaskSnapshot[] = [];
-  const keys = new Map<string, LearningTaskSnapshot>();
+  const analyses: AnalysisRecordRead[] = [];
+  const tasks: LearningTaskSnapshotRead[] = [];
+  const keys = new Map<string, LearningTaskSnapshotRead>();
   let session: PracticeSession | null = null;
   let learned = false;
   let calls = 0;
@@ -56,10 +60,11 @@ export function createLearningWorkspaceAuthority() {
       if (!detail) throw new Error("Missing capture");
       const second = detail.capture.sourceText.startsWith("At least");
       const translationZh = second ? "至少我们可以再试一次。" : "坦率地说，这很有效。";
-      const record = analysisRecordSchema.parse({
+      const legacy = analysisRecordSchema.parse({
         ...source,
         id: `analysis-${detail.capture.id}`,
         sourceText: detail.capture.sourceText,
+        selectionKind: detail.capture.kind,
         studyCaptureId: detail.capture.id,
         candidates: second
           ? source.candidates.map((candidate) => ({
@@ -98,6 +103,7 @@ export function createLearningWorkspaceAuthority() {
                 })),
               },
       });
+      const record = structuredFixtureAnalysis(legacy);
       analyses.unshift(record);
       detail.capture = {
         ...detail.capture,
@@ -194,7 +200,7 @@ export function createLearningWorkspaceAuthority() {
           learned = true;
           return json(
             route,
-            confirmCandidatesResponseSchema.parse({
+            confirmCandidatesReadResponseSchema.parse({
               ...contractFixtures.confirmCandidatesResponse,
               analysis: record,
             }),
@@ -205,11 +211,11 @@ export function createLearningWorkspaceAuthority() {
           if (record) return json(route, record);
         }
         if (path === "/v2/learning-tasks" && request.method() === "POST") {
-          const command = learningTaskCommandSchema.parse(body);
+          const command = learningTaskCommandReadSchema.parse(body);
           const key = request.headers()["idempotency-key"] ?? "";
           const previous = keys.get(key);
           if (previous) return json(route, previous, 202);
-          const task: LearningTaskSnapshot = {
+          const task: LearningTaskSnapshotRead = {
             version: 2,
             id: `task-${tasks.length + 1}`,
             kind: command.kind,
@@ -263,7 +269,7 @@ export function createLearningWorkspaceAuthority() {
           }
           if (path.endsWith("/events")) {
             if (task.state === "running") await new Promise((resolve) => setTimeout(resolve, 100));
-            const payload: LearningTaskPayload = task.output ?? {
+            const payload: LearningTaskPayloadRead = task.output ?? {
               type: "analysis.preview",
               requestId: task.id,
               section: "overall",
@@ -283,6 +289,30 @@ export function createLearningWorkspaceAuthority() {
           }
           return json(route, task);
         }
+        if (path === `/v2/practice/sessions/${session?.id}/teaching` && request.method() === "GET")
+          return json(
+            route,
+            practiceTeachingDetailSchema.parse({ version: 1, session, teaching: null }),
+          );
+        if (
+          path === `/v2/practice/sessions/${session?.id}/reference` &&
+          request.method() === "GET" &&
+          session
+        )
+          return json(
+            route,
+            practiceReferenceDetailSchema.parse({
+              version: 1,
+              sessionId: session.id,
+              revision: session.revision,
+              controlRevision: session.workspace?.controlRevision ?? 0,
+              ordinal: 0,
+              availability: session.status === "active" ? "available" : "inactive",
+              ready: false,
+              viewedAt: null,
+              reference: null,
+            }),
+          );
         if (path === "/v2/practice/daily-queue")
           return json(route, {
             completedToday: ratings,
