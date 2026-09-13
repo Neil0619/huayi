@@ -181,6 +181,8 @@ export function buildDeepSeekAnalysisRequest(
         "For json failures, fix JSON syntax, including double-quoted property names and valid separators. jsonErrorOffset is a zero-based UTF-16 character offset into the original invalid output. Do not copy the malformed syntax.",
         "For unit-count failures, supply exactly one ordered sentence entry per supplied analysis unit.",
         "For source fragment failures, evidenceText and expression.text must exactly match a continuous substring of their corresponding unit. For a template failure, substituting sourceValues must reconstruct a continuous source fragment exactly; fix the template and values together, never invent missing words. Do not change or drop valid teaching to evade validation.",
+        "For recommendation-example-expression, generatedExample.sourceText must contain the full literal candidate expression with word boundaries, preserving its spelling, case and punctuation. Repair the example without redefining the source expression.",
+        "For recommendation-example-template, substituting every declared template slot with exampleValues must reconstruct the entire generatedExample.sourceText exactly, including case and punctuation. Repair the example and exampleValues together. Do not drop learningAdvice to evade either recommendation rule.",
         "VALIDATION_FAILURES",
         JSON.stringify(feedback ?? { stage: "output-schema", issues: [], truncated: true }),
         "END_VALIDATION_FAILURES",

@@ -125,11 +125,21 @@ export function readStructuredAnalysisContent(
             type: payload.type === "expression" ? "expression" : "sentence-pattern",
             payload,
           });
-          entries.push({
+          const entry: RecommendationCandidate = {
             candidate,
             ...(learningAdvice === undefined ? {} : { advice: learningAdvice }),
             ...(raw.type === "sentence_pattern" ? { sourceValues: raw.sourceValues } : {}),
-          });
+          };
+          // Validate advice at its private input location before aggregate checks reorder it.
+          if (learningAdvice !== undefined) {
+            at(["learningAdvice"], () =>
+              assembleLearningRecommendations(
+                [{ analysisUnitId: unit.analysisUnitId, sourceText: unit.sourceText }],
+                [entry],
+              ),
+            );
+          }
+          entries.push(entry);
           return id;
         }),
       );

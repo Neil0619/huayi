@@ -118,6 +118,11 @@ const KNOWN_CODES = new Set([
 // Only exact source-authored refinement messages can select a fixed label; messages are never emitted.
 const CUSTOM_RULES = new Map([
   ["Exact source fragment required.", "exact-source-fragment"],
+  ["The example must use the candidate expression.", "recommendation-example-expression"],
+  [
+    "Example values must reconstruct the complete example exactly.",
+    "recommendation-example-template",
+  ],
   ["Slot names must be unique.", "slot-names-unique"],
   ["Template placeholders must reference declared slots.", "template-slot-reference"],
   ["Every slot must appear in the template.", "slot-used-in-template"],
