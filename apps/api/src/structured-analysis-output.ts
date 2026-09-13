@@ -75,6 +75,16 @@ function at<T>(path: (string | number)[], operation: () => T): T {
   }
 }
 
+function collectCandidateIssue(issues: z.ZodIssue[], operation: () => string): string {
+  try {
+    return operation();
+  } catch (error) {
+    if (!(error instanceof z.ZodError)) throw error;
+    issues.push(...error.issues);
+    return ""; // No partially assembled content escapes: all collected issues are thrown below.
+  }
+}
+
 /** Strict native assembly; complete expression evidence only from its trusted source unit. */
 export function readStructuredAnalysisContent(
   rawContent: string,
@@ -102,63 +112,66 @@ export function readStructuredAnalysisContent(
     stage = "content-schema";
     if (input.selectionKind !== "phrase") validateSentenceSourceUnits(input.sourceText, units);
     const entries: RecommendationCandidate[] = [];
+    const candidateIssues: z.ZodIssue[] = [];
     const mapped = rows.map((row, index) => {
       const unit = units[index];
       if (!unit) throw new Error("Missing trusted source unit.");
       const base = "usageNotes" in row ? ["result"] : ["result", "sentences", index];
       const candidateIds = row.candidates.map((item, candidateIndex) =>
-        at([...base, "candidates", candidateIndex], () => {
-          const { learningAdvice, ...raw } = item;
-          const payload =
-            raw.type === "expression"
-              ? raw
-              : (() => {
-                  const checked = sourceBackedPattern(raw, unit.sourceText);
-                  if (checked.issues) throw new z.ZodError(checked.issues);
-                  return checked.payload;
-                })();
-          const ordinal = entries.length,
-            id = `c${ordinal + 1}`;
-          const candidate = candidateSchema.parse({
-            id,
-            ordinal,
-            analysisUnitId: unit.analysisUnitId,
-            type: payload.type === "expression" ? "expression" : "sentence-pattern",
-            payload,
-          });
-          const entry: RecommendationCandidate = {
-            candidate,
-            ...(learningAdvice === undefined
-              ? {}
-              : {
-                  advice:
-                    payload.type === "expression"
-                      ? {
-                          ...learningAdvice,
-                          sourceRefs: at(["learningAdvice", "sourceRefs"], () =>
-                            completeExpressionSourceRefs(
-                              unit.sourceText,
-                              payload.text,
-                              learningAdvice.sourceRefs,
+        collectCandidateIssue(candidateIssues, () =>
+          at([...base, "candidates", candidateIndex], () => {
+            const { learningAdvice, ...raw } = item;
+            const payload =
+              raw.type === "expression"
+                ? raw
+                : (() => {
+                    const checked = sourceBackedPattern(raw, unit.sourceText);
+                    if (checked.issues) throw new z.ZodError(checked.issues);
+                    return checked.payload;
+                  })();
+            const ordinal = entries.length,
+              id = `c${ordinal + 1}`;
+            const candidate = candidateSchema.parse({
+              id,
+              ordinal,
+              analysisUnitId: unit.analysisUnitId,
+              type: payload.type === "expression" ? "expression" : "sentence-pattern",
+              payload,
+            });
+            const entry: RecommendationCandidate = {
+              candidate,
+              ...(learningAdvice === undefined
+                ? {}
+                : {
+                    advice:
+                      payload.type === "expression"
+                        ? {
+                            ...learningAdvice,
+                            sourceRefs: at(["learningAdvice", "sourceRefs"], () =>
+                              completeExpressionSourceRefs(
+                                unit.sourceText,
+                                payload.text,
+                                learningAdvice.sourceRefs,
+                              ),
                             ),
-                          ),
-                        }
-                      : learningAdvice,
-                }),
-            ...(raw.type === "sentence_pattern" ? { sourceValues: raw.sourceValues } : {}),
-          };
-          // Validate advice at its private input location before aggregate checks reorder it.
-          if (learningAdvice !== undefined) {
-            at(["learningAdvice"], () =>
-              assembleLearningRecommendations(
-                [{ analysisUnitId: unit.analysisUnitId, sourceText: unit.sourceText }],
-                [entry],
-              ),
-            );
-          }
-          entries.push(entry);
-          return id;
-        }),
+                          }
+                        : learningAdvice,
+                  }),
+              ...(raw.type === "sentence_pattern" ? { sourceValues: raw.sourceValues } : {}),
+            };
+            // Validate advice at its private input location before aggregate checks reorder it.
+            if (learningAdvice !== undefined) {
+              at(["learningAdvice"], () =>
+                assembleLearningRecommendations(
+                  [{ analysisUnitId: unit.analysisUnitId, sourceText: unit.sourceText }],
+                  [entry],
+                ),
+              );
+            }
+            entries.push(entry);
+            return id;
+          }),
+        ),
       );
       const { candidates, ...teaching } = row;
       void candidates;
@@ -173,6 +186,7 @@ export function readStructuredAnalysisContent(
           }
         : { ...teaching, analysisUnitId: "u1", candidateIds, type: "phrase-analysis-v3" };
     });
+    if (candidateIssues.length > 0) throw new z.ZodError(candidateIssues);
     const recommendations = at(["result", "recommendations"], () =>
       assembleLearningRecommendations(
         units.map(({ analysisUnitId, sourceText }) => ({ analysisUnitId, sourceText })),
