@@ -246,14 +246,15 @@ export function CloudApp({
     const dataRightsPage = (showAccountNavigation: boolean) => (
       <AccountDataRightsPage
         api={{
-          createAccountDataExport: () => identity.createAccountDataExport(csrfToken),
+          createAccountDataExport: (format) => identity.createAccountDataExport(csrfToken, format),
           deleteAccount: () => identity.deleteAccount(csrfToken),
-          downloadAccountDataExport: (exportId) =>
-            identity.downloadAccountDataExport(exportId, csrfToken),
-          getCurrentAccountDataExport: () => identity.getCurrentAccountDataExport(),
+          downloadAccountDataExport: (exportId, format) =>
+            identity.downloadAccountDataExport(exportId, csrfToken, format),
+          getCurrentAccountDataExport: () =>
+            readLatestAccountExport((format) => identity.getCurrentAccountDataExport(format)),
           logout: () => identity.logout(csrfToken),
-          retryAccountDataExport: (exportId, revision) =>
-            identity.retryAccountDataExport(exportId, revision, csrfToken),
+          retryAccountDataExport: (exportId, revision, format) =>
+            identity.retryAccountDataExport(exportId, revision, csrfToken, format),
         }}
         onSessionEnded={endSession}
         showAccountNavigation={showAccountNavigation}
@@ -346,3 +347,4 @@ export function CloudApp({
     />
   );
 }
+import { readLatestAccountExport } from "./account-export-api.js";

@@ -1,11 +1,17 @@
-import { createLearningTaskClient } from "@huayi/cloud-contracts";
+import {
+  createLearningTaskClient,
+  createStructuredLearningTaskClient,
+  type LearningTaskTransport,
+} from "@huayi/cloud-contracts";
 
-export function createWebLearningTasks(options: {
+interface Options {
   apiOrigin: string;
   csrfToken(): Promise<string>;
   fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response>;
-}) {
-  return createLearningTaskClient({
+}
+
+function transport(options: Options): LearningTaskTransport {
+  return {
     async request(path, init) {
       return options.fetch(new URL(path, options.apiOrigin), {
         ...init,
@@ -16,5 +22,10 @@ export function createWebLearningTasks(options: {
         },
       });
     },
-  });
+  };
 }
+
+export const createWebLearningTasks = (options: Options) =>
+  createLearningTaskClient(transport(options));
+export const createWebStructuredLearningTasks = (options: Options) =>
+  createStructuredLearningTaskClient(transport(options));

@@ -1,10 +1,10 @@
-import type { AnalysisEvent, AnalysisRequestStatus } from "@huayi/cloud-contracts";
+import type { AnalysisEventRead, AnalysisRequestStatus } from "@huayi/cloud-contracts";
 
 import { CloudFault } from "./cloud-fault.js";
 import type { AnalysisRequestLifecycle } from "./analysis-ports.js";
 
 interface RequestState {
-  event?: AnalysisEvent;
+  event?: AnalysisEventRead;
   idempotencyKey: string;
   leaseExpiresAt: Date;
   leaseToken: string;
@@ -19,9 +19,9 @@ interface RequestState {
 
 export function createInMemoryAnalysisRequestLifecycle(options: {
   now: () => Date;
-  abandonedEvent?: (requestId: string) => AnalysisEvent;
+  abandonedEvent?: (requestId: string) => AnalysisEventRead;
 }): AnalysisRequestLifecycle & {
-  complete(requestId: string, leaseToken: string, event: AnalysisEvent): void;
+  complete(requestId: string, leaseToken: string, event: AnalysisEventRead): void;
 } {
   const requests = new Map<string, RequestState>();
   const keys = new Map<string, string>();

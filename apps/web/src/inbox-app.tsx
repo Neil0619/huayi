@@ -1,15 +1,16 @@
+import { CandidateChoices } from "./candidate-choices.js";
+import { DeepAnalysisReading } from "./deep-analysis-reading.js";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 
 import {
-  type AnalysisRecord,
+  type AnalysisRecordRead as AnalysisRecord,
   type ConfirmCandidatesRequest,
-  type ConfirmCandidatesResponse,
+  type ConfirmCandidatesReadResponse as ConfirmCandidatesResponse,
 } from "@huayi/cloud-contracts";
 
 import {
-  CandidateEditor,
   confirmationForDraft,
-  initialCandidateDrafts,
+  reconcileCandidateDrafts,
   type CandidateDraft,
 } from "./candidate-editor.js";
 
@@ -56,20 +57,26 @@ export function InboxApp({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
+  const draftCache = useRef(new Map<string, CandidateDraft[]>());
+  const detailGeneration = useRef(0);
   const listHeading = useRef<HTMLHeadingElement>(null);
 
   const openAnalysis = useCallback(
     async (analysis: AnalysisRecord) => {
+      const generation = ++detailGeneration.current;
       setDetailLoading(true);
       setError(null);
       try {
         const loaded = await api.getAnalysis(analysis.id);
+        if (generation !== detailGeneration.current) return;
+        const next = reconcileCandidateDrafts(loaded, draftCache.current.get(loaded.id));
+        draftCache.current.set(loaded.id, next);
         setDetail(loaded);
-        setDrafts(initialCandidateDrafts(loaded));
+        setDrafts(next);
       } catch {
-        setError("暂时无法载入这条分析，请重试。");
+        if (generation === detailGeneration.current) setError("暂时无法载入这条分析，请重试。");
       } finally {
-        setDetailLoading(false);
+        if (generation === detailGeneration.current) setDetailLoading(false);
       }
     },
     [api],
@@ -211,25 +218,21 @@ export function InboxApp({
                   <p>{detail.source.type}</p>
                   <h2>{detail.sourceText}</h2>
                 </header>
-                {"overall" in detail.result && (
-                  <div className="analysis-summary">
-                    <p>{detail.result.overall.understandingZh}</p>
-                    <p>{detail.result.overall.translationZh}</p>
-                  </div>
-                )}
+                <DeepAnalysisReading analysis={detail} />
                 <form data-candidate-form onSubmit={(event) => void confirm(event)}>
-                  {drafts.map((draft, index) => (
-                    <CandidateEditor
-                      draft={draft}
-                      index={index}
-                      key={draft.candidate.id}
-                      onChange={(next) =>
-                        setDrafts((current) =>
-                          current.map((item, itemIndex) => (itemIndex === index ? next : item)),
-                        )
-                      }
-                    />
-                  ))}
+                  <CandidateChoices
+                    analysis={detail}
+                    drafts={drafts}
+                    onChange={(next) =>
+                      setDrafts((current) => {
+                        const edited = current.map((item) =>
+                          item.candidate.id === next.candidate.id ? next : item,
+                        );
+                        draftCache.current.set(detail.id, edited);
+                        return edited;
+                      })
+                    }
+                  />
                   <div className="form-actions">
                     <button disabled={busy} type="submit">
                       确认所选候选

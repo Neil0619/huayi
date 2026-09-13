@@ -1,3 +1,4 @@
+import { createWebAccountExportApi } from "./account-export-api.js";
 import { createWebWechatBindingApi } from "./wechat-binding-api.js";
 import {
   apiErrorSchema,
@@ -5,16 +6,12 @@ import {
   accountSignInMethodsResponseSchema,
   accountPreferencesRequestSchema,
   accountPreferencesResponseSchema,
-  accountDataExportJobResourceSchema,
   accountDataRightsHttpRoutes,
   accountDeletionResponseSchema,
   approveExtensionPairingRequestSchema,
   claimInvitationRequestSchema,
   claimInvitationResponseSchema,
-  createAccountDataExportRequestSchema,
   csrfTokenResponseSchema,
-  currentAccountDataExportResponseSchema,
-  downloadAccountDataExportResponseSchema,
   extensionPairingResponseSchema,
   googleLinkStartRequestSchema,
   googleLinkStartResponseSchema,
@@ -38,7 +35,6 @@ import {
   passwordReauthenticationRequestSchema,
   passwordReauthenticationResponseSchema,
   quotaSummarySchema,
-  retryAccountDataExportRequestSchema,
   type AccountPreferencesRequest,
   type ApproveExtensionPairingRequest,
   type ApiError,
@@ -67,10 +63,6 @@ function pairingPath(route: string, pairingId: string): string {
   return route.replace(":id", encodeURIComponent(pairingId));
 }
 
-function resourcePath(route: string, id: string): string {
-  if (!/^[A-Za-z0-9_-]{1,128}$/u.test(id)) throw new TypeError("Resource ID is invalid.");
-  return route.replace(":id", encodeURIComponent(id));
-}
 export function createWebIdentityApi(options: WebIdentityApiOptions) {
   const apiOrigin = new URL(options.apiOrigin);
   if (
@@ -103,6 +95,7 @@ export function createWebIdentityApi(options: WebIdentityApiOptions) {
     return csrfTokenResponseSchema.parse(await response.json());
   };
   return {
+    ...createWebAccountExportApi(request),
     ...createWebWechatBindingApi(request),
     ...createWebPasswordSignupApi(request),
     ...createWebExtensionSessionsApi(request),
@@ -116,20 +109,6 @@ export function createWebIdentityApi(options: WebIdentityApiOptions) {
         headers: { "Content-Type": "application/json", "X-CSRF-Token": csrf },
         method: "POST",
       });
-    },
-    async createAccountDataExport(csrfToken: string) {
-      const input = createAccountDataExportRequestSchema.parse({});
-      const response = await request(accountDataRightsHttpRoutes.createExport, {
-        body: JSON.stringify(input),
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-          "Idempotency-Key": crypto.randomUUID(),
-          "X-CSRF-Token": csrfTokenResponseSchema.parse({ access: "full", csrfToken }).csrfToken,
-        },
-        method: "POST",
-      });
-      return accountDataExportJobResourceSchema.parse(await response.json());
     },
     async deleteAccount(csrfToken: string) {
       const response = await request(accountDataRightsHttpRoutes.deleteAccount, {
@@ -145,21 +124,6 @@ export function createWebIdentityApi(options: WebIdentityApiOptions) {
       const result = accountDeletionResponseSchema.parse(await response.json());
       clearDeletionKey();
       return result;
-    },
-    async downloadAccountDataExport(exportId: string, csrfToken: string) {
-      const response = await request(
-        resourcePath(accountDataRightsHttpRoutes.downloadExport, exportId),
-        {
-          body: "{}",
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-            "X-CSRF-Token": csrfTokenResponseSchema.parse({ access: "full", csrfToken }).csrfToken,
-          },
-          method: "POST",
-        },
-      );
-      return downloadAccountDataExportResponseSchema.parse(await response.json());
     },
     async approvePairing(pairingId: string, input: ApproveExtensionPairingRequest): Promise<void> {
       const parsed = approveExtensionPairingRequestSchema.parse(input);
@@ -192,13 +156,6 @@ export function createWebIdentityApi(options: WebIdentityApiOptions) {
         headers: { Accept: "application/json" },
       });
       return accountResourceSchema.parse(await response.json());
-    },
-    async getCurrentAccountDataExport() {
-      const response = await request(accountDataRightsHttpRoutes.currentExport, {
-        credentials: "include",
-        headers: { Accept: "application/json" },
-      });
-      return currentAccountDataExportResponseSchema.parse(await response.json());
     },
     async claimInvitation(invitationToken: string) {
       const input = claimInvitationRequestSchema.parse({ invitationToken });
@@ -321,24 +278,6 @@ export function createWebIdentityApi(options: WebIdentityApiOptions) {
         method: "POST",
       });
       return passwordRecoveryAcceptedResponseSchema.parse(await response.json());
-    },
-    async retryAccountDataExport(exportId: string, expectedRevision: number, csrfToken: string) {
-      const input = retryAccountDataExportRequestSchema.parse({ expectedRevision });
-      const response = await request(
-        resourcePath(accountDataRightsHttpRoutes.retryExport, exportId),
-        {
-          body: JSON.stringify(input),
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-            "Idempotency-Key": crypto.randomUUID(),
-            "X-Huayi-Revision": `"${expectedRevision}"`,
-            "X-CSRF-Token": csrfTokenResponseSchema.parse({ access: "full", csrfToken }).csrfToken,
-          },
-          method: "POST",
-        },
-      );
-      return accountDataExportJobResourceSchema.parse(await response.json());
     },
     async updateAccountPreferences(input: AccountPreferencesRequest, csrfToken: string) {
       const parsed = accountPreferencesRequestSchema.parse(input);

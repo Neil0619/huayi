@@ -2,6 +2,8 @@ import { createPracticeTaskRecovery } from "./practice-task-recovery.js";
 import { Hono } from "hono";
 import { createPracticeWorkspace } from "./practice-workspace.js";
 import { createPracticeWorkspaceApp } from "./practice-workspace-app.js";
+import { createPracticeTeaching } from "./practice-teaching.js";
+import { createPracticeTeachingApp } from "./practice-teaching-app.js";
 import { authenticateLearningAccountRequest } from "./miniprogram-authentication.js";
 import type { AnalysisDatabase } from "./analysis-database.js";
 import type { AnalysisModule } from "./analysis-module.js";
@@ -45,6 +47,13 @@ export function createProductionLearningTasks(options: {
     execute: createLearningTaskExecutor(options),
   });
   const app = new Hono();
+  app.route(
+    "/",
+    createPracticeTeachingApp({
+      authenticate: (context) => authenticateLearningAccountRequest(options.identity, context),
+      teaching: createPracticeTeaching(options.database),
+    }),
+  );
   app.route(
     "/",
     createPracticeWorkspaceApp({

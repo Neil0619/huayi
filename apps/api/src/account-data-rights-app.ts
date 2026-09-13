@@ -1,22 +1,23 @@
 import {
   accountDataExportCreateHeadersSchema,
-  accountDataExportJobResourceSchema,
+  accountDataExportJobReadResourceSchema,
   accountDataExportRetryHeadersSchema,
   accountDataRightsHttpRoutes,
   accountDeletionHeadersSchema,
   accountDeletionRequestSchema,
   accountDeletionResponseSchema,
-  createAccountDataExportRequestSchema,
-  currentAccountDataExportResponseSchema,
+  accountDataExportFormatRequestSchema,
+  currentAccountDataExportReadResponseSchema,
   downloadAccountDataExportResponseSchema,
   resourceIdSchema,
-  retryAccountDataExportRequestSchema,
+  retryAccountDataExportReadRequestSchema,
 } from "@huayi/cloud-contracts";
 import { Hono, type Context } from "hono";
 
 import { CloudFault } from "./cloud-fault.js";
 import { readRevisionHeader } from "./revision-header.js";
 import type { AccountDataRightsModule } from "./account-data-rights-module.js";
+import { accountDataExportQueryFormat } from "./account-data-export-format.js";
 
 export interface AccountDataRightsPrincipal {
   ownerUserId: string;
@@ -70,16 +71,19 @@ export function createAccountDataRightsApp(options: {
   app.get(accountDataRightsHttpRoutes.currentExport, async (context) => {
     const principal = await options.authenticate(context);
     return context.json(
-      currentAccountDataExportResponseSchema.parse({
-        job: await options.module.currentExport(principal.ownerUserId),
+      currentAccountDataExportReadResponseSchema.parse({
+        job: await options.module.currentExport(
+          principal.ownerUserId,
+          accountDataExportQueryFormat(context.req.query("formatVersion")),
+        ),
       }),
     );
   });
   app.post(accountDataRightsHttpRoutes.createExport, async (context) => {
     const principal = await options.authenticate(context);
-    const input = createAccountDataExportRequestSchema.parse(await jsonBody(context));
+    const input = accountDataExportFormatRequestSchema.parse(await jsonBody(context));
     return context.json(
-      accountDataExportJobResourceSchema.parse(
+      accountDataExportJobReadResourceSchema.parse(
         await options.module.requestExport(principal.ownerUserId, createKey(context), input),
       ),
       201,
@@ -87,9 +91,9 @@ export function createAccountDataRightsApp(options: {
   });
   app.post(accountDataRightsHttpRoutes.retryExport, async (context) => {
     const principal = await options.authenticate(context);
-    const input = retryAccountDataExportRequestSchema.parse(await jsonBody(context));
+    const input = retryAccountDataExportReadRequestSchema.parse(await jsonBody(context));
     return context.json(
-      accountDataExportJobResourceSchema.parse(
+      accountDataExportJobReadResourceSchema.parse(
         await options.module.retryExport(
           principal.ownerUserId,
           id(context),
@@ -101,13 +105,14 @@ export function createAccountDataRightsApp(options: {
   });
   app.post(accountDataRightsHttpRoutes.downloadExport, async (context) => {
     const principal = await options.authenticate(context);
-    createAccountDataExportRequestSchema.parse(await jsonBody(context));
+    const input = accountDataExportFormatRequestSchema.parse(await jsonBody(context));
     return context.json(
       downloadAccountDataExportResponseSchema.parse(
         await options.module.createDownload(
           principal.ownerUserId,
           id(context),
           principal.reauthenticatedAt,
+          input.formatVersion ?? 1,
         ),
       ),
     );

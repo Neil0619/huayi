@@ -1,7 +1,7 @@
 import {
   studyCaptureCreateRequestSchema,
   studyCaptureCreateResponseSchema,
-  studyCaptureAnalyzeRequestSchema,
+  captureAnalysisGenerationRequestSchema,
   studyCaptureDeleteRequestSchema,
   studyCaptureDeleteResponseSchema,
   studyCaptureDetailResponseSchema,
@@ -14,12 +14,13 @@ import {
   writeHeadersSchema,
 } from "@huayi/cloud-contracts";
 import { Hono, type Context } from "hono";
-import { streamSSE, captureDiagnosticPayload } from "./diagnostic-stream.js";
+import { streamAnalysisEvents } from "./analysis-event-stream.js";
 
 import { CloudFault } from "./cloud-fault.js";
 import { readRevisionHeader } from "./revision-header.js";
 import type { StudyCaptureModule } from "./study-capture-module.js";
 import type { AnalysisModule } from "./analysis-module.js";
+import { analysisReadResponseHeaders } from "./analysis-read-view.js";
 
 export function createStudyCaptureApp(options: {
   analysis?: Pick<AnalysisModule, "prepareStudyCaptureAnalysis">;
@@ -29,14 +30,14 @@ export function createStudyCaptureApp(options: {
   module: StudyCaptureModule;
 }) {
   const app = new Hono();
-  app.post(studyCaptureHttpRoutes.analyze, async (context) => {
+  app.post(studyCaptureHttpRoutes.analyze, analysisReadResponseHeaders, async (context) => {
     const owner = await options.authenticateWeb(context);
     const headers = revisionWriteHeadersSchema.safeParse({
       "idempotency-key": context.req.header("idempotency-key"),
       "if-match": readRevisionHeader(context),
     });
     if (!headers.success) throw new CloudFault("invalid_request", "Write proof is required.");
-    const input = studyCaptureAnalyzeRequestSchema.parse(await context.req.json());
+    const input = captureAnalysisGenerationRequestSchema.parse(await context.req.json());
     if (Number(headers.data["if-match"].slice(1, -1)) !== input.expectedRevision) {
       throw new CloudFault("invalid_request", "Revision header must match expectedRevision.");
     }
@@ -49,14 +50,7 @@ export function createStudyCaptureApp(options: {
       input,
       userId: owner,
     });
-    return streamSSE(context, async (stream) => {
-      let id = 0;
-      for await (const event of events) {
-        captureDiagnosticPayload(event);
-        id += 1;
-        await stream.writeSSE({ data: JSON.stringify(event), event: "analysis", id: String(id) });
-      }
-    });
+    return streamAnalysisEvents(context, events);
   });
   app.post("/v2/study-captures", async (context) => {
     const owner = await options.authenticateWeb(context);

@@ -1,8 +1,4 @@
-import type {
-  ExtensionQueryEvent,
-  ExtensionQueryGeneration,
-  QuotaSummary,
-} from "@huayi/cloud-contracts";
+import type { ExtensionQueryEventRead, QuotaSummary } from "@huayi/cloud-contracts";
 import { describe, expect, it, vi } from "vitest";
 
 import type { ExtensionQueryStore } from "./extension-query-ports.js";
@@ -10,6 +6,7 @@ import { CloudFault } from "./cloud-fault.js";
 import { DeepSeekAnalysisModelError } from "./deepseek-analysis-protocol.js";
 import { createExtensionQueryModule } from "./extension-query-module.js";
 import { createDeepSeekPriceSchedule } from "./deepseek-price-schedule.js";
+import { structuredQueryFixture } from "./test-support/structured-query-fixture.js";
 
 const input = {
   action: "explain" as const,
@@ -78,8 +75,8 @@ function store(): ExtensionQueryStore {
   };
 }
 
-async function collect(events: AsyncIterable<ExtensionQueryEvent>) {
-  const values: ExtensionQueryEvent[] = [];
+async function collect(events: AsyncIterable<ExtensionQueryEventRead>) {
+  const values: ExtensionQueryEventRead[] = [];
   for await (const event of events) values.push(event);
   return values;
 }
@@ -190,8 +187,14 @@ describe("ExtensionQuery module", () => {
 
     await expect(
       collect(await module.prepare({ idempotencyKey: "query-key", input, userId: "user-1" })),
-    ).rejects.toThrow("dispatch mark failed");
+    ).resolves.toMatchObject([{ type: "query.started" }, { type: "query.failed" }]);
     expect(model).not.toHaveBeenCalled();
+    expect(repository.fail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        costMicroUsd: 0,
+        usage: { cachedInputTokens: 0, inputTokens: 0, outputTokens: 0 },
+      }),
+    );
   });
 
   it("passes known provider billing through the failed settlement", async () => {
@@ -255,59 +258,70 @@ describe("ExtensionQuery module", () => {
     expect(model).not.toHaveBeenCalled();
   });
 
-  it("replays running and terminal claims without dispatching or switching models", async () => {
-    const repository = store();
-    const completed: ExtensionQueryEvent = {
-      generationId: "generation-1",
-      quota,
-      result,
-      type: "query.completed",
-    };
-    vi.mocked(repository.begin)
-      .mockResolvedValueOnce({ id: "generation-1", kind: "running" })
-      .mockResolvedValueOnce({ event: completed, id: "generation-1", kind: "terminal" });
-    const model = vi.fn();
-    const module = createExtensionQueryModule({
-      ids: () => "unused",
-      model: { run: model },
-      now: () => new Date("2026-08-13T00:00:00.000Z"),
-      quota: { reserve: vi.fn(), summary: () => quota },
-      reservedCostMicroUsd: () => 500,
-      store: repository,
-    });
+  it.each(["legacy", "structured"])(
+    "replays %s terminal claims without dispatching or switching models",
+    async (format) => {
+      const repository = store();
+      const completed: ExtensionQueryEventRead = {
+        generationId: "generation-1",
+        quota,
+        result: format === "legacy" ? result : structuredQueryFixture(),
+        type: "query.completed",
+      };
+      vi.mocked(repository.begin)
+        .mockResolvedValueOnce({ id: "generation-1", kind: "running" })
+        .mockResolvedValueOnce({ event: completed, id: "generation-1", kind: "terminal" });
+      const model = vi.fn();
+      const module = createExtensionQueryModule({
+        ids: () => "unused",
+        model: { run: model },
+        now: () => new Date("2026-08-13T00:00:00.000Z"),
+        quota: { reserve: vi.fn(), summary: () => quota },
+        reservedCostMicroUsd: () => 500,
+        store: repository,
+      });
 
-    const running = await collect(
-      await module.prepare({ idempotencyKey: "query-key", input, userId: "user-1" }),
-    );
-    const terminal = await collect(
-      await module.prepare({ idempotencyKey: "query-key", input, userId: "user-1" }),
-    );
+      const running = await collect(
+        await module.prepare({ idempotencyKey: "query-key", input, userId: "user-1" }),
+      );
+      const terminal = await collect(
+        await module.prepare({ idempotencyKey: "query-key", input, userId: "user-1" }),
+      );
 
-    expect(running).toEqual([{ generationId: "generation-1", type: "query.started" }]);
-    expect(terminal).toEqual([{ generationId: "generation-1", type: "query.started" }, completed]);
-    expect(model).not.toHaveBeenCalled();
-  });
+      expect(running).toEqual([{ generationId: "generation-1", type: "query.started" }]);
+      expect(terminal).toEqual([
+        { generationId: "generation-1", type: "query.started" },
+        completed,
+      ]);
+      expect(model).not.toHaveBeenCalled();
+      expect(repository.attachReservation).not.toHaveBeenCalled();
+      expect(repository.markDispatched).not.toHaveBeenCalled();
+    },
+  );
 
-  it("exposes only unexpired owner-scoped generation projections", async () => {
-    const repository = store();
-    const generation: ExtensionQueryGeneration = {
-      createdAt: "2026-08-13T00:00:00.000Z",
-      expiresAt: "2026-08-13T01:00:00.000Z",
-      id: "generation-1",
-      result,
-      state: "completed",
-    };
-    vi.mocked(repository.find).mockResolvedValue(generation);
-    const module = createExtensionQueryModule({
-      ids: () => "unused",
-      model: { run: vi.fn() },
-      now: () => new Date("2026-08-13T00:30:00.000Z"),
-      quota: { reserve: vi.fn(), summary: () => quota },
-      reservedCostMicroUsd: () => 500,
-      store: repository,
-    });
+  it.each(["legacy", "structured"])(
+    "exposes an unexpired owner-scoped %s generation",
+    async (format) => {
+      const repository = store();
+      const generation = {
+        createdAt: "2026-08-13T00:00:00.000Z",
+        expiresAt: "2026-08-13T01:00:00.000Z",
+        id: "generation-1",
+        result: format === "legacy" ? result : structuredQueryFixture(),
+        state: "completed" as const,
+      };
+      vi.mocked(repository.find).mockResolvedValue(generation);
+      const module = createExtensionQueryModule({
+        ids: () => "unused",
+        model: { run: vi.fn() },
+        now: () => new Date("2026-08-13T00:30:00.000Z"),
+        quota: { reserve: vi.fn(), summary: () => quota },
+        reservedCostMicroUsd: () => 500,
+        store: repository,
+      });
 
-    await expect(module.get("user-1", "generation-1")).resolves.toEqual(generation);
-    expect(repository.find).toHaveBeenCalledWith("user-1", "generation-1");
-  });
+      await expect(module.get("user-1", "generation-1")).resolves.toEqual(generation);
+      expect(repository.find).toHaveBeenCalledWith("user-1", "generation-1");
+    },
+  );
 });

@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 
 import { practiceSessionResponseSchema } from "@huayi/cloud-contracts";
 
+import type { PracticeGenerationCommand } from "./paid-practice-generator.js";
+
 import { createPracticeModule, type PracticeRepository } from "./practice-module.js";
 
 const item = {
@@ -73,8 +75,10 @@ function repository(overrides: Partial<PracticeRepository> = {}): PracticeReposi
     })),
     beginFeedbackRetry: vi.fn(async () => ({
       claimed: true,
+      attemptId: "attempt-1",
+      ordinal: 0,
       generationId: "generation-1",
-      item,
+      itemContent: item.item.content,
       leaseToken: "lease-1",
       session: session("awaiting-feedback", 2),
     })),
@@ -94,8 +98,10 @@ function repository(overrides: Partial<PracticeRepository> = {}): PracticeReposi
     rate: vi.fn(async () => session("completed", 4)),
     recordAttempt: vi.fn(async () => ({
       claimed: true,
+      attemptId: "attempt-1",
+      ordinal: 0,
       generationId: "generation-1",
-      item,
+      itemContent: item.item.content,
       leaseToken: "lease-1",
       session: session("awaiting-feedback", 2),
     })),
@@ -104,6 +110,49 @@ function repository(overrides: Partial<PracticeRepository> = {}): PracticeReposi
 }
 
 describe("minimal sentence practice module", () => {
+  it("generates feedback for the explicitly claimed answer, even when another answer follows", async () => {
+    const saved = session("awaiting-feedback", 2);
+    saved.attempts?.push({
+      answer: "To be frank, I agree with you.",
+      id: "attempt-2",
+      itemIds: ["item-1"],
+      submittedAt: "2026-08-13T03:01:00.000Z",
+    });
+    const claim = {
+      claimed: true as const,
+      attemptId: "attempt-1",
+      ordinal: 0,
+      generationId: "generation-1",
+      itemContent: item.item.content,
+      leaseToken: "lease-1",
+      session: saved,
+    };
+    const store = repository({ beginFeedbackRetry: vi.fn(async () => claim) });
+    const generate = vi.fn<
+      (
+        command: PracticeGenerationCommand,
+      ) => Promise<{ kind: "sentence-feedback"; feedback: string }>
+    >(async () => ({
+      kind: "sentence-feedback" as const,
+      feedback: "准确。",
+    }));
+    const module = createPracticeModule({
+      generator: { generate },
+      repository: store,
+      id: () => "unused",
+      now: () => new Date(),
+    });
+    await module.retryFeedback("user-a", "session-1", "attempt-1", "retry-old", {
+      expectedRevision: 2,
+    });
+    expect(generate.mock.calls[0]?.[0]).toMatchObject({
+      input: { answer: "To be frank, I disagree." },
+    });
+    expect(store.completeFeedback).toHaveBeenCalledWith(
+      expect.objectContaining({ attemptId: "attempt-1" }),
+    );
+  });
+
   it("projects a strict server-selected daily queue", async () => {
     const store = repository();
     const module = createPracticeModule({
@@ -128,8 +177,10 @@ describe("minimal sentence practice module", () => {
         order.push("answer-persisted");
         return {
           claimed: true,
+          attemptId: "attempt-1",
+          ordinal: 0,
           generationId: "generation-1",
-          item,
+          itemContent: item.item.content,
           leaseToken: "lease-1",
           session: session("awaiting-feedback", 2),
         };
@@ -155,7 +206,6 @@ describe("minimal sentence practice module", () => {
 
     vi.mocked(store.recordAttempt).mockResolvedValueOnce({
       claimed: false,
-      item,
       session: session("awaiting-feedback", 2),
     });
     await module.submitAttempt("user-a", "session-1", "attempt-key", {

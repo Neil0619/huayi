@@ -206,6 +206,9 @@ it("does not report an old draft save failure after switching mode has already s
   const view = await render(f.api);
   await click(view, "继续上次练习");
   await type(view, "At least I can keep this draft.");
+  await act(async () => {
+    await vi.waitFor(() => expect(f.workspace.draft).toHaveBeenCalled());
+  });
   await click(view, "改为自由造句");
   expect(f.workspace.draft).toHaveBeenCalled();
   await act(async () => rejectSave(new Error("Draft revision changed.")));

@@ -28,6 +28,54 @@ const itemContent = {
   usageZh: "示例用法。",
 };
 
+it("supports teaching feedback through the actual local acceptance provider boundary", async () => {
+  const fetch = vi.fn(acceptanceProviderFetch);
+  const provider = createDeepSeekPracticeProvider({
+    apiKey: LOCAL_ACCEPTANCE_PROVIDER_KEY,
+    fetch,
+    prices,
+  });
+  const generated = await provider.generate({
+    kind: "sentence-feedback",
+    input: {
+      answer: "To be frank, I need more time.",
+      itemContent,
+      prompt: "说明你的需要。",
+      teachingContract: "practice-teaching-v1",
+    },
+  });
+  const output = practiceGenerationOutputSchema.parse(generated.output);
+  expect(output).toMatchObject({
+    kind: "sentence-feedback",
+    teachingFeedback: { assessment: "ready" },
+  });
+  expect(JSON.stringify(output)).toContain("【本机模拟】");
+  expect(fetch).toHaveBeenCalledTimes(1);
+});
+
+it("supports a hidden-target Chinese prompt in the local acceptance runtime", async () => {
+  const fetch = vi.fn(acceptanceProviderFetch);
+  const provider = createDeepSeekPracticeProvider({
+    apiKey: LOCAL_ACCEPTANCE_PROVIDER_KEY,
+    fetch,
+    prices,
+  });
+  const generated = await provider.generate({
+    kind: "sentence-prompt",
+    input: {
+      itemContent,
+      teachingContract: "practice-teaching-v1",
+      hintPolicy: "on-demand",
+    },
+  });
+  const output = practiceGenerationOutputSchema.parse(generated.output);
+  expect(output.kind).toBe("sentence-prompt");
+  if (output.kind !== "sentence-prompt") throw new Error("Wrong practice output");
+  expect(output.prompt).not.toMatch(/\p{Script=Latin}/u);
+  expect(output.prompt).toContain("【本机模拟】");
+  expect(fetch).toHaveBeenCalledTimes(1);
+});
+
 function init(body: string): DeepSeekAnalysisFetchInit {
   return {
     body,

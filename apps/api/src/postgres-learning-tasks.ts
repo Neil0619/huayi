@@ -1,14 +1,15 @@
 import { createHash, randomUUID } from "node:crypto";
 import {
-  learningTaskCommandSchema,
-  learningTaskEventSchema,
-  learningTaskPayloadSchema,
-  learningTaskSnapshotSchema,
-  type LearningTaskSnapshot,
+  learningTaskCommandReadSchema,
+  learningTaskEventReadSchema,
+  learningTaskPayloadReadSchema,
+  learningTaskSnapshotReadSchema,
+  type LearningTaskSnapshotRead,
 } from "@huayi/cloud-contracts";
 import type { AnalysisDatabase } from "./analysis-database.js";
 import type { LearningTaskStore } from "./learning-task-store.js";
 import { CloudFault } from "./cloud-fault.js";
+import { storedTaskCommand, readStoredTaskCommand } from "./generation-snapshot.js";
 
 interface Row {
   id: string;
@@ -25,8 +26,8 @@ interface Row {
   command: unknown;
   lease_token: string;
 }
-function snapshot(row: Row): LearningTaskSnapshot {
-  return learningTaskSnapshotSchema.parse({
+function snapshot(row: Row): LearningTaskSnapshotRead {
+  return learningTaskSnapshotReadSchema.parse({
     version: 2,
     id: row.id,
     kind: row.kind,
@@ -43,7 +44,7 @@ function snapshot(row: Row): LearningTaskSnapshot {
 export function createPostgresLearningTasks(database: AnalysisDatabase): LearningTaskStore {
   return {
     async submit(owner, key, command) {
-      const parsed = learningTaskCommandSchema.parse(command);
+      const parsed = learningTaskCommandReadSchema.parse(command);
       try {
         const rows = await database.trusted((query) =>
           query.rows<Row>(
@@ -53,7 +54,7 @@ export function createPostgresLearningTasks(database: AnalysisDatabase): Learnin
               randomUUID(),
               key,
               createHash("sha256").update(JSON.stringify(parsed)).digest("hex"),
-              JSON.stringify(parsed),
+              JSON.stringify(storedTaskCommand(parsed)),
             ],
           ),
         );
@@ -98,7 +99,7 @@ export function createPostgresLearningTasks(database: AnalysisDatabase): Learnin
             [id, cursor],
           )
         ).map((row) =>
-          learningTaskEventSchema.parse({
+          learningTaskEventReadSchema.parse({
             version: 2,
             taskId: id,
             cursor: row.cursor,
@@ -127,7 +128,7 @@ export function createPostgresLearningTasks(database: AnalysisDatabase): Learnin
             ownerUserId: row.owner_user_id,
             createdAt: row.created_at.toISOString(),
             leaseToken: row.lease_token,
-            command: learningTaskCommandSchema.parse(row.command),
+            ...readStoredTaskCommand(row.command),
           }
         : null;
     },
@@ -145,7 +146,7 @@ export function createPostgresLearningTasks(database: AnalysisDatabase): Learnin
         query.rows("SELECT huayi_private.append_learning_task_events($1,$2,$3::jsonb,$4::jsonb)", [
           job.id,
           job.leaseToken,
-          JSON.stringify(payloads.map((payload) => learningTaskPayloadSchema.parse(payload))),
+          JSON.stringify(payloads.map((payload) => learningTaskPayloadReadSchema.parse(payload))),
           JSON.stringify(timings),
         ]),
       );
@@ -156,7 +157,7 @@ export function createPostgresLearningTasks(database: AnalysisDatabase): Learnin
           job.id,
           job.leaseToken,
           outcome,
-          output ? JSON.stringify(learningTaskPayloadSchema.parse(output)) : null,
+          output ? JSON.stringify(learningTaskPayloadReadSchema.parse(output)) : null,
           error?.code ?? null,
         ]),
       );

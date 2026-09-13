@@ -8,6 +8,7 @@ export function learningTaskFeedback(cause: unknown, activity: "analysis" | "pra
       : "unknown";
   const saved = activity === "analysis" ? "原文已保留" : "已保存的练习和草稿会保留";
   const messages: Record<string, string> = {
+    invalid_response: `收到的结果与当前任务不一致，${saved}。请刷新核对同一次任务。`,
     model_output_invalid:
       activity === "analysis"
         ? `AI 返回的分析内容不完整或格式不正确，${saved}。请稍后点击“重试深度分析”。`

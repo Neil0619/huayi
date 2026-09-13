@@ -13,10 +13,22 @@ const grammarNotes = [
   },
 ] as const;
 
+export function reviewedGrammarConfiguration() {
+  return {
+    notes: grammarNotes.map(({ id, pattern, note }) => ({ id, pattern: pattern.toString(), note })),
+    prompt: formatGrammarNotes(grammarNotes.map(({ id, note }) => ({ id, note }))),
+  };
+}
+
 export function reviewedAnalysisGrammarNotes(sourceText: string): string {
-  const notes = grammarNotes
-    .filter(({ pattern }) => pattern.test(sourceText))
-    .map(({ id, note }) => ({ id, note }));
+  return formatGrammarNotes(
+    grammarNotes
+      .filter(({ pattern }) => pattern.test(sourceText))
+      .map(({ id, note }) => ({ id, note })),
+  );
+}
+
+function formatGrammarNotes(notes: readonly { id: string; note: string }[]) {
   return notes.length === 0
     ? ""
     : [

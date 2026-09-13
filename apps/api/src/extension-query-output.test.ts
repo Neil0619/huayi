@@ -9,6 +9,7 @@ const actions = ["translate", "explain"] as const;
 
 function example(input: ExtensionQueryRequest) {
   const contract = createQueryOutputContract(input);
+  if (contract.type === "explain-sentence-v2") throw new Error("Expected legacy contract.");
   const match = deepSeekQueryExample(contract.type, input.selectionKind).match(
     /EXAMPLE_JSON_OUTPUT\n(.+)\nEND_EXAMPLE_JSON_OUTPUT/u,
   );

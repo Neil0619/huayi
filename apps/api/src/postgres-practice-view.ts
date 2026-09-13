@@ -106,7 +106,7 @@ export async function loadPracticeSession(
     ),
     query.rows<AttemptRow>(
       `SELECT id::text,answer,feedback,submitted_at FROM practice_attempts
-        WHERE session_id=$1 ORDER BY submitted_at,id`,
+        WHERE session_id=$1 ORDER BY COALESCE((to_jsonb(practice_attempts)->>'ordinal')::integer,0),submitted_at,id`,
       [sessionId],
     ),
     query.rows<TurnRow>(

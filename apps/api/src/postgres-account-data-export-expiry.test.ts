@@ -1,6 +1,6 @@
-import { readFile } from "node:fs/promises";
+import { createCurrentDatabaseFixture } from "./test-support/current-database-fixture.js";
 
-import { PGlite } from "@electric-sql/pglite";
+import type { PGlite } from "@electric-sql/pglite";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { createAccountDataRightsModule } from "./account-data-rights-module.js";
@@ -10,18 +10,15 @@ import { createPostgresAccountDataRights } from "./postgres-account-data-rights.
 import { createPgliteAnalysisDatabase } from "./test-support/postgres-analysis-database.js";
 import { DeterministicSecrets, MutableClock } from "./test-support/security-fakes.js";
 
-const migrationUrl = new URL("../migrations/0001-cloud-v1-foundation.sql", import.meta.url);
 const owner = "00000000-0000-0000-0000-00000000000a";
-const now = new Date("2026-08-13T01:00:00.000Z");
+const now = new Date();
 const pepper = "test-pepper-with-at-least-thirty-two-characters";
 
 describe("Postgres account data export expiry", () => {
   let database: PGlite;
 
   beforeEach(async () => {
-    database = new PGlite();
-    await database.waitReady;
-    await database.exec(await readFile(migrationUrl, "utf8"));
+    database = await createCurrentDatabaseFixture();
     await database.exec(`
       INSERT INTO user_profiles(
         user_id,owner_user_id,email,status,timezone,daily_goal,extension_query_model_mode,

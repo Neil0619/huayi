@@ -290,8 +290,8 @@ export function createLearningWorkspaceAuthority() {
             currentItems: [],
             dailyGoal: 5,
             date: "2026-09-05",
-            items: learned ? [{ item: queueItem, schedule }] : [],
-            timezone: "UTC",
+            items: learned && ratings === 0 ? [{ item: queueItem, schedule }] : [],
+            timezone: "Asia/Shanghai",
           });
         if (path.startsWith("/v1/learning-items/"))
           return json(route, {

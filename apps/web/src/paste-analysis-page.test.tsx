@@ -100,6 +100,7 @@ describe("Web pasted-English analysis", () => {
 
     expect(startAnalysis).toHaveBeenCalledWith(
       {
+        outputContract: "structured-teaching-v1",
         selectionKind: "passage",
         source: { title: "Writing notes", type: "manual" },
         sourceText: "To be frank, this works.",

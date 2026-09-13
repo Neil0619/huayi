@@ -1,10 +1,12 @@
+import { NativeSentenceReading } from "./native-sentence-reading.js";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 
 import {
-  startAnalysisRequestSchema,
-  type AnalysisEvent,
+  startStructuredAnalysisRequestSchema,
+  type StructuredSentenceUnit,
+  type AnalysisEventRead as AnalysisEvent,
   type AnalysisRequestStatus,
-  type StartAnalysisRequest,
+  type StartAnalysisGenerationRequest as StartAnalysisRequest,
 } from "@huayi/cloud-contracts";
 
 export interface PasteAnalysisApi {
@@ -54,6 +56,7 @@ export function PasteAnalysisPage({
   const [previews, setPreviews] = useState<{ section: string; text: string }[]>([]);
   const [selectionKind, setSelectionKind] =
     useState<StartAnalysisRequest["selectionKind"]>("passage");
+  const [structureUnits, setStructureUnits] = useState<StructuredSentenceUnit[]>([]);
   const [unitCount, setUnitCount] = useState<number | null>(null);
   const [sourceText, setSourceText] = useState("");
   const [sourceTitle, setSourceTitle] = useState("");
@@ -117,13 +120,15 @@ export function PasteAnalysisPage({
     setActiveRequestId(null);
     setError(null);
     setPreviews([]);
+    setStructureUnits([]);
     setStatusNotice(null);
     setUnitCount(null);
     setState("running");
 
     let input: StartAnalysisRequest;
     try {
-      input = startAnalysisRequestSchema.parse({
+      input = startStructuredAnalysisRequestSchema.parse({
+        outputContract: "structured-teaching-v1",
         selectionKind,
         source: { ...(sourceTitle.trim() === "" ? {} : { title: sourceTitle }), type: "manual" },
         sourceText,
@@ -155,6 +160,8 @@ export function PasteAnalysisPage({
           setAnalysisId(event.analysis.id);
           setState("completed");
           break;
+        } else if (event.type === "analysis.structure") {
+          setStructureUnits((current) => [...current, event.unit]);
         } else {
           terminal = true;
           setActiveRequestId(null);
@@ -282,6 +289,7 @@ export function PasteAnalysisPage({
               ))}
             </div>
           )}
+          {structureUnits.length > 0 && <NativeSentenceReading units={structureUnits} />}
           {state === "cancelled" && (
             <div>
               <p role="status">

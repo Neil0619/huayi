@@ -19,6 +19,25 @@
   margin-top: var(--space-1);
   color: var(--text-secondary);
 }
+.practice-entry-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-block: var(--space-4) var(--space-2);
+}
+.practice-entry-actions .practice-primary {
+  color: var(--text-on-action);
+  border-color: transparent;
+  background: var(--button-fill);
+}
+.practice-intro .practice-entry-hint {
+  font-size: 13px;
+}
+.practice-complete {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-3);
+}
 .practice-daily-progress {
   display: grid;
   flex-shrink: 0;

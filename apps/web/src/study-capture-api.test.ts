@@ -81,7 +81,10 @@ describe("Web StudyCapture API", () => {
       },
     });
     const fetch = vi.fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>(
-      async () => new Response(body, { headers: { "Content-Type": "text/event-stream" } }),
+      async (_url, init) =>
+        init?.method === "GET"
+          ? Response.json({ capture, latestAnalysis: null, activeAnalysisRequest: null })
+          : new Response(body, { headers: { "Content-Type": "text/event-stream" } }),
     );
     const api = createWebStudyCaptureApi({
       apiOrigin: "https://api.huayi.example",
@@ -99,7 +102,7 @@ describe("Web StudyCapture API", () => {
       events.push(event);
     }
     expect(events).toEqual([{ requestId: "request-1", type: "analysis.started", unitCount: 1 }]);
-    const [url, init] = fetch.mock.calls[0] ?? [];
+    const [url, init] = fetch.mock.calls[1] ?? [];
     expect(String(url)).toBe(
       "https://api.huayi.example/v1/study-captures/capture-1/analyses:stream",
     );

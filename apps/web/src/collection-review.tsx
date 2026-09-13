@@ -1,10 +1,10 @@
-import { CollectionCandidate } from "./collection-candidate.js";
+import { CandidateChoices } from "./candidate-choices.js";
 import { useEffect, useRef, useState } from "react";
-import type { AnalysisRecord } from "@huayi/cloud-contracts";
+import type { AnalysisRecordRead as AnalysisRecord } from "@huayi/cloud-contracts";
 import type { InboxApi } from "./inbox-app.js";
 import {
   confirmationForDraft,
-  initialCandidateDrafts,
+  reconcileCandidateDrafts,
   type CandidateDraft,
 } from "./candidate-editor.js";
 import { DeepAnalysisReading } from "./deep-analysis-reading.js";
@@ -14,23 +14,27 @@ export function CollectionReview({
   idempotencyKey,
   onSaved,
   draftCache,
+  showReading = true,
 }: {
+  showReading?: boolean;
   draftCache: Map<string, CandidateDraft[]>;
   analysis: AnalysisRecord;
   api: InboxApi;
   idempotencyKey(): string;
   onSaved(analysis: AnalysisRecord): void;
 }) {
-  const [drafts, setDrafts] = useState<CandidateDraft[]>(
-    () => draftCache.get(analysis.id) ?? initialCandidateDrafts(analysis),
+  const [drafts, setDrafts] = useState<CandidateDraft[]>(() =>
+    reconcileCandidateDrafts(analysis, draftCache.get(analysis.id)),
   );
   const mutation = useRef(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   useEffect(() => {
-    setDrafts(draftCache.get(analysis.id) ?? initialCandidateDrafts(analysis));
+    const next = reconcileCandidateDrafts(analysis, draftCache.get(analysis.id));
+    draftCache.set(analysis.id, next);
+    setDrafts(next);
     setError("");
-  }, [analysis.id]);
+  }, [analysis, draftCache]);
   const confirm = async () => {
     if (mutation.current) return;
     mutation.current = true;
@@ -57,7 +61,7 @@ export function CollectionReview({
   };
   return (
     <section className="collection-review">
-      <DeepAnalysisReading analysis={analysis} />
+      {showReading && <DeepAnalysisReading analysis={analysis} />}
       {error && <p role="alert">{error}</p>}
       {analysis.reviewState === "reviewed" ? (
         <section className="collection-completed">
@@ -80,22 +84,19 @@ export function CollectionReview({
               ? "勾选并加入学习库后，就可以造句或对话。"
               : "本次没有合适的学习建议。你可以查看解读、点击上方重新分析，或将这条标为无需学习。"}
           </p>
-          {drafts.map((draft, index) => (
-            <CollectionCandidate
-              key={draft.candidate.id}
-              draft={draft}
-              index={index}
-              onChange={(next) =>
-                setDrafts((values) => {
-                  const edited = values.map((value, position) =>
-                    position === index ? next : value,
-                  );
-                  draftCache.set(analysis.id, edited);
-                  return edited;
-                })
-              }
-            />
-          ))}
+          <CandidateChoices
+            analysis={analysis}
+            drafts={drafts}
+            onChange={(next) =>
+              setDrafts((values) => {
+                const edited = values.map((value) =>
+                  value.candidate.id === next.candidate.id ? next : value,
+                );
+                draftCache.set(analysis.id, edited);
+                return edited;
+              })
+            }
+          />
           <div className="form-actions">
             {drafts.length > 0 && (
               <button disabled={busy || !drafts.some((draft) => draft.selected)} type="submit">

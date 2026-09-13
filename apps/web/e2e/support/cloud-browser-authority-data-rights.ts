@@ -1,12 +1,13 @@
 import type { Request, Route } from "@playwright/test";
 import {
-  accountDataExportJobResourceSchema,
+  accountDataExportJobReadResourceSchema,
   accountDeletionRequestSchema,
   accountDeletionResponseSchema,
-  createAccountDataExportRequestSchema,
-  currentAccountDataExportResponseSchema,
+  accountDataExportFormatRequestSchema,
+  currentAccountDataExportReadResponseSchema,
   downloadAccountDataExportResponseSchema,
-  type AccountDataExportJobResource,
+  type AccountDataExportJobReadResource,
+  type AccountDataExportFormatVersion,
   type ApiError,
 } from "@huayi/cloud-contracts";
 
@@ -35,10 +36,12 @@ interface DataRightsAuthorityContext {
   readonly writeProof: (request: Request, revision?: number) => string | null;
 }
 
-function pendingJob(): AccountDataExportJobResource {
-  return accountDataExportJobResourceSchema.parse({
+function pendingJob(
+  formatVersion: AccountDataExportFormatVersion,
+): AccountDataExportJobReadResource {
+  return accountDataExportJobReadResourceSchema.parse({
     createdAt: now,
-    formatVersion: 1,
+    formatVersion,
     id: "export-1",
     revision: 1,
     state: "pending",
@@ -46,12 +49,12 @@ function pendingJob(): AccountDataExportJobResource {
   });
 }
 
-function readyJob(): AccountDataExportJobResource {
-  return accountDataExportJobResourceSchema.parse({
+function readyJob(formatVersion: AccountDataExportFormatVersion): AccountDataExportJobReadResource {
+  return accountDataExportJobReadResourceSchema.parse({
     byteLength: 1_024,
     createdAt: now,
     expiresAt,
-    formatVersion: 1,
+    formatVersion,
     id: "export-1",
     recordCount: 8,
     revision: 2,
@@ -61,7 +64,7 @@ function readyJob(): AccountDataExportJobResource {
 }
 
 export function createCloudBrowserDataRightsAuthority() {
-  let job: AccountDataExportJobResource | null = null;
+  let job: AccountDataExportJobReadResource | null = null;
 
   return {
     async handle(route: Route, context: DataRightsAuthorityContext): Promise<boolean> {
@@ -86,13 +89,25 @@ export function createCloudBrowserDataRightsAuthority() {
         return true;
       }
       if (isCurrent) {
-        if (job?.state === "pending") job = readyJob();
+        const format = Number(url.searchParams.get("formatVersion") ?? 1);
+        if (![1, 2, 3].includes(format)) {
+          await context.reject(route, 400, "invalid_request", "read");
+          return true;
+        }
+        if (job?.formatVersion === format && job.state === "pending")
+          job = readyJob(job.formatVersion);
         context.record(request, "read");
-        await context.json(route, 200, currentAccountDataExportResponseSchema.parse({ job }));
+        await context.json(
+          route,
+          200,
+          currentAccountDataExportReadResponseSchema.parse({
+            job: job?.formatVersion === format ? job : null,
+          }),
+        );
         return true;
       }
       if (isCreate) {
-        const parsed = createAccountDataExportRequestSchema.safeParse(cloudRequestBody(request));
+        const parsed = accountDataExportFormatRequestSchema.safeParse(cloudRequestBody(request));
         if (!parsed.success || context.writeProof(request) === null) {
           await context.reject(
             route,
@@ -101,13 +116,13 @@ export function createCloudBrowserDataRightsAuthority() {
           );
           return true;
         }
-        job = pendingJob();
+        job = pendingJob(parsed.data.formatVersion ?? 1);
         context.record(request, "write-valid");
         await context.json(route, 202, job);
         return true;
       }
       if (downloadMatch?.[1] !== undefined && request.method() === "POST") {
-        const parsed = createAccountDataExportRequestSchema.safeParse(cloudRequestBody(request));
+        const parsed = accountDataExportFormatRequestSchema.safeParse(cloudRequestBody(request));
         if (!parsed.success || !context.mutationProof(request)) {
           await context.reject(
             route,
@@ -116,7 +131,11 @@ export function createCloudBrowserDataRightsAuthority() {
           );
           return true;
         }
-        if (job?.state !== "ready" || decodeURIComponent(downloadMatch[1]) !== job.id) {
+        if (
+          job?.state !== "ready" ||
+          decodeURIComponent(downloadMatch[1]) !== job.id ||
+          job.formatVersion !== (parsed.data.formatVersion ?? 1)
+        ) {
           await context.reject(route, 404, "not_found", "write-valid");
           return true;
         }

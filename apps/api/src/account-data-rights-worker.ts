@@ -1,12 +1,17 @@
 import { createHash } from "node:crypto";
 
 import {
-  accountDataExportRecordSchema,
+  accountDataExportRecordReadSchema,
+  accountDataExportRecordV3Schema,
+  projectAccountDataExportRecordForV2,
+  projectAccountDataExportRecordForLegacy,
   dataRightsWorkerResponseSchema,
-  type AccountDataExportRecord,
+  type AccountDataExportRecordRead,
+  type AccountDataExportFormatVersion,
 } from "@huayi/cloud-contracts";
 
 export interface ExportClaim {
+  formatVersion: AccountDataExportFormatVersion;
   exportId: string;
   leaseToken: string;
   objectKey: string;
@@ -21,6 +26,17 @@ export interface DeletionClaim {
   subjectUserId: string;
 }
 export interface AccountDataRightsWorkerRepository {
+  claimExportCandidateCleanup?(): Promise<string | null>;
+  finishExportCandidateCleanup?(objectKey: string): Promise<void>;
+  prepareExportUpload(claim: ExportClaim): Promise<void>;
+  reconcileExportPublication(command: {
+    exportId: string;
+    leaseToken: string;
+    objectKey: string;
+    byteLength: number;
+    recordCount: number;
+    sha256: string;
+  }): Promise<"published" | "retired">;
   cleanupExpiredExport?(): Promise<{ exportId: string; objectKey: string } | null>;
   claimDeletion(): Promise<DeletionClaim | null>;
   claimExport(): Promise<ExportClaim | null>;
@@ -57,7 +73,11 @@ export function createAccountDataRightsWorker(options: {
     upload(objectKey: string, content: Uint8Array): Promise<void>;
   };
   exportSource: {
-    records(ownerUserId: string, snapshotAt: string): Promise<AccountDataExportRecord[]>;
+    records(
+      ownerUserId: string,
+      snapshotAt: string,
+      formatVersion?: AccountDataExportFormatVersion,
+    ): Promise<AccountDataExportRecordRead[]>;
   };
   now(): Date;
   repository: AccountDataRightsWorkerRepository;
@@ -74,21 +94,38 @@ export function createAccountDataRightsWorker(options: {
         return "failed";
       }
     }
+    const retired = await options.repository.claimExportCandidateCleanup?.();
+    if (retired) {
+      await options.authority.deleteObjects([retired]);
+      await options.repository.finishExportCandidateCleanup?.(retired);
+    }
     const claim = await options.repository.claimExport();
-    if (claim === null) return "idle";
+    if (claim === null) return retired ? "processed" : "idle";
     const exportedAt = options.now();
-    let records: AccountDataExportRecord[];
+    let records: AccountDataExportRecordRead[];
     try {
       records = [
-        accountDataExportRecordSchema.parse({
+        accountDataExportRecordReadSchema.parse({
           exportedAt: exportedAt.toISOString(),
           product: "huayi-cloud",
           recordType: "manifest",
-          schemaVersion: 1,
+          schemaVersion: claim.formatVersion,
         }),
-        ...(await options.exportSource.records(claim.ownerUserId, exportedAt.toISOString())).map(
-          (record) => accountDataExportRecordSchema.parse(record),
-        ),
+        ...(
+          await options.exportSource.records(
+            claim.ownerUserId,
+            exportedAt.toISOString(),
+            claim.formatVersion,
+          )
+        ).map((value) => {
+          const record = accountDataExportRecordReadSchema.parse(value);
+          if (record.recordType === "manifest") throw new Error("Unexpected export manifest.");
+          return claim.formatVersion === 1
+            ? projectAccountDataExportRecordForLegacy(record)
+            : claim.formatVersion === 2
+              ? projectAccountDataExportRecordForV2(record)
+              : accountDataExportRecordV3Schema.parse(record);
+        }),
       ];
     } catch {
       await options.repository.failExport({
@@ -101,27 +138,30 @@ export function createAccountDataRightsWorker(options: {
     const body = new TextEncoder().encode(
       records.map((record) => JSON.stringify(record)).join("\n") + "\n",
     );
+    const publication = {
+      byteLength: body.byteLength,
+      exportId: claim.exportId,
+      leaseToken: claim.leaseToken,
+      objectKey: claim.objectKey,
+      recordCount: records.length,
+      sha256: createHash("sha256").update(body).digest("hex"),
+    };
     try {
+      await options.repository.prepareExportUpload(claim);
       await options.authority.upload(claim.objectKey, body);
       const readyAt = options.now();
-      await options.repository.completeExport({
-        byteLength: body.byteLength,
+      const published = await options.repository.completeExport({
+        ...publication,
         expiresAt: new Date(readyAt.getTime() + 24 * 60 * 60_000).toISOString(),
-        exportId: claim.exportId,
-        leaseToken: claim.leaseToken,
-        objectKey: claim.objectKey,
-        recordCount: records.length,
-        sha256: createHash("sha256").update(body).digest("hex"),
       });
+      if (!published) throw new Error("Export publication was not confirmed.");
       return "processed";
     } catch {
-      await options.authority.deleteObjects([claim.objectKey]).catch(() => undefined);
-      await options.repository.failExport({
-        errorCode: "object-write-failed",
-        exportId: claim.exportId,
-        leaseToken: claim.leaseToken,
-      });
-      return "failed";
+      // A lost reply can follow a committed publication. Reconcile and retire atomically;
+      // only the separately fenced, durable cleanup path may delete candidate objects.
+      return (await options.repository.reconcileExportPublication(publication)) === "published"
+        ? "processed"
+        : "failed";
     }
   };
 

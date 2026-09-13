@@ -1,6 +1,9 @@
 import { practiceStatus } from "./practice-status.js";
 import type { PracticeHistoryDetailResponse, PracticeHistorySummary } from "@huayi/cloud-contracts";
 
+import type { WebPracticeTeaching } from "./practice-teaching-api.js";
+import { PracticeSentenceHistory } from "./practice-sentence-history.js";
+
 const ratingText = { effortful: "勉强", forgot: "不会", mastered: "掌握" };
 
 function itemLabel(
@@ -13,8 +16,12 @@ function itemLabel(
 
 export function PracticeHistoryDetail({
   detail,
+  teachingApi,
+  onReload,
 }: {
   readonly detail: PracticeHistoryDetailResponse;
+  readonly teachingApi?: WebPracticeTeaching | undefined;
+  readonly onReload?: (() => void) | undefined;
 }) {
   const { session } = detail;
   const itemLabels = new Map(detail.itemLabels.map((item) => [item.itemId, item.label]));
@@ -33,17 +40,7 @@ export function PracticeHistoryDetail({
         </section>
       )}
       {session.type === "sentence-creation" && (
-        <section>
-          <h3>句子作答与反馈</h3>
-          {session.attempts?.map((attempt) => (
-            <article key={attempt.id}>
-              <p>你的句子</p>
-              <blockquote>{attempt.answer}</blockquote>
-              <p>{attempt.feedback === undefined ? "反馈尚未完成" : attempt.feedback}</p>
-            </article>
-          )) ?? <p>尚未提交作答。</p>}
-          {session.finalFeedback !== undefined && <p>最终反馈：{session.finalFeedback}</p>}
-        </section>
+        <PracticeSentenceHistory session={session} api={teachingApi} onReload={onReload} />
       )}
       {session.type === "dialogue" && (
         <>

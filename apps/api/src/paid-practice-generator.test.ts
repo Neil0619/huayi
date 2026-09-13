@@ -44,6 +44,20 @@ function provider(overrides: Partial<PracticeProvider> = {}): PracticeProvider {
 }
 
 describe("paid practice generator", () => {
+  it("leaves a lost settlement response for task recovery without recording provider failure", async () => {
+    const store = repository({
+      complete: vi.fn(async () => {
+        throw new Error("settlement response lost after commit");
+      }),
+    });
+    const model = provider();
+    const generator = createPaidPracticeGenerator({ provider: model, repository: store });
+    await expect(generator.generate(command)).rejects.toThrow(
+      "settlement response lost after commit",
+    );
+    expect(store.fail).not.toHaveBeenCalled();
+    expect(model.generate).toHaveBeenCalledTimes(1);
+  });
   it("uses the repository-pinned dispatch snapshot for provider cost and settlement", async () => {
     const pricing = createDeepSeekPriceSchedule({
       legacy: "10000000-0000-4000-8000-000000000001",

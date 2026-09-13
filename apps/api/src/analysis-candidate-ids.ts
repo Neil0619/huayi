@@ -1,9 +1,9 @@
-import { analysisContentSchema, type AnalysisContent } from "@huayi/cloud-contracts";
+import { analysisContentReadSchema, type AnalysisContentRead } from "@huayi/cloud-contracts";
 
 export function replaceCandidateAliases(
-  content: AnalysisContent,
+  content: AnalysisContentRead,
   ids: () => string,
-): AnalysisContent {
+): AnalysisContentRead {
   const candidateIds = new Map(
     content.candidates.map((candidate) => [candidate.id, ids()] as const),
   );
@@ -13,7 +13,7 @@ export function replaceCandidateAliases(
     return resolved;
   };
   const result =
-    content.result.type === "phrase-analysis-v2"
+    content.result.type === "phrase-analysis-v2" || content.result.type === "phrase-analysis-v3"
       ? {
           ...content.result,
           candidateIds: content.result.candidateIds.map(resolveCandidateId),
@@ -25,12 +25,21 @@ export function replaceCandidateAliases(
             candidateIds: sentence.candidateIds.map(resolveCandidateId),
           })),
         };
-  return analysisContentSchema.parse({
+  return analysisContentReadSchema.parse({
     ...content,
     candidates: content.candidates.map((candidate) => ({
       ...candidate,
       id: resolveCandidateId(candidate.id),
     })),
-    result,
+    result:
+      "recommendations" in result
+        ? {
+            ...result,
+            recommendations: result.recommendations.map((recommendation) => ({
+              ...recommendation,
+              candidateId: resolveCandidateId(recommendation.candidateId),
+            })),
+          }
+        : result,
   });
 }

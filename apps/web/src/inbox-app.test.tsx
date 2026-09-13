@@ -119,6 +119,9 @@ describe("Web pending-review workspace", () => {
     await change(text, "to speak frankly");
     await change(input(container, "标签（逗号分隔）"), "writing, conversation");
 
+    await act(async () =>
+      container.querySelector<HTMLInputElement>("[data-candidate-selected]")?.click(),
+    );
     const form = container.querySelector<HTMLFormElement>("[data-candidate-form]");
     await act(async () => form?.requestSubmit());
 
@@ -149,6 +152,9 @@ describe("Web pending-review workspace", () => {
     await settle();
     await change(input(container, "表达"), "to speak frankly");
 
+    await act(async () =>
+      container.querySelector<HTMLInputElement>("[data-candidate-selected]")?.click(),
+    );
     const form = container.querySelector<HTMLFormElement>("[data-candidate-form]");
     await act(async () => form?.requestSubmit());
 

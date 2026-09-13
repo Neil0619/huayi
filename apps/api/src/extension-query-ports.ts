@@ -1,10 +1,10 @@
 import type {
-  ExtensionQueryEvent,
-  ExtensionQueryGeneration,
-  ExtensionQueryRequest,
+  ExtensionQueryEventRead,
+  ExtensionQueryGenerationRead,
+  ExtensionQueryGenerationRequest,
   ModelUsage,
   QuotaSummary,
-  StoreAnalysisResult,
+  StoreAnalysisReadResult,
   AnalysisUpdate,
 } from "@huayi/cloud-contracts";
 import type { DeepSeekPriceSnapshot } from "./deepseek-price-schedule.js";
@@ -12,7 +12,7 @@ import type { ModelExecution } from "./model-execution.js";
 
 export interface ExtensionQueryModel {
   run(
-    input: ExtensionQueryRequest,
+    input: ExtensionQueryGenerationRequest,
     generationId: string,
     execution?: Omit<ModelExecution, "onPreview"> & {
       readonly onPreview?: (update: AnalysisUpdate) => void;
@@ -20,7 +20,7 @@ export interface ExtensionQueryModel {
   ): Promise<{
     billedCalls?: readonly { costMicroUsd: number; usage: ModelUsage }[];
     costMicroUsd: number;
-    result: StoreAnalysisResult;
+    result: StoreAnalysisReadResult;
     usage: ModelUsage;
   }>;
 }
@@ -29,13 +29,13 @@ export type ExtensionQueryClaim =
   | { id: string; kind: "acquired"; leaseToken: string }
   | { id: string; kind: "expired" }
   | { id: string; kind: "running" }
-  | { event: ExtensionQueryEvent; id: string; kind: "terminal" };
+  | { event: ExtensionQueryEventRead; id: string; kind: "terminal" };
 
 export interface ExtensionQueryStore {
   abandon(
     userId: string,
     id: string,
-  ): Promise<Extract<ExtensionQueryEvent, { type: "query.failed" }>>;
+  ): Promise<Extract<ExtensionQueryEventRead, { type: "query.failed" }>>;
   attachReservation(command: {
     id: string;
     leaseToken: string;
@@ -47,7 +47,7 @@ export interface ExtensionQueryStore {
     expiresAt: Date;
     id: string;
     idempotencyKey: string;
-    input: ExtensionQueryRequest;
+    input: ExtensionQueryGenerationRequest;
     leaseExpiresAt: Date;
     leaseToken: string;
     requestHash: string;
@@ -60,22 +60,22 @@ export interface ExtensionQueryStore {
     leaseToken: string;
     priceVersionId?: string;
     reservationId: string;
-    result: StoreAnalysisResult;
+    result: StoreAnalysisReadResult;
     usage: ModelUsage;
     userId: string;
-  }): Promise<Extract<ExtensionQueryEvent, { type: "query.completed" }>>;
+  }): Promise<Extract<ExtensionQueryEventRead, { type: "query.completed" }>>;
   fail(command: {
     billedCalls?: readonly { costMicroUsd: number; usage: ModelUsage }[];
     costMicroUsd?: number;
-    error: Extract<ExtensionQueryEvent, { type: "query.failed" }>["error"];
+    error: Extract<ExtensionQueryEventRead, { type: "query.failed" }>["error"];
     id: string;
     leaseToken: string;
     priceVersionId?: string;
     reservationId: string;
     usage?: ModelUsage;
     userId: string;
-  }): Promise<Extract<ExtensionQueryEvent, { type: "query.failed" }>>;
-  find(userId: string, id: string): Promise<ExtensionQueryGeneration | null>;
+  }): Promise<Extract<ExtensionQueryEventRead, { type: "query.failed" }>>;
+  find(userId: string, id: string): Promise<ExtensionQueryGenerationRead | null>;
   markDispatched(command: {
     dispatchedAt?: Date;
     id: string;
@@ -84,7 +84,7 @@ export interface ExtensionQueryStore {
     userId: string;
   }): Promise<void>;
   terminalizeWithoutReservation(command: {
-    error: Extract<ExtensionQueryEvent, { type: "query.failed" }>["error"];
+    error: Extract<ExtensionQueryEventRead, { type: "query.failed" }>["error"];
     id: string;
     leaseToken: string;
     quota: QuotaSummary;

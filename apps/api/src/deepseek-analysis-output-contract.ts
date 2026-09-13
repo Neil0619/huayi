@@ -114,8 +114,12 @@ function jsonSchema(schema: z.ZodType<unknown>): OutputJsonSchema {
 export function deepSeekAnalysisOutputContract(
   kind: StartAnalysisRequest["selectionKind"],
 ): string {
+  return analysisOutputJsonContract(privateAnalysisOutputSchema(kind));
+}
+
+export function analysisOutputJsonContract(privateSchema: z.ZodType<unknown>): string {
   const schema: OutputJsonSchema = {
-    ...jsonSchema(privateAnalysisOutputSchema(kind)),
+    ...jsonSchema(privateSchema),
     $defs: { teachingPoint: objectSchema(teachingPointSchema) },
   };
   return ["OUTPUT_JSON_SCHEMA", JSON.stringify(schema), "END_OUTPUT_JSON_SCHEMA"].join("\n");

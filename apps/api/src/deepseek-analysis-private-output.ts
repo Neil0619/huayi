@@ -2,6 +2,7 @@ import { DEEPSEEK_PLATFORM_MODEL } from "./deepseek-model-identity.js";
 import { createHash } from "node:crypto";
 import { z } from "zod/v3";
 import {
+  PLATFORM_ANALYSIS_PROMPT_VERSION,
   analysisContentSchema,
   normalizeWhitespaceAndQuotes,
   candidateSchema,
@@ -189,7 +190,7 @@ export function trustedDeepSeekAnalysisContent(
     modelMetadata: {
       provider: "deepseek",
       model: DEEPSEEK_PLATFORM_MODEL,
-      promptVersion: "web-deep-analysis-v2.11-balanced",
+      promptVersion: PLATFORM_ANALYSIS_PROMPT_VERSION,
       schemaVersion: 2,
       inputTokens: usage.inputTokens,
       outputTokens: usage.outputTokens,

@@ -4,13 +4,33 @@ import {
   type LearningTaskEvent,
   type LearningTaskSnapshot,
 } from "./learning-tasks.js";
+import type { z } from "zod/v3";
 import { LearningTaskError } from "./learning-task-error.js";
 
-export type LearningTaskFrame =
-  | { kind: "event"; event: LearningTaskEvent }
-  | { kind: "snapshot"; snapshot: LearningTaskSnapshot };
+export type TaskSnapshot<Payload> = Omit<LearningTaskSnapshot, "output"> & {
+  output: Payload | null;
+};
+export type TaskEvent<Payload> = Omit<LearningTaskEvent, "payload"> & { payload: Payload };
+export type TaskFrame<Payload> =
+  | { kind: "event"; event: TaskEvent<Payload> }
+  | { kind: "snapshot"; snapshot: TaskSnapshot<Payload> };
+export type LearningTaskFrame = TaskFrame<LearningTaskEvent["payload"]>;
+export interface TaskWireSchemas<Payload> {
+  event: z.ZodType<TaskEvent<Payload>, z.ZodTypeDef, unknown>;
+  snapshot: z.ZodType<TaskSnapshot<Payload>, z.ZodTypeDef, unknown>;
+}
 /** String framing is shared by Fetch and wx.request; no browser objects are used. */
 export function createLearningTaskSseDecoder(taskId: string, initialCursor = 0) {
+  return createTaskSseDecoder(taskId, initialCursor, {
+    event: learningTaskEventSchema,
+    snapshot: learningTaskSnapshotSchema,
+  });
+}
+export function createTaskSseDecoder<Payload>(
+  taskId: string,
+  initialCursor: number,
+  schemas: TaskWireSchemas<Payload>,
+) {
   let buffer = "";
   let total = 0;
   let cursor = initialCursor;
@@ -19,11 +39,11 @@ export function createLearningTaskSseDecoder(taskId: string, initialCursor = 0) 
     get cursor() {
       return cursor;
     },
-    push(text: string): LearningTaskFrame[] {
+    push(text: string): TaskFrame<Payload>[] {
       total += text.length;
       if (total > 4 * 1024 * 1024) throw invalid();
       buffer += text;
-      const output: LearningTaskFrame[] = [];
+      const output: TaskFrame<Payload>[] = [];
       let boundary = buffer.search(/\r?\n\r?\n/u);
       while (boundary >= 0) {
         const frame = buffer.slice(0, boundary).replaceAll("\r\n", "\n");
@@ -47,7 +67,7 @@ export function createLearningTaskSseDecoder(taskId: string, initialCursor = 0) 
             throw invalid();
           }
           if (fields.get("event") === "learning-task") {
-            const parsed = learningTaskEventSchema.safeParse(data);
+            const parsed = schemas.event.safeParse(data);
             if (!parsed.success) throw invalid();
             const event = parsed.data;
             if (
@@ -61,7 +81,7 @@ export function createLearningTaskSseDecoder(taskId: string, initialCursor = 0) 
               output.push({ kind: "event", event });
             }
           } else if (fields.get("event") === "task-status") {
-            const parsed = learningTaskSnapshotSchema.safeParse(data);
+            const parsed = schemas.snapshot.safeParse(data);
             if (!parsed.success || parsed.data.id !== taskId || parsed.data.cursor < cursor)
               throw invalid();
             output.push({ kind: "snapshot", snapshot: parsed.data });

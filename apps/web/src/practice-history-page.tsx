@@ -1,5 +1,5 @@
 import { practiceStatus } from "./practice-status.js";
-import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 
 import type {
   ListPracticeSessionsQuery,
@@ -20,7 +20,7 @@ function dateText(summary: PracticeHistorySummary) {
   return new Date(summary.completedAt ?? summary.updatedAt).toLocaleString("zh-CN");
 }
 
-export function PracticeHistoryPage({
+function PracticeHistoryPageContent({
   api,
   idempotencyKey = () => crypto.randomUUID(),
 }: {
@@ -242,7 +242,11 @@ export function PracticeHistoryPage({
                 <h2 ref={detailHeading} tabIndex={-1}>
                   {detail.session.type === "sentence-creation" ? "句子创作详情" : "情境对话详情"}
                 </h2>
-                <PracticeHistoryDetail detail={detail} />
+                <PracticeHistoryDetail
+                  detail={detail}
+                  teachingApi={api.teaching}
+                  onReload={() => void open(detail.session.id)}
+                />
                 {(detail.session.status === "completed" || detail.session.status === "failed") && (
                   <button
                     className="danger-button"
@@ -287,4 +291,9 @@ export function PracticeHistoryPage({
       )}
     </>
   );
+}
+
+export function PracticeHistoryPage(props: Parameters<typeof PracticeHistoryPageContent>[0]) {
+  const scopeKey = useMemo(() => crypto.randomUUID(), [props.api]);
+  return <PracticeHistoryPageContent key={scopeKey} {...props} />;
 }

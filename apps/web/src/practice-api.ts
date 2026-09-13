@@ -1,5 +1,7 @@
 import { createWebPracticeWorkspace } from "./practice-workspace-api.js";
+import { createWebPracticeTeaching } from "./practice-teaching-api.js";
 import { createWebLearningTasks } from "./learning-task-api.js";
+import type { PracticePageApi } from "./practice-page-api.js";
 import {
   apiErrorSchema,
   dailyPracticeQueueResponseSchema,
@@ -80,8 +82,27 @@ export function createWebPracticeApi(options: {
       ),
     );
   return {
+    withSignal(signal: AbortSignal): Partial<PracticePageApi> {
+      return createWebPracticeApi({
+        ...options,
+        async csrfToken() {
+          signal.throwIfAborted();
+          const token = await options.csrfToken();
+          signal.throwIfAborted();
+          return token;
+        },
+        async fetch(input, init) {
+          signal.throwIfAborted();
+          const requestSignal = init?.signal ? AbortSignal.any([signal, init.signal]) : signal;
+          const response = await options.fetch(input, { ...init, signal: requestSignal });
+          signal.throwIfAborted();
+          return response;
+        },
+      });
+    },
     tasks: createWebLearningTasks(options),
     workspace: createWebPracticeWorkspace(options),
+    teaching: createWebPracticeTeaching(options),
     async dailyQueue() {
       dailyQueueQuerySchema.parse({});
       const endpoint = new URL(practiceHttpRoutes.dailyQueue, options.apiOrigin);

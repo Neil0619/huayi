@@ -1,139 +1,22 @@
 import { act } from "react";
-import { createRoot, type Root } from "react-dom/client";
-import { afterEach, expect, it, vi } from "vitest";
+import { expect, it, vi } from "vitest";
 import {
   analysisRecordSchema,
   analysisRequestStatusSchema,
-  confirmCandidatesResponseSchema,
-  contractFixtures,
   LearningTaskError,
-  type LearningTaskSnapshot,
-  type LearningTaskPayload,
   type StudyCaptureDetailResponse,
 } from "@huayi/cloud-contracts";
-import { StudyInbox } from "./study-inbox.js";
-import type { WebStudyCaptureApi } from "./study-capture-api.js";
-import type { InboxApi } from "./inbox-app.js";
-
-(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
-const analysis = analysisRecordSchema.parse({
-  ...contractFixtures.analysis,
-  studyCaptureId: "capture-1",
-});
-const date = "2026-09-05T00:00:00.000Z";
-const detail: StudyCaptureDetailResponse = {
-  capture: {
-    captureCount: 1,
-    createdAt: date,
-    firstCapturedAt: date,
-    id: "capture-1",
-    kind: "sentence",
-    lastCapturedAt: date,
-    normalizedTextHash: "a".repeat(64),
-    revision: 1,
-    sourceText: analysis.sourceText,
-    status: "pending",
-    updatedAt: date,
-  },
-  latestAnalysis: null,
-  activeAnalysisRequest: null,
-};
-const job: LearningTaskSnapshot = {
-  version: 2,
-  id: "task-1",
-  kind: "capture-analysis",
-  subjectId: detail.capture.id,
-  state: "queued",
-  cursor: 0,
-  createdAt: date,
-  updatedAt: date,
-  error: null,
-  output: null,
-  timings: {},
-};
-let root: Root | undefined;
-afterEach(async () => {
-  await act(async () => root?.unmount());
-  document.body.replaceChildren();
-});
-function setup(overrides: Partial<WebStudyCaptureApi> = {}, reviews: Partial<InboxApi> = {}) {
-  const tasks = {
-    submit: vi.fn(async () => job),
-    list: vi.fn(async (): Promise<LearningTaskSnapshot[]> => []),
-    get: vi.fn(async () => job),
-    cancel: vi.fn(async () => ({ ...job, state: "cancelled" as const })),
-    watch: vi.fn<NonNullable<WebStudyCaptureApi["tasks"]>["watch"]>(
-      async function* (): AsyncIterable<LearningTaskPayload> {
-        yield {
-          type: "analysis.preview" as const,
-          requestId: "request-1",
-          text: "先理解原文",
-          section: "overall" as const,
-        };
-      },
-    ),
-  };
-  const api: WebStudyCaptureApi = {
-    tasks,
-    analyzeCapture: vi.fn(),
-    getAnalysisRequestStatus: vi.fn(),
-    getCapture: vi.fn(async () => detail),
-    listCaptures: vi.fn(async (query) => ({
-      items: query.status === "pending" ? [detail] : [],
-      nextCursor: null,
-    })),
-    patchCapture: vi.fn(async (_id, input) => ({
-      ...detail,
-      capture: { ...detail.capture, title: input.title ?? undefined, revision: 2 },
-    })),
-    deleteCapture: vi.fn(async () => ({ deleted: true as const, id: detail.capture.id })),
-    ...overrides,
-  };
-  const review: InboxApi = {
-    confirmCandidates: vi.fn(async () =>
-      confirmCandidatesResponseSchema.parse(contractFixtures.confirmCandidatesResponse),
-    ),
-    getAnalysis: vi.fn(async () => analysis),
-    listPending: vi.fn(async () => ({ items: [], nextCursor: null })),
-    processNothingToSave: vi.fn(async () => ({
-      ...analysis,
-      reviewState: "reviewed" as const,
-      revision: 2,
-    })),
-    ...reviews,
-  };
-  return { api, review, tasks };
-}
-async function render(fixture: ReturnType<typeof setup>) {
-  const container = document.createElement("div");
-  document.body.append(container);
-  root = createRoot(container);
-  await act(async () => {
-    root?.render(
-      <StudyInbox
-        captureApi={fixture.api}
-        reviewApi={fixture.review}
-        createIdempotencyKey={() => "write-key"}
-      />,
-    );
-  });
-  return container;
-}
-async function click(container: Element, selector: string) {
-  const button = container.querySelector<HTMLButtonElement>(selector);
-  if (!button) throw new Error(`Missing ${selector}`);
-  await act(async () => {
-    button.click();
-  });
-}
-async function change(container: Element, selector: string, text: string) {
-  const field = container.querySelector<HTMLInputElement>(selector);
-  if (!field) throw new Error(`Missing ${selector}`);
-  await act(async () => {
-    Object.getOwnPropertyDescriptor(Object.getPrototypeOf(field), "value")?.set?.call(field, text);
-    field.dispatchEvent(new Event("input", { bubbles: true }));
-  });
-}
+import {
+  analysis,
+  date,
+  detail,
+  job,
+  setup,
+  render,
+  click,
+  change,
+  unmountStudyInbox,
+} from "./study-inbox.test-support.js";
 it("loads a single continuous collection and never starts a model on entry", async () => {
   const f = setup();
   const view = await render(f);
@@ -161,7 +44,7 @@ it("saves edited metadata before queuing explicit analysis and keeps navigation 
       version: 2,
       kind: "capture-analysis",
       captureId: "capture-1",
-      input: { expectedRevision: 2, intent: "initial" },
+      input: { expectedRevision: 2, intent: "initial", outputContract: "structured-teaching-v1" },
     },
     "write-key",
   );
@@ -173,7 +56,7 @@ it("restores a running task after leaving without submitting again", async () =>
   f.tasks.list.mockResolvedValue([job]);
   const first = await render(f);
   expect(first.textContent).toContain("可以切换内容或离开");
-  await act(async () => root?.unmount());
+  await unmountStudyInbox();
   const next = await render(f);
   expect(next.textContent).toContain("先理解原文");
   expect(f.tasks.watch).toHaveBeenCalledTimes(2);
@@ -273,7 +156,11 @@ it.each(["failed", "cancelled"] as const)(
         version: 2,
         kind: "capture-analysis",
         captureId: "capture-1",
-        input: { expectedRevision: 4, intent: "reanalysis" },
+        input: {
+          expectedRevision: 4,
+          intent: "reanalysis",
+          outputContract: "structured-teaching-v1",
+        },
       },
       "write-key",
     );

@@ -1,7 +1,7 @@
 import {
-  analysisEventSchema,
+  analysisEventReadSchema,
   analysisRequestStatusSchema,
-  type AnalysisEvent,
+  type AnalysisEventRead,
 } from "@huayi/cloud-contracts";
 
 import type { AnalysisDatabase } from "./analysis-database.js";
@@ -34,14 +34,14 @@ async function parseClaim(
       ]),
     );
     return {
-      event: analysisEventSchema.parse(abandoned[0]?.value),
+      event: analysisEventReadSchema.parse(abandoned[0]?.value),
       kind: "terminal",
       requestId: claim.requestId,
     };
   }
   if (claim.kind === "terminal" && typeof claim.requestId === "string") {
     return {
-      event: analysisEventSchema.parse(claim.event),
+      event: analysisEventReadSchema.parse(claim.event),
       kind: "terminal",
       requestId: claim.requestId,
     };
@@ -180,7 +180,7 @@ export function createPostgresAnalysisRequestLifecycle(
               )
             )[0]?.value
           : row.terminal_event;
-      const event = analysisEventSchema.parse(terminalEvent);
+      const event = analysisEventReadSchema.parse(terminalEvent);
       if (event.type === "analysis.completed") {
         return analysisRequestStatusSchema.parse({
           analysisId: event.analysis.id,
@@ -192,7 +192,7 @@ export function createPostgresAnalysisRequestLifecycle(
       return analysisRequestStatusSchema.parse({ error: event.error, requestId, state: "failed" });
     },
     async terminalizeWithoutReservation(command) {
-      const event: AnalysisEvent = {
+      const event: AnalysisEventRead = {
         error: command.error,
         quota: command.quota,
         type: "analysis.failed",

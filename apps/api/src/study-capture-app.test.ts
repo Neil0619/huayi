@@ -1,9 +1,60 @@
-import { studyCaptureHttpRoutes } from "@huayi/cloud-contracts";
+import {
+  createAnalysisSseDecoder,
+  structuredTeachingAccept,
+  studyCaptureHttpRoutes,
+} from "@huayi/cloud-contracts";
 import { describe, expect, it, vi } from "vitest";
 
 import { createStudyCaptureApp } from "./study-capture-app.js";
+import { structuredAnalysisFixture } from "./test-support/structured-analysis-fixture.js";
+import { FakeAnalysisQuota } from "./test-support/analysis-fakes.js";
 
 describe("StudyCapture HTTP adapter", () => {
+  it("negotiates persisted structured capture replays through the same private SSE boundary", async () => {
+    const record = structuredAnalysisFixture();
+    const app = createStudyCaptureApp({
+      analysis: {
+        async prepareStudyCaptureAnalysis() {
+          return (async function* () {
+            yield {
+              type: "analysis.completed" as const,
+              analysis: record,
+              quota: new FakeAnalysisQuota().summary(),
+            };
+          })();
+        },
+      },
+      authenticateCreate: () => "owner",
+      authenticateDelete: () => "owner",
+      authenticateWeb: () => "owner",
+      module: {} as never,
+    });
+    for (const accept of [undefined, structuredTeachingAccept.eventStream]) {
+      const response = await app.request("/v1/study-captures/capture-1/analyses:stream", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": "replay",
+          "If-Match": '"1"',
+          ...(accept === undefined ? {} : { Accept: accept }),
+        },
+        body: JSON.stringify({ expectedRevision: 1, intent: "reanalysis" }),
+      });
+      expect(response.headers.get("cache-control")).toBe("private, no-store");
+      expect(response.headers.get("vary")).toContain("Accept");
+      const text = await response.text();
+      if (accept === undefined) {
+        const decoder = createAnalysisSseDecoder();
+        expect(decoder.push(text)).toMatchObject([
+          {
+            type: "analysis.completed",
+            analysis: { result: { type: "sentence-passage-analysis-v2" } },
+          },
+        ]);
+        decoder.finish();
+      } else expect(text).toContain('"type":"sentence-passage-analysis-v3"');
+    }
+  });
   it("requires authentication and idempotency then returns a strict created outcome", async () => {
     const create = vi.fn(async () => ({
       capture: {

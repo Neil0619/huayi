@@ -1,5 +1,5 @@
-import { readFile } from "node:fs/promises";
-import { PGlite } from "@electric-sql/pglite";
+import { createCurrentDatabaseFixture } from "./test-support/current-database-fixture.js";
+import type { PGlite } from "@electric-sql/pglite";
 import { afterAll, beforeAll, expect, it, vi } from "vitest";
 import { createPgliteAnalysisDatabase } from "./test-support/postgres-analysis-database.js";
 import { createPostgresMiniProgramIdentity } from "./postgres-miniprogram-identity.js";
@@ -12,11 +12,7 @@ import { systemClock, systemSecrets } from "./security.js";
 
 let database: PGlite;
 beforeAll(async () => {
-  database = new PGlite();
-  for (const name of ["0001-cloud-v1-foundation", "0029-wechat-miniprogram"])
-    await database.exec(
-      await readFile(new URL(`../migrations/${name}.sql`, import.meta.url), "utf8"),
-    );
+  database = await createCurrentDatabaseFixture();
 });
 afterAll(async () => database?.close());
 it("independently opens, exports, recently authenticates and deletes a pure WeChat account through runtime roles", async () => {

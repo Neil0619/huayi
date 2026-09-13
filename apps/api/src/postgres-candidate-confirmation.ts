@@ -1,6 +1,6 @@
 import {
-  analysisRecordSchema,
-  confirmCandidatesResponseSchema,
+  analysisRecordReadSchema,
+  confirmCandidatesReadResponseSchema,
   learningItemResponseSchema,
 } from "@huayi/cloud-contracts";
 
@@ -37,7 +37,7 @@ export async function confirmPostgresCandidates(
         [command.userId, command.idempotencyKey, command.requestHash],
       );
       if (replay[0]?.response != null) {
-        return confirmCandidatesResponseSchema.parse(replay[0].response);
+        return confirmCandidatesReadResponseSchema.parse(replay[0].response);
       }
       const rows = await tenant.rows<AnalysisRow>(
         `SELECT id::text,review_state,archived_at,source_type,source_title,source_context,
@@ -75,7 +75,7 @@ export async function confirmPostgresCandidates(
         "UPDATE analysis_records SET review_state='reviewed',revision=revision+1,updated_at=$2 WHERE id=$1",
         [command.analysisId, command.updatedAt],
       );
-      const analysis = analysisRecordSchema.parse({
+      const analysis = analysisRecordReadSchema.parse({
         archivedAt: row.archived_at?.toISOString() ?? null,
         candidates: await candidateResources(tenant, command.analysisId),
         createdAt: row.created_at.toISOString(),
@@ -95,7 +95,7 @@ export async function confirmPostgresCandidates(
         ...(row.study_capture_id === null ? {} : { studyCaptureId: row.study_capture_id }),
         updatedAt: command.updatedAt,
       });
-      const response = confirmCandidatesResponseSchema.parse({ analysis, results });
+      const response = confirmCandidatesReadResponseSchema.parse({ analysis, results });
       await tenant.rows(
         `INSERT INTO idempotency_records(owner_user_id,operation,key,request_hash,response,expires_at)
          VALUES($1,'analysis.confirm',$2,$3,$4::jsonb,$5)`,

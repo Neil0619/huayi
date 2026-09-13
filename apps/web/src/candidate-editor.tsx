@@ -1,4 +1,7 @@
-import type { AnalysisRecord, ConfirmCandidatesRequest } from "@huayi/cloud-contracts";
+import type {
+  AnalysisRecordRead as AnalysisRecord,
+  ConfirmCandidatesRequest,
+} from "@huayi/cloud-contracts";
 
 export interface CandidateDraft {
   readonly candidate: AnalysisRecord["candidates"][number];
@@ -21,10 +24,24 @@ function splitValues(value: string): string[] {
 export function initialCandidateDrafts(analysis: AnalysisRecord): CandidateDraft[] {
   return analysis.candidates.map((candidate) => ({
     candidate: structuredClone(candidate),
-    selected: true,
+    selected: false,
     systemAttributes: "",
     tags: "",
   }));
+}
+
+export function reconcileCandidateDrafts(
+  analysis: AnalysisRecord,
+  previous: CandidateDraft[] = [],
+): CandidateDraft[] {
+  return initialCandidateDrafts(analysis).map(
+    (fresh) =>
+      previous.find(
+        (draft) =>
+          draft.candidate.id === fresh.candidate.id &&
+          draft.candidate.type === fresh.candidate.type,
+      ) ?? fresh,
+  );
 }
 
 export function confirmationForDraft(
@@ -89,7 +106,7 @@ export function CandidateEditor({
             <input
               maxLength={500}
               onChange={(event) => updatePayload({ text: event.currentTarget.value })}
-              required
+              required={draft.selected}
               value={candidate.payload.text}
             />
           </label>
@@ -97,7 +114,7 @@ export function CandidateEditor({
             中文含义
             <textarea
               onChange={(event) => updatePayload({ meaningZh: event.currentTarget.value })}
-              required
+              required={draft.selected}
               value={candidate.payload.meaningZh}
             />
           </label>
@@ -105,7 +122,7 @@ export function CandidateEditor({
             使用说明
             <textarea
               onChange={(event) => updatePayload({ usageZh: event.currentTarget.value })}
-              required
+              required={draft.selected}
               value={candidate.payload.usageZh}
             />
           </label>
@@ -117,7 +134,7 @@ export function CandidateEditor({
             <input
               maxLength={500}
               onChange={(event) => updatePayload({ template: event.currentTarget.value })}
-              required
+              required={draft.selected}
               value={candidate.payload.template}
             />
           </label>
@@ -125,7 +142,7 @@ export function CandidateEditor({
             功能
             <textarea
               onChange={(event) => updatePayload({ functionZh: event.currentTarget.value })}
-              required
+              required={draft.selected}
               value={candidate.payload.functionZh}
             />
           </label>
@@ -133,7 +150,7 @@ export function CandidateEditor({
             使用说明
             <textarea
               onChange={(event) => updatePayload({ usageZh: event.currentTarget.value })}
-              required
+              required={draft.selected}
               value={candidate.payload.usageZh}
             />
           </label>

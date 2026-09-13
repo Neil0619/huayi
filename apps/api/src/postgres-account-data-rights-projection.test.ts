@@ -17,6 +17,22 @@ const readyRow = {
 };
 
 describe("Postgres account data export projection", () => {
+  it.each([new Date(readyRow.expires_at), null])(
+    "normalizes expired driver timestamps including the cleanup fallback: %s",
+    (expiresAt) => {
+      expect(
+        projectAccountDataExportRow({
+          ...readyRow,
+          state: "expired",
+          expires_at: expiresAt,
+          updated_at: new Date(readyRow.updated_at),
+        }),
+      ).toMatchObject({
+        state: "expired",
+        expiresAt: expiresAt?.toISOString() ?? readyRow.updated_at,
+      });
+    },
+  );
   it("converts the production driver's bigint string into a strict ready byte length", () => {
     expect(projectAccountDataExportRow(readyRow)).toMatchObject({
       byteLength: 7939,

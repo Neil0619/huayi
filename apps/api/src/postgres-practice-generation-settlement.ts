@@ -1,3 +1,4 @@
+import { lockPracticeGenerationAggregate } from "./postgres-practice-generation-lock.js";
 import type { AnalysisBilledCall } from "./analysis-ports.js";
 import type { AnalysisQuery } from "./analysis-database.js";
 import { CloudFault } from "./cloud-fault.js";
@@ -26,6 +27,7 @@ export async function settleFailedPracticeGeneration(
     terminalState?: "abandoned" | "failed";
   },
 ) {
+  if (!(await lockPracticeGenerationAggregate(queries.tenant, command.generationId))) return false;
   const tasks = await queries.tenant.rows<FailedTaskRow>(
     `UPDATE practice_generation_tasks SET state=$4,stable_error_code=$5,updated_at=$6
       WHERE id=$1 AND owner_user_id=$2 AND lease_token=$3 AND state='dispatched'

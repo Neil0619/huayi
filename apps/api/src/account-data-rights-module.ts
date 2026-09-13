@@ -1,13 +1,15 @@
 import { createHash } from "node:crypto";
 
 import {
-  accountDataExportJobResourceSchema,
+  accountDataExportJobReadResourceSchema,
+  accountDataExportFormatVersionSchema,
   accountDeletionRequestSchema,
   accountDeletionResponseSchema,
-  createAccountDataExportRequestSchema,
+  accountDataExportFormatRequestSchema,
   downloadAccountDataExportResponseSchema,
-  retryAccountDataExportRequestSchema,
-  type AccountDataExportJobResource,
+  retryAccountDataExportReadRequestSchema,
+  type AccountDataExportJobReadResource,
+  type AccountDataExportFormatVersion,
 } from "@huayi/cloud-contracts";
 
 import { CloudFault } from "./cloud-fault.js";
@@ -18,6 +20,7 @@ interface ExportWriteCommand {
   requestHash: string;
 }
 interface ExportRetryCommand extends ExportWriteCommand {
+  formatVersion: AccountDataExportFormatVersion;
   expectedRevision: number;
   exportId: string;
 }
@@ -28,10 +31,14 @@ interface DeletionCommand extends ExportWriteCommand {
 }
 
 export interface AccountDataRightsRepository {
-  currentExport(ownerUserId: string): Promise<AccountDataExportJobResource | null>;
+  currentExport(
+    ownerUserId: string,
+    formatVersion: AccountDataExportFormatVersion,
+  ): Promise<AccountDataExportJobReadResource | null>;
   exportDownload(
     ownerUserId: string,
     exportId: string,
+    formatVersion: AccountDataExportFormatVersion,
   ): Promise<{ expiresAt: string; objectKey: string } | null>;
   requestDeletion(command: DeletionCommand): Promise<{ accepted: true; requestedAt: string }>;
   replayDeletion(command: {
@@ -39,8 +46,10 @@ export interface AccountDataRightsRepository {
     requestHash: string;
     requestSessionHash: string;
   }): Promise<{ accepted: true; requestedAt: string } | null>;
-  requestExport(command: ExportWriteCommand): Promise<AccountDataExportJobResource>;
-  retryExport(command: ExportRetryCommand): Promise<AccountDataExportJobResource>;
+  requestExport(
+    command: ExportWriteCommand & { formatVersion: AccountDataExportFormatVersion },
+  ): Promise<AccountDataExportJobReadResource>;
+  retryExport(command: ExportRetryCommand): Promise<AccountDataExportJobReadResource>;
 }
 
 export interface AccountDataSignedUrls {
@@ -49,6 +58,13 @@ export interface AccountDataSignedUrls {
 
 function digest(value: unknown): string {
   return createHash("sha256").update(JSON.stringify(value)).digest("hex");
+}
+
+function exportResource(value: unknown, formatVersion: AccountDataExportFormatVersion) {
+  const resource = accountDataExportJobReadResourceSchema.parse(value);
+  if (resource.formatVersion !== formatVersion)
+    throw new CloudFault("revision_conflict", "The export format does not match this request.");
+  return resource;
 }
 
 function requireRecentAuthentication(now: Date, reauthenticatedAt: Date): void {
@@ -64,10 +80,19 @@ export function createAccountDataRightsModule(options: {
   signedUrls: AccountDataSignedUrls;
 }) {
   return {
-    async createDownload(ownerUserId: string, exportId: string, reauthenticatedAt: Date) {
+    async createDownload(
+      ownerUserId: string,
+      exportId: string,
+      reauthenticatedAt: Date,
+      formatVersion: AccountDataExportFormatVersion = 1,
+    ) {
       const now = options.now();
       requireRecentAuthentication(now, reauthenticatedAt);
-      const target = await options.repository.exportDownload(ownerUserId, exportId);
+      const target = await options.repository.exportDownload(
+        ownerUserId,
+        exportId,
+        accountDataExportFormatVersionSchema.parse(formatVersion),
+      );
       if (target === null) throw new CloudFault("not_found", "Export not found.");
       const remainingSeconds = Math.floor(
         (new Date(target.expiresAt).getTime() - now.getTime()) / 1_000,
@@ -82,9 +107,12 @@ export function createAccountDataRightsModule(options: {
         url: signed.url,
       });
     },
-    async currentExport(ownerUserId: string) {
-      const current = await options.repository.currentExport(ownerUserId);
-      return current === null ? null : accountDataExportJobResourceSchema.parse(current);
+    async currentExport(ownerUserId: string, formatVersion: AccountDataExportFormatVersion = 1) {
+      const current = await options.repository.currentExport(
+        ownerUserId,
+        accountDataExportFormatVersionSchema.parse(formatVersion),
+      );
+      return current === null ? null : exportResource(current, formatVersion);
     },
     async requestDeletion(
       ownerUserId: string,
@@ -117,13 +145,16 @@ export function createAccountDataRightsModule(options: {
       return replay === null ? null : accountDeletionResponseSchema.parse(replay);
     },
     async requestExport(ownerUserId: string, idempotencyKey: string, input: unknown) {
-      const request = createAccountDataExportRequestSchema.parse(input);
-      return accountDataExportJobResourceSchema.parse(
+      const request = accountDataExportFormatRequestSchema.parse(input);
+      const formatVersion = request.formatVersion ?? 1;
+      return exportResource(
         await options.repository.requestExport({
+          formatVersion,
           idempotencyKey,
           ownerUserId,
           requestHash: digest({ operation: "account-export.create", request }),
         }),
+        formatVersion,
       );
     },
     async retryExport(
@@ -132,15 +163,18 @@ export function createAccountDataRightsModule(options: {
       idempotencyKey: string,
       input: unknown,
     ) {
-      const request = retryAccountDataExportRequestSchema.parse(input);
-      return accountDataExportJobResourceSchema.parse(
+      const request = retryAccountDataExportReadRequestSchema.parse(input);
+      const formatVersion = request.formatVersion ?? 1;
+      return exportResource(
         await options.repository.retryExport({
+          formatVersion,
           expectedRevision: request.expectedRevision,
           exportId,
           idempotencyKey,
           ownerUserId,
           requestHash: digest({ exportId, operation: "account-export.retry", request }),
         }),
+        formatVersion,
       );
     },
   };

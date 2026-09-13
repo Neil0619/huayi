@@ -1,4 +1,4 @@
-import type { AnalysisRecord } from "@huayi/cloud-contracts";
+import type { AnalysisRecordRead as AnalysisRecord } from "@huayi/cloud-contracts";
 
 type PhraseResult = Extract<AnalysisRecord["result"], { type: "phrase-analysis-v2" }>;
 type TeachingPoint = PhraseResult["usageNotes"][number];

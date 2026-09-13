@@ -12,8 +12,11 @@ describe("account data rights worker", () => {
     const content: Uint8Array[] = [];
     const times = [new Date("2026-08-13T01:00:00.000Z"), new Date("2026-08-13T01:10:00.000Z")];
     const repository: AccountDataRightsWorkerRepository = {
+      prepareExportUpload: vi.fn(async () => undefined),
+      reconcileExportPublication: vi.fn(async () => "retired" as const),
       claimDeletion: vi.fn(async () => null),
       claimExport: vi.fn(async () => ({
+        formatVersion: 1 as const,
         exportId: "export-1",
         leaseToken: "lease-1",
         objectKey: "account-exports/export-1.ndjson",
@@ -98,6 +101,8 @@ describe("account data rights worker", () => {
       objectKey: "account-exports/export-expired.ndjson",
     };
     const repository: AccountDataRightsWorkerRepository = {
+      prepareExportUpload: vi.fn(async () => undefined),
+      reconcileExportPublication: vi.fn(async () => "retired" as const),
       cleanupExpiredExport: vi.fn(async () => cleanup),
       claimDeletion: vi.fn(async () => null),
       claimExport: vi.fn(async () => null),
@@ -135,6 +140,8 @@ describe("account data rights worker", () => {
       objectKey: "account-exports/export-expired.ndjson",
     };
     const repository: AccountDataRightsWorkerRepository = {
+      prepareExportUpload: vi.fn(async () => undefined),
+      reconcileExportPublication: vi.fn(async () => "retired" as const),
       cleanupExpiredExport: vi.fn(async () => cleanup),
       claimDeletion: vi.fn(async () => null),
       claimExport: vi.fn(async () => null),
@@ -171,6 +178,8 @@ describe("account data rights worker", () => {
     async (deleteAuthUser) => {
       const calls: string[] = [];
       const repository: AccountDataRightsWorkerRepository = {
+        prepareExportUpload: vi.fn(async () => undefined),
+        reconcileExportPublication: vi.fn(async () => "retired" as const),
         claimDeletion: vi.fn(async () => ({
           exportObjectKeys: ["account-exports/export-1.ndjson"],
           jobId: "deletion-1",

@@ -1,8 +1,8 @@
 import {
   learningTaskErrorSchema,
-  learningTaskPayloadSchema,
-  type LearningTaskPayload,
-  type LearningTaskSnapshot,
+  learningTaskPayloadReadSchema,
+  type LearningTaskPayloadRead,
+  type LearningTaskSnapshotRead,
 } from "@huayi/cloud-contracts";
 import type { LearningTaskExecutor } from "./learning-task-executor.js";
 import { captureDiagnosticPayload } from "./diagnostic-stream.js";
@@ -15,13 +15,13 @@ import {
   setDiagnosticContext,
 } from "./diagnostic-context.js";
 
-function failureCode(error: unknown): NonNullable<LearningTaskSnapshot["error"]>["code"] {
+function failureCode(error: unknown): NonNullable<LearningTaskSnapshotRead["error"]>["code"] {
   const value =
     typeof error === "object" && error !== null && "code" in error ? error.code : "internal_error";
   const parsed = learningTaskErrorSchema.shape.code.safeParse(value);
   return parsed.success ? parsed.data : "internal_error";
 }
-function terminal(payload: LearningTaskPayload | null) {
+function terminal(payload: LearningTaskPayloadRead | null) {
   if (
     payload?.type === "query.completed" ||
     payload?.type === "analysis.completed" ||
@@ -60,8 +60,8 @@ export function createLearningTaskWorker(options: {
       let dispatched = false;
       let cancelling = false;
       let lost = false;
-      let output: LearningTaskPayload | null = null;
-      const pending: LearningTaskPayload[] = [];
+      let output: LearningTaskPayloadRead | null = null;
+      const pending: LearningTaskPayloadRead[] = [];
       let writes = Promise.resolve();
       let writeError: unknown;
       let timingVersion = 0;
@@ -102,7 +102,7 @@ export function createLearningTaskWorker(options: {
           });
       }, options.pollMs ?? 500);
       const deadline = setTimeout(() => controller.abort(), options.deadlineMs ?? 105_000);
-      let error: LearningTaskSnapshot["error"] = null;
+      let error: LearningTaskSnapshotRead["error"] = null;
       try {
         for await (const event of options.execute(job, {
           signal: controller.signal,
@@ -122,7 +122,7 @@ export function createLearningTaskWorker(options: {
             timingVersion += 1;
           },
         })) {
-          output = learningTaskPayloadSchema.parse(event);
+          output = learningTaskPayloadReadSchema.parse(event);
           captureDiagnosticPayload(output);
           pending.push(output);
           if (pending.length >= 128) flush();

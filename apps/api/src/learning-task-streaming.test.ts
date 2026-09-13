@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { beforeAll, afterAll, expect, it, vi } from "vitest";
 import {
   createLearningTaskClient,
-  type ExtensionQueryEvent,
+  type ExtensionQueryEventRead,
   type QuotaSummary,
 } from "@huayi/cloud-contracts";
 import { createLearningTaskApp } from "./learning-task-app.js";
@@ -65,7 +65,7 @@ it("delivers readable provider text before completion and recovers after the pag
   );
   const complete = vi.fn(
     async (command: {
-      result: Extract<ExtensionQueryEvent, { type: "query.completed" }>["result"];
+      result: Extract<ExtensionQueryEventRead, { type: "query.completed" }>["result"];
     }) => ({
       type: "query.completed" as const,
       generationId: "generation-1",

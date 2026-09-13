@@ -1,9 +1,9 @@
 import { createHmac } from "node:crypto";
 
 import {
-  accountDataExportJobResourceSchema,
+  accountDataExportJobReadResourceSchema,
   accountDeletionResponseSchema,
-  type AccountDataExportJobResource,
+  type AccountDataExportJobReadResource,
 } from "@huayi/cloud-contracts";
 
 import type { AnalysisDatabase, AnalysisQuery } from "./analysis-database.js";
@@ -20,7 +20,7 @@ interface ExportRow {
   object_key: string | null;
   record_count: number | null;
   revision: number;
-  state: AccountDataExportJobResource["state"];
+  state: AccountDataExportJobReadResource["state"];
   updated_at: Date | string;
 }
 
@@ -36,7 +36,7 @@ function databaseInteger(value: number | string | null): number | null {
   return parsed;
 }
 
-export function projectAccountDataExportRow(row: ExportRow): AccountDataExportJobResource {
+export function projectAccountDataExportRow(row: ExportRow): AccountDataExportJobReadResource {
   const common = {
     createdAt: instant(row.created_at),
     formatVersion: row.format_version,
@@ -45,7 +45,7 @@ export function projectAccountDataExportRow(row: ExportRow): AccountDataExportJo
     updatedAt: instant(row.updated_at),
   };
   if (row.state === "ready") {
-    return accountDataExportJobResourceSchema.parse({
+    return accountDataExportJobReadResourceSchema.parse({
       ...common,
       byteLength: databaseInteger(row.byte_length),
       expiresAt: row.expires_at === null ? null : instant(row.expires_at),
@@ -54,20 +54,20 @@ export function projectAccountDataExportRow(row: ExportRow): AccountDataExportJo
     });
   }
   if (row.state === "failed") {
-    return accountDataExportJobResourceSchema.parse({
+    return accountDataExportJobReadResourceSchema.parse({
       ...common,
       stableErrorCode: row.last_error_code,
       state: row.state,
     });
   }
   if (row.state === "expired") {
-    return accountDataExportJobResourceSchema.parse({
+    return accountDataExportJobReadResourceSchema.parse({
       ...common,
-      expiresAt: row.expires_at === null ? row.updated_at : row.expires_at,
+      expiresAt: instant(row.expires_at ?? row.updated_at),
       state: row.state,
     });
   }
-  return accountDataExportJobResourceSchema.parse({ ...common, state: row.state });
+  return accountDataExportJobReadResourceSchema.parse({ ...common, state: row.state });
 }
 
 const exportColumns = `id::text,state,format_version,record_count,byte_length,object_key,
@@ -122,24 +122,26 @@ export function createPostgresAccountDataRights(
   const protect = (purpose: string, value: string) =>
     createHmac("sha256", options.pepper).update(`${purpose}:${value}`).digest("hex");
   return {
-    async currentExport(ownerUserId) {
+    async currentExport(ownerUserId, formatVersion) {
       return database.transaction(ownerUserId, async ({ tenant }) => {
         const row = (
           await tenant.rows<ExportRow>(
-            `SELECT ${exportColumns} FROM account_data_export_jobs
-             ORDER BY created_at DESC,id DESC LIMIT 1`,
+            `SELECT ${exportColumns} FROM account_data_export_jobs WHERE format_version=$1
+             ORDER BY CASE WHEN state IN ('pending','running') OR (state='ready' AND expires_at>now()) THEN 0 ELSE 1 END,
+               created_at DESC,id DESC LIMIT 1`,
+            [formatVersion],
           )
         )[0];
         return row === undefined ? null : projectAccountDataExportRow(row);
       });
     },
-    async exportDownload(ownerUserId, exportId) {
+    async exportDownload(ownerUserId, exportId, formatVersion) {
       return database.transaction(ownerUserId, async ({ tenant }) => {
         const row = (
           await tenant.rows<{ expires_at: Date | string; object_key: string }>(
             `SELECT object_key,expires_at FROM account_data_export_jobs
-             WHERE id=$1 AND state='ready' AND expires_at>now()`,
-            [exportId],
+             WHERE id=$1 AND state='ready' AND expires_at>now() AND format_version=$2`,
+            [exportId, formatVersion],
           )
         )[0];
         return row === undefined
@@ -209,7 +211,7 @@ export function createPostgresAccountDataRights(
             command.requestHash,
           );
           if (previous !== null && previous !== undefined) {
-            return accountDataExportJobResourceSchema.parse(previous);
+            return accountDataExportJobReadResourceSchema.parse(previous);
           }
           await tenant.rows("SELECT pg_advisory_xact_lock(hashtextextended($1,13))", [
             command.ownerUserId,
@@ -220,12 +222,17 @@ export function createPostgresAccountDataRights(
                WHERE state IN ('pending','running','ready') FOR UPDATE`,
             )
           )[0];
+          if (row !== undefined && row.format_version !== command.formatVersion)
+            throw new CloudFault(
+              "revision_conflict",
+              "An export with a different format is still open. Wait for it to expire before requesting this format.",
+            );
           if (row === undefined) {
             row = (
               await tenant.rows<ExportRow>(
-                `INSERT INTO account_data_export_jobs(id,owner_user_id,state)
-                 VALUES($1,$2,'pending') RETURNING ${exportColumns}`,
-                [options.id(), command.ownerUserId],
+                `INSERT INTO account_data_export_jobs(id,owner_user_id,state,format_version)
+                 VALUES($1,$2,'pending',$3) RETURNING ${exportColumns}`,
+                [options.id(), command.ownerUserId, command.formatVersion],
               )
             )[0];
           }
@@ -250,8 +257,11 @@ export function createPostgresAccountDataRights(
             command.requestHash,
           );
           if (previous !== null && previous !== undefined) {
-            return accountDataExportJobResourceSchema.parse(previous);
+            return accountDataExportJobReadResourceSchema.parse(previous);
           }
+          await tenant.rows("SELECT pg_advisory_xact_lock(hashtextextended($1,13))", [
+            command.ownerUserId,
+          ]);
           const existing = (
             await tenant.rows<ExportRow>(
               `SELECT ${exportColumns} FROM account_data_export_jobs WHERE id=$1 FOR UPDATE`,
@@ -259,12 +269,22 @@ export function createPostgresAccountDataRights(
             )
           )[0];
           if (existing === undefined) throw new CloudFault("not_found", "Export not found.");
+          if (existing.format_version !== command.formatVersion)
+            throw new CloudFault(
+              "revision_conflict",
+              "The export format does not match this request.",
+            );
           if (existing.revision !== command.expectedRevision) {
             throw new CloudFault("revision_conflict", "Export revision changed.");
           }
           if (existing.state !== "failed") {
             throw new CloudFault("revision_conflict", "Only failed exports can be retried.");
           }
+          const open = await tenant.rows(
+            "SELECT id FROM account_data_export_jobs WHERE state IN ('pending','running','ready') LIMIT 1",
+          );
+          if (open.length > 0)
+            throw new CloudFault("revision_conflict", "Another export is still open.");
           const row = (
             await tenant.rows<ExportRow>(
               `UPDATE account_data_export_jobs SET state='pending',last_error_code=NULL,

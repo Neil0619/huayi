@@ -10,6 +10,7 @@ import {
   submitPracticeAttemptRequestSchema,
   type DailyPracticeQueueResponse,
   type PracticeSession,
+  type PracticeTeachingFeedback,
 } from "@huayi/cloud-contracts";
 
 import type { ModelExecution } from "./model-execution.js";
@@ -39,6 +40,7 @@ export interface PracticeRepository {
   completeFeedback(command: {
     attemptId: string;
     feedback: string;
+    teachingFeedback?: PracticeTeachingFeedback;
     feedbackLeaseToken: string;
     generationId: string;
     idempotencyKey: string;
@@ -91,12 +93,15 @@ interface PracticeMutationCommand {
   sessionId: string;
 }
 
-type PracticeFeedbackClaim =
-  | { claimed: false; item: PracticeItem; session: PracticeSession }
+export type PracticeFeedbackClaim =
+  | { claimed: false; session: PracticeSession }
   | {
       claimed: true;
+      attemptId: string;
+      ordinal: number;
+      teachingContract?: "practice-teaching-v1";
       generationId: string;
-      item: PracticeItem;
+      itemContent?: PracticeItem["item"]["content"];
       leaseToken: string;
       session: PracticeSession;
     };
@@ -107,6 +112,11 @@ type PracticePromptClaim =
       claimed: true;
       generationId: string;
       item: PracticeItem;
+      promptInput?: {
+        itemContent: PracticeItem["item"]["content"];
+        teachingContract: "practice-teaching-v1";
+        hintPolicy: "shown" | "on-demand";
+      };
       leaseToken: string;
       session: PracticeSession;
     };
@@ -143,10 +153,13 @@ export function createPracticeModule(options: {
     requestHash: string,
     execution: ModelExecution,
   ) => {
+    if (claimed.session.id !== sessionId)
+      throw new CloudFault("revision_conflict", "Practice session identity changed.");
     execution.onSession?.(claimed.session);
     if (!claimed.claimed) return practiceSessionResponseSchema.parse(claimed.session);
-    const attempt = claimed.session.attempts?.at(-1);
-    if (attempt === undefined) throw new CloudFault("invalid_request", "Practice attempt missing.");
+    const attempt = claimed.session.attempts?.find((answer) => answer.id === claimed.attemptId);
+    if (attempt === undefined || claimed.session.attempts?.[claimed.ordinal]?.id !== attempt.id)
+      throw new CloudFault("invalid_request", "Practice attempt missing.");
     if (claimed.session.prompt === undefined) {
       throw new CloudFault("invalid_request", "Practice prompt missing.");
     }
@@ -155,7 +168,10 @@ export function createPracticeModule(options: {
       generationId: claimed.generationId,
       input: {
         answer: attempt.answer,
-        itemContent: claimed.item.item.content,
+        ...(claimed.itemContent === undefined ? {} : { itemContent: claimed.itemContent }),
+        ...(claimed.teachingContract === undefined
+          ? {}
+          : { teachingContract: claimed.teachingContract }),
         prompt: claimed.session.prompt,
       },
       kind: "sentence-feedback",
@@ -170,6 +186,9 @@ export function createPracticeModule(options: {
       await options.repository.completeFeedback({
         attemptId: attempt.id,
         feedback: generated.feedback,
+        ...(generated.teachingFeedback === undefined
+          ? {}
+          : { teachingFeedback: generated.teachingFeedback }),
         feedbackLeaseToken: claimed.leaseToken,
         generationId: claimed.generationId,
         idempotencyKey,
@@ -250,7 +269,7 @@ export function createPracticeModule(options: {
       const generated = await options.generator.generate({
         ...execution,
         generationId: claimed.generationId,
-        input: { itemContent: claimed.item.item.content },
+        input: claimed.promptInput ?? { itemContent: claimed.item.item.content },
         kind: "sentence-prompt",
         leaseToken: claimed.leaseToken,
         ownerUserId,

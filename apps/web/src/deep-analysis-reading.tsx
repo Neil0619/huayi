@@ -1,5 +1,6 @@
-import type { AnalysisRecord } from "@huayi/cloud-contracts";
+import type { AnalysisRecordRead as AnalysisRecord } from "@huayi/cloud-contracts";
 
+import { NativeSentenceReading } from "./native-sentence-reading.js";
 import { DeepAnalysisTeaching } from "./deep-analysis-teaching.js";
 
 function ReadingContext({
@@ -25,27 +26,37 @@ function ReadingContext({
   );
 }
 
-export function DeepAnalysisReading({ analysis }: { analysis: AnalysisRecord }) {
+export function DeepAnalysisReading({
+  analysis,
+  showNativeSentences = true,
+}: {
+  analysis: AnalysisRecord;
+  showNativeSentences?: boolean;
+}) {
   const result = analysis.result;
   return (
     <section className="deep-analysis-reading" aria-label="原文解析">
       <header className="analysis-reading-overview">
         <h3>自然译文</h3>
         <p className="analysis-reading-translation">
-          {result.type === "phrase-analysis-v2"
+          {result.type === "phrase-analysis-v2" || result.type === "phrase-analysis-v3"
             ? result.translationZh
             : result.overall.translationZh}
         </p>
         <ReadingContext
           understanding={
-            result.type === "phrase-analysis-v2"
+            result.type === "phrase-analysis-v2" || result.type === "phrase-analysis-v3"
               ? result.contextualMeaningZh
               : result.overall.understandingZh
           }
-          tone={result.type === "phrase-analysis-v2" ? undefined : result.overall.contextAndToneZh}
+          tone={
+            result.type === "phrase-analysis-v2" || result.type === "phrase-analysis-v3"
+              ? undefined
+              : result.overall.contextAndToneZh
+          }
         />
       </header>
-      {result.type === "phrase-analysis-v2" ? (
+      {result.type === "phrase-analysis-v2" || result.type === "phrase-analysis-v3" ? (
         <div className="analysis-reading-groups">
           {result.structureAndCollocationZh.length > 0 && (
             <section className="analysis-teaching-group">
@@ -69,6 +80,8 @@ export function DeepAnalysisReading({ analysis }: { analysis: AnalysisRecord }) 
             sourceText={analysis.sourceText}
           />
         </div>
+      ) : result.type === "sentence-passage-analysis-v3" ? (
+        showNativeSentences && <NativeSentenceReading units={result.sentences} />
       ) : (
         <section className="analysis-reading-sentences" aria-label="逐句解析">
           <h3>逐句解析</h3>

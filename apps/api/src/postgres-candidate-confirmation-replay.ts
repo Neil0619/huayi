@@ -1,4 +1,4 @@
-import { confirmCandidatesResponseSchema } from "@huayi/cloud-contracts";
+import { confirmCandidatesReadResponseSchema } from "@huayi/cloud-contracts";
 
 import type { AnalysisDatabase } from "./analysis-database.js";
 import type { CandidateConfirmationReplayCommand } from "./analysis-ports.js";
@@ -16,7 +16,7 @@ export async function replayPostgresCandidateConfirmation(
       );
       return rows[0]?.response == null
         ? null
-        : confirmCandidatesResponseSchema.parse(rows[0].response);
+        : confirmCandidatesReadResponseSchema.parse(rows[0].response);
     });
   } catch (error) {
     if (error instanceof Error && error.message.includes("idempotency conflict")) {

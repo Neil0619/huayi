@@ -2,6 +2,7 @@ import { setDiagnosticContext } from "./diagnostic-context.js";
 import { billedProviderError } from "./deepseek-provider-error.js";
 import type { AnalysisRepairFeedback } from "./deepseek-analysis-diagnostics.js";
 import { readDeepSeekAnalysisContent } from "./deepseek-analysis-recovery.js";
+import { readStructuredAnalysisContent } from "./structured-analysis-output.js";
 import { hasCompleteAnalysisSource } from "./analysis-segmentation.js";
 import { modelDeadline } from "./model-execution.js";
 import { createTextModelPreview } from "./text-model-preview.js";
@@ -9,6 +10,7 @@ import {
   calculateModelCost,
   modelPriceSchema,
   modelUsageSchema,
+  startAnalysisGenerationRequestSchema,
   type ModelPrice,
   type ModelUsage,
   type StartAnalysisRequest,
@@ -89,10 +91,16 @@ export function createDeepSeekAnalysisModel(options: DeepSeekAnalysisModelOption
   return {
     async analyze(command) {
       setDiagnosticContext({ operation: "analysis" });
-      if (!hasCompleteAnalysisSource(command.input, command.sentences)) {
+      const input =
+        "outputContract" in command.input
+          ? startAnalysisGenerationRequestSchema.parse(command.input)
+          : command.input;
+      if (!hasCompleteAnalysisSource(input, command.sentences)) {
         throw new DeepSeekAnalysisModelError("model_output_invalid", 0);
       }
-      const firstBody = buildDeepSeekAnalysisRequest(command.input, command.sentences);
+      const firstBody = buildDeepSeekAnalysisRequest(input, command.sentences);
+      const readContent =
+        "outputContract" in input ? readStructuredAnalysisContent : readDeepSeekAnalysisContent;
       const prices = await resolvePrices(options);
       const controller = modelDeadline(timeoutMs, command.signal);
       let firstToken = false;
@@ -104,12 +112,7 @@ export function createDeepSeekAnalysisModel(options: DeepSeekAnalysisModelOption
         const body =
           repairContent === undefined
             ? firstBody
-            : buildDeepSeekAnalysisRequest(
-                command.input,
-                command.sentences,
-                repairContent,
-                feedback,
-              );
+            : buildDeepSeekAnalysisRequest(input, command.sentences, repairContent, feedback);
         try {
           await command.beforeDispatch?.();
           controller.signal.throwIfAborted();
@@ -172,9 +175,9 @@ export function createDeepSeekAnalysisModel(options: DeepSeekAnalysisModelOption
 
       try {
         const first = await call();
-        const firstContent = readDeepSeekAnalysisContent(
+        const firstContent = readContent(
           first.content,
-          command.input,
+          input,
           command.sentences,
           first.usage,
           "first",
@@ -205,9 +208,9 @@ export function createDeepSeekAnalysisModel(options: DeepSeekAnalysisModelOption
           usage: providerCall.usage,
         }));
         const usageCostMicroUsd = billedCalls.reduce((total, item) => total + item.costMicroUsd, 0);
-        const repairedContent = readDeepSeekAnalysisContent(
+        const repairedContent = readContent(
           second.content,
-          command.input,
+          input,
           command.sentences,
           usage,
           "repair",

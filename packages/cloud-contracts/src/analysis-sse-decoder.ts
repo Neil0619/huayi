@@ -6,9 +6,9 @@ interface PendingEnvelope {
   id?: string;
 }
 
-export interface AnalysisSseDecoder {
-  finish(): AnalysisEvent[];
-  push(text: string): AnalysisEvent[];
+export interface AnalysisSseDecoder<Event = AnalysisEvent> {
+  finish(): Event[];
+  push(text: string): Event[];
 }
 
 export function createAnalysisSseDecoder(
@@ -17,6 +17,16 @@ export function createAnalysisSseDecoder(
     totalCharacters: 2 * 1_024 * 1_024,
   },
 ): AnalysisSseDecoder {
+  return createAnalysisEventSseDecoder(
+    (value) => analysisSseEnvelopeSchema.parse(value).data,
+    limits,
+  );
+}
+
+export function createAnalysisEventSseDecoder<Event>(
+  parseEnvelope: (value: unknown) => Event,
+  limits = { eventCharacters: 64 * 1_024, totalCharacters: 2 * 1_024 * 1_024 },
+): AnalysisSseDecoder<Event> {
   let buffered = "";
   let pending: PendingEnvelope = {};
   let eventCharacters = 0;
@@ -30,16 +40,16 @@ export function createAnalysisSseDecoder(
     }
   }
 
-  function consumeLine(line: string): AnalysisEvent | undefined {
+  function consumeLine(line: string): Event | undefined {
     if (line === "") {
+      eventCharacters = 0;
       if (Object.keys(pending).length === 0) return undefined;
-      const envelope = analysisSseEnvelopeSchema.parse({
+      const event = parseEnvelope({
         ...pending,
         data: parseData(pending.data),
       });
       pending = {};
-      eventCharacters = 0;
-      return envelope.data;
+      return event;
     }
     if (line.startsWith(":")) return undefined;
     const separator = line.indexOf(":");
@@ -55,16 +65,13 @@ export function createAnalysisSseDecoder(
     return undefined;
   }
 
-  function push(text: string): AnalysisEvent[] {
+  function push(text: string): Event[] {
     totalCharacters += text.length;
     if (totalCharacters > limits.totalCharacters) {
       throw new Error("Analysis event stream exceeded its limit.");
     }
     buffered += text;
-    if (eventCharacters + buffered.length > limits.eventCharacters) {
-      throw new Error("Analysis event stream exceeded its limit.");
-    }
-    const events: AnalysisEvent[] = [];
+    const events: Event[] = [];
     let newline = buffered.indexOf("\n");
     while (newline >= 0) {
       let line = buffered.slice(0, newline);
@@ -78,6 +85,9 @@ export function createAnalysisSseDecoder(
       const event = consumeLine(line);
       if (event !== undefined) events.push(event);
       newline = buffered.indexOf("\n");
+    }
+    if (eventCharacters + buffered.length > limits.eventCharacters) {
+      throw new Error("Analysis event stream exceeded its limit.");
     }
     return events;
   }

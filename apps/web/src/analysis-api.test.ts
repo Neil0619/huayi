@@ -1,6 +1,7 @@
 import { confirmCandidatesRequestSchema, contractFixtures } from "@huayi/cloud-contracts";
 import { describe, expect, it, vi } from "vitest";
 
+import { nativeWebAnalysis } from "./native-analysis.test-support.js";
 import { createWebAnalysisApi } from "./analysis-api.js";
 
 async function collect<T>(values: AsyncIterable<T>): Promise<T[]> {
@@ -34,9 +35,11 @@ describe("Web analysis API", () => {
     expect(String(fetch.mock.calls[0]?.[0])).toContain("reviewState=pendingReview");
   });
 
-  it("streams shared analysis events across fragmented UTF-8 chunks", async () => {
+  it("streams native analysis events across fragmented UTF-8 chunks", async () => {
+    const analysis = nativeWebAnalysis();
+    const completed = { ...contractFixtures.completedEvent, analysis };
     const encoded = new TextEncoder().encode(
-      `event: analysis\nid: 1\ndata: ${JSON.stringify(contractFixtures.completedEvent)}\n\n`,
+      `event: analysis\nid: 1\ndata: ${JSON.stringify(completed)}\n\n`,
     );
     const split = encoded.findIndex((byte) => byte >= 0x80) + 1;
     const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue(
@@ -58,8 +61,13 @@ describe("Web analysis API", () => {
     });
 
     await expect(
-      collect(api.startAnalysis(contractFixtures.startAnalysisRequest, "request-key")),
-    ).resolves.toEqual([contractFixtures.completedEvent]);
+      collect(
+        api.startAnalysis(
+          { ...contractFixtures.startAnalysisRequest, sourceText: analysis.sourceText },
+          "request-key",
+        ),
+      ),
+    ).resolves.toEqual([completed]);
     expect(fetch.mock.calls[0]?.[1]).toMatchObject({ credentials: "include", method: "POST" });
     expect(fetch.mock.calls[0]?.[1]?.headers).toMatchObject({ "X-CSRF-Token": "csrf-token" });
   });

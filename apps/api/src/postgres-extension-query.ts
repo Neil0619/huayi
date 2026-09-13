@@ -1,22 +1,23 @@
 import { DEEPSEEK_PLATFORM_MODEL } from "./deepseek-model-identity.js";
 import {
-  extensionQueryEventSchema,
-  extensionQueryGenerationSchema,
-  extensionQueryRequestSchema,
+  extensionQueryEventReadSchema,
+  extensionQueryGenerationReadSchema,
   quotaSummarySchema,
-  type ExtensionQueryEvent,
+  type ExtensionQueryEventRead,
   type QuotaSummary,
 } from "@huayi/cloud-contracts";
 
 import type { AnalysisDatabase, AnalysisQuery } from "./analysis-database.js";
 import { CloudFault } from "./cloud-fault.js";
 import type { ExtensionQueryStore } from "./extension-query-ports.js";
+import { storedQueryRequest, validateStoredQueryGeneration } from "./generation-snapshot.js";
 
 interface Row {
   created_at: Date;
   expires_at: Date;
   id: string;
   lease_expires_at: Date;
+  lease_token: string;
   request_hash: string;
   reservation_id: string | null;
   state: "running" | "completed" | "failed";
@@ -113,18 +114,19 @@ export function createPostgresExtensionQueryStore(options: {
     command:
       Parameters<ExtensionQueryStore["complete"]>[0] | Parameters<ExtensionQueryStore["fail"]>[0],
     outcome: "succeeded" | "failed",
-  ): Promise<ExtensionQueryEvent> =>
+  ): Promise<ExtensionQueryEventRead> =>
     options.database.transaction(command.userId, async ({ tenant, trusted }) => {
       const rows = await tenant.rows<Row>(
         `SELECT id::text,state,request_hash,reservation_id::text,terminal_event,created_at,
-        expires_at,lease_expires_at FROM extension_query_generations WHERE id=$1 FOR UPDATE`,
+        expires_at,lease_expires_at,lease_token FROM extension_query_generations WHERE id=$1 FOR UPDATE`,
         [command.id],
       );
       const row = rows[0];
       if (row === undefined || row.state !== "running" || row.lease_expires_at <= options.now()) {
         throw new Error("query lease lost");
       }
-      if (row.reservation_id !== command.reservationId) throw new Error("query lease lost");
+      if (row.reservation_id !== command.reservationId || row.lease_token !== command.leaseToken)
+        throw new Error("query lease lost");
       const fallbackCostMicroUsd =
         "result" in command ||
         command.billedCalls !== undefined ||
@@ -158,14 +160,14 @@ export function createPostgresExtensionQueryStore(options: {
         ],
       );
       const quota = await quotaSummary(tenant, command.userId);
-      const event = extensionQueryEventSchema.parse(
+      const event = extensionQueryEventReadSchema.parse(
         "result" in command
           ? { generationId: command.id, quota, result: command.result, type: "query.completed" }
           : { error: command.error, generationId: command.id, quota, type: "query.failed" },
       );
-      await tenant.rows(
+      const updated = await tenant.rows(
         `UPDATE extension_query_generations SET state=$2,terminal_event=$3::jsonb,updated_at=$4
-         WHERE id=$1 AND state='running' AND lease_token=$5`,
+         WHERE id=$1 AND state='running' AND lease_token=$5 RETURNING id`,
         [
           command.id,
           "result" in command ? "completed" : "failed",
@@ -174,6 +176,7 @@ export function createPostgresExtensionQueryStore(options: {
           command.leaseToken,
         ],
       );
+      if (updated.length !== 1) throw new Error("query lease lost");
       return event;
     });
 
@@ -186,7 +189,7 @@ export function createPostgresExtensionQueryStore(options: {
           options.ledgerId(),
         ]),
       );
-      const event = extensionQueryEventSchema.parse(rows[0]?.value);
+      const event = extensionQueryEventReadSchema.parse(rows[0]?.value);
       if (event.type !== "query.failed") throw new Error("Invalid abandoned query event.");
       return event;
     },
@@ -227,7 +230,7 @@ export function createPostgresExtensionQueryStore(options: {
               throw new Error("idempotency conflict");
             if (existing.state !== "running")
               return {
-                event: extensionQueryEventSchema.parse(existing.terminal_event),
+                event: extensionQueryEventReadSchema.parse(existing.terminal_event),
                 id: existing.id,
                 kind: "terminal" as const,
               };
@@ -248,7 +251,7 @@ export function createPostgresExtensionQueryStore(options: {
               command.userId,
               command.idempotencyKey,
               command.requestHash,
-              JSON.stringify(extensionQueryRequestSchema.parse(command.input)),
+              JSON.stringify(storedQueryRequest(command.input)),
               command.leaseToken,
               command.leaseExpiresAt,
               command.expiresAt,
@@ -291,13 +294,13 @@ export function createPostgresExtensionQueryStore(options: {
           id: row.id,
           state: row.state,
         };
-        if (row.state === "running") return extensionQueryGenerationSchema.parse(common);
-        const event = extensionQueryEventSchema.parse(row.terminal_event);
+        if (row.state === "running") return extensionQueryGenerationReadSchema.parse(common);
+        const event = extensionQueryEventReadSchema.parse(row.terminal_event);
         if (event.type === "query.completed") {
-          return extensionQueryGenerationSchema.parse({ ...common, result: event.result });
+          return extensionQueryGenerationReadSchema.parse({ ...common, result: event.result });
         }
         if (event.type !== "query.failed") throw new Error("Invalid terminal query event.");
-        return extensionQueryGenerationSchema.parse({ ...common, error: event.error });
+        return extensionQueryGenerationReadSchema.parse({ ...common, error: event.error });
       });
     },
     async markDispatched(command) {
@@ -306,6 +309,12 @@ export function createPostgresExtensionQueryStore(options: {
         const rows = await options.database.transaction(
           command.userId,
           async ({ tenant, trusted }) => {
+            const saved = await tenant.rows<{ request: unknown }>(
+              "SELECT request FROM extension_query_generations WHERE id=$1 AND lease_token=$2 AND state='running' FOR UPDATE",
+              [command.id, command.leaseToken],
+            );
+            if (saved[0] === undefined) throw new Error("query lease lost");
+            validateStoredQueryGeneration(saved[0].request);
             if (command.pricing !== undefined) {
               await trusted.rows("SELECT require_model_price_version($1,'deepseek',$2,$3,$4,$5)", [
                 command.pricing.priceVersionId,
@@ -340,7 +349,7 @@ export function createPostgresExtensionQueryStore(options: {
       }
     },
     async terminalizeWithoutReservation(command) {
-      const event = extensionQueryEventSchema.parse({
+      const event = extensionQueryEventReadSchema.parse({
         error: command.error,
         generationId: command.id,
         quota: command.quota,

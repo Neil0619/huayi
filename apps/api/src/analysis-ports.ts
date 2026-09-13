@@ -1,13 +1,13 @@
 import type {
-  AnalysisRecord,
+  AnalysisRecordRead,
   AnalysisDeleteResponse,
-  ConfirmCandidatesResponse,
+  ConfirmCandidatesReadResponse,
   LearningItemContent,
-  AnalysisEvent,
+  AnalysisEventRead,
   AnalysisRequestStatus,
   ModelUsage,
   QuotaSummary,
-  StartAnalysisRequest,
+  StartAnalysisGenerationRequest,
   StudyCaptureAnalyzeRequest,
   StudyCaptureDetailResponse,
   AnalysisContent,
@@ -27,7 +27,7 @@ export interface AnalysisBilledCall {
 export interface AnalysisModel {
   analyze(
     command: ModelExecution & {
-      input: StartAnalysisRequest;
+      input: StartAnalysisGenerationRequest;
       sentences: readonly SegmentedSentence[];
     },
   ): Promise<{
@@ -56,20 +56,20 @@ export interface AnalysisQuota {
   summary(userId: string): Promise<QuotaSummary> | QuotaSummary;
 }
 export interface AnalysisRepository {
-  archive(command: AnalysisHistoryMutation): Promise<AnalysisRecord>;
-  confirmCandidates(command: ConfirmCandidatesCommand): Promise<ConfirmCandidatesResponse>;
+  archive(command: AnalysisHistoryMutation): Promise<AnalysisRecordRead>;
+  confirmCandidates(command: ConfirmCandidatesCommand): Promise<ConfirmCandidatesReadResponse>;
   delete(command: AnalysisHistoryMutation): Promise<AnalysisDeleteResponse>;
-  findById(userId: string, id: string): Promise<AnalysisRecord | null>;
+  findById(userId: string, id: string): Promise<AnalysisRecordRead | null>;
   list(
     userId: string,
     query: AnalysisHistoryQuery,
-  ): Promise<{ hasMore: boolean; items: AnalysisRecord[] }>;
-  processNothingToSave(command: AnalysisHistoryMutation): Promise<AnalysisRecord>;
+  ): Promise<{ hasMore: boolean; items: AnalysisRecordRead[] }>;
+  processNothingToSave(command: AnalysisHistoryMutation): Promise<AnalysisRecordRead>;
   replayCandidateConfirmation(
     command: CandidateConfirmationReplayCommand,
-  ): Promise<ConfirmCandidatesResponse | null>;
-  restore(command: AnalysisHistoryMutation): Promise<AnalysisRecord>;
-  save(userId: string, record: AnalysisRecord): Promise<AnalysisRecord>;
+  ): Promise<ConfirmCandidatesReadResponse | null>;
+  restore(command: AnalysisHistoryMutation): Promise<AnalysisRecordRead>;
+  save(userId: string, record: AnalysisRecordRead): Promise<AnalysisRecordRead>;
 }
 export interface CandidateConfirmationReplayCommand {
   idempotencyKey: string;
@@ -134,30 +134,30 @@ export interface AnalysisCommitter {
   complete(command: {
     actualCostMicroUsd?: number;
     billedCalls?: readonly AnalysisBilledCall[];
-    record: AnalysisRecord;
+    record: AnalysisRecordRead;
     requestId: string;
     reservationId: string;
     leaseToken: string;
     priceVersionId?: string;
     usage?: ModelUsage;
     userId: string;
-  }): Promise<{ quota: QuotaSummary; record: AnalysisRecord }>;
+  }): Promise<{ quota: QuotaSummary; record: AnalysisRecordRead }>;
   fail(command: {
     actualCostMicroUsd?: number;
     billedCalls?: readonly AnalysisBilledCall[];
-    error: Extract<AnalysisEvent, { type: "analysis.failed" }>["error"];
+    error: Extract<AnalysisEventRead, { type: "analysis.failed" }>["error"];
     leaseToken: string;
     priceVersionId?: string;
     requestId: string;
     reservationId: string;
     usage?: ModelUsage;
     userId: string;
-  }): Promise<Extract<AnalysisEvent, { type: "analysis.failed" }>>;
+  }): Promise<Extract<AnalysisEventRead, { type: "analysis.failed" }>>;
 }
 export type AnalysisRequestClaim =
   | { kind: "acquired"; leaseToken: string; requestId: string }
   | { kind: "running"; requestId: string; unitCount: number }
-  | { event: AnalysisEvent; kind: "terminal"; requestId: string };
+  | { event: AnalysisEventRead; kind: "terminal"; requestId: string };
 export interface AnalysisRequestLifecycle {
   attachReservation(command: {
     leaseToken: string;
@@ -198,7 +198,7 @@ export interface AnalysisRequestLifecycle {
   }): Promise<AnalysisRequestClaim>;
   get(userId: string, requestId: string): Promise<AnalysisRequestStatus | null>;
   terminalizeWithoutReservation(command: {
-    error: Extract<AnalysisEvent, { type: "analysis.failed" }>["error"];
+    error: Extract<AnalysisEventRead, { type: "analysis.failed" }>["error"];
     leaseToken: string;
     quota: QuotaSummary;
     requestId: string;

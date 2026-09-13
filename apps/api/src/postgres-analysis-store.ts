@@ -1,7 +1,7 @@
 import {
   analysisDeleteResponseSchema,
-  analysisEventSchema,
-  analysisRecordSchema,
+  analysisEventReadSchema,
+  analysisRecordReadSchema,
 } from "@huayi/cloud-contracts";
 
 import type { AnalysisDatabase, AnalysisQuery } from "./analysis-database.js";
@@ -9,6 +9,7 @@ import type { AnalysisCommitter, AnalysisRepository } from "./analysis-ports.js"
 import { deletePostgresAnalysis, mutatePostgresAnalysis } from "./postgres-analysis-mutations.js";
 import { replayPostgresCandidateConfirmation } from "./postgres-candidate-confirmation-replay.js";
 import { confirmPostgresCandidates } from "./postgres-candidate-confirmation.js";
+import { validateAnalysisRecordForPersistence } from "./analysis-record-persistence.js";
 
 interface AnalysisRow {
   archived_at: Date | null;
@@ -40,7 +41,7 @@ const selectRecord = `SELECT id::text, review_state, archived_at, source_type, s
   FROM analysis_records records`;
 
 function mapRecord(row: AnalysisRow) {
-  return analysisRecordSchema.parse({
+  return analysisRecordReadSchema.parse({
     archivedAt: row.archived_at?.toISOString() ?? null,
     candidates: row.candidates,
     createdAt: row.created_at.toISOString(),
@@ -69,15 +70,15 @@ export function createPostgresAnalysisStore(options: {
 }): AnalysisRepository & AnalysisCommitter {
   return {
     async archive(command) {
-      return analysisRecordSchema.parse(
+      return analysisRecordReadSchema.parse(
         await mutatePostgresAnalysis(options.database, "analysis.archive", command),
       );
     },
     async complete(command) {
+      const record = validateAnalysisRecordForPersistence(command.record);
       const quota = await options.database.transaction(
         command.userId,
         async ({ tenant, trusted }) => {
-          const record = command.record;
           await trusted.rows("SELECT require_analysis_lease($1,$2,$3)", [
             command.userId,
             command.requestId,
@@ -143,7 +144,7 @@ export function createPostgresAnalysisStore(options: {
             ],
           );
           const quota = await quotaSummary(tenant, command.userId);
-          const event = analysisEventSchema.parse({
+          const event = analysisEventReadSchema.parse({
             analysis: record,
             quota,
             type: "analysis.completed",
@@ -157,7 +158,7 @@ export function createPostgresAnalysisStore(options: {
           return quota;
         },
       );
-      return { quota, record: command.record };
+      return { quota, record };
     },
     async confirmCandidates(command) {
       return confirmPostgresCandidates(options.database, command);
@@ -192,7 +193,7 @@ export function createPostgresAnalysisStore(options: {
             JSON.stringify(calls),
           ],
         );
-        const parsedEvent = analysisEventSchema.parse({
+        const parsedEvent = analysisEventReadSchema.parse({
           error: command.error,
           quota: await quotaSummary(tenant, command.userId),
           type: "analysis.failed",
@@ -247,11 +248,12 @@ export function createPostgresAnalysisStore(options: {
       };
     },
     async processNothingToSave(command) {
-      return analysisRecordSchema.parse(
+      return analysisRecordReadSchema.parse(
         await mutatePostgresAnalysis(options.database, "analysis.process", command),
       );
     },
-    async save(userId, record) {
+    async save(userId, value) {
+      const record = validateAnalysisRecordForPersistence(value);
       await options.database.transaction(userId, async ({ tenant }) => {
         await tenant.rows(
           `INSERT INTO analysis_records (id,owner_user_id,study_capture_id,review_state,source_type,
@@ -295,7 +297,7 @@ export function createPostgresAnalysisStore(options: {
       return record;
     },
     async restore(command) {
-      return analysisRecordSchema.parse(
+      return analysisRecordReadSchema.parse(
         await mutatePostgresAnalysis(options.database, "analysis.restore", command),
       );
     },

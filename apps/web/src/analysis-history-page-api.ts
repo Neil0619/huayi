@@ -1,4 +1,7 @@
-import type { AnalysisRecord, ListAnalysesQuery } from "@huayi/cloud-contracts";
+import type {
+  AnalysisRecordRead as AnalysisRecord,
+  ListAnalysesQuery,
+} from "@huayi/cloud-contracts";
 
 export interface AnalysisHistoryPageApi {
   archiveAnalysis(id: string, revision: number, key: string): Promise<AnalysisRecord>;

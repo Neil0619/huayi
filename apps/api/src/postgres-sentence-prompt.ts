@@ -1,3 +1,4 @@
+import { readPracticeTeachingState } from "./postgres-practice-teaching-view.js";
 import { practiceSessionResponseSchema, type PracticeSession } from "@huayi/cloud-contracts";
 
 import type { AnalysisDatabase, AnalysisQuery } from "./analysis-database.js";
@@ -13,6 +14,20 @@ import {
 type BeginCommand = Parameters<PracticeRepository["beginSentence"]>[0];
 type CompleteCommand = Parameters<PracticeRepository["completeSentencePrompt"]>[0];
 type ReleaseCommand = Parameters<PracticeRepository["releaseSentencePromptLease"]>[0];
+
+async function teachingPromptInput(query: AnalysisQuery, id: string) {
+  const state = await readPracticeTeachingState(query, id);
+  if (state === null) return {};
+  if (state.target.state !== "available")
+    throw new CloudFault("not_found", "Learning target is unavailable.");
+  return {
+    promptInput: {
+      itemContent: state.target.content,
+      teachingContract: state.contract,
+      hintPolicy: state.hintPolicy,
+    },
+  };
+}
 
 async function begin(trusted: AnalysisQuery, command: BeginCommand) {
   const rows = await trusted.rows<{ response: unknown }>(
@@ -108,6 +123,7 @@ export function createPostgresSentencePromptOperations(
               claimed: true,
               generationId: current.current_generation_id,
               item: requestedItem,
+              ...(await teachingPromptInput(tenant, current.id)),
               leaseToken: current.task_lease_token,
               session,
             };
@@ -124,10 +140,16 @@ export function createPostgresSentencePromptOperations(
                   claimed: true,
                   generationId: current.current_generation_id,
                   item: requestedItem,
+                  ...(await teachingPromptInput(tenant, current.id)),
                   leaseToken: current.task_lease_token,
                   session,
                 }
-              : { claimed: false, item: requestedItem, session };
+              : {
+                  claimed: false,
+                  item: requestedItem,
+                  ...(await teachingPromptInput(tenant, current.id)),
+                  session,
+                };
           }
           if (
             ["claimed", "reserved"].includes(current.task_state ?? "") &&
@@ -135,7 +157,12 @@ export function createPostgresSentencePromptOperations(
             current.generation_lease_expires_at.getTime() > Date.parse(command.now)
           ) {
             await savePending(tenant, command, session);
-            return { claimed: false, item: requestedItem, session };
+            return {
+              claimed: false,
+              item: requestedItem,
+              ...(await teachingPromptInput(tenant, current.id)),
+              session,
+            };
           }
           let generationId = current.current_generation_id;
           if (["claimed", "reserved"].includes(current.task_state ?? "")) {
@@ -187,6 +214,7 @@ export function createPostgresSentencePromptOperations(
             claimed: true,
             generationId,
             item: requestedItem,
+            ...(await teachingPromptInput(tenant, current.id)),
             leaseToken: command.generationLeaseToken,
             session: claimed,
           };
@@ -248,6 +276,7 @@ export function createPostgresSentencePromptOperations(
           claimed: true,
           generationId: command.generationId,
           item: activeRequestedItem,
+          ...(await teachingPromptInput(tenant, command.sessionId)),
           leaseToken: command.generationLeaseToken,
           session,
         };
@@ -255,6 +284,9 @@ export function createPostgresSentencePromptOperations(
     },
     async completeSentencePrompt(command: CompleteCommand) {
       return database.transaction(command.ownerUserId, async ({ tenant }) => {
+        await tenant.rows("SELECT id FROM practice_sessions WHERE id=$1 FOR UPDATE", [
+          command.sessionId,
+        ]);
         const applied = await tenant.rows<{ id: string }>(
           `UPDATE practice_generation_tasks SET state='applied',output=NULL,updated_at=$3
             WHERE session_id=$1 AND owner_user_id=$2 AND lease_token=$4 AND state='ready'

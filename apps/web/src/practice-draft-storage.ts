@@ -3,7 +3,10 @@ const ttl = 7 * 86_400_000;
 
 // Only restore after the server has authorized this exact session. Tab storage is
 // a short-lived write buffer; the server remains the durable source of truth.
-export function readPracticeDraft(id: string, revision: number): string | null {
+export function readPracticeDraft(
+  id: string,
+  revision: number,
+): { text: string; conflict: boolean } | null {
   try {
     const value: unknown = JSON.parse(sessionStorage.getItem(prefix + id) ?? "null");
     if (
@@ -19,21 +22,35 @@ export function readPracticeDraft(id: string, revision: number): string | null {
       typeof value.at === "number" &&
       Date.now() - value.at < ttl &&
       typeof value.revision === "number" &&
-      value.revision >= revision
-      ? value.text
+      Number.isInteger(value.revision)
+      ? {
+          text: value.text,
+          conflict: value.revision !== revision || ("conflict" in value && value.conflict === true),
+        }
       : null;
   } catch {
     return null;
   }
 }
 
-export function writePracticeDraft(id: string, text: string, revision: number) {
+export function writePracticeDraft(id: string, text: string, revision: number, conflict = false) {
   try {
     const keys = Object.keys(sessionStorage).filter((key) => key.startsWith(prefix));
     for (const key of keys.slice(0, Math.max(0, keys.length - 19)))
       if (key !== prefix + id) sessionStorage.removeItem(key);
-    sessionStorage.setItem(prefix + id, JSON.stringify({ text, revision, at: Date.now() }));
+    sessionStorage.setItem(
+      prefix + id,
+      JSON.stringify({ text, revision, conflict, at: Date.now() }),
+    );
   } catch {
     /* Server draft saving still works when tab storage is unavailable. */
+  }
+}
+
+export function clearPracticeDraft(id: string) {
+  try {
+    sessionStorage.removeItem(prefix + id);
+  } catch {
+    /* Storage is optional. */
   }
 }

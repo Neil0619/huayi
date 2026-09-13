@@ -60,6 +60,60 @@ function response(content: unknown, inputTokens = 100, outputTokens = 50) {
 }
 
 describe("DeepSeek practice provider", () => {
+  it("projects one valid teaching result and does not require an invented problem", async () => {
+    const teachingFeedback = {
+      assessment: "ready",
+      mainPointZh: "表达准确。",
+      exampleSentence: "To be frank, I need more time.",
+      usageNoteZh: "用来坦率说明自己的需要。",
+    };
+    const fetch = vi.fn<DeepSeekAnalysisFetch>(async () =>
+      response({ kind: "sentence-feedback", teachingFeedback }),
+    );
+    const provider = createDeepSeekPracticeProvider({ apiKey: "test-key", fetch, prices });
+    await expect(
+      provider.generate({
+        kind: "sentence-feedback",
+        input: {
+          ...input,
+          teachingContract: "practice-teaching-v1",
+          answer: "To be frank, I need more time.",
+          prompt: "说明你的需要。",
+        },
+      }),
+    ).resolves.toMatchObject({
+      output: {
+        teachingFeedback,
+        feedback:
+          "表达准确。\n示例：To be frank, I need more time.\n用法：用来坦率说明自己的需要。",
+      },
+    });
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+  it("repairs an on-demand prompt leaking English without previewing that target", async () => {
+    const fetch = vi
+      .fn<DeepSeekAnalysisFetch>()
+      .mockResolvedValueOnce(
+        response({ kind: "sentence-prompt", prompt: "请用 to be frank 向同事说明需要更多时间。" }),
+      )
+      .mockResolvedValueOnce(
+        response({ kind: "sentence-prompt", prompt: "请向同事坦率说明你需要更多时间。" }),
+      );
+    const onPreview = vi.fn();
+    const provider = createDeepSeekPracticeProvider({ apiKey: "test-key", fetch, prices });
+    await expect(
+      provider.generate({
+        kind: "sentence-prompt",
+        input: { ...input, teachingContract: "practice-teaching-v1", hintPolicy: "on-demand" },
+        onPreview,
+      }),
+    ).resolves.toMatchObject({
+      output: { prompt: "请向同事坦率说明你需要更多时间。" },
+      billedCalls: [{ costMicroUsd: 200 }, { costMicroUsd: 200 }],
+    });
+    expect(JSON.stringify(onPreview.mock.calls)).not.toContain("to be frank");
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
   it.each([
     {
       kind: "sentence-prompt" as const,

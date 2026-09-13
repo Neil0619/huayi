@@ -52,7 +52,7 @@ function fixture() {
     list: vi.fn(async (): Promise<LearningTaskSnapshot[]> => []),
     get: vi.fn(async () => job),
     cancel: vi.fn(async () => job),
-    watch: vi.fn<NonNullable<WebStudyCaptureApi["tasks"]>["watch"]>(async function* () {
+    watch: vi.fn<NonNullable<WebStudyCaptureApi["analysisTasks"]>["watch"]>(async function* () {
       yield {
         type: "analysis.preview",
         requestId: "request-1",
@@ -62,7 +62,7 @@ function fixture() {
     }),
   };
   const api = {
-    tasks,
+    analysisTasks: tasks,
     createCapture: vi.fn(async () => ({ outcome: "existing" as const, capture: detail.capture })),
     getCapture: vi.fn(async () => detail),
     patchCapture: vi.fn<WebStudyCaptureApi["patchCapture"]>(async (_id, input) => ({

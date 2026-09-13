@@ -1,6 +1,7 @@
+import { assertCaptureAnalysis } from "./analysis-event-binding.js";
 import type {
-  AnalysisRecord,
-  LearningTaskSnapshot,
+  AnalysisRecordRead as AnalysisRecord,
+  LearningTaskSnapshotRead as LearningTaskSnapshot,
   StudyCaptureDetailResponse,
 } from "@huayi/cloud-contracts";
 export interface CollectionEntry {
@@ -10,6 +11,14 @@ export interface CollectionEntry {
   capture?: StudyCaptureDetailResponse;
   analysis?: AnalysisRecord;
   task?: LearningTaskSnapshot;
+}
+function matchesCapture(record: AnalysisRecord, capture: StudyCaptureDetailResponse) {
+  try {
+    assertCaptureAnalysis(record, capture.capture);
+    return true;
+  } catch {
+    return false;
+  }
 }
 export function collectionEntries(
   captures: StudyCaptureDetailResponse[],
@@ -25,7 +34,9 @@ export function collectionEntries(
         (job) => job.kind === "capture-analysis" && job.subjectId === capture.capture.id,
       );
       const completed =
-        task?.output?.type === "analysis.completed" ? task.output.analysis : undefined;
+        task?.output?.type === "analysis.completed" && matchesCapture(task.output.analysis, capture)
+          ? task.output.analysis
+          : undefined;
       const pointer =
         completed &&
         (!capture.latestAnalysis || completed.createdAt > capture.latestAnalysis.createdAt)
@@ -33,7 +44,8 @@ export function collectionEntries(
           : capture.latestAnalysis;
       const current = [...analyses, completed]
         .filter(
-          (record): record is AnalysisRecord => record !== undefined && record.id === pointer?.id,
+          (record): record is AnalysisRecord =>
+            record !== undefined && record.id === pointer?.id && matchesCapture(record, capture),
         )
         .sort((a, b) => b.revision - a.revision)[0];
       // A task output is an immutable snapshot. A newer server revision must be fetched again.

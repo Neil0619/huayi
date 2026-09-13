@@ -1,15 +1,16 @@
 import {
-  extensionQueryEventSchema,
-  extensionQueryGenerationSchema,
-  extensionQueryRequestSchema,
-  storeAnalysisResultSchema,
-  type ExtensionQueryEvent,
-  type ExtensionQueryRequest,
+  extensionQueryEventReadSchema,
+  extensionQueryGenerationReadSchema,
+  extensionQueryGenerationRequestSchema,
+  type ExtensionQueryEventRead,
+  type ExtensionQueryGenerationRequest,
 } from "@huayi/cloud-contracts";
 import { createHash } from "node:crypto";
 
 import { CloudFault } from "./cloud-fault.js";
 import { modelEvents } from "./model-events.js";
+import { validateQueryGenerationResult } from "./query-generation-result.js";
+import { modelUsageFromError } from "./analysis-error-mapping.js";
 import type { ModelExecution } from "./model-execution.js";
 import type {
   ExtensionQueryModel,
@@ -29,7 +30,7 @@ interface Dependencies {
   readonly priceVersionId?: string;
   readonly pricing?: DeepSeekPriceSchedule;
   readonly quota: ExtensionQueryQuota;
-  readonly reservedCostMicroUsd: (input: ExtensionQueryRequest) => number;
+  readonly reservedCostMicroUsd: (input: ExtensionQueryGenerationRequest) => number;
   readonly store: ExtensionQueryStore;
 }
 
@@ -48,7 +49,9 @@ function failure(error: unknown, requestId: string) {
   } as const;
 }
 
-async function* replay(...events: ExtensionQueryEvent[]): AsyncIterable<ExtensionQueryEvent> {
+async function* replay(
+  ...events: ExtensionQueryEventRead[]
+): AsyncIterable<ExtensionQueryEventRead> {
   for (const event of events) yield structuredClone(event);
 }
 
@@ -56,10 +59,10 @@ export function createExtensionQueryModule(dependencies: Dependencies) {
   async function prepare(command: {
     execution?: ModelExecution;
     idempotencyKey: string;
-    input: ExtensionQueryRequest;
+    input: ExtensionQueryGenerationRequest;
     userId: string;
-  }): Promise<AsyncIterable<ExtensionQueryEvent>> {
-    const input = extensionQueryRequestSchema.parse(command.input);
+  }): Promise<AsyncIterable<ExtensionQueryEventRead>> {
+    const input = extensionQueryGenerationRequestSchema.parse(command.input);
     const now = dependencies.now();
     const id = dependencies.ids();
     const leaseToken = dependencies.ids();
@@ -73,7 +76,7 @@ export function createExtensionQueryModule(dependencies: Dependencies) {
       requestHash: createHash("sha256").update(JSON.stringify(input)).digest("hex"),
       userId: command.userId,
     });
-    const started = extensionQueryEventSchema.parse({
+    const started = extensionQueryEventReadSchema.parse({
       generationId: claim.id,
       type: "query.started",
     });
@@ -123,45 +126,71 @@ export function createExtensionQueryModule(dependencies: Dependencies) {
     command: {
       execution?: ModelExecution;
       idempotencyKey: string;
-      input: ExtensionQueryRequest;
+      input: ExtensionQueryGenerationRequest;
       userId: string;
     };
-    input: ExtensionQueryRequest;
+    input: ExtensionQueryGenerationRequest;
     reservation: { id: string };
-    started: ExtensionQueryEvent;
-  }): AsyncIterable<ExtensionQueryEvent> {
+    started: ExtensionQueryEventRead;
+  }): AsyncIterable<ExtensionQueryEventRead> {
     yield context.started;
     const dispatchedAt = dependencies.now();
     const dispatchPricing = dependencies.pricing?.at(dispatchedAt);
-    await dependencies.store.markDispatched({
-      ...(dispatchPricing === undefined ? {} : { dispatchedAt, pricing: dispatchPricing }),
-      id: context.claim.id,
-      leaseToken: context.claim.leaseToken,
-      userId: context.command.userId,
-    });
+    let generatedBilling:
+      | Pick<
+          Awaited<ReturnType<ExtensionQueryModel["run"]>>,
+          "billedCalls" | "costMicroUsd" | "usage"
+        >
+      | undefined = {
+      costMicroUsd: 0,
+      usage: { cachedInputTokens: 0, inputTokens: 0, outputTokens: 0 },
+    };
+    let sequence = 0;
     try {
+      await dependencies.store.markDispatched({
+        ...(dispatchPricing === undefined ? {} : { dispatchedAt, pricing: dispatchPricing }),
+        id: context.claim.id,
+        leaseToken: context.claim.leaseToken,
+        userId: context.command.userId,
+      });
       const model =
         dispatchPricing === undefined || dependencies.modelForPricing === undefined
           ? dependencies.model
           : dependencies.modelForPricing(dispatchPricing);
-      const generated = yield* modelEvents((emit: (event: ExtensionQueryEvent) => void) =>
+      generatedBilling = undefined;
+      const generated = yield* modelEvents((emit: (event: ExtensionQueryEventRead) => void) =>
         model.run(context.input, context.claim.id, {
           ...context.command.execution,
           onPreview: (update) =>
             emit(
-              extensionQueryEventSchema.parse({
+              extensionQueryEventReadSchema.parse({
                 generationId: context.claim.id,
                 type: "query.preview-v2",
                 version: 2,
-                update,
+                update: { ...update, sequence: sequence++ },
               }),
             ),
         }),
       );
-      const result = storeAnalysisResultSchema.parse(generated.result);
-      yield await dependencies.store.complete({
+      generatedBilling = {
         ...(generated.billedCalls === undefined ? {} : { billedCalls: generated.billedCalls }),
-        costMicroUsd: generated.costMicroUsd,
+        costMicroUsd:
+          generated.billedCalls?.reduce((sum, call) => sum + call.costMicroUsd, 0) ??
+          generated.costMicroUsd,
+        usage: generated.usage,
+      };
+      const result = validateQueryGenerationResult(generated.result, context.input);
+      if (result.type === "explain-sentence-v2") {
+        for (const unit of result.sentenceStructures)
+          yield extensionQueryEventReadSchema.parse({
+            type: "query.structure",
+            generationId: context.claim.id,
+            sequence: sequence++,
+            unit,
+          });
+      }
+      yield await dependencies.store.complete({
+        ...generatedBilling,
         id: context.claim.id,
         leaseToken: context.claim.leaseToken,
         ...(dispatchPricing === undefined
@@ -173,14 +202,15 @@ export function createExtensionQueryModule(dependencies: Dependencies) {
         userId: context.command.userId,
       });
     } catch (error) {
-      const value = error as {
-        billedCalls?: readonly { costMicroUsd: number; usage: never }[];
-        usage?: never;
-        usageCostMicroUsd?: number;
+      const failureUsage = modelUsageFromError(error);
+      const value = generatedBilling ?? {
+        billedCalls: failureUsage.billedCalls,
+        usage: failureUsage.usage,
+        costMicroUsd: failureUsage.usageCostMicroUsd,
       };
       yield await dependencies.store.fail({
         ...(value.billedCalls === undefined ? {} : { billedCalls: value.billedCalls }),
-        ...(value.usageCostMicroUsd === undefined ? {} : { costMicroUsd: value.usageCostMicroUsd }),
+        ...(value.costMicroUsd === undefined ? {} : { costMicroUsd: value.costMicroUsd }),
         error: failure(error, context.claim.id),
         id: context.claim.id,
         leaseToken: context.claim.leaseToken,
@@ -196,7 +226,9 @@ export function createExtensionQueryModule(dependencies: Dependencies) {
 
   return {
     get: async (userId: string, id: string) =>
-      extensionQueryGenerationSchema.nullable().parse(await dependencies.store.find(userId, id)),
+      extensionQueryGenerationReadSchema
+        .nullable()
+        .parse(await dependencies.store.find(userId, id)),
     prepare,
   };
 }

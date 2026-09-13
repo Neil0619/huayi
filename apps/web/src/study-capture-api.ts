@@ -1,23 +1,29 @@
-import { createWebLearningTasks } from "./learning-task-api.js";
+import {
+  createAnalysisEventBinding,
+  invalidAnalysisResponse,
+  readBoundAnalysisStatus,
+} from "./analysis-event-binding.js";
+import { createWebStructuredLearningTasks } from "./learning-task-api.js";
 import {
   apiErrorSchema,
   studyCaptureCreateRequestSchema,
   studyCaptureCreateResponseSchema,
   analysisHttpRoutes,
-  analysisRequestStatusSchema,
-  createAnalysisSseDecoder,
+  createStructuredAnalysisSseDecoder,
   revisionWriteHeadersSchema,
   studyCaptureDeleteRequestSchema,
   studyCaptureDeleteResponseSchema,
   studyCaptureDetailResponseSchema,
-  studyCaptureAnalyzeRequestSchema,
+  type studyCaptureAnalyzeRequestSchema,
+  structuredCaptureAnalyzeRequestSchema,
+  structuredTeachingAccept,
   studyCaptureHttpRoutes,
   studyCaptureListQuerySchema,
   studyCaptureListResponseSchema,
   studyCapturePatchRequestSchema,
   studyCapturePatchResponseSchema,
   type ApiError,
-  type AnalysisEvent,
+  type AnalysisEventRead as AnalysisEvent,
   type StudyCaptureListQuery,
 } from "@huayi/cloud-contracts";
 
@@ -70,8 +76,19 @@ export function createWebStudyCaptureApi(options: Options) {
       method,
     });
   };
+  const readCapture = async (id: string, signal?: AbortSignal) => {
+    const result = studyCaptureDetailResponseSchema.parse(
+      await execute(new URL(path(studyCaptureHttpRoutes.detail, id), options.apiOrigin), {
+        credentials: "include",
+        method: "GET",
+        ...(signal ? { signal } : {}),
+      }),
+    );
+    if (result.capture.id !== id) invalidAnalysisResponse();
+    return result;
+  };
   return {
-    tasks: createWebLearningTasks(options),
+    analysisTasks: createWebStructuredLearningTasks(options),
     async createCapture(
       input: ReturnType<typeof studyCaptureCreateRequestSchema.parse>,
       key: string,
@@ -95,7 +112,19 @@ export function createWebStudyCaptureApi(options: Options) {
       idempotencyKey: string,
       signal?: AbortSignal,
     ): AsyncIterable<AnalysisEvent> {
-      const parsed = studyCaptureAnalyzeRequestSchema.parse(input);
+      const parsed = structuredCaptureAnalyzeRequestSchema.parse({
+        ...input,
+        outputContract: "structured-teaching-v1",
+      });
+      const saved = await readCapture(id, signal);
+      const binding = createAnalysisEventBinding({
+        sourceText: saved.capture.sourceText,
+        ...(saved.capture.revision === parsed.expectedRevision
+          ? { selectionKind: saved.capture.kind }
+          : {}),
+        captureId: id,
+        requireStructured: true,
+      });
       const csrf = await options.csrfToken();
       const response = await options.fetch(
         new URL(path(studyCaptureHttpRoutes.analyze, id), options.apiOrigin),
@@ -103,7 +132,7 @@ export function createWebStudyCaptureApi(options: Options) {
           body: JSON.stringify(parsed),
           credentials: "include",
           headers: {
-            Accept: "text/event-stream",
+            Accept: structuredTeachingAccept.eventStream,
             "Content-Type": "application/json",
             "Idempotency-Key": idempotencyKey,
             "X-Huayi-Revision": `"${parsed.expectedRevision}"`,
@@ -126,16 +155,17 @@ export function createWebStudyCaptureApi(options: Options) {
       if (response.body === null) throw new Error("Huayi API returned no analysis event stream.");
       const reader = response.body.getReader();
       const text = new TextDecoder("utf-8", { fatal: true });
-      const decoder = createAnalysisSseDecoder();
+      const decoder = createStructuredAnalysisSseDecoder();
       let finished = false;
       try {
         while (true) {
           const chunk = await reader.read();
           if (chunk.done) break;
-          for (const event of decoder.push(text.decode(chunk.value, { stream: true }))) yield event;
+          for (const event of decoder.push(text.decode(chunk.value, { stream: true })))
+            yield binding.accept(event);
         }
-        for (const event of decoder.push(text.decode())) yield event;
-        for (const event of decoder.finish()) yield event;
+        for (const event of decoder.push(text.decode())) yield binding.accept(event);
+        for (const event of decoder.finish()) yield binding.accept(event);
         finished = true;
       } finally {
         if (!finished) await reader.cancel().catch(() => undefined);
@@ -152,7 +182,8 @@ export function createWebStudyCaptureApi(options: Options) {
       if (!/^[A-Za-z0-9_-]{1,128}$/u.test(requestId)) {
         throw new TypeError("Analysis request ID is invalid.");
       }
-      return analysisRequestStatusSchema.parse(
+      return readBoundAnalysisStatus(
+        requestId,
         await execute(
           new URL(
             analysisHttpRoutes.status.replace(":requestId", encodeURIComponent(requestId)),
@@ -162,14 +193,7 @@ export function createWebStudyCaptureApi(options: Options) {
         ),
       );
     },
-    async getCapture(id: string) {
-      return studyCaptureDetailResponseSchema.parse(
-        await execute(new URL(path(studyCaptureHttpRoutes.detail, id), options.apiOrigin), {
-          credentials: "include",
-          method: "GET",
-        }),
-      );
-    },
+    getCapture: readCapture,
     async listCaptures(query: Partial<StudyCaptureListQuery>) {
       const parsed = studyCaptureListQuerySchema.parse(query);
       const url = new URL(studyCaptureHttpRoutes.list, options.apiOrigin);
@@ -194,5 +218,5 @@ export function createWebStudyCaptureApi(options: Options) {
 }
 
 type CaptureApi = ReturnType<typeof createWebStudyCaptureApi>;
-export type WebStudyCaptureApi = Omit<CaptureApi, "tasks" | "createCapture"> &
-  Partial<Pick<CaptureApi, "tasks" | "createCapture">>;
+export type WebStudyCaptureApi = Omit<CaptureApi, "analysisTasks" | "createCapture"> &
+  Partial<Pick<CaptureApi, "analysisTasks" | "createCapture">>;

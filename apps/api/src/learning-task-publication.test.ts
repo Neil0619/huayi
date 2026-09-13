@@ -1,7 +1,7 @@
 import {
   contractFixtures,
   createLearningTaskClient,
-  type LearningTaskEvent,
+  type LearningTaskEventRead,
   type LearningTaskPayload,
   type LearningTaskSnapshot,
 } from "@huayi/cloud-contracts";
@@ -46,7 +46,7 @@ it("publishes an unfinished provider delta through the worker and SSE within 250
     output: null,
     timings: {},
   };
-  const events: LearningTaskEvent[] = [];
+  const events: LearningTaskEventRead[] = [];
   const store: LearningTaskStore = {
     submit: async () => snapshot,
     get: async () => ({ ...snapshot }),

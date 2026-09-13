@@ -23,6 +23,8 @@ describe("Cloud V1 current migration chain", () => {
       "read_password_signup_state(text)",
       "compare_password_signup_state(text,text,text)",
       "release_password_recovery_completion(text,text,timestamptz)",
+      "claim_account_export_v2(text,timestamptz)",
+      "claim_account_export_v3(text,timestamptz)",
     ]) {
       expect(
         (

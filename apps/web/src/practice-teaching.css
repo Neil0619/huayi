@@ -1,0 +1,113 @@
+.practice-hint-choice {
+  display: flex;
+  align-items: start;
+  gap: var(--space-2);
+  margin: var(--space-4) 0;
+  color: var(--text-secondary);
+}
+
+.practice-hint-choice input {
+  flex: 0 0 auto;
+  margin-top: var(--space-1);
+}
+
+.practice-teaching-feedback {
+  display: grid;
+  gap: var(--space-4);
+  margin: var(--space-4) 0;
+}
+
+.practice-teaching-feedback h4,
+.practice-attempt-review h4 {
+  margin: 0 0 var(--space-2);
+  font-size: 0.95rem;
+}
+
+.practice-teaching-feedback p,
+.practice-feedback-text,
+.practice-attempt-review blockquote {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.practice-feedback-main {
+  padding: var(--space-4);
+  border-left: 3px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-tint);
+}
+
+.practice-teaching-feedback [lang="en"] {
+  font-size: 1.1rem;
+  line-height: 1.6;
+}
+
+.practice-rewrite-actions {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-2);
+  margin: var(--space-4) 0;
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border-default);
+}
+
+.practice-rewrite-actions p,
+.practice-hint-fact {
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+  line-height: 1.6;
+}
+
+.practice-attempt-review ol {
+  display: grid;
+  gap: var(--space-4);
+  padding: 0;
+  list-style: none;
+}
+
+.practice-attempt-review li {
+  min-width: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-card);
+  background: var(--surface-default);
+}
+
+.practice-session blockquote,
+.practice-attempt-review blockquote {
+  margin: var(--space-3) 0;
+  padding-left: var(--space-3);
+  border-left: 2px solid var(--border-default);
+  overflow-wrap: anywhere;
+}
+
+.practice-session [role="group"] {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+@media (max-width: 30rem) {
+  .practice-session {
+    padding: var(--space-4);
+    min-height: 0;
+  }
+
+  .practice-session > h2 {
+    font-size: 2rem;
+    line-height: 1.25;
+  }
+
+  .practice-session .practice-prompt,
+  .practice-session .practice-feedback,
+  .practice-attempt-review li {
+    padding: var(--space-3);
+  }
+
+  .practice-session button {
+    max-width: 100%;
+    white-space: normal;
+    height: auto;
+    min-height: var(--control-height);
+  }
+}

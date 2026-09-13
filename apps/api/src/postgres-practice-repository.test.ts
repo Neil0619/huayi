@@ -1,6 +1,5 @@
-import { readFile } from "node:fs/promises";
-
-import { PGlite } from "@electric-sql/pglite";
+import type { PGlite } from "@electric-sql/pglite";
+import { createCurrentDatabaseFixture } from "./test-support/current-database-fixture.js";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import type { AnalysisDatabase } from "./analysis-database.js";
@@ -10,7 +9,6 @@ import { createPostgresPracticeGenerationRepository } from "./postgres-practice-
 import { createPostgresPracticeRepository } from "./postgres-practice-repository.js";
 import { createPgliteAnalysisDatabase } from "./test-support/postgres-analysis-database.js";
 
-const migrationUrl = new URL("../migrations/0001-cloud-v1-foundation.sql", import.meta.url);
 const userA = "00000000-0000-0000-0000-00000000000a";
 const dueItem = "60000000-0000-0000-0000-00000000000a";
 const newItem = "60000000-0000-0000-0000-00000000000b";
@@ -21,9 +19,10 @@ describe("Postgres sentence practice", () => {
   let database: PGlite;
   let adapter: AnalysisDatabase;
   beforeEach(async () => {
-    database = new PGlite();
-    await database.waitReady;
-    await database.exec(await readFile(migrationUrl, "utf8"));
+    database = await createCurrentDatabaseFixture();
+    await database.query(
+      "INSERT INTO runtime_controls(name,enabled) VALUES('model_kill_switch',false) ON CONFLICT(name) DO UPDATE SET enabled=false",
+    );
     adapter = createPgliteAnalysisDatabase(database);
     await database.exec(`INSERT INTO user_profiles(user_id,owner_user_id,email,status,timezone,daily_goal)
       VALUES('${userA}','${userA}','a@example.test','active','Asia/Shanghai',2);

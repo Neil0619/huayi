@@ -1,9 +1,9 @@
 import {
-  analysisHistoryResponseSchema,
-  analysisRecordSchema,
+  analysisHistoryReadResponseSchema,
+  analysisRecordReadSchema,
   listAnalysesQuerySchema,
   type AnalysisDeleteResponse,
-  type AnalysisRecord,
+  type AnalysisRecordRead,
   type ListAnalysesQuery,
 } from "@huayi/cloud-contracts";
 import { createHash } from "node:crypto";
@@ -27,7 +27,7 @@ export function createAnalysisHistoryModule(dependencies: {
 }) {
   const cursor = createAnalysisHistoryCursor(dependencies.cursorKey);
 
-  const mutation = <Result extends AnalysisDeleteResponse | AnalysisRecord>(
+  const mutation = <Result extends AnalysisDeleteResponse | AnalysisRecordRead>(
     operation: "archive" | "delete" | "processNothingToSave" | "restore",
     command: AnalysisHistoryMutationCommand,
   ): Promise<Result> => {
@@ -52,7 +52,7 @@ export function createAnalysisHistoryModule(dependencies: {
 
   return {
     archiveAnalysis: (command: AnalysisHistoryMutationCommand) =>
-      mutation<AnalysisRecord>("archive", command),
+      mutation<AnalysisRecordRead>("archive", command),
     deleteAnalysis: (command: AnalysisHistoryMutationCommand) =>
       mutation<AnalysisDeleteResponse>("delete", command),
     getAnalysis: (userId: string, id: string) => dependencies.repository.findById(userId, id),
@@ -68,7 +68,7 @@ export function createAnalysisHistoryModule(dependencies: {
         ...(query.sourceType === undefined ? {} : { sourceType: query.sourceType }),
       });
       const last = page.items.at(-1);
-      return analysisHistoryResponseSchema.parse({
+      return analysisHistoryReadResponseSchema.parse({
         items: page.items,
         nextCursor:
           page.hasMore && last !== undefined
@@ -77,10 +77,10 @@ export function createAnalysisHistoryModule(dependencies: {
       });
     },
     processNothingToSave: (command: AnalysisHistoryMutationCommand) =>
-      mutation<AnalysisRecord>("processNothingToSave", command).then((value) =>
-        analysisRecordSchema.parse(value),
+      mutation<AnalysisRecordRead>("processNothingToSave", command).then((value) =>
+        analysisRecordReadSchema.parse(value),
       ),
     restoreAnalysis: (command: AnalysisHistoryMutationCommand) =>
-      mutation<AnalysisRecord>("restore", command),
+      mutation<AnalysisRecordRead>("restore", command),
   };
 }

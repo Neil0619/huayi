@@ -1,18 +1,28 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import type { AccountDataExportJobResource, AccountDeletionResponse } from "@huayi/cloud-contracts";
+import type {
+  AccountDataExportJobReadResource as AccountDataExportJobResource,
+  AccountDataExportFormatVersion,
+  AccountDeletionResponse,
+} from "@huayi/cloud-contracts";
 
 import { AccountSettingsLayout } from "./account-settings-layout.js";
 
 export interface AccountDataRightsApi {
-  createAccountDataExport(): Promise<AccountDataExportJobResource>;
+  createAccountDataExport(
+    format: AccountDataExportFormatVersion,
+  ): Promise<AccountDataExportJobResource>;
   deleteAccount(): Promise<AccountDeletionResponse>;
-  downloadAccountDataExport(exportId: string): Promise<{ expiresAt: string; url: string }>;
+  downloadAccountDataExport(
+    exportId: string,
+    format: AccountDataExportFormatVersion,
+  ): Promise<{ expiresAt: string; url: string }>;
   getCurrentAccountDataExport(): Promise<{ job: AccountDataExportJobResource | null }>;
   logout(): Promise<void>;
   retryAccountDataExport(
     exportId: string,
     expectedRevision: number,
+    format: AccountDataExportFormatVersion,
   ): Promise<AccountDataExportJobResource>;
 }
 
@@ -64,7 +74,11 @@ export function AccountDataRightsPage({
     }
   }, [api]);
 
-  useEffect(() => void load(), [load]);
+  useEffect(() => {
+    setBusy(false);
+    setMessage("");
+    void load();
+  }, [load]);
   useEffect(
     () => () => {
       generation.current += 1;
@@ -76,44 +90,53 @@ export function AccountDataRightsPage({
   }, [confirming]);
 
   const createExport = async () => {
+    const current = generation.current;
     setBusy(true);
     setError("");
     try {
-      setJob(await api.createAccountDataExport());
+      const created = await api.createAccountDataExport(3);
+      if (current !== generation.current) return;
+      setJob(created);
       setMessage("完整数据导出请求已提交。");
     } catch {
-      setError("无法请求完整数据导出，请稍后重试。");
+      if (current === generation.current) setError("无法请求完整数据导出，请稍后重试。");
     } finally {
-      setBusy(false);
+      if (current === generation.current) setBusy(false);
     }
   };
 
   const retryExport = async () => {
     if (job === null) return;
+    const current = generation.current;
     setBusy(true);
     setError("");
     try {
-      setJob(await api.retryAccountDataExport(job.id, job.revision));
+      const retried = await api.retryAccountDataExport(job.id, job.revision, job.formatVersion);
+      if (current !== generation.current) return;
+      setJob(retried);
       setMessage("已重新提交导出生成。");
     } catch {
-      setError("无法重试导出；状态可能已经变化，请重新载入。");
+      if (current === generation.current) setError("无法重试导出；状态可能已经变化，请重新载入。");
     } finally {
-      setBusy(false);
+      if (current === generation.current) setBusy(false);
     }
   };
 
   const download = async () => {
     if (job?.state !== "ready") return;
+    const current = generation.current;
     setBusy(true);
     setError("");
     try {
-      const signed = await api.downloadAccountDataExport(job.id);
+      const signed = await api.downloadAccountDataExport(job.id, job.formatVersion);
+      if (current !== generation.current) return;
       window.open(signed.url, "_blank", "noopener,noreferrer");
       setMessage("已在新窗口打开一次性下载地址；语见不会在浏览器中保存该地址。");
     } catch {
-      setError("无法取得下载地址；请确认最近已重新登录，且导出尚未过期。");
+      if (current === generation.current)
+        setError("无法取得下载地址；请确认最近已重新登录，且导出尚未过期。");
     } finally {
-      setBusy(false);
+      if (current === generation.current) setBusy(false);
     }
   };
 
@@ -170,7 +193,9 @@ export function AccountDataRightsPage({
         {loadState === "ready" && (
           <section className="data-export-card">
             <h2>完整数据导出</h2>
-            <p>包含账号偏好、分析、学习项与排期、生词语境和正式练习。</p>
+            <p>
+              包含账号偏好、分析、学习项与排期、生词语境，以及练习原答、历次改写、反馈和提示记录。
+            </p>
             <p>不包含密码、第三方凭据、会话、内部安全记录或隐藏模型内容。</p>
             {job === null ? (
               <div className="empty-state">
@@ -190,6 +215,9 @@ export function AccountDataRightsPage({
                 <p>
                   格式版本：v{job.formatVersion}；任务版本：{job.revision}
                 </p>
+                {job.formatVersion !== 3 && (
+                  <p>此文件使用兼容格式，不含提示记录与结构化反馈；重试仍使用其原有格式。</p>
+                )}
                 {job.state === "ready" && (
                   <button
                     data-download-export

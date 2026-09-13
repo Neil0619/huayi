@@ -1,4 +1,9 @@
-import { analysisRecordSchema, contractFixtures } from "@huayi/cloud-contracts";
+import {
+  analysisRecordSchema,
+  analysisRecordReadSchema,
+  contractFixtures,
+  type AnalysisRecordRead,
+} from "@huayi/cloud-contracts";
 
 interface TestDatabase {
   query<Row>(text: string, parameters?: unknown[]): Promise<{ rows: Row[] }>;
@@ -11,23 +16,27 @@ const captureId = "30000000-0000-4000-8000-000000000001";
 export async function insertAccountDataExportAnalysisFixture(
   database: TestDatabase,
   ownerUserId: string,
+  supplied?: AnalysisRecordRead,
 ): Promise<void> {
-  const analysis = analysisRecordSchema.parse({
-    ...contractFixtures.analysis,
-    candidates: [{ ...contractFixtures.analysis.candidates[0], id: candidateId }],
-    id: accountDataExportAnalysisId,
-    result: {
-      ...contractFixtures.analysis.result,
-      sentences: [
-        {
-          ...contractFixtures.analysis.result.sentences[0],
-          candidateIds: [candidateId],
-        },
-      ],
-    },
-    source: { title: "Writing notes", type: "study-capture" },
-    studyCaptureId: captureId,
-  });
+  const analysis =
+    supplied === undefined
+      ? analysisRecordSchema.parse({
+          ...contractFixtures.analysis,
+          candidates: [{ ...contractFixtures.analysis.candidates[0], id: candidateId }],
+          id: accountDataExportAnalysisId,
+          result: {
+            ...contractFixtures.analysis.result,
+            sentences: [
+              {
+                ...contractFixtures.analysis.result.sentences[0],
+                candidateIds: [candidateId],
+              },
+            ],
+          },
+          source: { title: "Writing notes", type: "study-capture" },
+          studyCaptureId: captureId,
+        })
+      : analysisRecordReadSchema.parse(supplied);
   await database.query(
     `INSERT INTO analysis_records(
       id,owner_user_id,study_capture_id,review_state,archived_at,source_type,source_title,
@@ -37,7 +46,7 @@ export async function insertAccountDataExportAnalysisFixture(
     [
       analysis.id,
       ownerUserId,
-      analysis.studyCaptureId,
+      analysis.studyCaptureId ?? null,
       analysis.reviewState,
       analysis.archivedAt,
       analysis.source.type,

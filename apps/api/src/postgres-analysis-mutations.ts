@@ -1,6 +1,7 @@
 import type { AnalysisDatabase } from "./analysis-database.js";
 import { CloudFault } from "./cloud-fault.js";
 import type { AnalysisHistoryMutation } from "./analysis-ports.js";
+import { analysisRecordReadSchema } from "@huayi/cloud-contracts";
 
 export async function deletePostgresAnalysis(
   database: AnalysisDatabase,
@@ -40,8 +41,8 @@ export async function mutatePostgresAnalysis(
 ): Promise<unknown> {
   try {
     const updatedAt = new Date(command.updatedAt);
-    const rows = await database.trusted((query) =>
-      query.rows<{ result: unknown }>(
+    return await database.trusted(async (query) => {
+      const rows = await query.rows<{ result: unknown }>(
         "SELECT mutate_analysis_record($1,$2,$3,$4,$5,$6,$7,$8)::jsonb AS result",
         [
           command.userId,
@@ -53,9 +54,10 @@ export async function mutatePostgresAnalysis(
           updatedAt,
           new Date(updatedAt.getTime() + 7 * 24 * 60 * 60 * 1_000),
         ],
-      ),
-    );
-    return rows[0]?.result;
+      );
+      // A representation/budget failure must roll back the mutation and idempotency snapshot.
+      return analysisRecordReadSchema.parse(rows[0]?.result);
+    });
   } catch (error) {
     return translateMutationError(error);
   }

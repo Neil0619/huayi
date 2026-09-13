@@ -1,0 +1,188 @@
+import { createHash } from "node:crypto";
+import { z } from "zod/v3";
+import {
+  assembleLearningRecommendations,
+  assembleSentenceStructure,
+  candidateSchema,
+  learningAdviceSchema,
+  normalizeWhitespaceAndQuotes,
+  phraseAnalysisSchema,
+  sentencePassageAnalysisSchema,
+  sentenceStructureDraftSchema,
+  sourceBackedPattern,
+  sourceBackedPatternSchema,
+  structuredAnalysisContentSchema,
+  validateSentenceSourceUnits,
+  type ModelUsage,
+  type RecommendationCandidate,
+  type StartAnalysisGenerationRequest,
+} from "@huayi/cloud-contracts";
+import type { SegmentedSentence } from "./analysis-ports.js";
+import { DEEPSEEK_PLATFORM_MODEL } from "./deepseek-model-identity.js";
+import {
+  analysisJsonErrorOffset,
+  reportDeepSeekAnalysisOutputInvalid,
+  type AnalysisRepairFeedback,
+  type AnalysisValidationAttempt,
+  type AnalysisValidationStage,
+} from "./deepseek-analysis-diagnostics.js";
+
+import { PLATFORM_STRUCTURED_ANALYSIS_PROMPT_VERSION as STRUCTURED_ANALYSIS_PROMPT_VERSION } from "@huayi/cloud-contracts";
+export { STRUCTURED_ANALYSIS_PROMPT_VERSION };
+const advice = { learningAdvice: learningAdviceSchema.optional() };
+const expression = candidateSchema.options[0].shape.payload.extend(advice);
+const pattern = sourceBackedPatternSchema.extend(advice);
+const legacySentence = sentencePassageAnalysisSchema.innerType();
+const sentence = legacySentence.shape.sentences.element
+  .omit({
+    analysisUnitId: true,
+    candidateIds: true,
+    ordinal: true,
+    sourceText: true,
+    structure: true,
+  })
+  .extend({
+    sentenceStructure: sentenceStructureDraftSchema,
+    candidates: z.array(z.union([expression, pattern])).max(20),
+  });
+const passage = z.strictObject({
+  overall: legacySentence.shape.overall,
+  sentences: z.array(sentence).min(1).max(40),
+});
+const phrase = phraseAnalysisSchema
+  .innerType()
+  .omit({ analysisUnitId: true, candidateIds: true, type: true })
+  .extend({ candidates: z.array(expression).max(20) });
+
+export function privateStructuredAnalysisSchema(
+  kind: StartAnalysisGenerationRequest["selectionKind"],
+) {
+  return z.strictObject({
+    previewZh: z.string().trim().min(1).max(1000),
+    result: kind === "phrase" ? phrase : passage,
+  });
+}
+
+function at<T>(path: (string | number)[], operation: () => T): T {
+  try {
+    return operation();
+  } catch (error) {
+    if (!(error instanceof z.ZodError)) throw error;
+    throw new z.ZodError(
+      error.issues.map((issue) => ({ ...issue, path: [...path, ...issue.path] })),
+    );
+  }
+}
+
+/** Strict native assembly. Invalid optional advice cannot be silently rebound or promoted. */
+export function readStructuredAnalysisContent(
+  rawContent: string,
+  input: StartAnalysisGenerationRequest,
+  units: readonly SegmentedSentence[],
+  usage: ModelUsage,
+  attempt: AnalysisValidationAttempt,
+): { content: unknown; feedback?: never } | { content?: never; feedback: AnalysisRepairFeedback } {
+  let value: unknown;
+  try {
+    value = JSON.parse(rawContent);
+  } catch (error) {
+    const feedback = reportDeepSeekAnalysisOutputInvalid("json", attempt);
+    const offset = analysisJsonErrorOffset(error, rawContent.length);
+    return {
+      feedback: { ...feedback, ...(offset === undefined ? {} : { jsonErrorOffset: offset }) },
+    };
+  }
+  let stage: AnalysisValidationStage = "output-schema";
+  try {
+    const parsed = privateStructuredAnalysisSchema(input.selectionKind).parse(value);
+    const rows = "sentences" in parsed.result ? parsed.result.sentences : [parsed.result];
+    if (rows.length !== units.length)
+      return { feedback: reportDeepSeekAnalysisOutputInvalid("unit-count", attempt) };
+    stage = "content-schema";
+    if (input.selectionKind !== "phrase") validateSentenceSourceUnits(input.sourceText, units);
+    const entries: RecommendationCandidate[] = [];
+    const mapped = rows.map((row, index) => {
+      const unit = units[index];
+      if (!unit) throw new Error("Missing trusted source unit.");
+      const base = "usageNotes" in row ? ["result"] : ["result", "sentences", index];
+      const candidateIds = row.candidates.map((item, candidateIndex) =>
+        at([...base, "candidates", candidateIndex], () => {
+          const { learningAdvice, ...raw } = item;
+          const payload =
+            raw.type === "expression"
+              ? raw
+              : (() => {
+                  const checked = sourceBackedPattern(raw, unit.sourceText);
+                  if (checked.issues) throw new z.ZodError(checked.issues);
+                  return checked.payload;
+                })();
+          const ordinal = entries.length,
+            id = `c${ordinal + 1}`;
+          const candidate = candidateSchema.parse({
+            id,
+            ordinal,
+            analysisUnitId: unit.analysisUnitId,
+            type: payload.type === "expression" ? "expression" : "sentence-pattern",
+            payload,
+          });
+          entries.push({
+            candidate,
+            ...(learningAdvice === undefined ? {} : { advice: learningAdvice }),
+            ...(raw.type === "sentence_pattern" ? { sourceValues: raw.sourceValues } : {}),
+          });
+          return id;
+        }),
+      );
+      const { candidates, ...teaching } = row;
+      void candidates;
+      return "sentenceStructure" in teaching
+        ? {
+            ...teaching,
+            ...unit,
+            candidateIds,
+            sentenceStructure: at([...base, "sentenceStructure"], () =>
+              assembleSentenceStructure(unit.sourceText, teaching.sentenceStructure),
+            ),
+          }
+        : { ...teaching, analysisUnitId: "u1", candidateIds, type: "phrase-analysis-v3" };
+    });
+    const recommendations = at(["result", "recommendations"], () =>
+      assembleLearningRecommendations(
+        units.map(({ analysisUnitId, sourceText }) => ({ analysisUnitId, sourceText })),
+        entries,
+      ),
+    );
+    const result =
+      "sentences" in parsed.result
+        ? {
+            type: "sentence-passage-analysis-v3",
+            overall: parsed.result.overall,
+            sentences: mapped,
+            recommendations,
+          }
+        : { ...mapped[0], recommendations };
+    return {
+      content: structuredAnalysisContentSchema.parse({
+        candidates: entries.map((entry) => entry.candidate),
+        result,
+        sourceText: input.sourceText,
+        selectionKind: input.selectionKind,
+        source: input.source,
+        sourceNormalizedHash: createHash("sha256")
+          .update(normalizeWhitespaceAndQuotes(input.sourceText))
+          .digest("hex"),
+        modelMetadata: {
+          provider: "deepseek",
+          model: DEEPSEEK_PLATFORM_MODEL,
+          promptVersion: STRUCTURED_ANALYSIS_PROMPT_VERSION,
+          schemaVersion: 3,
+          inputTokens: usage.inputTokens,
+          outputTokens: usage.outputTokens,
+        },
+      }),
+    };
+  } catch (error) {
+    if (!(error instanceof z.ZodError)) throw error;
+    return { feedback: reportDeepSeekAnalysisOutputInvalid(stage, attempt, error.issues) };
+  }
+}

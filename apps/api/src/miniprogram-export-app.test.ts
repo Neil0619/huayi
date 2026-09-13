@@ -37,7 +37,7 @@ it("keeps signed storage credentials server-side and streams a private authentic
   expect(await response.text()).toContain("profile");
   expect(response.headers.get("cache-control")).toContain("no-store");
   expect(response.headers.get("location")).toBeNull();
-  expect(createDownload).toHaveBeenCalledWith("owner", id, expect.any(Date));
+  expect(createDownload).toHaveBeenCalledWith("owner", id, expect.any(Date), 1);
   expect(fetch).toHaveBeenCalledWith(
     expect.any(URL),
     expect.objectContaining({ redirect: "error" }),

@@ -5,9 +5,12 @@ import {
   practiceWorkspaceControlSchema,
   practiceWorkspaceDraftSchema,
   type PracticeSession,
+  type PracticeTeachingState,
+  practiceTeachingStateSchema,
 } from "@huayi/cloud-contracts";
 import type { AnalysisDatabase, AnalysisQuery } from "./analysis-database.js";
 import { CloudFault } from "./cloud-fault.js";
+import { readPracticeTeachingState } from "./postgres-practice-teaching-view.js";
 import { savePracticeWrite } from "./postgres-practice-idempotency.js";
 import {
   loadPracticeSession,
@@ -15,15 +18,17 @@ import {
   requireActivePracticeItem,
 } from "./postgres-practice-view.js";
 
-const stateOf = (session: PracticeSession) =>
+export const practiceWorkspaceState = (session: PracticeSession) =>
   session.workspace ?? {
     phase: "active" as const,
     mode: "guided" as const,
     draft: "",
     draftRevision: 0,
   };
-async function ownerLock(query: AnalysisQuery, owner: string) {
-  await query.rows("SELECT user_id FROM user_profiles WHERE user_id=$1 FOR UPDATE", [owner]);
+export async function lockPracticeOwner(query: AnalysisQuery, owner: string) {
+  // Serialize this owner's controls without blocking the KEY SHARE taken by an
+  // answer's owner FK while that submission already holds its session row.
+  await query.rows("SELECT user_id FROM user_profiles WHERE user_id=$1 FOR NO KEY UPDATE", [owner]);
   await requireActiveProfile(query, owner);
 }
 async function workspaceWrite(
@@ -44,7 +49,7 @@ async function workspaceWrite(
     );
   return existing?.response;
 }
-async function available(query: AnalysisQuery, except?: string) {
+export async function requirePracticeWorkspaceAvailable(query: AnalysisQuery, except?: string) {
   const rows = await query.rows<{ id: string }>(
     `SELECT id FROM practice_sessions WHERE workspace_state->>'phase'='active' AND id IS DISTINCT FROM $1::uuid AND
     (status IN ('active','awaiting-feedback') OR (status='completed' AND EXISTS (SELECT 1 FROM practice_session_items WHERE session_id=practice_sessions.id AND rating IS NULL))) LIMIT 1`,
@@ -53,9 +58,14 @@ async function available(query: AnalysisQuery, except?: string) {
   if (rows[0])
     throw new CloudFault("generation_busy", "Pause the current practice before switching items.");
 }
-async function freePrompt(query: AnalysisQuery, itemId: string) {
+async function freePrompt(
+  query: AnalysisQuery,
+  itemId: string,
+  target?: PracticeTeachingState["target"],
+) {
+  if (target?.state === "deleted") throw new CloudFault("not_found", "Learning item not found.");
   const item = await requireActivePracticeItem(query, itemId);
-  const content = item.item.content;
+  const content = target?.state === "available" ? target.content : item.item.content;
   return content.type === "expression"
     ? `请在一个新场景中使用表达 ${content.text}（${content.meaningZh}），写一个完整的英文句子。`
     : `请套用句型 ${content.template}（${content.functionZh}），写一个符合你生活情境的英文句子。`;
@@ -73,7 +83,7 @@ export function createPracticeWorkspace(database: AnalysisDatabase) {
       const request = practiceWorkspaceStartSchema.parse(input);
       const command = common(owner, key, request);
       return database.transaction(owner, async ({ tenant }) => {
-        await ownerLock(tenant, owner);
+        await lockPracticeOwner(tenant, owner);
         const replay = await workspaceWrite(
           tenant,
           "practice.workspace-start",
@@ -82,7 +92,7 @@ export function createPracticeWorkspace(database: AnalysisDatabase) {
         );
         if (replay != null)
           return loadPracticeSession(tenant, practiceSessionResponseSchema.parse(replay).id);
-        await available(tenant);
+        await requirePracticeWorkspaceAvailable(tenant);
         const item = await requireActivePracticeItem(tenant, request.itemId, { lock: true });
         const id = randomUUID();
         const prompt = request.mode === "free" ? await freePrompt(tenant, request.itemId) : null;
@@ -102,6 +112,23 @@ export function createPracticeWorkspace(database: AnalysisDatabase) {
           `INSERT INTO practice_session_items(session_id,learning_item_id,owner_user_id,position,schedule_before) VALUES($1,$2,$3,0,$4::jsonb)`,
           [id, request.itemId, owner, JSON.stringify(item.schedule)],
         );
+        if (request.teachingContract) {
+          const state = practiceTeachingStateSchema.parse({
+            contract: request.teachingContract,
+            hintPolicy: request.hintPolicy ?? "shown",
+            target: {
+              state: "available",
+              itemId: request.itemId,
+              capturedAt: command.now,
+              content: item.item.content,
+            },
+            round: { ordinal: 0, parentAttemptId: null, hintViewedAt: null },
+          });
+          await tenant.rows("UPDATE practice_sessions SET teaching_state=$2::jsonb WHERE id=$1", [
+            id,
+            JSON.stringify(state),
+          ]);
+        }
         const session = await loadPracticeSession(tenant, id);
         await savePracticeWrite(tenant, command, "practice.workspace-start", session);
         return session;
@@ -136,7 +163,7 @@ export function createPracticeWorkspace(database: AnalysisDatabase) {
       const request = practiceWorkspaceControlSchema.parse(input);
       const command = common(owner, key, { id, ...request });
       return database.transaction(owner, async ({ tenant, trusted }) => {
-        await ownerLock(tenant, owner);
+        await lockPracticeOwner(tenant, owner);
         const replay = await workspaceWrite(
           tenant,
           "practice.workspace-control",
@@ -146,7 +173,8 @@ export function createPracticeWorkspace(database: AnalysisDatabase) {
         if (replay != null) return loadPracticeSession(tenant, id);
         await tenant.rows("SELECT id FROM practice_sessions WHERE id=$1 FOR UPDATE", [id]);
         const session = await loadPracticeSession(tenant, id);
-        const workspace = stateOf(session);
+        const workspace = practiceWorkspaceState(session);
+        const teaching = await readPracticeTeachingState(tenant, id);
         if (
           session.revision !== request.expectedRevision ||
           (request.expectedControlRevision !== undefined &&
@@ -154,8 +182,17 @@ export function createPracticeWorkspace(database: AnalysisDatabase) {
           ["ended", "skipped"].includes(workspace.phase)
         )
           throw new CloudFault("revision_conflict", "Practice state changed.");
-        if (request.action === "resume") await available(tenant, id);
+        if (request.action === "resume") await requirePracticeWorkspaceAvailable(tenant, id);
         if (request.draft !== undefined) {
+          if (
+            (teaching !== null && request.expectedDraftRevision === undefined) ||
+            (request.expectedDraftRevision !== undefined &&
+              request.expectedDraftRevision !== workspace.draftRevision)
+          )
+            throw new CloudFault(
+              "revision_conflict",
+              "Practice draft changed. Refresh the practice workspace.",
+            );
           workspace.draft = request.draft;
           workspace.draftRevision += 1;
         }
@@ -166,7 +203,7 @@ export function createPracticeWorkspace(database: AnalysisDatabase) {
               "Only an unanswered sentence can switch mode.",
             );
           workspace.mode = "free";
-          const prompt = await freePrompt(tenant, session.items[0]?.itemId ?? "");
+          const prompt = await freePrompt(tenant, session.items[0]?.itemId ?? "", teaching?.target);
           await tenant.rows(
             "UPDATE practice_sessions SET prompt=$2,status='active',pending_generation=NULL WHERE id=$1",
             [id, prompt],

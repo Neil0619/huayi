@@ -1,5 +1,9 @@
 import type { SegmentedSentence } from "./analysis-ports.js";
-import type { StartAnalysisRequest } from "@huayi/cloud-contracts";
+import {
+  segmentSentenceSource,
+  validateSentenceSourceUnits,
+  type StartAnalysisGenerationRequest,
+} from "@huayi/cloud-contracts";
 import { CloudFault } from "./cloud-fault.js";
 
 const abbreviations = new Set(["dr.", "mr.", "mrs.", "ms.", "prof.", "e.g.", "i.e."]);
@@ -25,11 +29,18 @@ export function segmentSentences(sourceText: string): SegmentedSentence[] {
   }));
 }
 
-export function analysisSourceUnits(input: StartAnalysisRequest): SegmentedSentence[] {
-  const units =
-    input.selectionKind === "phrase"
-      ? [{ analysisUnitId: "u1", ordinal: 0, sourceText: input.sourceText }]
-      : segmentSentences(input.sourceText);
+export function analysisSourceUnits(input: StartAnalysisGenerationRequest): SegmentedSentence[] {
+  let units: SegmentedSentence[];
+  try {
+    units =
+      input.selectionKind === "phrase"
+        ? [{ analysisUnitId: "u1", ordinal: 0, sourceText: input.sourceText }]
+        : "outputContract" in input
+          ? segmentSentenceSource(input.sourceText)
+          : segmentSentences(input.sourceText);
+  } catch {
+    throw new CloudFault("invalid_request", "请将原文拆成不超过 40 个句子的段落后再分析。");
+  }
   if (!hasCompleteAnalysisSource(input, units)) {
     throw new CloudFault("invalid_request", "请将原文拆成不超过 40 个句子的段落后再分析。");
   }
@@ -38,9 +49,24 @@ export function analysisSourceUnits(input: StartAnalysisRequest): SegmentedSente
 
 /** Only whitespace between source units may be skipped; never normalize a unit's text. */
 export function hasCompleteAnalysisSource(
-  input: StartAnalysisRequest,
+  input: StartAnalysisGenerationRequest,
   units: readonly SegmentedSentence[],
 ): boolean {
+  if ("outputContract" in input) {
+    if (input.selectionKind === "phrase")
+      return (
+        units.length === 1 &&
+        units[0]?.analysisUnitId === "u1" &&
+        units[0].ordinal === 0 &&
+        units[0].sourceText === input.sourceText
+      );
+    try {
+      validateSentenceSourceUnits(input.sourceText, units);
+      return true;
+    } catch {
+      return false;
+    }
+  }
   if (
     units.length < 1 ||
     units.length > 40 ||

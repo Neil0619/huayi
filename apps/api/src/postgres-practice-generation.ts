@@ -1,3 +1,4 @@
+import { lockPracticeGenerationAggregate } from "./postgres-practice-generation-lock.js";
 import { practiceGenerationOutputSchema } from "./paid-practice-generator.js";
 
 import type { AnalysisDatabase } from "./analysis-database.js";
@@ -50,6 +51,7 @@ export function createPostgresPracticeGenerationRepository(options: {
     stableErrorCode: "model_unavailable" | "quota_exhausted",
   ) =>
     options.database.transaction(command.ownerUserId, async ({ tenant }) => {
+      if (!(await lockPracticeGenerationAggregate(tenant, command.generationId))) return;
       const rows = await tenant.rows<{ attempt_id: string | null; session_id: string }>(
         `UPDATE practice_generation_tasks SET state='failed',stable_error_code=$3,updated_at=$4
           WHERE id=$1 AND lease_token=$2 AND state='claimed'

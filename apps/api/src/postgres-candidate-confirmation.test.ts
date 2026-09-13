@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { AnalysisDatabase, AnalysisQuery } from "./analysis-database.js";
 import type { ConfirmCandidatesCommand } from "./analysis-ports.js";
 import { createPostgresAnalysisStore } from "./postgres-analysis-store.js";
+import { structuredAnalysisFixture } from "./test-support/structured-analysis-fixture.js";
 
 const migrationUrl = new URL("../migrations/0001-cloud-v1-foundation.sql", import.meta.url);
 const userA = "00000000-0000-0000-0000-00000000000a";
@@ -108,78 +109,106 @@ describe("Postgres candidate confirmation", () => {
   });
   afterEach(async () => database.close());
 
-  it("creates and replays an expression confirmation with immutable trusted source", async () => {
-    const store = createPostgresAnalysisStore({
-      database: adapter,
-      ledgerId: () => "unused",
-      priceVersionId: "50000000-0000-0000-0000-000000000001",
-    });
-    const command: ConfirmCandidatesCommand = {
-      analysisId,
-      expectedRevision: 1,
-      idempotencyKey: "confirm-1",
-      requestHash: "a".repeat(64),
-      updatedAt: "2026-08-13T00:00:00.000Z",
-      userId: userA,
-      entries: [
-        {
-          action: "created",
-          candidateId,
-          canonicalKey: "to be frank",
-          content: contractFixtures.confirmCandidatesRequest.confirmations[0].payload,
-          source: {
+  it.each(["legacy", "structured"])(
+    "creates and replays a %s confirmation with immutable trusted source",
+    async (kind) => {
+      const native = structuredAnalysisFixture();
+      const nativeCandidate = native.candidates[0];
+      if (!nativeCandidate) throw new Error("Expected candidate");
+      if (kind === "structured") {
+        await database.query(
+          "UPDATE analysis_records SET source_title=NULL,source_text=$1,result=$2::jsonb,model_metadata=$3::jsonb WHERE id=$4",
+          [
+            native.sourceText,
+            JSON.stringify(native.result),
+            JSON.stringify(native.modelMetadata),
             analysisId,
-            analysisUnitId: "u1",
-            sourceText: "To be frank, this works.",
-            sourceTitle: "Writing notes",
-            sourceType: "manual",
-            translationZh: "坦率地说，这很有效。",
-          },
-          sourceExampleId: "30000000-0000-0000-0000-000000000001",
-          systemAttributes: ["discourse-marker"],
-          tags: [
-            {
-              displayName: "Writing",
-              id: "40000000-0000-0000-0000-000000000001",
-              normalizedName: "writing",
-            },
           ],
-          targetId: "50000000-0000-0000-0000-000000000001",
-          type: "expression",
-        },
-      ],
-    };
-    const response = await store.confirmCandidates(command);
-    expect(response).toMatchObject({
-      analysis: { reviewState: "reviewed", revision: 2 },
-      results: [
-        {
-          action: "created",
-          item: {
-            content: { meaningZh: "坦率地说" },
-            sourceExamples: [
-              { sourceText: "To be frank, this works.", translationZh: "坦率地说，这很有效。" },
+        );
+        await database.query("UPDATE analysis_candidates SET payload=$1::jsonb WHERE id=$2", [
+          JSON.stringify(nativeCandidate.payload),
+          candidateId,
+        ]);
+      }
+      const sourceText = kind === "structured" ? "We can." : "To be frank, this works.";
+      const translationZh = kind === "structured" ? "我们能做到。" : "坦率地说，这很有效。";
+      const store = createPostgresAnalysisStore({
+        database: adapter,
+        ledgerId: () => "unused",
+        priceVersionId: "50000000-0000-0000-0000-000000000001",
+      });
+      const command: ConfirmCandidatesCommand = {
+        analysisId,
+        expectedRevision: 1,
+        idempotencyKey: "confirm-1",
+        requestHash: "a".repeat(64),
+        updatedAt: "2026-08-13T00:00:00.000Z",
+        userId: userA,
+        entries: [
+          {
+            action: "created",
+            candidateId,
+            canonicalKey: kind === "structured" ? "can" : "to be frank",
+            content:
+              kind === "structured"
+                ? nativeCandidate.payload
+                : contractFixtures.confirmCandidatesRequest.confirmations[0].payload,
+            source: {
+              analysisId,
+              analysisUnitId: "u1",
+              sourceText,
+              sourceTitle: "Writing notes",
+              sourceType: "manual",
+              translationZh,
+            },
+            sourceExampleId: "30000000-0000-0000-0000-000000000001",
+            systemAttributes: ["discourse-marker"],
+            tags: [
+              {
+                displayName: "Writing",
+                id: "40000000-0000-0000-0000-000000000001",
+                normalizedName: "writing",
+              },
             ],
+            targetId: "50000000-0000-0000-0000-000000000001",
+            type: "expression",
           },
-        },
-      ],
-    });
-    await expect(store.confirmCandidates(command)).resolves.toEqual(response);
-    await expect(
-      store.confirmCandidates({ ...command, requestHash: "b".repeat(64) }),
-    ).rejects.toMatchObject({ code: "idempotency_conflict" });
-    await expect(
-      store.confirmCandidates({ ...command, userId: userB, idempotencyKey: "other" }),
-    ).rejects.toMatchObject({ code: "not_found" });
-    await database.query("DELETE FROM analysis_records WHERE id=$1", [analysisId]);
-    await expect(
-      store.replayCandidateConfirmation({
-        idempotencyKey: command.idempotencyKey,
-        requestHash: command.requestHash,
-        userId: command.userId,
-      }),
-    ).resolves.toEqual(response);
-  });
+        ],
+      };
+      const response = await store.confirmCandidates(command);
+      expect(response).toMatchObject({
+        analysis: { reviewState: "reviewed", revision: 2 },
+        results: [
+          {
+            action: "created",
+            item: {
+              content: { meaningZh: kind === "structured" ? "能够" : "坦率地说" },
+              sourceExamples: [{ sourceText, translationZh }],
+            },
+          },
+        ],
+      });
+      expect(response.analysis.result.type).toBe(
+        kind === "structured" ? "sentence-passage-analysis-v3" : "sentence-passage-analysis-v2",
+      );
+      if (kind === "structured") expect(response.analysis.result).toEqual(native.result);
+      await expect(store.confirmCandidates(command)).resolves.toEqual(response);
+      await expect(
+        store.confirmCandidates({ ...command, requestHash: "b".repeat(64) }),
+      ).rejects.toMatchObject({ code: "idempotency_conflict" });
+      await expect(
+        store.confirmCandidates({ ...command, userId: userB, idempotencyKey: "other" }),
+      ).rejects.toMatchObject({ code: "not_found" });
+      await database.query("DELETE FROM analysis_records WHERE id=$1", [analysisId]);
+      await expect(
+        store.replayCandidateConfirmation({
+          idempotencyKey: command.idempotencyKey,
+          requestHash: command.requestHash,
+          userId: command.userId,
+        }),
+      ).resolves.toEqual(response);
+    },
+  );
 
   it("rolls back the whole batch when a later merge target is invalid", async () => {
     const store = createPostgresAnalysisStore({

@@ -1,19 +1,30 @@
 import { measureLearningPresentation } from "./learning-ui-timing.js";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   type DailyPracticeQueueResponse,
   type LearningItemDetailResponse,
   type LearningTaskCommand,
   type LearningTaskSnapshot,
   type PracticeSession,
-  type PracticeWorkspaceControl,
 } from "@huayi/cloud-contracts";
 import type { PracticePageApi } from "./practice-page-api.js";
 import { usePracticeDraft } from "./use-practice-draft.js";
 import { pauseOtherPractice } from "./pause-other-practice.js";
+import { usePracticeNavigation } from "./use-practice-navigation.js";
 import { learningTaskFeedback } from "./learning-task-feedback.js";
 
-export function usePracticeWorkspace(api: PracticePageApi, key: () => string) {
+import { createPracticeApiScope } from "./practice-api-scope.js";
+import { isResumablePractice, mergePracticeSession } from "./practice-session-state.js";
+import { usePracticeTeaching } from "./use-practice-teaching.js";
+
+export function usePracticeWorkspace(source: PracticePageApi, key: () => string) {
+  const scope = useMemo(() => createPracticeApiScope(source), [source]);
+  const api = scope.api;
+  useEffect(() => {
+    scope.activate();
+    return () => scope.deactivate();
+  }, [scope]);
+  const [hintPolicy, setHintPolicy] = useState<"shown" | "on-demand">("shown");
   const [queue, setQueue] = useState<DailyPracticeQueueResponse | null>(null);
   const [session, setSession] = useState<PracticeSession | null>(null);
   const [resumable, setResumable] = useState<PracticeSession[]>([]);
@@ -28,39 +39,45 @@ export function usePracticeWorkspace(api: PracticePageApi, key: () => string) {
   const subscription = useRef<AbortController | null>(null);
   const generation = useRef(0);
   const mutation = useRef(false);
-  const draft = usePracticeDraft(api.workspace, session);
+  const requestedItem = useRef(new URLSearchParams(window.location.search).get("item"));
   const install = useCallback((next: PracticeSession) => {
-    activeSession.current = next;
-    setSession(next);
+    const merged = mergePracticeSession(activeSession.current, next);
+    activeSession.current = merged;
+    setSession(merged);
+    return merged;
   }, []);
+  const draft = usePracticeDraft(api.workspace, session, (saved) => {
+    if (activeSession.current?.id === saved.id) install(saved);
+  });
+  const teaching = usePracticeTeaching(api.teaching, session, activeSession, install, key);
   const load = useCallback(async () => {
+    const alive = scope.checkpoint();
     setLoading(true);
     setError("");
     try {
       const response = await api.dailyQueue();
-      const requested = new URLSearchParams(window.location.search).get("item");
+      const requested = requestedItem.current;
       if (requested && !response.items.some((entry) => entry.item.id === requested)) {
         const chosen = await api.getLearningItem(requested).catch(() => null);
         if (chosen && chosen.archivedAt === null)
           response.items.unshift({ item: chosen.item, schedule: chosen.schedule });
       }
+      requestedItem.current = null;
       setQueue(response);
       const saved = api.workspace
         ? await api.workspace.list()
         : response.currentSession
           ? [response.currentSession]
           : [];
-      setResumable(
-        saved.filter((item) => item.items.some((target) => target.rating === undefined)),
-      );
+      setResumable(saved.filter(isResumablePractice));
       return response.currentSession;
     } catch {
-      setError("暂时无法载入今日练习，请检查网络后重试。");
+      if (alive()) setError("暂时无法载入今日练习，请检查网络后重试。");
       return null;
     } finally {
-      setLoading(false);
+      if (alive()) setLoading(false);
     }
-  }, [api]);
+  }, [api, scope]);
   useEffect(() => {
     void load();
     return () => {
@@ -100,11 +117,13 @@ export function usePracticeWorkspace(api: PracticePageApi, key: () => string) {
       })) {
         if (current !== generation.current) break;
         if (event.type === "practice.updated") {
-          latest = event.session;
-          install(event.session);
+          latest = install(event.session);
         }
         measureLearningPresentation("practice", performance.now());
-        if (event.type === "practice.preview")
+        if (
+          event.type === "practice.preview" &&
+          (!api.teaching || activeSession.current?.type === "dialogue")
+        )
           setPreview((text) => (text + event.text).slice(0, 16000));
       }
       if (current === generation.current) {
@@ -114,7 +133,9 @@ export function usePracticeWorkspace(api: PracticePageApi, key: () => string) {
           latest?.pendingGeneration
             ? "题目尚未完成，可以重试或自由造句。"
             : latest?.status === "completed"
-              ? "反馈已完成，请自评。"
+              ? latest.items.every((item) => item.rating !== undefined)
+                ? "反馈已完成，本次自评已保留。"
+                : "反馈已完成，请自评。"
               : "题目已生成，可以开始作答。",
         );
       }
@@ -154,83 +175,44 @@ export function usePracticeWorkspace(api: PracticePageApi, key: () => string) {
   };
   const act = async (operation: () => Promise<unknown>) => {
     if (mutation.current) return;
+    const alive = scope.checkpoint();
+    if (!alive()) return;
     mutation.current = true;
     setBusy(true);
     setError("");
     try {
       await operation();
     } catch (cause) {
-      setError(learningTaskFeedback(cause, "practice"));
+      if (alive()) setError(learningTaskFeedback(cause, "practice"));
     } finally {
       mutation.current = false;
-      setBusy(false);
+      if (alive()) setBusy(false);
     }
   };
-  const start = (itemId: string, mode: "guided" | "free" = "guided") =>
-    act(async () => {
-      if (api.workspace) {
-        await pauseOtherPractice(api.workspace, key);
-        const ready = await api.workspace.start({ itemId, mode }, key());
-        install(ready);
-        if (mode === "free") {
-          setStatus("自由造句：请在新场景中使用这条表达或句型。");
-          return;
-        }
-        if (api.tasks) {
-          const snapshot = await api.tasks.submit(
-            { version: 2, kind: "sentence-start", sessionId: ready.id, input: { itemId } },
-            key(),
-          );
-          void subscribe(snapshot).catch(() => undefined);
-          return;
-        }
-      }
-      const next = await api.startSentence(itemId, key());
-      install(next);
-      setStatus(
-        next.pendingGeneration
-          ? "题目尚未完成，可以重试或自由造句。"
-          : "题目已生成，可以开始作答。",
-      );
-    });
-  const control = (action: PracticeWorkspaceControl["action"]) =>
-    act(async () => {
-      const current = activeSession.current;
-      if (!current) return;
-      void draft.flush();
-      if (api.workspace) {
-        const latest = await api.workspace.get(current.id);
-        const next = await api.workspace.control(
-          current.id,
-          {
-            action,
-            expectedRevision: latest.revision,
-            expectedControlRevision: latest.workspace?.controlRevision ?? 0,
-            draft: draft.value,
-          },
-          key(),
-        );
-        if (action === "free") {
-          generation.current += 1;
-          subscription.current?.abort();
-          setTask(null);
-          setPreview("");
-          install(next);
-          setStatus("已切换为自由造句，可以直接作答。");
-          return;
-        }
-      }
+  const navigation = usePracticeNavigation({
+    api,
+    key,
+    session,
+    current: activeSession,
+    draft,
+    hintPolicy: teaching.data?.teaching?.hintPolicy ?? hintPolicy,
+    act,
+    install,
+    subscribe,
+    setQueue,
+    setStatus,
+    stopWatching() {
       generation.current += 1;
       subscription.current?.abort();
       setTask(null);
       setPreview("");
+    },
+    async showOverview() {
       activeSession.current = null;
       setSession(null);
       await load();
-      setStatus(
-        action === "pause" ? "练习已暂停，草稿已保存。" : "本次练习已结束，未完成项不会计入掌握。",
-      );
-    });
+    },
+  });
   const resume = (saved: PracticeSession) =>
     act(async () => {
       let next = api.workspace ? await api.workspace.get(saved.id) : saved;
@@ -260,10 +242,13 @@ export function usePracticeWorkspace(api: PracticePageApi, key: () => string) {
     });
   const submit = () =>
     act(async () => {
+      await draft.flush();
       const current = activeSession.current;
-      if (!current || draft.value.trim() === "") return;
-      void draft.flush();
-      const input = { answer: draft.value, expectedRevision: current.revision };
+      const text = draft.snapshot();
+      if (!current || text.value.trim() === "") return;
+      if (text.conflict || (api.workspace && text.dirty))
+        throw new Error("Draft is not synchronized.");
+      const input = { answer: text.value, expectedRevision: current.revision };
       if (api.tasks) {
         const snapshot = await api.tasks.submit(
           { version: 2, kind: "sentence-submit", sessionId: current.id, input },
@@ -359,6 +344,31 @@ export function usePracticeWorkspace(api: PracticePageApi, key: () => string) {
   return {
     queue,
     session,
+    teaching,
+    hintPolicy,
+    setHintPolicy,
+    teachingAction: (action: "rewrite" | "reveal-hint") =>
+      act(async () => {
+        const current = activeSession.current;
+        const data = teaching.data?.teaching;
+        if (!current?.workspace || !data || draft.snapshot().conflict) return;
+        setStatus("");
+        await teaching.act(
+          action === "rewrite"
+            ? {
+                action,
+                expectedRevision: current.revision,
+                expectedControlRevision: current.workspace.controlRevision ?? 0,
+                expectedDraftRevision: draft.snapshot().revision,
+              }
+            : {
+                action,
+                expectedRevision: current.revision,
+                expectedControlRevision: current.workspace.controlRevision ?? 0,
+                ordinal: data.round.ordinal,
+              },
+        );
+      }),
     resumable,
     detail,
     loading,
@@ -370,8 +380,7 @@ export function usePracticeWorkspace(api: PracticePageApi, key: () => string) {
     draft,
     load,
     install,
-    start,
-    control,
+    ...navigation,
     resume,
     submit,
     retry,

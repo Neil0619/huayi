@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 
-import type { AnalysisRecord } from "@huayi/cloud-contracts";
+import type { AnalysisRecordRead as AnalysisRecord } from "@huayi/cloud-contracts";
 
 import { AnalysisHistoryActions } from "./analysis-history-actions.js";
 import { AnalysisHistoryDetail } from "./analysis-history-detail.js";

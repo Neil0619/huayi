@@ -77,6 +77,10 @@ async function render(f: ReturnType<typeof fixture>) {
   return view;
 }
 async function click(view: Element, text: string) {
+  if (text === "加入学习库") {
+    const choice = view.querySelector<HTMLInputElement>("[data-candidate-selected]");
+    if (choice && !choice.checked) await act(async () => choice.click());
+  }
   const button = [...view.querySelectorAll<HTMLButtonElement>("button")].find((entry) =>
     entry.textContent?.includes(text),
   );
@@ -240,10 +244,10 @@ it("keeps completion on refresh and still allows opening reviewed content manual
 });
 
 it("clears completed-analysis feedback when review advances", async () => {
-  const f = fixture([first]);
+  const f = fixture([{ ...first, studyCaptureId: pending.capture.id }]);
   const capture: StudyCaptureDetailResponse = {
     ...pending,
-    capture: { ...pending.capture, status: "analyzing" },
+    capture: { ...pending.capture, sourceText: first.sourceText, status: "analyzing" },
     activeAnalysisRequest: { requestId: "request-1", state: "running" },
   };
   f.api.listCaptures = vi.fn(async (query) => ({

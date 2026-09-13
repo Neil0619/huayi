@@ -22,6 +22,11 @@ test("an account owner exports data and permanently deletes the account", async 
     });
   });
   await authority.install(page);
+  const exportFormats: unknown[] = [];
+  page.on("request", (request) => {
+    if (request.method() === "POST" && request.url().includes("/v1/account-data-exports"))
+      exportFormats.push(request.postDataJSON());
+  });
 
   await page.goto(`${webOrigin}/settings/data`);
   await expect(page.getByRole("heading", { name: "导出与删除账号", level: 1 })).toBeVisible();
@@ -37,6 +42,11 @@ test("an account owner exports data and permanently deletes the account", async 
 
   await page.reload();
   await expect(page.getByRole("heading", { name: "可以下载" })).toBeVisible();
+  await expect(page.getByText(/练习原答、历次改写、反馈和提示记录/)).toBeVisible();
+  await page.screenshot({
+    path: test.info().outputPath("export-ready-mobile.png"),
+    fullPage: true,
+  });
   const popupPromise = page.waitForEvent("popup");
   await page.getByRole("button", { name: "取得 15 分钟下载地址" }).click();
   const popup = await popupPromise;
@@ -76,6 +86,7 @@ test("an account owner exports data and permanently deletes the account", async 
     });
   }
   expect(JSON.stringify(snapshot)).not.toContain(downloadToken);
+  expect(exportFormats).toEqual([{ formatVersion: 3 }, { formatVersion: 3 }]);
   expect(await page.evaluate(() => [localStorage.length, sessionStorage.length])).toEqual([0, 0]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });

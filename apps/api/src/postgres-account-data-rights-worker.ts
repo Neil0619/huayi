@@ -1,4 +1,5 @@
 import { hashSecret, opaqueSecret, type Clock, type SecretSource } from "./security.js";
+import { accountDataExportFormatVersionSchema } from "@huayi/cloud-contracts";
 import type { AnalysisDatabase } from "./analysis-database.js";
 import type {
   AccountDataRightsWorkerRepository,
@@ -52,7 +53,7 @@ export function createPostgresAccountDataRightsWorker(
             object_keys: string[];
             stage: DeletionClaim["stage"];
             subject_user_id: string;
-          }>("SELECT * FROM claim_account_deletion($1,$2)", [proof.hash, proof.expiresAt])
+          }>("SELECT * FROM claim_account_deletion_v2($1,$2)", [proof.hash, proof.expiresAt])
         )[0];
         if (row === undefined) return null;
         const required = (
@@ -79,19 +80,77 @@ export function createPostgresAccountDataRightsWorker(
       const proof = lease();
       return database.trusted(async (query) => {
         const row = (
-          await query.rows<{ id: string; owner_user_id: string }>(
-            "SELECT id::text,owner_user_id::text FROM claim_account_export($1,$2)",
+          await query.rows<{
+            id: string;
+            owner_user_id: string;
+            format_version: number;
+            object_key: string;
+          }>(
+            "SELECT id::text,owner_user_id::text,format_version,object_key FROM claim_account_export_v3($1,$2)",
             [proof.hash, proof.expiresAt],
           )
         )[0];
         return row === undefined
           ? null
           : {
+              formatVersion: accountDataExportFormatVersionSchema.parse(row.format_version),
               exportId: row.id,
               leaseToken: proof.token,
-              objectKey: `account-exports/${row.id}.ndjson`,
+              objectKey: row.object_key,
               ownerUserId: row.owner_user_id,
             };
+      });
+    },
+    async prepareExportUpload(claim) {
+      await database.trusted(async (query) => {
+        const row = (
+          await query.rows<{ prepared: boolean }>(
+            "SELECT prepare_account_export_upload($1,$2,$3) prepared",
+            [claim.exportId, hashSecret(claim.leaseToken, options.pepper), claim.objectKey],
+          )
+        )[0];
+        requireResult(row?.prepared);
+      });
+    },
+    async reconcileExportPublication(command) {
+      return database.trusted(async (query) => {
+        const row = (
+          await query.rows<{ state: string }>(
+            "SELECT reconcile_account_export_publication($1,$2,$3,$4,$5,$6) state",
+            [
+              command.exportId,
+              hashSecret(command.leaseToken, options.pepper),
+              command.objectKey,
+              command.recordCount,
+              command.byteLength,
+              command.sha256,
+            ],
+          )
+        )[0];
+        if (row?.state !== "published" && row?.state !== "retired")
+          throw new Error("Export reconciliation was not confirmed.");
+        return row.state;
+      });
+    },
+    async claimExportCandidateCleanup() {
+      return database.trusted(
+        async (query) =>
+          (
+            await query.rows<{ object_key: string | null }>(
+              "SELECT claim_account_export_candidate_cleanup() object_key",
+            )
+          )[0]?.object_key ?? null,
+      );
+    },
+    async finishExportCandidateCleanup(objectKey) {
+      await database.trusted(async (query) => {
+        const row = (
+          await query.rows<{ completed: boolean }>(
+            "SELECT finish_account_export_candidate_cleanup($1) completed",
+            [objectKey],
+          )
+        )[0];
+        requireResult(row?.completed);
       });
     },
     async completeExport(command) {
@@ -170,6 +229,16 @@ export function createPostgresAccountDataRightsWorker(
       });
     },
     finishDatabaseDeletion: (claim) => advance(claim, "exports-deleted", "database-deleted"),
-    finishExportDeletion: (claim) => advance(claim, "requested", "exports-deleted"),
+    async finishExportDeletion(claim) {
+      await database.trusted(async (query) => {
+        const row = (
+          await query.rows<{ completed: boolean }>(
+            "SELECT finish_account_export_deletion($1,$2) completed",
+            [claim.jobId, hashSecret(claim.leaseToken, options.pepper)],
+          )
+        )[0];
+        requireResult(row?.completed);
+      });
+    },
   };
 }

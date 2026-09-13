@@ -1,9 +1,26 @@
 export * from "./analysis-results.js";
 export * from "./confirmation.js";
 export * from "./domain-schemas.js";
+export * from "./learning-recommendations.js";
 export * from "./normalization.js";
+export * from "./pattern-source.js";
 export * from "./practice-schemas.js";
+export * from "./practice-teaching.js";
 export * from "./quota.js";
 export * from "./schedule.js";
+export * from "./sentence-source-units.js";
+export * from "./source-fragments.js";
+export * from "./structured-sentence-unit.js";
+export * from "./structured-store-results.js";
+export * from "./structured-web-results.js";
+export * from "./teaching-structure.js";
 
 export { analysisUpdateSchema, type AnalysisUpdate } from "./analysis-updates.js";
+export * from "./sentence-explanation-generation.js";
+export * from "./compact-model-json-schema.js";
+export * from "./structured-analysis-updates.js";
+export * from "./structured-payload-budget.js";
+export * from "./teaching-source-checks.js";
+export * from "./sentence-source-partition.js";
+export * from "./sentence-explanation-source.js";
+export * from "./structured-payload-size.js";

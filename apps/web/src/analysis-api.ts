@@ -1,19 +1,24 @@
-import { createWebLearningTasks } from "./learning-task-api.js";
+import {
+  createAnalysisEventBinding,
+  invalidAnalysisResponse,
+  readBoundAnalysisStatus,
+} from "./analysis-event-binding.js";
+import { createWebStructuredLearningTasks } from "./learning-task-api.js";
 import {
   apiErrorSchema,
-  analysisHistoryResponseSchema,
+  structuredTeachingAccept,
+  analysisHistoryReadResponseSchema,
   analysisDeleteResponseSchema,
   analysisDeleteRequestSchema,
   analysisHttpRoutes,
   analysisMutationRequestSchema,
-  analysisRecordSchema,
-  analysisRequestStatusSchema,
+  analysisRecordReadSchema,
   confirmCandidatesRequestSchema,
-  confirmCandidatesResponseSchema,
-  createAnalysisSseDecoder,
+  confirmCandidatesReadResponseSchema,
+  createStructuredAnalysisSseDecoder,
   listAnalysesQuerySchema,
-  startAnalysisRequestSchema,
-  type AnalysisEvent,
+  startStructuredAnalysisRequestSchema,
+  type AnalysisEventRead as AnalysisEvent,
   type ApiError,
   type ConfirmCandidatesRequest,
   type ListAnalysesQuery,
@@ -46,6 +51,11 @@ export function createWebAnalysisApi(options: WebAnalysisApiOptions) {
     }
     return response.json() as Promise<unknown>;
   };
+  const readAnalysis = (id: string, value: unknown) => {
+    const record = analysisRecordReadSchema.parse(value);
+    if (record.id !== id) invalidAnalysisResponse();
+    return record;
+  };
   const historyPath = (route: string, id: string) => route.replace(":id", encodeURIComponent(id));
   const mutation = async (
     route: string,
@@ -61,6 +71,7 @@ export function createWebAnalysisApi(options: WebAnalysisApiOptions) {
         body: JSON.stringify(body),
         credentials: "include",
         headers: {
+          Accept: structuredTeachingAccept.json,
           "Content-Type": "application/json",
           "Idempotency-Key": idempotencyKey,
           "X-Huayi-Revision": `"${expectedRevision}"`,
@@ -71,15 +82,16 @@ export function createWebAnalysisApi(options: WebAnalysisApiOptions) {
     );
   };
   return {
-    tasks: createWebLearningTasks(options),
+    analysisTasks: createWebStructuredLearningTasks(options),
     async archiveAnalysis(id: string, expectedRevision: number, idempotencyKey: string) {
-      return analysisRecordSchema.parse(
+      return readAnalysis(
+        id,
         await mutation(analysisHttpRoutes.archive, id, expectedRevision, idempotencyKey),
       );
     },
     async confirmCandidates(id: string, input: ConfirmCandidatesRequest, idempotencyKey: string) {
       const parsed = confirmCandidatesRequestSchema.parse(input);
-      return confirmCandidatesResponseSchema.parse(
+      const confirmed = confirmCandidatesReadResponseSchema.parse(
         await mutation(
           analysisHttpRoutes.confirmCandidates,
           id,
@@ -89,6 +101,8 @@ export function createWebAnalysisApi(options: WebAnalysisApiOptions) {
           parsed,
         ),
       );
+      if (confirmed.analysis.id !== id) invalidAnalysisResponse();
+      return confirmed;
     },
     async deleteAnalysis(
       id: string,
@@ -108,20 +122,23 @@ export function createWebAnalysisApi(options: WebAnalysisApiOptions) {
       );
     },
     async getAnalysis(id: string) {
-      return analysisRecordSchema.parse(
+      return readAnalysis(
+        id,
         await requireSuccess(
           await options.fetch(url(`${analysisHttpRoutes.history}/${encodeURIComponent(id)}`), {
             credentials: "include",
+            headers: { Accept: structuredTeachingAccept.json },
           }),
         ),
       );
     },
     async getRequestStatus(requestId: string) {
-      return analysisRequestStatusSchema.parse(
+      return readBoundAnalysisStatus(
+        requestId,
         await requireSuccess(
           await options.fetch(
             url(analysisHttpRoutes.status.replace(":requestId", encodeURIComponent(requestId))),
-            { credentials: "include" },
+            { credentials: "include", headers: { Accept: structuredTeachingAccept.json } },
           ),
         ),
       );
@@ -130,8 +147,13 @@ export function createWebAnalysisApi(options: WebAnalysisApiOptions) {
       const endpoint = url(analysisHttpRoutes.history);
       endpoint.searchParams.set("reviewState", "pendingReview");
       if (query?.cursor) endpoint.searchParams.set("cursor", query.cursor);
-      return analysisHistoryResponseSchema.parse(
-        await requireSuccess(await options.fetch(endpoint, { credentials: "include" })),
+      return analysisHistoryReadResponseSchema.parse(
+        await requireSuccess(
+          await options.fetch(endpoint, {
+            credentials: "include",
+            headers: { Accept: structuredTeachingAccept.json },
+          }),
+        ),
       );
     },
     async listHistory(query: ListAnalysesQuery) {
@@ -140,12 +162,18 @@ export function createWebAnalysisApi(options: WebAnalysisApiOptions) {
       for (const [key, value] of Object.entries(parsed)) {
         if (value !== undefined) endpoint.searchParams.set(key, String(value));
       }
-      return analysisHistoryResponseSchema.parse(
-        await requireSuccess(await options.fetch(endpoint, { credentials: "include" })),
+      return analysisHistoryReadResponseSchema.parse(
+        await requireSuccess(
+          await options.fetch(endpoint, {
+            credentials: "include",
+            headers: { Accept: structuredTeachingAccept.json },
+          }),
+        ),
       );
     },
     async processNothingToSave(id: string, expectedRevision: number, idempotencyKey: string) {
-      return analysisRecordSchema.parse(
+      return readAnalysis(
+        id,
         await mutation(analysisHttpRoutes.process, id, expectedRevision, idempotencyKey, "POST", {
           expectedRevision,
           outcome: "nothing-to-save",
@@ -153,7 +181,8 @@ export function createWebAnalysisApi(options: WebAnalysisApiOptions) {
       );
     },
     async restoreAnalysis(id: string, expectedRevision: number, idempotencyKey: string) {
-      return analysisRecordSchema.parse(
+      return readAnalysis(
+        id,
         await mutation(analysisHttpRoutes.restore, id, expectedRevision, idempotencyKey),
       );
     },
@@ -164,10 +193,15 @@ export function createWebAnalysisApi(options: WebAnalysisApiOptions) {
     ): AsyncIterable<AnalysisEvent> {
       const csrfToken = await options.csrfToken();
       const response = await options.fetch(url(analysisHttpRoutes.start), {
-        body: JSON.stringify(startAnalysisRequestSchema.parse(input)),
+        body: JSON.stringify(
+          startStructuredAnalysisRequestSchema.parse({
+            ...input,
+            outputContract: "structured-teaching-v1",
+          }),
+        ),
         credentials: "include",
         headers: {
-          Accept: "text/event-stream",
+          Accept: structuredTeachingAccept.eventStream,
           "Content-Type": "application/json",
           "Idempotency-Key": idempotencyKey,
           "X-CSRF-Token": csrfToken,
@@ -188,7 +222,8 @@ export function createWebAnalysisApi(options: WebAnalysisApiOptions) {
       }
       if (response.body === null) throw new Error("Huayi API returned no analysis event stream.");
       const decoder = new TextDecoder("utf-8", { fatal: true });
-      const events = createAnalysisSseDecoder();
+      const events = createStructuredAnalysisSseDecoder();
+      const binding = createAnalysisEventBinding({ ...input, requireStructured: true });
       const reader = response.body.getReader();
       let finished = false;
       try {
@@ -196,11 +231,11 @@ export function createWebAnalysisApi(options: WebAnalysisApiOptions) {
           const chunk = await reader.read();
           if (chunk.done) break;
           for (const event of events.push(decoder.decode(chunk.value, { stream: true }))) {
-            yield event;
+            yield binding.accept(event);
           }
         }
-        for (const event of events.push(decoder.decode())) yield event;
-        for (const event of events.finish()) yield event;
+        for (const event of events.push(decoder.decode())) yield binding.accept(event);
+        for (const event of events.finish()) yield binding.accept(event);
         finished = true;
       } finally {
         if (!finished) await reader.cancel().catch(() => undefined);

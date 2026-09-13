@@ -1,6 +1,8 @@
 import { captureDiagnostic } from "./diagnostic-context.js";
 import {
   safeDiagnosticIssues,
+  compactModelJsonSchema,
+  type OutputJsonSchema,
   lexicalExplanationResultSchema,
   lexicalTranslationResultSchema,
   passageTranslationResultSchema,
@@ -8,10 +10,15 @@ import {
   storeAnalysisResultSchema,
   wordExplanationResultSchema,
   wordTranslationResultSchema,
-  type ExtensionQueryRequest,
-  type StoreAnalysisResult,
+  type ExtensionQueryGenerationRequest,
+  type StoreAnalysisReadResult,
 } from "@huayi/cloud-contracts";
 import { z } from "zod/v3";
+import {
+  assembleStructuredQueryResult,
+  privateStructuredQuerySchema,
+  structuredQueryInstructions,
+} from "./structured-query-output.js";
 
 const privateSchemas = {
   "explain-lexical": lexicalExplanationResultSchema.omit({ requestId: true, sourceText: true }),
@@ -22,57 +29,7 @@ const privateSchemas = {
   "translate-word": wordTranslationResultSchema.omit({ requestId: true, sourceText: true }),
 } as const;
 
-interface OutputJsonSchema {
-  type: "object" | "array" | "string";
-  properties?: Readonly<Record<string, OutputJsonSchema>>;
-  required?: readonly string[];
-  additionalProperties?: false;
-  items?: OutputJsonSchema;
-  enum?: readonly string[];
-  const?: string;
-  minLength?: number;
-  maxLength?: number;
-  minItems?: number;
-  maxItems?: number;
-}
-
-/** Project only the Zod forms used by compact queries; unsupported forms fail closed.
- * Text-language and cross-field refinements also remain in the prompt and final validator.
- */
-function jsonSchema(schema: z.ZodType<unknown>): OutputJsonSchema {
-  if (schema instanceof z.ZodOptional) return jsonSchema(schema.unwrap());
-  if (schema instanceof z.ZodEffects) return jsonSchema(schema.innerType());
-  if (schema instanceof z.ZodObject) {
-    const fields = Object.entries(schema.shape as Readonly<Record<string, z.ZodType<unknown>>>);
-    return {
-      type: "object",
-      additionalProperties: false,
-      properties: Object.fromEntries(fields.map(([key, field]) => [key, jsonSchema(field)])),
-      required: fields.filter(([, field]) => !field.isOptional()).map(([key]) => key),
-    };
-  }
-  if (schema instanceof z.ZodArray) {
-    return {
-      type: "array",
-      items: jsonSchema(schema.element),
-      ...(schema._def.minLength === null ? {} : { minItems: schema._def.minLength.value }),
-      ...(schema._def.maxLength === null ? {} : { maxItems: schema._def.maxLength.value }),
-    };
-  }
-  if (schema instanceof z.ZodString) {
-    return {
-      type: "string",
-      ...(schema.minLength === null ? {} : { minLength: schema.minLength }),
-      ...(schema.maxLength === null ? {} : { maxLength: schema.maxLength }),
-    };
-  }
-  if (schema instanceof z.ZodEnum) return { type: "string", enum: schema.options };
-  if (schema instanceof z.ZodLiteral && typeof schema.value === "string")
-    return { type: "string", const: schema.value };
-  throw new Error("Unsupported extension query output schema.");
-}
-
-function resultType(input: ExtensionQueryRequest): keyof typeof privateSchemas {
+function resultType(input: ExtensionQueryGenerationRequest): keyof typeof privateSchemas {
   if (input.selectionKind === "word")
     return input.action === "translate" ? "translate-word" : "explain-word";
   if (input.selectionKind === "phrase")
@@ -108,11 +65,12 @@ export interface QueryOutputFailure {
 export interface QueryOutputDiagnostic extends QueryOutputFailure {
   readonly event: "extension-query-output-invalid";
   readonly generationId?: string;
-  readonly resultType: StoreAnalysisResult["type"];
+  readonly resultType: StoreAnalysisReadResult["type"];
   readonly attempt: "initial" | "repair";
 }
 type ParsedOutput =
-  { success: true; data: StoreAnalysisResult } | { success: false; failure: QueryOutputFailure };
+  | { success: true; data: StoreAnalysisReadResult }
+  | { success: false; failure: QueryOutputFailure };
 
 /** Never serialize an issue message, received value, unknown key or model-chosen path. */
 function safePath(path: readonly (string | number)[], root: OutputJsonSchema): string {
@@ -161,12 +119,17 @@ function schemaFailure(
   };
 }
 
-export function createQueryOutputContract(input: ExtensionQueryRequest) {
-  const type = resultType(input);
-  const schema = privateSchemas[type].extend({ selectionKind: z.literal(input.selectionKind) });
-  const outputSchema = jsonSchema(schema);
+export function createQueryOutputContract(input: ExtensionQueryGenerationRequest) {
+  const legacyType = resultType(input);
+  const native = "outputContract" in input && legacyType === "explain-sentence";
+  const type: StoreAnalysisReadResult["type"] = native ? "explain-sentence-v2" : legacyType;
+  const schema = native
+    ? privateStructuredQuerySchema
+    : privateSchemas[legacyType].extend({ selectionKind: z.literal(input.selectionKind) });
+  const outputSchema = compactModelJsonSchema(schema);
   return {
     type,
+    native,
     shape: schema.shape as Readonly<Record<string, z.ZodType<unknown>>>,
     instructions: [
       "OUTPUT_JSON_SCHEMA",
@@ -176,6 +139,7 @@ export function createQueryOutputContract(input: ExtensionQueryRequest) {
       "Keep required arrays even when empty; only arrays with minItems require entries. Omit unavailable optional fields; never output null or extra keys.",
       "Every field ending in Zh must contain Simplified Chinese. dictionaryForm, baseForm, text and english fields must contain English letters and no Chinese characters.",
       "If pronunciation is present, include at least one non-empty uk or us string; otherwise omit pronunciation.",
+      ...(native ? [structuredQueryInstructions] : []),
     ].join("\n"),
     parse(content: string, generationId: string): ParsedOutput {
       let value: unknown;
@@ -194,6 +158,20 @@ export function createQueryOutputContract(input: ExtensionQueryRequest) {
       const parsed = schema.safeParse(value);
       if (!parsed.success)
         return { success: false, failure: schemaFailure(parsed.error, outputSchema, "schema") };
+      if (native) {
+        try {
+          return {
+            success: true,
+            data: assembleStructuredQueryResult(parsed.data, input, generationId),
+          };
+        } catch (error) {
+          if (!(error instanceof z.ZodError)) throw error;
+          return {
+            success: false,
+            failure: schemaFailure(error, outputSchema, "assembled-result"),
+          };
+        }
+      }
       const result = storeAnalysisResultSchema.safeParse({
         ...parsed.data,
         requestId: generationId,
@@ -211,7 +189,7 @@ export function createQueryOutputContract(input: ExtensionQueryRequest) {
 
 export function reportQueryOutputFailure(
   failure: QueryOutputFailure,
-  resultType: StoreAnalysisResult["type"],
+  resultType: StoreAnalysisReadResult["type"],
   generationId: string,
   attempt: QueryOutputDiagnostic["attempt"],
   write: (record: QueryOutputDiagnostic) => void = (record) => console.warn(record),

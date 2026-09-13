@@ -9,32 +9,17 @@ import type { AnalysisBilledCall } from "./analysis-ports.js";
 import type { DeepSeekPriceSnapshot } from "./deepseek-price-schedule.js";
 import type { ModelExecution } from "./model-execution.js";
 
-const textSchema = z.string().trim().min(1).max(4_000);
-export const practiceGenerationOutputSchema = z.discriminatedUnion("kind", [
-  z.strictObject({ kind: z.literal("sentence-prompt"), prompt: textSchema }),
-  z.strictObject({ feedback: textSchema, kind: z.literal("sentence-feedback") }),
-  z.strictObject({
-    kind: z.literal("dialogue-start"),
-    opener: textSchema,
-    plan: z.strictObject({
-      endConditionZh: textSchema,
-      roleZh: textSchema,
-      taskZh: textSchema,
-    }),
-    prompt: textSchema,
-  }),
-  z.strictObject({ assistantTurn: textSchema, kind: z.literal("dialogue-assistant") }),
-  z.strictObject({
-    itemFeedbacks: z
-      .array(z.strictObject({ feedback: textSchema, itemAlias: z.string().regex(/^item-[1-3]$/u) }))
-      .min(1)
-      .max(3),
-    kind: z.literal("dialogue-final-feedback"),
-    summary: textSchema,
-  }),
-]);
-export type PracticeGenerationOutput = z.infer<typeof practiceGenerationOutputSchema>;
-export type PracticeGenerationKind = PracticeGenerationOutput["kind"];
+import {
+  parsePracticeGenerationOutput,
+  PracticeOutputValidationError,
+  type PracticeGenerationOutput,
+  type PracticeGenerationKind,
+} from "./practice-generation-output.js";
+export {
+  practiceGenerationOutputSchema,
+  type PracticeGenerationOutput,
+  type PracticeGenerationKind,
+} from "./practice-generation-output.js";
 
 export interface PracticeGenerationCommand extends ModelExecution {
   generationId: string;
@@ -114,7 +99,7 @@ export function createPaidPracticeGenerator(options: {
       setDiagnosticContext({ generationId: command.generationId, userId: command.ownerUserId });
       const acquired = await options.repository.acquire(command);
       if (acquired.kind === "pending") return null;
-      if (acquired.kind === "ready") return practiceGenerationOutputSchema.parse(acquired.output);
+      if (acquired.kind === "ready") return parsePracticeGenerationOutput(acquired.output, command);
       const mayDispatch = await options.repository.markDispatched({
         ...command,
         reservationId: acquired.reservationId,
@@ -122,6 +107,7 @@ export function createPaidPracticeGenerator(options: {
       if (!mayDispatch) return null;
       const dispatchPricing = mayDispatch === true ? undefined : mayDispatch.pricing;
       let billedCalls: AnalysisBilledCall[] | undefined;
+      let output: PracticeGenerationOutput;
       try {
         const provider =
           dispatchPricing === undefined || options.providerForPricing === undefined
@@ -136,19 +122,7 @@ export function createPaidPracticeGenerator(options: {
           kind: command.kind,
         });
         billedCalls = generated.billedCalls;
-        const output = practiceGenerationOutputSchema.parse(generated.output);
-        if (output.kind !== command.kind) {
-          throw new PracticeOutputValidationError();
-        }
-        return practiceGenerationOutputSchema.parse(
-          await options.repository.complete({
-            ...command,
-            billedCalls: generated.billedCalls,
-            output,
-            ...(dispatchPricing === undefined ? {} : { pricing: dispatchPricing }),
-            reservationId: acquired.reservationId,
-          }),
-        );
+        output = parsePracticeGenerationOutput(generated.output, command);
       } catch (error) {
         const providerFailure = error instanceof PracticeProviderError ? error : undefined;
         const failureCalls = billedCalls ?? providerFailure?.billedCalls;
@@ -174,10 +148,20 @@ export function createPaidPracticeGenerator(options: {
         });
         return null;
       }
+      // A storage/settlement response can be lost after commit. Let the task reconcile it;
+      // do not relabel it as provider failure or discard an already billed ready result.
+      return parsePracticeGenerationOutput(
+        await options.repository.complete({
+          ...command,
+          billedCalls: billedCalls ?? [],
+          output,
+          ...(dispatchPricing === undefined ? {} : { pricing: dispatchPricing }),
+          reservationId: acquired.reservationId,
+        }),
+        command,
+      );
     },
   };
 }
-
-class PracticeOutputValidationError extends Error {}
 
 export type PaidPracticeGenerator = ReturnType<typeof createPaidPracticeGenerator>;

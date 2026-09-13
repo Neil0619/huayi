@@ -1,4 +1,5 @@
-import type { AnalysisRecord } from "@huayi/cloud-contracts";
+import { DeepAnalysisReading } from "./deep-analysis-reading.js";
+import type { AnalysisRecordRead as AnalysisRecord } from "@huayi/cloud-contracts";
 
 type PassageResult = Extract<
   AnalysisRecord["result"],
@@ -251,7 +252,10 @@ export function AnalysisHistoryDetail({ record }: { readonly record: AnalysisRec
       </section>
       <section className="analysis-history-result">
         <h3>分析结果</h3>
-        {record.result.type === "phrase-analysis-v2" ? (
+        {record.result.type === "phrase-analysis-v3" ||
+        record.result.type === "sentence-passage-analysis-v3" ? (
+          <DeepAnalysisReading analysis={record} />
+        ) : record.result.type === "phrase-analysis-v2" ? (
           <PhraseResult result={record.result} />
         ) : (
           <PassageResultView result={record.result} />

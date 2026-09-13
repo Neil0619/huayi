@@ -22,12 +22,14 @@ export function PracticeItemList({
   choice,
   onStart,
   freeAvailable = false,
+  hideTargets = false,
 }: {
   readonly items: PracticeItem[];
   readonly busy: boolean;
   readonly choice?: Choice;
   readonly onStart?: (id: string, mode: "guided" | "free") => void;
   readonly freeAvailable?: boolean;
+  readonly hideTargets?: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("all");
@@ -73,8 +75,8 @@ export function PracticeItemList({
         </label>
       </div>
       <div className="practice-items" aria-label={choice ? "选择对话练习项" : "今日学习项"}>
-        {matches.slice(current * 6, (current + 1) * 6).map((item) => {
-          const title = practiceItemTitle(item);
+        {matches.slice(current * 6, (current + 1) * 6).map((item, index) => {
+          const title = hideTargets ? `练习项 ${current * 6 + index + 1}` : practiceItemTitle(item);
           const selected = choice?.selected.includes(item.item.id);
           const content = (
             <span className="practice-item-content">
@@ -83,7 +85,9 @@ export function PracticeItemList({
                 <span>{item.schedule.level === -1 ? "新学习项" : "到期复习"}</span>
               </span>
               <strong>{title}</strong>
-              <span className="practice-item-meaning">{practiceItemMeaning(item)}</span>
+              <span className="practice-item-meaning">
+                {hideTargets ? "先看场景，再尝试表达" : practiceItemMeaning(item)}
+              </span>
             </span>
           );
           return (

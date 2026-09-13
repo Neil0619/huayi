@@ -72,9 +72,12 @@ export function PracticeResumeList({
       ) : (
         <div className="practice-resume-items">
           {visible.map((session, index) => {
-            const title = session.items
-              .map((item) => known.get(item.itemId) ?? titles[item.itemId] ?? "正在载入学习项…")
-              .join(" / ");
+            const conceal = Boolean(api.teaching && session.type === "sentence-creation");
+            const title = conceal
+              ? "已保存的造句练习"
+              : session.items
+                  .map((item) => known.get(item.itemId) ?? titles[item.itemId] ?? "正在载入学习项…")
+                  .join(" / ");
             const draft = session.workspace?.draft.trim();
             const answer =
               session.attempts?.at(-1)?.answer ??
@@ -99,13 +102,15 @@ export function PracticeResumeList({
                 </div>
                 <h4>{title}</h4>
                 <p className="practice-resume-excerpt">
-                  {draft
-                    ? `草稿：${draft}`
-                    : answer
-                      ? `已提交：${answer}`
-                      : (session.dialoguePlan?.taskZh ??
-                        session.prompt ??
-                        "还没有作答，可以继续准备场景。")}
+                  {conceal
+                    ? status(session)
+                    : draft
+                      ? `草稿：${draft}`
+                      : answer
+                        ? `已提交：${answer}`
+                        : (session.dialoguePlan?.taskZh ??
+                          session.prompt ??
+                          "还没有作答，可以继续准备场景。")}
                 </p>
                 <div className="practice-resume-footer">
                   <time dateTime={session.updatedAt}>

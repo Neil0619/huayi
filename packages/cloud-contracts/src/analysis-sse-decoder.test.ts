@@ -34,4 +34,38 @@ describe("analysis SSE decoder", () => {
     const oversized = createAnalysisSseDecoder({ eventCharacters: 4, totalCharacters: 10 });
     expect(() => oversized.push("12345")).toThrow("Analysis event stream exceeded its limit.");
   });
+
+  it("applies the event limit to each frame when the network coalesces valid events", () => {
+    const frames = Array.from({ length: 17 }, (_, index) => {
+      const data = {
+        type: "analysis.preview",
+        requestId: "00000000-0000-4000-8000-000000000001",
+        section: "overall",
+        text: "字".repeat(4096),
+      };
+      return `event: analysis\nid: ${index + 1}\ndata: ${JSON.stringify(data)}\n\n`;
+    });
+    const source = frames.join("");
+    expect(source.length).toBeGreaterThan(64 * 1024);
+    for (const split of [0, 17, 4220, 4900, source.length - 1]) {
+      const decoder = createAnalysisSseDecoder();
+      expect([
+        ...decoder.push(source.slice(0, split)),
+        ...decoder.push(source.slice(split)),
+      ]).toHaveLength(17);
+      expect(decoder.finish()).toEqual([]);
+    }
+  });
+
+  it("resets frame counts for heartbeats while retaining individual and total limits", () => {
+    const heartbeat = ": heartbeat\n\n";
+    const decoder = createAnalysisSseDecoder({
+      eventCharacters: heartbeat.length,
+      totalCharacters: 1000,
+    });
+    expect(decoder.push(heartbeat.repeat(5))).toEqual([]);
+    expect(() => decoder.push(":".repeat(heartbeat.length + 1))).toThrow("exceeded its limit");
+    const total = createAnalysisSseDecoder({ eventCharacters: 100, totalCharacters: 20 });
+    expect(() => total.push(heartbeat.repeat(2))).toThrow("exceeded its limit");
+  });
 });

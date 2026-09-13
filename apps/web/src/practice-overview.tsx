@@ -20,12 +20,42 @@ export function PracticeOverview({
     state.busy ||
     (state.task !== null && ["queued", "running", "cancelling"].includes(state.task.state));
   if (!queue) return null;
+  const first = queue.items[0];
+  const latest = [...state.resumable].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
   return (
     <section className="practice-overview">
       <div className="practice-intro">
         <div>
           <h2>把读过的表达，用在自己的话里</h2>
           <p>先练一句，再试着用它完成一段对话。</p>
+          <div className="practice-entry-actions">
+            {first && (
+              <button
+                className="practice-primary"
+                data-start-today
+                disabled={busy}
+                onClick={() => void state.start(first.item.id)}
+                type="button"
+              >
+                开始今日练习
+              </button>
+            )}
+            {latest && (
+              <button
+                data-resume-latest
+                disabled={busy}
+                onClick={() => void state.resume(latest)}
+                type="button"
+              >
+                {latest.status === "completed" ? "继续自评上次练习" : "继续未完成练习"}
+              </button>
+            )}
+          </div>
+          {first && (
+            <p className="practice-entry-hint">
+              按待练顺序开始，优先复习到期内容；也可以在下面自行选择。
+            </p>
+          )}
         </div>
         <div className="practice-daily-progress">
           <span>
@@ -70,8 +100,23 @@ export function PracticeOverview({
                 <h3>选择今天要用的表达或句型</h3>
                 <p>引导造句：按中文场景写一句英文。自由造句：用自己的场景，立即开始。</p>
               </div>
+              {api.teaching && api.workspace && (
+                <label className="practice-hint-choice">
+                  <input
+                    type="checkbox"
+                    data-hint-policy
+                    checked={state.hintPolicy === "on-demand"}
+                    disabled={busy}
+                    onChange={(event) =>
+                      state.setHintPolicy(event.currentTarget.checked ? "on-demand" : "shown")
+                    }
+                  />
+                  先看中文场景，按需查看英文提示
+                </label>
+              )}
               <PracticeItemList
                 items={queue.items}
+                hideTargets={state.hintPolicy === "on-demand"}
                 busy={busy}
                 freeAvailable={Boolean(api.workspace)}
                 onStart={(id, choice) => void state.start(id, choice)}

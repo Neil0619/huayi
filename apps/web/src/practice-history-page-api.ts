@@ -4,8 +4,10 @@ import type {
   PracticeHistoryDetailResponse,
   PracticeHistoryListResponse,
 } from "@huayi/cloud-contracts";
+import type { WebPracticeTeaching } from "./practice-teaching-api.js";
 
 export interface PracticeHistoryPageApi {
+  teaching?: WebPracticeTeaching;
   deletePracticeHistory(
     sessionId: string,
     input: DeletePracticeSessionRequest,

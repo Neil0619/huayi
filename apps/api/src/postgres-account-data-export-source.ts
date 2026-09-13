@@ -1,8 +1,9 @@
 import {
-  accountDataExportRecordSchema,
-  extensionQueryEventSchema,
-  extensionQueryRequestSchema,
-  type AccountDataExportRecord,
+  accountDataExportRecordReadSchema,
+  accountDataExportFormatVersionSchema,
+  type AccountDataExportFormatVersion,
+  extensionQueryEventReadSchema,
+  type AccountDataExportRecordRead,
 } from "@huayi/cloud-contracts";
 
 import type { AnalysisDatabase, AnalysisQuery } from "./analysis-database.js";
@@ -13,6 +14,8 @@ import {
   type LibraryRow,
 } from "./postgres-learning-library.js";
 import { loadPracticeSession } from "./postgres-practice-view.js";
+import { loadPracticeTeaching } from "./postgres-practice-teaching-view.js";
+import { readStoredQueryRequest } from "./generation-snapshot.js";
 
 interface WordRow {
   archived_at: Date | null;
@@ -70,14 +73,14 @@ interface SignInMethodRow {
 async function extensionQueries(
   query: AnalysisQuery,
   snapshotAt: string,
-): Promise<AccountDataExportRecord[]> {
+): Promise<AccountDataExportRecordRead[]> {
   const rows = await query.rows<ExtensionQueryRow>(
     `SELECT id::text,state,request,terminal_event,created_at,expires_at
      FROM extension_query_generations WHERE expires_at>$1 ORDER BY created_at,id`,
     [snapshotAt],
   );
   return rows.map((row) => {
-    const request = extensionQueryRequestSchema.parse(row.request);
+    const request = readStoredQueryRequest(row.request);
     const common = {
       ...request,
       createdAt: row.created_at.toISOString(),
@@ -86,20 +89,20 @@ async function extensionQueries(
       recordType: "extension-query-generation" as const,
       state: row.state,
     };
-    if (row.state === "running") return accountDataExportRecordSchema.parse(common);
-    const event = extensionQueryEventSchema.parse(row.terminal_event);
+    if (row.state === "running") return accountDataExportRecordReadSchema.parse(common);
+    const event = extensionQueryEventReadSchema.parse(row.terminal_event);
     if (event.generationId !== row.id) throw new Error("ExtensionQuery export event mismatch.");
     if (row.state === "completed" && event.type === "query.completed") {
-      return accountDataExportRecordSchema.parse({ ...common, result: event.result });
+      return accountDataExportRecordReadSchema.parse({ ...common, result: event.result });
     }
     if (row.state === "failed" && event.type === "query.failed") {
-      return accountDataExportRecordSchema.parse({ ...common, error: event.error });
+      return accountDataExportRecordReadSchema.parse({ ...common, error: event.error });
     }
     throw new Error("ExtensionQuery export state mismatch.");
   });
 }
 
-async function studyCaptures(query: AnalysisQuery): Promise<AccountDataExportRecord[]> {
+async function studyCaptures(query: AnalysisQuery): Promise<AccountDataExportRecordRead[]> {
   const rows = await query.rows<StudyCaptureRow>(
     `SELECT captures.*,
       latest.id::text AS latest_analysis_id,latest.created_at AS latest_analysis_created_at,
@@ -110,7 +113,7 @@ async function studyCaptures(query: AnalysisQuery): Promise<AccountDataExportRec
      ) latest ON true ORDER BY captures.created_at,captures.id`,
   );
   return rows.map((row) =>
-    accountDataExportRecordSchema.parse({
+    accountDataExportRecordReadSchema.parse({
       capture: {
         captureCount: row.capture_count,
         createdAt: row.created_at.toISOString(),
@@ -143,13 +146,13 @@ async function studyCaptures(query: AnalysisQuery): Promise<AccountDataExportRec
   );
 }
 
-async function words(query: AnalysisQuery): Promise<AccountDataExportRecord[]> {
+async function words(query: AnalysisQuery): Promise<AccountDataExportRecordRead[]> {
   const rows = await query.rows<WordRow>(
     `SELECT id::text,headword,canonical_key,notes,revision,created_at,updated_at,
        (to_jsonb(word_entries)->>'archived_at')::timestamptz AS archived_at
      FROM word_entries ORDER BY created_at,id`,
   );
-  const result: AccountDataExportRecord[] = [];
+  const result: AccountDataExportRecordRead[] = [];
   for (const row of rows) {
     const contexts = await query.rows<ContextRow>(
       `SELECT id::text,source_text,source_title,contextual_meaning,source_type,observed_at
@@ -157,7 +160,7 @@ async function words(query: AnalysisQuery): Promise<AccountDataExportRecord[]> {
       [row.id],
     );
     result.push(
-      accountDataExportRecordSchema.parse({
+      accountDataExportRecordReadSchema.parse({
         recordType: "word",
         ...(row.archived_at ? { archivedAt: row.archived_at.toISOString() } : {}),
         word: {
@@ -187,7 +190,14 @@ async function words(query: AnalysisQuery): Promise<AccountDataExportRecord[]> {
 
 export function createPostgresAccountDataExportSource(database: AnalysisDatabase) {
   return {
-    records(ownerUserId: string, snapshotAt: string): Promise<AccountDataExportRecord[]> {
+    async records(
+      ownerUserId: string,
+      snapshotAt: string,
+      formatVersion: AccountDataExportFormatVersion = 2,
+    ): Promise<AccountDataExportRecordRead[]> {
+      accountDataExportFormatVersionSchema.parse(formatVersion);
+      if (formatVersion === 3 && !database.snapshot)
+        throw new Error("Teaching export requires a repeatable-read snapshot.");
       const snapshot = database.snapshot?.bind(database) ?? database.transaction.bind(database);
       return snapshot(ownerUserId, async ({ tenant, trusted }) => {
         const profile = (
@@ -207,8 +217,8 @@ export function createPostgresAccountDataExportSource(database: AnalysisDatabase
           )
         )[0];
         if (profile === undefined) throw new Error("Export profile is unavailable.");
-        const records: AccountDataExportRecord[] = [
-          accountDataExportRecordSchema.parse({
+        const records: AccountDataExportRecordRead[] = [
+          accountDataExportRecordReadSchema.parse({
             cloudWordCopyMode: profile.cloud_word_copy_mode,
             createdAt: profile.created_at.toISOString(),
             dailyGoal: profile.daily_goal,
@@ -225,7 +235,7 @@ export function createPostgresAccountDataExportSource(database: AnalysisDatabase
            ORDER BY CASE method WHEN 'password' THEN 0 ELSE 1 END`,
         );
         records.push(
-          accountDataExportRecordSchema.parse({
+          accountDataExportRecordReadSchema.parse({
             methods: signInMethods.map((method) => ({
               linkedAt: method.linked_at.toISOString(),
               method: method.method,
@@ -245,7 +255,9 @@ export function createPostgresAccountDataExportSource(database: AnalysisDatabase
               [ownerUserId, id],
             )
           )[0]?.value;
-          records.push(accountDataExportRecordSchema.parse({ analysis, recordType: "analysis" }));
+          records.push(
+            accountDataExportRecordReadSchema.parse({ analysis, recordType: "analysis" }),
+          );
         }
         const learning = await tenant.rows<LibraryRow>(
           `${learningLibraryViewSql} ORDER BY items.created_at,items.id`,
@@ -253,7 +265,7 @@ export function createPostgresAccountDataExportSource(database: AnalysisDatabase
         for (const row of learning) {
           const detail = mapLearningLibraryView(row);
           records.push(
-            accountDataExportRecordSchema.parse({
+            accountDataExportRecordReadSchema.parse({
               archivedAt: detail.archivedAt,
               item: detail.item,
               recordType: "learning-item",
@@ -266,8 +278,19 @@ export function createPostgresAccountDataExportSource(database: AnalysisDatabase
           "SELECT id::text FROM practice_sessions ORDER BY created_at,id",
         );
         for (const { id } of sessions) {
+          if (formatVersion === 3) {
+            const { session, teaching } = await loadPracticeTeaching(tenant, id);
+            records.push(
+              accountDataExportRecordReadSchema.parse({
+                recordType: "practice-session",
+                session,
+                teaching,
+              }),
+            );
+            continue;
+          }
           records.push(
-            accountDataExportRecordSchema.parse({
+            accountDataExportRecordReadSchema.parse({
               recordType: "practice-session",
               session: await loadPracticeSession(tenant, id),
             }),

@@ -50,6 +50,9 @@ export function createPracticeTaskRecovery(database: AnalysisDatabase) {
               ...common,
               attemptId: item.attempt_id,
               feedback: output.feedback,
+              ...(output.teachingFeedback === undefined
+                ? {}
+                : { teachingFeedback: output.teachingFeedback }),
               feedbackLeaseToken: item.lease_token,
               operation:
                 item.operation === "practice.attempt"

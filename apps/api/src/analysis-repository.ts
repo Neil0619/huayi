@@ -1,13 +1,15 @@
 import {
   canonicalKeyForContent,
-  confirmCandidatesResponseSchema,
+  analysisRecordReadSchema,
+  confirmCandidatesReadResponseSchema,
   type AnalysisDeleteResponse,
-  type AnalysisEvent,
-  type AnalysisRecord,
-  type ConfirmCandidatesResponse,
+  type AnalysisEventRead,
+  type AnalysisRecordRead,
+  type ConfirmCandidatesReadResponse,
 } from "@huayi/cloud-contracts";
 
 import { CloudFault } from "./cloud-fault.js";
+import { validateAnalysisRecordForPersistence } from "./analysis-record-persistence.js";
 import type {
   AnalysisCommitter,
   AnalysisHistoryMutation,
@@ -18,21 +20,24 @@ import type {
 export function createInMemoryAnalysisRepository(): AnalysisRepository & {
   remove(userId: string, id: string): void;
 } {
-  const records = new Map<string, AnalysisRecord>();
+  const records = new Map<string, AnalysisRecordRead>();
   type LearningItem = Extract<
-    ConfirmCandidatesResponse["results"][number],
+    ConfirmCandidatesReadResponse["results"][number],
     { type: "learning-item" }
   >["item"];
   const learningItems = new Map<string, LearningItem>();
   const mutations = new Map<
     string,
-    { hash: string; response: AnalysisDeleteResponse | AnalysisRecord | ConfirmCandidatesResponse }
+    {
+      hash: string;
+      response: AnalysisDeleteResponse | AnalysisRecordRead | ConfirmCandidatesReadResponse;
+    }
   >();
 
   function mutate(
     operation: string,
     command: AnalysisHistoryMutation,
-    change: (record: AnalysisRecord) => AnalysisDeleteResponse | AnalysisRecord,
+    change: (record: AnalysisRecordRead) => AnalysisDeleteResponse | AnalysisRecordRead,
   ) {
     const mutationKey = `${command.userId}:${operation}:${command.idempotencyKey}`;
     const previous = mutations.get(mutationKey);
@@ -50,7 +55,7 @@ export function createInMemoryAnalysisRepository(): AnalysisRepository & {
     }
     const response = change(structuredClone(record));
     if ("deleted" in response) records.delete(key);
-    else records.set(key, structuredClone(response));
+    else records.set(key, structuredClone(analysisRecordReadSchema.parse(response)));
     mutations.set(mutationKey, { hash: command.requestHash, response: structuredClone(response) });
     return response;
   }
@@ -62,7 +67,7 @@ export function createInMemoryAnalysisRepository(): AnalysisRepository & {
         archivedAt: command.updatedAt,
         revision: record.revision + 1,
         updatedAt: command.updatedAt,
-      })) as AnalysisRecord;
+      })) as AnalysisRecordRead;
     },
     async confirmCandidates(command) {
       const mutationKey = `${command.userId}:analysis.confirm:${command.idempotencyKey}`;
@@ -71,7 +76,7 @@ export function createInMemoryAnalysisRepository(): AnalysisRepository & {
         if (previous.hash !== command.requestHash) {
           throw new CloudFault("idempotency_conflict", "The idempotency key was reused.");
         }
-        return confirmCandidatesResponseSchema.parse(structuredClone(previous.response));
+        return confirmCandidatesReadResponseSchema.parse(structuredClone(previous.response));
       }
       const recordKey = `${command.userId}:${command.analysisId}`;
       const analysis = records.get(recordKey);
@@ -145,7 +150,7 @@ export function createInMemoryAnalysisRepository(): AnalysisRepository & {
         revision: analysis.revision + 1,
         updatedAt: command.updatedAt,
       };
-      const response = confirmCandidatesResponseSchema.parse({ analysis: updated, results });
+      const response = confirmCandidatesReadResponseSchema.parse({ analysis: updated, results });
       records.set(recordKey, updated);
       for (const [key, value] of stagedLearning) {
         if (key.startsWith(ownerPrefix)) learningItems.set(key, value);
@@ -196,7 +201,7 @@ export function createInMemoryAnalysisRepository(): AnalysisRepository & {
         reviewState: "reviewed",
         revision: record.revision + 1,
         updatedAt: command.updatedAt,
-      })) as AnalysisRecord;
+      })) as AnalysisRecordRead;
     },
     async replayCandidateConfirmation(command) {
       const mutationKey = `${command.userId}:analysis.confirm:${command.idempotencyKey}`;
@@ -205,10 +210,10 @@ export function createInMemoryAnalysisRepository(): AnalysisRepository & {
       if (previous.hash !== command.requestHash) {
         throw new CloudFault("idempotency_conflict", "The idempotency key was reused.");
       }
-      return confirmCandidatesResponseSchema.parse(structuredClone(previous.response));
+      return confirmCandidatesReadResponseSchema.parse(structuredClone(previous.response));
     },
     async save(userId, record) {
-      const copy = structuredClone(record);
+      const copy = structuredClone(validateAnalysisRecordForPersistence(record));
       records.set(`${userId}:${record.id}`, copy);
       return structuredClone(copy);
     },
@@ -221,7 +226,7 @@ export function createInMemoryAnalysisRepository(): AnalysisRepository & {
         archivedAt: null,
         revision: record.revision + 1,
         updatedAt: command.updatedAt,
-      })) as AnalysisRecord;
+      })) as AnalysisRecordRead;
     },
   };
 }
@@ -229,7 +234,7 @@ export function createInMemoryAnalysisRepository(): AnalysisRepository & {
 export function createInMemoryAnalysisCommitter(
   repository: AnalysisRepository & { remove(userId: string, id: string): void },
   quota: AnalysisQuota,
-  lifecycle: { complete(requestId: string, leaseToken: string, event: AnalysisEvent): void },
+  lifecycle: { complete(requestId: string, leaseToken: string, event: AnalysisEventRead): void },
 ): AnalysisCommitter {
   return {
     async complete(command) {

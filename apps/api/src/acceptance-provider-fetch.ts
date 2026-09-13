@@ -1,6 +1,13 @@
-import { dailyPracticeQueueItemSchema, extensionQueryRequestSchema } from "@huayi/cloud-contracts";
+import {
+  dailyPracticeQueueItemSchema,
+  extensionQueryGenerationRequestSchema,
+} from "@huayi/cloud-contracts";
 import { z } from "zod/v3";
 import { simulatedProviderResponse } from "./acceptance-provider-response.js";
+import {
+  simulatedStructuredAnalysis,
+  simulatedStructuredQuery,
+} from "./acceptance-structured-output.js";
 
 import {
   DEEPSEEK_PLATFORM_ENDPOINT,
@@ -57,8 +64,15 @@ const practiceInputSchemaByKind = {
     answer: textSchema,
     itemContent: itemContentSchema,
     prompt: textSchema,
+    teachingContract: z.literal("practice-teaching-v1").optional(),
   }),
-  "sentence-prompt": z.strictObject({ itemContent: itemContentSchema }),
+  "sentence-prompt": z
+    .strictObject({
+      itemContent: itemContentSchema,
+      teachingContract: z.literal("practice-teaching-v1").optional(),
+      hintPolicy: z.enum(["shown", "on-demand"]).optional(),
+    })
+    .refine((input) => input.hintPolicy === undefined || input.teachingContract !== undefined),
 } as const;
 const duplicateInputSchema = z.strictObject({
   candidates: z
@@ -136,7 +150,7 @@ function analysisOutput(rawInput: unknown) {
 }
 
 function extensionOutput(type: string, rawInput: unknown) {
-  const input = extensionQueryRequestSchema.parse(rawInput);
+  const input = extensionQueryGenerationRequestSchema.parse(rawInput);
   const token = firstEnglishToken(input.sourceText);
   if (type === "translate-word") {
     return {
@@ -230,9 +244,24 @@ function duplicateOutput(rawInput: unknown) {
 function practiceOutput(kind: PracticeKind, rawInput: unknown) {
   const input = practiceInputSchemaByKind[kind].parse(rawInput);
   if (kind === "sentence-prompt") {
+    if ("hintPolicy" in input && input.hintPolicy === "on-demand")
+      return {
+        kind,
+        prompt: `${SIMULATED_MARKER}你要和同事商量工作安排。请用一句英文委婉说明你需要更多时间。`,
+      };
     return { kind, prompt: `${SIMULATED_MARKER}请使用当前学习项写一个英文句子。` };
   }
   if (kind === "sentence-feedback") {
+    if ("teachingContract" in input && input.teachingContract === "practice-teaching-v1")
+      return {
+        kind,
+        teachingFeedback: {
+          assessment: "ready",
+          mainPointZh: `${SIMULATED_MARKER}这是固定教学反馈，用于检查保存与重试。`,
+          exampleSentence: "To be frank, I need more time.",
+          usageNoteZh: `${SIMULATED_MARKER}这是固定示例，不代表真实模型建议。`,
+        },
+      };
     return { feedback: `${SIMULATED_MARKER}这是固定反馈，用于检查保存与重试。`, kind };
   }
   if (kind === "dialogue-start") {
@@ -266,10 +295,14 @@ function practiceOutput(kind: PracticeKind, rawInput: unknown) {
 }
 
 function simulatedContent(system: string, rawInput: unknown) {
+  if (system.startsWith("Return one compact strict JSON object, previewZh first, then result."))
+    return simulatedStructuredAnalysis(rawInput);
   if (system.includes("Put previewZh first, followed by result.")) {
     return analysisOutput(rawInput);
   }
   if (system.includes("Huayi's compact English query engine")) {
+    if (system.includes("Return sentenceStructures in the supplied unit order"))
+      return simulatedStructuredQuery(rawInput);
     const match = /The type field must be ([a-z-]+)\./u.exec(system);
     if (match?.[1] === undefined) throw invalidRequest();
     return extensionOutput(match[1], rawInput);

@@ -1,13 +1,13 @@
-import { readFile } from "node:fs/promises";
-
+import { createPostgresAnalysisStoreFixture } from "./test-support/postgres-analysis-store-fixture.js";
 import { contractFixtures, analysisRecordSchema } from "@huayi/cloud-contracts";
-import { PGlite } from "@electric-sql/pglite";
+import type { PGlite } from "@electric-sql/pglite";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import type { AnalysisDatabase, AnalysisQuery } from "./analysis-database.js";
+import type { AnalysisDatabase } from "./analysis-database.js";
 import { createPostgresAnalysisStore } from "./postgres-analysis-store.js";
+import { createPostgresAnalysisRequestLifecycle } from "./postgres-analysis-request-lifecycle.js";
+import { structuredAnalysisFixture } from "./test-support/structured-analysis-fixture.js";
 
-const migrationUrl = new URL("../migrations/0001-cloud-v1-foundation.sql", import.meta.url);
 const userA = "00000000-0000-0000-0000-00000000000a";
 const userB = "00000000-0000-0000-0000-00000000000b";
 const analysisId = "10000000-0000-0000-0000-000000000001";
@@ -16,147 +16,123 @@ const reservationId = "30000000-0000-0000-0000-000000000001";
 const requestId = "40000000-0000-0000-0000-000000000001";
 const priceId = "50000000-0000-0000-0000-000000000001";
 
-function query(executor: {
-  query<Row>(text: string, parameters?: unknown[]): Promise<{ rows: Row[] }>;
-}): AnalysisQuery {
-  return {
-    rows: async <Row>(text: string, parameters = []) =>
-      (await executor.query<Row>(text, [...parameters])).rows,
-  };
-}
-
 describe("Postgres analysis store", () => {
   let database: PGlite;
   let adapter: AnalysisDatabase;
 
   beforeEach(async () => {
-    database = new PGlite();
-    await database.waitReady;
-    await database.exec(await readFile(migrationUrl, "utf8"));
-    adapter = {
-      async transaction(ownerUserId, operation) {
-        return database.transaction(async (transaction) => {
-          await transaction.exec("SET LOCAL ROLE huayi_context_setter");
-          await transaction.query("SELECT huayi_private.set_owner_context($1)", [ownerUserId]);
-          const tenant = query(transaction);
-          const trusted = query(transaction);
-          return operation({
-            tenant: {
-              rows: async (text, parameters) => {
-                await transaction.exec("SET LOCAL ROLE huayi_business");
-                return tenant.rows(text, parameters);
-              },
-            },
-            trusted: {
-              rows: async (text, parameters) => {
-                await transaction.exec("SET LOCAL ROLE huayi_context_setter");
-                return trusted.rows(text, parameters);
-              },
-            },
-          });
-        });
-      },
-      async trusted(operation) {
-        return database.transaction((transaction) => operation(query(transaction)));
-      },
-    };
-    await database.exec(`INSERT INTO user_profiles (user_id,owner_user_id,email,status,timezone,daily_goal)
-      VALUES ('${userA}','${userA}','a@example.test','active','UTC',5),
-        ('${userB}','${userB}','b@example.test','active','UTC',5);
-      INSERT INTO model_price_versions (id,provider,model,input_micro_usd_per_million,
-        cached_input_micro_usd_per_million,output_micro_usd_per_million,effective_from)
-      VALUES ('${priceId}','deepseek','fake',1,1,1,now());
-      INSERT INTO quota_grants (id,user_id,owner_user_id,period_start,period_end,limit_micro_usd,source)
-      VALUES ('60000000-0000-0000-0000-000000000001','${userA}','${userA}',date_trunc('month',now()),date_trunc('month',now())+interval '1 month',1000,'default');
-      INSERT INTO quota_reservations (id,user_id,owner_user_id,request_id,period_start,reserved_micro_usd,status,expires_at)
-      VALUES ('${reservationId}','${userA}','${userA}','${requestId}',date_trunc('month',now()),100,'active',now()+interval '2 minutes');
-      INSERT INTO analysis_requests (id,owner_user_id,idempotency_key,request_hash,unit_count,state,
-        lease_token,lease_expires_at,reservation_id,price_version_id,recovery_ledger_id)
-      VALUES ('${requestId}','${userA}','key-1',repeat('a',64),1,'running','lease-1',
-        now()+interval '2 minutes','${reservationId}','${priceId}',
-        '71000000-0000-0000-0000-000000000001');`);
+    ({ database, adapter } = await createPostgresAnalysisStoreFixture({
+      userA,
+      userB,
+      reservationId,
+      requestId,
+      priceId,
+    }));
   });
   afterEach(async () => database.close());
 
-  it("atomically persists strict history and ledger under tenant isolation", async () => {
-    let ledgerSequence = 0;
-    const store = createPostgresAnalysisStore({
-      database: adapter,
-      ledgerId: () => `70000000-0000-0000-0000-${String(++ledgerSequence).padStart(12, "0")}`,
-      priceVersionId: priceId,
-    });
-    const fixture = contractFixtures.analysis;
-    const record = analysisRecordSchema.parse({
-      ...fixture,
-      id: analysisId,
-      candidates: [{ ...fixture.candidates[0], id: candidateId }],
-      result: {
-        ...fixture.result,
-        sentences: fixture.result.sentences.map((sentence) => ({
-          ...sentence,
-          candidateIds: [candidateId],
-        })),
-      },
-    });
-    await store.complete({
-      actualCostMicroUsd: 20,
-      billedCalls: [
-        {
-          costMicroUsd: 9,
-          usage: { cachedInputTokens: 2, inputTokens: 4, outputTokens: 8 },
-        },
-        {
-          costMicroUsd: 11,
-          usage: { cachedInputTokens: 3, inputTokens: 6, outputTokens: 12 },
-        },
-      ],
-      leaseToken: "lease-1",
-      record,
-      requestId,
-      reservationId,
-      userId: userA,
-    });
+  it.each(["legacy", "structured"])(
+    "atomically persists %s history and ledger under tenant isolation",
+    async (kind) => {
+      let ledgerSequence = 0;
+      const store = createPostgresAnalysisStore({
+        database: adapter,
+        ledgerId: () => `70000000-0000-0000-0000-${String(++ledgerSequence).padStart(12, "0")}`,
+        priceVersionId: priceId,
+      });
+      const fixture = contractFixtures.analysis;
+      const record =
+        kind === "structured"
+          ? structuredAnalysisFixture()
+          : analysisRecordSchema.parse({
+              ...fixture,
+              id: analysisId,
+              candidates: [{ ...fixture.candidates[0], id: candidateId }],
+              result: {
+                ...fixture.result,
+                sentences: fixture.result.sentences.map((sentence) => ({
+                  ...sentence,
+                  candidateIds: [candidateId],
+                })),
+              },
+            });
+      await store.complete({
+        actualCostMicroUsd: 20,
+        billedCalls: [
+          {
+            costMicroUsd: 9,
+            usage: { cachedInputTokens: 2, inputTokens: 4, outputTokens: 8 },
+          },
+          {
+            costMicroUsd: 11,
+            usage: { cachedInputTokens: 3, inputTokens: 6, outputTokens: 12 },
+          },
+        ],
+        leaseToken: "lease-1",
+        record,
+        requestId,
+        reservationId,
+        userId: userA,
+      });
 
-    await expect(store.findById(userA, analysisId)).resolves.toEqual(record);
-    await expect(store.findById(userB, analysisId)).resolves.toBeNull();
-    const ledger = await database.query<{
-      cached_input_tokens: number;
-      call_ordinal: number;
-      cost_micro_usd: string;
-      input_tokens: number;
-      outcome: string;
-      output_tokens: number;
-      price_version_id: string;
-    }>(
-      `SELECT cached_input_tokens, call_ordinal, cost_micro_usd::text, input_tokens, outcome,
+      await expect(store.findById(userA, analysisId)).resolves.toEqual(record);
+      await expect(store.findById(userB, analysisId)).resolves.toBeNull();
+      const ledger = await database.query<{
+        cached_input_tokens: number;
+        call_ordinal: number;
+        cost_micro_usd: string;
+        input_tokens: number;
+        outcome: string;
+        output_tokens: number;
+        price_version_id: string;
+      }>(
+        `SELECT cached_input_tokens, call_ordinal, cost_micro_usd::text, input_tokens, outcome,
        output_tokens, price_version_id::text FROM usage_ledger ORDER BY call_ordinal`,
-    );
-    expect(ledger.rows).toEqual([
-      {
-        cached_input_tokens: 2,
-        call_ordinal: 0,
-        cost_micro_usd: "9",
-        input_tokens: 4,
-        outcome: "succeeded",
-        output_tokens: 8,
-        price_version_id: priceId,
-      },
-      {
-        cached_input_tokens: 3,
-        call_ordinal: 1,
-        cost_micro_usd: "11",
-        input_tokens: 6,
-        outcome: "succeeded",
-        output_tokens: 12,
-        price_version_id: priceId,
-      },
-    ]);
-    const request = await database.query<{ state: string; terminal_event: unknown }>(
-      `SELECT state,terminal_event FROM analysis_requests WHERE id='${requestId}'`,
-    );
-    expect(request.rows[0]?.state).toBe("completed");
-    expect(request.rows[0]?.terminal_event).toMatchObject({ type: "analysis.completed" });
-  });
+      );
+      expect(ledger.rows).toEqual([
+        {
+          cached_input_tokens: 2,
+          call_ordinal: 0,
+          cost_micro_usd: "9",
+          input_tokens: 4,
+          outcome: "succeeded",
+          output_tokens: 8,
+          price_version_id: priceId,
+        },
+        {
+          cached_input_tokens: 3,
+          call_ordinal: 1,
+          cost_micro_usd: "11",
+          input_tokens: 6,
+          outcome: "succeeded",
+          output_tokens: 12,
+          price_version_id: priceId,
+        },
+      ]);
+      const request = await database.query<{ state: string; terminal_event: unknown }>(
+        `SELECT state,terminal_event FROM analysis_requests WHERE id='${requestId}'`,
+      );
+      expect(request.rows[0]?.state).toBe("completed");
+      expect(request.rows[0]?.terminal_event).toMatchObject({ type: "analysis.completed" });
+      const lifecycle = createPostgresAnalysisRequestLifecycle(adapter);
+      expect(await lifecycle.get(userA, requestId)).toEqual({
+        requestId,
+        analysisId,
+        state: "completed",
+      });
+      const replay = await lifecycle.begin({
+        userId: userA,
+        requestId,
+        idempotencyKey: "key-1",
+        requestHash: "a".repeat(64),
+        unitCount: 1,
+        leaseToken: "replay-lease",
+        leaseExpiresAt: new Date("2026-09-13T00:00:00Z"),
+        recoveryLedgerId: "71000000-0000-0000-0000-000000000001",
+      });
+      expect(replay).toMatchObject({ kind: "terminal", event: { analysis: record } });
+    },
+  );
 
   it("atomically settles a failed call and persists its strict terminal event", async () => {
     const failureRequestId = "40000000-0000-0000-0000-000000000002";

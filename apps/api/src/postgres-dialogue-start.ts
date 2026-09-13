@@ -208,6 +208,9 @@ export async function completeDialogueStart(
   command: Parameters<DialoguePracticeRepository["completeStart"]>[0],
 ) {
   return database.transaction(command.ownerUserId, async ({ tenant }) => {
+    await tenant.rows("SELECT id FROM practice_sessions WHERE id=$1 FOR UPDATE", [
+      command.sessionId,
+    ]);
     const tasks = await tenant.rows<{ output: unknown }>(
       `SELECT output FROM practice_generation_tasks WHERE id=$1 AND session_id=$2
         AND lease_token=$3 AND kind='dialogue-start' AND state='ready' FOR UPDATE`,

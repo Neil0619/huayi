@@ -1,15 +1,19 @@
-import { measureLearningPresentation } from "./learning-ui-timing.js";
+import { useCollectionAnalysisStream } from "./use-collection-analysis-stream.js";
+import {
+  assertCaptureAnalysis,
+  invalidAnalysisResponse,
+  createAnalysisEventBinding,
+} from "./analysis-event-binding.js";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   LearningTaskError,
-  type AnalysisRecord,
-  type LearningTaskSnapshot,
+  type AnalysisRecordRead as AnalysisRecord,
+  type LearningTaskSnapshotRead as LearningTaskSnapshot,
   type StudyCaptureDetailResponse,
 } from "@huayi/cloud-contracts";
 import type { WebStudyCaptureApi } from "./study-capture-api.js";
 import type { InboxApi } from "./inbox-app.js";
 import { collectionEntries, collectionStatus, type CollectionEntry } from "./collection-model.js";
-import { learningTaskFeedback } from "./learning-task-feedback.js";
 export function useCollectionWorkspace(
   api: WebStudyCaptureApi,
   review: InboxApi,
@@ -25,9 +29,9 @@ export function useCollectionWorkspace(
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [preview, setPreview] = useState("");
   const [status, setStatus] = useState("");
   const mutation = useRef(false);
+  const nativeTaskKinds = useRef(new Map<string, AnalysisRecord["selectionKind"]>());
   const [cursors, setCursors] = useState<Record<string, string | null>>({});
   const entries = useMemo(
     () => collectionEntries(captures, analyses, jobs),
@@ -58,7 +62,7 @@ export function useCollectionWorkspace(
         api.listCaptures({ status: "analyzing", limit: 100 }),
         api.listCaptures({ status: "analyzed", limit: 100 }),
         review.listPending(),
-        api.tasks?.list().catch(() => []) ?? [],
+        api.analysisTasks?.list().catch(() => []) ?? [],
       ]);
       const all = [
         ...new Map(
@@ -94,7 +98,11 @@ export function useCollectionWorkspace(
     void review
       .getAnalysis(id)
       .then((value) => {
-        if (live) mergeAnalysis(value);
+        if (live) {
+          if (value.id !== id) invalidAnalysisResponse();
+          if (selected?.capture) assertCaptureAnalysis(value, selected.capture.capture);
+          mergeAnalysis(value);
+        }
       })
       .catch(() => {
         if (live) setError("分析结果暂时无法载入，请刷新。");
@@ -109,54 +117,27 @@ export function useCollectionWorkspace(
     selected?.analysis?.id,
     mergeAnalysis,
   ]);
-  const taskId = selected?.task?.id;
-  const taskCaptureId = selected?.capture?.capture.id;
+  const { preview, structureUnits } = useCollectionAnalysisStream({
+    requireStructured: nativeTaskKinds.current.has(selected?.task?.id ?? ""),
+    expectedSelectionKind: nativeTaskKinds.current.get(selected?.task?.id ?? ""),
+    api,
+    taskId: selected?.task?.id,
+    capture: selected?.capture?.capture,
+    selectedIdRef,
+    setJobs,
+    mergeAnalysis,
+    mergeCapture,
+    setStatus,
+    setError,
+  });
   useEffect(() => {
-    setPreview("");
-    if (!taskId || !api.tasks) return;
-    const controller = new AbortController();
-    const client = api.tasks;
-    let terminalFailure = false;
-    void (async () => {
-      try {
-        for await (const event of client.watch(taskId, controller.signal, (snapshot) => {
-          terminalFailure = snapshot.state === "failed" || snapshot.state === "cancelled";
-          if (!controller.signal.aborted) {
-            if (terminalFailure) setPreview("");
-            setJobs((values) => [snapshot, ...values.filter((value) => value.id !== snapshot.id)]);
-          }
-        })) {
-          if (controller.signal.aborted) return;
-          measureLearningPresentation("analysis", performance.now());
-          if (event.type === "analysis.preview")
-            setPreview((value) => (value + event.text).slice(0, 16000));
-          if (event.type === "analysis.completed") {
-            mergeAnalysis(event.analysis);
-            if (event.analysis.studyCaptureId)
-              mergeCapture(await api.getCapture(event.analysis.studyCaptureId));
-            setPreview("");
-            setStatus("分析已完成，请选择要练习的表达或句型。");
-          }
-        }
-      } catch (cause) {
-        if (controller.signal.aborted) return;
-        if (terminalFailure && taskCaptureId) {
-          const capture = await api.getCapture(taskCaptureId).catch(() => null);
-          if (controller.signal.aborted) return;
-          if (capture) mergeCapture(capture);
-        }
-        if (selectedIdRef.current !== taskCaptureId) return;
-        setStatus("");
-        setError(learningTaskFeedback(cause, "analysis"));
-      }
-    })();
-    return () => controller.abort();
-  }, [api, taskId, taskCaptureId, mergeAnalysis, mergeCapture]);
-  useEffect(() => {
-    if (!api.tasks || !jobs.some((job) => ["queued", "running", "cancelling"].includes(job.state)))
+    if (
+      !api.analysisTasks ||
+      !jobs.some((job) => ["queued", "running", "cancelling"].includes(job.state))
+    )
       return;
     const timer = setInterval(() => {
-      void api.tasks
+      void api.analysisTasks
         ?.list()
         .then(setJobs)
         .catch(() => undefined);
@@ -183,7 +164,8 @@ export function useCollectionWorkspace(
     entry: CollectionEntry,
     metadata: { title: string; userContext: string; kind: "phrase" | "sentence" | "passage" },
   ) => {
-    if (!entry.capture || !api.tasks) throw new Error("Background analysis is unavailable.");
+    if (!entry.capture || !api.analysisTasks)
+      throw new Error("Background analysis is unavailable.");
     let current = entry.capture;
     if (entry.task?.state === "failed" || entry.task?.state === "cancelled") {
       current = await api.getCapture(entry.id);
@@ -207,18 +189,28 @@ export function useCollectionWorkspace(
       );
       mergeCapture(current);
     }
-    const task = await api.tasks.submit(
+    const task = await api.analysisTasks.submit(
       {
         version: 2,
         kind: "capture-analysis",
         captureId: entry.id,
         input: {
+          outputContract: "structured-teaching-v1",
           expectedRevision: current.capture.revision,
           intent: current.capture.status === "analyzed" ? "reanalysis" : "initial",
         },
       },
       key(),
     );
+    if (task.kind !== "capture-analysis" || task.subjectId !== entry.id) invalidAnalysisResponse();
+    if (task.output?.type === "analysis.completed")
+      createAnalysisEventBinding({
+        sourceText: current.capture.sourceText,
+        selectionKind: current.capture.kind,
+        captureId: entry.id,
+        requireStructured: true,
+      }).checkRecord(task.output.analysis);
+    nativeTaskKinds.current.set(task.id, current.capture.kind);
     setJobs((values) => [task, ...values.filter((value) => value.id !== task.id)]);
     setStatus("已加入分析队列，可以继续整理其他内容。");
   };
@@ -258,8 +250,8 @@ export function useCollectionWorkspace(
     });
   const cancel = () =>
     act(async () => {
-      if (selected?.task && api.tasks) {
-        const task = await api.tasks.cancel(selected.task.id);
+      if (selected?.task && api.analysisTasks) {
+        const task = await api.analysisTasks.cancel(selected.task.id);
         setJobs((values) => [task, ...values.filter((value) => value.id !== task.id)]);
         setStatus("已请求停止，正在等待服务器确认。");
       }
@@ -271,7 +263,12 @@ export function useCollectionWorkspace(
       if (!current || !requestId || selected.task) return;
       const result = await api.getAnalysisRequestStatus(requestId);
       mergeCapture(await api.getCapture(current.capture.id));
-      if (result.state === "completed") mergeAnalysis(await review.getAnalysis(result.analysisId));
+      if (result.state === "completed") {
+        const record = await review.getAnalysis(result.analysisId);
+        if (record.id !== result.analysisId) invalidAnalysisResponse();
+        assertCaptureAnalysis(record, current.capture);
+        mergeAnalysis(record);
+      }
       if (selectedIdRef.current !== current.capture.id) return;
       if (result.state === "failed") {
         setStatus("");
@@ -307,7 +304,6 @@ export function useCollectionWorkspace(
     );
     setSelectedId(next?.id ?? null);
     setStatus("");
-    setPreview("");
   };
   // Loading another page or refreshing may reveal more review-ready content.
   useEffect(() => {
@@ -329,6 +325,7 @@ export function useCollectionWorkspace(
     busy,
     error,
     preview,
+    structureUnits,
     status,
     load,
     analyze: (entry: CollectionEntry, metadata: Parameters<typeof analyze>[1]) =>

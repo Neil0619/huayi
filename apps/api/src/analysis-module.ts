@@ -1,11 +1,10 @@
 import {
-  analysisEventSchema,
-  startAnalysisRequestSchema,
-  studyCaptureAnalyzeRequestSchema,
-  type AnalysisEvent,
-  type AnalysisRecord,
-  type StartAnalysisRequest,
-  type AnalysisContent,
+  analysisEventReadSchema,
+  startAnalysisGenerationRequestSchema,
+  captureAnalysisGenerationRequestSchema,
+  type AnalysisEventRead,
+  type StartAnalysisGenerationRequest,
+  type AnalysisContentRead,
   type ModelUsage,
 } from "@huayi/cloud-contracts";
 import { createHash } from "node:crypto";
@@ -36,7 +35,7 @@ import { modelEvents } from "./model-events.js";
 import type { ModelExecution } from "./model-execution.js";
 import type { DeepSeekPriceSchedule, DeepSeekPriceSnapshot } from "./deepseek-price-schedule.js";
 import { replaceCandidateAliases } from "./analysis-candidate-ids.js";
-import { assembleTrustedContent } from "./analysis-trusted-content.js";
+import { assembleTrustedContent, createAnalysisRecord } from "./analysis-trusted-content.js";
 
 export { segmentSentences } from "./analysis-segmentation.js";
 
@@ -52,7 +51,7 @@ interface AnalysisDependencies {
   quota: AnalysisQuota;
   requestLifecycle: AnalysisRequestLifecycle;
   repository: AnalysisRepository;
-  reservedCostMicroUsd?: (input: StartAnalysisRequest) => number;
+  reservedCostMicroUsd?: (input: StartAnalysisGenerationRequest) => number;
   studyCaptures: StudyCaptureReader;
 }
 
@@ -60,7 +59,7 @@ interface CaptureContext {
   captureId: string;
   expectedRevision: number;
   intent: "initial" | "reanalysis";
-  source: AnalysisContent["source"];
+  source: AnalysisContentRead["source"];
 }
 
 export function createAnalysisModule(dependencies: AnalysisDependencies) {
@@ -75,29 +74,16 @@ export function createAnalysisModule(dependencies: AnalysisDependencies) {
     repository: dependencies.repository,
   });
 
-  function record(content: AnalysisContent, id: string): AnalysisRecord {
-    const now = dependencies.clock.now().toISOString();
-    return {
-      ...content,
-      archivedAt: null,
-      createdAt: now,
-      id,
-      reviewState: "pendingReview",
-      revision: 1,
-      updatedAt: now,
-    };
-  }
-
   async function prepareAnalysis(
     command: {
       execution?: ModelExecution;
       idempotencyKey: string;
-      input: StartAnalysisRequest;
+      input: StartAnalysisGenerationRequest;
       userId: string;
     },
     capture?: CaptureContext,
-  ): Promise<AsyncIterable<AnalysisEvent>> {
-    const input = startAnalysisRequestSchema.parse(command.input);
+  ): Promise<AsyncIterable<AnalysisEventRead>> {
+    const input = startAnalysisGenerationRequestSchema.parse(command.input);
     const sentences = analysisSourceUnits(input);
     const requestId = dependencies.ids();
     const leaseToken = dependencies.ids();
@@ -115,6 +101,7 @@ export function createAnalysisModule(dependencies: AnalysisDependencies) {
                   captureId: capture.captureId,
                   expectedRevision: capture.expectedRevision,
                   intent: capture.intent,
+                  ...("outputContract" in input ? { outputContract: input.outputContract } : {}),
                 },
           ),
         )
@@ -136,7 +123,7 @@ export function createAnalysisModule(dependencies: AnalysisDependencies) {
     if (claim.kind === "terminal") return replay(claim.event);
     if (claim.kind === "running") {
       return replay(
-        analysisEventSchema.parse({
+        analysisEventReadSchema.parse({
           requestId: claim.requestId,
           unitCount: claim.unitCount,
           type: "analysis.started",
@@ -204,15 +191,15 @@ export function createAnalysisModule(dependencies: AnalysisDependencies) {
     command: {
       execution?: ModelExecution;
       idempotencyKey: string;
-      input: StartAnalysisRequest;
+      input: StartAnalysisGenerationRequest;
       userId: string;
     };
-    input: StartAnalysisRequest;
+    input: StartAnalysisGenerationRequest;
     reservation: { id: string };
     sentences: SegmentedSentence[];
     dispatchPricing?: DeepSeekPriceSnapshot;
     capture?: CaptureContext;
-  }): AsyncIterable<AnalysisEvent> {
+  }): AsyncIterable<AnalysisEventRead> {
     const { capture, claim, command, dispatchPricing, input, reservation, sentences } = context;
     let generatedBilling:
       | {
@@ -221,7 +208,7 @@ export function createAnalysisModule(dependencies: AnalysisDependencies) {
           usage?: ModelUsage;
         }
       | undefined;
-    yield analysisEventSchema.parse({
+    yield analysisEventReadSchema.parse({
       requestId: claim.requestId,
       unitCount: sentences.length,
       type: "analysis.started",
@@ -231,14 +218,14 @@ export function createAnalysisModule(dependencies: AnalysisDependencies) {
         dispatchPricing === undefined || dependencies.modelForPricing === undefined
           ? dependencies.model
           : dependencies.modelForPricing(dispatchPricing);
-      const generated = yield* modelEvents((emit: (event: AnalysisEvent) => void) =>
+      const generated = yield* modelEvents((emit: (event: AnalysisEventRead) => void) =>
         model.analyze({
           ...command.execution,
           input,
           sentences,
           onPreview: (preview) =>
             emit(
-              analysisEventSchema.parse({
+              analysisEventReadSchema.parse({
                 requestId: claim.requestId,
                 section: "overall",
                 text: preview.text,
@@ -259,7 +246,7 @@ export function createAnalysisModule(dependencies: AnalysisDependencies) {
         ...(generated.usage === undefined ? {} : { usage: generated.usage }),
       };
       if (generated.preview !== undefined) {
-        const preview = analysisEventSchema.parse({
+        const preview = analysisEventReadSchema.parse({
           requestId: claim.requestId,
           section: "overall",
           text: generated.preview,
@@ -271,9 +258,22 @@ export function createAnalysisModule(dependencies: AnalysisDependencies) {
         assembleTrustedContent(generated.content, input, sentences, capture),
         dependencies.ids,
       );
+      if (content.result.type === "sentence-passage-analysis-v3") {
+        for (const { analysisUnitId, ordinal, sourceText, sentenceStructure } of content.result
+          .sentences)
+          yield analysisEventReadSchema.parse({
+            type: "analysis.structure",
+            requestId: claim.requestId,
+            unit: { analysisUnitId, ordinal, sourceText, sentenceStructure },
+          });
+      }
       const committed = await dependencies.committer.complete({
         ...generatedBilling,
-        record: record(content, dependencies.ids()),
+        record: createAnalysisRecord(
+          content,
+          dependencies.ids(),
+          dependencies.clock.now().toISOString(),
+        ),
         leaseToken: claim.leaseToken,
         ...(dispatchPricing === undefined
           ? {}
@@ -282,7 +282,7 @@ export function createAnalysisModule(dependencies: AnalysisDependencies) {
         reservationId: reservation.id,
         userId: command.userId,
       });
-      const completed = analysisEventSchema.parse({
+      const completed = analysisEventReadSchema.parse({
         analysis: committed.record,
         quota: committed.quota,
         type: "analysis.completed",
@@ -320,16 +320,16 @@ export function createAnalysisModule(dependencies: AnalysisDependencies) {
   async function* startPlatformAnalysis(command: {
     execution?: ModelExecution;
     idempotencyKey: string;
-    input: StartAnalysisRequest;
+    input: StartAnalysisGenerationRequest;
     userId: string;
-  }): AsyncIterable<AnalysisEvent> {
+  }): AsyncIterable<AnalysisEventRead> {
     yield* await preparePlatformAnalysis(command);
   }
 
   async function preparePlatformAnalysis(command: {
     execution?: ModelExecution;
     idempotencyKey: string;
-    input: StartAnalysisRequest;
+    input: StartAnalysisGenerationRequest;
     userId: string;
   }) {
     return prepareAnalysis(command);
@@ -342,10 +342,11 @@ export function createAnalysisModule(dependencies: AnalysisDependencies) {
     input: unknown;
     userId: string;
   }) {
-    const request = studyCaptureAnalyzeRequestSchema.parse(command.input);
+    const request = captureAnalysisGenerationRequestSchema.parse(command.input);
     const detail = await dependencies.studyCaptures.get(command.userId, command.captureId);
     if (detail === null) throw new CloudFault("not_found", "StudyCapture not found.");
-    const input = startAnalysisRequestSchema.parse({
+    const input = startAnalysisGenerationRequestSchema.parse({
+      ...("outputContract" in request ? { outputContract: request.outputContract } : {}),
       selectionKind: detail.capture.kind,
       source: {
         ...(detail.capture.title === undefined ? {} : { title: detail.capture.title }),
@@ -389,7 +390,7 @@ export function createAnalysisModule(dependencies: AnalysisDependencies) {
   };
 }
 
-async function* replay(event: AnalysisEvent): AsyncIterable<AnalysisEvent> {
+async function* replay(event: AnalysisEventRead): AsyncIterable<AnalysisEventRead> {
   yield structuredClone(event);
 }
 

@@ -5,7 +5,7 @@ import { readDeepSeekStream } from "./deepseek-stream.js";
 import {
   modelUsageSchema,
   type ModelUsage,
-  type StartAnalysisRequest,
+  type StartAnalysisGenerationRequest as StartAnalysisRequest,
 } from "@huayi/cloud-contracts";
 import { z } from "zod/v3";
 
@@ -16,6 +16,7 @@ import { deepSeekAnalysisTeaching } from "./deepseek-analysis-teaching.js";
 import { reviewedAnalysisGrammarNotes } from "./deepseek-analysis-reference.js";
 import { deepSeekAnalysisOutputContract } from "./deepseek-analysis-output-contract.js";
 import { DEEPSEEK_PLATFORM_MODEL } from "./deepseek-model-identity.js";
+import { structuredAnalysisInstructions } from "./structured-analysis-prompt.js";
 
 export { DEEPSEEK_PLATFORM_MODEL } from "./deepseek-model-identity.js";
 export const DEEPSEEK_PLATFORM_ENDPOINT = "https://api.deepseek.com/chat/completions";
@@ -145,7 +146,9 @@ export function buildDeepSeekAnalysisRequest(
   const messages = [
     {
       content: [
-        systemInstructions(input.selectionKind),
+        "outputContract" in input
+          ? structuredAnalysisInstructions(input.selectionKind)
+          : systemInstructions(input.selectionKind),
         reviewedAnalysisGrammarNotes(input.sourceText),
       ]
         .filter(Boolean)

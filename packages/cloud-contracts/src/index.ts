@@ -24,6 +24,15 @@ export * from "./learning-tasks.js";
 export * from "./learning-task-client.js";
 
 export * from "./practice-workspace.js";
+export * from "./practice-teaching.js";
 export * from "./miniprogram-contracts.js";
 export * from "./learning-task-sse-decoder.js";
 export * from "./word-catalog-contracts.js";
+export * from "./structured-teaching-requests.js";
+export * from "./structured-teaching-events.js";
+export * from "./structured-learning-tasks.js";
+export * from "./structured-account-export.js";
+export * from "./platform-generation-identity.js";
+export * from "./structured-task-client.js";
+
+export { createStructuredAnalysisSseDecoder } from "./structured-analysis-sse-decoder.js";

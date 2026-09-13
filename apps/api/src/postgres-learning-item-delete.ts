@@ -1,4 +1,7 @@
-import { deleteLearningItemResponseSchema } from "@huayi/cloud-contracts";
+import {
+  deleteLearningItemResponseSchema,
+  practiceTeachingStateSchema,
+} from "@huayi/cloud-contracts";
 
 import type { AnalysisDatabase } from "./analysis-database.js";
 import { CloudFault } from "./cloud-fault.js";
@@ -36,13 +39,15 @@ export function createPostgresLearningItemDelete(database: AnalysisDatabase): De
           throw new CloudFault("revision_conflict", "Learning item changed.");
         }
         const references = await tenant.rows<{
+          id: string;
+          teaching_state: unknown;
           feedback_lease: boolean;
           generation_lease_token: string | null;
           pending_generation: string | null;
           rating: string | null;
           status: string;
         }>(
-          `SELECT sessions.status,sessions.pending_generation,
+          `SELECT sessions.id,to_jsonb(sessions)->'teaching_state' teaching_state,sessions.status,sessions.pending_generation,
             sessions.generation_lease_token,links.rating,
             EXISTS(SELECT 1 FROM practice_attempts attempts
               WHERE attempts.session_id=sessions.id
@@ -90,6 +95,20 @@ export function createPostgresLearningItemDelete(database: AnalysisDatabase): De
               revision=revision+1,updated_at=$2::timestamptz WHERE id=$1`,
             [command.id, command.now],
           );
+          for (const reference of references) {
+            if (reference.teaching_state == null) continue;
+            const state = practiceTeachingStateSchema.parse(reference.teaching_state);
+            state.target = {
+              state: "deleted",
+              itemId: command.id,
+              capturedAt: state.target.capturedAt,
+              deletedAt: new Date(command.now).toISOString(),
+            };
+            await tenant.rows(
+              "UPDATE practice_sessions SET teaching_state=$2::jsonb,revision=revision+1,updated_at=$3 WHERE id=$1",
+              [reference.id, JSON.stringify(state), command.now],
+            );
+          }
         }
         const expiresAt = new Date(
           Date.parse(command.now) + 7 * 24 * 60 * 60 * 1_000,

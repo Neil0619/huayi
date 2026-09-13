@@ -27,6 +27,7 @@ import "./analysis-page.css";
 import "./analysis-history-page.css";
 import "./library-page.css";
 import "./practice-page.css";
+import "./practice-teaching.css";
 import "./word-page.css";
 import "./external-wordbook-page.css";
 import "./admin-operations-page.css";

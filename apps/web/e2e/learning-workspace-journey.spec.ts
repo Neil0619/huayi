@@ -3,7 +3,7 @@ import { createLearningWorkspaceAuthority } from "./support/learning-workspace-a
 const origin = "https://web.huayi.invalid";
 test("collects two originals, completes analysis after leaving, learns, writes, rates once and returns to overview", async ({
   page,
-}) => {
+}, testInfo) => {
   const authority = createLearningWorkspaceAuthority();
   await authority.install(page);
   await page.goto(`${origin}/app?paste=1`);
@@ -12,7 +12,8 @@ test("collects two originals, completes analysis after leaving, learns, writes, 
     await page.getByRole("textbox", { name: "想学习的英文原文" }).fill(text);
     await page.getByRole("button", { name: "保存并开始分析" }).click();
     await expect.poll(() => authority.facts().calls).toBe(index + 1);
-    await expect(page.getByRole("button", { name: "保存并开始分析" })).toBeEnabled();
+    await expect(page.getByRole("textbox", { name: "想学习的英文原文" })).toHaveValue("");
+    await expect(page.getByRole("button", { name: "保存并开始分析" })).toBeDisabled();
   }
   expect(authority.facts()).toMatchObject({ captures: 2, calls: 2 });
   await page.goto(`${origin}/practice`);
@@ -31,7 +32,7 @@ test("collects two originals, completes analysis after leaving, learns, writes, 
   await expect(translation).toHaveText("坦率地说，这很有效。");
   await expect(translation).toBeVisible();
   await page.screenshot({
-    path: "artifacts/query-learning-refinement-20260905/collection-desktop.png",
+    path: testInfo.outputPath("collection-desktop.png"),
     fullPage: true,
   });
   await page.locator("[data-candidate-selected]").first().check();
@@ -63,7 +64,11 @@ test("collects two originals, completes analysis after leaving, learns, writes, 
   await page.getByRole("button", { name: "提交并获取反馈" }).click();
   await expect(page.getByRole("heading", { name: "练习反馈", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "掌握", exact: true }).click();
-  await page.getByRole("button", { name: "下一项 · 返回总览" }).click();
+  await expect(
+    page.getByRole("heading", { name: "今天没有待练习内容", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "练习下一项", exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: "返回今日总览", exact: true }).click();
   await expect(page.getByText("今日已练习 1 / 5 项")).toBeVisible();
   expect(authority.facts()).toEqual({ captures: 2, analyses: 2, calls: 3, ratings: 1 });
   await page.setViewportSize({ width: 390, height: 844 });
@@ -73,7 +78,7 @@ test("collects two originals, completes analysis after leaving, learns, writes, 
     await page.evaluate(() => document.documentElement.scrollWidth - innerWidth),
   ).toBeLessThanOrEqual(1);
   await page.screenshot({
-    path: "artifacts/query-learning-refinement-20260905/practice-mobile.png",
+    path: testInfo.outputPath("practice-mobile.png"),
     fullPage: true,
   });
 });

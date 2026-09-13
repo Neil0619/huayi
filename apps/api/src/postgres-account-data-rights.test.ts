@@ -1,7 +1,7 @@
 import { createPgliteAnalysisDatabase } from "./test-support/postgres-analysis-database.js";
-import { readFile } from "node:fs/promises";
+import { createCurrentDatabaseFixture } from "./test-support/current-database-fixture.js";
 
-import { PGlite } from "@electric-sql/pglite";
+import type { PGlite } from "@electric-sql/pglite";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import type { AnalysisDatabase } from "./analysis-database.js";
@@ -16,7 +16,6 @@ import {
 } from "./test-support/account-data-export-analysis-fixture.js";
 import { DeterministicSecrets, MutableClock } from "./test-support/security-fakes.js";
 
-const migrationUrl = new URL("../migrations/0001-cloud-v1-foundation.sql", import.meta.url);
 const ownerA = "00000000-0000-0000-0000-00000000000a";
 const ownerB = "00000000-0000-0000-0000-00000000000b";
 const completedGenerationId = "40000000-0000-4000-8000-000000000003";
@@ -51,12 +50,7 @@ describe("Postgres account data rights", () => {
   let adapter: AnalysisDatabase;
   let nextId: number;
   beforeEach(async () => {
-    database = new PGlite();
-    await database.waitReady;
-    await database.exec(await readFile(migrationUrl, "utf8"));
-    await database.exec(
-      await readFile(new URL("../migrations/0029-wechat-miniprogram.sql", import.meta.url), "utf8"),
-    );
+    database = await createCurrentDatabaseFixture();
     adapter = createPgliteAnalysisDatabase(database);
     nextId = 1;
     await database.exec(`

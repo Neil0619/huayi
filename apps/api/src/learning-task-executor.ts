@@ -1,6 +1,6 @@
 import {
   learningTaskPayloadSchema,
-  type LearningTaskPayload,
+  type LearningTaskPayloadRead,
   type PracticeSession,
 } from "@huayi/cloud-contracts";
 import type { AnalysisModule } from "./analysis-module.js";
@@ -11,27 +11,35 @@ import type { LearningTaskLease } from "./learning-task-store.js";
 import { modelEvents } from "./model-events.js";
 import type { ModelExecution } from "./model-execution.js";
 import type { PracticeModule } from "./practice-module.js";
+import { validateTaskGeneration } from "./generation-snapshot.js";
 
 export type LearningTaskExecutor = (
   job: LearningTaskLease,
   execution: ModelExecution,
-) => AsyncIterable<LearningTaskPayload>;
+) => AsyncIterable<LearningTaskPayloadRead>;
 export function createLearningTaskExecutor(options: {
-  analysis: AnalysisModule;
-  query: ExtensionQueryModule;
-  practice: PracticeModule;
-  dialogue: DialoguePracticeModule;
-  maintenance: LearningLibraryMaintenance;
+  analysis: Pick<AnalysisModule, "preparePlatformAnalysis" | "prepareStudyCaptureAnalysis">;
+  query: Pick<ExtensionQueryModule, "prepare">;
+  practice: Pick<PracticeModule, "startSentence" | "submitAttempt" | "retryFeedback">;
+  dialogue: Pick<
+    DialoguePracticeModule,
+    "startDialogue" | "submitTurn" | "finish" | "retryAssistant"
+  >;
+  maintenance: Pick<LearningLibraryMaintenance, "suggestions">;
 }): LearningTaskExecutor {
   return async function* execute(job, execution) {
     const { command: c, ownerUserId: owner, id: key } = job;
+    validateTaskGeneration(c, job.generationSnapshot);
     const common = { userId: owner, idempotencyKey: key, execution };
     if (c.kind === "instant-query") {
       yield* await options.query.prepare({ ...common, input: c.input });
       return;
     }
     if (c.kind === "analysis") {
-      yield* await options.analysis.preparePlatformAnalysis({ ...common, input: c.input });
+      yield* await options.analysis.preparePlatformAnalysis({
+        ...common,
+        input: c.input,
+      });
       return;
     }
     if (c.kind === "capture-analysis") {
@@ -49,7 +57,7 @@ export function createLearningTaskExecutor(options: {
       };
       return;
     }
-    const session = yield* modelEvents<LearningTaskPayload, PracticeSession>(async (emit) => {
+    const session = yield* modelEvents<LearningTaskPayloadRead, PracticeSession>(async (emit) => {
       const run: ModelExecution = {
         ...execution,
         onSession(session) {

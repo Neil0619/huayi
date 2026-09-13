@@ -12,7 +12,7 @@ export async function pauseOtherPractice(
     if (
       session.id === except ||
       (session.workspace?.phase ?? "active") !== "active" ||
-      session.items.every((item) => item.rating !== undefined)
+      (session.status === "completed" && session.items.every((item) => item.rating !== undefined))
     )
       continue;
     const latest = await workspace.get(session.id);

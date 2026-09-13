@@ -35,6 +35,11 @@ export const currentMigrationNames = [
   "0029-wechat-miniprogram.sql",
   "0030-word-archive.sql",
   "0031-wechat-password-binding.sql",
+  "0032-structured-account-exports.sql",
+  "0033-account-export-publication.sql",
+  "0034-practice-teaching-state.sql",
+  "0035-practice-feedback-recovery.sql",
+  "0036-teaching-account-exports.sql",
 ] as const;
 
 /** Every test owns this in-memory database; never connects to an existing service. */

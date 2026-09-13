@@ -1,2 +1,2 @@
 // Cloud requests, response validation, new metadata and pricing share one exact identity.
-export const DEEPSEEK_PLATFORM_MODEL = "deepseek-flash";
+export { PLATFORM_DEEPSEEK_MODEL as DEEPSEEK_PLATFORM_MODEL } from "@huayi/cloud-contracts";

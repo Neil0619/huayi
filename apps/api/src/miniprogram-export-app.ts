@@ -4,6 +4,7 @@ import type { AccountDataRightsModule } from "./account-data-rights-module.js";
 import { CloudFault } from "./cloud-fault.js";
 import { miniProgramToken } from "./miniprogram-authentication.js";
 import type { MiniProgramIdentity } from "./miniprogram-identity.js";
+import { accountDataExportQueryFormat } from "./account-data-export-format.js";
 
 export function createMiniProgramExportApp(options: {
   identity: Pick<MiniProgramIdentity, "authenticate">;
@@ -18,7 +19,12 @@ export function createMiniProgramExportApp(options: {
       miniProgramToken(context.req.header("authorization")),
     );
     const id = resourceIdSchema.parse(context.req.param("id"));
-    const download = await options.module.createDownload(auth.userId, id, auth.reauthenticatedAt);
+    const download = await options.module.createDownload(
+      auth.userId,
+      id,
+      auth.reauthenticatedAt,
+      accountDataExportQueryFormat(context.req.query("formatVersion")),
+    );
     const url = new URL(download.url);
     if (
       url.protocol !== "https:" ||

@@ -1,23 +1,21 @@
 import {
   analysisDeleteResponseSchema,
   analysisDeleteRequestSchema,
-  analysisHistoryResponseSchema,
   analysisMutationRequestSchema,
-  analysisRecordSchema,
   confirmCandidatesRequestSchema,
-  confirmCandidatesResponseSchema,
   analysisRequestStatusSchema,
   listAnalysesQuerySchema,
   processAnalysisRequestSchema,
   revisionWriteHeadersSchema,
-  startAnalysisRequestSchema,
+  startAnalysisGenerationRequestSchema,
 } from "@huayi/cloud-contracts";
 import { Hono, type Context } from "hono";
-import { streamSSE, captureDiagnosticPayload } from "./diagnostic-stream.js";
+import { streamAnalysisEvents } from "./analysis-event-stream.js";
 
 import type { AnalysisModule } from "./analysis-module.js";
 import { CloudFault } from "./cloud-fault.js";
 import { readRevisionHeader } from "./revision-header.js";
+import { analysisReadResponseHeaders, createAnalysisReadView } from "./analysis-read-view.js";
 
 interface Dependencies {
   authenticate(context: Context): Promise<string> | string;
@@ -54,24 +52,20 @@ function requireMatchingRevision(headerRevision: number, bodyRevision: number) {
 
 export function createAnalysisApp(dependencies: Dependencies) {
   const app = new Hono();
+  app.use("/v1/analyses", analysisReadResponseHeaders);
+  app.use("/v1/analyses/*", analysisReadResponseHeaders);
+  app.use("/v1/analyses:stream", analysisReadResponseHeaders);
   app.post("/v1/analyses:stream", async (context) => {
     const userId = await dependencies.authenticate(context);
     const key = context.req.header("idempotency-key");
     if (key === undefined) throw new CloudFault("invalid_request", "Idempotency-Key is required.");
-    const input = startAnalysisRequestSchema.parse(await json(context));
+    const input = startAnalysisGenerationRequestSchema.parse(await json(context));
     const events = await dependencies.module.preparePlatformAnalysis({
       idempotencyKey: key,
       input,
       userId,
     });
-    return streamSSE(context, async (stream) => {
-      let id = 0;
-      for await (const event of events) {
-        captureDiagnosticPayload(event);
-        id += 1;
-        await stream.writeSSE({ data: JSON.stringify(event), event: "analysis", id: String(id) });
-      }
-    });
+    return streamAnalysisEvents(context, events);
   });
 
   app.get("/v1/analysis-requests/:requestId", async (context) => {
@@ -88,7 +82,9 @@ export function createAnalysisApp(dependencies: Dependencies) {
     const userId = await dependencies.authenticate(context);
     const query = listAnalysesQuerySchema.parse(context.req.query());
     return context.json(
-      analysisHistoryResponseSchema.parse(await dependencies.module.listAnalyses(userId, query)),
+      createAnalysisReadView(context.req.header("accept")).history(
+        await dependencies.module.listAnalyses(userId, query),
+      ),
     );
   });
 
@@ -96,7 +92,7 @@ export function createAnalysisApp(dependencies: Dependencies) {
     const userId = await dependencies.authenticate(context);
     const item = await dependencies.module.getAnalysis(userId, context.req.param("id"));
     if (item === null) throw new CloudFault("not_found", "Analysis not found.");
-    return context.json(item);
+    return context.json(createAnalysisReadView(context.req.header("accept")).record(item));
   });
 
   app.post("/v1/analyses/:id/process", async (context) => {
@@ -105,7 +101,7 @@ export function createAnalysisApp(dependencies: Dependencies) {
     const input = processAnalysisRequestSchema.parse(await json(context));
     requireMatchingRevision(headers.expectedRevision, input.expectedRevision);
     return context.json(
-      analysisRecordSchema.parse(
+      createAnalysisReadView(context.req.header("accept")).record(
         await dependencies.module.processNothingToSave({
           ...headers,
           id: context.req.param("id"),
@@ -121,7 +117,7 @@ export function createAnalysisApp(dependencies: Dependencies) {
     const input = confirmCandidatesRequestSchema.parse(await json(context));
     requireMatchingRevision(headers.expectedRevision, input.analysisRevision);
     return context.json(
-      confirmCandidatesResponseSchema.parse(
+      createAnalysisReadView(context.req.header("accept")).confirmation(
         await dependencies.module.confirmCandidates({
           analysisId: context.req.param("id"),
           idempotencyKey: headers.idempotencyKey,
@@ -142,7 +138,7 @@ export function createAnalysisApp(dependencies: Dependencies) {
       const input = analysisMutationRequestSchema.parse(await json(context));
       requireMatchingRevision(headers.expectedRevision, input.expectedRevision);
       return context.json(
-        analysisRecordSchema.parse(
+        createAnalysisReadView(context.req.header("accept")).record(
           await operation({ ...headers, id: context.req.param("id"), userId }),
         ),
       );

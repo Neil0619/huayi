@@ -1,6 +1,6 @@
 import type { RefObject } from "react";
 
-import type { AnalysisRecord } from "@huayi/cloud-contracts";
+import type { AnalysisRecordRead as AnalysisRecord } from "@huayi/cloud-contracts";
 
 export function AnalysisHistoryActions({
   actionBusy,

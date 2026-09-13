@@ -48,7 +48,9 @@ describe("account data rights module", () => {
       expect.objectContaining({
         idempotencyKey: "create-key",
         ownerUserId: "user-1",
-        requestHash: expect.stringMatching(/^[0-9a-f]{64}$/u),
+        // Frozen digest lets an existing {} request replay after adding format negotiation.
+        requestHash: "d2bcee47cadbadfae5cffcb7fee488b380509f4fd40e59bd8d7167479d32f8fa",
+        formatVersion: 1,
       }),
     );
     expect(store.retryExport).toHaveBeenCalledWith(

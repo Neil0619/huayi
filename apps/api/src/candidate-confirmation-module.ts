@@ -3,7 +3,7 @@ import {
   confirmCandidatesRequestSchema,
   normalizeTagName,
   type ConfirmCandidatesRequest,
-  type AnalysisRecord,
+  type AnalysisRecordRead,
 } from "@huayi/cloud-contracts";
 import { createHash } from "node:crypto";
 
@@ -92,7 +92,7 @@ export function createCandidateConfirmationModule(dependencies: {
   };
 }
 
-function sourceSnapshot(analysis: AnalysisRecord, analysisUnitId: string) {
+function sourceSnapshot(analysis: AnalysisRecordRead, analysisUnitId: string) {
   let sourceText = analysis.sourceText;
   let translationZh: string | undefined;
   if ("sentences" in analysis.result && Array.isArray(analysis.result.sentences)) {

@@ -1,0 +1,74 @@
+.native-sentence-reading {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-5);
+  margin-block: var(--space-5);
+  overflow-wrap: anywhere;
+}
+.native-teaching-unit {
+  display: grid;
+  gap: var(--space-3);
+  padding-block: var(--space-4);
+  border-top: 1px solid var(--border-default);
+}
+.native-teaching-unit header {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+.native-teaching-unit .analysis-reading-number {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.native-sentence-reading :is(h3, h4, h5, p) {
+  margin: 0;
+}
+.native-sentence-reading p {
+  white-space: pre-wrap;
+  line-height: 1.8;
+}
+.native-sentence-reading :is(h3, h4) {
+  font-size: 1rem;
+}
+.teaching-core {
+  display: grid;
+  gap: var(--space-2);
+  margin-block: var(--space-3);
+}
+.teaching-fragments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.teaching-fragments > span {
+  padding: var(--space-1) var(--space-2);
+  border-left: 3px solid var(--focus-ring);
+  background: var(--surface-subtle);
+  white-space: pre-wrap;
+  font-weight: 600;
+}
+.native-sentence-reading summary {
+  padding-block: var(--space-2);
+  cursor: pointer;
+}
+.native-sentence-reading summary:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 3px;
+}
+.teaching-modifier {
+  display: grid;
+  gap: var(--space-2);
+  padding-block: var(--space-3);
+}
+.recommendation-evidence blockquote {
+  margin: var(--space-2) 0;
+  border-left: 3px solid var(--focus-ring);
+  padding-left: var(--space-3);
+  white-space: pre-wrap;
+}
+[data-recommendation-advice] {
+  margin-block: var(--space-3);
+}
+[data-recommendation-advice] :is(p, blockquote) {
+  overflow-wrap: anywhere;
+}
