@@ -3,6 +3,7 @@ import { mkdtemp, readFile, readdir, rm, stat, writeFile } from "node:fs/promise
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
+import { createHostedCombinedMigrationSourceFixture } from "./acceptance-hosted-combined-migration-test-support.mjs";
 import { captureHostedCombinedMigrationBackup } from "./acceptance-hosted-combined-migration-capture.mjs";
 import { hostedCombinedMigrationArtifactContract as contract } from "./acceptance-hosted-important-batch-contracts.mjs";
 import { hostedImportantBatchPostgresRuntimeReference } from "./acceptance-hosted-important-batch-execution-contract.mjs";
@@ -36,9 +37,11 @@ function mount(arguments_, destination) {
   return /src=([^,]+)/u.exec(arguments_.find((value) => value.includes(`dst=${destination}`)))?.[1];
 }
 
-async function runCapture(phase, failure = null) {
+async function runCapture(context, phase, failure = null) {
+  const sources = await loadHostedCombinedMigrationSources(
+    await createHostedCombinedMigrationSourceFixture(context),
+  );
   const root = await mkdtemp(join(tmpdir(), "seen-said-combined-capture-"));
-  const sources = await loadHostedCombinedMigrationSources(process.cwd());
   const calls = [];
   const phaseRoot = join(root, contract.artifactDirectory, phase);
   const capture = () =>
@@ -137,16 +140,17 @@ async function runCapture(phase, failure = null) {
   }
 }
 
-test("combined pre/post capture retain exact TLS/digest/archive/manifest/cleanup contracts", async () => {
-  await runCapture("pre");
-  await runCapture("post");
+test("combined pre/post capture retain exact TLS/digest/archive/manifest/cleanup contracts", async (context) => {
+  await runCapture(context, "pre");
+  await runCapture(context, "post");
 });
-test("combined capture stops on ledger/storage/TOC failure and leaves no partial evidence", async () => {
-  for (const failure of ["ledger", "storage", "coverage"]) await runCapture("pre", failure);
+test("combined capture stops on ledger/storage/TOC failure and leaves no partial evidence", async (context) => {
+  for (const failure of ["ledger", "storage", "coverage"])
+    await runCapture(context, "pre", failure);
 });
 
-test("combined capture rejects every omitted new table and unanchored TOC fragments", async () => {
-  for (const table of relevantTables.slice(0, 4)) await runCapture("pre", `omit:${table}`);
-  for (const table of relevantTables) await runCapture("post", `omit:${table}`);
-  await runCapture("post", "fragment");
+test("combined capture rejects every omitted new table and unanchored TOC fragments", async (context) => {
+  for (const table of relevantTables.slice(0, 4)) await runCapture(context, "pre", `omit:${table}`);
+  for (const table of relevantTables) await runCapture(context, "post", `omit:${table}`);
+  await runCapture(context, "post", "fragment");
 });

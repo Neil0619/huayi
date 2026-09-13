@@ -62,7 +62,8 @@ test("practice overview uses dense full-width rows and keeps its first action in
       expect(sidebar.width).toBeGreaterThanOrEqual(panel.width - 1);
       expect(sidebar.y).toBeGreaterThanOrEqual(panel.y + panel.height);
     }
-    const firstAction = page.getByRole("button", { name: "引导造句", exact: true }).first();
+    // The primary entry now starts the first due item above the optional item picker.
+    const firstAction = page.getByRole("button", { name: "开始今日练习", exact: true });
     await expect(firstAction).toBeInViewport({ ratio: 1 });
     const action = await bounds(firstAction);
     expect(action.y + action.height).toBeLessThanOrEqual(viewport.height);
@@ -119,7 +120,8 @@ test("approved appearances keep one production layout across responsive viewport
         "aria-pressed",
         "true",
       );
-      await expect(page.getByRole("checkbox")).toHaveCount(0);
+      await expect(page.locator(".practice-item-row").getByRole("checkbox")).toHaveCount(0);
+      await expect(page.locator("[data-hint-policy]")).not.toBeChecked();
     }
   }
 });
@@ -139,7 +141,8 @@ test("the production selector persists keyboard changes without changing practic
   const choice = page.getByRole("checkbox", { name: "to be completely frank", exact: true });
   const startDialogue = page.getByRole("button", { name: "开始对话", exact: true });
   await expect(sentenceMode).toHaveAttribute("aria-pressed", "true");
-  await expect(page.getByRole("checkbox")).toHaveCount(0);
+  await expect(page.locator(".practice-item-row").getByRole("checkbox")).toHaveCount(0);
+  await expect(page.locator("[data-hint-policy]")).not.toBeChecked();
   await expect(startDialogue).toHaveCount(0);
   await dialogueMode.click();
   await expect(dialogueMode).toHaveAttribute("aria-pressed", "true");
@@ -167,7 +170,8 @@ test("the production selector persists keyboard changes without changing practic
   await expect(page.getByText("今日已练习 0 / 2 项", { exact: true })).toBeVisible();
   await expect(sentenceMode).toHaveAttribute("aria-pressed", "true");
   await expect(dialogueMode).toHaveAttribute("aria-pressed", "false");
-  await expect(page.getByRole("checkbox")).toHaveCount(0);
+  await expect(page.locator(".practice-item-row").getByRole("checkbox")).toHaveCount(0);
+  await expect(page.locator("[data-hint-policy]")).not.toBeChecked();
   await expect(startDialogue).toHaveCount(0);
   await expect(page.getByRole("button", { name: "引导造句", exact: true })).toHaveCount(2);
   await dialogueMode.click();

@@ -47,15 +47,47 @@ interface StudyCaptureAuthorityContext {
 function completedAnalysis(detail: StudyCaptureDetailResponse, ordinal: number): AnalysisRecord {
   const fixture = analysisRecordSchema.parse(contractFixtures.analysis);
   if (!("overall" in fixture.result)) throw new Error("Passage fixture missing.");
+  // This packaged capture uses a different sentence from the shared "to be frank" source.
+  // Its native candidate must occur in that source; the journey edits it only after analysis.
+  const investigation =
+    detail.capture.sourceText === "The investigation remained active all winter.";
   return analysisRecordSchema.parse({
     ...fixture,
+    candidates: investigation
+      ? fixture.candidates.map((candidate) => ({
+          ...candidate,
+          payload: {
+            type: "expression",
+            text: "remained active",
+            meaningZh: "一直在进行",
+            usageZh: "用于说明某种活动持续进行。",
+          },
+        }))
+      : fixture.candidates,
     createdAt: now,
     id: `analysis-capture-${ordinal}`,
     result: {
       ...fixture.result,
+      ...(investigation
+        ? {
+            overall: {
+              translationZh: "调查整个冬天都在持续。",
+              understandingZh: "说明调查持续进行的时间。",
+            },
+          }
+        : {}),
       sentences: fixture.result.sentences.map((sentence) => ({
         ...sentence,
         sourceText: detail.capture.sourceText,
+        ...(investigation
+          ? {
+              translationZh: "调查整个冬天都在持续。",
+              grammar: [{ label: "系表结构", explanationZh: "remained 连接主语和持续的状态。" }],
+              structure: [
+                { label: "主干", explanationZh: "调查持续进行，时间状语说明持续整个冬天。" },
+              ],
+            }
+          : {}),
       })),
     },
     selectionKind: detail.capture.kind,

@@ -50,7 +50,9 @@ test("inbox content and account sidebar stay compact in all four themes", async 
   await expect(page.getByRole("heading", { name: "当前账号" })).toBeVisible();
   const navigation = await page.getByRole("navigation", { name: "账号设置" }).boundingBox();
   expect(Math.round(navigation?.width ?? 0)).toBe(208);
-  expect((await page.locator(".account-summary-card").boundingBox())?.y).toBeLessThanOrEqual(240);
+  expect(
+    (await page.getByRole("region", { name: "当前账号", exact: true }).boundingBox())?.y,
+  ).toBeLessThanOrEqual(240);
   await expect.soft(page).toHaveScreenshot("settings-desktop.png", { animations: "disabled" });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.reload();

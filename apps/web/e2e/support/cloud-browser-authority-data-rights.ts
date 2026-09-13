@@ -4,6 +4,7 @@ import {
   accountDeletionRequestSchema,
   accountDeletionResponseSchema,
   accountDataExportFormatRequestSchema,
+  accountDataExportFormatVersionSchema,
   currentAccountDataExportReadResponseSchema,
   downloadAccountDataExportResponseSchema,
   type AccountDataExportJobReadResource,
@@ -90,7 +91,7 @@ export function createCloudBrowserDataRightsAuthority() {
       }
       if (isCurrent) {
         const format = Number(url.searchParams.get("formatVersion") ?? 1);
-        if (![1, 2, 3].includes(format)) {
+        if (!accountDataExportFormatVersionSchema.safeParse(format).success) {
           await context.reject(route, 400, "invalid_request", "read");
           return true;
         }

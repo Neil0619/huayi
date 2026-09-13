@@ -1,3 +1,12 @@
 packages:
   - "apps/*"
   - "packages/*"
+
+# Taro 4.2.1 pins vulnerable Swiper 11; keep the override on that consumer.
+# Patch vulnerable dependency lines without replacing other major versions.
+overrides:
+  "@tarojs/components@4.2.1>swiper": "12.1.2"
+  "brace-expansion@>=1.0.0 <1.1.18": "1.1.18"
+  "brace-expansion@>=5.0.0 <5.0.9": "5.0.9"
+  "nanoid@>=3.0.0 <3.3.18": "3.3.18"
+  "postcss@>=8.0.0 <8.5.18": "8.5.18"

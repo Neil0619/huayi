@@ -21,7 +21,9 @@
   justify-content: center;
   min-height: 44px;
   padding: var(--space-2) var(--space-4);
-  border: 1px solid transparent;
+  border-width: 1px;
+  border-style: solid;
+  border-color: transparent;
   border-radius: var(--radius-control);
   color: var(--text-secondary);
   font-weight: 600;

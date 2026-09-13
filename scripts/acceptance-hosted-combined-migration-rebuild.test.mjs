@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { createHostedCombinedMigrationSourceFixture } from "./acceptance-hosted-combined-migration-test-support.mjs";
 import { hostedCombinedMigrationArtifactContract as contract } from "./acceptance-hosted-important-batch-contracts.mjs";
 import { hostedImportantBatchPostgresRuntimeReference } from "./acceptance-hosted-important-batch-execution-contract.mjs";
 import { rebuildHostedCombinedMigrationScratch } from "./acceptance-hosted-combined-migration-rebuild.mjs";
@@ -10,7 +11,8 @@ const target = {
   host: "unix:///Users/fixed/.orbstack/run/docker.sock",
 };
 
-test("combined rebuild applies 28 sources, checks new catalogs before destroy, and never persists on failure", async () => {
+test("combined rebuild applies 28 sources, checks new catalogs before destroy, and never persists on failure", async (context) => {
+  const repositoryRoot = await createHostedCombinedMigrationSourceFixture(context);
   for (const failExtra of [false, true]) {
     let started = false;
     let destroyed = false;
@@ -18,7 +20,7 @@ test("combined rebuild applies 28 sources, checks new catalogs before destroy, a
     const order = [];
     const run = () =>
       rebuildHostedCombinedMigrationScratch({
-        repositoryRoot: process.cwd(),
+        repositoryRoot,
         resolveDockerTarget: async () => target,
         wait: async () => undefined,
         migratePlatformBaseline: async ({ artifactContract, onStage }) => {

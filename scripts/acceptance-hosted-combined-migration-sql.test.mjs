@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import test from "node:test";
+import { createHostedCombinedMigrationSourceFixture } from "./acceptance-hosted-combined-migration-test-support.mjs";
 import { hostedCombinedMigrationCatalogSql } from "./acceptance-hosted-combined-migration-catalog.mjs";
 import { loadHostedCombinedMigrationSources } from "./acceptance-hosted-combined-migration-sources.mjs";
 import {
@@ -11,8 +12,10 @@ import {
 const requireFromApi = createRequire(new URL("../apps/api/package.json", import.meta.url));
 const { PGlite } = requireFromApi("@electric-sql/pglite");
 
-test("combined catalog SQL accepts exact sources and rejects body, ACL, shape, RLS, policy and data drift", async () => {
-  const sources = await loadHostedCombinedMigrationSources(process.cwd());
+test("combined catalog SQL accepts exact sources and rejects body, ACL, shape, RLS, policy and data drift", async (context) => {
+  const sources = await loadHostedCombinedMigrationSources(
+    await createHostedCombinedMigrationSourceFixture(context),
+  );
   const db = new PGlite();
   await db.waitReady;
   try {
@@ -48,8 +51,10 @@ test("combined catalog SQL accepts exact sources and rejects body, ACL, shape, R
   }
 });
 
-test("capture SQL checks fixed 25/28 ledger and source statements in a read-only PG17 transaction", async () => {
-  const sources = await loadHostedCombinedMigrationSources(process.cwd());
+test("capture SQL checks fixed 25/28 ledger and source statements in a read-only PG17 transaction", async (context) => {
+  const sources = await loadHostedCombinedMigrationSources(
+    await createHostedCombinedMigrationSourceFixture(context),
+  );
   const pre = renderHostedCombinedMigrationCaptureSql("pre", sources);
   const post = renderHostedCombinedMigrationCaptureSql("post", sources);
   assert.match(pre, /BEGIN READ ONLY;/u);
@@ -62,8 +67,10 @@ test("capture SQL checks fixed 25/28 ledger and source statements in a read-only
   assert.throws(() => renderHostedCombinedMigrationCaptureSql("production", sources));
 });
 
-test("capture rejects baseline and post source-ledger drift with executable SQL", async () => {
-  const sources = await loadHostedCombinedMigrationSources(process.cwd());
+test("capture rejects baseline and post source-ledger drift with executable SQL", async (context) => {
+  const sources = await loadHostedCombinedMigrationSources(
+    await createHostedCombinedMigrationSourceFixture(context),
+  );
   const db = new PGlite();
   await db.waitReady;
   try {

@@ -4,6 +4,7 @@ import { lstat, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promis
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
+import { createHostedCombinedMigrationSourceFixture } from "./acceptance-hosted-combined-migration-test-support.mjs";
 
 import {
   hostedPhase92ArtifactContract,
@@ -75,7 +76,7 @@ async function createTemporaryRepository() {
   return root;
 }
 
-test("Combined 0026+0027+0028 owns a distinct 28-file evidence identity", async () => {
+test("Combined 0026+0027+0028 owns a distinct 28-file evidence identity", async (context) => {
   assert.equal(hostedPhase92ArtifactContract.migrationFiles.length, 22);
   assert.equal(hostedCombinedMigrationArtifactContract.migrationFiles.length, 28);
   assert.equal(hostedCombinedMigrationArtifactContract.preMigrationHead, "20260905020000");
@@ -88,7 +89,9 @@ test("Combined 0026+0027+0028 owns a distinct 28-file evidence identity", async 
     hostedCombinedMigrationArtifactContract.artifactDirectory,
     hostedPhase92ArtifactContract.artifactDirectory,
   );
-  const sources = await loadHostedCombinedMigrationRebuildSources(process.cwd());
+  const sources = await loadHostedCombinedMigrationRebuildSources(
+    await createHostedCombinedMigrationSourceFixture(context),
+  );
   assert.equal(sources.migrations.length, 28);
   assert.equal(sources.migrations.at(-1).version, "20260907030000");
   assert.equal(hostedCombinedMigrationBackupId, "combined-hosted-0026-0027-0028-20260907");

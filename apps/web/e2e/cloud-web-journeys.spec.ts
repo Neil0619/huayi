@@ -291,6 +291,7 @@ test("actual Web bundle confirms one candidate and rereads it from the learning 
   await page.getByRole("tab", { name: "学习内容", exact: true }).click();
   await page.getByText("全部候选", { exact: false }).click();
   await page.getByText("编辑内容与标签", { exact: true }).click();
+  await expect(page.getByRole("textbox", { exact: true, name: "表达" })).toHaveValue("to be frank");
   await page.getByRole("textbox", { exact: true, name: "表达" }).fill("to be completely frank");
   await page.getByLabel("标签（逗号分隔）").fill("writing, conversation");
   await page.locator("[data-candidate-selected]").first().check();
@@ -412,6 +413,9 @@ test("packaged Store content captures a sentence and Web explicitly deep-analyze
   ).toBeVisible();
   await page.getByText("全部候选", { exact: false }).click();
   await page.getByText("编辑内容与标签", { exact: true }).click();
+  await expect(page.getByRole("textbox", { exact: true, name: "表达" })).toHaveValue(
+    "remained active",
+  );
   await page.getByRole("textbox", { exact: true, name: "表达" }).fill("to be completely frank");
   await page.getByLabel("标签（逗号分隔）").fill("investigation, writing");
   await page.locator("[data-candidate-selected]").first().check();

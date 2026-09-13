@@ -67,7 +67,7 @@ test("practice uses the available width and clicking the current navigation does
   });
 });
 
-test("many learning items stay paged and saved practices show their own content and status", async ({
+test("many learning items stay paged and saved practices retain status without revealing teaching targets", async ({
   page,
 }) => {
   const authority = createCloudBrowserAuthority({ authenticated: true, seed: "dialogue-practice" });
@@ -158,10 +158,17 @@ test("many learning items stay paged and saved practices show their own content 
   await page.reload();
   await expect(page.locator(".practice-item-row")).toHaveCount(6);
   await expect(page.locator(".practice-resume-item")).toHaveCount(3);
-  await expect(page.locator(".practice-resume-item").first()).toContainText("at least");
-  await expect(page.locator(".practice-resume-item").first()).toContainText(
-    "草稿：At least we can try again tomorrow.",
-  );
+  const saved = page.locator(".practice-resume-item");
+  const latestSession = sessions[0];
+  if (!latestSession) throw new Error("Missing saved practice fixture");
+  await expect(saved.first().getByRole("heading")).toHaveText("已保存的造句练习");
+  await expect(saved.first()).toContainText("自由造句");
+  await expect(saved.first()).toContainText("有草稿");
+  await expect(saved.first()).not.toContainText("at least", { ignoreCase: true });
+  await expect(saved.first()).not.toContainText("At least we can try again tomorrow.");
+  await expect(saved.first().locator("time")).toHaveAttribute("datetime", latestSession.updatedAt);
+  await expect(saved.nth(1)).toContainText("引导造句");
+  await expect(saved.nth(1)).toContainText("尚未作答");
   await expect(page.locator(".practice-resume-item").nth(2)).toContainText("反馈已完成 · 待自评");
   await page.getByRole("button", { name: "查看全部 6 项" }).click();
   await expect(page.locator(".practice-resume-item")).toHaveCount(6);

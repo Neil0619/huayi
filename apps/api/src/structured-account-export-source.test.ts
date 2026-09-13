@@ -35,7 +35,8 @@ describe("structured account export source", () => {
         await insertAccountDataExportAnalysisFixture(database, owner, analysis);
       else
         await database.query(
-          "INSERT INTO extension_query_generations(id,owner_user_id,idempotency_key,request_hash,state,request,lease_token,lease_expires_at,terminal_event,expires_at) VALUES($1,$2,'export',$3,'completed',$4::jsonb,'private-lease','2026-09-12T10:02:00Z',$5::jsonb,'2026-09-13T10:00:00Z')",
+          // Keep creation and expiry on the same fixture timeline, independent of the test date.
+          "INSERT INTO extension_query_generations(id,owner_user_id,idempotency_key,request_hash,state,request,lease_token,lease_expires_at,terminal_event,expires_at,created_at,updated_at) VALUES($1,$2,'export',$3,'completed',$4::jsonb,'private-lease','2026-09-12T10:02:00Z',$5::jsonb,'2026-09-13T10:00:00Z','2026-09-12T10:00:00Z','2026-09-12T10:01:00Z')",
           [
             id,
             owner,

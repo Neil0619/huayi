@@ -24,6 +24,8 @@ function validHostedEnvironment() {
     ).toString("base64"),
     HUAYI_DATABASE_URL:
       "postgresql://huayi_hosted_acceptance_login.kpadiulxkgckskcfydry:application-password@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres?sslmode=verify-full",
+    HUAYI_DEEPSEEK_20260910_OFF_PEAK_PRICE_VERSION_ID: "10000000-0000-4000-8000-000000000004",
+    HUAYI_DEEPSEEK_20260910_PEAK_PRICE_VERSION_ID: "10000000-0000-4000-8000-000000000005",
     HUAYI_DEEPSEEK_API_KEY: "deepseek-hosted-test-key",
     HUAYI_DEEPSEEK_LEGACY_PRICE_VERSION_ID: "8a7c5397-dbba-4e28-bc0d-107c4d04c3c3",
     HUAYI_DEEPSEEK_OFF_PEAK_PRICE_VERSION_ID: "dad0deb1-cbdc-4311-b3ad-b492c7ece757",
@@ -150,6 +152,26 @@ test("hosted deployment environment verifier reuses the production schema and fi
     );
   }
 });
+
+for (const field of [
+  "HUAYI_DEEPSEEK_20260910_OFF_PEAK_PRICE_VERSION_ID",
+  "HUAYI_DEEPSEEK_20260910_PEAK_PRICE_VERSION_ID",
+]) {
+  test(`hosted deployment rejects a missing, invalid, or duplicate ${field}`, () => {
+    const environment = validHostedEnvironment();
+    assert.equal(verifyHostedDeploymentEnvironment(environment), true);
+    const missing = Object.fromEntries(
+      Object.entries(environment).filter(([key]) => key !== field),
+    );
+    assert.throws(() => verifyHostedDeploymentEnvironment(missing));
+    assert.throws(() => verifyHostedDeploymentEnvironment({ ...environment, [field]: "invalid" }));
+    for (const [otherField, id] of Object.entries(environment)) {
+      if (otherField.endsWith("PRICE_VERSION_ID") && otherField !== field) {
+        assert.throws(() => verifyHostedDeploymentEnvironment({ ...environment, [field]: id }));
+      }
+    }
+  });
+}
 
 test("hosted deployment CLI never reflects invalid environment values", async () => {
   let stdout = "";

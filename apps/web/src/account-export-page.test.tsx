@@ -37,10 +37,10 @@ async function mount(job: typeof ready | null = null) {
   await act(async () => root?.render(<AccountDataRightsPage api={api} onSessionEnded={vi.fn()} />));
   return { node, api };
 }
-it("requests format 3 explicitly and downloads the format attached to the saved job", async () => {
+it("requests format 4 explicitly and preserves format 3 for an existing saved job", async () => {
   const { node, api } = await mount();
   await act(async () => node.querySelector<HTMLButtonElement>("[data-create-export]")?.click());
-  expect(api.createAccountDataExport).toHaveBeenCalledWith(3);
+  expect(api.createAccountDataExport).toHaveBeenCalledWith(4);
   api.downloadAccountDataExport = vi.fn(async () => ({
     url: "https://storage.example.test/file",
     expiresAt: time,
@@ -86,5 +86,5 @@ it("releases an old busy action when a new API scope loads and ignores the old c
   await act(async () => finish(ready));
   expect(node.textContent).toContain("尚未请求完整数据导出");
   await act(async () => node.querySelector<HTMLButtonElement>("[data-create-export]")?.click());
-  expect(next.createAccountDataExport).toHaveBeenCalledWith(3);
+  expect(next.createAccountDataExport).toHaveBeenCalledWith(4);
 });
