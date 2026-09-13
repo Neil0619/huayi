@@ -69,6 +69,15 @@ Web 使用 Vercel 官方支持的 [programmatic configuration](https://vercel.co
 密钥由 `production-runtime-inputs.mjs` 从正式 Keychain 和精确 Supabase 项目读取，不落入回执或客户端。
 Vercel 账户管理凭据仍由既有 Keychain 管理；运行时凭据和数据保持环境隔离。
 
+2026-09-13 的配置修复使 `production-release-environment.mjs` 固定输出生产 Vercel 已回读的五个
+DeepSeek 价格 UUID，完整映射、原费率和生效日期见
+[生产五项配置与价格行核验计划](./deepseek-flash-identity-migration.md#2026-09-13-生产五项配置对齐与价格行核验计划)。
+此前生成器仅有三个旧 UUID，无法通过当前 API 的五项必填且互异校验。此次只对齐本地生成结果，
+不生成新 UUID、不轮换凭据、不改变域名或 Web 配置，不以初始化接口覆盖既有配置。
+五个 Vercel 值已经只读确认；生产数据库行的 provider/model、价格和日期仍待独立核验，本次未应用任何
+数据库或平台写入。确认五条不可变行完整一致后，才能把配置契约门禁标为通过；不一致时停止受影响发布，
+不得用本地解析或生成器测试冒充数据库证据。
+
 发布驱动必须用 `production-release-evidence.mjs` 校验准确 SHA 的两个原生 CI job 和实际平台验证步骤，
 持有同一个正式发布写锁，并在提交前写入排他、同步落盘的尝试记录。记录已存在或响应不确定时，只允许
 按原候选和尝试 ID 对账；不能重新生成尝试 ID 绕过。API 就绪并通过 HTTPS 版本回读后才能发布 Web。

@@ -87,11 +87,42 @@ PGlite 生产组合以模拟 Provider 覆盖旧 reservation → 新 dispatch，�
 
 这些是离线合同及数据库证据。本文件不是部署或页面验收回执；验收部署、完整学习流程、实际平台扣费、
 页面效果及生产环境迁移均需各自的新证据。Hosted-only 发布必须提供上述五项配置与五条匹配新行；
-正式生产环境的 UUID 与发布配置不在本次变更范围，不得直接沿用旧三 UUID 生成器部署本候选。
+2026-09-10 的 Hosted-only 更新未调整正式生产配置；正式发布必须满足下述独立生产五项契约。
 
 `scripts/acceptance-local-bootstrap.mjs` 同步支持本机模拟验收：生成五个独立本地 UUID 并插入、核实
 相同的五档 `deepseek-flash` 快照。读取旧三 ID 本地配置时保留凭据并生成五个新 ID，历史行不改写；
 读取完整五 ID 配置时复用其 ID。部分缺失、无效或重复 ID 拒绝生成 SQL。该脚本没有使用上表的 Hosted UUID。
 本次只执行纯配置与 SQL 生成测试及内存 PGlite 核验，没有运行真实本机 bootstrap。
-旧 `scripts/acceptance-hosted-deployment.mjs` 与正式 `scripts/production-release-environment.mjs`
-仍保留历史三 ID 及原门禁，未因这次 Hosted-only 更新启用；本次验收发布使用独立准备的五项精确配置。
+旧 `scripts/acceptance-hosted-deployment.mjs` 仍保留历史三 ID 及原门禁，未因这次 Hosted-only 更新启用；
+本次验收发布使用独立准备的五项精确配置。正式生成器在下述 2026-09-13 修复中单独对齐。
+
+## 2026-09-13 生产五项配置对齐与价格行核验计划
+
+状态：**本地契约修复与核验计划已准备，未执行数据库写入、配置写入或部署**。
+主任务在 `2026-09-13T13:08:01.904Z` 只读回读独立正式 Vercel 项目
+`seen-said-production-api`（`prj_NePC3jZHC6UBARQjRzImNcAmbrdu`）及域名 `api.seen-said.cn`，
+确认生产已经配置下表五个值。此次生成器直接固定这些现有值，不在加载时生成 UUID，也不为对齐代码
+另造价格行或改写远端配置。五值与上表验收环境及历史三条生产旧模型 UUID 均不同。
+
+表中价格与日期是已有版本化代码规定的**待核对数据库行契约**；Vercel 值回读不能证明对应行存在或
+语义一致。此时生产 Supabase Management API 读取返回 HTTP 401，数据库五行的
+`provider=deepseek, model=deepseek-flash`、价格和生效时间尚待主任务独立回读验证。
+不得把本表写成五行已验证、已插入或新候选已发布的回执。
+
+| 环境 UUID 键（前缀均为 `HUAYI_DEEPSEEK_`） | 已回读的生产 UUID                      | cached / input / output micro-USD | effective_from（UTC） |
+| ------------------------------------------ | -------------------------------------- | --------------------------------- | --------------------- |
+| `LEGACY_PRICE_VERSION_ID`                  | `96f0345e-4020-4f71-a2ec-470ff33a3fed` | 2800 / 140000 / 280000            | 2026-08-16T15:59:59Z  |
+| `OFF_PEAK_PRICE_VERSION_ID`                | `40f17bbd-6fb7-487f-bf84-402bf752f0e4` | 7000 / 220000 / 660000            | 2026-08-16T16:00:00Z  |
+| `PEAK_PRICE_VERSION_ID`                    | `13569e29-0352-4afe-b408-8abeee6c05ac` | 14000 / 440000 / 1320000          | 2026-08-16T16:00:01Z  |
+| `20260910_OFF_PEAK_PRICE_VERSION_ID`       | `b1245b4c-c234-4abe-8197-6d02824f7421` | 2982 / 149081 / 596323            | 2026-09-10T04:00:00Z  |
+| `20260910_PEAK_PRICE_VERSION_ID`           | `9f2b46bf-d823-430e-a6fc-f1e24266ccad` | 5964 / 298162 / 1192646           | 2026-09-10T06:00:00Z  |
+
+核验只针对生产数据库 `pxqqgxfumovegbcxnmzb`。每个 UUID 必须唯一指向表中完整不可变行，保留所有
+历史行、已固定快照、usage ledger 与进行中请求。行缺失或不一致时阻断受影响发布并另行确定精确修复，
+不自动 insert/upsert/update/delete。`LEGACY`、`OFF_PEAK`、`PEAK` 表示历史费率档，目标模型仍是
+`deepseek-flash`；不能据后缀把它们改回旧模型。价格常量、内部估值口径、reservation 旧峰值上限和
+dispatch 时固定快照的语义不变。
+
+本地回归把实际 `buildProductionEnvironment` 的合成凭据输出连同完整合成 Vercel 部署身份交给
+`parseApiEnvironment`，覆盖五个必填且互异的 UUID，并连接实际生产定价消费者核对五档固定数值。
+凭据读取器和发布适配器没有行为修改；空配置初始化、完整精确环境匹配和原有发布门禁继续保留。

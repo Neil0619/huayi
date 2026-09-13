@@ -68,8 +68,29 @@ test("loads only production secrets after exact project and service role verific
   const result = await loadProductionRuntimeEnvironment(options);
   assert.equal(result.api.HUAYI_DEPLOYMENT_ENVIRONMENT, "production");
   assert.equal(result.api.HUAYI_RESEND_API_KEY, "re_" + "a".repeat(40));
-  assert.equal(calls.includes("supabase-admin-db-password"), false);
-  assert.equal(calls.includes("resend-smtp-key"), false);
+  assert.deepEqual(calls, [
+    "supabase-management-token",
+    "/v1/projects/pxqqgxfumovegbcxnmzb",
+    "/v1/projects/pxqqgxfumovegbcxnmzb/api-keys",
+    "deepseek-api-key",
+    "resend-notification-key",
+  ]);
+  assert.deepEqual(
+    Object.fromEntries(
+      Object.entries(result.api).filter(([key]) => key.endsWith("_PRICE_VERSION_ID")),
+    ),
+    {
+      HUAYI_DEEPSEEK_LEGACY_PRICE_VERSION_ID: "96f0345e-4020-4f71-a2ec-470ff33a3fed",
+      HUAYI_DEEPSEEK_OFF_PEAK_PRICE_VERSION_ID: "40f17bbd-6fb7-487f-bf84-402bf752f0e4",
+      HUAYI_DEEPSEEK_PEAK_PRICE_VERSION_ID: "13569e29-0352-4afe-b408-8abeee6c05ac",
+      HUAYI_DEEPSEEK_20260910_OFF_PEAK_PRICE_VERSION_ID: "b1245b4c-c234-4abe-8197-6d02824f7421",
+      HUAYI_DEEPSEEK_20260910_PEAK_PRICE_VERSION_ID: "9f2b46bf-d823-430e-a6fc-f1e24266ccad",
+    },
+  );
+  assert.deepEqual(result.web, {
+    VITE_API_ORIGIN: "https://api.seen-said.cn",
+    VITE_DEPLOYMENT_ENVIRONMENT: "production",
+  });
 });
 
 test("wrong project, mistaken service role and missing mail credentials fail without leaking values", async () => {

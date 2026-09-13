@@ -45,9 +45,13 @@ export function buildProductionEnvironment(secrets) {
         HUAYI_DATABASE_URL: `postgresql://huayi_production_login.pxqqgxfumovegbcxnmzb:${secrets.databasePassword}@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres?sslmode=verify-full`,
         HUAYI_DATABASE_TLS_CA_BASE64: Buffer.from(secrets.databaseCa).toString("base64"),
         HUAYI_DEEPSEEK_API_KEY: secrets.deepseekApiKey,
-        HUAYI_DEEPSEEK_LEGACY_PRICE_VERSION_ID: "213149df-94fe-4794-9490-fd4741a15f38",
-        HUAYI_DEEPSEEK_OFF_PEAK_PRICE_VERSION_ID: "26b376eb-f649-4a00-901f-a5492e3fd7c9",
-        HUAYI_DEEPSEEK_PEAK_PRICE_VERSION_ID: "72e72840-2798-4f4e-a503-7f1f7e825f63",
+        // Fixed production configuration; verify the matching immutable rows before release.
+        // See docs/cloud-v1/deepseek-flash-identity-migration.md for the five-row contract.
+        HUAYI_DEEPSEEK_LEGACY_PRICE_VERSION_ID: "96f0345e-4020-4f71-a2ec-470ff33a3fed",
+        HUAYI_DEEPSEEK_OFF_PEAK_PRICE_VERSION_ID: "40f17bbd-6fb7-487f-bf84-402bf752f0e4",
+        HUAYI_DEEPSEEK_PEAK_PRICE_VERSION_ID: "13569e29-0352-4afe-b408-8abeee6c05ac",
+        HUAYI_DEEPSEEK_20260910_OFF_PEAK_PRICE_VERSION_ID: "b1245b4c-c234-4abe-8197-6d02824f7421",
+        HUAYI_DEEPSEEK_20260910_PEAK_PRICE_VERSION_ID: "9f2b46bf-d823-430e-a6fc-f1e24266ccad",
         HUAYI_REFRESH_ENCRYPTION_KEY: secrets.refreshEncryptionKey,
         HUAYI_SECRET_PEPPER: secrets.secretPepper,
         CRON_SECRET: secrets.cronSecret,
