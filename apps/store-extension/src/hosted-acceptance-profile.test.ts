@@ -37,6 +37,8 @@ describe("Hosted acceptance Store profile", () => {
     expect(acceptanceManifest.key).toMatch(/^MIIBI[A-Za-z0-9+/]+={0,2}$/u);
   });
 
+  // This real Vite build needs the same integration budget as the production profile,
+  // especially while the full native CI suite is running in parallel.
   it("builds fixed acceptance origins and the acceptance-only manifest into one package", async () => {
     const outputDirectory = await mkdtemp(join(tmpdir(), "huayi-store-hosted-acceptance-"));
     try {
@@ -79,7 +81,7 @@ describe("Hosted acceptance Store profile", () => {
     } finally {
       await rm(outputDirectory, { force: true, recursive: true });
     }
-  });
+  }, 15_000);
 
   it.each(["production-canary", "Production", "https://api.seen-said.cn"])(
     "rejects unknown build profile %s instead of accepting endpoint input",
