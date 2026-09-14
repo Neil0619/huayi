@@ -63,6 +63,8 @@ body:has(.acceptance-environment-notice) .app-shell > .topbar {
 .topbar .appearance-menu > summary {
   font-size: 14px;
   box-shadow: none;
+  /* The topbar is opaque; a redundant backdrop layer makes text repaint inconsistently. */
+  backdrop-filter: none;
 }
 .app-shell > main {
   width: min(var(--workspace-max), calc(100% - var(--space-12)));
