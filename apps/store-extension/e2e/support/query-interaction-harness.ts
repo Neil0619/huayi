@@ -30,6 +30,10 @@ const settings: StoreSettings = {
   youtubeMode: "english",
   youtubeShortcut: null,
 };
+const explicitStructure = new URL(location.href).searchParams.has("explicit-structure")
+  ? "第一句主干为“He gave no details”；第二句主干为“The plan costs money”。" +
+    "这是补充结构说明，保留句子关系与原有内容。".repeat(8)
+  : null;
 let stored: unknown;
 const cache = createQueryCache({
   storage: {
@@ -79,7 +83,7 @@ const engine: AnalysisEngine = {
       requestId: request.requestId,
       sequence: 1,
       section: "main-structure",
-      text: "主语与谓语已经可以阅读。",
+      text: explicitStructure ?? "主语与谓语已经可以阅读。",
     });
     update?.({
       type: "section",
@@ -113,7 +117,7 @@ const engine: AnalysisEngine = {
             requestId: request.requestId,
             selectionKind: "sentence",
             sourceText: request.selection,
-            mainStructure: "主语与谓语。".repeat(50),
+            mainStructure: explicitStructure ?? "主语与谓语。".repeat(50),
             translationZh: translation.join(""),
             keyExpressions,
             contextRole: "新闻中补充信息来源。",
@@ -176,12 +180,16 @@ function connectAnalysis(): ContentAnalysisPort {
   };
 }
 const packagedProfile = new URL(location.href).searchParams.get("package");
+const parityProfile = packagedProfile?.replace(/^parity-/u, "");
 const packagedRoot =
   packagedProfile === "hosted"
     ? "/apps/store-extension/dist"
     : packagedProfile === "release"
       ? "/apps/store-extension/dist-release"
-      : null;
+      : packagedProfile?.startsWith("parity-") &&
+          ["hosted-acceptance", "production", "release"].includes(parityProfile ?? "")
+        ? `/artifacts/store-parity-builds/${parityProfile}`
+        : null;
 const controller =
   packagedRoot === null
     ? new StoreOverlayController(document, {

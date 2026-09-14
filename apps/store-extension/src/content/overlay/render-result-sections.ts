@@ -1,3 +1,5 @@
+import { renderMainStructure } from "./render-main-structure.js";
+
 import type { ResultEntry, ResultSection } from "./result-section-specs.js";
 
 function appendBadge(container: HTMLElement, value: string | undefined): void {
@@ -40,6 +42,11 @@ export function renderResultSection(document: Document, spec: ResultSection): HT
   const heading = document.createElement("h3");
   heading.textContent = spec[2];
   section.append(heading);
+
+  if (spec[0] === "text" && spec[1] === "main-structure") {
+    renderMainStructure(section, spec[3]);
+    return section;
+  }
 
   if (spec[0] === "text" || spec[0] === "callout") {
     const value = document.createElement("p");

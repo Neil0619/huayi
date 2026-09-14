@@ -151,7 +151,7 @@ export class StoreOverlayController {
     const activation = this.#cardSession.activate(action);
     if (activation.cancelled !== null) this.#stopPort(false);
     this.#promoteToResult?.();
-    this.#interaction.position();
+    this.#interaction.beginResult();
     updateOverlayModeControls(this.#host, action, activation.state.status === "loading");
     if (!activation.shouldStart) {
       this.#renderModeState(action, activation.state);

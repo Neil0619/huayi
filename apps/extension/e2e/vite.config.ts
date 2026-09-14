@@ -1,4 +1,5 @@
 import { resolve } from "node:path";
+import { copyFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
 import { build, defineConfig, type Plugin } from "vite";
@@ -41,6 +42,22 @@ function buildExtensionFixtures(): Plugin {
         "background",
       ]) {
         await build(createStoreExtensionConfig(mode, "release"));
+      }
+      // Build isolated profile fixtures; ordinary E2E must preserve installed package directories.
+      for (const profile of ["hosted-acceptance", "production", "release"]) {
+        const config = createStoreExtensionConfig("content", profile);
+        const outDir = resolve(repositoryRoot, "artifacts/store-parity-builds", profile);
+        await build({
+          ...config,
+          build: {
+            ...config.build,
+            outDir,
+          },
+        });
+        await copyFile(
+          resolve(repositoryRoot, "apps/store-extension/pages/overlay.css"),
+          resolve(outDir, "overlay.css"),
+        );
       }
       const previousApiOrigin = process.env.VITE_API_ORIGIN;
       const previousGoogleAuthentication = process.env.VITE_GOOGLE_AUTHENTICATION;

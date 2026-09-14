@@ -1,6 +1,7 @@
 import type { AnalysisUpdate } from "@huayi/store-domain";
 
 import { previewStructuredSection, previewTextSection } from "./result-section-specs.js";
+import { reconcileMainStructure } from "./render-main-structure.js";
 import { renderResultSection } from "./render-result-sections.js";
 
 function patchSection(
@@ -13,7 +14,9 @@ function patchSection(
   if (current?.dataset.previewSignature === signature) return;
   rendered.dataset.previewSignature = signature;
   if (current === null) body.append(rendered);
-  else current.replaceWith(rendered);
+  else if (key === "main-structure" && reconcileMainStructure(current, rendered)) {
+    current.dataset.previewSignature = signature;
+  } else current.replaceWith(rendered);
 }
 
 export function renderStreamPreview(
@@ -50,6 +53,7 @@ export function renderStreamPreview(
 }
 
 export function renderStreamStatus(body: HTMLElement): void {
+  delete body.dataset.requestId;
   const status = body.ownerDocument.createElement("p");
   status.className = "status";
   status.textContent = "正在分析…";

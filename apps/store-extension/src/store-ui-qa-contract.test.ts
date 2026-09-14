@@ -53,10 +53,14 @@ describe("Store UI QA contract", () => {
     expect(block(popupStyles, "\\.popup-brand > div")).toMatch(/min-width:\s*0/iu);
   });
 
-  it("uses the approved local font stack across Store surfaces", () => {
-    for (const styles of [popupStyles, optionsStyles, overlayStyles, overlayFallbackStyles]) {
+  it("keeps local fonts and readable body type across Store surfaces", () => {
+    for (const styles of [popupStyles, optionsStyles]) {
       expect(styles).toContain('"Avenir Next"');
       expect(styles).toContain('"PingFang SC"');
+    }
+    for (const styles of [overlayStyles, overlayFallbackStyles]) {
+      expect(block(styles, "\\.panel")).toMatch(/font:\s*15px\/1\.5\s+system-ui/iu);
+      expect(styles).not.toMatch(/@(?:import|font-face)|https?:\/\//iu);
     }
   });
 

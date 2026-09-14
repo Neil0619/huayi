@@ -1,8 +1,9 @@
 import type { StoreOverlayAnchor } from "./overlay-runtime.js";
-import { positionOverlayHost } from "./overlay-visual-state.js";
+import { positionOverlayHost, type OverlayPlacement } from "./overlay-visual-state.js";
 
 export class OverlayInteractionLifecycle {
   #anchor: StoreOverlayAnchor | null = null;
+  #placement: OverlayPlacement;
   #host: HTMLElement | null = null;
   #range: Range | undefined;
   #rangeOrigin: { readonly left: number; readonly top: number } | null = null;
@@ -39,12 +40,19 @@ export class OverlayInteractionLifecycle {
     this.#scrollY = view?.scrollY ?? 0;
     this.#listeners = new (view?.AbortController ?? AbortController)();
     const options = { capture: true, signal: this.#listeners.signal };
+    // Disclosure resizing must keep an above-selection result attached to the same edge.
+    host.shadowRoot?.addEventListener("toggle", () => this.position(), options);
     this.#document.addEventListener("keydown", this.#onDocumentKeyDown, options);
     this.#document.addEventListener("pointerdown", this.#onDocumentPointerDown, options);
     this.#document.addEventListener("scroll", this.#onViewportChange, options);
     view?.addEventListener("resize", this.#onViewportChange, options);
     view?.visualViewport?.addEventListener("resize", this.#onViewportChange, options);
     view?.visualViewport?.addEventListener("scroll", this.#onViewportChange, options);
+    this.position();
+  }
+
+  beginResult(): void {
+    this.#placement = null;
     this.position();
   }
 
@@ -58,15 +66,20 @@ export class OverlayInteractionLifecycle {
         origin && bounds ? bounds.left - origin.left : this.#scrollX - (view?.scrollX ?? 0);
       const offsetY =
         origin && bounds ? bounds.top - origin.top : this.#scrollY - (view?.scrollY ?? 0);
-      positionOverlayHost(this.#host, {
-        left: this.#anchor.left + offsetX,
-        top: this.#anchor.top + offsetY,
-        bottom: this.#anchor.bottom + offsetY,
-      });
+      this.#placement = positionOverlayHost(
+        this.#host,
+        {
+          left: this.#anchor.left + offsetX,
+          top: this.#anchor.top + offsetY,
+          bottom: this.#anchor.bottom + offsetY,
+        },
+        this.#placement,
+      );
     }
   }
 
   stop(): void {
+    this.#placement = undefined;
     this.#listeners?.abort();
     this.#listeners = null;
     this.#host = null;
@@ -76,7 +89,10 @@ export class OverlayInteractionLifecycle {
   }
 
   readonly #onViewportChange = (event: Event): void => {
-    if (this.#host && !event.composedPath().includes(this.#host)) this.position();
+    if (this.#host && !event.composedPath().includes(this.#host)) {
+      if (this.#placement !== undefined) this.#placement = null;
+      this.position();
+    }
   };
 
   readonly #onDocumentKeyDown = (event: KeyboardEvent): void => {

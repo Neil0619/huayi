@@ -14,18 +14,23 @@ import { createStoreExtensionConfig } from "../vite.config.js";
 // typed structured-stream parsing, stable incremental section patching, and partial-error
 // retention. The reviewed 55 KiB Phase 27 baseline adds only the current-card StudyCapture
 // controls and fixed Web-workspace entry. The reviewed 56 KiB C/G/H/I baseline additionally
-// carries one strict appearance field and in-place Shadow DOM appearance updates. It must still
+// carries one strict appearance field and in-place Shadow DOM appearance updates. The reviewed
+// 58.5 KiB readability baseline adds primary clauses, focus-preserving disclosure, stable streamed
+// placement and short-viewport fallback. The restored package is 59,701 bytes, including 63 bytes
+// to reposition after disclosure toggles; the 59,904-byte budget leaves 203 bytes. It must still
 // exclude Zod, Provider, and Worker modules.
-const CONTENT_SCRIPT_BASELINE_BYTES = 56 * 1_024;
+const CONTENT_SCRIPT_BASELINE_BYTES = 58.5 * 1_024;
 // The former 55.25 KiB YouTube controller budget covered caption interaction, pause ownership,
 // overlayTheme, and the shared ActionCard. The reviewed 64 KiB ClassicParity baseline includes
 // the same static ResultCard and lexicon lifecycle modules now shared with ordinary pages. The
 // reviewed 68 KiB v4 baseline additionally carries the strict structured-stream parser and
 // partial-error behavior. The reviewed 72 KiB Phase 27 baseline adds the same current-card
 // StudyCapture controls and fixed Web-workspace entry. The reviewed 74 KiB C/G/H/I baseline adds
-// strict appearance propagation plus the four local high-contrast control-edge treatments. It
-// remains isolated and must not admit Zod, Provider, or Worker code.
-const YOUTUBE_CONTENT_BASELINE_BYTES = 74 * 1_024;
+// strict appearance propagation plus the four local high-contrast control-edge treatments. The
+// reviewed 76 KiB readability baseline carries the same shared main-structure and placement
+// behavior; the restored package including disclosure repositioning is 77,761 bytes, leaving 63.
+// It remains isolated and must not admit Zod, Provider, or Worker code.
+const YOUTUBE_CONTENT_BASELINE_BYTES = 76 * 1_024;
 const YOUTUBE_MAIN_BASELINE_BYTES = 24 * 1_024;
 const POPUP_BASELINE_BYTES = 32 * 1_024;
 

@@ -1,10 +1,19 @@
 import type { AnalysisResult } from "@huayi/store-domain";
 
+import { reconcileMainStructure } from "./render-main-structure.js";
 import { renderResultSection } from "./render-result-sections.js";
 import { resultHeading, resultSections } from "./result-section-specs.js";
 
 export function renderAnalysisResult(container: HTMLElement, result: AnalysisResult): void {
-  container.replaceChildren();
+  const previousRequest = container.dataset.requestId;
+  const current =
+    result.type === "explain-sentence" && (!previousRequest || previousRequest === result.requestId)
+      ? container.querySelector<HTMLElement>('[data-result-section="main-structure"]')
+      : null;
+  for (const child of [...container.childNodes]) {
+    if (child !== current) child.remove();
+  }
+  container.dataset.requestId = result.requestId;
   container.dataset.resultType = result.type;
 
   const heading = resultHeading(result);
@@ -21,6 +30,9 @@ export function renderAnalysisResult(container: HTMLElement, result: AnalysisRes
   }
 
   for (const section of resultSections(result)) {
-    container.append(renderResultSection(container.ownerDocument, section));
+    const rendered = renderResultSection(container.ownerDocument, section);
+    if (section[1] === "main-structure" && current) {
+      if (!reconcileMainStructure(current, rendered)) current.replaceWith(rendered);
+    } else container.append(rendered);
   }
 }

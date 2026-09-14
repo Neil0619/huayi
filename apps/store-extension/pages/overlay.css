@@ -27,7 +27,7 @@
   --overlay-shadow:
     0 28px 72px rgb(38 54 69 / 18%), 0 7px 22px rgb(38 54 69 / 9%),
     inset 0 1px rgb(255 255 255 / 76%);
-  max-height: min(620px, calc(100dvh - 16px));
+  max-height: min(620px, calc(100dvh - 16px), var(--overlay-available-height, 100dvh));
   width: min(368px, calc(100vw - 16px));
   overflow: hidden;
   border: 1px solid var(--material-border);
@@ -35,14 +35,7 @@
   color: var(--overlay-text);
   background: var(--material-fill);
   box-shadow: var(--overlay-shadow);
-  font:
-    15px/1.58 "Avenir Next",
-    Avenir,
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    "PingFang SC",
-    sans-serif;
+  font: 15px/1.5 system-ui;
   backdrop-filter: blur(var(--material-blur)) saturate(118%);
 }
 
@@ -358,7 +351,7 @@ button:disabled {
   line-height: 1.25;
 }
 .result-section {
-  padding: 10px 0;
+  padding: 8px 0;
   border-top: 1px solid var(--overlay-border);
 }
 .result-section h3 {
@@ -371,6 +364,50 @@ button:disabled {
 .result-section p {
   margin: 0;
   white-space: pre-wrap;
+}
+.cores {
+  display: grid;
+  gap: 8px;
+}
+.core small {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--overlay-secondary);
+  font-size: 12px;
+  font-weight: 500;
+}
+.core strong {
+  display: block;
+  color: var(--overlay-text);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+[data-result-section="main-structure"] details {
+  margin-top: 12px;
+}
+[data-result-section="main-structure"] details summary {
+  width: fit-content;
+  padding: 5px 0;
+  color: var(--overlay-secondary);
+  cursor: pointer;
+  font-size: 13px;
+}
+[data-result-section="main-structure"] details summary:focus-visible {
+  outline: 2px solid var(--overlay-focus);
+  outline-offset: 3px;
+  border-radius: 3px;
+}
+[data-result-section="main-structure"] details[open] .notes {
+  margin-top: 8px;
+}
+.notes {
+  color: var(--overlay-secondary);
+  font-weight: 400;
+  line-height: 1.6;
+}
+.notes p + p {
+  margin-top: 8px;
 }
 .result-callout {
   margin: 0 -2px 2px;
