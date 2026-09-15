@@ -42,6 +42,8 @@ export const currentMigrationNames = [
   "0036-teaching-account-exports.sql",
   "0037-practice-reference.sql",
   "0038-reference-account-exports.sql",
+  "0039-shanbay-backfill.sql",
+  "0040-backfill-account-exports.sql",
 ] as const;
 
 /** Every test owns this in-memory database; never connects to an existing service. */

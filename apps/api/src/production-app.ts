@@ -1,5 +1,6 @@
 import { createWordCatalogApp } from "./word-catalog-app.js";
 import { createProductionLearningLibrary } from "./production-learning-library.js";
+import { mountProductionShanbayBackfill } from "./shanbay-backfill-app.js";
 import { createCloudFoundationApp } from "./cloud-foundation-app.js";
 import { createDiagnosticProviderFetch } from "./diagnostic-provider-fetch.js";
 import { createProductionDiagnostics } from "./production-diagnostics.js";
@@ -382,6 +383,12 @@ export function createProductionApp(
     "/",
     createWordCatalogApp({ authenticate: authenticateWebAnalysis, catalog: wordCatalog, words }),
   );
+  mountProductionShanbayBackfill(app, {
+    authenticate: (context) =>
+      authenticateProductionContextRequest(learningIdentity, context, extensionPolicy),
+    authenticateDevice: identity.authenticateBackfillExtension,
+    database: analysisDatabase,
+  });
   app.route("/", createHealthApp(hostedDeploymentIdentityFromEnvironment(environment)));
   return app;
 }

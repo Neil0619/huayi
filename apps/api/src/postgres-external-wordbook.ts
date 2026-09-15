@@ -3,6 +3,7 @@ import { CloudFault } from "./cloud-fault.js";
 import type { ExternalWordbookRepository } from "./external-wordbook-module.js";
 import { applyExternalWordbookExportReceipts } from "./postgres-external-wordbook-export.js";
 import { applyEudicImportPage } from "./postgres-external-wordbook-import.js";
+import { legacyBackfillBlocked, prepareLegacyBackfill } from "./postgres-shanbay-legacy.js";
 import {
   externalWordbookInstant,
   loadCurrentExternalWordbookLease,
@@ -34,6 +35,7 @@ async function finishWrite(
 
 export function createPostgresExternalWordbook(
   database: AnalysisDatabase,
+  sharedBackfill = false,
 ): ExternalWordbookRepository {
   return {
     async cancel(command) {
@@ -177,7 +179,24 @@ export function createPostgresExternalWordbook(
     },
     async lease(command) {
       return database.transaction(command.ownerUserId, async ({ tenant }) => {
+        const backfill = sharedBackfill
+          ? await prepareLegacyBackfill(tenant, command.ownerUserId, command.now)
+          : null;
         const job = await lockExternalWordbookJob(tenant, command.jobId);
+        const blocked = backfill && job.target === "shanbay" ? legacyBackfillBlocked(backfill) : [];
+        if (
+          backfill &&
+          job.target === "shanbay" &&
+          backfill.batches.some(
+            (batch) =>
+              batch.token === `legacy:${job.id}:${job.lease_nonce_hash}` &&
+              batch.state === "unknown",
+          )
+        )
+          throw new CloudFault(
+            "wordbook_job_not_claimable",
+            "Confirm the unknown Shanbay result before retrying.",
+          );
         if (
           job.state === "active" &&
           job.lease_nonce_hash === command.nonceHash &&
@@ -210,8 +229,10 @@ export function createPostgresExternalWordbook(
           );
           const pending = await tenant.rows<{ id: string }>(
             `SELECT id::text FROM external_wordbook_items WHERE job_id=$1 AND state='pending'
+             AND NOT(lower(trim(payload_snapshot->>'headword'))=ANY($2::text[]))
+             AND id IN (SELECT DISTINCT ON(lower(trim(payload_snapshot->>'headword'))) id FROM external_wordbook_items WHERE job_id=$1 AND state='pending' ORDER BY lower(trim(payload_snapshot->>'headword')),created_at,id)
              ORDER BY created_at,id LIMIT 20`,
-            [command.jobId],
+            [command.jobId, blocked],
           );
           if (pending.length === 0) {
             throw new CloudFault("wordbook_job_not_claimable", "The export has no pending items.");
@@ -229,6 +250,8 @@ export function createPostgresExternalWordbook(
              lease_expires_at=$3,revision=revision+1,updated_at=$4 WHERE id=$1`,
           [command.jobId, command.nonceHash, command.newExpiresAt, command.now],
         );
+        if (backfill && job.target === "shanbay")
+          await prepareLegacyBackfill(tenant, command.ownerUserId, command.now);
         return loadCurrentExternalWordbookLease(
           tenant,
           { ...job, lease_expires_at: new Date(command.newExpiresAt), state: "active" },
@@ -297,6 +320,7 @@ export function createPostgresExternalWordbook(
             command.requestHash,
           );
           if (replay !== null) return replay;
+          if (sharedBackfill) await prepareLegacyBackfill(tenant, command.ownerUserId, command.now);
           const job = await lockExternalWordbookJob(tenant, command.jobId);
           if (
             job.lease_nonce_hash !== command.nonceHash ||
@@ -343,6 +367,8 @@ export function createPostgresExternalWordbook(
               request: command.request,
               target: job.target,
             });
+            if (sharedBackfill && job.target === "shanbay")
+              await prepareLegacyBackfill(tenant, command.ownerUserId, command.now);
           }
           return finishWrite(
             tenant,
