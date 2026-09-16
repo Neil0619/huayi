@@ -7,6 +7,7 @@ import { join } from "node:path";
 import { build } from "vite";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import { BUILD_FIXTURE_TIMEOUT_MS } from "./build-fixture.test-support.js";
 import { createStoreExtensionConfig } from "../vite.config.js";
 import { loadPackagedWorker } from "./packaged-worker.test-support.js";
 
@@ -26,16 +27,18 @@ describe("Store Vite page assets", () => {
   let directory: string;
   beforeAll(async () => {
     directory = await mkdtemp(join(tmpdir(), "huayi-store-page-assets-"));
-    // Build deadlines belong to setup; asset and runtime assertions keep the test deadline.
-    for (const mode of ["background", "options", "popup"]) {
+  });
+  // Each build has its own setup deadline; runtime assertions keep the test deadline.
+  for (const mode of ["background", "options", "popup"]) {
+    beforeAll(async () => {
       const config = createStoreExtensionConfig(mode, "release");
       await build({
         ...config,
         build: { ...config.build, emptyOutDir: true, outDir: join(directory, mode) },
         configFile: false,
       });
-    }
-  });
+    }, BUILD_FIXTURE_TIMEOUT_MS);
+  }
   afterAll(async () => {
     if (directory) await rm(directory, { force: true, recursive: true });
   });

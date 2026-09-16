@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { build } from "vite";
 import { afterAll, beforeAll, expect, it, vi } from "vitest";
 
+import { BUILD_FIXTURE_TIMEOUT_MS } from "./build-fixture.test-support.js";
 import { createStoreExtensionConfig } from "../vite.config.js";
 import { createPackagedWorkerStorage, loadPackagedWorker } from "./packaged-worker.test-support.js";
 import { createChromeStoreAppearance } from "./service-worker/store-appearance.js";
@@ -22,7 +23,7 @@ beforeAll(async () => {
   const config = createStoreExtensionConfig("background", "hosted-acceptance");
   await build({ ...config, configFile: false, build: { ...config.build, outDir: directory } });
   source = await readFile(join(directory, "service-worker.js"), "utf8");
-});
+}, BUILD_FIXTURE_TIMEOUT_MS);
 afterAll(async () => {
   if (directory) await rm(directory, { recursive: true, force: true });
 });

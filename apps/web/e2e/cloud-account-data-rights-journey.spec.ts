@@ -86,7 +86,7 @@ test("an account owner exports data and permanently deletes the account", async 
     });
   }
   expect(JSON.stringify(snapshot)).not.toContain(downloadToken);
-  expect(exportFormats).toEqual([{ formatVersion: 4 }, { formatVersion: 4 }]);
+  expect(exportFormats).toEqual([{ formatVersion: 5 }, { formatVersion: 5 }]);
   expect(await page.evaluate(() => [localStorage.length, sessionStorage.length])).toEqual([0, 0]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
