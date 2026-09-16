@@ -160,6 +160,100 @@ describe("Shared Shanbay compatibility and export", () => {
     ).rejects.toMatchObject({ code: "wordbook_job_not_claimable" });
     expect(await ledger.status(owner)).toMatchObject({ unknownCount: 1 });
   });
+  it("keeps explicitly skipped mapped sources out of later legacy jobs without forged receipts", async () => {
+    const database = adapter(db);
+    const old = jobs(database);
+    const ledger = createPostgresShanbayBackfill(database);
+    const now = new Date().toISOString();
+    await ledger.execute(owner, "device", "enable", {
+      action: "settings",
+      enabled: true,
+      dailyHour: 8,
+      expectedRevision: 0,
+    });
+    const seeded = await ledger.execute(owner, "device", "seed", {
+      action: "adopt",
+      sources: [
+        {
+          headword: "walking",
+          target: "walk",
+          state: "pending",
+          attempt: "lemma",
+          origins: ["local"],
+          updatedAt: now,
+        },
+      ],
+      confirmed: [],
+      unknown: ["walk"],
+    });
+    await ledger.execute(owner, "device", "discard", {
+      action: "discard-review",
+      expectedRevision: seeded.status.revision,
+    });
+    await db.query(
+      "INSERT INTO word_entries(id,owner_user_id,headword,canonical_key,revision,created_at,updated_at) VALUES($1,$2,'walking','walking',1,now(),now())",
+      [crypto.randomUUID(), owner],
+    );
+    const job = await old.create(owner, "create", { direction: "export", target: "shanbay" });
+    await expect(
+      old.lease(owner, job.id, { claimNonce: "n".repeat(43), expectedRevision: job.revision }),
+    ).rejects.toMatchObject({ code: "wordbook_job_not_claimable" });
+    expect(await ledger.status(owner)).toMatchObject({ pendingCount: 0, unknownCount: 0 });
+    expect((await db.query("SELECT state,receipt FROM external_wordbook_items")).rows).toEqual([
+      { state: "pending", receipt: null },
+    ]);
+    expect(
+      (
+        await db.query<{ confirmed: string | null }>(
+          "SELECT record->>'confirmedAt' confirmed FROM shanbay_backfill_targets",
+        )
+      ).rows.every((row) => row.confirmed === null),
+    ).toBe(true);
+  });
+
+  it("dismisses expired legacy unknowns permanently and rejects an old lease receipt and renewal", async () => {
+    await words(1);
+    const database = adapter(db);
+    const old = jobs(database);
+    const ledger = createPostgresShanbayBackfill(database);
+    const job = await old.create(owner, "create", { direction: "export", target: "shanbay" });
+    const lease = await old.lease(owner, job.id, {
+      claimNonce: "n".repeat(43),
+      expectedRevision: job.revision,
+    });
+    if (lease.kind !== "export") throw new Error("Expected export.");
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(Date.parse(lease.expiresAt) + 1000));
+    const status = await ledger.status(owner);
+    expect(status.unknownCount).toBe(1);
+    await ledger.execute(owner, "device", "skip", {
+      action: "discard-review",
+      expectedRevision: status.revision,
+    });
+    expect(await ledger.status(owner)).toMatchObject({ unknownCount: 0 });
+    await expect(
+      old.lease(owner, job.id, { claimNonce: "r".repeat(43), expectedRevision: job.revision + 1 }),
+    ).rejects.toMatchObject({ code: "wordbook_job_not_claimable" });
+    await expect(
+      old.submit(owner, job.id, "late", {
+        kind: "export",
+        leaseToken: lease.leaseToken,
+        receipts: lease.entries.map((entry) => ({ itemId: entry.itemId, outcome: "confirmed" })),
+      }),
+    ).rejects.toThrow();
+    expect((await db.query("SELECT record FROM shanbay_backfill_targets")).rows).toEqual([
+      { record: { headword: "wordaa", confirmedAt: null } },
+    ]);
+    const newJob = await old.create(owner, "new-job", { direction: "export", target: "shanbay" });
+    await expect(
+      old.lease(owner, newJob.id, {
+        claimNonce: "s".repeat(43),
+        expectedRevision: newJob.revision,
+      }),
+    ).rejects.toMatchObject({ code: "wordbook_job_not_claimable" });
+    expect(await ledger.unresolved(owner)).toMatchObject({ items: [], unknownBatches: [] });
+  });
+
   it("exports ledger history only in format 5 without device holders or lease tokens", async () => {
     const database = adapter(db);
     const ledger = createPostgresShanbayBackfill(database);

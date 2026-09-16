@@ -22,6 +22,11 @@ export const shanbayBackfillCommandSchema = z.discriminatedUnion("action", [
     sources: z.array(backfillSourceSchema).max(100),
     confirmed: words,
     unknown: words.optional(),
+    dismissed: z
+      .array(z.strictObject({ headwords: words.min(1), dismissedAt: time }))
+      .max(100)
+      .refine((items) => items.reduce((count, item) => count + item.headwords.length, 0) <= 100)
+      .optional(),
   }),
   z.strictObject({
     action: z.literal("claim"),
@@ -40,6 +45,15 @@ export const shanbayBackfillCommandSchema = z.discriminatedUnion("action", [
   z.strictObject({
     action: z.literal("discard"),
     source: backfillHeadwordSchema,
+    expectedRevision: z.number().int().nonnegative(),
+  }),
+  z.strictObject({
+    action: z.literal("discard-review"),
+    expectedRevision: z.number().int().nonnegative(),
+  }),
+  z.strictObject({
+    action: z.literal("discard-unknown"),
+    token,
     expectedRevision: z.number().int().nonnegative(),
   }),
   z.strictObject({

@@ -3,7 +3,11 @@ import { CloudFault } from "./cloud-fault.js";
 import type { ExternalWordbookRepository } from "./external-wordbook-module.js";
 import { applyExternalWordbookExportReceipts } from "./postgres-external-wordbook-export.js";
 import { applyEudicImportPage } from "./postgres-external-wordbook-import.js";
-import { legacyBackfillBlocked, prepareLegacyBackfill } from "./postgres-shanbay-legacy.js";
+import {
+  legacyBackfillBlocked,
+  assertLegacyBackfillReceipt,
+  prepareLegacyBackfill,
+} from "./postgres-shanbay-legacy.js";
 import {
   externalWordbookInstant,
   loadCurrentExternalWordbookLease,
@@ -320,8 +324,12 @@ export function createPostgresExternalWordbook(
             command.requestHash,
           );
           if (replay !== null) return replay;
-          if (sharedBackfill) await prepareLegacyBackfill(tenant, command.ownerUserId, command.now);
+          const backfill = sharedBackfill
+            ? await prepareLegacyBackfill(tenant, command.ownerUserId, command.now)
+            : null;
           const job = await lockExternalWordbookJob(tenant, command.jobId);
+          if (backfill && job.target === "shanbay" && command.request.kind === "export")
+            assertLegacyBackfillReceipt(backfill, job.id, job.lease_nonce_hash);
           if (
             job.lease_nonce_hash !== command.nonceHash ||
             job.lease_expires_at === null ||

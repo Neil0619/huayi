@@ -127,3 +127,36 @@ it("rejects unauthenticated, cross-account, miniprogram and non-idempotent bulk 
   expect((await h.post(command, { authorization: "" })).status).toBe(401);
   expect(h.execute).not.toHaveBeenCalled();
 });
+
+it.each(["discard-review", "discard-unknown"] as const)(
+  "authenticates and strictly validates %s before any mutation",
+  async (action) => {
+    const command = {
+      action,
+      expectedRevision: 0,
+      ...(action === "discard-unknown" ? { token: "batch" } : {}),
+    };
+    for (const kind of ["extension", "web"] as const) {
+      const h = server(kind);
+      expect((await h.post(command)).status).toBe(200);
+      expect(h.execute).toHaveBeenCalledExactlyOnceWith(
+        "owner",
+        kind === "web" ? "web:owner" : "server-device-hash",
+        "backfill-test-key",
+        command,
+      );
+      expect((await h.post({ ...command, owner: "different" })).status).toBe(400);
+      expect((await h.post({ ...command, expectedRevision: undefined })).status).toBe(400);
+      expect((await h.post(command, { "idempotency-key": "" })).status).toBe(400);
+      expect(h.execute).toHaveBeenCalledTimes(1);
+    }
+    for (const [h, code] of [
+      [server("web", "owner", false), 401],
+      [server("extension", "different"), 403],
+      [server("miniprogram"), 403],
+    ] as const) {
+      expect((await h.post(command)).status).toBe(code);
+      expect(h.execute).not.toHaveBeenCalled();
+    }
+  },
+);

@@ -35,3 +35,18 @@
 
 先发布支持新 action 的 API，再交付含“全部丢弃”的扩展。旧 API 会拒绝该命令；客户端不能假报成功，
 也不把它拆成多次单词丢弃绕过版本和事务约定。旧客户端单词丢弃和现有 100 词领取不受影响。
+
+## 未知批次结束提醒
+
+新增 `discard-review`（所有分页的未解决词及未知批次）和 `discard-unknown`（指定未知批次）命令，
+均需要 `expectedRevision`，沿用账号鉴权、事务和幂等。旧 `discard-unresolved` 继续仅处理未解决来源。
+用户明确丢弃未知批次后，保留 unknown 状态及可选 `dismissedAt`，不写 `confirmedAt`，不释放目标供
+自动重发。待回填及 prepared 批次保持不变。已丢弃目标不计入待确认数量，旧 retry 命令不能重新打开它。
+
+本机迁入的 `adopt.dismissed` 可选，每项包含 `headwords` 与 `dismissedAt`，每次合计最多 100 个词。
+丢弃证据先于来源处理，以覆盖来源尚未到达、中断后重试和其他设备旧状态再次上传。
+账号 format 5 导出的回填批次可包含 `dismissedAt`，仍移除 token 和 holder。
+
+没有新增 SQL 表或列，JSONB 和加密本机记录按使用增量保存。旧 strict Schema 不识别新字段：
+必须先发布兼容 API，再交付新版扩展。一旦持久化 dismissedAt，回滚须保留该字段的读取、抑制重发和
+导出能力，不能直接回滚到拒绝该字段的旧 API/扩展，也不能通过删除记录消除提醒。

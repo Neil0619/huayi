@@ -7,6 +7,10 @@ import {
 } from "@huayi/cloud-contracts";
 import {
   adoptBackfill,
+  adoptBackfillDismissed,
+  backfillReviewBatches,
+  discardAllBackfillReview,
+  discardBackfillUnknown,
   backfillStatus,
   claimBackfillBatch,
   discoverBackfill,
@@ -82,6 +86,7 @@ function apply(
       discoverBackfill(state, command.headwords, command.origin, now);
       break;
     case "adopt":
+      adoptBackfillDismissed(state, command.dismissed ?? [], { holder, token: randomUUID, now });
       adoptBackfill(state, command.sources, command.confirmed, now);
       if (command.unknown?.length) {
         const blocked = new Set(
@@ -154,6 +159,11 @@ function apply(
       };
     case "discard":
       return { accepted: discardBackfillSource(state, command.source, now), batch: null };
+    case "discard-review":
+      discardAllBackfillReview(state, now);
+      break;
+    case "discard-unknown":
+      return { accepted: discardBackfillUnknown(state, command.token, now), batch: null };
     case "discard-unresolved":
       discardAllBackfillUnresolved(state, now);
       break;
@@ -184,14 +194,7 @@ export function createPostgresShanbayBackfill(database: AnalysisDatabase) {
           ...Object.values(state.sources)
             .filter((source) => source.state === "unresolved")
             .map((source) => ({ key: `s:${source.headword}`, source })),
-          ...state.batches
-            .filter((batch) => batch.state === "unknown")
-            .map((batch) => ({
-              ...batch,
-              headwords: batch.headwords.filter((word) => state.targets[word]?.confirmedAt == null),
-            }))
-            .filter((batch) => batch.headwords.length > 0)
-            .map((batch) => ({ key: `b:${batch.token}`, batch })),
+          ...backfillReviewBatches(state).map((batch) => ({ key: `b:${batch.token}`, batch })),
         ]
           .sort((a, b) => (a.key < b.key ? -1 : 1))
           .filter((item) => cursor === undefined || item.key > cursor);

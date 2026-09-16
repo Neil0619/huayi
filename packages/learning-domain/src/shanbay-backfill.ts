@@ -1,4 +1,10 @@
 import {
+  applyBackfillDismissals,
+  backfillHeldTargets,
+  backfillReviewBatches,
+  backfillDismissedTargets,
+} from "./shanbay-backfill-review.js";
+import {
   backfillHeadwordSchema,
   type BackfillState,
   type BackfillBatch,
@@ -45,26 +51,16 @@ export function discoverBackfill(
       updatedAt: now,
     };
   }
-}
-
-function blockedTargets(state: BackfillState, kind?: BackfillBatch["state"]): Set<string> {
-  return new Set(
-    state.batches
-      .filter((batch) => (kind ? batch.state === kind : batch.state !== "resolved"))
-      .flatMap((batch) => batch.headwords),
-  );
+  applyBackfillDismissals(state, now);
 }
 
 export function backfillStatus(state: BackfillState) {
-  const unknown = new Set(
-    [...blockedTargets(state, "unknown")].filter(
-      (word) => !Object.hasOwn(state.targets, word) || state.targets[word]?.confirmedAt == null,
-    ),
-  );
+  const unknown = new Set(backfillReviewBatches(state).flatMap((batch) => batch.headwords));
+  const held = backfillHeldTargets(state, "unknown");
   return {
     pendingCount: new Set(
       Object.values(state.sources)
-        .filter((source) => source.state === "pending" && !unknown.has(source.target))
+        .filter((source) => source.state === "pending" && !held.has(source.target))
         .map((source) => source.target),
     ).size,
     unresolvedCount: Object.values(state.sources).filter((source) => source.state === "unresolved")
@@ -78,6 +74,7 @@ export function expireBackfillBatches(state: BackfillState, now: string): void {
     if (batch.state === "prepared" && Date.parse(batch.expiresAt) <= Date.parse(now))
       batch.state = "unknown";
   }
+  applyBackfillDismissals(state, now);
 }
 
 interface LeaseInput {
@@ -93,7 +90,7 @@ export function claimBackfillBatch(
   expireBackfillBatches(state, input.now);
   // Tokens are never reused, including after settlement or explicit retry.
   if (state.batches.some((batch) => batch.token === input.token)) return null;
-  const blocked = blockedTargets(state);
+  const blocked = backfillHeldTargets(state);
   const headwords = [
     ...new Set(
       Object.values(state.sources)
@@ -127,12 +124,18 @@ export function markBackfillUnknown(state: BackfillState, token: string, _now: s
   void _now;
   const batch = state.batches.find((value) => value.token === token);
   if (batch?.state === "prepared") batch.state = "unknown";
+  applyBackfillDismissals(state, _now);
 }
 
 export function retryBackfillUnknown(state: BackfillState, token: string, _now: string): boolean {
   void _now;
   const batch = state.batches.find((value) => value.token === token);
-  if (batch?.state !== "unknown") return false;
+  if (
+    batch?.state !== "unknown" ||
+    batch.dismissedAt !== undefined ||
+    batch.headwords.every((word) => backfillDismissedTargets(state).has(word))
+  )
+    return false;
   batch.state = "resolved";
   return true;
 }
@@ -186,12 +189,14 @@ export function resolveBackfillBatch(
       source.target = lemma.data;
       source.attempt = "lemma";
       source.state = target(state, lemma.data).confirmedAt === null ? "pending" : "confirmed";
+      applyBackfillDismissals(state, input.now);
       if (source.state === "pending" && input.rejected.includes(lemma.data))
         source.state = "unresolved";
     } else source.state = "unresolved";
     source.updatedAt = input.now;
   }
   batch.state = "resolved";
+  applyBackfillDismissals(state, input.now);
   return true;
 }
 
@@ -208,6 +213,7 @@ export function replaceBackfillSource(
   source.attempt = "manual";
   source.state = target(state, parsed.data).confirmedAt === null ? "pending" : "confirmed";
   source.updatedAt = now;
+  applyBackfillDismissals(state, now);
   return true;
 }
 
@@ -220,7 +226,7 @@ export function discardBackfillSource(state: BackfillState, key: string, now: st
 }
 
 export function discardAllBackfillUnresolved(state: BackfillState, now: string): number {
-  const held = blockedTargets(state);
+  const held = backfillHeldTargets(state);
   let count = 0;
   for (const source of Object.values(state.sources)) {
     if (source.state !== "unresolved" || held.has(source.target)) continue;

@@ -29,9 +29,9 @@ export async function exportShanbayBackfill(
       recordType: "shanbay-backfill-target",
       target,
     })),
-    ...state.batches.map(({ headwords, state, expiresAt }) => ({
+    ...state.batches.map(({ headwords, state, expiresAt, dismissedAt }) => ({
       recordType: "shanbay-backfill-batch",
-      batch: { headwords, state, expiresAt },
+      batch: { headwords, state, expiresAt, ...(dismissedAt === undefined ? {} : { dismissedAt }) },
     })),
   ].map((record) => accountDataExportRecordV5Schema.parse(record));
 }

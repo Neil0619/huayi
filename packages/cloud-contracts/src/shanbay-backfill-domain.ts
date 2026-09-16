@@ -1,4 +1,9 @@
 export {
+  adoptBackfillDismissed,
+  backfillReviewBatches,
+  backfillDismissedTargets,
+  discardAllBackfillReview,
+  discardBackfillUnknown,
   adoptBackfill,
   backfillHeadwordSchema,
   backfillStateSchema,

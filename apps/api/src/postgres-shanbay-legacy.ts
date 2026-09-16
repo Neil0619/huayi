@@ -1,10 +1,12 @@
 import {
   backfillHeadwordSchema,
+  backfillDismissedTargets,
   confirmBackfillTargets,
   discoverBackfill,
   expireBackfillBatches,
   type BackfillState,
 } from "@huayi/cloud-contracts";
+import { CloudFault } from "./cloud-fault.js";
 import type { AnalysisQuery } from "./analysis-database.js";
 import {
   loadBackfillState,
@@ -39,8 +41,6 @@ export async function synchronizeLegacyBackfill(
       receipt.outcome === "confirmed"
     )
       confirmBackfillTargets(state, [item.headword], now);
-    if (["pending", "failed", "in-flight"].includes(item.state))
-      discoverBackfill(state, [item.headword], "cloud", now);
     if (item.state === "in-flight" && item.lease_nonce_hash && item.lease_expires_at) {
       const token = `legacy:${item.job_id}:${item.lease_nonce_hash}`;
       let batch = state.batches.find((batch) => batch.token === token);
@@ -56,6 +56,8 @@ export async function synchronizeLegacyBackfill(
       }
       if (!batch.headwords.includes(item.headword)) batch.headwords.push(item.headword);
     }
+    if (["pending", "failed", "in-flight"].includes(item.state))
+      discoverBackfill(state, [item.headword], "cloud", now);
     const target = Object.hasOwn(state.targets, item.headword)
       ? state.targets[item.headword]
       : undefined;
@@ -76,7 +78,8 @@ export async function synchronizeLegacyBackfill(
     }
   }
   for (const batch of state.batches) {
-    if (batch.holder !== "legacy" || batch.state === "resolved") continue;
+    if (batch.holder !== "legacy" || batch.state === "resolved" || batch.dismissedAt !== undefined)
+      continue;
     const live = items.filter(
       (item) =>
         `legacy:${item.job_id}:${item.lease_nonce_hash}` === batch.token &&
@@ -106,10 +109,33 @@ export async function prepareLegacyBackfill(query: AnalysisQuery, owner: string,
 }
 export function legacyBackfillBlocked(state: BackfillState): string[] {
   return [
-    ...new Set(
-      state.batches
+    ...new Set([
+      ...state.batches
         .filter((batch) => batch.state !== "resolved")
         .flatMap((batch) => batch.headwords),
-    ),
+      ...Object.values(state.sources)
+        .filter((source) => source.state === "discarded")
+        .flatMap((source) => [source.headword, source.target]),
+    ]),
   ];
+}
+
+export function legacyBackfillReceiptDismissed(
+  state: BackfillState,
+  jobId: string,
+  nonceHash: string | null,
+): boolean {
+  const batch = state.batches.find((batch) => batch.token === `legacy:${jobId}:${nonceHash}`);
+  if (!batch || batch.state !== "unknown") return false;
+  const dismissed = backfillDismissedTargets(state);
+  return batch.headwords.some((word) => dismissed.has(word));
+}
+
+export function assertLegacyBackfillReceipt(
+  state: BackfillState,
+  jobId: string,
+  nonceHash: string | null,
+): void {
+  if (legacyBackfillReceiptDismissed(state, jobId, nonceHash))
+    throw new CloudFault("wordbook_lease_stale", "Shanbay review was explicitly dismissed.");
 }

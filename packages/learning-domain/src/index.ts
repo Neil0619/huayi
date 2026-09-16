@@ -7,6 +7,7 @@ export * from "./shanbay-backfill-schema.js";
 export * from "./shanbay-backfill.js";
 export * from "./shanbay-lemma.js";
 export * from "./shanbay-backfill-adoption.js";
+export * from "./shanbay-backfill-review.js";
 export * from "./pattern-source.js";
 export * from "./practice-schemas.js";
 export * from "./practice-teaching.js";

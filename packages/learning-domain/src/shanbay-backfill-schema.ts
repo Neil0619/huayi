@@ -26,6 +26,7 @@ export const backfillBatchSchema = z.strictObject({
   headwords: z.array(backfillHeadwordSchema).min(1).max(100),
   state: z.enum(["prepared", "unknown", "resolved"]),
   expiresAt: z.string().datetime({ offset: true }),
+  dismissedAt: z.string().datetime({ offset: true }).optional(),
 });
 export const backfillStateSchema = z.strictObject({
   sources: z.record(backfillSourceSchema),
