@@ -51,6 +51,7 @@ export function loadPackagedWorker(
   options: {
     readonly preferencesResponse?: () => Response;
     readonly request?: (input: URL, init?: RequestInit) => Promise<Response>;
+    readonly beforeBadgeWrite?: () => Promise<void>;
   } = {},
 ) {
   const listeners: MessageListener[] = [];
@@ -119,6 +120,7 @@ export function loadPackagedWorker(
     chrome: {
       action: {
         setBadgeText: async ({ text }: { text: string }) => {
+          if (options.beforeBadgeWrite) await options.beforeBadgeWrite();
           badges.push(text);
         },
         setBadgeBackgroundColor: async () => undefined,

@@ -182,11 +182,15 @@ it("the actual hosted bundle discovers empty-context Eudic words, retains status
       blockedPage = null;
     }
     await settled(worker, (snapshot) => expect(snapshot.checkError).toBeNull());
+    let releaseBadge: () => void = () => undefined;
+    const blockedBadge = new Promise<void>((resolve) => {
+      releaseBadge = resolve;
+    });
     const restarted = loadPackagedWorker(
       source,
       "hoijjhgcckfhbcefoclgbhkgninnkknd",
       { local: storage.local, session: createPackagedWorkerStorage().session },
-      { request },
+      { request, beforeBadgeWrite: () => blockedBadge },
     );
     await expect(restarted.sendMessage({ type: "store/backfill-status" })).resolves.toMatchObject({
       status: { pendingCount: 496 },
@@ -198,8 +202,14 @@ it("the actual hosted bundle discovers empty-context Eudic words, retains status
     await expect(
       restarted.sendMessage({ type: "store/backfill-check", expectedScope: scopeId }),
     ).resolves.toMatchObject({ status: { enabled: true, pendingCount: 496 }, checkError: null });
-    await settled(restarted, (snapshot) => expect(snapshot.status.pendingCount).toBe(496));
-    expect(restarted.badges.at(-1)).toBe("496");
+    try {
+      await settled(restarted, (snapshot) => expect(snapshot.status.pendingCount).toBe(496));
+      // Persisted discovery status is readable before the asynchronous Chrome badge write.
+      expect(restarted.badges).toEqual([]);
+    } finally {
+      releaseBadge();
+    }
+    await vi.waitFor(() => expect(restarted.badges.at(-1)).toBe("496"), { timeout: 3_000 });
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
