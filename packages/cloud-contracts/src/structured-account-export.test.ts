@@ -28,7 +28,7 @@ describe("explicit account export format", () => {
     expect(retryAccountDataExportReadRequestSchema.parse({ expectedRevision: 1 })).toEqual({
       expectedRevision: 1,
     });
-    for (const formatVersion of [1, 2]) {
+    for (const formatVersion of [1, 2, 3, 4, 5]) {
       expect(accountDataExportFormatRequestSchema.parse({ formatVersion })).toEqual({
         formatVersion,
       });
@@ -41,7 +41,7 @@ describe("explicit account export format", () => {
       ).toThrow();
     }
     for (const input of [
-      { formatVersion: 5 },
+      { formatVersion: 6 },
       { formatVersion: "2" },
       { formatVersion: null },
       { formatVersion: 2, ownerUserId: "another-owner" },

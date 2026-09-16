@@ -44,6 +44,8 @@
 | OpenAI、DeepSeek、欧路固定 HTTPS API host | Service Worker 直连用户选择并同意的模型或欧路；对应凭据仅发送给对应服务。                          |
 | `https://api.seen-said.cn/*`              | 账号配对、平台查询、学习采集、生词复制、云端词典/回填和独立同意后的错误诊断。                      |
 
+扇贝回填另有仅匹配顶层 `https://web.shanbay.com/*` 的随包内容脚本，运行时仍限定精确收藏页。
+
 不申请 `tabs`、`activeTab`、`scripting`、`nativeMessaging` 或隐身访问；不执行远程托管扩展代码。
 站点操作利用基础 tab ID 与已注入 Content Script，不通过 tabs 权限读取 URL。扇贝使用固定收藏页
 和页面交互，不由后台调用任意扇贝 API。远端模型响应作为数据处理，不作为扩展代码执行。

@@ -13,6 +13,7 @@ const EXPECTED_FILES = new Set([
   "icon-128.png",
   "brand-theme.css",
   "content-script.js",
+  "shanbay-content.js",
   "manifest.json",
   "options.css",
   "options-components.css",
@@ -56,6 +57,12 @@ const EXPECTED_CONTENT_SCRIPTS = [
     matches: ["https://youtube.com/*", "https://www.youtube.com/*", "https://m.youtube.com/*"],
     run_at: "document_start",
     world: "MAIN",
+  },
+  {
+    all_frames: false,
+    js: ["shanbay-content.js"],
+    matches: ["https://web.shanbay.com/*"],
+    run_at: "document_idle",
   },
 ];
 const EXPECTED_WEB_ACCESSIBLE_RESOURCES = [

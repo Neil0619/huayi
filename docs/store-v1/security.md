@@ -177,3 +177,10 @@ holder 和未过期 prepared 状态共同约束续租及回执。
 任何真实凭据、Provider、欧路、扇贝或 Chrome 安装验证都需要单独知情批准，不进入默认离线
 测试。旧库 PBKDF2 兼容、DeviceVault 存储与记录加密实现发布前需按 OWASP Cryptographic Storage
 指南复核，并在两种支持平台的真实 Chrome 中验证 WebCrypto 与 Web Locks 行为。
+
+### 扇贝独立入口与图标
+
+扇贝回填入口以随包 `shanbay-content.js` 声明在 Manifest，仅匹配顶层
+`https://web.shanbay.com/*`，并在代码中限制为精确收藏页；不新增扇贝 API host、tabs 权限或
+远程代码。普通网页脚本与 Popup 不引入后台 schema 库，Popup 仍严格拒绝未知响应字段，后台
+继续执行完整账号与消息校验。16/48/128 像素图标为随包 PNG，发布审计核对尺寸、签名和源码字节。

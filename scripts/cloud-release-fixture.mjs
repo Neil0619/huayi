@@ -18,6 +18,7 @@ export const expectedFiles = [
   "shanbay-lemma-licenses.txt",
   "brand-theme.css",
   "content-script.js",
+  "shanbay-content.js",
   "manifest.json",
   "options.css",
   "options-components.css",
@@ -64,6 +65,12 @@ export function manifest() {
         matches: ["https://youtube.com/*", "https://www.youtube.com/*", "https://m.youtube.com/*"],
         run_at: "document_start",
         world: "MAIN",
+      },
+      {
+        all_frames: false,
+        js: ["shanbay-content.js"],
+        matches: ["https://web.shanbay.com/*"],
+        run_at: "document_idle",
       },
     ],
     content_security_policy: {

@@ -59,10 +59,11 @@ const words = Array.from(
 let directory: string;
 let workerSource: string;
 let contentSource: string;
+let shanbaySource: string;
 let fixtureSource: string;
 test.beforeAll(async () => {
   directory = await mkdtemp(join(tmpdir(), "huayi-shanbay-browser-"));
-  for (const mode of ["background", "content"] as const) {
+  for (const mode of ["background", "content", "shanbay-content"] as const) {
     const config = createStoreExtensionConfig(mode, "hosted-acceptance");
     await build({
       ...config,
@@ -94,6 +95,7 @@ test.beforeAll(async () => {
   });
   workerSource = await readFile(join(directory, "background/service-worker.js"), "utf8");
   contentSource = await readFile(join(directory, "content/content-script.js"), "utf8");
+  shanbaySource = await readFile(join(directory, "shanbay-content/shanbay-content.js"), "utf8");
   fixtureSource = await readFile(join(directory, "fixture/fixture.js"), "utf8");
 });
 test.afterAll(async () => {
@@ -187,6 +189,7 @@ async function startPage(page: Page, review: boolean | "unknown" = false) {
   await page.addScriptTag({ content: fixtureSource });
   await page.locator(".Collection_batchUploadBtn__fixture").waitFor();
   await page.addScriptTag({ content: contentSource });
+  await page.addScriptTag({ content: shanbaySource });
   return { vault, worker, pageErrors };
 }
 

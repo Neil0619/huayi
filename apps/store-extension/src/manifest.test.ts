@@ -1,8 +1,29 @@
 import { describe, expect, it } from "vitest";
 
 import manifest from "../manifest.json" with { type: "json" };
+import hosted from "../manifest.hosted-acceptance.json" with { type: "json" };
+import production from "../manifest.production.json" with { type: "json" };
 
 describe("Store extension manifest", () => {
+  it.each([manifest, hosted, production])(
+    "isolates Shanbay in a fixed top-frame content script",
+    (profile) => {
+      expect(profile.content_scripts).toHaveLength(4);
+      expect(
+        profile.content_scripts.filter((script) => script.js.includes("shanbay-content.js")),
+      ).toEqual([
+        {
+          matches: ["https://web.shanbay.com/*"],
+          js: ["shanbay-content.js"],
+          run_at: "document_idle",
+          all_frames: false,
+        },
+      ]);
+      expect(
+        profile.web_accessible_resources.flatMap((resource) => resource.resources),
+      ).not.toContain("shanbay-content.js");
+    },
+  );
   it("uses the reviewed MV3 permissions and exact external hosts", () => {
     expect(manifest.manifest_version).toBe(3);
     expect(manifest.permissions).toEqual(["alarms", "storage", "unlimitedStorage"]);

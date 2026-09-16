@@ -1,4 +1,4 @@
-import { backfillErrorResponseSchema } from "../../backfill/backfill-errors.js";
+import { backfillErrorResponseSchema } from "../../backfill/backfill-error-schema.js";
 
 export async function requestBackfillReview(
   sendMessage: (message: unknown) => Promise<unknown>,

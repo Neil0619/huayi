@@ -27,7 +27,7 @@ export interface PrivacyNotice {
 }
 
 export const privacyNotice: PrivacyNotice = {
-  effectiveDate: "2026-08-13",
+  effectiveDate: "2026-09-16",
   releaseStatus: "pre-release",
 };
 

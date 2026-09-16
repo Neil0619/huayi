@@ -1,13 +1,6 @@
-import {
-  backfillViewSchema,
-  type BackfillMessage,
-  type BackfillView,
-} from "./backfill-messages.js";
-import {
-  BackfillError,
-  backfillErrorResponse,
-  backfillErrorResponseSchema,
-} from "./backfill-errors.js";
+import type { BackfillMessage, BackfillView } from "./backfill-messages.js";
+import { parseBackfillErrorCode, parseBackfillView } from "./backfill-view-parser.js";
+import { BackfillError, backfillErrorResponse } from "./backfill-errors.js";
 
 function node<K extends keyof HTMLElementTagNameMap>(
   tag: K,
@@ -69,8 +62,7 @@ export function initializeBackfillPanel(options: {
       : options.sendMessage(scoped));
     if (revision !== generation || disposed) throw new Error("Account changed.");
     if (typeof response === "object" && response !== null && "error" in response) {
-      const failure = backfillErrorResponseSchema.safeParse(response);
-      throw new BackfillError(failure.success ? failure.data.code : "request-failed");
+      throw new BackfillError(parseBackfillErrorCode(response));
     }
     return response;
   };
@@ -101,7 +93,7 @@ export function initializeBackfillPanel(options: {
       error.textContent = current.checkError ?? "";
       actions.append(
         button(current.checkError ? "重试" : "刷新状态", async () => {
-          current = backfillViewSchema.parse(await request({ type: "store/backfill-initialize" }));
+          current = parseBackfillView(await request({ type: "store/backfill-initialize" }));
         }),
       );
       return;
@@ -134,7 +126,7 @@ export function initializeBackfillPanel(options: {
             )
           )
             return;
-          current = backfillViewSchema.parse(
+          current = parseBackfillView(
             await request({
               type: "store/backfill-enable",
               enabled: true,
@@ -145,26 +137,24 @@ export function initializeBackfillPanel(options: {
       );
     else {
       const check = button(current.checking ? "正在后台检查…" : "检查新词", async () => {
-        current = backfillViewSchema.parse(await request({ type: "store/backfill-check" }));
+        current = parseBackfillView(await request({ type: "store/backfill-check" }));
       });
       check.disabled = busy || current.checking;
       actions.append(
         check,
         button("打开扇贝回填", async () => {
-          current = backfillViewSchema.parse(await request({ type: "store/backfill-open" }));
+          current = parseBackfillView(await request({ type: "store/backfill-open" }));
         }),
       );
       const attentionCount = status.unresolvedCount + status.unknownCount;
       const attention = button(attentionCount > 0 ? "需处理" : "需处理 (0)", async () => {
-        current = backfillViewSchema.parse(
-          await request({ type: "store/backfill-open", view: "review" }),
-        );
+        current = parseBackfillView(await request({ type: "store/backfill-open", view: "review" }));
       });
       attention.disabled = busy || attentionCount === 0;
       actions.append(attention);
       actions.append(
         button("停用", async () => {
-          current = backfillViewSchema.parse(
+          current = parseBackfillView(
             await request({ type: "store/backfill-enable", enabled: false, shareLocal: false }),
           );
         }),
@@ -205,7 +195,7 @@ export function initializeBackfillPanel(options: {
     const revision = viewRevision;
     render();
     try {
-      const state = backfillViewSchema.parse(await request({ type: "store/backfill-status" }));
+      const state = parseBackfillView(await request({ type: "store/backfill-status" }));
       if (revision === viewRevision) {
         current = state;
         error.textContent = "";

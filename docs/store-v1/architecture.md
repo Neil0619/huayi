@@ -200,3 +200,13 @@ content、host-loaded YouTube isolated controller 与 MAIN bridge 的未压缩�
 带入页面 bundle。
 当前 C/G/H/I 完整 ResultCard 的审计预算为普通网页 56 KiB、YouTube isolated controller 74 KiB；
 门禁继续显式排除 Zod、Provider 和 Service Worker 实现。
+
+## 回填脚本加载边界
+
+普通网页的 `content-script.js` 仅处理划词和站点生命周期；扇贝回填由单独打包的
+`shanbay-content.js` 承载，仅匹配顶层 `https://web.shanbay.com/*`。入口仍校验精确收藏页，
+Worker 继续检查发件人、当前账号、站点策略、接收方同意与批次别名。拆分不增加远程脚本或动态
+模块加载，不改变真实用户最终提交要求。
+
+Popup 使用与后台 schema 对照验证的轻量响应解析，拒绝未知字段和非法值；后台仍保留完整契约
+验证。普通网页与 Popup 不携带 Zod、词元词库或 Provider/Worker 实现，保留原有体积上限。

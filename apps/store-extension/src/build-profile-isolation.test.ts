@@ -10,23 +10,28 @@ import { describe, expect, it } from "vitest";
 import { createStoreExtensionConfig } from "../vite.config.js";
 
 describe("Store build profile isolation", () => {
-  it.each(["content", "youtube-content", "youtube-main", "options", "popup", "background"])(
-    "%s release builds cannot overwrite the installed hosted package identity",
-    (mode) => {
-      const hosted = createStoreExtensionConfig(mode, "hosted-acceptance");
-      const release = createStoreExtensionConfig(mode, "release");
-      const production = createStoreExtensionConfig(mode, "production");
-      expect(hosted.build?.outDir).not.toBe(release.build?.outDir);
-      expect(basename(hosted.build?.outDir ?? "")).toBe("dist");
-      expect(basename(release.build?.outDir ?? "")).toBe("dist-release");
-      expect(basename(production.build?.outDir ?? "")).toBe("dist-production");
-      expect(production.define).toMatchObject({
-        HUAYI_CLOUD_API_ORIGIN_BUILD_VALUE: JSON.stringify("https://api.seen-said.cn"),
-        HUAYI_WEB_WORKSPACE_URL_BUILD_VALUE: JSON.stringify("https://app.seen-said.cn/app"),
-        HUAYI_WEB_ORIGIN_BUILD_VALUE: JSON.stringify("https://app.seen-said.cn"),
-      });
-    },
-  );
+  it.each([
+    "content",
+    "shanbay-content",
+    "youtube-content",
+    "youtube-main",
+    "options",
+    "popup",
+    "background",
+  ])("%s release builds cannot overwrite the installed hosted package identity", (mode) => {
+    const hosted = createStoreExtensionConfig(mode, "hosted-acceptance");
+    const release = createStoreExtensionConfig(mode, "release");
+    const production = createStoreExtensionConfig(mode, "production");
+    expect(hosted.build?.outDir).not.toBe(release.build?.outDir);
+    expect(basename(hosted.build?.outDir ?? "")).toBe("dist");
+    expect(basename(release.build?.outDir ?? "")).toBe("dist-release");
+    expect(basename(production.build?.outDir ?? "")).toBe("dist-production");
+    expect(production.define).toMatchObject({
+      HUAYI_CLOUD_API_ORIGIN_BUILD_VALUE: JSON.stringify("https://api.seen-said.cn"),
+      HUAYI_WEB_WORKSPACE_URL_BUILD_VALUE: JSON.stringify("https://app.seen-said.cn/app"),
+      HUAYI_WEB_ORIGIN_BUILD_VALUE: JSON.stringify("https://app.seen-said.cn"),
+    });
+  });
 
   it("production package has its own identity and only uses production cloud endpoints", async () => {
     const directory = await mkdtemp(join(tmpdir(), "huayi-production-profile-"));
@@ -71,6 +76,7 @@ describe("Store build profile isolation", () => {
       const worker = await readFile(join(hosted, "service-worker.js"), "utf8");
       for (const mode of [
         "content",
+        "shanbay-content",
         "youtube-content",
         "youtube-main",
         "options",
@@ -88,7 +94,7 @@ describe("Store build profile isolation", () => {
     } finally {
       await rm(directory, { recursive: true, force: true });
     }
-    // Seven real Vite builds run serially against shared output directories. Keep their
+    // Eight real Vite builds run serially against shared output directories. Keep their
     // integration budget local instead of inheriting the five-second unit-test limit.
   }, 30_000);
 });
