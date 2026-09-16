@@ -9,6 +9,11 @@ acceptance 自动升级为正式 production。
 数据库 migration/restore、首次身份流程、Supabase Cron、真实邮件、真实 Provider 请求、付费资源和
 Chrome 人工旅程仍是独立业务门。它们可由各自受控工具接续，但不能被常规代码发布隐式触发。
 
+Store 本地迭代按[本地开发与商店交付流程](../store-v1/local-and-store-workflow.md)：
+`pnpm store:local:build` / `status` 对应固定 acceptance ID 和唯一日常目录
+`apps/store-extension/dist`。production 候选仅作临时发布输出，未来日常正式版从 Chrome Web Store
+安装；本 SOP 的 API/Web 发布不要求重装或同步旧 testing/production 目录，也不完成商店绑定。
+
 ## 2. 一次迭代的唯一主线
 
 每项需求只使用一个用户可见任务和一个候选分支。执行方从开始到交付负责以下完整顺序：

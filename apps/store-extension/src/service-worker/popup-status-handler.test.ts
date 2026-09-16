@@ -20,6 +20,28 @@ const settings: StoreSettings = {
 };
 
 describe("Store popup status handler", () => {
+  it.each(["platform", "byok", "unavailable"] as const)(
+    "reports the actual %s query source without leaking an unused provider",
+    async (queryMode) => {
+      const response = await handlePopupStatusMessage(
+        { messageVersion: STORE_MESSAGE_VERSION, type: "store/popup-status" },
+        { id: "extension-id", url: "chrome-extension://extension-id/popup.html" },
+        "extension-id",
+        {
+          getAppearance: async () => "silver",
+          getSettings: async () => settings,
+          getQueryMode: async () => queryMode,
+          notifySettingsChanged: async () => undefined,
+          setGloballyEnabled: async () => undefined,
+          setOverlayTheme: async () => undefined,
+        },
+      );
+      expect(response).toMatchObject({
+        queryMode,
+        providerId: queryMode === "byok" ? "deepseek" : null,
+      });
+    },
+  );
   it("returns only operational non-secret settings to the exact popup", async () => {
     await expect(
       handlePopupStatusMessage(

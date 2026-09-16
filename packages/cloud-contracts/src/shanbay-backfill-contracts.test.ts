@@ -1,0 +1,158 @@
+import { describe, expect, it } from "vitest";
+import {
+  shanbayBackfillCommandSchema,
+  shanbayBackfillLeaseSchema,
+  shanbayBackfillUnresolvedSchema,
+} from "./shanbay-backfill-contracts.js";
+import { shanbayBackfillExportRecordSchema } from "./shanbay-backfill-export.js";
+
+const words = Array.from(
+  { length: 101 },
+  (_, index) => `word${String.fromCharCode(97 + Math.floor(index / 26), 97 + (index % 26))}`,
+);
+const lease = { token: "batch", expiresAt: "2026-09-16T08:05:00.000Z" };
+
+describe("Shanbay backfill batch wire compatibility", () => {
+  it.each(["discard-review", "discard-unknown"])(
+    "accepts only strict fenced %s commands",
+    (action) => {
+      const command = {
+        action,
+        expectedRevision: 2,
+        ...(action === "discard-unknown" ? { token: "batch" } : {}),
+      };
+      expect(shanbayBackfillCommandSchema.parse(command)).toEqual(command);
+      for (const expectedRevision of [undefined, -1, 0.5, "0", null])
+        expect(
+          shanbayBackfillCommandSchema.safeParse({ ...command, expectedRevision }).success,
+        ).toBe(false);
+      for (const extra of [
+        { sources: ["word"] },
+        { owner: "other" },
+        { dismissedAt: lease.expiresAt },
+      ])
+        expect(shanbayBackfillCommandSchema.safeParse({ ...command, ...extra }).success).toBe(
+          false,
+        );
+    },
+  );
+
+  it("bounds optional dismissal adoption evidence and preserves it in format-five batches", () => {
+    const dismissed = [{ headwords: ["word"], dismissedAt: lease.expiresAt }];
+    expect(
+      shanbayBackfillCommandSchema.parse({
+        action: "adopt",
+        sources: [],
+        confirmed: [],
+        dismissed,
+      }),
+    ).toMatchObject({ dismissed });
+    for (const invalid of [
+      [{ ...dismissed[0], holder: "invented" }],
+      [{ headwords: words, dismissedAt: lease.expiresAt }],
+      Array.from({ length: 101 }, () => dismissed[0]),
+    ])
+      expect(
+        shanbayBackfillCommandSchema.safeParse({
+          action: "adopt",
+          sources: [],
+          confirmed: [],
+          dismissed: invalid,
+        }).success,
+      ).toBe(false);
+    const record = {
+      recordType: "shanbay-backfill-batch",
+      batch: {
+        headwords: ["word"],
+        state: "unknown",
+        expiresAt: lease.expiresAt,
+        dismissedAt: lease.expiresAt,
+      },
+    };
+    expect(shanbayBackfillExportRecordSchema.parse(record)).toEqual(record);
+  });
+  it("accepts only a revision-fenced discard-unresolved command without client-selected sources", () => {
+    const command = { action: "discard-unresolved", expectedRevision: 0 };
+    expect(shanbayBackfillCommandSchema.parse(command)).toEqual(command);
+    for (const expectedRevision of [undefined, -1, 0.5, "0", null])
+      expect(shanbayBackfillCommandSchema.safeParse({ ...command, expectedRevision }).success).toBe(
+        false,
+      );
+    for (const extra of [
+      { source: "word" },
+      { sources: ["word"] },
+      { owner: "another-account" },
+      { limit: 100 },
+      { cursor: "s:word" },
+    ])
+      expect(shanbayBackfillCommandSchema.safeParse({ ...command, ...extra }).success).toBe(false);
+  });
+
+  it("preserves old claim request serialization while accepting an explicit 100-word limit", () => {
+    expect(shanbayBackfillCommandSchema.parse({ action: "claim" })).toEqual({ action: "claim" });
+    expect(shanbayBackfillCommandSchema.parse({ action: "claim", limit: 100 })).toEqual({
+      action: "claim",
+      limit: 100,
+    });
+  });
+
+  it.each([0, 101, 1.5, "100", null])("rejects an invalid claim limit %s", (limit) => {
+    expect(shanbayBackfillCommandSchema.safeParse({ action: "claim", limit }).success).toBe(false);
+  });
+
+  it.each([20, 100])("accepts existing and new %i-word leases, outcomes and exports", (count) => {
+    const headwords = words.slice(0, count);
+    expect(shanbayBackfillLeaseSchema.parse({ ...lease, headwords }).headwords).toEqual(headwords);
+    expect(
+      shanbayBackfillCommandSchema.parse({
+        action: "resolve",
+        token: lease.token,
+        confirmed: headwords,
+        rejected: [],
+      }),
+    ).toMatchObject({ confirmed: headwords });
+    expect(
+      shanbayBackfillExportRecordSchema.parse({
+        recordType: "shanbay-backfill-batch",
+        batch: { headwords, expiresAt: lease.expiresAt, state: "resolved" },
+      }),
+    ).toMatchObject({ batch: { headwords } });
+    expect(
+      shanbayBackfillUnresolvedSchema.parse({
+        items: [],
+        unknownBatches: [{ token: lease.token, headwords }],
+        nextCursor: null,
+        revision: 1,
+      }),
+    ).toMatchObject({ unknownBatches: [{ headwords, token: lease.token }] });
+  });
+
+  it("rejects more than 100 words in wire leases, outcomes, unknown batches and exports", () => {
+    expect(shanbayBackfillLeaseSchema.safeParse({ ...lease, headwords: words }).success).toBe(
+      false,
+    );
+    for (const confirmed of [true, false])
+      expect(
+        shanbayBackfillCommandSchema.safeParse({
+          action: "resolve",
+          token: lease.token,
+          confirmed: confirmed ? words : [],
+          rejected: confirmed ? [] : words,
+        }).success,
+      ).toBe(false);
+    expect(
+      shanbayBackfillExportRecordSchema.safeParse({
+        recordType: "shanbay-backfill-batch",
+        batch: { headwords: words, expiresAt: lease.expiresAt, state: "resolved" },
+      }).success,
+    ).toBe(false);
+    expect(
+      shanbayBackfillUnresolvedSchema.safeParse({
+        items: [],
+        unknownBatches: [{ token: lease.token, headwords: words }],
+        nextCursor: null,
+        revision: 1,
+      }).success,
+    ).toBe(false);
+  });
+});

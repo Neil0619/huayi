@@ -18,3 +18,4 @@ export * from "./study-capture-messages.js";
 export * from "./vault.js";
 export * from "./wordbook.js";
 export * from "./wordbook-messages.js";
+export * from "./shanbay-backfill.js";

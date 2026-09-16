@@ -48,7 +48,7 @@ export function createProductionLearningLibrary(options: {
     leaseDurationMs: 120_000,
     leaseKey: Buffer.from(environment.HUAYI_REFRESH_ENCRYPTION_KEY, "base64url"),
     now: () => systemClock.now(),
-    repository: createPostgresExternalWordbook(analysisDatabase),
+    repository: createPostgresExternalWordbook(analysisDatabase, true),
   });
   return {
     library,

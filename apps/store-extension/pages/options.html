@@ -397,6 +397,18 @@
                     />
                   </label>
                 </div>
+                <p class="field-help">允许语见向扇贝预填词头；每批仍需你点击「批量添加」。</p>
+                <div class="subsection" aria-labelledby="popup-display-title">
+                  <h4 id="popup-display-title">弹窗显示</h4>
+                  <label class="switch-field">
+                    <span>在弹窗显示扇贝回填卡片</span>
+                    <input type="checkbox" role="switch" data-popup-backfill-visible disabled />
+                  </label>
+                  <p class="field-help">
+                    仅控制插件弹窗中的卡片，关闭后不影响回填和后台检查，仍可在本页管理。
+                  </p>
+                  <p data-popup-backfill-status role="status" aria-live="polite"></p>
+                </div>
               </article>
             </div>
           </section>
@@ -638,6 +650,7 @@
               <ul class="outbox-list" data-outbox-list></ul>
             </div>
           </section>
+          <div class="card" data-options-backfill-mount></div>
         </div>
       </div>
     </main>

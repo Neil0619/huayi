@@ -13,6 +13,7 @@ interface PopupSender {
 }
 
 interface PopupStatusDependencies {
+  readonly getQueryMode?: () => Promise<"platform" | "byok" | "unavailable">;
   readonly getAppearance: () => Promise<StoreAppearance>;
   readonly getSettings: () => Promise<StoreSettings>;
   readonly notifySettingsChanged: () => Promise<void>;
@@ -75,9 +76,10 @@ export async function handlePopupStatusMessage(
   } catch {
     return undefined;
   }
-  const [appearance, settings] = await Promise.all([
+  const [appearance, settings, queryMode] = await Promise.all([
     dependencies.getAppearance(),
     dependencies.getSettings(),
+    dependencies.getQueryMode?.().catch(() => "unavailable" as const),
   ]);
   return {
     appearance,
@@ -85,7 +87,9 @@ export async function handlePopupStatusMessage(
     messageVersion: STORE_MESSAGE_VERSION,
     modelConsentGranted: settings.networkConsent !== null,
     overlayTheme: settings.overlayTheme,
-    providerId: settings.providerId,
+    providerId:
+      queryMode === "platform" || queryMode === "unavailable" ? null : settings.providerId,
+    ...(queryMode === undefined ? {} : { queryMode }),
     type: "store/popup-status-result",
   };
 }

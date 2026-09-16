@@ -5,6 +5,8 @@ import {
 } from "../service-worker/store-appearance.js";
 import { PopupPage } from "./popup-page.js";
 import { subscribeToCloudSession } from "../page-ui/cloud-session-updates.js";
+import { initializePopupBackfill } from "./popup-backfill-visibility.js";
+import { subscribeToBackfillProgress } from "../backfill/backfill-progress-updates.js";
 
 const appearance = createChromeStoreAppearance(chrome.storage.local);
 const page = new PopupPage({
@@ -28,6 +30,15 @@ const page = new PopupPage({
 });
 
 void page.initialize();
+const backfillContainer = document.querySelector("main");
+if (backfillContainer)
+  initializePopupBackfill({
+    storage: chrome.storage,
+    container: backfillContainer,
+    sendMessage: (message) => chrome.runtime.sendMessage(message),
+    subscribe: subscribeToCloudSession,
+    subscribeProgress: subscribeToBackfillProgress,
+  });
 const onStorageChanged = (changes: Record<string, chrome.storage.StorageChange>, area: string) => {
   if (area === "local" && STORE_APPEARANCE_STORAGE_KEY in changes) {
     void appearance.get().then((value) => page.applyAppearance(value));

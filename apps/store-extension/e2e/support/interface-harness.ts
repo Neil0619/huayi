@@ -6,10 +6,17 @@ import { CloudAccountControls } from "../../src/page-ui/cloud-account-controls.j
 import { createChromeStoreSettings } from "../../src/service-worker/store-settings.js";
 import { LexiconOptionsController } from "../../src/options/lexicon-options-controller.js";
 import { WordbookOptionsController } from "../../src/options/wordbook-options-controller.js";
+import { initializeOptionsBackfillPanel } from "../../src/options/options-backfill-panel.js";
+import { initializePopupBackfill } from "../../src/popup/popup-backfill-visibility.js";
+import { initializePopupBackfillSettings } from "../../src/options/popup-backfill-settings-control.js";
+import { createPopupBackfillPreferenceFixture } from "./popup-backfill-preference-fixture.js";
 import optionsMarkup from "../../pages/options.html?raw";
 import popupMarkup from "../../pages/popup.html?raw";
 
 const query = new URL(location.href).searchParams;
+const popupBackfillStorage = createPopupBackfillPreferenceFixture(
+  query.has("backfill") && query.get("page") !== "options",
+);
 const mode = query.get("page") === "options" ? "options" : "popup";
 const source = mode === "options" ? optionsMarkup : popupMarkup;
 const parsed = new DOMParser().parseFromString(source, "text/html");
@@ -27,8 +34,34 @@ const appearance = {
   },
 };
 let connected = query.get("session") ?? "connected";
+let backfillReads = 0;
 const sendMessage = async (message: unknown): Promise<unknown> => {
   const type = (message as { type: string }).type;
+  if (type === "store/backfill-open")
+    window.dispatchEvent(new CustomEvent("fixture-backfill-open", { detail: message }));
+  if (type === "store/backfill-status" || type === "store/backfill-open") {
+    if (type === "store/backfill-status") backfillReads += 1;
+    if (query.has("slowBackfill") && backfillReads > 1)
+      return new Promise<unknown>(() => undefined);
+    return {
+      status: {
+        scopeId: "local",
+        enabled: true,
+        dailyHour: 8,
+        revision: 1,
+        pendingCount: Number(query.get("backfillCount") ?? 0),
+        unresolvedCount: Number(query.get("backfillReviewCount") ?? 0),
+        unknownCount: 0,
+        lastCheckedAt: null,
+      },
+      shared: false,
+      needsLocalMerge: false,
+      checkError: null,
+      incomplete: false,
+      lastCheckedAt: "2026-09-15T00:00:00.000Z",
+      checking: query.has("backfillChecking"),
+    };
+  }
   if (
     query.has("slowAccount") &&
     ["store/cloud-session-status", "store/submission-outbox-status"].includes(type)
@@ -69,6 +102,17 @@ const sendMessage = async (message: unknown): Promise<unknown> => {
 };
 
 if (mode === "popup") {
+  const container = document.querySelector("main");
+  if (container)
+    initializePopupBackfill({
+      storage: popupBackfillStorage,
+      container,
+      sendMessage,
+      subscribeProgress(callback) {
+        window.addEventListener("fixture-backfill-progress", callback);
+        return () => window.removeEventListener("fixture-backfill-progress", callback);
+      },
+    });
   const started = performance.now();
   const initialized = new PopupPage({
     appearance,
@@ -97,6 +141,8 @@ if (mode === "popup") {
   requestAnimationFrame(measure);
   if (!query.has("slowAccount")) await initialized;
 } else {
+  initializePopupBackfillSettings(document, popupBackfillStorage);
+  if (query.has("backfill")) initializeOptionsBackfillPanel(document, { sendMessage });
   const values: Record<string, unknown> = {};
   await initializeDiagnosticSettings(document, {
     get: async (key) => ({ [key]: values[key] }),

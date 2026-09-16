@@ -8,6 +8,9 @@ import ts from "typescript";
 import { auditHtml } from "./store-html-audit.mjs";
 
 const EXPECTED_FILES = new Set([
+  "icon-16.png",
+  "icon-48.png",
+  "icon-128.png",
   "brand-theme.css",
   "content-script.js",
   "manifest.json",
@@ -18,6 +21,7 @@ const EXPECTED_FILES = new Set([
   "options.html",
   "options.js",
   "overlay.css",
+  "shanbay-lemma-licenses.txt",
   "popup.css",
   "popup.html",
   "popup.js",
@@ -116,6 +120,7 @@ function auditManifest(manifest, violations, { expectedCsp, expectedHosts }) {
       service_worker: "service-worker.js",
       type: "module",
     });
+    assert.deepEqual(manifest.icons, { 16: "icon-16.png", 48: "icon-48.png", 128: "icon-128.png" });
     assert.deepEqual(manifest.action, { default_popup: "popup.html" });
     assert.deepEqual(manifest.options_ui, { open_in_tab: true, page: "options.html" });
     assert.deepEqual(manifest.content_scripts, EXPECTED_CONTENT_SCRIPTS);
@@ -176,16 +181,32 @@ function auditJavaScript(path, contents, violations) {
     ts.ScriptKind.JS,
   );
   const findings = new Set();
+  const dataNames = [];
+  const lemmaConstants = [];
+  const references = new Map();
   const forbiddenReferences = new Map([
     ["eval", "eval is forbidden."],
     ["Function", "Function constructor is forbidden."],
     ["importScripts", "importScripts is forbidden."],
   ]);
-  const visit = (node) => {
+  const pending = [parsed];
+  while (pending.length > 0) {
+    const node = pending.pop();
     if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword) {
       findings.add("dynamic import is forbidden.");
     }
+    if (
+      ts.isVariableDeclaration(node) &&
+      ts.isIdentifier(node.name) &&
+      node.initializer &&
+      ts.isStringLiteral(node.initializer) &&
+      node.initializer.text === "codex"
+    )
+      lemmaConstants.push(node);
     if (ts.isIdentifier(node) && isIdentifierReference(node)) {
+      const occurrences = references.get(node.text) ?? [];
+      occurrences.push(node);
+      references.set(node.text, occurrences);
       const finding = forbiddenReferences.get(node.text);
       if (finding !== undefined) findings.add(finding);
     }
@@ -198,10 +219,58 @@ function auditJavaScript(path, contents, violations) {
       const finding = forbiddenReferences.get(node.argumentExpression.text);
       if (finding !== undefined) findings.add(finding);
     }
-    ts.forEachChild(node, visit);
-  };
-  visit(parsed);
+    // Numeric dictionary entries (for example WordNet's word "codex") are inert data.
+    // Keep auditing every reference and every executable expression without exceptions.
+    const dataName =
+      ts.isPropertyAssignment(node) && ts.isNumericLiteral(node.initializer)
+        ? node.name
+        : ts.isBinaryExpression(node) &&
+            node.operatorToken.kind === ts.SyntaxKind.EqualsToken &&
+            ts.isPropertyAccessExpression(node.left) &&
+            ts.isNumericLiteral(node.right)
+          ? node.left.name
+          : null;
+    if (
+      dataName &&
+      (ts.isIdentifier(dataName) || ts.isStringLiteral(dataName)) &&
+      dataName.text === "codex"
+    )
+      dataNames.push([dataName.getStart(parsed), dataName.end]);
+    ts.forEachChild(node, (child) => {
+      pending.push(child);
+    });
+  }
+  // The pinned WordNet noun exception maps codices to the ordinary noun codex.
+  // Only mask a constant used exclusively in that data assignment; executable uses stay visible.
+  for (const declaration of lemmaConstants) {
+    let scope = declaration.parent;
+    while (scope.parent && !ts.isBlock(scope) && !ts.isSourceFile(scope)) scope = scope.parent;
+    const occurrences = (references.get(declaration.name.text) ?? []).filter(
+      (node) => node.pos >= scope.pos && node.end <= scope.end,
+    );
+    if (
+      occurrences.length > 0 &&
+      occurrences.every((node) => {
+        const assignment = node.parent;
+        return (
+          ts.isBinaryExpression(assignment) &&
+          assignment.right === node &&
+          assignment.operatorToken.kind === ts.SyntaxKind.EqualsToken &&
+          ts.isPropertyAccessExpression(assignment.left) &&
+          assignment.left.name.text === "codices"
+        );
+      })
+    )
+      dataNames.push([declaration.initializer.getStart(parsed), declaration.initializer.end]);
+  }
   for (const finding of findings) violations.push(`${path}: ${finding}`);
+  let previous = 0;
+  const fragments = [];
+  for (const [start, end] of dataNames.sort((a, b) => a[0] - b[0])) {
+    fragments.push(contents.slice(previous, start), " ");
+    previous = end;
+  }
+  return fragments.join("") + contents.slice(previous);
 }
 
 function auditExecutable(path, contents, violations) {
@@ -212,8 +281,9 @@ function auditExecutable(path, contents, violations) {
     violations.push(`${path}: remote executable code is forbidden.`);
   }
   if (/\.js$/u.test(path)) {
-    auditJavaScript(path, contents, violations);
+    return auditJavaScript(path, contents, violations);
   }
+  return contents;
 }
 
 export async function auditStoreRelease(
@@ -269,10 +339,24 @@ export async function auditStoreRelease(
   auditManifest(packagedManifest, violations, { expectedCsp, expectedHosts });
 
   for (const file of files) {
+    if (file.endsWith(".png")) {
+      const bytes = await readFile(resolve(dist, file));
+      const expectedSize = Number(file.match(/^icon-(16|48|128)\.png$/)?.[1]);
+      if (
+        bytes.length < 24 ||
+        bytes.subarray(0, 8).toString("hex") !== "89504e470d0a1a0a" ||
+        bytes.readUInt32BE(16) !== expectedSize ||
+        bytes.readUInt32BE(20) !== expectedSize ||
+        !bytes.equals(await readFile(resolve(extensionRoot, "assets", file)))
+      ) {
+        violations.push(`${file}: packaged icon must match the reviewed PNG and dimensions.`);
+      }
+      continue;
+    }
     const contents = await readFile(resolve(dist, file), "utf8");
-    auditExecutable(file, contents, violations);
+    const executable = auditExecutable(file, contents, violations);
     for (const marker of CLASSIC_MARKERS) {
-      if (marker.test(file) || marker.test(contents)) {
+      if (marker.test(file) || marker.test(executable)) {
         violations.push(`${file}: Classic-only marker is forbidden in Store package.`);
         break;
       }

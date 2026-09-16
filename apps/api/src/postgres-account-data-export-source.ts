@@ -17,6 +17,7 @@ import { loadPracticeSession } from "./postgres-practice-view.js";
 import { loadPracticeTeaching } from "./postgres-practice-teaching-view.js";
 import { readStoredQueryRequest } from "./generation-snapshot.js";
 import { referenceStateSchema } from "./practice-reference-state.js";
+import { exportShanbayBackfill } from "./postgres-shanbay-backfill-export.js";
 
 interface WordRow {
   archived_at: Date | null;
@@ -282,7 +283,7 @@ export function createPostgresAccountDataExportSource(database: AnalysisDatabase
           if (formatVersion >= 3) {
             const { session, teaching } = await loadPracticeTeaching(tenant, id);
             const raw =
-              formatVersion === 4
+              formatVersion >= 4
                 ? (
                     await tenant.rows<{ reference_state: unknown }>(
                       "SELECT reference_state FROM practice_sessions WHERE id=$1",
@@ -296,7 +297,7 @@ export function createPostgresAccountDataExportSource(database: AnalysisDatabase
                 recordType: "practice-session",
                 session,
                 teaching,
-                ...(formatVersion === 4
+                ...(formatVersion >= 4
                   ? {
                       reference: state?.result
                         ? { version: 1, result: state.result, views: state.views }
@@ -314,6 +315,7 @@ export function createPostgresAccountDataExportSource(database: AnalysisDatabase
             }),
           );
         }
+        if (formatVersion === 5) records.push(...(await exportShanbayBackfill(tenant)));
         return records;
       });
     },

@@ -7,6 +7,8 @@ export * from "./common-contracts.js";
 export * from "./diagnostics.js";
 export * from "./diagnostic-issues.js";
 export * from "./external-wordbook-contracts.js";
+export * from "./shanbay-backfill-contracts.js";
+export * from "./shanbay-backfill-domain.js";
 export * from "./extension-learning-contracts.js";
 export * from "./fixtures.js";
 export * from "./learning-contracts.js";

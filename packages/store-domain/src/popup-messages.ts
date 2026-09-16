@@ -13,7 +13,8 @@ export interface StorePopupStatusResponse {
   readonly messageVersion: typeof STORE_MESSAGE_VERSION;
   readonly modelConsentGranted: boolean;
   readonly overlayTheme: StoreOverlayTheme;
-  readonly providerId: "deepseek" | "openai";
+  readonly providerId: "deepseek" | "openai" | null;
+  readonly queryMode?: "platform" | "byok" | "unavailable";
   readonly type: "store/popup-status-result";
 }
 
@@ -60,11 +61,21 @@ export function parseStorePopupStatusResponse(value: unknown): StorePopupStatusR
       "modelConsentGranted",
       "overlayTheme",
       "providerId",
+      ...(value.queryMode === undefined ? [] : ["queryMode"]),
       "type",
     ]) ||
     value.messageVersion !== STORE_MESSAGE_VERSION ||
     value.type !== "store/popup-status-result" ||
-    (value.providerId !== "openai" && value.providerId !== "deepseek") ||
+    (value.providerId !== "openai" &&
+      value.providerId !== "deepseek" &&
+      value.providerId !== null) ||
+    (value.queryMode !== undefined &&
+      value.queryMode !== "platform" &&
+      value.queryMode !== "byok" &&
+      value.queryMode !== "unavailable") ||
+    ((value.queryMode === "platform" || value.queryMode === "unavailable") &&
+      value.providerId !== null) ||
+    ((value.queryMode === "byok" || value.queryMode === undefined) && value.providerId === null) ||
     typeof value.modelConsentGranted !== "boolean" ||
     typeof value.globallyEnabled !== "boolean" ||
     (value.overlayTheme !== "parchment" && value.overlayTheme !== "pearl")
@@ -78,6 +89,7 @@ export function parseStorePopupStatusResponse(value: unknown): StorePopupStatusR
     modelConsentGranted: value.modelConsentGranted,
     overlayTheme: value.overlayTheme,
     providerId: value.providerId,
+    ...(value.queryMode === undefined ? {} : { queryMode: value.queryMode }),
     type: "store/popup-status-result",
   };
 }

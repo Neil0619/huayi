@@ -21,7 +21,7 @@ Supabase Storage、Vercel、登录和部署验证仍待完成。
 profile 且已登记 `google` method 的账号建立 full 或 data-rights session，绝不绕过邀请创建新账号或
 自动授权另一个 identity。
 
-本阶段不导出凭据、会话、token/hash、幂等记录、内部审计、额度内部记录、隐藏 reasoning、内部 lease、
+本阶段不导出凭据、会话、token/hash、幂等记录、内部审计、额度内部记录、隐藏 reasoning、内部 lease 凭据、
 第三方原始回执或数据库实现字段；不提供“恢复账号”、软删除、部分账号删除、删除后下载、管理员正文
 查看或客户端直接访问 Supabase。
 
@@ -32,13 +32,16 @@ WordListExport 仍是“一行一词”的互操作文件，不是 AccountDataEx
 ### 2.1 完整数据导出
 
 - 页面明确列出导出包含：已验证登录邮箱、账号学习偏好、分析及候选、学习项/标签/来源/排期、
-  StudyCapture、生词/语境、正式练习、账号级插件查询/自动采集/云端生词复制偏好，以及导出快照时
+  StudyCapture、生词/语境、正式练习、账号级插件查询/自动采集/云端生词复制偏好、format 5 的账号
+  扇贝回填设置/来源/目标账本/批次公开状态，以及导出快照时
   仍在原一小时保留期内的平台 ExtensionQueryGeneration 公共内容。导出是用户主动创建、最多保留
   24 小时的独立私有副本，因此该副本可能晚于原 generation 删除；它不延长原 generation 期限，也不
   会建立插件查询历史。
 - 页面明确列出排除项：密码与第三方凭据、Web/Extension session、内部安全/运营记录和隐藏模型内容。
 - 页面明确说明每个插件安装的 LocalLexiconEntry、本机 BYOK/词典凭据和未提交的加密 outbox 不属于
-  Huayi 账号云端权威，不出现在 AccountDataExport；用户应在对应设备单独导出或清理。
+  Huayi 账号云端权威，不出现在 AccountDataExport；用户应在对应设备单独导出或清理。已主动共享的
+  欧路/本机词头和回填进度属于账号回填记录，但不因此成为 WordEntry 或 LearningItem；本机回填
+  baseline、迁移游标、页面 alias 和未共享本机库不导出。
 - 同一账号最多一个 `pending | running | ready` 导出；重复创建返回同一公开任务，不并发复制正文。
 - `failed` 可由用户显式重试；旧 `ready` 过期后才能新建。
 - `ready` 只表示私有对象已经写入并通过服务端 SHA-256/字节数记录，不表示用户已下载。
@@ -112,7 +115,8 @@ requested ──claim──> running
 - 当前阶段字段记录最后完成的稳定 stage；每一步必须幂等，重试从 stage 之后继续。
 - 顺序固定：撤销 session/标记 deleting（请求事务）→ 删除私有导出对象 → 删除 `user_profiles` 及其
   owner 数据 → Supabase Auth Admin 删除身份 → 完成任务。
-- 主库删除事务除级联 tenant 表外，还删除该用户创建的 invitation/claim/auth-flow、相关 audit event，
+- 主库删除事务级联清理账号扇贝回填的设置、来源、目标和批次表；不会删除第三方欧路/扇贝副本。
+  除级联 tenant 表外，还删除该用户创建的 invitation/claim/auth-flow、相关 audit event，
   并清除 `runtime_controls.updated_by` 等非外键直接 UUID；不可逆 hash-only rate-limit 记录按其短期
   保留策略自然过期。
 - 若主库删除已完成而 Auth 删除失败，任务仍保留用户 UUID 以重试；完成后立即把 UUID 置空，仅保留
@@ -129,7 +133,7 @@ requested ──claim──> running
 id uuid PK
 owner_user_id uuid FK user_profiles ON DELETE CASCADE
 state pending|running|ready|failed|expired
-format_version integer = 1
+format_version integer in (1,2,3,4,5), default 1
 record_count integer nullable
 byte_length bigint nullable
 sha256 text nullable
@@ -184,10 +188,22 @@ callback 只接受已经存在且状态为 active/disabled 的同 ID profile，�
 
 ### 4.4 导出文件
 
-文件名固定 `huayi-account-data-v1.ndjson`，MIME 为 `application/x-ndjson; charset=utf-8`。每行一个 strict
-JSON object，以 LF 结束：
+导出格式由请求显式选择并固化到 job，不从 Accept 推断；省略仍为 format 1，当前 Web 新建完整
+导出明确请求 format 5。MIME 为 `application/x-ndjson; charset=utf-8`，每行一个 strict JSON object，
+以 LF 结束。manifest 的 schemaVersion 必须等于任务 formatVersion，不能用旧文件名或旧 manifest
+标识新格式。格式演进如下：
 
-1. `manifest`：schemaVersion=1、exportedAt、product=`huayi-cloud`；
+| 格式 | 内容边界                                              |
+| ---- | ----------------------------------------------------- |
+| 1    | 冻结的旧公开记录投影                                  |
+| 2    | 原生结构化分析和插件查询内容                          |
+| 3    | 增加练习 teaching 元数据                              |
+| 4    | 增加保存的 reference 与显式查看事实，不含私有生成状态 |
+| 5    | 保留 format 4 内容，增加下述四类扇贝回填专用记录      |
+
+共同记录包括：
+
+1. `manifest`：schemaVersion 等于请求格式、exportedAt、product=`huayi-cloud`；
 2. `account-preferences`：timezone（有效值固定 `Asia/Shanghai`）、dailyGoal、extensionQueryModelMode、studyCaptureMode、
    cloudWordCopyMode、revision、createdAt/updatedAt；
 3. `account-sign-in-methods`：按 password、google 固定顺序导出 1–2 项 method 与 linkedAt，不含 Auth
@@ -204,8 +220,28 @@ JSON object，以 LF 结束：
 9. `practice-session`：完整公开 PracticeSession，保留 item 顺序、attempt/turn/反馈与 rating；已抹除学习项
    只在对应 item 上标记 `learningItemDeletedAt`，不恢复或复制已删除正文。
 
-同类型按 `(createdAt,id)` 升序，子记录按领域顺序或 `(createdAt,id)` 升序。文件不包含 owner ID；manifest
-之后即使某类为空也不制造占位记录。所有行先由共享 strict schema 验证，未知字段失败整个 job。
+既有记录同类型按 `(createdAt,id)` 升序，子记录按领域顺序或 `(createdAt,id)` 升序。文件不包含 owner ID；
+manifest 之后即使某类为空也不制造占位记录。所有行先由对应版本共享 strict schema 验证，未知字段
+失败整个 job。
+
+### 4.5 Format 5 的扇贝回填记录
+
+仅 format 5 在同一个 owner snapshot 内追加以下记录，format 1–4 的 allowlist 冻结，不包含它们：
+
+| recordType                  | 导出字段                                                       |
+| --------------------------- | -------------------------------------------------------------- |
+| `shanbay-backfill-settings` | enabled、dailyHour、revision、lastCheckedAt                    |
+| `shanbay-backfill-source`   | 原词 headword、当前 target、origins、attempt、state、updatedAt |
+| `shanbay-backfill-target`   | 目标 headword、confirmedAt（可为空）                           |
+| `shanbay-backfill-batch`    | headwords、prepared/unknown/resolved 状态、expiresAt           |
+
+来源/目标按词头顺序、批次按内部稳定次序输出；批次的 token 和 holder 不序列化。所有专用记录均不
+导出 owner、账号 scope、安装标识、凭据、幂等键、页面 alias、原始第三方响应或本机存储状态。
+来源标记 confirmed 不等于独立目标成功证据，导出同时保留目标 confirmedAt 和 unknown 状态供解释。
+
+回填记录与学习库记录独立：欧路/本机词头的共享不会创建 WordEntry、ContextObservation 或 LearningItem。
+完整账号导出包含已共享的回填进度，不能宣称包含各设备完整本机词库。行为和账号迁移边界见
+[扇贝回填](../store-v1/shanbay-backfill.md)。
 
 ## 5. 公共与内部接口
 
@@ -228,6 +264,10 @@ receipt replay：presented Cookie hash、key 和 body hash 全部匹配且 ack �
 business、PUBLIC 均不得获得 `account_deletion_jobs` 表级读取权。生产角色回归必须直接调用 repository
 并证明首次响应和固定回执可重放，避免初始删除错误被 replay 自身的权限异常覆盖成通用 400。
 
+创建/重试请求明确携带 formatVersion，current 查询使用对应 formatVersion；重试和下载沿用已保存
+job 的格式。Web 可读取 format 1–5 的既有任务并显示其格式，旧任务不被伪装成 format 5，下载前仍
+执行原有最近认证要求。完整导出新建使用 format 5；旧任务的现有文件不原位升级。
+
 ### 5.2 内部 worker
 
 `GET /internal/data-rights/run` 只接受固定 `Authorization: Bearer <CRON_SECRET>`，每次最多 claim 一个
@@ -235,6 +275,11 @@ export 和一个 deletion；响应只含 bounded outcome/count，不含用户 ID
 production 由独立 Supabase Cron job 每分钟经 `pg_net` 调用；调度层不保证 exactly-once，恢复性完全来自
 Postgres lease/fencing 和后续周期调用，无任务时幂等返回 idle。安装与安全边界见
 `vercel-hobby-supabase-cron.md`。
+
+迁移 `0040-backfill-account-exports.sql` 新增专用 `claim_account_export_v5`，新 worker 可认领 format
+1–5；既有 claim 函数保持不变，使旧 worker 不能认领 format 5。函数仅授予 `huayi_context_setter`，
+不把 worker 权限扩展给业务角色或客户端。此兼容边界属于部署门禁，迁移文件存在不代表已在目标
+数据库执行。
 
 ### 5.3 深模块接口
 
@@ -309,6 +354,8 @@ Auth adapter。Hono/Web 不编排阶段或删除顺序。
 ### 7.5 门禁
 
 - contracts/API/Web focused RED→GREEN；PGlite migration/RLS/security/golden；
+- format 5 四类回填记录的严格导出、旧 format 1–4 不含回填字段、token/holder/owner 排除、同 owner
+  snapshot、旧 worker 不 claim format 5、跨账号不可读取及删除级联；
 - 全 workspace test/typecheck/build、architecture/instructions、受影响 ESLint/Prettier、diff；
 - 既有 Extension 离线 E2E；actual Web 本地 fake journey 覆盖导出下载与删除请求；
 - 真实 Supabase Storage/Auth、Vercel 调度、备份残留和生产浏览器必须另行批准/验证。

@@ -52,5 +52,10 @@
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'; connect-src https://api.openai.com https://api.deepseek.com https://api.frdic.com https://api.seen-said.cn"
   },
-  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAt4y8KMEsQs5GgJ40WaLHtmN55FnCrGEZw2j2KZip+q8sOoFnQHdhyaZBxFEMaQAAwLgWkTvLge/NJZR2k6C3eWzqgxBUwOuIexZzHhDcBbXuHl+mpk7DvuxF2NaP/wlgBJF/d8Y5J3uqh8B3vwliCy5gDTxjzIyLKv/s0cYrlScWkXKagzl6GMFPYN75XApEc3Kdp8loAZ08Vdj5IACCGcFx0z34/m05j6+QtFs7btxzFwZ0tstEgp/9o8Ib13Cov4SwTeOacwTKXxxANCkSxi1seugafoMfJQvb9JWqmE5mGYiXb1Il0Bre/6i7JLhzDHe98TzGMDWL/hXtQ0H1GwIDAQAB"
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAt4y8KMEsQs5GgJ40WaLHtmN55FnCrGEZw2j2KZip+q8sOoFnQHdhyaZBxFEMaQAAwLgWkTvLge/NJZR2k6C3eWzqgxBUwOuIexZzHhDcBbXuHl+mpk7DvuxF2NaP/wlgBJF/d8Y5J3uqh8B3vwliCy5gDTxjzIyLKv/s0cYrlScWkXKagzl6GMFPYN75XApEc3Kdp8loAZ08Vdj5IACCGcFx0z34/m05j6+QtFs7btxzFwZ0tstEgp/9o8Ib13Cov4SwTeOacwTKXxxANCkSxi1seugafoMfJQvb9JWqmE5mGYiXb1Il0Bre/6i7JLhzDHe98TzGMDWL/hXtQ0H1GwIDAQAB",
+  "icons": {
+    "16": "icon-16.png",
+    "48": "icon-48.png",
+    "128": "icon-128.png"
+  }
 }

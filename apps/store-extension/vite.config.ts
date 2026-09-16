@@ -21,7 +21,8 @@ const PAGE_ASSETS = {
   ],
   popup: ["popup.html", "popup.css", "brand-theme.css", "page-ui.css"],
 } as const;
-const SHARED_CONTENT_ASSETS = ["overlay.css"] as const;
+const ICON_ASSETS = ["icon-16.png", "icon-48.png", "icon-128.png"] as const;
+const SHARED_CONTENT_ASSETS = ["overlay.css", "shanbay-lemma-licenses.txt"] as const;
 const buildProfiles = {
   release: {
     apiOrigin: null,
@@ -64,8 +65,15 @@ function copyManifest(buildProfile: StoreBuildProfile, outputDirectory: string):
         resolve(buildOutputDirectory, "manifest.json"),
       );
       await Promise.all(
-        SHARED_CONTENT_ASSETS.map((asset) =>
-          copyFile(resolve(extensionRoot, `pages/${asset}`), resolve(buildOutputDirectory, asset)),
+        ICON_ASSETS.map((asset) =>
+          copyFile(resolve(extensionRoot, `assets/${asset}`), resolve(buildOutputDirectory, asset)),
+        ).concat(
+          SHARED_CONTENT_ASSETS.map((asset) =>
+            copyFile(
+              resolve(extensionRoot, `pages/${asset}`),
+              resolve(buildOutputDirectory, asset),
+            ),
+          ),
         ),
       );
     },
@@ -116,6 +124,8 @@ export function createStoreExtensionConfig(
     resolve: {
       alias: workspaceAliases,
     },
+    // Avoid folding WordNet's many assignments into one deeply nested expression.
+    esbuild: mode === "background" ? { minifySyntax: false } : {},
     build: {
       emptyOutDir: isContentBuild,
       minify: "esbuild",

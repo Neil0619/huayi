@@ -14,7 +14,13 @@ type ConnectedPort = AnalysisSessionPort & {
 
 type MessageListener = (
   message: unknown,
-  sender: { readonly id: string; readonly url: string },
+  sender: {
+    readonly id: string;
+    readonly url: string;
+    readonly tab?: { readonly id: number };
+    readonly documentId?: string;
+    readonly frameId?: number;
+  },
   respond: (response: unknown) => void,
 ) => boolean;
 
@@ -50,10 +56,16 @@ export function loadPackagedWorker(
   const listeners: MessageListener[] = [];
   const connections: ((port: ConnectedPort) => void)[] = [];
   const openedUrls: string[] = [];
+  const badges: string[] = [];
+  const tabs: { id: number; windowId: number; url: string }[] = [];
   const requests: { readonly url: string; readonly method: string | undefined }[] = [];
   const noListener = { addListener: () => undefined };
+  const locks = new Map<string, Promise<unknown>>();
+  const alarms = new Map<string, { name: string; when?: number; periodInMinutes?: number }>();
+  const alarmListeners: ((alarm: { name: string }) => void)[] = [];
   runInNewContext(source, {
     AbortController,
+    AbortSignal,
     Headers,
     Response,
     TextDecoder,
@@ -69,10 +81,18 @@ export function loadPackagedWorker(
     navigator: {
       locks: {
         request: async <T>(
-          _name: string,
-          _options: unknown,
-          operation: () => Promise<T>,
-        ): Promise<T> => operation(),
+          name: string,
+          optionsOrOperation: unknown | (() => Promise<T>),
+          operation?: () => Promise<T>,
+        ): Promise<T> => {
+          const previous = locks.get(name) ?? Promise.resolve();
+          const running = previous.then(operation ?? (optionsOrOperation as () => Promise<T>));
+          locks.set(
+            name,
+            running.catch(() => undefined),
+          );
+          return running;
+        },
       },
     },
     performance,
@@ -97,8 +117,25 @@ export function loadPackagedWorker(
       });
     },
     chrome: {
-      alarms: { create: async () => undefined, onAlarm: noListener },
+      action: {
+        setBadgeText: async ({ text }: { text: string }) => {
+          badges.push(text);
+        },
+        setBadgeBackgroundColor: async () => undefined,
+      },
+      alarms: {
+        create: async (name: string, details: { when?: number; periodInMinutes?: number }) => {
+          alarms.set(name, { name, ...details });
+        },
+        get: async (name: string) => alarms.get(name),
+        onAlarm: {
+          addListener: (listener: (alarm: { name: string }) => void) =>
+            alarmListeners.push(listener),
+        },
+      },
       runtime: {
+        onStartup: noListener,
+        onInstalled: noListener,
         getManifest: () => ({ version: "1.0.0" }),
         id: extensionId,
         onConnect: {
@@ -110,13 +147,54 @@ export function loadPackagedWorker(
       tabs: {
         create: async ({ url }: { readonly url: string }) => {
           openedUrls.push(url);
+          const tab = { id: tabs.length + 1, windowId: 1, url };
+          tabs.push(tab);
+          return { ...tab };
+        },
+        query: async () => tabs.map(({ id, windowId }) => ({ id, windowId })),
+        update: async (id: number, update: { url?: string; active?: boolean }) => {
+          const tab = tabs.find((item) => item.id === id);
+          if (!tab) throw new Error("Unknown offline tab.");
+          if (update.url !== undefined) {
+            tab.url = update.url;
+            openedUrls.push(update.url);
+          }
+          return { ...tab };
+        },
+        sendMessage: async (id: number, message: { type: string }) => {
+          const tab = tabs.find((item) => item.id === id);
+          if (!tab) throw new Error("Unknown offline tab.");
+          return message.type === "store/backfill-probe"
+            ? { shanbayCollection: tab.url === "https://web.shanbay.com/wordsweb/#/collection" }
+            : undefined;
         },
       },
+      windows: { update: async () => undefined },
     },
   });
+  const sendMessage = async (
+    message: unknown,
+    sender: Parameters<MessageListener>[1] = {
+      id: extensionId,
+      url: `chrome-extension://${extensionId}/popup.html`,
+    },
+  ): Promise<unknown> => {
+    const listener = listeners[0];
+    if (listener === undefined) throw new Error("Packaged worker has no message listener.");
+    return new Promise((resolve) => {
+      const asynchronous = listener(message, sender, resolve);
+      if (!asynchronous) resolve(undefined);
+    });
+  };
   return {
+    badges,
     openedUrls,
     requests,
+    alarms,
+    emitAlarm(name: string) {
+      for (const listener of alarmListeners) listener({ name });
+    },
+    sendMessage,
     connect() {
       const incoming: ((message: unknown) => void)[] = [];
       const disconnecting: (() => void)[] = [];
@@ -137,16 +215,7 @@ export function loadPackagedWorker(
       };
     },
     async send(type: string): Promise<unknown> {
-      const listener = listeners[0];
-      if (listener === undefined) throw new Error("Packaged worker has no message listener.");
-      return new Promise((resolve) => {
-        const asynchronous = listener(
-          { messageVersion: STORE_MESSAGE_VERSION, type },
-          { id: extensionId, url: `chrome-extension://${extensionId}/popup.html` },
-          resolve,
-        );
-        if (!asynchronous) resolve(undefined);
-      });
+      return sendMessage({ messageVersion: STORE_MESSAGE_VERSION, type });
     },
   };
 }

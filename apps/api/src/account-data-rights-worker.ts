@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import {
   accountDataExportRecordReadSchema,
   accountDataExportRecordV4Schema,
+  accountDataExportRecordV5Schema,
   projectAccountDataExportRecordForV3,
   projectAccountDataExportRecordForV2,
   projectAccountDataExportRecordForLegacy,
@@ -127,7 +128,9 @@ export function createAccountDataRightsWorker(options: {
               ? projectAccountDataExportRecordForV2(record)
               : claim.formatVersion === 3
                 ? projectAccountDataExportRecordForV3(record)
-                : accountDataExportRecordV4Schema.parse(record);
+                : claim.formatVersion === 4
+                  ? accountDataExportRecordV4Schema.parse(record)
+                  : accountDataExportRecordV5Schema.parse(record);
         }),
       ];
     } catch {
