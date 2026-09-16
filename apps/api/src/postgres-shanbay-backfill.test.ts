@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
 
 import { PGlite } from "@electric-sql/pglite";
 import {
@@ -147,28 +148,54 @@ describe("Postgres Shanbay backfill ledger", () => {
     await expect(ledger.status(ownerB)).resolves.toMatchObject({ enabled: false, pendingCount: 0 });
   });
 
-  it("delivers 21 distinct words in batches of 20 and one and persists confirmation across reload", async () => {
-    await enable();
-    const words = Array.from(
-      { length: 21 },
-      (_, index) => `word${String.fromCharCode(97 + index)}`,
-    );
-    expect((await discover(words)).status.pendingCount).toBe(21);
-    const first = batch(await execute({ action: "claim" }));
-    expect(first.headwords).toHaveLength(20);
-    expect(new Set(first.headwords).size).toBe(20);
-    await confirm(first);
-    ledger = createPostgresShanbayBackfill(adapter);
-    const second = batch(await execute({ action: "claim" }));
-    expect(second.headwords).toHaveLength(1);
-    expect([...first.headwords, ...second.headwords].sort()).toEqual([...words].sort());
-    await confirm(second);
-    await discover(words);
-    await expect(execute({ action: "claim" })).resolves.toMatchObject({
-      batch: null,
-      status: { pendingCount: 0, unresolvedCount: 0, unknownCount: 0 },
-    });
-  });
+  it.each([undefined, 100])(
+    "claims 20+1 or 100+1 targets and preserves old hashes and receipts for limit %s",
+    async (limit) => {
+      const command =
+        limit === undefined ? { action: "claim" as const } : { action: "claim" as const, limit };
+      const size = limit ?? 20;
+      await enable();
+      const words = Array.from(
+        { length: size + 1 },
+        (_, index) => `word${String.fromCharCode(97 + Math.floor(index / 26), 97 + (index % 26))}`,
+      );
+      await discover(words.slice(0, 100));
+      if (words.length > 100) await discover(words.slice(100));
+      expect((await ledger.status(ownerA)).pendingCount).toBe(size + 1);
+      const claimed = await execute(command, "old-claim");
+      const first = batch(claimed);
+      expect(first.headwords).toHaveLength(size);
+      const hash = createHash("sha256")
+        .update(JSON.stringify({ holder: holderA, command }))
+        .digest("hex");
+      const stored = await database.query(
+        "SELECT request_hash FROM idempotency_records WHERE key='old-claim'",
+      );
+      expect(stored.rows).toEqual([{ request_hash: hash }]);
+      ledger = createPostgresShanbayBackfill(adapter);
+      await expect(execute(command, "old-claim")).resolves.toEqual(claimed);
+      await expect(
+        execute({ action: "claim", limit: limit === undefined ? 100 : 20 }, "old-claim"),
+      ).rejects.toMatchObject({
+        code: "idempotency_conflict",
+      });
+      await expect(execute({ action: "renew", token: first.token })).resolves.toMatchObject({
+        accepted: true,
+        batch: { token: first.token, headwords: first.headwords },
+      });
+      const receipt = await confirm(first, "old-receipt");
+      await expect(confirm(first, "old-receipt")).resolves.toEqual(receipt);
+      const second = batch(await execute(command));
+      expect(second.headwords).toHaveLength(1);
+      expect([...first.headwords, ...second.headwords].sort()).toEqual([...words].sort());
+      await confirm(second);
+      await discover(words.slice(0, 100));
+      await expect(execute(command)).resolves.toMatchObject({
+        batch: null,
+        status: { pendingCount: 0, unresolvedCount: 0, unknownCount: 0 },
+      });
+    },
+  );
 
   it("deduplicates all three canonical sources without creating or overwriting cloud WordEntries", async () => {
     await enable();

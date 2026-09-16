@@ -23,7 +23,7 @@ export const backfillTargetSchema = z.strictObject({
 export const backfillBatchSchema = z.strictObject({
   token: z.string().min(1).max(200),
   holder: z.string().min(1).max(200),
-  headwords: z.array(backfillHeadwordSchema).min(1).max(20),
+  headwords: z.array(backfillHeadwordSchema).min(1).max(100),
   state: z.enum(["prepared", "unknown", "resolved"]),
   expiresAt: z.string().datetime({ offset: true }),
 });

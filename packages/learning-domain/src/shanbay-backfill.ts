@@ -100,7 +100,7 @@ export function claimBackfillBatch(
         .filter((source) => source.state === "pending" && !blocked.has(source.target))
         .map((source) => source.target),
     ),
-  ].slice(0, Math.min(20, Math.max(1, input.limit ?? 20)));
+  ].slice(0, Math.min(100, Math.max(1, input.limit ?? 100)));
   if (headwords.length === 0) return null;
   const batch: BackfillBatch = {
     token: input.token,

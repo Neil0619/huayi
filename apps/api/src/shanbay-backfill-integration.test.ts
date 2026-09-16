@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { PGlite } from "@electric-sql/pglite";
+import { createBackfillState } from "@huayi/cloud-contracts";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createCurrentDatabaseFixture } from "./test-support/current-database-fixture.js";
 import type { AnalysisDatabase, AnalysisQuery } from "./analysis-database.js";
@@ -7,6 +8,7 @@ import { createPostgresShanbayBackfill } from "./postgres-shanbay-backfill.js";
 import { createPostgresExternalWordbook } from "./postgres-external-wordbook.js";
 import { createExternalWordbookModule } from "./external-wordbook-module.js";
 import { createPostgresAccountDataExportSource } from "./postgres-account-data-export-source.js";
+import { saveBackfillState } from "./postgres-shanbay-backfill-state.js";
 
 const owner = "00000000-0000-4000-8000-000000000001";
 let db: PGlite;
@@ -44,7 +46,7 @@ async function profile() {
 }
 async function words(count: number) {
   for (let index = 0; index < count; index += 1) {
-    const word = `word${String.fromCharCode(97 + index)}`;
+    const word = `word${String.fromCharCode(97 + Math.floor(index / 26), 97 + (index % 26))}`;
     await db.query(
       "INSERT INTO word_entries(id,owner_user_id,headword,canonical_key,revision,created_at,updated_at) VALUES($1,$2,$3,$3,1,now(),now())",
       [crypto.randomUUID(), owner, word],
@@ -70,10 +72,30 @@ describe("Shared Shanbay compatibility and export", () => {
     db = await createCurrentDatabaseFixture();
     await profile();
   });
+  it("rejects oversized batches before persistence", async () => {
+    const database = adapter(db);
+    await createPostgresShanbayBackfill(database).status(owner);
+    const before = createBackfillState();
+    const state = createBackfillState();
+    state.batches.push({
+      token: "oversized",
+      holder: "device-one",
+      headwords: Array.from(
+        { length: 101 },
+        (_, index) => `word${String.fromCharCode(97 + Math.floor(index / 26), 97 + (index % 26))}`,
+      ),
+      state: "prepared",
+      expiresAt: new Date(Date.now() + 300_000).toISOString(),
+    });
+    await expect(
+      database.transaction(owner, ({ tenant }) => saveBackfillState(tenant, owner, before, state)),
+    ).rejects.toThrow();
+    expect((await db.query("SELECT record FROM shanbay_backfill_batches")).rows).toEqual([]);
+  });
   it.each(["legacy", "backfill"])(
-    "keeps 21 targets exclusive when %s claims first and reconciles both task receipts",
+    "keeps 120 targets exclusive with legacy 20-word and new 100-word leases when %s claims first",
     async (first) => {
-      await words(21);
+      await words(120);
       const database = adapter(db);
       const old = jobs(database);
       const ledger = createPostgresShanbayBackfill(database);
@@ -86,7 +108,8 @@ describe("Shared Shanbay compatibility and export", () => {
       });
       const claimOld = () =>
         old.lease(owner, job.id, { claimNonce: "n".repeat(43), expectedRevision: job.revision });
-      const claimNew = () => ledger.execute(owner, "device-new", "claim", { action: "claim" });
+      const claimNew = () =>
+        ledger.execute(owner, "device-new", "claim", { action: "claim", limit: 100 });
       const [legacy, response] =
         first === "legacy"
           ? [await claimOld(), await claimNew()]
@@ -99,8 +122,9 @@ describe("Shared Shanbay compatibility and export", () => {
       expect(
         new Set([...legacy.entries.map((entry) => entry.headword), ...response.batch.headwords])
           .size,
-      ).toBe(21);
-      expect(legacy.entries.length + response.batch.headwords.length).toBe(21);
+      ).toBe(120);
+      expect(legacy.entries).toHaveLength(20);
+      expect(response.batch.headwords).toHaveLength(100);
       await old.submit(owner, job.id, "old-receipt", {
         kind: "export",
         leaseToken: legacy.leaseToken,
@@ -115,7 +139,7 @@ describe("Shared Shanbay compatibility and export", () => {
       expect(await ledger.status(owner)).toMatchObject({ pendingCount: 0, unknownCount: 0 });
       expect(await old.get(owner, job.id)).toMatchObject({
         state: "completed",
-        processedCount: 21,
+        processedCount: 120,
       });
     },
   );

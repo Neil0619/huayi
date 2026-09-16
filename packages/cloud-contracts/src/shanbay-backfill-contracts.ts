@@ -23,7 +23,10 @@ export const shanbayBackfillCommandSchema = z.discriminatedUnion("action", [
     confirmed: words,
     unknown: words.optional(),
   }),
-  z.strictObject({ action: z.literal("claim") }),
+  z.strictObject({
+    action: z.literal("claim"),
+    limit: z.number().int().min(1).max(100).optional(),
+  }),
   z.strictObject({ action: z.literal("renew"), token }),
   z.strictObject({ action: z.literal("resolve"), token, confirmed: words, rejected: words }),
   z.strictObject({ action: z.literal("unknown"), token }),
@@ -52,7 +55,7 @@ export const shanbayBackfillStatusSchema = z.strictObject({
 });
 export const shanbayBackfillLeaseSchema = z.strictObject({
   token,
-  headwords: z.array(backfillHeadwordSchema).min(1).max(20),
+  headwords: z.array(backfillHeadwordSchema).min(1).max(100),
   expiresAt: time,
 });
 export const shanbayBackfillResponseSchema = z.strictObject({

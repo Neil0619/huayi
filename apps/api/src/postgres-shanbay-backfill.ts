@@ -102,7 +102,13 @@ function apply(
       }
       break;
     case "claim": {
-      const batch = claimBackfillBatch(state, { holder, now, token: randomUUID() });
+      const batch = claimBackfillBatch(state, {
+        holder,
+        now,
+        token: randomUUID(),
+        // Older clients omit the limit and can only parse leases of up to 20 words.
+        limit: command.limit ?? 20,
+      });
       return {
         accepted: true,
         batch: batch

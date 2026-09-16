@@ -52,6 +52,7 @@ export async function saveBackfillState(
   before: BackfillState,
   state: BackfillState,
 ): Promise<void> {
+  backfillStateSchema.shape.batches.parse(state.batches);
   for (const [table, field] of [
     ["shanbay_backfill_sources", "sources"],
     ["shanbay_backfill_targets", "targets"],

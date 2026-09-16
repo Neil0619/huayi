@@ -67,6 +67,17 @@ it("rejects a device whose verified owner differs from the principal", async () 
   expect((await h.post({ action: "claim" })).status).toBe(403);
   expect(h.execute).not.toHaveBeenCalled();
 });
+it("accepts an explicit limit of 100 and rejects invalid limits before claiming", async () => {
+  const h = server("extension");
+  expect((await h.post({ action: "claim", limit: 100 })).status).toBe(200);
+  expect(h.execute).toHaveBeenCalledWith("owner", "server-device-hash", "backfill-test-key", {
+    action: "claim",
+    limit: 100,
+  });
+  for (const limit of [0, 101, 1.5, "100"])
+    expect((await h.post({ action: "claim", limit })).status).toBe(400);
+  expect(h.execute).toHaveBeenCalledTimes(1);
+});
 it.each(["web", "miniprogram"] as const)(
   "does not let %s clients claim extension batches",
   async (kind) => {

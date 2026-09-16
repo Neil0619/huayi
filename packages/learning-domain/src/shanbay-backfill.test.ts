@@ -37,41 +37,22 @@ function confirm(state: State, token: string, confirmed: string[], at = later) {
 }
 
 describe("Shanbay backfill domain", () => {
-  it("delivers 21 ordinary words in batches of 20 and one, without reissuing confirmations", () => {
+  it("delivers 101 distinct targets in batches of 100 and one, without reissuing confirmations", () => {
     const state = createBackfillState();
-    const words = [
-      "apple",
-      "bird",
-      "cloud",
-      "door",
-      "earth",
-      "flower",
-      "garden",
-      "house",
-      "island",
-      "journey",
-      "king",
-      "light",
-      "mountain",
-      "night",
-      "ocean",
-      "paper",
-      "queen",
-      "river",
-      "stone",
-      "tree",
-      "window",
-    ];
+    const words = Array.from(
+      { length: 101 },
+      (_, index) => `word${String.fromCharCode(97 + Math.floor(index / 26), 97 + (index % 26))}`,
+    );
     discoverBackfill(state, words, "eudic", now);
     expect(backfillStatus(state)).toEqual({
-      pendingCount: 21,
+      pendingCount: 101,
       unresolvedCount: 0,
       unknownCount: 0,
     });
 
     const first = claim(state);
-    expect(first.headwords).toHaveLength(20);
-    expect(new Set(first.headwords).size).toBe(20);
+    expect(first.headwords).toHaveLength(100);
+    expect(new Set(first.headwords).size).toBe(100);
     expect(first).toMatchObject({
       holder,
       state: "prepared",
