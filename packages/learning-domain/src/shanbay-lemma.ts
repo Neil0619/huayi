@@ -3,12 +3,12 @@
 import lemmatizer from "wink-lemmatizer";
 import { backfillHeadwordSchema } from "./shanbay-backfill-schema.js";
 
-/** Classic noun/verb/adjective rule: retry only one distinct valid candidate. */
-export function findBackfillLemma(value: string): string | null {
+/** Distinct changed noun/verb/adjective candidates, in that order. */
+export function findBackfillLemmaCandidates(value: string): string[] {
   const parsed = backfillHeadwordSchema.safeParse(value);
-  if (!parsed.success) return null;
+  if (!parsed.success) return [];
   const word = parsed.data;
-  const candidates = [
+  return [
     ...new Set(
       [lemmatizer.noun(word), lemmatizer.verb(word), lemmatizer.adjective(word)].flatMap(
         (candidate) => {
@@ -18,5 +18,10 @@ export function findBackfillLemma(value: string): string | null {
       ),
     ),
   ];
+}
+
+/** Classic noun/verb/adjective rule: retry only one distinct valid candidate. */
+export function findBackfillLemma(value: string): string | null {
+  const candidates = findBackfillLemmaCandidates(value);
   return candidates.length === 1 ? (candidates[0] ?? null) : null;
 }

@@ -13,6 +13,23 @@ const words = Array.from(
 const lease = { token: "batch", expiresAt: "2026-09-16T08:05:00.000Z" };
 
 describe("Shanbay backfill batch wire compatibility", () => {
+  it("accepts only a revision-fenced discard-unresolved command without client-selected sources", () => {
+    const command = { action: "discard-unresolved", expectedRevision: 0 };
+    expect(shanbayBackfillCommandSchema.parse(command)).toEqual(command);
+    for (const expectedRevision of [undefined, -1, 0.5, "0", null])
+      expect(shanbayBackfillCommandSchema.safeParse({ ...command, expectedRevision }).success).toBe(
+        false,
+      );
+    for (const extra of [
+      { source: "word" },
+      { sources: ["word"] },
+      { owner: "another-account" },
+      { limit: 100 },
+      { cursor: "s:word" },
+    ])
+      expect(shanbayBackfillCommandSchema.safeParse({ ...command, ...extra }).success).toBe(false);
+  });
+
   it("preserves old claim request serialization while accepting an explicit 100-word limit", () => {
     expect(shanbayBackfillCommandSchema.parse({ action: "claim" })).toEqual({ action: "claim" });
     expect(shanbayBackfillCommandSchema.parse({ action: "claim", limit: 100 })).toEqual({

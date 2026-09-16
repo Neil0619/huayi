@@ -186,6 +186,8 @@ export function resolveBackfillBatch(
       source.target = lemma.data;
       source.attempt = "lemma";
       source.state = target(state, lemma.data).confirmedAt === null ? "pending" : "confirmed";
+      if (source.state === "pending" && input.rejected.includes(lemma.data))
+        source.state = "unresolved";
     } else source.state = "unresolved";
     source.updatedAt = input.now;
   }
@@ -215,4 +217,16 @@ export function discardBackfillSource(state: BackfillState, key: string, now: st
   source.state = "discarded";
   source.updatedAt = now;
   return true;
+}
+
+export function discardAllBackfillUnresolved(state: BackfillState, now: string): number {
+  const held = blockedTargets(state);
+  let count = 0;
+  for (const source of Object.values(state.sources)) {
+    if (source.state !== "unresolved" || held.has(source.target)) continue;
+    source.state = "discarded";
+    source.updatedAt = now;
+    count += 1;
+  }
+  return count;
 }

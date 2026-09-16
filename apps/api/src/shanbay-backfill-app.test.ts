@@ -5,7 +5,11 @@ import { createShanbayBackfillApp } from "./shanbay-backfill-app.js";
 import { CloudFault } from "./cloud-fault.js";
 import { errorStatus } from "./cloud-foundation-app.js";
 
-function server(kind: "extension" | "web" | "miniprogram", deviceOwner = "owner") {
+function server(
+  kind: "extension" | "web" | "miniprogram",
+  deviceOwner = "owner",
+  authenticated = true,
+) {
   const status = {
     scopeId: "00000000-0000-4000-8000-000000000001",
     enabled: true,
@@ -31,7 +35,10 @@ function server(kind: "extension" | "web" | "miniprogram", deviceOwner = "owner"
   app.route(
     "/",
     createShanbayBackfillApp({
-      authenticate: async () => ({ kind, userId: "owner" }),
+      authenticate: async () => {
+        if (!authenticated) throw new CloudFault("authentication_required", "Session required.");
+        return { kind, userId: "owner" };
+      },
       authenticateDevice,
       module: {
         status: async () => status,
@@ -40,13 +47,14 @@ function server(kind: "extension" | "web" | "miniprogram", deviceOwner = "owner"
       },
     }),
   );
-  const post = (command: unknown) =>
+  const post = (command: unknown, headers: Record<string, string> = {}) =>
     app.request("/v1/shanbay-backfill", {
       method: "POST",
       headers: {
         "content-type": "application/json",
         "idempotency-key": "backfill-test-key",
         authorization: "HuayiExtension device-token",
+        ...headers,
       },
       body: JSON.stringify(command),
     });
@@ -86,3 +94,36 @@ it.each(["web", "miniprogram"] as const)(
     expect(h.execute).not.toHaveBeenCalled();
   },
 );
+
+it.each(["web", "extension"] as const)(
+  "authenticates %s bulk discard as one existing mutation",
+  async (kind) => {
+    const h = server(kind);
+    const command = { action: "discard-unresolved", expectedRevision: 3 };
+    expect((await h.post(command)).status).toBe(200);
+    expect(h.execute).toHaveBeenCalledExactlyOnceWith(
+      "owner",
+      kind === "web" ? "web:owner" : "server-device-hash",
+      "backfill-test-key",
+      command,
+    );
+    expect((await h.post({ ...command, owner: "different-owner" })).status).toBe(400);
+    expect(h.execute).toHaveBeenCalledTimes(1);
+  },
+);
+
+it("rejects unauthenticated, cross-account, miniprogram and non-idempotent bulk discards before writing", async () => {
+  const command = { action: "discard-unresolved", expectedRevision: 0 };
+  for (const [h, expectedStatus] of [
+    [server("web", "owner", false), 401],
+    [server("extension", "different-owner"), 403],
+    [server("miniprogram"), 403],
+  ] as const) {
+    expect((await h.post(command)).status).toBe(expectedStatus);
+    expect(h.execute).not.toHaveBeenCalled();
+  }
+  const h = server("extension");
+  expect((await h.post(command, { "idempotency-key": "" })).status).toBe(400);
+  expect((await h.post(command, { authorization: "" })).status).toBe(401);
+  expect(h.execute).not.toHaveBeenCalled();
+});

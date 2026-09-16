@@ -42,6 +42,10 @@ export const shanbayBackfillCommandSchema = z.discriminatedUnion("action", [
     source: backfillHeadwordSchema,
     expectedRevision: z.number().int().nonnegative(),
   }),
+  z.strictObject({
+    action: z.literal("discard-unresolved"),
+    expectedRevision: z.number().int().nonnegative(),
+  }),
 ]);
 export const shanbayBackfillStatusSchema = z.strictObject({
   enabled: z.boolean(),

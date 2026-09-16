@@ -10,6 +10,7 @@ import {
   backfillStatus,
   claimBackfillBatch,
   discoverBackfill,
+  discardAllBackfillUnresolved,
   discardBackfillSource,
   expireBackfillBatches,
   findBackfillLemma,
@@ -153,6 +154,9 @@ function apply(
       };
     case "discard":
       return { accepted: discardBackfillSource(state, command.source, now), batch: null };
+    case "discard-unresolved":
+      discardAllBackfillUnresolved(state, now);
+      break;
     case "reconcile":
       break;
   }
