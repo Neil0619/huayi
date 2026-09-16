@@ -3,6 +3,91 @@ import { expect, test } from "@playwright/test";
 const fixture = "/apps/store-extension/e2e/fixtures/interface.html";
 const themes = ["moon", "silver", "champagne", "porcelain"] as const;
 
+test("backfill cached counts and popup controls survive a stalled background refresh", async ({
+  page,
+}, testInfo) => {
+  await page.setViewportSize({ width: 340, height: 650 });
+  await page.goto(`${fixture}?backfill&backfillCount=496&backfillChecking&slowBackfill`);
+  await expect(page.locator("html")).toHaveAttribute("data-interface-ready", "true");
+  const panel = page.locator("[data-backfill-panel]");
+  await expect(panel).toContainText("待回填 496");
+  await expect(panel).toContainText("数量会继续更新");
+  await page.evaluate(() => window.dispatchEvent(new Event("fixture-backfill-progress")));
+  await expect(panel.getByRole("button", { name: "打开扇贝回填" })).toBeEnabled();
+  await page.getByRole("button", { name: "选择外观" }).click();
+  await expect(page.getByRole("button", { name: "霁蓝瓷光" })).toBeVisible();
+  await page.getByRole("button", { name: "霁蓝瓷光" }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-appearance", "porcelain");
+  await expect(panel.getByRole("alert")).toContainText("网络");
+  await expect(panel).toContainText("待回填 496");
+  await expect(panel.getByRole("button", { name: "打开扇贝回填" })).toBeEnabled();
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth - innerWidth),
+  ).toBeLessThanOrEqual(0);
+  await panel.screenshot({ path: testInfo.outputPath("backfill-cached-496.png") });
+});
+
+test("backfill attention opens the page panel without adding popup editors", async ({
+  page,
+}, testInfo) => {
+  await page.setViewportSize({ width: 340, height: 650 });
+  await page.goto(`${fixture}?backfill&backfillReviewCount=52`);
+  const panel = page.locator("[data-backfill-panel]");
+  await expect(panel).toContainText("待回填 0 · 需处理 52");
+  await page.evaluate(() =>
+    window.addEventListener("fixture-backfill-open", (event) =>
+      Reflect.set(window, "backfillOpenRequest", (event as CustomEvent).detail),
+    ),
+  );
+  await panel.getByRole("button", { name: "需处理", exact: true }).click();
+  await expect
+    .poll(() => page.evaluate(() => Reflect.get(window, "backfillOpenRequest")))
+    .toEqual({
+      type: "store/backfill-open",
+      view: "review",
+      expectedScope: "local",
+    });
+  await expect(panel.locator("input")).toHaveCount(0);
+  await expect(panel.getByRole("button", { name: "修改并重试" })).toHaveCount(0);
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth - innerWidth),
+  ).toBeLessThanOrEqual(0);
+  await panel.screenshot({ path: testInfo.outputPath("backfill-popup-review-link.png") });
+});
+
+test("backfill stays inside external dictionaries at both settings widths", async ({
+  page,
+}, testInfo) => {
+  await page.route("**/*", async (route) => {
+    if (new URL(route.request().url()).hostname === "127.0.0.1") await route.continue();
+    else await route.abort();
+  });
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(`${fixture}?page=options&backfill`);
+    await expect(page.locator("html")).toHaveAttribute("data-interface-ready", "true");
+    const panel = page.locator("[data-backfill-panel]");
+    await expect(panel).toHaveCount(1);
+    for (const name of ["常用设置", "模型与密钥", "网站管理", "本地生词", "外部词典"]) {
+      await page.getByRole("tab", { name, exact: true }).click();
+      if (name === "外部词典") await expect(panel).toBeVisible();
+      else await expect(panel).toBeHidden();
+    }
+    await expect(panel).toContainText("待回填 0 · 需处理 0");
+    await expect(panel.getByRole("button", { name: "需处理 (0)", exact: true })).toBeDisabled();
+    const card = page.locator("[data-options-backfill-mount]");
+    const bounds = await card.boundingBox();
+    expect(bounds).not.toBeNull();
+    expect(bounds?.width).toBeGreaterThan(width === 1440 ? 700 : 300);
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth - innerWidth),
+    ).toBeLessThanOrEqual(0);
+    await card.screenshot({ path: testInfo.outputPath(`backfill-settings-${width}.png`) });
+    await page.getByRole("tab", { name: "常用设置", exact: true }).click();
+    await expect(panel).toBeHidden();
+  }
+});
+
 test("configures model access and its key together at both settings widths", async ({
   page,
 }, testInfo) => {

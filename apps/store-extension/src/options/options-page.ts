@@ -296,7 +296,10 @@ export class OptionsPage {
       HTMLInputElement | HTMLButtonElement | HTMLSelectElement
     >("button, input, select")) {
       if (
-        control.matches("[data-credential-delete], [data-cloud-session-action], [data-help-toggle]")
+        control.matches(
+          "[data-credential-delete], [data-cloud-session-action], [data-help-toggle], [data-popup-backfill-visible]",
+        ) ||
+        control.closest("[data-backfill-panel]")
       )
         continue;
       control.disabled = this.busy;

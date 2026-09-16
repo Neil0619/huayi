@@ -219,6 +219,8 @@ export async function collectArchitectureViolations(repositoryRoot) {
         !specifier.startsWith(".") &&
         specifier !== "zod" &&
         specifier !== "zod/v3" &&
+        // Pinned pure dictionary/morphology code, bundled for offline Shanbay retry.
+        !(rule.root === "packages/learning-domain/src" && specifier === "wink-lemmatizer") &&
         !(
           rule.root === "packages/store-domain/src" &&
           (specifier === "@huayi/learning-domain" || specifier === "tldts")

@@ -15,10 +15,7 @@ import { getOrCreateStoreOverlay } from "./overlay/store-overlay-registry.js";
 import { getOrCreateStoreSiteLifecycle } from "./site-lifecycle-registry.js";
 import { installStoreSitePolicyRelay } from "./site-policy-relay.js";
 import { StoreContentApp } from "./store-content-app.js";
-import {
-  ShanbaySyncController,
-  isExactShanbayCollectionPage,
-} from "./shanbay/shanbay-sync-controller.js";
+import { isExactShanbayCollectionPage } from "./shanbay/shanbay-sync-controller.js";
 
 function chromeRuntime(): StoreOverlayRuntime {
   return {
@@ -54,22 +51,7 @@ installStoreSitePolicyRelay(lifecycle, {
   extensionId: chrome.runtime.id,
 });
 
-if (isExactShanbayCollectionPage(window.location)) {
-  const shanbay = new ShanbaySyncController({
-    document,
-    sendMessage: (message) => chrome.runtime.sendMessage(message),
-  });
-  void bootstrapStoreContentScript({
-    createApp: () => ({
-      start() {
-        lifecycle.register("shanbay", shanbay);
-        void lifecycle.refresh().catch(() => undefined);
-      },
-    }),
-    createRequestId: () => crypto.randomUUID(),
-    sendMessage: (message) => chrome.runtime.sendMessage(message),
-  });
-} else {
+if (!isExactShanbayCollectionPage(window.location)) {
   const content = new StoreContentApp(document, getOrCreateStoreOverlay(document, chromeRuntime()));
   void bootstrapStoreContentScript({
     createApp: () => ({

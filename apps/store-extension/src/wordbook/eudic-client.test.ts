@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { MAX_CONTEXT_SENTENCE_LENGTH } from "@huayi/store-domain";
 
 import {
   DEFAULT_EUDIC_REQUEST_TIMEOUT_MS,
@@ -15,6 +16,75 @@ function response(status: number, value: unknown): Response {
 }
 
 describe("Store Eudic client", () => {
+  it("retains the browser global receiver when using the default fetch", async () => {
+    const original = globalThis.fetch;
+    globalThis.fetch = async function (this: unknown) {
+      if (this !== globalThis) throw new TypeError("Illegal invocation");
+      return response(200, {
+        data: [{ add_time: "2026-09-15T00:00:00.000Z", exp: "", star: 0, word: "apple" }],
+        message: "ok",
+      });
+    };
+    try {
+      const client = new StoreEudicClient({ authorization: async () => "Bearer offline-fixture" });
+      await expect(client.listWords(0, new AbortController().signal)).resolves.toEqual([
+        { addedAt: "2026-09-15T00:00:00.000Z", headword: "apple" },
+      ]);
+    } finally {
+      globalThis.fetch = original;
+    }
+  });
+
+  it.each([undefined, "", " \t\n "])(
+    "treats an optional empty context %j as absent without rejecting the page",
+    async (context) => {
+      const client = new StoreEudicClient({
+        authorization: async () => "NIS test",
+        fetch: async () =>
+          response(200, {
+            data: [
+              {
+                add_time: "2026-08-11T00:00:00.000Z",
+                ...(context === undefined ? {} : { context_line: context }),
+                exp: "",
+                star: 0,
+                word: "apple",
+              },
+            ],
+            message: "ok",
+          }),
+      });
+      await expect(client.listWords(0, new AbortController().signal)).resolves.toEqual([
+        { addedAt: "2026-08-11T00:00:00.000Z", headword: "apple" },
+      ]);
+    },
+  );
+
+  it.each([null, 42, "x".repeat(MAX_CONTEXT_SENTENCE_LENGTH + 1)])(
+    "still rejects invalid or overlong contexts without truncating them",
+    async (context_line) => {
+      const client = new StoreEudicClient({
+        authorization: async () => "NIS test",
+        fetch: async () =>
+          response(200, {
+            data: [
+              {
+                add_time: "2026-08-11T00:00:00.000Z",
+                context_line,
+                exp: "",
+                star: 0,
+                word: "apple",
+              },
+            ],
+            message: "ok",
+          }),
+      });
+      await expect(client.listWords(0, new AbortController().signal)).rejects.toMatchObject({
+        code: "invalid-response",
+      });
+    },
+  );
+
   it("uses only fixed frdic endpoints, strict bounded responses, and preserves context_line", async () => {
     const fetch = vi.fn<typeof globalThis.fetch>(async (input) => {
       const url = String(input);

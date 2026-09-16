@@ -52,10 +52,15 @@ export class PopupPage {
   private submissionOutbox: SubmissionOutboxResponse | null = null;
   private submissionOutboxUnavailable = false;
   private unsupportedTab = false;
+  private statusRevision = 0;
 
   constructor(private readonly dependencies: PopupPageDependencies) {}
 
   async initialize(): Promise<void> {
+    const unsubscribe = this.dependencies.subscribeToCloudSession?.(() => {
+      void this.refreshStatus();
+    });
+    window.addEventListener("pagehide", () => unsubscribe?.(), { once: true });
     element<HTMLButtonElement>("[data-open-options]").addEventListener("click", () => {
       void this.execute("options", async () => this.openOptions());
     });
@@ -93,6 +98,7 @@ export class PopupPage {
       sendMessage: this.dependencies.sendRuntimeMessage,
       reportError: (message) => this.setPageStatus(message, "error"),
       onChanged: async () => {
+        await this.refreshStatus();
         await this.readSubmissionOutbox();
         this.render();
       },
@@ -117,14 +123,7 @@ export class PopupPage {
       this.dependencies.appearance?.get().then((appearance) => {
         if (appearanceRevision === this.appearanceRevision) this.applyAppearance(appearance);
       }),
-      this.execute("global", async () => {
-        this.status = parseStorePopupStatusResponse(
-          await this.dependencies.sendRuntimeMessage({
-            messageVersion: STORE_MESSAGE_VERSION,
-            type: "store/popup-status",
-          }),
-        );
-      }),
+      this.execute("global", () => this.refreshStatus()),
       account.initialize(),
       this.execute("outbox", () => this.readSubmissionOutbox()),
       this.execute("site", async () => {
@@ -281,7 +280,16 @@ export class PopupPage {
     const status = this.status;
     const appearance = this.appearance ?? status?.appearance ?? "silver";
     document.documentElement.dataset.appearance = appearance;
-    const provider = status?.providerId === "deepseek" ? "DeepSeek" : "OpenAI";
+    const provider =
+      status === null
+        ? "正在读取…"
+        : status.queryMode === "platform"
+          ? "云端模型"
+          : status.queryMode === "unavailable"
+            ? "模型状态不可用"
+            : status.providerId === "deepseek"
+              ? "DeepSeek"
+              : "OpenAI";
     element("[data-provider]").textContent = provider;
     const consent = element("[data-model-consent]");
     const consentLabel =
@@ -337,5 +345,24 @@ export class PopupPage {
     const status = element("[data-popup-status]");
     status.textContent = message;
     status.dataset.tone = tone;
+  }
+
+  private async refreshStatus(): Promise<void> {
+    const revision = ++this.statusRevision;
+    this.status = null;
+    this.render();
+    try {
+      const status = parseStorePopupStatusResponse(
+        await this.dependencies.sendRuntimeMessage({
+          messageVersion: STORE_MESSAGE_VERSION,
+          type: "store/popup-status",
+        }),
+      );
+      if (revision === this.statusRevision) this.status = status;
+    } catch {
+      if (revision === this.statusRevision)
+        this.setPageStatus("扩展状态读取失败，请稍后重试。", "error");
+    }
+    this.render();
   }
 }

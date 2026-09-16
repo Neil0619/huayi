@@ -1,5 +1,5 @@
 export const productionPrivacyNotice = {
-  effectiveDate: "2026-09-06",
+  effectiveDate: "2026-09-16",
   maintainer: "Neil",
   contact: "niu0619@gmail.com",
   backupRetention:

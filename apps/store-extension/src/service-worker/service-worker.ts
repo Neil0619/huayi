@@ -1,4 +1,5 @@
 import { createProductionQueryStorage } from "./production-query-storage.js";
+import { createProductionBackfillRuntime } from "../backfill/production-backfill-runtime.js";
 import {
   STORE_MESSAGE_VERSION,
   parseCloudSessionRequest,
@@ -14,7 +15,6 @@ import { createCloudSessionManager } from "./cloud-session-manager.js";
 import { clearCloudAccountData } from "./cloud-account-data-clearer.js";
 import { shouldRetryCloudWordbookRequest } from "./cloud-wordbook-api.js";
 import { createCloudExternalWordbookBridge } from "./cloud-external-wordbook-bridge.js";
-import { createCloudShanbayBridge } from "./cloud-shanbay-bridge.js";
 import {
   CLOUD_PAIRING_POLL_ALARM,
   CLOUD_PAIRING_POLL_DELAY_MS,
@@ -51,7 +51,6 @@ import { createChromeStoreAppearance } from "./store-appearance.js";
 import { createChromeStoreSettings } from "./store-settings.js";
 import { handleStoreMessage } from "./store-message-handler.js";
 import { handleOpenWebWorkspace } from "./web-workspace-handler.js";
-import { handleShanbayMessage } from "./shanbay-message-handler.js";
 import { handleSitePolicyMessage, isSitePolicyMessage } from "./site-policy-handler.js";
 import {
   handleSitePoliciesChanged,
@@ -95,6 +94,12 @@ const diagnostics = createProductionStoreDiagnostics(
   extensionSessionVault,
   STORE_CLIENT_VERSION,
 );
+const backfillRuntime = createProductionBackfillRuntime(
+  deviceVault,
+  extensionSessionVault,
+  storeSettings,
+  lexiconRepository,
+);
 const submissionOutboxVault = createSubmissionOutboxVault({
   crypto: globalThis.crypto,
   deviceVault,
@@ -135,18 +140,6 @@ const cloudWordbookBridge =
         idempotencyKey: () => crypto.randomUUID(),
         randomNonce: () => randomUrlSafeId(crypto),
         session: () => extensionSessionVault.readSession(),
-      });
-const cloudShanbayBridge =
-  cloudWordbookApi === null
-    ? null
-    : createCloudShanbayBridge({
-        allow: async () =>
-          recipientAccessDecision(await storeSettings.get(), "shanbay") === "allowed",
-        api: cloudWordbookApi,
-        idempotencyKey: () => crypto.randomUUID(),
-        randomId: () => randomUrlSafeId(crypto),
-        sessionVault: extensionSessionVault,
-        vault: externalWordbookLeaseVault,
       });
 const cloudSessionManager = createCloudSessionManager({
   api: cloudClients.identity,
@@ -207,6 +200,13 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
     typeof message === "object" && message !== null && "type" in message
       ? String(message.type)
       : "";
+  if (messageType.startsWith("store/backfill-")) {
+    void backfillRuntime
+      .handle(message, sender)
+      .then(sendResponse)
+      .catch(() => sendResponse(undefined));
+    return true;
+  }
   if (messageType.startsWith("store/study-capture-")) {
     void handleStudyCaptureMessage(message, {
       api: cloudClients.studyCaptures,
@@ -284,6 +284,10 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
   }
   if (isPopupStatusMessage(message)) {
     void handlePopupStatusMessage(message, sender, chrome.runtime.id, {
+      getQueryMode: async () => {
+        const preferences = await extensionPreferenceCache.read();
+        return preferences?.extensionQueryModelMode ?? "byok";
+      },
       getAppearance: () => storeAppearance.get(),
       getSettings: () => storeSettings.get(),
       notifySettingsChanged: broadcastSettingsRefresh,
@@ -311,6 +315,7 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
     )
       .then((response) => {
         if (response?.type === "store/lexicon-save-result") {
+          void backfillRuntime.refresh(true);
           scheduleWordbookAlarm(EUDIC_EXPORT_ALARM);
         }
         sendResponse(response);
@@ -331,15 +336,6 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
       () => storeSettings.get(),
       () => storeAppearance.get(),
     )
-      .then(sendResponse)
-      .catch(() => sendResponse(undefined));
-    return true;
-  }
-  if (
-    cloudShanbayBridge !== null &&
-    (messageType === "store/shanbay-page-ready" || messageType === "store/shanbay-resolve")
-  ) {
-    void handleShanbayMessage(message, sender, cloudShanbayBridge, () => storeSettings.get())
       .then(sendResponse)
       .catch(() => sendResponse(undefined));
     return true;

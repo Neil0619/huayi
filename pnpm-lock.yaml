@@ -213,6 +213,9 @@ importers:
 
   packages/learning-domain:
     dependencies:
+      wink-lemmatizer:
+        specifier: 3.0.4
+        version: 3.0.4
       zod:
         specifier: ^4.0.5
         version: 4.4.3

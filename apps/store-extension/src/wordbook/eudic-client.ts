@@ -51,7 +51,12 @@ interface StoreEudicClientOptions {
 
 const listEntrySchema = z.strictObject({
   add_time: z.string().datetime({ offset: true }),
-  context_line: z.string().trim().min(1).max(MAX_CONTEXT_SENTENCE_LENGTH).optional(),
+  context_line: z
+    .string()
+    .trim()
+    .max(MAX_CONTEXT_SENTENCE_LENGTH)
+    .transform((context) => context || undefined)
+    .optional(),
   exp: z.string(),
   phon: z.string().optional(),
   star: z.number().int(),
@@ -155,7 +160,7 @@ export class StoreEudicClient implements EudicWordbookClient {
     ) {
       throw new RangeError("Eudic timeout must be from 1 through 10000 milliseconds.");
     }
-    this.fetch = options.fetch ?? globalThis.fetch;
+    this.fetch = options.fetch ?? globalThis.fetch.bind(globalThis);
     this.timeoutMs = timeoutMs;
   }
 

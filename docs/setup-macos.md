@@ -4,6 +4,12 @@
 [Windows 安装说明](setup-windows.md)。跨平台改动的完成判定和交接格式见
 [跨平台开发规则](cross-platform-development.md)。
 
+本文后续 Native Host 步骤属于 Classic。Store Extension 日常开发使用
+[本地开发与商店交付流程](store-v1/local-and-store-workflow.md)：运行 `pnpm store:local:build` 与
+`pnpm store:local:status`，只加载本机 `apps/store-extension/dist`，核对固定验收 ID 后原地重载。
+旧 `~/Applications/SeenAndSaid/testing`、`production` 仅作归档，保留浏览器存储且不再同步或重装；
+production 候选为临时输出，未来正式日常版通过 Chrome Web Store 使用。Store 不需要安装 Native Host。
+
 ## 前置条件
 
 - Google Chrome。

@@ -49,7 +49,7 @@ it("keeps default format 1 request bytes and rejects a server format mismatch", 
   expect(fetch.mock.calls[0]?.[1]).toMatchObject({ body: "{}" });
   await expect(api.createAccountDataExport(csrf, 3)).rejects.toThrow();
 });
-it("keeps an existing active compatibility job visible across the four formats", async () => {
+it("keeps an existing active compatibility job visible across all five formats", async () => {
   const active = accountDataExportJobReadResourceSchema.parse(job(2));
   const failed = accountDataExportJobReadResourceSchema.parse({
     ...job(),
@@ -57,9 +57,9 @@ it("keeps an existing active compatibility job visible across the four formats",
     stableErrorCode: "export-build-failed",
     createdAt: "2026-09-14T00:00:00Z",
   });
-  const read = vi.fn(async (format: 1 | 2 | 3 | 4) => ({
+  const read = vi.fn(async (format: 1 | 2 | 3 | 4 | 5) => ({
     job: format === 2 ? active : format === 3 ? failed : null,
   }));
   expect(await readLatestAccountExport(read)).toEqual({ job: active });
-  expect(read.mock.calls.map((call) => call[0])).toEqual([1, 2, 3, 4]);
+  expect(read.mock.calls.map((call) => call[0])).toEqual([1, 2, 3, 4, 5]);
 });

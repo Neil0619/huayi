@@ -5,6 +5,12 @@ Windows 版复用同一套 Chrome Extension 和 wire v7，但 Native Host 固定
 作为独立生词本能力提供，不参与模型分析。跨平台改动的完成判定和交接格式见
 [跨平台开发规则](cross-platform-development.md)。
 
+本文后续 Native Host 步骤属于 Classic。Store Extension 使用
+[本地开发与商店交付流程](store-v1/local-and-store-workflow.md)：日常只加载当前 checkout 的
+`apps/store-extension/dist`，核对固定验收 ID `hoijjhgcckfhbcefoclgbhkgninnkknd` 并原地重载。
+production 候选和 `dist-release` 不作为第二份日常安装；未来正式日常版通过 Chrome Web Store 使用。
+Store 不需要 Native Host 或 DPAPI 配置；macOS 的构建/重载结果不能代替 Windows 真机验收。
+
 > v0.12.0 历史验证记录（2026-08-10）：Windows 离线质量门、另行 62 条 Playwright、Node.js 26 SEA 独立
 > `health`、实际安装、精确 HKCU 注册表与 manifest 检查，以及安装后 Host 直接 `health` 均已
 > 通过；当前加载路径的扩展 ID `kmeopbhijmkcjeckjicfinpdminhpbak` 已与 manifest 唯一的

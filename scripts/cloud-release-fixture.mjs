@@ -12,8 +12,13 @@ export const baseHosts = [
   "https://api.frdic.com/*",
 ];
 export const expectedFiles = [
+  "icon-16.png",
+  "icon-48.png",
+  "icon-128.png",
+  "shanbay-lemma-licenses.txt",
   "brand-theme.css",
   "content-script.js",
+  "shanbay-content.js",
   "manifest.json",
   "options.css",
   "options-components.css",
@@ -38,6 +43,7 @@ export function manifest() {
     apiOrigin,
   ].join(" ");
   return {
+    icons: { 16: "icon-16.png", 48: "icon-48.png", 128: "icon-128.png" },
     action: { default_popup: "popup.html" },
     background: { service_worker: "service-worker.js", type: "module" },
     content_scripts: [
@@ -59,6 +65,12 @@ export function manifest() {
         matches: ["https://youtube.com/*", "https://www.youtube.com/*", "https://m.youtube.com/*"],
         run_at: "document_start",
         world: "MAIN",
+      },
+      {
+        all_frames: false,
+        js: ["shanbay-content.js"],
+        matches: ["https://web.shanbay.com/*"],
+        run_at: "document_idle",
       },
     ],
     content_security_policy: {
@@ -106,7 +118,15 @@ export async function createFixture() {
           : file.endsWith(".html")
             ? '<script type="module" src="./local.js"></script>'
             : "/* packaged */";
-    await write(root, `apps/store-extension/dist-release/${file}`, contents);
+    if (file.endsWith(".png")) {
+      const icon = await readFile(
+        new URL(`../apps/store-extension/assets/${file}`, import.meta.url),
+      );
+      await write(root, `apps/store-extension/assets/${file}`, icon);
+      await write(root, `apps/store-extension/dist-release/${file}`, icon);
+    } else {
+      await write(root, `apps/store-extension/dist-release/${file}`, contents);
+    }
   }
   await write(
     root,

@@ -206,6 +206,21 @@ timeout；Windows 继续使用既有逐 project 列表，且不因此新增 API/
 
 ## 浏览器 E2E
 
+扇贝回填的独立浏览器回归可运行 `HUAYI_E2E_SUITE=shanbay pnpm exec playwright test`（macOS）；
+PowerShell 先设置 `$env:HUAYI_E2E_SUITE="shanbay"`，运行 `pnpm exec playwright test`，结束后用
+`Remove-Item Env:\HUAYI_E2E_SUITE` 清除选择。此模式只选择自带夹具的扇贝测试，不启动其他产品的
+Vite 构建服务；普通 E2E 仍包含该测试。测试在系统临时目录构建 Hosted Content Script 与 Worker，
+使用仓库既有 React 安装模拟扇贝的受控 textarea、普通 div 提交和窗口内结果，用真实浏览器点击
+验证 41 词的 20＋20＋1 批次、加密账本成功回执及角标清空。所有页面请求在隔离浏览器中拦截，
+不访问真实扇贝、欧路或账号；测试结束清理临时构建。它不代替用户账号的实机验收。
+
+欧路原生浏览器请求回归运行 `HUAYI_E2E_SUITE=eudic pnpm exec playwright test`；PowerShell 用
+`$env:HUAYI_E2E_SUITE="eudic"` 选择，结束后同样清除环境变量。测试在内存中打包实际欧路客户端，
+在 Chrome 原生 Worker 中执行列表读取及查询后添加，所有请求均由离线响应接管。它覆盖默认
+`fetch` 的浏览器全局接收者，避免 VM/箭头函数替身遗漏 `Illegal invocation`；不使用真实授权。
+设置页回填布局可运行 `pnpm exec playwright test apps/store-extension/e2e/interface-layout.spec.ts
+--grep "backfill stays"`，检查 1440/390 两种宽度、分类切换、单一面板及无横向溢出。
+
 Vite fixture 串起真实 Content Script、Service Worker 消息处理、请求协调器和 fake Native
 Host。Playwright 覆盖：
 
@@ -217,12 +232,18 @@ DOM、零卡片横向溢出和独立 `pearl | parchment` 材质。fake 不发 HT
 加载和第三方验收。
 
 普通 workspace build 同样固定为 release；它与 Hosted 验收安装的 `apps/store-extension/dist` 隔离。
-正式 `production` profile 单独生成 `dist-production`，固定公钥/ID 与正式 API/Web；配置测试对六个入口
+`production` profile 单独生成临时候选 `dist-production`，固定当前个人公钥/ID 与正式 API/Web；配置测试对六个入口
 检查三个目录分离，并实际编译正式 Worker 验证只有正式地址。发布检查编译真正的 `cloud-build-profile.ts`，
 核对消费者调用与最终包，不能再读取已删除的旧内联常量，也不能仅靠包中出现某个 URL 判定可用。
 构建回归在临时目录生成两套真实产物，检查完整普通构建不会改写 Hosted manifest/key 或 Worker。
 重启回归复用 fake `storage.local`、每次丢弃 `storage.session`，执行实际打包 Worker 三次，确认外观、
 服务商、全部三类加密凭据、站点规则、安装标识及有效配对会话保留；不读取本机 Chrome 数据。
+
+产物与安装分工见[本地开发与商店交付流程](store-v1/local-and-store-workflow.md)。`dist-release`
+仅作离线兼容与测试，`dist` 是唯一日常加载目录；用 `pnpm store:local:build` / `status` 验证本地包，
+用 `pnpm store:package:build` / `status` 验证 production 候选。分别记录包审计与目标平台实际重载
+结果；不以三种产物的存在要求三份日常安装。production 当前个人 ID 不证明真实商店绑定，未来
+商店安装、跨 ID 数据迁移与后端 Shanbay status `404` 的修复仍须独立验证。
 
 - 单词翻译/解释在最终卡片前显示至少两个独立增量；
 - 单词翻译固定验证音标置顶、词性与释义合并、常用短语、易混词以及没有原文例句/独立词性；

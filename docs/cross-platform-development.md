@@ -42,8 +42,10 @@ CC／切轨、`zh-Hans`、SPA、剧院／全屏、选词和生词本。
   保留行为使用 fake process 在双平台验证；真实保存和读取只能在操作者 macOS 上验收。
 - Cloud Web/API/Store 的应用版本请求头属于 shared HTTP 合同：使用 `X-Huayi-Revision`，兼容旧输入，
   两个平台均验证版本冲突、幂等和代理响应回归；真实 Hosted 域名的请求结果另行回读。
-- 个人正式版 Store 使用独立 `production` profile、`dist-production` 和固定 ID；构建及包审计属于
-  shared 离线门，两个平台都必须通过。真实 Chrome 安装和配对仍分别在目标平台确认。
+- Store 使用同一套源码构建 Hosted 验收与 production 候选，日常只加载 `apps/store-extension/dist`；
+  `production` / `dist-production` 为临时发布产物，当前固定个人 ID 尚未核验真实商店绑定。
+  构建及包审计属于 shared 离线门，两个平台都必须通过；真实 Chrome 重载和配对分别在目标平台确认。
+  未来正式日常使用通过 Chrome Web Store，详见[本地开发与商店交付流程](store-v1/local-and-store-workflow.md)。
 - Hosted 首次密码恢复/Cron 引导的状态判断、HTTP worker 与严格 parser 属于 shared 合同，必须在 macOS
   和 Windows 以 fake database/HTTP/credential 验证；真实 Vault、Vercel、Keychain 与邮件投递只在获批
   macOS 运维机执行，Windows 不新增凭据或明文回退。
@@ -98,7 +100,7 @@ health 验证会把 `.exe` 复制到仓库外的临时目录，清除 `NODE_PATH
 产品测试必须离线；生产依赖审计只查询包管理器安全公告，不运行扩展或 Provider/词典请求。真实
 smoke、安装和凭据操作不在两个命令中。
 
-Store 的普通 build/E2E 产物为 `apps/store-extension/dist-release`；Hosted 验收包继续保留
+Store 的普通 build/E2E 产物 `apps/store-extension/dist-release` 仅作离线兼容与测试；Hosted 日常验收包保留
 `apps/store-extension/dist` 及固定公钥。两个平台都应验证普通门禁不会改写 Hosted 身份，且同 ID 原地
 重载保留配置；卸载或改变 ID 不属于配置迁移。离线 fake-storage 重启测试不替代真实 Chrome 重载验收。
 

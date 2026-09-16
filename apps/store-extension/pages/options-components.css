@@ -17,7 +17,6 @@
   border-radius: var(--radius-lg);
   background: var(--navigation-fill);
   box-shadow: var(--card-shadow);
-  backdrop-filter: blur(var(--blur-soft)) saturate(118%);
 }
 
 .navigation-label {
@@ -82,7 +81,6 @@
   border-radius: var(--radius-lg);
   background: var(--card-fill);
   box-shadow: var(--card-shadow);
-  backdrop-filter: blur(var(--blur-soft)) saturate(118%);
   transition:
     border-color var(--duration-fast) ease,
     box-shadow var(--duration-normal) ease;

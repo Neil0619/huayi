@@ -1,5 +1,8 @@
 import { defineConfig } from "@playwright/test";
 
+const shanbayOnly = process.env.HUAYI_E2E_SUITE === "shanbay";
+const eudicOnly = process.env.HUAYI_E2E_SUITE === "eudic";
+
 const playwrightConfig = defineConfig({
   expect: {
     timeout: 5_000,
@@ -16,14 +19,23 @@ const playwrightConfig = defineConfig({
     screenshot: "only-on-failure",
     trace: "retain-on-failure",
   },
-  webServer: {
-    command:
-      "pnpm exec vite --config apps/extension/e2e/vite.config.ts --host 127.0.0.1 --port 4173",
-    reuseExistingServer: !process.env.CI,
-    timeout: 30_000,
-    url: "http://127.0.0.1:4173/apps/extension/e2e/fixtures/article.html",
-  },
+  webServer:
+    shanbayOnly || eudicOnly
+      ? undefined
+      : {
+          command:
+            "pnpm exec vite --config apps/extension/e2e/vite.config.ts --host 127.0.0.1 --port 4173",
+          reuseExistingServer: !process.env.CI,
+          timeout: 30_000,
+          url: "http://127.0.0.1:4173/apps/extension/e2e/fixtures/article.html",
+        },
   workers: 1,
 });
+
+if (shanbayOnly || eudicOnly) {
+  playwrightConfig.testMatch = shanbayOnly
+    ? "**/e2e/shanbay-backfill.spec.ts"
+    : "**/e2e/eudic-client.spec.ts";
+}
 
 export default playwrightConfig;

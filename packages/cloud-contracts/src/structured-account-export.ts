@@ -13,12 +13,14 @@ import {
 } from "./account-data-rights-contracts.js";
 import { practiceTeachingDetailSchema } from "./practice-teaching.js";
 import { practiceReferenceArchiveSchema } from "./practice-reference.js";
+import { shanbayBackfillExportRecordSchema } from "./shanbay-backfill-export.js";
 
 export const accountDataExportFormatVersionSchema = z.union([
   z.literal(1),
   z.literal(2),
   z.literal(3),
   z.literal(4),
+  z.literal(5),
 ]);
 export type AccountDataExportFormatVersion = z.infer<typeof accountDataExportFormatVersionSchema>;
 export const accountDataExportFormatRequestSchema = z.strictObject({
@@ -130,11 +132,17 @@ export const accountDataExportRecordV4Schema = z.union([
         });
     }),
 ]);
+export const accountDataExportRecordV5Schema = z.union([
+  nativeRecords[0].extend({ schemaVersion: z.literal(5) }),
+  shanbayBackfillExportRecordSchema,
+  ...accountDataExportRecordV4Schema.options.slice(1),
+]);
 export const accountDataExportRecordReadSchema = z.union([
   accountDataExportRecordSchema,
   accountDataExportRecordV2Schema,
   accountDataExportRecordV3Schema,
   accountDataExportRecordV4Schema,
+  accountDataExportRecordV5Schema,
 ]);
 export type AccountDataExportRecordRead = z.infer<typeof accountDataExportRecordReadSchema>;
 

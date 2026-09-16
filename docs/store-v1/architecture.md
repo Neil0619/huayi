@@ -5,7 +5,9 @@
 Store Edition 与 Classic Edition 在同一仓库中并存，但没有运行时依赖：
 
 ```text
-apps/store-extension -> packages/store-domain
+apps/store-extension -> packages/store-domain -> packages/learning-domain
+apps/store-extension -> packages/cloud-contracts -> packages/learning-domain
+apps/api -> packages/cloud-contracts
 
 apps/extension -> packages/protocol <- apps/native-host   (Classic only)
 ```
@@ -14,13 +16,15 @@ apps/extension -> packages/protocol <- apps/native-host   (Classic only)
 DOM、Chrome、Node.js、Provider SDK、SSE 或数据库 API。Store Extension 不得导入
 `@huayi/protocol` 或 `@huayi/native-host`。
 
-## 四个外部接缝
+## 外部接缝
 
 - `AnalysisEngine`：接收已固定 Provider 的可信分析请求、取消信号和增量回调，返回完整公开结果。
 - `DeviceVault`：自动创建/加载设备 DEK，提供凭据槽与 DEK 访问，并把旧库迁移、存储和密码学细节
   隐藏在小接口后；`LegacyVaultMigration` 只处理一次旧密码或恢复码认证。
 - `LexiconRepository`：按规范词头保存、查询、分页和删除 WordEntry，不暴露 IndexedDB 事务。
 - `WordbookExportEngine`：管理欧路导入与欧路/扇贝 ExportOutbox，不暴露页面脚本或 HTTP 细节。
+- `ShanbayBackfill`：共享纯领域核心管理来源、目标账本与 100 词批次；Extension authority 隐藏本机
+  加密、账号切换和页面别名，API adapter 隐藏 RLS、账号锁、旧手动任务衔接与幂等事务。
 
 生产适配器和测试 fake 都实现这些接口。共享的有界 HTTP/SSE 层只负责超时、读取上限、取消与
 资源释放；OpenAI Responses 和 DeepSeek Chat Completions 保留各自的事件状态机和结果适配器。
@@ -66,7 +70,8 @@ DOM、Chrome、Node.js、Provider SDK、SSE 或数据库 API。Store Extension �
 ## 存储分区
 
 - `chrome.storage.local`：小型非敏感设置、独立外观键 `huayi.store.appearance.v1`、同意版本、严格
-  DeviceVault key envelope 和少量加密凭据记录，并限制为可信扩展上下文。
+  DeviceVault key envelope、加密凭据，以及 `huayi.store.shanbay-backfill.v1` 加密回填快照，并限制
+  为可信扩展上下文。回填快照包含本机状态、分账号检查点/未完成命令、迁移归属与页面关联。
 - `chrome.storage.session`：仅在旧 Vault 一次迁移清理期间兼容读取并删除，不再承载运行权限。
 - IndexedDB：逐记录加密的生词，以及独立版本化加密快照中的导入任务、ExportOutbox、租约和
   回执。
@@ -124,18 +129,42 @@ refresh，各页面再以自身 sender 重新查询，不向广播附带规则�
 Options 直接通过可信 `DeviceVault` 读取欧路 Authorization 的存在性并写入/删除固定槽位；
 Authorization 不进入 runtime 消息。导入和导出箱使用严格版本化消息，且 Worker 同时要求 sender
 ID 为当前扩展并精确匹配自身 `options.html`，网页 Content Script 不能枚举队列或触发欧路请求。
-扇贝只使用 page-ready/resolve 两种无 URL 消息；Worker 独立校验 sender 的 origin、path、search
-和 hash。批次共享随机租约 token，结果必须无重复、无遗漏、无额外项地分区当前批次全部 ID。
-Worker 在网页保存、欧路手工命令、每次 Alarm 和扇贝 page-ready 处自行读取设置；消息不能携带
-或覆盖同意与启用状态。启用只改变未来策略，不遍历现有词条，所以不会静默补发。
+当前扇贝页面改用 `store/backfill-page-ready`、`store/backfill-renew`、`store/backfill-resolve` 和
+`store/backfill-unknown`，页面只收到最多 100 个词头及随机 batch/item alias，不收到云端租约 token
+或 holder。Worker 验证当前扩展 ID、精确收藏页 URL、顶层 frame、已登记 tab/document、账号 scope、
+当前扇贝同意与站点策略；resolve 必须精确分区当前全部 item alias。旧 page-ready/resolve 两消息
+与 Outbox ID 契约不再描述新回填页面。
+
+旧接收方开关本身只改变未来策略；主动“开启扇贝回填”则另行披露并发现历史来源词。单次检查推进
+一个云端页面和至多一个欧路页面，保留游标；欧路按设备本地 08:00 日界检查，云端每 15 分钟刷新。
+回填和旧手动扇贝任务在 API 共享账号行锁、目标账本及在途/unknown 占用，禁止同一目标重复认领。
+
+Worker 复用扇贝页时只枚举 tab ID，通过既有顶层 Content Script 的空数据 `store/backfill-probe`
+确认精确收藏页，不读取 tab URL、不新增 tabs/host 权限，也不调用扇贝 HTTP API。纯词元算法和
+字典随包发布，`shanbay-lemma-licenses.txt` 保留 wink-lemmatizer MIT、wink-lexicon MIT/WordNet 3.0
+完整声明。
+
+账号 API 的 status/command/unresolved 路由全部经既有生产认证边界；Extension 校验固定 origin、
+最低版本和有效配对 session，Web 写入校验 Cookie/Origin/CSRF，小程序只读。来源发现、迁移和页面
+租约操作仅 Extension 可写；holder 从配对安装身份生成。settings/replace/discard/discard-unresolved 使用 expectedRevision，
+所有命令使用账号内 Idempotency-Key。云端四张表强制 owner RLS；回填不创建学习库记录。
+
+本机与账号权威按 scope 隔离，切换账号清除页面关联并拒绝旧 expectedScope/session 回写。本机迁移
+先持久化归属，再迁移全部成功与 unknown 证据，最后迁移来源；迁移后的本机须连接原账号继续。
+新账号不可合并旧历史，开启时记录现有本机词 baseline，以后新词仍可发现。领域状态、租约和
+[format 5 专用导出](./shanbay-backfill.md#账号导出与发布证据)均复用共享严格 Schema。
 
 ## 固定网络边界
 
-生产 Manifest 只声明：
+标准未来商店 Manifest 的 API 主机仅声明：
 
 - `https://api.openai.com/*`
 - `https://api.deepseek.com/*`
 - `https://api.frdic.com/*`
+
+Hosted 验收 Manifest 额外固定 `https://api.acceptance.seen-said.cn/*`，production Manifest 额外固定
+`https://api.seen-said.cn/*`，对应 CSP 与构建期云端常量保持一致。标准构建没有云端 API 常量；不同
+目标的构建、安装与验证结果不能相互替代。回填不能从页面消息覆盖 API origin，也不跟随重定向。
 
 Service Worker 通过代码常量选择 endpoint，不接受消息中的任意 URL。扇贝适配发生在用户打开的
 精确扇贝收藏页中，最终提交必须由用户操作；预填不会覆盖已有输入。页面回执只接受真实点击之后
@@ -171,3 +200,13 @@ content、host-loaded YouTube isolated controller 与 MAIN bridge 的未压缩�
 带入页面 bundle。
 当前 C/G/H/I 完整 ResultCard 的审计预算为普通网页 56 KiB、YouTube isolated controller 74 KiB；
 门禁继续显式排除 Zod、Provider 和 Service Worker 实现。
+
+## 回填脚本加载边界
+
+普通网页的 `content-script.js` 仅处理划词和站点生命周期；扇贝回填由单独打包的
+`shanbay-content.js` 承载，仅匹配顶层 `https://web.shanbay.com/*`。入口仍校验精确收藏页，
+Worker 继续检查发件人、当前账号、站点策略、接收方同意与批次别名。拆分不增加远程脚本或动态
+模块加载，不改变真实用户最终提交要求。
+
+Popup 使用与后台 schema 对照验证的轻量响应解析，拒绝未知字段和非法值；后台仍保留完整契约
+验证。普通网页与 Popup 不携带 Zod、词元词库或 Provider/Worker 实现，保留原有体积上限。

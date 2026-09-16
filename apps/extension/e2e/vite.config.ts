@@ -35,6 +35,7 @@ function buildExtensionFixtures(): Plugin {
       await build(createExtensionConfig("background"));
       for (const mode of [
         "content",
+        "shanbay-content",
         "youtube-content",
         "youtube-main",
         "options",

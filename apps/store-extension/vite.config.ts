@@ -21,7 +21,8 @@ const PAGE_ASSETS = {
   ],
   popup: ["popup.html", "popup.css", "brand-theme.css", "page-ui.css"],
 } as const;
-const SHARED_CONTENT_ASSETS = ["overlay.css"] as const;
+const ICON_ASSETS = ["icon-16.png", "icon-48.png", "icon-128.png"] as const;
+const SHARED_CONTENT_ASSETS = ["overlay.css", "shanbay-lemma-licenses.txt"] as const;
 const buildProfiles = {
   release: {
     apiOrigin: null,
@@ -64,8 +65,15 @@ function copyManifest(buildProfile: StoreBuildProfile, outputDirectory: string):
         resolve(buildOutputDirectory, "manifest.json"),
       );
       await Promise.all(
-        SHARED_CONTENT_ASSETS.map((asset) =>
-          copyFile(resolve(extensionRoot, `pages/${asset}`), resolve(buildOutputDirectory, asset)),
+        ICON_ASSETS.map((asset) =>
+          copyFile(resolve(extensionRoot, `assets/${asset}`), resolve(buildOutputDirectory, asset)),
+        ).concat(
+          SHARED_CONTENT_ASSETS.map((asset) =>
+            copyFile(
+              resolve(extensionRoot, `pages/${asset}`),
+              resolve(buildOutputDirectory, asset),
+            ),
+          ),
         ),
       );
     },
@@ -101,6 +109,7 @@ export function createStoreExtensionConfig(
   const profile = buildProfiles[buildProfile];
   const outputDirectory = resolve(extensionRoot, profile.directory);
   const isContentBuild = mode === "content";
+  const isShanbayContentBuild = mode === "shanbay-content";
   const isOptionsBuild = mode === "options";
   const isPopupBuild = mode === "popup";
   const isYouTubeContentBuild = mode === "youtube-content";
@@ -116,6 +125,8 @@ export function createStoreExtensionConfig(
     resolve: {
       alias: workspaceAliases,
     },
+    // Avoid folding WordNet's many assignments into one deeply nested expression.
+    esbuild: mode === "background" ? { minifySyntax: false } : {},
     build: {
       emptyOutDir: isContentBuild,
       minify: "esbuild",
@@ -125,29 +136,36 @@ export function createStoreExtensionConfig(
           extensionRoot,
           isContentBuild
             ? "src/content/content-script.ts"
-            : isYouTubeContentBuild
-              ? "src/content/youtube/youtube-content-entry.ts"
-              : isYouTubeMainBuild
-                ? "src/content/youtube/youtube-main-entry.ts"
-                : isOptionsBuild
-                  ? "src/options/options-entry.ts"
-                  : isPopupBuild
-                    ? "src/popup/popup-entry.ts"
-                    : "src/service-worker/service-worker.ts",
+            : isShanbayContentBuild
+              ? "src/content/shanbay/shanbay-content-entry.ts"
+              : isYouTubeContentBuild
+                ? "src/content/youtube/youtube-content-entry.ts"
+                : isYouTubeMainBuild
+                  ? "src/content/youtube/youtube-main-entry.ts"
+                  : isOptionsBuild
+                    ? "src/options/options-entry.ts"
+                    : isPopupBuild
+                      ? "src/popup/popup-entry.ts"
+                      : "src/service-worker/service-worker.ts",
         ),
         output: {
           entryFileNames: isContentBuild
             ? "content-script.js"
-            : isYouTubeContentBuild
-              ? "youtube-content.js"
-              : isYouTubeMainBuild
-                ? "youtube-main.js"
-                : isOptionsBuild
-                  ? "options.js"
-                  : isPopupBuild
-                    ? "popup.js"
-                    : "service-worker.js",
-          format: isContentBuild || isYouTubeContentBuild || isYouTubeMainBuild ? "iife" : "es",
+            : isShanbayContentBuild
+              ? "shanbay-content.js"
+              : isYouTubeContentBuild
+                ? "youtube-content.js"
+                : isYouTubeMainBuild
+                  ? "youtube-main.js"
+                  : isOptionsBuild
+                    ? "options.js"
+                    : isPopupBuild
+                      ? "popup.js"
+                      : "service-worker.js",
+          format:
+            isContentBuild || isShanbayContentBuild || isYouTubeContentBuild || isYouTubeMainBuild
+              ? "iife"
+              : "es",
           inlineDynamicImports: true,
         },
       },

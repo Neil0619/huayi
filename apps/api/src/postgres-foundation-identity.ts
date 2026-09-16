@@ -219,6 +219,16 @@ export function createPostgresFoundationIdentity(options: PostgresFoundationIden
       }
       return { userId: result.user_id };
     },
+    async authenticateBackfillExtension(token: string) {
+      const [result] = await trusted(
+        (sql) => sql<{ user_id: string; install_id_hash: string }[]>`
+          SELECT user_id::text,install_id_hash FROM authenticate_backfill_extension(${hashSecret(token, options.pepper)})
+        `,
+      );
+      if (result === undefined)
+        throw new CloudFault("authentication_required", "The Extension session is invalid.");
+      return { userId: result.user_id, holder: result.install_id_hash };
+    },
     async approveExtensionPairing(
       id: string,
       userId: string,

@@ -21,8 +21,18 @@ import { OptionsPage } from "./options-page.js";
 import { createBrowserTextFileAdapter } from "./text-file-adapter.js";
 import { WordbookOptionsController } from "./wordbook-options-controller.js";
 import { initializeDiagnosticSettings } from "./diagnostic-settings-control.js";
+import { initializeOptionsBackfillPanel } from "./options-backfill-panel.js";
+import { subscribeToBackfillProgress } from "../backfill/backfill-progress-updates.js";
 
+import { initializePopupBackfillSettings } from "./popup-backfill-settings-control.js";
+
+initializePopupBackfillSettings(document, chrome.storage);
 const vault = createProductionDeviceVault();
+initializeOptionsBackfillPanel(document, {
+  sendMessage: (message) => chrome.runtime.sendMessage(message),
+  subscribe: subscribeToCloudSession,
+  subscribeProgress: subscribeToBackfillProgress,
+});
 void initializeDiagnosticSettings(document, chrome.storage.local);
 const lexicon = createProductionLexiconRepository();
 const wordbook = createProductionWordbookExportEngine(vault, lexicon);
