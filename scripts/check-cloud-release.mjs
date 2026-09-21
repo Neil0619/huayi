@@ -254,7 +254,8 @@ async function auditStore(root, api, web, minSupportedExtensionVersion, violatio
 async function auditMaterials(root, api, web, privacy, violations, profile, releaseChannel) {
   const suffix = releaseChannel === "production" ? "-production" : "";
   const policy = await readFile(resolve(root, `docs/cloud-v1/privacy-policy${suffix}.md`), "utf8");
-  if (/(?:草案|预发布|待补|待确认|待核验|待公布)/u.test(policy)) {
+  // “结果待确认” names a persisted backfill state, not unfinished policy copy.
+  if (/(?:草案|预发布|待补|(?<!结果)待确认|待核验|待公布)/u.test(policy)) {
     violations.push(violation("privacy-not-final"));
   }
   const policyFacts = [

@@ -97,6 +97,21 @@ test("Cloud release audit accepts one self-consistent offline candidate", async 
   });
 });
 
+test("Cloud release audit accepts an unknown backfill result without accepting unfinished policy text", async () => {
+  await withFixture(async (root) => {
+    const policyPath = join(root, "docs/cloud-v1/privacy-policy.md");
+    const policy = await readFile(policyPath, "utf8");
+    await writeFile(policyPath, `${policy}\n扇贝回填保存成功、跳过或结果待确认进度。`);
+    assert.deepEqual(await auditCloudRelease(root, configuration), {
+      ready: true,
+      violations: [],
+    });
+
+    await writeFile(policyPath, `${policy}\n结果待确认进度。运营主体待确认。`);
+    assert.deepEqual(codes(await auditCloudRelease(root, configuration)), ["privacy-not-final"]);
+  });
+});
+
 test("Cloud release audit validates compiled profile exports instead of merely trusting build defines", async () => {
   await withFixture(async (root) => {
     await write(
