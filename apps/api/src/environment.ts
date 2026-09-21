@@ -192,7 +192,7 @@ const apiEnvironmentSchema = z
           environment.HUAYI_WEB_ORIGIN === productionWeb &&
           environment.SUPABASE_URL === "https://pxqqgxfumovegbcxnmzb.supabase.co" &&
           (environment.HUAYI_STORE_EXTENSION_CAPABILITY === "disabled" ||
-            environment.HUAYI_STORE_EXTENSION_ID === "enlolhfodncfnleiihkjanhmnfbgeggh")
+            environment.HUAYI_STORE_EXTENSION_ID === "kehpghgppccjlmahanlmeagnpnfbcnea")
       : environment.HUAYI_API_ORIGIN === "https://api.acceptance.seen-said.cn" &&
           environment.HUAYI_WEB_ORIGIN === "https://app.acceptance.seen-said.cn" &&
           environment.SUPABASE_URL === acceptanceSupabase;

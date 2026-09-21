@@ -68,11 +68,13 @@ describe("API security environment", () => {
         "postgresql://app.kpadiulxkgckskcfydry:secret@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres?sslmode=verify-full",
       SUPABASE_URL: "https://kpadiulxkgckskcfydry.supabase.co",
       HUAYI_DEPLOYMENT_ENVIRONMENT: "hosted-acceptance",
+      HUAYI_STORE_EXTENSION_ID: "hoijjhgcckfhbcefoclgbhkgninnkknd",
       VERCEL_DEPLOYMENT_ID: "dpl_acceptance123",
       VERCEL_GIT_COMMIT_SHA: "0123456789abcdef0123456789abcdef01234567",
     };
     expect(parseApiEnvironment(environment)).toMatchObject({
       HUAYI_DEPLOYMENT_ENVIRONMENT: "hosted-acceptance",
+      HUAYI_STORE_EXTENSION_ID: "hoijjhgcckfhbcefoclgbhkgninnkknd",
     });
     expect(() =>
       parseApiEnvironment({
@@ -92,7 +94,7 @@ describe("API security environment", () => {
       HUAYI_DATABASE_URL:
         "postgresql://app.pxqqgxfumovegbcxnmzb:secret@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres?sslmode=verify-full",
       SUPABASE_URL: "https://pxqqgxfumovegbcxnmzb.supabase.co",
-      HUAYI_STORE_EXTENSION_ID: "enlolhfodncfnleiihkjanhmnfbgeggh",
+      HUAYI_STORE_EXTENSION_ID: "kehpghgppccjlmahanlmeagnpnfbcnea",
       VERCEL_DEPLOYMENT_ID: "dpl_production123",
       VERCEL_GIT_COMMIT_SHA: "0123456789abcdef0123456789abcdef01234567",
     };
@@ -102,13 +104,32 @@ describe("API security environment", () => {
     expect(readApiEnvironment(environment)).toMatchObject({
       HUAYI_DEPLOYMENT_ENVIRONMENT: "production",
     });
+    for (const rejectedId of [
+      "enlolhfodncfnleiihkjanhmnfbgeggh", // Historical personal production identity.
+      "hoijjhgcckfhbcefoclgbhkgninnkknd", // Hosted acceptance identity.
+      "a".repeat(32),
+      undefined,
+    ]) {
+      expect(() =>
+        parseApiEnvironment({ ...environment, HUAYI_STORE_EXTENSION_ID: rejectedId }),
+      ).toThrow();
+      expect(() =>
+        readApiEnvironment({ ...environment, HUAYI_STORE_EXTENSION_ID: rejectedId }),
+      ).toThrow();
+    }
+    expect(
+      parseApiEnvironment({
+        ...environment,
+        HUAYI_STORE_EXTENSION_CAPABILITY: "disabled",
+        HUAYI_STORE_EXTENSION_ID: undefined,
+      }),
+    ).toMatchObject({ HUAYI_STORE_EXTENSION_CAPABILITY: "disabled" });
     for (const override of [
       { HUAYI_API_ORIGIN: "https://api.acceptance.seen-said.cn" },
       { HUAYI_WEB_ORIGIN: "https://app.acceptance.seen-said.cn" },
       { HUAYI_DEPLOYMENT_ENVIRONMENT: undefined },
       { HUAYI_DEPLOYMENT_ENVIRONMENT: "hosted-acceptance" },
       { HUAYI_DEPLOYMENT_ENVIRONMENT: "preview" },
-      { HUAYI_STORE_EXTENSION_ID: "hoijjhgcckfhbcefoclgbhkgninnkknd" },
       {
         HUAYI_DATABASE_URL: validHostedEnvironment().HUAYI_DATABASE_URL,
         SUPABASE_URL: validHostedEnvironment().SUPABASE_URL,

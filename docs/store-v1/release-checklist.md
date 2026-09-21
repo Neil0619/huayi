@@ -10,8 +10,9 @@ macOS 当前候选的逐项实机证据和阻塞记录见
 ## 当前发布阻塞项
 
 - OpenAI `gpt-5.6-luna`、DeepSeek `deepseek-v4-flash` 仍是候选模型，尚无本轮真实双平台证据。
-- 尚未分配新 Store Extension ID，未提供公开隐私政策 HTTPS 地址、128×128 商店图标、截图和
-  最终支持信息。
+- 商店 ID 已分配为 `kehpghgppccjlmahanlmeagnpnfbcnea`，production 1.0.1 源码已绑定对应公钥；
+  正式 API 配置/部署、origin 许可与账号配对仍需验证。已有 1.0.0 草稿，后续更新同一条目。
+- 公开隐私政策 HTTPS 地址、实际候选图标、真实截图和最终支持信息仍须在送审前逐项复核。
 - macOS、Windows 的真实 Chrome、Provider、欧路、扇贝、升级与卸载证据尚未完成。
 - 已有独立同意控制的错误诊断上传；商店披露、公开隐私说明和实际保留/删除行为须在最终候选复核。
 

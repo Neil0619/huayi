@@ -64,6 +64,8 @@ test("production environment has independent origins, database login, mail ident
   assert.equal(value.api.HUAYI_API_ORIGIN, value.web.VITE_API_ORIGIN);
   assert.equal(value.api.HUAYI_WEB_ORIGIN, "https://app.seen-said.cn");
   assert.equal(value.api.HUAYI_DEPLOYMENT_ENVIRONMENT, "production");
+  assert.equal(value.api.HUAYI_STORE_EXTENSION_ID, "kehpghgppccjlmahanlmeagnpnfbcnea");
+  assert.equal(value.api.HUAYI_STORE_EXTENSION_CAPABILITY, "enabled");
   assert.equal(value.api.HUAYI_SECURITY_NOTIFICATION_REPLY_TO, "niu0619@gmail.com");
   assert.equal(value.api.HUAYI_SECURITY_NOTIFICATION_FROM, "语见 <security@notify.seen-said.cn>");
   assert.equal(value.api.HUAYI_ACCOUNT_EXPORT_BUCKET, "account-exports-production");

@@ -1,5 +1,5 @@
 export const productionPrivacyNotice = {
-  effectiveDate: "2026-09-16",
+  effectiveDate: "2026-09-21",
   maintainer: "Neil",
   contact: "niu0619@gmail.com",
   backupRetention:
@@ -19,8 +19,7 @@ export function ProductionPrivacyDetails() {
       <p>
         本服务由 {productionPrivacyNotice.maintainer} 维护，供本人及受邀朋友进行非商业英语学习。
         隐私、账号删除和安全问题请联系 <ProductionPrivacyContact />。 正式站为
-        app.seen-said.cn；测试站使用独立账号和数据。本扩展通过手动加载使用，尚未发布到 Chrome Web
-        Store。
+        app.seen-said.cn；测试站使用独立账号和数据。云端功能目前仅对已获邀请并完成注册的账号开放。
       </p>
       <p>
         数据库、身份服务和私有导出存储部署于 Supabase 新加坡区域，API 运行于 Vercel 新加坡区域。 Web

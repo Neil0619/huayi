@@ -7,7 +7,7 @@ import { pathToFileURL } from "node:url";
 import { auditStoreRelease } from "./check-store-release.mjs";
 import { readStoreCloudBuild } from "./store-cloud-build.mjs";
 
-export const productionStoreExtensionId = "enlolhfodncfnleiihkjanhmnfbgeggh";
+export const productionStoreExtensionId = "kehpghgppccjlmahanlmeagnpnfbcnea";
 const apiOrigin = "https://api.seen-said.cn";
 const webOrigin = "https://app.seen-said.cn";
 const expectedHosts = [

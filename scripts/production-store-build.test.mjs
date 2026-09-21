@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { createHash, createPublicKey } from "node:crypto";
+import { readFile } from "node:fs/promises";
 
 import { productionStoreExtensionId, runProductionStoreCli } from "./production-store-build.mjs";
 
@@ -28,7 +30,7 @@ test("production build selects a fixed profile without passing credentials and t
   assert.equal(events[0].environment.npm_execpath, "/pnpm.cjs");
   assert.equal(JSON.stringify(events).includes("fictional-secret"), false);
   assert.equal(events[1], "/repo");
-  assert.equal(productionStoreExtensionId, "enlolhfodncfnleiihkjanhmnfbgeggh");
+  assert.equal(productionStoreExtensionId, "kehpghgppccjlmahanlmeagnpnfbcnea");
 });
 
 test("production status cannot build and audit failures are not reported as ready", async () => {
@@ -60,4 +62,40 @@ test("a failed production build never runs the package audit or claims readiness
     1,
   );
   assert.deepEqual(output, ["Production Store package failed verification.\n"]);
+});
+
+test("production source binds the existing Chrome Web Store item and increments its uploaded version", async () => {
+  const manifest = JSON.parse(
+    await readFile(
+      new URL("../apps/store-extension/manifest.production.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  const key = Buffer.from(manifest.key, "base64");
+  assert.equal(key.toString("base64"), manifest.key);
+  const publicKey = createPublicKey({ key, format: "der", type: "spki" });
+  assert.equal(publicKey.asymmetricKeyType, "rsa");
+  assert.deepEqual(publicKey.export({ format: "der", type: "spki" }), key);
+  const id = createHash("sha256")
+    .update(key)
+    .digest("hex")
+    .slice(0, 32)
+    .replaceAll(/[0-9a-f]/gu, (digit) => "abcdefghijklmnop"[parseInt(digit, 16)]);
+  assert.equal(id, "kehpghgppccjlmahanlmeagnpnfbcnea");
+  assert.equal(productionStoreExtensionId, id);
+  assert.equal(manifest.version, "1.0.1");
+
+  const hosted = JSON.parse(
+    await readFile(
+      new URL("../apps/store-extension/manifest.hosted-acceptance.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  const hostedId = createHash("sha256")
+    .update(Buffer.from(hosted.key, "base64"))
+    .digest("hex")
+    .slice(0, 32)
+    .replaceAll(/[0-9a-f]/gu, (digit) => "abcdefghijklmnop"[parseInt(digit, 16)]);
+  assert.equal(hostedId, "hoijjhgcckfhbcefoclgbhkgninnkknd");
+  assert.equal(hosted.version, "1.0.0");
 });

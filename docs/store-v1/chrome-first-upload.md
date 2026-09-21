@@ -2,9 +2,14 @@
 
 ## 当前起点
 
-截至本轮准备，语见尚无既有 Chrome Web Store 条目。此处采用首次创建条目的流程，不要求先提供
-一个尚不存在的 item ID。当前 `production` 构建固定的个人 ID
-`enlolhfodncfnleiihkjanhmnfbgeggh` 尚未获商店绑定核验，不能当作已存在的商店 ID。
+用户已完成 1.0.0 首传草稿，并提供 Chrome Web Store item ID
+`kehpghgppccjlmahanlmeagnpnfbcnea` 及 Dashboard 公钥。本地已核验该规范 Base64 公钥的
+SHA-256 派生 ID 与 item ID 一致，并绑定 production Manifest、构建审计、正式环境声明和 API
+源码约束。当前 production 更新候选为 **1.0.1**；后续只更新这个既有条目，不再创建第二个条目。
+
+历史个人 ID `enlolhfodncfnleiihkjanhmnfbgeggh` 不再是当前 production 的预期身份；保留其旧
+Profile 和数据。Hosted 验收 ID `hoijjhgcckfhbcefoclgbhkgninnkknd` 及 1.0.0 版本保持原状。
+本地绑定不代表 1.0.1 已上传、正式 API 配置已变更、已部署、已送审或已公开。
 
 本指南适用于未来商店使用的 production 候选：API 为 `https://api.seen-said.cn`，Web 为
 `https://app.seen-said.cn/app`。`dist` 是 Hosted 验收日常目录，`dist-release` 是无云端的离线兼容
@@ -12,11 +17,11 @@
 
 **顺序：本地候选检查 → 首传草稿 → 获取真实 item ID/公钥 → 绑定并重建 → 正式 API/迁移与验收
 就绪 → 更新同一草稿 → 送审 → 单独公开。** 首传草稿用于取得身份，不代表最终候选就绪。
-本文没有执行上传、部署、迁移或 Git 发布。
+首传已由用户完成；以下第 1–2 节保留为首传过程参考，下一步从绑定后的更新候选继续。
 
-## 1. 准备首传 ZIP
+## 1. 首传 ZIP 记录（已完成首传，保留历史参考）
 
-本轮主任务将首传 ZIP 与回执生成在 `artifacts/store-release-20260916/`；以实际回执中的文件名
+首传准备的 ZIP 与回执位于 `artifacts/store-release-20260916/`；以实际回执中的文件名
 和哈希为准。使用标明“仅首次草稿上传”的 ZIP，核对其候选提交、版本、SHA-256、Manifest 和
 产物审计结果。通常来源是 `pnpm store:package:build` 生成的 `dist-production`；
 `pnpm store:package:status` 只证明本地产物审计，不证明商店、账号或服务器状态。
@@ -26,12 +31,13 @@ ZIP 根目录必须直接包含 `manifest.json`，只包含审定的扩展文件
 Manifest key 不是商店身份凭证；是否为首传移除该 key，应由可复现的打包步骤记录，保留原产物。
 不能靠在 ZIP 里临时改 key 后声称源码和审计仍完全一致。
 
-本轮候选已加入沿用产品眼睛标识的 16/48/128 像素图标，仍须核对实际 ZIP 中的 Manifest 引用和
-文件；商店截图另行核验。首传前核验版本、名称、图标、权限、CSP 和固定网络目标。上传后若修改 Manifest，需要重新打包；
+首传图标与后续用户选定的图标分别按实际候选留证，不能沿用旧图标验收替代新素材检查。
+每次上传前核验 16/48/128 像素文件、Manifest 引用、版本、名称、权限、CSP 和固定网络目标；
+商店截图另行核验。上传后若修改 Manifest，需要重新打包；
 后续上传版本应递增，避免占用版本后仍重复使用同一版本。参见
 [Google 打包准备说明](https://developer.chrome.com/docs/webstore/prepare)。
 
-## 2. 创建未送审草稿，获取身份
+## 2. 创建未送审草稿，获取身份（已完成，不重复创建）
 
 1. 使用预定发布者账号打开 [Chrome Web Store Developer Dashboard](https://chrome.google.com/webstore/devconsole)。
    若未注册，先按 Dashboard 完成开发者账号设置；费用或账号验证按当时页面处理，不代填身份信息。
@@ -49,7 +55,7 @@ Google 官方明确支持先上传而不发布，从 Package 取得公钥，并�
 
 ## 3. 绑定真实商店 ID，再生成送审候选
 
-取得真实值后，在同一开发任务内协调修改和验证下列身份边界：
+当前已完成前四项源码绑定；第五项正式服务配置、部署与业务验收仍需单独完成并留证：
 
 - `apps/store-extension/manifest.production.json` 的公钥；
 - `scripts/production-store-build.mjs` 的预期 ID 与相关测试；
@@ -57,11 +63,14 @@ Google 官方明确支持先上传而不发布，从 Package 取得公钥，并�
 - `scripts/production-release-environment.mjs` 的正式环境身份声明；
 - 正式 API 的 `HUAYI_STORE_EXTENSION_ID`、能力开关、Extension origin 许可和账号配对行为。
 
-不能只改环境变量：当前 API 源码也校验旧个人 ID。公钥导出的 ID、构建审计预期 ID、Dashboard
-item ID 与 API 接受的 origin 必须一致。不要修改 Hosted 验收 ID 或通过放宽 origin 白名单绕过校验。
+不能只改环境变量：当前 API 源码严格限定新商店 ID，历史个人 ID、Hosted ID 和任意其他 ID
+均被 production 启用状态拒绝。正式部署须协调源码与 `HUAYI_STORE_EXTENSION_ID`，否则启动
+校验失败。公钥导出的 ID、构建审计预期 ID、Dashboard item ID 与 API 接受的 origin 必须一致。
+不要修改 Hosted 验收 ID 或通过放宽 origin 白名单绕过校验。
 
-按新身份重建并记录新候选提交、版本、产物哈希；必要时递增所有受约束的组件版本，检查 API
-版本兼容。获得真实 Chrome 验收范围授权后，用独立测试 Profile 核对加载后的 ID 与 Dashboard
+按新身份重建并记录新候选提交、版本、产物哈希。首传已占用 1.0.0，本次仅 production Manifest
+递增为 1.0.1；运行时从 Manifest 读取版本，API 最低支持版本仍为 1.0.0。Hosted/release 与 Classic
+版本不随之调整。获得真实 Chrome 验收范围授权后，用独立测试 Profile 核对加载后的 ID 与 Dashboard
 相同。旧 ID 下的本机生词、凭据和会话不会因新 ID 自动迁移；保留旧 Profile，不以卸载、清空
 存储或覆盖日常验收目录解决身份问题。
 
@@ -107,5 +116,5 @@ item ID 与 API 接受的 origin 必须一致。不要修改 Hosted 验收 ID �
 | 送审前     | 正式 API 部署、迁移与兼容证据、公开政策、问卷、双平台验收和测试说明 |
 | 送审/公开  | 各自授权范围、Dashboard 状态与时间、审核反馈、实际商店安装验收      |
 
-回执留在忽略的本地 artifacts 中，不写入秘密。当前任务应清楚指出下一步是用户上传草稿并返回
-item ID/公钥，还是候选仍有本地阻塞；仅交付 ZIP 时不要声称商店已就绪。
+回执留在忽略的本地 artifacts 中，不写入秘密。当前任务应明确区分本地 1.0.1 候选、同一 item
+更新上传、正式服务支持、送审和公开各自状态；仅交付 ZIP 时不要声称商店已就绪。

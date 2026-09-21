@@ -13,7 +13,7 @@
 | 页面标识         | 保留 Hosted 验收横幅及版本            | 不显示验收横幅                         |
 | 数据、账号和密钥 | 保留既有验收资源                      | 使用新建的独立资源                     |
 | 扩展构建目录     | `apps/store-extension/dist`           | `apps/store-extension/dist-production` |
-| 扩展 ID          | `hoijjhgcckfhbcefoclgbhkgninnkknd`    | `enlolhfodncfnleiihkjanhmnfbgeggh`     |
+| 扩展 ID          | `hoijjhgcckfhbcefoclgbhkgninnkknd`    | `kehpghgppccjlmahanlmeagnpnfbcnea`     |
 
 表中的正式地址是代码约定，不代表资源已创建或正式站已上线。Vercel 平台的技术环境名
 `production` 不等于语见产品的正式发布，两个独立项目都可能使用该技术环境名。
@@ -57,8 +57,10 @@ Web 使用 Vercel 官方支持的 [programmatic configuration](https://vercel.co
 历史 `acceptance-vercel-one-shot-*` 回执继续绑定原候选的 JSON 配置，不用于此次发布。
 
 本人及朋友使用的扩展通过 `pnpm production:store:build` 构建并检查，`pnpm production:store:status`
-只检查已有包。它是独立的手动加载包，不表示已经发布 Chrome Web Store 或已安装到浏览器。
-固定公钥用于保持手动加载 ID；不保存对应私钥，不与 Hosted 条目共用 ID、浏览器存储或配对会话。
+只检查已有包。production Manifest 已绑定用户提供的 Chrome Web Store 条目公钥，派生 ID 与
+该条目一致；当前更新候选为 1.0.1，首传草稿为 1.0.0。这不表示已送审、公开或安装到浏览器。
+不保存对应私钥，不与 Hosted 条目共用 ID、浏览器存储或配对会话。生产环境生成器与 API 源码
+现在要求新商店 ID；远端配置和 API 部署仍须另行协调验证，不能只替换其中一处。
 普通 `pnpm build` 继续生成不连接云端的 `dist-release`，不会覆盖两套云端包。
 
 ## 正式发布工具与公开说明

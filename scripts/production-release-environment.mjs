@@ -57,7 +57,7 @@ export function buildProductionEnvironment(secrets) {
         CRON_SECRET: secrets.cronSecret,
         HUAYI_ACCOUNT_EXPORT_BUCKET: "account-exports-production",
         HUAYI_STORE_EXTENSION_CAPABILITY: "enabled",
-        HUAYI_STORE_EXTENSION_ID: "enlolhfodncfnleiihkjanhmnfbgeggh",
+        HUAYI_STORE_EXTENSION_ID: "kehpghgppccjlmahanlmeagnpnfbcnea",
         HUAYI_MIN_SUPPORTED_EXTENSION_VERSION: "1.0.0",
         HUAYI_RESEND_API_KEY: secrets.resendNotificationKey,
         HUAYI_SECURITY_NOTIFICATION_MODE: "resend",

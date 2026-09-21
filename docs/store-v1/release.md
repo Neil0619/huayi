@@ -2,8 +2,9 @@
 
 本地开发和候选构建统一按[本地开发与商店交付流程](./local-and-store-workflow.md)：日常只加载
 `apps/store-extension/dist`，`dist-production` 是临时候选产物，`release` / `dist-release` 保留为
-离线兼容与测试输出。production 当前个人 ID 尚未完成真实商店条目绑定核验；构建成功不等于
-商店就绪，未来正式日常使用通过 Chrome Web Store 安装和更新。
+离线兼容与测试输出。production 1.0.1 候选已绑定商店 ID
+`kehpghgppccjlmahanlmeagnpnfbcnea`，用于更新已有 1.0.0 草稿；本地绑定与构建成功不等于
+正式服务验收或商店就绪，未来正式日常使用通过 Chrome Web Store 安装和更新。
 
 ## 权限说明
 

@@ -204,13 +204,15 @@ Store 与上方 Classic Native Host 安装相互独立。已获相应安装授�
 现有条目点击“重新加载”，保留 ID 与配置，不要先卸载。普通 build/E2E 输出到 `dist-release`，不覆盖
 Hosted 安装；该离线包不能替代云端包。真实重载、配对与 Windows 视觉验收需在 Windows 另行完成。
 
-## 个人正式版扩展
+## 正式 Store 候选
 
-正式环境上线且获得相应安装确认后，在项目目录运行 `pnpm production:store:build`，加载
-`apps/store-extension/dist-production`；`pnpm production:store:status` 只检查现有包。
-正式 ID 为 `enlolhfodncfnleiihkjanhmnfbgeggh`，与 Hosted 独立，可同时保留并分别配对。
-构建脚本通过 Node 执行 pnpm 入口，不依赖 POSIX 环境变量命令。离线构建不代替 Windows 实际加载、
-配对与浏览器验收；该包尚不代表 Chrome Web Store 发布。
+使用 `pnpm production:store:build` 构建 `apps/store-extension/dist-production`；
+`pnpm production:store:status` 只审计现有包。当前 1.0.1 候选的商店身份固定为
+`kehpghgppccjlmahanlmeagnpnfbcnea`，用于更新已有 1.0.0 草稿；不另建条目。
+日常仍只加载 Hosted `apps/store-extension/dist`。production 仅在另行授权的独立 Profile 中
+进行候选验收，未来正式日常使用通过 Chrome Web Store；构建不代表部署、送审或公开。
+正式账号配对、浏览器加载和目标平台验收须分别记录；旧个人 ID、Hosted ID 的存储与会话不会
+迁移到商店 ID，保留旧 Profile 和数据。参见[身份绑定流程](store-v1/chrome-first-upload.md)。
 
 ## 官方接口依据
 

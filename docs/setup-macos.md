@@ -279,12 +279,15 @@ DeepSeek 使用单独创建的正式 key。两份 Resend key 分别用于 Supaba
 命令只保存本机凭据；不会配置云端 SMTP、调用模型或发送邮件。逐项检查时使用
 `pnpm production:credentials:status --name <上述 account>`；默认 status 仍只检查两项初始化凭据。
 
-## 个人正式版扩展
+## 正式 Store 候选
 
-正式环境上线并完成相应浏览器安装确认后，使用 `pnpm production:store:build` 构建并检查独立包，
-`pnpm production:store:status` 只读取检查结果。加载目录为 `apps/store-extension/dist-production`，
-ID 固定为 `enlolhfodncfnleiihkjanhmnfbgeggh`，可以和 Hosted 测试版同时保留。
-正式版单独配对正式账号；它不继承测试版的数据、设备配对或本地密钥，不属于 Chrome Web Store 发布。
+使用 `pnpm production:store:build` 构建 `apps/store-extension/dist-production`；
+`pnpm production:store:status` 只审计现有包。当前 1.0.1 候选的商店身份固定为
+`kehpghgppccjlmahanlmeagnpnfbcnea`，用于更新已有 1.0.0 草稿；不另建条目。
+日常仍只加载 Hosted `apps/store-extension/dist`。production 仅在另行授权的独立 Profile 中
+进行候选验收，未来正式日常使用通过 Chrome Web Store；构建不代表部署、送审或公开。
+正式账号配对、浏览器加载和目标平台验收须分别记录；旧个人 ID、Hosted ID 的存储与会话不会
+迁移到商店 ID，保留旧 Profile 和数据。参见[身份绑定流程](store-v1/chrome-first-upload.md)。
 
 ## 使用 Hosted acceptance Store Extension（验收环境）
 

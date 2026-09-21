@@ -450,3 +450,12 @@ Host 才记录探针已接受并允许确认全量重新入队；否则保持其
 `cn.seen-said.huayi.production/runtime-generated-secrets-v1`，不从验收环境或管理凭据派生。
 程序保存长密钥内容使用系统 `security -i`，只在丢弃输出的 stdin 中发送十六进制数据，随后完整回读；
 不通过 argv、环境、文件或日志传递，也不自动覆盖损坏或已有条目。
+
+## Store 商店身份边界
+
+production Manifest 使用商店条目公钥，派生 ID 固定为 `kehpghgppccjlmahanlmeagnpnfbcnea`。
+生产构建审计、正式环境声明与 API 启动校验必须一致；Store 能力启用时拒绝历史个人 ID、
+Hosted ID 和其他 ID，禁用时必须移除 ID。Hosted ID `hoijjhgcckfhbcefoclgbhkgninnkknd` 保持原状，
+不放宽 origin、CORS 或配对校验。跨 ID 的本机存储、设备凭据和会话不会自动迁移，须保留旧数据。
+本地绑定不证明远端配置/部署、浏览器安装或账号配对已完成，见
+[商店身份绑定](store-v1/chrome-first-upload.md)及[Cloud 安全边界](cloud-v1/security.md)。

@@ -41,6 +41,9 @@ describe("production release configuration contract", () => {
     const environment = { ...buildProductionEnvironment(secrets).api, ...deploymentIdentity };
 
     expect(parseApiEnvironment(environment)).toEqual(environment);
+    expect(parseApiEnvironment(environment).HUAYI_STORE_EXTENSION_ID).toBe(
+      "kehpghgppccjlmahanlmeagnpnfbcnea",
+    );
   });
 
   it.each(priceKeys)("requires a valid, unique %s without exposing credentials", (key) => {

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "语见 · Seen & Said",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Turn what you see into what you can say. 面向中文英语学习者的网页划词翻译与本地生词本。",
   "incognito": "not_allowed",
   "permissions": ["alarms", "storage", "unlimitedStorage"],
@@ -58,7 +58,7 @@
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'; connect-src https://api.openai.com https://api.deepseek.com https://api.frdic.com https://api.seen-said.cn"
   },
-  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAt4y8KMEsQs5GgJ40WaLHtmN55FnCrGEZw2j2KZip+q8sOoFnQHdhyaZBxFEMaQAAwLgWkTvLge/NJZR2k6C3eWzqgxBUwOuIexZzHhDcBbXuHl+mpk7DvuxF2NaP/wlgBJF/d8Y5J3uqh8B3vwliCy5gDTxjzIyLKv/s0cYrlScWkXKagzl6GMFPYN75XApEc3Kdp8loAZ08Vdj5IACCGcFx0z34/m05j6+QtFs7btxzFwZ0tstEgp/9o8Ib13Cov4SwTeOacwTKXxxANCkSxi1seugafoMfJQvb9JWqmE5mGYiXb1Il0Bre/6i7JLhzDHe98TzGMDWL/hXtQ0H1GwIDAQAB",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAtnhWTbphkItC1wLmliTU1kutkPT6VWfxQyFS64qvcCUpAzlW0sgSE9E7C1Ss32Of8xaswXilHOC1PZQD7DKE4Jbe3in2pQi/Kg6kis1HQy3U95k/+8XJf3iod6odT6T4k1j97FIjpR1JQR439rZ2zgEKRYOb7P1j1XoCWzjI+ta+trHLTEX8qa+zj5iu/Hsg5iCr12zUyyL8oYo9RsTuFHYJnIA/uyMTGvLl9tywmX2q7sODrp6WeM4jIFV518LzVuuz2HjIQB/hjA7EKQeVeeDwhLVN3+ME9PuOBU+KieL/nG+0KjXTR/g2ocZuOMBubg1chmYGJt5DfLAZl0lN+QIDAQAB",
   "icons": {
     "16": "icon-16.png",
     "48": "icon-48.png",

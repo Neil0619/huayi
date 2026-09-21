@@ -1,6 +1,7 @@
 # 语见 · Seen & Said 正式环境手动扩展包披露
 
-本包供本人及受邀朋友非商业使用，通过 Chrome 手动加载；未向 Chrome Web Store 提交或发布。
+本包供本人及受邀朋友非商业使用。用户已上传 Chrome Web Store 1.0.0 草稿并提供条目公钥；
+当前 production 1.0.1 候选绑定该条目，尚不表示已送审或公开。手动验收与商店安装证据分别记录。
 维护者 Neil，联系邮箱 [niu0619@gmail.com](mailto:niu0619@gmail.com)。
 
 ## 用途与连接
@@ -11,7 +12,7 @@
 - API：https://api.seen-said.cn
 - Web：https://app.seen-said.cn，工作台 https://app.seen-said.cn/app
 - 隐私说明：https://app.seen-said.cn/privacy
-- 固定扩展 ID：`enlolhfodncfnleiihkjanhmnfbgeggh`
+- 固定扩展 ID：`kehpghgppccjlmahanlmeagnpnfbcnea`
 - 手动包：`apps/store-extension/dist-production`；与测试扩展账号、配对和存储独立。
 
 ## 权限与必要性
@@ -70,4 +71,4 @@ URL、模型回答、Key 或原始异常文本。待上传诊断最多 100 条�
 供应商备份的保留与恢复限制见[正式站隐私说明](./privacy-policy-production.md)。
 
 运行日志与管理页不提供正文浏览。所有第三方名称仅说明兼容或接收方，不表示官方合作或认可。
-后续如提交 Chrome Web Store，仍需按当时 Dashboard 完成人工披露和审核；本文件不代替商店发布回执。
+更新现有 Chrome Web Store 条目仍需按 Dashboard 完成人工披露和审核；本文件不代替商店发布回执。

@@ -49,8 +49,10 @@ pnpm store:package:status
 `apps/store-extension/dist-production`，固定目标是 `https://api.seen-said.cn` 与
 `https://app.seen-said.cn/app`。它们只构建或审计本地产物，不执行上传、部署、迁移或商店发布。
 
-当前 production 构建仍固定个人 ID `enlolhfodncfnleiihkjanhmnfbgeggh`；真实 Chrome Web Store
-item ID 尚未核验，不能将该个人 ID 当作已确认的商店身份，也不能将命令成功称为“商店就绪”。
+当前 production 构建已绑定用户提供的 Chrome Web Store 公钥和 item ID
+`kehpghgppccjlmahanlmeagnpnfbcnea`，1.0.1 候选用于更新已上传的 1.0.0 草稿。历史个人 ID
+`enlolhfodncfnleiihkjanhmnfbgeggh` 不再是当前 production 预期身份，旧 Profile 和数据保留。
+本地绑定或命令成功不等于正式 API 已更新、账号配对通过或“商店就绪”。
 商店交付前须核验真实条目、公钥/ID、对应云端许可与配对兼容、权限披露和最终候选，并完成
 [发布门槛](./release.md)及[逐项发布清单](./release-checklist.md)。
 

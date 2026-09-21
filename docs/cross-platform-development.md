@@ -43,7 +43,8 @@ CC／切轨、`zh-Hans`、SPA、剧院／全屏、选词和生词本。
 - Cloud Web/API/Store 的应用版本请求头属于 shared HTTP 合同：使用 `X-Huayi-Revision`，兼容旧输入，
   两个平台均验证版本冲突、幂等和代理响应回归；真实 Hosted 域名的请求结果另行回读。
 - Store 使用同一套源码构建 Hosted 验收与 production 候选，日常只加载 `apps/store-extension/dist`；
-  `production` / `dist-production` 为临时发布产物，当前固定个人 ID 尚未核验真实商店绑定。
+  `production` / `dist-production` 为临时发布产物，当前 1.0.1 候选绑定商店 ID
+  `kehpghgppccjlmahanlmeagnpnfbcnea`；本地绑定不代替双平台 Chrome 和正式服务验收。
   构建及包审计属于 shared 离线门，两个平台都必须通过；真实 Chrome 重载和配对分别在目标平台确认。
   未来正式日常使用通过 Chrome Web Store，详见[本地开发与商店交付流程](store-v1/local-and-store-workflow.md)。
 - Hosted 首次密码恢复/Cron 引导的状态判断、HTTP worker 与严格 parser 属于 shared 合同，必须在 macOS

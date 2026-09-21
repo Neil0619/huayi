@@ -92,4 +92,26 @@ describe("Public privacy page", () => {
     expect(container.textContent).toContain("正式发布前仍需补齐");
     expect(container.textContent).not.toContain("本人及受邀朋友");
   });
+
+  it.each(["production", "hosted-acceptance"] as const)(
+    "discloses local page identifiers and connection security separately from uploaded content in %s",
+    async (deploymentEnvironment) => {
+      const container = document.createElement("div");
+      document.body.append(container);
+      await act(async () =>
+        createRoot(container).render(<PrivacyPage deploymentEnvironment={deploymentEnvironment} />),
+      );
+
+      const text = container.textContent;
+      expect(text).toContain("在本机处理当前网址、域名及 YouTube 视频标识");
+      expect(text).toContain("不读取 Chrome 浏览历史列表");
+      expect(text).toContain("连接 IP");
+      expect(text).toContain("不使用 GPS");
+      expect(text).toContain("限流标识");
+      expect(text).toContain("尚未设置自动删除期限");
+      expect(text).toContain("首次检查包含已同意来源的已有词");
+      expect(text).not.toContain("不会自动收集 URL");
+      expect(text).not.toContain("本扩展通过手动加载使用");
+    },
+  );
 });

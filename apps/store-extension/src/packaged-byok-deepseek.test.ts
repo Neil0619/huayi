@@ -77,7 +77,7 @@ it("the production package uses canonical DeepSeek BYOK without a Cloud session 
     const request = vi.fn<(url: URL, init?: RequestInit) => Promise<Response>>(async () =>
       modelStream(model),
     );
-    const worker = loadPackagedWorker(source, "enlolhfodncfnleiihkjanhmnfbgeggh", storage, {
+    const worker = loadPackagedWorker(source, "kehpghgppccjlmahanlmeagnpnfbcnea", storage, {
       request,
     });
     const port = worker.connect();

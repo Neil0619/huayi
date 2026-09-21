@@ -242,8 +242,10 @@ DOM、零卡片横向溢出和独立 `pearl | parchment` 材质。fake 不发 HT
 产物与安装分工见[本地开发与商店交付流程](store-v1/local-and-store-workflow.md)。`dist-release`
 仅作离线兼容与测试，`dist` 是唯一日常加载目录；用 `pnpm store:local:build` / `status` 验证本地包，
 用 `pnpm store:package:build` / `status` 验证 production 候选。分别记录包审计与目标平台实际重载
-结果；不以三种产物的存在要求三份日常安装。production 当前个人 ID 不证明真实商店绑定，未来
-商店安装、跨 ID 数据迁移与后端 Shanbay status `404` 的修复仍须独立验证。
+结果；不以三种产物的存在要求三份日常安装。production 1.0.1 已绑定商店公钥/ID
+`kehpghgppccjlmahanlmeagnpnfbcnea`；身份回归检查公钥派生、构建预期、环境声明和 API 约束，
+production 拒绝旧个人/Hosted/任意其他 ID，Hosted 身份保持原状。商店安装、正式 API 部署/配对、
+跨 ID 数据迁移和回填接口兼容仍须独立验证，不能用本地回归结果代替。
 
 - 单词翻译/解释在最终卡片前显示至少两个独立增量；
 - 单词翻译固定验证音标置顶、词性与释义合并、常用短语、易混词以及没有原文例句/独立词性；
