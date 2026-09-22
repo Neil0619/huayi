@@ -186,11 +186,10 @@ export function parseTimedTextBody(value: string): TimedTextCue[] | null {
   }
   const pending: { durationMs: number | null; startMs: number; text: string }[] = [];
   for (const event of parsed.events) {
-    if (
-      !isRecord(event) ||
-      !Array.isArray(event.segs) ||
-      event.segs.length > MAX_SEGMENTS_PER_CUE
-    ) {
+    if (!isRecord(event)) return null;
+    // JSON3 window/control events carry no text. A present malformed segs still fails closed.
+    if (!("segs" in event)) continue;
+    if (!Array.isArray(event.segs) || event.segs.length > MAX_SEGMENTS_PER_CUE) {
       return null;
     }
     const startMs = finiteNonnegative(event.tStartMs);

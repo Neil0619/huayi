@@ -27,6 +27,7 @@ import {
   visibleCaptionText,
 } from "./youtube-player-state.js";
 import { formatYouTubeShortcutLabel, YouTubeShortcutController } from "./youtube-shortcut.js";
+import { YouTubeSourceRecovery } from "./youtube-source-recovery.js";
 import { YouTubeTemporaryTranslationHold } from "./youtube-temporary-translation-hold.js";
 export class YouTubeCaptionController {
   readonly #acceptsUserGesture: (event: Event) => boolean;
@@ -44,6 +45,7 @@ export class YouTubeCaptionController {
   readonly #shortcutLabel: string;
   readonly #temporaryHold: YouTubeTemporaryTranslationHold;
   readonly #waitForTranslatedRetry: () => Promise<void>;
+  readonly #sourceRecovery = new YouTubeSourceRecovery();
   #generation = 0;
   #lastSourceAttemptCaption: string | null = null;
   #loading = false;
@@ -103,19 +105,8 @@ export class YouTubeCaptionController {
   start(): void {
     if (this.#started) return;
     this.#started = true;
-    this.#documentRef.addEventListener(
-      "pointerdown",
-      this.#dismissalGesture.handlePointerDown,
-      true,
-    );
-    this.#documentRef.addEventListener("click", this.#dismissalGesture.handleClick, true);
+    this.#setListeners("addEventListener");
     this.#selectionGesture.start();
-    this.#documentRef.addEventListener("keydown", this.#shortcut.handleKeydown, true);
-    this.#documentRef.addEventListener("keyup", this.#shortcut.handleKeyup, true);
-    this.#documentRef.addEventListener("visibilitychange", this.#handleVisibilityChange);
-    this.#documentRef.defaultView?.addEventListener("blur", this.#handleWindowBlur);
-    this.#documentRef.addEventListener("yt-navigate-start", this.#handleNavigation);
-    this.#documentRef.addEventListener("yt-navigate-finish", this.#handleNavigation);
     this.#observer.observe(this.#documentRef.documentElement, {
       attributeFilter: ["aria-pressed", "class"],
       attributes: true,
@@ -127,27 +118,27 @@ export class YouTubeCaptionController {
   stop(): void {
     if (!this.#started) return;
     this.#started = false;
-    this.#documentRef.removeEventListener(
-      "pointerdown",
-      this.#dismissalGesture.handlePointerDown,
-      true,
-    );
-    this.#documentRef.removeEventListener("click", this.#dismissalGesture.handleClick, true);
+    this.#setListeners("removeEventListener");
     this.#selectionGesture.stop();
-    this.#documentRef.removeEventListener("keydown", this.#shortcut.handleKeydown, true);
-    this.#documentRef.removeEventListener("keyup", this.#shortcut.handleKeyup, true);
-    this.#documentRef.removeEventListener("visibilitychange", this.#handleVisibilityChange);
-    this.#documentRef.defaultView?.removeEventListener("blur", this.#handleWindowBlur);
     this.#pauseOwnerships.fill(null);
     this.#shortcut.clear();
     this.#temporaryHold.clear();
-    this.#documentRef.removeEventListener("yt-navigate-start", this.#handleNavigation);
-    this.#documentRef.removeEventListener("yt-navigate-finish", this.#handleNavigation);
     this.#observer.disconnect();
     this.#clearSession();
     this.#bridge.destroy();
   }
 
+  #setListeners(method: "addEventListener" | "removeEventListener"): void {
+    const listen: Document["addEventListener"] = this.#documentRef[method].bind(this.#documentRef);
+    listen("pointerdown", this.#dismissalGesture.handlePointerDown, true);
+    listen("click", this.#dismissalGesture.handleClick, true);
+    listen("keydown", this.#shortcut.handleKeydown, true);
+    listen("keyup", this.#shortcut.handleKeyup, true);
+    listen("visibilitychange", this.#handleVisibilityChange);
+    this.#documentRef.defaultView?.[method]("blur", this.#handleWindowBlur);
+    listen("yt-navigate-start", this.#handleNavigation);
+    listen("yt-navigate-finish", this.#handleNavigation);
+  }
   setAppearance(appearance: StoreAppearance): void {
     this.#appearance = appearance;
     this.#view?.setAppearance(appearance);
@@ -203,21 +194,22 @@ export class YouTubeCaptionController {
   async #load(expectedVideoId: string, generation: number): Promise<void> {
     this.#loading = true;
     try {
-      const source = await this.#bridge.capture({
-        expectedVideoId,
-        generation,
-        target: "source",
-      });
+      const source = await this.#sourceRecovery.capture(
+        this.#bridge,
+        { expectedVideoId, generation, target: "source" },
+        this.#sentences.length === 0,
+        () => this.#isCurrent(expectedVideoId, generation),
+        this.#player,
+        this.#video,
+      );
       if (!this.#isCurrent(expectedVideoId, generation)) return;
       if (source === null || !/^en(?:-|$)/iu.test(source.track.languageCode)) {
         if (this.#sentences.length > 0 && this.#player !== null && this.#video !== null) {
-          const player = this.#player;
-          const video = this.#video;
           const rejected = this.#lastSourceAttemptCaption;
-          this.#replacePlayer(player, video, expectedVideoId);
+          this.#replacePlayer(this.#player, this.#video, expectedVideoId, false);
           this.#lastSourceAttemptCaption = rejected;
         } else if (this.#player === null || visibleCaptionText(this.#player) === null) {
-          this.#clearSession();
+          this.#lastSourceAttemptCaption = null;
         }
         return;
       }
@@ -244,11 +236,8 @@ export class YouTubeCaptionController {
     }
   }
   #ensureView(): void {
-    if (this.#player === null) return;
-    if (this.#view !== null) {
-      this.#view.mountControl(this.#player);
-      return;
-    }
+    // The following render mounts controls for both new and existing views.
+    if (this.#player === null || this.#view !== null) return;
     this.#view = new YouTubeCaptionView(
       this.#documentRef,
       this.#player,
@@ -316,15 +305,23 @@ export class YouTubeCaptionController {
   };
   readonly #handleVideoPlay = (event: Event): void => {
     if (!(event.currentTarget instanceof HTMLVideoElement)) return;
-    if (this.#pauseOwnerships[0]?.[2] === event.currentTarget) this.#pauseOwnerships[0] = null;
-    if (this.#pauseOwnerships[1]?.[2] === event.currentTarget) this.#pauseOwnerships[1] = null;
+    for (const owner of [SELECTION_PAUSE, TEMPORARY_PAUSE]) {
+      if (this.#pauseOwnerships[owner]?.[2] === event.currentTarget)
+        this.#pauseOwnerships[owner] = null;
+    }
   };
   readonly #handleNavigation = (event: Event): void => {
     if (event.type === "yt-navigate-start") this.#clearSession();
     else this.#scheduleRefresh();
   };
   #isCurrent(videoId: string, generation: number): boolean {
-    return this.#started && this.#videoId === videoId && this.#generation === generation;
+    return (
+      this.#started &&
+      this.#videoId === videoId &&
+      this.#generation === generation &&
+      this.#getVideoId() === videoId &&
+      this.#isWatchPage()
+    );
   }
   #isCurrentOwnership(ownership: YouTubePauseOwnership): boolean {
     return (
@@ -355,16 +352,22 @@ export class YouTubeCaptionController {
       // A stale or policy-blocked media element fails closed without retrying.
     }
   }
-  #replacePlayer(player: HTMLElement, video: HTMLVideoElement, videoId: string): void {
-    this.#clearSession();
+  #replacePlayer(
+    player: HTMLElement,
+    video: HTMLVideoElement,
+    videoId: string,
+    resetSource = true,
+  ): void {
+    this.#clearSession(resetSource);
     this.#player = player;
     this.#video = video;
     this.#videoId = videoId;
     video.addEventListener("play", this.#handleVideoPlay);
     video.addEventListener("timeupdate", this.#render);
   }
-  #clearSession(): void {
+  #clearSession(resetSource = true): void {
     this.#generation += 1;
+    this.#sourceRecovery.cancel(resetSource);
     this.#dismissalGesture.clear();
     this.#pauseOwnerships.fill(null);
     this.#temporaryHold.clear();

@@ -209,7 +209,7 @@ describe("Store YouTube caption controller", () => {
     harness.controller.stop();
   });
 
-  it("fails closed when capture settles while the native cue remains absent", async () => {
+  it("waits closed without resetting the session when capture settles with no native cue", async () => {
     let resolveSource: (result: CapturedCaptionTrack | null) => void = () => undefined;
     const capture = vi.fn(
       () =>
@@ -228,7 +228,8 @@ describe("Store YouTube caption controller", () => {
     resolveSource(null);
     await settle();
 
-    expect(harness.overlay.close).toHaveBeenCalledTimes(closeCount + 1);
+    expect(harness.overlay.close).toHaveBeenCalledTimes(closeCount);
+    expect(harness.player.querySelector("[data-huayi-store-youtube-subtitles]")).toBeNull();
     expect(capture).toHaveBeenCalledTimes(1);
     harness.controller.stop();
   });

@@ -93,6 +93,15 @@ describe("Store YouTube static MAIN bridge", () => {
     );
     expect(track).toEqual({ kind: "asr", languageCode: "en", vssId: ".en" });
     expect(environment.fetch).toBe(originalFetch);
+
+    const capturedRequests = originalFetch.mock.calls.length;
+    dispatch({ ...request, capability: "capability-1", requestId: "request-2" });
+    await settle();
+    expect(environment.postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ ok: true, requestId: "request-2" }),
+      "https://www.youtube.com",
+    );
+    expect(originalFetch).toHaveBeenCalledTimes(capturedRequests);
     bridge.destroy();
   });
 

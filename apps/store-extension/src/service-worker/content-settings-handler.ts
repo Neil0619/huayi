@@ -27,9 +27,9 @@ function trustedYouTubeHost(value: string | undefined): string | null {
   } catch {
     return null;
   }
-  return sender.protocol === "https:" &&
-    YOUTUBE_HOSTS.has(sender.hostname.toLowerCase()) &&
-    sender.pathname === "/watch"
+  // A content script's sender URL can retain its initial path across YouTube SPA navigation.
+  // Authorize this presentation-settings read by HTTPS host; capture gates use the live /watch URL.
+  return sender.protocol === "https:" && YOUTUBE_HOSTS.has(sender.hostname.toLowerCase())
     ? sender.hostname.toLowerCase()
     : null;
 }

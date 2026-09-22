@@ -13,6 +13,13 @@ Huayi 选择在短生命周期 MAIN-world bridge 内驱动当前 YouTube 播放�
 边界：wrapper 仍只在一次受控播放器操作期间存活，并继续精确校验 host、path、videoId、语言、
 kind、`tlang`、`fmt=json3`、2xx 响应、JSON3 Schema 和全部大小上限。
 
+Store 实测英文 ASR 的 JSON3 还包含没有 `segs` 的窗口控制事件（例如带有 `id`、
+`wpWinPosId`、`wsWinStyleId` 的事件）。这类无文本对象跳过，不得使整份字幕成为
+`invalid-response`；只要 `segs` 字段存在，就仍要求有界数组。总字节、全部事件数量（包含
+无文本事件）、每事件 segment 数和每 segment 文本长度上限保持不变；非对象事件、畸形
+`segs`、超限内容或最终没有文字 cue 仍失败关闭。回归夹具只保留控制事件与文本事件结构，
+使用合成时序和文案，并贯通 MAIN 捕获、bridge 校验与 Store 字幕呈现。
+
 源轨与译轨由 isolated controller 串行请求。bridge 只有在同一代次已经成功捕获、且当前活动轨
 仍精确匹配该源轨时才接受译轨请求；译轨阶段直接驱动 `translationLanguage: zh-Hans`，不重复
 触发同一源轨。真实播放器可能缓存重复源轨请求，旧的二次源轨预捕获因此会在 3 秒处超时并让
@@ -26,6 +33,19 @@ kind、`tlang`、`fmt=json3`、2xx 响应、JSON3 Schema 和全部大小上限�
 替换或 controller 停止会使等待中的尝试失效；第二次仍不可用就失败关闭，中文开关保持禁用。
 源轨不进入该路径，Provider 请求也不涉及该路径，因此不会重复模型费用或把页面正文送往网络。
 
+Store 首次源轨捕获同样可能遇到瞬态就绪窗口：isolated 已观察到 CC ON 和可见候选 cue，
+但 MAIN 当前 captions 模块、活动轨或播放器响应仍不可用。单次失败不能永久封锁同一 cue；
+尚未建立源轨分句时，同一视频/播放器生命周期的初始捕获共用三次预算；恢复循环内对 `null`
+的重试间隔固定 200ms。每次重试前重新确认
+同一 videoId、代次、播放器、video、watch 页面、CC ON 和可见候选 cue；MAIN 仍逐次验证
+唯一匹配的当前英文活动轨，验证失败不得驱动字幕或包装网络函数。候选文本本身不证明英文轨。
+CC 关闭、导航、播放器/video 替换、播放器失效和停止会清除等待定时器、使旧代次失效并重置
+预算。捕获驱动引起的原生 cue 暂时消失只等待可见候选恢复，不清空会话代次或预算；同一 cue
+恢复和后续 cue 变化都不能补充次数。缺少 cue 或耗尽次数仍失败关闭，不创建字幕面板。
+返回非空轨道结果后不重试，非英文结果继续被拒绝；已经建立会话后的 cue 不匹配仍只尝试
+一次，拒绝该结果后也不补充初始捕获预算。此恢复只涉及播放器字幕捕获，不涉及 Provider、
+模型费用或新增跨 world 字段。
+
 驱动字幕模块会让原生 cue 在恢复轨道时短暂消失，因此 isolated 侧不能把该瞬时空窗口误判为
 切轨。可见英文 cue 只是首次建立字幕会话的 bootstrap 条件；source capture 已产生非空分句并
 建立 Store 字幕面板后，原生 cue 不再是会话持续条件，因为 bridge Promise 完成与播放器恢复
@@ -37,11 +57,22 @@ kind、`tlang`、`fmt=json3`、2xx 响应、JSON3 Schema 和全部大小上限�
 响应。source 阶段非英文仍立即拒绝，等待超时仍失败关闭。这样保留
 用户切轨失败关闭，同时避免 bridge 自身动作使有效结果失效。
 
-字幕 DOM 不是轨道身份的权威，英文 ASR rolling correction 与预分句不互含也不构成切轨证据。
-DOM 不一致连续 2 秒后，controller 只请求 MAIN bridge 做只读源轨身份探测；探测不驱动播放器
-或网络，只返回 `same-source`、`different-english`、`non-english` 或 `unavailable`，且不暴露语言、
-vssId 或播放器对象。相同源轨保留当前面板，另一英文轨才重开代次，非英文或不可用状态暂停
-Huayi 并恢复原生字幕；后续 cue 变化可再次探测，以便用户切回英文时恢复。导航开始后直到
+Store 的字幕 DOM 不是轨道身份的权威，英文 ASR rolling correction 与完整预分句不互含
+会触发源轨复核，但不能据此反复卸载、重载字幕模块。MAIN 在每次请求上重新验证精确 HTTPS
+watch 页面、当前播放器、videoId、CC ON、唯一英文活动轨和会话代次；只有 session、generation、
+videoId、播放器对象与轨道身份全部相同，才复用本页面已验证的源轨或译轨捕获结果。复用不会
+驱动播放器、包装网络函数或再次请求 timedtext，响应仍使用本次请求的完整关联字段。
+每个 MAIN bridge 最多保留一组源轨和译轨，分别受既有 2 MiB 上限约束，不写入持久存储。
+代次、播放器、视频或活动轨变化使旧结果失效；观察到 CC OFF、非英文、不可用状态或离开
+watch 页面时清空，导航、pagehide 和销毁也清空。另一英文轨重新捕获，非英文或不确定状态
+继续失败关闭。
+
+译轨捕获尝试也归属于这组源轨生命周期，最多两次（含首次）；无论 HTTP 拒绝、超时还是
+响应无效都消耗次数。滚动字幕触发的源轨复核不会重新获得次数，耗尽后直接返回不可用，
+保留已捕获英文而不再驱动播放器或发起请求。第二次成功的译轨仍可复用；只有上述源轨身份
+失效并重新成功捕获后，才开始新的尝试额度。
+
+导航开始后直到
 `yt-navigate-finish` 才解除
 捕获锁，期间 `yt-page-data-updated` 不得提前捕获。同视频的独立 page-data 事件只刷新视图，
 不开始新代次。YouTube 重建控制栏时字幕面板继续存活，仅重新挂载双语控制；控制栏正常
@@ -89,6 +120,14 @@ videoId 与 CaptionGeneration。按住期间出现任何 `play` 事件会撤销�
 切轨、播放器或视频替换、controller 停止和会话清理都会先撤销所有权再清除按住来源，因此迟到的
 释放事件不能播放旧视频。若有效字幕选区在临时按住期间成立，临时所有权只可在同一播放上下文中
 显式转移给选区所有权，不能先恢复再重新暂停；之后仍由 Overlay 的真实关闭路径决定是否恢复。
+
+从首页或 feed 首次经 SPA 进入播放页时，Chromium 消息发送者 URL 可能仍是内容脚本上下文
+创建时的路径，因此内容设置处理器不能要求 sender URL 为 `/watch`。该只读消息按精确 HTTPS
+YouTube hostname（`youtube.com`、`www.youtube.com`、`m.youtube.com`）授权，继续严格校验
+消息、总开关与站点策略，只返回显示偏好；不借用顶层标签页 URL 推断发送者身份。内容入口仍在
+当前文档 `/watch` 才请求设置，integration、controller 和 MAIN bridge 的当前页面与捕获门禁
+保持不变。回归测试把真实设置处理器与 integration 组合，固定原始首页 sender URL，验证首页
+不激活、SPA 进入 watch 后启动、离开后停止；单独 mock 成功设置响应无法覆盖这条失败链。
 
 MV3 Service Worker 冷启动时，YouTube isolated 入口依次经过版本握手、初始站点策略和内容设置
 三个只读消息边界。任一边界的一次瞬态失败都不能让当前标签页永久静默；YouTube 入口对每个

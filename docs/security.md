@@ -100,6 +100,13 @@ MAIN bridge 在三个精确 HTTPS YouTube host 的 `/*` 加载，但非 `/watch`
 时立即销毁。isolated Content Script 必须同时确认 CC ON、当前活动轨为英文且页面实际显示英文字幕；它不替用户开启 CC 或
 切轨。普通网页、直播、广告、Shorts 和非英文活动轨不创建自定义字幕或发字幕请求。
 
+内容设置只读消息单独按发送者的 HTTPS 与精确 hostname（`youtube.com`、`www.youtube.com`、
+`m.youtube.com`）授权，不依赖发送者 URL 的路径：Chromium 的内容脚本上下文 URL 可能保留
+首次载入的首页或 feed 路径，SPA 进入 `/watch` 后不能用该旧路径拒绝显示偏好读取。消息仍必须
+通过严格 Schema、总开关和站点策略校验，仅返回外观、字幕模式与快捷键；不使用顶层标签页 URL
+替代发送者身份。入口仍只在当前文档为 `/watch` 时请求这些设置；isolated integration、controller
+和 MAIN bridge 的当前播放页、视频及字幕捕获门禁均不变，读取设置不授权播放器或网络操作。
+
 独立 MAIN-world bridge 只在一次请求期间读取当前播放器、临时驱动活动源轨或其 `zh-Hans`
 自动翻译轨，并捕获播放器自己发出的精确 `/api/timedtext` JSON3。译轨请求必须引用同一代次
 已经成功捕获且仍为当前活动轨的源轨；它不会为了译轨重复触发可能已被缓存的源轨请求，也不
@@ -126,12 +133,15 @@ Schema、body 与 cue 上限校验；匿名或 bridge 主动构造的 timedtext 
 只在已有 7 秒请求期限内以 50ms 间隔等待连续 750ms 的稳定源轨窗口，超时即失败关闭，不延长
 请求寿命。
 
-原生字幕 DOM 在恢复和 ASR rolling correction 中可能短暂出现中文、空值或与完整预分句不
-互含的英文。DOM 文本差异不作为轨道身份；连续 2 秒不一致只触发严格的 MAIN-world 只读源轨
-身份探测。探测请求只含 requestId、generation 和 videoId，响应只含固定四态，不携带语言、
-kind、vssId、URL、Token、Cookie 或播放器对象，也不驱动字幕模块或包装网络函数。相同源轨
-保留 Huayi，另一英文轨重开代次，非英文或不可用状态暂停 Huayi 并恢复原生字幕，后续 cue
-变化可再次探测并恢复。明确 CC OFF、播放器失效、广告、
+Store 的原生字幕 DOM 在 ASR rolling correction 中可能与完整预分句不互含。文本差异会触发
+源轨复核；MAIN 每次都重新验证精确 HTTPS watch 页面、当前播放器、videoId、CC ON、唯一
+英文活动轨及请求关联。仅 session、generation、videoId、播放器对象和活动轨身份完全相同，
+才返回当前页面已验证的源轨或译轨捕获结果，不重载字幕模块、不包装网络函数、不重复请求。
+结果仍经过原有严格响应解析；不新增跨 world 消息字段，不传递 vssId、URL、Token、Cookie 或
+播放器对象。单个 bridge 最多保留一组源轨和译轨，各最多 2 MiB，仅在页面内存中存活。
+代次、播放器、视频或轨道变化，以及观察到 CC OFF、非英文或不可用状态都会使旧结果失效；
+导航、pagehide 和销毁清空结果。其他英文轨重新捕获，非英文或不确定状态失败关闭。
+明确 CC OFF、播放器失效、广告、
 直播或导航开始仍立即恢复。导航锁只有 `yt-navigate-finish` 能解除，过渡期 page-data 更新不能
 提前重新捕获。控制栏临时被 YouTube 重建时，字幕面板保持连接，仅在新的 CC 控件出现后重新
 挂载“中”，不会因此重新捕获字幕；YouTube 正常隐藏整条控制栏时“中”随其一起隐藏。
