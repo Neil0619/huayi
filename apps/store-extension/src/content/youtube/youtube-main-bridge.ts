@@ -5,7 +5,11 @@ import {
   type YouTubeBridgeRequest,
   type YouTubeTrackMetadata,
 } from "./youtube-bridge-contract.js";
-import { installTimedTextCapture, type MainCaptureEnvironment } from "./youtube-main-capture.js";
+import {
+  installTimedTextCapture,
+  type CapturedTimedText,
+  type MainCaptureEnvironment,
+} from "./youtube-main-capture.js";
 
 export interface YouTubeMainPlayer {
   getOption(module: string, option: string): unknown;
@@ -36,13 +40,18 @@ interface TrackIdentity extends YouTubeTrackMetadata {
 
 interface SourceCapture {
   readonly generation: number;
+  readonly player: YouTubeMainPlayer;
   readonly session: string;
+  readonly source: CapturedTimedText;
   readonly track: TrackIdentity;
   readonly videoId: string;
+  translated?: CapturedTimedText;
+  translationAttempts: number;
 }
 
 const DEFAULT_TIMEOUT_MS = 3_000;
 const MAX_SESSIONS = 8;
+const MAX_TRANSLATION_ATTEMPTS = 2;
 const YOUTUBE_HOSTS = new Set(["youtube.com", "www.youtube.com", "m.youtube.com"]);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -160,6 +169,25 @@ export function createYouTubeMainBridge(
       environment.location.origin,
     );
   };
+  const postCapture = (
+    request: YouTubeBridgeRequest,
+    captured: CapturedTimedText,
+    track: YouTubeTrackMetadata,
+  ): void => {
+    environment.postMessage(
+      {
+        ...request,
+        ...captured,
+        ok: true,
+        track: {
+          ...(track.kind === undefined ? {} : { kind: track.kind }),
+          languageCode: track.languageCode,
+        },
+        type: YOUTUBE_BRIDGE_RESPONSE,
+      },
+      environment.location.origin,
+    );
+  };
 
   const execute = async (request: YouTubeBridgeRequest): Promise<void> => {
     const session = sessionKey(request.channel, request.capability);
@@ -174,6 +202,7 @@ export function createYouTubeMainBridge(
       !YOUTUBE_HOSTS.has(environment.location.hostname.toLowerCase()) ||
       environment.location.pathname !== "/watch"
     ) {
+      sourceCapture = null;
       postFailure(request, "unavailable");
       return;
     }
@@ -183,19 +212,36 @@ export function createYouTubeMainBridge(
     const originalTrack = player === null ? null : player.getOption("captions", "track");
     const track = player === null ? null : activeEnglishTrack(player, response);
     if (player === null || videoId !== request.expectedVideoId || track === null) {
+      sourceCapture = null;
       postFailure(request, "unavailable");
       return;
     }
-    if (
-      request.target === "translated" &&
-      (sourceCapture === null ||
-        sourceCapture.session !== session ||
-        sourceCapture.generation !== request.generation ||
-        sourceCapture.videoId !== videoId ||
-        !sameTrack(sourceCapture.track, originalTrack))
-    ) {
+    const sameSource =
+      sourceCapture !== null &&
+      sourceCapture.session === session &&
+      sourceCapture.generation === request.generation &&
+      sourceCapture.videoId === videoId &&
+      sourceCapture.player === player &&
+      sameTrack(sourceCapture.track, originalTrack);
+    if (!sameSource) sourceCapture = null;
+    if (request.target === "translated" && sourceCapture === null) {
       postFailure(request, "unavailable");
       return;
+    }
+    // Rolling ASR text can differ from our sentence without changing the active track.
+    // Revalidate identity above, then reuse only this page's already validated capture.
+    const cached = sourceCapture?.[request.target];
+    if (cached !== undefined) {
+      postCapture(request, cached, track);
+      return;
+    }
+    // Failures also belong to this source lifecycle; a new cue cannot renew retries.
+    if (request.target === "translated" && sourceCapture !== null) {
+      if (sourceCapture.translationAttempts >= MAX_TRANSLATION_ATTEMPTS) {
+        postFailure(request, "unavailable");
+        return;
+      }
+      sourceCapture.translationAttempts += 1;
     }
     const snapshot = cloneTrack(originalTrack);
     const driven =
@@ -213,6 +259,8 @@ export function createYouTubeMainBridge(
       if (
         destroyed ||
         request.generation < (highestGeneration.get(session) ?? -1) ||
+        getPlayer() !== player ||
+        player.isSubtitlesOn?.() !== true ||
         readVideoId(player.getPlayerResponse()) !== request.expectedVideoId ||
         !sameTrack(player.getOption("captions", "track"), driven)
       ) {
@@ -220,22 +268,19 @@ export function createYouTubeMainBridge(
         return;
       }
       if (request.target === "source") {
-        sourceCapture = { generation: request.generation, session, track, videoId };
+        sourceCapture = {
+          generation: request.generation,
+          player,
+          session,
+          source: captured,
+          track,
+          translationAttempts: 0,
+          videoId,
+        };
+      } else if (sourceCapture !== null) {
+        sourceCapture.translated = captured;
       }
-      environment.postMessage(
-        {
-          ...request,
-          body: captured.body,
-          fingerprint: captured.fingerprint,
-          ok: true,
-          track: {
-            ...(track.kind === undefined ? {} : { kind: track.kind }),
-            languageCode: track.languageCode,
-          },
-          type: YOUTUBE_BRIDGE_RESPONSE,
-        },
-        environment.location.origin,
-      );
+      postCapture(request, captured, track);
     } catch (error) {
       postFailure(
         request,
@@ -246,7 +291,12 @@ export function createYouTubeMainBridge(
     } finally {
       cancelCurrent = null;
       capture.restore();
-      if (sameTrack(player.getOption("captions", "track"), driven)) {
+      if (
+        getPlayer() === player &&
+        player.isSubtitlesOn?.() === true &&
+        readVideoId(player.getPlayerResponse()) === request.expectedVideoId &&
+        sameTrack(player.getOption("captions", "track"), driven)
+      ) {
         try {
           driveTrack(player, snapshot);
         } catch {

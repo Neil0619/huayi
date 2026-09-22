@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { installTimedTextCapture } from "./youtube-main-capture.js";
 import { YOUTUBE_BRIDGE_REQUEST, type YouTubeBridgeRequest } from "./youtube-bridge-contract.js";
+import { asrJson3Fixture } from "./youtube-json3.test-support.js";
 
 const request: YouTubeBridgeRequest = {
   capability: "capability-1",
@@ -15,9 +16,7 @@ const request: YouTubeBridgeRequest = {
 
 describe("Store YouTube MAIN timedtext capture", () => {
   it("captures only the exact bounded timedtext fingerprint and promptly restores fetch", async () => {
-    const body = JSON.stringify({
-      events: [{ dDurationMs: 1_000, segs: [{ utf8: "Hello." }], tStartMs: 0 }],
-    });
+    const body = JSON.stringify(asrJson3Fixture);
     const originalFetch = vi.fn(
       async (input: RequestInfo | URL) =>
         new Response(input.toString().includes("/api/timedtext") ? body : "page"),
