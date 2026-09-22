@@ -90,11 +90,16 @@ pnpm verify:windows
 ```
 
 macOS 与 Windows 门禁都包含指令、格式、Lint、类型、单元测试、Store 关键覆盖率、架构检查、
-构建、Chrome Playwright、Store 候选包审计、生产依赖审计和 diff。Windows 随后额外执行 SEA
+构建、Chrome Playwright、Store 候选包审计、完整依赖/实际工具链审计和 diff。Windows 随后额外执行 SEA
 打包和真实 `.exe` health 帧。
 health 验证会把 `.exe` 复制到仓库外的临时目录，清除 `NODE_PATH` 并使用临时
 `LOCALAPPDATA`，从而证明包括 `wink-lemmatizer` 在内的运行时代码已进入 SEA，而不是从仓库
 `node_modules` 加载。
+
+共享依赖工具链固定 pnpm 10.34.5；macOS 使用 Node 24，Windows SEA 门禁继续使用 Node 26+。
+`pnpm audit:security` 包括生产与开发依赖、实际安装解析、补丁完整性和包管理器公告，详见
+[依赖安全维护](dependency-security.md)。换平台需从同一候选执行冻结安装，不能复制另一平台的
+`node_modules`。Windows 尚未执行时，macOS 上的测试与构建不替代该平台的记录。
 产品测试必须离线；生产依赖审计只查询包管理器安全公告，不运行扩展或 Provider/词典请求。真实
 smoke、安装和凭据操作不在两个命令中。
 

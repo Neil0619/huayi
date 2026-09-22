@@ -7,8 +7,8 @@
 ## 前置条件
 
 - Google Chrome。
-- Node.js 18 或更高版本。
-- pnpm。
+- Node.js 22.13+（22 LTS）或 24+；推荐与 macOS CI 一致使用 Node.js 24。
+- pnpm 10.34.5，与根目录 `packageManager` 保持一致。
 - 可执行的 Codex CLI；只有当前 Provider 为 Codex 时，才要求已通过 `codex login` 使用
   ChatGPT 登录并支持 App Server。
 - macOS 自带 `/usr/bin/security`。欧路、官方 OpenAI API 和 Compatible HTTP 功能均可选，

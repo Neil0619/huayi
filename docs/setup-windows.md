@@ -24,7 +24,7 @@ Windows 版复用同一套 Chrome Extension 和 wire v7，但 Native Host 固定
 
 - Windows 10/11、Google Chrome、Git。
 - Node.js 26 或更高版本。Node 26 只用于从源码构建单文件 Host；安装后日常运行不需要 Node。
-- pnpm 10.12.4。Node.js 26 不再内置 Corepack；若系统没有 pnpm，请按 pnpm 官方方式单独安装，
+- pnpm 10.34.5。Node.js 26 不再内置 Corepack；若系统没有 pnpm，请按 pnpm 官方方式单独安装，
   不要假设 `corepack enable` 可用。
 - 后续由你在两个隐藏输入框中分别配置的 DeepSeek API Key 和欧路 OpenAPI Authorization；
   不要把任何 Key 或 Authorization 写进命令、聊天或仓库。

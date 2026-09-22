@@ -3,7 +3,7 @@
   "compilerOptions": {
     "resolveJsonModule": true,
     "skipLibCheck": true,
-    "types": ["chrome", "vitest"]
+    "types": ["chrome", "node", "vitest"]
   },
   "exclude": ["e2e/**/*.ts"],
   "include": ["src/**/*.ts"]

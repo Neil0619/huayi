@@ -1,0 +1,122 @@
+diff --git a/index.js b/index.js
+--- a/index.js
++++ b/index.js
+@@ -1,6 +1,6 @@
+-var downloadUrl = require('download')
+-var gitclone = require('git-clone')
+-var rm = require('rimraf').sync
++var downloadUrl = require('./secure-download').downloadUrl
++var gitclone = require('./secure-download').clone
++var rm = (target) => require('node:fs').rmSync(target, { recursive: true, force: true })
+ 
+ /**
+  * Expose `download`.
+@@ -87,6 +87,7 @@
+   } else {
+     regex = /^(?:(github|gitlab|bitbucket):)?(?:(.+):)?([^/]+)\/([^#]+)(?:#(.+))?$/
+     match = regex.exec(repo)
++    if (!match) throw new Error('Invalid repository argument')
+     var type = match[1] || 'github'
+     var origin = match[2] || null
+     var owner = match[3]
+diff --git a/secure-download.js b/secure-download.js
+new file mode 100644
+--- /dev/null
++++ b/secure-download.js
+@@ -0,0 +1,96 @@
++'use strict'
++
++const { execFile } = require('node:child_process')
++const { mkdir, realpath, rm } = require('node:fs/promises')
++const { promisify } = require('node:util')
++const path = require('node:path')
++
++const run = promisify(execFile)
++
++function assertArgument(value, label) {
++  if (typeof value !== 'string' || !value || value.startsWith('-') || /[\0\r\n]/.test(value)) {
++    throw new Error(`Invalid ${label} argument`)
++  }
++}
++
++async function downloadUrl(url, destination, options = {}) {
++  const parsed = new URL(url)
++  if (!['https:', 'http:'].includes(parsed.protocol)) {
++    throw new Error('Template archive URL must use HTTP or HTTPS')
++  }
++  const headers = new Headers(options.headers)
++  if (parsed.username || parsed.password) {
++    if (!headers.has('authorization')) {
++      const userinfo = `${decodeURIComponent(parsed.username)}:${decodeURIComponent(parsed.password)}`
++      headers.set('authorization', `Basic ${Buffer.from(userinfo).toString('base64')}`)
++    }
++    parsed.username = ''
++    parsed.password = ''
++  }
++  const limit = options.maxBytes || 128 * 1024 * 1024
++  const response = await fetch(parsed, {
++    headers,
++    signal: AbortSignal.timeout(options.timeout || 60000)
++  })
++  if (!response.ok) {
++    await response.body?.cancel()
++    throw new Error(`Template archive request failed (${response.status})`)
++  }
++  const chunks = []
++  let size = 0
++  for await (const chunk of response.body) {
++    size += chunk.length
++    if (size > limit) throw new Error('Template archive exceeds download size limit')
++    chunks.push(chunk)
++  }
++  // This maintained extractor is ESM; a CommonJS alias would not preserve its API.
++  const { default: decompress } = await import('@xhmikosr/decompress')
++  // macOS /var aliases /private/var; the extractor compares canonical link targets.
++  await mkdir(destination, { recursive: true })
++  const output = await realpath(destination)
++  const entries = await decompress(Buffer.concat(chunks), output, {
++    ...options,
++    map(entry) {
++      const mapped = typeof options.map === 'function' ? options.map(entry) : entry
++      if (mapped.type === 'link' || mapped.type === 'symlink') {
++        const target = mapped.linkname
++        // Lexical path.resolve() alone misses '..' after another symlink is followed.
++        if (typeof target !== 'string' || target.includes('\0') ||
++            path.posix.isAbsolute(target) || path.win32.isAbsolute(target) ||
++            /^[a-z]:/i.test(target) || target.replaceAll('\\', '/').split('/').includes('..')) {
++          throw new Error('Template archive link has an unsafe target')
++        }
++      }
++      return mapped
++    }
++  })
++  if (!entries.length) throw new Error('Template archive contains no extractable files')
++  return entries
++}
++
++function clone(url, destination, options, callback) {
++  const operation = async () => {
++    assertArgument(url, 'repository')
++    assertArgument(destination, 'destination')
++    const protocol = /^([a-z][a-z0-9+.-]*):/i.exec(url)
++    const localDrive = /^[a-z]:[\\/]/i.test(url)
++    const scp = /^[^@\s]+@[^:\s]+:/.test(url)
++    if (protocol && !localDrive && !scp && !['https', 'http', 'ssh', 'git', 'file'].includes(protocol[1].toLowerCase())) {
++      throw new Error('Unsupported repository URL protocol')
++    }
++    const checkout = options.checkout || 'master'
++    assertArgument(checkout, 'checkout')
++    const args = ['clone']
++    if (options.shallow && !/^[a-f0-9]{7,64}$/i.test(checkout)) {
++      args.push('--depth', '1', '--branch', checkout.replace(/^refs\/(heads|tags)\//, ''))
++    }
++    args.push('--', url, destination)
++    const processOptions = { shell: false, windowsHide: true, maxBuffer: 4 * 1024 * 1024 }
++    await run('git', args, processOptions)
++    await run('git', ['-C', destination, 'checkout', '--force', checkout, '--'], processOptions)
++    await rm(`${destination}/.git`, { recursive: true, force: true })
++  }
++  operation().then(() => callback(), callback)
++}
++
++module.exports = { downloadUrl, clone }

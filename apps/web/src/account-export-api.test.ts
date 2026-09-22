@@ -1,7 +1,10 @@
 import { expect, it, vi } from "vitest";
 import { createWebIdentityApi } from "./identity-api.js";
 import { readLatestAccountExport } from "./account-export-api.js";
-import { accountDataExportJobReadResourceSchema } from "@huayi/cloud-contracts";
+import {
+  accountDataExportJobReadResourceSchema,
+  type AccountDataExportFormatVersion,
+} from "@huayi/cloud-contracts";
 
 const time = "2026-09-13T00:00:00.000Z";
 const csrf = "c".repeat(43);
@@ -57,7 +60,7 @@ it("keeps an existing active compatibility job visible across the four formats",
     stableErrorCode: "export-build-failed",
     createdAt: "2026-09-14T00:00:00Z",
   });
-  const read = vi.fn(async (format: 1 | 2 | 3 | 4) => ({
+  const read = vi.fn(async (format: AccountDataExportFormatVersion) => ({
     job: format === 2 ? active : format === 3 ? failed : null,
   }));
   expect(await readLatestAccountExport(read)).toEqual({ job: active });

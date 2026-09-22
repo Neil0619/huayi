@@ -9,6 +9,7 @@ import {
 } from "./youtube-caption-bridge-client.test-support.js";
 
 afterEach(() => {
+  vi.restoreAllMocks();
   vi.useRealTimers();
   document.body.textContent = "";
   history.replaceState(null, "", "/");

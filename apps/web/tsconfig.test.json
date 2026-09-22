@@ -2,7 +2,7 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "skipLibCheck": true,
-    "types": ["vite/client", "vitest"]
+    "types": ["node", "vite/client", "vitest"]
   },
   "exclude": [],
   "include": ["src/**/*.ts", "src/**/*.tsx"]

@@ -25,7 +25,7 @@ export default defineConfig({
     // Limit concurrent builds while retaining every test and the existing time/coverage limits.
     maxWorkers: 2,
     coverage: {
-      all: true,
+      // Vitest 4 includes covered and uncovered files through this explicit include list.
       enabled: true,
       exclude: ["**/*.test.ts"],
       include: [

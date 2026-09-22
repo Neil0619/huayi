@@ -10,7 +10,12 @@ describe("randomUrlSafeId", () => {
       return array as T;
     });
 
-    const value = randomUrlSafeId({ getRandomValues });
+    const value = randomUrlSafeId({
+      getRandomValues<T extends ArrayBufferView>(array: T): T {
+        getRandomValues(array);
+        return array;
+      },
+    });
 
     expect(getRandomValues).toHaveBeenCalledOnce();
     expect(getRandomValues.mock.calls[0]?.[0]).toHaveLength(32);

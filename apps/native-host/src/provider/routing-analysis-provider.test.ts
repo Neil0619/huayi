@@ -52,12 +52,12 @@ function fakeProvider(
   analyze: AnalysisProvider["analyze"] = async () => apiResult,
 ): AnalysisProvider & {
   analyze: ReturnType<typeof vi.fn<AnalysisProvider["analyze"]>>;
-  dispose: ReturnType<typeof vi.fn>;
+  dispose: ReturnType<typeof vi.fn<() => void>>;
   warmup: ReturnType<typeof vi.fn<AnalysisProvider["warmup"]>>;
 } {
   return {
     analyze: vi.fn(analyze),
-    dispose: vi.fn(),
+    dispose: vi.fn<() => void>(),
     warmup: vi.fn(async (signal: AbortSignal) => {
       void signal;
     }),
