@@ -77,7 +77,7 @@ API、SQL、词本数据库迁移或运行时依赖。
 在仓库根运行相关检查：
 
 ```sh
-pnpm exec vitest run --project store-domain --project store-extension --maxWorkers 4
+pnpm exec vitest run --project store-domain --project store-extension --no-file-parallelism
 pnpm --filter @huayi/store-extension typecheck
 pnpm --filter @huayi/store-extension build
 pnpm check:architecture

@@ -36,7 +36,7 @@ pnpm verify:windows
 若完整门禁提前失败，应补运行尚未覆盖的相关 Store 检查：
 
 ```powershell
-pnpm exec vitest run --project store-domain --project store-extension --maxWorkers 4
+pnpm exec vitest run --project store-domain --project store-extension --no-file-parallelism
 pnpm --filter @huayi/store-extension typecheck
 pnpm --filter @huayi/store-extension build
 pnpm check:architecture

@@ -21,9 +21,9 @@ export default defineConfig({
     },
   },
   test: {
-    // Four instrumented workers can exhaust real Vite builds' deadlines on Windows.
-    // Limit concurrent builds while retaining every test and the existing time/coverage limits.
-    maxWorkers: 2,
+    // Instrumented files include real profile builds. Do not let separate builds
+    // contend; keep every test and the existing time/coverage limits.
+    fileParallelism: false,
     coverage: {
       // Vitest 4 includes covered and uncovered files through this explicit include list.
       enabled: true,

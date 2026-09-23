@@ -1,16 +1,17 @@
 # asbplayer Windows 开发验收回执
 
-2026-09-23 至 24 日，影响范围为 shared 测试工具与 Windows 验证。准确代码候选的双平台 CI
-均通过，Windows 原生 100%／150% 学习流程及官网脚本通过。本机完整门禁仍因四项视觉差异失败，
-真实 YouTube 字幕不可用；不能声明全部实机验收通过。本次未合并 main、部署或发布商店版本。
+2026-09-23 至 24 日，影响范围为 shared 测试工具与 Windows 验证。历史候选 `b39449e` 的双平台
+CI、Windows 原生 100%／150% 基础学习流程及官网脚本通过；接续候选 `1c381dd` 的两平台 CI
+均失败，原因及后续修复见文末。本机仍有四项视觉差异，真实 YouTube 字幕不可用，新官网扩展矩阵
+尚待 100% 补验；不能声明全部实机验收通过。本次未合并 main、部署或发布商店版本。
 
 ## 候选与环境
 
 - 输入候选：`c67405c7ff7562e950bf5b03dc46971c2c6f5b24`，来自
   `https://github.com/Neil0619/huayi.git` 的 `codex/asbplayer-windows-validation`。
-- 最终代码候选：`b39449ee8e940701924dafe22769f73d82f7f1d2`；Git tree：
+- 上一轮已通过 CI 的代码候选：`b39449ee8e940701924dafe22769f73d82f7f1d2`；Git tree：
   `2169db5105d7ea0d6b92fad180f17ead68dac6be`；交接分支：`codex/asbplayer-windows-validation-fixes`。
-  代码提交为 `6ac310b3b2414a11d353f0211140bf7ba5d502e7` 和上述最终候选，后续回执提交仅修改文档。
+  上一轮代码提交为 `6ac310b3b2414a11d353f0211140bf7ba5d502e7` 和上述候选；接续提交另见文末。
 - 在独立工作树检出准确 SHA；原 `E:\Document\huayi` 的 `main` 和既有工作树、扩展、Host 注册保留。
   原项目保持 `c39fed3f9026f7d8943f961cfe72f54fe80b65cc`，没有覆盖用户工作区。
 - Windows 11 Pro Insider Preview 25H2，10.0.26220.9223，x64；PowerShell 7.6.5；Git 2.45.1.windows.1。
@@ -25,7 +26,7 @@
 chrome_elf.dll 与默认缓存哈希一致，不能据此断言上游二进制损坏。试用的 154.0.8037.57 能加载官网
 并完成查词收藏，但全屏被浏览器拒绝（`TypeError: not granted`）；该失败保留，未改动产品代码规避。
 
-## 最终自动化结果
+## 上一轮自动化结果（b39449e）
 
 准确候选 CI：[35885283490](https://github.com/Neil0619/huayi/actions/runs/35885283490)。
 macOS job `107263750277` 与 Windows job `107263749988` 均成功，两端浏览器回归均为 242/242。
@@ -151,6 +152,22 @@ release 产物 SHA-256：
 接续新增 `scripts/verify-asbplayer-store-matrix.mjs`，未改产品运行时代码、截图基线或断言阈值。
 上述 `b39449e` 的双平台 CI 是历史候选证据，不能代表新增脚本所在提交；新提交需另外记录检查。
 
+新增官网矩阵提交为 `1c381dd8a45af720eda11f156faebcd96f716cba`，已推送同一接续分支。
+其 [CI 35896042114](https://github.com/Neil0619/huayi/actions/runs/35896042114) 的 Windows job
+在 Store 单测失败：1,201 通过、Hosted acceptance 实际构建一项超过原 15 秒，不能记为成功。
+日志明确显示它与 `build-profile-isolation.test.ts` 的完整 Vite 构建并行；此前的四 worker 上限
+仍允许重型构建竞争。后续调度回归用真实 Vitest 文件观测活跃数量，普通／覆盖率门原配置分别
+复现 4／2 个文件重叠；修改为 Windows 普通门按文件串行、两平台覆盖率门按文件串行后，调度
+回归 10/10 通过，随后本机完整 Store 单测 191 文件／1,202 项通过，用时 292.45 秒。
+完整 Store 覆盖率随后 191 文件／1,202 项通过，用时 389.28 秒；语句 90.37%、分支 85.16%、
+函数 90.86%、行 92.44%。完整脚本测试 1,135 通过、6 项既有平台跳过、0 失败；所有原始用例、
+时限和阈值保持。整仓格式、lint、完整类型检查与 diff 空白检查也通过；调度修复的新候选门禁
+还需另记结果。
+
+同一轮 `1c381dd` 的 macOS job 也失败：单测与覆盖率通过，浏览器 241 通过／1 失败。
+`asbplayer-matrix.spec.ts` 在实际视频 `ended=true` 后仍观察到一条英文字幕，五秒内未清空。
+该失败待诊断，不能用之前候选的通过结果或单纯重跑替代。
+
 - 从 Google 官方企业 MSI 解出隔离 Chrome **154.0.8037.58**，与 Windows CI 精确版本相同；
   Chrome 可执行文件 Google 签名有效。没有执行 Chrome 安装／更新，日常 Chrome 仍为 153.0.8010.50。
   MSI SHA-256：`40de51d92ebbc3d2e9b434526ec6f937bf9a62df6de7ca385dd02d0648379051`。
@@ -166,6 +183,9 @@ release 产物 SHA-256：
   失败调用时 `userActivation.isActive=true`、`document.hasFocus()=true`；iframe 的 HTML 全屏
   Promise 拒绝 `TypeError: not granted`，父文档未另发全屏请求。说明现象不依赖语见，仍不是
   154 官网全屏通过的证据；具体上游／浏览器兼容原因待定位。
+  后续同源 iframe（含不设置 allowfullscreen 的对照）、官网顶层全屏、文件上传和媒体录制的
+  最小对照均通过。官网原播放器内直接按钮仍失败；关闭自动化焦点模拟后仍报告真实焦点正常。
+  隔离 profile 明确拒绝本地与回环网络权限并回读为 denied 后也仍失败，不能认定该权限是根因。
 - 新官网矩阵在真实 Windows **150%**、Chrome 149、实际 release 扩展通过：正负和重复偏移、
   倍速与结束、Condensed／Auto-pause／Fast-forward／Repeat 四模式的暂停归属、单轨双语、
   切视频后的重新确认、旧频道消息隔离、实际观察到的旧修订重放拒绝、超限 cue 回退与重新加载恢复。

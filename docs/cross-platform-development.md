@@ -8,6 +8,8 @@ asbplayer 学习适配属于 shared Store Chrome 变更，Windows 使用和目�
 Windows 原生 100%／150% 缩放通过隔离有界 Chrome 窗口读取实际 DPR 校验，不使用 viewport 或
 deviceScaleFactor 模拟替代。命令与本次结果见 [Windows Git 接续说明](cloud-v1/asbplayer-windows-handoff.md)。
 CI 将 Chrome 与 Chromium 安装拆为独立调用；用户已安装 Chrome 不代表扩展测试所需 Chromium 已存在。
+Windows Store 单测与两平台 Store 覆盖率门均按文件串行，避免真实 profile 构建同时运行而超过
+既有时限；不减少测试、不延长断言期限，也不降低覆盖率要求。
 
 ## 目标
 

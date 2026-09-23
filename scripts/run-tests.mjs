@@ -80,9 +80,9 @@ function resolveTestSteps(scriptTests, pnpmEntry, platform) {
     createVitestStep(pnpmEntry, "protocol"),
     createVitestStep(pnpmEntry, "native-host", ["--no-file-parallelism"]),
     createVitestStep(pnpmEntry, "extension"),
-    // Store integration files perform real Vite builds; unbounded Windows workers
-    // can starve those builds before their existing assertion deadlines.
-    createVitestStep(pnpmEntry, "store-extension", ["--maxWorkers", "4"]),
+    // Store files include whole-profile Vite builds. Even four Windows workers
+    // let separate builds contend past their existing assertion deadlines.
+    createVitestStep(pnpmEntry, "store-extension", ["--no-file-parallelism"]),
     createVitestStep(pnpmEntry, "web", ["--maxWorkers", "4"]),
     createVitestStep(pnpmEntry, "api", [
       "--maxWorkers",

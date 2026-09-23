@@ -28,6 +28,9 @@ Store 不需要 Native Host 或 DPAPI 配置；macOS 的构建/重载结果不�
 
 ## 前置条件
 
+Windows 质量门会串行执行 Store 单测文件，Store 覆盖率门也按文件串行。完整 profile 的真实
+Vite 构建不能与其他 Store 文件争用同一批 worker；原有超时和断言保留，无需修改系统配置。
+
 - Windows 10/11、Google Chrome、Git。
 - Node.js 26 或更高版本。Node 26 只用于从源码构建单文件 Host；安装后日常运行不需要 Node。
 - pnpm 10.34.5。Node.js 26 不再内置 Corepack；若系统没有 pnpm，请按 pnpm 官方方式单独安装，
