@@ -7,6 +7,37 @@ afterEach(() => {
   vi.useRealTimers();
 });
 describe("asbplayer learning controller M1", () => {
+  it("clears the final cue at media end and restores it after seeking back", () => {
+    vi.useFakeTimers();
+    const h = controllerHarness();
+    let ended = false;
+    Object.defineProperty(h.video, "ended", { get: () => ended, configurable: true });
+    h.video.currentTime = 1.8;
+    h.controller.start();
+    h.snapshot();
+    h.port.send({ command: "offset", value: 0 });
+    h.confirm();
+    const english = () => document.querySelector("[data-huayi-asbplayer-english]");
+    const chinese = () => document.querySelector("[data-huayi-asbplayer-chinese]");
+    try {
+      expect(english()?.textContent).toBe("This is a complete sentence.");
+      expect(chinese()?.textContent).toBe("这是完整句子。");
+      ended = true;
+      h.video.dispatchEvent(new Event("ended"));
+      vi.advanceTimersByTime(100);
+      expect(english()).toBeNull();
+      expect(chinese()?.textContent).toBe("此处无对应中文字幕");
+      expect(h.player.hasAttribute("data-huayi-asbplayer-active")).toBe(true);
+      ended = false;
+      h.video.currentTime = 1.2;
+      h.video.dispatchEvent(new Event("seeked"));
+      vi.advanceTimersByTime(100);
+      expect(english()?.textContent).toBe("This is a complete sentence.");
+      expect(chinese()?.textContent).toBe("这是完整句子。");
+    } finally {
+      h.controller.stop();
+    }
+  });
   it("waits for full data, known offset and user confirmation before hiding native subtitles", () => {
     const h = controllerHarness();
     h.controller.start();

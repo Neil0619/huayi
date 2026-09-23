@@ -123,6 +123,18 @@ try {
   await expect(frame.locator(learning)).toHaveAttribute("data-state", "usable");
   receipt.checks.lateBridgeRevisionRejected = true;
   mark("native-rate-and-ended");
+  await page
+    .locator('input[type="file"]')
+    .first()
+    .setInputFiles([
+      subtitle(
+        "en.srt",
+        "1\n00:00:00,000 --> 00:00:01,500\nLearning matters.\n\n2\n00:00:01,500 --> 00:00:10,000\nPractice helps.\n",
+      ),
+      subtitle("zh.srt", "1\n00:00:00,000 --> 00:00:10,000\n学习很重要，练习有帮助。\n"),
+    ]);
+  await expect(frame.locator(learning)).toHaveAttribute("data-state", "waiting-tracks");
+  await frame.locator("[data-confirm-tracks]").click();
   await controls(frame);
   const rate = frame.locator('input[type="text"]').nth(1);
   await rate.fill("2");
@@ -133,8 +145,12 @@ try {
   await expect(frame.locator(english)).toHaveText("Learning matters.");
   await expect(frame.locator(english)).toHaveText("Practice helps.");
   await expect.poll(() => video.evaluate((v) => v.ended)).toBe(true);
+  assert.ok(await video.evaluate((v) => v.currentTime < 10));
   await expect(frame.locator(english)).toHaveCount(0);
   receipt.checks.rateAndEnded = true;
+  await seek(0.2);
+  await expect(frame.locator(english)).toHaveText("Learning matters.");
+  receipt.checks.replayAfterEnded = true;
   await controls(frame);
   await rate.fill("1");
   await rate.press("Enter");

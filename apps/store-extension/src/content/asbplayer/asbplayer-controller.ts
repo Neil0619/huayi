@@ -241,7 +241,8 @@ export class AsbplayerController {
       this.setStatus("usable", "");
       return;
     }
-    const active = this.englishIndex.at((this.media.video?.currentTime ?? 0) * 1000);
+    const video = this.media.video;
+    const active = video?.ended ? [] : this.englishIndex.at((video?.currentTime ?? 0) * 1000);
     const crowded = () =>
       this.setStatus("invalidated", "同一时段字幕过多，暂时保留原字幕。请整理重叠轨道后重新加载。");
     if (active.length > 64) {

@@ -31,6 +31,15 @@ test("Store timing, track replacement and single-track bilingual input stay alig
     await broadcast(page, { command: "offset", value: -500 });
     await expect(frame.locator(english)).toHaveText("Practice helps.");
     await broadcast(page, { command: "offset", value: 0 });
+    // The final subtitle may outlast the media. Ending must not depend on recorder frame timing.
+    await broadcast(page, {
+      command: "subtitles",
+      value: cues.map((cue) =>
+        cue.originalEnd === 3000 ? { ...cue, originalEnd: 10000, end: 10000 } : cue,
+      ),
+    });
+    await expect(frame.locator(learning)).toHaveAttribute("data-state", "waiting-tracks");
+    await frame.locator("[data-confirm-tracks]").click();
     await video.evaluate(async (element: HTMLVideoElement) => {
       element.currentTime = 0.1;
       element.playbackRate = 2;

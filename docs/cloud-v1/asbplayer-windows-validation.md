@@ -1,6 +1,6 @@
 # asbplayer Windows 开发验收回执
 
-2026-09-23 至 24 日，影响范围为 shared 测试工具与 Windows 验证。历史候选 `b39449e` 的双平台
+2026-09-23 至 24 日，影响范围为 shared Store、测试工具与 Windows 验证。历史候选 `b39449e` 的双平台
 CI、Windows 原生 100%／150% 基础学习流程及官网脚本通过；接续候选 `1c381dd` 的两平台 CI
 均失败，原因及后续修复见文末。本机仍有四项视觉差异，真实 YouTube 字幕不可用，新官网扩展矩阵
 尚待 100% 补验；不能声明全部实机验收通过。本次未合并 main、部署或发布商店版本。
@@ -80,7 +80,7 @@ Store domain + extension 共 1,276 通过。门禁原运行在单测阶段停止
 macOS job 通过；Windows job 在 Taro H5 热更新测试失败。第一次 dispatch 使用了不被接受的
 release_id，运行 35873582849 在候选校验前停止，不算代码验证。
 
-本次修复均限测试工具和说明，没有改 Store 运行时代码、Classic wire v7、权限或安装行为：
+上一轮修复均限测试工具和说明，没有改 Store 运行时代码、Classic wire v7、权限或安装行为：
 
 1. Windows Store 单测限制 4 workers，保留构建测试期限；runner 契约先红后绿 7/7。
 2. Taro watcher 等待 HTTP 实际返回编辑后的标记。用真实无关重编译复现旧竞态，再修复为 4/4 通过；
@@ -149,7 +149,7 @@ release 产物 SHA-256：
 
 ## 接续复查（2026-09-24，进行中）
 
-接续新增 `scripts/verify-asbplayer-store-matrix.mjs`，未改产品运行时代码、截图基线或断言阈值。
+首个接续新增 `scripts/verify-asbplayer-store-matrix.mjs`，当时未改产品运行时代码、截图基线或断言阈值。
 上述 `b39449e` 的双平台 CI 是历史候选证据，不能代表新增脚本所在提交；新提交需另外记录检查。
 
 新增官网矩阵提交为 `1c381dd8a45af720eda11f156faebcd96f716cba`，已推送同一接续分支。
@@ -166,7 +166,16 @@ release 产物 SHA-256：
 
 同一轮 `1c381dd` 的 macOS job 也失败：单测与覆盖率通过，浏览器 241 通过／1 失败。
 `asbplayer-matrix.spec.ts` 在实际视频 `ended=true` 后仍观察到一条英文字幕，五秒内未清空。
-该失败待诊断，不能用之前候选的通过结果或单纯重跑替代。
+后续诊断发现控制器只按 `currentTime` 查字幕，没有排除 `video.ended`。CI 没有记录末帧时间，
+不能断言那次录制的精确长度；但延长末句至媒体结束之后，在 Windows 的单测和实际 Store E2E
+均稳定复现同一残留症状。最小修复在未冻结选区时将 ended 媒体的活跃字幕置空；保留轨道确认，
+回跳后按时间恢复字幕。单测先失败再通过，整个 asbplayer 目录 116/116 通过；重建后的真实
+150% Store 流程 11/11 通过（含普通网页、YouTube 离线首次／SPA 和真实 BFCache）。
+官网基础脚本与扩展矩阵在同一真实 150% 也通过；后者覆盖末句超出视频末尾及回跳恢复，Provider
+仅 1 次。修复后的 Store 完整类型检查通过。
+这次产品修复使 `asbplayer-content.js` 摘要变为
+`5b8a395bab624ca0b69dcaafe906278dce4e6e12c24daccc27fe4358028afdb7`；其余三个摘要及官网资产
+摘要与上文相同。新产品候选的 100% 完整流程与双平台 CI 必须重新验证，旧通过不能代替。
 
 - 从 Google 官方企业 MSI 解出隔离 Chrome **154.0.8037.58**，与 Windows CI 精确版本相同；
   Chrome 可执行文件 Google 签名有效。没有执行 Chrome 安装／更新，日常 Chrome 仍为 153.0.8010.50。
@@ -186,7 +195,7 @@ release 产物 SHA-256：
   后续同源 iframe（含不设置 allowfullscreen 的对照）、官网顶层全屏、文件上传和媒体录制的
   最小对照均通过。官网原播放器内直接按钮仍失败；关闭自动化焦点模拟后仍报告真实焦点正常。
   隔离 profile 明确拒绝本地与回环网络权限并回读为 denied 后也仍失败，不能认定该权限是根因。
-- 新官网矩阵在真实 Windows **150%**、Chrome 149、实际 release 扩展通过：正负和重复偏移、
+- 首版新官网矩阵在真实 Windows **150%**、Chrome 149、实际 release 扩展通过：正负和重复偏移、
   倍速与结束、Condensed／Auto-pause／Fast-forward／Repeat 四模式的暂停归属、单轨双语、
   切视频后的重新确认、旧频道消息隔离、实际观察到的旧修订重放拒绝、超限 cue 回退与重新加载恢复。
   Provider 请求仅 1 次，重复查询复用缓存。四个 release 摘要及官网模块摘要与上文相同。
@@ -201,6 +210,7 @@ release 产物 SHA-256：
 - 真实 YouTube 学习、首次加载、SPA 和字幕切换未验证。解除阻塞需先在干净隔离 Chrome 中确认
   YouTube 自身能显示英文 CC、timedtext 返回非空内容，再加载同一候选补测划词、关闭恢复及切换。
 - 官网扩展矩阵已经补测列出的特殊模式、切文件与定向敌对消息；其 100% 原生缩放仍待执行。
+  结束字幕修复后的产品候选还需补 100% 基础流程、官网基础脚本和真实 BFCache。
   未声称任意恶意／迟到消息组合均已验证。其他 Store profile 未做官网验证。
 - Chrome for Testing 154 的官网全屏失败仍保留；149 的成功不代表 154 官网矩阵通过。
 
