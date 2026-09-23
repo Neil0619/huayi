@@ -4,8 +4,9 @@
 
 本草案面向 `production` profile 的未来 Chrome Web Store 版本，固定连接
 `https://api.seen-said.cn` 和 `https://app.seen-said.cn/app`。它不是无云端的 `release` 兼容包文案。
-目前尚无既有商店条目；先按[首次上传指南](./chrome-first-upload.md)创建草稿并绑定真实商店身份。
-本文不代表已经上传、送审或公开发布，也不证明正式 API 已支持候选全部功能。
+既有商店条目为 `kehpghgppccjlmahanlmeagnpnfbcnea`。2026-09-23 后台回读为“已拒绝”，
+拒审原因是 Yellow Argon（商品说明关键词堆砌）；后续更新同一条目。
+本文不代表修订已重新送审或公开，也不证明正式 API 已支持候选全部功能。
 
 ## 清单文案
 
@@ -13,13 +14,18 @@
 
 **Slogan**：Turn what you see into what you can say.
 
-**简短说明**：网页与 YouTube 英文划词翻译、语境分析和本地生词管理；可连接语见账号继续学习，
-或使用自己的 OpenAI、DeepSeek 密钥。
+**简短说明**：面向中文英语学习者的网页划词翻译、语境解释与本地生词管理。
 
 **单一用途**：帮助中文英语学习者理解当前阅读或观看语境中主动选择的英文，并将这些内容整理为
 可复习、练习的学习资料。网页划词、YouTube 字幕辅助、生词管理和词典回填均服务于这一用途。
 
 **详细说明草案**：
+
+Dashboard 商品说明使用[中文提交文案](./listing-description-zh-CN.txt)。
+[英文对应稿](./listing-description-en.txt)供后续本地化使用，不另行创建重复商品。
+下面是披露核对依据，不要整段复制进商品说明。2026-09-23 修订去除品牌串列和重复宣传关键词；
+必要的第三方接收方名称继续保留在隐私政策、权限理由与功能同意界面。
+参见 [Yellow Argon 官方纠正说明](https://developer.chrome.com/docs/webstore/troubleshooting#keyword-stuffing)。
 
 - 主动选择网页或 YouTube 英文字幕，获得翻译和语境解释，可保存到本机生词本。
 - 基础本机功能无需语见账号；模型查询需要相应联网同意及可用服务。连接语见账号后，可按账号
@@ -105,6 +111,6 @@
 
 ## 品牌与第三方声明
 
-OpenAI、DeepSeek、欧路、扇贝、Chrome、Google 和 YouTube 名称仅用于说明兼容的第三方服务。
-语见是独立产品，与这些实体无隶属、认可、赞助或官方合作关系。清单图片不得使用容易造成官方
+商品说明仅需说明“语见是独立开发的学习工具”，不再附带第三方品牌清单。隐私及权限材料中的
+服务名称用于准确披露实际接收方，不表示认可、赞助或官方合作。清单图片不得使用容易造成官方
 归属误解的第三方 Logo 或视觉样式。

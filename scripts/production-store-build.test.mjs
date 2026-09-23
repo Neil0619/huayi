@@ -83,7 +83,7 @@ test("production source binds the existing Chrome Web Store item and increments 
     .replaceAll(/[0-9a-f]/gu, (digit) => "abcdefghijklmnop"[parseInt(digit, 16)]);
   assert.equal(id, "kehpghgppccjlmahanlmeagnpnfbcnea");
   assert.equal(productionStoreExtensionId, id);
-  assert.equal(manifest.version, "1.0.1");
+  assert.equal(manifest.version, "1.0.2");
 
   const hosted = JSON.parse(
     await readFile(

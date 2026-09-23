@@ -270,14 +270,7 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
     return true;
   }
   if (isSitePoliciesChangedMessage(message)) {
-    void handleSitePoliciesChanged(message, sender, chrome.runtime.id, async (refresh) => {
-      const tabs = await chrome.tabs.query({});
-      await Promise.allSettled(
-        tabs.flatMap((tab) =>
-          typeof tab.id === "number" ? [chrome.tabs.sendMessage(tab.id, refresh)] : [],
-        ),
-      );
-    })
+    void handleSitePoliciesChanged(message, sender, chrome.runtime.id, broadcastSettingsRefresh)
       .then(sendResponse)
       .catch(() => sendResponse(undefined));
     return true;

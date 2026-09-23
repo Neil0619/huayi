@@ -5,11 +5,15 @@
 用户已完成 1.0.0 首传草稿，并提供 Chrome Web Store item ID
 `kehpghgppccjlmahanlmeagnpnfbcnea` 及 Dashboard 公钥。本地已核验该规范 Base64 公钥的
 SHA-256 派生 ID 与 item ID 一致，并绑定 production Manifest、构建审计、正式环境声明和 API
-源码约束。当前 production 更新候选为 **1.0.1**；后续只更新这个既有条目，不再创建第二个条目。
+源码约束。当前 production 更新候选为 **1.0.2**；后续只更新这个既有条目，不再创建第二个条目。
+
+1.0.1 已有上传及配套正式服务验收记录。2026-09-23 Dashboard 回读条目为“已拒绝”，
+Yellow Argon 原因是商品说明关键词堆砌；修订说明已保存草稿。1.0.2 纳入后续字幕、站点设置及
+依赖修复，仍须完成本轮包上传与审核，不能沿用 1.0.1 的候选检查结果宣称新版已发布。
 
 历史个人 ID `enlolhfodncfnleiihkjanhmnfbgeggh` 不再是当前 production 的预期身份；保留其旧
 Profile 和数据。Hosted 验收 ID `hoijjhgcckfhbcefoclgbhkgninnkknd` 及 1.0.0 版本保持原状。
-本地绑定不代表 1.0.1 已上传、正式 API 配置已变更、已部署、已送审或已公开。
+本地绑定不代表 1.0.2 已上传、正式 API 配置已变更、已部署、已送审或已公开。
 
 本指南适用于未来商店使用的 production 候选：API 为 `https://api.seen-said.cn`，Web 为
 `https://app.seen-said.cn/app`。`dist` 是 Hosted 验收日常目录，`dist-release` 是无云端的离线兼容
@@ -68,8 +72,8 @@ Google 官方明确支持先上传而不发布，从 Package 取得公钥，并�
 校验失败。公钥导出的 ID、构建审计预期 ID、Dashboard item ID 与 API 接受的 origin 必须一致。
 不要修改 Hosted 验收 ID 或通过放宽 origin 白名单绕过校验。
 
-按新身份重建并记录新候选提交、版本、产物哈希。首传已占用 1.0.0，本次仅 production Manifest
-递增为 1.0.1；运行时从 Manifest 读取版本，API 最低支持版本仍为 1.0.0。Hosted/release 与 Classic
+按新身份重建并记录新候选提交、版本、产物哈希。首传为 1.0.0，绑定后的已上传包为 1.0.1；
+本次仅 production Manifest 递增为 1.0.2；运行时从 Manifest 读取版本，API 最低支持版本仍为 1.0.0。Hosted/release 与 Classic
 版本不随之调整。获得真实 Chrome 验收范围授权后，用独立测试 Profile 核对加载后的 ID 与 Dashboard
 相同。旧 ID 下的本机生词、凭据和会话不会因新 ID 自动迁移；保留旧 Profile，不以卸载、清空
 存储或覆盖日常验收目录解决身份问题。
@@ -116,5 +120,5 @@ Google 官方明确支持先上传而不发布，从 Package 取得公钥，并�
 | 送审前     | 正式 API 部署、迁移与兼容证据、公开政策、问卷、双平台验收和测试说明 |
 | 送审/公开  | 各自授权范围、Dashboard 状态与时间、审核反馈、实际商店安装验收      |
 
-回执留在忽略的本地 artifacts 中，不写入秘密。当前任务应明确区分本地 1.0.1 候选、同一 item
+回执留在忽略的本地 artifacts 中，不写入秘密。当前任务应明确区分本地 1.0.2 候选、同一 item
 更新上传、正式服务支持、送审和公开各自状态；仅交付 ZIP 时不要声称商店已就绪。

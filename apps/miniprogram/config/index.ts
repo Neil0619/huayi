@@ -3,6 +3,8 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import type { Compiler } from "webpack";
 
+const release = process.env.HUAYI_MINIPROGRAM_RELEASE_BUILD === "1";
+const outputRoot = release ? "dist-release" : "dist";
 const apiOrigin = process.env.HUAYI_MINIPROGRAM_API_ORIGIN ?? "";
 if (apiOrigin && !/^https:\/\/[a-z0-9.-]+$/u.test(apiOrigin))
   throw new Error("Mini-program API must be an HTTPS origin.");
@@ -13,7 +15,7 @@ export default defineConfig({
   designWidth: 375,
   deviceRatio: { 375: 2 },
   sourceRoot: "src",
-  outputRoot: "dist",
+  outputRoot,
   framework: "react",
   compiler: "webpack5",
   plugins: ["@tarojs/plugin-platform-weapp"],
@@ -27,7 +29,10 @@ export default defineConfig({
         class {
           apply(compiler: Compiler) {
             compiler.hooks.done.tap("MiniBundleReport", (stats) => {
-              const directory = resolve(process.cwd(), "../../artifacts/miniprogram");
+              const directory = resolve(
+                process.cwd(),
+                release ? "../../artifacts/miniprogram-release" : "../../artifacts/miniprogram",
+              );
               mkdirSync(directory, { recursive: true });
               writeFileSync(
                 resolve(directory, "bundle-report.json"),
@@ -49,7 +54,7 @@ export default defineConfig({
     },
   },
   copy: {
-    patterns: [{ from: "project.config.json", to: "dist/project.config.json" }],
+    patterns: [{ from: "project.config.json", to: `${outputRoot}/project.config.json` }],
     options: {},
   },
 });

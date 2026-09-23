@@ -9,8 +9,10 @@ runner、fake authorization reader、fake fetch 和 Mock NativeTransport；只�
 `pnpm smoke:compatible`、`pnpm smoke:compare` 或 `pnpm smoke:deepseek`。
 
 Store 1.0 另由 `pnpm check:architecture`、`pnpm test:store:coverage`、
-`pnpm check:store-release` 和 `pnpm audit:prod` 收口。前三者完全离线；`audit:prod` 只查询包管理器
-安全公告，不启动扩展或向 Provider/词典发送请求。macOS 与 Windows CI 都安装 Chrome并运行同一
+`pnpm check:store-release` 和 `pnpm audit:security` 收口。前三者完全离线；`audit:security` 校验
+pnpm 精确版本、真实安装与锁文件，并查询完整依赖树和生产依赖的安全公告，不启动扩展或向
+Provider/词典发送请求。完整树包含开发工具，中危也阻断。详见[依赖安全维护](dependency-security.md)。
+macOS 与 Windows CI 都安装 Chrome并运行同一
 套 `pnpm test:e2e`，Windows 不再依赖另行补跑浏览器证据。
 
 Windows 默认门禁运行协议、Extension、共享 Provider、Windows Host/安装器和脚本测试；依赖

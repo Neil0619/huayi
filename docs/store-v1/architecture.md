@@ -125,6 +125,9 @@ isolated world 共享一个非页面可见的生命周期注册表；停用时�
 generation 约束。Popup 只用 active tab ID 把站点操作转交 Content Script，切换前复核 tab ID；
 Provider、同意、全局开关、整页外观和词卡材质仅返回非秘密状态；Popup 不读取凭据存在性、Vault/迁移状态。Options 的全局或 host 变更由 Worker 广播无数据
 refresh，各页面再以自身 sender 重新查询，不向广播附带规则表。
+刷新广播是单向通知：Worker 向有效标签页派发后即返回，不等待各标签页回复；休眠、关闭或没有
+接收器的页面不能阻塞已落盘的网站规则和其他设置。页面恢复后读取当时最新的站点策略，业务入口
+仍独立校验该策略。
 
 Options 直接通过可信 `DeviceVault` 读取欧路 Authorization 的存在性并写入/删除固定槽位；
 Authorization 不进入 runtime 消息。导入和导出箱使用严格版本化消息，且 Worker 同时要求 sender

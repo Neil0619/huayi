@@ -1,0 +1,210 @@
+diff --git a/dist/plugins/MiniPlugin.js b/dist/plugins/MiniPlugin.js
+--- a/dist/plugins/MiniPlugin.js
++++ b/dist/plugins/MiniPlugin.js
+@@ -974,11 +974,11 @@
+             // @ts-ignore
+             const childName = compilation.__name;
+             // 为独立分包生成 base/comp/custom-wrapper
+-            this.independentPackages.forEach((_pages, name) => {
++            for (const name of this.independentPackages.keys()) {
+                 // independentPackages 是包含了所有 ChildCompiler 的资源，如果不是当前 ChildCompiler 的资源不做处理
+                 if (name !== childName)
+-                    return;
+-                this.generateTemplateFile(compilation, compiler, `${name}/${baseTemplateName}`, template.buildTemplate, component_1.componentConfig);
++                    continue;
++                yield this.generateTemplateFile(compilation, compiler, `${name}/${baseTemplateName}`, template.buildTemplate, component_1.componentConfig);
+                 if (!template.isSupportRecursive) {
+                     // 如微信、QQ 不支持递归模版的小程序，需要使用自定义组件协助递归
+                     this.generateConfigFile(compilation, compiler, `${name}/${baseCompName}`, {
+@@ -989,7 +989,7 @@
+                             [customWrapperName]: `./${customWrapperName}`
+                         }
+                     });
+-                    this.generateTemplateFile(compilation, compiler, `${name}/${baseCompName}`, template.buildBaseComponentTemplate, this.options.fileType.templ);
++                    yield this.generateTemplateFile(compilation, compiler, `${name}/${baseCompName}`, template.buildBaseComponentTemplate, this.options.fileType.templ);
+                 }
+                 this.generateConfigFile(compilation, compiler, `${name}/${customWrapperName}`, {
+                     component: true,
+@@ -998,10 +998,10 @@
+                         [customWrapperName]: `./${customWrapperName}`
+                     }
+                 });
+-                this.generateTemplateFile(compilation, compiler, `${name}/${customWrapperName}`, template.buildCustomComponentTemplate, this.options.fileType.templ);
++                yield this.generateTemplateFile(compilation, compiler, `${name}/${customWrapperName}`, template.buildCustomComponentTemplate, this.options.fileType.templ);
+                 this.generateXSFile(compilation, compiler, `${name}/utils`);
+-            });
+-            this.pages.forEach(page => {
++            }
++            for (const page of this.pages) {
+                 let importBaseTemplatePath = (0, helper_1.promoteRelativePath)(node_path_1.default.relative(page.path, node_path_1.default.join(sourceDir, this.getTemplatePath(baseTemplateName))));
+                 const config = this.filesConfig[this.getConfigFilePath(page.name)];
+                 let isIndependent = false;
+@@ -1015,10 +1015,10 @@
+                     }
+                 });
+                 if (!isIndependent)
+-                    return;
++                    continue;
+                 // 生成页面模板需要在生成页面配置之前，因为会依赖到页面配置的部分内容
+                 if (!page.isNative) {
+-                    this.generateTemplateFile(compilation, compiler, page.path, template.buildPageTemplate, importBaseTemplatePath, config);
++                    yield this.generateTemplateFile(compilation, compiler, page.path, template.buildPageTemplate, importBaseTemplatePath, config);
+                 }
+                 if (config) {
+                     const importBaseCompPath = (0, helper_1.promoteRelativePath)(node_path_1.default.relative(page.path, node_path_1.default.join(sourceDir, independentName, this.getTargetFilePath(baseCompName, ''))));
+@@ -1032,7 +1032,7 @@
+                     }
+                     this.generateConfigFile(compilation, compiler, page.path, config.content);
+                 }
+-            });
++            }
+         });
+     }
+     /** 生成小程序相关文件 */
+@@ -1064,7 +1064,7 @@
+             }
+             if (!template.isSupportRecursive) {
+                 // 如微信、QQ 不支持递归模版的小程序，需要使用自定义组件协助递归
+-                this.generateTemplateFile(compilation, compiler, baseCompName, template.buildBaseComponentTemplate, this.options.fileType.templ);
++                yield this.generateTemplateFile(compilation, compiler, baseCompName, template.buildBaseComponentTemplate, this.options.fileType.templ);
+                 const baseCompConfig = {
+                     component: true,
+                     styleIsolation: 'apply-shared',
+@@ -1096,29 +1096,29 @@
+                     });
+                 }
+             }
+-            this.generateTemplateFile(compilation, compiler, baseTemplateName, template.buildTemplate, component_1.componentConfig);
+-            isUsingCustomWrapper && this.generateTemplateFile(compilation, compiler, customWrapperName, template.buildCustomComponentTemplate, this.options.fileType.templ);
++            yield this.generateTemplateFile(compilation, compiler, baseTemplateName, template.buildTemplate, component_1.componentConfig);
++            if (isUsingCustomWrapper) yield this.generateTemplateFile(compilation, compiler, customWrapperName, template.buildCustomComponentTemplate, this.options.fileType.templ);
+             this.generateXSFile(compilation, compiler, 'utils');
+-            this.components.forEach(component => {
++            for (const component of this.components) {
+                 const importBaseTemplatePath = (0, helper_1.promoteRelativePath)(node_path_1.default.relative(component.path, node_path_1.default.join(sourceDir, isBuildPlugin ? 'plugin' : '', this.getTemplatePath(baseTemplateName))));
+                 const config = this.filesConfig[this.getConfigFilePath(component.name)];
+                 if (config) {
+                     this.generateConfigFile(compilation, compiler, component.path, config.content);
+                 }
+                 if (!component.isNative) {
+-                    this.generateTemplateFile(compilation, compiler, component.path, template.buildPageTemplate, importBaseTemplatePath);
++                    yield this.generateTemplateFile(compilation, compiler, component.path, template.buildPageTemplate, importBaseTemplatePath);
+                 }
+-            });
+-            this.pages.forEach(page => {
++            }
++            for (const page of this.pages) {
+                 const importBaseTemplatePath = (0, helper_1.promoteRelativePath)(node_path_1.default.relative(page.path, node_path_1.default.join(sourceDir, isBuildPlugin ? 'plugin' : '', this.getTemplatePath(baseTemplateName))));
+                 const config = this.filesConfig[this.getConfigFilePath(page.name)];
+                 // pages 里面会混合独立分包的，在这里需要过滤一下，避免重复生成 assets
+                 const isIndependent = !!this.getIndependentPackage(page.path);
+                 if (isIndependent)
+-                    return;
++                    continue;
+                 // 生成页面模板需要在生成页面配置之前，因为会依赖到页面配置的部分内容
+                 if (!page.isNative) {
+-                    this.generateTemplateFile(compilation, compiler, page.path, template.buildPageTemplate, importBaseTemplatePath, config);
++                    yield this.generateTemplateFile(compilation, compiler, page.path, template.buildPageTemplate, importBaseTemplatePath, config);
+                 }
+                 if (config) {
+                     const importBaseCompPath = (0, helper_1.promoteRelativePath)(node_path_1.default.relative(page.path, node_path_1.default.join(sourceDir, isBuildPlugin ? 'plugin' : '', this.getTargetFilePath(baseCompName, ''))));
+@@ -1132,7 +1132,7 @@
+                     }
+                     this.generateConfigFile(compilation, compiler, page.path, config.content);
+                 }
+-            });
++            }
+             this.generateTabBarFiles(compilation, compiler);
+             this.injectCommonStyles(compilation, compiler);
+             if (this.themeLocation) {
+@@ -1180,14 +1180,14 @@
+         const fileConfigStr = JSON.stringify(config);
+         compilation.assets[fileConfigName] = new RawSource(fileConfigStr);
+     }
+-    generateTemplateFile(compilation, compiler, filePath, templateFn, ...options) {
++    async generateTemplateFile(compilation, compiler, filePath, templateFn, ...options) {
+         var _a;
+         const { RawSource } = compiler.webpack.sources;
+         let templStr = templateFn(...options);
+         const fileTemplName = this.getTemplatePath(this.getComponentName(filePath));
+         if ((_a = this.options.combination.config.minifyXML) === null || _a === void 0 ? void 0 : _a.collapseWhitespace) {
+-            const minify = require('html-minifier').minify;
+-            templStr = minify(templStr, {
++            const { minify } = await import('html-minifier-terser');
++            templStr = await minify(templStr, {
+                 collapseWhitespace: true,
+                 keepClosingSlash: true
+             });
+@@ -1373,4 +1373,4 @@
+     }
+ }
+ exports.default = TaroMiniPlugin;
+-//# sourceMappingURL=MiniPlugin.js.map
+\ No newline at end of file
++//# sourceMappingURL=MiniPlugin.js.map
+diff --git a/dist/index.h5.js b/dist/index.h5.js
+--- a/dist/index.h5.js
++++ b/dist/index.h5.js
+@@ -110,7 +110,7 @@
+                 const firstEntry = Object.keys(entry)[0];
+                 const pathname = combination.isBuildNativeComp ? `/${firstEntry}.html` : '/';
+                 const devUrl = (0, node_url_1.format)({
+-                    protocol: ((_b = webpackConfig.devServer) === null || _b === void 0 ? void 0 : _b.https) ? 'https' : 'http',
++                    protocol: getDevServerProtocol(webpackConfig.devServer.server),
+                     hostname: (0, utils_1.formatOpenHost)((_c = webpackConfig.devServer) === null || _c === void 0 ? void 0 : _c.host),
+                     port: (_d = webpackConfig.devServer) === null || _d === void 0 ? void 0 : _d.port,
+                     pathname: routerMode === 'browser' ? routerBasename : pathname
+@@ -169,12 +169,24 @@
+     });
+ }
+ exports.default = build;
++function getDevServerProtocol(server) {
++    const type = typeof server === 'string' ? server : server && server.type;
++    return ['https', 'spdy', 'http2'].includes(type) ? 'https' : 'http';
++}
+ function getDevServerOptions(appPath, config) {
+     return __awaiter(this, void 0, void 0, function* () {
+         var _a, _b;
+         const publicPath = (0, utils_1.parsePublicPath)(config.publicPath);
+         const outputPath = node_path_1.default.join(appPath, config.outputRoot || 'dist');
+         const _c = config.devServer || {}, { proxy: customProxy = [] } = _c, customDevServerOption = __rest(_c, ["proxy"]);
++        if (customDevServerOption.server === undefined && (customDevServerOption.https !== undefined || customDevServerOption.http2 !== undefined)) {
++            customDevServerOption.server = {
++                type: customDevServerOption.http2 ? 'spdy' : customDevServerOption.https ? 'https' : 'http',
++                options: typeof customDevServerOption.https === 'object' ? customDevServerOption.https : {}
++            };
++        }
++        delete customDevServerOption.https;
++        delete customDevServerOption.http2;
+         const routerConfig = config.router || {};
+         const routerMode = routerConfig.mode || 'hash';
+         const isMultiRouterMode = routerMode === 'multi';
+@@ -249,7 +261,7 @@
+         }
+         const chunkFilename = (_b = (_a = config.output) === null || _a === void 0 ? void 0 : _a.chunkFilename) !== null && _b !== void 0 ? _b : `${config.chunkDirectory || 'chunk'}/[name].js`;
+         const devServerOptions = (0, helper_1.recursiveMerge)({
+-            allowedHosts: 'all',
++            allowedHosts: 'auto',
+             devMiddleware: {
+                 publicPath,
+             },
+@@ -260,10 +272,10 @@
+                 }],
+             compress: true,
+             // disableHostCheck: true, // the disableHostCheck and allowedHosts options were removed in favor of the firewall option
+-            host: '0.0.0.0',
++            host: '127.0.0.1',
+             // useLocalIp: true, @breaking: move in favor { host: 'local-ip' } (https://github.com/webpack/webpack-dev-server/releases?page=2)
+             hot: config.isBuildNativeComp ? true : 'only',
+-            https: false,
++            server: 'http',
+             // inline: true, // the inline option (iframe live mode) was removed
+             client: {
+                 overlay: true
+@@ -295,4 +307,4 @@
+         return devServerOptions;
+     });
+ }
+-//# sourceMappingURL=index.h5.js.map
+\ No newline at end of file
++//# sourceMappingURL=index.h5.js.map

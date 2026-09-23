@@ -1,0 +1,20 @@
+Seen & Said helps Chinese-speaking learners understand English they select on webpages and organize useful words and expressions for further study.
+
+Understand English while reading
+Select a word, phrase, or sentence to see a translation and an explanation in context. On supported video pages, you can select text from available English captions.
+
+Keep a personal vocabulary collection
+Save words locally, review or delete them, and export a word list. With a Seen & Said account, you can choose to send learning material to the web workspace for review and practice.
+
+Choose your online query service
+Use your account allowance or configure a personal key for a supported model service. Queries require an internet connection and available allowance. Your service provider bills usage of your personal key. Cloud features currently require an invitation.
+
+Manage dictionary transfers
+Dictionary import, export, and word-list backfill require separate consent and activation. Backfill checks authorized sources according to your settings and prefills up to 100 words per batch on the destination dictionary page. You confirm the final addition yourself.
+
+Control where the extension runs and how data is used
+Disable the extension globally or for individual sites. Delete local keys and words, or export and delete account content from the web workspace. Automatic error reporting is off by default.
+
+Queries send selected text and necessary context to your chosen service. Enabling cloud learning or shared backfill sends the relevant content and progress to Seen & Said. The extension does not upload your complete browsing history. Local deletion or uninstalling does not delete existing cloud or third-party copies. See the privacy policy and feature consent screens for recipients, retention, and deletion details.
+
+The extension cannot run on restricted pages such as internal browser pages. Caption assistance requires available captions. Seen & Said is an independently developed learning tool.
