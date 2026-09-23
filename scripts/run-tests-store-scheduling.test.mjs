@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -10,8 +10,14 @@ import { runRepositoryTests } from "./run-tests.mjs";
 
 for (const suite of ["unit", "coverage"]) {
   test(`Windows Store ${suite} scheduling never overlaps real Vitest files`, async (t) => {
-    const directory = await mkdtemp(join(tmpdir(), "huayi-store-scheduling-"));
-    t.after(() => rm(directory, { recursive: true, force: true }));
+    const temporary = await mkdtemp(join(tmpdir(), "huayi-store-scheduling-"));
+    t.after(() => rm(temporary, { recursive: true, force: true }));
+    const files = join(temporary, "files");
+    const alias = join(temporary, "alias");
+    await mkdir(files);
+    await symlink(files, alias, process.platform === "win32" ? "junction" : "dir");
+    // CI temp roots can be aliases (macOS /var or Windows short paths). Vite resolves imports.
+    const directory = await realpath(alias);
     const vitestModule = import.meta.resolve("vitest");
     for (let index = 0; index < 4; index += 1) {
       await writeFile(
