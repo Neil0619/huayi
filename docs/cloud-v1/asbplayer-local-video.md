@@ -100,11 +100,15 @@ CI 分别运行 `pnpm exec playwright install chrome` 和
 
 ```sh
 node scripts/verify-asbplayer-store-browser.mjs --run-approved-browser-validation
+node scripts/verify-asbplayer-store-matrix.mjs --run-approved-browser-validation
 ```
 
-回执写入已忽略的 `artifacts/asbplayer-store-browser-receipt.json`，包含浏览器、平台、官网资源摘要及
-实际加载的 Store 文件摘要。此脚本当前覆盖双轨 SRT、VTT、文本 ASS、官网学习闭环、收藏、全屏、弹窗和停用恢复；完整 Windows
-矩阵仍需按下表执行。
+两个脚本各自将回执写入已忽略的 `artifacts/asbplayer-store-browser-receipt.json`，包含浏览器、平台、
+官网资源摘要及实际加载的 Store 文件摘要；顺序运行时应先保存前一次回执。第一个覆盖双轨 SRT、
+VTT、文本 ASS、学习收藏、全屏、弹窗和停用恢复。第二个通过官网实际控件验证正负／重复偏移、
+倍速、结束、四种特殊播放模式、单轨双语和切视频，并在真实扩展世界验证旧频道、迟到修订及超限
+字幕后的安全回退和恢复。敌对消息为定向合成输入，不能声称覆盖任意攻击组合。
+完整 Windows 矩阵仍需按下表执行，两份回执均应记录真实系统缩放。
 
 完整平台门禁为 `pnpm verify:macos` 和 Windows 上的 `pnpm verify:windows`。Windows 环境遵循仓库
 工具链要求；不得在 macOS 模拟结果冒充 Windows 通过。记录候选源码摘要、产物摘要、Chrome 与 OS

@@ -146,14 +146,42 @@ release 产物 SHA-256：
 | service-worker.js    | `aedc3909b13c9ccf7ac5baf35df3bb712b2643797366af6a8e8ccc0e9d948c7b` |
 | manifest.json        | `535572ce7920400f0f7bb1e87b5f5eb79cbbb776241fac43d970fec15fbe6eed` |
 
+## 接续复查（2026-09-24，进行中）
+
+接续新增 `scripts/verify-asbplayer-store-matrix.mjs`，未改产品运行时代码、截图基线或断言阈值。
+上述 `b39449e` 的双平台 CI 是历史候选证据，不能代表新增脚本所在提交；新提交需另外记录检查。
+
+- 从 Google 官方企业 MSI 解出隔离 Chrome **154.0.8037.58**，与 Windows CI 精确版本相同；
+  Chrome 可执行文件 Google 签名有效。没有执行 Chrome 安装／更新，日常 Chrome 仍为 153.0.8010.50。
+  MSI SHA-256：`40de51d92ebbc3d2e9b434526ec6f937bf9a62df6de7ca385dd02d0648379051`。
+- 临时外部 Playwright 配置只指定浏览器可执行文件、输出目录及原服务器工作目录，保持原测试和
+  截图断言。四项视觉测试仍全部失败，10 张 actual PNG 与 Chrome 153 逐字节相同；因此换到 CI
+  浏览器版本不足以消除差异。另以强制浏览器比例 1 作诊断，10 张图仍相同；这不是系统 100% 实测。
+- SwiftShader 单变量对照仍为四项失败，图像发生变化，不能据此宣布 GPU 是唯一根因。本机默认
+  渲染器为 NVIDIA RTX 2070／D3D11（驱动 32.0.15.9186）。CDP 对与 Classic 相同 CSS 字体栈的
+  中文样本确认实际回退字体为 Noto Sans SC（常规／粗体）；尚无相同样本在 CI 的字体证明，
+  不将字体差异推测写成已确认根因，也不修改用户字体。
+- 干净、无扩展浏览器的最小顶层全屏在 149、CfT 154.0.8037.57、Chrome 154.0.8037.58 均通过。
+  真实官网相同合成媒体和原生全屏按钮的无扩展对照：149 通过，两种 154 都失败。
+  失败调用时 `userActivation.isActive=true`、`document.hasFocus()=true`；iframe 的 HTML 全屏
+  Promise 拒绝 `TypeError: not granted`，父文档未另发全屏请求。说明现象不依赖语见，仍不是
+  154 官网全屏通过的证据；具体上游／浏览器兼容原因待定位。
+- 新官网矩阵在真实 Windows **150%**、Chrome 149、实际 release 扩展通过：正负和重复偏移、
+  倍速与结束、Condensed／Auto-pause／Fast-forward／Repeat 四模式的暂停归属、单轨双语、
+  切视频后的重新确认、旧频道消息隔离、实际观察到的旧修订重放拒绝、超限 cue 回退与重新加载恢复。
+  Provider 请求仅 1 次，重复查询复用缓存。四个 release 摘要及官网模块摘要与上文相同。
+  新矩阵的 **100% 尚未执行**，不能以旧基础流程或模拟 DPR 代替。
+- 无扩展、无请求拦截的 Chrome 154.0.8037.58 YouTube 对照仍为可播放、CC 开启、英文 timedtext
+  HTTP 200／0 字节、原生字幕数量 0。浏览器版本替换没有解除真实字幕阻塞。
+
 ## 剩余阻塞与未验证范围
 
 - 本机四项已在输入候选复现的视觉差异仍保留失败状态；需要在相同浏览器版本、系统字体和渲染条件下继续定位。
   当前不能用远端 Windows 的成功覆盖本机失败，也不能直接接受新截图。
 - 真实 YouTube 学习、首次加载、SPA 和字幕切换未验证。解除阻塞需先在干净隔离 Chrome 中确认
   YouTube 自身能显示英文 CC、timedtext 返回非空内容，再加载同一候选补测划词、关闭恢复及切换。
-- 官网脚本覆盖已列出的学习闭环，完整上游特殊播放模式、切视频文件、恶意／迟到消息等组合未在
-  官网逐项执行；离线实际产物矩阵和单测不冒充这些官网实测。其他 Store profile 未做官网验证。
+- 官网扩展矩阵已经补测列出的特殊模式、切文件与定向敌对消息；其 100% 原生缩放仍待执行。
+  未声称任意恶意／迟到消息组合均已验证。其他 Store profile 未做官网验证。
 - Chrome for Testing 154 的官网全屏失败仍保留；149 的成功不代表 154 官网矩阵通过。
 
 复跑命令见 [Git 接续说明](asbplayer-windows-handoff.md)。未验证项目需要在隔离 Chrome 中按

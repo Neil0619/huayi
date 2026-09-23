@@ -1,8 +1,8 @@
 # asbplayer Windows Git 接续说明
 
 2026-09-24 更新。影响平台为 shared Store 扩展与测试工具，目标验收平台为 Windows Chrome。
-Windows 100%／150% 学习流程、官网脚本和准确代码候选的双平台 CI 已完成；本机整套门禁仍有
-四项视觉失败，真实 YouTube 字幕仍不可用。当前结果与范围见
+上一轮 Windows 100%／150% 学习流程、官网基础脚本和准确代码候选的双平台 CI 已完成；后续官网
+扩展矩阵已在 150% 通过，100% 尚待补验。本机整套门禁仍有四项视觉失败，真实 YouTube 字幕仍不可用。当前结果与范围见
 [Windows 验证回执](asbplayer-windows-validation.md)，不表示全部验收或发布完成。
 
 ## 通过 Git 获取候选
@@ -60,6 +60,7 @@ Chrome 与 Chromium 分开安装：Playwright 发现 branded Chrome 已安装时
 ```powershell
 New-Item -ItemType Directory -Force artifacts | Out-Null
 node scripts/verify-asbplayer-store-browser.mjs --run-approved-browser-validation
+node scripts/verify-asbplayer-store-matrix.mjs --run-approved-browser-validation
 ```
 
 官网脚本使用合成媒体及拦截的 Provider 响应；不产生真实模型费用或外部词典写入。
@@ -81,11 +82,13 @@ $env:HUAYI_ASBPLAYER_NATIVE_SCALE = '150' # 100% 时改为 '100'
 pnpm exec playwright test apps/store-extension/e2e/asbplayer-package.spec.ts apps/store-extension/e2e/asbplayer-matrix.spec.ts
 pnpm exec playwright test apps/store-extension/e2e/asbplayer-bfcache.spec.ts
 node scripts/verify-asbplayer-store-browser.mjs --run-approved-browser-validation
+# 先保留上一条命令的回执；两个脚本写同一回执路径。
+node scripts/verify-asbplayer-store-matrix.mjs --run-approved-browser-validation
 Remove-Item Env:\HUAYI_ASBPLAYER_NATIVE_SCALE
 ```
 
-离线实际产物矩阵与官网脚本是两份证据，不能互相替代。官网脚本记录原生显示指标，但尚未覆盖
-完整上游交互矩阵。本次 Windows 的具体结果与未验证项见
+离线实际产物矩阵与官网脚本是独立证据，不能互相替代。官网基础脚本与扩展矩阵均记录原生显示
+指标，后者补充上游时间／模式／文件交互及定向敌对消息。本次 Windows 的具体结果与未验证项见
 [Windows 验证回执](asbplayer-windows-validation.md)。
 
 行为问题先复现并补回归测试，再修复、重建和补受影响检查。不要降低断言或更新截图制造通过。
