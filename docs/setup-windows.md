@@ -207,6 +207,9 @@ Store 与上方 Classic Native Host 安装相互独立。已获相应安装授�
 现有条目点击“重新加载”，保留 ID 与配置，不要先卸载。普通 build/E2E 输出到 `dist-release`，不覆盖
 Hosted 安装；该离线包不能替代云端包。真实重载、配对与 Windows 视觉验收需在 Windows 另行完成。
 
+构建须从上述 pnpm package 命令启动；脚本用当前 Node 执行 pnpm 提供的 JS 入口，避免 Windows
+直接启动 `.cmd` 的限制。缺少该入口时返回失败，不回退到 shell；系统与临时目录变量按白名单保留。
+
 ## Store 本地视频学习
 
 开发验收使用独立 Git 工作树和隔离 Chrome profile，见

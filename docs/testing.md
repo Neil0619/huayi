@@ -33,13 +33,18 @@ POSIX 权限、目录 `fsync`、符号链接或 macOS Keychain 的专属测试�
 Windows 的 backup retirement 链接拒绝回归使用临时目录内的真实 junction，并用 `lstat`
 确认链接身份；不要求管理员符号链接权限，也不跳过失败关闭断言。0023 状态与 Cron ACL 的
 历史迁移夹具固定执行并逐项核对 0001–0023，新增迁移不得改变历史状态的测试输入。
-Store profile 隔离测试连续执行七次真实 Vite 构建，仅该集成测试使用 30 秒预算；产物大小
-上限、默认单测超时和断言保持不变。
+Store profile 隔离测试构建九个 release 入口，并分别构建 hosted 与 production Worker；每次真实
+Vite 构建沿用 `BUILD_FIXTURE_TIMEOUT_MS` 的 60 秒 setup 预算。产物大小上限、默认单测超时和
+断言保持不变。
 Store 覆盖率门在两平台均按文件串行，避免 V8 覆盖率下多个真实 Vite 构建争用资源；
 保留全部测试、默认单测时限及四项 85% 覆盖率门槛。调度回归运行真实 Vitest 文件并检查活跃标记，
 既断言文件不重叠，也核对每个文件实际完成，不能只检查传给子进程的参数。
 该回归通过真实临时目录链接（Windows junction／macOS symlink）覆盖 CI 的路径别名，先取
 规范真实路径再交给 Vitest，避免枚举路径与 Vite 导入路径不一致。
+
+Hosted Store CLI 回归运行真实 Node 子进程和临时 pnpm JS 夹具，不依赖 PATH 中存在 pnpm 可执行文件。
+它核对实际收到的固定构建参数、profile 与过滤后的环境，并验证失败退出不会进入产物审计或报告就绪；
+不运行真实构建、不访问凭据或网络。实际 pnpm 构建与三个 profile 的产物审计另行记录。
 
 Cloud 浏览器夹具通过 `/v2/learning-tasks` 的真实契约模拟任务快照、增量事件与完成输出，
 继续验证 CSRF、幂等冲突和服务器回读；所有领域处理仍在内存中完成。旧分析请求的恢复入口

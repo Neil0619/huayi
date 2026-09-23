@@ -25,7 +25,21 @@ const auditOptions = Object.freeze({
 });
 
 function safeBuildEnvironment(environment) {
-  const allowedNames = ["CI", "HOME", "LOGNAME", "NO_COLOR", "PATH", "TERM", "TMPDIR", "USER"];
+  const allowedNames = [
+    "CI",
+    "HOME",
+    "LOGNAME",
+    "NO_COLOR",
+    "PATH",
+    "SYSTEMROOT",
+    "SystemRoot",
+    "WINDIR",
+    "TEMP",
+    "TMP",
+    "TERM",
+    "TMPDIR",
+    "USER",
+  ];
   return {
     ...Object.fromEntries(
       allowedNames.flatMap((name) =>
@@ -53,9 +67,13 @@ export function runHostedAcceptanceStoreBuild({
   spawnProcess = spawn,
 } = {}) {
   return new Promise((resolveResult) => {
+    if (typeof environment?.npm_execpath !== "string" || environment.npm_execpath.length === 0) {
+      resolveResult(false);
+      return;
+    }
     let child;
     try {
-      child = spawnProcess("pnpm", arguments_, {
+      child = spawnProcess(process.execPath, [environment.npm_execpath, ...arguments_], {
         cwd: repositoryRoot,
         env: safeBuildEnvironment(environment),
         shell: false,
@@ -126,7 +144,10 @@ export async function runHostedAcceptanceStoreCli({
       arguments_[0] === "build" &&
       !(await runBuild({
         arguments_: ["--filter", "@huayi/store-extension", "build"],
-        environment: safeBuildEnvironment(environment),
+        environment: {
+          ...safeBuildEnvironment(environment),
+          npm_execpath: environment.npm_execpath,
+        },
         repositoryRoot,
       }))
     ) {

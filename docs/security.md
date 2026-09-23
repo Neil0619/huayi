@@ -12,6 +12,11 @@ Store asbplayer 新入口、被动字幕桥和划词数据边界见
 锁文件、实际安装、实际补丁与 pnpm 自身；模板解压限制链接目标，CSS 处理禁用外部 source map
 读取，开发服务器默认仅监听 loopback 并校验 Host。工具链验证不代表已部署制品或平台安全状态。
 
+Hosted Store 本地构建仅由当前 Node 执行调用方 pnpm 提供的 JS 入口，使用固定构建参数与
+`shell: false`。入口路径只作为进程参数，不加入子进程环境；环境白名单保留 `SystemRoot`／
+`SYSTEMROOT`、`WINDIR`、`TEMP`、`TMP` 等系统路径，过滤凭据和 `NODE_OPTIONS`，并固定验收
+profile。缺少入口或子进程失败时不审计为就绪；该命令不执行部署、凭据读取或 Provider 请求。
+
 ## 数据最小化
 
 扩展只发送英文选区和所在语义块中围绕选区的最多 2,000 个字符，不发送 URL、标题、整页

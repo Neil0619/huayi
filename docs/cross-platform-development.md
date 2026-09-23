@@ -11,6 +11,10 @@ CI 将 Chrome 与 Chromium 安装拆为独立调用；用户已安装 Chrome 不
 Windows Store 单测与两平台 Store 覆盖率门均按文件串行，避免真实 profile 构建同时运行而超过
 既有时限；不减少测试、不延长断言期限，也不降低覆盖率要求。
 
+Hosted Store 构建入口使用当前 Node 执行 pnpm 提供的 JavaScript 入口，参数数组与 `shell: false`
+保持一致；Windows 不直接执行 `pnpm.cmd`。构建入口的真实子进程回归在两平台运行，覆盖带空格的
+入口路径、固定 profile、必要系统环境变量保留、凭据过滤及失败退出。
+
 ## 目标
 
 Huayi 支持 macOS 与 Windows，但两端的 Native Host 能力不同。代码可以在任一平台编写；完成
