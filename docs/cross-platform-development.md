@@ -132,8 +132,9 @@ macOS 操作者集成；其共享合同必须用 fake credential/process/HTTP �
 `verify:macos`，push 后等待同一 release/SHA 的 macOS 与 Windows job 全绿，才允许继续 API→Web 部署。
 Windows job 未通过时状态停在 CI，不得以旧 Windows 结果、macOS 结果或重派不同 SHA 继续发布。
 
-非 Windows 根 Vitest 使用两个串行资源批次：非 API projects 最多 4 workers，API/PGlite 最多
-2 workers 并仅为该批次设置 15 秒 test/hook timeout。Windows 串行运行全部 9 个 projects，
+非 Windows 根 Vitest 使用三个串行资源批次：先排除 Store extension 目录运行其余非 API projects，
+最多 4 workers；再独立运行 Store extension，禁用文件并行；最后 API/PGlite 最多 2 workers，
+并仅为该批次设置 15 秒 test/hook timeout。Windows 串行运行全部 9 个 projects，
 Native Host 禁用文件并行，Web 最多 4 workers，API 使用相同的 2 workers 和 15 秒超时。
 macOS 与 Windows Actions job 只有失败时才上传固定离线 fixture 的 actual/diff PNG，范围为 lexical ResultCard、
 练习桌面/移动端、四种主题的收集箱、账号设置桌面/移动端、Store 常用设置/本地生词双宽度及两种

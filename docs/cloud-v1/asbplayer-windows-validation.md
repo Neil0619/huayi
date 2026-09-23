@@ -1,8 +1,8 @@
 # asbplayer Windows 开发验收回执
 
 2026-09-23 至 24 日，影响范围为 shared Store、测试工具与 Windows 验证。最新代码候选为
-`2897154`，进一步隔离 macOS Store 构建测试；本机定向检查通过，新候选 CI 进行中。上一构建修复
-候选 `6798083` 的 Windows CI 已通过、macOS 仍有一项失败。本机完整门禁为 238 项浏览器通过、4 项视觉
+`2897154`，进一步隔离 macOS Store 构建测试；本机定向检查通过，新候选 CI 进行中。上一工具
+候选 `ad59af7` 的 Windows CI 已通过、macOS 构建单测超时。本机完整门禁为 238 项浏览器通过、4 项视觉
 失败；更早远端 Windows 的实际 Store 超时尚未确认原因。真实 YouTube 字幕不可用，新产品及官网
 扩展矩阵尚待 100% 补验，不能声明全部
 验收通过。本次未合并 main、部署或发布商店版本。
@@ -14,7 +14,7 @@
 - 最新代码候选：`2897154de5ee027609d31f7121685c10193fc3b0`；Git tree：
   `910fc79b3e055c0f28e8ca7549c0d8e6ba9d5b24`。其后纯回执文档提交不等于 CI 验证过的源码 SHA。
 - 上一官网测试工具候选：`ad59af7a990dccda483042d486dee3409e6933f7`；Git tree：
-  `05e8b36dc510f25ccd9b45b3ce209916e0e49abc`。其 Mac 普通 Store 构建测试超时。
+  `05e8b36dc510f25ccd9b45b3ce209916e0e49abc`。Windows 完整 CI 已通过，Mac 普通 Store 构建测试超时。
 - 已完成 Windows CI 的上一构建修复候选：`679808338a0f9fcd69e407e6dae59b93cd060c2c`；Git tree：
   `14be92de00579b013abd8a80813bf2a6afcd73e2`。其 macOS job 有一项浏览器失败。
 - 上一轮已通过 CI 的代码候选：`b39449ee8e940701924dafe22769f73d82f7f1d2`；Git tree：
@@ -97,9 +97,12 @@ Store 完整类型检查通过；为排查 Windows CI 超时，仅增加固定�
 1,142 通过、6 项既有平台跳过、0 失败。未声称这组定向检查等于整仓 Windows 门禁或新候选 CI。
 
 上述测试工具提交为 `ad59af7a990dccda483042d486dee3409e6933f7`，已推送同一接续分支。
-其准确候选 [CI 35913888907](https://github.com/Neil0619/huayi/actions/runs/35913888907) 已启动，
-macOS job `107360346997` 已失败于更早的 Store 实际构建单测；Windows job `107360347197`
-仍需收集终态。该次 Mac 浏览器门未运行，不能说已复测或修复快捷键失败。
+其准确候选 [CI 35913888907](https://github.com/Neil0619/huayi/actions/runs/35913888907) 已结束，
+macOS job `107360346997` 失败于更早的 Store 实际构建单测；Windows job `107360347197` 成功，
+作业耗时 44 分 4 秒。Windows 完整浏览器 243/243 通过（10.2 分钟），包括原实际 Store 11 项和新增
+官网权限回归；后续 Store 发布边界、安全审计、SEA 打包及隔离健康帧均通过。新增固定阶段日志
+显示本次 Store 从浏览器启动、媒体录制到 profile 清理均完成，没有复现旧候选的超时；这不等于
+已确定旧超时根因。该次 Mac 浏览器门未运行，不能说已复测或修复快捷键失败。
 对上一 macOS 失败，本机追加 12 轮相同快捷键流程并观测原生 pause／play／playing 事件，全部
 未复现；每轮暂停事件均发生在有效快捷键阶段，失效后计数 0、视频继续播放。仅凭 Windows
 未复现无法区分 macOS 产品异常和事件观测竞态，未作猜测性修复或改动原失效断言。

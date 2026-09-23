@@ -131,10 +131,12 @@ Supabase recovery adapter 必须回归 `TokenHash` 只在显式 POST 后交给 `
 300 秒 PKCE flow state；Hosted Auth 模板门必须只允许一个 `RedirectTo` 和一个 `TokenHash`、零
 `ConfirmationURL`，apply 只能从已知旧模板做单字段更新并重新回读，输出不得反射模板或 token。
 
-非 Windows 的根 Vitest 门按固定顺序分成两个进程：先用 `--project=!api --maxWorkers 4` 运行
-非 API projects，再用 `--project api --maxWorkers 2 --testTimeout 15000 --hookTimeout 15000`
-单独运行 PGlite 密集的 API tests。这个局部资源和超时预算不改变断言、重试或全局 Playwright
-timeout；Windows 继续使用既有逐 project 列表，且不因此新增 API/Web Vitest 步骤。
+非 Windows 的根 Vitest 门按固定顺序分成三个进程：先用
+`--project=!api --exclude apps/store-extension/** --maxWorkers 4` 运行其余非 API projects；
+再用 `--project store-extension --no-file-parallelism` 独立运行 Store，避免完整 Vite 构建争用；
+最后用 `--project api --maxWorkers 2 --testTimeout 15000 --hookTimeout 15000` 单独运行
+PGlite 密集的 API tests。这个局部资源和超时预算不改变断言、重试或全局 Playwright timeout；
+Windows 继续使用既有逐 project 列表，且不因此新增 API/Web Vitest 步骤。
 
 自动测试覆盖：
 
