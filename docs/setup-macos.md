@@ -10,6 +10,10 @@
 旧 `~/Applications/SeenAndSaid/testing`、`production` 仅作归档，保留浏览器存储且不再同步或重装；
 production 候选为临时输出，未来正式日常版通过 Chrome Web Store 使用。Store 不需要安装 Native Host。
 
+`pnpm test` 会把 Store 单测从其他非 API 项目中分离，并按文件串行执行完整 profile 构建测试，
+随后运行 API 批次。原集成测试时限和断言保持不变；调度回归同时检查其他项目没有漏跑或重复。
+完整 macOS 验证仍使用 `pnpm verify:macos`，定向诊断成功不替代该门禁。
+
 ## 前置条件
 
 - Google Chrome。

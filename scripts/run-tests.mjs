@@ -60,7 +60,15 @@ function resolveTestSteps(scriptTests, pnpmEntry, platform) {
     return [
       dependencyBuildStep,
       scriptStep,
-      createVitestStep(pnpmEntry, "!api", ["--maxWorkers", "4"]),
+      createVitestStep(pnpmEntry, "!api", [
+        "--exclude",
+        "apps/store-extension/**",
+        "--maxWorkers",
+        "4",
+      ]),
+      // Store files build complete Vite profiles. Isolate them from other projects
+      // and one another on macOS too, without extending their assertion deadlines.
+      createVitestStep(pnpmEntry, "store-extension", ["--no-file-parallelism"]),
       createVitestStep(pnpmEntry, "api", [
         "--maxWorkers",
         "2",

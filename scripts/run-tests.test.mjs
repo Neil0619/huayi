@@ -64,7 +64,7 @@ test("bounded script process", async () => {
   assert.equal((await readdir(directory)).filter((name) => name.endsWith(".completed")).length, 8);
 });
 
-test("repository tests run explicit script files before two bounded Vitest batches", async () => {
+test("repository tests isolate Store builds between the non-API and API batches", async () => {
   const calls = [];
 
   await runRepositoryTests({
@@ -92,10 +92,23 @@ test("repository tests run explicit script files before two bounded Vitest batch
     "--passWithNoTests",
     "--project",
     "!api",
+    "--exclude",
+    "apps/store-extension/**",
     "--maxWorkers",
     "4",
   ]);
   assert.deepEqual(calls[3].arguments.slice(1), [
+    "exec",
+    "vitest",
+    "run",
+    "--config",
+    "vitest.config.ts",
+    "--passWithNoTests",
+    "--project",
+    "store-extension",
+    "--no-file-parallelism",
+  ]);
+  assert.deepEqual(calls[4].arguments.slice(1), [
     "exec",
     "vitest",
     "run",
@@ -115,6 +128,7 @@ test("repository tests run explicit script files before two bounded Vitest batch
   assert.equal(calls[1].executable, process.execPath);
   assert.equal(calls[2].executable, process.execPath);
   assert.equal(calls[3].executable, process.execPath);
+  assert.equal(calls[4].executable, process.execPath);
 });
 
 test("Windows bounds Web/API workers and serializes Store/native-host files", async () => {
@@ -209,8 +223,22 @@ test("repository test modes select their reviewed step groups", async () => {
           "--passWithNoTests",
           "--project",
           "!api",
+          "--exclude",
+          "apps/store-extension/**",
           "--maxWorkers",
           "4",
+        ],
+        [
+          "/fixture/pnpm.cjs",
+          "exec",
+          "vitest",
+          "run",
+          "--config",
+          "vitest.config.ts",
+          "--passWithNoTests",
+          "--project",
+          "store-extension",
+          "--no-file-parallelism",
         ],
         [
           "/fixture/pnpm.cjs",

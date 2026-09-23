@@ -6,8 +6,10 @@ M0 的 focused 离线命令、独立探针构建与官方 Chrome 验收矩阵见
 官网 `document_start`/MAIN 世界时序及主视频控制验证；真实模型与词书调用不属于 M0。
 
 Windows asbplayer 的原生缩放命令和证据边界见
-[Git 接续说明](cloud-v1/asbplayer-windows-handoff.md)。默认 Store 单测在 Windows 按文件串行，
-避免两个完整 Vite 构建互相争用；保留集成测试的原超时和断言。E2E 服务器冷构建允许 180 秒启动，单项断言期限不变。
+[Git 接续说明](cloud-v1/asbplayer-windows-handoff.md)。默认 Store 单测在 Windows 与 macOS 按文件
+串行，避免完整 Vite 构建互相争用；保留集成测试的原超时和断言。macOS 先从非 API 批次中排除
+Store 目录，再独立执行 Store，最后保留 API 批次；不按多个否定项目参数组合排除，因为它们按或匹配。
+E2E 服务器冷构建允许 180 秒启动，单项断言期限不变。
 Windows 脚本测试同样限制为 4 个并发进程，避免批量启动子进程挤占 SEA 协议测试的原有期限。
 Taro watcher 回归等待 HTTP 实际提供编辑后的内容，不能把无关的一次编译完成当成热更新成功。
 
@@ -38,7 +40,8 @@ Vite 构建沿用 `BUILD_FIXTURE_TIMEOUT_MS` 的 60 秒 setup 预算。产物大
 断言保持不变。
 Store 覆盖率门在两平台均按文件串行，避免 V8 覆盖率下多个真实 Vite 构建争用资源；
 保留全部测试、默认单测时限及四项 85% 覆盖率门槛。调度回归运行真实 Vitest 文件并检查活跃标记，
-既断言文件不重叠，也核对每个文件实际完成，不能只检查传给子进程的参数。
+既断言文件不重叠，也核对每个文件实际完成，不能只检查传给子进程的参数。macOS 计划另外核对
+非 Store 项目与 API 各执行一次，Store 文件无漏跑或重复执行。
 该回归通过真实临时目录链接（Windows junction／macOS symlink）覆盖 CI 的路径别名，先取
 规范真实路径再交给 Vitest，避免枚举路径与 Vite 导入路径不一致。
 

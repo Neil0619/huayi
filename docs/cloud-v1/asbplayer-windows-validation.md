@@ -96,10 +96,33 @@ Store 完整类型检查通过；为排查 Windows CI 超时，仅增加固定�
 
 上述测试工具提交为 `ad59af7a990dccda483042d486dee3409e6933f7`，已推送同一接续分支。
 其准确候选 [CI 35913888907](https://github.com/Neil0619/huayi/actions/runs/35913888907) 已启动，
-macOS job `107360346997`、Windows job `107360347197`；本文更新时仍在运行，尚无通过结论。
+macOS job `107360346997` 已失败于更早的 Store 实际构建单测；Windows job `107360347197`
+仍需收集终态。该次 Mac 浏览器门未运行，不能说已复测或修复快捷键失败。
 对上一 macOS 失败，本机追加 12 轮相同快捷键流程并观测原生 pause／play／playing 事件，全部
 未复现；每轮暂停事件均发生在有效快捷键阶段，失效后计数 0、视频继续播放。仅凭 Windows
 未复现无法区分 macOS 产品异常和事件观测竞态，未作猜测性修复或改动原失效断言。
+
+macOS 构建失败为 Hosted acceptance profile 用例超过原 15 秒，耗时 15.826 秒；非 API 批次
+3,656 通过、1 失败、12 跳过。日志显示它与 `build-profile-isolation.test.ts` 的整套 Vite 构建
+重叠，Hosted Vite 自身已用 14.78 秒。此前只把 Windows 普通 Store 和两平台覆盖率串行化，Mac
+普通门仍在四 worker 的非 API 批次中运行 Store。新增真实 Vitest 回归先复现四文件重叠；尝试两个
+否定 `--project` 过滤仍失败，实际 CLI 按或匹配。改为非 API 批次先排除 Store 目录，再独立串行
+Store，最后保留 API 批次；原 Windows 计划、所有用例和时限不变。回归同时验证非 Store 与 API
+各执行一次、Store 无重复完成，11/11 通过。完整脚本 1,143 通过／6 跳过／0 失败，本机原真实
+profile 构建回归 16/16 通过；该调度修复仍需要新的准确 macOS CI，不以 Windows 契约测试代替。
+
+为取得可比较的 CI 环境证据，另建诊断分支 `codex/asbplayer-ci-diagnostics`，准确提交
+`78e68bd3b06b598a798a691d9d4cfc6d0acb4751`，其产品源码与 `ad59af7` 相同。该分支仅将手动入口
+改接离线诊断，不是产品候选、不合并到 main，也不改变接续分支的完整门禁。
+[定向诊断 35915453989](https://github.com/Neil0619/huayi/actions/runs/35915453989) 两端完成：
+macOS job `107365664504` 与 Windows job `107365664850` 的快捷键各 20 轮均未复现异常；每轮
+仍断言失效后零 pause 事件、继续播放和零 Provider 请求。它们保留原生事件顺序，不派发合成事件。
+
+同一诊断的 Chrome **154.0.8037.58** 实测：CI Windows Server 10.0.26100 对相同源码字体栈的
+固定中文使用 **Microsoft YaHei**（普通／粗体），本机 Windows 10.0.26220 使用 **Noto Sans SC**。
+三组样本尺寸均相同：272×25.5、40×15.5、158.21875×23.25；字体实际选择不同已确认，尚未据此
+把所有截图差异归为单一根因。CI 渲染器为 ANGLE／Vulkan SwiftShader，本机默认为 NVIDIA D3D11。
+诊断只记录固定合成文本的字体名称／数量、尺寸和渲染器，不上传字体文件或私人页面数据。
 
 ## 上一轮自动化结果（b39449e）
 
