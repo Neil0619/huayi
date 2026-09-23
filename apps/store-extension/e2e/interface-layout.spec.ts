@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "../../../scripts/windows-visual-test.mjs";
 
 const fixture = "/apps/store-extension/e2e/fixtures/interface.html";
 const themes = ["moon", "silver", "champagne", "porcelain"] as const;

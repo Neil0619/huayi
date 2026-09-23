@@ -12,6 +12,10 @@ Windows 与 macOS 的 Store 单测和覆盖率门均按文件串行，避免真�
 既有时限；不减少测试、不延长断言期限，也不降低覆盖率要求。macOS 普通门先从其他非 API 项目
 中排除 Store 目录，再独立运行 Store；真实 Vitest 回归同时验证非 Store 和 API 项目各执行一次。
 
+Classic 结果卡和 Store 界面布局的 Windows 截图测试固定浏览器中文通用字体，并使用软件合成。
+该环境仅作用于两个视觉测试文件，不改变产品样式或 macOS 环境；截图及比较阈值保持。
+真实扩展与原生缩放验收仍使用原浏览器配置，详见 [测试策略](testing.md)。
+
 Hosted Store 构建入口使用当前 Node 执行 pnpm 提供的 JavaScript 入口，参数数组与 `shell: false`
 保持一致；Windows 不直接执行 `pnpm.cmd`。构建入口的真实子进程回归在两平台运行，覆盖带空格的
 入口路径、固定 profile、必要系统环境变量保留、凭据过滤及失败退出。

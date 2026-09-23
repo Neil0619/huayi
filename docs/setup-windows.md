@@ -30,6 +30,9 @@ Store 不需要 Native Host 或 DPAPI 配置；macOS 的构建/重载结果不�
 
 Windows 质量门会串行执行 Store 单测文件，Store 覆盖率门也按文件串行。完整 profile 的真实
 Vite 构建不能与其他 Store 文件争用同一批 worker；原有超时和断言保留，无需修改系统配置。
+Classic 结果卡与 Store 界面布局的视觉测试只在隔离测试浏览器内固定 Microsoft YaHei 通用字体
+与软件合成条件；需要该 Windows 字体可用，不安装或修改用户字体。此配置不影响已安装扩展，
+也不用于官网或真实系统缩放验收；截图基线、阈值和产品 CSS 保持不变。
 
 - Windows 10/11、Google Chrome、Git。
 - Node.js 26 或更高版本。Node 26 只用于从源码构建单文件 Host；安装后日常运行不需要 Node。

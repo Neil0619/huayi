@@ -13,6 +13,12 @@ E2E 服务器冷构建允许 180 秒启动，单项断言期限不变。
 Windows 脚本测试同样限制为 4 个并发进程，避免批量启动子进程挤占 SEA 协议测试的原有期限。
 Taro watcher 回归等待 HTTP 实际提供编辑后的内容，不能把无关的一次编译完成当成热更新成功。
 
+Classic `results.spec.ts` 与 Store `interface-layout.spec.ts` 的 Windows 视觉环境使用
+`scripts/windows-visual-test.mjs`：仅在这两个文件的测试浏览器禁用 GPU 合成，并通过 CDP 固定
+通用及简体中文 serif／sans-serif 回退字体为 Microsoft YaHei。产品显式 CSS 字体仍优先，
+不重写页面 CSS、不安装系统字体、不改截图或阈值。macOS 保留原环境；实际 Store 扩展、官网及
+100%／150% 原生显示验证不使用这个夹具，仍须独立完成，不能用软件合成截图代替硬件实测。
+
 ## 默认自动测试
 
 `pnpm test`、`pnpm test:e2e` 及其他默认门禁必须完全离线，不得访问 OpenAI、真实 Codex、

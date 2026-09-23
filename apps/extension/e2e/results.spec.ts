@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "../../../scripts/windows-visual-test.mjs";
 
 test.use({ viewport: { height: 700, width: 900 } });
 
