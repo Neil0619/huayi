@@ -8,6 +8,7 @@ M0 的 focused 离线命令、独立探针构建与官方 Chrome 验收矩阵见
 Windows asbplayer 的原生缩放命令和证据边界见
 [Git 接续说明](cloud-v1/asbplayer-windows-handoff.md)。默认 Store 单测在 Windows 限制为 4 个
 worker，保留实际 Vite 集成测试的原超时和断言；E2E 服务器冷构建允许 180 秒启动，单项断言期限不变。
+Windows 脚本测试同样限制为 4 个并发进程，避免批量启动子进程挤占 SEA 协议测试的原有期限。
 Taro watcher 回归等待 HTTP 实际提供编辑后的内容，不能把无关的一次编译完成当成热更新成功。
 
 ## 默认自动测试

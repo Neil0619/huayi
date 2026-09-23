@@ -1,7 +1,68 @@
 import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
+import { mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 
 import { runRepositoryTests } from "./run-tests.mjs";
+
+test("Windows script batches keep at most four real test processes active", async (t) => {
+  const directory = await mkdtemp(join(tmpdir(), "huayi-script-concurrency-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const fixtures = await Promise.all(
+    Array.from({ length: 8 }, async (_, index) => {
+      const path = join(directory, `${index}.test.mjs`);
+      await writeFile(
+        path,
+        `import assert from "node:assert/strict";
+import { readdir, rm, writeFile } from "node:fs/promises";
+import { setTimeout } from "node:timers/promises";
+import { test } from "node:test";
+test("bounded script process", async () => {
+  const directory = ${JSON.stringify(directory)};
+  const marker = ${JSON.stringify(join(directory, `${index}.active`))};
+  await writeFile(marker, "active");
+  try {
+    await setTimeout(200);
+    const active = (await readdir(directory)).filter(name => name.endsWith(".active"));
+    assert.ok(active.length <= 4, "Script process concurrency exceeded four");
+    await writeFile(${JSON.stringify(join(directory, `${index}.completed`))}, "done");
+  } finally { await rm(marker); }
+});`,
+      );
+      return path;
+    }),
+  );
+  await runRepositoryTests({
+    listTests: async () => fixtures,
+    mode: "scripts-only",
+    platform: "win32",
+    pnpmEntry: "/fixture/pnpm.cjs",
+    run: async (step) => {
+      // This probe has no package dependencies; execute the real Node test batch.
+      if (!step.arguments.includes("--test")) return;
+      await new Promise((resolve, reject) => {
+        const environment = { ...process.env };
+        delete environment.NODE_TEST_CONTEXT;
+        const child = spawn(step.executable, step.arguments, {
+          env: environment,
+          stdio: "pipe",
+          shell: false,
+        });
+        let output = "";
+        child.stdout.on("data", (chunk) => (output += chunk));
+        child.stderr.on("data", (chunk) => (output += chunk));
+        child.once("error", reject);
+        child.once("close", (code) => {
+          if (code === 0) resolve();
+          else reject(new Error(output));
+        });
+      });
+    },
+  });
+  assert.equal((await readdir(directory)).filter((name) => name.endsWith(".completed")).length, 8);
+});
 
 test("repository tests run explicit script files before two bounded Vitest batches", async () => {
   const calls = [];

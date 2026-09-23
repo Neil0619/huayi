@@ -47,7 +47,13 @@ function resolveTestSteps(scriptTests, pnpmEntry, platform) {
     executable: process.execPath,
   };
   const scriptStep = {
-    arguments: ["--test", ...scriptTests],
+    // Each script worker may start real child processes. Bound Windows scheduling
+    // so process startup does not consume the SEA framing tests' existing deadlines.
+    arguments: [
+      "--test",
+      ...(platform === "win32" ? ["--test-concurrency=4"] : []),
+      ...scriptTests,
+    ],
     executable: process.execPath,
   };
   if (platform !== "win32") {
