@@ -12,14 +12,16 @@
 `6798083` 的准确 Windows CI 已通过（浏览器 242/242），macOS 为 241 通过、失效快捷键暂停计数
 一项失败。当前新增官网选项在真实 150% 下通过基础／扩展矩阵，本机 Store 与权限回归 12/12 通过；
 显式字体权限和弹窗尺寸条件、待补的 100% 均见回执。最新工具候选 `ad59af7` 已启动独立双平台
-CI；macOS 已在 Hosted profile 构建单测超时，浏览器门未运行。后续正隔离并串行化 macOS 普通
-Store 批次，原测试及 15 秒期限保留，新调度仍须准确提交的 CI 验证。各次失败不以重跑覆盖。
+CI；macOS 已在 Hosted profile 构建单测超时，浏览器门未运行。后续 `2897154` 隔离并串行化
+macOS 普通 Store 批次，原测试及 15 秒期限保留，新调度的准确双平台 CI 已启动。各次失败不以重跑覆盖。
+截图环境对照确认 CI 与本机中文回退字体不同；临时指定 CI 字体后 Classic 两项通过，Store 两项
+仍有像素差异，加软件渲染也未通过。默认四项失败、原截图及阈值保持，详细计数见验证回执。
 
 ## 通过 Git 获取候选
 
 - 仓库：`https://github.com/Neil0619/huayi.git`。
 - 当前交接分支：`codex/asbplayer-windows-validation-fixes`。
-- 最新代码候选：`ad59af7a990dccda483042d486dee3409e6933f7`，双平台 CI 状态见验证回执。
+- 最新代码候选：`2897154de5ee027609d31f7121685c10193fc3b0`，双平台 CI 状态见验证回执。
 - 上一 Windows CI 已通过候选：`679808338a0f9fcd69e407e6dae59b93cd060c2c`，macOS 一项失败。
 - 已通过双平台 CI 的代码候选：`b39449ee8e940701924dafe22769f73d82f7f1d2`。
 - Windows 接续输入：`codex/asbplayer-windows-validation` 的
