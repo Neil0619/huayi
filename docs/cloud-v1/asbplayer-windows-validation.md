@@ -1,18 +1,20 @@
 # asbplayer Windows 开发验收回执
 
 2026-09-23 至 24 日，影响范围为 shared Store、测试工具与 Windows 验证。最新代码候选为
-`2897154`，进一步隔离 macOS Store 构建测试；本机定向检查通过，新候选 CI 进行中。上一工具
-候选 `ad59af7` 的 Windows CI 已通过、macOS 构建单测超时。本机完整门禁为 238 项浏览器通过、4 项视觉
-失败；更早远端 Windows 的实际 Store 超时尚未确认原因。真实 YouTube 字幕不可用，新产品及官网
-扩展矩阵尚待 100% 补验，不能声明全部
+`83c1ab0`，固定 Windows 视觉测试的字体与合成环境；本机完整门禁已通过，浏览器 243/243，
+准确双平台 CI 进行中。上一候选 `2897154` 的 Mac 完整 CI 已通过，Windows 浏览器 242 通过、
+一项 Classic 短语拖选失败；独立诊断两平台各 100 轮未复现，根因仍未确定。真实 YouTube 字幕
+不可用，新产品及官网扩展矩阵尚待 100% 补验，不能声明全部
 验收通过。本次未合并 main、部署或发布商店版本。
 
 ## 候选与环境
 
 - 输入候选：`c67405c7ff7562e950bf5b03dc46971c2c6f5b24`，来自
   `https://github.com/Neil0619/huayi.git` 的 `codex/asbplayer-windows-validation`。
-- 最新代码候选：`2897154de5ee027609d31f7121685c10193fc3b0`；Git tree：
-  `910fc79b3e055c0f28e8ca7549c0d8e6ba9d5b24`。其后纯回执文档提交不等于 CI 验证过的源码 SHA。
+- 最新代码候选：`83c1ab0445bcc20e7018f2fdba85c7ee299afe99`；Git tree：
+  `f2b63d5cc5be4a3b2afdafdfabf9b710f369340c`。其后纯回执文档提交不等于 CI 验证过的源码 SHA。
+- 上一调度修复候选：`2897154de5ee027609d31f7121685c10193fc3b0`；Git tree：
+  `910fc79b3e055c0f28e8ca7549c0d8e6ba9d5b24`。Mac 完整 CI 已通过，Windows 一项拖选失败。
 - 上一官网测试工具候选：`ad59af7a990dccda483042d486dee3409e6933f7`；Git tree：
   `05e8b36dc510f25ccd9b45b3ce209916e0e49abc`。Windows 完整 CI 已通过，Mac 普通 Store 构建测试超时。
 - 已完成 Windows CI 的上一构建修复候选：`679808338a0f9fcd69e407e6dae59b93cd060c2c`；Git tree：
@@ -26,7 +28,8 @@
 - 验证使用独立安装 Node.js 26.10.0、pnpm 10.34.5、Playwright 1.61.1。
   主机原有 Node.js 24.18.0 和 pnpm 11.19.0 未替换。
 - 实际 Store 夹具／官网使用 Playwright Chromium 1228、Chrome for Testing 149.0.7827.55；
-  普通 E2E 使用已安装 Chrome 153.0.8010.50。
+  早期普通 E2E 使用已安装 Chrome 153.0.8010.50。最新门禁运行期间（09-24 05:16，UTC+8）
+  观察到已安装 exe 文件版本为 153.0.8010.53，不将此读数追溯赋给历史运行；任务未更新日常 Chrome。
 - Provider 由合成 SSE 响应替代，只写隔离扩展本机词本。未调用真实模型或外部词典写入。
 
 默认浏览器缓存中的 Chromium 无法启动（Windows side-by-side 依赖程序集错误）。任务专用
@@ -35,6 +38,35 @@ chrome_elf.dll 与默认缓存哈希一致，不能据此断言上游二进制�
 并完成查词收藏，但全屏被浏览器拒绝（`TypeError: not granted`）；该失败保留，未改动产品代码规避。
 
 ## 最新接续结果（2026-09-24）
+
+准确候选 `83c1ab0445bcc20e7018f2fdba85c7ee299afe99` 的本机 `pnpm verify:windows` 于
+05:08:49 至 05:43:58（UTC+8）完成，退出 0。指令、整仓格式／lint／类型、全部单元测试、Store
+覆盖率、架构、整仓构建、Cloud development-blocked、完整浏览器、Store 发布边界、安全审计、
+Windows SEA 打包及隔离健康帧均通过。脚本 1,143 通过／6 跳过，Store 191 文件／1,203 项通过；
+完整浏览器 **243/243**（8.8 分钟），包括历史失败的 Classic 短语拖选、实际 Store、普通网页、
+离线 YouTube 和真实 BFCache。覆盖率为 90.37%／85.16%／90.86%／92.44%；其余单元计数同历史表。
+此默认门禁不模拟或认证原生 100%／150% 缩放。结束后核对 release 四个关键文件摘要，均与下文
+结束字幕修复后的构建一致。本轮生成的七份合成截图／延迟数据移入任务忽略目录，移动前后 SHA-256
+一致，未上传页面内容或加入 Git。
+
+该候选 [完整 CI 35920547519](https://github.com/Neil0619/huayi/actions/runs/35920547519) 的
+Windows job `107383093252`、macOS job `107383093462` 仍在运行；本机成功不能代替它们的终态。
+
+上一候选 `2897154` 的 [CI 35917137881](https://github.com/Neil0619/huayi/actions/runs/35917137881)
+已结束。macOS job `107371493326` 全部成功、浏览器 243/243（11.7 分钟），证实新的 Store 调度在
+Mac 实际运行通过；原 Hosted 构建测试及完整 profile 构建均完成。Windows job `107371493035`
+为 242 通过／1 失败（10.7 分钟）：`selection-journeys.spec.ts:104` 在原五秒内未找到短语拖选后的
+工具条，尚不能区分原生选区未形成与有效选区后的内容脚本异常。实际 Store 用例均通过；浏览器门
+失败后未运行发布边界、安全审计和 SEA，不将这些步骤记为该 job 通过。原 job 未上传该用例事件
+或 trace，不能由后续重跑补造失败现场。
+
+为观测此症状，诊断分支提交 `da28bbfb345cc11b047ac44d65b0fa8ec2ffad7b` 保持原拖选辅助函数与
+行为断言，记录有界原生事件、选区长度及匹配布尔值，不记录选中文字或页面内容。
+[独立诊断 35922948337](https://github.com/Neil0619/huayi/actions/runs/35922948337) 的 Windows
+job `107391119537` 与 Mac job `107391119294` 均成功，各 100/100，Chrome 154.0.8037.58。
+这是未复现结果，不是产品修复或完整门禁；没有改为程序构造选区、延长等待或削弱原断言。
+额外独立 strict TypeScript 检查发现原 `journey-helpers.ts` 未使用辅助函数中的三项 undefined
+收窄错误；诊断分支文档已记录，未将这次额外检查称为通过，也未修改产品候选。
 
 `0e37df7546a7bc2c18d11bc9408fefaf2c119585` 的本机 `pnpm verify:windows` 于 02:39 至 03:13
 完成，退出 1。指令、整仓格式／lint／类型、全部单元测试、Store 覆盖率、架构、整仓构建及 Cloud
@@ -114,11 +146,11 @@ macOS 构建失败为 Hosted acceptance profile 用例超过原 15 秒，耗时 
 否定 `--project` 过滤仍失败，实际 CLI 按或匹配。改为非 API 批次先排除 Store 目录，再独立串行
 Store，最后保留 API 批次；原 Windows 计划、所有用例和时限不变。回归同时验证非 Store 与 API
 各执行一次、Store 无重复完成，11/11 通过。完整脚本 1,143 通过／6 跳过／0 失败，本机原真实
-profile 构建回归 16/16 通过；该调度修复仍需要新的准确 macOS CI，不以 Windows 契约测试代替。
+profile 构建回归 16/16 通过；后续准确 macOS CI 已成功，结果见本节开头。
 指令、整仓格式、lint、完整类型检查与 diff 空白检查也通过。修复提交为
 `2897154de5ee027609d31f7121685c10193fc3b0`，准确候选
-[CI 35917137881](https://github.com/Neil0619/huayi/actions/runs/35917137881) 已启动；Windows job
-`107371493035`、macOS job `107371493326`，本文更新时仍在运行，不声称通过。
+[CI 35917137881](https://github.com/Neil0619/huayi/actions/runs/35917137881) 已完成；Windows job
+`107371493035` 一项拖选失败，macOS job `107371493326` 成功，不能将整次 CI 记为通过。
 
 为取得可比较的 CI 环境证据，另建诊断分支 `codex/asbplayer-ci-diagnostics`，准确提交
 `78e68bd3b06b598a798a691d9d4cfc6d0acb4751`，其产品源码与 `ad59af7` 相同。该分支仅将手动入口
@@ -153,7 +185,8 @@ NVIDIA 和仅 SwiftShader 两组仍为 `gpu_compositing=enabled`／`skiaBackendT
 设置上述通用字体，保留显式 CSS 字体的优先级。macOS 不设置这两个条件；真实 Store 扩展、官网和
 原生缩放测试不使用此夹具。原两个测试文件在本机默认 Chrome 153 下 9/9 通过（55.7 秒），包括
 此前四项失败，运行明确禁止更新截图。原行为断言、截图基线、阈值和超时均未改变，产品 CSS 也未
-改变。这是测试环境修复的定向结果，历史默认配置失败仍保留；完整 Windows 门和新提交 CI 待执行。
+改变。正式修复提交为 `83c1ab0`；新夹具 strict checkJs、整仓格式／lint 通过，后续完整本机 Windows
+门禁已成功，准确 CI 仍在运行。历史默认配置失败仍保留，不以新环境结果覆盖。
 
 ## 上一轮自动化结果（b39449e）
 
@@ -348,7 +381,7 @@ release 产物 SHA-256：
 ## 剩余阻塞与未验证范围
 
 - 历史本机四项视觉失败保留。固定浏览器字体与禁用 GPU 合成后，正式视觉夹具的两个文件 9/9
-  通过；新测试环境仍须完整本机门禁及准确候选双平台 CI，不能只凭定向通过宣称全绿。
+  通过，`83c1ab0` 完整本机门禁亦已通过；准确候选双平台 CI 仍在运行。
 - 真实 YouTube 学习、首次加载、SPA 和字幕切换未验证。解除阻塞需先在干净隔离 Chrome 中确认
   YouTube 自身能显示英文 CC、timedtext 返回非空内容，再加载同一候选补测划词、关闭恢复及切换。
 - 官网扩展矩阵已经补测列出的特殊模式、切文件与定向敌对消息；其 100% 原生缩放仍待执行。
@@ -358,7 +391,8 @@ release 产物 SHA-256：
   150% 完整 Store 基础流程及扩展矩阵通过。相同选项的 100% 仍待补验，默认配置未通过。
 - 历史 macOS 失效快捷键 pause 计数异常在两平台定向诊断各 20 轮均未复现，原因仍未确认；
   旧 Windows 实际 Store 超时也不能仅凭随后通过宣称根因已修复。
-- 最新候选 `2897154` 修复 Mac 普通 Store 构建争用，准确双平台 CI 正在运行；旧结果不能代替。
+- `2897154` 的 Windows Classic 短语拖选失败在独立两平台各 100 轮及本机新候选完整门禁中未复现，
+  根因仍未确认；不作猜测性产品修复。最新 `83c1ab0` 的准确双平台 CI 终态待收集。
 
 复跑命令见 [Git 接续说明](asbplayer-windows-handoff.md)。未验证项目需要在隔离 Chrome 中按
 [本地视频矩阵](asbplayer-local-video.md) 执行，并记录真实系统比例、输入类型、操作和可观察结果。
