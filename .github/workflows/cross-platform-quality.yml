@@ -1,5 +1,5 @@
-name: Asbplayer offline diagnostics
-run-name: Asbplayer offline diagnostics / ${{ inputs.candidate_sha }}
+name: Selection offline diagnostics
+run-name: Selection offline diagnostics / ${{ inputs.candidate_sha }}
 
 on:
   workflow_dispatch:
@@ -18,6 +18,6 @@ permissions:
 
 jobs:
   targeted-diagnostics:
-    uses: ./.github/workflows/asbplayer-diagnostics.yml
+    uses: ./.github/workflows/selection-diagnostics.yml
     with:
       candidate_sha: ${{ inputs.candidate_sha }}

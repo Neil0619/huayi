@@ -1,0 +1,53 @@
+name: Selection offline diagnostics
+on:
+  workflow_call:
+    inputs:
+      candidate_sha:
+        description: Exact diagnostic candidate commit SHA
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  diagnostics:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            node: 26
+          - os: macos-latest
+            node: 24
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ inputs.candidate_sha }}
+      - name: Verify exact candidate
+        env:
+          HUAYI_CI_CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+          HUAYI_CI_RELEASE_ID: automatic
+        run: node scripts/assert-ci-candidate.mjs
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install chrome
+      - name: Build offline fixture dependencies
+        run: pnpm --filter @huayi/learning-domain --filter @huayi/cloud-contracts --filter @huayi/store-domain --filter @huayi/protocol build
+      - name: Observe native phrase selection with original assertions
+        run: pnpm exec playwright test apps/extension/e2e/selection-diagnostic.spec.ts --max-failures=1
+      - name: Upload bounded synthetic selection events
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: selection-diagnostics-${{ matrix.os }}
+          path: .codex-pet-runs/targeted-ci/selection.jsonl
+          include-hidden-files: true
+          if-no-files-found: ignore
+          retention-days: 3
