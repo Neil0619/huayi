@@ -6,18 +6,20 @@
 [Windows 验证回执](asbplayer-windows-validation.md)，不表示全部验收或发布完成。
 
 最新接续另外修复了视频结束后末句残留，已用失败单测及实际 Store 浏览器复现；新产品构建的
-150% 基础／扩展流程通过，100% 及准确新候选双平台 CI 尚待补验。不可把历史候选结果移用到新构建。
+150% 基础／扩展流程通过，100% 尚待补验。不可把历史候选结果移用到新构建。
 后续 `6798083` 修复 Windows Hosted Store 构建入口，真实 Hosted／production 构建与三个 profile
 审计通过。`0e37df7` 的 macOS CI 成功，但 Windows 三项 Store 用例超时后作业被时限终止；
 `6798083` 的准确 Windows CI 已通过（浏览器 242/242），macOS 为 241 通过、失效快捷键暂停计数
 一项失败。当前新增官网选项在真实 150% 下通过基础／扩展矩阵，本机 Store 与权限回归 12/12 通过；
-显式字体权限和弹窗尺寸条件、待补的 100% 均见回执。各次失败不以重跑覆盖。
+显式字体权限和弹窗尺寸条件、待补的 100% 均见回执。最新工具候选 `ad59af7` 已启动独立双平台
+CI，结果待收集。各次失败不以重跑覆盖。
 
 ## 通过 Git 获取候选
 
 - 仓库：`https://github.com/Neil0619/huayi.git`。
 - 当前交接分支：`codex/asbplayer-windows-validation-fixes`。
-- 最新代码候选：`679808338a0f9fcd69e407e6dae59b93cd060c2c`，双平台 CI 状态见验证回执。
+- 最新代码候选：`ad59af7a990dccda483042d486dee3409e6933f7`，双平台 CI 状态见验证回执。
+- 上一 Windows CI 已通过候选：`679808338a0f9fcd69e407e6dae59b93cd060c2c`，macOS 一项失败。
 - 已通过双平台 CI 的代码候选：`b39449ee8e940701924dafe22769f73d82f7f1d2`。
 - Windows 接续输入：`codex/asbplayer-windows-validation` 的
   `c67405c7ff7562e950bf5b03dc46971c2c6f5b24`；更早实现基线为 `ce0110d4eacaef9a4b9cf7e903e1be85129af58d`。

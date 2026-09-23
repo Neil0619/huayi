@@ -1,8 +1,8 @@
 # asbplayer Windows 开发验收回执
 
 2026-09-23 至 24 日，影响范围为 shared Store、测试工具与 Windows 验证。最新代码候选为
-`6798083`，修复 Hosted Store 在 Windows 无法启动 pnpm；真实构建和聚焦检查通过，准确候选双平台
-CI 的 Windows 已通过、macOS 仍有一项失败。本机上一候选完整门禁为 238 项浏览器通过、4 项视觉
+`ad59af7`，加入显式官网测试选项并记录条件；本机定向检查通过，新候选 CI 进行中。上一构建修复
+候选 `6798083` 的 Windows CI 已通过、macOS 仍有一项失败。本机完整门禁为 238 项浏览器通过、4 项视觉
 失败；更早远端 Windows 的实际 Store 超时尚未确认原因。真实 YouTube 字幕不可用，新产品及官网
 扩展矩阵尚待 100% 补验，不能声明全部
 验收通过。本次未合并 main、部署或发布商店版本。
@@ -11,8 +11,10 @@ CI 的 Windows 已通过、macOS 仍有一项失败。本机上一候选完整�
 
 - 输入候选：`c67405c7ff7562e950bf5b03dc46971c2c6f5b24`，来自
   `https://github.com/Neil0619/huayi.git` 的 `codex/asbplayer-windows-validation`。
-- 最新代码候选：`679808338a0f9fcd69e407e6dae59b93cd060c2c`；Git tree：
-  `14be92de00579b013abd8a80813bf2a6afcd73e2`。其后纯回执文档提交不等于 CI 验证过的源码 SHA。
+- 最新代码候选：`ad59af7a990dccda483042d486dee3409e6933f7`；Git tree：
+  `05e8b36dc510f25ccd9b45b3ce209916e0e49abc`。其后纯回执文档提交不等于 CI 验证过的源码 SHA。
+- 已完成 Windows CI 的上一构建修复候选：`679808338a0f9fcd69e407e6dae59b93cd060c2c`；Git tree：
+  `14be92de00579b013abd8a80813bf2a6afcd73e2`。其 macOS job 有一项浏览器失败。
 - 上一轮已通过 CI 的代码候选：`b39449ee8e940701924dafe22769f73d82f7f1d2`；Git tree：
   `2169db5105d7ea0d6b92fad180f17ead68dac6be`；交接分支：`codex/asbplayer-windows-validation-fixes`。
   上一轮代码提交为 `6ac310b3b2414a11d353f0211140bf7ba5d502e7` 和上述候选；接续提交另见文末。
@@ -91,6 +93,13 @@ Store 完整类型检查通过；为排查 Windows CI 超时，仅增加固定�
 首次与 SPA、结束字幕、全屏及学习闭环。独立权限回归使用普通 Playwright Chrome，未模拟系统缩放。
 新增工具后的指令、整仓格式、lint、Store 完整类型检查及 diff 空白检查通过；完整脚本测试
 1,142 通过、6 项既有平台跳过、0 失败。未声称这组定向检查等于整仓 Windows 门禁或新候选 CI。
+
+上述测试工具提交为 `ad59af7a990dccda483042d486dee3409e6933f7`，已推送同一接续分支。
+其准确候选 [CI 35913888907](https://github.com/Neil0619/huayi/actions/runs/35913888907) 已启动，
+macOS job `107360346997`、Windows job `107360347197`；本文更新时仍在运行，尚无通过结论。
+对上一 macOS 失败，本机追加 12 轮相同快捷键流程并观测原生 pause／play／playing 事件，全部
+未复现；每轮暂停事件均发生在有效快捷键阶段，失效后计数 0、视频继续播放。仅凭 Windows
+未复现无法区分 macOS 产品异常和事件观测竞态，未作猜测性修复或改动原失效断言。
 
 ## 上一轮自动化结果（b39449e）
 
