@@ -42,6 +42,7 @@ try {
   fixture = await createAsbplayerPackageFixture(true);
   const { context, frame, options, page, requests } = fixture;
   receipt.browser = context.browser()?.version() ?? "unknown";
+  if (fixture.nativeDisplay) receipt.nativeDisplay = fixture.nativeDisplay;
   const asset = await page.locator('script[type="module"][src]').first().getAttribute("src");
   assert.ok(asset);
   const response = await context.request.get(new URL(asset, "https://app.asbplayer.dev/").href);

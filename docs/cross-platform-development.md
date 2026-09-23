@@ -5,6 +5,10 @@ asbplayer 学习适配属于 shared Store Chrome 变更，Windows 使用和目�
 [`cloud-v1/asbplayer-m0-probe.md`](cloud-v1/asbplayer-m0-probe.md)。未执行的目标平台必须保留 pending，
 单平台官网资源读取、离线测试与探针构建不能替代另一平台的真实 Chrome 验证。
 
+Windows 原生 100%／150% 缩放通过隔离有界 Chrome 窗口读取实际 DPR 校验，不使用 viewport 或
+deviceScaleFactor 模拟替代。命令与本次结果见 [Windows Git 接续说明](cloud-v1/asbplayer-windows-handoff.md)。
+CI 将 Chrome 与 Chromium 安装拆为独立调用；用户已安装 Chrome 不代表扩展测试所需 Chromium 已存在。
+
 ## 目标
 
 Huayi 支持 macOS 与 Windows，但两端的 Native Host 能力不同。代码可以在任一平台编写；完成

@@ -18,3 +18,7 @@ test-results/
 *.log
 AGENTS.override.md
 provider-comparison*.json
+artifacts/asbplayer-m0-probe/
+artifacts/asbplayer-store-browser-receipt.json
+artifacts/store-parity-builds/
+artifacts/miniprogram/bundle-report.json

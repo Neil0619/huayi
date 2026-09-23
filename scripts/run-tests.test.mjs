@@ -56,7 +56,7 @@ test("repository tests run explicit script files before two bounded Vitest batch
   assert.equal(calls[3].executable, process.execPath);
 });
 
-test("Windows runs every Vitest project with bounded Web/API and serial native-host files", async () => {
+test("Windows bounds Store/Web/API workers and serializes native-host files", async () => {
   const calls = [];
 
   await runRepositoryTests({
@@ -76,7 +76,7 @@ test("Windows runs every Vitest project with bounded Web/API and serial native-h
       ["protocol"],
       ["native-host", "--no-file-parallelism"],
       ["extension"],
-      ["store-extension"],
+      ["store-extension", "--maxWorkers", "4"],
       ["web", "--maxWorkers", "4"],
       ["api", "--maxWorkers", "2", "--testTimeout", "15000", "--hookTimeout", "15000"],
     ],

@@ -206,6 +206,12 @@ Hosted 安装；该离线包不能替代云端包。真实重载、配对与 Win
 
 ## Store 本地视频学习
 
+开发验收使用独立 Git 工作树和隔离 Chrome profile，见
+[asbplayer Windows Git 接续说明](cloud-v1/asbplayer-windows-handoff.md)。浏览器安装需分别运行
+`pnpm exec playwright install chrome`、`pnpm exec playwright install chromium`。
+原生缩放验收需先在 Windows 显示设置中切到目标比例，再指定 `HUAYI_ASBPLAYER_NATIVE_SCALE` 校验，
+不修改个人 Chrome 配置、既有扩展或 Native Host 注册。
+
 官方 asbplayer 网页的输入准备、轨道确认、学习交互、全屏／弹窗与 Windows 验收步骤见
 [asbplayer 本地视频学习](cloud-v1/asbplayer-local-video.md)。此功能不需要 Native Host、asbplayer 扩展
 或 Anki；构建通过不代替 Windows Chrome 实机验证。

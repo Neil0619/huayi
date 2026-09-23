@@ -39,7 +39,9 @@ test("registered Store worlds complete the local-video learning flow across fram
     await frame.locator("body").evaluate(async () => {
       await document.exitFullscreen();
     });
-    await frame.locator("video").click({ position: { x: 700, y: 150 } });
+    // The centered card can cover x=700 in a native Windows window. Click the
+    // video's left margin, outside both the card and the fixture's top controls.
+    await frame.locator("video").click({ position: { x: 20, y: 150 } });
     await expect(frame.locator(overlay)).toHaveCount(0);
     await expect
       .poll(() => frame.locator("video").evaluate((video) => (video as HTMLVideoElement).paused))

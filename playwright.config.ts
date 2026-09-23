@@ -26,7 +26,9 @@ const playwrightConfig = defineConfig({
           command:
             "pnpm exec vite --config apps/extension/e2e/vite.config.ts --host 127.0.0.1 --port 4173",
           reuseExistingServer: !process.env.CI,
-          timeout: 30_000,
+          // configureServer builds Classic, Store worlds/profile fixtures and Web
+          // before listening. Allow that cold build without changing test deadlines.
+          timeout: 180_000,
           url: "http://127.0.0.1:4173/apps/extension/e2e/fixtures/article.html",
         },
   workers: 1,

@@ -50,6 +50,8 @@ export default tseslint.config(
       "playwright-report/**",
       "supabase/.temp/**",
       "test-results/**",
+      "artifacts/asbplayer-m0-probe/**",
+      "artifacts/store-parity-builds/**",
     ],
   },
   eslint.configs.recommended,

@@ -23,7 +23,8 @@ Windows 使用 Node.js 26+；pnpm 以根 package.json 的 packageManager 为准�
 
 ```powershell
 pnpm install --frozen-lockfile
-pnpm exec playwright install chrome chromium
+pnpm exec playwright install chrome
+pnpm exec playwright install chromium
 pnpm verify:windows
 ```
 
@@ -31,17 +32,24 @@ pnpm verify:windows
 若完整门禁提前失败，应补运行尚未覆盖的相关 Store 检查：
 
 ```powershell
-pnpm exec vitest run --project store-domain --project store-extension
+pnpm exec vitest run --project store-domain --project store-extension --maxWorkers 4
 pnpm --filter @huayi/store-extension typecheck
 pnpm --filter @huayi/store-extension build
 pnpm check:architecture
 pnpm check:store-release
-pnpm exec playwright test apps/store-extension/e2e/asbplayer-package.spec.ts
+pnpm build
+pnpm exec playwright test apps/store-extension/e2e/asbplayer-package.spec.ts apps/store-extension/e2e/asbplayer-matrix.spec.ts
+pnpm exec playwright test apps/store-extension/e2e/asbplayer-bfcache.spec.ts
 ```
 
 实际 Store 夹具读取本工作树的 `apps/store-extension/dist-release`。运行前确认 release 已构建，
 不要混入 Hosted acceptance 的 `dist` 或 production 的 `dist-production`。另按仓库构建规范核对
 三个 Store profile 的打包边界；它们的构建通过不等于各 profile 均经过官网实测。
+
+Chrome 与 Chromium 分开安装：Playwright 发现 branded Chrome 已安装时会提前结束该安装调用。
+`pnpm build` 还准备 E2E 服务器需要的工作区产物；服务器冷启动可能包含多个 profile 的构建。
+若默认浏览器缓存无法启动，可设置仅用于本任务的 `PLAYWRIGHT_BROWSERS_PATH` 后重新安装
+`chromium`，记录路径和版本；不要修改用户 Chrome 或已安装扩展。
 
 用户已授权本次接续的隔离浏览器测试与加载扩展，可运行：
 
@@ -61,9 +69,25 @@ node scripts/verify-asbplayer-store-browser.mjs --run-approved-browser-validatio
 viewport 或 deviceScaleFactor 模拟不等于真实系统缩放；显式 pagehide/pageshow 不等于真实 BFCache。
 无法执行的实机项目标为未验证，并给出具体人工步骤，不得改为通过。
 
+先在 Windows 显示设置中实际切换缩放，再指定预期比例运行；该选项使用有界真实窗口、
+`viewport: null`，不设置 `deviceScaleFactor` 或强制缩放参数，并在启动时核对实际 DPR：
+
+```powershell
+$env:HUAYI_ASBPLAYER_NATIVE_SCALE = '150' # 100% 时改为 '100'
+pnpm exec playwright test apps/store-extension/e2e/asbplayer-package.spec.ts apps/store-extension/e2e/asbplayer-matrix.spec.ts
+pnpm exec playwright test apps/store-extension/e2e/asbplayer-bfcache.spec.ts
+node scripts/verify-asbplayer-store-browser.mjs --run-approved-browser-validation
+Remove-Item Env:\HUAYI_ASBPLAYER_NATIVE_SCALE
+```
+
+离线实际产物矩阵与官网脚本是两份证据，不能互相替代。官网脚本记录原生显示指标，但尚未覆盖
+完整上游交互矩阵。本次 Windows 的具体结果与未验证项见
+[Windows 验证回执](asbplayer-windows-validation.md)。
+
 行为问题先复现并补回归测试，再修复、重建和补受影响检查。不要降低断言或更新截图制造通过。
 代码变更后原 commit 的测试证据不能代表新候选；记录完整 diff 和新的候选身份。
-本次授权限开发测试，后续提交、推送、合并、部署和商店发布须按用户届时的明确指示执行。
+本次 Windows 接续按用户“全部交接仅通过 Git”的指示，将修复和脱敏回执交接到独立 codex 分支。
+不合并 main、不部署、不发布商店版本；后续发布步骤仍需独立授权。
 
 ## 已有 macOS 证据及限制
 

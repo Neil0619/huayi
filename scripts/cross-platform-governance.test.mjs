@@ -46,6 +46,10 @@ test("cross-platform workflow runs both offline platform gates with pinned runti
   assert.match(workflow, /actions\/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6/);
   assert.match(workflow, /pnpm\/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6/);
   assert.equal(workflow.match(/pnpm exec playwright install chrome/g)?.length, 2);
+  // Playwright exits early from an already-installed branded Chrome installer.
+  // Chromium must still run as a separate invocation for actual extension tests.
+  assert.equal(workflow.match(/^\s+pnpm exec playwright install chrome$/gm)?.length, 2);
+  assert.equal(workflow.match(/^\s+pnpm exec playwright install chromium$/gm)?.length, 2);
   assert.doesNotMatch(workflow, /uses: [^\n]+@v\d+/);
 });
 

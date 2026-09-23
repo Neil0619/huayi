@@ -77,18 +77,23 @@ API、SQL、词本数据库迁移或运行时依赖。
 在仓库根运行相关检查：
 
 ```sh
-pnpm exec vitest run --project store-domain --project store-extension
+pnpm exec vitest run --project store-domain --project store-extension --maxWorkers 4
 pnpm --filter @huayi/store-extension typecheck
 pnpm --filter @huayi/store-extension build
 pnpm check:architecture
 pnpm check:store-release
-pnpm exec playwright test apps/store-extension/e2e/asbplayer-package.spec.ts
+pnpm build
+pnpm exec playwright test apps/store-extension/e2e/asbplayer-package.spec.ts apps/store-extension/e2e/asbplayer-matrix.spec.ts
 ```
 
 该浏览器夹具加载真实 `dist-release` 扩展，使用真实 MAIN／ISOLATED、Worker、Chrome Storage 和
 IndexedDB；网站、字幕、媒体及 Provider 响应为离线合成数据。它还覆盖普通网页和 Store YouTube
 无需刷新进入视频页的回归，以及失效快捷键和显式 pagehide/pageshow 事件。显式事件测试不等同于
-浏览器真实命中 BFCache。CI 需安装 `pnpm exec playwright install chrome chromium`。
+浏览器真实命中 BFCache。另运行 `pnpm exec playwright test apps/store-extension/e2e/asbplayer-bfcache.spec.ts`，
+移除 Playwright 默认禁用 BFCache 的启动参数，通过真实导航离开／返回并断言实际 iframe 的
+`pageshow.persisted=true`、词卡退役、原字幕恢复、新快照及重新确认，不派发合成生命周期事件。
+CI 分别运行 `pnpm exec playwright install chrome` 和
+`pnpm exec playwright install chromium`，避免 Chrome 已安装导致 Chromium 安装被提前结束。
 
 获得实际浏览器验证授权后，使用以下命令核对官网当前部署；脚本仍拦截 Provider 请求，不产生模型
 费用或外部词典写入，退出时删除隔离 Chrome profile：
@@ -107,12 +112,16 @@ node scripts/verify-asbplayer-store-browser.mjs --run-approved-browser-validatio
 
 Windows 交接通过 Git 获取开发分支和准确 commit；步骤及已有证据见
 [Windows Git 接续说明](asbplayer-windows-handoff.md)。先核对候选，再以 Node.js 26+ 运行
-`pnpm install --frozen-lockfile`、`pnpm exec playwright install chrome chromium`、`pnpm verify:windows`。
+`pnpm install --frozen-lockfile`、分别安装 Chrome 与 Chromium、`pnpm verify:windows`。
 授权官网实测后运行上面的 Store 浏览器脚本，再按下表进行人工交互和缩放验收。
 默认 release 构建位于 `apps/store-extension/dist-release`；不要混用 `dist` 或 `dist-production` 的身份。
 
 Windows 实机应使用隔离 Chrome profile 和合成／公开许可样片，在 100% 与 150% 系统缩放、常见窗口
 尺寸下覆盖：
+
+交接文档中的 `HUAYI_ASBPLAYER_NATIVE_SCALE` 仅校验操作系统已设置的比例，默认离线测试仍使用
+固定 viewport。扩大后的实际产物矩阵另测单轨双语、偏移后的可见字幕、倍速与结束、暂停归属、
+原生 video 全屏回退、解释和关卡后的本机收藏；上游消息仍为合成，不能据此声称官网完整矩阵通过。
 
 | 范围       | 必须观察的结果                                                                |
 | ---------- | ----------------------------------------------------------------------------- |

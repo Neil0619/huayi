@@ -6,6 +6,7 @@ import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
+import { setTimeout as delay } from "node:timers/promises";
 import { runInThisContext } from "node:vm";
 
 const miniRequire = createRequire(new URL("../apps/miniprogram/package.json", import.meta.url));
@@ -78,6 +79,15 @@ function get(port, path, headers = {}) {
   });
 }
 
+async function waitForServedEdit(port) {
+  const deadline = Date.now() + 15000;
+  for (;;) {
+    const response = await get(port, "/main.js");
+    if (/second-build-marker/u.test(response.body) || Date.now() >= deadline) return response;
+    await delay(50);
+  }
+}
+
 test("Taro H5 server builds, serves and watches locally while rejecting a foreign Host", async (t) => {
   const directory = await mkdtemp(join(tmpdir(), "huayi-h5-security-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
@@ -104,15 +114,10 @@ test("Taro H5 server builds, serves and watches locally while rejecting a foreig
   assert.match(initial.body, /first-build-marker/u);
   const rejected = await get(port, "/main.js", { host: "attacker.invalid" });
   assert.equal(rejected.status, 403);
-  const rebuilt = new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error("H5 watch failed to rebuild")), 15000);
-    compiler.hooks.done.tap("security-watch-check", (stats) => {
-      clearTimeout(timer);
-      if (stats.hasErrors()) reject(new Error(stats.toString({ errors: true })));
-      else resolve();
-    });
-  });
+  // A queued rebuild may finish with the old source before the edit is observed.
+  await new Promise((resolve) => compiler.watching.invalidate(resolve));
   await writeFile(entry, 'console.log("second-build-marker");');
-  await rebuilt;
-  assert.match((await get(port, "/main.js")).body, /second-build-marker/u);
+  const rebuilt = await waitForServedEdit(port);
+  assert.equal(rebuilt.status, 200);
+  assert.match(rebuilt.body, /second-build-marker/u);
 });

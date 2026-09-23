@@ -2,6 +2,10 @@ import { chromium, expect, type BrowserContext, type Page } from "@playwright/te
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import {
+  asbplayerBrowserDisplay,
+  verifyNativeDisplay,
+} from "../../../../scripts/asbplayer-browser-display.mjs";
 import { storeYouTubeFixture } from "./store-youtube-package-fixture.ts";
 
 export const learning = "[data-huayi-store-asbplayer]";
@@ -63,7 +67,11 @@ function deepseekResponse(request: string): string {
   );
 }
 
-export async function createAsbplayerPackageFixture(live = false) {
+export async function createAsbplayerPackageFixture(
+  live = false,
+  { backForwardCache = false }: { backForwardCache?: boolean } = {},
+) {
+  const display = asbplayerBrowserDisplay();
   const directory = await mkdtemp(join(tmpdir(), "seen-said-asbplayer-store-"));
   const extension = resolve("apps/store-extension/dist-release");
   let context: BrowserContext | undefined;
@@ -73,9 +81,32 @@ export async function createAsbplayerPackageFixture(live = false) {
       channel: "chromium",
       headless: !live,
       viewport: { width: 1100, height: 820 },
-      args: [`--disable-extensions-except=${extension}`, `--load-extension=${extension}`],
-      ignoreDefaultArgs: ["--disable-extensions"],
+      ...display?.launchOptions,
+      args: [
+        `--disable-extensions-except=${extension}`,
+        `--load-extension=${extension}`,
+        ...(display?.launchOptions.args ?? []),
+      ],
+      ignoreDefaultArgs: [
+        "--disable-extensions",
+        ...(backForwardCache ? ["--disable-back-forward-cache"] : []),
+      ],
     });
+    const nativeDisplay = display
+      ? await (context.pages()[0] ?? (await context.newPage())).evaluate(() => ({
+          scale: devicePixelRatio,
+          innerWidth,
+          innerHeight,
+          outerWidth,
+          outerHeight,
+          screenWidth: screen.width,
+          screenHeight: screen.height,
+        }))
+      : undefined;
+    if (display && nativeDisplay) {
+      verifyNativeDisplay(display, nativeDisplay);
+      console.log("Native Windows display:", JSON.stringify(nativeDisplay));
+    }
     context.setDefaultTimeout(8000);
     await context.route("**/*", async (route) => {
       const url = new URL(route.request().url());
@@ -209,6 +240,7 @@ export async function createAsbplayerPackageFixture(live = false) {
       frame,
       requests,
       mediaBytes: bytes,
+      nativeDisplay,
       async close() {
         await context?.close();
         await rm(directory, { recursive: true, force: true });
