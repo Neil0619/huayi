@@ -51,8 +51,17 @@ export async function collectReleaseInputs(repository) {
 }
 
 function runCommand(args, env, repository) {
+  const pnpmEntry = env.npm_execpath;
+  if (pnpmEntry === undefined || pnpmEntry.length === 0) {
+    throw new Error("Mini-program release build must be started through pnpm.");
+  }
   return new Promise((done, reject) => {
-    const child = spawn("pnpm", args, { cwd: repository, env, stdio: "inherit", shell: false });
+    const child = spawn(process.execPath, [pnpmEntry, ...args], {
+      cwd: repository,
+      env,
+      stdio: "inherit",
+      shell: false,
+    });
     child.once("error", reject);
     child.once("exit", (code, signal) =>
       code === 0 && signal === null ? done() : reject(new Error("Release build command failed.")),

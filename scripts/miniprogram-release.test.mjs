@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { validateReleaseConfig } from "./miniprogram-release-config.mjs";
@@ -219,6 +219,67 @@ test("release runner records a stable workspace snapshot and audit rechecks its 
   );
   await assert.rejects(executeRelease({ ...f, mode: "audit" }), /artifacts changed/u);
 });
+
+test("release runner uses the current pnpm entrypoint without a PATH launcher", async (t) => {
+  const f = await repositoryFixture(t);
+  await mkdir(join(f.repository, "artifacts/miniprogram-release"), { recursive: true });
+  await f.run([], { ...f.env, HUAYI_MINIPROGRAM_RELEASE_BUILD: "1" });
+  await cp(
+    join(f.repository, "apps/miniprogram/dist-release"),
+    join(f.repository, "fixture-output"),
+    { recursive: true },
+  );
+  await cp(
+    join(f.repository, "artifacts/miniprogram-release/bundle-report.json"),
+    join(f.repository, "fixture-report.json"),
+  );
+  const pnpmEntry = join(f.repository, "pnpm entrypoint & fixture.cjs");
+  await writeFile(
+    pnpmEntry,
+    `const assert = require("node:assert/strict");
+const { appendFileSync, cpSync } = require("node:fs");
+assert.equal(process.env.HUAYI_MINIPROGRAM_RELEASE_BUILD, "1");
+assert.equal(process.env.NODE_ENV, "production");
+appendFileSync("calls.jsonl", JSON.stringify(process.argv.slice(2)) + "\\n");
+if (process.argv.includes("@huayi/miniprogram")) {
+  cpSync("fixture-output", "apps/miniprogram/dist-release", { recursive: true });
+  cpSync("fixture-report.json", "artifacts/miniprogram-release/bundle-report.json");
+}
+`,
+  );
+  const receipt = await executeRelease({
+    repository: f.repository,
+    mode: "build",
+    env: { ...f.env, PATH: "", npm_execpath: pnpmEntry },
+  });
+  assert.equal(receipt.status, "passed");
+  const calls = (await readFile(join(f.repository, "calls.jsonl"), "utf8"))
+    .trim()
+    .split("\n")
+    .map((line) => JSON.parse(line));
+  assert.deepEqual(calls, [
+    ["--filter", "@huayi/learning-domain", "--filter", "@huayi/cloud-contracts", "build"],
+    ["--filter", "@huayi/miniprogram", "build"],
+  ]);
+});
+
+for (const pnpmEntry of [undefined, ""]) {
+  test(`release runner fails closed with ${String(pnpmEntry)} pnpm entrypoint`, async (t) => {
+    const f = await repositoryFixture(t);
+    await assert.rejects(
+      executeRelease({
+        repository: f.repository,
+        mode: "build",
+        env: { ...f.env, PATH: "", npm_execpath: pnpmEntry },
+      }),
+      /must be started through pnpm/u,
+    );
+    const receipt = JSON.parse(
+      await readFile(join(f.repository, "artifacts/miniprogram-release/receipt.json"), "utf8"),
+    );
+    assert.equal(receipt.status, "failed");
+  });
+}
 
 test("release runner rejects source changes during compilation and saves a failed receipt", async (t) => {
   const f = await repositoryFixture(t);
