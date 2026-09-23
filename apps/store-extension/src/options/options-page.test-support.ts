@@ -27,7 +27,7 @@ const defaultSettings: StoreSettings = {
     eudic: { consent: null, enabled: false },
     shanbay: { consent: null, enabled: false },
   },
-  schemaVersion: 6,
+  schemaVersion: 7,
   sitePolicy: {
     defaultAction: "allow",
     rules: [
@@ -35,6 +35,8 @@ const defaultSettings: StoreSettings = {
       { action: "block", hostname: "news.example", includeSubdomains: false },
     ],
   },
+  asbplayerMode: "english" as const,
+  asbplayerShortcut: null,
   youtubeMode: "english",
   youtubeShortcut: null,
 };
@@ -178,6 +180,12 @@ export function createHarness(readiness: DeviceVaultReadiness = "ready"): {
           rules: currentSettings.sitePolicy.rules.filter((rule) => !sameStoreSiteRule(rule, key)),
         },
       };
+    }),
+    setAsbplayerMode: vi.fn(async (asbplayerMode) => {
+      currentSettings = { ...currentSettings, asbplayerMode };
+    }),
+    setAsbplayerShortcut: vi.fn(async (asbplayerShortcut) => {
+      currentSettings = { ...currentSettings, asbplayerShortcut };
     }),
     setYoutubeMode: vi.fn(async (youtubeMode) => {
       currentSettings = { ...currentSettings, youtubeMode };

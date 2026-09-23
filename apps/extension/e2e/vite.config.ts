@@ -38,6 +38,8 @@ function buildExtensionFixtures(): Plugin {
         "shanbay-content",
         "youtube-content",
         "youtube-main",
+        "asbplayer-content",
+        "asbplayer-main",
         "options",
         "popup",
         "background",

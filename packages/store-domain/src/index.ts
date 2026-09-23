@@ -3,6 +3,7 @@ export * from "./analysis-results.js";
 export * from "./appearance.js";
 export * from "./cloud-session-messages.js";
 export * from "./content-settings-messages.js";
+export * from "./asbplayer-settings-messages.js";
 export * from "./lexicon.js";
 export * from "./lexicon-messages.js";
 export * from "./local-word-import-messages.js";

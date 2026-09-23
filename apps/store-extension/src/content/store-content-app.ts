@@ -6,6 +6,9 @@ import {
   type SelectionPointer,
 } from "./overlay/selection-overlay-anchor.js";
 
+const OWN_SELECTION =
+  "[data-huayi-store-overlay], [data-huayi-store-youtube-subtitles], [data-huayi-store-youtube-control-host], [data-huayi-store-asbplayer], [data-huayi-store-asbplayer-control]";
+
 export class StoreContentApp {
   #started = false;
 
@@ -46,14 +49,17 @@ export class StoreContentApp {
   }
 
   #cameFromOverlay(event: Event): boolean {
+    const selection = this.document.getSelection();
+    const nodes = [selection?.anchorNode, selection?.focusNode];
+    if (
+      nodes.some((node) =>
+        (node instanceof Element ? node : node?.parentElement)?.closest(OWN_SELECTION),
+      )
+    )
+      return true;
     return event
       .composedPath()
-      .some(
-        (target) =>
-          target instanceof Element &&
-          target.closest("[data-huayi-store-overlay], [data-huayi-store-youtube-subtitles]") !==
-            null,
-      );
+      .some((target) => target instanceof Element && target.closest(OWN_SELECTION) !== null);
   }
 
   readonly #onPointerSelection = (event: MouseEvent): void => {

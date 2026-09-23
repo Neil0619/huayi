@@ -13,8 +13,10 @@ const settings: StoreSettings = {
     eudic: { consent: null, enabled: false },
     shanbay: { consent: null, enabled: false },
   },
-  schemaVersion: 6,
+  schemaVersion: 7,
   sitePolicy: { defaultAction: "allow", rules: [] },
+  asbplayerMode: "english" as const,
+  asbplayerShortcut: null,
   youtubeMode: "english",
   youtubeShortcut: null,
 };

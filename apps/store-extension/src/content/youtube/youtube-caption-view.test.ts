@@ -28,13 +28,18 @@ describe("Store YouTube caption view", () => {
 
     expect(caption?.dataset.appearance).toBe("moon");
     expect(control?.dataset.appearance).toBe("moon");
-    expect(styles).toContain("#huayi-y[data-appearance=moon]");
-    expect(styles).toContain("#huayi-yc[data-appearance=porcelain]");
+    expect(caption?.style.getPropertyValue("--e")).toBe("#a9b7c8");
+    expect(control?.style.getPropertyValue("--e")).toBe("#a9b7c8");
     expect(styles).not.toContain("#67e8f9");
     view.setAppearance("champagne");
     expect(player.querySelector("[data-huayi-store-youtube-subtitles]")).toBe(caption);
     expect(caption?.dataset.appearance).toBe("champagne");
     expect(control?.dataset.appearance).toBe("champagne");
+    expect(caption?.style.getPropertyValue("--e")).toBe("#ddc4a7");
+    expect(control?.style.getPropertyValue("--e")).toBe("#ddc4a7");
+    view.setAppearance("silver");
+    expect(caption?.style.getPropertyValue("--e")).toBe("#d9e0e6");
+    expect(control?.style.getPropertyValue("--e")).toBe("#d9e0e6");
     view.destroy();
   });
 

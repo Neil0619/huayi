@@ -6,11 +6,12 @@ import {
   recipientAccessDecision,
   sameStoreSiteRule,
   siteHostnameSchema,
+  asbplayerModeSchema,
+  type AsbplayerMode,
   upsertStoreSiteRule,
   normalizeStoreSiteRule,
   STORE_NETWORK_CONSENT_VERSION,
   STORE_RECIPIENT_CONSENT_VERSIONS,
-  STORE_SETTINGS_SCHEMA_VERSION,
   storeSettingsSchema,
   youtubeModeSchema,
   type ProviderId,
@@ -24,7 +25,7 @@ import {
   type StoreOverlayTheme,
   type YouTubeMode,
 } from "@huayi/store-domain";
-import { z } from "zod/v3";
+import { DEFAULT_SETTINGS, migrateStoreSettings } from "./store-settings-migration.js";
 
 const STORE_SETTINGS_STORAGE_KEY = "huayi.store.settings";
 
@@ -33,72 +34,6 @@ export interface ChromeSettingsStorageArea {
   set(items: Record<string, unknown>): Promise<void>;
   setAccessLevel(options: { readonly accessLevel: "TRUSTED_CONTEXTS" }): Promise<void>;
 }
-
-const DEFAULT_SETTINGS: StoreSettings = {
-  defaultAction: "translate",
-  globallyEnabled: true,
-  networkConsent: null,
-  overlayTheme: "pearl",
-  providerId: "openai",
-  recipientAccess: {
-    eudic: { consent: null, enabled: false },
-    shanbay: { consent: null, enabled: false },
-  },
-  schemaVersion: STORE_SETTINGS_SCHEMA_VERSION,
-  sitePolicy: { defaultAction: "allow", rules: [] },
-  youtubeMode: "english",
-  youtubeShortcut: null,
-};
-
-const LEGACY_DEFAULT_ACTION: StoreDefaultAction = "ask";
-
-const legacySettingsSchema = z.strictObject({
-  networkConsent: z
-    .strictObject({
-      grantedAt: z.string().datetime({ offset: true }),
-      version: z.literal(STORE_NETWORK_CONSENT_VERSION),
-    })
-    .nullable(),
-  providerId: providerIdSchema,
-  schemaVersion: z.literal(1),
-});
-
-const versionTwoSettingsSchema = z.strictObject({
-  networkConsent: legacySettingsSchema.shape.networkConsent,
-  providerId: providerIdSchema,
-  recipientAccess: storeSettingsSchema.shape.recipientAccess,
-  schemaVersion: z.literal(2),
-});
-
-const versionThreeSettingsSchema = z.strictObject({
-  networkConsent: legacySettingsSchema.shape.networkConsent,
-  providerId: providerIdSchema,
-  recipientAccess: storeSettingsSchema.shape.recipientAccess,
-  schemaVersion: z.literal(3),
-  youtubeMode: youtubeModeSchema,
-});
-
-const versionFourSettingsSchema = z.strictObject({
-  disabledHosts: z
-    .array(siteHostnameSchema)
-    .max(256)
-    .refine((hosts) =>
-      hosts.every((host, index) => {
-        const previous = hosts[index - 1];
-        return previous === undefined || previous < host;
-      }),
-    ),
-  globallyEnabled: z.boolean(),
-  networkConsent: legacySettingsSchema.shape.networkConsent,
-  providerId: providerIdSchema,
-  recipientAccess: storeSettingsSchema.shape.recipientAccess,
-  schemaVersion: z.literal(4),
-  youtubeMode: youtubeModeSchema,
-});
-
-const versionFiveSettingsSchema = storeSettingsSchema
-  .omit({ overlayTheme: true, schemaVersion: true })
-  .extend({ schemaVersion: z.literal(5) });
 
 class RecipientConsentRequiredError extends Error {
   readonly code = "consent-required";
@@ -260,6 +195,22 @@ class ChromeStoreSettings implements StoreSettingsRepository {
     });
   }
 
+  setAsbplayerMode(mode: AsbplayerMode): Promise<void> {
+    return this.exclusive(async () => {
+      const parsedMode = asbplayerModeSchema.parse(mode);
+      const current = await this.read();
+      await this.write({ ...current, asbplayerMode: parsedMode });
+    });
+  }
+
+  setAsbplayerShortcut(shortcut: StoreKeyboardShortcut | null): Promise<void> {
+    return this.exclusive(async () => {
+      const parsedShortcut = keyboardShortcutSchema.nullable().parse(shortcut);
+      const current = await this.read();
+      await this.write({ ...current, asbplayerShortcut: parsedShortcut });
+    });
+  }
+
   private exclusive<T>(operation: () => Promise<T>): Promise<T> {
     const result = this.operationQueue.then(operation, operation);
     this.operationQueue = result.then(
@@ -281,80 +232,7 @@ class ChromeStoreSettings implements StoreSettingsRepository {
     if (persisted === undefined) return structuredClone(DEFAULT_SETTINGS);
     const current = storeSettingsSchema.safeParse(persisted);
     if (current.success) return current.data;
-    const versionFive = versionFiveSettingsSchema.safeParse(persisted);
-    if (versionFive.success) {
-      const migrated: StoreSettings = {
-        ...versionFive.data,
-        overlayTheme: DEFAULT_SETTINGS.overlayTheme,
-        schemaVersion: STORE_SETTINGS_SCHEMA_VERSION,
-      };
-      await this.write(migrated);
-      return migrated;
-    }
-    const versionFour = versionFourSettingsSchema.safeParse(persisted);
-    if (versionFour.success) {
-      const { disabledHosts, ...retained } = versionFour.data;
-      const migrated: StoreSettings = {
-        ...retained,
-        defaultAction: LEGACY_DEFAULT_ACTION,
-        overlayTheme: DEFAULT_SETTINGS.overlayTheme,
-        schemaVersion: STORE_SETTINGS_SCHEMA_VERSION,
-        sitePolicy: {
-          defaultAction: "allow",
-          rules: disabledHosts.map((hostname) => ({
-            action: "block",
-            hostname,
-            includeSubdomains: false,
-          })),
-        },
-        youtubeShortcut: DEFAULT_SETTINGS.youtubeShortcut,
-      };
-      await this.write(migrated);
-      return migrated;
-    }
-    const versionThree = versionThreeSettingsSchema.safeParse(persisted);
-    if (versionThree.success) {
-      const migrated: StoreSettings = {
-        defaultAction: LEGACY_DEFAULT_ACTION,
-        globallyEnabled: true,
-        overlayTheme: DEFAULT_SETTINGS.overlayTheme,
-        ...versionThree.data,
-        schemaVersion: STORE_SETTINGS_SCHEMA_VERSION,
-        sitePolicy: structuredClone(DEFAULT_SETTINGS.sitePolicy),
-        youtubeShortcut: DEFAULT_SETTINGS.youtubeShortcut,
-      };
-      await this.write(migrated);
-      return migrated;
-    }
-    const versionTwo = versionTwoSettingsSchema.safeParse(persisted);
-    if (versionTwo.success) {
-      const migrated: StoreSettings = {
-        defaultAction: LEGACY_DEFAULT_ACTION,
-        globallyEnabled: true,
-        overlayTheme: DEFAULT_SETTINGS.overlayTheme,
-        ...versionTwo.data,
-        schemaVersion: STORE_SETTINGS_SCHEMA_VERSION,
-        sitePolicy: structuredClone(DEFAULT_SETTINGS.sitePolicy),
-        youtubeMode: DEFAULT_SETTINGS.youtubeMode,
-        youtubeShortcut: DEFAULT_SETTINGS.youtubeShortcut,
-      };
-      await this.write(migrated);
-      return migrated;
-    }
-    const legacy = legacySettingsSchema.safeParse(persisted);
-    if (!legacy.success) throw current.error;
-    const migrated: StoreSettings = {
-      defaultAction: LEGACY_DEFAULT_ACTION,
-      globallyEnabled: true,
-      networkConsent: legacy.data.networkConsent,
-      overlayTheme: DEFAULT_SETTINGS.overlayTheme,
-      providerId: legacy.data.providerId,
-      recipientAccess: structuredClone(DEFAULT_SETTINGS.recipientAccess),
-      schemaVersion: STORE_SETTINGS_SCHEMA_VERSION,
-      sitePolicy: structuredClone(DEFAULT_SETTINGS.sitePolicy),
-      youtubeMode: DEFAULT_SETTINGS.youtubeMode,
-      youtubeShortcut: DEFAULT_SETTINGS.youtubeShortcut,
-    };
+    const migrated = migrateStoreSettings(persisted);
     await this.write(migrated);
     return migrated;
   }

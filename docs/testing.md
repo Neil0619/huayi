@@ -1,5 +1,10 @@
 # 测试策略
 
+asbplayer Store 学习闭环与 Windows 验收矩阵见 [本地视频学习](cloud-v1/asbplayer-local-video.md)。
+M0 的 focused 离线命令、独立探针构建与官方 Chrome 验收矩阵见
+[`cloud-v1/asbplayer-m0-probe.md`](cloud-v1/asbplayer-m0-probe.md)。jsdom/fake channel 的通过不替代
+官网 `document_start`/MAIN 世界时序及主视频控制验证；真实模型与词书调用不属于 M0。
+
 ## 默认自动测试
 
 `pnpm test`、`pnpm test:e2e` 及其他默认门禁必须完全离线，不得访问 OpenAI、真实 Codex、
@@ -147,10 +152,10 @@ timeout；Windows 继续使用既有逐 project 列表，且不因此新增 API/
   严格终态、断线和超时，以及扩展来源校验、站点策略二次防线和设置串行 mutation。
 - 设置：缺失默认、无效失败关闭、hostname 规范化、最具体站点规则、并发写入不丢失、立即应用
   边界、Provider 非敏感状态、可配置同步小时、YouTube 默认双语及自定义/关闭快捷键。
-- Store 设置：v1→v2→v3→v4→v5→v6 原子升级、`sitePolicy` 默认/精确/子域优先级、Popup 精确
+- Store 设置：v1→v2→v3→v4→v5→v6→v7 原子升级、`sitePolicy` 默认/精确/子域优先级、Popup 精确
   host upsert，以及 Classic 无秘密包的严格未知/重复/冲突拒绝、成功单次写入和失败
   零写入；独立外观键覆盖默认 `silver`、非法值、存储失败、四选一 Options 控件、Popup/站点/
-  YouTube 严格响应、v4/v5 handshake 与打开卡片原位换肤，且证明 Settings v6 零改写。Options 行为
+  YouTube/asbplayer 严格响应、旧消息版本拒绝与打开卡片原位换肤，且独立外观键不改写设置。Options 行为
   测试覆盖可见成功与错误状态。
 - 生词同步：欧路默认生词本首次与每日完整扫描、设置的本地同步整点边界（默认 08:00；该整点前不启动
   新扫描、错过 alarm 后在该整点后补扫、未完成扫描可跨边界继续）、跨日去重、三页断点、状态 v1/v2→v3 原子

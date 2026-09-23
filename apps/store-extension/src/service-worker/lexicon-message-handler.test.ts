@@ -27,6 +27,8 @@ function access(eudic: boolean, shanbay: boolean, siteEnabled = true) {
         ? []
         : [{ action: "block" as const, hostname: "example.test", includeSubdomains: false }],
     },
+    asbplayerMode: "english" as const,
+    asbplayerShortcut: null,
     youtubeMode: "english" as const,
     youtubeShortcut: null,
   });

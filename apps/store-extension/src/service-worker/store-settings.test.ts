@@ -24,6 +24,8 @@ describe("Chrome Store settings", () => {
     const settings = createChromeStoreSettings(local);
 
     await expect(settings.get()).resolves.toEqual({
+      asbplayerMode: "english",
+      asbplayerShortcut: null,
       defaultAction: "translate",
       globallyEnabled: true,
       networkConsent: null,
@@ -33,7 +35,7 @@ describe("Chrome Store settings", () => {
         eudic: { consent: null, enabled: false },
         shanbay: { consent: null, enabled: false },
       },
-      schemaVersion: 6,
+      schemaVersion: 7,
       sitePolicy: { defaultAction: "allow", rules: [] },
       youtubeMode: "english",
       youtubeShortcut: null,
@@ -72,6 +74,8 @@ describe("Chrome Store settings", () => {
     await settings.grantNetworkConsent(new Date("2026-08-11T01:00:00.000Z"));
 
     await expect(settings.get()).resolves.toEqual({
+      asbplayerMode: "english",
+      asbplayerShortcut: null,
       defaultAction: "translate",
       globallyEnabled: true,
       networkConsent: { grantedAt: "2026-08-11T01:00:00.000Z", version: 1 },
@@ -81,7 +85,7 @@ describe("Chrome Store settings", () => {
         eudic: { consent: null, enabled: false },
         shanbay: { consent: null, enabled: false },
       },
-      schemaVersion: 6,
+      schemaVersion: 7,
       sitePolicy: { defaultAction: "allow", rules: [] },
       youtubeMode: "english",
       youtubeShortcut: null,
@@ -99,7 +103,7 @@ describe("Chrome Store settings", () => {
         eudic: { consent: null, enabled: false },
         shanbay: { consent: null, enabled: false },
       },
-      schemaVersion: 6,
+      schemaVersion: 7,
       youtubeMode: "english",
     });
     expect(local.set).toHaveBeenCalledOnce();
@@ -123,7 +127,7 @@ describe("Chrome Store settings", () => {
 
     await expect(createChromeStoreSettings(local).get()).resolves.toMatchObject({
       defaultAction: "ask",
-      schemaVersion: 6,
+      schemaVersion: 7,
       youtubeMode: "english",
     });
     expect(local.set).toHaveBeenCalledOnce();
@@ -160,7 +164,7 @@ describe("Chrome Store settings", () => {
 
     await expect(settings.get()).resolves.toMatchObject({
       overlayTheme: "pearl",
-      schemaVersion: 6,
+      schemaVersion: 7,
     });
     await settings.setOverlayTheme("parchment");
     await expect(settings.get()).resolves.toMatchObject({ overlayTheme: "parchment" });
@@ -226,7 +230,7 @@ describe("Chrome Store settings", () => {
     await expect(createChromeStoreSettings(local).get()).resolves.toMatchObject({
       defaultAction: "ask",
       globallyEnabled: true,
-      schemaVersion: 6,
+      schemaVersion: 7,
       sitePolicy: { defaultAction: "allow", rules: [] },
       youtubeMode: "bilingual",
     });
@@ -254,7 +258,7 @@ describe("Chrome Store settings", () => {
     await expect(createChromeStoreSettings(local).get()).resolves.toMatchObject({
       defaultAction: "ask",
       globallyEnabled: false,
-      schemaVersion: 6,
+      schemaVersion: 7,
       sitePolicy: {
         defaultAction: "allow",
         rules: [

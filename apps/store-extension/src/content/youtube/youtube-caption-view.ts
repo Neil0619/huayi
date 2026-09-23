@@ -1,5 +1,6 @@
 import type { StoreAppearance } from "@huayi/store-domain";
 
+import { setSubtitleAppearance } from "../subtitles/subtitle-appearance.js";
 import type { SubtitleSentence } from "./youtube-subtitles.js";
 
 const PLAYER_GESTURE_EVENTS = [
@@ -11,7 +12,7 @@ const PLAYER_GESTURE_EVENTS = [
   "dblclick",
 ] as const;
 
-const YOUTUBE_CAPTION_STYLES = `[data-huayi-store-youtube-active] :is(.ytp-caption-window-container,.ytp-caption-segment){visibility:hidden!important}#huayi-y,#huayi-yc{--e:#d9e0e6}#huayi-y[data-appearance=moon],#huayi-yc[data-appearance=moon]{--e:#a9b7c8}#huayi-y[data-appearance=silver],#huayi-yc[data-appearance=silver]{--e:#d9e0e6}#huayi-y[data-appearance=champagne],#huayi-yc[data-appearance=champagne]{--e:#ddc4a7}#huayi-y[data-appearance=porcelain],#huayi-yc[data-appearance=porcelain]{--e:#aab9df}#huayi-y{position:absolute;z-index:59;left:50%;bottom:max(64px,9%);display:flex;max-width:min(90%,1100px);padding:4px 10px;flex-direction:column;align-items:center;transform:translateX(-50%);border:1px solid #ffffff45;border-radius:8px;color:#fff;background:#080808c2;font:500 clamp(18px,2.2vw,30px)/1.32 Roboto,Arial,sans-serif;text-align:center;text-shadow:0 1px 2px #000,0 0 4px #000;pointer-events:auto}#huayi-y>:first-child{cursor:text;user-select:text}#huayi-y>:nth-child(2){margin-top:2px;font-size:.9em;font-weight:450;user-select:none}#huayi-y>button{position:absolute;top:-9px;right:-9px;width:24px;height:24px;padding:0;border:1px solid #ffffff57;border-radius:50%;color:#fffffff0;background:#121212d1;font:650 12px/1 system-ui,sans-serif;cursor:pointer;opacity:.88}#huayi-y>button:is(:hover,[aria-pressed=true]){border-color:var(--e);color:var(--e);opacity:1}#huayi-yc{display:inline-flex;float:left;width:48px;height:100%;align-items:center;justify-content:center}#huayi-yc>button{width:48px;height:100%;min-height:36px;padding:0;border:0;color:#fff;background:transparent;font:700 16px/1 system-ui,sans-serif;text-shadow:0 1px 2px #000c;cursor:pointer;opacity:.92}#huayi-yc>button[aria-pressed=true]{color:var(--e)}:is(#huayi-y>button,#huayi-yc>button):disabled{cursor:default;opacity:.38}:is(#huayi-y>button,#huayi-yc>button):focus-visible{outline:3px solid var(--e);outline-offset:-3px}`;
+const YOUTUBE_CAPTION_STYLES = `[data-huayi-store-youtube-active] :is(.ytp-caption-window-container,.ytp-caption-segment){visibility:hidden!important}#huayi-y{position:absolute;z-index:59;left:50%;bottom:max(64px,9%);display:flex;max-width:min(90%,1100px);padding:4px 10px;flex-direction:column;align-items:center;transform:translateX(-50%);border:1px solid #ffffff45;border-radius:8px;color:#fff;background:#080808c2;font:500 clamp(18px,2.2vw,30px)/1.32 Roboto,Arial,sans-serif;text-align:center;text-shadow:0 1px 2px #000,0 0 4px #000;pointer-events:auto}#huayi-y>:first-child{cursor:text;user-select:text}#huayi-y>:nth-child(2){margin-top:2px;font-size:.9em;font-weight:450;user-select:none}#huayi-y>button{position:absolute;top:-9px;right:-9px;width:24px;height:24px;padding:0;border:1px solid #ffffff57;border-radius:50%;color:#fffffff0;background:#121212d1;font:650 12px/1 system-ui,sans-serif;cursor:pointer;opacity:.88}#huayi-y>button:is(:hover,[aria-pressed=true]){border-color:var(--e);color:var(--e);opacity:1}#huayi-yc{display:inline-flex;float:left;width:48px;height:100%;align-items:center;justify-content:center}#huayi-yc>button{width:48px;height:100%;min-height:36px;padding:0;border:0;color:#fff;background:transparent;font:700 16px/1 system-ui,sans-serif;text-shadow:0 1px 2px #000c;cursor:pointer;opacity:.92}#huayi-yc>button[aria-pressed=true]{color:var(--e)}:is(#huayi-y>button,#huayi-yc>button):disabled{cursor:default;opacity:.38}:is(#huayi-y>button,#huayi-yc>button):focus-visible{outline:3px solid var(--e);outline-offset:-3px}`;
 
 function containPlayerGestures(button: HTMLButtonElement): void {
   for (const type of PLAYER_GESTURE_EVENTS) {
@@ -127,8 +128,7 @@ export class YouTubeCaptionView {
   }
 
   setAppearance(appearance: StoreAppearance): void {
-    this.#host.dataset.appearance = appearance;
-    this.#controlHost.dataset.appearance = appearance;
+    setSubtitleAppearance([this.#host, this.#controlHost], appearance);
   }
 
   destroy(): void {

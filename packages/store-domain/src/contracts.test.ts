@@ -24,8 +24,8 @@ import {
 
 describe("Store domain contracts", () => {
   it("uses the v5 runtime message boundary", () => {
-    expect(STORE_MESSAGE_VERSION).toBe(5);
-    expect(STORE_ANALYSIS_PORT_NAME).toBe("huayi-store-analysis-v5");
+    expect(STORE_MESSAGE_VERSION).toBe(6);
+    expect(STORE_ANALYSIS_PORT_NAME).toBe("huayi-store-analysis-v6");
   });
 
   it("accepts a word with multiple bounded context observations", () => {
@@ -221,6 +221,8 @@ describe("Store domain contracts", () => {
       },
       schemaVersion: STORE_SETTINGS_SCHEMA_VERSION,
       sitePolicy: { defaultAction: "allow", rules: [] },
+      asbplayerMode: "english",
+      asbplayerShortcut: null,
       youtubeMode: "bilingual",
       youtubeShortcut: null,
     };

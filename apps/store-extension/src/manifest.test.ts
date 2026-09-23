@@ -8,7 +8,7 @@ describe("Store extension manifest", () => {
   it.each([manifest, hosted, production])(
     "isolates Shanbay in a fixed top-frame content script",
     (profile) => {
-      expect(profile.content_scripts).toHaveLength(4);
+      expect(profile.content_scripts).toHaveLength(6);
       expect(
         profile.content_scripts.filter((script) => script.js.includes("shanbay-content.js")),
       ).toEqual([

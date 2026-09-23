@@ -14,6 +14,12 @@
 信任链为：Web/Extension → Hono API 认证与授权 → 业务用例 → Postgres；RLS 是第二道防线。DeepSeek、
 Google、邮件服务、Eudic 与 Shanbay 都是外部接收方，分别使用最小数据。
 
+Store asbplayer 正式入口仅匹配官方 HTTPS 域的播放帧；MAIN 被动捕获与 ISOLATED 学习控制双侧净化，
+不扩大普通网页 all_frames。2 MiB 有界快照、会话代次、选区证据、播放归属及媒体元数据最小化见
+[本地视频学习安全边界](asbplayer-local-video.md#代码与信任边界)。BroadcastChannel 和页面随机标识
+不提供同页脚本身份认证；收到字幕不是模型调用或词书写入授权。官网内部协议基线另见
+[M0 记录](asbplayer-m0-probe.md)。
+
 本机真实 PostgreSQL 验收不得通过扩大 `huayi_context_setter` 权限修复业务写入。owner-scoped
 `idempotency_records` 由 `huayi_business` 在 owner context 下写；context-setter 只调用固定函数。
 `settle_practice_generation_quota` 仅授予 context-setter，PUBLIC/business 均无执行权；函数重新校验当前

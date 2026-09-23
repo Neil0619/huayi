@@ -2,7 +2,7 @@ import { z } from "zod/v3";
 
 import { providerIdSchema } from "./analysis.js";
 
-export const STORE_SETTINGS_SCHEMA_VERSION = 6;
+export const STORE_SETTINGS_SCHEMA_VERSION = 7;
 export const STORE_SITE_RULE_LIMIT = 256;
 export const STORE_NETWORK_CONSENT_VERSION = 1;
 export const STORE_RECIPIENT_CONSENT_VERSIONS = {
@@ -33,6 +33,9 @@ export type NetworkConsent = z.infer<typeof networkConsentSchema>;
 
 export const youtubeModeSchema = z.enum(["disabled", "english", "bilingual"]);
 export type YouTubeMode = z.infer<typeof youtubeModeSchema>;
+
+export const asbplayerModeSchema = z.enum(["disabled", "english", "bilingual"]);
+export type AsbplayerMode = z.infer<typeof asbplayerModeSchema>;
 
 export const defaultActionSchema = z.enum(["ask", "explain", "translate"]);
 export type StoreDefaultAction = z.infer<typeof defaultActionSchema>;
@@ -90,6 +93,8 @@ export const keyboardShortcutSchema = z
 export type StoreKeyboardShortcut = z.infer<typeof keyboardShortcutSchema>;
 
 export const storeSettingsSchema = z.strictObject({
+  asbplayerMode: asbplayerModeSchema,
+  asbplayerShortcut: keyboardShortcutSchema.nullable(),
   defaultAction: defaultActionSchema,
   globallyEnabled: z.boolean(),
   networkConsent: networkConsentSchema.nullable(),
@@ -172,4 +177,6 @@ export interface StoreSettingsRepository {
   removeSiteRule(key: Pick<StoreSiteRule, "hostname" | "includeSubdomains">): Promise<void>;
   setYoutubeMode(mode: YouTubeMode): Promise<void>;
   setYoutubeShortcut(shortcut: StoreKeyboardShortcut | null): Promise<void>;
+  setAsbplayerMode(mode: AsbplayerMode): Promise<void>;
+  setAsbplayerShortcut(shortcut: StoreKeyboardShortcut | null): Promise<void>;
 }

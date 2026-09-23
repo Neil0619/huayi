@@ -1,5 +1,8 @@
 # 语见 Cloud V1 技术方案
 
+Store asbplayer 学习适配见 [本地视频学习](asbplayer-local-video.md)，官网内部协议基线见
+[M0 验证](asbplayer-m0-probe.md)。Windows 实机结果需独立记录。
+
 ## 1. 系统形态
 
 Cloud V1 继续使用 pnpm、严格 TypeScript、ESM、Vite 和 Zod，并新增 React/Hono/Supabase。运行时

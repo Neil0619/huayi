@@ -45,8 +45,8 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Install Chrome for Playwright
-        run: pnpm exec playwright install chrome
+      - name: Install browsers for Playwright and actual Store extension fixtures
+        run: pnpm exec playwright install chrome chromium
       - run: pnpm verify:macos
 
       - name: Upload macOS visual screenshot diffs on failure
@@ -132,8 +132,8 @@ jobs:
           node-version: 26
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Install Chrome for Playwright
-        run: pnpm exec playwright install chrome
+      - name: Install browsers for Playwright and actual Store extension fixtures
+        run: pnpm exec playwright install chrome chromium
       - run: pnpm verify:windows
       - name: Upload Windows visual screenshot diffs on failure
         if: ${{ failure() }}

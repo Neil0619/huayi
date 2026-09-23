@@ -48,6 +48,11 @@ export interface StoreOverlayAnchor {
   readonly top: number;
 }
 
+export interface StoreOverlayPresentation {
+  readonly mount: HTMLElement | null;
+  readonly ignoreOutsidePointer?: (event: PointerEvent) => boolean;
+}
+
 export type StoreOverlayCloseReason = "dismissed" | "owner-clear";
 
 export function requestAnalysisStop(

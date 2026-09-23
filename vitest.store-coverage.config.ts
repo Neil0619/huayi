@@ -35,6 +35,7 @@ export default defineConfig({
         "apps/store-extension/src/lexicon/lexicon-crypto.ts",
         "apps/store-extension/src/service-worker/analysis-session.ts",
         "apps/store-extension/src/service-worker/store-settings.ts",
+        "apps/store-extension/src/service-worker/store-settings-migration.ts",
         "apps/store-extension/src/vault/browser-device-vault.ts",
         "apps/store-extension/src/wordbook/browser-wordbook-export-engine.ts",
         "apps/store-extension/src/wordbook/encrypted-wordbook-state-store.ts",

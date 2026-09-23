@@ -1,5 +1,8 @@
 # 语见 Cloud V1 测试与验收
 
+asbplayer Store 候选测试见 [本地视频学习](asbplayer-local-video.md)，官网内部协议基线见
+[M0 验证](asbplayer-m0-probe.md)。Windows 实机结果需独立记录。
+
 2026-09-07 邮箱优先注册的当前回归矩阵见 [邮箱验证后设置密码](email-first-password-signup.md#验证)。
 新 Web 使用站内 OTP → 两次密码确认；下文历史 `/register` 邮件 callback 旅程继续作为兼容边界。
 

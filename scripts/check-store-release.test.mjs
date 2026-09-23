@@ -31,6 +31,19 @@ const manifest = {
       world: "MAIN",
     },
     {
+      all_frames: true,
+      js: ["asbplayer-content.js"],
+      matches: ["https://app.asbplayer.dev/*"],
+      run_at: "document_idle",
+    },
+    {
+      all_frames: true,
+      js: ["asbplayer-main.js"],
+      matches: ["https://app.asbplayer.dev/*"],
+      run_at: "document_start",
+      world: "MAIN",
+    },
+    {
       all_frames: false,
       js: ["shanbay-content.js"],
       matches: ["https://web.shanbay.com/*"],
@@ -79,6 +92,8 @@ const expectedFiles = [
   "service-worker.js",
   "youtube-content.js",
   "youtube-main.js",
+  "asbplayer-content.js",
+  "asbplayer-main.js",
 ];
 
 async function withReleaseFixture(run, outputName = "dist-release") {

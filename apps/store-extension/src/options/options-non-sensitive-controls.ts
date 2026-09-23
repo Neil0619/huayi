@@ -53,6 +53,7 @@ export class OptionsNonSensitiveControls {
     this.bindGlobalToggle();
     this.bindSelects();
     this.bindShortcut();
+    this.bindAsbplayer();
   }
 
   render(settings: StoreSettings | null, busy: boolean): void {
@@ -64,6 +65,11 @@ export class OptionsNonSensitiveControls {
       settings?.youtubeShortcut ?? null,
     );
     element<HTMLInputElement>("[data-global-enabled]").disabled = busy;
+    element<HTMLSelectElement>("[data-asbplayer-mode]").value =
+      settings?.asbplayerMode ?? "english";
+    element<HTMLButtonElement>("[data-asbplayer-shortcut]").textContent = shortcutLabel(
+      settings?.asbplayerShortcut ?? null,
+    );
   }
 
   private bindGlobalToggle(): void {
@@ -133,5 +139,46 @@ export class OptionsNonSensitiveControls {
   private async refreshSitePolicy(): Promise<void> {
     await this.dependencies.refreshSettings();
     await this.dependencies.notifySitePolicyChanged();
+  }
+
+  private bindAsbplayer(): void {
+    element<HTMLSelectElement>("[data-asbplayer-mode]").addEventListener("change", (event) => {
+      const mode = (event.currentTarget as HTMLSelectElement)
+        .value as StoreSettings["asbplayerMode"];
+      this.dependencies.execute(async () => {
+        await this.dependencies.settings.setAsbplayerMode(mode);
+        await this.refreshSitePolicy();
+      }, "asbplayer 字幕偏好已更新，已打开的播放页会自动生效。");
+    });
+    const button = element<HTMLButtonElement>("[data-asbplayer-shortcut]");
+    button.addEventListener("click", () => {
+      button.dataset.recording = "true";
+      button.textContent = "请按新的组合键…";
+      button.focus();
+    });
+    button.addEventListener("keydown", (event) => {
+      if (button.dataset.recording !== "true") return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (event.key === "Escape") {
+        delete button.dataset.recording;
+        void this.dependencies.refreshSettings();
+        return;
+      }
+      const shortcut = shortcutFromEvent(event);
+      if (shortcut === null) return;
+      delete button.dataset.recording;
+      this.dependencies.execute(async () => {
+        await this.dependencies.settings.setAsbplayerShortcut(shortcut);
+        await this.refreshSitePolicy();
+      }, "asbplayer 临时双语快捷键已更新。");
+    });
+    element<HTMLButtonElement>("[data-asbplayer-shortcut-clear]").addEventListener("click", () => {
+      delete button.dataset.recording;
+      this.dependencies.execute(async () => {
+        await this.dependencies.settings.setAsbplayerShortcut(null);
+        await this.refreshSitePolicy();
+      }, "asbplayer 临时双语快捷键已关闭。");
+    });
   }
 }

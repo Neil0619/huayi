@@ -3,6 +3,9 @@
 > 本文件描述冻结维护的 Classic 0.13。Cloud V1 会由 Huayi API 接收账号学习内容，其新安全边界见
 > [`cloud-v1/security.md`](cloud-v1/security.md)；不得把本文件的“开发者不接收”结论套用到 Cloud。
 
+Store asbplayer 新入口、被动字幕桥和划词数据边界见
+[本地视频学习](cloud-v1/asbplayer-local-video.md#代码与信任边界)，不改变 Classic 安全边界。
+
 ## 开发依赖供应链
 
 共享开发工具链的审计与 Taro 补丁边界见[依赖安全维护](dependency-security.md)。审计同时核对

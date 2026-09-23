@@ -1,4 +1,4 @@
-import type { StoreOverlayAnchor } from "./overlay-runtime.js";
+import type { StoreOverlayAnchor, StoreOverlayPresentation } from "./overlay-runtime.js";
 import { positionOverlayHost, type OverlayPlacement } from "./overlay-visual-state.js";
 
 export class OverlayInteractionLifecycle {
@@ -6,6 +6,7 @@ export class OverlayInteractionLifecycle {
   #placement: OverlayPlacement;
   #host: HTMLElement | null = null;
   #range: Range | undefined;
+  #presentation: StoreOverlayPresentation | undefined;
   #rangeOrigin: { readonly left: number; readonly top: number } | null = null;
   #scrollX = 0;
   #scrollY = 0;
@@ -27,11 +28,17 @@ export class OverlayInteractionLifecycle {
     this.#dismiss = dismiss;
   }
 
-  start(host: HTMLElement, anchor: StoreOverlayAnchor, range?: Range): void {
+  start(
+    host: HTMLElement,
+    anchor: StoreOverlayAnchor,
+    range?: Range,
+    presentation?: StoreOverlayPresentation,
+  ): void {
     this.stop();
     this.#host = host;
     this.#anchor = anchor;
     this.#range = range;
+    this.#presentation = presentation;
     const bounds = range?.getBoundingClientRect?.();
     this.#rangeOrigin =
       bounds && (bounds.width || bounds.height) ? { left: bounds.left, top: bounds.top } : null;
@@ -85,6 +92,7 @@ export class OverlayInteractionLifecycle {
     this.#host = null;
     this.#anchor = null;
     this.#range = undefined;
+    this.#presentation = undefined;
     this.#rangeOrigin = null;
   }
 
@@ -106,6 +114,7 @@ export class OverlayInteractionLifecycle {
     if (
       this.#host === null ||
       event.composedPath().includes(this.#host) ||
+      this.#presentation?.ignoreOutsidePointer?.(event) ||
       !this.#acceptsUserGesture(event)
     ) {
       return;

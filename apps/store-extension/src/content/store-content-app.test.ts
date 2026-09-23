@@ -1,3 +1,4 @@
+import { STORE_MESSAGE_VERSION } from "@huayi/store-domain";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { StoreOverlayController } from "./overlay/store-overlay-controller.js";
@@ -83,6 +84,25 @@ describe("Store content selection app", () => {
     app.stop();
   });
 
+  it("excludes asbplayer English, controls and selections released outside the learning area", () => {
+    const controller = { close: vi.fn(), show: vi.fn() } as unknown as StoreOverlayController;
+    const app = new StoreContentApp(document, controller, () => true);
+    const area = document.createElement("section");
+    area.dataset.huayiStoreAsbplayer = "";
+    const block = document.createElement("div");
+    block.textContent = "The investigation began.";
+    area.append(block);
+    document.body.append(area);
+    app.start();
+    select(block, "investigation");
+    block.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
+    document.body.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
+    document.body.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true, key: "Shift" }));
+    expect(controller.show).not.toHaveBeenCalled();
+    expect(controller.close).not.toHaveBeenCalled();
+    app.stop();
+  });
+
   it("ignores synthetic page events under the production user-gesture policy", () => {
     const controller = { close: vi.fn(), show: vi.fn() } as unknown as StoreOverlayController;
     const app = new StoreContentApp(document, controller);
@@ -114,7 +134,7 @@ describe("Store content selection app", () => {
       enabled: true,
       globallyEnabled: true,
       host: "example.com",
-      messageVersion: 5,
+      messageVersion: STORE_MESSAGE_VERSION,
       overlayTheme: "parchment",
       type: "store/site-policy-result",
     });

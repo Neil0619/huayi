@@ -29,6 +29,8 @@ const EXPECTED_FILES = new Set([
   "service-worker.js",
   "youtube-content.js",
   "youtube-main.js",
+  "asbplayer-content.js",
+  "asbplayer-main.js",
 ]);
 const EXPECTED_PERMISSIONS = ["alarms", "storage", "unlimitedStorage"];
 const EXPECTED_HOSTS = [
@@ -55,6 +57,19 @@ const EXPECTED_CONTENT_SCRIPTS = [
     all_frames: false,
     js: ["youtube-main.js"],
     matches: ["https://youtube.com/*", "https://www.youtube.com/*", "https://m.youtube.com/*"],
+    run_at: "document_start",
+    world: "MAIN",
+  },
+  {
+    all_frames: true,
+    js: ["asbplayer-content.js"],
+    matches: ["https://app.asbplayer.dev/*"],
+    run_at: "document_idle",
+  },
+  {
+    all_frames: true,
+    js: ["asbplayer-main.js"],
+    matches: ["https://app.asbplayer.dev/*"],
     run_at: "document_start",
     world: "MAIN",
   },

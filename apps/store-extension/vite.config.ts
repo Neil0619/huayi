@@ -114,6 +114,8 @@ export function createStoreExtensionConfig(
   const isPopupBuild = mode === "popup";
   const isYouTubeContentBuild = mode === "youtube-content";
   const isYouTubeMainBuild = mode === "youtube-main";
+  const isAsbplayerContentBuild = mode === "asbplayer-content";
+  const isAsbplayerMainBuild = mode === "asbplayer-main";
   return {
     define: {
       HUAYI_CLOUD_API_ORIGIN_BUILD_VALUE: JSON.stringify(profile.apiOrigin),
@@ -142,11 +144,15 @@ export function createStoreExtensionConfig(
                 ? "src/content/youtube/youtube-content-entry.ts"
                 : isYouTubeMainBuild
                   ? "src/content/youtube/youtube-main-entry.ts"
-                  : isOptionsBuild
-                    ? "src/options/options-entry.ts"
-                    : isPopupBuild
-                      ? "src/popup/popup-entry.ts"
-                      : "src/service-worker/service-worker.ts",
+                  : isAsbplayerContentBuild
+                    ? "src/content/asbplayer/asbplayer-content-entry.ts"
+                    : isAsbplayerMainBuild
+                      ? "src/content/asbplayer/asbplayer-main-entry.ts"
+                      : isOptionsBuild
+                        ? "src/options/options-entry.ts"
+                        : isPopupBuild
+                          ? "src/popup/popup-entry.ts"
+                          : "src/service-worker/service-worker.ts",
         ),
         output: {
           entryFileNames: isContentBuild
@@ -157,13 +163,22 @@ export function createStoreExtensionConfig(
                 ? "youtube-content.js"
                 : isYouTubeMainBuild
                   ? "youtube-main.js"
-                  : isOptionsBuild
-                    ? "options.js"
-                    : isPopupBuild
-                      ? "popup.js"
-                      : "service-worker.js",
+                  : isAsbplayerContentBuild
+                    ? "asbplayer-content.js"
+                    : isAsbplayerMainBuild
+                      ? "asbplayer-main.js"
+                      : isOptionsBuild
+                        ? "options.js"
+                        : isPopupBuild
+                          ? "popup.js"
+                          : "service-worker.js",
           format:
-            isContentBuild || isShanbayContentBuild || isYouTubeContentBuild || isYouTubeMainBuild
+            isContentBuild ||
+            isShanbayContentBuild ||
+            isYouTubeContentBuild ||
+            isYouTubeMainBuild ||
+            isAsbplayerContentBuild ||
+            isAsbplayerMainBuild
               ? "iife"
               : "es",
           inlineDynamicImports: true,

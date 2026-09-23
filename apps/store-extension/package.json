@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "vite build --mode content && vite build --mode shanbay-content && vite build --mode youtube-content && vite build --mode youtube-main && vite build --mode options && vite build --mode popup && vite build --mode background",
+    "build": "vite build --mode content && vite build --mode shanbay-content && vite build --mode youtube-content && vite build --mode youtube-main && vite build --mode asbplayer-content && vite build --mode asbplayer-main && vite build --mode options && vite build --mode popup && vite build --mode background",
     "typecheck": "tsc --noEmit --project tsconfig.json && tsc --noEmit --project tsconfig.test.json && tsc --noEmit --project tsconfig.config.json && tsc --noEmit --project tsconfig.e2e.json"
   },
   "dependencies": {

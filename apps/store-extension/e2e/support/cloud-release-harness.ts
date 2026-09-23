@@ -94,7 +94,9 @@ const settings: StoreSettings = {
         }
       : { consent: null, enabled: false },
   },
-  schemaVersion: 6,
+  asbplayerMode: "english",
+  asbplayerShortcut: null,
+  schemaVersion: 7,
   sitePolicy: { defaultAction: "allow", rules: [] },
   youtubeMode: "english",
   youtubeShortcut: null,

@@ -24,6 +24,8 @@ function access(consented: boolean, enabled: boolean, siteEnabled = true) {
         ? []
         : [{ action: "block" as const, hostname: "web.shanbay.com", includeSubdomains: false }],
     },
+    asbplayerMode: "english" as const,
+    asbplayerShortcut: null,
     youtubeMode: "english" as const,
     youtubeShortcut: null,
   });

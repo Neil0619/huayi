@@ -48,6 +48,19 @@
       "all_frames": false
     },
     {
+      "matches": ["https://app.asbplayer.dev/*"],
+      "js": ["asbplayer-content.js"],
+      "run_at": "document_idle",
+      "all_frames": true
+    },
+    {
+      "matches": ["https://app.asbplayer.dev/*"],
+      "js": ["asbplayer-main.js"],
+      "run_at": "document_start",
+      "world": "MAIN",
+      "all_frames": true
+    },
+    {
       "matches": ["https://web.shanbay.com/*"],
       "js": ["shanbay-content.js"],
       "run_at": "document_idle",

@@ -1,5 +1,8 @@
 # 语见 · Seen & Said Cloud V1 文档入口
 
+- [asbplayer 本地视频学习与 Windows 验收](asbplayer-local-video.md)
+- [asbplayer M0 官网兼容基线](asbplayer-m0-probe.md)
+
 Cloud V1 是尚未发布的 Store Edition 云端学习增量。实现和审阅顺序：
 
 1. [产品需求](product.md)

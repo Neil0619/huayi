@@ -15,31 +15,28 @@ import { MAX_PREVIEW_CHARACTERS, resultMatchesAction } from "./overlay-analysis-
 import { renderDisconnectedError, renderOverlayError } from "./overlay-error-view.js";
 import { OverlayCardSession, type OverlayModeState } from "./overlay-card-session.js";
 import { OverlayInteractionLifecycle } from "./overlay-interaction-lifecycle.js";
-import { attachOverlayStyles } from "./overlay-stylesheet.js";
 import { renderCachedResult } from "./render-cached-result.js";
 import { renderStreamPreview, renderStreamStatus } from "./render-stream-preview.js";
 import { OverlayWordPresence } from "./overlay-word-presence.js";
 import { OverlayStudyCapture } from "./overlay-study-capture.js";
-import { createOverlayPanel } from "./overlay-panel.js";
+import { mountOverlayPanel, relocateOverlayHost } from "./overlay-mount.js";
 import {
   disconnectAnalysisPort,
   requestAnalysisStop,
   measureQueryPresentation,
   showQueryDiagnostic,
   restoreQueryFocus,
+  type ContentAnalysisPort,
+  type StoreOverlayAnchor,
+  type StoreOverlayCloseReason,
+  type StoreOverlayRuntime,
+  type StoreOverlayPresentation,
 } from "./overlay-runtime.js";
 import {
   applyOverlayAppearance,
   applyOverlayTheme,
-  createOverlayHost,
   updateOverlayModeControls,
 } from "./overlay-visual-state.js";
-import type {
-  ContentAnalysisPort,
-  StoreOverlayAnchor,
-  StoreOverlayCloseReason,
-  StoreOverlayRuntime,
-} from "./overlay-runtime.js";
 export type {
   ContentAnalysisPort,
   StoreOverlayAnchor,
@@ -92,7 +89,12 @@ export class StoreOverlayController {
     });
   }
 
-  show(selection: StoreSelectionReading, anchor: StoreOverlayAnchor, onDismiss?: () => void): void {
+  show(
+    selection: StoreSelectionReading,
+    anchor: StoreOverlayAnchor,
+    onDismiss?: () => void,
+    presentation?: StoreOverlayPresentation,
+  ): void {
     this.#removeOverlay("replacement");
     this.#selection = selection;
     this.#studyCapture.reset();
@@ -101,33 +103,33 @@ export class StoreOverlayController {
     this.#previousFocus =
       this.#document.activeElement instanceof HTMLElement ? this.#document.activeElement : null;
 
-    const { host, shadow } = createOverlayHost(this.#document, anchor);
-    const view = createOverlayPanel(
-      this.#document,
-      this.#theme,
-      (action, event) => {
+    const view = mountOverlayPanel({
+      document: this.#document,
+      anchor,
+      appearance: this.#appearance,
+      theme: this.#theme,
+      mount: presentation?.mount ?? null,
+      stylesheetUrl: this.#runtime.overlayStylesheetUrl(),
+      action: (action, event) => {
         if (this.#acceptsUserGesture(event)) this.#start(action);
       },
-      () => requestAnalysisStop(this.#activePort, this.#analysisBody),
-    );
-    applyOverlayAppearance(host, this.#appearance, view.panel);
+      stop: () => requestAnalysisStop(this.#activePort, this.#analysisBody),
+      position: () => this.#interaction.position(),
+    });
     this.#analysisBody = view.body;
     this.#footer = view.footer;
     this.#headerActions = view.headerActions;
     this.#promoteToResult = view.promoteToResult;
-    attachOverlayStyles(
-      this.#document,
-      shadow,
-      view.panel,
-      this.#runtime.overlayStylesheetUrl(),
-      () => this.#interaction.position(),
-    );
-    (this.#document.body ?? this.#document.documentElement).append(host);
-    this.#host = host;
-    this.#interaction.start(host, anchor, selection.range);
+    this.#host = view.host;
+    this.#interaction.start(view.host, anchor, selection.range, presentation);
     if (this.#defaultAction !== "ask") this.#start(this.#defaultAction);
   }
 
+  readonly getHost = (): HTMLElement | null => this.#host;
+  relocate(mount: HTMLElement | null): void {
+    relocateOverlayHost(this.#host, mount);
+    this.#interaction.position();
+  }
   setDefaultAction(action: StoreDefaultAction): void {
     this.#defaultAction = action;
   }
@@ -142,9 +144,8 @@ export class StoreOverlayController {
     applyOverlayTheme(this.#host, theme);
   }
 
-  close(reason: StoreOverlayCloseReason = "dismissed"): void {
+  readonly close = (reason: StoreOverlayCloseReason = "dismissed"): void =>
     this.#removeOverlay(reason);
-  }
 
   #start(action: AnalysisAction): void {
     if (this.#selection === null || this.#host === null || this.#cardSession === null) return;

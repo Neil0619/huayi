@@ -307,6 +307,40 @@
           </div>
         </section>
 
+        <section
+          class="card"
+          aria-labelledby="asbplayer-title"
+          data-settings-associated="common"
+          role="region"
+        >
+          <div class="section-heading">
+            <div>
+              <p class="step">本地视频学习</p>
+              <h2 id="asbplayer-title">asbplayer 字幕</h2>
+            </div>
+          </div>
+          <div class="field compact">
+            <span><label for="asbplayer-default-mode">默认字幕模式</label></span>
+            <select id="asbplayer-default-mode" data-asbplayer-mode>
+              <option value="disabled">停用语见字幕</option>
+              <option value="english">英文（可手动切换双语）</option>
+              <option value="bilingual">默认双语</option>
+            </select>
+            <small
+              >在 app.asbplayer.dev
+              加载本地视频和文本字幕，确认中英文轨道后即可划词。中文字幕需自行提供。</small
+            >
+          </div>
+          <div class="subsection">
+            <h3>asbplayer 临时双语快捷键</h3>
+            <p>按住组合键显示中文，松开恢复；此设置与 YouTube 独立。</p>
+            <div class="actions">
+              <button type="button" data-asbplayer-shortcut>已关闭</button>
+              <button type="button" data-asbplayer-shortcut-clear>关闭快捷键</button>
+            </div>
+          </div>
+        </section>
+
         <div
           data-settings-section="wordbooks"
           id="settings-wordbooks"

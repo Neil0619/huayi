@@ -204,6 +204,12 @@ Store 与上方 Classic Native Host 安装相互独立。已获相应安装授�
 现有条目点击“重新加载”，保留 ID 与配置，不要先卸载。普通 build/E2E 输出到 `dist-release`，不覆盖
 Hosted 安装；该离线包不能替代云端包。真实重载、配对与 Windows 视觉验收需在 Windows 另行完成。
 
+## Store 本地视频学习
+
+官方 asbplayer 网页的输入准备、轨道确认、学习交互、全屏／弹窗与 Windows 验收步骤见
+[asbplayer 本地视频学习](cloud-v1/asbplayer-local-video.md)。此功能不需要 Native Host、asbplayer 扩展
+或 Anki；构建通过不代替 Windows Chrome 实机验证。
+
 ## 正式 Store 候选
 
 使用 `pnpm production:store:build` 构建 `apps/store-extension/dist-production`；

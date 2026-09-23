@@ -12,7 +12,8 @@ export type SelectionBoundaryEvidence =
   | { readonly kind: "dom-passage" }
   | { readonly kind: "dom-sentence" }
   | { readonly kind: "local-rules" }
-  | { readonly kind: "youtube-subtitle-sentence" };
+  | { readonly kind: "youtube-subtitle-sentence" }
+  | { readonly kind: "asbplayer-subtitle-sentence" };
 
 export function parseSelectionBoundaryEvidence(value: unknown): SelectionBoundaryEvidence {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
@@ -26,7 +27,8 @@ export function parseSelectionBoundaryEvidence(value: unknown): SelectionBoundar
     record.kind !== "dom-passage" &&
     record.kind !== "dom-sentence" &&
     record.kind !== "local-rules" &&
-    record.kind !== "youtube-subtitle-sentence"
+    record.kind !== "youtube-subtitle-sentence" &&
+    record.kind !== "asbplayer-subtitle-sentence"
   ) {
     throw new TypeError("Selection boundary evidence is invalid.");
   }
@@ -63,7 +65,11 @@ export function classifyEnglishSelection(
   if (WORD_PATTERN.test(normalized)) return "word";
 
   if (evidence?.kind === "dom-passage") return "passage";
-  if (evidence?.kind === "dom-sentence" || evidence?.kind === "youtube-subtitle-sentence") {
+  if (
+    evidence?.kind === "dom-sentence" ||
+    evidence?.kind === "youtube-subtitle-sentence" ||
+    evidence?.kind === "asbplayer-subtitle-sentence"
+  ) {
     return "sentence";
   }
 

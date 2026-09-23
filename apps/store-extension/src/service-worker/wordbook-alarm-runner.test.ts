@@ -23,6 +23,8 @@ function access(allowed: boolean) {
     },
     schemaVersion: 5 as const,
     sitePolicy: { defaultAction: "allow" as const, rules: [] },
+    asbplayerMode: "english" as const,
+    asbplayerShortcut: null,
     youtubeMode: "english" as const,
     youtubeShortcut: null,
   });

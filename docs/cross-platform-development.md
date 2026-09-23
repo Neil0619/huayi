@@ -1,5 +1,10 @@
 # 跨平台开发与完成规则
 
+asbplayer 学习适配属于 shared Store Chrome 变更，Windows 使用和目标平台矩阵见
+[本地视频学习](cloud-v1/asbplayer-local-video.md)。M0 的 scoped 命令与独立探针验收步骤见
+[`cloud-v1/asbplayer-m0-probe.md`](cloud-v1/asbplayer-m0-probe.md)。未执行的目标平台必须保留 pending，
+单平台官网资源读取、离线测试与探针构建不能替代另一平台的真实 Chrome 验证。
+
 ## 目标
 
 Huayi 支持 macOS 与 Windows，但两端的 Native Host 能力不同。代码可以在任一平台编写；完成

@@ -1,47 +1,16 @@
 import {
-  STORE_ANALYSIS_PORT_NAME,
-  STORE_MESSAGE_VERSION,
-  type StoreOpenWebWorkspaceRequest,
-  parseStoreOpenWebWorkspaceResponse,
-  type StoreOpenOptionsRequest,
-} from "@huayi/store-domain";
-
+  storeSubtitleRuntime,
+  sendStoreSubtitleMessage,
+} from "../subtitles/store-subtitle-runtime.js";
 import { bootstrapStoreContentScript } from "../content-bootstrap.js";
-import {
-  type ContentAnalysisPort,
-  type StoreOverlayRuntime,
-} from "../overlay/store-overlay-controller.js";
 import { getOrCreateStoreOverlay } from "../overlay/store-overlay-registry.js";
 import { getOrCreateStoreSiteLifecycle } from "../site-lifecycle-registry.js";
 import { installStoreSitePolicyRelay } from "../site-policy-relay.js";
 import { YouTubeIntegration } from "./youtube-integration.js";
 import { createYouTubeStartupRetryExecutor } from "./youtube-startup-retry.js";
 
-const runtime: StoreOverlayRuntime = {
-  connectAnalysis: () =>
-    chrome.runtime.connect({ name: STORE_ANALYSIS_PORT_NAME }) as ContentAnalysisPort,
-  openOptions: async () => {
-    const message: StoreOpenOptionsRequest = {
-      messageVersion: STORE_MESSAGE_VERSION,
-      type: "store/open-options",
-    };
-    await chrome.runtime.sendMessage(message);
-  },
-  openWebWorkspace: async () => {
-    const message: StoreOpenWebWorkspaceRequest = {
-      messageVersion: STORE_MESSAGE_VERSION,
-      type: "store/open-web-workspace",
-    };
-    const response = parseStoreOpenWebWorkspaceResponse(await chrome.runtime.sendMessage(message));
-    if (!response.opened) throw new Error("Web workspace is not configured.");
-  },
-  overlayStylesheetUrl: () => chrome.runtime.getURL("overlay.css"),
-  queryWordPresence: (request) => chrome.runtime.sendMessage(request),
-  saveWord: (request) => chrome.runtime.sendMessage(request),
-  studyCapture: (request) => chrome.runtime.sendMessage(request),
-};
-const overlay = getOrCreateStoreOverlay(document, runtime);
-const lifecycle = getOrCreateStoreSiteLifecycle((message) => chrome.runtime.sendMessage(message));
+const overlay = getOrCreateStoreOverlay(document, storeSubtitleRuntime);
+const lifecycle = getOrCreateStoreSiteLifecycle(sendStoreSubtitleMessage);
 const runStartupStep = createYouTubeStartupRetryExecutor();
 installStoreSitePolicyRelay(lifecycle, {
   addListener: (listener) => chrome.runtime.onMessage.addListener(listener),
@@ -51,7 +20,7 @@ const youtube = new YouTubeIntegration({
   document,
   overlay,
   runStartupStep,
-  sendMessage: (message) => chrome.runtime.sendMessage(message),
+  sendMessage: sendStoreSubtitleMessage,
 });
 
 void bootstrapStoreContentScript({
@@ -63,5 +32,5 @@ void bootstrapStoreContentScript({
   }),
   createRequestId: () => crypto.randomUUID(),
   runStartupStep,
-  sendMessage: (message) => chrome.runtime.sendMessage(message),
+  sendMessage: sendStoreSubtitleMessage,
 });

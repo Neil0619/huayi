@@ -110,7 +110,7 @@ describe("stored website management", () => {
     expect((await repository.get()).sitePolicy.rules).toEqual([
       { action: "allow", hostname: "wiki.ersoft.cn", includeSubdomains: false },
     ]);
-    expect((await repository.get()).schemaVersion).toBe(6);
+    expect((await repository.get()).schemaVersion).toBe(7);
     await repository.setSiteEnabled("intranet", false);
     expect(isSiteEnabled(await repository.get(), "intranet")).toBe(false);
   });

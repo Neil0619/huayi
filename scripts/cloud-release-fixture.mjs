@@ -33,6 +33,8 @@ export const expectedFiles = [
   "service-worker.js",
   "youtube-content.js",
   "youtube-main.js",
+  "asbplayer-content.js",
+  "asbplayer-main.js",
 ];
 
 export function manifest() {
@@ -63,6 +65,19 @@ export function manifest() {
         all_frames: false,
         js: ["youtube-main.js"],
         matches: ["https://youtube.com/*", "https://www.youtube.com/*", "https://m.youtube.com/*"],
+        run_at: "document_start",
+        world: "MAIN",
+      },
+      {
+        all_frames: true,
+        js: ["asbplayer-content.js"],
+        matches: ["https://app.asbplayer.dev/*"],
+        run_at: "document_idle",
+      },
+      {
+        all_frames: true,
+        js: ["asbplayer-main.js"],
+        matches: ["https://app.asbplayer.dev/*"],
         run_at: "document_start",
         world: "MAIN",
       },
