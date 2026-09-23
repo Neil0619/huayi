@@ -1,14 +1,17 @@
 # asbplayer Windows 开发验收回执
 
-2026-09-23 至 24 日，影响范围为 shared Store、测试工具与 Windows 验证。历史候选 `b39449e` 的双平台
-CI、Windows 原生 100%／150% 基础学习流程及官网脚本通过；接续候选 `1c381dd` 的两平台 CI
-均失败，原因及后续修复见文末。本机仍有四项视觉差异，真实 YouTube 字幕不可用，新官网扩展矩阵
-尚待 100% 补验；不能声明全部实机验收通过。本次未合并 main、部署或发布商店版本。
+2026-09-23 至 24 日，影响范围为 shared Store、测试工具与 Windows 验证。最新代码候选为
+`6798083`，修复 Hosted Store 在 Windows 无法启动 pnpm；真实构建和聚焦检查通过，准确候选双平台
+CI 仍在运行。本机上一候选完整门禁为 238 项浏览器通过、4 项视觉失败；远端 Windows 又出现实际
+Store 用例超时。真实 YouTube 字幕不可用，新产品及官网扩展矩阵尚待 100% 补验，不能声明全部
+验收通过。本次未合并 main、部署或发布商店版本。
 
 ## 候选与环境
 
 - 输入候选：`c67405c7ff7562e950bf5b03dc46971c2c6f5b24`，来自
   `https://github.com/Neil0619/huayi.git` 的 `codex/asbplayer-windows-validation`。
+- 最新代码候选：`679808338a0f9fcd69e407e6dae59b93cd060c2c`；Git tree：
+  `14be92de00579b013abd8a80813bf2a6afcd73e2`。其后纯回执文档提交不等于 CI 验证过的源码 SHA。
 - 上一轮已通过 CI 的代码候选：`b39449ee8e940701924dafe22769f73d82f7f1d2`；Git tree：
   `2169db5105d7ea0d6b92fad180f17ead68dac6be`；交接分支：`codex/asbplayer-windows-validation-fixes`。
   上一轮代码提交为 `6ac310b3b2414a11d353f0211140bf7ba5d502e7` 和上述候选；接续提交另见文末。
@@ -25,6 +28,43 @@ CI、Windows 原生 100%／150% 基础学习流程及官网脚本通过；接续
 `PLAYWRIGHT_BROWSERS_PATH` 重新安装的相同 149 版本可启动；exe、manifest、chrome.dll 和
 chrome_elf.dll 与默认缓存哈希一致，不能据此断言上游二进制损坏。试用的 154.0.8037.57 能加载官网
 并完成查词收藏，但全屏被浏览器拒绝（`TypeError: not granted`）；该失败保留，未改动产品代码规避。
+
+## 最新接续结果（2026-09-24，候选 CI 进行中）
+
+`0e37df7546a7bc2c18d11bc9408fefaf2c119585` 的本机 `pnpm verify:windows` 于 02:39 至 03:13
+完成，退出 1。指令、整仓格式／lint／类型、全部单元测试、Store 覆盖率、架构、整仓构建及 Cloud
+development-blocked 通过。脚本 1,135 通过／6 跳过，Store 191 文件／1,203 项通过；其余单元计数
+与下面历史结果表相同。覆盖率仍为 90.37%／85.16%／90.86%／92.44%。完整浏览器回归 238 通过、
+4 项既有视觉失败，用时 9.0 分钟；asbplayer、普通网页、离线 YouTube 和真实 BFCache 通过。
+门禁停止后补跑 Store 发布边界、安全审计、Windows SEA 打包及隔离健康帧，均退出 0。
+
+该候选 [CI 35903715683](https://github.com/Neil0619/huayi/actions/runs/35903715683) 的 macOS job
+`107326002717` 成功，浏览器 242/242。Windows job `107326002624` 被 45 分钟作业上限终止；
+此前三个实际 Store 用例已分别超过原 60 秒期限，不能只归因于作业时限。浏览器实际为 231 通过、
+3 失败、1 中断、7 未运行；失败涉及 BFCache、时间／轨道和暂停归属。日志只有用例总超时，没有
+具体等待阶段，且未上传这些用例的错误上下文，故根因尚未确认。没有延长时限或降低断言。
+
+`6798083` 的构建入口修复采用真实进程 TDD：旧实现直接启动 `pnpm`，在只有 `.cmd`／`.ps1`
+包装的 Windows 安装上无法启动；合法 JS 入口及失败子进程回归均先失败。改为当前 Node 加 pnpm
+提供的 JS 入口，保留参数数组、`shell: false` 和固定 hosted profile，补足必要 Windows 环境变量。
+测试检查真实子进程收到的参数与环境，过滤凭据和 `NODE_OPTIONS`；非零退出不进入审计或报告就绪。
+聚焦 11/11 通过，真实 pnpm `--version` 返回 10.34.5；完整脚本 1,138 通过／6 跳过／0 失败。
+指令、整仓格式、lint、完整类型检查与 diff 空白检查均通过。
+准确候选 [CI 35908365313](https://github.com/Neil0619/huayi/actions/runs/35908365313) 仍在运行，
+Windows job 为 `107341648839`，macOS job 为 `107341649256`；不可写成通过。
+
+真实 `pnpm acceptance:hosted:store:build` 与 `pnpm production:store:build` 均退出 0；随后 release、
+hosted-acceptance、production 三个实际产物审计均返回空 violations。release 四个关键文件摘要与
+下文结束字幕修复后的摘要一致。本轮不改扩展运行时代码，其他两个 profile 仍未作官网实测。
+文档中旧的“七次构建／30 秒”已按既有源码校正为九个 release 入口及每次 60 秒 setup 预算，
+没有修改该测试或它的时限。
+
+Chrome 154.0.8037.58 的全屏诊断取得新证据：无扩展官网在录制／上传过程中调用本地字体 API，
+默认 `local-fonts=prompt` 时 `queryLocalFonts()` 保持 pending，全屏被拒绝；仅在隔离配置中将该
+权限设为 denied 后，字体调用结束、官网原生全屏成功。没有授予字体读取权限或修改日常 Chrome。
+浏览器 trace 也记录到上传前约 1.3 秒的 `ForSecurityDropFullscreen` 事件。该对照确认本次默认
+权限状态下的阻塞与待处理字体请求相关；它只证明无扩展单项全屏，拒绝字体权限后的完整 Store
+官网基础／扩展矩阵尚未执行，不能代替完整验收。
 
 ## 上一轮自动化结果（b39449e）
 
@@ -225,7 +265,9 @@ release 产物 SHA-256：
 - 官网扩展矩阵已经补测列出的特殊模式、切文件与定向敌对消息；其 100% 原生缩放仍待执行。
   结束字幕修复后的产品候选还需补 100% 基础流程、官网基础脚本和真实 BFCache。
   未声称任意恶意／迟到消息组合均已验证。其他 Store profile 未做官网验证。
-- Chrome for Testing 154 的官网全屏失败仍保留；149 的成功不代表 154 官网矩阵通过。
+- Chrome 154 默认配置的官网全屏失败仍保留；已定位待处理字体权限请求，隔离拒绝该权限后的
+  无扩展全屏对照通过，但完整 Store 官网矩阵仍待补验。149 的成功不能代替。
+- 最新代码候选双平台 CI 尚未结束；上一候选 Windows 实际 Store 用例超时需进一步定位。
 
 复跑命令见 [Git 接续说明](asbplayer-windows-handoff.md)。未验证项目需要在隔离 Chrome 中按
 [本地视频矩阵](asbplayer-local-video.md) 执行，并记录真实系统比例、输入类型、操作和可观察结果。

@@ -7,11 +7,15 @@
 
 最新接续另外修复了视频结束后末句残留，已用失败单测及实际 Store 浏览器复现；新产品构建的
 150% 基础／扩展流程通过，100% 及准确新候选双平台 CI 尚待补验。不可把历史候选结果移用到新构建。
+后续 `6798083` 修复 Windows Hosted Store 构建入口，真实 Hosted／production 构建与三个 profile
+审计通过。`0e37df7` 的 macOS CI 成功，但 Windows 三项 Store 用例超时后作业被时限终止；
+`6798083` 的准确双平台 CI 仍在运行。各次结果均在回执中保留，不以重跑覆盖失败。
 
 ## 通过 Git 获取候选
 
 - 仓库：`https://github.com/Neil0619/huayi.git`。
 - 当前交接分支：`codex/asbplayer-windows-validation-fixes`。
+- 最新代码候选：`679808338a0f9fcd69e407e6dae59b93cd060c2c`，双平台 CI 状态见验证回执。
 - 已通过双平台 CI 的代码候选：`b39449ee8e940701924dafe22769f73d82f7f1d2`。
 - Windows 接续输入：`codex/asbplayer-windows-validation` 的
   `c67405c7ff7562e950bf5b03dc46971c2c6f5b24`；更早实现基线为 `ce0110d4eacaef9a4b9cf7e903e1be85129af58d`。
@@ -52,6 +56,16 @@ pnpm exec playwright test apps/store-extension/e2e/asbplayer-bfcache.spec.ts
 实际 Store 夹具读取本工作树的 `apps/store-extension/dist-release`。运行前确认 release 已构建，
 不要混入 Hosted acceptance 的 `dist` 或 production 的 `dist-production`。另按仓库构建规范核对
 三个 Store profile 的打包边界；它们的构建通过不等于各 profile 均经过官网实测。
+
+```powershell
+pnpm acceptance:hosted:store:build
+pnpm acceptance:hosted:store:status
+pnpm production:store:build
+pnpm production:store:status
+```
+
+Hosted 构建从 pnpm package 命令取得 JS 入口，由当前 Node 执行；缺少入口时失败，不在 Windows
+回退到 shell。以上命令只构建／审计本地独立目录，不加载或重装用户扩展，也不部署或发布。
 
 Chrome 与 Chromium 分开安装：Playwright 发现 branded Chrome 已安装时会提前结束该安装调用。
 `pnpm build` 还准备 E2E 服务器需要的工作区产物；服务器冷启动可能包含多个 profile 的构建。
