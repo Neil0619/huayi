@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFile, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { expect } from "@playwright/test";
+import { asbplayerOfficialBrowserOptions } from "./asbplayer-official-browser-options.mjs";
 import {
   createAsbplayerPackageFixture,
   english,
@@ -10,9 +11,7 @@ import {
 } from "../apps/store-extension/e2e/support/asbplayer-package-fixture.ts";
 
 // Live upstream controls and real Store worlds; media and Provider responses are synthetic.
-if (!process.argv.includes("--run-approved-browser-validation")) {
-  throw new Error("Official website verification requires explicit browser authorization.");
-}
+const browserOptions = asbplayerOfficialBrowserOptions(process.argv.slice(2));
 const receipt = {
   platform: process.platform,
   validation: "extended-matrix",
@@ -44,9 +43,10 @@ try {
       .update(await readFile(`apps/store-extension/dist-release/${name}`))
       .digest("hex");
   }
-  fixture = await createAsbplayerPackageFixture(true);
+  fixture = await createAsbplayerPackageFixture(true, browserOptions);
   const { page, frame, requests, context } = fixture;
   receipt.browser = context.browser()?.version();
+  receipt.localFontPermission = fixture.localFontPermission ?? "browser-default";
   receipt.nativeDisplay = fixture.nativeDisplay;
   const assetPath = await page.locator('script[type="module"][src]').first().getAttribute("src");
   assert.ok(assetPath);

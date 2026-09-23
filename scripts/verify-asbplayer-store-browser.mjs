@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 import { expect } from "@playwright/test";
+import { asbplayerOfficialBrowserOptions } from "./asbplayer-official-browser-options.mjs";
+import { sizeOfficialPopup } from "../apps/store-extension/e2e/support/asbplayer-browser-controls.ts";
 
 import {
   createAsbplayerPackageFixture,
@@ -11,8 +13,14 @@ import {
 } from "../apps/store-extension/e2e/support/asbplayer-package-fixture.ts";
 
 // Approved live website gate; Provider traffic remains intercepted with synthetic responses.
-if (!process.argv.includes("--run-approved-browser-validation")) {
-  throw new Error("Official website verification requires explicit browser authorization.");
+const browserOptions = asbplayerOfficialBrowserOptions(process.argv.slice(2), {
+  supportsPopupWindow: true,
+});
+if (browserOptions.commonPopupWindow) {
+  assert.ok(
+    process.env.HUAYI_ASBPLAYER_NATIVE_SCALE,
+    "Common popup verification requires actual native Windows display mode.",
+  );
 }
 const receipt = { platform: process.platform, status: "running", checks: {}, bundles: {} };
 let fixture;
@@ -39,9 +47,10 @@ try {
       .digest("hex");
   }
   mark("official-load");
-  fixture = await createAsbplayerPackageFixture(true);
+  fixture = await createAsbplayerPackageFixture(true, browserOptions);
   const { context, frame, options, page, requests } = fixture;
   receipt.browser = context.browser()?.version() ?? "unknown";
+  receipt.localFontPermission = fixture.localFontPermission ?? "browser-default";
   if (fixture.nativeDisplay) receipt.nativeDisplay = fixture.nativeDisplay;
   const asset = await page.locator('script[type="module"][src]').first().getAttribute("src");
   assert.ok(asset);
@@ -113,6 +122,10 @@ try {
   await frame.getByRole("button", { name: "Pop Out", exact: true }).click();
   const popup = await pending;
   await expect(popup.locator(learning)).toHaveAttribute("data-state", "waiting-tracks");
+  if (browserOptions.commonPopupWindow) {
+    assert.ok(fixture.nativeDisplay);
+    receipt.popupWindow = await sizeOfficialPopup(context, popup, fixture.nativeDisplay.scale);
+  }
   await popup.locator("[data-confirm-tracks]").click();
   await expect(popup.locator(learning)).toHaveAttribute("data-state", "usable");
   await expect(popup.locator(learning)).toContainText("未加载中文字幕");

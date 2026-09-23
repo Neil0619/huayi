@@ -7,6 +7,7 @@ import {
   verifyNativeDisplay,
 } from "../../../../scripts/asbplayer-browser-display.mjs";
 import { storeYouTubeFixture } from "./store-youtube-package-fixture.ts";
+import { denyOfficialLocalFonts } from "./asbplayer-browser-controls.ts";
 
 export const learning = "[data-huayi-store-asbplayer]";
 export const english = "[data-huayi-asbplayer-english]";
@@ -69,16 +70,35 @@ function deepseekResponse(request: string): string {
 
 export async function createAsbplayerPackageFixture(
   live = false,
-  { backForwardCache = false }: { backForwardCache?: boolean } = {},
+  {
+    backForwardCache = false,
+    executablePath,
+    denyLocalFonts = false,
+  }: { backForwardCache?: boolean; executablePath?: string; denyLocalFonts?: boolean } = {},
 ) {
+  if (!live && (executablePath || denyLocalFonts)) {
+    throw new Error("Official browser options require live verification.");
+  }
   const display = asbplayerBrowserDisplay();
   const directory = await mkdtemp(join(tmpdir(), "seen-said-asbplayer-store-"));
   const extension = resolve("apps/store-extension/dist-release");
   let context: BrowserContext | undefined;
   const requests: string[] = [];
+  const mark = (stage: string) => {
+    if (process.env.CI) console.log(`Store fixture stage: ${stage}`);
+  };
+  const close = async () => {
+    mark("close-browser");
+    await context?.close();
+    mark("remove-profile");
+    await rm(directory, { recursive: true, force: true });
+    mark("closed");
+  };
   try {
+    mark("launch-browser");
     context = await chromium.launchPersistentContext(directory, {
       channel: "chromium",
+      ...(executablePath ? { executablePath } : {}),
       headless: !live,
       viewport: { width: 1100, height: 820 },
       ...display?.launchOptions,
@@ -92,6 +112,8 @@ export async function createAsbplayerPackageFixture(
         ...(backForwardCache ? ["--disable-back-forward-cache"] : []),
       ],
     });
+    mark("browser-ready");
+    if (denyLocalFonts) await denyOfficialLocalFonts(context);
     const nativeDisplay = display
       ? await (context.pages()[0] ?? (await context.newPage())).evaluate(() => ({
           scale: devicePixelRatio,
@@ -155,8 +177,10 @@ export async function createAsbplayerPackageFixture(
         });
       } else await route.abort();
     });
+    mark("wait-worker");
     const worker = context.serviceWorkers()[0] ?? (await context.waitForEvent("serviceworker"));
     const id = new URL(worker.url()).hostname;
+    mark("configure-settings");
     const options = await context.newPage();
     await options.goto(`chrome-extension://${id}/options.html`);
     await options.locator('[data-settings-nav="credentials"]').click();
@@ -167,8 +191,19 @@ export async function createAsbplayerPackageFixture(
       "已配置",
     );
     await options.locator("[data-grant-consent]").click();
+    mark("open-site");
     const page = await context.newPage();
     await page.goto("https://app.asbplayer.dev/");
+    const localFontPermission = denyLocalFonts
+      ? await page.evaluate(async () => {
+          const permission = await navigator.permissions.query({
+            name: "local-fonts" as PermissionName,
+          });
+          return permission.state;
+        })
+      : undefined;
+    if (denyLocalFonts) expect(localFontPermission).toBe("denied");
+    mark("record-media");
     const bytes = await page.evaluate(async () => {
       const canvas = document.createElement("canvas");
       canvas.width = 480;
@@ -193,6 +228,7 @@ export async function createAsbplayerPackageFixture(
       stream.getTracks().forEach((track) => track.stop());
       return Array.from(new Uint8Array(await new Blob(chunks).arrayBuffer()));
     });
+    mark("media-ready");
     if (live) {
       await page
         .locator('input[type="file"]')
@@ -233,6 +269,7 @@ export async function createAsbplayerPackageFixture(
       }, bytes);
     const frame = page.frameLocator(live ? "iframe" : "#player");
     await expect(frame.locator(learning)).toHaveAttribute("data-state", "waiting-tracks");
+    mark("track-picker-ready");
     return {
       context,
       page,
@@ -241,14 +278,12 @@ export async function createAsbplayerPackageFixture(
       requests,
       mediaBytes: bytes,
       nativeDisplay,
-      async close() {
-        await context?.close();
-        await rm(directory, { recursive: true, force: true });
-      },
+      localFontPermission,
+      close,
     };
   } catch (error) {
-    await context?.close();
-    await rm(directory, { recursive: true, force: true });
+    mark("setup-failed");
+    await close();
     throw error;
   }
 }

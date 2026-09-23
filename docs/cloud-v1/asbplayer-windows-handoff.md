@@ -9,7 +9,9 @@
 150% 基础／扩展流程通过，100% 及准确新候选双平台 CI 尚待补验。不可把历史候选结果移用到新构建。
 后续 `6798083` 修复 Windows Hosted Store 构建入口，真实 Hosted／production 构建与三个 profile
 审计通过。`0e37df7` 的 macOS CI 成功，但 Windows 三项 Store 用例超时后作业被时限终止；
-`6798083` 的准确双平台 CI 仍在运行。各次结果均在回执中保留，不以重跑覆盖失败。
+`6798083` 的准确 Windows CI 已通过（浏览器 242/242），macOS 为 241 通过、失效快捷键暂停计数
+一项失败。当前新增官网选项在真实 150% 下通过基础／扩展矩阵，本机 Store 与权限回归 12/12 通过；
+显式字体权限和弹窗尺寸条件、待补的 100% 均见回执。各次失败不以重跑覆盖。
 
 ## 通过 Git 获取候选
 
@@ -82,6 +84,25 @@ node scripts/verify-asbplayer-store-matrix.mjs --run-approved-browser-validation
 
 官网脚本使用合成媒体及拦截的 Provider 响应；不产生真实模型费用或外部词典写入。
 实际浏览器授权不包含真实模型 smoke、欧路／扇贝写入或产品发布。
+
+需对照其他已安装的测试浏览器时，两脚本支持 `--browser-executable <绝对路径>`；路径按参数原样
+传给 Playwright，不通过 shell。`--deny-local-fonts` 只在本次隔离配置中拒绝官网的本地字体权限，
+退出浏览器后结束；默认不改变权限。必须在回执中区分默认配置与显式拒绝后的结果。
+基础脚本还支持 `--common-popup-window`，要求先设置真实 Windows 缩放校验变量；它将实际弹窗
+调整至 1000×700，并记录调整前后窗口尺寸和实际 DPR，不模拟 viewport 或系统缩放。
+
+```powershell
+# browser 指向本机已安装、支持加载解压扩展的测试 Chrome；先核实实际 OS 缩放为 150%。
+$browser = 'E:\Document\huayi-validation-tools\cft-154.0.8037.57\chrome-win64\chrome.exe'
+$env:HUAYI_ASBPLAYER_NATIVE_SCALE = '150'
+node scripts/verify-asbplayer-store-browser.mjs --run-approved-browser-validation --browser-executable $browser --deny-local-fonts --common-popup-window
+# 先保存 artifacts/asbplayer-store-browser-receipt.json，再运行矩阵。
+node scripts/verify-asbplayer-store-matrix.mjs --run-approved-browser-validation --browser-executable $browser --deny-local-fonts
+Remove-Item Env:\HUAYI_ASBPLAYER_NATIVE_SCALE
+```
+
+这些选项用于明确条件的诊断与常见窗口验证。Chrome 154 默认字体请求阻塞全屏、官网自动弹窗
+缩小的失败仍应保留，不能把附加条件下通过写成默认配置通过。当前诊断及版本见 Windows 回执。
 
 ## Windows 实机与修复
 
