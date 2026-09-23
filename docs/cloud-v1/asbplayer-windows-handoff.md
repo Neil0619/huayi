@@ -1,14 +1,18 @@
 # asbplayer Windows Git 接续说明
 
-2026-09-23。影响平台为 shared Store 扩展，目标验收平台为 Windows Chrome。
-实现已完成，macOS 已执行下述验证；Windows 实机与准确候选的双平台 CI 尚未完成。
-此分支用于开发验收，不代表功能已通过 Windows 验收或已发布。
+2026-09-24 更新。影响平台为 shared Store 扩展与测试工具，目标验收平台为 Windows Chrome。
+Windows 100%／150% 学习流程、官网脚本和准确代码候选的双平台 CI 已完成；本机整套门禁仍有
+四项视觉失败，真实 YouTube 字幕仍不可用。当前结果与范围见
+[Windows 验证回执](asbplayer-windows-validation.md)，不表示全部验收或发布完成。
 
 ## 通过 Git 获取候选
 
 - 仓库：`https://github.com/Neil0619/huayi.git`。
-- 分支：`codex/asbplayer-windows-validation`。
-- 实现基线：`ce0110d4eacaef9a4b9cf7e903e1be85129af58d`。
+- 当前交接分支：`codex/asbplayer-windows-validation-fixes`。
+- 已通过双平台 CI 的代码候选：`b39449ee8e940701924dafe22769f73d82f7f1d2`。
+- Windows 接续输入：`codex/asbplayer-windows-validation` 的
+  `c67405c7ff7562e950bf5b03dc46971c2c6f5b24`；更早实现基线为 `ce0110d4eacaef9a4b9cf7e903e1be85129af58d`。
+- 分支可含代码候选之后的纯回执文档提交；不能把该文档提交误写成双平台 CI 测过的 SHA。
 - 候选身份以本次交接提示词提供的完整 commit SHA 为准；不能以旧基线或后来移动的分支顶端替代。
 
 在 Windows 既有仓库读取适用 AGENTS.md，确认 origin 身份并检查工作区后，fetch 此分支。
