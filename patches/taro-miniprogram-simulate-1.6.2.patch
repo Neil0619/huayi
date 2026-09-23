@@ -1,0 +1,66 @@
+diff --git a/src/wxss.js b/src/wxss.js
+--- a/src/wxss.js
++++ b/src/wxss.js
+@@ -11,21 +11,24 @@
+  * 追加 class 前缀插件
+  */
+ const addClassPrefixPlugin = function(prefix = '') {
+-  return postcss.plugin('addClassPrefix', () => root => {
+-    // eslint-disable-next-line consistent-return
+-    root.walk(child => {
+-      if (child.type === 'rule') {
+-        const selectors = []
++  return {
++    postcssPlugin: 'addClassPrefix',
++    Once(root) {
++      // eslint-disable-next-line consistent-return
++      root.walk(child => {
++        if (child.type === 'rule') {
++          const selectors = []
+ 
+-        child.selectors.forEach(selector => {
+-          // 处理 class 选择器
+-          selectors.push(selector.replace(/(.)?\.([-_a-zA-Z0-9]+)/igs, (all, $1, $2) => (/\d/.test($1) ? all : `${$1 || ''}.${prefix}--${$2}`)))
+-        })
++          child.selectors.forEach(selector => {
++            // 处理 class 选择器
++            selectors.push(selector.replace(/(.)?\.([-_a-zA-Z0-9]+)/igs, (all, $1, $2) => (/\d/.test($1) ? all : `${$1 || ''}.${prefix}--${$2}`)))
++          })
+ 
+-        child.selectors = selectors
+-      }
+-    })
+-  })
++          child.selectors = selectors
++        }
++      })
++    },
++  }
+ }
+ 
+ /**
+@@ -77,14 +80,21 @@
+  */
+ function compile(wxss, options = {}) {
+   if (options.less) {
+-    less.render(wxss, (err, output) => {
+-      if (!err) wxss = output.css
++    let renderError
++    let rendered
++    // compile() is synchronous; preserve LESS 3 arithmetic and resolve local imports first.
++    less.render(wxss, {syncImport: true, math: 'always'}, (err, output) => {
++      renderError = err
++      rendered = output
+     })
++    if (renderError) throw renderError
++    if (!rendered) throw new Error('Asynchronous LESS imports are not supported by compile()')
++    wxss = rendered.css
+   }
+ 
+   wxss = postcss([addClassPrefixPlugin(options.prefix)]).process(wxss, {
+     from: undefined, // 主要是不想看到那个 warning
+-    map: null,
++    map: {prev: false},
+   }).css
+ 
+   // 压缩

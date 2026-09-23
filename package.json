@@ -3,12 +3,15 @@
   "version": "0.13.0",
   "private": true,
   "type": "module",
-  "packageManager": "pnpm@10.12.4",
+  "packageManager": "pnpm@10.34.5",
   "engines": {
-    "node": ">=18"
+    "node": "^22.13.0 || >=24.0.0"
   },
   "scripts": {
-    "audit:prod": "pnpm audit --prod --audit-level high",
+    "audit:all": "pnpm audit --audit-level moderate",
+    "audit:prod": "pnpm audit --prod --audit-level moderate",
+    "audit:toolchain": "node scripts/audit-dependency-toolchain.mjs",
+    "audit:security": "pnpm audit:toolchain && pnpm audit:all && pnpm audit:prod",
     "acceptance:hosted:bootstrap": "node scripts/acceptance-hosted-bootstrap.mjs",
     "acceptance:hosted:cron:apply": "node scripts/acceptance-hosted-cron.mjs apply",
     "acceptance:hosted:cron:bootstrap:deliver": "node scripts/acceptance-hosted-cron-bootstrap.mjs deliver",
@@ -265,8 +268,8 @@
     "@eslint/js": "^9.30.1",
     "@playwright/test": "^1.52.0",
     "@types/chrome": "^0.0.326",
-    "@types/node": "^18.19.112",
-    "@vitest/coverage-v8": "3.2.7",
+    "@types/node": "^22.20.4",
+    "@vitest/coverage-v8": "4.1.11",
     "eslint": "^9.30.1",
     "globals": "^16.3.0",
     "jsdom": "^26.1.0",
@@ -276,6 +279,7 @@
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.35.1",
     "vite": "^6.3.5",
-    "vitest": "^3.2.4"
+    "vitest": "4.1.11",
+    "yaml": "2.8.3"
   }
 }

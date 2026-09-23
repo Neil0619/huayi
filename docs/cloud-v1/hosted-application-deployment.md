@@ -191,7 +191,7 @@ Google 可以继续延期。首位 Operator 先用邮箱密码完成正常邀请
 | `seen-said-acceptance-web` | `apps/web`     | Vite      | `pnpm build:vercel`；`dist`；SPA rewrite | Node 22 build                 | `app.acceptance.seen-said.cn` |
 
 两个 project 都必须启用 monorepo 的“Include source files outside of the Root Directory”，因为 API/Web
-分别依赖根 workspace 下的 `packages/*`；package manager 继续使用根 `packageManager=pnpm@10.12.4` 与
+分别依赖根 workspace 下的 `packages/*`；package manager 继续使用根 `packageManager=pnpm@10.34.5` 与
 frozen lockfile。Production 环境只跟踪当前受控 acceptance 分支；Preview 不得复用 production 数据库、
 Auth、Storage 或 secret，也不能因缺变量而连接 hosted acceptance。若不建立独立 Preview 资源，则 Preview
 部署必须保持禁用/失败关闭。

@@ -14,11 +14,11 @@ import type { DeepSeekFetch } from "./deepseek-chat-client.js";
 import type { OpenAIFetch } from "./openai-responses-client.js";
 
 function createAppServer(): CodexAppServer & {
-  dispose: ReturnType<typeof vi.fn>;
+  dispose: ReturnType<typeof vi.fn<CodexAppServer["dispose"]>>;
   warmup: ReturnType<typeof vi.fn<CodexAppServer["warmup"]>>;
 } {
   return {
-    dispose: vi.fn(),
+    dispose: vi.fn<CodexAppServer["dispose"]>(),
     interrupt: vi.fn(async () => undefined),
     runTurn: vi.fn(async () => ""),
     warmup: vi.fn(async (signal: AbortSignal) => {

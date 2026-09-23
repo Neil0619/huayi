@@ -1,6 +1,7 @@
 const apiTests = [
   "miniprogram-authentication",
   "miniprogram-binding",
+  "miniprogram-password-binding",
   "miniprogram-data-rights",
   "miniprogram-export-app",
   "wechat-app",

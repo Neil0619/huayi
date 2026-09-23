@@ -22,7 +22,7 @@ export function platformVerificationSteps(platform) {
       { arguments: ["check:cloud-development-blocked"], command: "pnpm" },
       { arguments: ["test:e2e"], command: "pnpm" },
       { arguments: ["check:store-release"], command: "pnpm" },
-      { arguments: ["audit:prod"], command: "pnpm" },
+      { arguments: ["audit:security"], command: "pnpm" },
       { arguments: ["diff", "--check"], command: "git" },
     ];
   }
@@ -33,7 +33,7 @@ export function platformVerificationSteps(platform) {
       { arguments: ["check:cloud-development-blocked"], command: "pnpm" },
       { arguments: ["test:e2e"], command: "pnpm" },
       { arguments: ["check:store-release"], command: "pnpm" },
-      { arguments: ["audit:prod"], command: "pnpm" },
+      { arguments: ["audit:security"], command: "pnpm" },
       { arguments: ["host:windows:package"], command: "pnpm" },
       { arguments: ["scripts/verify-windows-sea.mjs"], command: "node" },
       { arguments: ["diff", "--check"], command: "git" },

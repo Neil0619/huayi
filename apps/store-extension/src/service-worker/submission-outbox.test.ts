@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createSubmissionOutbox, type SubmissionOutboxState } from "./submission-outbox.js";
+import {
+  createSubmissionOutbox,
+  type SubmissionOutboxApi,
+  type SubmissionOutboxState,
+} from "./submission-outbox.js";
 import type { StoredExtensionSession } from "./extension-session-vault.js";
 
 const capture = {
@@ -43,7 +47,7 @@ const submittedCapture = {
 
 function setup(
   options: {
-    api?: { submit: ReturnType<typeof vi.fn> } | null;
+    api?: { submit: ReturnType<typeof vi.fn<SubmissionOutboxApi["submit"]>> } | null;
     clientVersion?: string;
     uploadAllowed?: boolean;
     session?: StoredExtensionSession | null;
@@ -71,7 +75,12 @@ function setup(
   };
   const api =
     options.api === undefined
-      ? { submit: vi.fn(async () => ({ response: submittedCapture, type: "study-capture" })) }
+      ? {
+          submit: vi.fn<SubmissionOutboxApi["submit"]>(async () => ({
+            response: submittedCapture,
+            type: "study-capture",
+          })),
+        }
       : options.api;
   let nextId = 1;
   const outbox = createSubmissionOutbox({

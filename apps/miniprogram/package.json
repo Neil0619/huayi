@@ -6,7 +6,9 @@
     "build": "node scripts/build.mjs",
     "dev": "taro build --type weapp --watch",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "pnpm --dir ../.. exec vitest run --project miniprogram"
+    "test": "pnpm --dir ../.. exec vitest run --project miniprogram",
+    "build:release": "node ../../scripts/miniprogram-release.mjs build",
+    "audit:release": "node ../../scripts/miniprogram-release.mjs audit"
   },
   "dependencies": {
     "@huayi/cloud-contracts": "workspace:*",

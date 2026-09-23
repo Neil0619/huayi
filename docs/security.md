@@ -3,6 +3,12 @@
 > 本文件描述冻结维护的 Classic 0.13。Cloud V1 会由 Huayi API 接收账号学习内容，其新安全边界见
 > [`cloud-v1/security.md`](cloud-v1/security.md)；不得把本文件的“开发者不接收”结论套用到 Cloud。
 
+## 开发依赖供应链
+
+共享开发工具链的审计与 Taro 补丁边界见[依赖安全维护](dependency-security.md)。审计同时核对
+锁文件、实际安装、实际补丁与 pnpm 自身；模板解压限制链接目标，CSS 处理禁用外部 source map
+读取，开发服务器默认仅监听 loopback 并校验 Host。工具链验证不代表已部署制品或平台安全状态。
+
 ## 数据最小化
 
 扩展只发送英文选区和所在语义块中围绕选区的最多 2,000 个字符，不发送 URL、标题、整页

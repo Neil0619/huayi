@@ -23,7 +23,7 @@ test("macOS verification runs the complete shared and browser gate in order", ()
     "pnpm check:cloud-development-blocked",
     "pnpm test:e2e",
     "pnpm check:store-release",
-    "pnpm audit:prod",
+    "pnpm audit:security",
     "git diff --check",
   ]);
 });
@@ -41,7 +41,7 @@ test("Windows verification packages and probes the SEA after offline gates", () 
     "pnpm check:cloud-development-blocked",
     "pnpm test:e2e",
     "pnpm check:store-release",
-    "pnpm audit:prod",
+    "pnpm audit:security",
     "pnpm host:windows:package",
     "node scripts/verify-windows-sea.mjs",
     "git diff --check",

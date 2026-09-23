@@ -1,0 +1,12 @@
+diff --git a/dist/presets/commands/update.js b/dist/presets/commands/update.js
+--- a/dist/presets/commands/update.js
++++ b/dist/presets/commands/update.js
+@@ -11,7 +11,7 @@
+ Object.defineProperty(exports, "__esModule", { value: true });
+ const path = require("node:path");
+ const inquirer = require("inquirer");
+-const getLatestVersion = require("latest-version");
++const getLatestVersion = (...args) => import("latest-version").then(({ default: latestVersion }) => latestVersion(...args));
+ const ora = require("ora");
+ const semver = require("semver");
+ const packagesManagement_1 = require("../../config/packagesManagement");
