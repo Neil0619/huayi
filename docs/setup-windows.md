@@ -6,8 +6,9 @@ Windows 版复用同一套 Chrome Extension 和 wire v7，但 Native Host 固定
 [跨平台开发规则](cross-platform-development.md)。
 
 本文后续 Native Host 步骤属于 Classic。Store Extension 使用
-[本地开发与商店交付流程](store-v1/local-and-store-workflow.md)：日常只加载当前 checkout 的
-`apps/store-extension/dist`，核对固定验收 ID `hoijjhgcckfhbcefoclgbhkgninnkknd` 并原地重载。
+[本地开发与商店交付流程](store-v1/local-and-store-workflow.md)：本机日常加载路径固定为
+`E:\Document\huayi\apps\store-extension\dist`，核对固定验收 ID
+`hoijjhgcckfhbcefoclgbhkgninnkknd` 并原地重载。后续迭代更新这个既有目录，不改为临时工作树路径。
 production 候选和 `dist-release` 不作为第二份日常安装；未来正式日常版通过 Chrome Web Store 使用。
 Store 不需要 Native Host 或 DPAPI 配置；macOS 的构建/重载结果不能代替 Windows 真机验收。
 
@@ -209,6 +210,10 @@ Store 与上方 Classic Native Host 安装相互独立。已获相应安装授�
 `apps/store-extension/dist`；Hosted ID 应为 `hoijjhgcckfhbcefoclgbhkgninnkknd`。以后只重新构建并在
 现有条目点击“重新加载”，保留 ID 与配置，不要先卸载。普通 build/E2E 输出到 `dist-release`，不覆盖
 Hosted 安装；该离线包不能替代云端包。真实重载、配对与 Windows 视觉验收需在 Windows 另行完成。
+
+本机固定目录为 `E:\Document\huayi\apps\store-extension\dist`。当准确候选仍在独立工作树、主
+checkout 尚未接续时，按上述本地工作流将已审计的 Hosted 产物更新到既有固定目录，不移动
+Chrome 加载入口，也不从旧 main 重建覆盖最新安装。程序文件更新和浏览器原地重载分别记录。
 
 构建须从上述 pnpm package 命令启动；脚本用当前 Node 执行 pnpm 提供的 JS 入口，避免 Windows
 直接启动 `.cmd` 的限制。缺少该入口时返回失败，不回退到 shell；系统与临时目录变量按白名单保留。

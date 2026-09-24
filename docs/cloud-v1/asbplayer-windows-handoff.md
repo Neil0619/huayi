@@ -41,6 +41,20 @@ macOS 普通 Store 批次，原测试及 15 秒期限保留；准确 Mac CI 已�
 目录，不依赖 Mac 的 artifacts、ZIP、补丁文件或 Codex 任务迁移。源码、测试和接续说明均由 Git 获取。
 记录 `git rev-parse HEAD`、`git status --short` 以及 Node、pnpm、Chrome 和 Windows 版本。
 
+## Windows 固定日常加载入口
+
+本机 Chrome 日常加载 **`E:\Document\huayi\apps\store-extension\dist`**，与 Mac 的
+`/Users/niuzhenya/Documents/huayi/apps/store-extension/dist` 同为 Hosted `dist`，固定 ID
+`hoijjhgcckfhbcefoclgbhkgninnkknd`。后续交付继续更新这个既有目录，用户只重载同一个条目并刷新
+网页。候选工作树的 `dist-release` 是独立测试产物，不作为长期加载路径；此前将它作为日常加载
+建议不正确。不要卸载已有条目或把 release 包复制成 Hosted 安装。
+
+2026-09-24 已从准确候选重新构建并审计 Hosted 包，备份原固定目录后更新，23 个文件名称与
+SHA-256 全部匹配；隔离 Chrome 从该固定路径加载后读到正确 ID，asbplayer 设置可见、页面错误 0。
+日常 Chrome 尚未由代理重载，账号业务及 Hosted 官网完整矩阵未因此声称通过。主仓库源码与 main
+保持不变；候选尚未接续前，不从旧 main 重新构建覆盖该目录。详见
+[统一工作流](../store-v1/local-and-store-workflow.md)和 [Windows 回执](asbplayer-windows-validation.md)。
+
 ## 构建及自动化验证
 
 Windows 使用 Node.js 26+；pnpm 以根 package.json 的 packageManager 为准，本候选为 10.34.5。

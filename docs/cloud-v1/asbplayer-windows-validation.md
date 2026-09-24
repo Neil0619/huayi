@@ -22,8 +22,9 @@
 - 上一轮已通过 CI 的代码候选：`b39449ee8e940701924dafe22769f73d82f7f1d2`；Git tree：
   `2169db5105d7ea0d6b92fad180f17ead68dac6be`；交接分支：`codex/asbplayer-windows-validation-fixes`。
   上一轮代码提交为 `6ac310b3b2414a11d353f0211140bf7ba5d502e7` 和上述候选；接续提交另见文末。
-- 在独立工作树检出准确 SHA；原 `E:\Document\huayi` 的 `main` 和既有工作树、扩展、Host 注册保留。
-  原项目保持 `c39fed3f9026f7d8943f961cfe72f54fe80b65cc`，没有覆盖用户工作区。
+- 在独立工作树检出准确 SHA；原 `E:\Document\huayi` 的 `main` 和用户源码、浏览器 Profile、扩展 ID、
+  Host 注册保留。原项目保持 `c39fed3f9026f7d8943f961cfe72f54fe80b65cc`；09-24 用户明确要求稳定
+  加载路径后，仅备份并更新该项目已忽略的 Hosted `dist` 程序文件，见下节。
 - Windows 11 Pro Insider Preview 25H2，10.0.26220.9223，x64；PowerShell 7.6.5；Git 2.45.1.windows.1。
 - 验证使用独立安装 Node.js 26.10.0、pnpm 10.34.5、Playwright 1.61.1。
   主机原有 Node.js 24.18.0 和 pnpm 11.19.0 未替换。
@@ -36,6 +37,44 @@
 `PLAYWRIGHT_BROWSERS_PATH` 重新安装的相同 149 版本可启动；exe、manifest、chrome.dll 和
 chrome_elf.dll 与默认缓存哈希一致，不能据此断言上游二进制损坏。试用的 154.0.8037.57 能加载官网
 并完成查词收藏，但全屏被浏览器拒绝（`TypeError: not granted`）；该失败保留，未改动产品代码规避。
+
+## Windows 固定日常加载目录（2026-09-24）
+
+用户明确要求以后迭代保持加载路径稳定，并与 Mac 的工作流一致。此前给出的隔离工作树
+`dist-release` 只是测试入口，不适合日常安装；现统一使用已有目录
+**`E:\Document\huayi\apps\store-extension\dist`**，Hosted 固定 ID
+**`hoijjhgcckfhbcefoclgbhkgninnkknd`**、Manifest 1.0.0。Mac 对应
+`/Users/niuzhenya/Documents/huayi/apps/store-extension/dist`。后续候选工作树可以变化，日常
+加载入口继续使用这个既有目录；源码仍通过 Git 接续，目录更新不是 main 合并或云端部署。
+
+本轮从 `83c1ab0` 的代码、当时 HEAD `d605da69bc9fc2577e71da5a2181096d0df5409b`（后续均为
+回执文档）运行 `pnpm store:local:build`，Hosted 构建和产物审计通过。显式设置
+`HUAYI_STORE_E2E_PACKAGE_PROFILE=hosted` 后，实际打包 Worker 的 streaming 回归 **1/1**，
+`packaged-query-interaction.spec.ts` 浏览器回归 **7/7**（44.6 秒）通过，均为离线合成响应。
+
+旧固定目录的 Manifest 尚无 asbplayer 入口；新旧公钥完全相同，计算 ID 均与上述固定 ID 一致。
+先校验目标不是目录链接，准备并核对新包，确认旧包未被并发改写，再备份旧程序文件并更新原目录。
+更新后的 **23 个文件名称和 SHA-256 全部等于审计通过的 Hosted 包**，包含两个 asbplayer 入口。
+备份保留在本任务忽略目录的 `stable-install-20260924-095920/previous-dist`，逐文件新旧摘要另存
+同目录的 `receipt.json`。未移动、读取或清除用户浏览器存储，也未卸载／重新配对。
+
+隔离 Chrome 149.0.7827.55 随后直接从上述固定路径加载，实读 ID 正确、asbplayer 设置可见、页面
+错误 0；外部网络被阻断。初次带目录清理的核验命令被自动策略拒绝、未执行；去掉删除操作后核验
+成功，临时隔离 Profile 保留在任务忽略目录。用户日常 Chrome 的原条目仍需由用户点击“重新加载”
+并刷新网页；未把这项设置页检查声称为 Hosted 的账号业务或官网完整学习矩阵通过。
+
+固定 Hosted 目录的关键 SHA-256：
+
+| 文件                 | SHA-256                                                            |
+| -------------------- | ------------------------------------------------------------------ |
+| asbplayer-main.js    | `7eb7e65c01a06f5b2013754097b721050df019ad2e92b90c11cde67d89ef2bbf` |
+| asbplayer-content.js | `5b8a395bab624ca0b69dcaafe906278dce4e6e12c24daccc27fe4358028afdb7` |
+| service-worker.js    | `511c58d18872daa31bea8430aaf597263eb8a94703ba1c34d4ee77d4f09fbe6f` |
+| manifest.json        | `8c8803f6e9374258a9a032dcc11f6126bff11274f92fc8c9a0fc56c1b2675e91` |
+
+两个 asbplayer bundle 与 release 相同；Hosted Worker 和 Manifest 的环境／身份不同，不能互相
+替换。本节更新后两个工作树 Git 均干净，原 `main` SHA 不变。主 checkout 仍为旧源码，候选未接续
+前不要在旧 main 执行构建覆盖本次安装；由准确候选构建、审计后更新既有路径，见统一本地工作流。
 
 ## 最新接续结果（2026-09-24）
 

@@ -31,8 +31,22 @@ pnpm store:local:status
 本机 macOS 日常加载路径为
 `/Users/niuzhenya/Documents/huayi/apps/store-extension/dist`。在 Chrome 的扩展管理页确认该路径和
 固定 ID；后续只重建此目录并对既有条目原地重载。不要卸载后重装，不要改变 key/ID，不要把产物
-同步到另一安装目录。Windows 使用其实际 checkout 下的同一相对目录，并单独核验 Chrome 显示的
+同步到另一安装目录。Windows 本机的唯一日常加载路径固定为
+`E:\Document\huayi\apps\store-extension\dist`，与 Mac 使用同一相对目录，并单独核验 Chrome 显示的
 固定验收 ID；本机 macOS 通过不构成 Windows 安装验收。
+
+Windows 后续日常迭代交付继续更新这个既有目录，不随候选 SHA、分支或临时工作树改加载路径。
+隔离工作树中的 `dist-release` 仅用于测试，不应作为给用户的长期安装路径。若候选暂不合并到
+主 checkout，在准确候选工作树执行上述 Hosted build/status 及打包离线检查，确认与原安装的
+公钥／ID 相同后，备份旧程序文件并将审计通过的完整 Hosted 包更新到上述既有目录；逐文件核对
+名称及 SHA-256，保留源码提交、profile 与更新回执。不创建第二个日常安装目录，不移动浏览器
+Profile、清空 storage 或卸载条目。此本机产物更新不是 Git 源码交接、main 合并或 API/Web 部署。
+
+当前主 checkout 的 `main` 仍为 `c39fed3f9026f7d8943f961cfe72f54fe80b65cc`；2026-09-24 的
+asbplayer 候选来自 `codex/asbplayer-windows-validation-fixes` 的代码提交 `83c1ab0`，固定目录已
+更新至该候选的 Hosted 构建。不要从尚未接续该代码的旧 main 重建此目录，以免覆盖为旧版本。
+本次 23 文件一致性、固定 ID 和隔离 Chrome 设置页检查见
+[Windows 回执](../cloud-v1/asbplayer-windows-validation.md)。更新后由用户对原条目重载并刷新网页。
 
 `pnpm build` 与普通 Store workspace build 生成 `dist-release`，不会刷新日常加载的 `dist`；需要
 更新本地扩展时必须使用上述专用命令。`status` 只证明产物审计结果，不证明 Chrome 已重载、账号
