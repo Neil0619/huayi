@@ -8,6 +8,10 @@
 本回执补充并更新 [上一轮单集测试](asbplayer-windows-real-media-validation.md) 的当前输入结论；
 上一轮的原始失败仍然有效历史证据。没有验证全库完整播放、主观听感或任意下载格式兼容。
 
+同日后续又针对用户指定的原文件追加[无声与内嵌字幕复验](asbplayer-windows-embedded-media-validation.md)，
+已准备整集 AAC 副本、提取英文 SRT，并分别通过双语 ASS／英文 SRT 学习；该追加样本不计入下述
+首轮 9 个原文件和 4 个短样片。后续实读 DPR 1.5，确认日常 150% 已恢复。
+
 ## 准确候选与隔离范围
 
 - 最新验证候选：`9a1d00b07be8c6fa21a18c7823af666ac4c4b429`；tree：

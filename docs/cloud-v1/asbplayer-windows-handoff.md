@@ -8,6 +8,10 @@
 当前验证状态、9 个原文件与 4 个 AAC 副本的边界、固定加载目录更新见[影视库扩测与字幕修复回执](asbplayer-windows-library-validation.md)。
 普通下载资源不能仅凭文件后缀保证音轨和文本字幕兼容；没有新增转码或 OCR，也未发布。
 
+同日后续针对用户指定的另一原文件复现了 AC-3 无音频解码、内嵌 SRT 未进入网页学习层，
+已生成整集 AAC 副本并提取英文 SRT，两种外挂字幕学习均通过。产品代码不变，实际缩放已读到
+150%；详见[指定媒体无声与内嵌字幕复验](asbplayer-windows-embedded-media-validation.md)。
+
 ## 历史接续证据（83c1ab0 及更早候选）
 
 Mac 后续接续已记录于 [Mac 验证回执](asbplayer-macos-validation.md)，输出分支为
