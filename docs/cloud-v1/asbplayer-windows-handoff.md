@@ -1,6 +1,15 @@
 # asbplayer Windows Git 接续说明
 
-2026-09-25 最新修复候选为 `d8a580afcc1738646180074047ac20c6a33fd374`，解决原生选片窗口
+2026-09-25 最新桌面入口候选为 `768c9583a9d1ec778142ac1b37890d7da5172e70`，核心修复
+`b13923670ce9b2c4c24a9e05f56b593fd70cf712` 解决 MSIX
+AppData 文件虚拟化使资源管理器看不到启动脚本的问题。固定打开器目录改为
+`%USERPROFILE%\SeenSaid\asbplayer-opener`，保留旧配置和媒体缓存；扩展路径与 ID 不变。
+本机已实际双击桌面文件夹的入口并观察到 Chrome 页面及选片窗口，详见
+[桌面入口闪退修复回执](asbplayer-windows-launcher-validation.md)。
+完整 CI 尚未通过：首轮 Windows 原生快捷方式测试失败，补齐真实旧安装夹具及失败诊断后，
+新候选双平台 CI 仍运行中。用户按 Esc 停止后未再操作桌面；下一轮先核对回执中的准确 CI。
+
+此前修复候选为 `d8a580afcc1738646180074047ac20c6a33fd374`，解决原生选片窗口
 被 Chrome 遮住的问题；固定打开器已更新，用户确认窗口出现。准确验证与原红色闪退未复现的边界见
 [原生选片窗口修复回执](asbplayer-windows-picker-validation.md)。
 
