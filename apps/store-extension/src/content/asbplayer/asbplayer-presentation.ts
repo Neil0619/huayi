@@ -3,7 +3,8 @@ import { setSubtitleAppearance } from "../subtitles/subtitle-appearance.js";
 import type { LocalSentence } from "../subtitles/local-subtitles.js";
 import type { AsbplayerCue } from "./asbplayer-snapshot.js";
 import { describeAsbplayerTracks } from "./asbplayer-tracks.js";
-export type LearningStatus = "waiting-full-snapshot" | "waiting-tracks" | "usable" | "invalidated";
+export type LearningStatus =
+  "waiting-full-snapshot" | "waiting-tracks" | "usable" | "native-subtitles" | "invalidated";
 const STYLES = `[data-huayi-asbplayer-active] .asbplayer-subtitles{visibility:hidden!important}
 [data-huayi-store-asbplayer]{position:absolute;left:50%;bottom:70px;transform:translateX(-50%);z-index:2147483000;max-width:min(90%,1100px);padding:8px 12px;border:1px solid #ffffff45;border-radius:8px;background:#080808c2;color:white;font:500 clamp(18px,2.2vw,30px)/1.32 Roboto,Arial,sans-serif;text-align:center;text-shadow:0 1px 2px #000,0 0 4px #000;pointer-events:auto}
 

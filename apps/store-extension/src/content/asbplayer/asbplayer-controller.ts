@@ -10,6 +10,7 @@ import type { StoreOverlayController } from "../overlay/store-overlay-controller
 import {
   createSubtitleIndex,
   segmentLocalCues,
+  type LocalCue,
   type LocalSentence,
 } from "../subtitles/local-subtitles.js";
 import type { SubtitleSnapshot } from "./asbplayer-bridge-client.js";
@@ -39,6 +40,7 @@ export class AsbplayerController {
   private sentences: readonly LocalSentence[] = [];
   private englishIndex = createSubtitleIndex<LocalSentence>([]);
   private chineseIndex = createSubtitleIndex<LocalSentence>([]);
+  private nativeIndex = createSubtitleIndex<LocalCue>([]);
   private chineseReady = false;
   private started = false;
   private usable = false;
@@ -156,6 +158,7 @@ export class AsbplayerController {
     this.sentences = [];
     this.englishIndex = createSubtitleIndex([]);
     this.chineseIndex = createSubtitleIndex([]);
+    this.nativeIndex = createSubtitleIndex([]);
     this.chineseReady = false;
     this.view?.restoreNative();
     this.interaction.reset();
@@ -189,6 +192,7 @@ export class AsbplayerController {
     this.chineseIndex = createSubtitleIndex(
       tracks.chinese.map((cue, id) => ({ ...cue, id, complete: false })),
     );
+    this.nativeIndex = createSubtitleIndex(tracks.native);
     this.chineseReady = tracks.chinese.length > 0;
     this.confirmed = true;
     this.selectedTracks = [english, chinese];
@@ -233,6 +237,13 @@ export class AsbplayerController {
       );
       return;
     }
+    if (!snapshot.cues.some((cue) => cue.text.trim())) {
+      this.setStatus(
+        "waiting-full-snapshot",
+        "未读取到字幕文本。请加载外挂文本字幕；若已加载，请将字幕副本放到较短路径后重试，并检查文件编码。",
+      );
+      return;
+    }
     if (!this.confirmed) {
       this.setStatus("waiting-tracks", this.message, snapshot.cues);
       return;
@@ -242,7 +253,12 @@ export class AsbplayerController {
       return;
     }
     const video = this.media.video;
-    const active = video?.ended ? [] : this.englishIndex.at((video?.currentTime ?? 0) * 1000);
+    const timestampMs = (video?.currentTime ?? 0) * 1000;
+    if (!video?.ended && this.nativeIndex.at(timestampMs).length) {
+      this.setStatus("native-subtitles", "此段没有可确定的独立英文行，暂时显示原字幕。");
+      return;
+    }
+    const active = video?.ended ? [] : this.englishIndex.at(timestampMs);
     const crowded = () =>
       this.setStatus("invalidated", "同一时段字幕过多，暂时保留原字幕。请整理重叠轨道后重新加载。");
     if (active.length > 64) {
