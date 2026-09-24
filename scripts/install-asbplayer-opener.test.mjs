@@ -1,9 +1,108 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { mkdtemp, readFile, writeFile, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, writeFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { installMediaOpener } from "./install-asbplayer-opener.mjs";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+import {
+  createMediaOpenerShortcut,
+  installMediaOpener,
+  installUserMediaOpener,
+} from "./install-asbplayer-opener.mjs";
+
+const runFile = promisify(execFile);
+
+test(
+  "Windows shortcut migrates its owned legacy entry and launches the installed script",
+  {
+    skip:
+      process.platform !== "win32"
+        ? "Requires Windows Shell shortcuts and Windows PowerShell"
+        : false,
+  },
+  async () => {
+    const root = await mkdtemp(join(tmpdir(), "seen-said-shortcut-test-"));
+    try {
+      const destination = join(root, "用户 profile", "SeenSaid", "asbplayer-opener");
+      const previousDestination = join(root, "AppData", "Local", "SeenSaid", "asbplayer-opener");
+      const config = {
+        node: process.execPath,
+        ffmpeg: process.execPath,
+        ffprobe: process.execPath,
+        chrome: process.execPath,
+      };
+      await installMediaOpener({ destination, config });
+      await writeFile(
+        join(destination, "asbplayer-open.mjs"),
+        `import { writeFileSync } from "node:fs"; writeFileSync(new URL("./launched.json", import.meta.url), JSON.stringify(process.argv.slice(2)));`,
+      );
+      await createMediaOpenerShortcut({ destination: previousDestination, desktopDirectory: root });
+      await createMediaOpenerShortcut({ destination, previousDestination, desktopDirectory: root });
+      const link = join(root, "语见本机视频.lnk");
+      await runFile(
+        "powershell.exe",
+        [
+          "-NoProfile",
+          "-Command",
+          "Start-Process -FilePath $env:SEEN_SAID_TEST_LINK -WindowStyle Hidden -Wait",
+        ],
+        { windowsHide: true, env: { ...process.env, SEEN_SAID_TEST_LINK: link }, timeout: 15000 },
+      );
+      assert.deepEqual(JSON.parse(await readFile(join(destination, "launched.json"), "utf8")), [
+        join(destination, "config.json"),
+      ]);
+      const originalLink = await readFile(link);
+      await assert.rejects(
+        createMediaOpenerShortcut({ destination: join(root, "unrelated"), desktopDirectory: root }),
+      );
+      assert.deepEqual(await readFile(link), originalLink);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  },
+);
+
+test("user installation stays outside virtualized AppData and preserves the previous configuration", async () => {
+  const root = await mkdtemp(join(tmpdir(), "seen-said-user-install-test-"));
+  try {
+    const userProfile = join(root, "用户 profile");
+    const localAppData = join(userProfile, "AppData", "Local");
+    const previous = join(localAppData, "SeenSaid", "asbplayer-opener");
+    const expected = join(userProfile, "SeenSaid", "asbplayer-opener");
+    const config = {
+      node: process.execPath,
+      ffmpeg: process.execPath,
+      ffprobe: process.execPath,
+      chrome: process.execPath,
+      cacheRoot: join(root, "existing-cache"),
+    };
+    await mkdir(previous, { recursive: true });
+    await mkdir(config.cacheRoot);
+    await writeFile(join(config.cacheRoot, "keep.txt"), "original cache");
+    await writeFile(join(previous, "config.json"), JSON.stringify(config));
+    const destination = await installUserMediaOpener({
+      userProfile,
+      localAppData,
+      config: { ...config, cacheRoot: "must-not-replace" },
+    });
+    assert.equal(destination, expected);
+    assert.deepEqual(JSON.parse(await readFile(join(destination, "config.json"), "utf8")), config);
+    assert.ok(
+      (await readFile(join(destination, "asbplayer-open.mjs"), "utf8")).includes(
+        "startMediaOpener",
+      ),
+    );
+    assert.equal(await readFile(join(config.cacheRoot, "keep.txt"), "utf8"), "original cache");
+    assert.deepEqual(JSON.parse(await readFile(join(previous, "config.json"), "utf8")), config);
+    const updated = { ...config, cacheRoot: join(root, "new-preference") };
+    await writeFile(join(destination, "config.json"), JSON.stringify(updated));
+    await installUserMediaOpener({ userProfile, localAppData, config });
+    assert.deepEqual(JSON.parse(await readFile(join(destination, "config.json"), "utf8")), updated);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
 
 test("stable installation updates owned scripts while preserving local configuration and unrelated files", async () => {
   const destination = await mkdtemp(join(tmpdir(), "seen-said-install-test-"));

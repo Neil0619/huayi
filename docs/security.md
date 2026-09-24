@@ -490,3 +490,8 @@ Hosted ID 和其他 ID，禁用时必须移除 ID。Hosted ID `hoijjhgcckfhbcefo
 Store 内容脚本负责一次性受限文件导入，不改变 Classic Host、Native Messaging 或 Chrome 权限。
 配置、信任边界、缓存管理和分层验收见 [Windows 原视频打开器](cloud-v1/asbplayer-local-opener.md)。
 原生文件选择与启动器必须在 Windows 实测；双平台单元测试不替代这些系统集成检查。
+
+打开器安装在当前用户 `%USERPROFILE%\SeenSaid\asbplayer-opener`，避免 MSIX AppData 虚拟化导致
+桌面入口无法访问脚本。迁移仅复制已存在的本机配置并更新本工具准确匹配的新旧快捷方式，
+不删除旧配置、缓存或原媒体，不修改系统文件关联、系统执行策略或开发应用沙盒配置。
+不把启动会话令牌写入快捷方式或日志，也不依赖开发应用私有包目录作为产品安装路径。

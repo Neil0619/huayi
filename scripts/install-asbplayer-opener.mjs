@@ -38,14 +38,63 @@ export async function installMediaOpener({ destination, config }) {
   return destination;
 }
 
-async function createShortcut(destination) {
-  const command = `$ErrorActionPreference = 'Stop'; $root = $env:SEEN_SAID_INSTALL_ROOT; $launcher = Join-Path $root '打开语见本机视频.ps1'; $target = Join-Path $env:SystemRoot 'System32\\WindowsPowerShell\\v1.0\\powershell.exe'; $arguments = '-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "' + $launcher + '"'; $path = Join-Path ([Environment]::GetFolderPath('Desktop')) '语见本机视频.lnk'; $shell = New-Object -ComObject WScript.Shell; $shortcut = $shell.CreateShortcut($path); if ((Test-Path -LiteralPath $path) -and ($shortcut.Arguments -ne $arguments)) { throw 'Existing shortcut belongs to another installation' }; $shortcut.TargetPath = $target; $shortcut.Arguments = $arguments; $shortcut.WorkingDirectory = $root; $shortcut.Description = '语见：打开原视频并自动准备音轨和字幕'; $shortcut.Save()`;
+export async function installUserMediaOpener({ userProfile, localAppData, config }) {
+  // Packaged development hosts can virtualize AppData. Explorer cannot see those writes.
+  const destination = join(userProfile, "SeenSaid", "asbplayer-opener");
+  const previousDestination = join(localAppData, "SeenSaid", "asbplayer-opener");
+  const readConfiguration = async (directory) => {
+    try {
+      return JSON.parse(await readFile(join(directory, "config.json"), "utf8"));
+    } catch (error) {
+      if (error.code === "ENOENT") return undefined;
+      throw error;
+    }
+  };
+  return installMediaOpener({
+    destination,
+    config:
+      (await readConfiguration(destination)) ??
+      (await readConfiguration(previousDestination)) ??
+      config,
+  });
+}
+
+export async function createMediaOpenerShortcut({
+  destination,
+  previousDestination,
+  desktopDirectory,
+}) {
+  const command = `$ErrorActionPreference = 'Stop'
+$root = $env:SEEN_SAID_INSTALL_ROOT
+$target = Join-Path $env:SystemRoot 'System32\\WindowsPowerShell\\v1.0\\powershell.exe'
+function Get-LauncherArguments([string]$directory) {
+  return '-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "' + (Join-Path $directory '打开语见本机视频.ps1') + '"'
+}
+$arguments = Get-LauncherArguments $root
+$previousArguments = Get-LauncherArguments $env:SEEN_SAID_PREVIOUS_ROOT
+$desktop = if ($env:SEEN_SAID_DESKTOP) { $env:SEEN_SAID_DESKTOP } else { [Environment]::GetFolderPath('Desktop') }
+$path = Join-Path $desktop '语见本机视频.lnk'
+$shell = New-Object -ComObject WScript.Shell
+$shortcut = $shell.CreateShortcut($path)
+if ((Test-Path -LiteralPath $path) -and (($shortcut.TargetPath -ine $target) -or (($shortcut.Arguments -cne $arguments) -and ($shortcut.Arguments -cne $previousArguments)))) {
+  throw 'Existing shortcut belongs to another installation'
+}
+$shortcut.TargetPath = $target
+$shortcut.Arguments = $arguments
+$shortcut.WorkingDirectory = $root
+$shortcut.Description = '语见：打开原视频并自动准备音轨和字幕'
+$shortcut.Save()`;
   await new Promise((resolvePromise, reject) => {
     const child = spawn("powershell.exe", ["-NoProfile", "-Command", command], {
       shell: false,
       windowsHide: true,
       stdio: "ignore",
-      env: { ...process.env, SEEN_SAID_INSTALL_ROOT: destination },
+      env: {
+        ...process.env,
+        SEEN_SAID_INSTALL_ROOT: destination,
+        SEEN_SAID_PREVIOUS_ROOT: previousDestination ?? destination,
+        SEEN_SAID_DESKTOP: desktopDirectory ?? "",
+      },
     });
     child.once("error", reject);
     child.once("exit", (code) =>
@@ -55,12 +104,23 @@ async function createShortcut(destination) {
 }
 
 async function main() {
-  if (process.platform !== "win32" || !process.env.LOCALAPPDATA || !process.argv[2])
+  if (
+    process.platform !== "win32" ||
+    !process.env.LOCALAPPDATA ||
+    !process.env.USERPROFILE ||
+    !process.argv[2]
+  )
     throw new Error("请在 Windows 使用：node scripts/install-asbplayer-opener.mjs <本机配置.json>");
   const config = JSON.parse(await readFile(resolve(process.argv[2]), "utf8"));
-  const destination = join(process.env.LOCALAPPDATA, "SeenSaid", "asbplayer-opener");
-  await installMediaOpener({ destination, config });
-  await createShortcut(destination);
+  const destination = await installUserMediaOpener({
+    userProfile: process.env.USERPROFILE,
+    localAppData: process.env.LOCALAPPDATA,
+    config,
+  });
+  await createMediaOpenerShortcut({
+    destination,
+    previousDestination: join(process.env.LOCALAPPDATA, "SeenSaid", "asbplayer-opener"),
+  });
   console.log("已安装或更新语见本机视频打开器。请使用桌面快捷方式；现有配置和缓存保持不变。");
 }
 if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.meta.url) {

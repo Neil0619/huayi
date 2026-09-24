@@ -245,3 +245,8 @@ Store 内容脚本负责一次性受限文件导入，不改变 Classic Host、N
 文件选择窗口的可见性与所有者释放由 `scripts/asbplayer-open.test.mjs` 在真实 Windows Forms
 进程中回归；非 Windows 只跳过这项不可用的系统原语，Windows CI 必须实际执行。
 仅修改窗口所有者不改变扩展权限、媒体读写或回环服务边界。
+
+Windows 打开器的安装根使用 `%USERPROFILE%\SeenSaid\asbplayer-opener`，避开打包应用的 AppData
+虚拟化。安装路径和配置迁移契约由双平台测试覆盖；`.lnk` 迁移与实际 PowerShell 启动由 Windows
+原生测试覆盖。还须从资源管理器验证用户可见的快捷方式；不能把安装进程继承环境中的成功当作通过。
+macOS 原生打开器仍未实现，新安装目录不改变扩展路径或 Classic Host 安装。

@@ -49,9 +49,18 @@ node scripts/install-asbplayer-opener.mjs 'C:\Users\your-name\AppData\Local\Seen
 关闭打开器和播放器后可删除不需要的缓存目录，不影响原视频。
 缓存损坏时保留 `*-invalid-*` 目录并重新准备；失败的临时目录清理后可重试。
 
-安装器使用固定目录 `%LOCALAPPDATA%\SeenSaid\asbplayer-opener` 和桌面「语见本机视频」快捷方式，
+安装器使用固定目录 `%USERPROFILE%\SeenSaid\asbplayer-opener` 和桌面「语见本机视频」快捷方式，
 隐藏启动终端；PowerShell 执行策略仅为该启动进程设置，不更改系统策略。更新时仅更新打开器脚本，
 保留本机配置、依赖和缓存。不要在主仓库旧提交上重建已加载扩展；开发工作树通过验证后再同步产物。
+
+该目录位于 AppData 之外，避免从 MSIX 打包的开发应用安装时发生文件虚拟化：开发进程能读到的
+AppData 文件，可能实际位于该应用的私有 LocalCache，资源管理器双击时却提示脚本不存在。
+首次迁移优先采用旧 `%LOCALAPPDATA%\SeenSaid\asbplayer-opener\config.json`，新目录已有配置时
+优先保留新配置；旧配置与媒体缓存不删除。桌面入口仅允许更新准确匹配的本工具新旧快捷方式，
+其他目标或参数的同名入口不会被覆盖。不要把快捷方式指向某个开发应用的私有包目录。
+
+验证必须从资源管理器或桌面实际打开快捷方式，确认 Chrome 页面和选片窗口；仅从开发终端运行
+脚本不能证明桌面入口可用。详细根因和实机证据见 [Windows 桌面启动修复回执](asbplayer-windows-launcher-validation.md)。
 
 文件选择使用临时的置顶窗口作为对话框所有者，避免隐藏终端启动的选择窗口被 Chrome 遮住。
 选择或取消后同时释放对话框与临时窗口，不留下常驻置顶窗口。若仍未出现选择窗口，或启动终端

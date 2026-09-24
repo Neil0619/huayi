@@ -434,3 +434,9 @@ Store 内容脚本负责一次性受限文件导入，不改变 Classic Host、N
 观察器只检查并关闭测试进程自身的对话框，不操作其他应用、不选择真实媒体。
 该 Windows Forms 系统原语在非 Windows 平台明确跳过，Windows 全量脚本门禁执行它；
 它不替代桌面快捷方式与实际用户选片回传检查。
+
+`scripts/install-asbplayer-opener.test.mjs` 回归安装根位于用户目录而非 AppData、旧配置迁移、
+新配置优先、缓存与旧文件保留。Windows 还实际创建旧 `.lnk`、迁移到新位置并通过快捷方式运行
+生成的 PowerShell 启动脚本，断言 Node 收到准确配置路径；同名无关入口必须保持原样。
+该原生 Shell 测试在非 Windows 明确跳过。MSIX 文件虚拟化需要额外从资源管理器启动实测，
+开发进程启动成功不能替代；见 [桌面启动回执](cloud-v1/asbplayer-windows-launcher-validation.md)。
