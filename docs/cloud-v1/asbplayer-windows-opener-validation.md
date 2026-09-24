@@ -1,5 +1,8 @@
 # Windows 原 MKV 打开器验证回执
 
+后续原生选片窗口修复 `d8a580a` 及新增实机确认见
+[选片窗口修复回执](asbplayer-windows-picker-validation.md)。下文保留原候选当时的验证边界。
+
 2026-09-24。影响 `shared + Windows`。目标是从原视频开始学习，减少手工转音轨、拆字幕和换片操作。
 不合并 main、不部署、不发布商店版本；Provider 使用合成响应，收藏仅写隔离浏览器本地词本。
 

@@ -1,6 +1,10 @@
 # asbplayer Windows Git 接续说明
 
-2026-09-24 新增原 MKV 本机打开器，最新代码候选为
+2026-09-25 最新修复候选为 `d8a580afcc1738646180074047ac20c6a33fd374`，解决原生选片窗口
+被 Chrome 遮住的问题；固定打开器已更新，用户确认窗口出现。准确验证与原红色闪退未复现的边界见
+[原生选片窗口修复回执](asbplayer-windows-picker-validation.md)。
+
+2026-09-24 原 MKV 本机打开器完整学习流程的代码候选为
 `b8447467e7efc90ce217a81097fd68976b726ba1`。支持自动准备兼容音轨、提取内嵌文字字幕、
 预选明确的中英文轨道及从播放器换片；音乐符号不再使整个英文字幕失效。
 准确门禁、150% 真实文件结果、稳定安装及未验证项见
@@ -66,8 +70,10 @@ macOS 普通 Store 批次，原测试及 15 秒期限保留；准确 Mac CI 已�
 
 - 仓库：`https://github.com/Neil0619/huayi.git`。
 - 当前交接分支：`codex/asbplayer-windows-validation-fixes`。
-- 最新代码候选：`b8447467e7efc90ce217a81097fd68976b726ba1`；Git tree：
-  `60eb7175162771ab1477e636236184ae895ef43b`，准确 CI 状态见原 MKV 打开器回执。
+- 最新代码候选：`d8a580afcc1738646180074047ac20c6a33fd374`；Git tree：
+  `866315ec79a2ab652c01105f67a33dc71837714c`，准确 CI 状态见原生选片窗口修复回执。
+- 原完整学习流程候选：`b8447467e7efc90ce217a81097fd68976b726ba1`；Git tree：
+  `60eb7175162771ab1477e636236184ae895ef43b`，结果见原 MKV 打开器回执。
 - 历史影视库候选 `9a1d00b07be8c6fa21a18c7823af666ac4c4b429` 的结果见影视库扩测回执。
 - 更早 Mac CI 已通过候选：`2897154de5ee027609d31f7121685c10193fc3b0`，Windows 一项拖选失败。
 - 更早 Windows CI 已通过候选：`ad59af7a990dccda483042d486dee3409e6933f7`，macOS 构建单测超时。
