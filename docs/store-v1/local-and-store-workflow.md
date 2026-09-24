@@ -51,8 +51,9 @@ asbplayer 候选来自 `codex/asbplayer-windows-validation-fixes` 的代码提�
 同日 Mac 从准确接续提交 `bb952f5c3186331f55c932501c799c13a2fdb5ab` 的相同代码构建并更新上述
 Mac 固定目录，23 文件名称／摘要一致，原 key 与固定 ID 保留；旧程序已备份，浏览器存储未动。
 Mac 原 checkout 仍在 `codex/asbplayer-windows-validation` 的 `c67405c7`，不能从其旧源码重建
-覆盖固定目录。日常 Chrome 加载路径与重载仍待核验，真实 YouTube 学习被隔离环境的原生空字幕
-阻塞；完整状态见 [Mac 回执](../cloud-v1/asbplayer-macos-validation.md)。
+覆盖固定目录。用户随后确认已重载；日常 Chrome 加载路径尚未由工具核验。后续在独立 CfT 149
+Profile、显式非零调试端口下，以实际 release 和合成 Provider 完成真实 YouTube 学习及推荐
+SPA；历史隔离空字幕失败与环境条件均保留，完整状态见 [Mac 回执](../cloud-v1/asbplayer-macos-validation.md)。
 
 `pnpm build` 与普通 Store workspace build 生成 `dist-release`，不会刷新日常加载的 `dist`；需要
 更新本地扩展时必须使用上述专用命令。`status` 只证明产物审计结果，不证明 Chrome 已重载、账号

@@ -3,8 +3,10 @@
 Mac 后续接续已记录于 [Mac 验证回执](asbplayer-macos-validation.md)，输出分支为
 `codex/asbplayer-mac-validation`，输入为准确提交 `bb952f5c3186331f55c932501c799c13a2fdb5ab`。
 本轮无产品源码变化，CI 代码候选仍为 `83c1ab0`；Mac 两个无扩展隔离浏览器也观察到英文
-timedtext 200／0 字节，真实学习／SPA 仍未验证。Mac 固定 Hosted 程序目录已更新，日常 Chrome
-加载路径与重载状态另行核验，不把文档接续、产物更新或隔离检查当成全部验收通过。
+timedtext 200／0 字节；同日后续原生访客和普通启动 CfT 字幕正常。使用显式非零调试端口的
+隔离 CfT 149、实际 Store release、合成 Provider 和本机词本，真实学习／推荐 SPA 矩阵已通过。
+历史空响应原因仍未知，不删除失败记录。Mac 固定 Hosted 程序目录已更新，用户确认已重载；
+日常加载路径仍未由工具核验。详见 Mac 回执，Mac 通过不替代 Windows 条件或真实模型验证。
 
 2026-09-24 更新。影响平台为 shared Store 扩展与测试工具，目标验收平台为 Windows Chrome。
 最新产品构建的 Windows 100%／150% 学习流程、真实 BFCache、官网基础及扩展矩阵均已取得通过
