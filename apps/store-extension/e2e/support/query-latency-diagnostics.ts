@@ -6,12 +6,13 @@ if (process.env.HUAYI_QUERY_TIMING_DIAGNOSTICS === "1") {
   const profilers = new WeakMap<Page, CDPSession>();
   const timelines = new WeakMap<Page, unknown[]>();
   test.beforeEach(async ({ page }, info) => {
-    if (!info.title.startsWith("keeps focus")) return;
+    const popup = info.title.startsWith("makes popup");
+    if (!info.title.startsWith("keeps focus") && !popup) return;
     const profiler = await page.context().newCDPSession(page);
     profilers.set(page, profiler);
     await profiler.send("Profiler.enable");
     await profiler.send("Profiler.start");
-    if (info.repeatEachIndex === 0) {
+    if (info.repeatEachIndex === 0 || popup) {
       const events: unknown[] = [];
       timelines.set(page, events);
       profiler.on("Tracing.dataCollected", (event: { value: unknown[] }) => {
@@ -64,7 +65,7 @@ if (process.env.HUAYI_QUERY_TIMING_DIAGNOSTICS === "1") {
   });
 
   test.afterEach(async ({ page }, info) => {
-    if (!info.title.startsWith("keeps focus")) return;
+    if (!info.title.startsWith("keeps focus") && !info.title.startsWith("makes popup")) return;
     const profiler = profilers.get(page);
     if (profiler) {
       const { profile } = await profiler.send("Profiler.stop");
@@ -91,6 +92,7 @@ if (process.env.HUAYI_QUERY_TIMING_DIAGNOSTICS === "1") {
       diagnostics: Reflect.get(window, "__seenSaidQueryTiming"),
       visibility: document.visibilityState,
       focused: document.hasFocus(),
+      controlsMs: Number(document.documentElement.dataset.controlsMs),
       hitMs: Number(document.body.dataset.resultMs),
       increments: performance
         .getEntriesByName("seen-said:query:increment-to-paint")

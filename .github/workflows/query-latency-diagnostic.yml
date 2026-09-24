@@ -42,10 +42,11 @@ jobs:
         run: |
           pnpm exec playwright install chrome
           pnpm exec playwright install chromium
-      - name: Verify normal headless rendering without profiling or retries
+      - name: Diagnose popup readiness without changing original assertions or retries
         env:
+          HUAYI_QUERY_TIMING_DIAGNOSTICS: "1"
           PLAYWRIGHT_JSON_OUTPUT_NAME: artifacts/query-latency-diagnosis/results.json
-        run: pnpm exec playwright test apps/store-extension/e2e/query-interaction.spec.ts --repeat-each=20 --retries=0 --reporter=list,json
+        run: pnpm exec playwright test apps/store-extension/e2e/query-interaction.spec.ts --grep "makes popup" --repeat-each=20 --retries=0 --reporter=list,json
       - name: Preserve timing evidence and failure traces
         if: ${{ always() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
