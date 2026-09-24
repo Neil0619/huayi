@@ -1,17 +1,18 @@
 # asbplayer Windows Git 接续说明
 
 2026-09-24 更新。影响平台为 shared Store 扩展与测试工具，目标验收平台为 Windows Chrome。
-上一轮 Windows 100%／150% 学习流程、官网基础脚本和准确代码候选的双平台 CI 已完成；后续官网
-扩展矩阵已在 150% 通过，100% 尚待补验。最新候选本机整套门禁已通过，真实 YouTube 字幕仍不可用。当前结果与范围见
+最新产品构建的 Windows 100%／150% 学习流程、真实 BFCache、官网基础及扩展矩阵均已取得通过
+证据；官网显式字体权限与常见弹窗条件见回执，不能写成默认配置通过。最新候选本机整套门禁和
+准确代码候选的双平台 CI 已通过，真实 YouTube 字幕仍不可用。当前结果与范围见
 [Windows 验证回执](asbplayer-windows-validation.md)，不表示全部验收或发布完成。
 
 最新接续另外修复了视频结束后末句残留，已用失败单测及实际 Store 浏览器复现；新产品构建的
-150% 基础／扩展流程通过，100% 尚待补验。不可把历史候选结果移用到新构建。
+150% 基础／扩展流程通过，100% 已在 `83c1ab0` 的相同 release 产物补验通过。不可把历史候选结果移用到新构建。
 后续 `6798083` 修复 Windows Hosted Store 构建入口，真实 Hosted／production 构建与三个 profile
 审计通过。`0e37df7` 的 macOS CI 成功，但 Windows 三项 Store 用例超时后作业被时限终止；
 `6798083` 的准确 Windows CI 已通过（浏览器 242/242），macOS 为 241 通过、失效快捷键暂停计数
 一项失败。当前新增官网选项在真实 150% 下通过基础／扩展矩阵，本机 Store 与权限回归 12/12 通过；
-显式字体权限和弹窗尺寸条件、待补的 100% 均见回执。工具候选 `ad59af7` 的 Windows 完整 CI
+显式字体权限、弹窗尺寸条件及后续 100% 结果均见回执。工具候选 `ad59af7` 的 Windows 完整 CI
 已通过（浏览器 243/243）；macOS 在 Hosted profile 构建单测超时，浏览器门未运行。后续 `2897154` 隔离并串行化
 macOS 普通 Store 批次，原测试及 15 秒期限保留；准确 Mac CI 已通过，Windows 浏览器 242 通过、
 一项 Classic 短语拖选失败。独立诊断在两平台各 100 轮未复现，不表示已修复根因。各次失败不以重跑覆盖。
@@ -128,7 +129,7 @@ viewport 或 deviceScaleFactor 模拟不等于真实系统缩放；显式 pagehi
 
 ```powershell
 $env:HUAYI_ASBPLAYER_NATIVE_SCALE = '150' # 100% 时改为 '100'
-pnpm exec playwright test apps/store-extension/e2e/asbplayer-package.spec.ts apps/store-extension/e2e/asbplayer-matrix.spec.ts
+pnpm exec playwright test apps/store-extension/e2e/asbplayer-package.spec.ts apps/store-extension/e2e/asbplayer-matrix.spec.ts apps/store-extension/e2e/store-youtube-package.spec.ts
 pnpm exec playwright test apps/store-extension/e2e/asbplayer-bfcache.spec.ts
 node scripts/verify-asbplayer-store-browser.mjs --run-approved-browser-validation
 # 先保留上一条命令的回执；两个脚本写同一回执路径。
