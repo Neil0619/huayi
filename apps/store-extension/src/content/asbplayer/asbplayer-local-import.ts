@@ -70,6 +70,34 @@ export function acceptLocalFiles(descriptor: LocalImportDescriptor, opener: unkn
   };
 }
 
+function allowPlayerReplacement(view: Window, descriptor: LocalImportDescriptor, opener: Window) {
+  const stop = () => {
+    view.removeEventListener("message", replace);
+    view.removeEventListener("pagehide", hide);
+  };
+  const hide = (event: PageTransitionEvent) => {
+    if (!event.persisted) stop();
+  };
+  const replace = (event: MessageEvent<unknown>) => {
+    const data = event.data;
+    if (
+      event.origin !== descriptor.origin ||
+      event.source !== opener ||
+      !data ||
+      typeof data !== "object" ||
+      !("type" in data) ||
+      data.type !== "seen-said/local-replace" ||
+      !("nonce" in data) ||
+      data.nonce !== descriptor.nonce
+    )
+      return;
+    stop();
+    view.close();
+  };
+  view.addEventListener("message", replace);
+  view.addEventListener("pagehide", hide);
+}
+
 export function installLocalMediaImport(doc: Document): void {
   const view = doc.defaultView;
   if (
@@ -104,6 +132,7 @@ export function installLocalMediaImport(doc: Document): void {
       for (const file of files) transfer.items.add(file);
       input.files = transfer.files;
       input.dispatchEvent(new Event("change", { bubbles: true }));
+      allowPlayerReplacement(view, descriptor, opener);
       opener.postMessage(
         { type: "seen-said/local-imported", nonce: descriptor.nonce },
         descriptor.origin,

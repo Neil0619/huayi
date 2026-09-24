@@ -14,6 +14,8 @@ export function openerClient(view, doc) {
     player = null,
     importing = false;
   let lastMessage = "";
+  let acceptedPlayer = null,
+    acceptedNonce = "";
   const request = (path, options = {}) =>
     view.fetch(path, {
       ...options,
@@ -101,6 +103,14 @@ export function openerClient(view, doc) {
       )
         return;
       if (event.data.type === "seen-said/local-imported") {
+        if (acceptedPlayer && !acceptedPlayer.closed && acceptedPlayer !== player) {
+          acceptedPlayer.postMessage(
+            { type: "seen-said/local-replace", nonce: acceptedNonce },
+            "https://app.asbplayer.dev",
+          );
+        }
+        acceptedPlayer = player;
+        acceptedNonce = nonce;
         cleanup();
         status.textContent = "已送入播放器。可在播放器确认轨道；换片时返回此页。";
         return;

@@ -55,13 +55,25 @@ test("registered importer receives local Files, confirms delivery and permits a 
       await expect(local.locator("#status")).toContainText("已送入播放器");
       await expect(player.getByRole("button", { name: "打开另一个视频" })).toBeVisible();
       expect(new URL(player.url()).hash).toBe("");
-      await player.close();
+      return player;
     };
-    await launch();
+    const firstPlayer = await launch();
+    await firstPlayer.evaluate(() =>
+      window.postMessage({ type: "seen-said/local-replace", nonce: "untrusted" }, location.origin),
+    );
+    expect(firstPlayer.isClosed()).toBe(false);
     await local.getByRole("button", { name: "选择原视频", exact: true }).click();
     await expect.poll(() => picked).toBe(2);
     await expect(local.getByRole("button", { name: "开始学习", exact: true })).toBeEnabled();
-    await launch();
+    const secondPlayer = await launch();
+    await expect.poll(() => firstPlayer.isClosed()).toBe(true);
+    // A former player navigated elsewhere must not be closed by the opener.
+    await secondPlayer.goto("https://example.test/");
+    const thirdPlayer = await launch();
+    await expect(secondPlayer.locator("p")).toHaveText("Reading opens doors.");
+    expect(secondPlayer.isClosed()).toBe(false);
+    await thirdPlayer.close();
+    await secondPlayer.close();
     expect(fixture.requests).toHaveLength(0);
   } finally {
     await opener.close();
