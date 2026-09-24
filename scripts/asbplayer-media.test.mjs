@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { mkdtemp, readFile, writeFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile, rm, realpath } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { planMedia, prepareMedia, findSidecars } from "./asbplayer-media.mjs";
@@ -39,14 +39,14 @@ test("AAC is copied; unsupported video fails clearly before expensive processing
 test("preparation publishes complete cache only, reuses it and never overwrites input", async () => {
   const directory = await mkdtemp(join(tmpdir(), "seen-said-media-test-"));
   try {
-    const source = join(directory, "episode.mkv");
+    const source = `${directory}/./episode.mkv`;
     await writeFile(source, "original-video");
     let calls = 0;
     const run = async (_executable, args) => {
       if (args.includes("-show_streams")) return JSON.stringify(probe);
       calls++;
       assert.ok(args.includes("-n"));
-      assert.ok(args.includes(source));
+      assert.equal(args[args.indexOf("-i") + 1], await realpath(source));
       assert.ok(!args.includes("-t"));
       await writeFile(args.at(-1), "prepared");
       return "";
