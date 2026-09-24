@@ -101,6 +101,57 @@ export async function findSidecars(source) {
   return results.sort((a, b) => a.name.localeCompare(b.name));
 }
 
+function validCacheManifest(cached, key) {
+  const plan = cached?.plan;
+  const index = (value) => Number.isSafeInteger(value) && value >= 0;
+  if (
+    cached?.key !== key ||
+    !plan ||
+    !index(plan.videoIndex) ||
+    !["h264", "hevc"].includes(plan.videoCodec) ||
+    !(plan.audioIndex === null || index(plan.audioIndex)) ||
+    !["copy", "aac"].includes(plan.audioCodec) ||
+    typeof plan.audioLanguage !== "string" ||
+    !index(plan.audioTrackCount) ||
+    !index(plan.imageSubtitleCount) ||
+    !Array.isArray(plan.subtitles) ||
+    plan.subtitles.length > 12 ||
+    !plan.subtitles.every(
+      (track) =>
+        track &&
+        index(track.index) &&
+        ["srt", "ass"].includes(track.extension) &&
+        typeof track.language === "string",
+    ) ||
+    !Array.isArray(cached.files) ||
+    cached.files.length !== plan.subtitles.length + 1
+  )
+    return false;
+  const expected = new Map([
+    ["video.mp4", { kind: "video", type: "video/mp4" }],
+    ...plan.subtitles.map((track) => [
+      `subtitle-${track.index}.${track.extension}`,
+      { kind: "subtitle", type: "text/plain" },
+    ]),
+  ]);
+  if (expected.size !== cached.files.length) return false;
+  for (const file of cached.files) {
+    const entry = expected.get(file?.file);
+    if (
+      !entry ||
+      file.kind !== entry.kind ||
+      file.type !== entry.type ||
+      typeof file.name !== "string" ||
+      !file.name.length ||
+      !Number.isSafeInteger(file.size) ||
+      file.size <= 0
+    )
+      return false;
+    expected.delete(file.file);
+  }
+  return expected.size === 0;
+}
+
 export async function prepareMedia({
   source,
   cacheRoot,
@@ -119,14 +170,10 @@ export async function prepareMedia({
   const target = join(cacheRoot, key);
   const load = async () => {
     const cached = JSON.parse(await readFile(join(target, "manifest.json"), "utf8"));
-    if (cached.key !== key || !Array.isArray(cached.files)) throw new Error("Invalid cache");
+    if (!validCacheManifest(cached, key)) throw new Error("Invalid cache");
     for (const file of cached.files) {
-      if (
-        !/^(video\.mp4|subtitle-\d+\.(srt|ass))$/u.test(file.file) ||
-        (await stat(join(target, file.file))).size !== file.size ||
-        file.size === 0
-      )
-        throw new Error("Invalid cache");
+      const info = await stat(join(target, file.file));
+      if (!info.isFile() || info.size !== file.size) throw new Error("Invalid cache");
     }
     return {
       ...cached,

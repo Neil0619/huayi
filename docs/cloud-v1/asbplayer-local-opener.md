@@ -48,6 +48,8 @@ node scripts/install-asbplayer-opener.mjs 'C:\Users\your-name\AppData\Local\Seen
 首次可能需要一份接近原视频大小的缓存空间；不自动删除已经成功的缓存。
 关闭打开器和播放器后可删除不需要的缓存目录，不影响原视频。
 缓存损坏时保留 `*-invalid-*` 目录并重新准备；失败的临时目录清理后可重试。
+复用前验证完整处理计划、唯一视频、全部预期字幕、文件类别、大小与实际文件；
+空清单、缺失字幕或缺少处理计划不能成为“已准备好”的缓存。
 
 安装器使用固定目录 `%USERPROFILE%\SeenSaid\asbplayer-opener` 和桌面「语见本机视频」快捷方式，
 隐藏启动终端；PowerShell 执行策略仅为该启动进程设置，不更改系统策略。更新时仅更新打开器脚本，
