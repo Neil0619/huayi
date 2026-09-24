@@ -42,12 +42,31 @@ jobs:
         run: |
           pnpm exec playwright install chrome
           pnpm exec playwright install chromium
-      - name: Compare software rendering with original assertions and zero retries
+      - name: Verify software rendering without profiling and with zero retries
         env:
-          HUAYI_QUERY_TIMING_DIAGNOSTICS: "1"
           HUAYI_QUERY_SOFTWARE_RENDERING: "1"
           PLAYWRIGHT_JSON_OUTPUT_NAME: artifacts/query-latency-diagnosis/results.json
         run: pnpm exec playwright test apps/store-extension/e2e/query-interaction.spec.ts --repeat-each=20 --retries=0 --reporter=list,json
+      - name: Record rendering backends after timing measurements
+        if: ${{ always() }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { mkdir, writeFile } from "node:fs/promises";
+          import { chromium } from "@playwright/test";
+          const environments = [];
+          for (const args of [[], ["--disable-gpu"]]) {
+            const browser = await chromium.launch({ channel: "chrome", args });
+            try {
+              const session = await browser.newBrowserCDPSession();
+              const { gpu } = await session.send("SystemInfo.getInfo");
+              environments.push({ args, browser: browser.version(), gpu });
+            } finally {
+              await browser.close();
+            }
+          }
+          await mkdir("artifacts/query-latency-diagnosis", { recursive: true });
+          await writeFile("artifacts/query-latency-diagnosis/rendering-backends.json", JSON.stringify(environments, null, 2));
+          NODE
       - name: Preserve timing evidence and failure traces
         if: ${{ always() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a

@@ -1,11 +1,12 @@
 import { test, type CDPSession, type Page } from "@playwright/test";
 
-// Opt-in CI diagnosis only: the ordinary quality gate retains its original execution.
+// Opt-in CI comparisons only: the ordinary quality gate retains its original execution.
+if (process.env.HUAYI_QUERY_SOFTWARE_RENDERING === "1") {
+  test.use({ launchOptions: { args: ["--disable-gpu"] } });
+}
 if (process.env.HUAYI_QUERY_TIMING_DIAGNOSTICS === "1") {
   test.use({
     headless: process.env.HUAYI_QUERY_HEADFUL_DIAGNOSTIC !== "1",
-    launchOptions:
-      process.env.HUAYI_QUERY_SOFTWARE_RENDERING === "1" ? { args: ["--disable-gpu"] } : {},
   });
   const profilers = new WeakMap<Page, CDPSession>();
   const timelines = new WeakMap<Page, unknown[]>();
