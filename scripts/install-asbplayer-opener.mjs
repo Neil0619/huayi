@@ -63,6 +63,7 @@ export async function createMediaOpenerShortcut({
   destination,
   previousDestination,
   desktopDirectory,
+  launch = spawn,
 }) {
   const command = `$ErrorActionPreference = 'Stop'
 $root = $env:SEEN_SAID_INSTALL_ROOT
@@ -85,7 +86,7 @@ $shortcut.WorkingDirectory = $root
 $shortcut.Description = '语见：打开原视频并自动准备音轨和字幕'
 $shortcut.Save()`;
   await new Promise((resolvePromise, reject) => {
-    const child = spawn("powershell.exe", ["-NoProfile", "-Command", command], {
+    const child = launch("powershell.exe", ["-NoProfile", "-Command", command], {
       shell: false,
       windowsHide: true,
       stdio: "ignore",

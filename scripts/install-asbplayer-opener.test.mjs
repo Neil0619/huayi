@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { mkdir, mkdtemp, readFile, writeFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { execFile } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
 import { promisify } from "node:util";
 import {
   createMediaOpenerShortcut,
@@ -32,13 +32,35 @@ test(
         ffprobe: process.execPath,
         chrome: process.execPath,
       };
+      // Build a real legacy installation; Windows Shell may validate its working directory.
+      await installMediaOpener({ destination: previousDestination, config });
       await installMediaOpener({ destination, config });
       await writeFile(
         join(destination, "asbplayer-open.mjs"),
         `import { writeFileSync } from "node:fs"; writeFileSync(new URL("./launched.json", import.meta.url), JSON.stringify(process.argv.slice(2)));`,
       );
-      await createMediaOpenerShortcut({ destination: previousDestination, desktopDirectory: root });
-      await createMediaOpenerShortcut({ destination, previousDestination, desktopDirectory: root });
+      const createShortcut = async (options) => {
+        let diagnostic = "";
+        try {
+          await createMediaOpenerShortcut({
+            ...options,
+            launch: (command, args, settings) => {
+              const child = spawn(command, args, {
+                ...settings,
+                stdio: ["ignore", "ignore", "pipe"],
+              });
+              child.stderr.on("data", (chunk) => {
+                diagnostic = (diagnostic + chunk.toString()).slice(0, 4000);
+              });
+              return child;
+            },
+          });
+        } catch (error) {
+          throw new Error(`Native shortcut fixture failed: ${diagnostic}`, { cause: error });
+        }
+      };
+      await createShortcut({ destination: previousDestination, desktopDirectory: root });
+      await createShortcut({ destination, previousDestination, desktopDirectory: root });
       const link = join(root, "语见本机视频.lnk");
       await runFile(
         "powershell.exe",
