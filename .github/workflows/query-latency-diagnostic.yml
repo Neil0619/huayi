@@ -42,6 +42,7 @@ jobs:
           pnpm exec playwright install chromium
       - name: Repeat the original query tests without retries or relaxed thresholds
         env:
+          HUAYI_QUERY_TIMING_DIAGNOSTICS: "1"
           PLAYWRIGHT_JSON_OUTPUT_NAME: artifacts/query-latency-diagnosis/results.json
         run: pnpm exec playwright test apps/store-extension/e2e/query-interaction.spec.ts --repeat-each=20 --retries=0 --reporter=list,json
       - name: Preserve timing evidence and failure traces

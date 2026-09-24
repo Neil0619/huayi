@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { mkdir, writeFile } from "node:fs/promises";
+import "./support/query-latency-diagnostics.js";
 const evidenceDirectory = "artifacts/query-learning-refinement-20260905";
 test("makes popup controls usable within 200ms with account and outbox reads stalled", async ({
   page,
