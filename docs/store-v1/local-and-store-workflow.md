@@ -42,11 +42,17 @@ Windows 后续日常迭代交付继续更新这个既有目录，不随候选 SH
 名称及 SHA-256，保留源码提交、profile 与更新回执。不创建第二个日常安装目录，不移动浏览器
 Profile、清空 storage 或卸载条目。此本机产物更新不是 Git 源码交接、main 合并或 API/Web 部署。
 
-当前主 checkout 的 `main` 仍为 `c39fed3f9026f7d8943f961cfe72f54fe80b65cc`；2026-09-24 的
+Windows 原 checkout 的 `main` 仍为 `c39fed3f9026f7d8943f961cfe72f54fe80b65cc`；2026-09-24 的
 asbplayer 候选来自 `codex/asbplayer-windows-validation-fixes` 的代码提交 `83c1ab0`，固定目录已
 更新至该候选的 Hosted 构建。不要从尚未接续该代码的旧 main 重建此目录，以免覆盖为旧版本。
 本次 23 文件一致性、固定 ID 和隔离 Chrome 设置页检查见
 [Windows 回执](../cloud-v1/asbplayer-windows-validation.md)。更新后由用户对原条目重载并刷新网页。
+
+同日 Mac 从准确接续提交 `bb952f5c3186331f55c932501c799c13a2fdb5ab` 的相同代码构建并更新上述
+Mac 固定目录，23 文件名称／摘要一致，原 key 与固定 ID 保留；旧程序已备份，浏览器存储未动。
+Mac 原 checkout 仍在 `codex/asbplayer-windows-validation` 的 `c67405c7`，不能从其旧源码重建
+覆盖固定目录。日常 Chrome 加载路径与重载仍待核验，真实 YouTube 学习被隔离环境的原生空字幕
+阻塞；完整状态见 [Mac 回执](../cloud-v1/asbplayer-macos-validation.md)。
 
 `pnpm build` 与普通 Store workspace build 生成 `dist-release`，不会刷新日常加载的 `dist`；需要
 更新本地扩展时必须使用上述专用命令。`status` 只证明产物审计结果，不证明 Chrome 已重载、账号
