@@ -1,5 +1,5 @@
 import { chromium, expect, type BrowserContext, type Page } from "@playwright/test";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import {
@@ -203,31 +203,10 @@ export async function createAsbplayerPackageFixture(
         })
       : undefined;
     if (denyLocalFonts) expect(localFontPermission).toBe("denied");
-    mark("record-media");
-    const bytes = await page.evaluate(async () => {
-      const canvas = document.createElement("canvas");
-      canvas.width = 480;
-      canvas.height = 270;
-      const painter = canvas.getContext("2d");
-      if (!painter) throw new Error("Canvas unavailable");
-      painter.fillStyle = "#244050";
-      painter.fillRect(0, 0, 480, 270);
-      const stream = canvas.captureStream(10);
-      const recorder = new MediaRecorder(stream, { mimeType: "video/webm" });
-      const chunks: Blob[] = [];
-      recorder.ondataavailable = (event) => chunks.push(event.data);
-      const recorded = new Promise<void>((resolve) => {
-        recorder.onstop = () => resolve();
-      });
-      recorder.start();
-      const repaint = setInterval(() => painter.fillRect(0, 0, 480, 270), 100);
-      await new Promise((resolve) => setTimeout(resolve, 3100));
-      recorder.stop();
-      await recorded;
-      clearInterval(repaint);
-      stream.getTracks().forEach((track) => track.stop());
-      return Array.from(new Uint8Array(await new Blob(chunks).arrayBuffer()));
-    });
+    mark("load-fixture-media");
+    const bytes = Array.from(
+      await readFile(new URL("../fixtures/asbplayer-learning.webm", import.meta.url)),
+    );
     mark("media-ready");
     if (live) {
       await page
