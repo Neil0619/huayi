@@ -14,7 +14,11 @@ for (const profile of ["hosted-acceptance", "production", "release"]) {
     const panel = page.locator("[data-huayi-store-overlay]");
     await panel.locator("[data-action=explain]").click();
     await expect(panel.locator(".panel")).toHaveAttribute("data-styles", "ready");
-    await expect(panel.locator(".panel")).toHaveCSS("font-family", "system-ui");
+    await expect(panel.locator(".panel")).toHaveCSS(
+      "font-family",
+      'system-ui, "PingFang SC", "Microsoft YaHei", sans-serif',
+    );
+    await expect(panel.locator(".panel")).toHaveCSS("font-size", "15px");
     await expect(panel.locator(".panel")).toHaveCSS("line-height", "22.5px");
     await expect(panel.locator(".core strong")).toHaveText([
       "He gave no details",

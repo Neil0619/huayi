@@ -1,6 +1,6 @@
 # asbplayer Windows Git 接续说明
 
-2026-09-25 正在进行用户授权的合并前全面检查，当前工作分支仍为
+2026-09-25 最近一轮完整门禁候选为 `27f68deccff8ad4ccc58ef734e575c4c56586dda`，工作分支为
 `codex/asbplayer-windows-validation-fixes`。此轮补齐 Unicode 快捷方式、PowerShell 5.1
 UTF-8 配置读取、损坏缓存、原生媒体事件竞态和中文系统字体修复。准确候选、最新门禁、
 实际 Store/官网/影视库验证和剩余边界统一见 [合并前全面检查回执](asbplayer-final-review.md)。
@@ -225,7 +225,8 @@ Remove-Item Env:\HUAYI_ASBPLAYER_NATIVE_SCALE
 行为问题先复现并补回归测试，再修复、重建和补受影响检查。不要降低断言或更新截图制造通过。
 代码变更后原 commit 的测试证据不能代表新候选；记录完整 diff 和新的候选身份。
 本次 Windows 接续按用户“全部交接仅通过 Git”的指示，将修复和脱敏回执交接到独立 codex 分支。
-不合并 main、不部署、不发布商店版本；后续发布步骤仍需独立授权。
+最初接续授权不包含合并 main；后续用户已明确授权完整检查、修复、合并和推送。当前仍不部署、
+不发布商店版本；不能把 Git 合并理解为产品发布授权。
 
 ## 已有 macOS 证据及限制
 

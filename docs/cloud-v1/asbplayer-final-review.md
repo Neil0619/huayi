@@ -1,10 +1,37 @@
-# asbplayer 合并前全面检查
+# asbplayer 全面检查与 Git 交接
 
 2026-09-25。影响 shared、Windows；macOS 执行共享门禁。本轮用户明确授权检查、修复、合并和
 推送，接续此前仅分支推送的范围；不部署、不送审或发布商店版本，不使用真实付费 Provider
 或写外部词典。代码与交接说明通过 Git 保存；用户媒体、字幕正文、凭据和原始本机产物不入库。
 
-## 准确候选与门禁
+## 最近一轮完整门禁（27f68de，失败）
+
+- 被验证的代码候选：`27f68deccff8ad4ccc58ef734e575c4c56586dda`。
+- Git tree：`5c58276d4ea6e23f30396d00fa2065811e3573a5`。
+- [准确候选双平台 CI](https://github.com/Neil0619/huayi/actions/runs/36069520819)：两端均 246/249；唯一失败为三个构建 profile 的旧字体精确期望。
+- 本机 `pnpm verify:windows`：格式、lint、类型及 `pnpm test` 已通过；在覆盖率阶段主动停止，
+  先修正已由 CI 证实的旧断言；本轮完整门禁未通过，后续步骤未完成。
+  脚本 1159 通过／6 跳过；领域 74／155／132，协议 107，Native Host 998 通过／67 跳过，
+  Classic 383、Store 1226、Web 473、API 1302 均通过；不把这些单元结果代替浏览器或整轮门禁。
+- Git 合并和固定目录同步：尚未执行，等待完整门禁与最终差异核验。
+- 与 `021806f31470621ed1c05a00f25c9b1018f19e58` 实际 Store/官网验证及
+  `277a27514dedaf1ab8f9f67218a88afa581551a0` Hosted 构建逐项比较，产品源码和构建输入未变；
+  变化限于两项 E2E 的 CI 渲染设置、删除临时剖析代码及说明文档。因此下方实际浏览器产物
+  是同一产品实现的证据，不把不同产品代码的历史通过结果冒充当前验证。
+
+第一次本机门禁在 lint 停止：ESLint 扫描了代理保存的压缩 Hosted 包和 Vite 诊断缓存，
+3723 项报错全部位于三个代理生成目录的 21 个文件，没有手写源码错误。
+将三个目录的 62 个文件移至仓库外后逐一验证 SHA-256 不变，再重跑同一代码候选的完整门禁。
+没有修改源码、lint 规则或断言，失败日志保留。用户媒体缓存和已安装扩展均未因此改变。
+
+三个 profile 的旧断言只接受 `system-ui`，而字体修复后的准确计算值为
+`system-ui, "PingFang SC", "Microsoft YaHei", sans-serif`。此处保留完整精确匹配，
+并新增 `font-size: 15px` 断言；22.5px 行高、内容、展开状态、焦点和窄视口布局断言全部保留。
+两端原 Popup/词卡耗时检查均已通过。修正只涉及测试，产品源码没有变化；新候选仍须完整复验。
+修正后本机实际 bundled profile 浏览器定向检查 3/3 通过（零重试），E2E 类型检查、ESLint、
+Prettier 和差异空白检查通过；这些定向结果不代替新候选的完整门禁。
+
+## 前一完整门禁与失败记录
 
 - 仓库：`https://github.com/Neil0619/huayi.git`。
 - 开发分支：`codex/asbplayer-windows-validation-fixes`。
@@ -12,7 +39,7 @@
 - Git tree：`acc706f605823ee8e813e1fcb0486f5bf64c5e85`。
 - 暂停恢复产品修复：`eccc3ff527efe19474ee73df74234665c85bc010`；候选再补齐浏览器测试的
   `HTMLVideoElement` 类型声明，产品产物相同。
-- [准确候选双平台 CI](https://github.com/Neil0619/huayi/actions/runs/36048506078)：Windows 成功（249/249 浏览器及 SEA）；macOS 248/249，词卡缓存显示耗时 116.9 ms 超过原有 <100 ms 门槛，尚待诊断。
+- [准确候选双平台 CI](https://github.com/Neil0619/huayi/actions/runs/36048506078)：Windows 成功（249/249 浏览器及 SEA）；macOS 248/249，词卡缓存显示耗时 116.9 ms 超过原有 <100 ms 门槛；后续调查和修复见下文。
 - 本机 `pnpm verify:windows`：2026-09-25 03:29:53–04:27:11（UTC+8），exit 0；249/249 浏览器、Store profile 审计、安全审计与 SEA health 全部通过。
 - Git 合并及远端身份：尚未执行，待门禁与最终差异核对。
 - 后续仅诊断变更：`03dec6717c4e877bda4eb9558b1085c327b85ba6` 新增专项工作流；
@@ -89,6 +116,7 @@ GPU 合成和光栅化均为 `disabled_software`。这支持渲染调度假设�
 
 [`96360f3` 无剖析复验](https://github.com/Neil0619/huayi/actions/runs/36068645313) 40/40，
 零重试、零跳过、零 flaky：Popup 最慢 8.9 ms、缓存显示 43.7 ms、流式显示 61.9 ms。
+安装日志确认 `021806f`、`277a275`、`96360f3` 三轮均使用 Chrome `154.0.8037.58`。
 测试完成后独立读取后端：同一 Chrome `154.0.8037.58` 默认使用 `ANGLE_METAL` /
 `Apple Paravirtual device`，软件模式使用 `ANGLE_SWIFTSHADER`。结合原生等待时间线，
 最终仅为 GitHub Mac CI 的这两项 DOM 耗时测试设置 `--disable-gpu`，原始阈值、冷启动和
