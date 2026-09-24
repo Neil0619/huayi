@@ -73,6 +73,9 @@ export class MediaPauseOwnership {
     );
   }
   private readonly onMedia = (event: Event): void => {
+    // play() queues its event before our pause(). While that pause is pending,
+    // a play event on an already paused video does not describe new playback.
+    if (event.type === "play" && this.expectedPause && this.valid() && this.video?.paused) return;
     if (event.type === "pause" && this.expectedPause && this.valid()) {
       this.expectedPause = false;
       return;

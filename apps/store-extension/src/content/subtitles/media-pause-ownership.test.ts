@@ -1,15 +1,21 @@
 import { describe, expect, it, vi } from "vitest";
 import { MediaPauseOwnership } from "./media-pause-ownership.js";
-function harness(mode: readonly number[] | null = [1], paused = false) {
+function harness(mode: readonly number[] | null = [1], paused = false, queued = false) {
   const video = document.createElement("video");
+  const events: Event[] = [];
+  const emit = (type: string) => {
+    const event = new Event(type);
+    if (queued) events.push(event);
+    else video.dispatchEvent(event);
+  };
   Object.defineProperty(video, "paused", { configurable: true, get: () => paused });
   vi.spyOn(video, "pause").mockImplementation(() => {
     paused = true;
-    video.dispatchEvent(new Event("pause"));
+    emit("pause");
   });
   vi.spyOn(video, "play").mockImplementation(async () => {
     paused = false;
-    video.dispatchEvent(new Event("play"));
+    emit("play");
   });
   const current = { video: video as HTMLVideoElement | null, generation: 1 };
   const owner = new MediaPauseOwnership(
@@ -17,9 +23,37 @@ function harness(mode: readonly number[] | null = [1], paused = false) {
     () => mode,
   );
   owner.bind();
-  return { video, owner, current, userPause: () => video.dispatchEvent(new Event("pause")) };
+  return {
+    video,
+    owner,
+    current,
+    flush: () => {
+      for (const event of events.splice(0)) video.dispatchEvent(event);
+    },
+  };
 }
 describe("media pause ownership", () => {
+  it("resumes when a preceding play event arrives after the owned pause", async () => {
+    const h = harness([1], true, true);
+    await h.video.play();
+    h.owner.acquire("hold");
+    h.flush();
+    expect(h.video.paused).toBe(true);
+    h.owner.release("hold");
+    expect(h.video.paused).toBe(false);
+    h.owner.destroy();
+  });
+  it("keeps a later user pause even when all media events arrive afterward", async () => {
+    const h = harness([1], true, true);
+    await h.video.play();
+    h.owner.acquire("hold");
+    await h.video.play();
+    h.video.pause();
+    h.flush();
+    h.owner.release("hold");
+    expect(h.video.paused).toBe(true);
+    h.owner.destroy();
+  });
   it("transfers hold to selection and resumes only after the last owner releases", () => {
     const h = harness();
     h.owner.acquire("hold");
