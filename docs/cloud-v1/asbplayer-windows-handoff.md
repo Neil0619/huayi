@@ -1,16 +1,26 @@
 # asbplayer Windows Git 接续说明
 
+2026-09-24 影视库扩测已形成产品修复 `a3eaf05855b6cbebd4ff945a19c122fa71549f5d`，
+修复原 ASS 中个别片头／混排 cue 使整份文件不能确认的问题，并补充空字幕提示。
+最新验证候选 `9a1d00b07be8c6fa21a18c7823af666ac4c4b429` 另修复 CI 样片录制等待问题，产品源码不变。
+该准确候选的 Windows／macOS 完整 CI 均通过，两端浏览器各 246/246；Windows 产品已完成本机
+100%／150% 验证，新增 shared 行为仍需 Mac 实机复验。
+当前验证状态、9 个原文件与 4 个 AAC 副本的边界、固定加载目录更新见[影视库扩测与字幕修复回执](asbplayer-windows-library-validation.md)。
+普通下载资源不能仅凭文件后缀保证音轨和文本字幕兼容；没有新增转码或 OCR，也未发布。
+
+## 历史接续证据（83c1ab0 及更早候选）
+
 Mac 后续接续已记录于 [Mac 验证回执](asbplayer-macos-validation.md)，输出分支为
 `codex/asbplayer-mac-validation`，输入为准确提交 `bb952f5c3186331f55c932501c799c13a2fdb5ab`。
-本轮无产品源码变化，CI 代码候选仍为 `83c1ab0`；Mac 两个无扩展隔离浏览器也观察到英文
+该轮无产品源码变化，CI 代码候选仍为 `83c1ab0`；Mac 两个无扩展隔离浏览器也观察到英文
 timedtext 200／0 字节；同日后续原生访客和普通启动 CfT 字幕正常。使用显式非零调试端口的
 隔离 CfT 149、实际 Store release、合成 Provider 和本机词本，真实学习／推荐 SPA 矩阵已通过。
 历史空响应原因仍未知，不删除失败记录。Mac 固定 Hosted 程序目录已更新，用户确认已重载；
 日常加载路径仍未由工具核验。详见 Mac 回执，Mac 通过不替代 Windows 条件或真实模型验证。
 
 2026-09-24 更新。影响平台为 shared Store 扩展与测试工具，目标验收平台为 Windows Chrome。
-最新产品构建的 Windows 100%／150% 学习流程、真实 BFCache、官网基础及扩展矩阵均已取得通过
-证据；官网显式字体权限与常见弹窗条件见回执，不能写成默认配置通过。最新候选本机整套门禁和
+该历史轮产品构建的 Windows 100%／150% 学习流程、真实 BFCache、官网基础及扩展矩阵均已取得通过
+证据；官网显式字体权限与常见弹窗条件见回执，不能写成默认配置通过。该历史候选本机整套门禁和
 准确代码候选的双平台 CI 已通过。用户已确认恢复 150%，日常 Chrome 的真实 YouTube 英文 CC 与
 快捷键正常。接续 Mac 准确提交 `cac6f62914ee182c0fdb19fcf788de6c454437c5` 后，本机隔离
 Chrome 已补齐真实 YouTube 划词、解释、收藏、暂停归属、CC 和推荐 SPA；临时中文仍受翻译字幕
@@ -23,7 +33,7 @@ Chrome 已补齐真实 YouTube 划词、解释、收藏、暂停归属、CC 和�
 DPR 1.5；未调用真实 Provider。后续显式非零端口和仅 Provider 拦截条件下已取得非空英文字幕，
 但不据此确定历史空响应根因，也不删除失败记录。
 
-最新接续另外修复了视频结束后末句残留，已用失败单测及实际 Store 浏览器复现；新产品构建的
+此前接续另外修复了视频结束后末句残留，已用失败单测及实际 Store 浏览器复现；新产品构建的
 150% 基础／扩展流程通过，100% 已在 `83c1ab0` 的相同 release 产物补验通过。不可把历史候选结果移用到新构建。
 后续 `6798083` 修复 Windows Hosted Store 构建入口，真实 Hosted／production 构建与三个 profile
 审计通过。`0e37df7` 的 macOS CI 成功，但 Windows 三项 Store 用例超时后作业被时限终止；
@@ -42,11 +52,11 @@ macOS 普通 Store 批次，原测试及 15 秒期限保留；准确 Mac CI 已�
 
 - 仓库：`https://github.com/Neil0619/huayi.git`。
 - 当前交接分支：`codex/asbplayer-windows-validation-fixes`。
-- 最新代码候选：`83c1ab0445bcc20e7018f2fdba85c7ee299afe99`；Git tree：
-  `f2b63d5cc5be4a3b2afdafdfabf9b710f369340c`，双平台 CI 状态见验证回执。
-- 上一 Mac CI 已通过候选：`2897154de5ee027609d31f7121685c10193fc3b0`，Windows 一项拖选失败。
-- 上一 Windows CI 已通过候选：`ad59af7a990dccda483042d486dee3409e6933f7`，macOS 构建单测超时。
-- 最新已通过双平台 CI 的代码候选即 `83c1ab0445bcc20e7018f2fdba85c7ee299afe99`；历史候选
+- 最新验证候选：`9a1d00b07be8c6fa21a18c7823af666ac4c4b429`；Git tree：
+  `488df112f6b7314641d51a96fd7ddced79baf60f`，准确 CI 状态见影视库扩测回执。
+- 更早 Mac CI 已通过候选：`2897154de5ee027609d31f7121685c10193fc3b0`，Windows 一项拖选失败。
+- 更早 Windows CI 已通过候选：`ad59af7a990dccda483042d486dee3409e6933f7`，macOS 构建单测超时。
+- 历史双平台 CI 通过候选为 `83c1ab0445bcc20e7018f2fdba85c7ee299afe99`；更早候选
   `b39449ee8e940701924dafe22769f73d82f7f1d2` 的结果另存。
 - Windows 接续输入：`codex/asbplayer-windows-validation` 的
   `c67405c7ff7562e950bf5b03dc46971c2c6f5b24`；更早实现基线为 `ce0110d4eacaef9a4b9cf7e903e1be85129af58d`。
@@ -66,7 +76,7 @@ macOS 普通 Store 批次，原测试及 15 秒期限保留；准确 Mac CI 已�
 网页。候选工作树的 `dist-release` 是独立测试产物，不作为长期加载路径；此前将它作为日常加载
 建议不正确。不要卸载已有条目或把 release 包复制成 Hosted 安装。
 
-2026-09-24 已从准确候选重新构建并审计 Hosted 包，备份原固定目录后更新，23 个文件名称与
+2026-09-24 后续已从 `a3eaf05` 重新构建并审计 Hosted 包，备份原固定目录后更新，23 个文件名称与
 SHA-256 全部匹配；隔离 Chrome 从该固定路径加载后读到正确 ID，asbplayer 设置可见、页面错误 0。
 日常 Chrome 尚未由代理重载，账号业务及 Hosted 官网完整矩阵未因此声称通过。主仓库源码与 main
 保持不变；候选尚未接续前，不从旧 main 重新构建覆盖该目录。详见

@@ -1,20 +1,23 @@
-# asbplayer Windows 开发验收回执
+# asbplayer Windows 历史开发验收回执
 
-2026-09-23 至 24 日，影响范围为 shared Store、测试工具与 Windows 验证。最新代码候选为
+2026-09-24 后续已新增产品修复 `a3eaf05`；最新候选、影视库扩测、当前门禁及固定安装状态见[影视库扩测与字幕修复回执](asbplayer-windows-library-validation.md)。
+以下内容保留 `83c1ab0` 及更早候选的历史结果，不直接代表新候选通过。
+
+2026-09-23 至 24 日，影响范围为 shared Store、测试工具与 Windows 验证。该历史轮代码候选为
 `83c1ab0`，固定 Windows 视觉测试的字体与合成环境；本机完整门禁已通过，浏览器 243/243，
 准确双平台 CI 也已通过，两端浏览器各 243/243。上一候选 `2897154` 的 Mac 完整 CI 已通过，Windows 浏览器 242 通过、
 一项 Classic 短语拖选失败；独立诊断两平台各 100 轮未复现，根因仍未确定。用户已确认日常 Chrome
 的 YouTube 英文 CC 和快捷键正常。接续 Mac `cac6f62` 后，Windows 隔离浏览器的真实英文学习、
 CC 和推荐 SPA 已补验通过，临时中文仍受翻译字幕 429 阻塞；用户影视画面与拆轨后学习通过，
 原 AC-3 音频未解码。详见 [本机影视与 YouTube 补测](asbplayer-windows-real-media-validation.md)。
-最新产品构建的 100% 实际 Store、真实 BFCache 和官网基础／扩展矩阵已补验通过，仍不能声明全部
+该历史轮产品构建的 100% 实际 Store、真实 BFCache 和官网基础／扩展矩阵已补验通过，仍不能声明全部
 验收通过。本次未合并 main、部署或发布商店版本。
 
 ## 候选与环境
 
 - 输入候选：`c67405c7ff7562e950bf5b03dc46971c2c6f5b24`，来自
   `https://github.com/Neil0619/huayi.git` 的 `codex/asbplayer-windows-validation`。
-- 最新代码候选：`83c1ab0445bcc20e7018f2fdba85c7ee299afe99`；Git tree：
+- 该历史轮代码候选：`83c1ab0445bcc20e7018f2fdba85c7ee299afe99`；Git tree：
   `f2b63d5cc5be4a3b2afdafdfabf9b710f369340c`。其后纯回执文档提交不等于 CI 验证过的源码 SHA。
 - 上一调度修复候选：`2897154de5ee027609d31f7121685c10193fc3b0`；Git tree：
   `910fc79b3e055c0f28e8ca7549c0d8e6ba9d5b24`。Mac 完整 CI 已通过，Windows 一项拖选失败。

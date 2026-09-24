@@ -1,4 +1,7 @@
-# Windows 本机影视与 YouTube 补测回执
+# Windows 本机影视与 YouTube 历史补测回执
+
+2026-09-24 后续已新增产品修复 `a3eaf05`；最新候选、影视库扩测、当前门禁及固定安装状态见[影视库扩测与字幕修复回执](asbplayer-windows-library-validation.md)。
+以下内容保留 `83c1ab0` 及更早候选的历史结果，不直接代表新候选通过。
 
 2026-09-24，接续 Mac 分支后在 Windows 本机执行。真实影视的画面与拆轨后的学习流程通过；
 原资源 AC-3 音频没有解码，原始 ASS 不能直接按单轨双语确认。真实 YouTube 首次学习、CC 开关
