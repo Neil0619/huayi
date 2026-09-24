@@ -3,12 +3,25 @@ import { test, type CDPSession, type Page } from "@playwright/test";
 // Opt-in CI diagnosis only: the ordinary quality gate retains its original execution.
 if (process.env.HUAYI_QUERY_TIMING_DIAGNOSTICS === "1") {
   const profilers = new WeakMap<Page, CDPSession>();
+  const timelines = new WeakMap<Page, unknown[]>();
   test.beforeEach(async ({ page }, info) => {
     if (!info.title.startsWith("keeps focus")) return;
     const profiler = await page.context().newCDPSession(page);
     profilers.set(page, profiler);
     await profiler.send("Profiler.enable");
     await profiler.send("Profiler.start");
+    if (info.repeatEachIndex === 0) {
+      const events: unknown[] = [];
+      timelines.set(page, events);
+      profiler.on("Tracing.dataCollected", (event: { value: unknown[] }) => {
+        events.push(...event.value);
+      });
+      await profiler.send("Tracing.start", {
+        categories:
+          "devtools.timeline,blink.user_timing,disabled-by-default-devtools.timeline,disabled-by-default-devtools.timeline.stack",
+        transferMode: "ReportEvents",
+      });
+    }
     await page.addInitScript(() => {
       const frames: { scheduled: number; fired: number; finished: number }[] = [];
       const layouts: { start: number; duration: number; element: string }[] = [];
@@ -58,6 +71,18 @@ if (process.env.HUAYI_QUERY_TIMING_DIAGNOSTICS === "1") {
         contentType: "application/json",
         body: JSON.stringify(profile),
       });
+      const events = timelines.get(page);
+      if (events) {
+        const complete = new Promise<void>((resolve) => {
+          profiler.once("Tracing.tracingComplete", () => resolve());
+        });
+        await profiler.send("Tracing.end");
+        await complete;
+        await info.attach("query-rendering-timeline", {
+          contentType: "application/json",
+          body: JSON.stringify({ traceEvents: events }),
+        });
+      }
       await profiler.detach();
     }
     const timing = await page.evaluate(() => ({
