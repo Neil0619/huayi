@@ -2,6 +2,19 @@ import type { AsbplayerCue } from "./asbplayer-snapshot.js";
 import type { LocalCue } from "../subtitles/local-subtitles.js";
 const HAN = /\p{Script=Han}/u;
 const LATIN = /[A-Za-z]/u;
+export function suggestAsbplayerTracks(cues: readonly AsbplayerCue[]) {
+  const tracks = [...new Set(cues.map((cue) => cue.track))];
+  const bilingual = tracks.filter((track) => prepareAsbplayerTracks(cues, track, track));
+  if (tracks.length === 1 && bilingual.length === 1)
+    return { english: tracks[0], chinese: tracks[0] };
+  const english = tracks.filter((track) => prepareAsbplayerTracks(cues, track, null));
+  const chinese = tracks.filter((track) => {
+    const texts = cues.filter((cue) => cue.track === track && cue.text.trim());
+    return texts.length > 0 && texts.every((cue) => HAN.test(cue.text));
+  });
+  if (english.length !== 1 || chinese.length > 1 || bilingual.length) return null;
+  return { english: english[0], chinese: chinese[0] ?? null };
+}
 export function describeAsbplayerTracks(cues: readonly AsbplayerCue[]) {
   const tracks = new Map<number, string>();
   for (const cue of cues) {

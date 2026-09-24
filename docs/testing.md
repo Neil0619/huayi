@@ -421,3 +421,10 @@ fail-closed 行为。Windows CI 会实际产出并运行 SEA `.exe` 的 health �
 旧值保护、损坏状态与写入不确定性。`scripts/macos-keychain-prompt.test.mjs` 覆盖长 Unicode 内容
 无损传输，以及 macOS 系统 `security -i` 对 Node stdin 的实际兼容性；该本机检查仅查看命令帮助，
 不读取或创建 Keychain 条目。真实正式密钥生成与回读单独保存在发布回执中。
+
+## asbplayer 原视频打开器
+
+影响 shared + Windows。独立本机 Node/FFmpeg 工具负责只读原媒体、音轨准备和文字字幕提取，
+Store 内容脚本负责一次性受限文件导入，不改变 Classic Host、Native Messaging 或 Chrome 权限。
+配置、信任边界、缓存管理和分层验收见 [Windows 原视频打开器](cloud-v1/asbplayer-local-opener.md)。
+原生文件选择与启动器必须在 Windows 实测；双平台单元测试不替代这些系统集成检查。

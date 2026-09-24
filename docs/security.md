@@ -483,3 +483,10 @@ Hosted ID 和其他 ID，禁用时必须移除 ID。Hosted ID `hoijjhgcckfhbcefo
 不放宽 origin、CORS 或配对校验。跨 ID 的本机存储、设备凭据和会话不会自动迁移，须保留旧数据。
 本地绑定不证明远端配置/部署、浏览器安装或账号配对已完成，见
 [商店身份绑定](store-v1/chrome-first-upload.md)及[Cloud 安全边界](cloud-v1/security.md)。
+
+## asbplayer 原视频打开器
+
+影响 shared + Windows。独立本机 Node/FFmpeg 工具负责只读原媒体、音轨准备和文字字幕提取，
+Store 内容脚本负责一次性受限文件导入，不改变 Classic Host、Native Messaging 或 Chrome 权限。
+配置、信任边界、缓存管理和分层验收见 [Windows 原视频打开器](cloud-v1/asbplayer-local-opener.md)。
+原生文件选择与启动器必须在 Windows 实测；双平台单元测试不替代这些系统集成检查。

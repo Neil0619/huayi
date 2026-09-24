@@ -2,7 +2,7 @@ import type { StoreAppearance } from "@huayi/store-domain";
 import { setSubtitleAppearance } from "../subtitles/subtitle-appearance.js";
 import type { LocalSentence } from "../subtitles/local-subtitles.js";
 import type { AsbplayerCue } from "./asbplayer-snapshot.js";
-import { describeAsbplayerTracks } from "./asbplayer-tracks.js";
+import { describeAsbplayerTracks, suggestAsbplayerTracks } from "./asbplayer-tracks.js";
 export type LearningStatus =
   "waiting-full-snapshot" | "waiting-tracks" | "usable" | "native-subtitles" | "invalidated";
 const STYLES = `[data-huayi-asbplayer-active] .asbplayer-subtitles{visibility:hidden!important}
@@ -32,7 +32,6 @@ export class AsbplayerPresentation implements PresentationHost {
   private pinned: boolean;
   private holding = false;
   private chineseReady = false;
-  private key = "";
   private trackCues: readonly AsbplayerCue[] | null = null;
   private sentences: readonly LocalSentence[] = [];
   constructor(
@@ -171,9 +170,6 @@ export class AsbplayerPresentation implements PresentationHost {
       if (cues === this.trackCues) return;
       this.trackCues = cues;
       const tracks = describeAsbplayerTracks(cues);
-      const key = JSON.stringify(tracks);
-      if (key === this.key) return;
-      this.key = key;
       this.en.replaceChildren();
       this.zh.replaceChildren();
       const none = this.doc.createElement("option");
@@ -187,6 +183,11 @@ export class AsbplayerPresentation implements PresentationHost {
           option.textContent = track.label;
           select.append(option);
         }
+      const suggestion = suggestAsbplayerTracks(cues);
+      if (suggestion) {
+        this.en.value = String(suggestion.english);
+        this.zh.value = suggestion.chinese === null ? "none" : String(suggestion.chinese);
+      }
     }
   }
   render(sentences: readonly LocalSentence[], chinese: string | null, chineseReady: boolean): void {

@@ -234,3 +234,10 @@ Windows 发布前仍须运行 `pnpm verify:windows`，并在获准更新的同�
 只运行 `security -i` 的帮助命令，验证 Node socket 输入兼容性，不访问实际 Keychain 条目。
 Windows 跳过这一个 macOS 系统原语，其余序列化、失败关闭、隔离和进程测试在双平台运行。
 正式初始化另有本机生成与完整回读验收，不能用 CI 的虚构密钥结果代替。
+
+## asbplayer 原视频打开器
+
+影响 shared + Windows。独立本机 Node/FFmpeg 工具负责只读原媒体、音轨准备和文字字幕提取，
+Store 内容脚本负责一次性受限文件导入，不改变 Classic Host、Native Messaging 或 Chrome 权限。
+配置、信任边界、缓存管理和分层验收见 [Windows 原视频打开器](cloud-v1/asbplayer-local-opener.md)。
+原生文件选择与启动器必须在 Windows 实测；双平台单元测试不替代这些系统集成检查。

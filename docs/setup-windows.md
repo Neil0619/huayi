@@ -246,3 +246,10 @@ Chrome 加载入口，也不从旧 main 重建覆盖最新安装。程序文件�
 - [PowerShell Export-Clixml 与 DPAPI](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.utility/export-clixml)
 - [Node.js Single Executable Applications](https://nodejs.org/api/single-executable-applications.html)
 - [欧路生词本 API](https://my.eudic.net/OpenAPI/doc_api_study)
+
+## asbplayer 原视频打开器
+
+影响 shared + Windows。独立本机 Node/FFmpeg 工具负责只读原媒体、音轨准备和文字字幕提取，
+Store 内容脚本负责一次性受限文件导入，不改变 Classic Host、Native Messaging 或 Chrome 权限。
+配置、信任边界、缓存管理和分层验收见 [Windows 原视频打开器](cloud-v1/asbplayer-local-opener.md)。
+原生文件选择与启动器必须在 Windows 实测；双平台单元测试不替代这些系统集成检查。

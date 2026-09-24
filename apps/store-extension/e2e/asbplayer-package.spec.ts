@@ -61,6 +61,7 @@ test("registered Store worlds complete the local-video learning flow across fram
     await broadcast(page, { command: "subtitles", value: cues });
     await broadcast(page, { command: "offset", value: 0 });
     await expect(frame.locator(learning)).toHaveAttribute("data-state", "waiting-tracks");
+    await frame.getByRole("combobox", { name: "中文轨道" }).selectOption("none");
     await frame.locator("[data-confirm-tracks]").click();
     await expect(frame.locator(learning)).toContainText("未加载中文字幕");
 
@@ -156,6 +157,7 @@ test("actual Store settings reach every frame and invalid input restores origina
     await broadcast(page, { command: "subtitles", value: cues });
     await broadcast(page, { command: "offset", value: 0 });
     await expect(frame.locator(learning)).toHaveAttribute("data-state", "waiting-tracks");
+    await frame.getByRole("combobox", { name: "中文轨道" }).selectOption("none");
     await frame.locator("[data-confirm-tracks]").click();
     await expect(frame.locator(learning)).toContainText("未加载中文字幕");
     await broadcast(page, {
