@@ -2,7 +2,11 @@ import { test, type CDPSession, type Page } from "@playwright/test";
 
 // Opt-in CI diagnosis only: the ordinary quality gate retains its original execution.
 if (process.env.HUAYI_QUERY_TIMING_DIAGNOSTICS === "1") {
-  test.use({ headless: process.env.HUAYI_QUERY_HEADFUL_DIAGNOSTIC !== "1" });
+  test.use({
+    headless: process.env.HUAYI_QUERY_HEADFUL_DIAGNOSTIC !== "1",
+    launchOptions:
+      process.env.HUAYI_QUERY_SOFTWARE_RENDERING === "1" ? { args: ["--disable-gpu"] } : {},
+  });
   const profilers = new WeakMap<Page, CDPSession>();
   const timelines = new WeakMap<Page, unknown[]>();
   test.beforeEach(async ({ page }, info) => {
@@ -107,5 +111,16 @@ if (process.env.HUAYI_QUERY_TIMING_DIAGNOSTICS === "1") {
       contentType: "application/json",
       body: JSON.stringify(timing),
     });
+    if (info.repeatEachIndex === 0) {
+      const browser = page.context().browser();
+      if (!browser) throw new Error("GPU diagnosis requires an owned browser");
+      const inspector = await browser.newBrowserCDPSession();
+      const { gpu } = await inspector.send("SystemInfo.getInfo");
+      await info.attach("query-gpu-environment", {
+        contentType: "application/json",
+        body: JSON.stringify(gpu),
+      });
+      await inspector.detach();
+    }
   });
 }
