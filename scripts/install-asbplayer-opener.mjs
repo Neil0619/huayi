@@ -1,7 +1,10 @@
 import { access, copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
-import { spawn } from "node:child_process";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+
+import { createMediaOpenerShortcut } from "./asbplayer-windows-shortcut.mjs";
+
+export { createMediaOpenerShortcut };
 
 const sourceDirectory = dirname(fileURLToPath(import.meta.url));
 const scripts = [
@@ -12,7 +15,7 @@ const scripts = [
 ];
 const launcher = `$ErrorActionPreference = 'Stop'
 $configPath = Join-Path $PSScriptRoot 'config.json'
-$config = Get-Content -LiteralPath $configPath -Raw | ConvertFrom-Json
+$config = Get-Content -LiteralPath $configPath -Raw -Encoding UTF8 | ConvertFrom-Json
 $entry = Join-Path $PSScriptRoot 'asbplayer-open.mjs'
 $arguments = @(('"' + $entry + '"'), ('"' + $configPath + '"'))
 Start-Process -FilePath $config.node -ArgumentList $arguments -WindowStyle Hidden
@@ -56,51 +59,6 @@ export async function installUserMediaOpener({ userProfile, localAppData, config
       (await readConfiguration(destination)) ??
       (await readConfiguration(previousDestination)) ??
       config,
-  });
-}
-
-export async function createMediaOpenerShortcut({
-  destination,
-  previousDestination,
-  desktopDirectory,
-  launch = spawn,
-}) {
-  const command = `$ErrorActionPreference = 'Stop'
-$root = $env:SEEN_SAID_INSTALL_ROOT
-$target = Join-Path $env:SystemRoot 'System32\\WindowsPowerShell\\v1.0\\powershell.exe'
-function Get-LauncherArguments([string]$directory) {
-  return '-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "' + (Join-Path $directory '打开语见本机视频.ps1') + '"'
-}
-$arguments = Get-LauncherArguments $root
-$previousArguments = Get-LauncherArguments $env:SEEN_SAID_PREVIOUS_ROOT
-$desktop = if ($env:SEEN_SAID_DESKTOP) { $env:SEEN_SAID_DESKTOP } else { [Environment]::GetFolderPath('Desktop') }
-$path = Join-Path $desktop '语见本机视频.lnk'
-$shell = New-Object -ComObject WScript.Shell
-$shortcut = $shell.CreateShortcut($path)
-if ((Test-Path -LiteralPath $path) -and (($shortcut.TargetPath -ine $target) -or (($shortcut.Arguments -cne $arguments) -and ($shortcut.Arguments -cne $previousArguments)))) {
-  throw 'Existing shortcut belongs to another installation'
-}
-$shortcut.TargetPath = $target
-$shortcut.Arguments = $arguments
-$shortcut.WorkingDirectory = $root
-$shortcut.Description = '语见：打开原视频并自动准备音轨和字幕'
-$shortcut.Save()`;
-  await new Promise((resolvePromise, reject) => {
-    const child = launch("powershell.exe", ["-NoProfile", "-Command", command], {
-      shell: false,
-      windowsHide: true,
-      stdio: "ignore",
-      env: {
-        ...process.env,
-        SEEN_SAID_INSTALL_ROOT: destination,
-        SEEN_SAID_PREVIOUS_ROOT: previousDestination ?? destination,
-        SEEN_SAID_DESKTOP: desktopDirectory ?? "",
-      },
-    });
-    child.once("error", reject);
-    child.once("exit", (code) =>
-      code === 0 ? resolvePromise() : reject(new Error("快捷方式创建失败，未替换其他安装入口。")),
-    );
   });
 }
 

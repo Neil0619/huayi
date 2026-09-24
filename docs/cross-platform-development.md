@@ -250,3 +250,7 @@ Windows 打开器的安装根使用 `%USERPROFILE%\SeenSaid\asbplayer-opener`，
 虚拟化。安装路径和配置迁移契约由双平台测试覆盖；`.lnk` 迁移与实际 PowerShell 启动由 Windows
 原生测试覆盖。还须从资源管理器验证用户可见的快捷方式；不能把安装进程继承环境中的成功当作通过。
 macOS 原生打开器仍未实现，新安装目录不改变扩展路径或 Classic Host 安装。
+
+快捷方式必须使用 `IShellLinkW` 与 `IPersistFile` 的 Unicode 路径持久化；不能依赖系统 ANSI
+代码页能够表示中文名称。Windows 原生回归同时覆盖含代码页外字符的桌面目录与 Node 路径，
+并通过真实 `.lnk` 启动验证 UTF-8 配置读取，英文 Windows CI 与中文本机都须通过。

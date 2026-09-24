@@ -440,3 +440,7 @@ Store 内容脚本负责一次性受限文件导入，不改变 Classic Host、N
 生成的 PowerShell 启动脚本，断言 Node 收到准确配置路径；同名无关入口必须保持原样。
 该原生 Shell 测试在非 Windows 明确跳过。MSIX 文件虚拟化需要额外从资源管理器启动实测，
 开发进程启动成功不能替代；见 [桌面启动回执](cloud-v1/asbplayer-windows-launcher-validation.md)。
+
+原生快捷方式回归还使用系统 ANSI 代码页无法表示的桌面目录、中文和特殊字符的 Node 路径。
+真实 `.lnk` 必须完成创建、迁移和启动；不改变系统语言，不用 ASCII 夹具隐藏英文 Windows
+上的中文名称保存失败。配置明确采用 UTF-8，回归断言实际子进程收到准确配置路径。

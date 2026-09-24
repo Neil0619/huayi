@@ -260,3 +260,6 @@ Store 内容脚本负责一次性受限文件导入，不改变 Classic Host、N
 固定安装目录为 `%USERPROFILE%\SeenSaid\asbplayer-opener`。旧 AppData 安装的配置会在首次迁移时
 保留；之后重复更新沿用新目录配置和原缓存。使用 MSIX 开发应用时，AppData 写入可能被重定向到
 应用私有目录，因此必须从资源管理器实际启动桌面快捷方式验证，不能只在安装命令所在进程中启动。
+
+快捷方式通过 Windows Unicode Shell 接口保存，支持中文及其他 Unicode 桌面目录；
+启动器明确按 UTF-8 读取配置，因此工具安装路径也可以包含中文、空格和代码页外字符。

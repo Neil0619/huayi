@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { mkdir, mkdtemp, readFile, writeFile, rm } from "node:fs/promises";
+import { copyFile, mkdir, mkdtemp, readFile, writeFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { execFile, spawn } from "node:child_process";
@@ -24,10 +24,16 @@ test(
   async () => {
     const root = await mkdtemp(join(tmpdir(), "seen-said-shortcut-test-"));
     try {
+      const desktopDirectory = join(root, "desktop-\u{1f9ea}");
+      await mkdir(desktopDirectory);
+      const nodeDirectory = join(root, "工具 \u{1f9ea}");
+      await mkdir(nodeDirectory);
+      const nodePath = join(nodeDirectory, "node.exe");
+      await copyFile(process.execPath, nodePath);
       const destination = join(root, "用户 profile", "SeenSaid", "asbplayer-opener");
       const previousDestination = join(root, "AppData", "Local", "SeenSaid", "asbplayer-opener");
       const config = {
-        node: process.execPath,
+        node: nodePath,
         ffmpeg: process.execPath,
         ffprobe: process.execPath,
         chrome: process.execPath,
@@ -59,9 +65,9 @@ test(
           throw new Error(`Native shortcut fixture failed: ${diagnostic}`, { cause: error });
         }
       };
-      await createShortcut({ destination: previousDestination, desktopDirectory: root });
-      await createShortcut({ destination, previousDestination, desktopDirectory: root });
-      const link = join(root, "语见本机视频.lnk");
+      await createShortcut({ destination: previousDestination, desktopDirectory });
+      await createShortcut({ destination, previousDestination, desktopDirectory });
+      const link = join(desktopDirectory, "语见本机视频.lnk");
       await runFile(
         "powershell.exe",
         [
@@ -76,7 +82,7 @@ test(
       ]);
       const originalLink = await readFile(link);
       await assert.rejects(
-        createMediaOpenerShortcut({ destination: join(root, "unrelated"), desktopDirectory: root }),
+        createMediaOpenerShortcut({ destination: join(root, "unrelated"), desktopDirectory }),
       );
       assert.deepEqual(await readFile(link), originalLink);
     } finally {
