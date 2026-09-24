@@ -1,11 +1,21 @@
 # asbplayer Windows Git 接续说明
 
+2026-09-24 新增原 MKV 本机打开器，最新代码候选为
+`b8447467e7efc90ce217a81097fd68976b726ba1`。支持自动准备兼容音轨、提取内嵌文字字幕、
+预选明确的中英文轨道及从播放器换片；音乐符号不再使整个英文字幕失效。
+准确门禁、150% 真实文件结果、稳定安装及未验证项见
+[原 MKV 打开器验证回执](asbplayer-windows-opener-validation.md)，使用步骤见
+[Windows 原视频打开器](asbplayer-local-opener.md)。新界面的 100%、原生文件选择和桌面快捷方式交互仍待实机验证，
+不能沿用下方旧候选的 100% 通过结果。
+
+## 历史影视库扩测（9a1d00b 及更早候选）
+
 2026-09-24 影视库扩测已形成产品修复 `a3eaf05855b6cbebd4ff945a19c122fa71549f5d`，
 修复原 ASS 中个别片头／混排 cue 使整份文件不能确认的问题，并补充空字幕提示。
-最新验证候选 `9a1d00b07be8c6fa21a18c7823af666ac4c4b429` 另修复 CI 样片录制等待问题，产品源码不变。
+当轮验证候选 `9a1d00b07be8c6fa21a18c7823af666ac4c4b429` 另修复 CI 样片录制等待问题，产品源码不变。
 该准确候选的 Windows／macOS 完整 CI 均通过，两端浏览器各 246/246；Windows 产品已完成本机
 100%／150% 验证，新增 shared 行为仍需 Mac 实机复验。
-当前验证状态、9 个原文件与 4 个 AAC 副本的边界、固定加载目录更新见[影视库扩测与字幕修复回执](asbplayer-windows-library-validation.md)。
+该轮验证状态、9 个原文件与 4 个 AAC 副本的边界、固定加载目录更新见[影视库扩测与字幕修复回执](asbplayer-windows-library-validation.md)。
 普通下载资源不能仅凭文件后缀保证音轨和文本字幕兼容；没有新增转码或 OCR，也未发布。
 
 同日后续针对用户指定的另一原文件复现了 AC-3 无音频解码、内嵌 SRT 未进入网页学习层，
@@ -56,8 +66,9 @@ macOS 普通 Store 批次，原测试及 15 秒期限保留；准确 Mac CI 已�
 
 - 仓库：`https://github.com/Neil0619/huayi.git`。
 - 当前交接分支：`codex/asbplayer-windows-validation-fixes`。
-- 最新验证候选：`9a1d00b07be8c6fa21a18c7823af666ac4c4b429`；Git tree：
-  `488df112f6b7314641d51a96fd7ddced79baf60f`，准确 CI 状态见影视库扩测回执。
+- 最新代码候选：`b8447467e7efc90ce217a81097fd68976b726ba1`；Git tree：
+  `60eb7175162771ab1477e636236184ae895ef43b`，准确 CI 状态见原 MKV 打开器回执。
+- 历史影视库候选 `9a1d00b07be8c6fa21a18c7823af666ac4c4b429` 的结果见影视库扩测回执。
 - 更早 Mac CI 已通过候选：`2897154de5ee027609d31f7121685c10193fc3b0`，Windows 一项拖选失败。
 - 更早 Windows CI 已通过候选：`ad59af7a990dccda483042d486dee3409e6933f7`，macOS 构建单测超时。
 - 历史双平台 CI 通过候选为 `83c1ab0445bcc20e7018f2fdba85c7ee299afe99`；更早候选
@@ -80,7 +91,9 @@ macOS 普通 Store 批次，原测试及 15 秒期限保留；准确 Mac CI 已�
 网页。候选工作树的 `dist-release` 是独立测试产物，不作为长期加载路径；此前将它作为日常加载
 建议不正确。不要卸载已有条目或把 release 包复制成 Hosted 安装。
 
-2026-09-24 后续已从 `a3eaf05` 重新构建并审计 Hosted 包，备份原固定目录后更新，23 个文件名称与
+本轮固定目录更新及打开器快捷方式状态见 [原 MKV 打开器回执](asbplayer-windows-opener-validation.md)。
+
+历史上已从 `a3eaf05` 重新构建并审计 Hosted 包，备份原固定目录后更新，23 个文件名称与
 SHA-256 全部匹配；隔离 Chrome 从该固定路径加载后读到正确 ID，asbplayer 设置可见、页面错误 0。
 日常 Chrome 尚未由代理重载，账号业务及 Hosted 官网完整矩阵未因此声称通过。主仓库源码与 main
 保持不变；候选尚未接续前，不从旧 main 重新构建覆盖该目录。详见
