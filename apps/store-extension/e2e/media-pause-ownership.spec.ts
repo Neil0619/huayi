@@ -93,7 +93,9 @@ for (const userIntervenes of [false, true]) {
       expect(result.paused).toBe(userIntervenes);
       if (!userIntervenes)
         await expect
-          .poll(() => page.locator("video").evaluate((video) => video.currentTime))
+          .poll(() =>
+            page.locator("video").evaluate((video) => (video as HTMLVideoElement).currentTime),
+          )
           .toBeGreaterThan(result.time);
     },
   );
