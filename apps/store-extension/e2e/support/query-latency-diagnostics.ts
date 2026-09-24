@@ -19,7 +19,7 @@ if (process.env.HUAYI_QUERY_TIMING_DIAGNOSTICS === "1") {
       });
       await profiler.send("Tracing.start", {
         categories:
-          "devtools.timeline,blink.user_timing,disabled-by-default-devtools.timeline,disabled-by-default-devtools.timeline.stack",
+          "devtools.timeline,blink.user_timing,fonts,disabled-by-default-devtools.timeline,disabled-by-default-devtools.timeline.stack",
         transferMode: "ReportEvents",
       });
     }

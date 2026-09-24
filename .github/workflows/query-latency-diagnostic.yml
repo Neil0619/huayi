@@ -42,7 +42,7 @@ jobs:
         run: |
           pnpm exec playwright install chrome
           pnpm exec playwright install chromium
-      - name: Compare headed Chrome with original assertions and zero retries
+      - name: Trace native font work with original assertions and zero retries
         env:
           HUAYI_QUERY_TIMING_DIAGNOSTICS: "1"
           HUAYI_QUERY_HEADFUL_DIAGNOSTIC: "1"
