@@ -12,12 +12,16 @@ timedtext 200／0 字节；同日后续原生访客和普通启动 CfT 字幕正
 最新产品构建的 Windows 100%／150% 学习流程、真实 BFCache、官网基础及扩展矩阵均已取得通过
 证据；官网显式字体权限与常见弹窗条件见回执，不能写成默认配置通过。最新候选本机整套门禁和
 准确代码候选的双平台 CI 已通过。用户已确认恢复 150%，日常 Chrome 的真实 YouTube 英文 CC 与
-快捷键正常；隔离环境的完整实站学习、SPA 和字幕切换仍未验证。当前结果与范围见
-[Windows 验证回执](asbplayer-windows-validation.md)，不表示全部验收或发布完成。
+快捷键正常。接续 Mac 准确提交 `cac6f62914ee182c0fdb19fcf788de6c454437c5` 后，本机隔离
+Chrome 已补齐真实 YouTube 划词、解释、收藏、暂停归属、CC 和推荐 SPA；临时中文仍受翻译字幕
+429 阻塞。用户影视的画面与拆轨后学习通过，原 AC-3 音频未解码、原 ASS 不能直接单轨确认。
+本次新增实测为实际 100%，详见 [本机影视与 YouTube 补测](asbplayer-windows-real-media-validation.md)；
+既有门禁及历史条件见 [Windows 验证回执](asbplayer-windows-validation.md)，不表示全部验收或发布完成。
 
-用户提供的视频已在实际 release／Chrome 149 与无扩展、无请求拦截的本机 Chrome 153 干净配置
+较早的用户视频对照曾在实际 release／Chrome 149 与无扩展、无请求拦截的本机 Chrome 153 干净配置
 中复核：均能播放、CC 已开，但英文 timedtext HTTP 200／0 字节，原生字幕仍缺失。两项均实读
-DPR 1.5；未调用真实 Provider。此隔离环境阻塞不否定用户日常 Chrome 的正常反馈，具体原因未定。
+DPR 1.5；未调用真实 Provider。后续显式非零端口和仅 Provider 拦截条件下已取得非空英文字幕，
+但不据此确定历史空响应根因，也不删除失败记录。
 
 最新接续另外修复了视频结束后末句残留，已用失败单测及实际 Store 浏览器复现；新产品构建的
 150% 基础／扩展流程通过，100% 已在 `83c1ab0` 的相同 release 产物补验通过。不可把历史候选结果移用到新构建。
