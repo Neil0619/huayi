@@ -35,7 +35,11 @@
   color: var(--overlay-text);
   background: var(--material-fill);
   box-shadow: var(--overlay-shadow);
-  font: 15px/1.5 system-ui;
+  font:
+    15px/1.5 system-ui,
+    "PingFang SC",
+    "Microsoft YaHei",
+    sans-serif;
   backdrop-filter: blur(var(--material-blur)) saturate(118%);
 }
 
