@@ -40,7 +40,7 @@ jobs:
         run: |
           pnpm exec playwright install chrome
           pnpm exec playwright install chromium
-      - name: Repeat the original query tests without retries or relaxed thresholds
+      - name: Diagnose original query timing with CPU profiles and unchanged thresholds
         env:
           HUAYI_QUERY_TIMING_DIAGNOSTICS: "1"
           PLAYWRIGHT_JSON_OUTPUT_NAME: artifacts/query-latency-diagnosis/results.json

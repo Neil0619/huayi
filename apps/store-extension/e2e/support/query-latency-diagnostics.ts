@@ -1,9 +1,14 @@
-import { test } from "@playwright/test";
+import { test, type CDPSession, type Page } from "@playwright/test";
 
 // Opt-in CI diagnosis only: the ordinary quality gate retains its original execution.
 if (process.env.HUAYI_QUERY_TIMING_DIAGNOSTICS === "1") {
+  const profilers = new WeakMap<Page, CDPSession>();
   test.beforeEach(async ({ page }, info) => {
     if (!info.title.startsWith("keeps focus")) return;
+    const profiler = await page.context().newCDPSession(page);
+    profilers.set(page, profiler);
+    await profiler.send("Profiler.enable");
+    await profiler.send("Profiler.start");
     await page.addInitScript(() => {
       const frames: { scheduled: number; fired: number; finished: number }[] = [];
       const layouts: { start: number; duration: number; element: string }[] = [];
@@ -46,6 +51,15 @@ if (process.env.HUAYI_QUERY_TIMING_DIAGNOSTICS === "1") {
 
   test.afterEach(async ({ page }, info) => {
     if (!info.title.startsWith("keeps focus")) return;
+    const profiler = profilers.get(page);
+    if (profiler) {
+      const { profile } = await profiler.send("Profiler.stop");
+      await info.attach("query-cpu-profile", {
+        contentType: "application/json",
+        body: JSON.stringify(profile),
+      });
+      await profiler.detach();
+    }
     const timing = await page.evaluate(() => ({
       diagnostics: Reflect.get(window, "__seenSaidQueryTiming"),
       visibility: document.visibilityState,
