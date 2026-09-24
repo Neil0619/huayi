@@ -7,6 +7,10 @@
 快捷键正常；隔离环境的完整实站学习、SPA 和字幕切换仍未验证。当前结果与范围见
 [Windows 验证回执](asbplayer-windows-validation.md)，不表示全部验收或发布完成。
 
+用户提供的视频已在实际 release／Chrome 149 与无扩展、无请求拦截的本机 Chrome 153 干净配置
+中复核：均能播放、CC 已开，但英文 timedtext HTTP 200／0 字节，原生字幕仍缺失。两项均实读
+DPR 1.5；未调用真实 Provider。此隔离环境阻塞不否定用户日常 Chrome 的正常反馈，具体原因未定。
+
 最新接续另外修复了视频结束后末句残留，已用失败单测及实际 Store 浏览器复现；新产品构建的
 150% 基础／扩展流程通过，100% 已在 `83c1ab0` 的相同 release 产物补验通过。不可把历史候选结果移用到新构建。
 后续 `6798083` 修复 Windows Hosted Store 构建入口，真实 Hosted／production 构建与三个 profile
