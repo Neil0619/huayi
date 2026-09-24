@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { copyFile, mkdir, mkdtemp, readFile, writeFile, rm } from "node:fs/promises";
+import { copyFile, mkdir, mkdtemp, readFile, realpath, writeFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { execFile, spawn } from "node:child_process";
@@ -77,8 +77,9 @@ test(
         ],
         { windowsHide: true, env: { ...process.env, SEEN_SAID_TEST_LINK: link }, timeout: 15000 },
       );
+      // Windows PowerShell expands 8.3 aliases in $PSScriptRoot (e.g. RUNNER~1).
       assert.deepEqual(JSON.parse(await readFile(join(destination, "launched.json"), "utf8")), [
-        join(destination, "config.json"),
+        await realpath(join(destination, "config.json")),
       ]);
       const originalLink = await readFile(link);
       await assert.rejects(
