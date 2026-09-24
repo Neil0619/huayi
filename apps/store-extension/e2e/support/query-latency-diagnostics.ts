@@ -2,6 +2,7 @@ import { test, type CDPSession, type Page } from "@playwright/test";
 
 // Opt-in CI diagnosis only: the ordinary quality gate retains its original execution.
 if (process.env.HUAYI_QUERY_TIMING_DIAGNOSTICS === "1") {
+  test.use({ headless: process.env.HUAYI_QUERY_HEADFUL_DIAGNOSTIC !== "1" });
   const profilers = new WeakMap<Page, CDPSession>();
   const timelines = new WeakMap<Page, unknown[]>();
   test.beforeEach(async ({ page }, info) => {
@@ -86,6 +87,7 @@ if (process.env.HUAYI_QUERY_TIMING_DIAGNOSTICS === "1") {
       await profiler.detach();
     }
     const timing = await page.evaluate(() => ({
+      userAgent: navigator.userAgent,
       diagnostics: Reflect.get(window, "__seenSaidQueryTiming"),
       visibility: document.visibilityState,
       focused: document.hasFocus(),
