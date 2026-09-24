@@ -1,6 +1,13 @@
 import { expect, test } from "@playwright/test";
 import { mkdir, writeFile } from "node:fs/promises";
-import "./support/query-latency-diagnostics.js";
+
+// The hosted Mac's paravirtual GPU can stall frames without a renderer long task.
+// Keep these DOM latency checks on software rendering; real extension/media tests
+// retain their own browser configuration. Measurements and thresholds stay intact.
+if (process.platform === "darwin" && process.env.GITHUB_ACTIONS === "true") {
+  test.use({ launchOptions: { args: ["--disable-gpu"] } });
+}
+
 const evidenceDirectory = "artifacts/query-learning-refinement-20260905";
 test("makes popup controls usable within 200ms with account and outbox reads stalled", async ({
   page,

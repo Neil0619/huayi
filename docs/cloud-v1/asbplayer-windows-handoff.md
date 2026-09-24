@@ -1,6 +1,14 @@
 # asbplayer Windows Git 接续说明
 
-2026-09-25 最新桌面入口候选为 `768c9583a9d1ec778142ac1b37890d7da5172e70`，核心修复
+2026-09-25 正在进行用户授权的合并前全面检查，当前工作分支仍为
+`codex/asbplayer-windows-validation-fixes`。此轮补齐 Unicode 快捷方式、PowerShell 5.1
+UTF-8 配置读取、损坏缓存、原生媒体事件竞态和中文系统字体修复。准确候选、最新门禁、
+实际 Store/官网/影视库验证和剩余边界统一见 [合并前全面检查回执](asbplayer-final-review.md)。
+该回执未确认最终门禁和合并前，不把下方历史通过结果移用于当前候选。
+
+## 历史桌面入口验证
+
+2026-09-25 当轮桌面入口候选为 `768c9583a9d1ec778142ac1b37890d7da5172e70`，核心修复
 `b13923670ce9b2c4c24a9e05f56b593fd70cf712` 解决 MSIX
 AppData 文件虚拟化使资源管理器看不到启动脚本的问题。固定打开器目录改为
 `%USERPROFILE%\SeenSaid\asbplayer-opener`，保留旧配置和媒体缓存；扩展路径与 ID 不变。
@@ -79,7 +87,7 @@ macOS 普通 Store 批次，原测试及 15 秒期限保留；准确 Mac CI 已�
 
 - 仓库：`https://github.com/Neil0619/huayi.git`。
 - 当前交接分支：`codex/asbplayer-windows-validation-fixes`。
-- 最新代码候选：`d8a580afcc1738646180074047ac20c6a33fd374`；Git tree：
+- 历史原生选片窗口候选：`d8a580afcc1738646180074047ac20c6a33fd374`；Git tree：
   `866315ec79a2ab652c01105f67a33dc71837714c`，准确 CI 状态见原生选片窗口修复回执。
 - 原完整学习流程候选：`b8447467e7efc90ce217a81097fd68976b726ba1`；Git tree：
   `60eb7175162771ab1477e636236184ae895ef43b`，结果见原 MKV 打开器回执。
