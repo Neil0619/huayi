@@ -54,6 +54,16 @@ CPU 热点移到了下一处几何读取（visualViewport），说明只缓存 R
 （线程执行 72.1 ms）。因此这次通过不能证明问题已修复，窗口模式也没有消除布局停顿；
 继续在相同配置追踪原生字体处理，不变更产品代码、断言、重试或性能门槛。
 
+[字体时间线](https://github.com/Neil0619/huayi/actions/runs/36062661047) 对应 `d77321a`，9/10；
+增量显示 297.1 ms 失败。原生 `FontCache::FallbackFontForCharacter` 一次耗时 147.2 ms
+（线程执行 59.3 ms），确认长布局中存在系统字体回退成本。
+`c92571d8c01d554c246842de0e9ef6fa1ecb2e12` 为词卡正式与备用样式补上明确的中文系统字体栈：
+保留 `system-ui` 为首选，再列出 `PingFang SC`、`Microsoft YaHei`、`sans-serif`。
+原有性能回归先失败；修复后 106 项词卡单元与 Windows 原两项浏览器测试通过。
+[相同字体时间线对比](https://github.com/Neil0619/huayi/actions/runs/36063342609) 10/10，
+缓存显示 5.8–43.4 ms、增量最高 177.5 ms；记录到 17 项字体事件，字符字体回退事件从有变为 0。
+下一步恢复普通无头配置、关闭全部剖析后重复原断言；此前完整门禁及实机产物不移用于这次新产品变更。
+
 ## 已复现并修复
 
 1. 英文 Windows CI 的 `WScript.Shell.Save()` 无法保存中文快捷方式；本机用系统代码页外的
