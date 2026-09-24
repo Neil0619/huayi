@@ -4,7 +4,9 @@ run-name: Query latency diagnosis / ${{ inputs.candidate_sha || github.sha }}
 on:
   push:
     branches: [codex/asbplayer-windows-validation-fixes]
-    paths: [.github/workflows/query-latency-diagnostic.yml]
+    paths:
+      - .github/workflows/query-latency-diagnostic.yml
+      - apps/store-extension/src/content/overlay/**
   workflow_dispatch:
     inputs:
       candidate_sha:

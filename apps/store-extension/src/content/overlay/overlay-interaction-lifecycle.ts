@@ -6,6 +6,7 @@ export class OverlayInteractionLifecycle {
   #placement: OverlayPlacement;
   #host: HTMLElement | null = null;
   #range: Range | undefined;
+  #rangeBounds: DOMRect | undefined;
   #presentation: StoreOverlayPresentation | undefined;
   #rangeOrigin: { readonly left: number; readonly top: number } | null = null;
   #scrollX = 0;
@@ -40,6 +41,7 @@ export class OverlayInteractionLifecycle {
     this.#range = range;
     this.#presentation = presentation;
     const bounds = range?.getBoundingClientRect?.();
+    this.#rangeBounds = bounds;
     this.#rangeOrigin =
       bounds && (bounds.width || bounds.height) ? { left: bounds.left, top: bounds.top } : null;
     const view = this.#document.defaultView;
@@ -55,7 +57,7 @@ export class OverlayInteractionLifecycle {
     view?.addEventListener("resize", this.#onViewportChange, options);
     view?.visualViewport?.addEventListener("resize", this.#onViewportChange, options);
     view?.visualViewport?.addEventListener("scroll", this.#onViewportChange, options);
-    this.position();
+    this.resizeToContent();
   }
 
   beginResult(): void {
@@ -64,9 +66,16 @@ export class OverlayInteractionLifecycle {
   }
 
   position(): void {
+    this.#rangeBounds = this.#range?.getBoundingClientRect?.();
+    this.resizeToContent();
+  }
+
+  resizeToContent(): void {
     if (this.#host !== null && this.#anchor !== null) {
       const view = this.#document.defaultView;
-      const bounds = this.#range?.getBoundingClientRect?.();
+      // Only the isolated card changed. Re-reading the page's Range here forces
+      // its layout for every streamed field; viewport changes refresh it above.
+      const bounds = this.#rangeBounds;
       // Track document/container movement without replacing the user's mouse anchor.
       const origin = bounds && (bounds.width || bounds.height) ? this.#rangeOrigin : null;
       const offsetX =
@@ -92,6 +101,7 @@ export class OverlayInteractionLifecycle {
     this.#host = null;
     this.#anchor = null;
     this.#range = undefined;
+    this.#rangeBounds = undefined;
     this.#presentation = undefined;
     this.#rangeOrigin = null;
   }

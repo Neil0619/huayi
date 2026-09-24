@@ -270,14 +270,14 @@ export class StoreOverlayController {
     if (this.#analysisBody === null) return;
     delete this.#analysisBody.dataset.resultType;
     renderStreamPreview(this.#analysisBody, this.#preview, this.#previewSections);
-    this.#interaction.position();
+    this.#interaction.resizeToContent();
   }
 
   #renderStatus(): void {
     if (this.#analysisBody === null) return;
     delete this.#analysisBody.dataset.resultType;
     renderStreamStatus(this.#analysisBody);
-    this.#interaction.position();
+    this.#interaction.resizeToContent();
   }
 
   #renderModeState(action: AnalysisAction, state: OverlayModeState): void {
@@ -318,7 +318,7 @@ export class StoreOverlayController {
       sentence: this.#selection.sentenceContext ?? this.#selection.selection,
     });
     if (this.#footer) this.#studyCapture.render(this.#footer, this.#selection);
-    this.#interaction.position();
+    this.#interaction.resizeToContent();
   }
 
   #finishWithError(action: AnalysisAction, code: StoreAnalysisErrorCode): void {
@@ -347,7 +347,7 @@ export class StoreOverlayController {
       },
     });
     if (this.#selection && this.#footer) this.#studyCapture.render(this.#footer, this.#selection);
-    this.#interaction.position();
+    this.#interaction.resizeToContent();
   }
 
   #disconnected(port: ContentAnalysisPort, action: AnalysisAction): void {
@@ -366,7 +366,7 @@ export class StoreOverlayController {
       },
       this.#preview.size > 0 || this.#previewSections.size > 0,
     );
-    this.#interaction.position();
+    this.#interaction.resizeToContent();
   }
 
   #stopPort(cancel: boolean): void {

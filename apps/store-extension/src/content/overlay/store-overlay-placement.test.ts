@@ -119,6 +119,32 @@ describe("Store result placement during streaming", () => {
     controller.close();
   });
 
+  it("keeps the updated anchor after nested-container scrolling and more streamed content", () => {
+    const { controller, ports } = setup();
+    const selection = reading("We agree.", "sentence");
+    let rangeTop = 350;
+    let rangeLeft = 400;
+    selection.range.getBoundingClientRect = () =>
+      ({ top: rangeTop, left: rangeLeft, width: 100, height: 20 }) as DOMRect;
+    const scroller = document.createElement("div");
+    document.body.append(scroller);
+    controller.show(selection, { top: 350, bottom: 370, left: 450 });
+    click("[data-action='explain']");
+    rangeTop = 230;
+    rangeLeft = 260;
+    scroller.dispatchEvent(new Event("scroll"));
+    expect(host().style.left).toBe("126px");
+    expect(host().style.top).toBe("258px");
+    contentHeight = 600;
+    if (!ports[0]) throw new Error("Missing port");
+    stream(ports[0], 0);
+    expect(shadow().querySelector(".body")?.textContent).toContain("主句逐步增长。");
+    expect(host().style.left).toBe("126px");
+    expect(host().style.top).toBe("258px");
+    expect(host().style.getPropertyValue("--overlay-available-height")).toBe("534px");
+    controller.close();
+  });
+
   it("uses the visible viewport and recomputes its cap when that viewport resizes", () => {
     const viewport = Object.assign(new EventTarget(), {
       offsetLeft: 30,
