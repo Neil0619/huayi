@@ -14,6 +14,31 @@ function prepare(texts: readonly string[]) {
 }
 
 describe("real-file bilingual track preparation", () => {
+  it("keeps symbol-only music cues native without rejecting the complete English track", () => {
+    const { adapter, port } = adapterHarness();
+    port.send({
+      command: "subtitles",
+      value: [
+        cue({ text: "We can begin." }),
+        cue({ text: "[♪♪♪]", originalStart: 1000, originalEnd: 2000 }),
+        cue({ text: "Again.", originalStart: 2000, originalEnd: 3000 }),
+      ],
+    });
+    expect(prepareAsbplayerTracks(adapter.getSnapshot().cues, 0, null)).toMatchObject({
+      english: [{ text: "We can begin." }, { text: "Again." }],
+      native: [{ text: "[♪♪♪]", startMs: 1000, endMs: 2000 }],
+      chinese: [],
+    });
+  });
+
+  it.each(["[♪♪♪]", "只有中文"])(
+    "cannot turn an entirely non-English track into learning: %s",
+    (text) => {
+      const { adapter, port } = adapterHarness();
+      port.send({ command: "subtitles", value: [cue({ text })] });
+      expect(prepareAsbplayerTracks(adapter.getSnapshot().cues, 0, null)).toBeNull();
+    },
+  );
   it("keeps Latin names in the Chinese line when an independent English line exists", () => {
     expect(prepare(["Please use Wi-Fi.\n请使用 Wi-Fi。"])).toMatchObject({
       english: [{ text: "Please use Wi-Fi.", startMs: 0, endMs: 1000 }],

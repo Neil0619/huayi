@@ -8,6 +8,39 @@ afterEach(() => {
 });
 
 describe("asbplayer real-file compatibility", () => {
+  it("preserves music symbols in an English track and resumes learning at the next spoken cue", () => {
+    vi.useFakeTimers();
+    const h = controllerHarness();
+    h.controller.start();
+    h.port.send({
+      command: "subtitles",
+      value: [
+        cue({ originalStart: 0, originalEnd: 1000, text: "[♪♪♪]" }),
+        cue({ originalStart: 1000, originalEnd: 3000, text: "We can begin." }),
+      ],
+    });
+    h.port.send({ command: "offset", value: 0 });
+    document.querySelector<HTMLButtonElement>("[data-confirm-tracks]")?.click();
+    try {
+      expect(
+        document.querySelector("[data-huayi-store-asbplayer]")?.getAttribute("data-state"),
+      ).toBe("native-subtitles");
+      expect(h.player.hasAttribute("data-huayi-asbplayer-active")).toBe(false);
+      h.video.currentTime = 1.2;
+      vi.advanceTimersByTime(100);
+      expect(
+        document.querySelector("[data-huayi-store-asbplayer]")?.getAttribute("data-state"),
+      ).toBe("usable");
+      expect(document.querySelector("[data-huayi-asbplayer-english]")?.textContent).toBe(
+        "We can begin.",
+      );
+      h.video.currentTime = 0.2;
+      vi.advanceTimersByTime(100);
+      expect(h.player.hasAttribute("data-huayi-asbplayer-active")).toBe(false);
+    } finally {
+      h.controller.stop();
+    }
+  });
   it("restores native subtitles only during ambiguous cues and recovers without reconfirmation", () => {
     vi.useFakeTimers();
     const h = controllerHarness();

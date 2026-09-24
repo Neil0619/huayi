@@ -57,8 +57,9 @@ export function prepareAsbplayerTracks(
         bilingualEvidence = true;
       }
     } else if (cue.track === englishTrack) {
-      if (HAN.test(cue.text) || !LATIN.test(cue.text)) return null;
-      english.push(cue);
+      if (HAN.test(cue.text)) return null;
+      if (!LATIN.test(cue.text)) native.push(cue);
+      else english.push(cue);
     } else chinese.push(cue);
   }
   return english.length && (englishTrack !== chineseTrack || bilingualEvidence)
