@@ -241,3 +241,7 @@ Windows 跳过这一个 macOS 系统原语，其余序列化、失败关闭、�
 Store 内容脚本负责一次性受限文件导入，不改变 Classic Host、Native Messaging 或 Chrome 权限。
 配置、信任边界、缓存管理和分层验收见 [Windows 原视频打开器](cloud-v1/asbplayer-local-opener.md)。
 原生文件选择与启动器必须在 Windows 实测；双平台单元测试不替代这些系统集成检查。
+
+文件选择窗口的可见性与所有者释放由 `scripts/asbplayer-open.test.mjs` 在真实 Windows Forms
+进程中回归；非 Windows 只跳过这项不可用的系统原语，Windows CI 必须实际执行。
+仅修改窗口所有者不改变扩展权限、媒体读写或回环服务边界。

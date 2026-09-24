@@ -428,3 +428,9 @@ fail-closed 行为。Windows CI 会实际产出并运行 SEA `.exe` 的 health �
 Store 内容脚本负责一次性受限文件导入，不改变 Classic Host、Native Messaging 或 Chrome 权限。
 配置、信任边界、缓存管理和分层验收见 [Windows 原视频打开器](cloud-v1/asbplayer-local-opener.md)。
 原生文件选择与启动器必须在 Windows 实测；双平台单元测试不替代这些系统集成检查。
+
+`scripts/asbplayer-open.test.mjs` 在 Windows 真正启动隐藏的 PowerShell 和文件对话框，
+检查可见性、窗口大小、置顶状态，并在取消后验证返回空选择且临时所有者已释放。
+观察器只检查并关闭测试进程自身的对话框，不操作其他应用、不选择真实媒体。
+该 Windows Forms 系统原语在非 Windows 平台明确跳过，Windows 全量脚本门禁执行它；
+它不替代桌面快捷方式与实际用户选片回传检查。

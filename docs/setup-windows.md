@@ -253,3 +253,6 @@ Chrome 加载入口，也不从旧 main 重建覆盖最新安装。程序文件�
 Store 内容脚本负责一次性受限文件导入，不改变 Classic Host、Native Messaging 或 Chrome 权限。
 配置、信任边界、缓存管理和分层验收见 [Windows 原视频打开器](cloud-v1/asbplayer-local-opener.md)。
 原生文件选择与启动器必须在 Windows 实测；双平台单元测试不替代这些系统集成检查。
+
+更新打开器后重新从桌面启动，再检查「选择原视频」的文件窗口是否显示在 Chrome 前面。
+取消应回到原状态，选中原文件应进入准备流程；已有打开器进程不会自动加载更新后的脚本。

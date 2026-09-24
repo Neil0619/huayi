@@ -6,11 +6,32 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { prepareMedia, findSidecars } from "./asbplayer-media.mjs";
 import { startMediaOpener } from "./asbplayer-opener-server.mjs";
 
-export function pickWindowsMedia(subtitle = false) {
+export function pickWindowsMedia(subtitle = false, launch = spawn) {
   const filter = subtitle ? "文字字幕|*.srt;*.ass;*.ssa;*.vtt" : "本地视频|*.mkv;*.mp4;*.m4v";
-  const script = `Add-Type -AssemblyName System.Windows.Forms; $picker = New-Object System.Windows.Forms.OpenFileDialog; $picker.Filter = '${filter}'; $picker.Title = '语见：选择${subtitle ? "字幕" : "原视频"}'; if ($picker.ShowDialog() -eq 'OK') { [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($picker.FileName)) }; $picker.Dispose()`;
+  // A dialog owned by the hidden console can stay behind Chrome without a taskbar entry.
+  // Give this one modal dialog a temporary topmost owner, then dispose both together.
+  const script = `$ErrorActionPreference = 'Stop'
+Add-Type -AssemblyName System.Windows.Forms
+$owner = New-Object System.Windows.Forms.Form
+$picker = New-Object System.Windows.Forms.OpenFileDialog
+try {
+  $owner.TopMost = $true
+  $owner.ShowInTaskbar = $false
+  $owner.Opacity = 0
+  $owner.Size = New-Object System.Drawing.Size(1, 1)
+  $owner.StartPosition = 'CenterScreen'
+  $owner.Show()
+  $picker.Filter = '${filter}'
+  $picker.Title = '语见：选择${subtitle ? "字幕" : "原视频"}'
+  if ($picker.ShowDialog($owner) -eq 'OK') {
+    [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($picker.FileName))
+  }
+} finally {
+  $picker.Dispose()
+  $owner.Dispose()
+}`;
   return new Promise((resolvePromise, reject) => {
-    const child = spawn("powershell.exe", ["-NoProfile", "-STA", "-Command", script], {
+    const child = launch("powershell.exe", ["-NoProfile", "-STA", "-Command", script], {
       shell: false,
       windowsHide: true,
       stdio: ["ignore", "pipe", "ignore"],
