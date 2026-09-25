@@ -1,10 +1,23 @@
 import { describe, expect, it } from "vitest";
 import { parseLocalImport, acceptLocalFiles } from "./asbplayer-local-import.js";
+import { parseAsbplayerPlaybackContext } from "./asbplayer-location.js";
 
 const origin = "http://127.0.0.1:23456";
 const nonce = "0123456789abcdef0123456789abcdef";
 const hash = `#seen-said-open=${encodeURIComponent(JSON.stringify({ origin, nonce }))}`;
 describe("explicit local media import", () => {
+  it("recognizes only the selected loopback streaming shape in an official player", () => {
+    const mediaUrl = `${origin}/stream/${"c".repeat(64)}`;
+    const href = `https://app.asbplayer.dev/?video=${encodeURIComponent(mediaUrl)}&channel=local`;
+    expect(parseAsbplayerPlaybackContext(href, "official-frame")).toEqual({
+      channel: "local",
+      mediaUrl,
+    });
+    expect(parseAsbplayerPlaybackContext(href, "untrusted-frame")).toBeNull();
+    expect(
+      parseAsbplayerPlaybackContext(href.replace("127.0.0.1", "evil.test"), "top-level"),
+    ).toBeNull();
+  });
   it("accepts only an exact loopback origin and a bounded nonce", () => {
     expect(parseLocalImport(hash)).toEqual({ origin, nonce });
     for (const bad of [

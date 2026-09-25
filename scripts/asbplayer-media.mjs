@@ -12,7 +12,7 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { basename, dirname, extname, join, resolve } from "node:path";
-import { prepareAdjacentMedia } from "./asbplayer-adjacent-cache.mjs";
+import { openAdjacentMedia, prepareAdjacentMedia } from "./asbplayer-adjacent-cache.mjs";
 
 export function runMediaTool(executable, args) {
   return new Promise((resolvePromise, reject) => {
@@ -152,6 +152,10 @@ function validCacheManifest(cached, key) {
     expected.delete(file.file);
   }
   return expected.size === 0;
+}
+
+export function openPreparedMedia(source) {
+  return openAdjacentMedia(source, validCacheManifest);
 }
 
 export async function prepareMedia({

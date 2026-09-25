@@ -1,9 +1,9 @@
 const batchHtml = `<section aria-labelledby="batch-heading"><h2 id="batch-heading">提前准备视频</h2><p>一次选择多集，按顺序准备。缓存保存在各自原视频旁，已有有效缓存会直接复用。处理期间请保留打开器运行；关闭网页不会取消队列。</p><button id="batch-start">批量预处理视频</button><button id="batch-stop" disabled>停止剩余任务</button><p id="batch-status" role="status"></p><ol id="batch-items"></ol></section>`;
 export const openerHtml = `<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>语见 · 本机视频</title>
 <style>body{font:16px/1.6 system-ui;background:#f5f4f0;color:#212725;margin:0;padding:40px 20px}main{max-width:760px;margin:auto;background:white;padding:32px;border:1px solid #ddd;border-radius:18px}h1{font-size:28px}button{font:inherit;border:0;border-radius:8px;padding:10px 18px;background:#176453;color:white;cursor:pointer;margin:8px 8px 8px 0}button:disabled{opacity:.5;cursor:wait}p{overflow-wrap:anywhere}label{display:block;padding:8px;background:#f5f4f0;margin:4px 0;border-radius:6px}.muted{color:#56625c}#status{min-height:2em}#subtitles:empty{display:none}#batch-items{max-height:420px;overflow:auto}#batch-items li{padding-bottom:12px;border-bottom:1px solid #eee}</style>
-<main><p class="muted">语见 · 本机视频</p><h1>从原视频开始学习</h1><p>选择 MKV 或 MP4。自动准备浏览器音轨和文字字幕，原视频保持不变。</p><button id="open">选择原视频</button><button id="learn" disabled>开始学习</button><p id="status" role="status">准备就绪</p><section id="cache" hidden><p>缓存位置：<code id="cache-path"></code></p><p class="muted">每个缓存文件夹首次使用时授权读取；同目录的下一集会复用授权。浏览器收回权限时需要重新授权。</p><button id="authorize" hidden>授权缓存目录</button><button id="copy-cache">复制缓存路径</button></section><h2 id="title"></h2><div id="subtitles"></div><p id="notice" class="muted"></p><p class="muted">再次点击“选择原视频”即可换片。处理结果仅保存在本机缓存；第一次准备需要一些时间，再次打开会复用缓存。</p><p class="muted">请在已加载语见扩展的 Chrome 中使用。图像字幕暂不支持学习，可另选文字字幕。</p><button id="subtitle" disabled>添加文字字幕</button>${batchHtml}<button id="close">退出打开器</button></main><script type="module" src="/opener.js"></script></html>`;
+<main><p class="muted">语见 · 本机视频</p><h1>打开视频，开始学习</h1><p>选择 MKV 或 MP4。自动准备浏览器音轨和文字字幕，原视频保持不变。</p><button id="open">选择原视频</button><button id="cache-open">打开缓存视频</button><button id="learn" disabled>开始学习</button><p id="status" role="status">准备就绪</p><section id="cache" hidden><p>缓存位置：<code id="cache-path"></code></p><p class="muted">缓存已就绪，直接点击开始学习。视频按需从本机读取，无需再次选择目录。</p></section><h2 id="title"></h2><div id="subtitles"></div><p id="notice" class="muted"></p><p class="muted">已处理过的视频可直接点击“打开缓存视频”，选择对应的 .浏览器.mp4，字幕会自动匹配。选择原视频时也会优先复用已有缓存。</p><p class="muted">请在已加载语见扩展的 Chrome 中使用。图像字幕暂不支持学习，可另选文字字幕。</p><button id="subtitle" disabled>添加文字字幕</button>${batchHtml}<button id="close">退出打开器</button></main><script type="module" src="/opener.js"></script></html>`;
 
-export function openerClient(view, doc, reader) {
+export function openerClient(view, doc) {
   const token = view.location.hash.slice(1);
   view.history.replaceState(null, "", "/");
   const open = doc.querySelector("#open"),
@@ -14,19 +14,14 @@ export function openerClient(view, doc, reader) {
     generation = "",
     player = null,
     importing = false,
-    choosing = false,
-    authorizing = false,
-    directoryReady = false;
-  const authorize = doc.querySelector("#authorize");
+    choosing = false;
   const controls = () => {
-    const busy =
-      importing || choosing || authorizing || current?.status === "busy" || current?.batch?.busy;
+    const busy = importing || choosing || current?.status === "busy" || current?.batch?.busy;
     open.disabled = busy;
+    doc.querySelector("#cache-open").disabled = busy;
     doc.querySelector("#close").disabled = busy;
     doc.querySelector("#subtitle").disabled = current?.status !== "ready" || busy;
-    learn.disabled = current?.status !== "ready" || busy || !directoryReady;
-    authorize.hidden = current?.status !== "ready" || directoryReady;
-    authorize.disabled = busy || typeof view.showDirectoryPicker !== "function";
+    learn.disabled = current?.status !== "ready" || busy;
     doc.querySelector("#batch-start").disabled = busy;
     doc.querySelector("#batch-stop").disabled = !current?.batch?.busy || current.batch.stopping;
     for (const button of doc.querySelectorAll("[data-batch-select]")) button.disabled = busy;
@@ -89,7 +84,6 @@ export function openerClient(view, doc, reader) {
       lastMessage = current.message;
       if (generation === current.generation) return;
       generation = current.generation;
-      directoryReady = false;
       controls();
       doc.querySelector("#cache").hidden = !current.cache;
       doc.querySelector("#cache-path").textContent = current.cache?.directory ?? "";
@@ -104,19 +98,6 @@ export function openerClient(view, doc, reader) {
         input.checked = file.selected;
         label.append(input, ` ${file.name}`);
         subtitles.append(label);
-      }
-      if (current.status === "ready") {
-        const selectedGeneration = generation;
-        try {
-          await reader.read(
-            current.cache.id,
-            current.files.find((file) => file.kind === "video"),
-          );
-          if (generation === selectedGeneration) directoryReady = true;
-        } catch (error) {
-          if (generation === selectedGeneration) status.textContent = error.message;
-        }
-        controls();
       }
     } catch {
       fail();
@@ -140,38 +121,8 @@ export function openerClient(view, doc, reader) {
       controls();
     }
   };
-  authorize.onclick = async () => {
-    if (!current?.cache || authorizing || importing) return;
-    authorizing = true;
-    const selectedGeneration = generation;
-    controls();
-    try {
-      await reader.authorize(
-        current.cache.id,
-        current.files.find((file) => file.kind === "video"),
-      );
-      if (generation === selectedGeneration) {
-        directoryReady = true;
-        status.textContent = "缓存目录已授权，点击开始学习。";
-      }
-    } catch (error) {
-      status.textContent =
-        error.name === "AbortError" ? "已取消目录授权，可再次点击授权缓存目录。" : error.message;
-    } finally {
-      authorizing = false;
-      controls();
-    }
-  };
-  doc.querySelector("#copy-cache").onclick = async () => {
-    if (!current?.cache) return;
-    try {
-      await view.navigator.clipboard.writeText(current.cache.directory);
-      status.textContent = "缓存路径已复制，可粘贴到目录选择窗口。";
-    } catch {
-      status.textContent = "无法复制，请使用上方显示的缓存路径。";
-    }
-  };
   open.onclick = () => choose("/api/open");
+  doc.querySelector("#cache-open").onclick = () => choose("/api/cache");
   doc.querySelector("#batch-start").onclick = () => choose("/api/batch/start");
   doc.querySelector("#batch-stop").onclick = async () => {
     await request("/api/batch/stop", { method: "POST", body: "{}" });
@@ -186,8 +137,7 @@ export function openerClient(view, doc, reader) {
       event.data?.type !== "seen-said/local-open"
     )
       return;
-    const busy =
-      importing || choosing || authorizing || current?.status === "busy" || current?.batch?.busy;
+    const busy = importing || choosing || current?.status === "busy" || current?.batch?.busy;
     acceptedPlayer.postMessage(
       {
         type: "seen-said/local-open-result",
@@ -210,7 +160,8 @@ export function openerClient(view, doc, reader) {
     open.disabled = learn.disabled = true;
   };
   learn.onclick = () => {
-    if (!current || importing || !directoryReady) return;
+    if (!current || importing || choosing || current.status !== "ready" || current.batch?.busy)
+      return;
     const selected = new Set(
       [...subtitles.querySelectorAll("input:checked")].map((input) => input.value),
     );
@@ -223,7 +174,6 @@ export function openerClient(view, doc, reader) {
       status.textContent = "最多选择三份文字字幕。";
       return;
     }
-    const cacheId = current.cache.id;
     const nonce = view.crypto.randomUUID().replaceAll("-", "");
     let sent = false,
       active = true;
@@ -247,27 +197,34 @@ export function openerClient(view, doc, reader) {
         status.textContent = "已送入播放器。可在播放器确认轨道；换片时返回此页。";
         return;
       }
+      if (event.data.type === "seen-said/local-import-error") {
+        cleanup();
+        status.textContent = "播放器未接收本机视频，请重载语见扩展后重新点击开始学习。";
+        return;
+      }
       if (event.data.type !== "seen-said/local-ready" || sent) return;
       sent = true;
       status.textContent = "正在将视频和字幕交给播放器…";
       try {
         const payload = [];
+        const video = files.find((file) => file.kind === "video");
         for (const file of files) {
-          if (file.kind === "video") {
-            payload.push(await reader.read(cacheId, file));
-            continue;
-          }
+          if (file.kind === "video") continue;
           const response = await request(`/file/${file.id}`);
           if (!response.ok) throw new Error("file unavailable");
           payload.push(new view.File([await response.blob()], file.name, { type: file.type }));
         }
         if (!active) return;
         player.postMessage(
-          { type: "seen-said/local-files", nonce, files: payload },
+          {
+            type: "seen-said/local-stream",
+            nonce,
+            files: payload,
+            video: { url: video.streamUrl, name: video.name, size: video.size },
+          },
           "https://app.asbplayer.dev",
         );
       } catch (error) {
-        directoryReady = false;
         cleanup();
         status.textContent = error.message || "文件导入失败，请重新打开原视频后再试。";
         controls();

@@ -14,7 +14,7 @@ import {
 
 const runFile = promisify(execFile);
 
-test("installed opener includes every runtime module needed for file-reference imports", async () => {
+test("installed opener includes every runtime module needed for cache streaming", async () => {
   const destination = await mkdtemp(join(tmpdir(), "seen-said-opener-modules-"));
   let opener;
   try {
@@ -36,7 +36,8 @@ test("installed opener includes every runtime module needed for file-reference i
       prepare: async () => undefined,
     });
     const page = await (await fetch(opener.origin)).text();
-    assert.ok(page.includes("授权缓存目录"));
+    assert.ok(page.includes("打开缓存视频"));
+    assert.ok(!page.includes("授权缓存目录"));
     assert.ok(
       (await (await fetch(opener.origin + "/local-files.js")).text()).includes("browserFileReader"),
     );

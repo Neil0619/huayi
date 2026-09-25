@@ -6,6 +6,55 @@ import { tmpdir } from "node:os";
 import { request } from "node:http";
 import { startMediaOpener } from "./asbplayer-opener-server.mjs";
 
+test("cache picker bypasses original preparation and publishes a directly playable stream", async () => {
+  const directory = await realpath(await mkdtemp(join(tmpdir(), "seen-said-cache-open-")));
+  let opener;
+  try {
+    const video = join(directory, "Show.浏览器.mp4");
+    await writeFile(video, "prepared-video");
+    opener = await startMediaOpener({
+      pickFile: async () => {
+        throw new Error("original picker must not run");
+      },
+      pickCache: async () => video,
+      openCache: async (path) => ({
+        reused: true,
+        files: [{ path, name: "Show.mp4", kind: "video", type: "video/mp4", size: 14 }],
+        plan: { imageSubtitleCount: 0 },
+      }),
+      prepare: async () => {
+        throw new Error("conversion must not run");
+      },
+      sidecars: async () => [],
+    });
+    const headers = {
+      Authorization: `Bearer ${opener.token}`,
+      Origin: opener.origin,
+      "Content-Type": "application/json",
+    };
+    assert.equal(
+      (await fetch(`${opener.origin}/api/cache`, { method: "POST", headers, body: "{}" })).status,
+      202,
+    );
+    let state;
+    for (let i = 0; i < 100; i++) {
+      state = await (await fetch(`${opener.origin}/api/state`, { headers })).json();
+      if (state.status === "ready") break;
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    assert.equal(state.status, "ready");
+    assert.match(state.message, /已找到缓存/u);
+    const response = await fetch(state.files[0].streamUrl, {
+      headers: { Range: "bytes=0-7", Origin: "https://app.asbplayer.dev" },
+    });
+    assert.equal(response.status, 206);
+    assert.equal(await response.text(), "prepared");
+  } finally {
+    await opener?.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test("loopback requires session token and exact Origin/Host, rejects supplied paths, serves only selected media", async () => {
   const directory = await realpath(await mkdtemp(join(tmpdir(), "seen-said-opener-")));
   let opener;

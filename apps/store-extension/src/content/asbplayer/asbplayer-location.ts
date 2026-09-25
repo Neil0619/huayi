@@ -1,3 +1,4 @@
+import { parseLocalStreamUrl } from "../../asbplayer-stream-url.js";
 const ASBPLAYER_ORIGIN = "https://app.asbplayer.dev";
 const BLOB_PATH = /^\/[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/iu;
 
@@ -29,6 +30,7 @@ export function parseAsbplayerPlaybackContext(
     const channel = url.searchParams.get("channel");
     const mediaUrl = url.searchParams.get("video");
     if (channel === null || !/^[\w-]{1,128}$/u.test(channel) || mediaUrl === null) return null;
+    if (parseLocalStreamUrl(mediaUrl)) return { channel, mediaUrl };
     const blob = new URL(mediaUrl);
     if (blob.protocol !== "blob:" || blob.origin !== ASBPLAYER_ORIGIN) return null;
     const inner = new URL(mediaUrl.slice(5));

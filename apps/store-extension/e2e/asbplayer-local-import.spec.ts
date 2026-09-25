@@ -1,14 +1,103 @@
 import { expect, test } from "@playwright/test";
-import { mkdtemp, writeFile, rm, utimes } from "node:fs/promises";
+import { mkdtemp, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { startMediaOpener } from "../../../scripts/asbplayer-opener-server.mjs";
 import { createAsbplayerPackageFixture } from "./support/asbplayer-package-fixture.js";
 
 test.use({ screenshot: "off", trace: "off" });
-test("registered importer receives local Files, confirms delivery and permits a second video", async () => {
+test("prepared cache starts learning without any directory picker or whole-video import", async () => {
   test.setTimeout(60000);
   const fixture = await createAsbplayerPackageFixture();
+  // Model Chrome's site-level local-service grant, not a file/directory grant or security bypass.
+  await fixture.context.grantPermissions(["local-network-access"], {
+    origin: "https://app.asbplayer.dev",
+  });
+  const directory = await mkdtemp(join(tmpdir(), "seen-said-stream-browser-"));
+  const video = join(directory, "cached.mp4"),
+    subtitle = join(directory, "en.srt");
+  await writeFile(video, "streamed-video-payload");
+  await writeFile(subtitle, "subtitle-payload");
+  const prepared = {
+    reused: true,
+    files: [
+      { path: video, name: "episode.mp4", type: "video/mp4", kind: "video", size: 22 },
+      { path: subtitle, name: "en.srt", type: "text/plain", kind: "subtitle", size: 16 },
+    ],
+    plan: { imageSubtitleCount: 0 },
+  };
+  const opener = await startMediaOpener({
+    pickFile: async () => {
+      throw new Error("original must not be required");
+    },
+    pickCache: async () => video,
+    openCache: async () => prepared,
+    prepare: async () => {
+      throw new Error("conversion must not run");
+    },
+    sidecars: async () => [],
+  });
+  try {
+    await fixture.context.route(`${opener.origin}/**`, (route) => route.continue());
+    await fixture.context.route("https://app.asbplayer.dev/", (route) =>
+      route.fulfill({
+        contentType: "text/html",
+        body: `<!doctype html><input type="file" multiple><output></output><script>
+      const nativeUrl=URL.createObjectURL;
+      document.querySelector('input').onchange=async event=>{
+        const files=[...event.target.files];
+        const url=URL.createObjectURL(files[0]);
+        const video=await fetch(url,{headers:{Range:'bytes=0-7'}}).then(r=>r.text());
+        const ordinary=URL.createObjectURL(new Blob(['ordinary']));
+        document.querySelector('output').textContent=JSON.stringify({video,sub:await files[1].text(),restored:URL.createObjectURL===nativeUrl,ordinary:ordinary.startsWith('blob:'),placeholder:files[0].size});
+        URL.revokeObjectURL(ordinary);
+      };</script>`,
+      }),
+    );
+    const local = await fixture.context.newPage();
+    await local.addInitScript(() => {
+      Object.defineProperty(window, "showDirectoryPicker", {
+        value: () => {
+          throw Error("Unexpected directory picker");
+        },
+      });
+    });
+    await local.goto(opener.url);
+    await expect(local.getByRole("button", { name: "打开缓存视频", exact: true })).toBeVisible({
+      timeout: 2000,
+    });
+    await local.getByRole("button", { name: "打开缓存视频", exact: true }).click();
+    await expect(local.getByRole("button", { name: "开始学习", exact: true })).toBeEnabled();
+    await expect(local.locator("#status")).toContainText("已找到缓存");
+    await expect(local.getByRole("button", { name: "授权缓存目录", exact: true })).toHaveCount(0);
+    const popup = local.waitForEvent("popup");
+    await local.getByRole("button", { name: "开始学习", exact: true }).click();
+    const player = await popup;
+    await expect(player.locator("output")).toHaveText(
+      JSON.stringify({
+        video: "streamed",
+        sub: "subtitle-payload",
+        restored: true,
+        ordinary: true,
+        placeholder: 1,
+      }),
+    );
+    await expect(local.locator("#status")).toContainText("已送入播放器");
+    await expect(player.getByRole("button", { name: "打开另一个视频", exact: true })).toBeVisible();
+    expect(fixture.requests).toHaveLength(0);
+  } finally {
+    await opener.close();
+    await fixture.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("registered importer streams selected media, confirms delivery and permits a second video", async () => {
+  test.setTimeout(60000);
+  const fixture = await createAsbplayerPackageFixture();
+  await fixture.context.grantPermissions(["local-network-access"], {
+    origin: "https://app.asbplayer.dev",
+  });
   const directory = await mkdtemp(join(tmpdir(), "seen-said-opener-browser-"));
   const video = join(directory, "video.mp4"),
     nextVideo = join(directory, "next-video.mp4"),
@@ -40,64 +129,22 @@ test("registered importer receives local Files, confirms delivery and permits a 
         body: `<!doctype html><input type="file" multiple><output></output><script>
       document.querySelector('input').onchange=async event=>{
         const files=[...event.target.files];
-        document.querySelector('output').textContent=JSON.stringify(await Promise.all(files.map(async file=>({name:file.name,text:await file.text()}))));
+        document.querySelector('output').textContent=JSON.stringify(await Promise.all(files.map(async file=>({name:file.name,text:file.name.endsWith(".mp4")?await fetch(URL.createObjectURL(file),{headers:{Range:"bytes=0-1000"}}).then(r=>r.text()):await file.text()}))));
       };</script>`,
       }),
     );
     const local = await fixture.context.newPage();
     await local.goto(opener.url);
-    // A real browser directory handle exercises IndexedDB persistence and file references.
-    // Selection alone is injected: this does not claim a native directory dialog passed.
-    const modified = await local.evaluate(async () => {
-      const directory = await (
-        await navigator.storage.getDirectory()
-      ).getDirectoryHandle("cache", { create: true });
-      const handle = await directory.getFileHandle("video.mp4", { create: true });
-      const writable = await handle.createWritable();
-      await writable.write("bounded-video-payload");
-      await writable.close();
-      const nextHandle = await directory.getFileHandle("next-video.mp4", { create: true });
-      const nextWritable = await nextHandle.createWritable();
-      await nextWritable.write("next-episode-payload");
-      await nextWritable.close();
-      const empty = await (
-        await navigator.storage.getDirectory()
-      ).getDirectoryHandle("wrong-cache", { create: true });
-      let selections = 0;
-      Object.defineProperty(window, "showDirectoryPicker", {
-        configurable: true,
-        value: async () => {
-          selections++;
-          if (selections === 1) throw new DOMException("cancelled", "AbortError");
-          return selections === 2 ? empty : directory;
-        },
-      });
-      return {
-        first: (await handle.getFile()).lastModified,
-        next: (await nextHandle.getFile()).lastModified,
-      };
-    });
-    await utimes(video, modified.first / 1000, modified.first / 1000);
-    await utimes(nextVideo, modified.next / 1000, modified.next / 1000);
     const mediaRequests: string[] = [];
     local.on("request", (request) => {
       if (new URL(request.url()).pathname.startsWith("/file/")) mediaRequests.push(request.url());
     });
     await local.getByRole("button", { name: "选择原视频", exact: true }).click();
-    await expect(local.getByRole("button", { name: "授权缓存目录", exact: true })).toBeVisible();
-    await expect(local.getByRole("button", { name: "开始学习", exact: true })).toBeDisabled();
-    await local.getByRole("button", { name: "授权缓存目录", exact: true }).click();
-    await expect(local.locator("#status")).toContainText("已取消目录授权");
-    await expect(local.getByRole("button", { name: "开始学习", exact: true })).toBeDisabled();
-    await local.getByRole("button", { name: "授权缓存目录", exact: true }).click();
-    await expect(local.locator("#status")).toContainText("所选目录中没有这份缓存");
-    await expect(local.getByRole("button", { name: "开始学习", exact: true })).toBeDisabled();
-    await local.getByRole("button", { name: "授权缓存目录", exact: true }).click();
     await expect(local.getByRole("button", { name: "开始学习", exact: true })).toBeEnabled();
-    // Reload with a fresh startup URL: the real persisted handle must work without a picker.
+    await expect(local.getByRole("button", { name: "授权缓存目录", exact: true })).toHaveCount(0);
+    // Reload with a fresh startup URL; native cached selection needs no directory permission.
     await local.goto(opener.url);
     await expect(local.getByRole("button", { name: "开始学习", exact: true })).toBeEnabled();
-    await expect(local.getByRole("button", { name: "授权缓存目录", exact: true })).toBeHidden();
     const launch = async (payload: string) => {
       const popup = local.waitForEvent("popup");
       await local.getByRole("button", { name: "开始学习", exact: true }).click();
@@ -143,7 +190,7 @@ test("registered importer receives local Files, confirms delivery and permits a 
     }
     await expect.poll(() => picked).toBe(2);
     await expect(local.getByRole("button", { name: "开始学习", exact: true })).toBeEnabled();
-    await expect(local.getByRole("button", { name: "授权缓存目录", exact: true })).toBeHidden();
+    await expect(local.getByRole("button", { name: "授权缓存目录", exact: true })).toHaveCount(0);
     const secondPlayer = await launch("next-episode-payload");
     await expect.poll(() => firstPlayer.isClosed()).toBe(true);
     // A former player navigated elsewhere must not be closed by the opener.
@@ -203,7 +250,7 @@ test("batch page shows progress, stops remaining work and can select a prepared 
     await expect(page.locator("#status")).not.toContainText("请在文件选择窗口中选择文件");
     await page.getByRole("button", { name: "选用此视频", exact: true }).click();
     await expect(page.locator("#title")).toHaveText("first.mp4");
-    await expect(page.getByRole("button", { name: "授权缓存目录", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "开始学习", exact: true })).toBeEnabled();
     await page.getByRole("button", { name: "批量预处理视频", exact: true }).click();
     await expect(page.locator("#batch-status")).toContainText("成功 2，失败 0，未处理 0");
     await page.getByRole("button", { name: "选用此视频", exact: true }).nth(1).click();

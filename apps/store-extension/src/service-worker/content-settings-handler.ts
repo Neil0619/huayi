@@ -1,3 +1,4 @@
+import { parseLocalStreamUrl } from "../asbplayer-stream-url.js";
 import {
   STORE_MESSAGE_VERSION,
   isSiteEnabled,
@@ -39,7 +40,9 @@ function trustedAsbplayerHost(value: string | undefined): string | null {
       return null;
     const media = url.searchParams.get("video") ?? "";
     const channel = url.searchParams.get("channel") ?? "";
-    if (!/^[\w-]{1,128}$/u.test(channel) || !media.startsWith(`blob:${origin}/`)) return null;
+    if (!/^[\w-]{1,128}$/u.test(channel)) return null;
+    if (parseLocalStreamUrl(media)) return url.hostname;
+    if (!media.startsWith(`blob:${origin}/`)) return null;
     const inner = new URL(media.slice(5));
     return inner.origin === origin &&
       !inner.username &&

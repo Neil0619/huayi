@@ -19,6 +19,34 @@ const settings = {
 };
 
 describe("asbplayer settings authorization", () => {
+  it("authorizes exact local stream players and rejects broader network sources", async () => {
+    const stream = `http://127.0.0.1:45678/stream/${"a".repeat(64)}`;
+    const sender = (media: string) =>
+      `https://app.asbplayer.dev/?video=${encodeURIComponent(media)}&channel=local-player`;
+    await expect(
+      handleContentSettingsMessage(
+        request,
+        sender(stream),
+        async () => settings,
+        async () => "silver",
+      ),
+    ).resolves.toMatchObject({ type: "store/asbplayer-settings-result", asbplayerMode: "english" });
+    for (const invalid of [
+      stream.replace("127.0.0.1", "localhost"),
+      stream + "?path=secret",
+      stream.replace("/stream/", "/file/"),
+      stream.replace(":45678", ":80"),
+    ]) {
+      await expect(
+        handleContentSettingsMessage(
+          request,
+          sender(invalid),
+          async () => settings,
+          async () => "silver",
+        ),
+      ).resolves.toBeUndefined();
+    }
+  });
   it("returns only presentation fields from a validated official playback sender", async () => {
     expect(isContentSettingsMessage(request)).toBe(true);
     await expect(

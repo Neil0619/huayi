@@ -6,8 +6,17 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { prepareMedia, findSidecars } from "./asbplayer-media.mjs";
 import { startMediaOpener } from "./asbplayer-opener-server.mjs";
 
-export function pickWindowsMedia(subtitle = false, launch = spawn, multiple = false) {
-  const filter = subtitle ? "文字字幕|*.srt;*.ass;*.ssa;*.vtt" : "本地视频|*.mkv;*.mp4;*.m4v";
+export function pickWindowsMedia(
+  subtitle = false,
+  launch = spawn,
+  multiple = false,
+  cache = false,
+) {
+  const filter = subtitle
+    ? "文字字幕|*.srt;*.ass;*.ssa;*.vtt"
+    : cache
+      ? "语见缓存视频|*.浏览器*.mp4"
+      : "本地视频|*.mkv;*.mp4;*.m4v";
   // A dialog owned by the hidden console can stay behind Chrome without a taskbar entry.
   // Give this one modal dialog a temporary topmost owner, then dispose both together.
   const script = `$ErrorActionPreference = 'Stop'
@@ -23,7 +32,7 @@ try {
   $owner.Show()
   $picker.Filter = '${filter}'
   $picker.Multiselect = $${multiple ? "true" : "false"}
-  $picker.Title = '语见：选择${subtitle ? "字幕" : "原视频"}'
+  $picker.Title = '语见：选择${subtitle ? "字幕" : cache ? "缓存视频" : "原视频"}'
   if ($picker.ShowDialog($owner) -eq 'OK') {
     foreach ($selected in $picker.FileNames) {
       [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($selected))
@@ -77,6 +86,7 @@ async function main() {
     identityPath: join(dirname(resolve(configPath)), "browser-origin.json"),
     pickFile: pickWindowsMedia,
     pickFiles: () => pickWindowsMedia(false, spawn, true),
+    pickCache: () => pickWindowsMedia(false, spawn, false, true),
     sidecars: findSidecars,
     prepare: (source, progress) =>
       prepareMedia({

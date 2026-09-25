@@ -445,12 +445,17 @@ fail-closed 行为。Windows CI 会实际产出并运行 SEA `.exe` 的 health �
 错误 nonce 和批量页面进度/停止/选用。原生选择在浏览器测试中注入，不能据此宣称人工多选通过。
 Windows 原生单选和多选窗口的出现/取消测试与文件名编码测试保持独立；实机媒体另行验收。
 
-快速文件引用导入另测 `asbplayer-adjacent-cache.test.mjs`（相邻目录、可读命名、旧缓存复用、
-重名与原文件变化）、`asbplayer-local-files.test.mjs`（有界读取、错误文件和权限失效）、
-`asbplayer-opener-session.test.mjs`（重复启动、固定 origin 和令牌轮换）。
-`asbplayer-local-import.spec.ts` 使用真实浏览器目录句柄和 IndexedDB，断言刷新后复用、
-仅字幕通过 HTTP 读取、正式 Store 导入及换片。目录选择用合成 OPFS 句柄注入，
-不能代替 Windows 原生 Chrome 目录选择、首次授权、浏览器重启后的权限状态和实际视频首播计时。
+缓存另测 `asbplayer-adjacent-cache.test.mjs`（相邻目录、可读命名、旧缓存复用、重名与原片变化）、
+`asbplayer-prepared-media.test.mjs`（缓存直开、无原片/无转码工具、损坏字幕和越界记录拒绝）、
+`asbplayer-opener-session.test.mjs`（重复启动、固定 origin 和令牌轮换）。旧目录句柄模块仍有
+`asbplayer-local-files.test.mjs` 合同覆盖，但新导入流程不再使用目录选择或 IndexedDB 句柄。
+`asbplayer-media-stream.test.mjs` 实际 HTTP 验证 Range/HEAD、Origin/Host、文件变化与能力失效。
+`asbplayer-local-import.spec.ts` 在正式注册 Store 中断言缓存直开、无需目录选择、字幕交接、
+Range 按需读取和换片，并确认临时 URL 适配恢复、无关 File/Blob 不受影响。
+`asbplayer-local-stream.spec.ts` 先拒绝网站本机访问，再显式授予隔离站点权限并点击重试，
+断言真实视频播放、学习层设置、音轨捕获与未污染的 canvas。测试授权不证明原生权限弹窗操作。
+其 `fixtures/asbplayer-stream.mp4` 为 FFmpeg 合成的三秒 320×180/24fps 纯色画面与 440Hz 正弦音，
+使用 H.264 yuv420p / AAC 64k 和 faststart，不含用户媒体。原生选片和真实官网媒体仍需单独验收。
 
 影响 shared + Windows。独立本机 Node/FFmpeg 工具负责只读原媒体、音轨准备和文字字幕提取，
 Store 内容脚本负责一次性受限文件导入，不改变 Classic Host、Native Messaging 或 Chrome 权限。

@@ -6,6 +6,7 @@ import {
   mkdir,
   mkdtemp,
   readFile,
+  readdir,
   realpath,
   rename,
   rm,
@@ -33,6 +34,68 @@ function displayFiles(source, plan, suffix) {
   ];
 }
 
+async function loadAdjacent(cached, source, directory, key, validManifest) {
+  if (
+    cached.layout !== "adjacent-v1" ||
+    !validManifest(cached, key) ||
+    !/^$|^ \([2-9]\d*\)$|^ \(1\d+\)$/u.test(cached.suffix)
+  )
+    throw new Error("Invalid cache");
+  const names = displayFiles(source, cached.plan, cached.suffix);
+  const files = [];
+  for (let index = 0; index < cached.files.length; index++) {
+    const file = cached.files[index];
+    const expected =
+      index === 0
+        ? "video.mp4"
+        : `subtitle-${cached.plan.subtitles[index - 1].index}.${cached.plan.subtitles[index - 1].extension}`;
+    if (file.localName !== names[index] || file.file !== expected) throw new Error("Invalid cache");
+    const path = join(directory, names[index]);
+    const info = await stat(path);
+    if (
+      !info.isFile() ||
+      info.size !== file.size ||
+      info.mtimeMs !== file.mtimeMs ||
+      (await realpath(path)) !== path
+    )
+      throw new Error("Invalid cache");
+    files.push({ ...file, name: names[index], path });
+  }
+  return { ...cached, cacheDirectory: directory, files };
+}
+
+/** Native-picked cache only: records identify subtitles without needing the original movie. */
+export async function openAdjacentMedia(selected, validManifest) {
+  try {
+    const path = await realpath(selected);
+    const directory = dirname(path);
+    const match = /^(.*)\.浏览器( \(\d+\))?\.mp4$/u.exec(basename(path));
+    if (!match || !match[1]) throw new Error("Invalid cache");
+    const records = join(directory, "缓存记录");
+    if ((await realpath(records)) !== records) throw new Error("Invalid cache");
+    const source = join(dirname(directory), `${match[1]}.mkv`);
+    const entries = (await readdir(records)).filter((name) => /^[a-f0-9]{64}\.json$/u.test(name));
+    if (entries.length > 2000) throw new Error("Invalid cache");
+    for (const name of entries) {
+      try {
+        const record = join(records, name);
+        const info = await stat(record);
+        if (!info.isFile() || info.size > 256_000 || (await realpath(record)) !== record) continue;
+        const cached = JSON.parse(await readFile(record, "utf8"));
+        if (!/^[a-f0-9]{64}$/u.test(cached.key) || cached.files?.[0]?.localName !== basename(path))
+          continue;
+        const result = await loadAdjacent(cached, source, directory, cached.key, validManifest);
+        return { ...result, sidecarSource: source, reused: true };
+      } catch {
+        // A damaged/unrelated record never authorizes another path or triggers conversion.
+      }
+    }
+  } catch {
+    // The native selection is the sole input; errors do not reveal other local records.
+  }
+  throw new Error("缓存不可用，请选择语见生成且保留缓存记录的「.浏览器.mp4」视频。");
+}
+
 /** Adjacent publication owns names and reuse; the existing converter still owns codecs. */
 export async function prepareAdjacentMedia(options, prepare, validManifest) {
   const { source, key, progress } = options;
@@ -45,34 +108,12 @@ export async function prepareAdjacentMedia(options, prepare, validManifest) {
   const record = join(records, `${createHash("sha256").update(source).digest("hex")}.json`);
   const load = async () => {
     const cached = JSON.parse(await readFile(record, "utf8"));
-    if (
-      cached.layout !== "adjacent-v1" ||
-      !validManifest(cached, key) ||
-      !/^$|^ \([2-9]\d*\)$|^ \(1\d+\)$/u.test(cached.suffix)
-    )
-      throw new Error("Invalid cache");
-    const names = displayFiles(source, cached.plan, cached.suffix);
-    const files = [];
-    for (let index = 0; index < cached.files.length; index++) {
-      const file = cached.files[index];
-      if (file.localName !== names[index]) throw new Error("Invalid cache");
-      const path = join(directory, names[index]);
-      const info = await stat(path);
-      if (
-        !info.isFile() ||
-        info.size !== file.size ||
-        info.mtimeMs !== file.mtimeMs ||
-        (await realpath(path)) !== path
-      )
-        throw new Error("Invalid cache");
-      files.push({ ...file, name: names[index], path });
-    }
-    return { ...cached, cacheDirectory: directory, files };
+    return loadAdjacent(cached, source, directory, key, validManifest);
   };
   try {
     const cached = await load();
     progress("使用已准备的缓存");
-    return cached;
+    return { ...cached, reused: true };
   } catch {
     // Never remove or overwrite an unverified file, including an edited cache file.
   }

@@ -10,6 +10,7 @@ const sourceDirectory = dirname(fileURLToPath(import.meta.url));
 const scripts = [
   "asbplayer-open.mjs",
   "asbplayer-media.mjs",
+  "asbplayer-media-stream.mjs",
   "asbplayer-adjacent-cache.mjs",
   "asbplayer-local-files.mjs",
   "asbplayer-opener-session.mjs",

@@ -8,10 +8,6 @@ import { getOrCreateStoreSiteLifecycle } from "../site-lifecycle-registry.js";
 import { installStoreSitePolicyRelay } from "../site-policy-relay.js";
 import { AsbplayerIntegration } from "./asbplayer-integration.js";
 import { createYouTubeStartupRetryExecutor } from "../youtube/youtube-startup-retry.js";
-import { installLocalMediaImport } from "./asbplayer-local-import.js";
-
-installLocalMediaImport(document);
-
 const overlay = getOrCreateStoreOverlay(document, storeSubtitleRuntime);
 const lifecycle = getOrCreateStoreSiteLifecycle(sendStoreSubtitleMessage);
 const runStartupStep = createYouTubeStartupRetryExecutor();

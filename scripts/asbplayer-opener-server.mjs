@@ -7,10 +7,14 @@ import { openerHtml, openerClient } from "./asbplayer-opener-ui.mjs";
 import { sessionProof, sessionToken, startPersistentOpener } from "./asbplayer-opener-session.mjs";
 import { fileSampleDigest } from "./asbplayer-local-files.mjs";
 import { createMediaBatch } from "./asbplayer-opener-batch.mjs";
+import { createMediaStreams } from "./asbplayer-media-stream.mjs";
+import { openPreparedMedia } from "./asbplayer-media.mjs";
 
 export async function startMediaOpener({
   pickFile,
   pickFiles = async () => [],
+  pickCache = () => pickFile(false),
+  openCache = openPreparedMedia,
   prepare,
   sidecars,
   identityPath,
@@ -19,7 +23,15 @@ export async function startMediaOpener({
 }) {
   if (identityPath)
     return startPersistentOpener(identityPath, (identity) =>
-      startMediaOpener({ pickFile, pickFiles, prepare, sidecars, ...identity }),
+      startMediaOpener({
+        pickFile,
+        pickFiles,
+        pickCache,
+        openCache,
+        prepare,
+        sidecars,
+        ...identity,
+      }),
     );
   const nonce = randomBytes(32).toString("hex");
   const token = secret ? sessionToken(secret, nonce) : randomBytes(32).toString("hex");
@@ -31,6 +43,7 @@ export async function startMediaOpener({
   let media = new Map();
   let origin, close;
   const batch = createMediaBatch({ pickFiles, prepare });
+  const streams = createMediaStreams();
   const publish = async (result, source, neighbors) => {
     const video = result.files.find((file) => file.kind === "video");
     const videoPath = await realpath(video.path);
@@ -41,6 +54,7 @@ export async function startMediaOpener({
       size: info.size,
       lastModified: Math.trunc(info.mtimeMs),
       sampleDigest: await fileSampleDigest(await openAsBlob(videoPath)),
+      streamUrl: origin + (await streams.publish(videoPath)),
     };
     const entries = [
       ...result.files,
@@ -84,7 +98,7 @@ export async function startMediaOpener({
       name: basename(source),
       files,
       cache: { id: createHash("sha256").update(directory).digest("hex"), directory },
-      message: "已准备好，点击开始学习",
+      message: result.reused ? "已找到缓存，直接使用。点击开始学习。" : "已准备好，点击开始学习",
       notice: [
         result.plan.imageSubtitleCount ? "此视频含图像字幕，图像轨道暂不能用于划词学习。" : "",
         result.plan.audioIndex === null ? "原视频没有音轨。" : "",
@@ -96,11 +110,11 @@ export async function startMediaOpener({
         .join(" "),
     };
   };
-  const choose = async (subtitle, preparedSource) => {
+  const choose = async (subtitle, preparedSource, cache = false) => {
     const previous = state;
     state = { ...state, status: "busy", message: "请选择文件" };
     try {
-      const source = preparedSource ?? (await pickFile(subtitle));
+      const source = preparedSource ?? (await (cache ? pickCache() : pickFile(subtitle)));
       if (!source) {
         state = previous;
         return;
@@ -129,10 +143,12 @@ export async function startMediaOpener({
           ],
         };
       } else {
-        const result = await prepare(source, (message) => {
-          state = { ...state, message };
-        });
-        const neighbors = await sidecars(source);
+        const result = cache
+          ? await openCache(source)
+          : await prepare(source, (message) => {
+              state = { ...state, message };
+            });
+        const neighbors = await sidecars(result.sidecarSource ?? source);
         // Sidecars are small; pin content to the selected generation.
         await publish(result, source, neighbors);
       }
@@ -140,8 +156,9 @@ export async function startMediaOpener({
       state = {
         ...previous,
         status: previous.files.length ? "ready" : "error",
-        message:
-          "准备失败：请检查媒体编码、工具路径和磁盘空间；当前支持 H.264/HEVC 与文字字幕，原文件未改动。",
+        message: cache
+          ? "缓存不可用，请选择语见生成且保留缓存记录的「.浏览器.mp4」视频。"
+          : "准备失败：请检查媒体编码、工具路径和磁盘空间；当前支持 H.264/HEVC 与文字字幕，原文件未改动。",
       };
     }
   };
@@ -177,10 +194,11 @@ export async function startMediaOpener({
             ? openerHtml
             : path === "/local-files.js"
               ? localFilesScript
-              : `import { browserFileReader } from "/local-files.js"; (${openerClient.toString()})(window,document,browserFileReader(window));`,
+              : `(${openerClient.toString()})(window,document);`,
         );
         return;
       }
+      if (await streams.serve(request, response, origin)) return;
       if (
         request.headers.authorization !== `Bearer ${token}` ||
         (request.headers.origin && request.headers.origin !== origin)
@@ -210,6 +228,7 @@ export async function startMediaOpener({
         (!selection &&
           ![
             "/api/open",
+            "/api/cache",
             "/api/subtitle",
             "/api/close",
             "/api/batch/start",
@@ -252,7 +271,7 @@ export async function startMediaOpener({
         return;
       }
       if (path === "/api/subtitle" && !state.files.length) return reject(409);
-      void choose(path === "/api/subtitle");
+      void choose(path === "/api/subtitle", undefined, path === "/api/cache");
       response.writeHead(202).end();
     } catch {
       if (!response.headersSent) reject(500);
@@ -266,6 +285,7 @@ export async function startMediaOpener({
   origin = `http://127.0.0.1:${server.address().port}`;
   close = () =>
     new Promise((resolve) => {
+      streams.clear();
       server.closeAllConnections();
       server.close(resolve);
     });

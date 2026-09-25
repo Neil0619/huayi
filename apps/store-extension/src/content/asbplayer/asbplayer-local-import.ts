@@ -1,3 +1,4 @@
+import { acceptLocalStream, mapStreamFile } from "./asbplayer-local-stream.js";
 interface LocalImportDescriptor {
   readonly origin: string;
   readonly nonce: string;
@@ -183,6 +184,7 @@ export function installLocalMediaImport(doc: Document): void {
   if (!descriptor) return;
   const opener = view.opener as Window;
   const accept = acceptLocalFiles(descriptor, opener);
+  const acceptStream = acceptLocalStream(descriptor, opener);
   view.history.replaceState(null, "", "/");
   let ready = false;
   const cleanup = () => {
@@ -195,19 +197,35 @@ export function installLocalMediaImport(doc: Document): void {
     if (!ready) return;
     const input = doc.querySelector<HTMLInputElement>('input[type="file"]');
     if (!input) return;
-    const files = accept(event);
+    const stream = acceptStream(event);
+    const files = stream
+      ? [new File([new Uint8Array(1)], stream.video.name, { type: "video/mp4" }), ...stream.files]
+      : accept(event);
     if (!files) return;
     try {
       const transfer = new DataTransfer();
       for (const file of files) transfer.items.add(file);
       input.files = transfer.files;
+      const imported = () => {
+        allowPlayerReplacement(view, descriptor, opener);
+        opener.postMessage(
+          { type: "seen-said/local-imported", nonce: descriptor.nonce },
+          descriptor.origin,
+        );
+        installOpenButton(doc, view, opener, descriptor);
+      };
+      if (stream) {
+        const selectedFile = input.files?.[0];
+        if (!selectedFile) return;
+        mapStreamFile(selectedFile, stream.video.url, imported, () => {
+          opener.postMessage(
+            { type: "seen-said/local-import-error", nonce: descriptor.nonce },
+            descriptor.origin,
+          );
+        });
+      }
       input.dispatchEvent(new Event("change", { bubbles: true }));
-      allowPlayerReplacement(view, descriptor, opener);
-      opener.postMessage(
-        { type: "seen-said/local-imported", nonce: descriptor.nonce },
-        descriptor.origin,
-      );
-      installOpenButton(doc, view, opener, descriptor);
+      if (!stream) imported();
     } finally {
       cleanup();
     }

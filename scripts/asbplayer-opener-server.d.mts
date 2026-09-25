@@ -11,6 +11,13 @@ export function startMediaOpener(options: {
   identityPath?: string;
   pickFile: (subtitle: boolean) => Promise<string | null>;
   pickFiles?: () => Promise<string[] | null>;
+  pickCache?: () => Promise<string | null>;
+  openCache?: (source: string) => Promise<{
+    files: PreparedMediaFile[];
+    reused?: boolean;
+    sidecarSource?: string;
+    plan: { imageSubtitleCount: number };
+  }>;
   prepare: (
     source: string,
     progress: (message: string) => void,
