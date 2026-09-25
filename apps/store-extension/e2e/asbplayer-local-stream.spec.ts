@@ -51,17 +51,21 @@ test("denied local access is recoverable; granted streams remain playable and ca
     });
     await page.getByRole("button", { name: "重试本机播放", exact: true }).click();
     const player = page.locator("video[preload=auto]");
-    await expect.poll(() => player.evaluate((video) => video.readyState)).toBeGreaterThanOrEqual(2);
+    await expect
+      .poll(() => player.evaluate((video: HTMLVideoElement) => video.readyState))
+      .toBeGreaterThanOrEqual(2);
     await expect(feedback).toBeHidden();
     await expect(page.locator("[data-huayi-store-asbplayer]")).toHaveAttribute(
       "data-state",
       "waiting-tracks",
     );
-    await player.evaluate((video) => {
+    await player.evaluate((video: HTMLVideoElement) => {
       video.muted = true;
       return video.play();
     });
-    await expect.poll(() => player.evaluate((video) => video.currentTime)).toBeGreaterThan(0.3);
+    await expect
+      .poll(() => player.evaluate((video: HTMLVideoElement) => video.currentTime))
+      .toBeGreaterThan(0.3);
     const capture = await player.evaluate((video) => {
       const media = video as HTMLVideoElement & {
         captureStream(): MediaStream;
