@@ -33,6 +33,24 @@ function harness(mode: readonly number[] | null = [1], paused = false, queued = 
   };
 }
 describe("media pause ownership", () => {
+  it("keeps a user seek when the card closes before its media event arrives", () => {
+    const h = harness();
+    h.video.currentTime = 0.2;
+    h.owner.acquire("selection");
+    h.video.currentTime = 0.3;
+    h.owner.release("selection");
+    expect(h.video.paused).toBe(true);
+    h.video.dispatchEvent(new Event("seeking"));
+    h.owner.destroy();
+  });
+  it("keeps an in-progress seek paused even when its reported position is unchanged", () => {
+    const h = harness();
+    h.owner.acquire("selection");
+    Object.defineProperty(h.video, "seeking", { value: true });
+    h.owner.release("selection");
+    expect(h.video.paused).toBe(true);
+    h.owner.destroy();
+  });
   it("resumes when a preceding play event arrives after the owned pause", async () => {
     const h = harness([1], true, true);
     await h.video.play();

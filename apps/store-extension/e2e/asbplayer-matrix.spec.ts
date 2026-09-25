@@ -110,7 +110,7 @@ test("Store pause ownership respects pre-paused media, user intervention and spe
         }
       }, intervention);
       await close();
-      expect(await paused()).toBe(intervention !== "play");
+      expect(await paused(), intervention).toBe(intervention !== "play");
     }
     await broadcast(page, { command: "playModes", playModes: [2] });
     await video.evaluate(async (element: HTMLVideoElement) => {
@@ -122,6 +122,40 @@ test("Store pause ownership respects pre-paused media, user intervention and spe
     expect(await paused()).toBe(true);
     // Reopening the same complete query uses the existing Worker cache.
     expect(fixture.requests.length).toBe(1);
+  } finally {
+    await fixture.close();
+  }
+});
+
+test("Store keeps a seek made in the same task as closing the card paused", async () => {
+  const fixture = await createAsbplayerPackageFixture();
+  const { frame, page } = fixture;
+  try {
+    await frame.locator("[data-confirm-tracks]").click();
+    const video = frame.locator("video");
+    await video.evaluate(async (element: HTMLVideoElement) => {
+      element.currentTime = 0.2;
+      await element.play();
+    });
+    await frame.locator(english).dblclick({ position: { x: 15, y: 12 } });
+    await expect(frame.locator(overlay)).toContainText("常用义");
+    await expect
+      .poll(() => video.evaluate((element: HTMLVideoElement) => element.paused))
+      .toBe(true);
+    await video.evaluate((element: HTMLVideoElement) => {
+      // Native seeking events are queued. The trusted Escape reaches the actual Store
+      // close callback in this task before the seek event can revoke its pause.
+      window.addEventListener(
+        "keydown",
+        (event) => {
+          if (event.key === "Escape") element.currentTime = 1.3;
+        },
+        { capture: true, once: true },
+      );
+    });
+    await page.keyboard.press("Escape");
+    await expect(frame.locator(overlay)).toHaveCount(0);
+    expect(await video.evaluate((element: HTMLVideoElement) => element.paused)).toBe(true);
   } finally {
     await fixture.close();
   }

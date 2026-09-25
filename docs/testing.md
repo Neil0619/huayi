@@ -4,6 +4,8 @@ asbplayer Store 学习闭环与 Windows 验收矩阵见 [本地视频学习](clo
 M0 的 focused 离线命令、独立探针构建与官方 Chrome 验收矩阵见
 [`cloud-v1/asbplayer-m0-probe.md`](cloud-v1/asbplayer-m0-probe.md)。jsdom/fake channel 的通过不替代
 官网 `document_start`/MAIN 世界时序及主视频控制验证；真实模型与词书调用不属于 M0。
+暂停所有权回归覆盖媒体事件延迟：实际 Store 在可信 Escape 的捕获阶段改变原生视频位置，
+确认同一任务内关闭词卡仍保持暂停；保留原来的用户 seek/play/pause 矩阵，不以等待事件替代产品保护。
 
 Windows asbplayer 的原生缩放命令和证据边界见
 [Git 接续说明](cloud-v1/asbplayer-windows-handoff.md)。默认 Store 单测在 Windows 与 macOS 按文件

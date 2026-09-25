@@ -9,6 +9,7 @@ export class MediaPauseOwnership {
   private owned: MediaIdentity | null = null;
   private readonly owners = new Set<Owner>();
   private expectedPause = false;
+  private pausedAt = 0;
   constructor(
     private readonly current: () => MediaIdentity,
     private readonly modes: () => readonly number[] | null,
@@ -35,6 +36,7 @@ export class MediaPauseOwnership {
     this.expectedPause = true;
     try {
       video.pause();
+      this.pausedAt = video.currentTime;
     } catch {
       this.revoke();
     }
@@ -46,7 +48,16 @@ export class MediaPauseOwnership {
     const modes = this.modes();
     const resume = this.valid() && modes?.length === 1 && modes[0] === 1;
     this.revoke();
-    if (!resume || !identity?.video?.paused || identity.video.ended) return;
+    // Media events are queued: a seek can change the timeline before its event
+    // revokes ownership. Observe the native state before undoing our pause.
+    if (
+      !resume ||
+      !identity?.video?.paused ||
+      identity.video.ended ||
+      identity.video.seeking ||
+      identity.video.currentTime !== this.pausedAt
+    )
+      return;
     try {
       void identity.video.play().catch(() => undefined);
     } catch {
