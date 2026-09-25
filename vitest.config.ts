@@ -111,6 +111,9 @@ export default defineConfig({
         test: {
           environment: "node",
           include: ["apps/api/src/**/*.test.ts"],
+          // Vitest 4 does not forward CLI hookTimeout to inline projects.
+          // Match the API database setup budget already used by run-tests.mjs.
+          hookTimeout: 15000,
           name: "api",
           root: ".",
         },

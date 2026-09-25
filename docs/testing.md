@@ -11,6 +11,10 @@ Windows asbplayer 的原生缩放命令和证据边界见
 Store 目录，再独立执行 Store，最后保留 API 批次；不按多个否定项目参数组合排除，因为它们按或匹配。
 E2E 服务器冷构建允许 180 秒启动，单项断言期限不变。
 Windows 脚本测试同样限制为 4 个并发进程，避免批量启动子进程挤占 SEA 协议测试的原有期限。
+API 的嵌入式 PostgreSQL 初始化沿用运行脚本既定的 15 秒 Hook 预算，并在 API 项目配置显式声明。
+Vitest 4.1.11 会转发 CLI `testTimeout`，但不转发 `hookTimeout` 到内联项目；仅写 CLI 参数会使
+子项目继续使用默认 10 秒。`vitest-api-configuration.test.mjs` 用真实 Vitest 解析运行脚本参数，
+核对最终 API 配置，防止命令参数看似正确而实际失效。业务断言与界面性能门槛不变。
 Taro watcher 回归等待 HTTP 实际提供编辑后的内容，不能把无关的一次编译完成当成热更新成功。
 
 Classic `results.spec.ts` 与 Store `interface-layout.spec.ts` 的 Windows 视觉环境使用
