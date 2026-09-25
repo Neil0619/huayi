@@ -486,6 +486,13 @@ Hosted ID 和其他 ID，禁用时必须移除 ID。Hosted ID `hoijjhgcckfhbcefo
 
 ## asbplayer 原视频打开器
 
+快速导入使用本机页面获准读取的目录句柄；授权范围仅为原视频旁的「缓存视频」目录，
+官网只收到选中视频的 File 引用和字幕，不收到目录句柄、缓存路径或打开器身份密钥。
+不扩大 Store Manifest 权限。文件名、大小、修改时间和有界首尾摘要必须匹配才交接。
+本机端口身份保存在安装目录的 `browser-origin.json`，每次进程会话派生新令牌；
+复用进程前验证随机挑战 HMAC，端口被其他进程占用时失败，不发送授权令牌。
+该身份文件和旧有本机配置一样属于当前用户私有数据，不能提交到 Git 或写入诊断日志。
+
 影响 shared + Windows。独立本机 Node/FFmpeg 工具负责只读原媒体、音轨准备和文字字幕提取，
 Store 内容脚本负责一次性受限文件导入，不改变 Classic Host、Native Messaging 或 Chrome 权限。
 配置、信任边界、缓存管理和分层验收见 [Windows 原视频打开器](cloud-v1/asbplayer-local-opener.md)。

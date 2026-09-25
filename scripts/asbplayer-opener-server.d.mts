@@ -8,6 +8,7 @@ export interface PreparedMediaFile {
   language?: string;
 }
 export function startMediaOpener(options: {
+  identityPath?: string;
   pickFile: (subtitle: boolean) => Promise<string | null>;
   prepare: (
     source: string,
@@ -27,5 +28,6 @@ export function startMediaOpener(options: {
   token: string;
   url: string;
   close: () => Promise<void>;
-  server: Server;
+  server?: Server;
+  reused?: boolean;
 }>;

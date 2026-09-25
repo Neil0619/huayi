@@ -435,6 +435,13 @@ fail-closed 行为。Windows CI 会实际产出并运行 SEA `.exe` 的 health �
 
 ## asbplayer 原视频打开器
 
+快速文件引用导入另测 `asbplayer-adjacent-cache.test.mjs`（相邻目录、可读命名、旧缓存复用、
+重名与原文件变化）、`asbplayer-local-files.test.mjs`（有界读取、错误文件和权限失效）、
+`asbplayer-opener-session.test.mjs`（重复启动、固定 origin 和令牌轮换）。
+`asbplayer-local-import.spec.ts` 使用真实浏览器目录句柄和 IndexedDB，断言刷新后复用、
+仅字幕通过 HTTP 读取、正式 Store 导入及换片。目录选择用合成 OPFS 句柄注入，
+不能代替 Windows 原生 Chrome 目录选择、首次授权、浏览器重启后的权限状态和实际视频首播计时。
+
 影响 shared + Windows。独立本机 Node/FFmpeg 工具负责只读原媒体、音轨准备和文字字幕提取，
 Store 内容脚本负责一次性受限文件导入，不改变 Classic Host、Native Messaging 或 Chrome 权限。
 配置、信任边界、缓存管理和分层验收见 [Windows 原视频打开器](cloud-v1/asbplayer-local-opener.md)。

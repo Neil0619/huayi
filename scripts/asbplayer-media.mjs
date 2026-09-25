@@ -12,6 +12,7 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { basename, dirname, extname, join, resolve } from "node:path";
+import { prepareAdjacentMedia } from "./asbplayer-adjacent-cache.mjs";
 
 export function runMediaTool(executable, args) {
   return new Promise((resolvePromise, reject) => {
@@ -94,7 +95,8 @@ export async function findSidecars(source) {
       const path = join(directory, entry.name);
       if (entry.isFile() && matches(entry.name) && (await stat(path)).size <= 16_000_000)
         results.push({ name: entry.name, path });
-      else if (entry.isDirectory() && depth === 0) await visit(path, 1);
+      else if (entry.isDirectory() && depth === 0 && entry.name !== "缓存视频")
+        await visit(path, 1);
     }
   };
   await visit(dirname(source), 0);
@@ -155,18 +157,36 @@ function validCacheManifest(cached, key) {
 export async function prepareMedia({
   source,
   cacheRoot,
+  legacyCacheRoot,
   ffmpeg,
   ffprobe,
   run = runMediaTool,
   progress = () => undefined,
+  readOnly = false,
 }) {
   source = await realpath(source);
   const before = await stat(source);
   if (!before.isFile()) throw new Error("请选择一个视频文件。");
   const identity = ["media-v1", source, before.size, before.mtimeMs, ffmpeg, ffprobe];
   const key = createHash("sha256").update(JSON.stringify(identity)).digest("hex");
+  if (cacheRoot === undefined) {
+    return prepareAdjacentMedia(
+      {
+        source,
+        legacyCacheRoot,
+        ffmpeg,
+        ffprobe,
+        run,
+        progress,
+        key,
+        sourceIdentity: { size: before.size, mtimeMs: before.mtimeMs },
+      },
+      prepareMedia,
+      validCacheManifest,
+    );
+  }
   cacheRoot = resolve(cacheRoot);
-  await mkdir(cacheRoot, { recursive: true });
+  if (!readOnly) await mkdir(cacheRoot, { recursive: true });
   const target = join(cacheRoot, key);
   const load = async () => {
     const cached = JSON.parse(await readFile(join(target, "manifest.json"), "utf8"));
@@ -185,6 +205,7 @@ export async function prepareMedia({
     progress("使用已准备的缓存");
     return cached;
   } catch {
+    if (readOnly) throw new Error("旧缓存不可复用。");
     // Retain damaged cache for inspection, then atomically publish a fresh generation.
     try {
       await rename(target, join(cacheRoot, `${key}-invalid-${randomUUID()}`));

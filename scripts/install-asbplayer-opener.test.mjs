@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { execFile, spawn } from "node:child_process";
 import { promisify } from "node:util";
+import { pathToFileURL } from "node:url";
 import {
   createMediaOpenerShortcut,
   installMediaOpener,
@@ -12,6 +13,38 @@ import {
 } from "./install-asbplayer-opener.mjs";
 
 const runFile = promisify(execFile);
+
+test("installed opener includes every runtime module needed for file-reference imports", async () => {
+  const destination = await mkdtemp(join(tmpdir(), "seen-said-opener-modules-"));
+  let opener;
+  try {
+    await installMediaOpener({
+      destination,
+      config: {
+        node: process.execPath,
+        ffmpeg: process.execPath,
+        ffprobe: process.execPath,
+        chrome: process.execPath,
+      },
+    });
+    const installed = await import(
+      pathToFileURL(join(destination, "asbplayer-opener-server.mjs")).href
+    );
+    opener = await installed.startMediaOpener({
+      pickFile: async () => null,
+      sidecars: async () => [],
+      prepare: async () => undefined,
+    });
+    const page = await (await fetch(opener.origin)).text();
+    assert.ok(page.includes("授权缓存目录"));
+    assert.ok(
+      (await (await fetch(opener.origin + "/local-files.js")).text()).includes("browserFileReader"),
+    );
+  } finally {
+    await opener?.close();
+    await rm(destination, { recursive: true, force: true });
+  }
+});
 
 test(
   "Windows shortcut migrates its owned legacy entry and launches the installed script",

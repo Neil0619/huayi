@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import { access, readFile } from "node:fs/promises";
 import { homedir } from "node:os";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { prepareMedia, findSidecars } from "./asbplayer-media.mjs";
 import { startMediaOpener } from "./asbplayer-opener-server.mjs";
@@ -61,13 +61,20 @@ async function main() {
     if (typeof config[field] !== "string") throw new Error(`缺少本机配置：${field}`);
     await access(config[field]);
   }
-  const cacheRoot =
+  const legacyCacheRoot =
     config.cacheRoot ?? join(process.env.LOCALAPPDATA ?? homedir(), "SeenSaid", "media-cache");
   const opener = await startMediaOpener({
+    identityPath: join(dirname(resolve(configPath)), "browser-origin.json"),
     pickFile: pickWindowsMedia,
     sidecars: findSidecars,
     prepare: (source, progress) =>
-      prepareMedia({ source, cacheRoot, ffmpeg: config.ffmpeg, ffprobe: config.ffprobe, progress }),
+      prepareMedia({
+        source,
+        legacyCacheRoot,
+        ffmpeg: config.ffmpeg,
+        ffprobe: config.ffprobe,
+        progress,
+      }),
   });
   // URL contains a private per-process token: never print or persist it.
   const browser = spawn(config.chrome, [opener.url], {

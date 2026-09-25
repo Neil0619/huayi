@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { mkdtemp, writeFile, rm } from "node:fs/promises";
+import { mkdtemp, writeFile, rm, realpath } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { request } from "node:http";
 import { startMediaOpener } from "./asbplayer-opener-server.mjs";
 
 test("loopback requires session token and exact Origin/Host, rejects supplied paths, serves only selected media", async () => {
-  const directory = await mkdtemp(join(tmpdir(), "seen-said-opener-"));
+  const directory = await realpath(await mkdtemp(join(tmpdir(), "seen-said-opener-")));
   let opener;
   try {
     const file = join(directory, "video.mp4");
@@ -76,10 +76,15 @@ test("loopback requires session token and exact Origin/Host, rejects supplied pa
     }
     assert.equal(state.status, "ready");
     assert.equal(picks, 1);
-    assert.ok(!JSON.stringify(state).includes(directory));
+    assert.equal(state.cache.directory, directory);
+    assert.match(state.cache.id, /^[a-f0-9]{64}$/u);
+    assert.equal(state.files[0].localName, "video.mp4");
+    assert.equal(state.files[0].size, 11);
+    assert.match(state.files[0].sampleDigest, /^[a-f0-9]{64}$/u);
+    // The browser must obtain a file reference; whole-video HTTP import is retired.
     assert.equal(
-      await (await fetch(`${opener.origin}/file/${state.files[0].id}`, { headers })).text(),
-      "media-bytes",
+      (await fetch(`${opener.origin}/file/${state.files[0].id}`, { headers })).status,
+      410,
     );
     assert.equal((await fetch(`${opener.origin}/file/unknown`, { headers })).status, 404);
     assert.equal((await fetch(`${opener.origin}/file/../../private`, { headers })).status, 404);

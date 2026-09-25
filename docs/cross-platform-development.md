@@ -237,6 +237,11 @@ Windows 跳过这一个 macOS 系统原语，其余序列化、失败关闭、�
 
 ## asbplayer 原视频打开器
 
+相邻缓存与文件引用导入属于 `shared + Windows`：文件命名、目录句柄、缓存校验、
+固定本机 origin 和重复启动契约运行双平台离线检查。Windows 另验实际磁盘文件、
+Chrome 原生目录选择/授权、重启后的权限恢复和学习流程；macOS 原生打开器仍未实现，
+不可用 Windows 实测替代。OPFS 合成目录句柄验证浏览器契约，不代表实机目录授权通过。
+
 影响 shared + Windows。独立本机 Node/FFmpeg 工具负责只读原媒体、音轨准备和文字字幕提取，
 Store 内容脚本负责一次性受限文件导入，不改变 Classic Host、Native Messaging 或 Chrome 权限。
 配置、信任边界、缓存管理和分层验收见 [Windows 原视频打开器](cloud-v1/asbplayer-local-opener.md)。

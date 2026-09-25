@@ -1,16 +1,44 @@
 import { createServer } from "node:http";
-import { createReadStream } from "node:fs";
-import { readFile, stat } from "node:fs/promises";
-import { randomBytes, randomUUID } from "node:crypto";
-import { basename } from "node:path";
+import { createReadStream, openAsBlob } from "node:fs";
+import { readFile, realpath, stat } from "node:fs/promises";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { basename, dirname } from "node:path";
 import { openerHtml, openerClient } from "./asbplayer-opener-ui.mjs";
+import { sessionProof, sessionToken, startPersistentOpener } from "./asbplayer-opener-session.mjs";
+import { fileSampleDigest } from "./asbplayer-local-files.mjs";
 
-export async function startMediaOpener({ pickFile, prepare, sidecars }) {
-  const token = randomBytes(32).toString("hex");
+export async function startMediaOpener({
+  pickFile,
+  prepare,
+  sidecars,
+  identityPath,
+  port = 0,
+  secret,
+}) {
+  if (identityPath)
+    return startPersistentOpener(identityPath, (identity) =>
+      startMediaOpener({ pickFile, prepare, sidecars, ...identity }),
+    );
+  const nonce = randomBytes(32).toString("hex");
+  const token = secret ? sessionToken(secret, nonce) : randomBytes(32).toString("hex");
+  const localFilesScript = await readFile(
+    new URL("./asbplayer-local-files.mjs", import.meta.url),
+    "utf8",
+  );
   let state = { status: "empty", message: "请选择原视频", files: [], generation: randomUUID() };
   let media = new Map();
   let origin, close;
   const publish = async (result, source, neighbors) => {
+    const video = result.files.find((file) => file.kind === "video");
+    const videoPath = await realpath(video.path);
+    const info = await stat(videoPath);
+    const directory = dirname(videoPath);
+    const reference = {
+      localName: basename(videoPath),
+      size: info.size,
+      lastModified: Math.trunc(info.mtimeMs),
+      sampleDigest: await fileSampleDigest(await openAsBlob(videoPath)),
+    };
     const entries = [
       ...result.files,
       ...(await Promise.all(
@@ -44,6 +72,7 @@ export async function startMediaOpener({ pickFile, prepare, sidecars }) {
         kind: file.kind,
         type: file.type,
         selected: file === preferred,
+        ...(file.kind === "video" ? reference : {}),
       };
     });
     state = {
@@ -51,6 +80,7 @@ export async function startMediaOpener({ pickFile, prepare, sidecars }) {
       generation: randomUUID(),
       name: basename(source),
       files,
+      cache: { id: createHash("sha256").update(directory).digest("hex"), directory },
       message: "已准备好，点击开始学习",
       notice: [
         result.plan.imageSubtitleCount ? "此视频含图像字幕，图像轨道暂不能用于划词学习。" : "",
@@ -127,12 +157,25 @@ export async function startMediaOpener({ pickFile, prepare, sidecars }) {
     try {
       if (request.headers.host !== new URL(origin).host) return reject(403);
       const path = request.url;
-      if (request.method === "GET" && (path === "/" || path === "/opener.js")) {
+      const challenge = /^\/api\/session\?challenge=([a-f0-9]{64})$/u.exec(path);
+      if (secret && request.method === "GET" && challenge) {
+        if (request.headers.origin && request.headers.origin !== origin) return reject(403);
+        response.setHeader("Content-Type", "application/json");
+        response.end(JSON.stringify({ nonce, proof: sessionProof(secret, challenge[1], nonce) }));
+        return;
+      }
+      if (request.method === "GET" && ["/", "/opener.js", "/local-files.js"].includes(path)) {
         response.setHeader(
           "Content-Type",
           path === "/" ? "text/html; charset=utf-8" : "application/javascript; charset=utf-8",
         );
-        response.end(path === "/" ? openerHtml : `(${openerClient.toString()})(window,document);`);
+        response.end(
+          path === "/"
+            ? openerHtml
+            : path === "/local-files.js"
+              ? localFilesScript
+              : `import { browserFileReader } from "/local-files.js"; (${openerClient.toString()})(window,document,browserFileReader(window));`,
+        );
         return;
       }
       if (
@@ -148,6 +191,7 @@ export async function startMediaOpener({ pickFile, prepare, sidecars }) {
       if (request.method === "GET" && path.startsWith("/file/")) {
         const file = media.get(path.slice(6));
         if (!file) return reject(404);
+        if (file.kind === "video") return reject(410);
         response.setHeader("Content-Type", file.type);
         response.setHeader("Content-Length", file.size);
         if (file.bytes) response.end(file.bytes);
@@ -186,7 +230,7 @@ export async function startMediaOpener({ pickFile, prepare, sidecars }) {
   });
   await new Promise((resolve, reject) => {
     server.once("error", reject);
-    server.listen(0, "127.0.0.1", resolve);
+    server.listen(port, "127.0.0.1", resolve);
   });
   origin = `http://127.0.0.1:${server.address().port}`;
   close = () =>

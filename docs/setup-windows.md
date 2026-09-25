@@ -249,6 +249,11 @@ Chrome 加载入口，也不从旧 main 重建覆盖最新安装。程序文件�
 
 ## asbplayer 原视频打开器
 
+新版媒体缓存位于每个原视频目录下的「缓存视频」，文件名保留原片名与集数。
+第一次使用该目录时，在打开器点「授权缓存目录」并选择显示的路径；之后通过文件引用快速导入，
+不等待整部视频复制进浏览器。原配置 `cacheRoot` 仅用于查找可复用的旧缓存。
+安装目录中的 `browser-origin.json` 用于保持 Chrome 授权对应的本机地址，不要分享或提交它。
+
 影响 shared + Windows。独立本机 Node/FFmpeg 工具负责只读原媒体、音轨准备和文字字幕提取，
 Store 内容脚本负责一次性受限文件导入，不改变 Classic Host、Native Messaging 或 Chrome 权限。
 配置、信任边界、缓存管理和分层验收见 [Windows 原视频打开器](cloud-v1/asbplayer-local-opener.md)。

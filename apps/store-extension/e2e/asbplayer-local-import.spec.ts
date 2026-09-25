@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { mkdtemp, writeFile, rm } from "node:fs/promises";
+import { mkdtemp, writeFile, rm, utimes } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { startMediaOpener } from "../../../scripts/asbplayer-opener-server.mjs";
@@ -11,18 +11,20 @@ test("registered importer receives local Files, confirms delivery and permits a 
   const fixture = await createAsbplayerPackageFixture();
   const directory = await mkdtemp(join(tmpdir(), "seen-said-opener-browser-"));
   const video = join(directory, "video.mp4"),
+    nextVideo = join(directory, "next-video.mp4"),
     subtitle = join(directory, "english.srt");
   await writeFile(video, "bounded-video-payload");
+  await writeFile(nextVideo, "next-episode-payload");
   await writeFile(subtitle, "bounded-subtitle-payload");
   let picked = 0;
   const opener = await startMediaOpener({
     pickFile: async () => {
       picked++;
-      return video;
+      return picked === 1 ? video : nextVideo;
     },
-    prepare: async () => ({
+    prepare: async (source) => ({
       files: [
-        { path: video, name: "video.mp4", type: "video/mp4", kind: "video", size: 21 },
+        { path: source, name: "video.mp4", type: "video/mp4", kind: "video", size: 21 },
         { path: subtitle, name: "english.srt", type: "text/plain", kind: "subtitle", size: 24 },
       ],
       plan: { imageSubtitleCount: 0 },
@@ -44,32 +46,97 @@ test("registered importer receives local Files, confirms delivery and permits a 
     );
     const local = await fixture.context.newPage();
     await local.goto(opener.url);
+    // A real browser directory handle exercises IndexedDB persistence and file references.
+    // Selection alone is injected: this does not claim a native directory dialog passed.
+    const modified = await local.evaluate(async () => {
+      const directory = await (
+        await navigator.storage.getDirectory()
+      ).getDirectoryHandle("cache", { create: true });
+      const handle = await directory.getFileHandle("video.mp4", { create: true });
+      const writable = await handle.createWritable();
+      await writable.write("bounded-video-payload");
+      await writable.close();
+      const nextHandle = await directory.getFileHandle("next-video.mp4", { create: true });
+      const nextWritable = await nextHandle.createWritable();
+      await nextWritable.write("next-episode-payload");
+      await nextWritable.close();
+      const empty = await (
+        await navigator.storage.getDirectory()
+      ).getDirectoryHandle("wrong-cache", { create: true });
+      let selections = 0;
+      Object.defineProperty(window, "showDirectoryPicker", {
+        configurable: true,
+        value: async () => {
+          selections++;
+          if (selections === 1) throw new DOMException("cancelled", "AbortError");
+          return selections === 2 ? empty : directory;
+        },
+      });
+      return {
+        first: (await handle.getFile()).lastModified,
+        next: (await nextHandle.getFile()).lastModified,
+      };
+    });
+    await utimes(video, modified.first / 1000, modified.first / 1000);
+    await utimes(nextVideo, modified.next / 1000, modified.next / 1000);
+    const mediaRequests: string[] = [];
+    local.on("request", (request) => {
+      if (new URL(request.url()).pathname.startsWith("/file/")) mediaRequests.push(request.url());
+    });
     await local.getByRole("button", { name: "选择原视频", exact: true }).click();
+    await expect(local.getByRole("button", { name: "授权缓存目录", exact: true })).toBeVisible();
+    await expect(local.getByRole("button", { name: "开始学习", exact: true })).toBeDisabled();
+    await local.getByRole("button", { name: "授权缓存目录", exact: true }).click();
+    await expect(local.locator("#status")).toContainText("已取消目录授权");
+    await expect(local.getByRole("button", { name: "开始学习", exact: true })).toBeDisabled();
+    await local.getByRole("button", { name: "授权缓存目录", exact: true }).click();
+    await expect(local.locator("#status")).toContainText("所选目录中没有这份缓存");
+    await expect(local.getByRole("button", { name: "开始学习", exact: true })).toBeDisabled();
+    await local.getByRole("button", { name: "授权缓存目录", exact: true }).click();
     await expect(local.getByRole("button", { name: "开始学习", exact: true })).toBeEnabled();
-    const launch = async () => {
+    // Reload with a fresh startup URL: the real persisted handle must work without a picker.
+    await local.goto(opener.url);
+    await expect(local.getByRole("button", { name: "开始学习", exact: true })).toBeEnabled();
+    await expect(local.getByRole("button", { name: "授权缓存目录", exact: true })).toBeHidden();
+    const launch = async (payload: string) => {
       const popup = local.waitForEvent("popup");
       await local.getByRole("button", { name: "开始学习", exact: true }).click();
       const player = await popup;
-      await expect(player.locator("output")).toContainText("bounded-video-payload");
+      await expect(player.locator("output")).toContainText(payload);
       await expect(player.locator("output")).toContainText("bounded-subtitle-payload");
       await expect(local.locator("#status")).toContainText("已送入播放器");
       await expect(player.getByRole("button", { name: "打开另一个视频" })).toBeVisible();
       expect(new URL(player.url()).hash).toBe("");
       return player;
     };
-    const firstPlayer = await launch();
+    const firstPlayer = await launch("bounded-video-payload");
+    expect(mediaRequests).toHaveLength(1); // Only the small subtitle is requested over HTTP.
     await firstPlayer.evaluate(() =>
       window.postMessage({ type: "seen-said/local-replace", nonce: "untrusted" }, location.origin),
     );
     expect(firstPlayer.isClosed()).toBe(false);
-    await local.getByRole("button", { name: "选择原视频", exact: true }).click();
+    let releaseOpen: () => void = () => undefined;
+    const openGate = new Promise<void>((resolve) => {
+      releaseOpen = resolve;
+    });
+    await fixture.context.route(`${opener.origin}/api/open`, async (route) => {
+      await openGate;
+      await route.continue();
+    });
+    try {
+      await local.getByRole("button", { name: "选择原视频", exact: true }).click();
+      await expect(local.getByRole("button", { name: "开始学习", exact: true })).toBeDisabled();
+    } finally {
+      releaseOpen();
+    }
     await expect.poll(() => picked).toBe(2);
     await expect(local.getByRole("button", { name: "开始学习", exact: true })).toBeEnabled();
-    const secondPlayer = await launch();
+    await expect(local.getByRole("button", { name: "授权缓存目录", exact: true })).toBeHidden();
+    const secondPlayer = await launch("next-episode-payload");
     await expect.poll(() => firstPlayer.isClosed()).toBe(true);
     // A former player navigated elsewhere must not be closed by the opener.
     await secondPlayer.goto("https://example.test/");
-    const thirdPlayer = await launch();
+    const thirdPlayer = await launch("next-episode-payload");
     await expect(secondPlayer.locator("p")).toHaveText("Reading opens doors.");
     expect(secondPlayer.isClosed()).toBe(false);
     await thirdPlayer.close();
