@@ -200,6 +200,7 @@ test("batch page shows progress, stops remaining work and can select a prepared 
     await expect(page.locator("#batch-status")).toContainText("完成当前文件");
     release();
     await expect(page.locator("#batch-status")).toContainText("成功 1，失败 0，未处理 1");
+    await expect(page.locator("#status")).not.toContainText("请在文件选择窗口中选择文件");
     await page.getByRole("button", { name: "选用此视频", exact: true }).click();
     await expect(page.locator("#title")).toHaveText("first.mp4");
     await expect(page.getByRole("button", { name: "授权缓存目录", exact: true })).toBeVisible();

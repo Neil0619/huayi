@@ -84,7 +84,8 @@ export function openerClient(view, doc, reader) {
       current = await response.json();
       renderBatch();
       controls();
-      if (!importing && current.message !== lastMessage) status.textContent = current.message;
+      if (!importing && (current.message !== lastMessage || generation !== current.generation))
+        status.textContent = current.message;
       lastMessage = current.message;
       if (generation === current.generation) return;
       generation = current.generation;
@@ -124,7 +125,7 @@ export function openerClient(view, doc, reader) {
   const choose = async (path) => {
     choosing = true;
     controls();
-    status.textContent = "请在文件选择窗口中选择文件…";
+    if (!path.startsWith("/api/batch/")) status.textContent = "请在文件选择窗口中选择文件…";
     try {
       const response = await request(path, { method: "POST", body: "{}" });
       if (!response.ok) {
