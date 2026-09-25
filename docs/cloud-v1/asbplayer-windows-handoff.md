@@ -1,11 +1,16 @@
 # asbplayer Windows Git 接续说明
 
-2026-09-25 最近一轮完整门禁候选为 `6fa78e9d2ff4f963290a359ff5adffb4bb571871`，工作分支为
+2026-09-25 本轮完整门禁代码候选为 `cf2c0171a7f13af6be3a1eb97e48b4c269b1b09f`，工作分支为
 `codex/asbplayer-windows-validation-fixes`。此轮补齐 Unicode 快捷方式、PowerShell 5.1
 UTF-8 配置读取、损坏缓存、原生媒体事件竞态和中文系统字体修复，并校正 API 初始化预算的配置传递。
-准确候选、最新门禁、
-实际 Store/官网/影视库验证和剩余边界统一见 [合并前全面检查回执](asbplayer-final-review.md)。
-该回执未确认最终门禁和合并前，不把下方历史通过结果移用于当前候选。
+准确候选、最新门禁、实际 Store/官网/影视库验证和剩余边界统一见
+[全面检查回执](asbplayer-final-review.md)。
+双平台 CI 已通过，各自浏览器 249/249。
+本机完整 `pnpm verify:windows` 成功，浏览器 249/249、覆盖率、安全审计和 SEA health 通过；
+固定 Hosted 目录已备份更新并通过隔离加载，路径和扩展 ID 不变。源码身份为上述 commit，
+后续仅文档回执提交与它分开记录；Git 集成使用 main 快进及常规推送。
+最新原生选片补验因窗口工具识别失败而未完成；100% 新打开器按用户决定暂缓，Mac 新 shared
+行为仍需实机验证，真实 YouTube 临时中文仍受上游 HTTP 429 阻塞。下方保留历史结果，不混淆候选或证据范围。
 
 ## 历史桌面入口验证
 
@@ -116,12 +121,13 @@ macOS 普通 Store 批次，原测试及 15 秒期限保留；准确 Mac CI 已�
 网页。候选工作树的 `dist-release` 是独立测试产物，不作为长期加载路径；此前将它作为日常加载
 建议不正确。不要卸载已有条目或把 release 包复制成 Hosted 安装。
 
-本轮固定目录更新及打开器快捷方式状态见 [原 MKV 打开器回执](asbplayer-windows-opener-validation.md)。
+本轮固定目录更新及打开器快捷方式状态见 [全面检查回执](asbplayer-final-review.md)，
+历史结果见 [原 MKV 打开器回执](asbplayer-windows-opener-validation.md)。
 
 历史上已从 `a3eaf05` 重新构建并审计 Hosted 包，备份原固定目录后更新，23 个文件名称与
 SHA-256 全部匹配；隔离 Chrome 从该固定路径加载后读到正确 ID，asbplayer 设置可见、页面错误 0。
-日常 Chrome 尚未由代理重载，账号业务及 Hosted 官网完整矩阵未因此声称通过。主仓库源码与 main
-保持不变；候选尚未接续前，不从旧 main 重新构建覆盖该目录。详见
+当时日常 Chrome 未由代理重载，账号业务及 Hosted 官网完整矩阵未因此声称通过；主仓库源码与 main
+在该历史轮保持不变。候选尚未接续前，不从旧 main 重新构建覆盖该目录。详见
 [统一工作流](../store-v1/local-and-store-workflow.md)和 [Windows 回执](asbplayer-windows-validation.md)。
 
 ## 构建及自动化验证
