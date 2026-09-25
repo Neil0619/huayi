@@ -1,5 +1,13 @@
 # asbplayer Windows Git 接续说明
 
+2026-09-25 最新批量预处理与播放器换片候选为
+`57f5f9f6c6868600952bc3f5329583a8db2f46b7`，批量实现提交为 `9d4bb72`，并补齐 CI 暴露的
+原生 seek 事件竞态保护；分支仍为
+`codex/asbplayer-windows-validation-fixes`。新增串行批量准备、停止剩余任务和选择已完成视频，
+修复播放器换片按钮只尝试置前而未请求选片的问题。历次完整本机门禁、最新候选的双平台 CI、
+定向 Windows 回归、固定目录安装及 150% 实际媒体结果分别记录。准确身份和未验证项见
+[批量预处理与播放器换片回执](asbplayer-batch-validation.md)。下面保留历轮结果，各自适用范围不变。
+
 2026-09-25 后续缓存与导入优化代码候选为
 `105f15da6f2e38c525ac0b967a10e58da9ed2dca`，仍在
 `codex/asbplayer-windows-validation-fixes`。缓存改为原视频旁的「缓存视频」目录和可辨认名称，
