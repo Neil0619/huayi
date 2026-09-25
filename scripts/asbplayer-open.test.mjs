@@ -4,7 +4,29 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
+import { EventEmitter } from "node:events";
+import { PassThrough } from "node:stream";
 import { pickWindowsMedia } from "./asbplayer-open.mjs";
+
+test("multi-selection preserves Unicode and spaces as distinct paths; cancellation stays empty", async () => {
+  const paths = ["F:\\影视资源\\Show S01E01.mkv", "F:\\影视资源\\Show S01E02.mkv"];
+  const launch = (output) => () => {
+    const child = new EventEmitter();
+    child.stdout = new PassThrough();
+    queueMicrotask(() => {
+      child.stdout.end(output);
+      child.emit("exit", 0);
+    });
+    return child;
+  };
+  const encoded = paths.map((path) => Buffer.from(path).toString("base64")).join("\r\n") + "\r\n";
+  assert.deepEqual(await pickWindowsMedia(false, launch(encoded), true), paths);
+  assert.equal(await pickWindowsMedia(false, launch(""), true), null);
+  assert.equal(
+    await pickWindowsMedia(false, launch(Buffer.from(paths[0]).toString("base64"))),
+    paths[0],
+  );
+});
 
 // Observe and dismiss only the real dialog created on this test process's UI thread.
 // No browser, desktop settings, real media or other process's windows are touched.
@@ -49,40 +71,45 @@ $observer.Add_Tick({ if ([OpenerPickerTest]::ObserveAndCancel($env:SEEN_SAID_PIC
 $observer.Start()
 `;
 
-test(
-  "native file picker appears above the browser and cancellation releases its temporary owner",
-  {
-    skip:
-      process.platform !== "win32" && "Requires real Windows Forms; runs in Windows quality gate",
-    timeout: 30_000,
-  },
-  async () => {
-    const directory = await mkdtemp(join(tmpdir(), "seen-said-picker-test-"));
-    const observationPath = join(directory, "observation.txt");
-    let child;
-    try {
-      const selected = await pickWindowsMedia(false, (command, args, options) => {
-        const instrumented = [...args];
-        instrumented[instrumented.length - 1] =
-          observeDialog +
-          args.at(-1) +
-          `; $observer.Stop(); $observer.Dispose(); [IO.File]::AppendAllText($env:SEEN_SAID_PICKER_OBSERVATION, ';openForms=' + [System.Windows.Forms.Application]::OpenForms.Count)`;
-        child = spawn(command, instrumented, {
-          ...options,
-          timeout: 20_000,
-          env: { ...process.env, SEEN_SAID_PICKER_OBSERVATION: observationPath },
-        });
-        return child;
-      });
-      assert.equal(selected, null, "Cancelling the actual native picker returns no file");
-      assert.equal(
-        await readFile(observationPath, "utf8"),
-        "visible=True;topmost=True;sized=True;openForms=0",
-        "The dialog must surface above Chrome and dispose its owner after cancellation",
-      );
-    } finally {
-      if (child?.exitCode === null) child.kill();
-      await rm(directory, { recursive: true, force: true });
-    }
-  },
-);
+for (const multiple of [false, true])
+  test(
+    `native ${multiple ? "multiple" : "single"} file picker appears above the browser and cancellation releases its temporary owner`,
+    {
+      skip:
+        process.platform !== "win32" && "Requires real Windows Forms; runs in Windows quality gate",
+      timeout: 30_000,
+    },
+    async () => {
+      const directory = await mkdtemp(join(tmpdir(), "seen-said-picker-test-"));
+      const observationPath = join(directory, "observation.txt");
+      let child;
+      try {
+        const selected = await pickWindowsMedia(
+          false,
+          (command, args, options) => {
+            const instrumented = [...args];
+            instrumented[instrumented.length - 1] =
+              observeDialog +
+              args.at(-1) +
+              `; $observer.Stop(); $observer.Dispose(); [IO.File]::AppendAllText($env:SEEN_SAID_PICKER_OBSERVATION, ';openForms=' + [System.Windows.Forms.Application]::OpenForms.Count)`;
+            child = spawn(command, instrumented, {
+              ...options,
+              timeout: 20_000,
+              env: { ...process.env, SEEN_SAID_PICKER_OBSERVATION: observationPath },
+            });
+            return child;
+          },
+          multiple,
+        );
+        assert.equal(selected, null, "Cancelling the actual native picker returns no file");
+        assert.equal(
+          await readFile(observationPath, "utf8"),
+          "visible=True;topmost=True;sized=True;openForms=0",
+          "The dialog must surface above Chrome and dispose its owner after cancellation",
+        );
+      } finally {
+        if (child?.exitCode === null) child.kill();
+        await rm(directory, { recursive: true, force: true });
+      }
+    },
+  );

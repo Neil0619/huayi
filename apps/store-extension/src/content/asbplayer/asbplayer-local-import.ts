@@ -98,6 +98,76 @@ function allowPlayerReplacement(view: Window, descriptor: LocalImportDescriptor,
   view.addEventListener("pagehide", hide);
 }
 
+function installOpenButton(
+  doc: Document,
+  view: Window,
+  opener: Window,
+  descriptor: LocalImportDescriptor,
+) {
+  const button = doc.createElement("button");
+  button.textContent = "打开另一个视频";
+  button.dataset.huayiLocalOpen = "";
+  button.style.cssText =
+    "position:fixed;top:8px;left:220px;z-index:2147483000;padding:7px 12px;background:#222;color:white;border:1px solid #aaa;border-radius:6px;cursor:pointer";
+  const status = doc.createElement("span");
+  status.dataset.huayiLocalOpenStatus = "";
+  status.setAttribute("role", "status");
+  status.style.cssText =
+    "position:fixed;top:50px;left:220px;z-index:2147483000;background:#222;color:white;padding:4px 8px";
+  status.hidden = true;
+  let timeout: number | undefined;
+  const show = (text: string) => {
+    status.textContent = text;
+    status.hidden = false;
+  };
+  const receive = (event: MessageEvent<unknown>) => {
+    if (event.origin !== descriptor.origin || event.source !== opener) return;
+    const data = event.data;
+    if (
+      !data ||
+      typeof data !== "object" ||
+      !("type" in data) ||
+      data.type !== "seen-said/local-open-result" ||
+      !("nonce" in data) ||
+      data.nonce !== descriptor.nonce ||
+      !("status" in data)
+    )
+      return;
+    if (data.status !== "busy" && data.status !== "choosing") return;
+    view.clearTimeout(timeout);
+    show(
+      data.status === "busy"
+        ? "打开器正在处理文件，请稍后重试。"
+        : "请在文件窗口选择原视频，准备好后到打开器点击开始学习。",
+    );
+  };
+  button.onclick = () => {
+    view.clearTimeout(timeout);
+    if (opener.closed) {
+      show("本机打开器已关闭，请双击桌面「语见本机视频」重新打开。");
+      return;
+    }
+    show("正在打开选片窗口…");
+    opener.postMessage(
+      { type: "seen-said/local-open", nonce: descriptor.nonce },
+      descriptor.origin,
+    );
+    // Native selection is requested explicitly; focus alone can be ignored by Chrome.
+    opener.focus();
+    timeout = view.setTimeout(
+      () => show("打开器没有响应，请双击桌面「语见本机视频」重新打开。"),
+      5000,
+    );
+  };
+  view.addEventListener("message", receive);
+  view.addEventListener("pagehide", (event) => {
+    if (event.persisted) return;
+    view.removeEventListener("message", receive);
+    view.clearTimeout(timeout);
+  });
+  doc.body.append(button, status);
+}
+
 export function installLocalMediaImport(doc: Document): void {
   const view = doc.defaultView;
   if (
@@ -137,16 +207,7 @@ export function installLocalMediaImport(doc: Document): void {
         { type: "seen-said/local-imported", nonce: descriptor.nonce },
         descriptor.origin,
       );
-      const button = doc.createElement("button");
-      button.textContent = "打开另一个视频";
-      button.dataset.huayiLocalOpen = "";
-      button.style.cssText =
-        "position:fixed;top:8px;left:220px;z-index:2147483000;padding:7px 12px;background:#222;color:white;border:1px solid #aaa;border-radius:6px;cursor:pointer";
-      button.onclick = () => {
-        if (!opener.closed) opener.focus();
-        else button.textContent = "请重新启动本机打开器";
-      };
-      doc.body.append(button);
+      installOpenButton(doc, view, opener, descriptor);
     } finally {
       cleanup();
     }

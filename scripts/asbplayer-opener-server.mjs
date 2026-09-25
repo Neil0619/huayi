@@ -6,9 +6,11 @@ import { basename, dirname } from "node:path";
 import { openerHtml, openerClient } from "./asbplayer-opener-ui.mjs";
 import { sessionProof, sessionToken, startPersistentOpener } from "./asbplayer-opener-session.mjs";
 import { fileSampleDigest } from "./asbplayer-local-files.mjs";
+import { createMediaBatch } from "./asbplayer-opener-batch.mjs";
 
 export async function startMediaOpener({
   pickFile,
+  pickFiles = async () => [],
   prepare,
   sidecars,
   identityPath,
@@ -17,7 +19,7 @@ export async function startMediaOpener({
 }) {
   if (identityPath)
     return startPersistentOpener(identityPath, (identity) =>
-      startMediaOpener({ pickFile, prepare, sidecars, ...identity }),
+      startMediaOpener({ pickFile, pickFiles, prepare, sidecars, ...identity }),
     );
   const nonce = randomBytes(32).toString("hex");
   const token = secret ? sessionToken(secret, nonce) : randomBytes(32).toString("hex");
@@ -28,6 +30,7 @@ export async function startMediaOpener({
   let state = { status: "empty", message: "请选择原视频", files: [], generation: randomUUID() };
   let media = new Map();
   let origin, close;
+  const batch = createMediaBatch({ pickFiles, prepare });
   const publish = async (result, source, neighbors) => {
     const video = result.files.find((file) => file.kind === "video");
     const videoPath = await realpath(video.path);
@@ -93,11 +96,11 @@ export async function startMediaOpener({
         .join(" "),
     };
   };
-  const choose = async (subtitle) => {
+  const choose = async (subtitle, preparedSource) => {
     const previous = state;
     state = { ...state, status: "busy", message: "请选择文件" };
     try {
-      const source = await pickFile(subtitle);
+      const source = preparedSource ?? (await pickFile(subtitle));
       if (!source) {
         state = previous;
         return;
@@ -185,7 +188,7 @@ export async function startMediaOpener({
         return reject(403);
       if (request.method === "GET" && path === "/api/state") {
         response.setHeader("Content-Type", "application/json");
-        response.end(JSON.stringify(state));
+        response.end(JSON.stringify({ ...state, batch: batch.snapshot() }));
         return;
       }
       if (request.method === "GET" && path.startsWith("/file/")) {
@@ -201,7 +204,18 @@ export async function startMediaOpener({
             .pipe(response);
         return;
       }
-      if (request.method !== "POST" || !["/api/open", "/api/subtitle", "/api/close"].includes(path))
+      const selection = /^\/api\/batch\/select\/([a-f0-9-]{36})$/u.exec(path);
+      if (
+        request.method !== "POST" ||
+        (!selection &&
+          ![
+            "/api/open",
+            "/api/subtitle",
+            "/api/close",
+            "/api/batch/start",
+            "/api/batch/stop",
+          ].includes(path))
+      )
         return reject(404);
       if (
         request.headers.origin !== origin ||
@@ -214,7 +228,24 @@ export async function startMediaOpener({
         if (body.length > 128) return reject(413);
       }
       if (body !== "{}") return reject(400);
-      if (state.status === "busy") return reject(409);
+      if (path === "/api/batch/stop") {
+        batch.stop();
+        response.writeHead(202).end();
+        return;
+      }
+      if (state.status === "busy" || batch.snapshot().busy) return reject(409);
+      if (path === "/api/batch/start") {
+        void batch.start();
+        response.writeHead(202).end();
+        return;
+      }
+      if (selection) {
+        const source = batch.sourceFor(selection[1]);
+        if (!source) return reject(404);
+        void choose(false, source);
+        response.writeHead(202).end();
+        return;
+      }
       if (path === "/api/close") {
         response.writeHead(202).end();
         setTimeout(close, 100).unref();

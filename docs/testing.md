@@ -435,6 +435,12 @@ fail-closed 行为。Windows CI 会实际产出并运行 SEA `.exe` 的 health �
 
 ## asbplayer 原视频打开器
 
+`asbplayer-opener-batch.test.mjs` 通过实际 localhost HTTP 验证串行批量、重复项、单项失败继续、
+停止后保留成功缓存、取消保留结果、随机 ID 选片和权限边界。`asbplayer-local-import.spec.ts`
+点击实际 Store 构建的换片按钮，断言进入选片、正确导入下一文件，并覆盖忙碌、关闭打开器、
+错误 nonce 和批量页面进度/停止/选用。原生选择在浏览器测试中注入，不能据此宣称人工多选通过。
+Windows 原生单选和多选窗口的出现/取消测试与文件名编码测试保持独立；实机媒体另行验收。
+
 快速文件引用导入另测 `asbplayer-adjacent-cache.test.mjs`（相邻目录、可读命名、旧缓存复用、
 重名与原文件变化）、`asbplayer-local-files.test.mjs`（有界读取、错误文件和权限失效）、
 `asbplayer-opener-session.test.mjs`（重复启动、固定 origin 和令牌轮换）。

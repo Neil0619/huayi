@@ -6,7 +6,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { prepareMedia, findSidecars } from "./asbplayer-media.mjs";
 import { startMediaOpener } from "./asbplayer-opener-server.mjs";
 
-export function pickWindowsMedia(subtitle = false, launch = spawn) {
+export function pickWindowsMedia(subtitle = false, launch = spawn, multiple = false) {
   const filter = subtitle ? "文字字幕|*.srt;*.ass;*.ssa;*.vtt" : "本地视频|*.mkv;*.mp4;*.m4v";
   // A dialog owned by the hidden console can stay behind Chrome without a taskbar entry.
   // Give this one modal dialog a temporary topmost owner, then dispose both together.
@@ -22,9 +22,12 @@ try {
   $owner.StartPosition = 'CenterScreen'
   $owner.Show()
   $picker.Filter = '${filter}'
+  $picker.Multiselect = $${multiple ? "true" : "false"}
   $picker.Title = '语见：选择${subtitle ? "字幕" : "原视频"}'
   if ($picker.ShowDialog($owner) -eq 'OK') {
-    [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($picker.FileName))
+    foreach ($selected in $picker.FileNames) {
+      [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($selected))
+    }
   }
 } finally {
   $picker.Dispose()
@@ -44,7 +47,14 @@ try {
     child.once("exit", (code) =>
       code === 0
         ? resolvePromise(
-            output.trim() ? Buffer.from(output.trim(), "base64").toString("utf8") : null,
+            output.trim()
+              ? multiple
+                ? output
+                    .trim()
+                    .split(/\r?\n/u)
+                    .map((line) => Buffer.from(line, "base64").toString("utf8"))
+                : Buffer.from(output.trim(), "base64").toString("utf8")
+              : null,
           )
         : reject(new Error("无法打开文件选择窗口。")),
     );
@@ -66,6 +76,7 @@ async function main() {
   const opener = await startMediaOpener({
     identityPath: join(dirname(resolve(configPath)), "browser-origin.json"),
     pickFile: pickWindowsMedia,
+    pickFiles: () => pickWindowsMedia(false, spawn, true),
     sidecars: findSidecars,
     prepare: (source, progress) =>
       prepareMedia({

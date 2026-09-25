@@ -10,6 +10,7 @@ export interface PreparedMediaFile {
 export function startMediaOpener(options: {
   identityPath?: string;
   pickFile: (subtitle: boolean) => Promise<string | null>;
+  pickFiles?: () => Promise<string[] | null>;
   prepare: (
     source: string,
     progress: (message: string) => void,

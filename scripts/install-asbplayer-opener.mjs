@@ -14,6 +14,7 @@ const scripts = [
   "asbplayer-local-files.mjs",
   "asbplayer-opener-session.mjs",
   "asbplayer-opener-server.mjs",
+  "asbplayer-opener-batch.mjs",
   "asbplayer-opener-ui.mjs",
 ];
 const launcher = `$ErrorActionPreference = 'Stop'

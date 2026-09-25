@@ -115,6 +115,11 @@ test("registered importer receives local Files, confirms delivery and permits a 
       window.postMessage({ type: "seen-said/local-replace", nonce: "untrusted" }, location.origin),
     );
     expect(firstPlayer.isClosed()).toBe(false);
+    await firstPlayer.evaluate((origin) => {
+      window.opener.postMessage({ type: "seen-said/local-open", nonce: "untrusted" }, origin);
+    }, opener.origin);
+    await expect(local.getByRole("button", { name: "开始学习", exact: true })).toBeEnabled();
+    expect(picked).toBe(1);
     let releaseOpen: () => void = () => undefined;
     const openGate = new Promise<void>((resolve) => {
       releaseOpen = resolve;
@@ -124,8 +129,15 @@ test("registered importer receives local Files, confirms delivery and permits a 
       await route.continue();
     });
     try {
-      await local.getByRole("button", { name: "选择原视频", exact: true }).click();
+      await firstPlayer.getByRole("button", { name: "打开另一个视频", exact: true }).click();
       await expect(local.getByRole("button", { name: "开始学习", exact: true })).toBeDisabled();
+      await expect(firstPlayer.locator("[data-huayi-local-open-status]")).toContainText(
+        "请在文件窗口",
+      );
+      await firstPlayer.getByRole("button", { name: "打开另一个视频", exact: true }).click();
+      await expect(firstPlayer.locator("[data-huayi-local-open-status]")).toContainText(
+        "正在处理文件",
+      );
     } finally {
       releaseOpen();
     }
@@ -139,10 +151,65 @@ test("registered importer receives local Files, confirms delivery and permits a 
     const thirdPlayer = await launch("next-episode-payload");
     await expect(secondPlayer.locator("p")).toHaveText("Reading opens doors.");
     expect(secondPlayer.isClosed()).toBe(false);
+    await local.close();
+    await thirdPlayer.getByRole("button", { name: "打开另一个视频", exact: true }).click();
+    await expect(thirdPlayer.locator("[data-huayi-local-open-status]")).toContainText(
+      "打开器已关闭",
+    );
     await thirdPlayer.close();
     await secondPlayer.close();
     expect(fixture.requests).toHaveLength(0);
   } finally {
+    await opener.close();
+    await fixture.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("batch page shows progress, stops remaining work and can select a prepared video", async () => {
+  test.setTimeout(60000);
+  const fixture = await createAsbplayerPackageFixture();
+  const directory = await mkdtemp(join(tmpdir(), "seen-said-batch-browser-"));
+  const files = [join(directory, "first.mp4"), join(directory, "next.mp4")];
+  for (const file of files) await writeFile(file, "batch-video");
+  let release: () => void = () => undefined;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const opener = await startMediaOpener({
+    pickFile: async () => null,
+    pickFiles: async () => files,
+    prepare: async (source, progress) => {
+      progress("正在准备兼容音轨");
+      await gate;
+      return {
+        files: [{ path: source, name: "video.mp4", type: "video/mp4", kind: "video", size: 11 }],
+        plan: { imageSubtitleCount: 0 },
+      };
+    },
+    sidecars: async () => [],
+  });
+  try {
+    await fixture.context.route(`${opener.origin}/**`, (route) => route.continue());
+    const page = await fixture.context.newPage();
+    await page.goto(opener.url);
+    await page.getByRole("button", { name: "批量预处理视频", exact: true }).click();
+    await expect(page.locator("#batch-items")).toContainText("first.mp4 — 正在准备兼容音轨");
+    await expect(page.getByRole("button", { name: "选择原视频", exact: true })).toBeDisabled();
+    await page.getByRole("button", { name: "停止剩余任务", exact: true }).click();
+    await expect(page.locator("#batch-status")).toContainText("完成当前文件");
+    release();
+    await expect(page.locator("#batch-status")).toContainText("成功 1，失败 0，未处理 1");
+    await page.getByRole("button", { name: "选用此视频", exact: true }).click();
+    await expect(page.locator("#title")).toHaveText("first.mp4");
+    await expect(page.getByRole("button", { name: "授权缓存目录", exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "批量预处理视频", exact: true }).click();
+    await expect(page.locator("#batch-status")).toContainText("成功 2，失败 0，未处理 0");
+    await page.getByRole("button", { name: "选用此视频", exact: true }).nth(1).click();
+    await expect(page.locator("#title")).toHaveText("next.mp4");
+    expect(fixture.requests).toHaveLength(0);
+  } finally {
+    release();
     await opener.close();
     await fixture.close();
     await rm(directory, { recursive: true, force: true });
