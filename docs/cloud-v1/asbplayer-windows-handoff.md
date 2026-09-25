@@ -1,5 +1,14 @@
 # asbplayer Windows Git 接续说明
 
+2026-09-25 后续缓存与导入优化代码候选为
+`105f15da6f2e38c525ac0b967a10e58da9ed2dca`，仍在
+`codex/asbplayer-windows-validation-fixes`。缓存改为原视频旁的「缓存视频」目录和可辨认名称，
+授权目录后直接传递磁盘 File，取消整部视频的 HTTP 预读。
+已安装复验、原生目录授权、耗时、门禁及未验证边界见
+[相邻缓存与磁盘文件导入回执](asbplayer-adjacent-cache-validation.md)。
+该代码候选的本机完整 Windows 门禁及双平台 CI 均通过，三次完整浏览器门禁各 249/249。
+下述 `cf2c017` 为前一轮候选，不能替代本轮门禁。
+
 2026-09-25 本轮完整门禁代码候选为 `cf2c0171a7f13af6be3a1eb97e48b4c269b1b09f`，工作分支为
 `codex/asbplayer-windows-validation-fixes`。此轮补齐 Unicode 快捷方式、PowerShell 5.1
 UTF-8 配置读取、损坏缓存、原生媒体事件竞态和中文系统字体修复，并校正 API 初始化预算的配置传递。
